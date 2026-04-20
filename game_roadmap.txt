@@ -1,0 +1,1263 @@
+GAME ROADMAP — STEP BY STEP
+Project goal:
+A realistic sandbox building game with:
+- easy building at the base level, like Stormworks
+- deeper optional component customization
+- Space Engineers-like destructible world/map
+- Starbase-like granular destruction feel
+- high-rate control/logic simulation where needed
+
+IMPORTANT DEVELOPMENT RULES
+1. Physics foundation comes before gameplay features.
+2. Simulation architecture comes before content.
+3. Destructible structure comes before advanced components.
+4. Component damage model comes before lots of components.
+5. Components come before logic/control.
+6. Logic/control comes before advanced systems.
+7. Optimization comes after a real playable prototype exists.
+8. Multiplayer comes near the end.
+9. Rendering/graphics must exist early enough to debug the game, but the graphics ENGINE does NOT come before physics for this project.
+10. Start with debug rendering first, not fancy graphics.
+
+Correct priority:
+- minimal rendering first
+- then physics core
+- then simulation foundation
+- then destructible world
+Reason:
+This game depends much more on simulation, destruction, and control systems than on advanced visuals.
+What should be done early is:
+- window
+- input
+- camera
+- debug rendering
+- simple mesh rendering
+That is enough at the start.
+Fancy graphics, materials, lighting, effects, and rendering optimization come later.
+
+==================================================
+STAGE 0 — PRE-PRODUCTION
+==================================================
+
+STEP 0
+Write a 1-page vision document.
+Must define:
+- what the game is
+- what makes it different
+- what “realistic” means
+- what “simple first, deep later” means
+- what the core loop is
+
+Result:
+You can explain the game briefly and consistently.
+
+STEP 1
+Write the hard design rules.
+Include:
+- simple building first
+- advanced complexity optional
+- fixed-step simulation
+- high-rate logic only where needed
+- destruction must be granular
+- vehicles and buildings use same structural backbone
+- components can be partially damaged
+- do not simulate everything at maximum detail all the time
+
+Result:
+A short rule list you can check decisions against.
+
+STEP 2
+Lock the initial tech stack.
+Use:
+- C++
+- VS Code
+- CMake
+- MSVC
+- Git
+
+Result:
+No more time wasted switching tools.
+
+STEP 3
+Create the main roadmap and milestone documents.
+Create:
+- vision.txt
+- roadmap.txt
+- current_milestone.txt
+- decisions.txt
+- testing_checklist.txt
+
+Result:
+Project planning exists before coding expands.
+
+==================================================
+STAGE 1 — PROJECT SETUP
+==================================================
+
+STEP 4
+Create the Git repository.
+
+STEP 5
+Create the base folders:
+- engine/
+- game/
+- docs/
+- tests/
+- tools/
+- third_party/
+- assets/
+
+STEP 6
+Create README with:
+- build instructions
+- current status
+- dependencies
+
+STEP 7
+Set up CMake.
+Need:
+- Debug build
+- Release build
+- executable target
+
+STEP 8
+Make sure the project builds from command line.
+
+STEP 9
+Create the application entry point.
+
+STEP 10
+Open a window and close it cleanly.
+
+STEP 11
+Add logging system:
+- info
+- warning
+- error
+
+STEP 12
+Add assert/debug check system.
+
+STEP 13
+Add basic input handling:
+- keyboard
+- mouse
+- window events
+
+Result for Stage 1:
+Project builds, opens, receives input, logs, and exits cleanly.
+
+==================================================
+STAGE 2 — MINIMAL RENDERING / DEBUG VISUALIZATION
+==================================================
+
+STEP 14
+Create a very basic renderer.
+Goal:
+Render anything at all.
+
+STEP 15
+Draw one colored triangle or cube.
+
+STEP 16
+Add a free-fly debug camera.
+
+STEP 17
+Add world-space transform support:
+- position
+- rotation
+- scale
+
+STEP 18
+Add debug drawing helpers:
+- lines
+- axes
+- wire boxes
+- points
+
+STEP 19
+Add simple on-screen debug text:
+- FPS
+- frame time
+- sim steps
+
+Result for Stage 2:
+You can look at the world and debug systems visually.
+
+NOTE:
+This is the rendering you need first.
+Do NOT spend months on a full graphics engine here.
+
+==================================================
+STAGE 3 — MATH FOUNDATION
+==================================================
+
+STEP 20
+Implement Vec2.
+
+STEP 21
+Implement Vec3.
+
+STEP 22
+Implement Mat3.
+
+STEP 23
+Implement Mat4.
+
+STEP 24
+Implement Quaternion.
+
+STEP 25
+Implement math operations:
+- add/subtract
+- scalar multiply/divide
+- dot product
+- cross product
+- length
+- normalize
+
+STEP 26
+Implement transform helpers:
+- local to world
+- world to local
+- compose transforms
+
+STEP 27
+Implement geometry helpers:
+- AABB
+- ray
+- plane
+- sphere if useful
+
+STEP 28
+Create unit tests for math.
+
+Result for Stage 3:
+Core math is stable and tested.
+
+==================================================
+STAGE 4 — TIME / FIXED SIMULATION FOUNDATION
+==================================================
+
+STEP 29
+Implement frame timing.
+
+STEP 30
+Implement fixed timestep accumulator.
+
+STEP 31
+Separate render update from simulation update.
+
+STEP 32
+Store:
+- previous sim state
+- current sim state
+- interpolation alpha placeholder
+
+STEP 33
+Test at different render frame rates.
+
+Required test:
+Simulation must behave the same at:
+- low render FPS
+- high render FPS
+
+Result for Stage 4:
+The simulation is no longer tied to rendering.
+
+==================================================
+STAGE 5 — RIGID BODY PHYSICS CORE
+==================================================
+
+STEP 34
+Create rigid body data structure with:
+- position
+- orientation
+- linear velocity
+- angular velocity
+- mass
+- inverse mass
+- inertia tensor
+- inverse inertia tensor
+- accumulated force
+- accumulated torque
+
+STEP 35
+Implement force application.
+
+STEP 36
+Implement torque application.
+
+STEP 37
+Integrate linear motion.
+
+STEP 38
+Integrate angular motion.
+
+STEP 39
+Apply gravity.
+
+STEP 40
+Spawn one dynamic rigid body.
+
+STEP 41
+Test a falling cube.
+
+STEP 42
+Normalize rotation every update if needed.
+
+STEP 43
+Add simple damping.
+
+Result for Stage 5:
+One rigid body can move correctly and stably.
+
+==================================================
+STAGE 6 — COLLISION DETECTION
+==================================================
+
+STEP 44
+Create collider types:
+- plane
+- box
+- sphere if useful
+
+STEP 45
+Attach colliders to bodies.
+
+STEP 46
+Make brute-force broadphase first.
+
+STEP 47
+Implement box-plane collision detection.
+
+STEP 48
+Implement box-box collision detection.
+
+STEP 49
+Create contact manifold data:
+- normal
+- penetration
+- contact point(s)
+
+STEP 50
+Visualize contacts with debug draw.
+
+Result for Stage 6:
+Bodies can detect collision.
+
+==================================================
+STAGE 7 — COLLISION RESPONSE
+==================================================
+
+STEP 51
+Implement penetration correction.
+
+STEP 52
+Implement impulse resolution.
+
+STEP 53
+Implement restitution.
+
+STEP 54
+Implement friction.
+
+STEP 55
+Test body-ground interaction.
+
+STEP 56
+Test multiple bodies colliding.
+
+STEP 57
+Add sleep/inactive state for resting bodies.
+
+Result for Stage 7:
+Bodies can collide and settle without obvious instability.
+
+==================================================
+STAGE 8 — CONSTRAINTS / JOINTS
+==================================================
+
+STEP 58
+Create a generic constraint/joint interface.
+
+STEP 59
+Implement fixed joint.
+
+STEP 60
+Test two bodies rigidly attached.
+
+STEP 61
+Implement hinge joint.
+
+STEP 62
+Add hinge limits.
+
+STEP 63
+Add motorized hinge.
+
+STEP 64
+Test a simple rotating assembly.
+
+Result for Stage 8:
+Basic mechanical assemblies are possible.
+
+==================================================
+STAGE 9 — SIMULATION FOUNDATION / WORLD CONTAINER
+==================================================
+
+STEP 65
+Create a World class/container.
+
+STEP 66
+Add stable entity IDs.
+
+STEP 67
+Add simulation phases:
+- pre-physics
+- physics
+- post-physics
+- render prep
+
+STEP 68
+Add basic serialization direction/stub.
+
+STEP 69
+Add profiling markers/timers for subsystems.
+
+STEP 70
+Add object registration/lifetime management.
+
+Result for Stage 9:
+Physics now lives inside a real simulation framework.
+
+==================================================
+STAGE 10 — STRUCTURAL WORLD FOUNDATION
+==================================================
+
+STEP 71
+Choose v1 structure representation:
+- chunked cell grid
+
+STEP 72
+Define chunk size.
+
+STEP 73
+Implement world-to-chunk and local cell addressing.
+
+STEP 74
+Create chunk storage.
+
+STEP 75
+Create structural cell data:
+- occupied
+- material ID
+- HP
+- structure ID placeholder
+
+STEP 76
+Render occupied cells as cubes.
+
+STEP 77
+Implement camera raycast for building.
+
+STEP 78
+Add place-cell action.
+
+STEP 79
+Add remove-cell action.
+
+STEP 80
+Add save/load for simple cell structures.
+
+Result for Stage 10:
+You can build and delete a basic destructible structural world.
+
+==================================================
+STAGE 11 — STRUCTURAL CONNECTIVITY
+==================================================
+
+STEP 81
+Define cell neighbor lookup.
+
+STEP 82
+Implement connected-region detection.
+
+STEP 83
+Assign structure IDs to connected bodies.
+
+STEP 84
+Recompute connectivity after a cell is removed.
+
+STEP 85
+Detect splits in a structure.
+
+STEP 86
+Convert detached structure into a rigid body.
+
+STEP 87
+Test:
+Remove support under structure and make detached part fall.
+
+Result for Stage 11:
+Structure can break apart physically.
+
+==================================================
+STAGE 12 — MATERIALS AND STRUCTURAL PROPERTIES
+==================================================
+
+STEP 88
+Create a material database with first materials:
+- steel
+- aluminum
+- light armor
+- heavy armor
+- stone
+
+STEP 89
+Add material properties:
+- density
+- HP
+- structural strength
+
+STEP 90
+Use density for mass calculations.
+
+STEP 91
+Use HP for destruction.
+
+STEP 92
+Use structural strength in support/failure rules.
+
+Result for Stage 12:
+Different materials behave differently.
+
+==================================================
+STAGE 13 — STRUCTURAL DAMAGE / DESTRUCTION
+==================================================
+
+STEP 93
+Create hit application to cells.
+
+STEP 94
+Subtract damage from cell HP.
+
+STEP 95
+Destroy cell at zero HP.
+
+STEP 96
+Re-run connectivity after cell destruction.
+
+STEP 97
+Implement local radius/explosion damage.
+
+STEP 98
+Visualize cell damage with debug colors or overlays.
+
+STEP 99
+Test:
+Shoot support and make structure collapse.
+
+Result for Stage 13:
+The world is destructible in a meaningful way.
+
+==================================================
+STAGE 14 — BASIC BUILDING TOOLS
+==================================================
+
+STEP 100
+Add rotate placement.
+
+STEP 101
+Add drag-line placement.
+
+STEP 102
+Add drag-plane placement.
+
+STEP 103
+Add mirror mode.
+
+STEP 104
+Add undo/redo.
+
+STEP 105
+Improve placement preview/highlight.
+
+Result for Stage 14:
+Building is no longer painfully slow.
+
+==================================================
+STAGE 15 — COMPONENT DAMAGE MODEL
+==================================================
+
+STEP 106
+Define component base data:
+- transform
+- mount relation
+- bounds
+- health/state
+- simulation interface
+- config data
+
+STEP 107
+Define component damage states:
+- intact
+- damaged
+- degraded
+- broken
+- detached
+
+STEP 108
+Define component exposure rules:
+- protected
+- partially exposed
+- exposed
+
+STEP 109
+Define damage sources:
+- direct hit
+- blast
+- collision
+
+STEP 110
+Define detach rule if support/mount is lost.
+
+STEP 111
+Create dummy component attached to structure.
+
+STEP 112
+Test:
+Damage and detach dummy component.
+
+Result for Stage 15:
+Component damage rules exist before lots of components are added.
+
+==================================================
+STAGE 16 — COMPONENT FRAMEWORK
+==================================================
+
+STEP 113
+Create component type registry.
+
+STEP 114
+Create mount points.
+
+STEP 115
+Create ports:
+- power
+- data
+- fluid placeholder
+
+STEP 116
+Create per-component simulation update interface.
+
+STEP 117
+Add component mass/inertia contribution to parent body.
+
+STEP 118
+Add component save/load basics.
+
+Result for Stage 16:
+Components now have a reusable framework.
+
+==================================================
+STAGE 17 — FIRST SIMPLE COMPONENTS
+==================================================
+
+STEP 119
+Implement Battery component.
+
+STEP 120
+Implement Thruster component.
+
+STEP 121
+Implement Fuel Tank component.
+
+STEP 122
+Implement Seat/Controller component.
+
+STEP 123
+Mount components on a structure.
+
+STEP 124
+Apply thruster force to the vehicle body.
+
+STEP 125
+Test:
+Built structure with components behaves as one vehicle.
+
+Result for Stage 17:
+First real functional creations exist.
+
+==================================================
+STAGE 18 — FIRST CONTROLLABLE VEHICLE
+==================================================
+
+STEP 126
+Aggregate vehicle mass from structure + components.
+
+STEP 127
+Compute center of mass.
+
+STEP 128
+Map player controls to mounted thrusters.
+
+STEP 129
+Build a tiny test spacecraft/hover brick.
+
+STEP 130
+Fly it manually.
+
+STEP 131
+Save/load the test craft.
+
+Result for Stage 18:
+A player-built vehicle can move in the world.
+
+==================================================
+STAGE 19 — PROJECTILES AND COMPONENT-AWARE DAMAGE
+==================================================
+
+STEP 132
+Create projectile entity.
+
+STEP 133
+Simulate projectile motion.
+
+STEP 134
+Detect projectile hit on structure.
+
+STEP 135
+Apply damage to structural cells.
+
+STEP 136
+Detect projectile hit on exposed components.
+
+STEP 137
+Apply component damage states.
+
+STEP 138
+Test armor shielding:
+Component behind armor must survive until armor is breached.
+
+STEP 139
+Test support loss:
+Destroy mount/support and detach component.
+
+Result for Stage 19:
+Vehicles can be damaged structurally and functionally.
+
+==================================================
+STAGE 20 — LOGIC / SIGNAL FOUNDATION
+==================================================
+
+STEP 140
+Define signal types:
+- bool
+- number
+
+STEP 141
+Define logic node interface.
+
+STEP 142
+Create connection graph.
+
+STEP 143
+Implement first nodes:
+- constant
+- switch
+- AND
+- OR
+- NOT
+- add
+- multiply
+
+STEP 144
+Run logic at a fixed tick.
+
+STEP 145
+Connect logic output to a thruster input.
+
+STEP 146
+Test:
+Simple player-made logic can control a component.
+
+Result for Stage 20:
+Programmable creations become possible.
+
+==================================================
+STAGE 21 — MULTI-RATE SIMULATION
+==================================================
+
+STEP 147
+Separate logic tick from physics tick.
+
+STEP 148
+Run first test at:
+- physics 60 Hz
+- logic 120 Hz
+
+STEP 149
+Define how logic reads physics state.
+
+STEP 150
+Define how logic commands are applied to lower-rate systems.
+
+STEP 151
+Test:
+System stays stable.
+
+STEP 152
+Raise selected logic/control tests to 240 Hz.
+
+STEP 153
+Later, test selected subsystems at 300/600 Hz.
+
+IMPORTANT:
+Do NOT run the whole world at 600 Hz.
+
+Result for Stage 21:
+The game supports high-rate control where it matters.
+
+==================================================
+STAGE 22 — SENSORS AND ACTUATORS
+==================================================
+
+STEP 154
+Implement sensors:
+- altitude
+- linear velocity
+- angular velocity
+- orientation/tilt
+
+STEP 155
+Implement actuator interfaces:
+- thruster input
+- hinge target
+- motor target
+
+STEP 156
+Build a small stabilizer test craft.
+
+STEP 157
+Use sensor + logic + actuator loop to stabilize it.
+
+STEP 158
+Tune loop behavior.
+
+Result for Stage 22:
+You prove the game can do better control/stabilization than Stormworks-style low-rate behavior.
+
+==================================================
+STAGE 23 — BETTER STRUCTURAL BUILDING REPRESENTATION
+==================================================
+
+STEP 159
+Add structural part definitions:
+- beam
+- plate
+- panel
+- slope
+
+STEP 160
+Allow player to place these as meaningful build parts.
+
+STEP 161
+Internally map these parts to structural cells/subcells.
+
+STEP 162
+Keep destruction granular at the internal cell level.
+
+STEP 163
+Test:
+Easy placement + granular destruction both work.
+
+Result for Stage 23:
+You approach the intended Stormworks build ease + Starbase/SE destruction mix.
+
+==================================================
+STAGE 24 — COMPONENT TIERS
+==================================================
+
+STEP 164
+Add Tier 0 component mode:
+- place
+- tiny config
+- always works
+
+STEP 165
+Add Tier 1 component mode:
+- dimensions
+- material
+- main tuning parameters
+
+STEP 166
+Add optional Tier 2 advanced mode for selected components only.
+
+STEP 167
+Hide advanced settings by default.
+
+STEP 168
+Test:
+Beginner can still use parts without engineering everything.
+
+Result for Stage 24:
+Simple first, deeper later is now real in the component UI.
+
+==================================================
+STAGE 25 — FIRST ADVANCED COMPONENT FAMILY
+==================================================
+
+STEP 169
+Choose one family only:
+- gun
+or
+- rocket motor
+
+STEP 170
+Build simple place-and-use version first.
+
+STEP 171
+Build configurable version next.
+
+STEP 172
+Build optional advanced internal editing after that.
+
+STEP 173
+Test:
+Simple use remains easy, advanced use adds depth.
+
+Result for Stage 25:
+The game starts to show its unique identity.
+
+==================================================
+STAGE 26 — MECHANICAL ASSEMBLIES
+==================================================
+
+STEP 174
+Make rotors/hinges buildable as components.
+
+STEP 175
+Add limits and motor control in gameplay context.
+
+STEP 176
+Build a test turret base.
+
+STEP 177
+Build elevation control for the turret.
+
+STEP 178
+Mount a weapon placeholder or weapon component.
+
+STEP 179
+Control turret with player input or logic.
+
+Result for Stage 26:
+Moving machinery and weapon mounts become practical.
+
+==================================================
+STAGE 27 — BETTER DAMAGE FIDELITY
+==================================================
+
+STEP 180
+Add partial damage to larger placed parts.
+
+STEP 181
+Add internal exposure after armor breach.
+
+STEP 182
+Add degraded component behavior:
+- less thrust
+- reduced capacity
+- slower response
+instead of instant death only.
+
+STEP 183
+Improve blast damage interaction.
+
+STEP 184
+Test:
+Damage feels layered, not binary.
+
+Result for Stage 27:
+Damage begins to feel much more believable and interesting.
+
+==================================================
+STAGE 28 — ARMOR / PENETRATION
+==================================================
+
+STEP 185
+Add armor thickness logic.
+
+STEP 186
+Add material-based penetration logic.
+
+STEP 187
+Add residual damage after penetration.
+
+STEP 188
+Add layered armor support.
+
+STEP 189
+Test:
+Armor layouts matter.
+
+Result for Stage 28:
+Military-focused building becomes more meaningful.
+
+==================================================
+STAGE 29 — WORLD / MAP
+==================================================
+
+STEP 190
+Create terrain chunk system.
+
+STEP 191
+Render terrain.
+
+STEP 192
+Add destructible/minable terrain.
+
+STEP 193
+Add static structures/buildings using same structural backbone.
+
+STEP 194
+Add world streaming/chunk loading rules.
+
+STEP 195
+Test:
+Move around a larger world without loading everything at once.
+
+Result for Stage 29:
+The game now has a Space Engineers-like map/world basis.
+
+==================================================
+STAGE 30 — BUILDER UX POLISH
+==================================================
+
+STEP 196
+Improve part browser.
+
+STEP 197
+Add search/filter/categories.
+
+STEP 198
+Add better property/config panel.
+
+STEP 199
+Add measurement tools.
+
+STEP 200
+Add COM and force overlays.
+
+STEP 201
+Add connection overlays:
+- wiring
+- data
+- fluid
+
+STEP 202
+Add blueprint system.
+
+STEP 203
+Improve undo/redo and selection tools.
+
+Result for Stage 30:
+The game becomes much more usable for larger creations.
+
+==================================================
+STAGE 31 — PERFORMANCE PASS
+==================================================
+
+STEP 204
+Profile all major systems.
+
+STEP 205
+Optimize broadphase/spatial queries.
+
+STEP 206
+Optimize chunk-local updates.
+
+STEP 207
+Sleep inactive structures and components.
+
+STEP 208
+Optimize connectivity recalculation.
+
+STEP 209
+Optimize damage propagation.
+
+STEP 210
+Optimize high-rate logic so only needed systems run fast.
+
+Result for Stage 31:
+The sandbox scales better without throwing away the design goals.
+
+==================================================
+STAGE 32 — CONTENT EXPANSION
+==================================================
+
+STEP 211
+Add more propulsion types.
+
+STEP 212
+Add more power components.
+
+STEP 213
+Add more sensor types.
+
+STEP 214
+Add more utility parts.
+
+STEP 215
+Add more weapon families.
+
+STEP 216
+Add fluid/network systems as needed.
+
+STEP 217
+Add thermal/cooling only when enough systems justify it.
+
+Result for Stage 32:
+The sandbox grows without breaking its architecture.
+
+==================================================
+STAGE 33 — GAMEPLAY LAYER
+==================================================
+
+STEP 218
+Define the first real gameplay loop.
+
+STEP 219
+Add resource gathering/mining.
+
+STEP 220
+Add production/manufacturing if desired.
+
+STEP 221
+Add missions/objectives.
+
+STEP 222
+Add combat scenarios.
+
+STEP 223
+Add AI/factions if needed.
+
+STEP 224
+Add progression/economy if needed.
+
+Result for Stage 33:
+The sandbox becomes a game.
+
+==================================================
+STAGE 34 — MULTIPLAYER
+==================================================
+
+STEP 225
+Choose authority model.
+
+STEP 226
+Sync structures.
+
+STEP 227
+Sync components.
+
+STEP 228
+Sync destruction/damage.
+
+STEP 229
+Sync logic/control state.
+
+STEP 230
+Add interpolation/prediction where needed.
+
+STEP 231
+Test:
+Two players can build, fly, fight, and break things reliably.
+
+Result for Stage 34:
+Multiplayer exists after the singleplayer sandbox is already strong.
+
+==================================================
+VERY IMPORTANT MILESTONES
+==================================================
+
+MILESTONE A
+A falling cube with stable fixed-step physics.
+
+MILESTONE B
+A placeable/removable structural world.
+
+MILESTONE C
+A structure that splits and falls when support is destroyed.
+
+MILESTONE D
+A first controllable player-built vehicle.
+
+MILESTONE E
+A vehicle that can be damaged structurally and functionally.
+
+MILESTONE F
+A stabilizer/control loop that works well.
+
+MILESTONE G
+A building system that is easy to use but still destructs granularly.
+
+MILESTONE H
+A first advanced configurable component family.
+
+MILESTONE I
+A larger destructible world/map.
+
+==================================================
+THINGS NOT TO DO TOO EARLY
+==================================================
+
+Do NOT do these too early:
+- fancy graphics engine
+- advanced lighting pipeline
+- fancy shaders
+- full weather
+- massive content packs
+- survival mode
+- AI factions
+- economy
+- multiplayer
+- full thermal/fluid simulation everywhere
+- ultra-detailed advanced internals for every part
+
+==================================================
+THE CORRECT PRIORITY ORDER
+==================================================
+
+1. Minimal rendering/debug tools
+2. Math
+3. Time/fixed simulation
+4. Physics
+5. Collision
+6. Joints
+7. Simulation framework
+8. Structural world
+9. Structural destruction
+10. Component damage model
+11. Component framework
+12. Simple components
+13. Vehicles
+14. Projectiles/damage
+15. Logic/control
+16. Multi-rate simulation
+17. Sensors/actuators
+18. Better building representation
+19. Component tiers
+20. Advanced components
+21. Mechanical assemblies
+22. Better damage fidelity
+23. Armor/penetration
+24. World/map
+25. UX polish
+26. Performance
+27. Content
+28. Gameplay
+29. Multiplayer
+
+End of roadmap.

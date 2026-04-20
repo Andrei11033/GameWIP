@@ -1,0 +1,28 @@
+# Build folders
+/build/
+
+# VS Code
+.vscode/
+
+# MSYS / temp
+*.log
+*.tmp
+*.cache
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+
+# Binaries
+*.exe
+*.out
+*.dll
+
+# Debug symbols
+*.pdb
+*.ilk
+
+# Other
+*.user
+*.suo
