@@ -1,0 +1,45 @@
+Tech stack:
+- Language: C++
+- Compiler: g++ (MSYS2 UCRT64)
+- Build system: CMake
+- Build tool: Ninja
+- Editor: VS Code
+- Version control: Git
+- Platform target v1: Windows
+
+Project priorities:
+1. physics core
+2. simulation foundation
+3. destructible structural world
+4. component damage model
+5. component framework
+6. simple components
+7. logic/control
+8. advanced systems
+9. gameplay
+10. multiplayer later
+
+Rendering decision:
+- minimal rendering/debug rendering early
+- full graphics engine not first
+- graphics should support development and debugging first
+
+Simulation decisions:
+- fixed timestep required
+- render update must be separate from simulation update
+- only selected control/logic subsystems should run at high rate
+
+Building decisions:
+- base building should feel simple, close to Stormworks
+- deeper component configuration is optional
+- structural world should support granular destruction
+- larger placed parts may still be internally subdivided for damage/destruction
+
+World decisions:
+- map/world should be closer to Space Engineers style
+- vehicles and buildings should share the same structural backbone
+
+Component decisions:
+- components must support damage/degrade/detach states
+- advanced component editing should only exist for selected systems
+- simple default components must always exist

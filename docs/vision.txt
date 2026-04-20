@@ -1,0 +1,29 @@
+Project:
+A realistic sandbox building game where the player can build vehicles, weapons, missiles, buildings, etc.
+
+Core identity:
+- easy building at the base level, similar in spirit to Stormworks
+- deeper optional customization for important components
+- destructible world and structures, closer to Space Engineers
+- granular structural/component destruction, inspired by Starbase
+- high-rate control/logic simulation for things like stabilizers, missiles, servos, guidance, and weapons
+
+Main design goals:
+- building must be simple to start with
+- advanced complexity must be optional
+- realism matters, but usability matters more
+- destruction must affect structure and function
+- components should be fast to place, rich to configure, and granular to destroy
+
+Game focus:
+- player-made creations
+- military and technical vehicles
+- programmable and controllable systems
+- realistic-ish engineering choices without becoming unbearable to build
+
+Important principles:
+- simulation first, visuals second
+- strong physics foundation
+- same structural backbone for vehicles and buildings
+- simple first, deep later
+- only selected subsystems need very high tick rates

@@ -1,0 +1,290 @@
+0. BOOTSTRAP
+[ ] Project builds from CMake
+[ ] Executable runs
+[ ] Folder structure exists
+[ ] Logging system exists
+[ ] Assertions/debug checks exist
+[ ] Input handling exists
+
+1. MINIMAL RENDERING / DEBUG
+[ ] Window opens and closes
+[ ] Render one object
+[ ] Free camera works
+[ ] Transform system exists
+[ ] Debug draw exists
+[ ] On-screen debug info exists
+
+2. MATH FOUNDATION
+[ ] Vec3 implemented
+[ ] Basic operations (+ - * /)
+[ ] Dot product
+[ ] Cross product
+[ ] Normalize/length
+[ ] Mat4 basic functionality
+[ ] Quaternion basic functionality
+[ ] Transform helpers
+[ ] Geometry helpers (AABB/ray/plane)
+[ ] Math tests pass
+
+3. SIMULATION TIMING
+[ ] Frame timing implemented
+[ ] Fixed timestep accumulator
+[ ] Separate render/update loops
+[ ] Previous/current sim state stored
+[ ] Same behavior at different FPS
+
+4. PHYSICS CORE
+[ ] Rigid body struct created
+[ ] Force accumulation
+[ ] Torque accumulation
+[ ] Linear integration
+[ ] Angular integration
+[ ] Gravity applied
+[ ] One body falling works
+[ ] Damping added
+[ ] Rotation normalization
+
+5. COLLISION DETECTION
+[ ] Collider types (plane/box)
+[ ] Colliders attached to bodies
+[ ] Broadphase (basic)
+[ ] Body-ground collision
+[ ] Body-body collision
+[ ] Contact data (normal/point)
+[ ] Debug draw contacts
+
+6. COLLISION RESPONSE
+[ ] Penetration correction
+[ ] Impulse resolution
+[ ] Restitution
+[ ] Friction
+[ ] Stable resting bodies
+[ ] Multiple bodies collision stable
+[ ] Sleeping system
+
+7. CONSTRAINTS / JOINTS
+[ ] Joint interface exists
+[ ] Fixed joint works
+[ ] Bodies attach correctly
+[ ] Hinge joint works
+[ ] Hinge limits
+[ ] Motorized hinge
+[ ] Assembly test works
+
+8. SIMULATION FRAMEWORK
+[ ] World container exists
+[ ] Entity IDs stable
+[ ] Update phases exist
+[ ] Object lifetime management
+[ ] Profiling markers
+[ ] Serialization stub
+
+9. STRUCTURAL WORLD
+[ ] Chunk system created
+[ ] Cell addressing works
+[ ] Chunk storage exists
+[ ] Cell data defined
+[ ] Cells render as cubes
+[ ] Raycast for building
+[ ] Place cell works
+[ ] Remove cell works
+[ ] Save/load structures
+
+10. STRUCTURAL CONNECTIVITY
+[ ] Neighbor lookup works
+[ ] Connected regions detected
+[ ] Structure IDs assigned
+[ ] Recompute after edits
+[ ] Structure split detection
+[ ] Detached structure becomes rigid body
+[ ] Falling structure test works
+
+11. MATERIALS
+[ ] Material database created
+[ ] Density defined
+[ ] HP defined
+[ ] Structural strength defined
+[ ] Mass uses density
+[ ] Damage uses HP
+[ ] Support uses strength
+
+12. STRUCTURAL DESTRUCTION
+[ ] Damage applied to cells
+[ ] HP reduced correctly
+[ ] Cells destroyed at zero HP
+[ ] Connectivity recomputed after damage
+[ ] Explosion damage implemented
+[ ] Damage visualization
+[ ] Collapse test works
+
+13. BUILDING TOOLS
+[ ] Rotation placement
+[ ] Drag-line placement
+[ ] Drag-plane placement
+[ ] Mirror mode
+[ ] Undo/redo
+[ ] Placement preview improved
+
+14. COMPONENT DAMAGE MODEL
+[ ] Component base structure defined
+[ ] Damage states defined
+[ ] Exposure rules defined
+[ ] Damage sources defined
+[ ] Detach rules defined
+[ ] Test component attached
+[ ] Component damage/detach works
+
+15. COMPONENT FRAMEWORK
+[ ] Component registry exists
+[ ] Mount points implemented
+[ ] Ports (power/data) implemented
+[ ] Component update interface
+[ ] Mass/inertia contribution added
+[ ] Component save/load
+
+16. FIRST COMPONENTS
+[ ] Battery works
+[ ] Thruster works
+[ ] Fuel tank works
+[ ] Controller works
+[ ] Components mount on structure
+[ ] Thruster affects body
+[ ] Simple vehicle works
+
+17. FIRST VEHICLE
+[ ] Total mass aggregation
+[ ] Center of mass computed
+[ ] Player input mapped
+[ ] Small craft built
+[ ] Craft controllable
+[ ] Save/load craft
+
+18. PROJECTILES / DAMAGE
+[ ] Projectile entity exists
+[ ] Projectile motion simulated
+[ ] Structure hit detection
+[ ] Structural damage applied
+[ ] Component hit detection
+[ ] Component damage applied
+[ ] Armor shielding works
+[ ] Support-loss detach works
+
+19. LOGIC SYSTEM
+[ ] Signal types defined
+[ ] Logic node interface
+[ ] Connection graph
+[ ] Basic nodes (AND/OR/etc)
+[ ] Fixed logic tick
+[ ] Logic controls components
+[ ] Player logic works
+
+20. MULTI-RATE SIMULATION
+[ ] Logic tick separate from physics
+[ ] Read rules defined
+[ ] Write rules defined
+[ ] Higher-rate logic tested
+[ ] Stability verified
+[ ] Selective high-rate support
+
+21. SENSORS / ACTUATORS
+[ ] Sensors implemented
+[ ] Actuators implemented
+[ ] Stabilizer craft built
+[ ] Closed loop works
+[ ] Control tuned
+
+22. BUILDING REPRESENTATION
+[ ] Larger build parts exist
+[ ] Parts map to internal cells
+[ ] Internal destruction granular
+[ ] Easy build + granular destruction works
+
+23. COMPONENT TIERS
+[ ] Simple mode works
+[ ] Configurable mode works
+[ ] Advanced mode exists
+[ ] Advanced hidden by default
+[ ] Beginner usability preserved
+
+24. ADVANCED COMPONENT
+[ ] One family selected
+[ ] Simple version works
+[ ] Configurable version works
+[ ] Advanced version works
+[ ] Depth vs ease validated
+
+25. MECHANICAL ASSEMBLIES
+[ ] Hinges buildable
+[ ] Limits/motors usable
+[ ] Turret built
+[ ] Elevation works
+[ ] Weapon mounted
+[ ] Controlled by player/logic
+
+26. DAMAGE FIDELITY
+[ ] Partial damage works
+[ ] Internal exposure works
+[ ] Degraded behavior works
+[ ] Blast improved
+[ ] Layered damage verified
+
+27. ARMOR / PENETRATION
+[ ] Armor thickness logic
+[ ] Material penetration logic
+[ ] Residual damage
+[ ] Layered armor
+[ ] Armor layouts matter
+
+28. WORLD / MAP
+[ ] Terrain chunks
+[ ] Terrain rendering
+[ ] Destructible terrain
+[ ] Static structures
+[ ] World streaming
+[ ] Large world test
+
+29. UX POLISH
+[ ] Part browser improved
+[ ] Search/filter/categories
+[ ] Config panel improved
+[ ] Measurement tools
+[ ] COM/force overlays
+[ ] Connection overlays
+[ ] Blueprint system
+[ ] Selection tools improved
+
+30. PERFORMANCE
+[ ] Profiling done
+[ ] Broadphase optimized
+[ ] Chunk updates optimized
+[ ] Sleeping systems
+[ ] Connectivity optimized
+[ ] Damage propagation optimized
+[ ] High-rate sim optimized
+
+31. CONTENT
+[ ] More propulsion types
+[ ] More power components
+[ ] More sensors
+[ ] More utility parts
+[ ] More weapons
+[ ] Fluid/network systems
+[ ] Thermal systems (if needed)
+
+32. GAMEPLAY
+[ ] Core loop defined
+[ ] Resource gathering
+[ ] Manufacturing
+[ ] Missions/objectives
+[ ] Combat scenarios
+[ ] AI/factions
+[ ] Progression/economy
+
+33. MULTIPLAYER
+[ ] Authority model chosen
+[ ] Structures synced
+[ ] Components synced
+[ ] Damage synced
+[ ] Logic synced
+[ ] Interpolation/prediction
+[ ] Multiplayer test works

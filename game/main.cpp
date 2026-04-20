@@ -2,6 +2,6 @@
 
 int main()
 {
-    std::cout << "GameTime bootstrap OK\n";
+    std::cout << "Game bootstrap OK\n";
     return 0;
 }

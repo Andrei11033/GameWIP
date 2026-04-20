@@ -1,0 +1,10 @@
+Bootstrap checklist
+
+[x] Git initialized
+[x] Folder structure created
+[x] .gitignore created
+[x] CMakeLists.txt created
+[x] main.cpp created
+[x] CMake configure succeeds
+[x] Build succeeds
+[x] Executable runs
