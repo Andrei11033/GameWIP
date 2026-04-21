@@ -1,8 +1,8 @@
 0. BOOTSTRAP
-[ ] Project builds from CMake
-[ ] Executable runs
-[ ] Folder structure exists
-[ ] Logging system exists
+[x] Project builds from CMake
+[x] Executable runs
+[x] Folder structure exists
+[x] Logging system exists
 [ ] Assertions/debug checks exist
 [ ] Input handling exists
 

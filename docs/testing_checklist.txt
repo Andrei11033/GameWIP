@@ -8,3 +8,43 @@ Bootstrap checklist
 [x] CMake configure succeeds
 [x] Build succeeds
 [x] Executable runs
+[x] Logging system exists
+    Implementation Steps:
+    [x] Step 1: Plan the Structure (create logger.h in tools/)
+    [x] Step 2: Define Log Levels (enum with INFO, WARN, ERROR)
+    [x] Step 3: Create the Log Function (takes level and message)
+    [x] Step 4: Add Timestamps (optional, using chrono)
+    [x] Step 5: Handle Output and Safety (cout/cerr, no crashes)
+    [x] Step 6: Test and Integrate (calls in main.cpp)
+    [x] Step 7: Add output to a file
+    [x] Step 8: Optimize the synchronous logger (readability + runtime + fewer temporary allocations)
+    Testing:
+    [x] Log function compiles without errors
+    [x] INFO level outputs to console
+    [x] WARN level outputs to console  
+    [x] ERROR level outputs to stderr
+    [x] Messages include level prefix (e.g., [INFO])
+    [x] Optional: Timestamps included in output
+    [x] No crashes when logging
+    [x] Logging to files works correctly
+    [x] Verify logger runs correctly through VS Code build/run flow
+    Next Iteration: Async Logger Refactor
+    [ ] Move logger files into tools/logger/logger.h and tools/logger/logger.cpp
+    [ ] Update includes to use logger/logger.h
+    [ ] Update CMake to compile logger.cpp
+    [ ] Keep logger.h as a thin API-only header
+    [ ] Move file/time/queue/thread internals into logger.cpp
+    [ ] Add startup-only init(mode, level)
+    [ ] Add shutdown() to flush and stop the logger worker thread
+    [ ] Add flush() so queued messages can be forced out on demand
+    [ ] Add LogEntry queue with owned message strings
+    [ ] Add one logger worker thread
+    [ ] Add mutex + condition_variable for queue synchronization
+    [ ] Make log() enqueue work instead of writing directly
+    [ ] Keep OutputMode fixed after init() in async v1
+    [ ] Allow LogLevel changes at runtime
+    [ ] File-open failure falls back cleanly to console output
+    [ ] Verify queued logs flush correctly on shutdown
+    [ ] Verify logger works correctly when multiple threads log at once
+[ ] Assertions/debug checks exist
+[ ] Input handling exists
