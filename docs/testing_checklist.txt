@@ -10,14 +10,14 @@ Bootstrap checklist
 [x] Executable runs
 [x] Logging system exists
     Implementation Steps:
-    [x] Step 1: Plan the Structure (create logger.h in tools/)
-    [x] Step 2: Define Log Levels (enum with INFO, WARN, ERROR)
-    [x] Step 3: Create the Log Function (takes level and message)
-    [x] Step 4: Add Timestamps (optional, using chrono)
-    [x] Step 5: Handle Output and Safety (cout/cerr, no crashes)
-    [x] Step 6: Test and Integrate (calls in main.cpp)
-    [x] Step 7: Add output to a file
-    [x] Step 8: Optimize the synchronous logger (readability + runtime + fewer temporary allocations)
+    [x] Plan the Structure (create logger.h in tools/)
+    [x] Define Log Levels (enum with INFO, WARN, ERROR)
+    [x] Create the Log Function (takes level and message)
+    [x] Add Timestamps (optional, using chrono)
+    [x] Handle Output and Safety (cout/cerr, no crashes)
+    [x] Test and Integrate (calls in main.cpp)
+    [x] Add output to a file
+    [x] Optimize the synchronous logger (readability + runtime + fewer temporary allocations)
     Testing:
     [x] Log function compiles without errors
     [x] INFO level outputs to console
@@ -29,14 +29,19 @@ Bootstrap checklist
     [x] Logging to files works correctly
     [x] Verify logger runs correctly through VS Code build/run flow
     Next Iteration: Async Logger Refactor
-    [ ] Move logger files into tools/logger/logger.h and tools/logger/logger.cpp
-    [ ] Update includes to use logger/logger.h
-    [ ] Update CMake to compile logger.cpp
-    [ ] Keep logger.h as a thin API-only header
-    [ ] Move file/time/queue/thread internals into logger.cpp
-    [ ] Add startup-only init(mode, level)
-    [ ] Add shutdown() to flush and stop the logger worker thread
-    [ ] Add flush() so queued messages can be forced out on demand
+    [x] Move logger files into tools/logger/logger.h and tools/logger/logger.cpp
+    [x] Update includes to use logger/logger.h
+    [x] Keep logger.h as a thin API-only header
+    [x] Move file/time/queue/thread internals into logger.cpp
+    [x] Update CMake to compile logger.cpp
+    [x] Add FATAL severity
+    [x] Add a FATAl pop up window.
+    [x] Add seperate DBWIN debug output function
+    [x] Add startup-only init(mode, level)
+    [x] Add shutdown() to flush and stop the logger worker thread
+    [x] Add flush() so queued messages can be forced out on demand
+    [x] Add another [] in the debug message, that says where it comes from. like Main, Engine, Vido Engine etc.
+    [x] Make Logger compile as a dll.
     [ ] Add LogEntry queue with owned message strings
     [ ] Add one logger worker thread
     [ ] Add mutex + condition_variable for queue synchronization
@@ -46,5 +51,6 @@ Bootstrap checklist
     [ ] File-open failure falls back cleanly to console output
     [ ] Verify queued logs flush correctly on shutdown
     [ ] Verify logger works correctly when multiple threads log at once
+    [ ] Optimize
 [ ] Assertions/debug checks exist
 [ ] Input handling exists

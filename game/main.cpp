@@ -1,7 +1,11 @@
 #include <iostream>
 #include <optional>
 #include <string_view>
-#include "logger.h"
+#include "logger/logger.h"
+
+using GameWIP::Logger;
+using GameWIP::LogLevel;
+using GameWIP::OutputMode;
 
 namespace
 {
@@ -42,9 +46,14 @@ namespace
             return LogLevel::WARN;
         }
 
-        if (value == "err")
+        if (value == "error")
         {
             return LogLevel::ERR;
+        }
+
+        if (value == "fatal")
+        {
+            return LogLevel::FATAL;
         }
 
         return std::nullopt;
@@ -62,7 +71,7 @@ int main(int argc, char *argv[])
 
         if (!parsedMode.has_value())
         {
-            std::cerr << "Usage: GameWIP.exe [none|console|file|both] [info|warn|err]" << std::endl;
+            std::cerr << "Usage: GameWIP.exe [none|console|file|both] [info|warn|error|fatal]" << std::endl;
             return 1;
         }
 
@@ -75,7 +84,7 @@ int main(int argc, char *argv[])
 
         if (!parsedLevel.has_value())
         {
-            std::cerr << "Usage: GameWIP.exe [none|console|file|both] [info|warn|err]" << std::endl;
+            std::cerr << "Usage: GameWIP.exe [none|console|file|both] [info|warn|error|fatal]" << std::endl;
             return 1;
         }
 
@@ -84,14 +93,18 @@ int main(int argc, char *argv[])
 
     if (argc > 3)
     {
-        std::cerr << "Usage: GameWIP.exe [none|console|file|both] [info|warn|err]" << std::endl;
+        std::cerr << "Usage: GameWIP.exe [none|console|file|both] [info|warn|error|fatal]" << std::endl;
         return 1;
     }
 
     Logger::init(mode, level);
 
-    Logger::log(LogLevel::INFO, "Info test message");
-    Logger::log(LogLevel::WARN, "Warn test message");
-    Logger::log(LogLevel::ERR, "Err test message");
+    Logger::log(LogLevel::INFO, "Main", "Info test message");
+    Logger::log(LogLevel::WARN, "Main", "Warn test message");
+    Logger::log(LogLevel::ERR, "Main", "Error test message");
+    Logger::log(LogLevel::FATAL, "Main", "Fatal test message");
+    Logger::shutdown();
+    Logger::log(LogLevel::INFO, "Main", "This message should not be logged because the logger is shutdown.");
+    Logger::logDBWIN(LogLevel::INFO, "Main", "This message should appear in the Windows debug output.");
     return 0;
 }
