@@ -9,48 +9,63 @@ Bootstrap checklist
 [x] Build succeeds
 [x] Executable runs
 [x] Logging system exists
-    Implementation Steps:
-    [x] Plan the Structure (create logger.h in tools/)
-    [x] Define Log Levels (enum with INFO, WARN, ERROR)
-    [x] Create the Log Function (takes level and message)
-    [x] Add Timestamps (optional, using chrono)
-    [x] Handle Output and Safety (cout/cerr, no crashes)
-    [x] Test and Integrate (calls in main.cpp)
-    [x] Add output to a file
-    [x] Optimize the synchronous logger (readability + runtime + fewer temporary allocations)
-    Testing:
-    [x] Log function compiles without errors
+[x] Logger implementation updated to current async DLL version
+    Current logger feature set:
+    [x] Logger moved to tools/logger/logger.h and tools/logger/logger.cpp
+    [x] logger.h kept as a thin API-only header
+    [x] logger.cpp owns file/time/queue/thread internals
+    [x] Logger builds as a DLL
+    [x] CMake copies required runtime DLLs next to GameWIP.exe automatically
+    [x] Log levels include INFO, WARN, ERR, and FATAL
+    [x] Fatal popup window exists
+    [x] Separate DBWIN debug output function exists
+    [x] Source tag is included in messages, e.g. [Main], [Engine]
+    [x] Timestamps are included in log output
+    [x] Time formatting uses thread-safe localtime_s
+    [x] Time formatting uses strftime with a fixed stack buffer
+    [x] init(mode, level, maxQueueSize) is startup-only configuration
+    [x] OutputMode stays fixed after init()
+    [x] LogLevel stays fixed after init()
+    [x] Logger owns queued strings through LogEntry
+    [x] Oversized log messages are truncated before entering the queue
+    [x] Queued LogEntry objects are moved into the queue to avoid an extra copy
+    [x] One logger worker thread processes queued messages
+    [x] mutex + condition_variable protect the queue and worker coordination
+    [x] log() enqueues instead of writing directly
+    [x] flush() waits until the queue is empty and the worker is idle
+    [x] shutdown() drains work and stops the worker thread cleanly
+    [x] Automatic cleanup is registered with atexit
+    [x] File-open or filesystem setup failure falls back to console output
+    [x] WARN / ERR / FATAL always emit ANSI color codes on console output
+    [x] Queue soft limit drops INFO/WARN when full
+    [x] Queue hard limit drops all severities at 2x maxQueueSize
+    [x] Dropped log count is exposed through getDroppedLogCount()
+    [x] Logger worker drains queued messages in batches
+    [x] Hot log-line construction uses append/reserve instead of std::format
+    [x] log() skips disabled and below-minimum messages before queueing
+    [x] Duplicate init() calls are reported and ignored while the logger is running
+    [x] Public logger header includes the standard headers it uses
+    [x] Public logger API has /// documentation comments
+    Verification:
+    [x] Logger compiles without errors
     [x] INFO level outputs to console
-    [x] WARN level outputs to console  
+    [x] WARN level outputs to console
     [x] ERROR level outputs to stderr
-    [x] Messages include level prefix (e.g., [INFO])
-    [x] Optional: Timestamps included in output
-    [x] No crashes when logging
+    [x] FATAL level outputs to stderr
+    [x] Messages include [time][level][source]: message format
+    [x] DBWIN output works in a Windows debug viewer
     [x] Logging to files works correctly
-    [x] Verify logger runs correctly through VS Code build/run flow
-    Next Iteration: Async Logger Refactor
-    [x] Move logger files into tools/logger/logger.h and tools/logger/logger.cpp
-    [x] Update includes to use logger/logger.h
-    [x] Keep logger.h as a thin API-only header
-    [x] Move file/time/queue/thread internals into logger.cpp
-    [x] Update CMake to compile logger.cpp
-    [x] Add FATAL severity
-    [x] Add a FATAl pop up window.
-    [x] Add seperate DBWIN debug output function
-    [x] Add startup-only init(mode, level)
-    [x] Add shutdown() to flush and stop the logger worker thread
-    [x] Add flush() so queued messages can be forced out on demand
-    [x] Add another [] in the debug message, that says where it comes from. like Main, Engine, Vido Engine etc.
-    [x] Make Logger compile as a dll.
-    [ ] Add LogEntry queue with owned message strings
-    [ ] Add one logger worker thread
-    [ ] Add mutex + condition_variable for queue synchronization
-    [ ] Make log() enqueue work instead of writing directly
-    [ ] Keep OutputMode fixed after init() in async v1
-    [ ] Allow LogLevel changes at runtime
-    [ ] File-open failure falls back cleanly to console output
-    [ ] Verify queued logs flush correctly on shutdown
-    [ ] Verify logger works correctly when multiple threads log at once
-    [ ] Optimize
+    [x] File-open failure falls back cleanly to console output
+    [x] Logger runs correctly through the VS Code build/run flow
+    [x] Queued logs flush correctly on shutdown
+    [x] Logger works correctly when multiple threads log at once
+    [x] Queue pressure test drops low-priority logs and preserves ERR markers
+    [x] Small-queue pressure test exits normally without deadlocking
+    [x] Logger hot path optimized with move enqueue + fixed-buffer time formatting
+    Optional future polish:
+    [ ] Cache formatted timestamp strings by second if profiling shows time formatting cost matters
+    [ ] Decide whether logs should always go beside the executable or under the project root
+    [ ] Standardize source tags into enums/categories if the engine grows
+    [ ] Consider wrapping logger globals into one internal LoggerState object
 [ ] Assertions/debug checks exist
 [ ] Input handling exists

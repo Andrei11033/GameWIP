@@ -1,5 +1,4 @@
-#include <iostream>
-#include <optional>
+#include <exception>
 #include <string_view>
 #include "logger/logger.h"
 
@@ -9,102 +8,51 @@ using GameWIP::OutputMode;
 
 namespace
 {
-    std::optional<OutputMode> parseOutputMode(std::string_view value)
+    constexpr OutputMode defaultOutputMode = OutputMode::BOTH;
+    constexpr LogLevel defaultLogLevel = LogLevel::INFO;
+    constexpr std::size_t defaultQueueSize = 1024;
+    constexpr std::string_view mainLogSource = "Main";
+
+    int runGame()
     {
-        if (value == "none")
-        {
-            return OutputMode::NONE;
-        }
+        Logger::log(LogLevel::INFO, mainLogSource, "GameWIP startup complete.");
 
-        if (value == "console")
-        {
-            return OutputMode::CONSOLE;
-        }
+        // TODO: Initialize the next engine/game system here.
+        // TODO: Add the main loop here once the bootstrap stage is ready.
 
-        if (value == "file")
-        {
-            return OutputMode::FILE;
-        }
-
-        if (value == "both")
-        {
-            return OutputMode::BOTH;
-        }
-
-        return std::nullopt;
-    }
-
-    std::optional<LogLevel> parseLogLevel(std::string_view value)
-    {
-        if (value == "info")
-        {
-            return LogLevel::INFO;
-        }
-
-        if (value == "warn")
-        {
-            return LogLevel::WARN;
-        }
-
-        if (value == "error")
-        {
-            return LogLevel::ERR;
-        }
-
-        if (value == "fatal")
-        {
-            return LogLevel::FATAL;
-        }
-
-        return std::nullopt;
+        Logger::log(LogLevel::INFO, mainLogSource, "GameWIP shutting down cleanly.");
+        return 0;
     }
 } // namespace
 
-int main(int argc, char *argv[])
+int main()
 {
-    OutputMode mode = OutputMode::BOTH;
-    LogLevel level = LogLevel::INFO;
+    Logger::init(defaultOutputMode, defaultLogLevel, defaultQueueSize);
 
-    if (argc > 1)
+    int exitCode = 0;
+
+    try
     {
-        std::optional<OutputMode> parsedMode = parseOutputMode(argv[1]);
-
-        if (!parsedMode.has_value())
-        {
-            std::cerr << "Usage: GameWIP.exe [none|console|file|both] [info|warn|error|fatal]" << std::endl;
-            return 1;
-        }
-
-        mode = parsedMode.value();
+        exitCode = runGame();
+    }
+    catch (const std::exception &error)
+    {
+        Logger::log(LogLevel::FATAL, mainLogSource, error.what());
+        Logger::logDBWIN(LogLevel::FATAL, mainLogSource, error.what());
+        Logger::flush();
+        Logger::fatalPopUp(error.what());
+        exitCode = 1;
+    }
+    catch (...)
+    {
+        constexpr std::string_view unknownErrorMessage = "Unhandled non-standard exception.";
+        Logger::log(LogLevel::FATAL, mainLogSource, unknownErrorMessage);
+        Logger::logDBWIN(LogLevel::FATAL, mainLogSource, unknownErrorMessage);
+        Logger::flush();
+        Logger::fatalPopUp(unknownErrorMessage);
+        exitCode = 1;
     }
 
-    if (argc > 2)
-    {
-        std::optional<LogLevel> parsedLevel = parseLogLevel(argv[2]);
-
-        if (!parsedLevel.has_value())
-        {
-            std::cerr << "Usage: GameWIP.exe [none|console|file|both] [info|warn|error|fatal]" << std::endl;
-            return 1;
-        }
-
-        level = parsedLevel.value();
-    }
-
-    if (argc > 3)
-    {
-        std::cerr << "Usage: GameWIP.exe [none|console|file|both] [info|warn|error|fatal]" << std::endl;
-        return 1;
-    }
-
-    Logger::init(mode, level);
-
-    Logger::log(LogLevel::INFO, "Main", "Info test message");
-    Logger::log(LogLevel::WARN, "Main", "Warn test message");
-    Logger::log(LogLevel::ERR, "Main", "Error test message");
-    Logger::log(LogLevel::FATAL, "Main", "Fatal test message");
     Logger::shutdown();
-    Logger::log(LogLevel::INFO, "Main", "This message should not be logged because the logger is shutdown.");
-    Logger::logDBWIN(LogLevel::INFO, "Main", "This message should appear in the Windows debug output.");
-    return 0;
+    return exitCode;
 }

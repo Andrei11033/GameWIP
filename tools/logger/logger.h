@@ -1,7 +1,8 @@
 #pragma once           // This header guard prevents the logger from being included twice in the same translation unit.
 #include <string_view> // For std::string_view, which reads log messages without copying them.
+#include <cstddef>     // For std::size_t.
 
-#if defined(_WIN32)
+#if defined(_WIN32) // On Windows, we need to use __declspec to export/import the logger functions.
 #if defined(GAMEWIP_LOGGER_BUILD)
 #define GAMEWIP_LOGGER_API __declspec(dllexport)
 #else
@@ -14,7 +15,8 @@
 namespace GameWIP
 {
     // LogLevel table, using enum to auto assign numbers to the contents.
-    // This is used to determine the severity of the logs.
+
+    /// @brief Determines the severity of a log message.
     enum class LogLevel
     {
         INFO,
@@ -23,7 +25,7 @@ namespace GameWIP
         FATAL // something that the program cannot recover from, and should be fixed immediately.
     };
 
-    // This is used to determine where the logs should be outputted.
+    /// @brief Determines where log messages should be written.
     enum class OutputMode
     {
         NONE,
@@ -35,32 +37,46 @@ namespace GameWIP
     class GAMEWIP_LOGGER_API Logger
     {
     public:
-        // Setter for the log level.
-        static void setLogLevel(LogLevel level);
-
-        // A function that returns the minimum log level.
+        /// @brief Gets the minimum log level.
+        /// @return The minimum log level.
         static LogLevel getMinLogLevel();
 
-        // A function that returns the current output mode.
+        /// @brief Gets the current output mode.
+        /// @return The current output mode.
         static OutputMode getOutputMode();
 
-        // A function to initialize the logger.
-        static void init(OutputMode newMode = OutputMode::BOTH, LogLevel newLevel = LogLevel::INFO);
+        /// @brief Gets the number of dropped log messages.
+        /// @return The number of dropped log messages.
+        static std::size_t getDroppedLogCount();
 
-        // The log function, can be called to log messages.
+        /// @brief Initializes the logger.
+        /// @param newMode The output mode.
+        /// @param newLevel The minimum log level.
+        /// @param maxQueueSize The maximum size of the log queue.
+        static void init(OutputMode newMode = OutputMode::BOTH, LogLevel newLevel = LogLevel::INFO, std::size_t maxQueueSize = 1024);
+
         // std::string_view reads message without forcing an extra std::string allocation on every call.
+
+        /// @brief Logs a message.
+        /// @param level The log level of the message.
+        /// @param source The source tag for the message.
+        /// @param message The log message to be written.
         static void log(LogLevel level, std::string_view source, std::string_view message);
 
-        // A function to log messages to the Windows debug output.
+        /// @brief Logs a message to the Windows debug output.
+        /// @param level The log level of the message.
+        /// @param source The source tag for the message.
+        /// @param message The log message to be written.
         static void logDBWIN(LogLevel level, std::string_view source, std::string_view message);
 
-        // A function to show a fatal error message in a pop-up dialog box.
+        /// @brief Displays a fatal error popup with the specified message.
+        /// @param message The error message to display.
         static void fatalPopUp(std::string_view message);
 
-        // A function to flush the log file.
+        /// @brief Flushes the log file and console streams to ensure all log messages are written out.
         static void flush();
 
-        // A function to shutdown the logger.
+        /// @brief Shuts down the logger, ensuring all log messages are processed and resources are cleaned up.
         static void shutdown();
     };
 }
