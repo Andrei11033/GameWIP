@@ -1,5 +1,5 @@
-#include "logger.h"           // Include the corresponding header file for the Logger class.
-#include <windows.h>          // For Windows-specific functions like OutputDebugString and MessageBox.
+#include "logger.h" // Include the corresponding header file for the Logger class.
+
 #include <chrono>             // For getting the current time (std::chrono::system_clock).
 #include <condition_variable> // For std::condition_variable to signal the logging thread when new log entries are added.
 #include <cstddef>            // For std::size_t.
@@ -17,6 +17,11 @@
 #include <string_view>        // For std::string_view.
 #include <thread>             // For std::thread to run the logging thread.
 #include <utility>            // For std::move, for optimizing string handling.
+
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h> // For Windows-specific functions like OutputDebugString and MessageBox.
 
 using GameWIP::LogLevel;
 using GameWIP::OutputMode;
@@ -105,7 +110,13 @@ namespace
     /// @return None.
     void shutdownLoggerAtExit()
     {
-        if (workerRunning)
+        bool workerActive;
+        {
+            std::lock_guard<std::mutex> lock(logMutex);
+            workerActive = workerRunning;
+        }
+
+        if (workerActive)
         {
             GameWIP::Logger::shutdown();
         }
@@ -293,7 +304,13 @@ std::size_t GameWIP::Logger::getDroppedLogCount()
 
 void GameWIP::Logger::init(OutputMode newMode, LogLevel newLevel, std::size_t newMaxQueueSize)
 {
-    if (workerRunning)
+    bool workerActive;
+    {
+        std::lock_guard<std::mutex> lock(logMutex);
+        workerActive = workerRunning;
+    }
+
+    if (workerActive)
     {
         constexpr std::string_view alreadyRunningMessage = "Logger::init() called while the logger is already running. Ignoring new configuration.";
         log(LogLevel::ERR, "Logger-Init", alreadyRunningMessage);

@@ -1,8 +1,12 @@
 #include "assert.h"
 #include "logger/logger.h"
 
-#include <windows.h>
 #include <string>
+
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
 
 namespace GameWIP::Debug
 {

@@ -1,6 +1,7 @@
-#pragma once           // This header guard prevents the logger from being included twice in the same translation unit.
-#include <string_view> // For std::string_view, which reads log messages without copying them.
+#pragma once // This header guard prevents the logger from being included twice in the same translation unit.
+
 #include <cstddef>     // For std::size_t.
+#include <string_view> // For std::string_view, which reads log messages without copying them.
 
 #if defined(_WIN32) // On Windows, we need to use __declspec to export/import the logger functions.
 #if defined(GAMEWIP_LOGGER_BUILD)

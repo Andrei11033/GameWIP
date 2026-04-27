@@ -15,6 +15,10 @@ add_library(Assert STATIC
     engine/debug/assert/assert.cpp
 )
 
+add_library(Input STATIC
+    engine/input/input.cpp
+)
+
 # Public include path because anything linking Logger needs logger/logger.h.
 target_include_directories(Logger PUBLIC
     tools
@@ -25,9 +29,15 @@ target_include_directories(Assert PUBLIC
     tools
 )
 
+target_include_directories(Input PUBLIC
+    engine
+)
+
 target_compile_features(Logger PUBLIC cxx_std_20)
 
 target_compile_features(Assert PUBLIC cxx_std_20)
+
+target_compile_features(Input PUBLIC cxx_std_20)
 
 target_compile_definitions(Logger PRIVATE GAMEWIP_LOGGER_BUILD)
 
@@ -43,6 +53,7 @@ target_link_libraries(Assert PUBLIC
 target_link_libraries(GameWIP PRIVATE
     Logger
     Assert
+    Input
 )
 
 target_include_directories(GameWIP PRIVATE

@@ -10,7 +10,7 @@ Bootstrap checklist
 [x] Executable runs
 [x] Logging system exists
 [x] Logger implementation updated to current async DLL version
-    Current logger feature set:
+    Planned logger feature set:
     [x] Logger moved to tools/logger/logger.h and tools/logger/logger.cpp
     [x] logger.h kept as a thin API-only header
     [x] logger.cpp owns file/time/queue/thread internals
@@ -104,13 +104,41 @@ Bootstrap checklist
     [ ] Add fatal assertion popup only if assertion failures need user-visible reporting
     [ ] Add compile-time switches for always-on or always-off assertions
     [ ] Add unit tests once the test framework exists
-[ ] Input handling exists
-    [ ] Input module lives under engine/input
-    [ ] Key enum or key identifiers exist
-    [ ] Current key state is stored
-    [ ] Previous key state is stored
-    [ ] isKeyDown works
-    [ ] wasKeyPressed works
-    [ ] wasKeyReleased works
-    [ ] Input state advances once per frame
-    [ ] Simple test path proves pressed/held/released behavior
+[x] Input handling exists
+    Planned input feature set:
+    [x] Input module lives under engine/input/input.h and engine/input/input.cpp
+    [x] Input builds as a small static Input library
+    [x] First input milestone has no dependency on windowing/rendering code
+    [x] Key identifiers exist for the first useful keyboard keys
+    [x] Current key state is stored
+    [x] Previous key state is stored
+    [x] Backend-facing key feed function is declared
+    [x] Backend-facing key feed function updates current key state
+    [x] Input state can advance one frame by copying current state into previous state
+    [x] isKeyDown reports keys currently held
+    [x] wasKeyPressed reports keys newly pressed this frame
+    [x] wasKeyReleased reports keys released this frame
+    [x] Unknown/out-of-range keys are handled safely
+    [x] Public input header includes only the standard headers it needs
+    [x] Public input API has /// documentation comments
+    Verification:
+    [x] Input library compiles without errors
+    [x] GameWIP links against Input successfully
+    [x] Passing through one frame preserves held keys
+    [x] Pressing a key sets isKeyDown and wasKeyPressed
+    [x] Holding a key keeps isKeyDown true and wasKeyPressed false on the next frame
+    [x] Releasing a key clears isKeyDown and sets wasKeyReleased
+    [x] Releasing an already-up key does not produce a false release event
+    [x] Multiple keys can be tracked independently
+    [x] Input behavior is verified from a temporary main.cpp test path
+    [x] Input test code is removed or guarded after verification
+    Optional future polish:
+    [ ] Move backend-facing key feed out of gameplay-facing API once real backend exists
+    [ ] Input module owns real platform/window input polling
+    [ ] Add mouse button state tracking
+    [ ] Add mouse position and movement delta tracking
+    [ ] Add scroll wheel tracking
+    [ ] Add gamepad support once the window/input backend is selected
+    [ ] Add input action mapping after raw keys work
+    [ ] Add configurable key bindings after action mapping exists
+    [ ] Add text input support separately from gameplay key input

@@ -3,10 +3,13 @@
 
 #include "logger/logger.h"
 #include "debug/assert/assert.h"
+#include "input/input.h"
 
 using GameWIP::Logger;
 using GameWIP::LogLevel;
 using GameWIP::OutputMode;
+using GameWIP::Input::InputState;
+using GameWIP::Input::Key;
 
 namespace
 {

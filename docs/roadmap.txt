@@ -3,8 +3,8 @@
 [x] Executable runs
 [x] Folder structure exists
 [x] Logging system exists
-[ ] Assertions/debug checks exist
-[ ] Input handling exists
+[x] Assertions/debug checks exist
+[x] Input handling exists
 
 1. MINIMAL RENDERING / DEBUG
 [ ] Window opens and closes
