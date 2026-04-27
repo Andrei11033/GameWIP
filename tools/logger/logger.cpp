@@ -273,34 +273,24 @@ namespace
     }
 }
 
-/// @brief Gets the minimum log level.
-/// @return The minimum log level.
 LogLevel GameWIP::Logger::getMinLogLevel()
 {
     std::lock_guard<std::mutex> lock(logMutex);
     return minLogLevel;
 }
 
-/// @brief Gets the current output mode.
-/// @return The current output mode.
 OutputMode GameWIP::Logger::getOutputMode()
 {
     std::lock_guard<std::mutex> lock(logMutex);
     return mode;
 }
 
-/// @brief Gets the number of dropped log messages.
-/// @return The number of dropped log messages.
 std::size_t GameWIP::Logger::getDroppedLogCount()
 {
     std::lock_guard<std::mutex> lock(logMutex);
     return droppedLogs;
 }
 
-/// @brief Initializes the logger.
-/// @param newMode The output mode.
-/// @param newLevel The minimum log level.
-/// @param newMaxQueueSize The maximum size of the log queue.
 void GameWIP::Logger::init(OutputMode newMode, LogLevel newLevel, std::size_t newMaxQueueSize)
 {
     if (workerRunning)
@@ -409,7 +399,6 @@ void GameWIP::Logger::init(OutputMode newMode, LogLevel newLevel, std::size_t ne
     }
 }
 
-/// @brief Flushes the log file and console streams to ensure all log messages are written out.
 void GameWIP::Logger::flush()
 {
     {
@@ -427,7 +416,6 @@ void GameWIP::Logger::flush()
     }
 }
 
-/// @brief Shuts down the logger, ensuring all log messages are processed and resources are cleaned up.
 void GameWIP::Logger::shutdown()
 {
     std::size_t droppedCount;
@@ -462,10 +450,6 @@ void GameWIP::Logger::shutdown()
     workerBusy = false;
 }
 
-/// @brief Logs a message.
-/// @param entryLevel The log level of the message.
-/// @param source The source tag for the message.
-/// @param message The log message to be written.
 void GameWIP::Logger::log(LogLevel entryLevel, std::string_view source, std::string_view message)
 {
     bool shouldWarnSoftLimit = false;
@@ -528,10 +512,6 @@ void GameWIP::Logger::log(LogLevel entryLevel, std::string_view source, std::str
     }
 }
 
-/// @brief Logs a message to the Windows debug output.
-/// @param level The log level of the message.
-/// @param source The source tag for the message.
-/// @param message The log message to be written.
 void GameWIP::Logger::logDBWIN(LogLevel level, std::string_view source, std::string_view message)
 {
     LogStyle style = getLogStyle(level);
@@ -541,8 +521,6 @@ void GameWIP::Logger::logDBWIN(LogLevel level, std::string_view source, std::str
     OutputDebugStringA(logMessage.c_str());
 }
 
-/// @brief Displays a fatal error popup with the specified message.
-/// @param message The error message to display.
 void GameWIP::Logger::fatalPopUp(std::string_view message)
 {
     std::string messageText(message);

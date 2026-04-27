@@ -1,6 +1,8 @@
 #include <exception>
 #include <string_view>
+
 #include "logger/logger.h"
+#include "debug/assert/assert.h"
 
 using GameWIP::Logger;
 using GameWIP::LogLevel;
@@ -34,6 +36,7 @@ int main()
     try
     {
         exitCode = runGame();
+        GAMEWIP_ASSERT_MSG(exitCode == 0, "Game exited with non-zero exit code.");
     }
     catch (const std::exception &error)
     {

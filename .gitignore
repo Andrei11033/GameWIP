@@ -1,8 +1,6 @@
 # Build folders
 /build/
-
-# VS Code
-.vscode/
+/build-release/
 
 # MSYS / temp
 *.log
@@ -18,6 +16,7 @@ cmake_install.cmake
 *.exe
 *.out
 *.dll
+*.a
 
 # Debug symbols
 *.pdb

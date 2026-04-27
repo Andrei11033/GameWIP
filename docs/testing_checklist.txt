@@ -67,5 +67,50 @@ Bootstrap checklist
     [ ] Decide whether logs should always go beside the executable or under the project root
     [ ] Standardize source tags into enums/categories if the engine grows
     [ ] Consider wrapping logger globals into one internal LoggerState object
-[ ] Assertions/debug checks exist
+[x] Assertions/debug checks exist
+    Planned assertion/debug feature set:
+    [x] Debug checks live under engine/debug/assert/assert.h and engine/debug/assert/assert.cpp
+    [x] Debug checks build as a small static Debug library
+    [x] Debug library links against Logger for reporting failures
+    [x] Logger does not depend on Debug, keeping dependency direction one-way
+    [x] GAMEWIP_ASSERT(condition) macro exists
+    [x] GAMEWIP_ASSERT_MSG(condition, message) macro exists
+    [x] Assertion macros capture the failed condition text
+    [x] Assertion macros capture file, line, and function
+    [x] Assertion implementation formats a clear failure message
+    [x] Assertion failures log through Logger
+    [x] Assertion failures also emit DBWIN/debug output
+    [x] Assertion failures flush logs before breaking
+    [x] Debug builds trigger a debugger break on assertion failure
+    [x] Release builds compile assertions out when NDEBUG is defined
+    [x] Passing assertions have no side effects
+    [x] Assertion macros are safe to use in if/else statements
+    [x] Public debug header includes only the standard headers it needs
+    [x] Public debug API has /// documentation comments
+    Verification:
+    [x] Assert library compiles without errors
+    [x] GameWIP links against Assert successfully
+    [x] Passing GAMEWIP_ASSERT does nothing visible
+    [x] Failing GAMEWIP_ASSERT logs the condition text
+    [x] Failing GAMEWIP_ASSERT_MSG logs the custom message
+    [x] Failure output includes file, line, and function
+    [x] Failure output appears in console/log file according to Logger mode
+    [x] Failure output appears in a Windows debug viewer
+    [x] Debugger break triggers in a debug build
+    [x] Release build compiles with assertions disabled
+    [x] Assertion test code is removed or guarded after verification
+    Optional future polish:
+    [ ] Add a recoverable debug-check macro if needed
+    [ ] Add fatal assertion popup only if assertion failures need user-visible reporting
+    [ ] Add compile-time switches for always-on or always-off assertions
+    [ ] Add unit tests once the test framework exists
 [ ] Input handling exists
+    [ ] Input module lives under engine/input
+    [ ] Key enum or key identifiers exist
+    [ ] Current key state is stored
+    [ ] Previous key state is stored
+    [ ] isKeyDown works
+    [ ] wasKeyPressed works
+    [ ] wasKeyReleased works
+    [ ] Input state advances once per frame
+    [ ] Simple test path proves pressed/held/released behavior
