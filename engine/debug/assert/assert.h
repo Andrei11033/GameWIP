@@ -5,11 +5,11 @@
 namespace GameWIP::Debug
 {
     /// @brief Handles failed assertions.
-    /// @param conditionText the expression that failed, as text
-    /// @param message optional custom message, empty when using plain assert
-    /// @param file source file where the assert failed
-    /// @param line source line where the assert failed
-    /// @param function where the assert failed
+    /// @param conditionText the expression that failed, as text.
+    /// @param message optional custom message, empty when using plain assert.
+    /// @param file source file where the assert failed.
+    /// @param line source line where the assert failed.
+    /// @param function where the assert failed.
     void handleAssertFailure(std::string_view conditionText, std::string_view message, std::string_view file, int line, std::string_view function);
 }
 

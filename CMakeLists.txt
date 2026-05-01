@@ -19,6 +19,10 @@ add_library(Input STATIC
     engine/input/input.cpp
 )
 
+add_library(PlatformWin32 STATIC
+    engine/platform/win32/window.cpp
+)
+
 # Public include path because anything linking Logger needs logger/logger.h.
 target_include_directories(Logger PUBLIC
     tools
@@ -33,11 +37,18 @@ target_include_directories(Input PUBLIC
     engine
 )
 
+target_include_directories(PlatformWin32 PUBLIC
+    engine
+    tools
+)
+
 target_compile_features(Logger PUBLIC cxx_std_20)
 
 target_compile_features(Assert PUBLIC cxx_std_20)
 
 target_compile_features(Input PUBLIC cxx_std_20)
+
+target_compile_features(PlatformWin32 PUBLIC cxx_std_20)
 
 target_compile_definitions(Logger PRIVATE GAMEWIP_LOGGER_BUILD)
 
@@ -50,10 +61,16 @@ target_link_libraries(Assert PUBLIC
     Logger
 )
 
+target_link_libraries(PlatformWin32 PUBLIC
+    Input
+    Logger
+)
+
 target_link_libraries(GameWIP PRIVATE
     Logger
     Assert
     Input
+    PlatformWin32
 )
 
 target_include_directories(GameWIP PRIVATE

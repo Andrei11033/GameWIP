@@ -5,7 +5,7 @@
 
 namespace GameWIP::Input
 {
-    // The keys we want to track
+    // The keys we want to track.
     enum class Key
     {
         W,
@@ -28,8 +28,8 @@ namespace GameWIP::Input
     class InputState
     {
     private:
-        std::array<bool, static_cast<std::size_t>(Key::Count)> currentKeys{};  // Current frame key states
-        std::array<bool, static_cast<std::size_t>(Key::Count)> previousKeys{}; // Previous frame key states
+        std::array<bool, static_cast<std::size_t>(Key::Count)> currentKeys{};  // Current frame key states.
+        std::array<bool, static_cast<std::size_t>(Key::Count)> previousKeys{}; // Previous frame key states.
 
     public:
         /// @brief Copies current key states into previous key states for the next frame.

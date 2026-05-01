@@ -1,4 +1,4 @@
-Bootstrap checklist
+0. Bootstrap checklist
 
 [x] Git initialized
 [x] Folder structure created
@@ -142,3 +142,64 @@ Bootstrap checklist
     [ ] Add input action mapping after raw keys work
     [ ] Add configurable key bindings after action mapping exists
     [ ] Add text input support separately from gameplay key input
+
+1. MINIMAL RENDERING / DEBUG
+
+[x] Window opens and closes
+    Planned window feature set:
+    [x] Win32 window module lives under engine/platform/win32/window.h and engine/platform/win32/window.cpp
+    [x] Win32 window module builds as a small static PlatformWin32 library
+    [x] PlatformWin32 links against Input
+    [ ] PlatformWin32 feeds InputState from window messages
+    [x] PlatformWin32 does not depend on game code
+    [x] Window wrapper owns the native window handle
+    [x] Window wrapper destroys the native window handle during shutdown
+    [x] Win32 window class is registered before window creation
+    [x] WM_NCCREATE stores the Window pointer and still allows default Win32 creation handling
+    [x] Window creation accepts title, width, and height
+    [x] Window title appears from WindowDescription title
+    [x] Window creation reports failure clearly
+    [ ] Requested window size is interpreted as client-area size
+    [x] Window exposes whether close was requested
+    [x] Window exposes a requestClose function
+    [x] Window stores current client width and height
+    [x] WM_SIZE updates stored client width and height
+    [x] Message pump uses non-blocking polling for the future game loop
+    [x] WM_CLOSE requests clean shutdown
+    [x] WM_DESTROY is handled safely
+    [ ] WM_KEYDOWN maps supported virtual keys to GameWIP::Input::Key
+    [ ] WM_KEYUP maps supported virtual keys to GameWIP::Input::Key
+    [ ] Unsupported virtual keys are ignored safely
+    [ ] Escape key requests window close for the first test
+    [x] Input advanceFrame is called once per loop before processing new messages
+    [x] Public Win32 window header avoids exposing windows.h where practical
+    [x] Public Win32 window API has /// documentation comments
+    Verification:
+    [x] PlatformWin32 library compiles without errors
+    [x] GameWIP links against PlatformWin32 successfully
+    [x] Window opens with the expected title
+    [x] Window opens at the requested outer window size
+    [ ] Window opens with the requested client-area size
+    [ ] Stored client size is verified after creation
+    [ ] Stored client size is verified after manual resize
+    [x] Window close button exits the game cleanly
+    [ ] Escape key exits the game cleanly
+    [ ] W/A/S/D key down messages update InputState
+    [ ] W/A/S/D key up messages update InputState
+    [ ] Held keys remain down across message pump iterations
+    [ ] Pressed/released transitions are visible for exactly one frame
+    [x] Startup, window creation, close request, and shutdown are logged
+    [ ] Release build opens and closes the window without debug-only tests
+    Optional future polish:
+    [ ] Switch keyboard handling to Raw Input if normal Win32 messages are not precise enough
+    [ ] Set default Win32 cursor for the client area
+    [ ] Add mouse button handling through Win32 messages
+    [ ] Add mouse movement and wheel handling
+    [ ] Add high-DPI awareness
+    [ ] Add fullscreen/borderless mode
+    [ ] Add window resize events for rendering
+[ ] Render one object
+[ ] Free camera works
+[ ] Transform system exists
+[ ] Debug draw exists
+[ ] On-screen debug info exists
