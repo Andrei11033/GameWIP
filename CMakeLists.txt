@@ -17,6 +17,7 @@ add_library(Assert STATIC
 
 add_library(Input STATIC
     engine/input/input.cpp
+    engine/input/platform/win32/win32_input.cpp
 )
 
 add_library(PlatformWin32 STATIC
@@ -39,7 +40,6 @@ target_include_directories(Input PUBLIC
 
 target_include_directories(PlatformWin32 PUBLIC
     engine
-    tools
 )
 
 target_compile_features(Logger PUBLIC cxx_std_20)
@@ -63,7 +63,6 @@ target_link_libraries(Assert PUBLIC
 
 target_link_libraries(PlatformWin32 PUBLIC
     Input
-    Logger
 )
 
 target_link_libraries(GameWIP PRIVATE

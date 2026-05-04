@@ -122,14 +122,14 @@
     [x] Public input header includes only the standard headers it needs
     [x] Public input API has /// documentation comments
     Planned input architecture:
-    [ ] Input owns platform input backends instead of Window interpreting keys long-term
-    [ ] Add a Win32 input backend under the input system
-    [ ] Keep Win32-specific input code out of the public engine/input/input.h API
-    [ ] Window message pump forwards input-related Win32 messages to the input backend
-    [ ] Win32 input backend registers keyboard and mouse Raw Input devices
-    [ ] Win32 input backend handles WM_INPUT and translates raw keyboard data into InputState
+    [x] Input owns platform input backends instead of Window interpreting keys long-term
+    [x] Add a Win32 input backend under the input system
+    [x] Keep Win32-specific input code out of the public engine/input/input.h API
+    [x] Window message pump forwards input-related Win32 messages to the input backend
+    [x] Win32 input backend registers keyboard and mouse Raw Input devices
+    [x] Win32 input backend handles WM_INPUT and translates raw keyboard data into InputState
     [ ] Win32 input backend handles WM_INPUT and translates raw mouse data into InputState
-    [ ] Normal Win32 key messages are kept only as a temporary bridge or menu/text fallback
+    [x] Normal Win32 key messages are kept only as a temporary bridge or menu/text fallback
     [ ] Text input is handled separately from gameplay input, e.g. WM_CHAR for typed text
     [ ] InputState tracks mouse buttons
     [ ] InputState tracks mouse position where useful for UI/menus
@@ -141,18 +141,19 @@
     [ ] Add separate binding contexts for gameplay and menus if needed
     [ ] Add XInput backend for controllers later
     Migration from current temporary key-message path:
-    [ ] Create Win32 input backend files under the input system, e.g. engine/input/platform/win32_input.h and engine/input/platform/win32_input.cpp
-    [ ] Add the Win32 input backend to CMake
-    [ ] Move tryMapVirtualKey out of engine/platform/win32/window.cpp and into the Win32 input backend
-    [ ] Add a backend function that receives Win32 messages and updates InputState
-    [ ] Window::pollEvents forwards key-related messages to the backend function
-    [ ] Window::pollEvents no longer contains virtual-key mapping logic
-    [ ] Temporary WM_KEYDOWN/WM_KEYUP behavior still works after the backend extraction
-    [ ] Escape-to-close remains in main/game/action code, not in Window or the backend
-    [ ] Add backend initialization that can register Raw Input devices for the window handle
-    [ ] Window passes its HWND to backend initialization without exposing windows.h in window.h
-    [ ] Switch gameplay keyboard input from WM_KEYDOWN/WM_KEYUP to WM_INPUT
-    [ ] Keep normal Win32 messages available for menu/text fallback where useful
+    [x] Create Win32 input backend files under the input system, e.g. engine/input/platform/win32_input.h and engine/input/platform/win32_input.cpp
+    [x] Add the Win32 input backend to CMake
+    [x] Move tryMapVirtualKey out of engine/platform/win32/window.cpp and into the Win32 input backend
+    [x] Add a backend function that receives Win32 messages and updates InputState
+    [x] Window::pollEvents forwards key-related messages to the backend function
+    [x] Window::pollEvents no longer contains virtual-key mapping logic
+    [x] Temporary WM_KEYDOWN/WM_KEYUP behavior still works after the backend extraction
+    [x] Escape-to-close remains in main/game/action code, not in Window or the backend
+    [x] Decide the Raw Input registration API shape, likely a Win32 input function that receives the window HWND as an opaque handle
+    [x] Add backend initialization that can register Raw Input devices for the window handle
+    [x] Window passes its HWND to backend initialization without exposing windows.h in window.h
+    [x] Switch gameplay keyboard input from WM_KEYDOWN/WM_KEYUP to WM_INPUT
+    [x] Keep normal Win32 messages available for menu/text fallback where useful
     [ ] Add Action enum for game commands, e.g. Quit, MoveForward, MoveLeft, MoveRight
     [ ] Add default action bindings, e.g. Quit -> Escape and MoveForward -> W
     [ ] main.cpp uses actions for game behavior instead of hardcoded physical keys
@@ -180,8 +181,8 @@
     [x] Win32 window module lives under engine/platform/win32/window.h and engine/platform/win32/window.cpp
     [x] Win32 window module builds as a small static PlatformWin32 library
     [x] PlatformWin32 links against Input
-    [x] PlatformWin32 currently feeds InputState from temporary key-message handling
-    [ ] PlatformWin32 forwards input-related messages to the input backend instead of owning final input mapping
+    [x] PlatformWin32 feeds InputState through the Win32 input backend
+    [x] PlatformWin32 forwards input-related messages to the input backend instead of owning final input mapping
     [x] PlatformWin32 does not depend on game code
     [x] Window wrapper owns the native window handle
     [x] Window wrapper destroys the native window handle during shutdown
@@ -190,7 +191,7 @@
     [x] Window creation accepts title, width, and height
     [x] Window title appears from WindowDescription title
     [x] Window creation reports failure clearly
-    [ ] Requested window size is interpreted as client-area size
+    [x] Requested window size is interpreted as client-area size
     [x] Window exposes whether close was requested
     [x] Window exposes a requestClose function
     [x] Window stores current client width and height
@@ -207,40 +208,85 @@
     [x] Public Win32 window header avoids exposing windows.h where practical
     [x] Public Win32 window API has /// documentation comments
     Planned window/control feature set:
-    [ ] WindowDescription supports window mode: windowed, borderless fullscreen, fullscreen if needed
-    [ ] WindowDescription supports resizable/fixed-size configuration
-    [ ] WindowDescription supports requested client-area size
-    [ ] Window can change title after creation
-    [ ] Window can change resolution after creation
-    [ ] Window can switch between windowed and borderless fullscreen
-    [ ] Window tracks focus/minimized/restored state
-    [ ] Window can show/hide cursor
-    [ ] Window can lock/confine cursor when gameplay needs it
-    [ ] Window forwards resize/focus/minimize events for rendering/game systems
+    Window completion work order:
+    [x] First stabilize the renderer-facing window contract: client size, resize-changed flag, focus state, minimized state, current mode, set mode, set title, request close, and controlled native-handle access
+    [x] Then make fullscreen/windowed state restoration reliable before adding more features
+    [x] Then split Window::setMode into smaller helpers so each transition path is easier to reason about and verify
+    [x] Then add cursor controls: show/hide, confine/unconfine, and an explicit policy for menu mode versus gameplay mode
+    [x] Then add Raw Input registration and WM_INPUT handling once the native window handle lifetime is settled
+    [x] Verify each step before moving to rendering, because the renderer will depend on window size, focus/minimize state, and native-handle lifetime
+    [x] WindowDescription supports windowed and borderless fullscreen startup modes
+    [x] WindowDescription supports resizable/fixed-size configuration
+    [x] WindowDescription supports requested client-area size
+    [x] Window can change title after creation
+    [x] Window can change requested/game resolution after creation through setClientSize
+    [x] Window keeps requested/game resolution separate from the current dragged client size
+    [x] Exclusive fullscreen uses requested/game resolution, not the live dragged client size
+    [x] setClientSize behavior while already in fullscreen is defined
+    [x] Returning from exclusive fullscreen to windowed applies the current requested/game resolution
+    [x] Window can switch between windowed and borderless fullscreen
+    [x] Window can switch between all mode pairs: windowed, borderless fullscreen, and exclusive fullscreen
+    [x] Window tracks focus/minimized/restored state
+    [x] Exclusive fullscreen restores the display mode when focus is lost or the game closes
+    [x] Exclusive fullscreen minimizes cleanly on Alt-Tab
+    [x] Window can show/hide cursor
+    [x] Window can lock/confine cursor when gameplay needs it
+    [x] Window supports separate cursor behavior for menu mode and gameplay mode
+    [x] Window forwards resize/focus/minimize events for rendering/game systems
+    [x] Window exposes a resize-changed flag or event for renderer backbuffer resizing
+    [x] Window can expose native Win32 info to the renderer through a controlled Win32-specific API
     Verification:
     [x] PlatformWin32 library compiles without errors
     [x] GameWIP links against PlatformWin32 successfully
     [x] Window opens with the expected title
     [x] Window opens at the requested outer window size
-    [ ] Window opens with the requested client-area size
-    [ ] Stored client size is verified after creation
-    [ ] Stored client size is verified after manual resize
+    [x] Window opens with the requested client-area size
+    [x] Stored client size is verified after creation
+    [x] Stored client size is verified after manual resize
+    [x] setClientSize resizes the windowed client area to the requested size
+    [x] setClientSize updates the requested fullscreen/game resolution
+    [x] Manual window dragging changes current client size but does not change requested fullscreen/game resolution
+    [x] Changing resolution in exclusive fullscreen is preserved when switching back to windowed
+    [x] Windowed -> borderless fullscreen transition works
+    [x] Borderless fullscreen -> windowed transition works
+    [x] Windowed -> exclusive fullscreen transition works
+    [x] Exclusive fullscreen -> windowed transition works
+    [x] Borderless fullscreen -> exclusive fullscreen transition works
+    [x] Exclusive fullscreen -> borderless fullscreen transition works
+    [x] Closing while in exclusive fullscreen restores the display mode
+    [x] Alt-Tab from exclusive fullscreen restores display settings and minimizes the window
     [x] Window close button exits the game cleanly
     [x] Escape key exits the game cleanly
-    [x] W/A/S/D key down messages update InputState
-    [x] W/A/S/D key up messages update InputState
+    [x] W/A/S/D raw keyboard input updates InputState on key down
+    [x] W/A/S/D raw keyboard input updates InputState on key up
     [x] Held keys remain down across message pump iterations
     [x] Pressed/released transitions are visible for exactly one frame
     [x] Key-repeat behavior was checked and did not cause false pressed events
-    [ ] Temporary key-message input still works after moving mapping into the input backend
-    [ ] Raw Input keyboard path produces the same key state results as the temporary key-message path
+    [x] Temporary key-message input still works after moving mapping into the input backend
+    [x] Raw Input keyboard path produces the same key state results as the temporary key-message path
     [ ] Action bindings trigger the same game behavior as direct key checks
     [x] Startup, window creation, close request, and shutdown are logged
-    [ ] Release build opens and closes the window without debug-only tests
+    [x] setClientSize after manually maximizing the window restores/redraws the normal window borders correctly
+    [x] Release build opens and closes the window without debug-only tests
     Optional future polish:
-    [ ] Set default Win32 cursor for the client area
-    [ ] Add high-DPI awareness
-    [ ] Add exclusive fullscreen only if borderless fullscreen is not enough
+    [x] Set default Win32 cursor for the client area
+    [x] Add high-DPI awareness
+    [x] Handle WM_DPICHANGED and use DPI-aware window rect adjustment for client sizing
+    [x] Add a renderer-facing WindowInfo shape if HWND alone is not enough
+    [x] Add a window event path for resize, move, focus, minimize, restore, and close request
+    [x] Add a DisplayChanged window event if renderer/UI systems need to react to monitor or display-mode changes
+    [x] Switch Win32 title/text calls from A APIs to W APIs with UTF-8 to UTF-16 conversion
+    [x] Decide whether Window should explicitly delete move operations or support move construction/assignment
+    [x] Add monitor and display-mode query API if fullscreen/monitor selection becomes needed
+    [x] Monitor and display-mode query failures report through WindowResult instead of silent empty results
+    [x] Add minimum/maximum client-size constraints through WM_GETMINMAXINFO if needed
+    [x] Expose current window DPI for future renderer/UI scaling decisions
+    [x] Consider replacing bool-only window results with a small WindowResult enum if error handling needs more detail
+    [x] Add exclusive fullscreen only if borderless fullscreen is not enough
+    [x] Remove temporary WM_PAINT color fill once real rendering clears the frame
+    [x] Split Window::setMode into smaller helpers for save/restore/apply mode paths
+    [x] Make fullscreen resolution policy explicit in the window API
+    [x] Log failures if destroy() cannot restore windowed/display state
 
 1.5. PRE-RENDER FOUNDATION REVIEW
 
@@ -259,8 +305,8 @@
     Optimization / correctness:
     [ ] Check logger hot paths for unnecessary allocations after recent changes
     [ ] Check input frame-advance behavior for key-repeat and transient-state correctness
-    [ ] Check window message loop for clean shutdown, resize, focus, and minimize behavior
-    [ ] Check client-area sizing before renderer depends on dimensions
+    [x] Check window message loop for clean shutdown, resize, focus, and minimize behavior
+    [x] Check client-area sizing before renderer depends on dimensions
     [ ] Check CMake target dependencies and include paths are minimal and clear
     [ ] Check generated release folder only keeps files needed to run the game
     Platform skeleton:
