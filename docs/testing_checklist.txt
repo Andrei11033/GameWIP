@@ -105,7 +105,7 @@
     [ ] Add compile-time switches for always-on or always-off assertions
     [ ] Add unit tests once the test framework exists
 [x] Input handling exists
-    Planned input feature set:
+    Current raw input-state foundation:
     [x] Input module lives under engine/input/input.h and engine/input/input.cpp
     [x] Input builds as a small static Input library
     [x] First input milestone has no dependency on windowing/rendering code
@@ -121,6 +121,41 @@
     [x] Unknown/out-of-range keys are handled safely
     [x] Public input header includes only the standard headers it needs
     [x] Public input API has /// documentation comments
+    Planned input architecture:
+    [ ] Input owns platform input backends instead of Window interpreting keys long-term
+    [ ] Add a Win32 input backend under the input system
+    [ ] Keep Win32-specific input code out of the public engine/input/input.h API
+    [ ] Window message pump forwards input-related Win32 messages to the input backend
+    [ ] Win32 input backend registers keyboard and mouse Raw Input devices
+    [ ] Win32 input backend handles WM_INPUT and translates raw keyboard data into InputState
+    [ ] Win32 input backend handles WM_INPUT and translates raw mouse data into InputState
+    [ ] Normal Win32 key messages are kept only as a temporary bridge or menu/text fallback
+    [ ] Text input is handled separately from gameplay input, e.g. WM_CHAR for typed text
+    [ ] InputState tracks mouse buttons
+    [ ] InputState tracks mouse position where useful for UI/menus
+    [ ] InputState tracks raw mouse movement delta for gameplay camera control
+    [ ] InputState tracks scroll wheel movement
+    [ ] Input system can reset/clear transient per-frame input state
+    [ ] Add input actions above raw keys/buttons
+    [ ] Add configurable bindings from actions to keys/buttons
+    [ ] Add separate binding contexts for gameplay and menus if needed
+    [ ] Add XInput backend for controllers later
+    Migration from current temporary key-message path:
+    [ ] Create Win32 input backend files under the input system, e.g. engine/input/platform/win32_input.h and engine/input/platform/win32_input.cpp
+    [ ] Add the Win32 input backend to CMake
+    [ ] Move tryMapVirtualKey out of engine/platform/win32/window.cpp and into the Win32 input backend
+    [ ] Add a backend function that receives Win32 messages and updates InputState
+    [ ] Window::pollEvents forwards key-related messages to the backend function
+    [ ] Window::pollEvents no longer contains virtual-key mapping logic
+    [ ] Temporary WM_KEYDOWN/WM_KEYUP behavior still works after the backend extraction
+    [ ] Escape-to-close remains in main/game/action code, not in Window or the backend
+    [ ] Add backend initialization that can register Raw Input devices for the window handle
+    [ ] Window passes its HWND to backend initialization without exposing windows.h in window.h
+    [ ] Switch gameplay keyboard input from WM_KEYDOWN/WM_KEYUP to WM_INPUT
+    [ ] Keep normal Win32 messages available for menu/text fallback where useful
+    [ ] Add Action enum for game commands, e.g. Quit, MoveForward, MoveLeft, MoveRight
+    [ ] Add default action bindings, e.g. Quit -> Escape and MoveForward -> W
+    [ ] main.cpp uses actions for game behavior instead of hardcoded physical keys
     Verification:
     [x] Input library compiles without errors
     [x] GameWIP links against Input successfully
@@ -133,24 +168,20 @@
     [x] Input behavior is verified from a temporary main.cpp test path
     [x] Input test code is removed or guarded after verification
     Optional future polish:
-    [ ] Move backend-facing key feed out of gameplay-facing API once real backend exists
-    [ ] Input module owns real platform/window input polling
-    [ ] Add mouse button state tracking
-    [ ] Add mouse position and movement delta tracking
-    [ ] Add scroll wheel tracking
-    [ ] Add gamepad support once the window/input backend is selected
-    [ ] Add input action mapping after raw keys work
-    [ ] Add configurable key bindings after action mapping exists
-    [ ] Add text input support separately from gameplay key input
+    [ ] Save/load input bindings from a config file
+    [ ] Support multiple bindings per action
+    [ ] Support analog action values for mouse/controller axes
+    [ ] Add input recording/playback only if it becomes useful for debugging
 
 1. MINIMAL RENDERING / DEBUG
 
 [x] Window opens and closes
-    Planned window feature set:
+    Current Win32 window foundation:
     [x] Win32 window module lives under engine/platform/win32/window.h and engine/platform/win32/window.cpp
     [x] Win32 window module builds as a small static PlatformWin32 library
     [x] PlatformWin32 links against Input
-    [ ] PlatformWin32 feeds InputState from window messages
+    [x] PlatformWin32 currently feeds InputState from temporary key-message handling
+    [ ] PlatformWin32 forwards input-related messages to the input backend instead of owning final input mapping
     [x] PlatformWin32 does not depend on game code
     [x] Window wrapper owns the native window handle
     [x] Window wrapper destroys the native window handle during shutdown
@@ -167,13 +198,25 @@
     [x] Message pump uses non-blocking polling for the future game loop
     [x] WM_CLOSE requests clean shutdown
     [x] WM_DESTROY is handled safely
-    [ ] WM_KEYDOWN maps supported virtual keys to GameWIP::Input::Key
-    [ ] WM_KEYUP maps supported virtual keys to GameWIP::Input::Key
-    [ ] Unsupported virtual keys are ignored safely
-    [ ] Escape key requests window close for the first test
+    [x] Temporary WM_KEYDOWN maps supported virtual keys to GameWIP::Input::Key
+    [x] Temporary WM_KEYUP maps supported virtual keys to GameWIP::Input::Key
+    [x] Temporary WM_SYSKEYDOWN/WM_SYSKEYUP are handled
+    [x] Unsupported virtual keys are ignored safely
+    [x] Escape key requests window close from game/input-action code, not from Window internals
     [x] Input advanceFrame is called once per loop before processing new messages
     [x] Public Win32 window header avoids exposing windows.h where practical
     [x] Public Win32 window API has /// documentation comments
+    Planned window/control feature set:
+    [ ] WindowDescription supports window mode: windowed, borderless fullscreen, fullscreen if needed
+    [ ] WindowDescription supports resizable/fixed-size configuration
+    [ ] WindowDescription supports requested client-area size
+    [ ] Window can change title after creation
+    [ ] Window can change resolution after creation
+    [ ] Window can switch between windowed and borderless fullscreen
+    [ ] Window tracks focus/minimized/restored state
+    [ ] Window can show/hide cursor
+    [ ] Window can lock/confine cursor when gameplay needs it
+    [ ] Window forwards resize/focus/minimize events for rendering/game systems
     Verification:
     [x] PlatformWin32 library compiles without errors
     [x] GameWIP links against PlatformWin32 successfully
@@ -183,21 +226,57 @@
     [ ] Stored client size is verified after creation
     [ ] Stored client size is verified after manual resize
     [x] Window close button exits the game cleanly
-    [ ] Escape key exits the game cleanly
-    [ ] W/A/S/D key down messages update InputState
-    [ ] W/A/S/D key up messages update InputState
-    [ ] Held keys remain down across message pump iterations
-    [ ] Pressed/released transitions are visible for exactly one frame
+    [x] Escape key exits the game cleanly
+    [x] W/A/S/D key down messages update InputState
+    [x] W/A/S/D key up messages update InputState
+    [x] Held keys remain down across message pump iterations
+    [x] Pressed/released transitions are visible for exactly one frame
+    [x] Key-repeat behavior was checked and did not cause false pressed events
+    [ ] Temporary key-message input still works after moving mapping into the input backend
+    [ ] Raw Input keyboard path produces the same key state results as the temporary key-message path
+    [ ] Action bindings trigger the same game behavior as direct key checks
     [x] Startup, window creation, close request, and shutdown are logged
     [ ] Release build opens and closes the window without debug-only tests
     Optional future polish:
-    [ ] Switch keyboard handling to Raw Input if normal Win32 messages are not precise enough
     [ ] Set default Win32 cursor for the client area
-    [ ] Add mouse button handling through Win32 messages
-    [ ] Add mouse movement and wheel handling
     [ ] Add high-DPI awareness
-    [ ] Add fullscreen/borderless mode
-    [ ] Add window resize events for rendering
+    [ ] Add exclusive fullscreen only if borderless fullscreen is not enough
+
+1.5. PRE-RENDER FOUNDATION REVIEW
+
+[ ] Review and harden all foundation code before rendering
+    Code quality / cleanup:
+    [ ] Review logger, assert, input, and window code end-to-end
+    [ ] Remove or guard temporary test code in main.cpp
+    [ ] Remove duplicated logic and stale comments
+    [ ] Confirm public headers expose only stable engine-facing APIs
+    [ ] Confirm platform-specific types stay out of public cross-platform headers
+    [ ] Confirm ownership and lifetime rules are clear for logger/input/window systems
+    [ ] Confirm error paths log useful information and leave systems in a valid state
+    [ ] Confirm release build has no debug-only behavior or temporary logs
+    [ ] Run normal debug build and release build from VS Code tasks
+    [ ] Update roadmap/decisions docs to match the actual architecture
+    Optimization / correctness:
+    [ ] Check logger hot paths for unnecessary allocations after recent changes
+    [ ] Check input frame-advance behavior for key-repeat and transient-state correctness
+    [ ] Check window message loop for clean shutdown, resize, focus, and minimize behavior
+    [ ] Check client-area sizing before renderer depends on dimensions
+    [ ] Check CMake target dependencies and include paths are minimal and clear
+    [ ] Check generated release folder only keeps files needed to run the game
+    Platform skeleton:
+    [ ] Add a platform selection layer so game code does not include Win32 headers directly
+    [ ] Keep Win32 implementation under engine/platform/win32
+    [ ] Add placeholder platform folders/files for future OS support
+    [ ] Add a cross-platform Window API shape that future OS backends can implement
+    [ ] Add a cross-platform Input backend API shape that future OS backends can implement
+    [ ] Add CMake conditionals for selecting the platform backend
+    [ ] Add clear compile-time error for unsupported platforms
+    [ ] Document that Windows/Win32 is the only supported platform for now
+    Verification:
+    [ ] Clean configure/build still works after cleanup
+    [ ] Debug run opens, logs, receives input, and closes cleanly
+    [ ] Release run opens and closes cleanly
+    [ ] Checklist reflects only actually verified behavior
 [ ] Render one object
 [ ] Free camera works
 [ ] Transform system exists

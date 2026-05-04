@@ -25,34 +25,11 @@ namespace
     constexpr int defaultWindowWidth = 1280;
     constexpr int defaultWindowHeight = 720;
 
+    /// @brief The main game loop. Initializes subsystems, runs the game, and handles shutdown.
+    /// @return Returns 0 on clean shutdown, non-zero on error.
     int runGame()
     {
-        Logger::log(LogLevel::INFO, mainLogSource, "GameWIP startup complete.");
-
-        InputState input;
-        Window window;
-
-        const WindowDescription windowDescription{
-            "GameWIP",
-            defaultWindowWidth,
-            defaultWindowHeight};
-
-        Logger::log(LogLevel::INFO, mainLogSource, "Creating Win32 window.");
-        if (!window.create(windowDescription))
-        {
-            Logger::log(LogLevel::ERR, mainLogSource, "Failed to create Win32 window.");
-            return 1;
-        }
-
-        while (!window.shouldClose())
-        {
-            input.advanceFrame();
-            window.pollEvents(input);
-            std::this_thread::sleep_for(std::chrono::milliseconds(16));
-        }
-
-        Logger::log(LogLevel::INFO, mainLogSource, "Window close requested.");
-        window.destroy();
+        Logger::log(LogLevel::INFO, mainLogSource, "GameWIP starting up.");
 
         Logger::log(LogLevel::INFO, mainLogSource, "GameWIP shutting down cleanly.");
         return 0;

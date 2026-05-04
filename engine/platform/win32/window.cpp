@@ -9,9 +9,80 @@ namespace
     using Window = GameWIP::Platform::Win32::Window;
     using GameWIP::Logger;
     using GameWIP::LogLevel;
+    using GameWIP::Input::Key;
 
-    constexpr std::string_view windowLogSource = "Win32Window";
+    constexpr std::string_view windowLogSource = "Win32Window"; // Source tag for log messages.
 
+    /// @brief Tries to map a Windows virtual key to a GameWIP key.
+    /// @param wParam Additional message information (varies by message).
+    /// @param outKey The GameWIP key to set.
+    /// @return True if the key was mapped, false otherwise.
+    bool tryMapVirtualKey(WPARAM wParam, Key &outKey)
+    {
+        switch (wParam)
+        {
+        case VK_SPACE:
+            outKey = Key::Space;
+            return true;
+
+        case VK_RETURN: // Enter key
+            outKey = Key::Enter;
+            return true;
+
+        case VK_ESCAPE:
+            outKey = Key::Escape;
+            return true;
+
+        case VK_UP:
+            outKey = Key::UpArrow;
+            return true;
+
+        case VK_LEFT:
+            outKey = Key::LeftArrow;
+            return true;
+
+        case VK_DOWN:
+            outKey = Key::DownArrow;
+            return true;
+
+        case VK_RIGHT:
+            outKey = Key::RightArrow;
+            return true;
+
+        case 'W':
+            outKey = Key::W;
+            return true;
+
+        case 'A':
+            outKey = Key::A;
+            return true;
+
+        case 'S':
+            outKey = Key::S;
+            return true;
+
+        case 'D':
+            outKey = Key::D;
+            return true;
+
+        case 'Q':
+            outKey = Key::Q;
+            return true;
+
+        case 'E':
+            outKey = Key::E;
+            return true;
+        default:
+            return false;
+        }
+    }
+
+    /// @brief Win32 window procedure to handle messages for the game window.
+    /// @param hwnd Handle to the window receiving the message.
+    /// @param message The message identifier.
+    /// @param wParam Additional message information (varies by message).
+    /// @param lParam Additional message information (varies by message).
+    /// @return The result of message processing (varies by message).
     LRESULT CALLBACK windowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
     {
         switch (message)
@@ -62,6 +133,7 @@ namespace
 
 namespace GameWIP::Platform::Win32
 {
+    // Holds Win32-specific window data.
     struct Window::NativeWindow
     {
         HWND handle = nullptr;
@@ -176,11 +248,21 @@ namespace GameWIP::Platform::Win32
 
         while (PeekMessageA(&message, nullptr, 0, 0, PM_REMOVE))
         {
+            bool isKeyDown = (message.message == WM_KEYDOWN || message.message == WM_SYSKEYDOWN);
+            bool isKeyUp = (message.message == WM_KEYUP || message.message == WM_SYSKEYUP);
+            if (isKeyDown || isKeyUp)
+            {
+                Key key;
+                if (tryMapVirtualKey(message.wParam, key))
+                {
+                    bool isDown = (isKeyDown);
+                    inputState.setKey(key, isDown);
+                }
+            }
+
             TranslateMessage(&message);
             DispatchMessageA(&message);
         }
-
-        (void)inputState;
     }
 
     int Window::getClientWidth() const
