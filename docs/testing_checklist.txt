@@ -109,16 +109,16 @@
     [x] Input module lives under engine/input/input.h and engine/input/input.cpp
     [x] Input builds as a small static Input library
     [x] First input milestone has no dependency on windowing/rendering code
-    [x] Key identifiers exist for the first useful keyboard keys
-    [x] Current key state is stored
-    [x] Previous key state is stored
-    [x] Backend-facing key feed function is declared
-    [x] Backend-facing key feed function updates current key state
-    [x] Input state can advance one frame by copying current state into previous state
-    [x] isKeyDown reports keys currently held
-    [x] wasKeyPressed reports keys newly pressed this frame
-    [x] wasKeyReleased reports keys released this frame
-    [x] Unknown/out-of-range keys are handled safely
+    [x] Generic InputControl identifiers exist for keyboard, mouse, and gamepad controls
+    [x] Current button state is stored by InputControl
+    [x] Previous button state is stored by InputControl
+    [x] Internal backend-facing button feed function is declared
+    [x] Internal backend-facing button feed function updates current button state
+    [x] Input state can advance one frame by copying current button state into previous state
+    [x] isButtonDown reports buttons currently held
+    [x] wasButtonPressed reports buttons newly pressed this frame
+    [x] wasButtonReleased reports buttons released this frame
+    [x] Wrong control-type queries are handled safely
     [x] Public input header includes only the standard headers it needs
     [x] Public input API has /// documentation comments
     Planned input architecture:
@@ -128,22 +128,97 @@
     [x] Window message pump forwards input-related Win32 messages to the input backend
     [x] Win32 input backend registers keyboard and mouse Raw Input devices
     [x] Win32 input backend handles WM_INPUT and translates raw keyboard data into InputState
-    [ ] Win32 input backend handles WM_INPUT and translates raw mouse data into InputState
+    [x] Win32 input backend handles WM_INPUT and translates raw mouse data into InputState
     [x] Normal Win32 key messages are kept only as a temporary bridge or menu/text fallback
-    [ ] Text input is handled separately from gameplay input, e.g. WM_CHAR for typed text
-    [ ] InputState tracks mouse buttons
-    [ ] InputState tracks mouse position where useful for UI/menus
-    [ ] InputState tracks raw mouse movement delta for gameplay camera control
-    [ ] InputState tracks scroll wheel movement
-    [ ] Input system can reset/clear transient per-frame input state
+    [x] Text input is handled separately from gameplay input, e.g. WM_CHAR for typed text
+    [x] InputState tracks mouse buttons
+    [x] InputState tracks mouse position where useful for UI/menus
+    [x] InputState tracks raw mouse movement delta for gameplay camera control
+    [x] InputState tracks scroll wheel movement
+    [x] Input system can reset/clear transient per-frame input state
     [ ] Add input actions above raw keys/buttons
     [ ] Add configurable bindings from actions to keys/buttons
     [ ] Add separate binding contexts for gameplay and menus if needed
-    [ ] Add XInput backend for controllers later
-    Migration from current temporary key-message path:
+    [x] Add XInput backend for controllers
+    Agreed public input API shape:
+    [x] InputState represents physical device state, not game-specific actions
+    [x] InputState stays platform-independent and exposes no Win32/XInput types
+    [x] Game code reads input through query functions only
+    [x] Backend feed functions use an Internal bridge pattern like Window private message access
+    [x] Keyboard, mouse, and controller data share the same frame-advance model
+    [x] Actions and bindings will be built above InputState, not inside InputState
+    [x] Text input is separate from physical gameplay controls
+    [x] Rebinding uses newly activated controls instead of knowing the key/button ahead of time
+    Planned core input API:
+    [x] Add generic InputDeviceType values: Keyboard, Mouse, Gamepad
+    [x] Add generic InputControlType values: Button, Axis, Wheel
+    [x] Add InputControl with device type, device index, control type, and numeric control code
+    [x] Use physical keyboard scan codes/control codes instead of a giant key enum
+    [x] Keep optional named helper constructors/constants for common keyboard controls
+    [x] Add helper constructors for keyboard keys, mouse buttons, mouse wheels, gamepad buttons, and gamepad axes
+    [x] Add InputActivation for bindable this-frame input changes
+    [x] Add activation types for button press/release, axis positive/negative, and wheel positive/negative
+    Planned InputState read API:
+    [x] advanceFrame copies persistent state and clears per-frame transient state
+    [x] clear resets all input state for focus loss/device reset
+    [x] isButtonDown reports held button controls
+    [x] wasButtonPressed reports newly pressed button controls
+    [x] wasButtonReleased reports newly released button controls
+    [x] getAxis reports current normalized axis values
+    [x] getMouseDeltaX/getMouseDeltaY report current-frame raw mouse movement
+    [x] hasMousePosition/getMouseX/getMouseY report the latest known cursor position
+    [x] getWheelDelta reports current-frame wheel movement
+    [x] isDeviceConnected reports connection state for polled devices such as gamepads
+    [x] tryGetFirstActivation returns the first bindable activation this frame
+    [x] getActivations copies all bindable activations this frame
+    [x] hasTextInput/getTextInputUtf8 expose typed Unicode text for UI/text fields
+    [x] InputState stores text input as UTF-8
+    [x] InputState encodes Unicode codepoints into UTF-8
+    [x] Invalid Unicode codepoints are replaced with U+FFFD
+    Planned backend/Internal feed API:
+    [x] Internal feed access can set button state
+    [x] Internal feed access can set axis values
+    [x] Internal feed access can add raw mouse movement delta
+    [x] Internal feed access can set or clear absolute mouse position
+    [x] Internal feed access can add wheel delta
+    [x] Internal feed access can add UTF-8 text or Unicode codepoints
+    [x] Internal feed access can set device connection state
+    [x] Win32 backend feeds WM_CHAR text as UTF-16 code units
+    [x] Win32 backend combines UTF-16 surrogate pairs before feeding text
+    [x] Win32 backend handles WM_UNICHAR UTF-32 text when sent
+    [x] Win32 backend filters basic control characters out of typed text
+    Planned mouse API:
+    [x] Add MouseButton identifiers for left, right, middle, and optional extra buttons
+    [x] Add MouseWheel identifiers for vertical and horizontal wheels
+    [x] InputState stores current and previous mouse button state
+    [x] InputState exposes mouse button queries: down, pressed this frame, released this frame
+    [x] InputState stores raw mouse movement delta for the current frame
+    [x] InputState stores latest absolute mouse X/Y position for UI/menu use
+    [x] InputState stores scroll wheel delta for the current frame
+    [x] InputState exposes mouse button, position, delta, and wheel queries
+    [x] Internal feed access can set mouse buttons, position, movement, and wheel deltas
+    [x] Win32 backend feeds mouse buttons from Raw Input
+    [x] Win32 backend feeds raw relative mouse movement from Raw Input
+    [x] Win32 backend feeds vertical and horizontal mouse wheel movement from Raw Input
+    [x] Win32 backend feeds client-area mouse position from WM_MOUSEMOVE
+    [x] advanceFrame preserves held mouse buttons and clears transient mouse deltas
+    Planned controller API skeleton:
+    [x] Add a controller/gamepad slot concept through DeviceIndex
+    [x] Add GamepadButton identifiers for common controller buttons
+    [x] Add GamepadAxis identifiers for sticks and triggers
+    [x] InputState stores controller connected/disconnected state
+    [x] InputState stores current and previous controller button state
+    [x] InputState stores normalized controller axis values
+    [x] InputState exposes controller button queries: down, pressed this frame, released this frame
+    [x] InputState exposes controller axis queries for sticks and triggers
+    [x] Internal feed access can update controller connection, buttons, and axes
+    [x] Add a backend update hook for polled devices such as XInput controllers
+    [x] Add Win32/XInput controller backend under the input platform layer
+    [ ] Apply controller deadzones in the backend or action layer after the raw state shape is stable
+    Migration from previous temporary key-message path:
     [x] Create Win32 input backend files under the input system, e.g. engine/input/platform/win32_input.h and engine/input/platform/win32_input.cpp
     [x] Add the Win32 input backend to CMake
-    [x] Move tryMapVirtualKey out of engine/platform/win32/window.cpp and into the Win32 input backend
+    [x] Move old virtual-key mapping out of engine/platform/win32/window.cpp and into the Win32 input backend
     [x] Add a backend function that receives Win32 messages and updates InputState
     [x] Window::pollEvents forwards key-related messages to the backend function
     [x] Window::pollEvents no longer contains virtual-key mapping logic
@@ -160,13 +235,24 @@
     Verification:
     [x] Input library compiles without errors
     [x] GameWIP links against Input successfully
-    [x] Passing through one frame preserves held keys
-    [x] Pressing a key sets isKeyDown and wasKeyPressed
-    [x] Holding a key keeps isKeyDown true and wasKeyPressed false on the next frame
-    [x] Releasing a key clears isKeyDown and sets wasKeyReleased
-    [x] Releasing an already-up key does not produce a false release event
-    [x] Multiple keys can be tracked independently
+    [x] Passing through one frame preserves held buttons
+    [x] Pressing a button sets isButtonDown and wasButtonPressed
+    [x] Holding a button keeps isButtonDown true and wasButtonPressed false on the next frame
+    [x] Releasing a button clears isButtonDown and sets wasButtonReleased
+    [x] Releasing an already-up button does not produce a false release event
+    [x] Multiple button controls can be tracked independently
     [x] Input behavior is verified from a temporary main.cpp test path
+    [x] Escape close behavior works after switching from Key enum queries to generic InputControl queries
+    [x] Mouse buttons update InputState from Raw Input
+    [x] Raw mouse movement delta updates InputState and clears on advanceFrame
+    [x] Mouse wheel delta updates InputState and clears on advanceFrame
+    [x] Mouse position updates from WM_MOUSEMOVE
+    [x] XInput gamepads update InputState through the Win32 backend update hook
+    [x] XInput packet cache does not suppress updates for a different InputState instance
+    [x] Keyboard and mouse slot 0 report connected by convention
+    [x] WM_CHAR text input appears in InputState as UTF-8
+    [x] Unicode text outside ASCII is preserved through InputState
+    [x] Basic control keys do not enter the typed-text buffer
     [x] Input test code is removed or guarded after verification
     Optional future polish:
     [ ] Save/load input bindings from a config file
@@ -199,8 +285,8 @@
     [x] Message pump uses non-blocking polling for the future game loop
     [x] WM_CLOSE requests clean shutdown
     [x] WM_DESTROY is handled safely
-    [x] Temporary WM_KEYDOWN maps supported virtual keys to GameWIP::Input::Key
-    [x] Temporary WM_KEYUP maps supported virtual keys to GameWIP::Input::Key
+    [x] Raw Input keyboard packets feed generic InputControl button state
+    [x] Win32 keyboard backend uses physical scan/control codes instead of GameWIP::Input::Key
     [x] Temporary WM_SYSKEYDOWN/WM_SYSKEYUP are handled
     [x] Unsupported virtual keys are ignored safely
     [x] Escape key requests window close from game/input-action code, not from Window internals
@@ -262,9 +348,8 @@
     [x] Held keys remain down across message pump iterations
     [x] Pressed/released transitions are visible for exactly one frame
     [x] Key-repeat behavior was checked and did not cause false pressed events
-    [x] Temporary key-message input still works after moving mapping into the input backend
+    [x] Gameplay keyboard input no longer depends on the temporary key-message path
     [x] Raw Input keyboard path produces the same key state results as the temporary key-message path
-    [ ] Action bindings trigger the same game behavior as direct key checks
     [x] Startup, window creation, close request, and shutdown are logged
     [x] setClientSize after manually maximizing the window restores/redraws the normal window borders correctly
     [x] Release build opens and closes the window without debug-only tests
@@ -287,6 +372,9 @@
     [x] Split Window::setMode into smaller helpers for save/restore/apply mode paths
     [x] Make fullscreen resolution policy explicit in the window API
     [x] Log failures if destroy() cannot restore windowed/display state
+    [x] Split applyFullscreen into helpers, so its more easy to read
+    [x] Possibly optimize the ring buffer
+    [ ] Add Multiwindow support
 
 1.5. PRE-RENDER FOUNDATION REVIEW
 
@@ -299,14 +387,23 @@
     [ ] Confirm platform-specific types stay out of public cross-platform headers
     [ ] Confirm ownership and lifetime rules are clear for logger/input/window systems
     [ ] Confirm error paths log useful information and leave systems in a valid state
+    [ ] Move InputStateAccess into a real engine/input/internal header before adding more input backends
+    [ ] Decide whether Win32 input backend state should become an explicit object instead of file-local globals
+    [ ] Document the shutdown policy: WM_CLOSE requests close, and the game loop owns final window destruction
     [ ] Confirm release build has no debug-only behavior or temporary logs
     [ ] Run normal debug build and release build from VS Code tasks
     [ ] Update roadmap/decisions docs to match the actual architecture
     Optimization / correctness:
     [ ] Check logger hot paths for unnecessary allocations after recent changes
     [ ] Check input frame-advance behavior for key-repeat and transient-state correctness
-    [x] Check window message loop for clean shutdown, resize, focus, and minimize behavior
-    [x] Check client-area sizing before renderer depends on dimensions
+    [ ] Add focused InputState unit tests for press/release, same-frame transitions, clear, text, wheel, axis, and gamepad connection behavior
+    [ ] Keep vector-based InputState storage unless profiling shows it matters; consider fixed arrays/bitsets only after a real cost appears
+    [ ] Consider exposing input activations as a non-copying view/span if activation copying shows up in profiling
+    [ ] Apply controller deadzones before using gamepad axes for gameplay bindings
+    [ ] Check window message loop for clean shutdown, resize, focus, and minimize behavior
+    [ ] Revisit WindowEventQueue complexity; simplify it if maintenance cost outweighs the custom ring-buffer/coalescing behavior
+    [ ] Decide Raw Input registration flags policy for foreground/background input and legacy message behavior
+    [ ] Check client-area sizing before renderer depends on dimensions
     [ ] Check CMake target dependencies and include paths are minimal and clear
     [ ] Check generated release folder only keeps files needed to run the game
     Platform skeleton:

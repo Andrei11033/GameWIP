@@ -65,6 +65,10 @@ target_link_libraries(PlatformWin32 PUBLIC
     Input
 )
 
+target_link_libraries(PlatformWin32 PRIVATE
+    shell32
+)
+
 target_link_libraries(GameWIP PRIVATE
     Logger
     Assert
