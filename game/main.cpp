@@ -1,41 +1,76 @@
 #include <algorithm>
 #include <chrono>
+#include <cstdint>
 #include <exception>
 #include <format>
 #include <string_view>
 #include <thread>
 #include <vector>
+#include <tracy/Tracy.hpp>
 
 #include "logger/logger.h"
 #include "debug/assert/assert.h"
 #include "input/input.h"
 #include "platform/win32/window.h"
 
-using GameWIP::Logger;
-using GameWIP::LogLevel;
-using GameWIP::OutputMode;
-using GameWIP::Input::InputState;
-using GameWIP::Input::makeKeyboardKey;
-using GameWIP::Platform::Win32::DisplayMode;
-using GameWIP::Platform::Win32::MonitorInfo;
-using GameWIP::Platform::Win32::Window;
-using GameWIP::Platform::Win32::WindowDescription;
-using GameWIP::Platform::Win32::WindowEvent;
-using GameWIP::Platform::Win32::WindowEventType;
-using GameWIP::Platform::Win32::WindowMode;
-using GameWIP::Platform::Win32::WindowResult;
-
-namespace KeyboardControlCode = GameWIP::Input::KeyboardControlCode;
-
 namespace
 {
-    constexpr OutputMode defaultOutputMode = OutputMode::BOTH;
-    constexpr LogLevel defaultLogLevel = LogLevel::INFO;
-    constexpr std::size_t defaultQueueSize = 1024;
-    constexpr std::string_view mainLogSource = "Main";
-    constexpr int defaultWindowWidth = 1280;
-    constexpr int defaultWindowHeight = 720;
-    constexpr auto closeWindowControl = makeKeyboardKey(KeyboardControlCode::Escape);
+    namespace KeyboardControlCode = GameWIP::Input::KeyboardControlCode;
+    using GameWIP::Logger;
+    using GameWIP::LogLevel;
+    using GameWIP::OutputMode;
+    using GameWIP::Input::InputState;
+    using GameWIP::Input::makeKeyboardKey;
+    using GameWIP::Platform::Win32::DisplayMode;
+    using GameWIP::Platform::Win32::MonitorInfo;
+    using GameWIP::Platform::Win32::Window;
+    using GameWIP::Platform::Win32::WindowDescription;
+    using GameWIP::Platform::Win32::WindowEvent;
+    using GameWIP::Platform::Win32::WindowEventType;
+    using GameWIP::Platform::Win32::WindowMode;
+    using GameWIP::Platform::Win32::WindowResult;
+
+    // Configuration
+
+    constexpr OutputMode defaultOutputMode = OutputMode::BOTH;                        // Default logger output destination.
+    constexpr LogLevel defaultLogLevel = LogLevel::INFO;                              // Default logger minimum level.
+    constexpr std::size_t defaultQueueSize = 1024;                                    // Default logger queue size.
+    constexpr std::string_view mainLogSource = "Main";                                // Source tag for main logs.
+    constexpr int defaultWindowWidth = 1280;                                          // Initial client-area width.
+    constexpr int defaultWindowHeight = 720;                                          // Initial client-area height.
+    constexpr int minimumClientWidth = 120;                                           // Smallest allowed client-area width.
+    constexpr int minimumClientHeight = 120;                                          // Smallest allowed client-area height.
+    constexpr auto closeWindowControl = makeKeyboardKey(KeyboardControlCode::Escape); // Input control used to request shutdown.
+
+    // Tracy helpers
+
+#ifdef TRACY_ENABLE
+    /// @brief Configures one-time Tracy metadata and plots for main-loop captures.
+    void configureTracySession()
+    {
+        constexpr std::string_view appInfo = "GameWIP main.cpp instrumentation: startup, window events, frame timing, and shutdown.";
+        TracyAppInfo(appInfo.data(), appInfo.size());
+        TracyPlotConfig("Frame time (ms)", tracy::PlotFormatType::Number, false, true, tracy::Color::Orange);
+        TracyPlotConfig("Window events/frame", tracy::PlotFormatType::Number, true, true, tracy::Color::DodgerBlue);
+        TracyMessageLC("GameWIP Tracy session configured.", tracy::Color::SeaGreen);
+    }
+#endif
+
+    // Window description helpers
+
+    /// @brief Builds the default window description for the game.
+    /// @return Default Win32 window description.
+    WindowDescription makeDefaultWindowDescription()
+    {
+        return WindowDescription{
+            .title = "GameWIP",
+            .width = defaultWindowWidth,
+            .height = defaultWindowHeight,
+            .mode = WindowMode::Windowed,
+            .resizable = true};
+    }
+
+    // Formatting helpers
 
     /// @brief Converts a window result to readable log text.
     /// @param result Result code to convert.
@@ -173,6 +208,8 @@ namespace
         return std::format("{}x{} {}Hz {}bpp", mode.width, mode.height, mode.refreshRate, mode.bitsPerPixel);
     }
 
+    // Logging helpers
+
     /// @brief Logs a failed window operation with its result and Win32 error code.
     /// @param operation Operation that failed.
     /// @param window Window storing the last Win32 error.
@@ -208,6 +245,112 @@ namespace
         window.clearAsyncError();
     }
 
+    // Window setup helpers
+
+    /// @brief Creates the main game window.
+    /// @param window Window wrapper to create.
+    /// @return Result code from the create operation.
+    WindowResult createMainWindow(Window &window)
+    {
+        ZoneScopedNC("Create Win32 window", tracy::Color::SeaGreen);
+        Logger::log(LogLevel::INFO, mainLogSource, "Creating Win32 window.");
+        return window.create(makeDefaultWindowDescription());
+    }
+
+    /// @brief Applies startup client-size constraints using monitor/display information when available.
+    /// @param window Window to configure.
+    void applyStartupClientSizeConstraints(Window &window)
+    {
+        {
+            ZoneScopedNC("Apply minimum client-size constraint", tracy::Color::DarkSeaGreen);
+            window.setMinClientSize(minimumClientWidth, minimumClientHeight);
+            Logger::log(LogLevel::INFO, mainLogSource, std::format("Applied minimum client-size constraint: min={}x{}.", minimumClientWidth, minimumClientHeight));
+        }
+
+        {
+            ZoneScopedNC("Query monitor and display state", tracy::Color::RoyalBlue);
+
+            std::vector<MonitorInfo> monitors;
+            if (WindowResult result = window.getMonitors(monitors); result != WindowResult::Success)
+            {
+                logWindowFailure("Querying monitors", window, result);
+            }
+
+            ZoneValue(static_cast<std::uint64_t>(monitors.size()));
+            Logger::log(LogLevel::INFO, mainLogSource, std::format("Detected {} monitors.", monitors.size()));
+            for (std::size_t i = 0; i < monitors.size(); ++i)
+            {
+                Logger::log(LogLevel::INFO, mainLogSource, formatMonitorInfo(static_cast<int>(i), monitors[i]));
+            }
+
+            MonitorInfo currentMonitor{};
+            WindowResult currentMonitorResult = window.getCurrentMonitor(currentMonitor);
+            if (currentMonitorResult == WindowResult::Success && currentMonitor.handle != nullptr)
+            {
+                Logger::log(LogLevel::INFO, mainLogSource, std::format("Current monitor: {}", currentMonitor.deviceName.empty() ? "(unnamed)" : currentMonitor.deviceName));
+
+                DisplayMode displayMode{};
+                {
+                    ZoneScopedNC("Query current display mode", tracy::Color::CornflowerBlue);
+                    if (WindowResult displayResult = window.getCurrentDisplayMode(displayMode); displayResult == WindowResult::Success)
+                    {
+                        Logger::log(LogLevel::INFO, mainLogSource, std::format("Current display mode: {}", formatDisplayMode(displayMode)));
+                    }
+                    else
+                    {
+                        logWindowFailure("Querying current display mode", window, displayResult);
+                    }
+                }
+
+                std::vector<DisplayMode> supportedModes;
+                {
+                    ZoneScopedNC("Query supported display modes", tracy::Color::DodgerBlue);
+                    if (WindowResult displayModesResult = window.getDisplayModes(currentMonitor, supportedModes); displayModesResult != WindowResult::Success)
+                    {
+                        logWindowFailure("Querying supported display modes", window, displayModesResult);
+                    }
+                }
+
+                ZoneValue(static_cast<std::uint64_t>(supportedModes.size()));
+                Logger::log(LogLevel::INFO, mainLogSource, std::format("Supported display modes: {} entries.", supportedModes.size()));
+
+                int maxWidth = 1920;
+                int maxHeight = 1080;
+                for (const DisplayMode &mode : supportedModes)
+                {
+                    maxWidth = std::max(maxWidth, mode.width);
+                    maxHeight = std::max(maxHeight, mode.height);
+                }
+
+                {
+                    ZoneScopedNC("Apply maximum client-size constraint", tracy::Color::DarkSeaGreen);
+                    window.setMaxClientSize(maxWidth, maxHeight);
+                    Logger::log(LogLevel::INFO, mainLogSource, std::format("Applied client-size constraints: min={}x{} max={}x{}.", minimumClientWidth, minimumClientHeight, maxWidth, maxHeight));
+                }
+
+                if (!supportedModes.empty())
+                {
+                    Logger::log(LogLevel::INFO, mainLogSource, std::format("First supported mode: {}", formatDisplayMode(supportedModes.front())));
+                }
+            }
+            else
+            {
+                if (currentMonitorResult != WindowResult::Success)
+                {
+                    logWindowFailure("Querying current monitor", window, currentMonitorResult);
+                }
+
+                {
+                    ZoneScopedNC("Apply fallback maximum client-size constraint", tracy::Color::DarkSeaGreen);
+                    window.setMaxClientSize(1920, 1080);
+                    Logger::log(LogLevel::INFO, mainLogSource, std::format("Applied client-size constraints: min={}x{} max=1920x1080 (fallback, no current monitor detected).", minimumClientWidth, minimumClientHeight));
+                }
+            }
+        }
+    }
+
+    // Window event logging
+
     /// @brief Logs one queued window event.
     /// @param event Event to log.
     void logWindowEvent(const WindowEvent &event)
@@ -237,138 +380,118 @@ namespace
 
     /// @brief Drains and logs all queued window events.
     /// @param window Window to drain.
-    void logWindowEvents(Window &window)
+    /// @return Number of events drained.
+    std::size_t logWindowEvents(Window &window)
     {
+        std::size_t eventCount = 0;
         WindowEvent event{};
         while (window.popEvent(event))
         {
             logWindowEvent(event);
+            ++eventCount;
         }
+
+        return eventCount;
     }
+
+    // Game loop
 
     /// @brief The main game loop. Initializes subsystems, runs the game, and handles shutdown.
     /// @return Returns 0 on clean shutdown, non-zero on error.
     int runGame()
     {
+        ZoneScopedNC("Run game", tracy::Color::SteelBlue);
+        TracyMessageLC("GameWIP startup.", tracy::Color::SeaGreen);
         Logger::log(LogLevel::INFO, mainLogSource, "GameWIP starting up.");
 
         InputState input;
         Window window;
 
-        WindowDescription windowDescription{
-            .title = "GameWIP",
-            .width = defaultWindowWidth,
-            .height = defaultWindowHeight,
-            .mode = WindowMode::Windowed,
-            .resizable = true};
-
-        Logger::log(LogLevel::INFO, mainLogSource, "Creating Win32 window.");
-        WindowResult createResult = window.create(windowDescription);
+        WindowResult createResult = createMainWindow(window);
         if (createResult != WindowResult::Success)
         {
             logWindowFailure("Creating Win32 window", window, createResult);
             return 1;
         }
+        TracyMessageLC("Win32 window created.", tracy::Color::SeaGreen);
 
-        constexpr int minimumClientWidth = 120;
-        constexpr int minimumClientHeight = 120;
-        window.setMinClientSize(minimumClientWidth, minimumClientHeight);
-        Logger::log(LogLevel::INFO, mainLogSource, std::format("Applied minimum client-size constraint: min={}x{}.", minimumClientWidth, minimumClientHeight));
-
-        std::vector<MonitorInfo> monitors;
-        if (WindowResult result = window.getMonitors(monitors); result != WindowResult::Success)
-        {
-            logWindowFailure("Querying monitors", window, result);
-        }
-
-        Logger::log(LogLevel::INFO, mainLogSource, std::format("Detected {} monitors.", monitors.size()));
-        for (std::size_t i = 0; i < monitors.size(); ++i)
-        {
-            Logger::log(LogLevel::INFO, mainLogSource, formatMonitorInfo(static_cast<int>(i), monitors[i]));
-        }
-
-        MonitorInfo currentMonitor{};
-        WindowResult currentMonitorResult = window.getCurrentMonitor(currentMonitor);
-        if (currentMonitorResult == WindowResult::Success && currentMonitor.handle != nullptr)
-        {
-            Logger::log(LogLevel::INFO, mainLogSource, std::format("Current monitor: {}", currentMonitor.deviceName.empty() ? "(unnamed)" : currentMonitor.deviceName));
-
-            DisplayMode displayMode{};
-            if (WindowResult displayResult = window.getCurrentDisplayMode(displayMode); displayResult == WindowResult::Success)
-            {
-                Logger::log(LogLevel::INFO, mainLogSource, std::format("Current display mode: {}", formatDisplayMode(displayMode)));
-            }
-            else
-            {
-                logWindowFailure("Querying current display mode", window, displayResult);
-            }
-
-            std::vector<DisplayMode> supportedModes;
-            if (WindowResult displayModesResult = window.getDisplayModes(currentMonitor, supportedModes); displayModesResult != WindowResult::Success)
-            {
-                logWindowFailure("Querying supported display modes", window, displayModesResult);
-            }
-
-            Logger::log(LogLevel::INFO, mainLogSource, std::format("Supported display modes: {} entries.", supportedModes.size()));
-
-            int maxWidth = 1920;
-            int maxHeight = 1080;
-            for (const auto &mode : supportedModes)
-            {
-                maxWidth = std::max(maxWidth, mode.width);
-                maxHeight = std::max(maxHeight, mode.height);
-            }
-
-            window.setMaxClientSize(maxWidth, maxHeight);
-            Logger::log(LogLevel::INFO, mainLogSource, std::format("Applied client-size constraints: min={}x{} max={}x{}.", minimumClientWidth, minimumClientHeight, maxWidth, maxHeight));
-
-            if (!supportedModes.empty())
-            {
-                Logger::log(LogLevel::INFO, mainLogSource, std::format("First supported mode: {}", formatDisplayMode(supportedModes.front())));
-            }
-        }
-        else
-        {
-            if (currentMonitorResult != WindowResult::Success)
-            {
-                logWindowFailure("Querying current monitor", window, currentMonitorResult);
-            }
-
-            window.setMaxClientSize(1920, 1080);
-            Logger::log(LogLevel::INFO, mainLogSource, std::format("Applied client-size constraints: min={}x{} max=1920x1080 (fallback, no current monitor detected).", minimumClientWidth, minimumClientHeight));
-        }
+        applyStartupClientSizeConstraints(window);
 
         while (!window.shouldClose())
         {
-            input.advanceFrame();
-            window.pollEvents(input);
-            logWindowAsyncError(window);
+#ifdef TRACY_ENABLE
+            const auto frameStart = std::chrono::steady_clock::now();
+#endif
+            ZoneScopedNC("Main frame", tracy::Color::RoyalBlue);
 
-            if (input.wasButtonPressed(closeWindowControl))
             {
-                Logger::log(LogLevel::INFO, mainLogSource, "Escape key pressed. Requesting window close.");
-                window.requestClose();
+                ZoneScopedNC("Advance input frame", tracy::Color::MediumSeaGreen);
+                input.advanceFrame();
             }
 
-            logWindowEvents(window);
+            {
+                ZoneScopedNC("Poll window events", tracy::Color::DodgerBlue);
+                window.pollEvents(input);
+                logWindowAsyncError(window);
+            }
 
-            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+            {
+                ZoneScopedNC("Handle close input", tracy::Color::YellowGreen);
+                if (input.wasButtonPressed(closeWindowControl))
+                {
+                    Logger::log(LogLevel::INFO, mainLogSource, "Escape key pressed. Requesting window close.");
+                    TracyMessageLC("Escape close requested.", tracy::Color::Orange);
+                    window.requestClose();
+                }
+            }
+
+            std::size_t windowEventCount = 0;
+            {
+                ZoneScopedNC("Log window events", tracy::Color::SlateBlue);
+                windowEventCount = logWindowEvents(window);
+                ZoneValue(static_cast<std::uint64_t>(windowEventCount));
+            }
+            TracyPlot("Window events/frame", static_cast<double>(windowEventCount));
+
+            {
+                ZoneScopedNC("Frame sleep", tracy::Color::Gray);
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            }
+
+#ifdef TRACY_ENABLE
+            const auto frameEnd = std::chrono::steady_clock::now();
+            const double frameMilliseconds = std::chrono::duration<double, std::milli>(frameEnd - frameStart).count();
+            TracyPlot("Frame time (ms)", frameMilliseconds);
+#endif
+            FrameMarkNamed("GameWIP frame");
         }
 
-        Logger::log(LogLevel::INFO, mainLogSource, "Window close requested.");
-        if (WindowResult result = window.destroy(); result != WindowResult::Success)
         {
-            logWindowFailure("Destroying Win32 window", window, result);
+            ZoneScopedNC("Shutdown window", tracy::Color::OrangeRed);
+            TracyMessageLC("Window close requested.", tracy::Color::Orange);
+            Logger::log(LogLevel::INFO, mainLogSource, "Window close requested.");
+            if (WindowResult result = window.destroy(); result != WindowResult::Success)
+            {
+                logWindowFailure("Destroying Win32 window", window, result);
+            }
         }
 
+        TracyMessageLC("GameWIP shutdown clean.", tracy::Color::SeaGreen);
         Logger::log(LogLevel::INFO, mainLogSource, "GameWIP shutting down cleanly.");
         return 0;
     }
 }
 
+/// @brief Program entry point.
+/// @return Process exit code.
 int main()
 {
     Logger::init(defaultOutputMode, defaultLogLevel, defaultQueueSize);
+
+    tracy::SetThreadName("Main");
+#ifdef TRACY_ENABLE
+    configureTracySession();
+#endif
 
     int exitCode = 0;
 
@@ -379,15 +502,19 @@ int main()
     }
     catch (const std::exception &error)
     {
-        Logger::log(LogLevel::FATAL, mainLogSource, error.what());
-        Logger::logDBWIN(LogLevel::FATAL, mainLogSource, error.what());
+        const std::string_view errorMessage = error.what();
+        TracyMessageLC("Fatal std::exception caught.", tracy::Color::Red);
+        TracyMessageC(errorMessage.data(), errorMessage.size(), tracy::Color::Red);
+        Logger::log(LogLevel::FATAL, mainLogSource, errorMessage);
+        Logger::logDBWIN(LogLevel::FATAL, mainLogSource, errorMessage);
         Logger::flush();
-        Logger::fatalPopUp(error.what());
+        Logger::fatalPopUp(errorMessage);
         exitCode = 1;
     }
     catch (...)
     {
         constexpr std::string_view unknownErrorMessage = "Unhandled non-standard exception.";
+        TracyMessageLC("Fatal non-standard exception caught.", tracy::Color::Red);
         Logger::log(LogLevel::FATAL, mainLogSource, unknownErrorMessage);
         Logger::logDBWIN(LogLevel::FATAL, mainLogSource, unknownErrorMessage);
         Logger::flush();

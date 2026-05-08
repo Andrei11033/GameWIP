@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <span>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -309,6 +310,9 @@ namespace GameWIP::Input
     public:
         // State lifecycle
 
+        /// @brief Creates input state with small reserved storage for common controls.
+        InputState();
+
         /// @brief Clears active input state while preserving device connections.
         /// @param emitReleaseActivations True to emit releases for currently held buttons.
         void clear(bool emitReleaseActivations = true);
@@ -382,6 +386,10 @@ namespace GameWIP::Input
         /// @brief Returns all activations.
         /// @param outActivations All activations.
         void getActivations(std::vector<InputActivation> &outActivations) const;
+
+        /// @brief Returns current-frame activations without copying.
+        /// @return Read-only view of activations in detection order.
+        std::span<const InputActivation> getActivationView() const;
 
         // Text input
 

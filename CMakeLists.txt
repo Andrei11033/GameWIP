@@ -1,10 +1,18 @@
 cmake_minimum_required(VERSION 3.20)
 
-project(GameWIP VERSION 0.1.0 LANGUAGES CXX)
+project(GameWIP VERSION 0.0.1 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
+
+# Option to enable Tracy profiler instrumentation.
+option(GAMEWIP_ENABLE_TRACY "Enable Tracy profiler instrumentation" OFF)
+
+set(TRACY_ENABLE ${GAMEWIP_ENABLE_TRACY} CACHE BOOL "" FORCE)
+set(TRACY_ON_DEMAND ON CACHE BOOL "" FORCE)
+
+add_subdirectory(external/tracy)
 
 # Build the logger as a DLL so it can stay separate from the game executable.
 add_library(Logger SHARED
@@ -67,6 +75,7 @@ target_link_libraries(PlatformWin32 PUBLIC
 
 target_link_libraries(PlatformWin32 PRIVATE
     shell32
+    Tracy::TracyClient
 )
 
 target_link_libraries(GameWIP PRIVATE
@@ -74,6 +83,7 @@ target_link_libraries(GameWIP PRIVATE
     Assert
     Input
     PlatformWin32
+    Tracy::TracyClient
 )
 
 target_include_directories(GameWIP PRIVATE

@@ -4,6 +4,7 @@
 #include <xinput.h>
 
 #include <array>
+#include <chrono>
 #include <cstdint>
 #include <string_view>
 #include <vector>
@@ -72,6 +73,7 @@ namespace
     using GameWIP::Input::MouseWheel;
 
     constexpr DWORD maxGamepadCount = 4;
+    constexpr auto disconnectedGamepadPollInterval = std::chrono::seconds(1);
 
     using XInputGetStateFn = DWORD(WINAPI *)(DWORD, XINPUT_STATE *);
 
@@ -80,7 +82,11 @@ namespace
     std::array<DWORD, maxGamepadCount> cachedGamepadPacketNumbers{};
     std::array<std::uint64_t, maxGamepadCount> cachedGamepadClearGenerations{};
     std::array<const InputState *, maxGamepadCount> cachedGamepadInputStates{};
+    std::array<bool, maxGamepadCount> cachedGamepadConnected{};
     std::array<bool, maxGamepadCount> hasCachedGamepadPacket{};
+    std::array<bool, maxGamepadCount> gamepadControlsCleared{true, true, true, true};
+    std::chrono::steady_clock::time_point nextDisconnectedGamepadPollTime{};
+    DWORD nextDisconnectedGamepadSlotToPoll = 0;
 
     constexpr std::array<GamepadButton, 15> allGamepadButtons{
         GamepadButton::North,
@@ -166,6 +172,54 @@ namespace
         for (GamepadAxis axis : allGamepadAxes)
         {
             InputInternal::InputStateAccess::setAxis(inputState, makeGamepadAxis(deviceIndex, axis), 0.0f);
+        }
+    }
+
+    DWORD chooseDisconnectedGamepadSlot()
+    {
+        for (DWORD attempt = 0; attempt < maxGamepadCount; ++attempt)
+        {
+            DWORD userIndex = (nextDisconnectedGamepadSlotToPoll + attempt) % maxGamepadCount;
+            if (!cachedGamepadConnected[static_cast<std::size_t>(userIndex)])
+            {
+                nextDisconnectedGamepadSlotToPoll = (userIndex + 1) % maxGamepadCount;
+                return userIndex;
+            }
+        }
+
+        return maxGamepadCount;
+    }
+
+    void markGamepadDisconnected(InputState &inputState, DeviceIndex deviceIndex, std::size_t cacheIndex, std::uint64_t clearGeneration)
+    {
+        if (!gamepadControlsCleared[cacheIndex])
+        {
+            clearGamepadControls(inputState, deviceIndex);
+            gamepadControlsCleared[cacheIndex] = true;
+        }
+
+        InputInternal::InputStateAccess::setDeviceConnected(inputState, InputDeviceType::Gamepad, deviceIndex, false);
+        cachedGamepadInputStates[cacheIndex] = &inputState;
+        cachedGamepadClearGenerations[cacheIndex] = clearGeneration;
+        cachedGamepadConnected[cacheIndex] = false;
+        hasCachedGamepadPacket[cacheIndex] = false;
+    }
+
+    void markXInputUnavailable(InputState &inputState, std::uint64_t clearGeneration)
+    {
+        for (DWORD userIndex = 0; userIndex < maxGamepadCount; ++userIndex)
+        {
+            std::size_t cacheIndex = static_cast<std::size_t>(userIndex);
+            if (cachedGamepadConnected[cacheIndex] || !gamepadControlsCleared[cacheIndex])
+            {
+                DeviceIndex deviceIndex = static_cast<DeviceIndex>(userIndex);
+                markGamepadDisconnected(inputState, deviceIndex, cacheIndex, clearGeneration);
+            }
+            else
+            {
+                cachedGamepadInputStates[cacheIndex] = nullptr;
+                hasCachedGamepadPacket[cacheIndex] = false;
+            }
         }
     }
 
@@ -761,17 +815,31 @@ namespace GameWIP::Input::Platform::Win32
         XInputGetStateFn xInputGetState = getXInputGetState();
         std::uint64_t clearGeneration = InputInternal::InputStateAccess::getClearGeneration(inputState);
 
+        if (xInputGetState == nullptr)
+        {
+            markXInputUnavailable(inputState, clearGeneration);
+            return;
+        }
+
+        DWORD disconnectedSlotToPoll = maxGamepadCount;
+        auto now = std::chrono::steady_clock::now();
+        if (now >= nextDisconnectedGamepadPollTime)
+        {
+            disconnectedSlotToPoll = chooseDisconnectedGamepadSlot();
+            if (disconnectedSlotToPoll != maxGamepadCount)
+            {
+                nextDisconnectedGamepadPollTime = now + disconnectedGamepadPollInterval;
+            }
+        }
+
         for (DWORD userIndex = 0; userIndex < maxGamepadCount; ++userIndex)
         {
             DeviceIndex deviceIndex = static_cast<DeviceIndex>(userIndex);
             std::size_t cacheIndex = static_cast<std::size_t>(userIndex);
 
-            if (xInputGetState == nullptr)
+            bool wasConnected = cachedGamepadConnected[cacheIndex];
+            if (!wasConnected && userIndex != disconnectedSlotToPoll)
             {
-                clearGamepadControls(inputState, deviceIndex);
-                InputInternal::InputStateAccess::setDeviceConnected(inputState, InputDeviceType::Gamepad, deviceIndex, false);
-                cachedGamepadInputStates[cacheIndex] = nullptr;
-                hasCachedGamepadPacket[cacheIndex] = false;
                 continue;
             }
 
@@ -780,6 +848,7 @@ namespace GameWIP::Input::Platform::Win32
             if (result == ERROR_SUCCESS)
             {
                 InputInternal::InputStateAccess::setDeviceConnected(inputState, InputDeviceType::Gamepad, deviceIndex, true);
+                cachedGamepadConnected[cacheIndex] = true;
 
                 if (hasCachedGamepadPacket[cacheIndex] &&
                     cachedGamepadInputStates[cacheIndex] == &inputState &&
@@ -794,13 +863,11 @@ namespace GameWIP::Input::Platform::Win32
                 cachedGamepadClearGenerations[cacheIndex] = clearGeneration;
                 cachedGamepadInputStates[cacheIndex] = &inputState;
                 hasCachedGamepadPacket[cacheIndex] = true;
+                gamepadControlsCleared[cacheIndex] = false;
             }
             else
             {
-                clearGamepadControls(inputState, deviceIndex);
-                InputInternal::InputStateAccess::setDeviceConnected(inputState, InputDeviceType::Gamepad, deviceIndex, false);
-                cachedGamepadInputStates[cacheIndex] = nullptr;
-                hasCachedGamepadPacket[cacheIndex] = false;
+                markGamepadDisconnected(inputState, deviceIndex, cacheIndex, clearGeneration);
             }
         }
     }

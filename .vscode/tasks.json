@@ -2,14 +2,18 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "CMake Configure",
+            "label": "Configure Optimized Debuggable",
             "type": "shell",
             "command": "cmake",
             "args": [
                 "-S",
                 ".",
                 "-B",
-                "build"
+                "build-optimized-debuggable",
+                "-G",
+                "MinGW Makefiles",
+                "-DCMAKE_BUILD_TYPE=RelWithDebInfo",
+                "-DGAMEWIP_ENABLE_TRACY=OFF"
             ],
             "options": {
                 "cwd": "${workspaceFolder}",
@@ -20,12 +24,12 @@
             "problemMatcher": []
         },
         {
-            "label": "CMake Build",
+            "label": "Build Optimized Debuggable",
             "type": "shell",
             "command": "cmake",
             "args": [
                 "--build",
-                "build"
+                "build-optimized-debuggable"
             ],
             "options": {
                 "cwd": "${workspaceFolder}",
@@ -40,32 +44,32 @@
                 "kind": "build",
                 "isDefault": true
             },
-            "dependsOn": "CMake Configure"
+            "dependsOn": "Configure Optimized Debuggable"
         },
         {
-            "label": "Run GameWIP",
+            "label": "Run Optimized Debuggable",
             "type": "shell",
-            "command": "${workspaceFolder}\\build\\GameWIP.exe",
+            "command": "${workspaceFolder}\\build-optimized-debuggable\\GameWIP.exe",
             "options": {
-                "cwd": "${workspaceFolder}\\build",
+                "cwd": "${workspaceFolder}\\build-optimized-debuggable",
                 "env": {
                     "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
                 }
             },
             "problemMatcher": [],
-            "dependsOn": "CMake Build"
+            "dependsOn": "Build Optimized Debuggable"
         },
         {
-            "label": "Verify GameWIP",
+            "label": "Verify Optimized Debuggable",
             "type": "shell",
             "command": "powershell",
             "args": [
                 "-NoProfile",
                 "-Command",
-                "$ErrorActionPreference = 'Stop'; & '${workspaceFolder}\\build\\GameWIP.exe' both info; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; Write-Host 'Verification passed.'"
+                "$ErrorActionPreference = 'Stop'; & '${workspaceFolder}\\build-optimized-debuggable\\GameWIP.exe' both info; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; Write-Host 'Verification passed.'"
             ],
             "options": {
-                "cwd": "${workspaceFolder}\\build",
+                "cwd": "${workspaceFolder}\\build-optimized-debuggable",
                 "env": {
                     "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
                 }
@@ -75,20 +79,21 @@
                 "kind": "test",
                 "isDefault": true
             },
-            "dependsOn": "CMake Build"
+            "dependsOn": "Build Optimized Debuggable"
         },
         {
-            "label": "CMake Configure Release",
+            "label": "Configure Tracy Profiling",
             "type": "shell",
             "command": "cmake",
             "args": [
                 "-S",
                 ".",
                 "-B",
-                "build-release",
+                "build-tracy-profiling",
                 "-G",
                 "MinGW Makefiles",
-                "-DCMAKE_BUILD_TYPE=Release"
+                "-DCMAKE_BUILD_TYPE=RelWithDebInfo",
+                "-DGAMEWIP_ENABLE_TRACY=ON"
             ],
             "options": {
                 "cwd": "${workspaceFolder}",
@@ -99,12 +104,12 @@
             "problemMatcher": []
         },
         {
-            "label": "CMake Build Release",
+            "label": "Build Tracy Profiling",
             "type": "shell",
             "command": "cmake",
             "args": [
                 "--build",
-                "build-release"
+                "build-tracy-profiling"
             ],
             "options": {
                 "cwd": "${workspaceFolder}",
@@ -115,7 +120,113 @@
             "problemMatcher": [
                 "$gcc"
             ],
-            "dependsOn": "CMake Configure Release"
+            "dependsOn": "Configure Tracy Profiling"
+        },
+        {
+            "label": "Run Tracy Profiling",
+            "type": "shell",
+            "command": "powershell",
+            "args": [
+                "-NoProfile",
+                "-Command",
+                "$ErrorActionPreference = 'Stop'; $profiler = '${workspaceFolder}\\.tracy\\tracy-profiler.exe'; $game = '${workspaceFolder}\\build-tracy-profiling\\GameWIP.exe'; if (!(Test-Path -LiteralPath $profiler)) { throw \"Missing Tracy profiler: $profiler\" }; if (!(Test-Path -LiteralPath $game)) { throw \"Missing profiled game executable: $game\" }; if ($null -eq (Get-Process -Name 'tracy-profiler' -ErrorAction SilentlyContinue)) { Start-Process -FilePath $profiler -WorkingDirectory (Split-Path -Parent $profiler) }; & $game; exit $LASTEXITCODE"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}\\build-tracy-profiling",
+                "env": {
+                    "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
+                }
+            },
+            "problemMatcher": [],
+            "dependsOn": "Build Tracy Profiling"
+        },
+        {
+            "label": "Configure Max Optimized With Symbols",
+            "type": "shell",
+            "command": "cmake",
+            "args": [
+                "-S",
+                ".",
+                "-B",
+                "build-max-optimized-symbols",
+                "-G",
+                "MinGW Makefiles",
+                "-DCMAKE_BUILD_TYPE=RelWithDebInfo",
+                "-DGAMEWIP_ENABLE_TRACY=OFF",
+                "-DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON",
+                "-DCMAKE_CXX_FLAGS_RELWITHDEBINFO=-O3 -g -DNDEBUG"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}",
+                "env": {
+                    "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
+                }
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Build Max Optimized With Symbols",
+            "type": "shell",
+            "command": "cmake",
+            "args": [
+                "--build",
+                "build-max-optimized-symbols"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}",
+                "env": {
+                    "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
+                }
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "dependsOn": "Configure Max Optimized With Symbols"
+        },
+        {
+            "label": "Configure Shipping Release",
+            "type": "shell",
+            "command": "cmake",
+            "args": [
+                "-S",
+                ".",
+                "-B",
+                "build-shipping-release",
+                "-G",
+                "MinGW Makefiles",
+                "-DCMAKE_BUILD_TYPE=Release",
+                "-DGAMEWIP_ENABLE_TRACY=OFF",
+                "-DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON",
+                "-DCMAKE_CXX_FLAGS_RELEASE=-O3 -DNDEBUG",
+                "-DCMAKE_EXE_LINKER_FLAGS_RELEASE=-s",
+                "-DCMAKE_SHARED_LINKER_FLAGS_RELEASE=-s"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}",
+                "env": {
+                    "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
+                }
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Build Shipping Release",
+            "type": "shell",
+            "command": "cmake",
+            "args": [
+                "--build",
+                "build-shipping-release"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}",
+                "env": {
+                    "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
+                }
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "dependsOn": "Configure Shipping Release"
         }
     ]
 }

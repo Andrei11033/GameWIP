@@ -2,13 +2,13 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Debug GameWIP",
+            "name": "Debug GameWIP (Optimized Debuggable)",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}\\build\\GameWIP.exe",
+            "program": "${workspaceFolder}\\build-optimized-debuggable\\GameWIP.exe",
             "args": [],
             "stopAtEntry": false,
-            "cwd": "${workspaceFolder}\\build",
+            "cwd": "${workspaceFolder}\\build-optimized-debuggable",
             "environment": [
                 {
                     "name": "PATH",
@@ -25,7 +25,7 @@
                     "ignoreFailures": true
                 }
             ],
-            "preLaunchTask": "CMake Build"
+            "preLaunchTask": "Build Optimized Debuggable"
         }
     ]
 }

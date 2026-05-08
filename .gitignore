@@ -1,6 +1,9 @@
 # Build folders
 /build/
-/build-release/
+/build-*/
+
+# Local tools
+/.tracy/
 
 # MSYS / temp
 *.log

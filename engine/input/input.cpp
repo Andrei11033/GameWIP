@@ -32,69 +32,99 @@ namespace GameWIP::Input
             return control.controlType == InputControlType::Wheel;
         }
 
-        /// @brief Returns whether a control is stored in a compact control list.
+        /// @brief Finds where a control belongs in a sorted compact control list.
+        auto findControl(std::vector<InputControl> &controls, InputControl control)
+        {
+            return std::lower_bound(controls.begin(), controls.end(), control);
+        }
+
+        /// @brief Finds where a control belongs in a sorted compact control list.
+        auto findControl(const std::vector<InputControl> &controls, InputControl control)
+        {
+            return std::lower_bound(controls.begin(), controls.end(), control);
+        }
+
+        /// @brief Returns whether a lower-bound result points at a matching control.
+        template <typename Iterator>
+        bool isMatchingControl(Iterator entry, Iterator end, InputControl control)
+        {
+            return entry != end && *entry == control;
+        }
+
+        /// @brief Returns whether a control is stored in a sorted compact control list.
         /// @param controls Control list to search.
         /// @param control Control to search for.
         /// @return True if the control exists in the list.
         bool containsControl(const std::vector<InputControl> &controls, InputControl control)
         {
-            return std::find(controls.begin(), controls.end(), control) != controls.end();
+            auto entry = findControl(controls, control);
+            return isMatchingControl(entry, controls.end(), control);
         }
 
-        /// @brief Adds a control to a compact list if it is not already present.
+        /// @brief Adds a control to a sorted compact list if it is not already present.
         /// @param controls Control list to update.
         /// @param control Control to add.
         void addUniqueControl(std::vector<InputControl> &controls, InputControl control)
         {
-            if (!containsControl(controls, control))
+            auto entry = findControl(controls, control);
+            if (!isMatchingControl(entry, controls.end(), control))
             {
-                controls.push_back(control);
+                controls.insert(entry, control);
             }
         }
 
-        /// @brief Removes a control from a compact list.
+        /// @brief Removes a control from a sorted compact list.
         /// @param controls Control list to update.
         /// @param control Control to remove.
         void removeControl(std::vector<InputControl> &controls, InputControl control)
         {
-            auto entry = std::find(controls.begin(), controls.end(), control);
-            if (entry != controls.end())
+            auto entry = findControl(controls, control);
+            if (isMatchingControl(entry, controls.end(), control))
             {
                 controls.erase(entry);
             }
         }
 
-        /// @brief Finds a control/value pair in a compact value list.
+        /// @brief Finds where a control/value pair belongs in a sorted compact value list.
         /// @param values Control/value list to search.
         /// @param control Control to search for.
         /// @return Iterator to the matching entry, or values.end().
         auto findControlValue(std::vector<std::pair<InputControl, float>> &values, InputControl control)
         {
-            return std::find_if(
+            return std::lower_bound(
                 values.begin(),
                 values.end(),
-                [control](const std::pair<InputControl, float> &entry)
+                control,
+                [](const std::pair<InputControl, float> &entry, InputControl target)
                 {
-                    return entry.first == control;
+                    return entry.first < target;
                 });
         }
 
-        /// @brief Finds a control/value pair in a compact value list.
+        /// @brief Finds where a control/value pair belongs in a sorted compact value list.
         /// @param values Control/value list to search.
         /// @param control Control to search for.
         /// @return Iterator to the matching entry, or values.end().
         auto findControlValue(const std::vector<std::pair<InputControl, float>> &values, InputControl control)
         {
-            return std::find_if(
+            return std::lower_bound(
                 values.begin(),
                 values.end(),
-                [control](const std::pair<InputControl, float> &entry)
+                control,
+                [](const std::pair<InputControl, float> &entry, InputControl target)
                 {
-                    return entry.first == control;
+                    return entry.first < target;
                 });
         }
 
-        /// @brief Stores or removes a value in a compact value list.
+        /// @brief Returns whether a lower-bound result points at a matching control/value pair.
+        template <typename Iterator>
+        bool isMatchingControlValue(Iterator entry, Iterator end, InputControl control)
+        {
+            return entry != end && entry->first == control;
+        }
+
+        /// @brief Stores or removes a value in a sorted compact value list.
         /// @param values Control/value list to update.
         /// @param control Control to update.
         /// @param value Value to store, or zero to remove.
@@ -103,20 +133,20 @@ namespace GameWIP::Input
             auto entry = findControlValue(values, control);
             if (value == 0.0f)
             {
-                if (entry != values.end())
+                if (isMatchingControlValue(entry, values.end(), control))
                 {
                     values.erase(entry);
                 }
                 return;
             }
 
-            if (entry != values.end())
+            if (isMatchingControlValue(entry, values.end(), control))
             {
                 entry->second = value;
             }
             else
             {
-                values.push_back({control, value});
+                values.insert(entry, {control, value});
             }
         }
 
@@ -127,7 +157,7 @@ namespace GameWIP::Input
         float getControlValue(const std::vector<std::pair<InputControl, float>> &values, InputControl control)
         {
             auto entry = findControlValue(values, control);
-            return entry != values.end() ? entry->second : 0.0f;
+            return isMatchingControlValue(entry, values.end(), control) ? entry->second : 0.0f;
         }
 
         // Text helpers
@@ -171,6 +201,18 @@ namespace GameWIP::Input
                 text.push_back(static_cast<char>(0x80 | (codepoint & 0x3F)));
             }
         }
+    }
+
+    InputState::InputState()
+    {
+        currentButtons.reserve(32);
+        pressedButtons.reserve(16);
+        releasedButtons.reserve(16);
+        axisValues.reserve(16);
+        wheelDeltas.reserve(2);
+        connectedDevices.reserve(4);
+        activations.reserve(32);
+        textInputUtf8.reserve(32);
     }
 
     void InputState::clear(bool emitReleaseActivations)
@@ -295,16 +337,24 @@ namespace GameWIP::Input
             return true;
         }
 
-        auto entry = std::find_if(
+        InputDeviceId targetDeviceId{deviceType, deviceIndex};
+        auto entry = std::lower_bound(
             connectedDevices.begin(),
             connectedDevices.end(),
-            [deviceType, deviceIndex](const InputDeviceId &deviceId)
+            targetDeviceId,
+            [](const InputDeviceId &left, const InputDeviceId &right)
             {
-                return deviceId.deviceType == deviceType &&
-                       deviceId.deviceIndex == deviceIndex;
+                if (left.deviceType != right.deviceType)
+                {
+                    return static_cast<int>(left.deviceType) < static_cast<int>(right.deviceType);
+                }
+
+                return left.deviceIndex < right.deviceIndex;
             });
 
-        return entry != connectedDevices.end();
+        return entry != connectedDevices.end() &&
+               entry->deviceType == deviceType &&
+               entry->deviceIndex == deviceIndex;
     }
 
     bool InputState::tryGetFirstActivation(InputActivation &outActivation) const
@@ -322,6 +372,11 @@ namespace GameWIP::Input
     void InputState::getActivations(std::vector<InputActivation> &outActivations) const
     {
         outActivations = activations;
+    }
+
+    std::span<const InputActivation> InputState::getActivationView() const
+    {
+        return activations;
     }
 
     bool InputState::hasTextInput() const
@@ -447,23 +502,32 @@ namespace GameWIP::Input
 
     void InputState::setDeviceConnectedInternal(InputDeviceType deviceType, DeviceIndex deviceIndex, bool connected)
     {
-        auto entry = std::find_if(
+        InputDeviceId targetDeviceId{deviceType, deviceIndex};
+        auto entry = std::lower_bound(
             connectedDevices.begin(),
             connectedDevices.end(),
-            [deviceType, deviceIndex](const InputDeviceId &deviceId)
+            targetDeviceId,
+            [](const InputDeviceId &left, const InputDeviceId &right)
             {
-                return deviceId.deviceType == deviceType &&
-                       deviceId.deviceIndex == deviceIndex;
+                if (left.deviceType != right.deviceType)
+                {
+                    return static_cast<int>(left.deviceType) < static_cast<int>(right.deviceType);
+                }
+
+                return left.deviceIndex < right.deviceIndex;
             });
+        bool found = entry != connectedDevices.end() &&
+                     entry->deviceType == deviceType &&
+                     entry->deviceIndex == deviceIndex;
 
         if (connected)
         {
-            if (entry == connectedDevices.end())
+            if (!found)
             {
-                connectedDevices.push_back(InputDeviceId{deviceType, deviceIndex});
+                connectedDevices.insert(entry, targetDeviceId);
             }
         }
-        else if (entry != connectedDevices.end())
+        else if (found)
         {
             connectedDevices.erase(entry);
         }
