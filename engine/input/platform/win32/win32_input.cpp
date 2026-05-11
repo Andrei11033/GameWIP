@@ -1,6 +1,7 @@
 #include "win32_input.h"
 
 #include <windows.h>
+#include <windowsx.h>
 #include <xinput.h>
 
 #include <array>
@@ -695,6 +696,19 @@ namespace
         return static_cast<int>(static_cast<short>(HIWORD(lParam)));
     }
 
+    bool feedUiMouseButton(InputState &inputState, MouseButton button, bool isDown)
+    {
+        InputInternal::InputStateAccess::setButton(inputState, makeMouseButton(button), isDown);
+        return true;
+    }
+
+    bool feedUiMouseWheel(InputState &inputState, MouseWheel wheel, unsigned long long wParam)
+    {
+        float wheelAmount = static_cast<float>(GET_WHEEL_DELTA_WPARAM(static_cast<WPARAM>(wParam))) / static_cast<float>(WHEEL_DELTA);
+        InputInternal::InputStateAccess::addWheelDelta(inputState, makeMouseWheel(wheel), wheelAmount);
+        return true;
+    }
+
     bool handleRawInput(LPARAM lParam, InputState &inputState)
     {
         HRAWINPUT rawInputHandle = reinterpret_cast<HRAWINPUT>(lParam);
@@ -872,6 +886,61 @@ namespace GameWIP::Input::Platform::Win32
         }
     }
 
+    bool handleUiMessage(unsigned int message, unsigned long long wParam, long long lParam, InputState &inputState)
+    {
+        switch (message)
+        {
+        case WM_MOUSEMOVE:
+            InputInternal::InputStateAccess::setMousePosition(
+                inputState,
+                getSignedLowWord(lParam),
+                getSignedHighWord(lParam));
+            (void)wParam;
+            return true;
+        case WM_MOUSELEAVE:
+            InputInternal::InputStateAccess::clearMousePosition(inputState);
+            (void)wParam;
+            return true;
+        case WM_LBUTTONDOWN:
+            return feedUiMouseButton(inputState, MouseButton::Left, true);
+        case WM_LBUTTONUP:
+            return feedUiMouseButton(inputState, MouseButton::Left, false);
+        case WM_RBUTTONDOWN:
+            return feedUiMouseButton(inputState, MouseButton::Right, true);
+        case WM_RBUTTONUP:
+            return feedUiMouseButton(inputState, MouseButton::Right, false);
+        case WM_MBUTTONDOWN:
+            return feedUiMouseButton(inputState, MouseButton::Middle, true);
+        case WM_MBUTTONUP:
+            return feedUiMouseButton(inputState, MouseButton::Middle, false);
+        case WM_XBUTTONDOWN:
+            return feedUiMouseButton(inputState, GET_XBUTTON_WPARAM(static_cast<WPARAM>(wParam)) == XBUTTON1 ? MouseButton::X1 : MouseButton::X2, true);
+        case WM_XBUTTONUP:
+            return feedUiMouseButton(inputState, GET_XBUTTON_WPARAM(static_cast<WPARAM>(wParam)) == XBUTTON1 ? MouseButton::X1 : MouseButton::X2, false);
+        case WM_MOUSEWHEEL:
+            return feedUiMouseWheel(inputState, MouseWheel::Vertical, wParam);
+        case WM_MOUSEHWHEEL:
+            return feedUiMouseWheel(inputState, MouseWheel::Horizontal, wParam);
+        case WM_CHAR:
+            feedUtf16TextCodeUnit(static_cast<char16_t>(wParam), inputState);
+            return true;
+        case WM_UNICHAR:
+            if (wParam == UNICODE_NOCHAR)
+            {
+                return true;
+            }
+
+            feedUnicodeTextCodepoint(static_cast<char32_t>(wParam), inputState);
+            return true;
+        default:
+            break;
+        }
+
+        (void)wParam;
+        (void)lParam;
+        return false;
+    }
+
     bool handleMessage(unsigned int message, unsigned long long wParam, long long lParam, InputState &inputState)
     {
         if (message == WM_INPUT)
@@ -883,42 +952,7 @@ namespace GameWIP::Input::Platform::Win32
             return false;
         }
 
-        if (message == WM_MOUSEMOVE)
-        {
-            InputInternal::InputStateAccess::setMousePosition(
-                inputState,
-                getSignedLowWord(lParam),
-                getSignedHighWord(lParam));
-            (void)wParam;
-            return true;
-        }
-
-        if (message == WM_MOUSELEAVE)
-        {
-            InputInternal::InputStateAccess::clearMousePosition(inputState);
-            (void)wParam;
-            return true;
-        }
-
-        if (message == WM_CHAR)
-        {
-            feedUtf16TextCodeUnit(static_cast<char16_t>(wParam), inputState);
-            return true;
-        }
-
-        if (message == WM_UNICHAR)
-        {
-            if (wParam == UNICODE_NOCHAR)
-            {
-                return true;
-            }
-
-            feedUnicodeTextCodepoint(static_cast<char32_t>(wParam), inputState);
-            return true;
-        }
-
-        (void)wParam;
-        return false;
+        return handleUiMessage(message, wParam, lParam, inputState);
     }
 
     bool registerInputDevices(void *windowHandle, unsigned long &win32Error)

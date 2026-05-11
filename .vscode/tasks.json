@@ -13,7 +13,9 @@
                 "-G",
                 "MinGW Makefiles",
                 "-DCMAKE_BUILD_TYPE=RelWithDebInfo",
-                "-DGAMEWIP_ENABLE_TRACY=OFF"
+                "-DGAMEWIP_ENABLE_TRACY=OFF",
+                "-DGAMEWIP_ENABLE_TOOLS=OFF",
+                "-DGAMEWIP_OPEN_TOOL_WINDOWS_AT_STARTUP=OFF"
             ],
             "options": {
                 "cwd": "${workspaceFolder}",
@@ -82,6 +84,62 @@
             "dependsOn": "Build Optimized Debuggable"
         },
         {
+            "label": "Configure Tools Multiwindow",
+            "type": "shell",
+            "command": "cmake",
+            "args": [
+                "-S",
+                ".",
+                "-B",
+                "build-tools",
+                "-G",
+                "Ninja",
+                "-DCMAKE_BUILD_TYPE=RelWithDebInfo",
+                "-DGAMEWIP_ENABLE_TRACY=OFF",
+                "-DGAMEWIP_ENABLE_TOOLS=ON",
+                "-DGAMEWIP_OPEN_TOOL_WINDOWS_AT_STARTUP=ON"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}",
+                "env": {
+                    "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
+                }
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Build Tools Multiwindow",
+            "type": "shell",
+            "command": "cmake",
+            "args": [
+                "--build",
+                "build-tools"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}",
+                "env": {
+                    "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
+                }
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "dependsOn": "Configure Tools Multiwindow"
+        },
+        {
+            "label": "Run Tools Multiwindow",
+            "type": "shell",
+            "command": "${workspaceFolder}\\build-tools\\GameWIP.exe",
+            "options": {
+                "cwd": "${workspaceFolder}\\build-tools",
+                "env": {
+                    "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
+                }
+            },
+            "problemMatcher": [],
+            "dependsOn": "Build Tools Multiwindow"
+        },
+        {
             "label": "Configure Tracy Profiling",
             "type": "shell",
             "command": "cmake",
@@ -91,9 +149,11 @@
                 "-B",
                 "build-tracy-profiling",
                 "-G",
-                "MinGW Makefiles",
+                "Ninja",
                 "-DCMAKE_BUILD_TYPE=RelWithDebInfo",
-                "-DGAMEWIP_ENABLE_TRACY=ON"
+                "-DGAMEWIP_ENABLE_TRACY=ON",
+                "-DGAMEWIP_ENABLE_TOOLS=OFF",
+                "-DGAMEWIP_OPEN_TOOL_WINDOWS_AT_STARTUP=OFF"
             ],
             "options": {
                 "cwd": "${workspaceFolder}",
@@ -150,9 +210,11 @@
                 "-B",
                 "build-max-optimized-symbols",
                 "-G",
-                "MinGW Makefiles",
+                "Ninja",
                 "-DCMAKE_BUILD_TYPE=RelWithDebInfo",
                 "-DGAMEWIP_ENABLE_TRACY=OFF",
+                "-DGAMEWIP_ENABLE_TOOLS=OFF",
+                "-DGAMEWIP_OPEN_TOOL_WINDOWS_AT_STARTUP=OFF",
                 "-DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON",
                 "-DCMAKE_CXX_FLAGS_RELWITHDEBINFO=-O3 -g -DNDEBUG"
             ],
@@ -184,6 +246,19 @@
             "dependsOn": "Configure Max Optimized With Symbols"
         },
         {
+            "label": "Run Max Optimized With Symbols",
+            "type": "shell",
+            "command": "${workspaceFolder}\\build-max-optimized-symbols\\GameWIP.exe",
+            "options": {
+                "cwd": "${workspaceFolder}\\build-max-optimized-symbols",
+                "env": {
+                    "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
+                }
+            },
+            "problemMatcher": [],
+            "dependsOn": "Build Max Optimized With Symbols"
+        },
+        {
             "label": "Configure Shipping Release",
             "type": "shell",
             "command": "cmake",
@@ -193,9 +268,11 @@
                 "-B",
                 "build-shipping-release",
                 "-G",
-                "MinGW Makefiles",
+                "Ninja",
                 "-DCMAKE_BUILD_TYPE=Release",
                 "-DGAMEWIP_ENABLE_TRACY=OFF",
+                "-DGAMEWIP_ENABLE_TOOLS=OFF",
+                "-DGAMEWIP_OPEN_TOOL_WINDOWS_AT_STARTUP=OFF",
                 "-DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON",
                 "-DCMAKE_CXX_FLAGS_RELEASE=-O3 -DNDEBUG",
                 "-DCMAKE_EXE_LINKER_FLAGS_RELEASE=-s",
@@ -227,6 +304,19 @@
                 "$gcc"
             ],
             "dependsOn": "Configure Shipping Release"
+        },
+        {
+            "label": "Run Shipping Release",
+            "type": "shell",
+            "command": "${workspaceFolder}\\build-shipping-release\\GameWIP.exe",
+            "options": {
+                "cwd": "${workspaceFolder}\\build-shipping-release",
+                "env": {
+                    "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
+                }
+            },
+            "problemMatcher": [],
+            "dependsOn": "Build Shipping Release"
         }
     ]
 }

@@ -36,6 +36,15 @@ namespace GameWIP::Platform::Win32
         ConfinedHidden   // Cursor is hidden and clipped to the client area.
     };
 
+    /// @brief Engine-level role that controls allowed window behavior.
+    enum class WindowRole
+    {
+        MainGame,          // Primary game window; owns gameplay input and fullscreen.
+        SecondaryGameView, // Render-only game view for extra cameras or monitors.
+        Tool,              // Interactive editor/tool window.
+        Debug              // Render-only diagnostic window.
+    };
+
     /// @brief Result code returned by window operations.
     enum class WindowResult
     {
@@ -48,7 +57,8 @@ namespace GameWIP::Platform::Win32
         Win32CallFailed,          // A Win32 API call failed; check getLastWin32Error().
         MissingWindowedPlacement, // Windowed placement was needed but was never saved.
         MissingDisplayMode,       // Display-mode state was needed but was never saved.
-        ModeChangeFailed          // A window-mode transition failed.
+        ModeChangeFailed,         // A window-mode transition failed.
+        OperationNotAllowed       // The requested operation is blocked by the window role.
     };
 
     /// @brief Native data needed by platform-specific render/input backends.
@@ -103,6 +113,7 @@ namespace GameWIP::Platform::Win32
         int width = 0;                                                    // Initial client-area width.
         int height = 0;                                                   // Initial client-area height.
         WindowMode mode = WindowMode::Windowed;                           // Initial window mode.
+        WindowRole role = WindowRole::MainGame;                           // Role used for input and fullscreen policy.
         bool resizable = true;                                            // Whether the user can resize the window.
         std::size_t eventQueueCapacity = defaultWindowEventQueueCapacity; // Maximum queued window events; must be positive.
     };
@@ -259,6 +270,10 @@ namespace GameWIP::Platform::Win32
         /// @return The window mode.
         WindowMode getMode() const;
 
+        /// @brief Returns the window role.
+        /// @return The role assigned at creation time.
+        WindowRole getRole() const;
+
         /// @brief Sets the mode of the window.
         /// @param mode The new mode.
         /// @return Result code for the mode operation.
@@ -301,7 +316,8 @@ namespace GameWIP::Platform::Win32
 
         /// @brief Confines or releases the cursor.
         /// @param confined True to confine, false to release.
-        void setCursorConfined(bool confined);
+        /// @return Result code for the operation.
+        WindowResult setCursorConfined(bool confined);
 
         /// @brief Returns whether the cursor is confined.
         /// @return True if confined.
@@ -309,7 +325,8 @@ namespace GameWIP::Platform::Win32
 
         /// @brief Applies a cursor visibility and confinement policy.
         /// @param mode Cursor mode to apply.
-        void setCursorMode(CursorMode mode);
+        /// @return Result code for the operation.
+        WindowResult setCursorMode(CursorMode mode);
 
         /// @brief Returns the cursor visibility and confinement policy.
         /// @return Current cursor mode.

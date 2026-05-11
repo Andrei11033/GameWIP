@@ -8,6 +8,8 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 # Option to enable Tracy profiler instrumentation.
 option(GAMEWIP_ENABLE_TRACY "Enable Tracy profiler instrumentation" OFF)
+option(GAMEWIP_ENABLE_TOOLS "Enable editor/tool window support in the game executable" OFF)
+option(GAMEWIP_OPEN_TOOL_WINDOWS_AT_STARTUP "Open tool/debug windows at startup when tool support is enabled" OFF)
 
 set(TRACY_ENABLE ${GAMEWIP_ENABLE_TRACY} CACHE BOOL "" FORCE)
 set(TRACY_ON_DEMAND ON CACHE BOOL "" FORCE)
@@ -30,6 +32,7 @@ add_library(Input STATIC
 
 add_library(PlatformWin32 STATIC
     engine/platform/win32/window.cpp
+    engine/platform/win32/window_system.cpp
 )
 
 # Public include path because anything linking Logger needs logger/logger.h.
@@ -63,6 +66,13 @@ target_compile_definitions(Logger PRIVATE GAMEWIP_LOGGER_BUILD)
 add_executable(GameWIP
     game/main.cpp
 )
+
+if(GAMEWIP_ENABLE_TOOLS)
+    target_compile_definitions(GameWIP PRIVATE GAMEWIP_ENABLE_TOOLS=1)
+    if(GAMEWIP_OPEN_TOOL_WINDOWS_AT_STARTUP)
+        target_compile_definitions(GameWIP PRIVATE GAMEWIP_OPEN_TOOL_WINDOWS_AT_STARTUP=1)
+    endif()
+endif()
 
 # Link the game executable against the logger DLL/import library.
 target_link_libraries(Assert PUBLIC

@@ -4,5 +4,7 @@
 			"path": "."
 		}
 	],
-	"settings": {}
+	"settings": {
+		"gamewip.keybindings.enabled": true
+	}
 }

@@ -84,11 +84,33 @@ namespace
     using GameWIP::Platform::Win32::WindowEvent;
     using GameWIP::Platform::Win32::WindowEventType;
     using GameWIP::Platform::Win32::WindowMode;
+    using GameWIP::Platform::Win32::WindowRole;
 
     // DPI helpers
 
     constexpr unsigned int defaultDpi = 96;                              // Win32's baseline DPI.
     constexpr int unlimitedClientSize = std::numeric_limits<int>::max(); // Sentinel for unconstrained max client size.
+
+    bool isModeAllowedForRole(WindowRole role, WindowMode mode)
+    {
+        switch (role)
+        {
+        case WindowRole::MainGame:
+            return true;
+        case WindowRole::SecondaryGameView:
+            return mode == WindowMode::Windowed || mode == WindowMode::BorderlessFullscreen;
+        case WindowRole::Tool:
+        case WindowRole::Debug:
+            return mode == WindowMode::Windowed;
+        default:
+            return false;
+        }
+    }
+
+    bool isCursorConfinementAllowedForRole(WindowRole role)
+    {
+        return role == WindowRole::MainGame;
+    }
 
     using AdjustWindowRectExForDpiFn = BOOL(WINAPI *)(LPRECT, DWORD, BOOL, DWORD, UINT);
     using GetDpiForWindowFn = UINT(WINAPI *)(HWND);
@@ -1041,6 +1063,7 @@ namespace GameWIP::Platform::Win32
 
         // === Window state ===
         WindowMode mode = WindowMode::Windowed;
+        WindowRole role = WindowRole::MainGame;
         bool closeRequested = false;
         bool isFocused = false;
         bool isMinimized = false;
@@ -1374,6 +1397,11 @@ namespace GameWIP::Platform::Win32
             return recordResult(WindowResult::InvalidDescription);
         }
 
+        if (!isModeAllowedForRole(description.role, description.mode))
+        {
+            return recordResult(WindowResult::OperationNotAllowed);
+        }
+
         enableDpiAwareness();
 
         if (nativeWindow != nullptr)
@@ -1389,6 +1417,7 @@ namespace GameWIP::Platform::Win32
 
         nativeWindow->instance = GetModuleHandleW(nullptr);
         nativeWindow->mode = WindowMode::Windowed;
+        nativeWindow->role = description.role;
         nativeWindow->requestedClientWidth = description.width;
         nativeWindow->requestedClientHeight = description.height;
         nativeWindow->events.init(description.eventQueueCapacity);
@@ -1471,13 +1500,6 @@ namespace GameWIP::Platform::Win32
             unsigned long error = GetLastError();
             destroy();
             return recordResult(WindowResult::Win32CallFailed, error);
-        }
-
-        unsigned long rawInputError = 0;
-        if (!Win32Input::registerInputDevices(nativeWindow->handle, rawInputError))
-        {
-            destroy();
-            return recordResult(WindowResult::Win32CallFailed, rawInputError);
         }
 
         nativeWindow->title = description.title;
@@ -1955,6 +1977,16 @@ namespace GameWIP::Platform::Win32
         return nativeWindow->mode;
     }
 
+    WindowRole Window::getRole() const
+    {
+        if (nativeWindow == nullptr)
+        {
+            return WindowRole::MainGame;
+        }
+
+        return nativeWindow->role;
+    }
+
     // Errors
 
     WindowResult Window::getLastResult() const
@@ -1996,6 +2028,11 @@ namespace GameWIP::Platform::Win32
         if (nativeWindow == nullptr || nativeWindow->handle == nullptr)
         {
             return recordResult(WindowResult::NotCreated);
+        }
+
+        if (!isModeAllowedForRole(nativeWindow->role, mode))
+        {
+            return recordResult(WindowResult::OperationNotAllowed);
         }
 
         if (nativeWindow->mode == mode)
@@ -2055,15 +2092,21 @@ namespace GameWIP::Platform::Win32
         return nativeWindow != nullptr && nativeWindow->cursorVisible;
     }
 
-    void Window::setCursorConfined(bool confined)
+    WindowResult Window::setCursorConfined(bool confined)
     {
         if (nativeWindow == nullptr)
         {
-            return;
+            return recordResult(WindowResult::NotCreated);
+        }
+
+        if (confined && !isCursorConfinementAllowedForRole(nativeWindow->role))
+        {
+            return recordResult(WindowResult::OperationNotAllowed);
         }
 
         nativeWindow->cursorConfined = confined;
         updateCursorConfinement();
+        return recordResult(WindowResult::Success);
     }
 
     bool Window::isCursorConfined() const
@@ -2071,11 +2114,11 @@ namespace GameWIP::Platform::Win32
         return nativeWindow != nullptr && nativeWindow->cursorConfined;
     }
 
-    void Window::setCursorMode(CursorMode mode)
+    WindowResult Window::setCursorMode(CursorMode mode)
     {
         if (nativeWindow == nullptr)
         {
-            return;
+            return recordResult(WindowResult::NotCreated);
         }
 
         bool newVisible = true;
@@ -2100,7 +2143,12 @@ namespace GameWIP::Platform::Win32
             newConfined = true;
             break;
         default:
-            return;
+            return recordResult(WindowResult::OperationNotAllowed);
+        }
+
+        if (newConfined && !isCursorConfinementAllowedForRole(nativeWindow->role))
+        {
+            return recordResult(WindowResult::OperationNotAllowed);
         }
 
         nativeWindow->cursorVisible = newVisible;
@@ -2110,6 +2158,8 @@ namespace GameWIP::Platform::Win32
         {
             SetCursor(newVisible ? nativeWindow->arrowCursor : nullptr);
         }
+
+        return recordResult(WindowResult::Success);
     }
 
     CursorMode Window::getCursorMode() const
@@ -3091,7 +3141,7 @@ namespace GameWIP::Platform::Win32
             return;
         }
 
-        if (!nativeWindow->cursorConfined || nativeWindow->handle == nullptr || !nativeWindow->isFocused || nativeWindow->isMinimized)
+        if (!isCursorConfinementAllowedForRole(nativeWindow->role) || !nativeWindow->cursorConfined || nativeWindow->handle == nullptr || !nativeWindow->isFocused || nativeWindow->isMinimized)
         {
             unsigned long releaseError = 0;
             if (releaseCursorConfinement(&releaseError) != WindowResult::Success)
@@ -3297,6 +3347,11 @@ namespace GameWIP::Platform::Win32
         if (nativeWindow == nullptr || nativeWindow->handle == nullptr)
         {
             return recordResult(WindowResult::NotCreated);
+        }
+
+        if (nativeWindow->role != WindowRole::MainGame)
+        {
+            return recordResult(WindowResult::OperationNotAllowed);
         }
 
         if (monitor.handle == nullptr || monitor.deviceName.empty())

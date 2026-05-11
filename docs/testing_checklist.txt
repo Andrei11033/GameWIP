@@ -125,7 +125,7 @@
     [x] Input owns platform input backends instead of Window interpreting keys long-term
     [x] Add a Win32 input backend under the input system
     [x] Keep Win32-specific input code out of the public engine/input/input.h API
-    [x] Window message pump forwards input-related Win32 messages to the input backend
+    [x] WindowSystem message pump forwards input-related Win32 messages to the input backend
     [x] Win32 input backend registers keyboard and mouse Raw Input devices
     [x] Win32 input backend handles WM_INPUT and translates raw keyboard data into InputState
     [x] Win32 input backend handles WM_INPUT and translates raw mouse data into InputState
@@ -220,13 +220,13 @@
     [x] Add the Win32 input backend to CMake
     [x] Move old virtual-key mapping out of engine/platform/win32/window.cpp and into the Win32 input backend
     [x] Add a backend function that receives Win32 messages and updates InputState
-    [x] Window::pollEvents forwards key-related messages to the backend function
-    [x] Window::pollEvents no longer contains virtual-key mapping logic
+    [x] WindowSystem::pollEvents forwards key-related messages to the backend function
+    [x] WindowSystem::pollEvents contains no virtual-key mapping logic
     [x] Temporary WM_KEYDOWN/WM_KEYUP behavior still works after the backend extraction
     [x] Escape-to-close remains in main/game/action code, not in Window or the backend
     [x] Decide the Raw Input registration API shape, likely a Win32 input function that receives the window HWND as an opaque handle
     [x] Add backend initialization that can register Raw Input devices for the window handle
-    [x] Window passes its HWND to backend initialization without exposing windows.h in window.h
+    [x] WindowSystem passes the main HWND to backend initialization without exposing windows.h in public headers
     [x] Switch gameplay keyboard input from WM_KEYDOWN/WM_KEYUP to WM_INPUT
     [x] Keep normal Win32 messages available for menu/text fallback where useful
     [ ] Add Action enum for game commands, e.g. Quit, MoveForward, MoveLeft, MoveRight
@@ -374,7 +374,52 @@
     [x] Log failures if destroy() cannot restore windowed/display state
     [x] Split applyFullscreen into helpers, so its more easy to read
     [x] Possibly optimize the ring buffer
-    [ ] Add Multiwindow support
+    [x] Add multiwindow support
+        Current multi-window foundation:
+        [x] WindowRole exists for MainGame, SecondaryGameView, Tool, and Debug windows
+        [x] WindowDescription carries a role assigned by game/main.cpp
+        [x] Window remains the owner of one native HWND and one event queue
+        [x] WindowSystem owns multiple Window instances and pumps the Win32 queue once per frame
+        [x] WindowSystem rejects a second MainGame window
+        [x] Raw Input registration moved from Window creation to WindowSystem main-window creation
+        [x] MainGame is the only role allowed to use exclusive fullscreen
+        [x] SecondaryGameView allows windowed and borderless modes only
+        [x] Tool and Debug roles are windowed-only
+        [x] Cursor confinement is allowed only for MainGame
+        [x] Gameplay input routes only to the main window
+        [x] Tool input routes only to the focused Tool window when tools are compiled in
+        [x] Debug and SecondaryGameView windows do not feed input
+        [x] Closing the main window requests game shutdown
+        [x] Closing tool/debug windows destroys only those windows
+        [x] GAMEWIP_ENABLE_TOOLS controls whether game/main.cpp creates tool-input state and optional startup tool windows
+        [x] Startup tool/debug windows are opt-in through openToolWindowsAtStartup
+        Build verification:
+        [x] Default build compiles with WindowSystem included in PlatformWin32
+        [x] Tools-enabled configure/build compiles with GAMEWIP_ENABLE_TOOLS=ON
+        Manual verification:
+        [ ] Default build creates only the main window
+        [ ] GAMEWIP_ENABLE_TOOLS=ON with openToolWindowsAtStartup=false creates only the main window
+        [ ] GAMEWIP_ENABLE_TOOLS=ON with openToolWindowsAtStartup=true opens main, tool, and debug windows
+        [ ] Main-window close exits the game
+        [ ] Tool/debug close keeps the game running
+        [ ] Escape requests close on the main window only
+        [ ] Tool input does not affect gameplay input
+        [ ] Debug and SecondaryGameView windows do not feed input
+        [ ] Tool/debug fullscreen requests return OperationNotAllowed
+        [ ] SecondaryGameView exclusive-fullscreen requests return OperationNotAllowed
+        [ ] Tool/debug/main cursor confinement policy behaves as expected
+        [ ] Main fullscreen and cursor behavior still works
+        Renderer-era follow-up:
+        [ ] Renderer creates one render surface/swapchain per Window
+        [ ] Renderer destroys a window surface before WindowSystem destroys that Window
+        [ ] Renderer recreates each surface independently on that window's resize/DPI changes
+        [ ] Renderer skips or throttles minimized/occluded windows per window
+        [ ] MainGame and SecondaryGameView windows can each be assigned a camera/view
+        [ ] SecondaryGameView window creation is driven from main/game code, not from the platform library
+        [ ] Borderless multi-monitor placement is decided in game/editor code using monitor info from Window
+        [ ] Tool windows get a UI renderer path before they become interactive editor panels
+        [ ] Debug windows get a render-only diagnostics path and remain input-disabled
+        [ ] Recheck whether WindowSystem needs a pre-destroy callback/event once renderer resources exist
 
 1.5. PRE-RENDER FOUNDATION REVIEW
 

@@ -12,6 +12,7 @@
 #include "debug/assert/assert.h"
 #include "input/input.h"
 #include "platform/win32/window.h"
+#include "platform/win32/window_system.h"
 
 namespace
 {
@@ -29,6 +30,8 @@ namespace
     using GameWIP::Platform::Win32::WindowEventType;
     using GameWIP::Platform::Win32::WindowMode;
     using GameWIP::Platform::Win32::WindowResult;
+    using GameWIP::Platform::Win32::WindowRole;
+    using GameWIP::Platform::Win32::WindowSystem;
 
     // Configuration
 
@@ -40,7 +43,22 @@ namespace
     constexpr int defaultWindowHeight = 720;                                          // Initial client-area height.
     constexpr int minimumClientWidth = 120;                                           // Smallest allowed client-area width.
     constexpr int minimumClientHeight = 120;                                          // Smallest allowed client-area height.
+    constexpr int fallbackMaxClientWidth = 1920;                                      // Fallback maximum client-area width.
+    constexpr int fallbackMaxClientHeight = 1080;                                     // Fallback maximum client-area height.
+    constexpr std::chrono::milliseconds frameSleepDuration{100};                      // Temporary frame pacing until real timing exists.
     constexpr auto closeWindowControl = makeKeyboardKey(KeyboardControlCode::Escape); // Input control used to request shutdown.
+
+#ifdef GAMEWIP_ENABLE_TOOLS
+#ifdef GAMEWIP_OPEN_TOOL_WINDOWS_AT_STARTUP
+    constexpr bool openToolWindowsAtStartup = true;
+#else
+    constexpr bool openToolWindowsAtStartup = false;
+#endif
+    constexpr int defaultToolWindowWidth = 640;
+    constexpr int defaultToolWindowHeight = 480;
+    constexpr int defaultDebugWindowWidth = 640;
+    constexpr int defaultDebugWindowHeight = 360;
+#endif
 
     // Tracy helpers
 
@@ -67,8 +85,33 @@ namespace
             .width = defaultWindowWidth,
             .height = defaultWindowHeight,
             .mode = WindowMode::Windowed,
+            .role = WindowRole::MainGame,
             .resizable = true};
     }
+
+#ifdef GAMEWIP_ENABLE_TOOLS
+    WindowDescription makeToolWindowDescription()
+    {
+        return WindowDescription{
+            .title = "GameWIP Tools",
+            .width = defaultToolWindowWidth,
+            .height = defaultToolWindowHeight,
+            .mode = WindowMode::Windowed,
+            .role = WindowRole::Tool,
+            .resizable = true};
+    }
+
+    WindowDescription makeDebugWindowDescription()
+    {
+        return WindowDescription{
+            .title = "GameWIP Debug",
+            .width = defaultDebugWindowWidth,
+            .height = defaultDebugWindowHeight,
+            .mode = WindowMode::Windowed,
+            .role = WindowRole::Debug,
+            .resizable = true};
+    }
+#endif
 
     // Formatting helpers
 
@@ -99,6 +142,8 @@ namespace
             return "MissingDisplayMode";
         case WindowResult::ModeChangeFailed:
             return "ModeChangeFailed";
+        case WindowResult::OperationNotAllowed:
+            return "OperationNotAllowed";
         default:
             return "Unknown";
         }
@@ -117,6 +162,26 @@ namespace
             return "BorderlessFullscreen";
         case WindowMode::Fullscreen:
             return "Fullscreen";
+        default:
+            return "Unknown";
+        }
+    }
+
+    /// @brief Converts a window role to readable log text.
+    /// @param role Window role to convert.
+    /// @return Static text for the role.
+    std::string_view toString(WindowRole role)
+    {
+        switch (role)
+        {
+        case WindowRole::MainGame:
+            return "MainGame";
+        case WindowRole::SecondaryGameView:
+            return "SecondaryGameView";
+        case WindowRole::Tool:
+            return "Tool";
+        case WindowRole::Debug:
+            return "Debug";
         default:
             return "Unknown";
         }
@@ -220,10 +285,22 @@ namespace
             LogLevel::ERR,
             mainLogSource,
             std::format(
-                "{} failed with result {} and Win32 error {}.",
+                "{} failed for {} window with result {} and Win32 error {}.",
                 operation,
+                toString(window.getRole()),
                 toString(result),
                 window.getLastWin32Error()));
+    }
+
+    /// @brief Logs a failed window-system operation when no window object can provide a Win32 error.
+    /// @param operation Operation that failed.
+    /// @param result Result code returned by the operation.
+    void logWindowFailure(std::string_view operation, WindowResult result)
+    {
+        Logger::log(
+            LogLevel::ERR,
+            mainLogSource,
+            std::format("{} failed with result {}.", operation, toString(result)));
     }
 
     /// @brief Logs and clears a passive window-handler error if one was recorded.
@@ -239,7 +316,8 @@ namespace
             LogLevel::ERR,
             mainLogSource,
             std::format(
-                "Async window handler failed with result {} and Win32 error {}.",
+                "Async {} window handler failed with result {} and Win32 error {}.",
+                toString(window.getRole()),
                 toString(window.getLastAsyncResult()),
                 window.getLastAsyncWin32Error()));
         window.clearAsyncError();
@@ -248,14 +326,39 @@ namespace
     // Window setup helpers
 
     /// @brief Creates the main game window.
-    /// @param window Window wrapper to create.
+    /// @param windows Window system that will own the native window.
+    /// @param outWindow Receives the main window on success.
     /// @return Result code from the create operation.
-    WindowResult createMainWindow(Window &window)
+    WindowResult createMainWindow(WindowSystem &windows, Window *&outWindow)
     {
         ZoneScopedNC("Create Win32 window", tracy::Color::SeaGreen);
         Logger::log(LogLevel::INFO, mainLogSource, "Creating Win32 window.");
-        return window.create(makeDefaultWindowDescription());
+        return windows.createWindow(makeDefaultWindowDescription(), outWindow);
     }
+
+#ifdef GAMEWIP_ENABLE_TOOLS
+    void createOptionalStartupToolWindows(WindowSystem &windows)
+    {
+        if (!openToolWindowsAtStartup)
+        {
+            return;
+        }
+
+        Window *toolWindow = nullptr;
+        WindowResult toolResult = windows.createWindow(makeToolWindowDescription(), toolWindow);
+        if (toolResult != WindowResult::Success)
+        {
+            logWindowFailure("Creating tool window", toolResult);
+        }
+
+        Window *debugWindow = nullptr;
+        WindowResult debugResult = windows.createWindow(makeDebugWindowDescription(), debugWindow);
+        if (debugResult != WindowResult::Success)
+        {
+            logWindowFailure("Creating debug window", debugResult);
+        }
+    }
+#endif
 
     /// @brief Applies startup client-size constraints using monitor/display information when available.
     /// @param window Window to configure.
@@ -314,8 +417,8 @@ namespace
                 ZoneValue(static_cast<std::uint64_t>(supportedModes.size()));
                 Logger::log(LogLevel::INFO, mainLogSource, std::format("Supported display modes: {} entries.", supportedModes.size()));
 
-                int maxWidth = 1920;
-                int maxHeight = 1080;
+                int maxWidth = fallbackMaxClientWidth;
+                int maxHeight = fallbackMaxClientHeight;
                 for (const DisplayMode &mode : supportedModes)
                 {
                     maxWidth = std::max(maxWidth, mode.width);
@@ -342,8 +445,16 @@ namespace
 
                 {
                     ZoneScopedNC("Apply fallback maximum client-size constraint", tracy::Color::DarkSeaGreen);
-                    window.setMaxClientSize(1920, 1080);
-                    Logger::log(LogLevel::INFO, mainLogSource, std::format("Applied client-size constraints: min={}x{} max=1920x1080 (fallback, no current monitor detected).", minimumClientWidth, minimumClientHeight));
+                    window.setMaxClientSize(fallbackMaxClientWidth, fallbackMaxClientHeight);
+                    Logger::log(
+                        LogLevel::INFO,
+                        mainLogSource,
+                        std::format(
+                            "Applied client-size constraints: min={}x{} max={}x{} (fallback, no current monitor detected).",
+                            minimumClientWidth,
+                            minimumClientHeight,
+                            fallbackMaxClientWidth,
+                            fallbackMaxClientHeight));
                 }
             }
         }
@@ -352,28 +463,29 @@ namespace
     // Window event logging
 
     /// @brief Logs one queued window event.
+    /// @param window Window that produced the event.
     /// @param event Event to log.
-    void logWindowEvent(const WindowEvent &event)
+    void logWindowEvent(const Window &window, const WindowEvent &event)
     {
         switch (event.type)
         {
         case WindowEventType::Resized:
-            Logger::log(LogLevel::INFO, mainLogSource, std::format("Window event: Resized {}x{}.", event.width, event.height));
+            Logger::log(LogLevel::INFO, mainLogSource, std::format("{} window event: Resized {}x{}.", toString(window.getRole()), event.width, event.height));
             break;
         case WindowEventType::Moved:
-            Logger::log(LogLevel::INFO, mainLogSource, std::format("Window event: Moved {},{}.", event.x, event.y));
+            Logger::log(LogLevel::INFO, mainLogSource, std::format("{} window event: Moved {},{}.", toString(window.getRole()), event.x, event.y));
             break;
         case WindowEventType::DpiChanged:
-            Logger::log(LogLevel::INFO, mainLogSource, std::format("Window event: DpiChanged dpi={} client={}x{}.", event.dpi, event.width, event.height));
+            Logger::log(LogLevel::INFO, mainLogSource, std::format("{} window event: DpiChanged dpi={} client={}x{}.", toString(window.getRole()), event.dpi, event.width, event.height));
             break;
         case WindowEventType::ModeChanged:
-            Logger::log(LogLevel::INFO, mainLogSource, std::format("Window event: ModeChanged {} client={}x{}.", toString(event.mode), event.width, event.height));
+            Logger::log(LogLevel::INFO, mainLogSource, std::format("{} window event: ModeChanged {} client={}x{}.", toString(window.getRole()), toString(event.mode), event.width, event.height));
             break;
         case WindowEventType::FileDropped:
-            Logger::log(LogLevel::INFO, mainLogSource, std::format("Window event: FileDropped {}.", event.filePath));
+            Logger::log(LogLevel::INFO, mainLogSource, std::format("{} window event: FileDropped {}.", toString(window.getRole()), event.filePath));
             break;
         default:
-            Logger::log(LogLevel::INFO, mainLogSource, std::format("Window event: {}.", toString(event.type)));
+            Logger::log(LogLevel::INFO, mainLogSource, std::format("{} window event: {}.", toString(window.getRole()), toString(event.type)));
             break;
         }
     }
@@ -387,11 +499,153 @@ namespace
         WindowEvent event{};
         while (window.popEvent(event))
         {
-            logWindowEvent(event);
+            logWindowEvent(window, event);
             ++eventCount;
         }
 
         return eventCount;
+    }
+
+    // Main-loop helpers
+
+    /// @brief Advances all active input states to the next frame.
+    /// @param gameInput Gameplay input state.
+    /// @param toolInput Optional tool-window input state.
+    void advanceInputFrame(InputState &gameInput, InputState *toolInput)
+    {
+        ZoneScopedNC("Advance input frame", tracy::Color::MediumSeaGreen);
+
+        gameInput.advanceFrame();
+        if (toolInput != nullptr)
+        {
+            toolInput->advanceFrame();
+        }
+    }
+
+    /// @brief Logs any passive window-message errors recorded during polling.
+    /// @param windows Window system to inspect.
+    void logWindowAsyncErrors(WindowSystem &windows)
+    {
+        std::vector<Window *> activeWindows;
+        windows.getWindows(activeWindows);
+
+        for (Window *window : activeWindows)
+        {
+            logWindowAsyncError(*window);
+        }
+    }
+
+    /// @brief Polls the platform window system and logs asynchronous handler errors.
+    /// @param windows Window system to poll.
+    /// @param gameInput Gameplay input state updated by window messages.
+    /// @param toolInput Optional tool-window input state updated by window messages.
+    void pollWindowEvents(WindowSystem &windows, InputState &gameInput, InputState *toolInput)
+    {
+        ZoneScopedNC("Poll window events", tracy::Color::DodgerBlue);
+
+        windows.pollEvents(gameInput, toolInput);
+        logWindowAsyncErrors(windows);
+    }
+
+    /// @brief Handles gameplay input that requests a clean shutdown.
+    /// @param mainWindow Main game window.
+    /// @param gameInput Gameplay input state to query.
+    void handleCloseInput(Window *mainWindow, const InputState &gameInput)
+    {
+        ZoneScopedNC("Handle close input", tracy::Color::YellowGreen);
+
+        if (mainWindow == nullptr || !gameInput.wasButtonPressed(closeWindowControl))
+        {
+            return;
+        }
+
+        Logger::log(LogLevel::INFO, mainLogSource, "Escape key pressed. Requesting main window close.");
+        TracyMessageLC("Escape close requested.", tracy::Color::Orange);
+        mainWindow->requestClose();
+    }
+
+    /// @brief Logs and drains queued events for every active window.
+    /// @param windows Window system to inspect.
+    /// @return Total number of events drained.
+    std::size_t logWindowEvents(WindowSystem &windows)
+    {
+        ZoneScopedNC("Log window events", tracy::Color::SlateBlue);
+
+        std::size_t eventCount = 0;
+        std::vector<Window *> activeWindows;
+        windows.getWindows(activeWindows);
+
+        for (Window *window : activeWindows)
+        {
+            eventCount += logWindowEvents(*window);
+        }
+
+        ZoneValue(static_cast<std::uint64_t>(eventCount));
+        return eventCount;
+    }
+
+    /// @brief Applies temporary frame pacing until a real timing system exists.
+    void sleepFrame()
+    {
+        ZoneScopedNC("Frame sleep", tracy::Color::Gray);
+        std::this_thread::sleep_for(frameSleepDuration);
+    }
+
+#ifdef TRACY_ENABLE
+    /// @brief Emits Tracy frame timing for one completed frame.
+    /// @param frameStart Timestamp captured at the start of the frame.
+    void plotFrameTime(std::chrono::steady_clock::time_point frameStart)
+    {
+        const auto frameEnd = std::chrono::steady_clock::now();
+        const double frameMilliseconds = std::chrono::duration<double, std::milli>(frameEnd - frameStart).count();
+        TracyPlot("Frame time (ms)", frameMilliseconds);
+    }
+#endif
+
+    /// @brief Runs one main-loop frame.
+    /// @param windows Window system that owns native windows.
+    /// @param mainWindow Main game window, if one exists.
+    /// @param gameInput Gameplay input state.
+    /// @param toolInput Optional tool-window input state.
+    void runMainFrame(WindowSystem &windows, Window *mainWindow, InputState &gameInput, InputState *toolInput)
+    {
+#ifdef TRACY_ENABLE
+        const auto frameStart = std::chrono::steady_clock::now();
+#endif
+        ZoneScopedNC("Main frame", tracy::Color::RoyalBlue);
+
+        advanceInputFrame(gameInput, toolInput);
+        pollWindowEvents(windows, gameInput, toolInput);
+        handleCloseInput(mainWindow, gameInput);
+
+        const std::size_t windowEventCount = logWindowEvents(windows);
+        TracyPlot("Window events/frame", static_cast<double>(windowEventCount));
+
+        sleepFrame();
+
+#ifdef TRACY_ENABLE
+        plotFrameTime(frameStart);
+#endif
+        FrameMarkNamed("GameWIP frame");
+    }
+
+    /// @brief Destroys all active windows during shutdown.
+    /// @param windows Window system that owns the windows.
+    void destroyAllWindows(WindowSystem &windows)
+    {
+        ZoneScopedNC("Shutdown window", tracy::Color::OrangeRed);
+        TracyMessageLC("Window close requested.", tracy::Color::Orange);
+        Logger::log(LogLevel::INFO, mainLogSource, "Window close requested.");
+
+        std::vector<Window *> activeWindows;
+        windows.getWindows(activeWindows);
+        for (Window *window : activeWindows)
+        {
+            if (WindowResult result = windows.destroyWindow(*window); result != WindowResult::Success)
+            {
+                logWindowFailure("Destroying Win32 window", result);
+            }
+        }
     }
 
     // Game loop
@@ -404,77 +658,41 @@ namespace
         TracyMessageLC("GameWIP startup.", tracy::Color::SeaGreen);
         Logger::log(LogLevel::INFO, mainLogSource, "GameWIP starting up.");
 
-        InputState input;
-        Window window;
+        InputState gameInput;
+#ifdef GAMEWIP_ENABLE_TOOLS
+        InputState toolInput;
+        InputState *toolInputState = &toolInput;
+#else
+        InputState *toolInputState = nullptr;
+#endif
+        WindowSystem windows;
+        Window *mainWindow = nullptr;
 
-        WindowResult createResult = createMainWindow(window);
+        WindowResult createResult = createMainWindow(windows, mainWindow);
         if (createResult != WindowResult::Success)
         {
-            logWindowFailure("Creating Win32 window", window, createResult);
+            logWindowFailure("Creating Win32 window", createResult);
+            return 1;
+        }
+        if (mainWindow == nullptr)
+        {
+            logWindowFailure("Creating Win32 window", WindowResult::NotCreated);
             return 1;
         }
         TracyMessageLC("Win32 window created.", tracy::Color::SeaGreen);
 
-        applyStartupClientSizeConstraints(window);
+        applyStartupClientSizeConstraints(*mainWindow);
 
-        while (!window.shouldClose())
+#ifdef GAMEWIP_ENABLE_TOOLS
+        createOptionalStartupToolWindows(windows);
+#endif
+
+        while (!windows.shouldQuit())
         {
-#ifdef TRACY_ENABLE
-            const auto frameStart = std::chrono::steady_clock::now();
-#endif
-            ZoneScopedNC("Main frame", tracy::Color::RoyalBlue);
-
-            {
-                ZoneScopedNC("Advance input frame", tracy::Color::MediumSeaGreen);
-                input.advanceFrame();
-            }
-
-            {
-                ZoneScopedNC("Poll window events", tracy::Color::DodgerBlue);
-                window.pollEvents(input);
-                logWindowAsyncError(window);
-            }
-
-            {
-                ZoneScopedNC("Handle close input", tracy::Color::YellowGreen);
-                if (input.wasButtonPressed(closeWindowControl))
-                {
-                    Logger::log(LogLevel::INFO, mainLogSource, "Escape key pressed. Requesting window close.");
-                    TracyMessageLC("Escape close requested.", tracy::Color::Orange);
-                    window.requestClose();
-                }
-            }
-
-            std::size_t windowEventCount = 0;
-            {
-                ZoneScopedNC("Log window events", tracy::Color::SlateBlue);
-                windowEventCount = logWindowEvents(window);
-                ZoneValue(static_cast<std::uint64_t>(windowEventCount));
-            }
-            TracyPlot("Window events/frame", static_cast<double>(windowEventCount));
-
-            {
-                ZoneScopedNC("Frame sleep", tracy::Color::Gray);
-                std::this_thread::sleep_for(std::chrono::milliseconds(100));
-            }
-
-#ifdef TRACY_ENABLE
-            const auto frameEnd = std::chrono::steady_clock::now();
-            const double frameMilliseconds = std::chrono::duration<double, std::milli>(frameEnd - frameStart).count();
-            TracyPlot("Frame time (ms)", frameMilliseconds);
-#endif
-            FrameMarkNamed("GameWIP frame");
+            runMainFrame(windows, mainWindow, gameInput, toolInputState);
         }
 
-        {
-            ZoneScopedNC("Shutdown window", tracy::Color::OrangeRed);
-            TracyMessageLC("Window close requested.", tracy::Color::Orange);
-            Logger::log(LogLevel::INFO, mainLogSource, "Window close requested.");
-            if (WindowResult result = window.destroy(); result != WindowResult::Success)
-            {
-                logWindowFailure("Destroying Win32 window", window, result);
-            }
-        }
+        destroyAllWindows(windows);
 
         TracyMessageLC("GameWIP shutdown clean.", tracy::Color::SeaGreen);
         Logger::log(LogLevel::INFO, mainLogSource, "GameWIP shutting down cleanly.");
