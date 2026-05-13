@@ -1,12 +1,8 @@
-#include "assert.h"
+#include "debug/assert/assert.h"
+#include "debug/assert/internal/assert_platform.h"
 #include "logger/logger.h"
 
 #include <string>
-
-#ifndef NOMINMAX
-#define NOMINMAX
-#endif
-#include <windows.h>
 
 namespace GameWIP::Debug
 {
@@ -29,10 +25,10 @@ namespace GameWIP::Debug
         assertMessage.append(")");
 
         Logger::log(LogLevel::ERR, "Assert", assertMessage);
-        Logger::logDBWIN(LogLevel::ERR, "Assert", assertMessage);
+        Logger::logDebugOutput(LogLevel::ERR, "Assert", assertMessage);
 
         Logger::flush();
 
-        DebugBreak();
+        Platform::debugBreak();
     }
 }

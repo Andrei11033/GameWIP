@@ -1,4 +1,5 @@
-﻿#include "window.h"
+#include "window/window.h"
+#include "window/internal/window_message_access.h"
 #include "input/platform/win32/win32_input.h"
 
 #include <windows.h>
@@ -13,78 +14,22 @@
 #include <utility>
 #include <vector>
 
-namespace GameWIP::Platform::Win32::Internal
-{
-    struct WindowMessageAccess // Forwards Win32 messages from the callback into private Window handlers.
-    {
-        /// @brief Forwards a native resize message.
-        static void handleResize(Window &window, int width, int height);
-
-        /// @brief Forwards a native move message.
-        static void handleMove(Window &window, int x, int y);
-
-        /// @brief Forwards a native focus change message.
-        static void handleFocusChange(Window &window, bool focused);
-
-        /// @brief Forwards a native app activation change message.
-        static void handleActivationChange(Window &window, bool active);
-
-        /// @brief Forwards a native minimize change message.
-        static void handleMinimizeChange(Window &window, bool minimized);
-
-        /// @brief Forwards a native maximize change message.
-        static void handleMaximizeChange(Window &window, bool maximized);
-
-        /// @brief Forwards a native visibility change message.
-        static void handleVisibilityChange(Window &window, bool visible);
-
-        /// @brief Returns whether native cursor enter handling is needed.
-        static bool shouldHandleCursorEnter(const Window &window);
-
-        /// @brief Forwards a native cursor enter message.
-        static bool handleCursorEnter(Window &window);
-
-        /// @brief Forwards a cursor tracking failure.
-        static void handleCursorTrackingFailure(Window &window, unsigned long win32Error);
-
-        /// @brief Forwards a native cursor leave message.
-        static void handleCursorLeave(Window &window);
-
-        /// @brief Forwards a native file drop message.
-        static void handleFileDrop(Window &window, std::string_view filePath);
-
-        /// @brief Forwards native window destruction.
-        static void handleDestroyed(Window &window);
-
-        /// @brief Checks and forwards a monitor change if needed.
-        static void updateCurrentMonitor(Window &window);
-
-        /// @brief Forwards a native DPI change message.
-        static void handleDpiChange(Window &window, unsigned int dpi, int suggestedLeft, int suggestedTop, int suggestedRight, int suggestedBottom);
-
-        /// @brief Forwards a native display configuration change message.
-        static void handleDisplayChange(Window &window);
-
-        /// @brief Forwards a WM_GETMINMAXINFO message.
-        static void handleGetMinMaxInfo(Window &window, MINMAXINFO *minMaxInfo);
-
-        /// @brief Returns the cursor handle used by the window procedure.
-        static HCURSOR getCursorHandle(const Window &window);
-    };
-}
-
 namespace
 {
     namespace Win32Input = GameWIP::Input::Platform::Win32;
-    namespace Win32Internal = GameWIP::Platform::Win32::Internal;
-    using Window = GameWIP::Platform::Win32::Window;
-    using GameWIP::Platform::Win32::DisplayMode;
-    using GameWIP::Platform::Win32::MonitorInfo;
-    using GameWIP::Platform::Win32::Rect;
-    using GameWIP::Platform::Win32::WindowEvent;
-    using GameWIP::Platform::Win32::WindowEventType;
-    using GameWIP::Platform::Win32::WindowMode;
-    using GameWIP::Platform::Win32::WindowRole;
+    namespace Win32Internal = GameWIP::WindowInternal;
+    using Window = GameWIP::Window;
+    using CursorMode = GameWIP::Window::CursorMode;
+    using WindowDescription = GameWIP::Window::Description;
+    using DisplayMode = GameWIP::Window::DisplayMode;
+    using WindowInfo = GameWIP::Window::Info;
+    using MonitorInfo = GameWIP::Window::MonitorInfo;
+    using Rect = GameWIP::Window::Rect;
+    using WindowEvent = GameWIP::Window::Event;
+    using WindowEventType = GameWIP::Window::EventType;
+    using WindowMode = GameWIP::Window::Mode;
+    using WindowResult = GameWIP::Window::Result;
+    using WindowRole = GameWIP::Window::Role;
 
     // DPI helpers
 
@@ -568,7 +513,7 @@ namespace
         ChangeDisplaySettingsExW(deviceName, &savedDisplayMode, nullptr, 0, nullptr);
     }
 
-    /// @brief Win32 window procedure to handle messages for the game window.
+    /// @brief platform window procedure to handle messages for the game window.
     /// @param hwnd Handle to the window receiving the message.
     /// @param message Win32 message identifier.
     /// @param wParam Message-specific parameter.
@@ -607,9 +552,9 @@ namespace
             Window *window = windowFromHandle(hwnd);
             if (window != nullptr)
             {
-                Win32Internal::WindowMessageAccess::handleVisibilityChange(*window, false);
-                Win32Internal::WindowMessageAccess::handleCursorLeave(*window);
-                Win32Internal::WindowMessageAccess::handleDestroyed(*window);
+                Win32Internal::MessageAccess::handleVisibilityChange(*window, false);
+                Win32Internal::MessageAccess::handleCursorLeave(*window);
+                Win32Internal::MessageAccess::handleDestroyed(*window);
             }
             return 0;
         }
@@ -623,15 +568,15 @@ namespace
             {
                 if (wParam == SIZE_MINIMIZED)
                 {
-                    Win32Internal::WindowMessageAccess::handleMinimizeChange(*window, true);
-                    Win32Internal::WindowMessageAccess::handleVisibilityChange(*window, false);
+                    Win32Internal::MessageAccess::handleMinimizeChange(*window, true);
+                    Win32Internal::MessageAccess::handleVisibilityChange(*window, false);
                 }
                 else
                 {
-                    Win32Internal::WindowMessageAccess::handleMinimizeChange(*window, false);
-                    Win32Internal::WindowMessageAccess::handleMaximizeChange(*window, wParam == SIZE_MAXIMIZED);
-                    Win32Internal::WindowMessageAccess::handleVisibilityChange(*window, true);
-                    Win32Internal::WindowMessageAccess::handleResize(*window, width, height);
+                    Win32Internal::MessageAccess::handleMinimizeChange(*window, false);
+                    Win32Internal::MessageAccess::handleMaximizeChange(*window, wParam == SIZE_MAXIMIZED);
+                    Win32Internal::MessageAccess::handleVisibilityChange(*window, true);
+                    Win32Internal::MessageAccess::handleResize(*window, width, height);
                 }
             }
             return 0;
@@ -645,9 +590,9 @@ namespace
                 int y = GET_Y_LPARAM(lParam);
                 if (!IsMinimized(hwnd))
                 {
-                    Win32Internal::WindowMessageAccess::handleMove(*window, x, y);
+                    Win32Internal::MessageAccess::handleMove(*window, x, y);
                 }
-                Win32Internal::WindowMessageAccess::updateCurrentMonitor(*window);
+                Win32Internal::MessageAccess::updateCurrentMonitor(*window);
             }
             return 0;
         }
@@ -656,7 +601,7 @@ namespace
             Window *window = windowFromHandle(hwnd);
             if (window != nullptr)
             {
-                Win32Internal::WindowMessageAccess::handleVisibilityChange(*window, wParam != FALSE);
+                Win32Internal::MessageAccess::handleVisibilityChange(*window, wParam != FALSE);
             }
             return DefWindowProcW(hwnd, message, wParam, lParam);
         }
@@ -667,7 +612,7 @@ namespace
             if (window != nullptr && suggestedRect != nullptr)
             {
                 unsigned int dpi = static_cast<unsigned int>(HIWORD(wParam));
-                Win32Internal::WindowMessageAccess::handleDpiChange(
+                Win32Internal::MessageAccess::handleDpiChange(
                     *window,
                     dpi,
                     suggestedRect->left,
@@ -682,7 +627,7 @@ namespace
             Window *window = windowFromHandle(hwnd);
             if (window != nullptr)
             {
-                Win32Internal::WindowMessageAccess::handleDisplayChange(*window);
+                Win32Internal::MessageAccess::handleDisplayChange(*window);
             }
             return 0;
         }
@@ -692,7 +637,7 @@ namespace
             auto minMaxInfo = reinterpret_cast<MINMAXINFO *>(lParam);
             if (window != nullptr && minMaxInfo != nullptr)
             {
-                Win32Internal::WindowMessageAccess::handleGetMinMaxInfo(*window, minMaxInfo);
+                Win32Internal::MessageAccess::handleGetMinMaxInfo(*window, minMaxInfo);
             }
             return 0;
         }
@@ -702,7 +647,7 @@ namespace
             Window *window = windowFromHandle(hwnd);
             if (window != nullptr)
             {
-                Win32Internal::WindowMessageAccess::handleActivationChange(*window, wParam != FALSE);
+                Win32Internal::MessageAccess::handleActivationChange(*window, wParam != FALSE);
             }
             return 0;
         }
@@ -711,7 +656,7 @@ namespace
             Window *window = windowFromHandle(hwnd);
             if (window != nullptr)
             {
-                Win32Internal::WindowMessageAccess::handleFocusChange(*window, true);
+                Win32Internal::MessageAccess::handleFocusChange(*window, true);
             }
             return 0;
         }
@@ -720,7 +665,7 @@ namespace
             Window *window = windowFromHandle(hwnd);
             if (window != nullptr)
             {
-                Win32Internal::WindowMessageAccess::handleFocusChange(*window, false);
+                Win32Internal::MessageAccess::handleFocusChange(*window, false);
             }
             return 0;
         }
@@ -730,7 +675,7 @@ namespace
             Window *window = windowFromHandle(hwnd);
             if (window != nullptr)
             {
-                if (Win32Internal::WindowMessageAccess::shouldHandleCursorEnter(*window))
+                if (Win32Internal::MessageAccess::shouldHandleCursorEnter(*window))
                 {
                     TRACKMOUSEEVENT trackMouseEvent{};
                     trackMouseEvent.cbSize = sizeof(trackMouseEvent);
@@ -738,11 +683,11 @@ namespace
                     trackMouseEvent.hwndTrack = hwnd;
                     if (!TrackMouseEvent(&trackMouseEvent))
                     {
-                        Win32Internal::WindowMessageAccess::handleCursorTrackingFailure(*window, GetLastError());
+                        Win32Internal::MessageAccess::handleCursorTrackingFailure(*window, GetLastError());
                     }
                     else
                     {
-                        Win32Internal::WindowMessageAccess::handleCursorEnter(*window);
+                        Win32Internal::MessageAccess::handleCursorEnter(*window);
                     }
                 }
             }
@@ -754,7 +699,7 @@ namespace
             Window *window = windowFromHandle(hwnd);
             if (window != nullptr)
             {
-                Win32Internal::WindowMessageAccess::handleCursorLeave(*window);
+                Win32Internal::MessageAccess::handleCursorLeave(*window);
             }
             return 0;
         }
@@ -763,7 +708,7 @@ namespace
             Window *window = windowFromHandle(hwnd);
             if (window != nullptr && LOWORD(lParam) == HTCLIENT)
             {
-                SetCursor(window->isCursorVisible() ? Win32Internal::WindowMessageAccess::getCursorHandle(*window) : nullptr);
+                SetCursor(window->isCursorVisible() ? Win32Internal::MessageAccess::getCursorHandle(*window) : nullptr);
                 return TRUE;
             }
 
@@ -785,7 +730,7 @@ namespace
                         std::string utf8Path;
                         if (wideToUtf8(filePath.c_str(), utf8Path))
                         {
-                            Win32Internal::WindowMessageAccess::handleFileDrop(*window, utf8Path);
+                            Win32Internal::MessageAccess::handleFileDrop(*window, utf8Path);
                         }
                     }
                 }
@@ -844,7 +789,7 @@ namespace
     }
 }
 
-namespace GameWIP::Platform::Win32
+namespace GameWIP
 {
     struct WindowEventQueue
     {
@@ -1158,96 +1103,96 @@ namespace GameWIP::Platform::Win32
         bool savedModeIsFromDifferentDevice = false;
     };
 
-    namespace Internal
+    namespace WindowInternal
     {
         // Native message bridge
 
-        void WindowMessageAccess::handleResize(Window &window, int width, int height)
+        void MessageAccess::handleResize(Window &window, int width, int height)
         {
             window.handleResize(width, height);
         }
 
-        void WindowMessageAccess::handleMove(Window &window, int x, int y)
+        void MessageAccess::handleMove(Window &window, int x, int y)
         {
             window.handleMove(x, y);
         }
 
-        void WindowMessageAccess::handleFocusChange(Window &window, bool focused)
+        void MessageAccess::handleFocusChange(Window &window, bool focused)
         {
             window.handleFocusChange(focused);
         }
 
-        void WindowMessageAccess::handleActivationChange(Window &window, bool active)
+        void MessageAccess::handleActivationChange(Window &window, bool active)
         {
             window.handleActivationChange(active);
         }
 
-        void WindowMessageAccess::handleMinimizeChange(Window &window, bool minimized)
+        void MessageAccess::handleMinimizeChange(Window &window, bool minimized)
         {
             window.handleMinimizeChange(minimized);
         }
 
-        void WindowMessageAccess::handleMaximizeChange(Window &window, bool maximized)
+        void MessageAccess::handleMaximizeChange(Window &window, bool maximized)
         {
             window.handleMaximizeChange(maximized);
         }
 
-        void WindowMessageAccess::handleVisibilityChange(Window &window, bool visible)
+        void MessageAccess::handleVisibilityChange(Window &window, bool visible)
         {
             window.handleVisibilityChange(visible);
         }
 
-        bool WindowMessageAccess::shouldHandleCursorEnter(const Window &window)
+        bool MessageAccess::shouldHandleCursorEnter(const Window &window)
         {
             return window.shouldHandleCursorEnter();
         }
 
-        bool WindowMessageAccess::handleCursorEnter(Window &window)
+        bool MessageAccess::handleCursorEnter(Window &window)
         {
             return window.handleCursorEnter();
         }
 
-        void WindowMessageAccess::handleCursorTrackingFailure(Window &window, unsigned long win32Error)
+        void MessageAccess::handleCursorTrackingFailure(Window &window, unsigned long win32Error)
         {
             window.handleCursorTrackingFailure(win32Error);
         }
 
-        void WindowMessageAccess::handleCursorLeave(Window &window)
+        void MessageAccess::handleCursorLeave(Window &window)
         {
             window.handleCursorLeave();
         }
 
-        void WindowMessageAccess::handleFileDrop(Window &window, std::string_view filePath)
+        void MessageAccess::handleFileDrop(Window &window, std::string_view filePath)
         {
             window.handleFileDrop(filePath);
         }
 
-        void WindowMessageAccess::handleDestroyed(Window &window)
+        void MessageAccess::handleDestroyed(Window &window)
         {
             window.handleDestroyed();
         }
 
-        void WindowMessageAccess::updateCurrentMonitor(Window &window)
+        void MessageAccess::updateCurrentMonitor(Window &window)
         {
             window.updateCurrentMonitor();
         }
 
-        void WindowMessageAccess::handleDpiChange(Window &window, unsigned int dpi, int suggestedLeft, int suggestedTop, int suggestedRight, int suggestedBottom)
+        void MessageAccess::handleDpiChange(Window &window, unsigned int dpi, int suggestedLeft, int suggestedTop, int suggestedRight, int suggestedBottom)
         {
             window.handleDpiChange(dpi, suggestedLeft, suggestedTop, suggestedRight, suggestedBottom);
         }
 
-        void WindowMessageAccess::handleDisplayChange(Window &window)
+        void MessageAccess::handleDisplayChange(Window &window)
         {
             window.handleDisplayChange();
         }
 
-        void WindowMessageAccess::handleGetMinMaxInfo(Window &window, MINMAXINFO *minMaxInfo)
+        void MessageAccess::handleGetMinMaxInfo(Window &window, MINMAXINFO *minMaxInfo)
         {
             window.handleGetMinMaxInfo(minMaxInfo);
         }
 
-        HCURSOR WindowMessageAccess::getCursorHandle(const Window &window)
+        HCURSOR MessageAccess::getCursorHandle(const Window &window)
         {
             if (window.nativeWindow == nullptr)
             {
@@ -1292,7 +1237,7 @@ namespace GameWIP::Platform::Win32
         RECT frameRect{0, 0, 0, 0};
         if (!adjustWindowRectForDpi(frameRect, windowStyle, extendedWindowStyle, nativeWindow->dpi))
         {
-            recordAsyncError(WindowResult::Win32CallFailed, GetLastError());
+            recordAsyncError(WindowResult::PlatformCallFailed, GetLastError());
             return;
         }
 
@@ -1323,7 +1268,7 @@ namespace GameWIP::Platform::Win32
     WindowResult Window::recordResult(WindowResult result, unsigned long win32Error)
     {
         lastResult = result;
-        lastWin32Error = win32Error;
+        lastPlatformError = win32Error;
         return result;
     }
 
@@ -1335,7 +1280,7 @@ namespace GameWIP::Platform::Win32
         }
 
         lastAsyncResult = result;
-        lastAsyncWin32Error = win32Error;
+        lastAsyncPlatformError = win32Error;
         asyncErrorRecorded = true;
     }
 
@@ -1429,7 +1374,7 @@ namespace GameWIP::Platform::Win32
             unsigned long error = GetLastError();
             delete nativeWindow;
             nativeWindow = nullptr;
-            return recordResult(WindowResult::Win32CallFailed, error);
+            return recordResult(WindowResult::PlatformCallFailed, error);
         }
 
         nativeWindow->arrowCursor = LoadCursor(nullptr, IDC_ARROW);
@@ -1437,7 +1382,7 @@ namespace GameWIP::Platform::Win32
         {
             unsigned long error = GetLastError();
             destroy();
-            return recordResult(WindowResult::Win32CallFailed, error);
+            return recordResult(WindowResult::PlatformCallFailed, error);
         }
 
         nativeWindow->utf16Scratch.clear();
@@ -1445,7 +1390,7 @@ namespace GameWIP::Platform::Win32
         {
             unsigned long error = GetLastError();
             destroy();
-            return recordResult(WindowResult::Win32CallFailed, error);
+            return recordResult(WindowResult::PlatformCallFailed, error);
         }
 
         const wchar_t *className = L"GameWIPWindowClass";
@@ -1470,7 +1415,7 @@ namespace GameWIP::Platform::Win32
             if (error != ERROR_CLASS_ALREADY_EXISTS)
             {
                 destroy();
-                return recordResult(WindowResult::Win32CallFailed, error);
+                return recordResult(WindowResult::PlatformCallFailed, error);
             }
         }
 
@@ -1487,7 +1432,7 @@ namespace GameWIP::Platform::Win32
         {
             unsigned long error = GetLastError();
             destroy();
-            return recordResult(WindowResult::Win32CallFailed, error);
+            return recordResult(WindowResult::PlatformCallFailed, error);
         }
 
         int outerWidth = windowRect.right - windowRect.left;
@@ -1499,7 +1444,7 @@ namespace GameWIP::Platform::Win32
         {
             unsigned long error = GetLastError();
             destroy();
-            return recordResult(WindowResult::Win32CallFailed, error);
+            return recordResult(WindowResult::PlatformCallFailed, error);
         }
 
         nativeWindow->title = description.title;
@@ -1512,7 +1457,7 @@ namespace GameWIP::Platform::Win32
         {
             unsigned long error = GetLastError();
             destroy();
-            return recordResult(WindowResult::Win32CallFailed, error);
+            return recordResult(WindowResult::PlatformCallFailed, error);
         }
 
         int correctedOuterWidth = correctedWindowRect.right - correctedWindowRect.left;
@@ -1523,7 +1468,7 @@ namespace GameWIP::Platform::Win32
             {
                 unsigned long error = GetLastError();
                 destroy();
-                return recordResult(WindowResult::Win32CallFailed, error);
+                return recordResult(WindowResult::PlatformCallFailed, error);
             }
         }
 
@@ -1545,7 +1490,7 @@ namespace GameWIP::Platform::Win32
         WindowResult modeResult = setMode(description.mode);
         if (modeResult != WindowResult::Success)
         {
-            unsigned long error = lastWin32Error;
+            unsigned long error = lastPlatformError;
             destroy();
             return recordResult(modeResult, error);
         }
@@ -1580,7 +1525,7 @@ namespace GameWIP::Platform::Win32
             if (modeResult != WindowResult::Success)
             {
                 finalResult = modeResult;
-                finalError = lastWin32Error;
+                finalError = lastPlatformError;
             }
         }
 
@@ -1589,7 +1534,7 @@ namespace GameWIP::Platform::Win32
             DragAcceptFiles(nativeWindow->handle, FALSE);
             if (!DestroyWindow(nativeWindow->handle) && finalResult == WindowResult::Success)
             {
-                finalResult = WindowResult::Win32CallFailed;
+                finalResult = WindowResult::PlatformCallFailed;
                 finalError = GetLastError();
             }
             nativeWindow->handle = nullptr;
@@ -1819,7 +1764,7 @@ namespace GameWIP::Platform::Win32
 
             if (!adjustWindowRectForDpi(windowRect, windowStyle, extendedWindowStyle, nativeWindow->dpi))
             {
-                return recordResult(WindowResult::Win32CallFailed, GetLastError());
+                return recordResult(WindowResult::PlatformCallFailed, GetLastError());
             }
 
             int outerWidth = windowRect.right - windowRect.left;
@@ -1827,7 +1772,7 @@ namespace GameWIP::Platform::Win32
 
             if (!SetWindowPos(nativeWindow->handle, nullptr, 0, 0, outerWidth, outerHeight, SWP_NOMOVE | SWP_NOZORDER | SWP_FRAMECHANGED))
             {
-                return recordResult(WindowResult::Win32CallFailed, GetLastError());
+                return recordResult(WindowResult::PlatformCallFailed, GetLastError());
             }
 
             nativeWindow->requestedClientWidth = targetWidth;
@@ -1922,7 +1867,7 @@ namespace GameWIP::Platform::Win32
                 bool exactMode = previousFullscreenModeIsExact && isCompleteDisplayMode(rollbackDisplayMode);
                 applyDisplayModeToDevMode(rollbackMode, rollbackDisplayMode, exactMode);
                 ChangeDisplaySettingsExW(nativeWindow->fullscreenDeviceName, &rollbackMode, nullptr, CDS_FULLSCREEN, nullptr);
-                return recordResult(WindowResult::Win32CallFailed, error);
+                return recordResult(WindowResult::PlatformCallFailed, error);
             }
 
             nativeWindow->requestedClientWidth = targetWidth;
@@ -1955,12 +1900,12 @@ namespace GameWIP::Platform::Win32
         nativeWindow->utf16Scratch.clear();
         if (!utf8ToWide(title, nativeWindow->utf16Scratch))
         {
-            return recordResult(WindowResult::Win32CallFailed, GetLastError());
+            return recordResult(WindowResult::PlatformCallFailed, GetLastError());
         }
 
         if (SetWindowTextW(nativeWindow->handle, nativeWindow->utf16Scratch.c_str()) == FALSE)
         {
-            return recordResult(WindowResult::Win32CallFailed, GetLastError());
+            return recordResult(WindowResult::PlatformCallFailed, GetLastError());
         }
 
         nativeWindow->title.assign(title);
@@ -1994,9 +1939,9 @@ namespace GameWIP::Platform::Win32
         return lastResult;
     }
 
-    unsigned long Window::getLastWin32Error() const
+    unsigned long Window::getLastPlatformError() const
     {
-        return lastWin32Error;
+        return lastPlatformError;
     }
 
     bool Window::hasAsyncError() const
@@ -2009,16 +1954,16 @@ namespace GameWIP::Platform::Win32
         return asyncErrorRecorded ? lastAsyncResult : WindowResult::Success;
     }
 
-    unsigned long Window::getLastAsyncWin32Error() const
+    unsigned long Window::getLastAsyncPlatformError() const
     {
-        return asyncErrorRecorded ? lastAsyncWin32Error : 0;
+        return asyncErrorRecorded ? lastAsyncPlatformError : 0;
     }
 
     void Window::clearAsyncError()
     {
         asyncErrorRecorded = false;
         lastAsyncResult = WindowResult::Success;
-        lastAsyncWin32Error = 0;
+        lastAsyncPlatformError = 0;
     }
 
     // Window mode
@@ -2310,7 +2255,7 @@ namespace GameWIP::Platform::Win32
                     nativeWindow->fullscreenHeight,
                     SWP_FRAMECHANGED | SWP_SHOWWINDOW))
             {
-                recordAsyncError(WindowResult::Win32CallFailed, GetLastError());
+                recordAsyncError(WindowResult::PlatformCallFailed, GetLastError());
                 return;
             }
 
@@ -2411,7 +2356,7 @@ namespace GameWIP::Platform::Win32
         }
 
         nativeWindow->cursorInClient = false;
-        recordAsyncError(WindowResult::Win32CallFailed, win32Error);
+        recordAsyncError(WindowResult::PlatformCallFailed, win32Error);
     }
 
     void Window::handleCursorLeave()
@@ -2469,7 +2414,7 @@ namespace GameWIP::Platform::Win32
                     suggestedBottom - suggestedTop,
                     SWP_NOZORDER | SWP_NOACTIVATE))
             {
-                recordAsyncError(WindowResult::Win32CallFailed, GetLastError());
+                recordAsyncError(WindowResult::PlatformCallFailed, GetLastError());
             }
             break;
         case WindowMode::BorderlessFullscreen:
@@ -2484,7 +2429,7 @@ namespace GameWIP::Platform::Win32
             }
             if (!GetMonitorInfoW(monitor, &monitorInfo))
             {
-                recordAsyncError(WindowResult::Win32CallFailed, GetLastError());
+                recordAsyncError(WindowResult::PlatformCallFailed, GetLastError());
                 break;
             }
 
@@ -2498,7 +2443,7 @@ namespace GameWIP::Platform::Win32
                     monitorRect.bottom - monitorRect.top,
                     SWP_FRAMECHANGED | SWP_SHOWWINDOW | SWP_NOACTIVATE))
             {
-                recordAsyncError(WindowResult::Win32CallFailed, GetLastError());
+                recordAsyncError(WindowResult::PlatformCallFailed, GetLastError());
             }
             break;
         }
@@ -2516,7 +2461,7 @@ namespace GameWIP::Platform::Win32
                         nativeWindow->fullscreenHeight,
                         SWP_FRAMECHANGED | SWP_SHOWWINDOW | SWP_NOACTIVATE))
                 {
-                    recordAsyncError(WindowResult::Win32CallFailed, GetLastError());
+                    recordAsyncError(WindowResult::PlatformCallFailed, GetLastError());
                 }
             }
             break;
@@ -2591,7 +2536,7 @@ namespace GameWIP::Platform::Win32
         }
         else if (!GetWindowRect(nativeWindow->handle, &nativeWindow->windowedRect))
         {
-            return recordResult(WindowResult::Win32CallFailed, GetLastError());
+            return recordResult(WindowResult::PlatformCallFailed, GetLastError());
         }
 
         nativeWindow->hasSavedWindowedPlacement = true;
@@ -2661,13 +2606,13 @@ namespace GameWIP::Platform::Win32
         unsigned long styleError = 0;
         if (!setWindowStyle(nativeWindow->handle, nativeWindow->windowedStyle, styleError))
         {
-            return recordResult(WindowResult::Win32CallFailed, styleError);
+            return recordResult(WindowResult::PlatformCallFailed, styleError);
         }
 
         unsigned long extendedStyleError = 0;
         if (!setWindowExtendedStyle(nativeWindow->handle, nativeWindow->windowedExtendedStyle, extendedStyleError))
         {
-            return recordResult(WindowResult::Win32CallFailed, extendedStyleError);
+            return recordResult(WindowResult::PlatformCallFailed, extendedStyleError);
         }
 
         RECT requestedWindowRect{
@@ -2683,7 +2628,7 @@ namespace GameWIP::Platform::Win32
                 nativeWindow->windowedExtendedStyle,
                 nativeWindow->dpi))
         {
-            return recordResult(WindowResult::Win32CallFailed, GetLastError());
+            return recordResult(WindowResult::PlatformCallFailed, GetLastError());
         }
 
         int restoredWidth = requestedWindowRect.right - requestedWindowRect.left;
@@ -2698,7 +2643,7 @@ namespace GameWIP::Platform::Win32
                 restoredHeight,
                 SWP_NOZORDER | SWP_FRAMECHANGED | SWP_SHOWWINDOW))
         {
-            return recordResult(WindowResult::Win32CallFailed, GetLastError());
+            return recordResult(WindowResult::PlatformCallFailed, GetLastError());
         }
 
         return recordResult(WindowResult::Success);
@@ -2730,7 +2675,7 @@ namespace GameWIP::Platform::Win32
         WindowResult placementResult = restoreWindowedPlacement();
         if (placementResult != WindowResult::Success)
         {
-            unsigned long placementError = lastWin32Error;
+            unsigned long placementError = lastPlatformError;
             rollbackToFullscreen();
             return recordResult(placementResult, placementError);
         }
@@ -2765,7 +2710,7 @@ namespace GameWIP::Platform::Win32
 
         if (!GetMonitorInfoW(monitor, &monitorInfo))
         {
-            return recordResult(WindowResult::Win32CallFailed, GetLastError());
+            return recordResult(WindowResult::PlatformCallFailed, GetLastError());
         }
 
         WindowResult displayResult = restoreDisplayMode();
@@ -2782,7 +2727,7 @@ namespace GameWIP::Platform::Win32
         if (!setWindowStyle(nativeWindow->handle, borderlessStyle, styleError))
         {
             rollbackToFullscreen();
-            return recordResult(WindowResult::Win32CallFailed, styleError);
+            return recordResult(WindowResult::PlatformCallFailed, styleError);
         }
 
         RECT monitorRect = monitorInfo.rcMonitor;
@@ -2798,7 +2743,7 @@ namespace GameWIP::Platform::Win32
         {
             unsigned long error = GetLastError();
             rollbackToFullscreen();
-            return recordResult(WindowResult::Win32CallFailed, error);
+            return recordResult(WindowResult::PlatformCallFailed, error);
         }
 
         nativeWindow->mode = WindowMode::BorderlessFullscreen;
@@ -2873,7 +2818,7 @@ namespace GameWIP::Platform::Win32
             unsigned long styleError = 0;
             if (!setWindowStyle(nativeWindow->handle, fullscreenStyle, styleError))
             {
-                return WindowResult::Win32CallFailed;
+                return WindowResult::PlatformCallFailed;
             }
 
             if (!SetWindowPos(
@@ -2885,7 +2830,7 @@ namespace GameWIP::Platform::Win32
                     snapshot.height,
                     SWP_FRAMECHANGED | SWP_SHOWWINDOW))
             {
-                return WindowResult::Win32CallFailed;
+                return WindowResult::PlatformCallFailed;
             }
         }
 
@@ -2945,7 +2890,7 @@ namespace GameWIP::Platform::Win32
         outTarget.monitorInfo.cbSize = sizeof(outTarget.monitorInfo);
         if (!GetMonitorInfoW(outTarget.monitor, &outTarget.monitorInfo))
         {
-            return recordResult(WindowResult::Win32CallFailed, GetLastError());
+            return recordResult(WindowResult::PlatformCallFailed, GetLastError());
         }
 
         std::copy(
@@ -2972,7 +2917,7 @@ namespace GameWIP::Platform::Win32
             outTarget.savedDisplayMode.dmSize = sizeof(outTarget.savedDisplayMode);
             if (!EnumDisplaySettingsW(outTarget.deviceName, ENUM_CURRENT_SETTINGS, &outTarget.savedDisplayMode))
             {
-                return recordResult(WindowResult::Win32CallFailed, GetLastError());
+                return recordResult(WindowResult::PlatformCallFailed, GetLastError());
             }
         }
 
@@ -3040,7 +2985,7 @@ namespace GameWIP::Platform::Win32
         {
             restoreDisplayModeForDevice(target.deviceName, target.savedDisplayMode);
             rollbackFullscreenMode(previousMode, previousState);
-            return recordResult(WindowResult::Win32CallFailed, styleError);
+            return recordResult(WindowResult::PlatformCallFailed, styleError);
         }
 
         if (!SetWindowPos(
@@ -3055,7 +3000,7 @@ namespace GameWIP::Platform::Win32
             unsigned long error = GetLastError();
             restoreDisplayModeForDevice(target.deviceName, target.savedDisplayMode);
             rollbackFullscreenMode(previousMode, previousState);
-            return recordResult(WindowResult::Win32CallFailed, error);
+            return recordResult(WindowResult::PlatformCallFailed, error);
         }
 
         return WindowResult::Success;
@@ -3127,7 +3072,7 @@ namespace GameWIP::Platform::Win32
             {
                 *outWin32Error = GetLastError();
             }
-            return WindowResult::Win32CallFailed;
+            return WindowResult::PlatformCallFailed;
         }
 
         nativeWindow->cursorClipApplied = false;
@@ -3146,7 +3091,7 @@ namespace GameWIP::Platform::Win32
             unsigned long releaseError = 0;
             if (releaseCursorConfinement(&releaseError) != WindowResult::Success)
             {
-                recordAsyncError(WindowResult::Win32CallFailed, releaseError);
+                recordAsyncError(WindowResult::PlatformCallFailed, releaseError);
             }
             return;
         }
@@ -3154,11 +3099,11 @@ namespace GameWIP::Platform::Win32
         RECT clientRect{};
         if (!GetClientRect(nativeWindow->handle, &clientRect))
         {
-            recordAsyncError(WindowResult::Win32CallFailed, GetLastError());
+            recordAsyncError(WindowResult::PlatformCallFailed, GetLastError());
             unsigned long releaseError = 0;
             if (releaseCursorConfinement(&releaseError) != WindowResult::Success)
             {
-                recordAsyncError(WindowResult::Win32CallFailed, releaseError);
+                recordAsyncError(WindowResult::PlatformCallFailed, releaseError);
             }
             return;
         }
@@ -3168,11 +3113,11 @@ namespace GameWIP::Platform::Win32
 
         if (!ClientToScreen(nativeWindow->handle, &topLeft) || !ClientToScreen(nativeWindow->handle, &bottomRight))
         {
-            recordAsyncError(WindowResult::Win32CallFailed, GetLastError());
+            recordAsyncError(WindowResult::PlatformCallFailed, GetLastError());
             unsigned long releaseError = 0;
             if (releaseCursorConfinement(&releaseError) != WindowResult::Success)
             {
-                recordAsyncError(WindowResult::Win32CallFailed, releaseError);
+                recordAsyncError(WindowResult::PlatformCallFailed, releaseError);
             }
             return;
         }
@@ -3181,7 +3126,7 @@ namespace GameWIP::Platform::Win32
 
         if (!ClipCursor(&screenRect))
         {
-            recordAsyncError(WindowResult::Win32CallFailed, GetLastError());
+            recordAsyncError(WindowResult::PlatformCallFailed, GetLastError());
             return;
         }
 
@@ -3209,7 +3154,7 @@ namespace GameWIP::Platform::Win32
         MonitorEnumerationContext context{.monitors = &monitors};
         if (EnumDisplayMonitors(nullptr, nullptr, MonitorEnumProc, reinterpret_cast<LPARAM>(&context)) == FALSE)
         {
-            return recordResult(WindowResult::Win32CallFailed, context.error);
+            return recordResult(WindowResult::PlatformCallFailed, context.error);
         }
 
         nativeWindow->monitorCache = monitors;
@@ -3229,13 +3174,13 @@ namespace GameWIP::Platform::Win32
         HMONITOR hMonitor = MonitorFromWindow(nativeWindow->handle, MONITOR_DEFAULTTONEAREST);
         if (hMonitor == nullptr)
         {
-            return recordResult(WindowResult::Win32CallFailed, GetLastError());
+            return recordResult(WindowResult::PlatformCallFailed, GetLastError());
         }
 
         unsigned long error = 0;
         if (!buildMonitorInfo(hMonitor, outMonitor, error))
         {
-            return recordResult(WindowResult::Win32CallFailed, error);
+            return recordResult(WindowResult::PlatformCallFailed, error);
         }
 
         return recordResult(WindowResult::Success);
@@ -3331,7 +3276,7 @@ namespace GameWIP::Platform::Win32
         devMode.dmSize = sizeof(DEVMODEW);
         if (EnumDisplaySettingsW(nativeWindow->utf16Scratch.c_str(), ENUM_CURRENT_SETTINGS, &devMode) == FALSE)
         {
-            return recordResult(WindowResult::Win32CallFailed, GetLastError());
+            return recordResult(WindowResult::PlatformCallFailed, GetLastError());
         }
 
         outMode = DisplayMode{
@@ -3450,3 +3395,5 @@ namespace GameWIP::Platform::Win32
         return recordResult(WindowResult::Success);
     }
 }
+
+

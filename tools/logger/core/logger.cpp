@@ -1,4 +1,4 @@
-#include "logger.h" // Include the corresponding header file for the Logger class.
+#include "logger/logger.h" // Include the corresponding header file for the Logger class.
 
 #include <chrono>             // For getting the current time (std::chrono::system_clock).
 #include <condition_variable> // For std::condition_variable to signal the logging thread when new log entries are added.
@@ -17,11 +17,6 @@
 #include <string_view>        // For std::string_view.
 #include <thread>             // For std::thread to run the logging thread.
 #include <utility>            // For std::move, for optimizing string handling.
-
-#ifndef NOMINMAX
-#define NOMINMAX
-#endif
-#include <windows.h> // For Windows-specific functions like OutputDebugString and MessageBox.
 
 using GameWIP::LogLevel;
 using GameWIP::OutputMode;
@@ -314,7 +309,7 @@ void GameWIP::Logger::init(OutputMode newMode, LogLevel newLevel, std::size_t ne
     {
         constexpr std::string_view alreadyRunningMessage = "Logger::init() called while the logger is already running. Ignoring new configuration.";
         log(LogLevel::ERR, "Logger-Init", alreadyRunningMessage);
-        logDBWIN(LogLevel::ERR, "Logger-Init", alreadyRunningMessage);
+        logDebugOutput(LogLevel::ERR, "Logger-Init", alreadyRunningMessage);
         return;
     }
 
@@ -412,7 +407,7 @@ void GameWIP::Logger::init(OutputMode newMode, LogLevel newLevel, std::size_t ne
     if (fileOpenFailed)
     {
         log(LogLevel::ERR, "Logger-Init", fileErrorMessage);
-        logDBWIN(LogLevel::ERR, "Logger-Init", fileErrorMessage);
+        logDebugOutput(LogLevel::ERR, "Logger-Init", fileErrorMessage);
     }
 }
 
@@ -452,7 +447,7 @@ void GameWIP::Logger::shutdown()
     if (droppedCount > 0)
     {
         writeLogEntry(LogEntry{LogLevel::WARN, "Logger-Shutdown", std::format("Logger had {} dropped log messages.", droppedCount)});
-        logDBWIN(LogLevel::WARN, "Logger-Shutdown", std::format("Logger had {} dropped log messages.", droppedCount));
+        logDebugOutput(LogLevel::WARN, "Logger-Shutdown", std::format("Logger had {} dropped log messages.", droppedCount));
     }
 
     flush();
@@ -516,11 +511,11 @@ void GameWIP::Logger::log(LogLevel entryLevel, std::string_view source, std::str
 
     if (shouldWarnHardLimit)
     {
-        logDBWIN(LogLevel::WARN, "Logger", std::format("Log queue hit the hard limit ({} entries). Dropping all severities until it drains.", warningQueueSize));
+        logDebugOutput(LogLevel::WARN, "Logger", std::format("Log queue hit the hard limit ({} entries). Dropping all severities until it drains.", warningQueueSize));
     }
     else if (shouldWarnSoftLimit)
     {
-        logDBWIN(LogLevel::WARN, "Logger", std::format("Log queue is full ({} entries). Dropping INFO/WARN until it drains.", warningQueueSize));
+        logDebugOutput(LogLevel::WARN, "Logger", std::format("Log queue is full ({} entries). Dropping INFO/WARN until it drains.", warningQueueSize));
     }
 
     if (didEnqueue)
@@ -529,17 +524,3 @@ void GameWIP::Logger::log(LogLevel entryLevel, std::string_view source, std::str
     }
 }
 
-void GameWIP::Logger::logDBWIN(LogLevel level, std::string_view source, std::string_view message)
-{
-    LogStyle style = getLogStyle(level);
-    std::string timestamp = getCurTime();
-    std::string logMessage = buildLogMessage(timestamp, style.text, source, message);
-    logMessage.push_back('\n');
-    OutputDebugStringA(logMessage.c_str());
-}
-
-void GameWIP::Logger::fatalPopUp(std::string_view message)
-{
-    std::string messageText(message);
-    MessageBoxA(nullptr, messageText.c_str(), "Fatal Error", MB_ICONERROR | MB_OK);
-}

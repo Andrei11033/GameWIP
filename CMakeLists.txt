@@ -16,52 +16,11 @@ set(TRACY_ON_DEMAND ON CACHE BOOL "" FORCE)
 
 add_subdirectory(external/tracy)
 
-# Build the logger as a DLL so it can stay separate from the game executable.
-add_library(Logger SHARED
-    tools/logger/logger.cpp
-)
-
-add_library(Assert STATIC
-    engine/debug/assert/assert.cpp
-)
-
-add_library(Input STATIC
-    engine/input/input.cpp
-    engine/input/platform/win32/win32_input.cpp
-)
-
-add_library(PlatformWin32 STATIC
-    engine/platform/win32/window.cpp
-    engine/platform/win32/window_system.cpp
-)
-
-# Public include path because anything linking Logger needs logger/logger.h.
-target_include_directories(Logger PUBLIC
-    tools
-)
-
-target_include_directories(Assert PUBLIC
-    engine
-    tools
-)
-
-target_include_directories(Input PUBLIC
-    engine
-)
-
-target_include_directories(PlatformWin32 PUBLIC
-    engine
-)
-
-target_compile_features(Logger PUBLIC cxx_std_20)
-
-target_compile_features(Assert PUBLIC cxx_std_20)
-
-target_compile_features(Input PUBLIC cxx_std_20)
-
-target_compile_features(PlatformWin32 PUBLIC cxx_std_20)
-
-target_compile_definitions(Logger PRIVATE GAMEWIP_LOGGER_BUILD)
+add_subdirectory(tools/logger)
+add_subdirectory(tools/debug/assert)
+add_subdirectory(engine/input)
+add_subdirectory(engine/window)
+add_subdirectory(engine/window_manager)
 
 add_executable(GameWIP
     game/main.cpp
@@ -74,25 +33,12 @@ if(GAMEWIP_ENABLE_TOOLS)
     endif()
 endif()
 
-# Link the game executable against the logger DLL/import library.
-target_link_libraries(Assert PUBLIC
-    Logger
-)
-
-target_link_libraries(PlatformWin32 PUBLIC
-    Input
-)
-
-target_link_libraries(PlatformWin32 PRIVATE
-    shell32
-    Tracy::TracyClient
-)
-
 target_link_libraries(GameWIP PRIVATE
     Logger
     Assert
     Input
-    PlatformWin32
+    Window
+    WindowManager
     Tracy::TracyClient
 )
 

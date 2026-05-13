@@ -64,15 +64,15 @@ namespace GameWIP
         /// @param message The log message to be written.
         static void log(LogLevel level, std::string_view source, std::string_view message);
 
-        /// @brief Logs a message to the Windows debug output.
+        /// @brief Logs a message to the platform debug output.
         /// @param level The log level of the message.
         /// @param source The source tag for the message.
         /// @param message The log message to be written.
-        static void logDBWIN(LogLevel level, std::string_view source, std::string_view message);
+        static void logDebugOutput(LogLevel level, std::string_view source, std::string_view message);
 
         /// @brief Displays a fatal error popup with the specified message.
         /// @param message The error message to display.
-        static void fatalPopUp(std::string_view message);
+        static void showFatalPopup(std::string_view message);
 
         /// @brief Flushes the log file and console streams to ensure all log messages are written out.
         static void flush();

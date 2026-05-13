@@ -11,14 +11,14 @@
 [x] Logging system exists
 [x] Logger implementation updated to current async DLL version
     Planned logger feature set:
-    [x] Logger moved to tools/logger/logger.h and tools/logger/logger.cpp
+    [x] Logger moved to tools/logger with logger.h, core/logger.cpp, and platform/win32/win32_logger.cpp
     [x] logger.h kept as a thin API-only header
-    [x] logger.cpp owns file/time/queue/thread internals
+    [x] logger core owns file/time/queue/thread internals
     [x] Logger builds as a DLL
     [x] CMake copies required runtime DLLs next to GameWIP.exe automatically
     [x] Log levels include INFO, WARN, ERR, and FATAL
     [x] Fatal popup window exists
-    [x] Separate DBWIN debug output function exists
+    [x] Separate platform debug output function exists
     [x] Source tag is included in messages, e.g. [Main], [Engine]
     [x] Timestamps are included in log output
     [x] Time formatting uses thread-safe localtime_s
@@ -53,7 +53,7 @@
     [x] ERROR level outputs to stderr
     [x] FATAL level outputs to stderr
     [x] Messages include [time][level][source]: message format
-    [x] DBWIN output works in a Windows debug viewer
+    [x] Platform debug output works in a Windows debug viewer
     [x] Logging to files works correctly
     [x] File-open failure falls back cleanly to console output
     [x] Logger runs correctly through the VS Code build/run flow
@@ -69,7 +69,7 @@
     [ ] Consider wrapping logger globals into one internal LoggerState object
 [x] Assertions/debug checks exist
     Planned assertion/debug feature set:
-    [x] Debug checks live under engine/debug/assert/assert.h and engine/debug/assert/assert.cpp
+    [x] Debug checks live under tools/debug/assert with assert.h, core/assert.cpp, and platform/win32/win32_assert.cpp
     [x] Debug checks build as a small static Debug library
     [x] Debug library links against Logger for reporting failures
     [x] Logger does not depend on Debug, keeping dependency direction one-way
@@ -79,7 +79,7 @@
     [x] Assertion macros capture file, line, and function
     [x] Assertion implementation formats a clear failure message
     [x] Assertion failures log through Logger
-    [x] Assertion failures also emit DBWIN/debug output
+    [x] Assertion failures also emit platform debug output
     [x] Assertion failures flush logs before breaking
     [x] Debug builds trigger a debugger break on assertion failure
     [x] Release builds compile assertions out when NDEBUG is defined
@@ -125,7 +125,7 @@
     [x] Input owns platform input backends instead of Window interpreting keys long-term
     [x] Add a Win32 input backend under the input system
     [x] Keep Win32-specific input code out of the public engine/input/input.h API
-    [x] WindowSystem message pump forwards input-related Win32 messages to the input backend
+    [x] WindowManager message pump forwards input-related Win32 messages to the input backend
     [x] Win32 input backend registers keyboard and mouse Raw Input devices
     [x] Win32 input backend handles WM_INPUT and translates raw keyboard data into InputState
     [x] Win32 input backend handles WM_INPUT and translates raw mouse data into InputState
@@ -218,15 +218,15 @@
     Migration from previous temporary key-message path:
     [x] Create Win32 input backend files under the input system, e.g. engine/input/platform/win32_input.h and engine/input/platform/win32_input.cpp
     [x] Add the Win32 input backend to CMake
-    [x] Move old virtual-key mapping out of engine/platform/win32/window.cpp and into the Win32 input backend
+    [x] Move old virtual-key mapping out of the Win32 window implementation and into the Win32 input backend
     [x] Add a backend function that receives Win32 messages and updates InputState
-    [x] WindowSystem::pollEvents forwards key-related messages to the backend function
-    [x] WindowSystem::pollEvents contains no virtual-key mapping logic
+    [x] WindowManager::pollEvents forwards key-related messages to the backend function
+    [x] WindowManager::pollEvents contains no virtual-key mapping logic
     [x] Temporary WM_KEYDOWN/WM_KEYUP behavior still works after the backend extraction
     [x] Escape-to-close remains in main/game/action code, not in Window or the backend
     [x] Decide the Raw Input registration API shape, likely a Win32 input function that receives the window HWND as an opaque handle
     [x] Add backend initialization that can register Raw Input devices for the window handle
-    [x] WindowSystem passes the main HWND to backend initialization without exposing windows.h in public headers
+    [x] WindowManager passes the main HWND to backend initialization without exposing windows.h in public headers
     [x] Switch gameplay keyboard input from WM_KEYDOWN/WM_KEYUP to WM_INPUT
     [x] Keep normal Win32 messages available for menu/text fallback where useful
     [ ] Add Action enum for game commands, e.g. Quit, MoveForward, MoveLeft, MoveRight
@@ -263,19 +263,20 @@
 1. MINIMAL RENDERING / DEBUG
 
 [x] Window opens and closes
-    Current Win32 window foundation:
-    [x] Win32 window module lives under engine/platform/win32/window.h and engine/platform/win32/window.cpp
-    [x] Win32 window module builds as a small static PlatformWin32 library
-    [x] PlatformWin32 links against Input
-    [x] PlatformWin32 feeds InputState through the Win32 input backend
-    [x] PlatformWin32 forwards input-related messages to the input backend instead of owning final input mapping
-    [x] PlatformWin32 does not depend on game code
+    Current window foundation:
+    [x] Window module lives under engine/window with window.h, core/window.cpp, and platform/win32/win32_window.cpp
+    [x] WindowManager module lives under engine/window_manager with window_manager.h, core/window_manager.cpp, and platform/win32/win32_window_manager.cpp
+    [x] Window and WindowManager build as separate static libraries
+    [x] WindowManager links against Window and Input
+    [x] WindowManager feeds InputState through the Win32 input backend
+    [x] WindowManager forwards input-related messages to the input backend instead of owning final input mapping
+    [x] Window and WindowManager do not depend on game code
     [x] Window wrapper owns the native window handle
     [x] Window wrapper destroys the native window handle during shutdown
     [x] Win32 window class is registered before window creation
     [x] WM_NCCREATE stores the Window pointer and still allows default Win32 creation handling
     [x] Window creation accepts title, width, and height
-    [x] Window title appears from WindowDescription title
+    [x] Window title appears from Window::Description title
     [x] Window creation reports failure clearly
     [x] Requested window size is interpreted as client-area size
     [x] Window exposes whether close was requested
@@ -291,8 +292,8 @@
     [x] Unsupported virtual keys are ignored safely
     [x] Escape key requests window close from game/input-action code, not from Window internals
     [x] Input advanceFrame is called once per loop before processing new messages
-    [x] Public Win32 window header avoids exposing windows.h where practical
-    [x] Public Win32 window API has /// documentation comments
+    [x] Public window headers avoid exposing windows.h where practical
+    [x] Public window API uses GameWIP::Window, GameWIP::WindowManager, and nested Window:: types
     Planned window/control feature set:
     Window completion work order:
     [x] First stabilize the renderer-facing window contract: client size, resize-changed flag, focus state, minimized state, current mode, set mode, set title, request close, and controlled native-handle access
@@ -301,9 +302,9 @@
     [x] Then add cursor controls: show/hide, confine/unconfine, and an explicit policy for menu mode versus gameplay mode
     [x] Then add Raw Input registration and WM_INPUT handling once the native window handle lifetime is settled
     [x] Verify each step before moving to rendering, because the renderer will depend on window size, focus/minimize state, and native-handle lifetime
-    [x] WindowDescription supports windowed and borderless fullscreen startup modes
-    [x] WindowDescription supports resizable/fixed-size configuration
-    [x] WindowDescription supports requested client-area size
+    [x] Window::Description supports windowed and borderless fullscreen startup modes
+    [x] Window::Description supports resizable/fixed-size configuration
+    [x] Window::Description supports requested client-area size
     [x] Window can change title after creation
     [x] Window can change requested/game resolution after creation through setClientSize
     [x] Window keeps requested/game resolution separate from the current dragged client size
@@ -322,8 +323,8 @@
     [x] Window exposes a resize-changed flag or event for renderer backbuffer resizing
     [x] Window can expose native Win32 info to the renderer through a controlled Win32-specific API
     Verification:
-    [x] PlatformWin32 library compiles without errors
-    [x] GameWIP links against PlatformWin32 successfully
+    [x] Window and WindowManager libraries compile without errors
+    [x] GameWIP links against Window and WindowManager successfully
     [x] Window opens with the expected title
     [x] Window opens at the requested outer window size
     [x] Window opens with the requested client-area size
@@ -357,16 +358,16 @@
     [x] Set default Win32 cursor for the client area
     [x] Add high-DPI awareness
     [x] Handle WM_DPICHANGED and use DPI-aware window rect adjustment for client sizing
-    [x] Add a renderer-facing WindowInfo shape if HWND alone is not enough
+    [x] Add a renderer-facing Window::Info shape if HWND alone is not enough
     [x] Add a window event path for resize, move, focus, minimize, restore, and close request
     [x] Add a DisplayChanged window event if renderer/UI systems need to react to monitor or display-mode changes
     [x] Switch Win32 title/text calls from A APIs to W APIs with UTF-8 to UTF-16 conversion
     [x] Decide whether Window should explicitly delete move operations or support move construction/assignment
     [x] Add monitor and display-mode query API if fullscreen/monitor selection becomes needed
-    [x] Monitor and display-mode query failures report through WindowResult instead of silent empty results
+    [x] Monitor and display-mode query failures report through Window::Result instead of silent empty results
     [x] Add minimum/maximum client-size constraints through WM_GETMINMAXINFO if needed
     [x] Expose current window DPI for future renderer/UI scaling decisions
-    [x] Consider replacing bool-only window results with a small WindowResult enum if error handling needs more detail
+    [x] Consider replacing bool-only window results with a small Window::Result enum if error handling needs more detail
     [x] Add exclusive fullscreen only if borderless fullscreen is not enough
     [x] Remove temporary WM_PAINT color fill once real rendering clears the frame
     [x] Split Window::setMode into smaller helpers for save/restore/apply mode paths
@@ -376,12 +377,12 @@
     [x] Possibly optimize the ring buffer
     [x] Add multiwindow support
         Current multi-window foundation:
-        [x] WindowRole exists for MainGame, SecondaryGameView, Tool, and Debug windows
-        [x] WindowDescription carries a role assigned by game/main.cpp
+        [x] Window::Role exists for MainGame, SecondaryGameView, Tool, and Debug windows
+        [x] Window::Description carries a role assigned by game/main.cpp
         [x] Window remains the owner of one native HWND and one event queue
-        [x] WindowSystem owns multiple Window instances and pumps the Win32 queue once per frame
-        [x] WindowSystem rejects a second MainGame window
-        [x] Raw Input registration moved from Window creation to WindowSystem main-window creation
+        [x] WindowManager owns multiple Window instances and pumps the Win32 queue once per frame
+        [x] WindowManager rejects a second MainGame window
+        [x] Raw Input registration moved from Window creation to WindowManager main-window creation
         [x] MainGame is the only role allowed to use exclusive fullscreen
         [x] SecondaryGameView allows windowed and borderless modes only
         [x] Tool and Debug roles are windowed-only
@@ -394,7 +395,7 @@
         [x] GAMEWIP_ENABLE_TOOLS controls whether game/main.cpp creates tool-input state and optional startup tool windows
         [x] Startup tool/debug windows are opt-in through openToolWindowsAtStartup
         Build verification:
-        [x] Default build compiles with WindowSystem included in PlatformWin32
+        [x] Default build compiles with separate Window and WindowManager targets
         [x] Tools-enabled configure/build compiles with GAMEWIP_ENABLE_TOOLS=ON
         Manual verification:
         [ ] Default build creates only the main window
@@ -411,7 +412,7 @@
         [ ] Main fullscreen and cursor behavior still works
         Renderer-era follow-up:
         [ ] Renderer creates one render surface/swapchain per Window
-        [ ] Renderer destroys a window surface before WindowSystem destroys that Window
+        [ ] Renderer destroys a window surface before WindowManager destroys that Window
         [ ] Renderer recreates each surface independently on that window's resize/DPI changes
         [ ] Renderer skips or throttles minimized/occluded windows per window
         [ ] MainGame and SecondaryGameView windows can each be assigned a camera/view
@@ -419,7 +420,7 @@
         [ ] Borderless multi-monitor placement is decided in game/editor code using monitor info from Window
         [ ] Tool windows get a UI renderer path before they become interactive editor panels
         [ ] Debug windows get a render-only diagnostics path and remain input-disabled
-        [ ] Recheck whether WindowSystem needs a pre-destroy callback/event once renderer resources exist
+        [ ] Recheck whether WindowManager needs a pre-destroy callback/event once renderer resources exist
 
 1.5. PRE-RENDER FOUNDATION REVIEW
 
@@ -432,7 +433,7 @@
     [ ] Confirm platform-specific types stay out of public cross-platform headers
     [ ] Confirm ownership and lifetime rules are clear for logger/input/window systems
     [ ] Confirm error paths log useful information and leave systems in a valid state
-    [ ] Move InputStateAccess into a real engine/input/internal header before adding more input backends
+    [x] Move InputStateAccess into a real engine/input/internal header before adding more input backends
     [ ] Decide whether Win32 input backend state should become an explicit object instead of file-local globals
     [ ] Document the shutdown policy: WM_CLOSE requests close, and the game loop owns final window destruction
     [ ] Confirm release build has no debug-only behavior or temporary logs
@@ -449,19 +450,21 @@
     [ ] Revisit WindowEventQueue complexity; simplify it if maintenance cost outweighs the custom ring-buffer/coalescing behavior
     [ ] Decide Raw Input registration flags policy for foreground/background input and legacy message behavior
     [ ] Check client-area sizing before renderer depends on dimensions
-    [ ] Check CMake target dependencies and include paths are minimal and clear
+    [x] Check CMake target dependencies and include paths are minimal and clear
     [ ] Check generated release folder only keeps files needed to run the game
     Platform skeleton:
-    [ ] Add a platform selection layer so game code does not include Win32 headers directly
-    [ ] Keep Win32 implementation under engine/platform/win32
-    [ ] Add placeholder platform folders/files for future OS support
-    [ ] Add a cross-platform Window API shape that future OS backends can implement
-    [ ] Add a cross-platform Input backend API shape that future OS backends can implement
-    [ ] Add CMake conditionals for selecting the platform backend
-    [ ] Add clear compile-time error for unsupported platforms
-    [ ] Document that Windows/Win32 is the only supported platform for now
+    [x] Add a platform selection layer so game code does not include Win32 headers directly
+    [x] Keep Win32 implementation under each module's platform/win32 folder
+    [x] Keep future platform folders out of the tree until a backend exists
+    [x] Move Window message forwarding access into engine/window/internal
+    [x] Move Assert platform bridge into tools/debug/assert/internal
+    [x] Add a cross-platform Window API shape that future OS backends can implement
+    [x] Add a cross-platform Input backend API shape that future OS backends can implement
+    [x] Add CMake conditionals for selecting the platform backend
+    [x] Add clear compile-time error for unsupported platforms
+    [x] Document that Windows/Win32 is the only supported platform for now
     Verification:
-    [ ] Clean configure/build still works after cleanup
+    [x] Clean configure/build still works after cleanup
     [ ] Debug run opens, logs, receives input, and closes cleanly
     [ ] Release run opens and closes cleanly
     [ ] Checklist reflects only actually verified behavior

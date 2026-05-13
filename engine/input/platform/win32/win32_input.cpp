@@ -1,4 +1,5 @@
 #include "win32_input.h"
+#include "input/internal/input_state_access.h"
 
 #include <windows.h>
 #include <windowsx.h>
@@ -9,51 +10,6 @@
 #include <cstdint>
 #include <string_view>
 #include <vector>
-
-namespace GameWIP::Input::Internal
-{
-    struct InputStateAccess // Forwards Win32 input into private InputState handlers.
-    {
-        /// @brief Sets a button's held state.
-        static void setButton(InputState &inputState, InputControl control, bool isDown);
-
-        /// @brief Sets an axis value.
-        static void setAxis(InputState &inputState, InputControl control, float value);
-
-        /// @brief Adds raw mouse movement.
-        static void addMouseDelta(InputState &inputState, int deltaX, int deltaY);
-
-        /// @brief Sets the mouse position.
-        static void setMousePosition(InputState &inputState, int x, int y);
-
-        /// @brief Clears the mouse position.
-        static void clearMousePosition(InputState &inputState);
-
-        /// @brief Adds wheel movement.
-        static void addWheelDelta(InputState &inputState, InputControl control, float amount);
-
-        /// @brief Adds typed text.
-        static void addTextUtf8(InputState &inputState, std::string_view text);
-
-        /// @brief Adds a typed codepoint.
-        static void addTextCodepoint(InputState &inputState, char32_t codepoint);
-
-        /// @brief Returns the pending UTF-16 high surrogate for text input.
-        static char16_t getPendingTextHighSurrogate(const InputState &inputState);
-
-        /// @brief Stores the pending UTF-16 high surrogate for text input.
-        static void setPendingTextHighSurrogate(InputState &inputState, char16_t codeUnit);
-
-        /// @brief Clears pending text composition state.
-        static void clearTextComposition(InputState &inputState);
-
-        /// @brief Sets device connection state.
-        static void setDeviceConnected(InputState &inputState, InputDeviceType deviceType, DeviceIndex deviceIndex, bool connected);
-
-        /// @brief Returns the generation that changes when persistent state is cleared.
-        static std::uint64_t getClearGeneration(const InputState &inputState);
-    };
-}
 
 namespace
 {
@@ -751,74 +707,6 @@ namespace
         }
 
         return false;
-    }
-}
-
-namespace GameWIP::Input::Internal
-{
-    void InputStateAccess::setButton(InputState &inputState, InputControl control, bool isDown)
-    {
-        inputState.setButtonInternal(control, isDown);
-    }
-
-    void InputStateAccess::setAxis(InputState &inputState, InputControl control, float value)
-    {
-        inputState.setAxisInternal(control, value);
-    }
-
-    void InputStateAccess::addMouseDelta(InputState &inputState, int deltaX, int deltaY)
-    {
-        inputState.addMouseDeltaInternal(deltaX, deltaY);
-    }
-
-    void InputStateAccess::setMousePosition(InputState &inputState, int x, int y)
-    {
-        inputState.setMousePositionInternal(x, y);
-    }
-
-    void InputStateAccess::clearMousePosition(InputState &inputState)
-    {
-        inputState.clearMousePositionInternal();
-    }
-
-    void InputStateAccess::addWheelDelta(InputState &inputState, InputControl control, float amount)
-    {
-        inputState.addWheelDeltaInternal(control, amount);
-    }
-
-    void InputStateAccess::addTextUtf8(InputState &inputState, std::string_view text)
-    {
-        inputState.addTextUtf8Internal(text);
-    }
-
-    void InputStateAccess::addTextCodepoint(InputState &inputState, char32_t codepoint)
-    {
-        inputState.addTextCodepointInternal(codepoint);
-    }
-
-    char16_t InputStateAccess::getPendingTextHighSurrogate(const InputState &inputState)
-    {
-        return inputState.getPendingTextHighSurrogateInternal();
-    }
-
-    void InputStateAccess::setPendingTextHighSurrogate(InputState &inputState, char16_t codeUnit)
-    {
-        inputState.setPendingTextHighSurrogateInternal(codeUnit);
-    }
-
-    void InputStateAccess::clearTextComposition(InputState &inputState)
-    {
-        inputState.clearTextCompositionInternal();
-    }
-
-    void InputStateAccess::setDeviceConnected(InputState &inputState, InputDeviceType deviceType, DeviceIndex deviceIndex, bool connected)
-    {
-        inputState.setDeviceConnectedInternal(deviceType, deviceIndex, connected);
-    }
-
-    std::uint64_t InputStateAccess::getClearGeneration(const InputState &inputState)
-    {
-        return inputState.clearGeneration;
     }
 }
 

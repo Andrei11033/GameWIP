@@ -11,8 +11,8 @@
 #include "logger/logger.h"
 #include "debug/assert/assert.h"
 #include "input/input.h"
-#include "platform/win32/window.h"
-#include "platform/win32/window_system.h"
+#include "window/window.h"
+#include "window_manager/window_manager.h"
 
 namespace
 {
@@ -22,16 +22,16 @@ namespace
     using GameWIP::OutputMode;
     using GameWIP::Input::InputState;
     using GameWIP::Input::makeKeyboardKey;
-    using GameWIP::Platform::Win32::DisplayMode;
-    using GameWIP::Platform::Win32::MonitorInfo;
-    using GameWIP::Platform::Win32::Window;
-    using GameWIP::Platform::Win32::WindowDescription;
-    using GameWIP::Platform::Win32::WindowEvent;
-    using GameWIP::Platform::Win32::WindowEventType;
-    using GameWIP::Platform::Win32::WindowMode;
-    using GameWIP::Platform::Win32::WindowResult;
-    using GameWIP::Platform::Win32::WindowRole;
-    using GameWIP::Platform::Win32::WindowSystem;
+    using DisplayMode = GameWIP::Window::DisplayMode;
+    using MonitorInfo = GameWIP::Window::MonitorInfo;
+    using GameWIP::Window;
+    using WindowDescription = GameWIP::Window::Description;
+    using WindowEvent = GameWIP::Window::Event;
+    using WindowEventType = GameWIP::Window::EventType;
+    using WindowMode = GameWIP::Window::Mode;
+    using WindowResult = GameWIP::Window::Result;
+    using WindowRole = GameWIP::Window::Role;
+    using GameWIP::WindowManager;
 
     // Configuration
 
@@ -77,7 +77,7 @@ namespace
     // Window description helpers
 
     /// @brief Builds the default window description for the game.
-    /// @return Default Win32 window description.
+    /// @return Default platform window description.
     WindowDescription makeDefaultWindowDescription()
     {
         return WindowDescription{
@@ -134,8 +134,8 @@ namespace
             return "InvalidMonitor";
         case WindowResult::InvalidDisplayMode:
             return "InvalidDisplayMode";
-        case WindowResult::Win32CallFailed:
-            return "Win32CallFailed";
+        case WindowResult::PlatformCallFailed:
+            return "PlatformCallFailed";
         case WindowResult::MissingWindowedPlacement:
             return "MissingWindowedPlacement";
         case WindowResult::MissingDisplayMode:
@@ -275,9 +275,9 @@ namespace
 
     // Logging helpers
 
-    /// @brief Logs a failed window operation with its result and Win32 error code.
+    /// @brief Logs a failed window operation with its result and platform error code.
     /// @param operation Operation that failed.
-    /// @param window Window storing the last Win32 error.
+    /// @param window Window storing the last platform error.
     /// @param result Result code returned by the operation.
     void logWindowFailure(std::string_view operation, const Window &window, WindowResult result)
     {
@@ -285,14 +285,14 @@ namespace
             LogLevel::ERR,
             mainLogSource,
             std::format(
-                "{} failed for {} window with result {} and Win32 error {}.",
+                "{} failed for {} window with result {} and platform error {}.",
                 operation,
                 toString(window.getRole()),
                 toString(result),
-                window.getLastWin32Error()));
+                window.getLastPlatformError()));
     }
 
-    /// @brief Logs a failed window-system operation when no window object can provide a Win32 error.
+    /// @brief Logs a failed window-system operation when no window object can provide a platform error.
     /// @param operation Operation that failed.
     /// @param result Result code returned by the operation.
     void logWindowFailure(std::string_view operation, WindowResult result)
@@ -316,10 +316,10 @@ namespace
             LogLevel::ERR,
             mainLogSource,
             std::format(
-                "Async {} window handler failed with result {} and Win32 error {}.",
+                "Async {} window handler failed with result {} and platform error {}.",
                 toString(window.getRole()),
                 toString(window.getLastAsyncResult()),
-                window.getLastAsyncWin32Error()));
+                window.getLastAsyncPlatformError()));
         window.clearAsyncError();
     }
 
@@ -329,15 +329,15 @@ namespace
     /// @param windows Window system that will own the native window.
     /// @param outWindow Receives the main window on success.
     /// @return Result code from the create operation.
-    WindowResult createMainWindow(WindowSystem &windows, Window *&outWindow)
+    WindowResult createMainWindow(WindowManager &windows, Window *&outWindow)
     {
-        ZoneScopedNC("Create Win32 window", tracy::Color::SeaGreen);
-        Logger::log(LogLevel::INFO, mainLogSource, "Creating Win32 window.");
+        ZoneScopedNC("Create platform window", tracy::Color::SeaGreen);
+        Logger::log(LogLevel::INFO, mainLogSource, "Creating platform window.");
         return windows.createWindow(makeDefaultWindowDescription(), outWindow);
     }
 
 #ifdef GAMEWIP_ENABLE_TOOLS
-    void createOptionalStartupToolWindows(WindowSystem &windows)
+    void createOptionalStartupToolWindows(WindowManager &windows)
     {
         if (!openToolWindowsAtStartup)
         {
@@ -524,7 +524,7 @@ namespace
 
     /// @brief Logs any passive window-message errors recorded during polling.
     /// @param windows Window system to inspect.
-    void logWindowAsyncErrors(WindowSystem &windows)
+    void logWindowAsyncErrors(WindowManager &windows)
     {
         std::vector<Window *> activeWindows;
         windows.getWindows(activeWindows);
@@ -539,7 +539,7 @@ namespace
     /// @param windows Window system to poll.
     /// @param gameInput Gameplay input state updated by window messages.
     /// @param toolInput Optional tool-window input state updated by window messages.
-    void pollWindowEvents(WindowSystem &windows, InputState &gameInput, InputState *toolInput)
+    void pollWindowEvents(WindowManager &windows, InputState &gameInput, InputState *toolInput)
     {
         ZoneScopedNC("Poll window events", tracy::Color::DodgerBlue);
 
@@ -567,7 +567,7 @@ namespace
     /// @brief Logs and drains queued events for every active window.
     /// @param windows Window system to inspect.
     /// @return Total number of events drained.
-    std::size_t logWindowEvents(WindowSystem &windows)
+    std::size_t logWindowEvents(WindowManager &windows)
     {
         ZoneScopedNC("Log window events", tracy::Color::SlateBlue);
 
@@ -607,7 +607,7 @@ namespace
     /// @param mainWindow Main game window, if one exists.
     /// @param gameInput Gameplay input state.
     /// @param toolInput Optional tool-window input state.
-    void runMainFrame(WindowSystem &windows, Window *mainWindow, InputState &gameInput, InputState *toolInput)
+    void runMainFrame(WindowManager &windows, Window *mainWindow, InputState &gameInput, InputState *toolInput)
     {
 #ifdef TRACY_ENABLE
         const auto frameStart = std::chrono::steady_clock::now();
@@ -631,7 +631,7 @@ namespace
 
     /// @brief Destroys all active windows during shutdown.
     /// @param windows Window system that owns the windows.
-    void destroyAllWindows(WindowSystem &windows)
+    void destroyAllWindows(WindowManager &windows)
     {
         ZoneScopedNC("Shutdown window", tracy::Color::OrangeRed);
         TracyMessageLC("Window close requested.", tracy::Color::Orange);
@@ -643,7 +643,7 @@ namespace
         {
             if (WindowResult result = windows.destroyWindow(*window); result != WindowResult::Success)
             {
-                logWindowFailure("Destroying Win32 window", result);
+                logWindowFailure("Destroying platform window", result);
             }
         }
     }
@@ -665,21 +665,21 @@ namespace
 #else
         InputState *toolInputState = nullptr;
 #endif
-        WindowSystem windows;
+        WindowManager windows;
         Window *mainWindow = nullptr;
 
         WindowResult createResult = createMainWindow(windows, mainWindow);
         if (createResult != WindowResult::Success)
         {
-            logWindowFailure("Creating Win32 window", createResult);
+            logWindowFailure("Creating platform window", createResult);
             return 1;
         }
         if (mainWindow == nullptr)
         {
-            logWindowFailure("Creating Win32 window", WindowResult::NotCreated);
+            logWindowFailure("Creating platform window", WindowResult::NotCreated);
             return 1;
         }
-        TracyMessageLC("Win32 window created.", tracy::Color::SeaGreen);
+        TracyMessageLC("platform window created.", tracy::Color::SeaGreen);
 
         applyStartupClientSizeConstraints(*mainWindow);
 
@@ -724,9 +724,9 @@ int main()
         TracyMessageLC("Fatal std::exception caught.", tracy::Color::Red);
         TracyMessageC(errorMessage.data(), errorMessage.size(), tracy::Color::Red);
         Logger::log(LogLevel::FATAL, mainLogSource, errorMessage);
-        Logger::logDBWIN(LogLevel::FATAL, mainLogSource, errorMessage);
+        Logger::logDebugOutput(LogLevel::FATAL, mainLogSource, errorMessage);
         Logger::flush();
-        Logger::fatalPopUp(errorMessage);
+        Logger::showFatalPopup(errorMessage);
         exitCode = 1;
     }
     catch (...)
@@ -734,9 +734,9 @@ int main()
         constexpr std::string_view unknownErrorMessage = "Unhandled non-standard exception.";
         TracyMessageLC("Fatal non-standard exception caught.", tracy::Color::Red);
         Logger::log(LogLevel::FATAL, mainLogSource, unknownErrorMessage);
-        Logger::logDBWIN(LogLevel::FATAL, mainLogSource, unknownErrorMessage);
+        Logger::logDebugOutput(LogLevel::FATAL, mainLogSource, unknownErrorMessage);
         Logger::flush();
-        Logger::fatalPopUp(unknownErrorMessage);
+        Logger::showFatalPopup(unknownErrorMessage);
         exitCode = 1;
     }
 
