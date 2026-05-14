@@ -286,6 +286,11 @@ namespace GameWIP::Input
         return containsControl(releasedButtons, control);
     }
 
+    std::span<const InputControl> InputState::getCurrentButtonView() const
+    {
+        return currentButtons;
+    }
+
     float InputState::getAxis(InputControl control) const
     {
         if (!isAxisControl(control))

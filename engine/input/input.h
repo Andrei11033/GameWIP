@@ -73,6 +73,13 @@ namespace GameWIP::Input
         Horizontal // Horizontal wheel axis.
     };
 
+    /// @brief Bindable raw mouse movement axes.
+    enum class MouseAxis
+    {
+        DeltaX, // Raw mouse X movement.
+        DeltaY  // Raw mouse Y movement.
+    };
+
     /// @brief Common gamepad buttons.
     enum class GamepadButton
     {
@@ -281,6 +288,14 @@ namespace GameWIP::Input
         return InputControl{InputDeviceType::Mouse, 0, InputControlType::Wheel, static_cast<ControlCode>(wheel)};
     }
 
+    /// @brief Creates a mouse movement axis control.
+    /// @param axis Mouse movement axis to identify.
+    /// @return Mouse movement axis control.
+    constexpr InputControl makeMouseAxis(MouseAxis axis)
+    {
+        return InputControl{InputDeviceType::Mouse, 0, InputControlType::Axis, static_cast<ControlCode>(axis)};
+    }
+
     /// @brief Creates a gamepad button control.
     /// @param deviceIndex Gamepad slot.
     /// @param button Gamepad button to identify.
@@ -336,6 +351,10 @@ namespace GameWIP::Input
         /// @param control Button to query.
         /// @return True if released.
         bool wasButtonReleased(InputControl control) const;
+
+        /// @brief Returns currently held buttons without copying.
+        /// @return Read-only view of held button controls.
+        std::span<const InputControl> getCurrentButtonView() const;
 
         // Axes and pointer state
 

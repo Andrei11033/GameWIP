@@ -11,6 +11,7 @@
 #include "logger/logger.h"
 #include "debug/assert/assert.h"
 #include "input/input.h"
+#include "action/action.h"
 #include "window/window.h"
 #include "window_manager/window_manager.h"
 
@@ -20,8 +21,18 @@ namespace
     using GameWIP::Logger;
     using GameWIP::LogLevel;
     using GameWIP::OutputMode;
+    using GameWIP::Action::ActionComponent;
+#ifdef GAMEWIP_ENABLE_TEMP_ACTION_TESTS
+    using GameWIP::Action::ActionRebindCapture;
+    using GameWIP::Action::ActionRebindOptions;
+    using GameWIP::Action::ActionRebindSession;
+    using GameWIP::Action::ActionTrigger;
+    using GameWIP::Input::InputControl;
+#endif
     using GameWIP::Input::InputState;
     using GameWIP::Input::makeKeyboardKey;
+    using GameWIP::Input::makeMouseAxis;
+    using GameWIP::Input::MouseAxis;
     using DisplayMode = GameWIP::Window::DisplayMode;
     using MonitorInfo = GameWIP::Window::MonitorInfo;
     using GameWIP::Window;
@@ -32,6 +43,23 @@ namespace
     using WindowResult = GameWIP::Window::Result;
     using WindowRole = GameWIP::Window::Role;
     using GameWIP::WindowManager;
+    using GameWIP::Action::ActionKind;
+    using GameWIP::Action::ActionMap;
+    using GameWIP::Action::ActionResult;
+    using GameWIP::Action::makeMouseLookSettings;
+#ifdef GAMEWIP_ENABLE_TEMP_ACTION_TESTS
+    using GameWIP::Action::RebindCompletionMode;
+    using GameWIP::Action::RebindModifierMode;
+    using GameWIP::Action::RebindResult;
+#endif
+
+    enum class GameAction
+    {
+        Quit,
+        Move,
+        Look,
+        Count
+    };
 
     // Configuration
 
@@ -47,6 +75,10 @@ namespace
     constexpr int fallbackMaxClientHeight = 1080;                                     // Fallback maximum client-area height.
     constexpr std::chrono::milliseconds frameSleepDuration{100};                      // Temporary frame pacing until real timing exists.
     constexpr auto closeWindowControl = makeKeyboardKey(KeyboardControlCode::Escape); // Input control used to request shutdown.
+#ifdef GAMEWIP_ENABLE_TEMP_ACTION_TESTS
+    constexpr auto startRebindControl = makeKeyboardKey(KeyboardControlCode::F8); // Temporary key used to start action rebinding.
+#endif
+    constexpr bool enableTemporaryActionValueLogs = false; // Temporary action value test logging.
 
 #ifdef GAMEWIP_ENABLE_TOOLS
 #ifdef GAMEWIP_OPEN_TOOL_WINDOWS_AT_STARTUP
@@ -61,6 +93,13 @@ namespace
 #endif
 
     // Tracy helpers
+
+#ifdef GAMEWIP_ENABLE_TEMP_ACTION_TESTS
+    struct TemporaryRebindTestState
+    {
+        ActionRebindSession<GameAction> quitBindingSession{}; // Active temporary Quit rebind session.
+    };
+#endif
 
 #ifdef TRACY_ENABLE
     /// @brief Configures one-time Tracy metadata and plots for main-loop captures.
@@ -239,6 +278,60 @@ namespace
         }
     }
 
+    /// @brief Converts an action result to readable log text.
+    /// @param result Result code to convert.
+    /// @return Static text for the result code.
+    std::string_view toString(ActionResult result)
+    {
+        switch (result)
+        {
+        case ActionResult::Success:
+            return "Success";
+        case ActionResult::InvalidAction:
+            return "InvalidAction";
+        case ActionResult::InvalidControl:
+            return "InvalidControl";
+        case ActionResult::InvalidBinding:
+            return "InvalidBinding";
+        case ActionResult::InvalidSettings:
+            return "InvalidSettings";
+        case ActionResult::DuplicateBinding:
+            return "DuplicateBinding";
+        case ActionResult::ConflictingBinding:
+            return "ConflictingBinding";
+        default:
+            return "Unknown";
+        }
+    }
+
+#ifdef GAMEWIP_ENABLE_TEMP_ACTION_TESTS
+    /// @brief Converts a rebind result to readable log text.
+    /// @param result Result code to convert.
+    /// @return Static text for the result code.
+    std::string_view toString(RebindResult result)
+    {
+        switch (result)
+        {
+        case RebindResult::None:
+            return "None";
+        case RebindResult::Collecting:
+            return "Collecting";
+        case RebindResult::Captured:
+            return "Captured";
+        case RebindResult::Canceled:
+            return "Canceled";
+        case RebindResult::InvalidAction:
+            return "InvalidAction";
+        case RebindResult::InvalidControl:
+            return "InvalidControl";
+        case RebindResult::InvalidBinding:
+            return "InvalidBinding";
+        default:
+            return "Unknown";
+        }
+    }
+#endif
+
     /// @brief Builds a string describing a monitor rectangle.
     /// @param left Rectangle left coordinate.
     /// @param top Rectangle top coordinate.
@@ -274,6 +367,63 @@ namespace
     }
 
     // Logging helpers
+
+    /// @brief Logs an action setup result when it reports anything noteworthy.
+    /// @param operation Setup operation being checked.
+    /// @param result Result returned by the action system.
+    void logActionSetupResult(std::string_view operation, ActionResult result)
+    {
+        if (result == ActionResult::Success)
+        {
+            return;
+        }
+
+        const LogLevel level = result == ActionResult::ConflictingBinding ? LogLevel::WARN : LogLevel::ERR;
+        Logger::log(
+            level,
+            mainLogSource,
+            std::format("{} returned action result {}.", operation, toString(result)));
+    }
+
+    /// @brief Configures default gameplay action bindings.
+    /// @param actions Gameplay action map to configure.
+    void configureGameplayActions(ActionMap<GameAction> &actions)
+    {
+        logActionSetupResult(
+            "Defining Quit action",
+            actions.defineAction(GameAction::Quit, ActionKind::Button));
+        logActionSetupResult(
+            "Defining Move action",
+            actions.defineAction(GameAction::Move, ActionKind::Axis2D));
+        logActionSetupResult(
+            "Defining Look action",
+            actions.defineAction(GameAction::Look, ActionKind::Axis2D));
+
+        logActionSetupResult(
+            "Binding Quit action to Escape",
+            actions.bind(GameAction::Quit).on(closeWindowControl).primaryLast().pressed());
+        logActionSetupResult(
+            "Binding Move action to W",
+            actions.bind(GameAction::Move).on(makeKeyboardKey(KeyboardControlCode::W)).axis2D(ActionComponent::Y, 1.0f));
+        logActionSetupResult(
+            "Binding Move action to S",
+            actions.bind(GameAction::Move).on(makeKeyboardKey(KeyboardControlCode::S)).axis2D(ActionComponent::Y, -1.0f));
+        logActionSetupResult(
+            "Binding Move action to A",
+            actions.bind(GameAction::Move).on(makeKeyboardKey(KeyboardControlCode::A)).axis2D(ActionComponent::X, -1.0f));
+        logActionSetupResult(
+            "Binding Move action to D",
+            actions.bind(GameAction::Move).on(makeKeyboardKey(KeyboardControlCode::D)).axis2D(ActionComponent::X, 1.0f));
+        logActionSetupResult(
+            "Binding Look action to mouse X",
+            actions.bind(GameAction::Look).on(makeMouseAxis(MouseAxis::DeltaX)).axis2D(ActionComponent::X, 1.0f));
+        logActionSetupResult(
+            "Binding Look action to mouse Y",
+            actions.bind(GameAction::Look).on(makeMouseAxis(MouseAxis::DeltaY)).axis2D(ActionComponent::Y, 1.0f));
+        logActionSetupResult(
+            "Configuring Look action settings",
+            actions.setActionSettings(GameAction::Look, makeMouseLookSettings()));
+    }
 
     /// @brief Logs a failed window operation with its result and platform error code.
     /// @param operation Operation that failed.
@@ -549,20 +699,123 @@ namespace
 
     /// @brief Handles gameplay input that requests a clean shutdown.
     /// @param mainWindow Main game window.
-    /// @param gameInput Gameplay input state to query.
-    void handleCloseInput(Window *mainWindow, const InputState &gameInput)
+    /// @param gameActions Gameplay actions to query.
+    void handleCloseInput(Window *mainWindow, const ActionMap<GameAction> &gameActions)
     {
         ZoneScopedNC("Handle close input", tracy::Color::YellowGreen);
 
-        if (mainWindow == nullptr || !gameInput.wasButtonPressed(closeWindowControl))
+        if (mainWindow == nullptr || !gameActions.wasPressed(GameAction::Quit))
         {
             return;
         }
 
-        Logger::log(LogLevel::INFO, mainLogSource, "Escape key pressed. Requesting main window close.");
-        TracyMessageLC("Escape close requested.", tracy::Color::Orange);
+        Logger::log(LogLevel::INFO, mainLogSource, "Quit action pressed. Requesting main window close.");
+        TracyMessageLC("Quit close requested.", tracy::Color::Orange);
         mainWindow->requestClose();
     }
+
+    /// @brief Logs temporary action values when action-value verification is enabled.
+    /// @param gameActions Gameplay actions to inspect.
+    void logTemporaryActionValues(const ActionMap<GameAction> &gameActions)
+    {
+        if (!enableTemporaryActionValueLogs)
+        {
+            return;
+        }
+
+        const float moveX = gameActions.getValueX(GameAction::Move);
+        const float moveY = gameActions.getValueY(GameAction::Move);
+        const float lookX = gameActions.getValueX(GameAction::Look);
+        const float lookY = gameActions.getValueY(GameAction::Look);
+
+        if (moveX != 0.0f || moveY != 0.0f || lookX != 0.0f || lookY != 0.0f)
+        {
+            Logger::log(
+                LogLevel::INFO,
+                mainLogSource,
+                std::format("Action values: move=({}, {}) look=({}, {}).", moveX, moveY, lookX, lookY));
+        }
+    }
+
+#ifdef GAMEWIP_ENABLE_TEMP_ACTION_TESTS
+    /// @brief Runs the temporary manual rebind test for the Quit action.
+    /// @param gameInput Gameplay input state to inspect.
+    /// @param gameActions Gameplay action map to edit.
+    /// @param state Temporary test state.
+    /// @return True when normal gameplay action evaluation should be skipped this frame.
+    bool handleTemporaryActionRebindTest(
+        const InputState &gameInput,
+        ActionMap<GameAction> &gameActions,
+        TemporaryRebindTestState &state)
+    {
+        if (!state.quitBindingSession.active)
+        {
+            if (gameInput.wasButtonPressed(startRebindControl))
+            {
+                ActionRebindOptions options{};
+                options.trigger = ActionTrigger::Pressed;
+                options.activationMode = GameWIP::Action::ComboActivationMode::PrimaryLast;
+                options.modifierMode = RebindModifierMode::AllHeldButtons;
+                options.completionMode = RebindCompletionMode::OnRelease;
+                options.replaceExistingBindings = true;
+
+                const RebindResult beginResult = gameActions.beginBindingCapture(
+                    GameAction::Quit,
+                    options,
+                    state.quitBindingSession);
+
+                Logger::log(
+                    beginResult == RebindResult::Collecting ? LogLevel::INFO : LogLevel::ERR,
+                    mainLogSource,
+                    std::format("Temporary rebind test begin result: {}.", toString(beginResult)));
+
+                return true;
+            }
+
+            return false;
+        }
+
+        const InputControl cancelControls[] = {closeWindowControl};
+        const InputControl ignoredControls[] = {startRebindControl};
+
+        ActionRebindCapture<GameAction> capture{};
+        const RebindResult captureResult = gameActions.updateBindingCapture(
+            gameInput,
+            state.quitBindingSession,
+            capture,
+            cancelControls,
+            ignoredControls);
+
+        switch (captureResult)
+        {
+        case RebindResult::None:
+        case RebindResult::Collecting:
+            return true;
+        case RebindResult::Canceled:
+            Logger::log(LogLevel::INFO, mainLogSource, "Temporary rebind test canceled.");
+            return true;
+        case RebindResult::Captured:
+        {
+            const ActionResult applyResult = gameActions.applyCapturedBinding(capture);
+            Logger::log(
+                applyResult == ActionResult::Success ? LogLevel::INFO : LogLevel::ERR,
+                mainLogSource,
+                std::format("Temporary Quit rebind apply result: {}.", toString(applyResult)));
+            return true;
+        }
+        case RebindResult::InvalidAction:
+        case RebindResult::InvalidControl:
+        case RebindResult::InvalidBinding:
+            Logger::log(
+                LogLevel::ERR,
+                mainLogSource,
+                std::format("Temporary rebind test failed with capture result {}.", toString(captureResult)));
+            return true;
+        default:
+            return true;
+        }
+    }
+#endif
 
     /// @brief Logs and drains queued events for every active window.
     /// @param windows Window system to inspect.
@@ -607,7 +860,23 @@ namespace
     /// @param mainWindow Main game window, if one exists.
     /// @param gameInput Gameplay input state.
     /// @param toolInput Optional tool-window input state.
-    void runMainFrame(WindowManager &windows, Window *mainWindow, InputState &gameInput, InputState *toolInput)
+    /// @param deltaSeconds Time elapsed since the previous frame.
+    /// @param gameActions Gameplay action map.
+#ifdef GAMEWIP_ENABLE_TEMP_ACTION_TESTS
+    /// @param rebindTestState Temporary rebind test state.
+#endif
+    void runMainFrame(
+        WindowManager &windows,
+        Window *mainWindow,
+        InputState &gameInput,
+        InputState *toolInput,
+        float deltaSeconds,
+        ActionMap<GameAction> &gameActions
+#ifdef GAMEWIP_ENABLE_TEMP_ACTION_TESTS
+        ,
+        TemporaryRebindTestState &rebindTestState
+#endif
+    )
     {
 #ifdef TRACY_ENABLE
         const auto frameStart = std::chrono::steady_clock::now();
@@ -615,8 +884,19 @@ namespace
         ZoneScopedNC("Main frame", tracy::Color::RoyalBlue);
 
         advanceInputFrame(gameInput, toolInput);
+        gameActions.advanceFrame();
+
         pollWindowEvents(windows, gameInput, toolInput);
-        handleCloseInput(mainWindow, gameInput);
+
+#ifdef GAMEWIP_ENABLE_TEMP_ACTION_TESTS
+        const bool skipGameplayActions = handleTemporaryActionRebindTest(gameInput, gameActions, rebindTestState);
+        if (!skipGameplayActions)
+#endif
+        {
+            gameActions.evaluate(gameInput, deltaSeconds);
+            handleCloseInput(mainWindow, gameActions);
+            logTemporaryActionValues(gameActions);
+        }
 
         const std::size_t windowEventCount = logWindowEvents(windows);
         TracyPlot("Window events/frame", static_cast<double>(windowEventCount));
@@ -659,6 +939,11 @@ namespace
         Logger::log(LogLevel::INFO, mainLogSource, "GameWIP starting up.");
 
         InputState gameInput;
+        ActionMap<GameAction> gameplayActions(GameAction::Count);
+#ifdef GAMEWIP_ENABLE_TEMP_ACTION_TESTS
+        TemporaryRebindTestState rebindTestState{};
+#endif
+        configureGameplayActions(gameplayActions);
 #ifdef GAMEWIP_ENABLE_TOOLS
         InputState toolInput;
         InputState *toolInputState = &toolInput;
@@ -687,9 +972,25 @@ namespace
         createOptionalStartupToolWindows(windows);
 #endif
 
+        auto previousFrameTime = std::chrono::steady_clock::now();
         while (!windows.shouldQuit())
         {
-            runMainFrame(windows, mainWindow, gameInput, toolInputState);
+            const auto currentFrameTime = std::chrono::steady_clock::now();
+            const float deltaSeconds = std::chrono::duration<float>(currentFrameTime - previousFrameTime).count();
+            previousFrameTime = currentFrameTime;
+
+            runMainFrame(
+                windows,
+                mainWindow,
+                gameInput,
+                toolInputState,
+                deltaSeconds,
+                gameplayActions
+#ifdef GAMEWIP_ENABLE_TEMP_ACTION_TESTS
+                ,
+                rebindTestState
+#endif
+            );
         }
 
         destroyAllWindows(windows);

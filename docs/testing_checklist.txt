@@ -136,9 +136,8 @@
     [x] InputState tracks raw mouse movement delta for gameplay camera control
     [x] InputState tracks scroll wheel movement
     [x] Input system can reset/clear transient per-frame input state
-    [ ] Add input actions above raw keys/buttons
-    [ ] Add configurable bindings from actions to keys/buttons
-    [ ] Add separate binding contexts for gameplay and menus if needed
+    [x] Add input actions above raw keys/buttons
+    [x] Add configurable bindings from actions to keys/buttons
     [x] Add XInput backend for controllers
     Agreed public input API shape:
     [x] InputState represents physical device state, not game-specific actions
@@ -229,9 +228,28 @@
     [x] WindowManager passes the main HWND to backend initialization without exposing windows.h in public headers
     [x] Switch gameplay keyboard input from WM_KEYDOWN/WM_KEYUP to WM_INPUT
     [x] Keep normal Win32 messages available for menu/text fallback where useful
-    [ ] Add Action enum for game commands, e.g. Quit, MoveForward, MoveLeft, MoveRight
-    [ ] Add default action bindings, e.g. Quit -> Escape and MoveForward -> W
-    [ ] main.cpp uses actions for game behavior instead of hardcoded physical keys
+    [x] Add Action enum for game commands, e.g. Quit, MoveForward, MoveLeft, MoveRight
+    [x] Add default action bindings, e.g. Quit -> Escape and MoveForward -> W
+    [x] main.cpp uses actions for game behavior instead of hardcoded physical keys
+    Current action-layer foundation:
+    [x] Action module lives under engine/action with action.h, core/action.cpp, and internal/action.inl
+    [x] Action builds as a static Action library
+    [x] Action links against Input while WindowManager remains independent from Action
+    [x] ActionMap supports separate maps for separate control plans such as gameplay, UI, and settings
+    [x] ActionMap supports configurable button and value bindings
+    [x] ActionMap supports multiple bindings per action
+    [x] ActionMap supports modifier combos with PrimaryLast and AnyOrder behavior
+    [x] ActionMap supports tap, hold, and double-tap triggers
+    [x] ActionMap supports Axis1D and Axis2D action values
+    [x] ActionMap applies deadzone, sensitivity, curve, clamp, normalization, and inversion settings
+    [x] ActionMap exposes input snapshot passthrough for text, mouse position, mouse delta, and wheel delta
+    [x] Action settings helper functions exist for buttons, axes, movement, mouse look, gamepad sticks, and gamepad triggers
+    [x] Action binding validation rejects invalid action, control, binding, and settings data
+    [x] InputState exposes a read-only current-button view for rebinding modifier capture
+    [x] ActionMap supports capturing and applying rebinding candidates from new input activations
+    [x] ActionMap supports stateful multi-key rebinding sessions
+    [x] Rebinding sessions can finish when one collected button is released
+    [x] Temporary main.cpp rebind test path exists for the Quit action
     Verification:
     [x] Input library compiles without errors
     [x] GameWIP links against Input successfully
@@ -253,11 +271,19 @@
     [x] WM_CHAR text input appears in InputState as UTF-8
     [x] Unicode text outside ASCII is preserved through InputState
     [x] Basic control keys do not enter the typed-text buffer
+    [x] Temporary Quit rebind test captures a keyboard key
+    [x] Temporary Quit rebind test captures a keyboard modifier combo
+    [x] Temporary Quit rebind test captures an arbitrary multi-key combo
+    [x] Temporary Quit rebind test finishes capture when one collected key is released
+    [x] Temporary Quit rebind test captures a mouse button
+    [x] Temporary Quit rebind test cancels with Escape without closing the window
+    [x] Temporary Quit rebind test replaces the old Quit binding
+    [x] Temporary action rebind test is compile-guarded by GAMEWIP_ENABLE_TEMP_ACTION_TESTS
     [x] Input test code is removed or guarded after verification
     Optional future polish:
     [ ] Save/load input bindings from a config file
-    [ ] Support multiple bindings per action
-    [ ] Support analog action values for mouse/controller axes
+    [x] Support multiple bindings per action
+    [x] Support analog action values for mouse/controller axes
     [ ] Add input recording/playback only if it becomes useful for debugging
 
 1. MINIMAL RENDERING / DEBUG
@@ -398,18 +424,18 @@
         [x] Default build compiles with separate Window and WindowManager targets
         [x] Tools-enabled configure/build compiles with GAMEWIP_ENABLE_TOOLS=ON
         Manual verification:
-        [ ] Default build creates only the main window
-        [ ] GAMEWIP_ENABLE_TOOLS=ON with openToolWindowsAtStartup=false creates only the main window
-        [ ] GAMEWIP_ENABLE_TOOLS=ON with openToolWindowsAtStartup=true opens main, tool, and debug windows
-        [ ] Main-window close exits the game
-        [ ] Tool/debug close keeps the game running
-        [ ] Escape requests close on the main window only
-        [ ] Tool input does not affect gameplay input
-        [ ] Debug and SecondaryGameView windows do not feed input
-        [ ] Tool/debug fullscreen requests return OperationNotAllowed
-        [ ] SecondaryGameView exclusive-fullscreen requests return OperationNotAllowed
-        [ ] Tool/debug/main cursor confinement policy behaves as expected
-        [ ] Main fullscreen and cursor behavior still works
+        [x] Default build creates only the main window
+        [x] GAMEWIP_ENABLE_TOOLS=ON with openToolWindowsAtStartup=false creates only the main window
+        [x] GAMEWIP_ENABLE_TOOLS=ON with openToolWindowsAtStartup=true opens main, tool, and debug windows
+        [x] Main-window close exits the game
+        [x] Tool/debug close keeps the game running
+        [x] Escape requests close on the main window only
+        [x] Tool input does not affect gameplay input
+        [x] Debug and SecondaryGameView windows do not feed input
+        [x] Tool/debug fullscreen requests return OperationNotAllowed
+        [x] SecondaryGameView exclusive-fullscreen requests return OperationNotAllowed
+        [x] Tool/debug/main cursor confinement policy behaves as expected
+        [x] Main fullscreen and cursor behavior still works
         Renderer-era follow-up:
         [ ] Renderer creates one render surface/swapchain per Window
         [ ] Renderer destroys a window surface before WindowManager destroys that Window
