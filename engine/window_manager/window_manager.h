@@ -6,6 +6,7 @@
 
 namespace GameWIP::Input
 {
+    class InputDeviceRegistry;
     class InputState;
 }
 
@@ -26,7 +27,7 @@ namespace GameWIP
         Window::Result createWindow(const Window::Description &description, Window *&outWindow);
         Window::Result destroyWindow(Window &window);
 
-        void pollEvents(Input::InputState &gameInput, Input::InputState *toolInput);
+        void pollEvents(Input::InputState &gameInput, Input::InputDeviceRegistry &inputDevices, Input::InputState *toolInput);
         bool shouldQuit() const;
 
         Window *getMainWindow() const;

@@ -70,7 +70,6 @@
     Optional future polish:
     [x] Cache formatted timestamp strings by second if profiling shows time formatting cost matters
     [ ] Decide whether logs should always go beside the executable or under the project root
-    [ ] Standardize source tags into enums/categories if the engine grows
     [x] Consider wrapping logger globals into one internal LoggerState object
 [x] Assertions/debug checks exist
     Planned assertion/debug feature set:
@@ -115,7 +114,6 @@
     [x] Add a recoverable debug-check macro if needed
     [ ] Add fatal assertion popup only if assertion failures need user-visible reporting
     [x] Add compile-time switches for always-on or always-off assertions
-    [ ] Add unit tests once the test framework exists
 [x] Input handling exists
     Current raw input-state foundation:
     [x] Input module lives under engine/input/input.h and engine/input/input.cpp

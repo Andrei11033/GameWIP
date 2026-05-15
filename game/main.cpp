@@ -26,6 +26,14 @@ namespace
     using GameWIP::Action::makeGamepadStickSettings;
     using GameWIP::Action::makeMovementSettings;
     using GameWIP::Input::GamepadAxis;
+    using GameWIP::Input::InputActivation;
+    using GameWIP::Input::InputActivationType;
+    using GameWIP::Input::InputControl;
+    using GameWIP::Input::InputControlType;
+    using GameWIP::Input::InputDeviceBackend;
+    using GameWIP::Input::InputDeviceInfo;
+    using GameWIP::Input::InputDeviceRegistry;
+    using GameWIP::Input::InputDeviceType;
     using GameWIP::Input::InputState;
     using GameWIP::Input::makeGamepadAxis;
     using GameWIP::Input::makeKeyboardKey;
@@ -69,6 +77,7 @@ namespace
     constexpr std::chrono::milliseconds frameSleepDuration{100};                      // Temporary frame pacing until real timing exists.
     constexpr auto closeWindowControl = makeKeyboardKey(KeyboardControlCode::Escape); // Input control used to request shutdown.
     constexpr bool enableTemporaryActionValueLogs = false;                            // Temporary action value test logging.
+    constexpr bool enableTemporaryInputActivationLogs = true;                         // Temporary controller/input validation logging.
 
 #ifdef GAMEWIP_ENABLE_TOOLS
 #ifdef GAMEWIP_OPEN_TOOL_WINDOWS_AT_STARTUP
@@ -287,6 +296,88 @@ namespace
         }
     }
 
+    /// @brief Converts an input device type to readable log text.
+    /// @param type Device type to convert.
+    /// @return Static text for the device type.
+    std::string_view toString(InputDeviceType type)
+    {
+        switch (type)
+        {
+        case InputDeviceType::Keyboard:
+            return "Keyboard";
+        case InputDeviceType::Mouse:
+            return "Mouse";
+        case InputDeviceType::Gamepad:
+            return "Gamepad";
+        case InputDeviceType::Joystick:
+            return "Joystick";
+        default:
+            return "Unknown";
+        }
+    }
+
+    /// @brief Converts an input device backend to readable log text.
+    /// @param backend Backend to convert.
+    /// @return Static text for the backend.
+    std::string_view toString(InputDeviceBackend backend)
+    {
+        switch (backend)
+        {
+        case InputDeviceBackend::BuiltIn:
+            return "BuiltIn";
+        case InputDeviceBackend::XInput:
+            return "XInput";
+        case InputDeviceBackend::RawInputHID:
+            return "RawInputHID";
+        default:
+            return "Unknown";
+        }
+    }
+
+    /// @brief Converts an input control type to readable log text.
+    /// @param type Control type to convert.
+    /// @return Static text for the control type.
+    std::string_view toString(InputControlType type)
+    {
+        switch (type)
+        {
+        case InputControlType::Button:
+            return "Button";
+        case InputControlType::Axis:
+            return "Axis";
+        case InputControlType::Wheel:
+            return "Wheel";
+        default:
+            return "Unknown";
+        }
+    }
+
+    /// @brief Converts an input activation type to readable log text.
+    /// @param type Activation type to convert.
+    /// @return Static text for the activation type.
+    std::string_view toString(InputActivationType type)
+    {
+        switch (type)
+        {
+        case InputActivationType::ButtonPressed:
+            return "ButtonPressed";
+        case InputActivationType::ButtonReleased:
+            return "ButtonReleased";
+        case InputActivationType::AxisPositive:
+            return "AxisPositive";
+        case InputActivationType::AxisNegative:
+            return "AxisNegative";
+        case InputActivationType::AxisChanged:
+            return "AxisChanged";
+        case InputActivationType::WheelPositive:
+            return "WheelPositive";
+        case InputActivationType::WheelNegative:
+            return "WheelNegative";
+        default:
+            return "Unknown";
+        }
+    }
+
     /// @brief Builds a string describing a monitor rectangle.
     /// @param left Rectangle left coordinate.
     /// @param top Rectangle top coordinate.
@@ -311,6 +402,62 @@ namespace
             monitor.isPrimary ? "true" : "false",
             formatRect(monitor.workArea.left, monitor.workArea.top, monitor.workArea.right, monitor.workArea.bottom),
             formatRect(monitor.monitorArea.left, monitor.monitorArea.top, monitor.monitorArea.right, monitor.monitorArea.bottom));
+    }
+
+    /// @brief Builds a string describing one input device.
+    /// @param index Display index used in logs.
+    /// @param device Device metadata to format.
+    /// @return Human-readable input device string.
+    std::string formatInputDeviceInfo(int index, const InputDeviceInfo &device)
+    {
+        return std::format(
+            "Input device {}: {}[{}] {} backend={} primary={} connected={} canonical={} feeds=[builtin:{} xinput:{} hid:{}] vid=0x{:04X} pid=0x{:04X} controls={} identityHash=0x{:016X}",
+            index,
+            toString(device.deviceType),
+            static_cast<unsigned int>(device.device.deviceIndex),
+            device.displayName.empty() ? "(unnamed)" : device.displayName,
+            device.backendName.empty() ? toString(device.backend) : device.backendName,
+            toString(device.primaryBackend),
+            device.connected ? "true" : "false",
+            device.canonical ? "true" : "false",
+            device.hasBuiltInFeed ? "true" : "false",
+            device.hasXInputFeed ? "true" : "false",
+            device.hasHidFeed ? "true" : "false",
+            device.vendorId,
+            device.productId,
+            device.controls.size(),
+            device.nativeIdentityHash);
+    }
+
+    /// @brief Builds a string describing one input control.
+    /// @param inputDevices Device registry used for display names.
+    /// @param control Control to format.
+    /// @return Human-readable control string.
+    std::string formatInputControl(const InputDeviceRegistry &inputDevices, InputControl control)
+    {
+        const auto device = inputDevices.findDevice({control.deviceType, control.deviceIndex});
+        const auto controlInfo = inputDevices.findControl(control);
+        return std::format(
+            "{}[{}] {} {}({})",
+            toString(control.deviceType),
+            static_cast<unsigned int>(control.deviceIndex),
+            device != nullptr && !device->displayName.empty() ? device->displayName : "(unknown device)",
+            controlInfo != nullptr && !controlInfo->displayName.empty() ? controlInfo->displayName : toString(control.controlType),
+            control.controlCode);
+    }
+
+    /// @brief Builds a string describing one input activation.
+    /// @param inputDevices Device registry used for display names.
+    /// @param activation Activation to format.
+    /// @return Human-readable activation string.
+    std::string formatInputActivation(const InputDeviceRegistry &inputDevices, const InputActivation &activation)
+    {
+        return std::format(
+            "Input activation: {} type={} value={} previous={}.",
+            formatInputControl(inputDevices, activation.control),
+            toString(activation.activationType),
+            activation.value,
+            activation.previousValue);
     }
 
     /// @brief Builds a string describing one display mode.
@@ -338,6 +485,33 @@ namespace
             level,
             mainLogSource,
             std::format("{} returned action result {}.", operation, toString(result)));
+    }
+
+    /// @brief Logs startup input device metadata after platform input registration.
+    /// @param inputDevices Canonical input device registry to log.
+    void logStartupInputDevices(const InputDeviceRegistry &inputDevices)
+    {
+        ZoneScopedNC("Query input device state", tracy::Color::SlateBlue);
+
+        const auto devices = inputDevices.getDevices();
+        const std::size_t canonicalConnectedCount = static_cast<std::size_t>(std::count_if(
+            devices.begin(),
+            devices.end(),
+            [](const InputDeviceInfo &device)
+            {
+                return device.connected && device.canonical;
+            }));
+
+        ZoneValue(static_cast<std::uint64_t>(devices.size()));
+        Logger::log(
+            LogLevel::INFO,
+            mainLogSource,
+            std::format("Detected {} input devices ({} canonical connected).", devices.size(), canonicalConnectedCount));
+
+        for (std::size_t i = 0; i < devices.size(); ++i)
+        {
+            Logger::log(LogLevel::INFO, mainLogSource, formatInputDeviceInfo(static_cast<int>(i), devices[i]));
+        }
     }
 
     /// @brief Configures default gameplay action bindings.
@@ -657,12 +831,13 @@ namespace
     /// @brief Polls the platform window system and logs asynchronous handler errors.
     /// @param windows Window system to poll.
     /// @param gameInput Gameplay input state updated by window messages.
+    /// @param inputDevices Canonical input device registry updated by platform input.
     /// @param toolInput Optional tool-window input state updated by window messages.
-    void pollWindowEvents(WindowManager &windows, InputState &gameInput, InputState *toolInput)
+    void pollWindowEvents(WindowManager &windows, InputState &gameInput, InputDeviceRegistry &inputDevices, InputState *toolInput)
     {
         ZoneScopedNC("Poll window events", tracy::Color::DodgerBlue);
 
-        windows.pollEvents(gameInput, toolInput);
+        windows.pollEvents(gameInput, inputDevices, toolInput);
         logWindowAsyncErrors(windows);
     }
 
@@ -703,6 +878,22 @@ namespace
                 LogLevel::INFO,
                 mainLogSource,
                 std::format("Action values: move=({}, {}) look=({}, {}).", moveX, moveY, lookX, lookY));
+        }
+    }
+
+    /// @brief Logs current-frame input activations while controller mapping is being validated.
+    /// @param gameInput Input state to inspect.
+    /// @param inputDevices Device metadata used for readable names.
+    void logTemporaryInputActivations(const InputState &gameInput, const InputDeviceRegistry &inputDevices)
+    {
+        if (!enableTemporaryInputActivationLogs)
+        {
+            return;
+        }
+
+        for (const InputActivation &activation : gameInput.getActivationView())
+        {
+            Logger::log(LogLevel::INFO, mainLogSource, formatInputActivation(inputDevices, activation));
         }
     }
 
@@ -748,6 +939,7 @@ namespace
     /// @param windows Window system that owns native windows.
     /// @param mainWindow Main game window, if one exists.
     /// @param gameInput Gameplay input state.
+    /// @param inputDevices Canonical input device registry.
     /// @param toolInput Optional tool-window input state.
     /// @param deltaSeconds Time elapsed since the previous frame.
     /// @param gameActions Gameplay action map.
@@ -755,6 +947,7 @@ namespace
         WindowManager &windows,
         Window *mainWindow,
         InputState &gameInput,
+        InputDeviceRegistry &inputDevices,
         InputState *toolInput,
         float deltaSeconds,
         ActionMap<GameAction> &gameActions)
@@ -767,8 +960,9 @@ namespace
         advanceInputFrame(gameInput, toolInput);
         gameActions.advanceFrame();
 
-        pollWindowEvents(windows, gameInput, toolInput);
+        pollWindowEvents(windows, gameInput, inputDevices, toolInput);
 
+        logTemporaryInputActivations(gameInput, inputDevices);
         gameActions.evaluate(gameInput, deltaSeconds);
         handleCloseInput(mainWindow, gameActions);
         logTemporaryActionValues(gameActions);
@@ -814,6 +1008,7 @@ namespace
         Logger::log(LogLevel::INFO, mainLogSource, "GameWIP starting up.");
 
         InputState gameInput;
+        InputDeviceRegistry inputDevices;
         ActionMap<GameAction> gameplayActions(GameAction::Count);
         configureGameplayActions(gameplayActions);
 #ifdef GAMEWIP_ENABLE_TOOLS
@@ -840,6 +1035,9 @@ namespace
 
         applyStartupClientSizeConstraints(*mainWindow);
 
+        pollWindowEvents(windows, gameInput, inputDevices, toolInputState);
+        logStartupInputDevices(inputDevices);
+
 #ifdef GAMEWIP_ENABLE_TOOLS
         createOptionalStartupToolWindows(windows);
 #endif
@@ -855,6 +1053,7 @@ namespace
                 windows,
                 mainWindow,
                 gameInput,
+                inputDevices,
                 toolInputState,
                 deltaSeconds,
                 gameplayActions);

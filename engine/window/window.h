@@ -7,6 +7,7 @@
 
 namespace GameWIP::Input
 {
+    class InputDeviceRegistry;
     class InputState;
 }
 
@@ -166,7 +167,7 @@ namespace GameWIP
         Result create(const Description &description);
         Result destroy();
 
-        void pollEvents(Input::InputState &inputState);
+        void pollEvents(Input::InputState &inputState, Input::InputDeviceRegistry &inputDevices);
         bool popEvent(Event &outEvent);
         void clearEvents();
         bool shouldClose() const;

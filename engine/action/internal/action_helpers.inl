@@ -73,6 +73,7 @@ namespace GameWIP::Action
             case Input::InputActivationType::ButtonPressed:
             case Input::InputActivationType::AxisPositive:
             case Input::InputActivationType::AxisNegative:
+            case Input::InputActivationType::AxisChanged:
             case Input::InputActivationType::WheelPositive:
             case Input::InputActivationType::WheelNegative:
                 return true;
@@ -91,6 +92,42 @@ namespace GameWIP::Action
         inline bool isButtonReleaseActivation(const Input::InputActivation &activation)
         {
             return activation.activationType == Input::InputActivationType::ButtonReleased;
+        }
+
+        inline bool isAxisActivation(const Input::InputActivation &activation)
+        {
+            return activation.control.controlType == Input::InputControlType::Axis &&
+                   (activation.activationType == Input::InputActivationType::AxisPositive ||
+                    activation.activationType == Input::InputActivationType::AxisNegative ||
+                    activation.activationType == Input::InputActivationType::AxisChanged);
+        }
+
+        inline bool isAllowedCaptureDevice(const Input::InputActivation &activation, const ActionRebindOptions &options)
+        {
+            return !options.hasDeviceFilter ||
+                   (activation.control.deviceType == options.deviceFilter.deviceType &&
+                    activation.control.deviceIndex == options.deviceFilter.deviceIndex);
+        }
+
+        inline bool passesAxisCaptureThresholds(const Input::InputActivation &activation, const ActionRebindOptions &options)
+        {
+            if (!isAxisActivation(activation))
+            {
+                return true;
+            }
+
+            const float valueMagnitude = activation.value < 0.0f ? -activation.value : activation.value;
+            const float movement = activation.value - activation.previousValue;
+            const float movementMagnitude = movement < 0.0f ? -movement : movement;
+            return valueMagnitude >= options.axisActivationThreshold &&
+                   movementMagnitude >= options.axisNoiseThreshold;
+        }
+
+        inline bool isAllowedCaptureActivation(const Input::InputActivation &activation, const ActionRebindOptions &options)
+        {
+            return isCaptureActivation(activation) &&
+                   isAllowedCaptureDevice(activation, options) &&
+                   passesAxisCaptureThresholds(activation, options);
         }
 
         inline void addUniqueControl(std::vector<Input::InputControl> &controls, Input::InputControl control)
@@ -162,6 +199,7 @@ namespace GameWIP::Action
             Input::DeviceIndex deviceIndex = 0;
             ActionSettings settings{};
             ActionValue value{};
+            std::uint64_t lastChangeSequence = 0;
         };
 
         template <typename ActionEnum>
@@ -178,7 +216,8 @@ namespace GameWIP::Action
             std::vector<ValueBucket<ActionEnum>> &buckets,
             const ActionBinding<ActionEnum> &binding,
             ActionKind kind,
-            float value)
+            float value,
+            std::uint64_t lastChangeSequence)
         {
             const ActionSettings settings = getBindingSettings(binding, kind);
             auto bucket = std::find_if(
@@ -197,6 +236,11 @@ namespace GameWIP::Action
                     .deviceIndex = binding.combo.primaryControl.deviceIndex,
                     .settings = settings});
                 bucket = buckets.end() - 1;
+            }
+
+            if (lastChangeSequence > bucket->lastChangeSequence)
+            {
+                bucket->lastChangeSequence = lastChangeSequence;
             }
 
             const float scaledValue = value * binding.valueMapping.scale;
@@ -375,6 +419,25 @@ namespace GameWIP::Action
             }
 
             return value;
+        }
+
+        inline bool shouldChooseValueCandidate(
+            float currentMagnitude,
+            std::uint64_t currentSequence,
+            float candidateMagnitude,
+            std::uint64_t candidateSequence)
+        {
+            if (candidateMagnitude > currentMagnitude)
+            {
+                return true;
+            }
+
+            if (candidateMagnitude < currentMagnitude)
+            {
+                return false;
+            }
+
+            return candidateSequence > currentSequence;
         }
 
         inline float sign(float value)

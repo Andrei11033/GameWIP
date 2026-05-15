@@ -347,7 +347,7 @@ WindowResult Window::destroy()
 
 // Events
 
-void Window::pollEvents(Input::InputState &inputState)
+void Window::pollEvents(Input::InputState &inputState, Input::InputDeviceRegistry &inputDevices)
 {
     MSG message{};
 
@@ -364,7 +364,7 @@ void Window::pollEvents(Input::InputState &inputState)
             message.hwnd == nativeWindow->handle &&
             message.message == WM_KILLFOCUS;
 
-        Win32Input::handleMessage(message.message, message.wParam, message.lParam, inputState);
+        Win32Input::handleMessage(message.message, message.wParam, message.lParam, inputState, inputDevices);
         TranslateMessage(&message);
         DispatchMessageW(&message);
 
@@ -376,7 +376,7 @@ void Window::pollEvents(Input::InputState &inputState)
 
     if (nativeWindow != nullptr && nativeWindow->isFocused)
     {
-        Win32Input::updateGamepads(inputState);
+        Win32Input::updateGamepads(inputState, inputDevices);
     }
 }
 

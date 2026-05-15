@@ -8,6 +8,11 @@ if(WIN32)
     target_sources(Input PRIVATE
         platform/win32/win32_input.cpp
     )
+    target_link_libraries(Input PRIVATE
+        cfgmgr32
+        hid
+        setupapi
+    )
 else()
     message(FATAL_ERROR "Input has no platform backend for this operating system yet.")
 endif()

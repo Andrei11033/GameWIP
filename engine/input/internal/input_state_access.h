@@ -22,6 +22,22 @@ namespace GameWIP::Input::Internal
         static void setPendingTextHighSurrogate(InputState &inputState, char16_t codeUnit);
         static void clearTextComposition(InputState &inputState);
         static void setDeviceConnected(InputState &inputState, InputDeviceType deviceType, DeviceIndex deviceIndex, bool connected);
+        static void clearDevice(InputState &inputState, InputDeviceRef device);
         static std::uint64_t getClearGeneration(const InputState &inputState);
+    };
+
+    /// @brief Shared bridge that lets platform input backends feed private InputDeviceRegistry mutation helpers.
+    struct InputDeviceRegistryAccess
+    {
+        static InputDeviceRef upsertDevice(InputDeviceRegistry &registry, const InputDeviceInfo &deviceInfo);
+        static void setDeviceConnected(InputDeviceRegistry &registry, InputDeviceRef device, bool connected);
+        static void setDeviceCanonical(InputDeviceRegistry &registry, InputDeviceRef device, bool canonical);
+        static void replaceDeviceControls(InputDeviceRegistry &registry, InputDeviceRef device, std::span<const InputControlInfo> controls);
+        static void clearBackend(InputDeviceRegistry &registry, InputDeviceBackend backend);
+        static bool shouldFeedDevice(const InputDeviceRegistry &registry, InputDeviceRef device);
+        static bool shouldFeedDeviceBackend(const InputDeviceRegistry &registry, InputDeviceRef device, InputDeviceBackend backend);
+        static InputDeviceRef mergeDeviceBackend(InputDeviceRegistry &registry, InputDeviceRef device, const InputDeviceInfo &backendInfo);
+        static void setDeviceBackendConnected(InputDeviceRegistry &registry, InputDeviceRef device, InputDeviceBackend backend, bool connected);
+        static void mergeDeviceControls(InputDeviceRegistry &registry, InputDeviceRef device, std::span<const InputControlInfo> controls);
     };
 }

@@ -43,6 +43,7 @@ namespace GameWIP
         Window *focusedWindow = nullptr;
         Window *toolInputWindow = nullptr;
         Window *rawInputWindow = nullptr;
+        bool rawInputRegistered = false;
         bool quitRequested = false;
     };
 
@@ -88,15 +89,9 @@ namespace GameWIP
 
         if (description.role == WindowRole::MainGame)
         {
-            unsigned long rawInputError = 0;
-            if (!Win32Input::registerInputDevices(handle, rawInputError))
-            {
-                createdWindow->destroy();
-                return WindowResult::PlatformCallFailed;
-            }
-
             nativeManager->mainWindow = createdWindow;
             nativeManager->rawInputWindow = createdWindow;
+            nativeManager->rawInputRegistered = false;
         }
 
         nativeManager->windowsByHandle.emplace(handle, createdWindow);
@@ -148,6 +143,7 @@ namespace GameWIP
         if (nativeManager->rawInputWindow == windowPtr)
         {
             nativeManager->rawInputWindow = nullptr;
+            nativeManager->rawInputRegistered = false;
         }
 
         bool destroyingMainWindow = nativeManager->mainWindow == windowPtr;
@@ -166,11 +162,25 @@ namespace GameWIP
         return destroyResult;
     }
 
-    void WindowManager::pollEvents(Input::InputState &gameInput, Input::InputState *toolInput)
+    void WindowManager::pollEvents(Input::InputState &gameInput, Input::InputDeviceRegistry &inputDevices, Input::InputState *toolInput)
     {
         if (nativeManager == nullptr)
         {
             return;
+        }
+
+        if (!nativeManager->rawInputRegistered && nativeManager->rawInputWindow != nullptr)
+        {
+            unsigned long rawInputError = 0;
+            HWND rawInputHandle = toNativeHandle(*nativeManager->rawInputWindow);
+            if (!Win32Input::registerInputDevices(rawInputHandle, inputDevices, rawInputError))
+            {
+                nativeManager->quitRequested = true;
+                (void)rawInputError;
+                return;
+            }
+
+            nativeManager->rawInputRegistered = true;
         }
 
         std::vector<Window *> pendingDestroy = std::move(nativeManager->pendingDestroy);
@@ -226,7 +236,8 @@ namespace GameWIP
                     static_cast<unsigned int>(message.message),
                     static_cast<unsigned long long>(message.wParam),
                     static_cast<long long>(message.lParam),
-                    gameInput);
+                    gameInput,
+                    inputDevices);
             }
 
             if (toolInput != nullptr && targetWindow != nullptr && targetWindow->getRole() == WindowRole::Tool && targetWindow->isFocused())
@@ -263,7 +274,7 @@ namespace GameWIP
 
         if (nativeManager->mainWindow != nullptr && nativeManager->mainWindow->isFocused())
         {
-            Win32Input::updateGamepads(gameInput);
+            Win32Input::updateGamepads(gameInput, inputDevices);
         }
 
         if (nativeManager->mainWindow != nullptr && nativeManager->mainWindow->shouldClose())

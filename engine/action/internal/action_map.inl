@@ -63,6 +63,46 @@ namespace GameWIP::Action
     {
         const float frameSeconds = deltaSeconds > 0.0f ? deltaSeconds : 0.0f;
         copyInputSnapshot(inputState);
+
+        for (const Input::InputActivation &activation : inputState.getActivationView())
+        {
+            std::uint64_t activationSequence = 0;
+            for (std::size_t bindingIndex = 0; bindingIndex < bindings.size(); ++bindingIndex)
+            {
+                const ActionBinding<ActionEnum> &binding = bindings[bindingIndex];
+                if (binding.gesture.trigger != ActionTrigger::Value ||
+                    binding.combo.primaryControl != activation.control)
+                {
+                    continue;
+                }
+
+                if (activationSequence == 0)
+                {
+                    activationSequence = ++valueChangeSequence;
+                }
+
+                bindingStates[bindingIndex].valueChangeSequence = activationSequence;
+            }
+        }
+
+        for (std::size_t bindingIndex = 0; bindingIndex < bindings.size(); ++bindingIndex)
+        {
+            const ActionBinding<ActionEnum> &binding = bindings[bindingIndex];
+            if (binding.gesture.trigger != ActionTrigger::Value)
+            {
+                continue;
+            }
+
+            const bool mouseXChanged = Internal::isMouseAxis(binding.combo.primaryControl, Input::MouseAxis::DeltaX) &&
+                                       inputState.getMouseDeltaX() != 0;
+            const bool mouseYChanged = Internal::isMouseAxis(binding.combo.primaryControl, Input::MouseAxis::DeltaY) &&
+                                       inputState.getMouseDeltaY() != 0;
+            if (mouseXChanged || mouseYChanged)
+            {
+                bindingStates[bindingIndex].valueChangeSequence = ++valueChangeSequence;
+            }
+        }
+
         std::vector<Internal::ValueBucket<ActionEnum>> valueBuckets;
 
         for (std::size_t bindingIndex = 0; bindingIndex < bindings.size(); ++bindingIndex)
@@ -230,13 +270,14 @@ namespace GameWIP::Action
 
             if (bindingContributesValue)
             {
-                Internal::addValueToBucket(valueBuckets, binding, actionKind, bindingValue);
+                Internal::addValueToBucket(valueBuckets, binding, actionKind, bindingValue, bindingState.valueChangeSequence);
             }
 
             bindingState.active = nextRuntimeActive;
         }
 
         std::vector<bool> valueActive(actionStates.size(), false);
+        std::vector<std::uint64_t> selectedValueSequences(actionStates.size(), 0);
         for (const Internal::ValueBucket<ActionEnum> &bucket : valueBuckets)
         {
             if (!isValidAction(bucket.action))
@@ -244,7 +285,8 @@ namespace GameWIP::Action
                 continue;
             }
 
-            ActionState &actionState = actionStates[getActionIndex(bucket.action)];
+            const std::size_t actionIndex = getActionIndex(bucket.action);
+            ActionState &actionState = actionStates[actionIndex];
             const ActionSettings &settings = bucket.settings;
 
             if (settings.kind == ActionKind::Axis1D)
@@ -269,10 +311,19 @@ namespace GameWIP::Action
                     value = Internal::clamp(value, -1.0f, 1.0f);
                 }
 
-                actionState.value.scalar += value;
+                if (Internal::shouldChooseValueCandidate(
+                        Internal::absoluteValue(actionState.value.scalar),
+                        selectedValueSequences[actionIndex],
+                        Internal::absoluteValue(value),
+                        bucket.lastChangeSequence))
+                {
+                    actionState.value.scalar = value;
+                    selectedValueSequences[actionIndex] = bucket.lastChangeSequence;
+                }
+
                 if (Internal::absoluteValue(value) > settings.activationThreshold)
                 {
-                    valueActive[getActionIndex(bucket.action)] = true;
+                    valueActive[actionIndex] = true;
                 }
                 continue;
             }
@@ -318,11 +369,20 @@ namespace GameWIP::Action
                     Internal::clampVectorLength(x, y, 1.0f);
                 }
 
-                actionState.value.x += x;
-                actionState.value.y += y;
+                if (Internal::shouldChooseValueCandidate(
+                        Internal::getVectorLength(actionState.value.x, actionState.value.y),
+                        selectedValueSequences[actionIndex],
+                        Internal::getVectorLength(x, y),
+                        bucket.lastChangeSequence))
+                {
+                    actionState.value.x = x;
+                    actionState.value.y = y;
+                    selectedValueSequences[actionIndex] = bucket.lastChangeSequence;
+                }
+
                 if (Internal::getVectorLength(x, y) > settings.activationThreshold)
                 {
-                    valueActive[getActionIndex(bucket.action)] = true;
+                    valueActive[actionIndex] = true;
                 }
             }
         }
@@ -545,7 +605,7 @@ namespace GameWIP::Action
 
             if (session.options.completionMode == RebindCompletionMode::OnActivation)
             {
-                if (!Internal::isCaptureActivation(activation))
+                if (!Internal::isAllowedCaptureActivation(activation, session.options))
                 {
                     continue;
                 }
@@ -564,7 +624,7 @@ namespace GameWIP::Action
                 return result;
             }
 
-            if (Internal::isCaptureActivation(activation))
+            if (Internal::isAllowedCaptureActivation(activation, session.options))
             {
                 if (!Internal::isValidControl(activation.control))
                 {
@@ -635,6 +695,8 @@ namespace GameWIP::Action
         }
 
         const std::span<const Input::InputActivation> activations = inputState.getActivationView();
+        const Input::InputActivation *bestAxisActivation = nullptr;
+        float bestAxisMovement = -1.0f;
         for (std::size_t activationIndex = activations.size(); activationIndex > 0; --activationIndex)
         {
             const Input::InputActivation &activation = activations[activationIndex - 1];
@@ -645,8 +707,20 @@ namespace GameWIP::Action
             }
 
             if (Internal::containsControl(ignoredControls, activation.control) ||
-                !Internal::isCaptureActivation(activation))
+                !Internal::isAllowedCaptureActivation(activation, options))
             {
+                continue;
+            }
+
+            if (Internal::isAxisActivation(activation))
+            {
+                const float movement = activation.value - activation.previousValue;
+                const float movementMagnitude = movement < 0.0f ? -movement : movement;
+                if (movementMagnitude > bestAxisMovement)
+                {
+                    bestAxisMovement = movementMagnitude;
+                    bestAxisActivation = &activation;
+                }
                 continue;
             }
 
@@ -654,6 +728,19 @@ namespace GameWIP::Action
                 action,
                 activation,
                 activation.control,
+                inputState.getCurrentButtonView(),
+                options,
+                outCapture,
+                cancelControls,
+                ignoredControls);
+        }
+
+        if (bestAxisActivation != nullptr)
+        {
+            return buildRebindCapture(
+                action,
+                *bestAxisActivation,
+                bestAxisActivation->control,
                 inputState.getCurrentButtonView(),
                 options,
                 outCapture,
@@ -854,6 +941,13 @@ namespace GameWIP::Action
         binding.valueMapping.component = options.component;
         binding.valueMapping.scale = options.scale;
         binding.valueMapping.threshold = options.threshold;
+        if (options.axisCaptureMode == AxisCaptureMode::DirectionalAxis &&
+            primaryControl.controlType == Input::InputControlType::Axis)
+        {
+            const float movement = activation.value - activation.previousValue;
+            const float direction = movement < 0.0f || (movement == 0.0f && activation.value < 0.0f) ? -1.0f : 1.0f;
+            binding.valueMapping.scale = options.scale * direction;
+        }
         binding.settings = options.settings;
         binding.hasCustomSettings = options.hasCustomSettings;
 

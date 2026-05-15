@@ -17,7 +17,16 @@ namespace GameWIP::Input
     {
         Keyboard, // Keyboard device.
         Mouse,    // Mouse device.
-        Gamepad   // Gamepad device.
+        Gamepad,  // Gamepad device.
+        Joystick  // Joystick, HOTAS, or multi-axis controller.
+    };
+
+    /// @brief Backend that produced an input device.
+    enum class InputDeviceBackend
+    {
+        BuiltIn,    // Engine-provided keyboard/mouse device.
+        XInput,     // XInput controller fallback.
+        RawInputHID // Raw Input/HID controller.
     };
 
     /// @brief Kind of physical control being represented.
@@ -26,6 +35,13 @@ namespace GameWIP::Input
         Button, // Binary button control.
         Axis,   // Continuous axis control.
         Wheel   // Relative wheel control.
+    };
+
+    /// @brief Runtime device identifier assigned by the input layer.
+    struct InputDeviceRef
+    {
+        InputDeviceType deviceType = InputDeviceType::Keyboard; // Device family.
+        DeviceIndex deviceIndex = 0;                            // Runtime slot within the family.
     };
 
     /// @brief Physical input control identifier.
@@ -44,6 +60,7 @@ namespace GameWIP::Input
         ButtonReleased, // Button transitioned to up.
         AxisPositive,   // Axis crossed from non-positive to positive.
         AxisNegative,   // Axis crossed from non-negative to negative.
+        AxisChanged,    // Axis value changed without necessarily crossing zero.
         WheelPositive,  // Wheel moved in the positive direction.
         WheelNegative   // Wheel moved in the negative direction.
     };
@@ -54,6 +71,100 @@ namespace GameWIP::Input
         InputControl control{};                                                  // Control that changed.
         InputActivationType activationType = InputActivationType::ButtonPressed; // Kind of activation.
         float value = 0.0f;                                                      // Strength or amount of the activation.
+        float previousValue = 0.0f;                                              // Previous value before the activation.
+    };
+
+    /// @brief Human-readable metadata for a bindable control.
+    struct InputControlInfo
+    {
+        InputControl control{};        // Control identifier used by InputState and Action.
+        std::string displayName{};     // UI/debug display name.
+        float minimumValue = 0.0f;     // Normalized minimum value for axes.
+        float maximumValue = 1.0f;     // Normalized maximum value for axes.
+        bool relative = false;         // True for relative controls such as mouse movement/wheels.
+    };
+
+    /// @brief Human-readable metadata for a canonical input device.
+    struct InputDeviceInfo
+    {
+        InputDeviceRef device{};                                  // Runtime canonical device reference.
+        InputDeviceBackend backend = InputDeviceBackend::BuiltIn; // Primary backend, kept for older callers.
+        InputDeviceBackend primaryBackend = InputDeviceBackend::BuiltIn; // Backend that owns the standard feed.
+        InputDeviceType deviceType = InputDeviceType::Keyboard;   // Device family.
+        std::string displayName{};                         // UI/debug display name.
+        std::string backendName{};                         // Backend label for duplicate/debug visibility.
+        std::string nativeIdentity{};                      // Backend-neutral stable-ish identity text.
+        std::uint64_t nativeIdentityHash = 0;              // Hash of nativeIdentity.
+        std::string hidNativeIdentity{};                   // Raw Input/HID identity text when attached.
+        std::uint64_t hidNativeIdentityHash = 0;           // Hash of hidNativeIdentity.
+        std::string xInputNativeIdentity{};                // XInput-side identity text when attached.
+        std::uint64_t xInputNativeIdentityHash = 0;        // Hash of xInputNativeIdentity.
+        std::uint16_t vendorId = 0;                        // USB vendor id when known.
+        std::uint16_t productId = 0;                       // USB product id when known.
+        bool connected = false;                            // True while connected.
+        bool canonical = true;                             // False when suppressed as a duplicate.
+        bool hasBuiltInFeed = false;                       // True when the built-in feed is attached.
+        bool hasXInputFeed = false;                        // True when an XInput feed is attached.
+        bool hasHidFeed = false;                           // True when a Raw Input/HID feed is attached.
+        std::string suppressionReason{};                   // Debug reason when a backend/feed is suppressed.
+        std::vector<InputControlInfo> controls{};          // Known bindable controls.
+    };
+
+    namespace Internal
+    {
+        struct InputDeviceRegistryAccess; // Grants platform backends controlled write access to device metadata.
+    }
+
+    /// @brief Runtime registry of canonical physical input devices.
+    class InputDeviceRegistry
+    {
+    public:
+        InputDeviceRegistry();
+
+        /// @brief Returns all registered devices.
+        /// @return Read-only device metadata.
+        std::span<const InputDeviceInfo> getDevices() const;
+
+        /// @brief Finds one device by runtime reference.
+        /// @param device Device reference.
+        /// @return Device metadata, or nullptr when unknown.
+        const InputDeviceInfo *findDevice(InputDeviceRef device) const;
+
+        /// @brief Finds metadata for a control.
+        /// @param control Control to inspect.
+        /// @return Control metadata, or nullptr when unknown.
+        const InputControlInfo *findControl(InputControl control) const;
+
+        /// @brief Returns whether a device is connected and canonical.
+        /// @param device Device reference.
+        /// @return True when the device should feed input.
+        bool shouldFeedDevice(InputDeviceRef device) const;
+
+        /// @brief Returns whether one backend should feed a canonical device.
+        /// @param device Device reference.
+        /// @param backend Backend asking to feed the device.
+        /// @return True when this backend is the active feed for standard controls.
+        bool shouldFeedDeviceBackend(InputDeviceRef device, InputDeviceBackend backend) const;
+
+        /// @brief Returns whether the registry has a connected native HID gamepad feed.
+        /// @return True when a canonical gamepad has an attached HID feed.
+        bool hasConnectedNativeGamepad() const;
+
+    private:
+        friend struct Internal::InputDeviceRegistryAccess;
+
+        std::vector<InputDeviceInfo> devices{};
+
+        void addBuiltInDevices();
+        InputDeviceRef upsertDevice(const InputDeviceInfo &deviceInfo);
+        InputDeviceRef mergeDeviceBackend(InputDeviceRef device, const InputDeviceInfo &backendInfo);
+        void setDeviceConnected(InputDeviceRef device, bool connected);
+        void setDeviceBackendConnected(InputDeviceRef device, InputDeviceBackend backend, bool connected);
+        void setDeviceCanonical(InputDeviceRef device, bool canonical);
+        void replaceDeviceControls(InputDeviceRef device, std::span<const InputControlInfo> controls);
+        void mergeDeviceControls(InputDeviceRef device, std::span<const InputControlInfo> controls);
+        void clearBackend(InputDeviceBackend backend);
+        DeviceIndex allocateDeviceIndex(InputDeviceType deviceType) const;
     };
 
     /// @brief Standard mouse buttons.
@@ -240,6 +351,30 @@ namespace GameWIP::Input
                left.controlCode == right.controlCode;
     }
 
+    /// @brief Compares device references for equality.
+    /// @param left First device to compare.
+    /// @param right Second device to compare.
+    /// @return True when both references identify the same runtime device.
+    constexpr bool operator==(InputDeviceRef left, InputDeviceRef right)
+    {
+        return left.deviceType == right.deviceType &&
+               left.deviceIndex == right.deviceIndex;
+    }
+
+    /// @brief Orders device references for sorted storage.
+    /// @param left First device to compare.
+    /// @param right Second device to compare.
+    /// @return True if left sorts before right.
+    constexpr bool operator<(InputDeviceRef left, InputDeviceRef right)
+    {
+        if (left.deviceType != right.deviceType)
+        {
+            return static_cast<int>(left.deviceType) < static_cast<int>(right.deviceType);
+        }
+
+        return left.deviceIndex < right.deviceIndex;
+    }
+
     /// @brief Orders controls for use as map keys.
     /// @param left First control to compare.
     /// @param right Second control to compare.
@@ -314,6 +449,24 @@ namespace GameWIP::Input
         return InputControl{InputDeviceType::Gamepad, deviceIndex, InputControlType::Axis, static_cast<ControlCode>(axis)};
     }
 
+    /// @brief Creates a backend-defined button control on a runtime device.
+    /// @param device Device that owns the control.
+    /// @param controlCode Backend-normalized control code.
+    /// @return Button control.
+    constexpr InputControl makeDeviceButton(InputDeviceRef device, ControlCode controlCode)
+    {
+        return InputControl{device.deviceType, device.deviceIndex, InputControlType::Button, controlCode};
+    }
+
+    /// @brief Creates a backend-defined axis control on a runtime device.
+    /// @param device Device that owns the control.
+    /// @param controlCode Backend-normalized control code.
+    /// @return Axis control.
+    constexpr InputControl makeDeviceAxis(InputDeviceRef device, ControlCode controlCode)
+    {
+        return InputControl{device.deviceType, device.deviceIndex, InputControlType::Axis, controlCode};
+    }
+
     namespace Internal
     {
         struct InputStateAccess; // Grants platform backends controlled write access to InputState.
@@ -355,6 +508,10 @@ namespace GameWIP::Input
         /// @brief Returns currently held buttons without copying.
         /// @return Read-only view of held button controls.
         std::span<const InputControl> getCurrentButtonView() const;
+
+        /// @brief Returns current axis values without copying.
+        /// @return Read-only view of non-zero axis values.
+        std::span<const std::pair<InputControl, float>> getAxisValueView() const;
 
         // Axes and pointer state
 
@@ -534,5 +691,6 @@ namespace GameWIP::Input
         /// @param deviceIndex Device slot.
         /// @param connected True when the device is connected.
         void setDeviceConnectedInternal(InputDeviceType deviceType, DeviceIndex deviceIndex, bool connected);
+        void clearDeviceInternal(InputDeviceRef device);
     };
 }

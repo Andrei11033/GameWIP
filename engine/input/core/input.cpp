@@ -2,6 +2,8 @@
 #include "input/internal/input_state_access.h"
 
 #include <algorithm>
+#include <array>
+#include <limits>
 
 namespace GameWIP::Input
 {
@@ -161,6 +163,333 @@ namespace GameWIP::Input
             return isMatchingControlValue(entry, values.end(), control) ? entry->second : 0.0f;
         }
 
+        auto findDeviceEntry(std::vector<InputDeviceInfo> &devices, InputDeviceRef device)
+        {
+            return std::lower_bound(
+                devices.begin(),
+                devices.end(),
+                device,
+                [](const InputDeviceInfo &entry, InputDeviceRef target)
+                {
+                    return entry.device < target;
+                });
+        }
+
+        auto findDeviceEntry(const std::vector<InputDeviceInfo> &devices, InputDeviceRef device)
+        {
+            return std::lower_bound(
+                devices.begin(),
+                devices.end(),
+                device,
+                [](const InputDeviceInfo &entry, InputDeviceRef target)
+                {
+                    return entry.device < target;
+                });
+        }
+
+        bool isMatchingDevice(std::vector<InputDeviceInfo>::const_iterator entry, std::vector<InputDeviceInfo>::const_iterator end, InputDeviceRef device)
+        {
+            return entry != end && entry->device == device;
+        }
+
+        bool isMatchingDevice(std::vector<InputDeviceInfo>::iterator entry, std::vector<InputDeviceInfo>::iterator end, InputDeviceRef device)
+        {
+            return entry != end && entry->device == device;
+        }
+
+        bool hasDeviceIndex(const std::vector<InputDeviceInfo> &devices, InputDeviceType deviceType, DeviceIndex deviceIndex)
+        {
+            return std::any_of(
+                devices.begin(),
+                devices.end(),
+                [deviceType, deviceIndex](const InputDeviceInfo &device)
+                {
+                    return device.device.deviceType == deviceType &&
+                           device.device.deviceIndex == deviceIndex;
+                });
+        }
+
+        bool isSameNativeIdentity(const InputDeviceInfo &left, const InputDeviceInfo &right)
+        {
+            return !left.nativeIdentity.empty() &&
+                   left.nativeIdentityHash != 0 &&
+                   left.nativeIdentityHash == right.nativeIdentityHash;
+        }
+
+        bool hasBackendFeed(const InputDeviceInfo &device, InputDeviceBackend backend)
+        {
+            switch (backend)
+            {
+            case InputDeviceBackend::BuiltIn:
+                return device.hasBuiltInFeed;
+            case InputDeviceBackend::XInput:
+                return device.hasXInputFeed;
+            case InputDeviceBackend::RawInputHID:
+                return device.hasHidFeed;
+            }
+
+            return false;
+        }
+
+        InputDeviceBackend choosePrimaryBackend(const InputDeviceInfo &device)
+        {
+            if (device.hasBuiltInFeed)
+            {
+                return InputDeviceBackend::BuiltIn;
+            }
+
+            if (device.hasXInputFeed)
+            {
+                return InputDeviceBackend::XInput;
+            }
+
+            if (device.hasHidFeed)
+            {
+                return InputDeviceBackend::RawInputHID;
+            }
+
+            return device.primaryBackend;
+        }
+
+        std::string makeBackendName(const InputDeviceInfo &device)
+        {
+            std::string name;
+            if (device.hasBuiltInFeed)
+            {
+                name += "BuiltIn";
+            }
+
+            if (device.hasXInputFeed)
+            {
+                if (!name.empty())
+                {
+                    name += "+";
+                }
+                name += "XInput";
+            }
+
+            if (device.hasHidFeed)
+            {
+                if (!name.empty())
+                {
+                    name += "+";
+                }
+                name += "RawInputHID";
+            }
+
+            return name.empty() ? "None" : name;
+        }
+
+        void refreshDeviceSummary(InputDeviceInfo &device)
+        {
+            device.connected = device.hasBuiltInFeed || device.hasXInputFeed || device.hasHidFeed;
+            device.primaryBackend = choosePrimaryBackend(device);
+            device.backend = device.primaryBackend;
+            device.backendName = makeBackendName(device);
+
+            if (device.primaryBackend == InputDeviceBackend::XInput && !device.xInputNativeIdentity.empty())
+            {
+                device.nativeIdentity = device.xInputNativeIdentity;
+                device.nativeIdentityHash = device.xInputNativeIdentityHash;
+            }
+            else if (device.primaryBackend == InputDeviceBackend::RawInputHID && !device.hidNativeIdentity.empty())
+            {
+                device.nativeIdentity = device.hidNativeIdentity;
+                device.nativeIdentityHash = device.hidNativeIdentityHash;
+            }
+        }
+
+        void attachBackendInfo(InputDeviceInfo &target, const InputDeviceInfo &source)
+        {
+            target.deviceType = source.deviceType;
+            target.canonical = source.canonical;
+
+            if (!source.displayName.empty() &&
+                (target.displayName.empty() || source.backend == InputDeviceBackend::RawInputHID))
+            {
+                target.displayName = source.displayName;
+            }
+
+            if (target.vendorId == 0 || source.backend == InputDeviceBackend::RawInputHID)
+            {
+                target.vendorId = source.vendorId;
+            }
+
+            if (target.productId == 0 || source.backend == InputDeviceBackend::RawInputHID)
+            {
+                target.productId = source.productId;
+            }
+
+            switch (source.backend)
+            {
+            case InputDeviceBackend::BuiltIn:
+                target.hasBuiltInFeed = source.connected || source.hasBuiltInFeed;
+                break;
+            case InputDeviceBackend::XInput:
+                target.hasXInputFeed = source.connected || source.hasXInputFeed;
+                target.xInputNativeIdentity = !source.xInputNativeIdentity.empty() ? source.xInputNativeIdentity : source.nativeIdentity;
+                target.xInputNativeIdentityHash = source.xInputNativeIdentityHash != 0 ? source.xInputNativeIdentityHash : source.nativeIdentityHash;
+                break;
+            case InputDeviceBackend::RawInputHID:
+                target.hasHidFeed = source.connected || source.hasHidFeed;
+                target.hidNativeIdentity = !source.hidNativeIdentity.empty() ? source.hidNativeIdentity : source.nativeIdentity;
+                target.hidNativeIdentityHash = source.hidNativeIdentityHash != 0 ? source.hidNativeIdentityHash : source.nativeIdentityHash;
+                break;
+            }
+
+            if (!source.suppressionReason.empty())
+            {
+                target.suppressionReason = source.suppressionReason;
+            }
+
+            refreshDeviceSummary(target);
+        }
+
+        void addUniqueControlInfo(std::vector<InputControlInfo> &controls, const InputControlInfo &control)
+        {
+            auto entry = std::find_if(
+                controls.begin(),
+                controls.end(),
+                [&control](const InputControlInfo &candidate)
+                {
+                    return candidate.control == control.control;
+                });
+
+            if (entry == controls.end())
+            {
+                controls.push_back(control);
+            }
+            else if (!control.displayName.empty())
+            {
+                *entry = control;
+            }
+        }
+
+        void mergeControlInfo(std::vector<InputControlInfo> &target, std::span<const InputControlInfo> source)
+        {
+            for (const InputControlInfo &control : source)
+            {
+                addUniqueControlInfo(target, control);
+            }
+        }
+
+        void remapControls(std::vector<InputControlInfo> &controls, InputDeviceRef from, InputDeviceRef to)
+        {
+            for (InputControlInfo &control : controls)
+            {
+                if (control.control.deviceType == from.deviceType && control.control.deviceIndex == from.deviceIndex)
+                {
+                    control.control.deviceType = to.deviceType;
+                    control.control.deviceIndex = to.deviceIndex;
+                }
+            }
+        }
+
+        InputControlInfo makeButtonControlInfo(InputControl control, const char *name)
+        {
+            return InputControlInfo{
+                .control = control,
+                .displayName = name,
+                .minimumValue = 0.0f,
+                .maximumValue = 1.0f,
+                .relative = false};
+        }
+
+        InputControlInfo makeAxisControlInfo(InputControl control, const char *name, bool relative)
+        {
+            return InputControlInfo{
+                .control = control,
+                .displayName = name,
+                .minimumValue = relative ? -1.0f : 0.0f,
+                .maximumValue = 1.0f,
+                .relative = relative};
+        }
+
+        std::vector<InputControlInfo> makeKeyboardControls()
+        {
+            constexpr std::array<std::pair<ControlCode, const char *>, 55> keys{{
+                {KeyboardControlCode::A, "A"},
+                {KeyboardControlCode::B, "B"},
+                {KeyboardControlCode::C, "C"},
+                {KeyboardControlCode::D, "D"},
+                {KeyboardControlCode::E, "E"},
+                {KeyboardControlCode::F, "F"},
+                {KeyboardControlCode::G, "G"},
+                {KeyboardControlCode::H, "H"},
+                {KeyboardControlCode::I, "I"},
+                {KeyboardControlCode::J, "J"},
+                {KeyboardControlCode::K, "K"},
+                {KeyboardControlCode::L, "L"},
+                {KeyboardControlCode::M, "M"},
+                {KeyboardControlCode::N, "N"},
+                {KeyboardControlCode::O, "O"},
+                {KeyboardControlCode::P, "P"},
+                {KeyboardControlCode::Q, "Q"},
+                {KeyboardControlCode::R, "R"},
+                {KeyboardControlCode::S, "S"},
+                {KeyboardControlCode::T, "T"},
+                {KeyboardControlCode::U, "U"},
+                {KeyboardControlCode::V, "V"},
+                {KeyboardControlCode::W, "W"},
+                {KeyboardControlCode::X, "X"},
+                {KeyboardControlCode::Y, "Y"},
+                {KeyboardControlCode::Z, "Z"},
+                {KeyboardControlCode::Digit0, "0"},
+                {KeyboardControlCode::Digit1, "1"},
+                {KeyboardControlCode::Digit2, "2"},
+                {KeyboardControlCode::Digit3, "3"},
+                {KeyboardControlCode::Digit4, "4"},
+                {KeyboardControlCode::Digit5, "5"},
+                {KeyboardControlCode::Digit6, "6"},
+                {KeyboardControlCode::Digit7, "7"},
+                {KeyboardControlCode::Digit8, "8"},
+                {KeyboardControlCode::Digit9, "9"},
+                {KeyboardControlCode::Escape, "Escape"},
+                {KeyboardControlCode::Enter, "Enter"},
+                {KeyboardControlCode::Space, "Space"},
+                {KeyboardControlCode::Tab, "Tab"},
+                {KeyboardControlCode::Backspace, "Backspace"},
+                {KeyboardControlCode::LeftArrow, "Left Arrow"},
+                {KeyboardControlCode::RightArrow, "Right Arrow"},
+                {KeyboardControlCode::UpArrow, "Up Arrow"},
+                {KeyboardControlCode::DownArrow, "Down Arrow"},
+                {KeyboardControlCode::LeftControl, "Left Ctrl"},
+                {KeyboardControlCode::RightControl, "Right Ctrl"},
+                {KeyboardControlCode::LeftShift, "Left Shift"},
+                {KeyboardControlCode::RightShift, "Right Shift"},
+                {KeyboardControlCode::LeftAlt, "Left Alt"},
+                {KeyboardControlCode::RightAlt, "Right Alt"},
+                {KeyboardControlCode::LeftSuper, "Left Super"},
+                {KeyboardControlCode::RightSuper, "Right Super"},
+                {KeyboardControlCode::F1, "F1"},
+                {KeyboardControlCode::F2, "F2"}}};
+
+            std::vector<InputControlInfo> controls;
+            controls.reserve(keys.size());
+            for (const auto &[code, name] : keys)
+            {
+                controls.push_back(makeButtonControlInfo(makeKeyboardKey(code), name));
+            }
+
+            return controls;
+        }
+
+        std::vector<InputControlInfo> makeMouseControls()
+        {
+            std::vector<InputControlInfo> controls;
+            controls.reserve(9);
+            controls.push_back(makeButtonControlInfo(makeMouseButton(MouseButton::Left), "Left Button"));
+            controls.push_back(makeButtonControlInfo(makeMouseButton(MouseButton::Right), "Right Button"));
+            controls.push_back(makeButtonControlInfo(makeMouseButton(MouseButton::Middle), "Middle Button"));
+            controls.push_back(makeButtonControlInfo(makeMouseButton(MouseButton::X1), "X1 Button"));
+            controls.push_back(makeButtonControlInfo(makeMouseButton(MouseButton::X2), "X2 Button"));
+            controls.push_back(makeAxisControlInfo(makeMouseAxis(MouseAxis::DeltaX), "Delta X", true));
+            controls.push_back(makeAxisControlInfo(makeMouseAxis(MouseAxis::DeltaY), "Delta Y", true));
+            controls.push_back(InputControlInfo{.control = makeMouseWheel(MouseWheel::Vertical), .displayName = "Vertical Wheel", .minimumValue = -1.0f, .maximumValue = 1.0f, .relative = true});
+            controls.push_back(InputControlInfo{.control = makeMouseWheel(MouseWheel::Horizontal), .displayName = "Horizontal Wheel", .minimumValue = -1.0f, .maximumValue = 1.0f, .relative = true});
+            return controls;
+        }
+
         // Text helpers
 
         /// @brief Appends one Unicode codepoint as UTF-8.
@@ -204,6 +533,289 @@ namespace GameWIP::Input
         }
     }
 
+    InputDeviceRegistry::InputDeviceRegistry()
+    {
+        devices.reserve(8);
+        addBuiltInDevices();
+    }
+
+    std::span<const InputDeviceInfo> InputDeviceRegistry::getDevices() const
+    {
+        return devices;
+    }
+
+    const InputDeviceInfo *InputDeviceRegistry::findDevice(InputDeviceRef device) const
+    {
+        auto entry = findDeviceEntry(devices, device);
+        return isMatchingDevice(entry, devices.end(), device) ? &(*entry) : nullptr;
+    }
+
+    const InputControlInfo *InputDeviceRegistry::findControl(InputControl control) const
+    {
+        const InputDeviceInfo *device = findDevice(InputDeviceRef{control.deviceType, control.deviceIndex});
+        if (device == nullptr)
+        {
+            return nullptr;
+        }
+
+        auto controlEntry = std::find_if(
+            device->controls.begin(),
+            device->controls.end(),
+            [control](const InputControlInfo &controlInfo)
+            {
+                return controlInfo.control == control;
+            });
+
+        return controlEntry != device->controls.end() ? &(*controlEntry) : nullptr;
+    }
+
+    bool InputDeviceRegistry::shouldFeedDevice(InputDeviceRef device) const
+    {
+        const InputDeviceInfo *deviceInfo = findDevice(device);
+        return deviceInfo != nullptr && deviceInfo->connected && deviceInfo->canonical;
+    }
+
+    bool InputDeviceRegistry::shouldFeedDeviceBackend(InputDeviceRef device, InputDeviceBackend backend) const
+    {
+        const InputDeviceInfo *deviceInfo = findDevice(device);
+        return deviceInfo != nullptr &&
+               deviceInfo->connected &&
+               deviceInfo->canonical &&
+               hasBackendFeed(*deviceInfo, backend) &&
+               deviceInfo->primaryBackend == backend;
+    }
+
+    bool InputDeviceRegistry::hasConnectedNativeGamepad() const
+    {
+        return std::any_of(
+            devices.begin(),
+            devices.end(),
+            [](const InputDeviceInfo &device)
+            {
+                return device.connected &&
+                       device.canonical &&
+                       device.deviceType == InputDeviceType::Gamepad &&
+                       device.hasHidFeed;
+            });
+    }
+
+    void InputDeviceRegistry::addBuiltInDevices()
+    {
+        InputDeviceInfo keyboard{};
+        keyboard.device = InputDeviceRef{InputDeviceType::Keyboard, 0};
+        keyboard.backend = InputDeviceBackend::BuiltIn;
+        keyboard.primaryBackend = InputDeviceBackend::BuiltIn;
+        keyboard.deviceType = InputDeviceType::Keyboard;
+        keyboard.displayName = "Keyboard";
+        keyboard.backendName = "BuiltIn";
+        keyboard.nativeIdentity = "builtin:keyboard";
+        keyboard.nativeIdentityHash = 1;
+        keyboard.connected = true;
+        keyboard.canonical = true;
+        keyboard.hasBuiltInFeed = true;
+        keyboard.controls = makeKeyboardControls();
+        upsertDevice(keyboard);
+
+        InputDeviceInfo mouse{};
+        mouse.device = InputDeviceRef{InputDeviceType::Mouse, 0};
+        mouse.backend = InputDeviceBackend::BuiltIn;
+        mouse.primaryBackend = InputDeviceBackend::BuiltIn;
+        mouse.deviceType = InputDeviceType::Mouse;
+        mouse.displayName = "Mouse";
+        mouse.backendName = "BuiltIn";
+        mouse.nativeIdentity = "builtin:mouse";
+        mouse.nativeIdentityHash = 2;
+        mouse.connected = true;
+        mouse.canonical = true;
+        mouse.hasBuiltInFeed = true;
+        mouse.controls = makeMouseControls();
+        upsertDevice(mouse);
+    }
+
+    InputDeviceRef InputDeviceRegistry::upsertDevice(const InputDeviceInfo &deviceInfo)
+    {
+        InputDeviceInfo nextDevice = deviceInfo;
+        const InputDeviceRef requestedDevice = nextDevice.device;
+        if (nextDevice.device.deviceType != nextDevice.deviceType)
+        {
+            nextDevice.device.deviceType = nextDevice.deviceType;
+        }
+        attachBackendInfo(nextDevice, deviceInfo);
+        mergeControlInfo(nextDevice.controls, deviceInfo.controls);
+
+        auto nativeEntry = std::find_if(
+            devices.begin(),
+            devices.end(),
+            [&nextDevice](const InputDeviceInfo &candidate)
+            {
+                return isSameNativeIdentity(candidate, nextDevice);
+            });
+
+        if (nativeEntry != devices.end())
+        {
+            remapControls(nextDevice.controls, requestedDevice, nativeEntry->device);
+            attachBackendInfo(*nativeEntry, nextDevice);
+            mergeControlInfo(nativeEntry->controls, nextDevice.controls);
+            const InputDeviceRef device = nativeEntry->device;
+            std::sort(
+                devices.begin(),
+                devices.end(),
+                [](const InputDeviceInfo &left, const InputDeviceInfo &right)
+                {
+                    return left.device < right.device;
+                });
+            return device;
+        }
+
+        if (hasDeviceIndex(devices, nextDevice.device.deviceType, nextDevice.device.deviceIndex))
+        {
+            nextDevice.device.deviceIndex = allocateDeviceIndex(nextDevice.device.deviceType);
+            remapControls(nextDevice.controls, requestedDevice, nextDevice.device);
+        }
+
+        auto deviceEntry = findDeviceEntry(devices, nextDevice.device);
+        if (isMatchingDevice(deviceEntry, devices.end(), nextDevice.device))
+        {
+            *deviceEntry = nextDevice;
+        }
+        else
+        {
+            devices.insert(deviceEntry, nextDevice);
+        }
+
+        return nextDevice.device;
+    }
+
+    InputDeviceRef InputDeviceRegistry::mergeDeviceBackend(InputDeviceRef device, const InputDeviceInfo &backendInfo)
+    {
+        auto entry = findDeviceEntry(devices, device);
+        if (!isMatchingDevice(entry, devices.end(), device))
+        {
+            return upsertDevice(backendInfo);
+        }
+
+        attachBackendInfo(*entry, backendInfo);
+        mergeControlInfo(entry->controls, backendInfo.controls);
+        return entry->device;
+    }
+
+    void InputDeviceRegistry::setDeviceConnected(InputDeviceRef device, bool connected)
+    {
+        auto entry = findDeviceEntry(devices, device);
+        if (isMatchingDevice(entry, devices.end(), device))
+        {
+            entry->connected = connected;
+            if (!connected)
+            {
+                entry->hasXInputFeed = false;
+                entry->hasHidFeed = false;
+            }
+            refreshDeviceSummary(*entry);
+        }
+    }
+
+    void InputDeviceRegistry::setDeviceBackendConnected(InputDeviceRef device, InputDeviceBackend backend, bool connected)
+    {
+        auto entry = findDeviceEntry(devices, device);
+        if (isMatchingDevice(entry, devices.end(), device))
+        {
+            switch (backend)
+            {
+            case InputDeviceBackend::BuiltIn:
+                entry->hasBuiltInFeed = connected;
+                break;
+            case InputDeviceBackend::XInput:
+                entry->hasXInputFeed = connected;
+                break;
+            case InputDeviceBackend::RawInputHID:
+                entry->hasHidFeed = connected;
+                break;
+            }
+
+            refreshDeviceSummary(*entry);
+        }
+    }
+
+    void InputDeviceRegistry::setDeviceCanonical(InputDeviceRef device, bool canonical)
+    {
+        auto entry = findDeviceEntry(devices, device);
+        if (isMatchingDevice(entry, devices.end(), device))
+        {
+            entry->canonical = canonical;
+        }
+    }
+
+    void InputDeviceRegistry::replaceDeviceControls(InputDeviceRef device, std::span<const InputControlInfo> controls)
+    {
+        auto entry = findDeviceEntry(devices, device);
+        if (isMatchingDevice(entry, devices.end(), device))
+        {
+            entry->controls.assign(controls.begin(), controls.end());
+        }
+    }
+
+    void InputDeviceRegistry::mergeDeviceControls(InputDeviceRef device, std::span<const InputControlInfo> controls)
+    {
+        auto entry = findDeviceEntry(devices, device);
+        if (isMatchingDevice(entry, devices.end(), device))
+        {
+            mergeControlInfo(entry->controls, controls);
+        }
+    }
+
+    void InputDeviceRegistry::clearBackend(InputDeviceBackend backend)
+    {
+        if (backend == InputDeviceBackend::BuiltIn)
+        {
+            return;
+        }
+
+        for (InputDeviceInfo &device : devices)
+        {
+            switch (backend)
+            {
+            case InputDeviceBackend::BuiltIn:
+                break;
+            case InputDeviceBackend::XInput:
+                device.hasXInputFeed = false;
+                device.xInputNativeIdentity.clear();
+                device.xInputNativeIdentityHash = 0;
+                break;
+            case InputDeviceBackend::RawInputHID:
+                device.hasHidFeed = false;
+                device.hidNativeIdentity.clear();
+                device.hidNativeIdentityHash = 0;
+                break;
+            }
+
+            refreshDeviceSummary(device);
+        }
+
+        devices.erase(
+            std::remove_if(
+                devices.begin(),
+                devices.end(),
+                [](const InputDeviceInfo &device)
+                {
+                    return !device.hasBuiltInFeed && !device.hasXInputFeed && !device.hasHidFeed;
+                }),
+            devices.end());
+    }
+
+    DeviceIndex InputDeviceRegistry::allocateDeviceIndex(InputDeviceType deviceType) const
+    {
+        for (std::uint16_t candidate = 0; candidate <= std::numeric_limits<DeviceIndex>::max(); ++candidate)
+        {
+            const DeviceIndex deviceIndex = static_cast<DeviceIndex>(candidate);
+            if (!hasDeviceIndex(devices, deviceType, deviceIndex))
+            {
+                return deviceIndex;
+            }
+        }
+
+        return std::numeric_limits<DeviceIndex>::max();
+    }
+
     InputState::InputState()
     {
         currentButtons.reserve(32);
@@ -230,7 +842,8 @@ namespace GameWIP::Input
                 activations.push_back(InputActivation{
                     control,
                     InputActivationType::ButtonReleased,
-                    0.0f});
+                    0.0f,
+                    1.0f});
             }
         }
 
@@ -289,6 +902,11 @@ namespace GameWIP::Input
     std::span<const InputControl> InputState::getCurrentButtonView() const
     {
         return currentButtons;
+    }
+
+    std::span<const std::pair<InputControl, float>> InputState::getAxisValueView() const
+    {
+        return axisValues;
     }
 
     float InputState::getAxis(InputControl control) const
@@ -423,7 +1041,8 @@ namespace GameWIP::Input
         activations.push_back(InputActivation{
             control,
             isDown ? InputActivationType::ButtonPressed : InputActivationType::ButtonReleased,
-            isDown ? 1.0f : 0.0f});
+            isDown ? 1.0f : 0.0f,
+            wasDown ? 1.0f : 0.0f});
     }
 
     void InputState::setAxisInternal(InputControl control, float value)
@@ -434,15 +1053,24 @@ namespace GameWIP::Input
         }
 
         float previousValue = getAxis(control);
+        if (previousValue == value)
+        {
+            return;
+        }
+
         setControlValue(axisValues, control, value);
 
         if (previousValue <= 0.0f && value > 0.0f)
         {
-            activations.push_back(InputActivation{control, InputActivationType::AxisPositive, value});
+            activations.push_back(InputActivation{control, InputActivationType::AxisPositive, value, previousValue});
         }
         else if (previousValue >= 0.0f && value < 0.0f)
         {
-            activations.push_back(InputActivation{control, InputActivationType::AxisNegative, value});
+            activations.push_back(InputActivation{control, InputActivationType::AxisNegative, value, previousValue});
+        }
+        else
+        {
+            activations.push_back(InputActivation{control, InputActivationType::AxisChanged, value, previousValue});
         }
     }
 
@@ -478,7 +1106,8 @@ namespace GameWIP::Input
         activations.push_back(InputActivation{
             control,
             amount > 0.0f ? InputActivationType::WheelPositive : InputActivationType::WheelNegative,
-            amount});
+            amount,
+            newAmount - amount});
     }
 
     void InputState::addTextUtf8Internal(std::string_view text)
@@ -536,6 +1165,41 @@ namespace GameWIP::Input
         else if (found)
         {
             connectedDevices.erase(entry);
+        }
+    }
+
+    void InputState::clearDeviceInternal(InputDeviceRef device)
+    {
+        for (std::size_t controlIndex = 0; controlIndex < currentButtons.size();)
+        {
+            InputControl control = currentButtons[controlIndex];
+            if (control.deviceType == device.deviceType && control.deviceIndex == device.deviceIndex)
+            {
+                addUniqueControl(releasedButtons, control);
+                activations.push_back(InputActivation{
+                    control,
+                    InputActivationType::ButtonReleased,
+                    0.0f,
+                    1.0f});
+                currentButtons.erase(currentButtons.begin() + controlIndex);
+            }
+            else
+            {
+                ++controlIndex;
+            }
+        }
+
+        for (std::size_t valueIndex = 0; valueIndex < axisValues.size();)
+        {
+            const InputControl control = axisValues[valueIndex].first;
+            if (control.deviceType == device.deviceType && control.deviceIndex == device.deviceIndex)
+            {
+                axisValues.erase(axisValues.begin() + valueIndex);
+            }
+            else
+            {
+                ++valueIndex;
+            }
         }
     }
 
@@ -603,8 +1267,63 @@ namespace GameWIP::Input::Internal
         inputState.setDeviceConnectedInternal(deviceType, deviceIndex, connected);
     }
 
+    void InputStateAccess::clearDevice(InputState &inputState, InputDeviceRef device)
+    {
+        inputState.clearDeviceInternal(device);
+    }
+
     std::uint64_t InputStateAccess::getClearGeneration(const InputState &inputState)
     {
         return inputState.clearGeneration;
+    }
+
+    InputDeviceRef InputDeviceRegistryAccess::upsertDevice(InputDeviceRegistry &registry, const InputDeviceInfo &deviceInfo)
+    {
+        return registry.upsertDevice(deviceInfo);
+    }
+
+    void InputDeviceRegistryAccess::setDeviceConnected(InputDeviceRegistry &registry, InputDeviceRef device, bool connected)
+    {
+        registry.setDeviceConnected(device, connected);
+    }
+
+    void InputDeviceRegistryAccess::setDeviceCanonical(InputDeviceRegistry &registry, InputDeviceRef device, bool canonical)
+    {
+        registry.setDeviceCanonical(device, canonical);
+    }
+
+    void InputDeviceRegistryAccess::replaceDeviceControls(InputDeviceRegistry &registry, InputDeviceRef device, std::span<const InputControlInfo> controls)
+    {
+        registry.replaceDeviceControls(device, controls);
+    }
+
+    void InputDeviceRegistryAccess::clearBackend(InputDeviceRegistry &registry, InputDeviceBackend backend)
+    {
+        registry.clearBackend(backend);
+    }
+
+    bool InputDeviceRegistryAccess::shouldFeedDevice(const InputDeviceRegistry &registry, InputDeviceRef device)
+    {
+        return registry.shouldFeedDevice(device);
+    }
+
+    bool InputDeviceRegistryAccess::shouldFeedDeviceBackend(const InputDeviceRegistry &registry, InputDeviceRef device, InputDeviceBackend backend)
+    {
+        return registry.shouldFeedDeviceBackend(device, backend);
+    }
+
+    InputDeviceRef InputDeviceRegistryAccess::mergeDeviceBackend(InputDeviceRegistry &registry, InputDeviceRef device, const InputDeviceInfo &backendInfo)
+    {
+        return registry.mergeDeviceBackend(device, backendInfo);
+    }
+
+    void InputDeviceRegistryAccess::setDeviceBackendConnected(InputDeviceRegistry &registry, InputDeviceRef device, InputDeviceBackend backend, bool connected)
+    {
+        registry.setDeviceBackendConnected(device, backend, connected);
+    }
+
+    void InputDeviceRegistryAccess::mergeDeviceControls(InputDeviceRegistry &registry, InputDeviceRef device, std::span<const InputControlInfo> controls)
+    {
+        registry.mergeDeviceControls(device, controls);
     }
 }

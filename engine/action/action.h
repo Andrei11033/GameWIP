@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <span>
 #include <string>
 #include <string_view>
@@ -74,6 +75,13 @@ namespace GameWIP::Action
     {
         OnActivation, // Finish as soon as a valid control activates.
         OnRelease     // Collect pressed buttons and finish when one is released.
+    };
+
+    /// @brief Controls how analog axes are converted into captured bindings.
+    enum class AxisCaptureMode
+    {
+        FullAxis,       // Capture the whole axis and keep the requested scale.
+        DirectionalAxis // Capture the moved direction by applying the movement sign to the requested scale.
     };
 
     /// @brief Result for a rebinding capture attempt.
@@ -218,6 +226,11 @@ namespace GameWIP::Action
         ComboActivationMode activationMode = ComboActivationMode::PrimaryLast;       // Combo ordering behavior.
         RebindModifierMode modifierMode = RebindModifierMode::KeyboardModifiersOnly; // Modifier capture policy.
         RebindCompletionMode completionMode = RebindCompletionMode::OnActivation;    // Capture completion behavior.
+        AxisCaptureMode axisCaptureMode = AxisCaptureMode::FullAxis;                 // Axis capture behavior.
+        Input::InputDeviceRef deviceFilter{};                                        // Device allowed to complete capture.
+        bool hasDeviceFilter = false;                                                // True to capture from only deviceFilter.
+        float axisActivationThreshold = 0.35f;                                       // Minimum absolute axis value for capture.
+        float axisNoiseThreshold = 0.08f;                                            // Minimum axis movement for capture.
         ActionSettings settings{};                                                   // Optional settings assigned to the captured binding.
         bool hasCustomSettings = false;                                               // True when settings should be copied to the captured binding.
         bool replaceExistingBindings = true;                                         // Replace existing bindings for the same action when applied.
@@ -280,7 +293,8 @@ namespace GameWIP::Action
         bool holdFired = false;           // True once hold duration is satisfied.
         float heldSeconds = 0.0f;         // Time held in seconds.
         float timeSinceLastTap = 0.0f;    // Time since last tap for DoubleTap detection.
-        bool waitingForSecondTap = false; // True while collecting second tap.
+        std::uint64_t valueChangeSequence = 0; // Last change order for value candidate tie-breaks.
+        bool waitingForSecondTap = false;      // True while collecting second tap.
     };
 
     template <typename ActionEnum>
@@ -437,6 +451,7 @@ namespace GameWIP::Action
         int mouseYSnapshot = 0;                            // Captured mouse Y position.
         float verticalWheelDeltaSnapshot = 0.0f;           // Captured vertical wheel delta.
         float horizontalWheelDeltaSnapshot = 0.0f;         // Captured horizontal wheel delta.
+        std::uint64_t valueChangeSequence = 0;             // Monotonic order for value-source changes.
         bool mousePositionKnownSnapshot = false;           // Whether mouse position is valid.
 
         std::size_t getActionIndex(ActionEnum action) const;
