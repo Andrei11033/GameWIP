@@ -3,7 +3,6 @@
 #include "window/window.h"
 
 #include <string_view>
-#include <windows.h>
 
 namespace GameWIP::WindowInternal
 {
@@ -57,10 +56,10 @@ namespace GameWIP::WindowInternal
         /// @brief Forwards a native display configuration change message.
         static void handleDisplayChange(Window &window);
 
-        /// @brief Forwards a WM_GETMINMAXINFO message.
-        static void handleGetMinMaxInfo(Window &window, MINMAXINFO *minMaxInfo);
+        /// @brief Forwards a native minimum/maximum size message.
+        static void handleGetMinMaxInfo(Window &window, void *minMaxInfo);
 
-        /// @brief Returns the cursor handle used by the window procedure.
-        static HCURSOR getCursorHandle(const Window &window);
+        /// @brief Returns the native cursor handle used by the window procedure.
+        static void *getCursorHandle(const Window &window);
     };
 }

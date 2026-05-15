@@ -248,6 +248,7 @@ namespace GameWIP
         void handleDisplayChange();
         void invalidateMonitorCache();
         void handleGetMinMaxInfo(void *minMaxInfo);
+        void *getNativeCursorHandle() const;
 
         Result saveWindowedPlacement();
         Result restoreDisplayMode();

@@ -1,73 +1,82 @@
-#include "logger/logger.h" // Include the corresponding header file for the Logger class.
+#include "logger/logger.h"
+#include "logger/internal/logger_platform.h"
 
-#include <chrono>             // For getting the current time (std::chrono::system_clock).
-#include <condition_variable> // For std::condition_variable to signal the logging thread when new log entries are added.
-#include <cstddef>            // For std::size_t.
-#include <cstdlib>            // For std::atexit.
-#include <ctime>              // For converting time to a struct (std::localtime).
-#include <exception>          // For std::exception when filesystem setup throws.
-#include <filesystem>         // For creating the logs directory (std::filesystem::create_directory).
-#include <format>             // For formatting the final log message (std::format).
-#include <fstream>            // For file output (std::ofstream).
-#include <iostream>           // For console output (std::cout and std::cerr).
-#include <limits>             // For std::numeric_limits.
-#include <mutex>              // For std::mutex to protect shared resources in a multithreaded environment.
-#include <queue>              // For std::queue.
-#include <string>             // For std::string.
-#include <string_view>        // For std::string_view.
-#include <thread>             // For std::thread to run the logging thread.
-#include <utility>            // For std::move, for optimizing string handling.
+#include <chrono>
+#include <condition_variable>
+#include <cstddef>
+#include <cstdlib>
+#include <ctime>
+#include <exception>
+#include <filesystem>
+#include <format>
+#include <fstream>
+#include <iostream>
+#include <limits>
+#include <mutex>
+#include <queue>
+#include <string>
+#include <string_view>
+#include <thread>
+#include <utility>
 
 using GameWIP::LogLevel;
 using GameWIP::OutputMode;
+using LoggerResult = GameWIP::Logger::Result;
 
-// Anonymous namespace, used to contain internal vars.
 namespace
 {
-    // Internal logger variables.
-    LogLevel minLogLevel = LogLevel::INFO;         // The minimum log level to output.
-    OutputMode mode = OutputMode::BOTH;            // The output mode, determines where the logs will be outputted (console, file, both, or none).
-    std::size_t maxQueueSize = 1024;               // The soft queue limit, where low-priority logs begin to drop.
-    std::size_t hardMaxQueueSize = 2048;           // The hard queue limit, where all logs begin to drop.
-    constexpr std::size_t maxMessageLength = 4096; // Hard cap for one log message, to stop one log call from growing RAM too much.
-    bool shutdownRegistered = false;               // Ensures atexit cleanup is only registered once.
+    constexpr std::size_t maxMessageLength = 4096; // Hard cap for one log message.
 
-    std::ofstream logFile;   // The active log file stream used when file output is enabled.
-    std::string logFilePath; // The full path to the current log file.
-    struct LogEntry          // A struct to represent a log entry.
+    struct LogEntry
     {
-        LogLevel level;
+        LogLevel level = LogLevel::INFO;
         std::string source;
         std::string message;
     };
-    std::queue<LogEntry> logQueue; // A queue to hold log entries.
 
-    std::size_t droppedLogs = 0;      // A counter for how many log entries have been dropped.
-    bool dropWarningSent = false;     // A flag to track if a warning about dropped logs has been sent.
-    bool hardDropWarningSent = false; // A flag to track if a warning about the hard queue limit has been sent.
-
-    std::mutex logMutex;                  // A mutex to protect access to the log queue.
-    std::condition_variable logCondition; // A condition variable to signal the logging thread when new log entries are added.
-    std::thread loggingThread;            // The thread that will process log entries from the queue.
-    bool workerRunning = false;           // A flag to control the logging thread's main loop.
-    bool workerBusy = false;              // A flag that tells if the worker is actively writing.
-
-    struct LogStyle // A struct to hold the display style for each log level.
+    struct LoggerState
     {
-        const char *text;
-        const char *color;
-        bool useCerr;
+        LogLevel minLogLevel = LogLevel::INFO;
+        OutputMode mode = OutputMode::BOTH;
+        std::size_t maxQueueSize = 1024;
+        std::size_t hardMaxQueueSize = 2048;
+
+        std::ofstream logFile;
+        std::string logFilePath;
+        std::queue<LogEntry> logQueue;
+
+        std::size_t droppedLogs = 0;
+        bool dropWarningSent = false;
+        bool hardDropWarningSent = false;
+
+        std::mutex logMutex;
+        std::condition_variable logCondition;
+        std::thread loggingThread;
+        bool workerRunning = false;
+        bool workerBusy = false;
+        bool shutdownRegistered = false;
+
+        LoggerResult lastResult = LoggerResult::Success;
+        unsigned long lastPlatformError = 0;
+
+        bool hasCachedTimestamp = false;
+        std::time_t cachedTimestampSecond = 0;
+        std::string cachedTimestampText;
     };
 
-    /// @brief Gets the display style for a given log level.
-    /// @param level The log level.
-    /// @return The display style for the log level.
+    LoggerState loggerState;
+
+    struct LogStyle
+    {
+        const char *text = "UNKNOWN";
+        const char *color = "";
+        bool useCerr = true;
+    };
+
     LogStyle getLogStyle(LogLevel level)
     {
         switch (level)
         {
-        default:
-            return {"UNKNOWN", "", true};
         case LogLevel::INFO:
             return {"INFO", "", false};
         case LogLevel::WARN:
@@ -77,22 +86,17 @@ namespace
         case LogLevel::FATAL:
             return {"FATAL", "\033[31m", true};
         }
+
+        return {};
     }
 
-    /// @brief Determines if a log level is considered low priority (INFO or WARN).
-    /// @param level The log level.
-    /// @return True if the log level is low priority, false otherwise.
     bool isLowPriority(LogLevel level)
     {
         return level == LogLevel::INFO || level == LogLevel::WARN;
     }
 
-    /// @brief Computes the hard queue limit based on the soft queue limit.
-    /// @param softLimit The soft queue limit.
-    /// @return The computed hard queue limit.
     std::size_t computeHardQueueLimit(std::size_t softLimit)
     {
-        // To prevent overflow, if doubling the soft limit would exceed the maximum value for std::size_t, we clamp it to the maximum.
         if (softLimit > std::numeric_limits<std::size_t>::max() / 2)
         {
             return std::numeric_limits<std::size_t>::max();
@@ -101,25 +105,62 @@ namespace
         return softLimit * 2;
     }
 
-    /// @brief A function registered with atexit to ensure the logger is properly shut down when the program exits.
-    /// @return None.
-    void shutdownLoggerAtExit()
+    void recordResult(LoggerResult result, unsigned long platformError = 0)
     {
-        bool workerActive;
-        {
-            std::lock_guard<std::mutex> lock(logMutex);
-            workerActive = workerRunning;
-        }
+        std::lock_guard<std::mutex> lock(loggerState.logMutex);
+        loggerState.lastResult = result;
+        loggerState.lastPlatformError = platformError;
+    }
 
-        if (workerActive)
+    void clearQueue()
+    {
+        while (!loggerState.logQueue.empty())
         {
-            GameWIP::Logger::shutdown();
+            loggerState.logQueue.pop();
         }
     }
 
-    /// @brief Truncates a log message to the maximum allowed length.
-    /// @param message The log message to truncate.
-    /// @return The truncated log message.
+    std::string formatTime(std::time_t time, const char *timeFormat)
+    {
+        std::tm timeInfo{};
+        if (localtime_s(&timeInfo, &time) != 0)
+        {
+            return "invalid-time";
+        }
+
+        char timeBuffer[64]{};
+        const std::size_t written = std::strftime(timeBuffer, sizeof(timeBuffer), timeFormat, &timeInfo);
+        if (written == 0)
+        {
+            return "invalid-time";
+        }
+
+        return std::string(timeBuffer, written);
+    }
+
+    std::string getCurrentTimeText(const char *timeFormat)
+    {
+        const auto now = std::chrono::system_clock::now();
+        const std::time_t time = std::chrono::system_clock::to_time_t(now);
+        return formatTime(time, timeFormat);
+    }
+
+    std::string getCachedTimestampText()
+    {
+        const auto now = std::chrono::system_clock::now();
+        const std::time_t currentSecond = std::chrono::system_clock::to_time_t(now);
+
+        std::lock_guard<std::mutex> lock(loggerState.logMutex);
+        if (!loggerState.hasCachedTimestamp || loggerState.cachedTimestampSecond != currentSecond)
+        {
+            loggerState.cachedTimestampSecond = currentSecond;
+            loggerState.cachedTimestampText = formatTime(currentSecond, "%H:%M:%S");
+            loggerState.hasCachedTimestamp = true;
+        }
+
+        return loggerState.cachedTimestampText;
+    }
+
     std::string truncateMessage(std::string_view message)
     {
         if (message.size() <= maxMessageLength)
@@ -142,36 +183,6 @@ namespace
         return truncatedMessage;
     }
 
-    /// @brief Gets the current time as a string.
-    /// @param timeFormat The format string for the time.
-    /// @return The current time as a string.
-    std::string getCurTime(const char *timeFormat = "%H:%M:%S")
-    {
-        std::tm timeInfo{};                                             // A struct that holds the time components.
-        auto now = std::chrono::system_clock::now();                    // get the current time, from "Unix epoch".
-        std::time_t time_s = std::chrono::system_clock::to_time_t(now); // convert to time_t, round to nearest second.
-        auto result = localtime_s(&timeInfo, &time_s);                  // Convert time_s to local time.
-        if (result != 0)
-        {
-            return "invalid-time"; // If localtime_s fails, return a placeholder string.
-        }
-
-        char timeBuffer[64]{};
-        std::size_t written = std::strftime(timeBuffer, sizeof(timeBuffer), timeFormat, &timeInfo);
-        if (written == 0)
-        {
-            return "invalid-time";
-        }
-
-        return std::string(timeBuffer, written);
-    }
-
-    /// @brief Builds a complete log line from already prepared fields.
-    /// @param timestamp The timestamp string for the log entry.
-    /// @param levelText The display text for the log level.
-    /// @param source The source tag for the log entry.
-    /// @param message The log message.
-    /// @return The complete log line.
     std::string buildLogMessage(std::string_view timestamp, std::string_view levelText, std::string_view source, std::string_view message)
     {
         constexpr std::size_t fixedFormatLength = 8; // "[", "][", "][", and "]: ".
@@ -189,50 +200,45 @@ namespace
         return logMessage;
     }
 
-    /// @brief Writes a log entry to the appropriate output streams.
-    /// @param entry The log entry to write.
     void writeLogEntry(const LogEntry &entry)
     {
-        if (entry.level < minLogLevel || mode == OutputMode::NONE)
+        if (entry.level < loggerState.minLogLevel || loggerState.mode == OutputMode::NONE)
         {
             return;
         }
 
-        bool consoleOutput = (mode == OutputMode::CONSOLE || mode == OutputMode::BOTH);                  // Determine if console output is enabled based on the current output mode.
-        bool fileOutput = ((mode == OutputMode::FILE || mode == OutputMode::BOTH) && logFile.is_open()); // Determine if file output is enabled based on the current output mode.
+        const bool consoleOutput = loggerState.mode == OutputMode::CONSOLE || loggerState.mode == OutputMode::BOTH;
+        const bool fileOutput = (loggerState.mode == OutputMode::FILE || loggerState.mode == OutputMode::BOTH) && loggerState.logFile.is_open();
         if (!consoleOutput && !fileOutput)
         {
             return;
         }
 
-        LogStyle style = getLogStyle(entry.level);
-        std::string timestamp = getCurTime();
-        std::string logMessage = buildLogMessage(timestamp, style.text, entry.source, entry.message);
+        const LogStyle style = getLogStyle(entry.level);
+        const std::string timestamp = getCachedTimestampText();
+        const std::string logMessage = buildLogMessage(timestamp, style.text, entry.source, entry.message);
 
         if (consoleOutput)
         {
-            std::ostream &consoleStream = style.useCerr ? std::cerr : std::cout; // A stream reference that can pick cout/cerr once, then write through one common path.
+            std::ostream &consoleStream = style.useCerr ? std::cerr : std::cout;
             if (style.color[0] != '\0')
             {
-                consoleStream << style.color;
-                consoleStream << logMessage;
-                consoleStream << "\033[0m"; // Reset the console color after WARN/ERR so later output is not tinted.
+                consoleStream << style.color << logMessage << "\033[0m";
             }
             else
             {
                 consoleStream << logMessage;
             }
 
-            consoleStream << '\n'; // '\n' is cheaper than std::endl because it avoids flushing the stream every single log call.
+            consoleStream << '\n';
         }
 
         if (fileOutput)
         {
-            logFile << logMessage << '\n'; // Write the log message to the file.
+            loggerState.logFile << logMessage << '\n';
         }
     }
 
-    /// @brief The main worker function for the logging thread.
     void loggerWorker()
     {
         while (true)
@@ -240,17 +246,17 @@ namespace
             std::queue<LogEntry> localQueue;
 
             {
-                std::unique_lock<std::mutex> lock(logMutex);
-                logCondition.wait(lock, []
-                                  { return !logQueue.empty() || !workerRunning; });
+                std::unique_lock<std::mutex> lock(loggerState.logMutex);
+                loggerState.logCondition.wait(lock, []
+                                              { return !loggerState.logQueue.empty() || !loggerState.workerRunning; });
 
-                if (logQueue.empty() && !workerRunning)
+                if (loggerState.logQueue.empty() && !loggerState.workerRunning)
                 {
                     break;
                 }
 
-                logQueue.swap(localQueue);
-                workerBusy = true;
+                loggerState.logQueue.swap(localQueue);
+                loggerState.workerBusy = true;
             }
 
             while (!localQueue.empty())
@@ -260,49 +266,80 @@ namespace
             }
 
             {
-                std::unique_lock<std::mutex> lock(logMutex);
-                if (dropWarningSent && logQueue.size() <= maxQueueSize / 2)
+                std::unique_lock<std::mutex> lock(loggerState.logMutex);
+                if (loggerState.dropWarningSent && loggerState.logQueue.size() <= loggerState.maxQueueSize / 2)
                 {
-                    dropWarningSent = false;
+                    loggerState.dropWarningSent = false;
                 }
 
-                if (hardDropWarningSent && logQueue.size() <= hardMaxQueueSize / 2)
+                if (loggerState.hardDropWarningSent && loggerState.logQueue.size() <= loggerState.hardMaxQueueSize / 2)
                 {
-                    hardDropWarningSent = false;
+                    loggerState.hardDropWarningSent = false;
                 }
 
-                workerBusy = false;
+                loggerState.workerBusy = false;
             }
 
-            logCondition.notify_all();
+            loggerState.logCondition.notify_all();
+        }
+    }
+
+    void shutdownLoggerAtExit()
+    {
+        bool workerActive = false;
+        {
+            std::lock_guard<std::mutex> lock(loggerState.logMutex);
+            workerActive = loggerState.workerRunning;
+        }
+
+        if (workerActive)
+        {
+            GameWIP::Logger::shutdown();
         }
     }
 }
 
 LogLevel GameWIP::Logger::getMinLogLevel()
 {
-    std::lock_guard<std::mutex> lock(logMutex);
-    return minLogLevel;
+    std::lock_guard<std::mutex> lock(loggerState.logMutex);
+    return loggerState.minLogLevel;
 }
 
 OutputMode GameWIP::Logger::getOutputMode()
 {
-    std::lock_guard<std::mutex> lock(logMutex);
-    return mode;
+    std::lock_guard<std::mutex> lock(loggerState.logMutex);
+    return loggerState.mode;
 }
 
 std::size_t GameWIP::Logger::getDroppedLogCount()
 {
-    std::lock_guard<std::mutex> lock(logMutex);
-    return droppedLogs;
+    std::lock_guard<std::mutex> lock(loggerState.logMutex);
+    return loggerState.droppedLogs;
 }
 
-void GameWIP::Logger::init(OutputMode newMode, LogLevel newLevel, std::size_t newMaxQueueSize)
+GameWIP::Logger::Result GameWIP::Logger::getLastResult()
 {
-    bool workerActive;
+    std::lock_guard<std::mutex> lock(loggerState.logMutex);
+    return loggerState.lastResult;
+}
+
+unsigned long GameWIP::Logger::getLastPlatformError()
+{
+    std::lock_guard<std::mutex> lock(loggerState.logMutex);
+    return loggerState.lastPlatformError;
+}
+
+GameWIP::Logger::Result GameWIP::Logger::init(OutputMode newMode, LogLevel newLevel, std::size_t newMaxQueueSize)
+{
+    bool workerActive = false;
     {
-        std::lock_guard<std::mutex> lock(logMutex);
-        workerActive = workerRunning;
+        std::lock_guard<std::mutex> lock(loggerState.logMutex);
+        workerActive = loggerState.workerRunning;
+        if (workerActive)
+        {
+            loggerState.lastResult = Result::AlreadyRunning;
+            loggerState.lastPlatformError = 0;
+        }
     }
 
     if (workerActive)
@@ -310,156 +347,163 @@ void GameWIP::Logger::init(OutputMode newMode, LogLevel newLevel, std::size_t ne
         constexpr std::string_view alreadyRunningMessage = "Logger::init() called while the logger is already running. Ignoring new configuration.";
         log(LogLevel::ERR, "Logger-Init", alreadyRunningMessage);
         logDebugOutput(LogLevel::ERR, "Logger-Init", alreadyRunningMessage);
-        return;
+        return Result::AlreadyRunning;
     }
 
-    if (!shutdownRegistered)
+    if (!loggerState.shutdownRegistered)
     {
         std::atexit(shutdownLoggerAtExit);
-        shutdownRegistered = true;
+        loggerState.shutdownRegistered = true;
     }
 
-    if (logFile.is_open()) // If a log file is already open, close it before creating a new one.
-    {
-        logFile.close();
-    }
-
+    LoggerResult initResult = Result::Success;
     if (newMaxQueueSize == 0)
     {
-        newMaxQueueSize = 1; // Clamp invalid values to the smallest usable queue size.
+        newMaxQueueSize = 1;
+        initResult = Result::InvalidQueueSize;
     }
 
-    logFilePath.clear();            // Clear the old file path when re-initializing.
-    mode = newMode;                 // Store the new output mode.
-    minLogLevel = newLevel;         // Store the new minimum log level.
-    maxQueueSize = newMaxQueueSize; // Store the maximum queue size.
-    hardMaxQueueSize = computeHardQueueLimit(maxQueueSize);
-    droppedLogs = 0;             // Reset the dropped-log counter for a fresh logger run.
-    dropWarningSent = false;     // Reset the drop warning flag for a fresh logger run.
-    hardDropWarningSent = false; // Reset the hard drop warning flag for a fresh logger run.
-    workerBusy = false;          // Reset the worker state for a fresh logger run.
-
-    while (!logQueue.empty())
+    if (loggerState.logFile.is_open())
     {
-        logQueue.pop();
+        loggerState.logFile.close();
     }
 
-    if (mode == OutputMode::NONE)
+    loggerState.logFilePath.clear();
+    loggerState.mode = newMode;
+    loggerState.minLogLevel = newLevel;
+    loggerState.maxQueueSize = newMaxQueueSize;
+    loggerState.hardMaxQueueSize = computeHardQueueLimit(loggerState.maxQueueSize);
+    loggerState.droppedLogs = 0;
+    loggerState.dropWarningSent = false;
+    loggerState.hardDropWarningSent = false;
+    loggerState.workerBusy = false;
+    loggerState.hasCachedTimestamp = false;
+    loggerState.cachedTimestampSecond = 0;
+    loggerState.cachedTimestampText.clear();
+    clearQueue();
+
+    if (loggerState.mode == OutputMode::NONE)
     {
-        return;
+        recordResult(initResult);
+        return initResult;
     }
 
-    bool wantsFile = mode == OutputMode::FILE || mode == OutputMode::BOTH;
-    bool fileOpenFailed = false;
+    const bool wantsFile = loggerState.mode == OutputMode::FILE || loggerState.mode == OutputMode::BOTH;
+    bool fileSetupFailed = false;
     std::string fileErrorMessage;
 
     if (wantsFile)
     {
         try
         {
-            std::filesystem::create_directory("logs"); // Create the logs directory if it doesn't exist.
+            std::filesystem::create_directory("logs");
+            loggerState.logFilePath = "logs/" + getCurrentTimeText("%Y-%m-%d_%H-%M-%S") + ".log";
+            loggerState.logFile.open(loggerState.logFilePath);
 
-            std::string curTime = getCurTime("%Y-%m-%d_%H-%M-%S"); // Get the current time in a format suitable for filenames.
-            logFilePath = "logs/" + curTime + ".log";              // Create the full path for the new log file.
-
-            logFile.open(logFilePath); // Open the log file for writing.
-
-            if (!logFile.is_open())
+            if (!loggerState.logFile.is_open())
             {
-                mode = OutputMode::CONSOLE;
-                fileOpenFailed = true;
-                fileErrorMessage = std::format("Failed to open log file at: {}. Falling back to console output.", logFilePath);
+                loggerState.mode = OutputMode::CONSOLE;
+                initResult = Result::FileOpenFailed;
+                fileSetupFailed = true;
+                fileErrorMessage = std::format("Failed to open log file at: {}. Falling back to console output.", loggerState.logFilePath);
             }
         }
         catch (const std::exception &error)
         {
-            mode = OutputMode::CONSOLE;
-            fileOpenFailed = true;
+            loggerState.mode = OutputMode::CONSOLE;
+            initResult = Result::FileSetupFailed;
+            fileSetupFailed = true;
 
-            if (logFilePath.empty())
+            if (loggerState.logFilePath.empty())
             {
                 fileErrorMessage = std::format("Logger file setup failed: {}. Falling back to console output.", error.what());
             }
             else
             {
-                fileErrorMessage = std::format("Logger file setup failed for {}: {}. Falling back to console output.", logFilePath, error.what());
+                fileErrorMessage = std::format("Logger file setup failed for {}: {}. Falling back to console output.", loggerState.logFilePath, error.what());
             }
         }
         catch (...)
         {
-            mode = OutputMode::CONSOLE;
-            fileOpenFailed = true;
+            loggerState.mode = OutputMode::CONSOLE;
+            initResult = Result::FileSetupFailed;
+            fileSetupFailed = true;
 
-            if (logFilePath.empty())
+            if (loggerState.logFilePath.empty())
             {
                 fileErrorMessage = "Logger file setup failed with an unknown error. Falling back to console output.";
             }
             else
             {
-                fileErrorMessage = std::format("Logger file setup failed for {} with an unknown error. Falling back to console output.", logFilePath);
+                fileErrorMessage = std::format("Logger file setup failed for {} with an unknown error. Falling back to console output.", loggerState.logFilePath);
             }
         }
     }
 
-    workerRunning = true;
-    loggingThread = std::thread(loggerWorker);
+    loggerState.workerRunning = true;
+    loggerState.loggingThread = std::thread(loggerWorker);
+    recordResult(initResult);
 
-    if (fileOpenFailed)
+    if (fileSetupFailed)
     {
         log(LogLevel::ERR, "Logger-Init", fileErrorMessage);
         logDebugOutput(LogLevel::ERR, "Logger-Init", fileErrorMessage);
     }
+
+    return initResult;
 }
 
 void GameWIP::Logger::flush()
 {
     {
-        std::unique_lock<std::mutex> lock(logMutex);
-        logCondition.wait(lock, []
-                          { return logQueue.empty() && !workerBusy; });
+        std::unique_lock<std::mutex> lock(loggerState.logMutex);
+        loggerState.logCondition.wait(lock, []
+                                      { return loggerState.logQueue.empty() && !loggerState.workerBusy; });
     }
 
     std::cout.flush();
     std::cerr.flush();
 
-    if (logFile.is_open())
+    if (loggerState.logFile.is_open())
     {
-        logFile.flush();
+        loggerState.logFile.flush();
     }
 }
 
 void GameWIP::Logger::shutdown()
 {
-    std::size_t droppedCount;
+    std::size_t droppedCount = 0;
     {
-        std::unique_lock<std::mutex> lock(logMutex);
-        workerRunning = false;
-        droppedCount = droppedLogs;
+        std::unique_lock<std::mutex> lock(loggerState.logMutex);
+        loggerState.workerRunning = false;
+        droppedCount = loggerState.droppedLogs;
     }
 
-    logCondition.notify_all();
+    loggerState.logCondition.notify_all();
 
-    if (loggingThread.joinable())
+    if (loggerState.loggingThread.joinable())
     {
-        loggingThread.join();
+        loggerState.loggingThread.join();
     }
 
     if (droppedCount > 0)
     {
-        writeLogEntry(LogEntry{LogLevel::WARN, "Logger-Shutdown", std::format("Logger had {} dropped log messages.", droppedCount)});
-        logDebugOutput(LogLevel::WARN, "Logger-Shutdown", std::format("Logger had {} dropped log messages.", droppedCount));
+        const std::string droppedMessage = std::format("Logger had {} dropped log messages.", droppedCount);
+        writeLogEntry(LogEntry{LogLevel::WARN, "Logger-Shutdown", droppedMessage});
+        logDebugOutput(LogLevel::WARN, "Logger-Shutdown", droppedMessage);
     }
 
     flush();
 
-    if (logFile.is_open())
+    if (loggerState.logFile.is_open())
     {
-        logFile.close();
+        loggerState.logFile.close();
     }
 
-    logFilePath.clear();
-    mode = OutputMode::NONE;
-    workerBusy = false;
+    loggerState.logFilePath.clear();
+    loggerState.mode = OutputMode::NONE;
+    loggerState.workerBusy = false;
+    recordResult(Result::Success);
 }
 
 void GameWIP::Logger::log(LogLevel entryLevel, std::string_view source, std::string_view message)
@@ -469,42 +513,36 @@ void GameWIP::Logger::log(LogLevel entryLevel, std::string_view source, std::str
     bool didEnqueue = false;
     std::size_t warningQueueSize = 0;
     {
-        std::unique_lock<std::mutex> lock(logMutex);
-        if (!workerRunning || mode == OutputMode::NONE || entryLevel < minLogLevel)
+        std::unique_lock<std::mutex> lock(loggerState.logMutex);
+        if (!loggerState.workerRunning || loggerState.mode == OutputMode::NONE || entryLevel < loggerState.minLogLevel)
         {
             return;
         }
 
-        std::size_t queueSize = logQueue.size();
-        if (queueSize >= hardMaxQueueSize)
+        const std::size_t queueSize = loggerState.logQueue.size();
+        if (queueSize >= loggerState.hardMaxQueueSize)
         {
-            droppedLogs++;
-            if (!hardDropWarningSent)
+            ++loggerState.droppedLogs;
+            if (!loggerState.hardDropWarningSent)
             {
-                hardDropWarningSent = true;
+                loggerState.hardDropWarningSent = true;
                 shouldWarnHardLimit = true;
                 warningQueueSize = queueSize;
             }
         }
-        else if (queueSize >= maxQueueSize && isLowPriority(entryLevel))
+        else if (queueSize >= loggerState.maxQueueSize && isLowPriority(entryLevel))
         {
-            droppedLogs++;
-            if (!dropWarningSent)
+            ++loggerState.droppedLogs;
+            if (!loggerState.dropWarningSent)
             {
-                dropWarningSent = true;
+                loggerState.dropWarningSent = true;
                 shouldWarnSoftLimit = true;
                 warningQueueSize = queueSize;
             }
         }
         else
         {
-            LogEntry entry;
-
-            entry.level = entryLevel;
-            entry.source = source;
-            entry.message = truncateMessage(message);
-
-            logQueue.push(std::move(entry));
+            loggerState.logQueue.push(LogEntry{entryLevel, std::string(source), truncateMessage(message)});
             didEnqueue = true;
         }
     }
@@ -520,7 +558,22 @@ void GameWIP::Logger::log(LogLevel entryLevel, std::string_view source, std::str
 
     if (didEnqueue)
     {
-        logCondition.notify_one();
+        loggerState.logCondition.notify_one();
     }
 }
 
+void GameWIP::Logger::logDebugOutput(LogLevel level, std::string_view source, std::string_view message)
+{
+    const LogStyle style = getLogStyle(level);
+    std::string line = buildLogMessage(getCachedTimestampText(), style.text, source, message);
+    line.push_back('\n');
+    GameWIP::LoggerPlatform::writeDebugOutput(line);
+}
+
+void GameWIP::Logger::showFatalPopup(std::string_view message)
+{
+    if (!GameWIP::LoggerPlatform::showFatalPopup(message))
+    {
+        recordResult(Result::PlatformCallFailed);
+    }
+}

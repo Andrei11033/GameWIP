@@ -4,31 +4,47 @@
 
 #include <string>
 
+namespace
+{
+    std::string buildFailureMessage(std::string_view conditionText, std::string_view message, std::string_view file, int line, std::string_view function)
+    {
+        std::string failureMessage;
+        failureMessage.reserve(conditionText.size() + message.size() + file.size() + function.size() + 64);
+        failureMessage.append(conditionText);
+        if (!message.empty())
+        {
+            failureMessage.append("\nMessage: ");
+            failureMessage.append(message);
+        }
+        failureMessage.append("\nLocation: ");
+        failureMessage.append(file);
+        failureMessage.append(":");
+        failureMessage.append(std::to_string(line));
+        failureMessage.append(" (");
+        failureMessage.append(function);
+        failureMessage.append(")");
+        return failureMessage;
+    }
+
+    void reportFailure(std::string_view source, std::string_view conditionText, std::string_view message, std::string_view file, int line, std::string_view function)
+    {
+        const std::string failureMessage = buildFailureMessage(conditionText, message, file, line, function);
+        GameWIP::Logger::log(GameWIP::LogLevel::ERR, source, failureMessage);
+        GameWIP::Logger::logDebugOutput(GameWIP::LogLevel::ERR, source, failureMessage);
+        GameWIP::Logger::flush();
+    }
+}
+
 namespace GameWIP::Debug
 {
     void handleAssertFailure(std::string_view conditionText, std::string_view message, std::string_view file, int line, std::string_view function)
     {
-        std::string assertMessage;
-        assertMessage.reserve(conditionText.size() + message.size() + file.size() + function.size() + 64); // Reserve extra space for formatting and line number.
-        assertMessage.append(conditionText);
-        if (!message.empty())
-        {
-            assertMessage.append("\nMessage: ");
-            assertMessage.append(message);
-        }
-        assertMessage.append("\nLocation: ");
-        assertMessage.append(file);
-        assertMessage.append(":");
-        assertMessage.append(std::to_string(line));
-        assertMessage.append(" (");
-        assertMessage.append(function);
-        assertMessage.append(")");
-
-        Logger::log(LogLevel::ERR, "Assert", assertMessage);
-        Logger::logDebugOutput(LogLevel::ERR, "Assert", assertMessage);
-
-        Logger::flush();
-
+        reportFailure("Assert", conditionText, message, file, line, function);
         Platform::debugBreak();
+    }
+
+    void handleCheckFailure(std::string_view conditionText, std::string_view message, std::string_view file, int line, std::string_view function)
+    {
+        reportFailure("Check", conditionText, message, file, line, function);
     }
 }

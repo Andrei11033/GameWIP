@@ -38,6 +38,17 @@ namespace GameWIP
     class GAMEWIP_LOGGER_API Logger
     {
     public:
+        /// @brief Result of a logger operation.
+        enum class Result
+        {
+            Success,
+            AlreadyRunning,
+            InvalidQueueSize,
+            FileOpenFailed,
+            FileSetupFailed,
+            PlatformCallFailed
+        };
+
         /// @brief Gets the minimum log level.
         /// @return The minimum log level.
         static LogLevel getMinLogLevel();
@@ -50,11 +61,20 @@ namespace GameWIP
         /// @return The number of dropped log messages.
         static std::size_t getDroppedLogCount();
 
+        /// @brief Gets the last logger result.
+        /// @return The last logger result.
+        static Result getLastResult();
+
+        /// @brief Gets the last platform error recorded by the logger.
+        /// @return The last platform error, or 0 when no platform error was recorded.
+        static unsigned long getLastPlatformError();
+
         /// @brief Initializes the logger.
         /// @param newMode The output mode.
         /// @param newLevel The minimum log level.
         /// @param maxQueueSize The maximum size of the log queue.
-        static void init(OutputMode newMode = OutputMode::BOTH, LogLevel newLevel = LogLevel::INFO, std::size_t maxQueueSize = 1024);
+        /// @return Result of logger initialization.
+        static Result init(OutputMode newMode = OutputMode::BOTH, LogLevel newLevel = LogLevel::INFO, std::size_t maxQueueSize = 1024);
 
         // std::string_view reads message without forcing an extra std::string allocation on every call.
 

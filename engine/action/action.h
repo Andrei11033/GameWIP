@@ -218,6 +218,8 @@ namespace GameWIP::Action
         ComboActivationMode activationMode = ComboActivationMode::PrimaryLast;       // Combo ordering behavior.
         RebindModifierMode modifierMode = RebindModifierMode::KeyboardModifiersOnly; // Modifier capture policy.
         RebindCompletionMode completionMode = RebindCompletionMode::OnActivation;    // Capture completion behavior.
+        ActionSettings settings{};                                                   // Optional settings assigned to the captured binding.
+        bool hasCustomSettings = false;                                               // True when settings should be copied to the captured binding.
         bool replaceExistingBindings = true;                                         // Replace existing bindings for the same action when applied.
     };
 
@@ -228,6 +230,8 @@ namespace GameWIP::Action
         ActionCombo combo{};               // Combo control configuration.
         ActionGesture gesture{};           // Gesture/trigger configuration.
         ActionValueMapping valueMapping{}; // Value component and scale configuration.
+        ActionSettings settings{};         // Optional per-binding value processing settings.
+        bool hasCustomSettings = false;    // True when settings overrides the action-kind default.
     };
 
     /// @brief Captured binding waiting to be applied.
@@ -293,6 +297,7 @@ namespace GameWIP::Action
         ActionBindingBuilder &withModifiers(std::span<const Input::InputControl> modifiers);
         ActionBindingBuilder &primaryLast();
         ActionBindingBuilder &anyOrder();
+        ActionBindingBuilder &withSettings(const ActionSettings &settings);
 
         ActionResult pressed();
         ActionResult released();
@@ -323,8 +328,6 @@ namespace GameWIP::Action
         bool isValidAction(ActionEnum action) const;
 
         ActionResult defineAction(ActionEnum action, ActionKind kind);
-        ActionResult setActionSettings(ActionEnum action, const ActionSettings &settings);
-        const ActionSettings *getActionSettings(ActionEnum action) const;
 
         void advanceFrame();
         void evaluate(const Input::InputState &inputState, float deltaSeconds);
@@ -423,7 +426,7 @@ namespace GameWIP::Action
         void clearAllBindings();
 
     private:
-        std::vector<ActionSettings> actionSettings{};      // Settings for each action.
+        std::vector<ActionKind> actionKinds{};             // Kind for each action.
         std::vector<ActionState> actionStates{};           // Current state for each action.
         std::vector<ActionBinding<ActionEnum>> bindings{}; // All active input bindings.
         std::vector<RuntimeBindingState> bindingStates{};  // Runtime state for each binding.
@@ -450,8 +453,6 @@ namespace GameWIP::Action
             std::span<const Input::InputControl> ignoredControls) const;
         void addBindingUnchecked(const ActionBinding<ActionEnum> &binding);
         void applyBindingDown(ActionEnum action, bool down);
-        void addBindingValue(ActionEnum action, const ActionValueMapping &valueMapping, float value);
-        void processActionValues();
         bool hasMatchingHoldFired(std::size_t bindingIndex) const;
     };
 

@@ -40,6 +40,11 @@
     [x] Queue soft limit drops INFO/WARN when full
     [x] Queue hard limit drops all severities at 2x maxQueueSize
     [x] Dropped log count is exposed through getDroppedLogCount()
+    [x] Logger init returns an explicit Result
+    [x] Logger exposes last result and last platform error
+    [x] Logger internals are grouped into one internal LoggerState object
+    [x] Logger platform debug output and fatal popup calls go through an internal platform bridge
+    [x] Normal log/debug-output timestamps are cached per second
     [x] Logger worker drains queued messages in batches
     [x] Hot log-line construction uses append/reserve instead of std::format
     [x] log() skips disabled and below-minimum messages before queueing
@@ -63,10 +68,10 @@
     [x] Small-queue pressure test exits normally without deadlocking
     [x] Logger hot path optimized with move enqueue + fixed-buffer time formatting
     Optional future polish:
-    [ ] Cache formatted timestamp strings by second if profiling shows time formatting cost matters
+    [x] Cache formatted timestamp strings by second if profiling shows time formatting cost matters
     [ ] Decide whether logs should always go beside the executable or under the project root
     [ ] Standardize source tags into enums/categories if the engine grows
-    [ ] Consider wrapping logger globals into one internal LoggerState object
+    [x] Consider wrapping logger globals into one internal LoggerState object
 [x] Assertions/debug checks exist
     Planned assertion/debug feature set:
     [x] Debug checks live under tools/debug/assert with assert.h, core/assert.cpp, and platform/win32/win32_assert.cpp
@@ -75,14 +80,21 @@
     [x] Logger does not depend on Debug, keeping dependency direction one-way
     [x] GAMEWIP_ASSERT(condition) macro exists
     [x] GAMEWIP_ASSERT_MSG(condition, message) macro exists
+    [x] GAMEWIP_CHECK(condition) macro exists
+    [x] GAMEWIP_CHECK_MSG(condition, message) macro exists
     [x] Assertion macros capture the failed condition text
     [x] Assertion macros capture file, line, and function
+    [x] Recoverable check macros capture condition, file, line, and function
     [x] Assertion implementation formats a clear failure message
     [x] Assertion failures log through Logger
     [x] Assertion failures also emit platform debug output
     [x] Assertion failures flush logs before breaking
+    [x] Recoverable check failures log through Logger
+    [x] Recoverable check failures emit platform debug output and flush without breaking
     [x] Debug builds trigger a debugger break on assertion failure
     [x] Release builds compile assertions out when NDEBUG is defined
+    [x] Assert/check always-on and always-off compile switches exist
+    [x] Contradictory assert/check compile switches fail CMake configure
     [x] Passing assertions have no side effects
     [x] Assertion macros are safe to use in if/else statements
     [x] Public debug header includes only the standard headers it needs
@@ -100,9 +112,9 @@
     [x] Release build compiles with assertions disabled
     [x] Assertion test code is removed or guarded after verification
     Optional future polish:
-    [ ] Add a recoverable debug-check macro if needed
+    [x] Add a recoverable debug-check macro if needed
     [ ] Add fatal assertion popup only if assertion failures need user-visible reporting
-    [ ] Add compile-time switches for always-on or always-off assertions
+    [x] Add compile-time switches for always-on or always-off assertions
     [ ] Add unit tests once the test framework exists
 [x] Input handling exists
     Current raw input-state foundation:
@@ -213,7 +225,7 @@
     [x] Internal feed access can update controller connection, buttons, and axes
     [x] Add a backend update hook for polled devices such as XInput controllers
     [x] Add Win32/XInput controller backend under the input platform layer
-    [ ] Apply controller deadzones in the backend or action layer after the raw state shape is stable
+    [x] Apply controller deadzones in the Action layer after the raw state shape is stable
     Migration from previous temporary key-message path:
     [x] Create Win32 input backend files under the input system, e.g. engine/input/platform/win32_input.h and engine/input/platform/win32_input.cpp
     [x] Add the Win32 input backend to CMake
@@ -233,6 +245,7 @@
     [x] main.cpp uses actions for game behavior instead of hardcoded physical keys
     Current action-layer foundation:
     [x] Action module lives under engine/action with action.h, core/action.cpp, and internal/action.inl
+    [x] Action template implementation is split into helper, builder, and ActionMap internal fragments
     [x] Action builds as a static Action library
     [x] Action links against Input while WindowManager remains independent from Action
     [x] ActionMap supports separate maps for separate control plans such as gameplay, UI, and settings
@@ -241,7 +254,9 @@
     [x] ActionMap supports modifier combos with PrimaryLast and AnyOrder behavior
     [x] ActionMap supports tap, hold, and double-tap triggers
     [x] ActionMap supports Axis1D and Axis2D action values
-    [x] ActionMap applies deadzone, sensitivity, curve, clamp, normalization, and inversion settings
+    [x] ActionMap applies per-binding deadzone, sensitivity, curve, clamp, normalization, and inversion settings
+    [x] Action bindings can carry custom settings independently from other bindings on the same action
+    [x] Action value evaluation groups compatible same-action/same-device/same-settings bindings before processing paired axes
     [x] ActionMap exposes input snapshot passthrough for text, mouse position, mouse delta, and wheel delta
     [x] Action settings helper functions exist for buttons, axes, movement, mouse look, gamepad sticks, and gamepad triggers
     [x] Action binding validation rejects invalid action, control, binding, and settings data
@@ -249,7 +264,7 @@
     [x] ActionMap supports capturing and applying rebinding candidates from new input activations
     [x] ActionMap supports stateful multi-key rebinding sessions
     [x] Rebinding sessions can finish when one collected button is released
-    [x] Temporary main.cpp rebind test path exists for the Quit action
+    [x] Temporary main.cpp rebind test path was removed after Action capture API validation
     Verification:
     [x] Input library compiles without errors
     [x] GameWIP links against Input successfully
@@ -278,10 +293,10 @@
     [x] Temporary Quit rebind test captures a mouse button
     [x] Temporary Quit rebind test cancels with Escape without closing the window
     [x] Temporary Quit rebind test replaces the old Quit binding
-    [x] Temporary action rebind test is compile-guarded by GAMEWIP_ENABLE_TEMP_ACTION_TESTS
+    [x] Temporary action rebind test compile option was removed with the temporary path
     [x] Input test code is removed or guarded after verification
     Optional future polish:
-    [ ] Save/load input bindings from a config file
+    [ ] Save/load Action bindings from a config file later
     [x] Support multiple bindings per action
     [x] Support analog action values for mouse/controller axes
     [ ] Add input recording/playback only if it becomes useful for debugging
@@ -291,6 +306,7 @@
 [x] Window opens and closes
     Current window foundation:
     [x] Window module lives under engine/window with window.h, core/window.cpp, and platform/win32/win32_window.cpp
+    [x] Win32 window implementation is split into platform-private helper/state/access/lifecycle/cursor/mode/monitor fragments
     [x] WindowManager module lives under engine/window_manager with window_manager.h, core/window_manager.cpp, and platform/win32/win32_window_manager.cpp
     [x] Window and WindowManager build as separate static libraries
     [x] WindowManager links against Window and Input
@@ -453,10 +469,12 @@
 [ ] Review and harden all foundation code before rendering
     Code quality / cleanup:
     [ ] Review logger, assert, input, and window code end-to-end
-    [ ] Remove or guard temporary test code in main.cpp
+    [x] Split oversized Action template internals into focused private include fragments
+    [x] Split oversized Win32 window implementation into focused platform-private include fragments
+    [x] Remove or guard temporary test code in main.cpp
     [ ] Remove duplicated logic and stale comments
     [ ] Confirm public headers expose only stable engine-facing APIs
-    [ ] Confirm platform-specific types stay out of public cross-platform headers
+    [x] Confirm platform-specific types stay out of public cross-platform headers and internal bridge headers
     [ ] Confirm ownership and lifetime rules are clear for logger/input/window systems
     [ ] Confirm error paths log useful information and leave systems in a valid state
     [x] Move InputStateAccess into a real engine/input/internal header before adding more input backends
@@ -466,17 +484,18 @@
     [ ] Run normal debug build and release build from VS Code tasks
     [ ] Update roadmap/decisions docs to match the actual architecture
     Optimization / correctness:
-    [ ] Check logger hot paths for unnecessary allocations after recent changes
+    [x] Check logger hot paths for unnecessary allocations after recent changes
     [ ] Check input frame-advance behavior for key-repeat and transient-state correctness
     [ ] Add focused InputState unit tests for press/release, same-frame transitions, clear, text, wheel, axis, and gamepad connection behavior
     [ ] Keep vector-based InputState storage unless profiling shows it matters; consider fixed arrays/bitsets only after a real cost appears
     [ ] Consider exposing input activations as a non-copying view/span if activation copying shows up in profiling
-    [ ] Apply controller deadzones before using gamepad axes for gameplay bindings
+    [x] Apply controller deadzones before using gamepad axes for gameplay bindings
     [ ] Check window message loop for clean shutdown, resize, focus, and minimize behavior
     [ ] Revisit WindowEventQueue complexity; simplify it if maintenance cost outweighs the custom ring-buffer/coalescing behavior
     [ ] Decide Raw Input registration flags policy for foreground/background input and legacy message behavior
     [ ] Check client-area sizing before renderer depends on dimensions
     [x] Check CMake target dependencies and include paths are minimal and clear
+    [x] Keep library-specific CMake options/settings in each library's own CMakeLists.txt
     [ ] Check generated release folder only keeps files needed to run the game
     Platform skeleton:
     [x] Add a platform selection layer so game code does not include Win32 headers directly
@@ -491,8 +510,8 @@
     [x] Document that Windows/Win32 is the only supported platform for now
     Verification:
     [x] Clean configure/build still works after cleanup
-    [ ] Debug run opens, logs, receives input, and closes cleanly
-    [ ] Release run opens and closes cleanly
+    [x] Debug/default run opens, logs, receives input, and closes cleanly
+    [x] Release run opens and closes cleanly
     [ ] Checklist reflects only actually verified behavior
 [ ] Render one object
 [ ] Free camera works

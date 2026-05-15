@@ -10,7 +10,6 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 option(GAMEWIP_ENABLE_TRACY "Enable Tracy profiler instrumentation" OFF)
 option(GAMEWIP_ENABLE_TOOLS "Enable editor/tool window support in the game executable" OFF)
 option(GAMEWIP_OPEN_TOOL_WINDOWS_AT_STARTUP "Open tool/debug windows at startup when tool support is enabled" OFF)
-option(GAMEWIP_ENABLE_TEMP_ACTION_TESTS "Enable temporary action/input test paths in the game executable" OFF)
 
 set(TRACY_ENABLE ${GAMEWIP_ENABLE_TRACY} CACHE BOOL "" FORCE)
 set(TRACY_ON_DEMAND ON CACHE BOOL "" FORCE)
@@ -33,10 +32,6 @@ if(GAMEWIP_ENABLE_TOOLS)
     if(GAMEWIP_OPEN_TOOL_WINDOWS_AT_STARTUP)
         target_compile_definitions(GameWIP PRIVATE GAMEWIP_OPEN_TOOL_WINDOWS_AT_STARTUP=1)
     endif()
-endif()
-
-if(GAMEWIP_ENABLE_TEMP_ACTION_TESTS)
-    target_compile_definitions(GameWIP PRIVATE GAMEWIP_ENABLE_TEMP_ACTION_TESTS=1)
 endif()
 
 target_link_libraries(GameWIP PRIVATE
