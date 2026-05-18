@@ -29,9 +29,7 @@ namespace
     void reportFailure(std::string_view source, std::string_view conditionText, std::string_view message, std::string_view file, int line, std::string_view function)
     {
         const std::string failureMessage = buildFailureMessage(conditionText, message, file, line, function);
-        GameWIP::Logger::log(GameWIP::LogLevel::ERR, source, failureMessage);
-        GameWIP::Logger::logDebugOutput(GameWIP::LogLevel::ERR, source, failureMessage);
-        GameWIP::Logger::flush();
+        GameWIP::Logger::reportError(source, failureMessage);
     }
 }
 

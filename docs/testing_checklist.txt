@@ -16,17 +16,21 @@
     [x] logger core owns file/time/queue/thread internals
     [x] Logger builds as a DLL
     [x] CMake copies required runtime DLLs next to GameWIP.exe automatically
-    [x] Log levels include INFO, WARN, ERR, and FATAL
+    [x] Log levels include TRACE, DEBUG, INFO, WARN, ERR, and FATAL
     [x] Fatal popup window exists
     [x] Separate platform debug output function exists
     [x] Source tag is included in messages, e.g. [Main], [Engine]
     [x] Timestamps are included in log output
     [x] Time formatting uses thread-safe localtime_s
     [x] Time formatting uses strftime with a fixed stack buffer
-    [x] init(mode, level, maxQueueSize) is startup-only configuration
-    [x] OutputMode stays fixed after init()
-    [x] LogLevel stays fixed after init()
-    [x] Logger owns queued strings through LogEntry
+    [x] init(Logger::Config) is startup-only configuration
+    [x] Logger::Config carries output mode, minimum level, queue size, optional log directory, console color, platform debug output, and fatal popup configuration
+    [x] Logger::Output stays fixed after init()
+    [x] Logger::Level minLevel stays fixed after init()
+    [x] Runtime SourceFilter can enable/disable registered enum sources
+    [x] Runtime LevelFilter can enable/disable exact log levels above minLevel
+    [x] Logger owns queued message/source text through LogEntry
+    [x] Registered enum source queue entries store SourceId instead of source text
     [x] Oversized log messages are truncated before entering the queue
     [x] Queued LogEntry objects are moved into the queue to avoid an extra copy
     [x] One logger worker thread processes queued messages
@@ -37,22 +41,46 @@
     [x] Automatic cleanup is registered with atexit
     [x] File-open or filesystem setup failure falls back to console output
     [x] WARN / ERR / FATAL always emit ANSI color codes on console output
-    [x] Queue soft limit drops INFO/WARN when full
+    [x] Queue soft limit drops TRACE/DEBUG/INFO/WARN when full
     [x] Queue hard limit drops all severities at 2x maxQueueSize
-    [x] Dropped log count is exposed through getDroppedLogCount()
+    [x] Dropped log count is exposed through getLifetimeDroppedLogCount()
     [x] Logger init returns an explicit Result
-    [x] Logger exposes last result and last platform error
+    [x] Logger exposes last result and structured platform error details
+    [x] Logger has trace/debug/info/warn/error/fatal convenience helpers
+    [x] Logger convenience helpers have formatted overloads that check shouldLog() before std::format
+    [x] LOGGER_TRACE/LOGGER_DEBUG compile out in release-style builds unless explicitly enabled
+    [x] LOGGER_INFO/LOGGER_WARN/LOGGER_ERROR/LOGGER_FATAL forward to runtime-filtered logger calls
+    [x] LOGGER_* macros live in logger_macros.h instead of the main logger API header
+    [x] Logger has reportError for error log, platform debug output, and flush reporting
+    [x] Logger has reportFatal for fatal log, platform debug output, flush, and fatal popup reporting
+    [x] Logger exposes runtime Stats counters for queued, written, dropped, truncated, and peak queue depth
+    [x] Logger exposes shouldLog() as a cheap public guard
+    [x] Logger exposes shouldLog(level, source) for registered source filtering
     [x] Logger internals are grouped into one internal LoggerState object
     [x] Logger platform debug output and fatal popup calls go through an internal platform bridge
-    [x] Normal log/debug-output timestamps are cached per second
+    [x] Logger local-time formatting goes through the internal platform bridge
+    [x] Normal log and platform debug output timestamps are cached per second
+    [x] Logger uses atomic fast-path state for running/output/minimum-level/message-length checks
+    [x] Logger uses a preallocated ring buffer sized to the hard queue limit
+    [x] Logger queue entries keep common string source/message text inline with heap fallback for larger text
     [x] Logger worker drains queued messages in batches
+    [x] Logger worker reuses batch storage, log-line scratch storage, and file-batch scratch storage
+    [x] Logger batches file writes per worker drain
     [x] Hot log-line construction uses append/reserve instead of std::format
     [x] log() skips disabled and below-minimum messages before queueing
+    [x] log() builds/truncates queued LogEntry data before taking the queue mutex
+    [x] logOwned() moves formatted message storage into the queue path when possible
+    [x] Queue wakeups notify the worker only when an enqueue transitions from empty to non-empty
+    [x] Ring-buffer indices use branch wraparound instead of modulo
     [x] Duplicate init() calls are reported and ignored while the logger is running
+    [x] Logger handles worker-thread startup failure with an explicit result
+    [x] Logger shutdown is safe to call repeatedly or before initialization
     [x] Public logger header includes the standard headers it uses
     [x] Public logger API has /// documentation comments
+    [x] Logger internal state, helper functions, platform backend, and macros have /// documentation comments
     Verification:
     [x] Logger compiles without errors
+    [x] Logger hardening build compiles without errors after Config/platform-error API changes
     [x] INFO level outputs to console
     [x] WARN level outputs to console
     [x] ERROR level outputs to stderr
@@ -67,10 +95,44 @@
     [x] Queue pressure test drops low-priority logs and preserves ERR markers
     [x] Small-queue pressure test exits normally without deadlocking
     [x] Logger hot path optimized with move enqueue + fixed-buffer time formatting
+    [x] Optimized-debuggable build compiles after logger maximum-optimization pass
+    [x] Tracy profiling build configures and compiles after logger maximum-optimization pass
+    [x] Optimized-debuggable build compiles after final logger API/stats/formatting pass
+    [x] Tracy profiling build compiles after final logger API/stats/formatting pass
+    [x] Optimized-debuggable build compiles after logger category/runtime format hardening pass
+    [x] Tracy profiling build compiles after logger category/runtime format hardening pass
+    [x] Optimized-debuggable build compiles after final Source/Level filter API lock-in pass
+    [x] Tracy profiling build compiles after final Source/Level filter API lock-in pass
+    [x] Standalone logger API probe compiles enum sources, Logger::runtimeFormat formatting, runtime source filters, runtime level filters, and logger_macros.h usage
+    [x] Logger API probe verifies string source logging, enum source names, runtime formatting, invalid runtime format counting, unknown source fallback, invalid source-definition rejection, resetStats preserving lifetime dropped-log diagnostics, and same-second filename suffixes
+    [x] Final logger API probe verifies runtime SourceFilter and LevelFilter changes affect shouldLog(level, source) while the logger is running
+    [x] Optimized-debuggable build compiles after logger correctness and hot-path optimization pass
+    [x] Tracy profiling build compiles after logger correctness and hot-path optimization pass
+    [x] Focused temporary logger verification confirms Output::None starts no worker and queues no messages
+    [x] Focused temporary logger verification confirms runtime-filtered formatted logs increment droppedFiltered
+    [x] Focused temporary logger verification confirms invalid runtime formats increment formatFailures and do not queue
+    [x] Focused temporary logger verification confirms reportError/reportFatal bypass minLevel, SourceFilter, and LevelFilter while honoring sinks
+    [x] Focused temporary logger verification confirms inlineMessageCapacity values 0, small, default, and larger-than-maxMessageLength compile and run
+    [x] Focused temporary logger verification confirms repeated setLevelFilter, clearLevelFilter, and clearLevelFilters behavior
+    [x] Focused temporary logger verification confirms dense registered SourceId names and UnknownSource fallback
+    [x] Focused temporary logger verification confirms shutdown with dropped logs emits no Logger-Shutdown dropped-log warning entry
+    [x] Temporary logger profiling main.cpp runs to completion in build-tracy-profiling
+    [x] Temporary logger profiling main.cpp runs to completion after final Source/Level filter API lock-in pass
+    [x] Temporary logger profiling main.cpp runs to completion after logger correctness and hot-path optimization pass
+    [x] Profiling harness verifies disabled Logger::Output::None logs and below-minimum logs drop no queued messages
+    [x] Profiling harness verifies below-minimum formatted overloads do not queue messages
+    [x] Profiling harness verifies LOGGER_DEBUG compiles out in release-style build without evaluating format arguments
+    [x] Profiling harness verifies enabled formatted overloads queue and write messages
+    [x] Profiling harness verifies soft queue pressure drops low-priority logs
+    [x] Profiling harness verifies hard queue pressure drops FATAL logs at the hard limit
+    [x] Profiling harness verifies Stats counters for queued, written, dropped, truncated, and peak queue depth
+    [x] Profiling harness verifies flush and shutdown drain without deadlock or crash
     Optional future polish:
     [x] Cache formatted timestamp strings by second if profiling shows time formatting cost matters
-    [ ] Decide whether logs should always go beside the executable or under the project root
+    [x] Logs default to the project-root logs directory
     [x] Consider wrapping logger globals into one internal LoggerState object
+    [ ] Inspect the Tracy GUI capture for logger zones, plots, and contention shape
+    [ ] Restore normal game main.cpp after the temporary logger profiling harness is accepted
 [x] Assertions/debug checks exist
     Planned assertion/debug feature set:
     [x] Debug checks live under tools/debug/assert with assert.h, core/assert.cpp, and platform/win32/win32_assert.cpp

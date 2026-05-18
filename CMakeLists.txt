@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.20)
 
 project(GameWIP VERSION 0.0.1 LANGUAGES CXX)
 
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -25,6 +26,7 @@ add_subdirectory(engine/window_manager)
 
 add_executable(GameWIP
     game/main.cpp
+    game/test/logger_test.cpp
 )
 
 if(GAMEWIP_ENABLE_TOOLS)
@@ -60,4 +62,9 @@ add_custom_command(TARGET GameWIP POST_BUILD
         "-DGAMEWIP_RUNTIME_SEARCH_DIR=${MSYS2_RUNTIME_DIR}"
         -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/copy_runtime_dependencies.cmake"
     VERBATIM
+)
+
+enable_testing()
+add_test(NAME LoggerTest
+    COMMAND $<TARGET_FILE:GameWIP>
 )
