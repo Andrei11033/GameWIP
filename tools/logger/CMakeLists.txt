@@ -50,6 +50,7 @@ install(DIRECTORY "${PROJECT_SOURCE_DIR}/tools/logger"
     FILES_MATCHING
         PATTERN "*.h"
         PATTERN "*.hpp"
+        PATTERN "internal" EXCLUDE
 )
 
 install(EXPORT GameWIPLoggerTargets

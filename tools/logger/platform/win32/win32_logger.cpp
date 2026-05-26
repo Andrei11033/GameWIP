@@ -15,9 +15,9 @@
 namespace
 {
     /// @brief Short local alias for the public platform error type.
-    using PlatformError = GameWIP::Logger::PlatformError;
+    using PlatformError = GameWIP::Logger::Types::PlatformError;
     /// @brief Short local alias for the public platform error source enum.
-    using PlatformErrorSource = GameWIP::Logger::PlatformErrorSource;
+    using PlatformErrorSource = GameWIP::Logger::Types::PlatformErrorSource;
 
     /// @brief Creates a success platform-error value.
     /// @return Platform error with source None and native code zero.
@@ -83,26 +83,54 @@ namespace
         return true;
     }
 
-    /// @brief Returns the Win32 standard handle for a logger console stream.
-    HANDLE consoleHandle(GameWIP::LoggerPlatform::ConsoleStream stream)
+    /// @brief Escapes embedded UTF-16 NULs before passing text to null-terminated Win32 UI/debug APIs.
+    /// @param text Converted UTF-16 text that may contain embedded NUL characters.
+    /// @return Text with embedded NULs replaced by a visible \0 sequence.
+    std::wstring escapeEmbeddedNuls(std::wstring_view text)
     {
-        const DWORD handleId = stream == GameWIP::LoggerPlatform::ConsoleStream::Stderr ? STD_ERROR_HANDLE : STD_OUTPUT_HANDLE;
+        std::wstring result;
+        result.reserve(text.size());
+
+        for (const wchar_t value : text)
+        {
+            if (value == L'\0')
+            {
+                result += L"\\0";
+            }
+            else
+            {
+                result.push_back(value);
+            }
+        }
+
+        return result;
+    }
+
+    /// @brief Returns the Win32 standard handle for a logger console stream.
+    HANDLE consoleHandle(GameWIP::LoggerDetail::Platform::ConsoleStream stream)
+    {
+        const DWORD handleId = stream == GameWIP::LoggerDetail::Platform::ConsoleStream::Stderr ? STD_ERROR_HANDLE : STD_OUTPUT_HANDLE;
         return GetStdHandle(handleId);
     }
 }
 
-namespace GameWIP::LoggerPlatform
+namespace GameWIP::LoggerDetail::Platform
 {
     /// @brief Writes a formatted log line to the Win32 debugger output stream.
     /// @param line UTF-8 log line, including caller-chosen trailing newline.
     /// @return Structured platform error, or source None on success.
-    Logger::PlatformError writeDebugOutput(std::string_view line)
+    Logger::Types::PlatformError writeDebugOutput(std::string_view line)
     {
         std::wstring output;
         unsigned long error = 0;
         if (!utf8ToWide(line, output, error))
         {
             return makePlatformError(PlatformErrorSource::DebugOutput, error);
+        }
+
+        if (output.find(L'\0') != std::wstring::npos)
+        {
+            output = escapeEmbeddedNuls(output);
         }
 
         OutputDebugStringW(output.c_str());
@@ -112,13 +140,18 @@ namespace GameWIP::LoggerPlatform
     /// @brief Displays a fatal error message using the Win32 Unicode message box API.
     /// @param message UTF-8 message text.
     /// @return Structured platform error, or source None on success.
-    Logger::PlatformError showFatalPopup(std::string_view message)
+    Logger::Types::PlatformError showFatalPopup(std::string_view message)
     {
         std::wstring messageText;
         unsigned long error = 0;
         if (!utf8ToWide(message, messageText, error))
         {
             return makePlatformError(PlatformErrorSource::FatalPopup, error);
+        }
+
+        if (messageText.find(L'\0') != std::wstring::npos)
+        {
+            messageText = escapeEmbeddedNuls(messageText);
         }
 
         if (MessageBoxW(nullptr, messageText.c_str(), L"Fatal Error", MB_ICONERROR | MB_OK) == 0)
@@ -134,7 +167,7 @@ namespace GameWIP::LoggerPlatform
     /// @param timeFormat strftime-compatible format string.
     /// @param outText Receives formatted local-time text.
     /// @return Structured platform error, or source None on success.
-    Logger::PlatformError formatLocalTime(std::time_t time, std::string_view timeFormat, std::string &outText)
+    Logger::Types::PlatformError formatLocalTime(std::time_t time, std::string_view timeFormat, std::string &outText)
     {
         outText.clear();
 
@@ -171,7 +204,7 @@ namespace GameWIP::LoggerPlatform
     /// @param path UTF-8/narrow path text.
     /// @param outHandle Receives the opened file handle on success.
     /// @return Structured platform error, or source None on success.
-    Logger::PlatformError openFileExclusive(std::string_view path, FileHandle &outHandle)
+    Logger::Types::PlatformError openFileExclusive(std::string_view path, FileHandle &outHandle)
     {
         outHandle = {};
 
@@ -207,7 +240,7 @@ namespace GameWIP::LoggerPlatform
     /// @brief Creates a directory tree using Win32 calls.
     /// @param path UTF-8/narrow directory path.
     /// @return Structured platform error, or source None on success.
-    Logger::PlatformError createDirectories(std::string_view path)
+    Logger::Types::PlatformError createDirectories(std::string_view path)
     {
         if (path.empty())
         {
@@ -288,7 +321,7 @@ namespace GameWIP::LoggerPlatform
     /// @param handle File handle opened by openFileExclusive.
     /// @param text Bytes to write.
     /// @return Structured platform error, or source None on success.
-    Logger::PlatformError writeFile(FileHandle handle, std::string_view text)
+    Logger::Types::PlatformError writeFile(FileHandle handle, std::string_view text)
     {
         if (!isFileOpen(handle))
         {
@@ -322,7 +355,7 @@ namespace GameWIP::LoggerPlatform
     /// @brief Flushes a Win32 file handle.
     /// @param handle File handle opened by openFileExclusive.
     /// @return Structured platform error, or source None on success.
-    Logger::PlatformError flushFile(FileHandle handle)
+    Logger::Types::PlatformError flushFile(FileHandle handle)
     {
         if (!isFileOpen(handle))
         {

@@ -6,7 +6,7 @@
 #include <string>
 #include <string_view>
 
-namespace GameWIP::LoggerPlatform
+namespace GameWIP::LoggerDetail::Platform
 {
     /// @brief Opaque platform file handle used by the logger file sink.
     struct FileHandle
@@ -35,41 +35,43 @@ namespace GameWIP::LoggerPlatform
     /// @brief Writes a fully formatted log line to the platform debug output.
     /// @param line Log line, including any desired trailing newline.
     /// @return Platform error details, or source None on success.
-    Logger::PlatformError writeDebugOutput(std::string_view line);
+    Logger::Types::PlatformError writeDebugOutput(std::string_view line);
 
     /// @brief Displays a fatal popup through the platform UI.
     /// @param message Message to display.
     /// @return Platform error details, or source None on success.
-    Logger::PlatformError showFatalPopup(std::string_view message);
+    Logger::Types::PlatformError showFatalPopup(std::string_view message);
 
     /// @brief Formats a local-time value using the platform thread-safe localtime API.
     /// @param time Time value to format.
     /// @param timeFormat strftime-compatible format string.
     /// @param outText Receives the formatted text on success.
     /// @return Platform error details, or source None on success.
-    Logger::PlatformError formatLocalTime(std::time_t time, std::string_view timeFormat, std::string &outText);
+    Logger::Types::PlatformError formatLocalTime(std::time_t time, std::string_view timeFormat, std::string &outText);
 
-    /// @brief Opens a new file for write using exclusive writer/delete semantics and reader sharing only.
+    /// @brief Opens a new file for writing while allowing other processes to read it.
+    /// @details The logger owns the writer handle. The Win32 backend requests reader sharing,
+    /// but does not request delete/rename sharing.
     /// @param path UTF-8/narrow path text.
     /// @param outHandle Receives the opened platform file handle on success.
     /// @return Success or native platform failure.
-    Logger::PlatformError openFileExclusive(std::string_view path, FileHandle &outHandle);
+    Logger::Types::PlatformError openFileExclusive(std::string_view path, FileHandle &outHandle);
 
     /// @brief Creates a directory tree if it does not already exist.
     /// @param path UTF-8/narrow directory path.
     /// @return Success or native platform failure.
-    Logger::PlatformError createDirectories(std::string_view path);
+    Logger::Types::PlatformError createDirectories(std::string_view path);
 
     /// @brief Writes all bytes to an open file handle.
     /// @param handle File handle opened by openFileExclusive.
     /// @param text Bytes to write.
     /// @return Success or native platform failure.
-    Logger::PlatformError writeFile(FileHandle handle, std::string_view text);
+    Logger::Types::PlatformError writeFile(FileHandle handle, std::string_view text);
 
     /// @brief Flushes an open file handle to the OS.
     /// @param handle File handle opened by openFileExclusive.
     /// @return Success or native platform failure.
-    Logger::PlatformError flushFile(FileHandle handle);
+    Logger::Types::PlatformError flushFile(FileHandle handle);
 
     /// @brief Closes an open file handle.
     /// @param handle File handle opened by openFileExclusive.

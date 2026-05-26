@@ -5,12 +5,18 @@ project(GameWIP VERSION 0.0.1 LANGUAGES CXX)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_CXX_EXTENSIONS ON)
 
 # Option to enable Tracy profiler instrumentation.
-option(GAMEWIP_ENABLE_TRACY "Enable Tracy profiler instrumentation" OFF)
+option(GAMEWIP_ENABLE_TRACY "Enable Tracy profiler instrumentation" ON)
 option(GAMEWIP_ENABLE_TOOLS "Enable editor/tool window support in the game executable" OFF)
 option(GAMEWIP_OPEN_TOOL_WINDOWS_AT_STARTUP "Open tool/debug windows at startup when tool support is enabled" OFF)
+
+# Option for Assert
+option(GAMEWIP_ENABLE_ASSERTS "Enable GameWIP assertions and recoverable checks" ON)
+
+# Option for tests
+option(GAMEWIP_HEAVY_TESTS "Enable long-running stress tests" ON)
 
 set(TRACY_ENABLE ${GAMEWIP_ENABLE_TRACY} CACHE BOOL "" FORCE)
 set(TRACY_ON_DEMAND ON CACHE BOOL "" FORCE)
@@ -26,6 +32,7 @@ add_subdirectory(engine/window_manager)
 
 add_executable(GameWIP
     game/main.cpp
+    game/test/assert_test.cpp
     game/test/logger_test.cpp
 )
 
@@ -34,6 +41,15 @@ if(GAMEWIP_ENABLE_TOOLS)
     if(GAMEWIP_OPEN_TOOL_WINDOWS_AT_STARTUP)
         target_compile_definitions(GameWIP PRIVATE GAMEWIP_OPEN_TOOL_WINDOWS_AT_STARTUP=1)
     endif()
+endif()
+
+if(GAMEWIP_ENABLE_ASSERTS)
+    set(ASSERT_ENABLED ON CACHE STRING "Force assertions on, off, or let NDEBUG choose" FORCE)
+    set(ASSERT_CHECKS_ENABLED ON CACHE STRING "Force recoverable checks on, off, or let NDEBUG choose" FORCE)
+endif()
+
+if(GAMEWIP_HEAVY_TESTS)
+    target_compile_definitions(GameWIP PRIVATE GAMEWIP_HEAVY_TESTS=1)
 endif()
 
 target_link_libraries(GameWIP PRIVATE
@@ -65,6 +81,6 @@ add_custom_command(TARGET GameWIP POST_BUILD
 )
 
 enable_testing()
-add_test(NAME LoggerTest
+add_test(NAME GameWIPTests
     COMMAND $<TARGET_FILE:GameWIP>
 )

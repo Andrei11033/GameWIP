@@ -136,26 +136,28 @@
 [x] Assertions/debug checks exist
     Planned assertion/debug feature set:
     [x] Debug checks live under tools/debug/assert with assert.h, core/assert.cpp, and platform/win32/win32_assert.cpp
-    [x] Debug checks build as a small static Debug library
-    [x] Debug library links against Logger for reporting failures
+    [x] Debug checks build as the Assert shared library
+    [x] Assert can privately link against Logger for reporting failures
     [x] Logger does not depend on Debug, keeping dependency direction one-way
-    [x] GAMEWIP_ASSERT(condition) macro exists
-    [x] GAMEWIP_ASSERT_MSG(condition, message) macro exists
-    [x] GAMEWIP_CHECK(condition) macro exists
-    [x] GAMEWIP_CHECK_MSG(condition, message) macro exists
+    [x] ASSERT(condition) macro exists
+    [x] ASSERT_MSG(condition, message) macro exists
+    [x] CHECK(condition) macro exists
+    [x] CHECK_MSG(condition, message) macro exists
+    [x] VERIFY and ENSURE macros exist
+    [x] CHECK_ONCE macro exists
     [x] Assertion macros capture the failed condition text
     [x] Assertion macros capture file, line, and function
     [x] Recoverable check macros capture condition, file, line, and function
     [x] Assertion implementation formats a clear failure message
-    [x] Assertion failures log through Logger
-    [x] Assertion failures also emit platform debug output
-    [x] Assertion failures flush logs before breaking
-    [x] Recoverable check failures log through Logger
-    [x] Recoverable check failures emit platform debug output and flush without breaking
+    [x] Assertion failures log through Logger when ASSERT_USE_LOGGER is enabled
+    [x] Assertion failures emit platform debug output through Logger or the fallback path
+    [x] Assertion failures report before breaking
+    [x] Recoverable check failures log through Logger when ASSERT_USE_LOGGER is enabled
+    [x] Recoverable check failures emit platform debug output without breaking
     [x] Debug builds trigger a debugger break on assertion failure
     [x] Release builds compile assertions out when NDEBUG is defined
-    [x] Assert/check always-on and always-off compile switches exist
-    [x] Contradictory assert/check compile switches fail CMake configure
+    [x] ASSERT_ENABLED and ASSERT_CHECKS_ENABLED compile switches exist
+    [x] ASSERT_DIAGNOSTICS and ASSERT_USE_LOGGER compile switches exist
     [x] Passing assertions have no side effects
     [x] Assertion macros are safe to use in if/else statements
     [x] Public debug header includes only the standard headers it needs
@@ -163,15 +165,16 @@
     Verification:
     [x] Assert library compiles without errors
     [x] GameWIP links against Assert successfully
-    [x] Passing GAMEWIP_ASSERT does nothing visible
-    [x] Failing GAMEWIP_ASSERT logs the condition text
-    [x] Failing GAMEWIP_ASSERT_MSG logs the custom message
+    [x] Passing ASSERT does nothing visible
+    [x] Failing ASSERT logs the condition text
+    [x] Failing ASSERT_MSG logs the custom message
     [x] Failure output includes file, line, and function
     [x] Failure output appears in console/log file according to Logger mode
     [x] Failure output appears in a Windows debug viewer
     [x] Debugger break triggers in a debug build
     [x] Release build compiles with assertions disabled
-    [x] Assertion test code is removed or guarded after verification
+    [x] Assertion tests run through game/test/assert_test.cpp
+    [x] Assertion tests include lightweight passing-path performance metrics
     Optional future polish:
     [x] Add a recoverable debug-check macro if needed
     [ ] Add fatal assertion popup only if assertion failures need user-visible reporting

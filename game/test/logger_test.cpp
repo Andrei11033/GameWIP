@@ -23,6 +23,16 @@
 #include <thread>
 #include <vector>
 
+#if defined(_WIN32)
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#endif
+
 namespace
 {
     using Logger = GameWIP::Logger;
@@ -33,7 +43,7 @@ namespace
     constexpr std::string_view testSource = "LoggerTest";
     constexpr std::string_view shortMessage = "logger test message";
 
-    enum class TestSource : Logger::SourceId
+    enum class TestSource : Logger::Types::SourceId
     {
         Core = 1,
         Render = 2,
@@ -43,7 +53,7 @@ namespace
 
     struct MemoryPeak
     {
-        Logger::MemoryStats memory;
+        Logger::Types::MemoryStats memory;
         std::string label;
         bool available = false;
     };
@@ -55,7 +65,8 @@ namespace
         double producerMilliseconds = 0.0;
         std::size_t queued = 0;
         std::size_t written = 0;
-        std::size_t dropped = 0;
+        std::size_t queueDropped = 0;
+        std::size_t diagnosticFailures = 0;
         std::size_t truncated = 0;
         std::size_t peakQueueDepth = 0;
     };
@@ -130,75 +141,75 @@ namespace
         double milliseconds = 0.0;
     };
 
-    std::string_view toString(Logger::Result result)
+    std::string_view toString(Logger::Types::Result result)
     {
         switch (result)
         {
-        case Logger::Result::Success:
+        case Logger::Types::Result::Success:
             return "Success";
-        case Logger::Result::AlreadyRunning:
+        case Logger::Types::Result::AlreadyRunning:
             return "AlreadyRunning";
-        case Logger::Result::InvalidOutputMode:
+        case Logger::Types::Result::InvalidOutputMode:
             return "InvalidOutputMode";
-        case Logger::Result::InvalidQueueSize:
+        case Logger::Types::Result::InvalidQueueSize:
             return "InvalidQueueSize";
-        case Logger::Result::InvalidMessageLength:
+        case Logger::Types::Result::InvalidMessageLength:
             return "InvalidMessageLength";
-        case Logger::Result::InvalidLogDirectory:
+        case Logger::Types::Result::InvalidLogDirectory:
             return "InvalidLogDirectory";
-        case Logger::Result::InvalidSourceDefinition:
+        case Logger::Types::Result::InvalidSourceDefinition:
             return "InvalidSourceDefinition";
-        case Logger::Result::InvalidSourceFilter:
+        case Logger::Types::Result::InvalidSourceFilter:
             return "InvalidSourceFilter";
-        case Logger::Result::InvalidLevelFilter:
+        case Logger::Types::Result::InvalidLevelFilter:
             return "InvalidLevelFilter";
-        case Logger::Result::FileOpenFailed:
+        case Logger::Types::Result::FileOpenFailed:
             return "FileOpenFailed";
-        case Logger::Result::FileWriteFailed:
+        case Logger::Types::Result::FileWriteFailed:
             return "FileWriteFailed";
-        case Logger::Result::FileSetupFailed:
+        case Logger::Types::Result::FileSetupFailed:
             return "FileSetupFailed";
-        case Logger::Result::ThreadStartFailed:
+        case Logger::Types::Result::ThreadStartFailed:
             return "ThreadStartFailed";
-        case Logger::Result::PlatformCallFailed:
+        case Logger::Types::Result::PlatformCallFailed:
             return "PlatformCallFailed";
         }
 
         return "Unknown";
     }
 
-    std::string_view toString(Logger::Output output)
+    std::string_view toString(Logger::Types::Output output)
     {
         switch (output)
         {
-        case Logger::Output::None:
+        case Logger::Types::Output::None:
             return "None";
-        case Logger::Output::Console:
+        case Logger::Types::Output::Console:
             return "Console";
-        case Logger::Output::File:
+        case Logger::Types::Output::File:
             return "File";
-        case Logger::Output::Both:
+        case Logger::Types::Output::Both:
             return "Both";
         }
 
         return "Unknown";
     }
 
-    std::string_view toString(Logger::Level level)
+    std::string_view toString(Logger::Types::Level level)
     {
         switch (level)
         {
-        case Logger::Level::Trace:
+        case Logger::Types::Level::Trace:
             return "Trace";
-        case Logger::Level::Debug:
+        case Logger::Types::Level::Debug:
             return "Debug";
-        case Logger::Level::Info:
+        case Logger::Types::Level::Info:
             return "Info";
-        case Logger::Level::Warn:
+        case Logger::Types::Level::Warn:
             return "Warn";
-        case Logger::Level::Error:
+        case Logger::Types::Level::Error:
             return "Error";
-        case Logger::Level::Fatal:
+        case Logger::Types::Level::Fatal:
             return "Fatal";
         }
 
@@ -208,15 +219,15 @@ namespace
     template <typename Value>
     std::string printable(Value value)
     {
-        if constexpr (std::is_same_v<Value, Logger::Result>)
+        if constexpr (std::is_same_v<Value, Logger::Types::Result>)
         {
             return std::string(toString(value));
         }
-        else if constexpr (std::is_same_v<Value, Logger::Output>)
+        else if constexpr (std::is_same_v<Value, Logger::Types::Output>)
         {
             return std::string(toString(value));
         }
-        else if constexpr (std::is_same_v<Value, Logger::Level>)
+        else if constexpr (std::is_same_v<Value, Logger::Types::Level>)
         {
             return std::string(toString(value));
         }
@@ -270,14 +281,14 @@ namespace
         return std::format("{:.2f} {}", value, units[unitIndex]);
     }
 
-    std::string formatProcessBytes(const Logger::MemoryStats &memory, std::size_t bytes)
+    std::string formatProcessBytes(const Logger::Types::MemoryStats &memory, std::size_t bytes)
     {
         return memory.processMemoryAvailable ? formatBytes(bytes) : "n/a";
     }
 
-    Logger::MemoryStats recordMemorySnapshot(TestContext &context, std::string_view label)
+    Logger::Types::MemoryStats recordMemorySnapshot(TestContext &context, std::string_view label)
     {
-        const Logger::MemoryStats memory = Logger::getMemoryStats();
+        const Logger::Types::MemoryStats memory = Logger::getMemoryStats();
         if (!context.loggerMemoryPeak.available ||
             memory.loggerRetainedBytes > context.loggerMemoryPeak.memory.loggerRetainedBytes)
         {
@@ -298,9 +309,14 @@ namespace
         return memory;
     }
 
-    std::size_t totalDropped(const Logger::Stats &stats)
+    std::size_t totalQueueDrops(const Logger::Types::Stats &stats)
     {
-        return stats.droppedSoft + stats.droppedHard + stats.droppedAllocation + stats.droppedFiltered + stats.formatFailures;
+        return stats.queueDropsHard + stats.queueDropsSoft;
+    }
+
+    std::size_t totalDiagnosticFailures(const Logger::Types::Stats &stats)
+    {
+        return stats.allocationFailures + stats.formatFailures + stats.fileWriteFailures;
     }
 
     std::filesystem::path makeRunRoot()
@@ -348,18 +364,18 @@ namespace
         return files;
     }
 
-    struct OwnedLoggerConfig : Logger::Config
+    struct OwnedLoggerConfig : Logger::Types::Config
     {
         std::string ownedLogDirectory;
 
-        const Logger::Config &ready()
+        const Logger::Types::Config &ready()
         {
             logDirectory = ownedLogDirectory;
             return *this;
         }
     };
 
-    OwnedLoggerConfig makeConfig(Logger::Output output, Logger::Level minLevel, const std::filesystem::path &directory)
+    OwnedLoggerConfig makeConfig(Logger::Types::Output output, Logger::Types::Level minLevel, const std::filesystem::path &directory)
     {
         OwnedLoggerConfig config;
         config.output = output;
@@ -381,15 +397,15 @@ namespace
         return config;
     }
 
-    OwnedLoggerConfig makeFileConfig(TestContext &context, std::string_view name, Logger::Level minLevel = Logger::Level::Trace)
+    OwnedLoggerConfig makeFileConfig(TestContext &context, std::string_view name, Logger::Types::Level minLevel = Logger::Types::Level::Trace)
     {
-        return makeConfig(Logger::Output::File, minLevel, testDirectory(context, name));
+        return makeConfig(Logger::Types::Output::File, minLevel, testDirectory(context, name));
     }
 
-    Logger::Config makeConsoleConfig(Logger::Level minLevel = Logger::Level::Trace)
+    Logger::Types::Config makeConsoleConfig(Logger::Types::Level minLevel = Logger::Types::Level::Trace)
     {
-        Logger::Config config;
-        config.output = Logger::Output::Console;
+        Logger::Types::Config config;
+        config.output = Logger::Types::Output::Console;
         config.minLevel = minLevel;
         config.maxQueueSize = 256;
         config.maxMessageLength = 512;
@@ -404,12 +420,12 @@ namespace
         return config;
     }
 
-    void expectInitSuccess(TestContext &context, std::string_view name, Logger::Result result)
+    void expectInitSuccess(TestContext &context, std::string_view name, Logger::Types::Result result)
     {
-        expectEq(context, name, result, Logger::Result::Success);
-        if (result != Logger::Result::Success)
+        expectEq(context, name, result, Logger::Types::Result::Success);
+        if (result != Logger::Types::Result::Success)
         {
-            const Logger::PlatformError platformError = Logger::getLastPlatformError();
+            const Logger::Types::PlatformError platformError = Logger::getLastPlatformError();
             context.fail(
                 std::format("{} platform error", name),
                 std::format("source={} native={}", static_cast<int>(platformError.source), platformError.nativeCode));
@@ -426,18 +442,21 @@ namespace
     {
         ZoneScopedN("Logger config factory tests");
 
-        const Logger::Config defaults = Logger::defaultConfig();
-        expectEq(context, "defaultConfig output", defaults.output, Logger::Output::Both);
-        expectEq(context, "defaultConfig min level", defaults.minLevel, Logger::Level::Info);
+        const Logger::Types::Config defaults = Logger::defaultConfig();
+        expectEq(context, "defaultConfig output", defaults.output, Logger::Types::Output::Both);
+        expectEq(context, "defaultConfig min level", defaults.minLevel, Logger::Types::Level::Info);
         context.expectTrue("defaultConfig queue positive", defaults.maxQueueSize > 0);
         context.expectTrue("defaultConfig message positive", defaults.maxMessageLength > 0);
+        context.expectFalse("defaultConfig reuses message storage", defaults.releaseMessageMemoryAfterWrite);
 
-        const Logger::Config lowMemory = Logger::lowMemoryConfig();
+        const Logger::Types::Config lowMemory = Logger::lowMemoryConfig();
         context.expectTrue("lowMemoryConfig lower queue", lowMemory.maxQueueSize < defaults.maxQueueSize);
         context.expectTrue("lowMemoryConfig lower message length", lowMemory.maxMessageLength < defaults.maxMessageLength);
+        context.expectTrue("lowMemoryConfig releases message storage", lowMemory.releaseMessageMemoryAfterWrite);
 
-        const Logger::Config throughput = Logger::throughputConfig();
+        const Logger::Types::Config throughput = Logger::throughputConfig();
         context.expectTrue("throughputConfig higher queue", throughput.maxQueueSize > defaults.maxQueueSize);
+        context.expectFalse("throughputConfig reuses message storage", throughput.releaseMessageMemoryAfterWrite);
         context.expectFalse("throughputConfig retains storage", throughput.releaseStorageOnShutdown);
     }
 
@@ -446,54 +465,54 @@ namespace
         ZoneScopedN("Logger disabled and invalid init tests");
         ScopedLoggerShutdown shutdown;
 
-        Logger::Config disabled = makeConsoleConfig(Logger::Level::Trace);
-        disabled.output = Logger::Output::None;
-        const Logger::Result disabledResult = Logger::init(disabled);
-        expectEq(context, "init output none succeeds", disabledResult, Logger::Result::Success);
+        Logger::Types::Config disabled = makeConsoleConfig(Logger::Types::Level::Trace);
+        disabled.output = Logger::Types::Output::None;
+        const Logger::Types::Result disabledResult = Logger::init(disabled);
+        expectEq(context, "init output none succeeds", disabledResult, Logger::Types::Result::Success);
         context.expectFalse("output none is not running", Logger::isRunning());
-        context.expectFalse("output none shouldLog false", Logger::shouldLog(Logger::Level::Info));
+        context.expectFalse("output none shouldLog false", Logger::shouldLog(Logger::Types::Level::Info));
         Logger::info(testSource, "not accepted");
-        const Logger::Stats disabledStats = Logger::getStats();
+        const Logger::Types::Stats disabledStats = Logger::getStats();
         expectEq(context, "output none queued zero", disabledStats.queued, std::size_t{0});
         expectEq(context, "output none written zero", disabledStats.written, std::size_t{0});
         Logger::shutdown();
 
-        Logger::Config invalidOutput = makeConsoleConfig();
-        invalidOutput.output = static_cast<Logger::Output>(99);
-        expectEq(context, "invalid output rejected", Logger::init(invalidOutput), Logger::Result::InvalidOutputMode);
+        Logger::Types::Config invalidOutput = makeConsoleConfig();
+        invalidOutput.output = static_cast<Logger::Types::Output>(99);
+        expectEq(context, "invalid output rejected", Logger::init(invalidOutput), Logger::Types::Result::InvalidOutputMode);
         context.expectFalse("invalid output not running", Logger::isRunning());
         Logger::shutdown();
 
-        Logger::Config invalidLevel = makeConsoleConfig();
-        invalidLevel.minLevel = static_cast<Logger::Level>(99);
-        expectEq(context, "invalid min level rejected", Logger::init(invalidLevel), Logger::Result::InvalidLevelFilter);
+        Logger::Types::Config invalidLevel = makeConsoleConfig();
+        invalidLevel.minLevel = static_cast<Logger::Types::Level>(99);
+        expectEq(context, "invalid min level rejected", Logger::init(invalidLevel), Logger::Types::Result::InvalidLevelFilter);
         Logger::shutdown();
 
-        Logger::Config invalidLevelFilter = makeConsoleConfig();
-        std::array invalidLevelFilters{Logger::LevelFilter{static_cast<Logger::Level>(99), true}};
+        Logger::Types::Config invalidLevelFilter = makeConsoleConfig();
+        std::array invalidLevelFilters{Logger::Types::LevelFilter{static_cast<Logger::Types::Level>(99), true}};
         invalidLevelFilter.levelFilters = invalidLevelFilters;
-        expectEq(context, "invalid level filter rejected", Logger::init(invalidLevelFilter), Logger::Result::InvalidLevelFilter);
+        expectEq(context, "invalid level filter rejected", Logger::init(invalidLevelFilter), Logger::Types::Result::InvalidLevelFilter);
         Logger::shutdown();
 
-        Logger::Config duplicateLevelFilter = makeConsoleConfig();
+        Logger::Types::Config duplicateLevelFilter = makeConsoleConfig();
         std::array duplicateLevelFilters{
-            Logger::LevelFilter{Logger::Level::Info, false},
-            Logger::LevelFilter{Logger::Level::Info, true}};
+            Logger::Types::LevelFilter{Logger::Types::Level::Info, false},
+            Logger::Types::LevelFilter{Logger::Types::Level::Info, true}};
         duplicateLevelFilter.levelFilters = duplicateLevelFilters;
-        expectEq(context, "duplicate level filter rejected", Logger::init(duplicateLevelFilter), Logger::Result::InvalidLevelFilter);
+        expectEq(context, "duplicate level filter rejected", Logger::init(duplicateLevelFilter), Logger::Types::Result::InvalidLevelFilter);
         Logger::shutdown();
 
-        Logger::Config invalidQueue = makeConsoleConfig();
+        Logger::Types::Config invalidQueue = makeConsoleConfig();
         invalidQueue.maxQueueSize = 0;
-        const Logger::Result invalidQueueResult = Logger::init(invalidQueue);
-        expectEq(context, "zero queue sanitized result", invalidQueueResult, Logger::Result::InvalidQueueSize);
+        const Logger::Types::Result invalidQueueResult = Logger::init(invalidQueue);
+        expectEq(context, "zero queue sanitized result", invalidQueueResult, Logger::Types::Result::InvalidQueueSize);
         context.expectTrue("zero queue still starts sanitized logger", Logger::isRunning());
         Logger::shutdown();
 
-        Logger::Config invalidMessageLength = makeConsoleConfig();
+        Logger::Types::Config invalidMessageLength = makeConsoleConfig();
         invalidMessageLength.maxMessageLength = 0;
-        const Logger::Result invalidMessageResult = Logger::init(invalidMessageLength);
-        expectEq(context, "zero message length sanitized result", invalidMessageResult, Logger::Result::InvalidMessageLength);
+        const Logger::Types::Result invalidMessageResult = Logger::init(invalidMessageLength);
+        expectEq(context, "zero message length sanitized result", invalidMessageResult, Logger::Types::Result::InvalidMessageLength);
         context.expectTrue("zero message length still starts sanitized logger", Logger::isRunning());
     }
 
@@ -502,15 +521,15 @@ namespace
         ZoneScopedN("Logger convenience init API tests");
         ScopedLoggerShutdown shutdown;
 
-        expectEq(context, "initConsole succeeds", Logger::initConsole(Logger::Level::Warn), Logger::Result::Success);
-        expectEq(context, "initConsole output", Logger::getOutput(), Logger::Output::Console);
-        expectEq(context, "initConsole min level", Logger::getMinLevel(), Logger::Level::Warn);
-        context.expectFalse("initConsole filters info", Logger::shouldLog(Logger::Level::Info));
-        context.expectTrue("initConsole allows error", Logger::shouldLog(Logger::Level::Error));
+        expectEq(context, "initConsole succeeds", Logger::initConsole(Logger::Types::Level::Warn), Logger::Types::Result::Success);
+        expectEq(context, "initConsole output", Logger::getOutput(), Logger::Types::Output::Console);
+        expectEq(context, "initConsole min level", Logger::getMinLevel(), Logger::Types::Level::Warn);
+        context.expectFalse("initConsole filters info", Logger::shouldLog(Logger::Types::Level::Info));
+        context.expectTrue("initConsole allows error", Logger::shouldLog(Logger::Types::Level::Error));
         Logger::shutdown();
 
         const std::string initFileDirectory = pathText(testDirectory(context, "init-file-convenience"));
-        expectInitSuccess(context, "initFile explicit directory succeeds", Logger::initFile(initFileDirectory, Logger::Level::Info));
+        expectInitSuccess(context, "initFile explicit directory succeeds", Logger::initFile(initFileDirectory, Logger::Types::Level::Info));
         Logger::info(testSource, "initFile visible");
         context.expectTrue("initFile flush succeeds", Logger::flush(2s));
         const std::string initFilePath = Logger::getLogFilePath();
@@ -518,21 +537,21 @@ namespace
         Logger::shutdown();
         context.expectTrue("initFile wrote content", readWholeFile(initFilePath).find("initFile visible") != std::string::npos);
 
-        const Logger::Result defaultResult = Logger::initDefault();
+        const Logger::Types::Result defaultResult = Logger::initDefault();
         const bool defaultStarted =
-            defaultResult == Logger::Result::Success ||
-            defaultResult == Logger::Result::FileOpenFailed ||
-            defaultResult == Logger::Result::FileSetupFailed;
+            defaultResult == Logger::Types::Result::Success ||
+            defaultResult == Logger::Types::Result::FileOpenFailed ||
+            defaultResult == Logger::Types::Result::FileSetupFailed;
         context.expectTrue("initDefault starts or falls back", defaultStarted);
         context.expectTrue("initDefault leaves logger running", Logger::isRunning());
-        if (defaultResult == Logger::Result::Success)
+        if (defaultResult == Logger::Types::Result::Success)
         {
-            expectEq(context, "initDefault output", Logger::getOutput(), Logger::Output::Both);
+            expectEq(context, "initDefault output", Logger::getOutput(), Logger::Types::Output::Both);
             context.expectFalse("initDefault path available", Logger::getLogFilePath().empty());
         }
         else
         {
-            expectEq(context, "initDefault file failure falls back to console", Logger::getOutput(), Logger::Output::Console);
+            expectEq(context, "initDefault file failure falls back to console", Logger::getOutput(), Logger::Types::Output::Console);
         }
     }
 
@@ -545,11 +564,11 @@ namespace
         config.maxQueueSize = 256;
         config.maxMessageLength = 128;
         config.flushFileEveryBatch = true;
-        const Logger::Result result = Logger::init(config.ready());
+        const Logger::Types::Result result = Logger::init(config.ready());
         expectInitSuccess(context, "file init succeeds", result);
         context.expectTrue("file logger running", Logger::isRunning());
-        expectEq(context, "file logger output mode", Logger::getOutput(), Logger::Output::File);
-        expectEq(context, "file logger min level", Logger::getMinLevel(), Logger::Level::Trace);
+        expectEq(context, "file logger output mode", Logger::getOutput(), Logger::Types::Output::File);
+        expectEq(context, "file logger min level", Logger::getMinLevel(), Logger::Types::Level::Trace);
 
         Logger::trace(testSource, "trace line");
         Logger::debug(testSource, "debug {}", 7);
@@ -561,10 +580,11 @@ namespace
 
         const std::string logFile = Logger::getLogFilePath();
         context.expectFalse("file path available before shutdown", logFile.empty());
-        const Logger::Stats stats = Logger::getStats();
+        const Logger::Types::Stats stats = Logger::getStats();
         expectEq(context, "file output queued all levels", stats.queued, std::size_t{6});
         expectEq(context, "file output wrote all levels", stats.written, std::size_t{6});
-        expectEq(context, "file output no drops", totalDropped(stats), std::size_t{0});
+        expectEq(context, "file output no queue drops", totalQueueDrops(stats), std::size_t{0});
+        expectEq(context, "file output no diagnostics", totalDiagnosticFailures(stats), std::size_t{0});
         Logger::shutdown();
 
         const std::string contents = readWholeFile(logFile);
@@ -579,7 +599,7 @@ namespace
         ZoneScopedN("Logger lifecycle and query tests");
         ScopedLoggerShutdown shutdown;
 
-        OwnedLoggerConfig config = makeFileConfig(context, "lifecycle", Logger::Level::Info);
+        OwnedLoggerConfig config = makeFileConfig(context, "lifecycle", Logger::Types::Level::Info);
         config.maxQueueSize = 32;
         config.hardQueueMultiplier = 2.0;
         config.maxMessageLength = 96;
@@ -587,27 +607,27 @@ namespace
         config.workerBatchSize = 8;
         expectInitSuccess(context, "lifecycle init", Logger::init(config.ready()));
 
-        const Logger::QueueLimits limits = Logger::getQueueLimits();
+        const Logger::Types::QueueLimits limits = Logger::getQueueLimits();
         expectEq(context, "queue soft limit", limits.softQueueSize, std::size_t{32});
         expectEq(context, "queue hard limit", limits.hardQueueSize, std::size_t{64});
         expectEq(context, "queue max message length", limits.maxMessageLength, std::size_t{96});
         expectEq(context, "queue inline capacity", limits.inlineMessageCapacity, std::size_t{32});
         expectEq(context, "queue worker batch size", limits.workerBatchSize, std::size_t{8});
 
-        expectEq(context, "already running rejected", Logger::init(config.ready()), Logger::Result::AlreadyRunning);
-        context.expectTrue("last result already running", Logger::getLastResult() == Logger::Result::AlreadyRunning);
+        expectEq(context, "already running rejected", Logger::init(config.ready()), Logger::Types::Result::AlreadyRunning);
+        context.expectTrue("last result already running", Logger::getLastResult() == Logger::Types::Result::AlreadyRunning);
         Logger::resetStats();
-        const Logger::Stats resetStats = Logger::getStats();
+        const Logger::Types::Stats resetStats = Logger::getStats();
         expectEq(context, "reset stats queued zero", resetStats.queued, std::size_t{0});
 
-        const Logger::MemoryStats memory = Logger::getMemoryStats();
+        const Logger::Types::MemoryStats memory = Logger::getMemoryStats();
         context.expectTrue("memory stats retained bytes", memory.loggerRetainedBytes > 0);
         context.expectTrue("memory stats queue bytes", memory.queueStorageBytes > 0);
         context.expectTrue("memory stats message arena bytes", memory.messageArenaBytes > 0);
 
         Logger::shutdown();
         context.expectFalse("shutdown clears running", Logger::isRunning());
-        expectEq(context, "shutdown output none", Logger::getOutput(), Logger::Output::None);
+        expectEq(context, "shutdown output none", Logger::getOutput(), Logger::Types::Output::None);
         expectEq(context, "shutdown clears log path", Logger::getLogFilePath().size(), std::size_t{0});
     }
 
@@ -621,19 +641,19 @@ namespace
             Logger::defineSource(TestSource::Render, "Render"),
             Logger::defineSource(TestSource::Audio, "Audio")};
         std::array sourceFilters{
-            Logger::SourceFilter{static_cast<Logger::SourceId>(TestSource::Render), false}};
+            Logger::Types::SourceFilter{static_cast<Logger::Types::SourceId>(TestSource::Render), false}};
         std::array levelFilters{
-            Logger::LevelFilter{Logger::Level::Debug, false}};
+            Logger::Types::LevelFilter{Logger::Types::Level::Debug, false}};
 
-        OwnedLoggerConfig config = makeFileConfig(context, "filters", Logger::Level::Trace);
+        OwnedLoggerConfig config = makeFileConfig(context, "filters", Logger::Types::Level::Trace);
         config.sources = sources;
         config.sourceFilters = sourceFilters;
         config.levelFilters = levelFilters;
         expectInitSuccess(context, "filter init", Logger::init(config.ready()));
 
-        context.expectTrue("core source allowed", Logger::shouldLog(Logger::Level::Info, TestSource::Core));
-        context.expectFalse("render source initially filtered", Logger::shouldLog(Logger::Level::Info, TestSource::Render));
-        context.expectFalse("debug level initially filtered", Logger::shouldLog(Logger::Level::Debug));
+        context.expectTrue("core source allowed", Logger::shouldLog(Logger::Types::Level::Info, TestSource::Core));
+        context.expectFalse("render source initially filtered", Logger::shouldLog(Logger::Types::Level::Info, TestSource::Render));
+        context.expectFalse("debug level initially filtered", Logger::shouldLog(Logger::Types::Level::Debug));
 
         Logger::debug(TestSource::Core, "filtered debug");
         Logger::info(TestSource::Render, "filtered render");
@@ -641,24 +661,25 @@ namespace
         Logger::info(TestSource::Unknown, "unknown source visible");
         context.expectTrue("filter flush", Logger::flush(2s));
 
-        Logger::Stats stats = Logger::getStats();
+        Logger::Types::Stats stats = Logger::getStats();
         expectEq(context, "filter queued accepted entries", stats.queued, std::size_t{2});
-        context.expectTrue("filter counted filtered drops", stats.droppedFiltered >= 2);
+        expectEq(context, "filtered entries are not queue drops", totalQueueDrops(stats), std::size_t{0});
+        expectEq(context, "filtered entries are not diagnostics", totalDiagnosticFailures(stats), std::size_t{0});
         expectEq(context, "unknown source counted", stats.unknownSourceUses, std::size_t{1});
 
-        expectEq(context, "set source filter succeeds", Logger::setSourceFilter(TestSource::Render, true), Logger::Result::Success);
-        expectEq(context, "clear source filter succeeds", Logger::clearSourceFilter(TestSource::Render), Logger::Result::Success);
-        expectEq(context, "unknown source filter rejected", Logger::setSourceFilter(TestSource::Unknown, false), Logger::Result::InvalidSourceFilter);
+        expectEq(context, "set source filter succeeds", Logger::setSourceFilter(TestSource::Render, true), Logger::Types::Result::Success);
+        expectEq(context, "clear source filter succeeds", Logger::clearSourceFilter(TestSource::Render), Logger::Types::Result::Success);
+        expectEq(context, "unknown source filter rejected", Logger::setSourceFilter(TestSource::Unknown, false), Logger::Types::Result::InvalidSourceFilter);
         Logger::clearSourceFilters();
-        context.expectTrue("render source allowed after clear", Logger::shouldLog(Logger::Level::Info, TestSource::Render));
+        context.expectTrue("render source allowed after clear", Logger::shouldLog(Logger::Types::Level::Info, TestSource::Render));
 
-        expectEq(context, "set level filter succeeds", Logger::setLevelFilter(Logger::Level::Info, false), Logger::Result::Success);
-        context.expectFalse("info level filtered", Logger::shouldLog(Logger::Level::Info));
+        expectEq(context, "set level filter succeeds", Logger::setLevelFilter(Logger::Types::Level::Info, false), Logger::Types::Result::Success);
+        context.expectFalse("info level filtered", Logger::shouldLog(Logger::Types::Level::Info));
         Logger::info(TestSource::Core, "filtered info");
-        expectEq(context, "clear level filter succeeds", Logger::clearLevelFilter(Logger::Level::Info), Logger::Result::Success);
+        expectEq(context, "clear level filter succeeds", Logger::clearLevelFilter(Logger::Types::Level::Info), Logger::Types::Result::Success);
         Logger::clearLevelFilters();
-        context.expectTrue("debug level allowed after clear", Logger::shouldLog(Logger::Level::Debug));
-        expectEq(context, "invalid runtime level filter rejected", Logger::setLevelFilter(static_cast<Logger::Level>(99), true), Logger::Result::InvalidLevelFilter);
+        context.expectTrue("debug level allowed after clear", Logger::shouldLog(Logger::Types::Level::Debug));
+        expectEq(context, "invalid runtime level filter rejected", Logger::setLevelFilter(static_cast<Logger::Types::Level>(99), true), Logger::Types::Result::InvalidLevelFilter);
     }
 
     void testSourceValidation(TestContext &context)
@@ -666,35 +687,35 @@ namespace
         ZoneScopedN("Logger source validation tests");
         ScopedLoggerShutdown shutdown;
 
-        std::array emptyNameSources{Logger::SourceDefinition{1, {}}};
-        Logger::Config emptyNameConfig = makeConsoleConfig();
+        std::array emptyNameSources{Logger::Types::SourceDefinition{1, {}}};
+        Logger::Types::Config emptyNameConfig = makeConsoleConfig();
         emptyNameConfig.sources = emptyNameSources;
-        expectEq(context, "empty source name rejected", Logger::init(emptyNameConfig), Logger::Result::InvalidSourceDefinition);
+        expectEq(context, "empty source name rejected", Logger::init(emptyNameConfig), Logger::Types::Result::InvalidSourceDefinition);
         Logger::shutdown();
 
         std::array duplicateSources{
-            Logger::SourceDefinition{1, "Core"},
-            Logger::SourceDefinition{1, "CoreDuplicate"}};
-        Logger::Config duplicateConfig = makeConsoleConfig();
+            Logger::Types::SourceDefinition{1, "Core"},
+            Logger::Types::SourceDefinition{1, "CoreDuplicate"}};
+        Logger::Types::Config duplicateConfig = makeConsoleConfig();
         duplicateConfig.sources = duplicateSources;
-        expectEq(context, "duplicate source rejected", Logger::init(duplicateConfig), Logger::Result::InvalidSourceDefinition);
+        expectEq(context, "duplicate source rejected", Logger::init(duplicateConfig), Logger::Types::Result::InvalidSourceDefinition);
         Logger::shutdown();
 
-        std::array validSources{Logger::SourceDefinition{1, "Core"}};
-        std::array invalidFilters{Logger::SourceFilter{99, false}};
-        Logger::Config invalidFilterConfig = makeConsoleConfig();
+        std::array validSources{Logger::Types::SourceDefinition{1, "Core"}};
+        std::array invalidFilters{Logger::Types::SourceFilter{99, false}};
+        Logger::Types::Config invalidFilterConfig = makeConsoleConfig();
         invalidFilterConfig.sources = validSources;
         invalidFilterConfig.sourceFilters = invalidFilters;
-        expectEq(context, "unknown source filter rejected at init", Logger::init(invalidFilterConfig), Logger::Result::InvalidSourceFilter);
+        expectEq(context, "unknown source filter rejected at init", Logger::init(invalidFilterConfig), Logger::Types::Result::InvalidSourceFilter);
         Logger::shutdown();
 
         std::array duplicateFilters{
-            Logger::SourceFilter{1, false},
-            Logger::SourceFilter{1, true}};
-        Logger::Config duplicateFilterConfig = makeConsoleConfig();
+            Logger::Types::SourceFilter{1, false},
+            Logger::Types::SourceFilter{1, true}};
+        Logger::Types::Config duplicateFilterConfig = makeConsoleConfig();
         duplicateFilterConfig.sources = validSources;
         duplicateFilterConfig.sourceFilters = duplicateFilters;
-        expectEq(context, "duplicate source filter rejected at init", Logger::init(duplicateFilterConfig), Logger::Result::InvalidSourceFilter);
+        expectEq(context, "duplicate source filter rejected at init", Logger::init(duplicateFilterConfig), Logger::Types::Result::InvalidSourceFilter);
     }
 
     void testFormattingAndTruncation(TestContext &context)
@@ -702,10 +723,10 @@ namespace
         ZoneScopedN("Logger formatting and truncation tests");
         ScopedLoggerShutdown shutdown;
 
-        OwnedLoggerConfig strictConfig = makeFileConfig(context, "format-strict", Logger::Level::Trace);
+        OwnedLoggerConfig strictConfig = makeFileConfig(context, "format-strict", Logger::Types::Level::Trace);
         strictConfig.maxMessageLength = 48;
         strictConfig.inlineMessageCapacity = 16;
-        strictConfig.formatPolicy = Logger::FormatPolicy::StrictBounded;
+        strictConfig.formatPolicy = Logger::Types::FormatPolicy::StrictBounded;
         expectInitSuccess(context, "strict format init", Logger::init(strictConfig.ready()));
 
         Logger::info(testSource, "value {} {}", 12, "ok");
@@ -713,7 +734,7 @@ namespace
         Logger::info(testSource, Logger::runtimeFormat("{"), 1);
         Logger::info(testSource, "long {}", std::string(256, 'x'));
         context.expectTrue("strict format flush", Logger::flush(2s));
-        Logger::Stats strictStats = Logger::getStats();
+        Logger::Types::Stats strictStats = Logger::getStats();
         expectEq(context, "strict format queued", strictStats.queued, std::size_t{3});
         expectEq(context, "strict runtime format failure counted", strictStats.formatFailures, std::size_t{1});
         expectEq(context, "strict truncation counted", strictStats.truncated, std::size_t{1});
@@ -725,13 +746,13 @@ namespace
         context.expectTrue("strict runtime format content", strictContents.find("runtime 13 ok") != std::string::npos);
         context.expectTrue("strict truncation suffix content", strictContents.find("[truncated]") != std::string::npos);
 
-        OwnedLoggerConfig fastConfig = makeFileConfig(context, "format-fast", Logger::Level::Trace);
+        OwnedLoggerConfig fastConfig = makeFileConfig(context, "format-fast", Logger::Types::Level::Trace);
         fastConfig.maxMessageLength = 48;
-        fastConfig.formatPolicy = Logger::FormatPolicy::FastNormal;
+        fastConfig.formatPolicy = Logger::Types::FormatPolicy::FastNormal;
         expectInitSuccess(context, "fast format init", Logger::init(fastConfig.ready()));
         Logger::info(testSource, "fast {}", std::string(256, 'y'));
         context.expectTrue("fast format flush", Logger::flush(2s));
-        const Logger::Stats fastStats = Logger::getStats();
+        const Logger::Types::Stats fastStats = Logger::getStats();
         expectEq(context, "fast truncation counted", fastStats.truncated, std::size_t{1});
     }
 
@@ -741,29 +762,31 @@ namespace
         ScopedLoggerShutdown shutdown;
 
         std::array sources{Logger::defineSource(TestSource::Core, "Core")};
-        OwnedLoggerConfig config = makeFileConfig(context, "reports", Logger::Level::Fatal);
+        OwnedLoggerConfig config = makeFileConfig(context, "reports", Logger::Types::Level::Fatal);
         config.sources = sources;
         config.enableDebugOutput = true;
         config.enableFatalPopup = false;
         expectInitSuccess(context, "report init", Logger::init(config.ready()));
 
-        context.expectFalse("normal info below min", Logger::shouldLog(Logger::Level::Info));
+        context.expectFalse("normal info below min", Logger::shouldLog(Logger::Types::Level::Info));
         Logger::reportError(testSource, "plain report");
         context.expectTrue("timeout report plain", Logger::reportError(testSource, Logger::flushTimeout(2s), "timeout report"));
         Logger::reportError(testSource, "formatted report {}", 21);
-        context.expectTrue("source runtime report", Logger::reportFatal(TestSource::Core, Logger::flushTimeout(2s), Logger::runtimeFormat("runtime fatal {}"), 22));
-        Logger::writeDebugOutput(Logger::Level::Error, testSource, "debug output direct");
+        Logger::report(Logger::Types::Level::Warn, testSource, "generic report {}", 23);
+        context.expectTrue("source runtime report", Logger::report(Logger::Types::Level::Fatal, TestSource::Core, Logger::flushTimeout(2s), Logger::runtimeFormat("runtime fatal {}"), 22));
+        Logger::writeDebugOutput(Logger::Types::Level::Error, testSource, "debug output direct");
         context.expectTrue("report flush", Logger::flush(2s));
 
-        const Logger::Stats stats = Logger::getStats();
-        expectEq(context, "reports bypass min queued", stats.queued, std::size_t{4});
-        expectEq(context, "reports written", stats.written, std::size_t{4});
+        const Logger::Types::Stats stats = Logger::getStats();
+        expectEq(context, "reports bypass min without queueing", stats.queued, std::size_t{0});
+        expectEq(context, "reports written synchronously", stats.written, std::size_t{5});
         const std::string logFile = Logger::getLogFilePath();
         Logger::shutdown();
 
         const std::string contents = readWholeFile(logFile);
         context.expectTrue("report file plain", contents.find("plain report") != std::string::npos);
         context.expectTrue("report file formatted", contents.find("formatted report 21") != std::string::npos);
+        context.expectTrue("report file generic", contents.find("[WARN][LoggerTest]: generic report 23") != std::string::npos);
         context.expectTrue("report file runtime source", contents.find("[FATAL][Core]: runtime fatal 22") != std::string::npos);
     }
 
@@ -778,22 +801,22 @@ namespace
             file << "blocks directory creation";
         }
 
-        OwnedLoggerConfig noFallback = makeConfig(Logger::Output::File, Logger::Level::Info, blockingFile);
+        OwnedLoggerConfig noFallback = makeConfig(Logger::Types::Output::File, Logger::Types::Level::Info, blockingFile);
         noFallback.fallbackToConsoleOnFileFailure = false;
-        const Logger::Result noFallbackResult = Logger::init(noFallback.ready());
+        const Logger::Types::Result noFallbackResult = Logger::init(noFallback.ready());
         context.expectTrue(
             "file setup failure without fallback reported",
-            noFallbackResult == Logger::Result::FileSetupFailed || noFallbackResult == Logger::Result::InvalidLogDirectory);
-        expectEq(context, "file setup failure output none", Logger::getOutput(), Logger::Output::None);
+            noFallbackResult == Logger::Types::Result::FileSetupFailed || noFallbackResult == Logger::Types::Result::InvalidLogDirectory);
+        expectEq(context, "file setup failure output none", Logger::getOutput(), Logger::Types::Output::None);
         Logger::shutdown();
 
-        OwnedLoggerConfig withFallback = makeConfig(Logger::Output::File, Logger::Level::Fatal, blockingFile);
+        OwnedLoggerConfig withFallback = makeConfig(Logger::Types::Output::File, Logger::Types::Level::Fatal, blockingFile);
         withFallback.fallbackToConsoleOnFileFailure = true;
-        const Logger::Result fallbackResult = Logger::init(withFallback.ready());
+        const Logger::Types::Result fallbackResult = Logger::init(withFallback.ready());
         context.expectTrue(
             "file setup failure with fallback reported",
-            fallbackResult == Logger::Result::FileSetupFailed || fallbackResult == Logger::Result::InvalidLogDirectory);
-        expectEq(context, "file setup fallback to console", Logger::getOutput(), Logger::Output::Console);
+            fallbackResult == Logger::Types::Result::FileSetupFailed || fallbackResult == Logger::Types::Result::InvalidLogDirectory);
+        expectEq(context, "file setup fallback to console", Logger::getOutput(), Logger::Types::Output::Console);
     }
 
     void testMacroBehavior(TestContext &context)
@@ -801,7 +824,7 @@ namespace
         ZoneScopedN("Logger macro behavior tests");
         ScopedLoggerShutdown shutdown;
 
-        OwnedLoggerConfig config = makeFileConfig(context, "macros", Logger::Level::Fatal);
+        OwnedLoggerConfig config = makeFileConfig(context, "macros", Logger::Types::Level::Fatal);
         expectInitSuccess(context, "macro init", Logger::init(config.ready()));
 
         std::atomic<int> sideEffects{0};
@@ -812,7 +835,7 @@ namespace
 
         LOGGER_FATAL(testSource, "accepted {}", 1);
         context.expectTrue("macro fatal flush", Logger::flush(2s));
-        const Logger::Stats stats = Logger::getStats();
+        const Logger::Types::Stats stats = Logger::getStats();
         expectEq(context, "macro fatal queued", stats.queued, std::size_t{1});
 
         std::atomic<int> debugSideEffects{0};
@@ -838,7 +861,7 @@ namespace
         const int stressIterations = std::max(1, options.stressIterationsPerThread);
 
         {
-            OwnedLoggerConfig config = makeFileConfig(context, "soft-pressure", Logger::Level::Trace);
+            OwnedLoggerConfig config = makeFileConfig(context, "soft-pressure", Logger::Types::Level::Trace);
             config.maxQueueSize = 4;
             config.hardQueueMultiplier = 8.0;
             config.workerBatchSize = 1;
@@ -861,15 +884,15 @@ namespace
                 worker.join();
             }
             context.expectTrue("soft pressure final flush", Logger::flush(5s));
-            const Logger::Stats stats = Logger::getStats();
+            const Logger::Types::Stats stats = Logger::getStats();
             context.expectTrue("soft pressure queued something", stats.queued > 0);
-            context.expectTrue("soft pressure dropped low priority", stats.droppedSoft > 0);
+            context.expectTrue("soft pressure dropped low priority", stats.queueDropsSoft > 0);
             recordMemorySnapshot(context, "soft-pressure");
             Logger::shutdown();
         }
 
         {
-            OwnedLoggerConfig config = makeFileConfig(context, "hard-pressure", Logger::Level::Trace);
+            OwnedLoggerConfig config = makeFileConfig(context, "hard-pressure", Logger::Types::Level::Trace);
             config.maxQueueSize = 2;
             config.hardQueueMultiplier = 1.0;
             config.workerBatchSize = 1;
@@ -892,15 +915,15 @@ namespace
                 worker.join();
             }
             context.expectTrue("hard pressure final flush", Logger::flush(5s));
-            const Logger::Stats stats = Logger::getStats();
+            const Logger::Types::Stats stats = Logger::getStats();
             context.expectTrue("hard pressure queued something", stats.queued > 0);
-            context.expectTrue("hard pressure dropped at hard limit", stats.droppedHard > 0);
+            context.expectTrue("hard pressure dropped at hard limit", stats.queueDropsHard > 0);
             recordMemorySnapshot(context, "hard-pressure");
             Logger::shutdown();
         }
 
         {
-            OwnedLoggerConfig config = makeFileConfig(context, "shutdown-race", Logger::Level::Info);
+            OwnedLoggerConfig config = makeFileConfig(context, "shutdown-race", Logger::Types::Level::Info);
             config.maxQueueSize = 1024;
             expectInitSuccess(context, "shutdown race init", Logger::init(config.ready()));
             recordMemorySnapshot(context, "shutdown-race");
@@ -933,24 +956,92 @@ namespace
         }
     }
 
-    void testStatsResetAndLifetimeDrops(TestContext &context)
+    void testFilteredLogsDoNotCountAsDrops(TestContext &context)
     {
-        ZoneScopedN("Logger stats reset tests");
+        ZoneScopedN("Logger filtered log stats tests");
         ScopedLoggerShutdown shutdown;
 
-        OwnedLoggerConfig config = makeFileConfig(context, "stats", Logger::Level::Trace);
-        expectInitSuccess(context, "stats init", Logger::init(config.ready()));
-        expectEq(context, "disable info level", Logger::setLevelFilter(Logger::Level::Info, false), Logger::Result::Success);
+        OwnedLoggerConfig config = makeFileConfig(context, "filtered-stats", Logger::Types::Level::Trace);
+        expectInitSuccess(context, "filtered stats init", Logger::init(config.ready()));
+        Logger::resetStats();
+
+        const std::size_t lifetimeBeforeFilter = Logger::getLifetimeDroppedLogCount();
+        expectEq(context, "disable info level", Logger::setLevelFilter(Logger::Types::Level::Info, false), Logger::Types::Result::Success);
         Logger::info(testSource, "filtered info");
-        const Logger::Stats beforeReset = Logger::getStats();
-        context.expectTrue("stats dropped filtered before reset", beforeReset.droppedFiltered > 0);
+
+        const Logger::Types::Stats stats = Logger::getStats();
+        expectEq(context, "filtered log not queued", stats.queued, std::size_t{0});
+        expectEq(context, "filtered log not written", stats.written, std::size_t{0});
+        expectEq(context, "filtered log no queue drops", totalQueueDrops(stats), std::size_t{0});
+        expectEq(context, "filtered log no diagnostics", totalDiagnosticFailures(stats), std::size_t{0});
+        expectEq(context, "filtered log keeps lifetime drops", Logger::getLifetimeDroppedLogCount(), lifetimeBeforeFilter);
+    }
+
+    void testStatsResetKeepsLifetimeQueueDrops(TestContext &context)
+    {
+        ZoneScopedN("Logger lifetime queue drop reset tests");
+        ScopedLoggerShutdown shutdown;
+
+        OwnedLoggerConfig config = makeFileConfig(context, "stats-queue-drops", Logger::Types::Level::Trace);
+        config.maxQueueSize = 1;
+        config.hardQueueMultiplier = 1.0;
+        config.workerBatchSize = 1;
+        config.flushFileEveryBatch = true;
+        config.releaseMessageMemoryAfterWrite = false;
+        expectInitSuccess(context, "stats queue drops init", Logger::init(config.ready()));
+        Logger::resetStats();
+
+        const std::size_t lifetimeBeforePressure = Logger::getLifetimeDroppedLogCount();
+        const unsigned detectedThreads = std::thread::hardware_concurrency();
+        const unsigned pressureThreads = std::clamp(detectedThreads == 0 ? 4u : detectedThreads, 2u, 8u);
+        constexpr int pressureIterations = 20'000;
+
+        std::atomic<bool> start{false};
+        std::atomic<bool> stop{false};
+        std::vector<std::thread> workers;
+        workers.reserve(pressureThreads);
+
+        for (unsigned workerIndex = 0; workerIndex < pressureThreads; ++workerIndex)
+        {
+            workers.emplace_back(
+                [&start, &stop, lifetimeBeforePressure]
+                {
+                    while (!start.load(std::memory_order_acquire))
+                    {
+                        std::this_thread::yield();
+                    }
+
+                    for (int i = 0; i < pressureIterations && !stop.load(std::memory_order_relaxed); ++i)
+                    {
+                        Logger::fatal(testSource, "queue pressure {}", i);
+                        if (Logger::getLifetimeDroppedLogCount() > lifetimeBeforePressure)
+                        {
+                            stop.store(true, std::memory_order_relaxed);
+                        }
+                    }
+                });
+        }
+
+        start.store(true, std::memory_order_release);
+        for (std::thread &worker : workers)
+        {
+            worker.join();
+        }
+
+        context.expectTrue("stats queue drop flush", Logger::flush(5s));
+
+        const Logger::Types::Stats beforeReset = Logger::getStats();
         const std::size_t lifetimeBeforeReset = Logger::getLifetimeDroppedLogCount();
-        context.expectTrue("lifetime drops before reset", lifetimeBeforeReset > 0);
+        context.expectTrue("queue drops before reset", totalQueueDrops(beforeReset) > 0);
+        context.expectTrue("lifetime queue drops increased", lifetimeBeforeReset > lifetimeBeforePressure);
 
         Logger::resetStats();
-        const Logger::Stats afterReset = Logger::getStats();
-        expectEq(context, "reset clears filtered drops", afterReset.droppedFiltered, std::size_t{0});
-        expectEq(context, "reset keeps lifetime drops", Logger::getLifetimeDroppedLogCount(), lifetimeBeforeReset);
+        const Logger::Types::Stats afterReset = Logger::getStats();
+        expectEq(context, "reset clears queued count", afterReset.queued, std::size_t{0});
+        expectEq(context, "reset clears written count", afterReset.written, std::size_t{0});
+        expectEq(context, "reset clears queue drops", totalQueueDrops(afterReset), std::size_t{0});
+        expectEq(context, "reset clears diagnostics", totalDiagnosticFailures(afterReset), std::size_t{0});
+        expectEq(context, "reset keeps lifetime queue drops", Logger::getLifetimeDroppedLogCount(), lifetimeBeforeReset);
     }
 
     std::string quoteCommandArg(std::string_view text)
@@ -970,11 +1061,75 @@ namespace
         return quoted;
     }
 
+    int runChildProcess(std::string_view executablePath, std::string_view argument)
+    {
+#if defined(_WIN32)
+        std::string commandLine = quoteCommandArg(executablePath) + " " + std::string(argument);
+
+        SECURITY_ATTRIBUTES securityAttributes{};
+        securityAttributes.nLength = sizeof(securityAttributes);
+        securityAttributes.bInheritHandle = TRUE;
+
+        HANDLE nullOutput = CreateFileA(
+            "NUL",
+            GENERIC_WRITE,
+            FILE_SHARE_READ | FILE_SHARE_WRITE,
+            &securityAttributes,
+            OPEN_EXISTING,
+            FILE_ATTRIBUTE_NORMAL,
+            nullptr);
+        if (nullOutput == INVALID_HANDLE_VALUE)
+        {
+            return 0;
+        }
+
+        STARTUPINFOA startupInfo{};
+        startupInfo.cb = sizeof(startupInfo);
+        startupInfo.dwFlags = STARTF_USESTDHANDLES;
+        startupInfo.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
+        startupInfo.hStdOutput = nullOutput;
+        startupInfo.hStdError = nullOutput;
+
+        PROCESS_INFORMATION processInfo{};
+        const BOOL created = CreateProcessA(
+            nullptr,
+            commandLine.data(),
+            nullptr,
+            nullptr,
+            TRUE,
+            CREATE_NO_WINDOW,
+            nullptr,
+            nullptr,
+            &startupInfo,
+            &processInfo);
+        CloseHandle(nullOutput);
+
+        if (!created)
+        {
+            return 0;
+        }
+
+        WaitForSingleObject(processInfo.hProcess, INFINITE);
+        DWORD exitCode = 0;
+        GetExitCodeProcess(processInfo.hProcess, &exitCode);
+        CloseHandle(processInfo.hThread);
+        CloseHandle(processInfo.hProcess);
+        return static_cast<int>(exitCode);
+#else
+        std::string command = quoteCommandArg(executablePath) + " " + std::string(argument);
+        command += " > /dev/null 2> /dev/null";
+        return std::system(command.c_str());
+#endif
+    }
+
     int runFatalTerminateChild()
     {
-        Logger::Config config;
-        config.output = Logger::Output::None;
-        config.minLevel = Logger::Level::Trace;
+#if defined(_WIN32)
+        SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX);
+#endif
+        Logger::Types::Config config;
+        config.output = Logger::Types::Output::None;
+        config.minLevel = Logger::Types::Level::Trace;
         config.enableDebugOutput = false;
         config.enableFatalPopup = false;
         Logger::init(config);
@@ -990,42 +1145,39 @@ namespace
         }
 
         ZoneScopedN("Logger fatalTerminate child test");
-        std::string command = quoteCommandArg(context.executablePath) + " --logger-test-child=fatal-terminate";
-#if defined(_WIN32)
-        command += " > NUL 2> NUL";
-#else
-        command += " > /dev/null 2> /dev/null";
-#endif
         std::cout.flush();
         std::cerr.flush();
-        const int result = std::system(command.c_str());
+        const int result = runChildProcess(context.executablePath, "--logger-test-child=fatal-terminate");
         context.expectTrue("fatalTerminate child exits abnormally", result != 0, "child process returned zero");
         std::cout.flush();
     }
 
-    void printMetric(TestContext &context, std::string_view name, std::size_t iterations, double milliseconds, const Logger::Stats &stats)
+    void printMetric(TestContext &context, std::string_view name, std::size_t iterations, double milliseconds, const Logger::Types::Stats &stats)
     {
         const double nanosecondsPerCall = iterations == 0 ? 0.0 : (milliseconds * 1'000'000.0) / static_cast<double>(iterations);
-        const std::size_t dropped = totalDropped(stats);
-        const Logger::MemoryStats memory = recordMemorySnapshot(context, name);
+        const std::size_t queueDrops = totalQueueDrops(stats);
+        const std::size_t diagnosticFailures = totalDiagnosticFailures(stats);
+        const Logger::Types::MemoryStats memory = recordMemorySnapshot(context, name);
         ++context.performanceTotals.scenarioCount;
         context.performanceTotals.measuredMessages += iterations;
         context.performanceTotals.producerMilliseconds += milliseconds;
         context.performanceTotals.queued += stats.queued;
         context.performanceTotals.written += stats.written;
-        context.performanceTotals.dropped += dropped;
+        context.performanceTotals.queueDropped += queueDrops;
+        context.performanceTotals.diagnosticFailures += diagnosticFailures;
         context.performanceTotals.truncated += stats.truncated;
         context.performanceTotals.peakQueueDepth = std::max(context.performanceTotals.peakQueueDepth, stats.peakQueueDepth);
 
         std::cout << std::format(
-            "[METRIC] {} iterations={} ms={:.3f} nsPerCall={:.2f} queued={} written={} dropped={} truncated={} peak={} loggerRetained={} processPrivate={} processWorkingSet={}\n",
+            "[METRIC] {} iterations={} ms={:.3f} nsPerCall={:.2f} queued={} written={} queueDropped={} diagnostics={} truncated={} peak={} loggerRetained={} processPrivate={} processWorkingSet={}\n",
             name,
             iterations,
             milliseconds,
             nanosecondsPerCall,
             stats.queued,
             stats.written,
-            dropped,
+            queueDrops,
+            diagnosticFailures,
             stats.truncated,
             stats.peakQueueDepth,
             formatBytes(memory.loggerRetainedBytes),
@@ -1055,9 +1207,9 @@ namespace
         const std::size_t iterations = std::max<std::size_t>(1, options.performanceIterations);
 
         {
-            Logger::Config config = makeConsoleConfig(Logger::Level::Trace);
-            config.output = Logger::Output::None;
-            expectEq(context, "perf disabled init", Logger::init(config), Logger::Result::Success);
+            Logger::Types::Config config = makeConsoleConfig(Logger::Types::Level::Trace);
+            config.output = Logger::Types::Output::None;
+            expectEq(context, "perf disabled init", Logger::init(config), Logger::Types::Result::Success);
             const Timing timing = measure(
                 [iterations]
                 {
@@ -1071,7 +1223,7 @@ namespace
         }
 
         {
-            OwnedLoggerConfig config = makeFileConfig(context, "perf-filtered", Logger::Level::Fatal);
+            OwnedLoggerConfig config = makeFileConfig(context, "perf-filtered", Logger::Types::Level::Fatal);
             expectInitSuccess(context, "perf filtered init", Logger::init(config.ready()));
             const Timing timing = measure(
                 [iterations]
@@ -1087,7 +1239,7 @@ namespace
 
         {
             const std::size_t enabledIterations = std::max<std::size_t>(1000, iterations / 10);
-            OwnedLoggerConfig config = makeFileConfig(context, "perf-enabled", Logger::Level::Info);
+            OwnedLoggerConfig config = makeFileConfig(context, "perf-enabled", Logger::Types::Level::Info);
             config.maxQueueSize = enabledIterations + 1024;
             config.hardQueueMultiplier = 1.0;
             config.workerBatchSize = 256;
@@ -1109,7 +1261,7 @@ namespace
 
     void printEndSummary(TestContext &context, double suiteMilliseconds)
     {
-        const Logger::MemoryStats finalMemory = recordMemorySnapshot(context, "suite-end");
+        const Logger::Types::MemoryStats finalMemory = recordMemorySnapshot(context, "suite-end");
         const PerformanceTotals &totals = context.performanceTotals;
         const double totalNsPerMessage = totals.measuredMessages == 0
                                              ? 0.0
@@ -1123,20 +1275,21 @@ namespace
             context.failed);
 
         std::cout << std::format(
-            "[SUMMARY] perfTotals scenarios={} measuredMessages={} producerMs={:.3f} nsPerMessage={:.2f} queued={} written={} dropped={} truncated={} peakQueue={}\n",
+            "[SUMMARY] perfTotals scenarios={} measuredMessages={} producerMs={:.3f} nsPerMessage={:.2f} queued={} written={} queueDropped={} diagnostics={} truncated={} peakQueue={}\n",
             totals.scenarioCount,
             totals.measuredMessages,
             totals.producerMilliseconds,
             totalNsPerMessage,
             totals.queued,
             totals.written,
-            totals.dropped,
+            totals.queueDropped,
+            totals.diagnosticFailures,
             totals.truncated,
             totals.peakQueueDepth);
 
         if (context.loggerMemoryPeak.available)
         {
-            const Logger::MemoryStats &peak = context.loggerMemoryPeak.memory;
+            const Logger::Types::MemoryStats &peak = context.loggerMemoryPeak.memory;
             std::cout << std::format(
                 "[SUMMARY] loggerMemoryPeak label={} retained={} queue={} arena={} sources={} entryHeap={} entryHeapInspectable={}\n",
                 context.loggerMemoryPeak.label,
@@ -1150,7 +1303,7 @@ namespace
 
         if (context.processMemoryPeak.available)
         {
-            const Logger::MemoryStats &peak = context.processMemoryPeak.memory;
+            const Logger::Types::MemoryStats &peak = context.processMemoryPeak.memory;
             std::cout << std::format(
                 "[SUMMARY] processMemoryPeak label={} private={} workingSet={}\n",
                 context.processMemoryPeak.label,
@@ -1219,7 +1372,8 @@ namespace GameWIP::Test
             testReportsAndDebugOutput(context);
             testFileFallback(context);
             testMacroBehavior(context);
-            testStatsResetAndLifetimeDrops(context);
+            testFilteredLogsDoNotCountAsDrops(context);
+            testStatsResetKeepsLifetimeQueueDrops(context);
             testQueuePressureAndConcurrency(context, options);
             testFatalTerminateChild(context, options);
             runPerformanceMetrics(context, options);

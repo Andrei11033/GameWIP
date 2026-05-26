@@ -46,28 +46,28 @@
 #define LOGGER_DEFAULT_DIRECTORY "logs"
 #endif
 
-using LogLevel = GameWIP::Logger::Level;
-using OutputMode = GameWIP::Logger::Output;
-using FormatPolicy = GameWIP::Logger::FormatPolicy;
-using SourceDefinition = GameWIP::Logger::SourceDefinition;
-using SourceFilter = GameWIP::Logger::SourceFilter;
-using LevelFilter = GameWIP::Logger::LevelFilter;
-using SourceId = GameWIP::Logger::SourceId;
-using LoggerResult = GameWIP::Logger::Result;
-using QueueLimits = GameWIP::Logger::QueueLimits;
-using LoggerStats = GameWIP::Logger::Stats;
-using LoggerMemoryStats = GameWIP::Logger::MemoryStats;
-using PlatformError = GameWIP::Logger::PlatformError;
-using PlatformErrorSource = GameWIP::Logger::PlatformErrorSource;
-using FileHandle = GameWIP::LoggerPlatform::FileHandle;
+using LogLevel = GameWIP::Logger::Types::Level;
+using OutputMode = GameWIP::Logger::Types::Output;
+using FormatPolicy = GameWIP::Logger::Types::FormatPolicy;
+using SourceDefinition = GameWIP::Logger::Types::SourceDefinition;
+using SourceFilter = GameWIP::Logger::Types::SourceFilter;
+using LevelFilter = GameWIP::Logger::Types::LevelFilter;
+using SourceId = GameWIP::Logger::Types::SourceId;
+using LoggerResult = GameWIP::Logger::Types::Result;
+using QueueLimits = GameWIP::Logger::Types::QueueLimits;
+using LoggerStats = GameWIP::Logger::Types::Stats;
+using LoggerMemoryStats = GameWIP::Logger::Types::MemoryStats;
+using PlatformError = GameWIP::Logger::Types::PlatformError;
+using PlatformErrorSource = GameWIP::Logger::Types::PlatformErrorSource;
+using FileHandle = GameWIP::LoggerDetail::Platform::FileHandle;
 
 namespace
 {
     /// @brief Inline source-text capacity before falling back to heap storage.
     constexpr std::size_t inlineSourceCapacity = 64;
-    /// @brief Default per-slot message capacity reserved by Logger::Config.
+    /// @brief Default per-slot message capacity reserved by Logger::Types::Config.
     constexpr std::size_t defaultInlineMessageCapacity = 256;
-    /// @brief Number of valid Logger::Level enum values.
+    /// @brief Number of valid Logger::Types::Level enum values.
     constexpr std::size_t levelCount = 6;
     /// @brief Bitmask with every valid log level enabled.
     constexpr std::uint8_t allLevelMask = static_cast<std::uint8_t>((1u << levelCount) - 1u);
@@ -599,13 +599,11 @@ namespace
         /// @brief Messages accepted by at least one enabled output sink.
         std::atomic<std::size_t> written{0};
         /// @brief Low-priority messages dropped at the soft queue limit.
-        std::atomic<std::size_t> droppedSoft{0};
+        std::atomic<std::size_t> queueDropsSoft{0};
         /// @brief Messages dropped at the hard queue limit.
-        std::atomic<std::size_t> droppedHard{0};
+        std::atomic<std::size_t> queueDropsHard{0};
         /// @brief Messages dropped because allocation or internal formatting failed.
-        std::atomic<std::size_t> droppedAllocation{0};
-        /// @brief Messages dropped by runtime SourceFilter or LevelFilter.
-        std::atomic<std::size_t> droppedFiltered{0};
+        std::atomic<std::size_t> allocationFailures{0};
         /// @brief File write or flush failures observed while other sinks keep running.
         std::atomic<std::size_t> fileWriteFailures{0};
         /// @brief Processed queued entries that used unregistered SourceId values.
@@ -710,12 +708,13 @@ namespace
         /// @brief True when thread-local and worker scratch buffers should release peak capacity.
         std::atomic<bool> releaseMessageMemoryAfterWriteAtomic{false};
 
-        /// @brief Lifetime dropped-log count preserved for external reporting.
+        /// @brief Lifetime queue-drop count preserved for external reporting.
         std::atomic<std::size_t> droppedLogs{0};
         /// @brief Visible stats counters reset by resetStats().
         StatsCounters stats;
 
-        /// @brief Serializes init, shutdown, and atexit cleanup.
+        /// @brief Serializes public lifecycle operations and public flush calls.
+        /// @details Internal flush helpers do not take this lock so shutdown can drain while already lifecycle-locked.
         std::mutex lifecycleMutex;
         /// @brief Protects lifecycle/config state, source-registry publication, flush coordination, and last result.
         std::mutex logMutex;
@@ -801,15 +800,14 @@ namespace
         bool useCerr = true;
     };
 
-    /// @brief Queue insertion result used by normal drop accounting and report fallback.
+    /// @brief Queue insertion result used by queue-pressure accounting and report fallback.
     enum class EnqueueStatus
     {
         Skipped,
         Queued,
         DroppedSoft,
         DroppedHard,
-        DroppedAllocation,
-        DroppedFiltered
+        AllocationFailure
     };
 
     /// @brief Queue insertion side effects returned to the producer after unlocking.
@@ -833,10 +831,8 @@ namespace
     /// @brief Result of rechecking filters while holding logMutex.
     struct FilterDecision
     {
-        /// @brief True when the entry should still be queued.
+        /// @brief True when the entry should still be queued. Filtered entries are silent skips.
         bool accepted = false;
-        /// @brief True when runtime filters caused the rejection.
-        bool droppedByRuntimeFilter = false;
     };
 
     //-------------------------------------------------------------------------------------------------
@@ -892,7 +888,7 @@ namespace
         return FormatPolicy::StrictBounded;
     }
 
-    /// @brief Checks whether a level value is one of the defined Logger::Level values.
+    /// @brief Checks whether a level value is one of the defined Logger::Types::Level values.
     /// @param level Level to validate.
     /// @return True when the value is in range.
     bool isValidLevel(LogLevel level)
@@ -900,7 +896,7 @@ namespace
         return toLevelValue(level) < levelCount;
     }
 
-    /// @brief Checks whether an output mode is one of the defined Logger::Output values.
+    /// @brief Checks whether an output mode is one of the defined Logger::Types::Output values.
     /// @param mode Output mode to validate.
     /// @return True when the value is in range.
     bool isValidOutputMode(OutputMode mode)
@@ -1025,11 +1021,18 @@ namespace
         }
     }
 
-    /// @brief Atomically increments lifetime dropped state and one resettable drop counter.
-    /// @param counter Resettable drop counter to increment.
-    void recordDroppedCounter(std::atomic<std::size_t> &counter)
+    /// @brief Counts one queue-pressure drop in both lifetime and resettable diagnostics.
+    /// @param counter Resettable queue-drop counter to increment.
+    void recordQueueDropCounter(std::atomic<std::size_t> &counter)
     {
         loggerState.droppedLogs.fetch_add(1, std::memory_order_relaxed);
+        counter.fetch_add(1, std::memory_order_relaxed);
+    }
+
+    /// @brief Counts one diagnostic failure without affecting lifetime queue-drop reporting.
+    /// @param counter Resettable diagnostic counter to increment.
+    void recordDiagnosticFailureCounter(std::atomic<std::size_t> &counter)
+    {
         counter.fetch_add(1, std::memory_order_relaxed);
     }
 
@@ -1051,10 +1054,9 @@ namespace
         return LoggerStats{
             loggerState.stats.queued.load(std::memory_order_relaxed),
             loggerState.stats.written.load(std::memory_order_relaxed),
-            loggerState.stats.droppedSoft.load(std::memory_order_relaxed),
-            loggerState.stats.droppedHard.load(std::memory_order_relaxed),
-            loggerState.stats.droppedAllocation.load(std::memory_order_relaxed),
-            loggerState.stats.droppedFiltered.load(std::memory_order_relaxed),
+            loggerState.stats.queueDropsSoft.load(std::memory_order_relaxed),
+            loggerState.stats.queueDropsHard.load(std::memory_order_relaxed),
+            loggerState.stats.allocationFailures.load(std::memory_order_relaxed),
             loggerState.stats.fileWriteFailures.load(std::memory_order_relaxed),
             loggerState.stats.unknownSourceUses.load(std::memory_order_relaxed),
             loggerState.stats.formatFailures.load(std::memory_order_relaxed),
@@ -1178,10 +1180,9 @@ namespace
     {
         loggerState.stats.queued.store(0, std::memory_order_relaxed);
         loggerState.stats.written.store(0, std::memory_order_relaxed);
-        loggerState.stats.droppedSoft.store(0, std::memory_order_relaxed);
-        loggerState.stats.droppedHard.store(0, std::memory_order_relaxed);
-        loggerState.stats.droppedAllocation.store(0, std::memory_order_relaxed);
-        loggerState.stats.droppedFiltered.store(0, std::memory_order_relaxed);
+        loggerState.stats.queueDropsSoft.store(0, std::memory_order_relaxed);
+        loggerState.stats.queueDropsHard.store(0, std::memory_order_relaxed);
+        loggerState.stats.allocationFailures.store(0, std::memory_order_relaxed);
         loggerState.stats.fileWriteFailures.store(0, std::memory_order_relaxed);
         loggerState.stats.unknownSourceUses.store(0, std::memory_order_relaxed);
         loggerState.stats.formatFailures.store(0, std::memory_order_relaxed);
@@ -1253,22 +1254,16 @@ namespace
         setResultUnlocked(LoggerResult::FileWriteFailed, platformError);
     }
 
-    /// @brief Counts an allocation/internal-format drop with relaxed atomic accounting.
-    void countDroppedAllocation()
+    /// @brief Counts an allocation/internal-format failure with relaxed atomic accounting.
+    void countAllocationFailure()
     {
-        recordDroppedCounter(loggerState.stats.droppedAllocation);
+        recordDiagnosticFailureCounter(loggerState.stats.allocationFailures);
     }
 
     /// @brief Counts a runtime format failure with relaxed atomic accounting.
     void countFormatFailure()
     {
-        recordDroppedCounter(loggerState.stats.formatFailures);
-    }
-
-    /// @brief Counts a runtime SourceFilter/LevelFilter drop with relaxed atomic accounting.
-    void countDroppedFiltered()
-    {
-        recordDroppedCounter(loggerState.stats.droppedFiltered);
+        recordDiagnosticFailureCounter(loggerState.stats.formatFailures);
     }
 
     /// @brief Publishes locked configuration state into atomics used by hot paths.
@@ -1289,10 +1284,10 @@ namespace
     {
         const bool allowColor = loggerState.consoleColorEnabled;
         loggerState.stdoutColorEnabledAtomic.store(
-            allowColor && GameWIP::LoggerPlatform::supportsAnsiColor(GameWIP::LoggerPlatform::ConsoleStream::Stdout),
+            allowColor && GameWIP::LoggerDetail::Platform::supportsAnsiColor(GameWIP::LoggerDetail::Platform::ConsoleStream::Stdout),
             std::memory_order_release);
         loggerState.stderrColorEnabledAtomic.store(
-            allowColor && GameWIP::LoggerPlatform::supportsAnsiColor(GameWIP::LoggerPlatform::ConsoleStream::Stderr),
+            allowColor && GameWIP::LoggerDetail::Platform::supportsAnsiColor(GameWIP::LoggerDetail::Platform::ConsoleStream::Stderr),
             std::memory_order_release);
     }
 
@@ -1481,66 +1476,6 @@ namespace
         return shouldLogRuntime(level) && sourceEnabledRuntime(source);
     }
 
-    /// @brief Detects whether a severity-only rejection should be counted as runtime-filtered.
-    /// @param level Level that failed shouldLogRuntime().
-    /// @return True only when runtime LevelFilter caused the rejection.
-    /// @note Below-minimum and output-disabled logs are silent skips, not counted drops.
-    bool wouldDropByRuntimeFilter(LogLevel level)
-    {
-        if (!isValidLevel(level))
-        {
-            return false;
-        }
-
-        const std::uint32_t runtimeState = loggerState.runtimeStateBits.load(std::memory_order_acquire);
-        if ((runtimeState & runtimeStateRunningBit) == 0)
-        {
-            return false;
-        }
-
-        if (runtimeStateOutput(runtimeState) == OutputMode::None || toLevelValue(level) < toLevelValue(runtimeStateMinLevel(runtimeState)))
-        {
-            return false;
-        }
-
-        const std::uint8_t bit = levelBit(level);
-        return bit != 0 && (runtimeStateLevelMask(runtimeState) & bit) == 0;
-    }
-
-    /// @brief Detects whether a registered source rejection should be counted as runtime-filtered.
-    /// @param level Level that failed shouldLogRuntime().
-    /// @param source SourceId that may have failed SourceFilter.
-    /// @return True only when runtime LevelFilter or SourceFilter caused the rejection.
-    bool wouldDropByRuntimeFilter(LogLevel level, SourceId source)
-    {
-        return wouldDropByRuntimeFilter(level) || (shouldLogRuntime(level) && !sourceEnabledRuntime(source));
-    }
-
-    /// @brief Counts a severity-only runtime-filter drop when the fast path skipped it.
-    /// @param level Level that was skipped.
-    void recordDroppedFilteredIfNeeded(LogLevel level)
-    {
-        if (!wouldDropByRuntimeFilter(level))
-        {
-            return;
-        }
-
-        countDroppedFiltered();
-    }
-
-    /// @brief Counts a registered source runtime-filter drop when the fast path skipped it.
-    /// @param level Level that was skipped.
-    /// @param source SourceId that was skipped.
-    void recordDroppedFilteredIfNeeded(LogLevel level, SourceId source)
-    {
-        if (!wouldDropByRuntimeFilter(level, source))
-        {
-            return;
-        }
-
-        countDroppedFiltered();
-    }
-
     /// @brief Rechecks a pending entry against the current packed runtime state.
     /// @param entry Entry to test.
     /// @return Accept/drop reason for the enqueue path.
@@ -1555,7 +1490,7 @@ namespace
 
         if (entry.bypassFilters)
         {
-            return {true, false};
+            return {true};
         }
 
         if (toLevelValue(entry.level) < toLevelValue(runtimeStateMinLevel(runtimeState)))
@@ -1566,15 +1501,15 @@ namespace
         const std::uint8_t levelMaskBit = levelBit(entry.level);
         if (levelMaskBit == 0 || (runtimeStateLevelMask(runtimeState) & levelMaskBit) == 0)
         {
-            return {false, true};
+            return {};
         }
 
         if (entry.usesRegisteredSource && !sourceEnabledRuntime(entry.sourceId))
         {
-            return {false, true};
+            return {};
         }
 
-        return {true, false};
+        return {true};
     }
 
     //-------------------------------------------------------------------------------------------------
@@ -2045,7 +1980,7 @@ namespace
     /// @param entry Pending entry to enqueue.
     /// @param outTruncated Receives true when stored message text was truncated.
     /// @param outNotifyWorker Receives true when the worker should be woken for newly published work.
-    /// @return Queued on success, or DroppedAllocation after publishing a skip marker.
+    /// @return Queued on success, or AllocationFailure after publishing a skip marker.
     EnqueueStatus publishReservedQueueEntry(const PendingLogEntry &entry, bool &outTruncated, bool &outNotifyWorker)
     {
         outNotifyWorker = false;
@@ -2070,7 +2005,7 @@ namespace
             slot.skip = true;
             clearLogEntry(slot.entry);
             publishQueueSlot(slot, ticket, outNotifyWorker);
-            return EnqueueStatus::DroppedAllocation;
+            return EnqueueStatus::AllocationFailure;
         }
 
         publishQueueSlot(slot, ticket, outNotifyWorker);
@@ -2127,7 +2062,7 @@ namespace
     std::string formatTimeOrFallback(std::time_t time, std::string_view timeFormat, PlatformError &outError)
     {
         std::string text;
-        outError = GameWIP::LoggerPlatform::formatLocalTime(time, timeFormat, text);
+        outError = GameWIP::LoggerDetail::Platform::formatLocalTime(time, timeFormat, text);
         if (hasPlatformError(outError))
         {
             return "invalid-time";
@@ -2319,13 +2254,14 @@ namespace
         outMessage.append(message);
     }
 
-    /// @brief Writes one critical report directly to configured sinks when the async queue cannot accept it.
+    /// @brief Writes one report directly to configured sinks without using the async queue.
     /// @param level Severity for the report line.
     /// @param source Source text to write.
-    /// @param message Message text to write, truncated to the active message limit.
+    /// @param message Message text to write, truncated to the active message limit if needed.
     /// @param unknownSource True when source came from an unregistered SourceId.
+    /// @param alreadyTruncated True when the caller already bounded the message and appended the truncation suffix.
     /// @return True when at least one configured normal sink accepted the line.
-    bool writeReportSynchronously(LogLevel level, std::string_view source, std::string_view message, bool unknownSource = false)
+    bool writeReportSynchronously(LogLevel level, std::string_view source, std::string_view message, bool unknownSource = false, bool alreadyTruncated = false)
     {
         try
         {
@@ -2352,8 +2288,9 @@ namespace
             constexpr std::string_view suffix = "... [truncated]";
             std::string truncatedMessage;
             std::string_view messageText = message;
-            const bool truncated = message.size() > maxMessageLength;
-            if (truncated)
+            const bool needsTruncation = message.size() > maxMessageLength;
+            const bool truncated = alreadyTruncated || needsTruncation;
+            if (needsTruncation)
             {
                 if (maxMessageLength <= suffix.size())
                 {
@@ -2400,11 +2337,11 @@ namespace
 
                 if (wantsFileOutput)
                 {
-                    if (loggerState.fileOutputAvailableAtomic.load(std::memory_order_acquire) && GameWIP::LoggerPlatform::isFileOpen(loggerState.logFile))
+                    if (loggerState.fileOutputAvailableAtomic.load(std::memory_order_acquire) && GameWIP::LoggerDetail::Platform::isFileOpen(loggerState.logFile))
                     {
                         std::string fileLine(line);
                         fileLine.push_back('\n');
-                        fileErrorDetail = GameWIP::LoggerPlatform::writeFile(loggerState.logFile, fileLine);
+                        fileErrorDetail = GameWIP::LoggerDetail::Platform::writeFile(loggerState.logFile, fileLine);
                         fileWriteFailed = hasPlatformError(fileErrorDetail);
                         accepted = accepted || !fileWriteFailed;
                     }
@@ -2442,17 +2379,18 @@ namespace
         }
     }
 
-    /// @brief Resolves a SourceId and writes one critical report directly to configured sinks.
+    /// @brief Resolves a SourceId and writes one report directly to configured sinks.
     /// @param level Severity for the report line.
     /// @param source SourceId to resolve.
     /// @param message Message text to write.
+    /// @param alreadyTruncated True when the caller already bounded the message and appended the truncation suffix.
     /// @return True when at least one configured normal sink accepted the line.
-    bool writeReportSynchronously(LogLevel level, SourceId source, std::string_view message)
+    bool writeReportSynchronously(LogLevel level, SourceId source, std::string_view message, bool alreadyTruncated = false)
     {
         const std::shared_ptr<SourceRegistry> registry = loadSourceRegistry();
         bool unknownSource = false;
         const std::string_view sourceText = findSourceName(registry.get(), source, unknownSource);
-        return writeReportSynchronously(level, sourceText, message, unknownSource);
+        return writeReportSynchronously(level, sourceText, message, unknownSource, alreadyTruncated);
     }
 
     /// @brief Writes one entry to console immediately and appends file text to the batch buffer.
@@ -2484,7 +2422,6 @@ namespace
              (runtimeStateLevelMask(runtimeState) & levelMaskBit) == 0 ||
              (entry.usesRegisteredSource && !sourceEnabledRuntime(registry.get(), entry.sourceId))))
         {
-            countDroppedFiltered();
             return result;
         }
 
@@ -2557,14 +2494,14 @@ namespace
         std::lock_guard<std::mutex> outputLock(loggerState.outputMutex);
         bool success = false;
         PlatformError fileError = PlatformError{PlatformErrorSource::File, 0};
-        if (GameWIP::LoggerPlatform::isFileOpen(loggerState.logFile))
+        if (GameWIP::LoggerDetail::Platform::isFileOpen(loggerState.logFile))
         {
-            fileError = GameWIP::LoggerPlatform::writeFile(loggerState.logFile, fileBatchScratch);
+            fileError = GameWIP::LoggerDetail::Platform::writeFile(loggerState.logFile, fileBatchScratch);
             if (forceFlush || loggerState.flushFileEveryBatchAtomic.load(std::memory_order_acquire))
             {
                 if (!hasPlatformError(fileError))
                 {
-                    fileError = GameWIP::LoggerPlatform::flushFile(loggerState.logFile);
+                    fileError = GameWIP::LoggerDetail::Platform::flushFile(loggerState.logFile);
                 }
             }
             success = !hasPlatformError(fileError);
@@ -2642,7 +2579,7 @@ namespace
                 }
                 catch (...)
                 {
-                    countDroppedAllocation();
+                    countAllocationFailure();
                 }
             }
 
@@ -2653,7 +2590,7 @@ namespace
             }
             catch (...)
             {
-                countDroppedAllocation();
+                countAllocationFailure();
             }
 
             if (fileBatchWritten)
@@ -2708,7 +2645,7 @@ namespace
     /// @param batchArena Worker batch message arena.
     /// @pre loggerState.logMutex is held.
     void resetRuntimeStateUnlocked(
-        const GameWIP::Logger::Config &config,
+        const GameWIP::Logger::Types::Config &config,
         std::size_t softQueueSize,
         std::size_t hardQueueSize,
         double hardQueueMultiplier,
@@ -2812,14 +2749,6 @@ namespace
         const FilterDecision filterCheck = checkPendingEntryAcceptedUnlocked(entry);
         if (!filterCheck.accepted)
         {
-            if (filterCheck.droppedByRuntimeFilter)
-            {
-                if (countDrops)
-                {
-                    countDroppedFiltered();
-                }
-                result.status = EnqueueStatus::DroppedFiltered;
-            }
             return result;
         }
 
@@ -2829,7 +2758,7 @@ namespace
         {
             if (countDrops)
             {
-                recordDroppedCounter(loggerState.stats.droppedHard);
+                recordQueueDropCounter(loggerState.stats.queueDropsHard);
             }
             result.status = EnqueueStatus::DroppedHard;
             return result;
@@ -2839,7 +2768,7 @@ namespace
         {
             if (countDrops)
             {
-                recordDroppedCounter(loggerState.stats.droppedSoft);
+                recordQueueDropCounter(loggerState.stats.queueDropsSoft);
             }
             result.status = EnqueueStatus::DroppedSoft;
             return result;
@@ -2848,13 +2777,13 @@ namespace
         bool entryWasTruncated = false;
         bool notifyWorker = false;
         const EnqueueStatus publishStatus = publishReservedQueueEntry(entry, entryWasTruncated, notifyWorker);
-        if (publishStatus == EnqueueStatus::DroppedAllocation)
+        if (publishStatus == EnqueueStatus::AllocationFailure)
         {
             if (countDrops)
             {
-                countDroppedAllocation();
+                countAllocationFailure();
             }
-            result.status = EnqueueStatus::DroppedAllocation;
+            result.status = EnqueueStatus::AllocationFailure;
             result.notifyWorker = notifyWorker;
             return result;
         }
@@ -2863,7 +2792,7 @@ namespace
         {
             if (countDrops)
             {
-                recordDroppedCounter(loggerState.stats.droppedHard);
+                recordQueueDropCounter(loggerState.stats.queueDropsHard);
             }
             result.status = EnqueueStatus::DroppedHard;
             return result;
@@ -2933,38 +2862,6 @@ namespace
         return enqueueResult;
     }
 
-    /// @brief Records the original async enqueue failure when synchronous report fallback cannot deliver.
-    /// @param status Enqueue status returned with drop counting suppressed.
-    void recordUndeliveredReportDrop(EnqueueStatus status)
-    {
-        switch (status)
-        {
-        case EnqueueStatus::DroppedHard:
-            recordDroppedCounter(loggerState.stats.droppedHard);
-            break;
-        case EnqueueStatus::DroppedAllocation:
-            countDroppedAllocation();
-            break;
-        case EnqueueStatus::DroppedSoft:
-            recordDroppedCounter(loggerState.stats.droppedSoft);
-            break;
-        case EnqueueStatus::DroppedFiltered:
-            countDroppedFiltered();
-            break;
-        case EnqueueStatus::Skipped:
-        case EnqueueStatus::Queued:
-            break;
-        }
-    }
-
-    /// @brief Checks whether a failed report enqueue should attempt direct sink delivery.
-    /// @param status Enqueue status returned with drop counting suppressed.
-    /// @return True when direct fallback is appropriate.
-    bool shouldSynchronouslyFallbackReport(EnqueueStatus status)
-    {
-        return status == EnqueueStatus::DroppedHard || status == EnqueueStatus::DroppedAllocation;
-    }
-
     /// @brief Shows the fatal popup when enabled.
     /// @param message Fatal popup message text.
     /// @note This remains internal; public fatal popup behavior goes through reportFatal().
@@ -2977,13 +2874,74 @@ namespace
 
         try
         {
-            recordPlatformErrorIfAny(GameWIP::LoggerPlatform::showFatalPopup(message));
+            recordPlatformErrorIfAny(GameWIP::LoggerDetail::Platform::showFatalPopup(message));
         }
         catch (...)
         {
-            countDroppedAllocation();
+            countAllocationFailure();
         }
     }
+
+    /// @brief Flushes active sinks without waiting for async queued work.
+    /// @details Caller must serialize lifecycle if sink lifetime may change concurrently.
+    /// @return True when sink flushing did not report a platform file error.
+    bool flushSinksInternal()
+    {
+        bool fileFlushFailed = false;
+        PlatformError fileError;
+        {
+            std::lock_guard<std::mutex> outputLock(loggerState.outputMutex);
+            std::cout.flush();
+            std::cerr.flush();
+
+            if (GameWIP::LoggerDetail::Platform::isFileOpen(loggerState.logFile))
+            {
+                fileError = GameWIP::LoggerDetail::Platform::flushFile(loggerState.logFile);
+                fileFlushFailed = hasPlatformError(fileError);
+            }
+        }
+
+        if (fileFlushFailed)
+        {
+            recordFileWriteFailure(fileError);
+            return false;
+        }
+        return true;
+    }
+
+    /// @brief Waits for accepted queued work to drain, then flushes active sinks.
+    /// @details Caller must serialize lifecycle if sink lifetime may change concurrently.
+    void flushInternal()
+    {
+        {
+            std::unique_lock<std::mutex> lock(loggerState.logMutex);
+            loggerState.logCondition.wait(lock, []
+                                          { return (!loggerState.workerRunning && !loggerState.workerBusy) || (loggerState.queueDepth.load(std::memory_order_acquire) == 0 && !loggerState.workerBusy); });
+        }
+
+        (void)flushSinksInternal();
+    }
+
+    /// @brief Waits for accepted queued work to drain until timeout, then flushes active sinks.
+    /// @details Caller must serialize lifecycle if sink lifetime may change concurrently.
+    /// @return True when the queue drained and sink flushing succeeded before timeout expired.
+    bool flushInternal(std::chrono::milliseconds timeout)
+    {
+        const bool drained = [&]
+        {
+            std::unique_lock<std::mutex> lock(loggerState.logMutex);
+            return loggerState.logCondition.wait_for(lock, timeout, []
+                                                     { return (!loggerState.workerRunning && !loggerState.workerBusy) || (loggerState.queueDepth.load(std::memory_order_acquire) == 0 && !loggerState.workerBusy); });
+        }();
+
+        if (!drained)
+        {
+            return false;
+        }
+
+        return flushSinksInternal();
+    }
+
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -3035,8 +2993,8 @@ QueueLimits GameWIP::Logger::getQueueLimits()
         loggerState.workerBatchSize};
 }
 
-/// @brief Returns lifetime dropped-log count.
-/// @return Dropped count preserved for diagnostics.
+/// @brief Returns lifetime queue-pressure drop count.
+/// @return Queue-drop count preserved for diagnostics.
 std::size_t GameWIP::Logger::getLifetimeDroppedLogCount()
 {
     return loggerState.droppedLogs.load(std::memory_order_relaxed);
@@ -3052,7 +3010,7 @@ LoggerResult GameWIP::Logger::getLastResult()
 
 /// @brief Returns the last platform error details.
 /// @return Last platform error, or source None when no platform error is recorded.
-GameWIP::Logger::PlatformError GameWIP::Logger::getLastPlatformError()
+GameWIP::Logger::Types::PlatformError GameWIP::Logger::getLastPlatformError()
 {
     std::lock_guard<std::mutex> lock(loggerState.logMutex);
     return loggerState.lastPlatformError;
@@ -3085,15 +3043,15 @@ LoggerMemoryStats GameWIP::Logger::getMemoryStats()
             memory.entryTextHeapCapacityBytes;
     }
 
-    const GameWIP::LoggerPlatform::ProcessMemory processMemory = GameWIP::LoggerPlatform::queryProcessMemory();
+    const GameWIP::LoggerDetail::Platform::ProcessMemory processMemory = GameWIP::LoggerDetail::Platform::queryProcessMemory();
     memory.processWorkingSetBytes = processMemory.workingSetBytes;
     memory.processPrivateBytes = processMemory.privateBytes;
     memory.processMemoryAvailable = processMemory.available;
     return memory;
 }
 
-/// @brief Resets visible stats counters while preserving lifetime dropped-log state.
-/// @note Shutdown reporting uses droppedLogs, so resetStats() must not clear that value.
+/// @brief Resets visible stats counters while preserving lifetime queue-drop state.
+/// @note Shutdown reporting uses droppedLogs, so resetStats() must not clear the lifetime queue-drop value.
 void GameWIP::Logger::resetStats()
 {
     std::lock_guard<std::mutex> lock(loggerState.logMutex);
@@ -3101,15 +3059,15 @@ void GameWIP::Logger::resetStats()
 }
 
 /// @brief Builds the default startup configuration.
-GameWIP::Logger::Config GameWIP::Logger::defaultConfig()
+GameWIP::Logger::Types::Config GameWIP::Logger::defaultConfig()
 {
-    return Config{};
+    return Types::Config{};
 }
 
 /// @brief Builds a lower-retained-memory startup configuration.
-GameWIP::Logger::Config GameWIP::Logger::lowMemoryConfig()
+GameWIP::Logger::Types::Config GameWIP::Logger::lowMemoryConfig()
 {
-    Config config;
+    Types::Config config;
     config.maxQueueSize = 256;
     config.hardQueueMultiplier = 1.0;
     config.maxMessageLength = 1024;
@@ -3121,9 +3079,9 @@ GameWIP::Logger::Config GameWIP::Logger::lowMemoryConfig()
 }
 
 /// @brief Builds a higher-throughput startup configuration.
-GameWIP::Logger::Config GameWIP::Logger::throughputConfig()
+GameWIP::Logger::Types::Config GameWIP::Logger::throughputConfig()
 {
-    Config config;
+    Types::Config config;
     config.maxQueueSize = 4096;
     config.hardQueueMultiplier = 1.25;
     config.maxMessageLength = 4096;
@@ -3141,18 +3099,18 @@ LoggerResult GameWIP::Logger::initDefault()
 }
 
 /// @brief Starts a console-only logger.
-LoggerResult GameWIP::Logger::initConsole(Level minLevel)
+LoggerResult GameWIP::Logger::initConsole(Types::Level minLevel)
 {
-    Config config = defaultConfig();
+    Types::Config config = defaultConfig();
     config.output = OutputMode::Console;
     config.minLevel = minLevel;
     return init(config);
 }
 
 /// @brief Starts a file-only logger.
-LoggerResult GameWIP::Logger::initFile(std::string_view directory, Level minLevel)
+LoggerResult GameWIP::Logger::initFile(std::string_view directory, Types::Level minLevel)
 {
-    Config config = defaultConfig();
+    Types::Config config = defaultConfig();
     config.output = OutputMode::File;
     config.minLevel = minLevel;
     config.logDirectory = directory;
@@ -3162,7 +3120,7 @@ LoggerResult GameWIP::Logger::initFile(std::string_view directory, Level minLeve
 /// @brief Initializes the async logger and starts its worker thread.
 /// @param config Startup configuration.
 /// @return Success or the first non-fatal setup/configuration result.
-LoggerResult GameWIP::Logger::init(const Config &config)
+LoggerResult GameWIP::Logger::init(const Types::Config &config)
 {
     std::lock_guard<std::mutex> lifecycleLock(loggerState.lifecycleMutex);
 
@@ -3262,14 +3220,14 @@ LoggerResult GameWIP::Logger::init(const Config &config)
 
     if (config.output == OutputMode::None)
     {
-        Config disabledConfig = config;
+        Types::Config disabledConfig = config;
         disabledConfig.output = OutputMode::None;
 
         {
             std::lock_guard<std::mutex> outputLock(loggerState.outputMutex);
-            if (GameWIP::LoggerPlatform::isFileOpen(loggerState.logFile))
+            if (GameWIP::LoggerDetail::Platform::isFileOpen(loggerState.logFile))
             {
-                GameWIP::LoggerPlatform::closeFile(loggerState.logFile);
+                GameWIP::LoggerDetail::Platform::closeFile(loggerState.logFile);
                 loggerState.logFile = {};
             }
             loggerState.fileOutputAvailableAtomic.store(false, std::memory_order_release);
@@ -3297,9 +3255,9 @@ LoggerResult GameWIP::Logger::init(const Config &config)
 
     {
         std::lock_guard<std::mutex> outputLock(loggerState.outputMutex);
-        if (GameWIP::LoggerPlatform::isFileOpen(loggerState.logFile))
+        if (GameWIP::LoggerDetail::Platform::isFileOpen(loggerState.logFile))
         {
-            GameWIP::LoggerPlatform::closeFile(loggerState.logFile);
+            GameWIP::LoggerDetail::Platform::closeFile(loggerState.logFile);
             loggerState.logFile = {};
         }
         loggerState.fileOutputAvailableAtomic.store(false, std::memory_order_release);
@@ -3370,7 +3328,7 @@ LoggerResult GameWIP::Logger::init(const Config &config)
             }
             else
             {
-                const PlatformError directoryError = GameWIP::LoggerPlatform::createDirectories(logDirectoryText);
+                const PlatformError directoryError = GameWIP::LoggerDetail::Platform::createDirectories(logDirectoryText);
                 if (hasPlatformError(directoryError))
                 {
                     setOutputMode(outputModeAfterFileSetupFailure(config.output, config.fallbackToConsoleOnFileFailure));
@@ -3405,7 +3363,7 @@ LoggerResult GameWIP::Logger::init(const Config &config)
                         }
                         nativeCandidatePath.append(fileName);
                         FileHandle candidateHandle;
-                        const PlatformError openError = GameWIP::LoggerPlatform::openFileExclusive(nativeCandidatePath, candidateHandle);
+                        const PlatformError openError = GameWIP::LoggerDetail::Platform::openFileExclusive(nativeCandidatePath, candidateHandle);
                         lastOpenError = openError;
                         if (!hasPlatformError(openError))
                         {
@@ -3491,9 +3449,9 @@ LoggerResult GameWIP::Logger::init(const Config &config)
 
         {
             std::lock_guard<std::mutex> outputLock(loggerState.outputMutex);
-            if (GameWIP::LoggerPlatform::isFileOpen(loggerState.logFile))
+            if (GameWIP::LoggerDetail::Platform::isFileOpen(loggerState.logFile))
             {
-                GameWIP::LoggerPlatform::closeFile(loggerState.logFile);
+                GameWIP::LoggerDetail::Platform::closeFile(loggerState.logFile);
                 loggerState.logFile = {};
             }
         }
@@ -3636,30 +3594,8 @@ void GameWIP::Logger::clearLevelFilters()
 /// @brief Waits until the queue drains, then flushes console and file sinks.
 void GameWIP::Logger::flush()
 {
-    {
-        std::unique_lock<std::mutex> lock(loggerState.logMutex);
-        loggerState.logCondition.wait(lock, []
-                                      { return (!loggerState.workerRunning && !loggerState.workerBusy) || (loggerState.queueDepth.load(std::memory_order_acquire) == 0 && !loggerState.workerBusy); });
-    }
-
-    bool fileFlushFailed = false;
-    PlatformError fileError;
-    {
-        std::lock_guard<std::mutex> outputLock(loggerState.outputMutex);
-        std::cout.flush();
-        std::cerr.flush();
-
-        if (GameWIP::LoggerPlatform::isFileOpen(loggerState.logFile))
-        {
-            fileError = GameWIP::LoggerPlatform::flushFile(loggerState.logFile);
-            fileFlushFailed = hasPlatformError(fileError);
-        }
-    }
-
-    if (fileFlushFailed)
-    {
-        recordFileWriteFailure(fileError);
-    }
+    std::lock_guard<std::mutex> lifecycleLock(loggerState.lifecycleMutex);
+    flushInternal();
 }
 
 /// @brief Waits until the queue drains or timeout expires, then flushes console and file sinks.
@@ -3667,38 +3603,8 @@ void GameWIP::Logger::flush()
 /// @return True when queued work drained and sink flushing succeeded before timeout expired.
 bool GameWIP::Logger::flush(std::chrono::milliseconds timeout)
 {
-    const bool drained = [&]
-    {
-        std::unique_lock<std::mutex> lock(loggerState.logMutex);
-        return loggerState.logCondition.wait_for(lock, timeout, []
-                                                 { return (!loggerState.workerRunning && !loggerState.workerBusy) || (loggerState.queueDepth.load(std::memory_order_acquire) == 0 && !loggerState.workerBusy); });
-    }();
-
-    if (!drained)
-    {
-        return false;
-    }
-
-    bool fileFlushFailed = false;
-    PlatformError fileError;
-    {
-        std::lock_guard<std::mutex> outputLock(loggerState.outputMutex);
-        std::cout.flush();
-        std::cerr.flush();
-
-        if (GameWIP::LoggerPlatform::isFileOpen(loggerState.logFile))
-        {
-            fileError = GameWIP::LoggerPlatform::flushFile(loggerState.logFile);
-            fileFlushFailed = hasPlatformError(fileError);
-        }
-    }
-
-    if (fileFlushFailed)
-    {
-        recordFileWriteFailure(fileError);
-        return false;
-    }
-    return true;
+    std::lock_guard<std::mutex> lifecycleLock(loggerState.lifecycleMutex);
+    return flushInternal(timeout);
 }
 
 /// @brief Stops the worker, drains queued logs, and closes the file sink.
@@ -3720,13 +3626,13 @@ void GameWIP::Logger::shutdown()
         loggerState.loggingThread.join();
     }
 
-    flush();
+    flushInternal();
 
     {
         std::lock_guard<std::mutex> outputLock(loggerState.outputMutex);
-        if (GameWIP::LoggerPlatform::isFileOpen(loggerState.logFile))
+        if (GameWIP::LoggerDetail::Platform::isFileOpen(loggerState.logFile))
         {
-            GameWIP::LoggerPlatform::closeFile(loggerState.logFile);
+            GameWIP::LoggerDetail::Platform::closeFile(loggerState.logFile);
             loggerState.logFile = {};
         }
         loggerState.fileOutputAvailableAtomic.store(false, std::memory_order_release);
@@ -3753,12 +3659,12 @@ void GameWIP::Logger::shutdown()
 // Private Logger bridge accounting helpers
 //-------------------------------------------------------------------------------------------------
 
-/// @brief Counts a dropped allocation/internal-format failure from public template catch paths.
-void GameWIP::Logger::recordDroppedAllocation()
+/// @brief Counts an allocation/internal-format failure from public template catch paths.
+void GameWIP::Logger::recordAllocationFailure()
 {
     if ((loggerState.runtimeStateBits.load(std::memory_order_acquire) & runtimeStateRunningBit) != 0)
     {
-        countDroppedAllocation();
+        countAllocationFailure();
     }
 }
 
@@ -3769,21 +3675,6 @@ void GameWIP::Logger::recordFormatFailure()
     {
         countFormatFailure();
     }
-}
-
-/// @brief Counts a severity-only runtime-filter drop from header-only formatted paths.
-/// @param level Severity that was skipped before formatting.
-void GameWIP::Logger::recordDroppedFilteredIfNeeded(LogLevel level)
-{
-    ::recordDroppedFilteredIfNeeded(level);
-}
-
-/// @brief Counts a registered source runtime-filter drop from header-only formatted paths.
-/// @param level Severity that was skipped before formatting.
-/// @param source SourceId that may have been runtime-filtered.
-void GameWIP::Logger::recordDroppedFilteredIfNeeded(LogLevel level, SourceId source)
-{
-    ::recordDroppedFilteredIfNeeded(level, source);
 }
 
 /// @brief Returns reusable per-thread format storage for header-only formatting overloads.
@@ -3857,7 +3748,7 @@ void GameWIP::Logger::enqueuePreformattedMessage(LogLevel level, std::string_vie
     }
     catch (...)
     {
-        countDroppedAllocation();
+        countAllocationFailure();
     }
 }
 
@@ -3883,7 +3774,7 @@ void GameWIP::Logger::enqueuePreformattedMessage(LogLevel level, SourceId source
     }
     catch (...)
     {
-        countDroppedAllocation();
+        countAllocationFailure();
     }
 }
 
@@ -3899,7 +3790,6 @@ void GameWIP::Logger::log(LogLevel level, std::string_view source, std::string_v
 {
     if (!shouldLog(level))
     {
-        recordDroppedFilteredIfNeeded(level);
         return;
     }
 
@@ -3909,7 +3799,7 @@ void GameWIP::Logger::log(LogLevel level, std::string_view source, std::string_v
     }
     catch (...)
     {
-        countDroppedAllocation();
+        countAllocationFailure();
     }
 }
 
@@ -3917,11 +3807,10 @@ void GameWIP::Logger::log(LogLevel level, std::string_view source, std::string_v
 /// @param level Entry severity.
 /// @param source Registered SourceId to store.
 /// @param message Message text to copy.
-void GameWIP::Logger::log(LogLevel level, SourceId source, std::string_view message)
+void GameWIP::Logger::log(LogLevel level, Types::SourceId source, std::string_view message)
 {
     if (!shouldLog(level, source))
     {
-        recordDroppedFilteredIfNeeded(level, source);
         return;
     }
 
@@ -3931,7 +3820,7 @@ void GameWIP::Logger::log(LogLevel level, SourceId source, std::string_view mess
     }
     catch (...)
     {
-        countDroppedAllocation();
+        countAllocationFailure();
     }
 }
 
@@ -3946,7 +3835,7 @@ void GameWIP::Logger::trace(std::string_view source, std::string_view message)
 /// @brief Logs a Trace message with a registered SourceId.
 /// @param source Registered SourceId to store.
 /// @param message Message text to copy.
-void GameWIP::Logger::trace(SourceId source, std::string_view message)
+void GameWIP::Logger::trace(Types::SourceId source, std::string_view message)
 {
     log(LogLevel::Trace, source, message);
 }
@@ -3962,7 +3851,7 @@ void GameWIP::Logger::debug(std::string_view source, std::string_view message)
 /// @brief Logs a Debug message with a registered SourceId.
 /// @param source Registered SourceId to store.
 /// @param message Message text to copy.
-void GameWIP::Logger::debug(SourceId source, std::string_view message)
+void GameWIP::Logger::debug(Types::SourceId source, std::string_view message)
 {
     log(LogLevel::Debug, source, message);
 }
@@ -3978,7 +3867,7 @@ void GameWIP::Logger::info(std::string_view source, std::string_view message)
 /// @brief Logs an Info message with a registered SourceId.
 /// @param source Registered SourceId to store.
 /// @param message Message text to copy.
-void GameWIP::Logger::info(SourceId source, std::string_view message)
+void GameWIP::Logger::info(Types::SourceId source, std::string_view message)
 {
     log(LogLevel::Info, source, message);
 }
@@ -3994,7 +3883,7 @@ void GameWIP::Logger::warn(std::string_view source, std::string_view message)
 /// @brief Logs a Warn message with a registered SourceId.
 /// @param source Registered SourceId to store.
 /// @param message Message text to copy.
-void GameWIP::Logger::warn(SourceId source, std::string_view message)
+void GameWIP::Logger::warn(Types::SourceId source, std::string_view message)
 {
     log(LogLevel::Warn, source, message);
 }
@@ -4010,7 +3899,7 @@ void GameWIP::Logger::error(std::string_view source, std::string_view message)
 /// @brief Logs an Error message with a registered SourceId.
 /// @param source Registered SourceId to store.
 /// @param message Message text to copy.
-void GameWIP::Logger::error(SourceId source, std::string_view message)
+void GameWIP::Logger::error(Types::SourceId source, std::string_view message)
 {
     log(LogLevel::Error, source, message);
 }
@@ -4026,7 +3915,7 @@ void GameWIP::Logger::fatal(std::string_view source, std::string_view message)
 /// @brief Logs a Fatal message with a registered SourceId without forcing platform debug output flush or fatal popup.
 /// @param source Registered SourceId to store.
 /// @param message Message text to copy.
-void GameWIP::Logger::fatal(SourceId source, std::string_view message)
+void GameWIP::Logger::fatal(Types::SourceId source, std::string_view message)
 {
     log(LogLevel::Fatal, source, message);
 }
@@ -4053,30 +3942,24 @@ void GameWIP::Logger::reportPreformattedMessage(LogLevel level, std::string_view
 /// @param alreadyTruncated True when message already includes the truncation suffix.
 /// @param timeout Optional bounded flush duration.
 /// @return True when the flush completed.
-bool GameWIP::Logger::reportPreformattedMessage(LogLevel level, std::string_view source, std::string_view message, bool showPopup, bool alreadyTruncated, FlushTimeout *timeout)
+bool GameWIP::Logger::reportPreformattedMessage(LogLevel level, std::string_view source, std::string_view message, bool showPopup, bool alreadyTruncated, Types::FlushTimeout *timeout)
 {
+    if (!isValidLevel(level))
+    {
+        return false;
+    }
+
     std::string boundedMessageScratch;
     bool truncatedNow = false;
     const std::string_view reportMessage = boundedMessageView(message, alreadyTruncated, boundedMessageScratch, truncatedNow);
     const bool storedMessageAlreadyTruncated = alreadyTruncated || truncatedNow;
 
-    EnqueueOutcome enqueueResult;
-    try
-    {
-        enqueueResult = enqueueAndWakeWorker(makePendingEntry(level, source, reportMessage, true, storedMessageAlreadyTruncated), false);
-    }
-    catch (...)
-    {
-        enqueueResult.status = EnqueueStatus::DroppedAllocation;
-    }
+    std::lock_guard<std::mutex> lifecycleLock(loggerState.lifecycleMutex);
 
-    if (shouldSynchronouslyFallbackReport(enqueueResult.status) && !writeReportSynchronously(level, source, message))
-    {
-        recordUndeliveredReportDrop(enqueueResult.status);
-    }
+    (void)writeReportSynchronously(level, source, reportMessage, false, storedMessageAlreadyTruncated);
 
     writeDebugOutput(level, source, reportMessage);
-    const bool flushed = timeout == nullptr ? (flush(), true) : flush(timeout->value);
+    const bool flushed = timeout == nullptr ? flushSinksInternal() : (flushSinksInternal() && flushInternal(timeout->value));
 
     if (showPopup)
     {
@@ -4103,33 +3986,27 @@ void GameWIP::Logger::reportPreformattedMessage(LogLevel level, SourceId source,
 /// @param alreadyTruncated True when message already includes the truncation suffix.
 /// @param timeout Optional bounded flush duration.
 /// @return True when the flush completed.
-bool GameWIP::Logger::reportPreformattedMessage(LogLevel level, SourceId source, std::string_view message, bool showPopup, bool alreadyTruncated, FlushTimeout *timeout)
+bool GameWIP::Logger::reportPreformattedMessage(LogLevel level, SourceId source, std::string_view message, bool showPopup, bool alreadyTruncated, Types::FlushTimeout *timeout)
 {
+    if (!isValidLevel(level))
+    {
+        return false;
+    }
+
     std::string boundedMessageScratch;
     bool truncatedNow = false;
     const std::string_view reportMessage = boundedMessageView(message, alreadyTruncated, boundedMessageScratch, truncatedNow);
     const bool storedMessageAlreadyTruncated = alreadyTruncated || truncatedNow;
 
-    EnqueueOutcome enqueueResult;
-    try
-    {
-        enqueueResult = enqueueAndWakeWorker(makePendingEntry(level, source, reportMessage, true, storedMessageAlreadyTruncated), false);
-    }
-    catch (...)
-    {
-        enqueueResult.status = EnqueueStatus::DroppedAllocation;
-    }
+    std::lock_guard<std::mutex> lifecycleLock(loggerState.lifecycleMutex);
 
-    if (shouldSynchronouslyFallbackReport(enqueueResult.status) && !writeReportSynchronously(level, source, message))
-    {
-        recordUndeliveredReportDrop(enqueueResult.status);
-    }
+    (void)writeReportSynchronously(level, source, reportMessage, storedMessageAlreadyTruncated);
 
     bool unknownSource = false;
     const std::shared_ptr<SourceRegistry> registry = loadSourceRegistry();
     const std::string_view sourceText = findSourceName(registry.get(), source, unknownSource);
     writeDebugOutput(level, sourceText, reportMessage);
-    const bool flushed = timeout == nullptr ? (flush(), true) : flush(timeout->value);
+    const bool flushed = timeout == nullptr ? flushSinksInternal() : (flushSinksInternal() && flushInternal(timeout->value));
 
     if (showPopup)
     {
@@ -4138,12 +4015,60 @@ bool GameWIP::Logger::reportPreformattedMessage(LogLevel level, SourceId source,
     return flushed;
 }
 
+/// @brief Synchronously reports a preformatted diagnostic with a string source and no logger-owned popup.
+void GameWIP::Logger::report(LogLevel level, std::string_view source, std::string_view message)
+{
+    reportPreformattedMessage(level, source, message, false);
+}
+
+/// @brief Synchronously reports a preformatted diagnostic with a string source and bounded drain/flush.
+bool GameWIP::Logger::report(LogLevel level, std::string_view source, Types::FlushTimeout timeout, std::string_view message)
+{
+    return reportPreformattedMessage(level, source, message, false, false, &timeout);
+}
+
+/// @brief Synchronously reports a preformatted diagnostic with a SourceId and no logger-owned popup.
+void GameWIP::Logger::report(LogLevel level, SourceId source, std::string_view message)
+{
+    reportPreformattedMessage(level, source, message, false);
+}
+
+/// @brief Synchronously reports a preformatted diagnostic with a SourceId and bounded drain/flush.
+bool GameWIP::Logger::report(LogLevel level, SourceId source, Types::FlushTimeout timeout, std::string_view message)
+{
+    return reportPreformattedMessage(level, source, message, false, false, &timeout);
+}
+
+/// @brief Synchronously reports a preformatted diagnostic with explicit popup behavior.
+void GameWIP::Logger::report(LogLevel level, std::string_view source, Types::ReportPopup popup, std::string_view message)
+{
+    reportPreformattedMessage(level, source, message, popup == Types::ReportPopup::Fatal);
+}
+
+/// @brief Synchronously reports a preformatted diagnostic with explicit popup behavior and bounded drain/flush.
+bool GameWIP::Logger::report(LogLevel level, std::string_view source, Types::FlushTimeout timeout, Types::ReportPopup popup, std::string_view message)
+{
+    return reportPreformattedMessage(level, source, message, popup == Types::ReportPopup::Fatal, false, &timeout);
+}
+
+/// @brief Synchronously reports a preformatted diagnostic with a SourceId and explicit popup behavior.
+void GameWIP::Logger::report(LogLevel level, SourceId source, Types::ReportPopup popup, std::string_view message)
+{
+    reportPreformattedMessage(level, source, message, popup == Types::ReportPopup::Fatal);
+}
+
+/// @brief Synchronously reports a preformatted diagnostic with a SourceId, popup behavior, and bounded drain/flush.
+bool GameWIP::Logger::report(LogLevel level, SourceId source, Types::FlushTimeout timeout, Types::ReportPopup popup, std::string_view message)
+{
+    return reportPreformattedMessage(level, source, message, popup == Types::ReportPopup::Fatal, false, &timeout);
+}
+
 /// @brief Logs an error, mirrors it to platform debug output, and flushes.
 /// @param source Source text to copy.
 /// @param message Message text to copy.
 void GameWIP::Logger::reportError(std::string_view source, std::string_view message)
 {
-    reportPreformattedMessage(LogLevel::Error, source, message, false);
+    report(LogLevel::Error, source, message);
 }
 
 /// @brief Logs an error, mirrors it to platform debug output, and waits for a bounded flush.
@@ -4151,9 +4076,9 @@ void GameWIP::Logger::reportError(std::string_view source, std::string_view mess
 /// @param timeout Maximum flush wait.
 /// @param message Message text to copy.
 /// @return True when the bounded flush completed.
-bool GameWIP::Logger::reportError(std::string_view source, FlushTimeout timeout, std::string_view message)
+bool GameWIP::Logger::reportError(std::string_view source, Types::FlushTimeout timeout, std::string_view message)
 {
-    return reportPreformattedMessage(LogLevel::Error, source, message, false, false, &timeout);
+    return report(LogLevel::Error, source, timeout, message);
 }
 
 /// @brief Logs an error with a SourceId, mirrors it to platform debug output, and flushes.
@@ -4161,7 +4086,7 @@ bool GameWIP::Logger::reportError(std::string_view source, FlushTimeout timeout,
 /// @param message Message text to copy.
 void GameWIP::Logger::reportError(SourceId source, std::string_view message)
 {
-    reportPreformattedMessage(LogLevel::Error, source, message, false);
+    report(LogLevel::Error, source, message);
 }
 
 /// @brief Logs an error with a SourceId, mirrors it to platform debug output, and waits for a bounded flush.
@@ -4169,9 +4094,9 @@ void GameWIP::Logger::reportError(SourceId source, std::string_view message)
 /// @param timeout Maximum flush wait.
 /// @param message Message text to copy.
 /// @return True when the bounded flush completed.
-bool GameWIP::Logger::reportError(SourceId source, FlushTimeout timeout, std::string_view message)
+bool GameWIP::Logger::reportError(SourceId source, Types::FlushTimeout timeout, std::string_view message)
 {
-    return reportPreformattedMessage(LogLevel::Error, source, message, false, false, &timeout);
+    return report(LogLevel::Error, source, timeout, message);
 }
 
 /// @brief Logs fatal, mirrors it to platform debug output, flushes, and shows the fatal popup when enabled.
@@ -4179,7 +4104,7 @@ bool GameWIP::Logger::reportError(SourceId source, FlushTimeout timeout, std::st
 /// @param message Message text to copy.
 void GameWIP::Logger::reportFatal(std::string_view source, std::string_view message)
 {
-    reportPreformattedMessage(LogLevel::Fatal, source, message, true);
+    report(LogLevel::Fatal, source, Types::ReportPopup::Fatal, message);
 }
 
 /// @brief Logs fatal, mirrors it to platform debug output, waits for a bounded flush, and shows the fatal popup when enabled.
@@ -4187,9 +4112,9 @@ void GameWIP::Logger::reportFatal(std::string_view source, std::string_view mess
 /// @param timeout Maximum flush wait.
 /// @param message Message text to copy.
 /// @return True when the bounded flush completed.
-bool GameWIP::Logger::reportFatal(std::string_view source, FlushTimeout timeout, std::string_view message)
+bool GameWIP::Logger::reportFatal(std::string_view source, Types::FlushTimeout timeout, std::string_view message)
 {
-    return reportPreformattedMessage(LogLevel::Fatal, source, message, true, false, &timeout);
+    return report(LogLevel::Fatal, source, timeout, Types::ReportPopup::Fatal, message);
 }
 
 /// @brief Logs fatal with a SourceId, mirrors it to platform debug output, flushes, and shows the fatal popup when enabled.
@@ -4197,7 +4122,7 @@ bool GameWIP::Logger::reportFatal(std::string_view source, FlushTimeout timeout,
 /// @param message Message text to copy.
 void GameWIP::Logger::reportFatal(SourceId source, std::string_view message)
 {
-    reportPreformattedMessage(LogLevel::Fatal, source, message, true);
+    report(LogLevel::Fatal, source, Types::ReportPopup::Fatal, message);
 }
 
 /// @brief Logs fatal with a SourceId, mirrors it to platform debug output, waits for a bounded flush, and shows the fatal popup when enabled.
@@ -4205,36 +4130,36 @@ void GameWIP::Logger::reportFatal(SourceId source, std::string_view message)
 /// @param timeout Maximum flush wait.
 /// @param message Message text to copy.
 /// @return True when the bounded flush completed.
-bool GameWIP::Logger::reportFatal(SourceId source, FlushTimeout timeout, std::string_view message)
+bool GameWIP::Logger::reportFatal(SourceId source, Types::FlushTimeout timeout, std::string_view message)
 {
-    return reportPreformattedMessage(LogLevel::Fatal, source, message, true, false, &timeout);
+    return report(LogLevel::Fatal, source, timeout, Types::ReportPopup::Fatal, message);
 }
 
 /// @brief Logs fatal, flushes, optionally shows fatal popup, then terminates.
 [[noreturn]] void GameWIP::Logger::fatalTerminate(std::string_view source, std::string_view message)
 {
-    reportPreformattedMessage(LogLevel::Fatal, source, message, true);
+    report(LogLevel::Fatal, source, Types::ReportPopup::Fatal, message);
     std::terminate();
 }
 
 /// @brief Logs fatal with a SourceId, flushes, optionally shows fatal popup, then terminates.
-[[noreturn]] void GameWIP::Logger::fatalTerminate(SourceId source, std::string_view message)
+[[noreturn]] void GameWIP::Logger::fatalTerminate(Types::SourceId source, std::string_view message)
 {
-    reportPreformattedMessage(LogLevel::Fatal, source, message, true);
+    report(LogLevel::Fatal, source, Types::ReportPopup::Fatal, message);
     std::terminate();
 }
 
 /// @brief Logs fatal, waits for a bounded flush, optionally shows fatal popup, then terminates.
-[[noreturn]] void GameWIP::Logger::fatalTerminate(std::string_view source, FlushTimeout timeout, std::string_view message)
+[[noreturn]] void GameWIP::Logger::fatalTerminate(std::string_view source, Types::FlushTimeout timeout, std::string_view message)
 {
-    reportPreformattedMessage(LogLevel::Fatal, source, message, true, false, &timeout);
+    report(LogLevel::Fatal, source, timeout, Types::ReportPopup::Fatal, message);
     std::terminate();
 }
 
 /// @brief Logs fatal with a SourceId, waits for a bounded flush, optionally shows fatal popup, then terminates.
-[[noreturn]] void GameWIP::Logger::fatalTerminate(SourceId source, FlushTimeout timeout, std::string_view message)
+[[noreturn]] void GameWIP::Logger::fatalTerminate(Types::SourceId source, Types::FlushTimeout timeout, std::string_view message)
 {
-    reportPreformattedMessage(LogLevel::Fatal, source, message, true, false, &timeout);
+    report(LogLevel::Fatal, source, timeout, Types::ReportPopup::Fatal, message);
     std::terminate();
 }
 
@@ -4258,10 +4183,10 @@ void GameWIP::Logger::writeDebugOutput(LogLevel level, std::string_view source, 
         std::string line;
         buildLogLine(line, getDebugTimestampText(), style.text, source, messageText);
         line.push_back('\n');
-        recordPlatformErrorIfAny(GameWIP::LoggerPlatform::writeDebugOutput(line));
+        recordPlatformErrorIfAny(GameWIP::LoggerDetail::Platform::writeDebugOutput(line));
     }
     catch (...)
     {
-        countDroppedAllocation();
+        countAllocationFailure();
     }
 }
