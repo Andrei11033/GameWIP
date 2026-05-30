@@ -3,6 +3,8 @@
 #include "debug/assert/assert.h"
 #include "logger/logger.h"
 
+#include <algorithm>
+#include <atomic>
 #include <chrono>
 #include <cstddef>
 #include <cstdlib>
@@ -13,6 +15,8 @@
 #include <sstream>
 #include <string>
 #include <string_view>
+#include <thread>
+#include <vector>
 
 #if defined(_WIN32)
 #ifndef WIN32_LEAN_AND_MEAN
@@ -34,7 +38,10 @@ namespace
     constexpr std::string_view assertFailureChildArgument = "--assert-test-child=assert-failure";
     constexpr std::string_view debugBreakChildArgument = "--assert-test-child=debug-break";
     constexpr std::string_view unreachableChildArgument = "--assert-test-child=unreachable";
+    constexpr std::string_view interactiveAbortChildArgument = "--assert-test-child=interactive-abort";
+    constexpr std::string_view interactiveBreakChildArgument = "--assert-test-child=interactive-break";
     constexpr std::string_view suppressPopupEnvironmentVariable = "GAMEWIP_ASSERT_SUPPRESS_POPUP";
+    constexpr std::string_view testActionEnvironmentVariable = "GAMEWIP_ASSERT_TEST_ACTION";
     constexpr std::string_view childLogDirectoryEnvironmentVariable = "GAMEWIP_ASSERT_TEST_CHILD_LOG_DIR";
     constexpr std::string_view assertFailureChildMessage = "assert child logger message";
 
@@ -49,13 +56,24 @@ namespace
         std::string executablePath;
         double performanceMilliseconds = 0.0;
         std::size_t performanceScenarioCount = 0;
+        std::ofstream reportFile;
+
+        void emit(std::string_view line)
+        {
+            std::cout << line;
+            if (reportFile.is_open())
+            {
+                reportFile << line;
+                reportFile.flush();
+            }
+        }
 
         /// @brief Records a passed assertion-test scenario.
         /// @param name Scenario name.
         void pass(std::string_view name)
         {
             ++passed;
-            std::cout << std::format("[PASS] {}\n", name);
+            emit(std::format("[PASS] {}\n", name));
         }
 
         /// @brief Records a failed assertion-test scenario.
@@ -64,7 +82,7 @@ namespace
         void fail(std::string_view name, std::string_view details)
         {
             ++failed;
-            std::cout << std::format("[FAIL] {}: {}\n", name, details);
+            emit(std::format("[FAIL] {}: {}\n", name, details));
         }
 
         /// @brief Expects a boolean value to be true.
@@ -97,20 +115,128 @@ namespace
         }
     };
 
-    /// @brief Sets a process environment variable inherited by child tests.
+    /// @brief Sets a process environment variable for this process and inherited child tests.
     /// @param name Environment variable name.
     /// @param value Environment variable value.
     void setEnvironmentVariable(std::string_view name, std::string_view value)
     {
-#if defined(_WIN32)
         const std::string nameText(name);
         const std::string valueText(value);
+#if defined(_WIN32)
+        _putenv_s(nameText.c_str(), valueText.c_str());
         SetEnvironmentVariableA(nameText.c_str(), valueText.c_str());
 #else
-        const std::string nameText(name);
-        const std::string valueText(value);
         setenv(nameText.c_str(), valueText.c_str(), 1);
 #endif
+    }
+
+    /// @brief Clears a process environment variable for this process and inherited child tests.
+    /// @param name Environment variable name.
+    void clearEnvironmentVariable(std::string_view name)
+    {
+        const std::string nameText(name);
+#if defined(_WIN32)
+        _putenv_s(nameText.c_str(), "");
+        SetEnvironmentVariableA(nameText.c_str(), nullptr);
+#else
+        unsetenv(nameText.c_str());
+#endif
+    }
+
+    /// @brief Temporarily overrides one environment variable and restores it on scope exit.
+    struct ScopedEnvironmentVariable
+    {
+        std::string name;
+        std::string oldValue;
+        bool hadOldValue = false;
+
+        ScopedEnvironmentVariable(std::string_view variableName, std::string_view value)
+            : name(variableName)
+        {
+            if (const char *previousValue = std::getenv(name.c_str()))
+            {
+                oldValue = previousValue;
+                hadOldValue = true;
+            }
+            setEnvironmentVariable(name, value);
+        }
+
+        ~ScopedEnvironmentVariable()
+        {
+            if (hadOldValue)
+            {
+                setEnvironmentVariable(name, oldValue);
+            }
+            else
+            {
+                clearEnvironmentVariable(name);
+            }
+        }
+
+        ScopedEnvironmentVariable(const ScopedEnvironmentVariable &) = delete;
+        ScopedEnvironmentVariable &operator=(const ScopedEnvironmentVariable &) = delete;
+    };
+
+    /// @brief Temporarily clears one environment variable and restores it on scope exit.
+    struct ScopedClearedEnvironmentVariable
+    {
+        std::string name;
+        std::string oldValue;
+        bool hadOldValue = false;
+
+        explicit ScopedClearedEnvironmentVariable(std::string_view variableName)
+            : name(variableName)
+        {
+            if (const char *previousValue = std::getenv(name.c_str()))
+            {
+                oldValue = previousValue;
+                hadOldValue = true;
+            }
+            clearEnvironmentVariable(name);
+        }
+
+        ~ScopedClearedEnvironmentVariable()
+        {
+            if (hadOldValue)
+            {
+                setEnvironmentVariable(name, oldValue);
+            }
+            else
+            {
+                clearEnvironmentVariable(name);
+            }
+        }
+
+        ScopedClearedEnvironmentVariable(const ScopedClearedEnvironmentVariable &) = delete;
+        ScopedClearedEnvironmentVariable &operator=(const ScopedClearedEnvironmentVariable &) = delete;
+    };
+
+    void openReportFile(TestContext &context, const AssertTestOptions &options)
+    {
+        if (!options.writeReport || options.reportPath.empty())
+        {
+            return;
+        }
+
+        const std::filesystem::path parentPath = options.reportPath.parent_path();
+        if (!parentPath.empty())
+        {
+            std::filesystem::create_directories(parentPath);
+        }
+
+        const std::ios::openmode mode = options.appendReport
+                                            ? (std::ios::out | std::ios::app)
+                                            : (std::ios::out | std::ios::trunc);
+        context.reportFile.open(options.reportPath, mode);
+
+        if (context.reportFile.is_open())
+        {
+            context.emit(std::format("[INFO] Assert test report: {}\n", options.reportPath.string()));
+        }
+        else
+        {
+            std::cout << std::format("[WARN] Assert test report could not be opened: {}\n", options.reportPath.string());
+        }
     }
 
     /// @brief Stops the logger when a test scope exits.
@@ -275,6 +401,23 @@ namespace
             }
         }
         return contents;
+    }
+
+    std::size_t countOccurrences(std::string_view text, std::string_view needle)
+    {
+        if (needle.empty())
+        {
+            return 0;
+        }
+
+        std::size_t count = 0;
+        std::size_t position = 0;
+        while ((position = text.find(needle, position)) != std::string_view::npos)
+        {
+            ++count;
+            position += needle.size();
+        }
+        return count;
     }
 
     /// @brief Returns a message string and records that it was evaluated.
@@ -476,6 +619,208 @@ namespace
 #endif
     }
 
+    void interactiveAlwaysIgnoreSite()
+    {
+        ASSERT_INTERACTIVE_MSG(false, "interactive always ignore test");
+    }
+
+    void interactiveIgnoreOnceSite()
+    {
+        ASSERT_INTERACTIVE_MSG(false, "interactive ignore once repeat test");
+    }
+
+    void verifyInteractiveAlwaysIgnoreSite(int &evaluations)
+    {
+        VERIFY_INTERACTIVE_MSG(++evaluations < 0, "verify interactive always ignore test");
+    }
+
+    void threadedCheckOnceSite()
+    {
+        CHECK_ONCE_MSG(false, "threaded check once stress");
+    }
+
+    void testInteractiveIgnoreOnce(TestContext &context)
+    {
+#if GAMEWIP_ASSERT_ENABLED
+        ScopedLoggerShutdown loggerShutdown;
+        if (!initFileLogger(context, "interactive_ignore_once"))
+        {
+            context.fail("interactive ignore once logger init", "Logger::init failed");
+            return;
+        }
+
+        const ScopedEnvironmentVariable testAction(testActionEnvironmentVariable, "ignore_once");
+        ASSERT_INTERACTIVE_MSG(false, "interactive ignore once test");
+
+        Logger::flush(2s);
+        const Logger::Types::Stats stats = Logger::getStats();
+        const std::string contents = readFile(Logger::getLogFilePath());
+        context.expectEq("ASSERT_INTERACTIVE ignore_once not queued", stats.queued, std::size_t{0});
+        context.expectEq("ASSERT_INTERACTIVE ignore_once writes one fatal", stats.written, std::size_t{1});
+        context.expectTrue("ASSERT_INTERACTIVE ignore_once logs fatal", contents.find("[FATAL][Assert]: Assert failed") != std::string::npos, "interactive fatal missing");
+        context.expectTrue("ASSERT_INTERACTIVE ignore_once logs message", contents.find("interactive ignore once test") != std::string::npos, "interactive message missing");
+#else
+        context.pass("ASSERT_INTERACTIVE ignore_once skipped because GAMEWIP_ASSERT_ENABLED=0");
+#endif
+    }
+
+    void testInteractiveAlwaysIgnore(TestContext &context)
+    {
+#if GAMEWIP_ASSERT_ENABLED
+        ScopedLoggerShutdown loggerShutdown;
+        if (!initFileLogger(context, "interactive_always_ignore"))
+        {
+            context.fail("interactive always ignore logger init", "Logger::init failed");
+            return;
+        }
+
+        const ScopedEnvironmentVariable testAction(testActionEnvironmentVariable, "always_ignore");
+        interactiveAlwaysIgnoreSite();
+        interactiveAlwaysIgnoreSite();
+
+        Logger::flush(2s);
+        const Logger::Types::Stats stats = Logger::getStats();
+        const std::string contents = readFile(Logger::getLogFilePath());
+        context.expectEq("ASSERT_INTERACTIVE always_ignore not queued", stats.queued, std::size_t{0});
+        context.expectEq("ASSERT_INTERACTIVE always_ignore writes once", stats.written, std::size_t{1});
+        context.expectEq("ASSERT_INTERACTIVE always_ignore one message", countOccurrences(contents, "interactive always ignore test"), std::size_t{1});
+#else
+        context.pass("ASSERT_INTERACTIVE always_ignore skipped because GAMEWIP_ASSERT_ENABLED=0");
+#endif
+    }
+
+    void testVerifyInteractiveEvaluation(TestContext &context)
+    {
+        ScopedLoggerShutdown loggerShutdown;
+        if (!initFileLogger(context, "verify_interactive"))
+        {
+            context.fail("verify interactive logger init", "Logger::init failed");
+            return;
+        }
+
+        int passingEvaluations = 0;
+        VERIFY_INTERACTIVE(++passingEvaluations == 1);
+        context.expectEq("VERIFY_INTERACTIVE passing evaluates once", passingEvaluations, 1);
+
+        int failingEvaluations = 0;
+        const ScopedEnvironmentVariable testAction(testActionEnvironmentVariable, "ignore_once");
+        VERIFY_INTERACTIVE_MSG(++failingEvaluations < 0, "verify interactive ignore once test");
+        context.expectEq("VERIFY_INTERACTIVE failing evaluates once", failingEvaluations, 1);
+
+#if GAMEWIP_ASSERT_ENABLED
+        Logger::flush(2s);
+        const std::string contents = readFile(Logger::getLogFilePath());
+        context.expectTrue("VERIFY_INTERACTIVE failure logs when enabled", contents.find("verify interactive ignore once test") != std::string::npos, "verify interactive message missing");
+#else
+        Logger::flush(2s);
+        const Logger::Types::Stats stats = Logger::getStats();
+        context.expectEq("VERIFY_INTERACTIVE disabled does not report", stats.written, std::size_t{0});
+#endif
+    }
+
+    void testVerifyInteractiveAlwaysIgnoreStillEvaluates(TestContext &context)
+    {
+#if GAMEWIP_ASSERT_ENABLED
+        ScopedLoggerShutdown loggerShutdown;
+        if (!initFileLogger(context, "verify_interactive_always_ignore"))
+        {
+            context.fail("verify interactive always ignore logger init", "Logger::init failed");
+            return;
+        }
+
+        int evaluations = 0;
+        const ScopedEnvironmentVariable testAction(testActionEnvironmentVariable, "always_ignore");
+        verifyInteractiveAlwaysIgnoreSite(evaluations);
+        verifyInteractiveAlwaysIgnoreSite(evaluations);
+
+        Logger::flush(2s);
+        const std::string contents = readFile(Logger::getLogFilePath());
+        context.expectEq("VERIFY_INTERACTIVE Always Ignore still evaluates", evaluations, 2);
+        context.expectEq("VERIFY_INTERACTIVE Always Ignore logs once", countOccurrences(contents, "verify interactive always ignore test"), std::size_t{1});
+#else
+        context.pass("VERIFY_INTERACTIVE Always Ignore test skipped because GAMEWIP_ASSERT_ENABLED=0");
+#endif
+    }
+
+    void testCheckOnceThreadStress(TestContext &context, const AssertTestOptions &options)
+    {
+#if GAMEWIP_ASSERT_CHECKS_ENABLED
+        if (!options.enableStressTests)
+        {
+            context.pass("CHECK_ONCE thread stress skipped by AssertTestOptions");
+            return;
+        }
+
+        ScopedLoggerShutdown loggerShutdown;
+        if (!initFileLogger(context, "check_once_thread_stress"))
+        {
+            context.fail("CHECK_ONCE thread stress logger init", "Logger::init failed");
+            return;
+        }
+
+        const int threadCount = std::max(2, options.stressThreadCount);
+        std::atomic<bool> start{false};
+        std::vector<std::thread> workers;
+        workers.reserve(static_cast<std::size_t>(threadCount));
+
+        for (int index = 0; index < threadCount; ++index)
+        {
+            workers.emplace_back(
+                [&start]
+                {
+                    while (!start.load(std::memory_order_acquire))
+                    {
+                        std::this_thread::yield();
+                    }
+                    threadedCheckOnceSite();
+                });
+        }
+
+        start.store(true, std::memory_order_release);
+        for (std::thread &worker : workers)
+        {
+            worker.join();
+        }
+
+        Logger::flush(2s);
+        const std::string contents = readFile(Logger::getLogFilePath());
+        context.expectEq("CHECK_ONCE thread stress logs once", countOccurrences(contents, "threaded check once stress"), std::size_t{1});
+#else
+        context.pass("CHECK_ONCE thread stress skipped because GAMEWIP_ASSERT_CHECKS_ENABLED=0");
+#endif
+    }
+
+    void testInteractiveStressLoops(TestContext &context, const AssertTestOptions &options)
+    {
+#if GAMEWIP_ASSERT_ENABLED
+        if (!options.enableStressTests)
+        {
+            context.pass("interactive assert stress loops skipped by AssertTestOptions");
+            return;
+        }
+
+        ScopedLoggerShutdown loggerShutdown;
+        if (!initFileLogger(context, "interactive_stress_loops"))
+        {
+            context.fail("interactive stress logger init", "Logger::init failed");
+            return;
+        }
+
+        const int iterations = std::max(1, options.stressIterations);
+        const ScopedEnvironmentVariable testAction(testActionEnvironmentVariable, "ignore_once");
+        for (int index = 0; index < iterations; ++index)
+        {
+            interactiveIgnoreOnceSite();
+        }
+
+        Logger::flush(5s);
+        const std::string contents = readFile(Logger::getLogFilePath());
+        context.expectEq("ASSERT_INTERACTIVE ignore_once stress logs every failure", countOccurrences(contents, "interactive ignore once repeat test"), static_cast<std::size_t>(iterations));
+#else
+        context.pass("interactive assert stress loops skipped because GAMEWIP_ASSERT_ENABLED=0");
+#endif
+    }
+
     /// @brief Child-process body that intentionally triggers a failed ASSERT.
     /// @return Zero only if the assertion was compiled out or execution continued after the break.
     int runAssertFailureChild()
@@ -496,6 +841,50 @@ namespace
         }
         Logger::init(config);
         ASSERT_MSG(false, assertFailureChildMessage);
+        Logger::shutdown();
+        return 0;
+    }
+
+    int runInteractiveAbortChild()
+    {
+#if defined(_WIN32)
+        SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX);
+#endif
+        Logger::Types::Config config;
+        config.output = Logger::Types::Output::None;
+        config.minLevel = Logger::Types::Level::Trace;
+        config.enableDebugOutput = false;
+        config.enableFatalPopup = false;
+        if (const char *childLogDirectory = std::getenv(std::string(childLogDirectoryEnvironmentVariable).c_str()))
+        {
+            config.output = Logger::Types::Output::File;
+            config.logDirectory = childLogDirectory;
+            config.fallbackToConsoleOnFileFailure = false;
+        }
+        Logger::init(config);
+        ASSERT_INTERACTIVE_MSG(false, "interactive abort child");
+        Logger::shutdown();
+        return 0;
+    }
+
+    int runInteractiveBreakChild()
+    {
+#if defined(_WIN32)
+        SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX);
+#endif
+        Logger::Types::Config config;
+        config.output = Logger::Types::Output::None;
+        config.minLevel = Logger::Types::Level::Trace;
+        config.enableDebugOutput = false;
+        config.enableFatalPopup = false;
+        if (const char *childLogDirectory = std::getenv(std::string(childLogDirectoryEnvironmentVariable).c_str()))
+        {
+            config.output = Logger::Types::Output::File;
+            config.logDirectory = childLogDirectory;
+            config.fallbackToConsoleOnFileFailure = false;
+        }
+        Logger::init(config);
+        ASSERT_INTERACTIVE_MSG(false, "interactive break child");
         Logger::shutdown();
         return 0;
     }
@@ -548,7 +937,8 @@ namespace
 
         const std::filesystem::path childLogDirectory = context.logRoot / "assert_child";
         std::filesystem::create_directories(childLogDirectory);
-        setEnvironmentVariable(childLogDirectoryEnvironmentVariable, pathText(childLogDirectory));
+        const ScopedEnvironmentVariable childLogDirectoryOverride(childLogDirectoryEnvironmentVariable, pathText(childLogDirectory));
+        const ScopedEnvironmentVariable suppressPopupOverride(suppressPopupEnvironmentVariable, "1");
 
         expectAbnormalChildExit(context, assertFailureChildArgument, "ASSERT failure child exits abnormally with popup suppressed");
 
@@ -561,6 +951,54 @@ namespace
 #endif
 #else
         context.pass("ASSERT failure child test skipped because GAMEWIP_ASSERT_ENABLED=0");
+#endif
+    }
+
+    void testInteractiveAbortChild(TestContext &context, const AssertTestOptions &options)
+    {
+#if GAMEWIP_ASSERT_ENABLED
+        if (!options.enableAssertFailureChildTest)
+        {
+            context.pass("ASSERT_INTERACTIVE abort child test disabled by AssertTestOptions");
+            return;
+        }
+
+        const std::filesystem::path childLogDirectory = context.logRoot / "interactive_abort_child";
+        std::filesystem::create_directories(childLogDirectory);
+        const ScopedEnvironmentVariable childLogDirectoryOverride(childLogDirectoryEnvironmentVariable, pathText(childLogDirectory));
+        const ScopedEnvironmentVariable testAction(testActionEnvironmentVariable, "abort");
+
+        expectAbnormalChildExit(context, interactiveAbortChildArgument, "ASSERT_INTERACTIVE abort child exits abnormally");
+
+        const std::string childLogContents = readDirectoryFiles(childLogDirectory);
+        context.expectTrue("ASSERT_INTERACTIVE abort child logs fatal", childLogContents.find("[FATAL][Assert]: Assert failed") != std::string::npos, "interactive abort child fatal missing");
+        context.expectTrue("ASSERT_INTERACTIVE abort child logs message", childLogContents.find("interactive abort child") != std::string::npos, "interactive abort child message missing");
+#else
+        context.pass("ASSERT_INTERACTIVE abort child skipped because GAMEWIP_ASSERT_ENABLED=0");
+#endif
+    }
+
+    void testInteractiveBreakChild(TestContext &context, const AssertTestOptions &options)
+    {
+#if GAMEWIP_ASSERT_ENABLED
+        if (!options.enableAssertFailureChildTest)
+        {
+            context.pass("ASSERT_INTERACTIVE break child test disabled by AssertTestOptions");
+            return;
+        }
+
+        const std::filesystem::path childLogDirectory = context.logRoot / "interactive_break_child";
+        std::filesystem::create_directories(childLogDirectory);
+        const ScopedEnvironmentVariable childLogDirectoryOverride(childLogDirectoryEnvironmentVariable, pathText(childLogDirectory));
+        const ScopedEnvironmentVariable testAction(testActionEnvironmentVariable, "break");
+
+        expectAbnormalChildExit(context, interactiveBreakChildArgument, "ASSERT_INTERACTIVE break child exits abnormally without debugger");
+
+        const std::string childLogContents = readDirectoryFiles(childLogDirectory);
+        context.expectTrue("ASSERT_INTERACTIVE break child logs fatal", childLogContents.find("[FATAL][Assert]: Assert failed") != std::string::npos, "interactive break child fatal missing");
+        context.expectTrue("ASSERT_INTERACTIVE break child logs message", childLogContents.find("interactive break child") != std::string::npos, "interactive break child message missing");
+#else
+        context.pass("ASSERT_INTERACTIVE break child skipped because GAMEWIP_ASSERT_ENABLED=0");
 #endif
     }
 
@@ -582,6 +1020,50 @@ namespace
 #endif
     }
 
+    void manualInteractiveIgnoreOnceSite()
+    {
+        ASSERT_INTERACTIVE_MSG(false, "manual assert UI Ignore Once test - click Ignore Once to continue");
+    }
+
+    void manualInteractiveAlwaysIgnoreSite()
+    {
+        ASSERT_INTERACTIVE_MSG(false, "manual assert UI Always Ignore test - click Always Ignore to suppress the second call");
+    }
+
+    void testManualAssertUi(TestContext &context, const AssertTestOptions &options)
+    {
+        if (!options.enableManualUiTests)
+        {
+            context.pass("manual assert UI tests skipped by AssertTestOptions");
+            return;
+        }
+
+#if GAMEWIP_ASSERT_ENABLED
+        ScopedLoggerShutdown loggerShutdown;
+        if (!initFileLogger(context, "manual_assert_ui"))
+        {
+            context.fail("manual assert UI logger init", "Logger::init failed");
+            return;
+        }
+
+        const ScopedClearedEnvironmentVariable clearTestAction(testActionEnvironmentVariable);
+        const ScopedClearedEnvironmentVariable clearSuppressPopup(suppressPopupEnvironmentVariable);
+
+        context.emit("[MANUAL] Assert UI Ignore Once: click Ignore Once. The test should continue.\n");
+        manualInteractiveIgnoreOnceSite();
+        context.pass("manual assert UI Ignore Once continued");
+
+        context.emit("[MANUAL] Assert UI Always Ignore: click Always Ignore. The second call should not show a dialog.\n");
+        manualInteractiveAlwaysIgnoreSite();
+        manualInteractiveAlwaysIgnoreSite();
+        context.pass("manual assert UI Always Ignore suppressed second call");
+
+        Logger::flush(2s);
+#else
+        context.pass("manual assert UI tests skipped because GAMEWIP_ASSERT_ENABLED=0");
+#endif
+    }
+
     /// @brief Prints one passing-path performance metric.
     /// @param context Test context.
     /// @param name Scenario name.
@@ -592,12 +1074,12 @@ namespace
         const double nanosecondsPerCall = iterations == 0 ? 0.0 : (milliseconds * 1'000'000.0) / static_cast<double>(iterations);
         ++context.performanceScenarioCount;
         context.performanceMilliseconds += milliseconds;
-        std::cout << std::format(
+        context.emit(std::format(
             "[METRIC] {} iterations={} producerMs={:.3f} nsPerCall={:.2f}\n",
             name,
             iterations,
             milliseconds,
-            nanosecondsPerCall);
+            nanosecondsPerCall));
     }
 
     /// @brief Runs a timed macro scenario and keeps a tiny sink to discourage full loop removal.
@@ -647,6 +1129,16 @@ namespace
                             VERIFY(index < iterations);
                             localSink += index & 1u; });
 
+        measureScenario(context, "ASSERT_INTERACTIVE passing", iterations, [&](std::size_t index)
+                        {
+                            ASSERT_INTERACTIVE(index < iterations);
+                            localSink += index & 1u; });
+
+        measureScenario(context, "VERIFY_INTERACTIVE passing", iterations, [&](std::size_t index)
+                        {
+                            VERIFY_INTERACTIVE(index < iterations);
+                            localSink += index & 1u; });
+
         measureScenario(context, "ENSURE passing", iterations, [&](std::size_t index)
                         {
                             if (ENSURE(index < iterations))
@@ -661,18 +1153,18 @@ namespace
     /// @brief Prints the assert test summary.
     /// @param context Test context.
     /// @param milliseconds Total suite duration.
-    void printSummary(const TestContext &context, double milliseconds)
+    void printSummary(TestContext &context, double milliseconds)
     {
         if (context.performanceScenarioCount > 0)
         {
-            std::cout << std::format(
+            context.emit(std::format(
                 "[SUMMARY] assertPerformance scenarios={} producerMs={:.3f} sink={}\n",
                 context.performanceScenarioCount,
                 context.performanceMilliseconds,
-                performanceSink);
+                performanceSink));
         }
-        std::cout << std::format("[SUMMARY] Assert tests completed in {:.3f} ms\n", milliseconds);
-        std::cout << std::format("[RESULT] assert passed={} failed={}\n", context.passed, context.failed);
+        context.emit(std::format("[SUMMARY] Assert tests completed in {:.3f} ms\n", milliseconds));
+        context.emit(std::format("[RESULT] assert passed={} failed={}\n", context.passed, context.failed));
     }
 }
 
@@ -692,6 +1184,14 @@ namespace GameWIP::Test
         {
             return runUnreachableChild();
         }
+        if (hasArgument(argc, argv, interactiveAbortChildArgument))
+        {
+            return runInteractiveAbortChild();
+        }
+        if (hasArgument(argc, argv, interactiveBreakChildArgument))
+        {
+            return runInteractiveBreakChild();
+        }
 
         const auto suiteStart = Clock::now();
         TestContext context;
@@ -699,17 +1199,27 @@ namespace GameWIP::Test
         context.logRoot = makeRunRoot();
         std::filesystem::create_directories(context.logRoot);
 
-        std::cout << std::format("[INFO] Assert test log root: {}\n", pathText(context.logRoot));
-        std::cout << std::format(
+        openReportFile(context, options);
+        context.emit(std::format("[INFO] Assert test log root: {}\n", pathText(context.logRoot)));
+        context.emit(std::format(
             "[INFO] Assert config: runtime={} enabled={} checks={} diagnostics={} popupAssert={} popupCheck={}\n",
             GAMEWIP_ASSERT_RUNTIME,
             GAMEWIP_ASSERT_ENABLED,
             GAMEWIP_ASSERT_CHECKS_ENABLED,
             GAMEWIP_ASSERT_DIAGNOSTICS,
             GAMEWIP_ASSERT_POPUP_ON_ASSERT,
-            GAMEWIP_ASSERT_POPUP_ON_CHECK);
-        setEnvironmentVariable(suppressPopupEnvironmentVariable, "1");
-
+            GAMEWIP_ASSERT_POPUP_ON_CHECK));
+        context.emit(std::format(
+            "[INFO] Assert test options: stress={} fatalChild={} performance={} interactive={} manualUi={} perfIterations={} stressThreads={} stressIterations={} report={}\n",
+            options.enableStressTests,
+            options.enableAssertFailureChildTest,
+            options.enablePerformanceMetrics,
+            options.enableInteractiveTests,
+            options.enableManualUiTests,
+            options.performanceIterations,
+            options.stressThreadCount,
+            options.stressIterations,
+            options.writeReport ? options.reportPath.string() : std::string_view{"disabled"}));
         try
         {
             testPassingMacros(context);
@@ -719,9 +1229,25 @@ namespace GameWIP::Test
             testCheckOnceLogging(context);
             testDiagnosticConfiguration(context);
             testDiagnosticMessageEvaluation(context);
+            if (options.enableInteractiveTests)
+            {
+                testInteractiveIgnoreOnce(context);
+                testInteractiveAlwaysIgnore(context);
+                testVerifyInteractiveEvaluation(context);
+                testVerifyInteractiveAlwaysIgnoreStillEvaluates(context);
+                testInteractiveStressLoops(context, options);
+                testInteractiveAbortChild(context, options);
+                testInteractiveBreakChild(context, options);
+            }
+            else
+            {
+                context.pass("automated interactive assert tests skipped by AssertTestOptions");
+            }
+            testCheckOnceThreadStress(context, options);
             testAssertFailureChild(context, options);
             testDebugBreakChild(context);
             testUnreachableChild(context);
+            testManualAssertUi(context, options);
             runPerformanceMetrics(context, options);
             Logger::shutdown();
         }

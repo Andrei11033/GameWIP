@@ -80,17 +80,28 @@ namespace
         MemoryPeak loggerMemoryPeak;
         MemoryPeak processMemoryPeak;
         PerformanceTotals performanceTotals;
+        std::ofstream reportFile;
+
+        void emit(std::string_view line)
+        {
+            std::cout << line;
+            if (reportFile.is_open())
+            {
+                reportFile << line;
+                reportFile.flush();
+            }
+        }
 
         void pass(std::string_view name)
         {
             ++passed;
-            std::cout << std::format("[PASS] {}\n", name);
+            emit(std::format("[PASS] {}\n", name));
         }
 
         void fail(std::string_view name, std::string_view details)
         {
             ++failed;
-            std::cout << std::format("[FAIL] {}: {}\n", name, details);
+            emit(std::format("[FAIL] {}: {}\n", name, details));
         }
 
         template <typename Left, typename Right>
@@ -135,6 +146,34 @@ namespace
             Logger::shutdown();
         }
     };
+
+    void openReportFile(TestContext &context, const LoggerTestOptions &options)
+    {
+        if (!options.writeReport || options.reportPath.empty())
+        {
+            return;
+        }
+
+        const std::filesystem::path parentPath = options.reportPath.parent_path();
+        if (!parentPath.empty())
+        {
+            std::filesystem::create_directories(parentPath);
+        }
+
+        const std::ios::openmode mode = options.appendReport
+                                            ? (std::ios::out | std::ios::app)
+                                            : (std::ios::out | std::ios::trunc);
+        context.reportFile.open(options.reportPath, mode);
+
+        if (context.reportFile.is_open())
+        {
+            context.emit(std::format("[INFO] Logger test report: {}\n", options.reportPath.string()));
+        }
+        else
+        {
+            std::cout << std::format("[WARN] Logger test report could not be opened: {}\n", options.reportPath.string());
+        }
+    }
 
     struct Timing
     {
@@ -344,6 +383,23 @@ namespace
         std::ostringstream buffer;
         buffer << file.rdbuf();
         return buffer.str();
+    }
+
+    std::size_t countOccurrences(std::string_view text, std::string_view needle)
+    {
+        if (needle.empty())
+        {
+            return 0;
+        }
+
+        std::size_t count = 0;
+        std::size_t position = 0;
+        while ((position = text.find(needle, position)) != std::string_view::npos)
+        {
+            ++count;
+            position += needle.size();
+        }
+        return count;
     }
 
     std::vector<std::filesystem::path> filesIn(const std::filesystem::path &directory)
@@ -790,6 +846,109 @@ namespace
         context.expectTrue("report file runtime source", contents.find("[FATAL][Core]: runtime fatal 22") != std::string::npos);
     }
 
+    void testReportFailureAndUnknownSourcePaths(TestContext &context)
+    {
+        ZoneScopedN("Logger report failure and unknown-source tests");
+        ScopedLoggerShutdown shutdown;
+
+        OwnedLoggerConfig config = makeFileConfig(context, "report-edge-paths", Logger::Types::Level::Fatal);
+        std::array sources{Logger::defineSource(TestSource::Core, "Core")};
+        std::array sourceFilters{Logger::Types::SourceFilter{static_cast<Logger::Types::SourceId>(TestSource::Core), false}};
+        std::array levelFilters{Logger::Types::LevelFilter{Logger::Types::Level::Error, false}};
+        config.sources = sources;
+        config.sourceFilters = sourceFilters;
+        config.levelFilters = levelFilters;
+        expectInitSuccess(context, "report edge init", Logger::init(config.ready()));
+        Logger::resetStats();
+
+        Logger::report(Logger::Types::Level::Error, TestSource::Core, "report bypasses disabled core source and error level");
+        Logger::report(Logger::Types::Level::Error, TestSource::Unknown, "report unknown source path");
+        Logger::report(Logger::Types::Level::Error, testSource, Logger::runtimeFormat("{"), 1);
+
+        const Logger::Types::Stats stats = Logger::getStats();
+        expectEq(context, "report edge entries not queued", stats.queued, std::size_t{0});
+        expectEq(context, "report edge writes successful reports", stats.written, std::size_t{2});
+        expectEq(context, "report runtime format failure counted", stats.formatFailures, std::size_t{1});
+        expectEq(context, "report unknown source counted", stats.unknownSourceUses, std::size_t{1});
+        expectEq(context, "report edge no queue drops", totalQueueDrops(stats), std::size_t{0});
+
+        const std::string logFile = Logger::getLogFilePath();
+        Logger::shutdown();
+        const std::string contents = readWholeFile(logFile);
+        context.expectTrue("report bypassed filters reached file", contents.find("report bypasses disabled core source and error level") != std::string::npos);
+        context.expectTrue("report unknown source reached file", contents.find("report unknown source path") != std::string::npos);
+        context.expectTrue("bad report format not emitted", contents.find("{}") == std::string::npos);
+    }
+
+    void testReportBypassesFullQueue(TestContext &context, const LoggerTestOptions &options)
+    {
+        if (!options.enableStressTests)
+        {
+            context.pass("report full queue stress skipped by LoggerTestOptions");
+            return;
+        }
+
+        ZoneScopedN("Logger report bypasses full queue test");
+        ScopedLoggerShutdown shutdown;
+
+        OwnedLoggerConfig config = makeFileConfig(context, "report-full-queue", Logger::Types::Level::Trace);
+        config.maxQueueSize = 1;
+        config.hardQueueMultiplier = 1.0;
+        config.workerBatchSize = 1;
+        config.flushFileEveryBatch = false;
+        config.releaseMessageMemoryAfterWrite = false;
+        expectInitSuccess(context, "report full queue init", Logger::init(config.ready()));
+        Logger::resetStats();
+
+        const int stressThreads = std::max(2, options.stressThreadCount);
+        const int stressIterations = std::max(1000, options.stressIterationsPerThread);
+        std::atomic<bool> start{false};
+        std::atomic<bool> stop{false};
+        std::vector<std::thread> workers;
+        workers.reserve(static_cast<std::size_t>(stressThreads));
+
+        for (int workerIndex = 0; workerIndex < stressThreads; ++workerIndex)
+        {
+            workers.emplace_back(
+                [&start, &stop, stressIterations]
+                {
+                    while (!start.load(std::memory_order_acquire))
+                    {
+                        std::this_thread::yield();
+                    }
+
+                    for (int i = 0; i < stressIterations && !stop.load(std::memory_order_relaxed); ++i)
+                    {
+                        Logger::fatal(testSource, "full queue pressure {}", i);
+                        if (Logger::getStats().queueDropsHard > 0)
+                        {
+                            stop.store(true, std::memory_order_relaxed);
+                        }
+                    }
+                });
+        }
+
+        start.store(true, std::memory_order_release);
+        for (std::thread &worker : workers)
+        {
+            worker.join();
+        }
+
+        const Logger::Types::Stats beforeReport = Logger::getStats();
+        context.expectTrue("full queue produced a hard drop", beforeReport.queueDropsHard > 0);
+        Logger::report(Logger::Types::Level::Error, testSource, "synchronous report survived full queue");
+        const Logger::Types::Stats afterReport = Logger::getStats();
+        expectEq(context, "report did not increment queued while full", afterReport.queued, beforeReport.queued);
+        expectEq(context, "report did not increment hard drops", afterReport.queueDropsHard, beforeReport.queueDropsHard);
+        context.expectTrue("report incremented written synchronously", afterReport.written > beforeReport.written);
+
+        const std::string logFile = Logger::getLogFilePath();
+        context.expectTrue("report full queue flush", Logger::flush(5s));
+        Logger::shutdown();
+        const std::string contents = readWholeFile(logFile);
+        context.expectTrue("report survived full queue reached file", contents.find("synchronous report survived full queue") != std::string::npos);
+    }
+
     void testFileFallback(TestContext &context)
     {
         ZoneScopedN("Logger file fallback tests");
@@ -1061,6 +1220,171 @@ namespace
         return quoted;
     }
 
+    void testFlushWhileProducersActive(TestContext &context, const LoggerTestOptions &options)
+    {
+        if (!options.enableStressTests)
+        {
+            context.pass("flush active producer stress skipped by LoggerTestOptions");
+            return;
+        }
+
+        ZoneScopedN("Logger flush while producers active stress");
+        ScopedLoggerShutdown shutdown;
+
+        OwnedLoggerConfig config = makeFileConfig(context, "flush-while-producers", Logger::Types::Level::Trace);
+        config.maxQueueSize = 2048;
+        config.workerBatchSize = 64;
+        expectInitSuccess(context, "flush active producers init", Logger::init(config.ready()));
+
+        const int stressThreads = std::max(2, options.stressThreadCount);
+        const int flushCount = 64;
+        std::atomic<bool> start{false};
+        std::atomic<bool> stop{false};
+        std::atomic<std::size_t> attempts{0};
+        std::vector<std::thread> workers;
+        workers.reserve(static_cast<std::size_t>(stressThreads));
+
+        for (int workerIndex = 0; workerIndex < stressThreads; ++workerIndex)
+        {
+            workers.emplace_back(
+                [&start, &stop, &attempts]
+                {
+                    while (!start.load(std::memory_order_acquire))
+                    {
+                        std::this_thread::yield();
+                    }
+
+                    while (!stop.load(std::memory_order_acquire))
+                    {
+                        Logger::info(testSource, "flush active producer {}", attempts.fetch_add(1, std::memory_order_relaxed));
+                    }
+                });
+        }
+
+        start.store(true, std::memory_order_release);
+
+        std::size_t flushSuccesses = 0;
+        std::size_t flushTimeouts = 0;
+        for (int i = 0; i < flushCount; ++i)
+        {
+            if (Logger::flush(std::chrono::milliseconds{50}))
+            {
+                ++flushSuccesses;
+            }
+            else
+            {
+                ++flushTimeouts;
+            }
+        }
+
+        context.expectEq(
+            "flush active producers attempts completed",
+            flushSuccesses + flushTimeouts,
+            static_cast<std::size_t>(flushCount));
+        context.expectTrue("flush active producers attempted bounded flushes", flushCount > 0);
+
+        stop.store(true, std::memory_order_release);
+
+        for (std::thread &worker : workers)
+        {
+            worker.join();
+        }
+
+        context.expectTrue("flush active producers final flush", Logger::flush(5s));
+        const Logger::Types::Stats stats = Logger::getStats();
+        context.expectTrue("flush active producers attempted logs", attempts.load(std::memory_order_relaxed) > 0);
+        context.expectTrue("flush active producers wrote logs", stats.written > 0);
+        context.emit(std::format(
+            "[STRESS] flushWhileProducersActive threads={} flushAttempts={} flushSuccesses={} flushTimeouts={} producerAttempts={} written={} queueDropped={} peakQueue={}\n",
+            stressThreads,
+            flushCount,
+            flushSuccesses,
+            flushTimeouts,
+            attempts.load(std::memory_order_relaxed),
+            stats.written,
+            stats.queueDropsSoft + stats.queueDropsHard,
+            stats.peakQueueDepth));
+        recordMemorySnapshot(context, "flush-while-producers");
+    }
+
+    void testShutdownWhileProducersActive(TestContext &context, const LoggerTestOptions &options)
+    {
+        if (!options.enableStressTests)
+        {
+            context.pass("shutdown active producer stress skipped by LoggerTestOptions");
+            return;
+        }
+
+        ZoneScopedN("Logger shutdown while producers active stress");
+
+        OwnedLoggerConfig config = makeFileConfig(context, "shutdown-while-producers", Logger::Types::Level::Trace);
+        config.maxQueueSize = 1024;
+        config.workerBatchSize = 64;
+        expectInitSuccess(context, "shutdown active producers init", Logger::init(config.ready()));
+
+        const int stressThreads = std::max(2, options.stressThreadCount);
+        std::atomic<bool> start{false};
+        std::atomic<bool> stop{false};
+        std::atomic<std::size_t> attempts{0};
+        std::vector<std::thread> workers;
+        workers.reserve(static_cast<std::size_t>(stressThreads));
+
+        for (int workerIndex = 0; workerIndex < stressThreads; ++workerIndex)
+        {
+            workers.emplace_back(
+                [&start, &stop, &attempts]
+                {
+                    while (!start.load(std::memory_order_acquire))
+                    {
+                        std::this_thread::yield();
+                    }
+
+                    while (!stop.load(std::memory_order_acquire))
+                    {
+                        Logger::info(testSource, "shutdown active producer {}", attempts.fetch_add(1, std::memory_order_relaxed));
+                    }
+                });
+        }
+
+        start.store(true, std::memory_order_release);
+        std::this_thread::sleep_for(5ms);
+        Logger::shutdown();
+        std::this_thread::sleep_for(1ms);
+        stop.store(true, std::memory_order_release);
+
+        for (std::thread &worker : workers)
+        {
+            worker.join();
+        }
+
+        context.expectFalse("shutdown active producers leaves logger stopped", Logger::isRunning());
+        context.expectTrue("shutdown active producers attempted logs", attempts.load(std::memory_order_relaxed) > 0);
+    }
+
+    void testRepeatedInitShutdownStress(TestContext &context, const LoggerTestOptions &options)
+    {
+        if (!options.enableStressTests)
+        {
+            context.pass("repeated init shutdown stress skipped by LoggerTestOptions");
+            return;
+        }
+
+        ZoneScopedN("Logger repeated init shutdown stress");
+        constexpr int iterations = 100;
+
+        for (int iteration = 0; iteration < iterations; ++iteration)
+        {
+            OwnedLoggerConfig config = makeFileConfig(context, std::format("init-shutdown-{}", iteration), Logger::Types::Level::Trace);
+            config.maxQueueSize = 64;
+            expectInitSuccess(context, "repeated init", Logger::init(config.ready()));
+            Logger::info(testSource, "repeated init normal {}", iteration);
+            Logger::report(Logger::Types::Level::Warn, testSource, "repeated init report {}", iteration);
+            context.expectTrue("repeated init flush", Logger::flush(2s));
+            Logger::shutdown();
+            context.expectFalse("repeated init shutdown stopped", Logger::isRunning());
+        }
+    }
+
     int runChildProcess(std::string_view executablePath, std::string_view argument)
     {
 #if defined(_WIN32)
@@ -1168,7 +1492,7 @@ namespace
         context.performanceTotals.truncated += stats.truncated;
         context.performanceTotals.peakQueueDepth = std::max(context.performanceTotals.peakQueueDepth, stats.peakQueueDepth);
 
-        std::cout << std::format(
+        context.emit(std::format(
             "[METRIC] {} iterations={} ms={:.3f} nsPerCall={:.2f} queued={} written={} queueDropped={} diagnostics={} truncated={} peak={} loggerRetained={} processPrivate={} processWorkingSet={}\n",
             name,
             iterations,
@@ -1182,7 +1506,7 @@ namespace
             stats.peakQueueDepth,
             formatBytes(memory.loggerRetainedBytes),
             formatProcessBytes(memory, memory.processPrivateBytes),
-            formatProcessBytes(memory, memory.processWorkingSetBytes));
+            formatProcessBytes(memory, memory.processWorkingSetBytes)));
         TracyPlot("Logger test metric ms", milliseconds);
         TracyPlot("Logger test metric ns/call", nanosecondsPerCall);
         TracyPlot("Logger test memory retained bytes", static_cast<double>(memory.loggerRetainedBytes));
@@ -1191,6 +1515,31 @@ namespace
             TracyPlot("Logger test process private bytes", static_cast<double>(memory.processPrivateBytes));
             TracyPlot("Logger test process working set bytes", static_cast<double>(memory.processWorkingSetBytes));
         }
+    }
+
+    void testManualLoggerFatalPopup(TestContext &context, const LoggerTestOptions &options)
+    {
+        if (!options.enableLoggerPopupTest)
+        {
+            context.pass("manual logger fatal popup test skipped by LoggerTestOptions");
+            return;
+        }
+
+        ScopedLoggerShutdown loggerShutdown;
+        Logger::Types::Config config = makeConsoleConfig(Logger::Types::Level::Trace);
+        config.output = Logger::Types::Output::Console;
+        config.enableFatalPopup = true;
+        config.enableDebugOutput = false;
+
+        context.emit("[MANUAL] Logger fatal popup: a logger-owned fatal popup should appear. Close it to continue.\n");
+        expectInitSuccess(context, "manual logger fatal popup init", Logger::init(config));
+        Logger::report(
+            Logger::Types::Level::Fatal,
+            testSource,
+            Logger::Types::ReportPopup::Fatal,
+            "Manual logger fatal popup test. Close this popup to continue.");
+        Logger::shutdown();
+        context.pass("manual logger fatal popup scenario completed");
     }
 
     void runPerformanceMetrics(TestContext &context, const LoggerTestOptions &options)
@@ -1267,14 +1616,14 @@ namespace
                                              ? 0.0
                                              : (totals.producerMilliseconds * 1'000'000.0) / static_cast<double>(totals.measuredMessages);
 
-        std::cout << std::format(
+        context.emit(std::format(
             "[SUMMARY] suiteTimeMs={:.3f} tests={} passed={} failed={}\n",
             suiteMilliseconds,
             context.passed + context.failed,
             context.passed,
-            context.failed);
+            context.failed));
 
-        std::cout << std::format(
+        context.emit(std::format(
             "[SUMMARY] perfTotals scenarios={} measuredMessages={} producerMs={:.3f} nsPerMessage={:.2f} queued={} written={} queueDropped={} diagnostics={} truncated={} peakQueue={}\n",
             totals.scenarioCount,
             totals.measuredMessages,
@@ -1285,12 +1634,12 @@ namespace
             totals.queueDropped,
             totals.diagnosticFailures,
             totals.truncated,
-            totals.peakQueueDepth);
+            totals.peakQueueDepth));
 
         if (context.loggerMemoryPeak.available)
         {
             const Logger::Types::MemoryStats &peak = context.loggerMemoryPeak.memory;
-            std::cout << std::format(
+            context.emit(std::format(
                 "[SUMMARY] loggerMemoryPeak label={} retained={} queue={} arena={} sources={} entryHeap={} entryHeapInspectable={}\n",
                 context.loggerMemoryPeak.label,
                 formatBytes(peak.loggerRetainedBytes),
@@ -1298,24 +1647,24 @@ namespace
                 formatBytes(peak.messageArenaBytes),
                 formatBytes(peak.sourceRegistryBytes),
                 formatBytes(peak.entryTextHeapCapacityBytes),
-                peak.entryTextHeapCapacityAvailable);
+                peak.entryTextHeapCapacityAvailable));
         }
 
         if (context.processMemoryPeak.available)
         {
             const Logger::Types::MemoryStats &peak = context.processMemoryPeak.memory;
-            std::cout << std::format(
+            context.emit(std::format(
                 "[SUMMARY] processMemoryPeak label={} private={} workingSet={}\n",
                 context.processMemoryPeak.label,
                 formatBytes(peak.processPrivateBytes),
-                formatBytes(peak.processWorkingSetBytes));
+                formatBytes(peak.processWorkingSetBytes)));
         }
 
-        std::cout << std::format(
+        context.emit(std::format(
             "[SUMMARY] finalMemory loggerRetained={} processPrivate={} processWorkingSet={}\n",
             formatBytes(finalMemory.loggerRetainedBytes),
             formatProcessBytes(finalMemory, finalMemory.processPrivateBytes),
-            formatProcessBytes(finalMemory, finalMemory.processWorkingSetBytes));
+            formatProcessBytes(finalMemory, finalMemory.processWorkingSetBytes)));
     }
 
     bool hasArgument(int argc, char **argv, std::string_view argument)
@@ -1348,15 +1697,19 @@ namespace GameWIP::Test
         context.logRoot = makeRunRoot();
         std::filesystem::create_directories(context.logRoot);
 
-        std::cout << std::format("[INFO] Logger test log root: {}\n", pathText(context.logRoot));
-        std::cout << std::format(
-            "[INFO] Logger test options: stress={} fatalChild={} performance={} perfIterations={} stressThreads={} stressIterations={}\n",
+        openReportFile(context, options);
+        context.emit(std::format("[INFO] Logger test log root: {}\n", pathText(context.logRoot)));
+        context.emit(std::format(
+            "[INFO] Logger test options: stress={} fatalChild={} performance={} manualUi={} loggerPopup={} perfIterations={} stressThreads={} stressIterations={} report={}\n",
             options.enableStressTests,
             options.enableFatalTerminateChildTest,
             options.enablePerformanceMetrics,
+            options.enableManualUiTests,
+            options.enableLoggerPopupTest,
             options.performanceIterations,
             options.stressThreadCount,
-            options.stressIterationsPerThread);
+            options.stressIterationsPerThread,
+            options.writeReport ? options.reportPath.string() : std::string_view{"disabled"}));
 
         try
         {
@@ -1370,12 +1723,26 @@ namespace GameWIP::Test
             testSourceValidation(context);
             testFormattingAndTruncation(context);
             testReportsAndDebugOutput(context);
+            testReportFailureAndUnknownSourcePaths(context);
             testFileFallback(context);
             testMacroBehavior(context);
             testFilteredLogsDoNotCountAsDrops(context);
             testStatsResetKeepsLifetimeQueueDrops(context);
             testQueuePressureAndConcurrency(context, options);
+            testReportBypassesFullQueue(context, options);
+            testFlushWhileProducersActive(context, options);
+            testShutdownWhileProducersActive(context, options);
+            testRepeatedInitShutdownStress(context, options);
             testFatalTerminateChild(context, options);
+            testManualLoggerFatalPopup(context, options);
+            if (options.enableManualUiTests)
+            {
+                context.pass("manual logger UI tests enabled; add explicit manual scenarios before running unattended");
+            }
+            else
+            {
+                context.pass("manual logger UI tests skipped by LoggerTestOptions");
+            }
             runPerformanceMetrics(context, options);
             Logger::shutdown();
         }
@@ -1393,7 +1760,7 @@ namespace GameWIP::Test
         const auto suiteEnd = Clock::now();
         const double suiteMilliseconds = std::chrono::duration<double, std::milli>(suiteEnd - suiteStart).count();
         printEndSummary(context, suiteMilliseconds);
-        std::cout << std::format("[RESULT] passed={} failed={}\n", context.passed, context.failed);
+        context.emit(std::format("[RESULT] logger passed={} failed={}\n", context.passed, context.failed));
         return context.failed == 0 ? 0 : 1;
     }
 }

@@ -15,15 +15,18 @@ option(GAMEWIP_OPEN_TOOL_WINDOWS_AT_STARTUP "Open tool/debug windows at startup 
 # Option for Assert
 option(GAMEWIP_ENABLE_ASSERTS "Enable GameWIP assertions and recoverable checks" ON)
 
-# Option for tests
-option(GAMEWIP_HEAVY_TESTS "Enable long-running stress tests" ON)
-
 set(TRACY_ENABLE ${GAMEWIP_ENABLE_TRACY} CACHE BOOL "" FORCE)
 set(TRACY_ON_DEMAND ON CACHE BOOL "" FORCE)
 
 add_subdirectory(external/tracy)
 
 add_subdirectory(tools/logger)
+
+if(GAMEWIP_ENABLE_ASSERTS)
+    set(ASSERT_ENABLED ON CACHE STRING "Force assertions on, off, or let NDEBUG choose" FORCE)
+    set(ASSERT_CHECKS_ENABLED ON CACHE STRING "Force recoverable checks on, off, or let NDEBUG choose" FORCE)
+endif()
+
 add_subdirectory(tools/debug/assert)
 add_subdirectory(engine/input)
 add_subdirectory(engine/action)
@@ -41,15 +44,6 @@ if(GAMEWIP_ENABLE_TOOLS)
     if(GAMEWIP_OPEN_TOOL_WINDOWS_AT_STARTUP)
         target_compile_definitions(GameWIP PRIVATE GAMEWIP_OPEN_TOOL_WINDOWS_AT_STARTUP=1)
     endif()
-endif()
-
-if(GAMEWIP_ENABLE_ASSERTS)
-    set(ASSERT_ENABLED ON CACHE STRING "Force assertions on, off, or let NDEBUG choose" FORCE)
-    set(ASSERT_CHECKS_ENABLED ON CACHE STRING "Force recoverable checks on, off, or let NDEBUG choose" FORCE)
-endif()
-
-if(GAMEWIP_HEAVY_TESTS)
-    target_compile_definitions(GameWIP PRIVATE GAMEWIP_HEAVY_TESTS=1)
 endif()
 
 target_link_libraries(GameWIP PRIVATE
