@@ -1,5 +1,13 @@
 #include "debug/assert/internal/assert_platform.h"
 
+#ifndef GAMEWIP_ASSERT_TEST_HOOKS
+#define GAMEWIP_ASSERT_TEST_HOOKS 0
+#endif
+
+#if GAMEWIP_ASSERT_TEST_HOOKS
+#include "debug/assert/internal/assert_test_hooks.h"
+#endif
+
 #include <array>
 
 #ifndef WIN32_LEAN_AND_MEAN
@@ -14,16 +22,44 @@
 #include <windows.h>
 #include <commctrl.h>
 
+#include <atomic>
+
 namespace
 {
     bool popupsSuppressed() noexcept
     {
+#if GAMEWIP_ASSERT_TEST_HOOKS
+        bool overrideValue = false;
+        if (GameWIP::Debug::Assert::TestHooks::Detail::popupSuppressedOverride(overrideValue))
+        {
+            return overrideValue;
+        }
+#endif
         char value[2]{};
         const DWORD size = GetEnvironmentVariableA("GAMEWIP_ASSERT_SUPPRESS_POPUP", value, static_cast<DWORD>(sizeof(value)));
         return size == 1 && value[0] == '1';
     }
 
     using FailureAction = GameWIP::Debug::Assert::FailureAction;
+
+#if GAMEWIP_ASSERT_TEST_HOOKS
+    struct AssertTestHookState
+    {
+        std::atomic_bool nextTaskDialogFailure{false};
+        std::atomic_bool nextMessageBoxFailure{false};
+        std::atomic_bool debuggerAttachedOverrideEnabled{false};
+        std::atomic_bool debuggerAttachedOverrideValue{false};
+        std::atomic_bool popupSuppressedOverrideEnabled{false};
+        std::atomic_bool popupSuppressedOverrideValue{false};
+    };
+
+    AssertTestHookState assertTestHookState;
+
+    bool consumeTestHook(std::atomic_bool &flag) noexcept
+    {
+        return flag.exchange(false, std::memory_order_acq_rel);
+    }
+#endif
 
     template <std::size_t Capacity>
     void utf8ToWide(std::string_view text, std::array<wchar_t, Capacity> &output) noexcept
@@ -129,6 +165,12 @@ namespace
 
     FailureAction fallbackMessageBoxAction(const wchar_t *title, const wchar_t *message, FailureAction defaultAction) noexcept
     {
+#if GAMEWIP_ASSERT_TEST_HOOKS
+        if (consumeTestHook(assertTestHookState.nextMessageBoxFailure))
+        {
+            return defaultAction;
+        }
+#endif
         const int result = MessageBoxW(nullptr, message, title, MB_ABORTRETRYIGNORE | MB_ICONERROR | MB_TASKMODAL | MB_SETFOREGROUND);
         switch (result)
         {
@@ -143,6 +185,102 @@ namespace
         }
     }
 }
+
+
+#if GAMEWIP_ASSERT_TEST_HOOKS
+namespace GameWIP::Debug::Assert::TestHooks
+{
+    void reset() noexcept
+    {
+        assertTestHookState.nextTaskDialogFailure.store(false, std::memory_order_release);
+        assertTestHookState.nextMessageBoxFailure.store(false, std::memory_order_release);
+        assertTestHookState.debuggerAttachedOverrideEnabled.store(false, std::memory_order_release);
+        assertTestHookState.debuggerAttachedOverrideValue.store(false, std::memory_order_release);
+        assertTestHookState.popupSuppressedOverrideEnabled.store(false, std::memory_order_release);
+        assertTestHookState.popupSuppressedOverrideValue.store(false, std::memory_order_release);
+    }
+
+    void forceNextTaskDialogFailure() noexcept
+    {
+        assertTestHookState.nextTaskDialogFailure.store(true, std::memory_order_release);
+    }
+
+    void forceNextMessageBoxFailure() noexcept
+    {
+        assertTestHookState.nextMessageBoxFailure.store(true, std::memory_order_release);
+    }
+
+    void setDebuggerAttachedOverride(bool attached) noexcept
+    {
+        assertTestHookState.debuggerAttachedOverrideValue.store(attached, std::memory_order_release);
+        assertTestHookState.debuggerAttachedOverrideEnabled.store(true, std::memory_order_release);
+    }
+
+    void clearDebuggerAttachedOverride() noexcept
+    {
+        assertTestHookState.debuggerAttachedOverrideEnabled.store(false, std::memory_order_release);
+    }
+
+    void setPopupSuppressedOverride(bool suppressed) noexcept
+    {
+        assertTestHookState.popupSuppressedOverrideValue.store(suppressed, std::memory_order_release);
+        assertTestHookState.popupSuppressedOverrideEnabled.store(true, std::memory_order_release);
+    }
+
+    void clearPopupSuppressedOverride() noexcept
+    {
+        assertTestHookState.popupSuppressedOverrideEnabled.store(false, std::memory_order_release);
+    }
+
+    bool debuggerAttachedForTest() noexcept
+    {
+        return GameWIP::Debug::Assert::Platform::isDebuggerAttached();
+    }
+
+    FailureAction showFailureActionDialogForTest(std::string_view title, std::string_view message, FailureAction defaultAction) noexcept
+    {
+        return GameWIP::Debug::Assert::Platform::showFailureActionDialog(title, message, defaultAction);
+    }
+
+    void showErrorPopupForTest(std::string_view title, std::string_view message) noexcept
+    {
+        GameWIP::Debug::Assert::Platform::showErrorPopup(title, message);
+    }
+
+    namespace Detail
+    {
+        bool consumeNextTaskDialogFailure() noexcept
+        {
+            return consumeTestHook(assertTestHookState.nextTaskDialogFailure);
+        }
+
+        bool consumeNextMessageBoxFailure() noexcept
+        {
+            return consumeTestHook(assertTestHookState.nextMessageBoxFailure);
+        }
+
+        bool debuggerAttachedOverride(bool &attached) noexcept
+        {
+            if (!assertTestHookState.debuggerAttachedOverrideEnabled.load(std::memory_order_acquire))
+            {
+                return false;
+            }
+            attached = assertTestHookState.debuggerAttachedOverrideValue.load(std::memory_order_acquire);
+            return true;
+        }
+
+        bool popupSuppressedOverride(bool &suppressed) noexcept
+        {
+            if (!assertTestHookState.popupSuppressedOverrideEnabled.load(std::memory_order_acquire))
+            {
+                return false;
+            }
+            suppressed = assertTestHookState.popupSuppressedOverrideValue.load(std::memory_order_acquire);
+            return true;
+        }
+    }
+}
+#endif
 
 namespace GameWIP::Debug::Assert::Platform
 {
@@ -167,17 +305,17 @@ namespace GameWIP::Debug::Assert::Platform
         utf8ToWide(title, titleText);
         utf8ToWide(message, messageText);
 
-        constexpr int breakId = 1001;
-        constexpr int abortId = 1002;
-        constexpr int ignoreOnceId = 1003;
-        constexpr int alwaysIgnoreId = 1004;
+        constexpr int kBreakButtonId = 1001;
+        constexpr int kAbortButtonId = 1002;
+        constexpr int kIgnoreOnceButtonId = 1003;
+        constexpr int kAlwaysIgnoreButtonId = 1004;
 
         const TASKDIALOG_BUTTON buttons[] =
             {
-                {breakId, L"Break"},
-                {abortId, L"Abort"},
-                {ignoreOnceId, L"Ignore Once"},
-                {alwaysIgnoreId, L"Always Ignore"},
+                {kBreakButtonId, L"Break"},
+                {kAbortButtonId, L"Abort"},
+                {kIgnoreOnceButtonId, L"Ignore Once"},
+                {kAlwaysIgnoreButtonId, L"Always Ignore"},
             };
 
         TASKDIALOGCONFIG config{};
@@ -192,12 +330,20 @@ namespace GameWIP::Debug::Assert::Platform
         config.nDefaultButton = buttonIdForAction(defaultAction);
 
         int selectedButton = buttonIdForAction(defaultAction);
-        if (const TaskDialogIndirectFn taskDialogIndirect = loadTaskDialogIndirect())
+#if GAMEWIP_ASSERT_TEST_HOOKS
+        const bool forceTaskDialogFailure = consumeTestHook(assertTestHookState.nextTaskDialogFailure);
+#else
+        const bool forceTaskDialogFailure = false;
+#endif
+        if (!forceTaskDialogFailure)
         {
-            const HRESULT result = taskDialogIndirect(&config, &selectedButton, nullptr, nullptr);
-            if (SUCCEEDED(result))
+            if (const TaskDialogIndirectFn taskDialogIndirect = loadTaskDialogIndirect())
             {
-                return actionForButtonId(selectedButton, defaultAction);
+                const HRESULT result = taskDialogIndirect(&config, &selectedButton, nullptr, nullptr);
+                if (SUCCEEDED(result))
+                {
+                    return actionForButtonId(selectedButton, defaultAction);
+                }
             }
         }
 
@@ -206,6 +352,13 @@ namespace GameWIP::Debug::Assert::Platform
 
     bool isDebuggerAttached() noexcept
     {
+#if GAMEWIP_ASSERT_TEST_HOOKS
+        bool overrideValue = false;
+        if (TestHooks::Detail::debuggerAttachedOverride(overrideValue))
+        {
+            return overrideValue;
+        }
+#endif
         return IsDebuggerPresent() != FALSE;
     }
 

@@ -1,0 +1,23 @@
+:root {
+    --gamewip-accent: #2f6fed;
+}
+
+.contents a:visited,
+.contents a:link {
+    color: var(--gamewip-accent);
+}
+
+div.contents {
+    max-width: 1200px;
+}
+
+div.line {
+    line-height: 1.35;
+}
+
+.memdoc dl.note,
+.memdoc dl.warning,
+.memdoc dl.section {
+    border-left: 4px solid var(--gamewip-accent);
+    padding-left: 0.75rem;
+}

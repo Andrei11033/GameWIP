@@ -43,6 +43,12 @@
 #define GAMEWIP_ASSERT_RUNTIME 1
 #endif
 
+/// @def GAMEWIP_ASSERT_TEST_HOOKS
+/// @brief Enables internal assert test-hook declarations for dedicated test builds.
+#ifndef GAMEWIP_ASSERT_TEST_HOOKS
+#define GAMEWIP_ASSERT_TEST_HOOKS 0
+#endif
+
 /// @def GAMEWIP_ASSERT_API
 /// @brief DLL import/export marker used by the assert runtime declarations.
 /// @details This is not part of normal user code; use the ASSERT/CHECK/ENSURE macro API instead.
@@ -118,6 +124,10 @@
 #error "GAMEWIP_ASSERT_RUNTIME must be 0 or 1."
 #endif
 
+#if (GAMEWIP_ASSERT_TEST_HOOKS != 0) && (GAMEWIP_ASSERT_TEST_HOOKS != 1)
+#error "GAMEWIP_ASSERT_TEST_HOOKS must be 0 or 1."
+#endif
+
 #if (GAMEWIP_ASSERT_ENABLED != 0) && (GAMEWIP_ASSERT_ENABLED != 1)
 #error "GAMEWIP_ASSERT_ENABLED must be 0 or 1."
 #endif
@@ -143,6 +153,7 @@
 #endif
 
 static_assert(GAMEWIP_ASSERT_RUNTIME == 0 || GAMEWIP_ASSERT_RUNTIME == 1, "GAMEWIP_ASSERT_RUNTIME must be 0 or 1.");
+static_assert(GAMEWIP_ASSERT_TEST_HOOKS == 0 || GAMEWIP_ASSERT_TEST_HOOKS == 1, "GAMEWIP_ASSERT_TEST_HOOKS must be 0 or 1.");
 static_assert(GAMEWIP_ASSERT_ENABLED == 0 || GAMEWIP_ASSERT_ENABLED == 1, "GAMEWIP_ASSERT_ENABLED must be 0 or 1.");
 static_assert(GAMEWIP_ASSERT_CHECKS_ENABLED == 0 || GAMEWIP_ASSERT_CHECKS_ENABLED == 1, "GAMEWIP_ASSERT_CHECKS_ENABLED must be 0 or 1.");
 static_assert(GAMEWIP_ASSERT_DIAGNOSTICS == 0 || GAMEWIP_ASSERT_DIAGNOSTICS == 1, "GAMEWIP_ASSERT_DIAGNOSTICS must be 0 or 1.");
@@ -164,9 +175,13 @@ namespace GameWIP::Debug::Assert
     /// AlwaysIgnore continues and suppresses future failures from the same macro call site.
     enum class FailureAction
     {
+        /// @brief Trigger the debugger break path and continue if execution resumes.
         Break,
+        /// @brief Terminate the process with std::abort().
         Abort,
+        /// @brief Continue this failure only; the same call site may report again later.
         IgnoreOnce,
+        /// @brief Suppress future interactive failures from the same macro call site.
         AlwaysIgnore
     };
 

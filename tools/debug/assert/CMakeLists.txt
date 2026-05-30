@@ -5,6 +5,7 @@ set_property(CACHE ASSERT_CHECKS_ENABLED PROPERTY STRINGS AUTO ON OFF)
 option(ASSERT_DIAGNOSTICS "Embed assertion condition/file/function/message diagnostics" ON)
 option(ASSERT_UNREACHABLE_ASSUME "Use compiler unreachable assumptions instead of a trap when UNREACHABLE is compiled without assertions" OFF)
 option(ASSERT_ENABLE_COMMON_CONTROLS_MANIFEST "Propagate a Common Controls v6 manifest resource to Windows executables using Assert" ON)
+option(ASSERT_TEST_HOOKS "Enable Assert internal test hooks" OFF)
 
 string(TOUPPER "${ASSERT_ENABLED}" ASSERT_ENABLED_VALUE)
 string(TOUPPER "${ASSERT_CHECKS_ENABLED}" ASSERT_CHECKS_ENABLED_VALUE)
@@ -111,6 +112,7 @@ if(ASSERT_RUNTIME_TARGET_ENABLED)
 endif()
 
 include(GNUInstallDirs)
+include(CMakePackageConfigHelpers)
 
 set(GAMEWIP_ASSERT_COMMON_CONTROLS_RC "")
 if(WIN32 AND ASSERT_ENABLE_COMMON_CONTROLS_MANIFEST)
@@ -176,10 +178,12 @@ if(ASSERT_RUNTIME_TARGET_ENABLED)
             GAMEWIP_ASSERT_CHECKS_ENABLED=1
             GAMEWIP_ASSERT_DIAGNOSTICS=${ASSERT_DIAGNOSTICS_VALUE}
             GAMEWIP_ASSERT_UNREACHABLE_ASSUME=${ASSERT_UNREACHABLE_ASSUME_VALUE}
+            GAMEWIP_ASSERT_TEST_HOOKS=$<BOOL:${ASSERT_TEST_HOOKS}>
         INTERFACE
             GAMEWIP_ASSERT_RUNTIME=${ASSERT_RUNTIME_PUBLIC}
             GAMEWIP_ASSERT_ENABLED=${ASSERT_ENABLED_PUBLIC}
             GAMEWIP_ASSERT_CHECKS_ENABLED=${ASSERT_CHECKS_ENABLED_PUBLIC}
+            GAMEWIP_ASSERT_TEST_HOOKS=$<BOOL:${ASSERT_TEST_HOOKS}>
     )
 else()
     target_include_directories(Assert INTERFACE
@@ -191,6 +195,7 @@ else()
         GAMEWIP_ASSERT_RUNTIME=0
         GAMEWIP_ASSERT_ENABLED=0
         GAMEWIP_ASSERT_CHECKS_ENABLED=0
+        GAMEWIP_ASSERT_TEST_HOOKS=0
     )
 endif()
 
@@ -225,6 +230,18 @@ if(ASSERT_RUNTIME_TARGET_ENABLED)
     )
 endif()
 
+if(GAMEWIP_BUILD_DOCS AND COMMAND gamewip_register_doxygen_inputs)
+    gamewip_register_doxygen_inputs(
+        "${CMAKE_CURRENT_SOURCE_DIR}/assert.h"
+    )
+
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/docs")
+        gamewip_register_doxygen_inputs(
+            "${CMAKE_CURRENT_SOURCE_DIR}/docs"
+        )
+    endif()
+endif()
+
 if(ASSERT_RUNTIME_TARGET_ENABLED)
     install(TARGETS Assert
         EXPORT GameWIPAssertTargets
@@ -246,7 +263,31 @@ install(DIRECTORY "${PROJECT_SOURCE_DIR}/tools/debug/assert"
         PATTERN "internal" EXCLUDE
 )
 
+install(FILES
+    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/common_controls_v6.manifest"
+    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/common_controls_v6.rc.in"
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/GameWIP_Assert
+)
+
+configure_package_config_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/GameWIP_AssertConfig.cmake.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/GameWIP_AssertConfig.cmake"
+    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/GameWIP_Assert
+)
+
+write_basic_package_version_file(
+    "${CMAKE_CURRENT_BINARY_DIR}/GameWIP_AssertConfigVersion.cmake"
+    VERSION ${PROJECT_VERSION}
+    COMPATIBILITY SameMajorVersion
+)
+
 install(EXPORT GameWIPAssertTargets
     NAMESPACE GameWIP::
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/GameWIPAssert
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/GameWIP_Assert
+)
+
+install(FILES
+    "${CMAKE_CURRENT_BINARY_DIR}/GameWIP_AssertConfig.cmake"
+    "${CMAKE_CURRENT_BINARY_DIR}/GameWIP_AssertConfigVersion.cmake"
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/GameWIP_Assert
 )

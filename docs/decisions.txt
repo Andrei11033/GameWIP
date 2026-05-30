@@ -43,3 +43,124 @@ Component decisions:
 - components must support damage/degrade/detach states
 - advanced component editing should only exist for selected systems
 - simple default components must always exist
+
+Library, tooling, and test standards
+====================================
+
+Purpose
+-------
+The logger and assert libraries are foundation code. They should be treated as small reusable libraries, not as throwaway game helpers. A feature is considered complete only when its public contract is documented, its normal and failure paths are tested, and its hot-path cost is understood.
+
+Logger contract
+---------------
+- Normal log calls (`trace`, `debug`, `info`, `warn`, `error`, `fatal`) are asynchronous, queue-based, and filterable.
+- `Logger::fatal(...)` is a normal fatal-severity log. It does not force a popup, synchronous flush, or process termination.
+- `Logger::report(...)` is the synchronous diagnostic path. It bypasses level/source filters, bypasses the async queue, writes immediately to active sinks, mirrors to platform debug output when enabled, flushes sinks, and never terminates by itself.
+- `Logger::report(timeout)` writes the report first, then performs a bounded queue/sink drain. A timeout failure does not mean the report line was lost.
+- `reportError`, `reportFatal`, and `fatalTerminate` are convenience wrappers over the report path. `reportFatal` and `fatalTerminate` are allowed to use the logger-owned fatal popup when configured.
+- Queue-drop counters only mean queue pressure. Filtered messages are intentional skips and must not count as drops.
+- Unknown `SourceId` values are accepted, written with fallback source text, and counted through `unknownSourceUses`.
+
+Assert contract
+---------------
+- `ASSERT`, `VERIFY`, and `UNREACHABLE` are fatal assertion paths when enabled.
+- `CHECK`, `CHECK_ONCE`, and `ENSURE` are recoverable diagnostic paths.
+- `ASSERT_INTERACTIVE` and `VERIFY_INTERACTIVE` are separate developer/debug features. They do not change the behavior of normal `ASSERT` or `VERIFY`.
+- Interactive actions are `Break`, `Abort`, `IgnoreOnce`, and `AlwaysIgnore`. `AlwaysIgnore` is local to the macro call site.
+- Automated interactive tests must use `GAMEWIP_ASSERT_TEST_ACTION` and must not open real popups.
+- Manual UI tests are separate. They show real Windows UI, are allowed to block, and should run near the end of a test run.
+
+Runtime test control
+--------------------
+CMake builds the code. `TestRunOptions` controls which tests run and how intense they are. Stress tests, performance metrics, automated interactive tests, manual UI tests, logger popup tests, child crash tests, thread counts, iteration counts, and report output paths are runtime test options, not CMake test-selection options.
+
+Naming standard
+---------------
+- Public C++ types use `PascalCase`.
+- Public C++ functions use `camelCase`.
+- Private/internal helpers use `camelCase`.
+- Private/internal structs and classes use `PascalCase`.
+- Constants use `kPascalCase`.
+- Macros use `UPPER_SNAKE` and GameWIP-owned configuration macros use the `GAMEWIP_` prefix.
+- CMake project-level options use `GAMEWIP_ENABLE_...`.
+- CMake library-local options use `LOGGER_...` or `ASSERT_...`.
+- Exported compiler macros use `GAMEWIP_LOGGER_...` and `GAMEWIP_ASSERT_...`.
+- Names should describe the contract, not stale implementation history. For example, automated interactive tests are named separately from manual UI tests.
+- Avoid global namespace pollution. Test hooks live under `GameWIP::LoggerDetail::TestHooks` and `GameWIP::Debug::Assert::TestHooks` only when enabled. Logger hooks use `LoggerDetail` because `GameWIP::Logger` is the public logger class, not a namespace.
+
+Documentation / IntelliSense standard
+--------------------------------------
+Public API comments use professional Doxygen-style documentation focused on contracts. Public headers should explain behavior, lifecycle expectations, thread-safety where relevant, failure behavior, blocking/UI behavior, and performance notes. Full tutorials and long examples belong in README or dedicated documentation pages later.
+
+Internal code should be documented when it protects a non-obvious invariant: locking, atomics, shutdown/lifecycle rules, platform assumptions, hot paths, failure injection, or test hooks. Do not add comment noise for obvious syntax.
+
+Test hook policy
+----------------
+- Test hooks use separate compile-time flags: `GAMEWIP_LOGGER_TEST_HOOKS` and `GAMEWIP_ASSERT_TEST_HOOKS`.
+- Test hooks live in internal headers: `tools/logger/internal/logger_test_hooks.h` and `tools/debug/assert/internal/assert_test_hooks.h`.
+- Hook namespaces only exist when the matching hook flag is enabled.
+- Hooks are not production API and should not be installed as public headers.
+- One-shot hooks use `forceNext...` naming.
+- Persistent hooks use `set...Override` / `clear...Override` naming.
+- Each hook must be resettable so tests cannot leak forced state into later tests.
+
+Coverage policy
+---------------
+Coverage answers which lines, functions, and branches actually ran during tests. Coverage instrumentation is a compile-time build mode and therefore belongs in CMake (`GAMEWIP_ENABLE_COVERAGE`). Runtime test selection still belongs to `TestRunOptions`. Coverage is especially useful after test hooks exist, because hooks make rare fallback and failure branches reachable.
+
+Manual UI test policy
+---------------------
+Manual UI tests are allowed to block because the user is intentionally validating real Windows UI. They must be gated by runtime options and should run at the end of the suite. Automated tests must not depend on clicking dialogs.
+
+Performance policy
+------------------
+Hot paths should stay cheap. Passing assert/check/verify/ensure macros should remain extremely low overhead. Filtered logger macros should avoid argument/message evaluation. Normal logs should avoid unnecessary heap work on the producer path. `Logger::report` is intentionally synchronous and may block; it is not the hot-path logging API. Performance tests are metrics-only for now: they report regressions but do not fail the run based on hard thresholds.
+
+Package/install naming policy
+-----------------------------
+Package/install polish uses package names with an underscore:
+- `find_package(GameWIP_Logger CONFIG REQUIRED)`
+- `find_package(GameWIP_Assert CONFIG REQUIRED)`
+
+Targets stay namespaced and stable:
+- `GameWIP::Logger`
+- `GameWIP::Assert`
+
+The Assert package depends on the Logger package. Test hooks are excluded from public package installs by default.
+
+CMake standard
+--------------
+CMake should be treated as part of the library surface. It should use clear option names, avoid duplicated logic, keep project-wide options in the top-level CMake, keep library-specific options in each library CMake, and avoid using CMake to control runtime test selection. Standard C++ should be preferred (`CMAKE_CXX_EXTENSIONS OFF`) unless a toolchain dependency requires otherwise.
+
+Generated documentation and package polish
+------------------------------------------
+Doxygen generation is provided by the optional `GAMEWIP_BUILD_DOCS` CMake option and the `docs` target. The first Doxygen setup documents the logger/assert public surface and uses custom aliases for contract-oriented sections such as thread-safety, lifecycle, performance, and test-only notes.
+
+Install/package polish uses underscore package names (`GameWIP_Logger` and `GameWIP_Assert`) while keeping imported targets stable as `GameWIP::Logger` and `GameWIP::Assert`. The Assert package locates the Logger package as a dependency and provides an installed helper for adding the Common Controls v6 manifest resource to a final Windows executable when needed.
+
+Per-library documentation structure
+-----------------------------------
+Each reusable library may own a `docs/` directory next to its public headers. These pages are written as Doxygen-compatible Markdown and are intended to answer practical usage questions without requiring the reader to inspect implementation files.
+
+The root documentation target combines:
+- root project pages such as `docs/index.md`, decisions, and checklists;
+- public header API reference generated from Doxygen comments;
+- per-library Markdown guides such as `tools/logger/docs/` and `tools/debug/assert/docs/`.
+
+The intended split is:
+- public header Doxygen comments document API contracts, parameters, return values, lifecycle behavior, thread-safety, failure behavior, blocking behavior, and performance notes;
+- per-library Markdown pages document quick starts, concepts, examples, testing workflows, and common usage patterns;
+- root docs explain project-level build, testing, and documentation workflows.
+
+The global `GAMEWIP_BUILD_DOCS` option controls whether documentation is built. Each library CMake file registers its public headers and `docs/` directory only when the global documentation option is enabled and the root project provides the registration helper. This keeps library docs modular while still producing one combined `docs` target for the whole project.
+
+
+Package smoke-test policy
+-------------------------
+A lightweight external-consumer package smoke test is kept under `docs/package_smoke/`. It is intentionally outside the normal in-tree build. After installation, configure it with `CMAKE_PREFIX_PATH` pointing at the install prefix to verify that `find_package(GameWIP_Logger CONFIG REQUIRED)`, `find_package(GameWIP_Assert CONFIG REQUIRED)`, and the `GameWIP::Logger` / `GameWIP::Assert` targets work for consumers.
+
+Coverage and documentation tool behavior
+----------------------------------------
+When `GAMEWIP_ENABLE_COVERAGE` is enabled, the build should always expose a `coverage` target. If `gcovr` is available, the target generates HTML and XML reports. If `gcovr` is missing, the target fails with a clear message explaining how to install it. This avoids silent missing-target confusion.
+
+When `GAMEWIP_BUILD_DOCS` is enabled, Doxygen is required. If Doxygen is missing, configuration should fail with a clear message. Normal builds must not require Doxygen.

@@ -1,6 +1,7 @@
 #include "test/assert_test.h"
 #include "test/logger_test.h"
 
+#include <cstddef>
 #include <filesystem>
 #include <string_view>
 
@@ -12,23 +13,23 @@ namespace
         bool runAssertTests = true;
 
         bool enableStressTests = true;
-        bool enableFatalChildTests = true;
+        bool enableChildCrashTests = true;
         bool enablePerformanceMetrics = true;
-        bool enableInteractiveTests = true;
-        bool enableManualUiTests = true;
-        bool enableLoggerPopupTest = true;
+        bool enableAutomatedInteractiveTests = true;
+        bool enableManualUiTests = false;
+        bool enableLoggerPopupTest = false;
 
         std::size_t performanceIterations = 1'000'000;
-        int stressThreadCount = 8;
-        int loggerStressIterationsPerThread = 20'000;
-        int assertStressIterations = 20'000;
+        std::size_t stressThreadCount = 8;
+        std::size_t loggerStressIterationsPerThread = 20'000;
+        std::size_t assertStressIterations = 20'000;
 
         bool writeReport = true;
         bool appendReport = false;
         std::filesystem::path reportPath = "logs/tests/latest_test_report.txt";
     };
 
-    const TestRunOptions testRunOptions{};
+    const TestRunOptions kTestRunOptions{};
 
     bool hasArgument(int argc, char **argv, const char *argument)
     {
@@ -46,7 +47,7 @@ namespace
     {
         return GameWIP::Test::LoggerTestOptions{
             .enableStressTests = options.enableStressTests,
-            .enableFatalTerminateChildTest = options.enableFatalChildTests,
+            .enableChildCrashTests = options.enableChildCrashTests,
             .enablePerformanceMetrics = options.enablePerformanceMetrics,
             .enableManualUiTests = options.enableManualUiTests,
             .enableLoggerPopupTest = options.enableLoggerPopupTest,
@@ -61,10 +62,10 @@ namespace
     GameWIP::Test::AssertTestOptions makeAssertOptions(const TestRunOptions &options)
     {
         return GameWIP::Test::AssertTestOptions{
-            .enableAssertFailureChildTest = options.enableFatalChildTests,
+            .enableChildCrashTests = options.enableChildCrashTests,
             .enableStressTests = options.enableStressTests,
             .enablePerformanceMetrics = options.enablePerformanceMetrics,
-            .enableInteractiveTests = options.enableInteractiveTests,
+            .enableAutomatedInteractiveTests = options.enableAutomatedInteractiveTests,
             .enableManualUiTests = options.enableManualUiTests,
             .performanceIterations = options.performanceIterations,
             .stressThreadCount = options.stressThreadCount,
@@ -77,11 +78,11 @@ namespace
 
 int main(int argc, char **argv)
 {
-    GameWIP::Test::LoggerTestOptions loggerTestOptions = makeLoggerOptions(testRunOptions);
-    GameWIP::Test::AssertTestOptions assertTestOptions = makeAssertOptions(testRunOptions);
+    GameWIP::Test::LoggerTestOptions loggerTestOptions = makeLoggerOptions(kTestRunOptions);
+    GameWIP::Test::AssertTestOptions assertTestOptions = makeAssertOptions(kTestRunOptions);
 
-    loggerTestOptions.appendReport = testRunOptions.appendReport;
-    assertTestOptions.appendReport = testRunOptions.appendReport || testRunOptions.runLoggerTests;
+    loggerTestOptions.appendReport = kTestRunOptions.appendReport;
+    assertTestOptions.appendReport = kTestRunOptions.appendReport || kTestRunOptions.runLoggerTests;
 
     if (hasArgument(argc, argv, "--logger-test-child=fatal-terminate"))
     {
@@ -97,7 +98,7 @@ int main(int argc, char **argv)
         return GameWIP::Test::runAssertTests(argc, argv, assertTestOptions);
     }
 
-    const int loggerResult = testRunOptions.runLoggerTests ? GameWIP::Test::runLoggerTests(argc, argv, loggerTestOptions) : 0;
-    const int assertResult = testRunOptions.runAssertTests ? GameWIP::Test::runAssertTests(argc, argv, assertTestOptions) : 0;
+    const int loggerResult = kTestRunOptions.runLoggerTests ? GameWIP::Test::runLoggerTests(argc, argv, loggerTestOptions) : 0;
+    const int assertResult = kTestRunOptions.runAssertTests ? GameWIP::Test::runAssertTests(argc, argv, assertTestOptions) : 0;
     return loggerResult == 0 && assertResult == 0 ? 0 : 1;
 }

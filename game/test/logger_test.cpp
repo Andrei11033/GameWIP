@@ -3,6 +3,14 @@
 #include "logger/logger.h"
 #include "logger/logger_macros.h"
 
+#ifndef GAMEWIP_LOGGER_TEST_HOOKS
+#define GAMEWIP_LOGGER_TEST_HOOKS 0
+#endif
+
+#if GAMEWIP_LOGGER_TEST_HOOKS
+#include "logger/internal/logger_test_hooks.h"
+#endif
+
 #include <tracy/Tracy.hpp>
 
 #include <algorithm>
@@ -880,6 +888,60 @@ namespace
         context.expectTrue("bad report format not emitted", contents.find("{}") == std::string::npos);
     }
 
+
+    void testLoggerTestHooks(TestContext &context)
+    {
+#if GAMEWIP_LOGGER_TEST_HOOKS
+        ZoneScopedN("Logger test hook tests");
+        GameWIP::LoggerDetail::TestHooks::reset();
+
+        {
+            ScopedLoggerShutdown shutdown;
+            OwnedLoggerConfig config = makeFileConfig(context, "hook-file-flush", Logger::Types::Level::Trace);
+            expectInitSuccess(context, "hook file flush init", Logger::init(config.ready()));
+            Logger::resetStats();
+            GameWIP::LoggerDetail::TestHooks::forceNextFileFlushFailure();
+            context.expectFalse("hook forced file flush failure", Logger::flush(2s));
+            const Logger::Types::Stats stats = Logger::getStats();
+            context.expectTrue("hook file flush failure counted", stats.fileWriteFailures > 0);
+        }
+
+        {
+            ScopedLoggerShutdown shutdown;
+            OwnedLoggerConfig config = makeFileConfig(context, "hook-file-write", Logger::Types::Level::Trace);
+            expectInitSuccess(context, "hook file write init", Logger::init(config.ready()));
+            Logger::resetStats();
+            GameWIP::LoggerDetail::TestHooks::forceNextFileWriteFailure();
+            Logger::report(Logger::Types::Level::Error, testSource, "forced file write failure report");
+            const Logger::Types::Stats stats = Logger::getStats();
+            context.expectTrue("hook file write failure counted", stats.fileWriteFailures > 0);
+        }
+
+        {
+            ScopedLoggerShutdown shutdown;
+            Logger::Types::Config config = makeConsoleConfig(Logger::Types::Level::Trace);
+            config.enableFatalPopup = true;
+            expectInitSuccess(context, "hook fatal popup init", Logger::init(config));
+            GameWIP::LoggerDetail::TestHooks::forceNextFatalPopupFailure();
+            Logger::report(Logger::Types::Level::Fatal, testSource, Logger::Types::ReportPopup::Fatal, "forced fatal popup failure");
+            const Logger::Types::PlatformError error = Logger::getLastPlatformError();
+            context.expectTrue("hook fatal popup failure source", error.source == Logger::Types::PlatformErrorSource::FatalPopup);
+        }
+
+        {
+            ScopedLoggerShutdown shutdown;
+            OwnedLoggerConfig config = makeFileConfig(context, "hook-flush-timeout", Logger::Types::Level::Trace);
+            expectInitSuccess(context, "hook timed flush init", Logger::init(config.ready()));
+            GameWIP::LoggerDetail::TestHooks::forceNextTimedFlushTimeout();
+            context.expectFalse("hook timed flush timeout", Logger::flush(2s));
+        }
+
+        GameWIP::LoggerDetail::TestHooks::reset();
+#else
+        context.pass("logger test hooks skipped because GAMEWIP_LOGGER_TEST_HOOKS=0");
+#endif
+    }
+
     void testReportBypassesFullQueue(TestContext &context, const LoggerTestOptions &options)
     {
         if (!options.enableStressTests)
@@ -900,8 +962,8 @@ namespace
         expectInitSuccess(context, "report full queue init", Logger::init(config.ready()));
         Logger::resetStats();
 
-        const int stressThreads = std::max(2, options.stressThreadCount);
-        const int stressIterations = std::max(1000, options.stressIterationsPerThread);
+        const int stressThreads = static_cast<int>(std::max<std::size_t>(2, options.stressThreadCount));
+        const int stressIterations = static_cast<int>(std::max<std::size_t>(1000, options.stressIterationsPerThread));
         std::atomic<bool> start{false};
         std::atomic<bool> stop{false};
         std::vector<std::thread> workers;
@@ -1016,8 +1078,8 @@ namespace
 
         ZoneScopedN("Logger pressure and concurrency tests");
         ScopedLoggerShutdown shutdown;
-        const int stressThreads = std::max(1, options.stressThreadCount);
-        const int stressIterations = std::max(1, options.stressIterationsPerThread);
+        const int stressThreads = static_cast<int>(std::max<std::size_t>(1, options.stressThreadCount));
+        const int stressIterations = static_cast<int>(std::max<std::size_t>(1, options.stressIterationsPerThread));
 
         {
             OwnedLoggerConfig config = makeFileConfig(context, "soft-pressure", Logger::Types::Level::Trace);
@@ -1236,7 +1298,7 @@ namespace
         config.workerBatchSize = 64;
         expectInitSuccess(context, "flush active producers init", Logger::init(config.ready()));
 
-        const int stressThreads = std::max(2, options.stressThreadCount);
+        const int stressThreads = static_cast<int>(std::max<std::size_t>(2, options.stressThreadCount));
         const int flushCount = 64;
         std::atomic<bool> start{false};
         std::atomic<bool> stop{false};
@@ -1322,7 +1384,7 @@ namespace
         config.workerBatchSize = 64;
         expectInitSuccess(context, "shutdown active producers init", Logger::init(config.ready()));
 
-        const int stressThreads = std::max(2, options.stressThreadCount);
+        const int stressThreads = static_cast<int>(std::max<std::size_t>(2, options.stressThreadCount));
         std::atomic<bool> start{false};
         std::atomic<bool> stop{false};
         std::atomic<std::size_t> attempts{0};
@@ -1462,7 +1524,7 @@ namespace
 
     void testFatalTerminateChild(TestContext &context, const LoggerTestOptions &options)
     {
-        if (!options.enableFatalTerminateChildTest)
+        if (!options.enableChildCrashTests)
         {
             context.pass("fatalTerminate child test disabled by LoggerTestOptions");
             return;
@@ -1702,7 +1764,7 @@ namespace GameWIP::Test
         context.emit(std::format(
             "[INFO] Logger test options: stress={} fatalChild={} performance={} manualUi={} loggerPopup={} perfIterations={} stressThreads={} stressIterations={} report={}\n",
             options.enableStressTests,
-            options.enableFatalTerminateChildTest,
+            options.enableChildCrashTests,
             options.enablePerformanceMetrics,
             options.enableManualUiTests,
             options.enableLoggerPopupTest,
@@ -1724,6 +1786,7 @@ namespace GameWIP::Test
             testFormattingAndTruncation(context);
             testReportsAndDebugOutput(context);
             testReportFailureAndUnknownSourcePaths(context);
+            testLoggerTestHooks(context);
             testFileFallback(context);
             testMacroBehavior(context);
             testFilteredLogsDoNotCountAsDrops(context);

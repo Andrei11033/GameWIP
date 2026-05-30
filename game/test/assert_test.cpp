@@ -1,6 +1,14 @@
 #include "test/assert_test.h"
 
 #include "debug/assert/assert.h"
+
+#ifndef GAMEWIP_ASSERT_TEST_HOOKS
+#define GAMEWIP_ASSERT_TEST_HOOKS 0
+#endif
+
+#if GAMEWIP_ASSERT_TEST_HOOKS
+#include "debug/assert/internal/assert_test_hooks.h"
+#endif
 #include "logger/logger.h"
 
 #include <algorithm>
@@ -639,6 +647,36 @@ namespace
         CHECK_ONCE_MSG(false, "threaded check once stress");
     }
 
+    void testAssertTestHooks(TestContext &context)
+    {
+#if GAMEWIP_ASSERT_TEST_HOOKS
+        using GameWIP::Debug::Assert::FailureAction;
+        namespace AssertHooks = GameWIP::Debug::Assert::TestHooks;
+
+        AssertHooks::reset();
+        AssertHooks::setDebuggerAttachedOverride(true);
+        context.expectTrue("hook debugger attached override true", AssertHooks::debuggerAttachedForTest());
+        AssertHooks::setDebuggerAttachedOverride(false);
+        context.expectTrue("hook debugger attached override false", !AssertHooks::debuggerAttachedForTest());
+        AssertHooks::clearDebuggerAttachedOverride();
+
+        AssertHooks::forceNextTaskDialogFailure();
+        AssertHooks::forceNextMessageBoxFailure();
+        const FailureAction fallbackAction = AssertHooks::showFailureActionDialogForTest(
+            "Assert hook test",
+            "TaskDialog and MessageBox are forced to fail; default action should be returned.",
+            FailureAction::IgnoreOnce);
+        context.expectTrue("hook action dialog default fallback", fallbackAction == FailureAction::IgnoreOnce);
+
+        AssertHooks::setPopupSuppressedOverride(true);
+        AssertHooks::showErrorPopupForTest("Assert hook popup suppression", "This popup should be suppressed by the test hook.");
+        context.pass("hook popup suppression override returned without UI");
+        AssertHooks::reset();
+#else
+        context.pass("assert test hooks skipped because GAMEWIP_ASSERT_TEST_HOOKS=0");
+#endif
+    }
+
     void testInteractiveIgnoreOnce(TestContext &context)
     {
 #if GAMEWIP_ASSERT_ENABLED
@@ -758,7 +796,7 @@ namespace
             return;
         }
 
-        const int threadCount = std::max(2, options.stressThreadCount);
+        const int threadCount = static_cast<int>(std::max<std::size_t>(2, options.stressThreadCount));
         std::atomic<bool> start{false};
         std::vector<std::thread> workers;
         workers.reserve(static_cast<std::size_t>(threadCount));
@@ -806,7 +844,7 @@ namespace
             return;
         }
 
-        const int iterations = std::max(1, options.stressIterations);
+        const int iterations = static_cast<int>(std::max<std::size_t>(1, options.stressIterations));
         const ScopedEnvironmentVariable testAction(testActionEnvironmentVariable, "ignore_once");
         for (int index = 0; index < iterations; ++index)
         {
@@ -929,7 +967,7 @@ namespace
     void testAssertFailureChild(TestContext &context, const AssertTestOptions &options)
     {
 #if GAMEWIP_ASSERT_ENABLED
-        if (!options.enableAssertFailureChildTest)
+        if (!options.enableChildCrashTests)
         {
             context.pass("ASSERT failure child test disabled by AssertTestOptions");
             return;
@@ -957,7 +995,7 @@ namespace
     void testInteractiveAbortChild(TestContext &context, const AssertTestOptions &options)
     {
 #if GAMEWIP_ASSERT_ENABLED
-        if (!options.enableAssertFailureChildTest)
+        if (!options.enableChildCrashTests)
         {
             context.pass("ASSERT_INTERACTIVE abort child test disabled by AssertTestOptions");
             return;
@@ -981,7 +1019,7 @@ namespace
     void testInteractiveBreakChild(TestContext &context, const AssertTestOptions &options)
     {
 #if GAMEWIP_ASSERT_ENABLED
-        if (!options.enableAssertFailureChildTest)
+        if (!options.enableChildCrashTests)
         {
             context.pass("ASSERT_INTERACTIVE break child test disabled by AssertTestOptions");
             return;
@@ -1030,6 +1068,11 @@ namespace
         ASSERT_INTERACTIVE_MSG(false, "manual assert UI Always Ignore test - click Always Ignore to suppress the second call");
     }
 
+    void manualInteractiveBreakSite()
+    {
+        ASSERT_INTERACTIVE_MSG(false, "manual assert UI Break test - click Break while a debugger is attached, then continue execution");
+    }
+
     void testManualAssertUi(TestContext &context, const AssertTestOptions &options)
     {
         if (!options.enableManualUiTests)
@@ -1057,6 +1100,41 @@ namespace
         manualInteractiveAlwaysIgnoreSite();
         manualInteractiveAlwaysIgnoreSite();
         context.pass("manual assert UI Always Ignore suppressed second call");
+
+#if defined(_WIN32)
+        if (IsDebuggerPresent() != FALSE)
+        {
+            context.emit("[MANUAL] Assert UI Break: click Break, let the debugger stop, then continue execution.\n");
+            manualInteractiveBreakSite();
+            context.pass("manual assert UI Break continued after debugger resume");
+        }
+        else
+        {
+            context.pass("manual assert UI Break skipped because no debugger is attached");
+        }
+#else
+        context.pass("manual assert UI Break skipped because this manual check is Windows-only");
+#endif
+
+        if (options.enableChildCrashTests)
+        {
+            const std::filesystem::path childLogDirectory = context.logRoot / "manual_interactive_abort_child";
+            std::filesystem::create_directories(childLogDirectory);
+            const ScopedEnvironmentVariable childLogDirectoryOverride(childLogDirectoryEnvironmentVariable, pathText(childLogDirectory));
+            const ScopedClearedEnvironmentVariable clearChildTestAction(testActionEnvironmentVariable);
+            const ScopedClearedEnvironmentVariable clearChildSuppressPopup(suppressPopupEnvironmentVariable);
+
+            context.emit("[MANUAL] Assert UI Abort: a child process dialog should appear. Click Abort; the parent should detect abnormal exit.\n");
+            expectAbnormalChildExit(context, interactiveAbortChildArgument, "manual assert UI Abort child exits abnormally");
+
+            const std::string childLogContents = readDirectoryFiles(childLogDirectory);
+            context.expectTrue("manual assert UI Abort child logs fatal", childLogContents.find("[FATAL][Assert]: Assert failed") != std::string::npos, "manual abort child fatal missing");
+            context.expectTrue("manual assert UI Abort child logs message", childLogContents.find("interactive abort child") != std::string::npos, "manual abort child message missing");
+        }
+        else
+        {
+            context.pass("manual assert UI Abort child skipped because child crash tests are disabled");
+        }
 
         Logger::flush(2s);
 #else
@@ -1210,11 +1288,11 @@ namespace GameWIP::Test
             GAMEWIP_ASSERT_POPUP_ON_ASSERT,
             GAMEWIP_ASSERT_POPUP_ON_CHECK));
         context.emit(std::format(
-            "[INFO] Assert test options: stress={} fatalChild={} performance={} interactive={} manualUi={} perfIterations={} stressThreads={} stressIterations={} report={}\n",
+            "[INFO] Assert test options: stress={} fatalChild={} performance={} automatedInteractive={} manualUi={} perfIterations={} stressThreads={} stressIterations={} report={}\n",
             options.enableStressTests,
-            options.enableAssertFailureChildTest,
+            options.enableChildCrashTests,
             options.enablePerformanceMetrics,
-            options.enableInteractiveTests,
+            options.enableAutomatedInteractiveTests,
             options.enableManualUiTests,
             options.performanceIterations,
             options.stressThreadCount,
@@ -1229,7 +1307,8 @@ namespace GameWIP::Test
             testCheckOnceLogging(context);
             testDiagnosticConfiguration(context);
             testDiagnosticMessageEvaluation(context);
-            if (options.enableInteractiveTests)
+            testAssertTestHooks(context);
+            if (options.enableAutomatedInteractiveTests)
             {
                 testInteractiveIgnoreOnce(context);
                 testInteractiveAlwaysIgnore(context);

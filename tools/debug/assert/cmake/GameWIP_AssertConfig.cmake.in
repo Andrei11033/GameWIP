@@ -1,0 +1,34 @@
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+find_dependency(GameWIP_Logger CONFIG)
+
+include("${CMAKE_CURRENT_LIST_DIR}/GameWIPAssertTargets.cmake")
+
+set(GameWIP_Assert_COMMON_CONTROLS_MANIFEST "${PACKAGE_PREFIX_DIR}/@CMAKE_INSTALL_DATADIR@/GameWIP_Assert/common_controls_v6.manifest")
+set(GameWIP_Assert_COMMON_CONTROLS_RC_TEMPLATE "${PACKAGE_PREFIX_DIR}/@CMAKE_INSTALL_DATADIR@/GameWIP_Assert/common_controls_v6.rc.in")
+
+function(gamewip_assert_enable_common_controls_v6 target_name)
+    if(NOT WIN32)
+        return()
+    endif()
+
+    if(NOT EXISTS "${GameWIP_Assert_COMMON_CONTROLS_MANIFEST}")
+        message(FATAL_ERROR "GameWIP Assert Common Controls v6 manifest was not found: ${GameWIP_Assert_COMMON_CONTROLS_MANIFEST}")
+    endif()
+
+    if(NOT EXISTS "${GameWIP_Assert_COMMON_CONTROLS_RC_TEMPLATE}")
+        message(FATAL_ERROR "GameWIP Assert Common Controls v6 resource template was not found: ${GameWIP_Assert_COMMON_CONTROLS_RC_TEMPLATE}")
+    endif()
+
+    set(GAMEWIP_ASSERT_COMMON_CONTROLS_MANIFEST "${GameWIP_Assert_COMMON_CONTROLS_MANIFEST}")
+    configure_file(
+        "${GameWIP_Assert_COMMON_CONTROLS_RC_TEMPLATE}"
+        "${CMAKE_CURRENT_BINARY_DIR}/gamewip_assert_common_controls_v6.rc"
+        @ONLY
+    )
+
+    target_sources("${target_name}" PRIVATE
+        "${CMAKE_CURRENT_BINARY_DIR}/gamewip_assert_common_controls_v6.rc"
+    )
+endfunction()

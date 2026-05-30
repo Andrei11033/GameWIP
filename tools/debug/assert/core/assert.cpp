@@ -1,6 +1,14 @@
 #include "debug/assert/assert.h"
 #include "debug/assert/internal/assert_platform.h"
 
+#ifndef GAMEWIP_ASSERT_TEST_HOOKS
+#define GAMEWIP_ASSERT_TEST_HOOKS 0
+#endif
+
+#if GAMEWIP_ASSERT_TEST_HOOKS
+#include "debug/assert/internal/assert_test_hooks.h"
+#endif
+
 #include "logger/logger.h"
 
 #if GAMEWIP_ASSERT_DIAGNOSTICS
@@ -242,6 +250,13 @@ namespace
     /// @return True when GAMEWIP_ASSERT_SUPPRESS_POPUP is exactly 1.
     bool popupsSuppressedByEnvironment() noexcept
     {
+#if GAMEWIP_ASSERT_TEST_HOOKS
+        bool overrideValue = false;
+        if (GameWIP::Debug::Assert::TestHooks::Detail::popupSuppressedOverride(overrideValue))
+        {
+            return overrideValue;
+        }
+#endif
         const char *value = std::getenv("GAMEWIP_ASSERT_SUPPRESS_POPUP");
         return value != nullptr && std::strcmp(value, "1") == 0;
     }
@@ -250,6 +265,13 @@ namespace
     /// @return Break when a debugger is attached, otherwise Abort.
     FailureAction defaultInteractiveAction() noexcept
     {
+#if GAMEWIP_ASSERT_TEST_HOOKS
+        bool attachedOverride = false;
+        if (GameWIP::Debug::Assert::TestHooks::Detail::debuggerAttachedOverride(attachedOverride))
+        {
+            return attachedOverride ? FailureAction::Break : FailureAction::Abort;
+        }
+#endif
         return GameWIP::Debug::Assert::Platform::isDebuggerAttached()
                    ? FailureAction::Break
                    : FailureAction::Abort;
@@ -380,7 +402,13 @@ namespace GameWIP::Debug::Assert::Detail
     [[noreturn]] void handleAssertFailure(std::string_view conditionText, std::string_view message, std::string_view file, int line, std::string_view function) noexcept
     {
         reportAssertFailure(conditionText, message, file, line, function);
-        if (Platform::isDebuggerAttached())
+#if GAMEWIP_ASSERT_TEST_HOOKS
+        bool attachedOverride = false;
+        const bool debuggerAttached = TestHooks::Detail::debuggerAttachedOverride(attachedOverride) ? attachedOverride : Platform::isDebuggerAttached();
+#else
+        const bool debuggerAttached = Platform::isDebuggerAttached();
+#endif
+        if (debuggerAttached)
         {
             Platform::debugBreak();
         }

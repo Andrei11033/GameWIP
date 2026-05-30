@@ -1,0 +1,45 @@
+PROJECT_NAME           = "GameWIP Libraries"
+PROJECT_BRIEF          = "Logger and assert utilities for GameWIP"
+PROJECT_NUMBER         = "@PROJECT_VERSION@"
+OUTPUT_DIRECTORY       = "@CMAKE_CURRENT_BINARY_DIR@/docs/doxygen"
+
+INPUT                  = @GAMEWIP_DOXYGEN_INPUTS@
+
+RECURSIVE              = YES
+FILE_PATTERNS          = *.h *.hpp *.cpp *.md
+EXCLUDE_PATTERNS       = */internal/*_test_hooks.h */cmake/*
+EXCLUDE                = "@CMAKE_CURRENT_SOURCE_DIR@/tools/logger/platform" \
+                         "@CMAKE_CURRENT_SOURCE_DIR@/tools/debug/assert/platform"
+
+USE_MDFILE_AS_MAINPAGE = "@GAMEWIP_DOXYGEN_MAINPAGE@"
+
+GENERATE_HTML          = YES
+GENERATE_LATEX         = NO
+HTML_OUTPUT            = html
+HTML_EXTRA_STYLESHEET  = "@CMAKE_CURRENT_SOURCE_DIR@/docs/doxygen/custom.css"
+
+MARKDOWN_SUPPORT       = YES
+AUTOLINK_SUPPORT       = YES
+EXTRACT_ALL            = NO
+EXTRACT_PRIVATE        = NO
+EXTRACT_STATIC         = NO
+HIDE_UNDOC_MEMBERS     = NO
+WARN_IF_UNDOCUMENTED   = YES
+WARN_IF_DOC_ERROR      = YES
+WARN_AS_ERROR          = NO
+
+INLINE_SIMPLE_STRUCTS  = YES
+SORT_MEMBER_DOCS       = YES
+FULL_PATH_NAMES        = YES
+STRIP_FROM_PATH        = "@CMAKE_CURRENT_SOURCE_DIR@"
+
+ALIASES += thread_safety="<dl class=\"section note\"><dt>Thread safety</dt><dd>"
+ALIASES += endthread_safety="</dd></dl>"
+ALIASES += performance="<dl class=\"section note\"><dt>Performance</dt><dd>"
+ALIASES += endperformance="</dd></dl>"
+ALIASES += lifecycle="<dl class=\"section note\"><dt>Lifecycle</dt><dd>"
+ALIASES += endlifecycle="</dd></dl>"
+ALIASES += contract="<dl class=\"section note\"><dt>Contract</dt><dd>"
+ALIASES += endcontract="</dd></dl>"
+ALIASES += test_only="<dl class=\"section warning\"><dt>Test-only API</dt><dd>"
+ALIASES += endtest_only="</dd></dl>"

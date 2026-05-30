@@ -1,0 +1,67 @@
+Implementation checklist
+========================
+
+Purpose
+-------
+This file tracks implementation work that exists or still needs to be added. It is not the proof checklist; use `testing_checklist.txt` for validation requirements.
+
+Logger library
+--------------
+[x] Logger builds as a separate library target.
+[x] Public API supports normal async logs and synchronous reports.
+[x] Normal logs are async, queue-based, and filterable.
+[x] `Logger::report(...)` writes synchronously and bypasses filters/queue.
+[x] Report timeout overloads write first, then perform a bounded drain.
+[x] Queue drops are separated from diagnostics such as format/file/allocation failures.
+[x] Unknown SourceId values are accepted and counted.
+[x] Logger-owned fatal popup path exists through report/fatal-terminate APIs.
+[x] Logger internal test hooks exist under `tools/logger/internal/logger_test_hooks.h`.
+[x] Logger hook-forced failure tests cover rare file/popup/timeout branches.
+[x] Logger package config polish exists for `find_package(GameWIP_Logger CONFIG REQUIRED)`.
+
+Assert library
+--------------
+[x] Assert builds as a separate library target.
+[x] ASSERT / VERIFY / UNREACHABLE report fatal failures through Logger.
+[x] CHECK / CHECK_ONCE / ENSURE report recoverable errors through Logger.
+[x] ASSERT_INTERACTIVE / VERIFY_INTERACTIVE exist as separate developer workflows.
+[x] Interactive actions support Break, Abort, Ignore Once, and Always Ignore.
+[x] Common Controls v6 manifest support is provided for the Windows TaskDialog path.
+[x] Automated interactive tests can use `GAMEWIP_ASSERT_TEST_ACTION`.
+[x] Manual UI tests can open real Windows dialogs when enabled.
+[x] Assert internal test hooks exist under `tools/debug/assert/internal/assert_test_hooks.h`.
+[x] Assert hook-forced tests cover TaskDialog fallback, MessageBox failure, debugger overrides, and popup suppression overrides.
+[x] Assert package config polish exists for `find_package(GameWIP_Assert CONFIG REQUIRED)`.
+
+Build and tooling
+-----------------
+[x] CMake builds the game/test executable and library targets.
+[x] Runtime test selection is controlled by TestRunOptions, not CMake.
+[x] Common Controls v6 manifest resource is propagated through the Assert target in build-tree use.
+[x] `GAMEWIP_ENABLE_COVERAGE` instruments supported compilers for coverage runs.
+[x] `GAMEWIP_ENABLE_LOGGER_TEST_HOOKS` and `GAMEWIP_ENABLE_ASSERT_TEST_HOOKS` enable hook APIs for test builds.
+[x] Generated Doxygen configuration exists for professional HTML API docs.
+
+Documentation
+-------------
+[x] Project decisions are tracked in `docs/decisions.txt`.
+[x] Implementation and testing checklists are split.
+[x] Public Logger and Assert APIs follow the full Doxygen contract style for the current logger/assert surface.
+[x] Internal helpers are documented where locks, atomics, lifecycle, platform behavior, failure injection, or hot-path behavior is non-obvious.
+
+Per-library documentation
+-------------------------
+[x] Root documentation landing page exists at `docs/index.md`.
+[x] Logger owns a `tools/logger/docs/` guide folder.
+[x] Assert owns a `tools/debug/assert/docs/` guide folder.
+[x] Logger and Assert CMake files register their headers and guide folders with the global Doxygen build when documentation is enabled.
+[x] Doxygen input registration is modular, so each library can add docs without editing the root Doxyfile input list.
+[x] Expand public API Doxygen comments until all current public contracts are covered.
+[x] Expand per-library examples for current logger/assert API patterns.
+
+Package/install smoke test
+--------------------------
+[x] Installed package names are documented as `GameWIP_Logger` and `GameWIP_Assert`.
+[x] Imported targets are documented as `GameWIP::Logger` and `GameWIP::Assert`.
+[x] Assert package config depends on the Logger package through `find_dependency(GameWIP_Logger CONFIG)`.
+[x] A lightweight external package smoke test exists under `docs/package_smoke/`.
