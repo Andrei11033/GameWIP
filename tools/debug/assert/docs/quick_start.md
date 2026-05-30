@@ -3,34 +3,33 @@
 Use fatal assertions for invariants that should stop execution when they fail:
 
 ```cpp
-#include "debug/assert/assert.h"
-
 ASSERT(player != nullptr);
 ASSERT_MSG(resource.isLoaded(), "Resource should be loaded before use");
 ```
 
-Use `VERIFY` when the expression has side effects that must happen even when assertions are disabled:
+Use `VERIFY` when the expression must run even when assertions are disabled:
 
 ```cpp
 VERIFY(closeFile(handle));
-VERIFY_MSG(registerSystem(system), "System registration failed");
+VERIFY_MSG(commitTransaction(), "Transaction commit failed");
 ```
 
 Use recoverable checks when execution can continue:
 
 ```cpp
-CHECK(config.isValid());
-CHECK_MSG(optionalConfig.isValid(), "Optional config failed validation; using defaults");
-CHECK_ONCE(false); // reports only the first failure from this call site
+CHECK_MSG(config.isValid(), "Invalid optional config; using defaults");
+CHECK_ONCE_MSG(false, "This warning should only appear once from this call site");
 ```
 
-Use `ENSURE` when you want exactly-one expression evaluation and a boolean result:
+Use `ENSURE` when you want a boolean result and exactly-one evaluation:
 
 ```cpp
-if (!ENSURE(socket.isOpen()))
+if (!ENSURE_MSG(socket.isOpen(), "Socket should be open"))
 {
-    return false;
+    return;
 }
 ```
 
-Use interactive assertions only for developer workflows where continuing after a failure can be safe enough for debugging.
+Use interactive assertions only for developer workflows where continuing may be acceptable after inspecting the failure.
+
+Automated tests must use `GAMEWIP_ASSERT_TEST_ACTION` or test hooks for interactive paths. Real dialogs are reserved for runtime-gated manual UI tests.

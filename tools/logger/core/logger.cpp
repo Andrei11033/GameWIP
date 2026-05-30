@@ -1926,7 +1926,40 @@ namespace
         entry.message.clear(releaseHeapCapacity);
     }
 
-    void assignMessage(QueuedLogEntry &entry, std::string_view message, std::size_t maxMessageLength, bool &outTruncated);
+    /// @brief Copies only the retained message prefix and truncation suffix into queue storage.
+    /// @details This keeps preformatted huge messages from being fully copied before truncation.
+    /// @param entry Queue entry that will own the retained message text.
+    /// @param message Message text supplied by the producer.
+    /// @param maxMessageLength Maximum stored bytes.
+    /// @param outTruncated Receives true when the message was truncated.
+    void assignRetainedMessage(QueuedLogEntry &entry, std::string_view message, std::size_t maxMessageLength, bool &outTruncated)
+    {
+        constexpr std::string_view suffix = "... [truncated]";
+        outTruncated = false;
+        if (message.size() <= maxMessageLength)
+        {
+            entry.message.assign(message);
+            return;
+        }
+
+        outTruncated = true;
+        if (maxMessageLength == 0)
+        {
+            entry.message.clear();
+            return;
+        }
+        if (maxMessageLength <= suffix.size())
+        {
+            entry.message.assign(suffix.substr(0, maxMessageLength));
+            return;
+        }
+
+        std::string retainedMessage;
+        retainedMessage.reserve(maxMessageLength);
+        retainedMessage.append(message.substr(0, maxMessageLength - suffix.size()));
+        retainedMessage.append(suffix);
+        entry.message.assign(retainedMessage);
+    }
 
     /// @brief Copies a pending producer entry into an owning queue slot.
     /// @param destination Ring or batch slot to mutate.
@@ -1953,7 +1986,7 @@ namespace
         }
         else
         {
-            assignMessage(destination, source.message, loggerState.maxMessageLength, outTruncated);
+            assignRetainedMessage(destination, source.message, loggerState.maxMessageLength, outTruncated);
         }
     }
 

@@ -7,69 +7,69 @@ This file defines what must be proven by tests. It intentionally focuses on obse
 
 Logger API checklist
 --------------------
-[ ] `defaultConfig`, `lowMemoryConfig`, and `throughputConfig` expose the intended defaults.
-[ ] `init`, double init, shutdown, double shutdown, and repeated init/shutdown behave safely.
-[ ] Output modes None, Console, File, and Both are covered where the platform supports them.
-[ ] String source, registered SourceId source, enum source, and unknown SourceId source paths are covered.
-[ ] Compile-time format and runtimeFormat overloads are covered.
-[ ] Invalid runtime formats increment `formatFailures` and do not emit bogus log lines.
-[ ] Long messages are truncated and counted.
+[x] `defaultConfig`, `lowMemoryConfig`, and `throughputConfig` expose the intended defaults.
+[x] `init`, double init, shutdown, double shutdown, and repeated init/shutdown behave safely.
+[x] Output modes None, Console, File, and Both are covered where the platform supports them.
+[x] String source, registered SourceId source, enum source, and unknown SourceId source paths are covered.
+[x] Compile-time format and runtimeFormat overloads are covered.
+[x] Invalid runtime formats increment `formatFailures` and do not emit bogus log lines.
+[x] Long messages are truncated and counted.
 
 Logger report checklist
 -----------------------
-[ ] `Logger::report(...)` writes synchronously and does not increment queued stats.
-[ ] Reports bypass minimum level filters.
-[ ] Reports bypass source and level runtime filters.
-[ ] Reports survive a full async queue.
+[x] `Logger::report(...)` writes synchronously and does not increment queued stats.
+[x] Reports bypass minimum level filters.
+[x] Reports bypass source and level runtime filters.
+[x] Reports survive a full async queue.
 [ ] Report timeout overloads write first, then return the bounded drain result.
 [ ] `reportError`, `reportFatal`, and `fatalTerminate` route through the report contract.
-[ ] Logger-owned fatal popup is manually validated when `enableLoggerPopupTest` is true.
+[x] Logger-owned fatal popup is manually validated when `enableLoggerPopupTest` is true.
 
 Logger stats/counter checklist
 ------------------------------
-[ ] `queued` counts accepted async entries only.
-[ ] `written` counts entries accepted by at least one sink.
-[ ] `queueDropsSoft` and `queueDropsHard` count queue pressure only.
-[ ] Filtered logs are intentional skips and do not count as drops.
+[x] `queued` counts accepted async entries only.
+[x] `written` counts entries accepted by at least one sink.
+[x] `queueDropsSoft` and `queueDropsHard` count queue pressure only.
+[x] Filtered logs are intentional skips and do not count as drops.
 [ ] `allocationFailures`, `formatFailures`, `fileWriteFailures`, `unknownSourceUses`, and `truncated` each have direct trigger tests or hook-forced tests.
-[ ] `resetStats` clears resettable counters while preserving lifetime queue drops.
+[x] `resetStats` clears resettable counters while preserving lifetime queue drops.
 
 Logger lifecycle/concurrency checklist
 --------------------------------------
-[ ] Many producer threads can log concurrently without crash or deadlock.
-[ ] `flush(timeout)` while producers are active may time out but must not deadlock.
-[ ] Final flush after producers stop succeeds.
-[ ] `shutdown` while producers are active is safe.
+[x] Many producer threads can log concurrently without crash or deadlock.
+[x] `flush(timeout)` while producers are active may time out but must not deadlock.
+[x] Final flush after producers stop succeeds.
+[x] `shutdown` while producers are active is safe.
 [ ] `report` while producers are active remains synchronous and safe.
 
 Assert macro checklist
 ----------------------
-[ ] ASSERT evaluates only when assertions are enabled and aborts on failure.
-[ ] VERIFY always evaluates and only reports/aborts when assertions are enabled.
-[ ] CHECK evaluates only when checks are enabled and continues after reporting.
-[ ] CHECK_ONCE reports only the first failure attempt per call site.
-[ ] ENSURE evaluates exactly once and returns the boolean result.
-[ ] UNREACHABLE and DEBUG_BREAK child paths exit abnormally as expected.
-[ ] Diagnostics include condition, message, file, line, and caller function when enabled.
+[x] ASSERT evaluates only when assertions are enabled and aborts on failure.
+[x] VERIFY always evaluates and only reports/aborts when assertions are enabled.
+[x] CHECK evaluates only when checks are enabled and continues after reporting.
+[x] CHECK_ONCE reports only the first failure attempt per call site.
+[x] ENSURE evaluates exactly once and returns the boolean result.
+[x] UNREACHABLE and DEBUG_BREAK child paths exit abnormally as expected.
+[x] Diagnostics include condition, message, file, line, and caller function when enabled.
 [ ] Message expressions are not evaluated when diagnostics are disabled or the macro is compiled out.
 
 Assert interactive-action checklist
 -----------------------------------
-[ ] Automated interactive tests use `GAMEWIP_ASSERT_TEST_ACTION` and open no real UI.
-[ ] Ignore Once logs and continues; the same call site can report again later.
-[ ] Always Ignore logs once and suppresses future failures from the same macro call site.
-[ ] Abort logs and exits abnormally in a child process.
+[x] Automated interactive tests use `GAMEWIP_ASSERT_TEST_ACTION` and open no real UI.
+[x] Ignore Once logs and continues; the same call site can report again later.
+[x] Always Ignore logs once and suppresses future failures from the same macro call site.
+[x] Abort logs and exits abnormally in a child process.
 [ ] Break logs and exits abnormally without a debugger; with a debugger attached, it breaks and can resume.
-[ ] VERIFY_INTERACTIVE preserves side effects even when Always Ignore suppresses later reports.
+[x] VERIFY_INTERACTIVE preserves side effects even when Always Ignore suppresses later reports.
 
 Manual Windows UI checklist
 ---------------------------
-[ ] Assert Ignore Once button is manually validated.
-[ ] Assert Always Ignore button is manually validated and suppresses the second same-site dialog.
+[x] Assert Ignore Once button is manually validated.
+[x] Assert Always Ignore button is manually validated and suppresses the second same-site dialog.
 [ ] Assert Break button is manually validated with a debugger attached.
-[ ] Assert Abort button is manually validated in a child process.
-[ ] Logger fatal popup is manually validated through `Logger::report(..., ReportPopup::Fatal, ...)`.
-[ ] Manual UI tests run at the end and only when runtime options enable them.
+[x] Assert Abort button is manually validated in a child process.
+[x] Logger fatal popup is manually validated through `Logger::report(..., ReportPopup::Fatal, ...)`.
+[x] Manual UI tests run at the end and only when runtime options enable them.
 
 Failure-injection / test-hook checklist
 ---------------------------------------
@@ -85,29 +85,28 @@ Failure-injection / test-hook checklist
 
 Performance and coverage checklist
 ----------------------------------
-[ ] Hot passing macro paths have metrics: ASSERT, CHECK, VERIFY, ENSURE, ASSERT_INTERACTIVE, VERIFY_INTERACTIVE.
-[ ] Logger disabled/filtered/normal enabled paths have producer-side metrics.
-[ ] Performance tests are metrics-only until baselines/warnings are intentionally added.
+[x] Hot passing macro paths have metrics: ASSERT, CHECK, VERIFY, ENSURE, ASSERT_INTERACTIVE, VERIFY_INTERACTIVE.
+[x] Logger disabled/filtered/normal enabled paths have producer-side metrics.
+[x] Performance tests are metrics-only until baselines/warnings are intentionally added.
 [ ] Coverage builds can identify unexecuted logger/assert lines, functions, and branches.
-[ ] The optional `coverage` target exists when coverage is enabled.
+[x] The optional `coverage` target exists when coverage is enabled.
 [ ] If gcovr is available, the `coverage` target generates an HTML report and XML report.
 [ ] If gcovr is missing, the `coverage` target fails with a clear installation message instead of disappearing silently.
 [ ] Coverage reports are reviewed after hook-forced tests are added.
 
 Documentation validation checklist
 ----------------------------------
-[ ] `GAMEWIP_BUILD_DOCS=ON` creates the `docs` target when Doxygen is installed.
-[ ] Missing Doxygen produces a clear configure-time error only when documentation is explicitly enabled.
-[ ] Root docs link to Logger and Assert guide pages.
-[ ] Logger guide pages cover quick start, configuration, reports, stats, testing, and examples.
-[ ] Assert guide pages cover quick start, macros, interactive assertions, testing, and examples.
-[ ] Header comments remain contract-focused; tutorial-style material lives in Markdown guide pages.
+[x] `GAMEWIP_BUILD_DOCS=ON` creates the `docs` target when Doxygen is installed.
+[x] Missing Doxygen produces a clear configure-time error only when documentation is explicitly enabled.
+[x] Root docs link to Logger and Assert guide pages.
+[x] Logger guide pages cover quick start, configuration, reports, stats, testing, and examples.
+[x] Assert guide pages cover quick start, macros, interactive assertions, testing, and examples.
+[x] Header comments remain contract-focused; tutorial-style material lives in Markdown guide pages.
 
-Package/install smoke-test checklist
-------------------------------------
-[ ] Install with test hooks disabled.
-[ ] Configure `docs/package_smoke` with `CMAKE_PREFIX_PATH` pointing at the install prefix.
-[ ] Verify `find_package(GameWIP_Logger CONFIG REQUIRED)` succeeds.
-[ ] Verify `find_package(GameWIP_Assert CONFIG REQUIRED)` succeeds and resolves its Logger dependency.
-[ ] Verify a consumer target links to `GameWIP::Logger` and `GameWIP::Assert`.
-[ ] Verify internal/test hook headers are not installed as normal public API.
+Doxygen/build-tool validation addendum
+--------------------------------------
+[x] `cmake --build build-docs --target docs --verbose` prints the generated HTML path and warning-log path.
+[x] The Doxygen warning log is checked after docs generation.
+[x] The Doxygen sidebar groups library pages under Logger and Assert instead of flattening every guide page at the root.
+[ ] `GAMEWIP_INSTALL_DOCS=ON` installs generated HTML docs only when `GAMEWIP_BUILD_DOCS=ON`.
+[ ] Coverage generation tolerates known gcov negative-hit warnings and still writes HTML/XML reports.

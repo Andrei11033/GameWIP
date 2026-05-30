@@ -25,35 +25,12 @@ if(CMAKE_CONFIGURATION_TYPES)
     set(ASSERT_MULTI_CONFIG ON)
 endif()
 
-function(assert_resolve_auto_option output_variable option_value)
-    if(option_value STREQUAL "ON")
-        set(${output_variable} 1 PARENT_SCOPE)
-    elseif(option_value STREQUAL "OFF")
-        set(${output_variable} 0 PARENT_SCOPE)
-    elseif(ASSERT_BUILD_TYPE_VALUE STREQUAL "RELEASE" OR ASSERT_BUILD_TYPE_VALUE STREQUAL "RELWITHDEBINFO" OR ASSERT_BUILD_TYPE_VALUE STREQUAL "MINSIZEREL")
-        set(${output_variable} 0 PARENT_SCOPE)
-    else()
-        set(${output_variable} 1 PARENT_SCOPE)
-    endif()
-endfunction()
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/AssertOptions.cmake")
 
-function(assert_public_option output_variable option_value)
-    if(option_value STREQUAL "ON")
-        set(${output_variable} 1 PARENT_SCOPE)
-    elseif(option_value STREQUAL "OFF")
-        set(${output_variable} 0 PARENT_SCOPE)
-    elseif(ASSERT_MULTI_CONFIG)
-        set(${output_variable} "$<IF:${ASSERT_RELEASE_CONFIG_EXPRESSION},0,1>" PARENT_SCOPE)
-    else()
-        assert_resolve_auto_option(resolved_value "${option_value}")
-        set(${output_variable} ${resolved_value} PARENT_SCOPE)
-    endif()
-endfunction()
-
-assert_resolve_auto_option(ASSERT_ENABLED_EFFECTIVE "${ASSERT_ENABLED_VALUE}")
-assert_resolve_auto_option(ASSERT_CHECKS_ENABLED_EFFECTIVE "${ASSERT_CHECKS_ENABLED_VALUE}")
-assert_public_option(ASSERT_ENABLED_PUBLIC "${ASSERT_ENABLED_VALUE}")
-assert_public_option(ASSERT_CHECKS_ENABLED_PUBLIC "${ASSERT_CHECKS_ENABLED_VALUE}")
+gamewip_assert_resolve_auto_option(ASSERT_ENABLED_EFFECTIVE "${ASSERT_ENABLED_VALUE}")
+gamewip_assert_resolve_auto_option(ASSERT_CHECKS_ENABLED_EFFECTIVE "${ASSERT_CHECKS_ENABLED_VALUE}")
+gamewip_assert_public_option(ASSERT_ENABLED_PUBLIC "${ASSERT_ENABLED_VALUE}")
+gamewip_assert_public_option(ASSERT_CHECKS_ENABLED_PUBLIC "${ASSERT_CHECKS_ENABLED_VALUE}")
 
 set(ASSERT_RUNTIME_TARGET_ENABLED OFF)
 if(ASSERT_MULTI_CONFIG)
@@ -230,16 +207,17 @@ if(ASSERT_RUNTIME_TARGET_ENABLED)
     )
 endif()
 
-if(GAMEWIP_BUILD_DOCS AND COMMAND gamewip_register_doxygen_inputs)
-    gamewip_register_doxygen_inputs(
-        "${CMAKE_CURRENT_SOURCE_DIR}/assert.h"
-    )
-
-    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/docs")
-        gamewip_register_doxygen_inputs(
+if(GAMEWIP_BUILD_DOCS AND COMMAND gamewip_register_doxygen_library)
+    # Assert owns its public API docs and Markdown manual pages. The root docs
+    # target merges this into the unified GameWIP Doxygen site.
+    gamewip_register_doxygen_library(
+        NAME Assert
+        PAGE_ID assert
+        PUBLIC_HEADERS
+            "${CMAKE_CURRENT_SOURCE_DIR}/assert.h"
+        DOCS
             "${CMAKE_CURRENT_SOURCE_DIR}/docs"
-        )
-    endif()
+    )
 endif()
 
 if(ASSERT_RUNTIME_TARGET_ENABLED)

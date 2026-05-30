@@ -8,7 +8,9 @@
 #include "debug/assert/internal/assert_test_hooks.h"
 #endif
 
-#include <array>
+#include <limits>
+#include <string>
+#include <string_view>
 
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
@@ -61,54 +63,85 @@ namespace
     }
 #endif
 
-    template <std::size_t Capacity>
-    void utf8ToWide(std::string_view text, std::array<wchar_t, Capacity> &output) noexcept
+    /// @brief Builds a printable ASCII-only wide string when strict UTF-8 conversion fails.
+    std::wstring asciiFallbackToWide(std::string_view text)
     {
-        static_assert(Capacity > 0);
-        output[0] = L'\0';
-        if constexpr (Capacity <= 1)
+        std::wstring output;
+        output.reserve(text.size());
+        for (char ch : text)
         {
-            return;
+            const unsigned char value = static_cast<unsigned char>(ch);
+            output.push_back(value >= 0x20 && value < 0x80 ? static_cast<wchar_t>(value) : L'?');
         }
+        return output;
+    }
 
-        constexpr int maxWideSize = static_cast<int>(Capacity - 1);
-        std::size_t inputSize = text.size();
-        if (inputSize > Capacity - 1)
+    /// @brief Converts full UTF-8 text to UTF-16 before popup truncation.
+    /// @details Truncating after conversion avoids splitting a multibyte UTF-8 sequence.
+    std::wstring utf8ToWide(std::string_view text) noexcept
+    {
+        try
         {
-            inputSize = Capacity - 1;
-        }
-
-        int wideSize = 0;
-        if (inputSize > 0)
-        {
-            wideSize = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, text.data(), static_cast<int>(inputSize), output.data(), maxWideSize);
-        }
-
-        if (wideSize > 0)
-        {
-            for (int index = 0; index < wideSize; ++index)
+            if (text.empty())
             {
-                if (output[static_cast<std::size_t>(index)] == L'\0')
+                return {};
+            }
+
+            if (text.size() > static_cast<std::size_t>(std::numeric_limits<int>::max()))
+            {
+                return asciiFallbackToWide(text);
+            }
+
+            const int inputSize = static_cast<int>(text.size());
+            const int wideSize = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, text.data(), inputSize, nullptr, 0);
+            if (wideSize <= 0)
+            {
+                return asciiFallbackToWide(text);
+            }
+
+            std::wstring output(static_cast<std::size_t>(wideSize), L'\0');
+            if (MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, text.data(), inputSize, output.data(), wideSize) != wideSize)
+            {
+                return asciiFallbackToWide(text);
+            }
+
+            for (wchar_t &value : output)
+            {
+                if (value == L'\0')
                 {
-                    output[static_cast<std::size_t>(index)] = L'?';
+                    value = L'?';
                 }
             }
-            output[static_cast<std::size_t>(wideSize)] = L'\0';
+
+            return output;
+        }
+        catch (...)
+        {
+            return L"?";
+        }
+    }
+
+    /// @brief Bounds popup text after UTF-16 conversion while preserving a visible suffix.
+    void truncateWideForPopup(std::wstring &text, std::size_t maxCharacters) noexcept
+    {
+        if (text.size() <= maxCharacters)
+        {
             return;
         }
 
-        wideSize = static_cast<int>(inputSize);
-        if (wideSize > maxWideSize)
+        constexpr std::wstring_view suffix = L"... [truncated]";
+        if (maxCharacters <= suffix.size())
         {
-            wideSize = maxWideSize;
+            text.resize(maxCharacters);
+            return;
         }
 
-        for (int index = 0; index < wideSize; ++index)
+        text.resize(maxCharacters);
+        const std::size_t suffixOffset = maxCharacters - suffix.size();
+        for (std::size_t index = 0; index < suffix.size(); ++index)
         {
-            const unsigned char value = static_cast<unsigned char>(text[static_cast<std::size_t>(index)]);
-            output[static_cast<std::size_t>(index)] = value >= 0x20 && value < 0x80 ? static_cast<wchar_t>(value) : L'?';
+            text[suffixOffset + index] = suffix[index];
         }
-        output[static_cast<std::size_t>(wideSize)] = L'\0';
     }
 
     int buttonIdForAction(FailureAction action) noexcept
@@ -291,19 +324,19 @@ namespace GameWIP::Debug::Assert::Platform
             return;
         }
 
-        std::array<wchar_t, 128> titleText;
-        std::array<wchar_t, 1025> messageText;
-        utf8ToWide(title, titleText);
-        utf8ToWide(message, messageText);
-        MessageBoxW(nullptr, messageText.data(), titleText.data(), MB_ICONERROR | MB_OK | MB_SETFOREGROUND);
+        std::wstring titleText = utf8ToWide(title);
+        std::wstring messageText = utf8ToWide(message);
+        truncateWideForPopup(titleText, 127);
+        truncateWideForPopup(messageText, 1024);
+        MessageBoxW(nullptr, messageText.c_str(), titleText.c_str(), MB_ICONERROR | MB_OK | MB_SETFOREGROUND);
     }
 
     FailureAction showFailureActionDialog(std::string_view title, std::string_view message, FailureAction defaultAction) noexcept
     {
-        std::array<wchar_t, 128> titleText;
-        std::array<wchar_t, 1025> messageText;
-        utf8ToWide(title, titleText);
-        utf8ToWide(message, messageText);
+        std::wstring titleText = utf8ToWide(title);
+        std::wstring messageText = utf8ToWide(message);
+        truncateWideForPopup(titleText, 127);
+        truncateWideForPopup(messageText, 1024);
 
         constexpr int kBreakButtonId = 1001;
         constexpr int kAbortButtonId = 1002;
@@ -321,9 +354,9 @@ namespace GameWIP::Debug::Assert::Platform
         TASKDIALOGCONFIG config{};
         config.cbSize = sizeof(config);
         config.dwFlags = TDF_ALLOW_DIALOG_CANCELLATION;
-        config.pszWindowTitle = titleText.data();
-        config.pszMainInstruction = titleText.data();
-        config.pszContent = messageText.data();
+        config.pszWindowTitle = titleText.c_str();
+        config.pszMainInstruction = titleText.c_str();
+        config.pszContent = messageText.c_str();
         config.pszMainIcon = TD_ERROR_ICON;
         config.pButtons = buttons;
         config.cButtons = static_cast<UINT>(sizeof(buttons) / sizeof(buttons[0]));
@@ -347,7 +380,7 @@ namespace GameWIP::Debug::Assert::Platform
             }
         }
 
-        return fallbackMessageBoxAction(titleText.data(), messageText.data(), defaultAction);
+        return fallbackMessageBoxAction(titleText.c_str(), messageText.c_str(), defaultAction);
     }
 
     bool isDebuggerAttached() noexcept

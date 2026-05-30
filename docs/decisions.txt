@@ -136,14 +136,14 @@ Generated documentation and package polish
 ------------------------------------------
 Doxygen generation is provided by the optional `GAMEWIP_BUILD_DOCS` CMake option and the `docs` target. The first Doxygen setup documents the logger/assert public surface and uses custom aliases for contract-oriented sections such as thread-safety, lifecycle, performance, and test-only notes.
 
-Install/package polish uses underscore package names (`GameWIP_Logger` and `GameWIP_Assert`) while keeping imported targets stable as `GameWIP::Logger` and `GameWIP::Assert`. The Assert package locates the Logger package as a dependency and provides an installed helper for adding the Common Controls v6 manifest resource to a final Windows executable when needed.
+Install/package polish uses underscore package names (`GameWIP_Logger` and `GameWIP_Assert`) while keeping imported targets stable as `GameWIP::Logger` and `GameWIP::Assert`. The Assert package locates the Logger package as a dependency and propagates the Common Controls v6 manifest resource through `GameWIP::Assert` for Windows consumers.
 
 Per-library documentation structure
 -----------------------------------
 Each reusable library may own a `docs/` directory next to its public headers. These pages are written as Doxygen-compatible Markdown and are intended to answer practical usage questions without requiring the reader to inspect implementation files.
 
 The root documentation target combines:
-- root project pages such as `docs/index.md`, decisions, and checklists;
+- root project pages such as `docs/doxygen/index.md`, decisions, and checklists;
 - public header API reference generated from Doxygen comments;
 - per-library Markdown guides such as `tools/logger/docs/` and `tools/debug/assert/docs/`.
 
@@ -154,13 +154,22 @@ The intended split is:
 
 The global `GAMEWIP_BUILD_DOCS` option controls whether documentation is built. Each library CMake file registers its public headers and `docs/` directory only when the global documentation option is enabled and the root project provides the registration helper. This keeps library docs modular while still producing one combined `docs` target for the whole project.
 
-
-Package smoke-test policy
--------------------------
-A lightweight external-consumer package smoke test is kept under `docs/package_smoke/`. It is intentionally outside the normal in-tree build. After installation, configure it with `CMAKE_PREFIX_PATH` pointing at the install prefix to verify that `find_package(GameWIP_Logger CONFIG REQUIRED)`, `find_package(GameWIP_Assert CONFIG REQUIRED)`, and the `GameWIP::Logger` / `GameWIP::Assert` targets work for consumers.
-
 Coverage and documentation tool behavior
 ----------------------------------------
 When `GAMEWIP_ENABLE_COVERAGE` is enabled, the build should always expose a `coverage` target. If `gcovr` is available, the target generates HTML and XML reports. If `gcovr` is missing, the target fails with a clear message explaining how to install it. This avoids silent missing-target confusion.
 
 When `GAMEWIP_BUILD_DOCS` is enabled, Doxygen is required. If Doxygen is missing, configuration should fail with a clear message. Normal builds must not require Doxygen.
+
+Doxygen architecture update
+---------------------------
+- Project-wide Doxygen helper functions live in `cmake/GameWIPDoxygen.cmake`.
+- Each library owns its own docs folder and registers its public headers plus docs folder from its own `CMakeLists.txt`.
+- Only the library landing page (`<lib>.md`) is required. Other pages are library-defined.
+- Root docs should link only major sections. Each library landing page owns its child `@subpage` links so the sidebar stays grouped by library.
+- `GAMEWIP_INSTALL_DOCS=ON` installs generated HTML docs under `share/doc/GameWIP/doxygen/html` and requires `GAMEWIP_BUILD_DOCS=ON`.
+- The Doxygen input list is generated as one physical line to avoid fragile backslash parsing on Windows/MSYS2 paths.
+- Generated docs intentionally disable graph/PlantUML output for now so the `docs` target stays fast and deterministic.
+
+Coverage gcov/gcovr note
+------------------------
+Some GCC/gcov versions can produce negative hit counters for branch data. The coverage target treats this as a known gcov parse issue and passes `--gcov-ignore-parse-errors negative_hits.warn_once_per_file` to gcovr so HTML/XML reports are still generated while warnings remain visible.

@@ -37,7 +37,7 @@ Build and tooling
 -----------------
 [x] CMake builds the game/test executable and library targets.
 [x] Runtime test selection is controlled by TestRunOptions, not CMake.
-[x] Common Controls v6 manifest resource is propagated through the Assert target in build-tree use.
+[x] Common Controls v6 manifest resource is propagated through the Assert target in build-tree and installed-package use.
 [x] `GAMEWIP_ENABLE_COVERAGE` instruments supported compilers for coverage runs.
 [x] `GAMEWIP_ENABLE_LOGGER_TEST_HOOKS` and `GAMEWIP_ENABLE_ASSERT_TEST_HOOKS` enable hook APIs for test builds.
 [x] Generated Doxygen configuration exists for professional HTML API docs.
@@ -46,22 +46,23 @@ Documentation
 -------------
 [x] Project decisions are tracked in `docs/decisions.txt`.
 [x] Implementation and testing checklists are split.
-[x] Public Logger and Assert APIs follow the full Doxygen contract style for the current logger/assert surface.
+[x] Public Logger and Assert APIs follow the full Doxygen contract style everywhere.
 [x] Internal helpers are documented where locks, atomics, lifecycle, platform behavior, failure injection, or hot-path behavior is non-obvious.
 
 Per-library documentation
 -------------------------
-[x] Root documentation landing page exists at `docs/index.md`.
+[x] Root documentation landing page exists at `docs/doxygen/index.md`.
 [x] Logger owns a `tools/logger/docs/` guide folder.
 [x] Assert owns a `tools/debug/assert/docs/` guide folder.
 [x] Logger and Assert CMake files register their headers and guide folders with the global Doxygen build when documentation is enabled.
 [x] Doxygen input registration is modular, so each library can add docs without editing the root Doxyfile input list.
-[x] Expand public API Doxygen comments until all current public contracts are covered.
-[x] Expand per-library examples for current logger/assert API patterns.
+[x] Expand public API Doxygen comments until all public contracts are complete.
+[x] Expand per-library examples as new API patterns are added.
 
-Package/install smoke test
---------------------------
-[x] Installed package names are documented as `GameWIP_Logger` and `GameWIP_Assert`.
-[x] Imported targets are documented as `GameWIP::Logger` and `GameWIP::Assert`.
-[x] Assert package config depends on the Logger package through `find_dependency(GameWIP_Logger CONFIG)`.
-[x] A lightweight external package smoke test exists under `docs/package_smoke/`.
+Doxygen infrastructure addendum
+-------------------------------
+[x] Project-wide Doxygen helper functions live in `cmake/GameWIPDoxygen.cmake`.
+[x] Doxygen input generation avoids fragile multiline continuation parsing.
+[x] The docs target creates the output directory before running Doxygen.
+[x] The docs target writes Doxygen warnings to `build-docs/docs/doxygen/doxygen_warnings.log`.
+[x] `GAMEWIP_INSTALL_DOCS` installs generated HTML documentation when explicitly enabled.

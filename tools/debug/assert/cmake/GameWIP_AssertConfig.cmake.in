@@ -8,7 +8,8 @@ include("${CMAKE_CURRENT_LIST_DIR}/GameWIPAssertTargets.cmake")
 set(GameWIP_Assert_COMMON_CONTROLS_MANIFEST "${PACKAGE_PREFIX_DIR}/@CMAKE_INSTALL_DATADIR@/GameWIP_Assert/common_controls_v6.manifest")
 set(GameWIP_Assert_COMMON_CONTROLS_RC_TEMPLATE "${PACKAGE_PREFIX_DIR}/@CMAKE_INSTALL_DATADIR@/GameWIP_Assert/common_controls_v6.rc.in")
 
-function(gamewip_assert_enable_common_controls_v6 target_name)
+# Configures a build-directory resource that points at the installed manifest.
+function(_gamewip_assert_configure_common_controls_v6 output_variable)
     if(NOT WIN32)
         return()
     endif()
@@ -22,13 +23,59 @@ function(gamewip_assert_enable_common_controls_v6 target_name)
     endif()
 
     set(GAMEWIP_ASSERT_COMMON_CONTROLS_MANIFEST "${GameWIP_Assert_COMMON_CONTROLS_MANIFEST}")
+    set(GameWIP_Assert_COMMON_CONTROLS_RC "${CMAKE_CURRENT_BINARY_DIR}/gamewip_assert_common_controls_v6.rc")
     configure_file(
         "${GameWIP_Assert_COMMON_CONTROLS_RC_TEMPLATE}"
-        "${CMAKE_CURRENT_BINARY_DIR}/gamewip_assert_common_controls_v6.rc"
+        "${GameWIP_Assert_COMMON_CONTROLS_RC}"
         @ONLY
     )
 
+    set(${output_variable} "${GameWIP_Assert_COMMON_CONTROLS_RC}" PARENT_SCOPE)
+endfunction()
+
+# Normal installed consumers get the manifest resource by linking GameWIP::Assert.
+if(WIN32)
+    _gamewip_assert_configure_common_controls_v6(GameWIP_Assert_COMMON_CONTROLS_RC)
+    get_property(
+        GameWIP_Assert_COMMON_CONTROLS_ATTACHED
+        TARGET GameWIP::Assert
+        PROPERTY GAMEWIP_ASSERT_COMMON_CONTROLS_ATTACHED
+    )
+    if(NOT GameWIP_Assert_COMMON_CONTROLS_ATTACHED)
+        set_property(TARGET GameWIP::Assert APPEND PROPERTY
+            INTERFACE_SOURCES "${GameWIP_Assert_COMMON_CONTROLS_RC}"
+        )
+        set_property(TARGET GameWIP::Assert PROPERTY
+            GAMEWIP_ASSERT_COMMON_CONTROLS_ATTACHED TRUE
+        )
+    endif()
+endif()
+
+# Explicit helper for unusual consumers that need to attach the resource to a
+# target that does not link GameWIP::Assert directly.
+function(gamewip_assert_enable_common_controls_v6 target_name)
+    if(NOT WIN32)
+        return()
+    endif()
+
+    if(NOT TARGET "${target_name}")
+        message(FATAL_ERROR "gamewip_assert_enable_common_controls_v6 target does not exist: ${target_name}")
+    endif()
+
+    _gamewip_assert_configure_common_controls_v6(GameWIP_Assert_COMMON_CONTROLS_RC)
+    get_property(
+        GameWIP_Assert_COMMON_CONTROLS_ATTACHED
+        TARGET "${target_name}"
+        PROPERTY GAMEWIP_ASSERT_COMMON_CONTROLS_ATTACHED
+    )
+    if(GameWIP_Assert_COMMON_CONTROLS_ATTACHED)
+        return()
+    endif()
+
     target_sources("${target_name}" PRIVATE
-        "${CMAKE_CURRENT_BINARY_DIR}/gamewip_assert_common_controls_v6.rc"
+        "${GameWIP_Assert_COMMON_CONTROLS_RC}"
+    )
+    set_property(TARGET "${target_name}" PROPERTY
+        GAMEWIP_ASSERT_COMMON_CONTROLS_ATTACHED TRUE
     )
 endfunction()

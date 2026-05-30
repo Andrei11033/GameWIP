@@ -1,27 +1,28 @@
 @page logger_stats Logger statistics
 
-`Logger::getStats()` returns resettable diagnostic counters. `Logger::getLifetimeDroppedLogCount()` returns lifetime queue-drop accounting that survives `resetStats()`.
+Logger statistics describe queue activity, written output, diagnostics, and memory behavior.
 
-## Counter meanings
+Important rules:
 
-- `queued`: async log entries accepted into the queue.
-- `written`: entries accepted by at least one active sink.
-- `queueDropsSoft`: low-priority async entries dropped at the soft queue limit.
-- `queueDropsHard`: async entries dropped at the hard queue limit.
-- `allocationFailures`: allocation or internal formatting-storage failures caught by the logger.
-- `fileWriteFailures`: file write or flush failures.
-- `unknownSourceUses`: written entries that used an unregistered `SourceId` fallback.
-- `formatFailures`: runtime formatting failures.
-- `truncated`: messages shortened to the configured maximum length.
-- `peakQueueDepth`: largest observed queued depth since the last stats reset.
+- `queued` counts accepted asynchronous log entries.
+- `written` counts entries accepted by at least one sink.
+- `queueDropsSoft` and `queueDropsHard` only describe queue pressure.
+- Filtered logs are not drops.
+- `formatFailures`, `fileWriteFailures`, `unknownSourceUses`, and `truncated` are diagnostic counters.
+- `resetStats()` clears resettable counters but preserves lifetime queue-drop accounting.
 
-## Important rules
+## Queue counters
 
-- Filtered normal logs are not drops.
-- Reports bypass the queue and therefore do not increment `queued`.
-- A report can increment `written`, `truncated`, `fileWriteFailures`, or `unknownSourceUses` depending on what happened.
-- `resetStats()` clears resettable counters but preserves lifetime drop accounting.
+`queued` counts accepted async log entries. `written` counts entries or synchronous reports accepted by at least one sink. `queueDropsSoft` and `queueDropsHard` describe queue pressure only; filtered logs are not drops.
+
+`getLifetimeDroppedLogCount()` preserves the lifetime drop total. `resetStats()` clears resettable stats but does not erase the lifetime drop value used by shutdown reporting.
+
+## Diagnostics
+
+`unknownSourceUses` increments when a queued entry or report uses an unregistered `SourceId`. `truncated` increments when message storage applies the truncation policy. Formatting, allocation, file write, file flush, debug output, and fatal popup failures are surfaced through dedicated counters where practical.
 
 ## Memory stats
 
-`Logger::getMemoryStats()` returns best-effort memory information. Some fields are based on retained logger storage, while process memory depends on the platform backend. Treat memory stats as diagnostics rather than precise allocator accounting.
+`getMemoryStats()` reports logger-owned queue/message storage and platform process memory when available. Treat process memory values as a platform snapshot, not as logger-only allocations.
+
+The test suite contains direct tests for the public counter meanings.

@@ -13,6 +13,11 @@ if(DEFINED GAMEWIP_RUNTIME_SEARCH_DIR AND NOT GAMEWIP_RUNTIME_SEARCH_DIR STREQUA
 endif()
 
 # Scan the executable and resolve the DLLs it needs at runtime.
+if(POLICY CMP0207)
+    cmake_policy(PUSH)
+    cmake_policy(SET CMP0207 NEW)
+endif()
+
 file(GET_RUNTIME_DEPENDENCIES
     RESOLVED_DEPENDENCIES_VAR resolved_dependencies
     UNRESOLVED_DEPENDENCIES_VAR unresolved_dependencies
@@ -25,6 +30,10 @@ file(GET_RUNTIME_DEPENDENCIES
         ".*[/\\][Ww][Ii][Nn][Dd][Oo][Ww][Ss][/\\].*"
         ".*[/\\][Ss]ystem32[/\\].*"
 )
+
+if(POLICY CMP0207)
+    cmake_policy(POP)
+endif()
 
 # Copy every resolved runtime DLL beside GameWIP.exe.
 foreach(dependency IN LISTS resolved_dependencies)

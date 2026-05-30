@@ -44,17 +44,18 @@ set_target_properties(Logger PROPERTIES
     ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
 )
 
-if(GAMEWIP_BUILD_DOCS AND COMMAND gamewip_register_doxygen_inputs)
-    gamewip_register_doxygen_inputs(
-        "${CMAKE_CURRENT_SOURCE_DIR}/logger.h"
-        "${CMAKE_CURRENT_SOURCE_DIR}/logger_macros.h"
-    )
-
-    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/docs")
-        gamewip_register_doxygen_inputs(
+if(GAMEWIP_BUILD_DOCS AND COMMAND gamewip_register_doxygen_library)
+    # Logger owns its public API docs and Markdown manual pages. The root docs
+    # target merges this into the unified GameWIP Doxygen site.
+    gamewip_register_doxygen_library(
+        NAME Logger
+        PAGE_ID logger
+        PUBLIC_HEADERS
+            "${CMAKE_CURRENT_SOURCE_DIR}/logger.h"
+            "${CMAKE_CURRENT_SOURCE_DIR}/logger_macros.h"
+        DOCS
             "${CMAKE_CURRENT_SOURCE_DIR}/docs"
-        )
-    endif()
+    )
 endif()
 
 

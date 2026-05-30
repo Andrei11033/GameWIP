@@ -227,6 +227,7 @@ namespace GameWIP::Debug::Assert
 #endif
 }
 
+/// @cond GAMEWIP_ASSERT_DETAIL
 namespace GameWIP::Debug::Assert::Detail
 {
 #if GAMEWIP_ASSERT_RUNTIME
@@ -326,6 +327,7 @@ namespace GameWIP::Debug::Assert::Detail
 
 #define GAMEWIP_ASSERT_DETAIL_CHECK_FAILURE(condition, message) \
     GAMEWIP_ASSERT_DETAIL_CHECK_FAILURE_AT(condition, message, GAMEWIP_ASSERT_DETAIL_FUNCTION_TEXT)
+/// @endcond
 
 //-------------------------------------------------------------------------------------------------
 // Assertion macros

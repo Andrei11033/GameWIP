@@ -1,6 +1,7 @@
 # Build folders
 /build/
 /build-*/
+/logs/
 
 # Local tools
 /.tracy/

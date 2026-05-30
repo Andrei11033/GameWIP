@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 4.3.3)
+cmake_minimum_required(VERSION 3.20)
 
 project(GameWIP VERSION 0.0.1 LANGUAGES CXX)
 
@@ -16,6 +16,7 @@ option(GAMEWIP_ENABLE_COVERAGE "Enable coverage instrumentation for GameWIP test
 option(GAMEWIP_ENABLE_LOGGER_TEST_HOOKS "Enable Logger internal test hooks" OFF)
 option(GAMEWIP_ENABLE_ASSERT_TEST_HOOKS "Enable Assert internal test hooks" OFF)
 option(GAMEWIP_BUILD_DOCS "Build GameWIP Doxygen documentation" OFF)
+option(GAMEWIP_INSTALL_DOCS "Install generated Doxygen HTML documentation" OFF)
 
 if(GAMEWIP_ENABLE_COVERAGE)
     if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
@@ -40,6 +41,7 @@ if(GAMEWIP_ENABLE_COVERAGE)
                 --filter "${CMAKE_CURRENT_SOURCE_DIR}/tools/debug/assert"
                 --filter "${CMAKE_CURRENT_SOURCE_DIR}/game/test"
                 --exclude "${CMAKE_CURRENT_SOURCE_DIR}/external"
+                --gcov-ignore-parse-errors negative_hits.warn_once_per_file
                 --html-details
                 --output "${GAMEWIP_COVERAGE_OUTPUT_DIR}/index.html"
             COMMAND "${GAMEWIP_GCOVR_EXECUTABLE}"
@@ -48,6 +50,7 @@ if(GAMEWIP_ENABLE_COVERAGE)
                 --filter "${CMAKE_CURRENT_SOURCE_DIR}/tools/debug/assert"
                 --filter "${CMAKE_CURRENT_SOURCE_DIR}/game/test"
                 --exclude "${CMAKE_CURRENT_SOURCE_DIR}/external"
+                --gcov-ignore-parse-errors negative_hits.warn_once_per_file
                 --xml-pretty
                 --output "${GAMEWIP_COVERAGE_OUTPUT_DIR}/coverage.xml"
             WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
@@ -66,20 +69,30 @@ if(GAMEWIP_ENABLE_COVERAGE)
     endif()
 endif()
 
+if(GAMEWIP_INSTALL_DOCS AND NOT GAMEWIP_BUILD_DOCS)
+    message(FATAL_ERROR "GAMEWIP_INSTALL_DOCS requires GAMEWIP_BUILD_DOCS=ON so the generated HTML exists before install.")
+endif()
+
 if(GAMEWIP_BUILD_DOCS)
     find_package(Doxygen QUIET)
     if(NOT DOXYGEN_FOUND)
         message(FATAL_ERROR "GAMEWIP_BUILD_DOCS is ON, but Doxygen was not found. Install Doxygen and reconfigure, or set GAMEWIP_BUILD_DOCS=OFF.")
     endif()
 
-    function(gamewip_register_doxygen_inputs)
-        set_property(GLOBAL APPEND PROPERTY GAMEWIP_DOXYGEN_INPUTS ${ARGN})
-    endfunction()
+    include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/GameWIPDoxygen.cmake")
 
-    set(GAMEWIP_DOXYGEN_MAINPAGE "${CMAKE_CURRENT_SOURCE_DIR}/docs/index.md")
+    set(GAMEWIP_DOXYGEN_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/docs/doxygen")
+    set(GAMEWIP_DOXYGEN_MAINPAGE "${GAMEWIP_DOXYGEN_ROOT}/index.md")
+
+    # Project-wide Doxygen pages live under docs/doxygen. Register explicit
+    # Markdown files so Doxygen does not crawl generated HTML or private notes.
     gamewip_register_doxygen_inputs(
-        "${GAMEWIP_DOXYGEN_MAINPAGE}"
-        "${CMAKE_CURRENT_SOURCE_DIR}/docs/doxygen/mainpage.md"
+        "${GAMEWIP_DOXYGEN_ROOT}/index.md"
+        "${GAMEWIP_DOXYGEN_ROOT}/build.md"
+        "${GAMEWIP_DOXYGEN_ROOT}/coverage.md"
+        "${GAMEWIP_DOXYGEN_ROOT}/documentation.md"
+        "${GAMEWIP_DOXYGEN_ROOT}/testing.md"
+        "${GAMEWIP_DOXYGEN_ROOT}/mainpage.md"
     )
 endif()
 
@@ -96,6 +109,9 @@ add_subdirectory(tools/logger)
 if(GAMEWIP_ENABLE_ASSERTS)
     set(ASSERT_ENABLED ON CACHE STRING "Force assertions on, off, or let NDEBUG choose" FORCE)
     set(ASSERT_CHECKS_ENABLED ON CACHE STRING "Force recoverable checks on, off, or let NDEBUG choose" FORCE)
+else()
+    set(ASSERT_ENABLED OFF CACHE STRING "Force assertions on, off, or let NDEBUG choose" FORCE)
+    set(ASSERT_CHECKS_ENABLED OFF CACHE STRING "Force recoverable checks on, off, or let NDEBUG choose" FORCE)
 endif()
 
 add_subdirectory(tools/debug/assert)
@@ -105,28 +121,8 @@ add_subdirectory(engine/window)
 add_subdirectory(engine/window_manager)
 
 if(GAMEWIP_BUILD_DOCS)
-    get_property(GAMEWIP_DOXYGEN_INPUT_LIST GLOBAL PROPERTY GAMEWIP_DOXYGEN_INPUTS)
-    if(NOT GAMEWIP_DOXYGEN_INPUT_LIST)
-        message(FATAL_ERROR "GAMEWIP_BUILD_DOCS is ON, but no Doxygen inputs were registered.")
-    endif()
-
-    set(GAMEWIP_DOXYGEN_INPUTS "")
-    foreach(doxygen_input IN LISTS GAMEWIP_DOXYGEN_INPUT_LIST)
-        string(APPEND GAMEWIP_DOXYGEN_INPUTS " \\\n                         \"${doxygen_input}\"")
-    endforeach()
-
-    configure_file(
-        "${CMAKE_CURRENT_SOURCE_DIR}/docs/doxygen/Doxyfile.in"
-        "${CMAKE_CURRENT_BINARY_DIR}/Doxyfile"
-        @ONLY
-    )
-
-    add_custom_target(docs
-        COMMAND "${CMAKE_COMMAND}" -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/docs/doxygen"
-        COMMAND Doxygen::doxygen "${CMAKE_CURRENT_BINARY_DIR}/Doxyfile"
-        WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
-        COMMENT "Generating GameWIP API and guide documentation"
-        VERBATIM
+    gamewip_create_doxygen_target(
+        MAINPAGE "${GAMEWIP_DOXYGEN_MAINPAGE}"
     )
 endif()
 

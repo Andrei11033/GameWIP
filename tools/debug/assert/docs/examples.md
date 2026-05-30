@@ -11,41 +11,58 @@ ASSERT_MSG(index < values.size(), "Index out of range");
 
 ```cpp
 VERIFY(closeFile(handle));
-VERIFY_MSG(registerSystem(system), "System registration failed");
+VERIFY_MSG(writeHeader(file), "Could not write save header");
 ```
-
-Use `VERIFY` when the expression has side effects that must happen in disabled assert builds.
 
 ## Recoverable check
 
 ```cpp
-CHECK(optionalConfig.isValid());
-CHECK_MSG(optionalConfig.isValid(), "Optional config failed validation; using defaults");
+CHECK_MSG(optionalConfig.isValid(), "Optional config failed validation");
+CHECK_MSG(cache.refresh(), "Cache refresh failed; continuing with old data");
 ```
 
 ## Check once
 
 ```cpp
-CHECK_ONCE(cacheWarningCondition());
 CHECK_ONCE_MSG(false, "This warning should only be logged once from this call site");
 ```
 
-`CHECK_ONCE` suppresses reports after the first failed reporting attempt from the same macro expansion. It does not create a global warning registry.
+Use `CHECK_ONCE` for noisy recoverable diagnostics. It is scoped to the macro expansion site, not to the condition text.
 
-## Ensure as a boolean guard
+## Ensure result
 
 ```cpp
-if (!ENSURE_MSG(socket.isOpen(), "Socket must be open before sending"))
+if (!ENSURE_MSG(loadOptionalConfig(), "Using defaults because optional config failed"))
 {
-    return false;
+    useDefaultConfig();
 }
 ```
+
+`ENSURE` and `ENSURE_MSG` always evaluate the condition once and return the boolean result.
 
 ## Interactive assertion
 
 ```cpp
 ASSERT_INTERACTIVE_MSG(state.isConsistent(), "Developer-only consistency failure");
-VERIFY_INTERACTIVE_MSG(reloadDebugData(), "Debug reload failed");
+VERIFY_INTERACTIVE(rebuildDebugCache());
 ```
 
 Use interactive assertions only where continuing after a failure is acceptable during development.
+
+## Unreachable and debug break
+
+```cpp
+switch (mode)
+{
+case Mode::A:
+    break;
+case Mode::B:
+    break;
+default:
+    UNREACHABLE();
+}
+
+DEBUG_BREAK();
+```
+
+Use `UNREACHABLE` for impossible control-flow paths. Use `DEBUG_BREAK` when a deliberate debugger trap is clearer than an assertion condition.

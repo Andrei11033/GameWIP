@@ -1,56 +1,103 @@
 @page logger_examples Logger examples
 
-## Normal preformatted logging
+## Initialize with a custom config
 
 ```cpp
-GameWIP::Logger::info("Game", "Game started");
-GameWIP::Logger::warn("Assets", "Missing optional asset");
+auto config = Logger::defaultConfig();
+config.output = Logger::Types::Output::Both;
+config.minLevel = Logger::Types::Level::Info;
+config.logDirectory = "logs";
+Logger::init(config);
 ```
 
-## Lazy formatted logging through macros
+## Register source IDs
 
 ```cpp
-LOGGER_DEBUG(LogSource::Renderer, "Visible meshes: {}", visibleMeshCount);
-LOGGER_ERROR("SaveSystem", "Save failed: {}", errorText);
+enum class LogSource : Logger::Types::SourceId
+{
+    Game = 1,
+    Physics = 2,
+};
+
+auto config = Logger::defaultConfig();
+config.sources = {
+    Logger::defineSource(LogSource::Game, "Game"),
+    Logger::defineSource(LogSource::Physics, "Physics"),
+};
+Logger::init(config);
+Logger::info(LogSource::Game, "Started");
 ```
 
-The `LOGGER_*` macros call `shouldLog(...)` before evaluating message/format arguments, so filtered messages avoid unnecessary work.
-
-## Runtime format strings
+## Normal logging
 
 ```cpp
-const std::string_view formatFromConfig = "Player {} joined";
-GameWIP::Logger::info(
-    "Network",
-    GameWIP::Logger::runtimeFormat(formatFromConfig),
-    playerName);
+Logger::info("Game", "Loaded {} assets", assetCount);
+Logger::debug("Physics", "Step took {} ms", stepMs);
 ```
 
-Use `runtimeFormat(...)` only when the format string cannot be known at compile time.
+## Runtime format string
+
+```cpp
+std::string format = "{} connected from {}";
+Logger::info("Network", Logger::runtimeFormat(format), playerName, address);
+```
+
+Use `runtimeFormat` only when the format string cannot be compile-time checked.
+
+## Lazy macro
+
+```cpp
+LOGGER_DEBUG(LogSource::Physics, std::format("contact graph {}", buildContactGraphDump()));
+```
+
+The message expression is skipped when Debug or the source is filtered.
+
+## Runtime filters
+
+```cpp
+Logger::setLevelFilter(Logger::Types::Level::Debug, false);
+Logger::setSourceFilter(LogSource::Physics, false);
+Logger::clearLevelFilters();
+Logger::clearSourceFilters();
+```
 
 ## Synchronous report
 
 ```cpp
-GameWIP::Logger::report(
-    GameWIP::Logger::Types::Level::Error,
+Logger::report(
+    Logger::Types::Level::Error,
     "SaveSystem",
-    "Could not open save file");
+    "Could not open save file"
+);
 ```
 
 ## Fatal popup report
 
 ```cpp
-GameWIP::Logger::report(
-    GameWIP::Logger::Types::Level::Fatal,
+Logger::report(
+    Logger::Types::Level::Fatal,
     "Startup",
-    GameWIP::Logger::Types::ReportPopup::Fatal,
-    "Critical startup failure");
+    Logger::Types::ReportPopup::Fatal,
+    "Critical startup failure"
+);
 ```
 
-## Terminating fatal path
+Normal `Logger::fatal(...)` is only a fatal-severity normal log. It does not terminate and does not force a popup.
+
+## Bounded flush
 
 ```cpp
-GameWIP::Logger::fatalTerminate("Startup", "Required asset database is missing");
+const bool drained = Logger::flush(std::chrono::milliseconds{250});
 ```
 
-`fatalTerminate(...)` does not return. For a non-terminating fatal-severity queue entry, use `Logger::fatal(...)` instead.
+Use bounded flushes in paths where waiting forever would be worse than reporting an incomplete drain.
+
+## Stats
+
+```cpp
+const auto stats = Logger::getStats();
+const auto memory = Logger::getMemoryStats();
+Logger::resetStats();
+```
+
+Use stats in tests and diagnostics. Do not treat coverage or hook-enabled builds as performance baselines.

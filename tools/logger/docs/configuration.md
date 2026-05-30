@@ -1,49 +1,40 @@
 @page logger_configuration Logger configuration
 
-Logger configuration controls output sinks, queue limits, message storage behavior, filtering defaults, platform debug output, and fatal popup behavior. `Logger::init(...)` copies the configuration. Mutating the original `Config` object after initialization has no effect.
+Logger configuration controls output sinks, queue size, message storage behavior, filtering defaults, and fatal popup behavior.
 
 ## Built-in configurations
 
 - `Logger::defaultConfig()` is the normal general-purpose configuration.
-- `Logger::lowMemoryConfig()` reduces retained memory and is useful for small test runs or constrained tools.
-- `Logger::throughputConfig()` favors high-volume logging by increasing reuse and batching.
+- `Logger::lowMemoryConfig()` reduces retained memory.
+- `Logger::throughputConfig()` favors high-volume logging and reuse.
+
+Each helper returns a `Logger::Types::Config` value that can be edited before `Logger::init(config)`. The logger copies the configuration it needs during init; later edits to the local config object do not reconfigure the running logger.
 
 ## Output modes
 
-`Types::Output` controls normal async sinks:
+`Config::output` controls the active sinks. The supported modes are `None`, `Console`, `File`, and `Both`.
 
-- `None`: no normal sink output.
-- `Console`: write to stdout/stderr.
-- `File`: write to the configured log directory/file.
-- `Both`: write to console and file.
+File output uses `Config::logDirectory`. If file setup fails and `fallbackToConsoleOnFileFailure` is true, startup can continue with console output and `getLastResult()` / `getLastPlatformError()` describe the file failure.
 
-When file setup fails, `fallbackToConsoleOnFileFailure` can keep diagnostics visible by falling back to console output. `getLastResult()` and `getLastPlatformError()` expose the most recent setup or platform failure.
+## Filtering
 
-## Queue and message limits
-
-`maxQueueSize` is the soft queue limit. Low-priority messages may drop at this point. The hard limit is derived from `hardQueueMultiplier`; every severity may drop at the hard limit.
-
-`maxMessageLength` bounds stored message text. Long messages are truncated with a visible suffix and counted in `Stats::truncated`.
-
-`inlineMessageCapacity`, `workerBatchSize`, `releaseMessageMemoryAfterWrite`, and `releaseStorageOnShutdown` control the memory/performance tradeoff. For normal builds, prefer the built-in configs unless a test or tool has a specific reason to tune them.
-
-## Source and level filters
-
-Startup filters are copied from `Config::sourceFilters` and `Config::levelFilters`. Runtime filters can be changed with:
+`Config::minLevel` is the startup severity floor. `Config::sourceFilters` and `Config::levelFilters` apply initial runtime filters. Runtime APIs can then update filters:
 
 ```cpp
-GameWIP::Logger::setSourceFilter(LogSource::Renderer, false);
-GameWIP::Logger::setLevelFilter(GameWIP::Logger::Types::Level::Debug, false);
+Logger::setLevelFilter(Logger::Types::Level::Debug, false);
+Logger::setSourceFilter(Logger::sourceId(LogSource::AI), false);
+Logger::clearLevelFilters();
+Logger::clearSourceFilters();
 ```
 
-Filtering rules:
+Level and source filters apply to normal logs. String sources are severity-filtered only. Registered `SourceId` / enum sources can use both severity and source filters. Unknown `SourceId` values are accepted and written as `UnknownSource`; they increment `Stats::unknownSourceUses`.
 
-- `minLevel` is a startup severity floor. Runtime level filters cannot re-enable severities below it.
-- Source filters affect registered `SourceId` / enum sources only.
-- String sources are filtered by level only.
-- Unknown `SourceId` values are allowed and written as `UnknownSource`; they are counted in `Stats::unknownSourceUses`.
-- Filtered normal logs are intentional skips and do not count as queue drops.
+Filtered normal logs are intentional skips. They must not count as dropped logs.
 
-## Formatting policy
+## Queue and message storage
 
-Compile-time checked overloads use `std::format_string`. Dynamic format strings must be wrapped explicitly with `Logger::runtimeFormat(...)` so runtime formatting is visible at the call site. Formatting happens on the caller thread before queue insertion.
+`maxQueueSize`, `hardQueueLimitMultiplier`, `maxMessageLength`, `formatPolicy`, `preallocatedMessageBytes`, and `workerBatchSize` tune queue pressure, truncation, retained memory, and worker batching. Use @ref logger_threading_performance when changing these values.
+
+## Fatal popup
+
+`Config::enableFatalPopup` controls logger-owned fatal popup behavior used by report paths that request it. Normal `Logger::fatal(...)` does not request a popup and does not terminate the process.

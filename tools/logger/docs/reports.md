@@ -1,40 +1,30 @@
 @page logger_reports Logger reports
 
-`Logger::report(...)` is the synchronous emergency diagnostic path. It is intentionally separate from normal async logging.
+`Logger::report(...)` is the synchronous diagnostic path.
 
-A report:
+Reports are intended for important messages that should not wait behind the async queue. A report:
 
-- bypasses `minLevel`, runtime level filters, and source filters;
-- bypasses the async queue;
-- writes directly to active sinks;
-- mirrors to platform debug output when enabled;
-- flushes sinks before returning;
+- bypasses level and source filters,
+- bypasses the async queue,
+- writes directly to active sinks,
+- mirrors to platform debug output when enabled,
+- flushes sinks before returning,
 - does not terminate the process by itself.
 
-Reports are appropriate for assertion failures, fatal startup failures, save/load failures that must be visible immediately, and shutdown diagnostics.
+`Logger::report(..., timeout, ...)` writes the report first, then attempts a bounded queue/sink drain. If the drain times out, the report line was still already written and the function returns false.
+
+## Convenience APIs
+
+- `reportError(...)` reports `Level::Error`, mirrors to platform debug output, and flushes.
+- `reportFatal(...)` reports `Level::Fatal`, mirrors to platform debug output, flushes, and shows the fatal popup when enabled.
+- `fatalTerminate(...)` reports fatal, flushes, optionally shows the fatal popup, then terminates the process.
+
+Logger-owned fatal popups are only used by report/fatal-terminate paths that explicitly request or configure them.
+
+## Popup policy
+
+Use `Logger::Types::ReportPopup::Fatal` with `report(...)` when a generic report should request the logger-owned fatal popup. The popup may block and is not appropriate for frame hot paths.
 
 ## Ordering
 
-A report does not guarantee ordering relative to older async queue entries. It writes immediately rather than waiting behind the queue. Use `flush()` before the report if strict ordering with earlier normal logs matters.
-
-## Timeout overloads
-
-Timeout overloads write the report first, then attempt a bounded async queue/sink drain:
-
-```cpp
-const bool drained = GameWIP::Logger::report(
-    GameWIP::Logger::Types::Level::Error,
-    "SaveSystem",
-    GameWIP::Logger::flushTimeout(std::chrono::milliseconds{250}),
-    "Save failed");
-```
-
-A `false` return means the bounded drain/flush did not complete; it does not mean the report line itself was skipped.
-
-## Fatal helpers
-
-- `reportError(...)` reports at Error severity without a fatal popup.
-- `reportFatal(...)` reports at Fatal severity and can use the logger-owned fatal popup when enabled.
-- `fatalTerminate(...)` reports, flushes, may show the fatal popup, then terminates.
-
-Normal `Logger::fatal(...)` remains a queue-based fatal-severity log only.
+Reports do not enter the async queue. They are written immediately relative to the calling thread, then the logger attempts to drain accepted queued work when the report overload requires a flush. Other producer threads can still enqueue normal logs while the runtime is accepting them, so report ordering should be documented as synchronous for the report line itself, not as a global stop-the-world ordering guarantee.

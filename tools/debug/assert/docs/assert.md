@@ -1,24 +1,20 @@
 @page assert Assert
 
-The GameWIP Assert library provides fatal assertions, recoverable checks, exactly-once boolean validation helpers, explicit debug breaks, unreachable-code markers, and optional interactive developer failure actions.
+The GameWIP Assert library provides fatal assertions, recoverable checks, and optional interactive developer failure actions.
 
-The assert runtime reports through the Logger library. Fatal paths use synchronous logger reports so failure diagnostics are written immediately instead of waiting behind normal async log traffic.
+The assert library reports through the Logger library. Fatal assertion paths use synchronous logger reports so failure diagnostics are written immediately.
 
-## Macro families
+Manual pages:
 
-- **Fatal**: `ASSERT`, `ASSERT_MSG`, `VERIFY`, `VERIFY_MSG`, `UNREACHABLE`.
-- **Interactive fatal**: `ASSERT_INTERACTIVE`, `ASSERT_INTERACTIVE_MSG`, `VERIFY_INTERACTIVE`, `VERIFY_INTERACTIVE_MSG`.
-- **Recoverable**: `CHECK`, `CHECK_MSG`, `CHECK_ONCE`, `CHECK_ONCE_MSG`, `ENSURE`, `ENSURE_MSG`.
-- **Debugger**: `DEBUG_BREAK`.
+- @subpage assert_quick_start
+- @subpage assert_macros
+- @subpage assert_macro_behavior
+- @subpage assert_diagnostics
+- @subpage assert_interactive
+- @subpage assert_failure_actions
+- @subpage assert_testing
+- @subpage assert_test_hooks
+- @subpage assert_troubleshooting
+- @subpage assert_examples
 
-## Guide pages
-
-- @ref assert_quick_start
-- @ref assert_macros
-- @ref assert_interactive
-- @ref assert_testing
-- @ref assert_examples
-
-## API reference
-
-Most of the public surface is macro-based and documented in `debug/assert/assert.h`. `GameWIP::Debug::Assert::FailureAction` documents the interactive action enum.
+Key behavior: `ASSERT` is for fatal invariants. `VERIFY` is for fatal checks whose expression must always run. `CHECK` and `CHECK_ONCE` report recoverable failures. `ENSURE` evaluates exactly once, reports when enabled and false, and returns the boolean result. Interactive asserts are developer-only failure paths with Break, Abort, Ignore Once, and Always Ignore choices.

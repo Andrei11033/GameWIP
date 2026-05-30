@@ -1,56 +1,35 @@
 @page logger_quick_start Logger quick start
 
-A minimal setup creates a configuration, initializes the process-wide logger, writes normal async logs, uses reports for important synchronous diagnostics, and shuts down during teardown.
+A minimal logger setup initializes the process-wide runtime, writes normal async logs, uses reports for important synchronous diagnostics, and shuts down during application teardown.
 
 ```cpp
-#include "logger/logger.h"
-#include "logger/logger_macros.h"
+Logger::Types::Config config = Logger::defaultConfig();
+Logger::init(config);
 
-int main()
-{
-    GameWIP::Logger::Types::Config config = GameWIP::Logger::defaultConfig();
-    const GameWIP::Logger::Types::Result result = GameWIP::Logger::init(config);
-    if (result != GameWIP::Logger::Types::Result::Success)
-    {
-        return 1;
-    }
+Logger::info("Game", "Game started");
+Logger::warn("Assets", "Missing optional asset: {}", assetName);
 
-    GameWIP::Logger::info("Game", "Game started");
-    LOGGER_WARN("Assets", "Missing optional asset: {}", "placeholder.png");
+Logger::report(
+    Logger::Types::Level::Error,
+    "SaveSystem",
+    "Failed to write save file"
+);
 
-    GameWIP::Logger::report(
-        GameWIP::Logger::Types::Level::Error,
-        "SaveSystem",
-        "Failed to write save file");
-
-    GameWIP::Logger::shutdown();
-    return 0;
-}
+Logger::shutdown();
 ```
 
-## Registered source IDs
+Normal logs are asynchronous, queue-based, and filterable. Reports are synchronous, immediate, filter-bypassing, and non-queued. Use `flush()` before inspecting a log file during a test, and `shutdown()` during final application teardown.
 
-For hot paths, prefer stable source IDs or unsigned enum source values. The logger copies source names during `init(...)`, so caller-owned `std::string_view` names only need to live through initialization.
+For cheap call sites, direct formatted APIs are fine:
 
 ```cpp
-enum class LogSource : GameWIP::Logger::Types::SourceId
-{
-    Engine = 1,
-    Renderer = 2,
-};
-
-const std::array sources{
-    GameWIP::Logger::defineSource(LogSource::Engine, "Engine"),
-    GameWIP::Logger::defineSource(LogSource::Renderer, "Renderer"),
-};
-
-auto config = GameWIP::Logger::defaultConfig();
-config.sources = sources;
-GameWIP::Logger::init(config);
-
-LOGGER_INFO(LogSource::Engine, "Initialized subsystem {}", "input");
+Logger::info("Game", "Frame {}", frameIndex);
 ```
 
-## Include rule
+For hot paths or expensive message construction, use `LOGGER_*` macros or `shouldLog()` so message work can be skipped when the level/source is filtered:
 
-Include `logger/logger.h` for the class API. Include `logger/logger_macros.h` only when the global `LOGGER_*` convenience macros are wanted.
+```cpp
+LOGGER_DEBUG(LogSource::Physics, std::format("contacts {}", contactCount));
+```
+
+See @ref logger_lifecycle for startup/shutdown rules and @ref logger_examples for more recipes.

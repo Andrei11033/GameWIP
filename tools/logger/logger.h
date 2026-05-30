@@ -73,6 +73,11 @@ namespace GameWIP
     public:
         // Public types and configuration ----------------------------------------------------------
 
+        /// @brief Public Logger type collection used by configuration, filtering, reporting, and statistics APIs.
+        ///
+        /// The nested types are grouped here to keep the public namespace compact while still making
+        /// the API visible in IntelliSense and Doxygen. See @ref logger for the full how-to manual
+        /// and @ref logger_examples for usage examples.
         struct Types
         {
             /// @brief Severity used for startup minLevel checks, runtime level filters, and output styling.
@@ -341,11 +346,11 @@ namespace GameWIP
             !std::is_same_v<std::remove_cvref_t<Enum>, Types::Result> &&
             !std::is_same_v<std::remove_cvref_t<Enum>, Types::PlatformErrorSource>;
 
-        template <typename Enum>
-            requires(isSourceEnum<Enum>)
         /// @brief Converts a source enum to the stored SourceId value.
         /// @param value Source enum value.
         /// @return SourceId representation of value.
+        template <typename Enum>
+            requires(isSourceEnum<Enum>)
         static constexpr Types::SourceId sourceId(Enum value) noexcept
         {
             using Underlying = std::underlying_type_t<std::remove_cvref_t<Enum>>;
@@ -478,12 +483,12 @@ namespace GameWIP
         /// @return True when shouldLog(level) passes and the registered source is enabled or unknown.
         static bool shouldLog(Types::Level level, Types::SourceId source);
 
-        template <typename Source>
-            requires(isSourceEnum<Source>)
         /// @brief Cheap guard for enum source logs that also checks runtime source filters.
         /// @param level Severity to test.
         /// @param source Enum source to test.
         /// @return True when shouldLog(level, SourceId) passes for the enum value.
+        template <typename Source>
+            requires(isSourceEnum<Source>)
         static bool shouldLog(Types::Level level, Source source)
         {
             return shouldLog(level, sourceId(source));
@@ -513,22 +518,22 @@ namespace GameWIP
         /// @brief Clears all exact-level filters by enabling every level.
         static void clearLevelFilters();
 
-        template <typename Source>
-            requires(isSourceEnum<Source>)
         /// @brief Enables or disables one enum source at runtime.
         /// @param source Enum source to change.
         /// @param enabled True to allow this source, false to filter it out.
         /// @return Success, or InvalidSourceFilter if the enum source is not registered.
+        template <typename Source>
+            requires(isSourceEnum<Source>)
         static Types::Result setSourceFilter(Source source, bool enabled)
         {
             return setSourceFilter(sourceId(source), enabled);
         }
 
-        template <typename Source>
-            requires(isSourceEnum<Source>)
         /// @brief Clears one enum source filter by enabling that source.
         /// @param source Enum source to enable.
         /// @return Success, or InvalidSourceFilter if the enum source is not registered.
+        template <typename Source>
+            requires(isSourceEnum<Source>)
         static Types::Result clearSourceFilter(Source source)
         {
             return clearSourceFilter(sourceId(source));
@@ -547,84 +552,84 @@ namespace GameWIP
         /// @param message Message text copied into the queue entry.
         static void log(Types::Level level, Types::SourceId source, std::string_view message);
 
-        template <typename Source>
-            requires(isSourceEnum<Source>)
         /// @brief Logs a preformatted message with an enum source.
         /// @param level Severity for this message.
         /// @param source Enum source stored as a SourceId in the queue entry.
         /// @param message Message text copied into the queue entry.
+        template <typename Source>
+            requires(isSourceEnum<Source>)
         static void log(Types::Level level, Source source, std::string_view message)
         {
             log(level, sourceId(source), message);
         }
 
-        template <typename... Args>
-            requires(sizeof...(Args) > 0)
         /// @brief Logs a compile-time checked formatted message with a string source.
         /// @param level Severity for this message.
         /// @param source Source text copied into the queue entry.
         /// @param format Compile-time checked format string.
         /// @param args Format arguments.
+        template <typename... Args>
+            requires(sizeof...(Args) > 0)
         static void log(Types::Level level, std::string_view source, std::format_string<Args...> format, Args &&...args)
         {
             formatAndLog(level, source, format, std::forward<Args>(args)...);
         }
 
-        template <typename... Args>
-            requires(sizeof...(Args) > 0)
         /// @brief Logs a compile-time checked formatted message with a registered SourceId.
         /// @param level Severity for this message.
         /// @param source Registered SourceId stored in the queue entry.
         /// @param format Compile-time checked format string.
         /// @param args Format arguments.
+        template <typename... Args>
+            requires(sizeof...(Args) > 0)
         static void log(Types::Level level, Types::SourceId source, std::format_string<Args...> format, Args &&...args)
         {
             formatAndLog(level, source, format, std::forward<Args>(args)...);
         }
 
-        template <typename Source, typename... Args>
-            requires(isSourceEnum<Source> && sizeof...(Args) > 0)
         /// @brief Logs a compile-time checked formatted message with an enum source.
         /// @param level Severity for this message.
         /// @param source Enum source stored as a SourceId in the queue entry.
         /// @param format Compile-time checked format string.
         /// @param args Format arguments.
+        template <typename Source, typename... Args>
+            requires(isSourceEnum<Source> && sizeof...(Args) > 0)
         static void log(Types::Level level, Source source, std::format_string<Args...> format, Args &&...args)
         {
             formatAndLog(level, sourceId(source), format, std::forward<Args>(args)...);
         }
 
-        template <typename... Args>
-            requires(sizeof...(Args) > 0)
         /// @brief Logs an explicitly runtime formatted message with a string source.
         /// @param level Severity for this message.
         /// @param source Source text copied into the queue entry.
         /// @param format Runtime format wrapper created by Logger::runtimeFormat().
         /// @param args Format arguments.
+        template <typename... Args>
+            requires(sizeof...(Args) > 0)
         static void log(Types::Level level, std::string_view source, Types::RuntimeFormat format, Args &&...args)
         {
             runtimeFormatAndLog(level, source, format, args...);
         }
 
-        template <typename... Args>
-            requires(sizeof...(Args) > 0)
         /// @brief Logs an explicitly runtime formatted message with a registered SourceId.
         /// @param level Severity for this message.
         /// @param source Registered SourceId stored in the queue entry.
         /// @param format Runtime format wrapper created by Logger::runtimeFormat().
         /// @param args Format arguments.
+        template <typename... Args>
+            requires(sizeof...(Args) > 0)
         static void log(Types::Level level, Types::SourceId source, Types::RuntimeFormat format, Args &&...args)
         {
             runtimeFormatAndLog(level, source, format, args...);
         }
 
-        template <typename Source, typename... Args>
-            requires(isSourceEnum<Source> && sizeof...(Args) > 0)
         /// @brief Logs an explicitly runtime formatted message with an enum source.
         /// @param level Severity for this message.
         /// @param source Enum source stored as a SourceId in the queue entry.
         /// @param format Runtime format wrapper created by Logger::runtimeFormat().
         /// @param args Format arguments.
+        template <typename Source, typename... Args>
+            requires(isSourceEnum<Source> && sizeof...(Args) > 0)
         static void log(Types::Level level, Source source, Types::RuntimeFormat format, Args &&...args)
         {
             runtimeFormatAndLog(level, sourceId(source), format, args...);
@@ -641,11 +646,11 @@ namespace GameWIP
         /// @param message Message text copied into the queue entry.
         static void trace(Types::SourceId source, std::string_view message);
 
-        template <typename Source>
-            requires(isSourceEnum<Source>)
         /// @brief Logs a Trace message with an enum source.
         /// @param source Enum source stored as a SourceId in the queue entry.
         /// @param message Message text copied into the queue entry.
+        template <typename Source>
+            requires(isSourceEnum<Source>)
         static void trace(Source source, std::string_view message)
         {
             trace(sourceId(source), message);
@@ -660,11 +665,11 @@ namespace GameWIP
         /// @param message Message text copied into the queue entry.
         static void debug(Types::SourceId source, std::string_view message);
 
-        template <typename Source>
-            requires(isSourceEnum<Source>)
         /// @brief Logs a Debug message with an enum source.
         /// @param source Enum source stored as a SourceId in the queue entry.
         /// @param message Message text copied into the queue entry.
+        template <typename Source>
+            requires(isSourceEnum<Source>)
         static void debug(Source source, std::string_view message)
         {
             debug(sourceId(source), message);
@@ -679,11 +684,11 @@ namespace GameWIP
         /// @param message Message text copied into the queue entry.
         static void info(Types::SourceId source, std::string_view message);
 
-        template <typename Source>
-            requires(isSourceEnum<Source>)
         /// @brief Logs an Info message with an enum source.
         /// @param source Enum source stored as a SourceId in the queue entry.
         /// @param message Message text copied into the queue entry.
+        template <typename Source>
+            requires(isSourceEnum<Source>)
         static void info(Source source, std::string_view message)
         {
             info(sourceId(source), message);
@@ -698,11 +703,11 @@ namespace GameWIP
         /// @param message Message text copied into the queue entry.
         static void warn(Types::SourceId source, std::string_view message);
 
-        template <typename Source>
-            requires(isSourceEnum<Source>)
         /// @brief Logs a Warn message with an enum source.
         /// @param source Enum source stored as a SourceId in the queue entry.
         /// @param message Message text copied into the queue entry.
+        template <typename Source>
+            requires(isSourceEnum<Source>)
         static void warn(Source source, std::string_view message)
         {
             warn(sourceId(source), message);
@@ -717,11 +722,11 @@ namespace GameWIP
         /// @param message Message text copied into the queue entry.
         static void error(Types::SourceId source, std::string_view message);
 
-        template <typename Source>
-            requires(isSourceEnum<Source>)
         /// @brief Logs an Error message with an enum source.
         /// @param source Enum source stored as a SourceId in the queue entry.
         /// @param message Message text copied into the queue entry.
+        template <typename Source>
+            requires(isSourceEnum<Source>)
         static void error(Source source, std::string_view message)
         {
             error(sourceId(source), message);
@@ -736,407 +741,407 @@ namespace GameWIP
         /// @param message Message text copied into the queue entry.
         static void fatal(Types::SourceId source, std::string_view message);
 
-        template <typename Source>
-            requires(isSourceEnum<Source>)
         /// @brief Logs a Fatal message with an enum source without forcing a fatal popup.
         /// @param source Enum source stored as a SourceId in the queue entry.
         /// @param message Message text copied into the queue entry.
+        template <typename Source>
+            requires(isSourceEnum<Source>)
         static void fatal(Source source, std::string_view message)
         {
             fatal(sourceId(source), message);
         }
 
-        template <typename... Args>
-            requires(sizeof...(Args) > 0)
         /// @brief Logs a compile-time checked Trace format with a string source.
         /// @param source Source text copied into the queue entry.
         /// @param format Compile-time checked format string.
         /// @param args Format arguments.
+        template <typename... Args>
+            requires(sizeof...(Args) > 0)
         static void trace(std::string_view source, std::format_string<Args...> format, Args &&...args)
         {
             formatAndLog(Types::Level::Trace, source, format, std::forward<Args>(args)...);
         }
 
-        template <typename Source, typename... Args>
-            requires(isSourceEnum<Source> && sizeof...(Args) > 0)
         /// @brief Logs a compile-time checked Trace format with an enum source.
         /// @param source Enum source stored as a SourceId in the queue entry.
         /// @param format Compile-time checked format string.
         /// @param args Format arguments.
+        template <typename Source, typename... Args>
+            requires(isSourceEnum<Source> && sizeof...(Args) > 0)
         static void trace(Source source, std::format_string<Args...> format, Args &&...args)
         {
             formatAndLog(Types::Level::Trace, sourceId(source), format, std::forward<Args>(args)...);
         }
 
-        template <typename... Args>
-            requires(sizeof...(Args) > 0)
         /// @brief Logs a compile-time checked Trace format with a registered SourceId.
         /// @param source Registered SourceId stored in the queue entry.
         /// @param format Compile-time checked format string.
         /// @param args Format arguments.
+        template <typename... Args>
+            requires(sizeof...(Args) > 0)
         static void trace(Types::SourceId source, std::format_string<Args...> format, Args &&...args)
         {
             formatAndLog(Types::Level::Trace, source, format, std::forward<Args>(args)...);
         }
 
-        template <typename... Args>
-            requires(sizeof...(Args) > 0)
         /// @brief Logs a compile-time checked Debug format with a string source.
         /// @param source Source text copied into the queue entry.
         /// @param format Compile-time checked format string.
         /// @param args Format arguments.
+        template <typename... Args>
+            requires(sizeof...(Args) > 0)
         static void debug(std::string_view source, std::format_string<Args...> format, Args &&...args)
         {
             formatAndLog(Types::Level::Debug, source, format, std::forward<Args>(args)...);
         }
 
-        template <typename... Args>
-            requires(sizeof...(Args) > 0)
         /// @brief Logs a compile-time checked Debug format with a registered SourceId.
         /// @param source Registered SourceId stored in the queue entry.
         /// @param format Compile-time checked format string.
         /// @param args Format arguments.
+        template <typename... Args>
+            requires(sizeof...(Args) > 0)
         static void debug(Types::SourceId source, std::format_string<Args...> format, Args &&...args)
         {
             formatAndLog(Types::Level::Debug, source, format, std::forward<Args>(args)...);
         }
 
-        template <typename Source, typename... Args>
-            requires(isSourceEnum<Source> && sizeof...(Args) > 0)
         /// @brief Logs a compile-time checked Debug format with an enum source.
         /// @param source Enum source stored as a SourceId in the queue entry.
         /// @param format Compile-time checked format string.
         /// @param args Format arguments.
+        template <typename Source, typename... Args>
+            requires(isSourceEnum<Source> && sizeof...(Args) > 0)
         static void debug(Source source, std::format_string<Args...> format, Args &&...args)
         {
             formatAndLog(Types::Level::Debug, sourceId(source), format, std::forward<Args>(args)...);
         }
 
-        template <typename... Args>
-            requires(sizeof...(Args) > 0)
         /// @brief Logs a compile-time checked Info format with a string source.
         /// @param source Source text copied into the queue entry.
         /// @param format Compile-time checked format string.
         /// @param args Format arguments.
+        template <typename... Args>
+            requires(sizeof...(Args) > 0)
         static void info(std::string_view source, std::format_string<Args...> format, Args &&...args)
         {
             formatAndLog(Types::Level::Info, source, format, std::forward<Args>(args)...);
         }
 
-        template <typename... Args>
-            requires(sizeof...(Args) > 0)
         /// @brief Logs a compile-time checked Info format with a registered SourceId.
         /// @param source Registered SourceId stored in the queue entry.
         /// @param format Compile-time checked format string.
         /// @param args Format arguments.
+        template <typename... Args>
+            requires(sizeof...(Args) > 0)
         static void info(Types::SourceId source, std::format_string<Args...> format, Args &&...args)
         {
             formatAndLog(Types::Level::Info, source, format, std::forward<Args>(args)...);
         }
 
-        template <typename Source, typename... Args>
-            requires(isSourceEnum<Source> && sizeof...(Args) > 0)
         /// @brief Logs a compile-time checked Info format with an enum source.
         /// @param source Enum source stored as a SourceId in the queue entry.
         /// @param format Compile-time checked format string.
         /// @param args Format arguments.
+        template <typename Source, typename... Args>
+            requires(isSourceEnum<Source> && sizeof...(Args) > 0)
         static void info(Source source, std::format_string<Args...> format, Args &&...args)
         {
             formatAndLog(Types::Level::Info, sourceId(source), format, std::forward<Args>(args)...);
         }
 
-        template <typename... Args>
-            requires(sizeof...(Args) > 0)
         /// @brief Logs a compile-time checked Warn format with a string source.
         /// @param source Source text copied into the queue entry.
         /// @param format Compile-time checked format string.
         /// @param args Format arguments.
+        template <typename... Args>
+            requires(sizeof...(Args) > 0)
         static void warn(std::string_view source, std::format_string<Args...> format, Args &&...args)
         {
             formatAndLog(Types::Level::Warn, source, format, std::forward<Args>(args)...);
         }
 
-        template <typename... Args>
-            requires(sizeof...(Args) > 0)
         /// @brief Logs a compile-time checked Warn format with a registered SourceId.
         /// @param source Registered SourceId stored in the queue entry.
         /// @param format Compile-time checked format string.
         /// @param args Format arguments.
+        template <typename... Args>
+            requires(sizeof...(Args) > 0)
         static void warn(Types::SourceId source, std::format_string<Args...> format, Args &&...args)
         {
             formatAndLog(Types::Level::Warn, source, format, std::forward<Args>(args)...);
         }
 
-        template <typename Source, typename... Args>
-            requires(isSourceEnum<Source> && sizeof...(Args) > 0)
         /// @brief Logs a compile-time checked Warn format with an enum source.
         /// @param source Enum source stored as a SourceId in the queue entry.
         /// @param format Compile-time checked format string.
         /// @param args Format arguments.
+        template <typename Source, typename... Args>
+            requires(isSourceEnum<Source> && sizeof...(Args) > 0)
         static void warn(Source source, std::format_string<Args...> format, Args &&...args)
         {
             formatAndLog(Types::Level::Warn, sourceId(source), format, std::forward<Args>(args)...);
         }
 
-        template <typename... Args>
-            requires(sizeof...(Args) > 0)
         /// @brief Logs a compile-time checked Error format with a string source.
         /// @param source Source text copied into the queue entry.
         /// @param format Compile-time checked format string.
         /// @param args Format arguments.
+        template <typename... Args>
+            requires(sizeof...(Args) > 0)
         static void error(std::string_view source, std::format_string<Args...> format, Args &&...args)
         {
             formatAndLog(Types::Level::Error, source, format, std::forward<Args>(args)...);
         }
 
-        template <typename... Args>
-            requires(sizeof...(Args) > 0)
         /// @brief Logs a compile-time checked Error format with a registered SourceId.
         /// @param source Registered SourceId stored in the queue entry.
         /// @param format Compile-time checked format string.
         /// @param args Format arguments.
+        template <typename... Args>
+            requires(sizeof...(Args) > 0)
         static void error(Types::SourceId source, std::format_string<Args...> format, Args &&...args)
         {
             formatAndLog(Types::Level::Error, source, format, std::forward<Args>(args)...);
         }
 
-        template <typename Source, typename... Args>
-            requires(isSourceEnum<Source> && sizeof...(Args) > 0)
         /// @brief Logs a compile-time checked Error format with an enum source.
         /// @param source Enum source stored as a SourceId in the queue entry.
         /// @param format Compile-time checked format string.
         /// @param args Format arguments.
+        template <typename Source, typename... Args>
+            requires(isSourceEnum<Source> && sizeof...(Args) > 0)
         static void error(Source source, std::format_string<Args...> format, Args &&...args)
         {
             formatAndLog(Types::Level::Error, sourceId(source), format, std::forward<Args>(args)...);
         }
 
-        template <typename... Args>
-            requires(sizeof...(Args) > 0)
         /// @brief Logs a compile-time checked Fatal format with a string source without forcing a fatal popup.
         /// @param source Source text copied into the queue entry.
         /// @param format Compile-time checked format string.
         /// @param args Format arguments.
+        template <typename... Args>
+            requires(sizeof...(Args) > 0)
         static void fatal(std::string_view source, std::format_string<Args...> format, Args &&...args)
         {
             formatAndLog(Types::Level::Fatal, source, format, std::forward<Args>(args)...);
         }
 
-        template <typename... Args>
-            requires(sizeof...(Args) > 0)
         /// @brief Logs a compile-time checked Fatal format with a registered SourceId without forcing a fatal popup.
         /// @param source Registered SourceId stored in the queue entry.
         /// @param format Compile-time checked format string.
         /// @param args Format arguments.
+        template <typename... Args>
+            requires(sizeof...(Args) > 0)
         static void fatal(Types::SourceId source, std::format_string<Args...> format, Args &&...args)
         {
             formatAndLog(Types::Level::Fatal, source, format, std::forward<Args>(args)...);
         }
 
-        template <typename Source, typename... Args>
-            requires(isSourceEnum<Source> && sizeof...(Args) > 0)
         /// @brief Logs a compile-time checked Fatal format with an enum source without forcing a fatal popup.
         /// @param source Enum source stored as a SourceId in the queue entry.
         /// @param format Compile-time checked format string.
         /// @param args Format arguments.
+        template <typename Source, typename... Args>
+            requires(isSourceEnum<Source> && sizeof...(Args) > 0)
         static void fatal(Source source, std::format_string<Args...> format, Args &&...args)
         {
             formatAndLog(Types::Level::Fatal, sourceId(source), format, std::forward<Args>(args)...);
         }
 
-        template <typename... Args>
-            requires(sizeof...(Args) > 0)
         /// @brief Logs a runtime formatted Trace message with a string source.
         /// @param source Source text copied into the queue entry.
         /// @param format Runtime format wrapper created by Logger::runtimeFormat().
         /// @param args Format arguments.
+        template <typename... Args>
+            requires(sizeof...(Args) > 0)
         static void trace(std::string_view source, Types::RuntimeFormat format, Args &&...args)
         {
             runtimeFormatAndLog(Types::Level::Trace, source, format, args...);
         }
 
-        template <typename... Args>
-            requires(sizeof...(Args) > 0)
         /// @brief Logs a runtime formatted Trace message with a registered SourceId.
         /// @param source Registered SourceId stored in the queue entry.
         /// @param format Runtime format wrapper created by Logger::runtimeFormat().
         /// @param args Format arguments.
+        template <typename... Args>
+            requires(sizeof...(Args) > 0)
         static void trace(Types::SourceId source, Types::RuntimeFormat format, Args &&...args)
         {
             runtimeFormatAndLog(Types::Level::Trace, source, format, args...);
         }
 
-        template <typename Source, typename... Args>
-            requires(isSourceEnum<Source> && sizeof...(Args) > 0)
         /// @brief Logs a runtime formatted Trace message with an enum source.
         /// @param source Enum source stored as a SourceId in the queue entry.
         /// @param format Runtime format wrapper created by Logger::runtimeFormat().
         /// @param args Format arguments.
+        template <typename Source, typename... Args>
+            requires(isSourceEnum<Source> && sizeof...(Args) > 0)
         static void trace(Source source, Types::RuntimeFormat format, Args &&...args)
         {
             runtimeFormatAndLog(Types::Level::Trace, sourceId(source), format, args...);
         }
 
-        template <typename... Args>
-            requires(sizeof...(Args) > 0)
         /// @brief Logs a runtime formatted Debug message with a string source.
         /// @param source Source text copied into the queue entry.
         /// @param format Runtime format wrapper created by Logger::runtimeFormat().
         /// @param args Format arguments.
+        template <typename... Args>
+            requires(sizeof...(Args) > 0)
         static void debug(std::string_view source, Types::RuntimeFormat format, Args &&...args)
         {
             runtimeFormatAndLog(Types::Level::Debug, source, format, args...);
         }
 
-        template <typename... Args>
-            requires(sizeof...(Args) > 0)
         /// @brief Logs a runtime formatted Debug message with a registered SourceId.
         /// @param source Registered SourceId stored in the queue entry.
         /// @param format Runtime format wrapper created by Logger::runtimeFormat().
         /// @param args Format arguments.
+        template <typename... Args>
+            requires(sizeof...(Args) > 0)
         static void debug(Types::SourceId source, Types::RuntimeFormat format, Args &&...args)
         {
             runtimeFormatAndLog(Types::Level::Debug, source, format, args...);
         }
 
-        template <typename Source, typename... Args>
-            requires(isSourceEnum<Source> && sizeof...(Args) > 0)
         /// @brief Logs a runtime formatted Debug message with an enum source.
         /// @param source Enum source stored as a SourceId in the queue entry.
         /// @param format Runtime format wrapper created by Logger::runtimeFormat().
         /// @param args Format arguments.
+        template <typename Source, typename... Args>
+            requires(isSourceEnum<Source> && sizeof...(Args) > 0)
         static void debug(Source source, Types::RuntimeFormat format, Args &&...args)
         {
             runtimeFormatAndLog(Types::Level::Debug, sourceId(source), format, args...);
         }
 
-        template <typename... Args>
-            requires(sizeof...(Args) > 0)
         /// @brief Logs a runtime formatted Info message with a string source.
         /// @param source Source text copied into the queue entry.
         /// @param format Runtime format wrapper created by Logger::runtimeFormat().
         /// @param args Format arguments.
+        template <typename... Args>
+            requires(sizeof...(Args) > 0)
         static void info(std::string_view source, Types::RuntimeFormat format, Args &&...args)
         {
             runtimeFormatAndLog(Types::Level::Info, source, format, args...);
         }
 
-        template <typename... Args>
-            requires(sizeof...(Args) > 0)
         /// @brief Logs a runtime formatted Info message with a registered SourceId.
         /// @param source Registered SourceId stored in the queue entry.
         /// @param format Runtime format wrapper created by Logger::runtimeFormat().
         /// @param args Format arguments.
+        template <typename... Args>
+            requires(sizeof...(Args) > 0)
         static void info(Types::SourceId source, Types::RuntimeFormat format, Args &&...args)
         {
             runtimeFormatAndLog(Types::Level::Info, source, format, args...);
         }
 
-        template <typename Source, typename... Args>
-            requires(isSourceEnum<Source> && sizeof...(Args) > 0)
         /// @brief Logs a runtime formatted Info message with an enum source.
         /// @param source Enum source stored as a SourceId in the queue entry.
         /// @param format Runtime format wrapper created by Logger::runtimeFormat().
         /// @param args Format arguments.
+        template <typename Source, typename... Args>
+            requires(isSourceEnum<Source> && sizeof...(Args) > 0)
         static void info(Source source, Types::RuntimeFormat format, Args &&...args)
         {
             runtimeFormatAndLog(Types::Level::Info, sourceId(source), format, args...);
         }
 
-        template <typename... Args>
-            requires(sizeof...(Args) > 0)
         /// @brief Logs a runtime formatted Warn message with a string source.
         /// @param source Source text copied into the queue entry.
         /// @param format Runtime format wrapper created by Logger::runtimeFormat().
         /// @param args Format arguments.
+        template <typename... Args>
+            requires(sizeof...(Args) > 0)
         static void warn(std::string_view source, Types::RuntimeFormat format, Args &&...args)
         {
             runtimeFormatAndLog(Types::Level::Warn, source, format, args...);
         }
 
-        template <typename... Args>
-            requires(sizeof...(Args) > 0)
         /// @brief Logs a runtime formatted Warn message with a registered SourceId.
         /// @param source Registered SourceId stored in the queue entry.
         /// @param format Runtime format wrapper created by Logger::runtimeFormat().
         /// @param args Format arguments.
+        template <typename... Args>
+            requires(sizeof...(Args) > 0)
         static void warn(Types::SourceId source, Types::RuntimeFormat format, Args &&...args)
         {
             runtimeFormatAndLog(Types::Level::Warn, source, format, args...);
         }
 
-        template <typename Source, typename... Args>
-            requires(isSourceEnum<Source> && sizeof...(Args) > 0)
         /// @brief Logs a runtime formatted Warn message with an enum source.
         /// @param source Enum source stored as a SourceId in the queue entry.
         /// @param format Runtime format wrapper created by Logger::runtimeFormat().
         /// @param args Format arguments.
+        template <typename Source, typename... Args>
+            requires(isSourceEnum<Source> && sizeof...(Args) > 0)
         static void warn(Source source, Types::RuntimeFormat format, Args &&...args)
         {
             runtimeFormatAndLog(Types::Level::Warn, sourceId(source), format, args...);
         }
 
-        template <typename... Args>
-            requires(sizeof...(Args) > 0)
         /// @brief Logs a runtime formatted Error message with a string source.
         /// @param source Source text copied into the queue entry.
         /// @param format Runtime format wrapper created by Logger::runtimeFormat().
         /// @param args Format arguments.
+        template <typename... Args>
+            requires(sizeof...(Args) > 0)
         static void error(std::string_view source, Types::RuntimeFormat format, Args &&...args)
         {
             runtimeFormatAndLog(Types::Level::Error, source, format, args...);
         }
 
-        template <typename... Args>
-            requires(sizeof...(Args) > 0)
         /// @brief Logs a runtime formatted Error message with a registered SourceId.
         /// @param source Registered SourceId stored in the queue entry.
         /// @param format Runtime format wrapper created by Logger::runtimeFormat().
         /// @param args Format arguments.
+        template <typename... Args>
+            requires(sizeof...(Args) > 0)
         static void error(Types::SourceId source, Types::RuntimeFormat format, Args &&...args)
         {
             runtimeFormatAndLog(Types::Level::Error, source, format, args...);
         }
 
-        template <typename Source, typename... Args>
-            requires(isSourceEnum<Source> && sizeof...(Args) > 0)
         /// @brief Logs a runtime formatted Error message with an enum source.
         /// @param source Enum source stored as a SourceId in the queue entry.
         /// @param format Runtime format wrapper created by Logger::runtimeFormat().
         /// @param args Format arguments.
+        template <typename Source, typename... Args>
+            requires(isSourceEnum<Source> && sizeof...(Args) > 0)
         static void error(Source source, Types::RuntimeFormat format, Args &&...args)
         {
             runtimeFormatAndLog(Types::Level::Error, sourceId(source), format, args...);
         }
 
-        template <typename... Args>
-            requires(sizeof...(Args) > 0)
         /// @brief Logs a runtime formatted Fatal message with a string source without forcing a fatal popup.
         /// @param source Source text copied into the queue entry.
         /// @param format Runtime format wrapper created by Logger::runtimeFormat().
         /// @param args Format arguments.
+        template <typename... Args>
+            requires(sizeof...(Args) > 0)
         static void fatal(std::string_view source, Types::RuntimeFormat format, Args &&...args)
         {
             runtimeFormatAndLog(Types::Level::Fatal, source, format, args...);
         }
 
-        template <typename... Args>
-            requires(sizeof...(Args) > 0)
         /// @brief Logs a runtime formatted Fatal message with a registered SourceId without forcing a fatal popup.
         /// @param source Registered SourceId stored in the queue entry.
         /// @param format Runtime format wrapper created by Logger::runtimeFormat().
         /// @param args Format arguments.
+        template <typename... Args>
+            requires(sizeof...(Args) > 0)
         static void fatal(Types::SourceId source, Types::RuntimeFormat format, Args &&...args)
         {
             runtimeFormatAndLog(Types::Level::Fatal, source, format, args...);
         }
 
-        template <typename Source, typename... Args>
-            requires(isSourceEnum<Source> && sizeof...(Args) > 0)
         /// @brief Logs a runtime formatted Fatal message with an enum source without forcing a fatal popup.
         /// @param source Enum source stored as a SourceId in the queue entry.
         /// @param format Runtime format wrapper created by Logger::runtimeFormat().
         /// @param args Format arguments.
+        template <typename Source, typename... Args>
+            requires(isSourceEnum<Source> && sizeof...(Args) > 0)
         static void fatal(Source source, Types::RuntimeFormat format, Args &&...args)
         {
             runtimeFormatAndLog(Types::Level::Fatal, sourceId(source), format, args...);
@@ -1172,33 +1177,33 @@ namespace GameWIP
         /// @return True when the bounded post-report drain/flush completed.
         static bool report(Types::Level level, Types::SourceId source, Types::FlushTimeout timeout, Types::ReportPopup popup, std::string_view message);
 
+        /// @brief Synchronously reports a preformatted diagnostic with an enum source.
         template <typename Source>
             requires(isSourceEnum<Source>)
-        /// @brief Synchronously reports a preformatted diagnostic with an enum source.
         static void report(Types::Level level, Source source, std::string_view message)
         {
             report(level, sourceId(source), message);
         }
 
+        /// @brief Synchronously reports a preformatted diagnostic with an enum source and bounded drain/flush.
         template <typename Source>
             requires(isSourceEnum<Source>)
-        /// @brief Synchronously reports a preformatted diagnostic with an enum source and bounded drain/flush.
         static bool report(Types::Level level, Source source, Types::FlushTimeout timeout, std::string_view message)
         {
             return report(level, sourceId(source), timeout, message);
         }
 
+        /// @brief Synchronously reports a preformatted diagnostic with an enum source and explicit popup behavior.
         template <typename Source>
             requires(isSourceEnum<Source>)
-        /// @brief Synchronously reports a preformatted diagnostic with an enum source and explicit popup behavior.
         static void report(Types::Level level, Source source, Types::ReportPopup popup, std::string_view message)
         {
             report(level, sourceId(source), popup, message);
         }
 
+        /// @brief Synchronously reports a preformatted diagnostic with an enum source, bounded drain/flush, and explicit popup behavior.
         template <typename Source>
             requires(isSourceEnum<Source>)
-        /// @brief Synchronously reports a preformatted diagnostic with an enum source, bounded drain/flush, and explicit popup behavior.
         static bool report(Types::Level level, Source source, Types::FlushTimeout timeout, Types::ReportPopup popup, std::string_view message)
         {
             return report(level, sourceId(source), timeout, popup, message);
@@ -1225,23 +1230,23 @@ namespace GameWIP
         /// @return True when the bounded flush completed.
         static bool reportError(Types::SourceId source, Types::FlushTimeout timeout, std::string_view message);
 
-        template <typename Source>
-            requires(isSourceEnum<Source>)
         /// @brief Synchronously reports an Error diagnostic with an enum source, mirrors it to platform debug output, and flushes without showing a fatal popup.
         /// @param source Enum source stored as a SourceId in the queue entry and resolved for platform debug output.
         /// @param message Message text written into the report line and platform debug output line.
+        template <typename Source>
+            requires(isSourceEnum<Source>)
         static void reportError(Source source, std::string_view message)
         {
             reportError(sourceId(source), message);
         }
 
-        template <typename Source>
-            requires(isSourceEnum<Source>)
         /// @brief Synchronously reports an Error diagnostic with an enum source, mirrors it to platform debug output, and waits for a bounded drain/flush.
         /// @param source Enum source stored as a SourceId in the queue entry and resolved for platform debug output.
         /// @param timeout Maximum time to wait for the flush.
         /// @param message Message text written into the report line and platform debug output line.
         /// @return True when the bounded flush completed.
+        template <typename Source>
+            requires(isSourceEnum<Source>)
         static bool reportError(Source source, Types::FlushTimeout timeout, std::string_view message)
         {
             return reportError(sourceId(source), timeout, message);
@@ -1268,23 +1273,23 @@ namespace GameWIP
         /// @return True when the bounded flush completed.
         static bool reportFatal(Types::SourceId source, Types::FlushTimeout timeout, std::string_view message);
 
-        template <typename Source>
-            requires(isSourceEnum<Source>)
         /// @brief Synchronously reports a Fatal diagnostic with an enum source, mirrors it to platform debug output, flushes, and shows the fatal popup when enabled.
         /// @param source Enum source stored as a SourceId in the queue entry and resolved for platform debug output.
         /// @param message Message text written into the report line, platform debug output line, and fatal popup.
+        template <typename Source>
+            requires(isSourceEnum<Source>)
         static void reportFatal(Source source, std::string_view message)
         {
             reportFatal(sourceId(source), message);
         }
 
-        template <typename Source>
-            requires(isSourceEnum<Source>)
         /// @brief Synchronously reports a Fatal diagnostic with an enum source, mirrors it to platform debug output, waits for a bounded drain/flush, and shows the fatal popup when enabled.
         /// @param source Enum source stored as a SourceId in the queue entry and resolved for platform debug output.
         /// @param timeout Maximum time to wait for the flush.
         /// @param message Message text written into the report line, platform debug output line, and fatal popup.
         /// @return True when the bounded flush completed.
+        template <typename Source>
+            requires(isSourceEnum<Source>)
         static bool reportFatal(Source source, Types::FlushTimeout timeout, std::string_view message)
         {
             return reportFatal(sourceId(source), timeout, message);
@@ -1309,651 +1314,651 @@ namespace GameWIP
         /// @param message Message text written into the report line and platform debug output line.
         [[noreturn]] static void fatalTerminate(Types::SourceId source, Types::FlushTimeout timeout, std::string_view message);
 
-        template <typename Source>
-            requires(isSourceEnum<Source>)
         /// @brief Logs fatal with an enum source, flushes, shows the fatal popup when enabled, then terminates.
         /// @param source Enum source stored as a SourceId.
         /// @param message Message text written into the report line and platform debug output line.
+        template <typename Source>
+            requires(isSourceEnum<Source>)
         [[noreturn]] static void fatalTerminate(Source source, std::string_view message)
         {
             fatalTerminate(sourceId(source), message);
         }
 
-        template <typename Source>
-            requires(isSourceEnum<Source>)
         /// @brief Logs fatal with an enum source, waits for a bounded flush, shows the fatal popup when enabled, then terminates.
         /// @param source Enum source stored as a SourceId.
         /// @param timeout Maximum flush wait before termination continues.
         /// @param message Message text written into the report line and platform debug output line.
+        template <typename Source>
+            requires(isSourceEnum<Source>)
         [[noreturn]] static void fatalTerminate(Source source, Types::FlushTimeout timeout, std::string_view message)
         {
             fatalTerminate(sourceId(source), timeout, message);
         }
 
+        /// @brief Formats and synchronously reports a diagnostic with a string source.
         template <typename... Args>
             requires(sizeof...(Args) > 0)
-        /// @brief Formats and synchronously reports a diagnostic with a string source.
         static void report(Types::Level level, std::string_view source, std::format_string<Args...> format, Args &&...args)
         {
             formatAndReport(level, source, false, format, std::forward<Args>(args)...);
         }
 
+        /// @brief Formats and synchronously reports a diagnostic with a string source and bounded drain/flush.
         template <typename... Args>
             requires(sizeof...(Args) > 0)
-        /// @brief Formats and synchronously reports a diagnostic with a string source and bounded drain/flush.
         static bool report(Types::Level level, std::string_view source, Types::FlushTimeout timeout, std::format_string<Args...> format, Args &&...args)
         {
             return formatAndReport(level, source, false, timeout, format, std::forward<Args>(args)...);
         }
 
+        /// @brief Formats and synchronously reports a diagnostic with a string source and explicit popup behavior.
         template <typename... Args>
             requires(sizeof...(Args) > 0)
-        /// @brief Formats and synchronously reports a diagnostic with a string source and explicit popup behavior.
         static void report(Types::Level level, std::string_view source, Types::ReportPopup popup, std::format_string<Args...> format, Args &&...args)
         {
             formatAndReport(level, source, popup == Types::ReportPopup::Fatal, format, std::forward<Args>(args)...);
         }
 
+        /// @brief Formats and synchronously reports a diagnostic with a string source, bounded drain/flush, and explicit popup behavior.
         template <typename... Args>
             requires(sizeof...(Args) > 0)
-        /// @brief Formats and synchronously reports a diagnostic with a string source, bounded drain/flush, and explicit popup behavior.
         static bool report(Types::Level level, std::string_view source, Types::FlushTimeout timeout, Types::ReportPopup popup, std::format_string<Args...> format, Args &&...args)
         {
             return formatAndReport(level, source, popup == Types::ReportPopup::Fatal, timeout, format, std::forward<Args>(args)...);
         }
 
+        /// @brief Formats and synchronously reports a diagnostic with a registered SourceId.
         template <typename... Args>
             requires(sizeof...(Args) > 0)
-        /// @brief Formats and synchronously reports a diagnostic with a registered SourceId.
         static void report(Types::Level level, Types::SourceId source, std::format_string<Args...> format, Args &&...args)
         {
             formatAndReport(level, source, false, format, std::forward<Args>(args)...);
         }
 
+        /// @brief Formats and synchronously reports a diagnostic with a registered SourceId and bounded drain/flush.
         template <typename... Args>
             requires(sizeof...(Args) > 0)
-        /// @brief Formats and synchronously reports a diagnostic with a registered SourceId and bounded drain/flush.
         static bool report(Types::Level level, Types::SourceId source, Types::FlushTimeout timeout, std::format_string<Args...> format, Args &&...args)
         {
             return formatAndReport(level, source, false, timeout, format, std::forward<Args>(args)...);
         }
 
+        /// @brief Formats and synchronously reports a diagnostic with a registered SourceId and explicit popup behavior.
         template <typename... Args>
             requires(sizeof...(Args) > 0)
-        /// @brief Formats and synchronously reports a diagnostic with a registered SourceId and explicit popup behavior.
         static void report(Types::Level level, Types::SourceId source, Types::ReportPopup popup, std::format_string<Args...> format, Args &&...args)
         {
             formatAndReport(level, source, popup == Types::ReportPopup::Fatal, format, std::forward<Args>(args)...);
         }
 
+        /// @brief Formats and synchronously reports a diagnostic with a registered SourceId, bounded drain/flush, and explicit popup behavior.
         template <typename... Args>
             requires(sizeof...(Args) > 0)
-        /// @brief Formats and synchronously reports a diagnostic with a registered SourceId, bounded drain/flush, and explicit popup behavior.
         static bool report(Types::Level level, Types::SourceId source, Types::FlushTimeout timeout, Types::ReportPopup popup, std::format_string<Args...> format, Args &&...args)
         {
             return formatAndReport(level, source, popup == Types::ReportPopup::Fatal, timeout, format, std::forward<Args>(args)...);
         }
 
+        /// @brief Formats and synchronously reports a diagnostic with an enum source.
         template <typename Source, typename... Args>
             requires(isSourceEnum<Source> && sizeof...(Args) > 0)
-        /// @brief Formats and synchronously reports a diagnostic with an enum source.
         static void report(Types::Level level, Source source, std::format_string<Args...> format, Args &&...args)
         {
             formatAndReport(level, sourceId(source), false, format, std::forward<Args>(args)...);
         }
 
+        /// @brief Formats and synchronously reports a diagnostic with an enum source and bounded drain/flush.
         template <typename Source, typename... Args>
             requires(isSourceEnum<Source> && sizeof...(Args) > 0)
-        /// @brief Formats and synchronously reports a diagnostic with an enum source and bounded drain/flush.
         static bool report(Types::Level level, Source source, Types::FlushTimeout timeout, std::format_string<Args...> format, Args &&...args)
         {
             return formatAndReport(level, sourceId(source), false, timeout, format, std::forward<Args>(args)...);
         }
 
+        /// @brief Formats and synchronously reports a diagnostic with an enum source and explicit popup behavior.
         template <typename Source, typename... Args>
             requires(isSourceEnum<Source> && sizeof...(Args) > 0)
-        /// @brief Formats and synchronously reports a diagnostic with an enum source and explicit popup behavior.
         static void report(Types::Level level, Source source, Types::ReportPopup popup, std::format_string<Args...> format, Args &&...args)
         {
             formatAndReport(level, sourceId(source), popup == Types::ReportPopup::Fatal, format, std::forward<Args>(args)...);
         }
 
+        /// @brief Formats and synchronously reports a diagnostic with an enum source, bounded drain/flush, and explicit popup behavior.
         template <typename Source, typename... Args>
             requires(isSourceEnum<Source> && sizeof...(Args) > 0)
-        /// @brief Formats and synchronously reports a diagnostic with an enum source, bounded drain/flush, and explicit popup behavior.
         static bool report(Types::Level level, Source source, Types::FlushTimeout timeout, Types::ReportPopup popup, std::format_string<Args...> format, Args &&...args)
         {
             return formatAndReport(level, sourceId(source), popup == Types::ReportPopup::Fatal, timeout, format, std::forward<Args>(args)...);
         }
 
-        template <typename... Args>
-            requires(sizeof...(Args) > 0)
         /// @brief Formats and reports an error with a string source.
         /// @param source Source text written into the report line and platform debug output line.
         /// @param format Compile-time checked format string.
         /// @param args Format arguments.
+        template <typename... Args>
+            requires(sizeof...(Args) > 0)
         static void reportError(std::string_view source, std::format_string<Args...> format, Args &&...args)
         {
             report(Types::Level::Error, source, format, std::forward<Args>(args)...);
         }
 
-        template <typename... Args>
-            requires(sizeof...(Args) > 0)
         /// @brief Formats and reports an error with a string source and bounded flush.
         /// @param source Source text written into the report line and platform debug output line.
         /// @param timeout Maximum time to wait for the flush.
         /// @param format Compile-time checked format string.
         /// @param args Format arguments.
         /// @return True when the bounded flush completed.
+        template <typename... Args>
+            requires(sizeof...(Args) > 0)
         static bool reportError(std::string_view source, Types::FlushTimeout timeout, std::format_string<Args...> format, Args &&...args)
         {
             return report(Types::Level::Error, source, timeout, format, std::forward<Args>(args)...);
         }
 
-        template <typename... Args>
-            requires(sizeof...(Args) > 0)
         /// @brief Formats and reports an error with a registered SourceId.
         /// @param source Registered SourceId resolved for the report line and platform debug output.
         /// @param format Compile-time checked format string.
         /// @param args Format arguments.
+        template <typename... Args>
+            requires(sizeof...(Args) > 0)
         static void reportError(Types::SourceId source, std::format_string<Args...> format, Args &&...args)
         {
             report(Types::Level::Error, source, format, std::forward<Args>(args)...);
         }
 
-        template <typename... Args>
-            requires(sizeof...(Args) > 0)
         /// @brief Formats and reports an error with a registered SourceId and bounded flush.
         /// @param source Registered SourceId resolved for the report line and platform debug output.
         /// @param timeout Maximum time to wait for the flush.
         /// @param format Compile-time checked format string.
         /// @param args Format arguments.
         /// @return True when the bounded flush completed.
+        template <typename... Args>
+            requires(sizeof...(Args) > 0)
         static bool reportError(Types::SourceId source, Types::FlushTimeout timeout, std::format_string<Args...> format, Args &&...args)
         {
             return report(Types::Level::Error, source, timeout, format, std::forward<Args>(args)...);
         }
 
-        template <typename Source, typename... Args>
-            requires(isSourceEnum<Source> && sizeof...(Args) > 0)
         /// @brief Formats and reports an error with an enum source.
         /// @param source Enum source stored as a SourceId in the queue entry and resolved for platform debug output.
         /// @param format Compile-time checked format string.
         /// @param args Format arguments.
+        template <typename Source, typename... Args>
+            requires(isSourceEnum<Source> && sizeof...(Args) > 0)
         static void reportError(Source source, std::format_string<Args...> format, Args &&...args)
         {
             report(Types::Level::Error, sourceId(source), format, std::forward<Args>(args)...);
         }
 
-        template <typename Source, typename... Args>
-            requires(isSourceEnum<Source> && sizeof...(Args) > 0)
         /// @brief Formats and reports an error with an enum source and bounded flush.
         /// @param source Enum source stored as a SourceId in the queue entry and resolved for platform debug output.
         /// @param timeout Maximum time to wait for the flush.
         /// @param format Compile-time checked format string.
         /// @param args Format arguments.
         /// @return True when the bounded flush completed.
+        template <typename Source, typename... Args>
+            requires(isSourceEnum<Source> && sizeof...(Args) > 0)
         static bool reportError(Source source, Types::FlushTimeout timeout, std::format_string<Args...> format, Args &&...args)
         {
             return report(Types::Level::Error, sourceId(source), timeout, format, std::forward<Args>(args)...);
         }
 
-        template <typename... Args>
-            requires(sizeof...(Args) > 0)
         /// @brief Formats and reports fatal with a string source.
         /// @param source Source text written into the report line and platform debug output line.
         /// @param format Compile-time checked format string.
         /// @param args Format arguments.
+        template <typename... Args>
+            requires(sizeof...(Args) > 0)
         static void reportFatal(std::string_view source, std::format_string<Args...> format, Args &&...args)
         {
             report(Types::Level::Fatal, source, Types::ReportPopup::Fatal, format, std::forward<Args>(args)...);
         }
 
-        template <typename... Args>
-            requires(sizeof...(Args) > 0)
         /// @brief Formats and reports fatal with a string source and bounded flush.
         /// @param source Source text written into the report line and platform debug output line.
         /// @param timeout Maximum time to wait for the flush.
         /// @param format Compile-time checked format string.
         /// @param args Format arguments.
         /// @return True when the bounded flush completed.
+        template <typename... Args>
+            requires(sizeof...(Args) > 0)
         static bool reportFatal(std::string_view source, Types::FlushTimeout timeout, std::format_string<Args...> format, Args &&...args)
         {
             return report(Types::Level::Fatal, source, timeout, Types::ReportPopup::Fatal, format, std::forward<Args>(args)...);
         }
 
-        template <typename... Args>
-            requires(sizeof...(Args) > 0)
         /// @brief Formats and reports fatal with a registered SourceId.
         /// @param source Registered SourceId resolved for the report line and platform debug output.
         /// @param format Compile-time checked format string.
         /// @param args Format arguments.
+        template <typename... Args>
+            requires(sizeof...(Args) > 0)
         static void reportFatal(Types::SourceId source, std::format_string<Args...> format, Args &&...args)
         {
             report(Types::Level::Fatal, source, Types::ReportPopup::Fatal, format, std::forward<Args>(args)...);
         }
 
-        template <typename... Args>
-            requires(sizeof...(Args) > 0)
         /// @brief Formats and reports fatal with a registered SourceId and bounded flush.
         /// @param source Registered SourceId resolved for the report line and platform debug output.
         /// @param timeout Maximum time to wait for the flush.
         /// @param format Compile-time checked format string.
         /// @param args Format arguments.
         /// @return True when the bounded flush completed.
+        template <typename... Args>
+            requires(sizeof...(Args) > 0)
         static bool reportFatal(Types::SourceId source, Types::FlushTimeout timeout, std::format_string<Args...> format, Args &&...args)
         {
             return report(Types::Level::Fatal, source, timeout, Types::ReportPopup::Fatal, format, std::forward<Args>(args)...);
         }
 
-        template <typename Source, typename... Args>
-            requires(isSourceEnum<Source> && sizeof...(Args) > 0)
         /// @brief Formats and reports fatal with an enum source.
         /// @param source Enum source stored as a SourceId in the queue entry and resolved for platform debug output.
         /// @param format Compile-time checked format string.
         /// @param args Format arguments.
+        template <typename Source, typename... Args>
+            requires(isSourceEnum<Source> && sizeof...(Args) > 0)
         static void reportFatal(Source source, std::format_string<Args...> format, Args &&...args)
         {
             report(Types::Level::Fatal, sourceId(source), Types::ReportPopup::Fatal, format, std::forward<Args>(args)...);
         }
 
-        template <typename Source, typename... Args>
-            requires(isSourceEnum<Source> && sizeof...(Args) > 0)
         /// @brief Formats and reports fatal with an enum source and bounded flush.
         /// @param source Enum source stored as a SourceId in the queue entry and resolved for platform debug output.
         /// @param timeout Maximum time to wait for the flush.
         /// @param format Compile-time checked format string.
         /// @param args Format arguments.
         /// @return True when the bounded flush completed.
+        template <typename Source, typename... Args>
+            requires(isSourceEnum<Source> && sizeof...(Args) > 0)
         static bool reportFatal(Source source, Types::FlushTimeout timeout, std::format_string<Args...> format, Args &&...args)
         {
             return report(Types::Level::Fatal, sourceId(source), timeout, Types::ReportPopup::Fatal, format, std::forward<Args>(args)...);
         }
 
+        /// @brief Runtime-formats and synchronously reports a diagnostic with a string source.
         template <typename... Args>
             requires(sizeof...(Args) > 0)
-        /// @brief Runtime-formats and synchronously reports a diagnostic with a string source.
         static void report(Types::Level level, std::string_view source, Types::RuntimeFormat format, Args &&...args)
         {
             runtimeFormatAndReport(level, source, false, format, args...);
         }
 
+        /// @brief Runtime-formats and synchronously reports a diagnostic with a string source and bounded drain/flush.
         template <typename... Args>
             requires(sizeof...(Args) > 0)
-        /// @brief Runtime-formats and synchronously reports a diagnostic with a string source and bounded drain/flush.
         static bool report(Types::Level level, std::string_view source, Types::FlushTimeout timeout, Types::RuntimeFormat format, Args &&...args)
         {
             return runtimeFormatAndReport(level, source, false, timeout, format, args...);
         }
 
+        /// @brief Runtime-formats and synchronously reports a diagnostic with a string source and explicit popup behavior.
         template <typename... Args>
             requires(sizeof...(Args) > 0)
-        /// @brief Runtime-formats and synchronously reports a diagnostic with a string source and explicit popup behavior.
         static void report(Types::Level level, std::string_view source, Types::ReportPopup popup, Types::RuntimeFormat format, Args &&...args)
         {
             runtimeFormatAndReport(level, source, popup == Types::ReportPopup::Fatal, format, args...);
         }
 
+        /// @brief Runtime-formats and synchronously reports a diagnostic with a string source, bounded drain/flush, and explicit popup behavior.
         template <typename... Args>
             requires(sizeof...(Args) > 0)
-        /// @brief Runtime-formats and synchronously reports a diagnostic with a string source, bounded drain/flush, and explicit popup behavior.
         static bool report(Types::Level level, std::string_view source, Types::FlushTimeout timeout, Types::ReportPopup popup, Types::RuntimeFormat format, Args &&...args)
         {
             return runtimeFormatAndReport(level, source, popup == Types::ReportPopup::Fatal, timeout, format, args...);
         }
 
+        /// @brief Runtime-formats and synchronously reports a diagnostic with a registered SourceId.
         template <typename... Args>
             requires(sizeof...(Args) > 0)
-        /// @brief Runtime-formats and synchronously reports a diagnostic with a registered SourceId.
         static void report(Types::Level level, Types::SourceId source, Types::RuntimeFormat format, Args &&...args)
         {
             runtimeFormatAndReport(level, source, false, format, args...);
         }
 
+        /// @brief Runtime-formats and synchronously reports a diagnostic with a registered SourceId and bounded drain/flush.
         template <typename... Args>
             requires(sizeof...(Args) > 0)
-        /// @brief Runtime-formats and synchronously reports a diagnostic with a registered SourceId and bounded drain/flush.
         static bool report(Types::Level level, Types::SourceId source, Types::FlushTimeout timeout, Types::RuntimeFormat format, Args &&...args)
         {
             return runtimeFormatAndReport(level, source, false, timeout, format, args...);
         }
 
+        /// @brief Runtime-formats and synchronously reports a diagnostic with a registered SourceId and explicit popup behavior.
         template <typename... Args>
             requires(sizeof...(Args) > 0)
-        /// @brief Runtime-formats and synchronously reports a diagnostic with a registered SourceId and explicit popup behavior.
         static void report(Types::Level level, Types::SourceId source, Types::ReportPopup popup, Types::RuntimeFormat format, Args &&...args)
         {
             runtimeFormatAndReport(level, source, popup == Types::ReportPopup::Fatal, format, args...);
         }
 
+        /// @brief Runtime-formats and synchronously reports a diagnostic with a registered SourceId, bounded drain/flush, and explicit popup behavior.
         template <typename... Args>
             requires(sizeof...(Args) > 0)
-        /// @brief Runtime-formats and synchronously reports a diagnostic with a registered SourceId, bounded drain/flush, and explicit popup behavior.
         static bool report(Types::Level level, Types::SourceId source, Types::FlushTimeout timeout, Types::ReportPopup popup, Types::RuntimeFormat format, Args &&...args)
         {
             return runtimeFormatAndReport(level, source, popup == Types::ReportPopup::Fatal, timeout, format, args...);
         }
 
+        /// @brief Runtime-formats and synchronously reports a diagnostic with an enum source.
         template <typename Source, typename... Args>
             requires(isSourceEnum<Source> && sizeof...(Args) > 0)
-        /// @brief Runtime-formats and synchronously reports a diagnostic with an enum source.
         static void report(Types::Level level, Source source, Types::RuntimeFormat format, Args &&...args)
         {
             runtimeFormatAndReport(level, sourceId(source), false, format, args...);
         }
 
+        /// @brief Runtime-formats and synchronously reports a diagnostic with an enum source and bounded drain/flush.
         template <typename Source, typename... Args>
             requires(isSourceEnum<Source> && sizeof...(Args) > 0)
-        /// @brief Runtime-formats and synchronously reports a diagnostic with an enum source and bounded drain/flush.
         static bool report(Types::Level level, Source source, Types::FlushTimeout timeout, Types::RuntimeFormat format, Args &&...args)
         {
             return runtimeFormatAndReport(level, sourceId(source), false, timeout, format, args...);
         }
 
+        /// @brief Runtime-formats and synchronously reports a diagnostic with an enum source and explicit popup behavior.
         template <typename Source, typename... Args>
             requires(isSourceEnum<Source> && sizeof...(Args) > 0)
-        /// @brief Runtime-formats and synchronously reports a diagnostic with an enum source and explicit popup behavior.
         static void report(Types::Level level, Source source, Types::ReportPopup popup, Types::RuntimeFormat format, Args &&...args)
         {
             runtimeFormatAndReport(level, sourceId(source), popup == Types::ReportPopup::Fatal, format, args...);
         }
 
+        /// @brief Runtime-formats and synchronously reports a diagnostic with an enum source, bounded drain/flush, and explicit popup behavior.
         template <typename Source, typename... Args>
             requires(isSourceEnum<Source> && sizeof...(Args) > 0)
-        /// @brief Runtime-formats and synchronously reports a diagnostic with an enum source, bounded drain/flush, and explicit popup behavior.
         static bool report(Types::Level level, Source source, Types::FlushTimeout timeout, Types::ReportPopup popup, Types::RuntimeFormat format, Args &&...args)
         {
             return runtimeFormatAndReport(level, sourceId(source), popup == Types::ReportPopup::Fatal, timeout, format, args...);
         }
 
-        template <typename... Args>
-            requires(sizeof...(Args) > 0)
         /// @brief Runtime-formats and reports an error with a string source.
         /// @param source Source text written into the report line and platform debug output line.
         /// @param format Runtime format wrapper created by Logger::runtimeFormat().
         /// @param args Format arguments.
+        template <typename... Args>
+            requires(sizeof...(Args) > 0)
         static void reportError(std::string_view source, Types::RuntimeFormat format, Args &&...args)
         {
             report(Types::Level::Error, source, format, args...);
         }
 
-        template <typename... Args>
-            requires(sizeof...(Args) > 0)
         /// @brief Runtime-formats and reports an error with a string source and bounded flush.
         /// @param source Source text written into the report line and platform debug output line.
         /// @param timeout Maximum time to wait for the flush.
         /// @param format Runtime format wrapper created by Logger::runtimeFormat().
         /// @param args Format arguments.
         /// @return True when the bounded flush completed.
+        template <typename... Args>
+            requires(sizeof...(Args) > 0)
         static bool reportError(std::string_view source, Types::FlushTimeout timeout, Types::RuntimeFormat format, Args &&...args)
         {
             return report(Types::Level::Error, source, timeout, format, args...);
         }
 
-        template <typename... Args>
-            requires(sizeof...(Args) > 0)
         /// @brief Runtime-formats and reports an error with a registered SourceId.
         /// @param source Registered SourceId resolved for the report line and platform debug output.
         /// @param format Runtime format wrapper created by Logger::runtimeFormat().
         /// @param args Format arguments.
+        template <typename... Args>
+            requires(sizeof...(Args) > 0)
         static void reportError(Types::SourceId source, Types::RuntimeFormat format, Args &&...args)
         {
             report(Types::Level::Error, source, format, args...);
         }
 
-        template <typename... Args>
-            requires(sizeof...(Args) > 0)
         /// @brief Runtime-formats and reports an error with a registered SourceId and bounded flush.
         /// @param source Registered SourceId resolved for the report line and platform debug output.
         /// @param timeout Maximum time to wait for the flush.
         /// @param format Runtime format wrapper created by Logger::runtimeFormat().
         /// @param args Format arguments.
         /// @return True when the bounded flush completed.
+        template <typename... Args>
+            requires(sizeof...(Args) > 0)
         static bool reportError(Types::SourceId source, Types::FlushTimeout timeout, Types::RuntimeFormat format, Args &&...args)
         {
             return report(Types::Level::Error, source, timeout, format, args...);
         }
 
-        template <typename Source, typename... Args>
-            requires(isSourceEnum<Source> && sizeof...(Args) > 0)
         /// @brief Runtime-formats and reports an error with an enum source.
         /// @param source Enum source stored as a SourceId in the queue entry and resolved for platform debug output.
         /// @param format Runtime format wrapper created by Logger::runtimeFormat().
         /// @param args Format arguments.
+        template <typename Source, typename... Args>
+            requires(isSourceEnum<Source> && sizeof...(Args) > 0)
         static void reportError(Source source, Types::RuntimeFormat format, Args &&...args)
         {
             report(Types::Level::Error, sourceId(source), format, args...);
         }
 
-        template <typename Source, typename... Args>
-            requires(isSourceEnum<Source> && sizeof...(Args) > 0)
         /// @brief Runtime-formats and reports an error with an enum source and bounded flush.
         /// @param source Enum source stored as a SourceId in the queue entry and resolved for platform debug output.
         /// @param timeout Maximum time to wait for the flush.
         /// @param format Runtime format wrapper created by Logger::runtimeFormat().
         /// @param args Format arguments.
         /// @return True when the bounded flush completed.
+        template <typename Source, typename... Args>
+            requires(isSourceEnum<Source> && sizeof...(Args) > 0)
         static bool reportError(Source source, Types::FlushTimeout timeout, Types::RuntimeFormat format, Args &&...args)
         {
             return report(Types::Level::Error, sourceId(source), timeout, format, args...);
         }
 
-        template <typename... Args>
-            requires(sizeof...(Args) > 0)
         /// @brief Runtime-formats and reports fatal with a string source.
         /// @param source Source text written into the report line and platform debug output line.
         /// @param format Runtime format wrapper created by Logger::runtimeFormat().
         /// @param args Format arguments.
+        template <typename... Args>
+            requires(sizeof...(Args) > 0)
         static void reportFatal(std::string_view source, Types::RuntimeFormat format, Args &&...args)
         {
             report(Types::Level::Fatal, source, Types::ReportPopup::Fatal, format, args...);
         }
 
-        template <typename... Args>
-            requires(sizeof...(Args) > 0)
         /// @brief Runtime-formats and reports fatal with a string source and bounded flush.
         /// @param source Source text written into the report line and platform debug output line.
         /// @param timeout Maximum time to wait for the flush.
         /// @param format Runtime format wrapper created by Logger::runtimeFormat().
         /// @param args Format arguments.
         /// @return True when the bounded flush completed.
+        template <typename... Args>
+            requires(sizeof...(Args) > 0)
         static bool reportFatal(std::string_view source, Types::FlushTimeout timeout, Types::RuntimeFormat format, Args &&...args)
         {
             return report(Types::Level::Fatal, source, timeout, Types::ReportPopup::Fatal, format, args...);
         }
 
-        template <typename... Args>
-            requires(sizeof...(Args) > 0)
         /// @brief Runtime-formats and reports fatal with a registered SourceId.
         /// @param source Registered SourceId resolved for the report line and platform debug output.
         /// @param format Runtime format wrapper created by Logger::runtimeFormat().
         /// @param args Format arguments.
+        template <typename... Args>
+            requires(sizeof...(Args) > 0)
         static void reportFatal(Types::SourceId source, Types::RuntimeFormat format, Args &&...args)
         {
             report(Types::Level::Fatal, source, Types::ReportPopup::Fatal, format, args...);
         }
 
-        template <typename... Args>
-            requires(sizeof...(Args) > 0)
         /// @brief Runtime-formats and reports fatal with a registered SourceId and bounded flush.
         /// @param source Registered SourceId resolved for the report line and platform debug output.
         /// @param timeout Maximum time to wait for the flush.
         /// @param format Runtime format wrapper created by Logger::runtimeFormat().
         /// @param args Format arguments.
         /// @return True when the bounded flush completed.
+        template <typename... Args>
+            requires(sizeof...(Args) > 0)
         static bool reportFatal(Types::SourceId source, Types::FlushTimeout timeout, Types::RuntimeFormat format, Args &&...args)
         {
             return report(Types::Level::Fatal, source, timeout, Types::ReportPopup::Fatal, format, args...);
         }
 
-        template <typename Source, typename... Args>
-            requires(isSourceEnum<Source> && sizeof...(Args) > 0)
         /// @brief Runtime-formats and reports fatal with an enum source.
         /// @param source Enum source stored as a SourceId in the queue entry and resolved for platform debug output.
         /// @param format Runtime format wrapper created by Logger::runtimeFormat().
         /// @param args Format arguments.
+        template <typename Source, typename... Args>
+            requires(isSourceEnum<Source> && sizeof...(Args) > 0)
         static void reportFatal(Source source, Types::RuntimeFormat format, Args &&...args)
         {
             report(Types::Level::Fatal, sourceId(source), Types::ReportPopup::Fatal, format, args...);
         }
 
-        template <typename Source, typename... Args>
-            requires(isSourceEnum<Source> && sizeof...(Args) > 0)
         /// @brief Runtime-formats and reports fatal with an enum source and bounded flush.
         /// @param source Enum source stored as a SourceId in the queue entry and resolved for platform debug output.
         /// @param timeout Maximum time to wait for the flush.
         /// @param format Runtime format wrapper created by Logger::runtimeFormat().
         /// @param args Format arguments.
         /// @return True when the bounded flush completed.
+        template <typename Source, typename... Args>
+            requires(isSourceEnum<Source> && sizeof...(Args) > 0)
         static bool reportFatal(Source source, Types::FlushTimeout timeout, Types::RuntimeFormat format, Args &&...args)
         {
             return report(Types::Level::Fatal, sourceId(source), timeout, Types::ReportPopup::Fatal, format, args...);
         }
 
-        template <typename... Args>
-            requires(sizeof...(Args) > 0)
         /// @brief Formats fatal, flushes, shows the fatal popup when enabled, then terminates.
         /// @param source Source text written into the report line and platform debug output line.
         /// @param format Compile-time checked format string.
         /// @param args Format arguments.
+        template <typename... Args>
+            requires(sizeof...(Args) > 0)
         [[noreturn]] static void fatalTerminate(std::string_view source, std::format_string<Args...> format, Args &&...args)
         {
             report(Types::Level::Fatal, source, Types::ReportPopup::Fatal, format, std::forward<Args>(args)...);
             std::terminate();
         }
 
-        template <typename... Args>
-            requires(sizeof...(Args) > 0)
         /// @brief Formats fatal with a SourceId, flushes, shows the fatal popup when enabled, then terminates.
         /// @param source Registered SourceId resolved for the report line and platform debug output.
         /// @param format Compile-time checked format string.
         /// @param args Format arguments.
+        template <typename... Args>
+            requires(sizeof...(Args) > 0)
         [[noreturn]] static void fatalTerminate(Types::SourceId source, std::format_string<Args...> format, Args &&...args)
         {
             report(Types::Level::Fatal, source, Types::ReportPopup::Fatal, format, std::forward<Args>(args)...);
             std::terminate();
         }
 
-        template <typename Source, typename... Args>
-            requires(isSourceEnum<Source> && sizeof...(Args) > 0)
         /// @brief Formats fatal with an enum source, flushes, shows the fatal popup when enabled, then terminates.
         /// @param source Enum source stored as a SourceId.
         /// @param format Compile-time checked format string.
         /// @param args Format arguments.
+        template <typename Source, typename... Args>
+            requires(isSourceEnum<Source> && sizeof...(Args) > 0)
         [[noreturn]] static void fatalTerminate(Source source, std::format_string<Args...> format, Args &&...args)
         {
             report(Types::Level::Fatal, sourceId(source), Types::ReportPopup::Fatal, format, std::forward<Args>(args)...);
             std::terminate();
         }
 
-        template <typename... Args>
-            requires(sizeof...(Args) > 0)
         /// @brief Formats fatal, waits for a bounded flush, shows the fatal popup when enabled, then terminates.
         /// @param source Source text written into the report line and platform debug output line.
         /// @param timeout Maximum flush wait before termination continues.
         /// @param format Compile-time checked format string.
         /// @param args Format arguments.
+        template <typename... Args>
+            requires(sizeof...(Args) > 0)
         [[noreturn]] static void fatalTerminate(std::string_view source, Types::FlushTimeout timeout, std::format_string<Args...> format, Args &&...args)
         {
             report(Types::Level::Fatal, source, timeout, Types::ReportPopup::Fatal, format, std::forward<Args>(args)...);
             std::terminate();
         }
 
-        template <typename... Args>
-            requires(sizeof...(Args) > 0)
         /// @brief Formats fatal with a SourceId, waits for a bounded flush, shows the fatal popup when enabled, then terminates.
         /// @param source Registered SourceId resolved for the report line and platform debug output.
         /// @param timeout Maximum flush wait before termination continues.
         /// @param format Compile-time checked format string.
         /// @param args Format arguments.
+        template <typename... Args>
+            requires(sizeof...(Args) > 0)
         [[noreturn]] static void fatalTerminate(Types::SourceId source, Types::FlushTimeout timeout, std::format_string<Args...> format, Args &&...args)
         {
             report(Types::Level::Fatal, source, timeout, Types::ReportPopup::Fatal, format, std::forward<Args>(args)...);
             std::terminate();
         }
 
-        template <typename Source, typename... Args>
-            requires(isSourceEnum<Source> && sizeof...(Args) > 0)
         /// @brief Formats fatal with an enum source, waits for a bounded flush, shows the fatal popup when enabled, then terminates.
         /// @param source Enum source stored as a SourceId.
         /// @param timeout Maximum flush wait before termination continues.
         /// @param format Compile-time checked format string.
         /// @param args Format arguments.
+        template <typename Source, typename... Args>
+            requires(isSourceEnum<Source> && sizeof...(Args) > 0)
         [[noreturn]] static void fatalTerminate(Source source, Types::FlushTimeout timeout, std::format_string<Args...> format, Args &&...args)
         {
             report(Types::Level::Fatal, sourceId(source), timeout, Types::ReportPopup::Fatal, format, std::forward<Args>(args)...);
             std::terminate();
         }
 
-        template <typename... Args>
-            requires(sizeof...(Args) > 0)
         /// @brief Runtime-formats fatal, flushes, shows the fatal popup when enabled, then terminates.
         /// @param source Source text written into the report line and platform debug output line.
         /// @param format Runtime format wrapper created by Logger::runtimeFormat().
         /// @param args Format arguments.
+        template <typename... Args>
+            requires(sizeof...(Args) > 0)
         [[noreturn]] static void fatalTerminate(std::string_view source, Types::RuntimeFormat format, Args &&...args)
         {
             report(Types::Level::Fatal, source, Types::ReportPopup::Fatal, format, args...);
             std::terminate();
         }
 
-        template <typename... Args>
-            requires(sizeof...(Args) > 0)
         /// @brief Runtime-formats fatal with a SourceId, flushes, shows the fatal popup when enabled, then terminates.
         /// @param source Registered SourceId resolved for the report line and platform debug output.
         /// @param format Runtime format wrapper created by Logger::runtimeFormat().
         /// @param args Format arguments.
+        template <typename... Args>
+            requires(sizeof...(Args) > 0)
         [[noreturn]] static void fatalTerminate(Types::SourceId source, Types::RuntimeFormat format, Args &&...args)
         {
             report(Types::Level::Fatal, source, Types::ReportPopup::Fatal, format, args...);
             std::terminate();
         }
 
-        template <typename Source, typename... Args>
-            requires(isSourceEnum<Source> && sizeof...(Args) > 0)
         /// @brief Runtime-formats fatal with an enum source, flushes, shows the fatal popup when enabled, then terminates.
         /// @param source Enum source stored as a SourceId.
         /// @param format Runtime format wrapper created by Logger::runtimeFormat().
         /// @param args Format arguments.
+        template <typename Source, typename... Args>
+            requires(isSourceEnum<Source> && sizeof...(Args) > 0)
         [[noreturn]] static void fatalTerminate(Source source, Types::RuntimeFormat format, Args &&...args)
         {
             report(Types::Level::Fatal, sourceId(source), Types::ReportPopup::Fatal, format, args...);
             std::terminate();
         }
 
-        template <typename... Args>
-            requires(sizeof...(Args) > 0)
         /// @brief Runtime-formats fatal, waits for a bounded flush, shows the fatal popup when enabled, then terminates.
         /// @param source Source text written into the report line and platform debug output line.
         /// @param timeout Maximum flush wait before termination continues.
         /// @param format Runtime format wrapper created by Logger::runtimeFormat().
         /// @param args Format arguments.
+        template <typename... Args>
+            requires(sizeof...(Args) > 0)
         [[noreturn]] static void fatalTerminate(std::string_view source, Types::FlushTimeout timeout, Types::RuntimeFormat format, Args &&...args)
         {
             report(Types::Level::Fatal, source, timeout, Types::ReportPopup::Fatal, format, args...);
             std::terminate();
         }
 
-        template <typename... Args>
-            requires(sizeof...(Args) > 0)
         /// @brief Runtime-formats fatal with a SourceId, waits for a bounded flush, shows the fatal popup when enabled, then terminates.
         /// @param source Registered SourceId resolved for the report line and platform debug output.
         /// @param timeout Maximum flush wait before termination continues.
         /// @param format Runtime format wrapper created by Logger::runtimeFormat().
         /// @param args Format arguments.
+        template <typename... Args>
+            requires(sizeof...(Args) > 0)
         [[noreturn]] static void fatalTerminate(Types::SourceId source, Types::FlushTimeout timeout, Types::RuntimeFormat format, Args &&...args)
         {
             report(Types::Level::Fatal, source, timeout, Types::ReportPopup::Fatal, format, args...);
             std::terminate();
         }
 
-        template <typename Source, typename... Args>
-            requires(isSourceEnum<Source> && sizeof...(Args) > 0)
         /// @brief Runtime-formats fatal with an enum source, waits for a bounded flush, shows the fatal popup when enabled, then terminates.
         /// @param source Enum source stored as a SourceId.
         /// @param timeout Maximum flush wait before termination continues.
         /// @param format Runtime format wrapper created by Logger::runtimeFormat().
         /// @param args Format arguments.
+        template <typename Source, typename... Args>
+            requires(isSourceEnum<Source> && sizeof...(Args) > 0)
         [[noreturn]] static void fatalTerminate(Source source, Types::FlushTimeout timeout, Types::RuntimeFormat format, Args &&...args)
         {
             report(Types::Level::Fatal, sourceId(source), timeout, Types::ReportPopup::Fatal, format, args...);

@@ -1,35 +1,24 @@
 @page assert_interactive Interactive asserts
 
-Interactive assertions are developer/debug tools. They are separate from normal `ASSERT` and `VERIFY`, and they should be used only where continuing after a failure is acceptable during development.
+Interactive assertions are separate from normal `ASSERT` and `VERIFY`.
 
-## Actions
+They are intended for developer/debug workflows where the developer may choose what happens after a failure.
 
-- **Break**: force-calls the debugger break path and continues if execution resumes.
-- **Abort**: terminates the process with `std::abort()`.
-- **Ignore Once**: continues this failure only. The next failure at the same call site can report again.
-- **Always Ignore**: sets a per-call-site atomic flag and suppresses future failures from that macro expansion.
+Available actions:
 
-`Always Ignore` is local to the macro expansion site. It is not a global ignore list and it does not affect normal `ASSERT` or `VERIFY` macros.
+- **Break**: trigger the debugger break path and continue if the debugger resumes.
+- **Abort**: terminate the process.
+- **Ignore Once**: continue this time only.
+- **Always Ignore**: suppress future failures from the same macro call site.
 
-## Side-effect behavior
+`AlwaysIgnore` is local to the macro expansion site. It is not a global ignore list.
 
-`ASSERT_INTERACTIVE` is assertion-like: after a call site has been Always Ignored, the condition is skipped. Use it only when skipping the expression is acceptable.
+## Dialog behavior
 
-`VERIFY_INTERACTIVE` is verification-like: the condition is always evaluated once, even when future reports from the same call site are Always Ignored.
+On Windows, Assert prefers a TaskDialog path when available so the full action set can be presented. If TaskDialog is unavailable or forced to fail in tests, Assert falls back to MessageBox behavior with a reduced action mapping.
 
-## Automated tests
+When a debugger is attached, the default action favors Break. Without a debugger, the safe default is Abort unless `GAMEWIP_ASSERT_TEST_ACTION` provides a valid test action.
 
-Automated interactive tests must not open real UI. They use `GAMEWIP_ASSERT_TEST_ACTION` with one of these values:
+## Test behavior
 
-- `break`
-- `abort`
-- `ignore_once`
-- `always_ignore`
-
-`GAMEWIP_ASSERT_SUPPRESS_POPUP=1` suppresses interactive UI and makes the default action Abort unless `GAMEWIP_ASSERT_TEST_ACTION` supplies a valid action.
-
-## Manual UI
-
-Manual UI tests intentionally open real Windows dialogs and require user interaction. They must be gated by runtime options and should run near the end of the test suite.
-
-On Windows, the preferred UI path is TaskDialog with the Common Controls v6 manifest. The MessageBox fallback is for degraded environments; it can represent Abort, Break, and Ignore Once, but not a true four-button Always Ignore UI.
+Automated tests use `GAMEWIP_ASSERT_TEST_ACTION` to exercise interactive behavior without opening real UI. Manual UI tests intentionally open real Windows dialogs and require user interaction. They must only run when runtime `TestRunOptions` request them.
