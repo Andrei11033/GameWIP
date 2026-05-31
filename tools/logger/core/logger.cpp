@@ -105,6 +105,7 @@ namespace
         std::atomic_bool nextFileOpenFailure{false};
         std::atomic_bool nextFileWriteFailure{false};
         std::atomic_bool nextFileFlushFailure{false};
+        std::atomic_bool nextQueueAllocationFailure{false};
         std::atomic_bool nextFatalPopupFailure{false};
         std::atomic_bool nextTimedFlushTimeout{false};
     };
@@ -125,6 +126,7 @@ namespace
         loggerTestHookState.nextFileOpenFailure.store(false, std::memory_order_release);
         loggerTestHookState.nextFileWriteFailure.store(false, std::memory_order_release);
         loggerTestHookState.nextFileFlushFailure.store(false, std::memory_order_release);
+        loggerTestHookState.nextQueueAllocationFailure.store(false, std::memory_order_release);
         loggerTestHookState.nextFatalPopupFailure.store(false, std::memory_order_release);
         loggerTestHookState.nextTimedFlushTimeout.store(false, std::memory_order_release);
     }
@@ -2070,6 +2072,12 @@ namespace
 
         try
         {
+#if GAMEWIP_LOGGER_TEST_HOOKS
+            if (consumeTestHook(loggerTestHookState.nextQueueAllocationFailure))
+            {
+                throw std::bad_alloc{};
+            }
+#endif
             slot.skip = false;
             copyPendingEntryToQueueSlot(slot.entry, entry, outTruncated);
         }
@@ -3106,6 +3114,11 @@ namespace GameWIP::LoggerDetail::TestHooks
     void forceNextFileFlushFailure() noexcept
     {
         loggerTestHookState.nextFileFlushFailure.store(true, std::memory_order_release);
+    }
+
+    void forceNextQueueAllocationFailure() noexcept
+    {
+        loggerTestHookState.nextQueueAllocationFailure.store(true, std::memory_order_release);
     }
 
     void forceNextFatalPopupFailure() noexcept

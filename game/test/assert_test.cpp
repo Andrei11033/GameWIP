@@ -627,6 +627,32 @@ namespace
 #endif
     }
 
+    /// @brief Verifies message expressions are skipped when macro families are compiled out.
+    /// @param context Test context.
+    void testCompiledOutMessageEvaluation(TestContext &context)
+    {
+        int evaluations = 0;
+
+#if !GAMEWIP_ASSERT_ENABLED
+        ASSERT_MSG(false, makeDiagnosticMessage(evaluations));
+        ASSERT_INTERACTIVE_MSG(false, makeDiagnosticMessage(evaluations));
+        VERIFY_MSG(false, makeDiagnosticMessage(evaluations));
+        VERIFY_INTERACTIVE_MSG(false, makeDiagnosticMessage(evaluations));
+        context.expectEq("compiled-out assert messages skipped", evaluations, 0);
+#else
+        context.pass("compiled-out assert message test skipped because GAMEWIP_ASSERT_ENABLED=1");
+#endif
+
+#if !GAMEWIP_ASSERT_CHECKS_ENABLED
+        CHECK_MSG(false, makeDiagnosticMessage(evaluations));
+        CHECK_ONCE_MSG(false, makeDiagnosticMessage(evaluations));
+        (void)ENSURE_MSG(false, makeDiagnosticMessage(evaluations));
+        context.expectEq("compiled-out check messages skipped", evaluations, 0);
+#else
+        context.pass("compiled-out check message test skipped because GAMEWIP_ASSERT_CHECKS_ENABLED=1");
+#endif
+    }
+
     void interactiveAlwaysIgnoreSite()
     {
         ASSERT_INTERACTIVE_MSG(false, "interactive always ignore test");
@@ -666,6 +692,8 @@ namespace
             "Assert hook test",
             "TaskDialog and MessageBox are forced to fail; default action should be returned.",
             FailureAction::IgnoreOnce);
+        context.expectTrue("hook TaskDialog failure consumed", !AssertHooks::Detail::consumeNextTaskDialogFailure());
+        context.expectTrue("hook MessageBox failure consumed", !AssertHooks::Detail::consumeNextMessageBoxFailure());
         context.expectTrue("hook action dialog default fallback", fallbackAction == FailureAction::IgnoreOnce);
 
         AssertHooks::setPopupSuppressedOverride(true);
@@ -696,7 +724,11 @@ namespace
         context.expectEq("ASSERT_INTERACTIVE ignore_once not queued", stats.queued, std::size_t{0});
         context.expectEq("ASSERT_INTERACTIVE ignore_once writes one fatal", stats.written, std::size_t{1});
         context.expectTrue("ASSERT_INTERACTIVE ignore_once logs fatal", contents.find("[FATAL][Assert]: Assert failed") != std::string::npos, "interactive fatal missing");
+#if GAMEWIP_ASSERT_DIAGNOSTICS
         context.expectTrue("ASSERT_INTERACTIVE ignore_once logs message", contents.find("interactive ignore once test") != std::string::npos, "interactive message missing");
+#else
+        context.expectTrue("ASSERT_INTERACTIVE ignore_once strips message", contents.find("interactive ignore once test") == std::string::npos, "interactive message was embedded");
+#endif
 #else
         context.pass("ASSERT_INTERACTIVE ignore_once skipped because GAMEWIP_ASSERT_ENABLED=0");
 #endif
@@ -721,7 +753,11 @@ namespace
         const std::string contents = readFile(Logger::getLogFilePath());
         context.expectEq("ASSERT_INTERACTIVE always_ignore not queued", stats.queued, std::size_t{0});
         context.expectEq("ASSERT_INTERACTIVE always_ignore writes once", stats.written, std::size_t{1});
+#if GAMEWIP_ASSERT_DIAGNOSTICS
         context.expectEq("ASSERT_INTERACTIVE always_ignore one message", countOccurrences(contents, "interactive always ignore test"), std::size_t{1});
+#else
+        context.expectEq("ASSERT_INTERACTIVE always_ignore strips message", countOccurrences(contents, "interactive always ignore test"), std::size_t{0});
+#endif
 #else
         context.pass("ASSERT_INTERACTIVE always_ignore skipped because GAMEWIP_ASSERT_ENABLED=0");
 #endif
@@ -748,7 +784,11 @@ namespace
 #if GAMEWIP_ASSERT_ENABLED
         Logger::flush(2s);
         const std::string contents = readFile(Logger::getLogFilePath());
+#if GAMEWIP_ASSERT_DIAGNOSTICS
         context.expectTrue("VERIFY_INTERACTIVE failure logs when enabled", contents.find("verify interactive ignore once test") != std::string::npos, "verify interactive message missing");
+#else
+        context.expectTrue("VERIFY_INTERACTIVE failure strips message", contents.find("verify interactive ignore once test") == std::string::npos, "verify interactive message was embedded");
+#endif
 #else
         Logger::flush(2s);
         const Logger::Types::Stats stats = Logger::getStats();
@@ -774,7 +814,11 @@ namespace
         Logger::flush(2s);
         const std::string contents = readFile(Logger::getLogFilePath());
         context.expectEq("VERIFY_INTERACTIVE Always Ignore still evaluates", evaluations, 2);
+#if GAMEWIP_ASSERT_DIAGNOSTICS
         context.expectEq("VERIFY_INTERACTIVE Always Ignore logs once", countOccurrences(contents, "verify interactive always ignore test"), std::size_t{1});
+#else
+        context.expectEq("VERIFY_INTERACTIVE Always Ignore strips message", countOccurrences(contents, "verify interactive always ignore test"), std::size_t{0});
+#endif
 #else
         context.pass("VERIFY_INTERACTIVE Always Ignore test skipped because GAMEWIP_ASSERT_ENABLED=0");
 #endif
@@ -822,7 +866,11 @@ namespace
 
         Logger::flush(2s);
         const std::string contents = readFile(Logger::getLogFilePath());
+#if GAMEWIP_ASSERT_DIAGNOSTICS
         context.expectEq("CHECK_ONCE thread stress logs once", countOccurrences(contents, "threaded check once stress"), std::size_t{1});
+#else
+        context.expectEq("CHECK_ONCE thread stress logs generic once", countOccurrences(contents, "[ERROR][Check]: Check failed"), std::size_t{1});
+#endif
 #else
         context.pass("CHECK_ONCE thread stress skipped because GAMEWIP_ASSERT_CHECKS_ENABLED=0");
 #endif
@@ -853,7 +901,11 @@ namespace
 
         Logger::flush(5s);
         const std::string contents = readFile(Logger::getLogFilePath());
+#if GAMEWIP_ASSERT_DIAGNOSTICS
         context.expectEq("ASSERT_INTERACTIVE ignore_once stress logs every failure", countOccurrences(contents, "interactive ignore once repeat test"), static_cast<std::size_t>(iterations));
+#else
+        context.expectEq("ASSERT_INTERACTIVE ignore_once stress logs generic failures", countOccurrences(contents, "[FATAL][Assert]: Assert failed"), static_cast<std::size_t>(iterations));
+#endif
 #else
         context.pass("interactive assert stress loops skipped because GAMEWIP_ASSERT_ENABLED=0");
 #endif
@@ -1010,7 +1062,11 @@ namespace
 
         const std::string childLogContents = readDirectoryFiles(childLogDirectory);
         context.expectTrue("ASSERT_INTERACTIVE abort child logs fatal", childLogContents.find("[FATAL][Assert]: Assert failed") != std::string::npos, "interactive abort child fatal missing");
+#if GAMEWIP_ASSERT_DIAGNOSTICS
         context.expectTrue("ASSERT_INTERACTIVE abort child logs message", childLogContents.find("interactive abort child") != std::string::npos, "interactive abort child message missing");
+#else
+        context.expectTrue("ASSERT_INTERACTIVE abort child strips message", childLogContents.find("interactive abort child") == std::string::npos, "interactive abort child message was embedded");
+#endif
 #else
         context.pass("ASSERT_INTERACTIVE abort child skipped because GAMEWIP_ASSERT_ENABLED=0");
 #endif
@@ -1034,7 +1090,11 @@ namespace
 
         const std::string childLogContents = readDirectoryFiles(childLogDirectory);
         context.expectTrue("ASSERT_INTERACTIVE break child logs fatal", childLogContents.find("[FATAL][Assert]: Assert failed") != std::string::npos, "interactive break child fatal missing");
+#if GAMEWIP_ASSERT_DIAGNOSTICS
         context.expectTrue("ASSERT_INTERACTIVE break child logs message", childLogContents.find("interactive break child") != std::string::npos, "interactive break child message missing");
+#else
+        context.expectTrue("ASSERT_INTERACTIVE break child strips message", childLogContents.find("interactive break child") == std::string::npos, "interactive break child message was embedded");
+#endif
 #else
         context.pass("ASSERT_INTERACTIVE break child skipped because GAMEWIP_ASSERT_ENABLED=0");
 #endif
@@ -1052,7 +1112,8 @@ namespace
     void testUnreachableChild(TestContext &context)
     {
 #if GAMEWIP_ASSERT_ENABLED || !GAMEWIP_ASSERT_UNREACHABLE_ASSUME
-        expectAbnormalChildExit(context, unreachableChildArgument, "UNREACHABLE child exits abnormally");
+        const ScopedEnvironmentVariable suppressPopupOverride(suppressPopupEnvironmentVariable, "1");
+        expectAbnormalChildExit(context, unreachableChildArgument, "UNREACHABLE child exits abnormally with popup suppressed");
 #else
         context.pass("UNREACHABLE child test skipped because GAMEWIP_ASSERT_UNREACHABLE_ASSUME=1");
 #endif
@@ -1307,6 +1368,7 @@ namespace GameWIP::Test
             testCheckOnceLogging(context);
             testDiagnosticConfiguration(context);
             testDiagnosticMessageEvaluation(context);
+            testCompiledOutMessageEvaluation(context);
             testAssertTestHooks(context);
             if (options.enableAutomatedInteractiveTests)
             {

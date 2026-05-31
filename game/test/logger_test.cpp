@@ -50,6 +50,8 @@ namespace
 
     constexpr std::string_view testSource = "LoggerTest";
     constexpr std::string_view shortMessage = "logger test message";
+    constexpr std::string_view childLogDirectoryEnvironmentVariable = "GAMEWIP_LOGGER_TEST_CHILD_LOG_DIR";
+    constexpr std::string_view fatalTerminateChildMessage = "child fatal terminate";
 
     enum class TestSource : Logger::Types::SourceId
     {
@@ -378,6 +380,60 @@ namespace
         return path.generic_string();
     }
 
+    void setEnvironmentVariableValue(std::string_view name, std::string_view value)
+    {
+        const std::string nameText(name);
+        const std::string valueText(value);
+#if defined(_WIN32)
+        _putenv_s(nameText.c_str(), valueText.c_str());
+        SetEnvironmentVariableA(nameText.c_str(), valueText.c_str());
+#else
+        setenv(nameText.c_str(), valueText.c_str(), 1);
+#endif
+    }
+
+    void clearEnvironmentVariableValue(std::string_view name)
+    {
+        const std::string nameText(name);
+#if defined(_WIN32)
+        _putenv_s(nameText.c_str(), "");
+        SetEnvironmentVariableA(nameText.c_str(), nullptr);
+#else
+        unsetenv(nameText.c_str());
+#endif
+    }
+
+    struct ScopedEnvironmentVariable
+    {
+        std::string name;
+        std::optional<std::string> previousValue;
+
+        ScopedEnvironmentVariable(std::string_view variableName, std::string_view value)
+            : name(variableName)
+        {
+            if (const char *previous = std::getenv(name.c_str()))
+            {
+                previousValue = previous;
+            }
+            setEnvironmentVariableValue(name, value);
+        }
+
+        ~ScopedEnvironmentVariable()
+        {
+            if (previousValue)
+            {
+                setEnvironmentVariableValue(name, *previousValue);
+            }
+            else
+            {
+                clearEnvironmentVariableValue(name);
+            }
+        }
+
+        ScopedEnvironmentVariable(const ScopedEnvironmentVariable &) = delete;
+        ScopedEnvironmentVariable &operator=(const ScopedEnvironmentVariable &) = delete;
+    };
+
     std::filesystem::path testDirectory(TestContext &context, std::string_view name)
     {
         std::filesystem::path directory = context.logRoot / std::string(name);
@@ -426,6 +482,16 @@ namespace
             }
         }
         return files;
+    }
+
+    std::string readDirectoryFiles(const std::filesystem::path &directory)
+    {
+        std::string contents;
+        for (const std::filesystem::path &path : filesIn(directory))
+        {
+            contents += readWholeFile(path);
+        }
+        return contents;
     }
 
     struct OwnedLoggerConfig : Logger::Types::Config
@@ -836,6 +902,7 @@ namespace
         Logger::reportError(testSource, "plain report");
         context.expectTrue("timeout report plain", Logger::reportError(testSource, Logger::flushTimeout(2s), "timeout report"));
         Logger::reportError(testSource, "formatted report {}", 21);
+        Logger::reportFatal(testSource, "fatal wrapper report");
         Logger::report(Logger::Types::Level::Warn, testSource, "generic report {}", 23);
         context.expectTrue("source runtime report", Logger::report(Logger::Types::Level::Fatal, TestSource::Core, Logger::flushTimeout(2s), Logger::runtimeFormat("runtime fatal {}"), 22));
         Logger::writeDebugOutput(Logger::Types::Level::Error, testSource, "debug output direct");
@@ -843,13 +910,14 @@ namespace
 
         const Logger::Types::Stats stats = Logger::getStats();
         expectEq(context, "reports bypass min without queueing", stats.queued, std::size_t{0});
-        expectEq(context, "reports written synchronously", stats.written, std::size_t{5});
+        expectEq(context, "reports written synchronously", stats.written, std::size_t{6});
         const std::string logFile = Logger::getLogFilePath();
         Logger::shutdown();
 
         const std::string contents = readWholeFile(logFile);
         context.expectTrue("report file plain", contents.find("plain report") != std::string::npos);
         context.expectTrue("report file formatted", contents.find("formatted report 21") != std::string::npos);
+        context.expectTrue("report fatal wrapper file", contents.find("[FATAL][LoggerTest]: fatal wrapper report") != std::string::npos);
         context.expectTrue("report file generic", contents.find("[WARN][LoggerTest]: generic report 23") != std::string::npos);
         context.expectTrue("report file runtime source", contents.find("[FATAL][Core]: runtime fatal 22") != std::string::npos);
     }
@@ -897,6 +965,34 @@ namespace
 
         {
             ScopedLoggerShutdown shutdown;
+            OwnedLoggerConfig config = makeFileConfig(context, "hook-file-open", Logger::Types::Level::Trace);
+            GameWIP::LoggerDetail::TestHooks::forceNextFileOpenFailure();
+            const Logger::Types::Result result = Logger::init(config.ready());
+            expectEq(context, "hook forced file open retries successfully", result, Logger::Types::Result::Success);
+            context.expectTrue("hook file open retry leaves logger running", Logger::isRunning());
+            Logger::info(testSource, "file open retry still writes");
+            context.expectTrue("hook file open retry flush", Logger::flush(2s));
+            const std::string logFile = Logger::getLogFilePath();
+            context.expectTrue("hook file open retry used next candidate", logFile.ends_with("_1.log"));
+            Logger::shutdown();
+            context.expectTrue("hook file open retry wrote content", readWholeFile(logFile).find("file open retry still writes") != std::string::npos);
+        }
+
+        {
+            ScopedLoggerShutdown shutdown;
+            OwnedLoggerConfig config = makeFileConfig(context, "hook-allocation", Logger::Types::Level::Trace);
+            expectInitSuccess(context, "hook allocation init", Logger::init(config.ready()));
+            Logger::resetStats();
+            GameWIP::LoggerDetail::TestHooks::forceNextQueueAllocationFailure();
+            Logger::info(testSource, "forced allocation failure");
+            context.expectTrue("hook allocation failure flush", Logger::flush(2s));
+            const Logger::Types::Stats stats = Logger::getStats();
+            expectEq(context, "hook allocation failure not queued", stats.queued, std::size_t{0});
+            context.expectTrue("hook allocation failure counted", stats.allocationFailures > 0);
+        }
+
+        {
+            ScopedLoggerShutdown shutdown;
             OwnedLoggerConfig config = makeFileConfig(context, "hook-file-flush", Logger::Types::Level::Trace);
             expectInitSuccess(context, "hook file flush init", Logger::init(config.ready()));
             Logger::resetStats();
@@ -934,6 +1030,22 @@ namespace
             expectInitSuccess(context, "hook timed flush init", Logger::init(config.ready()));
             GameWIP::LoggerDetail::TestHooks::forceNextTimedFlushTimeout();
             context.expectFalse("hook timed flush timeout", Logger::flush(2s));
+        }
+
+        {
+            ScopedLoggerShutdown shutdown;
+            OwnedLoggerConfig config = makeFileConfig(context, "hook-report-timeout", Logger::Types::Level::Trace);
+            expectInitSuccess(context, "hook report timeout init", Logger::init(config.ready()));
+            Logger::resetStats();
+            GameWIP::LoggerDetail::TestHooks::forceNextTimedFlushTimeout();
+            const bool flushed = Logger::reportError(testSource, Logger::flushTimeout(2s), "report timeout still writes first");
+            context.expectFalse("hook report timeout returns bounded drain failure", flushed);
+            const Logger::Types::Stats stats = Logger::getStats();
+            expectEq(context, "hook report timeout not queued", stats.queued, std::size_t{0});
+            expectEq(context, "hook report timeout written synchronously", stats.written, std::size_t{1});
+            const std::string logFile = Logger::getLogFilePath();
+            Logger::shutdown();
+            context.expectTrue("hook report timeout line reached file", readWholeFile(logFile).find("report timeout still writes first") != std::string::npos);
         }
 
         GameWIP::LoggerDetail::TestHooks::reset();
@@ -1009,6 +1121,75 @@ namespace
         Logger::shutdown();
         const std::string contents = readWholeFile(logFile);
         context.expectTrue("report survived full queue reached file", contents.find("synchronous report survived full queue") != std::string::npos);
+    }
+
+    void testReportWhileProducersActive(TestContext &context, const LoggerTestOptions &options)
+    {
+        if (!options.enableStressTests)
+        {
+            context.pass("report active producer stress skipped by LoggerTestOptions");
+            return;
+        }
+
+        ZoneScopedN("Logger report while producers active stress");
+        ScopedLoggerShutdown shutdown;
+
+        OwnedLoggerConfig config = makeFileConfig(context, "report-while-producers", Logger::Types::Level::Trace);
+        config.maxQueueSize = 4096;
+        config.workerBatchSize = 64;
+        config.flushFileEveryBatch = false;
+        expectInitSuccess(context, "report active producers init", Logger::init(config.ready()));
+
+        const int stressThreads = static_cast<int>(std::max<std::size_t>(2, options.stressThreadCount));
+        std::atomic<bool> start{false};
+        std::atomic<bool> stop{false};
+        std::atomic<std::size_t> attempts{0};
+        std::vector<std::thread> workers;
+        workers.reserve(static_cast<std::size_t>(stressThreads));
+
+        for (int workerIndex = 0; workerIndex < stressThreads; ++workerIndex)
+        {
+            workers.emplace_back(
+                [&start, &stop, &attempts]
+                {
+                    while (!start.load(std::memory_order_acquire))
+                    {
+                        std::this_thread::yield();
+                    }
+
+                    while (!stop.load(std::memory_order_acquire))
+                    {
+                        Logger::info(testSource, "active report producer {}", attempts.fetch_add(1, std::memory_order_relaxed));
+                    }
+                });
+        }
+
+        start.store(true, std::memory_order_release);
+
+        const auto waitStart = Clock::now();
+        while (attempts.load(std::memory_order_acquire) < 1024 &&
+               Clock::now() - waitStart < 500ms)
+        {
+            std::this_thread::yield();
+        }
+
+        const Logger::Types::Stats beforeReport = Logger::getStats();
+        Logger::report(Logger::Types::Level::Error, testSource, "synchronous report while producers active");
+        const Logger::Types::Stats afterReport = Logger::getStats();
+        context.expectTrue("report active producers attempted logs", attempts.load(std::memory_order_relaxed) > 0);
+        context.expectTrue("report active producers wrote synchronously", afterReport.written > beforeReport.written);
+
+        stop.store(true, std::memory_order_release);
+        for (std::thread &worker : workers)
+        {
+            worker.join();
+        }
+
+        const std::string logFile = Logger::getLogFilePath();
+        context.expectTrue("report active producers final flush", Logger::flush(5s));
+        Logger::shutdown();
+        const std::string contents = readWholeFile(logFile);
+        context.expectTrue("report active producers reached file", contents.find("synchronous report while producers active") != std::string::npos);
     }
 
     void testFileFallback(TestContext &context)
@@ -1518,8 +1699,15 @@ namespace
         config.minLevel = Logger::Types::Level::Trace;
         config.enableDebugOutput = false;
         config.enableFatalPopup = false;
+        if (const char *childLogDirectory = std::getenv(std::string(childLogDirectoryEnvironmentVariable).c_str()))
+        {
+            config.output = Logger::Types::Output::File;
+            config.logDirectory = childLogDirectory;
+            config.fallbackToConsoleOnFileFailure = false;
+            config.flushFileEveryBatch = true;
+        }
         Logger::init(config);
-        Logger::fatalTerminate(testSource, "child fatal terminate");
+        Logger::fatalTerminate(testSource, fatalTerminateChildMessage);
     }
 
     void testFatalTerminateChild(TestContext &context, const LoggerTestOptions &options)
@@ -1531,10 +1719,16 @@ namespace
         }
 
         ZoneScopedN("Logger fatalTerminate child test");
+        const std::filesystem::path childLogDirectory = context.logRoot / "fatal_terminate_child";
+        std::filesystem::create_directories(childLogDirectory);
+        const ScopedEnvironmentVariable childLogDirectoryOverride(childLogDirectoryEnvironmentVariable, pathText(childLogDirectory));
+
         std::cout.flush();
         std::cerr.flush();
         const int result = runChildProcess(context.executablePath, "--logger-test-child=fatal-terminate");
         context.expectTrue("fatalTerminate child exits abnormally", result != 0, "child process returned zero");
+        const std::string childLogContents = readDirectoryFiles(childLogDirectory);
+        context.expectTrue("fatalTerminate child logs fatal through report", childLogContents.find("[FATAL][LoggerTest]: child fatal terminate") != std::string::npos, "fatalTerminate child log missing");
         std::cout.flush();
     }
 
@@ -1793,6 +1987,7 @@ namespace GameWIP::Test
             testStatsResetKeepsLifetimeQueueDrops(context);
             testQueuePressureAndConcurrency(context, options);
             testReportBypassesFullQueue(context, options);
+            testReportWhileProducersActive(context, options);
             testFlushWhileProducersActive(context, options);
             testShutdownWhileProducersActive(context, options);
             testRepeatedInitShutdownStress(context, options);

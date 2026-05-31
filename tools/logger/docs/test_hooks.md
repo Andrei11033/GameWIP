@@ -14,6 +14,8 @@ This maps to the library-local `LOGGER_TEST_HOOKS` option and exports `GAMEWIP_L
 
 Hooks make rare paths deterministic:
 
+- force the next file open failure,
+- force the next queue-entry allocation/copy failure,
 - force the next file flush failure,
 - force the next file write failure,
 - force the next fatal popup failure,

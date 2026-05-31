@@ -25,6 +25,10 @@ namespace GameWIP::LoggerDetail::TestHooks
     /// @warning Test-only API. The hook is one-shot.
     LOGGER_API void forceNextFileFlushFailure() noexcept;
 
+    /// @brief Forces the next queue-entry copy to behave like an allocation failure.
+    /// @warning Test-only API. The hook is one-shot.
+    LOGGER_API void forceNextQueueAllocationFailure() noexcept;
+
     /// @brief Forces the next logger-owned fatal popup attempt to report a platform failure.
     /// @warning Test-only API. The hook is one-shot.
     LOGGER_API void forceNextFatalPopupFailure() noexcept;

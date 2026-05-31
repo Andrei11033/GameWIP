@@ -43,6 +43,24 @@ namespace
         return false;
     }
 
+    TestRunOptions makeRunOptions(int argc, char **argv)
+    {
+        TestRunOptions options = kTestRunOptions;
+
+        if (hasArgument(argc, argv, "--no-manual-ui"))
+        {
+            options.enableManualUiTests = false;
+            options.enableLoggerPopupTest = false;
+        }
+
+        if (hasArgument(argc, argv, "--no-logger-popup"))
+        {
+            options.enableLoggerPopupTest = false;
+        }
+
+        return options;
+    }
+
     GameWIP::Test::LoggerTestOptions makeLoggerOptions(const TestRunOptions &options)
     {
         return GameWIP::Test::LoggerTestOptions{
@@ -78,11 +96,12 @@ namespace
 
 int main(int argc, char **argv)
 {
-    GameWIP::Test::LoggerTestOptions loggerTestOptions = makeLoggerOptions(kTestRunOptions);
-    GameWIP::Test::AssertTestOptions assertTestOptions = makeAssertOptions(kTestRunOptions);
+    const TestRunOptions runOptions = makeRunOptions(argc, argv);
+    GameWIP::Test::LoggerTestOptions loggerTestOptions = makeLoggerOptions(runOptions);
+    GameWIP::Test::AssertTestOptions assertTestOptions = makeAssertOptions(runOptions);
 
-    loggerTestOptions.appendReport = kTestRunOptions.appendReport;
-    assertTestOptions.appendReport = kTestRunOptions.appendReport || kTestRunOptions.runLoggerTests;
+    loggerTestOptions.appendReport = runOptions.appendReport;
+    assertTestOptions.appendReport = runOptions.appendReport || runOptions.runLoggerTests;
 
     if (hasArgument(argc, argv, "--logger-test-child=fatal-terminate"))
     {
@@ -98,7 +117,7 @@ int main(int argc, char **argv)
         return GameWIP::Test::runAssertTests(argc, argv, assertTestOptions);
     }
 
-    const int loggerResult = kTestRunOptions.runLoggerTests ? GameWIP::Test::runLoggerTests(argc, argv, loggerTestOptions) : 0;
-    const int assertResult = kTestRunOptions.runAssertTests ? GameWIP::Test::runAssertTests(argc, argv, assertTestOptions) : 0;
+    const int loggerResult = runOptions.runLoggerTests ? GameWIP::Test::runLoggerTests(argc, argv, loggerTestOptions) : 0;
+    const int assertResult = runOptions.runAssertTests ? GameWIP::Test::runAssertTests(argc, argv, assertTestOptions) : 0;
     return loggerResult == 0 && assertResult == 0 ? 0 : 1;
 }

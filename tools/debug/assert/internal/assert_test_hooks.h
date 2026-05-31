@@ -63,13 +63,13 @@ namespace GameWIP::Debug::Assert::TestHooks
     namespace Detail
     {
         /// @brief Consumes the one-shot TaskDialog failure hook.
-        bool consumeNextTaskDialogFailure() noexcept;
+        GAMEWIP_ASSERT_API bool consumeNextTaskDialogFailure() noexcept;
         /// @brief Consumes the one-shot MessageBox failure hook.
-        bool consumeNextMessageBoxFailure() noexcept;
+        GAMEWIP_ASSERT_API bool consumeNextMessageBoxFailure() noexcept;
         /// @brief Reads the debugger-attached override when one is active.
-        bool debuggerAttachedOverride(bool &attached) noexcept;
+        GAMEWIP_ASSERT_API bool debuggerAttachedOverride(bool &attached) noexcept;
         /// @brief Reads the popup-suppressed override when one is active.
-        bool popupSuppressedOverride(bool &suppressed) noexcept;
+        GAMEWIP_ASSERT_API bool popupSuppressedOverride(bool &suppressed) noexcept;
     }
 }
 #endif
