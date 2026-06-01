@@ -1,3 +1,6 @@
+/// @file win32_logger.cpp
+/// @brief Windows platform backend for the GameWIP Logger library.
+
 #include "logger/internal/logger_platform.h"
 
 #ifndef NOMINMAX

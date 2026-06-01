@@ -33,6 +33,47 @@ Assert library
 [x] Assert hook-forced tests cover TaskDialog fallback, MessageBox failure, debugger overrides, and popup suppression overrides.
 [x] Assert package config polish exists for `find_package(GameWIP_Assert CONFIG REQUIRED)`.
 
+TestSupport library
+---------------
+[x] `tools/test_support` contains the library target files, public header, core implementation, and platform implementation.
+[x] TestSupport builds as a static library target named `TestSupport`.
+[x] TestSupport exposes alias target `GameWIP::TestSupport`.
+[x] TestSupport public API lives in `tools/test_support/test_support.h`.
+[x] TestSupport public API lives under namespace `GameWIP::TestSupport` with no global namespace pollution.
+[x] TestSupport implementation uses `core/test_support.cpp` for platform-neutral behavior.
+[x] TestSupport Windows child-process backend uses `platform/win32/win32_child_process.cpp`.
+[x] TestSupport does not depend on Logger or Assert.
+[x] TestSupport local CMake options use the `TEST_SUPPORT_...` prefix when options become necessary.
+[x] TestSupport exported compile definitions use the `GAMEWIP_TEST_SUPPORT_...` prefix when exported macros become necessary.
+[x] `Types::ReportOptions` controls console output, report-file output, append behavior, and report path.
+[x] Report output creates parent directories as needed.
+[x] Report output supports `[INFO]`, `[PASS]`, `[FAIL]`, `[SKIP]`, `[MANUAL]`, `[METRIC]`, `[STRESS]`, `[SUMMARY]`, and `[RESULT]`.
+[x] `Types::Summary` tracks passed, failed, and skipped counts with `total()` and `ok()`.
+[x] `Types::SuiteResult` stores suite name, summary, elapsed milliseconds, and `ok()`.
+[x] `Context` records info/manual/metric/stress/summary/pass/fail/skip entries.
+[x] `Context` expectations record failures and keep the runner alive.
+[x] `Context` expectations include `expectTrue`, `expectFalse`, `expectEq`, `expectNe`, `expectNear`, `expectContains`, `expectFileContains`, and `expectFileOccurrenceCount`.
+[x] Failure reporting includes `std::source_location`.
+[x] `Runner` owns one unified run report and runs named suites.
+[x] `Runner` exposes aggregate result state and process exit code.
+[x] `Section` provides RAII section grouping and optional elapsed-time reporting.
+[x] `Timer` and `Types::IterationMetric` report elapsed time and nanoseconds per iteration.
+[x] File helpers cover text read/write, existence checks, substring checks, occurrence counts, directory creation, and best-effort removal.
+[x] Scoped environment helpers restore prior state on destruction.
+[x] Windows environment helpers update both CRT environment and process environment.
+[x] Child process support covers arguments, environment overrides/unsets, timeout, output capture, and parent-environment inheritance.
+[x] Child process results expose exit code, timeout state, test-requested termination state, captured output, and success/failure helpers.
+[x] Manual check support provides `Types::ManualAnswer` and `promptManualCheck()`.
+[x] Concurrency helpers provide `StartGate`, `StopFlag`, and `runWorkers()`.
+
+Windows Unicode backend standard
+--------------------------------
+[x] Windows platform backends use explicit `W` Win32 APIs instead of ANSI APIs or generic A/W macros.
+[x] Public C++ APIs keep portable UTF-8 `std::string` text and `std::filesystem::path` paths.
+[x] Win32 backend code converts to UTF-16 at the platform boundary.
+[x] TestSupport child-process and environment helpers use Unicode environment/process APIs.
+[x] Logger and Assert Windows popup/debug-output backends use explicit Unicode APIs.
+
 Build and tooling
 -----------------
 [x] CMake builds the game/test executable and library targets.
@@ -41,6 +82,10 @@ Build and tooling
 [x] `GAMEWIP_ENABLE_COVERAGE` instruments supported compilers for coverage runs.
 [x] `GAMEWIP_ENABLE_LOGGER_TEST_HOOKS` and `GAMEWIP_ENABLE_ASSERT_TEST_HOOKS` enable hook APIs for test builds.
 [x] Generated Doxygen configuration exists for professional HTML API docs.
+[x] Top-level CMake adds `tools/test_support` after the C++ library is implemented.
+[x] The game/test executable links `GameWIP::TestSupport`, `GameWIP::Logger`, and `GameWIP::Assert` after TestSupport exists.
+[ ] Logger and Assert tests are migrated to use generic TestSupport helpers after the library is validated.
+[x] TestSupport package config polish exists for `find_package(GameWIP_TestSupport CONFIG REQUIRED)`.
 
 Documentation
 -------------
@@ -54,10 +99,14 @@ Per-library documentation
 [x] Root documentation landing page exists at `docs/doxygen/index.md`.
 [x] Logger owns a `tools/logger/docs/` guide folder.
 [x] Assert owns a `tools/debug/assert/docs/` guide folder.
+[x] TestSupport guide pages exist under `tools/test_support/docs/`.
 [x] Logger and Assert CMake files register their headers and guide folders with the global Doxygen build when documentation is enabled.
 [x] Doxygen input registration is modular, so each library can add docs without editing the root Doxyfile input list.
 [x] Expand public API Doxygen comments until all public contracts are complete.
 [x] Expand per-library examples as new API patterns are added.
+[x] TestSupport CMake registers `tools/test_support/test_support.h` and `tools/test_support/docs/` with Doxygen when documentation is enabled.
+[x] TestSupport public API comments document contracts, parameters, returns, lifecycle behavior, thread-safety, failure behavior, blocking behavior, and performance notes.
+[x] TestSupport guide pages cover quick start, expectations, reports, child processes, manual checks, examples, file/environment helpers, metrics, and stress helpers.
 
 Doxygen infrastructure addendum
 -------------------------------

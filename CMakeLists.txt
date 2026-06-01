@@ -39,6 +39,7 @@ if(GAMEWIP_ENABLE_COVERAGE)
                 --root "${CMAKE_CURRENT_SOURCE_DIR}"
                 --filter "${CMAKE_CURRENT_SOURCE_DIR}/tools/logger"
                 --filter "${CMAKE_CURRENT_SOURCE_DIR}/tools/debug/assert"
+                --filter "${CMAKE_CURRENT_SOURCE_DIR}/tools/test_support"
                 --filter "${CMAKE_CURRENT_SOURCE_DIR}/game/test"
                 --exclude "${CMAKE_CURRENT_SOURCE_DIR}/external"
                 --gcov-ignore-parse-errors negative_hits.warn_once_per_file
@@ -48,6 +49,7 @@ if(GAMEWIP_ENABLE_COVERAGE)
                 --root "${CMAKE_CURRENT_SOURCE_DIR}"
                 --filter "${CMAKE_CURRENT_SOURCE_DIR}/tools/logger"
                 --filter "${CMAKE_CURRENT_SOURCE_DIR}/tools/debug/assert"
+                --filter "${CMAKE_CURRENT_SOURCE_DIR}/tools/test_support"
                 --filter "${CMAKE_CURRENT_SOURCE_DIR}/game/test"
                 --exclude "${CMAKE_CURRENT_SOURCE_DIR}/external"
                 --gcov-ignore-parse-errors negative_hits.warn_once_per_file
@@ -115,6 +117,7 @@ else()
 endif()
 
 add_subdirectory(tools/debug/assert)
+add_subdirectory(tools/test_support)
 add_subdirectory(engine/input)
 add_subdirectory(engine/action)
 add_subdirectory(engine/window)
@@ -128,6 +131,7 @@ endif()
 
 add_executable(GameWIP
     game/main.cpp
+    game/test/test_support_test.cpp
     game/test/assert_test.cpp
     game/test/logger_test.cpp
 )
@@ -140,6 +144,7 @@ if(GAMEWIP_ENABLE_TOOLS)
 endif()
 
 target_link_libraries(GameWIP PRIVATE
+    GameWIP::TestSupport
     GameWIP::Logger
     GameWIP::Assert
     Input
@@ -169,5 +174,5 @@ add_custom_command(TARGET GameWIP POST_BUILD
 
 enable_testing()
 add_test(NAME GameWIPTests
-    COMMAND $<TARGET_FILE:GameWIP>
+    COMMAND $<TARGET_FILE:GameWIP> --no-manual-ui
 )

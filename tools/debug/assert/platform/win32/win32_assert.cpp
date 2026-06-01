@@ -1,3 +1,6 @@
+/// @file win32_assert.cpp
+/// @brief Windows platform backend for the GameWIP Assert library.
+
 #include "debug/assert/internal/assert_platform.h"
 
 #ifndef GAMEWIP_ASSERT_TEST_HOOKS
@@ -37,9 +40,9 @@ namespace
             return overrideValue;
         }
 #endif
-        char value[2]{};
-        const DWORD size = GetEnvironmentVariableA("GAMEWIP_ASSERT_SUPPRESS_POPUP", value, static_cast<DWORD>(sizeof(value)));
-        return size == 1 && value[0] == '1';
+        wchar_t value[2]{};
+        const DWORD size = GetEnvironmentVariableW(L"GAMEWIP_ASSERT_SUPPRESS_POPUP", value, static_cast<DWORD>(sizeof(value) / sizeof(value[0])));
+        return size == 1 && value[0] == L'1';
     }
 
     using FailureAction = GameWIP::Debug::Assert::FailureAction;

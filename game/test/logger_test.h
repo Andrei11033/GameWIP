@@ -1,3 +1,6 @@
+/// @file logger_test.h
+/// @brief Runtime options and entry point for the GameWIP Logger self-tests.
+
 #pragma once
 
 #include <cstddef>

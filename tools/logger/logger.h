@@ -1,3 +1,6 @@
+/// @file logger.h
+/// @brief Public API for the GameWIP Logger library.
+
 #pragma once
 
 #include <chrono>

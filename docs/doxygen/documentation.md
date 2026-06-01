@@ -80,3 +80,12 @@ Test hooks should be documented in guide pages because they matter for validatio
 ## Doxygen verification
 
 Documentation generation is opt-in through `GAMEWIP_BUILD_DOCS`. Normal builds must not require Doxygen. The generated Doxyfile should keep `RECURSIVE = NO`, list explicit inputs, write HTML under the build tree, and write warnings to `build-docs/docs/doxygen/doxygen_warnings.log`.
+
+
+## Windows Unicode backend standard
+
+Windows backends use explicit Unicode Win32 APIs. Public GameWIP APIs remain portable and generally use UTF-8 `std::string` plus `std::filesystem::path`; platform code converts to UTF-16 at the Win32 boundary.
+
+New Windows backend code should call explicit `W` functions such as `CreateProcessW`, `MessageBoxW`, `GetEnvironmentStringsW`, `SetEnvironmentVariableW`, and `OutputDebugStringW`. Avoid ANSI APIs and avoid generic macro-mapped APIs such as `CreateProcess` or `MessageBox`, because they depend on the `UNICODE` build setting.
+
+Captured child-process output remains byte-oriented `std::string` because stdout/stderr pipes carry bytes rather than UTF-16 strings.

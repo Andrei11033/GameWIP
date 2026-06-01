@@ -39,6 +39,16 @@ cmake --build build-optimized-debuggable
 .\build-optimized-debuggable\GameWIP.exe
 ```
 
+## Focused TestSupport library run
+
+```powershell
+.\build\GameWIP.exe --test-support-only
+```
+
+Use `--no-test-support-child-process` with `--test-support-only` when intentionally skipping child-process coverage while debugging unrelated TestSupport behavior.
+
+Use `--test-support-manual` for the focused TestSupport manual prompt checks. This mode runs TestSupport only, enables manual TestSupport checks, and leaves Logger/Assert manual UI tests out of the run.
+
 ## Manual UI tests
 
 Manual UI tests are intentionally blocking and must remain opt-in through runtime options. Automated interactive assert tests must use `GAMEWIP_ASSERT_TEST_ACTION` and must not open real popups.

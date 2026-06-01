@@ -1,3 +1,6 @@
+/// @file assert.cpp
+/// @brief Core implementation for the GameWIP Assert library.
+
 #include "debug/assert/assert.h"
 #include "debug/assert/internal/assert_platform.h"
 

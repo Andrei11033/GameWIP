@@ -1,10 +1,11 @@
+/// @file assert.h
+/// @brief Assertion, verification, recoverable-check, unreachable, and debug-break macros.
+
 #pragma once
 
 #include <atomic>
 #include <string_view>
 
-/// @file assert.h
-/// @brief Assertion, verification, recoverable-check, unreachable, and debug-break macros.
 ///
 /// Public contract:
 /// - ASSERT / ASSERT_MSG are fatal debug assertions. When enabled, a false condition

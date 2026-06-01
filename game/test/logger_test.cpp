@@ -1,3 +1,6 @@
+/// @file logger_test.cpp
+/// @brief Executable self-tests for the GameWIP Logger library.
+
 #include "test/logger_test.h"
 
 #include "logger/logger.h"

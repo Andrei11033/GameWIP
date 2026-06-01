@@ -1,5 +1,9 @@
+/// @file main.cpp
+/// @brief GameWIP executable entry point and runtime test-suite dispatcher.
+
 #include "test/assert_test.h"
 #include "test/logger_test.h"
+#include "test/test_support_test.h"
 
 #include <cstddef>
 #include <filesystem>
@@ -11,9 +15,11 @@ namespace
     {
         bool runLoggerTests = true;
         bool runAssertTests = true;
+        bool runTestSupportTests = true;
 
         bool enableStressTests = true;
         bool enableChildCrashTests = true;
+        bool enableTestSupportChildProcessTests = true;
         bool enablePerformanceMetrics = true;
         bool enableAutomatedInteractiveTests = true;
         bool enableManualUiTests = true;
@@ -43,6 +49,18 @@ namespace
         return false;
     }
 
+    bool hasArgumentPrefix(int argc, char **argv, std::string_view prefix)
+    {
+        for (int index = 1; index < argc; ++index)
+        {
+            if (argv[index] != nullptr && std::string_view(argv[index]).starts_with(prefix))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
     TestRunOptions makeRunOptions(int argc, char **argv)
     {
         TestRunOptions options = kTestRunOptions;
@@ -58,7 +76,40 @@ namespace
             options.enableLoggerPopupTest = false;
         }
 
+        if (hasArgument(argc, argv, "--test-support-only"))
+        {
+            options.runLoggerTests = false;
+            options.runAssertTests = false;
+            options.enableManualUiTests = false;
+            options.enableLoggerPopupTest = false;
+        }
+
+        if (hasArgument(argc, argv, "--test-support-manual"))
+        {
+            options.runLoggerTests = false;
+            options.runAssertTests = false;
+            options.runTestSupportTests = true;
+            options.enableManualUiTests = true;
+            options.enableLoggerPopupTest = false;
+        }
+
+        if (hasArgument(argc, argv, "--no-test-support-child-process"))
+        {
+            options.enableTestSupportChildProcessTests = false;
+        }
+
         return options;
+    }
+
+    GameWIP::Test::TestSupportTestOptions makeTestSupportOptions(const TestRunOptions &options)
+    {
+        return GameWIP::Test::TestSupportTestOptions{
+            .enableChildProcessTests = options.enableTestSupportChildProcessTests,
+            .enableStressTests = options.enableStressTests,
+            .enableManualTests = options.enableManualUiTests,
+            .writeReport = options.writeReport,
+            .appendReport = options.appendReport,
+            .reportPath = options.reportPath};
     }
 
     GameWIP::Test::LoggerTestOptions makeLoggerOptions(const TestRunOptions &options)
@@ -97,11 +148,18 @@ namespace
 int main(int argc, char **argv)
 {
     const TestRunOptions runOptions = makeRunOptions(argc, argv);
+    GameWIP::Test::TestSupportTestOptions testSupportTestOptions = makeTestSupportOptions(runOptions);
     GameWIP::Test::LoggerTestOptions loggerTestOptions = makeLoggerOptions(runOptions);
     GameWIP::Test::AssertTestOptions assertTestOptions = makeAssertOptions(runOptions);
 
-    loggerTestOptions.appendReport = runOptions.appendReport;
-    assertTestOptions.appendReport = runOptions.appendReport || runOptions.runLoggerTests;
+    testSupportTestOptions.appendReport = runOptions.appendReport;
+    loggerTestOptions.appendReport = runOptions.appendReport || runOptions.runTestSupportTests;
+    assertTestOptions.appendReport = runOptions.appendReport || runOptions.runTestSupportTests || runOptions.runLoggerTests;
+
+    if (hasArgumentPrefix(argc, argv, "--test-support-test-child="))
+    {
+        return GameWIP::Test::runTestSupportTests(argc, argv, testSupportTestOptions);
+    }
 
     if (hasArgument(argc, argv, "--logger-test-child=fatal-terminate"))
     {
@@ -117,7 +175,8 @@ int main(int argc, char **argv)
         return GameWIP::Test::runAssertTests(argc, argv, assertTestOptions);
     }
 
+    const int testSupportResult = runOptions.runTestSupportTests ? GameWIP::Test::runTestSupportTests(argc, argv, testSupportTestOptions) : 0;
     const int loggerResult = runOptions.runLoggerTests ? GameWIP::Test::runLoggerTests(argc, argv, loggerTestOptions) : 0;
     const int assertResult = runOptions.runAssertTests ? GameWIP::Test::runAssertTests(argc, argv, assertTestOptions) : 0;
-    return loggerResult == 0 && assertResult == 0 ? 0 : 1;
+    return testSupportResult == 0 && loggerResult == 0 && assertResult == 0 ? 0 : 1;
 }

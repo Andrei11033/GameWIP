@@ -1,3 +1,6 @@
+/// @file assert_test.cpp
+/// @brief Executable self-tests for the GameWIP Assert library.
+
 #include "test/assert_test.h"
 
 #include "debug/assert/assert.h"

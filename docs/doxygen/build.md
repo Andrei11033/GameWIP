@@ -27,10 +27,12 @@ After the libraries have been installed, an external CMake project can consume t
 ```cmake
 find_package(GameWIP_Logger CONFIG REQUIRED)
 find_package(GameWIP_Assert CONFIG REQUIRED)
+find_package(GameWIP_TestSupport CONFIG REQUIRED)
 
 target_link_libraries(SomeTarget PRIVATE
     GameWIP::Logger
     GameWIP::Assert
+    GameWIP::TestSupport
 )
 ```
 
@@ -41,6 +43,8 @@ GameWIP_LoggerConfig.cmake
 GameWIP_LoggerConfigVersion.cmake
 GameWIP_AssertConfig.cmake
 GameWIP_AssertConfigVersion.cmake
+GameWIP_TestSupportConfig.cmake
+GameWIP_TestSupportConfigVersion.cmake
 ```
 
 `GameWIP_AssertConfig.cmake` depends on the Logger package through `find_dependency(GameWIP_Logger CONFIG)`. Internal test-hook headers are intentionally excluded from normal installs.
@@ -58,7 +62,7 @@ A normal install provides headers, libraries, and package config files similar t
 <prefix>/lib/cmake/GameWIP_Assert/GameWIP_AssertConfig.cmake
 ```
 
-The Assert package depends on the Logger package through `find_dependency(GameWIP_Logger CONFIG)`.
+The Assert package depends on the Logger package through `find_dependency(GameWIP_Logger CONFIG)`. The TestSupport package is independent and has no Logger or Assert dependency.
 
 ## Doxygen build
 

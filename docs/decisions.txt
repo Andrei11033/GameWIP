@@ -49,7 +49,7 @@ Library, tooling, and test standards
 
 Purpose
 -------
-The logger and assert libraries are foundation code. They should be treated as small reusable libraries, not as throwaway game helpers. A feature is considered complete only when its public contract is documented, its normal and failure paths are tested, and its hot-path cost is understood.
+The logger, assert, and testing libraries are foundation code. They should be treated as small reusable libraries, not as throwaway game helpers. A feature is considered complete only when its public contract is documented, its normal and failure paths are tested, and its hot-path cost is understood.
 
 Logger contract
 ---------------
@@ -70,6 +70,39 @@ Assert contract
 - Automated interactive tests must use `GAMEWIP_ASSERT_TEST_ACTION` and must not open real popups.
 - Manual UI tests are separate. They show real Windows UI, are allowed to block, and should run near the end of a test run.
 
+TestSupport library contract
+----------------------------
+- `tools/test_support` is the shared GameWIP-native test support library for logger tests, assert tests, and future engine tests.
+- The target is `TestSupport`, the alias is `GameWIP::TestSupport`, the public namespace is `GameWIP::TestSupport`, and the public header is `tools/test_support/test_support.h`.
+- The library is a static library with generic test support only.
+- `tools/test_support` must not depend on Logger or Assert. Logger and Assert tests may depend on TestSupport, but TestSupport must not know Logger or Assert concepts.
+- TestSupport is not a replacement for GoogleTest. It is a small project-native support layer for reporting, expectations, child processes, manual checks, metrics, files, environment variables, and stress helpers.
+- Runtime test behavior belongs in runtime options such as report options and suite options. CMake controls only compile-time and build features.
+- The default report path is `logs/tests/latest_test_report.txt`. Report output should create parent directories as needed.
+- Report output categories are `[INFO]`, `[PASS]`, `[FAIL]`, `[SKIP]`, `[MANUAL]`, `[METRIC]`, `[STRESS]`, `[SUMMARY]`, and `[RESULT]`.
+- Expectations record failures and keep the runner alive. They must not call engine `ASSERT` / `CHECK` macros.
+- Failures include `std::source_location`.
+- Performance measurements are metrics-only for now. No hard pass/fail thresholds are part of the initial TestSupport contract.
+- Windows environment helpers must update both the CRT environment used by `std::getenv()` and the process environment used for child process creation.
+- Child process support should report exit code, timeout, test-requested termination, and captured output when enabled. Do not overpromise portable crash classification; nonzero exit and timeout are enough for GameWIP tests.
+- Manual checks are opt-in runtime behavior and are used only when code cannot verify the result automatically.
+- Concurrency helpers stay small: start gates, stop flags, and worker launching for stress tests only.
+
+Planned TestSupport API
+-----------------------
+- `Types::ReportOptions` controls console output, report-file output, append behavior, and report path.
+- `Types::Summary` tracks passed, failed, and skipped counts and exposes `total()` and `ok()`.
+- `Types::SuiteResult` stores the suite name, summary, elapsed milliseconds, and `ok()`.
+- `Context` is the main suite API. It writes info/manual/metric/stress/summary messages, records pass/fail/skip outcomes, exposes expectations such as `expectTrue`, `expectFalse`, `expectEq`, `expectNe`, `expectNear`, `expectContains`, `expectFileContains`, and `expectFileOccurrenceCount`, and exposes `suiteName()`, `result()`, and `ok()`.
+- `Runner` owns one run-level report, runs named suites, reports run-level info/summary messages, exposes aggregate `result()`, and returns an `exitCode()`.
+- `Section` is an RAII helper for grouping large test sections and may time/report section duration.
+- `Timer` and `Types::IterationMetric` provide elapsed milliseconds and nanoseconds-per-iteration metrics.
+- File helpers cover reading, writing, existence checks, substring checks, occurrence counts, directory creation, and best-effort removal.
+- `ScopedEnvironmentVariable` and `ScopedUnsetEnvironmentVariable` restore environment state on destruction.
+- `Types::ChildProcessOptions`, `Types::EnvironmentVariable`, `Types::ChildProcessResult`, and `runChildProcess()` cover child process tests.
+- `Types::ManualAnswer` and `promptManualCheck()` cover explicitly enabled manual UI checks.
+- `StartGate`, `StopFlag`, and `runWorkers()` cover basic stress-test coordination.
+
 Runtime test control
 --------------------
 CMake builds the code. `TestRunOptions` controls which tests run and how intense they are. Stress tests, performance metrics, automated interactive tests, manual UI tests, logger popup tests, child crash tests, thread counts, iteration counts, and report output paths are runtime test options, not CMake test-selection options.
@@ -83,14 +116,46 @@ Naming standard
 - Constants use `kPascalCase`.
 - Macros use `UPPER_SNAKE` and GameWIP-owned configuration macros use the `GAMEWIP_` prefix.
 - CMake project-level options use `GAMEWIP_ENABLE_...`.
-- CMake library-local options use `LOGGER_...` or `ASSERT_...`.
-- Exported compiler macros use `GAMEWIP_LOGGER_...` and `GAMEWIP_ASSERT_...`.
+- CMake library-local options use `LOGGER_...`, `ASSERT_...`, or `TEST_SUPPORT_...`.
+- Exported compiler macros use `GAMEWIP_LOGGER_...`, `GAMEWIP_ASSERT_...`, and `GAMEWIP_TEST_SUPPORT_...`.
 - Names should describe the contract, not stale implementation history. For example, automated interactive tests are named separately from manual UI tests.
 - Avoid global namespace pollution. Test hooks live under `GameWIP::LoggerDetail::TestHooks` and `GameWIP::Debug::Assert::TestHooks` only when enabled. Logger hooks use `LoggerDetail` because `GameWIP::Logger` is the public logger class, not a namespace.
 
+Public API organization standard
+--------------------------------
+- Passive public data shapes live under `GameWIP::<Lib>::Types`.
+- Passive data shapes include configs, options, results, summaries, enums, simple value structs, and wrapper values whose main purpose is to carry data across API calls.
+- Active behavior stays directly under `GameWIP::<Lib>`.
+- Active APIs include functions, runners, contexts, RAII guards, timers, synchronization helpers, services, and objects whose purpose is to perform work or manage lifetime.
+- Do not add top-level aliases for `Types` members unless compatibility with already-shipped API requires it. Keeping passive data under `Types` makes IntelliSense and docs easier to scan.
+- Current examples: Logger keeps `Types::Config`, `Types::Stats`, and `Types::Result` under `Types`; TestSupport keeps `Types::ReportOptions`, `Types::Summary`, and `Types::ChildProcessResult` under `Types`, while `Context`, `Runner`, `Timer`, `ScopedEnvironmentVariable`, and `runChildProcess()` remain directly under `GameWIP::TestSupport`.
+
+Windows Unicode backend standard
+--------------------------------
+Windows platform code uses explicit Unicode Win32 APIs. Public GameWIP C++ APIs stay portable and ergonomic by using `std::string` for UTF-8 text and `std::filesystem::path` for paths. At the Win32 boundary, platform backends convert to UTF-16 and call explicit `W` APIs such as `CreateProcessW`, `MessageBoxW`, `GetEnvironmentStringsW`, `SetEnvironmentVariableW`, and `OutputDebugStringW`.
+
+Do not use ANSI Win32 APIs such as `CreateProcessA`, `MessageBoxA`, `GetEnvironmentStringsA`, or `OutputDebugStringA` in new platform code. Also avoid generic macro-mapped APIs such as `CreateProcess`, `MessageBox`, `GetEnvironmentStrings`, and `OutputDebugString`, because their behavior depends on the `UNICODE` build definition and can silently change between `A` and `W` variants.
+
+The standard for Windows backends is:
+- public API: UTF-8 `std::string` / portable `std::filesystem::path`;
+- platform boundary: explicit UTF-8 to UTF-16 conversion where needed;
+- Win32 calls: explicit `W` functions;
+- captured process output: byte-oriented `std::string`, because stdout/stderr pipes carry bytes.
+
+This applies to Logger, Assert, TestSupport, and future Windows backends.
+
 Documentation / IntelliSense standard
 --------------------------------------
-Public API comments use professional Doxygen-style documentation focused on contracts. Public headers should explain behavior, lifecycle expectations, thread-safety where relevant, failure behavior, blocking/UI behavior, and performance notes. Full tutorials and long examples belong in README or dedicated documentation pages later.
+Public API comments use professional Doxygen-style documentation focused on contracts. Public headers should explain behavior, lifecycle expectations, thread-safety where relevant, failure behavior, blocking/UI behavior, and performance notes. Full tutorials and long examples belong in README or dedicated documentation pages.
+
+Public headers should follow the Logger/Assert style:
+- Start with `/// @file` and `/// @brief` when the header is a public entry point.
+- Use `/// @brief` on public namespaces, types, enum values, fields, functions, macros, and important templates.
+- Use `@param`, `@return`, and `@note` where they improve IntelliSense or generated docs.
+- Prefer IntelliSense-friendly plain sections such as `Contract:`, `Thread-safety:`, `Failure behavior:`, `Blocking behavior:`, and `Performance:` in public headers. Use custom Doxygen aliases only where they improve the generated pages without making editor hovers noisy.
+- Keep the first line short and useful in IntelliSense. Put detailed workflows, examples, and conceptual explanations in the library Markdown pages.
+- Macro APIs use `@def` blocks, as Assert does, so generated docs and hover text show macro behavior clearly.
+- Implementation helpers use `@cond` / `@endcond` when they must appear in a public header but should not be treated as normal API.
 
 Internal code should be documented when it protects a non-obvious invariant: locking, atomics, shutdown/lifecycle rules, platform assumptions, hot paths, failure injection, or test hooks. Do not add comment noise for obvious syntax.
 
@@ -121,12 +186,14 @@ Package/install naming policy
 Package/install polish uses package names with an underscore:
 - `find_package(GameWIP_Logger CONFIG REQUIRED)`
 - `find_package(GameWIP_Assert CONFIG REQUIRED)`
+- `find_package(GameWIP_TestSupport CONFIG REQUIRED)`
 
 Targets stay namespaced and stable:
 - `GameWIP::Logger`
 - `GameWIP::Assert`
+- `GameWIP::TestSupport`
 
-The Assert package depends on the Logger package. Test hooks are excluded from public package installs by default.
+The Assert package depends on the Logger package. TestSupport has no Logger or Assert dependency. Test hooks are excluded from public package installs by default.
 
 CMake standard
 --------------
@@ -136,7 +203,7 @@ Generated documentation and package polish
 ------------------------------------------
 Doxygen generation is provided by the optional `GAMEWIP_BUILD_DOCS` CMake option and the `docs` target. The first Doxygen setup documents the logger/assert public surface and uses custom aliases for contract-oriented sections such as thread-safety, lifecycle, performance, and test-only notes.
 
-Install/package polish uses underscore package names (`GameWIP_Logger` and `GameWIP_Assert`) while keeping imported targets stable as `GameWIP::Logger` and `GameWIP::Assert`. The Assert package locates the Logger package as a dependency and propagates the Common Controls v6 manifest resource through `GameWIP::Assert` for Windows consumers.
+Install/package polish uses underscore package names (`GameWIP_Logger`, `GameWIP_Assert`, and `GameWIP_TestSupport`) while keeping imported targets stable as `GameWIP::Logger`, `GameWIP::Assert`, and `GameWIP::TestSupport`. The Assert package locates the Logger package as a dependency and propagates the Common Controls v6 manifest resource through `GameWIP::Assert` for Windows consumers. The TestSupport package has no Logger or Assert package dependency.
 
 Per-library documentation structure
 -----------------------------------
@@ -145,7 +212,7 @@ Each reusable library may own a `docs/` directory next to its public headers. Th
 The root documentation target combines:
 - root project pages such as `docs/doxygen/index.md`, decisions, and checklists;
 - public header API reference generated from Doxygen comments;
-- per-library Markdown guides such as `tools/logger/docs/` and `tools/debug/assert/docs/`.
+- per-library Markdown guides such as `tools/logger/docs/`, `tools/debug/assert/docs/`, and `tools/test_support/docs/`.
 
 The intended split is:
 - public header Doxygen comments document API contracts, parameters, return values, lifecycle behavior, thread-safety, failure behavior, blocking behavior, and performance notes;

@@ -1,0 +1,31 @@
+@page test_support_reports TestSupport reports
+
+`GameWIP::TestSupport::Types::ReportOptions` controls where test output goes:
+
+- `writeConsole` writes report lines to stdout.
+- `writeReport` writes report lines to `reportPath`.
+- `appendReport` appends instead of truncating the report at runner/context creation.
+- `reportPath` defaults to `logs/tests/latest_test_report.txt`.
+
+Parent directories for the report path are created when possible. Report write failures do not abort the test process.
+
+Report categories:
+
+- `[INFO]`
+- `[PASS]`
+- `[FAIL]`
+- `[SKIP]`
+- `[MANUAL]`
+- `[METRIC]`
+- `[STRESS]`
+- `[SUMMARY]`
+- `[RESULT]`
+
+`Context` writes suite-scoped lines such as:
+
+```text
+[PASS] [Physics] mass remains positive
+[FAIL] [Physics] velocity clamp: expected true (file.cpp:42 in runPhysicsTests)
+```
+
+`Runner` writes run-level lines and one `[RESULT]` line per completed suite. `Section` writes an informational begin line and a metric line with elapsed milliseconds when the section ends.

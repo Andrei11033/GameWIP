@@ -83,6 +83,86 @@ Failure-injection / test-hook checklist
 [x] Assert debugger-attached override true/false paths are tested when hooks are enabled.
 [x] Assert popup-suppression override is tested when hooks are enabled.
 
+TestSupport library API checklist
+-----------------------------
+[x] `Types::ReportOptions` defaults to console output enabled, report-file output enabled, append disabled, and `logs/tests/latest_test_report.txt`.
+[x] `Types::Summary::total()` returns passed + failed + skipped.
+[x] `Types::Summary::ok()` returns true only when failed is zero.
+[x] `Types::SuiteResult::ok()` returns the suite summary status.
+[x] `Context` exposes the suite name unchanged.
+[x] `Context::result()` returns the current summary counts.
+[x] `Context::ok()` mirrors the current summary status.
+[x] `pass`, `fail`, and `skip` update only their intended counters.
+[x] `info`, `manual`, `metric`, `stress`, and `summary` write categorized report lines without changing pass/fail/skip counts.
+[x] `expectTrue` passes only for true values and fails with source location for false values.
+[x] `expectFalse` passes only for false values and fails with source location for true values.
+[x] `expectEq` and `expectNe` handle comparable values and report readable expected/actual information.
+[x] `expectNear` handles exact matches, values inside tolerance, values outside tolerance, and invalid negative tolerance.
+[x] `expectContains` covers present substring, missing substring, and empty substring behavior.
+[x] File expectation helpers report missing/unreadable files as failures without crashing the runner.
+[x] Expectations record failures and keep later checks running.
+[x] TestSupport expectations do not call GameWIP Assert macros internally.
+
+TestSupport report/runner checklist
+-------------------------------
+[x] Report output can be disabled for console only, file only, both, and neither.
+[x] Report file parent directories are created as needed.
+[x] Report append mode preserves existing content and non-append mode starts a fresh report.
+[x] Report lines use the intended categories: `[INFO]`, `[PASS]`, `[FAIL]`, `[SKIP]`, `[MANUAL]`, `[METRIC]`, `[STRESS]`, `[SUMMARY]`, and `[RESULT]`.
+[x] Failure lines include file, line, function, and check name.
+[x] `Runner::runSuite` records suite elapsed time.
+[x] `Runner` accumulates multiple suite summaries correctly.
+[x] `Runner::exitCode()` returns success only when the aggregate summary is OK.
+[x] A throwing suite function is recorded as a failed suite and does not prevent later suites from running if that behavior is implemented.
+[x] `Section` reports start/end or duration consistently without corrupting summary counts.
+
+TestSupport file/environment checklist
+----------------------------------
+[x] `readTextFile` returns file contents exactly for normal text files.
+[x] `writeTextFile` creates parent directories and writes the requested text.
+[x] `fileExists` returns false instead of throwing for missing paths.
+[x] `fileContains` returns true only when the text occurs in the file.
+[x] `countFileOccurrences` handles zero, one, multiple, and overlapping occurrence decisions explicitly.
+[x] `createDirectories` succeeds for existing directories.
+[x] `removeIfExists` handles missing files without failure.
+[x] `ScopedEnvironmentVariable` sets a variable, restores a previous value, and unsets a previously missing value on destruction.
+[x] `ScopedUnsetEnvironmentVariable` unsets a variable and restores the previous value on destruction.
+[x] Windows scoped environment helpers update both `std::getenv()` visibility and child-process environment visibility.
+
+TestSupport child-process checklist
+-------------------------------
+[x] `runChildProcess` starts the requested executable with arguments.
+[x] Captured stdout/stderr output is available when capture is enabled.
+[x] Output capture can be disabled when requested.
+[x] Parent environment inheritance can be enabled and disabled.
+[x] Environment entries can set variables for the child.
+[x] Environment entries can unset variables for the child.
+[x] Timeout terminates or otherwise stops waiting for a hung child and marks `timedOut`.
+[x] Test-requested termination marks `wasTerminatedByTest`.
+[x] Nonzero exit codes are reported without pretending to classify portable crash reasons.
+[x] `Types::ChildProcessResult::exitedSuccessfully()` and `exitedWithFailure()` cover zero, nonzero, timeout, and terminated-by-test cases.
+
+TestSupport manual/metrics/stress checklist
+---------------------------------------
+[x] `promptManualCheck` accepts yes, no, and skipped answers.
+[x] Manual checks run only when runtime options explicitly enable manual UI tests.
+[x] Manual checks are reported with `[MANUAL]`.
+[x] `Timer` reports increasing elapsed time and resets correctly.
+[x] `Timer::nanosecondsPerIteration` and `Types::IterationMetric::nanosecondsPerIteration` handle zero iterations explicitly.
+[x] Metrics are reported without failing tests based on hard thresholds.
+[x] `StartGate` blocks workers until opened and releases all waiters.
+[x] `StopFlag` is safe for cross-thread stop requests.
+[x] `runWorkers` starts the requested worker count and joins all workers before returning.
+[x] Stress helper failures are reportable without deadlocking the test run.
+
+Windows Unicode validation checklist
+------------------------------------
+[x] Win32 backend code avoids ANSI APIs such as `CreateProcessA`, `MessageBoxA`, `GetEnvironmentStringsA`, and `OutputDebugStringA`.
+[x] Win32 backend code avoids generic macro-mapped APIs such as `CreateProcess`, `MessageBox`, `GetEnvironmentStrings`, and `OutputDebugString`.
+[x] TestSupport child-process tests cover Unicode-safe command-line/environment behavior at the public API level.
+[x] Scoped environment tests verify values are visible through `std::getenv()` and child-process inheritance.
+[x] Captured child output remains byte-oriented `std::string`, as documented.
+
 Performance and coverage checklist
 ----------------------------------
 [x] Hot passing macro paths have metrics: ASSERT, CHECK, VERIFY, ENSURE, ASSERT_INTERACTIVE, VERIFY_INTERACTIVE.
@@ -98,10 +178,13 @@ Documentation validation checklist
 ----------------------------------
 [x] `GAMEWIP_BUILD_DOCS=ON` creates the `docs` target when Doxygen is installed.
 [x] Missing Doxygen produces a clear configure-time error only when documentation is explicitly enabled.
-[x] Root docs link to Logger and Assert guide pages.
+[x] Root docs link to Logger, Assert, and TestSupport guide pages.
 [x] Logger guide pages cover quick start, configuration, reports, stats, testing, and examples.
 [x] Assert guide pages cover quick start, macros, interactive assertions, testing, and examples.
 [x] Header comments remain contract-focused; tutorial-style material lives in Markdown guide pages.
+[x] TestSupport guide pages cover quick start, expectations, reports, child processes, scoped environment variables, manual checks, metrics, stress helpers, and examples.
+[x] TestSupport Doxygen registration adds the TestSupport public header and `tools/test_support/docs/` without editing the root Doxyfile input list.
+[x] Root docs link to the TestSupport landing page after TestSupport is registered with Doxygen.
 
 Doxygen/build-tool validation addendum
 --------------------------------------

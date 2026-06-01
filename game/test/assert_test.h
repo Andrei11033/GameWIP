@@ -1,3 +1,6 @@
+/// @file assert_test.h
+/// @brief Runtime options and entry point for the GameWIP Assert self-tests.
+
 #pragma once
 
 #include <cstddef>

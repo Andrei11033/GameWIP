@@ -1,3 +1,6 @@
+/// @file assert_test_hooks.h
+/// @brief Internal test hooks for forcing rare GameWIP Assert failure paths.
+
 #pragma once
 
 #include "debug/assert/assert.h"

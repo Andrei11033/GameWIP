@@ -1,3 +1,6 @@
+/// @file logger_test_hooks.h
+/// @brief Internal test hooks for forcing rare GameWIP Logger failure paths.
+
 #pragma once
 
 #include "logger/logger.h"

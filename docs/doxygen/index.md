@@ -6,6 +6,7 @@ GameWIP uses small, focused C++20 libraries for foundation-level diagnostics.
 
 - @subpage logger
 - @subpage assert
+- @subpage test_support
 
 ## Project references
 

@@ -1,3 +1,6 @@
+/// @file assert_platform.h
+/// @brief Internal platform abstraction used by the GameWIP Assert library.
+
 #pragma once
 
 #include "debug/assert/assert.h"

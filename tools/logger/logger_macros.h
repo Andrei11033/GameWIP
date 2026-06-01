@@ -1,7 +1,3 @@
-#pragma once
-
-#include "logger/logger.h"
-
 /// @file logger_macros.h
 /// @brief Optional lazy convenience macros for the GameWIP Logger.
 ///
@@ -10,6 +6,10 @@
 /// message/format arguments, so filtered log calls avoid expensive formatting
 /// and argument construction. The class API in `logger/logger.h` remains the
 /// primary public API.
+
+#pragma once
+
+#include "logger/logger.h"
 
 /// @def LOGGER_DETAIL(levelValue, callName, sourceValue, ...)
 /// @brief Internal lazy logger macro body shared by the public `LOGGER_*` macros.

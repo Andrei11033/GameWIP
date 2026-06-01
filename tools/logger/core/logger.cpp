@@ -1,3 +1,6 @@
+/// @file logger.cpp
+/// @brief Core implementation for the GameWIP Logger library.
+
 #include "logger/logger.h"
 #include "logger/internal/logger_platform.h"
 

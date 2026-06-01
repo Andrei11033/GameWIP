@@ -1,3 +1,6 @@
+/// @file logger_platform.h
+/// @brief Internal platform abstraction used by the GameWIP Logger library.
+
 #pragma once
 
 #include "logger/logger.h"
