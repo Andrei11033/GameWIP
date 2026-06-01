@@ -115,3 +115,15 @@ Doxygen infrastructure addendum
 [x] The docs target creates the output directory before running Doxygen.
 [x] The docs target writes Doxygen warnings to `build-docs/docs/doxygen/doxygen_warnings.log`.
 [x] `GAMEWIP_INSTALL_DOCS` installs generated HTML documentation when explicitly enabled.
+
+
+Documentation API coverage checklist
+------------------------------------
+[x] Every public header has concise IntelliSense-ready docs for public types, functions, macros, parameters, return values, and important warnings.
+[x] Every library has a user-facing public API guide in its Doxygen Markdown docs.
+[x] Logger public API guide covers lifecycle, configs, filters, normal logs, reports, stats, macros, and fatal paths.
+[x] Assert public API guide covers every macro family, FailureAction, debugBreak, evaluation rules, and enabled/disabled behavior.
+[x] TestSupport public API guide covers report options, summaries, Context, Runner, Section, Timer, file helpers, environment helpers, child processes, manual checks, and stress helpers.
+[x] Developer-validation pages such as testing and test hooks are separate from normal user-manual navigation.
+[x] Generated Doxygen docs let a consumer understand how to use each library without reading `.cpp` implementation files.
+[x] Oversized tutorial/example blocks are kept in Markdown guide pages instead of public header hover text.

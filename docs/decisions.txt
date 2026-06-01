@@ -146,7 +146,7 @@ This applies to Logger, Assert, TestSupport, and future Windows backends.
 
 Documentation / IntelliSense standard
 --------------------------------------
-Public API comments use professional Doxygen-style documentation focused on contracts. Public headers should explain behavior, lifecycle expectations, thread-safety where relevant, failure behavior, blocking/UI behavior, and performance notes. Full tutorials and long examples belong in README or dedicated documentation pages.
+Public API comments use professional Doxygen-style documentation focused on contracts. Public headers should explain behavior, lifecycle expectations, thread-safety where relevant, failure behavior, blocking/UI behavior, and performance notes. Full tutorials, complete usage explanations, examples, and edge-case discussions belong in generated Doxygen Markdown manual pages, not in hover-heavy header comments.
 
 Public headers should follow the Logger/Assert style:
 - Start with `/// @file` and `/// @brief` when the header is a public entry point.
@@ -154,6 +154,9 @@ Public headers should follow the Logger/Assert style:
 - Use `@param`, `@return`, and `@note` where they improve IntelliSense or generated docs.
 - Prefer IntelliSense-friendly plain sections such as `Contract:`, `Thread-safety:`, `Failure behavior:`, `Blocking behavior:`, and `Performance:` in public headers. Use custom Doxygen aliases only where they improve the generated pages without making editor hovers noisy.
 - Keep the first line short and useful in IntelliSense. Put detailed workflows, examples, and conceptual explanations in the library Markdown pages.
+- Public header docs should be complete enough for on-the-spot coding: parameters, return values, the main contract, and important warnings must be visible in IntelliSense.
+- Header comments should stay compact: no long tutorials, no large examples, and no full design manuals in hover text. If a comment starts to explain a workflow, move that explanation to the library Markdown manual and leave a short reference in the header.
+- The generated Doxygen manual must cover every public API. Simple APIs may be fully covered by the header reference; non-trivial APIs must also be covered by a Markdown guide page with usage rules, edge cases, performance notes, and examples.
 - Macro APIs use `@def` blocks, as Assert does, so generated docs and hover text show macro behavior clearly.
 - Implementation helpers use `@cond` / `@endcond` when they must appear in a public header but should not be treated as normal API.
 
@@ -215,9 +218,10 @@ The root documentation target combines:
 - per-library Markdown guides such as `tools/logger/docs/`, `tools/debug/assert/docs/`, and `tools/test_support/docs/`.
 
 The intended split is:
-- public header Doxygen comments document API contracts, parameters, return values, lifecycle behavior, thread-safety, failure behavior, blocking behavior, and performance notes;
-- per-library Markdown pages document quick starts, concepts, examples, testing workflows, and common usage patterns;
-- root docs explain project-level build, testing, and documentation workflows.
+- public header comments document API contracts, parameters, return values, lifecycle behavior, thread-safety, failure behavior, blocking behavior, and performance notes for IntelliSense and the generated API reference;
+- per-library Markdown pages document quick starts, public API guides, concepts, examples, edge cases, troubleshooting, and common usage patterns;
+- developer-validation pages such as testing and test-hook notes may exist, but they are separate from the normal user manual and must not present test-only APIs as production APIs;
+- root docs explain project-level build, testing, coverage, and documentation workflows.
 
 The global `GAMEWIP_BUILD_DOCS` option controls whether documentation is built. Each library CMake file registers its public headers and `docs/` directory only when the global documentation option is enabled and the root project provides the registration helper. This keeps library docs modular while still producing one combined `docs` target for the whole project.
 

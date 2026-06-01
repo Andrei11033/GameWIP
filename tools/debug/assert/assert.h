@@ -7,35 +7,15 @@
 #include <string_view>
 
 ///
-/// Public contract:
-/// - ASSERT / ASSERT_MSG are fatal debug assertions. When enabled, a false condition
-///   reports synchronously at Logger Fatal severity, may show the assert-owned popup,
-///   breaks only when a debugger is attached, then aborts. When disabled, the condition
-///   is not evaluated.
-/// - ASSERT_INTERACTIVE / ASSERT_INTERACTIVE_MSG are separate fatal developer assertions.
-///   On failure they report synchronously at Logger Fatal severity, then ask for a
-///   FailureAction: Break, Abort, Ignore Once, or Always Ignore. They may continue.
-/// - VERIFY / VERIFY_MSG preserve expression side effects. They always evaluate the
-///   expression and only report/abort in assertion-enabled builds.
-/// - VERIFY_INTERACTIVE / VERIFY_INTERACTIVE_MSG always evaluate the expression once.
-///   In assertion-enabled builds, false results enter the same interactive fatal path.
-/// - Interactive Always Ignore is per macro call site, not global. The normal ASSERT
-///   and VERIFY behavior is unchanged by the interactive macros.
-/// - GAMEWIP_ASSERT_TEST_ACTION can force interactive test actions: break, abort,
-///   ignore_once, or always_ignore. GAMEWIP_ASSERT_SUPPRESS_POPUP=1 makes interactive
-///   failures choose Abort unless GAMEWIP_ASSERT_TEST_ACTION provides a valid action.
-/// - CHECK / CHECK_MSG are recoverable diagnostics. When enabled, a false condition
-///   reports synchronously at Logger Error severity and execution continues. When
-///   disabled, the condition is not evaluated.
-/// - CHECK_ONCE / CHECK_ONCE_MSG report only the first failure attempt per call site.
-/// - ENSURE / ENSURE_MSG always evaluate once and return the boolean result; false
-///   results report only when recoverable checks are enabled.
-/// - UNREACHABLE marks impossible control flow. Enabled builds use the fatal assert
-///   path; disabled builds use the configured trap/unreachable hint path.
-/// - DEBUG_BREAK explicitly enters the debugger/trap path regardless of assert/check settings.
+/// Contract:
+/// The macro API is split into fatal assertions (`ASSERT`, `VERIFY`, `UNREACHABLE`), recoverable
+/// diagnostics (`CHECK`, `CHECK_ONCE`, `ENSURE`), explicit debugger breaks (`DEBUG_BREAK`), and
+/// interactive developer assertions (`ASSERT_INTERACTIVE`, `VERIFY_INTERACTIVE`).
 ///
-/// Diagnostics are controlled by GAMEWIP_ASSERT_DIAGNOSTICS. When diagnostics are off,
-/// condition text, file, line, function, and custom messages are intentionally stripped.
+/// IntelliSense notes:
+/// Each public macro below documents whether it evaluates its expression when disabled, whether it
+/// aborts or continues, and whether message arguments are evaluated. See the Assert Markdown manual
+/// for the full macro matrix, diagnostics rules, and interactive action behavior.
 
 /// @def GAMEWIP_ASSERT_RUNTIME
 /// @brief Internal/exported build flag that tells the header whether the assert runtime library is available.
@@ -189,40 +169,12 @@ namespace GameWIP::Debug::Assert
 #if GAMEWIP_ASSERT_RUNTIME
     /// @brief Triggers the platform debugger break instruction.
     ///
-    /// @details
-    /// This is the only public C++ function in the assert runtime. It is used by
-    /// DEBUG_BREAK() as an explicit force-break path; fatal ASSERT failures check
-    /// whether a debugger is attached before calling the platform break instruction.
-    /// Most user code should prefer the macro API:
-    ///
-    /// - ASSERT(condition): debug assertion; compiled out when assertions are disabled.
-    /// - ASSERT_MSG(condition, message): ASSERT with a custom diagnostic message.
-    /// - ASSERT_INTERACTIVE(condition): debug assertion with Break/Abort/Ignore Once/Always Ignore choices.
-    /// - ASSERT_INTERACTIVE_MSG(condition, message): ASSERT_INTERACTIVE with a custom diagnostic message.
-    /// - VERIFY(condition): always evaluates condition; reports/breaks only when assertions are enabled.
-    /// - VERIFY_MSG(condition, message): VERIFY with a custom diagnostic message.
-    /// - VERIFY_INTERACTIVE(condition): always evaluates condition; reports with interactive choices when enabled.
-    /// - VERIFY_INTERACTIVE_MSG(condition, message): VERIFY_INTERACTIVE with a custom diagnostic message.
-    /// - CHECK(condition): recoverable report; does not break or abort.
-    /// - CHECK_MSG(condition, message): CHECK with a custom diagnostic message.
-    /// - CHECK_ONCE(condition): recoverable report emitted only once per call site.
-    /// - CHECK_ONCE_MSG(condition, message): CHECK_ONCE with a custom diagnostic message.
-    /// - ENSURE(condition): returns the condition as bool and reports false results.
-    /// - ENSURE_MSG(condition, message): ENSURE with a custom diagnostic message.
-    /// - UNREACHABLE(): marks code that should never execute.
-    /// - DEBUG_BREAK(): always breaks into the debugger/trap path.
+    /// Contract:
+    /// `DEBUG_BREAK()` uses this runtime function as its explicit force-break path. Normal fatal
+    /// `ASSERT`/`VERIFY` failures call the platform break instruction only when a debugger is
+    /// attached before aborting.
     ///
     /// @note Continuing from the debugger resumes execution.
-    /// @see ASSERT
-    /// @see ASSERT_MSG
-    /// @see ASSERT_INTERACTIVE
-    /// @see ASSERT_INTERACTIVE_MSG
-    /// @see VERIFY
-    /// @see VERIFY_INTERACTIVE
-    /// @see VERIFY_INTERACTIVE_MSG
-    /// @see CHECK
-    /// @see ENSURE
-    /// @see UNREACHABLE
     /// @see DEBUG_BREAK
     GAMEWIP_ASSERT_API void debugBreak() noexcept;
 #endif

@@ -193,3 +193,15 @@ Doxygen/build-tool validation addendum
 [x] The Doxygen sidebar groups library pages under Logger and Assert instead of flattening every guide page at the root.
 [x] `GAMEWIP_INSTALL_DOCS=ON` installs generated HTML docs only when `GAMEWIP_BUILD_DOCS=ON`.
 [x] Coverage generation tolerates known gcov negative-hit warnings and still writes HTML/XML reports.
+
+
+Public API documentation validation checklist
+---------------------------------------------
+[ ] Build the Doxygen site and inspect each library landing page.
+[ ] Confirm Logger has a user-facing public API guide linked from the Logger landing page.
+[ ] Confirm Assert has a user-facing public API guide linked from the Assert landing page.
+[ ] Confirm TestSupport has a user-facing public API guide linked from the TestSupport landing page.
+[ ] Confirm test-hook/testing pages are labeled as developer-validation material and not normal production API.
+[x] Confirm public header hover text stays concise enough for IntelliSense.
+[x] Confirm full examples and edge-case explanations live in Markdown manual pages.
+[ ] Confirm every public API appears in either a public API guide table/section or in a dedicated concept page.

@@ -31,46 +31,24 @@
 namespace GameWIP
 {
     /// @class Logger
-    /// @brief Process-wide asynchronous logger for game/runtime diagnostics.
+    /// @brief Process-wide asynchronous logger for runtime diagnostics.
     ///
-    /// Logger provides bounded asynchronous logging with optional console output, file output,
-    /// platform debugger output, runtime level filters, runtime source filters, diagnostic
-    /// counters, and process-memory diagnostics.
-    ///
-    /// Design contract:
-    /// - Messages are copied before queueing; caller-owned text only needs to live through the call.
-    /// - Formatting is performed on the caller thread before queue insertion.
-    /// - File and console writes are performed by the worker thread while the logger is running.
-    /// - Logger::report() is the synchronous emergency path: it bypasses filters and the queue,
-    ///   writes immediately to active sinks, mirrors to platform debug output, and flushes.
-    /// - Registered enum/SourceId sources are preferred in hot paths.
-    /// - String sources are supported, but are not affected by runtime source filters.
-    /// - Unknown SourceId values are accepted and written with a fallback source label so
-    ///   accidental diagnostics do not disappear. Unknown usage is reported in Stats.
+    /// Contract:
+    /// Normal log calls are bounded, filterable, and queue-backed. Messages are copied before
+    /// queueing, so caller-owned text only needs to live through the call. `report()` is the
+    /// synchronous diagnostic path: it bypasses runtime filters and the async queue, writes to the
+    /// active sinks immediately, mirrors to platform debug output when enabled, and flushes.
     ///
     /// Thread-safety:
-    /// - Logging calls are safe from multiple producer threads.
-    /// - init(), shutdown(), and public flush() calls are serialized with each other.
-    /// - shutdown() disables normal log acceptance before draining already accepted entries.
+    /// Logging calls are safe from multiple producer threads. Lifecycle calls such as `init()`,
+    /// `shutdown()`, and public `flush()` calls are serialized with each other.
     ///
-    /// Example code:
-    /// @code
-    /// enum class LogSource : GameWIP::Logger::Types::SourceId
-    /// {
-    ///     Engine = 1,
-    ///     Renderer = 2,
-    /// };
+    /// Performance:
+    /// Formatting happens on the caller thread. Use `shouldLog()` or the optional macros in
+    /// `logger_macros.h` around expensive formatting/argument construction.
     ///
-    /// const std::array sources{
-    ///     GameWIP::Logger::defineSource(LogSource::Engine, "Engine"),
-    ///     GameWIP::Logger::defineSource(LogSource::Renderer, "Renderer"),
-    /// };
-    ///
-    /// auto config = GameWIP::Logger::defaultConfig();
-    /// config.sources = sources;
-    /// GameWIP::Logger::init(config);
-    /// GameWIP::Logger::info(LogSource::Engine, "Logger started");
-    /// @endcode
+    /// See the Logger Markdown manual for setup examples, queue/drop semantics, report behavior,
+    /// and the full public API guide.
     class LOGGER_API Logger
     {
     public:

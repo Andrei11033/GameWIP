@@ -1,16 +1,17 @@
 /// @file test_support.h
 /// @brief Lightweight GameWIP-native helpers for writing executable test suites.
 ///
-/// Public contract:
-/// - TestSupport is dependency-free foundation code. It must not depend on Logger,
-///   Assert, or engine test concepts.
-/// - Passive configuration/result/value shapes live in GameWIP::TestSupport::Types.
-/// - Active helpers and operations live directly in GameWIP::TestSupport.
-/// - Expectations record failures and let suites continue. They do not call engine
-///   assertion macros or terminate the process.
-/// - Manual checks are opt-in runtime behavior and may block on standard input.
-/// - Child process helpers report exit code, timeout, test-requested termination,
-///   and optional captured stdout/stderr.
+/// Contract:
+/// TestSupport provides generic reporting, expectations, file helpers, environment guards,
+/// child-process helpers, manual prompts, timers, and small stress-test helpers. It is dependency
+/// free with respect to Logger, Assert, and engine systems.
+///
+/// Usage notes:
+/// Passive configuration/result shapes live in `GameWIP::TestSupport::Types`. Active helpers such
+/// as `Context`, `Runner`, `Timer`, and `runChildProcess()` live directly in
+/// `GameWIP::TestSupport`. Expectations record failures and keep the suite running.
+///
+/// See the TestSupport Markdown manual for full examples and guidance.
 
 #pragma once
 

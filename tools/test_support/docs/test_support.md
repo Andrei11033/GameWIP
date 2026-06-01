@@ -4,9 +4,10 @@ The GameWIP TestSupport library is the shared support layer for GameWIP test exe
 
 It provides generic test reporting, expectations, suite running, file helpers, scoped environment changes, child process execution, manual checks, timing metrics, and small stress-test helpers. It does not depend on Logger or Assert, and it does not contain Logger-specific, Assert-specific, or engine-simulation test logic.
 
-Manual pages:
+## User manual
 
 - @subpage test_support_quick_start
+- @subpage test_support_public_api
 - @subpage test_support_expectations
 - @subpage test_support_reports
 - @subpage test_support_files_environment
@@ -15,7 +16,9 @@ Manual pages:
 - @subpage test_support_timing_stress
 - @subpage test_support_examples
 
-Key behavior: expectations record failures and let the suite continue. Runtime options control what a test run does. CMake controls only compile-time and build features.
+## Key behavior
+
+Expectations record failures and let the suite continue. Runtime options control what a test run does. CMake controls only compile-time and build features.
 
 Main public entry points:
 

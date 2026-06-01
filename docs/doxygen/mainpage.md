@@ -22,7 +22,7 @@ tools/logger/docs/logger.md
 tools/debug/assert/docs/assert.md
 ```
 
-The library chooses the rest of its pages. Common useful pages are `quick_start.md`, `examples.md`, `testing.md`, `test_hooks.md`, and `troubleshooting.md`.
+The library chooses the rest of its pages. Common user-manual pages are `quick_start.md`, `public_api.md`, `examples.md`, and `troubleshooting.md`. Developer-only validation pages such as `testing.md` and `test_hooks.md` may exist, but they should be labeled clearly and kept separate from the normal user manual navigation.
 
 Every page should use a stable lowercase snake_case Doxygen page id. Child page ids should be prefixed by the library id, for example `logger_quick_start` or `assert_macro_behavior`.
 
@@ -56,4 +56,4 @@ The root page links only to major sections, such as Logger and Assert. Each libr
 
 ## Test hooks
 
-Test hooks may be documented because they are important for validation, coverage, and rare-path tests. They must be clearly labeled testing-only and must not be presented as normal production public API.
+Test hooks may be documented because they are important for validation, coverage, and rare-path tests. They must be clearly labeled developer-validation-only and must not be presented as normal production public API. Library landing pages should prefer user-facing manual pages first, then put test hooks and validation pages in a separate developer section.

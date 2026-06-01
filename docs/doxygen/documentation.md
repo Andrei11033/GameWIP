@@ -48,6 +48,18 @@ A library landing page should be the table of contents for that library:
 
 The root Doxygen page at `docs/doxygen/index.md` should link only to major library/project sections. It should not duplicate every library detail.
 
+
+## User manual versus developer validation
+
+The generated Doxygen site is primarily a professional user manual for the reusable GameWIP libraries. A user should be able to learn how to use the public API from the generated docs without reading `.cpp` files.
+
+Library landing pages should therefore split navigation into:
+
+- **User manual** pages: quick start, public API guide, concepts, configuration, examples, troubleshooting, and other pages needed by normal consumers of the library.
+- **Developer validation** pages: test-hook notes, coverage notes, manual validation procedures, and internal testing workflows. These pages may be generated, but they should not be presented as normal production API.
+
+Every public API needs concise IntelliSense documentation in its public header. APIs with non-trivial behavior also need Markdown coverage in the library manual explaining when to use them, lifecycle/threading rules, failure behavior, blocking behavior, performance expectations, and examples.
+
 ## IntelliSense vs manual pages
 
 Public headers are for compact IntelliSense contracts:
