@@ -18,6 +18,19 @@ Use the optional lazy global macros through:
 
 The class API is the primary API. The macro header is opt-in and should be included only where the global `LOGGER_*` convenience macros are wanted.
 
+## API family map
+
+| Family | Public APIs | Primary behavior |
+| --- | --- | --- |
+| Source/format helpers | `sourceId`, `defineSource`, `runtimeFormat`, `flushTimeout` | Small wrappers used by registered sources, dynamic format strings, and bounded report flushing. |
+| Lifecycle | `defaultConfig`, `lowMemoryConfig`, `throughputConfig`, `init`, `initDefault`, `initConsole`, `initFile`, `shutdown`, `flush` | Configure, start, drain, and stop the process-wide logger. |
+| Inspection | `isRunning`, `getMinLevel`, `getOutput`, `getLogFilePath`, `getQueueLimits`, `getLifetimeDroppedLogCount`, `getLastResult`, `getLastPlatformError`, `getStats`, `getMemoryStats`, `resetStats` | Query runtime state, diagnostics, counters, and retained memory. |
+| Filters | `shouldLog`, `setSourceFilter`, `clearSourceFilter`, `clearSourceFilters`, `setLevelFilter`, `clearLevelFilter`, `clearLevelFilters` | Check and change runtime level/source filtering. |
+| Normal logs | `log`, `trace`, `debug`, `info`, `warn`, `error`, `fatal` | Asynchronous, queue-backed, filterable log entries. |
+| Reports | `report`, `reportError`, `reportFatal`, `fatalTerminate` | Synchronous diagnostics that bypass filters and queue pressure. |
+| Debug output | `writeDebugOutput` | Direct platform-debug-output mirror only; does not write normal sinks. |
+| Lazy macros | `LOGGER_TRACE`, `LOGGER_DEBUG`, `LOGGER_INFO`, `LOGGER_WARN`, `LOGGER_ERROR`, `LOGGER_FATAL`, `LOGGER_FATAL_TERMINATE` | Optional global macros that guard expensive arguments with `shouldLog()`. |
+
 ## Public type groups
 
 `GameWIP::Logger::Types` contains passive configuration, reporting, and statistics shapes. Keeping them under `Types` keeps the public namespace compact while still making the API easy to discover in IntelliSense.
@@ -149,6 +162,16 @@ Convenience logging macros call `shouldLog()` before evaluating message argument
 
 Normal logging APIs are asynchronous, queue-based, filterable, and intended for regular runtime information.
 
+### Normal log overload matrix
+
+| Source form | Message form | API shape | Filtering | Blocking/return |
+| --- | --- | --- | --- | --- |
+| String source | Preformatted text | `log(level, sourceText, message)` and severity helpers | Level filters only; string sources are not source-filtered. | Non-blocking producer path; returns `void`. |
+| Registered `SourceId` | Preformatted text | `log(level, sourceId, message)` and severity helpers | Level filters and registered source filters. | Non-blocking producer path; returns `void`. |
+| Enum source | Preformatted text | Template overloads where the enum has an unsigned underlying type | Converted to `SourceId`, then filtered like registered sources. | Non-blocking producer path; returns `void`. |
+| Any supported source | Compile-time checked format | `log(level, source, "value {}", value)` and severity helpers | Same as the selected source form. | Formats on the caller thread before queue insertion; returns `void`. |
+| Any supported source | Runtime format | `log(level, source, runtimeFormat(text), args...)` and severity helpers | Same as the selected source form. | Formats on the caller thread; invalid runtime formats are counted and skipped. |
+
 Generic form:
 
 ```cpp
@@ -170,9 +193,22 @@ Logger::fatal(source, "...");
 
 Every severity helper has string-source, `SourceId`, enum-source, compile-time format, and runtime format forms. Use compile-time format overloads when the format text is known at compile time. Use `runtimeFormat()` only for dynamic format text.
 
+Direct formatted calls cannot prevent normal C++ argument evaluation before the function call. Use `LOGGER_*` macros or an explicit `shouldLog()` guard when building arguments is expensive.
+
 ## Synchronous report API
 
 Reports are for important diagnostics that must be written immediately. They bypass level/source filters and the async queue.
+
+### Report overload matrix
+
+| Source form | Message form | Popup option | Timeout option | Return |
+| --- | --- | --- | --- | --- |
+| String source | Preformatted, compile-time format, or runtime format | Optional `Types::ReportPopup` on generic `report` | Optional `flushTimeout(...)` overloads | Blocking forms return `void`; bounded forms return whether the post-report drain/flush completed. |
+| Registered `SourceId` | Preformatted, compile-time format, or runtime format | Optional `Types::ReportPopup` on generic `report` | Optional `flushTimeout(...)` overloads | Same as string source. |
+| Enum source | Compile-time format or runtime format | Optional `Types::ReportPopup` on generic `report` | Optional `flushTimeout(...)` overloads | Same as `SourceId` after enum conversion. |
+| Convenience error | Compile-time format or runtime format | No popup | Optional `flushTimeout(...)` overloads | `reportError` writes Error severity immediately. |
+| Convenience fatal | Compile-time format or runtime format | Fatal popup requested when enabled | Optional `flushTimeout(...)` overloads | `reportFatal` writes Fatal severity immediately and may request UI. |
+| Terminating fatal | Compile-time format or runtime format | Fatal popup requested when enabled | Optional `flushTimeout(...)` overloads | `fatalTerminate` does not return. |
 
 Generic report forms:
 
@@ -191,6 +227,8 @@ Logger::fatalTerminate("Startup", "cannot continue");
 ```
 
 Use reports for assertions, startup failures, shutdown failures, and diagnostics that must survive queue pressure. Do not use reports as high-frequency normal logging; they are intentionally synchronous and may block.
+
+`writeDebugOutput(level, source, message)` is separate from reports. It writes only to the platform debug output path when debug output is enabled, and it does not write to console/file sinks.
 
 ## Lazy macros
 

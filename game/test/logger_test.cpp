@@ -5,6 +5,7 @@
 
 #include "logger/logger.h"
 #include "logger/logger_macros.h"
+#include "test_support/test_support.h"
 
 #ifndef GAMEWIP_LOGGER_TEST_HOOKS
 #define GAMEWIP_LOGGER_TEST_HOOKS 0
@@ -47,6 +48,7 @@
 namespace
 {
     using Logger = GameWIP::Logger;
+    namespace TestSupport = GameWIP::TestSupport;
     using LoggerTestOptions = GameWIP::Test::LoggerTestOptions;
     using Clock = std::chrono::steady_clock;
     using namespace std::chrono_literals;
@@ -86,71 +88,140 @@ namespace
 
     struct TestContext
     {
-        int passed = 0;
-        int failed = 0;
+        explicit TestContext(TestSupport::Context &testContext) noexcept
+            : testContext(testContext)
+        {
+        }
+
+        TestSupport::Context &testContext;
         std::filesystem::path logRoot;
         std::string executablePath;
         MemoryPeak loggerMemoryPeak;
         MemoryPeak processMemoryPeak;
         PerformanceTotals performanceTotals;
-        std::ofstream reportFile;
+
+        [[nodiscard]] TestSupport::Types::Summary result() const noexcept
+        {
+            return testContext.result();
+        }
+
+        [[nodiscard]] bool ok() const noexcept
+        {
+            return testContext.ok();
+        }
 
         void emit(std::string_view line)
         {
-            std::cout << line;
-            if (reportFile.is_open())
+            std::string text(line);
+            while (!text.empty() && (text.back() == '\n' || text.back() == '\r'))
             {
-                reportFile << line;
-                reportFile.flush();
+                text.pop_back();
             }
+
+            constexpr std::array categories{
+                std::pair{std::string_view{"[INFO] "}, &TestSupport::Context::info},
+                std::pair{std::string_view{"[MANUAL] "}, &TestSupport::Context::manual},
+                std::pair{std::string_view{"[METRIC] "}, &TestSupport::Context::metric},
+                std::pair{std::string_view{"[STRESS] "}, &TestSupport::Context::stress},
+                std::pair{std::string_view{"[SUMMARY] "}, &TestSupport::Context::summary},
+            };
+
+            for (const auto &[prefix, writer] : categories)
+            {
+                if (text.starts_with(prefix))
+                {
+                    (testContext.*writer)(std::string_view(text).substr(prefix.size()));
+                    return;
+                }
+            }
+
+            if (text.starts_with("[RESULT] "))
+            {
+                testContext.summary(std::string_view(text).substr(std::string_view{"[RESULT] "}.size()));
+                return;
+            }
+
+            testContext.info(text);
         }
 
         void pass(std::string_view name)
         {
-            ++passed;
-            emit(std::format("[PASS] {}\n", name));
+            testContext.pass(name);
         }
 
         void fail(std::string_view name, std::string_view details)
         {
-            ++failed;
-            emit(std::format("[FAIL] {}: {}\n", name, details));
+            testContext.fail(name, details);
         }
 
         template <typename Left, typename Right>
         void expectEq(std::string_view name, const Left &actual, const Right &expected)
         {
-            if (actual == expected)
-            {
-                pass(name);
-                return;
-            }
-
-            fail(name, std::format("expected {}, got {}", expected, actual));
+            static_cast<void>(testContext.expectEq(name, expected, actual));
         }
 
         void expectTrue(std::string_view name, bool value, std::string_view details = "expected true")
         {
             if (value)
             {
-                pass(name);
+                testContext.pass(name);
                 return;
             }
 
-            fail(name, details);
+            testContext.fail(name, details);
         }
 
         void expectFalse(std::string_view name, bool value, std::string_view details = "expected false")
         {
             if (!value)
             {
-                pass(name);
+                testContext.pass(name);
                 return;
             }
 
-            fail(name, details);
+            testContext.fail(name, details);
+        }
+
+        void expectContains(std::string_view name, std::string_view text, std::string_view expectedSubstring)
+        {
+            static_cast<void>(testContext.expectContains(name, text, expectedSubstring));
+        }
+
+        void expectFileContains(std::string_view name, const std::filesystem::path &path, std::string_view expectedSubstring)
+        {
+            static_cast<void>(testContext.expectFileContains(name, path, expectedSubstring));
+        }
+
+        void expectFileOccurrenceCount(
+            std::string_view name,
+            const std::filesystem::path &path,
+            std::string_view text,
+            std::size_t expectedCount)
+        {
+            static_cast<void>(testContext.expectFileOccurrenceCount(name, path, text, expectedCount));
         }
     };
+
+
+    template <typename Function>
+    void runCase(TestContext &context, std::string_view name, Function &&function)
+    {
+        TestSupport::Section section(context.testContext, name);
+        try
+        {
+            std::forward<Function>(function)();
+        }
+        catch (const std::exception &exception)
+        {
+            Logger::shutdown();
+            context.fail(name, exception.what());
+        }
+        catch (...)
+        {
+            Logger::shutdown();
+            context.fail(name, "unknown exception");
+        }
+    }
 
     struct ScopedLoggerShutdown
     {
@@ -159,34 +230,6 @@ namespace
             Logger::shutdown();
         }
     };
-
-    void openReportFile(TestContext &context, const LoggerTestOptions &options)
-    {
-        if (!options.writeReport || options.reportPath.empty())
-        {
-            return;
-        }
-
-        const std::filesystem::path parentPath = options.reportPath.parent_path();
-        if (!parentPath.empty())
-        {
-            std::filesystem::create_directories(parentPath);
-        }
-
-        const std::ios::openmode mode = options.appendReport
-                                            ? (std::ios::out | std::ios::app)
-                                            : (std::ios::out | std::ios::trunc);
-        context.reportFile.open(options.reportPath, mode);
-
-        if (context.reportFile.is_open())
-        {
-            context.emit(std::format("[INFO] Logger test report: {}\n", options.reportPath.string()));
-        }
-        else
-        {
-            std::cout << std::format("[WARN] Logger test report could not be opened: {}\n", options.reportPath.string());
-        }
-    }
 
     struct Timing
     {
@@ -383,73 +426,18 @@ namespace
         return path.generic_string();
     }
 
-    void setEnvironmentVariableValue(std::string_view name, std::string_view value)
-    {
-        const std::string nameText(name);
-        const std::string valueText(value);
-#if defined(_WIN32)
-        _putenv_s(nameText.c_str(), valueText.c_str());
-        SetEnvironmentVariableA(nameText.c_str(), valueText.c_str());
-#else
-        setenv(nameText.c_str(), valueText.c_str(), 1);
-#endif
-    }
-
-    void clearEnvironmentVariableValue(std::string_view name)
-    {
-        const std::string nameText(name);
-#if defined(_WIN32)
-        _putenv_s(nameText.c_str(), "");
-        SetEnvironmentVariableA(nameText.c_str(), nullptr);
-#else
-        unsetenv(nameText.c_str());
-#endif
-    }
-
-    struct ScopedEnvironmentVariable
-    {
-        std::string name;
-        std::optional<std::string> previousValue;
-
-        ScopedEnvironmentVariable(std::string_view variableName, std::string_view value)
-            : name(variableName)
-        {
-            if (const char *previous = std::getenv(name.c_str()))
-            {
-                previousValue = previous;
-            }
-            setEnvironmentVariableValue(name, value);
-        }
-
-        ~ScopedEnvironmentVariable()
-        {
-            if (previousValue)
-            {
-                setEnvironmentVariableValue(name, *previousValue);
-            }
-            else
-            {
-                clearEnvironmentVariableValue(name);
-            }
-        }
-
-        ScopedEnvironmentVariable(const ScopedEnvironmentVariable &) = delete;
-        ScopedEnvironmentVariable &operator=(const ScopedEnvironmentVariable &) = delete;
-    };
+    using ScopedEnvironmentVariable = TestSupport::ScopedEnvironmentVariable;
 
     std::filesystem::path testDirectory(TestContext &context, std::string_view name)
     {
         std::filesystem::path directory = context.logRoot / std::string(name);
-        std::filesystem::create_directories(directory);
+        TestSupport::createDirectories(directory);
         return directory;
     }
 
     std::string readWholeFile(const std::filesystem::path &path)
     {
-        std::ifstream file(path, std::ios::binary);
-        std::ostringstream buffer;
-        buffer << file.rdbuf();
-        return buffer.str();
+        return TestSupport::readTextFile(path);
     }
 
     std::size_t countOccurrences(std::string_view text, std::string_view needle)
@@ -1449,23 +1437,6 @@ namespace
         expectEq(context, "reset keeps lifetime queue drops", Logger::getLifetimeDroppedLogCount(), lifetimeBeforeReset);
     }
 
-    std::string quoteCommandArg(std::string_view text)
-    {
-        std::string quoted;
-        quoted.reserve(text.size() + 2);
-        quoted.push_back('"');
-        for (char ch : text)
-        {
-            if (ch == '"')
-            {
-                quoted.push_back('\\');
-            }
-            quoted.push_back(ch);
-        }
-        quoted.push_back('"');
-        return quoted;
-    }
-
     void testFlushWhileProducersActive(TestContext &context, const LoggerTestOptions &options)
     {
         if (!options.enableStressTests)
@@ -1631,65 +1602,17 @@ namespace
         }
     }
 
-    int runChildProcess(std::string_view executablePath, std::string_view argument)
+    TestSupport::Types::ChildProcessResult runChildProcessResult(
+        std::string_view executablePath,
+        std::string_view argument,
+        std::chrono::milliseconds timeout = 5000ms)
     {
-#if defined(_WIN32)
-        std::string commandLine = quoteCommandArg(executablePath) + " " + std::string(argument);
-
-        SECURITY_ATTRIBUTES securityAttributes{};
-        securityAttributes.nLength = sizeof(securityAttributes);
-        securityAttributes.bInheritHandle = TRUE;
-
-        HANDLE nullOutput = CreateFileA(
-            "NUL",
-            GENERIC_WRITE,
-            FILE_SHARE_READ | FILE_SHARE_WRITE,
-            &securityAttributes,
-            OPEN_EXISTING,
-            FILE_ATTRIBUTE_NORMAL,
-            nullptr);
-        if (nullOutput == INVALID_HANDLE_VALUE)
-        {
-            return 0;
-        }
-
-        STARTUPINFOA startupInfo{};
-        startupInfo.cb = sizeof(startupInfo);
-        startupInfo.dwFlags = STARTF_USESTDHANDLES;
-        startupInfo.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
-        startupInfo.hStdOutput = nullOutput;
-        startupInfo.hStdError = nullOutput;
-
-        PROCESS_INFORMATION processInfo{};
-        const BOOL created = CreateProcessA(
-            nullptr,
-            commandLine.data(),
-            nullptr,
-            nullptr,
-            TRUE,
-            CREATE_NO_WINDOW,
-            nullptr,
-            nullptr,
-            &startupInfo,
-            &processInfo);
-        CloseHandle(nullOutput);
-
-        if (!created)
-        {
-            return 0;
-        }
-
-        WaitForSingleObject(processInfo.hProcess, INFINITE);
-        DWORD exitCode = 0;
-        GetExitCodeProcess(processInfo.hProcess, &exitCode);
-        CloseHandle(processInfo.hThread);
-        CloseHandle(processInfo.hProcess);
-        return static_cast<int>(exitCode);
-#else
-        std::string command = quoteCommandArg(executablePath) + " " + std::string(argument);
-        command += " > /dev/null 2> /dev/null";
-        return std::system(command.c_str());
-#endif
+        TestSupport::Types::ChildProcessOptions child;
+        child.executablePath = std::filesystem::path(std::string(executablePath));
+        child.arguments = {std::string(argument)};
+        child.timeout = timeout;
+        child.captureOutput = true;
+        return TestSupport::runChildProcess(child);
     }
 
     int runFatalTerminateChild()
@@ -1723,13 +1646,13 @@ namespace
 
         ZoneScopedN("Logger fatalTerminate child test");
         const std::filesystem::path childLogDirectory = context.logRoot / "fatal_terminate_child";
-        std::filesystem::create_directories(childLogDirectory);
+        TestSupport::createDirectories(childLogDirectory);
         const ScopedEnvironmentVariable childLogDirectoryOverride(childLogDirectoryEnvironmentVariable, pathText(childLogDirectory));
 
         std::cout.flush();
         std::cerr.flush();
-        const int result = runChildProcess(context.executablePath, "--logger-test-child=fatal-terminate");
-        context.expectTrue("fatalTerminate child exits abnormally", result != 0, "child process returned zero");
+        const TestSupport::Types::ChildProcessResult result = runChildProcessResult(context.executablePath, "--logger-test-child=fatal-terminate");
+        context.expectTrue("fatalTerminate child exits abnormally", result.exitedWithFailure(), "child process returned zero");
         const std::string childLogContents = readDirectoryFiles(childLogDirectory);
         context.expectTrue("fatalTerminate child logs fatal through report", childLogContents.find("[FATAL][LoggerTest]: child fatal terminate") != std::string::npos, "fatalTerminate child log missing");
         std::cout.flush();
@@ -1878,9 +1801,9 @@ namespace
         context.emit(std::format(
             "[SUMMARY] suiteTimeMs={:.3f} tests={} passed={} failed={}\n",
             suiteMilliseconds,
-            context.passed + context.failed,
-            context.passed,
-            context.failed));
+            context.result().passed + context.result().failed + context.result().skipped,
+            context.result().passed,
+            context.result().failed));
 
         context.emit(std::format(
             "[SUMMARY] perfTotals scenarios={} measuredMessages={} producerMs={:.3f} nsPerMessage={:.2f} queued={} written={} queueDropped={} diagnostics={} truncated={} peakQueue={}\n",
@@ -1950,78 +1873,86 @@ namespace GameWIP::Test
             return runFatalTerminateChild();
         }
 
-        const auto suiteStart = Clock::now();
-        TestContext context;
-        context.executablePath = argc > 0 && argv[0] != nullptr ? argv[0] : "";
-        context.logRoot = makeRunRoot();
-        std::filesystem::create_directories(context.logRoot);
+        TestSupport::Types::ReportOptions reportOptions;
+        reportOptions.writeConsole = true;
+        reportOptions.writeReport = options.writeReport;
+        reportOptions.appendReport = options.appendReport;
+        reportOptions.reportPath = options.reportPath;
 
-        openReportFile(context, options);
-        context.emit(std::format("[INFO] Logger test log root: {}\n", pathText(context.logRoot)));
-        context.emit(std::format(
-            "[INFO] Logger test options: stress={} fatalChild={} performance={} manualUi={} loggerPopup={} perfIterations={} stressThreads={} stressIterations={} report={}\n",
-            options.enableStressTests,
-            options.enableChildCrashTests,
-            options.enablePerformanceMetrics,
-            options.enableManualUiTests,
-            options.enableLoggerPopupTest,
-            options.performanceIterations,
-            options.stressThreadCount,
-            options.stressIterationsPerThread,
-            options.writeReport ? options.reportPath.string() : std::string_view{"disabled"}));
+        TestSupport::Runner runner(reportOptions);
+        runner.info(std::format("Logger test report: {}", options.writeReport ? options.reportPath.string() : std::string{"disabled"}));
 
-        try
-        {
-            Logger::shutdown();
-            testConfigFactories(context);
-            testDisabledAndInvalidInit(context);
-            testConvenienceInitApis(context);
-            testFileOutputAndContent(context);
-            testLifecycleAndQueries(context);
-            testLevelAndSourceFilters(context);
-            testSourceValidation(context);
-            testFormattingAndTruncation(context);
-            testReportsAndDebugOutput(context);
-            testReportFailureAndUnknownSourcePaths(context);
-            testLoggerTestHooks(context);
-            testFileFallback(context);
-            testMacroBehavior(context);
-            testFilteredLogsDoNotCountAsDrops(context);
-            testStatsResetKeepsLifetimeQueueDrops(context);
-            testQueuePressureAndConcurrency(context, options);
-            testReportBypassesFullQueue(context, options);
-            testReportWhileProducersActive(context, options);
-            testFlushWhileProducersActive(context, options);
-            testShutdownWhileProducersActive(context, options);
-            testRepeatedInitShutdownStress(context, options);
-            testFatalTerminateChild(context, options);
-            testManualLoggerFatalPopup(context, options);
-            if (options.enableManualUiTests)
+        const TestSupport::Types::SuiteResult suite = runner.runSuite(
+            "Logger",
+            [&](TestSupport::Context &suiteContext)
             {
-                context.pass("manual logger UI tests enabled; add explicit manual scenarios before running unattended");
-            }
-            else
-            {
-                context.pass("manual logger UI tests skipped by LoggerTestOptions");
-            }
-            runPerformanceMetrics(context, options);
-            Logger::shutdown();
-        }
-        catch (const std::exception &exception)
-        {
-            Logger::shutdown();
-            context.fail("uncaught exception", exception.what());
-        }
-        catch (...)
-        {
-            Logger::shutdown();
-            context.fail("uncaught exception", "unknown exception");
-        }
+                TestSupport::Timer suiteTimer;
+                TestContext context(suiteContext);
+                context.executablePath = argc > 0 && argv[0] != nullptr ? argv[0] : "";
+                context.logRoot = makeRunRoot();
+                TestSupport::createDirectories(context.logRoot);
 
-        const auto suiteEnd = Clock::now();
-        const double suiteMilliseconds = std::chrono::duration<double, std::milli>(suiteEnd - suiteStart).count();
-        printEndSummary(context, suiteMilliseconds);
-        context.emit(std::format("[RESULT] logger passed={} failed={}\n", context.passed, context.failed));
-        return context.failed == 0 ? 0 : 1;
+                context.emit(std::format("[INFO] Logger test log root: {}\n", pathText(context.logRoot)));
+                context.emit(std::format(
+                    "[INFO] Logger test options: stress={} fatalChild={} performance={} manualUi={} loggerPopup={} perfIterations={} stressThreads={} stressIterations={} report={}\n",
+                    options.enableStressTests,
+                    options.enableChildCrashTests,
+                    options.enablePerformanceMetrics,
+                    options.enableManualUiTests,
+                    options.enableLoggerPopupTest,
+                    options.performanceIterations,
+                    options.stressThreadCount,
+                    options.stressIterationsPerThread,
+                    options.writeReport ? options.reportPath.string() : std::string{"disabled"}));
+
+                Logger::shutdown();
+                runCase(context, "config factories", [&] { testConfigFactories(context); });
+                runCase(context, "disabled and invalid init", [&] { testDisabledAndInvalidInit(context); });
+                runCase(context, "convenience init APIs", [&] { testConvenienceInitApis(context); });
+                runCase(context, "file output and content", [&] { testFileOutputAndContent(context); });
+                runCase(context, "lifecycle and queries", [&] { testLifecycleAndQueries(context); });
+                runCase(context, "level and source filters", [&] { testLevelAndSourceFilters(context); });
+                runCase(context, "source validation", [&] { testSourceValidation(context); });
+                runCase(context, "formatting and truncation", [&] { testFormattingAndTruncation(context); });
+                runCase(context, "reports and debug output", [&] { testReportsAndDebugOutput(context); });
+                runCase(context, "report failure and unknown-source paths", [&] { testReportFailureAndUnknownSourcePaths(context); });
+                runCase(context, "logger test hooks", [&] { testLoggerTestHooks(context); });
+                runCase(context, "file fallback", [&] { testFileFallback(context); });
+                runCase(context, "macro behavior", [&] { testMacroBehavior(context); });
+                runCase(context, "filtered logs drop accounting", [&] { testFilteredLogsDoNotCountAsDrops(context); });
+                runCase(context, "stats reset and lifetime drops", [&] { testStatsResetKeepsLifetimeQueueDrops(context); });
+                runCase(context, "queue pressure and concurrency", [&] { testQueuePressureAndConcurrency(context, options); });
+                runCase(context, "report bypasses full queue", [&] { testReportBypassesFullQueue(context, options); });
+                runCase(context, "report while producers active", [&] { testReportWhileProducersActive(context, options); });
+                runCase(context, "flush while producers active", [&] { testFlushWhileProducersActive(context, options); });
+                runCase(context, "shutdown while producers active", [&] { testShutdownWhileProducersActive(context, options); });
+                runCase(context, "repeated init shutdown stress", [&] { testRepeatedInitShutdownStress(context, options); });
+                runCase(context, "fatal terminate child", [&] { testFatalTerminateChild(context, options); });
+                runCase(context, "manual logger fatal popup", [&] { testManualLoggerFatalPopup(context, options); });
+                runCase(context, "manual logger UI option", [&]
+                {
+                    if (options.enableManualUiTests)
+                    {
+                        context.pass("manual logger UI tests enabled; add explicit manual scenarios before running unattended");
+                    }
+                    else
+                    {
+                        context.pass("manual logger UI tests skipped by LoggerTestOptions");
+                    }
+                });
+                runCase(context, "performance metrics", [&] { runPerformanceMetrics(context, options); });
+                Logger::shutdown();
+                printEndSummary(context, suiteTimer.elapsedMilliseconds());
+            });
+
+        runner.summary(std::format(
+            "logger passed={} failed={} skipped={} elapsedMs={:.3f}",
+            suite.summary.passed,
+            suite.summary.failed,
+            suite.summary.skipped,
+            suite.elapsedMilliseconds));
+        Logger::shutdown();
+        return runner.exitCode();
     }
+
 }

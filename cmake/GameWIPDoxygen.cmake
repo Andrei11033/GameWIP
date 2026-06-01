@@ -159,6 +159,7 @@ function(gamewip_create_doxygen_target)
 
     add_custom_target(docs
         COMMAND "${CMAKE_COMMAND}" -E make_directory "${GAMEWIP_DOXYGEN_OUTPUT_DIR}"
+        COMMAND "${CMAKE_COMMAND}" -E rm -rf "${GAMEWIP_DOXYGEN_OUTPUT_DIR}/html"
         COMMAND "${CMAKE_COMMAND}" -E echo "Doxygen input is explicit public headers + Markdown manual pages only."
         COMMAND "${CMAKE_COMMAND}" -E echo "Generating Doxygen HTML into: ${GAMEWIP_DOXYGEN_OUTPUT_DIR}/html"
         COMMAND Doxygen::doxygen "${CMAKE_CURRENT_BINARY_DIR}/Doxyfile"

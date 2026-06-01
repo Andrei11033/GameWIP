@@ -14,6 +14,19 @@ TestSupport is generic. It must not depend on Logger, Assert, or engine systems.
 
 Passive value types live under `GameWIP::TestSupport::Types`. Active helpers and operations live directly under `GameWIP::TestSupport`.
 
+## API family map
+
+| Family | Public APIs | Primary behavior |
+| --- | --- | --- |
+| Reporting options/results | `Types::ReportOptions`, `Types::Summary`, `Types::SuiteResult`, `Types::IterationMetric` | Passive shapes for output selection, result counts, suite results, and metrics. |
+| Suite reporting | `Context`, `Runner`, `Section` | Record suite lines, run suites, aggregate results, and group large scenarios. |
+| Expectations | `expectTrue`, `expectFalse`, `expectEq`, `expectNe`, `expectNear`, `expectContains`, `expectFileContains`, `expectFileOccurrenceCount` | Record pass/fail lines and return booleans without aborting the process. |
+| File helpers | `readTextFile`, `writeTextFile`, `fileExists`, `fileContains`, `countFileOccurrences`, `createDirectories`, `removeIfExists` | Small text-oriented filesystem helpers for tests. |
+| Environment helpers | `ScopedEnvironmentVariable`, `ScopedUnsetEnvironmentVariable`, `Types::EnvironmentVariable` | Exception-safe process environment mutation and child-process overrides. |
+| Child processes | `Types::ChildProcessOptions`, `Types::ChildProcessResult`, `runChildProcess` | Isolated process tests with timeout, output capture, and environment control. |
+| Manual checks | `Types::ManualAnswer`, `promptManualCheck` | Human yes/no/skipped prompts for explicitly manual scenarios. |
+| Timing/stress | `Timer`, `StartGate`, `StopFlag`, `runWorkers` | Metrics and small generic concurrency/stress patterns. |
+
 ## Reporting options
 
 ### `Types::ReportOptions`
@@ -47,6 +60,17 @@ Stores a named iteration metric and computes nanoseconds per iteration. It is fo
 
 `Context` is passed to suite code. It records categorized lines, expectations, failures, skips, and summaries.
 
+### Context recording and expectation matrix
+
+| API family | Calls | Result count effect | Return |
+| --- | --- | --- | --- |
+| Informational lines | `info`, `manual`, `metric`, `stress`, `summary` | No pass/fail/skip count changes. | `void` |
+| Direct outcomes | `pass`, `fail`, `skip` | Increments the matching count. | `void` |
+| Boolean expectations | `expectTrue`, `expectFalse` | Records pass or fail. | Whether the expectation passed. |
+| Comparison expectations | `expectEq`, `expectNe`, `expectNear` | Records pass or fail. | Whether the expectation passed. |
+| Text/file expectations | `expectContains`, `expectFileContains`, `expectFileOccurrenceCount` | Records pass or fail. | Whether the expectation passed. |
+| Result queries | `suiteName`, `result`, `ok` | No count changes. | Copied name reference, summary snapshot, or bool. |
+
 Common recording calls:
 
 ```cpp
@@ -77,6 +101,13 @@ Expectations record pass/fail and return a boolean. They do not abort the test p
 ## Runner
 
 `Runner` owns a shared report sink and aggregates suite results.
+
+| API | Behavior | Return |
+| --- | --- | --- |
+| Constructor | Creates a shared report sink from `Types::ReportOptions`. | New runner. |
+| `runSuite(name, function)` | Runs a suite accepting `Context&` or no arguments, catches uncaught exceptions as failures, and aggregates the result. | `Types::SuiteResult` |
+| `info`, `summary` | Writes run-level report lines without changing suite counts directly. | `void` |
+| `result`, `ok`, `exitCode` | Returns aggregate summary, success boolean, or process-style exit code. | Summary, bool, or int. |
 
 ```cpp
 GameWIP::TestSupport::Types::ReportOptions options;

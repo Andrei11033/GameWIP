@@ -11,6 +11,7 @@
 
 #include "logger/logger.h"
 
+/// @cond GAMEWIP_LOGGER_MACRO_DETAIL
 /// @def LOGGER_DETAIL(levelValue, callName, sourceValue, ...)
 /// @brief Internal lazy logger macro body shared by the public `LOGGER_*` macros.
 /// @details Captures the source expression once and evaluates message/format arguments only after
@@ -24,6 +25,10 @@
             ::GameWIP::Logger::callName(loggerSource_, __VA_ARGS__);   \
         }                                                              \
     } while (false)
+/// @endcond
+
+/// @name Lazy logger macros
+/// @{
 
 /// @def LOGGER_TRACE(source, ...)
 /// @brief Lazy Trace log macro.
@@ -63,3 +68,4 @@
     {                                                           \
         ::GameWIP::Logger::fatalTerminate(source, __VA_ARGS__); \
     } while (false)
+/// @}

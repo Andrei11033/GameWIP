@@ -1,0 +1,71 @@
+Platform backend contract
+=========================
+
+GameWIP libraries keep public APIs platform-neutral. Platform-specific behavior lives behind small backend contracts selected by GAMEWIP_PLATFORM_ID.
+
+Build selection
+---------------
+
+GAMEWIP_PLATFORM_ID is the build-system platform key. Current Windows builds resolve it to win32.
+
+Each library can provide backend implementation files under:
+
+    tools/<library>/platform/<id>/*.cpp
+
+Backend source files follow this naming convention:
+
+    platform/<id>/<id>_<feature>.cpp
+
+Examples:
+
+    tools/logger/platform/win32/win32_logger.cpp
+    tools/test_support/platform/win32/win32_environment.cpp
+
+Each backend folder may also provide:
+
+    platform/<id>/platform.cmake
+
+Use platform.cmake only for that backend's target-local needs, such as platform libraries, compile definitions, resources, or manifests. Adding a new platform should normally mean adding the matching platform/<id>/ folder with its .cpp files and optional platform.cmake.
+
+Logger backend
+--------------
+
+Logger core code must not call operating-system APIs directly. A Logger backend implements the functions declared in tools/logger/internal/logger_platform.h.
+
+Backend responsibilities:
+
+- Debug output: write text to the platform debugger or diagnostic stream.
+- Fatal popup: show a fatal diagnostic popup when enabled by Logger config.
+- File IO: create directories, open exclusive log files, write, flush, close, and report whether a file handle is open.
+- Time: format local time text used by log file names and log lines.
+- Console color: report whether stdout or stderr supports ANSI color.
+- Memory: return best-effort process memory diagnostics.
+- Scratch storage: provide per-thread formatting scratch storage for header-only formatted logging paths.
+
+Filtered LOGGER_* macro calls check shouldLog() before evaluating message or format arguments. Direct formatted Logger calls cannot prevent normal C++ argument evaluation before the call; use macros or an explicit shouldLog() guard for expensive arguments.
+
+Assert backend
+--------------
+
+Assert core code must not call operating-system APIs directly. An Assert backend implements the functions declared in tools/debug/assert/internal/assert_platform.h.
+
+Backend responsibilities:
+
+- Popup: show a non-interactive assertion/error popup when configured.
+- Action dialog: show an interactive assertion dialog and return the selected action.
+- Debugger check: report whether a debugger is currently attached.
+- Debug break: trigger the platform debug-break instruction or trap.
+
+Assert passing paths should stay allocation-free and branch-light. Macro documentation must stay clear about which condition and message expressions are evaluated in enabled and disabled builds.
+
+TestSupport backend
+-------------------
+
+TestSupport core code must not call operating-system APIs directly. A TestSupport backend implements the functions declared in tools/test_support/internal/test_support_platform.h and platform-specific child-process helpers used by the public TestSupport API.
+
+Backend responsibilities:
+
+- Environment variables: read, set, and unset process environment variables.
+- Child process: run a child process, collect exit code/stdout/stderr, and report launch/read failures.
+
+TestSupport stays organized as one public include. Its manual pages group features by reporting, expectations, filesystem/environment helpers, child processes, timing, and stress utilities.

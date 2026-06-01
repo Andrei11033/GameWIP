@@ -1,5 +1,5 @@
 PROJECT_NAME           = "GameWIP Libraries"
-PROJECT_BRIEF          = "Logger and assert utilities for GameWIP"
+PROJECT_BRIEF          = "Logger, Assert, and TestSupport utilities for GameWIP"
 PROJECT_NUMBER         = "@PROJECT_VERSION@"
 OUTPUT_DIRECTORY       = "@GAMEWIP_DOXYGEN_OUTPUT_DIR@"
 
@@ -21,7 +21,7 @@ GENERATE_LATEX         = NO
 HTML_OUTPUT            = html
 HTML_EXTRA_STYLESHEET  = "@CMAKE_CURRENT_SOURCE_DIR@/docs/doxygen/custom.css"
 GENERATE_TREEVIEW      = YES
-SEARCHENGINE           = NO
+SEARCHENGINE           = YES
 
 # Keep the docs target quick and deterministic. Graph/PlantUML-style output can
 # be enabled later behind a separate option if the project needs diagrams.
@@ -49,7 +49,7 @@ WARN_IF_DOC_ERROR      = YES
 WARN_AS_ERROR          = NO
 
 INLINE_SIMPLE_STRUCTS  = YES
-SORT_MEMBER_DOCS       = YES
+SORT_MEMBER_DOCS       = NO
 FULL_PATH_NAMES        = YES
 STRIP_FROM_PATH        = "@CMAKE_CURRENT_SOURCE_DIR@"
 

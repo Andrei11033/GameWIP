@@ -4,25 +4,16 @@ The GameWIP Logger is the runtime diagnostics library for normal asynchronous lo
 
 Use normal logs for regular runtime information. Use reports for failures where the message must be written immediately, such as assertion failures, startup errors, or shutdown errors.
 
-## User manual
+## Documentation sections
 
-- @subpage logger_quick_start
-- @subpage logger_public_api
-- @subpage logger_lifecycle
-- @subpage logger_configuration
-- @subpage logger_macros
-- @subpage logger_reports
-- @subpage logger_stats
-- @subpage logger_threading_performance
-- @subpage logger_troubleshooting
-- @subpage logger_examples
+- @subpage logger_getting_started
+- @subpage logger_api_reference
+- @subpage logger_runtime_behavior
+- @subpage logger_developer_validation
 
-## Developer validation references
+## Normal user path
 
-These pages are for maintainers validating the library, not for normal logger use:
-
-- @subpage logger_testing
-- @subpage logger_test_hooks
+Most users should read Logger getting started first, then Logger API reference. Runtime behavior pages are for configuration, lifecycle, queue pressure, threading, and performance details. Developer validation pages are generated for maintainers and rare-path testing.
 
 ## Key behavior
 

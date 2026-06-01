@@ -13,8 +13,10 @@
 #include "debug/assert/internal/assert_test_hooks.h"
 #endif
 #include "logger/logger.h"
+#include "test_support/test_support.h"
 
 #include <algorithm>
+#include <array>
 #include <atomic>
 #include <chrono>
 #include <cstddef>
@@ -42,6 +44,7 @@
 namespace
 {
     using Logger = GameWIP::Logger;
+    namespace TestSupport = GameWIP::TestSupport;
     using AssertTestOptions = GameWIP::Test::AssertTestOptions;
     using Clock = std::chrono::steady_clock;
     using namespace std::chrono_literals;
@@ -58,33 +61,69 @@ namespace
 
     std::size_t performanceSink = 0;
 
-    /// @brief Mutable test accounting and shared paths for the assert suite.
+    /// @brief Mutable test state and TestSupport-backed reporting for the assert suite.
     struct TestContext
     {
-        int passed = 0;
-        int failed = 0;
+        explicit TestContext(TestSupport::Context &testContext) noexcept
+            : testContext(testContext)
+        {
+        }
+
+        TestSupport::Context &testContext;
         std::filesystem::path logRoot;
         std::string executablePath;
         double performanceMilliseconds = 0.0;
         std::size_t performanceScenarioCount = 0;
-        std::ofstream reportFile;
+
+        [[nodiscard]] TestSupport::Types::Summary result() const noexcept
+        {
+            return testContext.result();
+        }
+
+        [[nodiscard]] bool ok() const noexcept
+        {
+            return testContext.ok();
+        }
 
         void emit(std::string_view line)
         {
-            std::cout << line;
-            if (reportFile.is_open())
+            std::string text(line);
+            while (!text.empty() && (text.back() == '\n' || text.back() == '\r'))
             {
-                reportFile << line;
-                reportFile.flush();
+                text.pop_back();
             }
+
+            constexpr std::array categories{
+                std::pair{std::string_view{"[INFO] "}, &TestSupport::Context::info},
+                std::pair{std::string_view{"[MANUAL] "}, &TestSupport::Context::manual},
+                std::pair{std::string_view{"[METRIC] "}, &TestSupport::Context::metric},
+                std::pair{std::string_view{"[STRESS] "}, &TestSupport::Context::stress},
+                std::pair{std::string_view{"[SUMMARY] "}, &TestSupport::Context::summary},
+            };
+
+            for (const auto &[prefix, writer] : categories)
+            {
+                if (text.starts_with(prefix))
+                {
+                    (testContext.*writer)(std::string_view(text).substr(prefix.size()));
+                    return;
+                }
+            }
+
+            if (text.starts_with("[RESULT] "))
+            {
+                testContext.summary(std::string_view(text).substr(std::string_view{"[RESULT] "}.size()));
+                return;
+            }
+
+            testContext.info(text);
         }
 
         /// @brief Records a passed assertion-test scenario.
         /// @param name Scenario name.
         void pass(std::string_view name)
         {
-            ++passed;
-            emit(std::format("[PASS] {}\n", name));
+            testContext.pass(name);
         }
 
         /// @brief Records a failed assertion-test scenario.
@@ -92,8 +131,7 @@ namespace
         /// @param details Failure details.
         void fail(std::string_view name, std::string_view details)
         {
-            ++failed;
-            emit(std::format("[FAIL] {}: {}\n", name, details));
+            testContext.fail(name, details);
         }
 
         /// @brief Expects a boolean value to be true.
@@ -104,10 +142,24 @@ namespace
         {
             if (value)
             {
-                pass(name);
+                testContext.pass(name);
                 return;
             }
-            fail(name, details);
+            testContext.fail(name, details);
+        }
+
+        /// @brief Expects a boolean value to be false.
+        /// @param name Scenario name.
+        /// @param value Value to inspect.
+        /// @param details Failure details.
+        void expectFalse(std::string_view name, bool value, std::string_view details = "expected false")
+        {
+            if (!value)
+            {
+                testContext.pass(name);
+                return;
+            }
+            testContext.fail(name, details);
         }
 
         /// @brief Expects two values to compare equal.
@@ -117,138 +169,42 @@ namespace
         template <typename Left, typename Right>
         void expectEq(std::string_view name, const Left &actual, const Right &expected)
         {
-            if (actual == expected)
-            {
-                pass(name);
-                return;
-            }
-            fail(name, std::format("expected {}, got {}", expected, actual));
+            static_cast<void>(testContext.expectEq(name, expected, actual));
+        }
+
+        void expectContains(std::string_view name, std::string_view text, std::string_view expectedSubstring)
+        {
+            static_cast<void>(testContext.expectContains(name, text, expectedSubstring));
+        }
+
+        void expectFileContains(std::string_view name, const std::filesystem::path &path, std::string_view expectedSubstring)
+        {
+            static_cast<void>(testContext.expectFileContains(name, path, expectedSubstring));
         }
     };
 
-    /// @brief Sets a process environment variable for this process and inherited child tests.
-    /// @param name Environment variable name.
-    /// @param value Environment variable value.
-    void setEnvironmentVariable(std::string_view name, std::string_view value)
+    template <typename Function>
+    void runCase(TestContext &context, std::string_view name, Function &&function)
     {
-        const std::string nameText(name);
-        const std::string valueText(value);
-#if defined(_WIN32)
-        _putenv_s(nameText.c_str(), valueText.c_str());
-        SetEnvironmentVariableA(nameText.c_str(), valueText.c_str());
-#else
-        setenv(nameText.c_str(), valueText.c_str(), 1);
-#endif
+        TestSupport::Section section(context.testContext, name);
+        try
+        {
+            std::forward<Function>(function)();
+        }
+        catch (const std::exception &exception)
+        {
+            Logger::shutdown();
+            context.fail(name, exception.what());
+        }
+        catch (...)
+        {
+            Logger::shutdown();
+            context.fail(name, "unknown exception");
+        }
     }
 
-    /// @brief Clears a process environment variable for this process and inherited child tests.
-    /// @param name Environment variable name.
-    void clearEnvironmentVariable(std::string_view name)
-    {
-        const std::string nameText(name);
-#if defined(_WIN32)
-        _putenv_s(nameText.c_str(), "");
-        SetEnvironmentVariableA(nameText.c_str(), nullptr);
-#else
-        unsetenv(nameText.c_str());
-#endif
-    }
-
-    /// @brief Temporarily overrides one environment variable and restores it on scope exit.
-    struct ScopedEnvironmentVariable
-    {
-        std::string name;
-        std::string oldValue;
-        bool hadOldValue = false;
-
-        ScopedEnvironmentVariable(std::string_view variableName, std::string_view value)
-            : name(variableName)
-        {
-            if (const char *previousValue = std::getenv(name.c_str()))
-            {
-                oldValue = previousValue;
-                hadOldValue = true;
-            }
-            setEnvironmentVariable(name, value);
-        }
-
-        ~ScopedEnvironmentVariable()
-        {
-            if (hadOldValue)
-            {
-                setEnvironmentVariable(name, oldValue);
-            }
-            else
-            {
-                clearEnvironmentVariable(name);
-            }
-        }
-
-        ScopedEnvironmentVariable(const ScopedEnvironmentVariable &) = delete;
-        ScopedEnvironmentVariable &operator=(const ScopedEnvironmentVariable &) = delete;
-    };
-
-    /// @brief Temporarily clears one environment variable and restores it on scope exit.
-    struct ScopedClearedEnvironmentVariable
-    {
-        std::string name;
-        std::string oldValue;
-        bool hadOldValue = false;
-
-        explicit ScopedClearedEnvironmentVariable(std::string_view variableName)
-            : name(variableName)
-        {
-            if (const char *previousValue = std::getenv(name.c_str()))
-            {
-                oldValue = previousValue;
-                hadOldValue = true;
-            }
-            clearEnvironmentVariable(name);
-        }
-
-        ~ScopedClearedEnvironmentVariable()
-        {
-            if (hadOldValue)
-            {
-                setEnvironmentVariable(name, oldValue);
-            }
-            else
-            {
-                clearEnvironmentVariable(name);
-            }
-        }
-
-        ScopedClearedEnvironmentVariable(const ScopedClearedEnvironmentVariable &) = delete;
-        ScopedClearedEnvironmentVariable &operator=(const ScopedClearedEnvironmentVariable &) = delete;
-    };
-
-    void openReportFile(TestContext &context, const AssertTestOptions &options)
-    {
-        if (!options.writeReport || options.reportPath.empty())
-        {
-            return;
-        }
-
-        const std::filesystem::path parentPath = options.reportPath.parent_path();
-        if (!parentPath.empty())
-        {
-            std::filesystem::create_directories(parentPath);
-        }
-
-        const std::ios::openmode mode = options.appendReport
-                                            ? (std::ios::out | std::ios::app)
-                                            : (std::ios::out | std::ios::trunc);
-        context.reportFile.open(options.reportPath, mode);
-
-        if (context.reportFile.is_open())
-        {
-            context.emit(std::format("[INFO] Assert test report: {}\n", options.reportPath.string()));
-        }
-        else
-        {
-            std::cout << std::format("[WARN] Assert test report could not be opened: {}\n", options.reportPath.string());
-        }
-    }
+    using ScopedEnvironmentVariable = TestSupport::ScopedEnvironmentVariable;
+    using ScopedClearedEnvironmentVariable = TestSupport::ScopedUnsetEnvironmentVariable;
 
     /// @brief Stops the logger when a test scope exits.
     struct ScopedLoggerShutdown
@@ -276,89 +232,21 @@ namespace
         return false;
     }
 
-    /// @brief Quotes a command-line argument for child-process system calls.
-    /// @param text Argument text.
-    /// @return Quoted argument text.
-    std::string quoteCommandArg(std::string_view text)
-    {
-        std::string quoted;
-        quoted.reserve(text.size() + 2);
-        quoted.push_back('"');
-        for (char ch : text)
-        {
-            if (ch == '"')
-            {
-                quoted.push_back('\\');
-            }
-            quoted.push_back(ch);
-        }
-        quoted.push_back('"');
-        return quoted;
-    }
-
-    /// @brief Runs a child process with stdout/stderr suppressed.
+    /// @brief Runs a child process through TestSupport.
     /// @param executablePath Executable to launch.
     /// @param argument Single child-mode argument to pass.
-    /// @return Child process exit code, or zero if launch failed.
-    int runChildProcess(std::string_view executablePath, std::string_view argument)
+    /// @return Child process result with exit, timeout, and captured output state.
+    TestSupport::Types::ChildProcessResult runChildProcessResult(
+        std::string_view executablePath,
+        std::string_view argument,
+        std::chrono::milliseconds timeout = 5000ms)
     {
-#if defined(_WIN32)
-        std::string commandLine = quoteCommandArg(executablePath) + " " + std::string(argument);
-
-        SECURITY_ATTRIBUTES securityAttributes{};
-        securityAttributes.nLength = sizeof(securityAttributes);
-        securityAttributes.bInheritHandle = TRUE;
-
-        HANDLE nullOutput = CreateFileA(
-            "NUL",
-            GENERIC_WRITE,
-            FILE_SHARE_READ | FILE_SHARE_WRITE,
-            &securityAttributes,
-            OPEN_EXISTING,
-            FILE_ATTRIBUTE_NORMAL,
-            nullptr);
-        if (nullOutput == INVALID_HANDLE_VALUE)
-        {
-            return 0;
-        }
-
-        STARTUPINFOA startupInfo{};
-        startupInfo.cb = sizeof(startupInfo);
-        startupInfo.dwFlags = STARTF_USESTDHANDLES;
-        startupInfo.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
-        startupInfo.hStdOutput = nullOutput;
-        startupInfo.hStdError = nullOutput;
-
-        PROCESS_INFORMATION processInfo{};
-        const BOOL created = CreateProcessA(
-            nullptr,
-            commandLine.data(),
-            nullptr,
-            nullptr,
-            TRUE,
-            CREATE_NO_WINDOW,
-            nullptr,
-            nullptr,
-            &startupInfo,
-            &processInfo);
-        CloseHandle(nullOutput);
-
-        if (!created)
-        {
-            return 0;
-        }
-
-        WaitForSingleObject(processInfo.hProcess, INFINITE);
-        DWORD exitCode = 0;
-        GetExitCodeProcess(processInfo.hProcess, &exitCode);
-        CloseHandle(processInfo.hThread);
-        CloseHandle(processInfo.hProcess);
-        return static_cast<int>(exitCode);
-#else
-        std::string command = quoteCommandArg(executablePath) + " " + std::string(argument);
-        command += " > /dev/null 2> /dev/null";
-        return std::system(command.c_str());
-#endif
+        TestSupport::Types::ChildProcessOptions child;
+        child.executablePath = std::filesystem::path(std::string(executablePath));
+        child.arguments = {std::string(argument)};
+        child.timeout = timeout;
+        child.captureOutput = true;
+        return TestSupport::runChildProcess(child);
     }
 
     /// @brief Builds a unique temporary log root for one assert test run.
@@ -382,15 +270,7 @@ namespace
     /// @return File contents, or empty text when the file cannot be opened.
     std::string readFile(const std::filesystem::path &path)
     {
-        std::ifstream file(path, std::ios::binary);
-        if (!file)
-        {
-            return {};
-        }
-
-        std::ostringstream contents;
-        contents << file.rdbuf();
-        return contents.str();
+        return TestSupport::readTextFile(path);
     }
 
     /// @brief Reads and concatenates every regular file in a directory.
@@ -448,7 +328,7 @@ namespace
     {
         Logger::shutdown();
         const std::filesystem::path directory = context.logRoot / std::string(name);
-        std::filesystem::create_directories(directory);
+        TestSupport::createDirectories(directory);
         const std::string directoryText = pathText(directory);
 
         Logger::Types::Config config;
@@ -1012,8 +892,8 @@ namespace
     {
         std::cout.flush();
         std::cerr.flush();
-        const int result = runChildProcess(context.executablePath, argument);
-        context.expectTrue(testName, result != 0, "child process returned zero");
+        const TestSupport::Types::ChildProcessResult result = runChildProcessResult(context.executablePath, argument);
+        context.expectTrue(testName, result.exitedWithFailure(), "child process returned zero");
     }
 
     /// @brief Verifies a failed ASSERT triggers an abnormal child-process exit when assertions are enabled.
@@ -1029,7 +909,7 @@ namespace
         }
 
         const std::filesystem::path childLogDirectory = context.logRoot / "assert_child";
-        std::filesystem::create_directories(childLogDirectory);
+        TestSupport::createDirectories(childLogDirectory);
         const ScopedEnvironmentVariable childLogDirectoryOverride(childLogDirectoryEnvironmentVariable, pathText(childLogDirectory));
         const ScopedEnvironmentVariable suppressPopupOverride(suppressPopupEnvironmentVariable, "1");
 
@@ -1057,7 +937,7 @@ namespace
         }
 
         const std::filesystem::path childLogDirectory = context.logRoot / "interactive_abort_child";
-        std::filesystem::create_directories(childLogDirectory);
+        TestSupport::createDirectories(childLogDirectory);
         const ScopedEnvironmentVariable childLogDirectoryOverride(childLogDirectoryEnvironmentVariable, pathText(childLogDirectory));
         const ScopedEnvironmentVariable testAction(testActionEnvironmentVariable, "abort");
 
@@ -1085,7 +965,7 @@ namespace
         }
 
         const std::filesystem::path childLogDirectory = context.logRoot / "interactive_break_child";
-        std::filesystem::create_directories(childLogDirectory);
+        TestSupport::createDirectories(childLogDirectory);
         const ScopedEnvironmentVariable childLogDirectoryOverride(childLogDirectoryEnvironmentVariable, pathText(childLogDirectory));
         const ScopedEnvironmentVariable testAction(testActionEnvironmentVariable, "break");
 
@@ -1183,7 +1063,7 @@ namespace
         if (options.enableChildCrashTests)
         {
             const std::filesystem::path childLogDirectory = context.logRoot / "manual_interactive_abort_child";
-            std::filesystem::create_directories(childLogDirectory);
+            TestSupport::createDirectories(childLogDirectory);
             const ScopedEnvironmentVariable childLogDirectoryOverride(childLogDirectoryEnvironmentVariable, pathText(childLogDirectory));
             const ScopedClearedEnvironmentVariable clearChildTestAction(testActionEnvironmentVariable);
             const ScopedClearedEnvironmentVariable clearChildSuppressPopup(suppressPopupEnvironmentVariable);
@@ -1306,7 +1186,7 @@ namespace
                 performanceSink));
         }
         context.emit(std::format("[SUMMARY] Assert tests completed in {:.3f} ms\n", milliseconds));
-        context.emit(std::format("[RESULT] assert passed={} failed={}\n", context.passed, context.failed));
+        context.emit(std::format("[RESULT] assert passed={} failed={} skipped={}\n", context.result().passed, context.result().failed, context.result().skipped));
     }
 }
 
@@ -1318,14 +1198,6 @@ namespace GameWIP::Test
         {
             return runAssertFailureChild();
         }
-        if (hasArgument(argc, argv, debugBreakChildArgument))
-        {
-            return runDebugBreakChild();
-        }
-        if (hasArgument(argc, argv, unreachableChildArgument))
-        {
-            return runUnreachableChild();
-        }
         if (hasArgument(argc, argv, interactiveAbortChildArgument))
         {
             return runInteractiveAbortChild();
@@ -1334,81 +1206,113 @@ namespace GameWIP::Test
         {
             return runInteractiveBreakChild();
         }
-
-        const auto suiteStart = Clock::now();
-        TestContext context;
-        context.executablePath = argc > 0 && argv[0] != nullptr ? argv[0] : "";
-        context.logRoot = makeRunRoot();
-        std::filesystem::create_directories(context.logRoot);
-
-        openReportFile(context, options);
-        context.emit(std::format("[INFO] Assert test log root: {}\n", pathText(context.logRoot)));
-        context.emit(std::format(
-            "[INFO] Assert config: runtime={} enabled={} checks={} diagnostics={} popupAssert={} popupCheck={}\n",
-            GAMEWIP_ASSERT_RUNTIME,
-            GAMEWIP_ASSERT_ENABLED,
-            GAMEWIP_ASSERT_CHECKS_ENABLED,
-            GAMEWIP_ASSERT_DIAGNOSTICS,
-            GAMEWIP_ASSERT_POPUP_ON_ASSERT,
-            GAMEWIP_ASSERT_POPUP_ON_CHECK));
-        context.emit(std::format(
-            "[INFO] Assert test options: stress={} fatalChild={} performance={} automatedInteractive={} manualUi={} perfIterations={} stressThreads={} stressIterations={} report={}\n",
-            options.enableStressTests,
-            options.enableChildCrashTests,
-            options.enablePerformanceMetrics,
-            options.enableAutomatedInteractiveTests,
-            options.enableManualUiTests,
-            options.performanceIterations,
-            options.stressThreadCount,
-            options.stressIterations,
-            options.writeReport ? options.reportPath.string() : std::string_view{"disabled"}));
-        try
+        if (hasArgument(argc, argv, debugBreakChildArgument))
         {
-            testPassingMacros(context);
-            testDisabledMacroEvaluation(context);
-            testVerifyEvaluation(context);
-            testEnsureBehavior(context);
-            testCheckOnceLogging(context);
-            testDiagnosticConfiguration(context);
-            testDiagnosticMessageEvaluation(context);
-            testCompiledOutMessageEvaluation(context);
-            testAssertTestHooks(context);
-            if (options.enableAutomatedInteractiveTests)
+            return runDebugBreakChild();
+        }
+        if (hasArgument(argc, argv, unreachableChildArgument))
+        {
+            return runUnreachableChild();
+        }
+
+        TestSupport::Types::ReportOptions reportOptions;
+        reportOptions.writeConsole = true;
+        reportOptions.writeReport = options.writeReport;
+        reportOptions.appendReport = options.appendReport;
+        reportOptions.reportPath = options.reportPath;
+
+        TestSupport::Runner runner(reportOptions);
+        runner.info(std::format("Assert test report: {}", options.writeReport ? options.reportPath.string() : std::string{"disabled"}));
+
+        const TestSupport::Types::SuiteResult suite = runner.runSuite(
+            "Assert",
+            [&](TestSupport::Context &suiteContext)
             {
-                testInteractiveIgnoreOnce(context);
-                testInteractiveAlwaysIgnore(context);
-                testVerifyInteractiveEvaluation(context);
-                testVerifyInteractiveAlwaysIgnoreStillEvaluates(context);
-                testInteractiveStressLoops(context, options);
-                testInteractiveAbortChild(context, options);
-                testInteractiveBreakChild(context, options);
-            }
-            else
-            {
-                context.pass("automated interactive assert tests skipped by AssertTestOptions");
-            }
-            testCheckOnceThreadStress(context, options);
-            testAssertFailureChild(context, options);
-            testDebugBreakChild(context);
-            testUnreachableChild(context);
-            testManualAssertUi(context, options);
-            runPerformanceMetrics(context, options);
-            Logger::shutdown();
-        }
-        catch (const std::exception &exception)
-        {
-            Logger::shutdown();
-            context.fail("uncaught exception", exception.what());
-        }
-        catch (...)
-        {
-            Logger::shutdown();
-            context.fail("uncaught exception", "unknown exception");
-        }
+                TestSupport::Timer suiteTimer;
+                TestContext context(suiteContext);
+                context.executablePath = argc > 0 && argv[0] != nullptr ? argv[0] : "";
+                context.logRoot = makeRunRoot();
+                TestSupport::createDirectories(context.logRoot);
 
-        const auto suiteEnd = Clock::now();
-        const double suiteMilliseconds = std::chrono::duration<double, std::milli>(suiteEnd - suiteStart).count();
-        printSummary(context, suiteMilliseconds);
-        return context.failed == 0 ? 0 : 1;
+                context.emit(std::format("[INFO] Assert test log root: {}\n", pathText(context.logRoot)));
+                context.emit(std::format(
+                    "[INFO] Assert config: runtime={} enabled={} checks={} diagnostics={} popupAssert={} popupCheck={}\n",
+                    GAMEWIP_ASSERT_RUNTIME,
+                    GAMEWIP_ASSERT_ENABLED,
+                    GAMEWIP_ASSERT_CHECKS_ENABLED,
+                    GAMEWIP_ASSERT_DIAGNOSTICS,
+                    GAMEWIP_ASSERT_POPUP_ON_ASSERT,
+                    GAMEWIP_ASSERT_POPUP_ON_CHECK));
+                context.emit(std::format(
+                    "[INFO] Assert test options: stress={} fatalChild={} performance={} automatedInteractive={} manualUi={} perfIterations={} stressThreads={} stressIterations={} report={}\n",
+                    options.enableStressTests,
+                    options.enableChildCrashTests,
+                    options.enablePerformanceMetrics,
+                    options.enableAutomatedInteractiveTests,
+                    options.enableManualUiTests,
+                    options.performanceIterations,
+                    options.stressThreadCount,
+                    options.stressIterations,
+                    options.writeReport ? options.reportPath.string() : std::string{"disabled"}));
+
+                runCase(context, "passing macros", [&]
+                        { testPassingMacros(context); });
+                runCase(context, "disabled macro evaluation", [&]
+                        { testDisabledMacroEvaluation(context); });
+                runCase(context, "VERIFY evaluation", [&]
+                        { testVerifyEvaluation(context); });
+                runCase(context, "ENSURE behavior", [&]
+                        { testEnsureBehavior(context); });
+                runCase(context, "CHECK_ONCE logging", [&]
+                        { testCheckOnceLogging(context); });
+                runCase(context, "diagnostic configuration", [&]
+                        { testDiagnosticConfiguration(context); });
+                runCase(context, "diagnostic message evaluation", [&]
+                        { testDiagnosticMessageEvaluation(context); });
+                runCase(context, "compiled-out message evaluation", [&]
+                        { testCompiledOutMessageEvaluation(context); });
+                runCase(context, "assert test hooks", [&]
+                        { testAssertTestHooks(context); });
+                runCase(context, "automated interactive assert tests", [&]
+                        {
+                    if (options.enableAutomatedInteractiveTests)
+                    {
+                        testInteractiveIgnoreOnce(context);
+                        testInteractiveAlwaysIgnore(context);
+                        testVerifyInteractiveEvaluation(context);
+                        testVerifyInteractiveAlwaysIgnoreStillEvaluates(context);
+                        testInteractiveStressLoops(context, options);
+                        testInteractiveAbortChild(context, options);
+                        testInteractiveBreakChild(context, options);
+                    }
+                    else
+                    {
+                        context.pass("automated interactive assert tests skipped by AssertTestOptions");
+                    } });
+                runCase(context, "CHECK_ONCE thread stress", [&]
+                        { testCheckOnceThreadStress(context, options); });
+                runCase(context, "ASSERT failure child", [&]
+                        { testAssertFailureChild(context, options); });
+                runCase(context, "DEBUG_BREAK child", [&]
+                        { testDebugBreakChild(context); });
+                runCase(context, "UNREACHABLE child", [&]
+                        { testUnreachableChild(context); });
+                runCase(context, "manual assert UI", [&]
+                        { testManualAssertUi(context, options); });
+                runCase(context, "performance metrics", [&]
+                        { runPerformanceMetrics(context, options); });
+                Logger::shutdown();
+                printSummary(context, suiteTimer.elapsedMilliseconds());
+            });
+
+        runner.summary(std::format(
+            "assert passed={} failed={} skipped={} elapsedMs={:.3f}",
+            suite.summary.passed,
+            suite.summary.failed,
+            suite.summary.skipped,
+            suite.elapsedMilliseconds));
+        Logger::shutdown();
+        return runner.exitCode();
     }
+
 }

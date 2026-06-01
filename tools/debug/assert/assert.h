@@ -148,6 +148,9 @@ static_assert(GAMEWIP_ASSERT_UNREACHABLE_ASSUME == 0 || GAMEWIP_ASSERT_UNREACHAB
 
 namespace GameWIP::Debug::Assert
 {
+    /// @name Runtime support
+    /// @{
+
     /// @brief Action selected for an interactive fatal assertion failure.
     ///
     /// @details Used by ASSERT_INTERACTIVE / VERIFY_INTERACTIVE failure handling.
@@ -178,6 +181,7 @@ namespace GameWIP::Debug::Assert
     /// @see DEBUG_BREAK
     GAMEWIP_ASSERT_API void debugBreak() noexcept;
 #endif
+    /// @}
 }
 
 /// @cond GAMEWIP_ASSERT_DETAIL
@@ -285,6 +289,8 @@ namespace GameWIP::Debug::Assert::Detail
 //-------------------------------------------------------------------------------------------------
 // Assertion macros
 //-------------------------------------------------------------------------------------------------
+/// @name Fatal assertion macros
+/// @{
 
 #if GAMEWIP_ASSERT_ENABLED
 /// @def ASSERT(condition)
@@ -467,10 +473,13 @@ namespace GameWIP::Debug::Assert::Detail
 /// @brief Marks a code path that should never execute.
 #define UNREACHABLE() ::GameWIP::Debug::Assert::Detail::unreachableHint()
 #endif
+/// @}
 
 //-------------------------------------------------------------------------------------------------
 // Check macros
 //-------------------------------------------------------------------------------------------------
+/// @name Recoverable check macros
+/// @{
 
 #if GAMEWIP_ASSERT_CHECKS_ENABLED
 /// @def CHECK(condition)
@@ -603,10 +612,13 @@ namespace GameWIP::Debug::Assert::Detail
 /// @return true when condition is true, false otherwise.
 #define ENSURE_MSG(condition, message) (static_cast<bool>(condition))
 #endif
+/// @}
 
 //-------------------------------------------------------------------------------------------------
 // Debug break macro
 //-------------------------------------------------------------------------------------------------
+/// @name Debug break macro
+/// @{
 
 /// @def DEBUG_BREAK()
 /// @brief Triggers a platform debugger break regardless of assert/check enablement.
@@ -619,3 +631,4 @@ namespace GameWIP::Debug::Assert::Detail
     {                                                         \
         ::GameWIP::Debug::Assert::Detail::debugBreakInline(); \
     } while (false)
+/// @}

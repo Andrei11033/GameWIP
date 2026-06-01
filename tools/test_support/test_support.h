@@ -62,6 +62,9 @@ namespace GameWIP::TestSupport
     }
     /// @endcond
 
+    /// @name Reporting and result types
+    /// @{
+
     /// @brief Public passive TestSupport type collection used by reports, suites, child processes, and manual checks.
     namespace Types
     {
@@ -124,8 +127,12 @@ namespace GameWIP::TestSupport
             [[nodiscard]] double nanosecondsPerIteration() const noexcept;
         };
     }
+    /// @}
 
     class Timer;
+
+    /// @name Suite reporting
+    /// @{
 
     /// @brief Test context passed to suite functions.
     /// Thread-safety: public recording methods serialize summary updates and report writes.
@@ -142,6 +149,9 @@ namespace GameWIP::TestSupport
 
         Context(const Context &) = delete;
         Context &operator=(const Context &) = delete;
+
+        /// @name Recording methods
+        /// @{
 
         /// @brief Writes an informational line without changing result counts.
         /// @param message Text written after the `[INFO]` category and suite name.
@@ -175,6 +185,10 @@ namespace GameWIP::TestSupport
         /// @param name Check or scenario name written into the report.
         /// @param reason Skip reason written into the report.
         void skip(std::string_view name, std::string_view reason);
+        /// @}
+
+        /// @name Expectations
+        /// @{
 
         /// @brief Expects value to be true.
         /// @param name Check name written into the report.
@@ -277,6 +291,10 @@ namespace GameWIP::TestSupport
             std::string_view text,
             std::size_t expectedCount,
             std::source_location location = std::source_location::current());
+        /// @}
+
+        /// @name Result queries
+        /// @{
 
         /// @brief Returns the suite name copied at construction.
         [[nodiscard]] const std::string &suiteName() const noexcept;
@@ -284,6 +302,7 @@ namespace GameWIP::TestSupport
         [[nodiscard]] Types::Summary result() const noexcept;
         /// @brief Returns result().ok().
         [[nodiscard]] bool ok() const noexcept;
+        /// @}
 
     private:
         friend class Runner;
@@ -363,6 +382,10 @@ namespace GameWIP::TestSupport
         std::string name_;
         std::unique_ptr<Timer> timer_;
     };
+    /// @}
+
+    /// @name Timing helpers
+    /// @{
 
     /// @brief Monotonic elapsed-time helper for test metrics.
     class Timer
@@ -384,6 +407,10 @@ namespace GameWIP::TestSupport
 
         Clock::time_point start_;
     };
+    /// @}
+
+    /// @name File helpers
+    /// @{
 
     /// @brief Reads an entire text file, returning empty text when it cannot be opened.
     /// @param path Text file path.
@@ -427,6 +454,10 @@ namespace GameWIP::TestSupport
     /// @param path File or directory tree to remove.
     /// @note Removal errors are intentionally ignored for cleanup convenience in tests.
     void removeIfExists(const std::filesystem::path &path);
+    /// @}
+
+    /// @name Environment helpers
+    /// @{
 
     /// @brief Temporarily sets an environment variable and restores the previous state on destruction.
     /// Thread-safety: process environment mutation is serialized inside this library. Other process environment access is still process-global.
@@ -471,6 +502,10 @@ namespace GameWIP::TestSupport
         std::string name_;
         std::optional<std::string> previousValue_;
     };
+    /// @}
+
+    /// @name Child-process and manual-check types
+    /// @{
 
     namespace Types
     {
@@ -533,6 +568,10 @@ namespace GameWIP::TestSupport
             Skipped
         };
     }
+    /// @}
+
+    /// @name Child-process and manual-check helpers
+    /// @{
 
     /// @brief Runs one child process.
     /// @param options Launch path, arguments, environment, timeout, and capture settings.
@@ -544,6 +583,10 @@ namespace GameWIP::TestSupport
     /// @param question Prompt text shown to the user.
     /// @return Manual answer selected by the user, or Types::ManualAnswer::Skipped on EOF.
     Types::ManualAnswer promptManualCheck(std::string_view question);
+    /// @}
+
+    /// @name Stress helpers
+    /// @{
 
     /// @brief Gate that blocks worker threads until opened.
     class StartGate
@@ -581,6 +624,7 @@ namespace GameWIP::TestSupport
     /// @note Each worker receives its own callable copy, so mutable callable state is not shared between workers.
     template <typename WorkerFunction>
     void runWorkers(std::size_t workerCount, WorkerFunction &&workerFunction);
+    /// @}
 
     template <typename Expected, typename Actual>
     bool Context::expectEq(

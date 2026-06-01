@@ -4,24 +4,16 @@ The GameWIP Assert library provides fatal assertions, recoverable checks, and op
 
 The assert library reports through the Logger library. Fatal assertion paths use synchronous logger reports so failure diagnostics are written immediately.
 
-## User manual
+## Documentation sections
 
-- @subpage assert_quick_start
-- @subpage assert_public_api
-- @subpage assert_macros
-- @subpage assert_macro_behavior
-- @subpage assert_diagnostics
-- @subpage assert_interactive
-- @subpage assert_failure_actions
-- @subpage assert_troubleshooting
-- @subpage assert_examples
+- @subpage assert_getting_started
+- @subpage assert_api_reference
+- @subpage assert_macro_behavior_group
+- @subpage assert_developer_validation
 
-## Developer validation references
+## Normal user path
 
-These pages are for maintainers validating the library, not for normal assert use:
-
-- @subpage assert_testing
-- @subpage assert_test_hooks
+Most users should read Assert getting started first, then Assert API reference. Macro behavior pages are the source of truth for enabled/disabled expression evaluation, diagnostics, fatal behavior, recoverable checks, and interactive developer actions. Developer validation pages are generated for maintainers and rare-path testing.
 
 ## Key behavior
 

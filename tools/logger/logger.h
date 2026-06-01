@@ -53,6 +53,8 @@ namespace GameWIP
     {
     public:
         // Public types and configuration ----------------------------------------------------------
+        /// @name Public types and configuration
+        /// @{
 
         /// @brief Public Logger type collection used by configuration, filtering, reporting, and statistics APIs.
         ///
@@ -313,6 +315,7 @@ namespace GameWIP
                 bool processMemoryAvailable = false;
             };
         };
+        /// @}
 
     private:
         // Source enum conversion helpers ----------------------------------------------------------
@@ -342,6 +345,8 @@ namespace GameWIP
 
     public:
         // Source and format helpers ---------------------------------------------------------------
+        /// @name Source and format helpers
+        /// @{
 
         /// @brief Creates a registered source definition from an unsigned enum value and display name.
         /// @param value Enum value to store as the stable SourceId.
@@ -369,8 +374,11 @@ namespace GameWIP
         {
             return Types::FlushTimeout{value};
         }
+        /// @}
 
         // Lifecycle and state queries -------------------------------------------------------------
+        /// @name Lifecycle
+        /// @{
 
         /// @brief Starts the async logger with copied source definitions and preallocated queue storage.
         /// @param config Startup configuration. Source and filter spans only need to live through this call.
@@ -410,6 +418,10 @@ namespace GameWIP
         /// @return True when the queue drained and sinks flushed before timeout expired.
         /// @note Concurrent producers may enqueue after flush(timeout) observes the queue as drained; this is not a stop-the-world barrier.
         static bool flush(std::chrono::milliseconds timeout);
+        /// @}
+
+        /// @name Runtime inspection
+        /// @{
 
         /// @brief Returns true while the worker thread is active and normal logs may be accepted.
         /// @return True after successful init and before shutdown begins.
@@ -446,8 +458,11 @@ namespace GameWIP
         static Types::MemoryStats getMemoryStats();
         /// @brief Resets visible Types::Stats counters without clearing lifetime queue-drop reporting state.
         static void resetStats();
+        /// @}
 
         // Runtime filters -------------------------------------------------------------------------
+        /// @name Runtime filters
+        /// @{
 
         /// @brief Cheap side-effect-free guard for severity-only string source logs.
         /// @param level Severity to test.
@@ -519,8 +534,11 @@ namespace GameWIP
         {
             return clearSourceFilter(sourceId(source));
         }
+        /// @}
 
         // Generic logging overloads ---------------------------------------------------------------
+        /// @name Normal logging
+        /// @{
 
         /// @brief Logs a preformatted message with a string source.
         /// @param level Severity for this message.
@@ -1127,8 +1145,11 @@ namespace GameWIP
         {
             runtimeFormatAndLog(Types::Level::Fatal, sourceId(source), format, args...);
         }
+        /// @}
 
         // Reporting and platform debug output overloads ----------------------------------------------------
+        /// @name Reports and debug output
+        /// @{
 
         /// @brief Synchronously reports a preformatted diagnostic with a string source and no logger-owned popup.
         /// @details report() bypasses min-level/source filters and the async queue. It writes immediately
@@ -1952,6 +1973,7 @@ namespace GameWIP
         /// @param source Source text to write.
         /// @param message Message text to write.
         static void writeDebugOutput(Types::Level level, std::string_view source, std::string_view message);
+        /// @}
 
     private:
         // Template implementation helpers ---------------------------------------------------------

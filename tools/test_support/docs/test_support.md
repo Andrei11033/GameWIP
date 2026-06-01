@@ -4,17 +4,15 @@ The GameWIP TestSupport library is the shared support layer for GameWIP test exe
 
 It provides generic test reporting, expectations, suite running, file helpers, scoped environment changes, child process execution, manual checks, timing metrics, and small stress-test helpers. It does not depend on Logger or Assert, and it does not contain Logger-specific, Assert-specific, or engine-simulation test logic.
 
-## User manual
+## Documentation sections
 
-- @subpage test_support_quick_start
-- @subpage test_support_public_api
-- @subpage test_support_expectations
-- @subpage test_support_reports
-- @subpage test_support_files_environment
-- @subpage test_support_child_processes
-- @subpage test_support_manual_tests
-- @subpage test_support_timing_stress
-- @subpage test_support_examples
+- @subpage test_support_getting_started
+- @subpage test_support_api_reference
+- @subpage test_support_test_workflows
+
+## Normal user path
+
+Most users should read TestSupport getting started first, then TestSupport API reference. Test workflows group expectations, reporting, child-process tests, timing, and stress helpers.
 
 ## Key behavior
 

@@ -10,6 +10,17 @@ This page is the user-facing guide for the Assert public API. Header comments st
 
 The primary API is macro-based. The macros are intentionally global because assertion syntax should stay short at call sites.
 
+## API family map
+
+| Family | Public API | Primary behavior |
+| --- | --- | --- |
+| Runtime support | `GameWIP::Debug::Assert::FailureAction`, `debugBreak()` | Interactive action values and the runtime debug-break function used by `DEBUG_BREAK()`. |
+| Fatal assertions | `ASSERT`, `ASSERT_MSG`, `VERIFY`, `VERIFY_MSG`, `UNREACHABLE` | Fatal diagnostics for invariants and impossible control flow. |
+| Interactive assertions | `ASSERT_INTERACTIVE`, `ASSERT_INTERACTIVE_MSG`, `VERIFY_INTERACTIVE`, `VERIFY_INTERACTIVE_MSG` | Fatal diagnostics with developer-selected Break, Abort, Ignore Once, or Always Ignore actions. |
+| Recoverable checks | `CHECK`, `CHECK_MSG`, `CHECK_ONCE`, `CHECK_ONCE_MSG`, `ENSURE`, `ENSURE_MSG` | Error diagnostics that continue execution; `ENSURE` returns the checked boolean. |
+| Debug break | `DEBUG_BREAK` | Explicit debugger/trap breakpoint independent of assertion settings. |
+| Configuration | `GAMEWIP_ASSERT_*` macros | Compile-time behavior switches normally set by CMake. |
+
 ## Configuration macros
 
 | Macro | Purpose |
@@ -44,6 +55,16 @@ Triggers the platform debugger break instruction. Most code should use `DEBUG_BR
 
 ## Fatal assertion macros
 
+### Fatal macro overload matrix
+
+| Macro form | Enabled expression evaluation | Disabled expression evaluation | Message evaluation | Failure behavior |
+| --- | --- | --- | --- | --- |
+| `ASSERT(condition)` | Evaluates condition. | Does not evaluate condition. | No message expression. | Fatal Logger report, optional popup, debugger break only when attached, then abort. |
+| `ASSERT_MSG(condition, message)` | Evaluates condition. | Does not evaluate condition or message. | Message is evaluated only on failure when diagnostics need it. | Same as `ASSERT`. |
+| `VERIFY(condition)` | Evaluates condition. | Evaluates condition. | No message expression. | Same fatal path as `ASSERT` when enabled and false. |
+| `VERIFY_MSG(condition, message)` | Evaluates condition. | Evaluates condition, not message. | Message is evaluated only on failure when diagnostics need it. | Same fatal path as `VERIFY`. |
+| `UNREACHABLE()` | No condition. | Uses configured trap/unreachable hint. | No message expression. | Fatal assertion path when enabled. |
+
 ### `ASSERT(condition)`
 
 Use `ASSERT` for invariants that should never be false during development. When assertions are enabled, the condition is evaluated. A false result synchronously reports through Logger at Fatal severity, may show the assert popup, breaks only when a debugger is attached, and then aborts.
@@ -63,6 +84,17 @@ Use `VERIFY` when the expression must always execute because it has side effects
 Same as `VERIFY`, but includes a custom diagnostic message on failure.
 
 ## Recoverable check macros
+
+### Recoverable macro overload matrix
+
+| Macro form | Enabled expression evaluation | Disabled expression evaluation | Message evaluation | Failure behavior |
+| --- | --- | --- | --- | --- |
+| `CHECK(condition)` | Evaluates condition. | Does not evaluate condition. | No message expression. | Error Logger report, then continue. |
+| `CHECK_MSG(condition, message)` | Evaluates condition. | Does not evaluate condition or message. | Message is evaluated only on failure when diagnostics need it. | Same as `CHECK`. |
+| `CHECK_ONCE(condition)` | Evaluates condition until first reported failure, then suppresses later reports from that call site. | Does not evaluate condition. | No message expression. | First failure reports Error, then all calls continue. |
+| `CHECK_ONCE_MSG(condition, message)` | Same as `CHECK_ONCE`. | Does not evaluate condition or message. | Message is evaluated only for the first reported failure. | Same as `CHECK_ONCE`. |
+| `ENSURE(condition)` | Evaluates condition exactly once. | Evaluates condition exactly once. | No message expression. | Reports Error when enabled and false, then returns bool. |
+| `ENSURE_MSG(condition, message)` | Evaluates condition exactly once. | Evaluates condition exactly once, not message. | Message is evaluated only on enabled false results when diagnostics need it. | Same as `ENSURE`. |
 
 ### `CHECK(condition)`
 
@@ -100,6 +132,15 @@ if (!ENSURE(loadConfig()))
 Same as `ENSURE`, but includes a custom message on false results.
 
 ## Interactive assertion macros
+
+### Interactive overload matrix
+
+| Macro form | Enabled expression evaluation | Disabled expression evaluation | Message evaluation | Failure choices |
+| --- | --- | --- | --- | --- |
+| `ASSERT_INTERACTIVE(condition)` | Evaluates condition unless the call site is Always Ignored. | Does not evaluate condition. | No message expression. | Break, Abort, Ignore Once, Always Ignore. |
+| `ASSERT_INTERACTIVE_MSG(condition, message)` | Same as `ASSERT_INTERACTIVE`. | Does not evaluate condition or message. | Message is evaluated only on failure when diagnostics need it. | Same choices. |
+| `VERIFY_INTERACTIVE(condition)` | Evaluates condition. | Evaluates condition. | No message expression. | Same choices when enabled and false. |
+| `VERIFY_INTERACTIVE_MSG(condition, message)` | Evaluates condition. | Evaluates condition, not message. | Message is evaluated only on failure when diagnostics need it. | Same choices. |
 
 Interactive assertions are developer tools for failures where continuing may be useful while debugging.
 

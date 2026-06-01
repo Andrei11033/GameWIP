@@ -52,7 +52,7 @@ The generated Doxyfile must use explicit inputs, `RECURSIVE = NO`, public header
 
 ## Navigation style
 
-The root page links only to major sections, such as Logger and Assert. Each library landing page owns its child page list with `@subpage` links. This keeps the sidebar useful instead of flattening every guide page under the root page.
+The root page links only to major sections, such as Logger, Assert, and TestSupport. Each library landing page owns its child page list with `@subpage` links. This keeps the sidebar useful instead of flattening every guide page under the root page.
 
 ## Test hooks
 
