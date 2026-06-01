@@ -93,4 +93,8 @@ namespace GameWIP::LoggerDetail::Platform
     /// @brief Queries process-level memory counters from the platform.
     /// @return Current process memory values, or available false on failure.
     ProcessMemory queryProcessMemory();
+
+    /// @brief Returns reusable per-thread format storage through the platform backend.
+    /// @return Mutable per-thread scratch string.
+    std::string &formatScratchForThread();
 }

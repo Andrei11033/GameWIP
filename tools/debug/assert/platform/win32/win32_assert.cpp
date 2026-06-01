@@ -50,8 +50,8 @@ namespace
 #if GAMEWIP_ASSERT_TEST_HOOKS
     struct AssertTestHookState
     {
-        std::atomic_bool nextTaskDialogFailure{false};
-        std::atomic_bool nextMessageBoxFailure{false};
+        std::atomic_bool nextActionDialogFailure{false};
+        std::atomic_bool nextFallbackActionDialogFailure{false};
         std::atomic_bool debuggerAttachedOverrideEnabled{false};
         std::atomic_bool debuggerAttachedOverrideValue{false};
         std::atomic_bool popupSuppressedOverrideEnabled{false};
@@ -202,7 +202,7 @@ namespace
     FailureAction fallbackMessageBoxAction(const wchar_t *title, const wchar_t *message, FailureAction defaultAction) noexcept
     {
 #if GAMEWIP_ASSERT_TEST_HOOKS
-        if (consumeTestHook(assertTestHookState.nextMessageBoxFailure))
+        if (consumeTestHook(assertTestHookState.nextFallbackActionDialogFailure))
         {
             return defaultAction;
         }
@@ -228,22 +228,22 @@ namespace GameWIP::Debug::Assert::TestHooks
 {
     void reset() noexcept
     {
-        assertTestHookState.nextTaskDialogFailure.store(false, std::memory_order_release);
-        assertTestHookState.nextMessageBoxFailure.store(false, std::memory_order_release);
+        assertTestHookState.nextActionDialogFailure.store(false, std::memory_order_release);
+        assertTestHookState.nextFallbackActionDialogFailure.store(false, std::memory_order_release);
         assertTestHookState.debuggerAttachedOverrideEnabled.store(false, std::memory_order_release);
         assertTestHookState.debuggerAttachedOverrideValue.store(false, std::memory_order_release);
         assertTestHookState.popupSuppressedOverrideEnabled.store(false, std::memory_order_release);
         assertTestHookState.popupSuppressedOverrideValue.store(false, std::memory_order_release);
     }
 
-    void forceNextTaskDialogFailure() noexcept
+    void forceNextActionDialogFailure() noexcept
     {
-        assertTestHookState.nextTaskDialogFailure.store(true, std::memory_order_release);
+        assertTestHookState.nextActionDialogFailure.store(true, std::memory_order_release);
     }
 
-    void forceNextMessageBoxFailure() noexcept
+    void forceNextFallbackActionDialogFailure() noexcept
     {
-        assertTestHookState.nextMessageBoxFailure.store(true, std::memory_order_release);
+        assertTestHookState.nextFallbackActionDialogFailure.store(true, std::memory_order_release);
     }
 
     void setDebuggerAttachedOverride(bool attached) noexcept
@@ -285,14 +285,14 @@ namespace GameWIP::Debug::Assert::TestHooks
 
     namespace Detail
     {
-        bool consumeNextTaskDialogFailure() noexcept
+        bool consumeNextActionDialogFailure() noexcept
         {
-            return consumeTestHook(assertTestHookState.nextTaskDialogFailure);
+            return consumeTestHook(assertTestHookState.nextActionDialogFailure);
         }
 
-        bool consumeNextMessageBoxFailure() noexcept
+        bool consumeNextFallbackActionDialogFailure() noexcept
         {
-            return consumeTestHook(assertTestHookState.nextMessageBoxFailure);
+            return consumeTestHook(assertTestHookState.nextFallbackActionDialogFailure);
         }
 
         bool debuggerAttachedOverride(bool &attached) noexcept
@@ -367,7 +367,7 @@ namespace GameWIP::Debug::Assert::Platform
 
         int selectedButton = buttonIdForAction(defaultAction);
 #if GAMEWIP_ASSERT_TEST_HOOKS
-        const bool forceTaskDialogFailure = consumeTestHook(assertTestHookState.nextTaskDialogFailure);
+        const bool forceTaskDialogFailure = consumeTestHook(assertTestHookState.nextActionDialogFailure);
 #else
         const bool forceTaskDialogFailure = false;
 #endif

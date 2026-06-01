@@ -130,6 +130,14 @@ Public API organization standard
 - Do not add top-level aliases for `Types` members unless compatibility with already-shipped API requires it. Keeping passive data under `Types` makes IntelliSense and docs easier to scan.
 - Current examples: Logger keeps `Types::Config`, `Types::Stats`, and `Types::Result` under `Types`; TestSupport keeps `Types::ReportOptions`, `Types::Summary`, and `Types::ChildProcessResult` under `Types`, while `Context`, `Runner`, `Timer`, `ScopedEnvironmentVariable`, and `runChildProcess()` remain directly under `GameWIP::TestSupport`.
 
+Platform backend standard
+-------------------------
+GameWIP tool libraries keep public headers and `core/` implementations platform-neutral. OS-specific behavior lives behind internal platform headers and source files under `platform/<platform-id>/`.
+
+`cmake/GameWIPPlatform.cmake` resolves `GAMEWIP_PLATFORM_ID`. Current Windows builds use `win32`. Library CMake files consume `platform/${GAMEWIP_PLATFORM_ID}/*.cpp` by convention and optionally include `platform/${GAMEWIP_PLATFORM_ID}/platform.cmake` for platform-only link libraries, resources, compile definitions, or generated files.
+
+Adding a new platform should normally require adding the matching `platform/<platform-id>/` backend files and, when needed, that folder's `platform.cmake`. It should not require editing core implementation files or adding more platform-specific branches to the library root CMake files. Shared internal contracts and test hooks should use backend-neutral names unless the hook is intentionally scoped to one backend.
+
 Windows Unicode backend standard
 --------------------------------
 Windows platform code uses explicit Unicode Win32 APIs. Public GameWIP C++ APIs stay portable and ergonomic by using `std::string` for UTF-8 text and `std::filesystem::path` for paths. At the Win32 boundary, platform backends convert to UTF-16 and call explicit `W` APIs such as `CreateProcessW`, `MessageBoxW`, `GetEnvironmentStringsW`, `SetEnvironmentVariableW`, and `OutputDebugStringW`.

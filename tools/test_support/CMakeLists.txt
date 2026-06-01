@@ -1,6 +1,11 @@
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 
+if(NOT COMMAND gamewip_target_platform_sources)
+    include("${PROJECT_SOURCE_DIR}/cmake/GameWIPPlatform.cmake")
+    gamewip_resolve_platform_id(GAMEWIP_PLATFORM_ID)
+endif()
+
 add_library(TestSupport STATIC)
 
 add_library(GameWIP::TestSupport ALIAS TestSupport)
@@ -9,13 +14,7 @@ target_sources(TestSupport PRIVATE
     core/test_support.cpp
 )
 
-if(WIN32)
-    target_sources(TestSupport PRIVATE
-        platform/win32/win32_child_process.cpp
-    )
-else()
-    message(FATAL_ERROR "TestSupport has no child-process backend for this operating system yet.")
-endif()
+gamewip_target_platform_sources(TestSupport TestSupport "${CMAKE_CURRENT_SOURCE_DIR}/platform")
 
 target_include_directories(TestSupport PUBLIC
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/tools>
@@ -51,6 +50,7 @@ install(DIRECTORY "${PROJECT_SOURCE_DIR}/tools/test_support"
     FILES_MATCHING
         PATTERN "*.h"
         PATTERN "*.hpp"
+        PATTERN "internal" EXCLUDE
 )
 
 configure_package_config_file(

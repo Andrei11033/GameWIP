@@ -14,8 +14,8 @@ This maps to the library-local `ASSERT_TEST_HOOKS` option and exports `GAMEWIP_A
 
 Hooks make rare paths deterministic:
 
-- force TaskDialog fallback,
-- force MessageBox fallback/default behavior,
+- force primary action-dialog fallback,
+- force fallback action-dialog/default behavior,
 - override debugger-attached checks,
 - override popup suppression behavior,
 - reset forced state between tests.

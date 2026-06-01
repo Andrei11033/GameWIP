@@ -93,10 +93,14 @@ if(GAMEWIP_BUILD_DOCS)
         "${GAMEWIP_DOXYGEN_ROOT}/build.md"
         "${GAMEWIP_DOXYGEN_ROOT}/coverage.md"
         "${GAMEWIP_DOXYGEN_ROOT}/documentation.md"
+        "${GAMEWIP_DOXYGEN_ROOT}/platform_backends.md"
         "${GAMEWIP_DOXYGEN_ROOT}/testing.md"
         "${GAMEWIP_DOXYGEN_ROOT}/mainpage.md"
     )
 endif()
+
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/GameWIPPlatform.cmake")
+gamewip_resolve_platform_id(GAMEWIP_PLATFORM_ID)
 
 set(TRACY_ENABLE ${GAMEWIP_ENABLE_TRACY} CACHE BOOL "" FORCE)
 set(TRACY_ON_DEMAND ON CACHE BOOL "" FORCE)

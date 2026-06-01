@@ -5,6 +5,13 @@ Purpose
 -------
 This file tracks implementation work that exists or still needs to be added. It is not the proof checklist; use `testing_checklist.txt` for validation requirements.
 
+Platform backend convention
+---------------------------
+[x] `cmake/GameWIPPlatform.cmake` resolves `GAMEWIP_PLATFORM_ID`.
+[x] Tool libraries load backend sources from `platform/${GAMEWIP_PLATFORM_ID}/*.cpp`.
+[x] Tool libraries optionally include `platform/${GAMEWIP_PLATFORM_ID}/platform.cmake` for platform-specific links, resources, and generated files.
+[x] Current Windows backend id is `win32`.
+
 Logger library
 --------------
 [x] Logger builds as a separate library target.
@@ -17,6 +24,7 @@ Logger library
 [x] Logger-owned fatal popup path exists through report/fatal-terminate APIs.
 [x] Logger internal test hooks exist under `tools/logger/internal/logger_test_hooks.h`.
 [x] Logger hook-forced failure tests cover rare file/popup/timeout branches.
+[x] Logger core delegates OS behavior through `tools/logger/internal/logger_platform.h`.
 [x] Logger package config polish exists for `find_package(GameWIP_Logger CONFIG REQUIRED)`.
 
 Assert library
@@ -30,7 +38,8 @@ Assert library
 [x] Automated interactive tests can use `GAMEWIP_ASSERT_TEST_ACTION`.
 [x] Manual UI tests can open real Windows dialogs when enabled.
 [x] Assert internal test hooks exist under `tools/debug/assert/internal/assert_test_hooks.h`.
-[x] Assert hook-forced tests cover TaskDialog fallback, MessageBox failure, debugger overrides, and popup suppression overrides.
+[x] Assert hook-forced tests cover action-dialog fallback, fallback-dialog failure, debugger overrides, and popup suppression overrides.
+[x] Assert core delegates OS behavior through `tools/debug/assert/internal/assert_platform.h`.
 [x] Assert package config polish exists for `find_package(GameWIP_Assert CONFIG REQUIRED)`.
 
 TestSupport library
@@ -42,6 +51,8 @@ TestSupport library
 [x] TestSupport public API lives under namespace `GameWIP::TestSupport` with no global namespace pollution.
 [x] TestSupport implementation uses `core/test_support.cpp` for platform-neutral behavior.
 [x] TestSupport Windows child-process backend uses `platform/win32/win32_child_process.cpp`.
+[x] TestSupport Windows environment backend uses `platform/win32/win32_environment.cpp`.
+[x] TestSupport core delegates OS behavior through `tools/test_support/internal/test_support_platform.h`.
 [x] TestSupport does not depend on Logger or Assert.
 [x] TestSupport local CMake options use the `TEST_SUPPORT_...` prefix when options become necessary.
 [x] TestSupport exported compile definitions use the `GAMEWIP_TEST_SUPPORT_...` prefix when exported macros become necessary.

@@ -1,0 +1,37 @@
+include("${CMAKE_CURRENT_LIST_DIR}/../../cmake/AssertCommonControls.cmake")
+
+if(ASSERT_ENABLE_COMMON_CONTROLS_MANIFEST)
+    enable_language(RC)
+
+    set(
+        GAMEWIP_ASSERT_COMMON_CONTROLS_MANIFEST
+        "${CMAKE_CURRENT_LIST_DIR}/../../cmake/common_controls_v6.manifest"
+    )
+
+    set(
+        GAMEWIP_ASSERT_COMMON_CONTROLS_RC
+        "${CMAKE_CURRENT_BINARY_DIR}/common_controls_v6.rc"
+    )
+
+    configure_file(
+        "${CMAKE_CURRENT_LIST_DIR}/../../cmake/common_controls_v6.rc.in"
+        "${GAMEWIP_ASSERT_COMMON_CONTROLS_RC}"
+        @ONLY
+    )
+
+    set_property(
+        GLOBAL PROPERTY
+        GAMEWIP_ASSERT_COMMON_CONTROLS_RC
+        "${GAMEWIP_ASSERT_COMMON_CONTROLS_RC}"
+    )
+
+    target_sources(Assert INTERFACE
+        "$<BUILD_INTERFACE:${GAMEWIP_ASSERT_COMMON_CONTROLS_RC}>"
+    )
+endif()
+
+if(ASSERT_RUNTIME_TARGET_ENABLED)
+    target_link_libraries(Assert PRIVATE
+        comctl32
+    )
+endif()

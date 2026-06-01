@@ -14,6 +14,7 @@ GameWIP uses small, focused C++20 libraries for foundation-level diagnostics and
 - @subpage gamewip_testing
 - @subpage gamewip_coverage
 - @subpage gamewip_documentation
+- @subpage gamewip_platform_backends
 - @subpage doxygen_notes
 
 ## Documentation model

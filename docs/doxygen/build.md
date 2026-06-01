@@ -1,6 +1,6 @@
 @page gamewip_build Build, packages, and installed docs
 
-This page covers project-level build behavior. Library-specific usage is documented under @ref logger and @ref assert.
+This page covers project-level build behavior. Library-specific usage is documented under @ref logger, @ref assert, and @ref test_support. Platform backend layout is documented under @ref gamewip_platform_backends.
 
 ## Normal source build
 
@@ -19,6 +19,10 @@ cmake --build build
 ```
 
 Runtime test selection stays in `TestRunOptions` in `game/main.cpp`; CMake options control build-time features only.
+
+## Platform backend selection
+
+The build resolves `GAMEWIP_PLATFORM_ID` once at the root and each tool library consumes matching `platform/<id>/*.cpp` files plus an optional `platform/<id>/platform.cmake`. See @ref gamewip_platform_backends for the backend contract and per-library responsibilities.
 
 ## Using installed Logger / Assert packages
 

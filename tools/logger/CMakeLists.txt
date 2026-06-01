@@ -1,22 +1,23 @@
 option(LOGGER_TEST_HOOKS "Enable Logger internal test hooks" OFF)
 
+if(NOT COMMAND gamewip_target_platform_sources)
+    include("${PROJECT_SOURCE_DIR}/cmake/GameWIPPlatform.cmake")
+    gamewip_resolve_platform_id(GAMEWIP_PLATFORM_ID)
+endif()
+
 add_library(Logger SHARED)
 add_library(GameWIP::Logger ALIAS Logger)
 
 target_sources(Logger PRIVATE
-    core/logger.cpp
+    core/logger_filters.cpp
+    core/logger_format.cpp
+    core/logger_queue.cpp
+    core/logger_reports.cpp
+    core/logger_state.cpp
+    core/logger_test_hooks.cpp
 )
 
-if(WIN32)
-    target_sources(Logger PRIVATE
-        platform/win32/win32_logger.cpp
-    )
-    target_link_libraries(Logger PRIVATE
-        psapi
-    )
-else()
-    message(FATAL_ERROR "Logger has no platform backend for this operating system yet.")
-endif()
+gamewip_target_platform_sources(Logger Logger "${CMAKE_CURRENT_SOURCE_DIR}/platform")
 
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)

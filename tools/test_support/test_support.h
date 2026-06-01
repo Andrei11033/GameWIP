@@ -36,19 +36,10 @@
 
 namespace GameWIP::TestSupport
 {
+    /// @cond GAMEWIP_TEST_SUPPORT_DETAIL
     namespace Detail
     {
         class ReportSink;
-
-        template <typename Value, typename = void>
-        struct IsStreamInsertable : std::false_type
-        {
-        };
-
-        template <typename Value>
-        struct IsStreamInsertable<Value, std::void_t<decltype(std::declval<std::ostream &>() << std::declval<const Value &>())>> : std::true_type
-        {
-        };
 
         template <typename Value>
         [[nodiscard]] std::string valueToString(const Value &value)
@@ -57,7 +48,7 @@ namespace GameWIP::TestSupport
             {
                 return value ? "true" : "false";
             }
-            else if constexpr (IsStreamInsertable<Value>::value)
+            else if constexpr (requires(std::ostream &stream, const Value &streamValue) { stream << streamValue; })
             {
                 std::ostringstream stream;
                 stream << value;
@@ -69,6 +60,8 @@ namespace GameWIP::TestSupport
             }
         }
     }
+    /// @endcond
+
     /// @brief Public passive TestSupport type collection used by reports, suites, child processes, and manual checks.
     namespace Types
     {

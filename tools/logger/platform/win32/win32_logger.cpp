@@ -13,6 +13,7 @@
 #include <cstdint>
 #include <cstring>
 #include <limits>
+#include <new>
 #include <string>
 
 namespace
@@ -115,10 +116,60 @@ namespace
         const DWORD handleId = stream == GameWIP::LoggerDetail::Platform::ConsoleStream::Stderr ? STD_ERROR_HANDLE : STD_OUTPUT_HANDLE;
         return GetStdHandle(handleId);
     }
+
+#if defined(__MINGW32__)
+    /// @brief Frees MinGW format scratch without using non-trivial C++ TLS destructors.
+    void NTAPI destroyFormatScratch(void *value)
+    {
+        delete static_cast<std::string *>(value);
+    }
+
+    /// @brief Returns the FLS slot used for per-thread format scratch on MinGW.
+    DWORD formatScratchSlot()
+    {
+        static const DWORD slot = FlsAlloc(destroyFormatScratch);
+        return slot;
+    }
+
+    /// @brief Returns MinGW per-thread format scratch through FLS.
+    /// @return Mutable per-thread scratch string.
+    std::string &formatScratchForThreadFls()
+    {
+        const DWORD slot = formatScratchSlot();
+        if (slot == FLS_OUT_OF_INDEXES)
+        {
+            throw std::bad_alloc();
+        }
+
+        auto *scratch = static_cast<std::string *>(FlsGetValue(slot));
+        if (!scratch)
+        {
+            scratch = new std::string();
+            if (!FlsSetValue(slot, scratch))
+            {
+                delete scratch;
+                throw std::bad_alloc();
+            }
+        }
+        return *scratch;
+    }
+#endif
 }
 
 namespace GameWIP::LoggerDetail::Platform
 {
+    /// @brief Returns per-thread format scratch storage for Win32 logger formatting.
+    /// @return Mutable per-thread scratch string.
+    std::string &formatScratchForThread()
+    {
+#if defined(__MINGW32__)
+        return formatScratchForThreadFls();
+#else
+        thread_local std::string scratch;
+        return scratch;
+#endif
+    }
+
     /// @brief Writes a formatted log line to the Win32 debugger output stream.
     /// @param line UTF-8 log line, including caller-chosen trailing newline.
     /// @return Structured platform error, or source None on success.

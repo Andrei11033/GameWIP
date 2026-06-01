@@ -2,143 +2,19 @@
 /// @brief Core implementation for the GameWIP TestSupport library.
 
 #include "test_support/test_support.h"
+#include "test_support/internal/test_support_platform.h"
 
 #include <cmath>
-#include <cstdlib>
 #include <fstream>
 #include <iostream>
 #include <stdexcept>
 #include <string_view>
-
-#if defined(_WIN32)
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#endif
-#ifndef NOMINMAX
-#define NOMINMAX
-#endif
-#include <windows.h>
-#else
-#include <stdlib.h>
-#endif
 
 namespace GameWIP::TestSupport
 {
     namespace
     {
         std::mutex environmentMutex;
-
-
-#if defined(_WIN32)
-        [[nodiscard]] std::wstring utf8ToWide(std::string_view text)
-        {
-            if (text.empty())
-            {
-                return {};
-            }
-
-            const int inputSize = static_cast<int>(text.size());
-            const int wideSize = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, text.data(), inputSize, nullptr, 0);
-            if (wideSize <= 0)
-            {
-                std::wstring fallback;
-                fallback.reserve(text.size());
-                for (char ch : text)
-                {
-                    const unsigned char value = static_cast<unsigned char>(ch);
-                    fallback.push_back(value >= 0x20 && value < 0x80 ? static_cast<wchar_t>(value) : L'?');
-                }
-                return fallback;
-            }
-
-            std::wstring output(static_cast<std::size_t>(wideSize), L'\0');
-            if (MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, text.data(), inputSize, output.data(), wideSize) != wideSize)
-            {
-                return L"?";
-            }
-            return output;
-        }
-
-        [[nodiscard]] std::string wideToUtf8(std::wstring_view text)
-        {
-            if (text.empty())
-            {
-                return {};
-            }
-
-            const int inputSize = static_cast<int>(text.size());
-            const int utf8Size = WideCharToMultiByte(CP_UTF8, 0, text.data(), inputSize, nullptr, 0, nullptr, nullptr);
-            if (utf8Size <= 0)
-            {
-                return {};
-            }
-
-            std::string output(static_cast<std::size_t>(utf8Size), '\0');
-            if (WideCharToMultiByte(CP_UTF8, 0, text.data(), inputSize, output.data(), utf8Size, nullptr, nullptr) != utf8Size)
-            {
-                return {};
-            }
-            return output;
-        }
-#endif
-        [[nodiscard]] std::optional<std::string> readEnvironmentVariable(std::string_view name)
-        {
-#if defined(_WIN32)
-            const std::wstring nameText = utf8ToWide(name);
-            SetLastError(ERROR_SUCCESS);
-            const DWORD requiredSize = GetEnvironmentVariableW(nameText.c_str(), nullptr, 0);
-            if (requiredSize == 0)
-            {
-                return GetLastError() == ERROR_ENVVAR_NOT_FOUND
-                           ? std::nullopt
-                           : std::optional<std::string>{std::string{}};
-            }
-
-            std::wstring value(requiredSize, L'\0');
-            const DWORD copied = GetEnvironmentVariableW(nameText.c_str(), value.data(), requiredSize);
-            if (copied == 0 || copied >= requiredSize)
-            {
-                return std::nullopt;
-            }
-
-            value.resize(copied);
-            return wideToUtf8(value);
-#else
-            const std::string nameText(name);
-            if (const char *value = std::getenv(nameText.c_str()))
-            {
-                return std::string(value);
-            }
-
-            return std::nullopt;
-#endif
-        }
-
-        void setEnvironmentVariableValue(std::string_view name, std::string_view value)
-        {
-            const std::string nameText(name);
-            const std::string valueText(value);
-#if defined(_WIN32)
-            const std::wstring nameWide = utf8ToWide(name);
-            const std::wstring valueWide = utf8ToWide(value);
-            _wputenv_s(nameWide.c_str(), valueWide.c_str());
-            SetEnvironmentVariableW(nameWide.c_str(), valueWide.c_str());
-#else
-            setenv(nameText.c_str(), valueText.c_str(), 1);
-#endif
-        }
-
-        void unsetEnvironmentVariableValue(std::string_view name)
-        {
-            const std::string nameText(name);
-#if defined(_WIN32)
-            const std::wstring nameWide = utf8ToWide(name);
-            _wputenv_s(nameWide.c_str(), L"");
-            SetEnvironmentVariableW(nameWide.c_str(), nullptr);
-#else
-            unsetenv(nameText.c_str());
-#endif
-        }
 
         [[nodiscard]] std::string makeNameReason(std::string_view name, std::string_view reason)
         {
@@ -656,8 +532,8 @@ namespace GameWIP::TestSupport
         : name_(name)
     {
         std::lock_guard lock(environmentMutex);
-        previousValue_ = readEnvironmentVariable(name_);
-        setEnvironmentVariableValue(name_, value);
+        previousValue_ = Platform::readEnvironmentVariable(name_);
+        Platform::setEnvironmentVariableValue(name_, value);
     }
 
     ScopedEnvironmentVariable::~ScopedEnvironmentVariable()
@@ -665,11 +541,11 @@ namespace GameWIP::TestSupport
         std::lock_guard lock(environmentMutex);
         if (previousValue_)
         {
-            setEnvironmentVariableValue(name_, *previousValue_);
+            Platform::setEnvironmentVariableValue(name_, *previousValue_);
         }
         else
         {
-            unsetEnvironmentVariableValue(name_);
+            Platform::unsetEnvironmentVariableValue(name_);
         }
     }
 
@@ -677,8 +553,8 @@ namespace GameWIP::TestSupport
         : name_(name)
     {
         std::lock_guard lock(environmentMutex);
-        previousValue_ = readEnvironmentVariable(name_);
-        unsetEnvironmentVariableValue(name_);
+        previousValue_ = Platform::readEnvironmentVariable(name_);
+        Platform::unsetEnvironmentVariableValue(name_);
     }
 
     ScopedUnsetEnvironmentVariable::~ScopedUnsetEnvironmentVariable()
@@ -686,11 +562,11 @@ namespace GameWIP::TestSupport
         std::lock_guard lock(environmentMutex);
         if (previousValue_)
         {
-            setEnvironmentVariableValue(name_, *previousValue_);
+            Platform::setEnvironmentVariableValue(name_, *previousValue_);
         }
         else
         {
-            unsetEnvironmentVariableValue(name_);
+            Platform::unsetEnvironmentVariableValue(name_);
         }
     }
 

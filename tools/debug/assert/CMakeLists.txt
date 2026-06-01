@@ -7,6 +7,11 @@ option(ASSERT_UNREACHABLE_ASSUME "Use compiler unreachable assumptions instead o
 option(ASSERT_ENABLE_COMMON_CONTROLS_MANIFEST "Propagate a Common Controls v6 manifest resource to Windows executables using Assert" ON)
 option(ASSERT_TEST_HOOKS "Enable Assert internal test hooks" OFF)
 
+if(NOT COMMAND gamewip_target_platform_sources)
+    include("${PROJECT_SOURCE_DIR}/cmake/GameWIPPlatform.cmake")
+    gamewip_resolve_platform_id(GAMEWIP_PLATFORM_ID)
+endif()
+
 string(TOUPPER "${ASSERT_ENABLED}" ASSERT_ENABLED_VALUE)
 string(TOUPPER "${ASSERT_CHECKS_ENABLED}" ASSERT_CHECKS_ENABLED_VALUE)
 string(TOUPPER "${CMAKE_BUILD_TYPE}" ASSERT_BUILD_TYPE_VALUE)
@@ -79,67 +84,13 @@ if(ASSERT_RUNTIME_TARGET_ENABLED)
         core/assert.cpp
     )
 
-    if(WIN32)
-        target_sources(Assert PRIVATE
-            platform/win32/win32_assert.cpp
-        )
-    else()
-        message(FATAL_ERROR "Assert has no platform backend for this operating system yet.")
-    endif()
+    gamewip_target_platform_sources(Assert Assert "${CMAKE_CURRENT_SOURCE_DIR}/platform")
+else()
+    gamewip_include_platform_cmake_if_present("${CMAKE_CURRENT_SOURCE_DIR}/platform")
 endif()
 
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
-
-set(GAMEWIP_ASSERT_COMMON_CONTROLS_RC "")
-if(WIN32 AND ASSERT_ENABLE_COMMON_CONTROLS_MANIFEST)
-    enable_language(RC)
-
-    set(
-        GAMEWIP_ASSERT_COMMON_CONTROLS_MANIFEST
-        "${CMAKE_CURRENT_SOURCE_DIR}/cmake/common_controls_v6.manifest"
-    )
-
-    set(
-        GAMEWIP_ASSERT_COMMON_CONTROLS_RC
-        "${CMAKE_CURRENT_BINARY_DIR}/common_controls_v6.rc"
-    )
-
-    configure_file(
-        "${CMAKE_CURRENT_SOURCE_DIR}/cmake/common_controls_v6.rc.in"
-        "${GAMEWIP_ASSERT_COMMON_CONTROLS_RC}"
-        @ONLY
-    )
-
-    set_property(
-        GLOBAL PROPERTY
-        GAMEWIP_ASSERT_COMMON_CONTROLS_RC
-        "${GAMEWIP_ASSERT_COMMON_CONTROLS_RC}"
-    )
-endif()
-
-function(gamewip_assert_enable_common_controls_v6 target_name)
-    if(NOT WIN32)
-        return()
-    endif()
-
-    if(NOT ASSERT_ENABLE_COMMON_CONTROLS_MANIFEST)
-        message(FATAL_ERROR "ASSERT_ENABLE_COMMON_CONTROLS_MANIFEST is OFF, so no Common Controls v6 resource was configured.")
-    endif()
-
-    get_property(
-        common_controls_rc
-        GLOBAL PROPERTY GAMEWIP_ASSERT_COMMON_CONTROLS_RC
-    )
-
-    if(NOT common_controls_rc)
-        message(FATAL_ERROR "GameWIP Assert Common Controls v6 resource was not configured.")
-    endif()
-
-    target_sources("${target_name}" PRIVATE
-        "${common_controls_rc}"
-    )
-endfunction()
 
 if(ASSERT_RUNTIME_TARGET_ENABLED)
     target_include_directories(Assert PUBLIC
@@ -181,22 +132,10 @@ target_compile_definitions(Assert INTERFACE
     GAMEWIP_ASSERT_UNREACHABLE_ASSUME=${ASSERT_UNREACHABLE_ASSUME_VALUE}
 )
 
-if(WIN32 AND ASSERT_ENABLE_COMMON_CONTROLS_MANIFEST)
-    target_sources(Assert INTERFACE
-        "$<BUILD_INTERFACE:${GAMEWIP_ASSERT_COMMON_CONTROLS_RC}>"
-    )
-endif()
-
 if(ASSERT_RUNTIME_TARGET_ENABLED)
     target_link_libraries(Assert PRIVATE
         Logger
     )
-
-    if(WIN32)
-        target_link_libraries(Assert PRIVATE
-            comctl32
-        )
-    endif()
 endif()
 
 if(ASSERT_RUNTIME_TARGET_ENABLED)
@@ -241,11 +180,13 @@ install(DIRECTORY "${PROJECT_SOURCE_DIR}/tools/debug/assert"
         PATTERN "internal" EXCLUDE
 )
 
-install(FILES
-    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/common_controls_v6.manifest"
-    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/common_controls_v6.rc.in"
-    DESTINATION ${CMAKE_INSTALL_DATADIR}/GameWIP_Assert
-)
+if(GAMEWIP_PLATFORM_ID STREQUAL "win32")
+    install(FILES
+        "${CMAKE_CURRENT_SOURCE_DIR}/cmake/common_controls_v6.manifest"
+        "${CMAKE_CURRENT_SOURCE_DIR}/cmake/common_controls_v6.rc.in"
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/GameWIP_Assert
+    )
+endif()
 
 configure_package_config_file(
     "${CMAKE_CURRENT_SOURCE_DIR}/cmake/GameWIP_AssertConfig.cmake.in"

@@ -689,14 +689,14 @@ namespace
         context.expectTrue("hook debugger attached override false", !AssertHooks::debuggerAttachedForTest());
         AssertHooks::clearDebuggerAttachedOverride();
 
-        AssertHooks::forceNextTaskDialogFailure();
-        AssertHooks::forceNextMessageBoxFailure();
+        AssertHooks::forceNextActionDialogFailure();
+        AssertHooks::forceNextFallbackActionDialogFailure();
         const FailureAction fallbackAction = AssertHooks::showFailureActionDialogForTest(
             "Assert hook test",
-            "TaskDialog and MessageBox are forced to fail; default action should be returned.",
+            "Primary and fallback action dialogs are forced to fail; default action should be returned.",
             FailureAction::IgnoreOnce);
-        context.expectTrue("hook TaskDialog failure consumed", !AssertHooks::Detail::consumeNextTaskDialogFailure());
-        context.expectTrue("hook MessageBox failure consumed", !AssertHooks::Detail::consumeNextMessageBoxFailure());
+        context.expectTrue("hook action dialog failure consumed", !AssertHooks::Detail::consumeNextActionDialogFailure());
+        context.expectTrue("hook fallback action dialog failure consumed", !AssertHooks::Detail::consumeNextFallbackActionDialogFailure());
         context.expectTrue("hook action dialog default fallback", fallbackAction == FailureAction::IgnoreOnce);
 
         AssertHooks::setPopupSuppressedOverride(true);

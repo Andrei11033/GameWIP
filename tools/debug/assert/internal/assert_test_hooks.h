@@ -18,13 +18,13 @@ namespace GameWIP::Debug::Assert::TestHooks
     /// @warning Test-only API. Available only when GAMEWIP_ASSERT_TEST_HOOKS is enabled.
     GAMEWIP_ASSERT_API void reset() noexcept;
 
-    /// @brief Forces the next Win32 TaskDialogIndirect action dialog attempt to fail.
+    /// @brief Forces the next primary platform action-dialog attempt to fail.
     /// @warning Test-only API. The hook is one-shot and is intended to exercise fallback behavior.
-    GAMEWIP_ASSERT_API void forceNextTaskDialogFailure() noexcept;
+    GAMEWIP_ASSERT_API void forceNextActionDialogFailure() noexcept;
 
-    /// @brief Forces the next Win32 MessageBox fallback attempt to fail.
+    /// @brief Forces the next platform fallback action-dialog attempt to fail.
     /// @warning Test-only API. The hook is one-shot and is intended to exercise default-action fallback behavior.
-    GAMEWIP_ASSERT_API void forceNextMessageBoxFailure() noexcept;
+    GAMEWIP_ASSERT_API void forceNextFallbackActionDialogFailure() noexcept;
 
     /// @brief Overrides the debugger-attached query used by assert failure handling.
     /// @param attached Value returned while the override is active.
@@ -65,10 +65,10 @@ namespace GameWIP::Debug::Assert::TestHooks
 
     namespace Detail
     {
-        /// @brief Consumes the one-shot TaskDialog failure hook.
-        GAMEWIP_ASSERT_API bool consumeNextTaskDialogFailure() noexcept;
-        /// @brief Consumes the one-shot MessageBox failure hook.
-        GAMEWIP_ASSERT_API bool consumeNextMessageBoxFailure() noexcept;
+        /// @brief Consumes the one-shot primary action-dialog failure hook.
+        GAMEWIP_ASSERT_API bool consumeNextActionDialogFailure() noexcept;
+        /// @brief Consumes the one-shot fallback action-dialog failure hook.
+        GAMEWIP_ASSERT_API bool consumeNextFallbackActionDialogFailure() noexcept;
         /// @brief Reads the debugger-attached override when one is active.
         GAMEWIP_ASSERT_API bool debuggerAttachedOverride(bool &attached) noexcept;
         /// @brief Reads the popup-suppressed override when one is active.

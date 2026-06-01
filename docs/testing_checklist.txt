@@ -78,8 +78,8 @@ Failure-injection / test-hook checklist
 [x] Logger forced file-flush failure path is tested when hooks are enabled.
 [x] Logger forced fatal-popup failure path is tested when hooks are enabled.
 [x] Logger forced timed-flush timeout path is tested when hooks are enabled.
-[x] Assert forced TaskDialog failure exercises the MessageBox fallback path when hooks are enabled.
-[x] Assert forced MessageBox failure exercises the default-action fallback when hooks are enabled.
+[x] Assert forced primary action-dialog failure exercises the fallback action-dialog path when hooks are enabled.
+[x] Assert forced fallback action-dialog failure exercises the default-action fallback when hooks are enabled.
 [x] Assert debugger-attached override true/false paths are tested when hooks are enabled.
 [x] Assert popup-suppression override is tested when hooks are enabled.
 
@@ -159,6 +159,7 @@ Windows Unicode validation checklist
 ------------------------------------
 [x] Win32 backend code avoids ANSI APIs such as `CreateProcessA`, `MessageBoxA`, `GetEnvironmentStringsA`, and `OutputDebugStringA`.
 [x] Win32 backend code avoids generic macro-mapped APIs such as `CreateProcess`, `MessageBox`, `GetEnvironmentStrings`, and `OutputDebugString`.
+[x] Platform-specific tool-library code lives under `platform/win32/`, with core code delegating through internal platform headers.
 [x] TestSupport child-process tests cover Unicode-safe command-line/environment behavior at the public API level.
 [x] Scoped environment tests verify values are visible through `std::getenv()` and child-process inheritance.
 [x] Captured child output remains byte-oriented `std::string`, as documented.

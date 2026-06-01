@@ -22,7 +22,7 @@ Manual UI coverage includes Ignore Once, Always Ignore, Break with debugger atta
 
 ## Test hooks
 
-When `GAMEWIP_ASSERT_TEST_HOOKS=1`, internal hooks can force TaskDialog fallback, MessageBox failure/default behavior, debugger-attached override paths, and popup suppression paths.
+When `GAMEWIP_ASSERT_TEST_HOOKS=1`, internal hooks can force primary action-dialog fallback, fallback action-dialog/default behavior, debugger-attached override paths, and popup suppression paths. On Windows, those dialog hooks exercise the TaskDialog and MessageBox paths.
 
 Hooks are compile-time gated and excluded from normal installs. Reset hook state after each forced scenario.
 
