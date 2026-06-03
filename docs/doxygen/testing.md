@@ -24,10 +24,10 @@ CMake controls compile-time/build features:
 - iteration counts and thread counts,
 - report output paths.
 
-## Hook-enabled test build
+## Example hook-enabled test build
 
 ```powershell
-cmake -S . -B build-optimized-debuggable `
+cmake -S . -B build-hooks `
   -DASSERT_ENABLED=ON `
   -DASSERT_CHECKS_ENABLED=ON `
   -DGAMEWIP_ENABLE_LOGGER_TEST_HOOKS=ON `
@@ -35,8 +35,8 @@ cmake -S . -B build-optimized-debuggable `
   -DGAMEWIP_ENABLE_COVERAGE=OFF `
   -DGAMEWIP_BUILD_DOCS=OFF
 
-cmake --build build-optimized-debuggable
-.\build-optimized-debuggable\GameWIP.exe
+cmake --build build-hooks
+.\build-hooks\GameWIP.exe
 ```
 
 ## Focused TestSupport library run

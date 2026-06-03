@@ -61,6 +61,31 @@ namespace
 
     std::size_t performanceSink = 0;
 
+    struct ScopedLogRootCleanup
+    {
+        explicit ScopedLogRootCleanup(const std::filesystem::path &path)
+            : path(path)
+        {
+        }
+
+        ~ScopedLogRootCleanup() noexcept
+        {
+            Logger::shutdown();
+            try
+            {
+                TestSupport::removeIfExists(path);
+            }
+            catch (...)
+            {
+            }
+        }
+
+        ScopedLogRootCleanup(const ScopedLogRootCleanup &) = delete;
+        ScopedLogRootCleanup &operator=(const ScopedLogRootCleanup &) = delete;
+
+        std::filesystem::path path;
+    };
+
     /// @brief Mutable test state and TestSupport-backed reporting for the assert suite.
     struct TestContext
     {
@@ -1233,6 +1258,7 @@ namespace GameWIP::Test
                 context.executablePath = argc > 0 && argv[0] != nullptr ? argv[0] : "";
                 context.logRoot = makeRunRoot();
                 TestSupport::createDirectories(context.logRoot);
+                const ScopedLogRootCleanup cleanupLogRoot(context.logRoot);
 
                 context.emit(std::format("[INFO] Assert test log root: {}\n", pathText(context.logRoot)));
                 context.emit(std::format(

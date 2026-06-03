@@ -3,19 +3,27 @@
 A minimal logger setup initializes the process-wide runtime, writes normal async logs, uses reports for important synchronous diagnostics, and shuts down during application teardown.
 
 ```cpp
-Logger::Types::Config config = Logger::defaultConfig();
-Logger::init(config);
+#include "logger/logger.h"
+#include "logger/logger_macros.h"
 
-Logger::info("Game", "Game started");
-Logger::warn("Assets", "Missing optional asset: {}", assetName);
+namespace Logger = GameWIP::Logger;
 
-Logger::report(
-    Logger::Types::Level::Error,
-    "SaveSystem",
-    "Failed to write save file"
-);
+void runApplication()
+{
+    Logger::Types::Config config = Logger::defaultConfig();
+    Logger::init(config);
 
-Logger::shutdown();
+    Logger::info("Game", "Game started");
+    Logger::warn("Assets", "Missing optional asset: {}", "config/defaults.json");
+
+    Logger::report(
+        Logger::Types::Level::Error,
+        "SaveSystem",
+        "Failed to write save file"
+    );
+
+    Logger::shutdown();
+}
 ```
 
 Normal logs are asynchronous, queue-based, and filterable. Reports are synchronous, immediate, filter-bypassing, and non-queued. Use `flush()` before inspecting a log file during a test, and `shutdown()` during final application teardown.

@@ -202,7 +202,7 @@ context.expectTrue("child failed as expected", result.exitedWithFailure());
 const auto answer = GameWIP::TestSupport::promptManualCheck("Did the dialog show four buttons?");
 ```
 
-Manual checks are for behavior code cannot verify automatically, such as visual UI and debugger interaction.
+Manual checks are for behavior that code cannot verify automatically, such as visual UI and debugger interaction.
 
 ## Stress helpers
 
@@ -211,6 +211,12 @@ Manual checks are for behavior code cannot verify automatically, such as visual 
 ```cpp
 GameWIP::TestSupport::StartGate gate;
 GameWIP::TestSupport::StopFlag stop;
+
+std::thread starter([&]
+{
+    std::this_thread::sleep_for(std::chrono::milliseconds{10});
+    gate.open();
+});
 
 std::thread stopper([&]
 {
@@ -227,6 +233,7 @@ GameWIP::TestSupport::runWorkers(4, [&](std::size_t workerIndex)
     }
 });
 
+starter.join();
 stopper.join();
 ```
 

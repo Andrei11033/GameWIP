@@ -45,4 +45,4 @@ On Windows, TestSupport updates both:
 - the CRT environment used by `std::getenv()`, and
 - the process environment inherited by child processes.
 
-Windows backend code follows the project Unicode standard: public strings are UTF-8-style `std::string`, and Win32 platform calls convert to UTF-16 and call explicit `W` APIs.
+Windows backend code follows the project Unicode standard: public text uses UTF-8 `std::string`, and Win32 platform calls convert to UTF-16 and call explicit `W` APIs.

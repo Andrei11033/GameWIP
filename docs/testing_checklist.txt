@@ -1,208 +1,630 @@
-Testing checklist
-=================
+# GameWIP Testing Checklist
 
-Purpose
--------
-This file defines what must be proven by tests. It intentionally focuses on observable contracts and failure coverage, not implementation history.
+## Purpose
 
-Logger API checklist
---------------------
-[x] `defaultConfig`, `lowMemoryConfig`, and `throughputConfig` expose the intended defaults.
-[x] `init`, double init, shutdown, double shutdown, and repeated init/shutdown behave safely.
-[x] Output modes None, Console, File, and Both are covered where the platform supports them.
-[x] String source, registered SourceId source, enum source, and unknown SourceId source paths are covered.
-[x] Compile-time format and runtimeFormat overloads are covered.
-[x] Invalid runtime formats increment `formatFailures` and do not emit bogus log lines.
-[x] Long messages are truncated and counted.
+This file defines what must be proven by tests, manual validation, metrics, or documentation inspection.
 
-Logger report checklist
------------------------
-[x] `Logger::report(...)` writes synchronously and does not increment queued stats.
-[x] Reports bypass minimum level filters.
-[x] Reports bypass source and level runtime filters.
-[x] Reports survive a full async queue.
-[x] Report timeout overloads write first, then return the bounded drain result.
-[x] `reportError`, `reportFatal`, and `fatalTerminate` route through the report contract.
-[x] Logger-owned fatal popup is manually validated when `enableLoggerPopupTest` is true.
+It answers:
 
-Logger stats/counter checklist
-------------------------------
-[x] `queued` counts accepted async entries only.
-[x] `written` counts entries accepted by at least one sink.
-[x] `queueDropsSoft` and `queueDropsHard` count queue pressure only.
-[x] Filtered logs are intentional skips and do not count as drops.
-[x] `allocationFailures`, `formatFailures`, `fileWriteFailures`, `unknownSourceUses`, and `truncated` each have direct trigger tests or hook-forced tests.
-[x] `resetStats` clears resettable counters while preserving lifetime queue drops.
+> “Has this behavior been validated?”
 
-Logger lifecycle/concurrency checklist
---------------------------------------
-[x] Many producer threads can log concurrently without crash or deadlock.
-[x] `flush(timeout)` while producers are active may time out but must not deadlock.
-[x] Final flush after producers stop succeeds.
-[x] `shutdown` while producers are active is safe.
-[x] `report` while producers are active remains synchronous and safe.
+This file intentionally focuses on observable contracts and failure coverage, not implementation history.
 
-Assert macro checklist
-----------------------
-[x] ASSERT evaluates only when assertions are enabled and aborts on failure.
-[x] VERIFY always evaluates and only reports/aborts when assertions are enabled.
-[x] CHECK evaluates only when checks are enabled and continues after reporting.
-[x] CHECK_ONCE reports only the first failure attempt per call site.
-[x] ENSURE evaluates exactly once and returns the boolean result.
-[x] UNREACHABLE and DEBUG_BREAK child paths exit abnormally as expected.
-[x] Diagnostics include condition, message, file, line, and caller function when enabled.
-[x] Message expressions are not evaluated when diagnostics are disabled or the macro is compiled out.
+* Use `implementation_checklist.txt` for what has been implemented.
+* Use `roadmap.txt` for planned development order.
+* Use `decisions.txt` for stable project decisions and standards.
+* Use `platform_backend_contract.txt` for backend boundary rules.
 
-Assert interactive-action checklist
------------------------------------
-[x] Automated interactive tests use `GAMEWIP_ASSERT_TEST_ACTION` and open no real UI.
-[x] Ignore Once logs and continues; the same call site can report again later.
-[x] Always Ignore logs once and suppresses future failures from the same macro call site.
-[x] Abort logs and exits abnormally in a child process.
-[x] Break logs and exits abnormally without a debugger; with a debugger attached, it breaks and can resume.
-[x] VERIFY_INTERACTIVE preserves side effects even when Always Ignore suppresses later reports.
+---
 
-Manual Windows UI checklist
----------------------------
-[x] Assert Ignore Once button is manually validated.
-[x] Assert Always Ignore button is manually validated and suppresses the second same-site dialog.
-[x] Assert Break button is manually validated with a debugger attached.
-[x] Assert Abort button is manually validated in a child process.
-[x] Logger fatal popup is manually validated through `Logger::report(..., ReportPopup::Fatal, ...)`.
-[x] Manual UI tests run at the end and only when runtime options enable them.
+## Status Legend
 
-Failure-injection / test-hook checklist
----------------------------------------
-[x] Logger forced file-open failure path is tested when hooks are enabled.
-[x] Logger forced file-write failure path is tested when hooks are enabled.
-[x] Logger forced file-flush failure path is tested when hooks are enabled.
-[x] Logger forced fatal-popup failure path is tested when hooks are enabled.
-[x] Logger forced timed-flush timeout path is tested when hooks are enabled.
-[x] Assert forced primary action-dialog failure exercises the fallback action-dialog path when hooks are enabled.
-[x] Assert forced fallback action-dialog failure exercises the default-action fallback when hooks are enabled.
-[x] Assert debugger-attached override true/false paths are tested when hooks are enabled.
-[x] Assert popup-suppression override is tested when hooks are enabled.
+```text
+[ ] Not validated
+[-] Validation in progress
+[x] Validated
+[~] Partially validated / needs follow-up
+[!] Blocked or waiting on a decision
+[M] Manual validation required
+```
 
-TestSupport library API checklist
------------------------------
-[x] `Types::ReportOptions` defaults to console output enabled, report-file output enabled, append disabled, and `logs/tests/latest_test_report.txt`.
-[x] `Types::Summary::total()` returns passed + failed + skipped.
-[x] `Types::Summary::ok()` returns true only when failed is zero.
-[x] `Types::SuiteResult::ok()` returns the suite summary status.
-[x] `Context` exposes the suite name unchanged.
-[x] `Context::result()` returns the current summary counts.
-[x] `Context::ok()` mirrors the current summary status.
-[x] `pass`, `fail`, and `skip` update only their intended counters.
-[x] `info`, `manual`, `metric`, `stress`, and `summary` write categorized report lines without changing pass/fail/skip counts.
-[x] `expectTrue` passes only for true values and fails with source location for false values.
-[x] `expectFalse` passes only for false values and fails with source location for true values.
-[x] `expectEq` and `expectNe` handle comparable values and report readable expected/actual information.
-[x] `expectNear` handles exact matches, values inside tolerance, values outside tolerance, and invalid negative tolerance.
-[x] `expectContains` covers present substring, missing substring, and empty substring behavior.
-[x] File expectation helpers report missing/unreadable files as failures without crashing the runner.
-[x] Expectations record failures and keep later checks running.
-[x] TestSupport expectations do not call GameWIP Assert macros internally.
+---
 
-TestSupport report/runner checklist
--------------------------------
-[x] Report output can be disabled for console only, file only, both, and neither.
-[x] Report file parent directories are created as needed.
-[x] Report append mode preserves existing content and non-append mode starts a fresh report.
-[x] Report lines use the intended categories: `[INFO]`, `[PASS]`, `[FAIL]`, `[SKIP]`, `[MANUAL]`, `[METRIC]`, `[STRESS]`, `[SUMMARY]`, and `[RESULT]`.
-[x] Failure lines include file, line, function, and check name.
-[x] `Runner::runSuite` records suite elapsed time.
-[x] `Runner` accumulates multiple suite summaries correctly.
-[x] `Runner::exitCode()` returns success only when the aggregate summary is OK.
-[x] A throwing suite function is recorded as a failed suite and does not prevent later suites from running if that behavior is implemented.
-[x] `Section` reports start/end or duration consistently without corrupting summary counts.
+# 1. Logger Validation
 
-TestSupport file/environment checklist
-----------------------------------
-[x] `readTextFile` returns file contents exactly for normal text files.
-[x] `writeTextFile` creates parent directories and writes the requested text.
-[x] `fileExists` returns false instead of throwing for missing paths.
-[x] `fileContains` returns true only when the text occurs in the file.
-[x] `countFileOccurrences` handles zero, one, multiple, and overlapping occurrence decisions explicitly.
-[x] `createDirectories` succeeds for existing directories.
-[x] `removeIfExists` handles missing files without failure.
-[x] `ScopedEnvironmentVariable` sets a variable, restores a previous value, and unsets a previously missing value on destruction.
-[x] `ScopedUnsetEnvironmentVariable` unsets a variable and restores the previous value on destruction.
-[x] Windows scoped environment helpers update both `std::getenv()` visibility and child-process environment visibility.
+## Logger API Contract
 
-TestSupport child-process checklist
--------------------------------
-[x] `runChildProcess` starts the requested executable with arguments.
-[x] Captured stdout/stderr output is available when capture is enabled.
-[x] Output capture can be disabled when requested.
-[x] Parent environment inheritance can be enabled and disabled.
-[x] Environment entries can set variables for the child.
-[x] Environment entries can unset variables for the child.
-[x] Timeout terminates or otherwise stops waiting for a hung child and marks `timedOut`.
-[x] Test-requested termination marks `wasTerminatedByTest`.
-[x] Nonzero exit codes are reported without pretending to classify portable crash reasons.
-[x] `Types::ChildProcessResult::exitedSuccessfully()` and `exitedWithFailure()` cover zero, nonzero, timeout, and terminated-by-test cases.
+* [x] `defaultConfig`, `lowMemoryConfig`, and `throughputConfig` expose the intended defaults.
+* [x] `init` behaves safely.
+* [x] Double `init` behaves safely.
+* [x] `shutdown` behaves safely.
+* [x] Double `shutdown` behaves safely.
+* [x] Repeated `init` / `shutdown` cycles behave safely.
+* [x] Output mode `None` is covered.
+* [x] Output mode `Console` is covered where the platform supports it.
+* [x] Output mode `File` is covered where the platform supports it.
+* [x] Output mode `Both` is covered where the platform supports it.
+* [x] String source logging is covered.
+* [x] Registered `SourceId` logging is covered.
+* [x] Enum source logging is covered.
+* [x] Unknown `SourceId` logging is covered.
+* [x] Compile-time format overloads are covered.
+* [x] `runtimeFormat` overloads are covered.
+* [x] Invalid runtime formats increment `formatFailures`.
+* [x] Invalid runtime formats do not emit bogus log lines.
+* [x] Long messages are truncated.
+* [x] Long message truncation is counted.
 
-TestSupport manual/metrics/stress checklist
----------------------------------------
-[x] `promptManualCheck` accepts yes, no, and skipped answers.
-[x] Manual checks run only when runtime options explicitly enable manual UI tests.
-[x] Manual checks are reported with `[MANUAL]`.
-[x] `Timer` reports increasing elapsed time and resets correctly.
-[x] `Timer::nanosecondsPerIteration` and `Types::IterationMetric::nanosecondsPerIteration` handle zero iterations explicitly.
-[x] Metrics are reported without failing tests based on hard thresholds.
-[x] `StartGate` blocks workers until opened and releases all waiters.
-[x] `StopFlag` is safe for cross-thread stop requests.
-[x] `runWorkers` starts the requested worker count and joins all workers before returning.
-[x] Stress helper failures are reportable without deadlocking the test run.
+Completion goal:
 
-Windows Unicode validation checklist
-------------------------------------
-[x] Win32 backend code avoids ANSI APIs such as `CreateProcessA`, `MessageBoxA`, `GetEnvironmentStringsA`, and `OutputDebugStringA`.
-[x] Win32 backend code avoids generic macro-mapped APIs such as `CreateProcess`, `MessageBox`, `GetEnvironmentStrings`, and `OutputDebugString`.
-[x] Platform-specific tool-library code lives under `platform/win32/`, with core code delegating through internal platform headers.
-[x] TestSupport child-process tests cover Unicode-safe command-line/environment behavior at the public API level.
-[x] Scoped environment tests verify values are visible through `std::getenv()` and child-process inheritance.
-[x] Captured child output remains byte-oriented `std::string`, as documented.
+The normal Logger public API behaves according to its documented contract.
 
-Performance and coverage checklist
-----------------------------------
-[x] Hot passing macro paths have metrics: ASSERT, CHECK, VERIFY, ENSURE, ASSERT_INTERACTIVE, VERIFY_INTERACTIVE.
-[x] Logger disabled/filtered/normal enabled paths have producer-side metrics.
-[x] Performance tests are metrics-only until baselines/warnings are intentionally added.
-[x] Coverage builds can identify unexecuted logger/assert lines, functions, and branches.
-[x] The optional `coverage` target exists when coverage is enabled.
-[x] If gcovr is available, the `coverage` target generates an HTML report and XML report.
-[x] If gcovr is missing, the `coverage` target fails with a clear installation message instead of disappearing silently.
-[x] Coverage reports are reviewed after hook-forced tests are added.
+---
 
-Documentation validation checklist
-----------------------------------
-[x] `GAMEWIP_BUILD_DOCS=ON` creates the `docs` target when Doxygen is installed.
-[x] Missing Doxygen produces a clear configure-time error only when documentation is explicitly enabled.
-[x] Root docs link to Logger, Assert, and TestSupport guide pages.
-[x] Logger guide pages cover quick start, configuration, reports, stats, testing, and examples.
-[x] Assert guide pages cover quick start, macros, interactive assertions, testing, and examples.
-[x] Header comments remain contract-focused; tutorial-style material lives in Markdown guide pages.
-[x] TestSupport guide pages cover quick start, expectations, reports, child processes, scoped environment variables, manual checks, metrics, stress helpers, and examples.
-[x] TestSupport Doxygen registration adds the TestSupport public header and `tools/test_support/docs/` without editing the root Doxyfile input list.
-[x] Root docs link to the TestSupport landing page after TestSupport is registered with Doxygen.
+## Logger Report Contract
 
-Doxygen/build-tool validation addendum
---------------------------------------
-[x] `cmake --build build-docs --target docs --verbose` prints the generated HTML path and warning-log path.
-[x] The Doxygen warning log is checked after docs generation.
-[x] The Doxygen sidebar groups library pages under Logger and Assert instead of flattening every guide page at the root.
-[x] `GAMEWIP_INSTALL_DOCS=ON` installs generated HTML docs only when `GAMEWIP_BUILD_DOCS=ON`.
-[x] Coverage generation tolerates known gcov negative-hit warnings and still writes HTML/XML reports.
+* [x] `Logger::report(...)` writes synchronously.
+* [x] `Logger::report(...)` does not increment queued stats.
+* [x] Reports bypass minimum level filters.
+* [x] Reports bypass source filters.
+* [x] Reports bypass level runtime filters.
+* [x] Reports survive a full async queue.
+* [x] Report timeout overloads write first.
+* [x] Report timeout overloads return the bounded drain result.
+* [x] A timeout result does not imply that the report line was lost.
+* [x] `reportError` routes through the report contract.
+* [x] `reportFatal` routes through the report contract.
+* [x] `fatalTerminate` routes through the report contract.
+* [x] Logger-owned fatal popup is manually validated when `enableLoggerPopupTest` is true.
 
+Completion goal:
 
-Public API documentation validation checklist
----------------------------------------------
-[ ] Build the Doxygen site and inspect each library landing page.
-[ ] Confirm Logger has a user-facing public API guide linked from the Logger landing page.
-[ ] Confirm Assert has a user-facing public API guide linked from the Assert landing page.
-[ ] Confirm TestSupport has a user-facing public API guide linked from the TestSupport landing page.
-[ ] Confirm test-hook/testing pages are labeled as developer-validation material and not normal production API.
-[x] Confirm public header hover text stays concise enough for IntelliSense.
-[x] Confirm full examples and edge-case explanations live in Markdown manual pages.
-[ ] Confirm every public API appears in either a public API guide table/section or in a dedicated concept page.
+The synchronous diagnostic path is proven separately from normal async logging.
+
+---
+
+## Logger Stats and Counters
+
+* [x] `queued` counts accepted async entries only.
+* [x] `written` counts entries accepted by at least one sink.
+* [x] `queueDropsSoft` counts queue pressure only.
+* [x] `queueDropsHard` counts queue pressure only.
+* [x] Filtered logs are intentional skips and do not count as drops.
+* [x] `allocationFailures` has a direct trigger test or hook-forced test.
+* [x] `formatFailures` has a direct trigger test or hook-forced test.
+* [x] `fileWriteFailures` has a direct trigger test or hook-forced test.
+* [x] `unknownSourceUses` has a direct trigger test or hook-forced test.
+* [x] `truncated` has a direct trigger test or hook-forced test.
+* [x] `resetStats` clears resettable counters.
+* [x] `resetStats` preserves lifetime queue drops.
+
+Completion goal:
+
+Logger counters describe the correct observable behavior and do not mix queue pressure with intentional filtering.
+
+---
+
+## Logger Lifecycle and Concurrency
+
+* [x] Many producer threads can log concurrently without crashing.
+* [x] Many producer threads can log concurrently without deadlocking.
+* [x] `flush(timeout)` while producers are active may time out.
+* [x] `flush(timeout)` while producers are active must not deadlock.
+* [x] Final flush after producers stop succeeds.
+* [x] `shutdown` while producers are active is safe.
+* [x] `report` while producers are active remains synchronous.
+* [x] `report` while producers are active remains safe.
+
+Completion goal:
+
+Logger lifecycle and producer-side concurrency are safe under realistic stress.
+
+---
+
+# 2. Assert Validation
+
+## Assert Macro Contract
+
+* [x] `ASSERT` evaluates only when assertions are enabled.
+* [x] `ASSERT` aborts on failure when enabled.
+* [x] `VERIFY` always evaluates its condition.
+* [x] `VERIFY` only reports/aborts when assertions are enabled.
+* [x] `CHECK` evaluates only when checks are enabled.
+* [x] `CHECK` continues after reporting.
+* [x] `CHECK_ONCE` reports only the first failure attempt per call site.
+* [x] `ENSURE` evaluates exactly once.
+* [x] `ENSURE` returns the boolean result.
+* [x] `UNREACHABLE` child path exits abnormally as expected.
+* [x] `DEBUG_BREAK` child path exits abnormally as expected.
+* [x] Diagnostics include condition text when enabled.
+* [x] Diagnostics include message text when enabled.
+* [x] Diagnostics include file when enabled.
+* [x] Diagnostics include line when enabled.
+* [x] Diagnostics include caller function when enabled.
+* [x] Message expressions are not evaluated when diagnostics are disabled.
+* [x] Message expressions are not evaluated when the macro is compiled out.
+
+Completion goal:
+
+All Assert macro families obey their evaluation, reporting, and fatal/recoverable behavior contracts.
+
+---
+
+## Assert Interactive Actions
+
+* [x] Automated interactive tests use `GAMEWIP_ASSERT_TEST_ACTION`.
+* [x] Automated interactive tests open no real UI.
+* [x] `Ignore Once` logs and continues.
+* [x] `Ignore Once` allows the same call site to report again later.
+* [x] `Always Ignore` logs once.
+* [x] `Always Ignore` suppresses future failures from the same macro call site.
+* [x] `Abort` logs and exits abnormally in a child process.
+* [x] `Break` logs and exits abnormally without a debugger.
+* [x] `Break` breaks and can resume with a debugger attached.
+* [x] `VERIFY_INTERACTIVE` preserves side effects.
+* [x] `VERIFY_INTERACTIVE` preserves side effects even when `Always Ignore` suppresses later reports.
+
+Completion goal:
+
+Interactive assertions are proven without requiring automated tests to click real dialogs.
+
+---
+
+## Manual Windows UI Validation
+
+* [x] Assert `Ignore Once` button is manually validated.
+* [x] Assert `Always Ignore` button is manually validated.
+* [x] Assert `Always Ignore` suppresses the second same-site dialog.
+* [x] Assert `Break` button is manually validated with a debugger attached.
+* [x] Assert `Abort` button is manually validated in a child process.
+* [x] Logger fatal popup is manually validated through `Logger::report(..., ReportPopup::Fatal, ...)`.
+* [x] Manual UI tests run at the end of the suite.
+* [x] Manual UI tests run only when runtime options enable them.
+
+Completion goal:
+
+Real Windows UI behavior is manually validated without making normal automated test runs block.
+
+---
+
+# 3. Failure Injection and Test Hook Validation
+
+## Logger Hook-Forced Paths
+
+* [x] Logger forced file-open failure path is tested when hooks are enabled.
+* [x] Logger forced file-write failure path is tested when hooks are enabled.
+* [x] Logger forced file-flush failure path is tested when hooks are enabled.
+* [x] Logger forced fatal-popup failure path is tested when hooks are enabled.
+* [x] Logger forced timed-flush timeout path is tested when hooks are enabled.
+
+## Assert Hook-Forced Paths
+
+* [x] Assert forced primary action-dialog failure exercises the fallback action-dialog path when hooks are enabled.
+* [x] Assert forced fallback action-dialog failure exercises the default-action fallback when hooks are enabled.
+* [x] Assert debugger-attached override `true` path is tested when hooks are enabled.
+* [x] Assert debugger-attached override `false` path is tested when hooks are enabled.
+* [x] Assert popup-suppression override is tested when hooks are enabled.
+
+## Test Hook Isolation
+
+* [x] Hook-forced one-shot failures are reset after use.
+* [x] Persistent hook overrides can be cleared.
+* [x] Hook state does not leak into later tests.
+
+Completion goal:
+
+Rare fallback and failure paths are reachable in tests without making production APIs depend on test-only behavior.
+
+---
+
+# 4. TestSupport Validation
+
+## TestSupport API Contract
+
+* [x] `Types::ReportOptions` defaults to console output enabled.
+* [x] `Types::ReportOptions` defaults to report-file output enabled.
+* [x] `Types::ReportOptions` defaults to append disabled.
+* [x] `Types::ReportOptions` defaults to `logs/tests/latest_test_report.txt`.
+* [x] `Types::Summary::total()` returns passed + failed + skipped.
+* [x] `Types::Summary::ok()` returns true only when failed is zero.
+* [x] `Types::SuiteResult::ok()` returns the suite summary status.
+* [x] `Context` exposes the suite name unchanged.
+* [x] `Context::result()` returns the current summary counts.
+* [x] `Context::ok()` mirrors the current summary status.
+* [x] `pass` updates only the passed counter.
+* [x] `fail` updates only the failed counter.
+* [x] `skip` updates only the skipped counter.
+* [x] `info` writes a categorized report line without changing pass/fail/skip counts.
+* [x] `manual` writes a categorized report line without changing pass/fail/skip counts.
+* [x] `metric` writes a categorized report line without changing pass/fail/skip counts.
+* [x] `stress` writes a categorized report line without changing pass/fail/skip counts.
+* [x] `summary` writes a categorized report line without changing pass/fail/skip counts.
+
+Completion goal:
+
+TestSupport public data types and basic suite/report behavior are validated.
+
+---
+
+## TestSupport Expectations
+
+* [x] `expectTrue` passes only for true values.
+* [x] `expectTrue` fails with source location for false values.
+* [x] `expectFalse` passes only for false values.
+* [x] `expectFalse` fails with source location for true values.
+* [x] `expectEq` handles comparable values.
+* [x] `expectEq` reports readable expected/actual information.
+* [x] `expectNe` handles comparable values.
+* [x] `expectNe` reports readable expected/actual information.
+* [x] `expectNear` handles exact matches.
+* [x] `expectNear` handles values inside tolerance.
+* [x] `expectNear` handles values outside tolerance.
+* [x] `expectNear` handles invalid negative tolerance.
+* [x] `expectContains` covers present substring.
+* [x] `expectContains` covers missing substring.
+* [x] `expectContains` covers empty substring behavior.
+* [x] File expectation helpers report missing files as failures.
+* [x] File expectation helpers report unreadable files as failures.
+* [x] File expectation helpers do not crash the runner.
+* [x] Expectations record failures and keep later checks running.
+* [x] TestSupport expectations do not call GameWIP Assert macros internally.
+
+Completion goal:
+
+Expectations behave like test-runner checks, not engine assertions.
+
+---
+
+## TestSupport Reports and Runner
+
+* [x] Report output can be disabled for console-only mode.
+* [x] Report output can be disabled for file-only mode.
+* [x] Report output supports both console and file mode.
+* [x] Report output supports neither console nor file mode.
+* [x] Report file parent directories are created as needed.
+* [x] Report append mode preserves existing content.
+* [x] Non-append report mode starts a fresh report.
+* [x] Report lines use `[INFO]`.
+* [x] Report lines use `[PASS]`.
+* [x] Report lines use `[FAIL]`.
+* [x] Report lines use `[SKIP]`.
+* [x] Report lines use `[MANUAL]`.
+* [x] Report lines use `[METRIC]`.
+* [x] Report lines use `[STRESS]`.
+* [x] Report lines use `[SUMMARY]`.
+* [x] Report lines use `[RESULT]`.
+* [x] Failure lines include file.
+* [x] Failure lines include line.
+* [x] Failure lines include function.
+* [x] Failure lines include check name.
+* [x] `Runner::runSuite` records suite elapsed time.
+* [x] `Runner` accumulates multiple suite summaries correctly.
+* [x] `Runner::exitCode()` returns success only when the aggregate summary is OK.
+* [x] A throwing suite function is recorded as a failed suite.
+* [x] A throwing suite function does not prevent later suites from running when that behavior is implemented.
+* [x] `Section` reports start/end or duration consistently.
+* [x] `Section` does not corrupt summary counts.
+
+Completion goal:
+
+Test runs produce useful reports and continue safely after ordinary test failures.
+
+---
+
+## TestSupport File and Environment Helpers
+
+* [x] `readTextFile` returns file contents exactly for normal text files.
+* [x] `writeTextFile` creates parent directories.
+* [x] `writeTextFile` writes the requested text.
+* [x] `fileExists` returns false instead of throwing for missing paths.
+* [x] `fileContains` returns true only when the text occurs in the file.
+* [x] `countFileOccurrences` handles zero occurrences.
+* [x] `countFileOccurrences` handles one occurrence.
+* [x] `countFileOccurrences` handles multiple occurrences.
+* [x] `countFileOccurrences` handles overlapping occurrence decisions explicitly.
+* [x] `createDirectories` succeeds for existing directories.
+* [x] `removeIfExists` handles missing files without failure.
+* [x] `ScopedEnvironmentVariable` sets a variable.
+* [x] `ScopedEnvironmentVariable` restores a previous value.
+* [x] `ScopedEnvironmentVariable` unsets a previously missing value on destruction.
+* [x] `ScopedUnsetEnvironmentVariable` unsets a variable.
+* [x] `ScopedUnsetEnvironmentVariable` restores the previous value on destruction.
+* [x] Windows scoped environment helpers update `std::getenv()` visibility.
+* [x] Windows scoped environment helpers update child-process environment visibility.
+
+Completion goal:
+
+File and environment helpers behave predictably and clean up after themselves.
+
+---
+
+## TestSupport Child Processes
+
+* [x] `runChildProcess` starts the requested executable with arguments.
+* [x] Captured stdout is available when capture is enabled.
+* [x] Captured stderr is available when capture is enabled.
+* [x] Output capture can be disabled when requested.
+* [x] Parent environment inheritance can be enabled.
+* [x] Parent environment inheritance can be disabled.
+* [x] Environment entries can set variables for the child.
+* [x] Environment entries can unset variables for the child.
+* [x] Timeout terminates or otherwise stops waiting for a hung child.
+* [x] Timeout marks `timedOut`.
+* [x] Test-requested termination marks `wasTerminatedByTest`.
+* [x] Nonzero exit codes are reported.
+* [x] Child-process support does not pretend to classify portable crash reasons.
+* [x] `Types::ChildProcessResult::exitedSuccessfully()` covers zero exit.
+* [x] `Types::ChildProcessResult::exitedSuccessfully()` covers nonzero exit.
+* [x] `Types::ChildProcessResult::exitedSuccessfully()` covers timeout.
+* [x] `Types::ChildProcessResult::exitedSuccessfully()` covers terminated-by-test cases.
+* [x] `Types::ChildProcessResult::exitedWithFailure()` covers zero exit.
+* [x] `Types::ChildProcessResult::exitedWithFailure()` covers nonzero exit.
+* [x] `Types::ChildProcessResult::exitedWithFailure()` covers timeout.
+* [x] `Types::ChildProcessResult::exitedWithFailure()` covers terminated-by-test cases.
+
+Completion goal:
+
+Child-process tests can validate crash/abort/timeout behavior without overclaiming platform-portable crash classification.
+
+---
+
+## TestSupport Manual Checks, Metrics, and Stress Helpers
+
+* [x] `promptManualCheck` accepts yes answers.
+* [x] `promptManualCheck` accepts no answers.
+* [x] `promptManualCheck` accepts skipped answers.
+* [x] Manual checks run only when runtime options explicitly enable manual UI tests.
+* [x] Manual checks are reported with `[MANUAL]`.
+* [x] `Timer` reports increasing elapsed time.
+* [x] `Timer` resets correctly.
+* [x] `Timer::nanosecondsPerIteration` handles zero iterations explicitly.
+* [x] `Types::IterationMetric::nanosecondsPerIteration` handles zero iterations explicitly.
+* [x] Metrics are reported without failing tests based on hard thresholds.
+* [x] `StartGate` blocks workers until opened.
+* [x] `StartGate` releases all waiters.
+* [x] `StopFlag` is safe for cross-thread stop requests.
+* [x] `runWorkers` starts the requested worker count.
+* [x] `runWorkers` joins all workers before returning.
+* [x] Stress helper failures are reportable without deadlocking the test run.
+
+Completion goal:
+
+Manual validation, metrics, and stress coordination work without corrupting automated test behavior.
+
+---
+
+# 5. Test Suite Integration Validation
+
+## Foundation Test Suites
+
+* [x] Logger tests run through the current test executable.
+* [x] Assert tests run through the current test executable.
+* [x] TestSupport tests run through the current test executable.
+* [x] Logger tests can use generic TestSupport helpers.
+* [x] Assert tests can use generic TestSupport helpers.
+* [x] Migrated Logger tests still produce equivalent reports.
+* [x] Migrated Assert tests still produce equivalent reports.
+* [x] Migrated Logger tests still support runtime options.
+* [x] Migrated Assert tests still support runtime options.
+* [x] Test runs return a failing process exit code when required suites fail.
+* [x] Test runs return a success process exit code when required suites pass.
+
+Completion goal:
+
+Foundation test suites share the same runner/reporting path and still preserve their original coverage.
+
+---
+
+# 6. Windows Unicode Backend Validation
+
+## Win32 API Usage
+
+* [x] Win32 backend code avoids ANSI APIs such as `CreateProcessA`.
+* [x] Win32 backend code avoids ANSI APIs such as `MessageBoxA`.
+* [x] Win32 backend code avoids ANSI APIs such as `GetEnvironmentStringsA`.
+* [x] Win32 backend code avoids ANSI APIs such as `OutputDebugStringA`.
+* [x] Win32 backend code avoids generic macro-mapped APIs such as `CreateProcess`.
+* [x] Win32 backend code avoids generic macro-mapped APIs such as `MessageBox`.
+* [x] Win32 backend code avoids generic macro-mapped APIs such as `GetEnvironmentStrings`.
+* [x] Win32 backend code avoids generic macro-mapped APIs such as `OutputDebugString`.
+
+## Platform Boundary
+
+* [x] Platform-specific tool-library code lives under `platform/win32/`.
+* [x] Core code delegates through internal platform headers.
+* [x] TestSupport child-process tests cover Unicode-safe command-line behavior at the public API level.
+* [x] TestSupport child-process tests cover Unicode-safe environment behavior at the public API level.
+* [x] Scoped environment tests verify values are visible through `std::getenv()`.
+* [x] Scoped environment tests verify values are visible through child-process inheritance.
+* [x] Captured child output remains byte-oriented `std::string`, as documented.
+
+Completion goal:
+
+Windows backend behavior follows the explicit Unicode boundary rule and remains testable from portable public APIs.
+
+---
+
+# 7. Performance and Coverage Validation
+
+## Performance Metrics
+
+* [x] Hot passing `ASSERT` path has metrics.
+* [x] Hot passing `CHECK` path has metrics.
+* [x] Hot passing `VERIFY` path has metrics.
+* [x] Hot passing `ENSURE` path has metrics.
+* [x] Hot passing `ASSERT_INTERACTIVE` path has metrics.
+* [x] Hot passing `VERIFY_INTERACTIVE` path has metrics.
+* [x] Logger disabled path has producer-side metrics.
+* [x] Logger filtered path has producer-side metrics.
+* [x] Logger normal enabled path has producer-side metrics.
+* [x] Performance tests are metrics-only until baselines/warnings are intentionally added.
+
+## Coverage Tooling
+
+* [x] Coverage builds can identify unexecuted Logger lines.
+* [x] Coverage builds can identify unexecuted Assert lines.
+* [x] Coverage builds can identify unexecuted Logger functions.
+* [x] Coverage builds can identify unexecuted Assert functions.
+* [x] Coverage builds can identify unexecuted Logger branches.
+* [x] Coverage builds can identify unexecuted Assert branches.
+* [x] Optional `coverage` target exists when coverage is enabled.
+* [x] If `gcovr` is available, the `coverage` target generates an HTML report.
+* [x] If `gcovr` is available, the `coverage` target generates an XML report.
+* [x] If `gcovr` is missing, the `coverage` target fails with a clear installation message.
+* [x] If `gcovr` is missing, the `coverage` target does not silently disappear.
+* [x] Coverage reports are reviewed after hook-forced tests are added.
+* [x] Coverage generation tolerates known gcov negative-hit warnings.
+* [x] Coverage generation still writes HTML/XML reports when known negative-hit warnings occur.
+
+Completion goal:
+
+Performance stays observable, and coverage tooling helps find untested code without becoming a hidden build failure.
+
+---
+
+# 8. Documentation Validation
+
+## Documentation Build
+
+* [x] `GAMEWIP_BUILD_DOCS=ON` creates the `docs` target when Doxygen is installed.
+* [x] Missing Doxygen produces a clear configure-time error only when documentation is explicitly enabled.
+* [x] Normal builds do not require Doxygen.
+* [x] `cmake --build build-docs --target docs --verbose` prints the generated HTML path.
+* [x] `cmake --build build-docs --target docs --verbose` prints the warning-log path.
+* [x] The Doxygen warning log is checked after docs generation.
+* [x] `GAMEWIP_INSTALL_DOCS=ON` installs generated HTML docs only when `GAMEWIP_BUILD_DOCS=ON`.
+
+## Documentation Structure
+
+* [x] Root docs link to Logger guide pages.
+* [x] Root docs link to Assert guide pages.
+* [x] Root docs link to TestSupport guide pages.
+* [x] Logger guide pages cover quick start.
+* [x] Logger guide pages cover configuration.
+* [x] Logger guide pages cover reports.
+* [x] Logger guide pages cover stats.
+* [x] Logger guide pages cover testing.
+* [x] Logger guide pages cover examples.
+* [x] Assert guide pages cover quick start.
+* [x] Assert guide pages cover macros.
+* [x] Assert guide pages cover interactive assertions.
+* [x] Assert guide pages cover testing.
+* [x] Assert guide pages cover examples.
+* [x] TestSupport guide pages cover quick start.
+* [x] TestSupport guide pages cover expectations.
+* [x] TestSupport guide pages cover reports.
+* [x] TestSupport guide pages cover child processes.
+* [x] TestSupport guide pages cover scoped environment variables.
+* [x] TestSupport guide pages cover manual checks.
+* [x] TestSupport guide pages cover metrics.
+* [x] TestSupport guide pages cover stress helpers.
+* [x] TestSupport Doxygen registration adds the TestSupport public header.
+* [x] TestSupport Doxygen registration adds `tools/test_support/docs/`.
+* [x] TestSupport Doxygen registration does not require editing the root Doxyfile input list.
+* [x] Root docs link to the TestSupport landing page after TestSupport is registered with Doxygen.
+* [x] Doxygen sidebar groups library pages under Logger and Assert instead of flattening every guide page at the root.
+
+## Public API Documentation Inspection
+
+* [x] Build the final Doxygen site after documentation restructuring.
+* [x] Inspect the Logger landing page.
+* [x] Inspect the Assert landing page.
+* [x] Inspect the TestSupport landing page.
+* [x] Confirm Logger has a user-facing public API guide linked from the Logger landing page.
+* [x] Confirm Assert has a user-facing public API guide linked from the Assert landing page.
+* [x] Confirm TestSupport has a user-facing public API guide linked from the TestSupport landing page.
+* [x] Confirm test-hook/testing pages are labeled as developer-validation material.
+* [x] Confirm test-hook/testing pages are not presented as normal production API.
+* [x] Confirm public header hover text stays concise enough for IntelliSense.
+* [x] Confirm full examples and edge-case explanations live in Markdown manual pages.
+* [x] Confirm every public API appears in either a public API guide table/section or in a dedicated concept page.
+
+Completion goal:
+
+Generated documentation is usable by a consumer without requiring them to read `.cpp` implementation files.
+
+---
+
+# 9. Future Engine and Game Validation Sections
+
+Do not expand this file with every roadmap item in advance.
+
+When a roadmap phase becomes active, add validation sections for that system.
+
+Possible future validation sections:
+
+* Math validation.
+* Rendering validation.
+* Audio validation.
+* Simulation timing validation.
+* Physics validation.
+* Collision validation.
+* Structural world validation.
+* Destruction validation.
+* Component validation.
+* Building validation.
+* Player validation.
+* Inventory validation.
+* Gunplay validation.
+* Weapon customization validation.
+* Vehicle weapon validation.
+* Logic/control validation.
+* Sensor/actuator validation.
+* Save/load validation.
+* UI/UX validation.
+* Gameplay loop validation.
+* Performance scenario validation.
+* V1 release validation.
+
+---
+
+# 10. V1 Validation Placeholder
+
+This section should be expanded when V1 systems exist.
+
+## V1 Playability
+
+* [ ] Player can start a world.
+* [ ] Player can build a structure.
+* [ ] Player can build a vehicle.
+* [ ] Player can control a vehicle.
+* [ ] Player can damage structures.
+* [ ] Player can damage vehicles.
+* [ ] Player can use infantry weapons.
+* [ ] Player can customize at least one infantry weapon family.
+* [ ] Player can use at least one mounted or vehicle weapon.
+* [ ] Components can be damaged or fail.
+* [ ] Structures can break apart.
+* [ ] Audio communicates important events.
+* [ ] Graphics are readable and stylistically coherent.
+* [ ] UI supports the main gameplay actions.
+* [ ] Save/load works for normal play.
+* [ ] Performance is acceptable for the target V1 scale.
+* [ ] At least one complete sandbox loop or scenario can be played.
+
+Completion goal:
+
+V1 is validated as a playable game foundation, not only as a collection of separate systems.
+
+---
+
+# 11. How to Extend This File
+
+When adding validation requirements:
+
+1. Add the item under the closest existing system section.
+2. Use `[ ]` for behavior that has not been validated.
+3. Use `[-]` for validation currently in progress.
+4. Use `[~]` for partial validation.
+5. Use `[x]` only when the behavior has actually been tested, manually checked, measured, or inspected.
+6. Use `[M]` when real manual validation is required.
+7. Do not mark something validated because it is implemented.
+8. Do not add implementation tasks here; put them in `implementation_checklist.txt`.
+9. Do not add roadmap planning here; put it in `roadmap.txt`.
+10. Do not add architecture decisions here; put them in `decisions.txt`.
+11. Prefer observable behavior over implementation details.
+12. Include failure paths and edge cases when they are part of the public contract.
+
+A good testing checklist item says what behavior must be proven.
+
+A bad testing checklist item only says what code exists.

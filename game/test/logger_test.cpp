@@ -86,6 +86,31 @@ namespace
         std::size_t peakQueueDepth = 0;
     };
 
+    struct ScopedLogRootCleanup
+    {
+        explicit ScopedLogRootCleanup(const std::filesystem::path &path)
+            : path(path)
+        {
+        }
+
+        ~ScopedLogRootCleanup() noexcept
+        {
+            Logger::shutdown();
+            try
+            {
+                TestSupport::removeIfExists(path);
+            }
+            catch (...)
+            {
+            }
+        }
+
+        ScopedLogRootCleanup(const ScopedLogRootCleanup &) = delete;
+        ScopedLogRootCleanup &operator=(const ScopedLogRootCleanup &) = delete;
+
+        std::filesystem::path path;
+    };
+
     struct TestContext
     {
         explicit TestContext(TestSupport::Context &testContext) noexcept
@@ -1437,6 +1462,19 @@ namespace
         expectEq(context, "reset keeps lifetime queue drops", Logger::getLifetimeDroppedLogCount(), lifetimeBeforeReset);
     }
 
+    void waitForProducerAttempts(
+        const std::atomic<std::size_t> &attempts,
+        std::size_t minimumAttempts,
+        std::chrono::milliseconds timeout)
+    {
+        const auto waitStart = Clock::now();
+        while (attempts.load(std::memory_order_acquire) < minimumAttempts &&
+               Clock::now() - waitStart < timeout)
+        {
+            std::this_thread::yield();
+        }
+    }
+
     void testFlushWhileProducersActive(TestContext &context, const LoggerTestOptions &options)
     {
         if (!options.enableStressTests)
@@ -1479,6 +1517,7 @@ namespace
         }
 
         start.store(true, std::memory_order_release);
+        waitForProducerAttempts(attempts, 1024, 500ms);
 
         std::size_t flushSuccesses = 0;
         std::size_t flushTimeouts = 0;
@@ -1564,7 +1603,7 @@ namespace
         }
 
         start.store(true, std::memory_order_release);
-        std::this_thread::sleep_for(5ms);
+        waitForProducerAttempts(attempts, 1024, 500ms);
         Logger::shutdown();
         std::this_thread::sleep_for(1ms);
         stop.store(true, std::memory_order_release);
@@ -1891,6 +1930,7 @@ namespace GameWIP::Test
                 context.executablePath = argc > 0 && argv[0] != nullptr ? argv[0] : "";
                 context.logRoot = makeRunRoot();
                 TestSupport::createDirectories(context.logRoot);
+                const ScopedLogRootCleanup cleanupLogRoot(context.logRoot);
 
                 context.emit(std::format("[INFO] Logger test log root: {}\n", pathText(context.logRoot)));
                 context.emit(std::format(

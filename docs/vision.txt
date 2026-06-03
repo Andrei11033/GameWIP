@@ -1,29 +1,93 @@
-Project:
-A realistic sandbox building game where the player can build vehicles, weapons, missiles, buildings, etc.
+# GameWIP Vision
 
-Core identity:
-- easy building at the base level, similar in spirit to Stormworks
-- deeper optional customization for important components
-- destructible world and structures, closer to Space Engineers
-- granular structural/component destruction, inspired by Starbase
-- high-rate control/logic simulation for things like stabilizers, missiles, servos, guidance, and weapons
+## Purpose
 
-Main design goals:
-- building must be simple to start with
-- advanced complexity must be optional
-- realism matters, but usability matters more
-- destruction must affect structure and function
-- components should be fast to place, rich to configure, and granular to destroy
+GameWIP is a realistic sandbox building game focused on player-made vehicles, weapons, missiles, buildings, and technical systems.
 
-Game focus:
-- player-made creations
-- military and technical vehicles
-- programmable and controllable systems
-- realistic-ish engineering choices without becoming unbearable to build
+The goal is to combine simple, fast building with deeper optional engineering. A new player should be able to place parts and build something quickly, while an advanced player should be able to tune important systems in more detail.
 
-Important principles:
-- simulation first, visuals second
-- strong physics foundation
-- same structural backbone for vehicles and buildings
-- simple first, deep later
-- only selected subsystems need very high tick rates
+## Core Identity
+
+GameWIP is built around five core ideas:
+
+* **Simple base building**
+  Building should feel approachable and fast, similar in spirit to Stormworks.
+
+* **Optional engineering depth**
+  Advanced configuration should exist for important systems, but it should not be required for basic building.
+
+* **Destructible structures and worlds**
+  Vehicles, buildings, and world structures should be damageable in a meaningful way.
+
+* **Granular damage and component behavior**
+  Destruction should affect both shape and function. Parts should be able to degrade, detach, fail, or expose internal systems.
+
+* **High-rate control where it matters**
+  Systems such as stabilizers, missiles, servos, guidance, sensors, and weapons may need higher-frequency logic or control updates than normal gameplay systems.
+
+## Design Goals
+
+The main design goals are:
+
+* Building must be easy to start with.
+* Complexity must be optional, not forced.
+* Realism matters, but usability matters more.
+* Damage must affect both structure and function.
+* Components should be fast to place, useful by default, and rich to configure when needed.
+* Vehicles and buildings should share the same structural foundation.
+* The simulation should be strong enough to support believable physics, destruction, and control systems.
+
+## Game Focus
+
+GameWIP focuses on:
+
+* player-made creations;
+* military and technical vehicles;
+* programmable and controllable systems;
+* weapons, missiles, turrets, sensors, and guidance systems;
+* realistic-ish engineering decisions without making the game unbearable to build in.
+
+The game should reward engineering thinking, but it should still feel like a sandbox game, not a professional CAD tool.
+
+## Development Principles
+
+These principles guide technical and design decisions:
+
+1. **Simulation first, visuals second**
+   Graphics should support development and debugging early. A full visual engine is not the first priority.
+
+2. **Simple first, deep later**
+   Every major system should have a simple usable version before advanced configuration is added.
+
+3. **Shared structural backbone**
+   Vehicles, buildings, and destructible structures should use the same core structural model where possible.
+
+4. **Damage should matter**
+   Destruction should not only remove blocks visually. It should affect strength, mass, connectivity, components, and behavior.
+
+5. **Only selected systems need very high tick rates**
+   High-frequency simulation should be reserved for systems that actually need it, such as control loops, guidance, stabilization, sensors, and weapons.
+
+6. **Debuggability matters**
+   Early rendering, overlays, logs, assertions, and tests are part of the development foundation, not optional polish.
+
+## Early Non-Goals
+
+These are not priorities for the first versions:
+
+* full graphics polish before simulation foundations;
+* multiplayer before the core simulation works;
+* advanced component editing for every single part;
+* realism that makes normal building too slow or frustrating;
+* large gameplay systems before physics, structures, and components are reliable.
+
+## How to Extend This File
+
+When adding to this vision document:
+
+* keep it high-level;
+* avoid implementation details unless they affect the identity of the game;
+* move technical decisions to `decisions.txt`;
+* move step-by-step work items to `roadmap.txt`;
+* move validation requirements to `testing_checklist.txt`;
+* prefer short principles over long explanations.

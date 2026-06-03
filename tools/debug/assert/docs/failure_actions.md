@@ -28,12 +28,12 @@ Always Ignore suppresses future interactive failures from the same macro expansi
 
 Important rules:
 
-- it is per call site,
-- it is not global,
-- it does not affect normal `ASSERT` / `VERIFY`,
-- `ASSERT_INTERACTIVE` may skip condition evaluation after Always Ignore,
+- Always Ignore is per call site.
+- Always Ignore is not global.
+- Always Ignore does not affect normal `ASSERT` / `VERIFY`.
+- `ASSERT_INTERACTIVE` may skip condition evaluation after Always Ignore.
 - `VERIFY_INTERACTIVE` still evaluates its condition.
-- the per-call-site flag is an atomic local static, so concurrent failures may race only in which thread observes or sets the ignore first.
+- The per-call-site flag is an atomic local static, so concurrent failures may race only in which thread observes or sets the ignore first.
 
 ## Related pages
 

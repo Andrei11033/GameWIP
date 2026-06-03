@@ -33,26 +33,48 @@ if(GAMEWIP_ENABLE_COVERAGE)
 
     if(GAMEWIP_GCOVR_EXECUTABLE)
         message(STATUS "Coverage reports enabled with gcovr: ${GAMEWIP_GCOVR_EXECUTABLE}")
+
+        set(GAMEWIP_COVERAGE_COMMON_ARGS
+            --root "${CMAKE_CURRENT_SOURCE_DIR}"
+            --filter "${CMAKE_CURRENT_SOURCE_DIR}/tools/logger"
+            --filter "${CMAKE_CURRENT_SOURCE_DIR}/tools/debug/assert"
+            --filter "${CMAKE_CURRENT_SOURCE_DIR}/tools/test_support"
+            --filter "${CMAKE_CURRENT_SOURCE_DIR}/game/test"
+            --exclude "${CMAKE_CURRENT_SOURCE_DIR}/external"
+            --gcov-ignore-parse-errors negative_hits.warn_once_per_file
+        )
+
+        set(GAMEWIP_COVERAGE_STALE_ARTIFACT_CLEAN_COMMANDS)
+        if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/game/test/testing_test.cpp")
+            list(APPEND GAMEWIP_COVERAGE_STALE_ARTIFACT_CLEAN_COMMANDS
+                COMMAND ${CMAKE_COMMAND} -E rm -f
+                    "${CMAKE_BINARY_DIR}/CMakeFiles/GameWIP.dir/game/test/testing_test.cpp.gcda"
+                    "${CMAKE_BINARY_DIR}/CMakeFiles/GameWIP.dir/game/test/testing_test.cpp.gcno"
+            )
+        endif()
+        if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tools/logger/core/logger.cpp")
+            list(APPEND GAMEWIP_COVERAGE_STALE_ARTIFACT_CLEAN_COMMANDS
+                COMMAND ${CMAKE_COMMAND} -E rm -f
+                    "${CMAKE_BINARY_DIR}/tools/logger/CMakeFiles/Logger.dir/core/logger.cpp.gcda"
+                    "${CMAKE_BINARY_DIR}/tools/logger/CMakeFiles/Logger.dir/core/logger.cpp.gcno"
+            )
+        endif()
+        if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tools/testing")
+            list(APPEND GAMEWIP_COVERAGE_STALE_ARTIFACT_CLEAN_COMMANDS
+                COMMAND ${CMAKE_COMMAND} -E rm -rf "${CMAKE_BINARY_DIR}/tools/testing"
+            )
+        endif()
+
         add_custom_target(coverage
+            ${GAMEWIP_COVERAGE_STALE_ARTIFACT_CLEAN_COMMANDS}
+            COMMAND ${CMAKE_COMMAND} -E rm -rf "${GAMEWIP_COVERAGE_OUTPUT_DIR}"
             COMMAND ${CMAKE_COMMAND} -E make_directory "${GAMEWIP_COVERAGE_OUTPUT_DIR}"
             COMMAND "${GAMEWIP_GCOVR_EXECUTABLE}"
-                --root "${CMAKE_CURRENT_SOURCE_DIR}"
-                --filter "${CMAKE_CURRENT_SOURCE_DIR}/tools/logger"
-                --filter "${CMAKE_CURRENT_SOURCE_DIR}/tools/debug/assert"
-                --filter "${CMAKE_CURRENT_SOURCE_DIR}/tools/test_support"
-                --filter "${CMAKE_CURRENT_SOURCE_DIR}/game/test"
-                --exclude "${CMAKE_CURRENT_SOURCE_DIR}/external"
-                --gcov-ignore-parse-errors negative_hits.warn_once_per_file
+                ${GAMEWIP_COVERAGE_COMMON_ARGS}
                 --html-details
                 --output "${GAMEWIP_COVERAGE_OUTPUT_DIR}/index.html"
             COMMAND "${GAMEWIP_GCOVR_EXECUTABLE}"
-                --root "${CMAKE_CURRENT_SOURCE_DIR}"
-                --filter "${CMAKE_CURRENT_SOURCE_DIR}/tools/logger"
-                --filter "${CMAKE_CURRENT_SOURCE_DIR}/tools/debug/assert"
-                --filter "${CMAKE_CURRENT_SOURCE_DIR}/tools/test_support"
-                --filter "${CMAKE_CURRENT_SOURCE_DIR}/game/test"
-                --exclude "${CMAKE_CURRENT_SOURCE_DIR}/external"
-                --gcov-ignore-parse-errors negative_hits.warn_once_per_file
+                ${GAMEWIP_COVERAGE_COMMON_ARGS}
                 --xml-pretty
                 --output "${GAMEWIP_COVERAGE_OUTPUT_DIR}/coverage.xml"
             WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"

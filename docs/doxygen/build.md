@@ -4,7 +4,7 @@ This page covers project-level build behavior. Library-specific usage is documen
 
 ## Normal source build
 
-By default, GameWIP builds Logger and Assert from the source tree:
+By default, GameWIP builds Logger, Assert, and TestSupport from the source tree:
 
 ```powershell
 cmake -S . -B build `
@@ -20,7 +20,7 @@ cmake --build build
 
 Runtime test selection stays in `TestRunOptions` in `game/main.cpp`; CMake options control build-time features only.
 
-## Using installed Logger / Assert packages
+## Using installed packages
 
 After the libraries have been installed, an external CMake project can consume them with:
 
@@ -58,8 +58,10 @@ A normal install provides headers, libraries, and package config files similar t
 ```text
 <prefix>/include/logger/...
 <prefix>/include/debug/assert/...
+<prefix>/include/test_support/...
 <prefix>/lib/cmake/GameWIP_Logger/GameWIP_LoggerConfig.cmake
 <prefix>/lib/cmake/GameWIP_Assert/GameWIP_AssertConfig.cmake
+<prefix>/lib/cmake/GameWIP_TestSupport/GameWIP_TestSupportConfig.cmake
 ```
 
 The Assert package depends on the Logger package through `find_dependency(GameWIP_Logger CONFIG)`. The TestSupport package is independent and has no Logger or Assert dependency.

@@ -22,8 +22,8 @@ namespace
         bool enableTestSupportChildProcessTests = true;
         bool enablePerformanceMetrics = true;
         bool enableAutomatedInteractiveTests = true;
-        bool enableManualUiTests = true;
-        bool enableLoggerPopupTest = true;
+        bool enableManualUiTests = false;
+        bool enableLoggerPopupTest = false;
 
         std::size_t performanceIterations = 1'000'000;
         std::size_t stressThreadCount = 8;

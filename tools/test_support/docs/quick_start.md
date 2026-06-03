@@ -43,7 +43,6 @@ target_link_libraries(MyTests PRIVATE GameWIP::TestSupport)
 
 Logger tests, Assert tests, and future engine tests may use TestSupport, but TestSupport examples should remain generic and should not require Logger or Assert.
 
-
 ## Where to go next
 
 - @ref test_support_expectations explains `Runner`, `Context`, expectations, summaries, and sections.

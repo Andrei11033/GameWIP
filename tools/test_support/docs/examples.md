@@ -52,6 +52,13 @@ On Windows, scoped environment helpers update both the CRT environment used by `
 GameWIP::TestSupport::StartGate gate;
 GameWIP::TestSupport::StopFlag stop;
 
+std::thread starter(
+    [&gate]
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds{10});
+        gate.open();
+    });
+
 std::thread stopper(
     [&stop]
     {
@@ -59,7 +66,6 @@ std::thread stopper(
         stop.requestStop();
     });
 
-gate.open();
 GameWIP::TestSupport::runWorkers(
     4,
     [&](std::size_t workerIndex)
@@ -71,11 +77,11 @@ GameWIP::TestSupport::runWorkers(
         }
     });
 
+starter.join();
 stopper.join();
 ```
 
 Examples should remain generic and avoid Logger-specific, Assert-specific, or engine-specific helper logic.
-
 
 ## Related pages
 

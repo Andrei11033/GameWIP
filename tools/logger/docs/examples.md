@@ -1,5 +1,11 @@
 @page logger_examples Logger examples
 
+Examples use this namespace alias for readability:
+
+```cpp
+namespace Logger = GameWIP::Logger;
+```
+
 ## Initialize with a custom config
 
 ```cpp

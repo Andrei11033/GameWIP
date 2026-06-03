@@ -1,140 +1,601 @@
-Implementation checklist
-========================
+# GameWIP Implementation Checklist
 
-Purpose
--------
-This file tracks implementation work that exists or still needs to be added. It is not the proof checklist; use `testing_checklist.txt` for validation requirements.
+## Purpose
 
-Platform backend convention
----------------------------
-[x] `cmake/GameWIPPlatform.cmake` resolves `GAMEWIP_PLATFORM_ID`.
-[x] Tool libraries load backend sources from `platform/${GAMEWIP_PLATFORM_ID}/*.cpp`.
-[x] Tool libraries optionally include `platform/${GAMEWIP_PLATFORM_ID}/platform.cmake` for platform-specific links, resources, and generated files.
-[x] Current Windows backend id is `win32`.
+This file tracks implementation work that exists, is partially complete, or still needs to be added.
 
-Logger library
---------------
-[x] Logger builds as a separate library target.
-[x] Public API supports normal async logs and synchronous reports.
-[x] Normal logs are async, queue-based, and filterable.
-[x] `Logger::report(...)` writes synchronously and bypasses filters/queue.
-[x] Report timeout overloads write first, then perform a bounded drain.
-[x] Queue drops are separated from diagnostics such as format/file/allocation failures.
-[x] Unknown SourceId values are accepted and counted.
-[x] Logger-owned fatal popup path exists through report/fatal-terminate APIs.
-[x] Logger internal test hooks exist under `tools/logger/internal/logger_test_hooks.h`.
-[x] Logger hook-forced failure tests cover rare file/popup/timeout branches.
-[x] Logger core delegates OS behavior through `tools/logger/internal/logger_platform.h`.
-[x] Logger package config polish exists for `find_package(GameWIP_Logger CONFIG REQUIRED)`.
+It answers:
 
-Assert library
---------------
-[x] Assert builds as a separate library target.
-[x] ASSERT / VERIFY / UNREACHABLE report fatal failures through Logger.
-[x] CHECK / CHECK_ONCE / ENSURE report recoverable errors through Logger.
-[x] ASSERT_INTERACTIVE / VERIFY_INTERACTIVE exist as separate developer workflows.
-[x] Interactive actions support Break, Abort, Ignore Once, and Always Ignore.
-[x] Common Controls v6 manifest support is provided for the Windows TaskDialog path.
-[x] Automated interactive tests can use `GAMEWIP_ASSERT_TEST_ACTION`.
-[x] Manual UI tests can open real Windows dialogs when enabled.
-[x] Assert internal test hooks exist under `tools/debug/assert/internal/assert_test_hooks.h`.
-[x] Assert hook-forced tests cover action-dialog fallback, fallback-dialog failure, debugger overrides, and popup suppression overrides.
-[x] Assert core delegates OS behavior through `tools/debug/assert/internal/assert_platform.h`.
-[x] Assert package config polish exists for `find_package(GameWIP_Assert CONFIG REQUIRED)`.
+> “Has this feature or system been implemented in code?”
 
-TestSupport library
----------------
-[x] `tools/test_support` contains the library target files, public header, core implementation, and platform implementation.
-[x] TestSupport builds as a static library target named `TestSupport`.
-[x] TestSupport exposes alias target `GameWIP::TestSupport`.
-[x] TestSupport public API lives in `tools/test_support/test_support.h`.
-[x] TestSupport public API lives under namespace `GameWIP::TestSupport` with no global namespace pollution.
-[x] TestSupport implementation uses `core/test_support.cpp` for platform-neutral behavior.
-[x] TestSupport Windows child-process backend uses `platform/win32/win32_child_process.cpp`.
-[x] TestSupport Windows environment backend uses `platform/win32/win32_environment.cpp`.
-[x] TestSupport core delegates OS behavior through `tools/test_support/internal/test_support_platform.h`.
-[x] TestSupport does not depend on Logger or Assert.
-[x] TestSupport local CMake options use the `TEST_SUPPORT_...` prefix when options become necessary.
-[x] TestSupport exported compile definitions use the `GAMEWIP_TEST_SUPPORT_...` prefix when exported macros become necessary.
-[x] `Types::ReportOptions` controls console output, report-file output, append behavior, and report path.
-[x] Report output creates parent directories as needed.
-[x] Report output supports `[INFO]`, `[PASS]`, `[FAIL]`, `[SKIP]`, `[MANUAL]`, `[METRIC]`, `[STRESS]`, `[SUMMARY]`, and `[RESULT]`.
-[x] `Types::Summary` tracks passed, failed, and skipped counts with `total()` and `ok()`.
-[x] `Types::SuiteResult` stores suite name, summary, elapsed milliseconds, and `ok()`.
-[x] `Context` records info/manual/metric/stress/summary/pass/fail/skip entries.
-[x] `Context` expectations record failures and keep the runner alive.
-[x] `Context` expectations include `expectTrue`, `expectFalse`, `expectEq`, `expectNe`, `expectNear`, `expectContains`, `expectFileContains`, and `expectFileOccurrenceCount`.
-[x] Failure reporting includes `std::source_location`.
-[x] `Runner` owns one unified run report and runs named suites.
-[x] `Runner` exposes aggregate result state and process exit code.
-[x] `Section` provides RAII section grouping and optional elapsed-time reporting.
-[x] `Timer` and `Types::IterationMetric` report elapsed time and nanoseconds per iteration.
-[x] File helpers cover text read/write, existence checks, substring checks, occurrence counts, directory creation, and best-effort removal.
-[x] Scoped environment helpers restore prior state on destruction.
-[x] Windows environment helpers update both CRT environment and process environment.
-[x] Child process support covers arguments, environment overrides/unsets, timeout, output capture, and parent-environment inheritance.
-[x] Child process results expose exit code, timeout state, test-requested termination state, captured output, and success/failure helpers.
-[x] Manual check support provides `Types::ManualAnswer` and `promptManualCheck()`.
-[x] Concurrency helpers provide `StartGate`, `StopFlag`, and `runWorkers()`.
+This file is not the proof checklist.
 
-Windows Unicode backend standard
---------------------------------
-[x] Windows platform backends use explicit `W` Win32 APIs instead of ANSI APIs or generic A/W macros.
-[x] Public C++ APIs keep portable UTF-8 `std::string` text and `std::filesystem::path` paths.
-[x] Win32 backend code converts to UTF-16 at the platform boundary.
-[x] TestSupport child-process and environment helpers use Unicode environment/process APIs.
-[x] Logger and Assert Windows popup/debug-output backends use explicit Unicode APIs.
+* Use `testing_checklist.txt` for validation requirements.
+* Use `roadmap.txt` for planned development order.
+* Use `decisions.txt` for stable project decisions and standards.
+* Use `platform_backend_contract.txt` for detailed backend boundary rules.
 
-Build and tooling
------------------
-[x] CMake builds the game/test executable and library targets.
-[x] Runtime test selection is controlled by TestRunOptions, not CMake.
-[x] Common Controls v6 manifest resource is propagated through the Assert target in build-tree and installed-package use.
-[x] `GAMEWIP_ENABLE_COVERAGE` instruments supported compilers for coverage runs.
-[x] `GAMEWIP_ENABLE_LOGGER_TEST_HOOKS` and `GAMEWIP_ENABLE_ASSERT_TEST_HOOKS` enable hook APIs for test builds.
-[x] Generated Doxygen configuration exists for professional HTML API docs.
-[x] Top-level CMake adds `tools/test_support` after the C++ library is implemented.
-[x] The game/test executable links `GameWIP::TestSupport`, `GameWIP::Logger`, and `GameWIP::Assert` after TestSupport exists.
-[ ] Logger and Assert tests are migrated to use generic TestSupport helpers after the library is validated.
-[x] TestSupport package config polish exists for `find_package(GameWIP_TestSupport CONFIG REQUIRED)`.
+---
 
-Documentation
--------------
-[x] Project decisions are tracked in `docs/decisions.txt`.
-[x] Implementation and testing checklists are split.
-[x] Public Logger and Assert APIs follow the full Doxygen contract style everywhere.
-[x] Internal helpers are documented where locks, atomics, lifecycle, platform behavior, failure injection, or hot-path behavior is non-obvious.
+## Status Legend
 
-Per-library documentation
--------------------------
-[x] Root documentation landing page exists at `docs/doxygen/index.md`.
-[x] Logger owns a `tools/logger/docs/` guide folder.
-[x] Assert owns a `tools/debug/assert/docs/` guide folder.
-[x] TestSupport guide pages exist under `tools/test_support/docs/`.
-[x] Logger and Assert CMake files register their headers and guide folders with the global Doxygen build when documentation is enabled.
-[x] Doxygen input registration is modular, so each library can add docs without editing the root Doxyfile input list.
-[x] Expand public API Doxygen comments until all public contracts are complete.
-[x] Expand per-library examples as new API patterns are added.
-[x] TestSupport CMake registers `tools/test_support/test_support.h` and `tools/test_support/docs/` with Doxygen when documentation is enabled.
-[x] TestSupport public API comments document contracts, parameters, returns, lifecycle behavior, thread-safety, failure behavior, blocking behavior, and performance notes.
-[x] TestSupport guide pages cover quick start, expectations, reports, child processes, manual checks, examples, file/environment helpers, metrics, and stress helpers.
+```text
+[ ] Not implemented
+[-] In progress
+[x] Implemented
+[~] Implemented but needs cleanup/refactor
+[!] Blocked or waiting on a decision
+```
 
-Doxygen infrastructure addendum
--------------------------------
-[x] Project-wide Doxygen helper functions live in `cmake/GameWIPDoxygen.cmake`.
-[x] Doxygen input generation avoids fragile multiline continuation parsing.
-[x] The docs target creates the output directory before running Doxygen.
-[x] The docs target writes Doxygen warnings to `build-docs/docs/doxygen/doxygen_warnings.log`.
-[x] `GAMEWIP_INSTALL_DOCS` installs generated HTML documentation when explicitly enabled.
+---
 
+# 1. Platform Backend Infrastructure
 
-Documentation API coverage checklist
-------------------------------------
-[x] Every public header has concise IntelliSense-ready docs for public types, functions, macros, parameters, return values, and important warnings.
-[x] Every library has a user-facing public API guide in its Doxygen Markdown docs.
-[x] Logger public API guide covers lifecycle, configs, filters, normal logs, reports, stats, macros, and fatal paths.
-[x] Assert public API guide covers every macro family, FailureAction, debugBreak, evaluation rules, and enabled/disabled behavior.
-[x] TestSupport public API guide covers report options, summaries, Context, Runner, Section, Timer, file helpers, environment helpers, child processes, manual checks, and stress helpers.
-[x] Developer-validation pages such as testing and test hooks are separate from normal user-manual navigation.
-[x] Generated Doxygen docs let a consumer understand how to use each library without reading `.cpp` implementation files.
-[x] Oversized tutorial/example blocks are kept in Markdown guide pages instead of public header hover text.
+## Platform Selection
+
+* [x] `cmake/GameWIPPlatform.cmake` resolves `GAMEWIP_PLATFORM_ID`.
+* [x] Current Windows backend id is `win32`.
+* [x] Tool libraries load backend sources from `platform/${GAMEWIP_PLATFORM_ID}/*.cpp`.
+* [x] Tool libraries optionally include `platform/${GAMEWIP_PLATFORM_ID}/platform.cmake` for platform-specific links, resources, manifests, generated files, or compile definitions.
+
+## Platform Layout Convention
+
+* [x] Platform-specific implementation files live under `platform/<platform-id>/`.
+* [x] Platform source naming follows the `<platform-id>_<feature>.cpp` convention.
+* [x] Core implementation files delegate platform behavior through internal backend headers.
+* [x] Public headers remain platform-neutral.
+
+Completion note:
+
+Platform backend selection and layout are implemented for the current Windows-first tool-library architecture.
+
+---
+
+# 2. Logger Library Implementation
+
+## Library Target
+
+* [x] Logger builds as a separate library target.
+* [x] Logger package config polish exists for `find_package(GameWIP_Logger CONFIG REQUIRED)`.
+
+## Public Logging Paths
+
+* [x] Public API supports normal async logs.
+* [x] Public API supports synchronous reports.
+* [x] Normal logs are async, queue-based, and filterable.
+* [x] `Logger::report(...)` writes synchronously.
+* [x] `Logger::report(...)` bypasses filters.
+* [x] `Logger::report(...)` bypasses the async queue.
+* [x] Report timeout overloads write first, then perform a bounded drain.
+
+## Counters and Failure State
+
+* [x] Queue drops are separated from diagnostics such as format, file, and allocation failures.
+* [x] Unknown `SourceId` values are accepted.
+* [x] Unknown `SourceId` values are counted.
+
+## Fatal Reporting
+
+* [x] Logger-owned fatal popup path exists through report/fatal-terminate APIs.
+
+## Platform Delegation
+
+* [x] Logger core delegates OS behavior through `tools/logger/internal/logger_platform.h`.
+
+## Test Hooks
+
+* [x] Logger internal test hooks exist under `tools/logger/internal/logger_test_hooks.h`.
+* [x] Logger hook-forced failure tests cover rare file branches.
+* [x] Logger hook-forced failure tests cover popup branches.
+* [x] Logger hook-forced failure tests cover timeout branches.
+
+Completion note:
+
+Logger is implemented as a reusable foundation library with async logging, synchronous reporting, platform delegation, package polish, and test-hook support.
+
+---
+
+# 3. Assert Library Implementation
+
+## Library Target
+
+* [x] Assert builds as a separate library target.
+* [x] Assert package config polish exists for `find_package(GameWIP_Assert CONFIG REQUIRED)`.
+
+## Macro Families
+
+* [x] `ASSERT` reports fatal failures through Logger.
+* [x] `VERIFY` reports fatal failures through Logger.
+* [x] `UNREACHABLE` reports fatal failures through Logger.
+* [x] `CHECK` reports recoverable errors through Logger.
+* [x] `CHECK_ONCE` reports recoverable errors through Logger.
+* [x] `ENSURE` reports recoverable errors through Logger.
+
+## Interactive Assertions
+
+* [x] `ASSERT_INTERACTIVE` exists as a separate developer workflow.
+* [x] `VERIFY_INTERACTIVE` exists as a separate developer workflow.
+* [x] Interactive actions support `Break`.
+* [x] Interactive actions support `Abort`.
+* [x] Interactive actions support `Ignore Once`.
+* [x] Interactive actions support `Always Ignore`.
+* [x] Automated interactive tests can use `GAMEWIP_ASSERT_TEST_ACTION`.
+* [x] Manual UI tests can open real Windows dialogs when enabled.
+
+## Windows UI Support
+
+* [x] Common Controls v6 manifest support is provided for the Windows TaskDialog path.
+
+## Platform Delegation
+
+* [x] Assert core delegates OS behavior through `tools/debug/assert/internal/assert_platform.h`.
+
+## Test Hooks
+
+* [x] Assert internal test hooks exist under `tools/debug/assert/internal/assert_test_hooks.h`.
+* [x] Assert hook-forced tests cover action-dialog fallback.
+* [x] Assert hook-forced tests cover fallback-dialog failure.
+* [x] Assert hook-forced tests cover debugger overrides.
+* [x] Assert hook-forced tests cover popup suppression overrides.
+
+Completion note:
+
+Assert is implemented as a reusable diagnostic library with fatal, recoverable, interactive, and platform-backed behavior.
+
+---
+
+# 4. TestSupport Library Implementation
+
+## Library Target and Public Identity
+
+* [x] `tools/test_support` contains the library target files.
+* [x] `tools/test_support` contains the public header.
+* [x] `tools/test_support` contains the core implementation.
+* [x] `tools/test_support` contains the platform implementation.
+* [x] TestSupport builds as a static library target named `TestSupport`.
+* [x] TestSupport exposes alias target `GameWIP::TestSupport`.
+* [x] TestSupport public API lives in `tools/test_support/test_support.h`.
+* [x] TestSupport public API lives under namespace `GameWIP::TestSupport`.
+* [x] TestSupport avoids global namespace pollution.
+* [x] TestSupport package config polish exists for `find_package(GameWIP_TestSupport CONFIG REQUIRED)`.
+
+## Dependency Rules
+
+* [x] TestSupport does not depend on Logger.
+* [x] TestSupport does not depend on Assert.
+* [x] Logger tests may depend on TestSupport.
+* [x] Assert tests may depend on TestSupport.
+
+## Implementation Layout
+
+* [x] TestSupport implementation uses `core/test_support.cpp` for platform-neutral behavior.
+* [x] TestSupport core delegates OS behavior through `tools/test_support/internal/test_support_platform.h`.
+* [x] TestSupport Windows child-process backend uses `platform/win32/win32_child_process.cpp`.
+* [x] TestSupport Windows environment backend uses `platform/win32/win32_environment.cpp`.
+
+## Naming and Macros
+
+* [x] TestSupport local CMake options use the `TEST_SUPPORT_...` prefix when options become necessary.
+* [x] TestSupport exported compile definitions use the `GAMEWIP_TEST_SUPPORT_...` prefix when exported macros become necessary.
+
+---
+
+# 5. TestSupport Reporting Implementation
+
+## Report Options
+
+* [x] `Types::ReportOptions` controls console output.
+* [x] `Types::ReportOptions` controls report-file output.
+* [x] `Types::ReportOptions` controls append behavior.
+* [x] `Types::ReportOptions` controls report path.
+* [x] Report output creates parent directories as needed.
+
+## Report Categories
+
+* [x] Report output supports `[INFO]`.
+* [x] Report output supports `[PASS]`.
+* [x] Report output supports `[FAIL]`.
+* [x] Report output supports `[SKIP]`.
+* [x] Report output supports `[MANUAL]`.
+* [x] Report output supports `[METRIC]`.
+* [x] Report output supports `[STRESS]`.
+* [x] Report output supports `[SUMMARY]`.
+* [x] Report output supports `[RESULT]`.
+
+## Summary and Suite Results
+
+* [x] `Types::Summary` tracks passed counts.
+* [x] `Types::Summary` tracks failed counts.
+* [x] `Types::Summary` tracks skipped counts.
+* [x] `Types::Summary::total()` exists.
+* [x] `Types::Summary::ok()` exists.
+* [x] `Types::SuiteResult` stores suite name.
+* [x] `Types::SuiteResult` stores summary.
+* [x] `Types::SuiteResult` stores elapsed milliseconds.
+* [x] `Types::SuiteResult::ok()` exists.
+
+## Context
+
+* [x] `Context` records info entries.
+* [x] `Context` records manual entries.
+* [x] `Context` records metric entries.
+* [x] `Context` records stress entries.
+* [x] `Context` records summary entries.
+* [x] `Context` records pass entries.
+* [x] `Context` records fail entries.
+* [x] `Context` records skip entries.
+* [x] `Context` expectations record failures and keep the runner alive.
+* [x] Failure reporting includes `std::source_location`.
+
+## Expectations
+
+* [x] `Context::expectTrue` exists.
+* [x] `Context::expectFalse` exists.
+* [x] `Context::expectEq` exists.
+* [x] `Context::expectNe` exists.
+* [x] `Context::expectNear` exists.
+* [x] `Context::expectContains` exists.
+* [x] `Context::expectFileContains` exists.
+* [x] `Context::expectFileOccurrenceCount` exists.
+
+## Runner and Sections
+
+* [x] `Runner` owns one unified run report.
+* [x] `Runner` runs named suites.
+* [x] `Runner` exposes aggregate result state.
+* [x] `Runner` exposes process exit code.
+* [x] `Section` provides RAII section grouping.
+* [x] `Section` supports optional elapsed-time reporting.
+
+## Metrics
+
+* [x] `Timer` reports elapsed time.
+* [x] `Types::IterationMetric` reports nanoseconds per iteration.
+
+Completion note:
+
+TestSupport reporting, expectations, runner behavior, sections, metrics, and source-location failure reporting are implemented.
+
+---
+
+# 6. TestSupport Utility Implementation
+
+## File Helpers
+
+* [x] Text file reading implemented.
+* [x] Text file writing implemented.
+* [x] File existence checks implemented.
+* [x] File substring checks implemented.
+* [x] File occurrence counting implemented.
+* [x] Directory creation implemented.
+* [x] Best-effort file removal implemented.
+
+## Environment Helpers
+
+* [x] `ScopedEnvironmentVariable` restores prior state on destruction.
+* [x] `ScopedUnsetEnvironmentVariable` restores prior state on destruction.
+* [x] Windows environment helpers update the CRT environment.
+* [x] Windows environment helpers update the process environment.
+
+## Child Process Helpers
+
+* [x] Child process support handles executable arguments.
+* [x] Child process support handles environment overrides.
+* [x] Child process support handles environment unsets.
+* [x] Child process support handles timeouts.
+* [x] Child process support handles output capture.
+* [x] Child process support handles parent-environment inheritance.
+* [x] Child process results expose exit code.
+* [x] Child process results expose timeout state.
+* [x] Child process results expose test-requested termination state.
+* [x] Child process results expose captured output.
+* [x] Child process results expose success/failure helpers.
+
+## Manual Checks
+
+* [x] Manual check support provides `Types::ManualAnswer`.
+* [x] Manual check support provides `promptManualCheck()`.
+
+## Stress Helpers
+
+* [x] `StartGate` implemented.
+* [x] `StopFlag` implemented.
+* [x] `runWorkers()` implemented.
+
+Completion note:
+
+TestSupport utility helpers are implemented for files, environment variables, child processes, manual checks, timing, and stress coordination.
+
+---
+
+# 7. Windows Unicode Backend Implementation
+
+## General Rule
+
+* [x] Windows platform backends use explicit `W` Win32 APIs instead of ANSI APIs.
+* [x] Windows platform backends avoid generic macro-mapped A/W Win32 APIs.
+* [x] Public C++ APIs keep portable UTF-8 `std::string` text.
+* [x] Public C++ APIs keep portable `std::filesystem::path` paths.
+* [x] Win32 backend code converts to UTF-16 at the platform boundary.
+
+## Implemented Backends
+
+* [x] TestSupport child-process helpers use Unicode process APIs.
+* [x] TestSupport environment helpers use Unicode environment APIs.
+* [x] Logger Windows popup/debug-output backend uses explicit Unicode APIs.
+* [x] Assert Windows popup/debug-output backend uses explicit Unicode APIs.
+
+Completion note:
+
+The Windows backend follows the project rule that public C++ remains UTF-8/path based while Win32 calls use explicit Unicode APIs.
+
+---
+
+# 8. Build and Tooling Implementation
+
+## Build Structure
+
+* [x] CMake builds the game/test executable.
+* [x] CMake builds the library targets.
+* [x] Top-level CMake adds `tools/test_support` after the C++ library is implemented.
+* [x] Game/test executable links `GameWIP::TestSupport`.
+* [x] Game/test executable links `GameWIP::Logger`.
+* [x] Game/test executable links `GameWIP::Assert`.
+
+## Runtime Test Selection
+
+* [x] Runtime test selection is controlled by `TestRunOptions`, not CMake.
+
+## Coverage
+
+* [x] `GAMEWIP_ENABLE_COVERAGE` instruments supported compilers for coverage runs.
+* [x] Optional `coverage` target exists when coverage is enabled.
+* [x] Coverage target generates HTML reports when `gcovr` is available.
+* [x] Coverage target generates XML reports when `gcovr` is available.
+* [x] Coverage target fails with a clear installation message if `gcovr` is missing.
+* [x] Coverage generation tolerates known gcov negative-hit warnings while still writing reports.
+
+## Test Hooks
+
+* [x] `GAMEWIP_ENABLE_LOGGER_TEST_HOOKS` enables Logger hook APIs for test builds.
+* [x] `GAMEWIP_ENABLE_ASSERT_TEST_HOOKS` enables Assert hook APIs for test builds.
+
+## Windows Resources
+
+* [x] Common Controls v6 manifest resource is propagated through the Assert target in build-tree use.
+* [x] Common Controls v6 manifest resource is propagated through the Assert target in installed-package use.
+
+## Remaining Build Work
+
+* [x] Logger tests are migrated to use generic TestSupport helpers after the library is validated.
+* [x] Assert tests are migrated to use generic TestSupport helpers after the library is validated.
+
+Completion note:
+
+Build tooling is implemented, including migrated Logger and Assert tests on the generic TestSupport helpers.
+
+---
+
+# 9. Documentation Implementation
+
+## Project Documentation Files
+
+* [x] Project decisions are tracked in `docs/decisions.txt`.
+* [x] Implementation and testing checklists are split.
+* [x] Root documentation landing page exists at `docs/doxygen/index.md`.
+
+## Public API Documentation
+
+* [x] Public Logger APIs follow the Doxygen contract style.
+* [x] Public Assert APIs follow the Doxygen contract style.
+* [x] Public TestSupport APIs follow the Doxygen contract style.
+* [x] Public API comments document contracts.
+* [x] Public API comments document parameters.
+* [x] Public API comments document return values.
+* [x] Public API comments document lifecycle behavior where relevant.
+* [x] Public API comments document thread-safety where relevant.
+* [x] Public API comments document failure behavior where relevant.
+* [x] Public API comments document blocking behavior where relevant.
+* [x] Public API comments document performance notes where relevant.
+* [x] Oversized tutorial/example blocks are kept in Markdown guide pages instead of public header hover text.
+
+## Internal Documentation
+
+* [x] Internal helpers are documented where locks are non-obvious.
+* [x] Internal helpers are documented where atomics are non-obvious.
+* [x] Internal helpers are documented where lifecycle behavior is non-obvious.
+* [x] Internal helpers are documented where platform behavior is non-obvious.
+* [x] Internal helpers are documented where failure injection is non-obvious.
+* [x] Internal helpers are documented where hot-path behavior is non-obvious.
+
+Completion note:
+
+Documentation implementation is in place for the foundation libraries, with public API comments and internal invariant documentation.
+
+---
+
+# 10. Per-Library Documentation Implementation
+
+## Logger Docs
+
+* [x] Logger owns a `tools/logger/docs/` guide folder.
+* [x] Logger CMake registers its public headers with the global Doxygen build.
+* [x] Logger CMake registers its guide folder with the global Doxygen build.
+* [x] Logger public API guide covers lifecycle.
+* [x] Logger public API guide covers configs.
+* [x] Logger public API guide covers filters.
+* [x] Logger public API guide covers normal logs.
+* [x] Logger public API guide covers reports.
+* [x] Logger public API guide covers stats.
+* [x] Logger public API guide covers macros.
+* [x] Logger public API guide covers fatal paths.
+
+## Assert Docs
+
+* [x] Assert owns a `tools/debug/assert/docs/` guide folder.
+* [x] Assert CMake registers its public headers with the global Doxygen build.
+* [x] Assert CMake registers its guide folder with the global Doxygen build.
+* [x] Assert public API guide covers macro families.
+* [x] Assert public API guide covers `FailureAction`.
+* [x] Assert public API guide covers `debugBreak`.
+* [x] Assert public API guide covers evaluation rules.
+* [x] Assert public API guide covers enabled/disabled behavior.
+* [x] Assert public API guide covers interactive assertions.
+* [x] Assert public API guide covers testing.
+* [x] Assert public API guide covers examples.
+
+## TestSupport Docs
+
+* [x] TestSupport guide pages exist under `tools/test_support/docs/`.
+* [x] TestSupport CMake registers `tools/test_support/test_support.h` with Doxygen.
+* [x] TestSupport CMake registers `tools/test_support/docs/` with Doxygen.
+* [x] TestSupport public API guide covers report options.
+* [x] TestSupport public API guide covers summaries.
+* [x] TestSupport public API guide covers `Context`.
+* [x] TestSupport public API guide covers `Runner`.
+* [x] TestSupport public API guide covers `Section`.
+* [x] TestSupport public API guide covers `Timer`.
+* [x] TestSupport public API guide covers file helpers.
+* [x] TestSupport public API guide covers environment helpers.
+* [x] TestSupport public API guide covers child processes.
+* [x] TestSupport public API guide covers manual checks.
+* [x] TestSupport public API guide covers stress helpers.
+* [x] TestSupport public API guide covers examples.
+
+## Developer-Validation Docs
+
+* [x] Developer-validation pages such as testing and test-hook notes are separate from normal user-manual navigation.
+* [x] Test-hook/testing pages are not presented as production API.
+
+Completion note:
+
+Per-library documentation is implemented and organized by library-owned guide folders.
+
+---
+
+# 11. Doxygen Infrastructure Implementation
+
+## Helper Architecture
+
+* [x] Project-wide Doxygen helper functions live in `cmake/GameWIPDoxygen.cmake`.
+* [x] Doxygen input registration is modular.
+* [x] Each library can add docs without editing the root Doxyfile input list.
+* [x] Doxygen input generation avoids fragile multiline continuation parsing.
+
+## Build Behavior
+
+* [x] Generated Doxygen configuration exists for professional HTML API docs.
+* [x] `GAMEWIP_BUILD_DOCS=ON` creates the `docs` target when Doxygen is installed.
+* [x] Missing Doxygen produces a clear configure-time error only when documentation is explicitly enabled.
+* [x] Normal builds do not require Doxygen.
+* [x] The docs target creates the output directory before running Doxygen.
+* [x] The docs target writes Doxygen warnings to `build-docs/docs/doxygen/doxygen_warnings.log`.
+* [x] Verbose docs builds print the generated HTML path.
+* [x] Verbose docs builds print the warning-log path.
+
+## Install Behavior
+
+* [x] `GAMEWIP_INSTALL_DOCS` installs generated HTML documentation when explicitly enabled.
+* [x] `GAMEWIP_INSTALL_DOCS=ON` installs generated HTML docs only when `GAMEWIP_BUILD_DOCS=ON`.
+
+Completion note:
+
+The Doxygen build infrastructure is implemented, modular, and integrated with the foundation libraries.
+
+---
+
+# 12. Package and Install Implementation
+
+## Package Names
+
+* [x] Logger package name uses underscore form: `GameWIP_Logger`.
+* [x] Assert package name uses underscore form: `GameWIP_Assert`.
+* [x] TestSupport package name uses underscore form: `GameWIP_TestSupport`.
+
+## Imported Targets
+
+* [x] Logger imported target remains `GameWIP::Logger`.
+* [x] Assert imported target remains `GameWIP::Assert`.
+* [x] TestSupport imported target remains `GameWIP::TestSupport`.
+
+## Package Dependencies
+
+* [x] Assert package locates Logger as a dependency.
+* [x] TestSupport package has no Logger dependency.
+* [x] TestSupport package has no Assert dependency.
+
+## Public Install Surface
+
+* [x] Test hooks are excluded from public package installs by default.
+* [x] Assert propagates the Common Controls v6 manifest resource for Windows consumers.
+
+Completion note:
+
+Package/install polish is implemented for Logger, Assert, and TestSupport.
+
+---
+
+# 13. Current Remaining Implementation Work
+
+This section tracks known implementation work that still remains in the current foundation layer.
+
+## Test Migration
+
+* [x] Migrate Logger tests to generic TestSupport helpers.
+* [x] Migrate Assert tests to generic TestSupport helpers.
+* [x] Remove duplicated local test-helper logic after migration.
+* [x] Confirm migrated tests still produce equivalent reports.
+* [x] Confirm migrated tests still support runtime options.
+
+## Documentation Inspection
+
+* [x] Build the final Doxygen site after documentation restructuring.
+* [x] Inspect each library landing page.
+* [x] Confirm all public API guides are linked correctly.
+* [x] Confirm developer-validation pages are clearly labeled.
+* [x] Confirm every public API appears in a guide, concept page, or generated reference section.
+
+## Future Engine/Game Sections
+
+Do not expand this file with every roadmap item in advance.
+
+When a roadmap phase becomes active, add an implementation section for that phase.
+
+Possible future sections:
+
+* Math implementation.
+* Rendering implementation.
+* Audio implementation.
+* Simulation timing implementation.
+* Physics implementation.
+* Structural world implementation.
+* Component implementation.
+* Player implementation.
+* Gunplay implementation.
+* Save/load implementation.
+* Gameplay implementation.
+
+Completion note:
+
+Future engine/game implementation checklists should be added when those systems are actively being built.
+
+---
+
+# 14. How to Extend This File
+
+When adding implementation work:
+
+1. Add the item under the closest existing system section.
+2. Use `[ ]` for work that has not been implemented.
+3. Use `[-]` for work actively in progress.
+4. Use `[~]` for code that exists but needs cleanup or refactor.
+5. Use `[x]` only when the code exists in the project.
+6. Do not mark something done only because it is planned.
+7. Do not add proof requirements here; put them in `testing_checklist.txt`.
+8. Do not add long-term architecture explanations here; put them in `decisions.txt`.
+9. Do not duplicate the full roadmap here.
+10. Add new major sections only when implementation work for that area has started.
+
+A good implementation checklist item says what code exists.
+
+A bad implementation checklist item only says what the project eventually wants.

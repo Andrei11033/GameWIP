@@ -1,71 +1,404 @@
-Platform backend contract
-=========================
+# Platform Backend Contract
 
-GameWIP libraries keep public APIs platform-neutral. Platform-specific behavior lives behind small backend contracts selected by GAMEWIP_PLATFORM_ID.
+## Purpose
 
-Build selection
----------------
+GameWIP libraries keep public APIs and core implementation code platform-neutral.
 
-GAMEWIP_PLATFORM_ID is the build-system platform key. Current Windows builds resolve it to win32.
+Platform-specific behavior lives behind small internal backend contracts selected by the build system through `GAMEWIP_PLATFORM_ID`.
 
-Each library can provide backend implementation files under:
+This file defines the project-wide convention for platform backend layout, build selection, and backend responsibilities.
 
-    tools/<library>/platform/<id>/*.cpp
+---
+
+# 1. Core Rule
+
+Core code must not call operating-system APIs directly.
+
+This applies to reusable GameWIP libraries such as:
+
+* Logger;
+* Assert;
+* TestSupport;
+* future engine libraries that need platform-specific behavior.
+
+Core code should depend on internal platform-neutral declarations. Platform-specific source files implement those declarations for each supported platform.
+
+The goal is to make platform support additive.
+
+Adding a new platform should normally require adding a new backend folder, not rewriting core logic.
+
+---
+
+# 2. Platform Selection
+
+`GAMEWIP_PLATFORM_ID` is the build-system platform key.
+
+Current Windows builds resolve it to:
+
+```text
+win32
+```
+
+The platform id is resolved by:
+
+```text
+cmake/GameWIPPlatform.cmake
+```
+
+Library CMake files should consume platform-specific files using this convention:
+
+```text
+platform/${GAMEWIP_PLATFORM_ID}/*.cpp
+```
+
+A library may also include a platform-specific CMake file when needed:
+
+```text
+platform/${GAMEWIP_PLATFORM_ID}/platform.cmake
+```
+
+Use `platform.cmake` only for backend-local target requirements, such as:
+
+* system libraries;
+* compile definitions;
+* resources;
+* manifests;
+* generated source files.
+
+---
+
+# 3. Backend Folder Layout
+
+Each library that needs platform-specific behavior may provide backend files under:
+
+```text
+tools/<library>/platform/<platform-id>/
+```
 
 Backend source files follow this naming convention:
 
-    platform/<id>/<id>_<feature>.cpp
+```text
+platform/<platform-id>/<platform-id>_<feature>.cpp
+```
 
 Examples:
 
-    tools/logger/platform/win32/win32_logger.cpp
-    tools/test_support/platform/win32/win32_environment.cpp
+```text
+tools/logger/platform/win32/win32_logger.cpp
+tools/test_support/platform/win32/win32_environment.cpp
+tools/test_support/platform/win32/win32_child_process.cpp
+```
 
-Each backend folder may also provide:
+The backend folder may optionally contain:
 
-    platform/<id>/platform.cmake
+```text
+platform/<platform-id>/platform.cmake
+```
 
-Use platform.cmake only for that backend's target-local needs, such as platform libraries, compile definitions, resources, or manifests. Adding a new platform should normally mean adding the matching platform/<id>/ folder with its .cpp files and optional platform.cmake.
+---
 
-Logger backend
---------------
+# 4. Adding a New Platform
 
-Logger core code must not call operating-system APIs directly. A Logger backend implements the functions declared in tools/logger/internal/logger_platform.h.
+To add a new platform:
 
-Backend responsibilities:
+1. Add or update platform id detection in `cmake/GameWIPPlatform.cmake`.
+2. Add matching backend folders where platform-specific behavior is required.
+3. Implement the required internal backend contracts.
+4. Add `platform.cmake` files only when the backend has target-local build requirements.
+5. Avoid adding platform branches to core implementation files.
+6. Avoid adding platform-specific behavior to public headers unless it is part of the public contract.
 
-- Debug output: write text to the platform debugger or diagnostic stream.
-- Fatal popup: show a fatal diagnostic popup when enabled by Logger config.
-- File IO: create directories, open exclusive log files, write, flush, close, and report whether a file handle is open.
-- Time: format local time text used by log file names and log lines.
-- Console color: report whether stdout or stderr supports ANSI color.
-- Memory: return best-effort process memory diagnostics.
-- Scratch storage: provide per-thread formatting scratch storage for header-only formatted logging paths.
+A good new platform port adds files.
 
-Filtered LOGGER_* macro calls check shouldLog() before evaluating message or format arguments. Direct formatted Logger calls cannot prevent normal C++ argument evaluation before the call; use macros or an explicit shouldLog() guard for expensive arguments.
+A bad new platform port spreads `#ifdef` logic through core code.
 
-Assert backend
---------------
+---
 
-Assert core code must not call operating-system APIs directly. An Assert backend implements the functions declared in tools/debug/assert/internal/assert_platform.h.
+# 5. Public API Boundary
 
-Backend responsibilities:
+Public GameWIP APIs should stay portable and ergonomic.
 
-- Popup: show a non-interactive assertion/error popup when configured.
-- Action dialog: show an interactive assertion dialog and return the selected action.
-- Debugger check: report whether a debugger is currently attached.
-- Debug break: trigger the platform debug-break instruction or trap.
+Preferred public API types:
 
-Assert passing paths should stay allocation-free and branch-light. Macro documentation must stay clear about which condition and message expressions are evaluated in enabled and disabled builds.
+* `std::string` for UTF-8 text;
+* `std::filesystem::path` for paths;
+* ordinary C++ value types for configuration and results.
 
-TestSupport backend
--------------------
+Platform backends are responsible for converting these portable types into platform-specific representations when needed.
 
-TestSupport core code must not call operating-system APIs directly. A TestSupport backend implements the functions declared in tools/test_support/internal/test_support_platform.h and platform-specific child-process helpers used by the public TestSupport API.
+For Windows, this means converting UTF-8 text to UTF-16 at the Win32 boundary and calling explicit Unicode APIs.
 
-Backend responsibilities:
+---
 
-- Environment variables: read, set, and unset process environment variables.
-- Child process: run a child process, collect exit code/stdout/stderr, and report launch/read failures.
+# 6. Logger Backend Contract
 
-TestSupport stays organized as one public include. Its manual pages group features by reporting, expectations, filesystem/environment helpers, child processes, timing, and stress utilities.
+Logger core code must not call operating-system APIs directly.
+
+The Logger backend implements the functions declared in:
+
+```text
+tools/logger/internal/logger_platform.h
+```
+
+## Required Responsibilities
+
+A Logger backend is responsible for:
+
+* writing text to the platform debugger or diagnostic stream;
+* showing a fatal diagnostic popup when enabled by Logger configuration;
+* creating directories for log files;
+* opening log files;
+* writing to log files;
+* flushing log files;
+* closing log files;
+* reporting whether a file handle is open;
+* formatting local time text used by log file names and log lines;
+* reporting whether stdout or stderr supports ANSI color;
+* returning best-effort process memory diagnostics;
+* providing per-thread formatting scratch storage for header-only formatted logging paths.
+
+## Producer-Side Logging Rule
+
+Filtered `LOGGER_*` macro calls should check `shouldLog()` before evaluating message or format arguments.
+
+Direct formatted Logger calls cannot prevent normal C++ argument evaluation before the call.
+
+For expensive arguments, use one of these patterns:
+
+```cpp
+LOGGER_INFO(source, "value {}", expensiveValue());
+```
+
+or:
+
+```cpp
+if (Logger::shouldLog(...)) {
+    Logger::info(...);
+}
+```
+
+The macro path is preferred when argument evaluation should be avoided for filtered logs.
+
+---
+
+# 7. Assert Backend Contract
+
+Assert core code must not call operating-system APIs directly.
+
+The Assert backend implements the functions declared in:
+
+```text
+tools/debug/assert/internal/assert_platform.h
+```
+
+## Required Responsibilities
+
+An Assert backend is responsible for:
+
+* showing a non-interactive assertion or error popup when configured;
+* showing an interactive assertion dialog;
+* returning the selected interactive action;
+* reporting whether a debugger is currently attached;
+* triggering the platform debug-break instruction or trap.
+
+## Passing-Path Rule
+
+Assert passing paths should stay allocation-free and branch-light.
+
+Macro documentation must clearly explain which condition and message expressions are evaluated in:
+
+* enabled builds;
+* disabled builds;
+* diagnostics-enabled builds;
+* diagnostics-disabled builds;
+* fatal assertion paths;
+* recoverable check paths;
+* interactive assertion paths.
+
+---
+
+# 8. TestSupport Backend Contract
+
+TestSupport core code must not call operating-system APIs directly.
+
+The TestSupport backend implements the functions declared in:
+
+```text
+tools/test_support/internal/test_support_platform.h
+```
+
+Platform-specific child-process helpers used by the public TestSupport API are also implemented by the backend.
+
+## Required Responsibilities
+
+A TestSupport backend is responsible for:
+
+* reading process environment variables;
+* setting process environment variables;
+* unsetting process environment variables;
+* running child processes;
+* passing arguments to child processes;
+* applying child-process environment overrides;
+* collecting child-process exit codes;
+* collecting stdout and stderr when capture is enabled;
+* reporting launch failures;
+* reporting output read failures;
+* reporting timeouts;
+* reporting test-requested termination.
+
+## Environment Rule
+
+Environment helpers must update all environment views required by the platform.
+
+For Windows, scoped environment helpers must update both:
+
+* the CRT environment used by `std::getenv()`;
+* the process environment used for child process creation.
+
+## Child-Process Rule
+
+Child-process support should report observable results.
+
+It should not overpromise portable crash classification.
+
+For GameWIP tests, these are enough:
+
+* zero exit;
+* nonzero exit;
+* timeout;
+* test-requested termination;
+* captured output when enabled.
+
+---
+
+# 9. Windows Backend Rules
+
+Windows backends use explicit Unicode Win32 APIs.
+
+Do not use ANSI APIs such as:
+
+```cpp
+CreateProcessA
+MessageBoxA
+GetEnvironmentStringsA
+SetEnvironmentVariableA
+OutputDebugStringA
+```
+
+Do not use generic macro-mapped APIs such as:
+
+```cpp
+CreateProcess
+MessageBox
+GetEnvironmentStrings
+SetEnvironmentVariable
+OutputDebugString
+```
+
+Generic Win32 API names depend on the `UNICODE` build definition and can silently change between ANSI and Unicode behavior.
+
+Use explicit Unicode APIs such as:
+
+```cpp
+CreateProcessW
+MessageBoxW
+GetEnvironmentStringsW
+SetEnvironmentVariableW
+OutputDebugStringW
+```
+
+Windows backend rules:
+
+* public API text remains UTF-8 `std::string`;
+* public API paths remain portable `std::filesystem::path`;
+* platform boundary code converts to UTF-16 where needed;
+* Win32 calls use explicit `W` functions;
+* captured process output remains byte-oriented `std::string`.
+
+Captured stdout and stderr should remain bytes because process pipes carry bytes, not C++ text objects.
+
+---
+
+# 10. Backend-Neutral Test Hooks
+
+Shared internal contracts and test hooks should use backend-neutral names unless the hook is intentionally scoped to one backend.
+
+Good names:
+
+```text
+forceNextFileOpenFailure
+forceNextPopupFailure
+setDebuggerAttachedOverride
+clearDebuggerAttachedOverride
+```
+
+Avoid names that expose the current platform unless the hook is truly platform-specific.
+
+Backend-neutral hooks make it easier to reuse the same test expectations across future platforms.
+
+---
+
+# 11. Documentation Requirements
+
+Every backend contract should be documented at the internal declaration point.
+
+Internal platform headers should explain:
+
+* what the backend function does;
+* who owns memory or handles;
+* what happens on failure;
+* whether the function may block;
+* whether the function is thread-safe;
+* whether the function is used on hot paths;
+* whether the function is test-hookable.
+
+Backend implementation files should document non-obvious platform behavior, especially:
+
+* Unicode conversion;
+* handle ownership;
+* process creation;
+* environment synchronization;
+* popup/dialog behavior;
+* debug-break behavior;
+* fallback paths;
+* failure injection.
+
+Do not add comments for obvious syntax.
+
+Document invariants and platform assumptions.
+
+---
+
+# 12. Checklist for New Backend Work
+
+Before backend work is considered complete:
+
+* [ ] Core code does not call operating-system APIs directly.
+* [ ] Backend files live under the correct `platform/<platform-id>/` folder.
+* [ ] Source files follow the `<platform-id>_<feature>.cpp` naming convention.
+* [ ] `platform.cmake` is used only for backend-local target requirements.
+* [ ] Public APIs remain platform-neutral.
+* [ ] Unicode/text/path behavior is documented.
+* [ ] Failure behavior is documented.
+* [ ] Blocking behavior is documented.
+* [ ] Hot-path behavior is understood.
+* [ ] Tests or test hooks cover important backend behavior where practical.
+* [ ] Adding the backend did not require spreading platform branches through core code.
+
+---
+
+# 13. How to Extend This File
+
+When adding to this contract:
+
+1. Keep the file focused on platform boundaries.
+2. Put library-specific backend responsibilities under that library section.
+3. Put detailed implementation tasks in `implementation_checklist.txt`.
+4. Put validation requirements in `testing_checklist.txt`.
+5. Put long-term architecture decisions in `decisions.txt`.
+6. Avoid documenting temporary implementation history.
+7. Prefer rules that help future platforms stay easy to add.
+
+A good backend contract says what every platform must provide.
+
+A bad backend contract describes only how the current Windows implementation happens to work.
