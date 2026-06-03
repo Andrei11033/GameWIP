@@ -1,12 +1,20 @@
 # GameWIP Libraries
 
-GameWIP uses small, focused C++20 libraries for foundation-level diagnostics and test support. This site is the user-facing manual plus API reference for those libraries.
+GameWIP uses small, focused C++20 libraries for foundation-level IO contracts, diagnostics, and test support. This site is the user-facing manual plus API reference for those libraries.
+
+The FileSystem and Terminal pages currently document planned foundation contracts only. They do not claim that behavior is implemented.
 
 ## Libraries
 
+- @subpage foundation_io
 - @subpage logger
 - @subpage assert
 - @subpage test_support
+
+## Planned foundation contracts
+
+- @subpage foundation_filesystem
+- @subpage foundation_terminal
 
 ## Project references
 

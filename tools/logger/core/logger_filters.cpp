@@ -177,8 +177,7 @@ namespace GameWIP::LoggerDetail::Core
     /// @return True when shouldLogRuntime(level) passes and the source filter allows the source.
     bool shouldLogRuntime(LogLevel level, SourceId source)
     {
-        return ::GameWIP::LoggerDetail::Core::shouldLogRuntime(level) &&
-               ::GameWIP::LoggerDetail::Core::sourceEnabledRuntime(source);
+        return ::GameWIP::LoggerDetail::Core::shouldLogRuntime(level) && ::GameWIP::LoggerDetail::Core::sourceEnabledRuntime(source);
     }
 
     /// @brief Rechecks a pending entry against the current packed runtime state.
@@ -251,11 +250,21 @@ namespace GameWIP::LoggerDetail::Core
                 sources.emplace_back(definition.id, std::string(definition.name), true);
             }
 
-            std::sort(sources.begin(), sources.end(), [](const RegisteredSource &left, const RegisteredSource &right)
-                      { return left.id < right.id; });
+            std::sort(
+                sources.begin(),
+                sources.end(),
+                [](const RegisteredSource &left, const RegisteredSource &right)
+                {
+                    return left.id < right.id;
+                });
 
-            const auto duplicateSource = std::adjacent_find(sources.begin(), sources.end(), [](const RegisteredSource &left, const RegisteredSource &right)
-                                                            { return left.id == right.id; });
+            const auto duplicateSource = std::adjacent_find(
+                sources.begin(),
+                sources.end(),
+                [](const RegisteredSource &left, const RegisteredSource &right)
+                {
+                    return left.id == right.id;
+                });
             if (duplicateSource != sources.end())
             {
                 outResult = LoggerResult::InvalidSourceDefinition;
@@ -334,7 +343,7 @@ namespace GameWIP::LoggerDetail::Core
 
         return true;
     }
-}
+} // namespace GameWIP::LoggerDetail::Core
 
 //-------------------------------------------------------------------------------------------------
 // Public filter API
@@ -371,7 +380,8 @@ GameWIP::Logger::Types::Result GameWIP::Logger::setSourceFilter(Types::SourceId 
 {
     std::lock_guard<std::mutex> lock(::GameWIP::LoggerDetail::Core::loggerState().logMutex);
     const std::shared_ptr<::GameWIP::LoggerDetail::Core::SourceRegistry> registry = ::GameWIP::LoggerDetail::Core::loadSourceRegistry();
-    const ::GameWIP::LoggerDetail::Core::RegisteredSource *registeredSource = registry ? ::GameWIP::LoggerDetail::Core::findSource(*registry, source) : nullptr;
+    const ::GameWIP::LoggerDetail::Core::RegisteredSource *registeredSource =
+        registry ? ::GameWIP::LoggerDetail::Core::findSource(*registry, source) : nullptr;
     if (registeredSource == nullptr)
     {
         ::GameWIP::LoggerDetail::Core::setResultUnlocked(Types::Result::InvalidSourceFilter);

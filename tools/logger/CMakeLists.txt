@@ -75,6 +75,13 @@ install(DIRECTORY "${PROJECT_SOURCE_DIR}/tools/logger"
         PATTERN "internal" EXCLUDE
 )
 
+install(DIRECTORY "${PROJECT_SOURCE_DIR}/tools/common"
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+    FILES_MATCHING
+        PATTERN "*.h"
+        PATTERN "*.hpp"
+)
+
 configure_package_config_file(
     "${CMAKE_CURRENT_SOURCE_DIR}/cmake/GameWIP_LoggerConfig.cmake.in"
     "${CMAKE_CURRENT_BINARY_DIR}/GameWIP_LoggerConfig.cmake"

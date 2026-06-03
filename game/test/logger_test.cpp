@@ -179,8 +179,7 @@ namespace
             testContext.fail(name, details);
         }
 
-        template <typename Left, typename Right>
-        void expectEq(std::string_view name, const Left &actual, const Right &expected)
+        template <typename Left, typename Right> void expectEq(std::string_view name, const Left &actual, const Right &expected)
         {
             static_cast<void>(testContext.expectEq(name, expected, actual));
         }
@@ -217,19 +216,13 @@ namespace
             static_cast<void>(testContext.expectFileContains(name, path, expectedSubstring));
         }
 
-        void expectFileOccurrenceCount(
-            std::string_view name,
-            const std::filesystem::path &path,
-            std::string_view text,
-            std::size_t expectedCount)
+        void expectFileOccurrenceCount(std::string_view name, const std::filesystem::path &path, std::string_view text, std::size_t expectedCount)
         {
             static_cast<void>(testContext.expectFileOccurrenceCount(name, path, text, expectedCount));
         }
     };
 
-
-    template <typename Function>
-    void runCase(TestContext &context, std::string_view name, Function &&function)
+    template <typename Function> void runCase(TestContext &context, std::string_view name, Function &&function)
     {
         TestSupport::Section section(context.testContext, name);
         try
@@ -336,8 +329,7 @@ namespace
         return "Unknown";
     }
 
-    template <typename Value>
-    std::string printable(Value value)
+    template <typename Value> std::string printable(Value value)
     {
         if constexpr (std::is_same_v<Value, Logger::Types::Result>)
         {
@@ -361,8 +353,7 @@ namespace
         }
     }
 
-    template <typename Left, typename Right>
-    void expectEq(TestContext &context, std::string_view name, const Left &actual, const Right &expected)
+    template <typename Left, typename Right> void expectEq(TestContext &context, std::string_view name, const Left &actual, const Right &expected)
     {
         if (actual == expected)
         {
@@ -373,8 +364,7 @@ namespace
         context.fail(name, std::format("expected {}, got {}", printable(expected), printable(actual)));
     }
 
-    template <typename Function>
-    Timing measure(Function function)
+    template <typename Function> Timing measure(Function function)
     {
         const auto start = Clock::now();
         function();
@@ -409,8 +399,7 @@ namespace
     Logger::Types::MemoryStats recordMemorySnapshot(TestContext &context, std::string_view label)
     {
         const Logger::Types::MemoryStats memory = Logger::getMemoryStats();
-        if (!context.loggerMemoryPeak.available ||
-            memory.loggerRetainedBytes > context.loggerMemoryPeak.memory.loggerRetainedBytes)
+        if (!context.loggerMemoryPeak.available || memory.loggerRetainedBytes > context.loggerMemoryPeak.memory.loggerRetainedBytes)
         {
             context.loggerMemoryPeak.memory = memory;
             context.loggerMemoryPeak.label = std::string(label);
@@ -418,8 +407,7 @@ namespace
         }
 
         if (memory.processMemoryAvailable &&
-            (!context.processMemoryPeak.available ||
-             memory.processPrivateBytes > context.processMemoryPeak.memory.processPrivateBytes))
+            (!context.processMemoryPeak.available || memory.processPrivateBytes > context.processMemoryPeak.memory.processPrivateBytes))
         {
             context.processMemoryPeak.memory = memory;
             context.processMemoryPeak.label = std::string(label);
@@ -684,10 +672,8 @@ namespace
         context.expectTrue("initFile wrote content", readWholeFile(initFilePath).find("initFile visible") != std::string::npos);
 
         const Logger::Types::Result defaultResult = Logger::initDefault();
-        const bool defaultStarted =
-            defaultResult == Logger::Types::Result::Success ||
-            defaultResult == Logger::Types::Result::FileOpenFailed ||
-            defaultResult == Logger::Types::Result::FileSetupFailed;
+        const bool defaultStarted = defaultResult == Logger::Types::Result::Success || defaultResult == Logger::Types::Result::FileOpenFailed ||
+                                    defaultResult == Logger::Types::Result::FileSetupFailed;
         context.expectTrue("initDefault starts or falls back", defaultStarted);
         context.expectTrue("initDefault leaves logger running", Logger::isRunning());
         if (defaultResult == Logger::Types::Result::Success)
@@ -786,10 +772,8 @@ namespace
             Logger::defineSource(TestSource::Core, "Core"),
             Logger::defineSource(TestSource::Render, "Render"),
             Logger::defineSource(TestSource::Audio, "Audio")};
-        std::array sourceFilters{
-            Logger::Types::SourceFilter{static_cast<Logger::Types::SourceId>(TestSource::Render), false}};
-        std::array levelFilters{
-            Logger::Types::LevelFilter{Logger::Types::Level::Debug, false}};
+        std::array sourceFilters{Logger::Types::SourceFilter{static_cast<Logger::Types::SourceId>(TestSource::Render), false}};
+        std::array levelFilters{Logger::Types::LevelFilter{Logger::Types::Level::Debug, false}};
 
         OwnedLoggerConfig config = makeFileConfig(context, "filters", Logger::Types::Level::Trace);
         config.sources = sources;
@@ -815,7 +799,11 @@ namespace
 
         expectEq(context, "set source filter succeeds", Logger::setSourceFilter(TestSource::Render, true), Logger::Types::Result::Success);
         expectEq(context, "clear source filter succeeds", Logger::clearSourceFilter(TestSource::Render), Logger::Types::Result::Success);
-        expectEq(context, "unknown source filter rejected", Logger::setSourceFilter(TestSource::Unknown, false), Logger::Types::Result::InvalidSourceFilter);
+        expectEq(
+            context,
+            "unknown source filter rejected",
+            Logger::setSourceFilter(TestSource::Unknown, false),
+            Logger::Types::Result::InvalidSourceFilter);
         Logger::clearSourceFilters();
         context.expectTrue("render source allowed after clear", Logger::shouldLog(Logger::Types::Level::Info, TestSource::Render));
 
@@ -825,7 +813,11 @@ namespace
         expectEq(context, "clear level filter succeeds", Logger::clearLevelFilter(Logger::Types::Level::Info), Logger::Types::Result::Success);
         Logger::clearLevelFilters();
         context.expectTrue("debug level allowed after clear", Logger::shouldLog(Logger::Types::Level::Debug));
-        expectEq(context, "invalid runtime level filter rejected", Logger::setLevelFilter(static_cast<Logger::Types::Level>(99), true), Logger::Types::Result::InvalidLevelFilter);
+        expectEq(
+            context,
+            "invalid runtime level filter rejected",
+            Logger::setLevelFilter(static_cast<Logger::Types::Level>(99), true),
+            Logger::Types::Result::InvalidLevelFilter);
     }
 
     void testSourceValidation(TestContext &context)
@@ -839,9 +831,7 @@ namespace
         expectEq(context, "empty source name rejected", Logger::init(emptyNameConfig), Logger::Types::Result::InvalidSourceDefinition);
         Logger::shutdown();
 
-        std::array duplicateSources{
-            Logger::Types::SourceDefinition{1, "Core"},
-            Logger::Types::SourceDefinition{1, "CoreDuplicate"}};
+        std::array duplicateSources{Logger::Types::SourceDefinition{1, "Core"}, Logger::Types::SourceDefinition{1, "CoreDuplicate"}};
         Logger::Types::Config duplicateConfig = makeConsoleConfig();
         duplicateConfig.sources = duplicateSources;
         expectEq(context, "duplicate source rejected", Logger::init(duplicateConfig), Logger::Types::Result::InvalidSourceDefinition);
@@ -855,13 +845,15 @@ namespace
         expectEq(context, "unknown source filter rejected at init", Logger::init(invalidFilterConfig), Logger::Types::Result::InvalidSourceFilter);
         Logger::shutdown();
 
-        std::array duplicateFilters{
-            Logger::Types::SourceFilter{1, false},
-            Logger::Types::SourceFilter{1, true}};
+        std::array duplicateFilters{Logger::Types::SourceFilter{1, false}, Logger::Types::SourceFilter{1, true}};
         Logger::Types::Config duplicateFilterConfig = makeConsoleConfig();
         duplicateFilterConfig.sources = validSources;
         duplicateFilterConfig.sourceFilters = duplicateFilters;
-        expectEq(context, "duplicate source filter rejected at init", Logger::init(duplicateFilterConfig), Logger::Types::Result::InvalidSourceFilter);
+        expectEq(
+            context,
+            "duplicate source filter rejected at init",
+            Logger::init(duplicateFilterConfig),
+            Logger::Types::Result::InvalidSourceFilter);
     }
 
     void testFormattingAndTruncation(TestContext &context)
@@ -920,7 +912,9 @@ namespace
         Logger::reportError(testSource, "formatted report {}", 21);
         Logger::reportFatal(testSource, "fatal wrapper report");
         Logger::report(Logger::Types::Level::Warn, testSource, "generic report {}", 23);
-        context.expectTrue("source runtime report", Logger::report(Logger::Types::Level::Fatal, TestSource::Core, Logger::flushTimeout(2s), Logger::runtimeFormat("runtime fatal {}"), 22));
+        context.expectTrue(
+            "source runtime report",
+            Logger::report(Logger::Types::Level::Fatal, TestSource::Core, Logger::flushTimeout(2s), Logger::runtimeFormat("runtime fatal {}"), 22));
         Logger::writeDebugOutput(Logger::Types::Level::Error, testSource, "debug output direct");
         context.expectTrue("report flush", Logger::flush(2s));
 
@@ -967,11 +961,12 @@ namespace
         const std::string logFile = Logger::getLogFilePath();
         Logger::shutdown();
         const std::string contents = readWholeFile(logFile);
-        context.expectTrue("report bypassed filters reached file", contents.find("report bypasses disabled core source and error level") != std::string::npos);
+        context.expectTrue(
+            "report bypassed filters reached file",
+            contents.find("report bypasses disabled core source and error level") != std::string::npos);
         context.expectTrue("report unknown source reached file", contents.find("report unknown source path") != std::string::npos);
         context.expectTrue("bad report format not emitted", contents.find("{}") == std::string::npos);
     }
-
 
     void testLoggerTestHooks(TestContext &context)
     {
@@ -991,7 +986,9 @@ namespace
             const std::string logFile = Logger::getLogFilePath();
             context.expectTrue("hook file open retry used next candidate", logFile.ends_with("_1.log"));
             Logger::shutdown();
-            context.expectTrue("hook file open retry wrote content", readWholeFile(logFile).find("file open retry still writes") != std::string::npos);
+            context.expectTrue(
+                "hook file open retry wrote content",
+                readWholeFile(logFile).find("file open retry still writes") != std::string::npos);
         }
 
         {
@@ -1061,7 +1058,9 @@ namespace
             expectEq(context, "hook report timeout written synchronously", stats.written, std::size_t{1});
             const std::string logFile = Logger::getLogFilePath();
             Logger::shutdown();
-            context.expectTrue("hook report timeout line reached file", readWholeFile(logFile).find("report timeout still writes first") != std::string::npos);
+            context.expectTrue(
+                "hook report timeout line reached file",
+                readWholeFile(logFile).find("report timeout still writes first") != std::string::npos);
         }
 
         GameWIP::LoggerDetail::TestHooks::reset();
@@ -1183,8 +1182,7 @@ namespace
         start.store(true, std::memory_order_release);
 
         const auto waitStart = Clock::now();
-        while (attempts.load(std::memory_order_acquire) < 1024 &&
-               Clock::now() - waitStart < 500ms)
+        while (attempts.load(std::memory_order_acquire) < 1024 && Clock::now() - waitStart < 500ms)
         {
             std::this_thread::yield();
         }
@@ -1462,14 +1460,10 @@ namespace
         expectEq(context, "reset keeps lifetime queue drops", Logger::getLifetimeDroppedLogCount(), lifetimeBeforeReset);
     }
 
-    void waitForProducerAttempts(
-        const std::atomic<std::size_t> &attempts,
-        std::size_t minimumAttempts,
-        std::chrono::milliseconds timeout)
+    void waitForProducerAttempts(const std::atomic<std::size_t> &attempts, std::size_t minimumAttempts, std::chrono::milliseconds timeout)
     {
         const auto waitStart = Clock::now();
-        while (attempts.load(std::memory_order_acquire) < minimumAttempts &&
-               Clock::now() - waitStart < timeout)
+        while (attempts.load(std::memory_order_acquire) < minimumAttempts && Clock::now() - waitStart < timeout)
         {
             std::this_thread::yield();
         }
@@ -1533,10 +1527,7 @@ namespace
             }
         }
 
-        context.expectEq(
-            "flush active producers attempts completed",
-            flushSuccesses + flushTimeouts,
-            static_cast<std::size_t>(flushCount));
+        context.expectEq("flush active producers attempts completed", flushSuccesses + flushTimeouts, static_cast<std::size_t>(flushCount));
         context.expectTrue("flush active producers attempted bounded flushes", flushCount > 0);
 
         stop.store(true, std::memory_order_release);
@@ -1550,16 +1541,18 @@ namespace
         const Logger::Types::Stats stats = Logger::getStats();
         context.expectTrue("flush active producers attempted logs", attempts.load(std::memory_order_relaxed) > 0);
         context.expectTrue("flush active producers wrote logs", stats.written > 0);
-        context.emit(std::format(
-            "[STRESS] flushWhileProducersActive threads={} flushAttempts={} flushSuccesses={} flushTimeouts={} producerAttempts={} written={} queueDropped={} peakQueue={}\n",
-            stressThreads,
-            flushCount,
-            flushSuccesses,
-            flushTimeouts,
-            attempts.load(std::memory_order_relaxed),
-            stats.written,
-            stats.queueDropsSoft + stats.queueDropsHard,
-            stats.peakQueueDepth));
+        context.emit(
+            std::format(
+                "[STRESS] flushWhileProducersActive threads={} flushAttempts={} flushSuccesses={} "
+                "flushTimeouts={} producerAttempts={} written={} queueDropped={} peakQueue={}\n",
+                stressThreads,
+                flushCount,
+                flushSuccesses,
+                flushTimeouts,
+                attempts.load(std::memory_order_relaxed),
+                stats.written,
+                stats.queueDropsSoft + stats.queueDropsHard,
+                stats.peakQueueDepth));
         recordMemorySnapshot(context, "flush-while-producers");
     }
 
@@ -1693,7 +1686,10 @@ namespace
         const TestSupport::Types::ChildProcessResult result = runChildProcessResult(context.executablePath, "--logger-test-child=fatal-terminate");
         context.expectTrue("fatalTerminate child exits abnormally", result.exitedWithFailure(), "child process returned zero");
         const std::string childLogContents = readDirectoryFiles(childLogDirectory);
-        context.expectTrue("fatalTerminate child logs fatal through report", childLogContents.find("[FATAL][LoggerTest]: child fatal terminate") != std::string::npos, "fatalTerminate child log missing");
+        context.expectTrue(
+            "fatalTerminate child logs fatal through report",
+            childLogContents.find("[FATAL][LoggerTest]: child fatal terminate") != std::string::npos,
+            "fatalTerminate child log missing");
         std::cout.flush();
     }
 
@@ -1713,21 +1709,23 @@ namespace
         context.performanceTotals.truncated += stats.truncated;
         context.performanceTotals.peakQueueDepth = std::max(context.performanceTotals.peakQueueDepth, stats.peakQueueDepth);
 
-        context.emit(std::format(
-            "[METRIC] {} iterations={} ms={:.3f} nsPerCall={:.2f} queued={} written={} queueDropped={} diagnostics={} truncated={} peak={} loggerRetained={} processPrivate={} processWorkingSet={}\n",
-            name,
-            iterations,
-            milliseconds,
-            nanosecondsPerCall,
-            stats.queued,
-            stats.written,
-            queueDrops,
-            diagnosticFailures,
-            stats.truncated,
-            stats.peakQueueDepth,
-            formatBytes(memory.loggerRetainedBytes),
-            formatProcessBytes(memory, memory.processPrivateBytes),
-            formatProcessBytes(memory, memory.processWorkingSetBytes)));
+        context.emit(
+            std::format(
+                "[METRIC] {} iterations={} ms={:.3f} nsPerCall={:.2f} queued={} written={} queueDropped={} diagnostics={} "
+                "truncated={} peak={} loggerRetained={} processPrivate={} processWorkingSet={}\n",
+                name,
+                iterations,
+                milliseconds,
+                nanosecondsPerCall,
+                stats.queued,
+                stats.written,
+                queueDrops,
+                diagnosticFailures,
+                stats.truncated,
+                stats.peakQueueDepth,
+                formatBytes(memory.loggerRetainedBytes),
+                formatProcessBytes(memory, memory.processPrivateBytes),
+                formatProcessBytes(memory, memory.processWorkingSetBytes)));
         TracyPlot("Logger test metric ms", milliseconds);
         TracyPlot("Logger test metric ns/call", nanosecondsPerCall);
         TracyPlot("Logger test memory retained bytes", static_cast<double>(memory.loggerRetainedBytes));
@@ -1833,59 +1831,65 @@ namespace
     {
         const Logger::Types::MemoryStats finalMemory = recordMemorySnapshot(context, "suite-end");
         const PerformanceTotals &totals = context.performanceTotals;
-        const double totalNsPerMessage = totals.measuredMessages == 0
-                                             ? 0.0
-                                             : (totals.producerMilliseconds * 1'000'000.0) / static_cast<double>(totals.measuredMessages);
+        const double totalNsPerMessage =
+            totals.measuredMessages == 0 ? 0.0 : (totals.producerMilliseconds * 1'000'000.0) / static_cast<double>(totals.measuredMessages);
 
-        context.emit(std::format(
-            "[SUMMARY] suiteTimeMs={:.3f} tests={} passed={} failed={}\n",
-            suiteMilliseconds,
-            context.result().passed + context.result().failed + context.result().skipped,
-            context.result().passed,
-            context.result().failed));
+        context.emit(
+            std::format(
+                "[SUMMARY] suiteTimeMs={:.3f} tests={} passed={} failed={}\n",
+                suiteMilliseconds,
+                context.result().passed + context.result().failed + context.result().skipped,
+                context.result().passed,
+                context.result().failed));
 
-        context.emit(std::format(
-            "[SUMMARY] perfTotals scenarios={} measuredMessages={} producerMs={:.3f} nsPerMessage={:.2f} queued={} written={} queueDropped={} diagnostics={} truncated={} peakQueue={}\n",
-            totals.scenarioCount,
-            totals.measuredMessages,
-            totals.producerMilliseconds,
-            totalNsPerMessage,
-            totals.queued,
-            totals.written,
-            totals.queueDropped,
-            totals.diagnosticFailures,
-            totals.truncated,
-            totals.peakQueueDepth));
+        context.emit(
+            std::format(
+                "[SUMMARY] perfTotals scenarios={} measuredMessages={} producerMs={:.3f} nsPerMessage={:.2f} "
+                "queued={} written={} queueDropped={} diagnostics={} truncated={} peakQueue={}\n",
+                totals.scenarioCount,
+                totals.measuredMessages,
+                totals.producerMilliseconds,
+                totalNsPerMessage,
+                totals.queued,
+                totals.written,
+                totals.queueDropped,
+                totals.diagnosticFailures,
+                totals.truncated,
+                totals.peakQueueDepth));
 
         if (context.loggerMemoryPeak.available)
         {
             const Logger::Types::MemoryStats &peak = context.loggerMemoryPeak.memory;
-            context.emit(std::format(
-                "[SUMMARY] loggerMemoryPeak label={} retained={} queue={} arena={} sources={} entryHeap={} entryHeapInspectable={}\n",
-                context.loggerMemoryPeak.label,
-                formatBytes(peak.loggerRetainedBytes),
-                formatBytes(peak.queueStorageBytes),
-                formatBytes(peak.messageArenaBytes),
-                formatBytes(peak.sourceRegistryBytes),
-                formatBytes(peak.entryTextHeapCapacityBytes),
-                peak.entryTextHeapCapacityAvailable));
+            context.emit(
+                std::format(
+                    "[SUMMARY] loggerMemoryPeak label={} retained={} queue={} arena={} sources={} "
+                    "entryHeap={} entryHeapInspectable={}\n",
+                    context.loggerMemoryPeak.label,
+                    formatBytes(peak.loggerRetainedBytes),
+                    formatBytes(peak.queueStorageBytes),
+                    formatBytes(peak.messageArenaBytes),
+                    formatBytes(peak.sourceRegistryBytes),
+                    formatBytes(peak.entryTextHeapCapacityBytes),
+                    peak.entryTextHeapCapacityAvailable));
         }
 
         if (context.processMemoryPeak.available)
         {
             const Logger::Types::MemoryStats &peak = context.processMemoryPeak.memory;
-            context.emit(std::format(
-                "[SUMMARY] processMemoryPeak label={} private={} workingSet={}\n",
-                context.processMemoryPeak.label,
-                formatBytes(peak.processPrivateBytes),
-                formatBytes(peak.processWorkingSetBytes)));
+            context.emit(
+                std::format(
+                    "[SUMMARY] processMemoryPeak label={} private={} workingSet={}\n",
+                    context.processMemoryPeak.label,
+                    formatBytes(peak.processPrivateBytes),
+                    formatBytes(peak.processWorkingSetBytes)));
         }
 
-        context.emit(std::format(
-            "[SUMMARY] finalMemory loggerRetained={} processPrivate={} processWorkingSet={}\n",
-            formatBytes(finalMemory.loggerRetainedBytes),
-            formatProcessBytes(finalMemory, finalMemory.processPrivateBytes),
-            formatProcessBytes(finalMemory, finalMemory.processWorkingSetBytes)));
+        context.emit(
+            std::format(
+                "[SUMMARY] finalMemory loggerRetained={} processPrivate={} processWorkingSet={}\n",
+                formatBytes(finalMemory.loggerRetainedBytes),
+                formatProcessBytes(finalMemory, finalMemory.processPrivateBytes),
+                formatProcessBytes(finalMemory, finalMemory.processWorkingSetBytes)));
     }
 
     bool hasArgument(int argc, char **argv, std::string_view argument)
@@ -1933,64 +1937,216 @@ namespace GameWIP::Test
                 const ScopedLogRootCleanup cleanupLogRoot(context.logRoot);
 
                 context.emit(std::format("[INFO] Logger test log root: {}\n", pathText(context.logRoot)));
-                context.emit(std::format(
-                    "[INFO] Logger test options: stress={} fatalChild={} performance={} manualUi={} loggerPopup={} perfIterations={} stressThreads={} stressIterations={} report={}\n",
-                    options.enableStressTests,
-                    options.enableChildCrashTests,
-                    options.enablePerformanceMetrics,
-                    options.enableManualUiTests,
-                    options.enableLoggerPopupTest,
-                    options.performanceIterations,
-                    options.stressThreadCount,
-                    options.stressIterationsPerThread,
-                    options.writeReport ? options.reportPath.string() : std::string{"disabled"}));
+                context.emit(
+                    std::format(
+                        "[INFO] Logger test options: stress={} fatalChild={} performance={} manualUi={} "
+                        "loggerPopup={} perfIterations={} stressThreads={} stressIterations={} report={}\n",
+                        options.enableStressTests,
+                        options.enableChildCrashTests,
+                        options.enablePerformanceMetrics,
+                        options.enableManualUiTests,
+                        options.enableLoggerPopupTest,
+                        options.performanceIterations,
+                        options.stressThreadCount,
+                        options.stressIterationsPerThread,
+                        options.writeReport ? options.reportPath.string() : std::string{"disabled"}));
 
                 Logger::shutdown();
-                runCase(context, "config factories", [&] { testConfigFactories(context); });
-                runCase(context, "disabled and invalid init", [&] { testDisabledAndInvalidInit(context); });
-                runCase(context, "convenience init APIs", [&] { testConvenienceInitApis(context); });
-                runCase(context, "file output and content", [&] { testFileOutputAndContent(context); });
-                runCase(context, "lifecycle and queries", [&] { testLifecycleAndQueries(context); });
-                runCase(context, "level and source filters", [&] { testLevelAndSourceFilters(context); });
-                runCase(context, "source validation", [&] { testSourceValidation(context); });
-                runCase(context, "formatting and truncation", [&] { testFormattingAndTruncation(context); });
-                runCase(context, "reports and debug output", [&] { testReportsAndDebugOutput(context); });
-                runCase(context, "report failure and unknown-source paths", [&] { testReportFailureAndUnknownSourcePaths(context); });
-                runCase(context, "logger test hooks", [&] { testLoggerTestHooks(context); });
-                runCase(context, "file fallback", [&] { testFileFallback(context); });
-                runCase(context, "macro behavior", [&] { testMacroBehavior(context); });
-                runCase(context, "filtered logs drop accounting", [&] { testFilteredLogsDoNotCountAsDrops(context); });
-                runCase(context, "stats reset and lifetime drops", [&] { testStatsResetKeepsLifetimeQueueDrops(context); });
-                runCase(context, "queue pressure and concurrency", [&] { testQueuePressureAndConcurrency(context, options); });
-                runCase(context, "report bypasses full queue", [&] { testReportBypassesFullQueue(context, options); });
-                runCase(context, "report while producers active", [&] { testReportWhileProducersActive(context, options); });
-                runCase(context, "flush while producers active", [&] { testFlushWhileProducersActive(context, options); });
-                runCase(context, "shutdown while producers active", [&] { testShutdownWhileProducersActive(context, options); });
-                runCase(context, "repeated init shutdown stress", [&] { testRepeatedInitShutdownStress(context, options); });
-                runCase(context, "fatal terminate child", [&] { testFatalTerminateChild(context, options); });
-                runCase(context, "manual logger fatal popup", [&] { testManualLoggerFatalPopup(context, options); });
-                runCase(context, "manual logger UI option", [&]
-                {
-                    if (options.enableManualUiTests)
+                runCase(
+                    context,
+                    "config factories",
+                    [&]
                     {
-                        context.pass("manual logger UI tests enabled; add explicit manual scenarios before running unattended");
-                    }
-                    else
+                        testConfigFactories(context);
+                    });
+                runCase(
+                    context,
+                    "disabled and invalid init",
+                    [&]
                     {
-                        context.pass("manual logger UI tests skipped by LoggerTestOptions");
-                    }
-                });
-                runCase(context, "performance metrics", [&] { runPerformanceMetrics(context, options); });
+                        testDisabledAndInvalidInit(context);
+                    });
+                runCase(
+                    context,
+                    "convenience init APIs",
+                    [&]
+                    {
+                        testConvenienceInitApis(context);
+                    });
+                runCase(
+                    context,
+                    "file output and content",
+                    [&]
+                    {
+                        testFileOutputAndContent(context);
+                    });
+                runCase(
+                    context,
+                    "lifecycle and queries",
+                    [&]
+                    {
+                        testLifecycleAndQueries(context);
+                    });
+                runCase(
+                    context,
+                    "level and source filters",
+                    [&]
+                    {
+                        testLevelAndSourceFilters(context);
+                    });
+                runCase(
+                    context,
+                    "source validation",
+                    [&]
+                    {
+                        testSourceValidation(context);
+                    });
+                runCase(
+                    context,
+                    "formatting and truncation",
+                    [&]
+                    {
+                        testFormattingAndTruncation(context);
+                    });
+                runCase(
+                    context,
+                    "reports and debug output",
+                    [&]
+                    {
+                        testReportsAndDebugOutput(context);
+                    });
+                runCase(
+                    context,
+                    "report failure and unknown-source paths",
+                    [&]
+                    {
+                        testReportFailureAndUnknownSourcePaths(context);
+                    });
+                runCase(
+                    context,
+                    "logger test hooks",
+                    [&]
+                    {
+                        testLoggerTestHooks(context);
+                    });
+                runCase(
+                    context,
+                    "file fallback",
+                    [&]
+                    {
+                        testFileFallback(context);
+                    });
+                runCase(
+                    context,
+                    "macro behavior",
+                    [&]
+                    {
+                        testMacroBehavior(context);
+                    });
+                runCase(
+                    context,
+                    "filtered logs drop accounting",
+                    [&]
+                    {
+                        testFilteredLogsDoNotCountAsDrops(context);
+                    });
+                runCase(
+                    context,
+                    "stats reset and lifetime drops",
+                    [&]
+                    {
+                        testStatsResetKeepsLifetimeQueueDrops(context);
+                    });
+                runCase(
+                    context,
+                    "queue pressure and concurrency",
+                    [&]
+                    {
+                        testQueuePressureAndConcurrency(context, options);
+                    });
+                runCase(
+                    context,
+                    "report bypasses full queue",
+                    [&]
+                    {
+                        testReportBypassesFullQueue(context, options);
+                    });
+                runCase(
+                    context,
+                    "report while producers active",
+                    [&]
+                    {
+                        testReportWhileProducersActive(context, options);
+                    });
+                runCase(
+                    context,
+                    "flush while producers active",
+                    [&]
+                    {
+                        testFlushWhileProducersActive(context, options);
+                    });
+                runCase(
+                    context,
+                    "shutdown while producers active",
+                    [&]
+                    {
+                        testShutdownWhileProducersActive(context, options);
+                    });
+                runCase(
+                    context,
+                    "repeated init shutdown stress",
+                    [&]
+                    {
+                        testRepeatedInitShutdownStress(context, options);
+                    });
+                runCase(
+                    context,
+                    "fatal terminate child",
+                    [&]
+                    {
+                        testFatalTerminateChild(context, options);
+                    });
+                runCase(
+                    context,
+                    "manual logger fatal popup",
+                    [&]
+                    {
+                        testManualLoggerFatalPopup(context, options);
+                    });
+                runCase(
+                    context,
+                    "manual logger UI option",
+                    [&]
+                    {
+                        if (options.enableManualUiTests)
+                        {
+                            context.pass(
+                                "manual logger UI tests enabled; add explicit manual scenarios before running "
+                                "unattended");
+                        }
+                        else
+                        {
+                            context.pass("manual logger UI tests skipped by LoggerTestOptions");
+                        }
+                    });
+                runCase(
+                    context,
+                    "performance metrics",
+                    [&]
+                    {
+                        runPerformanceMetrics(context, options);
+                    });
                 Logger::shutdown();
                 printEndSummary(context, suiteTimer.elapsedMilliseconds());
             });
 
-        runner.summary(std::format(
-            "logger passed={} failed={} skipped={} elapsedMs={:.3f}",
-            suite.summary.passed,
-            suite.summary.failed,
-            suite.summary.skipped,
-            suite.elapsedMilliseconds));
+        runner.summary(
+            std::format(
+                "logger passed={} failed={} skipped={} elapsedMs={:.3f}",
+                suite.summary.passed,
+                suite.summary.failed,
+                suite.summary.skipped,
+                suite.elapsedMilliseconds));
         Logger::shutdown();
         return runner.exitCode();
     }

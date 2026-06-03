@@ -114,11 +114,7 @@ namespace
 
             std::cout << "child-set=" << (setValue != nullptr ? setValue : "<unset>") << '\n';
             std::cout << "child-unset=" << (unsetValue != nullptr ? unsetValue : "<unset>") << '\n';
-            return setValue != nullptr &&
-                           std::string_view(setValue) == "child-value" &&
-                           unsetValue == nullptr
-                       ? 0
-                       : 9;
+            return setValue != nullptr && std::string_view(setValue) == "child-value" && unsetValue == nullptr ? 0 : 9;
         }
 
         if (hasArgument(argc, argv, kEchoChildArgument))
@@ -149,7 +145,8 @@ namespace
         static_cast<void>(context.expectTrue("ReportOptions default console", defaultOptions.writeConsole));
         static_cast<void>(context.expectTrue("ReportOptions default report", defaultOptions.writeReport));
         static_cast<void>(context.expectFalse("ReportOptions default append", defaultOptions.appendReport));
-        static_cast<void>(context.expectEq("ReportOptions default path", std::filesystem::path("logs/tests/latest_test_report.txt"), defaultOptions.reportPath));
+        static_cast<void>(
+            context.expectEq("ReportOptions default path", std::filesystem::path("logs/tests/latest_test_report.txt"), defaultOptions.reportPath));
 
         TestSupport::Types::Summary summary;
         summary.passed = 2;
@@ -192,12 +189,16 @@ namespace
 
         static_cast<void>(context.expectTrue("fileExists detects written file", TestSupport::fileExists(path)));
         static_cast<void>(context.expectFalse("fileExists missing path false", TestSupport::fileExists(root / "files" / "missing.txt")));
-        static_cast<void>(context.expectFalse("fileContains missing file with empty text is false", TestSupport::fileContains(root / "files" / "missing.txt", "")));
+        static_cast<void>(
+            context.expectFalse("fileContains missing file with empty text is false", TestSupport::fileContains(root / "files" / "missing.txt", "")));
         static_cast<void>(context.expectTrue("createDirectories handles existing directory", TestSupport::fileExists(existingDirectory)));
         static_cast<void>(context.expectEq("readTextFile returns contents", std::string("alpha beta alpha beta"), TestSupport::readTextFile(path)));
         static_cast<void>(context.expectTrue("fileContains finds text", TestSupport::fileContains(path, "beta")));
         static_cast<void>(context.expectFalse("fileContains rejects missing text", TestSupport::fileContains(path, "gamma")));
-        static_cast<void>(context.expectEq("countFileOccurrences counts non-overlapping matches", std::size_t{2}, TestSupport::countFileOccurrences(path, "alpha")));
+        static_cast<void>(context.expectEq(
+            "countFileOccurrences counts non-overlapping matches",
+            std::size_t{2},
+            TestSupport::countFileOccurrences(path, "alpha")));
         static_cast<void>(context.expectEq("countFileOccurrences empty needle is zero", std::size_t{0}, TestSupport::countFileOccurrences(path, "")));
 
         TestSupport::removeIfExists(path);
@@ -304,10 +305,13 @@ namespace
         static_cast<void>(context.expectTrue("promptManualCheck accepts y", promptWithInput("y\n") == TestSupport::Types::ManualAnswer::Yes));
         static_cast<void>(context.expectTrue("promptManualCheck accepts no", promptWithInput("no\n") == TestSupport::Types::ManualAnswer::No));
         static_cast<void>(context.expectTrue("promptManualCheck accepts n", promptWithInput("n\n") == TestSupport::Types::ManualAnswer::No));
-        static_cast<void>(context.expectTrue("promptManualCheck accepts skipped", promptWithInput("skip\n") == TestSupport::Types::ManualAnswer::Skipped));
+        static_cast<void>(
+            context.expectTrue("promptManualCheck accepts skipped", promptWithInput("skip\n") == TestSupport::Types::ManualAnswer::Skipped));
         static_cast<void>(context.expectTrue("promptManualCheck accepts s", promptWithInput("s\n") == TestSupport::Types::ManualAnswer::Skipped));
-        static_cast<void>(context.expectTrue("promptManualCheck retries invalid input", promptWithInput("maybe\nYes\n") == TestSupport::Types::ManualAnswer::Yes));
-        static_cast<void>(context.expectTrue("promptManualCheck returns skipped on EOF", promptWithInput("") == TestSupport::Types::ManualAnswer::Skipped));
+        static_cast<void>(
+            context.expectTrue("promptManualCheck retries invalid input", promptWithInput("maybe\nYes\n") == TestSupport::Types::ManualAnswer::Yes));
+        static_cast<void>(
+            context.expectTrue("promptManualCheck returns skipped on EOF", promptWithInput("") == TestSupport::Types::ManualAnswer::Skipped));
     }
 
     void recordExpectedManualAnswer(
@@ -369,9 +373,7 @@ namespace
                 suite.skip("suite skip", "not applicable");
             });
 
-        const TestSupport::Types::SuiteResult second = runner.runSuite(
-            "SecondSuite",
-            [] {});
+        const TestSupport::Types::SuiteResult second = runner.runSuite("SecondSuite", [] {});
 
         static_cast<void>(context.expectTrue("Runner first suite ok", first.ok()));
         static_cast<void>(context.expectTrue("Runner second suite ok", second.ok()));
@@ -414,15 +416,18 @@ namespace
     {
         {
             TestSupport::ScopedUnsetEnvironmentVariable clean(kScopedVariable);
-            static_cast<void>(context.expectTrue("Scoped unset clears missing variable", std::getenv(std::string(kScopedVariable).c_str()) == nullptr));
+            static_cast<void>(
+                context.expectTrue("Scoped unset clears missing variable", std::getenv(std::string(kScopedVariable).c_str()) == nullptr));
 
             {
                 TestSupport::ScopedEnvironmentVariable scoped(kScopedVariable, "temporary");
                 const char *value = std::getenv(std::string(kScopedVariable).c_str());
-                static_cast<void>(context.expectTrue("ScopedEnvironmentVariable sets value", value != nullptr && std::string_view(value) == "temporary"));
+                static_cast<void>(
+                    context.expectTrue("ScopedEnvironmentVariable sets value", value != nullptr && std::string_view(value) == "temporary"));
             }
 
-            static_cast<void>(context.expectTrue("ScopedEnvironmentVariable restores missing state", std::getenv(std::string(kScopedVariable).c_str()) == nullptr));
+            static_cast<void>(
+                context.expectTrue("ScopedEnvironmentVariable restores missing state", std::getenv(std::string(kScopedVariable).c_str()) == nullptr));
         }
 
         {
@@ -430,19 +435,25 @@ namespace
             {
                 TestSupport::ScopedEnvironmentVariable nested(kScopedVariable, "new");
                 const char *value = std::getenv(std::string(kScopedVariable).c_str());
-                static_cast<void>(context.expectTrue("ScopedEnvironmentVariable overrides existing value", value != nullptr && std::string_view(value) == "new"));
+                static_cast<void>(
+                    context.expectTrue("ScopedEnvironmentVariable overrides existing value", value != nullptr && std::string_view(value) == "new"));
             }
 
             const char *restored = std::getenv(std::string(kScopedVariable).c_str());
-            static_cast<void>(context.expectTrue("ScopedEnvironmentVariable restores old value", restored != nullptr && std::string_view(restored) == "old"));
+            static_cast<void>(
+                context.expectTrue("ScopedEnvironmentVariable restores old value", restored != nullptr && std::string_view(restored) == "old"));
 
             {
                 TestSupport::ScopedUnsetEnvironmentVariable unset(kScopedVariable);
-                static_cast<void>(context.expectTrue("ScopedUnsetEnvironmentVariable clears existing value", std::getenv(std::string(kScopedVariable).c_str()) == nullptr));
+                static_cast<void>(context.expectTrue(
+                    "ScopedUnsetEnvironmentVariable clears existing value",
+                    std::getenv(std::string(kScopedVariable).c_str()) == nullptr));
             }
 
             const char *afterUnset = std::getenv(std::string(kScopedVariable).c_str());
-            static_cast<void>(context.expectTrue("ScopedUnsetEnvironmentVariable restores old value", afterUnset != nullptr && std::string_view(afterUnset) == "old"));
+            static_cast<void>(context.expectTrue(
+                "ScopedUnsetEnvironmentVariable restores old value",
+                afterUnset != nullptr && std::string_view(afterUnset) == "old"));
         }
     }
 
@@ -577,9 +588,7 @@ namespace
 
         auto addressMutex = std::make_shared<std::mutex>();
         auto workerAddresses = std::make_shared<std::set<const void *>>();
-        TestSupport::runWorkers(
-            4,
-            WorkerAddressRecorder{addressMutex, workerAddresses});
+        TestSupport::runWorkers(4, WorkerAddressRecorder{addressMutex, workerAddresses});
         static_cast<void>(context.expectEq("runWorkers gives each worker its own callable copy", std::size_t{4}, workerAddresses->size()));
 
         std::atomic<std::size_t> enteredFailureWorkers{0};
@@ -605,8 +614,12 @@ namespace
         }
 
         static_cast<void>(context.expectTrue("runWorkers rethrows worker failure", rethrown));
-        static_cast<void>(context.expectEq("runWorkers starts every failure-path worker", std::size_t{4}, enteredFailureWorkers.load(std::memory_order_relaxed)));
-        static_cast<void>(context.expectEq("runWorkers joins non-throwing failure-path workers", std::size_t{3}, completedFailureWorkers.load(std::memory_order_relaxed)));
+        static_cast<void>(
+            context.expectEq("runWorkers starts every failure-path worker", std::size_t{4}, enteredFailureWorkers.load(std::memory_order_relaxed)));
+        static_cast<void>(context.expectEq(
+            "runWorkers joins non-throwing failure-path workers",
+            std::size_t{3},
+            completedFailureWorkers.load(std::memory_order_relaxed)));
     }
 }
 
@@ -614,10 +627,8 @@ namespace GameWIP::Test
 {
     int runTestSupportTests(int argc, char **argv, const TestSupportTestOptions &options)
     {
-        if (hasArgument(argc, argv, kEnvironmentChildArgument) ||
-            hasArgument(argc, argv, kEchoChildArgument) ||
-            hasArgument(argc, argv, kSleepChildArgument) ||
-            hasArgument(argc, argv, kExitCodeChildArgument))
+        if (hasArgument(argc, argv, kEnvironmentChildArgument) || hasArgument(argc, argv, kEchoChildArgument) ||
+            hasArgument(argc, argv, kSleepChildArgument) || hasArgument(argc, argv, kExitCodeChildArgument))
         {
             return runTestSupportChild(argc, argv);
         }
@@ -633,11 +644,12 @@ namespace GameWIP::Test
 
         TestSupport::Runner runner(reportOptions);
         runner.info(std::format("TestSupport library test root: {}", runRoot.string()));
-        runner.info(std::format(
-            "TestSupport test options: childProcess={} stress={} report={}",
-            options.enableChildProcessTests,
-            options.enableStressTests,
-            options.writeReport ? options.reportPath.string() : std::string_view{"disabled"}));
+        runner.info(
+            std::format(
+                "TestSupport test options: childProcess={} stress={} report={}",
+                options.enableChildProcessTests,
+                options.enableStressTests,
+                options.writeReport ? options.reportPath.string() : std::string_view{"disabled"}));
 
         const std::string executablePath = argc > 0 && argv[0] != nullptr ? argv[0] : "";
 
@@ -688,11 +700,7 @@ namespace GameWIP::Test
             });
 
         const TestSupport::Types::Summary result = runner.result();
-        runner.summary(std::format(
-            "TestSupport library self-tests passed={} failed={} skipped={}",
-            result.passed,
-            result.failed,
-            result.skipped));
+        runner.summary(std::format("TestSupport library self-tests passed={} failed={} skipped={}", result.passed, result.failed, result.skipped));
 
         TestSupport::removeIfExists(runRoot);
         return runner.exitCode();

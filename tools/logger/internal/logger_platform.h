@@ -97,4 +97,4 @@ namespace GameWIP::LoggerDetail::Platform
     /// @brief Returns reusable per-thread format storage through the platform backend.
     /// @return Mutable per-thread scratch string.
     std::string &formatScratchForThread();
-}
+} // namespace GameWIP::LoggerDetail::Platform

@@ -20,6 +20,16 @@ cmake --build build
 
 Runtime test selection stays in `TestRunOptions` in `game/main.cpp`; CMake options control build-time features only.
 
+## Library target types
+
+Logger builds as a shared library target and marks public exported declarations with `LOGGER_API`.
+
+Assert builds as a shared library target when runtime assertion handling is enabled and marks public exported runtime declarations with `ASSERT_API`. When the assert runtime is disabled, the target can be interface-only and the header uses inline trap/no-op behavior instead.
+
+TestSupport builds as a static library target. Its object code is linked into consuming test executables, so `test_support.h` intentionally has no `TEST_SUPPORT_API` import/export marker.
+
+The platform/compiler attributes behind shared-library API markers are centralized in `tools/common/export.h`. Library headers keep library-local names such as `LOGGER_API` and `ASSERT_API`.
+
 ## Using installed packages
 
 After the libraries have been installed, an external CMake project can consume them with:
@@ -57,6 +67,7 @@ A normal install provides headers, libraries, and package config files similar t
 
 ```text
 <prefix>/include/logger/...
+<prefix>/include/common/export.h
 <prefix>/include/debug/assert/...
 <prefix>/include/test_support/...
 <prefix>/lib/cmake/GameWIP_Logger/GameWIP_LoggerConfig.cmake

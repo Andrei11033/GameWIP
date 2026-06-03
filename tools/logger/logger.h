@@ -15,19 +15,21 @@
 #include <type_traits>
 #include <utility>
 
-#if defined(_WIN32)
+#include "common/export.h"
+
+/// @def LOGGER_API
+/// @brief DLL import/export marker used by Logger runtime declarations.
+/// @details This is not part of normal user code; use the Logger class API instead.
 #if defined(LOGGER_BUILD)
-#define LOGGER_API __declspec(dllexport)
+#define LOGGER_API GAMEWIP_SHARED_EXPORT
 #else
-#define LOGGER_API __declspec(dllimport)
-#endif
-#else
-#define LOGGER_API
+#define LOGGER_API GAMEWIP_SHARED_IMPORT
 #endif
 
 // LOGGER_* convenience macros are intentionally opt-in. Include
 // logger/logger_macros.h when global preprocessor logging shortcuts are wanted.
 
+/// @brief Root namespace containing GameWIP public library APIs.
 namespace GameWIP
 {
     /// @class Logger
@@ -74,7 +76,8 @@ namespace GameWIP
                 Fatal
             };
 
-            /// @brief Enabled output sinks. File-only setup may fall back to Console when Config::fallbackToConsoleOnFileFailure is true.
+            /// @brief Enabled output sinks. File-only setup may fall back to Console when
+            /// Config::fallbackToConsoleOnFileFailure is true.
             enum class Output
             {
                 None,
@@ -86,9 +89,11 @@ namespace GameWIP
             /// @brief Formatting policy used by formatted logger overloads before queueing.
             enum class FormatPolicy
             {
-                /// @brief Retains at most Config::maxMessageLength bytes while formatting; minimizes peak message memory.
+                /// @brief Retains at most Config::maxMessageLength bytes while formatting; minimizes peak message
+                /// memory.
                 StrictBounded,
-                /// @brief Formats into reusable scratch first, then truncates; faster normal case, higher peak memory for huge output.
+                /// @brief Formats into reusable scratch first, then truncates; faster normal case, higher peak memory
+                /// for huge output.
                 FastNormal
             };
 
@@ -195,16 +200,19 @@ namespace GameWIP
                 /// @details Runtime LevelFilter changes cannot re-enable levels below this floor.
                 Level minLevel = Level::Info;
                 /// @brief Soft queue limit where low-priority messages may start dropping.
-                /// @details This bounds normal burst memory. Error and Fatal messages may continue until the hard limit.
+                /// @details This bounds normal burst memory. Error and Fatal messages may continue until the hard
+                /// limit.
                 std::size_t maxQueueSize = 1024;
                 /// @brief Multiplier used to derive the hard queue limit from maxQueueSize.
-                /// @details Effective hard limit is ceil(maxQueueSize * hardQueueMultiplier), with validation/fallback during init().
+                /// @details Effective hard limit is ceil(maxQueueSize * hardQueueMultiplier), with validation/fallback
+                /// during init().
                 double hardQueueMultiplier = 1.25;
                 /// @brief Maximum stored message length before truncation.
                 /// @details Formatted and preformatted messages longer than this are retained with a truncation suffix.
                 std::size_t maxMessageLength = 4096;
                 /// @brief Caller-thread formatting memory/speed tradeoff.
-                /// @note Formatting happens before queue insertion; use LOGGER_* macros or shouldLog() around expensive arguments.
+                /// @note Formatting happens before queue insertion; use LOGGER_* macros or shouldLog() around expensive
+                /// arguments.
                 FormatPolicy formatPolicy = FormatPolicy::StrictBounded;
                 /// @brief Per-slot preallocated message bytes.
                 /// @details Zero disables the inline arena. Values above maxMessageLength are clamped by init().
@@ -222,7 +230,8 @@ namespace GameWIP
                 /// @note Unknown SourceId values are still accepted and reported through Stats::unknownSourceUses.
                 std::span<const SourceDefinition> sources = {};
                 /// @brief Initial registered source filters applied during init().
-                /// @details Filters only affect registered SourceId/enum sources. String sources are severity-filtered only.
+                /// @details Filters only affect registered SourceId/enum sources. String sources are severity-filtered
+                /// only.
                 std::span<const SourceFilter> sourceFilters = {};
                 /// @brief Initial exact-level filters applied during init().
                 /// @details Filtered levels are skipped intentionally and are not counted as dropped logs.
@@ -231,7 +240,8 @@ namespace GameWIP
                 bool enableConsoleColor = true;
                 /// @brief Enables platform debug output for writeDebugOutput() and report/fatal mirroring.
                 bool enableDebugOutput = true;
-                /// @brief Enables the logger-owned fatal popup path used by reportFatal(), fatalTerminate(), and report(..., ReportPopup::Fatal, ...).
+                /// @brief Enables the logger-owned fatal popup path used by reportFatal(), fatalTerminate(), and
+                /// report(..., ReportPopup::Fatal, ...).
                 bool enableFatalPopup = true;
                 /// @brief Flushes the file stream after every worker batch when true.
                 /// @details Safer for tailing/crash diagnostics, but slower under heavy file logging.
@@ -239,7 +249,8 @@ namespace GameWIP
                 /// @brief Flushes stdout/stderr after every console write when true.
                 bool flushConsoleEveryWrite = false;
                 /// @brief Releases oversized heap fallback text after entries are cleared.
-                /// @details False retains peak capacity for better post-spike throughput. lowMemoryConfig() sets this true.
+                /// @details False retains peak capacity for better post-spike throughput. lowMemoryConfig() sets this
+                /// true.
                 bool releaseMessageMemoryAfterWrite = false;
                 /// @brief Releases queue, batch, arena, and source-registry storage during shutdown.
                 /// @details Lowers idle memory at the cost of reallocating on the next init().
@@ -253,7 +264,8 @@ namespace GameWIP
                 std::size_t softQueueSize = 0;
                 /// @brief Hard queue depth where every severity may drop.
                 std::size_t hardQueueSize = 0;
-                /// @brief Sanitized hard queue multiplier requested at init(); hardQueueSize is authoritative after rounding/fallback.
+                /// @brief Sanitized hard queue multiplier requested at init(); hardQueueSize is authoritative after
+                /// rounding/fallback.
                 double hardQueueMultiplier = 1.0;
                 /// @brief Maximum stored message length before truncation.
                 std::size_t maxMessageLength = 0;
@@ -303,7 +315,8 @@ namespace GameWIP
                 std::size_t messageArenaBytes = 0;
                 /// @brief Retained source registry storage for the currently published shared registry snapshot.
                 std::size_t sourceRegistryBytes = 0;
-                /// @brief Retained heap fallback capacity in idle queue entry source/message text; zero when unavailable.
+                /// @brief Retained heap fallback capacity in idle queue entry source/message text; zero when
+                /// unavailable.
                 std::size_t entryTextHeapCapacityBytes = 0;
                 /// @brief True when entryTextHeapCapacityBytes was inspected without racing producers or the worker.
                 bool entryTextHeapCapacityAvailable = false;
@@ -323,12 +336,9 @@ namespace GameWIP
         /// @brief True when Enum can be used as a logger source enum.
         template <typename Enum>
         static constexpr bool isSourceEnum =
-            std::is_enum_v<std::remove_cvref_t<Enum>> &&
-            !std::is_same_v<std::remove_cvref_t<Enum>, Types::Level> &&
-            !std::is_same_v<std::remove_cvref_t<Enum>, Types::Output> &&
-            !std::is_same_v<std::remove_cvref_t<Enum>, Types::FormatPolicy> &&
-            !std::is_same_v<std::remove_cvref_t<Enum>, Types::Result> &&
-            !std::is_same_v<std::remove_cvref_t<Enum>, Types::PlatformErrorSource>;
+            std::is_enum_v<std::remove_cvref_t<Enum>> && !std::is_same_v<std::remove_cvref_t<Enum>, Types::Level> &&
+            !std::is_same_v<std::remove_cvref_t<Enum>, Types::Output> && !std::is_same_v<std::remove_cvref_t<Enum>, Types::FormatPolicy> &&
+            !std::is_same_v<std::remove_cvref_t<Enum>, Types::Result> && !std::is_same_v<std::remove_cvref_t<Enum>, Types::PlatformErrorSource>;
 
         /// @brief Converts a source enum to the stored SourceId value.
         /// @param value Source enum value.
@@ -338,7 +348,9 @@ namespace GameWIP
         static constexpr Types::SourceId sourceId(Enum value) noexcept
         {
             using Underlying = std::underlying_type_t<std::remove_cvref_t<Enum>>;
-            static_assert(std::is_unsigned_v<Underlying>, "Logger source enums must use an unsigned underlying type, preferably Logger::Types::SourceId.");
+            static_assert(
+                std::is_unsigned_v<Underlying>,
+                "Logger source enums must use an unsigned underlying type, preferably Logger::Types::SourceId.");
             static_assert(sizeof(Underlying) <= sizeof(Types::SourceId), "Logger source enum values must fit in Logger::Types::SourceId.");
             return static_cast<Types::SourceId>(static_cast<Underlying>(value));
         }
@@ -382,8 +394,10 @@ namespace GameWIP
 
         /// @brief Starts the async logger with copied source definitions and preallocated queue storage.
         /// @param config Startup configuration. Source and filter spans only need to live through this call.
-        /// @return Success on normal startup, or a non-success Types::Result if configuration or setup fell back/failed.
-        /// @note init(), shutdown(), and process-exit cleanup are memory-safe against racing producers; logs submitted after disabled state is published may be skipped.
+        /// @return Success on normal startup, or a non-success Types::Result if configuration or setup fell
+        /// back/failed.
+        /// @note init(), shutdown(), and process-exit cleanup are memory-safe against racing producers; logs submitted
+        /// after disabled state is published may be skipped.
         static Types::Result init(const Types::Config &config);
         /// @brief Builds the normal default startup configuration.
         /// @return Types::Config with both console and file output using the default log directory.
@@ -407,16 +421,19 @@ namespace GameWIP
         /// @return Types::Result from init() with Types::Output::File.
         static Types::Result initFile(std::string_view directory = {}, Types::Level minLevel = Types::Level::Info);
         /// @brief Stops the worker, drains queued logs, and closes the file sink.
-        /// @note Safe to call while producers are still logging, but shutdown does not guarantee delivery for logs submitted after disabled state is published.
+        /// @note Safe to call while producers are still logging, but shutdown does not guarantee delivery for logs
+        /// submitted after disabled state is published.
         static void shutdown();
         /// @brief Waits for accepted queued logs to drain and flushes console/file sinks.
         /// @details This public call is serialized with init() and shutdown().
-        /// @note Concurrent producers may enqueue after flush() observes the queue as drained; this is not a stop-the-world barrier.
+        /// @note Concurrent producers may enqueue after flush() observes the queue as drained; this is not a
+        /// stop-the-world barrier.
         static void flush();
         /// @brief Waits for accepted queued logs to drain and flushes console/file sinks until timeout expires.
         /// @param timeout Maximum duration to wait.
         /// @return True when the queue drained and sinks flushed before timeout expired.
-        /// @note Concurrent producers may enqueue after flush(timeout) observes the queue as drained; this is not a stop-the-world barrier.
+        /// @note Concurrent producers may enqueue after flush(timeout) observes the queue as drained; this is not a
+        /// stop-the-world barrier.
         static bool flush(std::chrono::milliseconds timeout);
         /// @}
 
@@ -466,9 +483,11 @@ namespace GameWIP
 
         /// @brief Cheap side-effect-free guard for severity-only string source logs.
         /// @param level Severity to test.
-        /// @return True when the logger is running, output is enabled, level is at/above minLevel, and the level is not runtime-filtered.
+        /// @return True when the logger is running, output is enabled, level is at/above minLevel, and the level is not
+        /// runtime-filtered.
         static bool shouldLog(Types::Level level);
-        /// @brief Cheap side-effect-free guard for string source logs; string sources do not have runtime source filters.
+        /// @brief Cheap side-effect-free guard for string source logs; string sources do not have runtime source
+        /// filters.
         /// @param level Severity to test.
         /// @param source String source ignored for filtering; accepted to support lazy LOGGER_* macros uniformly.
         /// @return Same result as shouldLog(level).
@@ -1172,12 +1191,23 @@ namespace GameWIP
         static void report(Types::Level level, std::string_view source, Types::ReportPopup popup, std::string_view message);
         /// @brief Synchronously reports a preformatted diagnostic with explicit popup behavior and bounded drain/flush.
         /// @return True when the bounded post-report drain/flush completed.
-        static bool report(Types::Level level, std::string_view source, Types::FlushTimeout timeout, Types::ReportPopup popup, std::string_view message);
+        static bool report(
+            Types::Level level,
+            std::string_view source,
+            Types::FlushTimeout timeout,
+            Types::ReportPopup popup,
+            std::string_view message);
         /// @brief Synchronously reports a preformatted diagnostic with a SourceId and explicit popup behavior.
         static void report(Types::Level level, Types::SourceId source, Types::ReportPopup popup, std::string_view message);
-        /// @brief Synchronously reports a preformatted diagnostic with a SourceId, popup behavior, and bounded drain/flush.
+        /// @brief Synchronously reports a preformatted diagnostic with a SourceId, popup behavior, and bounded
+        /// drain/flush.
         /// @return True when the bounded post-report drain/flush completed.
-        static bool report(Types::Level level, Types::SourceId source, Types::FlushTimeout timeout, Types::ReportPopup popup, std::string_view message);
+        static bool report(
+            Types::Level level,
+            Types::SourceId source,
+            Types::FlushTimeout timeout,
+            Types::ReportPopup popup,
+            std::string_view message);
 
         /// @brief Synchronously reports a preformatted diagnostic with an enum source.
         template <typename Source>
@@ -1203,7 +1233,8 @@ namespace GameWIP
             report(level, sourceId(source), popup, message);
         }
 
-        /// @brief Synchronously reports a preformatted diagnostic with an enum source, bounded drain/flush, and explicit popup behavior.
+        /// @brief Synchronously reports a preformatted diagnostic with an enum source, bounded drain/flush, and
+        /// explicit popup behavior.
         template <typename Source>
             requires(isSourceEnum<Source>)
         static bool report(Types::Level level, Source source, Types::FlushTimeout timeout, Types::ReportPopup popup, std::string_view message)
@@ -1211,28 +1242,33 @@ namespace GameWIP
             return report(level, sourceId(source), timeout, popup, message);
         }
 
-        /// @brief Synchronously reports an Error diagnostic, mirrors it to platform debug output, and flushes without showing a fatal popup.
+        /// @brief Synchronously reports an Error diagnostic, mirrors it to platform debug output, and flushes without
+        /// showing a fatal popup.
         /// @param source Source text written into the report line and platform debug output line.
         /// @param message Message text written into the report line and platform debug output line.
         static void reportError(std::string_view source, std::string_view message);
-        /// @brief Synchronously reports an Error diagnostic, mirrors it to platform debug output, and waits for a bounded drain/flush.
+        /// @brief Synchronously reports an Error diagnostic, mirrors it to platform debug output, and waits for a
+        /// bounded drain/flush.
         /// @param source Source text written into the report line and platform debug output line.
         /// @param timeout Maximum time to wait for the flush.
         /// @param message Message text written into the report line and platform debug output line.
         /// @return True when the bounded flush completed.
         static bool reportError(std::string_view source, Types::FlushTimeout timeout, std::string_view message);
-        /// @brief Synchronously reports an Error diagnostic with a SourceId, mirrors it to platform debug output, and flushes without showing a fatal popup.
+        /// @brief Synchronously reports an Error diagnostic with a SourceId, mirrors it to platform debug output, and
+        /// flushes without showing a fatal popup.
         /// @param source Registered SourceId resolved for the report line and platform debug output.
         /// @param message Message text written into the report line and platform debug output line.
         static void reportError(Types::SourceId source, std::string_view message);
-        /// @brief Synchronously reports an Error diagnostic with a SourceId, mirrors it to platform debug output, and waits for a bounded drain/flush.
+        /// @brief Synchronously reports an Error diagnostic with a SourceId, mirrors it to platform debug output, and
+        /// waits for a bounded drain/flush.
         /// @param source Registered SourceId resolved for the report line and platform debug output.
         /// @param timeout Maximum time to wait for the flush.
         /// @param message Message text written into the report line and platform debug output line.
         /// @return True when the bounded flush completed.
         static bool reportError(Types::SourceId source, Types::FlushTimeout timeout, std::string_view message);
 
-        /// @brief Synchronously reports an Error diagnostic with an enum source, mirrors it to platform debug output, and flushes without showing a fatal popup.
+        /// @brief Synchronously reports an Error diagnostic with an enum source, mirrors it to platform debug output,
+        /// and flushes without showing a fatal popup.
         /// @param source Enum source stored as a SourceId in the queue entry and resolved for platform debug output.
         /// @param message Message text written into the report line and platform debug output line.
         template <typename Source>
@@ -1242,7 +1278,8 @@ namespace GameWIP
             reportError(sourceId(source), message);
         }
 
-        /// @brief Synchronously reports an Error diagnostic with an enum source, mirrors it to platform debug output, and waits for a bounded drain/flush.
+        /// @brief Synchronously reports an Error diagnostic with an enum source, mirrors it to platform debug output,
+        /// and waits for a bounded drain/flush.
         /// @param source Enum source stored as a SourceId in the queue entry and resolved for platform debug output.
         /// @param timeout Maximum time to wait for the flush.
         /// @param message Message text written into the report line and platform debug output line.
@@ -1254,28 +1291,33 @@ namespace GameWIP
             return reportError(sourceId(source), timeout, message);
         }
 
-        /// @brief Synchronously reports a Fatal diagnostic, mirrors it to platform debug output, flushes, and shows the fatal popup when enabled.
+        /// @brief Synchronously reports a Fatal diagnostic, mirrors it to platform debug output, flushes, and shows the
+        /// fatal popup when enabled.
         /// @param source Source text written into the report line and platform debug output line.
         /// @param message Message text written into the report line, platform debug output line, and fatal popup.
         static void reportFatal(std::string_view source, std::string_view message);
-        /// @brief Synchronously reports a Fatal diagnostic, mirrors it to platform debug output, waits for a bounded drain/flush, and shows the fatal popup when enabled.
+        /// @brief Synchronously reports a Fatal diagnostic, mirrors it to platform debug output, waits for a bounded
+        /// drain/flush, and shows the fatal popup when enabled.
         /// @param source Source text written into the report line and platform debug output line.
         /// @param timeout Maximum time to wait for the flush.
         /// @param message Message text written into the report line, platform debug output line, and fatal popup.
         /// @return True when the bounded flush completed.
         static bool reportFatal(std::string_view source, Types::FlushTimeout timeout, std::string_view message);
-        /// @brief Synchronously reports a Fatal diagnostic with a SourceId, mirrors it to platform debug output, flushes, and shows the fatal popup when enabled.
+        /// @brief Synchronously reports a Fatal diagnostic with a SourceId, mirrors it to platform debug output,
+        /// flushes, and shows the fatal popup when enabled.
         /// @param source Registered SourceId resolved for the report line and platform debug output.
         /// @param message Message text written into the report line, platform debug output line, and fatal popup.
         static void reportFatal(Types::SourceId source, std::string_view message);
-        /// @brief Synchronously reports a Fatal diagnostic with a SourceId, mirrors it to platform debug output, waits for a bounded drain/flush, and shows the fatal popup when enabled.
+        /// @brief Synchronously reports a Fatal diagnostic with a SourceId, mirrors it to platform debug output, waits
+        /// for a bounded drain/flush, and shows the fatal popup when enabled.
         /// @param source Registered SourceId resolved for the report line and platform debug output.
         /// @param timeout Maximum time to wait for the flush.
         /// @param message Message text written into the report line, platform debug output line, and fatal popup.
         /// @return True when the bounded flush completed.
         static bool reportFatal(Types::SourceId source, Types::FlushTimeout timeout, std::string_view message);
 
-        /// @brief Synchronously reports a Fatal diagnostic with an enum source, mirrors it to platform debug output, flushes, and shows the fatal popup when enabled.
+        /// @brief Synchronously reports a Fatal diagnostic with an enum source, mirrors it to platform debug output,
+        /// flushes, and shows the fatal popup when enabled.
         /// @param source Enum source stored as a SourceId in the queue entry and resolved for platform debug output.
         /// @param message Message text written into the report line, platform debug output line, and fatal popup.
         template <typename Source>
@@ -1285,7 +1327,8 @@ namespace GameWIP
             reportFatal(sourceId(source), message);
         }
 
-        /// @brief Synchronously reports a Fatal diagnostic with an enum source, mirrors it to platform debug output, waits for a bounded drain/flush, and shows the fatal popup when enabled.
+        /// @brief Synchronously reports a Fatal diagnostic with an enum source, mirrors it to platform debug output,
+        /// waits for a bounded drain/flush, and shows the fatal popup when enabled.
         /// @param source Enum source stored as a SourceId in the queue entry and resolved for platform debug output.
         /// @param timeout Maximum time to wait for the flush.
         /// @param message Message text written into the report line, platform debug output line, and fatal popup.
@@ -1297,11 +1340,13 @@ namespace GameWIP
             return reportFatal(sourceId(source), timeout, message);
         }
 
-        /// @brief Logs fatal, mirrors to platform debug output, flushes, shows the fatal popup when enabled, then terminates the process.
+        /// @brief Logs fatal, mirrors to platform debug output, flushes, shows the fatal popup when enabled, then
+        /// terminates the process.
         /// @param source Source text written into the report line and platform debug output line.
         /// @param message Message text written into the report line and platform debug output line.
         [[noreturn]] static void fatalTerminate(std::string_view source, std::string_view message);
-        /// @brief Logs fatal with a SourceId, mirrors to platform debug output, flushes, shows the fatal popup when enabled, then terminates.
+        /// @brief Logs fatal with a SourceId, mirrors to platform debug output, flushes, shows the fatal popup when
+        /// enabled, then terminates.
         /// @param source Registered SourceId resolved for the report line and platform debug output.
         /// @param message Message text written into the report line and platform debug output line.
         [[noreturn]] static void fatalTerminate(Types::SourceId source, std::string_view message);
@@ -1310,7 +1355,8 @@ namespace GameWIP
         /// @param timeout Maximum flush wait before termination continues.
         /// @param message Message text written into the report line and platform debug output line.
         [[noreturn]] static void fatalTerminate(std::string_view source, Types::FlushTimeout timeout, std::string_view message);
-        /// @brief Logs fatal with a SourceId, waits for a bounded flush, shows the fatal popup when enabled, then terminates.
+        /// @brief Logs fatal with a SourceId, waits for a bounded flush, shows the fatal popup when enabled, then
+        /// terminates.
         /// @param source Registered SourceId resolved for the report line and platform debug output.
         /// @param timeout Maximum flush wait before termination continues.
         /// @param message Message text written into the report line and platform debug output line.
@@ -1326,7 +1372,8 @@ namespace GameWIP
             fatalTerminate(sourceId(source), message);
         }
 
-        /// @brief Logs fatal with an enum source, waits for a bounded flush, shows the fatal popup when enabled, then terminates.
+        /// @brief Logs fatal with an enum source, waits for a bounded flush, shows the fatal popup when enabled, then
+        /// terminates.
         /// @param source Enum source stored as a SourceId.
         /// @param timeout Maximum flush wait before termination continues.
         /// @param message Message text written into the report line and platform debug output line.
@@ -1348,7 +1395,12 @@ namespace GameWIP
         /// @brief Formats and synchronously reports a diagnostic with a string source and bounded drain/flush.
         template <typename... Args>
             requires(sizeof...(Args) > 0)
-        static bool report(Types::Level level, std::string_view source, Types::FlushTimeout timeout, std::format_string<Args...> format, Args &&...args)
+        static bool report(
+            Types::Level level,
+            std::string_view source,
+            Types::FlushTimeout timeout,
+            std::format_string<Args...> format,
+            Args &&...args)
         {
             return formatAndReport(level, source, false, timeout, format, std::forward<Args>(args)...);
         }
@@ -1361,10 +1413,17 @@ namespace GameWIP
             formatAndReport(level, source, popup == Types::ReportPopup::Fatal, format, std::forward<Args>(args)...);
         }
 
-        /// @brief Formats and synchronously reports a diagnostic with a string source, bounded drain/flush, and explicit popup behavior.
+        /// @brief Formats and synchronously reports a diagnostic with a string source, bounded drain/flush, and
+        /// explicit popup behavior.
         template <typename... Args>
             requires(sizeof...(Args) > 0)
-        static bool report(Types::Level level, std::string_view source, Types::FlushTimeout timeout, Types::ReportPopup popup, std::format_string<Args...> format, Args &&...args)
+        static bool report(
+            Types::Level level,
+            std::string_view source,
+            Types::FlushTimeout timeout,
+            Types::ReportPopup popup,
+            std::format_string<Args...> format,
+            Args &&...args)
         {
             return formatAndReport(level, source, popup == Types::ReportPopup::Fatal, timeout, format, std::forward<Args>(args)...);
         }
@@ -1380,12 +1439,18 @@ namespace GameWIP
         /// @brief Formats and synchronously reports a diagnostic with a registered SourceId and bounded drain/flush.
         template <typename... Args>
             requires(sizeof...(Args) > 0)
-        static bool report(Types::Level level, Types::SourceId source, Types::FlushTimeout timeout, std::format_string<Args...> format, Args &&...args)
+        static bool report(
+            Types::Level level,
+            Types::SourceId source,
+            Types::FlushTimeout timeout,
+            std::format_string<Args...> format,
+            Args &&...args)
         {
             return formatAndReport(level, source, false, timeout, format, std::forward<Args>(args)...);
         }
 
-        /// @brief Formats and synchronously reports a diagnostic with a registered SourceId and explicit popup behavior.
+        /// @brief Formats and synchronously reports a diagnostic with a registered SourceId and explicit popup
+        /// behavior.
         template <typename... Args>
             requires(sizeof...(Args) > 0)
         static void report(Types::Level level, Types::SourceId source, Types::ReportPopup popup, std::format_string<Args...> format, Args &&...args)
@@ -1393,10 +1458,17 @@ namespace GameWIP
             formatAndReport(level, source, popup == Types::ReportPopup::Fatal, format, std::forward<Args>(args)...);
         }
 
-        /// @brief Formats and synchronously reports a diagnostic with a registered SourceId, bounded drain/flush, and explicit popup behavior.
+        /// @brief Formats and synchronously reports a diagnostic with a registered SourceId, bounded drain/flush, and
+        /// explicit popup behavior.
         template <typename... Args>
             requires(sizeof...(Args) > 0)
-        static bool report(Types::Level level, Types::SourceId source, Types::FlushTimeout timeout, Types::ReportPopup popup, std::format_string<Args...> format, Args &&...args)
+        static bool report(
+            Types::Level level,
+            Types::SourceId source,
+            Types::FlushTimeout timeout,
+            Types::ReportPopup popup,
+            std::format_string<Args...> format,
+            Args &&...args)
         {
             return formatAndReport(level, source, popup == Types::ReportPopup::Fatal, timeout, format, std::forward<Args>(args)...);
         }
@@ -1425,10 +1497,17 @@ namespace GameWIP
             formatAndReport(level, sourceId(source), popup == Types::ReportPopup::Fatal, format, std::forward<Args>(args)...);
         }
 
-        /// @brief Formats and synchronously reports a diagnostic with an enum source, bounded drain/flush, and explicit popup behavior.
+        /// @brief Formats and synchronously reports a diagnostic with an enum source, bounded drain/flush, and explicit
+        /// popup behavior.
         template <typename Source, typename... Args>
             requires(isSourceEnum<Source> && sizeof...(Args) > 0)
-        static bool report(Types::Level level, Source source, Types::FlushTimeout timeout, Types::ReportPopup popup, std::format_string<Args...> format, Args &&...args)
+        static bool report(
+            Types::Level level,
+            Source source,
+            Types::FlushTimeout timeout,
+            Types::ReportPopup popup,
+            std::format_string<Args...> format,
+            Args &&...args)
         {
             return formatAndReport(level, sourceId(source), popup == Types::ReportPopup::Fatal, timeout, format, std::forward<Args>(args)...);
         }
@@ -1593,7 +1672,8 @@ namespace GameWIP
             return runtimeFormatAndReport(level, source, false, timeout, format, args...);
         }
 
-        /// @brief Runtime-formats and synchronously reports a diagnostic with a string source and explicit popup behavior.
+        /// @brief Runtime-formats and synchronously reports a diagnostic with a string source and explicit popup
+        /// behavior.
         template <typename... Args>
             requires(sizeof...(Args) > 0)
         static void report(Types::Level level, std::string_view source, Types::ReportPopup popup, Types::RuntimeFormat format, Args &&...args)
@@ -1601,10 +1681,17 @@ namespace GameWIP
             runtimeFormatAndReport(level, source, popup == Types::ReportPopup::Fatal, format, args...);
         }
 
-        /// @brief Runtime-formats and synchronously reports a diagnostic with a string source, bounded drain/flush, and explicit popup behavior.
+        /// @brief Runtime-formats and synchronously reports a diagnostic with a string source, bounded drain/flush, and
+        /// explicit popup behavior.
         template <typename... Args>
             requires(sizeof...(Args) > 0)
-        static bool report(Types::Level level, std::string_view source, Types::FlushTimeout timeout, Types::ReportPopup popup, Types::RuntimeFormat format, Args &&...args)
+        static bool report(
+            Types::Level level,
+            std::string_view source,
+            Types::FlushTimeout timeout,
+            Types::ReportPopup popup,
+            Types::RuntimeFormat format,
+            Args &&...args)
         {
             return runtimeFormatAndReport(level, source, popup == Types::ReportPopup::Fatal, timeout, format, args...);
         }
@@ -1617,7 +1704,8 @@ namespace GameWIP
             runtimeFormatAndReport(level, source, false, format, args...);
         }
 
-        /// @brief Runtime-formats and synchronously reports a diagnostic with a registered SourceId and bounded drain/flush.
+        /// @brief Runtime-formats and synchronously reports a diagnostic with a registered SourceId and bounded
+        /// drain/flush.
         template <typename... Args>
             requires(sizeof...(Args) > 0)
         static bool report(Types::Level level, Types::SourceId source, Types::FlushTimeout timeout, Types::RuntimeFormat format, Args &&...args)
@@ -1625,7 +1713,8 @@ namespace GameWIP
             return runtimeFormatAndReport(level, source, false, timeout, format, args...);
         }
 
-        /// @brief Runtime-formats and synchronously reports a diagnostic with a registered SourceId and explicit popup behavior.
+        /// @brief Runtime-formats and synchronously reports a diagnostic with a registered SourceId and explicit popup
+        /// behavior.
         template <typename... Args>
             requires(sizeof...(Args) > 0)
         static void report(Types::Level level, Types::SourceId source, Types::ReportPopup popup, Types::RuntimeFormat format, Args &&...args)
@@ -1633,10 +1722,17 @@ namespace GameWIP
             runtimeFormatAndReport(level, source, popup == Types::ReportPopup::Fatal, format, args...);
         }
 
-        /// @brief Runtime-formats and synchronously reports a diagnostic with a registered SourceId, bounded drain/flush, and explicit popup behavior.
+        /// @brief Runtime-formats and synchronously reports a diagnostic with a registered SourceId, bounded
+        /// drain/flush, and explicit popup behavior.
         template <typename... Args>
             requires(sizeof...(Args) > 0)
-        static bool report(Types::Level level, Types::SourceId source, Types::FlushTimeout timeout, Types::ReportPopup popup, Types::RuntimeFormat format, Args &&...args)
+        static bool report(
+            Types::Level level,
+            Types::SourceId source,
+            Types::FlushTimeout timeout,
+            Types::ReportPopup popup,
+            Types::RuntimeFormat format,
+            Args &&...args)
         {
             return runtimeFormatAndReport(level, source, popup == Types::ReportPopup::Fatal, timeout, format, args...);
         }
@@ -1657,7 +1753,8 @@ namespace GameWIP
             return runtimeFormatAndReport(level, sourceId(source), false, timeout, format, args...);
         }
 
-        /// @brief Runtime-formats and synchronously reports a diagnostic with an enum source and explicit popup behavior.
+        /// @brief Runtime-formats and synchronously reports a diagnostic with an enum source and explicit popup
+        /// behavior.
         template <typename Source, typename... Args>
             requires(isSourceEnum<Source> && sizeof...(Args) > 0)
         static void report(Types::Level level, Source source, Types::ReportPopup popup, Types::RuntimeFormat format, Args &&...args)
@@ -1665,10 +1762,17 @@ namespace GameWIP
             runtimeFormatAndReport(level, sourceId(source), popup == Types::ReportPopup::Fatal, format, args...);
         }
 
-        /// @brief Runtime-formats and synchronously reports a diagnostic with an enum source, bounded drain/flush, and explicit popup behavior.
+        /// @brief Runtime-formats and synchronously reports a diagnostic with an enum source, bounded drain/flush, and
+        /// explicit popup behavior.
         template <typename Source, typename... Args>
             requires(isSourceEnum<Source> && sizeof...(Args) > 0)
-        static bool report(Types::Level level, Source source, Types::FlushTimeout timeout, Types::ReportPopup popup, Types::RuntimeFormat format, Args &&...args)
+        static bool report(
+            Types::Level level,
+            Source source,
+            Types::FlushTimeout timeout,
+            Types::ReportPopup popup,
+            Types::RuntimeFormat format,
+            Args &&...args)
         {
             return runtimeFormatAndReport(level, sourceId(source), popup == Types::ReportPopup::Fatal, timeout, format, args...);
         }
@@ -1860,26 +1964,36 @@ namespace GameWIP
         /// @param args Format arguments.
         template <typename... Args>
             requires(sizeof...(Args) > 0)
-        [[noreturn]] static void fatalTerminate(std::string_view source, Types::FlushTimeout timeout, std::format_string<Args...> format, Args &&...args)
+        [[noreturn]] static void fatalTerminate(
+            std::string_view source,
+            Types::FlushTimeout timeout,
+            std::format_string<Args...> format,
+            Args &&...args)
         {
             report(Types::Level::Fatal, source, timeout, Types::ReportPopup::Fatal, format, std::forward<Args>(args)...);
             std::terminate();
         }
 
-        /// @brief Formats fatal with a SourceId, waits for a bounded flush, shows the fatal popup when enabled, then terminates.
+        /// @brief Formats fatal with a SourceId, waits for a bounded flush, shows the fatal popup when enabled, then
+        /// terminates.
         /// @param source Registered SourceId resolved for the report line and platform debug output.
         /// @param timeout Maximum flush wait before termination continues.
         /// @param format Compile-time checked format string.
         /// @param args Format arguments.
         template <typename... Args>
             requires(sizeof...(Args) > 0)
-        [[noreturn]] static void fatalTerminate(Types::SourceId source, Types::FlushTimeout timeout, std::format_string<Args...> format, Args &&...args)
+        [[noreturn]] static void fatalTerminate(
+            Types::SourceId source,
+            Types::FlushTimeout timeout,
+            std::format_string<Args...> format,
+            Args &&...args)
         {
             report(Types::Level::Fatal, source, timeout, Types::ReportPopup::Fatal, format, std::forward<Args>(args)...);
             std::terminate();
         }
 
-        /// @brief Formats fatal with an enum source, waits for a bounded flush, shows the fatal popup when enabled, then terminates.
+        /// @brief Formats fatal with an enum source, waits for a bounded flush, shows the fatal popup when enabled,
+        /// then terminates.
         /// @param source Enum source stored as a SourceId.
         /// @param timeout Maximum flush wait before termination continues.
         /// @param format Compile-time checked format string.
@@ -1916,7 +2030,8 @@ namespace GameWIP
             std::terminate();
         }
 
-        /// @brief Runtime-formats fatal with an enum source, flushes, shows the fatal popup when enabled, then terminates.
+        /// @brief Runtime-formats fatal with an enum source, flushes, shows the fatal popup when enabled, then
+        /// terminates.
         /// @param source Enum source stored as a SourceId.
         /// @param format Runtime format wrapper created by Logger::runtimeFormat().
         /// @param args Format arguments.
@@ -1928,7 +2043,8 @@ namespace GameWIP
             std::terminate();
         }
 
-        /// @brief Runtime-formats fatal, waits for a bounded flush, shows the fatal popup when enabled, then terminates.
+        /// @brief Runtime-formats fatal, waits for a bounded flush, shows the fatal popup when enabled, then
+        /// terminates.
         /// @param source Source text written into the report line and platform debug output line.
         /// @param timeout Maximum flush wait before termination continues.
         /// @param format Runtime format wrapper created by Logger::runtimeFormat().
@@ -1941,7 +2057,8 @@ namespace GameWIP
             std::terminate();
         }
 
-        /// @brief Runtime-formats fatal with a SourceId, waits for a bounded flush, shows the fatal popup when enabled, then terminates.
+        /// @brief Runtime-formats fatal with a SourceId, waits for a bounded flush, shows the fatal popup when enabled,
+        /// then terminates.
         /// @param source Registered SourceId resolved for the report line and platform debug output.
         /// @param timeout Maximum flush wait before termination continues.
         /// @param format Runtime format wrapper created by Logger::runtimeFormat().
@@ -1954,7 +2071,8 @@ namespace GameWIP
             std::terminate();
         }
 
-        /// @brief Runtime-formats fatal with an enum source, waits for a bounded flush, shows the fatal popup when enabled, then terminates.
+        /// @brief Runtime-formats fatal with an enum source, waits for a bounded flush, shows the fatal popup when
+        /// enabled, then terminates.
         /// @param source Enum source stored as a SourceId.
         /// @param timeout Maximum flush wait before termination continues.
         /// @param format Runtime format wrapper created by Logger::runtimeFormat().
@@ -1967,7 +2085,8 @@ namespace GameWIP
             std::terminate();
         }
 
-        /// @brief Writes one formatted line directly to the platform debug output when Types::Config::enableDebugOutput is true.
+        /// @brief Writes one formatted line directly to the platform debug output when Types::Config::enableDebugOutput
+        /// is true.
         /// @note This bypasses the async queue and does not write to console or file sinks.
         /// @param level Severity label to write.
         /// @param source Source text to write.
@@ -2014,14 +2133,21 @@ namespace GameWIP
         /// @param alreadyTruncated True when message already includes the truncation suffix.
         /// @param timeout Optional bounded flush duration.
         /// @return True when the post-report drain/flush completed; blocking reports always return true.
-        static bool reportPreformattedMessage(Types::Level level, std::string_view source, std::string_view message, bool showPopup, bool alreadyTruncated, Types::FlushTimeout *timeout);
+        static bool reportPreformattedMessage(
+            Types::Level level,
+            std::string_view source,
+            std::string_view message,
+            bool showPopup,
+            bool alreadyTruncated,
+            Types::FlushTimeout *timeout);
         /// @brief Synchronously reports a preformatted message with a registered SourceId.
         /// @param level Entry severity.
         /// @param source Registered SourceId resolved for the report line and platform debug output.
         /// @param message Formatted message copied before this call returns.
         /// @param showPopup True to show the fatal popup after flush.
         static void reportPreformattedMessage(Types::Level level, Types::SourceId source, std::string_view message, bool showPopup);
-        /// @brief Synchronously reports a preformatted message with a registered SourceId and optional bounded drain/flush.
+        /// @brief Synchronously reports a preformatted message with a registered SourceId and optional bounded
+        /// drain/flush.
         /// @param level Entry severity.
         /// @param source Registered SourceId resolved for the report line and platform debug output.
         /// @param message Formatted message copied before this call returns.
@@ -2029,7 +2155,13 @@ namespace GameWIP
         /// @param alreadyTruncated True when message already includes the truncation suffix.
         /// @param timeout Optional bounded flush duration.
         /// @return True when the post-report drain/flush completed; blocking reports always return true.
-        static bool reportPreformattedMessage(Types::Level level, Types::SourceId source, std::string_view message, bool showPopup, bool alreadyTruncated, Types::FlushTimeout *timeout);
+        static bool reportPreformattedMessage(
+            Types::Level level,
+            Types::SourceId source,
+            std::string_view message,
+            bool showPopup,
+            bool alreadyTruncated,
+            Types::FlushTimeout *timeout);
         /// @brief Counts an allocation or internal formatting failure.
         static void recordAllocationFailure();
         /// @brief Counts an invalid runtime formatting failure.
@@ -2057,11 +2189,11 @@ namespace GameWIP
             using reference = void;
             using iterator_category = std::output_iterator_tag;
 
-            BoundedFormatIterator(std::string &output,
-                                  std::size_t prefixLimit,
-                                  std::size_t &writtenCount,
-                                  bool &truncatedFlag) noexcept
-                : outputText(&output), limit(prefixLimit), written(&writtenCount), truncated(&truncatedFlag)
+            BoundedFormatIterator(std::string &output, std::size_t prefixLimit, std::size_t &writtenCount, bool &truncatedFlag) noexcept
+                : outputText(&output)
+                , limit(prefixLimit)
+                , written(&writtenCount)
+                , truncated(&truncatedFlag)
             {
             }
 
@@ -2079,11 +2211,23 @@ namespace GameWIP
                 return *this;
             }
 
-            BoundedFormatIterator &operator*() noexcept { return *this; }
-            BoundedFormatIterator &operator++() noexcept { return *this; }
-            BoundedFormatIterator operator++(int) noexcept { return *this; }
+            BoundedFormatIterator &operator*() noexcept
+            {
+                return *this;
+            }
+            BoundedFormatIterator &operator++() noexcept
+            {
+                return *this;
+            }
+            BoundedFormatIterator operator++(int) noexcept
+            {
+                return *this;
+            }
 
-            bool wasTruncated() const noexcept { return *truncated; }
+            bool wasTruncated() const noexcept
+            {
+                return *truncated;
+            }
 
         private:
             std::string *outputText = nullptr;
@@ -2427,7 +2571,13 @@ namespace GameWIP
         /// @brief Formats and reports a compile-time checked message with a string source and bounded flush.
         /// @return True when the bounded flush completed.
         template <typename... Args>
-        static bool formatAndReport(Types::Level level, std::string_view source, bool showPopup, Types::FlushTimeout timeout, std::format_string<Args...> format, Args &&...args)
+        static bool formatAndReport(
+            Types::Level level,
+            std::string_view source,
+            bool showPopup,
+            Types::FlushTimeout timeout,
+            std::format_string<Args...> format,
+            Args &&...args)
         {
             try
             {
@@ -2451,7 +2601,13 @@ namespace GameWIP
         /// @brief Formats and reports a compile-time checked message with a registered SourceId and bounded flush.
         /// @return True when the bounded flush completed.
         template <typename... Args>
-        static bool formatAndReport(Types::Level level, Types::SourceId source, bool showPopup, Types::FlushTimeout timeout, std::format_string<Args...> format, Args &&...args)
+        static bool formatAndReport(
+            Types::Level level,
+            Types::SourceId source,
+            bool showPopup,
+            Types::FlushTimeout timeout,
+            std::format_string<Args...> format,
+            Args &&...args)
         {
             try
             {
@@ -2527,7 +2683,13 @@ namespace GameWIP
         /// @brief Runtime-formats and reports a message with a string source and bounded flush.
         /// @return True when the bounded flush completed.
         template <typename... Args>
-        static bool runtimeFormatAndReport(Types::Level level, std::string_view source, bool showPopup, Types::FlushTimeout timeout, Types::RuntimeFormat format, Args &...args)
+        static bool runtimeFormatAndReport(
+            Types::Level level,
+            std::string_view source,
+            bool showPopup,
+            Types::FlushTimeout timeout,
+            Types::RuntimeFormat format,
+            Args &...args)
         {
             try
             {
@@ -2551,7 +2713,13 @@ namespace GameWIP
         /// @brief Runtime-formats and reports a message with a registered SourceId and bounded flush.
         /// @return True when the bounded flush completed.
         template <typename... Args>
-        static bool runtimeFormatAndReport(Types::Level level, Types::SourceId source, bool showPopup, Types::FlushTimeout timeout, Types::RuntimeFormat format, Args &...args)
+        static bool runtimeFormatAndReport(
+            Types::Level level,
+            Types::SourceId source,
+            bool showPopup,
+            Types::FlushTimeout timeout,
+            Types::RuntimeFormat format,
+            Args &...args)
         {
             try
             {
@@ -2572,4 +2740,4 @@ namespace GameWIP
             return false;
         }
     };
-}
+} // namespace GameWIP

@@ -34,6 +34,7 @@
 #include <utility>
 #include <vector>
 
+/// @brief Lightweight helpers for writing and running GameWIP executable test suites.
 namespace GameWIP::TestSupport
 {
     /// @cond GAMEWIP_TEST_SUPPORT_DETAIL
@@ -41,8 +42,7 @@ namespace GameWIP::TestSupport
     {
         class ReportSink;
 
-        template <typename Value>
-        [[nodiscard]] std::string valueToString(const Value &value)
+        template <typename Value> [[nodiscard]] std::string valueToString(const Value &value)
         {
             if constexpr (std::is_same_v<std::remove_cvref_t<Value>, bool>)
             {
@@ -59,7 +59,7 @@ namespace GameWIP::TestSupport
                 return "<unprintable>";
             }
         }
-    }
+    } // namespace Detail
     /// @endcond
 
     /// @name Reporting and result types
@@ -126,7 +126,7 @@ namespace GameWIP::TestSupport
             /// @brief Returns milliseconds converted to nanoseconds per iteration, or zero when iterations is zero.
             [[nodiscard]] double nanosecondsPerIteration() const noexcept;
         };
-    }
+    } // namespace Types
     /// @}
 
     class Timer;
@@ -137,7 +137,8 @@ namespace GameWIP::TestSupport
     /// @brief Test context passed to suite functions.
     /// Thread-safety: public recording methods serialize summary updates and report writes.
     /// Contract: expectations record failures and return false instead of aborting the process.
-    /// Failure behavior: report file write failures do not throw from recording methods; console output still continues when enabled.
+    /// Failure behavior: report file write failures do not throw from recording methods; console output still continues
+    /// when enabled.
     class Context
     {
     public:
@@ -176,10 +177,7 @@ namespace GameWIP::TestSupport
         /// @param name Check or scenario name written into the report.
         /// @param reason Failure reason written into the report.
         /// @param location Source location attached to the failure line.
-        void fail(
-            std::string_view name,
-            std::string_view reason,
-            std::source_location location = std::source_location::current());
+        void fail(std::string_view name, std::string_view reason, std::source_location location = std::source_location::current());
 
         /// @brief Records one skipped check or scenario.
         /// @param name Check or scenario name written into the report.
@@ -195,20 +193,14 @@ namespace GameWIP::TestSupport
         /// @param value Boolean value to validate.
         /// @param location Source location attached when the expectation fails.
         /// @return True when value is true.
-        [[nodiscard]] bool expectTrue(
-            std::string_view name,
-            bool value,
-            std::source_location location = std::source_location::current());
+        [[nodiscard]] bool expectTrue(std::string_view name, bool value, std::source_location location = std::source_location::current());
 
         /// @brief Expects value to be false.
         /// @param name Check name written into the report.
         /// @param value Boolean value to validate.
         /// @param location Source location attached when the expectation fails.
         /// @return True when value is false.
-        [[nodiscard]] bool expectFalse(
-            std::string_view name,
-            bool value,
-            std::source_location location = std::source_location::current());
+        [[nodiscard]] bool expectFalse(std::string_view name, bool value, std::source_location location = std::source_location::current());
 
         /// @brief Expects expected and actual to compare equal.
         /// @tparam Expected Expected-value type.
@@ -315,10 +307,7 @@ namespace GameWIP::TestSupport
         Types::Summary summary_;
 
         void writeLine(std::string_view category, std::string_view message);
-        void writeFailureLine(
-            std::string_view name,
-            std::string_view reason,
-            const std::source_location &location);
+        void writeFailureLine(std::string_view name, std::string_view reason, const std::source_location &location);
     };
 
     /// @brief Runs named suites and aggregates one unified report.
@@ -338,8 +327,7 @@ namespace GameWIP::TestSupport
         /// @param suiteName Display name written into report lines and the returned result.
         /// @param function Suite function to execute.
         /// @return Per-suite result, including counts and elapsed time.
-        template <typename SuiteFunction>
-        Types::SuiteResult runSuite(std::string_view suiteName, SuiteFunction &&function);
+        template <typename SuiteFunction> Types::SuiteResult runSuite(std::string_view suiteName, SuiteFunction &&function);
 
         /// @brief Writes a run-level informational line.
         /// @param message Text written after the run-level `[INFO]` category.
@@ -421,9 +409,7 @@ namespace GameWIP::TestSupport
     /// @param path Text file path.
     /// @param text Contents written to the file.
     /// Failure behavior: throws std::runtime_error when the file cannot be opened or written.
-    void writeTextFile(
-        const std::filesystem::path &path,
-        std::string_view text);
+    void writeTextFile(const std::filesystem::path &path, std::string_view text);
 
     /// @brief Returns true when path exists.
     /// @param path File or directory path.
@@ -434,17 +420,13 @@ namespace GameWIP::TestSupport
     /// @param path Text file to read.
     /// @param text Substring to search for.
     /// @return True when text appears in the file contents.
-    [[nodiscard]] bool fileContains(
-        const std::filesystem::path &path,
-        std::string_view text);
+    [[nodiscard]] bool fileContains(const std::filesystem::path &path, std::string_view text);
 
     /// @brief Counts non-overlapping occurrences of text in a text file.
     /// @param path Text file to read.
     /// @param text Substring to count. Empty text returns zero.
     /// @return Number of non-overlapping occurrences.
-    [[nodiscard]] std::size_t countFileOccurrences(
-        const std::filesystem::path &path,
-        std::string_view text);
+    [[nodiscard]] std::size_t countFileOccurrences(const std::filesystem::path &path, std::string_view text);
 
     /// @brief Creates a directory tree when path is non-empty.
     /// @param path Directory path to create.
@@ -460,7 +442,8 @@ namespace GameWIP::TestSupport
     /// @{
 
     /// @brief Temporarily sets an environment variable and restores the previous state on destruction.
-    /// Thread-safety: process environment mutation is serialized inside this library. Other process environment access is still process-global.
+    /// Thread-safety: process environment mutation is serialized inside this library. Other process environment access
+    /// is still process-global.
     class ScopedEnvironmentVariable
     {
     public:
@@ -567,7 +550,7 @@ namespace GameWIP::TestSupport
             /// @brief The user skipped the manual check or input ended before an answer.
             Skipped
         };
-    }
+    } // namespace Types
     /// @}
 
     /// @name Child-process and manual-check helpers
@@ -617,21 +600,17 @@ namespace GameWIP::TestSupport
     };
 
     /// @brief Starts workerCount threads, joins them, and rethrows the first worker exception.
-    /// @tparam WorkerFunction Copy-constructible callable that accepts `std::size_t` worker index or accepts no arguments.
+    /// @tparam WorkerFunction Copy-constructible callable that accepts `std::size_t` worker index or accepts no
+    /// arguments.
     /// @param workerCount Number of worker threads to start.
     /// @param workerFunction Prototype callable copied once into each worker thread.
     /// @note All started workers are joined before any captured exception is rethrown.
     /// @note Each worker receives its own callable copy, so mutable callable state is not shared between workers.
-    template <typename WorkerFunction>
-    void runWorkers(std::size_t workerCount, WorkerFunction &&workerFunction);
+    template <typename WorkerFunction> void runWorkers(std::size_t workerCount, WorkerFunction &&workerFunction);
     /// @}
 
     template <typename Expected, typename Actual>
-    bool Context::expectEq(
-        std::string_view name,
-        const Expected &expected,
-        const Actual &actual,
-        std::source_location location)
+    bool Context::expectEq(std::string_view name, const Expected &expected, const Actual &actual, std::source_location location)
     {
         if (expected == actual)
         {
@@ -640,18 +619,13 @@ namespace GameWIP::TestSupport
         }
 
         std::ostringstream reason;
-        reason << "expected " << Detail::valueToString(expected)
-               << ", got " << Detail::valueToString(actual);
+        reason << "expected " << Detail::valueToString(expected) << ", got " << Detail::valueToString(actual);
         fail(name, reason.str(), location);
         return false;
     }
 
     template <typename Unexpected, typename Actual>
-    bool Context::expectNe(
-        std::string_view name,
-        const Unexpected &unexpected,
-        const Actual &actual,
-        std::source_location location)
+    bool Context::expectNe(std::string_view name, const Unexpected &unexpected, const Actual &actual, std::source_location location)
     {
         if (unexpected != actual)
         {
@@ -665,8 +639,7 @@ namespace GameWIP::TestSupport
         return false;
     }
 
-    template <typename SuiteFunction>
-    Types::SuiteResult Runner::runSuite(std::string_view suiteName, SuiteFunction &&function)
+    template <typename SuiteFunction> Types::SuiteResult Runner::runSuite(std::string_view suiteName, SuiteFunction &&function)
     {
         Timer timer;
         Context context(suiteName, reportSink_);
@@ -703,11 +676,12 @@ namespace GameWIP::TestSupport
         return suiteResult;
     }
 
-    template <typename WorkerFunction>
-    void runWorkers(std::size_t workerCount, WorkerFunction &&workerFunction)
+    template <typename WorkerFunction> void runWorkers(std::size_t workerCount, WorkerFunction &&workerFunction)
     {
         using Worker = std::decay_t<WorkerFunction>;
-        static_assert(std::is_copy_constructible_v<Worker>, "WorkerFunction must be copy constructible so each worker can receive independent callable state.");
+        static_assert(
+            std::is_copy_constructible_v<Worker>,
+            "WorkerFunction must be copy constructible so each worker can receive independent callable state.");
 
         if (workerCount == 0)
         {
@@ -739,7 +713,9 @@ namespace GameWIP::TestSupport
                             }
                             else
                             {
-                                static_assert(std::is_invocable_v<Worker &, std::size_t>, "WorkerFunction must be invocable with size_t or with no arguments.");
+                                static_assert(
+                                    std::is_invocable_v<Worker &, std::size_t>,
+                                    "WorkerFunction must be invocable with size_t or with no arguments.");
                             }
                         }
                         catch (...)
@@ -775,4 +751,4 @@ namespace GameWIP::TestSupport
             std::rethrow_exception(firstException);
         }
     }
-}
+} // namespace GameWIP::TestSupport

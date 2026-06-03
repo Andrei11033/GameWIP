@@ -259,11 +259,7 @@ namespace GameWIP::LoggerDetail::Core
             {
                 return EnqueueStatus::DroppedSoft;
             }
-            if (loggerState().queueDepth.compare_exchange_weak(
-                    depth,
-                    depth + 1,
-                    std::memory_order_acq_rel,
-                    std::memory_order_acquire))
+            if (loggerState().queueDepth.compare_exchange_weak(depth, depth + 1, std::memory_order_acq_rel, std::memory_order_acquire))
             {
                 outPreviousDepth = depth;
                 return EnqueueStatus::Queued;
@@ -377,16 +373,18 @@ namespace GameWIP::LoggerDetail::Core
             std::size_t batchCount = 0;
             {
                 std::unique_lock<std::mutex> lock(loggerState().logMutex);
-                loggerState().logCondition.wait(lock, []
-                                              { return loggerState().publishedQueueDepth.load(std::memory_order_acquire) > 0 ||
-                                                       (!loggerState().workerRunning &&
-                                                        loggerState().activeProducers.load(std::memory_order_acquire) == 0 &&
-                                                        loggerState().queueDepth.load(std::memory_order_acquire) == 0); });
+                loggerState().logCondition.wait(
+                    lock,
+                    []
+                    {
+                        return loggerState().publishedQueueDepth.load(std::memory_order_acquire) > 0 ||
+                               (!loggerState().workerRunning && loggerState().activeProducers.load(std::memory_order_acquire) == 0 &&
+                                loggerState().queueDepth.load(std::memory_order_acquire) == 0);
+                    });
 
                 if (loggerState().publishedQueueDepth.load(std::memory_order_acquire) == 0 &&
                     loggerState().queueDepth.load(std::memory_order_acquire) == 0 &&
-                    loggerState().activeProducers.load(std::memory_order_acquire) == 0 &&
-                    !loggerState().workerRunning)
+                    loggerState().activeProducers.load(std::memory_order_acquire) == 0 && !loggerState().workerRunning)
                 {
                     break;
                 }
@@ -468,8 +466,6 @@ namespace GameWIP::LoggerDetail::Core
     {
         GameWIP::Logger::shutdown();
     }
-
-
 
     /// @brief Applies queue policy and enqueues one pending entry if accepted.
     /// @param entry Pending entry to enqueue.
@@ -599,4 +595,4 @@ namespace GameWIP::LoggerDetail::Core
 
         return enqueueResult;
     }
-}
+} // namespace GameWIP::LoggerDetail::Core

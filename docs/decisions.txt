@@ -145,9 +145,91 @@ Advanced editing should be available only for selected systems where extra confi
 
 # 4. Foundation Library Standards
 
+## Foundation Folder Category
+
+Reusable low-level libraries live under:
+
+```text
+foundation/
+```
+
+`foundation/` is for low-level reusable libraries shared by tools, tests, engine systems, and future higher-level systems.
+
+Public namespaces remain flat:
+
+```cpp
+GameWIP::<Library>
+```
+
+Folder categories do not create public namespace categories.
+
+Do not create public namespaces such as:
+
+```cpp
+GameWIP::Foundation::IO
+GameWIP::Core::FileSystem
+GameWIP::Tools::Logger
+```
+
+Folder categories such as `foundation`, `tools`, `engine`, and `game` are source organization concepts, not public namespace layers.
+
+`tools/` should eventually mean standalone developer/editor/build tools. Some existing reusable foundation-style libraries currently still live under `tools/` for historical reasons.
+
+The new foundation libraries are:
+
+* `GameWIP::IO`;
+* `GameWIP::FileSystem`;
+* `GameWIP::Terminal`.
+
+Dependency direction:
+
+* `GameWIP::IO` has no platform backend.
+* `GameWIP::FileSystem` depends on `GameWIP::IO`.
+* `GameWIP::Terminal` depends on `GameWIP::IO`.
+* `GameWIP::FileSystem` and `GameWIP::Terminal` do not depend on each other.
+
+The intended long-term source structure is:
+
+```text
+foundation/
+  io/
+  filesystem/
+  terminal/
+  logger/              future move, not now
+  debug/assert/        future move, not now
+  test_support/        future move, not now
+
+tools/
+  future standalone developer/editor/build tools
+
+engine/
+  runtime engine systems
+
+game/
+  game executable and game-specific code
+```
+
+## Existing Foundation-Style Libraries
+
 The Logger, Assert, and TestSupport libraries are foundation code.
 
 They should be treated as reusable libraries, not temporary game helpers.
+
+Logger, Assert, and TestSupport are foundation-style reusable libraries. They may later move under `foundation/`.
+
+Any actual move of current working libraries must be a separate refactor.
+
+Existing library names and namespaces remain stable:
+
+* `GameWIP::Logger` remains `GameWIP::Logger`.
+* `GameWIP::Debug` remains `GameWIP::Debug`.
+* `GameWIP::TestSupport` remains `GameWIP::TestSupport`.
+
+Current tool-library binary shapes:
+
+* Logger is a shared library and uses `LOGGER_API` for public exported declarations.
+* Assert is a shared library when runtime assertion handling is enabled and uses `ASSERT_API` for public exported runtime declarations.
+* TestSupport is a static library and does not use a public DLL import/export marker.
 
 A foundation library feature is complete only when:
 
@@ -159,6 +241,15 @@ A foundation library feature is complete only when:
 ---
 
 # 5. Logger Decisions
+
+## Public Identity
+
+* Target: `Logger`
+* Alias target: `GameWIP::Logger`
+* Namespace/type: `GameWIP::Logger`
+* Public header: `tools/logger/logger.h`
+* Library type: shared library
+* Public ABI marker: `LOGGER_API`
 
 ## Logger Contract
 
@@ -202,6 +293,15 @@ Unknown `SourceId` values are accepted, written with fallback source text, and c
 ---
 
 # 6. Assert Decisions
+
+## Public Identity
+
+* Target: `Assert`
+* Alias target: `GameWIP::Assert`
+* Namespace: `GameWIP::Debug::Assert`
+* Public header: `tools/debug/assert/assert.h`
+* Library type: shared library when runtime assertion handling is enabled
+* Public ABI marker: `ASSERT_API`
 
 ## Assert Contract
 
@@ -247,6 +347,7 @@ It is used by logger tests, assert tests, and future engine tests.
 * Namespace: `GameWIP::TestSupport`
 * Public header: `tools/test_support/test_support.h`
 * Library type: static library
+* Public ABI marker: none while TestSupport remains static
 
 ## Dependency Rule
 
@@ -364,7 +465,16 @@ ASSERT_...
 TEST_SUPPORT_...
 ```
 
-Exported compiler macros use:
+Public shared-library ABI annotation macros use library-local names:
+
+```text
+LOGGER_API
+ASSERT_API
+```
+
+Those macros wrap compiler/platform attributes from `tools/common/export.h`.
+
+Exported behavior and test compile-definition macros use:
 
 ```text
 GAMEWIP_LOGGER_...
@@ -377,6 +487,46 @@ Names should describe the current contract, not stale implementation history.
 Avoid global namespace pollution.
 
 Test hooks live only under internal namespaces when enabled.
+
+## C++ Formatting Standard
+
+GameWIP C++ source files use a shared mechanical formatting standard across the
+repo.
+
+Formatting is configured by the root repo files:
+
+```text
+.clang-format
+.editorconfig
+```
+
+C++ formatting rules:
+
+* indent with four spaces;
+* do not use tabs for indentation;
+* use Allman braces for namespaces, classes, functions, and control blocks;
+* keep short function declarations, definitions, and calls on one line when
+  they fit cleanly within the column limit;
+* when a parameter or argument list wraps, break after the opening parenthesis
+  and put each parameter or argument on its own continuation line;
+* use a 150-column limit for normal code;
+* allow rare exceptions for assertion macros, generated-like tables, or highly
+  repetitive tests when wrapping would make the code harder to inspect;
+* write pointers and references in the existing declarator style, such as
+  `Type *name` and `Type &name`;
+* do not let the formatter sort includes automatically;
+* keep primary/project includes before standard and platform includes, and sort
+  manually within groups where practical;
+* use LF line endings for files governed by `.editorconfig`.
+
+Tool public headers continue to use the Doxygen contract style from the
+Documentation and IntelliSense standard. Prefer Doxygen field comments for
+public API data. Avoid aligned trailing field comments in finished public tool
+APIs unless the type is intentionally tiny and local.
+
+Format-on-save is not a project requirement and should not be enabled in shared
+workspace settings. Developers may format explicitly from the editor or command
+line when they intend to create a formatting diff.
 
 ---
 
@@ -585,18 +735,28 @@ Test hooks are controlled by separate compile-time flags:
 ```text
 GAMEWIP_LOGGER_TEST_HOOKS
 GAMEWIP_ASSERT_TEST_HOOKS
+GAMEWIP_FILESYSTEM_TEST_HOOKS
+GAMEWIP_TERMINAL_TEST_HOOKS
 ```
+
+`GAMEWIP_FILESYSTEM_TEST_HOOKS` and `GAMEWIP_TERMINAL_TEST_HOOKS` are planned flags for future `GameWIP::FileSystem` and `GameWIP::Terminal` implementation work. They do not imply that those libraries are implemented yet.
 
 Test hooks live in internal headers:
 
 ```text
 tools/logger/internal/logger_test_hooks.h
 tools/debug/assert/internal/assert_test_hooks.h
+foundation/filesystem/internal/filesystem_test_hooks.h
+foundation/terminal/internal/terminal_test_hooks.h
 ```
+
+The FileSystem and Terminal hook header paths are planned internal paths for a future implementation pass.
 
 Hook namespaces only exist when the matching hook flag is enabled.
 
 Hooks are not production API and should not be installed as public headers.
+
+Test hook names should stay backend-neutral.
 
 One-shot hooks use `forceNext...` naming.
 
@@ -608,6 +768,10 @@ clear...Override
 ```
 
 Every hook must be resettable so tests cannot leak forced state into later tests.
+
+Test hooks are internal only. They are not production API and are not part of the public header surface.
+
+Hook groups with more than one persistent or one-shot override should provide a `resetAll` style helper for test cleanup.
 
 ---
 

@@ -20,3 +20,5 @@ Most users should read Logger getting started first, then Logger API reference. 
 Normal log calls are asynchronous, queue-based, and filterable. Report calls are synchronous, bypass filters and the async queue, write to active sinks immediately, and flush before returning.
 
 `Logger::fatal(...)` is a fatal-severity normal log; use `reportFatal(...)` or `fatalTerminate(...)` when the failure path must flush, request the fatal popup, or terminate.
+
+Logger builds as a shared library target.

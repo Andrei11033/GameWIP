@@ -16,6 +16,9 @@ Core code must not call operating-system APIs directly.
 
 This applies to reusable GameWIP libraries such as:
 
+* IO;
+* FileSystem;
+* Terminal;
 * Logger;
 * Assert;
 * TestSupport;
@@ -69,10 +72,10 @@ Use `platform.cmake` only for backend-local target requirements, such as:
 
 # 3. Backend Folder Layout
 
-Each library that needs platform-specific behavior may provide backend files under:
+Each library that needs platform-specific behavior may provide backend files under its own library root:
 
 ```text
-tools/<library>/platform/<platform-id>/
+<category>/<library>/platform/<platform-id>/
 ```
 
 Backend source files follow this naming convention:
@@ -84,6 +87,8 @@ platform/<platform-id>/<platform-id>_<feature>.cpp
 Examples:
 
 ```text
+foundation/filesystem/platform/win32/win32_filesystem.cpp
+foundation/terminal/platform/win32/win32_terminal.cpp
 tools/logger/platform/win32/win32_logger.cpp
 tools/test_support/platform/win32/win32_environment.cpp
 tools/test_support/platform/win32/win32_child_process.cpp
@@ -128,9 +133,95 @@ Platform backends are responsible for converting these portable types into platf
 
 For Windows, this means converting UTF-8 text to UTF-16 at the Win32 boundary and calling explicit Unicode APIs.
 
+Shared-library import/export annotations are binary ABI markers, not platform backend behavior. Public headers may use library-local `*_API` markers such as `LOGGER_API` and `ASSERT_API`, but compiler/platform attributes must stay centralized in `tools/common/export.h`.
+
+Static-only libraries should not add a public `*_API` marker until they gain a shared-library boundary or another installed binary ABI requirement.
+
 ---
 
-# 6. Logger Backend Contract
+# 6. IO Backend Contract
+
+`GameWIP::IO` has no platform backend in v1.
+
+It is a platform-neutral contract/helper library for common I/O types and helpers.
+
+## Planned Responsibilities
+
+`GameWIP::IO` defines:
+
+* common reader and writer contracts;
+* status and error types shared by I/O-oriented libraries;
+* seek, position, size, read-result, and write-result types;
+* memory reader and writer helpers;
+* `readAllBytes`, `readAllText`, `writeAllBytes`, and `writeAllText` helpers over platform-neutral readers and writers.
+
+`GameWIP::IO` must not own operating-system file handles, terminal handles, or platform-specific behavior in v1.
+
+---
+
+# 7. FileSystem Backend Contract
+
+`GameWIP::FileSystem` owns local filesystem operating-system calls.
+
+`GameWIP::FileSystem` depends on `GameWIP::IO`.
+
+Core FileSystem code must not call operating-system APIs directly.
+
+## Planned Responsibilities
+
+A FileSystem backend is responsible for:
+
+* opening files;
+* reading files;
+* writing files;
+* flushing files;
+* closing files;
+* reporting whether a file handle is open;
+* seeking and reporting file position;
+* reporting file size and stat information;
+* creating directories;
+* listing directories;
+* removing files and directories;
+* moving paths;
+* copying files;
+* replacing files for atomic-write behavior.
+
+Public paths remain `std::filesystem::path`.
+
+Windows FileSystem backend code converts paths and text at the platform boundary and uses explicit Unicode `W` Win32 APIs.
+
+Atomic replacement should avoid a half-written final file during normal replacement behavior, but it must not overpromise database-style transactions or perfect power-loss durability.
+
+---
+
+# 8. Terminal Backend Contract
+
+`GameWIP::Terminal` owns stdout and stderr operating-system calls.
+
+`GameWIP::Terminal` depends on `GameWIP::IO`.
+
+Core Terminal code must not call operating-system APIs directly.
+
+## Planned Responsibilities
+
+A Terminal backend is responsible for:
+
+* accessing stdout and stderr handles;
+* detecting console, terminal, redirected, or detached stream state;
+* writing text;
+* writing bytes;
+* flushing streams;
+* reporting color and ANSI capability.
+
+On Windows, real console output should convert UTF-8 public text to UTF-16 and use `WriteConsoleW`.
+
+On Windows, redirected stdout and stderr output should remain byte-oriented and use `WriteFile`.
+
+Terminal is output-only in v1. It does not own Windows popups, Assert dialogs, debugger output, terminal input, cursor movement, progress bars, or full TUI behavior.
+
+---
+
+# 9. Logger Backend Contract
 
 Logger core code must not call operating-system APIs directly.
 
@@ -181,7 +272,7 @@ The macro path is preferred when argument evaluation should be avoided for filte
 
 ---
 
-# 7. Assert Backend Contract
+# 10. Assert Backend Contract
 
 Assert core code must not call operating-system APIs directly.
 
@@ -217,7 +308,7 @@ Macro documentation must clearly explain which condition and message expressions
 
 ---
 
-# 8. TestSupport Backend Contract
+# 11. TestSupport Backend Contract
 
 TestSupport core code must not call operating-system APIs directly.
 
@@ -271,7 +362,7 @@ For GameWIP tests, these are enough:
 
 ---
 
-# 9. Windows Backend Rules
+# 12. Windows Backend Rules
 
 Windows backends use explicit Unicode Win32 APIs.
 
@@ -319,9 +410,20 @@ Captured stdout and stderr should remain bytes because process pipes carry bytes
 
 ---
 
-# 10. Backend-Neutral Test Hooks
+# 13. Backend-Neutral Test Hooks
 
 Shared internal contracts and test hooks should use backend-neutral names unless the hook is intentionally scoped to one backend.
+
+Planned future FileSystem and Terminal test hooks are controlled by:
+
+```text
+GAMEWIP_FILESYSTEM_TEST_HOOKS
+GAMEWIP_TERMINAL_TEST_HOOKS
+```
+
+These flags do not imply that FileSystem or Terminal behavior is implemented yet.
+
+Hooks are internal only, are not production API, and are not installed as public headers.
 
 Good names:
 
@@ -330,6 +432,7 @@ forceNextFileOpenFailure
 forceNextPopupFailure
 setDebuggerAttachedOverride
 clearDebuggerAttachedOverride
+resetAll
 ```
 
 Avoid names that expose the current platform unless the hook is truly platform-specific.
@@ -338,7 +441,7 @@ Backend-neutral hooks make it easier to reuse the same test expectations across 
 
 ---
 
-# 11. Documentation Requirements
+# 14. Documentation Requirements
 
 Every backend contract should be documented at the internal declaration point.
 
@@ -369,7 +472,7 @@ Document invariants and platform assumptions.
 
 ---
 
-# 12. Checklist for New Backend Work
+# 15. Checklist for New Backend Work
 
 Before backend work is considered complete:
 
@@ -378,6 +481,7 @@ Before backend work is considered complete:
 * [ ] Source files follow the `<platform-id>_<feature>.cpp` naming convention.
 * [ ] `platform.cmake` is used only for backend-local target requirements.
 * [ ] Public APIs remain platform-neutral.
+* [ ] Any shared-library ABI marker uses a library-local `*_API` name and routes attributes through `tools/common/export.h`.
 * [ ] Unicode/text/path behavior is documented.
 * [ ] Failure behavior is documented.
 * [ ] Blocking behavior is documented.
@@ -387,7 +491,7 @@ Before backend work is considered complete:
 
 ---
 
-# 13. How to Extend This File
+# 16. How to Extend This File
 
 When adding to this contract:
 

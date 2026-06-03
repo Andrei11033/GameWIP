@@ -191,8 +191,7 @@ namespace
         /// @param name Scenario name.
         /// @param actual Actual value.
         /// @param expected Expected value.
-        template <typename Left, typename Right>
-        void expectEq(std::string_view name, const Left &actual, const Right &expected)
+        template <typename Left, typename Right> void expectEq(std::string_view name, const Left &actual, const Right &expected)
         {
             static_cast<void>(testContext.expectEq(name, expected, actual));
         }
@@ -208,8 +207,7 @@ namespace
         }
     };
 
-    template <typename Function>
-    void runCase(TestContext &context, std::string_view name, Function &&function)
+    template <typename Function> void runCase(TestContext &context, std::string_view name, Function &&function)
     {
         TestSupport::Section section(context.testContext, name);
         try
@@ -440,10 +438,19 @@ namespace
 #if GAMEWIP_ASSERT_CHECKS_ENABLED
         const std::string contents = readFile(Logger::getLogFilePath());
 #if GAMEWIP_ASSERT_DIAGNOSTICS
-        context.expectTrue("ENSURE diagnostics include caller function", contents.find("testEnsureBehavior") != std::string::npos, "caller function missing");
-        context.expectTrue("ENSURE diagnostics avoid lambda function", contents.find("operator()") == std::string::npos, "lambda function leaked into diagnostics");
+        context.expectTrue(
+            "ENSURE diagnostics include caller function",
+            contents.find("testEnsureBehavior") != std::string::npos,
+            "caller function missing");
+        context.expectTrue(
+            "ENSURE diagnostics avoid lambda function",
+            contents.find("operator()") == std::string::npos,
+            "lambda function leaked into diagnostics");
 #else
-        context.expectTrue("ENSURE diagnostics stripped message", contents.find("ensure false message") == std::string::npos, "diagnostic message was embedded");
+        context.expectTrue(
+            "ENSURE diagnostics stripped message",
+            contents.find("ensure false message") == std::string::npos,
+            "diagnostic message was embedded");
 #endif
 #endif
     }
@@ -470,7 +477,10 @@ namespace
         const std::string contents = readFile(Logger::getLogFilePath());
         context.expectEq("CHECK_ONCE reports without queueing", stats.queued, std::size_t{0});
         context.expectEq("CHECK_ONCE writes one failure synchronously", stats.written, std::size_t{1});
-        context.expectTrue("CHECK_ONCE log contains error failure", contents.find("[ERROR][Check]: Check failed") != std::string::npos, "check failure missing from log");
+        context.expectTrue(
+            "CHECK_ONCE log contains error failure",
+            contents.find("[ERROR][Check]: Check failed") != std::string::npos,
+            "check failure missing from log");
 #else
         context.pass("CHECK_ONCE logger test skipped because GAMEWIP_ASSERT_CHECKS_ENABLED=0");
 #endif
@@ -496,10 +506,16 @@ namespace
         context.expectTrue("diagnostics include condition", contents.find("false") != std::string::npos, "condition text missing");
         context.expectTrue("diagnostics include message", contents.find("assert diagnostic message") != std::string::npos, "custom message missing");
         context.expectTrue("diagnostics include location", contents.find("assert_test.cpp") != std::string::npos, "file text missing");
-        context.expectTrue("diagnostics include caller function", contents.find("testDiagnosticConfiguration") != std::string::npos, "function text missing");
+        context.expectTrue(
+            "diagnostics include caller function",
+            contents.find("testDiagnosticConfiguration") != std::string::npos,
+            "function text missing");
 #else
         context.expectTrue("diagnostics stripped condition", contents.find("false") == std::string::npos, "condition text was embedded");
-        context.expectTrue("diagnostics stripped message", contents.find("assert diagnostic message") == std::string::npos, "diagnostic message was embedded");
+        context.expectTrue(
+            "diagnostics stripped message",
+            contents.find("assert diagnostic message") == std::string::npos,
+            "diagnostic message was embedded");
         context.expectTrue("diagnostics stripped location", contents.find("assert_test.cpp") == std::string::npos, "location text was embedded");
 #endif
 #else
@@ -525,10 +541,16 @@ namespace
 
 #if GAMEWIP_ASSERT_DIAGNOSTICS
         context.expectEq("diagnostic message evaluated when enabled", evaluations, 1);
-        context.expectTrue("diagnostic evaluated message logged", contents.find("evaluated diagnostic message") != std::string::npos, "evaluated message missing");
+        context.expectTrue(
+            "diagnostic evaluated message logged",
+            contents.find("evaluated diagnostic message") != std::string::npos,
+            "evaluated message missing");
 #else
         context.expectEq("diagnostic message skipped when stripped", evaluations, 0);
-        context.expectTrue("diagnostic evaluated message stripped", contents.find("evaluated diagnostic message") == std::string::npos, "diagnostic message was embedded");
+        context.expectTrue(
+            "diagnostic evaluated message stripped",
+            contents.find("evaluated diagnostic message") == std::string::npos,
+            "diagnostic message was embedded");
 #endif
 #else
         context.pass("diagnostic message evaluation skipped because GAMEWIP_ASSERT_CHECKS_ENABLED=0");
@@ -631,11 +653,20 @@ namespace
         const std::string contents = readFile(Logger::getLogFilePath());
         context.expectEq("ASSERT_INTERACTIVE ignore_once not queued", stats.queued, std::size_t{0});
         context.expectEq("ASSERT_INTERACTIVE ignore_once writes one fatal", stats.written, std::size_t{1});
-        context.expectTrue("ASSERT_INTERACTIVE ignore_once logs fatal", contents.find("[FATAL][Assert]: Assert failed") != std::string::npos, "interactive fatal missing");
+        context.expectTrue(
+            "ASSERT_INTERACTIVE ignore_once logs fatal",
+            contents.find("[FATAL][Assert]: Assert failed") != std::string::npos,
+            "interactive fatal missing");
 #if GAMEWIP_ASSERT_DIAGNOSTICS
-        context.expectTrue("ASSERT_INTERACTIVE ignore_once logs message", contents.find("interactive ignore once test") != std::string::npos, "interactive message missing");
+        context.expectTrue(
+            "ASSERT_INTERACTIVE ignore_once logs message",
+            contents.find("interactive ignore once test") != std::string::npos,
+            "interactive message missing");
 #else
-        context.expectTrue("ASSERT_INTERACTIVE ignore_once strips message", contents.find("interactive ignore once test") == std::string::npos, "interactive message was embedded");
+        context.expectTrue(
+            "ASSERT_INTERACTIVE ignore_once strips message",
+            contents.find("interactive ignore once test") == std::string::npos,
+            "interactive message was embedded");
 #endif
 #else
         context.pass("ASSERT_INTERACTIVE ignore_once skipped because GAMEWIP_ASSERT_ENABLED=0");
@@ -662,9 +693,15 @@ namespace
         context.expectEq("ASSERT_INTERACTIVE always_ignore not queued", stats.queued, std::size_t{0});
         context.expectEq("ASSERT_INTERACTIVE always_ignore writes once", stats.written, std::size_t{1});
 #if GAMEWIP_ASSERT_DIAGNOSTICS
-        context.expectEq("ASSERT_INTERACTIVE always_ignore one message", countOccurrences(contents, "interactive always ignore test"), std::size_t{1});
+        context.expectEq(
+            "ASSERT_INTERACTIVE always_ignore one message",
+            countOccurrences(contents, "interactive always ignore test"),
+            std::size_t{1});
 #else
-        context.expectEq("ASSERT_INTERACTIVE always_ignore strips message", countOccurrences(contents, "interactive always ignore test"), std::size_t{0});
+        context.expectEq(
+            "ASSERT_INTERACTIVE always_ignore strips message",
+            countOccurrences(contents, "interactive always ignore test"),
+            std::size_t{0});
 #endif
 #else
         context.pass("ASSERT_INTERACTIVE always_ignore skipped because GAMEWIP_ASSERT_ENABLED=0");
@@ -693,9 +730,15 @@ namespace
         Logger::flush(2s);
         const std::string contents = readFile(Logger::getLogFilePath());
 #if GAMEWIP_ASSERT_DIAGNOSTICS
-        context.expectTrue("VERIFY_INTERACTIVE failure logs when enabled", contents.find("verify interactive ignore once test") != std::string::npos, "verify interactive message missing");
+        context.expectTrue(
+            "VERIFY_INTERACTIVE failure logs when enabled",
+            contents.find("verify interactive ignore once test") != std::string::npos,
+            "verify interactive message missing");
 #else
-        context.expectTrue("VERIFY_INTERACTIVE failure strips message", contents.find("verify interactive ignore once test") == std::string::npos, "verify interactive message was embedded");
+        context.expectTrue(
+            "VERIFY_INTERACTIVE failure strips message",
+            contents.find("verify interactive ignore once test") == std::string::npos,
+            "verify interactive message was embedded");
 #endif
 #else
         Logger::flush(2s);
@@ -723,9 +766,15 @@ namespace
         const std::string contents = readFile(Logger::getLogFilePath());
         context.expectEq("VERIFY_INTERACTIVE Always Ignore still evaluates", evaluations, 2);
 #if GAMEWIP_ASSERT_DIAGNOSTICS
-        context.expectEq("VERIFY_INTERACTIVE Always Ignore logs once", countOccurrences(contents, "verify interactive always ignore test"), std::size_t{1});
+        context.expectEq(
+            "VERIFY_INTERACTIVE Always Ignore logs once",
+            countOccurrences(contents, "verify interactive always ignore test"),
+            std::size_t{1});
 #else
-        context.expectEq("VERIFY_INTERACTIVE Always Ignore strips message", countOccurrences(contents, "verify interactive always ignore test"), std::size_t{0});
+        context.expectEq(
+            "VERIFY_INTERACTIVE Always Ignore strips message",
+            countOccurrences(contents, "verify interactive always ignore test"),
+            std::size_t{0});
 #endif
 #else
         context.pass("VERIFY_INTERACTIVE Always Ignore test skipped because GAMEWIP_ASSERT_ENABLED=0");
@@ -810,9 +859,15 @@ namespace
         Logger::flush(5s);
         const std::string contents = readFile(Logger::getLogFilePath());
 #if GAMEWIP_ASSERT_DIAGNOSTICS
-        context.expectEq("ASSERT_INTERACTIVE ignore_once stress logs every failure", countOccurrences(contents, "interactive ignore once repeat test"), static_cast<std::size_t>(iterations));
+        context.expectEq(
+            "ASSERT_INTERACTIVE ignore_once stress logs every failure",
+            countOccurrences(contents, "interactive ignore once repeat test"),
+            static_cast<std::size_t>(iterations));
 #else
-        context.expectEq("ASSERT_INTERACTIVE ignore_once stress logs generic failures", countOccurrences(contents, "[FATAL][Assert]: Assert failed"), static_cast<std::size_t>(iterations));
+        context.expectEq(
+            "ASSERT_INTERACTIVE ignore_once stress logs generic failures",
+            countOccurrences(contents, "[FATAL][Assert]: Assert failed"),
+            static_cast<std::size_t>(iterations));
 #endif
 #else
         context.pass("interactive assert stress loops skipped because GAMEWIP_ASSERT_ENABLED=0");
@@ -941,11 +996,20 @@ namespace
         expectAbnormalChildExit(context, assertFailureChildArgument, "ASSERT failure child exits abnormally with popup suppressed");
 
         const std::string childLogContents = readDirectoryFiles(childLogDirectory);
-        context.expectTrue("ASSERT failure child logs fatal through Logger", childLogContents.find("[FATAL][Assert]: Assert failed") != std::string::npos, "assert failure missing from child log");
+        context.expectTrue(
+            "ASSERT failure child logs fatal through Logger",
+            childLogContents.find("[FATAL][Assert]: Assert failed") != std::string::npos,
+            "assert failure missing from child log");
 #if GAMEWIP_ASSERT_DIAGNOSTICS
-        context.expectTrue("ASSERT failure child logs diagnostic message", childLogContents.find(assertFailureChildMessage) != std::string::npos, "child assert message missing from log");
+        context.expectTrue(
+            "ASSERT failure child logs diagnostic message",
+            childLogContents.find(assertFailureChildMessage) != std::string::npos,
+            "child assert message missing from log");
 #else
-        context.expectTrue("ASSERT failure child strips diagnostic message", childLogContents.find(assertFailureChildMessage) == std::string::npos, "child assert message was embedded");
+        context.expectTrue(
+            "ASSERT failure child strips diagnostic message",
+            childLogContents.find(assertFailureChildMessage) == std::string::npos,
+            "child assert message was embedded");
 #endif
 #else
         context.pass("ASSERT failure child test skipped because GAMEWIP_ASSERT_ENABLED=0");
@@ -969,11 +1033,20 @@ namespace
         expectAbnormalChildExit(context, interactiveAbortChildArgument, "ASSERT_INTERACTIVE abort child exits abnormally");
 
         const std::string childLogContents = readDirectoryFiles(childLogDirectory);
-        context.expectTrue("ASSERT_INTERACTIVE abort child logs fatal", childLogContents.find("[FATAL][Assert]: Assert failed") != std::string::npos, "interactive abort child fatal missing");
+        context.expectTrue(
+            "ASSERT_INTERACTIVE abort child logs fatal",
+            childLogContents.find("[FATAL][Assert]: Assert failed") != std::string::npos,
+            "interactive abort child fatal missing");
 #if GAMEWIP_ASSERT_DIAGNOSTICS
-        context.expectTrue("ASSERT_INTERACTIVE abort child logs message", childLogContents.find("interactive abort child") != std::string::npos, "interactive abort child message missing");
+        context.expectTrue(
+            "ASSERT_INTERACTIVE abort child logs message",
+            childLogContents.find("interactive abort child") != std::string::npos,
+            "interactive abort child message missing");
 #else
-        context.expectTrue("ASSERT_INTERACTIVE abort child strips message", childLogContents.find("interactive abort child") == std::string::npos, "interactive abort child message was embedded");
+        context.expectTrue(
+            "ASSERT_INTERACTIVE abort child strips message",
+            childLogContents.find("interactive abort child") == std::string::npos,
+            "interactive abort child message was embedded");
 #endif
 #else
         context.pass("ASSERT_INTERACTIVE abort child skipped because GAMEWIP_ASSERT_ENABLED=0");
@@ -997,11 +1070,20 @@ namespace
         expectAbnormalChildExit(context, interactiveBreakChildArgument, "ASSERT_INTERACTIVE break child exits abnormally without debugger");
 
         const std::string childLogContents = readDirectoryFiles(childLogDirectory);
-        context.expectTrue("ASSERT_INTERACTIVE break child logs fatal", childLogContents.find("[FATAL][Assert]: Assert failed") != std::string::npos, "interactive break child fatal missing");
+        context.expectTrue(
+            "ASSERT_INTERACTIVE break child logs fatal",
+            childLogContents.find("[FATAL][Assert]: Assert failed") != std::string::npos,
+            "interactive break child fatal missing");
 #if GAMEWIP_ASSERT_DIAGNOSTICS
-        context.expectTrue("ASSERT_INTERACTIVE break child logs message", childLogContents.find("interactive break child") != std::string::npos, "interactive break child message missing");
+        context.expectTrue(
+            "ASSERT_INTERACTIVE break child logs message",
+            childLogContents.find("interactive break child") != std::string::npos,
+            "interactive break child message missing");
 #else
-        context.expectTrue("ASSERT_INTERACTIVE break child strips message", childLogContents.find("interactive break child") == std::string::npos, "interactive break child message was embedded");
+        context.expectTrue(
+            "ASSERT_INTERACTIVE break child strips message",
+            childLogContents.find("interactive break child") == std::string::npos,
+            "interactive break child message was embedded");
 #endif
 #else
         context.pass("ASSERT_INTERACTIVE break child skipped because GAMEWIP_ASSERT_ENABLED=0");
@@ -1015,7 +1097,8 @@ namespace
         expectAbnormalChildExit(context, debugBreakChildArgument, "DEBUG_BREAK child exits abnormally");
     }
 
-    /// @brief Verifies UNREACHABLE exits abnormally unless disabled unreachable is configured as an optimizer assumption.
+    /// @brief Verifies UNREACHABLE exits abnormally unless disabled unreachable is configured as an optimizer
+    /// assumption.
     /// @param context Test context.
     void testUnreachableChild(TestContext &context)
     {
@@ -1093,12 +1176,20 @@ namespace
             const ScopedClearedEnvironmentVariable clearChildTestAction(testActionEnvironmentVariable);
             const ScopedClearedEnvironmentVariable clearChildSuppressPopup(suppressPopupEnvironmentVariable);
 
-            context.emit("[MANUAL] Assert UI Abort: a child process dialog should appear. Click Abort; the parent should detect abnormal exit.\n");
+            context.emit(
+                "[MANUAL] Assert UI Abort: a child process dialog should appear. Click Abort; the parent "
+                "should detect abnormal exit.\n");
             expectAbnormalChildExit(context, interactiveAbortChildArgument, "manual assert UI Abort child exits abnormally");
 
             const std::string childLogContents = readDirectoryFiles(childLogDirectory);
-            context.expectTrue("manual assert UI Abort child logs fatal", childLogContents.find("[FATAL][Assert]: Assert failed") != std::string::npos, "manual abort child fatal missing");
-            context.expectTrue("manual assert UI Abort child logs message", childLogContents.find("interactive abort child") != std::string::npos, "manual abort child message missing");
+            context.expectTrue(
+                "manual assert UI Abort child logs fatal",
+                childLogContents.find("[FATAL][Assert]: Assert failed") != std::string::npos,
+                "manual abort child fatal missing");
+            context.expectTrue(
+                "manual assert UI Abort child logs message",
+                childLogContents.find("interactive abort child") != std::string::npos,
+                "manual abort child message missing");
         }
         else
         {
@@ -1121,12 +1212,8 @@ namespace
         const double nanosecondsPerCall = iterations == 0 ? 0.0 : (milliseconds * 1'000'000.0) / static_cast<double>(iterations);
         ++context.performanceScenarioCount;
         context.performanceMilliseconds += milliseconds;
-        context.emit(std::format(
-            "[METRIC] {} iterations={} producerMs={:.3f} nsPerCall={:.2f}\n",
-            name,
-            iterations,
-            milliseconds,
-            nanosecondsPerCall));
+        context.emit(
+            std::format("[METRIC] {} iterations={} producerMs={:.3f} nsPerCall={:.2f}\n", name, iterations, milliseconds, nanosecondsPerCall));
     }
 
     /// @brief Runs a timed macro scenario and keeps a tiny sink to discourage full loop removal.
@@ -1134,8 +1221,7 @@ namespace
     /// @param name Scenario name.
     /// @param iterations Number of loop iterations.
     /// @param scenario Work to time.
-    template <typename Scenario>
-    void measureScenario(TestContext &context, std::string_view name, std::size_t iterations, Scenario &&scenario)
+    template <typename Scenario> void measureScenario(TestContext &context, std::string_view name, std::size_t iterations, Scenario &&scenario)
     {
         const auto start = Clock::now();
         for (std::size_t index = 0; index < iterations; ++index)
@@ -1161,37 +1247,67 @@ namespace
         const std::size_t iterations = options.performanceIterations;
         std::size_t localSink = 0;
 
-        measureScenario(context, "ASSERT passing", iterations, [&](std::size_t index)
-                        {
-                            ASSERT(index < iterations);
-                            localSink += index & 1u; });
+        measureScenario(
+            context,
+            "ASSERT passing",
+            iterations,
+            [&](std::size_t index)
+            {
+                ASSERT(index < iterations);
+                localSink += index & 1u;
+            });
 
-        measureScenario(context, "CHECK passing", iterations, [&](std::size_t index)
-                        {
-                            CHECK(index < iterations);
-                            localSink += index & 1u; });
+        measureScenario(
+            context,
+            "CHECK passing",
+            iterations,
+            [&](std::size_t index)
+            {
+                CHECK(index < iterations);
+                localSink += index & 1u;
+            });
 
-        measureScenario(context, "VERIFY passing", iterations, [&](std::size_t index)
-                        {
-                            VERIFY(index < iterations);
-                            localSink += index & 1u; });
+        measureScenario(
+            context,
+            "VERIFY passing",
+            iterations,
+            [&](std::size_t index)
+            {
+                VERIFY(index < iterations);
+                localSink += index & 1u;
+            });
 
-        measureScenario(context, "ASSERT_INTERACTIVE passing", iterations, [&](std::size_t index)
-                        {
-                            ASSERT_INTERACTIVE(index < iterations);
-                            localSink += index & 1u; });
+        measureScenario(
+            context,
+            "ASSERT_INTERACTIVE passing",
+            iterations,
+            [&](std::size_t index)
+            {
+                ASSERT_INTERACTIVE(index < iterations);
+                localSink += index & 1u;
+            });
 
-        measureScenario(context, "VERIFY_INTERACTIVE passing", iterations, [&](std::size_t index)
-                        {
-                            VERIFY_INTERACTIVE(index < iterations);
-                            localSink += index & 1u; });
+        measureScenario(
+            context,
+            "VERIFY_INTERACTIVE passing",
+            iterations,
+            [&](std::size_t index)
+            {
+                VERIFY_INTERACTIVE(index < iterations);
+                localSink += index & 1u;
+            });
 
-        measureScenario(context, "ENSURE passing", iterations, [&](std::size_t index)
-                        {
-                            if (ENSURE(index < iterations))
-                            {
-                                localSink += index & 1u;
-                            } });
+        measureScenario(
+            context,
+            "ENSURE passing",
+            iterations,
+            [&](std::size_t index)
+            {
+                if (ENSURE(index < iterations))
+                {
+                    localSink += index & 1u;
+                }
+            });
 
         performanceSink += localSink;
         context.pass("assert performance metrics completed");
@@ -1204,14 +1320,20 @@ namespace
     {
         if (context.performanceScenarioCount > 0)
         {
-            context.emit(std::format(
-                "[SUMMARY] assertPerformance scenarios={} producerMs={:.3f} sink={}\n",
-                context.performanceScenarioCount,
-                context.performanceMilliseconds,
-                performanceSink));
+            context.emit(
+                std::format(
+                    "[SUMMARY] assertPerformance scenarios={} producerMs={:.3f} sink={}\n",
+                    context.performanceScenarioCount,
+                    context.performanceMilliseconds,
+                    performanceSink));
         }
         context.emit(std::format("[SUMMARY] Assert tests completed in {:.3f} ms\n", milliseconds));
-        context.emit(std::format("[RESULT] assert passed={} failed={} skipped={}\n", context.result().passed, context.result().failed, context.result().skipped));
+        context.emit(
+            std::format(
+                "[RESULT] assert passed={} failed={} skipped={}\n",
+                context.result().passed,
+                context.result().failed,
+                context.result().skipped));
     }
 }
 
@@ -1261,82 +1383,166 @@ namespace GameWIP::Test
                 const ScopedLogRootCleanup cleanupLogRoot(context.logRoot);
 
                 context.emit(std::format("[INFO] Assert test log root: {}\n", pathText(context.logRoot)));
-                context.emit(std::format(
-                    "[INFO] Assert config: runtime={} enabled={} checks={} diagnostics={} popupAssert={} popupCheck={}\n",
-                    GAMEWIP_ASSERT_RUNTIME,
-                    GAMEWIP_ASSERT_ENABLED,
-                    GAMEWIP_ASSERT_CHECKS_ENABLED,
-                    GAMEWIP_ASSERT_DIAGNOSTICS,
-                    GAMEWIP_ASSERT_POPUP_ON_ASSERT,
-                    GAMEWIP_ASSERT_POPUP_ON_CHECK));
-                context.emit(std::format(
-                    "[INFO] Assert test options: stress={} fatalChild={} performance={} automatedInteractive={} manualUi={} perfIterations={} stressThreads={} stressIterations={} report={}\n",
-                    options.enableStressTests,
-                    options.enableChildCrashTests,
-                    options.enablePerformanceMetrics,
-                    options.enableAutomatedInteractiveTests,
-                    options.enableManualUiTests,
-                    options.performanceIterations,
-                    options.stressThreadCount,
-                    options.stressIterations,
-                    options.writeReport ? options.reportPath.string() : std::string{"disabled"}));
+                context.emit(
+                    std::format(
+                        "[INFO] Assert config: runtime={} enabled={} checks={} diagnostics={} "
+                        "popupAssert={} popupCheck={}\n",
+                        GAMEWIP_ASSERT_RUNTIME,
+                        GAMEWIP_ASSERT_ENABLED,
+                        GAMEWIP_ASSERT_CHECKS_ENABLED,
+                        GAMEWIP_ASSERT_DIAGNOSTICS,
+                        GAMEWIP_ASSERT_POPUP_ON_ASSERT,
+                        GAMEWIP_ASSERT_POPUP_ON_CHECK));
+                context.emit(
+                    std::format(
+                        "[INFO] Assert test options: stress={} fatalChild={} performance={} automatedInteractive={} "
+                        "manualUi={} perfIterations={} stressThreads={} stressIterations={} report={}\n",
+                        options.enableStressTests,
+                        options.enableChildCrashTests,
+                        options.enablePerformanceMetrics,
+                        options.enableAutomatedInteractiveTests,
+                        options.enableManualUiTests,
+                        options.performanceIterations,
+                        options.stressThreadCount,
+                        options.stressIterations,
+                        options.writeReport ? options.reportPath.string() : std::string{"disabled"}));
 
-                runCase(context, "passing macros", [&]
-                        { testPassingMacros(context); });
-                runCase(context, "disabled macro evaluation", [&]
-                        { testDisabledMacroEvaluation(context); });
-                runCase(context, "VERIFY evaluation", [&]
-                        { testVerifyEvaluation(context); });
-                runCase(context, "ENSURE behavior", [&]
-                        { testEnsureBehavior(context); });
-                runCase(context, "CHECK_ONCE logging", [&]
-                        { testCheckOnceLogging(context); });
-                runCase(context, "diagnostic configuration", [&]
-                        { testDiagnosticConfiguration(context); });
-                runCase(context, "diagnostic message evaluation", [&]
-                        { testDiagnosticMessageEvaluation(context); });
-                runCase(context, "compiled-out message evaluation", [&]
-                        { testCompiledOutMessageEvaluation(context); });
-                runCase(context, "assert test hooks", [&]
-                        { testAssertTestHooks(context); });
-                runCase(context, "automated interactive assert tests", [&]
+                runCase(
+                    context,
+                    "passing macros",
+                    [&]
+                    {
+                        testPassingMacros(context);
+                    });
+                runCase(
+                    context,
+                    "disabled macro evaluation",
+                    [&]
+                    {
+                        testDisabledMacroEvaluation(context);
+                    });
+                runCase(
+                    context,
+                    "VERIFY evaluation",
+                    [&]
+                    {
+                        testVerifyEvaluation(context);
+                    });
+                runCase(
+                    context,
+                    "ENSURE behavior",
+                    [&]
+                    {
+                        testEnsureBehavior(context);
+                    });
+                runCase(
+                    context,
+                    "CHECK_ONCE logging",
+                    [&]
+                    {
+                        testCheckOnceLogging(context);
+                    });
+                runCase(
+                    context,
+                    "diagnostic configuration",
+                    [&]
+                    {
+                        testDiagnosticConfiguration(context);
+                    });
+                runCase(
+                    context,
+                    "diagnostic message evaluation",
+                    [&]
+                    {
+                        testDiagnosticMessageEvaluation(context);
+                    });
+                runCase(
+                    context,
+                    "compiled-out message evaluation",
+                    [&]
+                    {
+                        testCompiledOutMessageEvaluation(context);
+                    });
+                runCase(
+                    context,
+                    "assert test hooks",
+                    [&]
+                    {
+                        testAssertTestHooks(context);
+                    });
+                runCase(
+                    context,
+                    "automated interactive assert tests",
+                    [&]
+                    {
+                        if (options.enableAutomatedInteractiveTests)
                         {
-                    if (options.enableAutomatedInteractiveTests)
+                            testInteractiveIgnoreOnce(context);
+                            testInteractiveAlwaysIgnore(context);
+                            testVerifyInteractiveEvaluation(context);
+                            testVerifyInteractiveAlwaysIgnoreStillEvaluates(context);
+                            testInteractiveStressLoops(context, options);
+                            testInteractiveAbortChild(context, options);
+                            testInteractiveBreakChild(context, options);
+                        }
+                        else
+                        {
+                            context.pass("automated interactive assert tests skipped by AssertTestOptions");
+                        }
+                    });
+                runCase(
+                    context,
+                    "CHECK_ONCE thread stress",
+                    [&]
                     {
-                        testInteractiveIgnoreOnce(context);
-                        testInteractiveAlwaysIgnore(context);
-                        testVerifyInteractiveEvaluation(context);
-                        testVerifyInteractiveAlwaysIgnoreStillEvaluates(context);
-                        testInteractiveStressLoops(context, options);
-                        testInteractiveAbortChild(context, options);
-                        testInteractiveBreakChild(context, options);
-                    }
-                    else
+                        testCheckOnceThreadStress(context, options);
+                    });
+                runCase(
+                    context,
+                    "ASSERT failure child",
+                    [&]
                     {
-                        context.pass("automated interactive assert tests skipped by AssertTestOptions");
-                    } });
-                runCase(context, "CHECK_ONCE thread stress", [&]
-                        { testCheckOnceThreadStress(context, options); });
-                runCase(context, "ASSERT failure child", [&]
-                        { testAssertFailureChild(context, options); });
-                runCase(context, "DEBUG_BREAK child", [&]
-                        { testDebugBreakChild(context); });
-                runCase(context, "UNREACHABLE child", [&]
-                        { testUnreachableChild(context); });
-                runCase(context, "manual assert UI", [&]
-                        { testManualAssertUi(context, options); });
-                runCase(context, "performance metrics", [&]
-                        { runPerformanceMetrics(context, options); });
+                        testAssertFailureChild(context, options);
+                    });
+                runCase(
+                    context,
+                    "DEBUG_BREAK child",
+                    [&]
+                    {
+                        testDebugBreakChild(context);
+                    });
+                runCase(
+                    context,
+                    "UNREACHABLE child",
+                    [&]
+                    {
+                        testUnreachableChild(context);
+                    });
+                runCase(
+                    context,
+                    "manual assert UI",
+                    [&]
+                    {
+                        testManualAssertUi(context, options);
+                    });
+                runCase(
+                    context,
+                    "performance metrics",
+                    [&]
+                    {
+                        runPerformanceMetrics(context, options);
+                    });
                 Logger::shutdown();
                 printSummary(context, suiteTimer.elapsedMilliseconds());
             });
 
-        runner.summary(std::format(
-            "assert passed={} failed={} skipped={} elapsedMs={:.3f}",
-            suite.summary.passed,
-            suite.summary.failed,
-            suite.summary.skipped,
-            suite.elapsedMilliseconds));
+        runner.summary(
+            std::format(
+                "assert passed={} failed={} skipped={} elapsedMs={:.3f}",
+                suite.summary.passed,
+                suite.summary.failed,
+                suite.summary.skipped,
+                suite.elapsedMilliseconds));
         Logger::shutdown();
         return runner.exitCode();
     }

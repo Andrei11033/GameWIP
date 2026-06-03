@@ -92,7 +92,8 @@ namespace GameWIP::LoggerDetail::Core
 
                 if (wantsFileOutput)
                 {
-                    if (loggerState().fileOutputAvailableAtomic.load(std::memory_order_acquire) && GameWIP::LoggerDetail::Platform::isFileOpen(loggerState().logFile))
+                    if (loggerState().fileOutputAvailableAtomic.load(std::memory_order_acquire) &&
+                        GameWIP::LoggerDetail::Platform::isFileOpen(loggerState().logFile))
                     {
                         std::string fileLine(line);
                         fileLine.push_back('\n');
@@ -206,7 +207,11 @@ namespace GameWIP::LoggerDetail::Core
     /// @param fileBatchScratch Reusable file batch buffer.
     /// @return Sink acceptance details for stats accounting.
     /// @note Runtime filters are rechecked here so queued entries can still be suppressed after a filter change.
-    SinkWriteResult writeLogEntry(const QueuedLogEntry &entry, TimestampCache &timestampCache, std::string &lineScratch, std::string &fileBatchScratch)
+    SinkWriteResult writeLogEntry(
+        const QueuedLogEntry &entry,
+        TimestampCache &timestampCache,
+        std::string &lineScratch,
+        std::string &fileBatchScratch)
     {
         SinkWriteResult result;
         const std::uint32_t runtimeState = loggerState().runtimeStateBits.load(std::memory_order_acquire);
@@ -223,10 +228,8 @@ namespace GameWIP::LoggerDetail::Core
 
         const std::shared_ptr<SourceRegistry> registry = entry.usesRegisteredSource ? loadSourceRegistry() : std::shared_ptr<SourceRegistry>{};
         const std::uint8_t levelMaskBit = levelBit(entry.level);
-        if (!entry.bypassFilters &&
-            (levelMaskBit == 0 ||
-             (runtimeStateLevelMask(runtimeState) & levelMaskBit) == 0 ||
-             (entry.usesRegisteredSource && !sourceEnabledRuntime(registry.get(), entry.sourceId))))
+        if (!entry.bypassFilters && (levelMaskBit == 0 || (runtimeStateLevelMask(runtimeState) & levelMaskBit) == 0 ||
+                                     (entry.usesRegisteredSource && !sourceEnabledRuntime(registry.get(), entry.sourceId))))
         {
             return result;
         }
@@ -322,7 +325,6 @@ namespace GameWIP::LoggerDetail::Core
         return success;
     }
 
-
     /// @brief Shows the fatal popup when enabled.
     /// @param message Fatal popup message text.
     /// @note This remains internal; public fatal popup behavior goes through reportFatal().
@@ -335,7 +337,7 @@ namespace GameWIP::LoggerDetail::Core
 
         try
         {
-            #if GAMEWIP_LOGGER_TEST_HOOKS
+#if GAMEWIP_LOGGER_TEST_HOOKS
             if (consumeTestHook(loggerTestHookState.nextFatalPopupFailure))
             {
                 recordPlatformErrorIfAny(forcedFatalPopupError());
@@ -383,8 +385,13 @@ namespace GameWIP::LoggerDetail::Core
     {
         {
             std::unique_lock<std::mutex> lock(loggerState().logMutex);
-            loggerState().logCondition.wait(lock, []
-                                          { return (!loggerState().workerRunning && !loggerState().workerBusy) || (loggerState().queueDepth.load(std::memory_order_acquire) == 0 && !loggerState().workerBusy); });
+            loggerState().logCondition.wait(
+                lock,
+                []
+                {
+                    return (!loggerState().workerRunning && !loggerState().workerBusy) ||
+                           (loggerState().queueDepth.load(std::memory_order_acquire) == 0 && !loggerState().workerBusy);
+                });
         }
 
         (void)flushSinksInternal();
@@ -404,8 +411,14 @@ namespace GameWIP::LoggerDetail::Core
         const bool drained = [&]
         {
             std::unique_lock<std::mutex> lock(loggerState().logMutex);
-            return loggerState().logCondition.wait_for(lock, timeout, []
-                                                     { return (!loggerState().workerRunning && !loggerState().workerBusy) || (loggerState().queueDepth.load(std::memory_order_acquire) == 0 && !loggerState().workerBusy); });
+            return loggerState().logCondition.wait_for(
+                lock,
+                timeout,
+                []
+                {
+                    return (!loggerState().workerRunning && !loggerState().workerBusy) ||
+                           (loggerState().queueDepth.load(std::memory_order_acquire) == 0 && !loggerState().workerBusy);
+                });
         }();
 
         if (!drained)
@@ -415,7 +428,7 @@ namespace GameWIP::LoggerDetail::Core
 
         return flushSinksInternal();
     }
-}
+} // namespace GameWIP::LoggerDetail::Core
 
 using namespace GameWIP::LoggerDetail::Core;
 
@@ -639,7 +652,13 @@ void GameWIP::Logger::reportPreformattedMessage(LogLevel level, std::string_view
 /// @param alreadyTruncated True when message already includes the truncation suffix.
 /// @param timeout Optional bounded flush duration.
 /// @return True when the flush completed.
-bool GameWIP::Logger::reportPreformattedMessage(LogLevel level, std::string_view source, std::string_view message, bool showPopup, bool alreadyTruncated, Types::FlushTimeout *timeout)
+bool GameWIP::Logger::reportPreformattedMessage(
+    LogLevel level,
+    std::string_view source,
+    std::string_view message,
+    bool showPopup,
+    bool alreadyTruncated,
+    Types::FlushTimeout *timeout)
 {
     if (!isValidLevel(level))
     {
@@ -683,7 +702,13 @@ void GameWIP::Logger::reportPreformattedMessage(LogLevel level, SourceId source,
 /// @param alreadyTruncated True when message already includes the truncation suffix.
 /// @param timeout Optional bounded flush duration.
 /// @return True when the flush completed.
-bool GameWIP::Logger::reportPreformattedMessage(LogLevel level, SourceId source, std::string_view message, bool showPopup, bool alreadyTruncated, Types::FlushTimeout *timeout)
+bool GameWIP::Logger::reportPreformattedMessage(
+    LogLevel level,
+    SourceId source,
+    std::string_view message,
+    bool showPopup,
+    bool alreadyTruncated,
+    Types::FlushTimeout *timeout)
 {
     if (!isValidLevel(level))
     {
@@ -804,7 +829,8 @@ void GameWIP::Logger::reportFatal(std::string_view source, std::string_view mess
     report(LogLevel::Fatal, source, Types::ReportPopup::Fatal, message);
 }
 
-/// @brief Logs fatal, mirrors it to platform debug output, waits for a bounded flush, and shows the fatal popup when enabled.
+/// @brief Logs fatal, mirrors it to platform debug output, waits for a bounded flush, and shows the fatal popup when
+/// enabled.
 /// @param source Source text to copy.
 /// @param timeout Maximum flush wait.
 /// @param message Message text to copy.
@@ -814,7 +840,8 @@ bool GameWIP::Logger::reportFatal(std::string_view source, Types::FlushTimeout t
     return report(LogLevel::Fatal, source, timeout, Types::ReportPopup::Fatal, message);
 }
 
-/// @brief Logs fatal with a SourceId, mirrors it to platform debug output, flushes, and shows the fatal popup when enabled.
+/// @brief Logs fatal with a SourceId, mirrors it to platform debug output, flushes, and shows the fatal popup when
+/// enabled.
 /// @param source Registered SourceId to store and resolve.
 /// @param message Message text to copy.
 void GameWIP::Logger::reportFatal(SourceId source, std::string_view message)
@@ -822,7 +849,8 @@ void GameWIP::Logger::reportFatal(SourceId source, std::string_view message)
     report(LogLevel::Fatal, source, Types::ReportPopup::Fatal, message);
 }
 
-/// @brief Logs fatal with a SourceId, mirrors it to platform debug output, waits for a bounded flush, and shows the fatal popup when enabled.
+/// @brief Logs fatal with a SourceId, mirrors it to platform debug output, waits for a bounded flush, and shows the
+/// fatal popup when enabled.
 /// @param source Registered SourceId to store and resolve.
 /// @param timeout Maximum flush wait.
 /// @param message Message text to copy.

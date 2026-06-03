@@ -127,8 +127,7 @@ namespace GameWIP::TestSupport
 
         [[nodiscard]] bool needsQuoting(std::wstring_view text)
         {
-            return text.empty() ||
-                   text.find_first_of(L" \t\n\v\"") != std::wstring_view::npos;
+            return text.empty() || text.find_first_of(L" \t\n\v\"") != std::wstring_view::npos;
         }
 
         [[nodiscard]] std::wstring quoteWindowsArgument(std::wstring_view text)
@@ -194,15 +193,11 @@ namespace GameWIP::TestSupport
             if (!entry.empty() && entry.front() == L'=')
             {
                 const std::size_t secondEquals = entry.find(L'=', 1);
-                return secondEquals == std::wstring_view::npos
-                           ? std::wstring(entry)
-                           : std::wstring(entry.substr(0, secondEquals));
+                return secondEquals == std::wstring_view::npos ? std::wstring(entry) : std::wstring(entry.substr(0, secondEquals));
             }
 
             const std::size_t equals = entry.find(L'=');
-            return equals == std::wstring_view::npos
-                       ? std::wstring(entry)
-                       : std::wstring(entry.substr(0, equals));
+            return equals == std::wstring_view::npos ? std::wstring(entry) : std::wstring(entry.substr(0, equals));
         }
 
         [[nodiscard]] bool sameEnvironmentName(std::wstring_view left, std::wstring_view right)
@@ -261,9 +256,7 @@ namespace GameWIP::TestSupport
 
         [[nodiscard]] std::wstring buildEnvironmentBlock(const Types::ChildProcessOptions &options)
         {
-            std::vector<std::wstring> entries = options.inheritParentEnvironment
-                                                    ? inheritedEnvironmentEntries()
-                                                    : std::vector<std::wstring>{};
+            std::vector<std::wstring> entries = options.inheritParentEnvironment ? inheritedEnvironmentEntries() : std::vector<std::wstring>{};
 
             for (const Types::EnvironmentVariable &variable : options.environment)
             {
@@ -307,7 +300,7 @@ namespace GameWIP::TestSupport
 
             return static_cast<DWORD>(timeout.count());
         }
-    }
+    } // namespace
 #endif
 
     Types::ChildProcessResult runChildProcess(const Types::ChildProcessOptions &options)
@@ -442,4 +435,4 @@ namespace GameWIP::TestSupport
         return result;
 #endif
     }
-}
+} // namespace GameWIP::TestSupport

@@ -154,7 +154,7 @@ namespace
         return *scratch;
     }
 #endif
-}
+} // namespace
 
 namespace GameWIP::LoggerDetail::Platform
 {
@@ -274,14 +274,7 @@ namespace GameWIP::LoggerDetail::Platform
             return makePlatformError(PlatformErrorSource::File, conversionError);
         }
 
-        HANDLE nativeHandle = CreateFileW(
-            pathText.c_str(),
-            GENERIC_WRITE,
-            FILE_SHARE_READ,
-            nullptr,
-            CREATE_NEW,
-            FILE_ATTRIBUTE_NORMAL,
-            nullptr);
+        HANDLE nativeHandle = CreateFileW(pathText.c_str(), GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, nullptr);
         if (nativeHandle == INVALID_HANDLE_VALUE)
         {
             return makePlatformError(PlatformErrorSource::File, GetLastError());
@@ -334,9 +327,7 @@ namespace GameWIP::LoggerDetail::Platform
             ++start;
         }
 
-        for (std::size_t position = normalized.find(L'\\', start);
-             position != std::wstring::npos;
-             position = normalized.find(L'\\', position + 1))
+        for (std::size_t position = normalized.find(L'\\', start); position != std::wstring::npos; position = normalized.find(L'\\', position + 1))
         {
             const std::wstring partial = normalized.substr(0, position);
             if (!partial.empty() && CreateDirectoryW(partial.c_str(), nullptr) == 0)
@@ -386,9 +377,8 @@ namespace GameWIP::LoggerDetail::Platform
         std::size_t remaining = text.size();
         while (remaining > 0)
         {
-            const DWORD chunkSize = remaining > static_cast<std::size_t>(std::numeric_limits<DWORD>::max())
-                                        ? std::numeric_limits<DWORD>::max()
-                                        : static_cast<DWORD>(remaining);
+            const DWORD chunkSize = remaining > static_cast<std::size_t>(std::numeric_limits<DWORD>::max()) ? std::numeric_limits<DWORD>::max()
+                                                                                                            : static_cast<DWORD>(remaining);
             DWORD written = 0;
             if (WriteFile(static_cast<HANDLE>(handle.native), cursor, chunkSize, &written, nullptr) == 0)
             {
@@ -487,4 +477,4 @@ namespace GameWIP::LoggerDetail::Platform
         memory.available = true;
         return memory;
     }
-}
+} // namespace GameWIP::LoggerDetail::Platform

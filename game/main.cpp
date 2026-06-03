@@ -2,6 +2,7 @@
 /// @brief GameWIP executable entry point and runtime test-suite dispatcher.
 
 #include "test/assert_test.h"
+#include "test/io_test.h"
 #include "test/logger_test.h"
 #include "test/test_support_test.h"
 
@@ -13,9 +14,10 @@ namespace
 {
     struct TestRunOptions
     {
-        bool runLoggerTests = true;
-        bool runAssertTests = true;
-        bool runTestSupportTests = true;
+        bool runLoggerTests = false;
+        bool runAssertTests = false;
+        bool runTestSupportTests = false;
+        bool runIOTests = true;
 
         bool enableStressTests = true;
         bool enableChildCrashTests = true;
@@ -78,8 +80,19 @@ namespace
 
         if (hasArgument(argc, argv, "--test-support-only"))
         {
+            options.runIOTests = false;
             options.runLoggerTests = false;
             options.runAssertTests = false;
+            options.enableManualUiTests = false;
+            options.enableLoggerPopupTest = false;
+        }
+
+        if (hasArgument(argc, argv, "--io-only"))
+        {
+            options.runTestSupportTests = false;
+            options.runLoggerTests = false;
+            options.runAssertTests = false;
+            options.runIOTests = true;
             options.enableManualUiTests = false;
             options.enableLoggerPopupTest = false;
         }
@@ -88,6 +101,7 @@ namespace
         {
             options.runLoggerTests = false;
             options.runAssertTests = false;
+            options.runIOTests = false;
             options.runTestSupportTests = true;
             options.enableManualUiTests = true;
             options.enableLoggerPopupTest = false;
@@ -107,6 +121,14 @@ namespace
             .enableChildProcessTests = options.enableTestSupportChildProcessTests,
             .enableStressTests = options.enableStressTests,
             .enableManualTests = options.enableManualUiTests,
+            .writeReport = options.writeReport,
+            .appendReport = options.appendReport,
+            .reportPath = options.reportPath};
+    }
+
+    GameWIP::Test::IOTestOptions makeIOOptions(const TestRunOptions &options)
+    {
+        return GameWIP::Test::IOTestOptions{
             .writeReport = options.writeReport,
             .appendReport = options.appendReport,
             .reportPath = options.reportPath};
@@ -149,12 +171,14 @@ int main(int argc, char **argv)
 {
     const TestRunOptions runOptions = makeRunOptions(argc, argv);
     GameWIP::Test::TestSupportTestOptions testSupportTestOptions = makeTestSupportOptions(runOptions);
+    GameWIP::Test::IOTestOptions ioTestOptions = makeIOOptions(runOptions);
     GameWIP::Test::LoggerTestOptions loggerTestOptions = makeLoggerOptions(runOptions);
     GameWIP::Test::AssertTestOptions assertTestOptions = makeAssertOptions(runOptions);
 
     testSupportTestOptions.appendReport = runOptions.appendReport;
-    loggerTestOptions.appendReport = runOptions.appendReport || runOptions.runTestSupportTests;
-    assertTestOptions.appendReport = runOptions.appendReport || runOptions.runTestSupportTests || runOptions.runLoggerTests;
+    ioTestOptions.appendReport = runOptions.appendReport || runOptions.runTestSupportTests;
+    loggerTestOptions.appendReport = runOptions.appendReport || runOptions.runTestSupportTests || runOptions.runIOTests;
+    assertTestOptions.appendReport = runOptions.appendReport || runOptions.runTestSupportTests || runOptions.runIOTests || runOptions.runLoggerTests;
 
     if (hasArgumentPrefix(argc, argv, "--test-support-test-child="))
     {
@@ -166,17 +190,16 @@ int main(int argc, char **argv)
         return GameWIP::Test::runLoggerTests(argc, argv, loggerTestOptions);
     }
 
-    if (hasArgument(argc, argv, "--assert-test-child=assert-failure") ||
-        hasArgument(argc, argv, "--assert-test-child=debug-break") ||
-        hasArgument(argc, argv, "--assert-test-child=unreachable") ||
-        hasArgument(argc, argv, "--assert-test-child=interactive-abort") ||
+    if (hasArgument(argc, argv, "--assert-test-child=assert-failure") || hasArgument(argc, argv, "--assert-test-child=debug-break") ||
+        hasArgument(argc, argv, "--assert-test-child=unreachable") || hasArgument(argc, argv, "--assert-test-child=interactive-abort") ||
         hasArgument(argc, argv, "--assert-test-child=interactive-break"))
     {
         return GameWIP::Test::runAssertTests(argc, argv, assertTestOptions);
     }
 
     const int testSupportResult = runOptions.runTestSupportTests ? GameWIP::Test::runTestSupportTests(argc, argv, testSupportTestOptions) : 0;
+    const int ioResult = runOptions.runIOTests ? GameWIP::Test::runIOTests(argc, argv, ioTestOptions) : 0;
     const int loggerResult = runOptions.runLoggerTests ? GameWIP::Test::runLoggerTests(argc, argv, loggerTestOptions) : 0;
     const int assertResult = runOptions.runAssertTests ? GameWIP::Test::runAssertTests(argc, argv, assertTestOptions) : 0;
-    return testSupportResult == 0 && loggerResult == 0 && assertResult == 0 ? 0 : 1;
+    return testSupportResult == 0 && ioResult == 0 && loggerResult == 0 && assertResult == 0 ? 0 : 1;
 }

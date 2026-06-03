@@ -18,3 +18,5 @@ Most users should read Assert getting started first, then Assert API reference. 
 ## Key behavior
 
 `ASSERT` is for fatal invariants. `VERIFY` is for fatal checks whose expression must always run. `CHECK` and `CHECK_ONCE` report recoverable failures. `ENSURE` evaluates exactly once, reports when enabled and false, and returns the boolean result. Interactive asserts are developer-only failure paths with Break, Abort, Ignore Once, and Always Ignore choices.
+
+Assert builds as a shared library target when runtime assertion handling is enabled.

@@ -36,6 +36,7 @@ if(GAMEWIP_ENABLE_COVERAGE)
 
         set(GAMEWIP_COVERAGE_COMMON_ARGS
             --root "${CMAKE_CURRENT_SOURCE_DIR}"
+            --filter "${CMAKE_CURRENT_SOURCE_DIR}/foundation/io"
             --filter "${CMAKE_CURRENT_SOURCE_DIR}/tools/logger"
             --filter "${CMAKE_CURRENT_SOURCE_DIR}/tools/debug/assert"
             --filter "${CMAKE_CURRENT_SOURCE_DIR}/tools/test_support"
@@ -118,6 +119,14 @@ if(GAMEWIP_BUILD_DOCS)
         "${GAMEWIP_DOXYGEN_ROOT}/testing.md"
         "${GAMEWIP_DOXYGEN_ROOT}/mainpage.md"
     )
+
+    # Planned foundation contracts only. IO registers through its library target.
+    gamewip_register_doxygen_inputs(
+        "${CMAKE_CURRENT_SOURCE_DIR}/foundation/filesystem/filesystem.h"
+        "${CMAKE_CURRENT_SOURCE_DIR}/foundation/filesystem/docs"
+        "${CMAKE_CURRENT_SOURCE_DIR}/foundation/terminal/terminal.h"
+        "${CMAKE_CURRENT_SOURCE_DIR}/foundation/terminal/docs"
+    )
 endif()
 
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/GameWIPPlatform.cmake")
@@ -127,6 +136,8 @@ set(TRACY_ENABLE ${GAMEWIP_ENABLE_TRACY} CACHE BOOL "" FORCE)
 set(TRACY_ON_DEMAND ON CACHE BOOL "" FORCE)
 
 add_subdirectory(external/tracy)
+
+add_subdirectory(foundation/io)
 
 set(LOGGER_TEST_HOOKS ${GAMEWIP_ENABLE_LOGGER_TEST_HOOKS} CACHE BOOL "Enable Logger internal test hooks" FORCE)
 set(ASSERT_TEST_HOOKS ${GAMEWIP_ENABLE_ASSERT_TEST_HOOKS} CACHE BOOL "Enable Assert internal test hooks" FORCE)
@@ -156,6 +167,7 @@ endif()
 
 add_executable(GameWIP
     game/main.cpp
+    game/test/io_test.cpp
     game/test/test_support_test.cpp
     game/test/assert_test.cpp
     game/test/logger_test.cpp
@@ -169,6 +181,7 @@ if(GAMEWIP_ENABLE_TOOLS)
 endif()
 
 target_link_libraries(GameWIP PRIVATE
+    GameWIP::IO
     GameWIP::TestSupport
     GameWIP::Logger
     GameWIP::Assert

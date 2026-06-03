@@ -23,7 +23,7 @@ namespace GameWIP::LoggerDetail::Core
         loggerTestHookState.nextTimedFlushTimeout.store(false, std::memory_order_release);
     }
 #endif
-}
+} // namespace GameWIP::LoggerDetail::Core
 
 using namespace GameWIP::LoggerDetail::Core;
 
@@ -64,5 +64,5 @@ namespace GameWIP::LoggerDetail::TestHooks
     {
         loggerTestHookState.nextTimedFlushTimeout.store(true, std::memory_order_release);
     }
-}
+} // namespace GameWIP::LoggerDetail::TestHooks
 #endif

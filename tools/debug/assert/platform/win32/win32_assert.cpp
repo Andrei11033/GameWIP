@@ -220,8 +220,7 @@ namespace
             return defaultAction;
         }
     }
-}
-
+} // namespace
 
 #if GAMEWIP_ASSERT_TEST_HOOKS
 namespace GameWIP::Debug::Assert::TestHooks
@@ -314,8 +313,8 @@ namespace GameWIP::Debug::Assert::TestHooks
             suppressed = assertTestHookState.popupSuppressedOverrideValue.load(std::memory_order_acquire);
             return true;
         }
-    }
-}
+    } // namespace Detail
+} // namespace GameWIP::Debug::Assert::TestHooks
 #endif
 
 namespace GameWIP::Debug::Assert::Platform
@@ -346,13 +345,12 @@ namespace GameWIP::Debug::Assert::Platform
         constexpr int kIgnoreOnceButtonId = 1003;
         constexpr int kAlwaysIgnoreButtonId = 1004;
 
-        const TASKDIALOG_BUTTON buttons[] =
-            {
-                {kBreakButtonId, L"Break"},
-                {kAbortButtonId, L"Abort"},
-                {kIgnoreOnceButtonId, L"Ignore Once"},
-                {kAlwaysIgnoreButtonId, L"Always Ignore"},
-            };
+        const TASKDIALOG_BUTTON buttons[] = {
+            {kBreakButtonId, L"Break"},
+            {kAbortButtonId, L"Abort"},
+            {kIgnoreOnceButtonId, L"Ignore Once"},
+            {kAlwaysIgnoreButtonId, L"Always Ignore"},
+        };
 
         TASKDIALOGCONFIG config{};
         config.cbSize = sizeof(config);
@@ -402,4 +400,4 @@ namespace GameWIP::Debug::Assert::Platform
     {
         DebugBreak();
     }
-}
+} // namespace GameWIP::Debug::Assert::Platform

@@ -34,4 +34,4 @@ namespace GameWIP::Debug::Assert::Platform
     /// @details Callers decide whether a debugger must be attached first. DEBUG_BREAK() intentionally force-breaks.
     /// @note Continuing from the debugger resumes execution.
     void debugBreak() noexcept;
-}
+} // namespace GameWIP::Debug::Assert::Platform

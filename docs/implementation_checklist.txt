@@ -37,6 +37,8 @@ This file is not the proof checklist.
 * [x] Current Windows backend id is `win32`.
 * [x] Tool libraries load backend sources from `platform/${GAMEWIP_PLATFORM_ID}/*.cpp`.
 * [x] Tool libraries optionally include `platform/${GAMEWIP_PLATFORM_ID}/platform.cmake` for platform-specific links, resources, manifests, generated files, or compile definitions.
+* [x] Shared-library import/export compiler attributes are centralized in `tools/common/export.h`.
+* [x] Shared-library public headers expose library-local ABI markers such as `LOGGER_API` and `ASSERT_API`.
 
 ## Platform Layout Convention
 
@@ -56,6 +58,8 @@ Platform backend selection and layout are implemented for the current Windows-fi
 ## Library Target
 
 * [x] Logger builds as a separate library target.
+* [x] Logger builds as a shared library target.
+* [x] Logger public exported declarations use the `LOGGER_API` ABI marker.
 * [x] Logger package config polish exists for `find_package(GameWIP_Logger CONFIG REQUIRED)`.
 
 ## Public Logging Paths
@@ -100,6 +104,8 @@ Logger is implemented as a reusable foundation library with async logging, synch
 ## Library Target
 
 * [x] Assert builds as a separate library target.
+* [x] Assert builds as a shared library target when runtime assertion handling is enabled.
+* [x] Assert public exported runtime declarations use the `ASSERT_API` ABI marker.
 * [x] Assert package config polish exists for `find_package(GameWIP_Assert CONFIG REQUIRED)`.
 
 ## Macro Families
@@ -156,6 +162,7 @@ Assert is implemented as a reusable diagnostic library with fatal, recoverable, 
 * [x] TestSupport exposes alias target `GameWIP::TestSupport`.
 * [x] TestSupport public API lives in `tools/test_support/test_support.h`.
 * [x] TestSupport public API lives under namespace `GameWIP::TestSupport`.
+* [x] TestSupport has no public DLL import/export marker while it remains a static library.
 * [x] TestSupport avoids global namespace pollution.
 * [x] TestSupport package config polish exists for `find_package(GameWIP_TestSupport CONFIG REQUIRED)`.
 
@@ -372,7 +379,7 @@ The Windows backend follows the project rule that public C++ remains UTF-8/path 
 
 Completion note:
 
-Build tooling is implemented, including migrated Logger and Assert tests on the generic TestSupport helpers.
+Build tooling is implemented, including IO validation and migrated Logger and Assert tests on the generic TestSupport helpers.
 
 ---
 
@@ -386,9 +393,11 @@ Build tooling is implemented, including migrated Logger and Assert tests on the 
 
 ## Public API Documentation
 
+* [x] Public IO APIs follow the Doxygen contract style.
 * [x] Public Logger APIs follow the Doxygen contract style.
 * [x] Public Assert APIs follow the Doxygen contract style.
 * [x] Public TestSupport APIs follow the Doxygen contract style.
+* [x] Public library namespaces have concise Doxygen `@brief` documentation.
 * [x] Public API comments document contracts.
 * [x] Public API comments document parameters.
 * [x] Public API comments document return values.
@@ -402,6 +411,7 @@ Build tooling is implemented, including migrated Logger and Assert tests on the 
 ## Internal Documentation
 
 * [x] Internal helpers are documented where locks are non-obvious.
+* [x] C/C++ namespace blocks use qualified closing namespace comments maintained by clang-format.
 * [x] Internal helpers are documented where atomics are non-obvious.
 * [x] Internal helpers are documented where lifecycle behavior is non-obvious.
 * [x] Internal helpers are documented where platform behavior is non-obvious.
@@ -415,6 +425,20 @@ Documentation implementation is in place for the foundation libraries, with publ
 ---
 
 # 10. Per-Library Documentation Implementation
+
+## IO Docs
+
+* [x] IO owns a `foundation/io/docs/` guide folder.
+* [x] IO CMake registers `foundation/io/io.h` with the global Doxygen build.
+* [x] IO CMake registers `foundation/io/docs/` with the global Doxygen build.
+* [x] IO public API guide covers passive result/status types.
+* [x] IO public API guide covers `Reader` and `Writer`.
+* [x] IO public API guide covers `MemoryReader` and `MemoryWriter`.
+* [x] IO public API guide covers whole-stream helpers.
+* [x] IO public API guide covers direct-fill known-size reads.
+* [x] IO public API guide covers caller-owned scratch buffers.
+* [x] IO public API guide covers vector-storage convenience overloads.
+* [x] IO public API guide covers examples.
 
 ## Logger Docs
 
@@ -508,18 +532,23 @@ The Doxygen build infrastructure is implemented, modular, and integrated with th
 
 ## Package Names
 
+* [x] IO package name uses underscore form: `GameWIP_IO`.
 * [x] Logger package name uses underscore form: `GameWIP_Logger`.
 * [x] Assert package name uses underscore form: `GameWIP_Assert`.
 * [x] TestSupport package name uses underscore form: `GameWIP_TestSupport`.
 
 ## Imported Targets
 
+* [x] IO imported target remains `GameWIP::IO`.
 * [x] Logger imported target remains `GameWIP::Logger`.
 * [x] Assert imported target remains `GameWIP::Assert`.
 * [x] TestSupport imported target remains `GameWIP::TestSupport`.
 
 ## Package Dependencies
 
+* [x] IO package has no Logger dependency.
+* [x] IO package has no Assert dependency.
+* [x] IO package has no TestSupport dependency.
 * [x] Assert package locates Logger as a dependency.
 * [x] TestSupport package has no Logger dependency.
 * [x] TestSupport package has no Assert dependency.
@@ -531,11 +560,82 @@ The Doxygen build infrastructure is implemented, modular, and integrated with th
 
 Completion note:
 
-Package/install polish is implemented for Logger, Assert, and TestSupport.
+Package/install polish is implemented for IO, Logger, Assert, and TestSupport.
 
 ---
 
-# 13. Current Remaining Implementation Work
+# 13. Foundation I/O Implementation
+
+This section tracks the current foundation I/O implementation and the remaining planned FileSystem and Terminal work.
+
+## IO Library Target
+
+* [x] IO builds as a separate library target.
+* [x] IO builds as a static library target named `IO`.
+* [x] IO exposes alias target `GameWIP::IO`.
+* [x] IO package config polish exists for `find_package(GameWIP_IO CONFIG REQUIRED)`.
+* [x] IO CMake registers `foundation/io/io.h` with Doxygen.
+* [x] IO CMake registers `foundation/io/docs/` with Doxygen.
+* [x] IO Doxygen registration uses the `foundation_io` landing-page id.
+
+## Docs and Stub Pass
+
+* [x] `foundation/` folder category decision is documented.
+* [x] IO public API contract is documented.
+* [x] FileSystem public API contract is documented.
+* [x] Terminal public API contract is documented.
+* [x] Platform backend contract updates are documented.
+* [x] Logger, Assert, and TestSupport future move direction is documented.
+* [x] `foundation/io/io.h` exists as a public header with implemented platform-neutral contracts.
+* [x] `foundation/filesystem/filesystem.h` exists as a public header stub only.
+* [x] `foundation/terminal/terminal.h` exists as a public header stub only.
+
+## IO Behavior
+
+* [x] Public `makeStatus()` and `successStatus()` helpers are implemented.
+* [x] `Reader` and `Writer` are movable and non-copyable.
+* [x] `Reader` and `Writer` expose `canSeek()`.
+* [x] `Reader` default seek/position/size behavior is implemented.
+* [x] `Writer` default position/seek/flush/close behavior is implemented.
+* [x] `MemoryReader` is implemented.
+* [x] `MemoryReader` reports seek capability only while open.
+* [x] `MemoryReader` safely handles destination spans that overlap its source memory.
+* [x] `MemoryReader` rejects direct construction from temporary string and vector storage.
+* [x] `MemoryReader` vector-storage convenience construction is implemented.
+* [x] `MemoryWriter` is implemented.
+* [x] `MemoryWriter` reports its append position while remaining non-seekable.
+* [x] `MemoryWriter` vector-storage convenience writes are implemented.
+* [x] `readAllBytes()` is implemented.
+* [x] `readAllBytes()` direct-fills known remaining-size reads.
+* [x] `readAllBytes()` supports caller-owned scratch buffers for unknown-size reads.
+* [x] `readAllBytes()` avoids pre-filling its internally allocated unknown-size scratch buffer.
+* [x] `readAllText()` is implemented.
+* [x] `readAllText()` direct-fills known remaining-size reads.
+* [x] `readAllText()` supports caller-owned scratch buffers for unknown-size reads.
+* [x] `readAllText()` avoids pre-filling its internally allocated unknown-size scratch buffer.
+* [x] `writeAllBytes()` is implemented.
+* [x] `writeAllBytes()` vector-storage convenience writes are implemented.
+* [x] `writeAllText()` is implemented.
+* [x] IO tests run through the current test executable.
+
+## Behavior Implementation
+
+* [x] `GameWIP::IO` behavior is implemented.
+* [ ] `GameWIP::FileSystem` behavior is implemented.
+* [ ] `GameWIP::Terminal` behavior is implemented.
+* [ ] FileSystem Windows backend files are implemented.
+* [ ] Terminal Windows backend files are implemented.
+* [ ] Logger is moved under `foundation/`.
+* [ ] Assert is moved under `foundation/`.
+* [ ] TestSupport is moved under `foundation/`.
+
+Completion note:
+
+IO is implemented as a platform-neutral contract/helper library with in-memory reader/writer support, whole-stream helpers, package polish, documentation registration, and test integration. FileSystem, Terminal, and library moves remain future work.
+
+---
+
+# 14. Current Remaining Implementation Work
 
 This section tracks known implementation work that still remains in the current foundation layer.
 
@@ -581,7 +681,7 @@ Future engine/game implementation checklists should be added when those systems 
 
 ---
 
-# 14. How to Extend This File
+# 15. How to Extend This File
 
 When adding implementation work:
 

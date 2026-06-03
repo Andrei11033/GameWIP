@@ -180,6 +180,13 @@ install(DIRECTORY "${PROJECT_SOURCE_DIR}/tools/debug/assert"
         PATTERN "internal" EXCLUDE
 )
 
+install(DIRECTORY "${PROJECT_SOURCE_DIR}/tools/common"
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+    FILES_MATCHING
+        PATTERN "*.h"
+        PATTERN "*.hpp"
+)
+
 if(GAMEWIP_PLATFORM_ID STREQUAL "win32")
     install(FILES
         "${CMAKE_CURRENT_SOURCE_DIR}/cmake/common_controls_v6.manifest"
