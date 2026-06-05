@@ -1,6 +1,6 @@
 @page test_support_public_api TestSupport public API guide
 
-This page is the user-facing guide for the TestSupport public API. Header comments stay compact for IntelliSense; this page explains how the public types and helpers are intended to be used together.
+This page explains how the TestSupport public types and helpers are intended to be used together.
 
 ## Include file
 

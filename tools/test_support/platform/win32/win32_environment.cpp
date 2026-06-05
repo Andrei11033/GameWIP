@@ -12,6 +12,8 @@
 #include <windows.h>
 
 #include <cstdlib>
+#include <limits>
+#include <string>
 
 namespace
 {
@@ -20,6 +22,10 @@ namespace
         if (text.empty())
         {
             return {};
+        }
+        if (text.size() > static_cast<std::size_t>((std::numeric_limits<int>::max)()))
+        {
+            return L"?";
         }
 
         const int inputSize = static_cast<int>(text.size());
@@ -50,6 +56,10 @@ namespace
         {
             return {};
         }
+        if (text.size() > static_cast<std::size_t>((std::numeric_limits<int>::max)()))
+        {
+            return {};
+        }
 
         const int inputSize = static_cast<int>(text.size());
         const int utf8Size = WideCharToMultiByte(CP_UTF8, 0, text.data(), inputSize, nullptr, 0, nullptr, nullptr);
@@ -65,9 +75,9 @@ namespace
         }
         return output;
     }
-} // namespace
+}
 
-namespace GameWIP::TestSupport::Platform
+namespace GameWIP::TestSupport::Detail::Platform
 {
     std::optional<std::string> readEnvironmentVariable(std::string_view name)
     {
@@ -76,7 +86,9 @@ namespace GameWIP::TestSupport::Platform
         const DWORD requiredSize = GetEnvironmentVariableW(nameText.c_str(), nullptr, 0);
         if (requiredSize == 0)
         {
-            return GetLastError() == ERROR_ENVVAR_NOT_FOUND ? std::nullopt : std::optional<std::string>{std::string{}};
+            return GetLastError() == ERROR_ENVVAR_NOT_FOUND
+                       ? std::nullopt
+                       : std::optional<std::string>{std::string{}};
         }
 
         std::wstring value(requiredSize, L'\0');
@@ -104,4 +116,4 @@ namespace GameWIP::TestSupport::Platform
         _wputenv_s(nameWide.c_str(), L"");
         SetEnvironmentVariableW(nameWide.c_str(), nullptr);
     }
-} // namespace GameWIP::TestSupport::Platform
+}

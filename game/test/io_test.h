@@ -24,4 +24,4 @@ namespace GameWIP::Test
     /// @param options Runtime report toggles.
     /// @return Zero when every IO self-test passes, nonzero otherwise.
     int runIOTests(int argc, char **argv, const IOTestOptions &options = {});
-}
+} // namespace GameWIP::Test

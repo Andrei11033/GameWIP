@@ -13,12 +13,10 @@ Use normal logs for regular runtime information. Use reports for failures where 
 
 ## Normal user path
 
-Most users should read Logger getting started first, then Logger API reference. Runtime behavior pages are for configuration, lifecycle, queue pressure, threading, and performance details. Developer validation pages are generated for maintainers and rare-path testing.
+Use the getting started and API reference pages for public integration. Runtime behavior pages cover configuration, lifecycle, queue pressure, threading, and performance details. Developer validation pages are for maintainers and rare-path testing.
 
 ## Key behavior
 
 Normal log calls are asynchronous, queue-based, and filterable. Report calls are synchronous, bypass filters and the async queue, write to active sinks immediately, and flush before returning.
 
 `Logger::fatal(...)` is a fatal-severity normal log; use `reportFatal(...)` or `fatalTerminate(...)` when the failure path must flush, request the fatal popup, or terminate.
-
-Logger builds as a shared library target.

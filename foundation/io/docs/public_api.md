@@ -1,6 +1,6 @@
 @page foundation_io_public_api IO public API guide
 
-This page is the user-facing guide for the IO public API. Header comments stay compact for IntelliSense; this page explains how the pieces fit together and when to choose each API.
+This page explains how the IO public API fits together and when to choose each API.
 
 ## Include and link
 

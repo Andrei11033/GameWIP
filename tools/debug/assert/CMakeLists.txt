@@ -97,7 +97,7 @@ if(ASSERT_RUNTIME_TARGET_ENABLED)
         $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/tools>
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
     )
-    target_compile_features(Assert PUBLIC cxx_std_20)
+    target_compile_features(Assert PUBLIC cxx_std_23)
     target_compile_definitions(Assert
         PRIVATE
             GAMEWIP_ASSERT_BUILD
@@ -118,7 +118,7 @@ else()
         $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/tools>
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
     )
-    target_compile_features(Assert INTERFACE cxx_std_20)
+    target_compile_features(Assert INTERFACE cxx_std_23)
     target_compile_definitions(Assert INTERFACE
         GAMEWIP_ASSERT_RUNTIME=0
         GAMEWIP_ASSERT_ENABLED=0
@@ -178,13 +178,6 @@ install(DIRECTORY "${PROJECT_SOURCE_DIR}/tools/debug/assert"
         PATTERN "*.h"
         PATTERN "*.hpp"
         PATTERN "internal" EXCLUDE
-)
-
-install(DIRECTORY "${PROJECT_SOURCE_DIR}/tools/common"
-    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-    FILES_MATCHING
-        PATTERN "*.h"
-        PATTERN "*.hpp"
 )
 
 if(GAMEWIP_PLATFORM_ID STREQUAL "win32")

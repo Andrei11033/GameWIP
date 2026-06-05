@@ -10,7 +10,7 @@
 #endif
 
 #if GAMEWIP_LOGGER_TEST_HOOKS
-namespace GameWIP::LoggerDetail::TestHooks
+namespace GameWIP::Logger::TestHooks
 {
     /// @brief Clears all pending logger test-hook failures and overrides.
     /// @warning Test-only API. Available only when GAMEWIP_LOGGER_TEST_HOOKS is enabled.
@@ -39,5 +39,5 @@ namespace GameWIP::LoggerDetail::TestHooks
     /// @brief Forces the next timed Logger::flush(timeout) wait to time out.
     /// @warning Test-only API. The hook is one-shot.
     LOGGER_API void forceNextTimedFlushTimeout() noexcept;
-} // namespace GameWIP::LoggerDetail::TestHooks
+}
 #endif

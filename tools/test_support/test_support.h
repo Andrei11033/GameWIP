@@ -1,17 +1,13 @@
 /// @file test_support.h
 /// @brief Lightweight GameWIP-native helpers for writing executable test suites.
 ///
-/// Contract:
-/// TestSupport provides generic reporting, expectations, file helpers, environment guards,
-/// child-process helpers, manual prompts, timers, and small stress-test helpers. It is dependency
-/// free with respect to Logger, Assert, and engine systems.
+/// TestSupport provides reporting, expectations, file helpers, environment guards, child-process
+/// helpers, manual prompts, timers, and small stress-test helpers without depending on Logger,
+/// Assert, or engine systems.
 ///
-/// Usage notes:
 /// Passive configuration/result shapes live in `GameWIP::TestSupport::Types`. Active helpers such
 /// as `Context`, `Runner`, `Timer`, and `runChildProcess()` live directly in
 /// `GameWIP::TestSupport`. Expectations record failures and keep the suite running.
-///
-/// See the TestSupport Markdown manual for full examples and guidance.
 
 #pragma once
 
@@ -34,7 +30,6 @@
 #include <utility>
 #include <vector>
 
-/// @brief Lightweight helpers for writing and running GameWIP executable test suites.
 namespace GameWIP::TestSupport
 {
     /// @cond GAMEWIP_TEST_SUPPORT_DETAIL
@@ -129,7 +124,31 @@ namespace GameWIP::TestSupport
     } // namespace Types
     /// @}
 
-    class Timer;
+    /// @name Timing helpers
+    /// @{
+
+    /// @brief Monotonic elapsed-time helper for test metrics.
+    class Timer
+    {
+        /// NOTE: update this so that it uses the gtest framework for acurate timing.
+    public:
+        /// @brief Starts the timer at construction.
+        Timer() noexcept;
+
+        /// @brief Restarts elapsed-time measurement from now.
+        void reset() noexcept;
+
+        /// @brief Returns elapsed wall-clock time in milliseconds.
+        [[nodiscard]] double elapsedMilliseconds() const noexcept;
+        /// @brief Returns elapsed nanoseconds divided by iterations, or zero when iterations is zero.
+        [[nodiscard]] double nanosecondsPerIteration(std::size_t iterations) const noexcept;
+
+    private:
+        using Clock = std::chrono::steady_clock;
+
+        Clock::time_point start_;
+    };
+    /// @}
 
     /// @name Suite reporting
     /// @{
@@ -137,8 +156,7 @@ namespace GameWIP::TestSupport
     /// @brief Test context passed to suite functions.
     /// Thread-safety: public recording methods serialize summary updates and report writes.
     /// Contract: expectations record failures and return false instead of aborting the process.
-    /// Failure behavior: report file write failures do not throw from recording methods; console output still continues
-    /// when enabled.
+    /// Failure behavior: report file write failures do not throw from recording methods; console output still continues when enabled.
     class Context
     {
     public:
@@ -368,32 +386,7 @@ namespace GameWIP::TestSupport
     private:
         Context &context_;
         std::string name_;
-        std::unique_ptr<Timer> timer_;
-    };
-    /// @}
-
-    /// @name Timing helpers
-    /// @{
-
-    /// @brief Monotonic elapsed-time helper for test metrics.
-    class Timer
-    {
-    public:
-        /// @brief Starts the timer at construction.
-        Timer() noexcept;
-
-        /// @brief Restarts elapsed-time measurement from now.
-        void reset() noexcept;
-
-        /// @brief Returns elapsed wall-clock time in milliseconds.
-        [[nodiscard]] double elapsedMilliseconds() const noexcept;
-        /// @brief Returns elapsed nanoseconds divided by iterations, or zero when iterations is zero.
-        [[nodiscard]] double nanosecondsPerIteration(std::size_t iterations) const noexcept;
-
-    private:
-        using Clock = std::chrono::steady_clock;
-
-        Clock::time_point start_;
+        Timer timer_;
     };
     /// @}
 
@@ -442,8 +435,7 @@ namespace GameWIP::TestSupport
     /// @{
 
     /// @brief Temporarily sets an environment variable and restores the previous state on destruction.
-    /// Thread-safety: process environment mutation is serialized inside this library. Other process environment access
-    /// is still process-global.
+    /// Thread-safety: process environment mutation is serialized inside this library. Other process environment access is still process-global.
     class ScopedEnvironmentVariable
     {
     public:
@@ -600,8 +592,7 @@ namespace GameWIP::TestSupport
     };
 
     /// @brief Starts workerCount threads, joins them, and rethrows the first worker exception.
-    /// @tparam WorkerFunction Copy-constructible callable that accepts `std::size_t` worker index or accepts no
-    /// arguments.
+    /// @tparam WorkerFunction Copy-constructible callable that accepts `std::size_t` worker index or accepts no arguments.
     /// @param workerCount Number of worker threads to start.
     /// @param workerFunction Prototype callable copied once into each worker thread.
     /// @note All started workers are joined before any captured exception is rethrown.

@@ -29,7 +29,7 @@ target_include_directories(Logger PUBLIC
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 
-target_compile_features(Logger PUBLIC cxx_std_20)
+target_compile_features(Logger PUBLIC cxx_std_23)
 target_compile_definitions(Logger
     PRIVATE
         LOGGER_BUILD
@@ -73,13 +73,6 @@ install(DIRECTORY "${PROJECT_SOURCE_DIR}/tools/logger"
         PATTERN "*.h"
         PATTERN "*.hpp"
         PATTERN "internal" EXCLUDE
-)
-
-install(DIRECTORY "${PROJECT_SOURCE_DIR}/tools/common"
-    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-    FILES_MATCHING
-        PATTERN "*.h"
-        PATTERN "*.hpp"
 )
 
 configure_package_config_file(

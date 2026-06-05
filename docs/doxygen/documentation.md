@@ -8,7 +8,7 @@ The GameWIP Doxygen site is designed as a modular manual. Each library owns its 
 - Project-wide Doxygen helper functions live in `cmake/GameWIPDoxygen.cmake`.
 - Project-wide Doxygen pages, the Doxyfile template, and Doxygen styling live in `docs/doxygen/`.
 - Library-specific CMake helper functions live under that library's `cmake/` folder.
-- Each library owns docs beside its source, such as `foundation/<lib>/docs/` or `tools/<lib>/docs/`.
+- Each library owns `tools/<lib>/docs/`.
 - Only `tools/<lib>/docs/<lib>.md` is mandatory.
 - Any other guide pages are chosen by the library.
 - Page IDs use lowercase snake_case.
@@ -47,7 +47,7 @@ A library landing page should be the table of contents for that library:
 - @subpage logger_troubleshooting
 ```
 
-The root Doxygen page at `docs/doxygen/index.md` should link only to major library/project sections and remaining planned foundation contracts. It should not duplicate every library detail.
+The root Doxygen page at `docs/doxygen/index.md` should link only to major library/project sections. It should not duplicate every library detail.
 
 
 ## User manual versus developer validation
@@ -67,7 +67,6 @@ Public headers are for compact IntelliSense contracts:
 
 - what the API does,
 - parameters and return values,
-- concise `@brief` documentation for public namespaces,
 - lifecycle expectations,
 - thread-safety,
 - blocking/UI behavior,
@@ -86,8 +85,6 @@ Markdown guide pages are for the full manual:
 - test-hook guidance.
 
 Implementation comments should explain non-obvious internals only: locks, atomics, shutdown invariants, platform behavior, hot paths, failure injection, and test hooks.
-
-C/C++ namespaces close with qualified `// namespace ...` comments for readability. The root `.clang-format` configuration maintains these comments during normal formatting passes.
 
 ## Test-hook documentation
 

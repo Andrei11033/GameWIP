@@ -1,10 +1,10 @@
 @page logger_public_api Logger public API guide
 
-This page is the user-facing guide for the Logger public API. Header comments stay compact for IntelliSense; this page explains how the pieces fit together and when to choose each API.
+This page explains how the Logger public API fits together and when to choose each API.
 
 ## Include files
 
-Use the class API through:
+Use the namespace module API through:
 
 ```cpp
 #include "logger/logger.h"
@@ -16,7 +16,7 @@ Use the optional lazy global macros through:
 #include "logger/logger_macros.h"
 ```
 
-The class API is the primary API. The macro header is opt-in and should be included only where the global `LOGGER_*` convenience macros are wanted.
+The namespace module API is the primary API. The macro header is opt-in and should be included only where the global `LOGGER_*` convenience macros are wanted.
 
 ## API family map
 

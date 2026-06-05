@@ -35,7 +35,7 @@ namespace
     {
 #if GAMEWIP_ASSERT_TEST_HOOKS
         bool overrideValue = false;
-        if (GameWIP::Debug::Assert::TestHooks::Detail::popupSuppressedOverride(overrideValue))
+        if (GameWIP::Debug::Assert::Detail::TestHooks::popupSuppressedOverride(overrideValue))
         {
             return overrideValue;
         }
@@ -220,7 +220,8 @@ namespace
             return defaultAction;
         }
     }
-} // namespace
+}
+
 
 #if GAMEWIP_ASSERT_TEST_HOOKS
 namespace GameWIP::Debug::Assert::TestHooks
@@ -269,21 +270,23 @@ namespace GameWIP::Debug::Assert::TestHooks
 
     bool debuggerAttachedForTest() noexcept
     {
-        return GameWIP::Debug::Assert::Platform::isDebuggerAttached();
+        return GameWIP::Debug::Assert::Detail::Platform::isDebuggerAttached();
     }
 
     FailureAction showFailureActionDialogForTest(std::string_view title, std::string_view message, FailureAction defaultAction) noexcept
     {
-        return GameWIP::Debug::Assert::Platform::showFailureActionDialog(title, message, defaultAction);
+        return GameWIP::Debug::Assert::Detail::Platform::showFailureActionDialog(title, message, defaultAction);
     }
 
     void showErrorPopupForTest(std::string_view title, std::string_view message) noexcept
     {
-        GameWIP::Debug::Assert::Platform::showErrorPopup(title, message);
+        GameWIP::Debug::Assert::Detail::Platform::showErrorPopup(title, message);
     }
 
-    namespace Detail
-    {
+} // namespace GameWIP::Debug::Assert::TestHooks
+
+namespace GameWIP::Debug::Assert::Detail::TestHooks
+{
         bool consumeNextActionDialogFailure() noexcept
         {
             return consumeTestHook(assertTestHookState.nextActionDialogFailure);
@@ -313,11 +316,10 @@ namespace GameWIP::Debug::Assert::TestHooks
             suppressed = assertTestHookState.popupSuppressedOverrideValue.load(std::memory_order_acquire);
             return true;
         }
-    } // namespace Detail
-} // namespace GameWIP::Debug::Assert::TestHooks
+} // namespace GameWIP::Debug::Assert::Detail::TestHooks
 #endif
 
-namespace GameWIP::Debug::Assert::Platform
+namespace GameWIP::Debug::Assert::Detail::Platform
 {
     void showErrorPopup(std::string_view title, std::string_view message) noexcept
     {
@@ -345,12 +347,13 @@ namespace GameWIP::Debug::Assert::Platform
         constexpr int kIgnoreOnceButtonId = 1003;
         constexpr int kAlwaysIgnoreButtonId = 1004;
 
-        const TASKDIALOG_BUTTON buttons[] = {
-            {kBreakButtonId, L"Break"},
-            {kAbortButtonId, L"Abort"},
-            {kIgnoreOnceButtonId, L"Ignore Once"},
-            {kAlwaysIgnoreButtonId, L"Always Ignore"},
-        };
+        const TASKDIALOG_BUTTON buttons[] =
+            {
+                {kBreakButtonId, L"Break"},
+                {kAbortButtonId, L"Abort"},
+                {kIgnoreOnceButtonId, L"Ignore Once"},
+                {kAlwaysIgnoreButtonId, L"Always Ignore"},
+            };
 
         TASKDIALOGCONFIG config{};
         config.cbSize = sizeof(config);
@@ -388,7 +391,7 @@ namespace GameWIP::Debug::Assert::Platform
     {
 #if GAMEWIP_ASSERT_TEST_HOOKS
         bool overrideValue = false;
-        if (TestHooks::Detail::debuggerAttachedOverride(overrideValue))
+        if (GameWIP::Debug::Assert::Detail::TestHooks::debuggerAttachedOverride(overrideValue))
         {
             return overrideValue;
         }
@@ -400,4 +403,4 @@ namespace GameWIP::Debug::Assert::Platform
     {
         DebugBreak();
     }
-} // namespace GameWIP::Debug::Assert::Platform
+}

@@ -7,7 +7,7 @@ This page records how the generated Doxygen documentation is intended to be used
 GameWIP uses three documentation layers:
 
 - **Public header comments** are compact IntelliSense/API-reference contracts. They explain what a type/function/macro does, parameters, return values, lifecycle rules, thread-safety, blocking behavior, failure behavior, and the most important performance notes.
-- **Doxygen Markdown pages** are the full how-to manual. Project-wide Doxygen pages live under `docs/doxygen/`; library-owned manual pages stay beside each library under paths such as `foundation/<lib>/docs/` or `tools/<lib>/docs/`.
+- **Doxygen Markdown pages** are the full how-to manual. Project-wide Doxygen pages live under `docs/doxygen/`; library-owned manual pages stay beside each library under `tools/<lib>/docs/`.
 - **Implementation comments** are only for non-obvious internals such as locks, atomics, ownership, shutdown invariants, platform assumptions, rare failure paths, and test-hook behavior.
 - **Private `.txt` notes** under `docs/` are checklists and planning notes. They are not Doxygen inputs.
 
@@ -20,7 +20,6 @@ Each library owns its own `docs/` folder. The only required page is the library 
 ```text
 tools/logger/docs/logger.md
 tools/debug/assert/docs/assert.md
-foundation/io/docs/foundation_io.md
 ```
 
 The library chooses the rest of its pages. Common user-manual pages are `quick_start.md`, `public_api.md`, `examples.md`, and `troubleshooting.md`. Developer-only validation pages such as `testing.md` and `test_hooks.md` may exist, but they should be labeled clearly and kept separate from the normal user manual navigation.
@@ -53,7 +52,7 @@ The generated Doxyfile must use explicit inputs, `RECURSIVE = NO`, public header
 
 ## Navigation style
 
-The root page links only to major sections, such as IO, Logger, Assert, TestSupport, and remaining planned foundation contracts. Each library landing page owns its child page list with `@subpage` links. This keeps the sidebar useful instead of flattening every guide page under the root page.
+The root page links only to major sections, such as Logger, Assert, and TestSupport. Each library landing page owns its child page list with `@subpage` links. This keeps the sidebar useful instead of flattening every guide page under the root page.
 
 ## Test hooks
 

@@ -79,46 +79,6 @@ The project can build, run, log, assert, and accept basic input.
 
 ---
 
-## R00A - Foundation I/O Docs and Spec Pass
-
-Status: `[x]`
-
-* [x] Decide the `foundation/` folder/category structure.
-* [x] Add API contracts for IO, FileSystem, and Terminal.
-* [x] Add backend contract updates.
-* [x] Add public header stubs only.
-* [x] Document that behavior is not implemented yet.
-* [x] Document that Logger, Assert, and TestSupport are future foundation move candidates only.
-
-Completion goal:
-
-The project has stable written contracts for the planned foundation I/O layer without moving existing working libraries or implementing behavior.
-
----
-
-## R00B - Foundation I/O Implementation Pass
-
-Status: `[ ]`
-
-* [ ] Implement IO first.
-* [ ] Implement FileSystem second.
-* [ ] Implement Terminal third.
-* [ ] Add tests for normal paths.
-* [ ] Add tests for failure paths.
-* [ ] Add tests for Unicode paths.
-* [ ] Add tests for binary-safe I/O.
-* [ ] Add tests for atomic write behavior.
-* [ ] Add tests for directory listing.
-* [ ] Add tests for terminal capability detection.
-* [ ] Add tests for terminal redirection behavior.
-* [ ] Migrate Logger and TestSupport only after the new foundation libraries are tested.
-
-Completion goal:
-
-The foundation I/O libraries are implemented and tested in dependency order before any existing reusable libraries are migrated.
-
----
-
 # Phase 1 — Development Visibility
 
 This phase exists so future simulation work can be seen, debugged, heard, and tested.

@@ -111,9 +111,9 @@ namespace
     }
 
     /// @brief Returns the Win32 standard handle for a logger console stream.
-    HANDLE consoleHandle(GameWIP::LoggerDetail::Platform::ConsoleStream stream)
+    HANDLE consoleHandle(GameWIP::Logger::Detail::Platform::ConsoleStream stream)
     {
-        const DWORD handleId = stream == GameWIP::LoggerDetail::Platform::ConsoleStream::Stderr ? STD_ERROR_HANDLE : STD_OUTPUT_HANDLE;
+        const DWORD handleId = stream == GameWIP::Logger::Detail::Platform::ConsoleStream::Stderr ? STD_ERROR_HANDLE : STD_OUTPUT_HANDLE;
         return GetStdHandle(handleId);
     }
 
@@ -156,7 +156,7 @@ namespace
 #endif
 } // namespace
 
-namespace GameWIP::LoggerDetail::Platform
+namespace GameWIP::Logger::Detail::Platform
 {
     /// @brief Returns per-thread format scratch storage for Win32 logger formatting.
     /// @return Mutable per-thread scratch string.
@@ -173,7 +173,7 @@ namespace GameWIP::LoggerDetail::Platform
     /// @brief Writes a formatted log line to the Win32 debugger output stream.
     /// @param line UTF-8 log line, including caller-chosen trailing newline.
     /// @return Structured platform error, or source None on success.
-    Logger::Types::PlatformError writeDebugOutput(std::string_view line)
+    GameWIP::Logger::Types::PlatformError writeDebugOutput(std::string_view line)
     {
         std::wstring output;
         unsigned long error = 0;
@@ -194,7 +194,7 @@ namespace GameWIP::LoggerDetail::Platform
     /// @brief Displays a fatal error message using the Win32 Unicode message box API.
     /// @param message UTF-8 message text.
     /// @return Structured platform error, or source None on success.
-    Logger::Types::PlatformError showFatalPopup(std::string_view message)
+    GameWIP::Logger::Types::PlatformError showFatalPopup(std::string_view message)
     {
         std::wstring messageText;
         unsigned long error = 0;
@@ -221,7 +221,7 @@ namespace GameWIP::LoggerDetail::Platform
     /// @param timeFormat strftime-compatible format string.
     /// @param outText Receives formatted local-time text.
     /// @return Structured platform error, or source None on success.
-    Logger::Types::PlatformError formatLocalTime(std::time_t time, std::string_view timeFormat, std::string &outText)
+    GameWIP::Logger::Types::PlatformError formatLocalTime(std::time_t time, std::string_view timeFormat, std::string &outText)
     {
         outText.clear();
 
@@ -258,7 +258,7 @@ namespace GameWIP::LoggerDetail::Platform
     /// @param path UTF-8/narrow path text.
     /// @param outHandle Receives the opened file handle on success.
     /// @return Structured platform error, or source None on success.
-    Logger::Types::PlatformError openFileExclusive(std::string_view path, FileHandle &outHandle)
+    GameWIP::Logger::Types::PlatformError openFileExclusive(std::string_view path, FileHandle &outHandle)
     {
         outHandle = {};
 
@@ -287,7 +287,7 @@ namespace GameWIP::LoggerDetail::Platform
     /// @brief Creates a directory tree using Win32 calls.
     /// @param path UTF-8/narrow directory path.
     /// @return Structured platform error, or source None on success.
-    Logger::Types::PlatformError createDirectories(std::string_view path)
+    GameWIP::Logger::Types::PlatformError createDirectories(std::string_view path)
     {
         if (path.empty())
         {
@@ -366,7 +366,7 @@ namespace GameWIP::LoggerDetail::Platform
     /// @param handle File handle opened by openFileExclusive.
     /// @param text Bytes to write.
     /// @return Structured platform error, or source None on success.
-    Logger::Types::PlatformError writeFile(FileHandle handle, std::string_view text)
+    GameWIP::Logger::Types::PlatformError writeFile(FileHandle handle, std::string_view text)
     {
         if (!isFileOpen(handle))
         {
@@ -399,7 +399,7 @@ namespace GameWIP::LoggerDetail::Platform
     /// @brief Flushes a Win32 file handle.
     /// @param handle File handle opened by openFileExclusive.
     /// @return Structured platform error, or source None on success.
-    Logger::Types::PlatformError flushFile(FileHandle handle)
+    GameWIP::Logger::Types::PlatformError flushFile(FileHandle handle)
     {
         if (!isFileOpen(handle))
         {
@@ -477,4 +477,4 @@ namespace GameWIP::LoggerDetail::Platform
         memory.available = true;
         return memory;
     }
-} // namespace GameWIP::LoggerDetail::Platform
+} // namespace GameWIP::Logger::Detail::Platform

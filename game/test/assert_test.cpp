@@ -43,7 +43,7 @@
 
 namespace
 {
-    using Logger = GameWIP::Logger;
+    namespace Logger = GameWIP::Logger;
     namespace TestSupport = GameWIP::TestSupport;
     using AssertTestOptions = GameWIP::Test::AssertTestOptions;
     using Clock = std::chrono::steady_clock;
@@ -561,9 +561,9 @@ namespace
     /// @param context Test context.
     void testCompiledOutMessageEvaluation(TestContext &context)
     {
+#if !GAMEWIP_ASSERT_ENABLED
         int evaluations = 0;
 
-#if !GAMEWIP_ASSERT_ENABLED
         ASSERT_MSG(false, makeDiagnosticMessage(evaluations));
         ASSERT_INTERACTIVE_MSG(false, makeDiagnosticMessage(evaluations));
         VERIFY_MSG(false, makeDiagnosticMessage(evaluations));
@@ -608,6 +608,7 @@ namespace
 #if GAMEWIP_ASSERT_TEST_HOOKS
         using GameWIP::Debug::Assert::FailureAction;
         namespace AssertHooks = GameWIP::Debug::Assert::TestHooks;
+        namespace AssertHookDetail = GameWIP::Debug::Assert::Detail::TestHooks;
 
         AssertHooks::reset();
         AssertHooks::setDebuggerAttachedOverride(true);
@@ -622,8 +623,8 @@ namespace
             "Assert hook test",
             "Primary and fallback action dialogs are forced to fail; default action should be returned.",
             FailureAction::IgnoreOnce);
-        context.expectTrue("hook action dialog failure consumed", !AssertHooks::Detail::consumeNextActionDialogFailure());
-        context.expectTrue("hook fallback action dialog failure consumed", !AssertHooks::Detail::consumeNextFallbackActionDialogFailure());
+        context.expectTrue("hook action dialog failure consumed", !AssertHookDetail::consumeNextActionDialogFailure());
+        context.expectTrue("hook fallback action dialog failure consumed", !AssertHookDetail::consumeNextFallbackActionDialogFailure());
         context.expectTrue("hook action dialog default fallback", fallbackAction == FailureAction::IgnoreOnce);
 
         AssertHooks::setPopupSuppressedOverride(true);
@@ -1097,8 +1098,7 @@ namespace
         expectAbnormalChildExit(context, debugBreakChildArgument, "DEBUG_BREAK child exits abnormally");
     }
 
-    /// @brief Verifies UNREACHABLE exits abnormally unless disabled unreachable is configured as an optimizer
-    /// assumption.
+    /// @brief Verifies UNREACHABLE exits abnormally unless disabled unreachable is configured as an optimizer assumption.
     /// @param context Test context.
     void testUnreachableChild(TestContext &context)
     {
@@ -1176,9 +1176,7 @@ namespace
             const ScopedClearedEnvironmentVariable clearChildTestAction(testActionEnvironmentVariable);
             const ScopedClearedEnvironmentVariable clearChildSuppressPopup(suppressPopupEnvironmentVariable);
 
-            context.emit(
-                "[MANUAL] Assert UI Abort: a child process dialog should appear. Click Abort; the parent "
-                "should detect abnormal exit.\n");
+            context.emit("[MANUAL] Assert UI Abort: a child process dialog should appear. Click Abort; the parent should detect abnormal exit.\n");
             expectAbnormalChildExit(context, interactiveAbortChildArgument, "manual assert UI Abort child exits abnormally");
 
             const std::string childLogContents = readDirectoryFiles(childLogDirectory);
@@ -1335,7 +1333,7 @@ namespace
                 context.result().failed,
                 context.result().skipped));
     }
-}
+} // namespace
 
 namespace GameWIP::Test
 {
@@ -1385,8 +1383,7 @@ namespace GameWIP::Test
                 context.emit(std::format("[INFO] Assert test log root: {}\n", pathText(context.logRoot)));
                 context.emit(
                     std::format(
-                        "[INFO] Assert config: runtime={} enabled={} checks={} diagnostics={} "
-                        "popupAssert={} popupCheck={}\n",
+                        "[INFO] Assert config: runtime={} enabled={} checks={} diagnostics={} popupAssert={} popupCheck={}\n",
                         GAMEWIP_ASSERT_RUNTIME,
                         GAMEWIP_ASSERT_ENABLED,
                         GAMEWIP_ASSERT_CHECKS_ENABLED,
@@ -1395,8 +1392,8 @@ namespace GameWIP::Test
                         GAMEWIP_ASSERT_POPUP_ON_CHECK));
                 context.emit(
                     std::format(
-                        "[INFO] Assert test options: stress={} fatalChild={} performance={} automatedInteractive={} "
-                        "manualUi={} perfIterations={} stressThreads={} stressIterations={} report={}\n",
+                        "[INFO] Assert test options: stress={} fatalChild={} performance={} automatedInteractive={} manualUi={} perfIterations={} "
+                        "stressThreads={} stressIterations={} report={}\n",
                         options.enableStressTests,
                         options.enableChildCrashTests,
                         options.enablePerformanceMetrics,
@@ -1547,4 +1544,4 @@ namespace GameWIP::Test
         return runner.exitCode();
     }
 
-}
+} // namespace GameWIP::Test

@@ -21,7 +21,7 @@ target_include_directories(TestSupport PUBLIC
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 
-target_compile_features(TestSupport PUBLIC cxx_std_20)
+target_compile_features(TestSupport PUBLIC cxx_std_23)
 
 set_target_properties(TestSupport PROPERTIES
     ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"

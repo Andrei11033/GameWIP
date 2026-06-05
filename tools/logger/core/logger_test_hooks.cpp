@@ -3,7 +3,7 @@
 
 #include "logger/internal/logger_core.h"
 
-namespace GameWIP::LoggerDetail::Core
+namespace GameWIP::Logger::Detail::Core
 {
 #if GAMEWIP_LOGGER_TEST_HOOKS
     LoggerTestHookState loggerTestHookState;
@@ -23,12 +23,12 @@ namespace GameWIP::LoggerDetail::Core
         loggerTestHookState.nextTimedFlushTimeout.store(false, std::memory_order_release);
     }
 #endif
-} // namespace GameWIP::LoggerDetail::Core
+}
 
-using namespace GameWIP::LoggerDetail::Core;
+using namespace GameWIP::Logger::Detail::Core;
 
 #if GAMEWIP_LOGGER_TEST_HOOKS
-namespace GameWIP::LoggerDetail::TestHooks
+namespace GameWIP::Logger::TestHooks
 {
     void reset() noexcept
     {
@@ -64,5 +64,5 @@ namespace GameWIP::LoggerDetail::TestHooks
     {
         loggerTestHookState.nextTimedFlushTimeout.store(true, std::memory_order_release);
     }
-} // namespace GameWIP::LoggerDetail::TestHooks
+}
 #endif

@@ -3,7 +3,7 @@
 
 #include "logger/internal/logger_core.h"
 
-namespace GameWIP::LoggerDetail::Core
+namespace GameWIP::Logger::Detail::Core
 {
     //-------------------------------------------------------------------------------------------------
     // Formatting and sink helpers
@@ -17,7 +17,7 @@ namespace GameWIP::LoggerDetail::Core
     std::string formatTimeOrFallback(std::time_t time, std::string_view timeFormat, PlatformError &outError)
     {
         std::string text;
-        outError = GameWIP::LoggerDetail::Platform::formatLocalTime(time, timeFormat, text);
+        outError = GameWIP::Logger::Detail::Platform::formatLocalTime(time, timeFormat, text);
         if (hasPlatformError(outError))
         {
             return "invalid-time";
@@ -188,12 +188,7 @@ namespace GameWIP::LoggerDetail::Core
     /// @param levelText Level label.
     /// @param source Source text.
     /// @param message Message text.
-    void buildLogLine(
-        std::string &outMessage,
-        std::string_view timestamp,
-        std::string_view levelText,
-        std::string_view source,
-        std::string_view message)
+    void buildLogLine(std::string &outMessage, std::string_view timestamp, std::string_view levelText, std::string_view source, std::string_view message)
     {
         constexpr std::size_t fixedFormatLength = 8;
         const std::size_t requiredCapacity = timestamp.size() + levelText.size() + source.size() + message.size() + fixedFormatLength;
@@ -213,16 +208,16 @@ namespace GameWIP::LoggerDetail::Core
         outMessage.append("]: ");
         outMessage.append(message);
     }
-} // namespace GameWIP::LoggerDetail::Core
+}
 
-using namespace GameWIP::LoggerDetail::Core;
+using namespace GameWIP::Logger::Detail::Core;
 
 //-------------------------------------------------------------------------------------------------
 // Private Logger bridge accounting helpers
 //-------------------------------------------------------------------------------------------------
 
 /// @brief Counts an allocation/internal-format failure from public template catch paths.
-void GameWIP::Logger::recordAllocationFailure()
+void GameWIP::Logger::Detail::Core::recordAllocationFailure()
 {
     if ((loggerState().runtimeStateBits.load(std::memory_order_acquire) & kRuntimeStateRunningBit) != 0)
     {
@@ -231,7 +226,7 @@ void GameWIP::Logger::recordAllocationFailure()
 }
 
 /// @brief Counts an invalid runtime format failure from public template catch paths.
-void GameWIP::Logger::recordFormatFailure()
+void GameWIP::Logger::Detail::Core::recordFormatFailure()
 {
     if ((loggerState().runtimeStateBits.load(std::memory_order_acquire) & kRuntimeStateRunningBit) != 0)
     {
@@ -241,28 +236,28 @@ void GameWIP::Logger::recordFormatFailure()
 
 /// @brief Returns reusable per-thread format storage for header-only formatting overloads.
 /// @return Per-thread scratch string.
-std::string &GameWIP::Logger::formatScratch()
+std::string &GameWIP::Logger::Detail::Core::formatScratch()
 {
-    return GameWIP::LoggerDetail::Platform::formatScratchForThread();
+    return GameWIP::Logger::Detail::Platform::formatScratchForThread();
 }
 
 /// @brief Returns the active maximum message length for header-only bounded formatting.
 /// @return Current max message length.
-std::size_t GameWIP::Logger::getMaxMessageLengthForFormatting()
+std::size_t GameWIP::Logger::Detail::Core::getMaxMessageLengthForFormatting()
 {
     return loggerState().maxMessageLengthAtomic.load(std::memory_order_acquire);
 }
 
 /// @brief Returns the active formatted-message memory/speed policy.
 /// @return Current policy used by header-only formatting overloads.
-FormatPolicy GameWIP::Logger::getFormatPolicyForFormatting()
+FormatPolicy GameWIP::Logger::Detail::Core::getFormatPolicyForFormatting()
 {
     return formatPolicyFromValue(loggerState().formatPolicyAtomic.load(std::memory_order_acquire));
 }
 
 /// @brief Releases thread-local formatting scratch capacity when the active config requests it.
 /// @param scratch Scratch string to optionally shrink.
-void GameWIP::Logger::releaseFormatScratchIfNeeded(std::string &scratch)
+void GameWIP::Logger::Detail::Core::releaseFormatScratchIfNeeded(std::string &scratch)
 {
     if (!loggerState().releaseMessageMemoryAfterWriteAtomic.load(std::memory_order_acquire))
     {

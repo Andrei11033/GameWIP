@@ -1,6 +1,6 @@
 @page assert_public_api Assert public API guide
 
-This page is the user-facing guide for the Assert public API. Header comments stay compact for IntelliSense; this page explains the macro families, runtime types, and configuration macros in one place.
+This page explains the Assert macro families, runtime types, and configuration macros in one place.
 
 ## Include file
 

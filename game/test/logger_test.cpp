@@ -47,7 +47,7 @@
 
 namespace
 {
-    using Logger = GameWIP::Logger;
+    namespace Logger = GameWIP::Logger;
     namespace TestSupport = GameWIP::TestSupport;
     using LoggerTestOptions = GameWIP::Test::LoggerTestOptions;
     using Clock = std::chrono::steady_clock;
@@ -972,12 +972,12 @@ namespace
     {
 #if GAMEWIP_LOGGER_TEST_HOOKS
         ZoneScopedN("Logger test hook tests");
-        GameWIP::LoggerDetail::TestHooks::reset();
+        GameWIP::Logger::TestHooks::reset();
 
         {
             ScopedLoggerShutdown shutdown;
             OwnedLoggerConfig config = makeFileConfig(context, "hook-file-open", Logger::Types::Level::Trace);
-            GameWIP::LoggerDetail::TestHooks::forceNextFileOpenFailure();
+            GameWIP::Logger::TestHooks::forceNextFileOpenFailure();
             const Logger::Types::Result result = Logger::init(config.ready());
             expectEq(context, "hook forced file open retries successfully", result, Logger::Types::Result::Success);
             context.expectTrue("hook file open retry leaves logger running", Logger::isRunning());
@@ -996,7 +996,7 @@ namespace
             OwnedLoggerConfig config = makeFileConfig(context, "hook-allocation", Logger::Types::Level::Trace);
             expectInitSuccess(context, "hook allocation init", Logger::init(config.ready()));
             Logger::resetStats();
-            GameWIP::LoggerDetail::TestHooks::forceNextQueueAllocationFailure();
+            GameWIP::Logger::TestHooks::forceNextQueueAllocationFailure();
             Logger::info(testSource, "forced allocation failure");
             context.expectTrue("hook allocation failure flush", Logger::flush(2s));
             const Logger::Types::Stats stats = Logger::getStats();
@@ -1009,7 +1009,7 @@ namespace
             OwnedLoggerConfig config = makeFileConfig(context, "hook-file-flush", Logger::Types::Level::Trace);
             expectInitSuccess(context, "hook file flush init", Logger::init(config.ready()));
             Logger::resetStats();
-            GameWIP::LoggerDetail::TestHooks::forceNextFileFlushFailure();
+            GameWIP::Logger::TestHooks::forceNextFileFlushFailure();
             context.expectFalse("hook forced file flush failure", Logger::flush(2s));
             const Logger::Types::Stats stats = Logger::getStats();
             context.expectTrue("hook file flush failure counted", stats.fileWriteFailures > 0);
@@ -1020,7 +1020,7 @@ namespace
             OwnedLoggerConfig config = makeFileConfig(context, "hook-file-write", Logger::Types::Level::Trace);
             expectInitSuccess(context, "hook file write init", Logger::init(config.ready()));
             Logger::resetStats();
-            GameWIP::LoggerDetail::TestHooks::forceNextFileWriteFailure();
+            GameWIP::Logger::TestHooks::forceNextFileWriteFailure();
             Logger::report(Logger::Types::Level::Error, testSource, "forced file write failure report");
             const Logger::Types::Stats stats = Logger::getStats();
             context.expectTrue("hook file write failure counted", stats.fileWriteFailures > 0);
@@ -1031,7 +1031,7 @@ namespace
             Logger::Types::Config config = makeConsoleConfig(Logger::Types::Level::Trace);
             config.enableFatalPopup = true;
             expectInitSuccess(context, "hook fatal popup init", Logger::init(config));
-            GameWIP::LoggerDetail::TestHooks::forceNextFatalPopupFailure();
+            GameWIP::Logger::TestHooks::forceNextFatalPopupFailure();
             Logger::report(Logger::Types::Level::Fatal, testSource, Logger::Types::ReportPopup::Fatal, "forced fatal popup failure");
             const Logger::Types::PlatformError error = Logger::getLastPlatformError();
             context.expectTrue("hook fatal popup failure source", error.source == Logger::Types::PlatformErrorSource::FatalPopup);
@@ -1041,7 +1041,7 @@ namespace
             ScopedLoggerShutdown shutdown;
             OwnedLoggerConfig config = makeFileConfig(context, "hook-flush-timeout", Logger::Types::Level::Trace);
             expectInitSuccess(context, "hook timed flush init", Logger::init(config.ready()));
-            GameWIP::LoggerDetail::TestHooks::forceNextTimedFlushTimeout();
+            GameWIP::Logger::TestHooks::forceNextTimedFlushTimeout();
             context.expectFalse("hook timed flush timeout", Logger::flush(2s));
         }
 
@@ -1050,7 +1050,7 @@ namespace
             OwnedLoggerConfig config = makeFileConfig(context, "hook-report-timeout", Logger::Types::Level::Trace);
             expectInitSuccess(context, "hook report timeout init", Logger::init(config.ready()));
             Logger::resetStats();
-            GameWIP::LoggerDetail::TestHooks::forceNextTimedFlushTimeout();
+            GameWIP::Logger::TestHooks::forceNextTimedFlushTimeout();
             const bool flushed = Logger::reportError(testSource, Logger::flushTimeout(2s), "report timeout still writes first");
             context.expectFalse("hook report timeout returns bounded drain failure", flushed);
             const Logger::Types::Stats stats = Logger::getStats();
@@ -1063,7 +1063,7 @@ namespace
                 readWholeFile(logFile).find("report timeout still writes first") != std::string::npos);
         }
 
-        GameWIP::LoggerDetail::TestHooks::reset();
+        GameWIP::Logger::TestHooks::reset();
 #else
         context.pass("logger test hooks skipped because GAMEWIP_LOGGER_TEST_HOOKS=0");
 #endif
@@ -1543,8 +1543,8 @@ namespace
         context.expectTrue("flush active producers wrote logs", stats.written > 0);
         context.emit(
             std::format(
-                "[STRESS] flushWhileProducersActive threads={} flushAttempts={} flushSuccesses={} "
-                "flushTimeouts={} producerAttempts={} written={} queueDropped={} peakQueue={}\n",
+                "[STRESS] flushWhileProducersActive threads={} flushAttempts={} flushSuccesses={} flushTimeouts={} producerAttempts={} written={} "
+                "queueDropped={} peakQueue={}\n",
                 stressThreads,
                 flushCount,
                 flushSuccesses,
@@ -1711,8 +1711,8 @@ namespace
 
         context.emit(
             std::format(
-                "[METRIC] {} iterations={} ms={:.3f} nsPerCall={:.2f} queued={} written={} queueDropped={} diagnostics={} "
-                "truncated={} peak={} loggerRetained={} processPrivate={} processWorkingSet={}\n",
+                "[METRIC] {} iterations={} ms={:.3f} nsPerCall={:.2f} queued={} written={} queueDropped={} diagnostics={} truncated={} peak={} "
+                "loggerRetained={} processPrivate={} processWorkingSet={}\n",
                 name,
                 iterations,
                 milliseconds,
@@ -1844,8 +1844,8 @@ namespace
 
         context.emit(
             std::format(
-                "[SUMMARY] perfTotals scenarios={} measuredMessages={} producerMs={:.3f} nsPerMessage={:.2f} "
-                "queued={} written={} queueDropped={} diagnostics={} truncated={} peakQueue={}\n",
+                "[SUMMARY] perfTotals scenarios={} measuredMessages={} producerMs={:.3f} nsPerMessage={:.2f} queued={} written={} queueDropped={} "
+                "diagnostics={} truncated={} peakQueue={}\n",
                 totals.scenarioCount,
                 totals.measuredMessages,
                 totals.producerMilliseconds,
@@ -1862,8 +1862,7 @@ namespace
             const Logger::Types::MemoryStats &peak = context.loggerMemoryPeak.memory;
             context.emit(
                 std::format(
-                    "[SUMMARY] loggerMemoryPeak label={} retained={} queue={} arena={} sources={} "
-                    "entryHeap={} entryHeapInspectable={}\n",
+                    "[SUMMARY] loggerMemoryPeak label={} retained={} queue={} arena={} sources={} entryHeap={} entryHeapInspectable={}\n",
                     context.loggerMemoryPeak.label,
                     formatBytes(peak.loggerRetainedBytes),
                     formatBytes(peak.queueStorageBytes),
@@ -1903,7 +1902,7 @@ namespace
         }
         return false;
     }
-}
+} // namespace
 
 namespace GameWIP::Test
 {
@@ -1939,8 +1938,8 @@ namespace GameWIP::Test
                 context.emit(std::format("[INFO] Logger test log root: {}\n", pathText(context.logRoot)));
                 context.emit(
                     std::format(
-                        "[INFO] Logger test options: stress={} fatalChild={} performance={} manualUi={} "
-                        "loggerPopup={} perfIterations={} stressThreads={} stressIterations={} report={}\n",
+                        "[INFO] Logger test options: stress={} fatalChild={} performance={} manualUi={} loggerPopup={} perfIterations={} "
+                        "stressThreads={} stressIterations={} report={}\n",
                         options.enableStressTests,
                         options.enableChildCrashTests,
                         options.enablePerformanceMetrics,
@@ -2120,9 +2119,7 @@ namespace GameWIP::Test
                     {
                         if (options.enableManualUiTests)
                         {
-                            context.pass(
-                                "manual logger UI tests enabled; add explicit manual scenarios before running "
-                                "unattended");
+                            context.pass("manual logger UI tests enabled; add explicit manual scenarios before running unattended");
                         }
                         else
                         {
@@ -2151,4 +2148,4 @@ namespace GameWIP::Test
         return runner.exitCode();
     }
 
-}
+} // namespace GameWIP::Test

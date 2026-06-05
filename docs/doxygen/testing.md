@@ -13,6 +13,8 @@ CMake controls compile-time/build features:
 
 `TestRunOptions` in `game/main.cpp` controls what the test executable actually runs:
 
+- IO tests,
+- Terminal tests,
 - logger tests,
 - assert tests,
 - stress tests,
@@ -27,11 +29,12 @@ CMake controls compile-time/build features:
 ## Example hook-enabled test build
 
 ```powershell
-cmake -S . -B build-hooks `
+cmake -S . -B build-hooks -G Ninja `
   -DASSERT_ENABLED=ON `
   -DASSERT_CHECKS_ENABLED=ON `
   -DGAMEWIP_ENABLE_LOGGER_TEST_HOOKS=ON `
   -DGAMEWIP_ENABLE_ASSERT_TEST_HOOKS=ON `
+  -DGAMEWIP_ENABLE_TERMINAL_TEST_HOOKS=ON `
   -DGAMEWIP_ENABLE_COVERAGE=OFF `
   -DGAMEWIP_BUILD_DOCS=OFF
 
@@ -39,9 +42,11 @@ cmake --build build-hooks
 .\build-hooks\GameWIP.exe
 ```
 
-## Focused TestSupport library run
+## Focused library runs
 
 ```powershell
+.\build\GameWIP.exe --io-only
+.\build\GameWIP.exe --terminal-only
 .\build\GameWIP.exe --test-support-only
 ```
 

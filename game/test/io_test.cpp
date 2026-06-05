@@ -616,10 +616,8 @@ namespace
         IO::MemoryReader overlapReader(overlapSource);
         const IO::Types::ReadResult overlapRead = overlapReader.read(std::span<std::byte>(overlapSource).subspan(1, 3));
         static_cast<void>(context.expectTrue("MemoryReader overlapping read succeeds", overlapRead.status.ok()));
-        static_cast<void>(context.expectEq(
-            "MemoryReader overlapping read preserves source order",
-            makeBytes({0x10, 0x10, 0x20, 0x30}),
-            overlapSource));
+        static_cast<void>(
+            context.expectEq("MemoryReader overlapping read preserves source order", makeBytes({0x10, 0x10, 0x20, 0x30}), overlapSource));
 
         static_cast<void>(context.expectTrue("MemoryReader close succeeds", reader.close().ok()));
         static_cast<void>(context.expectFalse("MemoryReader reports closed state", reader.isOpen()));
@@ -627,10 +625,8 @@ namespace
         static_cast<void>(context.expectEq("MemoryReader read after close reports NotOpen", ErrorCode::NotOpen, reader.read(firstChunk).status.code));
         static_cast<void>(context.expectEq("MemoryReader position after close reports NotOpen", ErrorCode::NotOpen, reader.position().status.code));
         static_cast<void>(context.expectEq("MemoryReader size after close reports NotOpen", ErrorCode::NotOpen, reader.size().status.code));
-        static_cast<void>(context.expectEq(
-            "MemoryReader seek after close reports NotOpen",
-            ErrorCode::NotOpen,
-            reader.seek(0, IO::Types::SeekOrigin::Begin).code));
+        static_cast<void>(
+            context.expectEq("MemoryReader seek after close reports NotOpen", ErrorCode::NotOpen, reader.seek(0, IO::Types::SeekOrigin::Begin).code));
         static_cast<void>(context.expectTrue("MemoryReader repeated close succeeds", reader.close().ok()));
     }
 
@@ -726,10 +722,8 @@ namespace
             copyBytes(aliasWriter.bytes())));
 
         const std::vector<std::byte> takenBytes = aliasWriter.takeBytes();
-        static_cast<void>(context.expectEq(
-            "MemoryWriter takeBytes returns collected bytes",
-            makeBytes({0x01, 0x00, 0x02, 0xff, 0x00, 0x02}),
-            takenBytes));
+        static_cast<void>(
+            context.expectEq("MemoryWriter takeBytes returns collected bytes", makeBytes({0x01, 0x00, 0x02, 0xff, 0x00, 0x02}), takenBytes));
         static_cast<void>(context.expectTrue("MemoryWriter takeBytes leaves writer empty", aliasWriter.empty()));
         static_cast<void>(context.expectTrue("MemoryWriter remains open after takeBytes", aliasWriter.isOpen()));
         static_cast<void>(context.expectEq("MemoryWriter takeBytes resets position", std::uint64_t{0}, aliasWriter.position().position));
@@ -798,8 +792,7 @@ namespace
         static_cast<void>(context.expectEq("readAllBytes exact unknown-size limit preserves bytes", source, exactScratchLimit.bytes));
 
         ProbeFailureReader probeFailureReader(spanOf(source));
-        const IO::Types::ReadAllBytesResult probeFailure =
-            IO::readAllBytes(probeFailureReader, std::span<std::byte>(scratch), source.size());
+        const IO::Types::ReadAllBytesResult probeFailure = IO::readAllBytes(probeFailureReader, std::span<std::byte>(scratch), source.size());
         static_cast<void>(context.expectEq("readAllBytes propagates limit probe failure", ErrorCode::PermissionDenied, probeFailure.status.code));
         static_cast<void>(context.expectEq("readAllBytes limit probe failure preserves limited bytes", source, probeFailure.bytes));
 
@@ -816,8 +809,7 @@ namespace
         static_cast<void>(context.expectTrue("readAllBytes zero unknown limit returns no bytes", zeroLimitUnknown.bytes.empty()));
 
         UnknownSizeChunkReader emptyZeroLimitUnknownReader(spanOf(emptySource), 1);
-        const IO::Types::ReadAllBytesResult emptyZeroLimitUnknown =
-            IO::readAllBytes(emptyZeroLimitUnknownReader, std::span<std::byte>(scratch), 0);
+        const IO::Types::ReadAllBytesResult emptyZeroLimitUnknown = IO::readAllBytes(emptyZeroLimitUnknownReader, std::span<std::byte>(scratch), 0);
         static_cast<void>(context.expectTrue("readAllBytes zero limit accepts empty unknown stream", emptyZeroLimitUnknown.status.ok()));
 
         UnknownSizeChunkReader emptyScratchReader(spanOf(source), 1);
@@ -827,10 +819,8 @@ namespace
         SizeWithoutPositionReader sizeWithoutPositionReader(spanOf(source), 2);
         const IO::Types::ReadAllBytesResult sizeWithoutPosition = IO::readAllBytes(sizeWithoutPositionReader, std::span<std::byte>(scratch));
         static_cast<void>(context.expectTrue("readAllBytes falls back when size is known but position is not", sizeWithoutPosition.status.ok()));
-        static_cast<void>(context.expectEq(
-            "readAllBytes size-only fallback preserves remaining bytes",
-            makeBytes({0x00, 0xbe, 0xef}),
-            sizeWithoutPosition.bytes));
+        static_cast<void>(
+            context.expectEq("readAllBytes size-only fallback preserves remaining bytes", makeBytes({0x00, 0xbe, 0xef}), sizeWithoutPosition.bytes));
 
         ReportedSizeReader shortKnownReader(spanOf(source), source.size() + 2);
         const IO::Types::ReadAllBytesResult shortKnown = IO::readAllBytes(shortKnownReader, IO::kNoByteLimit, 2);
@@ -853,13 +843,11 @@ namespace
         const IO::Types::ReadAllBytesResult positionQueryFailure = IO::readAllBytes(positionQueryFailureReader, IO::kNoByteLimit, 2);
         static_cast<void>(
             context.expectEq("readAllBytes propagates position query failure", ErrorCode::PermissionDenied, positionQueryFailure.status.code));
-        static_cast<void>(
-            context.expectFalse("readAllBytes does not read after position query failure", positionQueryFailureReader.readCalled()));
+        static_cast<void>(context.expectFalse("readAllBytes does not read after position query failure", positionQueryFailureReader.readCalled()));
 
         ImpossiblePositionReader impossiblePositionReader;
         const IO::Types::ReadAllBytesResult impossiblePosition = IO::readAllBytes(impossiblePositionReader, IO::kNoByteLimit, 2);
-        static_cast<void>(
-            context.expectEq("readAllBytes rejects position beyond size", ErrorCode::InvalidArgument, impossiblePosition.status.code));
+        static_cast<void>(context.expectEq("readAllBytes rejects position beyond size", ErrorCode::InvalidArgument, impossiblePosition.status.code));
         static_cast<void>(context.expectFalse("readAllBytes does not read after impossible position", impossiblePositionReader.readCalled()));
 
         UnsupportedSizeReader unsupportedSizeReader(spanOf(source));
@@ -928,14 +916,12 @@ namespace
         static_cast<void>(context.expectEq("readAllText scratch overload preserves text", text, scratchResult.text));
 
         UnknownSizeChunkReader exactScratchLimitReader(bytesOf(text), 2, false);
-        const IO::Types::ReadAllTextResult exactScratchLimit =
-            IO::readAllText(exactScratchLimitReader, std::span<std::byte>(scratch), text.size());
+        const IO::Types::ReadAllTextResult exactScratchLimit = IO::readAllText(exactScratchLimitReader, std::span<std::byte>(scratch), text.size());
         static_cast<void>(context.expectTrue("readAllText accepts exact unknown-size limit after EOF probe", exactScratchLimit.status.ok()));
         static_cast<void>(context.expectEq("readAllText exact unknown-size limit preserves text", text, exactScratchLimit.text));
 
         ProbeFailureReader probeFailureReader(bytesOf(text));
-        const IO::Types::ReadAllTextResult probeFailure =
-            IO::readAllText(probeFailureReader, std::span<std::byte>(scratch), text.size());
+        const IO::Types::ReadAllTextResult probeFailure = IO::readAllText(probeFailureReader, std::span<std::byte>(scratch), text.size());
         static_cast<void>(context.expectEq("readAllText propagates limit probe failure", ErrorCode::PermissionDenied, probeFailure.status.code));
         static_cast<void>(context.expectEq("readAllText limit probe failure preserves limited text", text, probeFailure.text));
 
@@ -947,8 +933,7 @@ namespace
 
         const std::vector<std::byte> emptySource;
         UnknownSizeChunkReader emptyZeroLimitUnknownReader(spanOf(emptySource), 1);
-        const IO::Types::ReadAllTextResult emptyZeroLimitUnknown =
-            IO::readAllText(emptyZeroLimitUnknownReader, std::span<std::byte>(scratch), 0);
+        const IO::Types::ReadAllTextResult emptyZeroLimitUnknown = IO::readAllText(emptyZeroLimitUnknownReader, std::span<std::byte>(scratch), 0);
         static_cast<void>(context.expectTrue("readAllText zero limit accepts empty unknown stream", emptyZeroLimitUnknown.status.ok()));
 
         UnknownSizeChunkReader zeroLimitUnknownReader(bytesOf(text), 1);
@@ -976,8 +961,7 @@ namespace
         const IO::Types::ReadAllTextResult positionQueryFailure = IO::readAllText(positionQueryFailureReader, IO::kNoByteLimit, 4);
         static_cast<void>(
             context.expectEq("readAllText propagates position query failure", ErrorCode::PermissionDenied, positionQueryFailure.status.code));
-        static_cast<void>(
-            context.expectFalse("readAllText does not read after position query failure", positionQueryFailureReader.readCalled()));
+        static_cast<void>(context.expectFalse("readAllText does not read after position query failure", positionQueryFailureReader.readCalled()));
 
         ImpossiblePositionReader impossiblePositionReader;
         const IO::Types::ReadAllTextResult impossiblePosition = IO::readAllText(impossiblePositionReader, IO::kNoByteLimit, 4);
@@ -1050,7 +1034,7 @@ namespace
         const IO::Types::Status failureStatus = IO::writeAllText(failingWriter, text);
         static_cast<void>(context.expectEq("writeAllText propagates writer failure", ErrorCode::WriteFailed, failureStatus.code));
     }
-}
+} // namespace
 
 namespace GameWIP::Test
 {
@@ -1079,4 +1063,4 @@ namespace GameWIP::Test
         runner.summary(std::format("IO library self-tests passed={} failed={} skipped={}", result.passed, result.failed, result.skipped));
         return runner.exitCode();
     }
-}
+} // namespace GameWIP::Test

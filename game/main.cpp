@@ -4,6 +4,7 @@
 #include "test/assert_test.h"
 #include "test/io_test.h"
 #include "test/logger_test.h"
+#include "test/terminal_test.h"
 #include "test/test_support_test.h"
 
 #include <cstddef>
@@ -14,10 +15,11 @@ namespace
 {
     struct TestRunOptions
     {
-        bool runLoggerTests = false;
-        bool runAssertTests = false;
-        bool runTestSupportTests = false;
         bool runIOTests = true;
+        bool runTerminalTests = true;
+        bool runTestSupportTests = true;
+        bool runLoggerTests = true;
+        bool runAssertTests = true;
 
         bool enableStressTests = true;
         bool enableChildCrashTests = true;
@@ -78,30 +80,42 @@ namespace
             options.enableLoggerPopupTest = false;
         }
 
-        if (hasArgument(argc, argv, "--test-support-only"))
+        if (hasArgument(argc, argv, "--io-only"))
         {
-            options.runIOTests = false;
+            options.runTerminalTests = false;
+            options.runTestSupportTests = false;
             options.runLoggerTests = false;
             options.runAssertTests = false;
             options.enableManualUiTests = false;
             options.enableLoggerPopupTest = false;
         }
 
-        if (hasArgument(argc, argv, "--io-only"))
+        if (hasArgument(argc, argv, "--terminal-only"))
         {
+            options.runIOTests = false;
             options.runTestSupportTests = false;
             options.runLoggerTests = false;
             options.runAssertTests = false;
-            options.runIOTests = true;
+            options.enableManualUiTests = false;
+            options.enableLoggerPopupTest = false;
+        }
+
+        if (hasArgument(argc, argv, "--test-support-only"))
+        {
+            options.runIOTests = false;
+            options.runTerminalTests = false;
+            options.runLoggerTests = false;
+            options.runAssertTests = false;
             options.enableManualUiTests = false;
             options.enableLoggerPopupTest = false;
         }
 
         if (hasArgument(argc, argv, "--test-support-manual"))
         {
+            options.runIOTests = false;
+            options.runTerminalTests = false;
             options.runLoggerTests = false;
             options.runAssertTests = false;
-            options.runIOTests = false;
             options.runTestSupportTests = true;
             options.enableManualUiTests = true;
             options.enableLoggerPopupTest = false;
@@ -112,7 +126,33 @@ namespace
             options.enableTestSupportChildProcessTests = false;
         }
 
+        if (hasArgument(argc, argv, "--no-io-tests"))
+        {
+            options.runIOTests = false;
+        }
+
+        if (hasArgument(argc, argv, "--no-terminal-tests"))
+        {
+            options.runTerminalTests = false;
+        }
+
         return options;
+    }
+
+    GameWIP::Test::IOTestOptions makeIOOptions(const TestRunOptions &options)
+    {
+        return GameWIP::Test::IOTestOptions{
+            .writeReport = options.writeReport,
+            .appendReport = options.appendReport,
+            .reportPath = options.reportPath};
+    }
+
+    GameWIP::Test::TerminalTestOptions makeTerminalOptions(const TestRunOptions &options)
+    {
+        return GameWIP::Test::TerminalTestOptions{
+            .writeReport = options.writeReport,
+            .appendReport = options.appendReport,
+            .reportPath = options.reportPath};
     }
 
     GameWIP::Test::TestSupportTestOptions makeTestSupportOptions(const TestRunOptions &options)
@@ -121,14 +161,6 @@ namespace
             .enableChildProcessTests = options.enableTestSupportChildProcessTests,
             .enableStressTests = options.enableStressTests,
             .enableManualTests = options.enableManualUiTests,
-            .writeReport = options.writeReport,
-            .appendReport = options.appendReport,
-            .reportPath = options.reportPath};
-    }
-
-    GameWIP::Test::IOTestOptions makeIOOptions(const TestRunOptions &options)
-    {
-        return GameWIP::Test::IOTestOptions{
             .writeReport = options.writeReport,
             .appendReport = options.appendReport,
             .reportPath = options.reportPath};
@@ -165,20 +197,24 @@ namespace
             .appendReport = options.appendReport,
             .reportPath = options.reportPath};
     }
-}
+} // namespace
 
 int main(int argc, char **argv)
 {
     const TestRunOptions runOptions = makeRunOptions(argc, argv);
-    GameWIP::Test::TestSupportTestOptions testSupportTestOptions = makeTestSupportOptions(runOptions);
     GameWIP::Test::IOTestOptions ioTestOptions = makeIOOptions(runOptions);
+    GameWIP::Test::TerminalTestOptions terminalTestOptions = makeTerminalOptions(runOptions);
+    GameWIP::Test::TestSupportTestOptions testSupportTestOptions = makeTestSupportOptions(runOptions);
     GameWIP::Test::LoggerTestOptions loggerTestOptions = makeLoggerOptions(runOptions);
     GameWIP::Test::AssertTestOptions assertTestOptions = makeAssertOptions(runOptions);
 
-    testSupportTestOptions.appendReport = runOptions.appendReport;
-    ioTestOptions.appendReport = runOptions.appendReport || runOptions.runTestSupportTests;
-    loggerTestOptions.appendReport = runOptions.appendReport || runOptions.runTestSupportTests || runOptions.runIOTests;
-    assertTestOptions.appendReport = runOptions.appendReport || runOptions.runTestSupportTests || runOptions.runIOTests || runOptions.runLoggerTests;
+    ioTestOptions.appendReport = runOptions.appendReport;
+    terminalTestOptions.appendReport = runOptions.appendReport || runOptions.runIOTests;
+    testSupportTestOptions.appendReport = runOptions.appendReport || runOptions.runIOTests || runOptions.runTerminalTests;
+    loggerTestOptions.appendReport =
+        runOptions.appendReport || runOptions.runIOTests || runOptions.runTerminalTests || runOptions.runTestSupportTests;
+    assertTestOptions.appendReport = runOptions.appendReport || runOptions.runIOTests || runOptions.runTerminalTests ||
+                                     runOptions.runTestSupportTests || runOptions.runLoggerTests;
 
     if (hasArgumentPrefix(argc, argv, "--test-support-test-child="))
     {
@@ -197,9 +233,11 @@ int main(int argc, char **argv)
         return GameWIP::Test::runAssertTests(argc, argv, assertTestOptions);
     }
 
-    const int testSupportResult = runOptions.runTestSupportTests ? GameWIP::Test::runTestSupportTests(argc, argv, testSupportTestOptions) : 0;
     const int ioResult = runOptions.runIOTests ? GameWIP::Test::runIOTests(argc, argv, ioTestOptions) : 0;
+    const int terminalResult = runOptions.runTerminalTests ? GameWIP::Test::runTerminalTests(argc, argv, terminalTestOptions) : 0;
+    const int testSupportResult = runOptions.runTestSupportTests ? GameWIP::Test::runTestSupportTests(argc, argv, testSupportTestOptions) : 0;
     const int loggerResult = runOptions.runLoggerTests ? GameWIP::Test::runLoggerTests(argc, argv, loggerTestOptions) : 0;
     const int assertResult = runOptions.runAssertTests ? GameWIP::Test::runAssertTests(argc, argv, assertTestOptions) : 0;
-    return testSupportResult == 0 && ioResult == 0 && loggerResult == 0 && assertResult == 0 ? 0 : 1;
+
+    return ioResult == 0 && terminalResult == 0 && testSupportResult == 0 && loggerResult == 0 && assertResult == 0 ? 0 : 1;
 }

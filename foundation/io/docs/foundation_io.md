@@ -15,7 +15,7 @@ IO builds as a static library target.
 
 ## Normal user path
 
-Most users should read IO getting started first, then IO API reference. The runtime and performance page covers allocation, blocking, limits, and threading behavior. Developer validation contains focused test commands and coverage notes.
+Use the getting started and API reference pages for public integration. The runtime and performance page covers allocation, blocking, limits, and threading behavior. Developer validation contains focused test commands and coverage notes.
 
 ## Key behavior
 

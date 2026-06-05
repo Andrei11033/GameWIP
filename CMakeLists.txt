@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.20)
 project(GameWIP VERSION 0.0.1 LANGUAGES CXX)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
@@ -15,6 +15,7 @@ option(GAMEWIP_ENABLE_ASSERTS "Enable GameWIP assertions and recoverable checks"
 option(GAMEWIP_ENABLE_COVERAGE "Enable coverage instrumentation for GameWIP tests" OFF)
 option(GAMEWIP_ENABLE_LOGGER_TEST_HOOKS "Enable Logger internal test hooks" OFF)
 option(GAMEWIP_ENABLE_ASSERT_TEST_HOOKS "Enable Assert internal test hooks" OFF)
+option(GAMEWIP_ENABLE_TERMINAL_TEST_HOOKS "Enable Terminal internal test hooks" OFF)
 option(GAMEWIP_BUILD_DOCS "Build GameWIP Doxygen documentation" OFF)
 option(GAMEWIP_INSTALL_DOCS "Install generated Doxygen HTML documentation" OFF)
 
@@ -37,6 +38,7 @@ if(GAMEWIP_ENABLE_COVERAGE)
         set(GAMEWIP_COVERAGE_COMMON_ARGS
             --root "${CMAKE_CURRENT_SOURCE_DIR}"
             --filter "${CMAKE_CURRENT_SOURCE_DIR}/foundation/io"
+            --filter "${CMAKE_CURRENT_SOURCE_DIR}/foundation/terminal"
             --filter "${CMAKE_CURRENT_SOURCE_DIR}/tools/logger"
             --filter "${CMAKE_CURRENT_SOURCE_DIR}/tools/debug/assert"
             --filter "${CMAKE_CURRENT_SOURCE_DIR}/tools/test_support"
@@ -119,14 +121,6 @@ if(GAMEWIP_BUILD_DOCS)
         "${GAMEWIP_DOXYGEN_ROOT}/testing.md"
         "${GAMEWIP_DOXYGEN_ROOT}/mainpage.md"
     )
-
-    # Planned foundation contracts only. IO registers through its library target.
-    gamewip_register_doxygen_inputs(
-        "${CMAKE_CURRENT_SOURCE_DIR}/foundation/filesystem/filesystem.h"
-        "${CMAKE_CURRENT_SOURCE_DIR}/foundation/filesystem/docs"
-        "${CMAKE_CURRENT_SOURCE_DIR}/foundation/terminal/terminal.h"
-        "${CMAKE_CURRENT_SOURCE_DIR}/foundation/terminal/docs"
-    )
 endif()
 
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/GameWIPPlatform.cmake")
@@ -137,10 +131,12 @@ set(TRACY_ON_DEMAND ON CACHE BOOL "" FORCE)
 
 add_subdirectory(external/tracy)
 
-add_subdirectory(foundation/io)
-
 set(LOGGER_TEST_HOOKS ${GAMEWIP_ENABLE_LOGGER_TEST_HOOKS} CACHE BOOL "Enable Logger internal test hooks" FORCE)
 set(ASSERT_TEST_HOOKS ${GAMEWIP_ENABLE_ASSERT_TEST_HOOKS} CACHE BOOL "Enable Assert internal test hooks" FORCE)
+set(TERMINAL_TEST_HOOKS ${GAMEWIP_ENABLE_TERMINAL_TEST_HOOKS} CACHE BOOL "Enable Terminal internal test hooks" FORCE)
+
+add_subdirectory(foundation/io)
+add_subdirectory(foundation/terminal)
 
 add_subdirectory(tools/logger)
 
@@ -168,6 +164,7 @@ endif()
 add_executable(GameWIP
     game/main.cpp
     game/test/io_test.cpp
+    game/test/terminal_test.cpp
     game/test/test_support_test.cpp
     game/test/assert_test.cpp
     game/test/logger_test.cpp
@@ -182,6 +179,7 @@ endif()
 
 target_link_libraries(GameWIP PRIVATE
     GameWIP::IO
+    GameWIP::Terminal
     GameWIP::TestSupport
     GameWIP::Logger
     GameWIP::Assert
@@ -194,6 +192,7 @@ target_link_libraries(GameWIP PRIVATE
 
 target_include_directories(GameWIP PRIVATE
     game
+    foundation
     tools
 )
 

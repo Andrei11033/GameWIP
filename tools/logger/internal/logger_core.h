@@ -49,7 +49,7 @@
 #define LOGGER_DEFAULT_DIRECTORY "logs"
 #endif
 
-namespace GameWIP::LoggerDetail::Core
+namespace GameWIP::Logger::Detail::Core
 {
     using LogLevel = GameWIP::Logger::Types::Level;
     using OutputMode = GameWIP::Logger::Types::Output;
@@ -64,7 +64,7 @@ namespace GameWIP::LoggerDetail::Core
     using LoggerMemoryStats = GameWIP::Logger::Types::MemoryStats;
     using PlatformError = GameWIP::Logger::Types::PlatformError;
     using PlatformErrorSource = GameWIP::Logger::Types::PlatformErrorSource;
-    using FileHandle = GameWIP::LoggerDetail::Platform::FileHandle;
+    using FileHandle = GameWIP::Logger::Detail::Platform::FileHandle;
 
     /// @brief Inline source-text capacity before falling back to heap storage.
     constexpr std::size_t kInlineSourceCapacity = 64;
@@ -94,7 +94,8 @@ namespace GameWIP::LoggerDetail::Core
     constexpr std::uint32_t kQueueSlotSpinBeforeYield = 64;
 
     /// @brief Owns short text inline and falls back to std::string only when needed.
-    template <std::size_t InlineCapacity> class InlineLogText
+    template <std::size_t InlineCapacity>
+    class InlineLogText
     {
     public:
         /// @brief Copies text into inline storage when possible, otherwise into heap storage.
@@ -486,27 +487,21 @@ namespace GameWIP::LoggerDetail::Core
         /// @param displayName Copied display name.
         /// @param sourceEnabled Initial runtime filter state.
         RegisteredSource(SourceId source, std::string displayName, bool sourceEnabled)
-            : id(source)
-            , name(std::move(displayName))
-            , enabled(sourceEnabled)
+            : id(source), name(std::move(displayName)), enabled(sourceEnabled)
         {
         }
 
         /// @brief Copies source metadata and atomically snapshots the enabled flag.
         /// @param other Source entry to copy.
         RegisteredSource(const RegisteredSource &other)
-            : id(other.id)
-            , name(other.name)
-            , enabled(other.enabled.load(std::memory_order_relaxed))
+            : id(other.id), name(other.name), enabled(other.enabled.load(std::memory_order_relaxed))
         {
         }
 
         /// @brief Moves source metadata and atomically snapshots the enabled flag.
         /// @param other Source entry to move.
         RegisteredSource(RegisteredSource &&other) noexcept
-            : id(other.id)
-            , name(std::move(other.name))
-            , enabled(other.enabled.load(std::memory_order_relaxed))
+            : id(other.id), name(std::move(other.name)), enabled(other.enabled.load(std::memory_order_relaxed))
         {
         }
 
@@ -858,11 +853,7 @@ namespace GameWIP::LoggerDetail::Core
     void setResultUnlocked(LoggerResult result, PlatformError platformError = {});
     void recordResult(LoggerResult result, PlatformError platformError = {});
     void recordPlatformErrorIfAny(const PlatformError &platformError);
-    void preserveFirstInitResult(
-        LoggerResult &inOutResult,
-        LoggerResult candidateResult,
-        PlatformError &inOutPlatformError,
-        PlatformError candidatePlatformError = {});
+    void preserveFirstInitResult(LoggerResult &inOutResult, LoggerResult candidateResult, PlatformError &inOutPlatformError, PlatformError candidatePlatformError = {});
     void recordFileWriteFailure(PlatformError platformError = {});
     void countAllocationFailure();
     void countFormatFailure();
@@ -930,21 +921,11 @@ namespace GameWIP::LoggerDetail::Core
     void assignMessage(QueuedLogEntry &entry, std::string_view message, std::size_t maxMessageLength, bool &outTruncated);
     void buildTruncatedMessage(std::string &outMessage, std::string_view message, std::size_t maxMessageLength);
     std::string_view boundedMessageView(std::string_view message, bool alreadyTruncated, std::string &scratch, bool &outTruncated);
-    void buildLogLine(
-        std::string &outMessage,
-        std::string_view timestamp,
-        std::string_view levelText,
-        std::string_view source,
-        std::string_view message);
+    void buildLogLine(std::string &outMessage, std::string_view timestamp, std::string_view levelText, std::string_view source, std::string_view message);
     PlatformError openFileExclusiveForLogger(std::string_view path, FileHandle &outHandle);
     PlatformError writeFileForLogger(FileHandle handle, std::string_view text);
     PlatformError flushFileForLogger(FileHandle handle);
-    bool writeReportSynchronously(
-        LogLevel level,
-        std::string_view source,
-        std::string_view message,
-        bool unknownSource = false,
-        bool alreadyTruncated = false);
+    bool writeReportSynchronously(LogLevel level, std::string_view source, std::string_view message, bool unknownSource = false, bool alreadyTruncated = false);
     bool writeReportSynchronously(LogLevel level, SourceId source, std::string_view message, bool alreadyTruncated = false);
     SinkWriteResult writeLogEntry(
         const QueuedLogEntry &entry,
@@ -975,21 +956,11 @@ namespace GameWIP::LoggerDetail::Core
     void setOutputMode(OutputMode mode);
     OutputMode outputModeAfterFileSetupFailure(OutputMode requested, bool fallbackToConsole);
     EnqueueOutcome enqueuePendingLogEntry(const PendingLogEntry &entry, bool countDrops = true);
-    PendingLogEntry makePendingEntry(
-        LogLevel level,
-        std::string_view source,
-        std::string_view message,
-        bool bypassFilters = false,
-        bool alreadyTruncated = false);
-    PendingLogEntry makePendingEntry(
-        LogLevel level,
-        SourceId source,
-        std::string_view message,
-        bool bypassFilters = false,
-        bool alreadyTruncated = false);
+    PendingLogEntry makePendingEntry(LogLevel level, std::string_view source, std::string_view message, bool bypassFilters = false, bool alreadyTruncated = false);
+    PendingLogEntry makePendingEntry(LogLevel level, SourceId source, std::string_view message, bool bypassFilters = false, bool alreadyTruncated = false);
     EnqueueOutcome enqueueAndWakeWorker(const PendingLogEntry &entry, bool countDrops = true);
     void showFatalPopupIfEnabled(std::string_view message);
     bool flushSinksInternal();
     void flushInternal();
     bool flushInternal(std::chrono::milliseconds timeout);
-} // namespace GameWIP::LoggerDetail::Core
+}

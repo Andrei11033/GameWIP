@@ -21,4 +21,4 @@ target_include_directories(Input PUBLIC
     "${PROJECT_SOURCE_DIR}/engine"
 )
 
-target_compile_features(Input PUBLIC cxx_std_20)
+target_compile_features(Input PUBLIC cxx_std_23)

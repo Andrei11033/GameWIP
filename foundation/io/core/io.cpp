@@ -13,10 +13,8 @@
 #include <utility>
 #include <vector>
 
-namespace GameWIP::IO
+namespace GameWIP::IO::Detail::Core
 {
-    namespace
-    {
         /// @brief Returns whether a reader capability failure should be treated as unknown size/position.
         /// @param status Status returned by a reader capability query.
         /// @return True when helpers may continue through the unknown-size path.
@@ -501,7 +499,11 @@ namespace GameWIP::IO
                 }
             }
         }
-    } // namespace
+} // namespace GameWIP::IO::Detail::Core
+
+namespace GameWIP::IO
+{
+    using namespace Detail::Core;
 
     Types::Status makeStatus(Types::ErrorCode code, std::int64_t nativeCode, std::string message)
     {

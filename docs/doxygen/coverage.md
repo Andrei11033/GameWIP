@@ -5,11 +5,12 @@ Coverage is a build feature controlled by `GAMEWIP_ENABLE_COVERAGE`. It is not a
 ## Build and run
 
 ```powershell
-cmake -S . -B build-coverage `
+cmake -S . -B build-coverage -G Ninja `
   -DASSERT_ENABLED=ON `
   -DASSERT_CHECKS_ENABLED=ON `
   -DGAMEWIP_ENABLE_LOGGER_TEST_HOOKS=ON `
   -DGAMEWIP_ENABLE_ASSERT_TEST_HOOKS=ON `
+  -DGAMEWIP_ENABLE_TERMINAL_TEST_HOOKS=ON `
   -DGAMEWIP_ENABLE_COVERAGE=ON
 
 cmake --build build-coverage
@@ -34,7 +35,7 @@ python -m pip install gcovr
 
 ## gcov negative-hit warnings
 
-Some GCC/gcov versions can emit negative branch hit counts for valid programs. This is a known gcov data issue, not automatically a Logger or Assert bug. The coverage target passes:
+Some GCC/gcov versions can emit negative branch hit counts for valid programs. This is a known gcov data issue, not automatically a GameWIP library bug. The coverage target passes:
 
 ```text
 --gcov-ignore-parse-errors negative_hits.warn_once_per_file

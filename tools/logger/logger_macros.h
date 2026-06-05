@@ -16,14 +16,14 @@
 /// @brief Internal lazy logger macro body shared by the public `LOGGER_*` macros.
 /// @details Captures the source expression once and evaluates message/format arguments only after
 /// Logger::shouldLog() passes. Filtered logs are intentional skips and do not affect dropped-log counters.
-#define LOGGER_DETAIL(levelValue, callName, sourceValue, ...) \
-    do \
-    { \
-        auto &&loggerSource_ = (sourceValue); \
+#define LOGGER_DETAIL(levelValue, callName, sourceValue, ...)          \
+    do                                                                 \
+    {                                                                  \
+        auto &&loggerSource_ = (sourceValue);                          \
         if (::GameWIP::Logger::shouldLog((levelValue), loggerSource_)) \
-        { \
-            ::GameWIP::Logger::callName(loggerSource_, __VA_ARGS__); \
-        } \
+        {                                                              \
+            ::GameWIP::Logger::callName(loggerSource_, __VA_ARGS__);   \
+        }                                                              \
     } while (false)
 /// @endcond
 
@@ -58,15 +58,14 @@
 /// @brief Lazy Error logging. Message/format arguments are evaluated only when current filters allow Error.
 #define LOGGER_ERROR(source, ...) LOGGER_DETAIL(::GameWIP::Logger::Types::Level::Error, error, source, __VA_ARGS__)
 /// @def LOGGER_FATAL(source, ...)
-/// @brief Lazy Fatal logging. Message/format arguments are evaluated only when current filters allow Fatal. Does not
-/// terminate the process.
+/// @brief Lazy Fatal logging. Message/format arguments are evaluated only when current filters allow Fatal. Does not terminate the process.
 #define LOGGER_FATAL(source, ...) LOGGER_DETAIL(::GameWIP::Logger::Types::Level::Fatal, fatal, source, __VA_ARGS__)
 
 /// @def LOGGER_FATAL_TERMINATE(source, ...)
 /// @brief Logs Fatal, flushes, shows the fatal popup when enabled, then terminates the process.
-#define LOGGER_FATAL_TERMINATE(source, ...) \
-    do \
-    { \
+#define LOGGER_FATAL_TERMINATE(source, ...)                     \
+    do                                                          \
+    {                                                           \
         ::GameWIP::Logger::fatalTerminate(source, __VA_ARGS__); \
     } while (false)
 /// @}

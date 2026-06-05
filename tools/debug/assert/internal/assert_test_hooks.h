@@ -16,38 +16,38 @@ namespace GameWIP::Debug::Assert::TestHooks
 {
     /// @brief Clears all pending assert test-hook failures and overrides.
     /// @warning Test-only API. Available only when GAMEWIP_ASSERT_TEST_HOOKS is enabled.
-    ASSERT_API void reset() noexcept;
+    GAMEWIP_ASSERT_API void reset() noexcept;
 
     /// @brief Forces the next primary platform action-dialog attempt to fail.
     /// @warning Test-only API. The hook is one-shot and is intended to exercise fallback behavior.
-    ASSERT_API void forceNextActionDialogFailure() noexcept;
+    GAMEWIP_ASSERT_API void forceNextActionDialogFailure() noexcept;
 
     /// @brief Forces the next platform fallback action-dialog attempt to fail.
     /// @warning Test-only API. The hook is one-shot and is intended to exercise default-action fallback behavior.
-    ASSERT_API void forceNextFallbackActionDialogFailure() noexcept;
+    GAMEWIP_ASSERT_API void forceNextFallbackActionDialogFailure() noexcept;
 
     /// @brief Overrides the debugger-attached query used by assert failure handling.
     /// @param attached Value returned while the override is active.
     /// @warning Test-only API. Persistent until clearDebuggerAttachedOverride() or reset().
-    ASSERT_API void setDebuggerAttachedOverride(bool attached) noexcept;
+    GAMEWIP_ASSERT_API void setDebuggerAttachedOverride(bool attached) noexcept;
 
     /// @brief Clears the debugger-attached override.
     /// @warning Test-only API.
-    ASSERT_API void clearDebuggerAttachedOverride() noexcept;
+    GAMEWIP_ASSERT_API void clearDebuggerAttachedOverride() noexcept;
 
     /// @brief Overrides popup-suppression checks used by assert failure handling.
     /// @param suppressed Value returned while the override is active.
     /// @warning Test-only API. Persistent until clearPopupSuppressedOverride() or reset().
-    ASSERT_API void setPopupSuppressedOverride(bool suppressed) noexcept;
+    GAMEWIP_ASSERT_API void setPopupSuppressedOverride(bool suppressed) noexcept;
 
     /// @brief Clears the popup-suppression override.
     /// @warning Test-only API.
-    ASSERT_API void clearPopupSuppressedOverride() noexcept;
+    GAMEWIP_ASSERT_API void clearPopupSuppressedOverride() noexcept;
 
     /// @brief Queries the platform debugger-attached state through the assert backend.
     /// @return True when the backend reports a debugger as attached, including any active test override.
     /// @warning Test-only API. Available only when GAMEWIP_ASSERT_TEST_HOOKS is enabled.
-    ASSERT_API bool debuggerAttachedForTest() noexcept;
+    GAMEWIP_ASSERT_API bool debuggerAttachedForTest() noexcept;
 
     /// @brief Exercises the platform interactive failure dialog path through the assert backend.
     /// @param title Dialog title text.
@@ -55,24 +55,25 @@ namespace GameWIP::Debug::Assert::TestHooks
     /// @param defaultAction Action returned when the backend cannot show a dialog.
     /// @return Selected or fallback action.
     /// @warning Test-only API. Available only when GAMEWIP_ASSERT_TEST_HOOKS is enabled.
-    ASSERT_API FailureAction showFailureActionDialogForTest(std::string_view title, std::string_view message, FailureAction defaultAction) noexcept;
+    GAMEWIP_ASSERT_API FailureAction showFailureActionDialogForTest(std::string_view title, std::string_view message, FailureAction defaultAction) noexcept;
 
     /// @brief Exercises the platform error-popup path through the assert backend.
     /// @param title Popup title text.
     /// @param message Popup body text.
     /// @warning Test-only API. Available only when GAMEWIP_ASSERT_TEST_HOOKS is enabled.
-    ASSERT_API void showErrorPopupForTest(std::string_view title, std::string_view message) noexcept;
+    GAMEWIP_ASSERT_API void showErrorPopupForTest(std::string_view title, std::string_view message) noexcept;
 
-    namespace Detail
-    {
-        /// @brief Consumes the one-shot primary action-dialog failure hook.
-        ASSERT_API bool consumeNextActionDialogFailure() noexcept;
-        /// @brief Consumes the one-shot fallback action-dialog failure hook.
-        ASSERT_API bool consumeNextFallbackActionDialogFailure() noexcept;
-        /// @brief Reads the debugger-attached override when one is active.
-        ASSERT_API bool debuggerAttachedOverride(bool &attached) noexcept;
-        /// @brief Reads the popup-suppressed override when one is active.
-        ASSERT_API bool popupSuppressedOverride(bool &suppressed) noexcept;
-    } // namespace Detail
 } // namespace GameWIP::Debug::Assert::TestHooks
+
+namespace GameWIP::Debug::Assert::Detail::TestHooks
+{
+        /// @brief Consumes the one-shot primary action-dialog failure hook.
+        GAMEWIP_ASSERT_API bool consumeNextActionDialogFailure() noexcept;
+        /// @brief Consumes the one-shot fallback action-dialog failure hook.
+        GAMEWIP_ASSERT_API bool consumeNextFallbackActionDialogFailure() noexcept;
+        /// @brief Reads the debugger-attached override when one is active.
+        GAMEWIP_ASSERT_API bool debuggerAttachedOverride(bool &attached) noexcept;
+        /// @brief Reads the popup-suppressed override when one is active.
+        GAMEWIP_ASSERT_API bool popupSuppressedOverride(bool &suppressed) noexcept;
+} // namespace GameWIP::Debug::Assert::Detail::TestHooks
 #endif

@@ -3,7 +3,7 @@
 
 #include "logger/internal/logger_core.h"
 
-namespace GameWIP::LoggerDetail::Core
+namespace GameWIP::Logger::Detail::Core
 {
     LoggerState &loggerState()
     {
@@ -316,7 +316,8 @@ namespace GameWIP::LoggerDetail::Core
     /// @return True when producers are inactive, the queue is empty, and the worker is idle.
     bool entryTextHeapCapacityAvailableUnlocked()
     {
-        return !loggerState().workerBusy && loggerState().queueDepth.load(std::memory_order_acquire) == 0 &&
+        return !loggerState().workerBusy &&
+               loggerState().queueDepth.load(std::memory_order_acquire) == 0 &&
                loggerState().publishedQueueDepth.load(std::memory_order_acquire) == 0 &&
                loggerState().activeProducers.load(std::memory_order_acquire) == 0;
     }
@@ -459,18 +460,19 @@ namespace GameWIP::LoggerDetail::Core
     {
         const bool allowColor = loggerState().consoleColorEnabled;
         loggerState().stdoutColorEnabledAtomic.store(
-            allowColor && GameWIP::LoggerDetail::Platform::supportsAnsiColor(GameWIP::LoggerDetail::Platform::ConsoleStream::Stdout),
+            allowColor && GameWIP::Logger::Detail::Platform::supportsAnsiColor(GameWIP::Logger::Detail::Platform::ConsoleStream::Stdout),
             std::memory_order_release);
         loggerState().stderrColorEnabledAtomic.store(
-            allowColor && GameWIP::LoggerDetail::Platform::supportsAnsiColor(GameWIP::LoggerDetail::Platform::ConsoleStream::Stderr),
+            allowColor && GameWIP::Logger::Detail::Platform::supportsAnsiColor(GameWIP::Logger::Detail::Platform::ConsoleStream::Stderr),
             std::memory_order_release);
     }
 
     /// @brief Returns cached ANSI-color availability for the selected console stream.
     bool consoleColorEnabledForStream(bool useCerr)
     {
-        return useCerr ? loggerState().stderrColorEnabledAtomic.load(std::memory_order_acquire)
-                       : loggerState().stdoutColorEnabledAtomic.load(std::memory_order_acquire);
+        return useCerr
+                   ? loggerState().stderrColorEnabledAtomic.load(std::memory_order_acquire)
+                   : loggerState().stdoutColorEnabledAtomic.load(std::memory_order_acquire);
     }
 
     //-------------------------------------------------------------------------------------------------
@@ -680,9 +682,9 @@ namespace GameWIP::LoggerDetail::Core
 
         return OutputMode::None;
     }
-} // namespace GameWIP::LoggerDetail::Core
+}
 
-using namespace GameWIP::LoggerDetail::Core;
+using namespace GameWIP::Logger::Detail::Core;
 
 //-------------------------------------------------------------------------------------------------
 // Public query and lifecycle API
@@ -775,11 +777,15 @@ LoggerMemoryStats GameWIP::Logger::getMemoryStats()
         memory.sourceRegistryBytes = publishedSourceRegistryBytes();
         memory.entryTextHeapCapacityAvailable = entryTextHeapCapacityAvailableUnlocked();
         memory.entryTextHeapCapacityBytes = memory.entryTextHeapCapacityAvailable ? entryTextHeapCapacityBytesUnlocked() : 0;
-        memory.loggerRetainedBytes = sizeof(LoggerState) + memory.queueStorageBytes + memory.messageArenaBytes + memory.sourceRegistryBytes +
-                                     memory.entryTextHeapCapacityBytes;
+        memory.loggerRetainedBytes =
+            sizeof(LoggerState) +
+            memory.queueStorageBytes +
+            memory.messageArenaBytes +
+            memory.sourceRegistryBytes +
+            memory.entryTextHeapCapacityBytes;
     }
 
-    const GameWIP::LoggerDetail::Platform::ProcessMemory processMemory = GameWIP::LoggerDetail::Platform::queryProcessMemory();
+    const GameWIP::Logger::Detail::Platform::ProcessMemory processMemory = GameWIP::Logger::Detail::Platform::queryProcessMemory();
     memory.processWorkingSetBytes = processMemory.workingSetBytes;
     memory.processPrivateBytes = processMemory.privateBytes;
     memory.processMemoryAvailable = processMemory.available;
@@ -961,9 +967,9 @@ LoggerResult GameWIP::Logger::init(const Types::Config &config)
 
         {
             std::lock_guard<std::mutex> outputLock(loggerState().outputMutex);
-            if (GameWIP::LoggerDetail::Platform::isFileOpen(loggerState().logFile))
+            if (GameWIP::Logger::Detail::Platform::isFileOpen(loggerState().logFile))
             {
-                GameWIP::LoggerDetail::Platform::closeFile(loggerState().logFile);
+                GameWIP::Logger::Detail::Platform::closeFile(loggerState().logFile);
                 loggerState().logFile = {};
             }
             loggerState().fileOutputAvailableAtomic.store(false, std::memory_order_release);
@@ -991,9 +997,9 @@ LoggerResult GameWIP::Logger::init(const Types::Config &config)
 
     {
         std::lock_guard<std::mutex> outputLock(loggerState().outputMutex);
-        if (GameWIP::LoggerDetail::Platform::isFileOpen(loggerState().logFile))
+        if (GameWIP::Logger::Detail::Platform::isFileOpen(loggerState().logFile))
         {
-            GameWIP::LoggerDetail::Platform::closeFile(loggerState().logFile);
+            GameWIP::Logger::Detail::Platform::closeFile(loggerState().logFile);
             loggerState().logFile = {};
         }
         loggerState().fileOutputAvailableAtomic.store(false, std::memory_order_release);
@@ -1054,8 +1060,7 @@ LoggerResult GameWIP::Logger::init(const Types::Config &config)
     {
         try
         {
-            const std::string logDirectoryText =
-                config.logDirectory.empty() ? std::string(LOGGER_DEFAULT_DIRECTORY) : std::string(config.logDirectory);
+            const std::string logDirectoryText = config.logDirectory.empty() ? std::string(LOGGER_DEFAULT_DIRECTORY) : std::string(config.logDirectory);
 
             if (logDirectoryText.empty())
             {
@@ -1065,7 +1070,7 @@ LoggerResult GameWIP::Logger::init(const Types::Config &config)
             }
             else
             {
-                const PlatformError directoryError = GameWIP::LoggerDetail::Platform::createDirectories(logDirectoryText);
+                const PlatformError directoryError = GameWIP::Logger::Detail::Platform::createDirectories(logDirectoryText);
                 if (hasPlatformError(directoryError))
                 {
                     setOutputMode(outputModeAfterFileSetupFailure(config.output, config.fallbackToConsoleOnFileFailure));
@@ -1090,8 +1095,9 @@ LoggerResult GameWIP::Logger::init(const Types::Config &config)
                     std::lock_guard<std::mutex> outputLock(loggerState().outputMutex);
                     for (std::size_t index = 0; index <= kMaxCollisionAttempts; ++index)
                     {
-                        const std::string fileName =
-                            index == 0 ? std::string(logFileBaseName) + ".log" : std::string(logFileBaseName) + "_" + std::to_string(index) + ".log";
+                        const std::string fileName = index == 0
+                                                         ? std::string(logFileBaseName) + ".log"
+                                                         : std::string(logFileBaseName) + "_" + std::to_string(index) + ".log";
                         std::string nativeCandidatePath = logDirectoryText;
                         if (!nativeCandidatePath.empty() && nativeCandidatePath.back() != '/' && nativeCandidatePath.back() != '\\')
                         {
@@ -1185,9 +1191,9 @@ LoggerResult GameWIP::Logger::init(const Types::Config &config)
 
         {
             std::lock_guard<std::mutex> outputLock(loggerState().outputMutex);
-            if (GameWIP::LoggerDetail::Platform::isFileOpen(loggerState().logFile))
+            if (GameWIP::Logger::Detail::Platform::isFileOpen(loggerState().logFile))
             {
-                GameWIP::LoggerDetail::Platform::closeFile(loggerState().logFile);
+                GameWIP::Logger::Detail::Platform::closeFile(loggerState().logFile);
                 loggerState().logFile = {};
             }
         }
@@ -1248,9 +1254,9 @@ void GameWIP::Logger::shutdown()
 
     {
         std::lock_guard<std::mutex> outputLock(loggerState().outputMutex);
-        if (GameWIP::LoggerDetail::Platform::isFileOpen(loggerState().logFile))
+        if (GameWIP::Logger::Detail::Platform::isFileOpen(loggerState().logFile))
         {
-            GameWIP::LoggerDetail::Platform::closeFile(loggerState().logFile);
+            GameWIP::Logger::Detail::Platform::closeFile(loggerState().logFile);
             loggerState().logFile = {};
         }
         loggerState().fileOutputAvailableAtomic.store(false, std::memory_order_release);

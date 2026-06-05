@@ -13,10 +13,8 @@ The assert library reports through the Logger library. Fatal assertion paths use
 
 ## Normal user path
 
-Most users should read Assert getting started first, then Assert API reference. Macro behavior pages are the source of truth for enabled/disabled expression evaluation, diagnostics, fatal behavior, recoverable checks, and interactive developer actions. Developer validation pages are generated for maintainers and rare-path testing.
+Use the getting started and API reference pages for public integration. Macro behavior pages define enabled/disabled expression evaluation, diagnostics, fatal behavior, recoverable checks, and interactive developer actions. Developer validation pages are for maintainers and rare-path testing.
 
 ## Key behavior
 
 `ASSERT` is for fatal invariants. `VERIFY` is for fatal checks whose expression must always run. `CHECK` and `CHECK_ONCE` report recoverable failures. `ENSURE` evaluates exactly once, reports when enabled and false, and returns the boolean result. Interactive asserts are developer-only failure paths with Break, Abort, Ignore Once, and Always Ignore choices.
-
-Assert builds as a shared library target when runtime assertion handling is enabled.
