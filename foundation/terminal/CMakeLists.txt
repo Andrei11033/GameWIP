@@ -44,7 +44,7 @@ if(GAMEWIP_BUILD_DOCS AND COMMAND gamewip_register_doxygen_library)
     # target merges this into the unified GameWIP Doxygen site.
     gamewip_register_doxygen_library(
         NAME Terminal
-        PAGE_ID foundation_terminal
+        PAGE_ID terminal
         PUBLIC_HEADERS
             "${CMAKE_CURRENT_SOURCE_DIR}/terminal.h"
         DOCS

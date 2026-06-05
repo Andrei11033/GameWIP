@@ -6,9 +6,29 @@ Use normal logs for regular runtime information. Use reports for failures where 
 
 ## Documentation sections
 
+### User manual
+
 - @subpage logger_getting_started
+- @subpage logger_quick_start
+- @subpage logger_public_api
+- @subpage logger_examples
+- @subpage logger_troubleshooting
+- @subpage logger_configuration
+- @subpage logger_lifecycle
+- @subpage logger_macros
+- @subpage logger_reports
+- @subpage logger_stats
+
+### Reference and concepts
+
 - @subpage logger_api_reference
 - @subpage logger_runtime_behavior
+- @subpage logger_threading_performance
+
+### Developer validation
+
+- @subpage logger_testing
+- @subpage logger_test_hooks
 - @subpage logger_developer_validation
 
 ## Normal user path

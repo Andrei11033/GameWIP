@@ -24,4 +24,4 @@ namespace GameWIP::Test
     };
 
     int runLoggerTests(int argc, char **argv, const LoggerTestOptions &options = {});
-}
+} // namespace GameWIP::Test

@@ -1,4 +1,4 @@
-@page foundation_io IO
+@page io IO
 
 `GameWIP::IO` is the platform-neutral byte and text I/O contract library.
 
@@ -8,10 +8,25 @@ IO builds as a static library target.
 
 ## Documentation sections
 
-- @subpage foundation_io_getting_started
-- @subpage foundation_io_api_reference
-- @subpage foundation_io_runtime_performance
-- @subpage foundation_io_developer_validation
+### User manual
+
+- @subpage io_getting_started
+- @subpage io_quick_start
+- @subpage io_public_api
+- @subpage io_examples
+- @subpage io_troubleshooting
+
+### Reference and concepts
+
+- @subpage io_api_reference
+- @subpage io_reader_writer_contract
+- @subpage io_error_model
+- @subpage io_runtime_performance
+
+### Developer validation
+
+- @subpage io_testing
+- @subpage io_developer_validation
 
 ## Normal user path
 

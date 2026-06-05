@@ -77,37 +77,37 @@ namespace GameWIP::Input
     /// @brief Human-readable metadata for a bindable control.
     struct InputControlInfo
     {
-        InputControl control{};        // Control identifier used by InputState and Action.
-        std::string displayName{};     // UI/debug display name.
-        float minimumValue = 0.0f;     // Normalized minimum value for axes.
-        float maximumValue = 1.0f;     // Normalized maximum value for axes.
-        bool relative = false;         // True for relative controls such as mouse movement/wheels.
+        InputControl control{};    // Control identifier used by InputState and Action.
+        std::string displayName{}; // UI/debug display name.
+        float minimumValue = 0.0f; // Normalized minimum value for axes.
+        float maximumValue = 1.0f; // Normalized maximum value for axes.
+        bool relative = false;     // True for relative controls such as mouse movement/wheels.
     };
 
     /// @brief Human-readable metadata for a canonical input device.
     struct InputDeviceInfo
     {
-        InputDeviceRef device{};                                  // Runtime canonical device reference.
-        InputDeviceBackend backend = InputDeviceBackend::BuiltIn; // Primary backend, kept for older callers.
+        InputDeviceRef device{};                                         // Runtime canonical device reference.
+        InputDeviceBackend backend = InputDeviceBackend::BuiltIn;        // Primary backend, kept for older callers.
         InputDeviceBackend primaryBackend = InputDeviceBackend::BuiltIn; // Backend that owns the standard feed.
-        InputDeviceType deviceType = InputDeviceType::Keyboard;   // Device family.
-        std::string displayName{};                         // UI/debug display name.
-        std::string backendName{};                         // Backend label for duplicate/debug visibility.
-        std::string nativeIdentity{};                      // Backend-neutral stable-ish identity text.
-        std::uint64_t nativeIdentityHash = 0;              // Hash of nativeIdentity.
-        std::string hidNativeIdentity{};                   // Raw Input/HID identity text when attached.
-        std::uint64_t hidNativeIdentityHash = 0;           // Hash of hidNativeIdentity.
-        std::string xInputNativeIdentity{};                // XInput-side identity text when attached.
-        std::uint64_t xInputNativeIdentityHash = 0;        // Hash of xInputNativeIdentity.
-        std::uint16_t vendorId = 0;                        // USB vendor id when known.
-        std::uint16_t productId = 0;                       // USB product id when known.
-        bool connected = false;                            // True while connected.
-        bool canonical = true;                             // False when suppressed as a duplicate.
-        bool hasBuiltInFeed = false;                       // True when the built-in feed is attached.
-        bool hasXInputFeed = false;                        // True when an XInput feed is attached.
-        bool hasHidFeed = false;                           // True when a Raw Input/HID feed is attached.
-        std::string suppressionReason{};                   // Debug reason when a backend/feed is suppressed.
-        std::vector<InputControlInfo> controls{};          // Known bindable controls.
+        InputDeviceType deviceType = InputDeviceType::Keyboard;          // Device family.
+        std::string displayName{};                                       // UI/debug display name.
+        std::string backendName{};                                       // Backend label for duplicate/debug visibility.
+        std::string nativeIdentity{};                                    // Backend-neutral stable-ish identity text.
+        std::uint64_t nativeIdentityHash = 0;                            // Hash of nativeIdentity.
+        std::string hidNativeIdentity{};                                 // Raw Input/HID identity text when attached.
+        std::uint64_t hidNativeIdentityHash = 0;                         // Hash of hidNativeIdentity.
+        std::string xInputNativeIdentity{};                              // XInput-side identity text when attached.
+        std::uint64_t xInputNativeIdentityHash = 0;                      // Hash of xInputNativeIdentity.
+        std::uint16_t vendorId = 0;                                      // USB vendor id when known.
+        std::uint16_t productId = 0;                                     // USB product id when known.
+        bool connected = false;                                          // True while connected.
+        bool canonical = true;                                           // False when suppressed as a duplicate.
+        bool hasBuiltInFeed = false;                                     // True when the built-in feed is attached.
+        bool hasXInputFeed = false;                                      // True when an XInput feed is attached.
+        bool hasHidFeed = false;                                         // True when a Raw Input/HID feed is attached.
+        std::string suppressionReason{};                                 // Debug reason when a backend/feed is suppressed.
+        std::vector<InputControlInfo> controls{};                        // Known bindable controls.
     };
 
     namespace Internal
@@ -337,7 +337,7 @@ namespace GameWIP::Input
         inline constexpr ControlCode RightShift = 0xE5;
         inline constexpr ControlCode RightAlt = 0xE6;
         inline constexpr ControlCode RightSuper = 0xE7;
-    }
+    } // namespace KeyboardControlCode
 
     /// @brief Compares controls for equality.
     /// @param left First control to compare.
@@ -345,9 +345,7 @@ namespace GameWIP::Input
     /// @return True if both controls identify the same physical input.
     constexpr bool operator==(const InputControl &left, const InputControl &right)
     {
-        return left.deviceType == right.deviceType &&
-               left.deviceIndex == right.deviceIndex &&
-               left.controlType == right.controlType &&
+        return left.deviceType == right.deviceType && left.deviceIndex == right.deviceIndex && left.controlType == right.controlType &&
                left.controlCode == right.controlCode;
     }
 
@@ -357,8 +355,7 @@ namespace GameWIP::Input
     /// @return True when both references identify the same runtime device.
     constexpr bool operator==(InputDeviceRef left, InputDeviceRef right)
     {
-        return left.deviceType == right.deviceType &&
-               left.deviceIndex == right.deviceIndex;
+        return left.deviceType == right.deviceType && left.deviceIndex == right.deviceIndex;
     }
 
     /// @brief Orders device references for sorted storage.
@@ -693,4 +690,4 @@ namespace GameWIP::Input
         void setDeviceConnectedInternal(InputDeviceType deviceType, DeviceIndex deviceIndex, bool connected);
         void clearDeviceInternal(InputDeviceRef device);
     };
-}
+} // namespace GameWIP::Input

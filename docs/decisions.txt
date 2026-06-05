@@ -375,6 +375,8 @@ GameWIP::TerminalDetail
 
 Namespaces do not make code private by themselves. Privacy comes from public headers not including internal headers, internal headers not being installed as public API, compile-time hook gates, and documentation marking `Detail`/test-hook internals as non-production API.
 
+Future modernization may revisit this for reusable foundation and tool libraries with C++ modules and exported module interfaces. In that model, public headers may become compatibility wrappers that import module interfaces, public API names would be explicitly exported, and non-exported implementation code could keep `GameWIP::<Library>::Detail` without exposing it to importers. Assert may remain header/macro-based longer than the other libraries because assertion macros must expand to names visible from the consuming translation unit.
+
 ---
 
 # 9. Naming Standard

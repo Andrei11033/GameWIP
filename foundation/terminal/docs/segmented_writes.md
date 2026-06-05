@@ -1,4 +1,4 @@
-@page foundation_terminal_segmented_writes Terminal segmented writes
+@page terminal_segmented_writes Terminal segmented writes
 
 This page documents optimized segmented output behavior.
 

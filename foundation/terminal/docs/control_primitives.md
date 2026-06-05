@@ -1,4 +1,4 @@
-@page foundation_terminal_control_primitives Terminal control primitives
+@page terminal_control_primitives Terminal control primitives
 
 This page documents primitive terminal controls.
 

@@ -1,4 +1,4 @@
-@page foundation_io_error_model IO error model
+@page io_error_model IO error model
 
 `GameWIP::IO::Types::Status` is the shared error-reporting shape for expected I/O failures.
 

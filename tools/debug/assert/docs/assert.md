@@ -6,9 +6,27 @@ The assert library reports through the Logger library. Fatal assertion paths use
 
 ## Documentation sections
 
+### User manual
+
 - @subpage assert_getting_started
+- @subpage assert_quick_start
+- @subpage assert_public_api
+- @subpage assert_examples
+- @subpage assert_troubleshooting
+- @subpage assert_macros
+- @subpage assert_macro_behavior_overview
+- @subpage assert_diagnostics
+- @subpage assert_failure_actions
+- @subpage assert_interactive
+
+### Reference and concepts
+
 - @subpage assert_api_reference
-- @subpage assert_macro_behavior_group
+
+### Developer validation
+
+- @subpage assert_testing
+- @subpage assert_test_hooks
 - @subpage assert_developer_validation
 
 ## Normal user path

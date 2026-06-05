@@ -1,4 +1,4 @@
-@page foundation_terminal_input_modes Terminal input modes
+@page terminal_input_modes Terminal input modes
 
 This page documents terminal input mode behavior.
 

@@ -1,4 +1,4 @@
-@page foundation_terminal_capabilities_and_redirection Terminal capabilities and redirection
+@page terminal_capabilities_and_redirection Terminal capabilities and redirection
 
 This page documents capability and redirection behavior.
 

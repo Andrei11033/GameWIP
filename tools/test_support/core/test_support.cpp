@@ -5,6 +5,7 @@
 #include "test_support/internal/test_support_platform.h"
 
 #include <cmath>
+#include <cstdint>
 #include <fstream>
 #include <iostream>
 #include <stdexcept>
@@ -22,7 +23,7 @@ namespace GameWIP::TestSupport
             message << name << ": " << reason;
             return message.str();
         }
-    }
+    } // namespace
 
     namespace Detail
     {
@@ -41,9 +42,7 @@ namespace GameWIP::TestSupport
                         std::filesystem::create_directories(parentPath, error);
                     }
 
-                    const std::ios::openmode mode = options_.appendReport
-                                                        ? (std::ios::out | std::ios::app)
-                                                        : (std::ios::out | std::ios::trunc);
+                    const std::ios::openmode mode = options_.appendReport ? (std::ios::out | std::ios::app) : (std::ios::out | std::ios::trunc);
                     report_.open(options_.reportPath, mode);
                     reportOpenFailed_ = !report_.is_open();
                 }
@@ -97,7 +96,7 @@ namespace GameWIP::TestSupport
             std::mutex mutex_;
             bool reportOpenFailed_ = false;
         };
-    }
+    } // namespace Detail
 
     std::size_t Types::Summary::total() const noexcept
     {
@@ -120,7 +119,8 @@ namespace GameWIP::TestSupport
     }
 
     Context::Context(std::string_view suiteName, std::shared_ptr<Detail::ReportSink> reportSink)
-        : suiteName_(suiteName), reportSink_(std::move(reportSink))
+        : suiteName_(suiteName)
+        , reportSink_(std::move(reportSink))
     {
     }
 
@@ -161,10 +161,7 @@ namespace GameWIP::TestSupport
         writeLine("PASS", name);
     }
 
-    void Context::fail(
-        std::string_view name,
-        std::string_view reason,
-        std::source_location location)
+    void Context::fail(std::string_view name, std::string_view reason, std::source_location location)
     {
         {
             std::lock_guard lock(mutex_);
@@ -184,10 +181,7 @@ namespace GameWIP::TestSupport
         writeLine("SKIP", makeNameReason(name, reason));
     }
 
-    bool Context::expectTrue(
-        std::string_view name,
-        bool value,
-        std::source_location location)
+    bool Context::expectTrue(std::string_view name, bool value, std::source_location location)
     {
         if (value)
         {
@@ -199,10 +193,7 @@ namespace GameWIP::TestSupport
         return false;
     }
 
-    bool Context::expectFalse(
-        std::string_view name,
-        bool value,
-        std::source_location location)
+    bool Context::expectFalse(std::string_view name, bool value, std::source_location location)
     {
         if (!value)
         {
@@ -214,12 +205,7 @@ namespace GameWIP::TestSupport
         return false;
     }
 
-    bool Context::expectNear(
-        std::string_view name,
-        double expected,
-        double actual,
-        double tolerance,
-        std::source_location location)
+    bool Context::expectNear(std::string_view name, double expected, double actual, double tolerance, std::source_location location)
     {
         if (tolerance < 0.0)
         {
@@ -239,11 +225,7 @@ namespace GameWIP::TestSupport
         return false;
     }
 
-    bool Context::expectContains(
-        std::string_view name,
-        std::string_view text,
-        std::string_view expectedSubstring,
-        std::source_location location)
+    bool Context::expectContains(std::string_view name, std::string_view text, std::string_view expectedSubstring, std::source_location location)
     {
         if (text.find(expectedSubstring) != std::string_view::npos)
         {
@@ -290,8 +272,7 @@ namespace GameWIP::TestSupport
         }
 
         std::ostringstream reason;
-        reason << "expected " << expectedCount << " occurrences of '" << text
-               << "' in file '" << path.string() << "', got " << actualCount;
+        reason << "expected " << expectedCount << " occurrences of '" << text << "' in file '" << path.string() << "', got " << actualCount;
         fail(name, reason.str(), location);
         return false;
     }
@@ -317,16 +298,10 @@ namespace GameWIP::TestSupport
         reportSink_->write(category, suiteName_, message);
     }
 
-    void Context::writeFailureLine(
-        std::string_view name,
-        std::string_view reason,
-        const std::source_location &location)
+    void Context::writeFailureLine(std::string_view name, std::string_view reason, const std::source_location &location)
     {
         std::ostringstream message;
-        message << name << ": " << reason
-                << " (" << location.file_name()
-                << ':' << location.line()
-                << " in " << location.function_name() << ')';
+        message << name << ": " << reason << " (" << location.file_name() << ':' << location.line() << " in " << location.function_name() << ')';
         writeLine("FAIL", message.str());
     }
 
@@ -373,16 +348,14 @@ namespace GameWIP::TestSupport
         }
 
         std::ostringstream message;
-        message << result.name
-                << " passed=" << result.summary.passed
-                << " failed=" << result.summary.failed
-                << " skipped=" << result.summary.skipped
+        message << result.name << " passed=" << result.summary.passed << " failed=" << result.summary.failed << " skipped=" << result.summary.skipped
                 << " elapsedMs=" << result.elapsedMilliseconds;
         reportSink_->write("RESULT", message.str());
     }
 
     Section::Section(Context &context, std::string_view name)
-        : context_(context), name_(name)
+        : context_(context)
+        , name_(name)
     {
         std::ostringstream message;
         message << "begin section: " << name_;
@@ -445,20 +418,33 @@ namespace GameWIP::TestSupport
 
     std::string readTextFile(const std::filesystem::path &path)
     {
-        std::ifstream file(path, std::ios::binary);
+        std::ifstream file(path, std::ios::binary | std::ios::ate);
         if (!file.is_open())
         {
             return {};
         }
 
-        std::ostringstream contents;
-        contents << file.rdbuf();
-        return contents.str();
+        const auto endPosition = file.tellg();
+        if (endPosition <= std::ifstream::pos_type{0})
+        {
+            return {};
+        }
+
+        const auto fileSize = static_cast<std::uintmax_t>(endPosition);
+        std::string contents;
+        if (fileSize > contents.max_size())
+        {
+            throw std::length_error("GameWIP TestSupport text file is too large to read: " + path.string());
+        }
+
+        contents.resize(static_cast<std::size_t>(fileSize));
+        file.seekg(0, std::ios::beg);
+        file.read(contents.data(), static_cast<std::streamsize>(contents.size()));
+        contents.resize(static_cast<std::size_t>(file.gcount()));
+        return contents;
     }
 
-    void writeTextFile(
-        const std::filesystem::path &path,
-        std::string_view text)
+    void writeTextFile(const std::filesystem::path &path, std::string_view text)
     {
         const std::filesystem::path parentPath = path.parent_path();
         if (!parentPath.empty())
@@ -485,9 +471,7 @@ namespace GameWIP::TestSupport
         return std::filesystem::exists(path, error);
     }
 
-    bool fileContains(
-        const std::filesystem::path &path,
-        std::string_view text)
+    bool fileContains(const std::filesystem::path &path, std::string_view text)
     {
         if (!fileExists(path))
         {
@@ -497,9 +481,7 @@ namespace GameWIP::TestSupport
         return readTextFile(path).find(text) != std::string::npos;
     }
 
-    std::size_t countFileOccurrences(
-        const std::filesystem::path &path,
-        std::string_view text)
+    std::size_t countFileOccurrences(const std::filesystem::path &path, std::string_view text)
     {
         if (text.empty())
         {
@@ -614,8 +596,12 @@ namespace GameWIP::TestSupport
     void StartGate::wait()
     {
         std::unique_lock lock(mutex_);
-        condition_.wait(lock, [this]
-                        { return open_; });
+        condition_.wait(
+            lock,
+            [this]
+            {
+                return open_;
+            });
     }
 
     void StartGate::open()
@@ -636,4 +622,4 @@ namespace GameWIP::TestSupport
     {
         return stopRequested_.load(std::memory_order_acquire);
     }
-}
+} // namespace GameWIP::TestSupport

@@ -4,6 +4,8 @@
 
 This page documents the intended public API only. No FileSystem behavior or backend is implemented in this pass.
 
+Doxygen registration and the library target are still to be implemented. Until then, these pages are planning material rather than generated library manual pages.
+
 ## Documentation sections
 
 - @subpage foundation_filesystem_file_open_modes
@@ -24,7 +26,7 @@ namespace GameWIP::FileSystem;
 namespace GameWIP::FileSystem::Types;
 ```
 
-Passive public data shapes live under `GameWIP::FileSystem::Types`. Active APIs live directly under `GameWIP::FileSystem`.
+Value types live under `GameWIP::FileSystem::Types`. Active APIs live directly under `GameWIP::FileSystem`.
 
 ## Planned active API
 

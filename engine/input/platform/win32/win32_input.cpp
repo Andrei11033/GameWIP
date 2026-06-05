@@ -181,30 +181,14 @@ namespace
             return {};
         }
 
-        const int requiredSize = WideCharToMultiByte(
-            CP_UTF8,
-            0,
-            text.data(),
-            static_cast<int>(text.size()),
-            nullptr,
-            0,
-            nullptr,
-            nullptr);
+        const int requiredSize = WideCharToMultiByte(CP_UTF8, 0, text.data(), static_cast<int>(text.size()), nullptr, 0, nullptr, nullptr);
         if (requiredSize <= 0)
         {
             return {};
         }
 
         std::string output(static_cast<std::size_t>(requiredSize), '\0');
-        WideCharToMultiByte(
-            CP_UTF8,
-            0,
-            text.data(),
-            static_cast<int>(text.size()),
-            output.data(),
-            requiredSize,
-            nullptr,
-            nullptr);
+        WideCharToMultiByte(CP_UTF8, 0, text.data(), static_cast<int>(text.size()), output.data(), requiredSize, nullptr, nullptr);
         return output;
     }
 
@@ -286,14 +270,7 @@ namespace
 
     HANDLE openHidDevicePath(const std::wstring &path)
     {
-        return CreateFileW(
-            path.c_str(),
-            0,
-            FILE_SHARE_READ | FILE_SHARE_WRITE,
-            nullptr,
-            OPEN_EXISTING,
-            FILE_ATTRIBUTE_NORMAL,
-            nullptr);
+        return CreateFileW(path.c_str(), 0, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
     }
 
     std::string getHidProductName(const std::wstring &path)
@@ -349,14 +326,7 @@ namespace
     std::vector<std::string> readHardwareIds(HDEVINFO deviceInfoSet, SP_DEVINFO_DATA &deviceInfoData)
     {
         DWORD requiredSize = 0;
-        SetupDiGetDeviceRegistryPropertyW(
-            deviceInfoSet,
-            &deviceInfoData,
-            SPDRP_HARDWAREID,
-            nullptr,
-            nullptr,
-            0,
-            &requiredSize);
+        SetupDiGetDeviceRegistryPropertyW(deviceInfoSet, &deviceInfoData, SPDRP_HARDWAREID, nullptr, nullptr, 0, &requiredSize);
         if (requiredSize == 0)
         {
             return {};
@@ -432,13 +402,7 @@ namespace
 
             SP_DEVINFO_DATA deviceInfoData{};
             deviceInfoData.cbSize = sizeof(deviceInfoData);
-            if (SetupDiGetDeviceInterfaceDetailW(
-                    deviceInfoSet,
-                    &interfaceData,
-                    detailData,
-                    requiredSize,
-                    nullptr,
-                    &deviceInfoData) == FALSE)
+            if (SetupDiGetDeviceInterfaceDetailW(deviceInfoSet, &interfaceData, detailData, requiredSize, nullptr, &deviceInfoData) == FALSE)
             {
                 continue;
             }
@@ -477,9 +441,7 @@ namespace
     bool isSupportedHidUsage(USHORT usagePage, USHORT usage)
     {
         return usagePage == HID_USAGE_PAGE_GENERIC &&
-               (usage == HID_USAGE_GENERIC_GAMEPAD ||
-                usage == HID_USAGE_GENERIC_JOYSTICK ||
-                usage == HID_USAGE_GENERIC_MULTI_AXIS_CONTROLLER);
+               (usage == HID_USAGE_GENERIC_GAMEPAD || usage == HID_USAGE_GENERIC_JOYSTICK || usage == HID_USAGE_GENERIC_MULTI_AXIS_CONTROLLER);
     }
 
     ControlCode makeHidButtonCode(USAGE usage)
@@ -597,17 +559,12 @@ namespace
             return false;
         }
 
-        return usage == HID_USAGE_GENERIC_X ||
-               usage == HID_USAGE_GENERIC_Y ||
-               usage == HID_USAGE_GENERIC_Z ||
-               usage == HID_USAGE_GENERIC_RZ;
+        return usage == HID_USAGE_GENERIC_X || usage == HID_USAGE_GENERIC_Y || usage == HID_USAGE_GENERIC_Z || usage == HID_USAGE_GENERIC_RZ;
     }
 
     bool isInvertedCenteredHidAxis(InputDeviceType deviceType, USAGE usage)
     {
-        return deviceType == InputDeviceType::Gamepad &&
-               (usage == HID_USAGE_GENERIC_Y ||
-                usage == HID_USAGE_GENERIC_RZ);
+        return deviceType == InputDeviceType::Gamepad && (usage == HID_USAGE_GENERIC_Y || usage == HID_USAGE_GENERIC_RZ);
     }
 
     float normalizeHidValue(LONG value, LONG logicalMinimum, LONG logicalMaximum, InputDeviceType deviceType, USAGE usage)
@@ -617,8 +574,7 @@ namespace
             return 0.0f;
         }
 
-        const float normalized = static_cast<float>(value - logicalMinimum) /
-                                 static_cast<float>(logicalMaximum - logicalMinimum);
+        const float normalized = static_cast<float>(value - logicalMinimum) / static_cast<float>(logicalMaximum - logicalMinimum);
         if (logicalMinimum >= 0 && !isCenteredHidAxis(deviceType, usage))
         {
             return std::clamp(normalized, 0.0f, 1.0f);
@@ -633,7 +589,12 @@ namespace
         return centeredValue;
     }
 
-    void addControlInfo(std::vector<InputControlInfo> &controls, InputControl control, std::string displayName, float minimumValue, float maximumValue)
+    void addControlInfo(
+        std::vector<InputControlInfo> &controls,
+        InputControl control,
+        std::string displayName,
+        float minimumValue,
+        float maximumValue)
     {
         if (std::any_of(
                 controls.begin(),
@@ -646,12 +607,13 @@ namespace
             return;
         }
 
-        controls.push_back(InputControlInfo{
-            .control = control,
-            .displayName = std::move(displayName),
-            .minimumValue = minimumValue,
-            .maximumValue = maximumValue,
-            .relative = false});
+        controls.push_back(
+            InputControlInfo{
+                .control = control,
+                .displayName = std::move(displayName),
+                .minimumValue = minimumValue,
+                .maximumValue = maximumValue,
+                .relative = false});
     }
 
     bool loadHidPreparsedData(HidDeviceRuntime &runtime)
@@ -673,10 +635,7 @@ namespace
         return HidP_GetCaps(getPreparsedData(runtime), &runtime.caps) == HIDP_STATUS_SUCCESS;
     }
 
-    void buildHidButtonRuntime(
-        HidDeviceRuntime &runtime,
-        const HIDP_BUTTON_CAPS &cap,
-        std::vector<InputControlInfo> &controls)
+    void buildHidButtonRuntime(HidDeviceRuntime &runtime, const HIDP_BUTTON_CAPS &cap, std::vector<InputControlInfo> &controls)
     {
         HidButtonRuntime buttonRuntime{};
         buttonRuntime.usagePage = cap.UsagePage;
@@ -713,11 +672,7 @@ namespace
         addControlInfo(controls, valueRuntime.hatButtons[3], "D-Pad Left", 0.0f, 1.0f);
     }
 
-    void buildHidValueRuntime(
-        HidDeviceRuntime &runtime,
-        const HIDP_VALUE_CAPS &cap,
-        USAGE usage,
-        std::vector<InputControlInfo> &controls)
+    void buildHidValueRuntime(HidDeviceRuntime &runtime, const HIDP_VALUE_CAPS &cap, USAGE usage, std::vector<InputControlInfo> &controls)
     {
         HidValueRuntime valueRuntime{};
         valueRuntime.usagePage = cap.UsagePage;
@@ -735,12 +690,7 @@ namespace
         else
         {
             const bool centeredAxis = cap.LogicalMin < 0 || isCenteredHidAxis(runtime.deviceType, usage);
-            addControlInfo(
-                controls,
-                valueRuntime.control,
-                makeHidAxisName(runtime.deviceType, usage),
-                centeredAxis ? -1.0f : 0.0f,
-                1.0f);
+            addControlInfo(controls, valueRuntime.control, makeHidAxisName(runtime.deviceType, usage), centeredAxis ? -1.0f : 0.0f, 1.0f);
         }
 
         runtime.values.push_back(valueRuntime);
@@ -759,10 +709,7 @@ namespace
         return left != 0 && right != 0 && left == right;
     }
 
-    bool findBackendMergeTarget(
-        const InputDeviceRegistry &devices,
-        const InputDeviceInfo &backendInfo,
-        InputDeviceRef &outDevice)
+    bool findBackendMergeTarget(const InputDeviceRegistry &devices, const InputDeviceInfo &backendInfo, InputDeviceRef &outDevice)
     {
         bool found = false;
         bool ambiguous = false;
@@ -1003,13 +950,14 @@ namespace
             {
                 if (runtime.xInputCompatibleHid)
                 {
-                    xInputHidIdentities.push_back(XInputHidIdentity{
-                        .nativePath = runtime.nativePath,
-                        .nativeIdentity = wideToUtf8(runtime.nativePath),
-                        .nativeIdentityHash = hashWideIdentity(runtime.nativePath),
-                        .setupDeviceId = runtime.setupDeviceId,
-                        .vendorId = runtime.vendorId,
-                        .productId = runtime.productId});
+                    xInputHidIdentities.push_back(
+                        XInputHidIdentity{
+                            .nativePath = runtime.nativePath,
+                            .nativeIdentity = wideToUtf8(runtime.nativePath),
+                            .nativeIdentityHash = hashWideIdentity(runtime.nativePath),
+                            .setupDeviceId = runtime.setupDeviceId,
+                            .vendorId = runtime.vendorId,
+                            .productId = runtime.productId});
                 }
 
                 hidDevices.push_back(std::move(runtime));
@@ -1050,7 +998,12 @@ namespace
         InputInternal::InputStateAccess::setButton(inputState, valueRuntime.hatButtons[3], left);
     }
 
-    void feedHidButtons(InputState &inputState, HidDeviceRuntime &runtime, const HidButtonRuntime &buttonRuntime, const char *report, ULONG reportSize)
+    void feedHidButtons(
+        InputState &inputState,
+        HidDeviceRuntime &runtime,
+        const HidButtonRuntime &buttonRuntime,
+        const char *report,
+        ULONG reportSize)
     {
         if (buttonRuntime.controls.empty())
         {
@@ -1127,9 +1080,8 @@ namespace
 
     float normalizeUnsignedStickByte(unsigned char value, bool invert)
     {
-        float normalized = value < 128
-                               ? static_cast<float>(static_cast<int>(value) - 128) / 128.0f
-                               : static_cast<float>(static_cast<int>(value) - 128) / 127.0f;
+        float normalized =
+            value < 128 ? static_cast<float>(static_cast<int>(value) - 128) / 128.0f : static_cast<float>(static_cast<int>(value) - 128) / 127.0f;
         if (invert)
         {
             normalized = -normalized;
@@ -1160,11 +1112,8 @@ namespace
 
     bool tryFeedDualSenseReport(InputState &inputState, HidDeviceRuntime &runtime, const unsigned char *report, ULONG reportSize)
     {
-        if (runtime.deviceType != InputDeviceType::Gamepad ||
-            runtime.vendorId != 0x054C ||
-            (runtime.productId != 0x0CE6 && runtime.productId != 0x0DF2) ||
-            report == nullptr ||
-            reportSize < 12)
+        if (runtime.deviceType != InputDeviceType::Gamepad || runtime.vendorId != 0x054C ||
+            (runtime.productId != 0x0CE6 && runtime.productId != 0x0DF2) || report == nullptr || reportSize < 12)
         {
             return false;
         }
@@ -1189,12 +1138,30 @@ namespace
         }
 
         const InputDeviceRef device = runtime.device;
-        InputInternal::InputStateAccess::setAxis(inputState, makeGamepadAxis(device.deviceIndex, GamepadAxis::LeftX), normalizeUnsignedStickByte(report[commonOffset + 0], false));
-        InputInternal::InputStateAccess::setAxis(inputState, makeGamepadAxis(device.deviceIndex, GamepadAxis::LeftY), normalizeUnsignedStickByte(report[commonOffset + 1], true));
-        InputInternal::InputStateAccess::setAxis(inputState, makeGamepadAxis(device.deviceIndex, GamepadAxis::RightX), normalizeUnsignedStickByte(report[commonOffset + 2], false));
-        InputInternal::InputStateAccess::setAxis(inputState, makeGamepadAxis(device.deviceIndex, GamepadAxis::RightY), normalizeUnsignedStickByte(report[commonOffset + 3], true));
-        InputInternal::InputStateAccess::setAxis(inputState, makeGamepadAxis(device.deviceIndex, GamepadAxis::LeftTrigger), normalizeUnsignedTriggerByte(report[commonOffset + 4]));
-        InputInternal::InputStateAccess::setAxis(inputState, makeGamepadAxis(device.deviceIndex, GamepadAxis::RightTrigger), normalizeUnsignedTriggerByte(report[commonOffset + 5]));
+        InputInternal::InputStateAccess::setAxis(
+            inputState,
+            makeGamepadAxis(device.deviceIndex, GamepadAxis::LeftX),
+            normalizeUnsignedStickByte(report[commonOffset + 0], false));
+        InputInternal::InputStateAccess::setAxis(
+            inputState,
+            makeGamepadAxis(device.deviceIndex, GamepadAxis::LeftY),
+            normalizeUnsignedStickByte(report[commonOffset + 1], true));
+        InputInternal::InputStateAccess::setAxis(
+            inputState,
+            makeGamepadAxis(device.deviceIndex, GamepadAxis::RightX),
+            normalizeUnsignedStickByte(report[commonOffset + 2], false));
+        InputInternal::InputStateAccess::setAxis(
+            inputState,
+            makeGamepadAxis(device.deviceIndex, GamepadAxis::RightY),
+            normalizeUnsignedStickByte(report[commonOffset + 3], true));
+        InputInternal::InputStateAccess::setAxis(
+            inputState,
+            makeGamepadAxis(device.deviceIndex, GamepadAxis::LeftTrigger),
+            normalizeUnsignedTriggerByte(report[commonOffset + 4]));
+        InputInternal::InputStateAccess::setAxis(
+            inputState,
+            makeGamepadAxis(device.deviceIndex, GamepadAxis::RightTrigger),
+            normalizeUnsignedTriggerByte(report[commonOffset + 5]));
 
         const unsigned char buttons0 = report[commonOffset + 7];
         const unsigned char buttons1 = report[commonOffset + 8];
@@ -1224,7 +1191,8 @@ namespace
             runtime = findHidDevice(rawInput.header.hDevice);
         }
 
-        if (runtime == nullptr || !runtime->usable || !InputInternal::InputDeviceRegistryAccess::shouldFeedDeviceBackend(devices, runtime->device, InputDeviceBackend::RawInputHID))
+        if (runtime == nullptr || !runtime->usable ||
+            !InputInternal::InputDeviceRegistryAccess::shouldFeedDeviceBackend(devices, runtime->device, InputDeviceBackend::RawInputHID))
         {
             return false;
         }
@@ -1276,10 +1244,7 @@ namespace
         }
         attemptedXInputLoad = true;
 
-        constexpr std::array<const wchar_t *, 3> xInputLibraries{
-            L"xinput1_4.dll",
-            L"xinput1_3.dll",
-            L"xinput9_1_0.dll"};
+        constexpr std::array<const wchar_t *, 3> xInputLibraries{L"xinput1_4.dll", L"xinput1_3.dll", L"xinput9_1_0.dll"};
 
         for (const wchar_t *libraryName : xInputLibraries)
         {
@@ -1366,7 +1331,12 @@ namespace
         return false;
     }
 
-    void markGamepadDisconnected(InputState &inputState, InputDeviceRegistry &devices, DeviceIndex deviceIndex, std::size_t cacheIndex, std::uint64_t clearGeneration)
+    void markGamepadDisconnected(
+        InputState &inputState,
+        InputDeviceRegistry &devices,
+        DeviceIndex deviceIndex,
+        std::size_t cacheIndex,
+        std::uint64_t clearGeneration)
     {
         const InputDeviceRef device{InputDeviceType::Gamepad, deviceIndex};
         if (!isRegistryBackendDevice(devices, device, InputDeviceBackend::XInput))
@@ -1405,7 +1375,8 @@ namespace
             std::size_t cacheIndex = static_cast<std::size_t>(userIndex);
             if (cachedGamepadConnected[cacheIndex] || !gamepadControlsCleared[cacheIndex])
             {
-                DeviceIndex deviceIndex = cachedGamepadConnected[cacheIndex] ? cachedGamepadDeviceIndices[cacheIndex] : static_cast<DeviceIndex>(userIndex);
+                DeviceIndex deviceIndex =
+                    cachedGamepadConnected[cacheIndex] ? cachedGamepadDeviceIndices[cacheIndex] : static_cast<DeviceIndex>(userIndex);
                 markGamepadDisconnected(inputState, devices, deviceIndex, cacheIndex, clearGeneration);
             }
             else
@@ -1491,23 +1462,25 @@ namespace
         for (GamepadButton button : allGamepadButtons)
         {
             InputControl control = makeGamepadButton(deviceInfo.device.deviceIndex, button);
-            deviceInfo.controls.push_back(InputControlInfo{
-                .control = control,
-                .displayName = "Gamepad Button " + std::to_string(static_cast<int>(button)),
-                .minimumValue = 0.0f,
-                .maximumValue = 1.0f,
-                .relative = false});
+            deviceInfo.controls.push_back(
+                InputControlInfo{
+                    .control = control,
+                    .displayName = "Gamepad Button " + std::to_string(static_cast<int>(button)),
+                    .minimumValue = 0.0f,
+                    .maximumValue = 1.0f,
+                    .relative = false});
         }
 
         for (GamepadAxis axis : allGamepadAxes)
         {
             InputControl control = makeGamepadAxis(deviceInfo.device.deviceIndex, axis);
-            deviceInfo.controls.push_back(InputControlInfo{
-                .control = control,
-                .displayName = "Gamepad Axis " + std::to_string(static_cast<int>(axis)),
-                .minimumValue = axis == GamepadAxis::LeftTrigger || axis == GamepadAxis::RightTrigger ? 0.0f : -1.0f,
-                .maximumValue = 1.0f,
-                .relative = false});
+            deviceInfo.controls.push_back(
+                InputControlInfo{
+                    .control = control,
+                    .displayName = "Gamepad Axis " + std::to_string(static_cast<int>(axis)),
+                    .minimumValue = axis == GamepadAxis::LeftTrigger || axis == GamepadAxis::RightTrigger ? 0.0f : -1.0f,
+                    .maximumValue = 1.0f,
+                    .relative = false});
         }
 
         InputDeviceRef mergeTarget{};
@@ -1547,9 +1520,7 @@ namespace
     /// @brief Combines a UTF-16 surrogate pair into one Unicode codepoint.
     char32_t combineSurrogates(char16_t highSurrogate, char16_t lowSurrogate)
     {
-        return 0x10000 +
-               ((static_cast<char32_t>(highSurrogate) - 0xD800) << 10) +
-               (static_cast<char32_t>(lowSurrogate) - 0xDC00);
+        return 0x10000 + ((static_cast<char32_t>(highSurrogate) - 0xD800) << 10) + (static_cast<char32_t>(lowSurrogate) - 0xDC00);
     }
 
     /// @brief Feeds one UTF-16 code unit from WM_CHAR into text input.
@@ -2019,7 +1990,7 @@ namespace
 
         return false;
     }
-}
+} // namespace
 
 namespace GameWIP::Input::Platform::Win32
 {
@@ -2069,10 +2040,8 @@ namespace GameWIP::Input::Platform::Win32
                 cachedGamepadConnected[cacheIndex] = true;
                 cachedGamepadDeviceIndices[cacheIndex] = deviceIndex;
 
-                if (hasCachedGamepadPacket[cacheIndex] &&
-                    cachedGamepadInputStates[cacheIndex] == &inputState &&
-                    cachedGamepadPacketNumbers[cacheIndex] == state.dwPacketNumber &&
-                    cachedGamepadClearGenerations[cacheIndex] == clearGeneration)
+                if (hasCachedGamepadPacket[cacheIndex] && cachedGamepadInputStates[cacheIndex] == &inputState &&
+                    cachedGamepadPacketNumbers[cacheIndex] == state.dwPacketNumber && cachedGamepadClearGenerations[cacheIndex] == clearGeneration)
                 {
                     continue;
                 }
@@ -2102,10 +2071,7 @@ namespace GameWIP::Input::Platform::Win32
         switch (message)
         {
         case WM_MOUSEMOVE:
-            InputInternal::InputStateAccess::setMousePosition(
-                inputState,
-                getSignedLowWord(lParam),
-                getSignedHighWord(lParam));
+            InputInternal::InputStateAccess::setMousePosition(inputState, getSignedLowWord(lParam), getSignedHighWord(lParam));
             (void)wParam;
             return true;
         case WM_MOUSELEAVE:
@@ -2125,9 +2091,15 @@ namespace GameWIP::Input::Platform::Win32
         case WM_MBUTTONUP:
             return feedUiMouseButton(inputState, MouseButton::Middle, false);
         case WM_XBUTTONDOWN:
-            return feedUiMouseButton(inputState, GET_XBUTTON_WPARAM(static_cast<WPARAM>(wParam)) == XBUTTON1 ? MouseButton::X1 : MouseButton::X2, true);
+            return feedUiMouseButton(
+                inputState,
+                GET_XBUTTON_WPARAM(static_cast<WPARAM>(wParam)) == XBUTTON1 ? MouseButton::X1 : MouseButton::X2,
+                true);
         case WM_XBUTTONUP:
-            return feedUiMouseButton(inputState, GET_XBUTTON_WPARAM(static_cast<WPARAM>(wParam)) == XBUTTON1 ? MouseButton::X1 : MouseButton::X2, false);
+            return feedUiMouseButton(
+                inputState,
+                GET_XBUTTON_WPARAM(static_cast<WPARAM>(wParam)) == XBUTTON1 ? MouseButton::X1 : MouseButton::X2,
+                false);
         case WM_MOUSEWHEEL:
             return feedUiMouseWheel(inputState, MouseWheel::Vertical, wParam);
         case WM_MOUSEHWHEEL:
@@ -2226,4 +2198,4 @@ namespace GameWIP::Input::Platform::Win32
         refreshHidDevices(devices);
         return true;
     }
-}
+} // namespace GameWIP::Input::Platform::Win32

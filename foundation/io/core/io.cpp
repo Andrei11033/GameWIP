@@ -15,490 +15,490 @@
 
 namespace GameWIP::IO::Detail::Core
 {
-        /// @brief Returns whether a reader capability failure should be treated as unknown size/position.
-        /// @param status Status returned by a reader capability query.
-        /// @return True when helpers may continue through the unknown-size path.
-        [[nodiscard]] bool isUnsupportedReaderCapability(const Types::Status &status) noexcept
-        {
-            return status.code == Types::ErrorCode::NotSeekable || status.code == Types::ErrorCode::Unsupported;
-        }
+    /// @brief Returns whether a reader capability failure should be treated as unknown size/position.
+    /// @param status Status returned by a reader capability query.
+    /// @return True when helpers may continue through the unknown-size path.
+    [[nodiscard]] bool isUnsupportedReaderCapability(const Types::Status &status) noexcept
+    {
+        return status.code == Types::ErrorCode::NotSeekable || status.code == Types::ErrorCode::Unsupported;
+    }
 
-        /// @brief Creates a failed whole-stream byte read result without allocating a message.
-        /// @param code Error code to store.
-        /// @return Read-all result with empty bytes and the requested failure code.
-        [[nodiscard]] Types::ReadAllBytesResult makeReadAllBytesFailure(Types::ErrorCode code)
-        {
-            Types::ReadAllBytesResult result;
-            result.status = makeStatus(code);
-            return result;
-        }
+    /// @brief Creates a failed whole-stream byte read result without allocating a message.
+    /// @param code Error code to store.
+    /// @return Read-all result with empty bytes and the requested failure code.
+    [[nodiscard]] Types::ReadAllBytesResult makeReadAllBytesFailure(Types::ErrorCode code)
+    {
+        Types::ReadAllBytesResult result;
+        result.status = makeStatus(code);
+        return result;
+    }
 
-        /// @brief Creates a failed whole-stream text read result without allocating a message.
-        /// @param code Error code to store.
-        /// @return Read-all text result with empty text and the requested failure code.
-        [[nodiscard]] Types::ReadAllTextResult makeReadAllTextFailure(Types::ErrorCode code)
-        {
-            Types::ReadAllTextResult result;
-            result.status = makeStatus(code);
-            return result;
-        }
+    /// @brief Creates a failed whole-stream text read result without allocating a message.
+    /// @param code Error code to store.
+    /// @return Read-all text result with empty text and the requested failure code.
+    [[nodiscard]] Types::ReadAllTextResult makeReadAllTextFailure(Types::ErrorCode code)
+    {
+        Types::ReadAllTextResult result;
+        result.status = makeStatus(code);
+        return result;
+    }
 
-        struct KnownReadableByteCount
-        {
-            Types::Status status;
-            std::uint64_t byteCount = 0;
-            bool known = false;
-        };
+    struct KnownReadableByteCount
+    {
+        Types::Status status;
+        std::uint64_t byteCount = 0;
+        bool known = false;
+    };
 
-        /// @brief Finds a known readable byte count when a reader exposes size and optionally position.
-        /// @param reader Reader to query.
-        /// @return Known remaining bytes, unknown success, or a capability-query failure.
-        [[nodiscard]] KnownReadableByteCount knownReadableByteCount(Reader &reader)
-        {
-            KnownReadableByteCount result;
+    /// @brief Finds a known readable byte count when a reader exposes size and optionally position.
+    /// @param reader Reader to query.
+    /// @return Known remaining bytes, unknown success, or a capability-query failure.
+    [[nodiscard]] KnownReadableByteCount knownReadableByteCount(Reader &reader)
+    {
+        KnownReadableByteCount result;
 
-            const Types::SizeResult sizeResult = reader.size();
-            if (!sizeResult.status.ok())
+        const Types::SizeResult sizeResult = reader.size();
+        if (!sizeResult.status.ok())
+        {
+            if (isUnsupportedReaderCapability(sizeResult.status))
             {
-                if (isUnsupportedReaderCapability(sizeResult.status))
-                {
-                    return result;
-                }
-
-                result.status = sizeResult.status;
                 return result;
             }
 
-            result.known = true;
-            result.byteCount = sizeResult.sizeBytes;
+            result.status = sizeResult.status;
+            return result;
+        }
 
-            const Types::PositionResult positionResult = reader.position();
-            if (!positionResult.status.ok())
+        result.known = true;
+        result.byteCount = sizeResult.sizeBytes;
+
+        const Types::PositionResult positionResult = reader.position();
+        if (!positionResult.status.ok())
+        {
+            if (isUnsupportedReaderCapability(positionResult.status))
             {
-                if (isUnsupportedReaderCapability(positionResult.status))
-                {
-                    result.known = false;
-                    result.byteCount = 0;
-                    return result;
-                }
-
-                result.status = positionResult.status;
                 result.known = false;
                 result.byteCount = 0;
                 return result;
             }
 
-            if (positionResult.position > sizeResult.sizeBytes)
-            {
-                result.status = makeStatus(Types::ErrorCode::InvalidArgument);
-                result.known = false;
-                result.byteCount = 0;
-                return result;
-            }
-
-            result.byteCount = sizeResult.sizeBytes - positionResult.position;
+            result.status = positionResult.status;
+            result.known = false;
+            result.byteCount = 0;
             return result;
         }
 
-        /// @brief Reads a known number of bytes directly into the final output vector.
-        /// @param reader Reader to drain.
-        /// @param knownByteCount Known bytes remaining from the current reader position.
-        /// @param maxBytes Caller byte limit.
-        /// @return Collected bytes and final status.
-        [[nodiscard]] Types::ReadAllBytesResult readAllBytesKnownSize(Reader &reader, std::uint64_t knownByteCount, std::uint64_t maxBytes)
+        if (positionResult.position > sizeResult.sizeBytes)
         {
-            Types::ReadAllBytesResult result;
-
-            if (knownByteCount > maxBytes)
-            {
-                result.status = makeStatus(Types::ErrorCode::SizeLimitExceeded);
-                return result;
-            }
-
-            if (knownByteCount > static_cast<std::uint64_t>(result.bytes.max_size()))
-            {
-                result.status = makeStatus(Types::ErrorCode::SizeLimitExceeded);
-                return result;
-            }
-
-            if (knownByteCount == 0)
-            {
-                return result;
-            }
-
-            const auto expectedSize = static_cast<std::size_t>(knownByteCount);
-
-            try
-            {
-                result.bytes.resize(expectedSize);
-            }
-            catch (const std::bad_alloc &)
-            {
-                result.status = makeStatus(Types::ErrorCode::SizeLimitExceeded);
-                return result;
-            }
-
-            std::size_t totalRead = 0;
-
-            while (totalRead < expectedSize)
-            {
-                const std::span<std::byte> destination(result.bytes.data() + totalRead, expectedSize - totalRead);
-                const Types::ReadResult readResult = reader.read(destination);
-
-                if (readResult.bytesRead > destination.size())
-                {
-                    result.bytes.resize(totalRead);
-                    result.status = makeStatus(Types::ErrorCode::ReadFailed);
-                    return result;
-                }
-
-                totalRead += readResult.bytesRead;
-
-                if (!readResult.status.ok())
-                {
-                    result.bytes.resize(totalRead);
-                    result.status = readResult.status;
-                    return result;
-                }
-
-                if (readResult.endOfStream && totalRead < expectedSize)
-                {
-                    result.bytes.resize(totalRead);
-                    result.status = makeStatus(Types::ErrorCode::PartialRead);
-                    return result;
-                }
-
-                if (readResult.bytesRead == 0)
-                {
-                    result.bytes.resize(totalRead);
-                    result.status = makeStatus(Types::ErrorCode::ReadFailed);
-                    return result;
-                }
-            }
-
+            result.status = makeStatus(Types::ErrorCode::InvalidArgument);
+            result.known = false;
+            result.byteCount = 0;
             return result;
         }
 
-        /// @brief Reads a known number of bytes directly into the final output string.
-        /// @param reader Reader to drain.
-        /// @param knownByteCount Known bytes remaining from the current reader position.
-        /// @param maxBytes Caller byte limit.
-        /// @return Collected text bytes and final status.
-        [[nodiscard]] Types::ReadAllTextResult readAllTextKnownSize(Reader &reader, std::uint64_t knownByteCount, std::uint64_t maxBytes)
+        result.byteCount = sizeResult.sizeBytes - positionResult.position;
+        return result;
+    }
+
+    /// @brief Reads a known number of bytes directly into the final output vector.
+    /// @param reader Reader to drain.
+    /// @param knownByteCount Known bytes remaining from the current reader position.
+    /// @param maxBytes Caller byte limit.
+    /// @return Collected bytes and final status.
+    [[nodiscard]] Types::ReadAllBytesResult readAllBytesKnownSize(Reader &reader, std::uint64_t knownByteCount, std::uint64_t maxBytes)
+    {
+        Types::ReadAllBytesResult result;
+
+        if (knownByteCount > maxBytes)
         {
-            Types::ReadAllTextResult result;
-
-            if (knownByteCount > maxBytes)
-            {
-                result.status = makeStatus(Types::ErrorCode::SizeLimitExceeded);
-                return result;
-            }
-
-            if (knownByteCount > static_cast<std::uint64_t>(result.text.max_size()))
-            {
-                result.status = makeStatus(Types::ErrorCode::SizeLimitExceeded);
-                return result;
-            }
-
-            if (knownByteCount == 0)
-            {
-                return result;
-            }
-
-            const auto expectedSize = static_cast<std::size_t>(knownByteCount);
-
-            try
-            {
-                result.text.resize(expectedSize);
-            }
-            catch (const std::bad_alloc &)
-            {
-                result.status = makeStatus(Types::ErrorCode::SizeLimitExceeded);
-                return result;
-            }
-
-            std::size_t totalRead = 0;
-
-            while (totalRead < expectedSize)
-            {
-                const std::span<char> textDestination(result.text.data() + totalRead, expectedSize - totalRead);
-                const std::span<std::byte> destination = std::as_writable_bytes(textDestination);
-                const Types::ReadResult readResult = reader.read(destination);
-
-                if (readResult.bytesRead > destination.size())
-                {
-                    result.text.resize(totalRead);
-                    result.status = makeStatus(Types::ErrorCode::ReadFailed);
-                    return result;
-                }
-
-                totalRead += readResult.bytesRead;
-
-                if (!readResult.status.ok())
-                {
-                    result.text.resize(totalRead);
-                    result.status = readResult.status;
-                    return result;
-                }
-
-                if (readResult.endOfStream && totalRead < expectedSize)
-                {
-                    result.text.resize(totalRead);
-                    result.status = makeStatus(Types::ErrorCode::PartialRead);
-                    return result;
-                }
-
-                if (readResult.bytesRead == 0)
-                {
-                    result.text.resize(totalRead);
-                    result.status = makeStatus(Types::ErrorCode::ReadFailed);
-                    return result;
-                }
-            }
-
+            result.status = makeStatus(Types::ErrorCode::SizeLimitExceeded);
             return result;
         }
 
-        /// @brief Appends bytes to a vector without value-initializing the destination range first.
-        /// @param destination Destination vector.
-        /// @param source Source bytes to append.
-        /// @return Success or SizeLimitExceeded when allocation fails.
-        [[nodiscard]] Types::Status appendBytes(std::vector<std::byte> &destination, std::span<const std::byte> source)
+        if (knownByteCount > static_cast<std::uint64_t>(result.bytes.max_size()))
         {
-            if (source.empty())
+            result.status = makeStatus(Types::ErrorCode::SizeLimitExceeded);
+            return result;
+        }
+
+        if (knownByteCount == 0)
+        {
+            return result;
+        }
+
+        const auto expectedSize = static_cast<std::size_t>(knownByteCount);
+
+        try
+        {
+            result.bytes.resize(expectedSize);
+        }
+        catch (const std::bad_alloc &)
+        {
+            result.status = makeStatus(Types::ErrorCode::SizeLimitExceeded);
+            return result;
+        }
+
+        std::size_t totalRead = 0;
+
+        while (totalRead < expectedSize)
+        {
+            const std::span<std::byte> destination(result.bytes.data() + totalRead, expectedSize - totalRead);
+            const Types::ReadResult readResult = reader.read(destination);
+
+            if (readResult.bytesRead > destination.size())
             {
-                return successStatus();
+                result.bytes.resize(totalRead);
+                result.status = makeStatus(Types::ErrorCode::ReadFailed);
+                return result;
             }
 
-            if (source.size() > destination.max_size() - destination.size())
+            totalRead += readResult.bytesRead;
+
+            if (!readResult.status.ok())
             {
-                return makeStatus(Types::ErrorCode::SizeLimitExceeded);
+                result.bytes.resize(totalRead);
+                result.status = readResult.status;
+                return result;
             }
 
-            try
+            if (readResult.endOfStream && totalRead < expectedSize)
             {
-                destination.insert(destination.end(), source.begin(), source.end());
-            }
-            catch (const std::bad_alloc &)
-            {
-                return makeStatus(Types::ErrorCode::SizeLimitExceeded);
+                result.bytes.resize(totalRead);
+                result.status = makeStatus(Types::ErrorCode::PartialRead);
+                return result;
             }
 
+            if (readResult.bytesRead == 0)
+            {
+                result.bytes.resize(totalRead);
+                result.status = makeStatus(Types::ErrorCode::ReadFailed);
+                return result;
+            }
+        }
+
+        return result;
+    }
+
+    /// @brief Reads a known number of bytes directly into the final output string.
+    /// @param reader Reader to drain.
+    /// @param knownByteCount Known bytes remaining from the current reader position.
+    /// @param maxBytes Caller byte limit.
+    /// @return Collected text bytes and final status.
+    [[nodiscard]] Types::ReadAllTextResult readAllTextKnownSize(Reader &reader, std::uint64_t knownByteCount, std::uint64_t maxBytes)
+    {
+        Types::ReadAllTextResult result;
+
+        if (knownByteCount > maxBytes)
+        {
+            result.status = makeStatus(Types::ErrorCode::SizeLimitExceeded);
+            return result;
+        }
+
+        if (knownByteCount > static_cast<std::uint64_t>(result.text.max_size()))
+        {
+            result.status = makeStatus(Types::ErrorCode::SizeLimitExceeded);
+            return result;
+        }
+
+        if (knownByteCount == 0)
+        {
+            return result;
+        }
+
+        const auto expectedSize = static_cast<std::size_t>(knownByteCount);
+
+        try
+        {
+            result.text.resize(expectedSize);
+        }
+        catch (const std::bad_alloc &)
+        {
+            result.status = makeStatus(Types::ErrorCode::SizeLimitExceeded);
+            return result;
+        }
+
+        std::size_t totalRead = 0;
+
+        while (totalRead < expectedSize)
+        {
+            const std::span<char> textDestination(result.text.data() + totalRead, expectedSize - totalRead);
+            const std::span<std::byte> destination = std::as_writable_bytes(textDestination);
+            const Types::ReadResult readResult = reader.read(destination);
+
+            if (readResult.bytesRead > destination.size())
+            {
+                result.text.resize(totalRead);
+                result.status = makeStatus(Types::ErrorCode::ReadFailed);
+                return result;
+            }
+
+            totalRead += readResult.bytesRead;
+
+            if (!readResult.status.ok())
+            {
+                result.text.resize(totalRead);
+                result.status = readResult.status;
+                return result;
+            }
+
+            if (readResult.endOfStream && totalRead < expectedSize)
+            {
+                result.text.resize(totalRead);
+                result.status = makeStatus(Types::ErrorCode::PartialRead);
+                return result;
+            }
+
+            if (readResult.bytesRead == 0)
+            {
+                result.text.resize(totalRead);
+                result.status = makeStatus(Types::ErrorCode::ReadFailed);
+                return result;
+            }
+        }
+
+        return result;
+    }
+
+    /// @brief Appends bytes to a vector without value-initializing the destination range first.
+    /// @param destination Destination vector.
+    /// @param source Source bytes to append.
+    /// @return Success or SizeLimitExceeded when allocation fails.
+    [[nodiscard]] Types::Status appendBytes(std::vector<std::byte> &destination, std::span<const std::byte> source)
+    {
+        if (source.empty())
+        {
             return successStatus();
         }
 
-        /// @brief Appends bytes to a string without value-initializing the destination range first.
-        /// @param destination Destination string.
-        /// @param source Source bytes to append.
-        /// @return Success or SizeLimitExceeded when allocation fails.
-        [[nodiscard]] Types::Status appendTextBytes(std::string &destination, std::span<const std::byte> source)
+        if (source.size() > destination.max_size() - destination.size())
         {
-            if (source.empty())
-            {
-                return successStatus();
-            }
+            return makeStatus(Types::ErrorCode::SizeLimitExceeded);
+        }
 
-            if (source.size() > destination.max_size() - destination.size())
-            {
-                return makeStatus(Types::ErrorCode::SizeLimitExceeded);
-            }
+        try
+        {
+            destination.insert(destination.end(), source.begin(), source.end());
+        }
+        catch (const std::bad_alloc &)
+        {
+            return makeStatus(Types::ErrorCode::SizeLimitExceeded);
+        }
 
-            try
-            {
-                destination.append(reinterpret_cast<const char *>(source.data()), source.size());
-            }
-            catch (const std::bad_alloc &)
-            {
-                return makeStatus(Types::ErrorCode::SizeLimitExceeded);
-            }
+        return successStatus();
+    }
 
+    /// @brief Appends bytes to a string without value-initializing the destination range first.
+    /// @param destination Destination string.
+    /// @param source Source bytes to append.
+    /// @return Success or SizeLimitExceeded when allocation fails.
+    [[nodiscard]] Types::Status appendTextBytes(std::string &destination, std::span<const std::byte> source)
+    {
+        if (source.empty())
+        {
             return successStatus();
         }
 
-        /// @brief Appends a range already owned by a byte vector without allocating a temporary copy.
-        /// @param destination Destination vector that also owns the source bytes.
-        /// @param sourceOffset Byte offset of the source range in destination.
-        /// @param sourceSize Number of source bytes to append.
-        /// @return Success or SizeLimitExceeded when allocation fails.
-        [[nodiscard]] Types::Status appendAliasedBytes(std::vector<std::byte> &destination, std::size_t sourceOffset, std::size_t sourceSize)
+        if (source.size() > destination.max_size() - destination.size())
         {
-            const auto oldSize = destination.size();
+            return makeStatus(Types::ErrorCode::SizeLimitExceeded);
+        }
 
-            if (sourceOffset > oldSize || sourceSize > oldSize - sourceOffset)
-            {
-                return makeStatus(Types::ErrorCode::InvalidArgument);
-            }
+        try
+        {
+            destination.append(reinterpret_cast<const char *>(source.data()), source.size());
+        }
+        catch (const std::bad_alloc &)
+        {
+            return makeStatus(Types::ErrorCode::SizeLimitExceeded);
+        }
 
-            if (sourceSize > destination.max_size() - oldSize)
-            {
-                return makeStatus(Types::ErrorCode::SizeLimitExceeded);
-            }
+        return successStatus();
+    }
 
-            try
-            {
-                destination.resize(oldSize + sourceSize);
-            }
-            catch (const std::bad_alloc &)
-            {
-                return makeStatus(Types::ErrorCode::SizeLimitExceeded);
-            }
+    /// @brief Appends a range already owned by a byte vector without allocating a temporary copy.
+    /// @param destination Destination vector that also owns the source bytes.
+    /// @param sourceOffset Byte offset of the source range in destination.
+    /// @param sourceSize Number of source bytes to append.
+    /// @return Success or SizeLimitExceeded when allocation fails.
+    [[nodiscard]] Types::Status appendAliasedBytes(std::vector<std::byte> &destination, std::size_t sourceOffset, std::size_t sourceSize)
+    {
+        const auto oldSize = destination.size();
 
-            std::memcpy(destination.data() + oldSize, destination.data() + sourceOffset, sourceSize);
+        if (sourceOffset > oldSize || sourceSize > oldSize - sourceOffset)
+        {
+            return makeStatus(Types::ErrorCode::InvalidArgument);
+        }
+
+        if (sourceSize > destination.max_size() - oldSize)
+        {
+            return makeStatus(Types::ErrorCode::SizeLimitExceeded);
+        }
+
+        try
+        {
+            destination.resize(oldSize + sourceSize);
+        }
+        catch (const std::bad_alloc &)
+        {
+            return makeStatus(Types::ErrorCode::SizeLimitExceeded);
+        }
+
+        std::memcpy(destination.data() + oldSize, destination.data() + sourceOffset, sourceSize);
+        return successStatus();
+    }
+
+    /// @brief Probes an unknown-size reader after the caller byte limit has been collected.
+    /// @param reader Reader to probe.
+    /// @return Success for end-of-stream, SizeLimitExceeded for more data, or the observed failure.
+    [[nodiscard]] Types::Status probeForMoreData(Reader &reader)
+    {
+        std::byte probeByte;
+        const Types::ReadResult readResult = reader.read(std::span<std::byte>(&probeByte, 1));
+
+        if (readResult.bytesRead > 1)
+        {
+            return makeStatus(Types::ErrorCode::ReadFailed);
+        }
+
+        if (readResult.bytesRead > 0)
+        {
+            return makeStatus(Types::ErrorCode::SizeLimitExceeded);
+        }
+
+        if (!readResult.status.ok())
+        {
+            return readResult.status;
+        }
+
+        if (readResult.endOfStream)
+        {
             return successStatus();
         }
 
-        /// @brief Probes an unknown-size reader after the caller byte limit has been collected.
-        /// @param reader Reader to probe.
-        /// @return Success for end-of-stream, SizeLimitExceeded for more data, or the observed failure.
-        [[nodiscard]] Types::Status probeForMoreData(Reader &reader)
-        {
-            std::byte probeByte;
-            const Types::ReadResult readResult = reader.read(std::span<std::byte>(&probeByte, 1));
+        return makeStatus(Types::ErrorCode::ReadFailed);
+    }
 
-            if (readResult.bytesRead > 1)
+    /// @brief Reads unknown-size bytes through caller-provided scratch storage.
+    /// @param reader Reader to drain.
+    /// @param scratchBuffer Temporary transfer buffer. Must not be empty.
+    /// @param maxBytes Caller byte limit.
+    /// @return Collected bytes and final status.
+    [[nodiscard]] Types::ReadAllBytesResult readAllBytesWithScratch(Reader &reader, std::span<std::byte> scratchBuffer, std::uint64_t maxBytes)
+    {
+        Types::ReadAllBytesResult result;
+        std::uint64_t totalRead = 0;
+
+        while (true)
+        {
+            if (totalRead >= maxBytes)
             {
-                return makeStatus(Types::ErrorCode::ReadFailed);
+                result.status = probeForMoreData(reader);
+                return result;
+            }
+
+            const auto remainingLimit = maxBytes - totalRead;
+            const auto requestSize =
+                static_cast<std::size_t>(std::min<std::uint64_t>(static_cast<std::uint64_t>(scratchBuffer.size()), remainingLimit));
+            const std::span<std::byte> request = scratchBuffer.first(requestSize);
+            const Types::ReadResult readResult = reader.read(request);
+
+            if (readResult.bytesRead > requestSize)
+            {
+                result.status = makeStatus(Types::ErrorCode::ReadFailed);
+                return result;
             }
 
             if (readResult.bytesRead > 0)
             {
-                return makeStatus(Types::ErrorCode::SizeLimitExceeded);
+                const Types::Status appendStatus = appendBytes(result.bytes, std::as_bytes(request.first(readResult.bytesRead)));
+                if (!appendStatus.ok())
+                {
+                    result.status = appendStatus;
+                    return result;
+                }
+
+                totalRead += readResult.bytesRead;
             }
 
             if (!readResult.status.ok())
             {
-                return readResult.status;
+                result.status = readResult.status;
+                return result;
             }
 
             if (readResult.endOfStream)
             {
-                return successStatus();
+                return result;
             }
 
-            return makeStatus(Types::ErrorCode::ReadFailed);
-        }
-
-        /// @brief Reads unknown-size bytes through caller-provided scratch storage.
-        /// @param reader Reader to drain.
-        /// @param scratchBuffer Temporary transfer buffer. Must not be empty.
-        /// @param maxBytes Caller byte limit.
-        /// @return Collected bytes and final status.
-        [[nodiscard]] Types::ReadAllBytesResult readAllBytesWithScratch(Reader &reader, std::span<std::byte> scratchBuffer, std::uint64_t maxBytes)
-        {
-            Types::ReadAllBytesResult result;
-            std::uint64_t totalRead = 0;
-
-            while (true)
+            if (readResult.bytesRead == 0)
             {
-                if (totalRead >= maxBytes)
-                {
-                    result.status = probeForMoreData(reader);
-                    return result;
-                }
-
-                const auto remainingLimit = maxBytes - totalRead;
-                const auto requestSize =
-                    static_cast<std::size_t>(std::min<std::uint64_t>(static_cast<std::uint64_t>(scratchBuffer.size()), remainingLimit));
-                const std::span<std::byte> request = scratchBuffer.first(requestSize);
-                const Types::ReadResult readResult = reader.read(request);
-
-                if (readResult.bytesRead > requestSize)
-                {
-                    result.status = makeStatus(Types::ErrorCode::ReadFailed);
-                    return result;
-                }
-
-                if (readResult.bytesRead > 0)
-                {
-                    const Types::Status appendStatus = appendBytes(result.bytes, std::as_bytes(request.first(readResult.bytesRead)));
-                    if (!appendStatus.ok())
-                    {
-                        result.status = appendStatus;
-                        return result;
-                    }
-
-                    totalRead += readResult.bytesRead;
-                }
-
-                if (!readResult.status.ok())
-                {
-                    result.status = readResult.status;
-                    return result;
-                }
-
-                if (readResult.endOfStream)
-                {
-                    return result;
-                }
-
-                if (readResult.bytesRead == 0)
-                {
-                    result.status = makeStatus(Types::ErrorCode::ReadFailed);
-                    return result;
-                }
+                result.status = makeStatus(Types::ErrorCode::ReadFailed);
+                return result;
             }
         }
+    }
 
-        /// @brief Reads unknown-size text bytes through caller-provided scratch storage.
-        /// @param reader Reader to drain.
-        /// @param scratchBuffer Temporary transfer buffer. Must not be empty.
-        /// @param maxBytes Caller byte limit.
-        /// @return Collected text bytes and final status.
-        [[nodiscard]] Types::ReadAllTextResult readAllTextWithScratch(Reader &reader, std::span<std::byte> scratchBuffer, std::uint64_t maxBytes)
+    /// @brief Reads unknown-size text bytes through caller-provided scratch storage.
+    /// @param reader Reader to drain.
+    /// @param scratchBuffer Temporary transfer buffer. Must not be empty.
+    /// @param maxBytes Caller byte limit.
+    /// @return Collected text bytes and final status.
+    [[nodiscard]] Types::ReadAllTextResult readAllTextWithScratch(Reader &reader, std::span<std::byte> scratchBuffer, std::uint64_t maxBytes)
+    {
+        Types::ReadAllTextResult result;
+        std::uint64_t totalRead = 0;
+
+        while (true)
         {
-            Types::ReadAllTextResult result;
-            std::uint64_t totalRead = 0;
-
-            while (true)
+            if (totalRead >= maxBytes)
             {
-                if (totalRead >= maxBytes)
+                result.status = probeForMoreData(reader);
+                return result;
+            }
+
+            const auto remainingLimit = maxBytes - totalRead;
+            const auto requestSize =
+                static_cast<std::size_t>(std::min<std::uint64_t>(static_cast<std::uint64_t>(scratchBuffer.size()), remainingLimit));
+            const std::span<std::byte> request = scratchBuffer.first(requestSize);
+            const Types::ReadResult readResult = reader.read(request);
+
+            if (readResult.bytesRead > requestSize)
+            {
+                result.status = makeStatus(Types::ErrorCode::ReadFailed);
+                return result;
+            }
+
+            if (readResult.bytesRead > 0)
+            {
+                const Types::Status appendStatus = appendTextBytes(result.text, std::as_bytes(request.first(readResult.bytesRead)));
+                if (!appendStatus.ok())
                 {
-                    result.status = probeForMoreData(reader);
+                    result.status = appendStatus;
                     return result;
                 }
 
-                const auto remainingLimit = maxBytes - totalRead;
-                const auto requestSize =
-                    static_cast<std::size_t>(std::min<std::uint64_t>(static_cast<std::uint64_t>(scratchBuffer.size()), remainingLimit));
-                const std::span<std::byte> request = scratchBuffer.first(requestSize);
-                const Types::ReadResult readResult = reader.read(request);
+                totalRead += readResult.bytesRead;
+            }
 
-                if (readResult.bytesRead > requestSize)
-                {
-                    result.status = makeStatus(Types::ErrorCode::ReadFailed);
-                    return result;
-                }
+            if (!readResult.status.ok())
+            {
+                result.status = readResult.status;
+                return result;
+            }
 
-                if (readResult.bytesRead > 0)
-                {
-                    const Types::Status appendStatus = appendTextBytes(result.text, std::as_bytes(request.first(readResult.bytesRead)));
-                    if (!appendStatus.ok())
-                    {
-                        result.status = appendStatus;
-                        return result;
-                    }
+            if (readResult.endOfStream)
+            {
+                return result;
+            }
 
-                    totalRead += readResult.bytesRead;
-                }
-
-                if (!readResult.status.ok())
-                {
-                    result.status = readResult.status;
-                    return result;
-                }
-
-                if (readResult.endOfStream)
-                {
-                    return result;
-                }
-
-                if (readResult.bytesRead == 0)
-                {
-                    result.status = makeStatus(Types::ErrorCode::ReadFailed);
-                    return result;
-                }
+            if (readResult.bytesRead == 0)
+            {
+                result.status = makeStatus(Types::ErrorCode::ReadFailed);
+                return result;
             }
         }
+    }
 } // namespace GameWIP::IO::Detail::Core
 
 namespace GameWIP::IO

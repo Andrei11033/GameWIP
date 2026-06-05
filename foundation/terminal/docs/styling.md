@@ -1,4 +1,4 @@
-@page foundation_terminal_styling Terminal styling
+@page terminal_styling Terminal styling
 
 This page documents Terminal text styling behavior.
 
@@ -66,4 +66,4 @@ The public capability shape intentionally does not expose an ANSI/VT implementat
 
 For per-segment styling, use `Types::WriteSegment` with `WriteSegmentKind::StyledText` and write the batch through `writeSegments(std::span<const Types::WriteSegment>, SegmentWriteOptions)`.
 
-See @ref foundation_terminal_segmented_writes.
+See @ref terminal_segmented_writes.

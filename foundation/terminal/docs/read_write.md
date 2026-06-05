@@ -1,4 +1,4 @@
-@page foundation_terminal_read_write Terminal read and write
+@page terminal_read_write Terminal read and write
 
 This page documents Terminal read and write behavior.
 

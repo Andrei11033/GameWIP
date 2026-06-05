@@ -8,7 +8,7 @@ namespace GameWIP::Input
 {
     class InputDeviceRegistry;
     class InputState;
-}
+} // namespace GameWIP::Input
 
 namespace GameWIP
 {
@@ -40,4 +40,4 @@ namespace GameWIP
 
         NativeWindowManager *nativeManager = nullptr;
     };
-}
+} // namespace GameWIP

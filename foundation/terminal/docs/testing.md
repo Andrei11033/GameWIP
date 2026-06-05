@@ -1,4 +1,4 @@
-@page foundation_terminal_testing Terminal testing
+@page terminal_testing Terminal testing
 
 This page documents the Terminal validation strategy.
 

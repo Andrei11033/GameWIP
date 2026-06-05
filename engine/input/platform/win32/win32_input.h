@@ -29,4 +29,4 @@ namespace GameWIP::Input::Platform::Win32
     /// @param win32Error Win32 error if registration fails.
     /// @return True if registered.
     bool registerInputDevices(void *windowHandle, InputDeviceRegistry &devices, unsigned long &win32Error);
-}
+} // namespace GameWIP::Input::Platform::Win32

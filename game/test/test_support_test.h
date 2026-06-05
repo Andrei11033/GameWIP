@@ -31,4 +31,4 @@ namespace GameWIP::Test
     /// @param options Runtime toggles for process and stress scenarios.
     /// @return Zero when every TestSupport self-test passes, nonzero otherwise.
     int runTestSupportTests(int argc, char **argv, const TestSupportTestOptions &options = {});
-}
+} // namespace GameWIP::Test

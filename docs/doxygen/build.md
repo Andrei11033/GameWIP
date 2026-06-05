@@ -1,6 +1,6 @@
 @page gamewip_build Build, packages, and installed docs
 
-This page covers project-level build behavior. Library-specific usage is documented under the foundation and tool library pages, including @ref foundation_io, @ref foundation_terminal, @ref logger, @ref assert, and @ref test_support.
+This page covers project-level build behavior. Library-specific usage is documented under the foundation and tool library pages, including @ref io, @ref terminal, @ref logger, @ref assert, and @ref test_support.
 
 ## Normal source build
 

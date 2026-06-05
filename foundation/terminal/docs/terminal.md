@@ -1,4 +1,4 @@
-@page foundation_terminal Terminal
+@page terminal Terminal
 
 `GameWIP::Terminal` is the foundation terminal primitive library.
 
@@ -6,16 +6,31 @@ Terminal covers stdin reads, stdout/stderr writes, styling, capability queries, 
 
 ## Documentation sections
 
-- @subpage foundation_terminal_read_write
-- @subpage foundation_terminal_styling
-- @subpage foundation_terminal_segmented_writes
-- @subpage foundation_terminal_control_primitives
-- @subpage foundation_terminal_capabilities_and_redirection
-- @subpage foundation_terminal_input_modes
-- @subpage foundation_terminal_unicode_terminal_io
-- @subpage foundation_terminal_testing
-- @subpage foundation_terminal_color_and_redirection
-- @subpage foundation_terminal_unicode_terminal_output
+### User manual
+
+- @subpage terminal_getting_started
+- @subpage terminal_quick_start
+- @subpage terminal_public_api
+- @subpage terminal_examples
+- @subpage terminal_troubleshooting
+
+### Reference and concepts
+
+- @subpage terminal_read_write
+- @subpage terminal_styling
+- @subpage terminal_segmented_writes
+- @subpage terminal_control_primitives
+- @subpage terminal_capabilities_and_redirection
+- @subpage terminal_input_modes
+- @subpage terminal_unicode_io
+- @subpage terminal_color_and_redirection
+- @subpage terminal_unicode_output
+- @subpage terminal_api_reference
+
+### Developer validation
+
+- @subpage terminal_testing
+- @subpage terminal_developer_validation
 
 ## Purpose
 
@@ -53,7 +68,7 @@ namespace GameWIP::Terminal;
 namespace GameWIP::Terminal::Types;
 ```
 
-Passive data shapes live under `GameWIP::Terminal::Types`. Active APIs live directly under `GameWIP::Terminal`.
+Value types live under `GameWIP::Terminal::Types`. Active APIs live directly under `GameWIP::Terminal`.
 
 ## API family map
 

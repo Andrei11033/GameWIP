@@ -1,4 +1,4 @@
-@page foundation_io_troubleshooting IO troubleshooting
+@page io_troubleshooting IO troubleshooting
 
 ## `readAllBytes()` or `readAllText()` returns `SizeLimitExceeded`
 

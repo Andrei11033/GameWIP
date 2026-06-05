@@ -231,7 +231,8 @@ namespace
 
         Hooks::clearCapturedOutput(Terminal::Types::OutputStream::Stdout);
         styledOptions.styleMode = Terminal::Types::StyleMode::Always;
-        static_cast<void>(context.expectEq("forced unsupported style fails", ErrorCode::Unsupported, Terminal::writeText("fail", styledOptions).code));
+        static_cast<void>(
+            context.expectEq("forced unsupported style fails", ErrorCode::Unsupported, Terminal::writeText("fail", styledOptions).code));
         static_cast<void>(
             context.expectTrue("forced unsupported style writes nothing", Hooks::capturedOutputText(Terminal::Types::OutputStream::Stdout).empty()));
 
@@ -267,8 +268,10 @@ namespace
         Terminal::Writer stdoutWriter;
         static_cast<void>(context.expectTrue("output buffer flush succeeds", outputBuffer.flushTo(stdoutWriter).ok()));
         static_cast<void>(context.expectTrue("output buffer clears after flush", outputBuffer.empty()));
-        static_cast<void>(
-            context.expectEq("output buffer flush capture", std::string{"alpha beta\n3 4\n"}, Hooks::capturedOutputText(Terminal::Types::OutputStream::Stdout)));
+        static_cast<void>(context.expectEq(
+            "output buffer flush capture",
+            std::string{"alpha beta\n3 4\n"},
+            Hooks::capturedOutputText(Terminal::Types::OutputStream::Stdout)));
 
         Hooks::clearCapturedOutput(Terminal::Types::OutputStream::Stdout);
         static_cast<void>(context.expectTrue("writer formatted print succeeds", stdoutWriter.print("writer {}", 5).ok()));
@@ -303,8 +306,9 @@ namespace
         Terminal::Types::SegmentWriteOptions options;
         options.appendLineEnding = true;
         options.lineEnding = Terminal::Types::LineEnding::Lf;
-        static_cast<void>(
-            context.expectTrue("segmented write succeeds", Terminal::writeSegments(std::span<const Terminal::Types::WriteSegment>(segments), options).ok()));
+        static_cast<void>(context.expectTrue(
+            "segmented write succeeds",
+            Terminal::writeSegments(std::span<const Terminal::Types::WriteSegment>(segments), options).ok()));
         static_cast<void>(context.expectEq(
             "segmented write preserves order",
             std::string{"a\x1b[1mb\x1b[0mc\n"},
@@ -430,7 +434,8 @@ namespace
         static_cast<void>(context.expectEq("limited LF keep text", std::string{"abc"}, keepLimitedLf.line));
         static_cast<void>(context.expectEq("limited LF keep size", std::size_t{3}, keepLimitedLf.line.size()));
         static_cast<void>(context.expectTrue("limited LF keep reports truncation", keepLimitedLf.wasTruncated));
-        static_cast<void>(context.expectEq("limited LF keep ending consumed", Terminal::Types::ConsumedLineEnding::Lf, keepLimitedLf.consumedLineEnding));
+        static_cast<void>(
+            context.expectEq("limited LF keep ending consumed", Terminal::Types::ConsumedLineEnding::Lf, keepLimitedLf.consumedLineEnding));
         const Terminal::Types::LineReadResult afterLimitedLf = Terminal::readLine();
         static_cast<void>(context.expectTrue("after limited LF status", afterLimitedLf.status.ok()));
         static_cast<void>(context.expectEq("after limited LF text", std::string{"next"}, afterLimitedLf.line));
@@ -443,10 +448,8 @@ namespace
         static_cast<void>(context.expectTrue("limited CRLF keep status", keepLimitedCrLf.status.ok()));
         static_cast<void>(context.expectEq("limited CRLF keep text avoids partial ending", std::string{"abc"}, keepLimitedCrLf.line));
         static_cast<void>(context.expectTrue("limited CRLF keep reports truncation", keepLimitedCrLf.wasTruncated));
-        static_cast<void>(context.expectEq(
-            "limited CRLF keep ending consumed",
-            Terminal::Types::ConsumedLineEnding::CrLf,
-            keepLimitedCrLf.consumedLineEnding));
+        static_cast<void>(
+            context.expectEq("limited CRLF keep ending consumed", Terminal::Types::ConsumedLineEnding::CrLf, keepLimitedCrLf.consumedLineEnding));
         const Terminal::Types::LineReadResult afterLimitedCrLf = Terminal::readLine();
         static_cast<void>(context.expectTrue("after limited CRLF status", afterLimitedCrLf.status.ok()));
         static_cast<void>(context.expectEq("after limited CRLF text", std::string{"next"}, afterLimitedCrLf.line));
@@ -460,10 +463,8 @@ namespace
         static_cast<void>(context.expectEq("limited normalize text", std::string{"abcd"}, normalizeLimited.line));
         static_cast<void>(context.expectEq("limited normalize size", std::size_t{4}, normalizeLimited.line.size()));
         static_cast<void>(context.expectTrue("limited normalize reports truncation", normalizeLimited.wasTruncated));
-        static_cast<void>(context.expectEq(
-            "limited normalize ending consumed",
-            Terminal::Types::ConsumedLineEnding::CrLf,
-            normalizeLimited.consumedLineEnding));
+        static_cast<void>(
+            context.expectEq("limited normalize ending consumed", Terminal::Types::ConsumedLineEnding::CrLf, normalizeLimited.consumedLineEnding));
         const Terminal::Types::LineReadResult afterLimitedNormalize = Terminal::readLine();
         static_cast<void>(context.expectTrue("after limited normalize status", afterLimitedNormalize.status.ok()));
         static_cast<void>(context.expectEq("after limited normalize text", std::string{"next"}, afterLimitedNormalize.line));

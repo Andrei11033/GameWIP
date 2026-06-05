@@ -33,7 +33,7 @@ namespace GameWIP::Terminal
     /// @brief Default maximum byte count accepted by line reads.
     inline constexpr std::uint64_t kDefaultMaxLineBytes = 64 * 1024;
 
-    /// @brief Passive Terminal data shapes.
+    /// @brief Terminal stream, styling, input, and result types.
     namespace Types
     {
         /// @brief Standard terminal input streams.
@@ -902,31 +902,22 @@ namespace GameWIP::Terminal
         [[nodiscard]] IO::Types::WriteResult writeBytes(std::span<const std::byte> bytes, const Types::ByteWriteOptions &options = {}) const;
 
         /// @brief Writes text, styled text, and byte segments to the default output stream.
-        [[nodiscard]] IO::Types::Status writeSegments(
-            std::span<const Types::WriteSegment> segments,
-            const Types::SegmentWriteOptions &options = {}) const;
+        [[nodiscard]] IO::Types::Status writeSegments(std::span<const Types::WriteSegment> segments, const Types::SegmentWriteOptions &options = {})
+            const;
+
+        /// @brief Formats text and writes it to the default output stream.
+        template <class... Args> [[nodiscard]] IO::Types::Status print(std::format_string<Args...> format, Args &&...args) const;
 
         /// @brief Formats text and writes it to the default output stream.
         template <class... Args>
-        [[nodiscard]] IO::Types::Status print(std::format_string<Args...> format, Args &&...args) const;
+        [[nodiscard]] IO::Types::Status print(const Types::TextWriteOptions &options, std::format_string<Args...> format, Args &&...args) const;
 
-        /// @brief Formats text and writes it to the default output stream.
-        template <class... Args>
-        [[nodiscard]] IO::Types::Status print(
-            const Types::TextWriteOptions &options,
-            std::format_string<Args...> format,
-            Args &&...args) const;
+        /// @brief Formats text and writes it followed by a line ending to the default output stream.
+        template <class... Args> [[nodiscard]] IO::Types::Status println(std::format_string<Args...> format, Args &&...args) const;
 
         /// @brief Formats text and writes it followed by a line ending to the default output stream.
         template <class... Args>
-        [[nodiscard]] IO::Types::Status println(std::format_string<Args...> format, Args &&...args) const;
-
-        /// @brief Formats text and writes it followed by a line ending to the default output stream.
-        template <class... Args>
-        [[nodiscard]] IO::Types::Status println(
-            const Types::LineWriteOptions &options,
-            std::format_string<Args...> format,
-            Args &&...args) const;
+        [[nodiscard]] IO::Types::Status println(const Types::LineWriteOptions &options, std::format_string<Args...> format, Args &&...args) const;
 
         /// @brief Flushes the default output stream.
         [[nodiscard]] IO::Types::Status flush(IO::Types::FlushMode mode = IO::Types::FlushMode::Data) const;
@@ -1079,12 +1070,10 @@ namespace GameWIP::Terminal
         void appendLine(std::string_view utf8Text = {});
 
         /// @brief Formats text and appends it to the buffer.
-        template <class... Args>
-        void print(std::format_string<Args...> format, Args &&...args);
+        template <class... Args> void print(std::format_string<Args...> format, Args &&...args);
 
         /// @brief Formats text and appends it followed by the configured line ending.
-        template <class... Args>
-        void println(std::format_string<Args...> format, Args &&...args);
+        template <class... Args> void println(std::format_string<Args...> format, Args &&...args);
 
         /// @brief Writes buffered text to a writer without clearing the buffer.
         [[nodiscard]] IO::Types::Status writeTo(const Writer &writer, const Types::TextWriteOptions &options = {}) const;
@@ -1152,10 +1141,7 @@ namespace GameWIP::Terminal
     [[nodiscard]] IO::Types::Status writeText(std::string_view utf8Text, const Types::TextWriteOptions &options = {});
 
     /// @brief Writes UTF-8 text to an output stream.
-    [[nodiscard]] IO::Types::Status writeText(
-        Types::OutputStream stream,
-        std::string_view utf8Text,
-        const Types::TextWriteOptions &options = {});
+    [[nodiscard]] IO::Types::Status writeText(Types::OutputStream stream, std::string_view utf8Text, const Types::TextWriteOptions &options = {});
 
     /// @brief Writes UTF-8 text followed by a line ending to stdout.
     [[nodiscard]] IO::Types::Status writeLine(std::string_view utf8Text = {}, const Types::LineWriteOptions &options = {});
@@ -1176,9 +1162,7 @@ namespace GameWIP::Terminal
         const Types::ByteWriteOptions &options = {});
 
     /// @brief Writes text, styled text, and byte segments to stdout.
-    [[nodiscard]] IO::Types::Status writeSegments(
-        std::span<const Types::WriteSegment> segments,
-        const Types::SegmentWriteOptions &options = {});
+    [[nodiscard]] IO::Types::Status writeSegments(std::span<const Types::WriteSegment> segments, const Types::SegmentWriteOptions &options = {});
 
     /// @brief Writes text, styled text, and byte segments to an output stream.
     [[nodiscard]] IO::Types::Status writeSegments(
@@ -1187,19 +1171,14 @@ namespace GameWIP::Terminal
         const Types::SegmentWriteOptions &options = {});
 
     /// @brief Formats text and writes it to stdout.
-    template <class... Args>
-    [[nodiscard]] IO::Types::Status print(std::format_string<Args...> format, Args &&...args);
+    template <class... Args> [[nodiscard]] IO::Types::Status print(std::format_string<Args...> format, Args &&...args);
 
     /// @brief Formats text and writes it to an output stream.
-    template <class... Args>
-    [[nodiscard]] IO::Types::Status print(Types::OutputStream stream, std::format_string<Args...> format, Args &&...args);
+    template <class... Args> [[nodiscard]] IO::Types::Status print(Types::OutputStream stream, std::format_string<Args...> format, Args &&...args);
 
     /// @brief Formats text and writes it to stdout.
     template <class... Args>
-    [[nodiscard]] IO::Types::Status print(
-        const Types::TextWriteOptions &options,
-        std::format_string<Args...> format,
-        Args &&...args);
+    [[nodiscard]] IO::Types::Status print(const Types::TextWriteOptions &options, std::format_string<Args...> format, Args &&...args);
 
     /// @brief Formats text and writes it to an output stream.
     template <class... Args>
@@ -1210,19 +1189,14 @@ namespace GameWIP::Terminal
         Args &&...args);
 
     /// @brief Formats text and writes it followed by a line ending to stdout.
-    template <class... Args>
-    [[nodiscard]] IO::Types::Status println(std::format_string<Args...> format, Args &&...args);
+    template <class... Args> [[nodiscard]] IO::Types::Status println(std::format_string<Args...> format, Args &&...args);
 
     /// @brief Formats text and writes it followed by a line ending to an output stream.
-    template <class... Args>
-    [[nodiscard]] IO::Types::Status println(Types::OutputStream stream, std::format_string<Args...> format, Args &&...args);
+    template <class... Args> [[nodiscard]] IO::Types::Status println(Types::OutputStream stream, std::format_string<Args...> format, Args &&...args);
 
     /// @brief Formats text and writes it followed by a line ending to stdout.
     template <class... Args>
-    [[nodiscard]] IO::Types::Status println(
-        const Types::LineWriteOptions &options,
-        std::format_string<Args...> format,
-        Args &&...args);
+    [[nodiscard]] IO::Types::Status println(const Types::LineWriteOptions &options, std::format_string<Args...> format, Args &&...args);
 
     /// @brief Formats text and writes it followed by a line ending to an output stream.
     template <class... Args>
@@ -1334,8 +1308,7 @@ namespace GameWIP::Terminal
     /// @brief Rings the terminal bell through an output stream.
     [[nodiscard]] IO::Types::Status ringBell(Types::OutputStream stream = Types::OutputStream::Stdout, const Types::ControlOptions &options = {});
 
-    template <class... Args>
-    IO::Types::Status Writer::print(std::format_string<Args...> format, Args &&...args) const
+    template <class... Args> IO::Types::Status Writer::print(std::format_string<Args...> format, Args &&...args) const
     {
         return print(Types::TextWriteOptions{}, format, std::forward<Args>(args)...);
     }
@@ -1346,8 +1319,7 @@ namespace GameWIP::Terminal
         return writeText(std::format(format, std::forward<Args>(args)...), options);
     }
 
-    template <class... Args>
-    IO::Types::Status Writer::println(std::format_string<Args...> format, Args &&...args) const
+    template <class... Args> IO::Types::Status Writer::println(std::format_string<Args...> format, Args &&...args) const
     {
         return println(Types::LineWriteOptions{}, format, std::forward<Args>(args)...);
     }
@@ -1358,71 +1330,55 @@ namespace GameWIP::Terminal
         return writeLine(std::format(format, std::forward<Args>(args)...), options);
     }
 
-    template <class... Args>
-    void OutputBuffer::print(std::format_string<Args...> format, Args &&...args)
+    template <class... Args> void OutputBuffer::print(std::format_string<Args...> format, Args &&...args)
     {
         std::format_to(std::back_inserter(text_), format, std::forward<Args>(args)...);
     }
 
-    template <class... Args>
-    void OutputBuffer::println(std::format_string<Args...> format, Args &&...args)
+    template <class... Args> void OutputBuffer::println(std::format_string<Args...> format, Args &&...args)
     {
         print(format, std::forward<Args>(args)...);
         appendLine();
     }
 
-    template <class... Args>
-    IO::Types::Status print(std::format_string<Args...> format, Args &&...args)
+    template <class... Args> IO::Types::Status print(std::format_string<Args...> format, Args &&...args)
     {
         return print(Types::OutputStream::Stdout, format, std::forward<Args>(args)...);
     }
 
-    template <class... Args>
-    IO::Types::Status print(Types::OutputStream stream, std::format_string<Args...> format, Args &&...args)
+    template <class... Args> IO::Types::Status print(Types::OutputStream stream, std::format_string<Args...> format, Args &&...args)
     {
         return print(stream, Types::TextWriteOptions{}, format, std::forward<Args>(args)...);
     }
 
-    template <class... Args>
-    IO::Types::Status print(const Types::TextWriteOptions &options, std::format_string<Args...> format, Args &&...args)
+    template <class... Args> IO::Types::Status print(const Types::TextWriteOptions &options, std::format_string<Args...> format, Args &&...args)
     {
         return print(Types::OutputStream::Stdout, options, format, std::forward<Args>(args)...);
     }
 
     template <class... Args>
-    IO::Types::Status print(
-        Types::OutputStream stream,
-        const Types::TextWriteOptions &options,
-        std::format_string<Args...> format,
-        Args &&...args)
+    IO::Types::Status print(Types::OutputStream stream, const Types::TextWriteOptions &options, std::format_string<Args...> format, Args &&...args)
     {
         return writeText(stream, std::format(format, std::forward<Args>(args)...), options);
     }
 
-    template <class... Args>
-    IO::Types::Status println(std::format_string<Args...> format, Args &&...args)
+    template <class... Args> IO::Types::Status println(std::format_string<Args...> format, Args &&...args)
     {
         return println(Types::OutputStream::Stdout, format, std::forward<Args>(args)...);
     }
 
-    template <class... Args>
-    IO::Types::Status println(Types::OutputStream stream, std::format_string<Args...> format, Args &&...args)
+    template <class... Args> IO::Types::Status println(Types::OutputStream stream, std::format_string<Args...> format, Args &&...args)
     {
         return println(stream, Types::LineWriteOptions{}, format, std::forward<Args>(args)...);
     }
 
-    template <class... Args>
-    IO::Types::Status println(const Types::LineWriteOptions &options, std::format_string<Args...> format, Args &&...args)
+    template <class... Args> IO::Types::Status println(const Types::LineWriteOptions &options, std::format_string<Args...> format, Args &&...args)
     {
         return println(Types::OutputStream::Stdout, options, format, std::forward<Args>(args)...);
     }
 
     template <class... Args>
-    IO::Types::Status println(
-        Types::OutputStream stream,
-        const Types::LineWriteOptions &options,
-        std::format_string<Args...> format,
-        Args &&...args)
+    IO::Types::Status println(Types::OutputStream stream, const Types::LineWriteOptions &options, std::format_string<Args...> format, Args &&...args)
     {
         return writeLine(stream, std::format(format, std::forward<Args>(args)...), options);
     }

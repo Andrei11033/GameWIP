@@ -8,8 +8,8 @@ The GameWIP Doxygen site is designed as a modular manual. Each library owns its 
 - Project-wide Doxygen helper functions live in `cmake/GameWIPDoxygen.cmake`.
 - Project-wide Doxygen pages, the Doxyfile template, and Doxygen styling live in `docs/doxygen/`.
 - Library-specific CMake helper functions live under that library's `cmake/` folder.
-- Each library owns `tools/<lib>/docs/`.
-- Only `tools/<lib>/docs/<lib>.md` is mandatory.
+- Each generated library owns a library-local `docs/` folder, for example `foundation/io/docs/`, `foundation/terminal/docs/`, or `tools/logger/docs/`.
+- Only the library landing page named `<PAGE_ID>.md` is mandatory.
 - Any other guide pages are chosen by the library.
 - Page IDs use lowercase snake_case.
 - Child pages should be prefixed with the library page ID, for example `logger_quick_start` or `assert_macro_behavior`.
@@ -33,7 +33,7 @@ gamewip_register_doxygen_library(
 )
 ```
 
-The helper requires a landing page named `<PAGE_ID>.md` in one of the `DOCS` paths. For Logger, that is `logger.md`; for Assert, that is `assert.md`.
+The helper requires a landing page named `<PAGE_ID>.md` in one of the `DOCS` paths. For Logger, that is `logger.md`; for Terminal, that is `terminal.md`.
 
 ## Landing pages
 
@@ -48,7 +48,6 @@ A library landing page should be the table of contents for that library:
 ```
 
 The root Doxygen page at `docs/doxygen/index.md` should link only to major library/project sections. It should not duplicate every library detail.
-
 
 ## User manual versus developer validation
 
@@ -93,3 +92,5 @@ Test hooks should be documented in guide pages because they matter for validatio
 ## Doxygen verification
 
 Documentation generation is opt-in through `GAMEWIP_BUILD_DOCS`. Normal builds must not require Doxygen. The generated Doxyfile should keep `RECURSIVE = NO`, list explicit inputs, write HTML under the build tree, and write warnings to `build-docs/docs/doxygen/doxygen_warnings.log`.
+
+Planned library docs may exist before a library target is implemented. Those docs should state that generated Doxygen registration is still to be implemented and should not be listed on the root generated index until registration exists.

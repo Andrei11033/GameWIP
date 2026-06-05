@@ -9,7 +9,7 @@ namespace GameWIP::Input
 {
     class InputDeviceRegistry;
     class InputState;
-}
+} // namespace GameWIP::Input
 
 namespace GameWIP
 {
@@ -132,7 +132,7 @@ namespace GameWIP
             int refreshRate = 0;
             int bitsPerPixel = 0;
         };
-    }
+    } // namespace WindowTypes
 
     namespace WindowInternal
     {
@@ -271,4 +271,4 @@ namespace GameWIP
         Result releaseCursorConfinement(unsigned long *outPlatformError = nullptr);
         void updateCursorConfinement();
     };
-}
+} // namespace GameWIP

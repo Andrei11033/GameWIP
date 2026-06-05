@@ -24,7 +24,7 @@ if(GAMEWIP_BUILD_DOCS AND COMMAND gamewip_register_doxygen_library)
     # target merges this into the unified GameWIP Doxygen site.
     gamewip_register_doxygen_library(
         NAME IO
-        PAGE_ID foundation_io
+        PAGE_ID io
         PUBLIC_HEADERS
             "${CMAKE_CURRENT_SOURCE_DIR}/io.h"
         DOCS

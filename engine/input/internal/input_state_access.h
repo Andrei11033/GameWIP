@@ -40,4 +40,4 @@ namespace GameWIP::Input::Internal
         static void setDeviceBackendConnected(InputDeviceRegistry &registry, InputDeviceRef device, InputDeviceBackend backend, bool connected);
         static void mergeDeviceControls(InputDeviceRegistry &registry, InputDeviceRef device, std::span<const InputControlInfo> controls);
     };
-}
+} // namespace GameWIP::Input::Internal

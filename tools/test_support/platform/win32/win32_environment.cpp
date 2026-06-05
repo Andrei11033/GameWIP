@@ -75,7 +75,7 @@ namespace
         }
         return output;
     }
-}
+} // namespace
 
 namespace GameWIP::TestSupport::Detail::Platform
 {
@@ -86,9 +86,7 @@ namespace GameWIP::TestSupport::Detail::Platform
         const DWORD requiredSize = GetEnvironmentVariableW(nameText.c_str(), nullptr, 0);
         if (requiredSize == 0)
         {
-            return GetLastError() == ERROR_ENVVAR_NOT_FOUND
-                       ? std::nullopt
-                       : std::optional<std::string>{std::string{}};
+            return GetLastError() == ERROR_ENVVAR_NOT_FOUND ? std::nullopt : std::optional<std::string>{std::string{}};
         }
 
         std::wstring value(requiredSize, L'\0');
@@ -116,4 +114,4 @@ namespace GameWIP::TestSupport::Detail::Platform
         _wputenv_s(nameWide.c_str(), L"");
         SetEnvironmentVariableW(nameWide.c_str(), nullptr);
     }
-}
+} // namespace GameWIP::TestSupport::Detail::Platform

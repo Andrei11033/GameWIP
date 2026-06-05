@@ -4,8 +4,7 @@ namespace GameWIP::Action
 {
     ActionSettings makeButtonSettings()
     {
-        return ActionSettings{
-            .kind = ActionKind::Button};
+        return ActionSettings{.kind = ActionKind::Button};
     }
 
     ActionSettings makeAxis1DSettings(
@@ -54,64 +53,21 @@ namespace GameWIP::Action
 
     ActionSettings makeMovementSettings()
     {
-        return makeAxis2DSettings(
-            DeadzoneMode::None,
-            0.0f,
-            1.0f,
-            1.0f,
-            false,
-            false,
-            true,
-            true,
-            0.5f);
+        return makeAxis2DSettings(DeadzoneMode::None, 0.0f, 1.0f, 1.0f, false, false, true, true, 0.5f);
     }
 
     ActionSettings makeMouseLookSettings(float sensitivity, bool invertX, bool invertY)
     {
-        return makeAxis2DSettings(
-            DeadzoneMode::None,
-            0.0f,
-            1.0f,
-            sensitivity,
-            invertX,
-            invertY,
-            false,
-            false,
-            0.0f);
+        return makeAxis2DSettings(DeadzoneMode::None, 0.0f, 1.0f, sensitivity, invertX, invertY, false, false, 0.0f);
     }
 
-    ActionSettings makeGamepadStickSettings(
-        float innerDeadzone,
-        float outerDeadzone,
-        float sensitivity,
-        bool invertX,
-        bool invertY)
+    ActionSettings makeGamepadStickSettings(float innerDeadzone, float outerDeadzone, float sensitivity, bool invertX, bool invertY)
     {
-        return makeAxis2DSettings(
-            DeadzoneMode::Radial,
-            innerDeadzone,
-            outerDeadzone,
-            sensitivity,
-            invertX,
-            invertY,
-            true,
-            false,
-            innerDeadzone);
+        return makeAxis2DSettings(DeadzoneMode::Radial, innerDeadzone, outerDeadzone, sensitivity, invertX, invertY, true, false, innerDeadzone);
     }
 
-    ActionSettings makeGamepadTriggerSettings(
-        float innerDeadzone,
-        float outerDeadzone,
-        float sensitivity,
-        bool invert)
+    ActionSettings makeGamepadTriggerSettings(float innerDeadzone, float outerDeadzone, float sensitivity, bool invert)
     {
-        return makeAxis1DSettings(
-            DeadzoneMode::Axial,
-            innerDeadzone,
-            outerDeadzone,
-            sensitivity,
-            invert,
-            true,
-            innerDeadzone);
+        return makeAxis1DSettings(DeadzoneMode::Axial, innerDeadzone, outerDeadzone, sensitivity, invert, true, innerDeadzone);
     }
-}
+} // namespace GameWIP::Action

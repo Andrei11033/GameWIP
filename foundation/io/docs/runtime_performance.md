@@ -1,4 +1,4 @@
-@page foundation_io_runtime_performance IO runtime and performance
+@page io_runtime_performance IO runtime and performance
 
 IO itself performs no operating-system calls. Blocking behavior comes from the concrete `Reader` or `Writer` implementation.
 

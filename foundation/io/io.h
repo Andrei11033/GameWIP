@@ -22,7 +22,7 @@ namespace GameWIP::IO
     /// @brief Default temporary buffer size used by whole-stream helpers.
     inline constexpr std::size_t kDefaultBufferSize = 64 * 1024;
 
-    /// @brief Passive IO data shapes.
+    /// @brief IO status, result, and option types.
     namespace Types
     {
         /// @brief Common error codes used by low-level IO contracts.

@@ -26,11 +26,15 @@ namespace
 
     bool containsWindow(const std::vector<std::unique_ptr<Window>> &windows, const Window *window)
     {
-        return std::any_of(windows.begin(), windows.end(), [window](const std::unique_ptr<Window> &candidate) {
-            return candidate.get() == window;
-        });
+        return std::any_of(
+            windows.begin(),
+            windows.end(),
+            [window](const std::unique_ptr<Window> &candidate)
+            {
+                return candidate.get() == window;
+            });
     }
-}
+} // namespace
 
 namespace GameWIP
 {
@@ -114,9 +118,13 @@ namespace GameWIP
             return WindowResult::NotCreated;
         }
 
-        auto windowIt = std::find_if(nativeManager->windows.begin(), nativeManager->windows.end(), [&window](const std::unique_ptr<Window> &candidate) {
-            return candidate.get() == &window;
-        });
+        auto windowIt = std::find_if(
+            nativeManager->windows.begin(),
+            nativeManager->windows.end(),
+            [&window](const std::unique_ptr<Window> &candidate)
+            {
+                return candidate.get() == &window;
+            });
 
         if (windowIt == nativeManager->windows.end())
         {
@@ -287,7 +295,8 @@ namespace GameWIP
             Window *windowPtr = window.get();
             if (windowPtr != nativeManager->mainWindow && windowPtr->shouldClose())
             {
-                if (std::find(nativeManager->pendingDestroy.begin(), nativeManager->pendingDestroy.end(), windowPtr) == nativeManager->pendingDestroy.end())
+                if (std::find(nativeManager->pendingDestroy.begin(), nativeManager->pendingDestroy.end(), windowPtr) ==
+                    nativeManager->pendingDestroy.end())
                 {
                     nativeManager->pendingDestroy.push_back(windowPtr);
                 }
@@ -297,7 +306,8 @@ namespace GameWIP
 
     bool WindowManager::shouldQuit() const
     {
-        return nativeManager == nullptr || nativeManager->quitRequested || (nativeManager->mainWindow != nullptr && nativeManager->mainWindow->shouldClose());
+        return nativeManager == nullptr || nativeManager->quitRequested ||
+               (nativeManager->mainWindow != nullptr && nativeManager->mainWindow->shouldClose());
     }
 
     Window *WindowManager::getMainWindow() const
@@ -330,5 +340,4 @@ namespace GameWIP
             outWindows.push_back(window.get());
         }
     }
-}
-
+} // namespace GameWIP

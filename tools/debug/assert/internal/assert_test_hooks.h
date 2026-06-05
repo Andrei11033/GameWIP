@@ -55,7 +55,8 @@ namespace GameWIP::Debug::Assert::TestHooks
     /// @param defaultAction Action returned when the backend cannot show a dialog.
     /// @return Selected or fallback action.
     /// @warning Test-only API. Available only when GAMEWIP_ASSERT_TEST_HOOKS is enabled.
-    GAMEWIP_ASSERT_API FailureAction showFailureActionDialogForTest(std::string_view title, std::string_view message, FailureAction defaultAction) noexcept;
+    GAMEWIP_ASSERT_API FailureAction
+    showFailureActionDialogForTest(std::string_view title, std::string_view message, FailureAction defaultAction) noexcept;
 
     /// @brief Exercises the platform error-popup path through the assert backend.
     /// @param title Popup title text.
@@ -67,13 +68,13 @@ namespace GameWIP::Debug::Assert::TestHooks
 
 namespace GameWIP::Debug::Assert::Detail::TestHooks
 {
-        /// @brief Consumes the one-shot primary action-dialog failure hook.
-        GAMEWIP_ASSERT_API bool consumeNextActionDialogFailure() noexcept;
-        /// @brief Consumes the one-shot fallback action-dialog failure hook.
-        GAMEWIP_ASSERT_API bool consumeNextFallbackActionDialogFailure() noexcept;
-        /// @brief Reads the debugger-attached override when one is active.
-        GAMEWIP_ASSERT_API bool debuggerAttachedOverride(bool &attached) noexcept;
-        /// @brief Reads the popup-suppressed override when one is active.
-        GAMEWIP_ASSERT_API bool popupSuppressedOverride(bool &suppressed) noexcept;
+    /// @brief Consumes the one-shot primary action-dialog failure hook.
+    GAMEWIP_ASSERT_API bool consumeNextActionDialogFailure() noexcept;
+    /// @brief Consumes the one-shot fallback action-dialog failure hook.
+    GAMEWIP_ASSERT_API bool consumeNextFallbackActionDialogFailure() noexcept;
+    /// @brief Reads the debugger-attached override when one is active.
+    GAMEWIP_ASSERT_API bool debuggerAttachedOverride(bool &attached) noexcept;
+    /// @brief Reads the popup-suppressed override when one is active.
+    GAMEWIP_ASSERT_API bool popupSuppressedOverride(bool &suppressed) noexcept;
 } // namespace GameWIP::Debug::Assert::Detail::TestHooks
 #endif

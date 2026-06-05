@@ -220,8 +220,7 @@ namespace
             return defaultAction;
         }
     }
-}
-
+} // namespace
 
 #if GAMEWIP_ASSERT_TEST_HOOKS
 namespace GameWIP::Debug::Assert::TestHooks
@@ -287,35 +286,35 @@ namespace GameWIP::Debug::Assert::TestHooks
 
 namespace GameWIP::Debug::Assert::Detail::TestHooks
 {
-        bool consumeNextActionDialogFailure() noexcept
-        {
-            return consumeTestHook(assertTestHookState.nextActionDialogFailure);
-        }
+    bool consumeNextActionDialogFailure() noexcept
+    {
+        return consumeTestHook(assertTestHookState.nextActionDialogFailure);
+    }
 
-        bool consumeNextFallbackActionDialogFailure() noexcept
-        {
-            return consumeTestHook(assertTestHookState.nextFallbackActionDialogFailure);
-        }
+    bool consumeNextFallbackActionDialogFailure() noexcept
+    {
+        return consumeTestHook(assertTestHookState.nextFallbackActionDialogFailure);
+    }
 
-        bool debuggerAttachedOverride(bool &attached) noexcept
+    bool debuggerAttachedOverride(bool &attached) noexcept
+    {
+        if (!assertTestHookState.debuggerAttachedOverrideEnabled.load(std::memory_order_acquire))
         {
-            if (!assertTestHookState.debuggerAttachedOverrideEnabled.load(std::memory_order_acquire))
-            {
-                return false;
-            }
-            attached = assertTestHookState.debuggerAttachedOverrideValue.load(std::memory_order_acquire);
-            return true;
+            return false;
         }
+        attached = assertTestHookState.debuggerAttachedOverrideValue.load(std::memory_order_acquire);
+        return true;
+    }
 
-        bool popupSuppressedOverride(bool &suppressed) noexcept
+    bool popupSuppressedOverride(bool &suppressed) noexcept
+    {
+        if (!assertTestHookState.popupSuppressedOverrideEnabled.load(std::memory_order_acquire))
         {
-            if (!assertTestHookState.popupSuppressedOverrideEnabled.load(std::memory_order_acquire))
-            {
-                return false;
-            }
-            suppressed = assertTestHookState.popupSuppressedOverrideValue.load(std::memory_order_acquire);
-            return true;
+            return false;
         }
+        suppressed = assertTestHookState.popupSuppressedOverrideValue.load(std::memory_order_acquire);
+        return true;
+    }
 } // namespace GameWIP::Debug::Assert::Detail::TestHooks
 #endif
 
@@ -347,13 +346,12 @@ namespace GameWIP::Debug::Assert::Detail::Platform
         constexpr int kIgnoreOnceButtonId = 1003;
         constexpr int kAlwaysIgnoreButtonId = 1004;
 
-        const TASKDIALOG_BUTTON buttons[] =
-            {
-                {kBreakButtonId, L"Break"},
-                {kAbortButtonId, L"Abort"},
-                {kIgnoreOnceButtonId, L"Ignore Once"},
-                {kAlwaysIgnoreButtonId, L"Always Ignore"},
-            };
+        const TASKDIALOG_BUTTON buttons[] = {
+            {kBreakButtonId, L"Break"},
+            {kAbortButtonId, L"Abort"},
+            {kIgnoreOnceButtonId, L"Ignore Once"},
+            {kAlwaysIgnoreButtonId, L"Always Ignore"},
+        };
 
         TASKDIALOGCONFIG config{};
         config.cbSize = sizeof(config);
@@ -403,4 +401,4 @@ namespace GameWIP::Debug::Assert::Detail::Platform
     {
         DebugBreak();
     }
-}
+} // namespace GameWIP::Debug::Assert::Detail::Platform

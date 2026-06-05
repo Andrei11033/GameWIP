@@ -1,4 +1,4 @@
-@page foundation_io_quick_start IO quick start
+@page io_quick_start IO quick start
 
 Include the public header and link `GameWIP::IO`.
 

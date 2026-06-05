@@ -48,8 +48,7 @@ namespace GameWIP::Input
         }
 
         /// @brief Returns whether a lower-bound result points at a matching control.
-        template <typename Iterator>
-        bool isMatchingControl(Iterator entry, Iterator end, InputControl control)
+        template <typename Iterator> bool isMatchingControl(Iterator entry, Iterator end, InputControl control)
         {
             return entry != end && *entry == control;
         }
@@ -121,8 +120,7 @@ namespace GameWIP::Input
         }
 
         /// @brief Returns whether a lower-bound result points at a matching control/value pair.
-        template <typename Iterator>
-        bool isMatchingControlValue(Iterator entry, Iterator end, InputControl control)
+        template <typename Iterator> bool isMatchingControlValue(Iterator entry, Iterator end, InputControl control)
         {
             return entry != end && entry->first == control;
         }
@@ -187,7 +185,10 @@ namespace GameWIP::Input
                 });
         }
 
-        bool isMatchingDevice(std::vector<InputDeviceInfo>::const_iterator entry, std::vector<InputDeviceInfo>::const_iterator end, InputDeviceRef device)
+        bool isMatchingDevice(
+            std::vector<InputDeviceInfo>::const_iterator entry,
+            std::vector<InputDeviceInfo>::const_iterator end,
+            InputDeviceRef device)
         {
             return entry != end && entry->device == device;
         }
@@ -204,16 +205,13 @@ namespace GameWIP::Input
                 devices.end(),
                 [deviceType, deviceIndex](const InputDeviceInfo &device)
                 {
-                    return device.device.deviceType == deviceType &&
-                           device.device.deviceIndex == deviceIndex;
+                    return device.device.deviceType == deviceType && device.device.deviceIndex == deviceIndex;
                 });
         }
 
         bool isSameNativeIdentity(const InputDeviceInfo &left, const InputDeviceInfo &right)
         {
-            return !left.nativeIdentity.empty() &&
-                   left.nativeIdentityHash != 0 &&
-                   left.nativeIdentityHash == right.nativeIdentityHash;
+            return !left.nativeIdentity.empty() && left.nativeIdentityHash != 0 && left.nativeIdentityHash == right.nativeIdentityHash;
         }
 
         bool hasBackendFeed(const InputDeviceInfo &device, InputDeviceBackend backend)
@@ -304,8 +302,7 @@ namespace GameWIP::Input
             target.deviceType = source.deviceType;
             target.canonical = source.canonical;
 
-            if (!source.displayName.empty() &&
-                (target.displayName.empty() || source.backend == InputDeviceBackend::RawInputHID))
+            if (!source.displayName.empty() && (target.displayName.empty() || source.backend == InputDeviceBackend::RawInputHID))
             {
                 target.displayName = source.displayName;
             }
@@ -387,12 +384,7 @@ namespace GameWIP::Input
 
         InputControlInfo makeButtonControlInfo(InputControl control, const char *name)
         {
-            return InputControlInfo{
-                .control = control,
-                .displayName = name,
-                .minimumValue = 0.0f,
-                .maximumValue = 1.0f,
-                .relative = false};
+            return InputControlInfo{.control = control, .displayName = name, .minimumValue = 0.0f, .maximumValue = 1.0f, .relative = false};
         }
 
         InputControlInfo makeAxisControlInfo(InputControl control, const char *name, bool relative)
@@ -407,62 +399,62 @@ namespace GameWIP::Input
 
         std::vector<InputControlInfo> makeKeyboardControls()
         {
-            constexpr std::array<std::pair<ControlCode, const char *>, 55> keys{{
-                {KeyboardControlCode::A, "A"},
-                {KeyboardControlCode::B, "B"},
-                {KeyboardControlCode::C, "C"},
-                {KeyboardControlCode::D, "D"},
-                {KeyboardControlCode::E, "E"},
-                {KeyboardControlCode::F, "F"},
-                {KeyboardControlCode::G, "G"},
-                {KeyboardControlCode::H, "H"},
-                {KeyboardControlCode::I, "I"},
-                {KeyboardControlCode::J, "J"},
-                {KeyboardControlCode::K, "K"},
-                {KeyboardControlCode::L, "L"},
-                {KeyboardControlCode::M, "M"},
-                {KeyboardControlCode::N, "N"},
-                {KeyboardControlCode::O, "O"},
-                {KeyboardControlCode::P, "P"},
-                {KeyboardControlCode::Q, "Q"},
-                {KeyboardControlCode::R, "R"},
-                {KeyboardControlCode::S, "S"},
-                {KeyboardControlCode::T, "T"},
-                {KeyboardControlCode::U, "U"},
-                {KeyboardControlCode::V, "V"},
-                {KeyboardControlCode::W, "W"},
-                {KeyboardControlCode::X, "X"},
-                {KeyboardControlCode::Y, "Y"},
-                {KeyboardControlCode::Z, "Z"},
-                {KeyboardControlCode::Digit0, "0"},
-                {KeyboardControlCode::Digit1, "1"},
-                {KeyboardControlCode::Digit2, "2"},
-                {KeyboardControlCode::Digit3, "3"},
-                {KeyboardControlCode::Digit4, "4"},
-                {KeyboardControlCode::Digit5, "5"},
-                {KeyboardControlCode::Digit6, "6"},
-                {KeyboardControlCode::Digit7, "7"},
-                {KeyboardControlCode::Digit8, "8"},
-                {KeyboardControlCode::Digit9, "9"},
-                {KeyboardControlCode::Escape, "Escape"},
-                {KeyboardControlCode::Enter, "Enter"},
-                {KeyboardControlCode::Space, "Space"},
-                {KeyboardControlCode::Tab, "Tab"},
-                {KeyboardControlCode::Backspace, "Backspace"},
-                {KeyboardControlCode::LeftArrow, "Left Arrow"},
-                {KeyboardControlCode::RightArrow, "Right Arrow"},
-                {KeyboardControlCode::UpArrow, "Up Arrow"},
-                {KeyboardControlCode::DownArrow, "Down Arrow"},
-                {KeyboardControlCode::LeftControl, "Left Ctrl"},
-                {KeyboardControlCode::RightControl, "Right Ctrl"},
-                {KeyboardControlCode::LeftShift, "Left Shift"},
-                {KeyboardControlCode::RightShift, "Right Shift"},
-                {KeyboardControlCode::LeftAlt, "Left Alt"},
-                {KeyboardControlCode::RightAlt, "Right Alt"},
-                {KeyboardControlCode::LeftSuper, "Left Super"},
-                {KeyboardControlCode::RightSuper, "Right Super"},
-                {KeyboardControlCode::F1, "F1"},
-                {KeyboardControlCode::F2, "F2"}}};
+            constexpr std::array<std::pair<ControlCode, const char *>, 55> keys{
+                {{KeyboardControlCode::A, "A"},
+                 {KeyboardControlCode::B, "B"},
+                 {KeyboardControlCode::C, "C"},
+                 {KeyboardControlCode::D, "D"},
+                 {KeyboardControlCode::E, "E"},
+                 {KeyboardControlCode::F, "F"},
+                 {KeyboardControlCode::G, "G"},
+                 {KeyboardControlCode::H, "H"},
+                 {KeyboardControlCode::I, "I"},
+                 {KeyboardControlCode::J, "J"},
+                 {KeyboardControlCode::K, "K"},
+                 {KeyboardControlCode::L, "L"},
+                 {KeyboardControlCode::M, "M"},
+                 {KeyboardControlCode::N, "N"},
+                 {KeyboardControlCode::O, "O"},
+                 {KeyboardControlCode::P, "P"},
+                 {KeyboardControlCode::Q, "Q"},
+                 {KeyboardControlCode::R, "R"},
+                 {KeyboardControlCode::S, "S"},
+                 {KeyboardControlCode::T, "T"},
+                 {KeyboardControlCode::U, "U"},
+                 {KeyboardControlCode::V, "V"},
+                 {KeyboardControlCode::W, "W"},
+                 {KeyboardControlCode::X, "X"},
+                 {KeyboardControlCode::Y, "Y"},
+                 {KeyboardControlCode::Z, "Z"},
+                 {KeyboardControlCode::Digit0, "0"},
+                 {KeyboardControlCode::Digit1, "1"},
+                 {KeyboardControlCode::Digit2, "2"},
+                 {KeyboardControlCode::Digit3, "3"},
+                 {KeyboardControlCode::Digit4, "4"},
+                 {KeyboardControlCode::Digit5, "5"},
+                 {KeyboardControlCode::Digit6, "6"},
+                 {KeyboardControlCode::Digit7, "7"},
+                 {KeyboardControlCode::Digit8, "8"},
+                 {KeyboardControlCode::Digit9, "9"},
+                 {KeyboardControlCode::Escape, "Escape"},
+                 {KeyboardControlCode::Enter, "Enter"},
+                 {KeyboardControlCode::Space, "Space"},
+                 {KeyboardControlCode::Tab, "Tab"},
+                 {KeyboardControlCode::Backspace, "Backspace"},
+                 {KeyboardControlCode::LeftArrow, "Left Arrow"},
+                 {KeyboardControlCode::RightArrow, "Right Arrow"},
+                 {KeyboardControlCode::UpArrow, "Up Arrow"},
+                 {KeyboardControlCode::DownArrow, "Down Arrow"},
+                 {KeyboardControlCode::LeftControl, "Left Ctrl"},
+                 {KeyboardControlCode::RightControl, "Right Ctrl"},
+                 {KeyboardControlCode::LeftShift, "Left Shift"},
+                 {KeyboardControlCode::RightShift, "Right Shift"},
+                 {KeyboardControlCode::LeftAlt, "Left Alt"},
+                 {KeyboardControlCode::RightAlt, "Right Alt"},
+                 {KeyboardControlCode::LeftSuper, "Left Super"},
+                 {KeyboardControlCode::RightSuper, "Right Super"},
+                 {KeyboardControlCode::F1, "F1"},
+                 {KeyboardControlCode::F2, "F2"}}};
 
             std::vector<InputControlInfo> controls;
             controls.reserve(keys.size());
@@ -485,8 +477,20 @@ namespace GameWIP::Input
             controls.push_back(makeButtonControlInfo(makeMouseButton(MouseButton::X2), "X2 Button"));
             controls.push_back(makeAxisControlInfo(makeMouseAxis(MouseAxis::DeltaX), "Delta X", true));
             controls.push_back(makeAxisControlInfo(makeMouseAxis(MouseAxis::DeltaY), "Delta Y", true));
-            controls.push_back(InputControlInfo{.control = makeMouseWheel(MouseWheel::Vertical), .displayName = "Vertical Wheel", .minimumValue = -1.0f, .maximumValue = 1.0f, .relative = true});
-            controls.push_back(InputControlInfo{.control = makeMouseWheel(MouseWheel::Horizontal), .displayName = "Horizontal Wheel", .minimumValue = -1.0f, .maximumValue = 1.0f, .relative = true});
+            controls.push_back(
+                InputControlInfo{
+                    .control = makeMouseWheel(MouseWheel::Vertical),
+                    .displayName = "Vertical Wheel",
+                    .minimumValue = -1.0f,
+                    .maximumValue = 1.0f,
+                    .relative = true});
+            controls.push_back(
+                InputControlInfo{
+                    .control = makeMouseWheel(MouseWheel::Horizontal),
+                    .displayName = "Horizontal Wheel",
+                    .minimumValue = -1.0f,
+                    .maximumValue = 1.0f,
+                    .relative = true});
             return controls;
         }
 
@@ -531,7 +535,7 @@ namespace GameWIP::Input
                 text.push_back(static_cast<char>(0x80 | (codepoint & 0x3F)));
             }
         }
-    }
+    } // namespace
 
     InputDeviceRegistry::InputDeviceRegistry()
     {
@@ -578,10 +582,7 @@ namespace GameWIP::Input
     bool InputDeviceRegistry::shouldFeedDeviceBackend(InputDeviceRef device, InputDeviceBackend backend) const
     {
         const InputDeviceInfo *deviceInfo = findDevice(device);
-        return deviceInfo != nullptr &&
-               deviceInfo->connected &&
-               deviceInfo->canonical &&
-               hasBackendFeed(*deviceInfo, backend) &&
+        return deviceInfo != nullptr && deviceInfo->connected && deviceInfo->canonical && hasBackendFeed(*deviceInfo, backend) &&
                deviceInfo->primaryBackend == backend;
     }
 
@@ -592,10 +593,7 @@ namespace GameWIP::Input
             devices.end(),
             [](const InputDeviceInfo &device)
             {
-                return device.connected &&
-                       device.canonical &&
-                       device.deviceType == InputDeviceType::Gamepad &&
-                       device.hasHidFeed;
+                return device.connected && device.canonical && device.deviceType == InputDeviceType::Gamepad && device.hasHidFeed;
             });
     }
 
@@ -839,11 +837,7 @@ namespace GameWIP::Input
             for (InputControl control : currentButtons)
             {
                 addUniqueControl(releasedButtons, control);
-                activations.push_back(InputActivation{
-                    control,
-                    InputActivationType::ButtonReleased,
-                    0.0f,
-                    1.0f});
+                activations.push_back(InputActivation{control, InputActivationType::ButtonReleased, 0.0f, 1.0f});
             }
         }
 
@@ -976,9 +970,7 @@ namespace GameWIP::Input
                 return left.deviceIndex < right.deviceIndex;
             });
 
-        return entry != connectedDevices.end() &&
-               entry->deviceType == deviceType &&
-               entry->deviceIndex == deviceIndex;
+        return entry != connectedDevices.end() && entry->deviceType == deviceType && entry->deviceIndex == deviceIndex;
     }
 
     bool InputState::tryGetFirstActivation(InputActivation &outActivation) const
@@ -1038,11 +1030,12 @@ namespace GameWIP::Input
             addUniqueControl(releasedButtons, control);
         }
 
-        activations.push_back(InputActivation{
-            control,
-            isDown ? InputActivationType::ButtonPressed : InputActivationType::ButtonReleased,
-            isDown ? 1.0f : 0.0f,
-            wasDown ? 1.0f : 0.0f});
+        activations.push_back(
+            InputActivation{
+                control,
+                isDown ? InputActivationType::ButtonPressed : InputActivationType::ButtonReleased,
+                isDown ? 1.0f : 0.0f,
+                wasDown ? 1.0f : 0.0f});
     }
 
     void InputState::setAxisInternal(InputControl control, float value)
@@ -1103,11 +1096,12 @@ namespace GameWIP::Input
 
         float newAmount = getControlValue(wheelDeltas, control) + amount;
         setControlValue(wheelDeltas, control, newAmount);
-        activations.push_back(InputActivation{
-            control,
-            amount > 0.0f ? InputActivationType::WheelPositive : InputActivationType::WheelNegative,
-            amount,
-            newAmount - amount});
+        activations.push_back(
+            InputActivation{
+                control,
+                amount > 0.0f ? InputActivationType::WheelPositive : InputActivationType::WheelNegative,
+                amount,
+                newAmount - amount});
     }
 
     void InputState::addTextUtf8Internal(std::string_view text)
@@ -1151,9 +1145,7 @@ namespace GameWIP::Input
 
                 return left.deviceIndex < right.deviceIndex;
             });
-        bool found = entry != connectedDevices.end() &&
-                     entry->deviceType == deviceType &&
-                     entry->deviceIndex == deviceIndex;
+        bool found = entry != connectedDevices.end() && entry->deviceType == deviceType && entry->deviceIndex == deviceIndex;
 
         if (connected)
         {
@@ -1176,11 +1168,7 @@ namespace GameWIP::Input
             if (control.deviceType == device.deviceType && control.deviceIndex == device.deviceIndex)
             {
                 addUniqueControl(releasedButtons, control);
-                activations.push_back(InputActivation{
-                    control,
-                    InputActivationType::ButtonReleased,
-                    0.0f,
-                    1.0f});
+                activations.push_back(InputActivation{control, InputActivationType::ButtonReleased, 0.0f, 1.0f});
                 currentButtons.erase(currentButtons.begin() + controlIndex);
             }
             else
@@ -1203,7 +1191,7 @@ namespace GameWIP::Input
         }
     }
 
-}
+} // namespace GameWIP::Input
 
 namespace GameWIP::Input::Internal
 {
@@ -1292,7 +1280,10 @@ namespace GameWIP::Input::Internal
         registry.setDeviceCanonical(device, canonical);
     }
 
-    void InputDeviceRegistryAccess::replaceDeviceControls(InputDeviceRegistry &registry, InputDeviceRef device, std::span<const InputControlInfo> controls)
+    void InputDeviceRegistryAccess::replaceDeviceControls(
+        InputDeviceRegistry &registry,
+        InputDeviceRef device,
+        std::span<const InputControlInfo> controls)
     {
         registry.replaceDeviceControls(device, controls);
     }
@@ -1312,18 +1303,28 @@ namespace GameWIP::Input::Internal
         return registry.shouldFeedDeviceBackend(device, backend);
     }
 
-    InputDeviceRef InputDeviceRegistryAccess::mergeDeviceBackend(InputDeviceRegistry &registry, InputDeviceRef device, const InputDeviceInfo &backendInfo)
+    InputDeviceRef InputDeviceRegistryAccess::mergeDeviceBackend(
+        InputDeviceRegistry &registry,
+        InputDeviceRef device,
+        const InputDeviceInfo &backendInfo)
     {
         return registry.mergeDeviceBackend(device, backendInfo);
     }
 
-    void InputDeviceRegistryAccess::setDeviceBackendConnected(InputDeviceRegistry &registry, InputDeviceRef device, InputDeviceBackend backend, bool connected)
+    void InputDeviceRegistryAccess::setDeviceBackendConnected(
+        InputDeviceRegistry &registry,
+        InputDeviceRef device,
+        InputDeviceBackend backend,
+        bool connected)
     {
         registry.setDeviceBackendConnected(device, backend, connected);
     }
 
-    void InputDeviceRegistryAccess::mergeDeviceControls(InputDeviceRegistry &registry, InputDeviceRef device, std::span<const InputControlInfo> controls)
+    void InputDeviceRegistryAccess::mergeDeviceControls(
+        InputDeviceRegistry &registry,
+        InputDeviceRef device,
+        std::span<const InputControlInfo> controls)
     {
         registry.mergeDeviceControls(device, controls);
     }
-}
+} // namespace GameWIP::Input::Internal

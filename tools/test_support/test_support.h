@@ -60,7 +60,7 @@ namespace GameWIP::TestSupport
     /// @name Reporting and result types
     /// @{
 
-    /// @brief Public passive TestSupport type collection used by reports, suites, child processes, and manual checks.
+    /// @brief Report, suite, child-process, and manual-check types.
     namespace Types
     {
         /// @brief Runtime report-output settings shared by GameWIP test suites.
@@ -128,9 +128,9 @@ namespace GameWIP::TestSupport
     /// @{
 
     /// @brief Monotonic elapsed-time helper for test metrics.
+    /// TODO: Revisit this helper when the project adopts a dedicated test or benchmark timing framework.
     class Timer
     {
-        /// NOTE: update this so that it uses the gtest framework for acurate timing.
     public:
         /// @brief Starts the timer at construction.
         Timer() noexcept;

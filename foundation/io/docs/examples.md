@@ -1,4 +1,4 @@
-@page foundation_io_examples IO examples
+@page io_examples IO examples
 
 ## Collect text
 

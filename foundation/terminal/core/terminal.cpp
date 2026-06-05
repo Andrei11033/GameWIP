@@ -290,8 +290,8 @@ namespace GameWIP::Terminal
             const Types::TextStyle &style,
             const Types::OutputCapabilities *knownCapabilities = nullptr)
         {
-            const StylePlan plan = knownCapabilities != nullptr ? stylePlanForCapabilities(styleMode, style, knownCapabilities->style) :
-                                                                 stylePlan(stream, styleMode, style);
+            const StylePlan plan = knownCapabilities != nullptr ? stylePlanForCapabilities(styleMode, style, knownCapabilities->style)
+                                                                : stylePlan(stream, styleMode, style);
             if (!plan.status.ok())
             {
                 return plan.status;
@@ -415,8 +415,8 @@ namespace GameWIP::Terminal
                     break;
                 case Types::WriteSegmentKind::StyledText:
                 {
-                    const StylePlan plan = knownCapabilities != nullptr ? stylePlanForCapabilities(styleMode, segment.style, knownCapabilities->style) :
-                                                                         stylePlan(stream, styleMode, segment.style);
+                    const StylePlan plan = knownCapabilities != nullptr ? stylePlanForCapabilities(styleMode, segment.style, knownCapabilities->style)
+                                                                        : stylePlan(stream, styleMode, segment.style);
                     if (!plan.status.ok())
                     {
                         return plan.status;
@@ -1270,10 +1270,7 @@ namespace GameWIP::Terminal
         return readBytes(Types::InputStream::Stdin, outputBuffer, options);
     }
 
-    Types::ByteReadResult readBytes(
-        Types::InputStream stream,
-        std::span<std::byte> outputBuffer,
-        const Types::ByteReadOptions &options)
+    Types::ByteReadResult readBytes(Types::InputStream stream, std::span<std::byte> outputBuffer, const Types::ByteReadOptions &options)
     {
         std::lock_guard lock(inputMutex(stream));
         return Detail::Platform::readBytes(stream, outputBuffer, options);
@@ -1393,16 +1390,12 @@ namespace GameWIP::Terminal
         return setCursorPosition(Types::OutputStream::Stdout, position, options);
     }
 
-    IO::Types::Status setCursorPosition(
-        Types::OutputStream stream,
-        Types::CursorPosition position,
-        const Types::ControlOptions &options)
+    IO::Types::Status setCursorPosition(Types::OutputStream stream, Types::CursorPosition position, const Types::ControlOptions &options)
     {
         std::lock_guard lock(outputMutex(stream));
 
-        const std::string sequence =
-            "\x1b[" + std::to_string(static_cast<std::uint64_t>(position.row) + 1) + ";" +
-            std::to_string(static_cast<std::uint64_t>(position.column) + 1) + "H";
+        const std::string sequence = "\x1b[" + std::to_string(static_cast<std::uint64_t>(position.row) + 1) + ";" +
+                                     std::to_string(static_cast<std::uint64_t>(position.column) + 1) + "H";
 
         return writeControlSequenceUnlocked(
             stream,
@@ -1459,10 +1452,7 @@ namespace GameWIP::Terminal
         return setCursorVisible(Types::OutputStream::Stdout, visible, options);
     }
 
-    IO::Types::Status setCursorVisible(
-        Types::OutputStream stream,
-        bool visible,
-        const Types::ControlOptions &options)
+    IO::Types::Status setCursorVisible(Types::OutputStream stream, bool visible, const Types::ControlOptions &options)
     {
         std::lock_guard lock(outputMutex(stream));
         return writeControlSequenceUnlocked(
@@ -1493,10 +1483,7 @@ namespace GameWIP::Terminal
         return clear(Types::OutputStream::Stdout, target, options);
     }
 
-    IO::Types::Status clear(
-        Types::OutputStream stream,
-        Types::ClearTarget target,
-        const Types::ControlOptions &options)
+    IO::Types::Status clear(Types::OutputStream stream, Types::ClearTarget target, const Types::ControlOptions &options)
     {
         std::lock_guard lock(outputMutex(stream));
 
@@ -1541,11 +1528,7 @@ namespace GameWIP::Terminal
         return scroll(Types::OutputStream::Stdout, direction, lines, options);
     }
 
-    IO::Types::Status scroll(
-        Types::OutputStream stream,
-        Types::ScrollDirection direction,
-        std::uint32_t lines,
-        const Types::ControlOptions &options)
+    IO::Types::Status scroll(Types::OutputStream stream, Types::ScrollDirection direction, std::uint32_t lines, const Types::ControlOptions &options)
     {
         std::lock_guard lock(outputMutex(stream));
 
@@ -1617,10 +1600,7 @@ namespace GameWIP::Terminal
         return setTitle(Types::OutputStream::Stdout, utf8Title, options);
     }
 
-    IO::Types::Status setTitle(
-        Types::OutputStream stream,
-        std::string_view utf8Title,
-        const Types::ControlOptions &options)
+    IO::Types::Status setTitle(Types::OutputStream stream, std::string_view utf8Title, const Types::ControlOptions &options)
     {
         std::lock_guard lock(outputMutex(stream));
 

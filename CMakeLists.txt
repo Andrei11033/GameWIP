@@ -119,7 +119,7 @@ if(GAMEWIP_BUILD_DOCS)
         "${GAMEWIP_DOXYGEN_ROOT}/coverage.md"
         "${GAMEWIP_DOXYGEN_ROOT}/documentation.md"
         "${GAMEWIP_DOXYGEN_ROOT}/testing.md"
-        "${GAMEWIP_DOXYGEN_ROOT}/mainpage.md"
+        "${GAMEWIP_DOXYGEN_ROOT}/doxygen_notes.md"
     )
 endif()
 

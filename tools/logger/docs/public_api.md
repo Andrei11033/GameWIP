@@ -33,7 +33,7 @@ The namespace module API is the primary API. The macro header is opt-in and shou
 
 ## Public type groups
 
-`GameWIP::Logger::Types` contains passive configuration, reporting, and statistics shapes. Keeping them under `Types` keeps the public namespace compact while still making the API easy to discover in IntelliSense.
+`GameWIP::Logger::Types` contains configuration, reporting, and statistics shapes. Keeping them under `Types` keeps the public namespace compact and discoverable in IntelliSense.
 
 ### Severity and output
 

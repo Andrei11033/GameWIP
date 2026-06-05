@@ -1,4 +1,4 @@
-@page foundation_terminal_unicode_terminal_io Terminal Unicode I/O
+@page terminal_unicode_io Terminal Unicode I/O
 
 This page documents Unicode behavior for Terminal text input and output.
 

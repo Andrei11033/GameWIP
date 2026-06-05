@@ -1,4 +1,4 @@
-@page foundation_io_public_api IO public API guide
+@page io_public_api IO public API guide
 
 This page explains how the IO public API fits together and when to choose each API.
 
@@ -113,7 +113,7 @@ Whole-stream helpers and `MemoryWriter::write()` convert allocation failure to `
 
 ## Related pages
 
-- @ref foundation_io_reader_writer_contract
-- @ref foundation_io_error_model
-- @ref foundation_io_runtime_performance
-- @ref foundation_io_examples
+- @ref io_reader_writer_contract
+- @ref io_error_model
+- @ref io_runtime_performance
+- @ref io_examples

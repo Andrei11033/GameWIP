@@ -1,4 +1,4 @@
-@page foundation_io_reader_writer_contract IO Reader and Writer contract
+@page io_reader_writer_contract IO Reader and Writer contract
 
 This page documents the Reader and Writer contract for `GameWIP::IO`.
 

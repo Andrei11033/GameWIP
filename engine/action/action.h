@@ -187,11 +187,7 @@ namespace GameWIP::Action
     /// @param sensitivity Trigger value multiplier.
     /// @param invert True to flip the scalar value.
     /// @return Axis1D settings for triggers.
-    ActionSettings makeGamepadTriggerSettings(
-        float innerDeadzone = 0.05f,
-        float outerDeadzone = 1.0f,
-        float sensitivity = 1.0f,
-        bool invert = false);
+    ActionSettings makeGamepadTriggerSettings(float innerDeadzone = 0.05f, float outerDeadzone = 1.0f, float sensitivity = 1.0f, bool invert = false);
 
     struct ActionCombo
     {
@@ -232,12 +228,11 @@ namespace GameWIP::Action
         float axisActivationThreshold = 0.35f;                                       // Minimum absolute axis value for capture.
         float axisNoiseThreshold = 0.08f;                                            // Minimum axis movement for capture.
         ActionSettings settings{};                                                   // Optional settings assigned to the captured binding.
-        bool hasCustomSettings = false;                                               // True when settings should be copied to the captured binding.
+        bool hasCustomSettings = false;                                              // True when settings should be copied to the captured binding.
         bool replaceExistingBindings = true;                                         // Replace existing bindings for the same action when applied.
     };
 
-    template <typename ActionEnum>
-    struct ActionBinding
+    template <typename ActionEnum> struct ActionBinding
     {
         ActionEnum action{};               // The action being bound.
         ActionCombo combo{};               // Combo control configuration.
@@ -248,8 +243,7 @@ namespace GameWIP::Action
     };
 
     /// @brief Captured binding waiting to be applied.
-    template <typename ActionEnum>
-    struct ActionRebindCapture
+    template <typename ActionEnum> struct ActionRebindCapture
     {
         ActionEnum action{};                      // Target action.
         ActionBinding<ActionEnum> binding{};      // Captured binding.
@@ -259,8 +253,7 @@ namespace GameWIP::Action
     };
 
     /// @brief Stateful rebind capture that can collect multi-key combos over multiple frames.
-    template <typename ActionEnum>
-    struct ActionRebindSession
+    template <typename ActionEnum> struct ActionRebindSession
     {
         ActionEnum action{};                         // Target action.
         ActionRebindOptions options{};               // Capture behavior.
@@ -289,19 +282,17 @@ namespace GameWIP::Action
 
     struct RuntimeBindingState
     {
-        bool active = false;              // True while the binding is active.
-        bool holdFired = false;           // True once hold duration is satisfied.
-        float heldSeconds = 0.0f;         // Time held in seconds.
-        float timeSinceLastTap = 0.0f;    // Time since last tap for DoubleTap detection.
+        bool active = false;                   // True while the binding is active.
+        bool holdFired = false;                // True once hold duration is satisfied.
+        float heldSeconds = 0.0f;              // Time held in seconds.
+        float timeSinceLastTap = 0.0f;         // Time since last tap for DoubleTap detection.
         std::uint64_t valueChangeSequence = 0; // Last change order for value candidate tie-breaks.
         bool waitingForSecondTap = false;      // True while collecting second tap.
     };
 
-    template <typename ActionEnum>
-    class ActionMap;
+    template <typename ActionEnum> class ActionMap;
 
-    template <typename ActionEnum>
-    class ActionBindingBuilder
+    template <typename ActionEnum> class ActionBindingBuilder
     {
     public:
         ActionBindingBuilder(ActionMap<ActionEnum> &actionMap, ActionEnum action);
@@ -330,8 +321,7 @@ namespace GameWIP::Action
         ActionResult add(ActionTrigger trigger, ActionComponent component, float scale, float threshold, float holdSeconds, float doubleTapSeconds);
     };
 
-    template <typename ActionEnum>
-    class ActionMap
+    template <typename ActionEnum> class ActionMap
     {
     public:
         explicit ActionMap(ActionEnum actionCount);
@@ -397,10 +387,7 @@ namespace GameWIP::Action
         /// @param options Rebinding behavior.
         /// @param outSession Session that receives capture state.
         /// @return Collecting on success, or an error result.
-        RebindResult beginBindingCapture(
-            ActionEnum action,
-            const ActionRebindOptions &options,
-            ActionRebindSession<ActionEnum> &outSession) const;
+        RebindResult beginBindingCapture(ActionEnum action, const ActionRebindOptions &options, ActionRebindSession<ActionEnum> &outSession) const;
 
         /// @brief Updates a stateful rebind capture.
         /// @param inputState Raw input state to inspect.
@@ -471,6 +458,6 @@ namespace GameWIP::Action
         bool hasMatchingHoldFired(std::size_t bindingIndex) const;
     };
 
-}
+} // namespace GameWIP::Action
 
 #include "action/internal/action.inl"

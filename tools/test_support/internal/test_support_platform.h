@@ -22,4 +22,4 @@ namespace GameWIP::TestSupport::Detail::Platform
     /// @brief Removes one process environment variable from the current process.
     /// @param name Environment variable name.
     void unsetEnvironmentVariableValue(std::string_view name);
-}
+} // namespace GameWIP::TestSupport::Detail::Platform

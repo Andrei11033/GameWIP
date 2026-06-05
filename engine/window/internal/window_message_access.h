@@ -62,4 +62,4 @@ namespace GameWIP::WindowInternal
         /// @brief Returns the native cursor handle used by the window procedure.
         static void *getCursorHandle(const Window &window);
     };
-}
+} // namespace GameWIP::WindowInternal

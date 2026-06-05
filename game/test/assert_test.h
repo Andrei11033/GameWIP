@@ -41,4 +41,4 @@ namespace GameWIP::Test
     /// @param options Test toggles for expensive or process-aborting scenarios.
     /// @return Zero when every assert test passes, nonzero otherwise.
     int runAssertTests(int argc, char **argv, const AssertTestOptions &options = {});
-}
+} // namespace GameWIP::Test

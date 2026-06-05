@@ -316,8 +316,7 @@ namespace GameWIP::Logger::Detail::Core
     /// @return True when producers are inactive, the queue is empty, and the worker is idle.
     bool entryTextHeapCapacityAvailableUnlocked()
     {
-        return !loggerState().workerBusy &&
-               loggerState().queueDepth.load(std::memory_order_acquire) == 0 &&
+        return !loggerState().workerBusy && loggerState().queueDepth.load(std::memory_order_acquire) == 0 &&
                loggerState().publishedQueueDepth.load(std::memory_order_acquire) == 0 &&
                loggerState().activeProducers.load(std::memory_order_acquire) == 0;
     }
@@ -470,9 +469,8 @@ namespace GameWIP::Logger::Detail::Core
     /// @brief Returns cached ANSI-color availability for the selected console stream.
     bool consoleColorEnabledForStream(bool useCerr)
     {
-        return useCerr
-                   ? loggerState().stderrColorEnabledAtomic.load(std::memory_order_acquire)
-                   : loggerState().stdoutColorEnabledAtomic.load(std::memory_order_acquire);
+        return useCerr ? loggerState().stderrColorEnabledAtomic.load(std::memory_order_acquire)
+                       : loggerState().stdoutColorEnabledAtomic.load(std::memory_order_acquire);
     }
 
     //-------------------------------------------------------------------------------------------------
@@ -682,7 +680,7 @@ namespace GameWIP::Logger::Detail::Core
 
         return OutputMode::None;
     }
-}
+} // namespace GameWIP::Logger::Detail::Core
 
 using namespace GameWIP::Logger::Detail::Core;
 
@@ -777,12 +775,8 @@ LoggerMemoryStats GameWIP::Logger::getMemoryStats()
         memory.sourceRegistryBytes = publishedSourceRegistryBytes();
         memory.entryTextHeapCapacityAvailable = entryTextHeapCapacityAvailableUnlocked();
         memory.entryTextHeapCapacityBytes = memory.entryTextHeapCapacityAvailable ? entryTextHeapCapacityBytesUnlocked() : 0;
-        memory.loggerRetainedBytes =
-            sizeof(LoggerState) +
-            memory.queueStorageBytes +
-            memory.messageArenaBytes +
-            memory.sourceRegistryBytes +
-            memory.entryTextHeapCapacityBytes;
+        memory.loggerRetainedBytes = sizeof(LoggerState) + memory.queueStorageBytes + memory.messageArenaBytes + memory.sourceRegistryBytes +
+                                     memory.entryTextHeapCapacityBytes;
     }
 
     const GameWIP::Logger::Detail::Platform::ProcessMemory processMemory = GameWIP::Logger::Detail::Platform::queryProcessMemory();
@@ -1060,7 +1054,8 @@ LoggerResult GameWIP::Logger::init(const Types::Config &config)
     {
         try
         {
-            const std::string logDirectoryText = config.logDirectory.empty() ? std::string(LOGGER_DEFAULT_DIRECTORY) : std::string(config.logDirectory);
+            const std::string logDirectoryText =
+                config.logDirectory.empty() ? std::string(LOGGER_DEFAULT_DIRECTORY) : std::string(config.logDirectory);
 
             if (logDirectoryText.empty())
             {
@@ -1095,9 +1090,8 @@ LoggerResult GameWIP::Logger::init(const Types::Config &config)
                     std::lock_guard<std::mutex> outputLock(loggerState().outputMutex);
                     for (std::size_t index = 0; index <= kMaxCollisionAttempts; ++index)
                     {
-                        const std::string fileName = index == 0
-                                                         ? std::string(logFileBaseName) + ".log"
-                                                         : std::string(logFileBaseName) + "_" + std::to_string(index) + ".log";
+                        const std::string fileName =
+                            index == 0 ? std::string(logFileBaseName) + ".log" : std::string(logFileBaseName) + "_" + std::to_string(index) + ".log";
                         std::string nativeCandidatePath = logDirectoryText;
                         if (!nativeCandidatePath.empty() && nativeCandidatePath.back() != '/' && nativeCandidatePath.back() != '\\')
                         {

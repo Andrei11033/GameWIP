@@ -188,7 +188,12 @@ namespace GameWIP::Logger::Detail::Core
     /// @param levelText Level label.
     /// @param source Source text.
     /// @param message Message text.
-    void buildLogLine(std::string &outMessage, std::string_view timestamp, std::string_view levelText, std::string_view source, std::string_view message)
+    void buildLogLine(
+        std::string &outMessage,
+        std::string_view timestamp,
+        std::string_view levelText,
+        std::string_view source,
+        std::string_view message)
     {
         constexpr std::size_t fixedFormatLength = 8;
         const std::size_t requiredCapacity = timestamp.size() + levelText.size() + source.size() + message.size() + fixedFormatLength;
@@ -208,7 +213,7 @@ namespace GameWIP::Logger::Detail::Core
         outMessage.append("]: ");
         outMessage.append(message);
     }
-}
+} // namespace GameWIP::Logger::Detail::Core
 
 using namespace GameWIP::Logger::Detail::Core;
 

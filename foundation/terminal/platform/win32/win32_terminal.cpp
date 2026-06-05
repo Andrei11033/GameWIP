@@ -117,8 +117,7 @@ namespace GameWIP::Terminal::Detail::Platform
 
         void appendCapturedOutput(OutputStream stream, std::span<const std::byte> bytes)
         {
-            HookDetail::OutputHookState &state =
-                HookDetail::terminalTestHookState.outputStreams[HookDetail::outputIndex(stream)];
+            HookDetail::OutputHookState &state = HookDetail::terminalTestHookState.outputStreams[HookDetail::outputIndex(stream)];
             state.capturedOutput.insert(state.capturedOutput.end(), bytes.begin(), bytes.end());
         }
 
@@ -127,7 +126,10 @@ namespace GameWIP::Terminal::Detail::Platform
             appendCapturedOutput(stream, std::as_bytes(std::span<const char>(text.data(), text.size())));
         }
 
-        [[nodiscard]] std::optional<ReadChunk> readHookInputChunk(InputStream stream, std::chrono::milliseconds timeout, std::size_t requestedBytesHint)
+        [[nodiscard]] std::optional<ReadChunk> readHookInputChunk(
+            InputStream stream,
+            std::chrono::milliseconds timeout,
+            std::size_t requestedBytesHint)
         {
             std::lock_guard lock(HookDetail::terminalTestHookState.mutex);
 
@@ -144,9 +146,7 @@ namespace GameWIP::Terminal::Detail::Platform
                     return ReadChunk{.status = IO::successStatus(), .outcome = ReadOutcome::EndOfStream};
                 }
 
-                return ReadChunk{
-                    .status = IO::successStatus(),
-                    .outcome = timeout.count() > 0 ? ReadOutcome::TimedOut : ReadOutcome::WouldBlock};
+                return ReadChunk{.status = IO::successStatus(), .outcome = timeout.count() > 0 ? ReadOutcome::TimedOut : ReadOutcome::WouldBlock};
             }
 
             const std::size_t requestedBytes = std::max<std::size_t>(requestedBytesHint, 1);
@@ -1409,7 +1409,8 @@ namespace GameWIP::Terminal::Detail::Platform
 
                 if (prefix.stoppedByMax)
                 {
-                    result.status = IO::makeStatus(ErrorCode::SizeLimitExceeded, 0, "Terminal text read maxBytes is too small for the next UTF-8 code point.");
+                    result.status =
+                        IO::makeStatus(ErrorCode::SizeLimitExceeded, 0, "Terminal text read maxBytes is too small for the next UTF-8 code point.");
                     return result;
                 }
             }

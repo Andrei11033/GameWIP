@@ -6,9 +6,29 @@ It provides generic test reporting, expectations, suite running, file helpers, s
 
 ## Documentation sections
 
+### User manual
+
 - @subpage test_support_getting_started
+- @subpage test_support_quick_start
+- @subpage test_support_public_api
+- @subpage test_support_examples
+- @subpage test_support_troubleshooting
+- @subpage test_support_expectations
+- @subpage test_support_reports
+- @subpage test_support_files_environment
+- @subpage test_support_child_processes
+- @subpage test_support_manual_tests
+- @subpage test_support_timing_stress
+
+### Reference and concepts
+
 - @subpage test_support_api_reference
 - @subpage test_support_test_workflows
+
+### Developer validation
+
+- @subpage test_support_testing
+- @subpage test_support_developer_validation
 
 ## Normal user path
 

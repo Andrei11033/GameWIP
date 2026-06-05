@@ -1,4 +1,4 @@
-@page foundation_io_testing IO testing
+@page io_testing IO testing
 
 The IO library should be tested with focused unit tests covering memory readers, memory writers, whole-stream helpers, partial reads and writes, limits, capability queries, and failure propagation.
 
