@@ -1,6 +1,6 @@
-# GameWIP Libraries
+# Foundation and Tool Libraries
 
-GameWIP uses small, focused C++23 libraries for foundation-level systems, diagnostics, and test support. This site is the user-facing manual plus API reference for implemented libraries.
+These small, focused C++23 libraries provide foundation-level systems, diagnostics, and test support. This site is their user-facing manual and API reference.
 
 ## Libraries
 
@@ -12,10 +12,10 @@ GameWIP uses small, focused C++23 libraries for foundation-level systems, diagno
 
 ## Project references
 
-- @subpage gamewip_build
-- @subpage gamewip_testing
-- @subpage gamewip_coverage
-- @subpage gamewip_documentation
+- @subpage library_build
+- @subpage library_testing
+- @subpage library_coverage
+- @subpage library_documentation
 - @subpage doxygen_notes
 
 ## Documentation model

@@ -1,7 +1,5 @@
 @page test_support_timing_stress TestSupport timing and stress helpers
 
-This page explains the timing helpers and the small concurrency helpers used by stress tests.
-
 ## Timer
 
 `Timer` measures wall-clock elapsed time:

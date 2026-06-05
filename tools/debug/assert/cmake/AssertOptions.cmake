@@ -4,7 +4,7 @@
 # These stay in the Assert library cmake folder because they describe Assert's
 # local build contract, not a project-wide rule.
 
-function(gamewip_assert_resolve_auto_option output_variable option_value)
+function(internal_assert_resolve_auto_option output_variable option_value)
     if(option_value STREQUAL "ON")
         set(${output_variable} 1 PARENT_SCOPE)
     elseif(option_value STREQUAL "OFF")
@@ -16,7 +16,7 @@ function(gamewip_assert_resolve_auto_option output_variable option_value)
     endif()
 endfunction()
 
-function(gamewip_assert_public_option output_variable option_value)
+function(internal_assert_public_option output_variable option_value)
     if(option_value STREQUAL "ON")
         set(${output_variable} 1 PARENT_SCOPE)
     elseif(option_value STREQUAL "OFF")
@@ -24,7 +24,7 @@ function(gamewip_assert_public_option output_variable option_value)
     elseif(ASSERT_MULTI_CONFIG)
         set(${output_variable} "$<IF:${ASSERT_RELEASE_CONFIG_EXPRESSION},0,1>" PARENT_SCOPE)
     else()
-        gamewip_assert_resolve_auto_option(resolved_value "${option_value}")
+        internal_assert_resolve_auto_option(resolved_value "${option_value}")
         set(${output_variable} ${resolved_value} PARENT_SCOPE)
     endif()
 endfunction()

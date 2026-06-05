@@ -1,8 +1,6 @@
 @page terminal_capabilities_and_redirection Terminal capabilities and redirection
 
-This page documents capability and redirection behavior.
-
-The current implementation reports input and output capabilities for stdin/stdout/stderr and handles Windows real-console, redirected, detached, and other stream kinds.
+Terminal reports capabilities for stdin, stdout, and stderr across real terminals, redirected streams, detached streams, and other platform endpoints.
 
 ## StreamKind
 
@@ -48,6 +46,12 @@ The result type is `Types::InputCapabilityResult`.
 
 The result type is `Types::OutputCapabilityResult`.
 
+`getOutputCapabilities()` is observational. It inspects the current stream state and never enables terminal features.
+
+`prepareOutput()` enables platform support required by styles and terminal controls. Preparation is idempotent. Redirected streams require no setup and return their normal capabilities; detached streams return `IO::Types::ErrorCode::NotOpen`. A capability query after successful preparation reports the support that is currently active.
+
+Styled writes and terminal controls prepare lazily when their required capability is not active. Explicit preparation is useful during startup when the application wants to report configuration failures before its first styled or interactive output.
+
 ## StyleCapabilities
 
 `Types::StyleCapabilities` reports portable style features rather than backend protocol details. It intentionally does not expose an ANSI flag.
@@ -60,8 +64,8 @@ Text helpers interpret redirected input bytes as UTF-8 and return `IO::Types::Er
 
 Redirected stdout and stderr should not receive styling bytes in `StyleMode::Auto`. `StyleMode::Always` may force styling only when the backend can honestly support the request; otherwise it reports `Unsupported`.
 
-## Caching
+On Win32, real-console preparation enables virtual-terminal processing. Redirected UTF-8 output is written byte-for-byte and does not require console preparation.
 
-Capability checks may be cached where safe. Cached capability data must not silently turn a known unsupported operation into a reported success.
+## Failure behavior
 
-Detached or unsupported streams should report capabilities accurately and return explicit status failures for operations that cannot run.
+`StyleMode::Auto` falls back to plain text when preparation fails. `StyleMode::Always` and terminal controls return the preparation or unsupported status without writing. Plain text, byte output, size queries, cursor-position queries, and input operations never prepare output.

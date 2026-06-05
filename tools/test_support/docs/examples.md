@@ -1,7 +1,5 @@
 @page test_support_examples TestSupport examples
 
-This page collects small examples for the TestSupport API.
-
 ## Sections and metrics
 
 ```cpp
@@ -37,7 +35,7 @@ Occurrence counts are non-overlapping. Empty search text counts as zero occurren
 ```cpp
 {
     GameWIP::TestSupport::ScopedEnvironmentVariable variable(
-        "GAMEWIP_TEST_MODE",
+        "INTERNAL_TEST_SUPPORT_TEST_MODE",
         "1");
 
     runScenarioThatReadsEnvironment();

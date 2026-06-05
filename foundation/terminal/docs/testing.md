@@ -1,8 +1,12 @@
 @page terminal_testing Terminal testing
 
-This page documents the Terminal validation strategy.
+Terminal-specific tests and internal test hooks are implemented. Hook-dependent tests run when `TERMINAL_TEST_HOOKS=ON` configures `INTERNAL_TERMINAL_TEST_HOOKS=1`; hook-disabled builds skip those deterministic backend-hook suites.
 
-Terminal-specific tests and internal test hooks are implemented. Hook-dependent tests run when `GAMEWIP_ENABLE_TERMINAL_TEST_HOOKS=ON` configures `GAMEWIP_TERMINAL_TEST_HOOKS=1`; hook-disabled builds skip those deterministic backend-hook suites.
+Run the project test executable through CTest:
+
+```text
+ctest --test-dir build-optimized-debuggable --output-on-failure
+```
 
 ## Normal behavior coverage
 
@@ -13,6 +17,11 @@ Terminal implementation tests should cover:
 - byte write;
 - line write behavior through `writeLine()` and `LineWriteOptions`;
 - formatted write behavior through `print()` and `println()`;
+- observational capability queries and explicit or lazy output preparation;
+- preparation idempotence, failure propagation, and `StyleMode::Auto` fallback;
+- one backend text write for styled lines, formatted lines, and text segment batches;
+- full-batch rejection before output for invalid or unsupported segments;
+- independent stdout and stderr synchronization and scratch storage;
 - buffered write behavior through `OutputBuffer`;
 - styled output fallback;
 - `StyleMode::Never`;
@@ -43,13 +52,13 @@ Terminal implementation tests should cover:
 Terminal test hooks are controlled by:
 
 ```text
-GAMEWIP_ENABLE_TERMINAL_TEST_HOOKS
+TERMINAL_TEST_HOOKS
 ```
 
 This maps to the library-local `TERMINAL_TEST_HOOKS` option and exports:
 
 ```text
-GAMEWIP_TERMINAL_TEST_HOOKS
+INTERNAL_TERMINAL_TEST_HOOKS
 ```
 
 Hooks are internal only. They are not production API and are not installed as public headers.

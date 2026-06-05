@@ -17,8 +17,8 @@ Available actions:
 
 On Windows, Assert prefers a TaskDialog path when available so the full action set can be presented. If TaskDialog is unavailable or forced to fail in tests, Assert falls back to MessageBox behavior with a reduced action mapping.
 
-When a debugger is attached, the default action favors Break. Without a debugger, the safe default is Abort unless `GAMEWIP_ASSERT_TEST_ACTION` provides a valid test action.
+When a debugger is attached, the default action favors Break. Without a debugger, the safe default is Abort unless `INTERNAL_ASSERT_TEST_ACTION` provides a valid test action.
 
 ## Test behavior
 
-Automated tests use `GAMEWIP_ASSERT_TEST_ACTION` to exercise interactive behavior without opening real UI. Manual UI tests intentionally open real Windows dialogs and require user interaction. They must only run when runtime `TestRunOptions` request them.
+Automated tests use `INTERNAL_ASSERT_TEST_ACTION` to exercise interactive behavior without opening real UI. Manual UI tests intentionally open real Windows dialogs and require user interaction. They must only run when runtime `TestRunOptions` request them.

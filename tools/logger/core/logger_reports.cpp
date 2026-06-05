@@ -114,7 +114,7 @@ namespace GameWIP::Logger::Detail::Core
         }
     }
 
-#if GAMEWIP_LOGGER_TEST_HOOKS
+#if INTERNAL_LOGGER_TEST_HOOKS
     /// @brief Returns a synthetic platform file error used by test hooks.
     PlatformError forcedFileError() noexcept
     {
@@ -131,7 +131,7 @@ namespace GameWIP::Logger::Detail::Core
     /// @brief Opens a file, optionally consuming a test hook that forces failure.
     PlatformError openFileExclusiveForLogger(std::string_view path, FileHandle &outHandle)
     {
-#if GAMEWIP_LOGGER_TEST_HOOKS
+#if INTERNAL_LOGGER_TEST_HOOKS
         if (consumeTestHook(loggerTestHookState.nextFileOpenFailure))
         {
             outHandle = {};
@@ -144,7 +144,7 @@ namespace GameWIP::Logger::Detail::Core
     /// @brief Writes file text, optionally consuming a test hook that forces failure.
     PlatformError writeFileForLogger(FileHandle handle, std::string_view text)
     {
-#if GAMEWIP_LOGGER_TEST_HOOKS
+#if INTERNAL_LOGGER_TEST_HOOKS
         if (consumeTestHook(loggerTestHookState.nextFileWriteFailure))
         {
             return forcedFileError();
@@ -156,7 +156,7 @@ namespace GameWIP::Logger::Detail::Core
     /// @brief Flushes a file, optionally consuming a test hook that forces failure.
     PlatformError flushFileForLogger(FileHandle handle)
     {
-#if GAMEWIP_LOGGER_TEST_HOOKS
+#if INTERNAL_LOGGER_TEST_HOOKS
         if (consumeTestHook(loggerTestHookState.nextFileFlushFailure))
         {
             return forcedFileError();
@@ -316,7 +316,7 @@ namespace GameWIP::Logger::Detail::Core
 
         try
         {
-#if GAMEWIP_LOGGER_TEST_HOOKS
+#if INTERNAL_LOGGER_TEST_HOOKS
             if (consumeTestHook(loggerTestHookState.nextFatalPopupFailure))
             {
                 recordPlatformErrorIfAny(forcedFatalPopupError());
@@ -381,7 +381,7 @@ namespace GameWIP::Logger::Detail::Core
     /// @return True when the queue drained and sink flushing succeeded before timeout expired.
     bool flushInternal(std::chrono::milliseconds timeout)
     {
-#if GAMEWIP_LOGGER_TEST_HOOKS
+#if INTERNAL_LOGGER_TEST_HOOKS
         if (consumeTestHook(loggerTestHookState.nextTimedFlushTimeout))
         {
             return false;

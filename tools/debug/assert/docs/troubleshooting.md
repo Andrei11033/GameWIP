@@ -2,7 +2,7 @@
 
 ## A popup appears during automated tests
 
-Automated interactive tests must use `GAMEWIP_ASSERT_TEST_ACTION` and should suppress real UI. Manual UI tests are runtime-gated and should run only when the user intentionally enables them.
+Automated interactive tests must use `INTERNAL_ASSERT_TEST_ACTION` and should suppress real UI. Manual UI tests are runtime-gated and should run only when the user intentionally enables them.
 
 ## My expression is not evaluated
 
@@ -26,7 +26,7 @@ The TaskDialog path can represent the full interactive action set. The MessageBo
 
 ## Abort happens instead of Break
 
-Without an attached debugger, the safe default action is Abort. In automated tests, use `GAMEWIP_ASSERT_TEST_ACTION=break` only for scenarios that are isolated and expected to handle the break path.
+Without an attached debugger, the safe default action is Abort. In automated tests, use `INTERNAL_ASSERT_TEST_ACTION=break` only for scenarios that are isolated and expected to handle the break path.
 
 ## CHECK_ONCE reports more than expected
 

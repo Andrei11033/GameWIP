@@ -1,13 +1,13 @@
 /// @file win32_assert.cpp
-/// @brief Windows platform backend for the GameWIP Assert library.
+/// @brief Windows platform backend for the Assert library.
 
 #include "debug/assert/internal/assert_platform.h"
 
-#ifndef GAMEWIP_ASSERT_TEST_HOOKS
-#define GAMEWIP_ASSERT_TEST_HOOKS 0
+#ifndef INTERNAL_ASSERT_TEST_HOOKS
+#define INTERNAL_ASSERT_TEST_HOOKS 0
 #endif
 
-#if GAMEWIP_ASSERT_TEST_HOOKS
+#if INTERNAL_ASSERT_TEST_HOOKS
 #include "debug/assert/internal/assert_test_hooks.h"
 #endif
 
@@ -33,7 +33,7 @@ namespace
 {
     bool popupsSuppressed() noexcept
     {
-#if GAMEWIP_ASSERT_TEST_HOOKS
+#if INTERNAL_ASSERT_TEST_HOOKS
         bool overrideValue = false;
         if (GameWIP::Debug::Assert::Detail::TestHooks::popupSuppressedOverride(overrideValue))
         {
@@ -41,13 +41,13 @@ namespace
         }
 #endif
         wchar_t value[2]{};
-        const DWORD size = GetEnvironmentVariableW(L"GAMEWIP_ASSERT_SUPPRESS_POPUP", value, static_cast<DWORD>(sizeof(value) / sizeof(value[0])));
+        const DWORD size = GetEnvironmentVariableW(L"INTERNAL_ASSERT_SUPPRESS_POPUP", value, static_cast<DWORD>(sizeof(value) / sizeof(value[0])));
         return size == 1 && value[0] == L'1';
     }
 
     using FailureAction = GameWIP::Debug::Assert::FailureAction;
 
-#if GAMEWIP_ASSERT_TEST_HOOKS
+#if INTERNAL_ASSERT_TEST_HOOKS
     struct AssertTestHookState
     {
         std::atomic_bool nextActionDialogFailure{false};
@@ -201,7 +201,7 @@ namespace
 
     FailureAction fallbackMessageBoxAction(const wchar_t *title, const wchar_t *message, FailureAction defaultAction) noexcept
     {
-#if GAMEWIP_ASSERT_TEST_HOOKS
+#if INTERNAL_ASSERT_TEST_HOOKS
         if (consumeTestHook(assertTestHookState.nextFallbackActionDialogFailure))
         {
             return defaultAction;
@@ -222,7 +222,7 @@ namespace
     }
 } // namespace
 
-#if GAMEWIP_ASSERT_TEST_HOOKS
+#if INTERNAL_ASSERT_TEST_HOOKS
 namespace GameWIP::Debug::Assert::TestHooks
 {
     void reset() noexcept
@@ -365,7 +365,7 @@ namespace GameWIP::Debug::Assert::Detail::Platform
         config.nDefaultButton = buttonIdForAction(defaultAction);
 
         int selectedButton = buttonIdForAction(defaultAction);
-#if GAMEWIP_ASSERT_TEST_HOOKS
+#if INTERNAL_ASSERT_TEST_HOOKS
         const bool forceTaskDialogFailure = consumeTestHook(assertTestHookState.nextActionDialogFailure);
 #else
         const bool forceTaskDialogFailure = false;
@@ -387,7 +387,7 @@ namespace GameWIP::Debug::Assert::Detail::Platform
 
     bool isDebuggerAttached() noexcept
     {
-#if GAMEWIP_ASSERT_TEST_HOOKS
+#if INTERNAL_ASSERT_TEST_HOOKS
         bool overrideValue = false;
         if (GameWIP::Debug::Assert::Detail::TestHooks::debuggerAttachedOverride(overrideValue))
         {

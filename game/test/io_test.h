@@ -1,5 +1,5 @@
 /// @file io_test.h
-/// @brief Runtime options and entry point for the GameWIP IO self-tests.
+/// @brief Runtime options and entry point for the IO self-tests.
 
 #pragma once
 

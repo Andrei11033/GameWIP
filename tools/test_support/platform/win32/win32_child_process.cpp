@@ -1,5 +1,5 @@
 /// @file win32_child_process.cpp
-/// @brief Windows child-process backend for the GameWIP TestSupport library.
+/// @brief Windows child-process backend for the TestSupport library.
 
 #include "test_support/test_support.h"
 
@@ -312,8 +312,28 @@ namespace GameWIP::TestSupport
         Types::ChildProcessResult result;
 
 #if defined(_WIN32)
+        constexpr DWORD kTestTerminationCode = 0x54455354u;
         std::wstring commandLine = buildCommandLine(options);
         std::wstring environmentBlock = buildEnvironmentBlock(options);
+
+        UniqueHandle jobHandle(CreateJobObjectW(nullptr, nullptr));
+        if (jobHandle.get() == nullptr)
+        {
+            result.exitCode = -1;
+            return result;
+        }
+
+        JOBOBJECT_EXTENDED_LIMIT_INFORMATION jobLimits{};
+        jobLimits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+        if (SetInformationJobObject(
+                jobHandle.get(),
+                JobObjectExtendedLimitInformation,
+                &jobLimits,
+                static_cast<DWORD>(sizeof(jobLimits))) == FALSE)
+        {
+            result.exitCode = -1;
+            return result;
+        }
 
         SECURITY_ATTRIBUTES securityAttributes{};
         securityAttributes.nLength = sizeof(securityAttributes);
@@ -355,7 +375,7 @@ namespace GameWIP::TestSupport
             nullptr,
             nullptr,
             TRUE,
-            CREATE_NO_WINDOW | CREATE_UNICODE_ENVIRONMENT,
+            CREATE_NO_WINDOW | CREATE_UNICODE_ENVIRONMENT | CREATE_SUSPENDED,
             environmentBlock.data(),
             nullptr,
             &startupInfo,
@@ -372,36 +392,75 @@ namespace GameWIP::TestSupport
         UniqueHandle processHandle(processInfo.hProcess);
         UniqueHandle threadHandle(processInfo.hThread);
 
+        if (AssignProcessToJobObject(jobHandle.get(), processHandle.get()) == FALSE)
+        {
+            TerminateProcess(processHandle.get(), kTestTerminationCode);
+            WaitForSingleObject(processHandle.get(), INFINITE);
+            result.exitCode = -1;
+            result.wasTerminatedByTest = true;
+            return result;
+        }
+
         std::string output;
+        bool outputTruncated = false;
         bool outputReadFailed = false;
         std::thread outputReader;
+        UniqueHandle outputDoneEvent;
         if (options.captureOutput)
         {
+            outputDoneEvent.reset(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+            if (outputDoneEvent.get() == nullptr)
+            {
+                TerminateJobObject(jobHandle.get(), kTestTerminationCode);
+                WaitForSingleObject(processHandle.get(), INFINITE);
+                result.exitCode = -1;
+                result.wasTerminatedByTest = true;
+                return result;
+            }
+
             try
             {
                 const HANDLE outputReadHandle = outputRead.get();
+                const HANDLE outputDoneHandle = outputDoneEvent.get();
+                const std::size_t captureLimit = options.maxCapturedOutputBytes;
                 outputReader = std::thread(
-                    [outputReadHandle, &output, &outputReadFailed]
+                    [outputReadHandle, outputDoneHandle, captureLimit, &output, &outputTruncated, &outputReadFailed]
                     {
                         try
                         {
                             char buffer[4096];
-                            DWORD bytesRead = 0;
-                            while (ReadFile(outputReadHandle, buffer, static_cast<DWORD>(sizeof(buffer)), &bytesRead, nullptr) != FALSE &&
-                                   bytesRead > 0)
+                            while (true)
                             {
-                                output.append(buffer, buffer + bytesRead);
+                                DWORD bytesRead = 0;
+                                if (ReadFile(outputReadHandle, buffer, static_cast<DWORD>(sizeof(buffer)), &bytesRead, nullptr) == FALSE ||
+                                    bytesRead == 0)
+                                {
+                                    break;
+                                }
+
+                                const std::size_t retained = output.size();
+                                const std::size_t available = retained < captureLimit ? captureLimit - retained : 0;
+                                const std::size_t appendCount = std::min<std::size_t>(available, bytesRead);
+                                if (appendCount > 0)
+                                {
+                                    output.append(buffer, appendCount);
+                                }
+                                if (appendCount < bytesRead)
+                                {
+                                    outputTruncated = true;
+                                }
                             }
                         }
                         catch (...)
                         {
                             outputReadFailed = true;
                         }
+                        SetEvent(outputDoneHandle);
                     });
             }
             catch (...)
             {
-                TerminateProcess(processHandle.get(), 0x54455354u);
+                TerminateJobObject(jobHandle.get(), kTestTerminationCode);
                 WaitForSingleObject(processHandle.get(), INFINITE);
                 result.exitCode = -1;
                 result.wasTerminatedByTest = true;
@@ -409,24 +468,33 @@ namespace GameWIP::TestSupport
             }
         }
 
+        if (ResumeThread(threadHandle.get()) == static_cast<DWORD>(-1))
+        {
+            TerminateJobObject(jobHandle.get(), kTestTerminationCode);
+            WaitForSingleObject(processHandle.get(), INFINITE);
+            result.exitCode = -1;
+            result.wasTerminatedByTest = true;
+        }
+
+        bool processInspectionFailed = result.exitCode == -1;
         const DWORD waitResult = WaitForSingleObject(processHandle.get(), timeoutMilliseconds(options.timeout));
         if (waitResult == WAIT_TIMEOUT)
         {
             result.timedOut = true;
             result.wasTerminatedByTest = true;
-            TerminateProcess(processHandle.get(), 0x54455354u);
+            TerminateJobObject(jobHandle.get(), kTestTerminationCode);
             WaitForSingleObject(processHandle.get(), INFINITE);
         }
         else if (waitResult != WAIT_OBJECT_0)
         {
-            result.exitCode = -1;
+            processInspectionFailed = true;
             result.wasTerminatedByTest = true;
-            TerminateProcess(processHandle.get(), 0x54455354u);
+            TerminateJobObject(jobHandle.get(), kTestTerminationCode);
             WaitForSingleObject(processHandle.get(), INFINITE);
         }
 
         DWORD exitCode = 0;
-        if (GetExitCodeProcess(processHandle.get(), &exitCode) != FALSE)
+        if (!processInspectionFailed && GetExitCodeProcess(processHandle.get(), &exitCode) != FALSE)
         {
             result.exitCode = static_cast<int>(exitCode);
         }
@@ -435,8 +503,21 @@ namespace GameWIP::TestSupport
             result.exitCode = -1;
         }
 
+        // The primary process may have launched descendants that inherited the capture pipe.
+        // Terminating the job ensures those descendants cannot keep the reader blocked.
+        TerminateJobObject(jobHandle.get(), kTestTerminationCode);
+
         if (outputReader.joinable())
         {
+            if (WaitForSingleObject(outputDoneEvent.get(), 2000) != WAIT_OBJECT_0)
+            {
+                CancelSynchronousIo(reinterpret_cast<HANDLE>(outputReader.native_handle()));
+                if (WaitForSingleObject(outputDoneEvent.get(), 2000) != WAIT_OBJECT_0)
+                {
+                    outputRead.reset();
+                    WaitForSingleObject(outputDoneEvent.get(), INFINITE);
+                }
+            }
             outputReader.join();
         }
 
@@ -446,6 +527,7 @@ namespace GameWIP::TestSupport
         }
 
         result.output = std::move(output);
+        result.outputTruncated = outputTruncated;
         return result;
 #else
         (void)options;

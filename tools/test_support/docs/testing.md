@@ -1,17 +1,15 @@
 @page test_support_testing TestSupport testing
 
-This page documents validation expectations for the TestSupport library itself.
-
 ## Normal tests
 
 TestSupport tests should cover:
 
 - runner and context result aggregation;
 - expectation pass/fail behavior;
-- report-file and console report options;
+- report buffering, suite-boundary flushing, and immediate per-line flushing;
 - file helper success and failure paths;
 - scoped environment restore behavior;
-- child-process exit, timeout, and output capture behavior;
+- child-process exit, timeout, bounded capture, continued draining, and descendant cleanup;
 - manual-check skipped behavior on non-interactive input;
 - timer, section, start-gate, stop-flag, and worker helpers.
 
@@ -23,7 +21,6 @@ TestSupport is validated through the project test executable:
 ctest --test-dir build-optimized-debuggable --output-on-failure
 ```
 
-## Related pages
+TestSupport must remain independent of Logger, Assert, Terminal, and engine libraries. Child-process tests should assert portable observable outcomes: successful exit, nonzero exit, timeout, test-requested termination, captured output, and output truncation.
 
-- @ref test_support_test_workflows
-- @ref test_support_developer_validation
+See @ref test_support_child_processes and @ref test_support_reports for the corresponding contracts.

@@ -1,5 +1,5 @@
 /// @file terminal_platform.h
-/// @brief Internal platform abstraction used by the GameWIP Terminal library.
+/// @brief Internal platform abstraction used by the Terminal library.
 
 #pragma once
 
@@ -23,6 +23,10 @@ namespace GameWIP::Terminal::Detail::Platform
     /// @param stream Standard output stream to inspect.
     /// @return Portable capability result. Detached streams return success with detached capabilities.
     [[nodiscard]] Terminal::Types::OutputCapabilityResult getOutputCapabilities(Terminal::Types::OutputStream stream);
+
+    /// @brief Enables platform output features needed by styling and terminal controls.
+    /// @return Capabilities active after the idempotent preparation attempt.
+    [[nodiscard]] Terminal::Types::OutputCapabilityResult prepareOutput(Terminal::Types::OutputStream stream);
 
     /// @brief Checks whether input can be read without a normal blocking wait.
     /// @param stream Standard input stream to inspect.

@@ -5,10 +5,10 @@ Assert test hooks are advanced testing-only features. They are not production AP
 ## Enabling
 
 ```powershell
--DGAMEWIP_ENABLE_ASSERT_TEST_HOOKS=ON
+-DASSERT_TEST_HOOKS=ON
 ```
 
-This maps to the library-local `ASSERT_TEST_HOOKS` option and exports `GAMEWIP_ASSERT_TEST_HOOKS=1` to test code.
+This maps to the library-local `ASSERT_TEST_HOOKS` option and exports `INTERNAL_ASSERT_TEST_HOOKS=1` to test code.
 
 ## Purpose
 
@@ -22,7 +22,7 @@ Hooks make rare paths deterministic:
 
 ## Rules
 
-- Hook namespaces exist only when `GAMEWIP_ASSERT_TEST_HOOKS=1`.
+- Hook namespaces exist only when `INTERNAL_ASSERT_TEST_HOOKS=1`.
 - Hook headers live under `tools/debug/assert/internal/`.
 - Hook headers are excluded from normal installs.
 - Hooks are for tests and coverage, not user code.

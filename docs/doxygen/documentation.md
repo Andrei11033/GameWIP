@@ -1,11 +1,11 @@
-@page gamewip_documentation Documentation system
+@page library_documentation Documentation system
 
-The GameWIP Doxygen site is designed as a modular manual. Each library owns its own docs and API inputs; the root project only merges them into one unified site.
+The Doxygen site is designed as a modular manual. Each library owns its own docs and API inputs; the root project only merges them into one unified site.
 
 ## Core rules
 
-- One root Doxygen site is generated for all GameWIP libraries.
-- Project-wide Doxygen helper functions live in `cmake/GameWIPDoxygen.cmake`.
+- One root Doxygen site is generated for all libraries.
+- Project-wide Doxygen helper functions live in `cmake/LibraryDoxygen.cmake`.
 - Project-wide Doxygen pages, the Doxyfile template, and Doxygen styling live in `docs/doxygen/`.
 - Library-specific CMake helper functions live under that library's `cmake/` folder.
 - Each generated library owns a library-local `docs/` folder, for example `foundation/io/docs/`, `foundation/terminal/docs/`, or `tools/logger/docs/`.
@@ -22,7 +22,7 @@ The GameWIP Doxygen site is designed as a modular manual. Each library owns its 
 A library CMake file registers its public headers and docs folder like this:
 
 ```cmake
-gamewip_register_doxygen_library(
+library_register_doxygen_library(
     NAME Logger
     PAGE_ID logger
     PUBLIC_HEADERS
@@ -51,7 +51,7 @@ The root Doxygen page at `docs/doxygen/index.md` should link only to major libra
 
 ## User manual versus developer validation
 
-The generated Doxygen site is primarily a professional user manual for the reusable GameWIP libraries. A user should be able to learn how to use the public API from the generated docs without reading `.cpp` files.
+The generated Doxygen site is primarily a professional user manual for the reusable libraries. A user should be able to learn how to use the public API from the generated docs without reading `.cpp` files.
 
 Library landing pages should therefore split navigation into:
 
@@ -91,6 +91,6 @@ Test hooks should be documented in guide pages because they matter for validatio
 
 ## Doxygen verification
 
-Documentation generation is opt-in through `GAMEWIP_BUILD_DOCS`. Normal builds must not require Doxygen. The generated Doxyfile should keep `RECURSIVE = NO`, list explicit inputs, write HTML under the build tree, and write warnings to `build-docs/docs/doxygen/doxygen_warnings.log`.
+Documentation generation is opt-in through `BUILD_LIBRARY_DOCS`. Normal builds must not require Doxygen. The generated Doxyfile should keep `RECURSIVE = NO`, list explicit inputs, write HTML under the build tree, and write warnings to `build-docs/docs/doxygen/doxygen_warnings.log`.
 
 Planned library docs may exist before a library target is implemented. Those docs should state that generated Doxygen registration is still to be implemented and should not be listed on the root generated index until registration exists.

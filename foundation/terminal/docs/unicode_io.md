@@ -1,14 +1,10 @@
 @page terminal_unicode_io Terminal Unicode I/O
 
-This page documents Unicode behavior for Terminal text input and output.
-
 The Windows backend converts public UTF-8 text to UTF-16 for real console output, converts real console input to UTF-8, and leaves redirected streams byte-oriented.
 
 ## Public text
 
 Public Terminal text is UTF-8 `std::string` and `std::string_view`.
-
-Terminal text APIs do not parse JSON, config files, assets, markup, or higher-level formats.
 
 Text reads preserve valid UTF-8 code point boundaries. Byte reads remain available when callers need arbitrary bytes.
 

@@ -1,5 +1,5 @@
 /// @file terminal.h
-/// @brief Public API for the GameWIP Terminal foundation library.
+/// @brief Public API for the Terminal foundation library.
 
 #pragma once
 
@@ -883,8 +883,16 @@ namespace GameWIP::Terminal
         /// @brief Gets capabilities for the default output stream.
         [[nodiscard]] Types::OutputCapabilityResult getCapabilities() const;
 
-        /// @brief Gets capabilities for an output stream.
+        /// @brief Observes currently active capabilities without preparing the stream.
         [[nodiscard]] Types::OutputCapabilityResult getCapabilities(Types::OutputStream stream) const;
+
+        /// @brief Enables platform support required by styling and controls on the default stream.
+        /// @details Redirected streams need no setup. Detached streams report NotOpen.
+        [[nodiscard]] Types::OutputCapabilityResult prepareOutput() const;
+
+        /// @brief Enables platform support required by styling and controls on a selected stream.
+        /// @details Preparation is idempotent and updates later capability observations.
+        [[nodiscard]] Types::OutputCapabilityResult prepareOutput(Types::OutputStream stream) const;
 
         /// @brief Gets terminal size for the default output stream.
         [[nodiscard]] Types::TerminalSizeResult getTerminalSize() const;
@@ -1089,8 +1097,13 @@ namespace GameWIP::Terminal
     /// @brief Gets capabilities for an input stream.
     [[nodiscard]] Types::InputCapabilityResult getInputCapabilities(Types::InputStream stream = Types::InputStream::Stdin);
 
-    /// @brief Gets capabilities for an output stream.
+    /// @brief Observes currently active capabilities without preparing the stream.
     [[nodiscard]] Types::OutputCapabilityResult getOutputCapabilities(Types::OutputStream stream = Types::OutputStream::Stdout);
+
+    /// @brief Enables platform support required by styling and terminal controls.
+    /// @details Preparation is idempotent. Redirected streams need no setup, detached streams report NotOpen,
+    /// and styled writes or controls prepare lazily when needed.
+    [[nodiscard]] Types::OutputCapabilityResult prepareOutput(Types::OutputStream stream = Types::OutputStream::Stdout);
 
     /// @brief Gets terminal size for an output stream.
     [[nodiscard]] Types::TerminalSizeResult getTerminalSize(Types::OutputStream stream = Types::OutputStream::Stdout);
@@ -1308,6 +1321,23 @@ namespace GameWIP::Terminal
     /// @brief Rings the terminal bell through an output stream.
     [[nodiscard]] IO::Types::Status ringBell(Types::OutputStream stream = Types::OutputStream::Stdout, const Types::ControlOptions &options = {});
 
+    /// @cond INTERNAL_TERMINAL_DETAIL
+    namespace Detail
+    {
+        [[nodiscard]] IO::Types::Status vprint(
+            Types::OutputStream stream,
+            const Types::TextWriteOptions &options,
+            std::string_view format,
+            std::format_args arguments);
+
+        [[nodiscard]] IO::Types::Status vprintln(
+            Types::OutputStream stream,
+            const Types::LineWriteOptions &options,
+            std::string_view format,
+            std::format_args arguments);
+    } // namespace Detail
+    /// @endcond
+
     template <class... Args> IO::Types::Status Writer::print(std::format_string<Args...> format, Args &&...args) const
     {
         return print(Types::TextWriteOptions{}, format, std::forward<Args>(args)...);
@@ -1316,7 +1346,7 @@ namespace GameWIP::Terminal
     template <class... Args>
     IO::Types::Status Writer::print(const Types::TextWriteOptions &options, std::format_string<Args...> format, Args &&...args) const
     {
-        return writeText(std::format(format, std::forward<Args>(args)...), options);
+        return Detail::vprint(defaultStream_, options, format.get(), std::make_format_args(args...));
     }
 
     template <class... Args> IO::Types::Status Writer::println(std::format_string<Args...> format, Args &&...args) const
@@ -1327,7 +1357,7 @@ namespace GameWIP::Terminal
     template <class... Args>
     IO::Types::Status Writer::println(const Types::LineWriteOptions &options, std::format_string<Args...> format, Args &&...args) const
     {
-        return writeLine(std::format(format, std::forward<Args>(args)...), options);
+        return Detail::vprintln(defaultStream_, options, format.get(), std::make_format_args(args...));
     }
 
     template <class... Args> void OutputBuffer::print(std::format_string<Args...> format, Args &&...args)
@@ -1359,7 +1389,7 @@ namespace GameWIP::Terminal
     template <class... Args>
     IO::Types::Status print(Types::OutputStream stream, const Types::TextWriteOptions &options, std::format_string<Args...> format, Args &&...args)
     {
-        return writeText(stream, std::format(format, std::forward<Args>(args)...), options);
+        return Detail::vprint(stream, options, format.get(), std::make_format_args(args...));
     }
 
     template <class... Args> IO::Types::Status println(std::format_string<Args...> format, Args &&...args)
@@ -1380,6 +1410,6 @@ namespace GameWIP::Terminal
     template <class... Args>
     IO::Types::Status println(Types::OutputStream stream, const Types::LineWriteOptions &options, std::format_string<Args...> format, Args &&...args)
     {
-        return writeLine(stream, std::format(format, std::forward<Args>(args)...), options);
+        return Detail::vprintln(stream, options, format.get(), std::make_format_args(args...));
     }
 } // namespace GameWIP::Terminal

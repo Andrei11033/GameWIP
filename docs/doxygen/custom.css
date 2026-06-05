@@ -1,10 +1,10 @@
 :root {
-    --gamewip-accent: #2f6fed;
+    --library-accent: #2f6fed;
 }
 
 .contents a:visited,
 .contents a:link {
-    color: var(--gamewip-accent);
+    color: var(--library-accent);
 }
 
 div.contents {
@@ -18,6 +18,6 @@ div.line {
 .memdoc dl.note,
 .memdoc dl.warning,
 .memdoc dl.section {
-    border-left: 4px solid var(--gamewip-accent);
+    border-left: 4px solid var(--library-accent);
     padding-left: 0.75rem;
 }

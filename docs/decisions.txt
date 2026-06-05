@@ -238,7 +238,7 @@ Interactive assertion actions are:
 
 `AlwaysIgnore` is local to the macro call site.
 
-Automated interactive tests must use `GAMEWIP_ASSERT_TEST_ACTION` and must not open real popups.
+Automated interactive tests must use `INTERNAL_ASSERT_TEST_ACTION` and must not open real popups.
 
 Manual UI tests are separate. They may show real Windows UI, may block, and should run near the end of the test run.
 
@@ -246,14 +246,13 @@ Manual UI tests are separate. They may show real Windows UI, may block, and shou
 
 # 7. TestSupport Decisions
 
-`tools/test_support` is the shared GameWIP-native test support library.
+`tools/test_support` is the shared test support library.
 
 It is used by logger tests, assert tests, and future engine tests.
 
 ## Public Identity
 
 * Target: `TestSupport`
-* Alias target: `GameWIP::TestSupport`
 * Namespace: `GameWIP::TestSupport`
 * Public header: `tools/test_support/test_support.h`
 * Library type: static library
@@ -409,12 +408,13 @@ ASSERT_...
 TEST_SUPPORT_...
 ```
 
-Exported compiler macros use:
+Internal compiler macros use ownership after the `INTERNAL_` prefix:
 
 ```text
-GAMEWIP_LOGGER_...
-GAMEWIP_ASSERT_...
-GAMEWIP_TEST_SUPPORT_...
+INTERNAL_LOGGER_...
+INTERNAL_ASSERT_...
+INTERNAL_TERMINAL_...
+INTERNAL_TEST_SUPPORT_...
 ```
 
 Names should describe the current contract, not stale implementation history.
@@ -427,7 +427,7 @@ Test hooks live only under internal namespaces when enabled.
 
 # 10. Platform Backend Standard
 
-GameWIP tool libraries keep public headers and core implementations platform-neutral.
+Tool libraries keep public headers and core implementations platform-neutral.
 
 Operating-system-specific behavior lives behind internal platform headers and platform source files.
 
@@ -443,18 +443,18 @@ The current Windows platform id is:
 win32
 ```
 
-`cmake/GameWIPPlatform.cmake` resolves `GAMEWIP_PLATFORM_ID`.
+`cmake/LibraryPlatform.cmake` resolves `LIBRARY_PLATFORM_ID`.
 
 Library CMake files consume platform files by convention:
 
 ```text
-platform/${GAMEWIP_PLATFORM_ID}/*.cpp
+platform/${LIBRARY_PLATFORM_ID}/*.cpp
 ```
 
 A backend folder may also include:
 
 ```text
-platform/${GAMEWIP_PLATFORM_ID}/platform.cmake
+platform/${LIBRARY_PLATFORM_ID}/platform.cmake
 ```
 
 Use `platform.cmake` only for platform-local needs, such as:
@@ -473,7 +473,7 @@ Adding a new platform should normally require adding a matching backend folder, 
 
 Windows platform code uses explicit Unicode Win32 APIs.
 
-Public GameWIP C++ APIs stay portable and ergonomic:
+Public library C++ APIs stay portable and ergonomic:
 
 * text uses UTF-8 `std::string`;
 * paths use `std::filesystem::path`.
@@ -586,7 +586,7 @@ tools/test_support/docs/
 Documentation generation is controlled by:
 
 ```text
-GAMEWIP_BUILD_DOCS
+BUILD_LIBRARY_DOCS
 ```
 
 The root docs target combines:
@@ -600,7 +600,7 @@ The root docs target combines:
 Project-wide Doxygen helper functions live in:
 
 ```text
-cmake/GameWIPDoxygen.cmake
+cmake/LibraryDoxygen.cmake
 ```
 
 Each library registers its own public headers and docs folder when documentation is enabled.
@@ -609,17 +609,17 @@ Only the library landing page is required. Child pages are owned by the library 
 
 Generated docs intentionally disable graph and PlantUML output for now so the docs target stays fast and deterministic.
 
-When `GAMEWIP_BUILD_DOCS=ON`, Doxygen is required. If Doxygen is missing, configuration should fail with a clear message.
+When `BUILD_LIBRARY_DOCS=ON`, Doxygen is required. If Doxygen is missing, configuration should fail with a clear message.
 
 Normal builds must not require Doxygen.
 
-`GAMEWIP_INSTALL_DOCS=ON` installs generated HTML docs under:
+`INSTALL_LIBRARY_DOCS=ON` installs generated HTML docs under:
 
 ```text
-share/doc/GameWIP/doxygen/html
+share/doc/Libraries/doxygen/html
 ```
 
-`GAMEWIP_INSTALL_DOCS=ON` requires `GAMEWIP_BUILD_DOCS=ON`.
+`INSTALL_LIBRARY_DOCS=ON` requires `BUILD_LIBRARY_DOCS=ON`.
 
 ---
 
@@ -628,9 +628,9 @@ share/doc/GameWIP/doxygen/html
 Test hooks are controlled by separate compile-time flags:
 
 ```text
-GAMEWIP_LOGGER_TEST_HOOKS
-GAMEWIP_ASSERT_TEST_HOOKS
-GAMEWIP_TERMINAL_TEST_HOOKS
+LOGGER_TEST_HOOKS
+ASSERT_TEST_HOOKS
+TERMINAL_TEST_HOOKS
 ```
 
 Test hooks live in internal headers such as:
@@ -697,7 +697,7 @@ Coverage answers which lines, functions, and branches actually ran during tests.
 Coverage instrumentation is a compile-time build mode controlled by:
 
 ```text
-GAMEWIP_ENABLE_COVERAGE
+ENABLE_LIBRARY_COVERAGE
 ```
 
 Runtime test selection still belongs to runtime options.
@@ -723,20 +723,20 @@ Warnings should remain visible, but HTML and XML reports should still be generat
 
 # 18. Package and Install Naming
 
-Package names use underscores:
+Package names match their library targets:
 
 ```cmake
-find_package(GameWIP_Logger CONFIG REQUIRED)
-find_package(GameWIP_Assert CONFIG REQUIRED)
-find_package(GameWIP_TestSupport CONFIG REQUIRED)
+find_package(Logger CONFIG REQUIRED)
+find_package(Assert CONFIG REQUIRED)
+find_package(TestSupport CONFIG REQUIRED)
 ```
 
-Imported targets stay namespaced and stable:
+Imported targets use the direct library names:
 
 ```cmake
-GameWIP::Logger
-GameWIP::Assert
-GameWIP::TestSupport
+Logger
+Assert
+TestSupport
 ```
 
 The Assert package depends on the Logger package.

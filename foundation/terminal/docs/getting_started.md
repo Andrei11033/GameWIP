@@ -1,7 +1,5 @@
 @page terminal_getting_started Terminal getting started
 
-Start here when adding Terminal to code that needs standard input, standard output, styling, or terminal control primitives.
-
 ## Include and link
 
 Include:
@@ -10,7 +8,7 @@ Include:
 #include "terminal/terminal.h"
 ```
 
-Link the `GameWIP::Terminal` target. Terminal publicly depends on `GameWIP::IO` because it uses shared status, write-result, and flush-mode types.
+Link the `Terminal` target. Terminal publicly depends on `IO` because it uses shared status, write-result, and flush-mode types.
 
 ## Common path
 

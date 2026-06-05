@@ -6,7 +6,7 @@ Manual checks are for behavior that code cannot verify on its own, such as visua
 
 Automated tests should not depend on clicking dialogs.
 
-The GameWIP test executable exposes a focused TestSupport manual run:
+The project test executable exposes a focused TestSupport manual run:
 
 ```powershell
 .\build\GameWIP.exe --test-support-manual

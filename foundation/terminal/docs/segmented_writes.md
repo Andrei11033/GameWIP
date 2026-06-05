@@ -1,11 +1,5 @@
 @page terminal_segmented_writes Terminal segmented writes
 
-This page documents optimized segmented output behavior.
-
-The current implementation supports plain text segments, styled text segments, byte segments where byte output is supported, batch line endings, and batch flush. Styled segments follow the batch `StyleMode`.
-
-## Purpose
-
 Segmented writes let callers write a mixed batch of text, styled text, and bytes without concatenating strings first.
 
 The optimized path is:
@@ -14,7 +8,7 @@ The optimized path is:
 GameWIP::Terminal::writeSegments(std::span<const GameWIP::Terminal::Types::WriteSegment>{segments});
 ```
 
-Logger and other performance-sensitive tools should prefer segmented writes when they need to compose colored prefixes, plain message text, byte fragments, and trailing line endings.
+Use segmented writes when one logical output record contains independently styled or byte-oriented parts.
 
 ## Segment kinds
 
@@ -43,14 +37,8 @@ Construct segments with:
 
 Per-segment style lives in each `WriteSegment`. The batch options do not apply one global style to all text.
 
-## Performance contract
+Terminal validates the complete batch before emitting output. A byte segment targeting a real Win32 console returns `Unsupported` without writing earlier segments. Redirected batches may contain byte segments and are assembled into one backend write.
 
-A segmented write should:
-
-- serialize the target stream once for the whole batch;
-- minimize backend write calls where practical;
-- avoid requiring string concatenation;
-- avoid unnecessary allocation on successful hot paths;
-- reset style before returning when style was emitted.
+Text-only and styled batches are assembled into one backend text write. Per-stream scratch capacity is reused for normal writes and released after unusually large batches.
 
 Segmented writes do not guarantee atomicity relative to `std::cout`, `std::cerr`, `printf`, direct OS writes, or third-party terminal writes.

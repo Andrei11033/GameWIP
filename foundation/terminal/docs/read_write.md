@@ -1,9 +1,5 @@
 @page terminal_read_write Terminal read and write
 
-This page documents Terminal read and write behavior.
-
-The current implementation covers stdin line, text, and byte reads; stdout/stderr text writes; formatted text writes; line writes; flush requests; byte writes to non-console output where practical; styled writes; segmented writes; and reusable output buffering.
-
 ## Streams
 
 Terminal input currently exposes `Types::InputStream::Stdin`.
@@ -78,7 +74,9 @@ Terminal writes use explicit operation names.
 
 Text and segmented writes return `IO::Types::Status` because the operation may transform UTF-8 text into a platform-native console representation, emit styling, append line endings, reset style, and flush. Byte writes return `IO::Types::WriteResult` because callers need the number of accepted bytes.
 
-`writeText()` writes text exactly as provided. `writeLine()` writes text followed by `LineWriteOptions::lineEnding`. `print()` and `println()` format with `std::format` semantics and then route through `writeText()` or `writeLine()`.
+`writeText()` writes text exactly as provided. Plain, unstyled text is passed directly to the backend without an assembly allocation. `writeLine()` assembles the text and configured line ending before one backend text write. `print()` and `println()` format with `std::format` semantics directly into reusable per-stream scratch storage.
+
+Terminal serializes each stdout or stderr operation independently. It cannot serialize writes made through `std::cout`, `std::cerr`, `printf`, direct operating-system calls, or third-party output APIs.
 
 ## OutputBuffer
 
@@ -114,5 +112,7 @@ GameWIP::Terminal::writeSegments(std::span<const GameWIP::Terminal::Types::Write
 `Reader` stores a default input stream for repeated reads and input-mode operations. Repeated reads use `readLine()`, `readText()`, and `readBytes()`.
 
 `Writer` stores a default output stream for repeated writes and terminal controls. Repeated writes use `writeText()`, `writeLine()`, `writeBytes()`, `writeSegments()`, `print()`, and `println()`.
+
+`Writer::prepareOutput()` prepares its default stream. The stream-taking overload can prepare either standard output stream without constructing another writer.
 
 `Reader` and `Writer` are terminal convenience classes. They are not generic `GameWIP::IO` stream adapters and do not provide `operator>>` or `operator<<`.

@@ -5,7 +5,7 @@
 
 namespace GameWIP::Logger::Detail::Core
 {
-#if GAMEWIP_LOGGER_TEST_HOOKS
+#if INTERNAL_LOGGER_TEST_HOOKS
     LoggerTestHookState loggerTestHookState;
 
     bool consumeTestHook(std::atomic_bool &flag) noexcept
@@ -27,7 +27,7 @@ namespace GameWIP::Logger::Detail::Core
 
 using namespace GameWIP::Logger::Detail::Core;
 
-#if GAMEWIP_LOGGER_TEST_HOOKS
+#if INTERNAL_LOGGER_TEST_HOOKS
 namespace GameWIP::Logger::TestHooks
 {
     void reset() noexcept

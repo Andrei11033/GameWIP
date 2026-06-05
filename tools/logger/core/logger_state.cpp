@@ -1055,7 +1055,7 @@ LoggerResult GameWIP::Logger::init(const Types::Config &config)
         try
         {
             const std::string logDirectoryText =
-                config.logDirectory.empty() ? std::string(LOGGER_DEFAULT_DIRECTORY) : std::string(config.logDirectory);
+                config.logDirectory.empty() ? std::string(INTERNAL_LOGGER_DEFAULT_DIRECTORY) : std::string(config.logDirectory);
 
             if (logDirectoryText.empty())
             {

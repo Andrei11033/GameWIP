@@ -1,11 +1,15 @@
 /// @file terminal.cpp
-/// @brief Core implementation for the GameWIP Terminal library.
+/// @brief Core implementation for the Terminal library.
 
 #include "terminal/terminal.h"
 #include "terminal/internal/terminal_platform.h"
 
 #include <algorithm>
+#include <array>
+#include <charconv>
 #include <cstdint>
+#include <format>
+#include <iterator>
 #include <mutex>
 #include <string>
 #include <string_view>
@@ -35,6 +39,20 @@ namespace GameWIP::Terminal
             IO::Types::Status status = IO::successStatus();
             bool emitStyle = false;
         };
+
+        struct OutputState
+        {
+            std::mutex mutex;
+            std::string assembly;
+        };
+
+        struct StyleSequence
+        {
+            std::array<char, 96> bytes{};
+            std::size_t size = 0;
+        };
+
+        inline constexpr std::size_t kRetainedAssemblyLimit = 64 * 1024;
 
         [[nodiscard]] IO::Types::Status unsupportedStatus(std::string message = {})
         {
@@ -86,12 +104,12 @@ namespace GameWIP::Terminal
                    capabilities.underline || capabilities.inverse || capabilities.strikethrough;
         }
 
-        [[nodiscard]] std::mutex &outputMutex(Types::OutputStream stream) noexcept
+        [[nodiscard]] OutputState &outputState(Types::OutputStream stream) noexcept
         {
-            static std::mutex stdoutMutex;
-            static std::mutex stderrMutex;
+            static OutputState stdoutState;
+            static OutputState stderrState;
 
-            return stream == Types::OutputStream::Stderr ? stderrMutex : stdoutMutex;
+            return stream == Types::OutputStream::Stderr ? stderrState : stdoutState;
         }
 
         [[nodiscard]] std::mutex &inputMutex([[maybe_unused]] Types::InputStream stream) noexcept
@@ -123,78 +141,107 @@ namespace GameWIP::Terminal
             return (foreground ? (bright ? 90 : 30) : (bright ? 100 : 40)) + colorIndex;
         }
 
-        void appendSgrParameter(std::string &parameters, std::string_view parameter)
+        void releaseLargeAssembly(OutputState &state) noexcept
         {
-            if (!parameters.empty())
+            state.assembly.clear();
+            if (state.assembly.capacity() > kRetainedAssemblyLimit)
             {
-                parameters.push_back(';');
+                std::string{}.swap(state.assembly);
             }
-
-            parameters.append(parameter);
         }
 
-        void appendColorSgr(std::string &parameters, const Types::Color &color, bool foreground)
+        void appendUnsigned(std::string &text, std::uint64_t value)
+        {
+            std::array<char, 32> buffer{};
+            const auto result = std::to_chars(buffer.data(), buffer.data() + buffer.size(), value);
+            text.append(buffer.data(), result.ptr);
+        }
+
+        void appendSequenceText(StyleSequence &sequence, std::string_view text) noexcept
+        {
+            for (const char character : text)
+            {
+                sequence.bytes[sequence.size++] = character;
+            }
+        }
+
+        void appendSequenceNumber(StyleSequence &sequence, std::uint32_t value) noexcept
+        {
+            const auto result = std::to_chars(sequence.bytes.data() + sequence.size, sequence.bytes.data() + sequence.bytes.size(), value);
+            sequence.size = static_cast<std::size_t>(result.ptr - sequence.bytes.data());
+        }
+
+        void appendSgrParameter(StyleSequence &sequence, std::uint32_t parameter, bool &hasParameter) noexcept
+        {
+            if (hasParameter)
+            {
+                sequence.bytes[sequence.size++] = ';';
+            }
+            appendSequenceNumber(sequence, parameter);
+            hasParameter = true;
+        }
+
+        void appendColorSgr(StyleSequence &sequence, const Types::Color &color, bool foreground, bool &hasParameter) noexcept
         {
             switch (color.kind)
             {
             case Types::ColorKind::Default:
-                break;
+                return;
             case Types::ColorKind::Basic:
-                appendSgrParameter(parameters, std::to_string(basicColorCode(color.basic, foreground)));
-                break;
+                appendSgrParameter(sequence, static_cast<std::uint32_t>(basicColorCode(color.basic, foreground)), hasParameter);
+                return;
             case Types::ColorKind::Rgb:
-                appendSgrParameter(parameters, foreground ? "38" : "48");
-                appendSgrParameter(parameters, "2");
-                appendSgrParameter(parameters, std::to_string(color.red));
-                appendSgrParameter(parameters, std::to_string(color.green));
-                appendSgrParameter(parameters, std::to_string(color.blue));
-                break;
+                appendSgrParameter(sequence, foreground ? 38U : 48U, hasParameter);
+                appendSgrParameter(sequence, 2, hasParameter);
+                appendSgrParameter(sequence, color.red, hasParameter);
+                appendSgrParameter(sequence, color.green, hasParameter);
+                appendSgrParameter(sequence, color.blue, hasParameter);
+                return;
             }
         }
 
-        [[nodiscard]] std::string makeStyleSequence(const Types::TextStyle &style)
+        [[nodiscard]] StyleSequence makeStyleSequence(const Types::TextStyle &style) noexcept
         {
-            std::string parameters;
+            StyleSequence sequence;
+            appendSequenceText(sequence, "\x1b[");
+            bool hasParameter = false;
 
             if (style.bold)
             {
-                appendSgrParameter(parameters, "1");
+                appendSgrParameter(sequence, 1, hasParameter);
             }
             if (style.dim)
             {
-                appendSgrParameter(parameters, "2");
+                appendSgrParameter(sequence, 2, hasParameter);
             }
             if (style.italic)
             {
-                appendSgrParameter(parameters, "3");
+                appendSgrParameter(sequence, 3, hasParameter);
             }
             if (style.underline)
             {
-                appendSgrParameter(parameters, "4");
+                appendSgrParameter(sequence, 4, hasParameter);
             }
             if (style.inverse)
             {
-                appendSgrParameter(parameters, "7");
+                appendSgrParameter(sequence, 7, hasParameter);
             }
             if (style.strikethrough)
             {
-                appendSgrParameter(parameters, "9");
+                appendSgrParameter(sequence, 9, hasParameter);
             }
 
-            appendColorSgr(parameters, style.foreground, true);
-            appendColorSgr(parameters, style.background, false);
+            appendColorSgr(sequence, style.foreground, true, hasParameter);
+            appendColorSgr(sequence, style.background, false, hasParameter);
 
-            if (parameters.empty())
+            if (!hasParameter)
             {
-                return {};
+                sequence.size = 0;
+                return sequence;
             }
 
-            return "\x1b[" + parameters + "m";
-        }
-
-        [[nodiscard]] std::string makeCountedCsi(std::uint32_t amount, char command)
-        {
-            return "\x1b[" + std::to_string(amount) + command;
+            sequence.bytes[sequence.size++] = 'm';
+            return sequence;
         }
 
         [[nodiscard]] StylePlan stylePlanForCapabilities(
@@ -248,29 +295,40 @@ namespace GameWIP::Terminal
             {
                 return {};
             }
+            if (mode == Types::StyleMode::Never)
+            {
+                return {};
+            }
 
-            const Types::OutputCapabilityResult capabilities = Detail::Platform::getOutputCapabilities(stream);
+            Types::OutputCapabilityResult capabilities = Detail::Platform::getOutputCapabilities(stream);
+            if (capabilities.status.ok())
+            {
+                StylePlan plan = stylePlanForCapabilities(mode, style, capabilities.capabilities.style);
+                if (plan.status.ok() && plan.emitStyle)
+                {
+                    return plan;
+                }
+            }
+
+            capabilities = Detail::Platform::prepareOutput(stream);
+            if (capabilities.status.ok())
+            {
+                StylePlan plan = stylePlanForCapabilities(mode, style, capabilities.capabilities.style);
+                if (plan.status.ok() && plan.emitStyle)
+                {
+                    return plan;
+                }
+            }
+
+            if (mode == Types::StyleMode::Auto)
+            {
+                return {};
+            }
             if (!capabilities.status.ok())
             {
                 return {.status = capabilities.status};
             }
-
-            return stylePlanForCapabilities(mode, style, capabilities.capabilities.style);
-        }
-
-        [[nodiscard]] IO::Types::Status appendLineEndingIfRequested(Types::OutputStream stream, bool appendLineEnding, Types::LineEnding lineEnding)
-        {
-            if (!appendLineEnding)
-            {
-                return IO::successStatus();
-            }
-
-            return Detail::Platform::writeText(stream, lineEndingText(lineEnding));
-        }
-
-        [[nodiscard]] IO::Types::Status writeLineEnding(Types::OutputStream stream, Types::LineEnding lineEnding)
-        {
-            return Detail::Platform::writeText(stream, lineEndingText(lineEnding));
+            return {.status = unsupportedStatus("Terminal output stream does not support the requested style.")};
         }
 
         [[nodiscard]] IO::Types::Status flushIfRequested(Types::OutputStream stream, IO::Types::FlushMode mode)
@@ -283,15 +341,32 @@ namespace GameWIP::Terminal
             return Detail::Platform::flush(stream, mode);
         }
 
-        [[nodiscard]] IO::Types::Status writeStyledTextOnlyUnlocked(
+        [[nodiscard]] IO::Types::Status writeAssembly(
             Types::OutputStream stream,
-            std::string_view utf8Text,
-            Types::StyleMode styleMode,
-            const Types::TextStyle &style,
-            const Types::OutputCapabilities *knownCapabilities = nullptr)
+            OutputState &state,
+            IO::Types::FlushMode flushMode)
         {
-            const StylePlan plan = knownCapabilities != nullptr ? stylePlanForCapabilities(styleMode, style, knownCapabilities->style)
-                                                                : stylePlan(stream, styleMode, style);
+            IO::Types::Status status = IO::successStatus();
+            if (!state.assembly.empty())
+            {
+                status = Detail::Platform::writeText(stream, state.assembly);
+            }
+            if (status.ok())
+            {
+                status = flushIfRequested(stream, flushMode);
+            }
+
+            releaseLargeAssembly(state);
+            return status;
+        }
+
+        [[nodiscard]] IO::Types::Status writeTextUnlocked(
+            Types::OutputStream stream,
+            OutputState &state,
+            std::string_view utf8Text,
+            const Types::TextWriteOptions &options)
+        {
+            const StylePlan plan = stylePlan(stream, options.styleMode, options.style);
             if (!plan.status.ok())
             {
                 return plan.status;
@@ -299,90 +374,68 @@ namespace GameWIP::Terminal
 
             if (!plan.emitStyle)
             {
-                return Detail::Platform::writeText(stream, utf8Text);
+                IO::Types::Status status = Detail::Platform::writeText(stream, utf8Text);
+                return status.ok() ? flushIfRequested(stream, options.flushMode) : status;
             }
 
-            IO::Types::Status status = Detail::Platform::writeText(stream, makeStyleSequence(style));
-            if (!status.ok())
-            {
-                return status;
-            }
-
-            status = Detail::Platform::writeText(stream, utf8Text);
-            if (!status.ok())
-            {
-                static_cast<void>(Detail::Platform::writeText(stream, "\x1b[0m"));
-                return status;
-            }
-
-            IO::Types::Status resetStatus = Detail::Platform::writeText(stream, "\x1b[0m");
-            if (!resetStatus.ok() && resetStatus.message.empty())
-            {
-                resetStatus.message = "Terminal style reset failed after text output.";
-            }
-
-            return resetStatus;
-        }
-
-        [[nodiscard]] IO::Types::Status writeTextUnlocked(
-            Types::OutputStream stream,
-            std::string_view utf8Text,
-            const Types::TextWriteOptions &options)
-        {
-            IO::Types::Status status = writeStyledTextOnlyUnlocked(stream, utf8Text, options.styleMode, options.style);
-            if (!status.ok())
-            {
-                return status;
-            }
-
-            return flushIfRequested(stream, options.flushMode);
+            const StyleSequence prefix = makeStyleSequence(options.style);
+            state.assembly.clear();
+            state.assembly.append(prefix.bytes.data(), prefix.size);
+            state.assembly.append(utf8Text);
+            state.assembly.append("\x1b[0m");
+            return writeAssembly(stream, state, options.flushMode);
         }
 
         [[nodiscard]] IO::Types::Status writeLineUnlocked(
             Types::OutputStream stream,
+            OutputState &state,
             std::string_view utf8Text,
             const Types::LineWriteOptions &options)
         {
-            switch (options.styleMode)
+            const StylePlan plan = stylePlan(stream, options.styleMode, options.style);
+            if (!plan.status.ok())
             {
-            case Types::StyleMode::Never:
-            case Types::StyleMode::Auto:
-            case Types::StyleMode::Always:
-                break;
-            default:
-                return invalidArgumentStatus("Unknown terminal style mode.");
+                return plan.status;
             }
 
-            const std::string_view ending = lineEndingText(options.lineEnding);
-            if (options.styleMode == Types::StyleMode::Never || isDefaultStyle(options.style))
+            state.assembly.clear();
+            if (plan.emitStyle)
             {
-                std::string line;
-                line.reserve(utf8Text.size() + ending.size());
-                line.append(utf8Text);
-                line.append(ending);
+                const StyleSequence prefix = makeStyleSequence(options.style);
+                state.assembly.append(prefix.bytes.data(), prefix.size);
+            }
+            state.assembly.append(utf8Text);
+            if (plan.emitStyle)
+            {
+                state.assembly.append("\x1b[0m");
+            }
+            state.assembly.append(lineEndingText(options.lineEnding));
+            return writeAssembly(stream, state, options.flushMode);
+        }
 
-                IO::Types::Status status = Detail::Platform::writeText(stream, line);
-                if (!status.ok())
-                {
-                    return status;
-                }
-
-                return flushIfRequested(stream, options.flushMode);
+        [[nodiscard]] IO::Types::Status finishFormattedWriteUnlocked(
+            Types::OutputStream stream,
+            OutputState &state,
+            Types::StyleMode styleMode,
+            const Types::TextStyle &style,
+            std::string_view lineEnding,
+            IO::Types::FlushMode flushMode)
+        {
+            const StylePlan plan = stylePlan(stream, styleMode, style);
+            if (!plan.status.ok())
+            {
+                releaseLargeAssembly(state);
+                return plan.status;
             }
 
-            IO::Types::Status status = writeStyledTextOnlyUnlocked(stream, utf8Text, options.styleMode, options.style);
-            if (!status.ok())
+            if (plan.emitStyle)
             {
-                return status;
+                const StyleSequence prefix = makeStyleSequence(style);
+                state.assembly.insert(0, prefix.bytes.data(), prefix.size);
+                state.assembly.append("\x1b[0m");
             }
-
-            status = writeLineEnding(stream, options.lineEnding);
-            if (!status.ok())
-            {
-                return status;
-            }
-
-            return flushIfRequested(stream, options.flushMode);
+            state.assembly.append(lineEnding);
+            return writeAssembly(stream, state, flushMode);
         }
 
         [[nodiscard]] IO::Types::WriteResult writeBytesUnlocked(
@@ -401,22 +454,25 @@ namespace GameWIP::Terminal
         }
 
         [[nodiscard]] IO::Types::Status validateSegments(
-            Types::OutputStream stream,
             std::span<const Types::WriteSegment> segments,
             Types::StyleMode styleMode,
-            const Types::OutputCapabilities *knownCapabilities)
+            const Types::OutputCapabilities &capabilities)
         {
             for (const Types::WriteSegment &segment : segments)
             {
                 switch (segment.kind)
                 {
                 case Types::WriteSegmentKind::Text:
+                    break;
                 case Types::WriteSegmentKind::Bytes:
+                    if (!capabilities.supportsByteOutput)
+                    {
+                        return unsupportedStatus("Terminal byte output is unsupported for this output stream.");
+                    }
                     break;
                 case Types::WriteSegmentKind::StyledText:
                 {
-                    const StylePlan plan = knownCapabilities != nullptr ? stylePlanForCapabilities(styleMode, segment.style, knownCapabilities->style)
-                                                                        : stylePlan(stream, styleMode, segment.style);
+                    const StylePlan plan = stylePlanForCapabilities(styleMode, segment.style, capabilities.style);
                     if (!plan.status.ok())
                     {
                         return plan.status;
@@ -449,66 +505,94 @@ namespace GameWIP::Terminal
 
         [[nodiscard]] IO::Types::Status writeSegmentsUnlocked(
             Types::OutputStream stream,
+            OutputState &state,
             std::span<const Types::WriteSegment> segments,
             const Types::SegmentWriteOptions &options)
         {
-            Types::OutputCapabilities knownCapabilities;
-            const Types::OutputCapabilities *knownCapabilitiesPtr = nullptr;
-            if (segmentsNeedStyleCapabilities(segments, options.styleMode))
+            switch (options.styleMode)
             {
-                const Types::OutputCapabilityResult capabilities = Detail::Platform::getOutputCapabilities(stream);
-                if (!capabilities.status.ok())
-                {
-                    return capabilities.status;
-                }
-
-                knownCapabilities = capabilities.capabilities;
-                knownCapabilitiesPtr = &knownCapabilities;
+            case Types::StyleMode::Never:
+            case Types::StyleMode::Auto:
+            case Types::StyleMode::Always:
+                break;
+            default:
+                return invalidArgumentStatus("Unknown terminal style mode.");
             }
 
-            IO::Types::Status status = validateSegments(stream, segments, options.styleMode, knownCapabilitiesPtr);
+            Types::OutputCapabilityResult capabilityResult = Detail::Platform::getOutputCapabilities(stream);
+            if (!capabilityResult.status.ok())
+            {
+                return capabilityResult.status;
+            }
+
+            if (segmentsNeedStyleCapabilities(segments, options.styleMode))
+            {
+                const bool allStylesSupported = std::all_of(
+                    segments.begin(),
+                    segments.end(),
+                    [&capabilityResult](const Types::WriteSegment &segment)
+                    {
+                        return segment.kind != Types::WriteSegmentKind::StyledText || isDefaultStyle(segment.style) ||
+                               styleSupported(segment.style, capabilityResult.capabilities.style);
+                    });
+                if (!allStylesSupported)
+                {
+                    Types::OutputCapabilityResult prepared = Detail::Platform::prepareOutput(stream);
+                    if (prepared.status.ok())
+                    {
+                        capabilityResult = std::move(prepared);
+                    }
+                    else if (options.styleMode == Types::StyleMode::Always)
+                    {
+                        return prepared.status;
+                    }
+                }
+            }
+
+            IO::Types::Status status = validateSegments(segments, options.styleMode, capabilityResult.capabilities);
             if (!status.ok())
             {
                 return status;
             }
 
+            state.assembly.clear();
             for (const Types::WriteSegment &segment : segments)
             {
                 switch (segment.kind)
                 {
                 case Types::WriteSegmentKind::Text:
-                    status = Detail::Platform::writeText(stream, segment.text);
-                    if (!status.ok())
-                    {
-                        return status;
-                    }
+                    state.assembly.append(segment.text);
                     break;
                 case Types::WriteSegmentKind::StyledText:
-                    status = writeStyledTextOnlyUnlocked(stream, segment.text, options.styleMode, segment.style, knownCapabilitiesPtr);
-                    if (!status.ok())
-                    {
-                        return status;
-                    }
-                    break;
-                case Types::WriteSegmentKind::Bytes:
                 {
-                    const IO::Types::WriteResult writeResult = Detail::Platform::writeBytes(stream, segment.bytes);
-                    if (!writeResult.status.ok())
+                    const StylePlan plan = stylePlanForCapabilities(options.styleMode, segment.style, capabilityResult.capabilities.style);
+                    if (plan.emitStyle)
                     {
-                        return writeResult.status;
+                        const StyleSequence prefix = makeStyleSequence(segment.style);
+                        state.assembly.append(prefix.bytes.data(), prefix.size);
+                    }
+                    state.assembly.append(segment.text);
+                    if (plan.emitStyle)
+                    {
+                        state.assembly.append("\x1b[0m");
                     }
                     break;
                 }
+                case Types::WriteSegmentKind::Bytes:
+                    if (!segment.bytes.empty())
+                    {
+                        state.assembly.append(reinterpret_cast<const char *>(segment.bytes.data()), segment.bytes.size());
+                    }
+                    break;
                 }
             }
 
-            status = appendLineEndingIfRequested(stream, options.appendLineEnding, options.lineEnding);
-            if (!status.ok())
+            if (options.appendLineEnding)
             {
-                return status;
+                state.assembly.append(lineEndingText(options.lineEnding));
             }
 
-            return flushIfRequested(stream, options.flushMode);
+            return writeAssembly(stream, state, options.flushMode);
         }
 
         [[nodiscard]] bool controlFeatureSupported(const Types::OutputCapabilities &capabilities, ControlFeature feature) noexcept
@@ -545,7 +629,7 @@ namespace GameWIP::Terminal
             std::string unsupportedMessage,
             IO::Types::FlushMode flushMode)
         {
-            const Types::OutputCapabilityResult capabilities = Detail::Platform::getOutputCapabilities(stream);
+            Types::OutputCapabilityResult capabilities = Detail::Platform::getOutputCapabilities(stream);
             if (!capabilities.status.ok())
             {
                 return capabilities.status;
@@ -553,7 +637,15 @@ namespace GameWIP::Terminal
 
             if (!controlFeatureSupported(capabilities.capabilities, feature))
             {
-                return unsupportedStatus(std::move(unsupportedMessage));
+                capabilities = Detail::Platform::prepareOutput(stream);
+                if (!capabilities.status.ok())
+                {
+                    return capabilities.status;
+                }
+                if (!controlFeatureSupported(capabilities.capabilities, feature))
+                {
+                    return unsupportedStatus(std::move(unsupportedMessage));
+                }
             }
 
             IO::Types::Status status = Detail::Platform::writeText(stream, sequence);
@@ -565,25 +657,33 @@ namespace GameWIP::Terminal
             return flushIfRequested(stream, flushMode);
         }
 
-        [[nodiscard]] std::string sanitizeTitle(std::string_view utf8Title)
+        [[nodiscard]] IO::Types::Status writeAssembledControlSequenceUnlocked(
+            Types::OutputStream stream,
+            OutputState &state,
+            ControlFeature feature,
+            std::string unsupportedMessage,
+            IO::Types::FlushMode flushMode)
         {
-            std::string title;
-            title.reserve(utf8Title.size());
+            IO::Types::Status status =
+                writeControlSequenceUnlocked(stream, state.assembly, feature, std::move(unsupportedMessage), flushMode);
+            releaseLargeAssembly(state);
+            return status;
+        }
 
+        void appendSanitizedTitle(std::string &output, std::string_view utf8Title)
+        {
             for (const char character : utf8Title)
             {
                 const auto byte = static_cast<unsigned char>(character);
                 if (byte == 0x1b || byte == 0x07 || byte < 0x20 || byte == 0x7f)
                 {
-                    title.push_back(' ');
+                    output.push_back(' ');
                 }
                 else
                 {
-                    title.push_back(character);
+                    output.push_back(character);
                 }
             }
-
-            return title;
         }
     } // namespace
 
@@ -917,6 +1017,16 @@ namespace GameWIP::Terminal
         return getOutputCapabilities(stream);
     }
 
+    Types::OutputCapabilityResult Writer::prepareOutput() const
+    {
+        return Terminal::prepareOutput(defaultStream_);
+    }
+
+    Types::OutputCapabilityResult Writer::prepareOutput(Types::OutputStream stream) const
+    {
+        return Terminal::prepareOutput(stream);
+    }
+
     Types::TerminalSizeResult Writer::getTerminalSize() const
     {
         return Terminal::getTerminalSize(defaultStream_);
@@ -1181,13 +1291,19 @@ namespace GameWIP::Terminal
 
     Types::OutputCapabilityResult getOutputCapabilities(Types::OutputStream stream)
     {
-        std::lock_guard lock(outputMutex(stream));
+        std::lock_guard lock(outputState(stream).mutex);
         return Detail::Platform::getOutputCapabilities(stream);
+    }
+
+    Types::OutputCapabilityResult prepareOutput(Types::OutputStream stream)
+    {
+        std::lock_guard lock(outputState(stream).mutex);
+        return Detail::Platform::prepareOutput(stream);
     }
 
     Types::TerminalSizeResult getTerminalSize(Types::OutputStream stream)
     {
-        std::lock_guard lock(outputMutex(stream));
+        std::lock_guard lock(outputState(stream).mutex);
         return Detail::Platform::getTerminalSize(stream);
     }
 
@@ -1283,8 +1399,9 @@ namespace GameWIP::Terminal
 
     IO::Types::Status writeText(Types::OutputStream stream, std::string_view utf8Text, const Types::TextWriteOptions &options)
     {
-        std::lock_guard lock(outputMutex(stream));
-        return writeTextUnlocked(stream, utf8Text, options);
+        OutputState &state = outputState(stream);
+        std::lock_guard lock(state.mutex);
+        return writeTextUnlocked(stream, state, utf8Text, options);
     }
 
     IO::Types::Status writeLine(std::string_view utf8Text, const Types::LineWriteOptions &options)
@@ -1294,8 +1411,9 @@ namespace GameWIP::Terminal
 
     IO::Types::Status writeLine(Types::OutputStream stream, std::string_view utf8Text, const Types::LineWriteOptions &options)
     {
-        std::lock_guard lock(outputMutex(stream));
-        return writeLineUnlocked(stream, utf8Text, options);
+        OutputState &state = outputState(stream);
+        std::lock_guard lock(state.mutex);
+        return writeLineUnlocked(stream, state, utf8Text, options);
     }
 
     IO::Types::WriteResult writeBytes(std::span<const std::byte> bytes, const Types::ByteWriteOptions &options)
@@ -1305,7 +1423,7 @@ namespace GameWIP::Terminal
 
     IO::Types::WriteResult writeBytes(Types::OutputStream stream, std::span<const std::byte> bytes, const Types::ByteWriteOptions &options)
     {
-        std::lock_guard lock(outputMutex(stream));
+        std::lock_guard lock(outputState(stream).mutex);
         return writeBytesUnlocked(stream, bytes, options);
     }
 
@@ -1319,19 +1437,73 @@ namespace GameWIP::Terminal
         std::span<const Types::WriteSegment> segments,
         const Types::SegmentWriteOptions &options)
     {
-        std::lock_guard lock(outputMutex(stream));
-        return writeSegmentsUnlocked(stream, segments, options);
+        OutputState &state = outputState(stream);
+        std::lock_guard lock(state.mutex);
+        return writeSegmentsUnlocked(stream, state, segments, options);
     }
+
+    namespace Detail
+    {
+        IO::Types::Status vprint(
+            Types::OutputStream stream,
+            const Types::TextWriteOptions &options,
+            std::string_view format,
+            std::format_args arguments)
+        {
+            OutputState &state = outputState(stream);
+            std::lock_guard lock(state.mutex);
+            state.assembly.clear();
+            try
+            {
+                std::vformat_to(std::back_inserter(state.assembly), format, arguments);
+            }
+            catch (...)
+            {
+                releaseLargeAssembly(state);
+                throw;
+            }
+
+            return finishFormattedWriteUnlocked(stream, state, options.styleMode, options.style, {}, options.flushMode);
+        }
+
+        IO::Types::Status vprintln(
+            Types::OutputStream stream,
+            const Types::LineWriteOptions &options,
+            std::string_view format,
+            std::format_args arguments)
+        {
+            OutputState &state = outputState(stream);
+            std::lock_guard lock(state.mutex);
+            state.assembly.clear();
+            try
+            {
+                std::vformat_to(std::back_inserter(state.assembly), format, arguments);
+            }
+            catch (...)
+            {
+                releaseLargeAssembly(state);
+                throw;
+            }
+
+            return finishFormattedWriteUnlocked(
+                stream,
+                state,
+                options.styleMode,
+                options.style,
+                lineEndingText(options.lineEnding),
+                options.flushMode);
+        }
+    } // namespace Detail
 
     IO::Types::Status flush(Types::OutputStream stream, IO::Types::FlushMode mode)
     {
-        std::lock_guard lock(outputMutex(stream));
+        std::lock_guard lock(outputState(stream).mutex);
         return Detail::Platform::flush(stream, mode);
     }
 
     IO::Types::Status resetStyle(Types::OutputStream stream, const Types::ControlOptions &options)
     {
-        std::lock_guard lock(outputMutex(stream));
+        std::lock_guard lock(outputState(stream).mutex);
         return writeControlSequenceUnlocked(
             stream,
             "\x1b[0m",
@@ -1351,7 +1523,8 @@ namespace GameWIP::Terminal
         std::uint32_t amount,
         const Types::ControlOptions &options)
     {
-        std::lock_guard lock(outputMutex(stream));
+        OutputState &state = outputState(stream);
+        std::lock_guard lock(state.mutex);
 
         char command = 'A';
         switch (direction)
@@ -1377,9 +1550,13 @@ namespace GameWIP::Terminal
             return flushIfRequested(stream, options.flushMode);
         }
 
-        return writeControlSequenceUnlocked(
+        state.assembly.clear();
+        state.assembly.append("\x1b[");
+        appendUnsigned(state.assembly, amount);
+        state.assembly.push_back(command);
+        return writeAssembledControlSequenceUnlocked(
             stream,
-            makeCountedCsi(amount, command),
+            state,
             ControlFeature::CursorMovement,
             "Terminal cursor movement is unsupported for this output stream.",
             options.flushMode);
@@ -1392,14 +1569,18 @@ namespace GameWIP::Terminal
 
     IO::Types::Status setCursorPosition(Types::OutputStream stream, Types::CursorPosition position, const Types::ControlOptions &options)
     {
-        std::lock_guard lock(outputMutex(stream));
+        OutputState &state = outputState(stream);
+        std::lock_guard lock(state.mutex);
+        state.assembly.clear();
+        state.assembly.append("\x1b[");
+        appendUnsigned(state.assembly, static_cast<std::uint64_t>(position.row) + 1);
+        state.assembly.push_back(';');
+        appendUnsigned(state.assembly, static_cast<std::uint64_t>(position.column) + 1);
+        state.assembly.push_back('H');
 
-        const std::string sequence = "\x1b[" + std::to_string(static_cast<std::uint64_t>(position.row) + 1) + ";" +
-                                     std::to_string(static_cast<std::uint64_t>(position.column) + 1) + "H";
-
-        return writeControlSequenceUnlocked(
+        return writeAssembledControlSequenceUnlocked(
             stream,
-            sequence,
+            state,
             ControlFeature::CursorMovement,
             "Terminal cursor positioning is unsupported for this output stream.",
             options.flushMode);
@@ -1412,7 +1593,7 @@ namespace GameWIP::Terminal
 
     Types::CursorPositionResult getCursorPosition(Types::OutputStream stream, const Types::CursorPositionQueryOptions &options)
     {
-        std::lock_guard outputLock(outputMutex(stream));
+        std::lock_guard outputLock(outputState(stream).mutex);
         std::lock_guard inputLock(inputMutex(Types::InputStream::Stdin));
 
         static_cast<void>(options.timeout);
@@ -1427,7 +1608,7 @@ namespace GameWIP::Terminal
 
     IO::Types::Status saveCursorPosition(Types::OutputStream stream, const Types::ControlOptions &options)
     {
-        std::lock_guard lock(outputMutex(stream));
+        std::lock_guard lock(outputState(stream).mutex);
         return writeControlSequenceUnlocked(
             stream,
             "\x1b[s",
@@ -1438,7 +1619,7 @@ namespace GameWIP::Terminal
 
     IO::Types::Status restoreCursorPosition(Types::OutputStream stream, const Types::ControlOptions &options)
     {
-        std::lock_guard lock(outputMutex(stream));
+        std::lock_guard lock(outputState(stream).mutex);
         return writeControlSequenceUnlocked(
             stream,
             "\x1b[u",
@@ -1454,7 +1635,7 @@ namespace GameWIP::Terminal
 
     IO::Types::Status setCursorVisible(Types::OutputStream stream, bool visible, const Types::ControlOptions &options)
     {
-        std::lock_guard lock(outputMutex(stream));
+        std::lock_guard lock(outputState(stream).mutex);
         return writeControlSequenceUnlocked(
             stream,
             visible ? "\x1b[?25h" : "\x1b[?25l",
@@ -1485,7 +1666,7 @@ namespace GameWIP::Terminal
 
     IO::Types::Status clear(Types::OutputStream stream, Types::ClearTarget target, const Types::ControlOptions &options)
     {
-        std::lock_guard lock(outputMutex(stream));
+        std::lock_guard lock(outputState(stream).mutex);
 
         std::string_view sequence;
         switch (target)
@@ -1530,7 +1711,8 @@ namespace GameWIP::Terminal
 
     IO::Types::Status scroll(Types::OutputStream stream, Types::ScrollDirection direction, std::uint32_t lines, const Types::ControlOptions &options)
     {
-        std::lock_guard lock(outputMutex(stream));
+        OutputState &state = outputState(stream);
+        std::lock_guard lock(state.mutex);
 
         char command = 'S';
         switch (direction)
@@ -1550,9 +1732,13 @@ namespace GameWIP::Terminal
             return flushIfRequested(stream, options.flushMode);
         }
 
-        return writeControlSequenceUnlocked(
+        state.assembly.clear();
+        state.assembly.append("\x1b[");
+        appendUnsigned(state.assembly, lines);
+        state.assembly.push_back(command);
+        return writeAssembledControlSequenceUnlocked(
             stream,
-            makeCountedCsi(lines, command),
+            state,
             ControlFeature::Scroll,
             "Terminal scrolling is unsupported for this output stream.",
             options.flushMode);
@@ -1560,7 +1746,7 @@ namespace GameWIP::Terminal
 
     IO::Types::Status enterAlternateScreen(Types::OutputStream stream, const Types::ControlOptions &options)
     {
-        std::lock_guard lock(outputMutex(stream));
+        std::lock_guard lock(outputState(stream).mutex);
         return writeControlSequenceUnlocked(
             stream,
             "\x1b[?1049h",
@@ -1571,7 +1757,7 @@ namespace GameWIP::Terminal
 
     IO::Types::Status leaveAlternateScreen(Types::OutputStream stream, const Types::ControlOptions &options)
     {
-        std::lock_guard lock(outputMutex(stream));
+        std::lock_guard lock(outputState(stream).mutex);
         return writeControlSequenceUnlocked(
             stream,
             "\x1b[?1049l",
@@ -1602,12 +1788,15 @@ namespace GameWIP::Terminal
 
     IO::Types::Status setTitle(Types::OutputStream stream, std::string_view utf8Title, const Types::ControlOptions &options)
     {
-        std::lock_guard lock(outputMutex(stream));
-
-        const std::string sequence = "\x1b]0;" + sanitizeTitle(utf8Title) + "\x07";
-        return writeControlSequenceUnlocked(
+        OutputState &state = outputState(stream);
+        std::lock_guard lock(state.mutex);
+        state.assembly.clear();
+        state.assembly.append("\x1b]0;");
+        appendSanitizedTitle(state.assembly, utf8Title);
+        state.assembly.push_back('\x07');
+        return writeAssembledControlSequenceUnlocked(
             stream,
-            sequence,
+            state,
             ControlFeature::Title,
             "Terminal title controls are unsupported for this output stream.",
             options.flushMode);
@@ -1615,7 +1804,7 @@ namespace GameWIP::Terminal
 
     IO::Types::Status ringBell(Types::OutputStream stream, const Types::ControlOptions &options)
     {
-        std::lock_guard lock(outputMutex(stream));
+        std::lock_guard lock(outputState(stream).mutex);
         return writeControlSequenceUnlocked(
             stream,
             "\a",

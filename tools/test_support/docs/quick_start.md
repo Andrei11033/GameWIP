@@ -34,11 +34,11 @@ int main()
 
 Expectations return `true` when they pass and `false` when they fail. They also record the outcome in the context, so a failing expectation does not abort the suite.
 
-Installed-package consumers use the underscore package name and stable imported target:
+Installed-package consumers use the direct package and imported target names:
 
 ```cmake
-find_package(GameWIP_TestSupport CONFIG REQUIRED)
-target_link_libraries(MyTests PRIVATE GameWIP::TestSupport)
+find_package(TestSupport CONFIG REQUIRED)
+target_link_libraries(MyTests PRIVATE TestSupport)
 ```
 
 Logger tests, Assert tests, and future engine tests may use TestSupport, but TestSupport examples should remain generic and should not require Logger or Assert.

@@ -1,0 +1,81 @@
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+find_dependency(Logger CONFIG)
+
+include("${CMAKE_CURRENT_LIST_DIR}/AssertTargets.cmake")
+
+set(Assert_COMMON_CONTROLS_MANIFEST "${PACKAGE_PREFIX_DIR}/@CMAKE_INSTALL_DATADIR@/Assert/common_controls_v6.manifest")
+set(Assert_COMMON_CONTROLS_RC_TEMPLATE "${PACKAGE_PREFIX_DIR}/@CMAKE_INSTALL_DATADIR@/Assert/common_controls_v6.rc.in")
+
+# Configures a build-directory resource that points at the installed manifest.
+function(_internal_assert_configure_common_controls_v6 output_variable)
+    if(NOT WIN32)
+        return()
+    endif()
+
+    if(NOT EXISTS "${Assert_COMMON_CONTROLS_MANIFEST}")
+        message(FATAL_ERROR "Assert Common Controls v6 manifest was not found: ${Assert_COMMON_CONTROLS_MANIFEST}")
+    endif()
+
+    if(NOT EXISTS "${Assert_COMMON_CONTROLS_RC_TEMPLATE}")
+        message(FATAL_ERROR "Assert Common Controls v6 resource template was not found: ${Assert_COMMON_CONTROLS_RC_TEMPLATE}")
+    endif()
+
+    set(INTERNAL_ASSERT_COMMON_CONTROLS_MANIFEST "${Assert_COMMON_CONTROLS_MANIFEST}")
+    set(Assert_COMMON_CONTROLS_RC "${CMAKE_CURRENT_BINARY_DIR}/assert_common_controls_v6.rc")
+    configure_file(
+        "${Assert_COMMON_CONTROLS_RC_TEMPLATE}"
+        "${Assert_COMMON_CONTROLS_RC}"
+        @ONLY
+    )
+
+    set(${output_variable} "${Assert_COMMON_CONTROLS_RC}" PARENT_SCOPE)
+endfunction()
+
+# Normal installed consumers get the manifest resource by linking Assert.
+if(WIN32)
+    _internal_assert_configure_common_controls_v6(Assert_COMMON_CONTROLS_RC)
+    get_property(
+        Assert_COMMON_CONTROLS_ATTACHED
+        TARGET Assert
+        PROPERTY INTERNAL_ASSERT_COMMON_CONTROLS_ATTACHED
+    )
+    if(NOT Assert_COMMON_CONTROLS_ATTACHED)
+        set_property(TARGET Assert APPEND PROPERTY
+            INTERFACE_SOURCES "${Assert_COMMON_CONTROLS_RC}"
+        )
+        set_property(TARGET Assert PROPERTY
+            INTERNAL_ASSERT_COMMON_CONTROLS_ATTACHED TRUE
+        )
+    endif()
+endif()
+
+# Explicit helper for unusual consumers that need to attach the resource to a
+# target that does not link Assert directly.
+function(assert_enable_common_controls_v6 target_name)
+    if(NOT WIN32)
+        return()
+    endif()
+
+    if(NOT TARGET "${target_name}")
+        message(FATAL_ERROR "assert_enable_common_controls_v6 target does not exist: ${target_name}")
+    endif()
+
+    _internal_assert_configure_common_controls_v6(Assert_COMMON_CONTROLS_RC)
+    get_property(
+        Assert_COMMON_CONTROLS_ATTACHED
+        TARGET "${target_name}"
+        PROPERTY INTERNAL_ASSERT_COMMON_CONTROLS_ATTACHED
+    )
+    if(Assert_COMMON_CONTROLS_ATTACHED)
+        return()
+    endif()
+
+    target_sources("${target_name}" PRIVATE
+        "${Assert_COMMON_CONTROLS_RC}"
+    )
+    set_property(TARGET "${target_name}" PROPERTY
+        INTERNAL_ASSERT_COMMON_CONTROLS_ATTACHED TRUE
+    )
+endfunction()

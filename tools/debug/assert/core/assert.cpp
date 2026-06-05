@@ -1,20 +1,20 @@
 /// @file assert.cpp
-/// @brief Core implementation for the GameWIP Assert library.
+/// @brief Core implementation for the Assert library.
 
 #include "debug/assert/assert.h"
 #include "debug/assert/internal/assert_platform.h"
 
-#ifndef GAMEWIP_ASSERT_TEST_HOOKS
-#define GAMEWIP_ASSERT_TEST_HOOKS 0
+#ifndef INTERNAL_ASSERT_TEST_HOOKS
+#define INTERNAL_ASSERT_TEST_HOOKS 0
 #endif
 
-#if GAMEWIP_ASSERT_TEST_HOOKS
+#if INTERNAL_ASSERT_TEST_HOOKS
 #include "debug/assert/internal/assert_test_hooks.h"
 #endif
 
 #include "logger/logger.h"
 
-#if GAMEWIP_ASSERT_DIAGNOSTICS
+#if ASSERT_DIAGNOSTICS
 #include <array>
 #include <charconv>
 #endif
@@ -33,7 +33,7 @@ namespace
 
     using FailureAction = GameWIP::Debug::Assert::FailureAction;
 
-#if GAMEWIP_ASSERT_DIAGNOSTICS
+#if ASSERT_DIAGNOSTICS
     /// @brief Fixed-size stack message builder used to keep assert-side failure reporting allocation-free.
     class FixedFailureMessage
     {
@@ -126,10 +126,10 @@ namespace
     /// @return True when this failure kind should show a popup.
     constexpr bool popupEnabled(FailureKind kind) noexcept
     {
-        return kind == FailureKind::Assert ? (GAMEWIP_ASSERT_POPUP_ON_ASSERT != 0) : (GAMEWIP_ASSERT_POPUP_ON_CHECK != 0);
+        return kind == FailureKind::Assert ? (ASSERT_POPUP_ON_ASSERT != 0) : (ASSERT_POPUP_ON_CHECK != 0);
     }
 
-#if GAMEWIP_ASSERT_DIAGNOSTICS
+#if ASSERT_DIAGNOSTICS
     /// @brief Builds the bounded diagnostic text for one failed assertion/check.
     /// @param kind Failure kind to include in the prefix.
     /// @param conditionText Expression text, or empty when diagnostics are disabled.
@@ -261,17 +261,17 @@ namespace
     }
 
     /// @brief Returns true when assert popups are suppressed by environment.
-    /// @return True when GAMEWIP_ASSERT_SUPPRESS_POPUP is exactly 1.
+    /// @return True when INTERNAL_ASSERT_SUPPRESS_POPUP is exactly 1.
     bool popupsSuppressedByEnvironment() noexcept
     {
-#if GAMEWIP_ASSERT_TEST_HOOKS
+#if INTERNAL_ASSERT_TEST_HOOKS
         bool overrideValue = false;
         if (GameWIP::Debug::Assert::Detail::TestHooks::popupSuppressedOverride(overrideValue))
         {
             return overrideValue;
         }
 #endif
-        const char *value = std::getenv("GAMEWIP_ASSERT_SUPPRESS_POPUP");
+        const char *value = std::getenv("INTERNAL_ASSERT_SUPPRESS_POPUP");
         return value != nullptr && std::strcmp(value, "1") == 0;
     }
 
@@ -279,7 +279,7 @@ namespace
     /// @return Break when a debugger is attached, otherwise Abort.
     FailureAction defaultInteractiveAction() noexcept
     {
-#if GAMEWIP_ASSERT_TEST_HOOKS
+#if INTERNAL_ASSERT_TEST_HOOKS
         bool attachedOverride = false;
         if (GameWIP::Debug::Assert::Detail::TestHooks::debuggerAttachedOverride(attachedOverride))
         {
@@ -294,7 +294,7 @@ namespace
     /// @return Selected failure action.
     FailureAction selectInteractiveAction(std::string_view message) noexcept
     {
-        if (const char *testActionText = std::getenv("GAMEWIP_ASSERT_TEST_ACTION"))
+        if (const char *testActionText = std::getenv("INTERNAL_ASSERT_TEST_ACTION"))
         {
             FailureAction testAction = FailureAction::Abort;
             if (parseFailureAction(testActionText, testAction))
@@ -343,7 +343,7 @@ namespace
     /// @brief Returns the active text view for a failure message object or generic string view.
     /// @param message Failure message object.
     /// @return Message text.
-#if GAMEWIP_ASSERT_DIAGNOSTICS
+#if ASSERT_DIAGNOSTICS
     std::string_view failureTextView(const FixedFailureMessage &message) noexcept
     {
         return message.view();
@@ -435,7 +435,7 @@ namespace GameWIP::Debug::Assert::Detail
         std::string_view function) noexcept
     {
         reportAssertFailure(conditionText, message, file, line, function);
-#if GAMEWIP_ASSERT_TEST_HOOKS
+#if INTERNAL_ASSERT_TEST_HOOKS
         bool attachedOverride = false;
         const bool debuggerAttached =
             TestHooks::debuggerAttachedOverride(attachedOverride) ? attachedOverride : Detail::Platform::isDebuggerAttached();

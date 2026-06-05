@@ -5,9 +5,12 @@
 - `writeConsole` writes report lines to stdout.
 - `writeReport` writes report lines to `reportPath`.
 - `appendReport` appends instead of truncating the report at runner/context creation.
+- `flushReportEachLine` flushes after every report line when immediate external reads are required.
 - `reportPath` defaults to `logs/tests/latest_test_report.txt`.
 
 Parent directories for the report path are created when possible. Report write failures do not abort the test process.
+
+Report files are buffered by default. `Runner` flushes after each completed suite result, and the report sink flushes when destroyed. Tests that inspect a report before either boundary should set `flushReportEachLine = true`.
 
 Report categories:
 

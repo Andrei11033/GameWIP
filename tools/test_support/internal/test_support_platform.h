@@ -1,5 +1,5 @@
 /// @file test_support_platform.h
-/// @brief Internal platform abstraction used by the GameWIP TestSupport library.
+/// @brief Internal platform abstraction used by the TestSupport library.
 
 #pragma once
 

@@ -2,9 +2,9 @@
 
 ## Purpose
 
-GameWIP libraries keep public APIs and core implementation code platform-neutral.
+The libraries keep public APIs and core implementation code platform-neutral.
 
-Platform-specific behavior lives behind small internal backend contracts selected by the build system through `GAMEWIP_PLATFORM_ID`.
+Platform-specific behavior lives behind small internal backend contracts selected by the build system through `LIBRARY_PLATFORM_ID`.
 
 This file defines the project-wide convention for platform backend layout, build selection, and backend responsibilities.
 
@@ -14,7 +14,7 @@ This file defines the project-wide convention for platform backend layout, build
 
 Core code must not call operating-system APIs directly.
 
-This applies to reusable GameWIP libraries such as:
+This applies to reusable libraries such as:
 
 * Logger;
 * Assert;
@@ -31,7 +31,7 @@ Adding a new platform should normally require adding a new backend folder, not r
 
 # 2. Platform Selection
 
-`GAMEWIP_PLATFORM_ID` is the build-system platform key.
+`LIBRARY_PLATFORM_ID` is the build-system platform key.
 
 Current Windows builds resolve it to:
 
@@ -42,19 +42,19 @@ win32
 The platform id is resolved by:
 
 ```text
-cmake/GameWIPPlatform.cmake
+cmake/LibraryPlatform.cmake
 ```
 
 Library CMake files should consume platform-specific files using this convention:
 
 ```text
-platform/${GAMEWIP_PLATFORM_ID}/*.cpp
+platform/${LIBRARY_PLATFORM_ID}/*.cpp
 ```
 
 A library may also include a platform-specific CMake file when needed:
 
 ```text
-platform/${GAMEWIP_PLATFORM_ID}/platform.cmake
+platform/${LIBRARY_PLATFORM_ID}/platform.cmake
 ```
 
 Use `platform.cmake` only for backend-local target requirements, such as:
@@ -101,7 +101,7 @@ platform/<platform-id>/platform.cmake
 
 To add a new platform:
 
-1. Add or update platform id detection in `cmake/GameWIPPlatform.cmake`.
+1. Add or update platform id detection in `cmake/LibraryPlatform.cmake`.
 2. Add matching backend folders where platform-specific behavior is required.
 3. Implement the required internal backend contracts.
 4. Add `platform.cmake` files only when the backend has target-local build requirements.
@@ -116,7 +116,7 @@ A bad new platform port spreads `#ifdef` logic through core code.
 
 # 5. Public API Boundary
 
-Public GameWIP APIs should stay portable and ergonomic.
+Public library APIs should stay portable and ergonomic.
 
 Preferred public API types:
 
@@ -294,7 +294,7 @@ Child-process support should report observable results.
 
 It should not overpromise portable crash classification.
 
-For GameWIP tests, these are enough:
+For the project tests, these are enough:
 
 * zero exit;
 * nonzero exit;

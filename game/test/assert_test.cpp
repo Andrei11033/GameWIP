@@ -1,15 +1,15 @@
 /// @file assert_test.cpp
-/// @brief Executable self-tests for the GameWIP Assert library.
+/// @brief Executable self-tests for the Assert library.
 
 #include "test/assert_test.h"
 
 #include "debug/assert/assert.h"
 
-#ifndef GAMEWIP_ASSERT_TEST_HOOKS
-#define GAMEWIP_ASSERT_TEST_HOOKS 0
+#ifndef INTERNAL_ASSERT_TEST_HOOKS
+#define INTERNAL_ASSERT_TEST_HOOKS 0
 #endif
 
-#if GAMEWIP_ASSERT_TEST_HOOKS
+#if INTERNAL_ASSERT_TEST_HOOKS
 #include "debug/assert/internal/assert_test_hooks.h"
 #endif
 #include "logger/logger.h"
@@ -54,9 +54,9 @@ namespace
     constexpr std::string_view unreachableChildArgument = "--assert-test-child=unreachable";
     constexpr std::string_view interactiveAbortChildArgument = "--assert-test-child=interactive-abort";
     constexpr std::string_view interactiveBreakChildArgument = "--assert-test-child=interactive-break";
-    constexpr std::string_view suppressPopupEnvironmentVariable = "GAMEWIP_ASSERT_SUPPRESS_POPUP";
-    constexpr std::string_view testActionEnvironmentVariable = "GAMEWIP_ASSERT_TEST_ACTION";
-    constexpr std::string_view childLogDirectoryEnvironmentVariable = "GAMEWIP_ASSERT_TEST_CHILD_LOG_DIR";
+    constexpr std::string_view suppressPopupEnvironmentVariable = "INTERNAL_ASSERT_SUPPRESS_POPUP";
+    constexpr std::string_view testActionEnvironmentVariable = "INTERNAL_ASSERT_TEST_ACTION";
+    constexpr std::string_view childLogDirectoryEnvironmentVariable = "INTERNAL_ASSERT_TEST_CHILD_LOG_DIR";
     constexpr std::string_view assertFailureChildMessage = "assert child logger message";
 
     std::size_t performanceSink = 0;
@@ -277,7 +277,7 @@ namespace
     std::filesystem::path makeRunRoot()
     {
         const auto ticks = Clock::now().time_since_epoch().count();
-        return std::filesystem::temp_directory_path() / std::format("GameWIP_assert_tests_{}", ticks);
+        return std::filesystem::temp_directory_path() / std::format("assert_tests_{}", ticks);
     }
 
     /// @brief Converts a path to the narrow text form expected by Logger::Config.
@@ -391,7 +391,7 @@ namespace
         ASSERT(++assertEvaluations == 1);
         ASSERT_MSG(++assertEvaluations == 2, "disabled assert message");
 
-#if GAMEWIP_ASSERT_ENABLED
+#if ASSERT_ENABLED
         context.expectEq("ASSERT macros evaluate when enabled", assertEvaluations, 2);
 #else
         context.expectEq("ASSERT macros skip expressions when disabled", assertEvaluations, 0);
@@ -403,7 +403,7 @@ namespace
         CHECK_ONCE(++checkEvaluations == 3);
         CHECK_ONCE_MSG(++checkEvaluations == 4, "disabled check once message");
 
-#if GAMEWIP_ASSERT_CHECKS_ENABLED
+#if ASSERT_CHECKS_ENABLED
         context.expectEq("CHECK macros evaluate when enabled", checkEvaluations, 4);
 #else
         context.expectEq("CHECK macros skip expressions when disabled", checkEvaluations, 0);
@@ -435,9 +435,9 @@ namespace
         context.expectTrue("ENSURE false result", !second, "expected false");
         context.expectEq("ENSURE evaluates once per call", evaluations, 2);
 
-#if GAMEWIP_ASSERT_CHECKS_ENABLED
+#if ASSERT_CHECKS_ENABLED
         const std::string contents = readFile(Logger::getLogFilePath());
-#if GAMEWIP_ASSERT_DIAGNOSTICS
+#if ASSERT_DIAGNOSTICS
         context.expectTrue(
             "ENSURE diagnostics include caller function",
             contents.find("testEnsureBehavior") != std::string::npos,
@@ -459,7 +459,7 @@ namespace
     /// @param context Test context.
     void testCheckOnceLogging(TestContext &context)
     {
-#if GAMEWIP_ASSERT_CHECKS_ENABLED
+#if ASSERT_CHECKS_ENABLED
         ScopedLoggerShutdown loggerShutdown;
         if (!initFileLogger(context, "check_once"))
         {
@@ -482,15 +482,15 @@ namespace
             contents.find("[ERROR][Check]: Check failed") != std::string::npos,
             "check failure missing from log");
 #else
-        context.pass("CHECK_ONCE logger test skipped because GAMEWIP_ASSERT_CHECKS_ENABLED=0");
+        context.pass("CHECK_ONCE logger test skipped because ASSERT_CHECKS_ENABLED=0");
 #endif
     }
 
-    /// @brief Verifies diagnostic text is present or intentionally stripped according to GAMEWIP_ASSERT_DIAGNOSTICS.
+    /// @brief Verifies diagnostic text is present or intentionally stripped according to ASSERT_DIAGNOSTICS.
     /// @param context Test context.
     void testDiagnosticConfiguration(TestContext &context)
     {
-#if GAMEWIP_ASSERT_CHECKS_ENABLED
+#if ASSERT_CHECKS_ENABLED
         ScopedLoggerShutdown loggerShutdown;
         if (!initFileLogger(context, "diagnostics"))
         {
@@ -502,7 +502,7 @@ namespace
         Logger::flush(2s);
         const std::string contents = readFile(Logger::getLogFilePath());
 
-#if GAMEWIP_ASSERT_DIAGNOSTICS
+#if ASSERT_DIAGNOSTICS
         context.expectTrue("diagnostics include condition", contents.find("false") != std::string::npos, "condition text missing");
         context.expectTrue("diagnostics include message", contents.find("assert diagnostic message") != std::string::npos, "custom message missing");
         context.expectTrue("diagnostics include location", contents.find("assert_test.cpp") != std::string::npos, "file text missing");
@@ -519,7 +519,7 @@ namespace
         context.expectTrue("diagnostics stripped location", contents.find("assert_test.cpp") == std::string::npos, "location text was embedded");
 #endif
 #else
-        context.pass("diagnostic logger test skipped because GAMEWIP_ASSERT_CHECKS_ENABLED=0");
+        context.pass("diagnostic logger test skipped because ASSERT_CHECKS_ENABLED=0");
 #endif
     }
 
@@ -527,7 +527,7 @@ namespace
     /// @param context Test context.
     void testDiagnosticMessageEvaluation(TestContext &context)
     {
-#if GAMEWIP_ASSERT_CHECKS_ENABLED
+#if ASSERT_CHECKS_ENABLED
         ScopedLoggerShutdown loggerShutdown;
         if (!initFileLogger(context, "diagnostic_message_evaluation"))
         {
@@ -539,7 +539,7 @@ namespace
         CHECK_MSG(false, makeDiagnosticMessage(evaluations));
         const std::string contents = readFile(Logger::getLogFilePath());
 
-#if GAMEWIP_ASSERT_DIAGNOSTICS
+#if ASSERT_DIAGNOSTICS
         context.expectEq("diagnostic message evaluated when enabled", evaluations, 1);
         context.expectTrue(
             "diagnostic evaluated message logged",
@@ -553,7 +553,7 @@ namespace
             "diagnostic message was embedded");
 #endif
 #else
-        context.pass("diagnostic message evaluation skipped because GAMEWIP_ASSERT_CHECKS_ENABLED=0");
+        context.pass("diagnostic message evaluation skipped because ASSERT_CHECKS_ENABLED=0");
 #endif
     }
 
@@ -561,7 +561,7 @@ namespace
     /// @param context Test context.
     void testCompiledOutMessageEvaluation(TestContext &context)
     {
-#if !GAMEWIP_ASSERT_ENABLED
+#if !ASSERT_ENABLED
         int evaluations = 0;
 
         ASSERT_MSG(false, makeDiagnosticMessage(evaluations));
@@ -570,16 +570,16 @@ namespace
         VERIFY_INTERACTIVE_MSG(false, makeDiagnosticMessage(evaluations));
         context.expectEq("compiled-out assert messages skipped", evaluations, 0);
 #else
-        context.pass("compiled-out assert message test skipped because GAMEWIP_ASSERT_ENABLED=1");
+        context.pass("compiled-out assert message test skipped because ASSERT_ENABLED=1");
 #endif
 
-#if !GAMEWIP_ASSERT_CHECKS_ENABLED
+#if !ASSERT_CHECKS_ENABLED
         CHECK_MSG(false, makeDiagnosticMessage(evaluations));
         CHECK_ONCE_MSG(false, makeDiagnosticMessage(evaluations));
         (void)ENSURE_MSG(false, makeDiagnosticMessage(evaluations));
         context.expectEq("compiled-out check messages skipped", evaluations, 0);
 #else
-        context.pass("compiled-out check message test skipped because GAMEWIP_ASSERT_CHECKS_ENABLED=1");
+        context.pass("compiled-out check message test skipped because ASSERT_CHECKS_ENABLED=1");
 #endif
     }
 
@@ -605,7 +605,7 @@ namespace
 
     void testAssertTestHooks(TestContext &context)
     {
-#if GAMEWIP_ASSERT_TEST_HOOKS
+#if INTERNAL_ASSERT_TEST_HOOKS
         using GameWIP::Debug::Assert::FailureAction;
         namespace AssertHooks = GameWIP::Debug::Assert::TestHooks;
         namespace AssertHookDetail = GameWIP::Debug::Assert::Detail::TestHooks;
@@ -632,13 +632,13 @@ namespace
         context.pass("hook popup suppression override returned without UI");
         AssertHooks::reset();
 #else
-        context.pass("assert test hooks skipped because GAMEWIP_ASSERT_TEST_HOOKS=0");
+        context.pass("assert test hooks skipped because INTERNAL_ASSERT_TEST_HOOKS=0");
 #endif
     }
 
     void testInteractiveIgnoreOnce(TestContext &context)
     {
-#if GAMEWIP_ASSERT_ENABLED
+#if ASSERT_ENABLED
         ScopedLoggerShutdown loggerShutdown;
         if (!initFileLogger(context, "interactive_ignore_once"))
         {
@@ -658,7 +658,7 @@ namespace
             "ASSERT_INTERACTIVE ignore_once logs fatal",
             contents.find("[FATAL][Assert]: Assert failed") != std::string::npos,
             "interactive fatal missing");
-#if GAMEWIP_ASSERT_DIAGNOSTICS
+#if ASSERT_DIAGNOSTICS
         context.expectTrue(
             "ASSERT_INTERACTIVE ignore_once logs message",
             contents.find("interactive ignore once test") != std::string::npos,
@@ -670,13 +670,13 @@ namespace
             "interactive message was embedded");
 #endif
 #else
-        context.pass("ASSERT_INTERACTIVE ignore_once skipped because GAMEWIP_ASSERT_ENABLED=0");
+        context.pass("ASSERT_INTERACTIVE ignore_once skipped because ASSERT_ENABLED=0");
 #endif
     }
 
     void testInteractiveAlwaysIgnore(TestContext &context)
     {
-#if GAMEWIP_ASSERT_ENABLED
+#if ASSERT_ENABLED
         ScopedLoggerShutdown loggerShutdown;
         if (!initFileLogger(context, "interactive_always_ignore"))
         {
@@ -693,7 +693,7 @@ namespace
         const std::string contents = readFile(Logger::getLogFilePath());
         context.expectEq("ASSERT_INTERACTIVE always_ignore not queued", stats.queued, std::size_t{0});
         context.expectEq("ASSERT_INTERACTIVE always_ignore writes once", stats.written, std::size_t{1});
-#if GAMEWIP_ASSERT_DIAGNOSTICS
+#if ASSERT_DIAGNOSTICS
         context.expectEq(
             "ASSERT_INTERACTIVE always_ignore one message",
             countOccurrences(contents, "interactive always ignore test"),
@@ -705,7 +705,7 @@ namespace
             std::size_t{0});
 #endif
 #else
-        context.pass("ASSERT_INTERACTIVE always_ignore skipped because GAMEWIP_ASSERT_ENABLED=0");
+        context.pass("ASSERT_INTERACTIVE always_ignore skipped because ASSERT_ENABLED=0");
 #endif
     }
 
@@ -727,10 +727,10 @@ namespace
         VERIFY_INTERACTIVE_MSG(++failingEvaluations < 0, "verify interactive ignore once test");
         context.expectEq("VERIFY_INTERACTIVE failing evaluates once", failingEvaluations, 1);
 
-#if GAMEWIP_ASSERT_ENABLED
+#if ASSERT_ENABLED
         Logger::flush(2s);
         const std::string contents = readFile(Logger::getLogFilePath());
-#if GAMEWIP_ASSERT_DIAGNOSTICS
+#if ASSERT_DIAGNOSTICS
         context.expectTrue(
             "VERIFY_INTERACTIVE failure logs when enabled",
             contents.find("verify interactive ignore once test") != std::string::npos,
@@ -750,7 +750,7 @@ namespace
 
     void testVerifyInteractiveAlwaysIgnoreStillEvaluates(TestContext &context)
     {
-#if GAMEWIP_ASSERT_ENABLED
+#if ASSERT_ENABLED
         ScopedLoggerShutdown loggerShutdown;
         if (!initFileLogger(context, "verify_interactive_always_ignore"))
         {
@@ -766,7 +766,7 @@ namespace
         Logger::flush(2s);
         const std::string contents = readFile(Logger::getLogFilePath());
         context.expectEq("VERIFY_INTERACTIVE Always Ignore still evaluates", evaluations, 2);
-#if GAMEWIP_ASSERT_DIAGNOSTICS
+#if ASSERT_DIAGNOSTICS
         context.expectEq(
             "VERIFY_INTERACTIVE Always Ignore logs once",
             countOccurrences(contents, "verify interactive always ignore test"),
@@ -778,13 +778,13 @@ namespace
             std::size_t{0});
 #endif
 #else
-        context.pass("VERIFY_INTERACTIVE Always Ignore test skipped because GAMEWIP_ASSERT_ENABLED=0");
+        context.pass("VERIFY_INTERACTIVE Always Ignore test skipped because ASSERT_ENABLED=0");
 #endif
     }
 
     void testCheckOnceThreadStress(TestContext &context, const AssertTestOptions &options)
     {
-#if GAMEWIP_ASSERT_CHECKS_ENABLED
+#if ASSERT_CHECKS_ENABLED
         if (!options.enableStressTests)
         {
             context.pass("CHECK_ONCE thread stress skipped by AssertTestOptions");
@@ -824,19 +824,19 @@ namespace
 
         Logger::flush(2s);
         const std::string contents = readFile(Logger::getLogFilePath());
-#if GAMEWIP_ASSERT_DIAGNOSTICS
+#if ASSERT_DIAGNOSTICS
         context.expectEq("CHECK_ONCE thread stress logs once", countOccurrences(contents, "threaded check once stress"), std::size_t{1});
 #else
         context.expectEq("CHECK_ONCE thread stress logs generic once", countOccurrences(contents, "[ERROR][Check]: Check failed"), std::size_t{1});
 #endif
 #else
-        context.pass("CHECK_ONCE thread stress skipped because GAMEWIP_ASSERT_CHECKS_ENABLED=0");
+        context.pass("CHECK_ONCE thread stress skipped because ASSERT_CHECKS_ENABLED=0");
 #endif
     }
 
     void testInteractiveStressLoops(TestContext &context, const AssertTestOptions &options)
     {
-#if GAMEWIP_ASSERT_ENABLED
+#if ASSERT_ENABLED
         if (!options.enableStressTests)
         {
             context.pass("interactive assert stress loops skipped by AssertTestOptions");
@@ -859,7 +859,7 @@ namespace
 
         Logger::flush(5s);
         const std::string contents = readFile(Logger::getLogFilePath());
-#if GAMEWIP_ASSERT_DIAGNOSTICS
+#if ASSERT_DIAGNOSTICS
         context.expectEq(
             "ASSERT_INTERACTIVE ignore_once stress logs every failure",
             countOccurrences(contents, "interactive ignore once repeat test"),
@@ -871,7 +871,7 @@ namespace
             static_cast<std::size_t>(iterations));
 #endif
 #else
-        context.pass("interactive assert stress loops skipped because GAMEWIP_ASSERT_ENABLED=0");
+        context.pass("interactive assert stress loops skipped because ASSERT_ENABLED=0");
 #endif
     }
 
@@ -982,7 +982,7 @@ namespace
     /// @param options Assert test options.
     void testAssertFailureChild(TestContext &context, const AssertTestOptions &options)
     {
-#if GAMEWIP_ASSERT_ENABLED
+#if ASSERT_ENABLED
         if (!options.enableChildCrashTests)
         {
             context.pass("ASSERT failure child test disabled by AssertTestOptions");
@@ -1001,7 +1001,7 @@ namespace
             "ASSERT failure child logs fatal through Logger",
             childLogContents.find("[FATAL][Assert]: Assert failed") != std::string::npos,
             "assert failure missing from child log");
-#if GAMEWIP_ASSERT_DIAGNOSTICS
+#if ASSERT_DIAGNOSTICS
         context.expectTrue(
             "ASSERT failure child logs diagnostic message",
             childLogContents.find(assertFailureChildMessage) != std::string::npos,
@@ -1013,13 +1013,13 @@ namespace
             "child assert message was embedded");
 #endif
 #else
-        context.pass("ASSERT failure child test skipped because GAMEWIP_ASSERT_ENABLED=0");
+        context.pass("ASSERT failure child test skipped because ASSERT_ENABLED=0");
 #endif
     }
 
     void testInteractiveAbortChild(TestContext &context, const AssertTestOptions &options)
     {
-#if GAMEWIP_ASSERT_ENABLED
+#if ASSERT_ENABLED
         if (!options.enableChildCrashTests)
         {
             context.pass("ASSERT_INTERACTIVE abort child test disabled by AssertTestOptions");
@@ -1038,7 +1038,7 @@ namespace
             "ASSERT_INTERACTIVE abort child logs fatal",
             childLogContents.find("[FATAL][Assert]: Assert failed") != std::string::npos,
             "interactive abort child fatal missing");
-#if GAMEWIP_ASSERT_DIAGNOSTICS
+#if ASSERT_DIAGNOSTICS
         context.expectTrue(
             "ASSERT_INTERACTIVE abort child logs message",
             childLogContents.find("interactive abort child") != std::string::npos,
@@ -1050,13 +1050,13 @@ namespace
             "interactive abort child message was embedded");
 #endif
 #else
-        context.pass("ASSERT_INTERACTIVE abort child skipped because GAMEWIP_ASSERT_ENABLED=0");
+        context.pass("ASSERT_INTERACTIVE abort child skipped because ASSERT_ENABLED=0");
 #endif
     }
 
     void testInteractiveBreakChild(TestContext &context, const AssertTestOptions &options)
     {
-#if GAMEWIP_ASSERT_ENABLED
+#if ASSERT_ENABLED
         if (!options.enableChildCrashTests)
         {
             context.pass("ASSERT_INTERACTIVE break child test disabled by AssertTestOptions");
@@ -1075,7 +1075,7 @@ namespace
             "ASSERT_INTERACTIVE break child logs fatal",
             childLogContents.find("[FATAL][Assert]: Assert failed") != std::string::npos,
             "interactive break child fatal missing");
-#if GAMEWIP_ASSERT_DIAGNOSTICS
+#if ASSERT_DIAGNOSTICS
         context.expectTrue(
             "ASSERT_INTERACTIVE break child logs message",
             childLogContents.find("interactive break child") != std::string::npos,
@@ -1087,7 +1087,7 @@ namespace
             "interactive break child message was embedded");
 #endif
 #else
-        context.pass("ASSERT_INTERACTIVE break child skipped because GAMEWIP_ASSERT_ENABLED=0");
+        context.pass("ASSERT_INTERACTIVE break child skipped because ASSERT_ENABLED=0");
 #endif
     }
 
@@ -1102,11 +1102,11 @@ namespace
     /// @param context Test context.
     void testUnreachableChild(TestContext &context)
     {
-#if GAMEWIP_ASSERT_ENABLED || !GAMEWIP_ASSERT_UNREACHABLE_ASSUME
+#if ASSERT_ENABLED || !ASSERT_UNREACHABLE_ASSUME
         const ScopedEnvironmentVariable suppressPopupOverride(suppressPopupEnvironmentVariable, "1");
         expectAbnormalChildExit(context, unreachableChildArgument, "UNREACHABLE child exits abnormally with popup suppressed");
 #else
-        context.pass("UNREACHABLE child test skipped because GAMEWIP_ASSERT_UNREACHABLE_ASSUME=1");
+        context.pass("UNREACHABLE child test skipped because ASSERT_UNREACHABLE_ASSUME=1");
 #endif
     }
 
@@ -1133,7 +1133,7 @@ namespace
             return;
         }
 
-#if GAMEWIP_ASSERT_ENABLED
+#if ASSERT_ENABLED
         ScopedLoggerShutdown loggerShutdown;
         if (!initFileLogger(context, "manual_assert_ui"))
         {
@@ -1196,7 +1196,7 @@ namespace
 
         Logger::flush(2s);
 #else
-        context.pass("manual assert UI tests skipped because GAMEWIP_ASSERT_ENABLED=0");
+        context.pass("manual assert UI tests skipped because ASSERT_ENABLED=0");
 #endif
     }
 
@@ -1384,12 +1384,12 @@ namespace GameWIP::Test
                 context.emit(
                     std::format(
                         "[INFO] Assert config: runtime={} enabled={} checks={} diagnostics={} popupAssert={} popupCheck={}\n",
-                        GAMEWIP_ASSERT_RUNTIME,
-                        GAMEWIP_ASSERT_ENABLED,
-                        GAMEWIP_ASSERT_CHECKS_ENABLED,
-                        GAMEWIP_ASSERT_DIAGNOSTICS,
-                        GAMEWIP_ASSERT_POPUP_ON_ASSERT,
-                        GAMEWIP_ASSERT_POPUP_ON_CHECK));
+                        INTERNAL_ASSERT_RUNTIME,
+                        ASSERT_ENABLED,
+                        ASSERT_CHECKS_ENABLED,
+                        ASSERT_DIAGNOSTICS,
+                        ASSERT_POPUP_ON_ASSERT,
+                        ASSERT_POPUP_ON_CHECK));
                 context.emit(
                     std::format(
                         "[INFO] Assert test options: stress={} fatalChild={} performance={} automatedInteractive={} manualUi={} perfIterations={} "

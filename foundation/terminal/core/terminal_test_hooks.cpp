@@ -3,7 +3,7 @@
 
 #include "terminal/internal/terminal_test_hooks.h"
 
-#if GAMEWIP_TERMINAL_TEST_HOOKS
+#if INTERNAL_TERMINAL_TEST_HOOKS
 #include <cstring>
 
 namespace GameWIP::Terminal::Detail::TestHooks
@@ -55,8 +55,13 @@ namespace GameWIP::Terminal::Detail::TestHooks
         {
             state.capabilitiesOverrideEnabled = false;
             state.capabilitiesOverride = {};
+            state.preparedCapabilitiesOverrideEnabled = false;
+            state.preparedCapabilitiesOverride = {};
+            state.prepared = false;
             state.captureEnabled = false;
             state.capturedOutput.clear();
+            state.preparationCalls = 0;
+            state.textWriteCalls = 0;
             state.terminalSizeOverrideEnabled = false;
             state.terminalSizeOverride = {};
             state.cursorPositionOverrideEnabled = false;
@@ -65,6 +70,7 @@ namespace GameWIP::Terminal::Detail::TestHooks
 
         terminalTestHookState.nextInputCapabilityFailure.enabled.store(false, std::memory_order_release);
         terminalTestHookState.nextOutputCapabilityFailure.enabled.store(false, std::memory_order_release);
+        terminalTestHookState.nextOutputPreparationFailure.enabled.store(false, std::memory_order_release);
         terminalTestHookState.nextInputAvailabilityFailure.enabled.store(false, std::memory_order_release);
         terminalTestHookState.nextInputModeFailure.enabled.store(false, std::memory_order_release);
         terminalTestHookState.nextReadFailure.enabled.store(false, std::memory_order_release);
@@ -113,6 +119,7 @@ namespace GameWIP::Terminal::TestHooks
         OutputHookState &state = terminalTestHookState.outputStreams[outputIndex(stream)];
         state.capabilitiesOverride = capabilities;
         state.capabilitiesOverrideEnabled = true;
+        state.prepared = false;
     }
 
     void clearOutputCapabilitiesOverride(Terminal::Types::OutputStream stream) noexcept
@@ -121,6 +128,19 @@ namespace GameWIP::Terminal::TestHooks
         OutputHookState &state = terminalTestHookState.outputStreams[outputIndex(stream)];
         state.capabilitiesOverride = {};
         state.capabilitiesOverrideEnabled = false;
+        state.preparedCapabilitiesOverride = {};
+        state.preparedCapabilitiesOverrideEnabled = false;
+        state.prepared = false;
+    }
+
+    void setPreparedOutputCapabilitiesOverride(
+        Terminal::Types::OutputStream stream,
+        const Terminal::Types::OutputCapabilities &capabilities)
+    {
+        std::lock_guard lock(terminalTestHookState.mutex);
+        OutputHookState &state = terminalTestHookState.outputStreams[outputIndex(stream)];
+        state.preparedCapabilitiesOverride = capabilities;
+        state.preparedCapabilitiesOverrideEnabled = true;
     }
 
     void setInputBytes(Terminal::Types::InputStream stream, std::string_view bytes, bool endOfStreamWhenEmpty)
@@ -197,6 +217,18 @@ namespace GameWIP::Terminal::TestHooks
         terminalTestHookState.outputStreams[outputIndex(stream)].capturedOutput.clear();
     }
 
+    std::size_t outputPreparationCallCount(Terminal::Types::OutputStream stream) noexcept
+    {
+        std::lock_guard lock(terminalTestHookState.mutex);
+        return terminalTestHookState.outputStreams[outputIndex(stream)].preparationCalls;
+    }
+
+    std::size_t textWriteCallCount(Terminal::Types::OutputStream stream) noexcept
+    {
+        std::lock_guard lock(terminalTestHookState.mutex);
+        return terminalTestHookState.outputStreams[outputIndex(stream)].textWriteCalls;
+    }
+
     void setTerminalSizeOverride(Terminal::Types::OutputStream stream, Terminal::Types::TerminalSize size)
     {
         std::lock_guard lock(terminalTestHookState.mutex);
@@ -237,6 +269,11 @@ namespace GameWIP::Terminal::TestHooks
     void forceNextOutputCapabilityFailure(IO::Types::ErrorCode code) noexcept
     {
         forceFailure(terminalTestHookState.nextOutputCapabilityFailure, code);
+    }
+
+    void forceNextOutputPreparationFailure(IO::Types::ErrorCode code) noexcept
+    {
+        forceFailure(terminalTestHookState.nextOutputPreparationFailure, code);
     }
 
     void forceNextInputAvailabilityFailure(IO::Types::ErrorCode code) noexcept

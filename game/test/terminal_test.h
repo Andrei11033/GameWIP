@@ -1,5 +1,5 @@
 /// @file terminal_test.h
-/// @brief Runtime options and entry point for the GameWIP Terminal self-tests.
+/// @brief Runtime options and entry point for the Terminal self-tests.
 
 #pragma once
 

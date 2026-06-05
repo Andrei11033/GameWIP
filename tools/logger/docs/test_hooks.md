@@ -5,10 +5,10 @@ Logger test hooks are advanced testing-only features. They are not production AP
 ## Enabling
 
 ```powershell
--DGAMEWIP_ENABLE_LOGGER_TEST_HOOKS=ON
+-DLOGGER_TEST_HOOKS=ON
 ```
 
-This maps to the library-local `LOGGER_TEST_HOOKS` option and exports `GAMEWIP_LOGGER_TEST_HOOKS=1` to test code.
+This maps to the library-local `LOGGER_TEST_HOOKS` option and exports `INTERNAL_LOGGER_TEST_HOOKS=1` to test code.
 
 ## Purpose
 
@@ -24,7 +24,7 @@ Hooks make rare paths deterministic:
 
 ## Rules
 
-- Hook namespaces exist only when `GAMEWIP_LOGGER_TEST_HOOKS=1`.
+- Hook namespaces exist only when `INTERNAL_LOGGER_TEST_HOOKS=1`.
 - Hook headers live under `tools/logger/internal/`.
 - Hook headers are excluded from normal installs.
 - One-shot hooks use `forceNext...` naming.

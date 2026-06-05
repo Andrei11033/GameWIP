@@ -1,5 +1,5 @@
 /// @file win32_logger.cpp
-/// @brief Windows platform backend for the GameWIP Logger library.
+/// @brief Windows platform backend for the Logger library.
 
 #include "logger/internal/logger_platform.h"
 

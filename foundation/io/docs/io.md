@@ -2,35 +2,18 @@
 
 `GameWIP::IO` is the platform-neutral byte and text I/O contract library.
 
-It defines shared reader, writer, status, error, and whole-stream helper APIs for low-level GameWIP libraries. IO does not call the operating system and has no platform backend.
+It defines shared reader, writer, status, error, and whole-stream helper APIs for low-level libraries. IO does not call the operating system and has no platform backend.
 
-IO builds as a static library target.
+## Documentation
 
-## Documentation sections
-
-### User manual
-
-- @subpage io_getting_started
 - @subpage io_quick_start
 - @subpage io_public_api
-- @subpage io_examples
-- @subpage io_troubleshooting
-
-### Reference and concepts
-
-- @subpage io_api_reference
 - @subpage io_reader_writer_contract
 - @subpage io_error_model
 - @subpage io_runtime_performance
-
-### Developer validation
-
+- @subpage io_examples
+- @subpage io_troubleshooting
 - @subpage io_testing
-- @subpage io_developer_validation
-
-## Normal user path
-
-Use the getting started and API reference pages for public integration. The runtime and performance page covers allocation, blocking, limits, and threading behavior. Developer validation contains focused test commands and coverage notes.
 
 ## Key behavior
 

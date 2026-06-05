@@ -1,5 +1,5 @@
 /// @file io.cpp
-/// @brief Core implementation for the GameWIP IO contract library.
+/// @brief Core implementation for the IO contract library.
 
 #include "io/io.h"
 

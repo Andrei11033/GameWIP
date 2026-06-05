@@ -1,5 +1,5 @@
 /// @file assert_test.h
-/// @brief Runtime options and entry point for the GameWIP Assert self-tests.
+/// @brief Runtime options and entry point for the Assert self-tests.
 
 #pragma once
 
@@ -17,7 +17,7 @@ namespace GameWIP::Test
         bool enableStressTests = true;
         /// @brief Enables lightweight passing-path performance metrics at the end of the suite.
         bool enablePerformanceMetrics = true;
-        /// @brief Enables automated interactive assert tests that use GAMEWIP_ASSERT_TEST_ACTION instead of real UI.
+        /// @brief Enables automated interactive assert tests that use INTERNAL_ASSERT_TEST_ACTION instead of real UI.
         bool enableAutomatedInteractiveTests = true;
         /// @brief Enables manual UI tests that require the user to click real Windows dialogs.
         bool enableManualUiTests = false;

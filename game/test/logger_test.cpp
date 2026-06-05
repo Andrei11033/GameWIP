@@ -1,5 +1,5 @@
 /// @file logger_test.cpp
-/// @brief Executable self-tests for the GameWIP Logger library.
+/// @brief Executable self-tests for the Logger library.
 
 #include "test/logger_test.h"
 
@@ -7,11 +7,11 @@
 #include "logger/logger_macros.h"
 #include "test_support/test_support.h"
 
-#ifndef GAMEWIP_LOGGER_TEST_HOOKS
-#define GAMEWIP_LOGGER_TEST_HOOKS 0
+#ifndef INTERNAL_LOGGER_TEST_HOOKS
+#define INTERNAL_LOGGER_TEST_HOOKS 0
 #endif
 
-#if GAMEWIP_LOGGER_TEST_HOOKS
+#if INTERNAL_LOGGER_TEST_HOOKS
 #include "logger/internal/logger_test_hooks.h"
 #endif
 
@@ -55,7 +55,7 @@ namespace
 
     constexpr std::string_view testSource = "LoggerTest";
     constexpr std::string_view shortMessage = "logger test message";
-    constexpr std::string_view childLogDirectoryEnvironmentVariable = "GAMEWIP_LOGGER_TEST_CHILD_LOG_DIR";
+    constexpr std::string_view childLogDirectoryEnvironmentVariable = "INTERNAL_LOGGER_TEST_CHILD_LOG_DIR";
     constexpr std::string_view fatalTerminateChildMessage = "child fatal terminate";
 
     enum class TestSource : Logger::Types::SourceId
@@ -431,7 +431,7 @@ namespace
     {
         const auto now = std::chrono::system_clock::now().time_since_epoch().count();
         const auto threadHash = std::hash<std::thread::id>{}(std::this_thread::get_id());
-        return std::filesystem::temp_directory_path() / "GameWIPLoggerTests" / std::format("run_{}_{}", now, threadHash);
+        return std::filesystem::temp_directory_path() / "LoggerTests" / std::format("run_{}_{}", now, threadHash);
     }
 
     std::string pathText(const std::filesystem::path &path)
@@ -970,7 +970,7 @@ namespace
 
     void testLoggerTestHooks(TestContext &context)
     {
-#if GAMEWIP_LOGGER_TEST_HOOKS
+#if INTERNAL_LOGGER_TEST_HOOKS
         ZoneScopedN("Logger test hook tests");
         GameWIP::Logger::TestHooks::reset();
 
@@ -1065,7 +1065,7 @@ namespace
 
         GameWIP::Logger::TestHooks::reset();
 #else
-        context.pass("logger test hooks skipped because GAMEWIP_LOGGER_TEST_HOOKS=0");
+        context.pass("logger test hooks skipped because INTERNAL_LOGGER_TEST_HOOKS=0");
 #endif
     }
 

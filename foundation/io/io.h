@@ -1,5 +1,5 @@
 /// @file io.h
-/// @brief Public API for the GameWIP IO contract library.
+/// @brief Public API for the IO contract library.
 
 #pragma once
 

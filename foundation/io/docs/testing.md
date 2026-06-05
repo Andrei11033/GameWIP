@@ -31,4 +31,4 @@ ctest --test-dir build-optimized-debuggable --output-on-failure
 
 ## Coverage
 
-Configure with `GAMEWIP_ENABLE_COVERAGE=ON` and use the project coverage target when validating line and branch coverage. See @ref gamewip_coverage for the full workflow.
+Configure with `ENABLE_LIBRARY_COVERAGE=ON` and use the project coverage target when validating line and branch coverage. See @ref library_coverage for the full workflow.

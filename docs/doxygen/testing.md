@@ -1,6 +1,6 @@
-@page gamewip_testing Project testing policy
+@page library_testing Project testing policy
 
-GameWIP separates build-time features from runtime test selection.
+The project separates build-time features from runtime test selection.
 
 ## Rule
 
@@ -32,11 +32,11 @@ CMake controls compile-time/build features:
 cmake -S . -B build-hooks -G Ninja `
   -DASSERT_ENABLED=ON `
   -DASSERT_CHECKS_ENABLED=ON `
-  -DGAMEWIP_ENABLE_LOGGER_TEST_HOOKS=ON `
-  -DGAMEWIP_ENABLE_ASSERT_TEST_HOOKS=ON `
-  -DGAMEWIP_ENABLE_TERMINAL_TEST_HOOKS=ON `
-  -DGAMEWIP_ENABLE_COVERAGE=OFF `
-  -DGAMEWIP_BUILD_DOCS=OFF
+  -DLOGGER_TEST_HOOKS=ON `
+  -DASSERT_TEST_HOOKS=ON `
+  -DTERMINAL_TEST_HOOKS=ON `
+  -DENABLE_LIBRARY_COVERAGE=OFF `
+  -DBUILD_LIBRARY_DOCS=OFF
 
 cmake --build build-hooks
 .\build-hooks\GameWIP.exe
@@ -56,7 +56,7 @@ Use `--test-support-manual` for the focused TestSupport manual prompt checks. Th
 
 ## Manual UI tests
 
-Manual UI tests are intentionally blocking and must remain opt-in through runtime options. Automated interactive assert tests must use `GAMEWIP_ASSERT_TEST_ACTION` and must not open real popups.
+Manual UI tests are intentionally blocking and must remain opt-in through runtime options. Automated interactive assert tests must use `INTERNAL_ASSERT_TEST_ACTION` and must not open real popups.
 
 ## Package and docs validation
 

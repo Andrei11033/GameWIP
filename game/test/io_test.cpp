@@ -1,5 +1,5 @@
 /// @file io_test.cpp
-/// @brief Executable self-tests for the GameWIP IO library.
+/// @brief Executable self-tests for the IO library.
 
 #include "test/io_test.h"
 

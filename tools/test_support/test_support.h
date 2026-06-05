@@ -1,5 +1,5 @@
 /// @file test_support.h
-/// @brief Lightweight GameWIP-native helpers for writing executable test suites.
+/// @brief Lightweight helpers for writing executable test suites.
 ///
 /// TestSupport provides reporting, expectations, file helpers, environment guards, child-process
 /// helpers, manual prompts, timers, and small stress-test helpers without depending on Logger,
@@ -32,7 +32,10 @@
 
 namespace GameWIP::TestSupport
 {
-    /// @cond GAMEWIP_TEST_SUPPORT_DETAIL
+    /// @brief Default in-memory limit for combined child stdout/stderr capture.
+    inline constexpr std::size_t kDefaultMaxCapturedOutputBytes = 4 * 1024 * 1024;
+
+    /// @cond INTERNAL_TEST_SUPPORT
     namespace Detail
     {
         class ReportSink;
@@ -63,7 +66,7 @@ namespace GameWIP::TestSupport
     /// @brief Report, suite, child-process, and manual-check types.
     namespace Types
     {
-        /// @brief Runtime report-output settings shared by GameWIP test suites.
+        /// @brief Runtime report-output settings shared by test suites.
         /// Contract: these options control only test-run behavior. They do not enable or disable compiled code paths.
         struct ReportOptions
         {
@@ -73,6 +76,8 @@ namespace GameWIP::TestSupport
             bool writeReport = true;
             /// @brief Appends to reportPath instead of replacing it at the start of a run.
             bool appendReport = false;
+            /// @brief Flushes every report line for readers that cannot wait for suite completion.
+            bool flushReportEachLine = false;
 
             /// @brief Text report path used when writeReport is true.
             std::filesystem::path reportPath = "logs/tests/latest_test_report.txt";
@@ -509,6 +514,8 @@ namespace GameWIP::TestSupport
 
             /// @brief Captures stdout and stderr into ChildProcessResult::output when true.
             bool captureOutput = true;
+            /// @brief Retained capture limit; excess bytes are drained and discarded. Zero retains nothing.
+            std::size_t maxCapturedOutputBytes = kDefaultMaxCapturedOutputBytes;
             /// @brief Starts from the parent environment before applying environment overrides when true.
             bool inheritParentEnvironment = true;
         };
@@ -525,6 +532,8 @@ namespace GameWIP::TestSupport
 
             /// @brief Captured stdout/stderr text when ChildProcessOptions::captureOutput is true.
             std::string output;
+            /// @brief True when capture stayed active but discarded bytes beyond the retained limit.
+            bool outputTruncated = false;
 
             /// @brief Returns true only for a zero exit without timeout or test termination.
             [[nodiscard]] bool exitedSuccessfully() const noexcept;

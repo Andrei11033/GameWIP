@@ -186,11 +186,7 @@ namespace GameWIP::Logger::Detail::Core
             return;
         }
 
-        std::string retainedMessage;
-        retainedMessage.reserve(maxMessageLength);
-        retainedMessage.append(message.substr(0, maxMessageLength - suffix.size()));
-        retainedMessage.append(suffix);
-        entry.message.assign(retainedMessage);
+        entry.message.assignJoined(message.substr(0, maxMessageLength - suffix.size()), suffix);
     }
 
     /// @brief Copies a pending producer entry into an owning queue slot.
@@ -298,7 +294,7 @@ namespace GameWIP::Logger::Detail::Core
 
         try
         {
-#if GAMEWIP_LOGGER_TEST_HOOKS
+#if INTERNAL_LOGGER_TEST_HOOKS
             if (consumeTestHook(loggerTestHookState.nextQueueAllocationFailure))
             {
                 throw std::bad_alloc{};

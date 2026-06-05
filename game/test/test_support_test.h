@@ -1,5 +1,5 @@
 /// @file test_support_test.h
-/// @brief Runtime options and entry point for the GameWIP TestSupport self-tests.
+/// @brief Runtime options and entry point for the TestSupport self-tests.
 
 #pragma once
 

@@ -1,5 +1,5 @@
 /// @file terminal_test_hooks.h
-/// @brief Internal test hooks for deterministic GameWIP Terminal tests.
+/// @brief Internal test hooks for deterministic Terminal tests.
 
 #pragma once
 
@@ -14,11 +14,11 @@
 #include <string_view>
 #include <vector>
 
-#ifndef GAMEWIP_TERMINAL_TEST_HOOKS
-#define GAMEWIP_TERMINAL_TEST_HOOKS 0
+#ifndef INTERNAL_TERMINAL_TEST_HOOKS
+#define INTERNAL_TERMINAL_TEST_HOOKS 0
 #endif
 
-#if GAMEWIP_TERMINAL_TEST_HOOKS
+#if INTERNAL_TERMINAL_TEST_HOOKS
 namespace GameWIP::Terminal::Detail::TestHooks
 {
     struct HookFailure
@@ -45,9 +45,14 @@ namespace GameWIP::Terminal::Detail::TestHooks
     {
         bool capabilitiesOverrideEnabled = false;
         Terminal::Types::OutputCapabilities capabilitiesOverride{};
+        bool preparedCapabilitiesOverrideEnabled = false;
+        Terminal::Types::OutputCapabilities preparedCapabilitiesOverride{};
+        bool prepared = false;
 
         bool captureEnabled = false;
         std::vector<std::byte> capturedOutput;
+        std::size_t preparationCalls = 0;
+        std::size_t textWriteCalls = 0;
 
         bool terminalSizeOverrideEnabled = false;
         Terminal::Types::TerminalSize terminalSizeOverride{};
@@ -64,6 +69,7 @@ namespace GameWIP::Terminal::Detail::TestHooks
 
         HookFailure nextInputCapabilityFailure;
         HookFailure nextOutputCapabilityFailure;
+        HookFailure nextOutputPreparationFailure;
         HookFailure nextInputAvailabilityFailure;
         HookFailure nextInputModeFailure;
         HookFailure nextReadFailure;
@@ -86,7 +92,7 @@ namespace GameWIP::Terminal::Detail::TestHooks
 namespace GameWIP::Terminal::TestHooks
 {
     /// @brief Clears all pending terminal test-hook failures, captures, and overrides.
-    /// @warning Test-only API. Available only when GAMEWIP_TERMINAL_TEST_HOOKS is enabled.
+    /// @warning Test-only API. Available only when INTERNAL_TERMINAL_TEST_HOOKS is enabled.
     void reset() noexcept;
 
     /// @brief Overrides reported input capabilities for a stream.
@@ -104,6 +110,12 @@ namespace GameWIP::Terminal::TestHooks
     /// @brief Clears an output capabilities override.
     /// @warning Test-only API.
     void clearOutputCapabilitiesOverride(Terminal::Types::OutputStream stream) noexcept;
+
+    /// @brief Overrides capabilities reported after output preparation.
+    /// @warning Test-only API. Persistent until reset or clearOutputCapabilitiesOverride.
+    void setPreparedOutputCapabilitiesOverride(
+        Terminal::Types::OutputStream stream,
+        const Terminal::Types::OutputCapabilities &capabilities);
 
     /// @brief Replaces the in-memory input bytes used by read hooks.
     /// @param endOfStreamWhenEmpty True makes an empty hook stream report EOF; false reports WouldBlock/TimedOut.
@@ -142,6 +154,14 @@ namespace GameWIP::Terminal::TestHooks
     /// @warning Test-only API.
     void clearCapturedOutput(Terminal::Types::OutputStream stream) noexcept;
 
+    /// @brief Returns the number of output preparation calls for a stream.
+    /// @warning Test-only API.
+    [[nodiscard]] std::size_t outputPreparationCallCount(Terminal::Types::OutputStream stream) noexcept;
+
+    /// @brief Returns the number of backend text-write calls for a stream.
+    /// @warning Test-only API.
+    [[nodiscard]] std::size_t textWriteCallCount(Terminal::Types::OutputStream stream) noexcept;
+
     /// @brief Overrides terminal size query results for a stream.
     /// @warning Test-only API.
     void setTerminalSizeOverride(Terminal::Types::OutputStream stream, Terminal::Types::TerminalSize size);
@@ -160,6 +180,7 @@ namespace GameWIP::Terminal::TestHooks
 
     void forceNextInputCapabilityFailure(IO::Types::ErrorCode code = IO::Types::ErrorCode::StatFailed) noexcept;
     void forceNextOutputCapabilityFailure(IO::Types::ErrorCode code = IO::Types::ErrorCode::StatFailed) noexcept;
+    void forceNextOutputPreparationFailure(IO::Types::ErrorCode code = IO::Types::ErrorCode::NativeFailure) noexcept;
     void forceNextInputAvailabilityFailure(IO::Types::ErrorCode code = IO::Types::ErrorCode::StatFailed) noexcept;
     void forceNextInputModeFailure(IO::Types::ErrorCode code = IO::Types::ErrorCode::NativeFailure) noexcept;
     void forceNextReadFailure(IO::Types::ErrorCode code = IO::Types::ErrorCode::ReadFailed) noexcept;

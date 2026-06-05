@@ -1,5 +1,5 @@
 /// @file win32_environment.cpp
-/// @brief Windows environment-variable backend for the GameWIP TestSupport library.
+/// @brief Windows environment-variable backend for the TestSupport library.
 
 #include "test_support/internal/test_support_platform.h"
 

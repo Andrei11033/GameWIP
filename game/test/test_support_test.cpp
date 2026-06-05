@@ -1,5 +1,5 @@
 /// @file test_support_test.cpp
-/// @brief Executable self-tests for the GameWIP TestSupport library.
+/// @brief Executable self-tests for the TestSupport library.
 
 #include "test/test_support_test.h"
 
@@ -20,6 +20,13 @@
 #include <string_view>
 #include <thread>
 
+#if defined(_WIN32)
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <windows.h>
+#endif
+
 namespace
 {
     namespace TestSupport = GameWIP::TestSupport;
@@ -30,9 +37,11 @@ namespace
     constexpr std::string_view kEchoChildArgument = "--test-support-test-child=echo";
     constexpr std::string_view kSleepChildArgument = "--test-support-test-child=sleep";
     constexpr std::string_view kExitCodeChildArgument = "--test-support-test-child=exit-code";
-    constexpr std::string_view kChildSetVariable = "GAMEWIP_TEST_SUPPORT_CHILD_SET";
-    constexpr std::string_view kChildUnsetVariable = "GAMEWIP_TEST_SUPPORT_CHILD_UNSET";
-    constexpr std::string_view kScopedVariable = "GAMEWIP_TEST_SUPPORT_SCOPED_ENV";
+    constexpr std::string_view kOutputChildArgument = "--test-support-test-child=output";
+    constexpr std::string_view kDescendantChildArgument = "--test-support-test-child=descendant";
+    constexpr std::string_view kChildSetVariable = "INTERNAL_TEST_SUPPORT_CHILD_SET";
+    constexpr std::string_view kChildUnsetVariable = "INTERNAL_TEST_SUPPORT_CHILD_UNSET";
+    constexpr std::string_view kScopedVariable = "INTERNAL_TEST_SUPPORT_SCOPED_ENV";
 
     bool hasArgument(int argc, char **argv, std::string_view argument)
     {
@@ -62,7 +71,7 @@ namespace
     {
         const auto ticks = std::chrono::steady_clock::now().time_since_epoch().count();
         const auto threadHash = std::hash<std::thread::id>{}(std::this_thread::get_id());
-        return std::filesystem::temp_directory_path() / std::format("GameWIP_test_support_tests_{}_{}", ticks, threadHash);
+        return std::filesystem::temp_directory_path() / std::format("test_support_tests_{}_{}", ticks, threadHash);
     }
 
     TestSupport::Types::ReportOptions quietReport(const std::filesystem::path &path)
@@ -71,6 +80,7 @@ namespace
         options.writeConsole = false;
         options.writeReport = true;
         options.appendReport = false;
+        options.flushReportEachLine = true;
         options.reportPath = path;
         return options;
     }
@@ -136,6 +146,45 @@ namespace
             return exitCodeText.empty() ? 7 : std::stoi(exitCodeText);
         }
 
+        if (hasArgument(argc, argv, kOutputChildArgument))
+        {
+            const std::string byteCountText = argumentAfter(argc, argv, kOutputChildArgument);
+            const std::size_t byteCount = byteCountText.empty() ? 0 : static_cast<std::size_t>(std::stoull(byteCountText));
+            const std::string output(byteCount, 'x');
+            std::cout.write(output.data(), static_cast<std::streamsize>(output.size()));
+            return 0;
+        }
+
+        if (hasArgument(argc, argv, kDescendantChildArgument))
+        {
+#if defined(_WIN32)
+            std::string commandLine = "\"" + std::string(argv[0]) + "\" " + std::string(kSleepChildArgument);
+            STARTUPINFOA startupInfo{};
+            startupInfo.cb = sizeof(startupInfo);
+            PROCESS_INFORMATION processInfo{};
+            if (CreateProcessA(
+                    nullptr,
+                    commandLine.data(),
+                    nullptr,
+                    nullptr,
+                    TRUE,
+                    CREATE_NO_WINDOW,
+                    nullptr,
+                    nullptr,
+                    &startupInfo,
+                    &processInfo) == FALSE)
+            {
+                return 11;
+            }
+            CloseHandle(processInfo.hThread);
+            CloseHandle(processInfo.hProcess);
+            std::this_thread::sleep_for(5s);
+            return 0;
+#else
+            return 12;
+#endif
+        }
+
         return 2;
     }
 
@@ -145,6 +194,7 @@ namespace
         static_cast<void>(context.expectTrue("ReportOptions default console", defaultOptions.writeConsole));
         static_cast<void>(context.expectTrue("ReportOptions default report", defaultOptions.writeReport));
         static_cast<void>(context.expectFalse("ReportOptions default append", defaultOptions.appendReport));
+        static_cast<void>(context.expectFalse("ReportOptions default per-line flush", defaultOptions.flushReportEachLine));
         static_cast<void>(
             context.expectEq("ReportOptions default path", std::filesystem::path("logs/tests/latest_test_report.txt"), defaultOptions.reportPath));
 
@@ -297,6 +347,21 @@ namespace
         const std::string truncatedText = TestSupport::readTextFile(appendPath);
         static_cast<void>(context.expectContains("Report truncate writes new line", truncatedText, "third line"));
         static_cast<void>(context.expectFalse("Report truncate removes old line", truncatedText.find("first line") != std::string::npos));
+
+        const std::filesystem::path destructionFlushPath = root / "destruction_flush_report.txt";
+        {
+            TestSupport::Types::ReportOptions bufferedOptions;
+            bufferedOptions.writeConsole = false;
+            bufferedOptions.writeReport = true;
+            bufferedOptions.flushReportEachLine = false;
+            bufferedOptions.reportPath = destructionFlushPath;
+            TestSupport::Context buffered("BufferedReport", bufferedOptions);
+            buffered.pass("flushed at destruction");
+        }
+        static_cast<void>(context.expectContains(
+            "Report sink destruction flushes buffered output",
+            TestSupport::readTextFile(destructionFlushPath),
+            "flushed at destruction"));
     }
 
     void testPromptManualCheck(TestSupport::Context &context)
@@ -363,7 +428,9 @@ namespace
 
     void testRunnerAndSection(TestSupport::Context &context, const std::filesystem::path &root)
     {
-        TestSupport::Runner runner(quietReport(root / "runner_report.txt"));
+        TestSupport::Types::ReportOptions runnerOptions = quietReport(root / "runner_report.txt");
+        runnerOptions.flushReportEachLine = false;
+        TestSupport::Runner runner(runnerOptions);
         const TestSupport::Types::SuiteResult first = runner.runSuite(
             "FirstSuite",
             [](TestSupport::Context &suite)
@@ -530,6 +597,53 @@ namespace
             static_cast<void>(context.expectTrue("Child process timeout is terminated by test", result.wasTerminatedByTest));
             static_cast<void>(context.expectTrue("Child process timeout is failure", result.exitedWithFailure()));
         }
+
+        const auto runOutputChild = [&](std::size_t outputBytes, std::size_t captureLimit)
+        {
+            TestSupport::Types::ChildProcessOptions childOptions;
+            childOptions.executablePath = std::filesystem::path(executablePath);
+            childOptions.arguments = {std::string(kOutputChildArgument), std::to_string(outputBytes)};
+            childOptions.maxCapturedOutputBytes = captureLimit;
+            childOptions.timeout = 5s;
+            return TestSupport::runChildProcess(childOptions);
+        };
+
+        {
+            const TestSupport::Types::ChildProcessResult result = runOutputChild(4, 8);
+            static_cast<void>(context.expectTrue("Capture below limit succeeds", result.exitedSuccessfully()));
+            static_cast<void>(context.expectEq("Capture below limit retains all bytes", std::size_t{4}, result.output.size()));
+            static_cast<void>(context.expectFalse("Capture below limit is not truncated", result.outputTruncated));
+        }
+
+        {
+            const TestSupport::Types::ChildProcessResult result = runOutputChild(8, 8);
+            static_cast<void>(context.expectEq("Capture at limit retains all bytes", std::size_t{8}, result.output.size()));
+            static_cast<void>(context.expectFalse("Capture at limit is not truncated", result.outputTruncated));
+        }
+
+        {
+            const TestSupport::Types::ChildProcessResult result = runOutputChild(12, 8);
+            static_cast<void>(context.expectTrue("Capture above limit still succeeds", result.exitedSuccessfully()));
+            static_cast<void>(context.expectEq("Capture above limit retains prefix", std::string(8, 'x'), result.output));
+            static_cast<void>(context.expectTrue("Capture above limit reports truncation", result.outputTruncated));
+        }
+
+        {
+            const TestSupport::Types::ChildProcessResult result = runOutputChild(12, 0);
+            static_cast<void>(context.expectTrue("Zero capture limit still drains child", result.exitedSuccessfully()));
+            static_cast<void>(context.expectTrue("Zero capture limit retains no bytes", result.output.empty()));
+            static_cast<void>(context.expectTrue("Zero capture limit reports truncation", result.outputTruncated));
+        }
+
+        {
+            TestSupport::Types::ChildProcessOptions childOptions;
+            childOptions.executablePath = std::filesystem::path(executablePath);
+            childOptions.arguments = {std::string(kDescendantChildArgument)};
+            childOptions.timeout = 50ms;
+            const TestSupport::Types::ChildProcessResult result = TestSupport::runChildProcess(childOptions);
+            static_cast<void>(context.expectTrue("Descendant process timeout is reported", result.timedOut));
+            static_cast<void>(context.expectTrue("Descendant process tree is terminated", result.wasTerminatedByTest));
+        }
     }
 
     void testStressHelpers(TestSupport::Context &context, const TestSupportTestOptions &options)
@@ -628,7 +742,8 @@ namespace GameWIP::Test
     int runTestSupportTests(int argc, char **argv, const TestSupportTestOptions &options)
     {
         if (hasArgument(argc, argv, kEnvironmentChildArgument) || hasArgument(argc, argv, kEchoChildArgument) ||
-            hasArgument(argc, argv, kSleepChildArgument) || hasArgument(argc, argv, kExitCodeChildArgument))
+            hasArgument(argc, argv, kSleepChildArgument) || hasArgument(argc, argv, kExitCodeChildArgument) ||
+            hasArgument(argc, argv, kOutputChildArgument) || hasArgument(argc, argv, kDescendantChildArgument))
         {
             return runTestSupportChild(argc, argv);
         }

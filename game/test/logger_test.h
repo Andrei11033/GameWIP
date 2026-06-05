@@ -1,5 +1,5 @@
 /// @file logger_test.h
-/// @brief Runtime options and entry point for the GameWIP Logger self-tests.
+/// @brief Runtime options and entry point for the Logger self-tests.
 
 #pragma once
 

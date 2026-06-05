@@ -32,4 +32,4 @@ if (!ENSURE_MSG(socket.isOpen(), "Socket should be open"))
 
 Use interactive assertions only for developer workflows where continuing may be acceptable after inspecting the failure.
 
-Automated tests must use `GAMEWIP_ASSERT_TEST_ACTION` or test hooks for interactive paths. Real dialogs are reserved for runtime-gated manual UI tests.
+Automated tests must use `INTERNAL_ASSERT_TEST_ACTION` or test hooks for interactive paths. Real dialogs are reserved for runtime-gated manual UI tests.

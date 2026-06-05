@@ -6,11 +6,11 @@
 #include "logger/logger.h"
 #include "logger/internal/logger_platform.h"
 
-#ifndef GAMEWIP_LOGGER_TEST_HOOKS
-#define GAMEWIP_LOGGER_TEST_HOOKS 0
+#ifndef INTERNAL_LOGGER_TEST_HOOKS
+#define INTERNAL_LOGGER_TEST_HOOKS 0
 #endif
 
-#if GAMEWIP_LOGGER_TEST_HOOKS
+#if INTERNAL_LOGGER_TEST_HOOKS
 #include "logger/internal/logger_test_hooks.h"
 #endif
 
@@ -45,8 +45,8 @@
 #include <immintrin.h>
 #endif
 
-#ifndef LOGGER_DEFAULT_DIRECTORY
-#define LOGGER_DEFAULT_DIRECTORY "logs"
+#ifndef INTERNAL_LOGGER_DEFAULT_DIRECTORY
+#define INTERNAL_LOGGER_DEFAULT_DIRECTORY "logs"
 #endif
 
 namespace GameWIP::Logger::Detail::Core
@@ -806,7 +806,7 @@ namespace GameWIP::Logger::Detail::Core
 
     // Process state and test hooks.
 
-#if GAMEWIP_LOGGER_TEST_HOOKS
+#if INTERNAL_LOGGER_TEST_HOOKS
     struct LoggerTestHookState
     {
         std::atomic_bool nextFileOpenFailure{false};

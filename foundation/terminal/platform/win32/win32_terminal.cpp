@@ -1,5 +1,5 @@
 /// @file win32_terminal.cpp
-/// @brief Win32 backend for the GameWIP Terminal library.
+/// @brief Win32 backend for the Terminal library.
 
 #include "terminal/internal/terminal_platform.h"
 #include "terminal/internal/terminal_test_hooks.h"
@@ -39,7 +39,7 @@ namespace GameWIP::Terminal::Detail::Platform
         using ReadOutcome = Terminal::Types::ReadOutcome;
         using StreamKind = Terminal::Types::StreamKind;
 
-#if GAMEWIP_TERMINAL_TEST_HOOKS
+#if INTERNAL_TERMINAL_TEST_HOOKS
         namespace HookDetail = GameWIP::Terminal::Detail::TestHooks;
 #endif
 
@@ -49,6 +49,13 @@ namespace GameWIP::Terminal::Detail::Platform
             DWORD defaultConsoleMode = 0;
             std::string pendingBytes;
         };
+
+        struct OutputConversionState
+        {
+            std::wstring wideText;
+        };
+
+        inline constexpr std::size_t kRetainedConversionLimit = 64 * 1024;
 
         struct ReadChunk
         {
@@ -99,12 +106,28 @@ namespace GameWIP::Terminal::Detail::Platform
             return stdinState;
         }
 
+        [[nodiscard]] OutputConversionState &outputConversionState(OutputStream stream) noexcept
+        {
+            static OutputConversionState stdoutState;
+            static OutputConversionState stderrState;
+            return stream == OutputStream::Stderr ? stderrState : stdoutState;
+        }
+
+        void releaseLargeConversionBuffer(OutputConversionState &state) noexcept
+        {
+            state.wideText.clear();
+            if (state.wideText.capacity() > kRetainedConversionLimit)
+            {
+                std::wstring{}.swap(state.wideText);
+            }
+        }
+
         [[nodiscard]] IO::Types::Status statusFromWin32(ErrorCode code, DWORD nativeCode, std::string message = {})
         {
             return IO::makeStatus(code, static_cast<std::int64_t>(nativeCode), std::move(message));
         }
 
-#if GAMEWIP_TERMINAL_TEST_HOOKS
+#if INTERNAL_TERMINAL_TEST_HOOKS
         [[nodiscard]] std::optional<IO::Types::Status> consumeHookFailure(HookDetail::HookFailure &failure, std::string_view message)
         {
             if (const std::optional<ErrorCode> code = HookDetail::consumeFailure(failure))
@@ -232,25 +255,15 @@ namespace GameWIP::Terminal::Detail::Platform
             }
         }
 
-        [[nodiscard]] bool enableOutputVirtualTerminal(HANDLE handle) noexcept
+        [[nodiscard]] bool outputVirtualTerminalEnabled(HANDLE handle) noexcept
         {
-            if (!isConsoleHandle(handle))
-            {
-                return false;
-            }
-
             DWORD mode = 0;
             if (GetConsoleMode(handle, &mode) == FALSE)
             {
                 return false;
             }
 
-            if ((mode & ENABLE_VIRTUAL_TERMINAL_PROCESSING) != 0)
-            {
-                return true;
-            }
-
-            return SetConsoleMode(handle, mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING) != FALSE;
+            return (mode & ENABLE_VIRTUAL_TERMINAL_PROCESSING) != 0;
         }
 
         void setStyleCapabilities(Terminal::Types::StyleCapabilities &capabilities, bool supported) noexcept
@@ -586,7 +599,7 @@ namespace GameWIP::Terminal::Detail::Platform
 
         [[nodiscard]] ReadChunk readInputChunk(InputStream stream, std::chrono::milliseconds timeout, std::size_t requestedBytesHint)
         {
-#if GAMEWIP_TERMINAL_TEST_HOOKS
+#if INTERNAL_TERMINAL_TEST_HOOKS
             if (std::optional<IO::Types::Status> failure =
                     consumeHookFailure(HookDetail::terminalTestHookState.nextReadFailure, "Forced terminal read failure."))
             {
@@ -841,7 +854,7 @@ namespace GameWIP::Terminal::Detail::Platform
         Terminal::Types::InputCapabilityResult result;
         result.status = IO::successStatus();
 
-#if GAMEWIP_TERMINAL_TEST_HOOKS
+#if INTERNAL_TERMINAL_TEST_HOOKS
         if (std::optional<IO::Types::Status> failure =
                 consumeHookFailure(HookDetail::terminalTestHookState.nextInputCapabilityFailure, "Forced terminal input capability failure."))
         {
@@ -889,7 +902,7 @@ namespace GameWIP::Terminal::Detail::Platform
         Terminal::Types::OutputCapabilityResult result;
         result.status = IO::successStatus();
 
-#if GAMEWIP_TERMINAL_TEST_HOOKS
+#if INTERNAL_TERMINAL_TEST_HOOKS
         if (std::optional<IO::Types::Status> failure =
                 consumeHookFailure(HookDetail::terminalTestHookState.nextOutputCapabilityFailure, "Forced terminal output capability failure."))
         {
@@ -902,7 +915,8 @@ namespace GameWIP::Terminal::Detail::Platform
             const HookDetail::OutputHookState &state = HookDetail::terminalTestHookState.outputStreams[HookDetail::outputIndex(stream)];
             if (state.capabilitiesOverrideEnabled)
             {
-                result.capabilities = state.capabilitiesOverride;
+                result.capabilities =
+                    state.prepared && state.preparedCapabilitiesOverrideEnabled ? state.preparedCapabilitiesOverride : state.capabilitiesOverride;
                 return result;
             }
         }
@@ -922,7 +936,7 @@ namespace GameWIP::Terminal::Detail::Platform
 
         if (result.capabilities.kind == StreamKind::Terminal)
         {
-            const bool virtualTerminal = enableOutputVirtualTerminal(handle);
+            const bool virtualTerminal = outputVirtualTerminalEnabled(handle);
             setStyleCapabilities(result.capabilities.style, virtualTerminal);
 
             result.capabilities.supportsTerminalSize = true;
@@ -940,12 +954,79 @@ namespace GameWIP::Terminal::Detail::Platform
         return result;
     }
 
+    Terminal::Types::OutputCapabilityResult prepareOutput(OutputStream stream)
+    {
+#if INTERNAL_TERMINAL_TEST_HOOKS
+        {
+            std::lock_guard lock(HookDetail::terminalTestHookState.mutex);
+            ++HookDetail::terminalTestHookState.outputStreams[HookDetail::outputIndex(stream)].preparationCalls;
+        }
+
+        if (std::optional<IO::Types::Status> failure =
+                consumeHookFailure(HookDetail::terminalTestHookState.nextOutputPreparationFailure, "Forced terminal output preparation failure."))
+        {
+            return {.status = *failure, .capabilities = {}};
+        }
+
+        {
+            std::lock_guard lock(HookDetail::terminalTestHookState.mutex);
+            HookDetail::OutputHookState &state = HookDetail::terminalTestHookState.outputStreams[HookDetail::outputIndex(stream)];
+            if (state.capabilitiesOverrideEnabled)
+            {
+                if (state.capabilitiesOverride.kind == StreamKind::Detached)
+                {
+                    return {
+                        .status = IO::makeStatus(ErrorCode::NotOpen, 0, "Terminal output stream is detached."),
+                        .capabilities = state.capabilitiesOverride};
+                }
+                state.prepared = true;
+                return {
+                    .status = IO::successStatus(),
+                    .capabilities =
+                        state.preparedCapabilitiesOverrideEnabled ? state.preparedCapabilitiesOverride : state.capabilitiesOverride};
+            }
+        }
+#endif
+
+        Terminal::Types::OutputCapabilityResult result = getOutputCapabilities(stream);
+        if (!result.status.ok())
+        {
+            return result;
+        }
+        if (result.capabilities.kind == StreamKind::Detached)
+        {
+            result.status = IO::makeStatus(ErrorCode::NotOpen, 0, "Terminal output stream is detached.");
+            return result;
+        }
+        if (result.capabilities.kind != StreamKind::Terminal || outputVirtualTerminalEnabled(outputHandle(stream)))
+        {
+            return result;
+        }
+
+        const HANDLE handle = outputHandle(stream);
+        DWORD mode = 0;
+        if (GetConsoleMode(handle, &mode) == FALSE)
+        {
+            const DWORD error = GetLastError();
+            result.status = statusFromWin32(ErrorCode::StatFailed, error, "GetConsoleMode failed while preparing terminal output.");
+            return result;
+        }
+        if (SetConsoleMode(handle, mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING) == FALSE)
+        {
+            const DWORD error = GetLastError();
+            result.status = statusFromWin32(ErrorCode::NativeFailure, error, "SetConsoleMode failed while preparing terminal output.");
+            return result;
+        }
+
+        return getOutputCapabilities(stream);
+    }
+
     Terminal::Types::InputAvailabilityResult getInputAvailability(InputStream stream)
     {
         Terminal::Types::InputAvailabilityResult result;
         result.status = IO::successStatus();
 
-#if GAMEWIP_TERMINAL_TEST_HOOKS
+#if INTERNAL_TERMINAL_TEST_HOOKS
         if (std::optional<IO::Types::Status> failure =
                 consumeHookFailure(HookDetail::terminalTestHookState.nextInputAvailabilityFailure, "Forced terminal input availability failure."))
         {
@@ -1024,7 +1105,7 @@ namespace GameWIP::Terminal::Detail::Platform
     {
         Terminal::Types::InputModeResult result;
 
-#if GAMEWIP_TERMINAL_TEST_HOOKS
+#if INTERNAL_TERMINAL_TEST_HOOKS
         if (std::optional<IO::Types::Status> failure =
                 consumeHookFailure(HookDetail::terminalTestHookState.nextInputModeFailure, "Forced terminal input mode failure."))
         {
@@ -1080,7 +1161,7 @@ namespace GameWIP::Terminal::Detail::Platform
 
     IO::Types::Status setInputMode(InputStream stream, const Terminal::Types::InputMode &mode)
     {
-#if GAMEWIP_TERMINAL_TEST_HOOKS
+#if INTERNAL_TERMINAL_TEST_HOOKS
         if (std::optional<IO::Types::Status> failure =
                 consumeHookFailure(HookDetail::terminalTestHookState.nextInputModeFailure, "Forced terminal input mode failure."))
         {
@@ -1166,7 +1247,7 @@ namespace GameWIP::Terminal::Detail::Platform
 
     IO::Types::Status restoreDefaultInputMode(InputStream stream)
     {
-#if GAMEWIP_TERMINAL_TEST_HOOKS
+#if INTERNAL_TERMINAL_TEST_HOOKS
         if (std::optional<IO::Types::Status> failure =
                 consumeHookFailure(HookDetail::terminalTestHookState.nextInputModeFailure, "Forced terminal input mode failure."))
         {
@@ -1215,7 +1296,7 @@ namespace GameWIP::Terminal::Detail::Platform
     {
         Terminal::Types::TerminalSizeResult result;
 
-#if GAMEWIP_TERMINAL_TEST_HOOKS
+#if INTERNAL_TERMINAL_TEST_HOOKS
         if (std::optional<IO::Types::Status> failure =
                 consumeHookFailure(HookDetail::terminalTestHookState.nextTerminalSizeFailure, "Forced terminal size failure."))
         {
@@ -1267,7 +1348,7 @@ namespace GameWIP::Terminal::Detail::Platform
     {
         Terminal::Types::CursorPositionResult result;
 
-#if GAMEWIP_TERMINAL_TEST_HOOKS
+#if INTERNAL_TERMINAL_TEST_HOOKS
         if (std::optional<IO::Types::Status> failure =
                 consumeHookFailure(HookDetail::terminalTestHookState.nextCursorPositionFailure, "Forced terminal cursor position failure."))
         {
@@ -1546,7 +1627,12 @@ namespace GameWIP::Terminal::Detail::Platform
 
     IO::Types::Status writeText(OutputStream stream, std::string_view utf8Text)
     {
-#if GAMEWIP_TERMINAL_TEST_HOOKS
+#if INTERNAL_TERMINAL_TEST_HOOKS
+        {
+            std::lock_guard lock(HookDetail::terminalTestHookState.mutex);
+            ++HookDetail::terminalTestHookState.outputStreams[HookDetail::outputIndex(stream)].textWriteCalls;
+        }
+
         if (std::optional<IO::Types::Status> failure =
                 consumeHookFailure(HookDetail::terminalTestHookState.nextTextWriteFailure, "Forced terminal text write failure."))
         {
@@ -1572,14 +1658,17 @@ namespace GameWIP::Terminal::Detail::Platform
 
         if (isConsoleHandle(handle))
         {
-            std::wstring wideText;
-            IO::Types::Status status = utf8ToWide(utf8Text, wideText);
+            OutputConversionState &state = outputConversionState(stream);
+            IO::Types::Status status = utf8ToWide(utf8Text, state.wideText);
             if (!status.ok())
             {
+                releaseLargeConversionBuffer(state);
                 return status;
             }
 
-            return writeConsoleWide(handle, wideText);
+            status = writeConsoleWide(handle, state.wideText);
+            releaseLargeConversionBuffer(state);
+            return status;
         }
 
         return writeFileText(handle, utf8Text);
@@ -1587,7 +1676,7 @@ namespace GameWIP::Terminal::Detail::Platform
 
     IO::Types::WriteResult writeBytes(OutputStream stream, std::span<const std::byte> bytes)
     {
-#if GAMEWIP_TERMINAL_TEST_HOOKS
+#if INTERNAL_TERMINAL_TEST_HOOKS
         if (std::optional<IO::Types::Status> failure =
                 consumeHookFailure(HookDetail::terminalTestHookState.nextByteWriteFailure, "Forced terminal byte write failure."))
         {
@@ -1628,7 +1717,7 @@ namespace GameWIP::Terminal::Detail::Platform
             return IO::successStatus();
         }
 
-#if GAMEWIP_TERMINAL_TEST_HOOKS
+#if INTERNAL_TERMINAL_TEST_HOOKS
         if (std::optional<IO::Types::Status> failure =
                 consumeHookFailure(HookDetail::terminalTestHookState.nextFlushFailure, "Forced terminal flush failure."))
         {

@@ -1,5 +1,5 @@
 /// @file test_support.cpp
-/// @brief Core implementation for the GameWIP TestSupport library.
+/// @brief Core implementation for the TestSupport library.
 
 #include "test_support/test_support.h"
 #include "test_support/internal/test_support_platform.h"
@@ -48,6 +48,11 @@ namespace GameWIP::TestSupport
                 }
             }
 
+            ~ReportSink()
+            {
+                flush();
+            }
+
             void write(std::string_view category, std::string_view message)
             {
                 write(category, {}, message);
@@ -79,10 +84,27 @@ namespace GameWIP::TestSupport
                     if (report_.is_open())
                     {
                         report_ << text << '\n';
-                        report_.flush();
+                        if (options_.flushReportEachLine)
+                        {
+                            report_.flush();
+                        }
                     }
 
                     if (!report_ || !report_.is_open())
+                    {
+                        reportOpenFailed_ = true;
+                        report_.close();
+                    }
+                }
+            }
+
+            void flush()
+            {
+                std::lock_guard lock(mutex_);
+                if (!reportOpenFailed_ && report_.is_open())
+                {
+                    report_.flush();
+                    if (!report_)
                     {
                         reportOpenFailed_ = true;
                         report_.close();
@@ -351,6 +373,7 @@ namespace GameWIP::TestSupport
         message << result.name << " passed=" << result.summary.passed << " failed=" << result.summary.failed << " skipped=" << result.summary.skipped
                 << " elapsedMs=" << result.elapsedMilliseconds;
         reportSink_->write("RESULT", message.str());
+        reportSink_->flush();
     }
 
     Section::Section(Context &context, std::string_view name)
@@ -434,7 +457,7 @@ namespace GameWIP::TestSupport
         std::string contents;
         if (fileSize > contents.max_size())
         {
-            throw std::length_error("GameWIP TestSupport text file is too large to read: " + path.string());
+            throw std::length_error("TestSupport text file is too large to read: " + path.string());
         }
 
         contents.resize(static_cast<std::size_t>(fileSize));
@@ -455,13 +478,13 @@ namespace GameWIP::TestSupport
         std::ofstream file(path, std::ios::binary | std::ios::trunc);
         if (!file.is_open())
         {
-            throw std::runtime_error("GameWIP TestSupport could not open text file for writing: " + path.string());
+            throw std::runtime_error("TestSupport could not open text file for writing: " + path.string());
         }
 
         file << text;
         if (!file)
         {
-            throw std::runtime_error("GameWIP TestSupport could not write text file: " + path.string());
+            throw std::runtime_error("TestSupport could not write text file: " + path.string());
         }
     }
 

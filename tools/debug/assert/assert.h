@@ -11,32 +11,32 @@
 /// diagnostics (`CHECK`, `CHECK_ONCE`, `ENSURE`), explicit debugger breaks (`DEBUG_BREAK`), and
 /// interactive developer assertions (`ASSERT_INTERACTIVE`, `VERIFY_INTERACTIVE`).
 
-/// @def GAMEWIP_ASSERT_RUNTIME
+/// @def INTERNAL_ASSERT_RUNTIME
 /// @brief Internal/exported build flag that tells the header whether the assert runtime library is available.
 /// @details 1 means runtime handlers are linked; 0 means the header uses inline trap/no-op behavior only.
-#ifndef GAMEWIP_ASSERT_RUNTIME
-#define GAMEWIP_ASSERT_RUNTIME 1
+#ifndef INTERNAL_ASSERT_RUNTIME
+#define INTERNAL_ASSERT_RUNTIME 1
 #endif
 
-/// @def GAMEWIP_ASSERT_TEST_HOOKS
+/// @def INTERNAL_ASSERT_TEST_HOOKS
 /// @brief Enables internal assert test-hook declarations for dedicated test builds.
-#ifndef GAMEWIP_ASSERT_TEST_HOOKS
-#define GAMEWIP_ASSERT_TEST_HOOKS 0
+#ifndef INTERNAL_ASSERT_TEST_HOOKS
+#define INTERNAL_ASSERT_TEST_HOOKS 0
 #endif
 
-/// @def GAMEWIP_ASSERT_API
+/// @def INTERNAL_ASSERT_API
 /// @brief DLL import/export marker used by the assert runtime declarations.
 /// @details This is not part of normal user code; use the ASSERT/CHECK/ENSURE macro API instead.
 #if defined(_WIN32)
-#if defined(GAMEWIP_ASSERT_BUILD)
-#define GAMEWIP_ASSERT_API __declspec(dllexport)
-#elif GAMEWIP_ASSERT_RUNTIME
-#define GAMEWIP_ASSERT_API __declspec(dllimport)
+#if defined(INTERNAL_ASSERT_BUILD)
+#define INTERNAL_ASSERT_API __declspec(dllexport)
+#elif INTERNAL_ASSERT_RUNTIME
+#define INTERNAL_ASSERT_API __declspec(dllimport)
 #else
-#define GAMEWIP_ASSERT_API
+#define INTERNAL_ASSERT_API
 #endif
 #else
-#define GAMEWIP_ASSERT_API
+#define INTERNAL_ASSERT_API
 #endif
 
 // Public convenience macros are intentionally global:
@@ -44,99 +44,99 @@
 // VERIFY_MSG, VERIFY_INTERACTIVE, VERIFY_INTERACTIVE_MSG, CHECK, CHECK_MSG,
 // CHECK_ONCE, CHECK_ONCE_MSG, ENSURE, ENSURE_MSG, UNREACHABLE, and DEBUG_BREAK.
 //
-// Implementation/configuration macros use the GAMEWIP_ASSERT_* prefix.
+// Implementation/configuration macros use the ASSERT_* prefix.
 
 //-------------------------------------------------------------------------------------------------
 // Configuration
 //-------------------------------------------------------------------------------------------------
 
-/// @def GAMEWIP_ASSERT_DIAGNOSTICS
+/// @def ASSERT_DIAGNOSTICS
 /// @brief Controls whether expression/file/line/function/message diagnostic text is embedded in assert reports.
-#ifndef GAMEWIP_ASSERT_DIAGNOSTICS
-#define GAMEWIP_ASSERT_DIAGNOSTICS 1
+#ifndef ASSERT_DIAGNOSTICS
+#define ASSERT_DIAGNOSTICS 1
 #endif
 
-/// @def GAMEWIP_ASSERT_POPUP_ON_ASSERT
+/// @def ASSERT_POPUP_ON_ASSERT
 /// @brief Controls whether failed ASSERT/VERIFY/UNREACHABLE reports may show a platform popup.
-#ifndef GAMEWIP_ASSERT_POPUP_ON_ASSERT
-#define GAMEWIP_ASSERT_POPUP_ON_ASSERT 1
+#ifndef ASSERT_POPUP_ON_ASSERT
+#define ASSERT_POPUP_ON_ASSERT 1
 #endif
 
-/// @def GAMEWIP_ASSERT_POPUP_ON_CHECK
+/// @def ASSERT_POPUP_ON_CHECK
 /// @brief Controls whether failed CHECK/ENSURE reports may show a platform popup.
-#ifndef GAMEWIP_ASSERT_POPUP_ON_CHECK
-#define GAMEWIP_ASSERT_POPUP_ON_CHECK 0
+#ifndef ASSERT_POPUP_ON_CHECK
+#define ASSERT_POPUP_ON_CHECK 0
 #endif
 
-/// @def GAMEWIP_ASSERT_UNREACHABLE_ASSUME
+/// @def ASSERT_UNREACHABLE_ASSUME
 /// @brief Controls whether disabled UNREACHABLE uses compiler unreachable assumptions instead of a trap.
-#ifndef GAMEWIP_ASSERT_UNREACHABLE_ASSUME
-#define GAMEWIP_ASSERT_UNREACHABLE_ASSUME 0
+#ifndef ASSERT_UNREACHABLE_ASSUME
+#define ASSERT_UNREACHABLE_ASSUME 0
 #endif
 
-/// @def GAMEWIP_ASSERT_ENABLED
+/// @def ASSERT_ENABLED
 /// @brief Controls ASSERT/VERIFY/UNREACHABLE failure handling. Defaults to enabled when NDEBUG is not defined.
-#ifndef GAMEWIP_ASSERT_ENABLED
+#ifndef ASSERT_ENABLED
 #if !defined(NDEBUG)
-#define GAMEWIP_ASSERT_ENABLED 1
+#define ASSERT_ENABLED 1
 #else
-#define GAMEWIP_ASSERT_ENABLED 0
+#define ASSERT_ENABLED 0
 #endif
 #endif
 
-/// @def GAMEWIP_ASSERT_CHECKS_ENABLED
+/// @def ASSERT_CHECKS_ENABLED
 /// @brief Controls CHECK/CHECK_ONCE/ENSURE reporting. Defaults to enabled when NDEBUG is not defined.
-#ifndef GAMEWIP_ASSERT_CHECKS_ENABLED
+#ifndef ASSERT_CHECKS_ENABLED
 #if !defined(NDEBUG)
-#define GAMEWIP_ASSERT_CHECKS_ENABLED 1
+#define ASSERT_CHECKS_ENABLED 1
 #else
-#define GAMEWIP_ASSERT_CHECKS_ENABLED 0
+#define ASSERT_CHECKS_ENABLED 0
 #endif
 #endif
 
-#if (GAMEWIP_ASSERT_RUNTIME != 0) && (GAMEWIP_ASSERT_RUNTIME != 1)
-#error "GAMEWIP_ASSERT_RUNTIME must be 0 or 1."
+#if (INTERNAL_ASSERT_RUNTIME != 0) && (INTERNAL_ASSERT_RUNTIME != 1)
+#error "INTERNAL_ASSERT_RUNTIME must be 0 or 1."
 #endif
 
-#if (GAMEWIP_ASSERT_TEST_HOOKS != 0) && (GAMEWIP_ASSERT_TEST_HOOKS != 1)
-#error "GAMEWIP_ASSERT_TEST_HOOKS must be 0 or 1."
+#if (INTERNAL_ASSERT_TEST_HOOKS != 0) && (INTERNAL_ASSERT_TEST_HOOKS != 1)
+#error "INTERNAL_ASSERT_TEST_HOOKS must be 0 or 1."
 #endif
 
-#if (GAMEWIP_ASSERT_ENABLED != 0) && (GAMEWIP_ASSERT_ENABLED != 1)
-#error "GAMEWIP_ASSERT_ENABLED must be 0 or 1."
+#if (ASSERT_ENABLED != 0) && (ASSERT_ENABLED != 1)
+#error "ASSERT_ENABLED must be 0 or 1."
 #endif
 
-#if (GAMEWIP_ASSERT_CHECKS_ENABLED != 0) && (GAMEWIP_ASSERT_CHECKS_ENABLED != 1)
-#error "GAMEWIP_ASSERT_CHECKS_ENABLED must be 0 or 1."
+#if (ASSERT_CHECKS_ENABLED != 0) && (ASSERT_CHECKS_ENABLED != 1)
+#error "ASSERT_CHECKS_ENABLED must be 0 or 1."
 #endif
 
-#if (GAMEWIP_ASSERT_DIAGNOSTICS != 0) && (GAMEWIP_ASSERT_DIAGNOSTICS != 1)
-#error "GAMEWIP_ASSERT_DIAGNOSTICS must be 0 or 1."
+#if (ASSERT_DIAGNOSTICS != 0) && (ASSERT_DIAGNOSTICS != 1)
+#error "ASSERT_DIAGNOSTICS must be 0 or 1."
 #endif
 
-#if (GAMEWIP_ASSERT_POPUP_ON_ASSERT != 0) && (GAMEWIP_ASSERT_POPUP_ON_ASSERT != 1)
-#error "GAMEWIP_ASSERT_POPUP_ON_ASSERT must be 0 or 1."
+#if (ASSERT_POPUP_ON_ASSERT != 0) && (ASSERT_POPUP_ON_ASSERT != 1)
+#error "ASSERT_POPUP_ON_ASSERT must be 0 or 1."
 #endif
 
-#if (GAMEWIP_ASSERT_POPUP_ON_CHECK != 0) && (GAMEWIP_ASSERT_POPUP_ON_CHECK != 1)
-#error "GAMEWIP_ASSERT_POPUP_ON_CHECK must be 0 or 1."
+#if (ASSERT_POPUP_ON_CHECK != 0) && (ASSERT_POPUP_ON_CHECK != 1)
+#error "ASSERT_POPUP_ON_CHECK must be 0 or 1."
 #endif
 
-#if (GAMEWIP_ASSERT_UNREACHABLE_ASSUME != 0) && (GAMEWIP_ASSERT_UNREACHABLE_ASSUME != 1)
-#error "GAMEWIP_ASSERT_UNREACHABLE_ASSUME must be 0 or 1."
+#if (ASSERT_UNREACHABLE_ASSUME != 0) && (ASSERT_UNREACHABLE_ASSUME != 1)
+#error "ASSERT_UNREACHABLE_ASSUME must be 0 or 1."
 #endif
 
-static_assert(GAMEWIP_ASSERT_RUNTIME == 0 || GAMEWIP_ASSERT_RUNTIME == 1, "GAMEWIP_ASSERT_RUNTIME must be 0 or 1.");
-static_assert(GAMEWIP_ASSERT_TEST_HOOKS == 0 || GAMEWIP_ASSERT_TEST_HOOKS == 1, "GAMEWIP_ASSERT_TEST_HOOKS must be 0 or 1.");
-static_assert(GAMEWIP_ASSERT_ENABLED == 0 || GAMEWIP_ASSERT_ENABLED == 1, "GAMEWIP_ASSERT_ENABLED must be 0 or 1.");
-static_assert(GAMEWIP_ASSERT_CHECKS_ENABLED == 0 || GAMEWIP_ASSERT_CHECKS_ENABLED == 1, "GAMEWIP_ASSERT_CHECKS_ENABLED must be 0 or 1.");
-static_assert(GAMEWIP_ASSERT_DIAGNOSTICS == 0 || GAMEWIP_ASSERT_DIAGNOSTICS == 1, "GAMEWIP_ASSERT_DIAGNOSTICS must be 0 or 1.");
-static_assert(GAMEWIP_ASSERT_POPUP_ON_ASSERT == 0 || GAMEWIP_ASSERT_POPUP_ON_ASSERT == 1, "GAMEWIP_ASSERT_POPUP_ON_ASSERT must be 0 or 1.");
-static_assert(GAMEWIP_ASSERT_POPUP_ON_CHECK == 0 || GAMEWIP_ASSERT_POPUP_ON_CHECK == 1, "GAMEWIP_ASSERT_POPUP_ON_CHECK must be 0 or 1.");
-static_assert(GAMEWIP_ASSERT_UNREACHABLE_ASSUME == 0 || GAMEWIP_ASSERT_UNREACHABLE_ASSUME == 1, "GAMEWIP_ASSERT_UNREACHABLE_ASSUME must be 0 or 1.");
+static_assert(INTERNAL_ASSERT_RUNTIME == 0 || INTERNAL_ASSERT_RUNTIME == 1, "INTERNAL_ASSERT_RUNTIME must be 0 or 1.");
+static_assert(INTERNAL_ASSERT_TEST_HOOKS == 0 || INTERNAL_ASSERT_TEST_HOOKS == 1, "INTERNAL_ASSERT_TEST_HOOKS must be 0 or 1.");
+static_assert(ASSERT_ENABLED == 0 || ASSERT_ENABLED == 1, "ASSERT_ENABLED must be 0 or 1.");
+static_assert(ASSERT_CHECKS_ENABLED == 0 || ASSERT_CHECKS_ENABLED == 1, "ASSERT_CHECKS_ENABLED must be 0 or 1.");
+static_assert(ASSERT_DIAGNOSTICS == 0 || ASSERT_DIAGNOSTICS == 1, "ASSERT_DIAGNOSTICS must be 0 or 1.");
+static_assert(ASSERT_POPUP_ON_ASSERT == 0 || ASSERT_POPUP_ON_ASSERT == 1, "ASSERT_POPUP_ON_ASSERT must be 0 or 1.");
+static_assert(ASSERT_POPUP_ON_CHECK == 0 || ASSERT_POPUP_ON_CHECK == 1, "ASSERT_POPUP_ON_CHECK must be 0 or 1.");
+static_assert(ASSERT_UNREACHABLE_ASSUME == 0 || ASSERT_UNREACHABLE_ASSUME == 1, "ASSERT_UNREACHABLE_ASSUME must be 0 or 1.");
 
-#if !GAMEWIP_ASSERT_RUNTIME && (GAMEWIP_ASSERT_ENABLED || GAMEWIP_ASSERT_CHECKS_ENABLED)
-#error "GAMEWIP_ASSERT_RUNTIME=0 requires GAMEWIP_ASSERT_ENABLED=0 and GAMEWIP_ASSERT_CHECKS_ENABLED=0."
+#if !INTERNAL_ASSERT_RUNTIME && (ASSERT_ENABLED || ASSERT_CHECKS_ENABLED)
+#error "INTERNAL_ASSERT_RUNTIME=0 requires ASSERT_ENABLED=0 and ASSERT_CHECKS_ENABLED=0."
 #endif
 
 namespace GameWIP::Debug::Assert
@@ -162,7 +162,7 @@ namespace GameWIP::Debug::Assert
         AlwaysIgnore
     };
 
-#if GAMEWIP_ASSERT_RUNTIME
+#if INTERNAL_ASSERT_RUNTIME
     /// @brief Triggers the platform debugger break instruction.
     ///
     /// Contract:
@@ -172,23 +172,23 @@ namespace GameWIP::Debug::Assert
     ///
     /// @note Continuing from the debugger resumes execution.
     /// @see DEBUG_BREAK
-    GAMEWIP_ASSERT_API void debugBreak() noexcept;
+    INTERNAL_ASSERT_API void debugBreak() noexcept;
 #endif
     /// @}
 } // namespace GameWIP::Debug::Assert
 
-/// @cond GAMEWIP_ASSERT_DETAIL
+/// @cond INTERNAL_ASSERT_DETAIL
 namespace GameWIP::Debug::Assert::Detail
 {
-#if GAMEWIP_ASSERT_RUNTIME
-    [[noreturn]] GAMEWIP_ASSERT_API void handleAssertFailure(
+#if INTERNAL_ASSERT_RUNTIME
+    [[noreturn]] INTERNAL_ASSERT_API void handleAssertFailure(
         std::string_view conditionText,
         std::string_view message,
         std::string_view file,
         int line,
         std::string_view function) noexcept;
 
-    GAMEWIP_ASSERT_API void handleInteractiveAssertFailure(
+    INTERNAL_ASSERT_API void handleInteractiveAssertFailure(
         std::string_view conditionText,
         std::string_view message,
         std::string_view file,
@@ -196,7 +196,7 @@ namespace GameWIP::Debug::Assert::Detail
         std::string_view function,
         std::atomic_bool *alwaysIgnoreFlag) noexcept;
 
-    GAMEWIP_ASSERT_API void handleCheckFailure(
+    INTERNAL_ASSERT_API void handleCheckFailure(
         std::string_view conditionText,
         std::string_view message,
         std::string_view file,
@@ -206,7 +206,7 @@ namespace GameWIP::Debug::Assert::Detail
 
     inline void debugBreakInline() noexcept
     {
-#if GAMEWIP_ASSERT_RUNTIME
+#if INTERNAL_ASSERT_RUNTIME
         ::GameWIP::Debug::Assert::debugBreak();
 #elif defined(_MSC_VER)
         __debugbreak();
@@ -234,9 +234,9 @@ namespace GameWIP::Debug::Assert::Detail
 
     [[noreturn]] inline void unreachableHint() noexcept
     {
-#if GAMEWIP_ASSERT_UNREACHABLE_ASSUME && defined(_MSC_VER)
+#if ASSERT_UNREACHABLE_ASSUME && defined(_MSC_VER)
         __assume(0);
-#elif GAMEWIP_ASSERT_UNREACHABLE_ASSUME && (defined(__GNUC__) || defined(__clang__))
+#elif ASSERT_UNREACHABLE_ASSUME && (defined(__GNUC__) || defined(__clang__))
         __builtin_unreachable();
 #else
         trapNoReturn();
@@ -249,60 +249,60 @@ namespace GameWIP::Debug::Assert::Detail
 //-------------------------------------------------------------------------------------------------
 
 #if defined(__FILE_NAME__)
-#define GAMEWIP_ASSERT_DETAIL_FILE_TEXT_VALUE __FILE_NAME__
+#define INTERNAL_ASSERT_FILE_TEXT_VALUE __FILE_NAME__
 #else
-#define GAMEWIP_ASSERT_DETAIL_FILE_TEXT_VALUE __FILE__
+#define INTERNAL_ASSERT_FILE_TEXT_VALUE __FILE__
 #endif
 
-#if GAMEWIP_ASSERT_DIAGNOSTICS
-#define GAMEWIP_ASSERT_DETAIL_CONDITION_TEXT(condition) #condition
-#define GAMEWIP_ASSERT_DETAIL_MESSAGE_TEXT(message) (message)
-#define GAMEWIP_ASSERT_DETAIL_FILE_TEXT GAMEWIP_ASSERT_DETAIL_FILE_TEXT_VALUE
-#define GAMEWIP_ASSERT_DETAIL_LINE_VALUE __LINE__
-#define GAMEWIP_ASSERT_DETAIL_FUNCTION_TEXT __func__
-#define GAMEWIP_ASSERT_DETAIL_UNREACHABLE_TEXT "UNREACHABLE"
+#if ASSERT_DIAGNOSTICS
+#define INTERNAL_ASSERT_CONDITION_TEXT(condition) #condition
+#define INTERNAL_ASSERT_MESSAGE_TEXT(message) (message)
+#define INTERNAL_ASSERT_FILE_TEXT INTERNAL_ASSERT_FILE_TEXT_VALUE
+#define INTERNAL_ASSERT_LINE_VALUE __LINE__
+#define INTERNAL_ASSERT_FUNCTION_TEXT __func__
+#define INTERNAL_ASSERT_UNREACHABLE_TEXT "UNREACHABLE"
 #else
-#define GAMEWIP_ASSERT_DETAIL_CONDITION_TEXT(condition) ""
-#define GAMEWIP_ASSERT_DETAIL_MESSAGE_TEXT(message) ""
-#define GAMEWIP_ASSERT_DETAIL_FILE_TEXT ""
-#define GAMEWIP_ASSERT_DETAIL_LINE_VALUE 0
-#define GAMEWIP_ASSERT_DETAIL_FUNCTION_TEXT ""
-#define GAMEWIP_ASSERT_DETAIL_UNREACHABLE_TEXT ""
+#define INTERNAL_ASSERT_CONDITION_TEXT(condition) ""
+#define INTERNAL_ASSERT_MESSAGE_TEXT(message) ""
+#define INTERNAL_ASSERT_FILE_TEXT ""
+#define INTERNAL_ASSERT_LINE_VALUE 0
+#define INTERNAL_ASSERT_FUNCTION_TEXT ""
+#define INTERNAL_ASSERT_UNREACHABLE_TEXT ""
 #endif
 
-#define GAMEWIP_ASSERT_DETAIL_ASSERT_FAILURE_AT(condition, message, functionText) \
+#define INTERNAL_ASSERT_ASSERT_FAILURE_AT(condition, message, functionText) \
     ::GameWIP::Debug::Assert::Detail::handleAssertFailure( \
-        GAMEWIP_ASSERT_DETAIL_CONDITION_TEXT(condition), \
-        GAMEWIP_ASSERT_DETAIL_MESSAGE_TEXT(message), \
-        GAMEWIP_ASSERT_DETAIL_FILE_TEXT, \
-        GAMEWIP_ASSERT_DETAIL_LINE_VALUE, \
+        INTERNAL_ASSERT_CONDITION_TEXT(condition), \
+        INTERNAL_ASSERT_MESSAGE_TEXT(message), \
+        INTERNAL_ASSERT_FILE_TEXT, \
+        INTERNAL_ASSERT_LINE_VALUE, \
         functionText)
 
-#define GAMEWIP_ASSERT_DETAIL_CHECK_FAILURE_AT(condition, message, functionText) \
+#define INTERNAL_ASSERT_CHECK_FAILURE_AT(condition, message, functionText) \
     ::GameWIP::Debug::Assert::Detail::handleCheckFailure( \
-        GAMEWIP_ASSERT_DETAIL_CONDITION_TEXT(condition), \
-        GAMEWIP_ASSERT_DETAIL_MESSAGE_TEXT(message), \
-        GAMEWIP_ASSERT_DETAIL_FILE_TEXT, \
-        GAMEWIP_ASSERT_DETAIL_LINE_VALUE, \
+        INTERNAL_ASSERT_CONDITION_TEXT(condition), \
+        INTERNAL_ASSERT_MESSAGE_TEXT(message), \
+        INTERNAL_ASSERT_FILE_TEXT, \
+        INTERNAL_ASSERT_LINE_VALUE, \
         functionText)
 
-#define GAMEWIP_ASSERT_DETAIL_INTERACTIVE_ASSERT_FAILURE_AT(condition, message, functionText, alwaysIgnoreFlag) \
+#define INTERNAL_ASSERT_INTERACTIVE_ASSERT_FAILURE_AT(condition, message, functionText, alwaysIgnoreFlag) \
     ::GameWIP::Debug::Assert::Detail::handleInteractiveAssertFailure( \
-        GAMEWIP_ASSERT_DETAIL_CONDITION_TEXT(condition), \
-        GAMEWIP_ASSERT_DETAIL_MESSAGE_TEXT(message), \
-        GAMEWIP_ASSERT_DETAIL_FILE_TEXT, \
-        GAMEWIP_ASSERT_DETAIL_LINE_VALUE, \
+        INTERNAL_ASSERT_CONDITION_TEXT(condition), \
+        INTERNAL_ASSERT_MESSAGE_TEXT(message), \
+        INTERNAL_ASSERT_FILE_TEXT, \
+        INTERNAL_ASSERT_LINE_VALUE, \
         functionText, \
         alwaysIgnoreFlag)
 
-#define GAMEWIP_ASSERT_DETAIL_ASSERT_FAILURE(condition, message) \
-    GAMEWIP_ASSERT_DETAIL_ASSERT_FAILURE_AT(condition, message, GAMEWIP_ASSERT_DETAIL_FUNCTION_TEXT)
+#define INTERNAL_ASSERT_ASSERT_FAILURE(condition, message) \
+    INTERNAL_ASSERT_ASSERT_FAILURE_AT(condition, message, INTERNAL_ASSERT_FUNCTION_TEXT)
 
-#define GAMEWIP_ASSERT_DETAIL_INTERACTIVE_ASSERT_FAILURE(condition, message, alwaysIgnoreFlag) \
-    GAMEWIP_ASSERT_DETAIL_INTERACTIVE_ASSERT_FAILURE_AT(condition, message, GAMEWIP_ASSERT_DETAIL_FUNCTION_TEXT, alwaysIgnoreFlag)
+#define INTERNAL_ASSERT_INTERACTIVE_ASSERT_FAILURE(condition, message, alwaysIgnoreFlag) \
+    INTERNAL_ASSERT_INTERACTIVE_ASSERT_FAILURE_AT(condition, message, INTERNAL_ASSERT_FUNCTION_TEXT, alwaysIgnoreFlag)
 
-#define GAMEWIP_ASSERT_DETAIL_CHECK_FAILURE(condition, message) \
-    GAMEWIP_ASSERT_DETAIL_CHECK_FAILURE_AT(condition, message, GAMEWIP_ASSERT_DETAIL_FUNCTION_TEXT)
+#define INTERNAL_ASSERT_CHECK_FAILURE(condition, message) \
+    INTERNAL_ASSERT_CHECK_FAILURE_AT(condition, message, INTERNAL_ASSERT_FUNCTION_TEXT)
 /// @endcond
 
 //-------------------------------------------------------------------------------------------------
@@ -311,11 +311,11 @@ namespace GameWIP::Debug::Assert::Detail
 /// @name Fatal assertion macros
 /// @{
 
-#if GAMEWIP_ASSERT_ENABLED
+#if ASSERT_ENABLED
 /// @def ASSERT(condition)
 /// @brief Fatal debug assertion that aborts when condition is false.
 /// @param condition Boolean expression to validate.
-/// @details When GAMEWIP_ASSERT_ENABLED is 1, the condition is evaluated. A false
+/// @details When ASSERT_ENABLED is 1, the condition is evaluated. A false
 /// result synchronously reports at Logger Fatal severity, may show the assert-owned
 /// popup, breaks only when a debugger is attached, then aborts. When disabled, the
 /// condition is not evaluated.
@@ -324,7 +324,7 @@ namespace GameWIP::Debug::Assert::Detail
     { \
         if (!(condition)) [[unlikely]] \
         { \
-            GAMEWIP_ASSERT_DETAIL_ASSERT_FAILURE(condition, ""); \
+            INTERNAL_ASSERT_ASSERT_FAILURE(condition, ""); \
         } \
     } while (false)
 
@@ -332,14 +332,14 @@ namespace GameWIP::Debug::Assert::Detail
 /// @brief Fatal debug assertion with a custom diagnostic message.
 /// @param condition Boolean expression to validate.
 /// @param message Message text evaluated and embedded only when condition is false and diagnostics are enabled.
-/// @details Same failure path as ASSERT. When GAMEWIP_ASSERT_DIAGNOSTICS is 0,
+/// @details Same failure path as ASSERT. When ASSERT_DIAGNOSTICS is 0,
 /// the custom message expression is not evaluated.
 #define ASSERT_MSG(condition, message) \
     do \
     { \
         if (!(condition)) [[unlikely]] \
         { \
-            GAMEWIP_ASSERT_DETAIL_ASSERT_FAILURE(condition, GAMEWIP_ASSERT_DETAIL_MESSAGE_TEXT(message)); \
+            INTERNAL_ASSERT_ASSERT_FAILURE(condition, INTERNAL_ASSERT_MESSAGE_TEXT(message)); \
         } \
     } while (false)
 
@@ -355,12 +355,12 @@ namespace GameWIP::Debug::Assert::Detail
 #define ASSERT_INTERACTIVE(condition) \
     do \
     { \
-        static std::atomic_bool gamewipAssertAlwaysIgnored{false}; \
-        if (!gamewipAssertAlwaysIgnored.load(std::memory_order_relaxed)) \
+        static std::atomic_bool assertAlwaysIgnored{false}; \
+        if (!assertAlwaysIgnored.load(std::memory_order_relaxed)) \
         { \
             if (!(condition)) [[unlikely]] \
             { \
-                GAMEWIP_ASSERT_DETAIL_INTERACTIVE_ASSERT_FAILURE(condition, "", &gamewipAssertAlwaysIgnored); \
+                INTERNAL_ASSERT_INTERACTIVE_ASSERT_FAILURE(condition, "", &assertAlwaysIgnored); \
             } \
         } \
     } while (false)
@@ -372,12 +372,12 @@ namespace GameWIP::Debug::Assert::Detail
 #define ASSERT_INTERACTIVE_MSG(condition, message) \
     do \
     { \
-        static std::atomic_bool gamewipAssertAlwaysIgnored{false}; \
-        if (!gamewipAssertAlwaysIgnored.load(std::memory_order_relaxed)) \
+        static std::atomic_bool assertAlwaysIgnored{false}; \
+        if (!assertAlwaysIgnored.load(std::memory_order_relaxed)) \
         { \
             if (!(condition)) [[unlikely]] \
             { \
-                GAMEWIP_ASSERT_DETAIL_INTERACTIVE_ASSERT_FAILURE(condition, message, &gamewipAssertAlwaysIgnored); \
+                INTERNAL_ASSERT_INTERACTIVE_ASSERT_FAILURE(condition, message, &assertAlwaysIgnored); \
             } \
         } \
     } while (false)
@@ -405,13 +405,13 @@ namespace GameWIP::Debug::Assert::Detail
 #define VERIFY_INTERACTIVE(condition) \
     do \
     { \
-        const bool gamewipAssertCondition_ = static_cast<bool>(condition); \
-        if (!gamewipAssertCondition_) [[unlikely]] \
+        const bool assertCondition_ = static_cast<bool>(condition); \
+        if (!assertCondition_) [[unlikely]] \
         { \
-            static std::atomic_bool gamewipAssertAlwaysIgnored{false}; \
-            if (!gamewipAssertAlwaysIgnored.load(std::memory_order_relaxed)) \
+            static std::atomic_bool assertAlwaysIgnored{false}; \
+            if (!assertAlwaysIgnored.load(std::memory_order_relaxed)) \
             { \
-                GAMEWIP_ASSERT_DETAIL_INTERACTIVE_ASSERT_FAILURE(condition, "", &gamewipAssertAlwaysIgnored); \
+                INTERNAL_ASSERT_INTERACTIVE_ASSERT_FAILURE(condition, "", &assertAlwaysIgnored); \
             } \
         } \
     } while (false)
@@ -423,13 +423,13 @@ namespace GameWIP::Debug::Assert::Detail
 #define VERIFY_INTERACTIVE_MSG(condition, message) \
     do \
     { \
-        const bool gamewipAssertCondition_ = static_cast<bool>(condition); \
-        if (!gamewipAssertCondition_) [[unlikely]] \
+        const bool assertCondition_ = static_cast<bool>(condition); \
+        if (!assertCondition_) [[unlikely]] \
         { \
-            static std::atomic_bool gamewipAssertAlwaysIgnored{false}; \
-            if (!gamewipAssertAlwaysIgnored.load(std::memory_order_relaxed)) \
+            static std::atomic_bool assertAlwaysIgnored{false}; \
+            if (!assertAlwaysIgnored.load(std::memory_order_relaxed)) \
             { \
-                GAMEWIP_ASSERT_DETAIL_INTERACTIVE_ASSERT_FAILURE(condition, message, &gamewipAssertAlwaysIgnored); \
+                INTERNAL_ASSERT_INTERACTIVE_ASSERT_FAILURE(condition, message, &assertAlwaysIgnored); \
             } \
         } \
     } while (false)
@@ -442,31 +442,31 @@ namespace GameWIP::Debug::Assert::Detail
     do \
     { \
         ::GameWIP::Debug::Assert::Detail::handleAssertFailure( \
-            GAMEWIP_ASSERT_DETAIL_UNREACHABLE_TEXT, \
+            INTERNAL_ASSERT_UNREACHABLE_TEXT, \
             "", \
-            GAMEWIP_ASSERT_DETAIL_FILE_TEXT, \
-            GAMEWIP_ASSERT_DETAIL_LINE_VALUE, \
-            GAMEWIP_ASSERT_DETAIL_FUNCTION_TEXT); \
+            INTERNAL_ASSERT_FILE_TEXT, \
+            INTERNAL_ASSERT_LINE_VALUE, \
+            INTERNAL_ASSERT_FUNCTION_TEXT); \
     } while (false)
 #else
 /// @def ASSERT(condition)
-/// @brief Debug assertion compiled out when GAMEWIP_ASSERT_ENABLED is 0.
+/// @brief Debug assertion compiled out when ASSERT_ENABLED is 0.
 /// @param condition Boolean expression; not evaluated in this mode.
 #define ASSERT(condition) ((void)0)
 
 /// @def ASSERT_MSG(condition, message)
-/// @brief Debug assertion with message, compiled out when GAMEWIP_ASSERT_ENABLED is 0.
+/// @brief Debug assertion with message, compiled out when ASSERT_ENABLED is 0.
 /// @param condition Boolean expression; not evaluated in this mode.
 /// @param message Message text; not evaluated in this mode.
 #define ASSERT_MSG(condition, message) ((void)0)
 
 /// @def ASSERT_INTERACTIVE(condition)
-/// @brief Interactive debug assertion compiled out when GAMEWIP_ASSERT_ENABLED is 0.
+/// @brief Interactive debug assertion compiled out when ASSERT_ENABLED is 0.
 /// @param condition Boolean expression; not evaluated in this mode.
 #define ASSERT_INTERACTIVE(condition) ((void)0)
 
 /// @def ASSERT_INTERACTIVE_MSG(condition, message)
-/// @brief Interactive debug assertion with message, compiled out when GAMEWIP_ASSERT_ENABLED is 0.
+/// @brief Interactive debug assertion with message, compiled out when ASSERT_ENABLED is 0.
 /// @param condition Boolean expression; not evaluated in this mode.
 /// @param message Message text; not evaluated in this mode.
 #define ASSERT_INTERACTIVE_MSG(condition, message) ((void)0)
@@ -505,7 +505,7 @@ namespace GameWIP::Debug::Assert::Detail
 /// @name Recoverable check macros
 /// @{
 
-#if GAMEWIP_ASSERT_CHECKS_ENABLED
+#if ASSERT_CHECKS_ENABLED
 /// @def CHECK(condition)
 /// @brief Recoverable check that reports when condition is false.
 /// @param condition Boolean expression to validate.
@@ -516,7 +516,7 @@ namespace GameWIP::Debug::Assert::Detail
     { \
         if (!(condition)) [[unlikely]] \
         { \
-            GAMEWIP_ASSERT_DETAIL_CHECK_FAILURE(condition, ""); \
+            INTERNAL_ASSERT_CHECK_FAILURE(condition, ""); \
         } \
     } while (false)
 
@@ -529,7 +529,7 @@ namespace GameWIP::Debug::Assert::Detail
     { \
         if (!(condition)) [[unlikely]] \
         { \
-            GAMEWIP_ASSERT_DETAIL_CHECK_FAILURE(condition, GAMEWIP_ASSERT_DETAIL_MESSAGE_TEXT(message)); \
+            INTERNAL_ASSERT_CHECK_FAILURE(condition, INTERNAL_ASSERT_MESSAGE_TEXT(message)); \
         } \
     } while (false)
 
@@ -544,10 +544,10 @@ namespace GameWIP::Debug::Assert::Detail
     { \
         if (!(condition)) [[unlikely]] \
         { \
-            static std::atomic_bool gamewipCheckReported_{false}; \
-            if (!gamewipCheckReported_.load(std::memory_order_relaxed) && !gamewipCheckReported_.exchange(true, std::memory_order_relaxed)) \
+            static std::atomic_bool assertCheckReported_{false}; \
+            if (!assertCheckReported_.load(std::memory_order_relaxed) && !assertCheckReported_.exchange(true, std::memory_order_relaxed)) \
             { \
-                GAMEWIP_ASSERT_DETAIL_CHECK_FAILURE(condition, ""); \
+                INTERNAL_ASSERT_CHECK_FAILURE(condition, ""); \
             } \
         } \
     } while (false)
@@ -561,10 +561,10 @@ namespace GameWIP::Debug::Assert::Detail
     { \
         if (!(condition)) [[unlikely]] \
         { \
-            static std::atomic_bool gamewipCheckReported_{false}; \
-            if (!gamewipCheckReported_.load(std::memory_order_relaxed) && !gamewipCheckReported_.exchange(true, std::memory_order_relaxed)) \
+            static std::atomic_bool assertCheckReported_{false}; \
+            if (!assertCheckReported_.load(std::memory_order_relaxed) && !assertCheckReported_.exchange(true, std::memory_order_relaxed)) \
             { \
-                GAMEWIP_ASSERT_DETAIL_CHECK_FAILURE(condition, GAMEWIP_ASSERT_DETAIL_MESSAGE_TEXT(message)); \
+                INTERNAL_ASSERT_CHECK_FAILURE(condition, INTERNAL_ASSERT_MESSAGE_TEXT(message)); \
             } \
         } \
     } while (false)
@@ -576,15 +576,15 @@ namespace GameWIP::Debug::Assert::Detail
 /// @details Useful for recoverable validation, for example: if (!ENSURE(load())) return false;
 #define ENSURE(condition) \
     ( \
-        [&](const char *gamewipAssertFunction_) -> bool \
+        [&](const char *assertFunction_) -> bool \
         { \
-            const bool gamewipAssertCondition_ = static_cast<bool>(condition); \
-            if (!gamewipAssertCondition_) [[unlikely]] \
+            const bool assertCondition_ = static_cast<bool>(condition); \
+            if (!assertCondition_) [[unlikely]] \
             { \
-                GAMEWIP_ASSERT_DETAIL_CHECK_FAILURE_AT(condition, "", gamewipAssertFunction_); \
+                INTERNAL_ASSERT_CHECK_FAILURE_AT(condition, "", assertFunction_); \
             } \
-            return gamewipAssertCondition_; \
-        }(GAMEWIP_ASSERT_DETAIL_FUNCTION_TEXT))
+            return assertCondition_; \
+        }(INTERNAL_ASSERT_FUNCTION_TEXT))
 
 /// @def ENSURE_MSG(condition, message)
 /// @brief ENSURE with a custom diagnostic message.
@@ -593,23 +593,23 @@ namespace GameWIP::Debug::Assert::Detail
 /// @return true when condition is true, false otherwise.
 #define ENSURE_MSG(condition, message) \
     ( \
-        [&](const char *gamewipAssertFunction_) -> bool \
+        [&](const char *assertFunction_) -> bool \
         { \
-            const bool gamewipAssertCondition_ = static_cast<bool>(condition); \
-            if (!gamewipAssertCondition_) [[unlikely]] \
+            const bool assertCondition_ = static_cast<bool>(condition); \
+            if (!assertCondition_) [[unlikely]] \
             { \
-                GAMEWIP_ASSERT_DETAIL_CHECK_FAILURE_AT(condition, message, gamewipAssertFunction_); \
+                INTERNAL_ASSERT_CHECK_FAILURE_AT(condition, message, assertFunction_); \
             } \
-            return gamewipAssertCondition_; \
-        }(GAMEWIP_ASSERT_DETAIL_FUNCTION_TEXT))
+            return assertCondition_; \
+        }(INTERNAL_ASSERT_FUNCTION_TEXT))
 #else
 /// @def CHECK(condition)
-/// @brief Recoverable check compiled out when GAMEWIP_ASSERT_CHECKS_ENABLED is 0.
+/// @brief Recoverable check compiled out when ASSERT_CHECKS_ENABLED is 0.
 /// @param condition Boolean expression; not evaluated in this mode.
 #define CHECK(condition) ((void)0)
 
 /// @def CHECK_MSG(condition, message)
-/// @brief Recoverable check with message, compiled out when GAMEWIP_ASSERT_CHECKS_ENABLED is 0.
+/// @brief Recoverable check with message, compiled out when ASSERT_CHECKS_ENABLED is 0.
 /// @param condition Boolean expression; not evaluated in this mode.
 /// @param message Message text; not evaluated in this mode.
 #define CHECK_MSG(condition, message) ((void)0)

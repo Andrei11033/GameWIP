@@ -1,5 +1,5 @@
 /// @file assert_platform.h
-/// @brief Internal platform abstraction used by the GameWIP Assert library.
+/// @brief Internal platform abstraction used by the Assert library.
 
 #pragma once
 

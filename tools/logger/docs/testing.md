@@ -12,7 +12,7 @@ Stress tests cover producer concurrency, flush while producers are active, shutd
 
 ## Test hooks
 
-When `GAMEWIP_LOGGER_TEST_HOOKS=1`, internal hooks can force rare failure paths such as file write failure, file flush failure, fatal popup failure, and timed flush timeout.
+When `INTERNAL_LOGGER_TEST_HOOKS=1`, internal hooks can force rare failure paths such as file write failure, file flush failure, fatal popup failure, and timed flush timeout.
 
 Test hooks are internal, compile-time gated, and not part of the production public API.
 
@@ -24,11 +24,11 @@ Manual UI tests must remain runtime opt-in. Automated tests should use hook-cont
 
 ## Coverage
 
-Coverage is enabled at configure time with `GAMEWIP_ENABLE_COVERAGE=ON`; it is not a runtime option. The project-level coverage target writes:
+Coverage is enabled at configure time with `ENABLE_LIBRARY_COVERAGE=ON`; it is not a runtime option. The project-level coverage target writes:
 
 ```text
 build-coverage/coverage/index.html
 build-coverage/coverage/coverage.xml
 ```
 
-See @ref gamewip_coverage for the full command. gcov/gcovr may warn about ignored negative hits, but reports should still be generated when the target completes.
+See @ref library_coverage for the full command. gcov/gcovr may warn about ignored negative hits, but reports should still be generated when the target completes.

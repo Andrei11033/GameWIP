@@ -4,7 +4,7 @@ This page records how the generated Doxygen documentation is intended to be used
 
 ## Documentation split
 
-GameWIP uses three documentation layers:
+The project uses three documentation layers:
 
 - **Public header comments** are compact IntelliSense/API-reference contracts. They explain what a type/function/macro does, parameters, return values, lifecycle rules, thread-safety, blocking behavior, failure behavior, and the most important performance notes.
 - **Doxygen Markdown pages** are the full how-to manual. Project-wide Doxygen pages live under `docs/doxygen/`; library-owned manual pages stay beside each library under its local `docs/` folder, such as `foundation/io/docs/` or `tools/logger/docs/`.
@@ -30,14 +30,14 @@ Every page should use a stable lowercase snake_case Doxygen page id. Child page 
 
 ## CMake registration
 
-Project-wide Doxygen helpers live in `cmake/GameWIPDoxygen.cmake`. Library-specific CMake helpers should live in that library's own `cmake/` folder.
+Project-wide Doxygen helpers live in `cmake/LibraryDoxygen.cmake`. Library-specific CMake helpers should live in that library's own `cmake/` folder.
 
 Project-level Doxygen files live under `docs/doxygen/`, including the root landing page, project build/testing/coverage pages, `Doxyfile.in`, and Doxygen CSS. The parent `docs/` folder is reserved for private project `.txt` notes.
 
 Libraries should register their public headers and docs with:
 
 ```cmake
-gamewip_register_doxygen_library(
+library_register_doxygen_library(
     NAME Logger
     PAGE_ID logger
     PUBLIC_HEADERS
