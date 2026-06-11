@@ -162,17 +162,8 @@ namespace
             STARTUPINFOA startupInfo{};
             startupInfo.cb = sizeof(startupInfo);
             PROCESS_INFORMATION processInfo{};
-            if (CreateProcessA(
-                    nullptr,
-                    commandLine.data(),
-                    nullptr,
-                    nullptr,
-                    TRUE,
-                    CREATE_NO_WINDOW,
-                    nullptr,
-                    nullptr,
-                    &startupInfo,
-                    &processInfo) == FALSE)
+            if (CreateProcessA(nullptr, commandLine.data(), nullptr, nullptr, TRUE, CREATE_NO_WINDOW, nullptr, nullptr, &startupInfo, &processInfo) ==
+                FALSE)
             {
                 return 11;
             }

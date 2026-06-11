@@ -12,12 +12,16 @@ Use `MemoryWriter` when output ownership and capacity reuse belong to the caller
 
 Use the whole-stream helpers when partial backend transfers must be retried or a reader must be drained with a hard accepted-size limit. For unknown-size input, pass reusable scratch storage when allocation control matters.
 
+## Flush modes
+
+`Types::FlushMode` describes the requested flush strength. Use `isValidFlushMode()` when an API accepts a flush mode and must reject unknown enum values consistently. The validator is `constexpr` and non-throwing.
+
 ## Failure and allocation behavior
 
 Expected failures use `Types::Status` and portable `Types::ErrorCode` values. Native codes and diagnostic messages are supplemental and are not stable machine-readable interfaces.
 
-Whole-stream helpers preserve data transferred before a later failure where practical. `maxBytes` is a hard retained-data limit; an unknown-size reader may be probed by one byte to distinguish exact-limit end-of-stream from over-limit input.
+Whole-stream helpers preserve data transferred before a later failure where practical. Write-all helpers return `Types::WriteResult`, including progress made by the final failing call. `maxBytes` is a hard retained-data limit; an unknown-size reader may be probed by one byte to distinguish exact-limit end-of-stream from over-limit input.
 
-Operations that return a status convert allocation failure where their contract permits it. Constructors, explicit reserve operations, and functions returning owning standard-library containers may still propagate allocation exceptions.
+Operations that return a status convert allocation failure to `OutOfMemory` where their contract permits it. Constructors, explicit reserve operations, and functions returning owning standard-library containers may still propagate allocation exceptions.
 
 See @ref io_reader_writer_contract, @ref io_error_model, and @ref io_runtime_performance for detailed contracts.

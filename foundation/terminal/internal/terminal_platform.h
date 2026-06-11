@@ -5,11 +5,27 @@
 
 #include "terminal/terminal.h"
 
+#include <cstdint>
 #include <span>
 #include <string_view>
 
 namespace GameWIP::Terminal::Detail::Platform
 {
+    /// @brief Complete backend input-mode snapshot used by scoped restoration.
+    struct InputModeSnapshot
+    {
+        Terminal::Types::InputMode mode{};
+        std::uint64_t nativeMode = 0;
+        bool hasNativeMode = false;
+    };
+
+    /// @brief Result returned when capturing the complete backend input mode.
+    struct InputModeSnapshotResult
+    {
+        IO::Types::Status status;
+        InputModeSnapshot snapshot{};
+    };
+
     /// @brief Returns the platform-native line ending used by Types::LineEnding::Native.
     /// @return Non-owning string literal for the current backend.
     [[nodiscard]] std::string_view nativeLineEnding() noexcept;
@@ -17,16 +33,28 @@ namespace GameWIP::Terminal::Detail::Platform
     /// @brief Gets input capabilities for a standard terminal input stream.
     /// @param stream Standard input stream to inspect.
     /// @return Portable capability result. Detached streams return success with detached capabilities.
-    [[nodiscard]] Terminal::Types::InputCapabilityResult getInputCapabilities(Terminal::Types::InputStream stream);
+    [[nodiscard]] Terminal::Types::InputCapabilitiesResult getInputCapabilities(Terminal::Types::InputStream stream);
 
     /// @brief Gets output capabilities for a standard terminal output stream.
     /// @param stream Standard output stream to inspect.
     /// @return Portable capability result. Detached streams return success with detached capabilities.
-    [[nodiscard]] Terminal::Types::OutputCapabilityResult getOutputCapabilities(Terminal::Types::OutputStream stream);
+    [[nodiscard]] Terminal::Types::OutputCapabilitiesResult getOutputCapabilities(Terminal::Types::OutputStream stream);
 
     /// @brief Enables platform output features needed by styling and terminal controls.
     /// @return Capabilities active after the idempotent preparation attempt.
-    [[nodiscard]] Terminal::Types::OutputCapabilityResult prepareOutput(Terminal::Types::OutputStream stream);
+    [[nodiscard]] Terminal::Types::OutputCapabilitiesResult prepareOutput(Terminal::Types::OutputStream stream);
+
+    /// @brief Validates a cursor movement amount for the selected backend.
+    [[nodiscard]] IO::Types::Status validateCursorMovement(Terminal::Types::OutputStream stream, std::uint32_t amount);
+
+    /// @brief Validates a cursor position for the selected backend.
+    [[nodiscard]] IO::Types::Status validateCursorPosition(Terminal::Types::OutputStream stream, Terminal::Types::CursorPosition position);
+
+    /// @brief Validates a scroll amount for the selected backend.
+    [[nodiscard]] IO::Types::Status validateScroll(Terminal::Types::OutputStream stream, std::uint32_t lines);
+
+    /// @brief Validates a terminal title for the selected backend.
+    [[nodiscard]] IO::Types::Status validateTitle(Terminal::Types::OutputStream stream, std::string_view utf8Title);
 
     /// @brief Checks whether input can be read without a normal blocking wait.
     /// @param stream Standard input stream to inspect.
@@ -38,11 +66,22 @@ namespace GameWIP::Terminal::Detail::Platform
     /// @return Portable input mode or an Unsupported/StatFailed-style status.
     [[nodiscard]] Terminal::Types::InputModeResult getInputMode(Terminal::Types::InputStream stream);
 
+    /// @brief Captures the current portable and backend-native input mode.
+    /// @param stream Standard input stream to inspect.
+    /// @return Complete snapshot suitable for exact scoped restoration.
+    [[nodiscard]] InputModeSnapshotResult captureInputMode(Terminal::Types::InputStream stream);
+
     /// @brief Sets the current input mode for a standard input stream.
     /// @param stream Standard input stream to update.
     /// @param mode Portable input mode request.
     /// @return Success or portable/backend-native failure status.
     [[nodiscard]] IO::Types::Status setInputMode(Terminal::Types::InputStream stream, const Terminal::Types::InputMode &mode);
+
+    /// @brief Restores a previously captured complete input mode.
+    /// @param stream Standard input stream to restore.
+    /// @param snapshot Snapshot produced by captureInputMode().
+    /// @return Success or portable/backend-native failure status.
+    [[nodiscard]] IO::Types::Status restoreInputMode(Terminal::Types::InputStream stream, const InputModeSnapshot &snapshot);
 
     /// @brief Restores the backend/default input mode for a standard input stream.
     /// @param stream Standard input stream to restore.
@@ -55,9 +94,14 @@ namespace GameWIP::Terminal::Detail::Platform
     [[nodiscard]] Terminal::Types::TerminalSizeResult getTerminalSize(Terminal::Types::OutputStream stream);
 
     /// @brief Gets cursor position for a standard output stream when the backend can query it reliably.
-    /// @param stream Standard output stream to inspect.
+    /// @param outputStream Standard output stream to inspect or use for a protocol query.
+    /// @param responseStream Standard input stream used for a protocol response when required.
+    /// @param options Query timeout and flush behavior. The core applies flush behavior before this call.
     /// @return Cursor position or an Unsupported/StatFailed-style status.
-    [[nodiscard]] Terminal::Types::CursorPositionResult getCursorPosition(Terminal::Types::OutputStream stream);
+    [[nodiscard]] Terminal::Types::CursorPositionResult getCursorPosition(
+        Terminal::Types::OutputStream outputStream,
+        Terminal::Types::InputStream responseStream,
+        const Terminal::Types::CursorPositionQueryOptions &options);
 
     /// @brief Reads bytes from a standard input stream.
     /// @param stream Standard input stream to read.

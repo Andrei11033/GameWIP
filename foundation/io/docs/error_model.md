@@ -35,12 +35,18 @@ enum class ErrorCode {
     RemoveFailed,
     ReplaceFailed,
     CopyFailed,
+    MoveFailed,
+    ResizeFailed,
+    LockFailed,
+    UnlockFailed,
     DirectoryCreateFailed,
     DirectoryListFailed,
+    DirectoryNotEmpty,
 
     PartialRead,
     PartialWrite,
     SizeLimitExceeded,
+    OutOfMemory,
 
     ResourceBusy,
     StorageFull,
@@ -89,7 +95,7 @@ Constructing a non-empty diagnostic message may allocate. Code-only statuses avo
 
 Expected I/O failures return `Status` rather than throwing.
 
-Allocation inside helpers is converted to `SizeLimitExceeded` where practical. Construction and direct container operations may still throw allocation exceptions when they do not return `Status`.
+Allocation failure inside status-returning helpers is converted to `OutOfMemory` where practical. Construction and direct container operations may still throw allocation exceptions when they do not return `Status`.
 
 ## End-of-stream
 
@@ -110,6 +116,8 @@ Whole-stream helpers return `ReadFailed` or `WriteFailed` when a backend reports
 `SizeLimitExceeded` means the requested or observed stream size cannot be accepted.
 
 For known-size reads, the helper returns it before reading when the remaining size exceeds `maxBytes`. For unknown-size reads, the helper returns it after observing a byte beyond the limit. Bytes collected up to the limit remain available in the result.
+
+`OutOfMemory` means a required allocation failed. It is distinct from a caller limit or a container maximum being exceeded.
 
 ## Resource and stream failures
 

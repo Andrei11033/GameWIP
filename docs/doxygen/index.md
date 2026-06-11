@@ -4,6 +4,7 @@ These small, focused C++23 libraries provide foundation-level systems, diagnosti
 
 ## Libraries
 
+- @subpage foundation_filesystem
 - @subpage io
 - @subpage terminal
 - @subpage logger
@@ -23,5 +24,3 @@ These small, focused C++23 libraries provide foundation-level systems, diagnosti
 The generated site combines compact public-header API reference with Markdown manual pages. Header comments are optimized for IntelliSense and quick use; the Markdown pages are the full manual with concepts, examples, edge cases, and usage guidance. Each library landing page separates user-manual pages from developer-validation pages where relevant.
 
 Private `.txt` notes under `docs/` are development checklists and are intentionally not included in Doxygen.
-
-FileSystem docs are currently planning material and are not part of the generated site until the FileSystem library target and Doxygen registration are implemented.

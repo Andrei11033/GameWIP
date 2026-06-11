@@ -18,11 +18,12 @@ Use free functions for one-off operations:
 GameWIP::Terminal::writeLine("ready");
 ```
 
-Use `Reader` or `Writer` when a caller repeatedly targets the same stream:
+Pass the stream explicitly when targeting stderr or another supported standard stream:
 
 ```cpp
-GameWIP::Terminal::Writer errorWriter(GameWIP::Terminal::Types::OutputStream::Stderr);
-errorWriter.writeLine("startup failed");
+GameWIP::Terminal::writeLine(
+    GameWIP::Terminal::Types::OutputStream::Stderr,
+    "startup failed");
 ```
 
 For behavior details, use @ref terminal_public_api and the focused pages for reads, writes, styling, controls, and input modes.

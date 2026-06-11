@@ -30,11 +30,6 @@ namespace GameWIP::Terminal::Detail::TestHooks
         return static_cast<IO::Types::ErrorCode>(failure.code.load(std::memory_order_acquire));
     }
 
-    IO::Types::Status failureStatus(IO::Types::ErrorCode code, std::string_view message)
-    {
-        return IO::makeStatus(code, 0, std::string(message));
-    }
-
     void resetTerminalTestHooks() noexcept
     {
         std::lock_guard lock(terminalTestHookState.mutex);
@@ -133,9 +128,7 @@ namespace GameWIP::Terminal::TestHooks
         state.prepared = false;
     }
 
-    void setPreparedOutputCapabilitiesOverride(
-        Terminal::Types::OutputStream stream,
-        const Terminal::Types::OutputCapabilities &capabilities)
+    void setPreparedOutputCapabilitiesOverride(Terminal::Types::OutputStream stream, const Terminal::Types::OutputCapabilities &capabilities)
     {
         std::lock_guard lock(terminalTestHookState.mutex);
         OutputHookState &state = terminalTestHookState.outputStreams[outputIndex(stream)];

@@ -1,115 +1,22 @@
-@page foundation_filesystem_directory_operations FileSystem Directory Operations
+@page foundation_filesystem_directory_operations FileSystem directory operations
 
-This page documents planned directory and path operation contracts for `GameWIP::FileSystem`.
+`listDirectory()` returns direct children in backend/native order. v1 intentionally exposes no public iterator or recursive listing API.
 
-No directory behavior is implemented in this pass.
+`ListDirectoryOptions` controls included entry kinds, hidden entries, symlink metadata behavior, and `maxEntries`.
 
-## Planned types
+`CreateDirectoryOptions::symlinkPolicy` controls traversal through existing path components. The default follows ordinary filesystem resolution; security-sensitive callers can request a stricter policy.
 
-```cpp
-namespace GameWIP::FileSystem::Types {
+When `maxEntries` is reached before completion, the operation returns `SizeLimitExceeded` and preserves entries already collected. There is no separate truncation-success state.
 
-struct CreateDirectoryOptions {
-    bool succeedIfAlreadyExists = true;
-};
+`removeDirectoryTree()` is the primitive recursive removal operation. It:
 
-struct ListDirectoryOptions {
-    bool includeFiles = true;
-    bool includeDirectories = true;
-    bool includeSymlinks = true;
-    bool includeOther = true;
-    bool includeHidden = true;
-    std::uint64_t maxEntries = IO::kNoByteLimit;
-};
+- never follows symlinked directories discovered during traversal;
+- obeys the requested policy for the initial path;
+- returns `SizeLimitExceeded` when `maxEntries` stops removal;
+- reports how many entries were removed before success or failure.
 
-struct DirectoryEntry {
-    std::filesystem::path path;
-    FileStat stat;
-};
+`removeEmptyDirectory()` reports `DirectoryNotEmpty` for a non-empty directory where the backend can identify that condition.
 
-struct ListDirectoryResult {
-    IO::Types::Status status;
-    std::vector<DirectoryEntry> entries;
-    bool wasTruncated = false;
-};
+`copyFile()` copies one regular file only. `CopyMetadataMode::Basic` additionally requests portable last-write-time and read-only metadata. Recursive directory copy belongs above FileSystem.
 
-struct RemoveOptions {
-    bool succeedIfMissing = false;
-};
-
-struct RemoveTreeOptions {
-    bool succeedIfMissing = false;
-    std::uint64_t maxEntries = IO::kNoByteLimit;
-};
-
-struct RemoveTreeResult {
-    IO::Types::Status status;
-    std::uint64_t removedEntries = 0;
-};
-
-struct MoveOptions {
-    bool replaceExisting = false;
-    bool createParentDirectories = false;
-};
-
-struct CopyFileOptions {
-    bool replaceExisting = false;
-    bool createParentDirectories = false;
-};
-
-} // namespace GameWIP::FileSystem::Types
-```
-
-## Planned operations
-
-```cpp
-[[nodiscard]] IO::Types::Status createDirectory(
-    const std::filesystem::path& path,
-    const Types::CreateDirectoryOptions& options = {});
-
-[[nodiscard]] IO::Types::Status createDirectories(
-    const std::filesystem::path& path,
-    const Types::CreateDirectoryOptions& options = {});
-
-[[nodiscard]] Types::ExistsResult exists(
-    const std::filesystem::path& path);
-
-[[nodiscard]] Types::StatResult stat(
-    const std::filesystem::path& path);
-
-[[nodiscard]] Types::ListDirectoryResult listDirectory(
-    const std::filesystem::path& path,
-    const Types::ListDirectoryOptions& options = {});
-
-[[nodiscard]] IO::Types::Status removeFile(
-    const std::filesystem::path& path,
-    const Types::RemoveOptions& options = {});
-
-[[nodiscard]] IO::Types::Status removeEmptyDirectory(
-    const std::filesystem::path& path,
-    const Types::RemoveOptions& options = {});
-
-[[nodiscard]] Types::RemoveTreeResult removeDirectoryTree(
-    const std::filesystem::path& path,
-    const Types::RemoveTreeOptions& options = {});
-
-[[nodiscard]] IO::Types::Status movePath(
-    const std::filesystem::path& from,
-    const std::filesystem::path& to,
-    const Types::MoveOptions& options = {});
-
-[[nodiscard]] IO::Types::Status copyFile(
-    const std::filesystem::path& from,
-    const std::filesystem::path& to,
-    const Types::CopyFileOptions& options = {});
-```
-
-## Contract notes
-
-`listDirectory()` is non-recursive in v1.
-
-`removeDirectoryTree()` must not recursively follow symlinked directories.
-
-`maxEntries` gives tests and callers a way to bound directory traversal work.
-
-Move, copy, and remove operations report expected failures through `IO::Types::Status`.
+`movePath()` performs a native move or rename. Cross-volume moves return `MoveFailed`; FileSystem does not silently copy and delete.

@@ -20,7 +20,7 @@ namespace GameWIP::IO
     inline constexpr std::uint64_t kNoByteLimit = std::numeric_limits<std::uint64_t>::max();
 
     /// @brief Default temporary buffer size used by whole-stream helpers.
-    inline constexpr std::size_t kDefaultBufferSize = 64 * 1024;
+    inline constexpr std::size_t kDefaultBufferSize = std::size_t{64} * 1024;
 
     /// @brief IO status, result, and option types.
     namespace Types
@@ -78,10 +78,20 @@ namespace GameWIP::IO
             ReplaceFailed,
             /// @brief Copying a resource failed.
             CopyFailed,
+            /// @brief Moving or renaming a resource failed.
+            MoveFailed,
+            /// @brief Resizing a resource failed.
+            ResizeFailed,
+            /// @brief Acquiring a resource lock failed.
+            LockFailed,
+            /// @brief Releasing a resource lock failed.
+            UnlockFailed,
             /// @brief Creating a directory failed.
             DirectoryCreateFailed,
             /// @brief Listing a directory failed.
             DirectoryListFailed,
+            /// @brief A directory could not be removed because it is not empty.
+            DirectoryNotEmpty,
 
             /// @brief A read ended before the promised byte count was produced.
             PartialRead,
@@ -89,6 +99,8 @@ namespace GameWIP::IO
             PartialWrite,
             /// @brief A requested, known, or observed size exceeds the accepted limit.
             SizeLimitExceeded,
+            /// @brief A required memory allocation failed.
+            OutOfMemory,
 
             /// @brief The resource is busy or has an incompatible lock/share state.
             ResourceBusy,
@@ -119,7 +131,7 @@ namespace GameWIP::IO
 
             /// @brief Returns true when the operation succeeded.
             /// @return True for ErrorCode::Success.
-            [[nodiscard]] bool ok() const noexcept
+            [[nodiscard]] constexpr bool ok() const noexcept
             {
                 return code == ErrorCode::Success;
             }
@@ -204,17 +216,33 @@ namespace GameWIP::IO
         };
     } // namespace Types
 
+    /// @brief Returns whether a flush mode is one of the defined FlushMode values.
+    /// @param mode Flush mode to validate.
+    /// @return True for None, Data, and DataAndMetadataBestEffort; otherwise false.
+    [[nodiscard]] constexpr bool isValidFlushMode(Types::FlushMode mode) noexcept
+    {
+        switch (mode)
+        {
+        case Types::FlushMode::None:
+        case Types::FlushMode::Data:
+        case Types::FlushMode::DataAndMetadataBestEffort:
+            return true;
+        }
+
+        return false;
+    }
+
     /// @brief Creates an IO status with portable, native, and diagnostic details.
     /// @param code Portable status code.
     /// @param nativeCode Backend-native error code, or zero when unavailable.
     /// @param message Developer-facing diagnostic text; not stable for machine parsing.
     /// @return Status containing the supplied values.
-    /// @note Constructing a non-empty message may allocate; code-only statuses avoid that cost.
-    [[nodiscard]] Types::Status makeStatus(Types::ErrorCode code, std::int64_t nativeCode = 0, std::string message = {});
+    /// @note Constructing the message argument occurs before function entry and may allocate; code-only calls are non-throwing.
+    [[nodiscard]] Types::Status makeStatus(Types::ErrorCode code, std::int64_t nativeCode = 0, std::string message = {}) noexcept;
 
     /// @brief Creates a successful IO status.
     /// @return Status whose code is ErrorCode::Success.
-    [[nodiscard]] Types::Status successStatus();
+    [[nodiscard]] Types::Status successStatus() noexcept;
 
     /// @brief Returns a stable string name for an ErrorCode value.
     /// @param code Error code to name.
@@ -331,7 +359,7 @@ namespace GameWIP::IO
 
         /// @brief Flushes buffered data when the writer owns flushable state.
         /// @param mode Requested flush strength.
-        /// @return Success or a flush failure status.
+        /// @return Success, InvalidArgument for an unknown mode, or a flush failure status.
         [[nodiscard]] virtual Types::Status flush(Types::FlushMode mode = Types::FlushMode::Data);
 
         /// @brief Closes the writer when it owns closeable state.
@@ -459,7 +487,7 @@ namespace GameWIP::IO
 
         /// @brief Validates open state; memory-backed writes require no physical flush.
         /// @param mode Requested flush strength.
-        /// @return Success while open, or NotOpen after close().
+        /// @return Success while open, InvalidArgument for an unknown mode, or NotOpen after close().
         [[nodiscard]] Types::Status flush(Types::FlushMode mode = Types::FlushMode::Data) override;
 
         /// @brief Closes this writer without discarding collected output.
@@ -562,15 +590,15 @@ namespace GameWIP::IO
     /// @brief Writes all bytes to a writer, retrying partial writes until complete or failed.
     /// @param writer Writer to drain bytes into.
     /// @param bytes Bytes to write.
-    /// @return Success when every byte was accepted; otherwise the failing status.
-    [[nodiscard]] Types::Status writeAllBytes(Writer &writer, std::span<const std::byte> bytes);
+    /// @return Final status and the total number of bytes accepted, including bytes accepted by a failing write.
+    [[nodiscard]] Types::WriteResult writeAllBytes(Writer &writer, std::span<const std::byte> bytes);
 
     /// @brief Writes all vector bytes to a writer, retrying partial writes until complete or failed.
     /// @tparam Allocator Vector allocator type.
     /// @param writer Writer to drain bytes into.
     /// @param bytes Bytes to write.
-    /// @return Success when every byte was accepted; otherwise the failing status.
-    template <typename Allocator> [[nodiscard]] Types::Status writeAllBytes(Writer &writer, const std::vector<std::byte, Allocator> &bytes)
+    /// @return Final status and the total number of bytes accepted, including bytes accepted by a failing write.
+    template <typename Allocator> [[nodiscard]] Types::WriteResult writeAllBytes(Writer &writer, const std::vector<std::byte, Allocator> &bytes)
     {
         return writeAllBytes(writer, std::span<const std::byte>(bytes.data(), bytes.size()));
     }
@@ -578,6 +606,6 @@ namespace GameWIP::IO
     /// @brief Writes UTF-8 text bytes to a writer.
     /// @param writer Writer to drain text into.
     /// @param utf8Text Text bytes to write.
-    /// @return Success when every byte was accepted; otherwise the failing status.
-    [[nodiscard]] Types::Status writeAllText(Writer &writer, std::string_view utf8Text);
+    /// @return Final status and the total number of bytes accepted, including bytes accepted by a failing write.
+    [[nodiscard]] Types::WriteResult writeAllText(Writer &writer, std::string_view utf8Text);
 } // namespace GameWIP::IO

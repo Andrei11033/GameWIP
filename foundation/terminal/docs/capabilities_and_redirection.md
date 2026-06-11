@@ -27,7 +27,7 @@ Terminal reports capabilities for stdin, stdout, and stderr across real terminal
 - input availability query support;
 - read timeout support.
 
-The result type is `Types::InputCapabilityResult`.
+The result type is `Types::InputCapabilitiesResult`.
 
 ## Output capabilities
 
@@ -44,7 +44,9 @@ The result type is `Types::InputCapabilityResult`.
 - cursor visibility support;
 - clear, scroll, alternate screen, title, and bell support.
 
-The result type is `Types::OutputCapabilityResult`.
+The result type is `Types::OutputCapabilitiesResult`.
+
+`supportsFlush` means the stream accepts Terminal flush requests. It does not imply a storage durability operation for every stream kind. On Win32, regular redirected files use `FlushFileBuffers`; console and pipe flushes are successful no-ops because Terminal writes directly to their native handles.
 
 `getOutputCapabilities()` is observational. It inspects the current stream state and never enables terminal features.
 
@@ -62,10 +64,14 @@ Redirected input and output are byte-oriented.
 
 Text helpers interpret redirected input bytes as UTF-8 and return `IO::Types::ErrorCode::EncodingFailed` when text conversion fails. Byte reads remain available for arbitrary input.
 
-Redirected stdout and stderr should not receive styling bytes in `StyleMode::Auto`. `StyleMode::Always` may force styling only when the backend can honestly support the request; otherwise it reports `Unsupported`.
+Redirected stdout and stderr should not receive styling bytes in `StyleMode::Auto`. `StyleMode::Required` may force styling only when the backend can honestly support the request; otherwise it reports `Unsupported`.
 
 On Win32, real-console preparation enables virtual-terminal processing. Redirected UTF-8 output is written byte-for-byte and does not require console preparation.
 
+Win32 style capabilities are conservative. The real-console backend reports only portable features documented for the console VT implementation. In particular, RGB, dim, italic, and strikethrough are not promised merely because VT processing is enabled.
+
+Win32 named-pipe input supports finite read timeouts. Real-console input preserves native cooked input, echo, and line editing through `ReadConsoleW`, so it supports only `kWaitForever`; finite and non-blocking console reads return `Unsupported`. Regular redirected files support availability queries from their current position but do not promise bounded read timeouts.
+
 ## Failure behavior
 
-`StyleMode::Auto` falls back to plain text when preparation fails. `StyleMode::Always` and terminal controls return the preparation or unsupported status without writing. Plain text, byte output, size queries, cursor-position queries, and input operations never prepare output.
+`StyleMode::Auto` falls back to plain text when preparation fails. `StyleMode::Required` and terminal controls return the preparation or unsupported status without writing. Plain text, byte output, size queries, cursor-position queries, and input operations never prepare output.

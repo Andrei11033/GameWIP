@@ -6,10 +6,8 @@ namespace GameWIP::Action
     {
         inline bool isKeyboardNoneControl(Input::InputControl control)
         {
-            return control.deviceType == Input::InputDeviceType::Keyboard &&
-                   control.deviceIndex == 0 &&
-                   control.controlType == Input::InputControlType::Button &&
-                   control.controlCode == 0;
+            return control.deviceType == Input::InputDeviceType::Keyboard && control.deviceIndex == 0 &&
+                   control.controlType == Input::InputControlType::Button && control.controlCode == 0;
         }
 
         inline bool isValidControl(Input::InputControl control)
@@ -49,20 +47,16 @@ namespace GameWIP::Action
 
         inline bool isKeyboardModifier(Input::InputControl control)
         {
-            if (control.deviceType != Input::InputDeviceType::Keyboard ||
-                control.deviceIndex != 0 ||
+            if (control.deviceType != Input::InputDeviceType::Keyboard || control.deviceIndex != 0 ||
                 control.controlType != Input::InputControlType::Button)
             {
                 return false;
             }
 
             return control.controlCode == Input::KeyboardControlCode::LeftControl ||
-                   control.controlCode == Input::KeyboardControlCode::RightControl ||
-                   control.controlCode == Input::KeyboardControlCode::LeftShift ||
-                   control.controlCode == Input::KeyboardControlCode::RightShift ||
-                   control.controlCode == Input::KeyboardControlCode::LeftAlt ||
-                   control.controlCode == Input::KeyboardControlCode::RightAlt ||
-                   control.controlCode == Input::KeyboardControlCode::LeftSuper ||
+                   control.controlCode == Input::KeyboardControlCode::RightControl || control.controlCode == Input::KeyboardControlCode::LeftShift ||
+                   control.controlCode == Input::KeyboardControlCode::RightShift || control.controlCode == Input::KeyboardControlCode::LeftAlt ||
+                   control.controlCode == Input::KeyboardControlCode::RightAlt || control.controlCode == Input::KeyboardControlCode::LeftSuper ||
                    control.controlCode == Input::KeyboardControlCode::RightSuper;
         }
 
@@ -104,9 +98,8 @@ namespace GameWIP::Action
 
         inline bool isAllowedCaptureDevice(const Input::InputActivation &activation, const ActionRebindOptions &options)
         {
-            return !options.hasDeviceFilter ||
-                   (activation.control.deviceType == options.deviceFilter.deviceType &&
-                    activation.control.deviceIndex == options.deviceFilter.deviceIndex);
+            return !options.hasDeviceFilter || (activation.control.deviceType == options.deviceFilter.deviceType &&
+                                                activation.control.deviceIndex == options.deviceFilter.deviceIndex);
         }
 
         inline bool passesAxisCaptureThresholds(const Input::InputActivation &activation, const ActionRebindOptions &options)
@@ -119,15 +112,12 @@ namespace GameWIP::Action
             const float valueMagnitude = activation.value < 0.0f ? -activation.value : activation.value;
             const float movement = activation.value - activation.previousValue;
             const float movementMagnitude = movement < 0.0f ? -movement : movement;
-            return valueMagnitude >= options.axisActivationThreshold &&
-                   movementMagnitude >= options.axisNoiseThreshold;
+            return valueMagnitude >= options.axisActivationThreshold && movementMagnitude >= options.axisNoiseThreshold;
         }
 
         inline bool isAllowedCaptureActivation(const Input::InputActivation &activation, const ActionRebindOptions &options)
         {
-            return isCaptureActivation(activation) &&
-                   isAllowedCaptureDevice(activation, options) &&
-                   passesAxisCaptureThresholds(activation, options);
+            return isCaptureActivation(activation) && isAllowedCaptureDevice(activation, options) && passesAxisCaptureThresholds(activation, options);
         }
 
         inline void addUniqueControl(std::vector<Input::InputControl> &controls, Input::InputControl control)
@@ -140,33 +130,18 @@ namespace GameWIP::Action
 
         inline bool isValidActionSettings(const ActionSettings &settings)
         {
-            return isFinite(settings.innerDeadzone) &&
-                   isFinite(settings.outerDeadzone) &&
-                   isFinite(settings.sensitivity) &&
-                   isFinite(settings.curveExponent) &&
-                   isFinite(settings.activationThreshold) &&
-                   settings.innerDeadzone >= 0.0f &&
-                   settings.innerDeadzone <= 1.0f &&
-                   settings.outerDeadzone >= settings.innerDeadzone &&
-                   settings.outerDeadzone <= 1.0f &&
-                   settings.sensitivity >= 0.0f &&
-                   settings.curveExponent > 0.0f &&
-                   settings.activationThreshold >= 0.0f;
+            return isFinite(settings.innerDeadzone) && isFinite(settings.outerDeadzone) && isFinite(settings.sensitivity) &&
+                   isFinite(settings.curveExponent) && isFinite(settings.activationThreshold) && settings.innerDeadzone >= 0.0f &&
+                   settings.innerDeadzone <= 1.0f && settings.outerDeadzone >= settings.innerDeadzone && settings.outerDeadzone <= 1.0f &&
+                   settings.sensitivity >= 0.0f && settings.curveExponent > 0.0f && settings.activationThreshold >= 0.0f;
         }
 
         inline bool areSameActionSettings(const ActionSettings &left, const ActionSettings &right)
         {
-            return left.kind == right.kind &&
-                   left.clampValue == right.clampValue &&
-                   left.normalizeDiagonal == right.normalizeDiagonal &&
-                   left.deadzoneMode == right.deadzoneMode &&
-                   left.innerDeadzone == right.innerDeadzone &&
-                   left.outerDeadzone == right.outerDeadzone &&
-                   left.sensitivity == right.sensitivity &&
-                   left.curveExponent == right.curveExponent &&
-                   left.invert == right.invert &&
-                   left.invertX == right.invertX &&
-                   left.invertY == right.invertY &&
+            return left.kind == right.kind && left.clampValue == right.clampValue && left.normalizeDiagonal == right.normalizeDiagonal &&
+                   left.deadzoneMode == right.deadzoneMode && left.innerDeadzone == right.innerDeadzone &&
+                   left.outerDeadzone == right.outerDeadzone && left.sensitivity == right.sensitivity && left.curveExponent == right.curveExponent &&
+                   left.invert == right.invert && left.invertX == right.invertX && left.invertY == right.invertY &&
                    left.activationThreshold == right.activationThreshold;
         }
 
@@ -185,14 +160,12 @@ namespace GameWIP::Action
             return makeButtonSettings();
         }
 
-        template <typename ActionEnum>
-        ActionSettings getBindingSettings(const ActionBinding<ActionEnum> &binding, ActionKind kind)
+        template <typename ActionEnum> ActionSettings getBindingSettings(const ActionBinding<ActionEnum> &binding, ActionKind kind)
         {
             return binding.hasCustomSettings ? binding.settings : makeDefaultSettings(kind);
         }
 
-        template <typename ActionEnum>
-        struct ValueBucket
+        template <typename ActionEnum> struct ValueBucket
         {
             ActionEnum action{};
             Input::InputDeviceType deviceType = Input::InputDeviceType::Keyboard;
@@ -205,9 +178,7 @@ namespace GameWIP::Action
         template <typename ActionEnum>
         bool isSameValueBucket(const ValueBucket<ActionEnum> &bucket, ActionEnum action, Input::InputControl control, const ActionSettings &settings)
         {
-            return bucket.action == action &&
-                   bucket.deviceType == control.deviceType &&
-                   bucket.deviceIndex == control.deviceIndex &&
+            return bucket.action == action && bucket.deviceType == control.deviceType && bucket.deviceIndex == control.deviceIndex &&
                    areSameActionSettings(bucket.settings, settings);
         }
 
@@ -230,11 +201,12 @@ namespace GameWIP::Action
 
             if (bucket == buckets.end())
             {
-                buckets.push_back(ValueBucket<ActionEnum>{
-                    .action = binding.action,
-                    .deviceType = binding.combo.primaryControl.deviceType,
-                    .deviceIndex = binding.combo.primaryControl.deviceIndex,
-                    .settings = settings});
+                buckets.push_back(
+                    ValueBucket<ActionEnum>{
+                        .action = binding.action,
+                        .deviceType = binding.combo.primaryControl.deviceType,
+                        .deviceIndex = binding.combo.primaryControl.deviceIndex,
+                        .settings = settings});
                 bucket = buckets.end() - 1;
             }
 
@@ -258,20 +230,16 @@ namespace GameWIP::Action
             }
         }
 
-        template <typename ActionEnum>
-        bool isBindingCompatibleWithActionKind(ActionKind kind, const ActionBinding<ActionEnum> &binding)
+        template <typename ActionEnum> bool isBindingCompatibleWithActionKind(ActionKind kind, const ActionBinding<ActionEnum> &binding)
         {
             switch (kind)
             {
             case ActionKind::Button:
-                return binding.gesture.trigger != ActionTrigger::Value &&
-                       binding.valueMapping.component == ActionComponent::Scalar;
+                return binding.gesture.trigger != ActionTrigger::Value && binding.valueMapping.component == ActionComponent::Scalar;
             case ActionKind::Axis1D:
-                return binding.gesture.trigger == ActionTrigger::Value &&
-                       binding.valueMapping.component == ActionComponent::Scalar;
+                return binding.gesture.trigger == ActionTrigger::Value && binding.valueMapping.component == ActionComponent::Scalar;
             case ActionKind::Axis2D:
-                return binding.gesture.trigger == ActionTrigger::Value &&
-                       binding.valueMapping.component != ActionComponent::Scalar;
+                return binding.gesture.trigger == ActionTrigger::Value && binding.valueMapping.component != ActionComponent::Scalar;
             }
 
             return false;
@@ -284,11 +252,8 @@ namespace GameWIP::Action
             std::span<const Input::InputControl> cancelControls,
             std::span<const Input::InputControl> ignoredControls)
         {
-            if (modifierMode == RebindModifierMode::None ||
-                modifier == primaryControl ||
-                !isButtonControl(modifier) ||
-                containsControl(cancelControls, modifier) ||
-                containsControl(ignoredControls, modifier))
+            if (modifierMode == RebindModifierMode::None || modifier == primaryControl || !isButtonControl(modifier) ||
+                containsControl(cancelControls, modifier) || containsControl(ignoredControls, modifier))
             {
                 return false;
             }
@@ -337,40 +302,29 @@ namespace GameWIP::Action
 
         inline bool areSameCombo(const ActionCombo &left, const ActionCombo &right)
         {
-            return left.primaryControl == right.primaryControl &&
-                   left.activationMode == right.activationMode &&
+            return left.primaryControl == right.primaryControl && left.activationMode == right.activationMode &&
                    haveSameModifierSet(left.modifiers, right.modifiers);
         }
 
         inline bool areSameGesture(const ActionGesture &left, const ActionGesture &right)
         {
-            return left.trigger == right.trigger &&
-                   left.holdSeconds == right.holdSeconds &&
-                   left.doubleTapSeconds == right.doubleTapSeconds;
+            return left.trigger == right.trigger && left.holdSeconds == right.holdSeconds && left.doubleTapSeconds == right.doubleTapSeconds;
         }
 
         inline bool areSameValueMapping(const ActionValueMapping &left, const ActionValueMapping &right)
         {
-            return left.component == right.component &&
-                   left.scale == right.scale &&
-                   left.threshold == right.threshold;
+            return left.component == right.component && left.scale == right.scale && left.threshold == right.threshold;
         }
 
-        template <typename ActionEnum>
-        bool areSameBinding(const ActionBinding<ActionEnum> &left, const ActionBinding<ActionEnum> &right)
+        template <typename ActionEnum> bool areSameBinding(const ActionBinding<ActionEnum> &left, const ActionBinding<ActionEnum> &right)
         {
-            return left.action == right.action &&
-                   areSameCombo(left.combo, right.combo) &&
-                   areSameGesture(left.gesture, right.gesture) &&
+            return left.action == right.action && areSameCombo(left.combo, right.combo) && areSameGesture(left.gesture, right.gesture) &&
                    areSameValueMapping(left.valueMapping, right.valueMapping);
         }
 
-        template <typename ActionEnum>
-        bool hasBindingConflict(const ActionBinding<ActionEnum> &left, const ActionBinding<ActionEnum> &right)
+        template <typename ActionEnum> bool hasBindingConflict(const ActionBinding<ActionEnum> &left, const ActionBinding<ActionEnum> &right)
         {
-            return left.action != right.action &&
-                   areSameCombo(left.combo, right.combo) &&
-                   areSameGesture(left.gesture, right.gesture);
+            return left.action != right.action && areSameCombo(left.combo, right.combo) && areSameGesture(left.gesture, right.gesture);
         }
 
         inline bool areModifiersDown(const Input::InputState &inputState, const ActionCombo &combo)
@@ -543,10 +497,8 @@ namespace GameWIP::Action
 
         inline bool isMouseAxis(Input::InputControl control, Input::MouseAxis axis)
         {
-            return control.deviceType == Input::InputDeviceType::Mouse &&
-                   control.deviceIndex == 0 &&
-                   control.controlType == Input::InputControlType::Axis &&
-                   control.controlCode == static_cast<Input::ControlCode>(axis);
+            return control.deviceType == Input::InputDeviceType::Mouse && control.deviceIndex == 0 &&
+                   control.controlType == Input::InputControlType::Axis && control.controlCode == static_cast<Input::ControlCode>(axis);
         }
 
         inline float getMouseAxisValue(const Input::InputState &inputState, Input::InputControl control)
@@ -583,5 +535,5 @@ namespace GameWIP::Action
 
             return 0.0f;
         }
-    }
-}
+    } // namespace Internal
+} // namespace GameWIP::Action

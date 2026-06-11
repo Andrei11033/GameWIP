@@ -141,7 +141,8 @@ namespace
 
         if (cachedSetProcessDpiAwarenessContext == nullptr)
         {
-            cachedSetProcessDpiAwarenessContext = reinterpret_cast<SetProcessDpiAwarenessContextFn>(getUser32Function("SetProcessDpiAwarenessContext"));
+            cachedSetProcessDpiAwarenessContext =
+                reinterpret_cast<SetProcessDpiAwarenessContextFn>(getUser32Function("SetProcessDpiAwarenessContext"));
         }
         if (cachedSetProcessDpiAwarenessContext != nullptr)
         {
@@ -276,16 +277,8 @@ namespace
         }
 
         outInfo.handle = monitor;
-        outInfo.workArea = Rect{
-            monitorInfo.rcWork.left,
-            monitorInfo.rcWork.top,
-            monitorInfo.rcWork.right,
-            monitorInfo.rcWork.bottom};
-        outInfo.monitorArea = Rect{
-            monitorInfo.rcMonitor.left,
-            monitorInfo.rcMonitor.top,
-            monitorInfo.rcMonitor.right,
-            monitorInfo.rcMonitor.bottom};
+        outInfo.workArea = Rect{monitorInfo.rcWork.left, monitorInfo.rcWork.top, monitorInfo.rcWork.right, monitorInfo.rcWork.bottom};
+        outInfo.monitorArea = Rect{monitorInfo.rcMonitor.left, monitorInfo.rcMonitor.top, monitorInfo.rcMonitor.right, monitorInfo.rcMonitor.bottom};
         outInfo.isPrimary = (monitorInfo.dwFlags & MONITORINFOF_PRIMARY) != 0;
 
         if (!wideToUtf8(monitorInfo.szDevice, outInfo.deviceName))
@@ -305,9 +298,7 @@ namespace
     {
         for (const DisplayMode &existing : modes)
         {
-            if (existing.width == mode.width &&
-                existing.height == mode.height &&
-                existing.refreshRate == mode.refreshRate &&
+            if (existing.width == mode.width && existing.height == mode.height && existing.refreshRate == mode.refreshRate &&
                 existing.bitsPerPixel == mode.bitsPerPixel)
             {
                 return true;
@@ -322,10 +313,7 @@ namespace
     /// @return True when every mode field is positive.
     bool isCompleteDisplayMode(const DisplayMode &mode)
     {
-        return mode.width > 0 &&
-               mode.height > 0 &&
-               mode.refreshRate > 0 &&
-               mode.bitsPerPixel > 0;
+        return mode.width > 0 && mode.height > 0 && mode.refreshRate > 0 && mode.bitsPerPixel > 0;
     }
 
     /// @brief Selects the highest-refresh display mode for a requested resolution.
@@ -345,8 +333,7 @@ namespace
                 continue;
             }
 
-            if (!isCompleteDisplayMode(outMode) ||
-                mode.refreshRate > outMode.refreshRate ||
+            if (!isCompleteDisplayMode(outMode) || mode.refreshRate > outMode.refreshRate ||
                 (mode.refreshRate == outMode.refreshRate && mode.bitsPerPixel > outMode.bitsPerPixel))
             {
                 outMode = mode;
@@ -391,17 +378,13 @@ namespace
     /// @return True when keeping only the latest tail event is enough.
     bool isWindowEventCoalesable(WindowEventType type)
     {
-        return type == WindowEventType::Resized ||
-               type == WindowEventType::Moved ||
-               type == WindowEventType::MonitorChanged ||
-               type == WindowEventType::DisplayChanged ||
-               type == WindowEventType::DpiChanged;
+        return type == WindowEventType::Resized || type == WindowEventType::Moved || type == WindowEventType::MonitorChanged ||
+               type == WindowEventType::DisplayChanged || type == WindowEventType::DpiChanged;
     }
 
     bool isStartupStateEvent(WindowEventType type)
     {
-        return type == WindowEventType::Resized ||
-               type == WindowEventType::ModeChanged;
+        return type == WindowEventType::Resized || type == WindowEventType::ModeChanged;
     }
 
     /// @brief Checks whether the cursor is over a window's client area.
@@ -759,4 +742,4 @@ namespace
         context->monitors->push_back(std::move(info));
         return TRUE;
     }
-}
+} // namespace

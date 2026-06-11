@@ -18,12 +18,15 @@
 #endif
 
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <limits>
+#include <new>
 #include <span>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -43,11 +46,88 @@ namespace GameWIP::Terminal::Detail::Platform
         namespace HookDetail = GameWIP::Terminal::Detail::TestHooks;
 #endif
 
+        class PendingInputBuffer final
+        {
+        public:
+            [[nodiscard]] bool empty() const noexcept
+            {
+                return size() == 0;
+            }
+
+            [[nodiscard]] std::size_t size() const noexcept
+            {
+                return storage_.size() - offset_;
+            }
+
+            [[nodiscard]] const char *data() const noexcept
+            {
+                return storage_.data() + offset_;
+            }
+
+            [[nodiscard]] std::string_view view() const noexcept
+            {
+                return {data(), size()};
+            }
+
+            void append(std::string_view bytes)
+            {
+                if (offset_ > 0 && (offset_ >= kCompactionThreshold || bytes.size() > storage_.capacity() - storage_.size()))
+                {
+                    compact();
+                }
+                storage_.append(bytes);
+            }
+
+            void consume(std::size_t bytes) noexcept
+            {
+                if (bytes >= size())
+                {
+                    clear();
+                    return;
+                }
+
+                offset_ += bytes;
+            }
+
+            void clear() noexcept
+            {
+                storage_.clear();
+                offset_ = 0;
+            }
+
+            [[nodiscard]] std::string take()
+            {
+                if (offset_ == 0)
+                {
+                    std::string result = std::move(storage_);
+                    storage_.clear();
+                    return result;
+                }
+
+                std::string result(view());
+                clear();
+                return result;
+            }
+
+        private:
+            void compact()
+            {
+                storage_.erase(0, offset_);
+                offset_ = 0;
+            }
+
+            static constexpr std::size_t kCompactionThreshold = 4096;
+            std::string storage_;
+            std::size_t offset_ = 0;
+        };
+
         struct InputState
         {
             bool defaultConsoleModeCaptured = false;
+            HANDLE defaultConsoleHandle = nullptr;
             DWORD defaultConsoleMode = 0;
-            std::string pendingBytes;
+            PendingInputBuffer pendingBytes;
+            wchar_t pendingHighSurrogate = L'\0';
         };
 
         struct OutputConversionState
@@ -55,7 +135,9 @@ namespace GameWIP::Terminal::Detail::Platform
             std::wstring wideText;
         };
 
-        inline constexpr std::size_t kRetainedConversionLimit = 64 * 1024;
+        inline constexpr std::size_t kRetainedConversionLimit = std::size_t{64} * 1024;
+        inline constexpr std::uint32_t kMaxVtParameter = 32767;
+        inline constexpr std::size_t kMaxVtTitleBytes = 254;
 
         struct ReadChunk
         {
@@ -132,7 +214,7 @@ namespace GameWIP::Terminal::Detail::Platform
         {
             if (const std::optional<ErrorCode> code = HookDetail::consumeFailure(failure))
             {
-                return HookDetail::failureStatus(*code, message);
+                return IO::makeStatus(*code, 0, std::string(message));
             }
 
             return std::nullopt;
@@ -166,10 +248,13 @@ namespace GameWIP::Terminal::Detail::Platform
             {
                 if (state.endOfStreamWhenInputEmpty)
                 {
-                    return ReadChunk{.status = IO::successStatus(), .outcome = ReadOutcome::EndOfStream};
+                    return ReadChunk{.status = IO::successStatus(), .outcome = ReadOutcome::EndOfStream, .bytes = {}};
                 }
 
-                return ReadChunk{.status = IO::successStatus(), .outcome = timeout.count() > 0 ? ReadOutcome::TimedOut : ReadOutcome::WouldBlock};
+                return ReadChunk{
+                    .status = IO::successStatus(),
+                    .outcome = timeout.count() > 0 ? ReadOutcome::TimedOut : ReadOutcome::WouldBlock,
+                    .bytes = {}};
             }
 
             const std::size_t requestedBytes = std::max<std::size_t>(requestedBytesHint, 1);
@@ -182,7 +267,23 @@ namespace GameWIP::Terminal::Detail::Platform
 
         [[nodiscard]] ErrorCode writeErrorCode(DWORD nativeCode) noexcept
         {
-            return nativeCode == ERROR_BROKEN_PIPE ? ErrorCode::BrokenPipe : ErrorCode::WriteFailed;
+            switch (nativeCode)
+            {
+            case ERROR_ACCESS_DENIED:
+                return ErrorCode::PermissionDenied;
+            case ERROR_BROKEN_PIPE:
+            case ERROR_NO_DATA:
+                return ErrorCode::BrokenPipe;
+            case ERROR_DISK_FULL:
+            case ERROR_HANDLE_DISK_FULL:
+                return ErrorCode::StorageFull;
+            case ERROR_INVALID_HANDLE:
+                return ErrorCode::NotOpen;
+            case ERROR_OPERATION_ABORTED:
+                return ErrorCode::Interrupted;
+            default:
+                return ErrorCode::WriteFailed;
+            }
         }
 
         [[nodiscard]] ErrorCode readErrorCode(DWORD nativeCode) noexcept
@@ -266,16 +367,16 @@ namespace GameWIP::Terminal::Detail::Platform
             return (mode & ENABLE_VIRTUAL_TERMINAL_PROCESSING) != 0;
         }
 
-        void setStyleCapabilities(Terminal::Types::StyleCapabilities &capabilities, bool supported) noexcept
+        void setStyleCapabilities(Terminal::Types::StyleCapabilities &capabilities, bool virtualTerminal) noexcept
         {
-            capabilities.basicColor = supported;
-            capabilities.rgbColor = supported;
-            capabilities.bold = supported;
-            capabilities.dim = supported;
-            capabilities.italic = supported;
-            capabilities.underline = supported;
-            capabilities.inverse = supported;
-            capabilities.strikethrough = supported;
+            capabilities.basicColor = virtualTerminal;
+            capabilities.rgbColor = false;
+            capabilities.bold = virtualTerminal;
+            capabilities.dim = false;
+            capabilities.italic = false;
+            capabilities.underline = virtualTerminal;
+            capabilities.inverse = virtualTerminal;
+            capabilities.strikethrough = false;
         }
 
         [[nodiscard]] IO::Types::Status utf8ToWide(std::string_view text, std::wstring &outText)
@@ -293,18 +394,37 @@ namespace GameWIP::Terminal::Detail::Platform
 
             const int sourceLength = static_cast<int>(text.size());
             const DWORD flags = MB_ERR_INVALID_CHARS;
-            const int wideLength = MultiByteToWideChar(CP_UTF8, flags, text.data(), sourceLength, nullptr, 0);
-            if (wideLength <= 0)
+            int wideLength = 0;
+            DWORD conversionError = ERROR_SUCCESS;
+
+            try
             {
-                const DWORD error = GetLastError();
-                return statusFromWin32(ErrorCode::EncodingFailed, error, "Terminal UTF-8 to UTF-16 conversion failed.");
+                outText.__resize_and_overwrite(
+                    text.size(),
+                    [&text, sourceLength, flags, &wideLength, &conversionError](wchar_t *destination, std::size_t) noexcept
+                    {
+                        wideLength = MultiByteToWideChar(CP_UTF8, flags, text.data(), sourceLength, destination, sourceLength);
+                        if (wideLength <= 0)
+                        {
+                            conversionError = GetLastError();
+                            return std::size_t{0};
+                        }
+
+                        return static_cast<std::size_t>(wideLength);
+                    });
+            }
+            catch (const std::bad_alloc &)
+            {
+                return IO::makeStatus(ErrorCode::OutOfMemory);
+            }
+            catch (const std::length_error &)
+            {
+                return IO::makeStatus(ErrorCode::SizeLimitExceeded);
             }
 
-            outText.resize(static_cast<std::size_t>(wideLength));
-            if (MultiByteToWideChar(CP_UTF8, flags, text.data(), sourceLength, outText.data(), wideLength) != wideLength)
+            if (wideLength <= 0)
             {
-                const DWORD error = GetLastError();
-                return statusFromWin32(ErrorCode::EncodingFailed, error, "Terminal UTF-8 to UTF-16 conversion failed.");
+                return statusFromWin32(ErrorCode::EncodingFailed, conversionError, "Terminal UTF-8 to UTF-16 conversion failed.");
             }
 
             return IO::successStatus();
@@ -332,7 +452,18 @@ namespace GameWIP::Terminal::Detail::Platform
                 return statusFromWin32(ErrorCode::EncodingFailed, error, "Terminal UTF-16 to UTF-8 conversion failed.");
             }
 
-            outText.resize(static_cast<std::size_t>(utf8Length));
+            try
+            {
+                outText.resize(static_cast<std::size_t>(utf8Length));
+            }
+            catch (const std::bad_alloc &)
+            {
+                return IO::makeStatus(ErrorCode::OutOfMemory);
+            }
+            catch (const std::length_error &)
+            {
+                return IO::makeStatus(ErrorCode::SizeLimitExceeded);
+            }
             if (WideCharToMultiByte(CP_UTF8, flags, text.data(), sourceLength, outText.data(), utf8Length, nullptr, nullptr) != utf8Length)
             {
                 const DWORD error = GetLastError();
@@ -452,17 +583,23 @@ namespace GameWIP::Terminal::Detail::Platform
 
             if (waitResult == WAIT_TIMEOUT)
             {
-                return {.status = IO::successStatus(), .outcome = timeout.count() == 0 ? ReadOutcome::WouldBlock : ReadOutcome::TimedOut};
+                return {
+                    .status = IO::successStatus(),
+                    .outcome = timeout.count() == 0 ? ReadOutcome::WouldBlock : ReadOutcome::TimedOut,
+                    .bytes = {}};
             }
 
             const DWORD error = GetLastError();
-            return {.status = statusFromWin32(ErrorCode::ReadFailed, error, "Waiting for terminal input failed.")};
+            return {
+                .status = statusFromWin32(ErrorCode::ReadFailed, error, "Waiting for terminal input failed."),
+                .outcome = ReadOutcome::Completed,
+                .bytes = {}};
         }
 
         [[nodiscard]] IO::Types::Status captureDefaultInputMode(InputStream stream, HANDLE handle)
         {
             InputState &state = inputState(stream);
-            if (state.defaultConsoleModeCaptured)
+            if (state.defaultConsoleModeCaptured && state.defaultConsoleHandle == handle)
             {
                 return IO::successStatus();
             }
@@ -475,6 +612,7 @@ namespace GameWIP::Terminal::Detail::Platform
             }
 
             state.defaultConsoleMode = mode;
+            state.defaultConsoleHandle = handle;
             state.defaultConsoleModeCaptured = true;
             return IO::successStatus();
         }
@@ -501,37 +639,202 @@ namespace GameWIP::Terminal::Detail::Platform
             return false;
         }
 
-        [[nodiscard]] ReadChunk readConsoleInputChunk(HANDLE handle, std::chrono::milliseconds timeout, std::size_t requestedBytesHint)
+        [[nodiscard]] Terminal::Types::InputAvailabilityResult consoleInputAvailability(HANDLE handle)
         {
+            Terminal::Types::InputAvailabilityResult result;
+            result.status = IO::successStatus();
+
+            DWORD eventCount = 0;
+            if (GetNumberOfConsoleInputEvents(handle, &eventCount) == FALSE)
+            {
+                const DWORD error = GetLastError();
+                result.status = statusFromWin32(ErrorCode::StatFailed, error, "GetNumberOfConsoleInputEvents failed for terminal input.");
+                return result;
+            }
+            if (eventCount == 0)
+            {
+                return result;
+            }
+
+            std::vector<INPUT_RECORD> records;
+            try
+            {
+                records.resize(eventCount);
+            }
+            catch (const std::bad_alloc &)
+            {
+                result.status = IO::makeStatus(ErrorCode::OutOfMemory);
+                return result;
+            }
+            catch (const std::length_error &)
+            {
+                result.status = IO::makeStatus(ErrorCode::SizeLimitExceeded);
+                return result;
+            }
+
+            DWORD recordsRead = 0;
+            if (PeekConsoleInputW(handle, records.data(), eventCount, &recordsRead) == FALSE)
+            {
+                const DWORD error = GetLastError();
+                result.status = statusFromWin32(ErrorCode::StatFailed, error, "PeekConsoleInputW failed for terminal input.");
+                return result;
+            }
+
+            DWORD mode = 0;
+            if (GetConsoleMode(handle, &mode) == FALSE)
+            {
+                const DWORD error = GetLastError();
+                result.status = statusFromWin32(ErrorCode::StatFailed, error, "GetConsoleMode failed for terminal input availability.");
+                return result;
+            }
+
+            const bool lineBuffered = (mode & ENABLE_LINE_INPUT) != 0;
+            for (DWORD index = 0; index < recordsRead; ++index)
+            {
+                const INPUT_RECORD &record = records[index];
+                if (record.EventType != KEY_EVENT || record.Event.KeyEvent.bKeyDown == FALSE)
+                {
+                    continue;
+                }
+
+                const wchar_t character = record.Event.KeyEvent.uChar.UnicodeChar;
+                if (character == L'\0')
+                {
+                    continue;
+                }
+                if (!lineBuffered || character == L'\r' || character == L'\n')
+                {
+                    result.available = true;
+                    return result;
+                }
+            }
+
+            return result;
+        }
+
+        [[nodiscard]] Terminal::Types::InputAvailabilityResult diskInputAvailability(HANDLE handle)
+        {
+            Terminal::Types::InputAvailabilityResult result;
+            result.status = IO::successStatus();
+
+            LARGE_INTEGER zero{};
+            LARGE_INTEGER position{};
+            LARGE_INTEGER size{};
+            if (SetFilePointerEx(handle, zero, &position, FILE_CURRENT) == FALSE || GetFileSizeEx(handle, &size) == FALSE)
+            {
+                const DWORD error = GetLastError();
+                result.status = statusFromWin32(ErrorCode::StatFailed, error, "File position query failed for terminal input availability.");
+                return result;
+            }
+
+            if (position.QuadPart < 0 || size.QuadPart < position.QuadPart)
+            {
+                result.status = IO::makeStatus(ErrorCode::InvalidArgument, 0, "Redirected terminal input reported an invalid file position.");
+                return result;
+            }
+
+            const auto remaining = static_cast<std::uint64_t>(size.QuadPart - position.QuadPart);
+            result.available = remaining > 0;
+            result.estimatedBytes = remaining;
+            return result;
+        }
+
+        [[nodiscard]] ReadChunk readConsoleInputChunk(
+            InputStream stream,
+            HANDLE handle,
+            std::chrono::milliseconds timeout,
+            std::size_t requestedBytesHint)
+        {
+            if (timeout.count() >= 0)
+            {
+                return {
+                    .status = IO::makeStatus(
+                        ErrorCode::Unsupported,
+                        0,
+                        "Finite Win32 console reads are unsupported because cooked console reads cannot be cancelled reliably."),
+                    .outcome = ReadOutcome::Completed,
+                    .bytes = {}};
+            }
+
             ReadChunk wait = waitForInput(handle, timeout);
             if (!wait.status.ok() || wait.outcome != ReadOutcome::Completed)
             {
                 return wait;
             }
 
-            const std::size_t requestedCharacters = std::clamp<std::size_t>(requestedBytesHint == 0 ? 1 : requestedBytesHint, 1, 512);
-            std::vector<wchar_t> wideBuffer(requestedCharacters);
+            InputState &state = inputState(stream);
+            std::array<wchar_t, 512> wideBuffer{};
+            std::array<wchar_t, 513> conversionBuffer{};
+            const std::size_t requestedCharacters = std::clamp<std::size_t>(requestedBytesHint == 0 ? 2 : requestedBytesHint, 2, wideBuffer.size());
 
-            DWORD charactersRead = 0;
-            if (ReadConsoleW(handle, wideBuffer.data(), static_cast<DWORD>(wideBuffer.size()), &charactersRead, nullptr) == FALSE)
+            while (true)
             {
-                const DWORD error = GetLastError();
-                if (error == ERROR_BROKEN_PIPE || error == ERROR_HANDLE_EOF)
+                DWORD charactersRead = 0;
+                if (ReadConsoleW(handle, wideBuffer.data(), static_cast<DWORD>(requestedCharacters), &charactersRead, nullptr) == FALSE)
                 {
-                    return {.status = IO::successStatus(), .outcome = ReadOutcome::EndOfStream};
+                    const DWORD error = GetLastError();
+                    if (error == ERROR_BROKEN_PIPE || error == ERROR_HANDLE_EOF)
+                    {
+                        if (state.pendingHighSurrogate != L'\0')
+                        {
+                            state.pendingHighSurrogate = L'\0';
+                            return {
+                                .status =
+                                    IO::makeStatus(ErrorCode::EncodingFailed, 0, "Terminal input ended in the middle of a UTF-16 surrogate pair."),
+                                .outcome = ReadOutcome::EndOfStream,
+                                .bytes = {}};
+                        }
+                        return {.status = IO::successStatus(), .outcome = ReadOutcome::EndOfStream, .bytes = {}};
+                    }
+
+                    return {
+                        .status = statusFromWin32(readErrorCode(error), error, "ReadConsoleW failed for terminal input."),
+                        .outcome = ReadOutcome::Completed,
+                        .bytes = {}};
                 }
 
-                return {.status = statusFromWin32(readErrorCode(error), error, "ReadConsoleW failed for terminal input.")};
-            }
+                if (charactersRead == 0)
+                {
+                    if (state.pendingHighSurrogate != L'\0')
+                    {
+                        state.pendingHighSurrogate = L'\0';
+                        return {
+                            .status = IO::makeStatus(ErrorCode::EncodingFailed, 0, "Terminal input ended in the middle of a UTF-16 surrogate pair."),
+                            .outcome = ReadOutcome::EndOfStream,
+                            .bytes = {}};
+                    }
+                    return {.status = IO::successStatus(), .outcome = ReadOutcome::EndOfStream, .bytes = {}};
+                }
 
-            if (charactersRead == 0)
-            {
-                return {.status = IO::successStatus(), .outcome = ReadOutcome::EndOfStream};
-            }
+                std::size_t conversionCharacters = 0;
+                if (state.pendingHighSurrogate != L'\0')
+                {
+                    conversionBuffer[conversionCharacters++] = state.pendingHighSurrogate;
+                    state.pendingHighSurrogate = L'\0';
+                }
+                std::copy_n(wideBuffer.data(), charactersRead, conversionBuffer.data() + conversionCharacters);
+                conversionCharacters += charactersRead;
 
-            ReadChunk chunk;
-            chunk.status = wideToUtf8(std::wstring_view(wideBuffer.data(), charactersRead), chunk.bytes);
-            return chunk;
+                const wchar_t last = conversionBuffer[conversionCharacters - 1];
+                if (last >= 0xd800 && last <= 0xdbff)
+                {
+                    state.pendingHighSurrogate = last;
+                    --conversionCharacters;
+                }
+
+                if (conversionCharacters == 0)
+                {
+                    continue;
+                }
+
+                ReadChunk chunk;
+                chunk.status = wideToUtf8(std::wstring_view(conversionBuffer.data(), conversionCharacters), chunk.bytes);
+                if (!chunk.status.ok())
+                {
+                    state.pendingHighSurrogate = L'\0';
+                }
+                return chunk;
+            }
         }
 
         [[nodiscard]] ReadChunk readFileInputChunk(HANDLE handle, std::chrono::milliseconds timeout, std::size_t requestedBytesHint)
@@ -548,10 +851,13 @@ namespace GameWIP::Terminal::Detail::Platform
                     {
                         if (error == ERROR_BROKEN_PIPE || error == ERROR_HANDLE_EOF)
                         {
-                            return {.status = IO::successStatus(), .outcome = ReadOutcome::EndOfStream};
+                            return {.status = IO::successStatus(), .outcome = ReadOutcome::EndOfStream, .bytes = {}};
                         }
 
-                        return {.status = statusFromWin32(readErrorCode(error), error, "PeekNamedPipe failed for terminal input.")};
+                        return {
+                            .status = statusFromWin32(readErrorCode(error), error, "PeekNamedPipe failed for terminal input."),
+                            .outcome = ReadOutcome::Completed,
+                            .bytes = {}};
                     }
 
                     if (availableBytes > 0)
@@ -561,12 +867,12 @@ namespace GameWIP::Terminal::Detail::Platform
 
                     if (timeout.count() == 0)
                     {
-                        return {.status = IO::successStatus(), .outcome = ReadOutcome::WouldBlock};
+                        return {.status = IO::successStatus(), .outcome = ReadOutcome::WouldBlock, .bytes = {}};
                     }
 
                     if (std::chrono::steady_clock::now() - start >= timeout)
                     {
-                        return {.status = IO::successStatus(), .outcome = ReadOutcome::TimedOut};
+                        return {.status = IO::successStatus(), .outcome = ReadOutcome::TimedOut, .bytes = {}};
                     }
 
                     Sleep(1);
@@ -574,27 +880,38 @@ namespace GameWIP::Terminal::Detail::Platform
             }
 
             const std::size_t requestedBytes = std::clamp<std::size_t>(requestedBytesHint == 0 ? 1 : requestedBytesHint, 1, 4096);
-            std::string bytes(requestedBytes, '\0');
+            std::array<char, 4096> byteBuffer{};
 
             DWORD bytesRead = 0;
-            if (ReadFile(handle, bytes.data(), static_cast<DWORD>(bytes.size()), &bytesRead, nullptr) == FALSE)
+            if (ReadFile(handle, byteBuffer.data(), static_cast<DWORD>(requestedBytes), &bytesRead, nullptr) == FALSE)
             {
                 const DWORD error = GetLastError();
                 if (error == ERROR_BROKEN_PIPE || error == ERROR_HANDLE_EOF)
                 {
-                    return {.status = IO::successStatus(), .outcome = ReadOutcome::EndOfStream};
+                    return {.status = IO::successStatus(), .outcome = ReadOutcome::EndOfStream, .bytes = {}};
                 }
 
-                return {.status = statusFromWin32(readErrorCode(error), error, "ReadFile failed for terminal input.")};
+                return {
+                    .status = statusFromWin32(readErrorCode(error), error, "ReadFile failed for terminal input."),
+                    .outcome = ReadOutcome::Completed,
+                    .bytes = {}};
             }
 
             if (bytesRead == 0)
             {
-                return {.status = IO::successStatus(), .outcome = ReadOutcome::EndOfStream};
+                return {.status = IO::successStatus(), .outcome = ReadOutcome::EndOfStream, .bytes = {}};
             }
 
-            bytes.resize(bytesRead);
-            return {.status = IO::successStatus(), .outcome = ReadOutcome::Completed, .bytes = std::move(bytes)};
+            ReadChunk chunk;
+            try
+            {
+                chunk.bytes.assign(byteBuffer.data(), bytesRead);
+            }
+            catch (const std::bad_alloc &)
+            {
+                chunk.status = IO::makeStatus(ErrorCode::OutOfMemory);
+            }
+            return chunk;
         }
 
         [[nodiscard]] ReadChunk readInputChunk(InputStream stream, std::chrono::milliseconds timeout, std::size_t requestedBytesHint)
@@ -603,7 +920,7 @@ namespace GameWIP::Terminal::Detail::Platform
             if (std::optional<IO::Types::Status> failure =
                     consumeHookFailure(HookDetail::terminalTestHookState.nextReadFailure, "Forced terminal read failure."))
             {
-                return {.status = *failure};
+                return {.status = *failure, .outcome = ReadOutcome::Completed, .bytes = {}};
             }
 
             if (std::optional<ReadChunk> hookChunk = readHookInputChunk(stream, timeout, requestedBytesHint))
@@ -615,12 +932,23 @@ namespace GameWIP::Terminal::Detail::Platform
             const HANDLE handle = inputHandle(stream);
             if (!isUsableHandle(handle))
             {
-                return {.status = IO::makeStatus(ErrorCode::NotOpen, 0, "Terminal input stream is detached.")};
+                return {
+                    .status = IO::makeStatus(ErrorCode::NotOpen, 0, "Terminal input stream is detached."),
+                    .outcome = ReadOutcome::Completed,
+                    .bytes = {}};
             }
 
             if (isConsoleHandle(handle))
             {
-                return readConsoleInputChunk(handle, timeout, requestedBytesHint);
+                return readConsoleInputChunk(stream, handle, timeout, requestedBytesHint);
+            }
+
+            if (timeout.count() >= 0 && fileType(handle) != FILE_TYPE_PIPE)
+            {
+                return {
+                    .status = IO::makeStatus(ErrorCode::Unsupported, 0, "Finite reads are supported only for redirected Win32 pipe input."),
+                    .outcome = ReadOutcome::Completed,
+                    .bytes = {}};
             }
 
             return readFileInputChunk(handle, timeout, requestedBytesHint);
@@ -725,9 +1053,9 @@ namespace GameWIP::Terminal::Detail::Platform
             return static_cast<std::size_t>(maxBytes);
         }
 
-        [[nodiscard]] LineEndingMatch findLineEnding(std::string_view bytes, bool allowTrailingCr) noexcept
+        [[nodiscard]] LineEndingMatch findLineEnding(std::string_view bytes, std::size_t startOffset, bool allowTrailingCr) noexcept
         {
-            for (std::size_t index = 0; index < bytes.size(); ++index)
+            for (std::size_t index = std::min(startOffset, bytes.size()); index < bytes.size(); ++index)
             {
                 if (bytes[index] == '\n')
                 {
@@ -751,9 +1079,9 @@ namespace GameWIP::Terminal::Detail::Platform
             return {};
         }
 
-        [[nodiscard]] IO::Types::Status copyTruncatedUtf8Prefix(std::string &outText, std::string &pendingBytes, std::size_t maxBytes)
+        [[nodiscard]] IO::Types::Status copyTruncatedUtf8Prefix(std::string &outText, PendingInputBuffer &pendingBytes, std::size_t maxBytes)
         {
-            const Utf8Prefix prefix = utf8Prefix(pendingBytes, maxBytes);
+            const Utf8Prefix prefix = utf8Prefix(pendingBytes.view(), maxBytes);
             if (!prefix.valid)
             {
                 return IO::makeStatus(ErrorCode::EncodingFailed, 0, "Terminal input is not valid UTF-8.");
@@ -761,17 +1089,17 @@ namespace GameWIP::Terminal::Detail::Platform
 
             if (prefix.bytes == 0 && prefix.stoppedByMax)
             {
-                return IO::makeStatus(ErrorCode::SizeLimitExceeded, 0, "Terminal read maxBytes is too small for the next UTF-8 code point.");
+                return IO::makeStatus(ErrorCode::SizeLimitExceeded, 0, "Terminal read maxReturnedBytes is too small for the next UTF-8 code point.");
             }
 
             outText.assign(pendingBytes.data(), prefix.bytes);
-            pendingBytes.erase(0, prefix.bytes);
+            pendingBytes.consume(prefix.bytes);
             return IO::successStatus();
         }
 
         void completeLineFromPending(
             Terminal::Types::LineReadResult &result,
-            std::string &pendingBytes,
+            PendingInputBuffer &pendingBytes,
             const LineEndingMatch &ending,
             Terminal::Types::ReadLineEndingMode lineEndingMode,
             std::size_t maxBytes)
@@ -808,7 +1136,7 @@ namespace GameWIP::Terminal::Detail::Platform
                     return;
                 }
 
-                pendingBytes.erase(0, ending.offset + ending.length);
+                pendingBytes.consume(ending.offset + ending.length);
                 result.status = IO::successStatus();
                 result.line = std::move(line);
                 result.consumedLineEnding = ending.ending;
@@ -837,7 +1165,7 @@ namespace GameWIP::Terminal::Detail::Platform
                 return;
             }
 
-            pendingBytes.erase(0, ending.offset + ending.length);
+            pendingBytes.consume(ending.offset + ending.length);
             result.status = IO::successStatus();
             result.line = std::move(line);
             result.consumedLineEnding = ending.ending;
@@ -849,9 +1177,9 @@ namespace GameWIP::Terminal::Detail::Platform
         return "\r\n";
     }
 
-    Terminal::Types::InputCapabilityResult getInputCapabilities(InputStream stream)
+    Terminal::Types::InputCapabilitiesResult getInputCapabilities(InputStream stream)
     {
-        Terminal::Types::InputCapabilityResult result;
+        Terminal::Types::InputCapabilitiesResult result;
         result.status = IO::successStatus();
 
 #if INTERNAL_TERMINAL_TEST_HOOKS
@@ -884,22 +1212,26 @@ namespace GameWIP::Terminal::Detail::Platform
         result.capabilities.supportsUtf8Text = true;
         result.capabilities.supportsByteInput = true;
         result.capabilities.supportsLineInput = true;
-        result.capabilities.supportsInputAvailability = true;
 
         if (result.capabilities.kind == StreamKind::Terminal)
         {
             result.capabilities.supportsRawInput = true;
             result.capabilities.supportsEchoControl = true;
             result.capabilities.supportsInputMode = true;
-            result.capabilities.supportsReadTimeout = true;
+            result.capabilities.supportsInputAvailability = true;
+            result.capabilities.supportsReadTimeout = false;
+            return result;
         }
 
+        const DWORD type = fileType(handle);
+        result.capabilities.supportsInputAvailability = type == FILE_TYPE_PIPE || type == FILE_TYPE_DISK;
+        result.capabilities.supportsReadTimeout = type == FILE_TYPE_PIPE;
         return result;
     }
 
-    Terminal::Types::OutputCapabilityResult getOutputCapabilities(OutputStream stream)
+    Terminal::Types::OutputCapabilitiesResult getOutputCapabilities(OutputStream stream)
     {
-        Terminal::Types::OutputCapabilityResult result;
+        Terminal::Types::OutputCapabilitiesResult result;
         result.status = IO::successStatus();
 
 #if INTERNAL_TERMINAL_TEST_HOOKS
@@ -954,7 +1286,7 @@ namespace GameWIP::Terminal::Detail::Platform
         return result;
     }
 
-    Terminal::Types::OutputCapabilityResult prepareOutput(OutputStream stream)
+    Terminal::Types::OutputCapabilitiesResult prepareOutput(OutputStream stream)
     {
 #if INTERNAL_TERMINAL_TEST_HOOKS
         {
@@ -982,13 +1314,12 @@ namespace GameWIP::Terminal::Detail::Platform
                 state.prepared = true;
                 return {
                     .status = IO::successStatus(),
-                    .capabilities =
-                        state.preparedCapabilitiesOverrideEnabled ? state.preparedCapabilitiesOverride : state.capabilitiesOverride};
+                    .capabilities = state.preparedCapabilitiesOverrideEnabled ? state.preparedCapabilitiesOverride : state.capabilitiesOverride};
             }
         }
 #endif
 
-        Terminal::Types::OutputCapabilityResult result = getOutputCapabilities(stream);
+        Terminal::Types::OutputCapabilitiesResult result = getOutputCapabilities(stream);
         if (!result.status.ok())
         {
             return result;
@@ -1019,6 +1350,42 @@ namespace GameWIP::Terminal::Detail::Platform
         }
 
         return getOutputCapabilities(stream);
+    }
+
+    IO::Types::Status validateCursorMovement([[maybe_unused]] OutputStream stream, std::uint32_t amount)
+    {
+        if (amount > kMaxVtParameter)
+        {
+            return IO::makeStatus(ErrorCode::InvalidArgument, 0, "Terminal cursor movement exceeds the Win32 VT parameter limit.");
+        }
+        return IO::successStatus();
+    }
+
+    IO::Types::Status validateCursorPosition([[maybe_unused]] OutputStream stream, Terminal::Types::CursorPosition position)
+    {
+        if (position.row >= kMaxVtParameter || position.column >= kMaxVtParameter)
+        {
+            return IO::makeStatus(ErrorCode::InvalidArgument, 0, "Terminal cursor position exceeds the Win32 VT coordinate limit.");
+        }
+        return IO::successStatus();
+    }
+
+    IO::Types::Status validateScroll([[maybe_unused]] OutputStream stream, std::uint32_t lines)
+    {
+        if (lines > kMaxVtParameter)
+        {
+            return IO::makeStatus(ErrorCode::InvalidArgument, 0, "Terminal scroll amount exceeds the Win32 VT parameter limit.");
+        }
+        return IO::successStatus();
+    }
+
+    IO::Types::Status validateTitle([[maybe_unused]] OutputStream stream, std::string_view utf8Title)
+    {
+        if (utf8Title.size() > kMaxVtTitleBytes)
+        {
+            return IO::makeStatus(ErrorCode::InvalidArgument, 0, "Terminal title exceeds the Win32 VT title limit.");
+        }
+        return IO::successStatus();
     }
 
     Terminal::Types::InputAvailabilityResult getInputAvailability(InputStream stream)
@@ -1063,16 +1430,7 @@ namespace GameWIP::Terminal::Detail::Platform
 
         if (isConsoleHandle(handle))
         {
-            DWORD events = 0;
-            if (GetNumberOfConsoleInputEvents(handle, &events) == FALSE)
-            {
-                const DWORD error = GetLastError();
-                result.status = statusFromWin32(ErrorCode::StatFailed, error, "GetNumberOfConsoleInputEvents failed for terminal input.");
-                return result;
-            }
-
-            result.available = events > 0;
-            return result;
+            return consoleInputAvailability(handle);
         }
 
         const DWORD type = fileType(handle);
@@ -1097,13 +1455,24 @@ namespace GameWIP::Terminal::Detail::Platform
             return result;
         }
 
-        result.available = true;
+        if (type == FILE_TYPE_DISK)
+        {
+            return diskInputAvailability(handle);
+        }
+
+        result.status = IO::makeStatus(ErrorCode::Unsupported, 0, "Input availability is unsupported for this Win32 input stream type.");
         return result;
     }
 
     Terminal::Types::InputModeResult getInputMode(InputStream stream)
     {
-        Terminal::Types::InputModeResult result;
+        const InputModeSnapshotResult snapshotResult = captureInputMode(stream);
+        return {.status = snapshotResult.status, .mode = snapshotResult.snapshot.mode};
+    }
+
+    InputModeSnapshotResult captureInputMode(InputStream stream)
+    {
+        InputModeSnapshotResult result;
 
 #if INTERNAL_TERMINAL_TEST_HOOKS
         if (std::optional<IO::Types::Status> failure =
@@ -1119,7 +1488,7 @@ namespace GameWIP::Terminal::Detail::Platform
             if (state.inputModeOverrideEnabled)
             {
                 result.status = IO::successStatus();
-                result.mode = state.currentInputMode;
+                result.snapshot.mode = state.currentInputMode;
                 return result;
             }
         }
@@ -1155,12 +1524,19 @@ namespace GameWIP::Terminal::Detail::Platform
         }
 
         result.status = IO::successStatus();
-        result.mode = inputModeFromConsoleMode(mode);
+        result.snapshot.mode = inputModeFromConsoleMode(mode);
+        result.snapshot.nativeMode = mode;
+        result.snapshot.hasNativeMode = true;
         return result;
     }
 
     IO::Types::Status setInputMode(InputStream stream, const Terminal::Types::InputMode &mode)
     {
+        if (mode.echoInput && !mode.lineBuffered)
+        {
+            return IO::makeStatus(ErrorCode::InvalidArgument, 0, "Win32 console echo input requires line-buffered input.");
+        }
+
 #if INTERNAL_TERMINAL_TEST_HOOKS
         if (std::optional<IO::Types::Status> failure =
                 consumeHookFailure(HookDetail::terminalTestHookState.nextInputModeFailure, "Forced terminal input mode failure."))
@@ -1188,11 +1564,6 @@ namespace GameWIP::Terminal::Detail::Platform
         if (!isConsoleHandle(handle))
         {
             return IO::makeStatus(ErrorCode::Unsupported, 0, "Terminal input mode is available only for real console input streams.");
-        }
-
-        if (mode.echoInput && !mode.lineBuffered)
-        {
-            return IO::makeStatus(ErrorCode::InvalidArgument, 0, "Win32 console echo input requires line-buffered input.");
         }
 
         IO::Types::Status status = captureDefaultInputMode(stream, handle);
@@ -1230,10 +1601,9 @@ namespace GameWIP::Terminal::Detail::Platform
             const DWORD firstError = GetLastError();
             if (!mode.lineBuffered && (consoleMode & ENABLE_VIRTUAL_TERMINAL_INPUT) != 0)
             {
-                const DWORD modeWithoutVirtualTerminalInput = consoleMode & ~ENABLE_VIRTUAL_TERMINAL_INPUT;
+                const DWORD modeWithoutVirtualTerminalInput = consoleMode & ~static_cast<DWORD>(ENABLE_VIRTUAL_TERMINAL_INPUT);
                 if (SetConsoleMode(handle, modeWithoutVirtualTerminalInput) != FALSE)
                 {
-                    inputState(stream).pendingBytes.clear();
                     return IO::successStatus();
                 }
             }
@@ -1241,7 +1611,51 @@ namespace GameWIP::Terminal::Detail::Platform
             return statusFromWin32(ErrorCode::NativeFailure, firstError, "SetConsoleMode failed for terminal input mode.");
         }
 
-        inputState(stream).pendingBytes.clear();
+        return IO::successStatus();
+    }
+
+    IO::Types::Status restoreInputMode(InputStream stream, const InputModeSnapshot &snapshot)
+    {
+#if INTERNAL_TERMINAL_TEST_HOOKS
+        if (std::optional<IO::Types::Status> failure =
+                consumeHookFailure(HookDetail::terminalTestHookState.nextInputModeFailure, "Forced terminal input mode failure."))
+        {
+            return *failure;
+        }
+
+        {
+            std::lock_guard lock(HookDetail::terminalTestHookState.mutex);
+            HookDetail::InputHookState &state = HookDetail::terminalTestHookState.inputStreams[HookDetail::inputIndex(stream)];
+            if (state.inputModeOverrideEnabled)
+            {
+                state.currentInputMode = snapshot.mode;
+                return IO::successStatus();
+            }
+        }
+#endif
+
+        const HANDLE handle = inputHandle(stream);
+        if (!isUsableHandle(handle))
+        {
+            return IO::makeStatus(ErrorCode::NotOpen, 0, "Terminal input stream is detached.");
+        }
+
+        if (!isConsoleHandle(handle))
+        {
+            return IO::makeStatus(ErrorCode::Unsupported, 0, "Terminal input mode is available only for real console input streams.");
+        }
+
+        if (!snapshot.hasNativeMode || snapshot.nativeMode > std::numeric_limits<DWORD>::max())
+        {
+            return setInputMode(stream, snapshot.mode);
+        }
+
+        if (SetConsoleMode(handle, static_cast<DWORD>(snapshot.nativeMode)) == FALSE)
+        {
+            const DWORD error = GetLastError();
+            return statusFromWin32(ErrorCode::NativeFailure, error, "SetConsoleMode failed while restoring a scoped terminal input mode.");
+        }
+
         return IO::successStatus();
     }
 
@@ -1288,7 +1702,6 @@ namespace GameWIP::Terminal::Detail::Platform
             return statusFromWin32(ErrorCode::NativeFailure, error, "SetConsoleMode failed while restoring terminal input mode.");
         }
 
-        inputState(stream).pendingBytes.clear();
         return IO::successStatus();
     }
 
@@ -1344,7 +1757,10 @@ namespace GameWIP::Terminal::Detail::Platform
         return result;
     }
 
-    Terminal::Types::CursorPositionResult getCursorPosition(OutputStream stream)
+    Terminal::Types::CursorPositionResult getCursorPosition(
+        OutputStream stream,
+        [[maybe_unused]] InputStream responseStream,
+        [[maybe_unused]] const Terminal::Types::CursorPositionQueryOptions &options)
     {
         Terminal::Types::CursorPositionResult result;
 
@@ -1418,7 +1834,7 @@ namespace GameWIP::Terminal::Detail::Platform
             {
                 const std::size_t copied = std::min(outputBuffer.size() - result.bytesRead, state.pendingBytes.size());
                 std::memcpy(outputBuffer.data() + result.bytesRead, state.pendingBytes.data(), copied);
-                state.pendingBytes.erase(0, copied);
+                state.pendingBytes.consume(copied);
                 result.bytesRead += copied;
 
                 if (options.allowPartial || result.bytesRead == outputBuffer.size())
@@ -1459,13 +1875,13 @@ namespace GameWIP::Terminal::Detail::Platform
         Terminal::Types::TextReadResult result;
         result.status = IO::successStatus();
 
-        if (options.maxBytes == 0)
+        if (options.maxReturnedBytes == 0)
         {
-            result.status = IO::makeStatus(ErrorCode::InvalidArgument, 0, "Terminal text read maxBytes must be greater than zero.");
+            result.status = IO::makeStatus(ErrorCode::InvalidArgument, 0, "Terminal text read maxReturnedBytes must be greater than zero.");
             return result;
         }
 
-        const std::size_t maxBytes = clampedMaxBytes(options.maxBytes);
+        const std::size_t maxBytes = clampedMaxBytes(options.maxReturnedBytes);
         InputState &state = inputState(stream);
         const auto start = std::chrono::steady_clock::now();
 
@@ -1473,7 +1889,7 @@ namespace GameWIP::Terminal::Detail::Platform
         {
             if (!state.pendingBytes.empty())
             {
-                const Utf8Prefix prefix = utf8Prefix(state.pendingBytes, maxBytes);
+                const Utf8Prefix prefix = utf8Prefix(state.pendingBytes.view(), maxBytes);
                 if (!prefix.valid)
                 {
                     result.status = IO::makeStatus(ErrorCode::EncodingFailed, 0, "Terminal input is not valid UTF-8.");
@@ -1483,15 +1899,17 @@ namespace GameWIP::Terminal::Detail::Platform
                 if (prefix.bytes > 0)
                 {
                     result.text.assign(state.pendingBytes.data(), prefix.bytes);
-                    state.pendingBytes.erase(0, prefix.bytes);
+                    state.pendingBytes.consume(prefix.bytes);
                     result.wasTruncated = prefix.stoppedByMax;
                     return result;
                 }
 
                 if (prefix.stoppedByMax)
                 {
-                    result.status =
-                        IO::makeStatus(ErrorCode::SizeLimitExceeded, 0, "Terminal text read maxBytes is too small for the next UTF-8 code point.");
+                    result.status = IO::makeStatus(
+                        ErrorCode::SizeLimitExceeded,
+                        0,
+                        "Terminal text read maxReturnedBytes is too small for the next UTF-8 code point.");
                     return result;
                 }
             }
@@ -1534,19 +1952,21 @@ namespace GameWIP::Terminal::Detail::Platform
         Terminal::Types::LineReadResult result;
         result.status = IO::successStatus();
 
-        if (options.maxBytes == 0)
+        if (options.maxReturnedBytes == 0)
         {
-            result.status = IO::makeStatus(ErrorCode::InvalidArgument, 0, "Terminal line read maxBytes must be greater than zero.");
+            result.status = IO::makeStatus(ErrorCode::InvalidArgument, 0, "Terminal line read maxReturnedBytes must be greater than zero.");
             return result;
         }
 
-        const std::size_t maxBytes = clampedMaxBytes(options.maxBytes);
+        const std::size_t maxBytes = clampedMaxBytes(options.maxReturnedBytes);
         InputState &state = inputState(stream);
         const auto start = std::chrono::steady_clock::now();
+        std::size_t scanOffset = 0;
 
         while (true)
         {
-            LineEndingMatch ending = findLineEnding(state.pendingBytes, false);
+            const std::string_view pending = state.pendingBytes.view();
+            LineEndingMatch ending = findLineEnding(pending, scanOffset, false);
             if (ending.found)
             {
                 completeLineFromPending(result, state.pendingBytes, ending, options.lineEndingMode, maxBytes);
@@ -1560,10 +1980,12 @@ namespace GameWIP::Terminal::Detail::Platform
                 return result;
             }
 
+            scanOffset = !pending.empty() && pending.back() == '\r' ? pending.size() - 1 : pending.size();
+
             const std::chrono::milliseconds timeout = remainingTimeout(start, options.timeout);
             if (options.timeout.count() > 0 && timeout.count() == 0)
             {
-                ending = findLineEnding(state.pendingBytes, true);
+                ending = findLineEnding(state.pendingBytes.view(), scanOffset, true);
                 if (ending.found)
                 {
                     completeLineFromPending(result, state.pendingBytes, ending, options.lineEndingMode, maxBytes);
@@ -1572,14 +1994,13 @@ namespace GameWIP::Terminal::Detail::Platform
 
                 if (!state.pendingBytes.empty())
                 {
-                    if (!validUtf8(state.pendingBytes))
+                    if (!validUtf8(state.pendingBytes.view()))
                     {
                         result.status = IO::makeStatus(ErrorCode::EncodingFailed, 0, "Terminal line input is not valid UTF-8.");
                     }
                     else
                     {
-                        result.line = std::move(state.pendingBytes);
-                        state.pendingBytes.clear();
+                        result.line = state.pendingBytes.take();
                     }
                 }
 
@@ -1597,7 +2018,7 @@ namespace GameWIP::Terminal::Detail::Platform
 
             if (chunk.bytes.empty())
             {
-                ending = findLineEnding(state.pendingBytes, true);
+                ending = findLineEnding(state.pendingBytes.view(), scanOffset, true);
                 if (ending.found)
                 {
                     completeLineFromPending(result, state.pendingBytes, ending, options.lineEndingMode, maxBytes);
@@ -1606,15 +2027,14 @@ namespace GameWIP::Terminal::Detail::Platform
 
                 if (!state.pendingBytes.empty())
                 {
-                    if (!validUtf8(state.pendingBytes))
+                    if (!validUtf8(state.pendingBytes.view()))
                     {
                         result.status = IO::makeStatus(ErrorCode::EncodingFailed, 0, "Terminal line input is not valid UTF-8.");
                         result.outcome = chunk.outcome;
                         return result;
                     }
 
-                    result.line = std::move(state.pendingBytes);
-                    state.pendingBytes.clear();
+                    result.line = state.pendingBytes.take();
                 }
 
                 result.outcome = chunk.outcome;
@@ -1712,6 +2132,10 @@ namespace GameWIP::Terminal::Detail::Platform
 
     IO::Types::Status flush(OutputStream stream, IO::Types::FlushMode mode)
     {
+        if (!IO::isValidFlushMode(mode))
+        {
+            return IO::makeStatus(ErrorCode::InvalidArgument, 0, "Unknown IO flush mode.");
+        }
         if (mode == IO::Types::FlushMode::None)
         {
             return IO::successStatus();
@@ -1738,6 +2162,20 @@ namespace GameWIP::Terminal::Detail::Platform
         if (!isUsableHandle(handle))
         {
             return IO::makeStatus(ErrorCode::NotOpen, 0, "Terminal output stream is detached.");
+        }
+
+        if (isConsoleHandle(handle) || fileType(handle) != FILE_TYPE_DISK)
+        {
+            return IO::successStatus();
+        }
+
+        if (FlushFileBuffers(handle) == FALSE)
+        {
+            const DWORD error = GetLastError();
+            return statusFromWin32(
+                error == ERROR_ACCESS_DENIED ? ErrorCode::PermissionDenied : ErrorCode::FlushFailed,
+                error,
+                "FlushFileBuffers failed for redirected terminal output.");
         }
 
         return IO::successStatus();

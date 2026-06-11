@@ -295,14 +295,12 @@ namespace GameWIP::Debug::Assert::Detail
         functionText, \
         alwaysIgnoreFlag)
 
-#define INTERNAL_ASSERT_ASSERT_FAILURE(condition, message) \
-    INTERNAL_ASSERT_ASSERT_FAILURE_AT(condition, message, INTERNAL_ASSERT_FUNCTION_TEXT)
+#define INTERNAL_ASSERT_ASSERT_FAILURE(condition, message) INTERNAL_ASSERT_ASSERT_FAILURE_AT(condition, message, INTERNAL_ASSERT_FUNCTION_TEXT)
 
 #define INTERNAL_ASSERT_INTERACTIVE_ASSERT_FAILURE(condition, message, alwaysIgnoreFlag) \
     INTERNAL_ASSERT_INTERACTIVE_ASSERT_FAILURE_AT(condition, message, INTERNAL_ASSERT_FUNCTION_TEXT, alwaysIgnoreFlag)
 
-#define INTERNAL_ASSERT_CHECK_FAILURE(condition, message) \
-    INTERNAL_ASSERT_CHECK_FAILURE_AT(condition, message, INTERNAL_ASSERT_FUNCTION_TEXT)
+#define INTERNAL_ASSERT_CHECK_FAILURE(condition, message) INTERNAL_ASSERT_CHECK_FAILURE_AT(condition, message, INTERNAL_ASSERT_FUNCTION_TEXT)
 /// @endcond
 
 //-------------------------------------------------------------------------------------------------

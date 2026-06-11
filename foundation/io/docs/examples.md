@@ -4,7 +4,7 @@
 
 ```cpp
 GameWIP::IO::MemoryWriter writer;
-GameWIP::IO::Types::Status status = GameWIP::IO::writeAllText(writer, "hello");
+GameWIP::IO::Types::WriteResult result = GameWIP::IO::writeAllText(writer, "hello");
 
 if (status.ok()) {
     std::string text = writer.text();

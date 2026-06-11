@@ -9,15 +9,13 @@ namespace GameWIP::Action
         binding.action = action;
     }
 
-    template <typename ActionEnum>
-    ActionBindingBuilder<ActionEnum> &ActionBindingBuilder<ActionEnum>::on(Input::InputControl primaryControl)
+    template <typename ActionEnum> ActionBindingBuilder<ActionEnum> &ActionBindingBuilder<ActionEnum>::on(Input::InputControl primaryControl)
     {
         binding.combo.primaryControl = primaryControl;
         return *this;
     }
 
-    template <typename ActionEnum>
-    ActionBindingBuilder<ActionEnum> &ActionBindingBuilder<ActionEnum>::withModifier(Input::InputControl modifier)
+    template <typename ActionEnum> ActionBindingBuilder<ActionEnum> &ActionBindingBuilder<ActionEnum>::withModifier(Input::InputControl modifier)
     {
         binding.combo.modifiers.push_back(modifier);
         return *this;
@@ -34,78 +32,66 @@ namespace GameWIP::Action
         return *this;
     }
 
-    template <typename ActionEnum>
-    ActionBindingBuilder<ActionEnum> &ActionBindingBuilder<ActionEnum>::primaryLast()
+    template <typename ActionEnum> ActionBindingBuilder<ActionEnum> &ActionBindingBuilder<ActionEnum>::primaryLast()
     {
         binding.combo.activationMode = ComboActivationMode::PrimaryLast;
         return *this;
     }
 
-    template <typename ActionEnum>
-    ActionBindingBuilder<ActionEnum> &ActionBindingBuilder<ActionEnum>::anyOrder()
+    template <typename ActionEnum> ActionBindingBuilder<ActionEnum> &ActionBindingBuilder<ActionEnum>::anyOrder()
     {
         binding.combo.activationMode = ComboActivationMode::AnyOrder;
         return *this;
     }
 
-    template <typename ActionEnum>
-    ActionBindingBuilder<ActionEnum> &ActionBindingBuilder<ActionEnum>::withSettings(const ActionSettings &settings)
+    template <typename ActionEnum> ActionBindingBuilder<ActionEnum> &ActionBindingBuilder<ActionEnum>::withSettings(const ActionSettings &settings)
     {
         binding.settings = settings;
         binding.hasCustomSettings = true;
         return *this;
     }
 
-    template <typename ActionEnum>
-    ActionResult ActionBindingBuilder<ActionEnum>::pressed()
+    template <typename ActionEnum> ActionResult ActionBindingBuilder<ActionEnum>::pressed()
     {
         return add(ActionTrigger::Pressed, ActionComponent::Scalar, 1.0f, 0.0f, 0.0f, 0.0f);
     }
 
-    template <typename ActionEnum>
-    ActionResult ActionBindingBuilder<ActionEnum>::released()
+    template <typename ActionEnum> ActionResult ActionBindingBuilder<ActionEnum>::released()
     {
         return add(ActionTrigger::Released, ActionComponent::Scalar, 1.0f, 0.0f, 0.0f, 0.0f);
     }
 
-    template <typename ActionEnum>
-    ActionResult ActionBindingBuilder<ActionEnum>::down()
+    template <typename ActionEnum> ActionResult ActionBindingBuilder<ActionEnum>::down()
     {
         return add(ActionTrigger::Down, ActionComponent::Scalar, 1.0f, 0.0f, 0.0f, 0.0f);
     }
 
-    template <typename ActionEnum>
-    ActionResult ActionBindingBuilder<ActionEnum>::tap()
+    template <typename ActionEnum> ActionResult ActionBindingBuilder<ActionEnum>::tap()
     {
         return add(ActionTrigger::Tap, ActionComponent::Scalar, 1.0f, 0.0f, 0.0f, 0.0f);
     }
 
-    template <typename ActionEnum>
-    ActionResult ActionBindingBuilder<ActionEnum>::hold(float seconds)
+    template <typename ActionEnum> ActionResult ActionBindingBuilder<ActionEnum>::hold(float seconds)
     {
         return add(ActionTrigger::Hold, ActionComponent::Scalar, 1.0f, 0.0f, seconds, 0.0f);
     }
 
-    template <typename ActionEnum>
-    ActionResult ActionBindingBuilder<ActionEnum>::doubleTap(float seconds)
+    template <typename ActionEnum> ActionResult ActionBindingBuilder<ActionEnum>::doubleTap(float seconds)
     {
         return add(ActionTrigger::DoubleTap, ActionComponent::Scalar, 1.0f, 0.0f, 0.0f, seconds);
     }
 
-    template <typename ActionEnum>
-    ActionResult ActionBindingBuilder<ActionEnum>::value(ActionComponent component, float scale, float threshold)
+    template <typename ActionEnum> ActionResult ActionBindingBuilder<ActionEnum>::value(ActionComponent component, float scale, float threshold)
     {
         return add(ActionTrigger::Value, component, scale, threshold, 0.0f, 0.0f);
     }
 
-    template <typename ActionEnum>
-    ActionResult ActionBindingBuilder<ActionEnum>::axis1D(float scale, float threshold)
+    template <typename ActionEnum> ActionResult ActionBindingBuilder<ActionEnum>::axis1D(float scale, float threshold)
     {
         return value(ActionComponent::Scalar, scale, threshold);
     }
 
-    template <typename ActionEnum>
-    ActionResult ActionBindingBuilder<ActionEnum>::axis2D(ActionComponent component, float scale, float threshold)
+    template <typename ActionEnum> ActionResult ActionBindingBuilder<ActionEnum>::axis2D(ActionComponent component, float scale, float threshold)
     {
         if (component == ActionComponent::Scalar)
         {
@@ -116,7 +102,13 @@ namespace GameWIP::Action
     }
 
     template <typename ActionEnum>
-    ActionResult ActionBindingBuilder<ActionEnum>::add(ActionTrigger trigger, ActionComponent component, float scale, float threshold, float holdSeconds, float doubleTapSeconds)
+    ActionResult ActionBindingBuilder<ActionEnum>::add(
+        ActionTrigger trigger,
+        ActionComponent component,
+        float scale,
+        float threshold,
+        float holdSeconds,
+        float doubleTapSeconds)
     {
         binding.gesture.trigger = trigger;
         binding.gesture.holdSeconds = holdSeconds;
@@ -127,4 +119,4 @@ namespace GameWIP::Action
 
         return actionMap.addBinding(binding);
     }
-}
+} // namespace GameWIP::Action

@@ -121,6 +121,15 @@ if(BUILD_LIBRARY_DOCS)
         "${LIBRARY_DOXYGEN_ROOT}/testing.md"
         "${LIBRARY_DOXYGEN_ROOT}/doxygen_notes.md"
     )
+
+    library_register_doxygen_library(
+        NAME FileSystem
+        PAGE_ID foundation_filesystem
+        PUBLIC_HEADERS
+            "${CMAKE_CURRENT_SOURCE_DIR}/foundation/filesystem/filesystem.h"
+        DOCS
+            "${CMAKE_CURRENT_SOURCE_DIR}/foundation/filesystem/docs"
+    )
 endif()
 
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/LibraryPlatform.cmake")
@@ -133,6 +142,7 @@ add_subdirectory(external/tracy)
 
 add_subdirectory(foundation/io)
 add_subdirectory(foundation/terminal)
+add_subdirectory(foundation/filesystem)
 
 add_subdirectory(tools/logger)
 
@@ -159,6 +169,7 @@ endif()
 
 add_executable(GameWIP
     game/main.cpp
+    game/test/filesystem_api_contract_test.cpp
     game/test/io_test.cpp
     game/test/terminal_test.cpp
     game/test/test_support_test.cpp
@@ -175,6 +186,7 @@ endif()
 
 target_link_libraries(GameWIP PRIVATE
     IO
+    FileSystem
     Terminal
     TestSupport
     Logger

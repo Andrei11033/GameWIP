@@ -325,11 +325,7 @@ namespace GameWIP::TestSupport
 
         JOBOBJECT_EXTENDED_LIMIT_INFORMATION jobLimits{};
         jobLimits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
-        if (SetInformationJobObject(
-                jobHandle.get(),
-                JobObjectExtendedLimitInformation,
-                &jobLimits,
-                static_cast<DWORD>(sizeof(jobLimits))) == FALSE)
+        if (SetInformationJobObject(jobHandle.get(), JobObjectExtendedLimitInformation, &jobLimits, static_cast<DWORD>(sizeof(jobLimits))) == FALSE)
         {
             result.exitCode = -1;
             return result;

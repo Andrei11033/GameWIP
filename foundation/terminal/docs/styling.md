@@ -1,6 +1,6 @@
 @page terminal_styling Terminal styling
 
-Styling is emitted for streams whose capabilities report support. On unsupported streams, `StyleMode::Auto` writes plain text and `StyleMode::Always` reports `IO::Types::ErrorCode::Unsupported`.
+Styling is emitted for streams whose capabilities report support. On unsupported streams, `StyleMode::Auto` writes plain text and `StyleMode::Required` reports `IO::Types::ErrorCode::Unsupported`.
 
 ## Text style
 
@@ -33,9 +33,9 @@ Styling for one text or line call belongs in the operation options, not in a sep
 
 `StyleMode::Never` writes plain text and should avoid style overhead.
 
-`StyleMode::Auto` prepares the output stream when styling is not already active. If preparation or style support is unavailable, the call writes plain text.
+`StyleMode::Auto` prepares a terminal output stream when styling is not already active. Redirected streams require no preparation and fall back directly to plain text when they do not advertise the requested style. If preparation or style support is unavailable, the call writes plain text.
 
-`StyleMode::Always` prepares the stream when needed. A preparation failure or unsupported style is returned without writing.
+`StyleMode::Required` prepares the stream when needed. A preparation failure or unsupported style is returned without writing.
 
 ## Style reset
 

@@ -2,7 +2,7 @@
 
 Include `terminal/terminal.h` and link `Terminal`.
 
-Passive options, capabilities, and result shapes live in `GameWIP::Terminal::Types`. Free functions provide direct stdin/stdout/stderr access; `Reader` and `Writer` store default streams for repeated operations.
+Passive options, capabilities, and result shapes live in `GameWIP::Terminal::Types`. Free functions provide direct stdin/stdout/stderr access through paired default-stream and explicit-stream overloads.
 
 ## Output selection
 
@@ -10,12 +10,12 @@ Use plain text writes for allocation-free unstyled output, formatted writes for 
 
 `getOutputCapabilities()` observes current support without changing terminal state. `prepareOutput()` enables platform features required by styles and controls; those operations also prepare lazily when needed.
 
-Terminal serializes each operation per output stream. It cannot coordinate with unrelated output APIs.
+Terminal serializes each operation per standard stream. Calls through this API are thread-safe at that boundary, but multi-call workflows are not transactions and Terminal cannot coordinate with unrelated output APIs.
 
 ## State management
 
-Input mode, alternate screen, and cursor visibility have RAII scopes for temporary state changes. The scopes track setup and restoration status but do not create a global Terminal lifecycle.
+Input mode, alternate screen, and cursor visibility have RAII scopes for temporary state changes. Input-mode scopes restore the complete backend mode captured before setup. Cursor-hidden and alternate-screen scopes are nesting-safe per output stream. The scopes track setup and restoration status but do not create a global Terminal lifecycle.
 
-Expected detached, unsupported, timeout, and encoding failures use IO status/result types. Formatting errors retain normal `std::format` exception behavior.
+Expected detached, unsupported, timeout, invalid-option, and encoding failures use IO status/result types. Formatting errors and an invalid `OutputBuffer` constructor argument retain normal C++ exception behavior.
 
 The focused contracts are documented in @ref terminal_read_write, @ref terminal_styling, @ref terminal_segmented_writes, @ref terminal_capabilities_and_redirection, @ref terminal_input_modes, and @ref terminal_control_primitives.

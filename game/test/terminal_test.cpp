@@ -20,8 +20,10 @@
 #include <cstdint>
 #include <format>
 #include <span>
+#include <stdexcept>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <vector>
 
 namespace
@@ -32,6 +34,23 @@ namespace
 
     using ErrorCode = IO::Types::ErrorCode;
     using TerminalTestOptions = GameWIP::Test::TerminalTestOptions;
+
+    static_assert(!std::is_aggregate_v<Terminal::Types::Color>);
+    static_assert(!std::is_aggregate_v<Terminal::Types::WriteSegment>);
+
+    template <typename Text>
+    concept CanCreateTextSegment = requires(Text &&text) { Terminal::textSegment(std::forward<Text>(text)); };
+
+    template <typename Text>
+    concept CanCreateStyledTextSegment =
+        requires(Text &&text, const Terminal::Types::TextStyle &style) { Terminal::styledTextSegment(std::forward<Text>(text), style); };
+
+    template <typename Bytes>
+    concept CanCreateByteSegment = requires(Bytes &&bytes) { Terminal::byteSegment(std::forward<Bytes>(bytes)); };
+
+    static_assert(!CanCreateTextSegment<std::string>);
+    static_assert(!CanCreateStyledTextSegment<std::string>);
+    static_assert(!CanCreateByteSegment<std::vector<std::byte>>);
 
     [[nodiscard]] std::span<const std::byte> bytesOf(std::string_view text)
     {
@@ -47,17 +66,20 @@ namespace
     void testPassiveHelpers(TestSupport::Context &context)
     {
         const Terminal::Types::Color defaultColor = Terminal::defaultColor();
-        static_cast<void>(context.expectEq("defaultColor kind", Terminal::Types::ColorKind::Default, defaultColor.kind));
+        static_cast<void>(context.expectEq("defaultColor kind", Terminal::Types::ColorKind::Default, defaultColor.kind()));
 
         const Terminal::Types::Color basic = Terminal::basicColor(Terminal::Types::BasicColor::BrightCyan);
-        static_cast<void>(context.expectEq("basicColor kind", Terminal::Types::ColorKind::Basic, basic.kind));
-        static_cast<void>(context.expectEq("basicColor value", Terminal::Types::BasicColor::BrightCyan, basic.basic));
+        static_cast<void>(context.expectEq("basicColor kind", Terminal::Types::ColorKind::Basic, basic.kind()));
+        static_cast<void>(context.expectEq("basicColor value", Terminal::Types::BasicColor::BrightCyan, basic.basic()));
+
+        const Terminal::Types::Color invalidBasic = Terminal::basicColor(static_cast<Terminal::Types::BasicColor>(-1));
+        static_cast<void>(context.expectEq("invalid basicColor falls back to default", Terminal::Types::ColorKind::Default, invalidBasic.kind()));
 
         const Terminal::Types::Color rgb = Terminal::rgbColor(1, 2, 3);
-        static_cast<void>(context.expectEq("rgbColor kind", Terminal::Types::ColorKind::Rgb, rgb.kind));
-        static_cast<void>(context.expectEq("rgbColor red", std::uint8_t{1}, rgb.red));
-        static_cast<void>(context.expectEq("rgbColor green", std::uint8_t{2}, rgb.green));
-        static_cast<void>(context.expectEq("rgbColor blue", std::uint8_t{3}, rgb.blue));
+        static_cast<void>(context.expectEq("rgbColor kind", Terminal::Types::ColorKind::Rgb, rgb.kind()));
+        static_cast<void>(context.expectEq("rgbColor red", std::uint8_t{1}, rgb.red()));
+        static_cast<void>(context.expectEq("rgbColor green", std::uint8_t{2}, rgb.green()));
+        static_cast<void>(context.expectEq("rgbColor blue", std::uint8_t{3}, rgb.blue()));
 
         const Terminal::Types::InputMode interactive = Terminal::makeInputMode(Terminal::Types::InputModePreset::InteractiveLine);
         static_cast<void>(context.expectTrue("interactive mode line buffered", interactive.lineBuffered));
@@ -69,20 +91,25 @@ namespace
         static_cast<void>(context.expectFalse("raw mode no echo", raw.echoInput));
         static_cast<void>(context.expectFalse("raw mode no control keys", raw.processControlKeys));
 
+        const Terminal::Types::InputMode invalidMode = Terminal::makeInputMode(static_cast<Terminal::Types::InputModePreset>(-1));
+        static_cast<void>(context.expectTrue("invalid mode falls back to line buffered", invalidMode.lineBuffered));
+        static_cast<void>(context.expectTrue("invalid mode falls back to echo", invalidMode.echoInput));
+        static_cast<void>(context.expectTrue("invalid mode falls back to control keys", invalidMode.processControlKeys));
+
         const Terminal::Types::WriteSegment text = Terminal::textSegment("text");
-        static_cast<void>(context.expectEq("text segment kind", Terminal::Types::WriteSegmentKind::Text, text.kind));
-        static_cast<void>(context.expectEq("text segment view", std::string_view{"text"}, text.text));
+        static_cast<void>(context.expectEq("text segment kind", Terminal::Types::WriteSegmentKind::Text, text.kind()));
+        static_cast<void>(context.expectEq("text segment view", std::string_view{"text"}, text.text()));
 
         Terminal::Types::TextStyle style;
         style.bold = true;
-        const Terminal::Types::WriteSegment styled = Terminal::styledSegment("styled", style);
-        static_cast<void>(context.expectEq("styled segment kind", Terminal::Types::WriteSegmentKind::StyledText, styled.kind));
-        static_cast<void>(context.expectTrue("styled segment stores style", styled.style.bold));
+        const Terminal::Types::WriteSegment styled = Terminal::styledTextSegment("styled", style);
+        static_cast<void>(context.expectEq("styled segment kind", Terminal::Types::WriteSegmentKind::StyledText, styled.kind()));
+        static_cast<void>(context.expectTrue("styled segment stores style", styled.style().bold));
 
         const std::string byteText = "bytes";
         const Terminal::Types::WriteSegment bytes = Terminal::byteSegment(bytesOf(byteText));
-        static_cast<void>(context.expectEq("byte segment kind", Terminal::Types::WriteSegmentKind::Bytes, bytes.kind));
-        static_cast<void>(context.expectEq("byte segment size", byteText.size(), bytes.bytes.size()));
+        static_cast<void>(context.expectEq("byte segment kind", Terminal::Types::WriteSegmentKind::Bytes, bytes.kind()));
+        static_cast<void>(context.expectEq("byte segment size", byteText.size(), bytes.bytes().size()));
     }
 
 #if INTERNAL_TERMINAL_TEST_HOOKS
@@ -170,7 +197,7 @@ namespace
         Hooks::reset();
 
         Hooks::setInputCapabilitiesOverride(Terminal::Types::InputStream::Stdin, terminalInputCapabilities());
-        const Terminal::Types::InputCapabilityResult inputCapabilities = Terminal::getInputCapabilities();
+        const Terminal::Types::InputCapabilitiesResult inputCapabilities = Terminal::getInputCapabilities();
         static_cast<void>(context.expectTrue("input capabilities status", inputCapabilities.status.ok()));
         static_cast<void>(context.expectEq("input capability kind", Terminal::Types::StreamKind::Terminal, inputCapabilities.capabilities.kind));
         static_cast<void>(context.expectTrue("input capability mode support", inputCapabilities.capabilities.supportsInputMode));
@@ -179,8 +206,18 @@ namespace
         static_cast<void>(
             context.expectEq("input capability forced failure", ErrorCode::PermissionDenied, Terminal::getInputCapabilities().status.code));
 
+        const auto invalidInputStream = static_cast<Terminal::Types::InputStream>(99);
+        static_cast<void>(context.expectEq(
+            "invalid input capability stream is rejected",
+            ErrorCode::InvalidArgument,
+            Terminal::getInputCapabilities(invalidInputStream).status.code));
+        static_cast<void>(context.expectEq(
+            "invalid input read stream is rejected",
+            ErrorCode::InvalidArgument,
+            Terminal::readText(invalidInputStream).status.code));
+
         setupCapturedOutput(Terminal::Types::OutputStream::Stdout);
-        const Terminal::Types::OutputCapabilityResult outputCapabilities = Terminal::getOutputCapabilities();
+        const Terminal::Types::OutputCapabilitiesResult outputCapabilities = Terminal::getOutputCapabilities();
         static_cast<void>(context.expectTrue("output capabilities status", outputCapabilities.status.ok()));
         static_cast<void>(context.expectTrue("output style capability", outputCapabilities.capabilities.style.rgbColor));
         static_cast<void>(context.expectTrue("output cursor capability", outputCapabilities.capabilities.supportsCursorMovement));
@@ -194,8 +231,7 @@ namespace
 
         Hooks::setOutputCapabilitiesOverride(Terminal::Types::OutputStream::Stdout, unpreparedTerminalOutputCapabilities());
         Hooks::setPreparedOutputCapabilitiesOverride(Terminal::Types::OutputStream::Stdout, terminalOutputCapabilities());
-        Terminal::Writer stdoutWriter;
-        const Terminal::Types::OutputCapabilityResult prepared = stdoutWriter.prepareOutput();
+        const Terminal::Types::OutputCapabilitiesResult prepared = Terminal::prepareOutput();
         static_cast<void>(context.expectTrue("explicit output preparation succeeds", prepared.status.ok()));
         static_cast<void>(context.expectTrue("explicit output preparation enables styling", prepared.capabilities.style.rgbColor));
         static_cast<void>(context.expectEq(
@@ -207,13 +243,12 @@ namespace
             "query after preparation remains observational",
             std::size_t{1},
             Hooks::outputPreparationCallCount(Terminal::Types::OutputStream::Stdout)));
-        const Terminal::Types::OutputCapabilityResult preparedAgain = Terminal::prepareOutput();
+        const Terminal::Types::OutputCapabilitiesResult preparedAgain = Terminal::prepareOutput();
         static_cast<void>(context.expectTrue("repeated output preparation succeeds", preparedAgain.status.ok()));
         static_cast<void>(context.expectTrue("repeated output preparation preserves capabilities", preparedAgain.capabilities.style.bold));
 
         Hooks::setOutputCapabilitiesOverride(Terminal::Types::OutputStream::Stderr, redirectedOutputCapabilities());
-        const Terminal::Types::OutputCapabilityResult redirectedPrepared =
-            stdoutWriter.prepareOutput(Terminal::Types::OutputStream::Stderr);
+        const Terminal::Types::OutputCapabilitiesResult redirectedPrepared = Terminal::prepareOutput(Terminal::Types::OutputStream::Stderr);
         static_cast<void>(context.expectTrue("redirected output preparation succeeds", redirectedPrepared.status.ok()));
         static_cast<void>(context.expectEq(
             "redirected output preparation preserves stream kind",
@@ -240,6 +275,14 @@ namespace
         static_cast<void>(context.expectEq("cursor position column", std::uint32_t{7}, position.position.column));
         static_cast<void>(context.expectEq("cursor position row", std::uint32_t{9}, position.position.row));
 
+        const Terminal::Types::CursorPositionResult explicitPosition = Terminal::getCursorPosition(
+            Terminal::Types::OutputStream::Stdout,
+            Terminal::Types::InputStream::Stdin,
+            {.timeout = Terminal::kNoWait, .flushMode = IO::Types::FlushMode::None});
+        static_cast<void>(context.expectTrue("explicit cursor position status", explicitPosition.status.ok()));
+        static_cast<void>(context.expectEq("explicit cursor position column", std::uint32_t{7}, explicitPosition.position.column));
+        static_cast<void>(context.expectEq("explicit cursor position row", std::uint32_t{9}, explicitPosition.position.row));
+
         Hooks::forceNextTerminalSizeFailure(ErrorCode::StatFailed);
         static_cast<void>(context.expectEq("terminal size forced failure", ErrorCode::StatFailed, Terminal::getTerminalSize().status.code));
 
@@ -262,6 +305,39 @@ namespace
             context.expectEq("plain write capture", std::string{"hello\n"}, Hooks::capturedOutputText(Terminal::Types::OutputStream::Stdout)));
 
         Hooks::clearCapturedOutput(Terminal::Types::OutputStream::Stdout);
+        Terminal::Types::LineWriteOptions invalidLineEndingOptions;
+        invalidLineEndingOptions.lineEnding = static_cast<Terminal::Types::LineEnding>(-1);
+        static_cast<void>(context.expectEq(
+            "invalid line ending is rejected before output",
+            ErrorCode::InvalidArgument,
+            Terminal::writeLine("must-not-write", invalidLineEndingOptions).code));
+        static_cast<void>(
+            context.expectTrue("invalid line ending writes nothing", Hooks::capturedOutputText(Terminal::Types::OutputStream::Stdout).empty()));
+
+        Terminal::Types::TextWriteOptions invalidFlushOptions;
+        invalidFlushOptions.flushMode = static_cast<IO::Types::FlushMode>(-1);
+        static_cast<void>(context.expectEq(
+            "invalid text flush mode is rejected before output",
+            ErrorCode::InvalidArgument,
+            Terminal::writeText("must-not-write", invalidFlushOptions).code));
+        static_cast<void>(
+            context.expectTrue("invalid text flush mode writes nothing", Hooks::capturedOutputText(Terminal::Types::OutputStream::Stdout).empty()));
+        static_cast<void>(context.expectEq(
+            "invalid direct flush mode is rejected",
+            ErrorCode::InvalidArgument,
+            Terminal::flush(static_cast<IO::Types::FlushMode>(-1)).code));
+
+        bool invalidOutputBufferThrew = false;
+        try
+        {
+            [[maybe_unused]] Terminal::OutputBuffer invalidBuffer(static_cast<Terminal::Types::LineEnding>(-1));
+        }
+        catch (const std::invalid_argument &)
+        {
+            invalidOutputBufferThrew = true;
+        }
+        static_cast<void>(context.expectTrue("output buffer rejects invalid line ending", invalidOutputBufferThrew));
+
         Terminal::Types::TextStyle style;
         style.foreground = Terminal::basicColor(Terminal::Types::BasicColor::BrightRed);
         style.bold = true;
@@ -274,19 +350,28 @@ namespace
             "styled write emits SGR and reset",
             std::string{"\x1b[1;91mhot\x1b[0m"},
             Hooks::capturedOutputText(Terminal::Types::OutputStream::Stdout)));
+        static_cast<void>(
+            context.expectEq("styled write uses one backend call", std::size_t{2}, Hooks::textWriteCallCount(Terminal::Types::OutputStream::Stdout)));
+
+        Hooks::reset();
+        setupCapturedOutput(Terminal::Types::OutputStream::Stdout, redirectedOutputCapabilities());
+        static_cast<void>(
+            context.expectTrue("redirected styled output falls back to plain text", Terminal::writeText("redirected", styledOptions).ok()));
         static_cast<void>(context.expectEq(
-            "styled write uses one backend call",
-            std::size_t{2},
-            Hooks::textWriteCallCount(Terminal::Types::OutputStream::Stdout)));
+            "redirected styled output does not prepare",
+            std::size_t{0},
+            Hooks::outputPreparationCallCount(Terminal::Types::OutputStream::Stdout)));
+        static_cast<void>(context.expectEq(
+            "redirected styled output capture is plain",
+            std::string{"redirected"},
+            Hooks::capturedOutputText(Terminal::Types::OutputStream::Stdout)));
 
         Hooks::reset();
         setupCapturedOutput(Terminal::Types::OutputStream::Stdout, unpreparedTerminalOutputCapabilities());
         Hooks::setPreparedOutputCapabilitiesOverride(Terminal::Types::OutputStream::Stdout, terminalOutputCapabilities());
         static_cast<void>(context.expectTrue("lazy preparation enables styled output", Terminal::writeText("lazy", styledOptions).ok()));
-        static_cast<void>(context.expectEq(
-            "lazy preparation count",
-            std::size_t{1},
-            Hooks::outputPreparationCallCount(Terminal::Types::OutputStream::Stdout)));
+        static_cast<void>(
+            context.expectEq("lazy preparation count", std::size_t{1}, Hooks::outputPreparationCallCount(Terminal::Types::OutputStream::Stdout)));
         static_cast<void>(context.expectEq(
             "lazy styled output capture",
             std::string{"\x1b[1;91mlazy\x1b[0m"},
@@ -300,7 +385,7 @@ namespace
             context.expectEq("auto style fallback is plain", std::string{"plain"}, Hooks::capturedOutputText(Terminal::Types::OutputStream::Stdout)));
 
         Hooks::clearCapturedOutput(Terminal::Types::OutputStream::Stdout);
-        styledOptions.styleMode = Terminal::Types::StyleMode::Always;
+        styledOptions.styleMode = Terminal::Types::StyleMode::Required;
         Hooks::forceNextOutputPreparationFailure(ErrorCode::NativeFailure);
         static_cast<void>(
             context.expectEq("forced preparation failure propagates", ErrorCode::NativeFailure, Terminal::writeText("fail", styledOptions).code));
@@ -346,25 +431,36 @@ namespace
         outputBuffer.println(" {}", 4);
         static_cast<void>(context.expectEq("output buffer text", std::string_view{"alpha beta\n3 4\n"}, outputBuffer.text()));
 
-        Terminal::Writer stdoutWriter;
-        static_cast<void>(context.expectTrue("output buffer flush succeeds", outputBuffer.flushTo(stdoutWriter).ok()));
+        static_cast<void>(context.expectTrue("output buffer flush succeeds", outputBuffer.flushTo().ok()));
         static_cast<void>(context.expectTrue("output buffer clears after flush", outputBuffer.empty()));
         static_cast<void>(context.expectEq(
             "output buffer flush capture",
             std::string{"alpha beta\n3 4\n"},
             Hooks::capturedOutputText(Terminal::Types::OutputStream::Stdout)));
 
+        outputBuffer.appendText("retry");
+        Hooks::forceNextTextWriteFailure(ErrorCode::WriteFailed);
+        static_cast<void>(context.expectEq("output buffer failure propagates", ErrorCode::WriteFailed, outputBuffer.flushTo().code));
+        static_cast<void>(context.expectEq("output buffer failure preserves text", std::string_view{"retry"}, outputBuffer.text()));
+        static_cast<void>(
+            context.expectTrue("output buffer explicit stream retry succeeds", outputBuffer.flushTo(Terminal::Types::OutputStream::Stdout).ok()));
+        static_cast<void>(context.expectTrue("output buffer explicit stream retry clears text", outputBuffer.empty()));
+
         Hooks::clearCapturedOutput(Terminal::Types::OutputStream::Stdout);
-        static_cast<void>(context.expectTrue("writer formatted print succeeds", stdoutWriter.print("writer {}", 5).ok()));
+        static_cast<void>(context.expectTrue(
+            "explicit stream formatted print succeeds",
+            Terminal::print(Terminal::Types::OutputStream::Stdout, "writer {}", 5).ok()));
         static_cast<void>(context.expectEq(
-            "writer formatted print capture",
+            "explicit stream formatted print capture",
             std::string{"writer 5"},
             Hooks::capturedOutputText(Terminal::Types::OutputStream::Stdout)));
 
         Hooks::clearCapturedOutput(Terminal::Types::OutputStream::Stdout);
-        static_cast<void>(context.expectTrue("writer formatted println succeeds", stdoutWriter.println(printLineOptions, "writer line {}", 6).ok()));
+        static_cast<void>(context.expectTrue(
+            "explicit stream formatted println succeeds",
+            Terminal::println(Terminal::Types::OutputStream::Stdout, printLineOptions, "writer line {}", 6).ok()));
         static_cast<void>(context.expectEq(
-            "writer formatted println capture",
+            "explicit stream formatted println capture",
             std::string{"writer line 6\n"},
             Hooks::capturedOutputText(Terminal::Types::OutputStream::Stdout)));
 
@@ -372,9 +468,7 @@ namespace
         setupCapturedOutput(Terminal::Types::OutputStream::Stdout, redirectedOutputCapabilities());
         setupCapturedOutput(Terminal::Types::OutputStream::Stderr, redirectedOutputCapabilities());
         static_cast<void>(context.expectTrue("stdout state write succeeds", Terminal::writeText("out").ok()));
-        static_cast<void>(context.expectTrue(
-            "stderr state write succeeds",
-            Terminal::writeText(Terminal::Types::OutputStream::Stderr, "err").ok()));
+        static_cast<void>(context.expectTrue("stderr state write succeeds", Terminal::writeText(Terminal::Types::OutputStream::Stderr, "err").ok()));
         static_cast<void>(context.expectEq(
             "stdout state remains independent",
             std::string{"out"},
@@ -397,7 +491,7 @@ namespace
         const std::string byteText = "c";
         const std::array<Terminal::Types::WriteSegment, 3> segments{
             Terminal::textSegment("a"),
-            Terminal::styledSegment("b", style),
+            Terminal::styledTextSegment("b", style),
             Terminal::byteSegment(bytesOf(byteText))};
 
         Terminal::Types::SegmentWriteOptions options;
@@ -415,6 +509,65 @@ namespace
             std::size_t{1},
             Hooks::textWriteCallCount(Terminal::Types::OutputStream::Stdout)));
 
+        Hooks::clearCapturedOutput(Terminal::Types::OutputStream::Stdout);
+        const std::array<Terminal::Types::WriteSegment, 1> plainSegments{Terminal::textSegment("plain")};
+        const std::size_t plainSegmentWritesBefore = Hooks::textWriteCallCount(Terminal::Types::OutputStream::Stdout);
+        Hooks::forceNextOutputCapabilityFailure(ErrorCode::StatFailed);
+        static_cast<void>(context.expectTrue(
+            "plain segmented write skips capability query",
+            Terminal::writeSegments(std::span<const Terminal::Types::WriteSegment>(plainSegments)).ok()));
+        static_cast<void>(context.expectEq(
+            "plain segmented write capture",
+            std::string{"plain"},
+            Hooks::capturedOutputText(Terminal::Types::OutputStream::Stdout)));
+        static_cast<void>(context.expectEq(
+            "plain segmented write leaves capability failure pending",
+            ErrorCode::StatFailed,
+            Terminal::getOutputCapabilities().status.code));
+
+        static_cast<void>(context.expectEq(
+            "single plain segment uses one direct backend write",
+            plainSegmentWritesBefore + 1,
+            Hooks::textWriteCallCount(Terminal::Types::OutputStream::Stdout)));
+
+        Hooks::clearCapturedOutput(Terminal::Types::OutputStream::Stdout);
+        Terminal::Types::SegmentWriteOptions invalidLineEndingOptions;
+        invalidLineEndingOptions.appendLineEnding = true;
+        invalidLineEndingOptions.lineEnding = static_cast<Terminal::Types::LineEnding>(-1);
+        static_cast<void>(context.expectEq(
+            "invalid segmented line ending is rejected before output",
+            ErrorCode::InvalidArgument,
+            Terminal::writeSegments(std::span<const Terminal::Types::WriteSegment>(plainSegments), invalidLineEndingOptions).code));
+        static_cast<void>(context.expectTrue(
+            "invalid segmented line ending writes nothing",
+            Hooks::capturedOutputText(Terminal::Types::OutputStream::Stdout).empty()));
+
+        Hooks::reset();
+        setupCapturedOutput(Terminal::Types::OutputStream::Stdout);
+        const std::array<Terminal::Types::WriteSegment, 1> styledSegments{Terminal::styledTextSegment("fallback", style)};
+        Hooks::forceNextOutputCapabilityFailure(ErrorCode::StatFailed);
+        Hooks::forceNextOutputPreparationFailure(ErrorCode::NativeFailure);
+        static_cast<void>(context.expectTrue(
+            "auto styled segment falls back after capability and preparation failure",
+            Terminal::writeSegments(std::span<const Terminal::Types::WriteSegment>(styledSegments)).ok()));
+        static_cast<void>(context.expectEq(
+            "auto styled segment fallback is plain",
+            std::string{"fallback"},
+            Hooks::capturedOutputText(Terminal::Types::OutputStream::Stdout)));
+
+        Hooks::clearCapturedOutput(Terminal::Types::OutputStream::Stdout);
+        Terminal::Types::SegmentWriteOptions requiredOptions;
+        requiredOptions.styleMode = Terminal::Types::StyleMode::Required;
+        Hooks::forceNextOutputCapabilityFailure(ErrorCode::StatFailed);
+        Hooks::forceNextOutputPreparationFailure(ErrorCode::NativeFailure);
+        static_cast<void>(context.expectEq(
+            "required styled segment propagates preparation failure",
+            ErrorCode::NativeFailure,
+            Terminal::writeSegments(std::span<const Terminal::Types::WriteSegment>(styledSegments), requiredOptions).code));
+        static_cast<void>(context.expectTrue(
+            "required styled segment failure writes nothing",
+            Hooks::capturedOutputText(Terminal::Types::OutputStream::Stdout).empty()));
+
         Hooks::reset();
         setupCapturedOutput(Terminal::Types::OutputStream::Stdout, unpreparedTerminalOutputCapabilities());
         const std::array<Terminal::Types::WriteSegment, 2> unsupportedSegments{
@@ -424,9 +577,8 @@ namespace
             "unsupported byte segment rejects full batch",
             ErrorCode::Unsupported,
             Terminal::writeSegments(std::span<const Terminal::Types::WriteSegment>(unsupportedSegments)).code));
-        static_cast<void>(context.expectTrue(
-            "unsupported segment batch emits nothing",
-            Hooks::capturedOutputText(Terminal::Types::OutputStream::Stdout).empty()));
+        static_cast<void>(
+            context.expectTrue("unsupported segment batch emits nothing", Hooks::capturedOutputText(Terminal::Types::OutputStream::Stdout).empty()));
         static_cast<void>(context.expectEq(
             "unsupported segment batch makes no write",
             std::size_t{0},
@@ -479,6 +631,56 @@ namespace
             Hooks::capturedOutputText(Terminal::Types::OutputStream::Stdout)));
 
         Hooks::clearCapturedOutput(Terminal::Types::OutputStream::Stdout);
+        {
+            Terminal::CursorHiddenScope outer = Terminal::scopedCursorHidden();
+            static_cast<void>(context.expectTrue("outer cursor scope active", outer.active()));
+            {
+                Terminal::CursorHiddenScope inner = Terminal::scopedCursorHidden();
+                static_cast<void>(context.expectTrue("inner cursor scope active", inner.active()));
+                static_cast<void>(context.expectTrue("inner cursor restore succeeds", inner.restore().ok()));
+                static_cast<void>(context.expectEq(
+                    "inner cursor restore keeps cursor hidden",
+                    std::string{"\x1b[?25l"},
+                    Hooks::capturedOutputText(Terminal::Types::OutputStream::Stdout)));
+            }
+            static_cast<void>(context.expectTrue("outer cursor restore succeeds", outer.restore().ok()));
+        }
+        static_cast<void>(context.expectEq(
+            "nested cursor scopes emit one hide and show",
+            std::string{"\x1b[?25l\x1b[?25h"},
+            Hooks::capturedOutputText(Terminal::Types::OutputStream::Stdout)));
+
+        Hooks::clearCapturedOutput(Terminal::Types::OutputStream::Stdout);
+        {
+            Terminal::CursorHiddenScope scope = Terminal::scopedCursorHidden();
+            Hooks::forceNextTextWriteFailure(ErrorCode::WriteFailed);
+            static_cast<void>(context.expectEq("cursor restore failure propagates", ErrorCode::WriteFailed, scope.restore().code));
+            static_cast<void>(context.expectTrue("failed cursor restore remains active", scope.active()));
+            static_cast<void>(context.expectTrue("cursor restore retry succeeds", scope.restore().ok()));
+            static_cast<void>(context.expectFalse("successful cursor restore becomes inactive", scope.active()));
+        }
+
+        Hooks::clearCapturedOutput(Terminal::Types::OutputStream::Stdout);
+        {
+            Terminal::AlternateScreenScope outer = Terminal::scopedAlternateScreen();
+            static_cast<void>(context.expectTrue("outer alternate-screen scope active", outer.active()));
+            {
+                Terminal::AlternateScreenScope inner = Terminal::scopedAlternateScreen();
+                static_cast<void>(context.expectTrue("inner alternate-screen scope active", inner.active()));
+                static_cast<void>(context.expectTrue("inner alternate-screen leave succeeds", inner.leave().ok()));
+                static_cast<void>(context.expectEq(
+                    "inner alternate-screen leave keeps mode active",
+                    std::string{"\x1b[?1049h"},
+                    Hooks::capturedOutputText(Terminal::Types::OutputStream::Stdout)));
+            }
+            static_cast<void>(context.expectTrue("outer alternate-screen leave succeeds", outer.leave().ok()));
+        }
+        static_cast<void>(context.expectEq(
+            "nested alternate-screen scopes emit one enter and leave",
+            std::string{"\x1b[?1049h\x1b[?1049l"},
+            Hooks::capturedOutputText(Terminal::Types::OutputStream::Stdout)));
+
+        Hooks::clearCapturedOutput(Terminal::Types::OutputStream::Stdout);
         Hooks::setOutputCapabilitiesOverride(Terminal::Types::OutputStream::Stdout, redirectedOutputCapabilities());
         static_cast<void>(context.expectEq(
             "unsupported cursor movement fails",
@@ -508,6 +710,32 @@ namespace
             "zero scroll still validates direction",
             ErrorCode::InvalidArgument,
             Terminal::scroll(static_cast<Terminal::Types::ScrollDirection>(-1), 0).code));
+        static_cast<void>(context.expectEq(
+            "cursor movement rejects values beyond VT limit",
+            ErrorCode::InvalidArgument,
+            Terminal::moveCursor(Terminal::Types::CursorMoveDirection::Down, 32768).code));
+        static_cast<void>(context.expectEq(
+            "cursor position rejects values beyond VT limit",
+            ErrorCode::InvalidArgument,
+            Terminal::setCursorPosition({.column = 32767, .row = 0}).code));
+        static_cast<void>(context.expectEq(
+            "scroll rejects values beyond VT limit",
+            ErrorCode::InvalidArgument,
+            Terminal::scroll(Terminal::Types::ScrollDirection::Down, 32768).code));
+
+        const auto invalidOutputStream = static_cast<Terminal::Types::OutputStream>(99);
+        static_cast<void>(context.expectEq(
+            "invalid output stream is rejected",
+            ErrorCode::InvalidArgument,
+            Terminal::writeText(invalidOutputStream, "must-not-write").code));
+        static_cast<void>(context.expectEq(
+            "invalid output capability stream is rejected",
+            ErrorCode::InvalidArgument,
+            Terminal::getOutputCapabilities(invalidOutputStream).status.code));
+
+        const std::string oversizedTitle(255, 'x');
+        static_cast<void>(
+            context.expectEq("title rejects values beyond VT limit", ErrorCode::InvalidArgument, Terminal::setTitle(oversizedTitle).code));
 
         Hooks::forceNextFlushFailure(ErrorCode::FlushFailed);
         static_cast<void>(context.expectEq(
@@ -557,9 +785,32 @@ namespace
         static_cast<void>(context.expectEq("final line text", std::string{"c"}, finalLine.line));
         static_cast<void>(context.expectEq("final line outcome", Terminal::Types::ReadOutcome::EndOfStream, finalLine.outcome));
 
+        setupInput("kept\n");
+        Terminal::Types::LineReadOptions invalidLineModeOptions;
+        invalidLineModeOptions.lineEndingMode = static_cast<Terminal::Types::ReadLineEndingMode>(-1);
+        static_cast<void>(context.expectEq(
+            "invalid line read mode is rejected",
+            ErrorCode::InvalidArgument,
+            Terminal::readLine(invalidLineModeOptions).status.code));
+        static_cast<void>(context.expectEq("invalid line read mode consumes no input", std::string{"kept"}, Terminal::readLine().line));
+
+        setupInput("line\n");
+        Terminal::Types::LineReadOptions zeroLineLimitOptions;
+        zeroLineLimitOptions.maxReturnedBytes = 0;
+        static_cast<void>(
+            context.expectEq("zero line limit is rejected", ErrorCode::InvalidArgument, Terminal::readLine(zeroLineLimitOptions).status.code));
+        static_cast<void>(context.expectEq("zero line limit consumes no input", std::string{"line"}, Terminal::readLine().line));
+
+        setupInput("text");
+        Terminal::Types::TextReadOptions zeroTextLimitOptions;
+        zeroTextLimitOptions.maxReturnedBytes = 0;
+        static_cast<void>(
+            context.expectEq("zero text limit is rejected", ErrorCode::InvalidArgument, Terminal::readText(zeroTextLimitOptions).status.code));
+        static_cast<void>(context.expectEq("zero text limit consumes no input", std::string{"text"}, Terminal::readText().text));
+
         setupInput("abc\nnext\n");
         Terminal::Types::LineReadOptions keepLimitedLfOptions;
-        keepLimitedLfOptions.maxBytes = 3;
+        keepLimitedLfOptions.maxReturnedBytes = 3;
         keepLimitedLfOptions.lineEndingMode = Terminal::Types::ReadLineEndingMode::Keep;
         const Terminal::Types::LineReadResult keepLimitedLf = Terminal::readLine(keepLimitedLfOptions);
         static_cast<void>(context.expectTrue("limited LF keep status", keepLimitedLf.status.ok()));
@@ -574,7 +825,7 @@ namespace
 
         setupInput("abc\r\nnext\n");
         Terminal::Types::LineReadOptions keepLimitedCrLfOptions;
-        keepLimitedCrLfOptions.maxBytes = 4;
+        keepLimitedCrLfOptions.maxReturnedBytes = 4;
         keepLimitedCrLfOptions.lineEndingMode = Terminal::Types::ReadLineEndingMode::Keep;
         const Terminal::Types::LineReadResult keepLimitedCrLf = Terminal::readLine(keepLimitedCrLfOptions);
         static_cast<void>(context.expectTrue("limited CRLF keep status", keepLimitedCrLf.status.ok()));
@@ -588,7 +839,7 @@ namespace
 
         setupInput("abcd\r\nnext\n");
         Terminal::Types::LineReadOptions normalizeLimitedOptions;
-        normalizeLimitedOptions.maxBytes = 4;
+        normalizeLimitedOptions.maxReturnedBytes = 4;
         normalizeLimitedOptions.lineEndingMode = Terminal::Types::ReadLineEndingMode::NormalizeToLf;
         const Terminal::Types::LineReadResult normalizeLimited = Terminal::readLine(normalizeLimitedOptions);
         static_cast<void>(context.expectTrue("limited normalize status", normalizeLimited.status.ok()));
@@ -601,15 +852,25 @@ namespace
         static_cast<void>(context.expectTrue("after limited normalize status", afterLimitedNormalize.status.ok()));
         static_cast<void>(context.expectEq("after limited normalize text", std::string{"next"}, afterLimitedNormalize.line));
 
+        std::string longCrLfLine(4095, 'x');
+        longCrLfLine.append("\r\nnext\n");
+        setupInput(longCrLfLine);
+        const Terminal::Types::LineReadResult longLine = Terminal::readLine();
+        static_cast<void>(context.expectTrue("long line status", longLine.status.ok()));
+        static_cast<void>(context.expectEq("long line size", std::size_t{4095}, longLine.line.size()));
+        static_cast<void>(
+            context.expectEq("long line detects CRLF across read chunks", Terminal::Types::ConsumedLineEnding::CrLf, longLine.consumedLineEnding));
+        static_cast<void>(context.expectEq("line after chunk-boundary CRLF", std::string{"next"}, Terminal::readLine().line));
+
         setupInput("\xc3\xa9z");
         Terminal::Types::TextReadOptions textOptions;
-        textOptions.maxBytes = 2;
+        textOptions.maxReturnedBytes = 2;
         const Terminal::Types::TextReadResult utf8First = Terminal::readText(textOptions);
         static_cast<void>(context.expectTrue("UTF-8 text status", utf8First.status.ok()));
         static_cast<void>(context.expectEq("UTF-8 text preserves boundary", std::string{"\xc3\xa9"}, utf8First.text));
         static_cast<void>(context.expectTrue("UTF-8 text reports truncation", utf8First.wasTruncated));
 
-        textOptions.maxBytes = 8;
+        textOptions.maxReturnedBytes = 8;
         const Terminal::Types::TextReadResult utf8Second = Terminal::readText(textOptions);
         static_cast<void>(context.expectTrue("pending UTF-8 text status", utf8Second.status.ok()));
         static_cast<void>(context.expectEq("pending UTF-8 text", std::string{"z"}, utf8Second.text));
@@ -654,6 +915,28 @@ namespace
         static_cast<void>(context.expectFalse("raw mode line buffering off", mode.mode.lineBuffered));
         static_cast<void>(context.expectFalse("raw mode echo off", mode.mode.echoInput));
 
+        Terminal::Types::InputMode invalidEchoMode = raw;
+        invalidEchoMode.echoInput = true;
+        static_cast<void>(context.expectEq(
+            "Win32 input mode rejects echo without line buffering",
+            ErrorCode::InvalidArgument,
+            Terminal::setInputMode(invalidEchoMode).code));
+        mode = Terminal::getInputMode();
+        static_cast<void>(context.expectFalse("invalid input mode leaves current mode unchanged", mode.mode.lineBuffered));
+        static_cast<void>(context.expectFalse("invalid input mode leaves echo unchanged", mode.mode.echoInput));
+
+        setupInput("\xc3\xa9z");
+        Terminal::Types::TextReadOptions splitTextOptions;
+        splitTextOptions.maxReturnedBytes = 2;
+        static_cast<void>(context.expectEq(
+            "mode preservation setup reads one UTF-8 code point",
+            std::string{"\xc3\xa9"},
+            Terminal::readText(splitTextOptions).text));
+        static_cast<void>(context.expectTrue("mode change with pending input succeeds", Terminal::setInputMode(interactive).ok()));
+        splitTextOptions.maxReturnedBytes = 8;
+        static_cast<void>(context.expectEq("mode change preserves pending input", std::string{"z"}, Terminal::readText(splitTextOptions).text));
+        static_cast<void>(context.expectTrue("raw mode restored after pending-input check", Terminal::setInputMode(raw).ok()));
+
         {
             Terminal::InputModeScope scope = Terminal::scopedInputMode(interactive);
             static_cast<void>(context.expectTrue("input mode scope active", scope.active()));
@@ -675,27 +958,6 @@ namespace
         Hooks::reset();
     }
 
-    void testReaderWriterWrappers(TestSupport::Context &context)
-    {
-        Hooks::reset();
-        setupCapturedOutput(Terminal::Types::OutputStream::Stderr);
-        setupInput("wrapped\n");
-
-        Terminal::Writer writer(Terminal::Types::OutputStream::Stderr);
-        static_cast<void>(context.expectEq("writer default stream", Terminal::Types::OutputStream::Stderr, writer.defaultStream()));
-        static_cast<void>(context.expectTrue("writer write succeeds", writer.writeText("err").ok()));
-        static_cast<void>(context.expectEq(
-            "writer writes to default stream",
-            std::string{"err"},
-            Hooks::capturedOutputText(Terminal::Types::OutputStream::Stderr)));
-
-        Terminal::Reader reader;
-        const Terminal::Types::LineReadResult line = reader.readLine();
-        static_cast<void>(context.expectTrue("reader read status", line.status.ok()));
-        static_cast<void>(context.expectEq("reader line", std::string{"wrapped"}, line.line));
-
-        Hooks::reset();
-    }
 #endif
 
     void testHookDependentSuitesSkipped(TestSupport::Context &context)
@@ -727,7 +989,6 @@ namespace GameWIP::Test
         runner.runSuite("Terminal controls", testControls);
         runner.runSuite("Terminal input reads", testInputReads);
         runner.runSuite("Terminal input modes", testInputModes);
-        runner.runSuite("Terminal Reader and Writer", testReaderWriterWrappers);
 #else
         runner.runSuite("Terminal hook-dependent suites", testHookDependentSuitesSkipped);
 #endif

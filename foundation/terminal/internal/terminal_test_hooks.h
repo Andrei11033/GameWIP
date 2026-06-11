@@ -85,7 +85,6 @@ namespace GameWIP::Terminal::Detail::TestHooks
     [[nodiscard]] std::size_t inputIndex(Terminal::Types::InputStream stream) noexcept;
     [[nodiscard]] std::size_t outputIndex(Terminal::Types::OutputStream stream) noexcept;
     [[nodiscard]] std::optional<IO::Types::ErrorCode> consumeFailure(HookFailure &failure) noexcept;
-    [[nodiscard]] IO::Types::Status failureStatus(IO::Types::ErrorCode code, std::string_view message);
     void resetTerminalTestHooks() noexcept;
 } // namespace GameWIP::Terminal::Detail::TestHooks
 
@@ -113,9 +112,7 @@ namespace GameWIP::Terminal::TestHooks
 
     /// @brief Overrides capabilities reported after output preparation.
     /// @warning Test-only API. Persistent until reset or clearOutputCapabilitiesOverride.
-    void setPreparedOutputCapabilitiesOverride(
-        Terminal::Types::OutputStream stream,
-        const Terminal::Types::OutputCapabilities &capabilities);
+    void setPreparedOutputCapabilitiesOverride(Terminal::Types::OutputStream stream, const Terminal::Types::OutputCapabilities &capabilities);
 
     /// @brief Replaces the in-memory input bytes used by read hooks.
     /// @param endOfStreamWhenEmpty True makes an empty hook stream report EOF; false reports WouldBlock/TimedOut.

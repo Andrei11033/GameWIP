@@ -1,5 +1,5 @@
 PROJECT_NAME           = "Foundation and Tool Libraries"
-PROJECT_BRIEF          = "IO, Terminal, Logger, Assert, and TestSupport"
+PROJECT_BRIEF          = "FileSystem, IO, Terminal, Logger, Assert, and TestSupport"
 PROJECT_NUMBER         = "@PROJECT_VERSION@"
 OUTPUT_DIRECTORY       = "@LIBRARY_DOXYGEN_OUTPUT_DIR@"
 

@@ -26,11 +26,6 @@ namespace
     using IOTestOptions = GameWIP::Test::IOTestOptions;
     using ErrorCode = IO::Types::ErrorCode;
 
-    [[nodiscard]] IO::Types::Status statusWith(ErrorCode code)
-    {
-        return IO::makeStatus(code);
-    }
-
     [[nodiscard]] std::vector<std::byte> makeBytes(std::initializer_list<unsigned int> values)
     {
         std::vector<std::byte> bytes;
@@ -186,7 +181,7 @@ namespace
 
         [[nodiscard]] IO::Types::SizeResult size() const override
         {
-            return {.status = statusWith(ErrorCode::PermissionDenied), .sizeBytes = 0};
+            return {.status = IO::makeStatus(ErrorCode::PermissionDenied), .sizeBytes = 0};
         }
 
         [[nodiscard]] bool readCalled() const noexcept
@@ -366,7 +361,7 @@ namespace
                 const std::size_t count = std::min<std::size_t>(destination.size(), 1);
                 std::copy_n(bytes_.data() + position_, count, destination.data());
                 position_ += count;
-                return {.status = statusWith(failureCode_), .bytesRead = count, .endOfStream = false};
+                return {.status = IO::makeStatus(failureCode_), .bytesRead = count, .endOfStream = false};
             }
 
             const std::size_t remainingBeforeFailure = failAfterBytes_ - position_;
@@ -439,10 +434,30 @@ namespace
 
         [[nodiscard]] IO::Types::WriteResult write([[maybe_unused]] std::span<const std::byte> bytes) override
         {
-            return {.status = statusWith(code_), .bytesWritten = 0};
+            return {.status = IO::makeStatus(code_), .bytesWritten = 0};
         }
 
     private:
+        ErrorCode code_ = ErrorCode::WriteFailed;
+    };
+
+    class PartialFailingWriter final : public IO::Writer
+    {
+    public:
+        PartialFailingWriter(std::size_t acceptedBytes, ErrorCode code)
+            : acceptedBytes_(acceptedBytes)
+            , code_(code)
+        {
+        }
+
+        [[nodiscard]] IO::Types::WriteResult write(std::span<const std::byte> bytes) override
+        {
+            const std::size_t count = std::min(acceptedBytes_, bytes.size());
+            return {.status = IO::makeStatus(code_), .bytesWritten = count};
+        }
+
+    private:
+        std::size_t acceptedBytes_ = 0;
         ErrorCode code_ = ErrorCode::WriteFailed;
     };
 
@@ -467,10 +482,20 @@ namespace
     static_assert(std::is_nothrow_move_assignable_v<IO::MemoryReader>);
     static_assert(std::is_nothrow_move_constructible_v<IO::MemoryWriter>);
     static_assert(std::is_nothrow_move_assignable_v<IO::MemoryWriter>);
+    static_assert(IO::isValidFlushMode(IO::Types::FlushMode::None));
+    static_assert(IO::isValidFlushMode(IO::Types::FlushMode::Data));
+    static_assert(IO::isValidFlushMode(IO::Types::FlushMode::DataAndMetadataBestEffort));
+    static_assert(!IO::isValidFlushMode(static_cast<IO::Types::FlushMode>(-1)));
+    static_assert(noexcept(IO::isValidFlushMode(IO::Types::FlushMode::None)));
+    static_assert(noexcept(IO::makeStatus(ErrorCode::Unknown)));
     static_assert(std::is_constructible_v<IO::MemoryReader, std::string &>);
     static_assert(!std::is_constructible_v<IO::MemoryReader, std::string &&>);
     static_assert(std::is_constructible_v<IO::MemoryReader, std::vector<std::byte> &>);
     static_assert(!std::is_constructible_v<IO::MemoryReader, std::vector<std::byte> &&>);
+    static_assert(std::is_same_v<
+                  decltype(IO::writeAllBytes(std::declval<IO::Writer &>(), std::declval<std::span<const std::byte>>())),
+                  IO::Types::WriteResult>);
+    static_assert(std::is_same_v<decltype(IO::writeAllText(std::declval<IO::Writer &>(), std::declval<std::string_view>())), IO::Types::WriteResult>);
 
     void testErrorCodeNames(TestSupport::Context &context)
     {
@@ -504,11 +529,17 @@ namespace
             ErrorCodeName{ErrorCode::RemoveFailed, "RemoveFailed"},
             ErrorCodeName{ErrorCode::ReplaceFailed, "ReplaceFailed"},
             ErrorCodeName{ErrorCode::CopyFailed, "CopyFailed"},
+            ErrorCodeName{ErrorCode::MoveFailed, "MoveFailed"},
+            ErrorCodeName{ErrorCode::ResizeFailed, "ResizeFailed"},
+            ErrorCodeName{ErrorCode::LockFailed, "LockFailed"},
+            ErrorCodeName{ErrorCode::UnlockFailed, "UnlockFailed"},
             ErrorCodeName{ErrorCode::DirectoryCreateFailed, "DirectoryCreateFailed"},
             ErrorCodeName{ErrorCode::DirectoryListFailed, "DirectoryListFailed"},
+            ErrorCodeName{ErrorCode::DirectoryNotEmpty, "DirectoryNotEmpty"},
             ErrorCodeName{ErrorCode::PartialRead, "PartialRead"},
             ErrorCodeName{ErrorCode::PartialWrite, "PartialWrite"},
             ErrorCodeName{ErrorCode::SizeLimitExceeded, "SizeLimitExceeded"},
+            ErrorCodeName{ErrorCode::OutOfMemory, "OutOfMemory"},
             ErrorCodeName{ErrorCode::ResourceBusy, "ResourceBusy"},
             ErrorCodeName{ErrorCode::StorageFull, "StorageFull"},
             ErrorCodeName{ErrorCode::BrokenPipe, "BrokenPipe"},
@@ -556,6 +587,10 @@ namespace
         static_cast<void>(context.expectTrue("Writer isOpen defaults to true", writer.isOpen()));
         static_cast<void>(context.expectFalse("Writer canSeek defaults to false", writer.canSeek()));
         static_cast<void>(context.expectTrue("Writer flush default succeeds", writer.flush().ok()));
+        static_cast<void>(context.expectEq(
+            "Writer rejects invalid flush modes",
+            ErrorCode::InvalidArgument,
+            writer.flush(static_cast<IO::Types::FlushMode>(-1)).code));
         static_cast<void>(context.expectTrue("Writer close default succeeds", writer.close().ok()));
         static_cast<void>(context.expectTrue("Stateless Writer remains open after default close", writer.isOpen()));
         static_cast<void>(context.expectEq("Writer position defaults to NotSeekable", ErrorCode::NotSeekable, writer.position().status.code));
@@ -697,6 +732,10 @@ namespace
         static_cast<void>(context.expectEq("MemoryWriter clear resets size", std::size_t{0}, writer.size()));
         static_cast<void>(context.expectEq("MemoryWriter clear resets position", std::uint64_t{0}, writer.position().position));
         static_cast<void>(context.expectEq("MemoryWriter clear preserves capacity", capacityBeforeClear, writer.capacity()));
+        static_cast<void>(context.expectEq(
+            "MemoryWriter rejects invalid flush modes",
+            ErrorCode::InvalidArgument,
+            writer.flush(static_cast<IO::Types::FlushMode>(-1)).code));
 
         writer.reserve(32);
         static_cast<void>(context.expectTrue("MemoryWriter reserve grows capacity", writer.capacity() >= 32));
@@ -1000,25 +1039,37 @@ namespace
         const std::vector<std::byte> source = makeBytes({0x01, 0x02, 0x00, 0x03, 0xff});
 
         ChunkedWriter chunkedWriter(2);
-        const IO::Types::Status chunkedStatus = IO::writeAllBytes(chunkedWriter, source);
-        static_cast<void>(context.expectTrue("writeAllBytes accepts partial successful writes", chunkedStatus.ok()));
+        const IO::Types::WriteResult chunkedResult = IO::writeAllBytes(chunkedWriter, source);
+        static_cast<void>(context.expectTrue("writeAllBytes accepts partial successful writes", chunkedResult.status.ok()));
+        static_cast<void>(context.expectEq("writeAllBytes reports complete progress", source.size(), chunkedResult.bytesWritten));
         static_cast<void>(context.expectEq("writeAllBytes preserves bytes across partial writes", source, chunkedWriter.bytes()));
 
         ChunkedWriter zeroProgressWriter(0);
-        const IO::Types::Status zeroProgressStatus = IO::writeAllBytes(zeroProgressWriter, spanOf(source));
-        static_cast<void>(context.expectEq("writeAllBytes rejects zero-byte progress", ErrorCode::WriteFailed, zeroProgressStatus.code));
+        const IO::Types::WriteResult zeroProgressResult = IO::writeAllBytes(zeroProgressWriter, spanOf(source));
+        static_cast<void>(context.expectEq("writeAllBytes rejects zero-byte progress", ErrorCode::WriteFailed, zeroProgressResult.status.code));
+        static_cast<void>(context.expectEq("writeAllBytes zero progress reports zero", std::size_t{0}, zeroProgressResult.bytesWritten));
 
         FailingWriter failingWriter(ErrorCode::PermissionDenied);
-        const IO::Types::Status failureStatus = IO::writeAllBytes(failingWriter, spanOf(source));
-        static_cast<void>(context.expectEq("writeAllBytes propagates writer failure", ErrorCode::PermissionDenied, failureStatus.code));
+        const IO::Types::WriteResult failureResult = IO::writeAllBytes(failingWriter, spanOf(source));
+        static_cast<void>(context.expectEq("writeAllBytes propagates writer failure", ErrorCode::PermissionDenied, failureResult.status.code));
+        static_cast<void>(context.expectEq("writeAllBytes immediate failure reports zero", std::size_t{0}, failureResult.bytesWritten));
+
+        PartialFailingWriter partialFailingWriter(2, ErrorCode::PermissionDenied);
+        const IO::Types::WriteResult partialFailureResult = IO::writeAllBytes(partialFailingWriter, spanOf(source));
+        static_cast<void>(
+            context.expectEq("writeAllBytes partial failure propagates status", ErrorCode::PermissionDenied, partialFailureResult.status.code));
+        static_cast<void>(context.expectEq("writeAllBytes partial failure preserves progress", std::size_t{2}, partialFailureResult.bytesWritten));
 
         InvalidWriteCountWriter invalidCountWriter;
-        const IO::Types::Status invalidCountStatus = IO::writeAllBytes(invalidCountWriter, spanOf(source));
-        static_cast<void>(context.expectEq("writeAllBytes rejects invalid writer byte count", ErrorCode::WriteFailed, invalidCountStatus.code));
+        const IO::Types::WriteResult invalidCountResult = IO::writeAllBytes(invalidCountWriter, spanOf(source));
+        static_cast<void>(
+            context.expectEq("writeAllBytes rejects invalid writer byte count", ErrorCode::WriteFailed, invalidCountResult.status.code));
+        static_cast<void>(context.expectEq("writeAllBytes invalid count preserves prior progress", std::size_t{0}, invalidCountResult.bytesWritten));
 
         FailingWriter emptyFailingWriter(ErrorCode::WriteFailed);
-        const IO::Types::Status emptyStatus = IO::writeAllBytes(emptyFailingWriter, std::span<const std::byte>{});
-        static_cast<void>(context.expectTrue("writeAllBytes empty input succeeds without calling writer", emptyStatus.ok()));
+        const IO::Types::WriteResult emptyResult = IO::writeAllBytes(emptyFailingWriter, std::span<const std::byte>{});
+        static_cast<void>(context.expectTrue("writeAllBytes empty input succeeds without calling writer", emptyResult.status.ok()));
+        static_cast<void>(context.expectEq("writeAllBytes empty input reports zero", std::size_t{0}, emptyResult.bytesWritten));
     }
 
     void testWriteAllText(TestSupport::Context &context)
@@ -1026,13 +1077,15 @@ namespace
         const std::string text("a\0b\0c", 5);
 
         ChunkedWriter chunkedWriter(2);
-        const IO::Types::Status chunkedStatus = IO::writeAllText(chunkedWriter, text);
-        static_cast<void>(context.expectTrue("writeAllText accepts partial successful writes", chunkedStatus.ok()));
+        const IO::Types::WriteResult chunkedResult = IO::writeAllText(chunkedWriter, text);
+        static_cast<void>(context.expectTrue("writeAllText accepts partial successful writes", chunkedResult.status.ok()));
+        static_cast<void>(context.expectEq("writeAllText reports complete progress", text.size(), chunkedResult.bytesWritten));
         static_cast<void>(context.expectEq("writeAllText preserves text bytes", copyBytes(bytesOf(text)), chunkedWriter.bytes()));
 
         FailingWriter failingWriter(ErrorCode::WriteFailed);
-        const IO::Types::Status failureStatus = IO::writeAllText(failingWriter, text);
-        static_cast<void>(context.expectEq("writeAllText propagates writer failure", ErrorCode::WriteFailed, failureStatus.code));
+        const IO::Types::WriteResult failureResult = IO::writeAllText(failingWriter, text);
+        static_cast<void>(context.expectEq("writeAllText propagates writer failure", ErrorCode::WriteFailed, failureResult.status.code));
+        static_cast<void>(context.expectEq("writeAllText immediate failure reports zero", std::size_t{0}, failureResult.bytesWritten));
     }
 } // namespace
 

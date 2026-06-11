@@ -21,10 +21,12 @@ Use segmented writes when one logical output record contains independently style
 Construct segments with:
 
 - `textSegment(text)`;
-- `styledSegment(text, style)`;
+- `styledTextSegment(text, style)`;
 - `byteSegment(bytes)`.
 
 `Types::WriteSegment` stores non-owning views. The caller-owned text and byte storage must remain alive until the write call returns.
+
+`WriteSegment` is valid by construction: its kind and payload cannot be changed independently after a factory creates it. `Color` follows the same rule and exposes read-only accessors.
 
 ## SegmentWriteOptions
 
@@ -40,5 +42,7 @@ Per-segment style lives in each `WriteSegment`. The batch options do not apply o
 Terminal validates the complete batch before emitting output. A byte segment targeting a real Win32 console returns `Unsupported` without writing earlier segments. Redirected batches may contain byte segments and are assembled into one backend write.
 
 Text-only and styled batches are assembled into one backend text write. Per-stream scratch capacity is reused for normal writes and released after unusually large batches.
+
+Plain text-only batches skip capability queries. Capability work is performed only when byte segments or non-default styled segments require it.
 
 Segmented writes do not guarantee atomicity relative to `std::cout`, `std::cerr`, `printf`, direct OS writes, or third-party terminal writes.

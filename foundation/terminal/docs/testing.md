@@ -26,7 +26,7 @@ Terminal implementation tests should cover:
 - styled output fallback;
 - `StyleMode::Never`;
 - `StyleMode::Auto`;
-- `StyleMode::Always`;
+- `StyleMode::Required`;
 - segmented writes;
 - terminal redirection behavior;
 - stdin line read;
@@ -35,7 +35,10 @@ Terminal implementation tests should cover:
 - timeout and would-block outcomes;
 - input availability;
 - input mode get, set, and restore;
-- RAII input mode restoration;
+- RAII input mode restoration, including complete native-mode snapshots where the backend has additional flags;
+- preservation of Terminal-buffered input across mode changes;
+- invalid read and write options rejected before input consumption or output emission;
+- flush success and failure behavior for each backend stream kind;
 - terminal size query;
 - clear;
 - cursor movement;

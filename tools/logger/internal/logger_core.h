@@ -650,7 +650,7 @@ namespace GameWIP::Logger::Detail::Core
         /// @brief Current file sink path.
         std::filesystem::path logFilePath;
         /// @brief Atomically published registered source table used by registered source hot paths.
-        std::atomic<std::shared_ptr<SourceRegistry>> sourceRegistry{};
+        std::atomic<std::shared_ptr<SourceRegistry>> sourceRegistry;
         /// @brief Uninitialized arena bytes backing message storage for logRing.
         std::unique_ptr<char[]> ringMessageArena;
         /// @brief Uninitialized arena bytes backing message storage for workerBatch.

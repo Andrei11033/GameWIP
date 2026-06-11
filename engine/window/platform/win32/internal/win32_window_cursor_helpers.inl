@@ -2,94 +2,95 @@
 
 namespace GameWIP
 {
-// Cursor helpers
+    // Cursor helpers
 
-void *Window::getNativeCursorHandle() const
-{
-    if (nativeWindow == nullptr)
+    void *Window::getNativeCursorHandle() const
     {
-        return nullptr;
+        if (nativeWindow == nullptr)
+        {
+            return nullptr;
+        }
+
+        return static_cast<void *>(nativeWindow->arrowCursor);
     }
 
-    return static_cast<void *>(nativeWindow->arrowCursor);
-}
-
-WindowResult Window::releaseCursorConfinement(unsigned long *outWin32Error)
-{
-    if (outWin32Error != nullptr)
-    {
-        *outWin32Error = 0;
-    }
-
-    if (nativeWindow == nullptr || !nativeWindow->cursorClipApplied)
-    {
-        return WindowResult::Success;
-    }
-
-    if (!ClipCursor(nullptr))
+    WindowResult Window::releaseCursorConfinement(unsigned long *outWin32Error)
     {
         if (outWin32Error != nullptr)
         {
-            *outWin32Error = GetLastError();
+            *outWin32Error = 0;
         }
-        return WindowResult::PlatformCallFailed;
-    }
 
-    nativeWindow->cursorClipApplied = false;
-    return WindowResult::Success;
-}
-
-void Window::updateCursorConfinement()
-{
-    if (nativeWindow == nullptr)
-    {
-        return;
-    }
-
-    if (!isCursorConfinementAllowedForRole(nativeWindow->role) || !nativeWindow->cursorConfined || nativeWindow->handle == nullptr || !nativeWindow->isFocused || nativeWindow->isMinimized)
-    {
-        unsigned long releaseError = 0;
-        if (releaseCursorConfinement(&releaseError) != WindowResult::Success)
+        if (nativeWindow == nullptr || !nativeWindow->cursorClipApplied)
         {
-            recordAsyncError(WindowResult::PlatformCallFailed, releaseError);
+            return WindowResult::Success;
         }
-        return;
-    }
 
-    RECT clientRect{};
-    if (!GetClientRect(nativeWindow->handle, &clientRect))
-    {
-        recordAsyncError(WindowResult::PlatformCallFailed, GetLastError());
-        unsigned long releaseError = 0;
-        if (releaseCursorConfinement(&releaseError) != WindowResult::Success)
+        if (!ClipCursor(nullptr))
         {
-            recordAsyncError(WindowResult::PlatformCallFailed, releaseError);
+            if (outWin32Error != nullptr)
+            {
+                *outWin32Error = GetLastError();
+            }
+            return WindowResult::PlatformCallFailed;
         }
-        return;
+
+        nativeWindow->cursorClipApplied = false;
+        return WindowResult::Success;
     }
 
-    POINT topLeft{clientRect.left, clientRect.top};
-    POINT bottomRight{clientRect.right, clientRect.bottom};
-
-    if (!ClientToScreen(nativeWindow->handle, &topLeft) || !ClientToScreen(nativeWindow->handle, &bottomRight))
+    void Window::updateCursorConfinement()
     {
-        recordAsyncError(WindowResult::PlatformCallFailed, GetLastError());
-        unsigned long releaseError = 0;
-        if (releaseCursorConfinement(&releaseError) != WindowResult::Success)
+        if (nativeWindow == nullptr)
         {
-            recordAsyncError(WindowResult::PlatformCallFailed, releaseError);
+            return;
         }
-        return;
+
+        if (!isCursorConfinementAllowedForRole(nativeWindow->role) || !nativeWindow->cursorConfined || nativeWindow->handle == nullptr ||
+            !nativeWindow->isFocused || nativeWindow->isMinimized)
+        {
+            unsigned long releaseError = 0;
+            if (releaseCursorConfinement(&releaseError) != WindowResult::Success)
+            {
+                recordAsyncError(WindowResult::PlatformCallFailed, releaseError);
+            }
+            return;
+        }
+
+        RECT clientRect{};
+        if (!GetClientRect(nativeWindow->handle, &clientRect))
+        {
+            recordAsyncError(WindowResult::PlatformCallFailed, GetLastError());
+            unsigned long releaseError = 0;
+            if (releaseCursorConfinement(&releaseError) != WindowResult::Success)
+            {
+                recordAsyncError(WindowResult::PlatformCallFailed, releaseError);
+            }
+            return;
+        }
+
+        POINT topLeft{clientRect.left, clientRect.top};
+        POINT bottomRight{clientRect.right, clientRect.bottom};
+
+        if (!ClientToScreen(nativeWindow->handle, &topLeft) || !ClientToScreen(nativeWindow->handle, &bottomRight))
+        {
+            recordAsyncError(WindowResult::PlatformCallFailed, GetLastError());
+            unsigned long releaseError = 0;
+            if (releaseCursorConfinement(&releaseError) != WindowResult::Success)
+            {
+                recordAsyncError(WindowResult::PlatformCallFailed, releaseError);
+            }
+            return;
+        }
+
+        RECT screenRect{topLeft.x, topLeft.y, bottomRight.x, bottomRight.y};
+
+        if (!ClipCursor(&screenRect))
+        {
+            recordAsyncError(WindowResult::PlatformCallFailed, GetLastError());
+            return;
+        }
+
+        nativeWindow->cursorClipApplied = true;
     }
-
-    RECT screenRect{topLeft.x, topLeft.y, bottomRight.x, bottomRight.y};
-
-    if (!ClipCursor(&screenRect))
-    {
-        recordAsyncError(WindowResult::PlatformCallFailed, GetLastError());
-        return;
-    }
-
-    nativeWindow->cursorClipApplied = true;
-}
-}
+} // namespace GameWIP

@@ -37,10 +37,10 @@ Collect output with `MemoryWriter`:
 
 ```cpp
 GameWIP::IO::MemoryWriter writer;
-GameWIP::IO::Types::Status writeStatus =
+GameWIP::IO::Types::WriteResult writeResult =
     GameWIP::IO::writeAllText(writer, "hello");
 
-if (writeStatus.ok()) {
+if (writeResult.status.ok()) {
     std::string collected = writer.text();
     std::vector<std::byte> movedBytes = writer.takeBytes();
 }

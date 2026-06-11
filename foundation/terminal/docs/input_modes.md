@@ -4,17 +4,23 @@ Input mode query, set, restore, and scoped restoration are implemented for Windo
 
 ## Presets
 
-`InputModePreset::Default` requests the backend/default mode for the input stream.
-
 `InputModePreset::InteractiveLine` requests normal interactive input: line-buffered, echoed, and platform control keys processed.
 
 `InputModePreset::RawBytes` requests raw byte-oriented input where practical.
 
 Backends may return `Unsupported` when a requested mode cannot be represented on the current stream.
 
+On Win32, echo requires line-buffered input. A mode with `echoInput = true` and `lineBuffered = false` returns `InvalidArgument` without changing the console mode.
+
+On Win32 real-console input, finite and non-blocking reads are unsupported even in raw mode. The backend keeps blocking reads on `ReadConsoleW` so native cooked input, echo, control-key processing, and line editing retain their platform behavior.
+
+Use `restoreDefaultInputMode()` to restore the backend mode captured for the stream. A preset does not represent backend-specific default state.
+
 ## InputModeScope
 
-`InputModeScope` restores the previous input mode for a temporary mode change.
+`InputModeScope` captures and restores the complete previous backend mode for a temporary mode change. On Win32 this includes native console flags that are not represented by the three portable `InputMode` booleans.
+
+Capture and mode application occur while holding the same Terminal input lock, so another Terminal input operation cannot interleave between them. Restore is serialized through that lock as well.
 
 Destructors must not throw. A destructor should attempt best-effort restoration when the scope is active, but callers that care about restoration failure must call `restore()` explicitly and inspect the returned `IO::Types::Status`.
 
@@ -24,4 +30,8 @@ Destructors must not throw. A destructor should attempt best-effort restoration 
 
 Prefer `InputModeScope` for raw or non-echoing modes so ordinary exits restore interactive input.
 
-Terminal implementation code must serialize input-mode changes with other Terminal input operations for the same stream.
+Changing or restoring input mode does not discard bytes or an incomplete Unicode sequence already buffered by Terminal. It does not promise to preserve unread input that an external API removes directly from the native stream.
+
+Terminal serializes input-mode changes with other Terminal input operations for the same stream. Restore nested scopes in reverse acquisition order.
+
+The Win32 default-mode cache follows the active standard-input handle. If the process replaces stdin, the next mode operation captures the default for the new handle instead of restoring mode bits from the previous handle.

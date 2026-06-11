@@ -21,7 +21,7 @@ This file is not a task checklist and not a proof checklist.
 
 GameWIP currently targets:
 
-* Language: C++20
+* Language: C++23
 * Compiler: g++ through MSYS2 UCRT64
 * Build system: CMake
 * Build tool: Ninja

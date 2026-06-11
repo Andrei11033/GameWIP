@@ -38,6 +38,10 @@ The caller must keep the source bytes alive and at a stable address for the read
 
 IO-generated statuses leave `Status::message` empty. Concrete backends may add diagnostic text when the extra allocation and detail are appropriate.
 
+Status-returning helpers report failed allocations as `OutOfMemory`. `SizeLimitExceeded` remains reserved for explicit or representational size limits.
+
+`Status` intentionally retains its owning diagnostic string. This makes successful result objects larger than a code-only status type, but preserves backend diagnostics without a second error channel. Hot paths should prefer empty code-only statuses and avoid constructing messages on success.
+
 ## Threading
 
 Different Reader or Writer objects may be used concurrently.

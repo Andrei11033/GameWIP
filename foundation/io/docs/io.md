@@ -22,7 +22,7 @@ It defines shared reader, writer, status, error, and whole-stream helper APIs fo
 - `MemoryReader` is a non-owning reader over caller-owned contiguous bytes.
 - `MemoryWriter` owns a growing byte vector and supports explicit capacity reuse or byte extraction.
 - `readAllBytes()` and `readAllText()` optimize known-size readers and enforce a hard caller byte limit.
-- `writeAllBytes()` and `writeAllText()` retry partial successful writes.
+- `writeAllBytes()` and `writeAllText()` retry partial successful writes and report total accepted bytes.
 - Expected I/O failures return `Types::Status`.
 - Text helpers preserve UTF-8 bytes without validating or parsing them.
 

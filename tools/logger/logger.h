@@ -324,7 +324,7 @@ namespace GameWIP::Logger
         /// @return SourceId representation of value.
         template <typename Enum>
             requires(Detail::Core::isSourceEnum<Enum>)
-        inline constexpr Types::SourceId sourceId(Enum value) noexcept
+        constexpr Types::SourceId sourceId(Enum value) noexcept
         {
             using Underlying = std::underlying_type_t<std::remove_cvref_t<Enum>>;
             static_assert(
@@ -338,11 +338,50 @@ namespace GameWIP::Logger
 
     namespace Detail::Core
     {
+        /// @brief Enqueues a preformatted message after the caller's fast-path filter check.
+        /// @param level Entry severity.
+        /// @param source Source text copied into the queue entry.
+        /// @param message Formatted message copied before this call returns.
         INTERNAL_LOGGER_API void enqueuePreformattedMessage(Types::Level level, std::string_view source, std::string_view message);
-        INTERNAL_LOGGER_API void enqueuePreformattedMessage(Types::Level level, std::string_view source, std::string_view message, bool alreadyTruncated);
+        /// @brief Enqueues a preformatted message after bounded formatting has already truncated it.
+        /// @param level Entry severity.
+        /// @param source Source text copied into the queue entry.
+        /// @param message Formatted message copied before this call returns.
+        /// @param alreadyTruncated True when message already includes the truncation suffix.
+        INTERNAL_LOGGER_API void enqueuePreformattedMessage(
+            Types::Level level,
+            std::string_view source,
+            std::string_view message,
+            bool alreadyTruncated);
+        /// @brief Enqueues a preformatted message after the caller's fast-path filter check.
+        /// @param level Entry severity.
+        /// @param source Registered SourceId stored in the queue entry.
+        /// @param message Formatted message copied before this call returns.
         INTERNAL_LOGGER_API void enqueuePreformattedMessage(Types::Level level, Types::SourceId source, std::string_view message);
-        INTERNAL_LOGGER_API void enqueuePreformattedMessage(Types::Level level, Types::SourceId source, std::string_view message, bool alreadyTruncated);
+        /// @brief Enqueues a preformatted message after bounded formatting has already truncated it.
+        /// @param level Entry severity.
+        /// @param source Registered SourceId stored in the queue entry.
+        /// @param message Formatted message copied before this call returns.
+        /// @param alreadyTruncated True when message already includes the truncation suffix.
+        INTERNAL_LOGGER_API void enqueuePreformattedMessage(
+            Types::Level level,
+            Types::SourceId source,
+            std::string_view message,
+            bool alreadyTruncated);
+        /// @brief Synchronously reports a preformatted message with a string source.
+        /// @param level Entry severity.
+        /// @param source Source text written into the report line and platform debug output line.
+        /// @param message Formatted message copied before this call returns.
+        /// @param showPopup True to show the fatal popup after flush.
         INTERNAL_LOGGER_API void reportPreformattedMessage(Types::Level level, std::string_view source, std::string_view message, bool showPopup);
+        /// @brief Synchronously reports a preformatted message with a string source and optional bounded drain/flush.
+        /// @param level Entry severity.
+        /// @param source Source text written into the report line and platform debug output line.
+        /// @param message Formatted message copied before this call returns.
+        /// @param showPopup True to show the fatal popup after flush.
+        /// @param alreadyTruncated True when message already includes the truncation suffix.
+        /// @param timeout Optional bounded flush duration.
+        /// @return True when the post-report drain/flush completed; blocking reports always return true.
         INTERNAL_LOGGER_API bool reportPreformattedMessage(
             Types::Level level,
             std::string_view source,
@@ -350,7 +389,20 @@ namespace GameWIP::Logger
             bool showPopup,
             bool alreadyTruncated,
             Types::FlushTimeout *timeout);
+        /// @brief Synchronously reports a preformatted message with a registered SourceId.
+        /// @param level Entry severity.
+        /// @param source Registered SourceId resolved for the report line and platform debug output.
+        /// @param message Formatted message copied before this call returns.
+        /// @param showPopup True to show the fatal popup after flush.
         INTERNAL_LOGGER_API void reportPreformattedMessage(Types::Level level, Types::SourceId source, std::string_view message, bool showPopup);
+        /// @brief Synchronously reports a preformatted message with a registered SourceId and optional bounded drain/flush.
+        /// @param level Entry severity.
+        /// @param source Registered SourceId resolved for the report line and platform debug output.
+        /// @param message Formatted message copied before this call returns.
+        /// @param showPopup True to show the fatal popup after flush.
+        /// @param alreadyTruncated True when message already includes the truncation suffix.
+        /// @param timeout Optional bounded flush duration.
+        /// @return True when the post-report drain/flush completed; blocking reports always return true.
         INTERNAL_LOGGER_API bool reportPreformattedMessage(
             Types::Level level,
             Types::SourceId source,
@@ -358,11 +410,21 @@ namespace GameWIP::Logger
             bool showPopup,
             bool alreadyTruncated,
             Types::FlushTimeout *timeout);
+        /// @brief Counts an allocation or internal formatting failure.
         INTERNAL_LOGGER_API void recordAllocationFailure();
+        /// @brief Counts an invalid runtime formatting failure.
         INTERNAL_LOGGER_API void recordFormatFailure();
+        /// @brief Returns per-thread formatting scratch storage reused by formatted overloads.
+        /// @return Mutable per-thread scratch string.
         INTERNAL_LOGGER_API std::string &formatScratch();
+        /// @brief Returns the active maximum message length used by bounded formatting.
+        /// @return Current maximum message length, or the startup default before init.
         INTERNAL_LOGGER_API std::size_t getMaxMessageLengthForFormatting();
+        /// @brief Returns the active formatted-message memory/speed policy.
+        /// @return Current format policy, or StrictBounded before init.
         INTERNAL_LOGGER_API Types::FormatPolicy getFormatPolicyForFormatting();
+        /// @brief Releases thread-local format scratch capacity when configured.
+        /// @param scratch Scratch buffer to optionally shrink.
         INTERNAL_LOGGER_API void releaseFormatScratchIfNeeded(std::string &scratch);
 
         template <typename Format, typename... Args>
@@ -426,7 +488,7 @@ namespace GameWIP::Logger
     /// @return Source definition suitable for Types::Config::sources.
     template <typename Enum>
         requires(Detail::Core::isSourceEnum<Enum>)
-    inline constexpr Types::SourceDefinition defineSource(Enum value, std::string_view name) noexcept
+    constexpr Types::SourceDefinition defineSource(Enum value, std::string_view name) noexcept
     {
         return Types::SourceDefinition{Detail::Core::sourceId(value), name};
     }
@@ -434,7 +496,7 @@ namespace GameWIP::Logger
     /// @brief Marks a runtime format string as intentional.
     /// @param format Runtime format string passed to std::vformat inside the logger.
     /// @return Runtime format wrapper accepted by formatted logger overloads.
-    inline constexpr Types::RuntimeFormat runtimeFormat(std::string_view format) noexcept
+    constexpr Types::RuntimeFormat runtimeFormat(std::string_view format) noexcept
     {
         return Types::RuntimeFormat{format};
     }
@@ -442,7 +504,7 @@ namespace GameWIP::Logger
     /// @brief Creates a bounded flush timeout for report and fatal APIs.
     /// @param value Maximum time to wait for queued work and sink flushing.
     /// @return Timeout wrapper accepted by report(), reportError(), reportFatal(), and fatalTerminate().
-    inline constexpr Types::FlushTimeout flushTimeout(std::chrono::milliseconds value) noexcept
+    constexpr Types::FlushTimeout flushTimeout(std::chrono::milliseconds value) noexcept
     {
         return Types::FlushTimeout{value};
     }
@@ -2112,87 +2174,6 @@ namespace GameWIP::Logger
     namespace Detail::Core
     {
         // Template implementation helpers ---------------------------------------------------------
-
-        /// @brief Enqueues a preformatted message after the caller's fast-path filter check.
-        /// @param level Entry severity.
-        /// @param source Source text copied into the queue entry.
-        /// @param message Formatted message copied before this call returns.
-        INTERNAL_LOGGER_API void enqueuePreformattedMessage(Types::Level level, std::string_view source, std::string_view message);
-        /// @brief Enqueues a preformatted message after bounded formatting has already truncated it.
-        /// @param level Entry severity.
-        /// @param source Source text copied into the queue entry.
-        /// @param message Formatted message copied before this call returns.
-        /// @param alreadyTruncated True when message already includes the truncation suffix.
-        INTERNAL_LOGGER_API void enqueuePreformattedMessage(Types::Level level, std::string_view source, std::string_view message, bool alreadyTruncated);
-        /// @brief Enqueues a preformatted message after the caller's fast-path filter check.
-        /// @param level Entry severity.
-        /// @param source Registered SourceId stored in the queue entry.
-        /// @param message Formatted message copied before this call returns.
-        INTERNAL_LOGGER_API void enqueuePreformattedMessage(Types::Level level, Types::SourceId source, std::string_view message);
-        /// @brief Enqueues a preformatted message after bounded formatting has already truncated it.
-        /// @param level Entry severity.
-        /// @param source Registered SourceId stored in the queue entry.
-        /// @param message Formatted message copied before this call returns.
-        /// @param alreadyTruncated True when message already includes the truncation suffix.
-        INTERNAL_LOGGER_API void enqueuePreformattedMessage(Types::Level level, Types::SourceId source, std::string_view message, bool alreadyTruncated);
-        /// @brief Synchronously reports a preformatted message with a string source.
-        /// @param level Entry severity.
-        /// @param source Source text written into the report line and platform debug output line.
-        /// @param message Formatted message copied before this call returns.
-        /// @param showPopup True to show the fatal popup after flush.
-        INTERNAL_LOGGER_API void reportPreformattedMessage(Types::Level level, std::string_view source, std::string_view message, bool showPopup);
-        /// @brief Synchronously reports a preformatted message with a string source and optional bounded drain/flush.
-        /// @param level Entry severity.
-        /// @param source Source text written into the report line and platform debug output line.
-        /// @param message Formatted message copied before this call returns.
-        /// @param showPopup True to show the fatal popup after flush.
-        /// @param alreadyTruncated True when message already includes the truncation suffix.
-        /// @param timeout Optional bounded flush duration.
-        /// @return True when the post-report drain/flush completed; blocking reports always return true.
-        INTERNAL_LOGGER_API bool reportPreformattedMessage(
-            Types::Level level,
-            std::string_view source,
-            std::string_view message,
-            bool showPopup,
-            bool alreadyTruncated,
-            Types::FlushTimeout *timeout);
-        /// @brief Synchronously reports a preformatted message with a registered SourceId.
-        /// @param level Entry severity.
-        /// @param source Registered SourceId resolved for the report line and platform debug output.
-        /// @param message Formatted message copied before this call returns.
-        /// @param showPopup True to show the fatal popup after flush.
-        INTERNAL_LOGGER_API void reportPreformattedMessage(Types::Level level, Types::SourceId source, std::string_view message, bool showPopup);
-        /// @brief Synchronously reports a preformatted message with a registered SourceId and optional bounded drain/flush.
-        /// @param level Entry severity.
-        /// @param source Registered SourceId resolved for the report line and platform debug output.
-        /// @param message Formatted message copied before this call returns.
-        /// @param showPopup True to show the fatal popup after flush.
-        /// @param alreadyTruncated True when message already includes the truncation suffix.
-        /// @param timeout Optional bounded flush duration.
-        /// @return True when the post-report drain/flush completed; blocking reports always return true.
-        INTERNAL_LOGGER_API bool reportPreformattedMessage(
-            Types::Level level,
-            Types::SourceId source,
-            std::string_view message,
-            bool showPopup,
-            bool alreadyTruncated,
-            Types::FlushTimeout *timeout);
-        /// @brief Counts an allocation or internal formatting failure.
-        INTERNAL_LOGGER_API void recordAllocationFailure();
-        /// @brief Counts an invalid runtime formatting failure.
-        INTERNAL_LOGGER_API void recordFormatFailure();
-        /// @brief Returns per-thread formatting scratch storage reused by formatted overloads.
-        /// @return Mutable per-thread scratch string.
-        INTERNAL_LOGGER_API std::string &formatScratch();
-        /// @brief Returns the active maximum message length used by bounded formatting.
-        /// @return Current maximum message length, or the startup default before init.
-        INTERNAL_LOGGER_API std::size_t getMaxMessageLengthForFormatting();
-        /// @brief Returns the active formatted-message memory/speed policy.
-        /// @return Current format policy, or StrictBounded before init.
-        INTERNAL_LOGGER_API Types::FormatPolicy getFormatPolicyForFormatting();
-        /// @brief Releases thread-local format scratch capacity when configured.
-        /// @param scratch Scratch buffer to optionally shrink.
-        INTERNAL_LOGGER_API void releaseFormatScratchIfNeeded(std::string &scratch);
 
         /// @brief Types::Output iterator that stores only the prefix that can fit before the truncation suffix.
         class BoundedFormatIterator

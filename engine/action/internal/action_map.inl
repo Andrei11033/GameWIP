@@ -2,34 +2,29 @@
 
 namespace GameWIP::Action
 {
-    template <typename ActionEnum>
-    ActionMap<ActionEnum>::ActionMap(ActionEnum actionCount)
+    template <typename ActionEnum> ActionMap<ActionEnum>::ActionMap(ActionEnum actionCount)
     {
         resize(actionCount);
     }
 
-    template <typename ActionEnum>
-    void ActionMap<ActionEnum>::resize(ActionEnum actionCount)
+    template <typename ActionEnum> void ActionMap<ActionEnum>::resize(ActionEnum actionCount)
     {
         const std::size_t count = static_cast<std::size_t>(actionCount);
         actionKinds.resize(count);
         actionStates.resize(count);
     }
 
-    template <typename ActionEnum>
-    std::size_t ActionMap<ActionEnum>::getActionCount() const
+    template <typename ActionEnum> std::size_t ActionMap<ActionEnum>::getActionCount() const
     {
         return actionKinds.size();
     }
 
-    template <typename ActionEnum>
-    bool ActionMap<ActionEnum>::isValidAction(ActionEnum action) const
+    template <typename ActionEnum> bool ActionMap<ActionEnum>::isValidAction(ActionEnum action) const
     {
         return getActionIndex(action) < actionKinds.size();
     }
 
-    template <typename ActionEnum>
-    ActionResult ActionMap<ActionEnum>::defineAction(ActionEnum action, ActionKind kind)
+    template <typename ActionEnum> ActionResult ActionMap<ActionEnum>::defineAction(ActionEnum action, ActionKind kind)
     {
         if (!isValidAction(action))
         {
@@ -40,8 +35,7 @@ namespace GameWIP::Action
         return ActionResult::Success;
     }
 
-    template <typename ActionEnum>
-    void ActionMap<ActionEnum>::advanceFrame()
+    template <typename ActionEnum> void ActionMap<ActionEnum>::advanceFrame()
     {
         for (ActionState &actionState : actionStates)
         {
@@ -58,8 +52,7 @@ namespace GameWIP::Action
         horizontalWheelDeltaSnapshot = 0.0f;
     }
 
-    template <typename ActionEnum>
-    void ActionMap<ActionEnum>::evaluate(const Input::InputState &inputState, float deltaSeconds)
+    template <typename ActionEnum> void ActionMap<ActionEnum>::evaluate(const Input::InputState &inputState, float deltaSeconds)
     {
         const float frameSeconds = deltaSeconds > 0.0f ? deltaSeconds : 0.0f;
         copyInputSnapshot(inputState);
@@ -70,8 +63,7 @@ namespace GameWIP::Action
             for (std::size_t bindingIndex = 0; bindingIndex < bindings.size(); ++bindingIndex)
             {
                 const ActionBinding<ActionEnum> &binding = bindings[bindingIndex];
-                if (binding.gesture.trigger != ActionTrigger::Value ||
-                    binding.combo.primaryControl != activation.control)
+                if (binding.gesture.trigger != ActionTrigger::Value || binding.combo.primaryControl != activation.control)
                 {
                     continue;
                 }
@@ -93,10 +85,10 @@ namespace GameWIP::Action
                 continue;
             }
 
-            const bool mouseXChanged = Internal::isMouseAxis(binding.combo.primaryControl, Input::MouseAxis::DeltaX) &&
-                                       inputState.getMouseDeltaX() != 0;
-            const bool mouseYChanged = Internal::isMouseAxis(binding.combo.primaryControl, Input::MouseAxis::DeltaY) &&
-                                       inputState.getMouseDeltaY() != 0;
+            const bool mouseXChanged =
+                Internal::isMouseAxis(binding.combo.primaryControl, Input::MouseAxis::DeltaX) && inputState.getMouseDeltaX() != 0;
+            const bool mouseYChanged =
+                Internal::isMouseAxis(binding.combo.primaryControl, Input::MouseAxis::DeltaY) && inputState.getMouseDeltaY() != 0;
             if (mouseXChanged || mouseYChanged)
             {
                 bindingStates[bindingIndex].valueChangeSequence = ++valueChangeSequence;
@@ -121,9 +113,8 @@ namespace GameWIP::Action
             const bool startsThisFrame = binding.combo.activationMode == ComboActivationMode::AnyOrder
                                              ? comboDown && !wasBindingActive
                                              : Internal::wasPrimaryPressed(inputState, binding.combo);
-            const bool nextBindingActive = comboDown && (binding.combo.activationMode == ComboActivationMode::AnyOrder
-                                                             ? true
-                                                             : wasBindingActive || startsThisFrame);
+            const bool nextBindingActive =
+                comboDown && (binding.combo.activationMode == ComboActivationMode::AnyOrder ? true : wasBindingActive || startsThisFrame);
             const bool stopsThisFrame = wasBindingActive && !nextBindingActive;
             bool nextRuntimeActive = nextBindingActive;
             bool bindingDown = false;
@@ -202,8 +193,7 @@ namespace GameWIP::Action
                 {
                     bindingState.timeSinceLastTap += frameSeconds;
 
-                    if (!Internal::areModifiersDown(inputState, binding.combo) ||
-                        bindingState.timeSinceLastTap > binding.gesture.doubleTapSeconds)
+                    if (!Internal::areModifiersDown(inputState, binding.combo) || bindingState.timeSinceLastTap > binding.gesture.doubleTapSeconds)
                     {
                         bindingState.waitingForSecondTap = false;
                         bindingState.timeSinceLastTap = 0.0f;
@@ -230,8 +220,8 @@ namespace GameWIP::Action
             case ActionTrigger::Value:
             {
                 const float rawValue = Internal::getControlValue(inputState, binding.combo.primaryControl);
-                const bool valueActive = Internal::areModifiersDown(inputState, binding.combo) &&
-                                         Internal::passesThreshold(rawValue, binding.valueMapping.threshold);
+                const bool valueActive =
+                    Internal::areModifiersDown(inputState, binding.combo) && Internal::passesThreshold(rawValue, binding.valueMapping.threshold);
 
                 if (Internal::isButtonControl(binding.combo.primaryControl))
                 {
@@ -403,50 +393,42 @@ namespace GameWIP::Action
         }
     }
 
-    template <typename ActionEnum>
-    bool ActionMap<ActionEnum>::hasTextInput() const
+    template <typename ActionEnum> bool ActionMap<ActionEnum>::hasTextInput() const
     {
         return !textInputUtf8Snapshot.empty();
     }
 
-    template <typename ActionEnum>
-    std::string_view ActionMap<ActionEnum>::getTextInputUtf8() const
+    template <typename ActionEnum> std::string_view ActionMap<ActionEnum>::getTextInputUtf8() const
     {
         return textInputUtf8Snapshot;
     }
 
-    template <typename ActionEnum>
-    bool ActionMap<ActionEnum>::hasMousePosition() const
+    template <typename ActionEnum> bool ActionMap<ActionEnum>::hasMousePosition() const
     {
         return mousePositionKnownSnapshot;
     }
 
-    template <typename ActionEnum>
-    int ActionMap<ActionEnum>::getMouseX() const
+    template <typename ActionEnum> int ActionMap<ActionEnum>::getMouseX() const
     {
         return mouseXSnapshot;
     }
 
-    template <typename ActionEnum>
-    int ActionMap<ActionEnum>::getMouseY() const
+    template <typename ActionEnum> int ActionMap<ActionEnum>::getMouseY() const
     {
         return mouseYSnapshot;
     }
 
-    template <typename ActionEnum>
-    int ActionMap<ActionEnum>::getMouseDeltaX() const
+    template <typename ActionEnum> int ActionMap<ActionEnum>::getMouseDeltaX() const
     {
         return mouseDeltaXSnapshot;
     }
 
-    template <typename ActionEnum>
-    int ActionMap<ActionEnum>::getMouseDeltaY() const
+    template <typename ActionEnum> int ActionMap<ActionEnum>::getMouseDeltaY() const
     {
         return mouseDeltaYSnapshot;
     }
 
-    template <typename ActionEnum>
-    float ActionMap<ActionEnum>::getMouseWheelDelta(Input::MouseWheel wheel) const
+    template <typename ActionEnum> float ActionMap<ActionEnum>::getMouseWheelDelta(Input::MouseWheel wheel) const
     {
         switch (wheel)
         {
@@ -459,8 +441,7 @@ namespace GameWIP::Action
         return 0.0f;
     }
 
-    template <typename ActionEnum>
-    bool ActionMap<ActionEnum>::isDown(ActionEnum action) const
+    template <typename ActionEnum> bool ActionMap<ActionEnum>::isDown(ActionEnum action) const
     {
         if (!isValidAction(action))
         {
@@ -470,8 +451,7 @@ namespace GameWIP::Action
         return actionStates[getActionIndex(action)].down;
     }
 
-    template <typename ActionEnum>
-    bool ActionMap<ActionEnum>::wasPressed(ActionEnum action) const
+    template <typename ActionEnum> bool ActionMap<ActionEnum>::wasPressed(ActionEnum action) const
     {
         if (!isValidAction(action))
         {
@@ -481,8 +461,7 @@ namespace GameWIP::Action
         return actionStates[getActionIndex(action)].pressed;
     }
 
-    template <typename ActionEnum>
-    bool ActionMap<ActionEnum>::wasReleased(ActionEnum action) const
+    template <typename ActionEnum> bool ActionMap<ActionEnum>::wasReleased(ActionEnum action) const
     {
         if (!isValidAction(action))
         {
@@ -492,8 +471,7 @@ namespace GameWIP::Action
         return actionStates[getActionIndex(action)].released;
     }
 
-    template <typename ActionEnum>
-    float ActionMap<ActionEnum>::getValue(ActionEnum action) const
+    template <typename ActionEnum> float ActionMap<ActionEnum>::getValue(ActionEnum action) const
     {
         if (!isValidAction(action))
         {
@@ -503,8 +481,7 @@ namespace GameWIP::Action
         return actionStates[getActionIndex(action)].value.scalar;
     }
 
-    template <typename ActionEnum>
-    float ActionMap<ActionEnum>::getValueX(ActionEnum action) const
+    template <typename ActionEnum> float ActionMap<ActionEnum>::getValueX(ActionEnum action) const
     {
         if (!isValidAction(action))
         {
@@ -514,8 +491,7 @@ namespace GameWIP::Action
         return actionStates[getActionIndex(action)].value.x;
     }
 
-    template <typename ActionEnum>
-    float ActionMap<ActionEnum>::getValueY(ActionEnum action) const
+    template <typename ActionEnum> float ActionMap<ActionEnum>::getValueY(ActionEnum action) const
     {
         if (!isValidAction(action))
         {
@@ -525,20 +501,17 @@ namespace GameWIP::Action
         return actionStates[getActionIndex(action)].value.y;
     }
 
-    template <typename ActionEnum>
-    std::span<const ActionBinding<ActionEnum>> ActionMap<ActionEnum>::getBindings() const
+    template <typename ActionEnum> std::span<const ActionBinding<ActionEnum>> ActionMap<ActionEnum>::getBindings() const
     {
         return bindings;
     }
 
-    template <typename ActionEnum>
-    ActionBindingBuilder<ActionEnum> ActionMap<ActionEnum>::bind(ActionEnum action)
+    template <typename ActionEnum> ActionBindingBuilder<ActionEnum> ActionMap<ActionEnum>::bind(ActionEnum action)
     {
         return ActionBindingBuilder<ActionEnum>(*this, action);
     }
 
-    template <typename ActionEnum>
-    ActionResult ActionMap<ActionEnum>::addBinding(const ActionBinding<ActionEnum> &binding)
+    template <typename ActionEnum> ActionResult ActionMap<ActionEnum>::addBinding(const ActionBinding<ActionEnum> &binding)
     {
         const ActionResult result = validateBinding(binding, false);
         if (result != ActionResult::Success && result != ActionResult::ConflictingBinding)
@@ -655,8 +628,7 @@ namespace GameWIP::Action
                 return result;
             }
 
-            if (Internal::isButtonReleaseActivation(activation) &&
-                session.hasPrimaryControl &&
+            if (Internal::isButtonReleaseActivation(activation) && session.hasPrimaryControl &&
                 Internal::containsControl(session.controls, activation.control))
             {
                 const RebindResult result = buildRebindCapture(
@@ -706,8 +678,7 @@ namespace GameWIP::Action
                 return outCapture.result;
             }
 
-            if (Internal::containsControl(ignoredControls, activation.control) ||
-                !Internal::isAllowedCaptureActivation(activation, options))
+            if (Internal::containsControl(ignoredControls, activation.control) || !Internal::isAllowedCaptureActivation(activation, options))
             {
                 continue;
             }
@@ -752,8 +723,7 @@ namespace GameWIP::Action
         return outCapture.result;
     }
 
-    template <typename ActionEnum>
-    ActionResult ActionMap<ActionEnum>::applyCapturedBinding(const ActionRebindCapture<ActionEnum> &capture)
+    template <typename ActionEnum> ActionResult ActionMap<ActionEnum>::applyCapturedBinding(const ActionRebindCapture<ActionEnum> &capture)
     {
         if (capture.result != RebindResult::Captured)
         {
@@ -775,8 +745,7 @@ namespace GameWIP::Action
         return result;
     }
 
-    template <typename ActionEnum>
-    void ActionMap<ActionEnum>::clearBindings(ActionEnum action)
+    template <typename ActionEnum> void ActionMap<ActionEnum>::clearBindings(ActionEnum action)
     {
         if (!isValidAction(action))
         {
@@ -797,21 +766,18 @@ namespace GameWIP::Action
         }
     }
 
-    template <typename ActionEnum>
-    void ActionMap<ActionEnum>::clearAllBindings()
+    template <typename ActionEnum> void ActionMap<ActionEnum>::clearAllBindings()
     {
         bindings.clear();
         bindingStates.clear();
     }
 
-    template <typename ActionEnum>
-    std::size_t ActionMap<ActionEnum>::getActionIndex(ActionEnum action) const
+    template <typename ActionEnum> std::size_t ActionMap<ActionEnum>::getActionIndex(ActionEnum action) const
     {
         return static_cast<std::size_t>(action);
     }
 
-    template <typename ActionEnum>
-    void ActionMap<ActionEnum>::copyInputSnapshot(const Input::InputState &inputState)
+    template <typename ActionEnum> void ActionMap<ActionEnum>::copyInputSnapshot(const Input::InputState &inputState)
     {
         textInputUtf8Snapshot = inputState.getTextInputUtf8();
         mouseDeltaXSnapshot = inputState.getMouseDeltaX();
@@ -842,8 +808,7 @@ namespace GameWIP::Action
             return ActionResult::InvalidBinding;
         }
 
-        if (binding.hasCustomSettings &&
-            (!Internal::isValidActionSettings(binding.settings) || binding.settings.kind != actionKind))
+        if (binding.hasCustomSettings && (!Internal::isValidActionSettings(binding.settings) || binding.settings.kind != actionKind))
         {
             return ActionResult::InvalidSettings;
         }
@@ -853,8 +818,7 @@ namespace GameWIP::Action
             return ActionResult::InvalidControl;
         }
 
-        if (!Internal::isFinite(binding.valueMapping.scale) ||
-            !Internal::isFinite(binding.valueMapping.threshold) ||
+        if (!Internal::isFinite(binding.valueMapping.scale) || !Internal::isFinite(binding.valueMapping.threshold) ||
             binding.valueMapping.threshold < 0.0f)
         {
             return ActionResult::InvalidBinding;
@@ -941,8 +905,7 @@ namespace GameWIP::Action
         binding.valueMapping.component = options.component;
         binding.valueMapping.scale = options.scale;
         binding.valueMapping.threshold = options.threshold;
-        if (options.axisCaptureMode == AxisCaptureMode::DirectionalAxis &&
-            primaryControl.controlType == Input::InputControlType::Axis)
+        if (options.axisCaptureMode == AxisCaptureMode::DirectionalAxis && primaryControl.controlType == Input::InputControlType::Axis)
         {
             const float movement = activation.value - activation.previousValue;
             const float direction = movement < 0.0f || (movement == 0.0f && activation.value < 0.0f) ? -1.0f : 1.0f;
@@ -953,12 +916,7 @@ namespace GameWIP::Action
 
         for (Input::InputControl modifier : modifierCandidates)
         {
-            if (Internal::shouldCaptureModifier(
-                    modifier,
-                    binding.combo.primaryControl,
-                    options.modifierMode,
-                    cancelControls,
-                    ignoredControls))
+            if (Internal::shouldCaptureModifier(modifier, binding.combo.primaryControl, options.modifierMode, cancelControls, ignoredControls))
             {
                 Internal::addUniqueControl(binding.combo.modifiers, modifier);
             }
@@ -989,15 +947,13 @@ namespace GameWIP::Action
         return outCapture.result;
     }
 
-    template <typename ActionEnum>
-    void ActionMap<ActionEnum>::addBindingUnchecked(const ActionBinding<ActionEnum> &binding)
+    template <typename ActionEnum> void ActionMap<ActionEnum>::addBindingUnchecked(const ActionBinding<ActionEnum> &binding)
     {
         bindings.push_back(binding);
         bindingStates.push_back(RuntimeBindingState{});
     }
 
-    template <typename ActionEnum>
-    void ActionMap<ActionEnum>::applyBindingDown(ActionEnum action, bool down)
+    template <typename ActionEnum> void ActionMap<ActionEnum>::applyBindingDown(ActionEnum action, bool down)
     {
         if (!isValidAction(action))
         {
@@ -1008,8 +964,7 @@ namespace GameWIP::Action
         actionState.down = actionState.down || down;
     }
 
-    template <typename ActionEnum>
-    bool ActionMap<ActionEnum>::hasMatchingHoldFired(std::size_t bindingIndex) const
+    template <typename ActionEnum> bool ActionMap<ActionEnum>::hasMatchingHoldFired(std::size_t bindingIndex) const
     {
         if (bindingIndex >= bindings.size())
         {
@@ -1025,8 +980,7 @@ namespace GameWIP::Action
             }
 
             if (bindings[compareIndex].gesture.trigger == ActionTrigger::Hold &&
-                Internal::areSameCombo(bindings[compareIndex].combo, binding.combo) &&
-                bindingStates[compareIndex].holdFired)
+                Internal::areSameCombo(bindings[compareIndex].combo, binding.combo) && bindingStates[compareIndex].holdFired)
             {
                 return true;
             }
@@ -1034,4 +988,4 @@ namespace GameWIP::Action
 
         return false;
     }
-}
+} // namespace GameWIP::Action

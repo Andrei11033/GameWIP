@@ -54,6 +54,8 @@ A write may report accepted bytes together with a failure status. Whole-stream h
 
 `MemoryWriter` is an in-memory Writer implementation for tests, formatting helpers, and code that needs to collect bytes. It preserves binary data exactly, including NUL bytes.
 
+Unknown `FlushMode` values return `InvalidArgument`. `isValidFlushMode()` provides the shared validation rule used by IO and libraries that consume its flush contract. The default `Writer` implementation and `MemoryWriter` perform no physical flush, but still validate the enum so invalid requests do not silently succeed.
+
 `MemoryWriter::write()` handles input spans that alias the writer's own current bytes without allocating a temporary copy.
 
 `MemoryWriter::position()` reports the current append position while open. MemoryWriter remains append-only, reports `canSeek() == false`, and returns `NotSeekable` from `seek()`.
@@ -72,7 +74,7 @@ For unknown-size readers, overloads that take a caller-owned scratch buffer avoi
 
 At a finite `maxBytes`, an unknown-size reader may be advanced by one extra byte so the helper can distinguish exact end-of-stream from an over-limit stream. That byte is not stored in the returned result.
 
-`writeAllBytes()` and `writeAllText()` repeatedly write to a Writer until all requested bytes are accepted or a failure occurs.
+`writeAllBytes()` and `writeAllText()` repeatedly write to a Writer until all requested bytes are accepted or a failure occurs. They return `Types::WriteResult`, preserving the total accepted byte count even when the final writer call accepts bytes and reports failure.
 
 Text helpers treat text as UTF-8 bytes. They do not normalize, parse, or validate higher-level formats.
 
@@ -96,7 +98,7 @@ Whether `read()`, `write()`, `position()`, `size()`, `seek()`, `flush()`, or `cl
 
 Expected I/O failures are returned through `Types::Status`.
 
-Memory allocation failure inside whole-stream helpers is converted to `SizeLimitExceeded` where practical.
+Memory allocation failure inside whole-stream helpers is converted to `OutOfMemory` where practical.
 
 Constructors and direct container-capacity operations, such as `MemoryWriter::reserve()`, may still throw allocation exceptions because they do not return `Types::Status`.
 

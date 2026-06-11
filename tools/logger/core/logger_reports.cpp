@@ -5,10 +5,6 @@
 
 namespace GameWIP::Logger::Detail::Core
 {
-    PlatformError openFileExclusiveForLogger(std::string_view path, FileHandle &outHandle);
-    PlatformError writeFileForLogger(FileHandle handle, std::string_view text);
-    PlatformError flushFileForLogger(FileHandle handle);
-
     /// @brief Writes one report directly to configured sinks without using the async queue.
     /// @param level Severity for the report line.
     /// @param source Source text to write.

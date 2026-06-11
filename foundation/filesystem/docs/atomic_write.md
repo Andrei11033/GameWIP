@@ -1,56 +1,30 @@
-@page foundation_filesystem_atomic_write FileSystem Atomic Write
+@page foundation_filesystem_atomic_write FileSystem atomic writes
 
-This page documents planned whole-file replacement behavior for `GameWIP::FileSystem`.
+`writeAllBytesAtomic()` and `writeAllTextAtomic()` replace exact file contents through a temporary file in the destination directory.
 
-No atomic-write behavior is implemented in this pass.
+The operation:
 
-## Planned types and API
+1. validates `temporaryNamePrefix` as a filename prefix rather than a path;
+2. resolves the destination according to `symlinkPolicy`;
+3. creates a unique temporary file in the destination directory with restrictive access;
+4. writes the complete content;
+5. flushes it according to `flushMode`;
+6. commits it with one native rename or replacement according to `replaceMode`;
+7. optionally performs a best-effort parent-directory flush;
+8. removes the temporary file after failure where practical.
 
-```cpp
-namespace GameWIP::FileSystem::Types {
+There is no non-atomic fallback. Before the commit point, failure leaves an existing destination unchanged. Concurrent path observers see either the old destination content or the complete new content, never an in-place partial rewrite.
 
-struct AtomicWriteOptions {
-    bool createParentDirectories = true;
-    bool overwriteExisting = true;
-    IO::Types::FlushMode flushMode = IO::Types::FlushMode::Data;
-    std::string temporarySuffix = ".tmp";
-};
+## Metadata and access
 
-} // namespace GameWIP::FileSystem::Types
+Atomic write guarantees content replacement, not identity preservation. An open handle or hard link to the previous file object may continue to observe that old object after the path is replaced.
 
-namespace GameWIP::FileSystem {
+Temporary files are created with restrictive access. The backend must not silently broaden access because copying or merging security-relevant metadata failed. If it cannot perform replacement without a known access broadening, it returns a failure before commit.
 
-[[nodiscard]] IO::Types::Status writeFileAtomic(
-    const std::filesystem::path& path,
-    std::span<const std::byte> bytes,
-    const Types::AtomicWriteOptions& options = {});
+Successful replacement does not guarantee preservation of timestamps, ownership, complete ACLs, extended attributes, named streams, compression, encryption, file identifiers, or hard-link identity. A backend may preserve native metadata where its atomic replacement primitive does so, but callers needing a specific metadata contract must manage that separately.
 
-[[nodiscard]] IO::Types::Status writeTextFileAtomic(
-    const std::filesystem::path& path,
-    std::string_view utf8Text,
-    const Types::AtomicWriteOptions& options = {});
+`flushParentDirectoryBestEffort` requests additional durability where supported but does not turn unsupported directory flushing into failure.
 
-} // namespace GameWIP::FileSystem
-```
+`temporaryNamePrefix` is an owning `std::string`, so an `AtomicWriteOptions` value may be stored or moved without depending on a caller-owned character buffer. The prefix must be non-empty: it cannot contain path separators, name `.` or `..`, or contain an embedded NUL. Invalid prefixes return `InvalidArgument` before a temporary file is created.
 
-## Intended use
-
-Atomic write APIs are intended for future saves, configs, controls, and other whole-file replacement cases where a half-written final file would be worse than leaving the previous file in place.
-
-## Contract
-
-The planned behavior is:
-
-- write the new bytes to a temporary path near the final path;
-- flush according to `flushMode`;
-- replace the final path only after temporary-file write succeeds;
-- report replacement failures through `IO::Types::Status`;
-- preserve the old final file on forced failure where practical.
-
-Atomic write means avoiding a half-written final file during normal replacement behavior.
-
-It does not promise database-style transactions, multi-file atomicity, or perfect power-loss durability.
-
-## Text
-
-`writeTextFileAtomic()` treats public text as UTF-8 bytes. It does not parse JSON, config, controls, save, or asset data.
+Atomic write does not promise multi-file transactions or database durability. Text is treated as UTF-8 bytes without BOM handling, validation, or encoding conversion.
