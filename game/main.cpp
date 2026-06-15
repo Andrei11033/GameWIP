@@ -2,6 +2,7 @@
 /// @brief GameWIP executable entry point and runtime test-suite dispatcher.
 
 #include "test/assert_test.h"
+#include "test/filesystem_test.h"
 #include "test/io_test.h"
 #include "test/logger_test.h"
 #include "test/terminal_test.h"
@@ -16,6 +17,7 @@ namespace
     struct TestRunOptions
     {
         bool runIOTests = true;
+        bool runFileSystemTests = true;
         bool runTerminalTests = true;
         bool runTestSupportTests = true;
         bool runLoggerTests = true;
@@ -82,6 +84,18 @@ namespace
 
         if (hasArgument(argc, argv, "--io-only"))
         {
+            options.runFileSystemTests = false;
+            options.runTerminalTests = false;
+            options.runTestSupportTests = false;
+            options.runLoggerTests = false;
+            options.runAssertTests = false;
+            options.enableManualUiTests = false;
+            options.enableLoggerPopupTest = false;
+        }
+
+        if (hasArgument(argc, argv, "--filesystem-only"))
+        {
+            options.runIOTests = false;
             options.runTerminalTests = false;
             options.runTestSupportTests = false;
             options.runLoggerTests = false;
@@ -93,6 +107,7 @@ namespace
         if (hasArgument(argc, argv, "--terminal-only"))
         {
             options.runIOTests = false;
+            options.runFileSystemTests = false;
             options.runTestSupportTests = false;
             options.runLoggerTests = false;
             options.runAssertTests = false;
@@ -103,6 +118,7 @@ namespace
         if (hasArgument(argc, argv, "--test-support-only"))
         {
             options.runIOTests = false;
+            options.runFileSystemTests = false;
             options.runTerminalTests = false;
             options.runLoggerTests = false;
             options.runAssertTests = false;
@@ -113,6 +129,7 @@ namespace
         if (hasArgument(argc, argv, "--test-support-manual"))
         {
             options.runIOTests = false;
+            options.runFileSystemTests = false;
             options.runTerminalTests = false;
             options.runLoggerTests = false;
             options.runAssertTests = false;
@@ -131,6 +148,11 @@ namespace
             options.runIOTests = false;
         }
 
+        if (hasArgument(argc, argv, "--no-filesystem-tests"))
+        {
+            options.runFileSystemTests = false;
+        }
+
         if (hasArgument(argc, argv, "--no-terminal-tests"))
         {
             options.runTerminalTests = false;
@@ -142,6 +164,14 @@ namespace
     GameWIP::Test::IOTestOptions makeIOOptions(const TestRunOptions &options)
     {
         return GameWIP::Test::IOTestOptions{
+            .writeReport = options.writeReport,
+            .appendReport = options.appendReport,
+            .reportPath = options.reportPath};
+    }
+
+    GameWIP::Test::FileSystemTestOptions makeFileSystemOptions(const TestRunOptions &options)
+    {
+        return GameWIP::Test::FileSystemTestOptions{
             .writeReport = options.writeReport,
             .appendReport = options.appendReport,
             .reportPath = options.reportPath};
@@ -203,18 +233,21 @@ int main(int argc, char **argv)
 {
     const TestRunOptions runOptions = makeRunOptions(argc, argv);
     GameWIP::Test::IOTestOptions ioTestOptions = makeIOOptions(runOptions);
+    GameWIP::Test::FileSystemTestOptions fileSystemTestOptions = makeFileSystemOptions(runOptions);
     GameWIP::Test::TerminalTestOptions terminalTestOptions = makeTerminalOptions(runOptions);
     GameWIP::Test::TestSupportTestOptions testSupportTestOptions = makeTestSupportOptions(runOptions);
     GameWIP::Test::LoggerTestOptions loggerTestOptions = makeLoggerOptions(runOptions);
     GameWIP::Test::AssertTestOptions assertTestOptions = makeAssertOptions(runOptions);
 
     ioTestOptions.appendReport = runOptions.appendReport;
-    terminalTestOptions.appendReport = runOptions.appendReport || runOptions.runIOTests;
-    testSupportTestOptions.appendReport = runOptions.appendReport || runOptions.runIOTests || runOptions.runTerminalTests;
-    loggerTestOptions.appendReport =
-        runOptions.appendReport || runOptions.runIOTests || runOptions.runTerminalTests || runOptions.runTestSupportTests;
-    assertTestOptions.appendReport = runOptions.appendReport || runOptions.runIOTests || runOptions.runTerminalTests ||
-                                     runOptions.runTestSupportTests || runOptions.runLoggerTests;
+    fileSystemTestOptions.appendReport = runOptions.appendReport || runOptions.runIOTests;
+    terminalTestOptions.appendReport = runOptions.appendReport || runOptions.runIOTests || runOptions.runFileSystemTests;
+    testSupportTestOptions.appendReport =
+        runOptions.appendReport || runOptions.runIOTests || runOptions.runFileSystemTests || runOptions.runTerminalTests;
+    loggerTestOptions.appendReport = runOptions.appendReport || runOptions.runIOTests || runOptions.runFileSystemTests ||
+                                     runOptions.runTerminalTests || runOptions.runTestSupportTests;
+    assertTestOptions.appendReport = runOptions.appendReport || runOptions.runIOTests || runOptions.runFileSystemTests ||
+                                     runOptions.runTerminalTests || runOptions.runTestSupportTests || runOptions.runLoggerTests;
 
     if (hasArgumentPrefix(argc, argv, "--test-support-test-child="))
     {
@@ -234,10 +267,15 @@ int main(int argc, char **argv)
     }
 
     const int ioResult = runOptions.runIOTests ? GameWIP::Test::runIOTests(argc, argv, ioTestOptions) : 0;
+    const int fileSystemResult =
+        runOptions.runFileSystemTests ? GameWIP::Test::runFileSystemTests(argc, argv, fileSystemTestOptions) : 0;
     const int terminalResult = runOptions.runTerminalTests ? GameWIP::Test::runTerminalTests(argc, argv, terminalTestOptions) : 0;
     const int testSupportResult = runOptions.runTestSupportTests ? GameWIP::Test::runTestSupportTests(argc, argv, testSupportTestOptions) : 0;
     const int loggerResult = runOptions.runLoggerTests ? GameWIP::Test::runLoggerTests(argc, argv, loggerTestOptions) : 0;
     const int assertResult = runOptions.runAssertTests ? GameWIP::Test::runAssertTests(argc, argv, assertTestOptions) : 0;
 
-    return ioResult == 0 && terminalResult == 0 && testSupportResult == 0 && loggerResult == 0 && assertResult == 0 ? 0 : 1;
+    return ioResult == 0 && fileSystemResult == 0 && terminalResult == 0 && testSupportResult == 0 && loggerResult == 0 &&
+                   assertResult == 0
+               ? 0
+               : 1;
 }

@@ -1,6 +1,6 @@
 @page foundation_filesystem FileSystem
 
-`GameWIP::FileSystem` is the declaration-only public contract for local filesystem access. The implementation and build target are intentionally deferred.
+`GameWIP::FileSystem` is the public contract and implementation boundary for local filesystem access.
 
 Include `filesystem/filesystem.h`. Passive values live under `GameWIP::FileSystem::Types`; active handles and operations live directly under `GameWIP::FileSystem`.
 

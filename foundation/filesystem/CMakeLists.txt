@@ -1,11 +1,18 @@
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 
+if(NOT COMMAND library_target_platform_sources)
+    include("${PROJECT_SOURCE_DIR}/cmake/LibraryPlatform.cmake")
+    library_resolve_platform_id(LIBRARY_PLATFORM_ID)
+endif()
+
 add_library(FileSystem STATIC)
 
 target_sources(FileSystem PRIVATE
     core/filesystem.cpp
 )
+
+library_target_platform_sources(FileSystem FileSystem "${CMAKE_CURRENT_SOURCE_DIR}/platform")
 
 target_include_directories(FileSystem PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/..>

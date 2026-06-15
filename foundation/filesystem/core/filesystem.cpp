@@ -1,16 +1,258 @@
 #include "filesystem/filesystem.h"
+#include "filesystem/internal/filesystem_platform.h"
+
+#include <system_error>
+#include <utility>
 
 namespace GameWIP::FileSystem
 {
 
     namespace
     {
+        using ErrorCode = IO::Types::ErrorCode;
 
+        Types::PathResult pathFailure(IO::Types::Status status) noexcept
+        {
+            return {.status = std::move(status), .path = Types::Path{}};
+        }
+
+        Types::PathResult pathFailure(ErrorCode code) noexcept
+        {
+            return {.status = IO::makeStatus(code), .path = Types::Path{}};
+        }
+
+        Types::BoolResult boolFailure(IO::Types::Status status) noexcept
+        {
+            return {.status = std::move(status), .value = false};
+        }
+
+        Types::BoolResult boolFailure(ErrorCode code) noexcept
+        {
+            return {.status = IO::makeStatus(code), .value = false};
+        }
+
+        Types::Utf8PathResult utf8Failure(ErrorCode code) noexcept
+        {
+            return {.status = IO::makeStatus(code), .utf8 = std::string{}};
+        }
+
+        IO::Types::Status statusFromStdError(std::error_code ec, ErrorCode fallback)
+        {
+            if (!ec)
+            {
+                return IO::successStatus();
+            }
+
+            ErrorCode code = fallback;
+
+            if (ec == std::errc::no_such_file_or_directory)
+            {
+                code = ErrorCode::NotFound;
+            }
+            else if (ec == std::errc::not_a_directory)
+            {
+                code = ErrorCode::NotDirectory;
+            }
+            else if (ec == std::errc::permission_denied || ec == std::errc::operation_not_permitted)
+            {
+                code = ErrorCode::PermissionDenied;
+            }
+            else if (ec == std::errc::file_exists)
+            {
+                code = ErrorCode::AlreadyExists;
+            }
+            else if (ec == std::errc::filename_too_long)
+            {
+                code = ErrorCode::PathTooLong;
+            }
+            else if (ec == std::errc::no_space_on_device)
+            {
+                code = ErrorCode::StorageFull;
+            }
+            else if (ec == std::errc::device_or_resource_busy)
+            {
+                code = ErrorCode::ResourceBusy;
+            }
+            else if (ec == std::errc::interrupted)
+            {
+                code = ErrorCode::Interrupted;
+            }
+            else if (ec == std::errc::too_many_symbolic_link_levels)
+            {
+                code = ErrorCode::Unsupported;
+            }
+            else if (ec == std::errc::directory_not_empty)
+            {
+                code = ErrorCode::DirectoryNotEmpty;
+            }
+
+            return IO::makeStatus(code, ec.value(), ec.message());
+        }
+
+        Detail::Platform::EntryQueryResult queryEntry(const Types::Path &path, Types::SymlinkPolicy symlinkPolicy)
+        {
+            if (path.empty())
+            {
+                return {.status = IO::makeStatus(ErrorCode::InvalidArgument)};
+            }
+
+            switch (symlinkPolicy)
+            {
+            case Types::SymlinkPolicy::DoNotFollow:
+            case Types::SymlinkPolicy::FollowFinal:
+            case Types::SymlinkPolicy::FollowAll:
+                return Detail::Platform::queryEntry(path, symlinkPolicy);
+            default:
+                return {.status = IO::makeStatus(ErrorCode::InvalidArgument)};
+            }
+        }
+
+    } // namespace
+
+    Types::BoolResult exists(const Types::Path &path, const Types::QueryOptions &options) noexcept
+    {
+        try
+        {
+            const Detail::Platform::EntryQueryResult result = queryEntry(path, options.symlinkPolicy);
+            if (result.status.code == ErrorCode::NotFound)
+            {
+                return {.status = IO::successStatus(), .value = false};
+            }
+            if (!result.status.ok())
+            {
+                return boolFailure(result.status);
+            }
+            return {.status = IO::successStatus(), .value = true};
+        }
+        catch (const std::bad_alloc &)
+        {
+            return boolFailure(ErrorCode::OutOfMemory);
+        }
+        catch (...)
+        {
+            return boolFailure(ErrorCode::Unknown);
+        }
     }
 
-    Types::PathResult getCurrentDirectory() noexcept;
+    Types::BoolResult isRegularFile(const Types::Path &path, const Types::QueryOptions &options) noexcept
+    {
+        try
+        {
+            const Detail::Platform::EntryQueryResult result = queryEntry(path, options.symlinkPolicy);
+            if (result.status.code == ErrorCode::NotFound)
+            {
+                return {.status = IO::successStatus(), .value = false};
+            }
+            if (!result.status.ok())
+            {
+                return boolFailure(result.status);
+            }
+            return {.status = IO::successStatus(), .value = result.info.kind == Types::EntryKind::RegularFile};
+        }
+        catch (const std::bad_alloc &)
+        {
+            return boolFailure(ErrorCode::OutOfMemory);
+        }
+        catch (...)
+        {
+            return boolFailure(ErrorCode::Unknown);
+        }
+    }
 
-    IO::Types::Status setCurrentDirectory(const Types::Path &path) noexcept;
+    Types::BoolResult isDirectory(const Types::Path &path, const Types::QueryOptions &options) noexcept
+    {
+        try
+        {
+            const Detail::Platform::EntryQueryResult result = queryEntry(path, options.symlinkPolicy);
+            if (result.status.code == ErrorCode::NotFound)
+            {
+                return {.status = IO::successStatus(), .value = false};
+            }
+            if (!result.status.ok())
+            {
+                return boolFailure(result.status);
+            }
+            return {.status = IO::successStatus(), .value = result.info.kind == Types::EntryKind::Directory};
+        }
+        catch (const std::bad_alloc &)
+        {
+            return boolFailure(ErrorCode::OutOfMemory);
+        }
+        catch (...)
+        {
+            return boolFailure(ErrorCode::Unknown);
+        }
+    }
+
+    Types::BoolResult isSymlink(const Types::Path &path, const Types::QueryOptions &options) noexcept
+    {
+        try
+        {
+            const Detail::Platform::EntryQueryResult result = queryEntry(path, options.symlinkPolicy);
+            if (result.status.code == ErrorCode::NotFound)
+            {
+                return {.status = IO::successStatus(), .value = false};
+            }
+            if (!result.status.ok())
+            {
+                return boolFailure(result.status);
+            }
+            return {.status = IO::successStatus(), .value = result.info.kind == Types::EntryKind::Symlink};
+        }
+        catch (const std::bad_alloc &)
+        {
+            return boolFailure(ErrorCode::OutOfMemory);
+        }
+        catch (...)
+        {
+            return boolFailure(ErrorCode::Unknown);
+        }
+    }
+
+    Types::PathResult getCurrentDirectory() noexcept
+    {
+        try
+        {
+            std::error_code ec;
+            Types::Path path = std::filesystem::current_path(ec);
+            if (ec)
+            {
+                return pathFailure(statusFromStdError(ec, ErrorCode::StatFailed));
+            }
+            return {.status = IO::successStatus(), .path = path};
+        }
+        catch (const std::bad_alloc &)
+        {
+            return pathFailure(ErrorCode::OutOfMemory);
+        }
+        catch (...)
+        {
+            return pathFailure(ErrorCode::Unknown);
+        }
+    }
+
+    IO::Types::Status setCurrentDirectory(const Types::Path &path) noexcept
+    {
+        try
+        {
+            if (path.empty())
+            {
+                return IO::makeStatus(ErrorCode::InvalidArgument);
+            }
+
+            std::error_code ec;
+            std::filesystem::current_path(path, ec);
+            return statusFromStdError(ec, ErrorCode::OpenFailed);
+        }
+        catch (const std::bad_alloc &)
+        {
+            return IO::makeStatus(ErrorCode::OutOfMemory);
+        }
+        catch (...)
+        {
+            return IO::makeStatus(ErrorCode::Unknown);
+        }
+    }
 
     Types::PathResult parentPath(const Types::Path &path) noexcept
     {
@@ -20,11 +262,11 @@ namespace GameWIP::FileSystem
         }
         catch (const std::bad_alloc &)
         {
-            return {.status = IO::makeStatus(IO::Types::ErrorCode::OutOfMemory)};
+            return pathFailure(ErrorCode::OutOfMemory);
         }
         catch (...)
         {
-            return {.status = IO::makeStatus(IO::Types::ErrorCode::InvalidArgument)};
+            return pathFailure(ErrorCode::InvalidArgument);
         }
     }
 
@@ -36,11 +278,11 @@ namespace GameWIP::FileSystem
         }
         catch (const std::bad_alloc &)
         {
-            return {.status = IO::makeStatus(IO::Types::ErrorCode::OutOfMemory)};
+            return pathFailure(ErrorCode::OutOfMemory);
         }
         catch (...)
         {
-            return {.status = IO::makeStatus(IO::Types::ErrorCode::InvalidArgument)};
+            return pathFailure(ErrorCode::InvalidArgument);
         }
     }
 
@@ -52,11 +294,11 @@ namespace GameWIP::FileSystem
         }
         catch (const std::bad_alloc &)
         {
-            return {.status = IO::makeStatus(IO::Types::ErrorCode::OutOfMemory)};
+            return pathFailure(ErrorCode::OutOfMemory);
         }
         catch (...)
         {
-            return {.status = IO::makeStatus(IO::Types::ErrorCode::InvalidArgument)};
+            return pathFailure(ErrorCode::InvalidArgument);
         }
     }
 
@@ -68,11 +310,11 @@ namespace GameWIP::FileSystem
         }
         catch (const std::bad_alloc &)
         {
-            return {.status = IO::makeStatus(IO::Types::ErrorCode::OutOfMemory)};
+            return pathFailure(ErrorCode::OutOfMemory);
         }
         catch (...)
         {
-            return {.status = IO::makeStatus(IO::Types::ErrorCode::InvalidArgument)};
+            return pathFailure(ErrorCode::InvalidArgument);
         }
     }
 
@@ -87,11 +329,11 @@ namespace GameWIP::FileSystem
         }
         catch (const std::bad_alloc &)
         {
-            return {.status = IO::makeStatus(IO::Types::ErrorCode::OutOfMemory)};
+            return pathFailure(ErrorCode::OutOfMemory);
         }
         catch (...)
         {
-            return {.status = IO::makeStatus(IO::Types::ErrorCode::InvalidArgument)};
+            return pathFailure(ErrorCode::InvalidArgument);
         }
     }
 
@@ -106,11 +348,11 @@ namespace GameWIP::FileSystem
         }
         catch (const std::bad_alloc &)
         {
-            return {.status = IO::makeStatus(IO::Types::ErrorCode::OutOfMemory)};
+            return pathFailure(ErrorCode::OutOfMemory);
         }
         catch (...)
         {
-            return {.status = IO::makeStatus(IO::Types::ErrorCode::InvalidArgument)};
+            return pathFailure(ErrorCode::InvalidArgument);
         }
     }
 
@@ -122,11 +364,11 @@ namespace GameWIP::FileSystem
         }
         catch (const std::bad_alloc &)
         {
-            return {.status = IO::makeStatus(IO::Types::ErrorCode::OutOfMemory)};
+            return boolFailure(ErrorCode::OutOfMemory);
         }
         catch (...)
         {
-            return {.status = IO::makeStatus(IO::Types::ErrorCode::InvalidArgument)};
+            return boolFailure(ErrorCode::InvalidArgument);
         }
     }
 
@@ -138,11 +380,11 @@ namespace GameWIP::FileSystem
         }
         catch (const std::bad_alloc &)
         {
-            return {.status = IO::makeStatus(IO::Types::ErrorCode::OutOfMemory)};
+            return boolFailure(ErrorCode::OutOfMemory);
         }
         catch (...)
         {
-            return {.status = IO::makeStatus(IO::Types::ErrorCode::InvalidArgument)};
+            return boolFailure(ErrorCode::InvalidArgument);
         }
     }
 
@@ -150,15 +392,26 @@ namespace GameWIP::FileSystem
     {
         try
         {
-            return {.status = IO::successStatus(), .path = std::filesystem::absolute(path)};
+            if (path.empty())
+            {
+                return pathFailure(ErrorCode::InvalidArgument);
+            }
+
+            std::error_code ec;
+            Types::Path result = std::filesystem::absolute(path, ec);
+            if (ec)
+            {
+                return pathFailure(statusFromStdError(ec, ErrorCode::StatFailed));
+            }
+            return {.status = IO::successStatus(), .path = result};
         }
         catch (const std::bad_alloc &)
         {
-            return {.status = IO::makeStatus(IO::Types::ErrorCode::OutOfMemory)};
+            return pathFailure(ErrorCode::OutOfMemory);
         }
         catch (...)
         {
-            return {.status = IO::makeStatus(IO::Types::ErrorCode::InvalidArgument)};
+            return pathFailure(ErrorCode::Unknown);
         }
     }
 
@@ -166,15 +419,26 @@ namespace GameWIP::FileSystem
     {
         try
         {
-            return {.status = IO::successStatus(), .path = std::filesystem::canonical(path)};
+            if (path.empty())
+            {
+                return pathFailure(ErrorCode::InvalidArgument);
+            }
+
+            std::error_code ec;
+            Types::Path result = std::filesystem::canonical(path, ec);
+            if (ec)
+            {
+                return pathFailure(statusFromStdError(ec, ErrorCode::StatFailed));
+            }
+            return {.status = IO::successStatus(), .path = result};
         }
         catch (const std::bad_alloc &)
         {
-            return {.status = IO::makeStatus(IO::Types::ErrorCode::OutOfMemory)};
+            return pathFailure(ErrorCode::OutOfMemory);
         }
         catch (...)
         {
-            return {.status = IO::makeStatus(IO::Types::ErrorCode::InvalidArgument)};
+            return pathFailure(ErrorCode::Unknown);
         }
     }
 
@@ -182,15 +446,26 @@ namespace GameWIP::FileSystem
     {
         try
         {
-            return {.status = IO::successStatus(), .path = std::filesystem::weakly_canonical(path)};
+            if (path.empty())
+            {
+                return pathFailure(ErrorCode::InvalidArgument);
+            }
+
+            std::error_code ec;
+            Types::Path result = std::filesystem::weakly_canonical(path, ec);
+            if (ec)
+            {
+                return pathFailure(statusFromStdError(ec, ErrorCode::StatFailed));
+            }
+            return {.status = IO::successStatus(), .path = result};
         }
         catch (const std::bad_alloc &)
         {
-            return {.status = IO::makeStatus(IO::Types::ErrorCode::OutOfMemory)};
+            return pathFailure(ErrorCode::OutOfMemory);
         }
         catch (...)
         {
-            return {.status = IO::makeStatus(IO::Types::ErrorCode::InvalidArgument)};
+            return pathFailure(ErrorCode::Unknown);
         }
     }
 
@@ -198,15 +473,21 @@ namespace GameWIP::FileSystem
     {
         try
         {
-            return {.status = IO::successStatus(), .path = std::filesystem::temp_directory_path()};
+            std::error_code ec;
+            Types::Path result = std::filesystem::temp_directory_path(ec);
+            if (ec)
+            {
+                return pathFailure(statusFromStdError(ec, ErrorCode::StatFailed));
+            }
+            return {.status = IO::successStatus(), .path = result};
         }
         catch (const std::bad_alloc &)
         {
-            return {.status = IO::makeStatus(IO::Types::ErrorCode::OutOfMemory)};
+            return pathFailure(ErrorCode::OutOfMemory);
         }
         catch (...)
         {
-            return {.status = IO::makeStatus(IO::Types::ErrorCode::InvalidArgument)};
+            return pathFailure(ErrorCode::Unknown);
         }
     }
 
@@ -222,11 +503,11 @@ namespace GameWIP::FileSystem
         }
         catch (const std::bad_alloc &)
         {
-            return {.status = IO::makeStatus(IO::Types::ErrorCode::OutOfMemory)};
+            return pathFailure(ErrorCode::OutOfMemory);
         }
         catch (...)
         {
-            return {.status = IO::makeStatus(IO::Types::ErrorCode::EncodingFailed)};
+            return pathFailure(ErrorCode::EncodingFailed);
         }
     }
 
@@ -241,11 +522,11 @@ namespace GameWIP::FileSystem
         }
         catch (const std::bad_alloc &)
         {
-            return {.status = IO::makeStatus(IO::Types::ErrorCode::OutOfMemory)};
+            return utf8Failure(ErrorCode::OutOfMemory);
         }
         catch (...)
         {
-            return {.status = IO::makeStatus(IO::Types::ErrorCode::EncodingFailed)};
+            return utf8Failure(ErrorCode::EncodingFailed);
         }
     }
 } // namespace GameWIP::FileSystem
