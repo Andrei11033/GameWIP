@@ -34,18 +34,8 @@ namespace GameWIP::FileSystem::Detail::Platform
         constexpr ULONG kOpenOptionsBase = FILE_SYNCHRONOUS_IO_NONALERT | FILE_OPEN_FOR_BACKUP_INTENT;
         constexpr std::int64_t kUnixEpochAsWindowsFileTime = 116'444'736'000'000'000LL;
 
-        using NtCreateFileFunction = NTSTATUS(NTAPI *)(
-            PHANDLE,
-            ACCESS_MASK,
-            POBJECT_ATTRIBUTES,
-            PIO_STATUS_BLOCK,
-            PLARGE_INTEGER,
-            ULONG,
-            ULONG,
-            ULONG,
-            ULONG,
-            PVOID,
-            ULONG);
+        using NtCreateFileFunction =
+            NTSTATUS(NTAPI *)(PHANDLE, ACCESS_MASK, POBJECT_ATTRIBUTES, PIO_STATUS_BLOCK, PLARGE_INTEGER, ULONG, ULONG, ULONG, ULONG, PVOID, ULONG);
         using RtlNtStatusToDosErrorFunction = ULONG(NTAPI *)(NTSTATUS);
 
         struct NtApi
@@ -240,7 +230,8 @@ namespace GameWIP::FileSystem::Detail::Platform
 
         [[nodiscard]] const NtApi &ntApi() noexcept
         {
-            static const NtApi api = [] {
+            static const NtApi api = []
+            {
                 NtApi result{};
                 HMODULE module = GetModuleHandleW(L"ntdll.dll");
                 if (module == nullptr)
@@ -250,8 +241,7 @@ namespace GameWIP::FileSystem::Detail::Platform
                 if (module != nullptr)
                 {
                     result.createFile = reinterpret_cast<NtCreateFileFunction>(GetProcAddress(module, "NtCreateFile"));
-                    result.ntStatusToDosError =
-                        reinterpret_cast<RtlNtStatusToDosErrorFunction>(GetProcAddress(module, "RtlNtStatusToDosError"));
+                    result.ntStatusToDosError = reinterpret_cast<RtlNtStatusToDosErrorFunction>(GetProcAddress(module, "RtlNtStatusToDosError"));
                 }
                 return result;
             }();
@@ -436,14 +426,7 @@ namespace GameWIP::FileSystem::Detail::Platform
 
         [[nodiscard]] HandleResult openFullPathFollowAll(const std::wstring &path)
         {
-            UniqueHandle handle{CreateFileW(
-                path.c_str(),
-                kQueryAccess,
-                kShareAll,
-                nullptr,
-                OPEN_EXISTING,
-                FILE_FLAG_BACKUP_SEMANTICS,
-                nullptr)};
+            UniqueHandle handle{CreateFileW(path.c_str(), kQueryAccess, kShareAll, nullptr, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, nullptr)};
 
             if (!handle.isValid())
             {
@@ -517,16 +500,15 @@ namespace GameWIP::FileSystem::Detail::Platform
 
         [[nodiscard]] TimeResult fileTimeToSystemTimePoint(LARGE_INTEGER fileTime)
         {
-            const __int128 ticksSinceUnixEpoch =
-                static_cast<__int128>(fileTime.QuadPart) - static_cast<__int128>(kUnixEpochAsWindowsFileTime);
+            const __int128 ticksSinceUnixEpoch = static_cast<__int128>(fileTime.QuadPart) - static_cast<__int128>(kUnixEpochAsWindowsFileTime);
             const __int128 nanoseconds = ticksSinceUnixEpoch * 100;
             if (nanoseconds > std::numeric_limits<std::int64_t>::max() || nanoseconds < std::numeric_limits<std::int64_t>::min())
             {
                 return {.status = IO::makeStatus(ErrorCode::SizeLimitExceeded)};
             }
 
-            const auto duration = std::chrono::duration_cast<Types::FileTime::duration>(
-                std::chrono::nanoseconds{static_cast<std::int64_t>(nanoseconds)});
+            const auto duration =
+                std::chrono::duration_cast<Types::FileTime::duration>(std::chrono::nanoseconds{static_cast<std::int64_t>(nanoseconds)});
             return {.status = IO::successStatus(), .time = Types::FileTime{duration}};
         }
 
