@@ -769,7 +769,96 @@ unless a toolchain dependency requires otherwise.
 
 ---
 
-# 20. How to Add Future Decisions
+# 20. Commit Message Standard
+
+Commit messages should read like compact public changelog entries.
+
+The first line uses this format:
+
+```text
+area: imperative summary
+```
+
+Examples:
+
+```text
+filesystem: add Win32 platform backend
+logger: split implementation into focused modules
+tests: migrate logger and assert tests to test_support
+```
+
+The body uses patch-note style sections when they apply:
+
+```text
+Added:
+- Added new APIs, modules, targets, tests, docs, or assets.
+
+Changed:
+- Changed existing behavior, structure, wiring, or documentation.
+
+Fixed:
+- Fixed bugs, incorrect behavior, edge cases, or broken workflows.
+
+Removed:
+- Removed obsolete files, docs, code paths, or temporary artifacts.
+
+Build:
+- Changed CMake, toolchain, package, install, editor, or dependency setup.
+
+Tests:
+- Added or changed test coverage, test support, validation, or checklists.
+
+Documentation:
+- Added or changed docs, examples, public API notes, or developer guidance.
+
+Internal:
+- Changed implementation details that matter to future maintainers.
+```
+
+Only include sections that actually apply to the commit.
+
+Commit bodies should describe meaningful user-facing, maintainer-facing, or workflow-facing changes. They should not list every edited file unless the file itself explains an important decision.
+
+Use past-tense section bullets for patch-note readability:
+
+```text
+Added:
+- Added the filesystem target, package config, and API contract tests.
+```
+
+Avoid vague summaries:
+
+```text
+Updated stuff
+Improved documentation
+Initial header done
+```
+
+Prefer summaries that explain the real change:
+
+```text
+docs: add Doxygen documentation system
+filesystem: add public filesystem library
+assert: optimize assertion handling
+```
+
+Merge commits should be avoided on `master` for local amend/fixup workflows. If a pushed commit is amended, update the remote with a safe force push:
+
+```text
+git push --force-with-lease origin master
+```
+
+When pulling a rewritten branch, prefer rebasing over creating a merge commit:
+
+```text
+git pull --rebase origin master
+```
+
+The `master` history should remain a readable single line unless there is a deliberate reason to preserve a merge.
+
+---
+
+# 21. How to Add Future Decisions
 
 When adding a decision:
 

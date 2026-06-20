@@ -307,7 +307,74 @@ TestSupport utility helpers are implemented for files, environment variables, ch
 
 ---
 
-# 7. Windows Unicode Backend Implementation
+# 7. FileSystem Library Implementation
+
+## Library Target and Public Identity
+
+* [x] `foundation/filesystem` contains the library target files.
+* [x] `foundation/filesystem` contains the public header.
+* [x] `foundation/filesystem` contains the core implementation file.
+* [x] `foundation/filesystem` contains the Win32 platform implementation file.
+* [x] FileSystem builds as a static library target named `FileSystem`.
+* [x] FileSystem public API lives in `foundation/filesystem/filesystem.h`.
+* [x] FileSystem public API lives under namespace `GameWIP::FileSystem`.
+* [x] FileSystem passive public data lives under `GameWIP::FileSystem::Types`.
+* [x] FileSystem depends on the IO library for status, reader, writer, and transfer result types.
+* [x] FileSystem package config polish exists for `find_package(FileSystem CONFIG REQUIRED)`.
+
+## Public Contract Surface
+
+* [x] FileSystem defines the project path alias through `Types::Path`.
+* [x] FileSystem defines entry metadata types and query result types.
+* [x] FileSystem defines file open, share, append, atomic-write, copy, move, remove, and symlink policy option types.
+* [x] FileSystem defines move-constructible, non-copyable handle types for files, readers, writers, and whole-file locks.
+* [x] FileSystem declares path helpers, entry queries, directory operations, file mutation helpers, whole-file helpers, copy/move/remove helpers, and UTF-8 path conversion helpers.
+* [-] FileSystem public contract is broader than the current runtime implementation and remains the active foundation phase.
+
+## Implemented Runtime Behavior
+
+* [x] `exists()` is implemented.
+* [x] `isRegularFile()` is implemented.
+* [x] `isDirectory()` is implemented.
+* [x] `isSymlink()` is implemented.
+* [x] Missing entries return successful `false` for predicate queries.
+* [x] Empty entry-query paths return `InvalidArgument`.
+* [x] Entry queries delegate through `foundation/filesystem/internal/filesystem_platform.h`.
+* [x] Entry queries validate known `SymlinkPolicy` values.
+* [x] Current-directory get/set helpers are implemented.
+* [x] Basic path component helpers are implemented: parent, filename, stem, extension, replace extension, join.
+* [x] Absolute, relative, canonical, weakly canonical, temporary-directory, and UTF-8 path conversion helpers are implemented.
+
+## Win32 Entry Query Backend
+
+* [x] FileSystem Win32 backend uses explicit Unicode Win32 APIs.
+* [x] FileSystem Win32 backend converts public `std::filesystem::path` values to native wide paths at the platform boundary.
+* [x] `SymlinkPolicy::FollowAll` queries entries through normal platform path resolution.
+* [x] `SymlinkPolicy::DoNotFollow` queries final entries without following final symlinks.
+* [x] `SymlinkPolicy::FollowFinal` rejects intermediate symlinks while allowing a final symlink target.
+* [x] Strict symlink-policy traversal uses handle-relative child opens rather than check-then-reopen path logic.
+* [x] Entry metadata reports portable kind, size for regular files, last-write time, and read-only state.
+* [x] Win32 and NTSTATUS errors are mapped to project `IO::Types::ErrorCode` values.
+
+## Current Remaining FileSystem Work
+
+* [ ] Define and implement persistent `File`, `FileReader`, `FileWriter`, and `FileLock` runtime behavior.
+* [ ] Implement whole-file read helpers.
+* [ ] Implement whole-file write and append helpers.
+* [ ] Implement atomic write helpers.
+* [ ] Implement file resizing and truncation helpers.
+* [ ] Implement directory creation and listing helpers.
+* [ ] Implement metadata value queries and read-only mutation helpers.
+* [ ] Implement copy, move, remove-file, remove-empty-directory, and remove-directory-tree helpers.
+* [ ] Expand backend contracts beyond entry metadata queries as each operation becomes active.
+
+Completion note:
+
+FileSystem is implemented as a library target with public contract docs, path/query helpers, and a Win32 entry-query backend. The larger file, directory, mutation, locking, and transfer API surface is still active work.
+
+---
+
+# 8. Windows Unicode Backend Implementation
 
 ## General Rule
 
@@ -323,6 +390,7 @@ TestSupport utility helpers are implemented for files, environment variables, ch
 * [x] TestSupport environment helpers use Unicode environment APIs.
 * [x] Logger Windows popup/debug-output backend uses explicit Unicode APIs.
 * [x] Assert Windows popup/debug-output backend uses explicit Unicode APIs.
+* [x] FileSystem Windows entry-query backend uses explicit Unicode filesystem APIs.
 
 Completion note:
 
@@ -330,7 +398,7 @@ The Windows backend follows the project rule that public C++ remains UTF-8/path 
 
 ---
 
-# 8. Build and Tooling Implementation
+# 9. Build and Tooling Implementation
 
 ## Build Structure
 
@@ -338,6 +406,7 @@ The Windows backend follows the project rule that public C++ remains UTF-8/path 
 * [x] CMake builds the library targets.
 * [x] Top-level CMake adds `tools/test_support` after the C++ library is implemented.
 * [x] Game/test executable links `IO`.
+* [x] Game/test executable links `FileSystem`.
 * [x] Game/test executable links `Terminal`.
 * [x] Game/test executable links `TestSupport`.
 * [x] Game/test executable links `Logger`.
@@ -378,7 +447,7 @@ Build tooling is implemented, including migrated Logger and Assert tests on the 
 
 ---
 
-# 9. Documentation Implementation
+# 10. Documentation Implementation
 
 ## Project Documentation Files
 
@@ -391,6 +460,7 @@ Build tooling is implemented, including migrated Logger and Assert tests on the 
 * [x] Public Logger APIs follow the Doxygen contract style.
 * [x] Public Assert APIs follow the Doxygen contract style.
 * [x] Public TestSupport APIs follow the Doxygen contract style.
+* [x] Public FileSystem APIs follow the Doxygen contract style.
 * [x] Public API comments document contracts.
 * [x] Public API comments document parameters.
 * [x] Public API comments document return values.
@@ -416,7 +486,7 @@ Documentation implementation is in place for the foundation libraries, with publ
 
 ---
 
-# 10. Per-Library Documentation Implementation
+# 11. Per-Library Documentation Implementation
 
 ## Logger Docs
 
@@ -464,6 +534,18 @@ Documentation implementation is in place for the foundation libraries, with publ
 * [x] TestSupport public API guide covers stress helpers.
 * [x] TestSupport public API guide covers examples.
 
+## FileSystem Docs
+
+* [x] FileSystem owns a `foundation/filesystem/docs/` guide folder.
+* [x] FileSystem CMake registers `foundation/filesystem/filesystem.h` with Doxygen.
+* [x] FileSystem CMake registers `foundation/filesystem/docs/` with Doxygen.
+* [x] FileSystem public API guide covers purpose and API shape.
+* [x] FileSystem public API guide covers failure model.
+* [x] FileSystem guide pages cover file open modes.
+* [x] FileSystem guide pages cover atomic writes.
+* [x] FileSystem guide pages cover directory operations.
+* [x] FileSystem guide pages cover Unicode paths.
+
 ## Developer-Validation Docs
 
 * [x] Developer-validation pages such as testing and test-hook notes are separate from normal user-manual navigation.
@@ -475,7 +557,7 @@ Per-library documentation is implemented and organized by library-owned guide fo
 
 ---
 
-# 11. Doxygen Infrastructure Implementation
+# 12. Doxygen Infrastructure Implementation
 
 ## Helper Architecture
 
@@ -506,38 +588,42 @@ The Doxygen build infrastructure is implemented, modular, and integrated with th
 
 ---
 
-# 12. Package and Install Implementation
+# 13. Package and Install Implementation
 
 ## Package Names
 
+* [x] FileSystem package name is `FileSystem`.
 * [x] Logger package name is `Logger`.
 * [x] Assert package name is `Assert`.
 * [x] TestSupport package name is `TestSupport`.
 
 ## Imported Targets
 
+* [x] FileSystem imported target is `FileSystem`.
 * [x] Logger imported target is `Logger`.
 * [x] Assert imported target is `Assert`.
 * [x] TestSupport imported target is `TestSupport`.
 
 ## Package Dependencies
 
+* [x] FileSystem package locates IO as a dependency.
 * [x] Assert package locates Logger as a dependency.
 * [x] TestSupport package has no Logger dependency.
 * [x] TestSupport package has no Assert dependency.
 
 ## Public Install Surface
 
+* [x] FileSystem installs its public header and package config files.
 * [x] Test hooks are excluded from public package installs by default.
 * [x] Assert propagates the Common Controls v6 manifest resource for Windows consumers.
 
 Completion note:
 
-Package/install polish is implemented for Logger, Assert, and TestSupport.
+Package/install polish is implemented for FileSystem, Logger, Assert, and TestSupport.
 
 ---
 
-# 13. Current Remaining Implementation Work
+# 14. Current Remaining Implementation Work
 
 This section tracks known implementation work that still remains in the current foundation layer.
 
@@ -556,6 +642,13 @@ This section tracks known implementation work that still remains in the current 
 * [x] Confirm all public API guides are linked correctly.
 * [x] Confirm developer-validation pages are clearly labeled.
 * [x] Confirm every public API appears in a guide, concept page, or generated reference section.
+
+## FileSystem Current Phase
+
+* [-] Continue implementing the FileSystem public contract beyond entry queries and path helpers.
+* [-] Keep the Win32 backend behind `foundation/filesystem/internal/filesystem_platform.h`.
+* [-] Expand FileSystem tests as each public operation becomes executable.
+* [-] Keep FileSystem docs aligned with the implemented subset and the intended contract.
 
 ## Future Engine/Game Sections
 
@@ -583,7 +676,7 @@ Future engine/game implementation checklists should be added when those systems 
 
 ---
 
-# 14. How to Extend This File
+# 15. How to Extend This File
 
 When adding implementation work:
 

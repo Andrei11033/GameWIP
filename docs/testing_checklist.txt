@@ -393,13 +393,92 @@ Manual validation, metrics, and stress coordination work without corrupting auto
 
 ---
 
-# 5. Test Suite Integration Validation
+# 5. FileSystem Validation
+
+## FileSystem Public API Shape
+
+* [x] Whole-file write helper return types are checked at compile time.
+* [x] Append helper return types are checked at compile time.
+* [x] Atomic write helper return types are checked at compile time.
+* [x] Selected FileSystem helpers are checked as `noexcept` at compile time.
+* [x] `FileShare` bitmask operators are checked at compile time.
+* [x] File open option defaults use `FileShare::All`.
+* [x] Path-opening and mutation option defaults use `SymlinkPolicy::FollowAll`.
+* [x] Query and remove option defaults use `SymlinkPolicy::DoNotFollow`.
+* [x] File handle and lock types are checked as move-constructible.
+* [x] File handle and lock types are checked as not move-assignable.
+* [x] Atomic temporary name prefix storage type is checked.
+
+Completion goal:
+
+The current FileSystem public contract shape is guarded against accidental signature, default, and ownership-policy drift.
+
+---
+
+## FileSystem Entry Queries
+
+* [x] `exists()` reports success and true for an existing regular file.
+* [x] `exists()` reports success and false for a missing path.
+* [x] `isRegularFile()` reports success and true for an existing regular file with default query options.
+* [x] `isDirectory()` reports success and true for an existing directory with default query options.
+* [x] `isSymlink()` reports success and false for a normal file with default query options.
+* [x] Empty entry-query paths return `InvalidArgument`.
+* [x] FileSystem tests create isolated temporary test roots.
+* [x] FileSystem tests clean up their temporary test roots after the run.
+
+Completion goal:
+
+Basic FileSystem predicate queries return the documented statuses and boolean values for normal files, directories, missing paths, and invalid paths.
+
+---
+
+## FileSystem Symlink Policies
+
+* [x] `DoNotFollow` reports a final file symlink as a symlink when symlink creation is available.
+* [x] `FollowFinal` reports a final file symlink as its target file when symlink creation is available.
+* [x] `FollowAll` reports a final file symlink as its target file when symlink creation is available.
+* [x] `FollowAll` allows paths through an intermediate directory symlink when symlink creation is available.
+* [x] `DoNotFollow` rejects paths through an intermediate directory symlink when symlink creation is available.
+* [x] `FollowFinal` rejects paths through an intermediate directory symlink when symlink creation is available.
+* [~] Symlink policy tests skip the affected checks when the host cannot create symlinks.
+
+Completion goal:
+
+Security-sensitive symlink policy behavior is validated where the test environment supports creating the required symlinks.
+
+---
+
+## Remaining FileSystem Validation
+
+* [ ] Persistent file handle open, close, read, write, flush, seek, and size behavior is validated.
+* [ ] File lock acquisition, would-block behavior, and unlock behavior are validated.
+* [ ] Whole-file read helpers are validated.
+* [ ] Whole-file write and append helpers are validated.
+* [ ] Atomic write commit, replacement, cleanup, and failure behavior is validated.
+* [ ] Directory creation and listing behavior is validated.
+* [ ] Metadata value queries and read-only mutation behavior are validated.
+* [ ] File resize and truncate behavior is validated.
+* [ ] Copy, move, and removal behavior is validated.
+* [ ] UTF-8 path conversion behavior is validated with non-ASCII paths.
+* [ ] FileSystem package/install behavior is validated.
+* [ ] FileSystem generated Doxygen output is inspected after the full runtime surface is implemented.
+
+Completion goal:
+
+FileSystem validation should expand with the implementation so the full public contract is proven by tests, manual inspection, or documented validation.
+
+---
+
+# 6. Test Suite Integration Validation
 
 ## Foundation Test Suites
 
+* [x] FileSystem tests run through the current test executable.
+* [x] FileSystem tests can be run as a focused suite with `--filesystem-only`.
 * [x] Logger tests run through the current test executable.
 * [x] Assert tests run through the current test executable.
 * [x] TestSupport tests run through the current test executable.
+* [x] FileSystem tests can use generic TestSupport helpers.
 * [x] Logger tests can use generic TestSupport helpers.
 * [x] Assert tests can use generic TestSupport helpers.
 * [x] Migrated Logger tests still produce equivalent reports.
@@ -415,7 +494,7 @@ Foundation test suites share the same runner/reporting path and still preserve t
 
 ---
 
-# 6. Windows Unicode Backend Validation
+# 7. Windows Unicode Backend Validation
 
 ## Win32 API Usage
 
@@ -430,13 +509,14 @@ Foundation test suites share the same runner/reporting path and still preserve t
 
 ## Platform Boundary
 
-* [x] Platform-specific tool-library code lives under `platform/win32/`.
+* [x] Platform-specific foundation/tool-library code lives under `platform/win32/`.
 * [x] Core code delegates through internal platform headers.
 * [x] TestSupport child-process tests cover Unicode-safe command-line behavior at the public API level.
 * [x] TestSupport child-process tests cover Unicode-safe environment behavior at the public API level.
 * [x] Scoped environment tests verify values are visible through `std::getenv()`.
 * [x] Scoped environment tests verify values are visible through child-process inheritance.
 * [x] Captured child output remains byte-oriented `std::string`, as documented.
+* [x] FileSystem entry-query tests cover public behavior backed by the Win32 Unicode filesystem boundary.
 
 Completion goal:
 
@@ -444,7 +524,7 @@ Windows backend behavior follows the explicit Unicode boundary rule and remains 
 
 ---
 
-# 7. Performance and Coverage Validation
+# 8. Performance and Coverage Validation
 
 ## Performance Metrics
 
@@ -482,7 +562,7 @@ Performance stays observable, and coverage tooling helps find untested code with
 
 ---
 
-# 8. Documentation Validation
+# 9. Documentation Validation
 
 ## Documentation Build
 
@@ -496,9 +576,15 @@ Performance stays observable, and coverage tooling helps find untested code with
 
 ## Documentation Structure
 
+* [x] Root docs link to FileSystem guide pages.
 * [x] Root docs link to Logger guide pages.
 * [x] Root docs link to Assert guide pages.
 * [x] Root docs link to TestSupport guide pages.
+* [x] FileSystem guide pages cover purpose and API shape.
+* [x] FileSystem guide pages cover file open modes.
+* [x] FileSystem guide pages cover atomic writes.
+* [x] FileSystem guide pages cover directory operations.
+* [x] FileSystem guide pages cover Unicode paths.
 * [x] Logger guide pages cover quick start.
 * [x] Logger guide pages cover configuration.
 * [x] Logger guide pages cover reports.
@@ -518,6 +604,8 @@ Performance stays observable, and coverage tooling helps find untested code with
 * [x] TestSupport guide pages cover manual checks.
 * [x] TestSupport guide pages cover metrics.
 * [x] TestSupport guide pages cover stress helpers.
+* [x] FileSystem Doxygen registration adds the FileSystem public header.
+* [x] FileSystem Doxygen registration adds `foundation/filesystem/docs/`.
 * [x] TestSupport Doxygen registration adds the TestSupport public header.
 * [x] TestSupport Doxygen registration adds `tools/test_support/docs/`.
 * [x] TestSupport Doxygen registration does not require editing the root Doxyfile input list.
@@ -530,9 +618,11 @@ Performance stays observable, and coverage tooling helps find untested code with
 * [x] Inspect the Logger landing page.
 * [x] Inspect the Assert landing page.
 * [x] Inspect the TestSupport landing page.
+* [ ] Inspect the FileSystem landing page after the active FileSystem docs are regenerated.
 * [x] Confirm Logger has a user-facing public API guide linked from the Logger landing page.
 * [x] Confirm Assert has a user-facing public API guide linked from the Assert landing page.
 * [x] Confirm TestSupport has a user-facing public API guide linked from the TestSupport landing page.
+* [ ] Confirm FileSystem has a user-facing public API guide linked from the FileSystem landing page in generated output.
 * [x] Confirm test-hook/testing pages are labeled as developer-validation material.
 * [x] Confirm test-hook/testing pages are not presented as normal production API.
 * [x] Confirm public header hover text stays concise enough for IntelliSense.
@@ -545,7 +635,7 @@ Generated documentation is usable by a consumer without requiring them to read `
 
 ---
 
-# 9. Future Engine and Game Validation Sections
+# 10. Future Engine and Game Validation Sections
 
 Do not expand this file with every roadmap item in advance.
 
@@ -578,7 +668,7 @@ Possible future validation sections:
 
 ---
 
-# 10. V1 Validation Placeholder
+# 11. V1 Validation Placeholder
 
 This section should be expanded when V1 systems exist.
 
@@ -608,7 +698,7 @@ V1 is validated as a playable game foundation, not only as a collection of separ
 
 ---
 
-# 11. How to Extend This File
+# 12. How to Extend This File
 
 When adding validation requirements:
 
