@@ -436,6 +436,16 @@ The Windows backend follows the project rule that public C++ remains UTF-8/path 
 * [x] Common Controls v6 manifest resource is propagated through the Assert target in build-tree use.
 * [x] Common Controls v6 manifest resource is propagated through the Assert target in installed-package use.
 
+## GitHub Repository Automation
+
+* [x] GitHub Actions workflow exists to build generated Doxygen HTML and publish it through GitHub Pages.
+* [x] Dependabot configuration exists for GitHub Actions workflow dependencies.
+* [x] Dependabot configuration exists for Git submodule dependencies.
+* [x] Issue forms exist for bug reports and feature requests.
+* [x] GitHub Actions workflow exists to apply area labels from issue-form dropdown values.
+* [x] Pull request template exists with implementation and validation checklist reminders.
+* [x] Security policy exists for private vulnerability reporting.
+
 ## Remaining Build Work
 
 * [x] Logger tests are migrated to use generic TestSupport helpers after the library is validated.

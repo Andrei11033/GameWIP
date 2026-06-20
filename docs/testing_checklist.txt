@@ -573,6 +573,10 @@ Performance stays observable, and coverage tooling helps find untested code with
 * [x] `cmake --build build-docs --target docs --verbose` prints the warning-log path.
 * [x] The Doxygen warning log is checked after docs generation.
 * [x] `INSTALL_LIBRARY_DOCS=ON` installs generated HTML docs only when `BUILD_LIBRARY_DOCS=ON`.
+* [x] Doxygen documentation target configure/build path is validated locally.
+* [ ] GitHub Pages documentation workflow is validated after it runs on GitHub Actions.
+* [ ] GitHub Pages deployment is validated after the workflow runs on GitHub.
+* [ ] Issue area auto-label workflow is validated after it runs on GitHub Actions.
 
 ## Documentation Structure
 

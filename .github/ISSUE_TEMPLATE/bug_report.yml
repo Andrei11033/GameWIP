@@ -1,0 +1,93 @@
+name: Bug report
+description: Report incorrect behavior, crashes, regressions, or broken workflows.
+title: "bug: "
+labels:
+  - "type:bug"
+  - "priority:normal"
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template for reproducible problems in code, builds, tests, docs, or repository automation.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Pick the closest affected area.
+      options:
+        - Build and tooling
+        - FileSystem
+        - Foundation shared systems
+        - IO
+        - Terminal
+        - Logger
+        - Assert
+        - TestSupport
+        - Engine input/action/window
+        - Windows platform backend
+        - Tools/developer support
+        - Documentation
+        - GitHub/repository setup
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What happened?
+      placeholder: Describe the incorrect behavior, crash, failed command, or broken workflow.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction steps
+      description: List the smallest steps or commands that reproduce the issue.
+      placeholder: |
+        1. Run ...
+        2. Observe ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What should have happened instead?
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Include the relevant platform, compiler, build generator, branch, and commit.
+      value: |
+        - OS:
+        - Compiler/toolchain:
+        - CMake generator:
+        - Branch:
+        - Commit:
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or screenshots
+      description: Paste relevant output, stack traces, test report excerpts, or screenshots.
+      render: text
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Pre-submit checks
+      options:
+        - label: I searched existing issues for a duplicate.
+          required: true
+        - label: I included the exact command or workflow that failed when applicable.
+          required: false

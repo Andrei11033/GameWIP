@@ -1,38 +1,38 @@
 # GameWIP
 
-GameWIP is a work-in-progress C++23 sandbox game project focused on player-built vehicles, structures, weapons, components, and meaningful destruction.
+GameWIP is an early-stage C++23 sandbox game project focused on player-built vehicles, structures, weapons, components, and meaningful destruction.
 
-The project is private and early-stage. The current work is mostly foundation and engine infrastructure: reusable libraries, Windows platform backends, test support, documentation, and the first pieces of the engine layer. It is not a playable game yet.
+The current codebase is infrastructure-focused rather than a playable release. Active work is centered on reusable foundation libraries, Windows platform backends, project-native test support, generated documentation, and the first engine systems.
 
 ## Current Status
 
-Current target:
+Primary target:
 
-- Windows-first development.
-- C++23.
-- MSYS2 UCRT64 g++ toolchain.
-- CMake-based build.
-- Ninja recommended for local builds.
-- Visual Studio Code workspace support.
+- Windows-first development
+- C++23
+- MSYS2 UCRT64 g++ toolchain
+- CMake build system
+- Ninja for local builds
+- Visual Studio Code workspace support
 
-Implemented foundation and tooling currently includes:
+Implemented foundation and tooling:
 
-- CMake project wiring and library targets.
-- IO foundation library.
-- Terminal foundation library.
-- FileSystem foundation library in active development.
-- Logger library.
-- Assert/debug diagnostics library.
-- TestSupport library for project-native tests.
-- Engine scaffolding for input, actions, windows, and window management.
-- Tracy integration.
-- Doxygen documentation infrastructure.
+- CMake project wiring and library targets
+- IO foundation library
+- Terminal foundation library
+- FileSystem foundation library in active development
+- Logger library
+- Assert/debug diagnostics library
+- TestSupport library for project-native tests
+- Engine scaffolding for input, actions, windows, and window management
+- Tracy integration
+- Doxygen documentation infrastructure
 
-The current active foundation phase is FileSystem. The public contract is larger than the implemented runtime surface, so check `docs/implementation_checklist.txt` and `docs/testing_checklist.txt` before assuming an API is complete.
+The active foundation phase is FileSystem. Its public contract is larger than the implemented runtime surface, so use the implementation and testing checklists as the source of truth before assuming an API is complete.
 
-## Quick Start
+## Prerequisites
 
-Install the expected Windows toolchain first:
+Install the expected Windows toolchain:
 
 - Git
 - CMake 3.20 or newer
@@ -40,13 +40,15 @@ Install the expected Windows toolchain first:
 - MSYS2 UCRT64 toolchain with g++
 - Visual Studio Code, optional
 
-Clone dependencies:
+## Build
+
+Initialize submodules:
 
 ```powershell
 git submodule update --init --recursive
 ```
 
-Run CMake from an environment where the MSYS2 UCRT64 `g++` is first on `PATH`. If CMake selects the wrong compiler, clear the build directory and configure again from the correct shell/environment.
+Run CMake from an environment where the MSYS2 UCRT64 `g++` is first on `PATH`. If CMake selects the wrong compiler, clear the build directory and configure again from the correct shell.
 
 Configure and build:
 
@@ -58,6 +60,8 @@ cmake -S . -B build -G Ninja `
 
 cmake --build build
 ```
+
+## Test
 
 Run the normal automated test pass:
 
@@ -71,7 +75,7 @@ You can also run the test executable directly:
 .\build\GameWIP.exe --no-manual-ui
 ```
 
-For the current FileSystem phase:
+For the current FileSystem phase, run only the FileSystem-focused tests:
 
 ```powershell
 .\build\GameWIP.exe --filesystem-only
@@ -85,16 +89,20 @@ logs/tests/latest_test_report.txt
 
 ## Documentation
 
-Start here when joining the project:
+Generated API and guide documentation is published through GitHub Pages:
 
-- `docs/vision.txt` - what the game is meant to become.
-- `docs/roadmap.txt` - planned development order toward V1.
-- `docs/decisions.txt` - stable architecture, tooling, naming, and workflow decisions.
-- `docs/implementation_checklist.txt` - what code exists.
-- `docs/testing_checklist.txt` - what behavior has been validated.
-- `docs/platform_backend_contract.txt` - platform backend rules.
+- [GameWIP Doxygen Documentation](https://andrei11033.github.io/GameWIP/)
 
-Generated Doxygen docs are optional:
+Project planning and validation notes:
+
+- [docs/vision.txt](docs/vision.txt) - what the game is meant to become
+- [docs/roadmap.txt](docs/roadmap.txt) - planned development order toward V1
+- [docs/decisions.txt](docs/decisions.txt) - stable architecture, tooling, naming, and workflow decisions
+- [docs/implementation_checklist.txt](docs/implementation_checklist.txt) - what code exists
+- [docs/testing_checklist.txt](docs/testing_checklist.txt) - what behavior has been validated
+- [docs/platform_backend_contract.txt](docs/platform_backend_contract.txt) - platform backend rules
+
+Build the generated documentation locally:
 
 ```powershell
 cmake -S . -B build-docs -G Ninja -DBUILD_LIBRARY_DOCS=ON
@@ -123,16 +131,16 @@ logs/         Local runtime and test output.
 
 ## Development Rules
 
-Keep implementation and validation separate:
+Keep implementation and validation tracking separate:
 
-- Update `docs/implementation_checklist.txt` when code exists.
-- Update `docs/testing_checklist.txt` only when behavior is tested, manually checked, measured, or inspected.
-- Put long-term architecture decisions in `docs/decisions.txt`.
-- Put roadmap direction in `docs/roadmap.txt`.
+- Update [docs/implementation_checklist.txt](docs/implementation_checklist.txt) when code exists.
+- Update [docs/testing_checklist.txt](docs/testing_checklist.txt) only when behavior is tested, manually checked, measured, or inspected.
+- Put long-term architecture decisions in [docs/decisions.txt](docs/decisions.txt).
+- Put roadmap direction in [docs/roadmap.txt](docs/roadmap.txt).
 
 Keep platform-specific code behind internal backend headers. Windows backend code should use explicit Unicode Win32 APIs and avoid generic A/W macro-mapped calls.
 
-Commit messages should follow the project style from `docs/decisions.txt`:
+Commit messages follow the project style from [docs/decisions.txt](docs/decisions.txt):
 
 ```text
 area: imperative summary

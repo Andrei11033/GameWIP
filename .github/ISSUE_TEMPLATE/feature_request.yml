@@ -1,0 +1,72 @@
+name: Feature request
+description: Propose a new capability, workflow, or design improvement.
+title: "feature: "
+labels:
+  - "type:feature"
+  - "priority:normal"
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template for planned capabilities, workflow improvements, and design proposals.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Pick the closest affected area.
+      options:
+        - Build and tooling
+        - FileSystem
+        - Foundation shared systems
+        - IO
+        - Terminal
+        - Logger
+        - Assert
+        - TestSupport
+        - Engine input/action/window
+        - Windows platform backend
+        - Tools/developer support
+        - Documentation
+        - GitHub/repository setup
+        - Gameplay roadmap
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+      description: What capability should the project gain?
+      placeholder: Describe the outcome, not only one implementation step.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: Describe the preferred approach, API, workflow, or behavior.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Note other approaches and why they are less suitable.
+
+  - type: textarea
+    id: validation
+    attributes:
+      label: Validation plan
+      description: What tests, manual checks, docs, or checklist updates would prove this is done?
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Pre-submit checks
+      options:
+        - label: I checked the roadmap, implementation checklist, and testing checklist for existing coverage.
+          required: true

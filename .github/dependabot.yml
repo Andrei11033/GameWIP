@@ -1,0 +1,34 @@
+version: 2
+
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "saturday"
+      time: "09:00"
+      timezone: "Europe/Bucharest"
+    open-pull-requests-limit: 5
+    labels:
+      - "area:github"
+      - "priority:normal"
+      - "type:tooling"
+    commit-message:
+      prefix: "build"
+      include: "scope"
+
+  - package-ecosystem: "gitsubmodule"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "saturday"
+      time: "09:30"
+      timezone: "Europe/Bucharest"
+    open-pull-requests-limit: 5
+    labels:
+      - "area:github"
+      - "priority:normal"
+      - "type:tooling"
+    commit-message:
+      prefix: "build"
+      include: "scope"

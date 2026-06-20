@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Generated documentation
+    url: https://andrei11033.github.io/GameWIP/
+    about: Browse the generated Doxygen documentation published through GitHub Pages.
