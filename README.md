@@ -56,7 +56,7 @@ Configure and build:
 cmake -S . -B build -G Ninja `
   -DASSERTS_ENABLED=ON `
   -DENABLE_LIBRARY_COVERAGE=OFF `
-  -DBUILD_LIBRARY_DOCS=OFF
+  -DBUILD_DOCS=OFF
 
 cmake --build build
 ```
@@ -105,7 +105,7 @@ Project planning and validation notes:
 Build the generated documentation locally:
 
 ```powershell
-cmake -S . -B build-docs -G Ninja -DBUILD_LIBRARY_DOCS=ON
+cmake -S . -B build-docs -G Ninja -DBUILD_DOCS=ON
 cmake --build build-docs --target docs
 ```
 

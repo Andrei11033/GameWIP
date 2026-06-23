@@ -29,7 +29,7 @@ set_target_properties(FileSystem PROPERTIES
     ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
 )
 
-if(BUILD_LIBRARY_DOCS AND COMMAND library_register_doxygen_library)
+if(BUILD_DOCS AND COMMAND library_register_doxygen_library)
     library_register_doxygen_library(
         NAME FileSystem
         PAGE_ID foundation_filesystem

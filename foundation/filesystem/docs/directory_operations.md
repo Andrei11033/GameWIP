@@ -4,12 +4,13 @@
 
 `ListDirectoryOptions` controls included entry kinds, hidden entries, symlink metadata behavior, and `maxEntries`.
 
-`CreateDirectoryOptions::symlinkPolicy` controls traversal through existing path components. The default follows ordinary filesystem resolution; security-sensitive callers can request a stricter policy.
+`CreateDirectoryOptions::symlinkPolicy` controls traversal through existing path components. The default is `DoNotFollow`; callers must opt into `FollowFinal` or `FollowAll` when symlink traversal is intentional.
 
 When `maxEntries` is reached before completion, the operation returns `SizeLimitExceeded` and preserves entries already collected. There is no separate truncation-success state.
 
-`removeDirectoryTree()` is the primitive recursive removal operation. It:
+`removeDirectoryTree()` is the primitive tree-removal operation. It:
 
+- uses an explicit stack rather than process recursion;
 - never follows symlinked directories discovered during traversal;
 - obeys the requested policy for the initial path;
 - returns `SizeLimitExceeded` when `maxEntries` stops removal;

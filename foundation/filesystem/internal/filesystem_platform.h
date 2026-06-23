@@ -137,7 +137,32 @@ namespace GameWIP::FileSystem::Detail::Platform
     [[nodiscard]] IO::Types::Status unlockFile(Detail::FileLockState &state) noexcept;
 
     /// @brief Moves or replaces one path with the platform-native rename primitive.
-    [[nodiscard]] IO::Types::Status movePath(const Types::Path &from, const Types::Path &to, Types::ReplaceMode replaceMode) noexcept;
+    [[nodiscard]] IO::Types::Status movePath(
+        const Types::Path &from,
+        const Types::Path &to,
+        Types::ReplaceMode replaceMode,
+        Types::SymlinkPolicy symlinkPolicy) noexcept;
+
+    /// @brief Creates one directory level using backend-native path traversal.
+    [[nodiscard]] IO::Types::Status createDirectory(const Types::Path &path, const Types::CreateDirectoryOptions &options) noexcept;
+
+    /// @brief Creates a directory and any missing parents using backend-native path traversal.
+    [[nodiscard]] IO::Types::Status createDirectories(const Types::Path &path, const Types::CreateDirectoryOptions &options) noexcept;
+
+    /// @brief Lists direct directory children using backend-native path traversal.
+    [[nodiscard]] Types::ListDirectoryResult listDirectory(const Types::Path &path, const Types::ListDirectoryOptions &options) noexcept;
+
+    /// @brief Changes read-only metadata through a backend-native entry handle.
+    [[nodiscard]] IO::Types::Status setReadOnly(const Types::Path &path, bool readOnly, Types::SymlinkPolicy symlinkPolicy) noexcept;
+
+    /// @brief Removes one file-like entry through a backend-native entry handle.
+    [[nodiscard]] IO::Types::Status removeFile(const Types::Path &path, const Types::RemoveOptions &options) noexcept;
+
+    /// @brief Removes one empty directory through a backend-native entry handle.
+    [[nodiscard]] IO::Types::Status removeEmptyDirectory(const Types::Path &path, const Types::RemoveOptions &options) noexcept;
+
+    /// @brief Flushes filesystem metadata for a directory path.
+    [[nodiscard]] IO::Types::Status flushDirectory(const Types::Path &path) noexcept;
 
     /// @brief Returns whether a backend considers an entry hidden.
     [[nodiscard]] Types::BoolResult isHidden(const Types::Path &path) noexcept;

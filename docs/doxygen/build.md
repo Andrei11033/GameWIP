@@ -14,7 +14,7 @@ cmake -S . -B build -G Ninja `
   -DASSERT_TEST_HOOKS=OFF `
   -DTERMINAL_TEST_HOOKS=OFF `
   -DENABLE_LIBRARY_COVERAGE=OFF `
-  -DBUILD_LIBRARY_DOCS=OFF
+  -DBUILD_DOCS=OFF
 
 cmake --build build
 ```
@@ -85,7 +85,7 @@ Doxygen is opt-in:
 
 ```powershell
 cmake -S . -B build-docs -G Ninja `
-  -DBUILD_LIBRARY_DOCS=ON
+  -DBUILD_DOCS=ON
 
 cmake --build build-docs --target docs
 ```
@@ -96,7 +96,7 @@ Generated HTML is written to:
 build-docs/docs/doxygen/html/index.html
 ```
 
-Normal builds do not require Doxygen. When `BUILD_LIBRARY_DOCS=ON`, CMake fails early with a clear error if Doxygen is missing.
+Normal builds do not require Doxygen. When `BUILD_DOCS=ON`, CMake fails early with a clear error if Doxygen is missing.
 
 ## Installing generated docs
 
@@ -104,8 +104,8 @@ Generated HTML docs can also be installed:
 
 ```powershell
 cmake -S . -B build-install-docs `
-  -DBUILD_LIBRARY_DOCS=ON `
-  -DINSTALL_LIBRARY_DOCS=ON `
+  -DBUILD_DOCS=ON `
+  -DINSTALL_DOCS=ON `
   -DCMAKE_INSTALL_PREFIX=D:/library-install-test
 
 cmake --build build-install-docs --target docs

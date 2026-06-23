@@ -299,23 +299,6 @@ namespace GameWIP::FileSystem
             }
         }
 
-        [[nodiscard]] bool includeEntryKind(Types::EntryKind kind, const Types::ListDirectoryOptions &options) noexcept
-        {
-            switch (kind)
-            {
-            case Types::EntryKind::RegularFile:
-                return options.includeFiles;
-            case Types::EntryKind::Directory:
-                return options.includeDirectories;
-            case Types::EntryKind::Symlink:
-                return options.includeSymlinks;
-            case Types::EntryKind::Other:
-                return options.includeOther;
-            }
-
-            return false;
-        }
-
         [[nodiscard]] bool hasPathSeparator(std::string_view text) noexcept
         {
             return text.find('/') != std::string_view::npos || text.find('\\') != std::string_view::npos || text.find('\0') != std::string_view::npos;
@@ -383,24 +366,6 @@ namespace GameWIP::FileSystem
             return result.status.ok() && result.info.kind == Types::EntryKind::Symlink;
         }
 
-        [[nodiscard]] IO::Types::Status setReadOnlyPortable(const Types::Path &path, bool readOnly) noexcept
-        {
-            std::error_code ec;
-            const auto writePermissions =
-                std::filesystem::perms::owner_write | std::filesystem::perms::group_write | std::filesystem::perms::others_write;
-
-            if (readOnly)
-            {
-                std::filesystem::permissions(path, writePermissions, std::filesystem::perm_options::remove, ec);
-            }
-            else
-            {
-                std::filesystem::permissions(path, std::filesystem::perms::owner_write, std::filesystem::perm_options::add, ec);
-            }
-
-            return statusFromStdError(ec, ErrorCode::StatFailed);
-        }
-
         [[nodiscard]] IO::Types::Status copyBasicMetadata(const Types::Path &from, const Types::Path &to) noexcept
         {
             std::error_code ec;
@@ -422,65 +387,7 @@ namespace GameWIP::FileSystem
                 return readonly.status;
             }
 
-            return setReadOnlyPortable(to, readonly.value);
-        }
-
-        struct RemoveTreeState
-        {
-            std::uint64_t removedEntries = 0;
-            std::uint64_t maxEntries = kNoEntryLimit;
-        };
-
-        [[nodiscard]] IO::Types::Status removeOneEntry(const Types::Path &path, RemoveTreeState &state) noexcept
-        {
-            if (state.removedEntries >= state.maxEntries)
-            {
-                return IO::makeStatus(ErrorCode::SizeLimitExceeded);
-            }
-
-            std::error_code ec;
-            const bool removed = std::filesystem::remove(path, ec);
-            if (ec)
-            {
-                return statusFromStdError(ec, ErrorCode::RemoveFailed);
-            }
-            if (!removed)
-            {
-                return IO::makeStatus(ErrorCode::NotFound);
-            }
-
-            ++state.removedEntries;
-            return IO::successStatus();
-        }
-
-        [[nodiscard]] IO::Types::Status removeTreeRecursive(const Types::Path &path, const Types::EntryInfo &info, RemoveTreeState &state)
-        {
-            if (info.kind == Types::EntryKind::Directory)
-            {
-                std::error_code ec;
-                std::filesystem::directory_iterator iterator(path, ec);
-                if (ec)
-                {
-                    return statusFromStdError(ec, ErrorCode::DirectoryListFailed);
-                }
-
-                for (const std::filesystem::directory_entry &entry : iterator)
-                {
-                    const Detail::Platform::EntryQueryResult child = queryEntry(entry.path(), Types::SymlinkPolicy::DoNotFollow);
-                    if (!child.status.ok())
-                    {
-                        return child.status;
-                    }
-
-                    const IO::Types::Status childStatus = removeTreeRecursive(entry.path(), child.info, state);
-                    if (!childStatus.ok())
-                    {
-                        return childStatus;
-                    }
-                }
-            }
-
-            return removeOneEntry(path, state);
+            return Detail::Platform::setReadOnly(to, readonly.value, Types::SymlinkPolicy::FollowAll);
         }
 
         [[nodiscard]] Types::Path uniqueAtomicTemporaryPath(const Types::Path &parent, std::string_view prefix, std::uint64_t attempt)
@@ -1462,7 +1369,7 @@ namespace GameWIP::FileSystem
                     Types::FileWriterOpenOptions{
                         .mode = Types::FileWriterMode::CreateNew,
                         .share = Types::FileShare::None,
-                        .symlinkPolicy = Types::SymlinkPolicy::FollowAll,
+                        .symlinkPolicy = options.symlinkPolicy,
                         .createParentDirectories = false,
                         .flushOnClose = IO::Types::FlushMode::None});
             }
@@ -1494,11 +1401,20 @@ namespace GameWIP::FileSystem
                 return closeStatus;
             }
 
-            const IO::Types::Status commitStatus = Detail::Platform::movePath(temporaryPath, path, options.replaceMode);
+            const IO::Types::Status commitStatus = Detail::Platform::movePath(temporaryPath, path, options.replaceMode, options.symlinkPolicy);
             if (!commitStatus.ok())
             {
                 static_cast<void>(removeFile(temporaryPath, Types::RemoveOptions{.succeedIfMissing = true}));
                 return commitStatus;
+            }
+
+            if (options.flushParentDirectory)
+            {
+                const IO::Types::Status parentFlushStatus = Detail::Platform::flushDirectory(parent);
+                if (!parentFlushStatus.ok())
+                {
+                    return parentFlushStatus;
+                }
             }
 
             return IO::successStatus();
@@ -1522,54 +1438,7 @@ namespace GameWIP::FileSystem
     {
         try
         {
-            if (path.empty())
-            {
-                return IO::makeStatus(ErrorCode::InvalidArgument);
-            }
-
-            const Detail::Platform::EntryQueryResult existing = queryEntry(path, options.symlinkPolicy);
-            if (existing.status.ok())
-            {
-                if (existing.info.kind == Types::EntryKind::Directory)
-                {
-                    return options.succeedIfAlreadyExists ? IO::successStatus() : IO::makeStatus(ErrorCode::AlreadyExists);
-                }
-
-                return IO::makeStatus(ErrorCode::AlreadyExists);
-            }
-            if (existing.status.code != ErrorCode::NotFound)
-            {
-                return existing.status;
-            }
-
-            const IO::Types::Status parentStatus = validateParentDirectory(path, false, options.symlinkPolicy);
-            if (!parentStatus.ok())
-            {
-                return parentStatus;
-            }
-
-            std::error_code ec;
-            const bool created = std::filesystem::create_directory(path, ec);
-            if (ec)
-            {
-                return statusFromStdError(ec, ErrorCode::DirectoryCreateFailed);
-            }
-            if (!created)
-            {
-                return IO::makeStatus(ErrorCode::AlreadyExists);
-            }
-
-            const Detail::Platform::EntryQueryResult verified = queryEntry(path, options.symlinkPolicy);
-            if (!verified.status.ok())
-            {
-                return verified.status;
-            }
-            if (verified.info.kind != Types::EntryKind::Directory)
-            {
-                return IO::makeStatus(ErrorCode::NotDirectory);
-            }
-
-            return IO::successStatus();
+            return Detail::Platform::createDirectory(path, options);
         }
         catch (const std::bad_alloc &)
         {
@@ -1585,44 +1454,7 @@ namespace GameWIP::FileSystem
     {
         try
         {
-            if (path.empty())
-            {
-                return IO::makeStatus(ErrorCode::InvalidArgument);
-            }
-
-            const Detail::Platform::EntryQueryResult existing = queryEntry(path, options.symlinkPolicy);
-            if (existing.status.ok())
-            {
-                if (existing.info.kind == Types::EntryKind::Directory)
-                {
-                    return options.succeedIfAlreadyExists ? IO::successStatus() : IO::makeStatus(ErrorCode::AlreadyExists);
-                }
-
-                return IO::makeStatus(ErrorCode::AlreadyExists);
-            }
-            if (existing.status.code != ErrorCode::NotFound)
-            {
-                return existing.status;
-            }
-
-            std::error_code ec;
-            std::filesystem::create_directories(path, ec);
-            if (ec)
-            {
-                return statusFromStdError(ec, ErrorCode::DirectoryCreateFailed);
-            }
-
-            const Detail::Platform::EntryQueryResult verified = queryEntry(path, options.symlinkPolicy);
-            if (!verified.status.ok())
-            {
-                return verified.status;
-            }
-            if (verified.info.kind != Types::EntryKind::Directory)
-            {
-                return IO::makeStatus(ErrorCode::NotDirectory);
-            }
-
-            return IO::successStatus();
+            return Detail::Platform::createDirectories(path, options);
         }
         catch (const std::bad_alloc &)
         {
@@ -1638,38 +1470,25 @@ namespace GameWIP::FileSystem
     {
         try
         {
-            const Types::EntryInfoResult info = getEntryInfo(path, Types::QueryOptions{.symlinkPolicy = options.symlinkPolicy});
-            if (!info.status.ok())
+            File file;
+            const IO::Types::Status openStatus = file.open(
+                path,
+                Types::FileOpenOptions{
+                    .access = Types::FileAccess::Write,
+                    .mode = Types::FileOpenMode::OpenExisting,
+                    .symlinkPolicy = options.symlinkPolicy});
+            if (!openStatus.ok())
             {
-                return info.status;
-            }
-            if (info.info.kind != Types::EntryKind::RegularFile)
-            {
-                return IO::makeStatus(ErrorCode::InvalidArgument);
-            }
-            if (info.info.readOnly)
-            {
-                return IO::makeStatus(ErrorCode::PermissionDenied);
+                return openStatus;
             }
 
-            std::error_code ec;
-            std::filesystem::resize_file(path, sizeBytes, ec);
-            if (ec)
+            const IO::Types::Status resizeStatus = file.resize(sizeBytes);
+            const IO::Types::Status closeStatus = file.close();
+            if (!resizeStatus.ok())
             {
-                return statusFromStdError(ec, ErrorCode::ResizeFailed);
+                return resizeStatus;
             }
-
-            const IO::Types::SizeResult verified = getFileSize(path, Types::QueryOptions{.symlinkPolicy = options.symlinkPolicy});
-            if (!verified.status.ok())
-            {
-                return verified.status;
-            }
-            if (verified.sizeBytes != sizeBytes)
-            {
-                return IO::makeStatus(ErrorCode::ResizeFailed);
-            }
-
-            return IO::successStatus();
+            return closeStatus;
         }
         catch (const std::bad_alloc &)
         {
@@ -1690,72 +1509,7 @@ namespace GameWIP::FileSystem
     {
         try
         {
-            if (path.empty())
-            {
-                return listDirectoryFailure(ErrorCode::InvalidArgument);
-            }
-            if (!isValidSymlinkPolicy(options.symlinkPolicy))
-            {
-                return listDirectoryFailure(ErrorCode::InvalidArgument);
-            }
-
-            const Types::EntryInfoResult info = getEntryInfo(path, Types::QueryOptions{.symlinkPolicy = Types::SymlinkPolicy::FollowAll});
-            if (!info.status.ok())
-            {
-                return listDirectoryFailure(info.status);
-            }
-            if (info.info.kind != Types::EntryKind::Directory)
-            {
-                return listDirectoryFailure(ErrorCode::NotDirectory);
-            }
-
-            Types::ListDirectoryResult result{.status = IO::successStatus()};
-            std::error_code ec;
-            std::filesystem::directory_iterator iterator(path, ec);
-            if (ec)
-            {
-                return listDirectoryFailure(statusFromStdError(ec, ErrorCode::DirectoryListFailed));
-            }
-
-            for (const std::filesystem::directory_entry &entry : iterator)
-            {
-                if (result.entries.size() >= options.maxEntries)
-                {
-                    result.status = IO::makeStatus(ErrorCode::SizeLimitExceeded);
-                    return result;
-                }
-
-                const Types::Path childPath = entry.path();
-                const Detail::Platform::EntryQueryResult child = queryEntry(childPath, options.symlinkPolicy);
-                if (!child.status.ok())
-                {
-                    result.status = child.status;
-                    return result;
-                }
-
-                if (!options.includeHidden)
-                {
-                    const Types::BoolResult hidden = Detail::Platform::isHidden(childPath);
-                    if (!hidden.status.ok())
-                    {
-                        result.status = hidden.status;
-                        return result;
-                    }
-                    if (hidden.value)
-                    {
-                        continue;
-                    }
-                }
-
-                if (!includeEntryKind(child.info.kind, options))
-                {
-                    continue;
-                }
-
-                result.entries.push_back(Types::DirectoryEntry{.path = childPath, .info = child.info});
-            }
-
-            return result;
+            return Detail::Platform::listDirectory(path, options);
         }
         catch (const std::bad_alloc &)
         {
@@ -1771,29 +1525,7 @@ namespace GameWIP::FileSystem
     {
         try
         {
-            const Types::EntryInfoResult info = getEntryInfo(path, options);
-            if (!info.status.ok())
-            {
-                return info.status;
-            }
-
-            const IO::Types::Status setStatus = setReadOnlyPortable(path, readOnly);
-            if (!setStatus.ok())
-            {
-                return setStatus;
-            }
-
-            const Types::BoolResult verified = isReadOnly(path, options);
-            if (!verified.status.ok())
-            {
-                return verified.status;
-            }
-            if (verified.value != readOnly)
-            {
-                return IO::makeStatus(ErrorCode::StatFailed);
-            }
-
-            return IO::successStatus();
+            return Detail::Platform::setReadOnly(path, readOnly, options.symlinkPolicy);
         }
         catch (const std::bad_alloc &)
         {
@@ -1829,7 +1561,7 @@ namespace GameWIP::FileSystem
                 return IO::makeStatus(ErrorCode::InvalidArgument);
             }
 
-            const Detail::Platform::EntryQueryResult destination = queryEntry(to, Types::SymlinkPolicy::FollowAll);
+            const Detail::Platform::EntryQueryResult destination = queryEntry(to, Types::SymlinkPolicy::DoNotFollow);
             if (destination.status.ok() && options.replaceMode == Types::ReplaceMode::FailIfExists)
             {
                 return IO::makeStatus(ErrorCode::AlreadyExists);
@@ -1839,67 +1571,98 @@ namespace GameWIP::FileSystem
                 return destination.status;
             }
 
-            const IO::Types::Status parentStatus = validateParentDirectory(to, options.createParentDirectories, Types::SymlinkPolicy::FollowAll);
+            const IO::Types::Status parentStatus = validateParentDirectory(to, options.createParentDirectories, options.symlinkPolicy);
             if (!parentStatus.ok())
             {
                 return parentStatus;
             }
 
-            std::error_code ec;
-            const std::filesystem::copy_options copyOptions = options.replaceMode == Types::ReplaceMode::ReplaceExisting
-                                                                  ? std::filesystem::copy_options::overwrite_existing
-                                                                  : std::filesystem::copy_options::none;
-            std::filesystem::copy_file(from, to, copyOptions, ec);
-            if (ec)
+            FileReader reader;
+            const IO::Types::Status readerOpenStatus =
+                reader.open(from, Types::FileReaderOpenOptions{.share = Types::FileShare::All, .symlinkPolicy = options.symlinkPolicy});
+            if (!readerOpenStatus.ok())
             {
-                return statusFromStdError(ec, ErrorCode::CopyFailed);
+                return readerOpenStatus;
             }
 
-            const IO::Types::SizeResult copiedSize = getFileSize(to, Types::QueryOptions{.symlinkPolicy = Types::SymlinkPolicy::FollowAll});
-            if (!copiedSize.status.ok())
+            const Types::FileWriterMode writerMode = options.replaceMode == Types::ReplaceMode::ReplaceExisting
+                                                          ? Types::FileWriterMode::CreateOrTruncate
+                                                          : Types::FileWriterMode::CreateNew;
+            FileWriter writer;
+            const IO::Types::Status writerOpenStatus = writer.open(
+                to,
+                Types::FileWriterOpenOptions{
+                    .mode = writerMode,
+                    .share = Types::FileShare::None,
+                    .symlinkPolicy = options.symlinkPolicy,
+                    .createParentDirectories = false});
+            if (!writerOpenStatus.ok())
             {
-                return copiedSize.status;
+                static_cast<void>(reader.close());
+                return writerOpenStatus;
             }
-            if (!source.info.hasSize || copiedSize.sizeBytes != source.info.sizeBytes)
+
+            std::vector<std::byte> buffer(IO::kDefaultBufferSize);
+            std::uint64_t copiedBytes = 0;
+            while (true)
             {
+                IO::Types::ReadResult readResult = reader.read(std::span<std::byte>(buffer.data(), buffer.size()));
+                if (!readResult.status.ok())
+                {
+                    static_cast<void>(writer.close());
+                    static_cast<void>(reader.close());
+                    return readResult.status;
+                }
+
+                if (readResult.bytesRead > 0)
+                {
+                    IO::Types::WriteResult writeResult =
+                        IO::writeAllBytes(writer, std::span<const std::byte>(buffer.data(), readResult.bytesRead));
+                    if (!writeResult.status.ok())
+                    {
+                        static_cast<void>(writer.close());
+                        static_cast<void>(reader.close());
+                        return writeResult.status;
+                    }
+                    copiedBytes += writeResult.bytesWritten;
+                }
+
+                if (readResult.endOfStream)
+                {
+                    break;
+                }
+            }
+
+            if (source.info.hasSize && copiedBytes != source.info.sizeBytes)
+            {
+                static_cast<void>(writer.close());
+                static_cast<void>(reader.close());
                 return IO::makeStatus(ErrorCode::CopyFailed);
+            }
+
+            const IO::Types::Status flushStatus = writer.flush(options.flushMode);
+            const IO::Types::Status writerCloseStatus = writer.close();
+            const IO::Types::Status readerCloseStatus = reader.close();
+            if (!flushStatus.ok())
+            {
+                return flushStatus;
+            }
+            if (!writerCloseStatus.ok())
+            {
+                return writerCloseStatus;
+            }
+            if (!readerCloseStatus.ok())
+            {
+                return readerCloseStatus;
             }
 
             if (options.metadataMode == Types::CopyMetadataMode::Basic)
             {
-                const IO::Types::Status metadataStatus = copyBasicMetadata(from, to);
-                if (!metadataStatus.ok())
+                if (options.symlinkPolicy != Types::SymlinkPolicy::FollowAll)
                 {
-                    return metadataStatus;
+                    return IO::makeStatus(ErrorCode::Unsupported);
                 }
-            }
-
-            if (options.flushMode != IO::Types::FlushMode::None)
-            {
-                File file;
-                const IO::Types::Status openStatus = file.open(
-                    to,
-                    Types::FileOpenOptions{
-                        .access = Types::FileAccess::Write,
-                        .mode = Types::FileOpenMode::OpenExisting,
-                        .initialPosition = Types::FileInitialPosition::Beginning,
-                        .share = Types::FileShare::All,
-                        .symlinkPolicy = Types::SymlinkPolicy::FollowAll});
-                if (!openStatus.ok())
-                {
-                    return openStatus;
-                }
-
-                const IO::Types::Status flushStatus = file.flush(options.flushMode);
-                const IO::Types::Status closeStatus = file.close();
-                if (!flushStatus.ok())
-                {
-                    return flushStatus;
-                }
-                if (!closeStatus.ok())
-                {
-                    return closeStatus;
-                }
+                return copyBasicMetadata(from, to);
             }
 
             return IO::successStatus();
@@ -1918,9 +1681,13 @@ namespace GameWIP::FileSystem
     {
         try
         {
-            if (from.empty() || to.empty() || !isValidReplaceMode(options.replaceMode))
+            if (from.empty() || to.empty() || !isValidReplaceMode(options.replaceMode) || !isValidSymlinkPolicy(options.symlinkPolicy))
             {
                 return IO::makeStatus(ErrorCode::InvalidArgument);
+            }
+            if (options.symlinkPolicy != Types::SymlinkPolicy::DoNotFollow && finalEntryIsSymlink(from))
+            {
+                return IO::makeStatus(ErrorCode::Unsupported);
             }
 
             const Types::EntryInfoResult source = getEntryInfo(from, Types::QueryOptions{.symlinkPolicy = options.symlinkPolicy});
@@ -1932,11 +1699,6 @@ namespace GameWIP::FileSystem
             {
                 return IO::successStatus();
             }
-            if (options.symlinkPolicy != Types::SymlinkPolicy::DoNotFollow && finalEntryIsSymlink(from))
-            {
-                return IO::makeStatus(ErrorCode::Unsupported);
-            }
-
             const Detail::Platform::EntryQueryResult destination = queryEntry(to, Types::SymlinkPolicy::DoNotFollow);
             if (destination.status.ok() && options.replaceMode == Types::ReplaceMode::FailIfExists)
             {
@@ -1947,13 +1709,13 @@ namespace GameWIP::FileSystem
                 return destination.status;
             }
 
-            const IO::Types::Status parentStatus = validateParentDirectory(to, options.createParentDirectories, Types::SymlinkPolicy::FollowAll);
+            const IO::Types::Status parentStatus = validateParentDirectory(to, options.createParentDirectories, options.symlinkPolicy);
             if (!parentStatus.ok())
             {
                 return parentStatus;
             }
 
-            const IO::Types::Status moveStatus = Detail::Platform::movePath(from, to, options.replaceMode);
+            const IO::Types::Status moveStatus = Detail::Platform::movePath(from, to, options.replaceMode, options.symlinkPolicy);
             if (!moveStatus.ok())
             {
                 return moveStatus;
@@ -1991,46 +1753,16 @@ namespace GameWIP::FileSystem
     {
         try
         {
-            const Detail::Platform::EntryQueryResult existing = queryEntry(path, options.symlinkPolicy);
-            if (!existing.status.ok())
+            if (path.empty() || !isValidSymlinkPolicy(options.symlinkPolicy))
             {
-                if (existing.status.code == ErrorCode::NotFound && options.succeedIfMissing)
-                {
-                    return IO::successStatus();
-                }
-                return existing.status;
-            }
-            if (existing.info.kind == Types::EntryKind::Directory)
-            {
-                return IO::makeStatus(ErrorCode::IsDirectory);
+                return IO::makeStatus(ErrorCode::InvalidArgument);
             }
             if (options.symlinkPolicy != Types::SymlinkPolicy::DoNotFollow && finalEntryIsSymlink(path))
             {
                 return IO::makeStatus(ErrorCode::Unsupported);
             }
 
-            std::error_code ec;
-            const bool removed = std::filesystem::remove(path, ec);
-            if (ec)
-            {
-                return statusFromStdError(ec, ErrorCode::RemoveFailed);
-            }
-            if (!removed)
-            {
-                return options.succeedIfMissing ? IO::successStatus() : IO::makeStatus(ErrorCode::NotFound);
-            }
-
-            const Detail::Platform::EntryQueryResult verified = queryEntry(path, Types::SymlinkPolicy::DoNotFollow);
-            if (verified.status.ok())
-            {
-                return IO::makeStatus(ErrorCode::RemoveFailed);
-            }
-            if (verified.status.code != ErrorCode::NotFound)
-            {
-                return verified.status;
-            }
-
-            return IO::successStatus();
+            return Detail::Platform::removeFile(path, options);
         }
         catch (const std::bad_alloc &)
         {
@@ -2046,46 +1778,16 @@ namespace GameWIP::FileSystem
     {
         try
         {
-            const Detail::Platform::EntryQueryResult existing = queryEntry(path, options.symlinkPolicy);
-            if (!existing.status.ok())
+            if (path.empty() || !isValidSymlinkPolicy(options.symlinkPolicy))
             {
-                if (existing.status.code == ErrorCode::NotFound && options.succeedIfMissing)
-                {
-                    return IO::successStatus();
-                }
-                return existing.status;
-            }
-            if (existing.info.kind != Types::EntryKind::Directory)
-            {
-                return IO::makeStatus(ErrorCode::NotDirectory);
+                return IO::makeStatus(ErrorCode::InvalidArgument);
             }
             if (options.symlinkPolicy != Types::SymlinkPolicy::DoNotFollow && finalEntryIsSymlink(path))
             {
                 return IO::makeStatus(ErrorCode::Unsupported);
             }
 
-            std::error_code ec;
-            const bool removed = std::filesystem::remove(path, ec);
-            if (ec)
-            {
-                return statusFromStdError(ec, ErrorCode::RemoveFailed);
-            }
-            if (!removed)
-            {
-                return IO::makeStatus(ErrorCode::DirectoryNotEmpty);
-            }
-
-            const Detail::Platform::EntryQueryResult verified = queryEntry(path, Types::SymlinkPolicy::DoNotFollow);
-            if (verified.status.ok())
-            {
-                return IO::makeStatus(ErrorCode::RemoveFailed);
-            }
-            if (verified.status.code != ErrorCode::NotFound)
-            {
-                return verified.status;
-            }
-
-            return IO::successStatus();
+            return Detail::Platform::removeEmptyDirectory(path, options);
         }
         catch (const std::bad_alloc &)
         {
@@ -2101,6 +1803,11 @@ namespace GameWIP::FileSystem
     {
         try
         {
+            if (path.empty() || !isValidSymlinkPolicy(options.symlinkPolicy))
+            {
+                return removeTreeFailure(ErrorCode::InvalidArgument);
+            }
+
             const Detail::Platform::EntryQueryResult existing = queryEntry(path, options.symlinkPolicy);
             if (!existing.status.ok())
             {
@@ -2119,24 +1826,67 @@ namespace GameWIP::FileSystem
                 return removeTreeFailure(ErrorCode::Unsupported);
             }
 
-            RemoveTreeState state{.removedEntries = 0, .maxEntries = options.maxEntries};
-            const IO::Types::Status removeStatus = removeTreeRecursive(path, existing.info, state);
-            if (!removeStatus.ok())
+            struct PendingEntry
             {
-                return removeTreeFailure(removeStatus, state.removedEntries);
+                Types::Path path;
+                Types::EntryInfo info{};
+                bool childrenVisited = false;
+            };
+
+            std::vector<PendingEntry> pending;
+            pending.push_back(PendingEntry{.path = path, .info = existing.info, .childrenVisited = false});
+
+            std::uint64_t removedEntries = 0;
+            while (!pending.empty())
+            {
+                PendingEntry current = std::move(pending.back());
+                pending.pop_back();
+
+                if (current.info.kind == Types::EntryKind::Directory && !current.childrenVisited)
+                {
+                    const Types::Path directoryPath = current.path;
+                    current.childrenVisited = true;
+                    pending.push_back(std::move(current));
+
+                    Types::ListDirectoryResult children = listDirectory(
+                        directoryPath,
+                        Types::ListDirectoryOptions{
+                            .includeFiles = true,
+                            .includeDirectories = true,
+                            .includeSymlinks = true,
+                            .includeOther = true,
+                            .includeHidden = true,
+                            .symlinkPolicy = Types::SymlinkPolicy::DoNotFollow,
+                            .maxEntries = kNoEntryLimit});
+                    if (!children.status.ok())
+                    {
+                        return removeTreeFailure(children.status, removedEntries);
+                    }
+
+                    for (auto iterator = children.entries.rbegin(); iterator != children.entries.rend(); ++iterator)
+                    {
+                        pending.push_back(PendingEntry{.path = iterator->path, .info = iterator->info, .childrenVisited = false});
+                    }
+                    continue;
+                }
+
+                if (removedEntries >= options.maxEntries)
+                {
+                    return removeTreeFailure(ErrorCode::SizeLimitExceeded, removedEntries);
+                }
+
+                const IO::Types::Status removeStatus =
+                    current.info.kind == Types::EntryKind::Directory
+                        ? removeEmptyDirectory(current.path, Types::RemoveOptions{.succeedIfMissing = false, .symlinkPolicy = Types::SymlinkPolicy::DoNotFollow})
+                        : removeFile(current.path, Types::RemoveOptions{.succeedIfMissing = false, .symlinkPolicy = Types::SymlinkPolicy::DoNotFollow});
+                if (!removeStatus.ok())
+                {
+                    return removeTreeFailure(removeStatus, removedEntries);
+                }
+                ++removedEntries;
             }
 
-            const Detail::Platform::EntryQueryResult verified = queryEntry(path, Types::SymlinkPolicy::DoNotFollow);
-            if (verified.status.ok())
-            {
-                return removeTreeFailure(ErrorCode::RemoveFailed, state.removedEntries);
-            }
-            if (verified.status.code != ErrorCode::NotFound)
-            {
-                return removeTreeFailure(verified.status, state.removedEntries);
-            }
-
-            return {.status = IO::successStatus(), .removedEntries = state.removedEntries};
+            return {.status = IO::successStatus(), .removedEntries = removedEntries};
         }
         catch (const std::bad_alloc &)
         {

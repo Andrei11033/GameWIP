@@ -145,7 +145,7 @@ if(ASSERT_RUNTIME_TARGET_ENABLED)
     )
 endif()
 
-if(BUILD_LIBRARY_DOCS AND COMMAND library_register_doxygen_library)
+if(BUILD_DOCS AND COMMAND library_register_doxygen_library)
     # Assert owns its public API docs and Markdown manual pages. The root docs
     # target merges this into the unified library Doxygen site.
     library_register_doxygen_library(

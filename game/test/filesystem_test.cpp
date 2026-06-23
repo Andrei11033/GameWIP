@@ -1,4 +1,4 @@
-/// @file filesystem_api_contract_test.cpp
+/// @file filesystem_test.cpp
 /// @brief Compile-time and runtime checks for the FileSystem public API.
 
 #include "test/filesystem_test.h"
@@ -60,9 +60,10 @@ namespace
     static_assert(FileSystem::Types::WriteFileOptions{}.share == FileSystem::Types::FileShare::All);
     static_assert(FileSystem::Types::AppendFileOptions{}.share == FileSystem::Types::FileShare::All);
 
-    static_assert(FileSystem::Types::FileOpenOptions{}.symlinkPolicy == FileSystem::Types::SymlinkPolicy::FollowAll);
-    static_assert(FileSystem::Types::AtomicWriteOptions{}.symlinkPolicy == FileSystem::Types::SymlinkPolicy::FollowAll);
-    static_assert(FileSystem::Types::MutationOptions{}.symlinkPolicy == FileSystem::Types::SymlinkPolicy::FollowAll);
+    static_assert(FileSystem::Types::FileOpenOptions{}.symlinkPolicy == FileSystem::Types::SymlinkPolicy::DoNotFollow);
+    static_assert(FileSystem::Types::AtomicWriteOptions{}.symlinkPolicy == FileSystem::Types::SymlinkPolicy::DoNotFollow);
+    static_assert(FileSystem::Types::AtomicWriteOptions{}.flushParentDirectory);
+    static_assert(FileSystem::Types::MutationOptions{}.symlinkPolicy == FileSystem::Types::SymlinkPolicy::DoNotFollow);
     static_assert(FileSystem::Types::QueryOptions{}.symlinkPolicy == FileSystem::Types::SymlinkPolicy::DoNotFollow);
     static_assert(FileSystem::Types::RemoveOptions{}.symlinkPolicy == FileSystem::Types::SymlinkPolicy::DoNotFollow);
 
@@ -200,6 +201,31 @@ namespace
             const auto finalFollowAll = FileSystem::isRegularFile(finalFileLink, followAll);
             static_cast<void>(context.expectTrue("FollowAll final symlink query succeeds", finalFollowAll.status.ok()));
             static_cast<void>(context.expectTrue("FollowAll final symlink reports target file", finalFollowAll.value));
+
+            FileSystem::FileReader strictReader;
+            const IO::Types::Status strictReaderOpen =
+                strictReader.open(finalFileLink, FileSystem::Types::FileReaderOpenOptions{.symlinkPolicy = FileSystem::Types::SymlinkPolicy::DoNotFollow});
+            static_cast<void>(context.expectEq("DoNotFollow file open rejects final symlink", ErrorCode::InvalidArgument, strictReaderOpen.code));
+
+            FileSystem::FileReader finalReader;
+            const IO::Types::Status finalReaderOpen =
+                finalReader.open(finalFileLink, FileSystem::Types::FileReaderOpenOptions{.symlinkPolicy = FileSystem::Types::SymlinkPolicy::FollowFinal});
+            static_cast<void>(context.expectTrue("FollowFinal file open reaches final symlink target", finalReaderOpen.ok()));
+            static_cast<void>(context.expectTrue("FollowFinal final symlink reader closes", finalReader.close().ok()));
+
+            const IO::Types::Status removeFinalLinkTarget =
+                FileSystem::removeFile(finalFileLink, FileSystem::Types::RemoveOptions{.symlinkPolicy = FileSystem::Types::SymlinkPolicy::FollowFinal});
+            static_cast<void>(context.expectEq("FollowFinal remove final symlink is unsupported", ErrorCode::Unsupported, removeFinalLinkTarget.code));
+
+            const IO::Types::Status moveFinalLinkTarget = FileSystem::movePath(
+                finalFileLink,
+                root / "symlinks" / "moved-through-final-link.txt",
+                FileSystem::Types::MoveOptions{.symlinkPolicy = FileSystem::Types::SymlinkPolicy::FollowFinal});
+            static_cast<void>(context.expectEq("FollowFinal move final symlink is unsupported", ErrorCode::Unsupported, moveFinalLinkTarget.code));
+
+            const auto finalLinkStillExists = FileSystem::isSymlink(finalFileLink);
+            static_cast<void>(context.expectTrue("unsupported final symlink mutation preserves link query", finalLinkStillExists.status.ok()));
+            static_cast<void>(context.expectTrue("unsupported final symlink mutation preserves link", finalLinkStillExists.value));
         }
 
         if (createDirectorySymlink(context, targetDirectory, intermediateDirectoryLink))
@@ -219,6 +245,17 @@ namespace
                 "FollowFinal rejects intermediate symlink",
                 ErrorCode::PermissionDenied,
                 followFinalThroughIntermediate.status.code));
+
+            const IO::Types::WriteResult strictWrite = FileSystem::writeAllText(
+                pathThroughIntermediate,
+                "blocked",
+                FileSystem::Types::WriteFileOptions{.symlinkPolicy = FileSystem::Types::SymlinkPolicy::DoNotFollow});
+            static_cast<void>(context.expectEq("DoNotFollow write rejects intermediate symlink", ErrorCode::PermissionDenied, strictWrite.status.code));
+
+            const auto strictListing = FileSystem::listDirectory(
+                intermediateDirectoryLink,
+                FileSystem::Types::ListDirectoryOptions{.symlinkPolicy = FileSystem::Types::SymlinkPolicy::DoNotFollow});
+            static_cast<void>(context.expectEq("DoNotFollow listDirectory rejects symlink root", ErrorCode::NotDirectory, strictListing.status.code));
         }
     }
 
@@ -318,6 +355,24 @@ namespace
         const IO::Types::ReadAllTextResult updated = FileSystem::readAllText(file);
         static_cast<void>(context.expectTrue("readAllText after File write succeeds", updated.status.ok()));
         static_cast<void>(context.expectEq("File write updated content", std::string{"abcdefg"}, updated.text));
+
+        FileSystem::FileWriter appendWriter;
+        const IO::Types::Status appendOpen = appendWriter.open(
+            file,
+            FileSystem::Types::FileWriterOpenOptions{.mode = FileSystem::Types::FileWriterMode::AppendExisting});
+        static_cast<void>(context.expectTrue("append writer opens", appendOpen.ok()));
+        static_cast<void>(context.expectFalse("append writer is not seekable", appendWriter.canSeek()));
+        static_cast<void>(context.expectEq("append writer position is NotSeekable", ErrorCode::NotSeekable, appendWriter.position().status.code));
+        static_cast<void>(context.expectEq(
+            "append writer seek is NotSeekable",
+            ErrorCode::NotSeekable,
+            appendWriter.seek(0, IO::Types::SeekOrigin::Begin).code));
+        static_cast<void>(context.expectTrue("append writer writes", appendWriter.write(bytesOf("h")).status.ok()));
+        static_cast<void>(context.expectTrue("append writer closes", appendWriter.close().ok()));
+
+        const IO::Types::ReadAllTextResult appendUpdated = FileSystem::readAllText(file);
+        static_cast<void>(context.expectTrue("readAllText after append writer succeeds", appendUpdated.status.ok()));
+        static_cast<void>(context.expectEq("append writer adds content at EOF", std::string{"abcdefgh"}, appendUpdated.text));
     }
 
     void testMutationCopyMoveAndRemoval(TestSupport::Context &context, const std::filesystem::path &root)
@@ -362,6 +417,22 @@ namespace
         const auto removedTree = FileSystem::removeDirectoryTree(tree);
         static_cast<void>(context.expectTrue("removeDirectoryTree succeeds", removedTree.status.ok()));
         static_cast<void>(context.expectEq("removeDirectoryTree removes child file child dir root", std::uint64_t{3}, removedTree.removedEntries));
+
+        const std::filesystem::path deepTree = directory / "deep-tree";
+        std::filesystem::path deepest = deepTree;
+        constexpr std::uint64_t kDeepDirectoryDepth = 32;
+        for (std::uint64_t index = 0; index < kDeepDirectoryDepth; ++index)
+        {
+            deepest /= std::format("level_{}", index);
+        }
+        static_cast<void>(context.expectTrue("create deep tree succeeds", FileSystem::createDirectories(deepest).ok()));
+        static_cast<void>(context.expectTrue("write deep tree leaf succeeds", FileSystem::writeAllText(deepest / "leaf.txt", "x").status.ok()));
+        const auto removedDeepTree = FileSystem::removeDirectoryTree(deepTree);
+        static_cast<void>(context.expectTrue("removeDirectoryTree handles deep tree", removedDeepTree.status.ok()));
+        static_cast<void>(context.expectEq(
+            "removeDirectoryTree deep count includes root levels and leaf",
+            kDeepDirectoryDepth + 2,
+            removedDeepTree.removedEntries));
     }
 
     void testAtomicWriteAndLocks(TestSupport::Context &context, const std::filesystem::path &root)

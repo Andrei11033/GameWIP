@@ -353,6 +353,7 @@ TestSupport utility helpers are implemented for files, environment variables, ch
 * [x] `SymlinkPolicy::DoNotFollow` queries final entries without following final symlinks.
 * [x] `SymlinkPolicy::FollowFinal` rejects intermediate symlinks while allowing a final symlink target.
 * [x] Strict symlink-policy traversal uses handle-relative child opens rather than check-then-reopen path logic.
+* [x] Path-opening, mutation, directory, copy, move, listing, and removal helpers enforce strict symlink policies through backend operations.
 * [x] Entry metadata reports portable kind, size for regular files, last-write time, and read-only state.
 * [x] Win32 and NTSTATUS errors are mapped to project `IO::Types::ErrorCode` values.
 
@@ -370,7 +371,7 @@ TestSupport utility helpers are implemented for files, environment variables, ch
 
 Completion note:
 
-FileSystem is implemented as a library target with public contract docs, path/query helpers, a Win32 metadata backend, native file handles, whole-file transfer helpers, directory/mutation/copy/move/removal helpers, atomic replacement, and whole-file locks.
+FileSystem is implemented as a library target with public contract docs, path/query helpers, a Win32 metadata backend, native file handles, whole-file transfer helpers, directory/mutation/copy/move/removal helpers, strict symlink-policy enforcement, atomic replacement, and whole-file locks.
 
 ---
 
@@ -579,7 +580,7 @@ Per-library documentation is implemented and organized by library-owned guide fo
 ## Build Behavior
 
 * [x] Generated Doxygen configuration exists for professional HTML API docs.
-* [x] `BUILD_LIBRARY_DOCS=ON` creates the `docs` target when Doxygen is installed.
+* [x] `BUILD_DOCS=ON` creates the `docs` target when Doxygen is installed.
 * [x] Missing Doxygen produces a clear configure-time error only when documentation is explicitly enabled.
 * [x] Normal builds do not require Doxygen.
 * [x] The docs target creates the output directory before running Doxygen.
@@ -589,8 +590,8 @@ Per-library documentation is implemented and organized by library-owned guide fo
 
 ## Install Behavior
 
-* [x] `INSTALL_LIBRARY_DOCS` installs generated HTML documentation when explicitly enabled.
-* [x] `INSTALL_LIBRARY_DOCS=ON` installs generated HTML docs only when `BUILD_LIBRARY_DOCS=ON`.
+* [x] `INSTALL_DOCS` installs generated HTML documentation when explicitly enabled.
+* [x] `INSTALL_DOCS=ON` installs generated HTML docs only when `BUILD_DOCS=ON`.
 
 Completion note:
 
