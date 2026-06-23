@@ -329,7 +329,7 @@ TestSupport utility helpers are implemented for files, environment variables, ch
 * [x] FileSystem defines file open, share, append, atomic-write, copy, move, remove, and symlink policy option types.
 * [x] FileSystem defines move-constructible, non-copyable handle types for files, readers, writers, and whole-file locks.
 * [x] FileSystem declares path helpers, entry queries, directory operations, file mutation helpers, whole-file helpers, copy/move/remove helpers, and UTF-8 path conversion helpers.
-* [-] FileSystem public contract is broader than the current runtime implementation and remains the active foundation phase.
+* [x] FileSystem public contract has active runtime implementations for the declared v1 surface.
 
 ## Implemented Runtime Behavior
 
@@ -358,19 +358,19 @@ TestSupport utility helpers are implemented for files, environment variables, ch
 
 ## Current Remaining FileSystem Work
 
-* [ ] Define and implement persistent `File`, `FileReader`, `FileWriter`, and `FileLock` runtime behavior.
-* [ ] Implement whole-file read helpers.
-* [ ] Implement whole-file write and append helpers.
-* [ ] Implement atomic write helpers.
-* [ ] Implement file resizing and truncation helpers.
-* [ ] Implement directory creation and listing helpers.
-* [ ] Implement metadata value queries and read-only mutation helpers.
-* [ ] Implement copy, move, remove-file, remove-empty-directory, and remove-directory-tree helpers.
-* [ ] Expand backend contracts beyond entry metadata queries as each operation becomes active.
+* [x] Define and implement persistent `File`, `FileReader`, `FileWriter`, and `FileLock` runtime behavior.
+* [x] Implement whole-file read helpers.
+* [x] Implement whole-file write and append helpers.
+* [x] Implement atomic write helpers.
+* [x] Implement file resizing and truncation helpers.
+* [x] Implement directory creation and listing helpers.
+* [x] Implement metadata value queries and read-only mutation helpers.
+* [x] Implement copy, move, remove-file, remove-empty-directory, and remove-directory-tree helpers.
+* [x] Expand backend contracts beyond entry metadata queries as each operation becomes active.
 
 Completion note:
 
-FileSystem is implemented as a library target with public contract docs, path/query helpers, and a Win32 entry-query backend. The larger file, directory, mutation, locking, and transfer API surface is still active work.
+FileSystem is implemented as a library target with public contract docs, path/query helpers, a Win32 metadata backend, native file handles, whole-file transfer helpers, directory/mutation/copy/move/removal helpers, atomic replacement, and whole-file locks.
 
 ---
 

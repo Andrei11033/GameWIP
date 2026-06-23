@@ -15,6 +15,8 @@ When `maxEntries` is reached before completion, the operation returns `SizeLimit
 - returns `SizeLimitExceeded` when `maxEntries` stops removal;
 - reports how many entries were removed before success or failure.
 
+Final symlink following for native rename/removal-style operations returns `Unsupported` when the backend cannot perform the operation on the resolved target without changing the requested safety contract.
+
 `removeEmptyDirectory()` reports `DirectoryNotEmpty` for a non-empty directory where the backend can identify that condition.
 
 `copyFile()` copies one regular file only. `CopyMetadataMode::Basic` additionally requests portable last-write-time and read-only metadata. Recursive directory copy belongs above FileSystem.

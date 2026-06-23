@@ -14,8 +14,11 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <memory>
+#include <span>
 #include <string>
 #include <string_view>
 #include <system_error>
@@ -85,6 +88,11 @@ namespace GameWIP::FileSystem::Detail::Platform
             [[nodiscard]] bool isValid() const noexcept
             {
                 return handle_ != nullptr && handle_ != INVALID_HANDLE_VALUE;
+            }
+
+            [[nodiscard]] HANDLE release() noexcept
+            {
+                return std::exchange(handle_, INVALID_HANDLE_VALUE);
             }
 
         private:
@@ -226,6 +234,84 @@ namespace GameWIP::FileSystem::Detail::Platform
         [[nodiscard]] IO::Types::Status makeLastErrorStatus(ErrorCode fallback)
         {
             return makeWin32Status(GetLastError(), fallback);
+        }
+
+        [[nodiscard]] bool isValidFileShare(Types::FileShare share) noexcept
+        {
+            return (static_cast<std::uint8_t>(share) & ~static_cast<std::uint8_t>(Types::FileShare::All)) == 0;
+        }
+
+        [[nodiscard]] bool isValidSymlinkPolicy(Types::SymlinkPolicy policy) noexcept
+        {
+            switch (policy)
+            {
+            case Types::SymlinkPolicy::DoNotFollow:
+            case Types::SymlinkPolicy::FollowFinal:
+            case Types::SymlinkPolicy::FollowAll:
+                return true;
+            }
+
+            return false;
+        }
+
+        [[nodiscard]] DWORD nativeShareMode(Types::FileShare share) noexcept
+        {
+            DWORD result = 0;
+            if ((share & Types::FileShare::Read) == Types::FileShare::Read)
+            {
+                result |= FILE_SHARE_READ;
+            }
+            if ((share & Types::FileShare::Write) == Types::FileShare::Write)
+            {
+                result |= FILE_SHARE_WRITE;
+            }
+            if ((share & Types::FileShare::Delete) == Types::FileShare::Delete)
+            {
+                result |= FILE_SHARE_DELETE;
+            }
+            return result;
+        }
+
+        [[nodiscard]] HANDLE nativeHandle(const Detail::FileState &state) noexcept
+        {
+            return static_cast<HANDLE>(state.nativeHandle);
+        }
+
+        [[nodiscard]] HANDLE nativeHandle(const Detail::FileLockState &state) noexcept
+        {
+            return static_cast<HANDLE>(state.nativeHandle);
+        }
+
+        [[nodiscard]] bool isValidHandle(HANDLE handle) noexcept
+        {
+            return handle != nullptr && handle != INVALID_HANDLE_VALUE;
+        }
+
+        void clearNativeHandle(Detail::FileState &state) noexcept
+        {
+            state.nativeHandle = nullptr;
+            state.readable = false;
+            state.writable = false;
+            state.appendMode = false;
+            state.flushOnClose = IO::Types::FlushMode::None;
+        }
+
+        [[nodiscard]] IO::Types::Status closeNativeHandle(void *&nativeHandle) noexcept
+        {
+            HANDLE handle = static_cast<HANDLE>(nativeHandle);
+            if (!isValidHandle(handle))
+            {
+                nativeHandle = nullptr;
+                return IO::successStatus();
+            }
+
+            if (CloseHandle(handle) == FALSE)
+            {
+                return makeLastErrorStatus(ErrorCode::CloseFailed);
+            }
+
+            nativeHandle = nullptr;
+            return IO::successStatus();
         }
 
         [[nodiscard]] const NtApi &ntApi() noexcept
@@ -661,6 +747,187 @@ namespace GameWIP::FileSystem::Detail::Platform
 
             return queryStrictPath(parsedPath, symlinkPolicy);
         }
+
+        enum class ExistingEntryRule
+        {
+            MustExistRegularFile,
+            MayCreateRegularFile
+        };
+
+        struct NativeOpenRequest
+        {
+            DWORD desiredAccess = 0;
+            DWORD creationDisposition = OPEN_EXISTING;
+            DWORD flagsAndAttributes = FILE_ATTRIBUTE_NORMAL;
+            Types::FileAccess access = Types::FileAccess::ReadWrite;
+            IO::Types::FlushMode flushOnClose = IO::Types::FlushMode::None;
+            Types::FileShare share = Types::FileShare::All;
+            Types::SymlinkPolicy symlinkPolicy = Types::SymlinkPolicy::FollowAll;
+            ExistingEntryRule existingEntryRule = ExistingEntryRule::MustExistRegularFile;
+            bool readable = false;
+            bool writable = false;
+            bool appendMode = false;
+        };
+
+        [[nodiscard]] IO::Types::Status validateExistingEntry(const Types::Path &path, const NativeOpenRequest &request)
+        {
+            const EntryQueryResult entry = queryEntryImpl(path, request.symlinkPolicy);
+            if (!entry.status.ok())
+            {
+                if (entry.status.code == ErrorCode::NotFound && request.existingEntryRule == ExistingEntryRule::MayCreateRegularFile)
+                {
+                    return IO::successStatus();
+                }
+
+                return entry.status;
+            }
+
+            if (request.creationDisposition == CREATE_NEW)
+            {
+                return IO::makeStatus(ErrorCode::AlreadyExists);
+            }
+
+            if (entry.info.kind == Types::EntryKind::Directory)
+            {
+                return IO::makeStatus(ErrorCode::IsDirectory);
+            }
+            if (entry.info.kind != Types::EntryKind::RegularFile)
+            {
+                return IO::makeStatus(ErrorCode::InvalidArgument);
+            }
+
+            return IO::successStatus();
+        }
+
+        [[nodiscard]] IO::Types::Status openNativeFile(
+            std::unique_ptr<Detail::FileState> &state,
+            const Types::Path &path,
+            const NativeOpenRequest &request)
+        {
+            if (path.empty() || !isValidFileShare(request.share) || !isValidSymlinkPolicy(request.symlinkPolicy) ||
+                !IO::isValidFlushMode(request.flushOnClose))
+            {
+                return IO::makeStatus(ErrorCode::InvalidArgument);
+            }
+
+            const IO::Types::Status existingStatus = validateExistingEntry(path, request);
+            if (!existingStatus.ok())
+            {
+                return existingStatus;
+            }
+
+            const WidePathResult absolutePath = absoluteNativePath(path);
+            if (!absolutePath.status.ok())
+            {
+                return absolutePath.status;
+            }
+
+            UniqueHandle handle{CreateFileW(
+                absolutePath.path.c_str(),
+                request.desiredAccess,
+                nativeShareMode(request.share),
+                nullptr,
+                request.creationDisposition,
+                request.flagsAndAttributes,
+                nullptr)};
+
+            if (!handle.isValid())
+            {
+                return makeLastErrorStatus(ErrorCode::OpenFailed);
+            }
+
+            auto newState = std::make_unique<Detail::FileState>();
+            newState->nativeHandle = handle.release();
+            newState->access = request.access;
+            newState->flushOnClose = request.flushOnClose;
+            newState->readable = request.readable;
+            newState->writable = request.writable;
+            newState->appendMode = request.appendMode;
+
+            state = std::move(newState);
+            return IO::successStatus();
+        }
+
+        [[nodiscard]] IO::Types::Status seekNativeHandle(HANDLE handle, std::int64_t offset, IO::Types::SeekOrigin origin)
+        {
+            DWORD moveMethod = FILE_BEGIN;
+            switch (origin)
+            {
+            case IO::Types::SeekOrigin::Begin:
+                moveMethod = FILE_BEGIN;
+                break;
+            case IO::Types::SeekOrigin::Current:
+                moveMethod = FILE_CURRENT;
+                break;
+            case IO::Types::SeekOrigin::End:
+                moveMethod = FILE_END;
+                break;
+            default:
+                return IO::makeStatus(ErrorCode::InvalidArgument);
+            }
+
+            LARGE_INTEGER distance{};
+            distance.QuadPart = offset;
+            if (SetFilePointerEx(handle, distance, nullptr, moveMethod) == FALSE)
+            {
+                return makeLastErrorStatus(ErrorCode::SeekFailed);
+            }
+
+            return IO::successStatus();
+        }
+
+        [[nodiscard]] IO::Types::PositionResult nativePosition(HANDLE handle)
+        {
+            LARGE_INTEGER distance{};
+            LARGE_INTEGER position{};
+            if (SetFilePointerEx(handle, distance, &position, FILE_CURRENT) == FALSE)
+            {
+                return {.status = makeLastErrorStatus(ErrorCode::SeekFailed)};
+            }
+            if (position.QuadPart < 0)
+            {
+                return {.status = IO::makeStatus(ErrorCode::SizeLimitExceeded)};
+            }
+
+            return {.status = IO::successStatus(), .position = static_cast<std::uint64_t>(position.QuadPart)};
+        }
+
+        [[nodiscard]] IO::Types::SizeResult nativeFileSize(HANDLE handle)
+        {
+            LARGE_INTEGER size{};
+            if (GetFileSizeEx(handle, &size) == FALSE)
+            {
+                return {.status = makeLastErrorStatus(ErrorCode::StatFailed)};
+            }
+            if (size.QuadPart < 0)
+            {
+                return {.status = IO::makeStatus(ErrorCode::SizeLimitExceeded)};
+            }
+
+            return {.status = IO::successStatus(), .sizeBytes = static_cast<std::uint64_t>(size.QuadPart)};
+        }
+
+        [[nodiscard]] IO::Types::Status unlockNativeFile(Detail::FileLockState &state) noexcept
+        {
+            if (!state.active)
+            {
+                return IO::successStatus();
+            }
+
+            OVERLAPPED overlapped{};
+            if (UnlockFileEx(nativeHandle(state), 0, MAXDWORD, MAXDWORD, &overlapped) == FALSE)
+            {
+                return makeLastErrorStatus(ErrorCode::UnlockFailed);
+            }
+
+            state.active = false;
+            if (state.activeLocks && *state.activeLocks > 0)
+            {
+                --(*state.activeLocks);
+            }
+
+            return IO::successStatus();
+        }
     } // namespace
 
     EntryQueryResult queryEntry(const Types::Path &path, Types::SymlinkPolicy symlinkPolicy) noexcept
@@ -678,4 +945,553 @@ namespace GameWIP::FileSystem::Detail::Platform
             return {.status = IO::makeStatus(ErrorCode::Unknown)};
         }
     }
+
+    IO::Types::Status openReader(
+        std::unique_ptr<Detail::FileState> &state,
+        const Types::Path &path,
+        const Types::FileReaderOpenOptions &options) noexcept
+    {
+        try
+        {
+            const NativeOpenRequest request{
+                .desiredAccess = GENERIC_READ,
+                .creationDisposition = OPEN_EXISTING,
+                .flagsAndAttributes = FILE_ATTRIBUTE_NORMAL,
+                .access = Types::FileAccess::Read,
+                .flushOnClose = IO::Types::FlushMode::None,
+                .share = options.share,
+                .symlinkPolicy = options.symlinkPolicy,
+                .existingEntryRule = ExistingEntryRule::MustExistRegularFile,
+                .readable = true,
+                .writable = false,
+                .appendMode = false};
+            return openNativeFile(state, path, request);
+        }
+        catch (const std::bad_alloc &)
+        {
+            return IO::makeStatus(ErrorCode::OutOfMemory);
+        }
+        catch (...)
+        {
+            return IO::makeStatus(ErrorCode::Unknown);
+        }
+    }
+
+    IO::Types::Status openWriter(
+        std::unique_ptr<Detail::FileState> &state,
+        const Types::Path &path,
+        const Types::FileWriterOpenOptions &options) noexcept
+    {
+        try
+        {
+            DWORD creationDisposition = CREATE_ALWAYS;
+            bool appendMode = false;
+            ExistingEntryRule existingRule = ExistingEntryRule::MayCreateRegularFile;
+
+            switch (options.mode)
+            {
+            case Types::FileWriterMode::CreateNew:
+                creationDisposition = CREATE_NEW;
+                break;
+            case Types::FileWriterMode::CreateOrTruncate:
+                creationDisposition = CREATE_ALWAYS;
+                break;
+            case Types::FileWriterMode::TruncateExisting:
+                creationDisposition = TRUNCATE_EXISTING;
+                existingRule = ExistingEntryRule::MustExistRegularFile;
+                break;
+            case Types::FileWriterMode::OpenOrCreate:
+                creationDisposition = OPEN_ALWAYS;
+                break;
+            case Types::FileWriterMode::AppendOrCreate:
+                creationDisposition = OPEN_ALWAYS;
+                appendMode = true;
+                break;
+            case Types::FileWriterMode::AppendExisting:
+                creationDisposition = OPEN_EXISTING;
+                existingRule = ExistingEntryRule::MustExistRegularFile;
+                appendMode = true;
+                break;
+            default:
+                return IO::makeStatus(ErrorCode::InvalidArgument);
+            }
+
+            const NativeOpenRequest request{
+                .desiredAccess = appendMode ? static_cast<DWORD>(FILE_APPEND_DATA | FILE_READ_ATTRIBUTES | SYNCHRONIZE) : GENERIC_WRITE,
+                .creationDisposition = creationDisposition,
+                .flagsAndAttributes = FILE_ATTRIBUTE_NORMAL,
+                .access = Types::FileAccess::Write,
+                .flushOnClose = options.flushOnClose,
+                .share = options.share,
+                .symlinkPolicy = options.symlinkPolicy,
+                .existingEntryRule = existingRule,
+                .readable = false,
+                .writable = true,
+                .appendMode = appendMode};
+            return openNativeFile(state, path, request);
+        }
+        catch (const std::bad_alloc &)
+        {
+            return IO::makeStatus(ErrorCode::OutOfMemory);
+        }
+        catch (...)
+        {
+            return IO::makeStatus(ErrorCode::Unknown);
+        }
+    }
+
+    IO::Types::Status openFile(std::unique_ptr<Detail::FileState> &state, const Types::Path &path, const Types::FileOpenOptions &options) noexcept
+    {
+        try
+        {
+            DWORD creationDisposition = OPEN_EXISTING;
+            ExistingEntryRule existingRule = ExistingEntryRule::MustExistRegularFile;
+
+            switch (options.mode)
+            {
+            case Types::FileOpenMode::OpenExisting:
+                creationDisposition = OPEN_EXISTING;
+                break;
+            case Types::FileOpenMode::CreateNew:
+                creationDisposition = CREATE_NEW;
+                existingRule = ExistingEntryRule::MayCreateRegularFile;
+                break;
+            case Types::FileOpenMode::OpenOrCreate:
+                creationDisposition = OPEN_ALWAYS;
+                existingRule = ExistingEntryRule::MayCreateRegularFile;
+                break;
+            case Types::FileOpenMode::TruncateExisting:
+                creationDisposition = TRUNCATE_EXISTING;
+                break;
+            case Types::FileOpenMode::CreateOrTruncate:
+                creationDisposition = CREATE_ALWAYS;
+                existingRule = ExistingEntryRule::MayCreateRegularFile;
+                break;
+            default:
+                return IO::makeStatus(ErrorCode::InvalidArgument);
+            }
+
+            DWORD desiredAccess = 0;
+            bool readable = false;
+            bool writable = false;
+            switch (options.access)
+            {
+            case Types::FileAccess::Read:
+                desiredAccess = GENERIC_READ;
+                readable = true;
+                break;
+            case Types::FileAccess::Write:
+                desiredAccess = GENERIC_WRITE;
+                writable = true;
+                break;
+            case Types::FileAccess::ReadWrite:
+                desiredAccess = GENERIC_READ | GENERIC_WRITE;
+                readable = true;
+                writable = true;
+                break;
+            default:
+                return IO::makeStatus(ErrorCode::InvalidArgument);
+            }
+
+            const NativeOpenRequest request{
+                .desiredAccess = desiredAccess,
+                .creationDisposition = creationDisposition,
+                .flagsAndAttributes = FILE_ATTRIBUTE_NORMAL,
+                .access = options.access,
+                .flushOnClose = options.flushOnClose,
+                .share = options.share,
+                .symlinkPolicy = options.symlinkPolicy,
+                .existingEntryRule = existingRule,
+                .readable = readable,
+                .writable = writable,
+                .appendMode = false};
+            const IO::Types::Status openStatus = openNativeFile(state, path, request);
+            if (!openStatus.ok())
+            {
+                return openStatus;
+            }
+
+            if (options.initialPosition == Types::FileInitialPosition::End)
+            {
+                const IO::Types::Status seekStatus = seekFile(*state, 0, IO::Types::SeekOrigin::End);
+                if (!seekStatus.ok())
+                {
+                    static_cast<void>(closeFile(*state));
+                    state.reset();
+                    return seekStatus;
+                }
+            }
+            else if (options.initialPosition != Types::FileInitialPosition::Beginning)
+            {
+                static_cast<void>(closeFile(*state));
+                state.reset();
+                return IO::makeStatus(ErrorCode::InvalidArgument);
+            }
+
+            return IO::successStatus();
+        }
+        catch (const std::bad_alloc &)
+        {
+            return IO::makeStatus(ErrorCode::OutOfMemory);
+        }
+        catch (...)
+        {
+            return IO::makeStatus(ErrorCode::Unknown);
+        }
+    }
+
+    IO::Types::ReadResult readFile(Detail::FileState &state, std::span<std::byte> destination) noexcept
+    {
+        if (!state.readable)
+        {
+            return {.status = IO::makeStatus(ErrorCode::PermissionDenied)};
+        }
+
+        try
+        {
+            if (destination.empty())
+            {
+                const IO::Types::PositionResult position = filePosition(state);
+                const IO::Types::SizeResult size = fileSize(state);
+                return {
+                    .status = position.status.ok() ? size.status : position.status,
+                    .bytesRead = 0,
+                    .endOfStream = position.status.ok() && size.status.ok() && position.position >= size.sizeBytes};
+            }
+
+            const auto requestSize =
+                static_cast<DWORD>(std::min<std::size_t>(destination.size(), static_cast<std::size_t>(std::numeric_limits<DWORD>::max())));
+            DWORD bytesRead = 0;
+            if (ReadFile(nativeHandle(state), destination.data(), requestSize, &bytesRead, nullptr) == FALSE)
+            {
+                return {.status = makeLastErrorStatus(ErrorCode::ReadFailed)};
+            }
+
+            return {.status = IO::successStatus(), .bytesRead = bytesRead, .endOfStream = bytesRead < requestSize};
+        }
+        catch (...)
+        {
+            return {.status = IO::makeStatus(ErrorCode::Unknown)};
+        }
+    }
+
+    IO::Types::WriteResult writeFile(Detail::FileState &state, std::span<const std::byte> bytes) noexcept
+    {
+        if (!state.writable)
+        {
+            return {.status = IO::makeStatus(ErrorCode::PermissionDenied)};
+        }
+
+        try
+        {
+            if (bytes.empty())
+            {
+                return {.status = IO::successStatus(), .bytesWritten = 0};
+            }
+
+            const auto requestSize =
+                static_cast<DWORD>(std::min<std::size_t>(bytes.size(), static_cast<std::size_t>(std::numeric_limits<DWORD>::max())));
+            DWORD bytesWritten = 0;
+            if (WriteFile(nativeHandle(state), bytes.data(), requestSize, &bytesWritten, nullptr) == FALSE)
+            {
+                return {.status = makeLastErrorStatus(ErrorCode::WriteFailed), .bytesWritten = bytesWritten};
+            }
+
+            return {.status = IO::successStatus(), .bytesWritten = bytesWritten};
+        }
+        catch (...)
+        {
+            return {.status = IO::makeStatus(ErrorCode::Unknown)};
+        }
+    }
+
+    IO::Types::Status flushFile(Detail::FileState &state, IO::Types::FlushMode mode) noexcept
+    {
+        if (!IO::isValidFlushMode(mode))
+        {
+            return IO::makeStatus(ErrorCode::InvalidArgument);
+        }
+        if (mode == IO::Types::FlushMode::None)
+        {
+            return IO::successStatus();
+        }
+        if (FlushFileBuffers(nativeHandle(state)) == FALSE)
+        {
+            return makeLastErrorStatus(ErrorCode::FlushFailed);
+        }
+
+        return IO::successStatus();
+    }
+
+    IO::Types::Status closeFile(Detail::FileState &state) noexcept
+    {
+        if (state.activeLocks && *state.activeLocks > 0)
+        {
+            return IO::makeStatus(ErrorCode::ResourceBusy);
+        }
+
+        if (state.writable)
+        {
+            const IO::Types::Status flushStatus = flushFile(state, state.flushOnClose);
+            if (!flushStatus.ok())
+            {
+                return flushStatus;
+            }
+        }
+
+        const IO::Types::Status closeStatus = closeNativeHandle(state.nativeHandle);
+        if (closeStatus.ok())
+        {
+            clearNativeHandle(state);
+        }
+        return closeStatus;
+    }
+
+    IO::Types::PositionResult filePosition(const Detail::FileState &state) noexcept
+    {
+        if (state.appendMode)
+        {
+            return {.status = IO::makeStatus(ErrorCode::NotSeekable)};
+        }
+        return nativePosition(nativeHandle(state));
+    }
+
+    IO::Types::SizeResult fileSize(const Detail::FileState &state) noexcept
+    {
+        return nativeFileSize(nativeHandle(state));
+    }
+
+    IO::Types::Status seekFile(Detail::FileState &state, std::int64_t offset, IO::Types::SeekOrigin origin) noexcept
+    {
+        if (state.appendMode)
+        {
+            return IO::makeStatus(ErrorCode::NotSeekable);
+        }
+        return seekNativeHandle(nativeHandle(state), offset, origin);
+    }
+
+    IO::Types::Status resizeFile(Detail::FileState &state, std::uint64_t sizeBytes) noexcept
+    {
+        if (!state.writable)
+        {
+            return IO::makeStatus(ErrorCode::PermissionDenied);
+        }
+        if (sizeBytes > static_cast<std::uint64_t>(std::numeric_limits<std::int64_t>::max()))
+        {
+            return IO::makeStatus(ErrorCode::SizeLimitExceeded);
+        }
+
+        const IO::Types::PositionResult originalPosition = state.appendMode ? IO::Types::PositionResult{} : filePosition(state);
+
+        LARGE_INTEGER target{};
+        target.QuadPart = static_cast<LONGLONG>(sizeBytes);
+        if (SetFilePointerEx(nativeHandle(state), target, nullptr, FILE_BEGIN) == FALSE)
+        {
+            return makeLastErrorStatus(ErrorCode::ResizeFailed);
+        }
+        if (SetEndOfFile(nativeHandle(state)) == FALSE)
+        {
+            return makeLastErrorStatus(ErrorCode::ResizeFailed);
+        }
+
+        if (!state.appendMode && originalPosition.status.ok() && originalPosition.position <= sizeBytes)
+        {
+            static_cast<void>(
+                seekNativeHandle(nativeHandle(state), static_cast<std::int64_t>(originalPosition.position), IO::Types::SeekOrigin::Begin));
+        }
+
+        return IO::successStatus();
+    }
+
+    NativeLockResult tryLockFile(Detail::FileState &state, Types::FileLockMode mode) noexcept
+    {
+        try
+        {
+            DWORD flags = LOCKFILE_FAIL_IMMEDIATELY;
+            switch (mode)
+            {
+            case Types::FileLockMode::Shared:
+                break;
+            case Types::FileLockMode::Exclusive:
+                flags |= LOCKFILE_EXCLUSIVE_LOCK;
+                break;
+            default:
+                return {.status = IO::makeStatus(ErrorCode::InvalidArgument)};
+            }
+
+            OVERLAPPED overlapped{};
+            if (LockFileEx(nativeHandle(state), flags, 0, MAXDWORD, MAXDWORD, &overlapped) == FALSE)
+            {
+                const DWORD error = GetLastError();
+                if (error == ERROR_LOCK_VIOLATION || error == ERROR_SHARING_VIOLATION)
+                {
+                    return {.status = IO::successStatus(), .outcome = Types::LockOutcome::WouldBlock};
+                }
+                return {.status = makeWin32Status(error, ErrorCode::LockFailed)};
+            }
+
+            HANDLE duplicatedHandle = INVALID_HANDLE_VALUE;
+            if (DuplicateHandle(GetCurrentProcess(), nativeHandle(state), GetCurrentProcess(), &duplicatedHandle, 0, FALSE, DUPLICATE_SAME_ACCESS) ==
+                FALSE)
+            {
+                OVERLAPPED unlockOverlapped{};
+                static_cast<void>(UnlockFileEx(nativeHandle(state), 0, MAXDWORD, MAXDWORD, &unlockOverlapped));
+                return {.status = makeLastErrorStatus(ErrorCode::LockFailed)};
+            }
+
+            auto lockState = std::make_unique<Detail::FileLockState>();
+            lockState->nativeHandle = duplicatedHandle;
+            lockState->activeLocks = state.activeLocks;
+            lockState->active = true;
+            lockState->exclusive = mode == Types::FileLockMode::Exclusive;
+            if (lockState->activeLocks)
+            {
+                ++(*lockState->activeLocks);
+            }
+
+            return {.status = IO::successStatus(), .outcome = Types::LockOutcome::Acquired, .state = std::move(lockState)};
+        }
+        catch (const std::bad_alloc &)
+        {
+            return {.status = IO::makeStatus(ErrorCode::OutOfMemory)};
+        }
+        catch (...)
+        {
+            return {.status = IO::makeStatus(ErrorCode::Unknown)};
+        }
+    }
+
+    IO::Types::Status unlockFile(Detail::FileLockState &state) noexcept
+    {
+        return unlockNativeFile(state);
+    }
+
+    IO::Types::Status movePath(const Types::Path &from, const Types::Path &to, Types::ReplaceMode replaceMode) noexcept
+    {
+        try
+        {
+            DWORD flags = MOVEFILE_WRITE_THROUGH;
+            switch (replaceMode)
+            {
+            case Types::ReplaceMode::FailIfExists:
+                break;
+            case Types::ReplaceMode::ReplaceExisting:
+                flags |= MOVEFILE_REPLACE_EXISTING;
+                break;
+            default:
+                return IO::makeStatus(ErrorCode::InvalidArgument);
+            }
+
+            const WidePathResult nativeFrom = absoluteNativePath(from);
+            if (!nativeFrom.status.ok())
+            {
+                return nativeFrom.status;
+            }
+            const WidePathResult nativeTo = absoluteNativePath(to);
+            if (!nativeTo.status.ok())
+            {
+                return nativeTo.status;
+            }
+
+            if (MoveFileExW(nativeFrom.path.c_str(), nativeTo.path.c_str(), flags) == FALSE)
+            {
+                return makeLastErrorStatus(ErrorCode::MoveFailed);
+            }
+
+            return IO::successStatus();
+        }
+        catch (const std::bad_alloc &)
+        {
+            return IO::makeStatus(ErrorCode::OutOfMemory);
+        }
+        catch (...)
+        {
+            return IO::makeStatus(ErrorCode::Unknown);
+        }
+    }
+
+    Types::BoolResult isHidden(const Types::Path &path) noexcept
+    {
+        try
+        {
+            const WidePathResult nativePath = absoluteNativePath(path);
+            if (!nativePath.status.ok())
+            {
+                return {.status = nativePath.status, .value = false};
+            }
+
+            const DWORD attributes = GetFileAttributesW(nativePath.path.c_str());
+            if (attributes == INVALID_FILE_ATTRIBUTES)
+            {
+                return {.status = makeLastErrorStatus(ErrorCode::StatFailed), .value = false};
+            }
+
+            return {.status = IO::successStatus(), .value = (attributes & FILE_ATTRIBUTE_HIDDEN) != 0};
+        }
+        catch (const std::bad_alloc &)
+        {
+            return {.status = IO::makeStatus(ErrorCode::OutOfMemory), .value = false};
+        }
+        catch (...)
+        {
+            return {.status = IO::makeStatus(ErrorCode::Unknown), .value = false};
+        }
+    }
 } // namespace GameWIP::FileSystem::Detail::Platform
+
+namespace GameWIP::FileSystem::Detail
+{
+    namespace
+    {
+        [[nodiscard]] bool isValidNativeHandle(void *nativeHandle) noexcept
+        {
+            const HANDLE handle = static_cast<HANDLE>(nativeHandle);
+            return handle != nullptr && handle != INVALID_HANDLE_VALUE;
+        }
+    } // namespace
+
+    FileState::FileState()
+        : activeLocks(std::make_shared<std::uint32_t>(0))
+    {
+    }
+
+    FileState::~FileState() noexcept
+    {
+        if (isValidNativeHandle(nativeHandle))
+        {
+            if (writable && IO::isValidFlushMode(flushOnClose) && flushOnClose != IO::Types::FlushMode::None)
+            {
+                static_cast<void>(FlushFileBuffers(static_cast<HANDLE>(nativeHandle)));
+            }
+            static_cast<void>(CloseHandle(static_cast<HANDLE>(nativeHandle)));
+            nativeHandle = nullptr;
+        }
+    }
+
+    FileLockState::FileLockState()
+        : activeLocks(std::make_shared<std::uint32_t>(0))
+    {
+    }
+
+    FileLockState::~FileLockState() noexcept
+    {
+        if (active && isValidNativeHandle(nativeHandle))
+        {
+            OVERLAPPED overlapped{};
+            if (UnlockFileEx(static_cast<HANDLE>(nativeHandle), 0, MAXDWORD, MAXDWORD, &overlapped) != FALSE)
+            {
+                active = false;
+                if (activeLocks && *activeLocks > 0)
+                {
+                    --(*activeLocks);
+                }
+            }
+        }
+
+        if (isValidNativeHandle(nativeHandle))
+        {
+            static_cast<void>(CloseHandle(static_cast<HANDLE>(nativeHandle)));
+            nativeHandle = nullptr;
+        }
+    }
+} // namespace GameWIP::FileSystem::Detail

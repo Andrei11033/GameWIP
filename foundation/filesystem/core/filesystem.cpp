@@ -1,6 +1,14 @@
 #include "filesystem/filesystem.h"
 #include "filesystem/internal/filesystem_platform.h"
 
+#include <algorithm>
+#include <atomic>
+#include <chrono>
+#include <cstddef>
+#include <cstdint>
+#include <filesystem>
+#include <limits>
+#include <span>
 #include <system_error>
 #include <utility>
 
@@ -31,9 +39,69 @@ namespace GameWIP::FileSystem
             return {.status = IO::makeStatus(code), .value = false};
         }
 
+        IO::Types::SizeResult sizeFailure(IO::Types::Status status) noexcept
+        {
+            return {.status = std::move(status), .sizeBytes = 0};
+        }
+
+        IO::Types::SizeResult sizeFailure(ErrorCode code) noexcept
+        {
+            return {.status = IO::makeStatus(code), .sizeBytes = 0};
+        }
+
+        Types::LastWriteTimeResult lastWriteTimeFailure(IO::Types::Status status) noexcept
+        {
+            return {.status = std::move(status), .time = Types::FileTime{}};
+        }
+
+        Types::LastWriteTimeResult lastWriteTimeFailure(ErrorCode code) noexcept
+        {
+            return {.status = IO::makeStatus(code), .time = Types::FileTime{}};
+        }
+
         Types::Utf8PathResult utf8Failure(ErrorCode code) noexcept
         {
             return {.status = IO::makeStatus(code), .utf8 = std::string{}};
+        }
+
+        Types::EntryInfoResult entryInfoFailure(IO::Types::Status status) noexcept
+        {
+            return {.status = std::move(status), .info = Types::EntryInfo{}};
+        }
+
+        Types::EntryInfoResult entryInfoFailure(ErrorCode code) noexcept
+        {
+            return {.status = IO::makeStatus(code), .info = Types::EntryInfo{}};
+        }
+
+        Types::ListDirectoryResult listDirectoryFailure(IO::Types::Status status) noexcept
+        {
+            return {.status = std::move(status), .entries = {}};
+        }
+
+        Types::ListDirectoryResult listDirectoryFailure(ErrorCode code) noexcept
+        {
+            return {.status = IO::makeStatus(code), .entries = {}};
+        }
+
+        Types::RemoveDirectoryTreeResult removeTreeFailure(IO::Types::Status status, std::uint64_t removedEntries = 0) noexcept
+        {
+            return {.status = std::move(status), .removedEntries = removedEntries};
+        }
+
+        Types::RemoveDirectoryTreeResult removeTreeFailure(ErrorCode code, std::uint64_t removedEntries = 0) noexcept
+        {
+            return {.status = IO::makeStatus(code), .removedEntries = removedEntries};
+        }
+
+        IO::Types::WriteResult writeFailure(IO::Types::Status status, std::size_t bytesWritten = 0) noexcept
+        {
+            return {.status = std::move(status), .bytesWritten = bytesWritten};
+        }
+
+        IO::Types::WriteResult writeFailure(ErrorCode code, std::size_t bytesWritten = 0) noexcept
+        {
+            return {.status = IO::makeStatus(code), .bytesWritten = bytesWritten};
         }
 
         IO::Types::Status statusFromStdError(std::error_code ec, ErrorCode fallback)
@@ -107,13 +175,827 @@ namespace GameWIP::FileSystem
             }
         }
 
+        [[nodiscard]] bool stateIsOpen(const std::unique_ptr<Detail::FileState> &state) noexcept
+        {
+            return state != nullptr && state->nativeHandle != nullptr;
+        }
+
+        [[nodiscard]] bool isValidReplaceMode(Types::ReplaceMode mode) noexcept
+        {
+            switch (mode)
+            {
+            case Types::ReplaceMode::FailIfExists:
+            case Types::ReplaceMode::ReplaceExisting:
+                return true;
+            }
+
+            return false;
+        }
+
+        [[nodiscard]] bool isValidFileShare(Types::FileShare share) noexcept
+        {
+            return (static_cast<std::uint8_t>(share) & ~static_cast<std::uint8_t>(Types::FileShare::All)) == 0;
+        }
+
+        [[nodiscard]] bool isValidSymlinkPolicy(Types::SymlinkPolicy policy) noexcept
+        {
+            switch (policy)
+            {
+            case Types::SymlinkPolicy::DoNotFollow:
+            case Types::SymlinkPolicy::FollowFinal:
+            case Types::SymlinkPolicy::FollowAll:
+                return true;
+            }
+
+            return false;
+        }
+
+        [[nodiscard]] bool isValidFileAccess(Types::FileAccess access) noexcept
+        {
+            switch (access)
+            {
+            case Types::FileAccess::Read:
+            case Types::FileAccess::Write:
+            case Types::FileAccess::ReadWrite:
+                return true;
+            }
+
+            return false;
+        }
+
+        [[nodiscard]] bool isValidFileOpenMode(Types::FileOpenMode mode) noexcept
+        {
+            switch (mode)
+            {
+            case Types::FileOpenMode::OpenExisting:
+            case Types::FileOpenMode::CreateNew:
+            case Types::FileOpenMode::OpenOrCreate:
+            case Types::FileOpenMode::TruncateExisting:
+            case Types::FileOpenMode::CreateOrTruncate:
+                return true;
+            }
+
+            return false;
+        }
+
+        [[nodiscard]] bool isValidFileWriterMode(Types::FileWriterMode mode) noexcept
+        {
+            switch (mode)
+            {
+            case Types::FileWriterMode::CreateNew:
+            case Types::FileWriterMode::CreateOrTruncate:
+            case Types::FileWriterMode::TruncateExisting:
+            case Types::FileWriterMode::OpenOrCreate:
+            case Types::FileWriterMode::AppendOrCreate:
+            case Types::FileWriterMode::AppendExisting:
+                return true;
+            }
+
+            return false;
+        }
+
+        [[nodiscard]] bool isValidInitialPosition(Types::FileInitialPosition position) noexcept
+        {
+            switch (position)
+            {
+            case Types::FileInitialPosition::Beginning:
+            case Types::FileInitialPosition::End:
+                return true;
+            }
+
+            return false;
+        }
+
+        [[nodiscard]] bool isValidCopyMetadataMode(Types::CopyMetadataMode mode) noexcept
+        {
+            switch (mode)
+            {
+            case Types::CopyMetadataMode::None:
+            case Types::CopyMetadataMode::Basic:
+                return true;
+            }
+
+            return false;
+        }
+
+        [[nodiscard]] bool opensForWrite(Types::FileAccess access) noexcept
+        {
+            return access == Types::FileAccess::Write || access == Types::FileAccess::ReadWrite;
+        }
+
+        [[nodiscard]] bool modeRequiresWrite(Types::FileOpenMode mode) noexcept
+        {
+            switch (mode)
+            {
+            case Types::FileOpenMode::OpenExisting:
+                return false;
+            case Types::FileOpenMode::CreateNew:
+            case Types::FileOpenMode::OpenOrCreate:
+            case Types::FileOpenMode::TruncateExisting:
+            case Types::FileOpenMode::CreateOrTruncate:
+                return true;
+            default:
+                return false;
+            }
+        }
+
+        [[nodiscard]] bool includeEntryKind(Types::EntryKind kind, const Types::ListDirectoryOptions &options) noexcept
+        {
+            switch (kind)
+            {
+            case Types::EntryKind::RegularFile:
+                return options.includeFiles;
+            case Types::EntryKind::Directory:
+                return options.includeDirectories;
+            case Types::EntryKind::Symlink:
+                return options.includeSymlinks;
+            case Types::EntryKind::Other:
+                return options.includeOther;
+            }
+
+            return false;
+        }
+
+        [[nodiscard]] bool hasPathSeparator(std::string_view text) noexcept
+        {
+            return text.find('/') != std::string_view::npos || text.find('\\') != std::string_view::npos || text.find('\0') != std::string_view::npos;
+        }
+
+        [[nodiscard]] IO::Types::Status validateAtomicTemporaryPrefix(std::string_view prefix) noexcept
+        {
+            if (prefix.empty() || prefix == "." || prefix == ".." || hasPathSeparator(prefix))
+            {
+                return IO::makeStatus(ErrorCode::InvalidArgument);
+            }
+
+            return IO::successStatus();
+        }
+
+        [[nodiscard]] IO::Types::Status validateDirectoryExists(const Types::Path &path, Types::SymlinkPolicy symlinkPolicy) noexcept
+        {
+            const Detail::Platform::EntryQueryResult result = queryEntry(path, symlinkPolicy);
+            if (!result.status.ok())
+            {
+                return result.status;
+            }
+            if (result.info.kind != Types::EntryKind::Directory)
+            {
+                return IO::makeStatus(ErrorCode::NotDirectory);
+            }
+
+            return IO::successStatus();
+        }
+
+        [[nodiscard]] IO::Types::Status validateParentDirectory(
+            const Types::Path &path,
+            bool createMissing,
+            Types::SymlinkPolicy symlinkPolicy) noexcept
+        {
+            const Types::Path parent = path.parent_path();
+            if (parent.empty())
+            {
+                return IO::successStatus();
+            }
+
+            if (createMissing)
+            {
+                return createDirectories(parent, Types::CreateDirectoryOptions{.succeedIfAlreadyExists = true, .symlinkPolicy = symlinkPolicy});
+            }
+
+            return validateDirectoryExists(parent, symlinkPolicy);
+        }
+
+        [[nodiscard]] bool equivalentOrSameLexically(const Types::Path &left, const Types::Path &right) noexcept
+        {
+            if (left == right)
+            {
+                return true;
+            }
+
+            std::error_code ec;
+            const bool equivalent = std::filesystem::equivalent(left, right, ec);
+            return !ec && equivalent;
+        }
+
+        [[nodiscard]] bool finalEntryIsSymlink(const Types::Path &path) noexcept
+        {
+            const Detail::Platform::EntryQueryResult result = queryEntry(path, Types::SymlinkPolicy::DoNotFollow);
+            return result.status.ok() && result.info.kind == Types::EntryKind::Symlink;
+        }
+
+        [[nodiscard]] IO::Types::Status setReadOnlyPortable(const Types::Path &path, bool readOnly) noexcept
+        {
+            std::error_code ec;
+            const auto writePermissions =
+                std::filesystem::perms::owner_write | std::filesystem::perms::group_write | std::filesystem::perms::others_write;
+
+            if (readOnly)
+            {
+                std::filesystem::permissions(path, writePermissions, std::filesystem::perm_options::remove, ec);
+            }
+            else
+            {
+                std::filesystem::permissions(path, std::filesystem::perms::owner_write, std::filesystem::perm_options::add, ec);
+            }
+
+            return statusFromStdError(ec, ErrorCode::StatFailed);
+        }
+
+        [[nodiscard]] IO::Types::Status copyBasicMetadata(const Types::Path &from, const Types::Path &to) noexcept
+        {
+            std::error_code ec;
+            const std::filesystem::file_time_type writeTime = std::filesystem::last_write_time(from, ec);
+            if (ec)
+            {
+                return statusFromStdError(ec, ErrorCode::StatFailed);
+            }
+
+            std::filesystem::last_write_time(to, writeTime, ec);
+            if (ec)
+            {
+                return statusFromStdError(ec, ErrorCode::StatFailed);
+            }
+
+            const Types::BoolResult readonly = isReadOnly(from, Types::QueryOptions{.symlinkPolicy = Types::SymlinkPolicy::FollowAll});
+            if (!readonly.status.ok())
+            {
+                return readonly.status;
+            }
+
+            return setReadOnlyPortable(to, readonly.value);
+        }
+
+        struct RemoveTreeState
+        {
+            std::uint64_t removedEntries = 0;
+            std::uint64_t maxEntries = kNoEntryLimit;
+        };
+
+        [[nodiscard]] IO::Types::Status removeOneEntry(const Types::Path &path, RemoveTreeState &state) noexcept
+        {
+            if (state.removedEntries >= state.maxEntries)
+            {
+                return IO::makeStatus(ErrorCode::SizeLimitExceeded);
+            }
+
+            std::error_code ec;
+            const bool removed = std::filesystem::remove(path, ec);
+            if (ec)
+            {
+                return statusFromStdError(ec, ErrorCode::RemoveFailed);
+            }
+            if (!removed)
+            {
+                return IO::makeStatus(ErrorCode::NotFound);
+            }
+
+            ++state.removedEntries;
+            return IO::successStatus();
+        }
+
+        [[nodiscard]] IO::Types::Status removeTreeRecursive(const Types::Path &path, const Types::EntryInfo &info, RemoveTreeState &state)
+        {
+            if (info.kind == Types::EntryKind::Directory)
+            {
+                std::error_code ec;
+                std::filesystem::directory_iterator iterator(path, ec);
+                if (ec)
+                {
+                    return statusFromStdError(ec, ErrorCode::DirectoryListFailed);
+                }
+
+                for (const std::filesystem::directory_entry &entry : iterator)
+                {
+                    const Detail::Platform::EntryQueryResult child = queryEntry(entry.path(), Types::SymlinkPolicy::DoNotFollow);
+                    if (!child.status.ok())
+                    {
+                        return child.status;
+                    }
+
+                    const IO::Types::Status childStatus = removeTreeRecursive(entry.path(), child.info, state);
+                    if (!childStatus.ok())
+                    {
+                        return childStatus;
+                    }
+                }
+            }
+
+            return removeOneEntry(path, state);
+        }
+
+        [[nodiscard]] Types::Path uniqueAtomicTemporaryPath(const Types::Path &parent, std::string_view prefix, std::uint64_t attempt)
+        {
+            static std::atomic<std::uint64_t> counter{0};
+
+            const auto ticks = std::chrono::steady_clock::now().time_since_epoch().count();
+            const std::uint64_t value = counter.fetch_add(1, std::memory_order_relaxed);
+            std::string name;
+            name.reserve(prefix.size() + 64);
+            name.append(prefix);
+            name.append(std::to_string(static_cast<std::uint64_t>(ticks)));
+            name.push_back('_');
+            name.append(std::to_string(value));
+            name.push_back('_');
+            name.append(std::to_string(attempt));
+            name.append(".tmp");
+
+            return parent / name;
+        }
+
     } // namespace
+
+    FileLock::FileLock() noexcept = default;
+
+    FileLock::FileLock(FileLock &&other) noexcept
+        : state_(std::move(other.state_))
+        , mode_(other.mode_)
+    {
+    }
+
+    FileLock::~FileLock() noexcept
+    {
+        static_cast<void>(unlock());
+    }
+
+    bool FileLock::active() const noexcept
+    {
+        return state_ != nullptr && state_->active;
+    }
+
+    Types::FileLockMode FileLock::mode() const noexcept
+    {
+        return mode_;
+    }
+
+    IO::Types::Status FileLock::unlock() noexcept
+    {
+        if (!active())
+        {
+            state_.reset();
+            return IO::successStatus();
+        }
+
+        IO::Types::Status status = Detail::Platform::unlockFile(*state_);
+        if (status.ok())
+        {
+            state_.reset();
+        }
+        return status;
+    }
+
+    FileLock::FileLock(std::unique_ptr<Detail::FileLockState> state, Types::FileLockMode mode) noexcept
+        : state_(std::move(state))
+        , mode_(mode)
+    {
+    }
+
+    FileReader::FileReader() noexcept = default;
+
+    FileReader::FileReader(FileReader &&other) noexcept
+        : IO::Reader(std::move(other))
+        , state_(std::move(other.state_))
+    {
+    }
+
+    FileReader::~FileReader() noexcept
+    {
+        static_cast<void>(close());
+    }
+
+    IO::Types::Status FileReader::open(const Types::Path &path, const Types::FileReaderOpenOptions &options) noexcept
+    {
+        if (isOpen())
+        {
+            return IO::makeStatus(ErrorCode::AlreadyOpen);
+        }
+        if (!isValidFileShare(options.share) || !isValidSymlinkPolicy(options.symlinkPolicy))
+        {
+            return IO::makeStatus(ErrorCode::InvalidArgument);
+        }
+
+        std::unique_ptr<Detail::FileState> newState;
+        const IO::Types::Status status = Detail::Platform::openReader(newState, path, options);
+        if (status.ok())
+        {
+            state_ = std::move(newState);
+        }
+        return status;
+    }
+
+    bool FileReader::isOpen() const noexcept
+    {
+        return stateIsOpen(state_);
+    }
+
+    bool FileReader::canSeek() const noexcept
+    {
+        return isOpen();
+    }
+
+    IO::Types::ReadResult FileReader::read(std::span<std::byte> destination) noexcept
+    {
+        if (!isOpen())
+        {
+            return {.status = IO::makeStatus(ErrorCode::NotOpen)};
+        }
+
+        return Detail::Platform::readFile(*state_, destination);
+    }
+
+    IO::Types::Status FileReader::close() noexcept
+    {
+        if (!isOpen())
+        {
+            state_.reset();
+            return IO::successStatus();
+        }
+
+        IO::Types::Status status = Detail::Platform::closeFile(*state_);
+        if (status.ok())
+        {
+            state_.reset();
+        }
+        return status;
+    }
+
+    IO::Types::PositionResult FileReader::position() const noexcept
+    {
+        if (!isOpen())
+        {
+            return {.status = IO::makeStatus(ErrorCode::NotOpen)};
+        }
+
+        return Detail::Platform::filePosition(*state_);
+    }
+
+    IO::Types::SizeResult FileReader::size() const noexcept
+    {
+        if (!isOpen())
+        {
+            return sizeFailure(ErrorCode::NotOpen);
+        }
+
+        return Detail::Platform::fileSize(*state_);
+    }
+
+    IO::Types::Status FileReader::seek(std::int64_t offset, IO::Types::SeekOrigin origin) noexcept
+    {
+        if (!isOpen())
+        {
+            return IO::makeStatus(ErrorCode::NotOpen);
+        }
+
+        return Detail::Platform::seekFile(*state_, offset, origin);
+    }
+
+    Types::LockResult FileReader::tryLockShared() noexcept
+    {
+        if (!isOpen())
+        {
+            return {.status = IO::makeStatus(ErrorCode::NotOpen)};
+        }
+
+        Detail::Platform::NativeLockResult result = Detail::Platform::tryLockFile(*state_, Types::FileLockMode::Shared);
+        if (!result.status.ok() || result.outcome == Types::LockOutcome::WouldBlock)
+        {
+            return {.status = std::move(result.status), .outcome = result.outcome};
+        }
+
+        return {
+            .status = IO::successStatus(),
+            .outcome = Types::LockOutcome::Acquired,
+            .lock = FileLock(std::move(result.state), Types::FileLockMode::Shared)};
+    }
+
+    FileWriter::FileWriter() noexcept = default;
+
+    FileWriter::FileWriter(FileWriter &&other) noexcept
+        : IO::Writer(std::move(other))
+        , state_(std::move(other.state_))
+    {
+    }
+
+    FileWriter::~FileWriter() noexcept
+    {
+        static_cast<void>(close());
+    }
+
+    IO::Types::Status FileWriter::open(const Types::Path &path, const Types::FileWriterOpenOptions &options) noexcept
+    {
+        if (isOpen())
+        {
+            return IO::makeStatus(ErrorCode::AlreadyOpen);
+        }
+        if (!isValidFileWriterMode(options.mode) || !isValidFileShare(options.share) || !isValidSymlinkPolicy(options.symlinkPolicy) ||
+            !IO::isValidFlushMode(options.flushOnClose))
+        {
+            return IO::makeStatus(ErrorCode::InvalidArgument);
+        }
+
+        const IO::Types::Status parentStatus = validateParentDirectory(path, options.createParentDirectories, options.symlinkPolicy);
+        if (!parentStatus.ok())
+        {
+            return parentStatus;
+        }
+
+        std::unique_ptr<Detail::FileState> newState;
+        const IO::Types::Status status = Detail::Platform::openWriter(newState, path, options);
+        if (status.ok())
+        {
+            state_ = std::move(newState);
+        }
+        return status;
+    }
+
+    bool FileWriter::isOpen() const noexcept
+    {
+        return stateIsOpen(state_);
+    }
+
+    bool FileWriter::canSeek() const noexcept
+    {
+        return isOpen() && !state_->appendMode;
+    }
+
+    IO::Types::WriteResult FileWriter::write(std::span<const std::byte> bytes) noexcept
+    {
+        if (!isOpen())
+        {
+            return writeFailure(ErrorCode::NotOpen);
+        }
+
+        return Detail::Platform::writeFile(*state_, bytes);
+    }
+
+    IO::Types::Status FileWriter::flush(IO::Types::FlushMode mode) noexcept
+    {
+        if (!isOpen())
+        {
+            return IO::makeStatus(ErrorCode::NotOpen);
+        }
+
+        return Detail::Platform::flushFile(*state_, mode);
+    }
+
+    IO::Types::Status FileWriter::close() noexcept
+    {
+        if (!isOpen())
+        {
+            state_.reset();
+            return IO::successStatus();
+        }
+
+        IO::Types::Status status = Detail::Platform::closeFile(*state_);
+        if (status.ok())
+        {
+            state_.reset();
+        }
+        return status;
+    }
+
+    IO::Types::PositionResult FileWriter::position() const noexcept
+    {
+        if (!isOpen())
+        {
+            return {.status = IO::makeStatus(ErrorCode::NotOpen)};
+        }
+
+        return Detail::Platform::filePosition(*state_);
+    }
+
+    IO::Types::SizeResult FileWriter::size() const noexcept
+    {
+        if (!isOpen())
+        {
+            return sizeFailure(ErrorCode::NotOpen);
+        }
+
+        return Detail::Platform::fileSize(*state_);
+    }
+
+    IO::Types::Status FileWriter::seek(std::int64_t offset, IO::Types::SeekOrigin origin) noexcept
+    {
+        if (!isOpen())
+        {
+            return IO::makeStatus(ErrorCode::NotOpen);
+        }
+
+        return Detail::Platform::seekFile(*state_, offset, origin);
+    }
+
+    Types::LockResult FileWriter::tryLockExclusive() noexcept
+    {
+        if (!isOpen())
+        {
+            return {.status = IO::makeStatus(ErrorCode::NotOpen)};
+        }
+
+        Detail::Platform::NativeLockResult result = Detail::Platform::tryLockFile(*state_, Types::FileLockMode::Exclusive);
+        if (!result.status.ok() || result.outcome == Types::LockOutcome::WouldBlock)
+        {
+            return {.status = std::move(result.status), .outcome = result.outcome};
+        }
+
+        return {
+            .status = IO::successStatus(),
+            .outcome = Types::LockOutcome::Acquired,
+            .lock = FileLock(std::move(result.state), Types::FileLockMode::Exclusive)};
+    }
+
+    File::File() noexcept = default;
+
+    File::File(File &&other) noexcept
+        : IO::Reader(std::move(static_cast<IO::Reader &>(other)))
+        , IO::Writer(std::move(static_cast<IO::Writer &>(other)))
+        , state_(std::move(other.state_))
+    {
+    }
+
+    File::~File() noexcept
+    {
+        static_cast<void>(close());
+    }
+
+    IO::Types::Status File::open(const Types::Path &path, const Types::FileOpenOptions &options) noexcept
+    {
+        if (isOpen())
+        {
+            return IO::makeStatus(ErrorCode::AlreadyOpen);
+        }
+        if (!isValidFileAccess(options.access) || !isValidFileOpenMode(options.mode) || !isValidInitialPosition(options.initialPosition) ||
+            !isValidFileShare(options.share) || !isValidSymlinkPolicy(options.symlinkPolicy) || !IO::isValidFlushMode(options.flushOnClose))
+        {
+            return IO::makeStatus(ErrorCode::InvalidArgument);
+        }
+        if (modeRequiresWrite(options.mode) && !opensForWrite(options.access))
+        {
+            return IO::makeStatus(ErrorCode::InvalidArgument);
+        }
+        if (options.flushOnClose != IO::Types::FlushMode::None && !opensForWrite(options.access))
+        {
+            return IO::makeStatus(ErrorCode::InvalidArgument);
+        }
+
+        const IO::Types::Status parentStatus = validateParentDirectory(path, options.createParentDirectories, options.symlinkPolicy);
+        if (!parentStatus.ok())
+        {
+            return parentStatus;
+        }
+
+        std::unique_ptr<Detail::FileState> newState;
+        const IO::Types::Status status = Detail::Platform::openFile(newState, path, options);
+        if (status.ok())
+        {
+            state_ = std::move(newState);
+        }
+        return status;
+    }
+
+    bool File::isOpen() const noexcept
+    {
+        return stateIsOpen(state_);
+    }
+
+    bool File::canSeek() const noexcept
+    {
+        return isOpen();
+    }
+
+    Types::FileAccess File::access() const noexcept
+    {
+        return isOpen() ? state_->access : Types::FileAccess::ReadWrite;
+    }
+
+    IO::Types::ReadResult File::read(std::span<std::byte> destination) noexcept
+    {
+        if (!isOpen())
+        {
+            return {.status = IO::makeStatus(ErrorCode::NotOpen)};
+        }
+
+        return Detail::Platform::readFile(*state_, destination);
+    }
+
+    IO::Types::WriteResult File::write(std::span<const std::byte> bytes) noexcept
+    {
+        if (!isOpen())
+        {
+            return writeFailure(ErrorCode::NotOpen);
+        }
+
+        return Detail::Platform::writeFile(*state_, bytes);
+    }
+
+    IO::Types::Status File::flush(IO::Types::FlushMode mode) noexcept
+    {
+        if (!isOpen())
+        {
+            return IO::makeStatus(ErrorCode::NotOpen);
+        }
+
+        return Detail::Platform::flushFile(*state_, mode);
+    }
+
+    IO::Types::Status File::close() noexcept
+    {
+        if (!isOpen())
+        {
+            state_.reset();
+            return IO::successStatus();
+        }
+
+        IO::Types::Status status = Detail::Platform::closeFile(*state_);
+        if (status.ok())
+        {
+            state_.reset();
+        }
+        return status;
+    }
+
+    IO::Types::PositionResult File::position() const noexcept
+    {
+        if (!isOpen())
+        {
+            return {.status = IO::makeStatus(ErrorCode::NotOpen)};
+        }
+
+        return Detail::Platform::filePosition(*state_);
+    }
+
+    IO::Types::SizeResult File::size() const noexcept
+    {
+        if (!isOpen())
+        {
+            return sizeFailure(ErrorCode::NotOpen);
+        }
+
+        return Detail::Platform::fileSize(*state_);
+    }
+
+    IO::Types::Status File::seek(std::int64_t offset, IO::Types::SeekOrigin origin) noexcept
+    {
+        if (!isOpen())
+        {
+            return IO::makeStatus(ErrorCode::NotOpen);
+        }
+
+        return Detail::Platform::seekFile(*state_, offset, origin);
+    }
+
+    IO::Types::Status File::resize(std::uint64_t sizeBytes) noexcept
+    {
+        if (!isOpen())
+        {
+            return IO::makeStatus(ErrorCode::NotOpen);
+        }
+
+        return Detail::Platform::resizeFile(*state_, sizeBytes);
+    }
+
+    Types::LockResult File::tryLockShared() noexcept
+    {
+        if (!isOpen())
+        {
+            return {.status = IO::makeStatus(ErrorCode::NotOpen)};
+        }
+
+        Detail::Platform::NativeLockResult result = Detail::Platform::tryLockFile(*state_, Types::FileLockMode::Shared);
+        if (!result.status.ok() || result.outcome == Types::LockOutcome::WouldBlock)
+        {
+            return {.status = std::move(result.status), .outcome = result.outcome};
+        }
+
+        return {
+            .status = IO::successStatus(),
+            .outcome = Types::LockOutcome::Acquired,
+            .lock = FileLock(std::move(result.state), Types::FileLockMode::Shared)};
+    }
+
+    Types::LockResult File::tryLockExclusive() noexcept
+    {
+        if (!isOpen())
+        {
+            return {.status = IO::makeStatus(ErrorCode::NotOpen)};
+        }
+
+        Detail::Platform::NativeLockResult result = Detail::Platform::tryLockFile(*state_, Types::FileLockMode::Exclusive);
+        if (!result.status.ok() || result.outcome == Types::LockOutcome::WouldBlock)
+        {
+            return {.status = std::move(result.status), .outcome = result.outcome};
+        }
+
+        return {
+            .status = IO::successStatus(),
+            .outcome = Types::LockOutcome::Acquired,
+            .lock = FileLock(std::move(result.state), Types::FileLockMode::Exclusive)};
+    }
 
     Types::BoolResult exists(const Types::Path &path, const Types::QueryOptions &options) noexcept
     {
         try
         {
             const Detail::Platform::EntryQueryResult result = queryEntry(path, options.symlinkPolicy);
+
             if (result.status.code == ErrorCode::NotFound)
             {
                 return {.status = IO::successStatus(), .value = false};
@@ -122,6 +1004,7 @@ namespace GameWIP::FileSystem
             {
                 return boolFailure(result.status);
             }
+
             return {.status = IO::successStatus(), .value = true};
         }
         catch (const std::bad_alloc &)
@@ -131,6 +1014,28 @@ namespace GameWIP::FileSystem
         catch (...)
         {
             return boolFailure(ErrorCode::Unknown);
+        }
+    }
+
+    Types::EntryInfoResult getEntryInfo(const Types::Path &path, const Types::QueryOptions &options) noexcept
+    {
+        try
+        {
+            Detail::Platform::EntryQueryResult result = queryEntry(path, options.symlinkPolicy);
+            if (!result.status.ok())
+            {
+                return entryInfoFailure(std::move(result.status));
+            }
+
+            return {.status = IO::successStatus(), .info = result.info};
+        }
+        catch (const std::bad_alloc &)
+        {
+            return entryInfoFailure(ErrorCode::OutOfMemory);
+        }
+        catch (...)
+        {
+            return entryInfoFailure(ErrorCode::Unknown);
         }
     }
 
@@ -206,6 +1111,1040 @@ namespace GameWIP::FileSystem
         catch (...)
         {
             return boolFailure(ErrorCode::Unknown);
+        }
+    }
+
+    IO::Types::SizeResult getFileSize(const Types::Path &path, const Types::QueryOptions &options) noexcept
+    {
+        try
+        {
+            const Types::EntryInfoResult info = getEntryInfo(path, options);
+            if (!info.status.ok())
+            {
+                return sizeFailure(info.status);
+            }
+            if (info.info.kind != Types::EntryKind::RegularFile || !info.info.hasSize)
+            {
+                return sizeFailure(ErrorCode::InvalidArgument);
+            }
+
+            return {.status = IO::successStatus(), .sizeBytes = info.info.sizeBytes};
+        }
+        catch (const std::bad_alloc &)
+        {
+            return sizeFailure(ErrorCode::OutOfMemory);
+        }
+        catch (...)
+        {
+            return sizeFailure(ErrorCode::Unknown);
+        }
+    }
+
+    Types::LastWriteTimeResult getLastWriteTime(const Types::Path &path, const Types::QueryOptions &options) noexcept
+    {
+        try
+        {
+            const Types::EntryInfoResult info = getEntryInfo(path, options);
+            if (!info.status.ok())
+            {
+                return lastWriteTimeFailure(info.status);
+            }
+            if (!info.info.hasLastWriteTime)
+            {
+                return lastWriteTimeFailure(ErrorCode::StatFailed);
+            }
+
+            return {.status = IO::successStatus(), .time = info.info.lastWriteTime};
+        }
+        catch (const std::bad_alloc &)
+        {
+            return lastWriteTimeFailure(ErrorCode::OutOfMemory);
+        }
+        catch (...)
+        {
+            return lastWriteTimeFailure(ErrorCode::Unknown);
+        }
+    }
+
+    Types::BoolResult isReadOnly(const Types::Path &path, const Types::QueryOptions &options) noexcept
+    {
+        try
+        {
+            const Types::EntryInfoResult info = getEntryInfo(path, options);
+            if (!info.status.ok())
+            {
+                return boolFailure(info.status);
+            }
+
+            return {.status = IO::successStatus(), .value = info.info.readOnly};
+        }
+        catch (const std::bad_alloc &)
+        {
+            return boolFailure(ErrorCode::OutOfMemory);
+        }
+        catch (...)
+        {
+            return boolFailure(ErrorCode::Unknown);
+        }
+    }
+
+    IO::Types::ReadAllBytesResult readAllBytes(const Types::Path &path, const Types::ReadFileOptions &options) noexcept
+    {
+        try
+        {
+            if (options.bufferSize == 0)
+            {
+                return {.status = IO::makeStatus(ErrorCode::InvalidArgument)};
+            }
+
+            FileReader reader;
+            const IO::Types::Status openStatus = reader.open(path, options.open);
+            if (!openStatus.ok())
+            {
+                return {.status = openStatus};
+            }
+
+            IO::Types::ReadAllBytesResult result = IO::readAllBytes(reader, options.maxBytes, options.bufferSize);
+            const IO::Types::Status closeStatus = reader.close();
+            if (result.status.ok() && !closeStatus.ok())
+            {
+                result.status = closeStatus;
+            }
+            return result;
+        }
+        catch (const std::bad_alloc &)
+        {
+            return {.status = IO::makeStatus(ErrorCode::OutOfMemory)};
+        }
+        catch (...)
+        {
+            return {.status = IO::makeStatus(ErrorCode::Unknown)};
+        }
+    }
+
+    IO::Types::ReadAllTextResult readAllText(const Types::Path &path, const Types::ReadFileOptions &options) noexcept
+    {
+        try
+        {
+            if (options.bufferSize == 0)
+            {
+                return {.status = IO::makeStatus(ErrorCode::InvalidArgument)};
+            }
+
+            FileReader reader;
+            const IO::Types::Status openStatus = reader.open(path, options.open);
+            if (!openStatus.ok())
+            {
+                return {.status = openStatus};
+            }
+
+            IO::Types::ReadAllTextResult result = IO::readAllText(reader, options.maxBytes, options.bufferSize);
+            const IO::Types::Status closeStatus = reader.close();
+            if (result.status.ok() && !closeStatus.ok())
+            {
+                result.status = closeStatus;
+            }
+            return result;
+        }
+        catch (const std::bad_alloc &)
+        {
+            return {.status = IO::makeStatus(ErrorCode::OutOfMemory)};
+        }
+        catch (...)
+        {
+            return {.status = IO::makeStatus(ErrorCode::Unknown)};
+        }
+    }
+
+    IO::Types::WriteResult writeAllBytes(const Types::Path &path, std::span<const std::byte> bytes, const Types::WriteFileOptions &options) noexcept
+    {
+        try
+        {
+            if (!IO::isValidFlushMode(options.flushMode) || !isValidFileShare(options.share) || !isValidSymlinkPolicy(options.symlinkPolicy))
+            {
+                return writeFailure(ErrorCode::InvalidArgument);
+            }
+
+            Types::FileWriterMode writerMode = Types::FileWriterMode::CreateOrTruncate;
+            switch (options.mode)
+            {
+            case Types::WriteFileMode::CreateNew:
+                writerMode = Types::FileWriterMode::CreateNew;
+                break;
+            case Types::WriteFileMode::CreateOrTruncate:
+                writerMode = Types::FileWriterMode::CreateOrTruncate;
+                break;
+            case Types::WriteFileMode::TruncateExisting:
+                writerMode = Types::FileWriterMode::TruncateExisting;
+                break;
+            default:
+                return writeFailure(ErrorCode::InvalidArgument);
+            }
+
+            FileWriter writer;
+            const IO::Types::Status openStatus = writer.open(
+                path,
+                Types::FileWriterOpenOptions{
+                    .mode = writerMode,
+                    .share = options.share,
+                    .symlinkPolicy = options.symlinkPolicy,
+                    .createParentDirectories = options.createParentDirectories,
+                    .flushOnClose = IO::Types::FlushMode::None});
+            if (!openStatus.ok())
+            {
+                return writeFailure(openStatus);
+            }
+
+            IO::Types::WriteResult result = IO::writeAllBytes(writer, bytes);
+            if (!result.status.ok())
+            {
+                static_cast<void>(writer.close());
+                return result;
+            }
+
+            const IO::Types::Status flushStatus = writer.flush(options.flushMode);
+            if (!flushStatus.ok())
+            {
+                result.status = flushStatus;
+                return result;
+            }
+
+            const IO::Types::Status closeStatus = writer.close();
+            if (!closeStatus.ok())
+            {
+                result.status = closeStatus;
+            }
+            return result;
+        }
+        catch (const std::bad_alloc &)
+        {
+            return writeFailure(ErrorCode::OutOfMemory);
+        }
+        catch (...)
+        {
+            return writeFailure(ErrorCode::Unknown);
+        }
+    }
+
+    IO::Types::WriteResult writeAllText(const Types::Path &path, std::string_view utf8Text, const Types::WriteFileOptions &options) noexcept
+    {
+        return writeAllBytes(path, std::as_bytes(std::span<const char>(utf8Text.data(), utf8Text.size())), options);
+    }
+
+    IO::Types::WriteResult appendBytes(const Types::Path &path, std::span<const std::byte> bytes, const Types::AppendFileOptions &options) noexcept
+    {
+        try
+        {
+            if (!IO::isValidFlushMode(options.flushMode) || !isValidFileShare(options.share) || !isValidSymlinkPolicy(options.symlinkPolicy))
+            {
+                return writeFailure(ErrorCode::InvalidArgument);
+            }
+
+            Types::FileWriterMode writerMode = Types::FileWriterMode::AppendOrCreate;
+            switch (options.mode)
+            {
+            case Types::AppendMode::AppendOrCreate:
+                writerMode = Types::FileWriterMode::AppendOrCreate;
+                break;
+            case Types::AppendMode::AppendExisting:
+                writerMode = Types::FileWriterMode::AppendExisting;
+                break;
+            default:
+                return writeFailure(ErrorCode::InvalidArgument);
+            }
+
+            FileWriter writer;
+            const IO::Types::Status openStatus = writer.open(
+                path,
+                Types::FileWriterOpenOptions{
+                    .mode = writerMode,
+                    .share = options.share,
+                    .symlinkPolicy = options.symlinkPolicy,
+                    .createParentDirectories = options.createParentDirectories,
+                    .flushOnClose = IO::Types::FlushMode::None});
+            if (!openStatus.ok())
+            {
+                return writeFailure(openStatus);
+            }
+
+            IO::Types::WriteResult result = IO::writeAllBytes(writer, bytes);
+            if (!result.status.ok())
+            {
+                static_cast<void>(writer.close());
+                return result;
+            }
+
+            const IO::Types::Status flushStatus = writer.flush(options.flushMode);
+            if (!flushStatus.ok())
+            {
+                result.status = flushStatus;
+                return result;
+            }
+
+            const IO::Types::Status closeStatus = writer.close();
+            if (!closeStatus.ok())
+            {
+                result.status = closeStatus;
+            }
+            return result;
+        }
+        catch (const std::bad_alloc &)
+        {
+            return writeFailure(ErrorCode::OutOfMemory);
+        }
+        catch (...)
+        {
+            return writeFailure(ErrorCode::Unknown);
+        }
+    }
+
+    IO::Types::WriteResult appendText(const Types::Path &path, std::string_view utf8Text, const Types::AppendFileOptions &options) noexcept
+    {
+        return appendBytes(path, std::as_bytes(std::span<const char>(utf8Text.data(), utf8Text.size())), options);
+    }
+
+    IO::Types::Status writeAllBytesAtomic(
+        const Types::Path &path,
+        std::span<const std::byte> bytes,
+        const Types::AtomicWriteOptions &options) noexcept
+    {
+        try
+        {
+            if (path.empty() || !isValidReplaceMode(options.replaceMode) || !isValidSymlinkPolicy(options.symlinkPolicy) ||
+                !IO::isValidFlushMode(options.flushMode))
+            {
+                return IO::makeStatus(ErrorCode::InvalidArgument);
+            }
+
+            const IO::Types::Status prefixStatus = validateAtomicTemporaryPrefix(options.temporaryNamePrefix);
+            if (!prefixStatus.ok())
+            {
+                return prefixStatus;
+            }
+
+            Types::Path parent = path.parent_path();
+            if (parent.empty())
+            {
+                parent = ".";
+            }
+
+            const IO::Types::Status parentStatus =
+                options.createParentDirectories
+                    ? createDirectories(parent, Types::CreateDirectoryOptions{.succeedIfAlreadyExists = true, .symlinkPolicy = options.symlinkPolicy})
+                    : validateDirectoryExists(parent, options.symlinkPolicy);
+            if (!parentStatus.ok())
+            {
+                return parentStatus;
+            }
+
+            const Detail::Platform::EntryQueryResult destination = queryEntry(path, options.symlinkPolicy);
+            if (destination.status.ok() && options.replaceMode == Types::ReplaceMode::FailIfExists)
+            {
+                return IO::makeStatus(ErrorCode::AlreadyExists);
+            }
+            if (!destination.status.ok() && destination.status.code != ErrorCode::NotFound)
+            {
+                return destination.status;
+            }
+            if (destination.status.ok() && options.symlinkPolicy != Types::SymlinkPolicy::DoNotFollow && finalEntryIsSymlink(path))
+            {
+                return IO::makeStatus(ErrorCode::Unsupported);
+            }
+
+            Types::Path temporaryPath;
+            IO::Types::Status openStatus = IO::makeStatus(ErrorCode::AlreadyExists);
+            FileWriter writer;
+            for (std::uint64_t attempt = 0; attempt < 64 && openStatus.code == ErrorCode::AlreadyExists; ++attempt)
+            {
+                temporaryPath = uniqueAtomicTemporaryPath(parent, options.temporaryNamePrefix, attempt);
+                openStatus = writer.open(
+                    temporaryPath,
+                    Types::FileWriterOpenOptions{
+                        .mode = Types::FileWriterMode::CreateNew,
+                        .share = Types::FileShare::None,
+                        .symlinkPolicy = Types::SymlinkPolicy::FollowAll,
+                        .createParentDirectories = false,
+                        .flushOnClose = IO::Types::FlushMode::None});
+            }
+            if (!openStatus.ok())
+            {
+                return openStatus;
+            }
+
+            const IO::Types::WriteResult writeResult = IO::writeAllBytes(writer, bytes);
+            if (!writeResult.status.ok())
+            {
+                static_cast<void>(writer.close());
+                static_cast<void>(removeFile(temporaryPath, Types::RemoveOptions{.succeedIfMissing = true}));
+                return writeResult.status;
+            }
+
+            const IO::Types::Status flushStatus = writer.flush(options.flushMode);
+            if (!flushStatus.ok())
+            {
+                static_cast<void>(writer.close());
+                static_cast<void>(removeFile(temporaryPath, Types::RemoveOptions{.succeedIfMissing = true}));
+                return flushStatus;
+            }
+
+            const IO::Types::Status closeStatus = writer.close();
+            if (!closeStatus.ok())
+            {
+                static_cast<void>(removeFile(temporaryPath, Types::RemoveOptions{.succeedIfMissing = true}));
+                return closeStatus;
+            }
+
+            const IO::Types::Status commitStatus = Detail::Platform::movePath(temporaryPath, path, options.replaceMode);
+            if (!commitStatus.ok())
+            {
+                static_cast<void>(removeFile(temporaryPath, Types::RemoveOptions{.succeedIfMissing = true}));
+                return commitStatus;
+            }
+
+            return IO::successStatus();
+        }
+        catch (const std::bad_alloc &)
+        {
+            return IO::makeStatus(ErrorCode::OutOfMemory);
+        }
+        catch (...)
+        {
+            return IO::makeStatus(ErrorCode::Unknown);
+        }
+    }
+
+    IO::Types::Status writeAllTextAtomic(const Types::Path &path, std::string_view utf8Text, const Types::AtomicWriteOptions &options) noexcept
+    {
+        return writeAllBytesAtomic(path, std::as_bytes(std::span<const char>(utf8Text.data(), utf8Text.size())), options);
+    }
+
+    IO::Types::Status createDirectory(const Types::Path &path, const Types::CreateDirectoryOptions &options) noexcept
+    {
+        try
+        {
+            if (path.empty())
+            {
+                return IO::makeStatus(ErrorCode::InvalidArgument);
+            }
+
+            const Detail::Platform::EntryQueryResult existing = queryEntry(path, options.symlinkPolicy);
+            if (existing.status.ok())
+            {
+                if (existing.info.kind == Types::EntryKind::Directory)
+                {
+                    return options.succeedIfAlreadyExists ? IO::successStatus() : IO::makeStatus(ErrorCode::AlreadyExists);
+                }
+
+                return IO::makeStatus(ErrorCode::AlreadyExists);
+            }
+            if (existing.status.code != ErrorCode::NotFound)
+            {
+                return existing.status;
+            }
+
+            const IO::Types::Status parentStatus = validateParentDirectory(path, false, options.symlinkPolicy);
+            if (!parentStatus.ok())
+            {
+                return parentStatus;
+            }
+
+            std::error_code ec;
+            const bool created = std::filesystem::create_directory(path, ec);
+            if (ec)
+            {
+                return statusFromStdError(ec, ErrorCode::DirectoryCreateFailed);
+            }
+            if (!created)
+            {
+                return IO::makeStatus(ErrorCode::AlreadyExists);
+            }
+
+            const Detail::Platform::EntryQueryResult verified = queryEntry(path, options.symlinkPolicy);
+            if (!verified.status.ok())
+            {
+                return verified.status;
+            }
+            if (verified.info.kind != Types::EntryKind::Directory)
+            {
+                return IO::makeStatus(ErrorCode::NotDirectory);
+            }
+
+            return IO::successStatus();
+        }
+        catch (const std::bad_alloc &)
+        {
+            return IO::makeStatus(ErrorCode::OutOfMemory);
+        }
+        catch (...)
+        {
+            return IO::makeStatus(ErrorCode::Unknown);
+        }
+    }
+
+    IO::Types::Status createDirectories(const Types::Path &path, const Types::CreateDirectoryOptions &options) noexcept
+    {
+        try
+        {
+            if (path.empty())
+            {
+                return IO::makeStatus(ErrorCode::InvalidArgument);
+            }
+
+            const Detail::Platform::EntryQueryResult existing = queryEntry(path, options.symlinkPolicy);
+            if (existing.status.ok())
+            {
+                if (existing.info.kind == Types::EntryKind::Directory)
+                {
+                    return options.succeedIfAlreadyExists ? IO::successStatus() : IO::makeStatus(ErrorCode::AlreadyExists);
+                }
+
+                return IO::makeStatus(ErrorCode::AlreadyExists);
+            }
+            if (existing.status.code != ErrorCode::NotFound)
+            {
+                return existing.status;
+            }
+
+            std::error_code ec;
+            std::filesystem::create_directories(path, ec);
+            if (ec)
+            {
+                return statusFromStdError(ec, ErrorCode::DirectoryCreateFailed);
+            }
+
+            const Detail::Platform::EntryQueryResult verified = queryEntry(path, options.symlinkPolicy);
+            if (!verified.status.ok())
+            {
+                return verified.status;
+            }
+            if (verified.info.kind != Types::EntryKind::Directory)
+            {
+                return IO::makeStatus(ErrorCode::NotDirectory);
+            }
+
+            return IO::successStatus();
+        }
+        catch (const std::bad_alloc &)
+        {
+            return IO::makeStatus(ErrorCode::OutOfMemory);
+        }
+        catch (...)
+        {
+            return IO::makeStatus(ErrorCode::Unknown);
+        }
+    }
+
+    IO::Types::Status resizeFile(const Types::Path &path, std::uint64_t sizeBytes, const Types::MutationOptions &options) noexcept
+    {
+        try
+        {
+            const Types::EntryInfoResult info = getEntryInfo(path, Types::QueryOptions{.symlinkPolicy = options.symlinkPolicy});
+            if (!info.status.ok())
+            {
+                return info.status;
+            }
+            if (info.info.kind != Types::EntryKind::RegularFile)
+            {
+                return IO::makeStatus(ErrorCode::InvalidArgument);
+            }
+            if (info.info.readOnly)
+            {
+                return IO::makeStatus(ErrorCode::PermissionDenied);
+            }
+
+            std::error_code ec;
+            std::filesystem::resize_file(path, sizeBytes, ec);
+            if (ec)
+            {
+                return statusFromStdError(ec, ErrorCode::ResizeFailed);
+            }
+
+            const IO::Types::SizeResult verified = getFileSize(path, Types::QueryOptions{.symlinkPolicy = options.symlinkPolicy});
+            if (!verified.status.ok())
+            {
+                return verified.status;
+            }
+            if (verified.sizeBytes != sizeBytes)
+            {
+                return IO::makeStatus(ErrorCode::ResizeFailed);
+            }
+
+            return IO::successStatus();
+        }
+        catch (const std::bad_alloc &)
+        {
+            return IO::makeStatus(ErrorCode::OutOfMemory);
+        }
+        catch (...)
+        {
+            return IO::makeStatus(ErrorCode::Unknown);
+        }
+    }
+
+    IO::Types::Status truncateFile(const Types::Path &path, const Types::MutationOptions &options) noexcept
+    {
+        return resizeFile(path, 0, options);
+    }
+
+    Types::ListDirectoryResult listDirectory(const Types::Path &path, const Types::ListDirectoryOptions &options) noexcept
+    {
+        try
+        {
+            if (path.empty())
+            {
+                return listDirectoryFailure(ErrorCode::InvalidArgument);
+            }
+            if (!isValidSymlinkPolicy(options.symlinkPolicy))
+            {
+                return listDirectoryFailure(ErrorCode::InvalidArgument);
+            }
+
+            const Types::EntryInfoResult info = getEntryInfo(path, Types::QueryOptions{.symlinkPolicy = Types::SymlinkPolicy::FollowAll});
+            if (!info.status.ok())
+            {
+                return listDirectoryFailure(info.status);
+            }
+            if (info.info.kind != Types::EntryKind::Directory)
+            {
+                return listDirectoryFailure(ErrorCode::NotDirectory);
+            }
+
+            Types::ListDirectoryResult result{.status = IO::successStatus()};
+            std::error_code ec;
+            std::filesystem::directory_iterator iterator(path, ec);
+            if (ec)
+            {
+                return listDirectoryFailure(statusFromStdError(ec, ErrorCode::DirectoryListFailed));
+            }
+
+            for (const std::filesystem::directory_entry &entry : iterator)
+            {
+                if (result.entries.size() >= options.maxEntries)
+                {
+                    result.status = IO::makeStatus(ErrorCode::SizeLimitExceeded);
+                    return result;
+                }
+
+                const Types::Path childPath = entry.path();
+                const Detail::Platform::EntryQueryResult child = queryEntry(childPath, options.symlinkPolicy);
+                if (!child.status.ok())
+                {
+                    result.status = child.status;
+                    return result;
+                }
+
+                if (!options.includeHidden)
+                {
+                    const Types::BoolResult hidden = Detail::Platform::isHidden(childPath);
+                    if (!hidden.status.ok())
+                    {
+                        result.status = hidden.status;
+                        return result;
+                    }
+                    if (hidden.value)
+                    {
+                        continue;
+                    }
+                }
+
+                if (!includeEntryKind(child.info.kind, options))
+                {
+                    continue;
+                }
+
+                result.entries.push_back(Types::DirectoryEntry{.path = childPath, .info = child.info});
+            }
+
+            return result;
+        }
+        catch (const std::bad_alloc &)
+        {
+            return listDirectoryFailure(ErrorCode::OutOfMemory);
+        }
+        catch (...)
+        {
+            return listDirectoryFailure(ErrorCode::Unknown);
+        }
+    }
+
+    IO::Types::Status setReadOnly(const Types::Path &path, bool readOnly, const Types::QueryOptions &options) noexcept
+    {
+        try
+        {
+            const Types::EntryInfoResult info = getEntryInfo(path, options);
+            if (!info.status.ok())
+            {
+                return info.status;
+            }
+
+            const IO::Types::Status setStatus = setReadOnlyPortable(path, readOnly);
+            if (!setStatus.ok())
+            {
+                return setStatus;
+            }
+
+            const Types::BoolResult verified = isReadOnly(path, options);
+            if (!verified.status.ok())
+            {
+                return verified.status;
+            }
+            if (verified.value != readOnly)
+            {
+                return IO::makeStatus(ErrorCode::StatFailed);
+            }
+
+            return IO::successStatus();
+        }
+        catch (const std::bad_alloc &)
+        {
+            return IO::makeStatus(ErrorCode::OutOfMemory);
+        }
+        catch (...)
+        {
+            return IO::makeStatus(ErrorCode::Unknown);
+        }
+    }
+
+    IO::Types::Status copyFile(const Types::Path &from, const Types::Path &to, const Types::CopyFileOptions &options) noexcept
+    {
+        try
+        {
+            if (from.empty() || to.empty() || !isValidReplaceMode(options.replaceMode) || !isValidCopyMetadataMode(options.metadataMode) ||
+                !IO::isValidFlushMode(options.flushMode))
+            {
+                return IO::makeStatus(ErrorCode::InvalidArgument);
+            }
+
+            const Types::EntryInfoResult source = getEntryInfo(from, Types::QueryOptions{.symlinkPolicy = options.symlinkPolicy});
+            if (!source.status.ok())
+            {
+                return source.status;
+            }
+            if (source.info.kind != Types::EntryKind::RegularFile)
+            {
+                return IO::makeStatus(ErrorCode::InvalidArgument);
+            }
+            if (equivalentOrSameLexically(from, to))
+            {
+                return IO::makeStatus(ErrorCode::InvalidArgument);
+            }
+
+            const Detail::Platform::EntryQueryResult destination = queryEntry(to, Types::SymlinkPolicy::FollowAll);
+            if (destination.status.ok() && options.replaceMode == Types::ReplaceMode::FailIfExists)
+            {
+                return IO::makeStatus(ErrorCode::AlreadyExists);
+            }
+            if (!destination.status.ok() && destination.status.code != ErrorCode::NotFound)
+            {
+                return destination.status;
+            }
+
+            const IO::Types::Status parentStatus = validateParentDirectory(to, options.createParentDirectories, Types::SymlinkPolicy::FollowAll);
+            if (!parentStatus.ok())
+            {
+                return parentStatus;
+            }
+
+            std::error_code ec;
+            const std::filesystem::copy_options copyOptions = options.replaceMode == Types::ReplaceMode::ReplaceExisting
+                                                                  ? std::filesystem::copy_options::overwrite_existing
+                                                                  : std::filesystem::copy_options::none;
+            std::filesystem::copy_file(from, to, copyOptions, ec);
+            if (ec)
+            {
+                return statusFromStdError(ec, ErrorCode::CopyFailed);
+            }
+
+            const IO::Types::SizeResult copiedSize = getFileSize(to, Types::QueryOptions{.symlinkPolicy = Types::SymlinkPolicy::FollowAll});
+            if (!copiedSize.status.ok())
+            {
+                return copiedSize.status;
+            }
+            if (!source.info.hasSize || copiedSize.sizeBytes != source.info.sizeBytes)
+            {
+                return IO::makeStatus(ErrorCode::CopyFailed);
+            }
+
+            if (options.metadataMode == Types::CopyMetadataMode::Basic)
+            {
+                const IO::Types::Status metadataStatus = copyBasicMetadata(from, to);
+                if (!metadataStatus.ok())
+                {
+                    return metadataStatus;
+                }
+            }
+
+            if (options.flushMode != IO::Types::FlushMode::None)
+            {
+                File file;
+                const IO::Types::Status openStatus = file.open(
+                    to,
+                    Types::FileOpenOptions{
+                        .access = Types::FileAccess::Write,
+                        .mode = Types::FileOpenMode::OpenExisting,
+                        .initialPosition = Types::FileInitialPosition::Beginning,
+                        .share = Types::FileShare::All,
+                        .symlinkPolicy = Types::SymlinkPolicy::FollowAll});
+                if (!openStatus.ok())
+                {
+                    return openStatus;
+                }
+
+                const IO::Types::Status flushStatus = file.flush(options.flushMode);
+                const IO::Types::Status closeStatus = file.close();
+                if (!flushStatus.ok())
+                {
+                    return flushStatus;
+                }
+                if (!closeStatus.ok())
+                {
+                    return closeStatus;
+                }
+            }
+
+            return IO::successStatus();
+        }
+        catch (const std::bad_alloc &)
+        {
+            return IO::makeStatus(ErrorCode::OutOfMemory);
+        }
+        catch (...)
+        {
+            return IO::makeStatus(ErrorCode::Unknown);
+        }
+    }
+
+    IO::Types::Status movePath(const Types::Path &from, const Types::Path &to, const Types::MoveOptions &options) noexcept
+    {
+        try
+        {
+            if (from.empty() || to.empty() || !isValidReplaceMode(options.replaceMode))
+            {
+                return IO::makeStatus(ErrorCode::InvalidArgument);
+            }
+
+            const Types::EntryInfoResult source = getEntryInfo(from, Types::QueryOptions{.symlinkPolicy = options.symlinkPolicy});
+            if (!source.status.ok())
+            {
+                return source.status;
+            }
+            if (equivalentOrSameLexically(from, to))
+            {
+                return IO::successStatus();
+            }
+            if (options.symlinkPolicy != Types::SymlinkPolicy::DoNotFollow && finalEntryIsSymlink(from))
+            {
+                return IO::makeStatus(ErrorCode::Unsupported);
+            }
+
+            const Detail::Platform::EntryQueryResult destination = queryEntry(to, Types::SymlinkPolicy::DoNotFollow);
+            if (destination.status.ok() && options.replaceMode == Types::ReplaceMode::FailIfExists)
+            {
+                return IO::makeStatus(ErrorCode::AlreadyExists);
+            }
+            if (!destination.status.ok() && destination.status.code != ErrorCode::NotFound)
+            {
+                return destination.status;
+            }
+
+            const IO::Types::Status parentStatus = validateParentDirectory(to, options.createParentDirectories, Types::SymlinkPolicy::FollowAll);
+            if (!parentStatus.ok())
+            {
+                return parentStatus;
+            }
+
+            const IO::Types::Status moveStatus = Detail::Platform::movePath(from, to, options.replaceMode);
+            if (!moveStatus.ok())
+            {
+                return moveStatus;
+            }
+
+            const Detail::Platform::EntryQueryResult sourceAfter = queryEntry(from, Types::SymlinkPolicy::DoNotFollow);
+            if (sourceAfter.status.ok())
+            {
+                return IO::makeStatus(ErrorCode::MoveFailed);
+            }
+            if (sourceAfter.status.code != ErrorCode::NotFound)
+            {
+                return sourceAfter.status;
+            }
+
+            const Detail::Platform::EntryQueryResult destinationAfter = queryEntry(to, Types::SymlinkPolicy::DoNotFollow);
+            if (!destinationAfter.status.ok())
+            {
+                return destinationAfter.status;
+            }
+
+            return IO::successStatus();
+        }
+        catch (const std::bad_alloc &)
+        {
+            return IO::makeStatus(ErrorCode::OutOfMemory);
+        }
+        catch (...)
+        {
+            return IO::makeStatus(ErrorCode::Unknown);
+        }
+    }
+
+    IO::Types::Status removeFile(const Types::Path &path, const Types::RemoveOptions &options) noexcept
+    {
+        try
+        {
+            const Detail::Platform::EntryQueryResult existing = queryEntry(path, options.symlinkPolicy);
+            if (!existing.status.ok())
+            {
+                if (existing.status.code == ErrorCode::NotFound && options.succeedIfMissing)
+                {
+                    return IO::successStatus();
+                }
+                return existing.status;
+            }
+            if (existing.info.kind == Types::EntryKind::Directory)
+            {
+                return IO::makeStatus(ErrorCode::IsDirectory);
+            }
+            if (options.symlinkPolicy != Types::SymlinkPolicy::DoNotFollow && finalEntryIsSymlink(path))
+            {
+                return IO::makeStatus(ErrorCode::Unsupported);
+            }
+
+            std::error_code ec;
+            const bool removed = std::filesystem::remove(path, ec);
+            if (ec)
+            {
+                return statusFromStdError(ec, ErrorCode::RemoveFailed);
+            }
+            if (!removed)
+            {
+                return options.succeedIfMissing ? IO::successStatus() : IO::makeStatus(ErrorCode::NotFound);
+            }
+
+            const Detail::Platform::EntryQueryResult verified = queryEntry(path, Types::SymlinkPolicy::DoNotFollow);
+            if (verified.status.ok())
+            {
+                return IO::makeStatus(ErrorCode::RemoveFailed);
+            }
+            if (verified.status.code != ErrorCode::NotFound)
+            {
+                return verified.status;
+            }
+
+            return IO::successStatus();
+        }
+        catch (const std::bad_alloc &)
+        {
+            return IO::makeStatus(ErrorCode::OutOfMemory);
+        }
+        catch (...)
+        {
+            return IO::makeStatus(ErrorCode::Unknown);
+        }
+    }
+
+    IO::Types::Status removeEmptyDirectory(const Types::Path &path, const Types::RemoveOptions &options) noexcept
+    {
+        try
+        {
+            const Detail::Platform::EntryQueryResult existing = queryEntry(path, options.symlinkPolicy);
+            if (!existing.status.ok())
+            {
+                if (existing.status.code == ErrorCode::NotFound && options.succeedIfMissing)
+                {
+                    return IO::successStatus();
+                }
+                return existing.status;
+            }
+            if (existing.info.kind != Types::EntryKind::Directory)
+            {
+                return IO::makeStatus(ErrorCode::NotDirectory);
+            }
+            if (options.symlinkPolicy != Types::SymlinkPolicy::DoNotFollow && finalEntryIsSymlink(path))
+            {
+                return IO::makeStatus(ErrorCode::Unsupported);
+            }
+
+            std::error_code ec;
+            const bool removed = std::filesystem::remove(path, ec);
+            if (ec)
+            {
+                return statusFromStdError(ec, ErrorCode::RemoveFailed);
+            }
+            if (!removed)
+            {
+                return IO::makeStatus(ErrorCode::DirectoryNotEmpty);
+            }
+
+            const Detail::Platform::EntryQueryResult verified = queryEntry(path, Types::SymlinkPolicy::DoNotFollow);
+            if (verified.status.ok())
+            {
+                return IO::makeStatus(ErrorCode::RemoveFailed);
+            }
+            if (verified.status.code != ErrorCode::NotFound)
+            {
+                return verified.status;
+            }
+
+            return IO::successStatus();
+        }
+        catch (const std::bad_alloc &)
+        {
+            return IO::makeStatus(ErrorCode::OutOfMemory);
+        }
+        catch (...)
+        {
+            return IO::makeStatus(ErrorCode::Unknown);
+        }
+    }
+
+    Types::RemoveDirectoryTreeResult removeDirectoryTree(const Types::Path &path, const Types::RemoveDirectoryTreeOptions &options) noexcept
+    {
+        try
+        {
+            const Detail::Platform::EntryQueryResult existing = queryEntry(path, options.symlinkPolicy);
+            if (!existing.status.ok())
+            {
+                if (existing.status.code == ErrorCode::NotFound && options.succeedIfMissing)
+                {
+                    return {.status = IO::successStatus(), .removedEntries = 0};
+                }
+                return removeTreeFailure(existing.status);
+            }
+            if (existing.info.kind != Types::EntryKind::Directory)
+            {
+                return removeTreeFailure(ErrorCode::NotDirectory);
+            }
+            if (options.symlinkPolicy != Types::SymlinkPolicy::DoNotFollow && finalEntryIsSymlink(path))
+            {
+                return removeTreeFailure(ErrorCode::Unsupported);
+            }
+
+            RemoveTreeState state{.removedEntries = 0, .maxEntries = options.maxEntries};
+            const IO::Types::Status removeStatus = removeTreeRecursive(path, existing.info, state);
+            if (!removeStatus.ok())
+            {
+                return removeTreeFailure(removeStatus, state.removedEntries);
+            }
+
+            const Detail::Platform::EntryQueryResult verified = queryEntry(path, Types::SymlinkPolicy::DoNotFollow);
+            if (verified.status.ok())
+            {
+                return removeTreeFailure(ErrorCode::RemoveFailed, state.removedEntries);
+            }
+            if (verified.status.code != ErrorCode::NotFound)
+            {
+                return removeTreeFailure(verified.status, state.removedEntries);
+            }
+
+            return {.status = IO::successStatus(), .removedEntries = state.removedEntries};
+        }
+        catch (const std::bad_alloc &)
+        {
+            return removeTreeFailure(ErrorCode::OutOfMemory);
+        }
+        catch (...)
+        {
+            return removeTreeFailure(ErrorCode::Unknown);
         }
     }
 

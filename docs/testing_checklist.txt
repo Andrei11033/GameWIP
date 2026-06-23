@@ -450,16 +450,16 @@ Security-sensitive symlink policy behavior is validated where the test environme
 
 ## Remaining FileSystem Validation
 
-* [ ] Persistent file handle open, close, read, write, flush, seek, and size behavior is validated.
-* [ ] File lock acquisition, would-block behavior, and unlock behavior are validated.
-* [ ] Whole-file read helpers are validated.
-* [ ] Whole-file write and append helpers are validated.
-* [ ] Atomic write commit, replacement, cleanup, and failure behavior is validated.
-* [ ] Directory creation and listing behavior is validated.
-* [ ] Metadata value queries and read-only mutation behavior are validated.
-* [ ] File resize and truncate behavior is validated.
-* [ ] Copy, move, and removal behavior is validated.
-* [ ] UTF-8 path conversion behavior is validated with non-ASCII paths.
+* [x] Persistent file handle open, close, read, write, flush, seek, and size behavior is validated.
+* [x] File lock acquisition, would-block behavior, and unlock behavior are validated.
+* [x] Whole-file read helpers are validated.
+* [x] Whole-file write and append helpers are validated.
+* [x] Atomic write commit, replacement, cleanup, and failure behavior is validated.
+* [x] Directory creation and listing behavior is validated.
+* [x] Metadata value queries and read-only mutation behavior are validated.
+* [x] File resize and truncate behavior is validated.
+* [x] Copy, move, and removal behavior is validated.
+* [x] UTF-8 path conversion behavior is validated with non-ASCII paths.
 * [ ] FileSystem package/install behavior is validated.
 * [ ] FileSystem generated Doxygen output is inspected after the full runtime surface is implemented.
 
@@ -574,9 +574,9 @@ Performance stays observable, and coverage tooling helps find untested code with
 * [x] The Doxygen warning log is checked after docs generation.
 * [x] `INSTALL_LIBRARY_DOCS=ON` installs generated HTML docs only when `BUILD_LIBRARY_DOCS=ON`.
 * [x] Doxygen documentation target configure/build path is validated locally.
-* [ ] GitHub Pages documentation workflow is validated after it runs on GitHub Actions.
-* [ ] GitHub Pages deployment is validated after the workflow runs on GitHub.
-* [ ] Issue area auto-label workflow is validated after it runs on GitHub Actions.
+* [x] GitHub Pages documentation workflow is validated after it runs on GitHub Actions.
+* [x] GitHub Pages deployment is validated after the workflow runs on GitHub.
+* [x] Issue area auto-label workflow is validated after it runs on GitHub Actions.
 
 ## Documentation Structure
 
