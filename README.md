@@ -20,7 +20,7 @@ Implemented foundation and tooling:
 - CMake project wiring and library targets
 - IO foundation library
 - Terminal foundation library
-- FileSystem foundation library in active development
+- FileSystem foundation library
 - Logger library
 - Assert/debug diagnostics library
 - TestSupport library for project-native tests
@@ -28,7 +28,7 @@ Implemented foundation and tooling:
 - Tracy integration
 - Doxygen documentation infrastructure
 
-The active foundation phase is FileSystem. Its public contract is larger than the implemented runtime surface, so use the implementation and testing checklists as the source of truth before assuming an API is complete.
+The current foundation layer includes IO, Terminal, FileSystem, Logger, Assert, and TestSupport. Use the implementation and testing checklists as the source of truth for validation status and remaining polish work.
 
 ## Prerequisites
 
@@ -75,7 +75,7 @@ You can also run the test executable directly:
 .\build\GameWIP.exe --no-manual-ui
 ```
 
-For the current FileSystem phase, run only the FileSystem-focused tests:
+To run only the FileSystem-focused tests:
 
 ```powershell
 .\build\GameWIP.exe --filesystem-only

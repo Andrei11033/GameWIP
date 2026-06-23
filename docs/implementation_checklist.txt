@@ -656,10 +656,11 @@ This section tracks known implementation work that still remains in the current 
 
 ## FileSystem Current Phase
 
-* [-] Continue implementing the FileSystem public contract beyond entry queries and path helpers.
-* [-] Keep the Win32 backend behind `foundation/filesystem/internal/filesystem_platform.h`.
-* [-] Expand FileSystem tests as each public operation becomes executable.
-* [-] Keep FileSystem docs aligned with the implemented subset and the intended contract.
+* [x] FileSystem public runtime surface is implemented for the current foundation contract.
+* [x] Keep the Win32 backend behind `foundation/filesystem/internal/filesystem_platform.h`.
+* [x] FileSystem tests cover the active public operation families.
+* [x] Keep FileSystem docs aligned with the implemented contract.
+* [-] Continue polish work through validation findings, coverage gaps, and package/docs inspection.
 
 ## Future Engine/Game Sections
 

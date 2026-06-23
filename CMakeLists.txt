@@ -39,6 +39,7 @@ if(ENABLE_LIBRARY_COVERAGE)
             --root "${CMAKE_CURRENT_SOURCE_DIR}"
             --filter "${CMAKE_CURRENT_SOURCE_DIR}/foundation/io"
             --filter "${CMAKE_CURRENT_SOURCE_DIR}/foundation/terminal"
+            --filter "${CMAKE_CURRENT_SOURCE_DIR}/foundation/filesystem"
             --filter "${CMAKE_CURRENT_SOURCE_DIR}/tools/logger"
             --filter "${CMAKE_CURRENT_SOURCE_DIR}/tools/debug/assert"
             --filter "${CMAKE_CURRENT_SOURCE_DIR}/tools/test_support"

@@ -1,6 +1,6 @@
 @page library_build Build, packages, and installed docs
 
-This page covers project-level build behavior. Library-specific usage is documented under the foundation and tool library pages, including @ref io, @ref terminal, @ref logger, @ref assert, and @ref test_support.
+This page covers project-level build behavior. Library-specific usage is documented under the foundation and tool library pages, including @ref io, @ref terminal, @ref foundation_filesystem, @ref logger, @ref assert, and @ref test_support.
 
 ## Normal source build
 
@@ -28,6 +28,7 @@ After the libraries have been installed, an external CMake project can consume t
 ```cmake
 find_package(IO CONFIG REQUIRED)
 find_package(Terminal CONFIG REQUIRED)
+find_package(FileSystem CONFIG REQUIRED)
 find_package(Logger CONFIG REQUIRED)
 find_package(Assert CONFIG REQUIRED)
 find_package(TestSupport CONFIG REQUIRED)
@@ -35,6 +36,7 @@ find_package(TestSupport CONFIG REQUIRED)
 target_link_libraries(SomeTarget PRIVATE
     IO
     Terminal
+    FileSystem
     Logger
     Assert
     TestSupport
@@ -48,6 +50,8 @@ IOConfig.cmake
 IOConfigVersion.cmake
 TerminalConfig.cmake
 TerminalConfigVersion.cmake
+FileSystemConfig.cmake
+FileSystemConfigVersion.cmake
 LoggerConfig.cmake
 LoggerConfigVersion.cmake
 AssertConfig.cmake
@@ -56,7 +60,7 @@ TestSupportConfig.cmake
 TestSupportConfigVersion.cmake
 ```
 
-`TerminalConfig.cmake` depends on the IO package through `find_dependency(IO CONFIG)`. `AssertConfig.cmake` depends on the Logger package through `find_dependency(Logger CONFIG)`. Internal test-hook headers are intentionally excluded from normal installs.
+`TerminalConfig.cmake` and `FileSystemConfig.cmake` depend on the IO package through `find_dependency(IO CONFIG)`. `AssertConfig.cmake` depends on the Logger package through `find_dependency(Logger CONFIG)`. Internal test-hook headers are intentionally excluded from normal installs.
 
 On Windows, `Assert` also propagates the Common Controls v6 manifest resource needed by the TaskDialog path. Link the imported target normally; no separate package-consumer mode is required.
 
@@ -67,17 +71,19 @@ A normal install provides headers, libraries, and package config files similar t
 ```text
 <prefix>/include/io/...
 <prefix>/include/terminal/...
+<prefix>/include/filesystem/...
 <prefix>/include/logger/...
 <prefix>/include/debug/assert/...
 <prefix>/include/test_support/...
 <prefix>/lib/cmake/IO/IOConfig.cmake
 <prefix>/lib/cmake/Terminal/TerminalConfig.cmake
+<prefix>/lib/cmake/FileSystem/FileSystemConfig.cmake
 <prefix>/lib/cmake/Logger/LoggerConfig.cmake
 <prefix>/lib/cmake/Assert/AssertConfig.cmake
 <prefix>/lib/cmake/TestSupport/TestSupportConfig.cmake
 ```
 
-The Terminal package depends on the IO package through `find_dependency(IO CONFIG)`. The Assert package depends on the Logger package through `find_dependency(Logger CONFIG)`. The TestSupport package is independent and has no Logger or Assert dependency.
+The Terminal and FileSystem packages depend on the IO package through `find_dependency(IO CONFIG)`. The Assert package depends on the Logger package through `find_dependency(Logger CONFIG)`. The TestSupport package is independent and has no Logger or Assert dependency.
 
 ## Doxygen build
 

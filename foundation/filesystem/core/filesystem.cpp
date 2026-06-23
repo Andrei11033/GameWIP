@@ -334,18 +334,29 @@ namespace GameWIP::FileSystem
             bool createMissing,
             Types::SymlinkPolicy symlinkPolicy) noexcept
         {
-            const Types::Path parent = path.parent_path();
-            if (parent.empty())
+            try
             {
-                return IO::successStatus();
-            }
+                const Types::Path parent = path.parent_path();
+                if (parent.empty())
+                {
+                    return IO::successStatus();
+                }
 
-            if (createMissing)
+                if (createMissing)
+                {
+                    return createDirectories(parent, Types::CreateDirectoryOptions{.succeedIfAlreadyExists = true, .symlinkPolicy = symlinkPolicy});
+                }
+
+                return validateDirectoryExists(parent, symlinkPolicy);
+            }
+            catch (const std::bad_alloc &)
             {
-                return createDirectories(parent, Types::CreateDirectoryOptions{.succeedIfAlreadyExists = true, .symlinkPolicy = symlinkPolicy});
+                return IO::makeStatus(ErrorCode::OutOfMemory);
             }
-
-            return validateDirectoryExists(parent, symlinkPolicy);
+            catch (...)
+            {
+                return IO::makeStatus(ErrorCode::Unknown);
+            }
         }
 
         [[nodiscard]] bool equivalentOrSameLexically(const Types::Path &left, const Types::Path &right) noexcept
@@ -366,28 +377,9 @@ namespace GameWIP::FileSystem
             return result.status.ok() && result.info.kind == Types::EntryKind::Symlink;
         }
 
-        [[nodiscard]] IO::Types::Status copyBasicMetadata(const Types::Path &from, const Types::Path &to) noexcept
+        [[nodiscard]] IO::Types::Status copyBasicMetadata(const Types::Path &from, const Types::Path &to, Types::SymlinkPolicy symlinkPolicy) noexcept
         {
-            std::error_code ec;
-            const std::filesystem::file_time_type writeTime = std::filesystem::last_write_time(from, ec);
-            if (ec)
-            {
-                return statusFromStdError(ec, ErrorCode::StatFailed);
-            }
-
-            std::filesystem::last_write_time(to, writeTime, ec);
-            if (ec)
-            {
-                return statusFromStdError(ec, ErrorCode::StatFailed);
-            }
-
-            const Types::BoolResult readonly = isReadOnly(from, Types::QueryOptions{.symlinkPolicy = Types::SymlinkPolicy::FollowAll});
-            if (!readonly.status.ok())
-            {
-                return readonly.status;
-            }
-
-            return Detail::Platform::setReadOnly(to, readonly.value, Types::SymlinkPolicy::FollowAll);
+            return Detail::Platform::copyBasicMetadata(from, to, symlinkPolicy);
         }
 
         [[nodiscard]] Types::Path uniqueAtomicTemporaryPath(const Types::Path &parent, std::string_view prefix, std::uint64_t attempt)
@@ -1541,8 +1533,8 @@ namespace GameWIP::FileSystem
     {
         try
         {
-            if (from.empty() || to.empty() || !isValidReplaceMode(options.replaceMode) || !isValidCopyMetadataMode(options.metadataMode) ||
-                !IO::isValidFlushMode(options.flushMode))
+            if (from.empty() || to.empty() || !isValidReplaceMode(options.replaceMode) || !isValidSymlinkPolicy(options.symlinkPolicy) ||
+                !isValidCopyMetadataMode(options.metadataMode) || !IO::isValidFlushMode(options.flushMode))
             {
                 return IO::makeStatus(ErrorCode::InvalidArgument);
             }
@@ -1586,8 +1578,8 @@ namespace GameWIP::FileSystem
             }
 
             const Types::FileWriterMode writerMode = options.replaceMode == Types::ReplaceMode::ReplaceExisting
-                                                          ? Types::FileWriterMode::CreateOrTruncate
-                                                          : Types::FileWriterMode::CreateNew;
+                                                         ? Types::FileWriterMode::CreateOrTruncate
+                                                         : Types::FileWriterMode::CreateNew;
             FileWriter writer;
             const IO::Types::Status writerOpenStatus = writer.open(
                 to,
@@ -1616,8 +1608,7 @@ namespace GameWIP::FileSystem
 
                 if (readResult.bytesRead > 0)
                 {
-                    IO::Types::WriteResult writeResult =
-                        IO::writeAllBytes(writer, std::span<const std::byte>(buffer.data(), readResult.bytesRead));
+                    IO::Types::WriteResult writeResult = IO::writeAllBytes(writer, std::span<const std::byte>(buffer.data(), readResult.bytesRead));
                     if (!writeResult.status.ok())
                     {
                         static_cast<void>(writer.close());
@@ -1658,11 +1649,7 @@ namespace GameWIP::FileSystem
 
             if (options.metadataMode == Types::CopyMetadataMode::Basic)
             {
-                if (options.symlinkPolicy != Types::SymlinkPolicy::FollowAll)
-                {
-                    return IO::makeStatus(ErrorCode::Unsupported);
-                }
-                return copyBasicMetadata(from, to);
+                return copyBasicMetadata(from, to, options.symlinkPolicy);
             }
 
             return IO::successStatus();
@@ -1877,8 +1864,12 @@ namespace GameWIP::FileSystem
 
                 const IO::Types::Status removeStatus =
                     current.info.kind == Types::EntryKind::Directory
-                        ? removeEmptyDirectory(current.path, Types::RemoveOptions{.succeedIfMissing = false, .symlinkPolicy = Types::SymlinkPolicy::DoNotFollow})
-                        : removeFile(current.path, Types::RemoveOptions{.succeedIfMissing = false, .symlinkPolicy = Types::SymlinkPolicy::DoNotFollow});
+                        ? removeEmptyDirectory(
+                              current.path,
+                              Types::RemoveOptions{.succeedIfMissing = false, .symlinkPolicy = Types::SymlinkPolicy::DoNotFollow})
+                        : removeFile(
+                              current.path,
+                              Types::RemoveOptions{.succeedIfMissing = false, .symlinkPolicy = Types::SymlinkPolicy::DoNotFollow});
                 if (!removeStatus.ok())
                 {
                     return removeTreeFailure(removeStatus, removedEntries);

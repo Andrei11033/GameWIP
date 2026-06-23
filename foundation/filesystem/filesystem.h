@@ -25,12 +25,13 @@ namespace GameWIP::FileSystem
     /// @brief Sentinel entry limit meaning no caller-imposed traversal limit.
     inline constexpr std::uint64_t kNoEntryLimit = std::numeric_limits<std::uint64_t>::max();
 
-    /// @brief FileSystem implementation details. Not public API.
+    /// @cond INTERNAL_FILESYSTEM_DETAIL
     namespace Detail
     {
         struct FileState;
         struct FileLockState;
     } // namespace Detail
+    /// @endcond
 
     class File;
     class FileReader;

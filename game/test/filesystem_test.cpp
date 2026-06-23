@@ -203,19 +203,23 @@ namespace
             static_cast<void>(context.expectTrue("FollowAll final symlink reports target file", finalFollowAll.value));
 
             FileSystem::FileReader strictReader;
-            const IO::Types::Status strictReaderOpen =
-                strictReader.open(finalFileLink, FileSystem::Types::FileReaderOpenOptions{.symlinkPolicy = FileSystem::Types::SymlinkPolicy::DoNotFollow});
+            const IO::Types::Status strictReaderOpen = strictReader.open(
+                finalFileLink,
+                FileSystem::Types::FileReaderOpenOptions{.symlinkPolicy = FileSystem::Types::SymlinkPolicy::DoNotFollow});
             static_cast<void>(context.expectEq("DoNotFollow file open rejects final symlink", ErrorCode::InvalidArgument, strictReaderOpen.code));
 
             FileSystem::FileReader finalReader;
-            const IO::Types::Status finalReaderOpen =
-                finalReader.open(finalFileLink, FileSystem::Types::FileReaderOpenOptions{.symlinkPolicy = FileSystem::Types::SymlinkPolicy::FollowFinal});
+            const IO::Types::Status finalReaderOpen = finalReader.open(
+                finalFileLink,
+                FileSystem::Types::FileReaderOpenOptions{.symlinkPolicy = FileSystem::Types::SymlinkPolicy::FollowFinal});
             static_cast<void>(context.expectTrue("FollowFinal file open reaches final symlink target", finalReaderOpen.ok()));
             static_cast<void>(context.expectTrue("FollowFinal final symlink reader closes", finalReader.close().ok()));
 
-            const IO::Types::Status removeFinalLinkTarget =
-                FileSystem::removeFile(finalFileLink, FileSystem::Types::RemoveOptions{.symlinkPolicy = FileSystem::Types::SymlinkPolicy::FollowFinal});
-            static_cast<void>(context.expectEq("FollowFinal remove final symlink is unsupported", ErrorCode::Unsupported, removeFinalLinkTarget.code));
+            const IO::Types::Status removeFinalLinkTarget = FileSystem::removeFile(
+                finalFileLink,
+                FileSystem::Types::RemoveOptions{.symlinkPolicy = FileSystem::Types::SymlinkPolicy::FollowFinal});
+            static_cast<void>(
+                context.expectEq("FollowFinal remove final symlink is unsupported", ErrorCode::Unsupported, removeFinalLinkTarget.code));
 
             const IO::Types::Status moveFinalLinkTarget = FileSystem::movePath(
                 finalFileLink,
@@ -250,7 +254,8 @@ namespace
                 pathThroughIntermediate,
                 "blocked",
                 FileSystem::Types::WriteFileOptions{.symlinkPolicy = FileSystem::Types::SymlinkPolicy::DoNotFollow});
-            static_cast<void>(context.expectEq("DoNotFollow write rejects intermediate symlink", ErrorCode::PermissionDenied, strictWrite.status.code));
+            static_cast<void>(
+                context.expectEq("DoNotFollow write rejects intermediate symlink", ErrorCode::PermissionDenied, strictWrite.status.code));
 
             const auto strictListing = FileSystem::listDirectory(
                 intermediateDirectoryLink,
@@ -357,16 +362,13 @@ namespace
         static_cast<void>(context.expectEq("File write updated content", std::string{"abcdefg"}, updated.text));
 
         FileSystem::FileWriter appendWriter;
-        const IO::Types::Status appendOpen = appendWriter.open(
-            file,
-            FileSystem::Types::FileWriterOpenOptions{.mode = FileSystem::Types::FileWriterMode::AppendExisting});
+        const IO::Types::Status appendOpen =
+            appendWriter.open(file, FileSystem::Types::FileWriterOpenOptions{.mode = FileSystem::Types::FileWriterMode::AppendExisting});
         static_cast<void>(context.expectTrue("append writer opens", appendOpen.ok()));
         static_cast<void>(context.expectFalse("append writer is not seekable", appendWriter.canSeek()));
         static_cast<void>(context.expectEq("append writer position is NotSeekable", ErrorCode::NotSeekable, appendWriter.position().status.code));
-        static_cast<void>(context.expectEq(
-            "append writer seek is NotSeekable",
-            ErrorCode::NotSeekable,
-            appendWriter.seek(0, IO::Types::SeekOrigin::Begin).code));
+        static_cast<void>(
+            context.expectEq("append writer seek is NotSeekable", ErrorCode::NotSeekable, appendWriter.seek(0, IO::Types::SeekOrigin::Begin).code));
         static_cast<void>(context.expectTrue("append writer writes", appendWriter.write(bytesOf("h")).status.ok()));
         static_cast<void>(context.expectTrue("append writer closes", appendWriter.close().ok()));
 
@@ -380,6 +382,7 @@ namespace
         const std::filesystem::path directory = root / "mutations";
         const std::filesystem::path source = directory / "source.txt";
         const std::filesystem::path copy = directory / "copy.txt";
+        const std::filesystem::path metadataCopy = directory / "metadata-copy.txt";
         const std::filesystem::path moved = directory / "moved.txt";
         const std::filesystem::path emptyDirectory = directory / "empty";
         const std::filesystem::path tree = directory / "tree";
@@ -397,6 +400,30 @@ namespace
         static_cast<void>(context.expectTrue("read copied file succeeds", copied.status.ok()));
         static_cast<void>(context.expectEq("copyFile preserves content", std::string{"abc"}, copied.text));
 
+        static_cast<void>(context.expectTrue("source read-only setup succeeds", FileSystem::setReadOnly(source, true).ok()));
+        FileSystem::Types::CopyFileOptions copyOptions;
+        copyOptions.metadataMode = FileSystem::Types::CopyMetadataMode::Basic;
+        static_cast<void>(context.expectTrue("copyFile basic metadata succeeds", FileSystem::copyFile(source, metadataCopy, copyOptions).ok()));
+        const IO::Types::ReadAllTextResult metadataCopied = FileSystem::readAllText(metadataCopy);
+        static_cast<void>(context.expectTrue("read metadata copy succeeds", metadataCopied.status.ok()));
+        static_cast<void>(context.expectEq("metadata copy preserves content", std::string{"abc"}, metadataCopied.text));
+        const auto sourceLastWrite = FileSystem::getLastWriteTime(source);
+        const auto copiedLastWrite = FileSystem::getLastWriteTime(metadataCopy);
+        static_cast<void>(context.expectTrue("source last-write query succeeds", sourceLastWrite.status.ok()));
+        static_cast<void>(context.expectTrue("metadata copy last-write query succeeds", copiedLastWrite.status.ok()));
+        if (sourceLastWrite.status.ok() && copiedLastWrite.status.ok())
+        {
+            static_cast<void>(context.expectEq(
+                "metadata copy preserves last-write time",
+                sourceLastWrite.time.time_since_epoch().count(),
+                copiedLastWrite.time.time_since_epoch().count()));
+        }
+        const auto metadataCopyReadOnly = FileSystem::isReadOnly(metadataCopy);
+        static_cast<void>(context.expectTrue("metadata copy read-only query succeeds", metadataCopyReadOnly.status.ok()));
+        static_cast<void>(context.expectTrue("metadata copy preserves read-only state", metadataCopyReadOnly.value));
+        static_cast<void>(context.expectTrue("source read-only cleanup succeeds", FileSystem::setReadOnly(source, false).ok()));
+        static_cast<void>(context.expectTrue("metadata copy read-only cleanup succeeds", FileSystem::setReadOnly(metadataCopy, false).ok()));
+
         static_cast<void>(context.expectTrue("movePath succeeds", FileSystem::movePath(copy, moved).ok()));
         const auto copyExists = FileSystem::exists(copy);
         const auto movedExists = FileSystem::exists(moved);
@@ -405,6 +432,7 @@ namespace
         static_cast<void>(context.expectTrue("move destination existence query succeeds", movedExists.status.ok()));
         static_cast<void>(context.expectTrue("movePath creates destination", movedExists.value));
 
+        static_cast<void>(context.expectTrue("remove metadata copy succeeds", FileSystem::removeFile(metadataCopy).ok()));
         static_cast<void>(context.expectTrue("truncateFile succeeds", FileSystem::truncateFile(source).ok()));
         static_cast<void>(context.expectEq("truncateFile size is zero", std::uint64_t{0}, FileSystem::getFileSize(source).sizeBytes));
 

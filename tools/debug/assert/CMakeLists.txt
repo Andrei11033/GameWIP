@@ -171,12 +171,9 @@ else()
     )
 endif()
 
-install(DIRECTORY "${PROJECT_SOURCE_DIR}/tools/debug/assert"
-    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/debug
-    FILES_MATCHING
-        PATTERN "*.h"
-        PATTERN "*.hpp"
-        PATTERN "internal" EXCLUDE
+install(FILES
+    "${CMAKE_CURRENT_SOURCE_DIR}/assert.h"
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/debug/assert
 )
 
 if(LIBRARY_PLATFORM_ID STREQUAL "win32")

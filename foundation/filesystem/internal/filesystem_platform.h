@@ -155,6 +155,9 @@ namespace GameWIP::FileSystem::Detail::Platform
     /// @brief Changes read-only metadata through a backend-native entry handle.
     [[nodiscard]] IO::Types::Status setReadOnly(const Types::Path &path, bool readOnly, Types::SymlinkPolicy symlinkPolicy) noexcept;
 
+    /// @brief Copies portable basic metadata from one regular file to another through backend-native entry handles.
+    [[nodiscard]] IO::Types::Status copyBasicMetadata(const Types::Path &from, const Types::Path &to, Types::SymlinkPolicy symlinkPolicy) noexcept;
+
     /// @brief Removes one file-like entry through a backend-native entry handle.
     [[nodiscard]] IO::Types::Status removeFile(const Types::Path &path, const Types::RemoveOptions &options) noexcept;
 

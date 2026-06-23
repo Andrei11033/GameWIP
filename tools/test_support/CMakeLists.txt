@@ -43,12 +43,9 @@ install(TARGETS TestSupport
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
 )
 
-install(DIRECTORY "${PROJECT_SOURCE_DIR}/tools/test_support"
-    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-    FILES_MATCHING
-        PATTERN "*.h"
-        PATTERN "*.hpp"
-        PATTERN "internal" EXCLUDE
+install(FILES
+    "${CMAKE_CURRENT_SOURCE_DIR}/test_support.h"
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/test_support
 )
 
 configure_package_config_file(

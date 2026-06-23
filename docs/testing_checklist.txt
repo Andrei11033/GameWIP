@@ -461,8 +461,8 @@ Security-sensitive symlink policy behavior is validated where the test environme
 * [x] File resize and truncate behavior is validated.
 * [x] Copy, move, and removal behavior is validated.
 * [x] UTF-8 path conversion behavior is validated with non-ASCII paths.
-* [ ] FileSystem package/install behavior is validated.
-* [ ] FileSystem generated Doxygen output is inspected after the full runtime surface is implemented.
+* [x] FileSystem package/install behavior is validated.
+* [x] FileSystem generated Doxygen output is inspected after the full runtime surface is implemented.
 
 Completion goal:
 

@@ -16,6 +16,6 @@ Terminal serializes each operation per standard stream. Calls through this API a
 
 Input mode, alternate screen, and cursor visibility have RAII scopes for temporary state changes. Input-mode scopes restore the complete backend mode captured before setup. Cursor-hidden and alternate-screen scopes are nesting-safe per output stream. The scopes track setup and restoration status but do not create a global Terminal lifecycle.
 
-Expected detached, unsupported, timeout, invalid-option, and encoding failures use IO status/result types. Formatting errors and an invalid `OutputBuffer` constructor argument retain normal C++ exception behavior.
+Expected detached, unsupported, timeout, invalid-option, encoding, and formatted stream-write failures use IO status/result types. `OutputBuffer` formatting and an invalid `OutputBuffer` constructor argument retain normal C++ exception behavior because they operate on caller-owned in-memory state before a terminal write is requested.
 
 The focused contracts are documented in @ref terminal_read_write, @ref terminal_styling, @ref terminal_segmented_writes, @ref terminal_capabilities_and_redirection, @ref terminal_input_modes, and @ref terminal_control_primitives.

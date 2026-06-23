@@ -726,6 +726,9 @@ Warnings should remain visible, but HTML and XML reports should still be generat
 Package names match their library targets:
 
 ```cmake
+find_package(IO CONFIG REQUIRED)
+find_package(Terminal CONFIG REQUIRED)
+find_package(FileSystem CONFIG REQUIRED)
 find_package(Logger CONFIG REQUIRED)
 find_package(Assert CONFIG REQUIRED)
 find_package(TestSupport CONFIG REQUIRED)
@@ -734,10 +737,15 @@ find_package(TestSupport CONFIG REQUIRED)
 Imported targets use the direct library names:
 
 ```cmake
+IO
+Terminal
+FileSystem
 Logger
 Assert
 TestSupport
 ```
+
+The Terminal and FileSystem packages depend on the IO package.
 
 The Assert package depends on the Logger package.
 

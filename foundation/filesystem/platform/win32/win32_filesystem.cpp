@@ -1021,10 +1021,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             return {.status = IO::successStatus(), .handle = std::move(finalHandle.handle), .info = info.info};
         }
 
-        [[nodiscard]] StablePathResult stabilizeExistingPath(
-            const Types::Path &path,
-            Types::SymlinkPolicy symlinkPolicy,
-            bool requireDirectory)
+        [[nodiscard]] StablePathResult stabilizeExistingPath(const Types::Path &path, Types::SymlinkPolicy symlinkPolicy, bool requireDirectory)
         {
             const WidePathResult absolutePath = absoluteNativePath(path);
             if (!absolutePath.status.ok())
@@ -1034,7 +1031,8 @@ namespace GameWIP::FileSystem::Detail::Platform
 
             if (symlinkPolicy == Types::SymlinkPolicy::FollowAll)
             {
-                OpenPathResult opened = openExistingPath(path, symlinkPolicy, kQueryAccess, kShareAll & ~FILE_SHARE_DELETE, true, ErrorCode::StatFailed);
+                OpenPathResult opened =
+                    openExistingPath(path, symlinkPolicy, kQueryAccess, kShareAll & ~FILE_SHARE_DELETE, true, ErrorCode::StatFailed);
                 if (!opened.status.ok())
                 {
                     return {.status = opened.status};
@@ -1478,6 +1476,41 @@ namespace GameWIP::FileSystem::Detail::Platform
             }
 
             if (SetFileInformationByHandle(handle, FileBasicInfo, &basicInfo, sizeof(basicInfo)) == FALSE)
+            {
+                return makeLastErrorStatus(ErrorCode::StatFailed);
+            }
+            return IO::successStatus();
+        }
+
+        [[nodiscard]] IO::Types::Status copyHandleBasicMetadata(HANDLE source, HANDLE destination) noexcept
+        {
+            FILE_BASIC_INFO sourceInfo{};
+            if (GetFileInformationByHandleEx(source, FileBasicInfo, &sourceInfo, sizeof(sourceInfo)) == FALSE)
+            {
+                return makeLastErrorStatus(ErrorCode::StatFailed);
+            }
+
+            FILE_BASIC_INFO destinationInfo{};
+            if (GetFileInformationByHandleEx(destination, FileBasicInfo, &destinationInfo, sizeof(destinationInfo)) == FALSE)
+            {
+                return makeLastErrorStatus(ErrorCode::StatFailed);
+            }
+
+            destinationInfo.LastWriteTime = sourceInfo.LastWriteTime;
+            if ((sourceInfo.FileAttributes & FILE_ATTRIBUTE_READONLY) != 0)
+            {
+                destinationInfo.FileAttributes |= FILE_ATTRIBUTE_READONLY;
+            }
+            else
+            {
+                destinationInfo.FileAttributes &= ~FILE_ATTRIBUTE_READONLY;
+                if (destinationInfo.FileAttributes == 0)
+                {
+                    destinationInfo.FileAttributes = FILE_ATTRIBUTE_NORMAL;
+                }
+            }
+
+            if (SetFileInformationByHandle(destination, FileBasicInfo, &destinationInfo, sizeof(destinationInfo)) == FALSE)
             {
                 return makeLastErrorStatus(ErrorCode::StatFailed);
             }
@@ -2276,19 +2309,61 @@ namespace GameWIP::FileSystem::Detail::Platform
                 return IO::makeStatus(ErrorCode::InvalidArgument);
             }
 
-            OpenPathResult opened = openExistingPath(
-                path,
-                symlinkPolicy,
-                FILE_READ_ATTRIBUTES | FILE_WRITE_ATTRIBUTES,
-                kShareAll,
-                true,
-                ErrorCode::StatFailed);
+            OpenPathResult opened =
+                openExistingPath(path, symlinkPolicy, FILE_READ_ATTRIBUTES | FILE_WRITE_ATTRIBUTES, kShareAll, true, ErrorCode::StatFailed);
             if (!opened.status.ok())
             {
                 return opened.status;
             }
 
             return setHandleReadOnly(opened.handle.get(), readOnly);
+        }
+        catch (const std::bad_alloc &)
+        {
+            return IO::makeStatus(ErrorCode::OutOfMemory);
+        }
+        catch (...)
+        {
+            return IO::makeStatus(ErrorCode::Unknown);
+        }
+    }
+
+    IO::Types::Status copyBasicMetadata(const Types::Path &from, const Types::Path &to, Types::SymlinkPolicy symlinkPolicy) noexcept
+    {
+        try
+        {
+            if (from.empty() || to.empty() || !isValidSymlinkPolicy(symlinkPolicy))
+            {
+                return IO::makeStatus(ErrorCode::InvalidArgument);
+            }
+
+            OpenPathResult source = openExistingPath(from, symlinkPolicy, FILE_READ_ATTRIBUTES, kShareAll, false, ErrorCode::StatFailed);
+            if (!source.status.ok())
+            {
+                return source.status;
+            }
+            if (source.info.kind != Types::EntryKind::RegularFile)
+            {
+                return IO::makeStatus(ErrorCode::InvalidArgument);
+            }
+
+            OpenPathResult destination = openExistingPath(
+                to,
+                Types::SymlinkPolicy::DoNotFollow,
+                FILE_READ_ATTRIBUTES | FILE_WRITE_ATTRIBUTES,
+                kShareAll,
+                false,
+                ErrorCode::StatFailed);
+            if (!destination.status.ok())
+            {
+                return destination.status;
+            }
+            if (destination.info.kind != Types::EntryKind::RegularFile)
+            {
+                return IO::makeStatus(ErrorCode::InvalidArgument);
+            }
+
+            return copyHandleBasicMetadata(source.handle.get(), destination.handle.get());
         }
         catch (const std::bad_alloc &)
         {
@@ -2309,7 +2384,8 @@ namespace GameWIP::FileSystem::Detail::Platform
                 return IO::makeStatus(ErrorCode::InvalidArgument);
             }
 
-            OpenPathResult opened = openExistingPath(path, options.symlinkPolicy, DELETE | FILE_READ_ATTRIBUTES, kShareAll, true, ErrorCode::RemoveFailed);
+            OpenPathResult opened =
+                openExistingPath(path, options.symlinkPolicy, DELETE | FILE_READ_ATTRIBUTES, kShareAll, true, ErrorCode::RemoveFailed);
             if (!opened.status.ok())
             {
                 if (opened.status.code == ErrorCode::NotFound && options.succeedIfMissing)
@@ -2344,7 +2420,8 @@ namespace GameWIP::FileSystem::Detail::Platform
                 return IO::makeStatus(ErrorCode::InvalidArgument);
             }
 
-            OpenPathResult opened = openExistingPath(path, options.symlinkPolicy, DELETE | FILE_READ_ATTRIBUTES, kShareAll, true, ErrorCode::RemoveFailed);
+            OpenPathResult opened =
+                openExistingPath(path, options.symlinkPolicy, DELETE | FILE_READ_ATTRIBUTES, kShareAll, true, ErrorCode::RemoveFailed);
             if (!opened.status.ok())
             {
                 if (opened.status.code == ErrorCode::NotFound && options.succeedIfMissing)
@@ -2433,11 +2510,7 @@ namespace GameWIP::FileSystem::Detail::Platform
                 renameInfo->FileNameLength = fileNameBytes;
                 std::copy(fileName.begin(), fileName.end(), renameInfo->FileName);
 
-                if (SetFileInformationByHandle(
-                        source.handle.get(),
-                        FileRenameInfo,
-                        renameInfo,
-                        static_cast<DWORD>(renameBuffer.size())) == FALSE)
+                if (SetFileInformationByHandle(source.handle.get(), FileRenameInfo, renameInfo, static_cast<DWORD>(renameBuffer.size())) == FALSE)
                 {
                     return makeLastErrorStatus(ErrorCode::MoveFailed);
                 }
