@@ -679,22 +679,48 @@ namespace
         static_cast<void>(context.expectTrue("StopFlag records stop request", stopFlag.stopRequested()));
         static_cast<void>(context.expectEq("runWorkers joins all workers", std::size_t{4}, stopped.load(std::memory_order_relaxed)));
 
-        struct WorkerAddressRecorder
+        struct WorkerCopyRecorder
         {
+            std::shared_ptr<std::atomic<std::size_t>> nextId;
             std::shared_ptr<std::mutex> mutex;
-            std::shared_ptr<std::set<const void *>> addresses;
+            std::shared_ptr<std::set<std::size_t>> ids;
+            std::size_t id;
+
+            WorkerCopyRecorder(
+                std::shared_ptr<std::atomic<std::size_t>> nextIdIn,
+                std::shared_ptr<std::mutex> mutexIn,
+                std::shared_ptr<std::set<std::size_t>> idsIn)
+                : nextId(std::move(nextIdIn))
+                , mutex(std::move(mutexIn))
+                , ids(std::move(idsIn))
+                , id(nextId->fetch_add(1, std::memory_order_relaxed) + 1)
+            {
+            }
+
+            WorkerCopyRecorder(const WorkerCopyRecorder &other)
+                : nextId(other.nextId)
+                , mutex(other.mutex)
+                , ids(other.ids)
+                , id(nextId->fetch_add(1, std::memory_order_relaxed) + 1)
+            {
+            }
+
+            WorkerCopyRecorder(WorkerCopyRecorder &&) noexcept = default;
+            WorkerCopyRecorder &operator=(const WorkerCopyRecorder &) = delete;
+            WorkerCopyRecorder &operator=(WorkerCopyRecorder &&) noexcept = delete;
 
             void operator()(std::size_t)
             {
                 std::lock_guard lock(*mutex);
-                addresses->insert(this);
+                ids->insert(id);
             }
         };
 
+        auto nextWorkerId = std::make_shared<std::atomic<std::size_t>>(0);
         auto addressMutex = std::make_shared<std::mutex>();
-        auto workerAddresses = std::make_shared<std::set<const void *>>();
-        TestSupport::runWorkers(4, WorkerAddressRecorder{addressMutex, workerAddresses});
-        static_cast<void>(context.expectEq("runWorkers gives each worker its own callable copy", std::size_t{4}, workerAddresses->size()));
+        auto workerIds = std::make_shared<std::set<std::size_t>>();
+        TestSupport::runWorkers(4, WorkerCopyRecorder{nextWorkerId, addressMutex, workerIds});
+        static_cast<void>(context.expectEq("runWorkers gives each worker its own callable copy", std::size_t{4}, workerIds->size()));
 
         std::atomic<std::size_t> enteredFailureWorkers{0};
         std::atomic<std::size_t> completedFailureWorkers{0};
