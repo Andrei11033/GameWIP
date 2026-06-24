@@ -1,5 +1,8 @@
-blank_issues_enabled: true
+blank_issues_enabled: false
 contact_links:
+  - name: Contributor workflow
+    url: https://github.com/Andrei11033/GameWIP/blob/master/docs/contributing.md
+    about: Read the issue, branch, pull request, validation, and merge-message standards.
   - name: Generated documentation
     url: https://andrei11033.github.io/GameWIP/
     about: Browse the generated Doxygen documentation published through GitHub Pages.

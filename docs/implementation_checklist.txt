@@ -442,9 +442,14 @@ The Windows backend follows the project rule that public C++ remains UTF-8/path 
 * [x] GitHub Actions workflow exists to build generated Doxygen HTML and publish it through GitHub Pages.
 * [x] Dependabot configuration exists for GitHub Actions workflow dependencies.
 * [x] Dependabot configuration exists for Git submodule dependencies.
-* [x] Issue forms exist for bug reports and feature requests.
+* [x] GitHub Actions workflow exists to build and test pull requests and `master` through the MSYS2 UCRT64 toolchain.
+* [x] GitHub Actions workflow exists to validate Doxygen docs on pull requests and `master` without publishing from pull requests.
+* [x] GitHub Actions workflow exists to enforce pull request title, body, linked issue, merge-message title, and label standards.
+* [x] Issue forms exist for bug reports, feature requests, and concrete tasks.
 * [x] GitHub Actions workflow exists to apply area labels from issue-form dropdown values.
-* [x] Pull request template exists with implementation and validation checklist reminders.
+* [x] Pull request template exists with linked issue, validation, checklist, and merge-message reminders.
+* [x] Contributor workflow guide exists for issues, branches, pull requests, validation notes, and merge messages.
+* [x] Blank issues are disabled so issue forms capture required triage details.
 * [x] Security policy exists for private vulnerability reporting.
 
 ## Remaining Build Work

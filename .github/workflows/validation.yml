@@ -1,0 +1,102 @@
+name: Validation
+
+on:
+  pull_request:
+    branches:
+      - master
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: validation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test:
+    name: Build and Test
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install build tools
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-ninja
+
+      - name: Configure
+        shell: msys2 {0}
+        run: >
+          cmake -S . -B build-validation
+          -G Ninja
+          -DCMAKE_BUILD_TYPE=RelWithDebInfo
+          -DGAMEWIP_ENABLE_TRACY=OFF
+          -DGAMEWIP_ENABLE_TOOLS=OFF
+          -DGAMEWIP_OPEN_TOOL_WINDOWS_AT_STARTUP=OFF
+          -DLOGGER_TEST_HOOKS=ON
+          -DASSERT_TEST_HOOKS=ON
+          -DTERMINAL_TEST_HOOKS=ON
+
+      - name: Build
+        shell: msys2 {0}
+        run: cmake --build build-validation --parallel
+
+      - name: Test
+        shell: msys2 {0}
+        run: ctest --test-dir build-validation --output-on-failure
+
+  docs-check:
+    name: Docs Check
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install documentation tools
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-doxygen
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-graphviz
+            mingw-w64-ucrt-x86_64-ninja
+
+      - name: Configure documentation build
+        shell: msys2 {0}
+        run: >
+          cmake -S . -B build-docs
+          -G Ninja
+          -DCMAKE_BUILD_TYPE=Release
+          -DBUILD_DOCS=ON
+          -DGAMEWIP_ENABLE_TRACY=OFF
+
+      - name: Build documentation
+        shell: msys2 {0}
+        run: cmake --build build-docs --target docs --verbose
+
+      - name: Check Doxygen warnings
+        shell: msys2 {0}
+        run: |
+          if [ -s build-docs/docs/doxygen/doxygen_warnings.log ]; then
+            cat build-docs/docs/doxygen/doxygen_warnings.log
+            exit 1
+          fi

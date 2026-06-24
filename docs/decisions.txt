@@ -866,7 +866,43 @@ The `master` history should remain a readable single line unless there is a deli
 
 ---
 
-# 21. How to Add Future Decisions
+# 21. Repository Workflow Standard
+
+Repository workflow standards live in:
+
+```text
+docs/contributing.md
+```
+
+The workflow standard covers:
+
+* issue title and label conventions;
+* branch naming;
+* pull request descriptions;
+* validation notes;
+* merge style;
+* squash commit messages;
+* local sync after merge.
+
+Normal feature work should use an issue, a focused branch, a pull request, and a squash merge into `master`.
+
+Automated GitHub validation should stay easy to understand. The current standard is:
+
+* pull request metadata standards run on ready-for-review pull requests into `master`;
+* build/test validation runs on pull requests into `master`, pushes to `master`, and manual dispatch;
+* documentation validation runs on pull requests into `master`, pushes to `master`, and manual dispatch;
+* documentation publishing runs from `master` and manual dispatch;
+* issue automation may run from issue events where it directly helps triage.
+
+Dependabot pull requests may bypass human PR metadata checks, but they still run the normal validation workflow.
+
+Branch protection should require the PR standards and validation checks before merging into `master`.
+
+Do not add noisy branch-wide automation beyond pull requests and `master` unless the project deliberately decides that the extra feedback is worth the extra GitHub Actions activity.
+
+---
+
+# 22. How to Add Future Decisions
 
 When adding a decision:
 

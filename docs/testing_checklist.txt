@@ -578,6 +578,11 @@ Performance stays observable, and coverage tooling helps find untested code with
 * [x] GitHub Pages documentation workflow is validated after it runs on GitHub Actions.
 * [x] GitHub Pages deployment is validated after the workflow runs on GitHub.
 * [x] Issue area auto-label workflow is validated after it runs on GitHub Actions.
+* [ ] Pull request standards workflow is validated after it runs on GitHub Actions.
+* [ ] Pull request build/test validation workflow is validated after it runs on GitHub Actions.
+* [ ] Pull request docs-check workflow is validated after it runs on GitHub Actions.
+* [ ] Default-branch build/test validation workflow is validated after it runs on GitHub Actions.
+* [ ] Task issue form and updated pull request template are inspected after the workflow standards update lands.
 
 ## Documentation Structure
 

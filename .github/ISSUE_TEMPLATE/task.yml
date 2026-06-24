@@ -1,0 +1,76 @@
+name: Task
+description: Track planned implementation, cleanup, validation, or repository work.
+title: "task: "
+labels:
+  - "type:task"
+  - "priority:normal"
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template for concrete work that is not a bug report or a feature proposal.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Pick the closest affected area.
+      options:
+        - Build and tooling
+        - FileSystem
+        - Foundation shared systems
+        - IO
+        - Terminal
+        - Logger
+        - Assert
+        - TestSupport
+        - Engine input/action/window
+        - Windows platform backend
+        - Tools/developer support
+        - Documentation
+        - GitHub/repository setup
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: work
+    attributes:
+      label: Work
+      description: What needs to change?
+      placeholder: Describe the concrete work to perform.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reason
+    attributes:
+      label: Reason
+      description: Why is this useful now?
+    validations:
+      required: true
+
+  - type: textarea
+    id: done
+    attributes:
+      label: Done when
+      description: What observable result means the task is complete?
+      placeholder: |
+        - ...
+        - ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: validation
+    attributes:
+      label: Validation plan
+      description: What tests, manual checks, docs, or inspections should prove this is done?
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Pre-submit checks
+      options:
+        - label: I checked existing issues and docs for duplicate or already-completed work.
+          required: true

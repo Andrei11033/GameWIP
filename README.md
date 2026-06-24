@@ -98,6 +98,7 @@ Project planning and validation notes:
 - [docs/vision.txt](docs/vision.txt) - what the game is meant to become
 - [docs/roadmap.txt](docs/roadmap.txt) - planned development order toward V1
 - [docs/decisions.txt](docs/decisions.txt) - stable architecture, tooling, naming, and workflow decisions
+- [docs/contributing.md](docs/contributing.md) - issue, branch, pull request, validation, and merge workflow standards
 - [docs/implementation_checklist.txt](docs/implementation_checklist.txt) - what code exists
 - [docs/testing_checklist.txt](docs/testing_checklist.txt) - what behavior has been validated
 - [docs/platform_backend_contract.txt](docs/platform_backend_contract.txt) - platform backend rules
@@ -139,6 +140,8 @@ Keep implementation and validation tracking separate:
 - Put roadmap direction in [docs/roadmap.txt](docs/roadmap.txt).
 
 Keep platform-specific code behind internal backend headers. Windows backend code should use explicit Unicode Win32 APIs and avoid generic A/W macro-mapped calls.
+
+Use [docs/contributing.md](docs/contributing.md) for issue, branch, pull request, validation, and merge-message workflow.
 
 Commit messages follow the project style from [docs/decisions.txt](docs/decisions.txt):
 

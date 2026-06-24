@@ -3,7 +3,6 @@ name: Doxygen Docs
 on:
   push:
     branches:
-      - main
       - master
   workflow_dispatch:
 
@@ -50,6 +49,14 @@ jobs:
       - name: Build documentation
         shell: msys2 {0}
         run: cmake --build build-docs --target docs --verbose
+
+      - name: Check Doxygen warnings
+        shell: msys2 {0}
+        run: |
+          if [ -s build-docs/docs/doxygen/doxygen_warnings.log ]; then
+            cat build-docs/docs/doxygen/doxygen_warnings.log
+            exit 1
+          fi
 
       - name: Disable Jekyll processing
         shell: powershell
