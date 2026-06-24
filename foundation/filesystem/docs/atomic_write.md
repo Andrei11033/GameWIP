@@ -10,7 +10,7 @@ The operation:
 4. writes the complete content;
 5. flushes it according to `flushMode`;
 6. commits it with one native rename or replacement according to `replaceMode`;
-7. optionally performs a best-effort parent-directory flush;
+7. optionally flushes the parent directory;
 8. removes the temporary file after failure where practical.
 
 There is no non-atomic fallback. Before the commit point, failure leaves an existing destination unchanged. Concurrent path observers see either the old destination content or the complete new content, never an in-place partial rewrite.
@@ -23,7 +23,7 @@ Temporary files are created with restrictive access. The backend must not silent
 
 Successful replacement does not guarantee preservation of timestamps, ownership, complete ACLs, extended attributes, named streams, compression, encryption, file identifiers, or hard-link identity. A backend may preserve native metadata where its atomic replacement primitive does so, but callers needing a specific metadata contract must manage that separately.
 
-`flushParentDirectoryBestEffort` requests additional durability where supported but does not turn unsupported directory flushing into failure.
+`flushParentDirectory` requests directory-entry durability after replacement. When it is enabled, a backend that cannot flush the parent directory reports failure instead of silently downgrading the durability contract.
 
 `temporaryNamePrefix` is an owning `std::string`, so an `AtomicWriteOptions` value may be stored or moved without depending on a caller-owned character buffer. The prefix must be non-empty: it cannot contain path separators, name `.` or `..`, or contain an embedded NUL. Invalid prefixes return `InvalidArgument` before a temporary file is created.
 

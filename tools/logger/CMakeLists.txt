@@ -44,7 +44,7 @@ set_target_properties(Logger PROPERTIES
     ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
 )
 
-if(BUILD_LIBRARY_DOCS AND COMMAND library_register_doxygen_library)
+if(BUILD_DOCS AND COMMAND library_register_doxygen_library)
     # Logger owns its public API docs and Markdown manual pages. The root docs
     # target merges this into the unified library Doxygen site.
     library_register_doxygen_library(
@@ -66,12 +66,10 @@ install(TARGETS Logger
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
 )
 
-install(DIRECTORY "${PROJECT_SOURCE_DIR}/tools/logger"
-    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-    FILES_MATCHING
-        PATTERN "*.h"
-        PATTERN "*.hpp"
-        PATTERN "internal" EXCLUDE
+install(FILES
+    "${CMAKE_CURRENT_SOURCE_DIR}/logger.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/logger_macros.h"
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/logger
 )
 
 configure_package_config_file(

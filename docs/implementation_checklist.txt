@@ -329,7 +329,7 @@ TestSupport utility helpers are implemented for files, environment variables, ch
 * [x] FileSystem defines file open, share, append, atomic-write, copy, move, remove, and symlink policy option types.
 * [x] FileSystem defines move-constructible, non-copyable handle types for files, readers, writers, and whole-file locks.
 * [x] FileSystem declares path helpers, entry queries, directory operations, file mutation helpers, whole-file helpers, copy/move/remove helpers, and UTF-8 path conversion helpers.
-* [-] FileSystem public contract is broader than the current runtime implementation and remains the active foundation phase.
+* [x] FileSystem public contract has active runtime implementations for the declared v1 surface.
 
 ## Implemented Runtime Behavior
 
@@ -353,24 +353,25 @@ TestSupport utility helpers are implemented for files, environment variables, ch
 * [x] `SymlinkPolicy::DoNotFollow` queries final entries without following final symlinks.
 * [x] `SymlinkPolicy::FollowFinal` rejects intermediate symlinks while allowing a final symlink target.
 * [x] Strict symlink-policy traversal uses handle-relative child opens rather than check-then-reopen path logic.
+* [x] Path-opening, mutation, directory, copy, move, listing, and removal helpers enforce strict symlink policies through backend operations.
 * [x] Entry metadata reports portable kind, size for regular files, last-write time, and read-only state.
 * [x] Win32 and NTSTATUS errors are mapped to project `IO::Types::ErrorCode` values.
 
 ## Current Remaining FileSystem Work
 
-* [ ] Define and implement persistent `File`, `FileReader`, `FileWriter`, and `FileLock` runtime behavior.
-* [ ] Implement whole-file read helpers.
-* [ ] Implement whole-file write and append helpers.
-* [ ] Implement atomic write helpers.
-* [ ] Implement file resizing and truncation helpers.
-* [ ] Implement directory creation and listing helpers.
-* [ ] Implement metadata value queries and read-only mutation helpers.
-* [ ] Implement copy, move, remove-file, remove-empty-directory, and remove-directory-tree helpers.
-* [ ] Expand backend contracts beyond entry metadata queries as each operation becomes active.
+* [x] Define and implement persistent `File`, `FileReader`, `FileWriter`, and `FileLock` runtime behavior.
+* [x] Implement whole-file read helpers.
+* [x] Implement whole-file write and append helpers.
+* [x] Implement atomic write helpers.
+* [x] Implement file resizing and truncation helpers.
+* [x] Implement directory creation and listing helpers.
+* [x] Implement metadata value queries and read-only mutation helpers.
+* [x] Implement copy, move, remove-file, remove-empty-directory, and remove-directory-tree helpers.
+* [x] Expand backend contracts beyond entry metadata queries as each operation becomes active.
 
 Completion note:
 
-FileSystem is implemented as a library target with public contract docs, path/query helpers, and a Win32 entry-query backend. The larger file, directory, mutation, locking, and transfer API surface is still active work.
+FileSystem is implemented as a library target with public contract docs, path/query helpers, a Win32 metadata backend, native file handles, whole-file transfer helpers, directory/mutation/copy/move/removal helpers, strict symlink-policy enforcement, atomic replacement, and whole-file locks.
 
 ---
 
@@ -579,7 +580,7 @@ Per-library documentation is implemented and organized by library-owned guide fo
 ## Build Behavior
 
 * [x] Generated Doxygen configuration exists for professional HTML API docs.
-* [x] `BUILD_LIBRARY_DOCS=ON` creates the `docs` target when Doxygen is installed.
+* [x] `BUILD_DOCS=ON` creates the `docs` target when Doxygen is installed.
 * [x] Missing Doxygen produces a clear configure-time error only when documentation is explicitly enabled.
 * [x] Normal builds do not require Doxygen.
 * [x] The docs target creates the output directory before running Doxygen.
@@ -589,8 +590,8 @@ Per-library documentation is implemented and organized by library-owned guide fo
 
 ## Install Behavior
 
-* [x] `INSTALL_LIBRARY_DOCS` installs generated HTML documentation when explicitly enabled.
-* [x] `INSTALL_LIBRARY_DOCS=ON` installs generated HTML docs only when `BUILD_LIBRARY_DOCS=ON`.
+* [x] `INSTALL_DOCS` installs generated HTML documentation when explicitly enabled.
+* [x] `INSTALL_DOCS=ON` installs generated HTML docs only when `BUILD_DOCS=ON`.
 
 Completion note:
 
@@ -655,10 +656,11 @@ This section tracks known implementation work that still remains in the current 
 
 ## FileSystem Current Phase
 
-* [-] Continue implementing the FileSystem public contract beyond entry queries and path helpers.
-* [-] Keep the Win32 backend behind `foundation/filesystem/internal/filesystem_platform.h`.
-* [-] Expand FileSystem tests as each public operation becomes executable.
-* [-] Keep FileSystem docs aligned with the implemented subset and the intended contract.
+* [x] FileSystem public runtime surface is implemented for the current foundation contract.
+* [x] Keep the Win32 backend behind `foundation/filesystem/internal/filesystem_platform.h`.
+* [x] FileSystem tests cover the active public operation families.
+* [x] Keep FileSystem docs aligned with the implemented contract.
+* [-] Continue polish work through validation findings, coverage gaps, and package/docs inspection.
 
 ## Future Engine/Game Sections
 

@@ -586,7 +586,7 @@ tools/test_support/docs/
 Documentation generation is controlled by:
 
 ```text
-BUILD_LIBRARY_DOCS
+BUILD_DOCS
 ```
 
 The root docs target combines:
@@ -609,17 +609,17 @@ Only the library landing page is required. Child pages are owned by the library 
 
 Generated docs intentionally disable graph and PlantUML output for now so the docs target stays fast and deterministic.
 
-When `BUILD_LIBRARY_DOCS=ON`, Doxygen is required. If Doxygen is missing, configuration should fail with a clear message.
+When `BUILD_DOCS=ON`, Doxygen is required. If Doxygen is missing, configuration should fail with a clear message.
 
 Normal builds must not require Doxygen.
 
-`INSTALL_LIBRARY_DOCS=ON` installs generated HTML docs under:
+`INSTALL_DOCS=ON` installs generated HTML docs under:
 
 ```text
 share/doc/Libraries/doxygen/html
 ```
 
-`INSTALL_LIBRARY_DOCS=ON` requires `BUILD_LIBRARY_DOCS=ON`.
+`INSTALL_DOCS=ON` requires `BUILD_DOCS=ON`.
 
 ---
 
@@ -726,6 +726,9 @@ Warnings should remain visible, but HTML and XML reports should still be generat
 Package names match their library targets:
 
 ```cmake
+find_package(IO CONFIG REQUIRED)
+find_package(Terminal CONFIG REQUIRED)
+find_package(FileSystem CONFIG REQUIRED)
 find_package(Logger CONFIG REQUIRED)
 find_package(Assert CONFIG REQUIRED)
 find_package(TestSupport CONFIG REQUIRED)
@@ -734,10 +737,15 @@ find_package(TestSupport CONFIG REQUIRED)
 Imported targets use the direct library names:
 
 ```cmake
+IO
+Terminal
+FileSystem
 Logger
 Assert
 TestSupport
 ```
+
+The Terminal and FileSystem packages depend on the IO package.
 
 The Assert package depends on the Logger package.
 

@@ -25,7 +25,7 @@ set_target_properties(TestSupport PROPERTIES
     ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
 )
 
-if(BUILD_LIBRARY_DOCS AND COMMAND library_register_doxygen_library)
+if(BUILD_DOCS AND COMMAND library_register_doxygen_library)
     # TestSupport owns its public API docs and Markdown manual pages. The root docs
     # target merges this into the unified library Doxygen site.
     library_register_doxygen_library(
@@ -43,12 +43,9 @@ install(TARGETS TestSupport
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
 )
 
-install(DIRECTORY "${PROJECT_SOURCE_DIR}/tools/test_support"
-    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-    FILES_MATCHING
-        PATTERN "*.h"
-        PATTERN "*.hpp"
-        PATTERN "internal" EXCLUDE
+install(FILES
+    "${CMAKE_CURRENT_SOURCE_DIR}/test_support.h"
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/test_support
 )
 
 configure_package_config_file(

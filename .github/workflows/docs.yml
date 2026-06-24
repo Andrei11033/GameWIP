@@ -44,7 +44,7 @@ jobs:
           cmake -S . -B build-docs
           -G Ninja
           -DCMAKE_BUILD_TYPE=Release
-          -DBUILD_LIBRARY_DOCS=ON
+          -DBUILD_DOCS=ON
           -DGAMEWIP_ENABLE_TRACY=OFF
 
       - name: Build documentation

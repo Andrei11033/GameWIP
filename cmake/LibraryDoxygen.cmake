@@ -130,7 +130,7 @@ function(library_create_doxygen_target)
 
     get_property(LIBRARY_DOXYGEN_INPUT_LIST GLOBAL PROPERTY LIBRARY_DOXYGEN_INPUTS)
     if(NOT LIBRARY_DOXYGEN_INPUT_LIST)
-        message(FATAL_ERROR "BUILD_LIBRARY_DOCS is ON, but no Doxygen inputs were registered.")
+        message(FATAL_ERROR "BUILD_DOCS is ON, but no Doxygen inputs were registered.")
     endif()
 
     list(REMOVE_DUPLICATES LIBRARY_DOXYGEN_INPUT_LIST)
@@ -170,7 +170,7 @@ function(library_create_doxygen_target)
         VERBATIM
     )
 
-    if(INSTALL_LIBRARY_DOCS)
+    if(INSTALL_DOCS)
         install(DIRECTORY "${LIBRARY_DOXYGEN_OUTPUT_DIR}/html"
             DESTINATION "share/doc/Libraries/doxygen"
             OPTIONAL

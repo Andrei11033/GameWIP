@@ -133,7 +133,7 @@ namespace GameWIP::TestSupport
     /// @{
 
     /// @brief Monotonic elapsed-time helper for test metrics.
-    /// TODO: Revisit this helper when the project adopts a dedicated test or benchmark timing framework.
+    /// @note Timer is intended for lightweight diagnostic metrics, not benchmark-grade pass/fail thresholds.
     class Timer
     {
     public:

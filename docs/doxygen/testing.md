@@ -36,7 +36,7 @@ cmake -S . -B build-hooks -G Ninja `
   -DASSERT_TEST_HOOKS=ON `
   -DTERMINAL_TEST_HOOKS=ON `
   -DENABLE_LIBRARY_COVERAGE=OFF `
-  -DBUILD_LIBRARY_DOCS=OFF
+  -DBUILD_DOCS=OFF
 
 cmake --build build-hooks
 .\build-hooks\GameWIP.exe

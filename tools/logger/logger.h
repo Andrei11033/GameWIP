@@ -308,6 +308,7 @@ namespace GameWIP::Logger
     };
     /// @}
 
+    /// @cond INTERNAL_LOGGER_DETAIL
     namespace Detail::Core
     {
         // Source enum conversion helpers ----------------------------------------------------------
@@ -335,7 +336,9 @@ namespace GameWIP::Logger
         }
 
     } // namespace Detail::Core
+    /// @endcond
 
+    /// @cond INTERNAL_LOGGER_DETAIL
     namespace Detail::Core
     {
         /// @brief Enqueues a preformatted message after the caller's fast-path filter check.
@@ -477,6 +480,7 @@ namespace GameWIP::Logger
             Types::RuntimeFormat format,
             Args &...args);
     } // namespace Detail::Core
+    /// @endcond
 
     // Source and format helpers ---------------------------------------------------------------
     /// @name Source and format helpers
@@ -2171,6 +2175,7 @@ namespace GameWIP::Logger
     INTERNAL_LOGGER_API void writeDebugOutput(Types::Level level, std::string_view source, std::string_view message);
     /// @}
 
+    /// @cond INTERNAL_LOGGER_DETAIL
     namespace Detail::Core
     {
         // Template implementation helpers ---------------------------------------------------------
@@ -2765,4 +2770,5 @@ namespace GameWIP::Logger
         }
 
     } // namespace Detail::Core
+    /// @endcond
 } // namespace GameWIP::Logger

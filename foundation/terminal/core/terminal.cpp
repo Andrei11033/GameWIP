@@ -1621,10 +1621,20 @@ namespace GameWIP::Terminal
             {
                 std::vformat_to(std::back_inserter(state.assembly), format, arguments);
             }
+            catch (const std::format_error &)
+            {
+                releaseLargeAssembly(state);
+                return invalidArgumentStatus("Terminal formatted output failed.");
+            }
+            catch (const std::bad_alloc &)
+            {
+                releaseLargeAssembly(state);
+                return IO::makeStatus(ErrorCode::OutOfMemory);
+            }
             catch (...)
             {
                 releaseLargeAssembly(state);
-                throw;
+                return IO::makeStatus(ErrorCode::Unknown);
             }
 
             return finishFormattedWriteUnlocked(stream, state, options.styleMode, options.style, {}, options.flushMode);
@@ -1656,10 +1666,20 @@ namespace GameWIP::Terminal
             {
                 std::vformat_to(std::back_inserter(state.assembly), format, arguments);
             }
+            catch (const std::format_error &)
+            {
+                releaseLargeAssembly(state);
+                return invalidArgumentStatus("Terminal formatted output failed.");
+            }
+            catch (const std::bad_alloc &)
+            {
+                releaseLargeAssembly(state);
+                return IO::makeStatus(ErrorCode::OutOfMemory);
+            }
             catch (...)
             {
                 releaseLargeAssembly(state);
-                throw;
+                return IO::makeStatus(ErrorCode::Unknown);
             }
 
             return finishFormattedWriteUnlocked(

@@ -76,7 +76,7 @@ Terminal writes use explicit operation names.
 
 Text and segmented writes return `IO::Types::Status` because the operation may transform UTF-8 text into a platform-native console representation, emit styling, append line endings, reset style, and flush. Byte writes return `IO::Types::WriteResult` because callers need the number of accepted bytes.
 
-`writeText()` writes text exactly as provided. Plain, unstyled text is passed directly to the backend without an assembly allocation. A single non-empty plain text segment with no appended line ending uses the same direct path. `writeLine()` and multi-part writes assemble their complete logical record before one backend text write. `print()` and `println()` format with `std::format` semantics directly into reusable per-stream scratch storage.
+`writeText()` writes text exactly as provided. Plain, unstyled text is passed directly to the backend without an assembly allocation. A single non-empty plain text segment with no appended line ending uses the same direct path. `writeLine()` and multi-part writes assemble their complete logical record before one backend text write. `print()` and `println()` format with `std::format` semantics directly into reusable per-stream scratch storage; formatting failures are returned as IO statuses before any backend write is attempted.
 
 Line reads retain the scan position between backend chunks. Long lines are therefore scanned linearly, including the special case where `\r\n` is split across two chunks.
 
@@ -95,7 +95,7 @@ buffer.println("hp {}", hp);
 buffer.flushTo();
 ```
 
-`OutputBuffer::writeTo()` writes without clearing. `OutputBuffer::flushTo()` clears only when the write succeeds. Both provide stdout and explicit-output-stream overloads. Constructing a buffer with an unknown `LineEnding` throws `std::invalid_argument`; later buffer operations therefore cannot carry an invalid line-ending state.
+`OutputBuffer::writeTo()` writes without clearing. `OutputBuffer::flushTo()` clears only when the write succeeds. Both provide stdout and explicit-output-stream overloads. Constructing a buffer with an unknown `LineEnding` throws `std::invalid_argument`; later buffer operations therefore cannot carry an invalid line-ending state. `OutputBuffer::print()` and `OutputBuffer::println()` retain normal `std::format` exception behavior because the buffer has not crossed into Terminal's status-returning write boundary yet.
 
 ## Flush behavior
 

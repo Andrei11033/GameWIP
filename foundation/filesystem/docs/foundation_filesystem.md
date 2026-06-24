@@ -4,6 +4,23 @@
 
 Include `filesystem/filesystem.h`. Passive values live under `GameWIP::FileSystem::Types`; active handles and operations live directly under `GameWIP::FileSystem`.
 
+## Documentation
+
+User manual:
+
+- @subpage foundation_filesystem_quick_start
+- @subpage foundation_filesystem_public_api
+- @subpage foundation_filesystem_file_open_modes
+- @subpage foundation_filesystem_directory_operations
+- @subpage foundation_filesystem_atomic_write
+- @subpage foundation_filesystem_unicode_paths
+- @subpage foundation_filesystem_examples
+- @subpage foundation_filesystem_troubleshooting
+
+Developer validation:
+
+- @subpage foundation_filesystem_testing
+
 ## Purpose
 
 FileSystem replaces application use of:
@@ -23,7 +40,7 @@ Persistent native state uses move-constructible, non-copyable objects:
 ```cpp
 GameWIP::FileSystem::FileReader reader;
 const auto openStatus = reader.open(path);
-const auto readResult = reader.read(buffer);
+const auto readResult = reader.read(std::span<std::byte>(buffer.data(), buffer.size()));
 const auto lockResult = reader.tryLockShared();
 const auto closeStatus = reader.close();
 ```
@@ -50,12 +67,12 @@ Predicate queries return successful `false` for missing paths. Value queries suc
 
 Empty target paths, invalid option combinations, and unknown enum values return `InvalidArgument`. Native path rules remain platform-specific; FileSystem does not invent a cross-platform filename grammar.
 
-`SymlinkPolicy::DoNotFollow` and `FollowFinal` are security-sensitive contracts. Implementations must reject intermediate symlinks during handle-relative traversal rather than checking a path and reopening it later. A backend that cannot enforce the requested policy without a path-replacement race returns `Unsupported`.
+`SymlinkPolicy::DoNotFollow` and `FollowFinal` are security-sensitive contracts. Implementations must reject intermediate symlinks during handle-relative traversal rather than checking a path and reopening it later. Opening, mutation, listing, movement, copy, and removal operations that cannot enforce the requested policy without a path-replacement race return `Unsupported`.
 
-Path-opening and ordinary content-mutation helpers default to `FollowAll`, matching normal filesystem access. Entry-oriented queries, listing, move, copy, and removal retain operation-specific no-follow defaults where acting on the directory entry itself is important.
+Public operations that expose `SymlinkPolicy` default to `DoNotFollow`. `FollowAll` is an explicit opt-in for interoperability with ordinary filesystem resolution.
 
 `Types::FileTime` uses `std::chrono::system_clock::time_point`. Backends preserve the closest representable native value; precision may be reduced and unrepresentable native timestamps return `SizeLimitExceeded`.
 
 Filesystem operations may block on storage, sharing, locks, or operating-system metadata work. Different handle objects may be used concurrently, but the same handle or lock object is not internally synchronized. Free path operations are independently callable from multiple threads; process-wide current-directory changes still affect the whole process.
 
-See @ref foundation_filesystem_file_open_modes, @ref foundation_filesystem_atomic_write, @ref foundation_filesystem_directory_operations, and @ref foundation_filesystem_unicode_paths.
+See @ref foundation_filesystem_quick_start, @ref foundation_filesystem_public_api, @ref foundation_filesystem_file_open_modes, @ref foundation_filesystem_atomic_write, @ref foundation_filesystem_directory_operations, @ref foundation_filesystem_unicode_paths, @ref foundation_filesystem_examples, and @ref foundation_filesystem_troubleshooting.

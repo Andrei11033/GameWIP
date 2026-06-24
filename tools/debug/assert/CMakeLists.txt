@@ -145,7 +145,7 @@ if(ASSERT_RUNTIME_TARGET_ENABLED)
     )
 endif()
 
-if(BUILD_LIBRARY_DOCS AND COMMAND library_register_doxygen_library)
+if(BUILD_DOCS AND COMMAND library_register_doxygen_library)
     # Assert owns its public API docs and Markdown manual pages. The root docs
     # target merges this into the unified library Doxygen site.
     library_register_doxygen_library(
@@ -171,12 +171,9 @@ else()
     )
 endif()
 
-install(DIRECTORY "${PROJECT_SOURCE_DIR}/tools/debug/assert"
-    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/debug
-    FILES_MATCHING
-        PATTERN "*.h"
-        PATTERN "*.hpp"
-        PATTERN "internal" EXCLUDE
+install(FILES
+    "${CMAKE_CURRENT_SOURCE_DIR}/assert.h"
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/debug/assert
 )
 
 if(LIBRARY_PLATFORM_ID STREQUAL "win32")

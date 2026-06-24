@@ -25,12 +25,13 @@ namespace GameWIP::FileSystem
     /// @brief Sentinel entry limit meaning no caller-imposed traversal limit.
     inline constexpr std::uint64_t kNoEntryLimit = std::numeric_limits<std::uint64_t>::max();
 
-    /// @brief FileSystem implementation details. Not public API.
+    /// @cond INTERNAL_FILESYSTEM_DETAIL
     namespace Detail
     {
         struct FileState;
         struct FileLockState;
     } // namespace Detail
+    /// @endcond
 
     class File;
     class FileReader;
@@ -246,7 +247,7 @@ namespace GameWIP::FileSystem
             /// @brief Access allowed to other opens while this handle remains open.
             FileShare share = FileShare::All;
             /// @brief Symlink traversal policy used while resolving the path.
-            SymlinkPolicy symlinkPolicy = SymlinkPolicy::FollowAll;
+            SymlinkPolicy symlinkPolicy = SymlinkPolicy::DoNotFollow;
             /// @brief Create missing parent directories before opening.
             bool createParentDirectories = false;
             /// @brief Flush requested by explicit close() before releasing the handle.
@@ -259,7 +260,7 @@ namespace GameWIP::FileSystem
             /// @brief Access allowed to other opens while this reader remains open.
             FileShare share = FileShare::All;
             /// @brief Symlink traversal policy used while resolving the path.
-            SymlinkPolicy symlinkPolicy = SymlinkPolicy::FollowAll;
+            SymlinkPolicy symlinkPolicy = SymlinkPolicy::DoNotFollow;
         };
 
         /// @brief Options used by FileWriter::open().
@@ -270,7 +271,7 @@ namespace GameWIP::FileSystem
             /// @brief Access allowed to other opens while this writer remains open.
             FileShare share = FileShare::All;
             /// @brief Symlink traversal policy used while resolving the path.
-            SymlinkPolicy symlinkPolicy = SymlinkPolicy::FollowAll;
+            SymlinkPolicy symlinkPolicy = SymlinkPolicy::DoNotFollow;
             /// @brief Create missing parent directories before opening.
             bool createParentDirectories = false;
             /// @brief Flush requested by explicit close() before releasing the handle.
@@ -296,7 +297,7 @@ namespace GameWIP::FileSystem
             /// @brief Access allowed to other opens while the target is open.
             FileShare share = FileShare::All;
             /// @brief Symlink traversal policy used while resolving the path.
-            SymlinkPolicy symlinkPolicy = SymlinkPolicy::FollowAll;
+            SymlinkPolicy symlinkPolicy = SymlinkPolicy::DoNotFollow;
             /// @brief Create missing parent directories before opening.
             bool createParentDirectories = true;
             /// @brief Flush requested after payload writing and before close.
@@ -311,7 +312,7 @@ namespace GameWIP::FileSystem
             /// @brief Access allowed to other opens while the target is open.
             FileShare share = FileShare::All;
             /// @brief Symlink traversal policy used while resolving the path.
-            SymlinkPolicy symlinkPolicy = SymlinkPolicy::FollowAll;
+            SymlinkPolicy symlinkPolicy = SymlinkPolicy::DoNotFollow;
             /// @brief Create missing parent directories before opening.
             bool createParentDirectories = true;
             /// @brief Flush requested after payload writing and before close.
@@ -326,11 +327,11 @@ namespace GameWIP::FileSystem
             /// @brief Destination replacement behavior at commit.
             ReplaceMode replaceMode = ReplaceMode::ReplaceExisting;
             /// @brief Symlink traversal policy used to resolve the destination.
-            SymlinkPolicy symlinkPolicy = SymlinkPolicy::FollowAll;
+            SymlinkPolicy symlinkPolicy = SymlinkPolicy::DoNotFollow;
             /// @brief Flush requested for the temporary file before commit.
             IO::Types::FlushMode flushMode = IO::Types::FlushMode::Data;
-            /// @brief Requests a best-effort parent-directory flush after replacement.
-            bool flushParentDirectoryBestEffort = true;
+            /// @brief Flush the parent directory after replacement.
+            bool flushParentDirectory = true;
             /// @brief Filename prefix used for a generated temporary file in the destination directory.
             /// @note Must be non-empty and contain no path separator, embedded NUL, or complete "." or ".." name.
             std::string temporaryNamePrefix{kAtomicTemporaryNamePrefix};
@@ -347,7 +348,7 @@ namespace GameWIP::FileSystem
         struct MutationOptions
         {
             /// @brief Symlink traversal policy used to resolve the file to mutate.
-            SymlinkPolicy symlinkPolicy = SymlinkPolicy::FollowAll;
+            SymlinkPolicy symlinkPolicy = SymlinkPolicy::DoNotFollow;
         };
 
         /// @brief Portable metadata for an existing filesystem entry.
@@ -418,7 +419,7 @@ namespace GameWIP::FileSystem
             /// @brief Treat an already-existing directory as success.
             bool succeedIfAlreadyExists = true;
             /// @brief Symlink traversal policy used while resolving the path.
-            SymlinkPolicy symlinkPolicy = SymlinkPolicy::FollowAll;
+            SymlinkPolicy symlinkPolicy = SymlinkPolicy::DoNotFollow;
         };
 
         /// @brief Options used by listDirectory().

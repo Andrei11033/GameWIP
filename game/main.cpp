@@ -267,15 +267,11 @@ int main(int argc, char **argv)
     }
 
     const int ioResult = runOptions.runIOTests ? GameWIP::Test::runIOTests(argc, argv, ioTestOptions) : 0;
-    const int fileSystemResult =
-        runOptions.runFileSystemTests ? GameWIP::Test::runFileSystemTests(argc, argv, fileSystemTestOptions) : 0;
+    const int fileSystemResult = runOptions.runFileSystemTests ? GameWIP::Test::runFileSystemTests(argc, argv, fileSystemTestOptions) : 0;
     const int terminalResult = runOptions.runTerminalTests ? GameWIP::Test::runTerminalTests(argc, argv, terminalTestOptions) : 0;
     const int testSupportResult = runOptions.runTestSupportTests ? GameWIP::Test::runTestSupportTests(argc, argv, testSupportTestOptions) : 0;
     const int loggerResult = runOptions.runLoggerTests ? GameWIP::Test::runLoggerTests(argc, argv, loggerTestOptions) : 0;
     const int assertResult = runOptions.runAssertTests ? GameWIP::Test::runAssertTests(argc, argv, assertTestOptions) : 0;
 
-    return ioResult == 0 && fileSystemResult == 0 && terminalResult == 0 && testSupportResult == 0 && loggerResult == 0 &&
-                   assertResult == 0
-               ? 0
-               : 1;
+    return ioResult == 0 && fileSystemResult == 0 && terminalResult == 0 && testSupportResult == 0 && loggerResult == 0 && assertResult == 0 ? 0 : 1;
 }

@@ -26,6 +26,24 @@
 #include <type_traits>
 #include <vector>
 
+struct TerminalThrowingFormat
+{
+};
+
+template <> struct std::formatter<TerminalThrowingFormat>
+{
+    constexpr auto parse(std::format_parse_context &context)
+    {
+        return context.begin();
+    }
+
+    template <typename FormatContext> auto format(const TerminalThrowingFormat &, FormatContext &context) const
+    {
+        throw std::format_error("terminal test formatter failure");
+        return context.out();
+    }
+};
+
 namespace
 {
     namespace IO = GameWIP::IO;
@@ -110,6 +128,17 @@ namespace
         const Terminal::Types::WriteSegment bytes = Terminal::byteSegment(bytesOf(byteText));
         static_cast<void>(context.expectEq("byte segment kind", Terminal::Types::WriteSegmentKind::Bytes, bytes.kind()));
         static_cast<void>(context.expectEq("byte segment size", byteText.size(), bytes.bytes().size()));
+
+        static_cast<void>(context.expectEq(
+            "formatted print failure returns status",
+            ErrorCode::InvalidArgument,
+            Terminal::print("{}", TerminalThrowingFormat{}).code));
+        Terminal::Types::LineWriteOptions lineOptions;
+        lineOptions.lineEnding = Terminal::Types::LineEnding::Lf;
+        static_cast<void>(context.expectEq(
+            "formatted println failure returns status",
+            ErrorCode::InvalidArgument,
+            Terminal::println(lineOptions, "{}", TerminalThrowingFormat{}).code));
     }
 
 #if INTERNAL_TERMINAL_TEST_HOOKS
@@ -411,6 +440,14 @@ namespace
             Hooks::textWriteCallCount(Terminal::Types::OutputStream::Stdout)));
 
         Hooks::clearCapturedOutput(Terminal::Types::OutputStream::Stdout);
+        static_cast<void>(context.expectEq(
+            "formatted print failure returns status",
+            ErrorCode::InvalidArgument,
+            Terminal::print("{}", TerminalThrowingFormat{}).code));
+        static_cast<void>(
+            context.expectTrue("formatted print failure writes nothing", Hooks::capturedOutputText(Terminal::Types::OutputStream::Stdout).empty()));
+
+        Hooks::clearCapturedOutput(Terminal::Types::OutputStream::Stdout);
         Terminal::Types::LineWriteOptions printLineOptions;
         printLineOptions.lineEnding = Terminal::Types::LineEnding::Lf;
         const std::size_t printlnWritesBefore = Hooks::textWriteCallCount(Terminal::Types::OutputStream::Stdout);
@@ -421,6 +458,14 @@ namespace
             "formatted println uses one backend call",
             printlnWritesBefore + 1,
             Hooks::textWriteCallCount(Terminal::Types::OutputStream::Stdout)));
+
+        Hooks::clearCapturedOutput(Terminal::Types::OutputStream::Stdout);
+        static_cast<void>(context.expectEq(
+            "formatted println failure returns status",
+            ErrorCode::InvalidArgument,
+            Terminal::println(printLineOptions, "{}", TerminalThrowingFormat{}).code));
+        static_cast<void>(
+            context.expectTrue("formatted println failure writes nothing", Hooks::capturedOutputText(Terminal::Types::OutputStream::Stdout).empty()));
 
         Hooks::clearCapturedOutput(Terminal::Types::OutputStream::Stdout);
         Terminal::OutputBuffer outputBuffer(Terminal::Types::LineEnding::Lf);

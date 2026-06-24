@@ -27,6 +27,8 @@ Call `close()` explicitly when close or flush failure must be observed.
 
 Modes that may create or truncate a file require `FileAccess::Write` or `ReadWrite`. A non-`None` `flushOnClose` also requires write access. Invalid option combinations and unknown enum values return `InvalidArgument` before opening a handle.
 
+Open options default to `SymlinkPolicy::DoNotFollow`. Callers must opt into `FollowFinal` or `FollowAll` when opening through a symlink is intentional.
+
 ## Append
 
 `FileWriterMode::AppendOrCreate` and `AppendExisting` are true append modes:

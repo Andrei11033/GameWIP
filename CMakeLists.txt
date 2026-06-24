@@ -16,8 +16,8 @@ option(ENABLE_LIBRARY_COVERAGE "Enable coverage instrumentation for library test
 option(LOGGER_TEST_HOOKS "Enable Logger internal test hooks" OFF)
 option(ASSERT_TEST_HOOKS "Enable Assert internal test hooks" OFF)
 option(TERMINAL_TEST_HOOKS "Enable Terminal internal test hooks" OFF)
-option(BUILD_LIBRARY_DOCS "Build library Doxygen documentation" OFF)
-option(INSTALL_LIBRARY_DOCS "Install generated Doxygen HTML documentation" OFF)
+option(BUILD_DOCS "Build library Doxygen documentation" OFF)
+option(INSTALL_DOCS "Install generated Doxygen HTML documentation" OFF)
 
 if(ENABLE_LIBRARY_COVERAGE)
     if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
@@ -39,6 +39,7 @@ if(ENABLE_LIBRARY_COVERAGE)
             --root "${CMAKE_CURRENT_SOURCE_DIR}"
             --filter "${CMAKE_CURRENT_SOURCE_DIR}/foundation/io"
             --filter "${CMAKE_CURRENT_SOURCE_DIR}/foundation/terminal"
+            --filter "${CMAKE_CURRENT_SOURCE_DIR}/foundation/filesystem"
             --filter "${CMAKE_CURRENT_SOURCE_DIR}/tools/logger"
             --filter "${CMAKE_CURRENT_SOURCE_DIR}/tools/debug/assert"
             --filter "${CMAKE_CURRENT_SOURCE_DIR}/tools/test_support"
@@ -96,14 +97,14 @@ if(ENABLE_LIBRARY_COVERAGE)
     endif()
 endif()
 
-if(INSTALL_LIBRARY_DOCS AND NOT BUILD_LIBRARY_DOCS)
-    message(FATAL_ERROR "INSTALL_LIBRARY_DOCS requires BUILD_LIBRARY_DOCS=ON so the generated HTML exists before install.")
+if(INSTALL_DOCS AND NOT BUILD_DOCS)
+    message(FATAL_ERROR "INSTALL_DOCS requires BUILD_DOCS=ON so the generated HTML exists before install.")
 endif()
 
-if(BUILD_LIBRARY_DOCS)
+if(BUILD_DOCS)
     find_package(Doxygen QUIET)
     if(NOT DOXYGEN_FOUND)
-        message(FATAL_ERROR "BUILD_LIBRARY_DOCS is ON, but Doxygen was not found. Install Doxygen and reconfigure, or set BUILD_LIBRARY_DOCS=OFF.")
+        message(FATAL_ERROR "BUILD_DOCS is ON, but Doxygen was not found. Install Doxygen and reconfigure, or set BUILD_DOCS=OFF.")
     endif()
 
     include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/LibraryDoxygen.cmake")
@@ -122,14 +123,6 @@ if(BUILD_LIBRARY_DOCS)
         "${LIBRARY_DOXYGEN_ROOT}/doxygen_notes.md"
     )
 
-    library_register_doxygen_library(
-        NAME FileSystem
-        PAGE_ID foundation_filesystem
-        PUBLIC_HEADERS
-            "${CMAKE_CURRENT_SOURCE_DIR}/foundation/filesystem/filesystem.h"
-        DOCS
-            "${CMAKE_CURRENT_SOURCE_DIR}/foundation/filesystem/docs"
-    )
 endif()
 
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/LibraryPlatform.cmake")
@@ -161,7 +154,7 @@ add_subdirectory(engine/action)
 add_subdirectory(engine/window)
 add_subdirectory(engine/window_manager)
 
-if(BUILD_LIBRARY_DOCS)
+if(BUILD_DOCS)
     library_create_doxygen_target(
         MAINPAGE "${LIBRARY_DOXYGEN_MAINPAGE}"
     )
@@ -169,7 +162,7 @@ endif()
 
 add_executable(GameWIP
     game/main.cpp
-    game/test/filesystem_api_contract_test.cpp
+    game/test/filesystem_test.cpp
     game/test/io_test.cpp
     game/test/terminal_test.cpp
     game/test/test_support_test.cpp
