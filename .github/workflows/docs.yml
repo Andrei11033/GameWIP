@@ -43,7 +43,11 @@ jobs:
           cmake -S . -B build-docs
           -G Ninja
           -DCMAKE_BUILD_TYPE=Release
-          -DBUILD_DOCS=ON
+          -DGAMEWIP_BUILD_GAME=OFF
+          -DGAMEWIP_BUILD_TESTS=OFF
+          -DGAMEWIP_RUN_TESTS_AT_STARTUP=OFF
+          -DGAMEWIP_RUN_BENCHMARKS_AT_STARTUP=OFF
+          -DGAMEWIP_BUILD_DOCS=ON
           -DGAMEWIP_ENABLE_TRACY=OFF
 
       - name: Build documentation

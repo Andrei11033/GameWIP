@@ -2,18 +2,15 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Debug GameWIP (Optimized Debuggable)",
+            "name": "Debug GameWIP Development",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}\\build-optimized-debuggable\\GameWIP.exe",
-            "args": [],
+            "program": "${workspaceFolder}\\build-development\\GameWIP.exe",
+            "args": ["--no-manual-ui"],
             "stopAtEntry": false,
-            "cwd": "${workspaceFolder}\\build-optimized-debuggable",
+            "cwd": "${workspaceFolder}\\build-development",
             "environment": [
-                {
-                    "name": "PATH",
-                    "value": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
-                }
+                { "name": "PATH", "value": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" }
             ],
             "externalConsole": false,
             "MIMode": "gdb",
@@ -25,21 +22,18 @@
                     "ignoreFailures": true
                 }
             ],
-            "preLaunchTask": "Build Optimized Debuggable"
+            "preLaunchTask": "Build Development"
         },
         {
-            "name": "Profile GameWIP (Tracy)",
+            "name": "Profile GameWIP with Tracy",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}\\build-tracy-profiling\\GameWIP.exe",
-            "args": [],
+            "program": "${workspaceFolder}\\build-profiling\\GameWIP.exe",
+            "args": ["--no-manual-ui"],
             "stopAtEntry": false,
-            "cwd": "${workspaceFolder}\\build-tracy-profiling",
+            "cwd": "${workspaceFolder}\\build-profiling",
             "environment": [
-                {
-                    "name": "PATH",
-                    "value": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
-                }
+                { "name": "PATH", "value": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" }
             ],
             "externalConsole": false,
             "MIMode": "gdb",
@@ -51,7 +45,7 @@
                     "ignoreFailures": true
                 }
             ],
-            "preLaunchTask": "Run Tracy Profiling"
+            "preLaunchTask": "Build Profiling"
         }
     ]
 }
