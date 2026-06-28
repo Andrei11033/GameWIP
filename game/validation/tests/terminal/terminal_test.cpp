@@ -1,7 +1,7 @@
 /// @file terminal_test.cpp
 /// @brief Executable self-tests for the Terminal library.
 
-#include "test/terminal_test.h"
+#include "validation/tests/terminal/terminal_test.h"
 
 #include "terminal/terminal.h"
 #include "test_support/test_support.h"

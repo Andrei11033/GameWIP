@@ -1,7 +1,7 @@
 /// @file assert_test.cpp
 /// @brief Executable self-tests for the Assert library.
 
-#include "test/assert_test.h"
+#include "validation/tests/assert/assert_test.h"
 
 #include "debug/assert/assert.h"
 
@@ -59,8 +59,6 @@ namespace
     constexpr std::string_view childLogDirectoryEnvironmentVariable = "INTERNAL_ASSERT_TEST_CHILD_LOG_DIR";
     constexpr std::string_view assertFailureChildMessage = "assert child logger message";
 
-    std::size_t performanceSink = 0;
-
     struct ScopedLogRootCleanup
     {
         explicit ScopedLogRootCleanup(const std::filesystem::path &path)
@@ -97,9 +95,6 @@ namespace
         TestSupport::Context &testContext;
         std::filesystem::path logRoot;
         std::string executablePath;
-        double performanceMilliseconds = 0.0;
-        std::size_t performanceScenarioCount = 0;
-
         [[nodiscard]] TestSupport::Types::Summary result() const noexcept
         {
             return testContext.result();
@@ -1200,132 +1195,10 @@ namespace
 #endif
     }
 
-    /// @brief Prints one passing-path performance metric.
-    /// @param context Test context.
-    /// @param name Scenario name.
-    /// @param iterations Number of measured iterations.
-    /// @param milliseconds Elapsed producer-side time.
-    void printMetric(TestContext &context, std::string_view name, std::size_t iterations, double milliseconds)
-    {
-        const double nanosecondsPerCall = iterations == 0 ? 0.0 : (milliseconds * 1'000'000.0) / static_cast<double>(iterations);
-        ++context.performanceScenarioCount;
-        context.performanceMilliseconds += milliseconds;
-        context.emit(
-            std::format("[METRIC] {} iterations={} producerMs={:.3f} nsPerCall={:.2f}\n", name, iterations, milliseconds, nanosecondsPerCall));
-    }
-
-    /// @brief Runs a timed macro scenario and keeps a tiny sink to discourage full loop removal.
-    /// @param context Test context.
-    /// @param name Scenario name.
-    /// @param iterations Number of loop iterations.
-    /// @param scenario Work to time.
-    template <typename Scenario> void measureScenario(TestContext &context, std::string_view name, std::size_t iterations, Scenario &&scenario)
-    {
-        const auto start = Clock::now();
-        for (std::size_t index = 0; index < iterations; ++index)
-        {
-            scenario(index);
-        }
-        const auto end = Clock::now();
-        const double milliseconds = std::chrono::duration<double, std::milli>(end - start).count();
-        printMetric(context, name, iterations, milliseconds);
-    }
-
-    /// @brief Runs lightweight passing-path performance metrics for public assert macros.
-    /// @param context Test context.
-    /// @param options Assert test options.
-    void runPerformanceMetrics(TestContext &context, const AssertTestOptions &options)
-    {
-        if (!options.enablePerformanceMetrics)
-        {
-            context.pass("assert performance metrics disabled by AssertTestOptions");
-            return;
-        }
-
-        const std::size_t iterations = options.performanceIterations;
-        std::size_t localSink = 0;
-
-        measureScenario(
-            context,
-            "ASSERT passing",
-            iterations,
-            [&](std::size_t index)
-            {
-                ASSERT(index < iterations);
-                localSink += index & 1u;
-            });
-
-        measureScenario(
-            context,
-            "CHECK passing",
-            iterations,
-            [&](std::size_t index)
-            {
-                CHECK(index < iterations);
-                localSink += index & 1u;
-            });
-
-        measureScenario(
-            context,
-            "VERIFY passing",
-            iterations,
-            [&](std::size_t index)
-            {
-                VERIFY(index < iterations);
-                localSink += index & 1u;
-            });
-
-        measureScenario(
-            context,
-            "ASSERT_INTERACTIVE passing",
-            iterations,
-            [&](std::size_t index)
-            {
-                ASSERT_INTERACTIVE(index < iterations);
-                localSink += index & 1u;
-            });
-
-        measureScenario(
-            context,
-            "VERIFY_INTERACTIVE passing",
-            iterations,
-            [&](std::size_t index)
-            {
-                VERIFY_INTERACTIVE(index < iterations);
-                localSink += index & 1u;
-            });
-
-        measureScenario(
-            context,
-            "ENSURE passing",
-            iterations,
-            [&](std::size_t index)
-            {
-                if (ENSURE(index < iterations))
-                {
-                    localSink += index & 1u;
-                }
-            });
-
-        performanceSink += localSink;
-        context.pass("assert performance metrics completed");
-    }
-
     /// @brief Prints the assert test summary.
     /// @param context Test context.
-    /// @param milliseconds Total suite duration.
-    void printSummary(TestContext &context, double milliseconds)
+    void printSummary(TestContext &context)
     {
-        if (context.performanceScenarioCount > 0)
-        {
-            context.emit(
-                std::format(
-                    "[SUMMARY] assertPerformance scenarios={} producerMs={:.3f} sink={}\n",
-                    context.performanceScenarioCount,
-                    context.performanceMilliseconds,
-                    performanceSink));
-        }
-        context.emit(std::format("[SUMMARY] Assert tests completed in {:.3f} ms\n", milliseconds));
         context.emit(
             std::format(
                 "[RESULT] assert passed={} failed={} skipped={}\n",
@@ -1373,7 +1246,6 @@ namespace GameWIP::Test
             "Assert",
             [&](TestSupport::Context &suiteContext)
             {
-                TestSupport::Timer suiteTimer;
                 TestContext context(suiteContext);
                 context.executablePath = argc > 0 && argv[0] != nullptr ? argv[0] : "";
                 context.logRoot = makeRunRoot();
@@ -1392,14 +1264,12 @@ namespace GameWIP::Test
                         ASSERT_POPUP_ON_CHECK));
                 context.emit(
                     std::format(
-                        "[INFO] Assert test options: stress={} fatalChild={} performance={} automatedInteractive={} manualUi={} perfIterations={} "
+                        "[INFO] Assert test options: stress={} fatalChild={} automatedInteractive={} manualUi={} "
                         "stressThreads={} stressIterations={} report={}\n",
                         options.enableStressTests,
                         options.enableChildCrashTests,
-                        options.enablePerformanceMetrics,
                         options.enableAutomatedInteractiveTests,
                         options.enableManualUiTests,
-                        options.performanceIterations,
                         options.stressThreadCount,
                         options.stressIterations,
                         options.writeReport ? options.reportPath.string() : std::string{"disabled"}));
@@ -1522,15 +1392,8 @@ namespace GameWIP::Test
                     {
                         testManualAssertUi(context, options);
                     });
-                runCase(
-                    context,
-                    "performance metrics",
-                    [&]
-                    {
-                        runPerformanceMetrics(context, options);
-                    });
                 Logger::shutdown();
-                printSummary(context, suiteTimer.elapsedMilliseconds());
+                printSummary(context);
             });
 
         runner.summary(

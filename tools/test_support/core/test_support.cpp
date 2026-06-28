@@ -417,28 +417,6 @@ namespace GameWIP::TestSupport
         return std::chrono::duration<double, std::milli>(elapsed).count();
     }
 
-    double Timer::nanosecondsPerIteration(std::size_t iterations) const noexcept
-    {
-        if (iterations == 0)
-        {
-            return 0.0;
-        }
-
-        const auto elapsed = Clock::now() - start_;
-        const auto nanoseconds = std::chrono::duration<double, std::nano>(elapsed).count();
-        return nanoseconds / static_cast<double>(iterations);
-    }
-
-    double Types::IterationMetric::nanosecondsPerIteration() const noexcept
-    {
-        if (iterations == 0)
-        {
-            return 0.0;
-        }
-
-        return (milliseconds * 1'000'000.0) / static_cast<double>(iterations);
-    }
-
     std::string readTextFile(const std::filesystem::path &path)
     {
         std::ifstream file(path, std::ios::binary | std::ios::ate);

@@ -25,7 +25,7 @@ set_target_properties(TestSupport PROPERTIES
     ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
 )
 
-if(BUILD_DOCS AND COMMAND library_register_doxygen_library)
+if(GAMEWIP_BUILD_DOCS AND COMMAND library_register_doxygen_library)
     # TestSupport owns its public API docs and Markdown manual pages. The root docs
     # target merges this into the unified library Doxygen site.
     library_register_doxygen_library(

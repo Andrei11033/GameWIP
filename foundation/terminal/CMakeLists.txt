@@ -1,7 +1,7 @@
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 
-option(TERMINAL_TEST_HOOKS "Enable Terminal internal test hooks" OFF)
+option(TERMINAL_ENABLE_TEST_HOOKS "Enable Terminal internal test hooks" OFF)
 
 if(NOT COMMAND library_target_platform_sources)
     include("${PROJECT_SOURCE_DIR}/cmake/LibraryPlatform.cmake")
@@ -25,9 +25,9 @@ target_include_directories(Terminal PUBLIC
 target_compile_features(Terminal PUBLIC cxx_std_23)
 target_compile_definitions(Terminal
     PRIVATE
-        INTERNAL_TERMINAL_TEST_HOOKS=$<BOOL:${TERMINAL_TEST_HOOKS}>
+        INTERNAL_TERMINAL_TEST_HOOKS=$<BOOL:${TERMINAL_ENABLE_TEST_HOOKS}>
     INTERFACE
-        INTERNAL_TERMINAL_TEST_HOOKS=$<BOOL:${TERMINAL_TEST_HOOKS}>
+        INTERNAL_TERMINAL_TEST_HOOKS=$<BOOL:${TERMINAL_ENABLE_TEST_HOOKS}>
 )
 
 target_link_libraries(Terminal PUBLIC
@@ -38,7 +38,7 @@ set_target_properties(Terminal PROPERTIES
     ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
 )
 
-if(BUILD_DOCS AND COMMAND library_register_doxygen_library)
+if(GAMEWIP_BUILD_DOCS AND COMMAND library_register_doxygen_library)
     # Terminal owns its public API docs and Markdown manual pages. The root docs
     # target merges this into the unified library Doxygen site.
     library_register_doxygen_library(

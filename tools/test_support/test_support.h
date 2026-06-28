@@ -113,19 +113,6 @@ namespace GameWIP::TestSupport
             [[nodiscard]] bool ok() const noexcept;
         };
 
-        /// @brief Recorded iteration-count metric.
-        struct IterationMetric
-        {
-            /// @brief Metric display name.
-            std::string name;
-            /// @brief Number of measured iterations.
-            std::size_t iterations = 0;
-            /// @brief Total measured time in milliseconds.
-            double milliseconds = 0.0;
-
-            /// @brief Returns milliseconds converted to nanoseconds per iteration, or zero when iterations is zero.
-            [[nodiscard]] double nanosecondsPerIteration() const noexcept;
-        };
     } // namespace Types
     /// @}
 
@@ -145,8 +132,6 @@ namespace GameWIP::TestSupport
 
         /// @brief Returns elapsed wall-clock time in milliseconds.
         [[nodiscard]] double elapsedMilliseconds() const noexcept;
-        /// @brief Returns elapsed nanoseconds divided by iterations, or zero when iterations is zero.
-        [[nodiscard]] double nanosecondsPerIteration(std::size_t iterations) const noexcept;
 
     private:
         using Clock = std::chrono::steady_clock;

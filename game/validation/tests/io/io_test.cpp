@@ -1,7 +1,7 @@
 /// @file io_test.cpp
 /// @brief Executable self-tests for the IO library.
 
-#include "test/io_test.h"
+#include "validation/tests/io/io_test.h"
 
 #include "io/io.h"
 #include "test_support/test_support.h"

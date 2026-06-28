@@ -1,0 +1,10 @@
+gamewip_add_test_module(
+    NAME assert
+    SOURCES
+        assert_test.cpp
+        module.cpp
+    LINK_LIBRARIES
+        AssertCompileInterface
+        Logger
+        TestSupport
+)

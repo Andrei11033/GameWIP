@@ -1,7 +1,7 @@
 /// @file logger_test.cpp
 /// @brief Executable self-tests for the Logger library.
 
-#include "test/logger_test.h"
+#include "validation/tests/logger/logger_test.h"
 
 #include "logger/logger.h"
 #include "logger/logger_macros.h"
@@ -73,19 +73,6 @@ namespace
         bool available = false;
     };
 
-    struct PerformanceTotals
-    {
-        std::size_t scenarioCount = 0;
-        std::size_t measuredMessages = 0;
-        double producerMilliseconds = 0.0;
-        std::size_t queued = 0;
-        std::size_t written = 0;
-        std::size_t queueDropped = 0;
-        std::size_t diagnosticFailures = 0;
-        std::size_t truncated = 0;
-        std::size_t peakQueueDepth = 0;
-    };
-
     struct ScopedLogRootCleanup
     {
         explicit ScopedLogRootCleanup(const std::filesystem::path &path)
@@ -123,7 +110,6 @@ namespace
         std::string executablePath;
         MemoryPeak loggerMemoryPeak;
         MemoryPeak processMemoryPeak;
-        PerformanceTotals performanceTotals;
 
         [[nodiscard]] TestSupport::Types::Summary result() const noexcept
         {
@@ -249,11 +235,6 @@ namespace
         }
     };
 
-    struct Timing
-    {
-        double milliseconds = 0.0;
-    };
-
     std::string_view toString(Logger::Types::Result result)
     {
         switch (result)
@@ -362,14 +343,6 @@ namespace
         }
 
         context.fail(name, std::format("expected {}, got {}", printable(expected), printable(actual)));
-    }
-
-    template <typename Function> Timing measure(Function function)
-    {
-        const auto start = Clock::now();
-        function();
-        const auto end = Clock::now();
-        return Timing{std::chrono::duration<double, std::milli>(end - start).count()};
     }
 
     std::string formatBytes(std::size_t bytes)
@@ -1693,49 +1666,6 @@ namespace
         std::cout.flush();
     }
 
-    void printMetric(TestContext &context, std::string_view name, std::size_t iterations, double milliseconds, const Logger::Types::Stats &stats)
-    {
-        const double nanosecondsPerCall = iterations == 0 ? 0.0 : (milliseconds * 1'000'000.0) / static_cast<double>(iterations);
-        const std::size_t queueDrops = totalQueueDrops(stats);
-        const std::size_t diagnosticFailures = totalDiagnosticFailures(stats);
-        const Logger::Types::MemoryStats memory = recordMemorySnapshot(context, name);
-        ++context.performanceTotals.scenarioCount;
-        context.performanceTotals.measuredMessages += iterations;
-        context.performanceTotals.producerMilliseconds += milliseconds;
-        context.performanceTotals.queued += stats.queued;
-        context.performanceTotals.written += stats.written;
-        context.performanceTotals.queueDropped += queueDrops;
-        context.performanceTotals.diagnosticFailures += diagnosticFailures;
-        context.performanceTotals.truncated += stats.truncated;
-        context.performanceTotals.peakQueueDepth = std::max(context.performanceTotals.peakQueueDepth, stats.peakQueueDepth);
-
-        context.emit(
-            std::format(
-                "[METRIC] {} iterations={} ms={:.3f} nsPerCall={:.2f} queued={} written={} queueDropped={} diagnostics={} truncated={} peak={} "
-                "loggerRetained={} processPrivate={} processWorkingSet={}\n",
-                name,
-                iterations,
-                milliseconds,
-                nanosecondsPerCall,
-                stats.queued,
-                stats.written,
-                queueDrops,
-                diagnosticFailures,
-                stats.truncated,
-                stats.peakQueueDepth,
-                formatBytes(memory.loggerRetainedBytes),
-                formatProcessBytes(memory, memory.processPrivateBytes),
-                formatProcessBytes(memory, memory.processWorkingSetBytes)));
-        TracyPlot("Logger test metric ms", milliseconds);
-        TracyPlot("Logger test metric ns/call", nanosecondsPerCall);
-        TracyPlot("Logger test memory retained bytes", static_cast<double>(memory.loggerRetainedBytes));
-        if (memory.processMemoryAvailable)
-        {
-            TracyPlot("Logger test process private bytes", static_cast<double>(memory.processPrivateBytes));
-            TracyPlot("Logger test process working set bytes", static_cast<double>(memory.processWorkingSetBytes));
-        }
-    }
-
     void testManualLoggerFatalPopup(TestContext &context, const LoggerTestOptions &options)
     {
         if (!options.enableLoggerPopupTest)
@@ -1761,101 +1691,16 @@ namespace
         context.pass("manual logger fatal popup scenario completed");
     }
 
-    void runPerformanceMetrics(TestContext &context, const LoggerTestOptions &options)
-    {
-        if (!options.enablePerformanceMetrics)
-        {
-            context.pass("performance metrics disabled by LoggerTestOptions");
-            return;
-        }
-
-        ZoneScopedN("Logger performance metrics");
-        ScopedLoggerShutdown shutdown;
-
-        const std::size_t iterations = std::max<std::size_t>(1, options.performanceIterations);
-
-        {
-            Logger::Types::Config config = makeConsoleConfig(Logger::Types::Level::Trace);
-            config.output = Logger::Types::Output::None;
-            expectEq(context, "perf disabled init", Logger::init(config), Logger::Types::Result::Success);
-            const Timing timing = measure(
-                [iterations]
-                {
-                    for (std::size_t i = 0; i < iterations; ++i)
-                    {
-                        Logger::info(testSource, shortMessage);
-                    }
-                });
-            printMetric(context, "disabled-output-none", iterations, timing.milliseconds, Logger::getStats());
-            Logger::shutdown();
-        }
-
-        {
-            OwnedLoggerConfig config = makeFileConfig(context, "perf-filtered", Logger::Types::Level::Fatal);
-            expectInitSuccess(context, "perf filtered init", Logger::init(config.ready()));
-            const Timing timing = measure(
-                [iterations]
-                {
-                    for (std::size_t i = 0; i < iterations; ++i)
-                    {
-                        Logger::info(testSource, "filtered {} {}", i, i + 1);
-                    }
-                });
-            printMetric(context, "below-min-formatted", iterations, timing.milliseconds, Logger::getStats());
-            Logger::shutdown();
-        }
-
-        {
-            const std::size_t enabledIterations = std::max<std::size_t>(1000, iterations / 10);
-            OwnedLoggerConfig config = makeFileConfig(context, "perf-enabled", Logger::Types::Level::Info);
-            config.maxQueueSize = enabledIterations + 1024;
-            config.hardQueueMultiplier = 1.0;
-            config.workerBatchSize = 256;
-            config.releaseMessageMemoryAfterWrite = false;
-            expectInitSuccess(context, "perf enabled init", Logger::init(config.ready()));
-            const Timing timing = measure(
-                [enabledIterations]
-                {
-                    for (std::size_t i = 0; i < enabledIterations; ++i)
-                    {
-                        Logger::info(testSource, shortMessage);
-                    }
-                });
-            context.expectTrue("perf enabled flush", Logger::flush(5s));
-            printMetric(context, "enabled-file-preformatted", enabledIterations, timing.milliseconds, Logger::getStats());
-            Logger::shutdown();
-        }
-    }
-
-    void printEndSummary(TestContext &context, double suiteMilliseconds)
+    void printEndSummary(TestContext &context)
     {
         const Logger::Types::MemoryStats finalMemory = recordMemorySnapshot(context, "suite-end");
-        const PerformanceTotals &totals = context.performanceTotals;
-        const double totalNsPerMessage =
-            totals.measuredMessages == 0 ? 0.0 : (totals.producerMilliseconds * 1'000'000.0) / static_cast<double>(totals.measuredMessages);
 
         context.emit(
             std::format(
-                "[SUMMARY] suiteTimeMs={:.3f} tests={} passed={} failed={}\n",
-                suiteMilliseconds,
+                "[SUMMARY] tests={} passed={} failed={}\n",
                 context.result().passed + context.result().failed + context.result().skipped,
                 context.result().passed,
                 context.result().failed));
-
-        context.emit(
-            std::format(
-                "[SUMMARY] perfTotals scenarios={} measuredMessages={} producerMs={:.3f} nsPerMessage={:.2f} queued={} written={} queueDropped={} "
-                "diagnostics={} truncated={} peakQueue={}\n",
-                totals.scenarioCount,
-                totals.measuredMessages,
-                totals.producerMilliseconds,
-                totalNsPerMessage,
-                totals.queued,
-                totals.written,
-                totals.queueDropped,
-                totals.diagnosticFailures,
-                totals.truncated,
-                totals.peakQueueDepth));
 
         if (context.loggerMemoryPeak.available)
         {
@@ -1928,7 +1773,6 @@ namespace GameWIP::Test
             "Logger",
             [&](TestSupport::Context &suiteContext)
             {
-                TestSupport::Timer suiteTimer;
                 TestContext context(suiteContext);
                 context.executablePath = argc > 0 && argv[0] != nullptr ? argv[0] : "";
                 context.logRoot = makeRunRoot();
@@ -1938,14 +1782,12 @@ namespace GameWIP::Test
                 context.emit(std::format("[INFO] Logger test log root: {}\n", pathText(context.logRoot)));
                 context.emit(
                     std::format(
-                        "[INFO] Logger test options: stress={} fatalChild={} performance={} manualUi={} loggerPopup={} perfIterations={} "
+                        "[INFO] Logger test options: stress={} fatalChild={} manualUi={} loggerPopup={} "
                         "stressThreads={} stressIterations={} report={}\n",
                         options.enableStressTests,
                         options.enableChildCrashTests,
-                        options.enablePerformanceMetrics,
                         options.enableManualUiTests,
                         options.enableLoggerPopupTest,
-                        options.performanceIterations,
                         options.stressThreadCount,
                         options.stressIterationsPerThread,
                         options.writeReport ? options.reportPath.string() : std::string{"disabled"}));
@@ -2126,15 +1968,8 @@ namespace GameWIP::Test
                             context.pass("manual logger UI tests skipped by LoggerTestOptions");
                         }
                     });
-                runCase(
-                    context,
-                    "performance metrics",
-                    [&]
-                    {
-                        runPerformanceMetrics(context, options);
-                    });
                 Logger::shutdown();
-                printEndSummary(context, suiteTimer.elapsedMilliseconds());
+                printEndSummary(context);
             });
 
         runner.summary(

@@ -1,7 +1,7 @@
 /// @file test_support_test.cpp
 /// @brief Executable self-tests for the TestSupport library.
 
-#include "test/test_support_test.h"
+#include "validation/tests/test_support/test_support_test.h"
 
 #include "test_support/test_support.h"
 
@@ -207,17 +207,9 @@ namespace
 
         TestSupport::Timer timer;
         static_cast<void>(context.expectTrue("Timer elapsed non-negative", timer.elapsedMilliseconds() >= 0.0));
-        static_cast<void>(context.expectEq("Timer zero iterations", 0.0, timer.nanosecondsPerIteration(0)));
         timer.reset();
         std::this_thread::sleep_for(1ms);
         static_cast<void>(context.expectTrue("Timer elapsed increases", timer.elapsedMilliseconds() > 0.0));
-
-        TestSupport::Types::IterationMetric metric;
-        metric.iterations = 2;
-        metric.milliseconds = 1.5;
-        static_cast<void>(context.expectNear("IterationMetric ns per iteration", 750000.0, metric.nanosecondsPerIteration(), 0.001));
-        metric.iterations = 0;
-        static_cast<void>(context.expectEq("IterationMetric zero iterations", 0.0, metric.nanosecondsPerIteration()));
     }
 
     void testFileHelpers(TestSupport::Context &context, const std::filesystem::path &root)

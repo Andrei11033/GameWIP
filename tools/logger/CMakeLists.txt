@@ -1,4 +1,4 @@
-option(LOGGER_TEST_HOOKS "Enable Logger internal test hooks" OFF)
+option(LOGGER_ENABLE_TEST_HOOKS "Enable Logger internal test hooks" OFF)
 
 if(NOT COMMAND library_target_platform_sources)
     include("${PROJECT_SOURCE_DIR}/cmake/LibraryPlatform.cmake")
@@ -33,9 +33,9 @@ target_compile_definitions(Logger
     PRIVATE
         INTERNAL_LOGGER_BUILD
         INTERNAL_LOGGER_DEFAULT_DIRECTORY="${LOGGER_DEFAULT_DIRECTORY_PATH}"
-        INTERNAL_LOGGER_TEST_HOOKS=$<BOOL:${LOGGER_TEST_HOOKS}>
+        INTERNAL_LOGGER_TEST_HOOKS=$<BOOL:${LOGGER_ENABLE_TEST_HOOKS}>
     INTERFACE
-        INTERNAL_LOGGER_TEST_HOOKS=$<BOOL:${LOGGER_TEST_HOOKS}>
+        INTERNAL_LOGGER_TEST_HOOKS=$<BOOL:${LOGGER_ENABLE_TEST_HOOKS}>
 )
 
 set_target_properties(Logger PROPERTIES
@@ -44,7 +44,7 @@ set_target_properties(Logger PROPERTIES
     ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
 )
 
-if(BUILD_DOCS AND COMMAND library_register_doxygen_library)
+if(GAMEWIP_BUILD_DOCS AND COMMAND library_register_doxygen_library)
     # Logger owns its public API docs and Markdown manual pages. The root docs
     # target merges this into the unified library Doxygen site.
     library_register_doxygen_library(

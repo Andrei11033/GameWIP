@@ -12,10 +12,8 @@ namespace GameWIP::Test
     {
         bool enableStressTests = true;
         bool enableChildCrashTests = true;
-        bool enablePerformanceMetrics = true;
         bool enableManualUiTests = false;
         bool enableLoggerPopupTest = false;
-        std::size_t performanceIterations = 100'000;
         std::size_t stressThreadCount = 4;
         std::size_t stressIterationsPerThread = 2'000;
         bool writeReport = true;

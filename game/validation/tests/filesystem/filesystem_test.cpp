@@ -1,7 +1,7 @@
 /// @file filesystem_test.cpp
 /// @brief Compile-time and runtime checks for the FileSystem public API.
 
-#include "test/filesystem_test.h"
+#include "validation/tests/filesystem/filesystem_test.h"
 
 #include "filesystem/filesystem.h"
 #include "test_support/test_support.h"
