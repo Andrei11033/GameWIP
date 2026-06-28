@@ -10,13 +10,7 @@ runScenario();
 context.metric("scenarioMs=" + std::to_string(timer.elapsedMilliseconds()));
 ```
 
-`nanosecondsPerIteration(iterations)` converts elapsed time to average nanoseconds per iteration. It returns zero for zero iterations.
-
-## IterationMetric
-
-`Types::IterationMetric` is a passive value for named iteration measurements. Use it when you want to store the metric before formatting a report line.
-
-Performance metrics are informational. TestSupport does not apply hard thresholds by default.
+`Timer` is intentionally limited to diagnostic elapsed-time reporting for test suites and sections. Use Google Benchmark for per-iteration timing, calibration, repetitions, and statistical output. See @ref project_benchmarking.
 
 ## StartGate
 

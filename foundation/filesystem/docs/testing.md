@@ -20,7 +20,7 @@ The FileSystem test suite covers:
 Run the focused suite through the game test executable:
 
 ```powershell
-.\build\GameWIP.exe --filesystem-only
+.\build-validation\GameWIPTests.exe --test-module=filesystem
 ```
 
 Or run the complete automated pass:

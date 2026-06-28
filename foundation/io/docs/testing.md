@@ -8,7 +8,7 @@ Build the normal optimized-debuggable target and run only IO tests:
 
 ```powershell
 cmake --build build-optimized-debuggable --target GameWIP
-.\build-optimized-debuggable\GameWIP.exe --io-only
+.\build-validation\GameWIPTests.exe --test-module=io
 ```
 
 The focused suite covers:
@@ -31,4 +31,4 @@ ctest --test-dir build-optimized-debuggable --output-on-failure
 
 ## Coverage
 
-Configure with `ENABLE_LIBRARY_COVERAGE=ON` and use the project coverage target when validating line and branch coverage. See @ref library_coverage for the full workflow.
+Configure with `GAMEWIP_ENABLE_COVERAGE=ON` and use the project coverage target when validating line and branch coverage. See @ref library_coverage for the full workflow.

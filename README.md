@@ -2,157 +2,100 @@
 
 GameWIP is an early-stage C++23 sandbox game project focused on player-built vehicles, structures, weapons, components, and meaningful destruction.
 
-The current codebase is infrastructure-focused rather than a playable release. Active work is centered on reusable foundation libraries, Windows platform backends, project-native test support, generated documentation, and the first engine systems.
+The repository currently emphasizes reusable foundation libraries, Windows platform backends, diagnostics, modular correctness tests, Google Benchmark scenarios, generated documentation, and initial engine systems.
 
-## Current Status
+## Toolchain
 
-Primary target:
-
-- Windows-first development
-- C++23
-- MSYS2 UCRT64 g++ toolchain
-- CMake build system
-- Ninja for local builds
-- Visual Studio Code workspace support
-
-Implemented foundation and tooling:
-
-- CMake project wiring and library targets
-- IO foundation library
-- Terminal foundation library
-- FileSystem foundation library
-- Logger library
-- Assert/debug diagnostics library
-- TestSupport library for project-native tests
-- Engine scaffolding for input, actions, windows, and window management
-- Tracy integration
-- Doxygen documentation infrastructure
-
-The current foundation layer includes IO, Terminal, FileSystem, Logger, Assert, and TestSupport. Use the implementation and testing checklists as the source of truth for validation status and remaining polish work.
-
-## Prerequisites
-
-Install the expected Windows toolchain:
-
-- Git
+- Windows and MSYS2 UCRT64 GCC
 - CMake 3.20 or newer
 - Ninja
-- MSYS2 UCRT64 toolchain with g++
-- Visual Studio Code, optional
+- Git submodules
 
-## Build
-
-Initialize submodules:
+Initialize dependencies:
 
 ```powershell
 git submodule update --init --recursive
 ```
 
-Run CMake from an environment where the MSYS2 UCRT64 `g++` is first on `PATH`. If CMake selects the wrong compiler, clear the build directory and configure again from the correct shell.
+Make sure `C:\MSYS2\ucrt64\bin` appears before other MinGW environments on `PATH` when configuring.
 
-Configure and build:
+## Development
 
-```powershell
-cmake -S . -B build -G Ninja `
-  -DASSERTS_ENABLED=ON `
-  -DENABLE_LIBRARY_COVERAGE=OFF `
-  -DBUILD_DOCS=OFF
-
-cmake --build build
-```
-
-## Test
-
-Run the normal automated test pass:
+The development preset builds the game and runs modular correctness tests at startup:
 
 ```powershell
-ctest --test-dir build --output-on-failure
+cmake --preset development
+cmake --build --preset development
+.\build-development\GameWIP.exe --no-manual-ui
 ```
 
-You can also run the test executable directly:
+`game/main.cpp` remains the stable process entry point. Validation is compiled out when its startup options are disabled.
+
+## Standalone Validation
 
 ```powershell
-.\build\GameWIP.exe --no-manual-ui
+cmake --preset validation
+cmake --build --preset validation
+ctest --preset validation
+.\build-validation\GameWIPBenchmarks.exe --benchmark_dry_run
 ```
 
-To run only the FileSystem-focused tests:
+Run one correctness module:
 
 ```powershell
-.\build\GameWIP.exe --filesystem-only
+.\build-validation\GameWIPTests.exe --test-module=filesystem
 ```
 
-Test reports are written under:
+Collect optimized benchmark results:
 
-```text
-logs/tests/latest_test_report.txt
+```powershell
+cmake --preset benchmark
+cmake --build --preset benchmark
+.\build-benchmark\GameWIPBenchmarks.exe --benchmark_repetitions=5
+```
+
+## Shipping
+
+The shipping preset excludes tests, benchmarks, TestSupport startup code, assertions, Tracy, and tools from the game executable:
+
+```powershell
+cmake --preset shipping
+cmake --build --preset shipping
 ```
 
 ## Documentation
 
-Generated API and guide documentation is published through GitHub Pages:
+Generated API and developer documentation is published at [GameWIP Doxygen Documentation](https://andrei11033.github.io/GameWIP/).
 
-- [GameWIP Doxygen Documentation](https://andrei11033.github.io/GameWIP/)
-
-Project planning and validation notes:
-
-- [docs/vision.txt](docs/vision.txt) - what the game is meant to become
-- [docs/roadmap.txt](docs/roadmap.txt) - planned development order toward V1
-- [docs/decisions.txt](docs/decisions.txt) - stable architecture, tooling, naming, and workflow decisions
-- [docs/contributing.md](docs/contributing.md) - issue, branch, pull request, validation, and merge workflow standards
-- [docs/implementation_checklist.txt](docs/implementation_checklist.txt) - what code exists
-- [docs/testing_checklist.txt](docs/testing_checklist.txt) - what behavior has been validated
-- [docs/platform_backend_contract.txt](docs/platform_backend_contract.txt) - platform backend rules
-
-Build the generated documentation locally:
+Build it locally:
 
 ```powershell
-cmake -S . -B build-docs -G Ninja -DBUILD_DOCS=ON
-cmake --build build-docs --target docs
+cmake --preset docs
+cmake --build --preset docs
 ```
 
-Generated HTML is written to:
+Generated HTML starts at `build-docs/docs/doxygen/html/index.html`.
 
-```text
-build-docs/docs/doxygen/html/index.html
-```
+Project references:
+
+- [Vision](docs/vision.txt)
+- [Roadmap](docs/roadmap.txt)
+- [Architecture decisions](docs/decisions.txt)
+- [Contribution workflow](docs/contributing.md)
+- [Implementation checklist](docs/implementation_checklist.txt)
+- [Testing checklist](docs/testing_checklist.txt)
+- [Platform backend contract](docs/platform_backend_contract.txt)
 
 ## Repository Layout
 
 ```text
-foundation/   Reusable low-level libraries such as IO, Terminal, and FileSystem.
-engine/       Engine-facing systems such as input, actions, windows, and window management.
-tools/        Development libraries such as Logger, Assert, and TestSupport.
-game/         Game executable entry point and current test-suite dispatcher.
-docs/         Vision, roadmap, decisions, checklists, and generated-doc source pages.
-cmake/        Shared CMake helpers.
-external/     Third-party dependencies, currently including Tracy.
-assets/       Project asset folder.
-logs/         Local runtime and test output.
+foundation/   Reusable IO, Terminal, and FileSystem libraries.
+engine/       Input, action, window, and window-management systems.
+tools/        Logger, Assert, and TestSupport libraries.
+game/         Stable game entry point, runtime facade, and modular validation.
+external/     Pinned Tracy and Google Benchmark submodules.
+cmake/        Project orchestration and shared CMake helpers.
+docs/         Generated-doc sources, decisions, roadmap, and checklists.
 ```
 
-## Development Rules
-
-Keep implementation and validation tracking separate:
-
-- Update [docs/implementation_checklist.txt](docs/implementation_checklist.txt) when code exists.
-- Update [docs/testing_checklist.txt](docs/testing_checklist.txt) only when behavior is tested, manually checked, measured, or inspected.
-- Put long-term architecture decisions in [docs/decisions.txt](docs/decisions.txt).
-- Put roadmap direction in [docs/roadmap.txt](docs/roadmap.txt).
-
-Keep platform-specific code behind internal backend headers. Windows backend code should use explicit Unicode Win32 APIs and avoid generic A/W macro-mapped calls.
-
-Use [docs/contributing.md](docs/contributing.md) for issue, branch, pull request, validation, and merge-message workflow.
-
-Commit messages follow the project style from [docs/decisions.txt](docs/decisions.txt):
-
-```text
-area: imperative summary
-```
-
-Examples:
-
-```text
-filesystem: add strict symlink entry queries
-docs: add private onboarding README
-tests: cover filesystem symlink policies
-```
+Commit and pull-request standards are defined in [docs/contributing.md](docs/contributing.md).

@@ -15,7 +15,7 @@ The project test executable exposes a focused TestSupport manual run:
 The regular automated TestSupport run stays non-blocking:
 
 ```powershell
-.\build\GameWIP.exe --test-support-only
+.\build-validation\GameWIPTests.exe --test-module=test_support
 ```
 
 Example:

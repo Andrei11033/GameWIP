@@ -246,14 +246,14 @@ Assert is implemented as a reusable diagnostic library with fatal, recoverable, 
 * [x] `Section` provides RAII section grouping.
 * [x] `Section` supports optional elapsed-time reporting.
 
-## Metrics
+## Diagnostic Timing
 
 * [x] `Timer` reports elapsed time.
-* [x] `Types::IterationMetric` reports nanoseconds per iteration.
+* [x] Benchmark-style iteration metrics are excluded from TestSupport.
 
 Completion note:
 
-TestSupport reporting, expectations, runner behavior, sections, metrics, and source-location failure reporting are implemented.
+TestSupport reporting, expectations, runner behavior, sections, diagnostic timing, and source-location failure reporting are implemented.
 
 ---
 
@@ -403,23 +403,25 @@ The Windows backend follows the project rule that public C++ remains UTF-8/path 
 
 ## Build Structure
 
-* [x] CMake builds the game/test executable.
+* [x] CMake builds the game executable independently from validation runners.
 * [x] CMake builds the library targets.
-* [x] Top-level CMake adds `tools/test_support` after the C++ library is implemented.
-* [x] Game/test executable links `IO`.
-* [x] Game/test executable links `FileSystem`.
-* [x] Game/test executable links `Terminal`.
-* [x] Game/test executable links `TestSupport`.
-* [x] Game/test executable links `Logger`.
-* [x] Game/test executable links `Assert`.
+* [x] Root CMake delegates ownership to `external`, `foundation`, `tools`, `engine`, and `game` directories.
+* [x] Project options, coverage, documentation, runtime dependencies, and validation module helpers use dedicated CMake modules.
+* [x] Named CMake presets cover development, validation, benchmarks, tools, profiling, optimized, shipping, coverage, and docs builds.
 
-## Runtime Test Selection
+## Modular Validation
 
-* [x] Runtime test selection is controlled by `TestRunOptions`, not CMake.
+* [x] `GameWIPTestModules` shares registered correctness tests between startup and standalone runners.
+* [x] `GameWIPBenchmarkModules` shares Google Benchmark registrations between startup and standalone runners.
+* [x] Test and benchmark module directories are discovered automatically while module source lists remain explicit.
+* [x] `GameWIPTests` and `GameWIPBenchmarks` provide standalone validation entry points.
+* [x] `game/main.cpp` calls compile-time validation facades before entering the game runtime.
+* [x] Disabled startup validation compiles to successful/no-op inline functions.
+* [x] Test hooks derive from whether correctness tests are built or embedded.
 
 ## Coverage
 
-* [x] `ENABLE_LIBRARY_COVERAGE` instruments supported compilers for coverage runs.
+* [x] `GAMEWIP_ENABLE_COVERAGE` instruments supported compilers for coverage runs.
 * [x] Optional `coverage` target exists when coverage is enabled.
 * [x] Coverage target generates HTML reports when `gcovr` is available.
 * [x] Coverage target generates XML reports when `gcovr` is available.
@@ -428,9 +430,9 @@ The Windows backend follows the project rule that public C++ remains UTF-8/path 
 
 ## Test Hooks
 
-* [x] `LOGGER_TEST_HOOKS` enables Logger hook APIs for test builds.
-* [x] `ASSERT_TEST_HOOKS` enables Assert hook APIs for test builds.
-* [x] `TERMINAL_TEST_HOOKS` enables Terminal hook APIs for test builds.
+* [x] `LOGGER_ENABLE_TEST_HOOKS` enables Logger hook APIs for test builds.
+* [x] `ASSERT_ENABLE_TEST_HOOKS` enables Assert hook APIs for test builds.
+* [x] `TERMINAL_ENABLE_TEST_HOOKS` enables Terminal hook APIs for test builds.
 
 ## Windows Resources
 
@@ -443,6 +445,7 @@ The Windows backend follows the project rule that public C++ remains UTF-8/path 
 * [x] Dependabot configuration exists for GitHub Actions workflow dependencies.
 * [x] Dependabot configuration exists for Git submodule dependencies.
 * [x] GitHub Actions workflow exists to build and test pull requests and `master` through the MSYS2 UCRT64 toolchain.
+* [x] Pull-request validation dry-runs every registered Google Benchmark without enforcing timing thresholds.
 * [x] GitHub Actions workflow exists to validate Doxygen docs on pull requests and `master` without publishing from pull requests.
 * [x] GitHub Actions workflow exists to enforce pull request title, body, linked issue, merge-message title, and label standards.
 * [x] Issue forms exist for bug reports, feature requests, and concrete tasks.
@@ -566,6 +569,7 @@ Documentation implementation is in place for the foundation libraries, with publ
 
 * [x] Developer-validation pages such as testing and test-hook notes are separate from normal user-manual navigation.
 * [x] Test-hook/testing pages are not presented as production API.
+* [x] Project-level Doxygen pages document validation architecture, correctness-test standards, and benchmark standards.
 
 Completion note:
 
@@ -585,7 +589,7 @@ Per-library documentation is implemented and organized by library-owned guide fo
 ## Build Behavior
 
 * [x] Generated Doxygen configuration exists for professional HTML API docs.
-* [x] `BUILD_DOCS=ON` creates the `docs` target when Doxygen is installed.
+* [x] `GAMEWIP_BUILD_DOCS=ON` creates the `docs` target when Doxygen is installed.
 * [x] Missing Doxygen produces a clear configure-time error only when documentation is explicitly enabled.
 * [x] Normal builds do not require Doxygen.
 * [x] The docs target creates the output directory before running Doxygen.
@@ -595,8 +599,8 @@ Per-library documentation is implemented and organized by library-owned guide fo
 
 ## Install Behavior
 
-* [x] `INSTALL_DOCS` installs generated HTML documentation when explicitly enabled.
-* [x] `INSTALL_DOCS=ON` installs generated HTML docs only when `BUILD_DOCS=ON`.
+* [x] `GAMEWIP_INSTALL_DOCS` installs generated HTML documentation when explicitly enabled.
+* [x] `GAMEWIP_INSTALL_DOCS=ON` installs generated HTML docs only when `GAMEWIP_BUILD_DOCS=ON`.
 
 Completion note:
 

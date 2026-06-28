@@ -1,6 +1,6 @@
 @page logger_testing Logger testing
 
-Logger validation is split into normal tests, stress tests, hook-forced tests, manual UI tests, and performance metrics.
+Logger validation is split into correctness tests, stress tests, hook-forced tests, manual UI tests, and Google Benchmark scenarios.
 
 ## Normal tests
 
@@ -24,7 +24,7 @@ Manual UI tests must remain runtime opt-in. Automated tests should use hook-cont
 
 ## Coverage
 
-Coverage is enabled at configure time with `ENABLE_LIBRARY_COVERAGE=ON`; it is not a runtime option. The project-level coverage target writes:
+Coverage is enabled at configure time with `GAMEWIP_ENABLE_COVERAGE=ON`; it is not a runtime option. The project-level coverage target writes:
 
 ```text
 build-coverage/coverage/index.html

@@ -28,6 +28,6 @@ On Win32, the child process tree is assigned to a kill-on-close Job Object so ti
 
 ## Timing and stress helpers
 
-Timer and iteration metrics report observations; TestSupport does not impose performance thresholds. `runWorkers()` joins every worker and rethrows a captured worker exception after joining.
+Timer reports diagnostic elapsed time; benchmark-style iteration metrics belong to Google Benchmark. `runWorkers()` joins every worker and rethrows a captured worker exception after joining.
 
 See @ref test_support_expectations, @ref test_support_reports, @ref test_support_child_processes, @ref test_support_files_environment, and @ref test_support_timing_stress for examples and detailed contracts.

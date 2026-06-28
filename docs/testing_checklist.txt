@@ -368,7 +368,7 @@ Child-process tests can validate crash/abort/timeout behavior without overclaimi
 
 ---
 
-## TestSupport Manual Checks, Metrics, and Stress Helpers
+## TestSupport Manual Checks, Diagnostic Timing, and Stress Helpers
 
 * [x] `promptManualCheck` accepts yes answers.
 * [x] `promptManualCheck` accepts no answers.
@@ -377,9 +377,7 @@ Child-process tests can validate crash/abort/timeout behavior without overclaimi
 * [x] Manual checks are reported with `[MANUAL]`.
 * [x] `Timer` reports increasing elapsed time.
 * [x] `Timer` resets correctly.
-* [x] `Timer::nanosecondsPerIteration` handles zero iterations explicitly.
-* [x] `Types::IterationMetric::nanosecondsPerIteration` handles zero iterations explicitly.
-* [x] Metrics are reported without failing tests based on hard thresholds.
+* [x] TestSupport does not expose benchmark-style per-iteration timing.
 * [x] `StartGate` blocks workers until opened.
 * [x] `StartGate` releases all waiters.
 * [x] `StopFlag` is safe for cross-thread stop requests.
@@ -525,20 +523,26 @@ Windows backend behavior follows the explicit Unicode boundary rule and remains 
 
 ---
 
-# 8. Performance and Coverage Validation
+# 8. Modular Validation, Performance, and Coverage
 
-## Performance Metrics
+## Validation Runners
 
-* [x] Hot passing `ASSERT` path has metrics.
-* [x] Hot passing `CHECK` path has metrics.
-* [x] Hot passing `VERIFY` path has metrics.
-* [x] Hot passing `ENSURE` path has metrics.
-* [x] Hot passing `ASSERT_INTERACTIVE` path has metrics.
-* [x] Hot passing `VERIFY_INTERACTIVE` path has metrics.
-* [x] Logger disabled path has producer-side metrics.
-* [x] Logger filtered path has producer-side metrics.
-* [x] Logger normal enabled path has producer-side metrics.
-* [x] Performance tests are metrics-only until baselines/warnings are intentionally added.
+* [x] CTest discovers one entry for each correctness-test module.
+* [x] The standalone runner executes all modules or one `--test-module` selection.
+* [x] The embedded runner executes the same modules before game startup.
+* [x] Child-process arguments route to exactly one module and preserve child exit codes.
+* [x] Test reports use isolated paths for module-level CTest runs.
+* [x] Game-only builds compile and link no validation module objects.
+* [x] Shipping builds do not require Google Benchmark.
+
+## Google Benchmark Metrics
+
+* [x] Google Benchmark registers passing `ASSERT`, `CHECK`, `VERIFY`, `ENSURE`, and interactive macro paths.
+* [x] Google Benchmark registers Logger disabled, filtered, and enabled-file producer paths.
+* [x] Logger benchmark setup and teardown are outside measured iterations.
+* [x] Logger benchmarks report queue, write, drop, and peak-depth counters.
+* [x] Benchmark dry runs validate every registration without enforcing timing thresholds.
+* [x] Repeated optimized benchmark runs report statistics without correctness-test coupling.
 
 ## Coverage Tooling
 
@@ -559,7 +563,7 @@ Windows backend behavior follows the explicit Unicode boundary rule and remains 
 
 Completion goal:
 
-Performance stays observable, and coverage tooling helps find untested code without becoming a hidden build failure.
+Performance stays observable through dedicated benchmarks, and coverage tooling helps find untested code without becoming a hidden build failure.
 
 ---
 
@@ -567,13 +571,13 @@ Performance stays observable, and coverage tooling helps find untested code with
 
 ## Documentation Build
 
-* [x] `BUILD_DOCS=ON` creates the `docs` target when Doxygen is installed.
+* [x] `GAMEWIP_BUILD_DOCS=ON` creates the `docs` target when Doxygen is installed.
 * [x] Missing Doxygen produces a clear configure-time error only when documentation is explicitly enabled.
 * [x] Normal builds do not require Doxygen.
-* [x] `cmake --build build-docs --target docs --verbose` prints the generated HTML path.
-* [x] `cmake --build build-docs --target docs --verbose` prints the warning-log path.
+* [x] `cmake --build --preset docs --verbose` prints the generated HTML path.
+* [x] `cmake --build --preset docs --verbose` prints the warning-log path.
 * [x] The Doxygen warning log is checked after docs generation.
-* [x] `INSTALL_DOCS=ON` installs generated HTML docs only when `BUILD_DOCS=ON`.
+* [x] `GAMEWIP_INSTALL_DOCS=ON` installs generated HTML docs only when `GAMEWIP_BUILD_DOCS=ON`.
 * [x] Doxygen documentation target configure/build path is validated locally.
 * [x] GitHub Pages documentation workflow is validated after it runs on GitHub Actions.
 * [x] GitHub Pages deployment is validated after the workflow runs on GitHub.

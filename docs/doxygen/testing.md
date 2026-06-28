@@ -1,65 +1,65 @@
-@page library_testing Project testing policy
+@page library_testing Correctness testing
 
-The project separates build-time features from runtime test selection.
+Correctness tests answer whether behavior is right. They must not contain benchmark loops, timing thresholds, or performance-regression policy.
 
-## Rule
-
-CMake controls compile-time/build features:
-
-- assertions/checks enabled state,
-- test-hook compilation,
-- coverage instrumentation,
-- Doxygen generation.
-
-`TestRunOptions` in `game/main.cpp` controls what the test executable actually runs:
-
-- IO tests,
-- Terminal tests,
-- logger tests,
-- assert tests,
-- stress tests,
-- child-process crash tests,
-- performance metrics,
-- automated interactive tests,
-- manual UI tests,
-- popup tests,
-- iteration counts and thread counts,
-- report output paths.
-
-## Example hook-enabled test build
+## Run tests
 
 ```powershell
-cmake -S . -B build-hooks -G Ninja `
-  -DASSERT_ENABLED=ON `
-  -DASSERT_CHECKS_ENABLED=ON `
-  -DLOGGER_TEST_HOOKS=ON `
-  -DASSERT_TEST_HOOKS=ON `
-  -DTERMINAL_TEST_HOOKS=ON `
-  -DENABLE_LIBRARY_COVERAGE=OFF `
-  -DBUILD_DOCS=OFF
-
-cmake --build build-hooks
-.\build-hooks\GameWIP.exe
+cmake --preset validation
+cmake --build --preset validation
+ctest --preset validation
 ```
 
-## Focused library runs
+Run all modules directly:
 
 ```powershell
-.\build\GameWIP.exe --io-only
-.\build\GameWIP.exe --terminal-only
-.\build\GameWIP.exe --test-support-only
+.\build-validation\GameWIPTests.exe --no-manual-ui
 ```
 
-Use `--no-test-support-child-process` with `--test-support-only` when intentionally skipping child-process coverage while debugging unrelated TestSupport behavior.
+Run one module:
 
-Use `--test-support-manual` for the focused TestSupport manual prompt checks. This mode runs TestSupport only, enables manual TestSupport checks, and leaves Logger/Assert manual UI tests out of the run.
+```powershell
+.\build-validation\GameWIPTests.exe `
+  --test-module=filesystem `
+  --test-report=logs/tests/filesystem_test_report.txt
+```
 
-## Manual UI tests
+The development preset links the same modules into `GameWIP`, where they run before game startup.
 
-Manual UI tests are intentionally blocking and must remain opt-in through runtime options. Automated interactive assert tests must use `INTERNAL_ASSERT_TEST_ACTION` and must not open real popups.
+## Module standard
 
-## Package and docs validation
+Each module owns a directory under `game/validation/tests` containing:
 
-Package/install validation is done through normal install commands and static inspection of generated package config files. Do not add package smoke tests unless that scope is explicitly requested.
+- an explicit `CMakeLists.txt`;
+- its test implementation and local option header;
+- a small `module.cpp` registration adapter.
 
-Doxygen generation is also manual validation. The docs target is opt-in and should be run only when intentionally checking generated documentation.
+Register sources and dependencies with:
+
+```cmake
+gamewip_add_test_module(
+    NAME filesystem
+    SOURCES
+        filesystem_test.cpp
+        module.cpp
+    LINK_LIBRARIES
+        FileSystem
+        TestSupport
+)
+```
+
+The C++ registration name must match the CMake module name. Give the module a stable order and add a child-argument matcher only when it owns a child-process protocol.
+
+## Test requirements
+
+- Tests are deterministic, order-independent, and safe to run repeatedly.
+- Default CTest runs do not open UI or wait for input.
+- Temporary files use isolated directories and are removed by scoped cleanup.
+- Global process state is restored before a module returns.
+- Child-process modes route to exactly one owning module.
+- New behavior and bug fixes receive focused regression coverage when practical.
+- Sleep-based synchronization is avoided; bounded timeouts protect unavoidable process and concurrency waits.
+- Report failures do not hide console results or change the behavior under test.
+- Test hooks are compiled only when tests are built or embedded.
+
+Long-running stress scenarios may remain correctness tests when they verify invariants rather than compare speed. Use @ref project_benchmarking for throughput and latency measurements.

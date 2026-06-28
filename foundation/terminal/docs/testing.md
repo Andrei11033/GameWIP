@@ -1,6 +1,6 @@
 @page terminal_testing Terminal testing
 
-Terminal-specific tests and internal test hooks are implemented. Hook-dependent tests run when `TERMINAL_TEST_HOOKS=ON` configures `INTERNAL_TERMINAL_TEST_HOOKS=1`; hook-disabled builds skip those deterministic backend-hook suites.
+Terminal-specific tests and internal test hooks are implemented. Hook-dependent tests run when `TERMINAL_ENABLE_TEST_HOOKS=ON` configures `INTERNAL_TERMINAL_TEST_HOOKS=1`; hook-disabled builds skip those deterministic backend-hook suites.
 
 Run the project test executable through CTest:
 
@@ -55,10 +55,10 @@ Terminal implementation tests should cover:
 Terminal test hooks are controlled by:
 
 ```text
-TERMINAL_TEST_HOOKS
+TERMINAL_ENABLE_TEST_HOOKS
 ```
 
-This maps to the library-local `TERMINAL_TEST_HOOKS` option and exports:
+This maps to the library-local `TERMINAL_ENABLE_TEST_HOOKS` option and exports:
 
 ```text
 INTERNAL_TERMINAL_TEST_HOOKS

@@ -5,10 +5,10 @@ Logger test hooks are advanced testing-only features. They are not production AP
 ## Enabling
 
 ```powershell
--DLOGGER_TEST_HOOKS=ON
+-DLOGGER_ENABLE_TEST_HOOKS=ON
 ```
 
-This maps to the library-local `LOGGER_TEST_HOOKS` option and exports `INTERNAL_LOGGER_TEST_HOOKS=1` to test code.
+This maps to the library-local `LOGGER_ENABLE_TEST_HOOKS` option and exports `INTERNAL_LOGGER_TEST_HOOKS=1` to test code.
 
 ## Purpose
 

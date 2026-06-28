@@ -1,6 +1,6 @@
-# Foundation and Tool Libraries
+# GameWIP Foundation, Tools, and Validation
 
-These small, focused C++23 libraries provide foundation-level systems, diagnostics, and test support. This site is their user-facing manual and API reference.
+This site documents the C++23 foundation libraries, diagnostics, build modes, and modular validation system used by GameWIP.
 
 ## Libraries
 
@@ -14,7 +14,9 @@ These small, focused C++23 libraries provide foundation-level systems, diagnosti
 ## Project references
 
 - @subpage library_build
+- @subpage project_validation
 - @subpage library_testing
+- @subpage project_benchmarking
 - @subpage library_coverage
 - @subpage library_documentation
 - @subpage doxygen_notes

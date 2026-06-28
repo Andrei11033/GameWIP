@@ -125,8 +125,9 @@ Validation notes should be concrete enough that a future maintainer understands 
 Good examples:
 
 ```text
-- `ctest --test-dir build --output-on-failure` passed.
-- Doxygen docs built with `BUILD_DOCS=ON`; warning log was empty.
+- `ctest --preset validation` passed all modular correctness-test entries.
+- `GameWIPBenchmarks.exe --benchmark_dry_run` passed.
+- Doxygen docs built with `GAMEWIP_BUILD_DOCS=ON`; warning log was empty.
 - Inspected the generated FileSystem public API page.
 ```
 
@@ -148,8 +149,9 @@ The `Validation` workflow runs on pull requests into `master`, pushes to `master
 
 It performs:
 
-* an MSYS2 UCRT64 configure/build/test pass with internal test hooks enabled;
-* a Doxygen docs build with `BUILD_DOCS=ON`;
+* an MSYS2 UCRT64 configure/build pass with modular correctness tests and internal test hooks enabled;
+* a Google Benchmark registration dry run without performance thresholds;
+* a Doxygen docs build with `GAMEWIP_BUILD_DOCS=ON`;
 * a Doxygen warning-log check.
 
 The `Doxygen Docs` workflow publishes GitHub Pages only from `master` or manual dispatch. Pull requests build docs for validation but do not publish them.

@@ -273,7 +273,7 @@ It is a small project-native support layer for:
 * expectations;
 * child processes;
 * manual checks;
-* metrics;
+* diagnostic elapsed timing;
 * files;
 * environment variables;
 * stress helpers.
@@ -287,14 +287,14 @@ CMake controls compile-time and build features.
 Runtime options control things such as:
 
 * stress tests;
-* performance metrics;
 * automated interactive tests;
 * manual UI tests;
 * logger popup tests;
 * child crash tests;
 * thread counts;
-* iteration counts;
 * report output paths.
+
+Benchmark iteration, timing, repetition, and statistics belong to Google Benchmark, not TestSupport runtime options.
 
 ---
 
@@ -397,7 +397,9 @@ GameWIP-owned configuration macros use the `GAMEWIP_` prefix.
 CMake project-level options use:
 
 ```text
+GAMEWIP_BUILD_...
 GAMEWIP_ENABLE_...
+GAMEWIP_RUN_...
 ```
 
 CMake library-local options use library-specific prefixes such as:
@@ -586,7 +588,7 @@ tools/test_support/docs/
 Documentation generation is controlled by:
 
 ```text
-BUILD_DOCS
+GAMEWIP_BUILD_DOCS
 ```
 
 The root docs target combines:
@@ -609,17 +611,17 @@ Only the library landing page is required. Child pages are owned by the library 
 
 Generated docs intentionally disable graph and PlantUML output for now so the docs target stays fast and deterministic.
 
-When `BUILD_DOCS=ON`, Doxygen is required. If Doxygen is missing, configuration should fail with a clear message.
+When `GAMEWIP_BUILD_DOCS=ON`, Doxygen is required. If Doxygen is missing, configuration should fail with a clear message.
 
 Normal builds must not require Doxygen.
 
-`INSTALL_DOCS=ON` installs generated HTML docs under:
+`GAMEWIP_INSTALL_DOCS=ON` installs generated HTML docs under:
 
 ```text
 share/doc/Libraries/doxygen/html
 ```
 
-`INSTALL_DOCS=ON` requires `BUILD_DOCS=ON`.
+`GAMEWIP_INSTALL_DOCS=ON` requires `GAMEWIP_BUILD_DOCS=ON`.
 
 ---
 
@@ -628,9 +630,9 @@ share/doc/Libraries/doxygen/html
 Test hooks are controlled by separate compile-time flags:
 
 ```text
-LOGGER_TEST_HOOKS
-ASSERT_TEST_HOOKS
-TERMINAL_TEST_HOOKS
+LOGGER_ENABLE_TEST_HOOKS
+ASSERT_ENABLE_TEST_HOOKS
+TERMINAL_ENABLE_TEST_HOOKS
 ```
 
 Test hooks live in internal headers such as:
@@ -686,7 +688,11 @@ Normal logs should avoid unnecessary heap work on the producer path.
 
 `Logger::report` is intentionally synchronous and may block. It is not the hot-path logging API.
 
-Performance tests are metrics-only for now. They report useful numbers, but they do not fail the run based on hard thresholds until baselines are intentionally added.
+Google Benchmark owns performance iteration, calibration, timing, repetition, and statistics.
+
+Correctness tests do not contain benchmark loops or timing thresholds. CI builds and dry-runs benchmark registrations but does not fail changes based on machine-dependent timing values.
+
+Asynchronous benchmarks must state whether they measure main-thread CPU, process CPU, or real elapsed time. Resource setup and teardown stay outside measured iterations.
 
 ---
 
@@ -697,7 +703,7 @@ Coverage answers which lines, functions, and branches actually ran during tests.
 Coverage instrumentation is a compile-time build mode controlled by:
 
 ```text
-ENABLE_LIBRARY_COVERAGE
+GAMEWIP_ENABLE_COVERAGE
 ```
 
 Runtime test selection still belongs to runtime options.
@@ -902,7 +908,28 @@ Do not add noisy branch-wide automation beyond pull requests and `master` unless
 
 ---
 
-# 22. How to Add Future Decisions
+# 22. Modular Validation Architecture
+
+Correctness tests and benchmarks live under `game/validation` as discovered modules with explicit source and dependency lists.
+
+The shared module object libraries are linked into:
+
+* standalone `GameWIPTests` and `GameWIPBenchmarks` executables for CI and focused local work;
+* `GameWIP` only when the corresponding startup-validation option is enabled.
+
+`game/main.cpp` keeps a stable startup sequence: correctness tests, benchmark reporting, then the game runtime. Disabled startup validation resolves to inline successful/no-op functions and does not retain module or Google Benchmark dependencies.
+
+Correctness-test failures stop game startup. Child-process test invocations return directly with their child exit code. Benchmark timing values are informational and do not gate startup.
+
+The validation parent CMake files discover only immediate child directories containing `CMakeLists.txt`. Every module CMake file explicitly lists its sources and linked libraries so build-graph changes remain reviewable.
+
+Test modules register a stable name, deterministic order, callback, and optional child-argument matcher. CTest invokes the standalone runner once per module with isolated report output.
+
+Project build modes are defined through named CMake presets. Shipping builds disable standalone and startup validation, assertions, Tracy, and tools.
+
+---
+
+# 23. How to Add Future Decisions
 
 When adding a decision:
 
