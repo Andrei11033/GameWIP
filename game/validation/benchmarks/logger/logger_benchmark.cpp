@@ -2,18 +2,20 @@
 /// @brief Google Benchmark scenarios for Logger producer paths.
 
 #include "logger/logger.h"
+#include "test_support/test_support.h"
 
 #include <benchmark/benchmark.h>
 
 #include <chrono>
-#include <filesystem>
+#include <exception>
+#include <memory>
 #include <string>
 #include <string_view>
-#include <system_error>
 
 namespace
 {
     namespace Logger = GameWIP::Logger;
+    namespace TestSupport = GameWIP::TestSupport;
 
     constexpr std::string_view source = "LoggerBenchmark";
     constexpr std::string_view message = "logger benchmark message";
@@ -46,19 +48,18 @@ namespace
             Logger::shutdown();
             if (!directoryName.empty())
             {
-                directory_ = std::filesystem::temp_directory_path() / "gamewip_logger_benchmarks" / directoryName;
-                std::error_code error;
-                std::filesystem::remove_all(directory_, error);
-                error.clear();
-                std::filesystem::create_directories(directory_, error);
-                if (error)
+                try
                 {
-                    state.SkipWithError("Could not create the Logger benchmark directory.");
+                    workspace_ =
+                        std::make_unique<TestSupport::ScopedTemporaryDirectory>(std::string("logger_benchmark_") + std::string(directoryName));
+                    directoryText_ = workspace_->path().string();
+                    config.logDirectory = directoryText_;
+                }
+                catch (const std::exception &exception)
+                {
+                    state.SkipWithError(exception.what());
                     return false;
                 }
-
-                directoryText_ = directory_.string();
-                config.logDirectory = directoryText_;
             }
 
             initialized_ = Logger::init(config) == Logger::Types::Result::Success;
@@ -88,15 +89,13 @@ namespace
                 }
             }
 
-            if (!directory_.empty())
-            {
-                std::error_code error;
-                std::filesystem::remove_all(directory_, error);
-            }
+            initialized_ = false;
+            workspace_.reset();
+            directoryText_.clear();
         }
 
         bool initialized_ = false;
-        std::filesystem::path directory_;
+        std::unique_ptr<TestSupport::ScopedTemporaryDirectory> workspace_;
         std::string directoryText_;
     };
 

@@ -10,6 +10,8 @@ namespace GameWIP::Test
     /// @brief Runtime toggles for the Terminal library self-tests.
     struct TerminalTestOptions
     {
+        /// @brief Writes passing checks and diagnostics to stdout in addition to failures and summaries.
+        bool verboseConsole = false;
         /// @brief Writes test progress and summaries to reportPath in addition to stdout.
         bool writeReport = true;
         /// @brief Appends to reportPath instead of replacing it.

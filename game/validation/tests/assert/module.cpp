@@ -25,6 +25,7 @@ namespace
         options.enableStressTests = invocation.options.enableStressTests;
         options.enableAutomatedInteractiveTests = invocation.options.enableAutomatedInteractiveTests;
         options.enableManualUiTests = invocation.options.enableManualUiTests;
+        options.verboseConsole = invocation.options.verboseConsole;
         options.stressThreadCount = invocation.options.stressThreadCount;
         options.stressIterations = invocation.options.assertStressIterations;
         options.writeReport = invocation.options.writeReport;

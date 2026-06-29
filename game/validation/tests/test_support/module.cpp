@@ -24,6 +24,7 @@ namespace
         options.enableChildProcessTests = invocation.options.enableTestSupportChildProcessTests;
         options.enableStressTests = invocation.options.enableStressTests;
         options.enableManualTests = invocation.options.enableManualUiTests;
+        options.verboseConsole = invocation.options.verboseConsole;
         options.writeReport = invocation.options.writeReport;
         options.appendReport = invocation.appendReport;
         options.reportPath = invocation.options.reportPath;

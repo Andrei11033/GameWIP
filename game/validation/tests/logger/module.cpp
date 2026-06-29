@@ -25,6 +25,7 @@ namespace
         options.enableChildCrashTests = invocation.options.enableChildCrashTests;
         options.enableManualUiTests = invocation.options.enableManualUiTests;
         options.enableLoggerPopupTest = invocation.options.enableLoggerPopupTest;
+        options.verboseConsole = invocation.options.verboseConsole;
         options.stressThreadCount = invocation.options.stressThreadCount;
         options.stressIterationsPerThread = invocation.options.loggerStressIterationsPerThread;
         options.writeReport = invocation.options.writeReport;

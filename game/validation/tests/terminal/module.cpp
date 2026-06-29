@@ -7,6 +7,7 @@ namespace
     int run(const GameWIP::Validation::Tests::ModuleInvocation &invocation)
     {
         GameWIP::Test::TerminalTestOptions options;
+        options.verboseConsole = invocation.options.verboseConsole;
         options.writeReport = invocation.options.writeReport;
         options.appendReport = invocation.appendReport;
         options.reportPath = invocation.options.reportPath;

@@ -6,6 +6,7 @@
 
 #include <cmath>
 #include <cstdint>
+#include <format>
 #include <fstream>
 #include <iostream>
 #include <stdexcept>
@@ -16,12 +17,32 @@ namespace GameWIP::TestSupport
     namespace
     {
         std::mutex environmentMutex;
+        std::atomic_uint64_t temporaryDirectoryCounter{0};
 
         [[nodiscard]] std::string makeNameReason(std::string_view name, std::string_view reason)
         {
             std::ostringstream message;
             message << name << ": " << reason;
             return message.str();
+        }
+
+        [[nodiscard]] std::string sanitizeTemporaryPurpose(std::string_view purpose)
+        {
+            std::string sanitized;
+            sanitized.reserve(purpose.size());
+            for (const char character : purpose)
+            {
+                const bool asciiLetter = (character >= 'A' && character <= 'Z') || (character >= 'a' && character <= 'z');
+                const bool asciiDigit = character >= '0' && character <= '9';
+                sanitized.push_back(asciiLetter || asciiDigit || character == '-' || character == '_' ? character : '_');
+            }
+            return sanitized.empty() ? "test" : sanitized;
+        }
+
+        void removeDirectoryIfEmpty(const std::filesystem::path &path) noexcept
+        {
+            std::error_code error;
+            static_cast<void>(std::filesystem::remove(path, error));
         }
     } // namespace
 
@@ -40,11 +61,19 @@ namespace GameWIP::TestSupport
                     {
                         std::error_code error;
                         std::filesystem::create_directories(parentPath, error);
+                        if (error)
+                        {
+                            disableReport(std::string("could not create the report directory: ") + error.message());
+                            return;
+                        }
                     }
 
                     const std::ios::openmode mode = options_.appendReport ? (std::ios::out | std::ios::app) : (std::ios::out | std::ios::trunc);
                     report_.open(options_.reportPath, mode);
-                    reportOpenFailed_ = !report_.is_open();
+                    if (!report_.is_open())
+                    {
+                        disableReport("could not open the report file");
+                    }
                 }
             }
 
@@ -74,7 +103,7 @@ namespace GameWIP::TestSupport
                 const std::string text = line.str();
                 std::lock_guard lock(mutex_);
 
-                if (options_.writeConsole)
+                if (shouldWriteToConsole(category))
                 {
                     std::cout << text << '\n';
                 }
@@ -92,8 +121,7 @@ namespace GameWIP::TestSupport
 
                     if (!report_ || !report_.is_open())
                     {
-                        reportOpenFailed_ = true;
-                        report_.close();
+                        disableReport("report output failed while writing");
                     }
                 }
             }
@@ -106,17 +134,42 @@ namespace GameWIP::TestSupport
                     report_.flush();
                     if (!report_)
                     {
-                        reportOpenFailed_ = true;
-                        report_.close();
+                        disableReport("report output failed while flushing");
                     }
                 }
             }
 
         private:
+            [[nodiscard]] bool shouldWriteToConsole(std::string_view category) const noexcept
+            {
+                if (!options_.writeConsole)
+                {
+                    return false;
+                }
+                if (options_.consoleVerbosity == Types::ConsoleVerbosity::Full)
+                {
+                    return true;
+                }
+
+                return category == "FAIL" || category == "SKIP" || category == "MANUAL" || category == "SUMMARY" || category == "RESULT";
+            }
+
+            void disableReport(std::string_view reason)
+            {
+                reportOpenFailed_ = true;
+                report_.close();
+                if (!reportFailureReported_)
+                {
+                    std::cerr << "[TEST REPORT] " << reason << ": " << options_.reportPath.string() << '\n';
+                    reportFailureReported_ = true;
+                }
+            }
+
             Types::ReportOptions options_;
             std::ofstream report_;
             std::mutex mutex_;
             bool reportOpenFailed_ = false;
+            bool reportFailureReported_ = false;
         };
     } // namespace Detail
 
@@ -415,6 +468,66 @@ namespace GameWIP::TestSupport
     {
         const auto elapsed = Clock::now() - start_;
         return std::chrono::duration<double, std::milli>(elapsed).count();
+    }
+
+    ScopedTemporaryDirectory::ScopedTemporaryDirectory(std::string_view purpose)
+        : root_(std::filesystem::temp_directory_path() / "GameWIP" / "TestSupport")
+    {
+        std::filesystem::create_directories(root_);
+
+        const std::string prefix = sanitizeTemporaryPurpose(purpose);
+        const auto ticks = std::chrono::steady_clock::now().time_since_epoch().count();
+        const std::uint64_t allocationId = temporaryDirectoryCounter.fetch_add(1, std::memory_order_relaxed);
+
+        for (std::size_t attempt = 0; attempt < 128; ++attempt)
+        {
+            const std::filesystem::path candidate = root_ / std::format("{}_{:x}_{:x}_{:x}", prefix, ticks, allocationId, attempt);
+            std::error_code error;
+            if (std::filesystem::create_directory(candidate, error))
+            {
+                path_ = candidate;
+                return;
+            }
+            if (error && error != std::errc::file_exists)
+            {
+                throw std::filesystem::filesystem_error("Could not create a test temporary directory", candidate, error);
+            }
+        }
+
+        throw std::filesystem::filesystem_error(
+            "Could not allocate a unique test temporary directory",
+            root_,
+            std::make_error_code(std::errc::file_exists));
+    }
+
+    ScopedTemporaryDirectory::~ScopedTemporaryDirectory() noexcept
+    {
+        std::error_code error;
+        std::filesystem::remove_all(path_, error);
+        removeDirectoryIfEmpty(root_);
+        removeDirectoryIfEmpty(root_.parent_path());
+    }
+
+    const std::filesystem::path &ScopedTemporaryDirectory::path() const noexcept
+    {
+        return path_;
+    }
+
+    ScopedCurrentPath::ScopedCurrentPath(const std::filesystem::path &path)
+        : previousPath_(std::filesystem::current_path())
+    {
+        std::filesystem::current_path(path);
+    }
+
+    ScopedCurrentPath::~ScopedCurrentPath() noexcept
+    {
+        std::error_code error;
+        std::filesystem::current_path(previousPath_, error);
+    }
+
+    const std::filesystem::path &ScopedCurrentPath::previousPath() const noexcept
+    {
+        return previousPath_;
     }
 
     std::string readTextFile(const std::filesystem::path &path)

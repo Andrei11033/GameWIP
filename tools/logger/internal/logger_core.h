@@ -815,6 +815,7 @@ namespace GameWIP::Logger::Detail::Core
         std::atomic_bool nextQueueAllocationFailure{false};
         std::atomic_bool nextFatalPopupFailure{false};
         std::atomic_bool nextTimedFlushTimeout{false};
+        std::string defaultLogDirectoryOverride;
     };
     extern LoggerTestHookState loggerTestHookState;
     bool consumeTestHook(std::atomic_bool &flag) noexcept;

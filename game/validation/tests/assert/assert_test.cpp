@@ -59,31 +59,6 @@ namespace
     constexpr std::string_view childLogDirectoryEnvironmentVariable = "INTERNAL_ASSERT_TEST_CHILD_LOG_DIR";
     constexpr std::string_view assertFailureChildMessage = "assert child logger message";
 
-    struct ScopedLogRootCleanup
-    {
-        explicit ScopedLogRootCleanup(const std::filesystem::path &path)
-            : path(path)
-        {
-        }
-
-        ~ScopedLogRootCleanup() noexcept
-        {
-            Logger::shutdown();
-            try
-            {
-                TestSupport::removeIfExists(path);
-            }
-            catch (...)
-            {
-            }
-        }
-
-        ScopedLogRootCleanup(const ScopedLogRootCleanup &) = delete;
-        ScopedLogRootCleanup &operator=(const ScopedLogRootCleanup &) = delete;
-
-        std::filesystem::path path;
-    };
-
     /// @brief Mutable test state and TestSupport-backed reporting for the assert suite.
     struct TestContext
     {
@@ -265,14 +240,6 @@ namespace
         child.timeout = timeout;
         child.captureOutput = true;
         return TestSupport::runChildProcess(child);
-    }
-
-    /// @brief Builds a unique temporary log root for one assert test run.
-    /// @return Filesystem path for assert test logs.
-    std::filesystem::path makeRunRoot()
-    {
-        const auto ticks = Clock::now().time_since_epoch().count();
-        return std::filesystem::temp_directory_path() / std::format("assert_tests_{}", ticks);
     }
 
     /// @brief Converts a path to the narrow text form expected by Logger::Config.
@@ -1235,6 +1202,8 @@ namespace GameWIP::Test
 
         TestSupport::Types::ReportOptions reportOptions;
         reportOptions.writeConsole = true;
+        reportOptions.consoleVerbosity =
+            options.verboseConsole ? TestSupport::Types::ConsoleVerbosity::Full : TestSupport::Types::ConsoleVerbosity::Concise;
         reportOptions.writeReport = options.writeReport;
         reportOptions.appendReport = options.appendReport;
         reportOptions.reportPath = options.reportPath;
@@ -1248,9 +1217,9 @@ namespace GameWIP::Test
             {
                 TestContext context(suiteContext);
                 context.executablePath = argc > 0 && argv[0] != nullptr ? argv[0] : "";
-                context.logRoot = makeRunRoot();
-                TestSupport::createDirectories(context.logRoot);
-                const ScopedLogRootCleanup cleanupLogRoot(context.logRoot);
+                const TestSupport::ScopedTemporaryDirectory workspace("assert_tests");
+                const ScopedLoggerShutdown loggerShutdown;
+                context.logRoot = workspace.path();
 
                 context.emit(std::format("[INFO] Assert test log root: {}\n", pathText(context.logRoot)));
                 context.emit(

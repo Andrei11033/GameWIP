@@ -39,5 +39,14 @@ namespace GameWIP::Logger::TestHooks
     /// @brief Forces the next timed Logger::flush(timeout) wait to time out.
     /// @warning Test-only API. The hook is one-shot.
     INTERNAL_LOGGER_API void forceNextTimedFlushTimeout() noexcept;
+
+    /// @brief Overrides the compiled default log directory used by empty Config::logDirectory values.
+    /// @param directory Non-empty test-owned directory copied by the hook.
+    /// @warning Test-only API. Set or clear the override only while Logger is stopped.
+    INTERNAL_LOGGER_API void setDefaultLogDirectoryOverride(std::string_view directory);
+
+    /// @brief Clears the test-only compiled default log-directory override.
+    /// @warning Test-only API. Clear the override only while Logger is stopped.
+    INTERNAL_LOGGER_API void clearDefaultLogDirectoryOverride() noexcept;
 } // namespace GameWIP::Logger::TestHooks
 #endif

@@ -1054,8 +1054,21 @@ LoggerResult GameWIP::Logger::init(const Types::Config &config)
     {
         try
         {
-            const std::string logDirectoryText =
-                config.logDirectory.empty() ? std::string(INTERNAL_LOGGER_DEFAULT_DIRECTORY) : std::string(config.logDirectory);
+            std::string logDirectoryText;
+            if (!config.logDirectory.empty())
+            {
+                logDirectoryText = config.logDirectory;
+            }
+#if INTERNAL_LOGGER_TEST_HOOKS
+            else if (!loggerTestHookState.defaultLogDirectoryOverride.empty())
+            {
+                logDirectoryText = loggerTestHookState.defaultLogDirectoryOverride;
+            }
+#endif
+            else
+            {
+                logDirectoryText = INTERNAL_LOGGER_DEFAULT_DIRECTORY;
+            }
 
             if (logDirectoryText.empty())
             {

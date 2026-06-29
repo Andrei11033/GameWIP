@@ -6,9 +6,11 @@
 #include "validation/tests/registry.h"
 
 #include <algorithm>
+#include <exception>
 #include <iostream>
 #include <optional>
 #include <set>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -66,6 +68,10 @@ namespace GameWIP::Validation::Tests
             {
                 options.writeReport = false;
             }
+            if (hasArgument(argc, argv, "--verbose-tests"))
+            {
+                options.verboseConsole = true;
+            }
             if (hasArgument(argc, argv, "--no-manual-ui"))
             {
                 options.enableManualUiTests = false;
@@ -113,6 +119,45 @@ namespace GameWIP::Validation::Tests
             }
 
             return selection;
+        }
+
+        void resolveReportOutput(RunOptions &options)
+        {
+            if (!options.writeReport)
+            {
+                return;
+            }
+            if (options.reportPath.empty())
+            {
+                std::cerr << "[VALIDATION] report disabled: the requested path is empty.\n";
+                options.writeReport = false;
+                return;
+            }
+
+            try
+            {
+                if (!options.reportPath.is_absolute())
+                {
+                    const std::filesystem::path normalized = options.reportPath.lexically_normal();
+                    for (const std::filesystem::path &component : normalized)
+                    {
+                        if (component == "..")
+                        {
+                            throw std::invalid_argument("relative report paths cannot contain '..'");
+                        }
+                    }
+                    options.reportPath = (std::filesystem::temp_directory_path() / "GameWIP" / normalized).lexically_normal();
+                }
+                else
+                {
+                    options.reportPath = options.reportPath.lexically_normal();
+                }
+            }
+            catch (const std::exception &exception)
+            {
+                std::cerr << "[VALIDATION] report disabled: " << exception.what() << '\n';
+                options.writeReport = false;
+            }
         }
 
         [[nodiscard]] std::vector<Module> sortedModules()
@@ -183,6 +228,12 @@ namespace GameWIP::Validation::Tests
             return {.modulesFailed = 1, .exitCode = 1};
         }
 
+        resolveReportOutput(options);
+        if (options.writeReport)
+        {
+            std::cout << "[VALIDATION] report=" << options.reportPath.string() << '\n';
+        }
+
         TestResult result;
         bool appendReport = options.appendReport;
         for (const Module &module : modules)
@@ -199,10 +250,13 @@ namespace GameWIP::Validation::Tests
                 ++result.modulesFailed;
                 result.exitCode = 1;
             }
+            std::cout << "[VALIDATION] module=" << module.name << " result=" << (moduleExitCode == 0 ? "PASS" : "FAIL")
+                      << " exitCode=" << moduleExitCode << '\n';
             appendReport = appendReport || options.writeReport;
         }
 
-        std::cout << "[VALIDATION] modules=" << result.modulesRun << " failed=" << result.modulesFailed << '\n';
+        std::cout << "[VALIDATION] result=" << (result.ok() ? "PASS" : "FAIL") << " modules=" << result.modulesRun
+                  << " failed=" << result.modulesFailed << '\n';
         return result;
     }
 } // namespace GameWIP::Validation::Tests

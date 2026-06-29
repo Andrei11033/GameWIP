@@ -17,6 +17,8 @@ namespace GameWIP::Test
         bool enableStressTests = true;
         /// @brief Enables manual prompt checks that require user input.
         bool enableManualTests = false;
+        /// @brief Writes passing checks and diagnostics to stdout in addition to failures and summaries.
+        bool verboseConsole = false;
         /// @brief Writes test progress and summaries to reportPath in addition to stdout.
         bool writeReport = true;
         /// @brief Appends to reportPath instead of replacing it.

@@ -67,13 +67,6 @@ namespace
         return {};
     }
 
-    std::filesystem::path makeRunRoot()
-    {
-        const auto ticks = std::chrono::steady_clock::now().time_since_epoch().count();
-        const auto threadHash = std::hash<std::thread::id>{}(std::this_thread::get_id());
-        return std::filesystem::temp_directory_path() / std::format("test_support_tests_{}_{}", ticks, threadHash);
-    }
-
     TestSupport::Types::ReportOptions quietReport(const std::filesystem::path &path)
     {
         TestSupport::Types::ReportOptions options;
@@ -187,6 +180,8 @@ namespace
         static_cast<void>(context.expectFalse("ReportOptions default append", defaultOptions.appendReport));
         static_cast<void>(context.expectFalse("ReportOptions default per-line flush", defaultOptions.flushReportEachLine));
         static_cast<void>(
+            context.expectEq("ReportOptions default console verbosity", TestSupport::Types::ConsoleVerbosity::Full, defaultOptions.consoleVerbosity));
+        static_cast<void>(
             context.expectEq("ReportOptions default path", std::filesystem::path("logs/tests/latest_test_report.txt"), defaultOptions.reportPath));
 
         TestSupport::Types::Summary summary;
@@ -236,6 +231,34 @@ namespace
 
         TestSupport::removeIfExists(path);
         static_cast<void>(context.expectFalse("removeIfExists removes file", TestSupport::fileExists(path)));
+
+        std::filesystem::path firstTemporaryPath;
+        std::filesystem::path secondTemporaryPath;
+        {
+            const TestSupport::ScopedTemporaryDirectory first("scoped directory");
+            const TestSupport::ScopedTemporaryDirectory second("scoped directory");
+            firstTemporaryPath = first.path();
+            secondTemporaryPath = second.path();
+            TestSupport::writeTextFile(firstTemporaryPath / "nested" / "artifact.txt", "temporary");
+
+            static_cast<void>(context.expectTrue("ScopedTemporaryDirectory creates its directory", TestSupport::fileExists(firstTemporaryPath)));
+            static_cast<void>(context.expectTrue(
+                "ScopedTemporaryDirectory supports nested artifacts",
+                TestSupport::fileExists(firstTemporaryPath / "nested" / "artifact.txt")));
+            static_cast<void>(context.expectNe("ScopedTemporaryDirectory paths are unique", firstTemporaryPath, secondTemporaryPath));
+        }
+        static_cast<void>(context.expectFalse("ScopedTemporaryDirectory removes its directory tree", TestSupport::fileExists(firstTemporaryPath)));
+        static_cast<void>(
+            context.expectFalse("ScopedTemporaryDirectory removes each unique directory", TestSupport::fileExists(secondTemporaryPath)));
+
+        const std::filesystem::path originalCurrentPath = std::filesystem::current_path();
+        {
+            const TestSupport::ScopedCurrentPath temporaryCurrentPath(root);
+            static_cast<void>(
+                context.expectEq("ScopedCurrentPath stores the previous path", originalCurrentPath, temporaryCurrentPath.previousPath()));
+            static_cast<void>(context.expectEq("ScopedCurrentPath changes the process path", root, std::filesystem::current_path()));
+        }
+        static_cast<void>(context.expectEq("ScopedCurrentPath restores the process path", originalCurrentPath, std::filesystem::current_path()));
     }
 
     void testContextReporting(TestSupport::Context &context, const std::filesystem::path &root)
@@ -303,8 +326,14 @@ namespace
         consoleOnlyOptions.writeConsole = true;
         consoleOnlyOptions.writeReport = false;
         consoleOnlyOptions.reportPath = consoleOnlyPath;
-        TestSupport::Context consoleOnly("ConsoleOnly", consoleOnlyOptions);
-        consoleOnly.pass("console only line");
+        std::string consoleOnlyOutput;
+        {
+            ScopedPromptStreams captured("");
+            TestSupport::Context consoleOnly("ConsoleOnly", consoleOnlyOptions);
+            consoleOnly.pass("console only line");
+            consoleOnlyOutput = captured.output.str();
+        }
+        static_cast<void>(context.expectContains("Console-only report writes to stdout", consoleOnlyOutput, "console only line"));
         static_cast<void>(context.expectFalse("Console-only report writes no file", TestSupport::fileExists(consoleOnlyPath)));
 
         const std::filesystem::path appendPath = root / "append_report.txt";
@@ -345,6 +374,26 @@ namespace
             "Report sink destruction flushes buffered output",
             TestSupport::readTextFile(destructionFlushPath),
             "flushed at destruction"));
+
+        std::string conciseOutput;
+        {
+            ScopedPromptStreams captured("");
+            TestSupport::Types::ReportOptions conciseOptions;
+            conciseOptions.writeReport = false;
+            conciseOptions.consoleVerbosity = TestSupport::Types::ConsoleVerbosity::Concise;
+            TestSupport::Context concise("Concise", conciseOptions);
+            concise.info("hidden info");
+            concise.pass("hidden pass");
+            concise.fail("visible failure", "expected test failure");
+            concise.skip("visible skip", "expected test skip");
+            concise.summary("visible summary");
+            conciseOutput = captured.output.str();
+        }
+        static_cast<void>(context.expectFalse("Concise console hides info", conciseOutput.find("hidden info") != std::string::npos));
+        static_cast<void>(context.expectFalse("Concise console hides passes", conciseOutput.find("hidden pass") != std::string::npos));
+        static_cast<void>(context.expectContains("Concise console includes failures", conciseOutput, "visible failure"));
+        static_cast<void>(context.expectContains("Concise console includes skips", conciseOutput, "visible skip"));
+        static_cast<void>(context.expectContains("Concise console includes summaries", conciseOutput, "visible summary"));
     }
 
     void testPromptManualCheck(TestSupport::Context &context)
@@ -757,11 +806,13 @@ namespace GameWIP::Test
             return runTestSupportChild(argc, argv);
         }
 
-        const std::filesystem::path runRoot = makeRunRoot();
-        TestSupport::createDirectories(runRoot);
+        const TestSupport::ScopedTemporaryDirectory workspace("test_support_tests");
+        const std::filesystem::path &runRoot = workspace.path();
 
         TestSupport::Types::ReportOptions reportOptions;
         reportOptions.writeConsole = true;
+        reportOptions.consoleVerbosity =
+            options.verboseConsole ? TestSupport::Types::ConsoleVerbosity::Full : TestSupport::Types::ConsoleVerbosity::Concise;
         reportOptions.writeReport = options.writeReport;
         reportOptions.appendReport = options.appendReport;
         reportOptions.reportPath = options.reportPath;
@@ -826,7 +877,6 @@ namespace GameWIP::Test
         const TestSupport::Types::Summary result = runner.result();
         runner.summary(std::format("TestSupport library self-tests passed={} failed={} skipped={}", result.passed, result.failed, result.skipped));
 
-        TestSupport::removeIfExists(runRoot);
         return runner.exitCode();
     }
 } // namespace GameWIP::Test

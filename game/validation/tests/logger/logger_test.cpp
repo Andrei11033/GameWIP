@@ -73,31 +73,6 @@ namespace
         bool available = false;
     };
 
-    struct ScopedLogRootCleanup
-    {
-        explicit ScopedLogRootCleanup(const std::filesystem::path &path)
-            : path(path)
-        {
-        }
-
-        ~ScopedLogRootCleanup() noexcept
-        {
-            Logger::shutdown();
-            try
-            {
-                TestSupport::removeIfExists(path);
-            }
-            catch (...)
-            {
-            }
-        }
-
-        ScopedLogRootCleanup(const ScopedLogRootCleanup &) = delete;
-        ScopedLogRootCleanup &operator=(const ScopedLogRootCleanup &) = delete;
-
-        std::filesystem::path path;
-    };
-
     struct TestContext
     {
         explicit TestContext(TestSupport::Context &testContext) noexcept
@@ -234,6 +209,24 @@ namespace
             Logger::shutdown();
         }
     };
+
+#if INTERNAL_LOGGER_TEST_HOOKS
+    struct ScopedDefaultLogDirectoryOverride
+    {
+        explicit ScopedDefaultLogDirectoryOverride(const std::filesystem::path &path)
+        {
+            GameWIP::Logger::TestHooks::setDefaultLogDirectoryOverride(path.generic_string());
+        }
+
+        ~ScopedDefaultLogDirectoryOverride() noexcept
+        {
+            GameWIP::Logger::TestHooks::clearDefaultLogDirectoryOverride();
+        }
+
+        ScopedDefaultLogDirectoryOverride(const ScopedDefaultLogDirectoryOverride &) = delete;
+        ScopedDefaultLogDirectoryOverride &operator=(const ScopedDefaultLogDirectoryOverride &) = delete;
+    };
+#endif
 
     std::string_view toString(Logger::Types::Result result)
     {
@@ -398,13 +391,6 @@ namespace
     std::size_t totalDiagnosticFailures(const Logger::Types::Stats &stats)
     {
         return stats.allocationFailures + stats.formatFailures + stats.fileWriteFailures;
-    }
-
-    std::filesystem::path makeRunRoot()
-    {
-        const auto now = std::chrono::system_clock::now().time_since_epoch().count();
-        const auto threadHash = std::hash<std::thread::id>{}(std::this_thread::get_id());
-        return std::filesystem::temp_directory_path() / "LoggerTests" / std::format("run_{}_{}", now, threadHash);
     }
 
     std::string pathText(const std::filesystem::path &path)
@@ -644,6 +630,9 @@ namespace
         Logger::shutdown();
         context.expectTrue("initFile wrote content", readWholeFile(initFilePath).find("initFile visible") != std::string::npos);
 
+#if INTERNAL_LOGGER_TEST_HOOKS
+        const ScopedDefaultLogDirectoryOverride defaultDirectoryOverride(context.logRoot);
+#endif
         const Logger::Types::Result defaultResult = Logger::initDefault();
         const bool defaultStarted = defaultResult == Logger::Types::Result::Success || defaultResult == Logger::Types::Result::FileOpenFailed ||
                                     defaultResult == Logger::Types::Result::FileSetupFailed;
@@ -653,11 +642,16 @@ namespace
         {
             expectEq(context, "initDefault output", Logger::getOutput(), Logger::Types::Output::Both);
             context.expectFalse("initDefault path available", Logger::getLogFilePath().empty());
+            context.expectEq(
+                "initDefault test override contains the log file",
+                context.logRoot.lexically_normal(),
+                std::filesystem::path(Logger::getLogFilePath()).parent_path().lexically_normal());
         }
         else
         {
             expectEq(context, "initDefault file failure falls back to console", Logger::getOutput(), Logger::Types::Output::Console);
         }
+        Logger::shutdown();
     }
 
     void testFileOutputAndContent(TestContext &context)
@@ -1762,6 +1756,8 @@ namespace GameWIP::Test
 
         TestSupport::Types::ReportOptions reportOptions;
         reportOptions.writeConsole = true;
+        reportOptions.consoleVerbosity =
+            options.verboseConsole ? TestSupport::Types::ConsoleVerbosity::Full : TestSupport::Types::ConsoleVerbosity::Concise;
         reportOptions.writeReport = options.writeReport;
         reportOptions.appendReport = options.appendReport;
         reportOptions.reportPath = options.reportPath;
@@ -1774,10 +1770,11 @@ namespace GameWIP::Test
             [&](TestSupport::Context &suiteContext)
             {
                 TestContext context(suiteContext);
-                context.executablePath = argc > 0 && argv[0] != nullptr ? argv[0] : "";
-                context.logRoot = makeRunRoot();
-                TestSupport::createDirectories(context.logRoot);
-                const ScopedLogRootCleanup cleanupLogRoot(context.logRoot);
+                const TestSupport::ScopedTemporaryDirectory workspace("logger_tests");
+                context.executablePath = argc > 0 && argv[0] != nullptr ? std::filesystem::absolute(argv[0]).string() : "";
+                const TestSupport::ScopedCurrentPath temporaryCurrentPath(workspace.path());
+                const ScopedLoggerShutdown loggerShutdown;
+                context.logRoot = workspace.path();
 
                 context.emit(std::format("[INFO] Logger test log root: {}\n", pathText(context.logRoot)));
                 context.emit(

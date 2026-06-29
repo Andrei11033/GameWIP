@@ -80,13 +80,6 @@ namespace
     namespace TestSupport = GameWIP::TestSupport;
     using ErrorCode = IO::Types::ErrorCode;
 
-    std::filesystem::path makeRunRoot()
-    {
-        const auto ticks = std::chrono::steady_clock::now().time_since_epoch().count();
-        const auto threadHash = std::hash<std::thread::id>{}(std::this_thread::get_id());
-        return std::filesystem::temp_directory_path() / std::format("filesystem_tests_{}_{}", ticks, threadHash);
-    }
-
     FileSystem::Types::QueryOptions queryOptions(FileSystem::Types::SymlinkPolicy policy) noexcept
     {
         return FileSystem::Types::QueryOptions{.symlinkPolicy = policy};
@@ -517,11 +510,13 @@ namespace GameWIP::Test
 {
     int runFileSystemTests(int, char **, const FileSystemTestOptions &options)
     {
-        const std::filesystem::path runRoot = makeRunRoot();
-        TestSupport::createDirectories(runRoot);
+        const TestSupport::ScopedTemporaryDirectory workspace("filesystem_tests");
+        const std::filesystem::path &runRoot = workspace.path();
 
         TestSupport::Types::ReportOptions reportOptions;
         reportOptions.writeConsole = true;
+        reportOptions.consoleVerbosity =
+            options.verboseConsole ? TestSupport::Types::ConsoleVerbosity::Full : TestSupport::Types::ConsoleVerbosity::Concise;
         reportOptions.writeReport = options.writeReport;
         reportOptions.appendReport = options.appendReport;
         reportOptions.reportPath = options.reportPath;
@@ -575,7 +570,6 @@ namespace GameWIP::Test
         const TestSupport::Types::Summary result = runner.result();
         runner.summary(std::format("FileSystem library self-tests passed={} failed={} skipped={}", result.passed, result.failed, result.skipped));
 
-        TestSupport::removeIfExists(runRoot);
         return runner.exitCode();
     }
 } // namespace GameWIP::Test
