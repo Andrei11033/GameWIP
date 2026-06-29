@@ -2,6 +2,8 @@
 
 `GameWIP::Terminal` provides platform-neutral UTF-8 access to process standard input and output, terminal capabilities, styling, and low-level terminal controls.
 
+Terminal is a shared runtime library. One process-wide instance owns standard-stream serialization, reusable output state, input modes, cursor scopes, alternate-screen nesting, and test hooks across the application and shared libraries such as Logger.
+
 ## User manual
 
 - @subpage terminal_quick_start

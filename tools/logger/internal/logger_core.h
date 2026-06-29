@@ -6,6 +6,10 @@
 #include "logger/logger.h"
 #include "logger/internal/logger_platform.h"
 
+#include "filesystem/filesystem.h"
+#include "io/io.h"
+#include "terminal/terminal.h"
+
 #ifndef INTERNAL_LOGGER_TEST_HOOKS
 #define INTERNAL_LOGGER_TEST_HOOKS 0
 #endif
@@ -26,17 +30,13 @@
 #include <cstring>
 #include <ctime>
 #include <exception>
-#include <filesystem>
-#include <iostream>
 #include <limits>
 #include <memory>
 #include <mutex>
 #include <new>
-#include <ostream>
 #include <span>
 #include <string>
 #include <string_view>
-#include <system_error>
 #include <thread>
 #include <utility>
 #include <vector>
@@ -64,7 +64,8 @@ namespace GameWIP::Logger::Detail::Core
     using LoggerMemoryStats = GameWIP::Logger::Types::MemoryStats;
     using PlatformError = GameWIP::Logger::Types::PlatformError;
     using PlatformErrorSource = GameWIP::Logger::Types::PlatformErrorSource;
-    using FileHandle = GameWIP::Logger::Detail::Platform::FileHandle;
+    using FileWriter = GameWIP::FileSystem::FileWriter;
+    using FilePath = GameWIP::FileSystem::Types::Path;
 
     /// @brief Inline source-text capacity before falling back to heap storage.
     constexpr std::size_t kInlineSourceCapacity = 64;
@@ -630,10 +631,6 @@ namespace GameWIP::Logger::Detail::Core
         std::atomic<std::uint32_t> runtimeStateBits{0};
         /// @brief Atomic console color setting used by worker output.
         std::atomic<bool> consoleColorEnabledAtomic{true};
-        /// @brief True when stdout is an ANSI-capable console and color was requested.
-        std::atomic<bool> stdoutColorEnabledAtomic{false};
-        /// @brief True when stderr is an ANSI-capable console and color was requested.
-        std::atomic<bool> stderrColorEnabledAtomic{false};
         /// @brief Atomic platform debug output setting used by direct platform debug output calls.
         std::atomic<bool> debugOutputEnabledAtomic{false};
         /// @brief Atomic fatal popup setting used by reportFatal().
@@ -646,9 +643,9 @@ namespace GameWIP::Logger::Detail::Core
         std::atomic<bool> flushFileEveryBatchAtomic{false};
 
         /// @brief Active file sink owned behind outputMutex.
-        FileHandle logFile;
+        FileWriter logFile;
         /// @brief Current file sink path.
-        std::filesystem::path logFilePath;
+        FilePath logFilePath;
         /// @brief Atomically published registered source table used by registered source hot paths.
         std::atomic<std::shared_ptr<SourceRegistry>> sourceRegistry;
         /// @brief Uninitialized arena bytes backing message storage for logRing.
@@ -764,10 +761,10 @@ namespace GameWIP::Logger::Detail::Core
     {
         /// @brief Short level label written into each log line.
         const char *text = "UNKNOWN";
-        /// @brief ANSI color prefix for console output.
-        const char *color = "";
+        /// @brief Portable style passed to Terminal for console output.
+        GameWIP::Terminal::Types::TextStyle terminalStyle{};
         /// @brief True routes console output to stderr; false routes to stdout.
-        bool useCerr = true;
+        bool useStderr = true;
     };
 
     /// @brief Queue insertion result used by queue-pressure accounting and report fallback.
@@ -868,6 +865,8 @@ namespace GameWIP::Logger::Detail::Core
     std::uint8_t runtimeStateLevelMask(std::uint32_t packed);
     /// @brief Returns whether structured platform error data is present.
     bool hasPlatformError(const PlatformError &error);
+    /// @brief Maps an IO/FileSystem status into Logger's existing file error channel.
+    PlatformError filePlatformError(const GameWIP::IO::Types::Status &status);
     /// @brief Issues one architecture-appropriate spin-wait hint.
     void cpuRelax() noexcept;
     /// @brief Waits until a ring slot reaches the sequence required by ticket.
@@ -918,11 +917,6 @@ namespace GameWIP::Logger::Detail::Core
     void countFormatFailure();
     /// @brief Republishes lifecycle/filter fields into the producer hot-path atomic.
     void publishRuntimeStateUnlocked();
-    /// @brief Refreshes cached stdout/stderr ANSI support after configuration changes.
-    void publishConsoleColorSupport();
-    /// @brief Returns cached color support for the selected console stream.
-    bool consoleColorEnabledForStream(bool useCerr);
-
     // Source registration and runtime filters.
 
     /// @brief Atomically loads the immutable source registry published to producers.
@@ -1031,11 +1025,11 @@ namespace GameWIP::Logger::Detail::Core
         std::string_view source,
         std::string_view message);
     /// @brief Calls the file-open backend while honoring one-shot test failure injection.
-    PlatformError openFileExclusiveForLogger(std::string_view path, FileHandle &outHandle);
+    PlatformError openFileExclusiveForLogger(const FilePath &path, FileWriter &outWriter);
     /// @brief Calls the file-write backend while honoring one-shot test failure injection.
-    PlatformError writeFileForLogger(FileHandle handle, std::string_view text);
+    PlatformError writeFileForLogger(FileWriter &writer, std::string_view text);
     /// @brief Calls the file-flush backend while honoring one-shot test failure injection.
-    PlatformError flushFileForLogger(FileHandle handle);
+    PlatformError flushFileForLogger(FileWriter &writer);
     /// @brief Writes one string-source report directly to active sinks and flushes it.
     bool writeReportSynchronously(
         LogLevel level,

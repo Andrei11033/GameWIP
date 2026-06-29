@@ -55,4 +55,4 @@ GameWIP::TestSupport::runWorkers(4, [](std::size_t workerIndex)
 });
 ```
 
-Use these helpers for simple stress patterns. Keep domain-specific checks in the relevant test file instead of adding Logger-specific, Assert-specific, or engine-specific logic to TestSupport.
+Use these helpers for simple stress patterns. Keep domain-specific checks in the relevant test file instead of adding foundation-, tool-, engine-, or game-specific logic to TestSupport.

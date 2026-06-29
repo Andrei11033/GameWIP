@@ -26,6 +26,7 @@ target_link_libraries(FileSystem PUBLIC
 )
 
 set_target_properties(FileSystem PROPERTIES
+    POSITION_INDEPENDENT_CODE ON
     ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
 )
 

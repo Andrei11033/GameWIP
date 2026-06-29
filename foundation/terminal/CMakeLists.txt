@@ -8,7 +8,7 @@ if(NOT COMMAND library_target_platform_sources)
     library_resolve_platform_id(LIBRARY_PLATFORM_ID)
 endif()
 
-add_library(Terminal STATIC)
+add_library(Terminal SHARED)
 
 target_sources(Terminal PRIVATE
     core/terminal.cpp
@@ -25,6 +25,7 @@ target_include_directories(Terminal PUBLIC
 target_compile_features(Terminal PUBLIC cxx_std_23)
 target_compile_definitions(Terminal
     PRIVATE
+        INTERNAL_TERMINAL_BUILD
         INTERNAL_TERMINAL_TEST_HOOKS=$<BOOL:${TERMINAL_ENABLE_TEST_HOOKS}>
     INTERFACE
         INTERNAL_TERMINAL_TEST_HOOKS=$<BOOL:${TERMINAL_ENABLE_TEST_HOOKS}>
@@ -35,6 +36,8 @@ target_link_libraries(Terminal PUBLIC
 )
 
 set_target_properties(Terminal PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
     ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
 )
 
@@ -53,6 +56,8 @@ endif()
 
 install(TARGETS Terminal
     EXPORT TerminalTargets
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
 )
 

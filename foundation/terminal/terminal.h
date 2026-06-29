@@ -18,6 +18,18 @@
 
 #include "io/io.h"
 
+/// @def INTERNAL_TERMINAL_API
+/// @brief DLL import/export marker used by Terminal runtime declarations.
+#if defined(_WIN32)
+#if defined(INTERNAL_TERMINAL_BUILD)
+#define INTERNAL_TERMINAL_API __declspec(dllexport)
+#else
+#define INTERNAL_TERMINAL_API __declspec(dllimport)
+#endif
+#else
+#define INTERNAL_TERMINAL_API
+#endif
+
 /// @brief Platform-neutral terminal stream I/O, styling, and control primitives.
 namespace GameWIP::Terminal
 {
@@ -32,20 +44,20 @@ namespace GameWIP::Terminal
     /// @brief Creates a basic terminal color.
     /// @param color Portable basic color to request.
     /// @return The requested color, or the terminal default color when color is not a known BasicColor value.
-    [[nodiscard]] Types::Color basicColor(Types::BasicColor color) noexcept;
+    [[nodiscard]] INTERNAL_TERMINAL_API Types::Color basicColor(Types::BasicColor color) noexcept;
 
     /// @brief Creates an RGB terminal color.
     /// @param red Red channel in the range [0, 255].
     /// @param green Green channel in the range [0, 255].
     /// @param blue Blue channel in the range [0, 255].
     /// @return The requested RGB color.
-    [[nodiscard]] Types::Color rgbColor(std::uint8_t red, std::uint8_t green, std::uint8_t blue) noexcept;
+    [[nodiscard]] INTERNAL_TERMINAL_API Types::Color rgbColor(std::uint8_t red, std::uint8_t green, std::uint8_t blue) noexcept;
 
     /// @brief Creates a plain text write segment.
     /// @param text Caller-owned UTF-8 text.
     /// @return A non-owning segment that refers to text.
     /// @warning The referenced text must remain alive until the segment's writeSegments() call returns.
-    [[nodiscard]] Types::WriteSegment textSegment(std::string_view text) noexcept;
+    [[nodiscard]] INTERNAL_TERMINAL_API Types::WriteSegment textSegment(std::string_view text) noexcept;
 
     /// @brief Rejects temporary string storage that would leave the segment dangling.
     template <typename String>
@@ -57,7 +69,7 @@ namespace GameWIP::Terminal
     /// @param style Style copied into the segment.
     /// @return A non-owning segment that refers to text and owns a copy of style.
     /// @warning The referenced text must remain alive until the segment's writeSegments() call returns.
-    [[nodiscard]] Types::WriteSegment styledTextSegment(std::string_view text, const Types::TextStyle &style) noexcept;
+    [[nodiscard]] INTERNAL_TERMINAL_API Types::WriteSegment styledTextSegment(std::string_view text, const Types::TextStyle &style) noexcept;
 
     /// @brief Rejects temporary string storage that would leave the segment dangling.
     template <typename String>
@@ -68,7 +80,7 @@ namespace GameWIP::Terminal
     /// @param bytes Caller-owned bytes.
     /// @return A non-owning segment that refers to bytes.
     /// @warning The referenced bytes must remain alive until the segment's writeSegments() call returns.
-    [[nodiscard]] Types::WriteSegment byteSegment(std::span<const std::byte> bytes) noexcept;
+    [[nodiscard]] INTERNAL_TERMINAL_API Types::WriteSegment byteSegment(std::span<const std::byte> bytes) noexcept;
 
     /// @brief Rejects temporary contiguous storage that would leave the segment dangling.
     template <std::ranges::contiguous_range Range>
@@ -248,8 +260,8 @@ namespace GameWIP::Terminal
             }
 
         private:
-            friend Color GameWIP::Terminal::basicColor(Types::BasicColor color) noexcept;
-            friend Color GameWIP::Terminal::rgbColor(std::uint8_t red, std::uint8_t green, std::uint8_t blue) noexcept;
+            friend INTERNAL_TERMINAL_API Color GameWIP::Terminal::basicColor(Types::BasicColor color) noexcept;
+            friend INTERNAL_TERMINAL_API Color GameWIP::Terminal::rgbColor(std::uint8_t red, std::uint8_t green, std::uint8_t blue) noexcept;
 
             explicit Color(BasicColor color) noexcept;
             Color(std::uint8_t red, std::uint8_t green, std::uint8_t blue) noexcept;
@@ -770,9 +782,10 @@ namespace GameWIP::Terminal
             }
 
         private:
-            friend WriteSegment GameWIP::Terminal::textSegment(std::string_view text) noexcept;
-            friend WriteSegment GameWIP::Terminal::styledTextSegment(std::string_view text, const Types::TextStyle &style) noexcept;
-            friend WriteSegment GameWIP::Terminal::byteSegment(std::span<const std::byte> bytes) noexcept;
+            friend INTERNAL_TERMINAL_API WriteSegment GameWIP::Terminal::textSegment(std::string_view text) noexcept;
+            friend INTERNAL_TERMINAL_API WriteSegment
+            GameWIP::Terminal::styledTextSegment(std::string_view text, const Types::TextStyle &style) noexcept;
+            friend INTERNAL_TERMINAL_API WriteSegment GameWIP::Terminal::byteSegment(std::span<const std::byte> bytes) noexcept;
 
             WriteSegment(WriteSegmentKind kind, std::string_view text, std::span<const std::byte> bytes, const TextStyle &style) noexcept;
 
@@ -784,15 +797,15 @@ namespace GameWIP::Terminal
     } // namespace Types
 
     /// @brief Creates a terminal default color.
-    [[nodiscard]] Types::Color defaultColor() noexcept;
+    [[nodiscard]] INTERNAL_TERMINAL_API Types::Color defaultColor() noexcept;
 
     /// @brief Creates an input mode from a preset.
     /// @param preset Preset to convert.
     /// @return The requested mode. Unknown preset values fall back to InteractiveLine.
-    [[nodiscard]] Types::InputMode makeInputMode(Types::InputModePreset preset) noexcept;
+    [[nodiscard]] INTERNAL_TERMINAL_API Types::InputMode makeInputMode(Types::InputModePreset preset) noexcept;
 
     /// @brief RAII helper that restores a complete previous backend terminal input mode.
-    class InputModeScope final
+    class INTERNAL_TERMINAL_API InputModeScope final
     {
     public:
         /// @brief Creates an inactive input mode scope.
@@ -834,7 +847,7 @@ namespace GameWIP::Terminal
     };
 
     /// @brief RAII helper that leaves alternate screen mode when destroyed.
-    class AlternateScreenScope final
+    class INTERNAL_TERMINAL_API AlternateScreenScope final
     {
     public:
         /// @brief Creates an inactive alternate screen scope.
@@ -871,7 +884,7 @@ namespace GameWIP::Terminal
     };
 
     /// @brief RAII helper that restores cursor visibility by showing the cursor when destroyed.
-    class CursorHiddenScope final
+    class INTERNAL_TERMINAL_API CursorHiddenScope final
     {
     public:
         /// @brief Creates an inactive cursor-hidden scope.
@@ -908,7 +921,7 @@ namespace GameWIP::Terminal
     };
 
     /// @brief Reusable plain-text output buffer for batching Terminal writes.
-    class OutputBuffer final
+    class INTERNAL_TERMINAL_API OutputBuffer final
     {
     public:
         /// @brief Creates an empty output buffer using a line ending for appendLine() and println().
@@ -962,111 +975,120 @@ namespace GameWIP::Terminal
     };
 
     /// @brief Gets capabilities for stdin.
-    [[nodiscard]] Types::InputCapabilitiesResult getInputCapabilities();
+    [[nodiscard]] INTERNAL_TERMINAL_API Types::InputCapabilitiesResult getInputCapabilities();
 
     /// @brief Gets capabilities for an input stream.
-    [[nodiscard]] Types::InputCapabilitiesResult getInputCapabilities(Types::InputStream stream);
+    [[nodiscard]] INTERNAL_TERMINAL_API Types::InputCapabilitiesResult getInputCapabilities(Types::InputStream stream);
 
     /// @brief Observes currently active stdout capabilities without preparing the stream.
-    [[nodiscard]] Types::OutputCapabilitiesResult getOutputCapabilities();
+    [[nodiscard]] INTERNAL_TERMINAL_API Types::OutputCapabilitiesResult getOutputCapabilities();
 
     /// @brief Observes currently active capabilities without preparing the stream.
-    [[nodiscard]] Types::OutputCapabilitiesResult getOutputCapabilities(Types::OutputStream stream);
+    [[nodiscard]] INTERNAL_TERMINAL_API Types::OutputCapabilitiesResult getOutputCapabilities(Types::OutputStream stream);
 
     /// @brief Enables stdout support required by styling and terminal controls.
     /// @details Preparation is idempotent. Redirected streams need no setup, detached streams report NotOpen,
     /// and styled writes or controls prepare lazily when needed.
-    [[nodiscard]] Types::OutputCapabilitiesResult prepareOutput();
+    [[nodiscard]] INTERNAL_TERMINAL_API Types::OutputCapabilitiesResult prepareOutput();
 
     /// @brief Enables stream support required by styling and terminal controls.
-    [[nodiscard]] Types::OutputCapabilitiesResult prepareOutput(Types::OutputStream stream);
+    [[nodiscard]] INTERNAL_TERMINAL_API Types::OutputCapabilitiesResult prepareOutput(Types::OutputStream stream);
 
     /// @brief Gets terminal size for stdout.
-    [[nodiscard]] Types::TerminalSizeResult getTerminalSize();
+    [[nodiscard]] INTERNAL_TERMINAL_API Types::TerminalSizeResult getTerminalSize();
 
     /// @brief Gets terminal size for an output stream.
-    [[nodiscard]] Types::TerminalSizeResult getTerminalSize(Types::OutputStream stream);
+    [[nodiscard]] INTERNAL_TERMINAL_API Types::TerminalSizeResult getTerminalSize(Types::OutputStream stream);
 
     /// @brief Checks whether input is available on stdin.
-    [[nodiscard]] Types::InputAvailabilityResult getInputAvailability();
+    [[nodiscard]] INTERNAL_TERMINAL_API Types::InputAvailabilityResult getInputAvailability();
 
     /// @brief Checks whether input is available on an input stream.
-    [[nodiscard]] Types::InputAvailabilityResult getInputAvailability(Types::InputStream stream);
+    [[nodiscard]] INTERNAL_TERMINAL_API Types::InputAvailabilityResult getInputAvailability(Types::InputStream stream);
 
     /// @brief Gets the current mode for stdin.
-    [[nodiscard]] Types::InputModeResult getInputMode();
+    [[nodiscard]] INTERNAL_TERMINAL_API Types::InputModeResult getInputMode();
 
     /// @brief Gets the current mode for an input stream.
-    [[nodiscard]] Types::InputModeResult getInputMode(Types::InputStream stream);
+    [[nodiscard]] INTERNAL_TERMINAL_API Types::InputModeResult getInputMode(Types::InputStream stream);
 
     /// @brief Sets the mode for stdin without discarding Terminal-buffered input.
-    [[nodiscard]] IO::Types::Status setInputMode(const Types::InputMode &mode);
+    [[nodiscard]] INTERNAL_TERMINAL_API IO::Types::Status setInputMode(const Types::InputMode &mode);
 
     /// @brief Sets the mode for an input stream without discarding Terminal-buffered input.
-    [[nodiscard]] IO::Types::Status setInputMode(Types::InputStream stream, const Types::InputMode &mode);
+    [[nodiscard]] INTERNAL_TERMINAL_API IO::Types::Status setInputMode(Types::InputStream stream, const Types::InputMode &mode);
 
     /// @brief Restores the backend/default mode for stdin.
-    [[nodiscard]] IO::Types::Status restoreDefaultInputMode();
+    [[nodiscard]] INTERNAL_TERMINAL_API IO::Types::Status restoreDefaultInputMode();
 
     /// @brief Restores the backend/default mode for an input stream.
-    [[nodiscard]] IO::Types::Status restoreDefaultInputMode(Types::InputStream stream);
+    [[nodiscard]] INTERNAL_TERMINAL_API IO::Types::Status restoreDefaultInputMode(Types::InputStream stream);
 
     /// @brief Temporarily sets stdin mode and returns a restoration scope.
-    [[nodiscard]] InputModeScope scopedInputMode(const Types::InputMode &mode) noexcept;
+    [[nodiscard]] INTERNAL_TERMINAL_API InputModeScope scopedInputMode(const Types::InputMode &mode) noexcept;
 
     /// @brief Temporarily sets an input stream mode and returns a restoration scope.
-    [[nodiscard]] InputModeScope scopedInputMode(Types::InputStream stream, const Types::InputMode &mode) noexcept;
+    [[nodiscard]] INTERNAL_TERMINAL_API InputModeScope scopedInputMode(Types::InputStream stream, const Types::InputMode &mode) noexcept;
 
     /// @brief Reads one line from stdin.
-    [[nodiscard]] Types::LineReadResult readLine(const Types::LineReadOptions &options = {});
+    [[nodiscard]] INTERNAL_TERMINAL_API Types::LineReadResult readLine(const Types::LineReadOptions &options = {});
 
     /// @brief Reads one line from an input stream.
-    [[nodiscard]] Types::LineReadResult readLine(Types::InputStream stream, const Types::LineReadOptions &options = {});
+    [[nodiscard]] INTERNAL_TERMINAL_API Types::LineReadResult readLine(Types::InputStream stream, const Types::LineReadOptions &options = {});
 
     /// @brief Reads one available UTF-8 text chunk from stdin.
-    [[nodiscard]] Types::TextReadResult readText(const Types::TextReadOptions &options = {});
+    [[nodiscard]] INTERNAL_TERMINAL_API Types::TextReadResult readText(const Types::TextReadOptions &options = {});
 
     /// @brief Reads one available UTF-8 text chunk from an input stream.
-    [[nodiscard]] Types::TextReadResult readText(Types::InputStream stream, const Types::TextReadOptions &options = {});
+    [[nodiscard]] INTERNAL_TERMINAL_API Types::TextReadResult readText(Types::InputStream stream, const Types::TextReadOptions &options = {});
 
     /// @brief Reads bytes from stdin into caller storage.
-    [[nodiscard]] Types::ByteReadResult readBytes(std::span<std::byte> outputBuffer, const Types::ByteReadOptions &options = {});
+    [[nodiscard]] INTERNAL_TERMINAL_API Types::ByteReadResult readBytes(
+        std::span<std::byte> outputBuffer,
+        const Types::ByteReadOptions &options = {});
 
     /// @brief Reads bytes from an input stream into caller storage.
-    [[nodiscard]] Types::ByteReadResult readBytes(
+    [[nodiscard]] INTERNAL_TERMINAL_API Types::ByteReadResult readBytes(
         Types::InputStream stream,
         std::span<std::byte> outputBuffer,
         const Types::ByteReadOptions &options = {});
 
     /// @brief Writes UTF-8 text to stdout.
-    [[nodiscard]] IO::Types::Status writeText(std::string_view utf8Text, const Types::TextWriteOptions &options = {});
+    [[nodiscard]] INTERNAL_TERMINAL_API IO::Types::Status writeText(std::string_view utf8Text, const Types::TextWriteOptions &options = {});
 
     /// @brief Writes UTF-8 text to an output stream.
-    [[nodiscard]] IO::Types::Status writeText(Types::OutputStream stream, std::string_view utf8Text, const Types::TextWriteOptions &options = {});
+    [[nodiscard]] INTERNAL_TERMINAL_API IO::Types::Status writeText(
+        Types::OutputStream stream,
+        std::string_view utf8Text,
+        const Types::TextWriteOptions &options = {});
 
     /// @brief Writes UTF-8 text followed by a line ending to stdout.
-    [[nodiscard]] IO::Types::Status writeLine(std::string_view utf8Text = {}, const Types::LineWriteOptions &options = {});
+    [[nodiscard]] INTERNAL_TERMINAL_API IO::Types::Status writeLine(std::string_view utf8Text = {}, const Types::LineWriteOptions &options = {});
 
     /// @brief Writes UTF-8 text followed by a line ending to an output stream.
-    [[nodiscard]] IO::Types::Status writeLine(
+    [[nodiscard]] INTERNAL_TERMINAL_API IO::Types::Status writeLine(
         Types::OutputStream stream,
         std::string_view utf8Text = {},
         const Types::LineWriteOptions &options = {});
 
     /// @brief Writes bytes to stdout.
-    [[nodiscard]] IO::Types::WriteResult writeBytes(std::span<const std::byte> bytes, const Types::ByteWriteOptions &options = {});
+    [[nodiscard]] INTERNAL_TERMINAL_API IO::Types::WriteResult writeBytes(
+        std::span<const std::byte> bytes,
+        const Types::ByteWriteOptions &options = {});
 
     /// @brief Writes bytes to an output stream.
-    [[nodiscard]] IO::Types::WriteResult writeBytes(
+    [[nodiscard]] INTERNAL_TERMINAL_API IO::Types::WriteResult writeBytes(
         Types::OutputStream stream,
         std::span<const std::byte> bytes,
         const Types::ByteWriteOptions &options = {});
 
     /// @brief Writes text, styled text, and byte segments to stdout.
-    [[nodiscard]] IO::Types::Status writeSegments(std::span<const Types::WriteSegment> segments, const Types::SegmentWriteOptions &options = {});
+    [[nodiscard]] INTERNAL_TERMINAL_API IO::Types::Status writeSegments(
+        std::span<const Types::WriteSegment> segments,
+        const Types::SegmentWriteOptions &options = {});
 
     /// @brief Writes text, styled text, and byte segments to an output stream.
-    [[nodiscard]] IO::Types::Status writeSegments(
+    [[nodiscard]] INTERNAL_TERMINAL_API IO::Types::Status writeSegments(
         Types::OutputStream stream,
         std::span<const Types::WriteSegment> segments,
         const Types::SegmentWriteOptions &options = {});
@@ -1108,90 +1130,103 @@ namespace GameWIP::Terminal
         Args &&...args);
 
     /// @brief Flushes stdout.
-    [[nodiscard]] IO::Types::Status flush(IO::Types::FlushMode mode = IO::Types::FlushMode::Data);
+    [[nodiscard]] INTERNAL_TERMINAL_API IO::Types::Status flush(IO::Types::FlushMode mode = IO::Types::FlushMode::Data);
 
     /// @brief Flushes an output stream.
-    [[nodiscard]] IO::Types::Status flush(Types::OutputStream stream, IO::Types::FlushMode mode = IO::Types::FlushMode::Data);
+    [[nodiscard]] INTERNAL_TERMINAL_API IO::Types::Status flush(Types::OutputStream stream, IO::Types::FlushMode mode = IO::Types::FlushMode::Data);
 
     /// @brief Resets style on stdout.
-    [[nodiscard]] IO::Types::Status resetStyle(const Types::ControlOptions &options = {});
+    [[nodiscard]] INTERNAL_TERMINAL_API IO::Types::Status resetStyle(const Types::ControlOptions &options = {});
 
     /// @brief Resets style on an output stream.
-    [[nodiscard]] IO::Types::Status resetStyle(Types::OutputStream stream, const Types::ControlOptions &options = {});
+    [[nodiscard]] INTERNAL_TERMINAL_API IO::Types::Status resetStyle(Types::OutputStream stream, const Types::ControlOptions &options = {});
 
     /// @brief Moves the cursor on stdout.
-    [[nodiscard]] IO::Types::Status moveCursor(
+    [[nodiscard]] INTERNAL_TERMINAL_API IO::Types::Status moveCursor(
         Types::CursorMoveDirection direction,
         std::uint32_t amount = 1,
         const Types::ControlOptions &options = {});
 
     /// @brief Moves the cursor on an output stream.
-    [[nodiscard]] IO::Types::Status moveCursor(
+    [[nodiscard]] INTERNAL_TERMINAL_API IO::Types::Status moveCursor(
         Types::OutputStream stream,
         Types::CursorMoveDirection direction,
         std::uint32_t amount = 1,
         const Types::ControlOptions &options = {});
 
     /// @brief Sets cursor position on stdout.
-    [[nodiscard]] IO::Types::Status setCursorPosition(Types::CursorPosition position, const Types::ControlOptions &options = {});
+    [[nodiscard]] INTERNAL_TERMINAL_API IO::Types::Status setCursorPosition(
+        Types::CursorPosition position,
+        const Types::ControlOptions &options = {});
 
     /// @brief Sets cursor position on an output stream.
-    [[nodiscard]] IO::Types::Status setCursorPosition(
+    [[nodiscard]] INTERNAL_TERMINAL_API IO::Types::Status setCursorPosition(
         Types::OutputStream stream,
         Types::CursorPosition position,
         const Types::ControlOptions &options = {});
 
     /// @brief Queries cursor position on stdout.
-    [[nodiscard]] Types::CursorPositionResult getCursorPosition(const Types::CursorPositionQueryOptions &options = {});
+    [[nodiscard]] INTERNAL_TERMINAL_API Types::CursorPositionResult getCursorPosition(const Types::CursorPositionQueryOptions &options = {});
 
     /// @brief Queries cursor position through an output stream and reads protocol responses from an input stream.
-    [[nodiscard]] Types::CursorPositionResult getCursorPosition(
+    [[nodiscard]] INTERNAL_TERMINAL_API Types::CursorPositionResult getCursorPosition(
         Types::OutputStream outputStream,
         Types::InputStream responseStream,
         const Types::CursorPositionQueryOptions &options = {});
 
     /// @brief Saves cursor position on stdout.
-    [[nodiscard]] IO::Types::Status saveCursorPosition(const Types::ControlOptions &options = {});
+    [[nodiscard]] INTERNAL_TERMINAL_API IO::Types::Status saveCursorPosition(const Types::ControlOptions &options = {});
 
     /// @brief Saves cursor position on an output stream.
-    [[nodiscard]] IO::Types::Status saveCursorPosition(Types::OutputStream stream, const Types::ControlOptions &options = {});
+    [[nodiscard]] INTERNAL_TERMINAL_API IO::Types::Status saveCursorPosition(Types::OutputStream stream, const Types::ControlOptions &options = {});
 
     /// @brief Restores cursor position on stdout.
-    [[nodiscard]] IO::Types::Status restoreCursorPosition(const Types::ControlOptions &options = {});
+    [[nodiscard]] INTERNAL_TERMINAL_API IO::Types::Status restoreCursorPosition(const Types::ControlOptions &options = {});
 
     /// @brief Restores cursor position on an output stream.
-    [[nodiscard]] IO::Types::Status restoreCursorPosition(Types::OutputStream stream, const Types::ControlOptions &options = {});
+    [[nodiscard]] INTERNAL_TERMINAL_API IO::Types::Status restoreCursorPosition(
+        Types::OutputStream stream,
+        const Types::ControlOptions &options = {});
 
     /// @brief Sets cursor visibility on stdout.
     /// @warning Do not mix manual visibility changes with active CursorHiddenScope objects for stdout.
-    [[nodiscard]] IO::Types::Status setCursorVisible(bool visible, const Types::ControlOptions &options = {});
+    [[nodiscard]] INTERNAL_TERMINAL_API IO::Types::Status setCursorVisible(bool visible, const Types::ControlOptions &options = {});
 
     /// @brief Sets cursor visibility on an output stream.
     /// @warning Do not mix manual visibility changes with active CursorHiddenScope objects for the same stream.
-    [[nodiscard]] IO::Types::Status setCursorVisible(Types::OutputStream stream, bool visible, const Types::ControlOptions &options = {});
+    [[nodiscard]] INTERNAL_TERMINAL_API IO::Types::Status setCursorVisible(
+        Types::OutputStream stream,
+        bool visible,
+        const Types::ControlOptions &options = {});
 
     /// @brief Hides the cursor on stdout until the returned scope restores it.
     /// @warning Do not use manual visibility changes while the returned scope is active.
-    [[nodiscard]] CursorHiddenScope scopedCursorHidden(const Types::ControlOptions &options = {}) noexcept;
+    [[nodiscard]] INTERNAL_TERMINAL_API CursorHiddenScope scopedCursorHidden(const Types::ControlOptions &options = {}) noexcept;
 
     /// @brief Hides the cursor on an output stream until the returned scope restores it.
     /// @warning Do not use manual visibility changes for the same stream while the returned scope is active.
-    [[nodiscard]] CursorHiddenScope scopedCursorHidden(Types::OutputStream stream, const Types::ControlOptions &options = {}) noexcept;
+    [[nodiscard]] INTERNAL_TERMINAL_API CursorHiddenScope
+    scopedCursorHidden(Types::OutputStream stream, const Types::ControlOptions &options = {}) noexcept;
 
     /// @brief Clears a screen or line region on stdout.
-    [[nodiscard]] IO::Types::Status clear(Types::ClearTarget target = Types::ClearTarget::EntireScreen, const Types::ControlOptions &options = {});
+    [[nodiscard]] INTERNAL_TERMINAL_API IO::Types::Status clear(
+        Types::ClearTarget target = Types::ClearTarget::EntireScreen,
+        const Types::ControlOptions &options = {});
 
     /// @brief Clears a screen or line region on an output stream.
-    [[nodiscard]] IO::Types::Status clear(
+    [[nodiscard]] INTERNAL_TERMINAL_API IO::Types::Status clear(
         Types::OutputStream stream,
         Types::ClearTarget target = Types::ClearTarget::EntireScreen,
         const Types::ControlOptions &options = {});
 
     /// @brief Scrolls stdout.
-    [[nodiscard]] IO::Types::Status scroll(Types::ScrollDirection direction, std::uint32_t lines = 1, const Types::ControlOptions &options = {});
+    [[nodiscard]] INTERNAL_TERMINAL_API IO::Types::Status scroll(
+        Types::ScrollDirection direction,
+        std::uint32_t lines = 1,
+        const Types::ControlOptions &options = {});
 
     /// @brief Scrolls an output stream.
-    [[nodiscard]] IO::Types::Status scroll(
+    [[nodiscard]] INTERNAL_TERMINAL_API IO::Types::Status scroll(
         Types::OutputStream stream,
         Types::ScrollDirection direction,
         std::uint32_t lines = 1,
@@ -1199,50 +1234,54 @@ namespace GameWIP::Terminal
 
     /// @brief Enters alternate screen mode on stdout.
     /// @warning Do not mix manual transitions with active AlternateScreenScope objects for stdout.
-    [[nodiscard]] IO::Types::Status enterAlternateScreen(const Types::ControlOptions &options = {});
+    [[nodiscard]] INTERNAL_TERMINAL_API IO::Types::Status enterAlternateScreen(const Types::ControlOptions &options = {});
 
     /// @brief Enters alternate screen mode on an output stream.
     /// @warning Do not mix manual transitions with active AlternateScreenScope objects for the same stream.
-    [[nodiscard]] IO::Types::Status enterAlternateScreen(Types::OutputStream stream, const Types::ControlOptions &options = {});
+    [[nodiscard]] INTERNAL_TERMINAL_API IO::Types::Status enterAlternateScreen(Types::OutputStream stream, const Types::ControlOptions &options = {});
 
     /// @brief Leaves alternate screen mode on stdout.
     /// @warning Do not mix manual transitions with active AlternateScreenScope objects for stdout.
-    [[nodiscard]] IO::Types::Status leaveAlternateScreen(const Types::ControlOptions &options = {});
+    [[nodiscard]] INTERNAL_TERMINAL_API IO::Types::Status leaveAlternateScreen(const Types::ControlOptions &options = {});
 
     /// @brief Leaves alternate screen mode on an output stream.
     /// @warning Do not mix manual transitions with active AlternateScreenScope objects for the same stream.
-    [[nodiscard]] IO::Types::Status leaveAlternateScreen(Types::OutputStream stream, const Types::ControlOptions &options = {});
+    [[nodiscard]] INTERNAL_TERMINAL_API IO::Types::Status leaveAlternateScreen(Types::OutputStream stream, const Types::ControlOptions &options = {});
 
     /// @brief Enters alternate screen mode on stdout until the returned scope leaves it.
     /// @warning Do not use manual alternate-screen transitions while the returned scope is active.
-    [[nodiscard]] AlternateScreenScope scopedAlternateScreen(const Types::ControlOptions &options = {}) noexcept;
+    [[nodiscard]] INTERNAL_TERMINAL_API AlternateScreenScope scopedAlternateScreen(const Types::ControlOptions &options = {}) noexcept;
 
     /// @brief Enters alternate screen mode on an output stream until the returned scope leaves it.
     /// @warning Do not use manual alternate-screen transitions for the same stream while the returned scope is active.
-    [[nodiscard]] AlternateScreenScope scopedAlternateScreen(Types::OutputStream stream, const Types::ControlOptions &options = {}) noexcept;
+    [[nodiscard]] INTERNAL_TERMINAL_API AlternateScreenScope
+    scopedAlternateScreen(Types::OutputStream stream, const Types::ControlOptions &options = {}) noexcept;
 
     /// @brief Sets the terminal title through stdout.
-    [[nodiscard]] IO::Types::Status setTitle(std::string_view utf8Title, const Types::ControlOptions &options = {});
+    [[nodiscard]] INTERNAL_TERMINAL_API IO::Types::Status setTitle(std::string_view utf8Title, const Types::ControlOptions &options = {});
 
     /// @brief Sets the terminal title through an output stream.
-    [[nodiscard]] IO::Types::Status setTitle(Types::OutputStream stream, std::string_view utf8Title, const Types::ControlOptions &options = {});
+    [[nodiscard]] INTERNAL_TERMINAL_API IO::Types::Status setTitle(
+        Types::OutputStream stream,
+        std::string_view utf8Title,
+        const Types::ControlOptions &options = {});
 
     /// @brief Rings the terminal bell through stdout.
-    [[nodiscard]] IO::Types::Status ringBell(const Types::ControlOptions &options = {});
+    [[nodiscard]] INTERNAL_TERMINAL_API IO::Types::Status ringBell(const Types::ControlOptions &options = {});
 
     /// @brief Rings the terminal bell through an output stream.
-    [[nodiscard]] IO::Types::Status ringBell(Types::OutputStream stream, const Types::ControlOptions &options = {});
+    [[nodiscard]] INTERNAL_TERMINAL_API IO::Types::Status ringBell(Types::OutputStream stream, const Types::ControlOptions &options = {});
 
     /// @cond INTERNAL_TERMINAL_DETAIL
     namespace Detail
     {
-        [[nodiscard]] IO::Types::Status vprint(
+        [[nodiscard]] INTERNAL_TERMINAL_API IO::Types::Status vprint(
             Types::OutputStream stream,
             const Types::TextWriteOptions &options,
             std::string_view format,
             std::format_args arguments);
 
-        [[nodiscard]] IO::Types::Status vprintln(
+        [[nodiscard]] INTERNAL_TERMINAL_API IO::Types::Status vprintln(
             Types::OutputStream stream,
             const Types::LineWriteOptions &options,
             std::string_view format,

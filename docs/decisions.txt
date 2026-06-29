@@ -156,6 +156,20 @@ A foundation library feature is complete only when:
 * failure paths are tested where practical;
 * hot-path performance is understood.
 
+## Foundation Dependency Direction
+
+Foundation and tool dependencies follow this direction:
+
+```text
+Logger -> Terminal + FileSystem + IO
+Assert -> Logger
+TestSupport -> standard library + its own platform backend
+```
+
+IO and FileSystem remain static libraries because their runtime state belongs to caller-owned objects. Terminal is a shared library because standard streams, stream serialization, input modes, cursor scopes, and alternate-screen nesting are process-wide. Logger and the enabled Assert runtime remain shared libraries so their process state is not duplicated across modules.
+
+TestSupport is the standalone exception. It must not depend on any project library.
+
 ---
 
 # 5. Logger Decisions
@@ -259,9 +273,9 @@ It is used by logger tests, assert tests, and future engine tests.
 
 ## Dependency Rule
 
-TestSupport must not depend on Logger or Assert.
+TestSupport must not depend on any other project library, including IO, FileSystem, Terminal, Logger, Assert, engine, or game code.
 
-Logger and Assert tests may depend on TestSupport, but TestSupport must not know about Logger or Assert concepts.
+Logger, Assert, foundation, engine, and game tests may depend on TestSupport, but TestSupport must not know about their concepts.
 
 ## Purpose
 
@@ -772,9 +786,11 @@ TestSupport
 
 The Terminal and FileSystem packages depend on the IO package.
 
+The Logger package depends on the shared Terminal package. FileSystem and IO are private implementation dependencies embedded into the Logger shared library.
+
 The Assert package depends on the Logger package.
 
-The TestSupport package has no Logger or Assert dependency.
+The TestSupport package has no project-library dependencies.
 
 Test hooks are excluded from public package installs by default.
 

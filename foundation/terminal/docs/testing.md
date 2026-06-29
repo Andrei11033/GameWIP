@@ -75,6 +75,8 @@ Hook-enabled tests should reset forced state after each scenario.
 
 Terminal public calls should serialize per stream.
 
+Terminal is a shared runtime, so integration tests may use its exported test-only hooks to verify calls made from another shared library. Logger integration coverage relies on this to prove both libraries observe the same stream state and output capture.
+
 Tests should not assume Terminal can prevent interleaving with `std::cout`, `std::cerr`, `printf`, direct OS writes, or third-party terminal writes.
 
 Successful hot paths should avoid unnecessary allocation. `StyleMode::Never` should avoid style overhead, and segmented writes should be the preferred logger/tool output path.

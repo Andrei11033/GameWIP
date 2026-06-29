@@ -1,6 +1,6 @@
 @page test_support_public_api TestSupport public API
 
-Include `test_support/test_support.h`. TestSupport remains independent of Logger, Assert, Terminal, and engine libraries.
+Include `test_support/test_support.h`. TestSupport remains independent of every project library, including IO, FileSystem, Terminal, Logger, Assert, engine, and game code. It uses the standard library and its own platform backend instead.
 
 Passive options and results live in `GameWIP::TestSupport::Types`; active helpers live directly in `GameWIP::TestSupport`.
 

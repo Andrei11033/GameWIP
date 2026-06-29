@@ -44,6 +44,10 @@ This file intentionally focuses on observable contracts and failure coverage, no
 * [x] Output mode `Console` is covered where the platform supports it.
 * [x] Output mode `File` is covered where the platform supports it.
 * [x] Output mode `Both` is covered where the platform supports it.
+* [x] Logger console output routes through the shared Terminal runtime with one complete record per write.
+* [x] Logger console severity colors, stdout/stderr routing, redirected fallback, UTF-8 text, and native line endings are covered.
+* [x] Logger file output accepts UTF-8 directories and returns UTF-8 log-file paths.
+* [x] Logger file output permits readers while its persistent writer remains open.
 * [x] String source logging is covered.
 * [x] Registered `SourceId` logging is covered.
 * [x] Enum source logging is covered.
@@ -270,6 +274,7 @@ TestSupport public data types and basic suite/report behavior are validated.
 * [x] File expectation helpers do not crash the runner.
 * [x] Expectations record failures and keep later checks running.
 * [x] TestSupport expectations do not call Assert macros internally.
+* [x] TestSupport has no project-library link dependencies.
 
 Completion goal:
 
@@ -481,6 +486,10 @@ FileSystem validation should expand with the implementation so the full public c
 * [x] Logger tests run through the current test executable.
 * [x] Assert tests run through the current test executable.
 * [x] TestSupport tests run through the current test executable.
+* [x] Terminal tests run through a shared Terminal runtime.
+* [x] Installed Terminal, Logger, Assert, and TestSupport packages configure, build, and run in a standalone consumer.
+* [x] Project executables receive the shared Terminal runtime beside the executable.
+* [x] Logger integration tests observe the same Terminal hook state as direct Terminal calls.
 * [x] FileSystem tests can use generic TestSupport helpers.
 * [x] Logger tests can use generic TestSupport helpers.
 * [x] Assert tests can use generic TestSupport helpers.

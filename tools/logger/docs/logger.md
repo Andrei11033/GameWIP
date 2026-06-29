@@ -30,4 +30,6 @@ Use @ref GameWIP::Logger for lifecycle, filtering, logging, reporting, statistic
 
 Normal log calls are asynchronous, queue-based, and filterable. Report calls are synchronous, bypass filters and the async queue, write to active sinks immediately, and flush before returning.
 
+Logger uses FileSystem and IO for its file sink and the shared Terminal runtime for stdout/stderr, portable styling, Unicode output, redirection, and line endings. Its private platform backend owns only Logger-specific debugger output, fatal UI, time, process-memory, and thread-scratch behavior.
+
 `Logger::fatal(...)` is a fatal-severity normal log; use `reportFatal(...)` or `fatalTerminate(...)` when the failure path must flush, request the fatal popup, or terminate.

@@ -15,6 +15,7 @@ target_include_directories(IO PUBLIC
 target_compile_features(IO PUBLIC cxx_std_23)
 
 set_target_properties(IO PROPERTIES
+    POSITION_INDEPENDENT_CODE ON
     ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
 )
 

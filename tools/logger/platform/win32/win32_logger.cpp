@@ -9,7 +9,6 @@
 #include <windows.h>
 #include <psapi.h>
 
-#include <algorithm>
 #include <cstdint>
 #include <cstring>
 #include <limits>
@@ -37,14 +36,6 @@ namespace
     PlatformError makePlatformError(PlatformErrorSource source, std::uint64_t nativeCode)
     {
         return PlatformError{source, nativeCode};
-    }
-
-    /// @brief Checks for embedded NUL bytes before forwarding text to null-terminated Win32 APIs.
-    /// @param text UTF-8/narrow text supplied to a Win32 API wrapper.
-    /// @return True when text contains an embedded NUL byte.
-    bool containsNul(std::string_view text) noexcept
-    {
-        return text.find('\0') != std::string_view::npos;
     }
 
     /// @brief Converts UTF-8 logger text to UTF-16 for Win32 W APIs.
@@ -108,13 +99,6 @@ namespace
         }
 
         return result;
-    }
-
-    /// @brief Returns the Win32 standard handle for a logger console stream.
-    HANDLE consoleHandle(GameWIP::Logger::Detail::Platform::ConsoleStream stream)
-    {
-        const DWORD handleId = stream == GameWIP::Logger::Detail::Platform::ConsoleStream::Stderr ? STD_ERROR_HANDLE : STD_OUTPUT_HANDLE;
-        return GetStdHandle(handleId);
     }
 
 #if defined(__MINGW32__)
@@ -252,207 +236,6 @@ namespace GameWIP::Logger::Detail::Platform
 
         outText.assign(timeBuffer, written);
         return noPlatformError();
-    }
-
-    /// @brief Opens a Win32 file handle with CREATE_NEW to avoid check-then-open races.
-    /// @param path UTF-8/narrow path text.
-    /// @param outHandle Receives the opened file handle on success.
-    /// @return Structured platform error, or source None on success.
-    GameWIP::Logger::Types::PlatformError openFileExclusive(std::string_view path, FileHandle &outHandle)
-    {
-        outHandle = {};
-
-        if (containsNul(path))
-        {
-            return makePlatformError(PlatformErrorSource::File, ERROR_INVALID_NAME);
-        }
-
-        std::wstring pathText;
-        unsigned long conversionError = 0;
-        if (!utf8ToWide(path, pathText, conversionError))
-        {
-            return makePlatformError(PlatformErrorSource::File, conversionError);
-        }
-
-        HANDLE nativeHandle = CreateFileW(pathText.c_str(), GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, nullptr);
-        if (nativeHandle == INVALID_HANDLE_VALUE)
-        {
-            return makePlatformError(PlatformErrorSource::File, GetLastError());
-        }
-
-        outHandle.native = nativeHandle;
-        return noPlatformError();
-    }
-
-    /// @brief Creates a directory tree using Win32 calls.
-    /// @param path UTF-8/narrow directory path.
-    /// @return Structured platform error, or source None on success.
-    GameWIP::Logger::Types::PlatformError createDirectories(std::string_view path)
-    {
-        if (path.empty())
-        {
-            return makePlatformError(PlatformErrorSource::File, ERROR_PATH_NOT_FOUND);
-        }
-        if (containsNul(path))
-        {
-            return makePlatformError(PlatformErrorSource::File, ERROR_INVALID_NAME);
-        }
-
-        std::wstring normalized;
-        unsigned long conversionError = 0;
-        if (!utf8ToWide(path, normalized, conversionError))
-        {
-            return makePlatformError(PlatformErrorSource::File, conversionError);
-        }
-
-        std::replace(normalized.begin(), normalized.end(), L'/', L'\\');
-
-        std::size_t start = 0;
-        if (normalized.size() >= 3 && normalized[1] == L':' && normalized[2] == L'\\')
-        {
-            start = 3;
-        }
-        else if (normalized.size() >= 2 && normalized[0] == L'\\' && normalized[1] == L'\\')
-        {
-            start = normalized.find(L'\\', 2);
-            if (start == std::wstring::npos)
-            {
-                return makePlatformError(PlatformErrorSource::File, ERROR_BAD_PATHNAME);
-            }
-            start = normalized.find(L'\\', start + 1);
-            if (start == std::wstring::npos)
-            {
-                return makePlatformError(PlatformErrorSource::File, ERROR_BAD_PATHNAME);
-            }
-            ++start;
-        }
-
-        for (std::size_t position = normalized.find(L'\\', start); position != std::wstring::npos; position = normalized.find(L'\\', position + 1))
-        {
-            const std::wstring partial = normalized.substr(0, position);
-            if (!partial.empty() && CreateDirectoryW(partial.c_str(), nullptr) == 0)
-            {
-                const DWORD error = GetLastError();
-                if (error != ERROR_ALREADY_EXISTS)
-                {
-                    return makePlatformError(PlatformErrorSource::File, error);
-                }
-            }
-        }
-
-        if (CreateDirectoryW(normalized.c_str(), nullptr) == 0)
-        {
-            const DWORD error = GetLastError();
-            if (error != ERROR_ALREADY_EXISTS)
-            {
-                return makePlatformError(PlatformErrorSource::File, error);
-            }
-        }
-
-        const DWORD attributes = GetFileAttributesW(normalized.c_str());
-        if (attributes == INVALID_FILE_ATTRIBUTES)
-        {
-            return makePlatformError(PlatformErrorSource::File, GetLastError());
-        }
-        if ((attributes & FILE_ATTRIBUTE_DIRECTORY) == 0)
-        {
-            return makePlatformError(PlatformErrorSource::File, ERROR_DIRECTORY);
-        }
-
-        return noPlatformError();
-    }
-
-    /// @brief Writes all bytes to a Win32 file handle.
-    /// @param handle File handle opened by openFileExclusive.
-    /// @param text Bytes to write.
-    /// @return Structured platform error, or source None on success.
-    GameWIP::Logger::Types::PlatformError writeFile(FileHandle handle, std::string_view text)
-    {
-        if (!isFileOpen(handle))
-        {
-            return makePlatformError(PlatformErrorSource::File, ERROR_INVALID_HANDLE);
-        }
-
-        const char *cursor = text.data();
-        std::size_t remaining = text.size();
-        while (remaining > 0)
-        {
-            const DWORD chunkSize = remaining > static_cast<std::size_t>(std::numeric_limits<DWORD>::max()) ? std::numeric_limits<DWORD>::max()
-                                                                                                            : static_cast<DWORD>(remaining);
-            DWORD written = 0;
-            if (WriteFile(static_cast<HANDLE>(handle.native), cursor, chunkSize, &written, nullptr) == 0)
-            {
-                return makePlatformError(PlatformErrorSource::File, GetLastError());
-            }
-            if (written == 0)
-            {
-                return makePlatformError(PlatformErrorSource::File, ERROR_WRITE_FAULT);
-            }
-
-            cursor += written;
-            remaining -= written;
-        }
-
-        return noPlatformError();
-    }
-
-    /// @brief Flushes a Win32 file handle.
-    /// @param handle File handle opened by openFileExclusive.
-    /// @return Structured platform error, or source None on success.
-    GameWIP::Logger::Types::PlatformError flushFile(FileHandle handle)
-    {
-        if (!isFileOpen(handle))
-        {
-            return makePlatformError(PlatformErrorSource::File, ERROR_INVALID_HANDLE);
-        }
-
-        if (FlushFileBuffers(static_cast<HANDLE>(handle.native)) == 0)
-        {
-            return makePlatformError(PlatformErrorSource::File, GetLastError());
-        }
-        return noPlatformError();
-    }
-
-    /// @brief Closes a Win32 file handle.
-    /// @param handle File handle opened by openFileExclusive.
-    void closeFile(FileHandle handle)
-    {
-        if (isFileOpen(handle))
-        {
-            CloseHandle(static_cast<HANDLE>(handle.native));
-        }
-    }
-
-    /// @brief Checks whether a Win32 file handle is valid.
-    /// @param handle File handle to inspect.
-    /// @return True when native is neither null nor INVALID_HANDLE_VALUE.
-    bool isFileOpen(FileHandle handle)
-    {
-        return handle.native != nullptr && handle.native != INVALID_HANDLE_VALUE;
-    }
-
-    /// @brief Checks whether ANSI color can be safely written to a Win32 console stream.
-    bool supportsAnsiColor(ConsoleStream stream)
-    {
-        const HANDLE handle = consoleHandle(stream);
-        if (handle == nullptr || handle == INVALID_HANDLE_VALUE)
-        {
-            return false;
-        }
-
-        DWORD mode = 0;
-        if (GetConsoleMode(handle, &mode) == 0)
-        {
-            return false;
-        }
-
-        if ((mode & ENABLE_VIRTUAL_TERMINAL_PROCESSING) != 0)
-        {
-            return true;
-        }
-
-        const DWORD updatedMode = mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING;
-        return SetConsoleMode(handle, updatedMode) != 0;
     }
 
     /// @brief Queries process-level memory counters from Win32.
