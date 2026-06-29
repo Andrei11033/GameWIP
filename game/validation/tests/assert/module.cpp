@@ -1,3 +1,6 @@
+/// @file module.cpp
+/// @brief Registers the Assert correctness-test module with the validation runner.
+
 #include "validation/tests/assert/assert_test.h"
 
 #include "validation/tests/registry.h"
@@ -6,6 +9,7 @@
 
 namespace
 {
+    /// @brief Detects crash/debug child invocations owned by Assert tests.
     bool handlesChildArguments(int argc, char **argv)
     {
         for (int index = 1; index < argc; ++index)
@@ -18,6 +22,7 @@ namespace
         return false;
     }
 
+    /// @brief Maps shared runner policy to Assert-specific options and executes the suite.
     int run(const GameWIP::Validation::Tests::ModuleInvocation &invocation)
     {
         GameWIP::Test::AssertTestOptions options;
@@ -34,6 +39,7 @@ namespace
         return GameWIP::Test::runAssertTests(invocation.argc, invocation.argv, options);
     }
 
+    /// @brief Process-local static registration for deterministic Assert module discovery.
     const GameWIP::Validation::Tests::Registration registration({
         .name = "assert",
         .order = 60,

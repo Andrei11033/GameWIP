@@ -25,7 +25,7 @@ namespace GameWIP::Validation::Tests
         bool enableManualUiTests = false;
         /// @brief Enables Logger's real fatal-popup check.
         bool enableLoggerPopupTest = false;
-        /// @brief Mirrors all report categories to stdout instead of concise failure/result output.
+        /// @brief Mirrors all suite report categories to stdout instead of minimal actionable output.
         bool verboseConsole = false;
         /// @brief Worker count shared by stress scenarios.
         std::size_t stressThreadCount = 8;

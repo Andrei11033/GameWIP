@@ -18,7 +18,7 @@ Report files are buffered by default, flushed after each completed suite, and fl
 
 Report write failures do not abort the test process. They disable further file output while console reporting and result aggregation continue.
 
-`ConsoleVerbosity::Concise` keeps stdout focused on failures, skips, manual instructions, results, and summaries. The report file still receives every category.
+`ConsoleVerbosity::Minimal` writes only failures, skips, and manual instructions. `ConsoleVerbosity::Concise` also writes results and summaries. `ConsoleVerbosity::Full` mirrors every category. The report file receives every category in all three modes.
 
 ## Process and environment isolation
 

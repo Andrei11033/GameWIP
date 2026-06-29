@@ -13,6 +13,7 @@ namespace GameWIP::Validation::Benchmarks
 {
     namespace
     {
+        /// @brief Identifies Google Benchmark arguments that may be forwarded from the game command line.
         [[nodiscard]] bool isEmbeddedBenchmarkArgument(std::string_view argument)
         {
             return argument == "--help" || argument.starts_with("--benchmark_") || argument.starts_with("--v=");

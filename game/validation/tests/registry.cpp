@@ -10,6 +10,7 @@ namespace GameWIP::Validation::Tests
 {
     namespace
     {
+        /// @brief Owns registrations without depending on cross-translation-unit initialization order.
         std::vector<Module> &moduleStorage()
         {
             static std::vector<Module> modules;

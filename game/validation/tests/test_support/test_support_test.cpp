@@ -43,6 +43,7 @@ namespace
     constexpr std::string_view kChildUnsetVariable = "INTERNAL_TEST_SUPPORT_CHILD_UNSET";
     constexpr std::string_view kScopedVariable = "INTERNAL_TEST_SUPPORT_SCOPED_ENV";
 
+    /// @brief Returns whether one exact child-mode argument is present.
     bool hasArgument(int argc, char **argv, std::string_view argument)
     {
         for (int index = 1; index < argc; ++index)
@@ -55,6 +56,7 @@ namespace
         return false;
     }
 
+    /// @brief Returns the argument immediately following a named option.
     std::string argumentAfter(int argc, char **argv, std::string_view argument)
     {
         for (int index = 1; index + 1 < argc; ++index)
@@ -67,6 +69,7 @@ namespace
         return {};
     }
 
+    /// @brief Creates file-only report options for tests that inspect emitted text.
     TestSupport::Types::ReportOptions quietReport(const std::filesystem::path &path)
     {
         TestSupport::Types::ReportOptions options;
@@ -78,6 +81,7 @@ namespace
         return options;
     }
 
+    /// @brief Redirects standard input/output while a prompt test owns the process streams.
     struct ScopedPromptStreams
     {
         std::istringstream input;
@@ -85,6 +89,7 @@ namespace
         std::streambuf *previousInput = nullptr;
         std::streambuf *previousOutput = nullptr;
 
+        /// @brief Replaces standard prompt streams with deterministic string streams.
         explicit ScopedPromptStreams(std::string_view text)
             : input(std::string(text))
         {
@@ -102,12 +107,14 @@ namespace
         ScopedPromptStreams &operator=(const ScopedPromptStreams &) = delete;
     };
 
+    /// @brief Runs one manual prompt against deterministic captured input.
     TestSupport::Types::ManualAnswer promptWithInput(std::string_view input)
     {
         ScopedPromptStreams streams(input);
         return TestSupport::promptManualCheck("automated prompt check");
     }
 
+    /// @brief Implements child modes used to verify capture, timeout, environment, and exit behavior.
     int runTestSupportChild(int argc, char **argv)
     {
         if (hasArgument(argc, argv, kEnvironmentChildArgument))
@@ -172,6 +179,7 @@ namespace
         return 2;
     }
 
+    /// @brief Verifies summary arithmetic, result predicates, defaults, and timer units.
     void testSummaryAndTimer(TestSupport::Context &context)
     {
         const TestSupport::Types::ReportOptions defaultOptions;
@@ -207,6 +215,7 @@ namespace
         static_cast<void>(context.expectTrue("Timer elapsed increases", timer.elapsedMilliseconds() > 0.0));
     }
 
+    /// @brief Verifies text helpers and scoped temporary/current-directory lifetime behavior.
     void testFileHelpers(TestSupport::Context &context, const std::filesystem::path &root)
     {
         const std::filesystem::path path = root / "files" / "sample.txt";
@@ -261,6 +270,7 @@ namespace
         static_cast<void>(context.expectEq("ScopedCurrentPath restores the process path", originalCurrentPath, std::filesystem::current_path()));
     }
 
+    /// @brief Verifies Context categories, expectation diagnostics, counts, and report failures.
     void testContextReporting(TestSupport::Context &context, const std::filesystem::path &root)
     {
         const std::filesystem::path reportPath = root / "context_report.txt";
@@ -310,6 +320,7 @@ namespace
         context.pass("Context continued after nested failures");
     }
 
+    /// @brief Verifies append, truncate, flush, and console-verbosity report modes.
     void testReportModes(TestSupport::Context &context, const std::filesystem::path &root)
     {
         const std::filesystem::path noReportPath = root / "no_report.txt";
@@ -394,8 +405,31 @@ namespace
         static_cast<void>(context.expectContains("Concise console includes failures", conciseOutput, "visible failure"));
         static_cast<void>(context.expectContains("Concise console includes skips", conciseOutput, "visible skip"));
         static_cast<void>(context.expectContains("Concise console includes summaries", conciseOutput, "visible summary"));
+
+        std::string minimalOutput;
+        {
+            ScopedPromptStreams captured("");
+            TestSupport::Types::ReportOptions minimalOptions;
+            minimalOptions.writeReport = false;
+            minimalOptions.consoleVerbosity = TestSupport::Types::ConsoleVerbosity::Minimal;
+            TestSupport::Context minimal("Minimal", minimalOptions);
+            minimal.info("hidden minimal info");
+            minimal.pass("hidden minimal pass");
+            minimal.fail("visible minimal failure", "expected test failure");
+            minimal.skip("visible minimal skip", "expected test skip");
+            minimal.manual("visible minimal instruction");
+            minimal.summary("hidden minimal summary");
+            minimalOutput = captured.output.str();
+        }
+        static_cast<void>(context.expectFalse("Minimal console hides info", minimalOutput.find("hidden minimal info") != std::string::npos));
+        static_cast<void>(context.expectFalse("Minimal console hides passes", minimalOutput.find("hidden minimal pass") != std::string::npos));
+        static_cast<void>(context.expectFalse("Minimal console hides summaries", minimalOutput.find("hidden minimal summary") != std::string::npos));
+        static_cast<void>(context.expectContains("Minimal console includes failures", minimalOutput, "visible minimal failure"));
+        static_cast<void>(context.expectContains("Minimal console includes skips", minimalOutput, "visible minimal skip"));
+        static_cast<void>(context.expectContains("Minimal console includes manual instructions", minimalOutput, "visible minimal instruction"));
     }
 
+    /// @brief Verifies accepted manual-answer spellings, retries, and EOF behavior.
     void testPromptManualCheck(TestSupport::Context &context)
     {
         static_cast<void>(context.expectTrue("promptManualCheck accepts yes", promptWithInput("yes\n") == TestSupport::Types::ManualAnswer::Yes));
@@ -411,6 +445,7 @@ namespace
             context.expectTrue("promptManualCheck returns skipped on EOF", promptWithInput("") == TestSupport::Types::ManualAnswer::Skipped));
     }
 
+    /// @brief Converts one expected manual response into a pass, skip, or failure.
     void recordExpectedManualAnswer(
         TestSupport::Context &context,
         std::string_view name,
@@ -433,6 +468,7 @@ namespace
         context.fail(name, "manual answer did not match the requested response");
     }
 
+    /// @brief Runs gated human prompt checks or records their disabled skip.
     void testManualPromptChecks(TestSupport::Context &context, const TestSupportTestOptions &options)
     {
         if (!options.enableManualTests)
@@ -458,6 +494,7 @@ namespace
             TestSupport::Types::ManualAnswer::Skipped);
     }
 
+    /// @brief Verifies Runner aggregation, exception capture, and Section diagnostics.
     void testRunnerAndSection(TestSupport::Context &context, const std::filesystem::path &root)
     {
         TestSupport::Types::ReportOptions runnerOptions = quietReport(root / "runner_report.txt");
@@ -511,6 +548,7 @@ namespace
         static_cast<void>(context.expectEq("Throwing runner exit code failure", 1, throwingRunner.exitCode()));
     }
 
+    /// @brief Verifies scoped environment set/unset and exact restoration behavior.
     void testEnvironmentHelpers(TestSupport::Context &context)
     {
         {
@@ -556,6 +594,7 @@ namespace
         }
     }
 
+    /// @brief Verifies child launch, merged capture, truncation, timeout, environment, and process-tree cleanup.
     void testChildProcesses(TestSupport::Context &context, std::string_view executablePath, const TestSupportTestOptions &options)
     {
         if (!options.enableChildProcessTests)
@@ -678,6 +717,7 @@ namespace
         }
     }
 
+    /// @brief Verifies worker coordination, exception propagation, and bounded wait helpers.
     void testStressHelpers(TestSupport::Context &context, const TestSupportTestOptions &options)
     {
         if (!options.enableStressTests)
@@ -720,6 +760,7 @@ namespace
         static_cast<void>(context.expectTrue("StopFlag records stop request", stopFlag.stopRequested()));
         static_cast<void>(context.expectEq("runWorkers joins all workers", std::size_t{4}, stopped.load(std::memory_order_relaxed)));
 
+        /// @brief Assigns each copied worker callable a distinct id and records executed copies.
         struct WorkerCopyRecorder
         {
             std::shared_ptr<std::atomic<std::size_t>> nextId;
@@ -750,6 +791,7 @@ namespace
             WorkerCopyRecorder &operator=(const WorkerCopyRecorder &) = delete;
             WorkerCopyRecorder &operator=(WorkerCopyRecorder &&) noexcept = delete;
 
+            /// @brief Records the identity of this per-worker callable copy.
             void operator()(std::size_t)
             {
                 std::lock_guard lock(*mutex);
@@ -812,7 +854,7 @@ namespace GameWIP::Test
         TestSupport::Types::ReportOptions reportOptions;
         reportOptions.writeConsole = true;
         reportOptions.consoleVerbosity =
-            options.verboseConsole ? TestSupport::Types::ConsoleVerbosity::Full : TestSupport::Types::ConsoleVerbosity::Concise;
+            options.verboseConsole ? TestSupport::Types::ConsoleVerbosity::Full : TestSupport::Types::ConsoleVerbosity::Minimal;
         reportOptions.writeReport = options.writeReport;
         reportOptions.appendReport = options.appendReport;
         reportOptions.reportPath = options.reportPath;

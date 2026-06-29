@@ -19,12 +19,14 @@ namespace GameWIP::Validation::Tests
 {
     namespace
     {
+        /// @brief Command-line module selection and exclusions resolved before execution.
         struct Selection
         {
             std::optional<std::string> module;
             std::set<std::string, std::less<>> excludedModules;
         };
 
+        /// @brief Returns whether the process arguments contain one exact option.
         [[nodiscard]] bool hasArgument(int argc, char **argv, std::string_view argument)
         {
             for (int index = 1; index < argc; ++index)
@@ -37,6 +39,7 @@ namespace GameWIP::Validation::Tests
             return false;
         }
 
+        /// @brief Returns the value following a matched argument prefix.
         [[nodiscard]] std::optional<std::string> argumentValue(int argc, char **argv, std::string_view prefix)
         {
             for (int index = 1; index < argc; ++index)
@@ -55,6 +58,7 @@ namespace GameWIP::Validation::Tests
             return std::nullopt;
         }
 
+        /// @brief Applies supported command-line overrides and returns the requested module selection.
         Selection applyArguments(int argc, char **argv, RunOptions &options)
         {
             Selection selection;
@@ -121,6 +125,8 @@ namespace GameWIP::Validation::Tests
             return selection;
         }
 
+        /// @brief Resolves relative reports beneath the GameWIP temp root and rejects parent traversal.
+        /// @details Invalid or empty paths disable file reporting without changing test execution.
         void resolveReportOutput(RunOptions &options)
         {
             if (!options.writeReport)
@@ -160,6 +166,7 @@ namespace GameWIP::Validation::Tests
             }
         }
 
+        /// @brief Copies static registrations into deterministic order for child routing and execution.
         [[nodiscard]] std::vector<Module> sortedModules()
         {
             const std::span<const Module> registrations = registeredModules();
@@ -174,6 +181,7 @@ namespace GameWIP::Validation::Tests
             return modules;
         }
 
+        /// @brief Rejects incomplete and duplicate module registrations before any module runs.
         [[nodiscard]] bool validModules(const std::vector<Module> &modules)
         {
             std::set<std::string_view> names;

@@ -1,3 +1,6 @@
+/// @file module.cpp
+/// @brief Registers the TestSupport correctness-test module with the validation runner.
+
 #include "validation/tests/test_support/test_support_test.h"
 
 #include "validation/tests/registry.h"
@@ -6,6 +9,7 @@
 
 namespace
 {
+    /// @brief Detects child-process protocol invocations owned by TestSupport tests.
     bool handlesChildArguments(int argc, char **argv)
     {
         for (int index = 1; index < argc; ++index)
@@ -18,6 +22,7 @@ namespace
         return false;
     }
 
+    /// @brief Maps shared runner policy to TestSupport-specific options and executes the suite.
     int run(const GameWIP::Validation::Tests::ModuleInvocation &invocation)
     {
         GameWIP::Test::TestSupportTestOptions options;
@@ -31,6 +36,7 @@ namespace
         return GameWIP::Test::runTestSupportTests(invocation.argc, invocation.argv, options);
     }
 
+    /// @brief Process-local static registration for deterministic TestSupport module discovery.
     const GameWIP::Validation::Tests::Registration registration({
         .name = "test_support",
         .order = 40,

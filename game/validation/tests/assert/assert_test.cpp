@@ -62,6 +62,7 @@ namespace
     /// @brief Mutable test state and TestSupport-backed reporting for the assert suite.
     struct TestContext
     {
+        /// @brief Binds this adapter to one TestSupport suite context.
         explicit TestContext(TestSupport::Context &testContext) noexcept
             : testContext(testContext)
         {
@@ -70,16 +71,19 @@ namespace
         TestSupport::Context &testContext;
         std::filesystem::path logRoot;
         std::string executablePath;
+        /// @brief Returns the current TestSupport summary snapshot.
         [[nodiscard]] TestSupport::Types::Summary result() const noexcept
         {
             return testContext.result();
         }
 
+        /// @brief Returns whether no failure has been recorded.
         [[nodiscard]] bool ok() const noexcept
         {
             return testContext.ok();
         }
 
+        /// @brief Routes a legacy categorized line through structured TestSupport output.
         void emit(std::string_view line)
         {
             std::string text(line);
@@ -166,17 +170,20 @@ namespace
             static_cast<void>(testContext.expectEq(name, expected, actual));
         }
 
+        /// @brief Records whether text contains the required substring.
         void expectContains(std::string_view name, std::string_view text, std::string_view expectedSubstring)
         {
             static_cast<void>(testContext.expectContains(name, text, expectedSubstring));
         }
 
+        /// @brief Records whether one fixture file contains the required substring.
         void expectFileContains(std::string_view name, const std::filesystem::path &path, std::string_view expectedSubstring)
         {
             static_cast<void>(testContext.expectFileContains(name, path, expectedSubstring));
         }
     };
 
+    /// @brief Runs one scenario with timing and converts uncaught exceptions into test failures.
     template <typename Function> void runCase(TestContext &context, std::string_view name, Function &&function)
     {
         TestSupport::Section section(context.testContext, name);
@@ -279,6 +286,7 @@ namespace
         return contents;
     }
 
+    /// @brief Counts non-overlapping occurrences in captured diagnostic text.
     std::size_t countOccurrences(std::string_view text, std::string_view needle)
     {
         if (needle.empty())
@@ -545,26 +553,31 @@ namespace
 #endif
     }
 
+    /// @brief Provides one stable macro call site for automated Always Ignore behavior.
     void interactiveAlwaysIgnoreSite()
     {
         ASSERT_INTERACTIVE_MSG(false, "interactive always ignore test");
     }
 
+    /// @brief Provides one stable macro call site for automated Ignore Once behavior.
     void interactiveIgnoreOnceSite()
     {
         ASSERT_INTERACTIVE_MSG(false, "interactive ignore once repeat test");
     }
 
+    /// @brief Provides a stable VERIFY_INTERACTIVE site while tracking expression evaluation.
     void verifyInteractiveAlwaysIgnoreSite(int &evaluations)
     {
         VERIFY_INTERACTIVE_MSG(++evaluations < 0, "verify interactive always ignore test");
     }
 
+    /// @brief Provides one CHECK_ONCE call site shared by all stress-test threads.
     void threadedCheckOnceSite()
     {
         CHECK_ONCE_MSG(false, "threaded check once stress");
     }
 
+    /// @brief Verifies dialog, debugger, and popup-suppression test hooks and reset behavior.
     void testAssertTestHooks(TestContext &context)
     {
 #if INTERNAL_ASSERT_TEST_HOOKS
@@ -598,6 +611,7 @@ namespace
 #endif
     }
 
+    /// @brief Verifies Ignore Once reports each invocation without suppressing the call site.
     void testInteractiveIgnoreOnce(TestContext &context)
     {
 #if ASSERT_ENABLED
@@ -636,6 +650,7 @@ namespace
 #endif
     }
 
+    /// @brief Verifies Always Ignore suppresses later failures only at the same macro call site.
     void testInteractiveAlwaysIgnore(TestContext &context)
     {
 #if ASSERT_ENABLED
@@ -671,6 +686,7 @@ namespace
 #endif
     }
 
+    /// @brief Verifies interactive VERIFY evaluates its expression exactly once per invocation.
     void testVerifyInteractiveEvaluation(TestContext &context)
     {
         ScopedLoggerShutdown loggerShutdown;
@@ -710,6 +726,7 @@ namespace
 #endif
     }
 
+    /// @brief Verifies Always Ignore suppresses diagnostics without suppressing VERIFY evaluation.
     void testVerifyInteractiveAlwaysIgnoreStillEvaluates(TestContext &context)
     {
 #if ASSERT_ENABLED
@@ -744,6 +761,7 @@ namespace
 #endif
     }
 
+    /// @brief Verifies one CHECK_ONCE site reports at most once under concurrent contention.
     void testCheckOnceThreadStress(TestContext &context, const AssertTestOptions &options)
     {
 #if ASSERT_CHECKS_ENABLED
@@ -796,6 +814,7 @@ namespace
 #endif
     }
 
+    /// @brief Verifies repeated automated interactive actions retain call-site state correctly.
     void testInteractiveStressLoops(TestContext &context, const AssertTestOptions &options)
     {
 #if ASSERT_ENABLED
@@ -861,6 +880,7 @@ namespace
         return 0;
     }
 
+    /// @brief Executes the interactive Abort child protocol; correct behavior terminates the process.
     int runInteractiveAbortChild()
     {
 #if defined(_WIN32)
@@ -883,6 +903,7 @@ namespace
         return 0;
     }
 
+    /// @brief Executes the interactive Break child protocol under deterministic debugger hooks.
     int runInteractiveBreakChild()
     {
 #if defined(_WIN32)
@@ -979,6 +1000,7 @@ namespace
 #endif
     }
 
+    /// @brief Verifies interactive Abort reports before terminating its child process.
     void testInteractiveAbortChild(TestContext &context, const AssertTestOptions &options)
     {
 #if ASSERT_ENABLED
@@ -1016,6 +1038,7 @@ namespace
 #endif
     }
 
+    /// @brief Verifies interactive Break child handling without requiring a real debugger.
     void testInteractiveBreakChild(TestContext &context, const AssertTestOptions &options)
     {
 #if ASSERT_ENABLED
@@ -1072,21 +1095,25 @@ namespace
 #endif
     }
 
+    /// @brief Provides the stable call site used by the human Ignore Once dialog check.
     void manualInteractiveIgnoreOnceSite()
     {
         ASSERT_INTERACTIVE_MSG(false, "manual assert UI Ignore Once test - click Ignore Once to continue");
     }
 
+    /// @brief Provides the stable call site used by the human Always Ignore dialog check.
     void manualInteractiveAlwaysIgnoreSite()
     {
         ASSERT_INTERACTIVE_MSG(false, "manual assert UI Always Ignore test - click Always Ignore to suppress the second call");
     }
 
+    /// @brief Provides the stable call site used by the human debugger Break check.
     void manualInteractiveBreakSite()
     {
         ASSERT_INTERACTIVE_MSG(false, "manual assert UI Break test - click Break while a debugger is attached, then continue execution");
     }
 
+    /// @brief Runs opt-in human checks for real action dialogs, fallback UI, and debugger breaks.
     void testManualAssertUi(TestContext &context, const AssertTestOptions &options)
     {
         if (!options.enableManualUiTests)
@@ -1203,7 +1230,7 @@ namespace GameWIP::Test
         TestSupport::Types::ReportOptions reportOptions;
         reportOptions.writeConsole = true;
         reportOptions.consoleVerbosity =
-            options.verboseConsole ? TestSupport::Types::ConsoleVerbosity::Full : TestSupport::Types::ConsoleVerbosity::Concise;
+            options.verboseConsole ? TestSupport::Types::ConsoleVerbosity::Full : TestSupport::Types::ConsoleVerbosity::Minimal;
         reportOptions.writeReport = options.writeReport;
         reportOptions.appendReport = options.appendReport;
         reportOptions.reportPath = options.reportPath;

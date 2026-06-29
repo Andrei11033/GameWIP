@@ -20,6 +20,7 @@ namespace
     constexpr std::string_view source = "LoggerBenchmark";
     constexpr std::string_view message = "logger benchmark message";
 
+    /// @brief Creates deterministic Logger settings shared by all producer benchmarks.
     Logger::Types::Config baseConfig()
     {
         Logger::Types::Config config;
@@ -40,9 +41,11 @@ namespace
         return config;
     }
 
+    /// @brief Owns Logger lifecycle, temporary file output, and post-run counters outside timed iterations.
     class LoggerFixture : public benchmark::Fixture
     {
     protected:
+        /// @brief Initializes Logger and optional temporary file output before timed iterations.
         bool initialize(benchmark::State &state, Logger::Types::Config config, std::string_view directoryName = {})
         {
             Logger::shutdown();
@@ -70,6 +73,7 @@ namespace
             return initialized_;
         }
 
+        /// @brief Flushes, publishes counters, shuts down, and removes temporary output after timing.
         void TearDown(benchmark::State &state) override
         {
             if (initialized_)
@@ -99,9 +103,11 @@ namespace
         std::string directoryText_;
     };
 
+    /// @brief Configures the producer path with all output disabled.
     class OutputDisabledFixture : public LoggerFixture
     {
     public:
+        /// @brief Starts the disabled-output producer configuration.
         void SetUp(benchmark::State &state) override
         {
             Logger::Types::Config config = baseConfig();
@@ -124,9 +130,11 @@ namespace
         state.SetItemsProcessed(state.iterations());
     }
 
+    /// @brief Configures a file logger that rejects formatted Info messages by severity.
     class FilteredFormattedFixture : public LoggerFixture
     {
     public:
+        /// @brief Starts the severity-filtered formatted producer configuration.
         void SetUp(benchmark::State &state) override
         {
             Logger::Types::Config config = baseConfig();
@@ -152,9 +160,11 @@ namespace
         state.SetItemsProcessed(state.iterations());
     }
 
+    /// @brief Configures the accepted asynchronous file-producer path.
     class EnabledFileFixture : public LoggerFixture
     {
     public:
+        /// @brief Starts the accepted asynchronous file producer configuration.
         void SetUp(benchmark::State &state) override
         {
             Logger::Types::Config config = baseConfig();

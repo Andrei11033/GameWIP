@@ -19,7 +19,7 @@ namespace GameWIP::Test
         bool enableAutomatedInteractiveTests = true;
         /// @brief Enables manual UI tests that require the user to click real Windows dialogs.
         bool enableManualUiTests = false;
-        /// @brief Writes passing checks and diagnostics to stdout in addition to failures and summaries.
+        /// @brief Mirrors complete suite output to stdout instead of only failures, skips, and manual instructions.
         bool verboseConsole = false;
         /// @brief Number of worker threads used by assert stress tests.
         std::size_t stressThreadCount = 4;

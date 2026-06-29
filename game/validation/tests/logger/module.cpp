@@ -1,3 +1,6 @@
+/// @file module.cpp
+/// @brief Registers the Logger correctness-test module with the validation runner.
+
 #include "validation/tests/logger/logger_test.h"
 
 #include "validation/tests/registry.h"
@@ -6,6 +9,7 @@
 
 namespace
 {
+    /// @brief Detects fatal-termination child invocations owned by Logger tests.
     bool handlesChildArguments(int argc, char **argv)
     {
         for (int index = 1; index < argc; ++index)
@@ -18,6 +22,7 @@ namespace
         return false;
     }
 
+    /// @brief Maps shared runner policy to Logger-specific options and executes the suite.
     int run(const GameWIP::Validation::Tests::ModuleInvocation &invocation)
     {
         GameWIP::Test::LoggerTestOptions options;
@@ -34,6 +39,7 @@ namespace
         return GameWIP::Test::runLoggerTests(invocation.argc, invocation.argv, options);
     }
 
+    /// @brief Process-local static registration for deterministic Logger module discovery.
     const GameWIP::Validation::Tests::Registration registration({
         .name = "logger",
         .order = 50,

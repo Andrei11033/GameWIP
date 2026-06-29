@@ -6,10 +6,10 @@
 - `writeReport` writes report lines to `reportPath`.
 - `appendReport` appends instead of truncating the report at runner/context creation.
 - `flushReportEachLine` flushes after every report line when immediate external reads are required.
-- `consoleVerbosity` selects concise or full stdout output.
+- `consoleVerbosity` selects minimal, concise, or full stdout output.
 - `reportPath` defaults to `logs/tests/latest_test_report.txt`.
 
-`ConsoleVerbosity::Full` writes every category. `ConsoleVerbosity::Concise` writes failures, skips, manual instructions, suite results, and summaries while leaving passing checks, informational lines, metrics, and stress diagnostics in the report file.
+`ConsoleVerbosity::Full` writes every category. `ConsoleVerbosity::Concise` writes failures, skips, manual instructions, suite results, and summaries. `ConsoleVerbosity::Minimal` writes only failures, skips, and manual instructions so an outer runner can own aggregate status output without duplication. Categories omitted from the console remain in the report file.
 
 Parent directories for the report path are created when possible. Report open, write, and flush failures emit one `[TEST REPORT]` diagnostic to stderr, disable further file output for that sink, and do not change test results.
 

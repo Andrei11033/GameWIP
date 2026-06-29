@@ -30,6 +30,7 @@
 #include <utility>
 #include <vector>
 
+/// @brief Test reporting, isolation, child-process, timing, and stress helpers.
 namespace GameWIP::TestSupport
 {
     /// @brief Default in-memory limit for combined child stdout/stderr capture.
@@ -69,6 +70,8 @@ namespace GameWIP::TestSupport
         /// @brief Controls which report categories are mirrored to stdout.
         enum class ConsoleVerbosity
         {
+            /// @brief Writes only failures, skips, and manual instructions.
+            Minimal,
             /// @brief Writes failures, skips, manual instructions, suite results, and summaries.
             Concise,
             /// @brief Writes every report category, including passing checks and diagnostics.

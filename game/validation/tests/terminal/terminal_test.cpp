@@ -26,17 +26,20 @@
 #include <type_traits>
 #include <vector>
 
+/// @brief Marker value whose formatter deliberately throws during output tests.
 struct TerminalThrowingFormat
 {
 };
 
 template <> struct std::formatter<TerminalThrowingFormat>
 {
+    /// @brief Accepts the empty formatter specification used by the failure fixture.
     constexpr auto parse(std::format_parse_context &context)
     {
         return context.begin();
     }
 
+    /// @brief Throws deliberately so Terminal formatting error conversion can be verified.
     template <typename FormatContext> auto format(const TerminalThrowingFormat &, FormatContext &context) const
     {
         throw std::format_error("terminal test formatter failure");
@@ -70,17 +73,20 @@ namespace
     static_assert(!CanCreateStyledTextSegment<std::string>);
     static_assert(!CanCreateByteSegment<std::vector<std::byte>>);
 
+    /// @brief Exposes fixture text as bytes without copying or conversion.
     [[nodiscard]] std::span<const std::byte> bytesOf(std::string_view text)
     {
         return std::as_bytes(std::span<const char>(text.data(), text.size()));
     }
 
+    /// @brief Copies fixture text into owning byte storage for result comparisons.
     [[nodiscard]] std::vector<std::byte> copyBytes(std::string_view text)
     {
         const std::span<const std::byte> bytes = bytesOf(text);
         return std::vector<std::byte>(bytes.begin(), bytes.end());
     }
 
+    /// @brief Verifies passive enum validators, style helpers, and line-ending text.
     void testPassiveHelpers(TestSupport::Context &context)
     {
         const Terminal::Types::Color defaultColor = Terminal::defaultColor();
@@ -144,6 +150,7 @@ namespace
 #if INTERNAL_TERMINAL_TEST_HOOKS
     namespace Hooks = GameWIP::Terminal::TestHooks;
 
+    /// @brief Returns a fixture that enables every style capability.
     [[nodiscard]] Terminal::Types::StyleCapabilities allStyleCapabilities() noexcept
     {
         return {
@@ -157,6 +164,7 @@ namespace
             .strikethrough = true};
     }
 
+    /// @brief Returns prepared interactive-output capabilities for hook-backed tests.
     [[nodiscard]] Terminal::Types::OutputCapabilities terminalOutputCapabilities() noexcept
     {
         return {
@@ -177,11 +185,13 @@ namespace
             .supportsBell = true};
     }
 
+    /// @brief Returns redirected-output capabilities without terminal controls.
     [[nodiscard]] Terminal::Types::OutputCapabilities redirectedOutputCapabilities() noexcept
     {
         return {.kind = Terminal::Types::StreamKind::Redirected, .supportsUtf8Text = true, .supportsByteOutput = true, .supportsFlush = true};
     }
 
+    /// @brief Returns interactive-output capabilities before virtual-terminal preparation.
     [[nodiscard]] Terminal::Types::OutputCapabilities unpreparedTerminalOutputCapabilities() noexcept
     {
         return {
@@ -194,6 +204,7 @@ namespace
             .supportsBell = true};
     }
 
+    /// @brief Returns interactive-input capabilities for hook-backed tests.
     [[nodiscard]] Terminal::Types::InputCapabilities terminalInputCapabilities() noexcept
     {
         return {
@@ -208,6 +219,7 @@ namespace
             .supportsReadTimeout = true};
     }
 
+    /// @brief Resets hooks, installs output capabilities, and enables byte capture.
     void setupCapturedOutput(Terminal::Types::OutputStream stream, Terminal::Types::OutputCapabilities capabilities = terminalOutputCapabilities())
     {
         Hooks::setOutputCapabilitiesOverride(stream, capabilities);
@@ -215,12 +227,14 @@ namespace
         Hooks::clearCapturedOutput(stream);
     }
 
+    /// @brief Resets hooks and installs deterministic stdin bytes and EOF policy.
     void setupInput(std::string_view bytes, bool endOfStreamWhenEmpty = true)
     {
         Hooks::setInputCapabilitiesOverride(Terminal::Types::InputStream::Stdin, terminalInputCapabilities());
         Hooks::setInputBytes(Terminal::Types::InputStream::Stdin, bytes, endOfStreamWhenEmpty);
     }
 
+    /// @brief Verifies capability observation, preparation, size, position, and availability queries.
     void testCapabilitiesAndQueries(TestSupport::Context &context)
     {
         Hooks::reset();
@@ -321,6 +335,7 @@ namespace
         Hooks::reset();
     }
 
+    /// @brief Verifies plain, formatted, buffered, styled, and line-oriented text output.
     void testTextAndStyleOutput(TestSupport::Context &context)
     {
         Hooks::reset();
@@ -526,6 +541,7 @@ namespace
         Hooks::reset();
     }
 
+    /// @brief Verifies atomic segmented records, raw bytes, output capture, and flush behavior.
     void testSegmentedAndByteOutput(TestSupport::Context &context)
     {
         Hooks::reset();
@@ -646,6 +662,7 @@ namespace
         Hooks::reset();
     }
 
+    /// @brief Verifies cursor, clear, scroll, title, alternate-screen, and visibility controls.
     void testControls(TestSupport::Context &context)
     {
         Hooks::reset();
@@ -791,6 +808,7 @@ namespace
         Hooks::reset();
     }
 
+    /// @brief Verifies byte, text, and line reads across UTF-8, timeout, truncation, and EOF paths.
     void testInputReads(TestSupport::Context &context)
     {
         Hooks::reset();
@@ -942,6 +960,7 @@ namespace
         Hooks::reset();
     }
 
+    /// @brief Verifies mode queries, updates, default restore, and scoped exact restoration.
     void testInputModes(TestSupport::Context &context)
     {
         Hooks::reset();
@@ -1005,6 +1024,7 @@ namespace
 
 #endif
 
+    /// @brief Records a clear skip when Terminal test hooks were not compiled.
     void testHookDependentSuitesSkipped(TestSupport::Context &context)
     {
         context.skip("Terminal hook-dependent suites", "INTERNAL_TERMINAL_TEST_HOOKS=0");
@@ -1018,7 +1038,7 @@ namespace GameWIP::Test
         TestSupport::Types::ReportOptions reportOptions;
         reportOptions.writeConsole = true;
         reportOptions.consoleVerbosity =
-            options.verboseConsole ? TestSupport::Types::ConsoleVerbosity::Full : TestSupport::Types::ConsoleVerbosity::Concise;
+            options.verboseConsole ? TestSupport::Types::ConsoleVerbosity::Full : TestSupport::Types::ConsoleVerbosity::Minimal;
         reportOptions.writeReport = options.writeReport;
         reportOptions.appendReport = options.appendReport;
         reportOptions.reportPath = options.reportPath;

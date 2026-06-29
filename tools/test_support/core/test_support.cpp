@@ -16,9 +16,12 @@ namespace GameWIP::TestSupport
 {
     namespace
     {
+        /// @brief Serializes process-global environment mutation performed by scoped guards.
         std::mutex environmentMutex;
+        /// @brief Adds process-local uniqueness to temporary workspace names.
         std::atomic_uint64_t temporaryDirectoryCounter{0};
 
+        /// @brief Formats a named failure and its reason for report output.
         [[nodiscard]] std::string makeNameReason(std::string_view name, std::string_view reason)
         {
             std::ostringstream message;
@@ -26,6 +29,7 @@ namespace GameWIP::TestSupport
             return message.str();
         }
 
+        /// @brief Converts a human purpose into a portable filename component.
         [[nodiscard]] std::string sanitizeTemporaryPurpose(std::string_view purpose)
         {
             std::string sanitized;
@@ -39,6 +43,7 @@ namespace GameWIP::TestSupport
             return sanitized.empty() ? "test" : sanitized;
         }
 
+        /// @brief Best-effort removes a parent directory after its owned child was cleaned.
         void removeDirectoryIfEmpty(const std::filesystem::path &path) noexcept
         {
             std::error_code error;
@@ -48,9 +53,11 @@ namespace GameWIP::TestSupport
 
     namespace Detail
     {
+        /// @brief Thread-safe shared sink that independently mirrors report lines to console and file.
         class ReportSink
         {
         public:
+            /// @brief Opens configured report output and degrades to console-only on setup failure.
             explicit ReportSink(Types::ReportOptions options)
                 : options_(std::move(options))
             {
@@ -82,11 +89,13 @@ namespace GameWIP::TestSupport
                 flush();
             }
 
+            /// @brief Writes a run-level report line without a suite label.
             void write(std::string_view category, std::string_view message)
             {
                 write(category, {}, message);
             }
 
+            /// @brief Formats and atomically routes one categorized report line.
             void write(std::string_view category, std::string_view suiteName, std::string_view message)
             {
                 std::ostringstream line;
@@ -126,6 +135,7 @@ namespace GameWIP::TestSupport
                 }
             }
 
+            /// @brief Flushes retained file output without changing test results on failure.
             void flush()
             {
                 std::lock_guard lock(mutex_);
@@ -140,6 +150,7 @@ namespace GameWIP::TestSupport
             }
 
         private:
+            /// @brief Applies console enablement and category verbosity policy.
             [[nodiscard]] bool shouldWriteToConsole(std::string_view category) const noexcept
             {
                 if (!options_.writeConsole)
@@ -151,9 +162,16 @@ namespace GameWIP::TestSupport
                     return true;
                 }
 
-                return category == "FAIL" || category == "SKIP" || category == "MANUAL" || category == "SUMMARY" || category == "RESULT";
+                const bool isActionable = category == "FAIL" || category == "SKIP" || category == "MANUAL";
+                if (options_.consoleVerbosity == Types::ConsoleVerbosity::Minimal)
+                {
+                    return isActionable;
+                }
+
+                return isActionable || category == "SUMMARY" || category == "RESULT";
             }
 
+            /// @brief Permanently disables this sink's file path and emits one stderr diagnostic.
             void disableReport(std::string_view reason)
             {
                 reportOpenFailed_ = true;

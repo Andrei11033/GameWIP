@@ -55,3 +55,19 @@ Benchmark functions use `BM_<Module>_<Scenario>` names. Keep correctness setup c
 - Keep inputs stable enough for comparisons and record command-line options with saved output.
 
 Assert benchmarks cover passing macro paths. Logger benchmarks cover disabled output, filtered formatted calls, and enabled asynchronous file output while reporting queue counters.
+
+## Current scenarios
+
+| Benchmark | Measured path | Timing |
+| --- | --- | --- |
+| `BM_Assert_Passing` | Enabled passing `ASSERT`. | Default Google Benchmark CPU time. |
+| `BM_Check_Passing` | Passing recoverable `CHECK`. | Default CPU time. |
+| `BM_Verify_Passing` | Passing always-evaluated `VERIFY`. | Default CPU time. |
+| `BM_AssertInteractive_Passing` | Passing interactive assertion without UI. | Default CPU time. |
+| `BM_VerifyInteractive_Passing` | Passing always-evaluated interactive verification. | Default CPU time. |
+| `BM_Ensure_Passing` | Passing `ENSURE`, including its observable boolean result. | Default CPU time. |
+| `BM_Logger_OutputDisabled` | Logger producer call while output is disabled. | Real elapsed time. |
+| `BM_Logger_FilteredFormatted` | Formatted producer call rejected by the severity filter. | Real elapsed time. |
+| `BM_Logger_EnabledFile` | Accepted asynchronous file producer call. | Real elapsed time. |
+
+The Logger fixture initializes before measurement and flushes, records counters, shuts down, and removes its temporary workspace after measurement. `queued`, `written`, `queue_drops`, and `peak_queue` counters must be reviewed with timing output: a fast run that dropped work is not equivalent to a run that accepted and wrote it.

@@ -4,19 +4,7 @@ Manual checks use `Types::ManualAnswer` and `promptManualCheck()`.
 
 Manual checks are for behavior that code cannot verify on its own, such as visual Windows UI behavior or debugger interaction. They must be gated by runtime options and should run near the end of a test run.
 
-Automated tests should not depend on clicking dialogs.
-
-The project test executable exposes a focused TestSupport manual run:
-
-```powershell
-.\build\GameWIP.exe --test-support-manual
-```
-
-The regular automated TestSupport run stays non-blocking:
-
-```powershell
-.\build-validation\GameWIPTests.exe --test-module=test_support
-```
+Automated tests should not depend on clicking dialogs. Applications decide how manual checks are enabled and selected; GameWIP's command-line integration is documented in @ref library_testing.
 
 Example:
 

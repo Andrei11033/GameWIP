@@ -24,17 +24,27 @@ Run one module:
   --test-report=logs/tests/filesystem_test_report.txt
 ```
 
+Run the opt-in TestSupport prompt checks:
+
+```powershell
+.\build-validation\GameWIPTests.exe --test-support-manual
+```
+
+Normal automated runs leave manual UI disabled.
+
 The development preset links the same modules into `GameWIP`, where they run before game startup.
 
 ## Reports and exit behavior
 
 Relative `--test-report` paths are resolved beneath `%TEMP%/GameWIP` on Windows, so the example above writes to `%TEMP%/GameWIP/logs/tests/filesystem_test_report.txt`. Absolute paths are honored as explicit overrides. `--no-test-report` disables the file while preserving console results.
 
-Normal validation uses concise console output: failures, skips, manual instructions, per-suite results, and summaries. `--verbose-tests` also mirrors passing checks, informational lines, metrics, and stress diagnostics to stdout. The report file always receives the complete output.
+Normal validation uses minimal suite output: failures, skips, and manual instructions. The validation runner adds one result line per module and one final aggregate result, avoiding duplicate suite and module summaries. `--verbose-tests` also mirrors passing checks, informational lines, metrics, suite results, summaries, and stress diagnostics to stdout. The report file always receives the complete output.
 
 Each failing expectation emits `[FAIL]` with its suite, reason, source file, line, and function. A suite continues after an expectation failure so one run can report multiple defects. The module returns nonzero when any suite failed; the validation runner returns nonzero when any module failed; CTest and GitHub Actions therefore mark the corresponding module entry as failed. Child-process modes preserve their exact child exit code.
 
 The runner prints the absolute report location and a final `[VALIDATION] result=PASS|FAIL` summary. CTest uses one stable report filename per module and `--output-on-failure` exposes captured console details when a module fails.
+
+The output layers intentionally do not repeat the same success information. A normal successful module contributes one `[VALIDATION] module=...` line; its TestSupport `[RESULT]` and `[SUMMARY]` records remain in the report. Failures, skips, and manual instructions still appear immediately because they require attention. Use `--verbose-tests` when diagnosing ordering or intermediate metrics interactively.
 
 ## Artifact lifecycle
 
