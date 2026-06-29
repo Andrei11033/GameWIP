@@ -18,6 +18,11 @@ int main(int argc, char **argv)
         return tests.exitCode == 0 ? EXIT_FAILURE : tests.exitCode;
     }
 
-    static_cast<void>(GameWIP::Validation::runBenchmarks(argc, argv));
+    const GameWIP::Validation::BenchmarkResult benchmarks = GameWIP::Validation::runBenchmarks(argc, argv);
+    if (!benchmarks.ok())
+    {
+        return EXIT_FAILURE;
+    }
+
     return GameWIP::Game::run(argc, argv);
 }
