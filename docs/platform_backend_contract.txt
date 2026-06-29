@@ -16,6 +16,9 @@ Core code must not call operating-system APIs directly.
 
 This applies to reusable libraries such as:
 
+* IO;
+* Terminal;
+* FileSystem;
 * Logger;
 * Assert;
 * TestSupport;
@@ -72,6 +75,7 @@ Use `platform.cmake` only for backend-local target requirements, such as:
 Each library that needs platform-specific behavior may provide backend files under:
 
 ```text
+foundation/<library>/platform/<platform-id>/
 tools/<library>/platform/<platform-id>/
 ```
 
@@ -84,6 +88,8 @@ platform/<platform-id>/<platform-id>_<feature>.cpp
 Examples:
 
 ```text
+foundation/terminal/platform/win32/win32_terminal.cpp
+foundation/filesystem/platform/win32/win32_filesystem.cpp
 tools/logger/platform/win32/win32_logger.cpp
 tools/test_support/platform/win32/win32_environment.cpp
 tools/test_support/platform/win32/win32_child_process.cpp
@@ -163,7 +169,70 @@ Do not introduce sibling detail namespaces such as `GameWIP::LoggerDetail` or `G
 
 ---
 
-# 7. Logger Backend Contract
+# 7. IO Core Boundary
+
+IO is intentionally platform-neutral and has no backend folder.
+
+It defines byte-transfer interfaces, portable status/error shapes, memory-backed readers and writers, and whole-stream helpers used by resource-owning libraries. IO must not open files, access terminal handles, or call operating-system APIs.
+
+Foundation libraries may depend on IO status and transfer contracts. IO must not depend on Terminal, FileSystem, Logger, Assert, TestSupport, engine code, or game code.
+
+---
+
+# 8. Terminal Backend Contract
+
+Terminal core owns public option validation, formatting, style/control sequence assembly, per-stream serialization, and scoped state nesting. It delegates standard-handle capabilities, Unicode conversion, input waiting/reading, input-mode snapshots, raw writes, and native flushing through:
+
+```text
+foundation/terminal/internal/terminal_platform.h
+```
+
+## Required Responsibilities
+
+A Terminal backend is responsible for:
+
+* classifying stdin, stdout, and stderr as terminal, redirected, detached, or other;
+* observing and preparing terminal capabilities without inventing unsupported features;
+* converting public UTF-8 text at a native text boundary;
+* preserving redirected output as bytes;
+* retaining incomplete UTF-8/input fragments across reads;
+* providing timeout-aware input without unbounded waits;
+* capturing and exactly restoring native input mode state;
+* reporting terminal size and cursor position only when reliable;
+* validating backend limits for cursor, scroll, and title operations.
+
+Terminal test hooks may replace capabilities, input bytes, input mode, query results, and output capture. Hook state is process-wide and must be reset between scenarios.
+
+---
+
+# 9. FileSystem Backend Contract
+
+FileSystem core owns public option validation, handle object semantics, whole-file orchestration, atomic-write lifecycle, recursive traversal policy, and portable status mapping. Native path traversal, handles, metadata, sharing, locks, and mutation are declared in:
+
+```text
+foundation/filesystem/internal/filesystem_platform.h
+```
+
+## Required Responsibilities
+
+A FileSystem backend is responsible for:
+
+* opening read, write, and read/write handles with exact access, sharing, and creation semantics;
+* preserving accepted read/write progress on later failure;
+* querying portable metadata through stable native handles;
+* implementing non-blocking whole-file locks and explicit unlock failure;
+* creating, listing, moving, copying, and removing entries without check-then-use races where the contract forbids them;
+* preserving portable timestamps and read-only metadata where requested;
+* flushing file and directory metadata for durable atomic replacement;
+* converting path text only at the native platform boundary.
+
+`SymlinkPolicy::DoNotFollow` and `FollowFinal` are security contracts. The backend must reject forbidden intermediate name-surrogate entries during handle-relative traversal and keep traversal handles alive across multi-step operations. A backend that cannot enforce the requested policy safely must return `Unsupported`; it must not emulate safety with a metadata check followed by an unrelated path reopen.
+
+File and lock state destructors perform best-effort native cleanup. Public `close()` and `unlock()` remain the paths that can report cleanup failure.
+
+---
+
+# 10. Logger Backend Contract
 
 Logger core code must not call operating-system APIs directly.
 
@@ -214,7 +283,7 @@ The macro path is preferred when argument evaluation should be avoided for filte
 
 ---
 
-# 8. Assert Backend Contract
+# 11. Assert Backend Contract
 
 Assert core code must not call operating-system APIs directly.
 
@@ -250,7 +319,7 @@ Macro documentation must clearly explain which condition and message expressions
 
 ---
 
-# 9. TestSupport Backend Contract
+# 12. TestSupport Backend Contract
 
 TestSupport core code must not call operating-system APIs directly.
 
@@ -279,6 +348,8 @@ A TestSupport backend is responsible for:
 * reporting timeouts;
 * reporting test-requested termination.
 
+On Windows, a child process tree must be attached to kill-on-close job ownership so timeout cleanup also terminates descendants that inherited capture handles.
+
 ## Environment Rule
 
 Environment helpers must update all environment views required by the platform.
@@ -304,7 +375,7 @@ For the project tests, these are enough:
 
 ---
 
-# 10. Windows Backend Rules
+# 13. Windows Backend Rules
 
 Windows backends use explicit Unicode Win32 APIs.
 
@@ -352,7 +423,7 @@ Captured stdout and stderr should remain bytes because process pipes carry bytes
 
 ---
 
-# 11. Backend-Neutral Test Hooks
+# 14. Backend-Neutral Test Hooks
 
 Shared internal contracts and test hooks should use backend-neutral names unless the hook is intentionally scoped to one backend.
 
@@ -371,7 +442,7 @@ Backend-neutral hooks make it easier to reuse the same test expectations across 
 
 ---
 
-# 12. Documentation Requirements
+# 15. Documentation Requirements
 
 Every backend contract should be documented at the internal declaration point.
 
@@ -402,7 +473,7 @@ Document invariants and platform assumptions.
 
 ---
 
-# 13. Checklist for New Backend Work
+# 16. Checklist for New Backend Work
 
 Before backend work is considered complete:
 
@@ -420,7 +491,7 @@ Before backend work is considered complete:
 
 ---
 
-# 14. How to Extend This File
+# 17. How to Extend This File
 
 When adding to this contract:
 

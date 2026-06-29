@@ -46,29 +46,35 @@ namespace GameWIP::Terminal::Detail::Platform
         namespace HookDetail = GameWIP::Terminal::Detail::TestHooks;
 #endif
 
+        /// @brief Retains unread UTF-8 bytes across Win32 input calls with amortized front consumption.
         class PendingInputBuffer final
         {
         public:
+            /// @brief Returns whether no unread bytes remain.
             [[nodiscard]] bool empty() const noexcept
             {
                 return size() == 0;
             }
 
+            /// @brief Returns the unread byte count after the consumed prefix.
             [[nodiscard]] std::size_t size() const noexcept
             {
                 return storage_.size() - offset_;
             }
 
+            /// @brief Returns the first unread byte pointer.
             [[nodiscard]] const char *data() const noexcept
             {
                 return storage_.data() + offset_;
             }
 
+            /// @brief Returns a view over all unread bytes.
             [[nodiscard]] std::string_view view() const noexcept
             {
                 return {data(), size()};
             }
 
+            /// @brief Appends bytes, compacting first when retained prefix waste is significant.
             void append(std::string_view bytes)
             {
                 if (offset_ > 0 && (offset_ >= kCompactionThreshold || bytes.size() > storage_.capacity() - storage_.size()))
@@ -78,6 +84,7 @@ namespace GameWIP::Terminal::Detail::Platform
                 storage_.append(bytes);
             }
 
+            /// @brief Consumes up to the current unread byte count.
             void consume(std::size_t bytes) noexcept
             {
                 if (bytes >= size())
@@ -89,12 +96,14 @@ namespace GameWIP::Terminal::Detail::Platform
                 offset_ += bytes;
             }
 
+            /// @brief Removes all bytes and resets the front offset.
             void clear() noexcept
             {
                 storage_.clear();
                 offset_ = 0;
             }
 
+            /// @brief Transfers unread bytes to an owning string and resets this buffer.
             [[nodiscard]] std::string take()
             {
                 if (offset_ == 0)
@@ -110,17 +119,22 @@ namespace GameWIP::Terminal::Detail::Platform
             }
 
         private:
+            /// @brief Erases the consumed prefix while preserving unread bytes.
             void compact()
             {
                 storage_.erase(0, offset_);
                 offset_ = 0;
             }
 
+            /// @brief Consumed-prefix size that justifies an eager compaction.
             static constexpr std::size_t kCompactionThreshold = 4096;
+            /// @brief Combined consumed prefix and unread suffix storage.
             std::string storage_;
+            /// @brief First unread byte in storage_.
             std::size_t offset_ = 0;
         };
 
+        /// @brief Process-lifetime stdin mode snapshot and pending Unicode conversion state.
         struct InputState
         {
             bool defaultConsoleModeCaptured = false;
@@ -130,15 +144,20 @@ namespace GameWIP::Terminal::Detail::Platform
             wchar_t pendingHighSurrogate = L'\0';
         };
 
+        /// @brief Reusable per-output-stream UTF-16 conversion storage.
         struct OutputConversionState
         {
             std::wstring wideText;
         };
 
+        /// @brief UTF-16 scratch capacity retained after a write before releasing peak storage.
         inline constexpr std::size_t kRetainedConversionLimit = std::size_t{64} * 1024;
+        /// @brief Largest control-sequence numeric parameter accepted by the VT backend.
         inline constexpr std::uint32_t kMaxVtParameter = 32767;
+        /// @brief Maximum title payload accepted before OSC framing bytes.
         inline constexpr std::size_t kMaxVtTitleBytes = 254;
 
+        /// @brief One backend input transfer before public UTF-8 and line processing.
         struct ReadChunk
         {
             IO::Types::Status status = IO::successStatus();
@@ -146,6 +165,7 @@ namespace GameWIP::Terminal::Detail::Platform
             std::string bytes;
         };
 
+        /// @brief Validation result for the largest complete UTF-8 prefix within a byte limit.
         struct Utf8Prefix
         {
             bool valid = true;
@@ -154,6 +174,7 @@ namespace GameWIP::Terminal::Detail::Platform
             std::size_t bytes = 0;
         };
 
+        /// @brief Location and kind of one recognized line ending in pending input.
         struct LineEndingMatch
         {
             bool found = false;
@@ -162,32 +183,38 @@ namespace GameWIP::Terminal::Detail::Platform
             Terminal::Types::ConsumedLineEnding ending = Terminal::Types::ConsumedLineEnding::None;
         };
 
+        /// @brief Maps a public output stream to its Win32 standard-handle identifier.
         [[nodiscard]] DWORD stdHandleId(OutputStream stream) noexcept
         {
             return stream == OutputStream::Stderr ? STD_ERROR_HANDLE : STD_OUTPUT_HANDLE;
         }
 
+        /// @brief Maps the supported input stream to the Win32 stdin identifier.
         [[nodiscard]] DWORD stdHandleId([[maybe_unused]] InputStream stream) noexcept
         {
             return STD_INPUT_HANDLE;
         }
 
+        /// @brief Resolves the current process handle for stdout or stderr.
         [[nodiscard]] HANDLE outputHandle(OutputStream stream) noexcept
         {
             return GetStdHandle(stdHandleId(stream));
         }
 
+        /// @brief Resolves the current process handle for stdin.
         [[nodiscard]] HANDLE inputHandle(InputStream stream) noexcept
         {
             return GetStdHandle(stdHandleId(stream));
         }
 
+        /// @brief Returns process-lifetime state for the only supported input stream.
         [[nodiscard]] InputState &inputState([[maybe_unused]] InputStream stream) noexcept
         {
             static InputState stdinState;
             return stdinState;
         }
 
+        /// @brief Returns reusable conversion storage for one output stream.
         [[nodiscard]] OutputConversionState &outputConversionState(OutputStream stream) noexcept
         {
             static OutputConversionState stdoutState;
@@ -195,6 +222,7 @@ namespace GameWIP::Terminal::Detail::Platform
             return stream == OutputStream::Stderr ? stderrState : stdoutState;
         }
 
+        /// @brief Clears UTF-16 scratch and releases unusually large retained capacity.
         void releaseLargeConversionBuffer(OutputConversionState &state) noexcept
         {
             state.wideText.clear();
@@ -204,12 +232,14 @@ namespace GameWIP::Terminal::Detail::Platform
             }
         }
 
+        /// @brief Builds a portable status while preserving one Win32 error code.
         [[nodiscard]] IO::Types::Status statusFromWin32(ErrorCode code, DWORD nativeCode, std::string message = {})
         {
             return IO::makeStatus(code, static_cast<std::int64_t>(nativeCode), std::move(message));
         }
 
 #if INTERNAL_TERMINAL_TEST_HOOKS
+        /// @brief Converts a consumed one-shot hook failure into an operation status.
         [[nodiscard]] std::optional<IO::Types::Status> consumeHookFailure(HookDetail::HookFailure &failure, std::string_view message)
         {
             if (const std::optional<ErrorCode> code = HookDetail::consumeFailure(failure))
@@ -220,17 +250,20 @@ namespace GameWIP::Terminal::Detail::Platform
             return std::nullopt;
         }
 
+        /// @brief Appends raw bytes to hook capture while the hook mutex is held by the caller.
         void appendCapturedOutput(OutputStream stream, std::span<const std::byte> bytes)
         {
             HookDetail::OutputHookState &state = HookDetail::terminalTestHookState.outputStreams[HookDetail::outputIndex(stream)];
             state.capturedOutput.insert(state.capturedOutput.end(), bytes.begin(), bytes.end());
         }
 
+        /// @brief Appends text bytes to hook capture without encoding conversion.
         void appendCapturedOutput(OutputStream stream, std::string_view text)
         {
             appendCapturedOutput(stream, std::as_bytes(std::span<const char>(text.data(), text.size())));
         }
 
+        /// @brief Returns deterministic hook input when enabled, otherwise delegates via nullopt.
         [[nodiscard]] std::optional<ReadChunk> readHookInputChunk(
             InputStream stream,
             std::chrono::milliseconds timeout,
@@ -265,6 +298,7 @@ namespace GameWIP::Terminal::Detail::Platform
         }
 #endif
 
+        /// @brief Maps Win32 write failures to portable IO error categories.
         [[nodiscard]] ErrorCode writeErrorCode(DWORD nativeCode) noexcept
         {
             switch (nativeCode)
@@ -286,6 +320,7 @@ namespace GameWIP::Terminal::Detail::Platform
             }
         }
 
+        /// @brief Maps Win32 read failures to portable IO error categories.
         [[nodiscard]] ErrorCode readErrorCode(DWORD nativeCode) noexcept
         {
             switch (nativeCode)
@@ -304,17 +339,20 @@ namespace GameWIP::Terminal::Detail::Platform
             }
         }
 
+        /// @brief Rejects detached and invalid Win32 standard handles.
         [[nodiscard]] bool isUsableHandle(HANDLE handle) noexcept
         {
             return handle != nullptr && handle != INVALID_HANDLE_VALUE;
         }
 
+        /// @brief Detects a real Win32 console through GetConsoleMode.
         [[nodiscard]] bool isConsoleHandle(HANDLE handle) noexcept
         {
             DWORD mode = 0;
             return isUsableHandle(handle) && GetConsoleMode(handle, &mode) != FALSE;
         }
 
+        /// @brief Queries a usable handle's Win32 file type while preserving GetLastError.
         [[nodiscard]] DWORD fileType(HANDLE handle) noexcept
         {
             if (!isUsableHandle(handle))
@@ -326,6 +364,7 @@ namespace GameWIP::Terminal::Detail::Platform
             return GetFileType(handle);
         }
 
+        /// @brief Classifies a standard handle as terminal, redirected, detached, or other.
         [[nodiscard]] StreamKind streamKind(HANDLE handle) noexcept
         {
             if (!isUsableHandle(handle))
@@ -356,6 +395,7 @@ namespace GameWIP::Terminal::Detail::Platform
             }
         }
 
+        /// @brief Returns whether VT output processing is active for a console handle.
         [[nodiscard]] bool outputVirtualTerminalEnabled(HANDLE handle) noexcept
         {
             DWORD mode = 0;
@@ -367,6 +407,7 @@ namespace GameWIP::Terminal::Detail::Platform
             return (mode & ENABLE_VIRTUAL_TERMINAL_PROCESSING) != 0;
         }
 
+        /// @brief Populates the exact style subset supported by the current Win32 VT path.
         void setStyleCapabilities(Terminal::Types::StyleCapabilities &capabilities, bool virtualTerminal) noexcept
         {
             capabilities.basicColor = virtualTerminal;
@@ -379,6 +420,7 @@ namespace GameWIP::Terminal::Detail::Platform
             capabilities.strikethrough = false;
         }
 
+        /// @brief Strictly converts UTF-8 text to UTF-16 for WriteConsoleW.
         [[nodiscard]] IO::Types::Status utf8ToWide(std::string_view text, std::wstring &outText)
         {
             outText.clear();
@@ -430,6 +472,7 @@ namespace GameWIP::Terminal::Detail::Platform
             return IO::successStatus();
         }
 
+        /// @brief Strictly converts UTF-16 console input to UTF-8.
         [[nodiscard]] IO::Types::Status wideToUtf8(std::wstring_view text, std::string &outText)
         {
             outText.clear();
@@ -473,6 +516,7 @@ namespace GameWIP::Terminal::Detail::Platform
             return IO::successStatus();
         }
 
+        /// @brief Writes a complete UTF-16 payload to a real console, retrying partial writes.
         [[nodiscard]] IO::Types::Status writeConsoleWide(HANDLE handle, std::wstring_view text)
         {
             const wchar_t *cursor = text.data();
@@ -500,6 +544,7 @@ namespace GameWIP::Terminal::Detail::Platform
             return IO::successStatus();
         }
 
+        /// @brief Writes bytes to a redirected handle while preserving partial progress.
         [[nodiscard]] IO::Types::WriteResult writeFileBytes(HANDLE handle, std::span<const std::byte> bytes)
         {
             const std::byte *cursor = bytes.data();
@@ -533,12 +578,14 @@ namespace GameWIP::Terminal::Detail::Platform
             return {.status = IO::successStatus(), .bytesWritten = totalWritten};
         }
 
+        /// @brief Writes UTF-8 bytes unchanged to a redirected handle.
         [[nodiscard]] IO::Types::Status writeFileText(HANDLE handle, std::string_view text)
         {
             const IO::Types::WriteResult result = writeFileBytes(handle, std::as_bytes(std::span<const char>(text.data(), text.size())));
             return result.status;
         }
 
+        /// @brief Converts a chrono timeout to a bounded Win32 wait value.
         [[nodiscard]] DWORD waitMilliseconds(std::chrono::milliseconds timeout) noexcept
         {
             if (timeout.count() < 0)
@@ -555,6 +602,7 @@ namespace GameWIP::Terminal::Detail::Platform
             return static_cast<DWORD>(timeout.count());
         }
 
+        /// @brief Computes the non-negative remainder of one total input timeout.
         [[nodiscard]] std::chrono::milliseconds remainingTimeout(
             std::chrono::steady_clock::time_point start,
             std::chrono::milliseconds timeout) noexcept
@@ -573,6 +621,7 @@ namespace GameWIP::Terminal::Detail::Platform
             return timeout - elapsed;
         }
 
+        /// @brief Waits for console/pipe input and maps timeout or wait failure to a read outcome.
         [[nodiscard]] ReadChunk waitForInput(HANDLE handle, std::chrono::milliseconds timeout)
         {
             const DWORD waitResult = WaitForSingleObject(handle, waitMilliseconds(timeout));
@@ -596,6 +645,7 @@ namespace GameWIP::Terminal::Detail::Platform
                 .bytes = {}};
         }
 
+        /// @brief Captures the first observed native console mode for later default restoration.
         [[nodiscard]] IO::Types::Status captureDefaultInputMode(InputStream stream, HANDLE handle)
         {
             InputState &state = inputState(stream);
@@ -617,6 +667,7 @@ namespace GameWIP::Terminal::Detail::Platform
             return IO::successStatus();
         }
 
+        /// @brief Converts Win32 console-mode flags into the portable input-mode shape.
         [[nodiscard]] Terminal::Types::InputMode inputModeFromConsoleMode(DWORD mode) noexcept
         {
             return {
@@ -625,6 +676,7 @@ namespace GameWIP::Terminal::Detail::Platform
                 .processControlKeys = (mode & ENABLE_PROCESSED_INPUT) != 0};
         }
 
+        /// @brief Peeks a pipe and separates availability from the native failure code.
         [[nodiscard]] bool peekPipeBytes(HANDLE handle, DWORD &availableBytes, DWORD &error) noexcept
         {
             availableBytes = 0;
@@ -639,6 +691,7 @@ namespace GameWIP::Terminal::Detail::Platform
             return false;
         }
 
+        /// @brief Inspects console input records for immediately readable character data.
         [[nodiscard]] Terminal::Types::InputAvailabilityResult consoleInputAvailability(HANDLE handle)
         {
             Terminal::Types::InputAvailabilityResult result;
@@ -712,6 +765,7 @@ namespace GameWIP::Terminal::Detail::Platform
             return result;
         }
 
+        /// @brief Compares current and end positions for redirected disk input.
         [[nodiscard]] Terminal::Types::InputAvailabilityResult diskInputAvailability(HANDLE handle)
         {
             Terminal::Types::InputAvailabilityResult result;
@@ -739,6 +793,7 @@ namespace GameWIP::Terminal::Detail::Platform
             return result;
         }
 
+        /// @brief Reads console UTF-16 input and returns one complete UTF-8 chunk.
         [[nodiscard]] ReadChunk readConsoleInputChunk(
             InputStream stream,
             HANDLE handle,
@@ -837,6 +892,7 @@ namespace GameWIP::Terminal::Detail::Platform
             }
         }
 
+        /// @brief Reads bytes from redirected disk/pipe/character input with bounded waiting.
         [[nodiscard]] ReadChunk readFileInputChunk(HANDLE handle, std::chrono::milliseconds timeout, std::size_t requestedBytesHint)
         {
             const DWORD type = fileType(handle);
@@ -914,6 +970,7 @@ namespace GameWIP::Terminal::Detail::Platform
             return chunk;
         }
 
+        /// @brief Routes one input transfer through hooks, console Unicode input, or redirected bytes.
         [[nodiscard]] ReadChunk readInputChunk(InputStream stream, std::chrono::milliseconds timeout, std::size_t requestedBytesHint)
         {
 #if INTERNAL_TERMINAL_TEST_HOOKS
@@ -954,6 +1011,7 @@ namespace GameWIP::Terminal::Detail::Platform
             return readFileInputChunk(handle, timeout, requestedBytesHint);
         }
 
+        /// @brief Finds the largest valid complete UTF-8 prefix that fits maxBytes.
         [[nodiscard]] Utf8Prefix utf8Prefix(std::string_view bytes, std::size_t maxBytes) noexcept
         {
             Utf8Prefix result;
@@ -1037,12 +1095,14 @@ namespace GameWIP::Terminal::Detail::Platform
             return result;
         }
 
+        /// @brief Returns whether the complete byte sequence is valid, non-truncated UTF-8.
         [[nodiscard]] bool validUtf8(std::string_view bytes) noexcept
         {
             const Utf8Prefix prefix = utf8Prefix(bytes, bytes.size());
             return prefix.valid && !prefix.incomplete && prefix.bytes == bytes.size();
         }
 
+        /// @brief Clamps a public 64-bit byte limit to the process addressable size.
         [[nodiscard]] std::size_t clampedMaxBytes(std::uint64_t maxBytes) noexcept
         {
             if (maxBytes > static_cast<std::uint64_t>(std::numeric_limits<std::size_t>::max()))
@@ -1053,6 +1113,7 @@ namespace GameWIP::Terminal::Detail::Platform
             return static_cast<std::size_t>(maxBytes);
         }
 
+        /// @brief Finds LF, CRLF, or optionally terminal CR without rescanning an earlier prefix.
         [[nodiscard]] LineEndingMatch findLineEnding(std::string_view bytes, std::size_t startOffset, bool allowTrailingCr) noexcept
         {
             for (std::size_t index = std::min(startOffset, bytes.size()); index < bytes.size(); ++index)
@@ -1079,6 +1140,7 @@ namespace GameWIP::Terminal::Detail::Platform
             return {};
         }
 
+        /// @brief Moves a complete UTF-8 prefix to output and leaves unread bytes pending.
         [[nodiscard]] IO::Types::Status copyTruncatedUtf8Prefix(std::string &outText, PendingInputBuffer &pendingBytes, std::size_t maxBytes)
         {
             const Utf8Prefix prefix = utf8Prefix(pendingBytes.view(), maxBytes);
@@ -1097,6 +1159,7 @@ namespace GameWIP::Terminal::Detail::Platform
             return IO::successStatus();
         }
 
+        /// @brief Extracts a matched line from pending bytes according to the ending-retention policy.
         void completeLineFromPending(
             Terminal::Types::LineReadResult &result,
             PendingInputBuffer &pendingBytes,

@@ -31,27 +31,35 @@ namespace GameWIP::FileSystem::Detail::Platform
     {
         using ErrorCode = IO::Types::ErrorCode;
 
+        /// @brief Native sharing used for metadata traversal that must not block ordinary owners.
         constexpr DWORD kShareAll = FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE;
+        /// @brief Minimum native access required for stable metadata queries.
         constexpr ACCESS_MASK kQueryAccess = FILE_READ_ATTRIBUTES | SYNCHRONIZE;
+        /// @brief Native access required while traversing directory components by handle.
         constexpr ACCESS_MASK kDirectoryTraversalAccess = FILE_READ_ATTRIBUTES | FILE_TRAVERSE | SYNCHRONIZE;
+        /// @brief Native options shared by synchronous handle-relative opens.
         constexpr ULONG kOpenOptionsBase = FILE_SYNCHRONOUS_IO_NONALERT | FILE_OPEN_FOR_BACKUP_INTENT;
+        /// @brief Tick offset from the Windows 1601 epoch to the Unix 1970 epoch.
         constexpr std::int64_t kUnixEpochAsWindowsFileTime = 116'444'736'000'000'000LL;
 
         using NtCreateFileFunction =
             NTSTATUS(NTAPI *)(PHANDLE, ACCESS_MASK, POBJECT_ATTRIBUTES, PIO_STATUS_BLOCK, PLARGE_INTEGER, ULONG, ULONG, ULONG, ULONG, PVOID, ULONG);
         using RtlNtStatusToDosErrorFunction = ULONG(NTAPI *)(NTSTATUS);
 
+        /// @brief Lazily resolved NT entry points needed for race-resistant relative traversal.
         struct NtApi
         {
             NtCreateFileFunction createFile = nullptr;
             RtlNtStatusToDosErrorFunction ntStatusToDosError = nullptr;
         };
 
+        /// @brief Move-only owner for a CloseHandle-compatible native handle.
         class UniqueHandle final
         {
         public:
             UniqueHandle() = default;
 
+            /// @brief Takes ownership of one CloseHandle-compatible value.
             explicit UniqueHandle(HANDLE handle) noexcept
                 : handle_(handle)
             {
@@ -60,11 +68,13 @@ namespace GameWIP::FileSystem::Detail::Platform
             UniqueHandle(const UniqueHandle &) = delete;
             UniqueHandle &operator=(const UniqueHandle &) = delete;
 
+            /// @brief Transfers native ownership from another wrapper.
             UniqueHandle(UniqueHandle &&other) noexcept
                 : handle_(std::exchange(other.handle_, INVALID_HANDLE_VALUE))
             {
             }
 
+            /// @brief Closes current ownership before taking another wrapper's handle.
             UniqueHandle &operator=(UniqueHandle &&other) noexcept
             {
                 if (this != &other)
@@ -80,22 +90,26 @@ namespace GameWIP::FileSystem::Detail::Platform
                 close();
             }
 
+            /// @brief Returns the owned handle without transferring it.
             [[nodiscard]] HANDLE get() const noexcept
             {
                 return handle_;
             }
 
+            /// @brief Returns whether the wrapper owns a closeable handle.
             [[nodiscard]] bool isValid() const noexcept
             {
                 return handle_ != nullptr && handle_ != INVALID_HANDLE_VALUE;
             }
 
+            /// @brief Releases native ownership to the caller.
             [[nodiscard]] HANDLE release() noexcept
             {
                 return std::exchange(handle_, INVALID_HANDLE_VALUE);
             }
 
         private:
+            /// @brief Closes owned state and restores the invalid sentinel.
             void close() noexcept
             {
                 if (isValid())
@@ -108,11 +122,13 @@ namespace GameWIP::FileSystem::Detail::Platform
             HANDLE handle_ = INVALID_HANDLE_VALUE;
         };
 
+        /// @brief Move-only owner for a FindFirstFileW enumeration handle.
         class UniqueFindHandle final
         {
         public:
             UniqueFindHandle() = default;
 
+            /// @brief Takes ownership of one FindClose-compatible value.
             explicit UniqueFindHandle(HANDLE handle) noexcept
                 : handle_(handle)
             {
@@ -121,11 +137,13 @@ namespace GameWIP::FileSystem::Detail::Platform
             UniqueFindHandle(const UniqueFindHandle &) = delete;
             UniqueFindHandle &operator=(const UniqueFindHandle &) = delete;
 
+            /// @brief Transfers enumeration ownership from another wrapper.
             UniqueFindHandle(UniqueFindHandle &&other) noexcept
                 : handle_(std::exchange(other.handle_, INVALID_HANDLE_VALUE))
             {
             }
 
+            /// @brief Closes current enumeration before taking another wrapper's handle.
             UniqueFindHandle &operator=(UniqueFindHandle &&other) noexcept
             {
                 if (this != &other)
@@ -141,17 +159,20 @@ namespace GameWIP::FileSystem::Detail::Platform
                 close();
             }
 
+            /// @brief Returns whether an enumeration handle is active.
             [[nodiscard]] bool isValid() const noexcept
             {
                 return handle_ != INVALID_HANDLE_VALUE;
             }
 
+            /// @brief Returns the active enumeration handle without transferring it.
             [[nodiscard]] HANDLE get() const noexcept
             {
                 return handle_;
             }
 
         private:
+            /// @brief Ends the enumeration and restores the invalid sentinel.
             void close() noexcept
             {
                 if (isValid())
@@ -164,12 +185,14 @@ namespace GameWIP::FileSystem::Detail::Platform
             HANDLE handle_ = INVALID_HANDLE_VALUE;
         };
 
+        /// @brief UTF-16 path conversion result with portable failure status.
         struct WidePathResult
         {
             IO::Types::Status status;
             std::wstring path;
         };
 
+        /// @brief Absolute native root and normalized components for handle-relative traversal.
         struct ParsedPathResult
         {
             IO::Types::Status status;
@@ -177,6 +200,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             std::vector<std::wstring> components;
         };
 
+        /// @brief Native open result with NT information status when available.
         struct HandleResult
         {
             IO::Types::Status status;
@@ -184,12 +208,14 @@ namespace GameWIP::FileSystem::Detail::Platform
             ULONG_PTR information = 0;
         };
 
+        /// @brief Converted system-clock timestamp with overflow status.
         struct TimeResult
         {
             IO::Types::Status status;
             Types::FileTime time{};
         };
 
+        /// @brief Stable opened path and metadata returned by existing-entry resolution.
         struct OpenPathResult
         {
             IO::Types::Status status;
@@ -197,6 +223,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             Types::EntryInfo info{};
         };
 
+        /// @brief Chain of owned traversal handles keeping every resolved component stable.
         struct StablePathResult
         {
             IO::Types::Status status;
@@ -204,11 +231,13 @@ namespace GameWIP::FileSystem::Detail::Platform
             Types::EntryInfo info{};
         };
 
+        /// @brief Recognizes either separator accepted by Windows path parsing.
         [[nodiscard]] bool isSeparator(wchar_t value) noexcept
         {
             return value == L'\\' || value == L'/';
         }
 
+        /// @brief Performs locale-independent ASCII case folding for path prefixes.
         [[nodiscard]] wchar_t asciiUpper(wchar_t value) noexcept
         {
             if (value >= L'a' && value <= L'z')
@@ -218,6 +247,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             return value;
         }
 
+        /// @brief Compares an ASCII Windows path prefix without locale dependence.
         [[nodiscard]] bool startsWithInsensitive(std::wstring_view text, std::wstring_view prefix) noexcept
         {
             if (text.size() < prefix.size())
@@ -235,6 +265,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             return true;
         }
 
+        /// @brief Finds the next Windows path separator at or after offset.
         [[nodiscard]] std::size_t findSeparator(std::wstring_view text, std::size_t offset) noexcept
         {
             for (std::size_t index = offset; index < text.size(); ++index)
@@ -247,6 +278,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             return std::wstring_view::npos;
         }
 
+        /// @brief Maps common Win32 errors to portable IO status while preserving native detail.
         [[nodiscard]] IO::Types::Status makeWin32Status(DWORD error, ErrorCode fallback)
         {
             if (error == ERROR_SUCCESS)
@@ -302,16 +334,19 @@ namespace GameWIP::FileSystem::Detail::Platform
             return IO::makeStatus(code, static_cast<std::int64_t>(error), std::system_category().message(static_cast<int>(error)));
         }
 
+        /// @brief Maps the calling thread's current GetLastError value.
         [[nodiscard]] IO::Types::Status makeLastErrorStatus(ErrorCode fallback)
         {
             return makeWin32Status(GetLastError(), fallback);
         }
 
+        /// @brief Rejects file-sharing bits outside the supported mask.
         [[nodiscard]] bool isValidFileShare(Types::FileShare share) noexcept
         {
             return (static_cast<std::uint8_t>(share) & ~static_cast<std::uint8_t>(Types::FileShare::All)) == 0;
         }
 
+        /// @brief Validates symlink-policy values before backend traversal.
         [[nodiscard]] bool isValidSymlinkPolicy(Types::SymlinkPolicy policy) noexcept
         {
             switch (policy)
@@ -325,6 +360,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             return false;
         }
 
+        /// @brief Converts portable sharing flags to CreateFile/NtCreateFile flags.
         [[nodiscard]] DWORD nativeShareMode(Types::FileShare share) noexcept
         {
             DWORD result = 0;
@@ -343,21 +379,25 @@ namespace GameWIP::FileSystem::Detail::Platform
             return result;
         }
 
+        /// @brief Recovers the typed native handle from file state.
         [[nodiscard]] HANDLE nativeHandle(const Detail::FileState &state) noexcept
         {
             return static_cast<HANDLE>(state.nativeHandle);
         }
 
+        /// @brief Recovers the typed native handle from lock state.
         [[nodiscard]] HANDLE nativeHandle(const Detail::FileLockState &state) noexcept
         {
             return static_cast<HANDLE>(state.nativeHandle);
         }
 
+        /// @brief Rejects null and INVALID_HANDLE_VALUE handles.
         [[nodiscard]] bool isValidHandle(HANDLE handle) noexcept
         {
             return handle != nullptr && handle != INVALID_HANDLE_VALUE;
         }
 
+        /// @brief Resets all file-state fields after native ownership is released.
         void clearNativeHandle(Detail::FileState &state) noexcept
         {
             state.nativeHandle = nullptr;
@@ -367,6 +407,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             state.flushOnClose = IO::Types::FlushMode::None;
         }
 
+        /// @brief Closes an erased native handle and clears ownership only on success.
         [[nodiscard]] IO::Types::Status closeNativeHandle(void *&nativeHandle) noexcept
         {
             HANDLE handle = static_cast<HANDLE>(nativeHandle);
@@ -385,6 +426,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             return IO::successStatus();
         }
 
+        /// @brief Resolves and caches required ntdll functions without throwing.
         [[nodiscard]] const NtApi &ntApi() noexcept
         {
             static const NtApi api = []
@@ -406,6 +448,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             return api;
         }
 
+        /// @brief Converts NTSTATUS through RtlNtStatusToDosError when available.
         [[nodiscard]] IO::Types::Status makeNtStatus(NTSTATUS status, ErrorCode fallback)
         {
             const NtApi &api = ntApi();
@@ -417,16 +460,19 @@ namespace GameWIP::FileSystem::Detail::Platform
             return makeWin32Status(api.ntStatusToDosError(status), fallback);
         }
 
+        /// @brief Returns the stable failure used when traversal encounters a forbidden symlink.
         [[nodiscard]] IO::Types::Status symlinkPolicyRejectedStatus()
         {
             return IO::makeStatus(ErrorCode::PermissionDenied, 0, "path rejected by symlink policy");
         }
 
+        /// @brief Detects embedded nulls that Win32 APIs would otherwise truncate.
         [[nodiscard]] bool containsEmbeddedNull(std::wstring_view text) noexcept
         {
             return std::find(text.begin(), text.end(), L'\0') != text.end();
         }
 
+        /// @brief Adds the extended-length prefix while preserving UNC path semantics.
         [[nodiscard]] std::wstring asExtendedLengthPath(std::wstring path)
         {
             if (startsWithInsensitive(path, L"\\\\?\\") || startsWithInsensitive(path, L"\\\\.\\"))
@@ -441,6 +487,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             return L"\\\\?\\" + path;
         }
 
+        /// @brief Converts a non-empty path to normalized absolute UTF-16 extended form.
         [[nodiscard]] WidePathResult absoluteNativePath(const Types::Path &path)
         {
             const std::wstring nativePath = path.wstring();
@@ -475,6 +522,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             return {.status = IO::successStatus(), .path = asExtendedLengthPath(std::move(buffer))};
         }
 
+        /// @brief Normalizes one path component into a traversal vector without allowing upward escape.
         [[nodiscard]] bool appendComponent(std::vector<std::wstring> &components, std::wstring_view component)
         {
             if (component.empty() || component == L".")
@@ -494,6 +542,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             return true;
         }
 
+        /// @brief Splits a path suffix into normalized handle-traversal components.
         [[nodiscard]] bool splitComponents(std::wstring_view text, std::vector<std::wstring> &components)
         {
             std::size_t offset = 0;
@@ -520,6 +569,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             return true;
         }
 
+        /// @brief Finds the end of a UNC server/share root or returns npos for malformed input.
         [[nodiscard]] std::size_t uncRootEnd(std::wstring_view text, std::size_t serverOffset) noexcept
         {
             const std::size_t serverEnd = findSeparator(text, serverOffset);
@@ -542,6 +592,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             return shareEnd + 1;
         }
 
+        /// @brief Separates a normalized absolute drive/UNC path into root and safe components.
         [[nodiscard]] ParsedPathResult parseAbsolutePath(std::wstring_view fullPath)
         {
             if (fullPath.empty() || containsEmbeddedNull(fullPath))
@@ -595,6 +646,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             return result;
         }
 
+        /// @brief Opens a complete path using ordinary Win32 symlink-following semantics.
         [[nodiscard]] HandleResult openFullPathFollowAll(const std::wstring &path)
         {
             UniqueHandle handle{CreateFileW(path.c_str(), kQueryAccess, kShareAll, nullptr, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, nullptr)};
@@ -606,6 +658,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             return {.status = IO::successStatus(), .handle = std::move(handle)};
         }
 
+        /// @brief Opens a parsed drive or UNC root for handle-relative traversal.
         [[nodiscard]] HandleResult openRootDirectory(const std::wstring &root, DWORD shareMode = kShareAll)
         {
             UniqueHandle handle{CreateFileW(
@@ -624,6 +677,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             return {.status = IO::successStatus(), .handle = std::move(handle)};
         }
 
+        /// @brief Calls NtCreateFile relative to a parent handle with explicit reparse behavior.
         [[nodiscard]] HandleResult openChildNative(
             HANDLE parent,
             const std::wstring &name,
@@ -672,6 +726,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             return {.status = IO::successStatus(), .handle = UniqueHandle{rawHandle}, .information = ioStatus.Information};
         }
 
+        /// @brief Opens one child and rejects reparse points when the policy requires it.
         [[nodiscard]] HandleResult openChild(
             HANDLE parent,
             const std::wstring &name,
@@ -700,6 +755,7 @@ namespace GameWIP::FileSystem::Detail::Platform
                 ErrorCode::StatFailed);
         }
 
+        /// @brief Converts Windows 100-nanosecond ticks to system_clock with overflow checks.
         [[nodiscard]] TimeResult fileTimeToSystemTimePoint(LARGE_INTEGER fileTime)
         {
             const __int128 ticksSinceUnixEpoch = static_cast<__int128>(fileTime.QuadPart) - static_cast<__int128>(kUnixEpochAsWindowsFileTime);
@@ -714,11 +770,13 @@ namespace GameWIP::FileSystem::Detail::Platform
             return {.status = IO::successStatus(), .time = Types::FileTime{duration}};
         }
 
+        /// @brief Detects name-surrogate reparse points, including symlinks and mount points.
         [[nodiscard]] bool isNameSurrogateReparsePoint(const FILE_ATTRIBUTE_TAG_INFO &attributes) noexcept
         {
             return (attributes.FileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0 && IsReparseTagNameSurrogate(attributes.ReparseTag);
         }
 
+        /// @brief Collects portable entry metadata from one already-stable native handle.
         [[nodiscard]] EntryQueryResult queryHandleInfo(HANDLE handle)
         {
             FILE_ATTRIBUTE_TAG_INFO attributeInfo{};
@@ -779,6 +837,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             return result;
         }
 
+        /// @brief Traverses parsed components by handle and applies final/intermediate symlink policy.
         [[nodiscard]] EntryQueryResult queryStrictPath(const ParsedPathResult &path, Types::SymlinkPolicy symlinkPolicy)
         {
             HandleResult parent = openRootDirectory(path.root);
@@ -827,6 +886,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             return queryHandleInfo(finalHandle.handle.get());
         }
 
+        /// @brief Selects ordinary or strict metadata resolution for one public path query.
         [[nodiscard]] EntryQueryResult queryEntryImpl(const Types::Path &path, Types::SymlinkPolicy symlinkPolicy)
         {
             switch (symlinkPolicy)
@@ -864,6 +924,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             return queryStrictPath(parsedPath, symlinkPolicy);
         }
 
+        /// @brief Traverses and retains the parent directory required for a race-resistant final open.
         [[nodiscard]] HandleResult openParentStrict(
             const ParsedPathResult &path,
             DWORD shareMode = kShareAll,
@@ -928,6 +989,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             return parent;
         }
 
+        /// @brief Opens an existing final entry with requested access and symlink behavior.
         [[nodiscard]] OpenPathResult openExistingPath(
             const Types::Path &path,
             Types::SymlinkPolicy symlinkPolicy,
@@ -1021,6 +1083,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             return {.status = IO::successStatus(), .handle = std::move(finalHandle.handle), .info = info.info};
         }
 
+        /// @brief Retains every traversal handle so a multi-step operation cannot swap path components.
         [[nodiscard]] StablePathResult stabilizeExistingPath(const Types::Path &path, Types::SymlinkPolicy symlinkPolicy, bool requireDirectory)
         {
             const WidePathResult absolutePath = absoluteNativePath(path);
@@ -1097,12 +1160,14 @@ namespace GameWIP::FileSystem::Detail::Platform
             return {.status = IO::successStatus(), .handles = std::move(handles), .info = info.info};
         }
 
+        /// @brief Existing-target requirement used by the unified native open path.
         enum class ExistingEntryRule
         {
             MustExistRegularFile,
             MayCreateRegularFile
         };
 
+        /// @brief Fully validated access, sharing, creation, and type constraints for one native open.
         struct NativeOpenRequest
         {
             DWORD desiredAccess = 0;
@@ -1118,6 +1183,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             bool appendMode = false;
         };
 
+        /// @brief Enforces an open request's existing-entry kind and replacement rules.
         [[nodiscard]] IO::Types::Status validateExistingEntry(const Types::Path &path, const NativeOpenRequest &request)
         {
             const EntryQueryResult entry = queryEntryImpl(path, request.symlinkPolicy);
@@ -1148,6 +1214,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             return IO::successStatus();
         }
 
+        /// @brief Publishes a successfully opened native handle into platform-neutral file state.
         [[nodiscard]] IO::Types::Status assignFileState(
             std::unique_ptr<Detail::FileState> &state,
             UniqueHandle handle,
@@ -1165,9 +1232,12 @@ namespace GameWIP::FileSystem::Detail::Platform
             return IO::successStatus();
         }
 
+        /// @brief Moves a native file pointer using one validated seek origin.
         [[nodiscard]] IO::Types::Status seekNativeHandle(HANDLE handle, std::int64_t offset, IO::Types::SeekOrigin origin);
+        /// @brief Queries the current unsigned native file position.
         [[nodiscard]] IO::Types::PositionResult nativePosition(HANDLE handle);
 
+        /// @brief Resizes a handle while restoring its original file pointer when possible.
         [[nodiscard]] IO::Types::Status truncateNativeHandle(HANDLE handle, std::uint64_t sizeBytes)
         {
             if (sizeBytes > static_cast<std::uint64_t>(std::numeric_limits<std::int64_t>::max()))
@@ -1195,6 +1265,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             return IO::successStatus();
         }
 
+        /// @brief Performs a handle-relative final open for non-FollowAll policies.
         [[nodiscard]] IO::Types::Status openNativeFileStrict(
             std::unique_ptr<Detail::FileState> &state,
             const Types::Path &path,
@@ -1301,6 +1372,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             return assignFileState(state, std::move(finalHandle.handle), request);
         }
 
+        /// @brief Executes one validated native open and initializes FileState on success.
         [[nodiscard]] IO::Types::Status openNativeFile(
             std::unique_ptr<Detail::FileState> &state,
             const Types::Path &path,
@@ -1346,6 +1418,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             return assignFileState(state, std::move(handle), request);
         }
 
+        /// @brief Implements native seek after validating origin and signed offset semantics.
         [[nodiscard]] IO::Types::Status seekNativeHandle(HANDLE handle, std::int64_t offset, IO::Types::SeekOrigin origin)
         {
             DWORD moveMethod = FILE_BEGIN;
@@ -1374,6 +1447,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             return IO::successStatus();
         }
 
+        /// @brief Returns the current native file pointer without changing it.
         [[nodiscard]] IO::Types::PositionResult nativePosition(HANDLE handle)
         {
             LARGE_INTEGER distance{};
@@ -1390,6 +1464,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             return {.status = IO::successStatus(), .position = static_cast<std::uint64_t>(position.QuadPart)};
         }
 
+        /// @brief Returns the unsigned file size for one open native handle.
         [[nodiscard]] IO::Types::SizeResult nativeFileSize(HANDLE handle)
         {
             LARGE_INTEGER size{};
@@ -1405,6 +1480,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             return {.status = IO::successStatus(), .sizeBytes = static_cast<std::uint64_t>(size.QuadPart)};
         }
 
+        /// @brief Releases a whole-file native lock and decrements shared active-lock state.
         [[nodiscard]] IO::Types::Status unlockNativeFile(Detail::FileLockState &state) noexcept
         {
             if (!state.active)
@@ -1427,11 +1503,13 @@ namespace GameWIP::FileSystem::Detail::Platform
             return IO::successStatus();
         }
 
+        /// @brief Filters synthetic dot entries from Win32 directory enumeration.
         [[nodiscard]] bool isDotDirectoryEntry(std::wstring_view name) noexcept
         {
             return name == L"." || name == L"..";
         }
 
+        /// @brief Appends a wildcard component to an extended-length directory path.
         [[nodiscard]] std::wstring searchWildcardPath(const std::wstring &path)
         {
             std::wstring result = path;
@@ -1443,6 +1521,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             return result;
         }
 
+        /// @brief Marks an open stable handle for POSIX-style deletion when supported.
         [[nodiscard]] IO::Types::Status markHandleForDeletion(HANDLE handle, ErrorCode fallback) noexcept
         {
             FILE_DISPOSITION_INFO disposition{};
@@ -1454,6 +1533,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             return IO::successStatus();
         }
 
+        /// @brief Updates the read-only attribute through an already-stable handle.
         [[nodiscard]] IO::Types::Status setHandleReadOnly(HANDLE handle, bool readOnly) noexcept
         {
             FILE_BASIC_INFO basicInfo{};
@@ -1482,6 +1562,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             return IO::successStatus();
         }
 
+        /// @brief Copies portable timestamps and read-only state between stable handles.
         [[nodiscard]] IO::Types::Status copyHandleBasicMetadata(HANDLE source, HANDLE destination) noexcept
         {
             FILE_BASIC_INFO sourceInfo{};
@@ -1517,6 +1598,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             return IO::successStatus();
         }
 
+        /// @brief Creates one final directory through a stable parent handle.
         [[nodiscard]] IO::Types::Status createDirectoryStrict(const Types::Path &path, const Types::CreateDirectoryOptions &options)
         {
             const WidePathResult absolutePath = absoluteNativePath(path);
@@ -1567,6 +1649,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             return created.status;
         }
 
+        /// @brief Creates missing components one at a time while retaining strict traversal handles.
         [[nodiscard]] IO::Types::Status createDirectoriesStrict(const Types::Path &path, const Types::CreateDirectoryOptions &options)
         {
             const WidePathResult absolutePath = absoluteNativePath(path);
@@ -1640,6 +1723,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             return (createdAny || options.succeedIfAlreadyExists) ? IO::successStatus() : IO::makeStatus(ErrorCode::AlreadyExists);
         }
 
+        /// @brief Applies public directory-list kind filters to one queried entry.
         [[nodiscard]] bool includeEntryKind(Types::EntryKind kind, const Types::ListDirectoryOptions &options) noexcept
         {
             switch (kind)
@@ -1656,6 +1740,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             return false;
         }
 
+        /// @brief Enumerates direct children and applies metadata, hidden, and count policies.
         [[nodiscard]] Types::ListDirectoryResult listDirectoryImpl(const Types::Path &path, const Types::ListDirectoryOptions &options)
         {
             const StablePathResult stablePath = stabilizeExistingPath(path, options.symlinkPolicy, true);
@@ -2618,6 +2703,7 @@ namespace GameWIP::FileSystem::Detail
 {
     namespace
     {
+        /// @brief Validates erased native handles before destructor cleanup.
         [[nodiscard]] bool isValidNativeHandle(void *nativeHandle) noexcept
         {
             const HANDLE handle = static_cast<HANDLE>(nativeHandle);

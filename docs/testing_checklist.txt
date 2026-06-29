@@ -539,6 +539,7 @@ Windows backend behavior follows the explicit Unicode boundary rule and remains 
 * [x] Relative validation report paths resolve under the GameWIP OS-temp root.
 * [x] Validation workspaces clean themselves and leave only final reports in the OS-temp report directory.
 * [x] Validation prints report locations, per-module outcomes, and an aggregate pass/fail result.
+* [x] Normal validation suppresses duplicate suite results and summaries while retaining them in the full report.
 * [x] Game-only builds compile and link no validation module objects.
 * [x] Shipping builds do not require Google Benchmark.
 
@@ -649,6 +650,9 @@ Performance stays observable through dedicated benchmarks, and coverage tooling 
 * [x] Confirm public header hover text stays concise enough for IntelliSense.
 * [x] Confirm full examples and edge-case explanations live in Markdown manual pages.
 * [x] Confirm every public API appears in either a public API guide table/section or in a dedicated concept page.
+* [x] Confirm every generated public namespace and symbol reference builds without Doxygen warnings.
+* [x] Confirm library manuals own library behavior while project pages own GameWIP integration and workflows.
+* [x] Confirm private backend documentation covers IO, Terminal, FileSystem, Logger, Assert, and TestSupport boundaries.
 
 Completion goal:
 

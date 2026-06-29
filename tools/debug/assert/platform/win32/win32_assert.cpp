@@ -31,6 +31,7 @@
 
 namespace
 {
+    /// @brief Returns whether real assert UI is suppressed by test override or Unicode environment state.
     bool popupsSuppressed() noexcept
     {
 #if INTERNAL_ASSERT_TEST_HOOKS
@@ -48,6 +49,7 @@ namespace
     using FailureAction = GameWIP::Debug::Assert::FailureAction;
 
 #if INTERNAL_ASSERT_TEST_HOOKS
+    /// @brief Process-wide one-shot failures and persistent Assert backend overrides.
     struct AssertTestHookState
     {
         std::atomic_bool nextActionDialogFailure{false};
@@ -58,8 +60,10 @@ namespace
         std::atomic_bool popupSuppressedOverrideValue{false};
     };
 
+    /// @brief Shared Win32 hook state consumed by public test adapters and backend helpers.
     AssertTestHookState assertTestHookState;
 
+    /// @brief Atomically consumes one one-shot backend failure flag.
     bool consumeTestHook(std::atomic_bool &flag) noexcept
     {
         return flag.exchange(false, std::memory_order_acq_rel);
@@ -147,6 +151,7 @@ namespace
         }
     }
 
+    /// @brief Maps an Assert failure action to a stable TaskDialog custom-button id.
     int buttonIdForAction(FailureAction action) noexcept
     {
         switch (action)
@@ -164,6 +169,7 @@ namespace
         return 1002;
     }
 
+    /// @brief Maps TaskDialog output back to an Assert action with a safe fallback.
     FailureAction actionForButtonId(int buttonId, FailureAction defaultAction) noexcept
     {
         switch (buttonId)
@@ -181,8 +187,10 @@ namespace
         }
     }
 
+    /// @brief Runtime-loaded TaskDialogIndirect signature for systems without static availability.
     using TaskDialogIndirectFn = HRESULT(WINAPI *)(const TASKDIALOGCONFIG *, int *, int *, BOOL *);
 
+    /// @brief Resolves TaskDialogIndirect from Comctl32 without making it a load-time dependency.
     TaskDialogIndirectFn loadTaskDialogIndirect() noexcept
     {
         HMODULE commonControls = GetModuleHandleW(L"comctl32.dll");
@@ -199,6 +207,7 @@ namespace
         return reinterpret_cast<TaskDialogIndirectFn>(GetProcAddress(commonControls, "TaskDialogIndirect"));
     }
 
+    /// @brief Presents the reduced Abort/Break/Ignore fallback through MessageBoxW.
     FailureAction fallbackMessageBoxAction(const wchar_t *title, const wchar_t *message, FailureAction defaultAction) noexcept
     {
 #if INTERNAL_ASSERT_TEST_HOOKS

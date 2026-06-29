@@ -711,6 +711,7 @@ namespace GameWIP::Logger::Detail::Core
         TimestampCache debugTimestampCache;
     };
 
+    /// @brief Returns the process-lifetime Logger state shared by all core translation units.
     LoggerState &loggerState();
 
     /// @brief Marks one producer as active while it may reserve or publish a queue slot.
@@ -772,10 +773,15 @@ namespace GameWIP::Logger::Detail::Core
     /// @brief Queue insertion result used by queue-pressure accounting and report fallback.
     enum class EnqueueStatus
     {
+        /// Entry was intentionally filtered or Logger was not running.
         Skipped,
+        /// Entry was published for the worker.
         Queued,
+        /// Low-priority entry exceeded the configured soft limit.
         DroppedSoft,
+        /// Entry exceeded the hard queue limit.
         DroppedHard,
+        /// Entry storage could not retain the message.
         AllocationFailure
     };
 
@@ -807,6 +813,7 @@ namespace GameWIP::Logger::Detail::Core
     // Process state and test hooks.
 
 #if INTERNAL_LOGGER_TEST_HOOKS
+    /// @brief Process-wide one-shot failures and persistent overrides used only by Logger tests.
     struct LoggerTestHookState
     {
         std::atomic_bool nextFileOpenFailure{false};
@@ -817,82 +824,145 @@ namespace GameWIP::Logger::Detail::Core
         std::atomic_bool nextTimedFlushTimeout{false};
         std::string defaultLogDirectoryOverride;
     };
+    /// @brief Shared test-hook state consumed by core and platform wrappers.
     extern LoggerTestHookState loggerTestHookState;
+    /// @brief Atomically consumes one one-shot failure flag.
     bool consumeTestHook(std::atomic_bool &flag) noexcept;
+    /// @brief Clears every failure flag and persistent override.
     void resetLoggerTestHooks() noexcept;
+    /// @brief Returns the deterministic structured error for forced file failures.
     PlatformError forcedFileError() noexcept;
+    /// @brief Returns the deterministic structured error for forced popup failures.
     PlatformError forcedFatalPopupError() noexcept;
 #endif
 
     // Enum conversion and result accounting.
 
+    /// @brief Converts a validated severity to its packed integer value.
     std::uint8_t toLevelValue(LogLevel level);
+    /// @brief Converts a validated output mode to its packed integer value.
     std::uint8_t toOutputModeValue(OutputMode mode);
+    /// @brief Converts a validated format policy to its atomic integer value.
     std::uint8_t toFormatPolicyValue(FormatPolicy policy);
+    /// @brief Restores a format policy from atomic storage with safe fallback.
     FormatPolicy formatPolicyFromValue(std::uint8_t value);
+    /// @brief Replaces an unknown format policy with the strict default.
     FormatPolicy sanitizeFormatPolicy(FormatPolicy policy);
+    /// @brief Validates a Logger severity value.
     bool isValidLevel(LogLevel level);
+    /// @brief Validates a Logger output mode value.
     bool isValidOutputMode(OutputMode mode);
+    /// @brief Returns the enabled-mask bit for one validated severity.
     std::uint8_t levelBit(LogLevel level);
+    /// @brief Restores an output mode from packed storage with safe fallback.
     OutputMode outputModeFromValue(std::uint8_t mode);
+    /// @brief Packs hot-path running, output, minimum-level, and level-mask state.
     std::uint32_t packRuntimeState(bool running, OutputMode mode, LogLevel minLevel, std::uint8_t levelMask);
+    /// @brief Extracts the running flag from packed runtime state.
     bool runtimeStateRunning(std::uint32_t packed);
+    /// @brief Extracts the output mode from packed runtime state.
     OutputMode runtimeStateOutput(std::uint32_t packed);
+    /// @brief Extracts the minimum severity from packed runtime state.
     LogLevel runtimeStateMinLevel(std::uint32_t packed);
+    /// @brief Extracts the enabled-level mask from packed runtime state.
     std::uint8_t runtimeStateLevelMask(std::uint32_t packed);
+    /// @brief Returns whether structured platform error data is present.
     bool hasPlatformError(const PlatformError &error);
+    /// @brief Issues one architecture-appropriate spin-wait hint.
     void cpuRelax() noexcept;
+    /// @brief Waits until a ring slot reaches the sequence required by ticket.
     void waitForQueueSlot(QueueSlot &slot, std::size_t ticket);
+    /// @brief Increments one queue-drop counter and the lifetime drop total.
     void recordQueueDropCounter(std::atomic<std::size_t> &counter);
+    /// @brief Increments one diagnostic-failure counter without treating it as pressure.
     void recordDiagnosticFailureCounter(std::atomic<std::size_t> &counter);
+    /// @brief Publishes value when it exceeds the current atomic maximum.
     void updateAtomicMax(std::atomic<std::size_t> &target, std::size_t value);
+    /// @brief Takes a consistent best-effort snapshot of visible statistics.
     LoggerStats snapshotStats();
+    /// @brief Returns configured message-arena bytes; caller holds logMutex.
     std::size_t messageArenaBytesUnlocked();
+    /// @brief Returns ring, batch, and arena storage bytes; caller holds logMutex.
     std::size_t queueStorageBytesUnlocked();
+    /// @brief Computes retained bytes for one immutable source registry.
     std::size_t sourceRegistryBytes(const SourceRegistry *registry);
+    /// @brief Computes retained bytes for the currently published source registry.
     std::size_t publishedSourceRegistryBytes();
+    /// @brief Returns heap fallback capacity retained by one drained entry.
     std::size_t entryTextHeapCapacityBytes(const QueuedLogEntry &entry);
+    /// @brief Returns whether entry heap capacity can be inspected without racing the worker.
     bool entryTextHeapCapacityAvailableUnlocked();
+    /// @brief Totals inspectable entry heap capacity; caller holds logMutex.
     std::size_t entryTextHeapCapacityBytesUnlocked();
+    /// @brief Clears resettable counters while preserving lifetime queue drops.
     void resetAtomicStats(std::size_t peakQueueDepth = 0);
+    /// @brief Blocks shutdown until every producer has left reservation/publication code.
     void waitForActiveProducersToLeave();
+    /// @brief Stores result and platform detail while the caller holds logMutex.
     void setResultUnlocked(LoggerResult result, PlatformError platformError = {});
+    /// @brief Stores a public result under logMutex.
     void recordResult(LoggerResult result, PlatformError platformError = {});
+    /// @brief Records only non-empty platform errors without replacing success otherwise.
     void recordPlatformErrorIfAny(const PlatformError &platformError);
+    /// @brief Preserves the first non-success initialization result and its platform detail.
     void preserveFirstInitResult(
         LoggerResult &inOutResult,
         LoggerResult candidateResult,
         PlatformError &inOutPlatformError,
         PlatformError candidatePlatformError = {});
+    /// @brief Counts and publishes one file sink failure.
     void recordFileWriteFailure(PlatformError platformError = {});
+    /// @brief Counts one message-storage allocation failure.
     void countAllocationFailure();
+    /// @brief Counts one producer formatting failure.
     void countFormatFailure();
+    /// @brief Republishes lifecycle/filter fields into the producer hot-path atomic.
     void publishRuntimeStateUnlocked();
+    /// @brief Refreshes cached stdout/stderr ANSI support after configuration changes.
     void publishConsoleColorSupport();
+    /// @brief Returns cached color support for the selected console stream.
     bool consoleColorEnabledForStream(bool useCerr);
 
     // Source registration and runtime filters.
 
+    /// @brief Atomically loads the immutable source registry published to producers.
     std::shared_ptr<SourceRegistry> loadSourceRegistry();
+    /// @brief Finds a mutable source record through the registry lookup table.
     RegisteredSource *findSource(SourceRegistry &registry, SourceId source);
+    /// @brief Finds an immutable source record through the registry lookup table.
     const RegisteredSource *findSource(const SourceRegistry &registry, SourceId source);
+    /// @brief Rebuilds the direct source-id lookup after definitions are prepared.
     void rebuildSourceLookup(SourceRegistry &registry);
+    /// @brief Checks the currently published source filter for one identifier.
     bool sourceEnabledRuntime(SourceId source);
+    /// @brief Checks one supplied immutable registry for a source identifier.
     bool sourceEnabledRuntime(const SourceRegistry *registry, SourceId source);
+    /// @brief Checks packed running, output, severity, and level-mask state.
     bool shouldLogRuntime(LogLevel level);
+    /// @brief Checks packed state and the currently published source filter.
     bool shouldLogRuntime(LogLevel level, SourceId source);
+    /// @brief Rechecks a pending entry under logMutex before reserving queue capacity.
     FilterDecision checkPendingEntryAcceptedUnlocked(const PendingLogEntry &entry);
+    /// @brief Returns display label, color, and stream route for one severity.
     LogStyle getLogStyle(LogLevel level);
+    /// @brief Returns whether queue soft-pressure dropping may discard this severity.
     bool isLowPriority(LogLevel level);
+    /// @brief Returns whether an output mode includes a console sink.
     bool hasConsoleOutput(OutputMode mode);
+    /// @brief Returns whether an output mode includes a file sink.
     bool hasFileOutput(OutputMode mode);
 
     // Queue and runtime storage setup.
 
+    /// @brief Computes the saturating hard queue limit from soft capacity and multiplier.
     std::size_t computeHardQueueLimit(std::size_t softQueueSize, double multiplier);
+    /// @brief Sanitizes hard-limit configuration and reports fallback through inOutResult.
     std::size_t effectiveHardQueueLimit(double &inOutHardQueueMultiplier, std::size_t softQueueSize, LoggerResult &inOutResult);
+    /// @brief Clamps worker batch size to a useful nonzero value within ring capacity.
     std::size_t effectiveWorkerBatchSize(std::size_t requested, std::size_t hardLimit);
+    /// @brief Allocates contiguous per-entry inline message storage with overflow checks.
     bool allocateMessageArena(std::size_t entryCount, std::size_t inlineMessageCapacity, std::unique_ptr<char[]> &arena);
+    /// @brief Allocates and wires ring, batch, and inline arenas before state publication.
     bool prepareQueueStorage(
         std::size_t hardLimit,
         std::size_t workerBatchSize,
@@ -902,62 +972,95 @@ namespace GameWIP::Logger::Detail::Core
         std::vector<QueuedLogEntry> &batch,
         std::unique_ptr<char[]> &ringArena,
         std::unique_ptr<char[]> &batchArena);
+    /// @brief Validates source definitions/filters and builds an immutable registry.
     bool prepareSources(
         std::span<const SourceDefinition> definitions,
         std::span<const SourceFilter> filters,
         std::shared_ptr<SourceRegistry> &registry,
         LoggerResult &outResult);
+    /// @brief Validates level filters and builds the enabled-level mask.
     bool prepareLevelMask(std::span<const LevelFilter> filters, std::uint8_t &outMask);
+    /// @brief Clears pending ring and drained batch entries; caller has exclusive lifecycle access.
     void clearQueueUnlocked();
+    /// @brief Releases queue, source, and scratch storage; caller has exclusive lifecycle access.
     void releaseRuntimeStorageUnlocked();
+    /// @brief Resets one reusable queued entry and applies configured heap-release policy.
     void clearLogEntry(QueuedLogEntry &entry);
+    /// @brief Copies and bounds message text into one reusable queued entry.
     void assignRetainedMessage(QueuedLogEntry &entry, std::string_view message, std::size_t maxMessageLength, bool &outTruncated);
+    /// @brief Copies producer metadata and bounded text into a reserved ring slot.
     void copyPendingEntryToQueueSlot(QueuedLogEntry &destination, const PendingLogEntry &source, bool &outTruncated);
+    /// @brief Transfers a ring entry into worker batch storage without retaining duplicate heap text.
     void moveQueuedEntry(QueuedLogEntry &destination, QueuedLogEntry &source);
+    /// @brief Reserves logical queue depth while applying soft/hard pressure policy.
     EnqueueStatus reserveQueueDepth(const PendingLogEntry &entry, std::size_t &outPreviousDepth);
+    /// @brief Publishes a prepared ring slot by advancing its sequence and visible depth.
     void publishQueueSlot(QueueSlot &slot, std::size_t ticket, bool &outNotifyWorker);
+    /// @brief Copies a reserved pending entry into its ticketed slot and publishes it.
     EnqueueStatus publishReservedQueueEntry(const PendingLogEntry &entry, bool &outTruncated, bool &outNotifyWorker);
+    /// @brief Drains currently published ring entries into the reusable worker batch.
     std::size_t drainQueueBatch(std::vector<QueuedLogEntry> &batch);
 
     // Formatting, source resolution, and sink writes.
 
+    /// @brief Formats local time or returns deterministic fallback text with platform detail.
     std::string formatTimeOrFallback(std::time_t time, std::string_view timeFormat, PlatformError &outError);
+    /// @brief Formats the current local time through the platform-safe conversion path.
     std::string getCurrentTimeText(std::string_view timeFormat, PlatformError &outError);
+    /// @brief Returns a per-second cached worker timestamp using caller-owned cache state.
     std::string_view getTimestampText(TimestampCache &cache);
+    /// @brief Returns a timestamp protected for synchronous debug-output callers.
     std::string getDebugTimestampText();
+    /// @brief Resolves a registered source id and reports whether fallback text was required.
     std::string_view findSourceName(const SourceRegistry *registry, SourceId source, bool &outUnknownSource);
+    /// @brief Resolves static or registered source text from one queued entry.
     std::string_view resolveSourceText(const QueuedLogEntry &entry, const SourceRegistry *registry, bool &outUnknownSource);
+    /// @brief Increments the unknown-source diagnostic counter.
     void recordUnknownSourceUse();
+    /// @brief Stores a bounded message in one worker-owned entry.
     void assignMessage(QueuedLogEntry &entry, std::string_view message, std::size_t maxMessageLength, bool &outTruncated);
+    /// @brief Builds a visibly suffixed truncated message within maxMessageLength.
     void buildTruncatedMessage(std::string &outMessage, std::string_view message, std::size_t maxMessageLength);
+    /// @brief Returns bounded text directly or through caller scratch when truncation is needed.
     std::string_view boundedMessageView(std::string_view message, bool alreadyTruncated, std::string &scratch, bool &outTruncated);
+    /// @brief Assembles one complete plain log line in caller-owned reusable storage.
     void buildLogLine(
         std::string &outMessage,
         std::string_view timestamp,
         std::string_view levelText,
         std::string_view source,
         std::string_view message);
+    /// @brief Calls the file-open backend while honoring one-shot test failure injection.
     PlatformError openFileExclusiveForLogger(std::string_view path, FileHandle &outHandle);
+    /// @brief Calls the file-write backend while honoring one-shot test failure injection.
     PlatformError writeFileForLogger(FileHandle handle, std::string_view text);
+    /// @brief Calls the file-flush backend while honoring one-shot test failure injection.
     PlatformError flushFileForLogger(FileHandle handle);
+    /// @brief Writes one string-source report directly to active sinks and flushes it.
     bool writeReportSynchronously(
         LogLevel level,
         std::string_view source,
         std::string_view message,
         bool unknownSource = false,
         bool alreadyTruncated = false);
+    /// @brief Resolves a registered source and writes one report directly to active sinks.
     bool writeReportSynchronously(LogLevel level, SourceId source, std::string_view message, bool alreadyTruncated = false);
+    /// @brief Formats one worker entry and routes it to immediate/file-batch sinks.
     SinkWriteResult writeLogEntry(
         const QueuedLogEntry &entry,
         TimestampCache &timestampCache,
         std::string &lineScratch,
         std::string &fileBatchScratch);
+    /// @brief Writes accumulated file lines and optionally forces the native sink flush.
     bool flushFileBatch(std::string &fileBatchScratch, bool forceFlush);
+    /// @brief Runs the single consumer loop until shutdown and all published work are drained.
     void loggerWorker();
+    /// @brief Performs no-throw process-exit cleanup registered through atexit.
     void shutdownLoggerAtExit();
 
     // Lifecycle state transitions and enqueue/report bridge helpers.
 
+    /// @brief Commits fully prepared configuration/storage into stopped process state before startup.
     void resetRuntimeStateUnlocked(
         const GameWIP::Logger::Types::Config &config,
         std::size_t softQueueSize,
@@ -973,24 +1076,34 @@ namespace GameWIP::Logger::Detail::Core
         std::vector<QueuedLogEntry> &&batch,
         std::unique_ptr<char[]> &&ringArena,
         std::unique_ptr<char[]> &&batchArena);
+    /// @brief Changes output mode under lifecycle synchronization and republishes hot state.
     void setOutputMode(OutputMode mode);
+    /// @brief Chooses console fallback or disabled output after file setup failure.
     OutputMode outputModeAfterFileSetupFailure(OutputMode requested, bool fallbackToConsole);
+    /// @brief Rechecks filters, reserves queue depth, copies text, and returns wake/drop state.
     EnqueueOutcome enqueuePendingLogEntry(const PendingLogEntry &entry, bool countDrops = true);
+    /// @brief Builds a non-owning pending entry for a string source.
     PendingLogEntry makePendingEntry(
         LogLevel level,
         std::string_view source,
         std::string_view message,
         bool bypassFilters = false,
         bool alreadyTruncated = false);
+    /// @brief Builds a non-owning pending entry for a registered source id.
     PendingLogEntry makePendingEntry(
         LogLevel level,
         SourceId source,
         std::string_view message,
         bool bypassFilters = false,
         bool alreadyTruncated = false);
+    /// @brief Enqueues one entry and notifies the consumer only when required.
     EnqueueOutcome enqueueAndWakeWorker(const PendingLogEntry &entry, bool countDrops = true);
+    /// @brief Shows the Logger-owned fatal popup when configured and records platform failure.
     void showFatalPopupIfEnabled(std::string_view message);
+    /// @brief Flushes currently active console and file sinks without taking lifecycleMutex.
     bool flushSinksInternal();
+    /// @brief Drains all accepted work and flushes sinks without a timeout.
     void flushInternal();
+    /// @brief Attempts a bounded drain and sink flush; returns false on timeout or sink failure.
     bool flushInternal(std::chrono::milliseconds timeout);
 } // namespace GameWIP::Logger::Detail::Core

@@ -24,6 +24,7 @@ namespace GameWIP::Terminal
     {
         using ErrorCode = IO::Types::ErrorCode;
 
+        /// @brief Internal capability selector shared by terminal-control emitters.
         enum class ControlFeature
         {
             StyleReset,
@@ -37,12 +38,14 @@ namespace GameWIP::Terminal
             Bell
         };
 
+        /// @brief Validated decision describing whether one write emits style sequences.
         struct StylePlan
         {
             IO::Types::Status status = IO::successStatus();
             bool emitStyle = false;
         };
 
+        /// @brief Per-output-stream serialization, reusable assembly storage, and nested scope depth.
         struct OutputState
         {
             std::mutex mutex;
@@ -51,6 +54,7 @@ namespace GameWIP::Terminal
             std::size_t alternateScreenScopeDepth = 0;
         };
 
+        /// @brief Fixed-capacity SGR sequence assembled without heap allocation.
         struct StyleSequence
         {
             std::array<char, 96> bytes{};
@@ -59,16 +63,19 @@ namespace GameWIP::Terminal
 
         inline constexpr std::size_t kRetainedAssemblyLimit = std::size_t{64} * 1024;
 
+        /// @brief Validates the currently supported standard input stream enum.
         [[nodiscard]] bool validInputStream(Types::InputStream stream) noexcept
         {
             return stream == Types::InputStream::Stdin;
         }
 
+        /// @brief Validates supported standard output stream enum values.
         [[nodiscard]] bool validOutputStream(Types::OutputStream stream) noexcept
         {
             return stream == Types::OutputStream::Stdout || stream == Types::OutputStream::Stderr;
         }
 
+        /// @brief Validates line-ending enum values crossing the public boundary.
         [[nodiscard]] bool validLineEnding(Types::LineEnding lineEnding) noexcept
         {
             switch (lineEnding)
@@ -82,6 +89,7 @@ namespace GameWIP::Terminal
             return false;
         }
 
+        /// @brief Validates line-read ending-mode enum values.
         [[nodiscard]] bool validReadLineEndingMode(Types::ReadLineEndingMode mode) noexcept
         {
             switch (mode)
@@ -95,27 +103,32 @@ namespace GameWIP::Terminal
             return false;
         }
 
+        /// @brief Builds an Unsupported status with optional diagnostic text.
         [[nodiscard]] IO::Types::Status unsupportedStatus(std::string message = {})
         {
             return IO::makeStatus(ErrorCode::Unsupported, 0, std::move(message));
         }
 
+        /// @brief Builds an InvalidArgument status with optional diagnostic text.
         [[nodiscard]] IO::Types::Status invalidArgumentStatus(std::string message = {})
         {
             return IO::makeStatus(ErrorCode::InvalidArgument, 0, std::move(message));
         }
 
+        /// @brief Returns whether a color requests the terminal default.
         [[nodiscard]] bool isDefaultColor(const Types::Color &color) noexcept
         {
             return color.kind() == Types::ColorKind::Default;
         }
 
+        /// @brief Returns whether a style needs no SGR output.
         [[nodiscard]] bool isDefaultStyle(const Types::TextStyle &style) noexcept
         {
             return isDefaultColor(style.foreground) && isDefaultColor(style.background) && !style.bold && !style.dim && !style.italic &&
                    !style.underline && !style.inverse && !style.strikethrough;
         }
 
+        /// @brief Checks one color request against observed stream capabilities.
         [[nodiscard]] bool colorSupported(const Types::Color &color, const Types::StyleCapabilities &capabilities) noexcept
         {
             switch (color.kind())
@@ -131,6 +144,7 @@ namespace GameWIP::Terminal
             return false;
         }
 
+        /// @brief Checks every requested style attribute against stream capabilities.
         [[nodiscard]] bool styleSupported(const Types::TextStyle &style, const Types::StyleCapabilities &capabilities) noexcept
         {
             return colorSupported(style.foreground, capabilities) && colorSupported(style.background, capabilities) &&
@@ -139,12 +153,14 @@ namespace GameWIP::Terminal
                    (!style.strikethrough || capabilities.strikethrough);
         }
 
+        /// @brief Returns whether a stream supports at least one style feature.
         [[nodiscard]] bool anyStyleSupported(const Types::StyleCapabilities &capabilities) noexcept
         {
             return capabilities.basicColor || capabilities.rgbColor || capabilities.bold || capabilities.dim || capabilities.italic ||
                    capabilities.underline || capabilities.inverse || capabilities.strikethrough;
         }
 
+        /// @brief Returns process-lifetime state for stdout or stderr.
         [[nodiscard]] OutputState &outputState(Types::OutputStream stream) noexcept
         {
             static OutputState stdoutState;
@@ -153,12 +169,14 @@ namespace GameWIP::Terminal
             return stream == Types::OutputStream::Stderr ? stderrState : stdoutState;
         }
 
+        /// @brief Returns the process-lifetime mutex serializing stdin operations.
         [[nodiscard]] std::mutex &inputMutex([[maybe_unused]] Types::InputStream stream) noexcept
         {
             static std::mutex stdinMutex;
             return stdinMutex;
         }
 
+        /// @brief Resolves a validated line-ending policy to emitted bytes.
         [[nodiscard]] std::string_view lineEndingText(Types::LineEnding lineEnding) noexcept
         {
             switch (lineEnding)
@@ -174,6 +192,7 @@ namespace GameWIP::Terminal
             return {};
         }
 
+        /// @brief Converts a basic color to its foreground or background SGR code.
         [[nodiscard]] int basicColorCode(Types::BasicColor color, bool foreground) noexcept
         {
             const int value = static_cast<int>(color);
@@ -182,6 +201,7 @@ namespace GameWIP::Terminal
             return (foreground ? (bright ? 90 : 30) : (bright ? 100 : 40)) + colorIndex;
         }
 
+        /// @brief Validates all supported basic and bright color enum values.
         [[nodiscard]] bool isKnownBasicColor(Types::BasicColor color) noexcept
         {
             switch (color)
@@ -208,6 +228,7 @@ namespace GameWIP::Terminal
             return false;
         }
 
+        /// @brief Clears assembly text and releases unusually large retained capacity.
         void releaseLargeAssembly(OutputState &state) noexcept
         {
             state.assembly.clear();
@@ -217,6 +238,7 @@ namespace GameWIP::Terminal
             }
         }
 
+        /// @brief Appends an unsigned decimal value without locale-dependent formatting.
         void appendUnsigned(std::string &text, std::uint64_t value)
         {
             std::array<char, 32> buffer{};
@@ -224,6 +246,7 @@ namespace GameWIP::Terminal
             text.append(buffer.data(), result.ptr);
         }
 
+        /// @brief Appends known-bounded literal bytes to a style sequence.
         void appendSequenceText(StyleSequence &sequence, std::string_view text) noexcept
         {
             for (const char character : text)
@@ -232,12 +255,14 @@ namespace GameWIP::Terminal
             }
         }
 
+        /// @brief Appends one bounded decimal parameter to a style sequence.
         void appendSequenceNumber(StyleSequence &sequence, std::uint32_t value) noexcept
         {
             const auto result = std::to_chars(sequence.bytes.data() + sequence.size, sequence.bytes.data() + sequence.bytes.size(), value);
             sequence.size = static_cast<std::size_t>(result.ptr - sequence.bytes.data());
         }
 
+        /// @brief Appends one semicolon-delimited SGR parameter.
         void appendSgrParameter(StyleSequence &sequence, std::uint32_t parameter, bool &hasParameter) noexcept
         {
             if (hasParameter)
@@ -248,6 +273,7 @@ namespace GameWIP::Terminal
             hasParameter = true;
         }
 
+        /// @brief Appends basic or RGB SGR parameters for one color channel.
         void appendColorSgr(StyleSequence &sequence, const Types::Color &color, bool foreground, bool &hasParameter) noexcept
         {
             switch (color.kind())
@@ -267,6 +293,7 @@ namespace GameWIP::Terminal
             }
         }
 
+        /// @brief Builds the complete SGR prefix for a previously validated style.
         [[nodiscard]] StyleSequence makeStyleSequence(const Types::TextStyle &style) noexcept
         {
             StyleSequence sequence;
@@ -311,6 +338,7 @@ namespace GameWIP::Terminal
             return sequence;
         }
 
+        /// @brief Resolves style-mode fallback or failure against known capabilities.
         [[nodiscard]] StylePlan stylePlanForCapabilities(
             Types::StyleMode mode,
             const Types::TextStyle &style,
@@ -345,6 +373,7 @@ namespace GameWIP::Terminal
             return {};
         }
 
+        /// @brief Prepares output when needed and resolves the style plan for one stream.
         [[nodiscard]] StylePlan stylePlan(Types::OutputStream stream, Types::StyleMode mode, const Types::TextStyle &style)
         {
             switch (mode)
@@ -402,6 +431,7 @@ namespace GameWIP::Terminal
             return {.status = unsupportedStatus("Terminal output stream does not support the requested style.")};
         }
 
+        /// @brief Applies an optional validated flush after a logical write.
         [[nodiscard]] IO::Types::Status flushIfRequested(Types::OutputStream stream, IO::Types::FlushMode mode)
         {
             if (!IO::isValidFlushMode(mode))
@@ -417,6 +447,7 @@ namespace GameWIP::Terminal
             return Detail::Platform::flush(stream, mode);
         }
 
+        /// @brief Writes and clears a stream's assembled record, then performs the requested flush.
         [[nodiscard]] IO::Types::Status writeAssembly(Types::OutputStream stream, OutputState &state, IO::Types::FlushMode flushMode)
         {
             IO::Types::Status status = IO::successStatus();
@@ -433,6 +464,7 @@ namespace GameWIP::Terminal
             return status;
         }
 
+        /// @brief Implements one serialized styled text write without acquiring the stream mutex.
         [[nodiscard]] IO::Types::Status writeTextUnlocked(
             Types::OutputStream stream,
             OutputState &state,
@@ -464,6 +496,7 @@ namespace GameWIP::Terminal
             return writeAssembly(stream, state, options.flushMode);
         }
 
+        /// @brief Implements one serialized styled text write followed by the selected line ending.
         [[nodiscard]] IO::Types::Status writeLineUnlocked(
             Types::OutputStream stream,
             OutputState &state,
@@ -500,6 +533,7 @@ namespace GameWIP::Terminal
             return writeAssembly(stream, state, options.flushMode);
         }
 
+        /// @brief Converts formatting exceptions/status into one serialized terminal write result.
         [[nodiscard]] IO::Types::Status finishFormattedWriteUnlocked(
             Types::OutputStream stream,
             OutputState &state,
@@ -531,6 +565,7 @@ namespace GameWIP::Terminal
             return writeAssembly(stream, state, flushMode);
         }
 
+        /// @brief Implements one serialized raw-byte write and optional flush.
         [[nodiscard]] IO::Types::WriteResult writeBytesUnlocked(
             Types::OutputStream stream,
             std::span<const std::byte> bytes,
@@ -551,6 +586,7 @@ namespace GameWIP::Terminal
             return result;
         }
 
+        /// @brief Validates segmented-write kinds, styles, and flush options before emission.
         [[nodiscard]] IO::Types::Status validateSegments(
             std::span<const Types::WriteSegment> segments,
             Types::StyleMode styleMode,
@@ -585,12 +621,14 @@ namespace GameWIP::Terminal
             return IO::successStatus();
         }
 
+        /// @brief Precomputed allocation, preparation, and style needs for one segmented record.
         struct SegmentRequirements
         {
             bool hasBytes = false;
             bool needsStyleCapabilities = false;
         };
 
+        /// @brief Computes preparation and assembly requirements for one segmented record.
         [[nodiscard]] SegmentRequirements segmentRequirements(std::span<const Types::WriteSegment> segments, Types::StyleMode styleMode) noexcept
         {
             SegmentRequirements requirements;
@@ -609,6 +647,7 @@ namespace GameWIP::Terminal
             return requirements;
         }
 
+        /// @brief Assembles and emits one atomic mixed text/style/byte record under the stream lock.
         [[nodiscard]] IO::Types::Status writeSegmentsUnlocked(
             Types::OutputStream stream,
             OutputState &state,
@@ -742,6 +781,7 @@ namespace GameWIP::Terminal
             return writeAssembly(stream, state, options.flushMode);
         }
 
+        /// @brief Maps one control operation to its required output capability.
         [[nodiscard]] bool controlFeatureSupported(const Types::OutputCapabilities &capabilities, ControlFeature feature) noexcept
         {
             switch (feature)
@@ -769,6 +809,7 @@ namespace GameWIP::Terminal
             return false;
         }
 
+        /// @brief Validates capability and emits one prebuilt control sequence under the stream lock.
         [[nodiscard]] IO::Types::Status writeControlSequenceUnlocked(
             Types::OutputStream stream,
             std::string_view sequence,
@@ -809,6 +850,7 @@ namespace GameWIP::Terminal
             return flushIfRequested(stream, flushMode);
         }
 
+        /// @brief Emits a control sequence already assembled in reusable stream storage.
         [[nodiscard]] IO::Types::Status writeAssembledControlSequenceUnlocked(
             Types::OutputStream stream,
             OutputState &state,
@@ -821,6 +863,7 @@ namespace GameWIP::Terminal
             return status;
         }
 
+        /// @brief Decrements nested cursor-hide depth and restores visibility at the outer boundary.
         [[nodiscard]] IO::Types::Status restoreCursorHiddenScope(Types::OutputStream stream, const Types::ControlOptions &options) noexcept
         {
             try
@@ -861,6 +904,7 @@ namespace GameWIP::Terminal
             }
         }
 
+        /// @brief Restores the complete input-mode snapshot owned by a scope.
         [[nodiscard]] IO::Types::Status restoreInputModeScope(
             Types::InputStream stream,
             const Types::InputMode &previousMode,
@@ -886,6 +930,7 @@ namespace GameWIP::Terminal
             }
         }
 
+        /// @brief Decrements nested alternate-screen depth and leaves at the outer boundary.
         [[nodiscard]] IO::Types::Status leaveAlternateScreenScope(Types::OutputStream stream, const Types::ControlOptions &options) noexcept
         {
             try
@@ -926,6 +971,7 @@ namespace GameWIP::Terminal
             }
         }
 
+        /// @brief Appends title text while removing control-sequence terminators and unsafe controls.
         void appendSanitizedTitle(std::string &output, std::string_view utf8Title)
         {
             for (const char character : utf8Title)

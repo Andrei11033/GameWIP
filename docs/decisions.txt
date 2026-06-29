@@ -533,6 +533,8 @@ Public headers should explain:
 
 Detailed tutorials, complete usage explanations, examples, and edge-case discussions belong in generated Doxygen Markdown manual pages, not in hover-heavy header comments.
 
+Documentation ownership follows code ownership. A library manual explains only that library's public API, behavior, examples, troubleshooting, and library-specific validation surface. Root project pages explain GameWIP integration, build presets, startup sequencing, modular validation, report placement, CI, and repository policy. Cross-boundary pages link to the authoritative owner instead of duplicating a contract.
+
 ## Public Header Style
 
 Public headers should:
@@ -556,6 +558,21 @@ Performance:
 
 Implementation helpers may use `@cond` / `@endcond` when they must appear in a public header but should not be treated as normal public API.
 
+## Internal Source Style
+
+Internal headers and implementation files are maintainer documentation. Every named internal namespace, type, function, and non-obvious constant should have a concise purpose comment at its declaration or definition.
+
+Internal comments should add the contract that cannot be recovered safely from the signature alone, including:
+
+* ownership and lifetime;
+* lock and atomic ordering;
+* state transitions and shutdown invariants;
+* platform-boundary behavior;
+* fallback and failure-injection behavior;
+* units, limits, and hot-path constraints.
+
+Do not narrate assignments, loops, obvious accessors, or self-explanatory local variables. Local lambdas need comments only when they encode a non-obvious invariant or protocol. Internal comments are source-maintenance guidance and are not added to the generated public Doxygen input set.
+
 ## Markdown Manual Pages
 
 The generated Doxygen manual must cover every public API.
@@ -570,6 +587,8 @@ Non-trivial APIs should also have Markdown guide pages covering:
 * performance notes;
 * troubleshooting;
 * common patterns.
+
+The manual must account for every public namespace, type, enum value, field, function, macro, and public constant. Closely related overloads or enum values may be explained together in a table when their behavior is genuinely shared. Reference pages should state defaults, units, ownership, thread-safety, blocking behavior, failure behavior, side effects, and compile-time availability wherever those properties apply.
 
 Each reusable library may own a `docs/` folder beside its source.
 
@@ -927,7 +946,7 @@ Test modules register a stable name, deterministic order, callback, and optional
 
 Validation fixture files and subsystem test logs use `TestSupport::ScopedTemporaryDirectory`. Scoped workspaces live under the operating-system temporary directory and are removed after normal completion or exception unwinding. Relative validation report paths resolve beneath the GameWIP OS-temp root; absolute report paths are explicit user overrides. Only final reports persist by default, and validation does not create repository-relative `logs` directories.
 
-Correctness validation writes complete detail to its report file and concise failure/result information to stdout. `--verbose-tests` enables full console mirroring. Report-file failures emit diagnostics but do not alter correctness results.
+Correctness validation writes complete detail to its report file and minimal failure/skip/manual information to stdout. The outer runner owns one result line per module and one aggregate result. `--verbose-tests` enables full console mirroring. Report-file failures emit diagnostics but do not alter correctness results.
 
 Project build modes are defined through named CMake presets. Shipping builds disable standalone and startup validation, assertions, Tracy, and tools.
 

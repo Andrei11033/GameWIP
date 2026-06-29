@@ -4,9 +4,7 @@
 
 Include `filesystem/filesystem.h`. Passive values live under `GameWIP::FileSystem::Types`; active handles and operations live directly under `GameWIP::FileSystem`.
 
-## Documentation
-
-User manual:
+## User manual
 
 - @subpage foundation_filesystem_quick_start
 - @subpage foundation_filesystem_public_api
@@ -17,9 +15,13 @@ User manual:
 - @subpage foundation_filesystem_examples
 - @subpage foundation_filesystem_troubleshooting
 
-Developer validation:
+## Developer validation
 
 - @subpage foundation_filesystem_testing
+
+## Generated API reference
+
+Use @ref GameWIP::FileSystem for handles, locks, and free operations, and @ref GameWIP::FileSystem::Types for paths, enums, options, metadata, and results. These generated pages document every public type, enum value, field, function, overload, and constant from `filesystem/filesystem.h`; the manual pages above explain lifecycle and operation-family contracts.
 
 ## Purpose
 

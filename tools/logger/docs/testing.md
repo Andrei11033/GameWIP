@@ -24,13 +24,6 @@ The logger fatal popup is manually validated through a report path that requests
 
 Manual UI tests must remain runtime opt-in. Automated tests should use hook-controlled failure paths and must not rely on real popup interaction.
 
-## Coverage
+## GameWIP integration
 
-Coverage is enabled at configure time with `GAMEWIP_ENABLE_COVERAGE=ON`; it is not a runtime option. The project-level coverage target writes:
-
-```text
-build-coverage/coverage/index.html
-build-coverage/coverage/coverage.xml
-```
-
-See @ref library_coverage for the full command. gcov/gcovr may warn about ignored negative hits, but reports should still be generated when the target completes.
+GameWIP owns the Logger test-module registration, runtime stress/UI selection, report location, benchmark executable, and coverage target. See @ref library_testing, @ref project_benchmarking, and @ref library_coverage.

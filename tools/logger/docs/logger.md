@@ -4,7 +4,7 @@ Logger is the runtime diagnostics library for normal asynchronous logs and impor
 
 Use normal logs for regular runtime information. Use reports for failures where the message must be written immediately, such as assertion failures, startup errors, or shutdown errors.
 
-## Documentation
+## User manual
 
 - @subpage logger_quick_start
 - @subpage logger_public_api
@@ -16,8 +16,15 @@ Use normal logs for regular runtime information. Use reports for failures where 
 - @subpage logger_stats
 - @subpage logger_examples
 - @subpage logger_troubleshooting
+
+## Developer validation
+
 - @subpage logger_testing
 - @subpage logger_test_hooks
+
+## Generated API reference
+
+Use @ref GameWIP::Logger for lifecycle, filtering, logging, reporting, statistics, and formatting helpers, and @ref GameWIP::Logger::Types for configuration and result shapes. The generated header reference documents every public type, enum value, field, function, overload, macro, and constant; the manual pages above explain runtime behavior and selection rules.
 
 ## Key behavior
 

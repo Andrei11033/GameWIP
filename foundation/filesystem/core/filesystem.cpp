@@ -1,3 +1,6 @@
+/// @file filesystem.cpp
+/// @brief Platform-neutral FileSystem handles, validation, and whole-file operations.
+
 #include "filesystem/filesystem.h"
 #include "filesystem/internal/filesystem_platform.h"
 
@@ -19,91 +22,109 @@ namespace GameWIP::FileSystem
     {
         using ErrorCode = IO::Types::ErrorCode;
 
+        /// @brief Builds a failed path result with an empty path payload.
         Types::PathResult pathFailure(IO::Types::Status status) noexcept
         {
             return {.status = std::move(status), .path = Types::Path{}};
         }
 
+        /// @brief Builds a failed path result from one portable error code.
         Types::PathResult pathFailure(ErrorCode code) noexcept
         {
             return {.status = IO::makeStatus(code), .path = Types::Path{}};
         }
 
+        /// @brief Builds a failed predicate result with a false payload.
         Types::BoolResult boolFailure(IO::Types::Status status) noexcept
         {
             return {.status = std::move(status), .value = false};
         }
 
+        /// @brief Builds a failed predicate result from one portable error code.
         Types::BoolResult boolFailure(ErrorCode code) noexcept
         {
             return {.status = IO::makeStatus(code), .value = false};
         }
 
+        /// @brief Builds a failed size result with a zero payload.
         IO::Types::SizeResult sizeFailure(IO::Types::Status status) noexcept
         {
             return {.status = std::move(status), .sizeBytes = 0};
         }
 
+        /// @brief Builds a failed size result from one portable error code.
         IO::Types::SizeResult sizeFailure(ErrorCode code) noexcept
         {
             return {.status = IO::makeStatus(code), .sizeBytes = 0};
         }
 
+        /// @brief Builds a failed timestamp result with a default time payload.
         Types::LastWriteTimeResult lastWriteTimeFailure(IO::Types::Status status) noexcept
         {
             return {.status = std::move(status), .time = Types::FileTime{}};
         }
 
+        /// @brief Builds a failed timestamp result from one portable error code.
         Types::LastWriteTimeResult lastWriteTimeFailure(ErrorCode code) noexcept
         {
             return {.status = IO::makeStatus(code), .time = Types::FileTime{}};
         }
 
+        /// @brief Builds a failed UTF-8 path result with empty text.
         Types::Utf8PathResult utf8Failure(ErrorCode code) noexcept
         {
             return {.status = IO::makeStatus(code), .utf8 = std::string{}};
         }
 
+        /// @brief Builds a failed entry-info result with default metadata.
         Types::EntryInfoResult entryInfoFailure(IO::Types::Status status) noexcept
         {
             return {.status = std::move(status), .info = Types::EntryInfo{}};
         }
 
+        /// @brief Builds a failed entry-info result from one portable error code.
         Types::EntryInfoResult entryInfoFailure(ErrorCode code) noexcept
         {
             return {.status = IO::makeStatus(code), .info = Types::EntryInfo{}};
         }
 
+        /// @brief Builds a failed directory-list result with no entries.
         Types::ListDirectoryResult listDirectoryFailure(IO::Types::Status status) noexcept
         {
             return {.status = std::move(status), .entries = {}};
         }
 
+        /// @brief Builds a failed directory-list result from one portable error code.
         Types::ListDirectoryResult listDirectoryFailure(ErrorCode code) noexcept
         {
             return {.status = IO::makeStatus(code), .entries = {}};
         }
 
+        /// @brief Builds a failed tree-removal result while preserving completed removal progress.
         Types::RemoveDirectoryTreeResult removeTreeFailure(IO::Types::Status status, std::uint64_t removedEntries = 0) noexcept
         {
             return {.status = std::move(status), .removedEntries = removedEntries};
         }
 
+        /// @brief Builds a failed tree-removal result from a code and completed progress.
         Types::RemoveDirectoryTreeResult removeTreeFailure(ErrorCode code, std::uint64_t removedEntries = 0) noexcept
         {
             return {.status = IO::makeStatus(code), .removedEntries = removedEntries};
         }
 
+        /// @brief Builds a failed write result while preserving accepted payload progress.
         IO::Types::WriteResult writeFailure(IO::Types::Status status, std::size_t bytesWritten = 0) noexcept
         {
             return {.status = std::move(status), .bytesWritten = bytesWritten};
         }
 
+        /// @brief Builds a failed write result from a code and accepted payload progress.
         IO::Types::WriteResult writeFailure(ErrorCode code, std::size_t bytesWritten = 0) noexcept
         {
             return {.status = IO::makeStatus(code), .bytesWritten = bytesWritten};
         }
 
+        /// @brief Maps common standard-library filesystem errors to portable IO codes.
         IO::Types::Status statusFromStdError(std::error_code ec, ErrorCode fallback)
         {
             if (!ec)
@@ -157,6 +178,7 @@ namespace GameWIP::FileSystem
             return IO::makeStatus(code, ec.value(), ec.message());
         }
 
+        /// @brief Validates a public query request before delegating to the platform backend.
         Detail::Platform::EntryQueryResult queryEntry(const Types::Path &path, Types::SymlinkPolicy symlinkPolicy)
         {
             if (path.empty())
@@ -175,11 +197,13 @@ namespace GameWIP::FileSystem
             }
         }
 
+        /// @brief Returns whether an owning wrapper contains live native file state.
         [[nodiscard]] bool stateIsOpen(const std::unique_ptr<Detail::FileState> &state) noexcept
         {
             return state != nullptr && state->nativeHandle != nullptr;
         }
 
+        /// @brief Validates replace-mode enum values crossing the public boundary.
         [[nodiscard]] bool isValidReplaceMode(Types::ReplaceMode mode) noexcept
         {
             switch (mode)
@@ -192,11 +216,13 @@ namespace GameWIP::FileSystem
             return false;
         }
 
+        /// @brief Rejects file-share bits outside the supported mask.
         [[nodiscard]] bool isValidFileShare(Types::FileShare share) noexcept
         {
             return (static_cast<std::uint8_t>(share) & ~static_cast<std::uint8_t>(Types::FileShare::All)) == 0;
         }
 
+        /// @brief Validates symlink-policy enum values crossing the public boundary.
         [[nodiscard]] bool isValidSymlinkPolicy(Types::SymlinkPolicy policy) noexcept
         {
             switch (policy)
@@ -210,6 +236,7 @@ namespace GameWIP::FileSystem
             return false;
         }
 
+        /// @brief Validates file-access enum values crossing the public boundary.
         [[nodiscard]] bool isValidFileAccess(Types::FileAccess access) noexcept
         {
             switch (access)
@@ -223,6 +250,7 @@ namespace GameWIP::FileSystem
             return false;
         }
 
+        /// @brief Validates read/write file-open mode values.
         [[nodiscard]] bool isValidFileOpenMode(Types::FileOpenMode mode) noexcept
         {
             switch (mode)
@@ -238,6 +266,7 @@ namespace GameWIP::FileSystem
             return false;
         }
 
+        /// @brief Validates write-only file-open mode values.
         [[nodiscard]] bool isValidFileWriterMode(Types::FileWriterMode mode) noexcept
         {
             switch (mode)
@@ -254,6 +283,7 @@ namespace GameWIP::FileSystem
             return false;
         }
 
+        /// @brief Validates initial-position enum values.
         [[nodiscard]] bool isValidInitialPosition(Types::FileInitialPosition position) noexcept
         {
             switch (position)
@@ -266,6 +296,7 @@ namespace GameWIP::FileSystem
             return false;
         }
 
+        /// @brief Validates metadata-copy policy values.
         [[nodiscard]] bool isValidCopyMetadataMode(Types::CopyMetadataMode mode) noexcept
         {
             switch (mode)
@@ -278,11 +309,13 @@ namespace GameWIP::FileSystem
             return false;
         }
 
+        /// @brief Returns whether an access mode requests native write permission.
         [[nodiscard]] bool opensForWrite(Types::FileAccess access) noexcept
         {
             return access == Types::FileAccess::Write || access == Types::FileAccess::ReadWrite;
         }
 
+        /// @brief Returns whether an open mode can create or mutate file contents.
         [[nodiscard]] bool modeRequiresWrite(Types::FileOpenMode mode) noexcept
         {
             switch (mode)
@@ -299,11 +332,13 @@ namespace GameWIP::FileSystem
             }
         }
 
+        /// @brief Detects separators or embedded nulls forbidden in atomic temp prefixes.
         [[nodiscard]] bool hasPathSeparator(std::string_view text) noexcept
         {
             return text.find('/') != std::string_view::npos || text.find('\\') != std::string_view::npos || text.find('\0') != std::string_view::npos;
         }
 
+        /// @brief Validates that an atomic temporary prefix is one safe filename component.
         [[nodiscard]] IO::Types::Status validateAtomicTemporaryPrefix(std::string_view prefix) noexcept
         {
             if (prefix.empty() || prefix == "." || prefix == ".." || hasPathSeparator(prefix))
@@ -314,6 +349,7 @@ namespace GameWIP::FileSystem
             return IO::successStatus();
         }
 
+        /// @brief Requires an existing path to resolve to a directory under the requested policy.
         [[nodiscard]] IO::Types::Status validateDirectoryExists(const Types::Path &path, Types::SymlinkPolicy symlinkPolicy) noexcept
         {
             const Detail::Platform::EntryQueryResult result = queryEntry(path, symlinkPolicy);
@@ -329,6 +365,7 @@ namespace GameWIP::FileSystem
             return IO::successStatus();
         }
 
+        /// @brief Validates or creates a target's parent before opening a file.
         [[nodiscard]] IO::Types::Status validateParentDirectory(
             const Types::Path &path,
             bool createMissing,
@@ -359,6 +396,7 @@ namespace GameWIP::FileSystem
             }
         }
 
+        /// @brief Detects source/destination identity using native equivalence with lexical fallback.
         [[nodiscard]] bool equivalentOrSameLexically(const Types::Path &left, const Types::Path &right) noexcept
         {
             if (left == right)
@@ -371,17 +409,20 @@ namespace GameWIP::FileSystem
             return !ec && equivalent;
         }
 
+        /// @brief Performs a non-throwing final-component symlink check for guarded core paths.
         [[nodiscard]] bool finalEntryIsSymlink(const Types::Path &path) noexcept
         {
             const Detail::Platform::EntryQueryResult result = queryEntry(path, Types::SymlinkPolicy::DoNotFollow);
             return result.status.ok() && result.info.kind == Types::EntryKind::Symlink;
         }
 
+        /// @brief Delegates portable metadata copying after core option validation.
         [[nodiscard]] IO::Types::Status copyBasicMetadata(const Types::Path &from, const Types::Path &to, Types::SymlinkPolicy symlinkPolicy) noexcept
         {
             return Detail::Platform::copyBasicMetadata(from, to, symlinkPolicy);
         }
 
+        /// @brief Creates a process/counter/attempt-qualified same-directory atomic temp path.
         [[nodiscard]] Types::Path uniqueAtomicTemporaryPath(const Types::Path &parent, std::string_view prefix, std::uint64_t attempt)
         {
             static std::atomic<std::uint64_t> counter{0};

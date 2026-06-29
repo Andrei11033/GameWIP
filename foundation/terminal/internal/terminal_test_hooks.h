@@ -21,12 +21,14 @@
 #if INTERNAL_TERMINAL_TEST_HOOKS
 namespace GameWIP::Terminal::Detail::TestHooks
 {
+    /// @brief One-shot portable error injection consumed atomically by a backend operation.
     struct HookFailure
     {
         std::atomic_bool enabled = false;
         std::atomic<int> code = static_cast<int>(IO::Types::ErrorCode::Unknown);
     };
 
+    /// @brief Mutable deterministic stdin state protected by TerminalTestHookState::mutex.
     struct InputHookState
     {
         bool capabilitiesOverrideEnabled = false;
@@ -41,6 +43,7 @@ namespace GameWIP::Terminal::Detail::TestHooks
         Terminal::Types::InputMode defaultInputMode{};
     };
 
+    /// @brief Mutable deterministic stdout/stderr state protected by TerminalTestHookState::mutex.
     struct OutputHookState
     {
         bool capabilitiesOverrideEnabled = false;
@@ -61,6 +64,7 @@ namespace GameWIP::Terminal::Detail::TestHooks
         Terminal::Types::CursorPosition cursorPositionOverride{};
     };
 
+    /// @brief Process-wide Terminal hook state shared by core and Win32 backend tests.
     struct TerminalTestHookState
     {
         std::mutex mutex;
@@ -80,11 +84,16 @@ namespace GameWIP::Terminal::Detail::TestHooks
         HookFailure nextFlushFailure;
     };
 
+    /// @brief Singleton hook state; callers lock mutex before non-atomic access.
     extern TerminalTestHookState terminalTestHookState;
 
+    /// @brief Maps the only supported input stream to its hook-state array slot.
     [[nodiscard]] std::size_t inputIndex(Terminal::Types::InputStream stream) noexcept;
+    /// @brief Maps stdout or stderr to its hook-state array slot.
     [[nodiscard]] std::size_t outputIndex(Terminal::Types::OutputStream stream) noexcept;
+    /// @brief Atomically consumes a one-shot forced failure and returns its portable code.
     [[nodiscard]] std::optional<IO::Types::ErrorCode> consumeFailure(HookFailure &failure) noexcept;
+    /// @brief Restores the complete process-wide hook state to deterministic defaults.
     void resetTerminalTestHooks() noexcept;
 } // namespace GameWIP::Terminal::Detail::TestHooks
 
@@ -175,16 +184,27 @@ namespace GameWIP::Terminal::TestHooks
     /// @warning Test-only API.
     void clearCursorPositionOverride(Terminal::Types::OutputStream stream) noexcept;
 
+    /// @brief Forces the next input-capability query to fail with code.
     void forceNextInputCapabilityFailure(IO::Types::ErrorCode code = IO::Types::ErrorCode::StatFailed) noexcept;
+    /// @brief Forces the next output-capability query to fail with code.
     void forceNextOutputCapabilityFailure(IO::Types::ErrorCode code = IO::Types::ErrorCode::StatFailed) noexcept;
+    /// @brief Forces the next output-preparation attempt to fail with code.
     void forceNextOutputPreparationFailure(IO::Types::ErrorCode code = IO::Types::ErrorCode::NativeFailure) noexcept;
+    /// @brief Forces the next input-availability query to fail with code.
     void forceNextInputAvailabilityFailure(IO::Types::ErrorCode code = IO::Types::ErrorCode::StatFailed) noexcept;
+    /// @brief Forces the next input-mode operation to fail with code.
     void forceNextInputModeFailure(IO::Types::ErrorCode code = IO::Types::ErrorCode::NativeFailure) noexcept;
+    /// @brief Forces the next input read to fail with code.
     void forceNextReadFailure(IO::Types::ErrorCode code = IO::Types::ErrorCode::ReadFailed) noexcept;
+    /// @brief Forces the next terminal-size query to fail with code.
     void forceNextTerminalSizeFailure(IO::Types::ErrorCode code = IO::Types::ErrorCode::StatFailed) noexcept;
+    /// @brief Forces the next cursor-position query to fail with code.
     void forceNextCursorPositionFailure(IO::Types::ErrorCode code = IO::Types::ErrorCode::StatFailed) noexcept;
+    /// @brief Forces the next text write to fail with code.
     void forceNextTextWriteFailure(IO::Types::ErrorCode code = IO::Types::ErrorCode::WriteFailed) noexcept;
+    /// @brief Forces the next byte write to fail with code.
     void forceNextByteWriteFailure(IO::Types::ErrorCode code = IO::Types::ErrorCode::WriteFailed) noexcept;
+    /// @brief Forces the next flush operation to fail with code.
     void forceNextFlushFailure(IO::Types::ErrorCode code = IO::Types::ErrorCode::FlushFailed) noexcept;
 } // namespace GameWIP::Terminal::TestHooks
 #endif

@@ -1,12 +1,6 @@
 @page terminal_testing Terminal testing
 
-Terminal-specific tests and internal test hooks are implemented. Hook-dependent tests run when `TERMINAL_ENABLE_TEST_HOOKS=ON` configures `INTERNAL_TERMINAL_TEST_HOOKS=1`; hook-disabled builds skip those deterministic backend-hook suites.
-
-Run the project test executable through CTest:
-
-```text
-ctest --test-dir build-optimized-debuggable --output-on-failure
-```
+Terminal-specific tests and internal test hooks are implemented. Hook-dependent tests run when `TERMINAL_ENABLE_TEST_HOOKS=ON` defines `INTERNAL_TERMINAL_TEST_HOOKS=1`; hook-disabled builds skip those deterministic backend-hook suites.
 
 ## Normal behavior coverage
 
@@ -84,3 +78,5 @@ Terminal public calls should serialize per stream.
 Tests should not assume Terminal can prevent interleaving with `std::cout`, `std::cerr`, `printf`, direct OS writes, or third-party terminal writes.
 
 Successful hot paths should avoid unnecessary allocation. `StyleMode::Never` should avoid style overhead, and segmented writes should be the preferred logger/tool output path.
+
+GameWIP owns the test executable, focused-module selection, CTest registration, presets, and report placement. See @ref library_testing.

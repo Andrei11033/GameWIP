@@ -4,7 +4,7 @@ The Assert library provides fatal assertions, recoverable checks, and optional i
 
 The assert library reports through the Logger library. Fatal assertion paths use synchronous logger reports so failure diagnostics are written immediately.
 
-## Documentation
+## User manual
 
 - @subpage assert_quick_start
 - @subpage assert_public_api
@@ -15,8 +15,15 @@ The assert library reports through the Logger library. Fatal assertion paths use
 - @subpage assert_interactive
 - @subpage assert_examples
 - @subpage assert_troubleshooting
+
+## Developer validation
+
 - @subpage assert_testing
 - @subpage assert_test_hooks
+
+## Generated API reference
+
+Use @ref GameWIP::Debug::Assert for runtime actions and support functions. Global macro reference is generated from `debug/assert/assert.h`; @ref assert_macros and @ref assert_macro_behavior provide the workflow and evaluation matrix for every macro family.
 
 ## Key behavior
 
