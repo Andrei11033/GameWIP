@@ -74,6 +74,29 @@
             "dependsOn": "Build Validation"
         },
         {
+            "label": "Configure Static Analysis",
+            "type": "shell",
+            "command": "cmake",
+            "args": ["--preset", "static-analysis"],
+            "options": {
+                "cwd": "${workspaceFolder}",
+                "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" }
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Run Static Analysis",
+            "type": "shell",
+            "command": "cmake",
+            "args": ["--build", "--preset", "static-analysis"],
+            "options": {
+                "cwd": "${workspaceFolder}",
+                "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" }
+            },
+            "problemMatcher": ["$gcc"],
+            "dependsOn": "Configure Static Analysis"
+        },
+        {
             "label": "Configure Benchmarks",
             "type": "shell",
             "command": "cmake",

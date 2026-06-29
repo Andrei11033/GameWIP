@@ -339,7 +339,7 @@ namespace
     {
         int value = 0;
 
-        if (true)
+        if (true) // NOLINT(readability-simplify-boolean-expr) -- Verifies macro statement safety in a conditional.
             ASSERT(true);
         else
             ++value;

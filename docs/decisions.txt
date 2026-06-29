@@ -916,14 +916,19 @@ Automated GitHub validation should stay easy to understand. The current standard
 * pull request metadata standards run on ready-for-review pull requests into `master`;
 * build/test validation runs on pull requests into `master`, pushes to `master`, and manual dispatch;
 * documentation validation runs on pull requests into `master`, pushes to `master`, and manual dispatch;
+* static analysis covers project-owned C++ under `foundation`, `tools`, `engine`, and `game`, while excluding external and generated code;
+* JavaScript, JSON, and GitHub Actions workflows use format-appropriate repository checks;
 * documentation publishing runs from `master` and manual dispatch;
-* issue automation may run from issue events where it directly helps triage.
+* project automation derives deterministic status and linked-PR metadata from issue, pull request, and dependency state;
+* a scheduled reconciliation repairs state changes that do not emit a usable repository event.
 
 Dependabot pull requests may bypass human PR metadata checks, but they still run the normal validation workflow.
 
-Branch protection should require the PR standards and validation checks before merging into `master`.
+Branch protection should require the PR standards, build/test, repository, and documentation checks before merging into `master`.
 
 Do not add noisy branch-wide automation beyond pull requests and `master` unless the project deliberately decides that the extra feedback is worth the extra GitHub Actions activity.
+
+Project automation must preserve manual metadata, avoid comments, write a concise Actions summary, and support a dry run. A dedicated `PROJECT_TOKEN` secret owns project access; untrusted pull request code must never execute with that token.
 
 ---
 

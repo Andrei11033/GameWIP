@@ -1,0 +1,94 @@
+name: Project Automation
+
+on:
+  issues:
+    types:
+      - opened
+      - edited
+      - closed
+      - reopened
+      - assigned
+      - unassigned
+      - labeled
+      - unlabeled
+      - milestoned
+      - demilestoned
+  pull_request_target:
+    branches:
+      - master
+    types:
+      - opened
+      - edited
+      - closed
+      - reopened
+      - synchronize
+      - converted_to_draft
+      - ready_for_review
+      - assigned
+      - unassigned
+      - labeled
+      - unlabeled
+      - milestoned
+      - demilestoned
+  schedule:
+    - cron: "17 */6 * * *"
+  workflow_dispatch:
+    inputs:
+      kind:
+        description: Reconcile all items or one issue/pull request.
+        required: true
+        default: all
+        type: choice
+        options:
+          - all
+          - issue
+          - pull_request
+      number:
+        description: Issue or pull request number for focused reconciliation.
+        required: false
+        type: string
+      dry_run:
+        description: Report desired changes without updating GitHub.
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: project-automation
+  cancel-in-progress: false
+
+jobs:
+  reconcile:
+    name: Reconcile Project
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout trusted automation
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+
+      - name: Validate project token
+        env:
+          PROJECT_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+        run: |
+          if [ -z "$PROJECT_TOKEN" ]; then
+            echo "PROJECT_TOKEN must contain a token with repo and project scopes." >&2
+            exit 1
+          fi
+
+      - name: Reconcile project metadata and status
+        uses: actions/github-script@v7
+        env:
+          PROJECT_OWNER: ${{ vars.PROJECT_OWNER }}
+          PROJECT_NUMBER: ${{ vars.PROJECT_NUMBER }}
+          ACTIVE_MILESTONE: ${{ vars.ACTIVE_MILESTONE }}
+          DRY_RUN: ${{ inputs.dry_run || 'false' }}
+        with:
+          github-token: ${{ secrets.PROJECT_TOKEN }}
+          script: |
+            const automation = require(`${process.env.GITHUB_WORKSPACE}/.github/scripts/project-automation.js`);
+            await automation.run({github, context, core});

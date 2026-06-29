@@ -595,6 +595,14 @@ Performance stays observable through dedicated benchmarks, and coverage tooling 
 * [ ] Pull request docs-check workflow is validated after it runs on GitHub Actions.
 * [ ] Default-branch build/test validation workflow is validated after it runs on GitHub Actions.
 * [ ] Task issue form and updated pull request template are inspected after the workflow standards update lands.
+* [x] Project status and linked-metadata rules are covered by Node.js unit tests.
+* [x] Maintained JavaScript passes Node.js syntax validation.
+* [x] GitHub Actions workflows pass actionlint locally.
+* [x] Maintained JSON files parse successfully locally.
+* [x] clang-tidy passes all project-owned C++ translation units without analyzing external code or resource scripts.
+* [x] clang-format check passes all project-owned C++ source and header files.
+* [ ] Repository checks workflow is validated after it runs on GitHub Actions.
+* [ ] Project automation dry run and normal reconciliation are validated after the workflow reaches `master`.
 
 ## Documentation Structure
 

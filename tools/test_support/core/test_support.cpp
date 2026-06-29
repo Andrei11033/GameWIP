@@ -467,7 +467,7 @@ namespace GameWIP::TestSupport
             message << "section " << name_ << " elapsedMs=" << elapsedMilliseconds;
             context_.metric(message.str());
         }
-        catch (...)
+        catch (...) // NOLINT(bugprone-empty-catch) -- A diagnostic-only destructor cannot propagate failures.
         {
         }
     }

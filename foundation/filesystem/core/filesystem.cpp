@@ -492,8 +492,7 @@ namespace GameWIP::FileSystem
     FileReader::FileReader() noexcept = default;
 
     FileReader::FileReader(FileReader &&other) noexcept
-        : IO::Reader(std::move(other))
-        , state_(std::move(other.state_))
+        : state_(std::move(other.state_))
     {
     }
 
@@ -610,8 +609,7 @@ namespace GameWIP::FileSystem
     FileWriter::FileWriter() noexcept = default;
 
     FileWriter::FileWriter(FileWriter &&other) noexcept
-        : IO::Writer(std::move(other))
-        , state_(std::move(other.state_))
+        : state_(std::move(other.state_))
     {
     }
 

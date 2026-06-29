@@ -34,7 +34,7 @@
 namespace GameWIP::TestSupport
 {
     /// @brief Default in-memory limit for combined child stdout/stderr capture.
-    inline constexpr std::size_t kDefaultMaxCapturedOutputBytes = 4 * 1024 * 1024;
+    inline constexpr std::size_t kDefaultMaxCapturedOutputBytes = std::size_t{4} * 1024 * 1024;
 
     /// @cond INTERNAL_TEST_SUPPORT
     namespace Detail

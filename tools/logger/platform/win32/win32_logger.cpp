@@ -452,12 +452,7 @@ namespace GameWIP::Logger::Detail::Platform
         }
 
         const DWORD updatedMode = mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING;
-        if (SetConsoleMode(handle, updatedMode) == 0)
-        {
-            return false;
-        }
-
-        return true;
+        return SetConsoleMode(handle, updatedMode) != 0;
     }
 
     /// @brief Queries process-level memory counters from Win32.

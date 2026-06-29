@@ -1203,7 +1203,8 @@ namespace
         const unsigned char *reportData = rawHid.bRawData;
         for (DWORD reportIndex = 0; reportIndex < rawHid.dwCount; ++reportIndex)
         {
-            const char *report = reinterpret_cast<const char *>(reportData + (reportIndex * rawHid.dwSizeHid));
+            const std::size_t reportOffset = static_cast<std::size_t>(reportIndex) * rawHid.dwSizeHid;
+            const char *report = reinterpret_cast<const char *>(reportData + reportOffset);
             const ULONG reportSize = rawHid.dwSizeHid;
             if (tryFeedDualSenseReport(inputState, *runtime, reinterpret_cast<const unsigned char *>(report), reportSize))
             {
@@ -2128,11 +2129,7 @@ namespace GameWIP::Input::Platform::Win32
     {
         if (message == WM_INPUT)
         {
-            if (handleRawInput(lParam, inputState, devices))
-            {
-                return true;
-            }
-            return false;
+            return handleRawInput(lParam, inputState, devices);
         }
 
         if (message == WM_INPUT_DEVICE_CHANGE)

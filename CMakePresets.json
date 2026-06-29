@@ -11,6 +11,7 @@
         "GAMEWIP_ENABLE_TOOLS": "OFF",
         "GAMEWIP_OPEN_TOOLS_AT_STARTUP": "OFF",
         "GAMEWIP_ENABLE_COVERAGE": "OFF",
+        "GAMEWIP_ENABLE_STATIC_ANALYSIS": "OFF",
         "GAMEWIP_BUILD_DOCS": "OFF",
         "GAMEWIP_INSTALL_DOCS": "OFF"
       }
@@ -124,6 +125,14 @@
       }
     },
     {
+      "name": "static-analysis",
+      "displayName": "Repository static analysis",
+      "inherits": "validation",
+      "cacheVariables": {
+        "GAMEWIP_ENABLE_STATIC_ANALYSIS": "ON"
+      }
+    },
+    {
       "name": "docs",
       "displayName": "Doxygen documentation",
       "inherits": "base",
@@ -147,6 +156,7 @@
     { "name": "optimized", "configurePreset": "optimized" },
     { "name": "shipping", "configurePreset": "shipping" },
     { "name": "coverage", "configurePreset": "coverage" },
+    { "name": "static-analysis", "configurePreset": "static-analysis", "targets": ["static-analysis"] },
     { "name": "docs", "configurePreset": "docs", "targets": ["docs"] }
   ],
   "testPresets": [

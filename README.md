@@ -40,6 +40,13 @@ ctest --preset validation
 .\build-validation\GameWIPBenchmarks.exe --benchmark_dry_run
 ```
 
+Run static analysis and formatting checks for maintained C++ code:
+
+```powershell
+cmake --preset static-analysis
+cmake --build --preset static-analysis
+```
+
 Run one correctness module:
 
 ```powershell
@@ -87,6 +94,8 @@ Project references:
 - [Implementation checklist](docs/implementation_checklist.txt)
 - [Testing checklist](docs/testing_checklist.txt)
 - [Platform backend contract](docs/platform_backend_contract.txt)
+- [Static analysis standard](docs/doxygen/static_analysis.md)
+- [Repository automation](docs/doxygen/repository_automation.md)
 
 ## Repository Layout
 

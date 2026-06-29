@@ -225,8 +225,8 @@ namespace GameWIP
         unsigned long lastAsyncPlatformError = 0;
         bool asyncErrorRecorded = false;
 
-        Result recordResult(Result result, unsigned long platformError = 0);
-        void recordAsyncError(Result result, unsigned long platformError = 0);
+        Result recordResult(Result result, unsigned long win32Error = 0);
+        void recordAsyncError(Result result, unsigned long win32Error = 0);
 
         void pushEvent(Event event);
         bool shouldSuppressEvent(EventType type) const;
@@ -240,7 +240,7 @@ namespace GameWIP
         void handleVisibilityChange(bool visible);
         bool shouldHandleCursorEnter() const;
         bool handleCursorEnter();
-        void handleCursorTrackingFailure(unsigned long platformError);
+        void handleCursorTrackingFailure(unsigned long win32Error);
         void handleCursorLeave();
         void handleFileDrop(std::string_view filePath);
         void handleDestroyed();
@@ -268,7 +268,7 @@ namespace GameWIP
         Result applyFullscreenModeTarget(const FullscreenModeTarget &target, Mode previousMode, const FullscreenModeSnapshot &previousState);
         void storeFullscreenModeTarget(const FullscreenModeTarget &target);
 
-        Result releaseCursorConfinement(unsigned long *outPlatformError = nullptr);
+        Result releaseCursorConfinement(unsigned long *outWin32Error = nullptr);
         void updateCursorConfinement();
     };
 } // namespace GameWIP

@@ -50,7 +50,9 @@ priority:*   The scheduling priority.
 
 Prefer one main `area:*` label and one main `type:*` label. Add extra labels only when they clarify ownership or review.
 
-Set the project status to `In Progress` only when work has started. Leave future ideas as normal open issues until they are actually being worked.
+Assign an issue when work starts. Project automation then moves it to `In Progress`; future ideas remain in Backlog, while fully triaged work in the active milestone becomes Ready.
+
+Use GitHub's **Blocked by** relationship for real dependencies. Do not use the Blocked status as a general priority or waiting label.
 
 ---
 
@@ -152,7 +154,9 @@ It performs:
 * an MSYS2 UCRT64 configure/build pass with modular correctness tests and internal test hooks enabled;
 * a Google Benchmark registration dry run without performance thresholds;
 * a Doxygen docs build with `GAMEWIP_BUILD_DOCS=ON`;
-* a Doxygen warning-log check.
+* a Doxygen warning-log check;
+* clang-tidy and clang-format checks for maintained C++ code;
+* JavaScript syntax and unit tests, JSON parsing, and actionlint workflow validation.
 
 The `Doxygen Docs` workflow publishes GitHub Pages only from `master` or manual dispatch. Pull requests build docs for validation but do not publish them.
 
@@ -161,8 +165,19 @@ After these workflows exist on `master`, branch protection should require:
 ```text
 PR Standards / Check PR Standards
 Validation / Build and Test
+Validation / Repository Checks
 Validation / Docs Check
 ```
+
+Local static-analysis commands and file scope are documented under `docs/doxygen/static_analysis.md`.
+
+---
+
+## Project Automation
+
+Use a closing keyword such as `Closes #6` in the pull request body. The project workflow uses that relationship to copy issue labels, assignees, and a non-conflicting milestone to the pull request, then moves both items through In Progress, Review, and Done.
+
+Issue status is derived from closure, **Blocked by** relationships, linked pull requests, assignees, active milestone, and required labels. The complete rule order, repository variables, token requirement, and dry-run command are documented under `docs/doxygen/repository_automation.md`.
 
 ---
 

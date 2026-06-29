@@ -15,6 +15,7 @@ include(GameWIPRuntimeDependencies)
 include(GameWIPValidationModules)
 include(GameWIPCoverage)
 include(GameWIPDocumentation)
+include(GameWIPStaticAnalysis)
 
 library_resolve_platform_id(LIBRARY_PLATFORM_ID)
 
@@ -30,3 +31,4 @@ add_subdirectory(game)
 
 gamewip_create_coverage_target()
 gamewip_create_documentation_target()
+gamewip_create_static_analysis_targets()
