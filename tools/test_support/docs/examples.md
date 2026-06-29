@@ -80,7 +80,7 @@ starter.join();
 stopper.join();
 ```
 
-Examples should remain generic and avoid Logger-specific, Assert-specific, or engine-specific helper logic.
+Examples should remain generic and avoid foundation-, tool-, engine-, or game-specific helper logic.
 
 ## Related pages
 

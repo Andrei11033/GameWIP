@@ -6,6 +6,8 @@ Logger validation is split into correctness tests, stress tests, hook-forced tes
 
 Normal tests cover public API behavior, configuration, formatting, filtering, reports, statistics, lifecycle, and file output.
 
+Foundation integration tests use Terminal's shared test-hook state to verify severity styling, stdout/stderr routing, redirected plain-text fallback, UTF-8 text, native line endings, and one backend write per Logger record. File tests verify UTF-8 log-directory round trips and reader sharing while Logger retains its writer.
+
 ## Stress tests
 
 Stress tests cover producer concurrency, flush while producers are active, shutdown while producers are active, queue pressure, and repeated init/shutdown.

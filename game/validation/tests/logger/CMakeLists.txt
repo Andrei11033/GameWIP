@@ -5,6 +5,7 @@ gamewip_add_test_module(
         module.cpp
     LINK_LIBRARIES
         Logger
+        Terminal
         TestSupport
         Tracy::TracyClient
 )

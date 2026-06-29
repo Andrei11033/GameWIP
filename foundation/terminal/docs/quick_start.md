@@ -2,6 +2,18 @@
 
 Terminal exposes explicit operations for stdin, stdout, stderr, styling, and primitive controls.
 
+## Include and link
+
+Include the public header:
+
+```cpp
+#include "terminal/terminal.h"
+```
+
+Link the shared `Terminal` target. Terminal publicly depends on `IO` because its API uses shared
+status, write-result, and flush-mode types. The shared runtime keeps one standard-stream state across
+the application and its libraries.
+
 ## Write a line
 
 ```cpp

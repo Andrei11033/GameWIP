@@ -41,7 +41,7 @@ find_package(TestSupport CONFIG REQUIRED)
 target_link_libraries(MyTests PRIVATE TestSupport)
 ```
 
-Logger tests, Assert tests, and future engine tests may use TestSupport, but TestSupport examples should remain generic and should not require Logger or Assert.
+Foundation, tool, engine, and game tests may use TestSupport, but TestSupport itself has no project-library dependencies and its examples remain generic.
 
 ## Where to go next
 

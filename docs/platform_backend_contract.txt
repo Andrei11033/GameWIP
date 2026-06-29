@@ -187,6 +187,8 @@ Terminal core owns public option validation, formatting, style/control sequence 
 foundation/terminal/internal/terminal_platform.h
 ```
 
+Terminal is a shared runtime. This keeps process-wide standard-stream locks, input modes, cursor scopes, alternate-screen nesting, scratch storage, and test hooks in one module even when Logger, Assert, and the application all use Terminal.
+
 ## Required Responsibilities
 
 A Terminal backend is responsible for:
@@ -248,16 +250,11 @@ A Logger backend is responsible for:
 
 * writing text to the platform debugger or diagnostic stream;
 * showing a fatal diagnostic popup when enabled by Logger configuration;
-* creating directories for log files;
-* opening log files;
-* writing to log files;
-* flushing log files;
-* closing log files;
-* reporting whether a file handle is open;
 * formatting local time text used by log file names and log lines;
-* reporting whether stdout or stderr supports ANSI color;
 * returning best-effort process memory diagnostics;
 * providing per-thread formatting scratch storage for header-only formatted logging paths.
+
+Logger core uses FileSystem and IO for log-directory, path, writer, write, flush, and close behavior. It uses Terminal for stdout/stderr routing, portable styling, Unicode output, redirection behavior, line endings, and stream flushing. Logger backends must not duplicate those foundation responsibilities.
 
 ## Producer-Side Logging Rule
 
@@ -322,6 +319,8 @@ Macro documentation must clearly explain which condition and message expressions
 # 12. TestSupport Backend Contract
 
 TestSupport core code must not call operating-system APIs directly.
+
+TestSupport remains standalone and must not depend on IO, FileSystem, Terminal, Logger, Assert, engine, or game libraries. Portable standard-library facilities remain valid inside TestSupport; platform-specific process and environment behavior stays behind its own backend.
 
 The TestSupport backend implements the functions declared in:
 

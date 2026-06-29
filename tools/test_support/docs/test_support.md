@@ -2,7 +2,7 @@
 
 TestSupport is the shared support layer for test executables.
 
-It provides generic test reporting, expectations, suite running, file helpers, scoped environment changes, child process execution, manual checks, timing metrics, and small stress-test helpers. It does not depend on Logger or Assert, and it does not contain Logger-specific, Assert-specific, or engine-simulation test logic.
+It provides generic test reporting, expectations, suite running, file helpers, scoped environment changes, child process execution, manual checks, timing metrics, and small stress-test helpers. It depends on no other project library, uses the standard library plus its own platform backend, and contains no foundation-, tool-, engine-, or game-specific test logic.
 
 ## User manual
 

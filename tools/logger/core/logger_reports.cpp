@@ -5,6 +5,27 @@
 
 namespace GameWIP::Logger::Detail::Core
 {
+    /// @brief Writes one complete Logger console record through the shared Terminal runtime.
+    /// @param style Severity style and stdout/stderr route.
+    /// @param line Complete log line without its line ending.
+    /// @return Terminal write status.
+    GameWIP::IO::Types::Status writeConsoleLine(const LogStyle &style, std::string_view line)
+    {
+        const std::array<GameWIP::Terminal::Types::WriteSegment, 1> segments{GameWIP::Terminal::styledTextSegment(line, style.terminalStyle)};
+
+        GameWIP::Terminal::Types::SegmentWriteOptions options;
+        options.styleMode = loggerState().consoleColorEnabledAtomic.load(std::memory_order_acquire) ? GameWIP::Terminal::Types::StyleMode::Auto
+                                                                                                    : GameWIP::Terminal::Types::StyleMode::Never;
+        options.appendLineEnding = true;
+        options.lineEnding = GameWIP::Terminal::Types::LineEnding::Native;
+        options.flushMode = loggerState().flushConsoleEveryWriteAtomic.load(std::memory_order_acquire) ? GameWIP::IO::Types::FlushMode::Data
+                                                                                                       : GameWIP::IO::Types::FlushMode::None;
+
+        const GameWIP::Terminal::Types::OutputStream stream =
+            style.useStderr ? GameWIP::Terminal::Types::OutputStream::Stderr : GameWIP::Terminal::Types::OutputStream::Stdout;
+        return GameWIP::Terminal::writeSegments(stream, segments, options);
+    }
+
     /// @brief Writes one report directly to configured sinks without using the async queue.
     /// @param level Severity for the report line.
     /// @param source Source text to write.
@@ -47,28 +68,12 @@ namespace GameWIP::Logger::Detail::Core
                 std::lock_guard<std::mutex> outputLock(loggerState().outputMutex);
                 if (consoleOutput)
                 {
-                    std::ostream &consoleStream = style.useCerr ? std::cerr : std::cout;
-                    if (consoleColorEnabledForStream(style.useCerr) && style.color[0] != '\0')
-                    {
-                        consoleStream << style.color << line << "\033[0m";
-                    }
-                    else
-                    {
-                        consoleStream << line;
-                    }
-
-                    consoleStream << '\n';
-                    if (loggerState().flushConsoleEveryWriteAtomic.load(std::memory_order_acquire))
-                    {
-                        consoleStream.flush();
-                    }
-                    accepted = accepted || !consoleStream.fail();
+                    accepted = accepted || writeConsoleLine(style, line).ok();
                 }
 
                 if (wantsFileOutput)
                 {
-                    if (loggerState().fileOutputAvailableAtomic.load(std::memory_order_acquire) &&
-                        GameWIP::Logger::Detail::Platform::isFileOpen(loggerState().logFile))
+                    if (loggerState().fileOutputAvailableAtomic.load(std::memory_order_acquire) && loggerState().logFile.isOpen())
                     {
                         std::string fileLine(line);
                         fileLine.push_back('\n');
@@ -125,20 +130,25 @@ namespace GameWIP::Logger::Detail::Core
 #endif
 
     /// @brief Opens a file, optionally consuming a test hook that forces failure.
-    PlatformError openFileExclusiveForLogger(std::string_view path, FileHandle &outHandle)
+    PlatformError openFileExclusiveForLogger(const FilePath &path, FileWriter &outWriter)
     {
 #if INTERNAL_LOGGER_TEST_HOOKS
         if (consumeTestHook(loggerTestHookState.nextFileOpenFailure))
         {
-            outHandle = {};
             return forcedFileError();
         }
 #endif
-        return GameWIP::Logger::Detail::Platform::openFileExclusive(path, outHandle);
+        const GameWIP::FileSystem::Types::FileWriterOpenOptions options{
+            .mode = GameWIP::FileSystem::Types::FileWriterMode::CreateNew,
+            .share = GameWIP::FileSystem::Types::FileShare::Read,
+            .symlinkPolicy = GameWIP::FileSystem::Types::SymlinkPolicy::FollowAll,
+            .createParentDirectories = false,
+            .flushOnClose = GameWIP::IO::Types::FlushMode::None};
+        return filePlatformError(outWriter.open(path, options));
     }
 
     /// @brief Writes file text, optionally consuming a test hook that forces failure.
-    PlatformError writeFileForLogger(FileHandle handle, std::string_view text)
+    PlatformError writeFileForLogger(FileWriter &writer, std::string_view text)
     {
 #if INTERNAL_LOGGER_TEST_HOOKS
         if (consumeTestHook(loggerTestHookState.nextFileWriteFailure))
@@ -146,11 +156,12 @@ namespace GameWIP::Logger::Detail::Core
             return forcedFileError();
         }
 #endif
-        return GameWIP::Logger::Detail::Platform::writeFile(handle, text);
+        const GameWIP::IO::Types::WriteResult result = GameWIP::IO::writeAllText(writer, text);
+        return filePlatformError(result.status);
     }
 
     /// @brief Flushes a file, optionally consuming a test hook that forces failure.
-    PlatformError flushFileForLogger(FileHandle handle)
+    PlatformError flushFileForLogger(FileWriter &writer)
     {
 #if INTERNAL_LOGGER_TEST_HOOKS
         if (consumeTestHook(loggerTestHookState.nextFileFlushFailure))
@@ -158,7 +169,7 @@ namespace GameWIP::Logger::Detail::Core
             return forcedFileError();
         }
 #endif
-        return GameWIP::Logger::Detail::Platform::flushFile(handle);
+        return filePlatformError(writer.flush(GameWIP::IO::Types::FlushMode::Data));
     }
 
     /// @brief Resolves a SourceId and writes one report directly to configured sinks.
@@ -224,22 +235,7 @@ namespace GameWIP::Logger::Detail::Core
         if (consoleOutput)
         {
             std::lock_guard<std::mutex> outputLock(loggerState().outputMutex);
-            std::ostream &consoleStream = style.useCerr ? std::cerr : std::cout;
-            if (consoleColorEnabledForStream(style.useCerr) && style.color[0] != '\0')
-            {
-                consoleStream << style.color << lineScratch << "\033[0m";
-            }
-            else
-            {
-                consoleStream << lineScratch;
-            }
-
-            consoleStream << '\n';
-            if (loggerState().flushConsoleEveryWriteAtomic.load(std::memory_order_acquire))
-            {
-                consoleStream.flush();
-            }
-            result.acceptedImmediateSink = !consoleStream.fail();
+            result.acceptedImmediateSink = writeConsoleLine(style, lineScratch).ok();
         }
 
         if (wantsFileOutput)
@@ -278,7 +274,7 @@ namespace GameWIP::Logger::Detail::Core
         std::lock_guard<std::mutex> outputLock(loggerState().outputMutex);
         bool success = false;
         PlatformError fileError = PlatformError{PlatformErrorSource::File, 0};
-        if (GameWIP::Logger::Detail::Platform::isFileOpen(loggerState().logFile))
+        if (loggerState().logFile.isOpen())
         {
             fileError = writeFileForLogger(loggerState().logFile, fileBatchScratch);
             if (forceFlush || loggerState().flushFileEveryBatchAtomic.load(std::memory_order_acquire))
@@ -336,10 +332,10 @@ namespace GameWIP::Logger::Detail::Core
         PlatformError fileError;
         {
             std::lock_guard<std::mutex> outputLock(loggerState().outputMutex);
-            std::cout.flush();
-            std::cerr.flush();
+            static_cast<void>(GameWIP::Terminal::flush(GameWIP::Terminal::Types::OutputStream::Stdout, GameWIP::IO::Types::FlushMode::Data));
+            static_cast<void>(GameWIP::Terminal::flush(GameWIP::Terminal::Types::OutputStream::Stderr, GameWIP::IO::Types::FlushMode::Data));
 
-            if (GameWIP::Logger::Detail::Platform::isFileOpen(loggerState().logFile))
+            if (loggerState().logFile.isOpen())
             {
                 fileError = flushFileForLogger(loggerState().logFile);
                 fileFlushFailed = hasPlatformError(fileError);

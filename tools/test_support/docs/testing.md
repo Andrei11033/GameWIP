@@ -16,7 +16,7 @@ TestSupport tests should cover:
 - manual-check skipped behavior on non-interactive input;
 - timer, section, start-gate, stop-flag, and worker helpers.
 
-TestSupport must remain independent of Logger, Assert, Terminal, and engine libraries. Child-process tests should assert portable observable outcomes: successful exit, nonzero exit, timeout, test-requested termination, captured output, and output truncation.
+TestSupport must remain independent of every project library, including IO, FileSystem, Terminal, Logger, Assert, engine, and game code. Its standard-library and private platform-backend implementation keeps it usable as the standalone support layer for tests of those libraries. Child-process tests should assert portable observable outcomes: successful exit, nonzero exit, timeout, test-requested termination, captured output, and output truncation.
 
 See @ref test_support_child_processes and @ref test_support_reports for the corresponding contracts.
 

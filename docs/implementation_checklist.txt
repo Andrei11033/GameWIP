@@ -81,6 +81,9 @@ Platform backend selection and layout are implemented for the current Windows-fi
 ## Platform Delegation
 
 * [x] Logger core delegates OS behavior through `tools/logger/internal/logger_platform.h`.
+* [x] Logger delegates file paths, directories, persistent writes, and flushes through FileSystem and IO.
+* [x] Logger delegates stdout/stderr routing, portable styling, Unicode output, and redirection behavior through Terminal.
+* [x] Logger's backend retains only Logger-specific debugger, popup, time, memory, and thread-scratch behavior.
 
 ## Test Hooks
 
@@ -160,8 +163,8 @@ Assert is implemented as a reusable diagnostic library with fatal, recoverable, 
 
 ## Dependency Rules
 
-* [x] TestSupport does not depend on Logger.
-* [x] TestSupport does not depend on Assert.
+* [x] TestSupport does not depend on any project library.
+* [x] TestSupport uses the standard library and its own platform backend for standalone behavior.
 * [x] Logger tests may depend on TestSupport.
 * [x] Assert tests may depend on TestSupport.
 
@@ -405,6 +408,8 @@ The Windows backend follows the project rule that public C++ remains UTF-8/path 
 
 * [x] CMake builds the game executable independently from validation runners.
 * [x] CMake builds the library targets.
+* [x] Terminal builds as the shared process-wide standard-stream runtime.
+* [x] Static IO and FileSystem targets are position-independent for embedding in shared libraries on supported toolchains.
 * [x] Root CMake delegates ownership to `external`, `foundation`, `tools`, `engine`, and `game` directories.
 * [x] Project options, coverage, documentation, runtime dependencies, and validation module helpers use dedicated CMake modules.
 * [x] Named CMake presets cover development, validation, benchmarks, tools, profiling, optimized, shipping, coverage, and docs builds.
@@ -638,13 +643,15 @@ The Doxygen build infrastructure is implemented, modular, and integrated with th
 ## Package Dependencies
 
 * [x] FileSystem package locates IO as a dependency.
+* [x] Terminal package locates IO as a dependency.
+* [x] Logger package locates Terminal as its shared runtime dependency.
 * [x] Assert package locates Logger as a dependency.
-* [x] TestSupport package has no Logger dependency.
-* [x] TestSupport package has no Assert dependency.
+* [x] TestSupport package has no project-library dependencies.
 
 ## Public Install Surface
 
 * [x] FileSystem installs its public header and package config files.
+* [x] Terminal installs its shared runtime, import library, public header, and package config files.
 * [x] Test hooks are excluded from public package installs by default.
 * [x] Assert propagates the Common Controls v6 manifest resource for Windows consumers.
 

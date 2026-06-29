@@ -22,6 +22,8 @@ Compile-time format overloads are preferred. Wrap genuinely dynamic format text 
 
 `init()` copies the configuration data it retains. Lifecycle calls must be externally serialized; producer logging calls are safe from multiple threads while the logger is running.
 
+`Config::logDirectory` and `getLogFilePath()` use UTF-8 text at the Logger boundary. FileSystem owns native path conversion and file access. Console records use the shared Terminal runtime so Logger and direct Terminal calls coordinate through one process-wide standard-stream implementation.
+
 `flush(timeout)` may fail to finish while producers continue submitting work or a sink remains blocked. `shutdown()` drains accepted work, stops the worker, and closes sinks.
 
 Statistics and memory snapshots are diagnostic observations, not gameplay state. Filtered calls are intentional skips and are not queue drops.

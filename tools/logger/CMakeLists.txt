@@ -38,6 +38,12 @@ target_compile_definitions(Logger
         INTERNAL_LOGGER_TEST_HOOKS=$<BOOL:${LOGGER_ENABLE_TEST_HOOKS}>
 )
 
+target_link_libraries(Logger PRIVATE
+    FileSystem
+    Terminal
+    IO
+)
+
 set_target_properties(Logger PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
     LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"

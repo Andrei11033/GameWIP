@@ -5,6 +5,7 @@
 
 #include "logger/logger.h"
 #include "logger/logger_macros.h"
+#include "terminal/terminal.h"
 #include "test_support/test_support.h"
 
 #ifndef INTERNAL_LOGGER_TEST_HOOKS
@@ -13,6 +14,14 @@
 
 #if INTERNAL_LOGGER_TEST_HOOKS
 #include "logger/internal/logger_test_hooks.h"
+#endif
+
+#ifndef INTERNAL_TERMINAL_TEST_HOOKS
+#define INTERNAL_TERMINAL_TEST_HOOKS 0
+#endif
+
+#if INTERNAL_TERMINAL_TEST_HOOKS
+#include "terminal/internal/terminal_test_hooks.h"
 #endif
 
 #include <tracy/Tracy.hpp>
@@ -48,6 +57,7 @@
 namespace
 {
     namespace Logger = GameWIP::Logger;
+    namespace Terminal = GameWIP::Terminal;
     namespace TestSupport = GameWIP::TestSupport;
     using LoggerTestOptions = GameWIP::Test::LoggerTestOptions;
     using Clock = std::chrono::steady_clock;
@@ -419,7 +429,15 @@ namespace
     /// @brief Converts a fixture path to Logger's narrow configuration text.
     std::string pathText(const std::filesystem::path &path)
     {
-        return path.generic_string();
+        const std::u8string text = path.generic_u8string();
+        return std::string(reinterpret_cast<const char *>(text.data()), text.size());
+    }
+
+    /// @brief Converts Logger's UTF-8 path text back to a platform path for test inspection.
+    std::filesystem::path pathFromText(std::string_view text)
+    {
+        const auto *begin = reinterpret_cast<const char8_t *>(text.data());
+        return std::filesystem::path(std::u8string(begin, begin + text.size()));
     }
 
     using ScopedEnvironmentVariable = TestSupport::ScopedEnvironmentVariable;
@@ -545,6 +563,49 @@ namespace
         config.releaseStorageOnShutdown = true;
         return config;
     }
+
+#if INTERNAL_TERMINAL_TEST_HOOKS
+    namespace TerminalHooks = GameWIP::Terminal::TestHooks;
+
+    /// @brief Prevents Terminal hook state from leaking out of an integration scenario.
+    struct ScopedTerminalHookReset
+    {
+        ScopedTerminalHookReset()
+        {
+            TerminalHooks::reset();
+        }
+
+        ~ScopedTerminalHookReset()
+        {
+            TerminalHooks::reset();
+        }
+    };
+
+    /// @brief Returns interactive output capabilities used by Logger-to-Terminal integration tests.
+    Terminal::Types::OutputCapabilities loggerTerminalCapabilities() noexcept
+    {
+        return {
+            .kind = Terminal::Types::StreamKind::Terminal,
+            .supportsUtf8Text = true,
+            .supportsByteOutput = true,
+            .supportsFlush = true,
+            .style = Terminal::Types::StyleCapabilities{.basicColor = true}};
+    }
+
+    /// @brief Returns redirected output capabilities that intentionally reject styles.
+    Terminal::Types::OutputCapabilities loggerRedirectedCapabilities() noexcept
+    {
+        return {.kind = Terminal::Types::StreamKind::Redirected, .supportsUtf8Text = true, .supportsByteOutput = true, .supportsFlush = true};
+    }
+
+    /// @brief Captures one Terminal stream through the shared runtime hook state.
+    void captureTerminalOutput(Terminal::Types::OutputStream stream, const Terminal::Types::OutputCapabilities &capabilities)
+    {
+        TerminalHooks::setOutputCapabilitiesOverride(stream, capabilities);
+        TerminalHooks::setOutputCapture(stream, true);
+        TerminalHooks::clearCapturedOutput(stream);
+    }
+#endif
 
     /// @brief Records initialization outcome and includes structured platform diagnostics on failure.
     void expectInitSuccess(TestContext &context, std::string_view name, Logger::Types::Result result)
@@ -730,6 +791,93 @@ namespace
         context.expectTrue("file contains formatted debug", contents.find("[DEBUG][LoggerTest]: debug 7") != std::string::npos);
         context.expectTrue("file contains runtime format", contents.find("[INFO][LoggerTest]: runtime 11") != std::string::npos);
         context.expectTrue("file contains fatal", contents.find("[FATAL][LoggerTest]: fatal line") != std::string::npos);
+    }
+
+    /// @brief Verifies Logger's FileSystem path boundary, sharing mode, and UTF-8 path reporting.
+    void testFoundationFileSink(TestContext &context)
+    {
+        ZoneScopedN("Logger foundation file sink tests");
+        ScopedLoggerShutdown shutdown;
+
+        const std::filesystem::path unicodeDirectory = context.logRoot / std::filesystem::path(u8"unicode-\u2605");
+        OwnedLoggerConfig config = makeConfig(Logger::Types::Output::File, Logger::Types::Level::Trace, unicodeDirectory);
+        config.flushFileEveryBatch = true;
+        expectInitSuccess(context, "UTF-8 file sink init", Logger::init(config.ready()));
+
+        Logger::info(testSource, "foundation file sink");
+        context.expectTrue("UTF-8 file sink flush", Logger::flush(2s));
+
+        const std::string logFileText = Logger::getLogFilePath();
+        context.expectContains("UTF-8 log path round trip", logFileText, "\xE2\x98\x85");
+        const std::filesystem::path logFile = pathFromText(logFileText);
+        context.expectTrue(
+            "file sink permits live readers",
+            readWholeFile(logFile).find("foundation file sink") != std::string::npos,
+            "flushed log file was not readable while Logger retained its writer");
+
+        Logger::shutdown();
+        context.expectTrue("UTF-8 log file exists after shutdown", TestSupport::fileExists(logFile));
+    }
+
+    /// @brief Verifies Logger routes complete console records through the process-wide Terminal runtime.
+    void testTerminalConsoleSink(TestContext &context)
+    {
+#if INTERNAL_TERMINAL_TEST_HOOKS
+        ZoneScopedN("Logger Terminal console sink tests");
+        ScopedLoggerShutdown shutdown;
+        const ScopedTerminalHookReset terminalHookReset;
+
+        captureTerminalOutput(Terminal::Types::OutputStream::Stdout, loggerTerminalCapabilities());
+        captureTerminalOutput(Terminal::Types::OutputStream::Stderr, loggerTerminalCapabilities());
+
+        Logger::Types::Config config = makeConsoleConfig();
+        config.enableConsoleColor = true;
+        expectInitSuccess(context, "Terminal console sink init", Logger::init(config));
+        Logger::trace(testSource, "terminal trace");
+        Logger::debug(testSource, "terminal debug");
+        Logger::info(testSource, "terminal info");
+        Logger::warn(testSource, "terminal warn");
+        Logger::error(testSource, "terminal error");
+        Logger::fatal(testSource, "terminal fatal");
+        context.expectTrue("Terminal console sink flush", Logger::flush(2s));
+        Logger::shutdown();
+
+        const std::string stdoutText = TerminalHooks::capturedOutputText(Terminal::Types::OutputStream::Stdout);
+        const std::string stderrText = TerminalHooks::capturedOutputText(Terminal::Types::OutputStream::Stderr);
+        context.expectContains("Terminal trace color", stdoutText, "\x1b[90m");
+        context.expectContains("Terminal debug color", stdoutText, "\x1b[36m");
+        context.expectContains("Terminal info output", stdoutText, "[INFO][LoggerTest]: terminal info\r\n");
+        context.expectContains("Terminal warning color", stdoutText, "\x1b[33m");
+        context.expectContains("Terminal error color", stderrText, "\x1b[31m");
+        context.expectContains("Terminal fatal route", stderrText, "[FATAL][LoggerTest]: terminal fatal");
+        context.expectEq(
+            "Terminal stdout one write per record",
+            TerminalHooks::textWriteCallCount(Terminal::Types::OutputStream::Stdout),
+            std::size_t{4});
+        context.expectEq(
+            "Terminal stderr one write per record",
+            TerminalHooks::textWriteCallCount(Terminal::Types::OutputStream::Stderr),
+            std::size_t{2});
+        expectEq(context, "Terminal stdout native line endings", countOccurrences(stdoutText, "\r\n"), std::size_t{4});
+        expectEq(context, "Terminal stderr native line endings", countOccurrences(stderrText, "\r\n"), std::size_t{2});
+
+        TerminalHooks::reset();
+        captureTerminalOutput(Terminal::Types::OutputStream::Stdout, loggerRedirectedCapabilities());
+        config = makeConsoleConfig(Logger::Types::Level::Warn);
+        config.enableConsoleColor = true;
+        expectInitSuccess(context, "redirected Terminal sink init", Logger::init(config));
+        Logger::warn(testSource, "terminal unicode \xE2\x98\x85");
+        context.expectTrue("redirected Terminal sink flush", Logger::flush(2s));
+        Logger::shutdown();
+
+        const std::string redirected = TerminalHooks::capturedOutputText(Terminal::Types::OutputStream::Stdout);
+        context.expectContains("redirected Terminal preserves UTF-8", redirected, "terminal unicode \xE2\x98\x85");
+        context.expectTrue("redirected Terminal omits style sequences", redirected.find("\x1b[") == std::string::npos);
+        context.expectTrue("redirected Terminal uses native line ending", redirected.ends_with("\r\n"));
+        TerminalHooks::reset();
+#else
+        context.pass("Logger Terminal integration hooks skipped because INTERNAL_TERMINAL_TEST_HOOKS=0");
+#endif
     }
 
     /// @brief Verifies process-wide lifecycle transitions and runtime state queries.
@@ -1880,6 +2028,20 @@ namespace GameWIP::Test
                     [&]
                     {
                         testFileOutputAndContent(context);
+                    });
+                runCase(
+                    context,
+                    "foundation file sink",
+                    [&]
+                    {
+                        testFoundationFileSink(context);
+                    });
+                runCase(
+                    context,
+                    "Terminal console sink",
+                    [&]
+                    {
+                        testTerminalConsoleSink(context);
                     });
                 runCase(
                     context,

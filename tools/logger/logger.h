@@ -165,7 +165,7 @@ namespace GameWIP::Logger
             Fatal
         };
 
-        /// @brief Last native platform failure reported by the platform debug output, fatal popup, or time bridge.
+        /// @brief Last native failure reported by the file sink, platform debug output, fatal popup, or time bridge.
         struct PlatformError
         {
             /// @brief Platform operation family that produced nativeCode.
@@ -203,8 +203,8 @@ namespace GameWIP::Logger
             /// @brief Worker entries drained per batch.
             /// @details Zero uses the default; the effective value is clamped to the hard queue size.
             std::size_t workerBatchSize = 256;
-            /// @brief Optional log directory.
-            /// @details Empty uses the build-time default log directory. The path is copied during init().
+            /// @brief Optional UTF-8 log directory.
+            /// @details Empty uses the build-time default log directory. FileSystem converts and copies the path during init().
             std::string_view logDirectory = {};
             /// @brief Allows file-only startup to fall back to console when file setup fails.
             /// @details Output::Both keeps the console sink active even when the file sink fails.
@@ -218,7 +218,7 @@ namespace GameWIP::Logger
             /// @brief Initial exact-level filters applied during init().
             /// @details Filtered levels are skipped intentionally and are not counted as dropped logs.
             std::span<const LevelFilter> levelFilters = {};
-            /// @brief Enables ANSI colors for interactive console output.
+            /// @brief Enables portable Terminal colors for interactive console output.
             bool enableConsoleColor = true;
             /// @brief Enables platform debug output for writeDebugOutput() and report/fatal mirroring.
             bool enableDebugOutput = true;
@@ -541,7 +541,7 @@ namespace GameWIP::Logger
     /// @return Types::Result from init() with Types::Output::Console.
     INTERNAL_LOGGER_API Types::Result initConsole(Types::Level minLevel = Types::Level::Info);
     /// @brief Starts a file-only logger with a chosen directory and minimum level.
-    /// @param directory UTF-8/narrow log directory path. Empty uses the default directory.
+    /// @param directory UTF-8 log directory path. Empty uses the default directory.
     /// @param minLevel Startup severity floor.
     /// @return Types::Result from init() with Types::Output::File.
     INTERNAL_LOGGER_API Types::Result initFile(std::string_view directory = {}, Types::Level minLevel = Types::Level::Info);
@@ -573,7 +573,7 @@ namespace GameWIP::Logger
     /// @brief Returns the current output mode, including any file-setup fallback to Console.
     /// @return Current output mode.
     INTERNAL_LOGGER_API Types::Output getOutput();
-    /// @brief Returns the current log file path, or an empty string when file output is unavailable.
+    /// @brief Returns the current log file path as UTF-8, or an empty string when file output is unavailable.
     /// @return Current log file path as UTF-8/narrow text.
     INTERNAL_LOGGER_API std::string getLogFilePath();
     /// @brief Returns the queue/message limits stored by the logger.

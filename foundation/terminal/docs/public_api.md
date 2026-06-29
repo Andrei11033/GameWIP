@@ -12,6 +12,8 @@ Use plain text writes for allocation-free unstyled output, formatted writes for 
 
 Terminal serializes each operation per standard stream. Calls through this API are thread-safe at that boundary, but multi-call workflows are not transactions and Terminal cannot coordinate with unrelated output APIs.
 
+The `Terminal` target is shared so every project module coordinates through the same process-wide stream state. Consumers still include `terminal/terminal.h` and link the direct target name `Terminal`.
+
 ## State management
 
 Input mode, alternate screen, and cursor visibility have RAII scopes for temporary state changes. Input-mode scopes restore the complete backend mode captured before setup. Cursor-hidden and alternate-screen scopes are nesting-safe per output stream. The scopes track setup and restoration status but do not create a global Terminal lifecycle.
