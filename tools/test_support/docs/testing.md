@@ -7,7 +7,10 @@ TestSupport tests should cover:
 - runner and context result aggregation;
 - expectation pass/fail behavior;
 - report buffering, suite-boundary flushing, and immediate per-line flushing;
+- concise/full console category filtering and report-failure diagnostics;
 - file helper success and failure paths;
+- scoped temporary-directory creation, uniqueness, nested artifacts, and cleanup;
+- scoped current-path change, previous-path query, and restoration;
 - scoped environment restore behavior;
 - child-process exit, timeout, bounded capture, continued draining, and descendant cleanup;
 - manual-check skipped behavior on non-interactive input;

@@ -46,6 +46,8 @@ Run one correctness module:
 .\build-validation\GameWIPTests.exe --test-module=filesystem
 ```
 
+Validation keeps complete reports under `%TEMP%\GameWIP\logs\tests` and removes temporary fixtures and subsystem logs after each run. Add `--verbose-tests` for full console output.
+
 Collect optimized benchmark results:
 
 ```powershell

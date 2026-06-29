@@ -14,6 +14,8 @@ Stress tests cover producer concurrency, flush while producers are active, shutd
 
 When `INTERNAL_LOGGER_TEST_HOOKS=1`, internal hooks can force rare failure paths such as file write failure, file flush failure, fatal popup failure, and timed flush timeout.
 
+The default-directory override redirects `initDefault()` into a scoped OS-temp workspace. This preserves coverage of the production convenience API without creating the production `logs` directory during validation.
+
 Test hooks are internal, compile-time gated, and not part of the production public API.
 
 ## Manual UI

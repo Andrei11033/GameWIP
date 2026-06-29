@@ -18,9 +18,15 @@ Report files are buffered by default, flushed after each completed suite, and fl
 
 Report write failures do not abort the test process. They disable further file output while console reporting and result aggregation continue.
 
+`ConsoleVerbosity::Concise` keeps stdout focused on failures, skips, manual instructions, results, and summaries. The report file still receives every category.
+
 ## Process and environment isolation
 
 Scoped environment helpers restore the previous process state on destruction. Environment mutation is process-global, so overlapping conflicting scopes across threads are unsupported.
+
+`ScopedTemporaryDirectory` owns an isolated OS-temp workspace and removes its complete tree on destruction. Test executables should use it instead of writing fixtures or subsystem logs relative to their working directory.
+
+`ScopedCurrentPath` supports tests of intentionally relative-path APIs and restores the previous process path. Because the current path is process-global, such scopes require exclusive control over relative path resolution.
 
 Child-process capture retains at most `maxCapturedOutputBytes` while continuing to drain excess output. A zero limit retains nothing. `outputTruncated` reports discarded bytes; disabling capture leaves output empty and ignores the limit.
 

@@ -418,6 +418,9 @@ The Windows backend follows the project rule that public C++ remains UTF-8/path 
 * [x] `game/main.cpp` calls compile-time validation facades before entering the game runtime.
 * [x] Disabled startup validation compiles to successful/no-op inline functions.
 * [x] Test hooks derive from whether correctness tests are built or embedded.
+* [x] Validation workspaces use TestSupport scoped OS-temp cleanup.
+* [x] Relative validation reports resolve under the GameWIP OS-temp root instead of the working tree.
+* [x] Validation keeps full report detail while using concise console output by default.
 
 ## Coverage
 
@@ -547,6 +550,7 @@ Documentation implementation is in place for the foundation libraries, with publ
 * [x] TestSupport public API guide covers `Section`.
 * [x] TestSupport public API guide covers `Timer`.
 * [x] TestSupport public API guide covers file helpers.
+* [x] TestSupport public API guide covers scoped temporary directories and process current-path restoration.
 * [x] TestSupport public API guide covers environment helpers.
 * [x] TestSupport public API guide covers child processes.
 * [x] TestSupport public API guide covers manual checks.

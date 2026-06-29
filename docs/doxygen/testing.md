@@ -26,6 +26,20 @@ Run one module:
 
 The development preset links the same modules into `GameWIP`, where they run before game startup.
 
+## Reports and exit behavior
+
+Relative `--test-report` paths are resolved beneath `%TEMP%/GameWIP` on Windows, so the example above writes to `%TEMP%/GameWIP/logs/tests/filesystem_test_report.txt`. Absolute paths are honored as explicit overrides. `--no-test-report` disables the file while preserving console results.
+
+Normal validation uses concise console output: failures, skips, manual instructions, per-suite results, and summaries. `--verbose-tests` also mirrors passing checks, informational lines, metrics, and stress diagnostics to stdout. The report file always receives the complete output.
+
+Each failing expectation emits `[FAIL]` with its suite, reason, source file, line, and function. A suite continues after an expectation failure so one run can report multiple defects. The module returns nonzero when any suite failed; the validation runner returns nonzero when any module failed; CTest and GitHub Actions therefore mark the corresponding module entry as failed. Child-process modes preserve their exact child exit code.
+
+The runner prints the absolute report location and a final `[VALIDATION] result=PASS|FAIL` summary. CTest uses one stable report filename per module and `--output-on-failure` exposes captured console details when a module fails.
+
+## Artifact lifecycle
+
+Test fixtures, subsystem logs, and benchmark output use `TestSupport::ScopedTemporaryDirectory` beneath the OS temporary directory. Scoped cleanup removes complete workspaces on normal return and exception unwinding. Only final report files remain under `%TEMP%/GameWIP/logs/tests`; validation does not create `logs/` in the repository or build directory. Future game-runtime logging remains independent of validation reporting.
+
 ## Module standard
 
 Each module owns a directory under `game/validation/tests` containing:
@@ -55,6 +69,7 @@ The C++ registration name must match the CMake module name. Give the module a st
 - Tests are deterministic, order-independent, and safe to run repeatedly.
 - Default CTest runs do not open UI or wait for input.
 - Temporary files use isolated directories and are removed by scoped cleanup.
+- Relative report paths resolve under the GameWIP OS-temp root; only final reports persist.
 - Global process state is restored before a module returns.
 - Child-process modes route to exactly one owning module.
 - New behavior and bug fixes receive focused regression coverage when practical.

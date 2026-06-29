@@ -58,6 +58,8 @@ Test modules register a name, deterministic order, run callback, and optional ch
 
 CTest invokes the standalone runner once per module and gives every module its own report path. New modules therefore appear as focused CTest failures without changing `main.cpp` or the shared runner.
 
+Relative report paths resolve beneath the GameWIP directory in the operating-system temporary root. Module workspaces use scoped TestSupport cleanup, so only final text reports remain after validation. The runner prints each module outcome, the absolute report path, and the aggregate result to stdout.
+
 ## Presets
 
 - `development`: startup tests enabled.

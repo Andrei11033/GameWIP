@@ -925,6 +925,10 @@ The validation parent CMake files discover only immediate child directories cont
 
 Test modules register a stable name, deterministic order, callback, and optional child-argument matcher. CTest invokes the standalone runner once per module with isolated report output.
 
+Validation fixture files and subsystem test logs use `TestSupport::ScopedTemporaryDirectory`. Scoped workspaces live under the operating-system temporary directory and are removed after normal completion or exception unwinding. Relative validation report paths resolve beneath the GameWIP OS-temp root; absolute report paths are explicit user overrides. Only final reports persist by default, and validation does not create repository-relative `logs` directories.
+
+Correctness validation writes complete detail to its report file and concise failure/result information to stdout. `--verbose-tests` enables full console mirroring. Report-file failures emit diagnostics but do not alter correctness results.
+
 Project build modes are defined through named CMake presets. Shipping builds disable standalone and startup validation, assertions, Tracy, and tools.
 
 ---

@@ -225,6 +225,8 @@ Rare fallback and failure paths are reachable in tests without making production
 * [x] `Types::ReportOptions` defaults to report-file output enabled.
 * [x] `Types::ReportOptions` defaults to append disabled.
 * [x] `Types::ReportOptions` defaults to `logs/tests/latest_test_report.txt`.
+* [x] `Types::ReportOptions` defaults to full console verbosity for backward-compatible library behavior.
+* [x] Concise console verbosity hides pass/info/metric detail while preserving failures, skips, results, and summaries.
 * [x] `Types::Summary::total()` returns passed + failed + skipped.
 * [x] `Types::Summary::ok()` returns true only when failed is zero.
 * [x] `Types::SuiteResult::ok()` returns the suite summary status.
@@ -324,6 +326,8 @@ Test runs produce useful reports and continue safely after ordinary test failure
 * [x] `countFileOccurrences` handles overlapping occurrence decisions explicitly.
 * [x] `createDirectories` succeeds for existing directories.
 * [x] `removeIfExists` handles missing files without failure.
+* [x] `ScopedTemporaryDirectory` creates unique OS-temp roots and removes nested artifacts.
+* [x] `ScopedCurrentPath` changes, exposes, and restores the process working directory.
 * [x] `ScopedEnvironmentVariable` sets a variable.
 * [x] `ScopedEnvironmentVariable` restores a previous value.
 * [x] `ScopedEnvironmentVariable` unsets a previously missing value on destruction.
@@ -532,6 +536,9 @@ Windows backend behavior follows the explicit Unicode boundary rule and remains 
 * [x] The embedded runner executes the same modules before game startup.
 * [x] Child-process arguments route to exactly one module and preserve child exit codes.
 * [x] Test reports use isolated paths for module-level CTest runs.
+* [x] Relative validation report paths resolve under the GameWIP OS-temp root.
+* [x] Validation workspaces clean themselves and leave only final reports in the OS-temp report directory.
+* [x] Validation prints report locations, per-module outcomes, and an aggregate pass/fail result.
 * [x] Game-only builds compile and link no validation module objects.
 * [x] Shipping builds do not require Google Benchmark.
 
