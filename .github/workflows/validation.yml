@@ -34,8 +34,11 @@ jobs:
           update: true
           install: >-
             mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-clang
+            mingw-w64-ucrt-x86_64-clang-tools-extra
             mingw-w64-ucrt-x86_64-gcc
             mingw-w64-ucrt-x86_64-ninja
+            mingw-w64-ucrt-x86_64-python
 
       - name: Configure
         shell: msys2 {0}
@@ -52,6 +55,7 @@ jobs:
           -DGAMEWIP_ENABLE_TOOLS=OFF
           -DGAMEWIP_OPEN_TOOLS_AT_STARTUP=OFF
           -DGAMEWIP_ENABLE_ASSERTS=ON
+          -DGAMEWIP_ENABLE_STATIC_ANALYSIS=ON
 
       - name: Build
         shell: msys2 {0}
@@ -64,6 +68,46 @@ jobs:
       - name: Benchmark smoke test
         shell: msys2 {0}
         run: ./build-validation/GameWIPBenchmarks.exe --benchmark_dry_run
+
+      - name: Static analysis
+        shell: msys2 {0}
+        run: cmake --build build-validation --target static-analysis
+
+  repository-checks:
+    name: Repository Checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Check JavaScript
+        shell: bash
+        run: |
+          for file in .github/scripts/*.js; do
+            node --check "$file"
+          done
+          node --test .github/scripts/*.test.js
+
+      - name: Check JSON
+        shell: bash
+        run: |
+          while IFS= read -r -d '' file; do
+            jq empty "$file"
+          done < <(find . -type f -name '*.json' \
+            -not -path './external/*' \
+            -not -path './build-*/*' \
+            -print0)
+
+      - name: Check GitHub Actions workflows
+        uses: docker://rhysd/actionlint:1.7.12
+        with:
+          args: -color
 
   docs-check:
     name: Docs Check

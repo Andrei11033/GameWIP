@@ -215,7 +215,7 @@ namespace
                 kind == FailureKind::Assert ? GameWIP::Logger::Types::Level::Fatal : GameWIP::Logger::Types::Level::Error;
             GameWIP::Logger::report(level, sourceText(kind), message);
         }
-        catch (...)
+        catch (...) // NOLINT(bugprone-empty-catch) -- Failure reporting must preserve this noexcept boundary.
         {
         }
     }

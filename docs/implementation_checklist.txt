@@ -457,6 +457,12 @@ The Windows backend follows the project rule that public C++ remains UTF-8/path 
 * [x] Contributor workflow guide exists for issues, branches, pull requests, validation notes, and merge messages.
 * [x] Blank issues are disabled so issue forms capture required triage details.
 * [x] Security policy exists for private vulnerability reporting.
+* [x] Project automation derives issue and pull request status from repository state and dependency relationships.
+* [x] Linked pull requests inherit additive issue labels, assignees, and non-conflicting milestone metadata.
+* [x] Scheduled and manual reconciliation paths exist, including a no-write dry run.
+* [x] Repository checks validate maintained JavaScript, JSON, and GitHub Actions workflows.
+* [x] CMake exposes clang-tidy and clang-format targets for project-owned C++ while excluding external and generated code.
+* [x] VS Code exposes the static-analysis preset as a workspace task.
 
 ## Remaining Build Work
 

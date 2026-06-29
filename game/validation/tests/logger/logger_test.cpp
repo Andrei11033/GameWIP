@@ -328,15 +328,9 @@ namespace
     /// @brief Formats Logger enums and ordinary values for expectation failures.
     template <typename Value> std::string printable(Value value)
     {
-        if constexpr (std::is_same_v<Value, Logger::Types::Result>)
-        {
-            return std::string(toString(value));
-        }
-        else if constexpr (std::is_same_v<Value, Logger::Types::Output>)
-        {
-            return std::string(toString(value));
-        }
-        else if constexpr (std::is_same_v<Value, Logger::Types::Level>)
+        if constexpr (
+            std::is_same_v<Value, Logger::Types::Result> || std::is_same_v<Value, Logger::Types::Output> ||
+            std::is_same_v<Value, Logger::Types::Level>)
         {
             return std::string(toString(value));
         }

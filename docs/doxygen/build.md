@@ -26,6 +26,7 @@ Available modes:
 | `shipping` | Stripped Release game without validation or assertions. |
 | `coverage` | Debug correctness tests with coverage instrumentation. |
 | `docs` | Doxygen target without game or validation executables. |
+| `static-analysis` | clang-tidy and clang-format checks for maintained C++ sources. |
 
 Build directories are named `build-<preset>`.
 
@@ -43,6 +44,7 @@ Validation options are documented under @ref project_validation. Other important
 - `GAMEWIP_ENABLE_COVERAGE`
 - `GAMEWIP_BUILD_DOCS`
 - `GAMEWIP_INSTALL_DOCS`
+- `GAMEWIP_ENABLE_STATIC_ANALYSIS`
 
 The root CMake file orchestrates major directories. `external`, `foundation`, `tools`, `engine`, `game`, and individual validation modules own their targets and immediate children.
 

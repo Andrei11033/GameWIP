@@ -3,7 +3,6 @@
 
 #include "validation/tests/registry.h"
 
-#include <utility>
 #include <vector>
 
 namespace GameWIP::Validation::Tests
@@ -20,7 +19,7 @@ namespace GameWIP::Validation::Tests
 
     Registration::Registration(Module module)
     {
-        moduleStorage().push_back(std::move(module));
+        moduleStorage().push_back(module);
     }
 
     std::span<const Module> registeredModules() noexcept
