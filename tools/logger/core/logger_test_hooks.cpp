@@ -21,6 +21,7 @@ namespace GameWIP::Logger::Detail::Core
         loggerTestHookState.nextQueueAllocationFailure.store(false, std::memory_order_release);
         loggerTestHookState.nextFatalPopupFailure.store(false, std::memory_order_release);
         loggerTestHookState.nextTimedFlushTimeout.store(false, std::memory_order_release);
+        loggerTestHookState.defaultLogDirectoryOverride.clear();
     }
 #endif
 } // namespace GameWIP::Logger::Detail::Core
@@ -63,6 +64,16 @@ namespace GameWIP::Logger::TestHooks
     void forceNextTimedFlushTimeout() noexcept
     {
         loggerTestHookState.nextTimedFlushTimeout.store(true, std::memory_order_release);
+    }
+
+    void setDefaultLogDirectoryOverride(std::string_view directory)
+    {
+        loggerTestHookState.defaultLogDirectoryOverride = directory;
+    }
+
+    void clearDefaultLogDirectoryOverride() noexcept
+    {
+        loggerTestHookState.defaultLogDirectoryOverride.clear();
     }
 } // namespace GameWIP::Logger::TestHooks
 #endif

@@ -2,7 +2,11 @@
 
 ## Report file is empty
 
-Check `Types::ReportOptions::writeReport`, `reportPath`, and `appendReport`. Parent directories are created when possible, but open or write failures disable further report-file writes for that sink.
+Check `Types::ReportOptions::writeReport`, `reportPath`, and `appendReport`. Parent directories are created when possible. An open or write failure emits one `[TEST REPORT]` stderr diagnostic and disables further report-file writes for that sink.
+
+## Temporary test files remain after a run
+
+Use `ScopedTemporaryDirectory` for the owning workspace and ensure file handles and subsystem workers stop before the scope exits. Cleanup errors are suppressed so a locked file cannot hide the original test outcome.
 
 ## A suite continues after a failed expectation
 

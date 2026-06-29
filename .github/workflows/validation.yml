@@ -43,12 +43,15 @@ jobs:
           cmake -S . -B build-validation
           -G Ninja
           -DCMAKE_BUILD_TYPE=RelWithDebInfo
+          -DGAMEWIP_BUILD_GAME=ON
+          -DGAMEWIP_BUILD_TESTS=ON
+          -DGAMEWIP_BUILD_BENCHMARKS=ON
+          -DGAMEWIP_RUN_TESTS_AT_STARTUP=OFF
+          -DGAMEWIP_RUN_BENCHMARKS_AT_STARTUP=OFF
           -DGAMEWIP_ENABLE_TRACY=OFF
           -DGAMEWIP_ENABLE_TOOLS=OFF
-          -DGAMEWIP_OPEN_TOOL_WINDOWS_AT_STARTUP=OFF
-          -DLOGGER_TEST_HOOKS=ON
-          -DASSERT_TEST_HOOKS=ON
-          -DTERMINAL_TEST_HOOKS=ON
+          -DGAMEWIP_OPEN_TOOLS_AT_STARTUP=OFF
+          -DGAMEWIP_ENABLE_ASSERTS=ON
 
       - name: Build
         shell: msys2 {0}
@@ -57,6 +60,10 @@ jobs:
       - name: Test
         shell: msys2 {0}
         run: ctest --test-dir build-validation --output-on-failure
+
+      - name: Benchmark smoke test
+        shell: msys2 {0}
+        run: ./build-validation/GameWIPBenchmarks.exe --benchmark_dry_run
 
   docs-check:
     name: Docs Check
@@ -86,7 +93,11 @@ jobs:
           cmake -S . -B build-docs
           -G Ninja
           -DCMAKE_BUILD_TYPE=Release
-          -DBUILD_DOCS=ON
+          -DGAMEWIP_BUILD_GAME=OFF
+          -DGAMEWIP_BUILD_TESTS=OFF
+          -DGAMEWIP_RUN_TESTS_AT_STARTUP=OFF
+          -DGAMEWIP_RUN_BENCHMARKS_AT_STARTUP=OFF
+          -DGAMEWIP_BUILD_DOCS=ON
           -DGAMEWIP_ENABLE_TRACY=OFF
 
       - name: Build documentation

@@ -8,6 +8,33 @@ These helpers are intentionally small and text-oriented. Use custom code for bin
 
 `writeTextFile()` creates parent directories and throws on open or write failure. Cleanup helpers suppress filesystem errors so teardown does not hide the test result.
 
+## Scoped temporary directories
+
+`ScopedTemporaryDirectory` creates a unique directory beneath the operating-system temporary directory and removes the complete tree when its scope ends. Use it for test inputs, generated files, captured logs, and other artifacts that must not appear in a repository or build directory.
+
+```cpp
+{
+    GameWIP::TestSupport::ScopedTemporaryDirectory workspace("parser_tests");
+    const std::filesystem::path input = workspace.path() / "input.txt";
+    GameWIP::TestSupport::writeTextFile(input, "fixture");
+    runParserTest(input);
+} // The workspace and every contained artifact are removed.
+```
+
+Names are unique across concurrent scopes. The readable purpose is sanitized for use as a path prefix. Construction throws when the OS temporary directory cannot be resolved or a unique directory cannot be created; destruction suppresses cleanup errors so teardown cannot replace the test outcome.
+
+`ScopedCurrentPath` temporarily changes the process working directory and restores the previous path on destruction. It is useful when testing APIs whose documented contract intentionally uses relative paths:
+
+```cpp
+GameWIP::TestSupport::ScopedTemporaryDirectory workspace("default_path_test");
+{
+    GameWIP::TestSupport::ScopedCurrentPath currentPath(workspace.path());
+    runApiThatUsesRelativePaths();
+}
+```
+
+The working directory is process-global. Do not overlap `ScopedCurrentPath` instances or use one while unrelated threads resolve relative paths. Stop subsystem workers before restoring the path.
+
 ## Scoped environment variables
 
 `ScopedEnvironmentVariable` temporarily sets an environment variable and restores the previous state on destruction:

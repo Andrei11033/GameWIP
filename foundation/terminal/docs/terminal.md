@@ -2,7 +2,7 @@
 
 `GameWIP::Terminal` provides platform-neutral UTF-8 access to process standard input and output, terminal capabilities, styling, and low-level terminal controls.
 
-## Documentation
+## User manual
 
 - @subpage terminal_quick_start
 - @subpage terminal_public_api
@@ -15,4 +15,11 @@
 - @subpage terminal_unicode_io
 - @subpage terminal_examples
 - @subpage terminal_troubleshooting
+
+## Developer validation
+
 - @subpage terminal_testing
+
+## Generated API reference
+
+Use @ref GameWIP::Terminal for active operations and RAII scopes, and @ref GameWIP::Terminal::Types for streams, capabilities, styles, options, and results. These generated pages document every public type, enum value, field, function, overload, and constant from `terminal/terminal.h`; the manual pages above organize the behavior by workflow.

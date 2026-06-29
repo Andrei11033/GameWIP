@@ -4,7 +4,7 @@
 
 It defines shared reader, writer, status, error, and whole-stream helper APIs for low-level libraries. IO does not call the operating system and has no platform backend.
 
-## Documentation
+## User manual
 
 - @subpage io_quick_start
 - @subpage io_public_api
@@ -13,7 +13,14 @@ It defines shared reader, writer, status, error, and whole-stream helper APIs fo
 - @subpage io_runtime_performance
 - @subpage io_examples
 - @subpage io_troubleshooting
+
+## Developer validation
+
 - @subpage io_testing
+
+## Generated API reference
+
+Use @ref GameWIP::IO for active interfaces and helpers, and @ref GameWIP::IO::Types for passive status, option, and result shapes. These generated pages document every public type, enum value, field, function, overload, and constant from `io/io.h`; the manual pages above explain how those symbols work together.
 
 ## Key behavior
 
@@ -26,6 +33,6 @@ It defines shared reader, writer, status, error, and whole-stream helper APIs fo
 - Expected I/O failures return `Types::Status`.
 - Text helpers preserve UTF-8 bytes without validating or parsing them.
 
-`GameWIP::IO` is the dependency root for the planned FileSystem and Terminal libraries. Those libraries may depend on IO; IO must not depend on either of them.
+`GameWIP::IO` is the dependency root for FileSystem and Terminal. Those libraries depend on IO; IO must not depend on either of them.
 
 IO intentionally has no `open()` API because it does not know which resource is being opened. Resource-owning libraries such as FileSystem and Terminal own open behavior. Memory-backed IO is created directly with constructors and uses `close()` / `isOpen()` state.

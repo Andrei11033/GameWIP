@@ -99,8 +99,11 @@ namespace
         }
 
     private:
+        /// @brief Fixed stack storage for bounded diagnostics.
         std::array<char, 1024> storage;
+        /// @brief Active byte count in storage.
         std::size_t size = 0;
+        /// @brief True when an append exceeded fixed capacity.
         bool truncated = false;
     };
 #endif

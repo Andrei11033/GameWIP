@@ -1,125 +1,51 @@
-@page library_build Build, packages, and installed docs
+@page library_build Build configurations
 
-This page covers project-level build behavior. Library-specific usage is documented under the foundation and tool library pages, including @ref io, @ref terminal, @ref foundation_filesystem, @ref logger, @ref assert, and @ref test_support.
-
-## Normal source build
-
-By default, the project builds the foundation and tool libraries from the source tree:
+GameWIP requires CMake 3.20 or newer, C++23, Ninja, and the MSYS2 UCRT64 GCC toolchain on Windows. Initialize submodules before configuring:
 
 ```powershell
-cmake -S . -B build -G Ninja `
-  -DASSERT_ENABLED=ON `
-  -DASSERT_CHECKS_ENABLED=ON `
-  -DLOGGER_TEST_HOOKS=OFF `
-  -DASSERT_TEST_HOOKS=OFF `
-  -DTERMINAL_TEST_HOOKS=OFF `
-  -DENABLE_LIBRARY_COVERAGE=OFF `
-  -DBUILD_DOCS=OFF
-
-cmake --build build
+git submodule update --init --recursive
 ```
 
-Runtime test selection stays in `TestRunOptions` in `game/main.cpp`; CMake options control build-time features only.
-
-## Using installed packages
-
-After the libraries have been installed, an external CMake project can consume them with:
-
-```cmake
-find_package(IO CONFIG REQUIRED)
-find_package(Terminal CONFIG REQUIRED)
-find_package(FileSystem CONFIG REQUIRED)
-find_package(Logger CONFIG REQUIRED)
-find_package(Assert CONFIG REQUIRED)
-find_package(TestSupport CONFIG REQUIRED)
-
-target_link_libraries(SomeTarget PRIVATE
-    IO
-    Terminal
-    FileSystem
-    Logger
-    Assert
-    TestSupport
-)
-```
-
-The installed package config files are:
-
-```text
-IOConfig.cmake
-IOConfigVersion.cmake
-TerminalConfig.cmake
-TerminalConfigVersion.cmake
-FileSystemConfig.cmake
-FileSystemConfigVersion.cmake
-LoggerConfig.cmake
-LoggerConfigVersion.cmake
-AssertConfig.cmake
-AssertConfigVersion.cmake
-TestSupportConfig.cmake
-TestSupportConfigVersion.cmake
-```
-
-`TerminalConfig.cmake` and `FileSystemConfig.cmake` depend on the IO package through `find_dependency(IO CONFIG)`. `AssertConfig.cmake` depends on the Logger package through `find_dependency(Logger CONFIG)`. Internal test-hook headers are intentionally excluded from normal installs.
-
-On Windows, `Assert` also propagates the Common Controls v6 manifest resource needed by the TaskDialog path. Link the imported target normally; no separate package-consumer mode is required.
-
-## Install layout
-
-A normal install provides headers, libraries, and package config files similar to:
-
-```text
-<prefix>/include/io/...
-<prefix>/include/terminal/...
-<prefix>/include/filesystem/...
-<prefix>/include/logger/...
-<prefix>/include/debug/assert/...
-<prefix>/include/test_support/...
-<prefix>/lib/cmake/IO/IOConfig.cmake
-<prefix>/lib/cmake/Terminal/TerminalConfig.cmake
-<prefix>/lib/cmake/FileSystem/FileSystemConfig.cmake
-<prefix>/lib/cmake/Logger/LoggerConfig.cmake
-<prefix>/lib/cmake/Assert/AssertConfig.cmake
-<prefix>/lib/cmake/TestSupport/TestSupportConfig.cmake
-```
-
-The Terminal and FileSystem packages depend on the IO package through `find_dependency(IO CONFIG)`. The Assert package depends on the Logger package through `find_dependency(Logger CONFIG)`. The TestSupport package is independent and has no Logger or Assert dependency.
-
-## Doxygen build
-
-Doxygen is opt-in:
+## Named presets
 
 ```powershell
-cmake -S . -B build-docs -G Ninja `
-  -DBUILD_DOCS=ON
-
-cmake --build build-docs --target docs
+cmake --preset development
+cmake --build --preset development
 ```
 
-Generated HTML is written to:
+Available modes:
 
-```text
-build-docs/docs/doxygen/html/index.html
-```
+| Preset | Purpose |
+| --- | --- |
+| `development` | RelWithDebInfo game with startup correctness tests. |
+| `validation` | Standalone tests and benchmark smoke validation. |
+| `benchmark` | Release benchmark executable without the game. |
+| `tools` | Development build with tool windows enabled. |
+| `profiling` | Development build with Tracy enabled. |
+| `optimized` | Optimized game with symbols and no validation. |
+| `shipping` | Stripped Release game without validation or assertions. |
+| `coverage` | Debug correctness tests with coverage instrumentation. |
+| `docs` | Doxygen target without game or validation executables. |
 
-Normal builds do not require Doxygen. When `BUILD_DOCS=ON`, CMake fails early with a clear error if Doxygen is missing.
+Build directories are named `build-<preset>`.
 
-## Installing generated docs
+## Project options
 
-Generated HTML docs can also be installed:
+Project-facing options use the `GAMEWIP_` prefix. Library-local options retain their library prefix so those libraries remain usable outside this top-level project.
 
-```powershell
-cmake -S . -B build-install-docs `
-  -DBUILD_DOCS=ON `
-  -DINSTALL_DOCS=ON `
-  -DCMAKE_INSTALL_PREFIX=D:/library-install-test
+Validation options are documented under @ref project_validation. Other important controls are:
 
-cmake --build build-install-docs --target docs
-cmake --install build-install-docs
-```
+- `GAMEWIP_BUILD_GAME`
+- `GAMEWIP_ENABLE_ASSERTS`
+- `GAMEWIP_ENABLE_TRACY`
+- `GAMEWIP_ENABLE_TOOLS`
+- `GAMEWIP_OPEN_TOOLS_AT_STARTUP`
+- `GAMEWIP_ENABLE_COVERAGE`
+- `GAMEWIP_BUILD_DOCS`
+- `GAMEWIP_INSTALL_DOCS`
 
-The docs target must be built before install. Installed HTML goes to:
+The root CMake file orchestrates major directories. `external`, `foundation`, `tools`, `engine`, `game`, and individual validation modules own their targets and immediate children.
 
-```text
-<prefix>/share/doc/Libraries/doxygen/html/index.html
-```
+## Runtime dependencies
+
+Every project executable uses the shared runtime-dependency helper. It scans the built executable and copies matching UCRT64 runtime DLLs beside it, avoiding accidental use of incompatible `mingw64` DLLs earlier on `PATH`.

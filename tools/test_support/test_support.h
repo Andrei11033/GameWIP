@@ -30,6 +30,7 @@
 #include <utility>
 #include <vector>
 
+/// @brief Test reporting, isolation, child-process, timing, and stress helpers.
 namespace GameWIP::TestSupport
 {
     /// @brief Default in-memory limit for combined child stdout/stderr capture.
@@ -66,6 +67,17 @@ namespace GameWIP::TestSupport
     /// @brief Report, suite, child-process, and manual-check types.
     namespace Types
     {
+        /// @brief Controls which report categories are mirrored to stdout.
+        enum class ConsoleVerbosity
+        {
+            /// @brief Writes only failures, skips, and manual instructions.
+            Minimal,
+            /// @brief Writes failures, skips, manual instructions, suite results, and summaries.
+            Concise,
+            /// @brief Writes every report category, including passing checks and diagnostics.
+            Full,
+        };
+
         /// @brief Runtime report-output settings shared by test suites.
         /// Contract: these options control only test-run behavior. They do not enable or disable compiled code paths.
         struct ReportOptions
@@ -78,6 +90,8 @@ namespace GameWIP::TestSupport
             bool appendReport = false;
             /// @brief Flushes every report line for readers that cannot wait for suite completion.
             bool flushReportEachLine = false;
+            /// @brief Controls which report categories are written to stdout.
+            ConsoleVerbosity consoleVerbosity = ConsoleVerbosity::Full;
 
             /// @brief Text report path used when writeReport is true.
             std::filesystem::path reportPath = "logs/tests/latest_test_report.txt";
@@ -113,19 +127,6 @@ namespace GameWIP::TestSupport
             [[nodiscard]] bool ok() const noexcept;
         };
 
-        /// @brief Recorded iteration-count metric.
-        struct IterationMetric
-        {
-            /// @brief Metric display name.
-            std::string name;
-            /// @brief Number of measured iterations.
-            std::size_t iterations = 0;
-            /// @brief Total measured time in milliseconds.
-            double milliseconds = 0.0;
-
-            /// @brief Returns milliseconds converted to nanoseconds per iteration, or zero when iterations is zero.
-            [[nodiscard]] double nanosecondsPerIteration() const noexcept;
-        };
     } // namespace Types
     /// @}
 
@@ -145,8 +146,6 @@ namespace GameWIP::TestSupport
 
         /// @brief Returns elapsed wall-clock time in milliseconds.
         [[nodiscard]] double elapsedMilliseconds() const noexcept;
-        /// @brief Returns elapsed nanoseconds divided by iterations, or zero when iterations is zero.
-        [[nodiscard]] double nanosecondsPerIteration(std::size_t iterations) const noexcept;
 
     private:
         using Clock = std::chrono::steady_clock;
@@ -397,6 +396,58 @@ namespace GameWIP::TestSupport
 
     /// @name File helpers
     /// @{
+
+    /// @brief Owns one unique directory under the operating-system temporary directory.
+    ///
+    /// The directory and all contents are removed when the object is destroyed. This is intended
+    /// for test files that must not escape into a repository or build directory.
+    /// Failure behavior: construction throws on setup failure; destruction performs best-effort
+    /// cleanup and suppresses filesystem errors so teardown cannot replace the test outcome.
+    class ScopedTemporaryDirectory
+    {
+    public:
+        /// @brief Creates a unique temporary directory using purpose as its readable name prefix.
+        /// @throws std::filesystem::filesystem_error when the temporary root cannot be resolved or created.
+        explicit ScopedTemporaryDirectory(std::string_view purpose = "test");
+        ~ScopedTemporaryDirectory() noexcept;
+
+        ScopedTemporaryDirectory(const ScopedTemporaryDirectory &) = delete;
+        ScopedTemporaryDirectory &operator=(const ScopedTemporaryDirectory &) = delete;
+        ScopedTemporaryDirectory(ScopedTemporaryDirectory &&) = delete;
+        ScopedTemporaryDirectory &operator=(ScopedTemporaryDirectory &&) = delete;
+
+        /// @brief Returns the owned temporary directory path.
+        [[nodiscard]] const std::filesystem::path &path() const noexcept;
+
+    private:
+        std::filesystem::path path_;
+        std::filesystem::path root_;
+    };
+
+    /// @brief Temporarily changes the process working directory and restores it on destruction.
+    /// Thread-safety: the working directory is process-global; do not overlap scopes or use this
+    /// helper while unrelated threads resolve relative paths.
+    /// Failure behavior: construction throws on setup failure; destruction performs a best-effort
+    /// restore and suppresses filesystem errors.
+    class ScopedCurrentPath
+    {
+    public:
+        /// @brief Stores the current working directory and changes it to path.
+        /// @throws std::filesystem::filesystem_error when the current directory cannot be read or changed.
+        explicit ScopedCurrentPath(const std::filesystem::path &path);
+        ~ScopedCurrentPath() noexcept;
+
+        ScopedCurrentPath(const ScopedCurrentPath &) = delete;
+        ScopedCurrentPath &operator=(const ScopedCurrentPath &) = delete;
+        ScopedCurrentPath(ScopedCurrentPath &&) = delete;
+        ScopedCurrentPath &operator=(ScopedCurrentPath &&) = delete;
+
+        /// @brief Returns the working directory that will be restored.
+        [[nodiscard]] const std::filesystem::path &previousPath() const noexcept;
+
+    private:
+        std::filesystem::path previousPath_;
+    };
 
     /// @brief Reads an entire text file, returning empty text when it cannot be opened.
     /// @param path Text file path.

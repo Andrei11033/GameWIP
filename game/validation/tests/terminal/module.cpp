@@ -1,0 +1,27 @@
+/// @file module.cpp
+/// @brief Registers the Terminal correctness-test module with the validation runner.
+
+#include "validation/tests/terminal/terminal_test.h"
+
+#include "validation/tests/registry.h"
+
+namespace
+{
+    /// @brief Maps shared runner policy to Terminal-specific test options and executes the suite.
+    int run(const GameWIP::Validation::Tests::ModuleInvocation &invocation)
+    {
+        GameWIP::Test::TerminalTestOptions options;
+        options.verboseConsole = invocation.options.verboseConsole;
+        options.writeReport = invocation.options.writeReport;
+        options.appendReport = invocation.appendReport;
+        options.reportPath = invocation.options.reportPath;
+        return GameWIP::Test::runTerminalTests(invocation.argc, invocation.argv, options);
+    }
+
+    /// @brief Process-local static registration for deterministic Terminal module discovery.
+    const GameWIP::Validation::Tests::Registration registration({
+        .name = "terminal",
+        .order = 30,
+        .run = run,
+    });
+} // namespace

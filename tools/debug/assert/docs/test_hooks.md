@@ -5,10 +5,10 @@ Assert test hooks are advanced testing-only features. They are not production AP
 ## Enabling
 
 ```powershell
--DASSERT_TEST_HOOKS=ON
+-DASSERT_ENABLE_TEST_HOOKS=ON
 ```
 
-This maps to the library-local `ASSERT_TEST_HOOKS` option and exports `INTERNAL_ASSERT_TEST_HOOKS=1` to test code.
+This maps to the library-local `ASSERT_ENABLE_TEST_HOOKS` option and exports `INTERNAL_ASSERT_TEST_HOOKS=1` to test code.
 
 ## Purpose
 

@@ -1,0 +1,164 @@
+{
+  "version": 2,
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build-${presetName}",
+      "cacheVariables": {
+        "GAMEWIP_ENABLE_TRACY": "OFF",
+        "GAMEWIP_ENABLE_TOOLS": "OFF",
+        "GAMEWIP_OPEN_TOOLS_AT_STARTUP": "OFF",
+        "GAMEWIP_ENABLE_COVERAGE": "OFF",
+        "GAMEWIP_BUILD_DOCS": "OFF",
+        "GAMEWIP_INSTALL_DOCS": "OFF"
+      }
+    },
+    {
+      "name": "development",
+      "displayName": "Development with startup tests",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "GAMEWIP_BUILD_GAME": "ON",
+        "GAMEWIP_BUILD_TESTS": "ON",
+        "GAMEWIP_BUILD_BENCHMARKS": "OFF",
+        "GAMEWIP_RUN_TESTS_AT_STARTUP": "ON",
+        "GAMEWIP_RUN_BENCHMARKS_AT_STARTUP": "OFF",
+        "GAMEWIP_ENABLE_ASSERTS": "ON"
+      }
+    },
+    {
+      "name": "validation",
+      "displayName": "Standalone validation",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "GAMEWIP_BUILD_GAME": "ON",
+        "GAMEWIP_BUILD_TESTS": "ON",
+        "GAMEWIP_BUILD_BENCHMARKS": "ON",
+        "GAMEWIP_RUN_TESTS_AT_STARTUP": "OFF",
+        "GAMEWIP_RUN_BENCHMARKS_AT_STARTUP": "OFF",
+        "GAMEWIP_ENABLE_ASSERTS": "ON"
+      }
+    },
+    {
+      "name": "benchmark",
+      "displayName": "Release benchmarks",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "GAMEWIP_BUILD_GAME": "OFF",
+        "GAMEWIP_BUILD_TESTS": "OFF",
+        "GAMEWIP_BUILD_BENCHMARKS": "ON",
+        "GAMEWIP_RUN_TESTS_AT_STARTUP": "OFF",
+        "GAMEWIP_RUN_BENCHMARKS_AT_STARTUP": "OFF",
+        "GAMEWIP_ENABLE_ASSERTS": "ON"
+      }
+    },
+    {
+      "name": "tools",
+      "displayName": "Development tools",
+      "inherits": "development",
+      "cacheVariables": {
+        "GAMEWIP_ENABLE_TOOLS": "ON",
+        "GAMEWIP_OPEN_TOOLS_AT_STARTUP": "ON"
+      }
+    },
+    {
+      "name": "profiling",
+      "displayName": "Tracy profiling",
+      "inherits": "development",
+      "cacheVariables": {
+        "GAMEWIP_ENABLE_TRACY": "ON"
+      }
+    },
+    {
+      "name": "optimized",
+      "displayName": "Maximum optimization with symbols",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "CMAKE_INTERPROCEDURAL_OPTIMIZATION": "ON",
+        "CMAKE_CXX_FLAGS_RELWITHDEBINFO": "-O3 -g -DNDEBUG",
+        "GAMEWIP_BUILD_GAME": "ON",
+        "GAMEWIP_BUILD_TESTS": "OFF",
+        "GAMEWIP_BUILD_BENCHMARKS": "OFF",
+        "GAMEWIP_RUN_TESTS_AT_STARTUP": "OFF",
+        "GAMEWIP_RUN_BENCHMARKS_AT_STARTUP": "OFF",
+        "GAMEWIP_ENABLE_ASSERTS": "OFF"
+      }
+    },
+    {
+      "name": "shipping",
+      "displayName": "Shipping release",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_INTERPROCEDURAL_OPTIMIZATION": "ON",
+        "CMAKE_CXX_FLAGS_RELEASE": "-O3 -DNDEBUG",
+        "CMAKE_EXE_LINKER_FLAGS_RELEASE": "-s",
+        "CMAKE_SHARED_LINKER_FLAGS_RELEASE": "-s",
+        "GAMEWIP_BUILD_GAME": "ON",
+        "GAMEWIP_BUILD_TESTS": "OFF",
+        "GAMEWIP_BUILD_BENCHMARKS": "OFF",
+        "GAMEWIP_RUN_TESTS_AT_STARTUP": "OFF",
+        "GAMEWIP_RUN_BENCHMARKS_AT_STARTUP": "OFF",
+        "GAMEWIP_ENABLE_ASSERTS": "OFF"
+      }
+    },
+    {
+      "name": "coverage",
+      "displayName": "Coverage validation",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "GAMEWIP_BUILD_GAME": "OFF",
+        "GAMEWIP_BUILD_TESTS": "ON",
+        "GAMEWIP_BUILD_BENCHMARKS": "OFF",
+        "GAMEWIP_RUN_TESTS_AT_STARTUP": "OFF",
+        "GAMEWIP_RUN_BENCHMARKS_AT_STARTUP": "OFF",
+        "GAMEWIP_ENABLE_ASSERTS": "ON",
+        "GAMEWIP_ENABLE_COVERAGE": "ON"
+      }
+    },
+    {
+      "name": "docs",
+      "displayName": "Doxygen documentation",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "GAMEWIP_BUILD_GAME": "OFF",
+        "GAMEWIP_BUILD_TESTS": "OFF",
+        "GAMEWIP_BUILD_BENCHMARKS": "OFF",
+        "GAMEWIP_RUN_TESTS_AT_STARTUP": "OFF",
+        "GAMEWIP_RUN_BENCHMARKS_AT_STARTUP": "OFF",
+        "GAMEWIP_BUILD_DOCS": "ON"
+      }
+    }
+  ],
+  "buildPresets": [
+    { "name": "development", "configurePreset": "development" },
+    { "name": "validation", "configurePreset": "validation" },
+    { "name": "benchmark", "configurePreset": "benchmark", "targets": ["GameWIPBenchmarks"] },
+    { "name": "tools", "configurePreset": "tools" },
+    { "name": "profiling", "configurePreset": "profiling" },
+    { "name": "optimized", "configurePreset": "optimized" },
+    { "name": "shipping", "configurePreset": "shipping" },
+    { "name": "coverage", "configurePreset": "coverage" },
+    { "name": "docs", "configurePreset": "docs", "targets": ["docs"] }
+  ],
+  "testPresets": [
+    {
+      "name": "validation",
+      "configurePreset": "validation",
+      "output": { "outputOnFailure": true }
+    },
+    {
+      "name": "coverage",
+      "configurePreset": "coverage",
+      "output": { "outputOnFailure": true }
+    }
+  ]
+}

@@ -121,10 +121,10 @@ For known-size reads, the helper returns it before reading when the remaining si
 
 ## Resource and stream failures
 
-`ResourceBusy` is intended for lock/share/resource conflicts, such as a future FileSystem backend failing to open a file because another process has incompatible sharing rules.
+`ResourceBusy` represents lock/share/resource conflicts, such as FileSystem failing to open a file because another process has incompatible sharing rules.
 
 `StorageFull` is intended for disk-full or quota-full write failures.
 
-`BrokenPipe` is intended for pipe/redirected-stream failures, such as a future Terminal backend writing to a closed redirected stdout/stderr pipe.
+`BrokenPipe` represents pipe/redirected-stream failures, such as Terminal writing to a closed redirected stdout/stderr pipe.
 
 `Interrupted` is intended for platform operations interrupted before completion.

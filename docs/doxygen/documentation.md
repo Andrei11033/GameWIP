@@ -15,7 +15,10 @@ The Doxygen site is designed as a modular manual. Each library owns its own docs
 - Child pages should be prefixed with the library page ID, for example `logger_quick_start` or `assert_macro_behavior`.
 - Doxygen inputs are explicit public headers plus Markdown manual pages.
 - Private `.txt` files under `docs/` are development notes and are not Doxygen inputs.
-- Internal and platform backend contracts stay in private `.txt` notes, not generated user docs.
+- Internal and platform backend contracts stay in source comments or private development notes, not generated user docs.
+- Library manuals own only their library's API, behavior, examples, troubleshooting, and library-specific validation material.
+- Root project pages own GameWIP integration: presets, startup flow, module discovery, report locations, CI, packaging, and repository-wide policy.
+- Shared facts have one authoritative page; other pages link to it instead of copying a second contract.
 
 ## Registering a library
 
@@ -58,7 +61,7 @@ Library landing pages should therefore split navigation into:
 - **User manual** pages: quick start, public API guide, concepts, configuration, examples, troubleshooting, and other pages needed by normal consumers of the library.
 - **Developer validation** pages: test-hook notes, coverage notes, manual validation procedures, and internal testing workflows. These pages may be generated, but they should not be presented as normal production API.
 
-Every public API needs concise IntelliSense documentation in its public header. APIs with non-trivial behavior also need Markdown coverage in the library manual explaining when to use them, lifecycle/threading rules, failure behavior, blocking behavior, performance expectations, and examples.
+Every public API needs concise IntelliSense documentation in its public header. APIs with non-trivial behavior also need Markdown coverage in the library manual explaining when to use them, lifecycle/threading rules, failure behavior, blocking behavior, performance expectations, and examples. The manual must account for every public namespace, type, enum value, field, function, macro, and constant, while allowing genuinely related overloads to share one behavior table.
 
 ## IntelliSense vs manual pages
 
@@ -83,7 +86,7 @@ Markdown guide pages are for the full manual:
 - troubleshooting,
 - test-hook guidance.
 
-Implementation comments should explain non-obvious internals only: locks, atomics, shutdown invariants, platform behavior, hot paths, failure injection, and test hooks.
+Internal headers and implementation files are maintainer documentation. Give every named internal namespace, type, function, and non-obvious constant a concise purpose comment. Add ownership, locking, state-transition, platform, fallback, units, or performance details when the signature cannot communicate them safely. Do not narrate obvious control flow, assignments, accessors, or local variables. These source comments remain outside the generated public manual.
 
 ## Test-hook documentation
 
@@ -91,6 +94,6 @@ Test hooks should be documented in guide pages because they matter for validatio
 
 ## Doxygen verification
 
-Documentation generation is opt-in through `BUILD_DOCS`. Normal builds must not require Doxygen. The generated Doxyfile should keep `RECURSIVE = NO`, list explicit inputs, write HTML under the build tree, and write warnings to `build-docs/docs/doxygen/doxygen_warnings.log`.
+Documentation generation is opt-in through `GAMEWIP_BUILD_DOCS`. Normal builds must not require Doxygen. The generated Doxyfile should keep `RECURSIVE = NO`, list explicit inputs, write HTML under the build tree, and write warnings to `build-docs/docs/doxygen/doxygen_warnings.log`.
 
 Planned library docs may exist before a library target is implemented. Those docs should state that generated Doxygen registration is still to be implemented and should not be listed on the root generated index until registration exists.

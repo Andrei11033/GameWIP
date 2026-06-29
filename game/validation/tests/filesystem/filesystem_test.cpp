@@ -1,7 +1,7 @@
 /// @file filesystem_test.cpp
 /// @brief Compile-time and runtime checks for the FileSystem public API.
 
-#include "test/filesystem_test.h"
+#include "validation/tests/filesystem/filesystem_test.h"
 
 #include "filesystem/filesystem.h"
 #include "test_support/test_support.h"
@@ -80,23 +80,19 @@ namespace
     namespace TestSupport = GameWIP::TestSupport;
     using ErrorCode = IO::Types::ErrorCode;
 
-    std::filesystem::path makeRunRoot()
-    {
-        const auto ticks = std::chrono::steady_clock::now().time_since_epoch().count();
-        const auto threadHash = std::hash<std::thread::id>{}(std::this_thread::get_id());
-        return std::filesystem::temp_directory_path() / std::format("filesystem_tests_{}_{}", ticks, threadHash);
-    }
-
+    /// @brief Creates entry-query options for one explicit symlink policy.
     FileSystem::Types::QueryOptions queryOptions(FileSystem::Types::SymlinkPolicy policy) noexcept
     {
         return FileSystem::Types::QueryOptions{.symlinkPolicy = policy};
     }
 
+    /// @brief Exposes fixture text as bytes without copying or conversion.
     std::span<const std::byte> bytesOf(std::string_view text) noexcept
     {
         return std::as_bytes(std::span<const char>(text.data(), text.size()));
     }
 
+    /// @brief Verifies existence, kind, missing-entry, and invalid-path query behavior.
     void testBasicEntryQueries(TestSupport::Context &context, const std::filesystem::path &root)
     {
         const std::filesystem::path directory = root / "basic" / "directory";
@@ -130,6 +126,7 @@ namespace
         static_cast<void>(context.expectEq("empty path is invalid", ErrorCode::InvalidArgument, emptyPath.status.code));
     }
 
+    /// @brief Creates a file or directory symlink and records unavailable host support as a skip.
     bool createSymlink(TestSupport::Context &context, const std::filesystem::path &target, const std::filesystem::path &link, bool directory)
     {
 #if defined(_WIN32)
@@ -164,16 +161,19 @@ namespace
 #endif
     }
 
+    /// @brief Creates a file symlink through the shared privilege-aware helper.
     bool createFileSymlink(TestSupport::Context &context, const std::filesystem::path &target, const std::filesystem::path &link)
     {
         return createSymlink(context, target, link, false);
     }
 
+    /// @brief Creates a directory symlink through the shared privilege-aware helper.
     bool createDirectorySymlink(TestSupport::Context &context, const std::filesystem::path &target, const std::filesystem::path &link)
     {
         return createSymlink(context, target, link, true);
     }
 
+    /// @brief Verifies final and intermediate symlink handling for every query policy.
     void testSymlinkPolicies(TestSupport::Context &context, const std::filesystem::path &root)
     {
         const std::filesystem::path targetDirectory = root / "symlinks" / "target";
@@ -264,6 +264,7 @@ namespace
         }
     }
 
+    /// @brief Verifies metadata queries, directory creation, listing filters, and path helpers.
     void testMetadataDirectoriesAndListing(TestSupport::Context &context, const std::filesystem::path &root)
     {
         const std::filesystem::path directory = root / "directories" / "nested";
@@ -310,6 +311,7 @@ namespace
             context.expectEq("listDirectory maxEntries returns SizeLimitExceeded", ErrorCode::SizeLimitExceeded, limitedListing.status.code));
     }
 
+    /// @brief Verifies explicit UTF-8 path conversion with non-ASCII fixture names.
     void testUtf8PathConversion(TestSupport::Context &context, const std::filesystem::path &root)
     {
         const std::string utf8Name = std::string{"unicode_"} + "\xD1\x84\xD0\xB0\xD0\xB9\xD0\xBB.txt";
@@ -323,6 +325,7 @@ namespace
         static_cast<void>(context.expectEq("UTF-8 path round-trips", utf8Name, roundTrip.utf8));
     }
 
+    /// @brief Verifies whole-file helpers and reader, writer, and read/write handle contracts.
     void testWholeFileHelpersAndHandles(TestSupport::Context &context, const std::filesystem::path &root)
     {
         const std::filesystem::path file = root / "handles" / "stream.txt";
@@ -377,6 +380,7 @@ namespace
         static_cast<void>(context.expectEq("append writer adds content at EOF", std::string{"abcdefgh"}, appendUpdated.text));
     }
 
+    /// @brief Verifies metadata mutation, copy, move, resize, truncate, and removal operations.
     void testMutationCopyMoveAndRemoval(TestSupport::Context &context, const std::filesystem::path &root)
     {
         const std::filesystem::path directory = root / "mutations";
@@ -463,6 +467,7 @@ namespace
             removedDeepTree.removedEntries));
     }
 
+    /// @brief Verifies atomic replacement and non-blocking whole-file lock ownership.
     void testAtomicWriteAndLocks(TestSupport::Context &context, const std::filesystem::path &root)
     {
         const std::filesystem::path file = root / "atomic-locks" / "file.txt";
@@ -517,11 +522,13 @@ namespace GameWIP::Test
 {
     int runFileSystemTests(int, char **, const FileSystemTestOptions &options)
     {
-        const std::filesystem::path runRoot = makeRunRoot();
-        TestSupport::createDirectories(runRoot);
+        const TestSupport::ScopedTemporaryDirectory workspace("filesystem_tests");
+        const std::filesystem::path &runRoot = workspace.path();
 
         TestSupport::Types::ReportOptions reportOptions;
         reportOptions.writeConsole = true;
+        reportOptions.consoleVerbosity =
+            options.verboseConsole ? TestSupport::Types::ConsoleVerbosity::Full : TestSupport::Types::ConsoleVerbosity::Minimal;
         reportOptions.writeReport = options.writeReport;
         reportOptions.appendReport = options.appendReport;
         reportOptions.reportPath = options.reportPath;
@@ -575,7 +582,6 @@ namespace GameWIP::Test
         const TestSupport::Types::Summary result = runner.result();
         runner.summary(std::format("FileSystem library self-tests passed={} failed={} skipped={}", result.passed, result.failed, result.skipped));
 
-        TestSupport::removeIfExists(runRoot);
         return runner.exitCode();
     }
 } // namespace GameWIP::Test

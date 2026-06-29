@@ -21,14 +21,15 @@ runner.runSuite(
 ## File helpers
 
 ```cpp
-const std::filesystem::path path = "logs/tests/sample.txt";
+GameWIP::TestSupport::ScopedTemporaryDirectory workspace("file_example");
+const std::filesystem::path path = workspace.path() / "sample.txt";
 GameWIP::TestSupport::writeTextFile(path, "alpha beta alpha");
 
 context.expectFileContains("sample contains beta", path, "beta");
 context.expectFileOccurrenceCount("sample alpha count", path, "alpha", 2);
 ```
 
-Occurrence counts are non-overlapping. Empty search text counts as zero occurrences.
+Occurrence counts are non-overlapping. Empty search text counts as zero occurrences. The sample file is removed with the workspace.
 
 ## Environment helpers
 

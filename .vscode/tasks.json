@@ -2,321 +2,218 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "Configure Optimized Debuggable",
+            "label": "Configure Development",
             "type": "shell",
             "command": "cmake",
-            "args": [
-                "-S",
-                ".",
-                "-B",
-                "build-optimized-debuggable",
-                "-G",
-                "MinGW Makefiles",
-                "-DCMAKE_BUILD_TYPE=RelWithDebInfo",
-                "-DGAMEWIP_ENABLE_TRACY=OFF",
-                "-DGAMEWIP_ENABLE_TOOLS=OFF",
-                "-DGAMEWIP_OPEN_TOOL_WINDOWS_AT_STARTUP=OFF"
-            ],
+            "args": ["--preset", "development"],
             "options": {
                 "cwd": "${workspaceFolder}",
-                "env": {
-                    "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
-                }
+                "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" }
             },
             "problemMatcher": []
         },
         {
-            "label": "Build Optimized Debuggable",
+            "label": "Build Development",
             "type": "shell",
             "command": "cmake",
-            "args": [
-                "--build",
-                "build-optimized-debuggable"
-            ],
+            "args": ["--build", "--preset", "development"],
             "options": {
                 "cwd": "${workspaceFolder}",
-                "env": {
-                    "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
-                }
+                "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" }
             },
-            "problemMatcher": [
-                "$gcc"
-            ],
-            "group": {
-                "kind": "build",
-                "isDefault": true
-            },
-            "dependsOn": "Configure Optimized Debuggable"
+            "problemMatcher": ["$gcc"],
+            "group": { "kind": "build", "isDefault": true },
+            "dependsOn": "Configure Development"
         },
         {
-            "label": "Run Optimized Debuggable",
+            "label": "Run Development",
             "type": "shell",
-            "command": "${workspaceFolder}\\build-optimized-debuggable\\GameWIP.exe",
+            "command": "${workspaceFolder}\\build-development\\GameWIP.exe",
+            "args": ["--no-manual-ui"],
             "options": {
-                "cwd": "${workspaceFolder}\\build-optimized-debuggable",
-                "env": {
-                    "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
-                }
+                "cwd": "${workspaceFolder}\\build-development",
+                "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" }
             },
             "problemMatcher": [],
-            "dependsOn": "Build Optimized Debuggable"
+            "dependsOn": "Build Development"
         },
         {
-            "label": "Verify Optimized Debuggable",
-            "type": "shell",
-            "command": "powershell",
-            "args": [
-                "-NoProfile",
-                "-Command",
-                "$ErrorActionPreference = 'Stop'; & '${workspaceFolder}\\build-optimized-debuggable\\GameWIP.exe' both info; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; Write-Host 'Verification passed.'"
-            ],
-            "options": {
-                "cwd": "${workspaceFolder}\\build-optimized-debuggable",
-                "env": {
-                    "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
-                }
-            },
-            "problemMatcher": [],
-            "group": {
-                "kind": "test",
-                "isDefault": true
-            },
-            "dependsOn": "Build Optimized Debuggable"
-        },
-        {
-            "label": "Configure Tools Multiwindow",
+            "label": "Configure Validation",
             "type": "shell",
             "command": "cmake",
-            "args": [
-                "-S",
-                ".",
-                "-B",
-                "build-tools",
-                "-G",
-                "Ninja",
-                "-DCMAKE_BUILD_TYPE=RelWithDebInfo",
-                "-DGAMEWIP_ENABLE_TRACY=OFF",
-                "-DGAMEWIP_ENABLE_TOOLS=ON",
-                "-DGAMEWIP_OPEN_TOOL_WINDOWS_AT_STARTUP=ON"
-            ],
+            "args": ["--preset", "validation"],
             "options": {
                 "cwd": "${workspaceFolder}",
-                "env": {
-                    "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
-                }
+                "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" }
             },
             "problemMatcher": []
         },
         {
-            "label": "Build Tools Multiwindow",
+            "label": "Build Validation",
             "type": "shell",
             "command": "cmake",
-            "args": [
-                "--build",
-                "build-tools"
-            ],
+            "args": ["--build", "--preset", "validation"],
             "options": {
                 "cwd": "${workspaceFolder}",
-                "env": {
-                    "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
-                }
+                "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" }
             },
-            "problemMatcher": [
-                "$gcc"
-            ],
-            "dependsOn": "Configure Tools Multiwindow"
+            "problemMatcher": ["$gcc"],
+            "dependsOn": "Configure Validation"
         },
         {
-            "label": "Run Tools Multiwindow",
+            "label": "Test Validation",
+            "type": "shell",
+            "command": "ctest",
+            "args": ["--preset", "validation"],
+            "options": {
+                "cwd": "${workspaceFolder}",
+                "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" }
+            },
+            "problemMatcher": [],
+            "group": { "kind": "test", "isDefault": true },
+            "dependsOn": "Build Validation"
+        },
+        {
+            "label": "Configure Benchmarks",
+            "type": "shell",
+            "command": "cmake",
+            "args": ["--preset", "benchmark"],
+            "options": {
+                "cwd": "${workspaceFolder}",
+                "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" }
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Build Benchmarks",
+            "type": "shell",
+            "command": "cmake",
+            "args": ["--build", "--preset", "benchmark"],
+            "options": {
+                "cwd": "${workspaceFolder}",
+                "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" }
+            },
+            "problemMatcher": ["$gcc"],
+            "dependsOn": "Configure Benchmarks"
+        },
+        {
+            "label": "Run Benchmarks",
+            "type": "shell",
+            "command": "${workspaceFolder}\\build-benchmark\\GameWIPBenchmarks.exe",
+            "options": {
+                "cwd": "${workspaceFolder}\\build-benchmark",
+                "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" }
+            },
+            "problemMatcher": [],
+            "dependsOn": "Build Benchmarks"
+        },
+        {
+            "label": "Configure Tools",
+            "type": "shell",
+            "command": "cmake",
+            "args": ["--preset", "tools"],
+            "options": {
+                "cwd": "${workspaceFolder}",
+                "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" }
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Build Tools",
+            "type": "shell",
+            "command": "cmake",
+            "args": ["--build", "--preset", "tools"],
+            "options": {
+                "cwd": "${workspaceFolder}",
+                "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" }
+            },
+            "problemMatcher": ["$gcc"],
+            "dependsOn": "Configure Tools"
+        },
+        {
+            "label": "Run Tools",
             "type": "shell",
             "command": "${workspaceFolder}\\build-tools\\GameWIP.exe",
+            "args": ["--no-manual-ui"],
             "options": {
                 "cwd": "${workspaceFolder}\\build-tools",
-                "env": {
-                    "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
-                }
+                "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" }
             },
             "problemMatcher": [],
-            "dependsOn": "Build Tools Multiwindow"
+            "dependsOn": "Build Tools"
         },
         {
-            "label": "Configure Tracy Profiling",
+            "label": "Configure Profiling",
             "type": "shell",
             "command": "cmake",
-            "args": [
-                "-S",
-                ".",
-                "-B",
-                "build-tracy-profiling",
-                "-G",
-                "Ninja",
-                "-DCMAKE_BUILD_TYPE=RelWithDebInfo",
-                "-DGAMEWIP_ENABLE_TRACY=ON",
-                "-DGAMEWIP_ENABLE_TOOLS=OFF",
-                "-DGAMEWIP_OPEN_TOOL_WINDOWS_AT_STARTUP=OFF"
-            ],
+            "args": ["--preset", "profiling"],
             "options": {
                 "cwd": "${workspaceFolder}",
-                "env": {
-                    "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
-                }
+                "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" }
             },
             "problemMatcher": []
         },
         {
-            "label": "Build Tracy Profiling",
+            "label": "Build Profiling",
             "type": "shell",
             "command": "cmake",
-            "args": [
-                "--build",
-                "build-tracy-profiling"
-            ],
+            "args": ["--build", "--preset", "profiling"],
             "options": {
                 "cwd": "${workspaceFolder}",
-                "env": {
-                    "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
-                }
+                "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" }
             },
-            "problemMatcher": [
-                "$gcc"
-            ],
-            "dependsOn": "Configure Tracy Profiling"
+            "problemMatcher": ["$gcc"],
+            "dependsOn": "Configure Profiling"
         },
         {
-            "label": "Run Tracy Profiling",
+            "label": "Run Profiling",
             "type": "shell",
             "command": "powershell",
             "args": [
                 "-NoProfile",
                 "-Command",
-                "$ErrorActionPreference = 'Stop'; $profiler = '${workspaceFolder}\\.tracy\\tracy-profiler.exe'; $game = '${workspaceFolder}\\build-tracy-profiling\\GameWIP.exe'; if (!(Test-Path -LiteralPath $profiler)) { throw \"Missing Tracy profiler: $profiler\" }; if (!(Test-Path -LiteralPath $game)) { throw \"Missing profiled game executable: $game\" }; if ($null -eq (Get-Process -Name 'tracy-profiler' -ErrorAction SilentlyContinue)) { Start-Process -FilePath $profiler -WorkingDirectory (Split-Path -Parent $profiler) }; & $game; exit $LASTEXITCODE"
+                "$ErrorActionPreference = 'Stop'; $profiler = '${workspaceFolder}\\.tracy\\tracy-profiler.exe'; $game = '${workspaceFolder}\\build-profiling\\GameWIP.exe'; if (!(Test-Path -LiteralPath $profiler)) { throw \"Missing Tracy profiler: $profiler\" }; if ($null -eq (Get-Process -Name 'tracy-profiler' -ErrorAction SilentlyContinue)) { Start-Process -FilePath $profiler -WorkingDirectory (Split-Path -Parent $profiler) }; & $game --no-manual-ui; exit $LASTEXITCODE"
             ],
             "options": {
-                "cwd": "${workspaceFolder}\\build-tracy-profiling",
-                "env": {
-                    "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
-                }
+                "cwd": "${workspaceFolder}\\build-profiling",
+                "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" }
             },
             "problemMatcher": [],
-            "dependsOn": "Build Tracy Profiling"
+            "dependsOn": "Build Profiling"
         },
         {
-            "label": "Configure Max Optimized With Symbols",
+            "label": "Configure Shipping",
             "type": "shell",
             "command": "cmake",
-            "args": [
-                "-S",
-                ".",
-                "-B",
-                "build-max-optimized-symbols",
-                "-G",
-                "Ninja",
-                "-DCMAKE_BUILD_TYPE=RelWithDebInfo",
-                "-DGAMEWIP_ENABLE_TRACY=OFF",
-                "-DGAMEWIP_ENABLE_TOOLS=OFF",
-                "-DGAMEWIP_OPEN_TOOL_WINDOWS_AT_STARTUP=OFF",
-                "-DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON",
-                "-DCMAKE_CXX_FLAGS_RELWITHDEBINFO=-O3 -g -DNDEBUG"
-            ],
+            "args": ["--preset", "shipping"],
             "options": {
                 "cwd": "${workspaceFolder}",
-                "env": {
-                    "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
-                }
+                "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" }
             },
             "problemMatcher": []
         },
         {
-            "label": "Build Max Optimized With Symbols",
+            "label": "Build Shipping",
             "type": "shell",
             "command": "cmake",
-            "args": [
-                "--build",
-                "build-max-optimized-symbols"
-            ],
+            "args": ["--build", "--preset", "shipping"],
             "options": {
                 "cwd": "${workspaceFolder}",
-                "env": {
-                    "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
-                }
+                "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" }
             },
-            "problemMatcher": [
-                "$gcc"
-            ],
-            "dependsOn": "Configure Max Optimized With Symbols"
+            "problemMatcher": ["$gcc"],
+            "dependsOn": "Configure Shipping"
         },
         {
-            "label": "Run Max Optimized With Symbols",
+            "label": "Run Shipping",
             "type": "shell",
-            "command": "${workspaceFolder}\\build-max-optimized-symbols\\GameWIP.exe",
+            "command": "${workspaceFolder}\\build-shipping\\GameWIP.exe",
             "options": {
-                "cwd": "${workspaceFolder}\\build-max-optimized-symbols",
-                "env": {
-                    "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
-                }
+                "cwd": "${workspaceFolder}\\build-shipping",
+                "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" }
             },
             "problemMatcher": [],
-            "dependsOn": "Build Max Optimized With Symbols"
-        },
-        {
-            "label": "Configure Shipping Release",
-            "type": "shell",
-            "command": "cmake",
-            "args": [
-                "-S",
-                ".",
-                "-B",
-                "build-shipping-release",
-                "-G",
-                "Ninja",
-                "-DCMAKE_BUILD_TYPE=Release",
-                "-DGAMEWIP_ENABLE_TRACY=OFF",
-                "-DGAMEWIP_ENABLE_TOOLS=OFF",
-                "-DGAMEWIP_OPEN_TOOL_WINDOWS_AT_STARTUP=OFF",
-                "-DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON",
-                "-DCMAKE_CXX_FLAGS_RELEASE=-O3 -DNDEBUG",
-                "-DCMAKE_EXE_LINKER_FLAGS_RELEASE=-s",
-                "-DCMAKE_SHARED_LINKER_FLAGS_RELEASE=-s"
-            ],
-            "options": {
-                "cwd": "${workspaceFolder}",
-                "env": {
-                    "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
-                }
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "Build Shipping Release",
-            "type": "shell",
-            "command": "cmake",
-            "args": [
-                "--build",
-                "build-shipping-release"
-            ],
-            "options": {
-                "cwd": "${workspaceFolder}",
-                "env": {
-                    "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
-                }
-            },
-            "problemMatcher": [
-                "$gcc"
-            ],
-            "dependsOn": "Configure Shipping Release"
-        },
-        {
-            "label": "Run Shipping Release",
-            "type": "shell",
-            "command": "${workspaceFolder}\\build-shipping-release\\GameWIP.exe",
-            "options": {
-                "cwd": "${workspaceFolder}\\build-shipping-release",
-                "env": {
-                    "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
-                }
-            },
-            "problemMatcher": [],
-            "dependsOn": "Build Shipping Release"
+            "dependsOn": "Build Shipping"
         }
     ]
 }

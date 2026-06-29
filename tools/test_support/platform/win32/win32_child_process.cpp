@@ -29,11 +29,13 @@ namespace GameWIP::TestSupport
 #if defined(_WIN32)
     namespace
     {
+        /// @brief Move-only owner for Win32 process, thread, pipe, and job handles.
         class UniqueHandle
         {
         public:
             UniqueHandle() noexcept = default;
 
+            /// @brief Takes ownership of one CloseHandle-compatible value.
             explicit UniqueHandle(HANDLE handle) noexcept
                 : handle_(handle)
             {
@@ -61,11 +63,13 @@ namespace GameWIP::TestSupport
                 return *this;
             }
 
+            /// @brief Returns the owned handle without transferring it.
             [[nodiscard]] HANDLE get() const noexcept
             {
                 return handle_;
             }
 
+            /// @brief Closes current ownership and optionally takes a replacement handle.
             void reset(HANDLE handle = nullptr) noexcept
             {
                 if (handle_ != nullptr && handle_ != INVALID_HANDLE_VALUE)
@@ -79,6 +83,7 @@ namespace GameWIP::TestSupport
             HANDLE handle_ = nullptr;
         };
 
+        /// @brief Builds printable fallback UTF-16 text when strict UTF-8 conversion fails.
         [[nodiscard]] std::wstring asciiFallbackToWide(std::string_view text)
         {
             std::wstring output;
@@ -91,6 +96,7 @@ namespace GameWIP::TestSupport
             return output;
         }
 
+        /// @brief Converts public UTF-8 process text to UTF-16 without throwing.
         [[nodiscard]] std::wstring utf8ToWide(std::string_view text)
         {
             if (text.empty())
@@ -117,6 +123,7 @@ namespace GameWIP::TestSupport
             return output;
         }
 
+        /// @brief Converts a filesystem path to native UTF-16 with a narrow fallback.
         [[nodiscard]] std::wstring pathToWide(const std::filesystem::path &path)
         {
             try
@@ -129,11 +136,13 @@ namespace GameWIP::TestSupport
             }
         }
 
+        /// @brief Returns whether CreateProcess command-line grammar requires quoting.
         [[nodiscard]] bool needsQuoting(std::wstring_view text)
         {
             return text.empty() || text.find_first_of(L" \t\n\v\"") != std::wstring_view::npos;
         }
 
+        /// @brief Quotes one argv value using Windows backslash-before-quote rules.
         [[nodiscard]] std::wstring quoteWindowsArgument(std::wstring_view text)
         {
             if (!needsQuoting(text))
@@ -171,6 +180,7 @@ namespace GameWIP::TestSupport
             return quoted;
         }
 
+        /// @brief Builds the mutable UTF-16 command line consumed by CreateProcessW.
         [[nodiscard]] std::wstring buildCommandLine(const Types::ChildProcessOptions &options)
         {
             std::wstring commandLine = quoteWindowsArgument(pathToWide(options.executablePath));
@@ -182,6 +192,7 @@ namespace GameWIP::TestSupport
             return commandLine;
         }
 
+        /// @brief Normalizes an environment name for Windows case-insensitive comparison.
         [[nodiscard]] std::wstring lowerEnvironmentName(std::wstring_view text)
         {
             std::wstring lowered(text);
@@ -192,6 +203,7 @@ namespace GameWIP::TestSupport
             return lowered;
         }
 
+        /// @brief Extracts a variable name, preserving special drive-current-directory entries.
         [[nodiscard]] std::wstring environmentEntryName(std::wstring_view entry)
         {
             if (!entry.empty() && entry.front() == L'=')
@@ -204,11 +216,13 @@ namespace GameWIP::TestSupport
             return equals == std::wstring_view::npos ? std::wstring(entry) : std::wstring(entry.substr(0, equals));
         }
 
+        /// @brief Compares environment names using Windows case-insensitive semantics.
         [[nodiscard]] bool sameEnvironmentName(std::wstring_view left, std::wstring_view right)
         {
             return lowerEnvironmentName(left) == lowerEnvironmentName(right);
         }
 
+        /// @brief Applies one set/unset override to inherited environment entries.
         void applyEnvironmentOverride(std::vector<std::wstring> &entries, const Types::EnvironmentVariable &variable)
         {
             if (variable.name.empty() || variable.name.find('=') != std::string::npos)
@@ -240,6 +254,7 @@ namespace GameWIP::TestSupport
             }
         }
 
+        /// @brief Copies the current process Unicode environment block into editable entries.
         [[nodiscard]] std::vector<std::wstring> inheritedEnvironmentEntries()
         {
             std::vector<std::wstring> entries;
@@ -258,6 +273,7 @@ namespace GameWIP::TestSupport
             return entries;
         }
 
+        /// @brief Builds the sorted double-null-terminated Unicode child environment block.
         [[nodiscard]] std::wstring buildEnvironmentBlock(const Types::ChildProcessOptions &options)
         {
             std::vector<std::wstring> entries = options.inheritParentEnvironment ? inheritedEnvironmentEntries() : std::vector<std::wstring>{};
@@ -289,6 +305,7 @@ namespace GameWIP::TestSupport
             return block;
         }
 
+        /// @brief Converts a chrono timeout to finite or infinite Win32 wait semantics.
         [[nodiscard]] DWORD timeoutMilliseconds(std::chrono::milliseconds timeout)
         {
             if (timeout.count() < 0)

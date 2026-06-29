@@ -17,6 +17,7 @@
 
 namespace
 {
+    /// @brief Converts public UTF-8 environment text to UTF-16 with a printable fallback.
     [[nodiscard]] std::wstring utf8ToWide(std::string_view text)
     {
         if (text.empty())
@@ -50,6 +51,7 @@ namespace
         return output;
     }
 
+    /// @brief Converts Win32 UTF-16 environment text to UTF-8.
     [[nodiscard]] std::string wideToUtf8(std::wstring_view text)
     {
         if (text.empty())

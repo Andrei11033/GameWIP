@@ -17,18 +17,6 @@ The FileSystem test suite covers:
 - atomic write replacement;
 - whole-file lock acquisition and contention.
 
-Run the focused suite through the game test executable:
-
-```powershell
-.\build\GameWIP.exe --filesystem-only
-```
-
-Or run the complete automated pass:
-
-```powershell
-ctest --test-dir build --output-on-failure
-```
-
 ## Symlink policy tests
 
 Symlink tests validate `DoNotFollow`, `FollowFinal`, and `FollowAll` behavior for final file symlinks and intermediate directory symlinks.
@@ -43,24 +31,12 @@ Atomic write tests verify visible content replacement and fail-if-exists behavio
 
 FileSystem has a platform backend. Backend validation should cover native path conversion, strict symlink-policy traversal, sharing behavior, lock behavior, read-only metadata, directory flushing, and native error mapping.
 
-Internal backend contracts stay in private project notes rather than generated user docs. Public docs should describe observable behavior and portable failure statuses.
+Internal backend contracts stay in source comments and private project notes rather than generated user docs. Public docs describe observable behavior and portable failure statuses.
 
 ## Documentation validation
 
 Doxygen generation is part of FileSystem validation because the public API is large enough that the generated manual is the consumer-facing contract.
 
-Run:
-
-```powershell
-cmake -S . -B build-docs -G Ninja -DBUILD_DOCS=ON
-cmake --build build-docs --target docs --verbose
-```
-
-Then inspect:
-
-```text
-build-docs/docs/doxygen/html/index.html
-build-docs/docs/doxygen/doxygen_warnings.log
-```
-
 The warning log should be empty before treating the generated FileSystem manual as validated.
+
+GameWIP owns the test executable, focused-module command, CTest registration, documentation preset, report location, and generated-output paths. See @ref library_testing and @ref library_documentation.

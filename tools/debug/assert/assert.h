@@ -139,6 +139,7 @@ static_assert(ASSERT_UNREACHABLE_ASSUME == 0 || ASSERT_UNREACHABLE_ASSUME == 1, 
 #error "INTERNAL_ASSERT_RUNTIME=0 requires ASSERT_ENABLED=0 and ASSERT_CHECKS_ENABLED=0."
 #endif
 
+/// @brief Runtime support for fatal, recoverable, and interactive assertion macros.
 namespace GameWIP::Debug::Assert
 {
     /// @name Runtime support

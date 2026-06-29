@@ -5,7 +5,7 @@ set_property(CACHE ASSERT_CHECKS_ENABLED PROPERTY STRINGS AUTO ON OFF)
 option(ASSERT_DIAGNOSTICS "Embed assertion condition/file/function/message diagnostics" ON)
 option(ASSERT_UNREACHABLE_ASSUME "Use compiler unreachable assumptions instead of a trap when UNREACHABLE is compiled without assertions" OFF)
 option(ASSERT_ENABLE_COMMON_CONTROLS_MANIFEST "Propagate a Common Controls v6 manifest resource to Windows executables using Assert" ON)
-option(ASSERT_TEST_HOOKS "Enable Assert internal test hooks" OFF)
+option(ASSERT_ENABLE_TEST_HOOKS "Enable Assert internal test hooks" OFF)
 
 if(NOT COMMAND library_target_platform_sources)
     include("${PROJECT_SOURCE_DIR}/cmake/LibraryPlatform.cmake")
@@ -105,12 +105,12 @@ if(ASSERT_RUNTIME_TARGET_ENABLED)
             ASSERT_CHECKS_ENABLED=1
             ASSERT_DIAGNOSTICS=${ASSERT_DIAGNOSTICS_VALUE}
             ASSERT_UNREACHABLE_ASSUME=${ASSERT_UNREACHABLE_ASSUME_VALUE}
-            INTERNAL_ASSERT_TEST_HOOKS=$<BOOL:${ASSERT_TEST_HOOKS}>
+            INTERNAL_ASSERT_TEST_HOOKS=$<BOOL:${ASSERT_ENABLE_TEST_HOOKS}>
         INTERFACE
             INTERNAL_ASSERT_RUNTIME=${ASSERT_RUNTIME_PUBLIC}
             ASSERT_ENABLED=${ASSERT_ENABLED_PUBLIC}
             ASSERT_CHECKS_ENABLED=${ASSERT_CHECKS_ENABLED_PUBLIC}
-            INTERNAL_ASSERT_TEST_HOOKS=$<BOOL:${ASSERT_TEST_HOOKS}>
+            INTERNAL_ASSERT_TEST_HOOKS=$<BOOL:${ASSERT_ENABLE_TEST_HOOKS}>
     )
 else()
     target_include_directories(Assert INTERFACE
@@ -131,6 +131,22 @@ target_compile_definitions(Assert INTERFACE
     ASSERT_UNREACHABLE_ASSUME=${ASSERT_UNREACHABLE_ASSUME_VALUE}
 )
 
+# Validation object libraries need Assert's compile contract without inheriting
+# executable resources such as the Common Controls manifest.
+add_library(AssertCompileInterface INTERFACE)
+target_include_directories(AssertCompileInterface INTERFACE
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/tools>
+)
+target_compile_features(AssertCompileInterface INTERFACE cxx_std_23)
+target_compile_definitions(AssertCompileInterface INTERFACE
+    INTERNAL_ASSERT_RUNTIME=${ASSERT_RUNTIME_PUBLIC}
+    ASSERT_ENABLED=${ASSERT_ENABLED_PUBLIC}
+    ASSERT_CHECKS_ENABLED=${ASSERT_CHECKS_ENABLED_PUBLIC}
+    ASSERT_DIAGNOSTICS=${ASSERT_DIAGNOSTICS_VALUE}
+    ASSERT_UNREACHABLE_ASSUME=${ASSERT_UNREACHABLE_ASSUME_VALUE}
+    INTERNAL_ASSERT_TEST_HOOKS=$<BOOL:${ASSERT_ENABLE_TEST_HOOKS}>
+)
+
 if(ASSERT_RUNTIME_TARGET_ENABLED)
     target_link_libraries(Assert PRIVATE
         Logger
@@ -145,7 +161,7 @@ if(ASSERT_RUNTIME_TARGET_ENABLED)
     )
 endif()
 
-if(BUILD_DOCS AND COMMAND library_register_doxygen_library)
+if(GAMEWIP_BUILD_DOCS AND COMMAND library_register_doxygen_library)
     # Assert owns its public API docs and Markdown manual pages. The root docs
     # target merges this into the unified library Doxygen site.
     library_register_doxygen_library(

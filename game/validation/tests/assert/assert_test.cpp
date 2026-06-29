@@ -1,7 +1,7 @@
 /// @file assert_test.cpp
 /// @brief Executable self-tests for the Assert library.
 
-#include "test/assert_test.h"
+#include "validation/tests/assert/assert_test.h"
 
 #include "debug/assert/assert.h"
 
@@ -59,36 +59,10 @@ namespace
     constexpr std::string_view childLogDirectoryEnvironmentVariable = "INTERNAL_ASSERT_TEST_CHILD_LOG_DIR";
     constexpr std::string_view assertFailureChildMessage = "assert child logger message";
 
-    std::size_t performanceSink = 0;
-
-    struct ScopedLogRootCleanup
-    {
-        explicit ScopedLogRootCleanup(const std::filesystem::path &path)
-            : path(path)
-        {
-        }
-
-        ~ScopedLogRootCleanup() noexcept
-        {
-            Logger::shutdown();
-            try
-            {
-                TestSupport::removeIfExists(path);
-            }
-            catch (...)
-            {
-            }
-        }
-
-        ScopedLogRootCleanup(const ScopedLogRootCleanup &) = delete;
-        ScopedLogRootCleanup &operator=(const ScopedLogRootCleanup &) = delete;
-
-        std::filesystem::path path;
-    };
-
     /// @brief Mutable test state and TestSupport-backed reporting for the assert suite.
     struct TestContext
     {
+        /// @brief Binds this adapter to one TestSupport suite context.
         explicit TestContext(TestSupport::Context &testContext) noexcept
             : testContext(testContext)
         {
@@ -97,19 +71,19 @@ namespace
         TestSupport::Context &testContext;
         std::filesystem::path logRoot;
         std::string executablePath;
-        double performanceMilliseconds = 0.0;
-        std::size_t performanceScenarioCount = 0;
-
+        /// @brief Returns the current TestSupport summary snapshot.
         [[nodiscard]] TestSupport::Types::Summary result() const noexcept
         {
             return testContext.result();
         }
 
+        /// @brief Returns whether no failure has been recorded.
         [[nodiscard]] bool ok() const noexcept
         {
             return testContext.ok();
         }
 
+        /// @brief Routes a legacy categorized line through structured TestSupport output.
         void emit(std::string_view line)
         {
             std::string text(line);
@@ -196,17 +170,20 @@ namespace
             static_cast<void>(testContext.expectEq(name, expected, actual));
         }
 
+        /// @brief Records whether text contains the required substring.
         void expectContains(std::string_view name, std::string_view text, std::string_view expectedSubstring)
         {
             static_cast<void>(testContext.expectContains(name, text, expectedSubstring));
         }
 
+        /// @brief Records whether one fixture file contains the required substring.
         void expectFileContains(std::string_view name, const std::filesystem::path &path, std::string_view expectedSubstring)
         {
             static_cast<void>(testContext.expectFileContains(name, path, expectedSubstring));
         }
     };
 
+    /// @brief Runs one scenario with timing and converts uncaught exceptions into test failures.
     template <typename Function> void runCase(TestContext &context, std::string_view name, Function &&function)
     {
         TestSupport::Section section(context.testContext, name);
@@ -272,14 +249,6 @@ namespace
         return TestSupport::runChildProcess(child);
     }
 
-    /// @brief Builds a unique temporary log root for one assert test run.
-    /// @return Filesystem path for assert test logs.
-    std::filesystem::path makeRunRoot()
-    {
-        const auto ticks = Clock::now().time_since_epoch().count();
-        return std::filesystem::temp_directory_path() / std::format("assert_tests_{}", ticks);
-    }
-
     /// @brief Converts a path to the narrow text form expected by Logger::Config.
     /// @param path Filesystem path to convert.
     /// @return Narrow path text.
@@ -317,6 +286,7 @@ namespace
         return contents;
     }
 
+    /// @brief Counts non-overlapping occurrences in captured diagnostic text.
     std::size_t countOccurrences(std::string_view text, std::string_view needle)
     {
         if (needle.empty())
@@ -583,26 +553,31 @@ namespace
 #endif
     }
 
+    /// @brief Provides one stable macro call site for automated Always Ignore behavior.
     void interactiveAlwaysIgnoreSite()
     {
         ASSERT_INTERACTIVE_MSG(false, "interactive always ignore test");
     }
 
+    /// @brief Provides one stable macro call site for automated Ignore Once behavior.
     void interactiveIgnoreOnceSite()
     {
         ASSERT_INTERACTIVE_MSG(false, "interactive ignore once repeat test");
     }
 
+    /// @brief Provides a stable VERIFY_INTERACTIVE site while tracking expression evaluation.
     void verifyInteractiveAlwaysIgnoreSite(int &evaluations)
     {
         VERIFY_INTERACTIVE_MSG(++evaluations < 0, "verify interactive always ignore test");
     }
 
+    /// @brief Provides one CHECK_ONCE call site shared by all stress-test threads.
     void threadedCheckOnceSite()
     {
         CHECK_ONCE_MSG(false, "threaded check once stress");
     }
 
+    /// @brief Verifies dialog, debugger, and popup-suppression test hooks and reset behavior.
     void testAssertTestHooks(TestContext &context)
     {
 #if INTERNAL_ASSERT_TEST_HOOKS
@@ -636,6 +611,7 @@ namespace
 #endif
     }
 
+    /// @brief Verifies Ignore Once reports each invocation without suppressing the call site.
     void testInteractiveIgnoreOnce(TestContext &context)
     {
 #if ASSERT_ENABLED
@@ -674,6 +650,7 @@ namespace
 #endif
     }
 
+    /// @brief Verifies Always Ignore suppresses later failures only at the same macro call site.
     void testInteractiveAlwaysIgnore(TestContext &context)
     {
 #if ASSERT_ENABLED
@@ -709,6 +686,7 @@ namespace
 #endif
     }
 
+    /// @brief Verifies interactive VERIFY evaluates its expression exactly once per invocation.
     void testVerifyInteractiveEvaluation(TestContext &context)
     {
         ScopedLoggerShutdown loggerShutdown;
@@ -748,6 +726,7 @@ namespace
 #endif
     }
 
+    /// @brief Verifies Always Ignore suppresses diagnostics without suppressing VERIFY evaluation.
     void testVerifyInteractiveAlwaysIgnoreStillEvaluates(TestContext &context)
     {
 #if ASSERT_ENABLED
@@ -782,6 +761,7 @@ namespace
 #endif
     }
 
+    /// @brief Verifies one CHECK_ONCE site reports at most once under concurrent contention.
     void testCheckOnceThreadStress(TestContext &context, const AssertTestOptions &options)
     {
 #if ASSERT_CHECKS_ENABLED
@@ -834,6 +814,7 @@ namespace
 #endif
     }
 
+    /// @brief Verifies repeated automated interactive actions retain call-site state correctly.
     void testInteractiveStressLoops(TestContext &context, const AssertTestOptions &options)
     {
 #if ASSERT_ENABLED
@@ -899,6 +880,7 @@ namespace
         return 0;
     }
 
+    /// @brief Executes the interactive Abort child protocol; correct behavior terminates the process.
     int runInteractiveAbortChild()
     {
 #if defined(_WIN32)
@@ -921,6 +903,7 @@ namespace
         return 0;
     }
 
+    /// @brief Executes the interactive Break child protocol under deterministic debugger hooks.
     int runInteractiveBreakChild()
     {
 #if defined(_WIN32)
@@ -1017,6 +1000,7 @@ namespace
 #endif
     }
 
+    /// @brief Verifies interactive Abort reports before terminating its child process.
     void testInteractiveAbortChild(TestContext &context, const AssertTestOptions &options)
     {
 #if ASSERT_ENABLED
@@ -1054,6 +1038,7 @@ namespace
 #endif
     }
 
+    /// @brief Verifies interactive Break child handling without requiring a real debugger.
     void testInteractiveBreakChild(TestContext &context, const AssertTestOptions &options)
     {
 #if ASSERT_ENABLED
@@ -1110,21 +1095,25 @@ namespace
 #endif
     }
 
+    /// @brief Provides the stable call site used by the human Ignore Once dialog check.
     void manualInteractiveIgnoreOnceSite()
     {
         ASSERT_INTERACTIVE_MSG(false, "manual assert UI Ignore Once test - click Ignore Once to continue");
     }
 
+    /// @brief Provides the stable call site used by the human Always Ignore dialog check.
     void manualInteractiveAlwaysIgnoreSite()
     {
         ASSERT_INTERACTIVE_MSG(false, "manual assert UI Always Ignore test - click Always Ignore to suppress the second call");
     }
 
+    /// @brief Provides the stable call site used by the human debugger Break check.
     void manualInteractiveBreakSite()
     {
         ASSERT_INTERACTIVE_MSG(false, "manual assert UI Break test - click Break while a debugger is attached, then continue execution");
     }
 
+    /// @brief Runs opt-in human checks for real action dialogs, fallback UI, and debugger breaks.
     void testManualAssertUi(TestContext &context, const AssertTestOptions &options)
     {
         if (!options.enableManualUiTests)
@@ -1200,132 +1189,10 @@ namespace
 #endif
     }
 
-    /// @brief Prints one passing-path performance metric.
-    /// @param context Test context.
-    /// @param name Scenario name.
-    /// @param iterations Number of measured iterations.
-    /// @param milliseconds Elapsed producer-side time.
-    void printMetric(TestContext &context, std::string_view name, std::size_t iterations, double milliseconds)
-    {
-        const double nanosecondsPerCall = iterations == 0 ? 0.0 : (milliseconds * 1'000'000.0) / static_cast<double>(iterations);
-        ++context.performanceScenarioCount;
-        context.performanceMilliseconds += milliseconds;
-        context.emit(
-            std::format("[METRIC] {} iterations={} producerMs={:.3f} nsPerCall={:.2f}\n", name, iterations, milliseconds, nanosecondsPerCall));
-    }
-
-    /// @brief Runs a timed macro scenario and keeps a tiny sink to discourage full loop removal.
-    /// @param context Test context.
-    /// @param name Scenario name.
-    /// @param iterations Number of loop iterations.
-    /// @param scenario Work to time.
-    template <typename Scenario> void measureScenario(TestContext &context, std::string_view name, std::size_t iterations, Scenario &&scenario)
-    {
-        const auto start = Clock::now();
-        for (std::size_t index = 0; index < iterations; ++index)
-        {
-            scenario(index);
-        }
-        const auto end = Clock::now();
-        const double milliseconds = std::chrono::duration<double, std::milli>(end - start).count();
-        printMetric(context, name, iterations, milliseconds);
-    }
-
-    /// @brief Runs lightweight passing-path performance metrics for public assert macros.
-    /// @param context Test context.
-    /// @param options Assert test options.
-    void runPerformanceMetrics(TestContext &context, const AssertTestOptions &options)
-    {
-        if (!options.enablePerformanceMetrics)
-        {
-            context.pass("assert performance metrics disabled by AssertTestOptions");
-            return;
-        }
-
-        const std::size_t iterations = options.performanceIterations;
-        std::size_t localSink = 0;
-
-        measureScenario(
-            context,
-            "ASSERT passing",
-            iterations,
-            [&](std::size_t index)
-            {
-                ASSERT(index < iterations);
-                localSink += index & 1u;
-            });
-
-        measureScenario(
-            context,
-            "CHECK passing",
-            iterations,
-            [&](std::size_t index)
-            {
-                CHECK(index < iterations);
-                localSink += index & 1u;
-            });
-
-        measureScenario(
-            context,
-            "VERIFY passing",
-            iterations,
-            [&](std::size_t index)
-            {
-                VERIFY(index < iterations);
-                localSink += index & 1u;
-            });
-
-        measureScenario(
-            context,
-            "ASSERT_INTERACTIVE passing",
-            iterations,
-            [&](std::size_t index)
-            {
-                ASSERT_INTERACTIVE(index < iterations);
-                localSink += index & 1u;
-            });
-
-        measureScenario(
-            context,
-            "VERIFY_INTERACTIVE passing",
-            iterations,
-            [&](std::size_t index)
-            {
-                VERIFY_INTERACTIVE(index < iterations);
-                localSink += index & 1u;
-            });
-
-        measureScenario(
-            context,
-            "ENSURE passing",
-            iterations,
-            [&](std::size_t index)
-            {
-                if (ENSURE(index < iterations))
-                {
-                    localSink += index & 1u;
-                }
-            });
-
-        performanceSink += localSink;
-        context.pass("assert performance metrics completed");
-    }
-
     /// @brief Prints the assert test summary.
     /// @param context Test context.
-    /// @param milliseconds Total suite duration.
-    void printSummary(TestContext &context, double milliseconds)
+    void printSummary(TestContext &context)
     {
-        if (context.performanceScenarioCount > 0)
-        {
-            context.emit(
-                std::format(
-                    "[SUMMARY] assertPerformance scenarios={} producerMs={:.3f} sink={}\n",
-                    context.performanceScenarioCount,
-                    context.performanceMilliseconds,
-                    performanceSink));
-        }
-        context.emit(std::format("[SUMMARY] Assert tests completed in {:.3f} ms\n", milliseconds));
         context.emit(
             std::format(
                 "[RESULT] assert passed={} failed={} skipped={}\n",
@@ -1362,6 +1229,8 @@ namespace GameWIP::Test
 
         TestSupport::Types::ReportOptions reportOptions;
         reportOptions.writeConsole = true;
+        reportOptions.consoleVerbosity =
+            options.verboseConsole ? TestSupport::Types::ConsoleVerbosity::Full : TestSupport::Types::ConsoleVerbosity::Minimal;
         reportOptions.writeReport = options.writeReport;
         reportOptions.appendReport = options.appendReport;
         reportOptions.reportPath = options.reportPath;
@@ -1373,12 +1242,11 @@ namespace GameWIP::Test
             "Assert",
             [&](TestSupport::Context &suiteContext)
             {
-                TestSupport::Timer suiteTimer;
                 TestContext context(suiteContext);
                 context.executablePath = argc > 0 && argv[0] != nullptr ? argv[0] : "";
-                context.logRoot = makeRunRoot();
-                TestSupport::createDirectories(context.logRoot);
-                const ScopedLogRootCleanup cleanupLogRoot(context.logRoot);
+                const TestSupport::ScopedTemporaryDirectory workspace("assert_tests");
+                const ScopedLoggerShutdown loggerShutdown;
+                context.logRoot = workspace.path();
 
                 context.emit(std::format("[INFO] Assert test log root: {}\n", pathText(context.logRoot)));
                 context.emit(
@@ -1392,14 +1260,12 @@ namespace GameWIP::Test
                         ASSERT_POPUP_ON_CHECK));
                 context.emit(
                     std::format(
-                        "[INFO] Assert test options: stress={} fatalChild={} performance={} automatedInteractive={} manualUi={} perfIterations={} "
+                        "[INFO] Assert test options: stress={} fatalChild={} automatedInteractive={} manualUi={} "
                         "stressThreads={} stressIterations={} report={}\n",
                         options.enableStressTests,
                         options.enableChildCrashTests,
-                        options.enablePerformanceMetrics,
                         options.enableAutomatedInteractiveTests,
                         options.enableManualUiTests,
-                        options.performanceIterations,
                         options.stressThreadCount,
                         options.stressIterations,
                         options.writeReport ? options.reportPath.string() : std::string{"disabled"}));
@@ -1522,15 +1388,8 @@ namespace GameWIP::Test
                     {
                         testManualAssertUi(context, options);
                     });
-                runCase(
-                    context,
-                    "performance metrics",
-                    [&]
-                    {
-                        runPerformanceMetrics(context, options);
-                    });
                 Logger::shutdown();
-                printSummary(context, suiteTimer.elapsedMilliseconds());
+                printSummary(context);
             });
 
         runner.summary(

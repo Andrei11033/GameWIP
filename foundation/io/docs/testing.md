@@ -2,16 +2,9 @@
 
 The IO library should be tested with focused unit tests covering memory readers, memory writers, whole-stream helpers, partial reads and writes, limits, capability queries, and failure propagation.
 
-## Focused run
+## Coverage
 
-Build the normal optimized-debuggable target and run only IO tests:
-
-```powershell
-cmake --build build-optimized-debuggable --target GameWIP
-.\build-optimized-debuggable\GameWIP.exe --io-only
-```
-
-The focused suite covers:
+The IO suite covers:
 
 - public status helpers, status defaults, and stable error names;
 - Reader and Writer move/default/capability/seek contracts;
@@ -21,14 +14,4 @@ The focused suite covers:
 - partial reads, backend failures, invalid backend byte counts, and zero progress;
 - partial writes, backend failures, and invalid backend byte counts.
 
-## CTest entry
-
-The project CTest entry runs the normal automated test executable with its configured runtime suite selection:
-
-```powershell
-ctest --test-dir build-optimized-debuggable --output-on-failure
-```
-
-## Coverage
-
-Configure with `ENABLE_LIBRARY_COVERAGE=ON` and use the project coverage target when validating line and branch coverage. See @ref library_coverage for the full workflow.
+GameWIP owns the executable, focused-module command, CTest registration, presets, report location, and coverage workflow. See @ref library_testing and @ref library_coverage.

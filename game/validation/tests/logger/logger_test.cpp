@@ -1,7 +1,7 @@
 /// @file logger_test.cpp
 /// @brief Executable self-tests for the Logger library.
 
-#include "test/logger_test.h"
+#include "validation/tests/logger/logger_test.h"
 
 #include "logger/logger.h"
 #include "logger/logger_macros.h"
@@ -58,6 +58,7 @@ namespace
     constexpr std::string_view childLogDirectoryEnvironmentVariable = "INTERNAL_LOGGER_TEST_CHILD_LOG_DIR";
     constexpr std::string_view fatalTerminateChildMessage = "child fatal terminate";
 
+    /// @brief Stable source identifiers used by source registration and filtering tests.
     enum class TestSource : Logger::Types::SourceId
     {
         Core = 1,
@@ -66,6 +67,7 @@ namespace
         Unknown = 99
     };
 
+    /// @brief Highest observed memory snapshot and the scenario that produced it.
     struct MemoryPeak
     {
         Logger::Types::MemoryStats memory;
@@ -73,46 +75,10 @@ namespace
         bool available = false;
     };
 
-    struct PerformanceTotals
-    {
-        std::size_t scenarioCount = 0;
-        std::size_t measuredMessages = 0;
-        double producerMilliseconds = 0.0;
-        std::size_t queued = 0;
-        std::size_t written = 0;
-        std::size_t queueDropped = 0;
-        std::size_t diagnosticFailures = 0;
-        std::size_t truncated = 0;
-        std::size_t peakQueueDepth = 0;
-    };
-
-    struct ScopedLogRootCleanup
-    {
-        explicit ScopedLogRootCleanup(const std::filesystem::path &path)
-            : path(path)
-        {
-        }
-
-        ~ScopedLogRootCleanup() noexcept
-        {
-            Logger::shutdown();
-            try
-            {
-                TestSupport::removeIfExists(path);
-            }
-            catch (...)
-            {
-            }
-        }
-
-        ScopedLogRootCleanup(const ScopedLogRootCleanup &) = delete;
-        ScopedLogRootCleanup &operator=(const ScopedLogRootCleanup &) = delete;
-
-        std::filesystem::path path;
-    };
-
+    /// @brief Mutable Logger-suite state with TestSupport-backed reporting and isolated log ownership.
     struct TestContext
     {
+        /// @brief Binds this adapter to one TestSupport suite context.
         explicit TestContext(TestSupport::Context &testContext) noexcept
             : testContext(testContext)
         {
@@ -123,18 +89,20 @@ namespace
         std::string executablePath;
         MemoryPeak loggerMemoryPeak;
         MemoryPeak processMemoryPeak;
-        PerformanceTotals performanceTotals;
 
+        /// @brief Returns the current TestSupport summary snapshot.
         [[nodiscard]] TestSupport::Types::Summary result() const noexcept
         {
             return testContext.result();
         }
 
+        /// @brief Returns whether no failure has been recorded.
         [[nodiscard]] bool ok() const noexcept
         {
             return testContext.ok();
         }
 
+        /// @brief Routes a legacy categorized line through structured TestSupport output.
         void emit(std::string_view line)
         {
             std::string text(line);
@@ -169,21 +137,25 @@ namespace
             testContext.info(text);
         }
 
+        /// @brief Records one passing Logger scenario.
         void pass(std::string_view name)
         {
             testContext.pass(name);
         }
 
+        /// @brief Records one failed Logger scenario with diagnostic details.
         void fail(std::string_view name, std::string_view details)
         {
             testContext.fail(name, details);
         }
 
+        /// @brief Records equality through the shared TestSupport expectation.
         template <typename Left, typename Right> void expectEq(std::string_view name, const Left &actual, const Right &expected)
         {
             static_cast<void>(testContext.expectEq(name, expected, actual));
         }
 
+        /// @brief Records a required true predicate with custom failure details.
         void expectTrue(std::string_view name, bool value, std::string_view details = "expected true")
         {
             if (value)
@@ -195,6 +167,7 @@ namespace
             testContext.fail(name, details);
         }
 
+        /// @brief Records a required false predicate with custom failure details.
         void expectFalse(std::string_view name, bool value, std::string_view details = "expected false")
         {
             if (!value)
@@ -206,22 +179,26 @@ namespace
             testContext.fail(name, details);
         }
 
+        /// @brief Records whether text contains the required substring.
         void expectContains(std::string_view name, std::string_view text, std::string_view expectedSubstring)
         {
             static_cast<void>(testContext.expectContains(name, text, expectedSubstring));
         }
 
+        /// @brief Records whether one log file contains the required substring.
         void expectFileContains(std::string_view name, const std::filesystem::path &path, std::string_view expectedSubstring)
         {
             static_cast<void>(testContext.expectFileContains(name, path, expectedSubstring));
         }
 
+        /// @brief Records an exact non-overlapping occurrence count in one log file.
         void expectFileOccurrenceCount(std::string_view name, const std::filesystem::path &path, std::string_view text, std::size_t expectedCount)
         {
             static_cast<void>(testContext.expectFileOccurrenceCount(name, path, text, expectedCount));
         }
     };
 
+    /// @brief Runs one scenario with timing and converts uncaught exceptions into test failures.
     template <typename Function> void runCase(TestContext &context, std::string_view name, Function &&function)
     {
         TestSupport::Section section(context.testContext, name);
@@ -241,6 +218,7 @@ namespace
         }
     }
 
+    /// @brief Guarantees process-wide Logger shutdown when a scenario scope exits.
     struct ScopedLoggerShutdown
     {
         ~ScopedLoggerShutdown()
@@ -249,11 +227,27 @@ namespace
         }
     };
 
-    struct Timing
+#if INTERNAL_LOGGER_TEST_HOOKS
+    /// @brief Installs and clears the test-only default log-directory override.
+    struct ScopedDefaultLogDirectoryOverride
     {
-        double milliseconds = 0.0;
-    };
+        /// @brief Redirects Logger's compiled default directory into a test-owned path.
+        explicit ScopedDefaultLogDirectoryOverride(const std::filesystem::path &path)
+        {
+            GameWIP::Logger::TestHooks::setDefaultLogDirectoryOverride(path.generic_string());
+        }
 
+        ~ScopedDefaultLogDirectoryOverride() noexcept
+        {
+            GameWIP::Logger::TestHooks::clearDefaultLogDirectoryOverride();
+        }
+
+        ScopedDefaultLogDirectoryOverride(const ScopedDefaultLogDirectoryOverride &) = delete;
+        ScopedDefaultLogDirectoryOverride &operator=(const ScopedDefaultLogDirectoryOverride &) = delete;
+    };
+#endif
+
+    /// @brief Returns stable diagnostic text for every Logger result value.
     std::string_view toString(Logger::Types::Result result)
     {
         switch (result)
@@ -291,6 +285,7 @@ namespace
         return "Unknown";
     }
 
+    /// @brief Returns stable diagnostic text for every Logger output mode.
     std::string_view toString(Logger::Types::Output output)
     {
         switch (output)
@@ -308,6 +303,7 @@ namespace
         return "Unknown";
     }
 
+    /// @brief Returns stable diagnostic text for every Logger severity.
     std::string_view toString(Logger::Types::Level level)
     {
         switch (level)
@@ -329,6 +325,7 @@ namespace
         return "Unknown";
     }
 
+    /// @brief Formats Logger enums and ordinary values for expectation failures.
     template <typename Value> std::string printable(Value value)
     {
         if constexpr (std::is_same_v<Value, Logger::Types::Result>)
@@ -353,6 +350,7 @@ namespace
         }
     }
 
+    /// @brief Records an equality result with readable expected and actual values.
     template <typename Left, typename Right> void expectEq(TestContext &context, std::string_view name, const Left &actual, const Right &expected)
     {
         if (actual == expected)
@@ -364,14 +362,7 @@ namespace
         context.fail(name, std::format("expected {}, got {}", printable(expected), printable(actual)));
     }
 
-    template <typename Function> Timing measure(Function function)
-    {
-        const auto start = Clock::now();
-        function();
-        const auto end = Clock::now();
-        return Timing{std::chrono::duration<double, std::milli>(end - start).count()};
-    }
-
+    /// @brief Formats a byte count with binary units for retained-memory diagnostics.
     std::string formatBytes(std::size_t bytes)
     {
         constexpr std::array<std::string_view, 5> units{"B", "KiB", "MiB", "GiB", "TiB"};
@@ -391,11 +382,13 @@ namespace
         return std::format("{:.2f} {}", value, units[unitIndex]);
     }
 
+    /// @brief Formats a process-memory value or reports unavailable platform data.
     std::string formatProcessBytes(const Logger::Types::MemoryStats &memory, std::size_t bytes)
     {
         return memory.processMemoryAvailable ? formatBytes(bytes) : "n/a";
     }
 
+    /// @brief Samples Logger/process memory and updates suite peak observations.
     Logger::Types::MemoryStats recordMemorySnapshot(TestContext &context, std::string_view label)
     {
         const Logger::Types::MemoryStats memory = Logger::getMemoryStats();
@@ -417,23 +410,19 @@ namespace
         return memory;
     }
 
+    /// @brief Combines hard and soft queue-pressure drop counters.
     std::size_t totalQueueDrops(const Logger::Types::Stats &stats)
     {
         return stats.queueDropsHard + stats.queueDropsSoft;
     }
 
+    /// @brief Combines allocation, format, and sink diagnostic-failure counters.
     std::size_t totalDiagnosticFailures(const Logger::Types::Stats &stats)
     {
         return stats.allocationFailures + stats.formatFailures + stats.fileWriteFailures;
     }
 
-    std::filesystem::path makeRunRoot()
-    {
-        const auto now = std::chrono::system_clock::now().time_since_epoch().count();
-        const auto threadHash = std::hash<std::thread::id>{}(std::this_thread::get_id());
-        return std::filesystem::temp_directory_path() / "LoggerTests" / std::format("run_{}_{}", now, threadHash);
-    }
-
+    /// @brief Converts a fixture path to Logger's narrow configuration text.
     std::string pathText(const std::filesystem::path &path)
     {
         return path.generic_string();
@@ -441,6 +430,7 @@ namespace
 
     using ScopedEnvironmentVariable = TestSupport::ScopedEnvironmentVariable;
 
+    /// @brief Creates and returns one scenario-owned directory below the isolated log root.
     std::filesystem::path testDirectory(TestContext &context, std::string_view name)
     {
         std::filesystem::path directory = context.logRoot / std::string(name);
@@ -448,11 +438,13 @@ namespace
         return directory;
     }
 
+    /// @brief Reads one complete log fixture through TestSupport.
     std::string readWholeFile(const std::filesystem::path &path)
     {
         return TestSupport::readTextFile(path);
     }
 
+    /// @brief Counts non-overlapping occurrences in captured log text.
     std::size_t countOccurrences(std::string_view text, std::string_view needle)
     {
         if (needle.empty())
@@ -470,6 +462,7 @@ namespace
         return count;
     }
 
+    /// @brief Returns regular files directly contained in one scenario directory.
     std::vector<std::filesystem::path> filesIn(const std::filesystem::path &directory)
     {
         std::vector<std::filesystem::path> files;
@@ -488,6 +481,7 @@ namespace
         return files;
     }
 
+    /// @brief Concatenates every regular log file in one scenario directory.
     std::string readDirectoryFiles(const std::filesystem::path &directory)
     {
         std::string contents;
@@ -498,6 +492,7 @@ namespace
         return contents;
     }
 
+    /// @brief Owns text referenced by Config string views until Logger::init() copies it.
     struct OwnedLoggerConfig : Logger::Types::Config
     {
         std::string ownedLogDirectory;
@@ -509,6 +504,7 @@ namespace
         }
     };
 
+    /// @brief Creates a deterministic bounded Logger configuration for correctness tests.
     OwnedLoggerConfig makeConfig(Logger::Types::Output output, Logger::Types::Level minLevel, const std::filesystem::path &directory)
     {
         OwnedLoggerConfig config;
@@ -531,11 +527,13 @@ namespace
         return config;
     }
 
+    /// @brief Creates a file-only configuration rooted in one isolated scenario directory.
     OwnedLoggerConfig makeFileConfig(TestContext &context, std::string_view name, Logger::Types::Level minLevel = Logger::Types::Level::Trace)
     {
         return makeConfig(Logger::Types::Output::File, minLevel, testDirectory(context, name));
     }
 
+    /// @brief Creates a deterministic console-only configuration without popups or debug mirroring.
     Logger::Types::Config makeConsoleConfig(Logger::Types::Level minLevel = Logger::Types::Level::Trace)
     {
         Logger::Types::Config config;
@@ -554,6 +552,7 @@ namespace
         return config;
     }
 
+    /// @brief Records initialization outcome and includes structured platform diagnostics on failure.
     void expectInitSuccess(TestContext &context, std::string_view name, Logger::Types::Result result)
     {
         expectEq(context, name, result, Logger::Types::Result::Success);
@@ -566,12 +565,14 @@ namespace
         }
     }
 
+    /// @brief Records evaluation of an argument used to verify lazy logging macros.
     std::string makeLazyArgument(std::atomic<int> &counter)
     {
         counter.fetch_add(1, std::memory_order_relaxed);
         return "lazy argument evaluated";
     }
 
+    /// @brief Verifies default, low-memory, and throughput configuration factories.
     void testConfigFactories(TestContext &context)
     {
         ZoneScopedN("Logger config factory tests");
@@ -594,6 +595,7 @@ namespace
         context.expectFalse("throughputConfig retains storage", throughput.releaseStorageOnShutdown);
     }
 
+    /// @brief Verifies disabled output and invalid initialization inputs leave stable state.
     void testDisabledAndInvalidInit(TestContext &context)
     {
         ZoneScopedN("Logger disabled and invalid init tests");
@@ -650,6 +652,7 @@ namespace
         context.expectTrue("zero message length still starts sanitized logger", Logger::isRunning());
     }
 
+    /// @brief Verifies convenience initialization APIs and the test-only default directory override.
     void testConvenienceInitApis(TestContext &context)
     {
         ZoneScopedN("Logger convenience init API tests");
@@ -671,6 +674,9 @@ namespace
         Logger::shutdown();
         context.expectTrue("initFile wrote content", readWholeFile(initFilePath).find("initFile visible") != std::string::npos);
 
+#if INTERNAL_LOGGER_TEST_HOOKS
+        const ScopedDefaultLogDirectoryOverride defaultDirectoryOverride(context.logRoot);
+#endif
         const Logger::Types::Result defaultResult = Logger::initDefault();
         const bool defaultStarted = defaultResult == Logger::Types::Result::Success || defaultResult == Logger::Types::Result::FileOpenFailed ||
                                     defaultResult == Logger::Types::Result::FileSetupFailed;
@@ -680,13 +686,19 @@ namespace
         {
             expectEq(context, "initDefault output", Logger::getOutput(), Logger::Types::Output::Both);
             context.expectFalse("initDefault path available", Logger::getLogFilePath().empty());
+            context.expectEq(
+                "initDefault test override contains the log file",
+                context.logRoot.lexically_normal(),
+                std::filesystem::path(Logger::getLogFilePath()).parent_path().lexically_normal());
         }
         else
         {
             expectEq(context, "initDefault file failure falls back to console", Logger::getOutput(), Logger::Types::Output::Console);
         }
+        Logger::shutdown();
     }
 
+    /// @brief Verifies file sink creation, formatting, flushing, and message content.
     void testFileOutputAndContent(TestContext &context)
     {
         ZoneScopedN("Logger file output tests");
@@ -726,6 +738,7 @@ namespace
         context.expectTrue("file contains fatal", contents.find("[FATAL][LoggerTest]: fatal line") != std::string::npos);
     }
 
+    /// @brief Verifies process-wide lifecycle transitions and runtime state queries.
     void testLifecycleAndQueries(TestContext &context)
     {
         ZoneScopedN("Logger lifecycle and query tests");
@@ -763,6 +776,7 @@ namespace
         expectEq(context, "shutdown clears log path", Logger::getLogFilePath().size(), std::size_t{0});
     }
 
+    /// @brief Verifies severity/source filtering and intentional-skip accounting.
     void testLevelAndSourceFilters(TestContext &context)
     {
         ZoneScopedN("Logger level and source filter tests");
@@ -820,6 +834,7 @@ namespace
             Logger::Types::Result::InvalidLevelFilter);
     }
 
+    /// @brief Verifies source definition/filter validation and unknown-source behavior.
     void testSourceValidation(TestContext &context)
     {
         ZoneScopedN("Logger source validation tests");
@@ -856,6 +871,7 @@ namespace
             Logger::Types::Result::InvalidSourceFilter);
     }
 
+    /// @brief Verifies strict/runtime formatting, invalid formats, and bounded truncation.
     void testFormattingAndTruncation(TestContext &context)
     {
         ZoneScopedN("Logger formatting and truncation tests");
@@ -894,6 +910,7 @@ namespace
         expectEq(context, "fast truncation counted", fastStats.truncated, std::size_t{1});
     }
 
+    /// @brief Verifies synchronous report behavior, filter bypass, and debug-output mirroring.
     void testReportsAndDebugOutput(TestContext &context)
     {
         ZoneScopedN("Logger report and debug output tests");
@@ -932,6 +949,7 @@ namespace
         context.expectTrue("report file runtime source", contents.find("[FATAL][Core]: runtime fatal 22") != std::string::npos);
     }
 
+    /// @brief Verifies report sink failures and unknown registered-source fallback paths.
     void testReportFailureAndUnknownSourcePaths(TestContext &context)
     {
         ZoneScopedN("Logger report failure and unknown-source tests");
@@ -968,6 +986,7 @@ namespace
         context.expectTrue("bad report format not emitted", contents.find("{}") == std::string::npos);
     }
 
+    /// @brief Verifies each one-shot Logger failure hook and its observable counter/error state.
     void testLoggerTestHooks(TestContext &context)
     {
 #if INTERNAL_LOGGER_TEST_HOOKS
@@ -1028,9 +1047,9 @@ namespace
 
         {
             ScopedLoggerShutdown shutdown;
-            Logger::Types::Config config = makeConsoleConfig(Logger::Types::Level::Trace);
+            OwnedLoggerConfig config = makeFileConfig(context, "hook-fatal-popup", Logger::Types::Level::Trace);
             config.enableFatalPopup = true;
-            expectInitSuccess(context, "hook fatal popup init", Logger::init(config));
+            expectInitSuccess(context, "hook fatal popup init", Logger::init(config.ready()));
             GameWIP::Logger::TestHooks::forceNextFatalPopupFailure();
             Logger::report(Logger::Types::Level::Fatal, testSource, Logger::Types::ReportPopup::Fatal, "forced fatal popup failure");
             const Logger::Types::PlatformError error = Logger::getLastPlatformError();
@@ -1069,6 +1088,7 @@ namespace
 #endif
     }
 
+    /// @brief Verifies synchronous reports remain writable while the async queue is saturated.
     void testReportBypassesFullQueue(TestContext &context, const LoggerTestOptions &options)
     {
         if (!options.enableStressTests)
@@ -1138,6 +1158,7 @@ namespace
         context.expectTrue("report survived full queue reached file", contents.find("synchronous report survived full queue") != std::string::npos);
     }
 
+    /// @brief Verifies report ordering and bounded drain behavior during active production.
     void testReportWhileProducersActive(TestContext &context, const LoggerTestOptions &options)
     {
         if (!options.enableStressTests)
@@ -1206,6 +1227,7 @@ namespace
         context.expectTrue("report active producers reached file", contents.find("synchronous report while producers active") != std::string::npos);
     }
 
+    /// @brief Verifies file-setup failure fallback and no-fallback initialization outcomes.
     void testFileFallback(TestContext &context)
     {
         ZoneScopedN("Logger file fallback tests");
@@ -1235,6 +1257,7 @@ namespace
         expectEq(context, "file setup fallback to console", Logger::getOutput(), Logger::Types::Output::Console);
     }
 
+    /// @brief Verifies lazy macro filtering, source routing, and argument evaluation.
     void testMacroBehavior(TestContext &context)
     {
         ZoneScopedN("Logger macro behavior tests");
@@ -1263,6 +1286,7 @@ namespace
 #endif
     }
 
+    /// @brief Verifies queue limits, multi-producer safety, drop counters, and eventual draining.
     void testQueuePressureAndConcurrency(TestContext &context, const LoggerTestOptions &options)
     {
         if (!options.enableStressTests)
@@ -1372,6 +1396,7 @@ namespace
         }
     }
 
+    /// @brief Verifies filtered messages are intentional skips rather than queue drops.
     void testFilteredLogsDoNotCountAsDrops(TestContext &context)
     {
         ZoneScopedN("Logger filtered log stats tests");
@@ -1393,6 +1418,7 @@ namespace
         expectEq(context, "filtered log keeps lifetime drops", Logger::getLifetimeDroppedLogCount(), lifetimeBeforeFilter);
     }
 
+    /// @brief Verifies stats reset clears visible counters but preserves lifetime drop totals.
     void testStatsResetKeepsLifetimeQueueDrops(TestContext &context)
     {
         ZoneScopedN("Logger lifetime queue drop reset tests");
@@ -1460,6 +1486,7 @@ namespace
         expectEq(context, "reset keeps lifetime queue drops", Logger::getLifetimeDroppedLogCount(), lifetimeBeforeReset);
     }
 
+    /// @brief Waits for observable producer progress with a hard deadline to avoid unbounded stress tests.
     void waitForProducerAttempts(const std::atomic<std::size_t> &attempts, std::size_t minimumAttempts, std::chrono::milliseconds timeout)
     {
         const auto waitStart = Clock::now();
@@ -1469,6 +1496,7 @@ namespace
         }
     }
 
+    /// @brief Verifies timed flush remains bounded and preserves accounting while producers continue.
     void testFlushWhileProducersActive(TestContext &context, const LoggerTestOptions &options)
     {
         if (!options.enableStressTests)
@@ -1556,6 +1584,7 @@ namespace
         recordMemorySnapshot(context, "flush-while-producers");
     }
 
+    /// @brief Verifies shutdown closes producer races and joins the worker without lost accepted entries.
     void testShutdownWhileProducersActive(TestContext &context, const LoggerTestOptions &options)
     {
         if (!options.enableStressTests)
@@ -1610,6 +1639,7 @@ namespace
         context.expectTrue("shutdown active producers attempted logs", attempts.load(std::memory_order_relaxed) > 0);
     }
 
+    /// @brief Verifies repeated process-wide initialization and shutdown release runtime storage.
     void testRepeatedInitShutdownStress(TestContext &context, const LoggerTestOptions &options)
     {
         if (!options.enableStressTests)
@@ -1634,6 +1664,7 @@ namespace
         }
     }
 
+    /// @brief Launches one Logger child mode with isolated log-directory inheritance and capture.
     TestSupport::Types::ChildProcessResult runChildProcessResult(
         std::string_view executablePath,
         std::string_view argument,
@@ -1647,6 +1678,7 @@ namespace
         return TestSupport::runChildProcess(child);
     }
 
+    /// @brief Executes the fatal-termination child protocol; successful behavior does not return normally.
     int runFatalTerminateChild()
     {
 #if defined(_WIN32)
@@ -1668,6 +1700,7 @@ namespace
         Logger::fatalTerminate(testSource, fatalTerminateChildMessage);
     }
 
+    /// @brief Verifies fatalTerminate reports synchronously and terminates its child process.
     void testFatalTerminateChild(TestContext &context, const LoggerTestOptions &options)
     {
         if (!options.enableChildCrashTests)
@@ -1693,49 +1726,7 @@ namespace
         std::cout.flush();
     }
 
-    void printMetric(TestContext &context, std::string_view name, std::size_t iterations, double milliseconds, const Logger::Types::Stats &stats)
-    {
-        const double nanosecondsPerCall = iterations == 0 ? 0.0 : (milliseconds * 1'000'000.0) / static_cast<double>(iterations);
-        const std::size_t queueDrops = totalQueueDrops(stats);
-        const std::size_t diagnosticFailures = totalDiagnosticFailures(stats);
-        const Logger::Types::MemoryStats memory = recordMemorySnapshot(context, name);
-        ++context.performanceTotals.scenarioCount;
-        context.performanceTotals.measuredMessages += iterations;
-        context.performanceTotals.producerMilliseconds += milliseconds;
-        context.performanceTotals.queued += stats.queued;
-        context.performanceTotals.written += stats.written;
-        context.performanceTotals.queueDropped += queueDrops;
-        context.performanceTotals.diagnosticFailures += diagnosticFailures;
-        context.performanceTotals.truncated += stats.truncated;
-        context.performanceTotals.peakQueueDepth = std::max(context.performanceTotals.peakQueueDepth, stats.peakQueueDepth);
-
-        context.emit(
-            std::format(
-                "[METRIC] {} iterations={} ms={:.3f} nsPerCall={:.2f} queued={} written={} queueDropped={} diagnostics={} truncated={} peak={} "
-                "loggerRetained={} processPrivate={} processWorkingSet={}\n",
-                name,
-                iterations,
-                milliseconds,
-                nanosecondsPerCall,
-                stats.queued,
-                stats.written,
-                queueDrops,
-                diagnosticFailures,
-                stats.truncated,
-                stats.peakQueueDepth,
-                formatBytes(memory.loggerRetainedBytes),
-                formatProcessBytes(memory, memory.processPrivateBytes),
-                formatProcessBytes(memory, memory.processWorkingSetBytes)));
-        TracyPlot("Logger test metric ms", milliseconds);
-        TracyPlot("Logger test metric ns/call", nanosecondsPerCall);
-        TracyPlot("Logger test memory retained bytes", static_cast<double>(memory.loggerRetainedBytes));
-        if (memory.processMemoryAvailable)
-        {
-            TracyPlot("Logger test process private bytes", static_cast<double>(memory.processPrivateBytes));
-            TracyPlot("Logger test process working set bytes", static_cast<double>(memory.processWorkingSetBytes));
-        }
-    }
-
+    /// @brief Runs the opt-in human check for Logger-owned fatal popup presentation.
     void testManualLoggerFatalPopup(TestContext &context, const LoggerTestOptions &options)
     {
         if (!options.enableLoggerPopupTest)
@@ -1761,101 +1752,17 @@ namespace
         context.pass("manual logger fatal popup scenario completed");
     }
 
-    void runPerformanceMetrics(TestContext &context, const LoggerTestOptions &options)
-    {
-        if (!options.enablePerformanceMetrics)
-        {
-            context.pass("performance metrics disabled by LoggerTestOptions");
-            return;
-        }
-
-        ZoneScopedN("Logger performance metrics");
-        ScopedLoggerShutdown shutdown;
-
-        const std::size_t iterations = std::max<std::size_t>(1, options.performanceIterations);
-
-        {
-            Logger::Types::Config config = makeConsoleConfig(Logger::Types::Level::Trace);
-            config.output = Logger::Types::Output::None;
-            expectEq(context, "perf disabled init", Logger::init(config), Logger::Types::Result::Success);
-            const Timing timing = measure(
-                [iterations]
-                {
-                    for (std::size_t i = 0; i < iterations; ++i)
-                    {
-                        Logger::info(testSource, shortMessage);
-                    }
-                });
-            printMetric(context, "disabled-output-none", iterations, timing.milliseconds, Logger::getStats());
-            Logger::shutdown();
-        }
-
-        {
-            OwnedLoggerConfig config = makeFileConfig(context, "perf-filtered", Logger::Types::Level::Fatal);
-            expectInitSuccess(context, "perf filtered init", Logger::init(config.ready()));
-            const Timing timing = measure(
-                [iterations]
-                {
-                    for (std::size_t i = 0; i < iterations; ++i)
-                    {
-                        Logger::info(testSource, "filtered {} {}", i, i + 1);
-                    }
-                });
-            printMetric(context, "below-min-formatted", iterations, timing.milliseconds, Logger::getStats());
-            Logger::shutdown();
-        }
-
-        {
-            const std::size_t enabledIterations = std::max<std::size_t>(1000, iterations / 10);
-            OwnedLoggerConfig config = makeFileConfig(context, "perf-enabled", Logger::Types::Level::Info);
-            config.maxQueueSize = enabledIterations + 1024;
-            config.hardQueueMultiplier = 1.0;
-            config.workerBatchSize = 256;
-            config.releaseMessageMemoryAfterWrite = false;
-            expectInitSuccess(context, "perf enabled init", Logger::init(config.ready()));
-            const Timing timing = measure(
-                [enabledIterations]
-                {
-                    for (std::size_t i = 0; i < enabledIterations; ++i)
-                    {
-                        Logger::info(testSource, shortMessage);
-                    }
-                });
-            context.expectTrue("perf enabled flush", Logger::flush(5s));
-            printMetric(context, "enabled-file-preformatted", enabledIterations, timing.milliseconds, Logger::getStats());
-            Logger::shutdown();
-        }
-    }
-
-    void printEndSummary(TestContext &context, double suiteMilliseconds)
+    /// @brief Records final Logger/process memory peaks and aggregate suite counts in the report.
+    void printEndSummary(TestContext &context)
     {
         const Logger::Types::MemoryStats finalMemory = recordMemorySnapshot(context, "suite-end");
-        const PerformanceTotals &totals = context.performanceTotals;
-        const double totalNsPerMessage =
-            totals.measuredMessages == 0 ? 0.0 : (totals.producerMilliseconds * 1'000'000.0) / static_cast<double>(totals.measuredMessages);
 
         context.emit(
             std::format(
-                "[SUMMARY] suiteTimeMs={:.3f} tests={} passed={} failed={}\n",
-                suiteMilliseconds,
+                "[SUMMARY] tests={} passed={} failed={}\n",
                 context.result().passed + context.result().failed + context.result().skipped,
                 context.result().passed,
                 context.result().failed));
-
-        context.emit(
-            std::format(
-                "[SUMMARY] perfTotals scenarios={} measuredMessages={} producerMs={:.3f} nsPerMessage={:.2f} queued={} written={} queueDropped={} "
-                "diagnostics={} truncated={} peakQueue={}\n",
-                totals.scenarioCount,
-                totals.measuredMessages,
-                totals.producerMilliseconds,
-                totalNsPerMessage,
-                totals.queued,
-                totals.written,
-                totals.queueDropped,
-                totals.diagnosticFailures,
-                totals.truncated,
-                totals.peakQueueDepth));
 
         if (context.loggerMemoryPeak.available)
         {
@@ -1891,6 +1798,7 @@ namespace
                 formatProcessBytes(finalMemory, finalMemory.processWorkingSetBytes)));
     }
 
+    /// @brief Returns whether one exact Logger child-mode argument is present.
     bool hasArgument(int argc, char **argv, std::string_view argument)
     {
         for (int index = 1; index < argc; ++index)
@@ -1917,6 +1825,8 @@ namespace GameWIP::Test
 
         TestSupport::Types::ReportOptions reportOptions;
         reportOptions.writeConsole = true;
+        reportOptions.consoleVerbosity =
+            options.verboseConsole ? TestSupport::Types::ConsoleVerbosity::Full : TestSupport::Types::ConsoleVerbosity::Minimal;
         reportOptions.writeReport = options.writeReport;
         reportOptions.appendReport = options.appendReport;
         reportOptions.reportPath = options.reportPath;
@@ -1928,24 +1838,22 @@ namespace GameWIP::Test
             "Logger",
             [&](TestSupport::Context &suiteContext)
             {
-                TestSupport::Timer suiteTimer;
                 TestContext context(suiteContext);
-                context.executablePath = argc > 0 && argv[0] != nullptr ? argv[0] : "";
-                context.logRoot = makeRunRoot();
-                TestSupport::createDirectories(context.logRoot);
-                const ScopedLogRootCleanup cleanupLogRoot(context.logRoot);
+                const TestSupport::ScopedTemporaryDirectory workspace("logger_tests");
+                context.executablePath = argc > 0 && argv[0] != nullptr ? std::filesystem::absolute(argv[0]).string() : "";
+                const TestSupport::ScopedCurrentPath temporaryCurrentPath(workspace.path());
+                const ScopedLoggerShutdown loggerShutdown;
+                context.logRoot = workspace.path();
 
                 context.emit(std::format("[INFO] Logger test log root: {}\n", pathText(context.logRoot)));
                 context.emit(
                     std::format(
-                        "[INFO] Logger test options: stress={} fatalChild={} performance={} manualUi={} loggerPopup={} perfIterations={} "
+                        "[INFO] Logger test options: stress={} fatalChild={} manualUi={} loggerPopup={} "
                         "stressThreads={} stressIterations={} report={}\n",
                         options.enableStressTests,
                         options.enableChildCrashTests,
-                        options.enablePerformanceMetrics,
                         options.enableManualUiTests,
                         options.enableLoggerPopupTest,
-                        options.performanceIterations,
                         options.stressThreadCount,
                         options.stressIterationsPerThread,
                         options.writeReport ? options.reportPath.string() : std::string{"disabled"}));
@@ -2126,15 +2034,8 @@ namespace GameWIP::Test
                             context.pass("manual logger UI tests skipped by LoggerTestOptions");
                         }
                     });
-                runCase(
-                    context,
-                    "performance metrics",
-                    [&]
-                    {
-                        runPerformanceMetrics(context, options);
-                    });
                 Logger::shutdown();
-                printEndSummary(context, suiteTimer.elapsedMilliseconds());
+                printEndSummary(context);
             });
 
         runner.summary(

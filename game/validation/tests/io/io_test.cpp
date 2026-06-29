@@ -1,7 +1,7 @@
 /// @file io_test.cpp
 /// @brief Executable self-tests for the IO library.
 
-#include "test/io_test.h"
+#include "validation/tests/io/io_test.h"
 
 #include "io/io.h"
 #include "test_support/test_support.h"
@@ -26,6 +26,7 @@ namespace
     using IOTestOptions = GameWIP::Test::IOTestOptions;
     using ErrorCode = IO::Types::ErrorCode;
 
+    /// @brief Converts integer literals into a byte vector for readable fixtures.
     [[nodiscard]] std::vector<std::byte> makeBytes(std::initializer_list<unsigned int> values)
     {
         std::vector<std::byte> bytes;
@@ -39,30 +40,36 @@ namespace
         return bytes;
     }
 
+    /// @brief Copies a byte view into owning storage for result comparisons.
     [[nodiscard]] std::vector<std::byte> copyBytes(std::span<const std::byte> bytes)
     {
         return std::vector<std::byte>(bytes.begin(), bytes.end());
     }
 
+    /// @brief Exposes vector bytes as the immutable span accepted by IO APIs.
     [[nodiscard]] std::span<const std::byte> spanOf(const std::vector<std::byte> &bytes) noexcept
     {
         return std::span<const std::byte>(bytes.data(), bytes.size());
     }
 
+    /// @brief Exposes string bytes without copying or performing encoding conversion.
     [[nodiscard]] std::span<const std::byte> bytesOf(std::string_view text)
     {
         return std::as_bytes(std::span<const char>(text.data(), text.size()));
     }
 
+    /// @brief Reader with only the required operation, used to verify optional-operation defaults.
     class MinimalReader final : public IO::Reader
     {
     public:
+        /// @brief Returns a successful empty read while leaving optional operations inherited.
         [[nodiscard]] IO::Types::ReadResult read([[maybe_unused]] std::span<std::byte> destination) override
         {
             return {.status = {}, .bytesRead = 0, .endOfStream = true};
         }
     };
 
+    /// @brief Unknown-size reader that limits each transfer and can report EOF with the final bytes.
     class UnknownSizeChunkReader final : public IO::Reader
     {
     public:
@@ -73,6 +80,7 @@ namespace
         {
         }
 
+        /// @brief Copies at most maxChunkSize_ bytes and applies configured final-read EOF reporting.
         [[nodiscard]] IO::Types::ReadResult read(std::span<std::byte> destination) override
         {
             if (destination.empty())
@@ -100,6 +108,7 @@ namespace
         std::size_t position_ = 0;
     };
 
+    /// @brief Known-size reader whose position query is unsupported.
     class SizeWithoutPositionReader final : public IO::Reader
     {
     public:
@@ -109,6 +118,7 @@ namespace
         {
         }
 
+        /// @brief Reads remaining backing bytes from the internal position.
         [[nodiscard]] IO::Types::ReadResult read(std::span<std::byte> destination) override
         {
             if (position_ >= bytes_.size())
@@ -122,6 +132,7 @@ namespace
             return {.status = {}, .bytesRead = count, .endOfStream = position_ == bytes_.size()};
         }
 
+        /// @brief Reports the complete backing size while position() remains inherited/unsupported.
         [[nodiscard]] IO::Types::SizeResult size() const override
         {
             return {.status = {}, .sizeBytes = static_cast<std::uint64_t>(bytes_.size())};
@@ -132,6 +143,7 @@ namespace
         std::size_t position_ = 0;
     };
 
+    /// @brief Reader whose reported size can differ from its backing data size.
     class ReportedSizeReader final : public IO::Reader
     {
     public:
@@ -141,6 +153,7 @@ namespace
         {
         }
 
+        /// @brief Reads available backing bytes independently from the configured reported size.
         [[nodiscard]] IO::Types::ReadResult read(std::span<std::byte> destination) override
         {
             if (position_ >= bytes_.size())
@@ -154,11 +167,13 @@ namespace
             return {.status = {}, .bytesRead = count, .endOfStream = position_ == bytes_.size()};
         }
 
+        /// @brief Reports the current backing-data read position.
         [[nodiscard]] IO::Types::PositionResult position() const override
         {
             return {.status = {}, .position = static_cast<std::uint64_t>(position_)};
         }
 
+        /// @brief Returns the deliberately configurable logical size.
         [[nodiscard]] IO::Types::SizeResult size() const override
         {
             return {.status = {}, .sizeBytes = reportedSize_};
@@ -170,20 +185,24 @@ namespace
         std::size_t position_ = 0;
     };
 
+    /// @brief Reader that fails its size query before any payload read.
     class SizeQueryFailureReader final : public IO::Reader
     {
     public:
+        /// @brief Records an unexpected payload read after the size-query failure.
         [[nodiscard]] IO::Types::ReadResult read([[maybe_unused]] std::span<std::byte> destination) override
         {
             readCalled_ = true;
             return {.status = {}, .bytesRead = 0, .endOfStream = true};
         }
 
+        /// @brief Returns the configured size-query failure.
         [[nodiscard]] IO::Types::SizeResult size() const override
         {
             return {.status = IO::makeStatus(ErrorCode::PermissionDenied), .sizeBytes = 0};
         }
 
+        /// @brief Returns whether a whole-stream helper incorrectly attempted payload reading.
         [[nodiscard]] bool readCalled() const noexcept
         {
             return readCalled_;
@@ -193,25 +212,30 @@ namespace
         bool readCalled_ = false;
     };
 
+    /// @brief Reader that reports size but fails its current-position query.
     class PositionQueryFailureReader final : public IO::Reader
     {
     public:
+        /// @brief Records an unexpected payload read after the position-query failure.
         [[nodiscard]] IO::Types::ReadResult read([[maybe_unused]] std::span<std::byte> destination) override
         {
             readCalled_ = true;
             return {.status = {}, .bytesRead = 0, .endOfStream = true};
         }
 
+        /// @brief Returns the configured position-query failure.
         [[nodiscard]] IO::Types::PositionResult position() const override
         {
             return {.status = IO::makeStatus(ErrorCode::PermissionDenied), .position = 0};
         }
 
+        /// @brief Reports a known logical size so position is queried next.
         [[nodiscard]] IO::Types::SizeResult size() const override
         {
             return {.status = {}, .sizeBytes = 1};
         }
 
+        /// @brief Returns whether a whole-stream helper incorrectly attempted payload reading.
         [[nodiscard]] bool readCalled() const noexcept
         {
             return readCalled_;
@@ -221,25 +245,30 @@ namespace
         bool readCalled_ = false;
     };
 
+    /// @brief Reader that reports a position beyond its size to exercise invariant validation.
     class ImpossiblePositionReader final : public IO::Reader
     {
     public:
+        /// @brief Records an unexpected payload read after impossible metadata is detected.
         [[nodiscard]] IO::Types::ReadResult read([[maybe_unused]] std::span<std::byte> destination) override
         {
             readCalled_ = true;
             return {.status = {}, .bytesRead = 0, .endOfStream = true};
         }
 
+        /// @brief Reports a position greater than size().
         [[nodiscard]] IO::Types::PositionResult position() const override
         {
             return {.status = {}, .position = 2};
         }
 
+        /// @brief Reports the smaller logical size used by the invariant test.
         [[nodiscard]] IO::Types::SizeResult size() const override
         {
             return {.status = {}, .sizeBytes = 1};
         }
 
+        /// @brief Returns whether a whole-stream helper incorrectly attempted payload reading.
         [[nodiscard]] bool readCalled() const noexcept
         {
             return readCalled_;
@@ -249,33 +278,40 @@ namespace
         bool readCalled_ = false;
     };
 
+    /// @brief Known-size reader that returns a successful zero-byte transfer without EOF.
     class ZeroProgressKnownSizeReader final : public IO::Reader
     {
     public:
+        /// @brief Returns success with zero bytes and no EOF to simulate a stalled backend.
         [[nodiscard]] IO::Types::ReadResult read([[maybe_unused]] std::span<std::byte> destination) override
         {
             return {.status = {}, .bytesRead = 0, .endOfStream = false};
         }
 
+        /// @brief Reports the beginning of the logical stream.
         [[nodiscard]] IO::Types::PositionResult position() const override
         {
             return {.status = {}, .position = 0};
         }
 
+        /// @brief Reports one remaining byte so zero progress is invalid.
         [[nodiscard]] IO::Types::SizeResult size() const override
         {
             return {.status = {}, .sizeBytes = 1};
         }
     };
 
+    /// @brief Unknown-size reader backed by fixed bytes and normal EOF behavior.
     class UnsupportedSizeReader final : public IO::Reader
     {
     public:
+        /// @brief Stores a non-owning fixture byte view for unknown-size draining.
         explicit UnsupportedSizeReader(std::span<const std::byte> bytes)
             : bytes_(bytes)
         {
         }
 
+        /// @brief Reads all available backing bytes and reports EOF when exhausted.
         [[nodiscard]] IO::Types::ReadResult read(std::span<std::byte> destination) override
         {
             if (position_ >= bytes_.size())
@@ -289,6 +325,7 @@ namespace
             return {.status = {}, .bytesRead = count, .endOfStream = position_ == bytes_.size()};
         }
 
+        /// @brief Explicitly reports Unsupported so helpers take the unknown-size path.
         [[nodiscard]] IO::Types::SizeResult size() const override
         {
             return {.status = IO::makeStatus(ErrorCode::Unsupported), .sizeBytes = 0};
@@ -299,14 +336,17 @@ namespace
         std::size_t position_ = 0;
     };
 
+    /// @brief Reader that fails the one-byte limit probe after returning its initial data.
     class ProbeFailureReader final : public IO::Reader
     {
     public:
+        /// @brief Stores bytes returned before the hard-limit probe fails.
         explicit ProbeFailureReader(std::span<const std::byte> bytes)
             : bytes_(bytes)
         {
         }
 
+        /// @brief Returns backing bytes, then fails the next probe read.
         [[nodiscard]] IO::Types::ReadResult read(std::span<std::byte> destination) override
         {
             if (position_ >= bytes_.size())
@@ -325,15 +365,18 @@ namespace
         std::size_t position_ = 0;
     };
 
+    /// @brief Broken reader that reports more bytes than the destination can hold.
     class InvalidReadCountReader final : public IO::Reader
     {
     public:
+        /// @brief Deliberately reports one byte beyond destination capacity.
         [[nodiscard]] IO::Types::ReadResult read(std::span<std::byte> destination) override
         {
             return {.status = {}, .bytesRead = destination.size() + 1, .endOfStream = false};
         }
     };
 
+    /// @brief Known-size reader that returns partial data before a configured failure.
     class FailingKnownSizeReader final : public IO::Reader
     {
     public:
@@ -344,6 +387,7 @@ namespace
         {
         }
 
+        /// @brief Returns configured prefix progress, then the configured read failure.
         [[nodiscard]] IO::Types::ReadResult read(std::span<std::byte> destination) override
         {
             if (destination.empty())
@@ -371,11 +415,13 @@ namespace
             return {.status = {}, .bytesRead = count, .endOfStream = position_ == bytes_.size()};
         }
 
+        /// @brief Reports current progress through the configured backing bytes.
         [[nodiscard]] IO::Types::PositionResult position() const override
         {
             return {.status = {}, .position = static_cast<std::uint64_t>(position_)};
         }
 
+        /// @brief Reports the full backing size to select the known-size helper path.
         [[nodiscard]] IO::Types::SizeResult size() const override
         {
             return {.status = {}, .sizeBytes = static_cast<std::uint64_t>(bytes_.size())};
@@ -388,14 +434,17 @@ namespace
         std::size_t position_ = 0;
     };
 
+    /// @brief Writer that accepts bounded chunks and retains all accepted bytes.
     class ChunkedWriter final : public IO::Writer
     {
     public:
+        /// @brief Sets the maximum bytes accepted by each write call.
         explicit ChunkedWriter(std::size_t maxChunkSize)
             : maxChunkSize_(maxChunkSize)
         {
         }
 
+        /// @brief Accepts one bounded chunk and appends it to retained fixture bytes.
         [[nodiscard]] IO::Types::WriteResult write(std::span<const std::byte> bytes) override
         {
             if (bytes.empty())
@@ -414,6 +463,7 @@ namespace
             return {.status = {}, .bytesWritten = count};
         }
 
+        /// @brief Returns all bytes accepted across write calls.
         [[nodiscard]] const std::vector<std::byte> &bytes() const noexcept
         {
             return bytes_;
@@ -424,14 +474,17 @@ namespace
         std::vector<std::byte> bytes_;
     };
 
+    /// @brief Writer that fails every transfer without accepting bytes.
     class FailingWriter final : public IO::Writer
     {
     public:
+        /// @brief Stores the portable error returned by every write.
         explicit FailingWriter(ErrorCode code)
             : code_(code)
         {
         }
 
+        /// @brief Rejects every transfer with no accepted progress.
         [[nodiscard]] IO::Types::WriteResult write([[maybe_unused]] std::span<const std::byte> bytes) override
         {
             return {.status = IO::makeStatus(code_), .bytesWritten = 0};
@@ -441,6 +494,7 @@ namespace
         ErrorCode code_ = ErrorCode::WriteFailed;
     };
 
+    /// @brief Writer that accepts a prefix and reports failure in the same transfer.
     class PartialFailingWriter final : public IO::Writer
     {
     public:
@@ -450,6 +504,7 @@ namespace
         {
         }
 
+        /// @brief Accepts a configured prefix and returns failure in the same transfer.
         [[nodiscard]] IO::Types::WriteResult write(std::span<const std::byte> bytes) override
         {
             const std::size_t count = std::min(acceptedBytes_, bytes.size());
@@ -461,9 +516,11 @@ namespace
         ErrorCode code_ = ErrorCode::WriteFailed;
     };
 
+    /// @brief Broken writer that reports accepting more bytes than it received.
     class InvalidWriteCountWriter final : public IO::Writer
     {
     public:
+        /// @brief Deliberately reports one accepted byte beyond the input span.
         [[nodiscard]] IO::Types::WriteResult write(std::span<const std::byte> bytes) override
         {
             return {.status = {}, .bytesWritten = bytes.size() + 1};
@@ -497,6 +554,7 @@ namespace
                   IO::Types::WriteResult>);
     static_assert(std::is_same_v<decltype(IO::writeAllText(std::declval<IO::Writer &>(), std::declval<std::string_view>())), IO::Types::WriteResult>);
 
+    /// @brief Verifies every portable error-code name and the unknown-value fallback.
     void testErrorCodeNames(TestSupport::Context &context)
     {
         struct ErrorCodeName
@@ -560,6 +618,7 @@ namespace
             IO::errorCodeName(static_cast<ErrorCode>(-1))));
     }
 
+    /// @brief Verifies status helpers and default Reader/Writer optional-operation contracts.
     void testStatusAndDefaultContracts(TestSupport::Context &context)
     {
         const IO::Types::Status success = IO::successStatus();
@@ -598,6 +657,7 @@ namespace
             context.expectEq("Writer seek defaults to NotSeekable", ErrorCode::NotSeekable, writer.seek(0, IO::Types::SeekOrigin::Begin).code));
     }
 
+    /// @brief Verifies MemoryReader construction, reads, state, and close behavior.
     void testMemoryReader(TestSupport::Context &context)
     {
         const std::vector<std::byte> source = makeBytes({0x41, 0x00, 0x42, 0xff});
@@ -665,6 +725,7 @@ namespace
         static_cast<void>(context.expectTrue("MemoryReader repeated close succeeds", reader.close().ok()));
     }
 
+    /// @brief Verifies MemoryReader seek origins, bounds checks, and position updates.
     void testMemoryReaderSeek(TestSupport::Context &context)
     {
         const std::vector<std::byte> source = makeBytes({0x10, 0x20, 0x30, 0x40});
@@ -702,6 +763,7 @@ namespace
             reader.seek(0, static_cast<IO::Types::SeekOrigin>(99)).code));
     }
 
+    /// @brief Verifies MemoryWriter ownership, aliasing, reserve, clear, and close behavior.
     void testMemoryWriter(TestSupport::Context &context)
     {
         IO::MemoryWriter writer(8);
@@ -776,6 +838,7 @@ namespace
         static_cast<void>(context.expectTrue("MemoryWriter repeated close succeeds", writer.close().ok()));
     }
 
+    /// @brief Verifies whole-reader byte draining across known-size, unknown-size, limit, and failure paths.
     void testReadAllBytes(TestSupport::Context &context)
     {
         const std::vector<std::byte> source = makeBytes({0xde, 0xad, 0x00, 0xbe, 0xef});
@@ -912,6 +975,7 @@ namespace
         static_cast<void>(context.expectEq("readAllBytes rejects zero buffer size", ErrorCode::InvalidArgument, invalidBuffer.status.code));
     }
 
+    /// @brief Verifies whole-reader text draining and byte-limit behavior.
     void testReadAllText(TestSupport::Context &context)
     {
         const std::string text("alpha\0beta", 10);
@@ -1034,6 +1098,7 @@ namespace
         static_cast<void>(context.expectEq("readAllText rejects zero buffer size", ErrorCode::InvalidArgument, invalidBuffer.status.code));
     }
 
+    /// @brief Verifies complete byte writes, partial progress, zero progress, and invalid backend counts.
     void testWriteAllBytes(TestSupport::Context &context)
     {
         const std::vector<std::byte> source = makeBytes({0x01, 0x02, 0x00, 0x03, 0xff});
@@ -1072,6 +1137,7 @@ namespace
         static_cast<void>(context.expectEq("writeAllBytes empty input reports zero", std::size_t{0}, emptyResult.bytesWritten));
     }
 
+    /// @brief Verifies text writes preserve byte progress and failure status.
     void testWriteAllText(TestSupport::Context &context)
     {
         const std::string text("a\0b\0c", 5);
@@ -1095,6 +1161,8 @@ namespace GameWIP::Test
     {
         TestSupport::Types::ReportOptions reportOptions;
         reportOptions.writeConsole = true;
+        reportOptions.consoleVerbosity =
+            options.verboseConsole ? TestSupport::Types::ConsoleVerbosity::Full : TestSupport::Types::ConsoleVerbosity::Minimal;
         reportOptions.writeReport = options.writeReport;
         reportOptions.appendReport = options.appendReport;
         reportOptions.reportPath = options.reportPath;

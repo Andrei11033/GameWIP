@@ -4,7 +4,7 @@ TestSupport is the shared support layer for test executables.
 
 It provides generic test reporting, expectations, suite running, file helpers, scoped environment changes, child process execution, manual checks, timing metrics, and small stress-test helpers. It does not depend on Logger or Assert, and it does not contain Logger-specific, Assert-specific, or engine-simulation test logic.
 
-## Documentation
+## User manual
 
 - @subpage test_support_quick_start
 - @subpage test_support_public_api
@@ -16,7 +16,14 @@ It provides generic test reporting, expectations, suite running, file helpers, s
 - @subpage test_support_timing_stress
 - @subpage test_support_examples
 - @subpage test_support_troubleshooting
+
+## Developer validation
+
 - @subpage test_support_testing
+
+## Generated API reference
+
+Use @ref GameWIP::TestSupport for active contexts, runners, guards, process helpers, timing, and stress helpers, and @ref GameWIP::TestSupport::Types for report options and result shapes. These generated pages document every public type, enum value, field, function, overload, and constant from `test_support/test_support.h`; the manual pages above explain complete workflows and edge cases.
 
 ## Key behavior
 

@@ -18,9 +18,15 @@ Report files are buffered by default, flushed after each completed suite, and fl
 
 Report write failures do not abort the test process. They disable further file output while console reporting and result aggregation continue.
 
+`ConsoleVerbosity::Minimal` writes only failures, skips, and manual instructions. `ConsoleVerbosity::Concise` also writes results and summaries. `ConsoleVerbosity::Full` mirrors every category. The report file receives every category in all three modes.
+
 ## Process and environment isolation
 
 Scoped environment helpers restore the previous process state on destruction. Environment mutation is process-global, so overlapping conflicting scopes across threads are unsupported.
+
+`ScopedTemporaryDirectory` owns an isolated OS-temp workspace and removes its complete tree on destruction. Test executables should use it instead of writing fixtures or subsystem logs relative to their working directory.
+
+`ScopedCurrentPath` supports tests of intentionally relative-path APIs and restores the previous process path. Because the current path is process-global, such scopes require exclusive control over relative path resolution.
 
 Child-process capture retains at most `maxCapturedOutputBytes` while continuing to drain excess output. A zero limit retains nothing. `outputTruncated` reports discarded bytes; disabling capture leaves output empty and ignores the limit.
 
@@ -28,6 +34,6 @@ On Win32, the child process tree is assigned to a kill-on-close Job Object so ti
 
 ## Timing and stress helpers
 
-Timer and iteration metrics report observations; TestSupport does not impose performance thresholds. `runWorkers()` joins every worker and rethrows a captured worker exception after joining.
+Timer reports diagnostic elapsed time; benchmark-style iteration metrics belong to Google Benchmark. `runWorkers()` joins every worker and rethrows a captured worker exception after joining.
 
 See @ref test_support_expectations, @ref test_support_reports, @ref test_support_child_processes, @ref test_support_files_environment, and @ref test_support_timing_stress for examples and detailed contracts.
