@@ -14,6 +14,7 @@ if(GAMEWIP_BUILD_DOCS)
     library_register_doxygen_inputs(
         "${GAMEWIP_DOXYGEN_ROOT}/index.md"
         "${GAMEWIP_DOXYGEN_ROOT}/build.md"
+        "${GAMEWIP_DOXYGEN_ROOT}/library_compatibility.md"
         "${GAMEWIP_DOXYGEN_ROOT}/validation.md"
         "${GAMEWIP_DOXYGEN_ROOT}/testing.md"
         "${GAMEWIP_DOXYGEN_ROOT}/benchmarking.md"

@@ -33,4 +33,4 @@ These tests only require reliable reporting of successful exit, nonzero exit, ti
 
 The default retained-output limit is `kDefaultMaxCapturedOutputBytes`. Bytes beyond the limit are discarded while the pipe continues to drain so a verbose child cannot deadlock. A zero limit retains no bytes. When `captureOutput` is false, the limit is ignored and `output` remains empty.
 
-On Win32, the child and its descendants run in a Job Object. Timeout, wait failure, and normal primary-process completion tear down remaining descendants before the capture reader is joined. This prevents inherited output handles from keeping the parent blocked.
+On Win32, process creation uses an explicit handle-inheritance list containing only the selected standard-input, standard-output, and standard-error handles. Other inheritable parent handles are not exposed to the child. The child and its descendants run in a Job Object; timeout, wait failure, and normal primary-process completion tear down remaining descendants before the capture reader is joined. This prevents descendant output handles from keeping the parent blocked.

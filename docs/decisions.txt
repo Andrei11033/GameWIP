@@ -750,13 +750,7 @@ If `gcovr` is available, the target generates:
 
 If `gcovr` is missing, the target fails with a clear installation message instead of silently disappearing.
 
-Some GCC/gcov versions may produce negative hit counters for branch data. This is treated as a known gcov parse issue. The coverage target may pass:
-
-```text
---gcov-ignore-parse-errors negative_hits.warn_once_per_file
-```
-
-Warnings should remain visible, but HTML and XML reports should still be generated.
+GCC coverage builds use atomic profile updates because CTest may run instrumented processes concurrently. Coverage report generation does not suppress negative-hit or corrupt-profile parse errors; invalid data must fail validation instead of producing a misleading report.
 
 ---
 
@@ -773,16 +767,20 @@ find_package(Assert CONFIG REQUIRED)
 find_package(TestSupport CONFIG REQUIRED)
 ```
 
-Imported targets use the direct library names:
+Installed imported targets use the `GameWIP::` CMake namespace:
 
 ```cmake
-IO
-Terminal
-FileSystem
-Logger
-Assert
-TestSupport
+GameWIP::IO
+GameWIP::Terminal
+GameWIP::FileSystem
+GameWIP::Logger
+GameWIP::Assert
+GameWIP::TestSupport
 ```
+
+The source tree retains short target names and provides matching `GameWIP::` aliases. The CMake namespace does not change the C++ namespace layout.
+
+Pre-1.0 packages require exact package versions and a compatible compiler, standard library, and runtime ABI. No binary compatibility is promised across package versions or toolchains. Transitive GameWIP package dependencies use the same exact version.
 
 The Terminal and FileSystem packages depend on the IO package.
 
@@ -792,13 +790,15 @@ The Assert package depends on the Logger package.
 
 The TestSupport package has no project-library dependencies.
 
-Test hooks are excluded from public package installs by default.
+Only target public-header file sets are installed. Generated export headers are public; internal headers and test-hook headers are not. Shared-library exports are declaration-driven and validated against reviewed allowlists. `Detail` exports are limited to bridges required by public templates or macros and are not independent public API.
 
 ---
 
 # 19. CMake Standard
 
 CMake is part of the library surface.
+
+The minimum supported CMake version is 3.23 so installed headers can be defined and exported through target file sets.
 
 CMake should:
 

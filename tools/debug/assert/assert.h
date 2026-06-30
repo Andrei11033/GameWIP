@@ -6,6 +6,8 @@
 #include <atomic>
 #include <string_view>
 
+#include "debug/assert/assert_export.h"
+
 /// Contract:
 /// The macro API is split into fatal assertions (`ASSERT`, `VERIFY`, `UNREACHABLE`), recoverable
 /// diagnostics (`CHECK`, `CHECK_ONCE`, `ENSURE`), explicit debugger breaks (`DEBUG_BREAK`), and
@@ -22,21 +24,6 @@
 /// @brief Enables internal assert test-hook declarations for dedicated test builds.
 #ifndef INTERNAL_ASSERT_TEST_HOOKS
 #define INTERNAL_ASSERT_TEST_HOOKS 0
-#endif
-
-/// @def INTERNAL_ASSERT_API
-/// @brief DLL import/export marker used by the assert runtime declarations.
-/// @details This is not part of normal user code; use the ASSERT/CHECK/ENSURE macro API instead.
-#if defined(_WIN32)
-#if defined(INTERNAL_ASSERT_BUILD)
-#define INTERNAL_ASSERT_API __declspec(dllexport)
-#elif INTERNAL_ASSERT_RUNTIME
-#define INTERNAL_ASSERT_API __declspec(dllimport)
-#else
-#define INTERNAL_ASSERT_API
-#endif
-#else
-#define INTERNAL_ASSERT_API
 #endif
 
 // Public convenience macros are intentionally global:
@@ -173,7 +160,7 @@ namespace GameWIP::Debug::Assert
     ///
     /// @note Continuing from the debugger resumes execution.
     /// @see DEBUG_BREAK
-    INTERNAL_ASSERT_API void debugBreak() noexcept;
+    GAMEWIP_ASSERT_EXPORT void debugBreak() noexcept;
 #endif
     /// @}
 } // namespace GameWIP::Debug::Assert
@@ -182,14 +169,14 @@ namespace GameWIP::Debug::Assert
 namespace GameWIP::Debug::Assert::Detail
 {
 #if INTERNAL_ASSERT_RUNTIME
-    [[noreturn]] INTERNAL_ASSERT_API void handleAssertFailure(
+    [[noreturn]] GAMEWIP_ASSERT_EXPORT void handleAssertFailure(
         std::string_view conditionText,
         std::string_view message,
         std::string_view file,
         int line,
         std::string_view function) noexcept;
 
-    INTERNAL_ASSERT_API void handleInteractiveAssertFailure(
+    GAMEWIP_ASSERT_EXPORT void handleInteractiveAssertFailure(
         std::string_view conditionText,
         std::string_view message,
         std::string_view file,
@@ -197,7 +184,7 @@ namespace GameWIP::Debug::Assert::Detail
         std::string_view function,
         std::atomic_bool *alwaysIgnoreFlag) noexcept;
 
-    INTERNAL_ASSERT_API void handleCheckFailure(
+    GAMEWIP_ASSERT_EXPORT void handleCheckFailure(
         std::string_view conditionText,
         std::string_view message,
         std::string_view file,

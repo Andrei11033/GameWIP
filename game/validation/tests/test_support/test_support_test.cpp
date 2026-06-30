@@ -7,6 +7,7 @@
 
 #include <atomic>
 #include <chrono>
+#include <cstdint>
 #include <cstdlib>
 #include <filesystem>
 #include <format>
@@ -39,6 +40,7 @@ namespace
     constexpr std::string_view kExitCodeChildArgument = "--test-support-test-child=exit-code";
     constexpr std::string_view kOutputChildArgument = "--test-support-test-child=output";
     constexpr std::string_view kDescendantChildArgument = "--test-support-test-child=descendant";
+    constexpr std::string_view kHandleInheritanceChildArgument = "--test-support-test-child=handle-inheritance";
     constexpr std::string_view kChildSetVariable = "INTERNAL_TEST_SUPPORT_CHILD_SET";
     constexpr std::string_view kChildUnsetVariable = "INTERNAL_TEST_SUPPORT_CHILD_UNSET";
     constexpr std::string_view kScopedVariable = "INTERNAL_TEST_SUPPORT_SCOPED_ENV";
@@ -152,6 +154,16 @@ namespace
             const std::size_t byteCount = byteCountText.empty() ? 0 : static_cast<std::size_t>(std::stoull(byteCountText));
             const std::string output(byteCount, 'x');
             std::cout.write(output.data(), static_cast<std::streamsize>(output.size()));
+            return 0;
+        }
+
+        if (hasArgument(argc, argv, kHandleInheritanceChildArgument))
+        {
+#if defined(_WIN32)
+            const std::string handleText = argumentAfter(argc, argv, kHandleInheritanceChildArgument);
+            const auto handleValue = static_cast<std::uintptr_t>(std::stoull(handleText));
+            static_cast<void>(SetEvent(reinterpret_cast<HANDLE>(handleValue)));
+#endif
             return 0;
         }
 
@@ -632,6 +644,35 @@ namespace
             static_cast<void>(context.expectEq("Disabled capture leaves output empty", std::string(), result.output));
         }
 
+#if defined(_WIN32)
+        {
+            SECURITY_ATTRIBUTES attributes{};
+            attributes.nLength = sizeof(attributes);
+            attributes.bInheritHandle = TRUE;
+            const HANDLE unrelatedEvent = CreateEventW(&attributes, TRUE, FALSE, nullptr);
+            static_cast<void>(context.expectTrue(
+                "Create inheritable sentinel handle succeeds",
+                unrelatedEvent != nullptr && unrelatedEvent != INVALID_HANDLE_VALUE));
+            if (unrelatedEvent != nullptr && unrelatedEvent != INVALID_HANDLE_VALUE)
+            {
+                TestSupport::Types::ChildProcessOptions childOptions;
+                childOptions.executablePath = std::filesystem::path(executablePath);
+                childOptions.arguments = {
+                    std::string(kHandleInheritanceChildArgument),
+                    std::to_string(reinterpret_cast<std::uintptr_t>(unrelatedEvent))};
+                childOptions.timeout = 5s;
+
+                const TestSupport::Types::ChildProcessResult result = TestSupport::runChildProcess(childOptions);
+                static_cast<void>(context.expectTrue("Handle inheritance probe child succeeds", result.exitedSuccessfully()));
+                static_cast<void>(context.expectEq(
+                    "Child does not inherit unrelated parent handles",
+                    static_cast<DWORD>(WAIT_TIMEOUT),
+                    WaitForSingleObject(unrelatedEvent, 0)));
+                CloseHandle(unrelatedEvent);
+            }
+        }
+#endif
+
         {
             TestSupport::Types::ChildProcessOptions childOptions;
             childOptions.executablePath = std::filesystem::path(executablePath);
@@ -843,7 +884,8 @@ namespace GameWIP::Test
     {
         if (hasArgument(argc, argv, kEnvironmentChildArgument) || hasArgument(argc, argv, kEchoChildArgument) ||
             hasArgument(argc, argv, kSleepChildArgument) || hasArgument(argc, argv, kExitCodeChildArgument) ||
-            hasArgument(argc, argv, kOutputChildArgument) || hasArgument(argc, argv, kDescendantChildArgument))
+            hasArgument(argc, argv, kOutputChildArgument) || hasArgument(argc, argv, kDescendantChildArgument) ||
+            hasArgument(argc, argv, kHandleInheritanceChildArgument))
         {
             return runTestSupportChild(argc, argv);
         }

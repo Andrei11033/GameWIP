@@ -237,26 +237,6 @@ namespace
         }
     };
 
-#if INTERNAL_LOGGER_TEST_HOOKS
-    /// @brief Installs and clears the test-only default log-directory override.
-    struct ScopedDefaultLogDirectoryOverride
-    {
-        /// @brief Redirects Logger's compiled default directory into a test-owned path.
-        explicit ScopedDefaultLogDirectoryOverride(const std::filesystem::path &path)
-        {
-            GameWIP::Logger::TestHooks::setDefaultLogDirectoryOverride(path.generic_string());
-        }
-
-        ~ScopedDefaultLogDirectoryOverride() noexcept
-        {
-            GameWIP::Logger::TestHooks::clearDefaultLogDirectoryOverride();
-        }
-
-        ScopedDefaultLogDirectoryOverride(const ScopedDefaultLogDirectoryOverride &) = delete;
-        ScopedDefaultLogDirectoryOverride &operator=(const ScopedDefaultLogDirectoryOverride &) = delete;
-    };
-#endif
-
     /// @brief Returns stable diagnostic text for every Logger result value.
     std::string_view toString(Logger::Types::Result result)
     {
@@ -707,7 +687,7 @@ namespace
         context.expectTrue("zero message length still starts sanitized logger", Logger::isRunning());
     }
 
-    /// @brief Verifies convenience initialization APIs and the test-only default directory override.
+    /// @brief Verifies convenience initialization APIs and runtime default-directory resolution.
     void testConvenienceInitApis(TestContext &context)
     {
         ZoneScopedN("Logger convenience init API tests");
@@ -729,28 +709,28 @@ namespace
         Logger::shutdown();
         context.expectTrue("initFile wrote content", readWholeFile(initFilePath).find("initFile visible") != std::string::npos);
 
-#if INTERNAL_LOGGER_TEST_HOOKS
-        const ScopedDefaultLogDirectoryOverride defaultDirectoryOverride(context.logRoot);
-#endif
-        const Logger::Types::Result defaultResult = Logger::initDefault();
-        const bool defaultStarted = defaultResult == Logger::Types::Result::Success || defaultResult == Logger::Types::Result::FileOpenFailed ||
-                                    defaultResult == Logger::Types::Result::FileSetupFailed;
-        context.expectTrue("initDefault starts or falls back", defaultStarted);
-        context.expectTrue("initDefault leaves logger running", Logger::isRunning());
-        if (defaultResult == Logger::Types::Result::Success)
         {
-            expectEq(context, "initDefault output", Logger::getOutput(), Logger::Types::Output::Both);
-            context.expectFalse("initDefault path available", Logger::getLogFilePath().empty());
-            context.expectEq(
-                "initDefault test override contains the log file",
-                context.logRoot.lexically_normal(),
-                std::filesystem::path(Logger::getLogFilePath()).parent_path().lexically_normal());
+            const TestSupport::ScopedCurrentPath currentPath(context.logRoot);
+            const Logger::Types::Result defaultResult = Logger::initDefault();
+            const bool defaultStarted = defaultResult == Logger::Types::Result::Success || defaultResult == Logger::Types::Result::FileOpenFailed ||
+                                        defaultResult == Logger::Types::Result::FileSetupFailed;
+            context.expectTrue("initDefault starts or falls back", defaultStarted);
+            context.expectTrue("initDefault leaves logger running", Logger::isRunning());
+            if (defaultResult == Logger::Types::Result::Success)
+            {
+                expectEq(context, "initDefault output", Logger::getOutput(), Logger::Types::Output::Both);
+                context.expectFalse("initDefault path available", Logger::getLogFilePath().empty());
+                context.expectEq(
+                    "initDefault resolves logs beneath the working directory",
+                    std::filesystem::absolute(Logger::getLogFilePath()).parent_path().lexically_normal(),
+                    (context.logRoot / "logs").lexically_normal());
+            }
+            else
+            {
+                expectEq(context, "initDefault file failure falls back to console", Logger::getOutput(), Logger::Types::Output::Console);
+            }
+            Logger::shutdown();
         }
-        else
-        {
-            expectEq(context, "initDefault file failure falls back to console", Logger::getOutput(), Logger::Types::Output::Console);
-        }
-        Logger::shutdown();
     }
 
     /// @brief Verifies file sink creation, formatting, flushing, and message content.

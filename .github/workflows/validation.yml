@@ -55,7 +55,6 @@ jobs:
           -DGAMEWIP_ENABLE_TOOLS=OFF
           -DGAMEWIP_OPEN_TOOLS_AT_STARTUP=OFF
           -DGAMEWIP_ENABLE_ASSERTS=ON
-          -DGAMEWIP_ENABLE_STATIC_ANALYSIS=ON
 
       - name: Build
         shell: msys2 {0}
@@ -71,7 +70,9 @@ jobs:
 
       - name: Static analysis
         shell: msys2 {0}
-        run: cmake --build build-validation --target static-analysis
+        run: |
+          cmake --preset static-analysis
+          cmake --build --preset static-analysis
 
   repository-checks:
     name: Repository Checks
@@ -108,6 +109,49 @@ jobs:
         uses: docker://rhysd/actionlint:1.7.12
         with:
           args: -color
+
+  coverage:
+    name: Coverage
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install coverage tools
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-ninja
+            mingw-w64-ucrt-x86_64-gcovr
+
+      - name: Configure
+        shell: msys2 {0}
+        run: cmake --preset coverage
+
+      - name: Build
+        shell: msys2 {0}
+        run: cmake --build --preset coverage --parallel
+
+      - name: Test
+        shell: msys2 {0}
+        run: ctest --preset coverage
+
+      - name: Generate report
+        shell: msys2 {0}
+        run: cmake --build build-coverage --target coverage
+
+      - name: Upload report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: build-coverage/coverage
 
   docs-check:
     name: Docs Check

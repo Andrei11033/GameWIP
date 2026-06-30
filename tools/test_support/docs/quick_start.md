@@ -38,7 +38,7 @@ Installed-package consumers use the direct package and imported target names:
 
 ```cmake
 find_package(TestSupport CONFIG REQUIRED)
-target_link_libraries(MyTests PRIVATE TestSupport)
+target_link_libraries(MyTests PRIVATE GameWIP::TestSupport)
 ```
 
 Foundation, tool, engine, and game tests may use TestSupport, but TestSupport itself has no project-library dependencies and its examples remain generic.

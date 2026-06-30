@@ -14,7 +14,7 @@ Each helper returns a `Logger::Types::Config` value that can be edited before `L
 
 `Config::output` controls the active sinks. The supported modes are `None`, `Console`, `File`, and `Both`.
 
-File output uses `Config::logDirectory` as UTF-8 text. Logger converts it through FileSystem, keeps one persistent `FileWriter`, and allows other processes to read the active log. If file setup fails and `fallbackToConsoleOnFileFailure` is true, startup can continue with console output and `getLastResult()` / `getLastPlatformError()` describe the file failure.
+File output uses `Config::logDirectory` as UTF-8 text. Its default is `logs`, resolved against the process current directory when Logger initializes; an empty value selects the same runtime default. Applications can choose another directory through `Config` or `initFile()` without rebuilding Logger. Logger converts paths through FileSystem, keeps one persistent `FileWriter`, and allows other processes to read the active log. If file setup fails and `fallbackToConsoleOnFileFailure` is true, startup can continue with console output and `getLastResult()` / `getLastPlatformError()` describe the file failure.
 
 Console output goes through the shared Terminal runtime. `enableConsoleColor` requests portable severity colors for supported interactive terminals; redirected streams receive plain UTF-8 text.
 

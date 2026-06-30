@@ -45,10 +45,6 @@
 #include <immintrin.h>
 #endif
 
-#ifndef INTERNAL_LOGGER_DEFAULT_DIRECTORY
-#define INTERNAL_LOGGER_DEFAULT_DIRECTORY "logs"
-#endif
-
 namespace GameWIP::Logger::Detail::Core
 {
     using LogLevel = GameWIP::Logger::Types::Level;
@@ -819,7 +815,6 @@ namespace GameWIP::Logger::Detail::Core
         std::atomic_bool nextQueueAllocationFailure{false};
         std::atomic_bool nextFatalPopupFailure{false};
         std::atomic_bool nextTimedFlushTimeout{false};
-        std::string defaultLogDirectoryOverride;
     };
     /// @brief Shared test-hook state consumed by core and platform wrappers.
     extern LoggerTestHookState loggerTestHookState;

@@ -7,9 +7,16 @@ if(NOT COMMAND library_target_platform_sources)
 endif()
 
 add_library(FileSystem STATIC)
+add_library(GameWIP::FileSystem ALIAS FileSystem)
 
-target_sources(FileSystem PRIVATE
-    core/filesystem.cpp
+target_sources(FileSystem
+    PRIVATE
+        core/filesystem.cpp
+    PUBLIC
+        FILE_SET public_headers
+        TYPE HEADERS
+        BASE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/.."
+        FILES "${CMAKE_CURRENT_SOURCE_DIR}/filesystem.h"
 )
 
 library_target_platform_sources(FileSystem FileSystem "${CMAKE_CURRENT_SOURCE_DIR}/platform")
@@ -44,11 +51,7 @@ endif()
 install(TARGETS FileSystem
     EXPORT FileSystemTargets
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-)
-
-install(FILES
-    "${CMAKE_CURRENT_SOURCE_DIR}/filesystem.h"
-    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/filesystem
+    FILE_SET public_headers DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
 )
 
 configure_package_config_file(
@@ -60,11 +63,12 @@ configure_package_config_file(
 write_basic_package_version_file(
     "${CMAKE_CURRENT_BINARY_DIR}/FileSystemConfigVersion.cmake"
     VERSION ${PROJECT_VERSION}
-    COMPATIBILITY SameMajorVersion
+    COMPATIBILITY ExactVersion
 )
 
 install(EXPORT FileSystemTargets
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/FileSystem
+    NAMESPACE GameWIP::
 )
 
 install(FILES

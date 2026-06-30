@@ -5,6 +5,11 @@
 
 namespace GameWIP::Logger::Detail::Core
 {
+    namespace
+    {
+        constexpr std::string_view kDefaultLogDirectory = "logs";
+    }
+
     LoggerState &loggerState()
     {
         static LoggerState state;
@@ -1050,21 +1055,7 @@ LoggerResult GameWIP::Logger::init(const Types::Config &config)
     {
         try
         {
-            std::string logDirectoryText;
-            if (!config.logDirectory.empty())
-            {
-                logDirectoryText = config.logDirectory;
-            }
-#if INTERNAL_LOGGER_TEST_HOOKS
-            else if (!loggerTestHookState.defaultLogDirectoryOverride.empty())
-            {
-                logDirectoryText = loggerTestHookState.defaultLogDirectoryOverride;
-            }
-#endif
-            else
-            {
-                logDirectoryText = INTERNAL_LOGGER_DEFAULT_DIRECTORY;
-            }
+            const std::string logDirectoryText = config.logDirectory.empty() ? std::string(kDefaultLogDirectory) : std::string(config.logDirectory);
 
             FilePath logDirectoryPath;
             if (logDirectoryText.empty())

@@ -1,0 +1,13 @@
+function(gamewip_add_public_header_check name source dependency)
+    add_library("GameWIPPublicHeaderCheck${name}" OBJECT "${source}")
+    target_compile_features("GameWIPPublicHeaderCheck${name}" PRIVATE cxx_std_23)
+    target_link_libraries("GameWIPPublicHeaderCheck${name}" PRIVATE "${dependency}")
+endfunction()
+
+gamewip_add_public_header_check(IO io_header.cpp GameWIP::IO)
+gamewip_add_public_header_check(FileSystem filesystem_header.cpp GameWIP::FileSystem)
+gamewip_add_public_header_check(Terminal terminal_header.cpp GameWIP::Terminal)
+gamewip_add_public_header_check(Logger logger_header.cpp GameWIP::Logger)
+gamewip_add_public_header_check(LoggerMacros logger_macros_header.cpp GameWIP::Logger)
+gamewip_add_public_header_check(Assert assert_header.cpp AssertCompileInterface)
+gamewip_add_public_header_check(TestSupport test_support_header.cpp GameWIP::TestSupport)

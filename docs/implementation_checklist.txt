@@ -434,7 +434,9 @@ The Windows backend follows the project rule that public C++ remains UTF-8/path 
 * [x] Coverage target generates HTML reports when `gcovr` is available.
 * [x] Coverage target generates XML reports when `gcovr` is available.
 * [x] Coverage target fails with a clear installation message if `gcovr` is missing.
-* [x] Coverage generation tolerates known gcov negative-hit warnings while still writing reports.
+* [x] GCC coverage uses atomic profile updates for concurrent test processes.
+* [x] Coverage report generation fails on corrupt or negative profile data.
+* [x] GitHub validation builds, tests, generates, and uploads coverage reports.
 
 ## Test Hooks
 
@@ -628,36 +630,40 @@ The Doxygen build infrastructure is implemented, modular, and integrated with th
 
 ## Package Names
 
+* [x] IO package name is `IO`.
 * [x] FileSystem package name is `FileSystem`.
+* [x] Terminal package name is `Terminal`.
 * [x] Logger package name is `Logger`.
 * [x] Assert package name is `Assert`.
 * [x] TestSupport package name is `TestSupport`.
 
 ## Imported Targets
 
-* [x] FileSystem imported target is `FileSystem`.
-* [x] Logger imported target is `Logger`.
-* [x] Assert imported target is `Assert`.
-* [x] TestSupport imported target is `TestSupport`.
+* [x] Installed imported targets use canonical `GameWIP::<Library>` names.
+* [x] Source-tree targets provide matching `GameWIP::<Library>` aliases.
 
 ## Package Dependencies
 
 * [x] FileSystem package locates IO as a dependency.
 * [x] Terminal package locates IO as a dependency.
 * [x] Logger package locates Terminal as its shared runtime dependency.
-* [x] Assert package locates Logger as a dependency.
+* [x] Assert package locates Logger only when the Assert runtime is enabled.
 * [x] TestSupport package has no project-library dependencies.
+* [x] Transitive GameWIP dependencies require the same exact package version.
 
 ## Public Install Surface
 
-* [x] FileSystem installs its public header and package config files.
-* [x] Terminal installs its shared runtime, import library, public header, and package config files.
-* [x] Test hooks are excluded from public package installs by default.
-* [x] Assert propagates the Common Controls v6 manifest resource for Windows consumers.
+* [x] Every reusable library installs only its target public-header file set and package files.
+* [x] Shared libraries install generated export headers with declaration-driven visibility.
+* [x] Internal and test-hook headers are excluded from package installs.
+* [x] Assert propagates the Common Controls v6 resource only when that option is enabled.
+* [x] Public headers compile independently through canonical target contracts.
+* [x] Shared-library symbol roots are checked against reviewed allowlists.
+* [x] A clean external consumer configures, builds, and runs only through installed exact-version packages.
 
 Completion note:
 
-Package/install polish is implemented for FileSystem, Logger, Assert, and TestSupport.
+Package and public/private boundaries are implemented for IO, FileSystem, Terminal, Logger, Assert, and TestSupport.
 
 ---
 

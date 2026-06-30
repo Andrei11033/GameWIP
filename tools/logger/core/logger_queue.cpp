@@ -5,11 +5,7 @@
 
 namespace GameWIP::Logger::Detail::Core
 {
-    /// @brief Allocates uninitialized message arena bytes for a queue container.
-    /// @param entryCount Number of queue entries backed by the arena.
-    /// @param inlineMessageCapacity Bytes reserved per entry.
-    /// @param arena Output arena owner.
-    /// @return True when allocation succeeded or no arena is needed.
+    /// Allocates overflow-checked contiguous inline message storage for queue entries.
     bool allocateMessageArena(std::size_t entryCount, std::size_t inlineMessageCapacity, std::unique_ptr<char[]> &arena)
     {
         arena.reset();
@@ -27,16 +23,8 @@ namespace GameWIP::Logger::Detail::Core
         return true;
     }
 
-    /// @brief Allocates ring and worker batch storage before init commits state.
-    /// @param hardLimit Ring buffer capacity to allocate.
-    /// @param workerBatchSize Worker batch capacity to allocate.
-    /// @param inlineMessageCapacity Per-entry message arena bytes.
-    /// @param ring Output ring storage.
-    /// @param ringSize Receives the number of slots in ring.
-    /// @param batch Output reusable worker batch storage.
-    /// @param ringArena Output ring message arena.
-    /// @param batchArena Output worker batch message arena.
-    /// @return True when both containers were allocated successfully.
+    /// Builds complete ring and worker storage before initialization commits runtime state.
+    /// Failure clears every output so partially initialized queue storage cannot escape.
     bool prepareQueueStorage(
         std::size_t hardLimit,
         std::size_t workerBatchSize,
@@ -145,8 +133,7 @@ namespace GameWIP::Logger::Detail::Core
         loggerState().inlineMessageCapacity = 0;
     }
 
-    /// @brief Clears one queued entry while keeping configured message storage.
-    /// @param entry Entry to clear.
+    /// Clears logical entry state while applying the configured heap-retention policy.
     void clearLogEntry(QueuedLogEntry &entry)
     {
         const bool releaseHeapCapacity = loggerState().releaseMessageMemoryAfterWrite;
@@ -158,12 +145,7 @@ namespace GameWIP::Logger::Detail::Core
         entry.message.clear(releaseHeapCapacity);
     }
 
-    /// @brief Copies only the retained message prefix and truncation suffix into queue storage.
-    /// @details This keeps preformatted huge messages from being fully copied before truncation.
-    /// @param entry Queue entry that will own the retained message text.
-    /// @param message Message text supplied by the producer.
-    /// @param maxMessageLength Maximum stored bytes.
-    /// @param outTruncated Receives true when the message was truncated.
+    /// Copies only the retained prefix and suffix, avoiding a temporary full-size string.
     void assignRetainedMessage(QueuedLogEntry &entry, std::string_view message, std::size_t maxMessageLength, bool &outTruncated)
     {
         constexpr std::string_view suffix = "... [truncated]";
@@ -189,10 +171,7 @@ namespace GameWIP::Logger::Detail::Core
         entry.message.assignJoined(message.substr(0, maxMessageLength - suffix.size()), suffix);
     }
 
-    /// @brief Copies a pending producer entry into an owning queue slot.
-    /// @param destination Ring or batch slot to mutate.
-    /// @param source Pending entry to copy.
-    /// @param outTruncated Receives true when the message was truncated.
+    /// Materializes a non-owning producer entry in queue-owned storage.
     void copyPendingEntryToQueueSlot(QueuedLogEntry &destination, const PendingLogEntry &source, bool &outTruncated)
     {
         destination.level = source.level;
@@ -218,9 +197,7 @@ namespace GameWIP::Logger::Detail::Core
         }
     }
 
-    /// @brief Transfers an owning queued entry into another slot without copying heap message storage.
-    /// @param destination Destination slot.
-    /// @param source Source slot.
+    /// Transfers queue-owned text, swapping heap storage when either slot overflowed inline capacity.
     void moveQueuedEntry(QueuedLogEntry &destination, QueuedLogEntry &source)
     {
         destination.level = source.level;

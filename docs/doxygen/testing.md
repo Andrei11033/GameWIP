@@ -10,6 +10,8 @@ cmake --build --preset validation
 ctest --preset validation
 ```
 
+The same CTest run also verifies reviewed shared-library exports and builds a separate consumer against a clean install prefix. That consumer has no source-tree include paths or short build-tree targets, so package dependency and public-header leaks fail validation.
+
 Run all modules directly:
 
 ```powershell

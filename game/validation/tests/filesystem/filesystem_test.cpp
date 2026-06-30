@@ -465,6 +465,46 @@ namespace
             "removeDirectoryTree deep count includes root levels and leaf",
             kDeepDirectoryDepth + 2,
             removedDeepTree.removedEntries));
+
+        const std::filesystem::path zeroLimitTree = directory / "zero-limit-tree";
+        static_cast<void>(context.expectTrue("create zero-limit tree succeeds", FileSystem::createDirectories(zeroLimitTree).ok()));
+        static_cast<void>(
+            context.expectTrue("write zero-limit tree file succeeds", FileSystem::writeAllText(zeroLimitTree / "file.txt", "x").status.ok()));
+        const auto zeroLimitRemoval = FileSystem::removeDirectoryTree(zeroLimitTree, FileSystem::Types::RemoveDirectoryTreeOptions{.maxEntries = 0});
+        static_cast<void>(
+            context.expectEq("zero remove limit reports SizeLimitExceeded", ErrorCode::SizeLimitExceeded, zeroLimitRemoval.status.code));
+        static_cast<void>(context.expectEq("zero remove limit removes nothing", std::uint64_t{0}, zeroLimitRemoval.removedEntries));
+        static_cast<void>(context.expectTrue("zero remove limit preserves root", FileSystem::isDirectory(zeroLimitTree).value));
+        static_cast<void>(context.expectTrue("zero remove limit cleanup succeeds", FileSystem::removeDirectoryTree(zeroLimitTree).status.ok()));
+
+        const std::filesystem::path exactLimitTree = directory / "exact-limit-tree";
+        static_cast<void>(context.expectTrue("create exact-limit tree succeeds", FileSystem::createDirectories(exactLimitTree / "child").ok()));
+        static_cast<void>(context.expectTrue(
+            "write exact-limit tree file succeeds",
+            FileSystem::writeAllText(exactLimitTree / "child" / "file.txt", "x").status.ok()));
+        const auto exactLimitRemoval =
+            FileSystem::removeDirectoryTree(exactLimitTree, FileSystem::Types::RemoveDirectoryTreeOptions{.maxEntries = 3});
+        static_cast<void>(context.expectTrue("exact remove limit completes tree", exactLimitRemoval.status.ok()));
+        static_cast<void>(context.expectEq("exact remove limit counts every entry", std::uint64_t{3}, exactLimitRemoval.removedEntries));
+
+        const std::filesystem::path wideTree = directory / "wide-tree";
+        static_cast<void>(context.expectTrue("create wide tree succeeds", FileSystem::createDirectories(wideTree).ok()));
+        constexpr std::uint64_t kWideEntryCount = 128;
+        bool wideWritesSucceeded = true;
+        for (std::uint64_t index = 0; index < kWideEntryCount; ++index)
+        {
+            const bool writeSucceeded = FileSystem::writeAllText(wideTree / std::format("entry_{:03}.txt", index), "x").status.ok();
+            wideWritesSucceeded = wideWritesSucceeded && writeSucceeded;
+        }
+        static_cast<void>(context.expectTrue("write wide tree files succeeds", wideWritesSucceeded));
+        constexpr std::uint64_t kPartialRemovalLimit = 5;
+        const auto partialRemoval =
+            FileSystem::removeDirectoryTree(wideTree, FileSystem::Types::RemoveDirectoryTreeOptions{.maxEntries = kPartialRemovalLimit});
+        static_cast<void>(
+            context.expectEq("partial tree removal reports SizeLimitExceeded", ErrorCode::SizeLimitExceeded, partialRemoval.status.code));
+        static_cast<void>(context.expectEq("partial tree removal honors exact limit", kPartialRemovalLimit, partialRemoval.removedEntries));
+        static_cast<void>(context.expectTrue("partial tree removal preserves root", FileSystem::isDirectory(wideTree).value));
+        static_cast<void>(context.expectTrue("partial tree removal cleanup succeeds", FileSystem::removeDirectoryTree(wideTree).status.ok()));
     }
 
     /// @brief Verifies atomic replacement and non-blocking whole-file lock ownership.
@@ -515,6 +555,33 @@ namespace
         static_cast<void>(context.expectEq("close while locked reports ResourceBusy", ErrorCode::ResourceBusy, lockFile.close().code));
         static_cast<void>(context.expectTrue("unlock succeeds", lock.lock.unlock().ok()));
         static_cast<void>(context.expectTrue("close after unlock succeeds", lockFile.close().ok()));
+
+        const std::filesystem::path detachedOwnerFile = root / "atomic-locks" / "detached-owner.txt";
+        static_cast<void>(context.expectTrue("detached-owner file write succeeds", FileSystem::writeAllText(detachedOwnerFile, "lock").status.ok()));
+        FileSystem::FileLock detachedOwnerLock = [&]()
+        {
+            FileSystem::File owner;
+            static_cast<void>(context.expectTrue("detached lock owner opens", owner.open(detachedOwnerFile).ok()));
+            auto result = owner.tryLockExclusive();
+            static_cast<void>(context.expectEq("detached owner acquires lock", FileSystem::Types::LockOutcome::Acquired, result.outcome));
+            return std::move(result.lock);
+        }();
+
+        FileSystem::File detachedCompetitor;
+        static_cast<void>(context.expectTrue("detached lock competitor opens", detachedCompetitor.open(detachedOwnerFile).ok()));
+        auto blockedByDetachedOwner = detachedCompetitor.tryLockExclusive();
+        static_cast<void>(context.expectEq(
+            "lock remains active after source handle destruction",
+            FileSystem::Types::LockOutcome::WouldBlock,
+            blockedByDetachedOwner.outcome));
+        static_cast<void>(context.expectTrue("detached owner unlock succeeds", detachedOwnerLock.unlock().ok()));
+        auto acquiredAfterDetachedUnlock = detachedCompetitor.tryLockExclusive();
+        static_cast<void>(context.expectEq(
+            "competitor acquires after detached owner unlock",
+            FileSystem::Types::LockOutcome::Acquired,
+            acquiredAfterDetachedUnlock.outcome));
+        static_cast<void>(context.expectTrue("detached competitor unlock succeeds", acquiredAfterDetachedUnlock.lock.unlock().ok()));
+        static_cast<void>(context.expectTrue("detached competitor closes", detachedCompetitor.close().ok()));
     }
 } // namespace
 

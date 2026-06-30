@@ -18,4 +18,8 @@ build-coverage/coverage/coverage.xml
 
 The report includes foundation, tool, TestSupport, and modular correctness-test sources. Third-party sources under `external` are excluded.
 
+GCC profile updates are atomic so parallel test processes cannot overwrite one another's counters. Corrupt or negative profile data is a report failure; the workflow does not suppress parser errors.
+
+The Validation workflow runs this preset on Windows and uploads the HTML/XML output as a build artifact.
+
 Coverage answers which correctness paths executed. It does not replace assertions, benchmark measurements, or manual UI validation.

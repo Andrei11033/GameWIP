@@ -15,15 +15,7 @@
 #include <type_traits>
 #include <utility>
 
-#if defined(_WIN32)
-#if defined(INTERNAL_LOGGER_BUILD)
-#define INTERNAL_LOGGER_API __declspec(dllexport)
-#else
-#define INTERNAL_LOGGER_API __declspec(dllimport)
-#endif
-#else
-#define INTERNAL_LOGGER_API
-#endif
+#include "logger/logger_export.h"
 
 // LOGGER_* convenience macros are intentionally opt-in. Include
 // logger/logger_macros.h when global preprocessor logging shortcuts are wanted.
@@ -204,8 +196,8 @@ namespace GameWIP::Logger
             /// @details Zero uses the default; the effective value is clamped to the hard queue size.
             std::size_t workerBatchSize = 256;
             /// @brief Optional UTF-8 log directory.
-            /// @details Empty uses the build-time default log directory. FileSystem converts and copies the path during init().
-            std::string_view logDirectory = {};
+            /// @details Relative paths resolve against the process working directory. Empty also selects the runtime default, `logs`.
+            std::string_view logDirectory = "logs";
             /// @brief Allows file-only startup to fall back to console when file setup fails.
             /// @details Output::Both keeps the console sink active even when the file sink fails.
             bool fallbackToConsoleOnFileFailure = true;
@@ -345,13 +337,13 @@ namespace GameWIP::Logger
         /// @param level Entry severity.
         /// @param source Source text copied into the queue entry.
         /// @param message Formatted message copied before this call returns.
-        INTERNAL_LOGGER_API void enqueuePreformattedMessage(Types::Level level, std::string_view source, std::string_view message);
+        GAMEWIP_LOGGER_EXPORT void enqueuePreformattedMessage(Types::Level level, std::string_view source, std::string_view message);
         /// @brief Enqueues a preformatted message after bounded formatting has already truncated it.
         /// @param level Entry severity.
         /// @param source Source text copied into the queue entry.
         /// @param message Formatted message copied before this call returns.
         /// @param alreadyTruncated True when message already includes the truncation suffix.
-        INTERNAL_LOGGER_API void enqueuePreformattedMessage(
+        GAMEWIP_LOGGER_EXPORT void enqueuePreformattedMessage(
             Types::Level level,
             std::string_view source,
             std::string_view message,
@@ -360,13 +352,13 @@ namespace GameWIP::Logger
         /// @param level Entry severity.
         /// @param source Registered SourceId stored in the queue entry.
         /// @param message Formatted message copied before this call returns.
-        INTERNAL_LOGGER_API void enqueuePreformattedMessage(Types::Level level, Types::SourceId source, std::string_view message);
+        GAMEWIP_LOGGER_EXPORT void enqueuePreformattedMessage(Types::Level level, Types::SourceId source, std::string_view message);
         /// @brief Enqueues a preformatted message after bounded formatting has already truncated it.
         /// @param level Entry severity.
         /// @param source Registered SourceId stored in the queue entry.
         /// @param message Formatted message copied before this call returns.
         /// @param alreadyTruncated True when message already includes the truncation suffix.
-        INTERNAL_LOGGER_API void enqueuePreformattedMessage(
+        GAMEWIP_LOGGER_EXPORT void enqueuePreformattedMessage(
             Types::Level level,
             Types::SourceId source,
             std::string_view message,
@@ -376,7 +368,7 @@ namespace GameWIP::Logger
         /// @param source Source text written into the report line and platform debug output line.
         /// @param message Formatted message copied before this call returns.
         /// @param showPopup True to show the fatal popup after flush.
-        INTERNAL_LOGGER_API void reportPreformattedMessage(Types::Level level, std::string_view source, std::string_view message, bool showPopup);
+        GAMEWIP_LOGGER_EXPORT void reportPreformattedMessage(Types::Level level, std::string_view source, std::string_view message, bool showPopup);
         /// @brief Synchronously reports a preformatted message with a string source and optional bounded drain/flush.
         /// @param level Entry severity.
         /// @param source Source text written into the report line and platform debug output line.
@@ -385,7 +377,7 @@ namespace GameWIP::Logger
         /// @param alreadyTruncated True when message already includes the truncation suffix.
         /// @param timeout Optional bounded flush duration.
         /// @return True when the post-report drain/flush completed; blocking reports always return true.
-        INTERNAL_LOGGER_API bool reportPreformattedMessage(
+        GAMEWIP_LOGGER_EXPORT bool reportPreformattedMessage(
             Types::Level level,
             std::string_view source,
             std::string_view message,
@@ -397,7 +389,7 @@ namespace GameWIP::Logger
         /// @param source Registered SourceId resolved for the report line and platform debug output.
         /// @param message Formatted message copied before this call returns.
         /// @param showPopup True to show the fatal popup after flush.
-        INTERNAL_LOGGER_API void reportPreformattedMessage(Types::Level level, Types::SourceId source, std::string_view message, bool showPopup);
+        GAMEWIP_LOGGER_EXPORT void reportPreformattedMessage(Types::Level level, Types::SourceId source, std::string_view message, bool showPopup);
         /// @brief Synchronously reports a preformatted message with a registered SourceId and optional bounded drain/flush.
         /// @param level Entry severity.
         /// @param source Registered SourceId resolved for the report line and platform debug output.
@@ -406,7 +398,7 @@ namespace GameWIP::Logger
         /// @param alreadyTruncated True when message already includes the truncation suffix.
         /// @param timeout Optional bounded flush duration.
         /// @return True when the post-report drain/flush completed; blocking reports always return true.
-        INTERNAL_LOGGER_API bool reportPreformattedMessage(
+        GAMEWIP_LOGGER_EXPORT bool reportPreformattedMessage(
             Types::Level level,
             Types::SourceId source,
             std::string_view message,
@@ -414,21 +406,21 @@ namespace GameWIP::Logger
             bool alreadyTruncated,
             Types::FlushTimeout *timeout);
         /// @brief Counts an allocation or internal formatting failure.
-        INTERNAL_LOGGER_API void recordAllocationFailure();
+        GAMEWIP_LOGGER_EXPORT void recordAllocationFailure();
         /// @brief Counts an invalid runtime formatting failure.
-        INTERNAL_LOGGER_API void recordFormatFailure();
+        GAMEWIP_LOGGER_EXPORT void recordFormatFailure();
         /// @brief Returns per-thread formatting scratch storage reused by formatted overloads.
         /// @return Mutable per-thread scratch string.
-        INTERNAL_LOGGER_API std::string &formatScratch();
+        GAMEWIP_LOGGER_EXPORT std::string &formatScratch();
         /// @brief Returns the active maximum message length used by bounded formatting.
         /// @return Current maximum message length, or the startup default before init.
-        INTERNAL_LOGGER_API std::size_t getMaxMessageLengthForFormatting();
+        GAMEWIP_LOGGER_EXPORT std::size_t getMaxMessageLengthForFormatting();
         /// @brief Returns the active formatted-message memory/speed policy.
         /// @return Current format policy, or StrictBounded before init.
-        INTERNAL_LOGGER_API Types::FormatPolicy getFormatPolicyForFormatting();
+        GAMEWIP_LOGGER_EXPORT Types::FormatPolicy getFormatPolicyForFormatting();
         /// @brief Releases thread-local format scratch capacity when configured.
         /// @param scratch Scratch buffer to optionally shrink.
-        INTERNAL_LOGGER_API void releaseFormatScratchIfNeeded(std::string &scratch);
+        GAMEWIP_LOGGER_EXPORT void releaseFormatScratchIfNeeded(std::string &scratch);
 
         template <typename Format, typename... Args>
         bool formatWithPolicy(std::string &scratch, std::size_t maxMessageLength, Format format, Args &&...args);
@@ -523,41 +515,41 @@ namespace GameWIP::Logger
     /// @return Success on normal startup, or a non-success Types::Result if configuration or setup fell back/failed.
     /// @note init(), shutdown(), and process-exit cleanup are memory-safe against racing producers; logs submitted after disabled state is published
     /// may be skipped.
-    INTERNAL_LOGGER_API Types::Result init(const Types::Config &config);
+    GAMEWIP_LOGGER_EXPORT Types::Result init(const Types::Config &config);
     /// @brief Builds the normal default startup configuration.
     /// @return Types::Config with both console and file output using the default log directory.
-    INTERNAL_LOGGER_API Types::Config defaultConfig();
+    GAMEWIP_LOGGER_EXPORT Types::Config defaultConfig();
     /// @brief Builds a low-retained-memory configuration for tools/tests that prefer small buffers.
     /// @return Types::Config tuned for lower queue and arena memory.
-    INTERNAL_LOGGER_API Types::Config lowMemoryConfig();
+    GAMEWIP_LOGGER_EXPORT Types::Config lowMemoryConfig();
     /// @brief Builds a higher-throughput configuration for heavier logging bursts.
     /// @return Types::Config tuned for larger queues and retained scratch reuse.
-    INTERNAL_LOGGER_API Types::Config throughputConfig();
+    GAMEWIP_LOGGER_EXPORT Types::Config throughputConfig();
     /// @brief Starts the logger with defaultConfig().
     /// @return Types::Result from init(defaultConfig()).
-    INTERNAL_LOGGER_API Types::Result initDefault();
+    GAMEWIP_LOGGER_EXPORT Types::Result initDefault();
     /// @brief Starts a console-only logger with a chosen minimum level.
     /// @param minLevel Startup severity floor.
     /// @return Types::Result from init() with Types::Output::Console.
-    INTERNAL_LOGGER_API Types::Result initConsole(Types::Level minLevel = Types::Level::Info);
+    GAMEWIP_LOGGER_EXPORT Types::Result initConsole(Types::Level minLevel = Types::Level::Info);
     /// @brief Starts a file-only logger with a chosen directory and minimum level.
     /// @param directory UTF-8 log directory path. Empty uses the default directory.
     /// @param minLevel Startup severity floor.
     /// @return Types::Result from init() with Types::Output::File.
-    INTERNAL_LOGGER_API Types::Result initFile(std::string_view directory = {}, Types::Level minLevel = Types::Level::Info);
+    GAMEWIP_LOGGER_EXPORT Types::Result initFile(std::string_view directory = {}, Types::Level minLevel = Types::Level::Info);
     /// @brief Stops the worker, drains queued logs, and closes the file sink.
     /// @note Safe to call while producers are still logging, but shutdown does not guarantee delivery for logs submitted after disabled state is
     /// published.
-    INTERNAL_LOGGER_API void shutdown();
+    GAMEWIP_LOGGER_EXPORT void shutdown();
     /// @brief Waits for accepted queued logs to drain and flushes console/file sinks.
     /// @details This public call is serialized with init() and shutdown().
     /// @note Concurrent producers may enqueue after flush() observes the queue as drained; this is not a stop-the-world barrier.
-    INTERNAL_LOGGER_API void flush();
+    GAMEWIP_LOGGER_EXPORT void flush();
     /// @brief Waits for accepted queued logs to drain and flushes console/file sinks until timeout expires.
     /// @param timeout Maximum duration to wait.
     /// @return True when the queue drained and sinks flushed before timeout expired.
     /// @note Concurrent producers may enqueue after flush(timeout) observes the queue as drained; this is not a stop-the-world barrier.
-    INTERNAL_LOGGER_API bool flush(std::chrono::milliseconds timeout);
+    GAMEWIP_LOGGER_EXPORT bool flush(std::chrono::milliseconds timeout);
     /// @}
 
     /// @name Runtime inspection
@@ -565,39 +557,39 @@ namespace GameWIP::Logger
 
     /// @brief Returns true while the worker thread is active and normal logs may be accepted.
     /// @return True after successful init and before shutdown begins.
-    INTERNAL_LOGGER_API bool isRunning();
+    GAMEWIP_LOGGER_EXPORT bool isRunning();
 
     /// @brief Returns the startup severity floor from the active configuration.
     /// @return Current startup minimum level.
-    INTERNAL_LOGGER_API Types::Level getMinLevel();
+    GAMEWIP_LOGGER_EXPORT Types::Level getMinLevel();
     /// @brief Returns the current output mode, including any file-setup fallback to Console.
     /// @return Current output mode.
-    INTERNAL_LOGGER_API Types::Output getOutput();
+    GAMEWIP_LOGGER_EXPORT Types::Output getOutput();
     /// @brief Returns the current log file path as UTF-8, or an empty string when file output is unavailable.
     /// @return Current log file path as UTF-8/narrow text.
-    INTERNAL_LOGGER_API std::string getLogFilePath();
+    GAMEWIP_LOGGER_EXPORT std::string getLogFilePath();
     /// @brief Returns the queue/message limits stored by the logger.
     /// @return Effective limits selected by init(), or default limits before first init().
-    INTERNAL_LOGGER_API Types::QueueLimits getQueueLimits();
+    GAMEWIP_LOGGER_EXPORT Types::QueueLimits getQueueLimits();
 
     /// @brief Returns the lifetime count of logs refused because of queue pressure since init().
     /// @return Soft and hard queue-drop total since init().
-    INTERNAL_LOGGER_API std::size_t getLifetimeDroppedLogCount();
+    GAMEWIP_LOGGER_EXPORT std::size_t getLifetimeDroppedLogCount();
     /// @brief Returns the most recent operation result recorded by the logger.
     /// @return Last logger Types::Result value.
-    INTERNAL_LOGGER_API Types::Result getLastResult();
+    GAMEWIP_LOGGER_EXPORT Types::Result getLastResult();
     /// @brief Returns the most recent native platform error details, if any.
     /// @return Last platform error, or Types::PlatformErrorSource::None when no platform error is recorded.
-    INTERNAL_LOGGER_API Types::PlatformError getLastPlatformError();
+    GAMEWIP_LOGGER_EXPORT Types::PlatformError getLastPlatformError();
 
     /// @brief Returns a relaxed atomic snapshot of visible counters since init or resetStats().
     /// @return Types::Stats snapshot suitable for diagnostics.
-    INTERNAL_LOGGER_API Types::Stats getStats();
+    GAMEWIP_LOGGER_EXPORT Types::Stats getStats();
     /// @brief Returns a cold diagnostic memory snapshot without adding hot-path accounting.
     /// @return Best-effort logger-retained memory plus platform process memory when available.
-    INTERNAL_LOGGER_API Types::MemoryStats getMemoryStats();
+    GAMEWIP_LOGGER_EXPORT Types::MemoryStats getMemoryStats();
     /// @brief Resets visible Types::Stats counters without clearing lifetime queue-drop reporting state.
-    INTERNAL_LOGGER_API void resetStats();
+    GAMEWIP_LOGGER_EXPORT void resetStats();
     /// @}
 
     // Runtime filters -------------------------------------------------------------------------
@@ -607,17 +599,17 @@ namespace GameWIP::Logger
     /// @brief Cheap side-effect-free guard for severity-only string source logs.
     /// @param level Severity to test.
     /// @return True when the logger is running, output is enabled, level is at/above minLevel, and the level is not runtime-filtered.
-    INTERNAL_LOGGER_API bool shouldLog(Types::Level level);
+    GAMEWIP_LOGGER_EXPORT bool shouldLog(Types::Level level);
     /// @brief Cheap side-effect-free guard for string source logs; string sources do not have runtime source filters.
     /// @param level Severity to test.
     /// @param source String source ignored for filtering; accepted to support lazy LOGGER_* macros uniformly.
     /// @return Same result as shouldLog(level).
-    INTERNAL_LOGGER_API bool shouldLog(Types::Level level, std::string_view source);
+    GAMEWIP_LOGGER_EXPORT bool shouldLog(Types::Level level, std::string_view source);
     /// @brief Cheap side-effect-free guard that also checks runtime source filters.
     /// @param level Severity to test.
     /// @param source SourceId to test. Unknown SourceId values are accepted intentionally.
     /// @return True when shouldLog(level) passes and the registered source is enabled or unknown.
-    INTERNAL_LOGGER_API bool shouldLog(Types::Level level, Types::SourceId source);
+    GAMEWIP_LOGGER_EXPORT bool shouldLog(Types::Level level, Types::SourceId source);
 
     /// @brief Cheap guard for enum source logs that also checks runtime source filters.
     /// @param level Severity to test.
@@ -634,25 +626,25 @@ namespace GameWIP::Logger
     /// @param source Registered SourceId to change.
     /// @param enabled True to allow this source, false to filter it out.
     /// @return Success, or InvalidSourceFilter if the source is not registered.
-    INTERNAL_LOGGER_API Types::Result setSourceFilter(Types::SourceId source, bool enabled);
+    GAMEWIP_LOGGER_EXPORT Types::Result setSourceFilter(Types::SourceId source, bool enabled);
     /// @brief Clears one registered source filter by enabling that source.
     /// @param source Registered SourceId to enable.
     /// @return Success, or InvalidSourceFilter if the source is not registered.
-    INTERNAL_LOGGER_API Types::Result clearSourceFilter(Types::SourceId source);
+    GAMEWIP_LOGGER_EXPORT Types::Result clearSourceFilter(Types::SourceId source);
     /// @brief Clears all registered source filters by enabling every registered source.
-    INTERNAL_LOGGER_API void clearSourceFilters();
+    GAMEWIP_LOGGER_EXPORT void clearSourceFilters();
 
     /// @brief Enables or disables one exact severity level at runtime.
     /// @param level Exact severity level to change.
     /// @param enabled True to allow this level, false to filter it out.
     /// @return Success, or InvalidLevelFilter if the level enum value is invalid.
-    INTERNAL_LOGGER_API Types::Result setLevelFilter(Types::Level level, bool enabled);
+    GAMEWIP_LOGGER_EXPORT Types::Result setLevelFilter(Types::Level level, bool enabled);
     /// @brief Clears one exact-level filter by enabling that level.
     /// @param level Exact severity level to enable.
     /// @return Success, or InvalidLevelFilter if the level enum value is invalid.
-    INTERNAL_LOGGER_API Types::Result clearLevelFilter(Types::Level level);
+    GAMEWIP_LOGGER_EXPORT Types::Result clearLevelFilter(Types::Level level);
     /// @brief Clears all exact-level filters by enabling every level.
-    INTERNAL_LOGGER_API void clearLevelFilters();
+    GAMEWIP_LOGGER_EXPORT void clearLevelFilters();
 
     /// @brief Enables or disables one enum source at runtime.
     /// @param source Enum source to change.
@@ -684,12 +676,12 @@ namespace GameWIP::Logger
     /// @param level Severity for this message.
     /// @param source Source text copied into the queue entry.
     /// @param message Message text copied into the queue entry.
-    INTERNAL_LOGGER_API void log(Types::Level level, std::string_view source, std::string_view message);
+    GAMEWIP_LOGGER_EXPORT void log(Types::Level level, std::string_view source, std::string_view message);
     /// @brief Logs a preformatted message with a registered SourceId.
     /// @param level Severity for this message.
     /// @param source Registered SourceId stored in the queue entry.
     /// @param message Message text copied into the queue entry.
-    INTERNAL_LOGGER_API void log(Types::Level level, Types::SourceId source, std::string_view message);
+    GAMEWIP_LOGGER_EXPORT void log(Types::Level level, Types::SourceId source, std::string_view message);
 
     /// @brief Logs a preformatted message with an enum source.
     /// @param level Severity for this message.
@@ -779,11 +771,11 @@ namespace GameWIP::Logger
     /// @brief Logs a Trace message with a string source.
     /// @param source Source text copied into the queue entry.
     /// @param message Message text copied into the queue entry.
-    INTERNAL_LOGGER_API void trace(std::string_view source, std::string_view message);
+    GAMEWIP_LOGGER_EXPORT void trace(std::string_view source, std::string_view message);
     /// @brief Logs a Trace message with a registered SourceId.
     /// @param source Registered SourceId stored in the queue entry.
     /// @param message Message text copied into the queue entry.
-    INTERNAL_LOGGER_API void trace(Types::SourceId source, std::string_view message);
+    GAMEWIP_LOGGER_EXPORT void trace(Types::SourceId source, std::string_view message);
 
     /// @brief Logs a Trace message with an enum source.
     /// @param source Enum source stored as a SourceId in the queue entry.
@@ -798,11 +790,11 @@ namespace GameWIP::Logger
     /// @brief Logs a Debug message with a string source.
     /// @param source Source text copied into the queue entry.
     /// @param message Message text copied into the queue entry.
-    INTERNAL_LOGGER_API void debug(std::string_view source, std::string_view message);
+    GAMEWIP_LOGGER_EXPORT void debug(std::string_view source, std::string_view message);
     /// @brief Logs a Debug message with a registered SourceId.
     /// @param source Registered SourceId stored in the queue entry.
     /// @param message Message text copied into the queue entry.
-    INTERNAL_LOGGER_API void debug(Types::SourceId source, std::string_view message);
+    GAMEWIP_LOGGER_EXPORT void debug(Types::SourceId source, std::string_view message);
 
     /// @brief Logs a Debug message with an enum source.
     /// @param source Enum source stored as a SourceId in the queue entry.
@@ -817,11 +809,11 @@ namespace GameWIP::Logger
     /// @brief Logs an Info message with a string source.
     /// @param source Source text copied into the queue entry.
     /// @param message Message text copied into the queue entry.
-    INTERNAL_LOGGER_API void info(std::string_view source, std::string_view message);
+    GAMEWIP_LOGGER_EXPORT void info(std::string_view source, std::string_view message);
     /// @brief Logs an Info message with a registered SourceId.
     /// @param source Registered SourceId stored in the queue entry.
     /// @param message Message text copied into the queue entry.
-    INTERNAL_LOGGER_API void info(Types::SourceId source, std::string_view message);
+    GAMEWIP_LOGGER_EXPORT void info(Types::SourceId source, std::string_view message);
 
     /// @brief Logs an Info message with an enum source.
     /// @param source Enum source stored as a SourceId in the queue entry.
@@ -836,11 +828,11 @@ namespace GameWIP::Logger
     /// @brief Logs a Warn message with a string source.
     /// @param source Source text copied into the queue entry.
     /// @param message Message text copied into the queue entry.
-    INTERNAL_LOGGER_API void warn(std::string_view source, std::string_view message);
+    GAMEWIP_LOGGER_EXPORT void warn(std::string_view source, std::string_view message);
     /// @brief Logs a Warn message with a registered SourceId.
     /// @param source Registered SourceId stored in the queue entry.
     /// @param message Message text copied into the queue entry.
-    INTERNAL_LOGGER_API void warn(Types::SourceId source, std::string_view message);
+    GAMEWIP_LOGGER_EXPORT void warn(Types::SourceId source, std::string_view message);
 
     /// @brief Logs a Warn message with an enum source.
     /// @param source Enum source stored as a SourceId in the queue entry.
@@ -855,11 +847,11 @@ namespace GameWIP::Logger
     /// @brief Logs an Error message with a string source.
     /// @param source Source text copied into the queue entry.
     /// @param message Message text copied into the queue entry.
-    INTERNAL_LOGGER_API void error(std::string_view source, std::string_view message);
+    GAMEWIP_LOGGER_EXPORT void error(std::string_view source, std::string_view message);
     /// @brief Logs an Error message with a registered SourceId.
     /// @param source Registered SourceId stored in the queue entry.
     /// @param message Message text copied into the queue entry.
-    INTERNAL_LOGGER_API void error(Types::SourceId source, std::string_view message);
+    GAMEWIP_LOGGER_EXPORT void error(Types::SourceId source, std::string_view message);
 
     /// @brief Logs an Error message with an enum source.
     /// @param source Enum source stored as a SourceId in the queue entry.
@@ -874,11 +866,11 @@ namespace GameWIP::Logger
     /// @brief Logs a Fatal message with a string source without forcing a fatal popup.
     /// @param source Source text copied into the queue entry.
     /// @param message Message text copied into the queue entry.
-    INTERNAL_LOGGER_API void fatal(std::string_view source, std::string_view message);
+    GAMEWIP_LOGGER_EXPORT void fatal(std::string_view source, std::string_view message);
     /// @brief Logs a Fatal message with a registered SourceId without forcing a fatal popup.
     /// @param source Registered SourceId stored in the queue entry.
     /// @param message Message text copied into the queue entry.
-    INTERNAL_LOGGER_API void fatal(Types::SourceId source, std::string_view message);
+    GAMEWIP_LOGGER_EXPORT void fatal(Types::SourceId source, std::string_view message);
 
     /// @brief Logs a Fatal message with an enum source without forcing a fatal popup.
     /// @param source Enum source stored as a SourceId in the queue entry.
@@ -1298,31 +1290,31 @@ namespace GameWIP::Logger
     /// @param level Severity to write.
     /// @param source Source text used for the report line.
     /// @param message Message text to write.
-    INTERNAL_LOGGER_API void report(Types::Level level, std::string_view source, std::string_view message);
+    GAMEWIP_LOGGER_EXPORT void report(Types::Level level, std::string_view source, std::string_view message);
     /// @brief Synchronously reports a preformatted diagnostic with a string source and bounded drain/flush.
     /// @return True when the bounded post-report drain/flush completed.
-    INTERNAL_LOGGER_API bool report(Types::Level level, std::string_view source, Types::FlushTimeout timeout, std::string_view message);
+    GAMEWIP_LOGGER_EXPORT bool report(Types::Level level, std::string_view source, Types::FlushTimeout timeout, std::string_view message);
     /// @brief Synchronously reports a preformatted diagnostic with a SourceId and no logger-owned popup.
-    INTERNAL_LOGGER_API void report(Types::Level level, Types::SourceId source, std::string_view message);
+    GAMEWIP_LOGGER_EXPORT void report(Types::Level level, Types::SourceId source, std::string_view message);
     /// @brief Synchronously reports a preformatted diagnostic with a SourceId and bounded drain/flush.
     /// @return True when the bounded post-report drain/flush completed.
-    INTERNAL_LOGGER_API bool report(Types::Level level, Types::SourceId source, Types::FlushTimeout timeout, std::string_view message);
+    GAMEWIP_LOGGER_EXPORT bool report(Types::Level level, Types::SourceId source, Types::FlushTimeout timeout, std::string_view message);
 
     /// @brief Synchronously reports a preformatted diagnostic with explicit popup behavior.
-    INTERNAL_LOGGER_API void report(Types::Level level, std::string_view source, Types::ReportPopup popup, std::string_view message);
+    GAMEWIP_LOGGER_EXPORT void report(Types::Level level, std::string_view source, Types::ReportPopup popup, std::string_view message);
     /// @brief Synchronously reports a preformatted diagnostic with explicit popup behavior and bounded drain/flush.
     /// @return True when the bounded post-report drain/flush completed.
-    INTERNAL_LOGGER_API bool report(
+    GAMEWIP_LOGGER_EXPORT bool report(
         Types::Level level,
         std::string_view source,
         Types::FlushTimeout timeout,
         Types::ReportPopup popup,
         std::string_view message);
     /// @brief Synchronously reports a preformatted diagnostic with a SourceId and explicit popup behavior.
-    INTERNAL_LOGGER_API void report(Types::Level level, Types::SourceId source, Types::ReportPopup popup, std::string_view message);
+    GAMEWIP_LOGGER_EXPORT void report(Types::Level level, Types::SourceId source, Types::ReportPopup popup, std::string_view message);
     /// @brief Synchronously reports a preformatted diagnostic with a SourceId, popup behavior, and bounded drain/flush.
     /// @return True when the bounded post-report drain/flush completed.
-    INTERNAL_LOGGER_API bool report(
+    GAMEWIP_LOGGER_EXPORT bool report(
         Types::Level level,
         Types::SourceId source,
         Types::FlushTimeout timeout,
@@ -1364,24 +1356,24 @@ namespace GameWIP::Logger
     /// @brief Synchronously reports an Error diagnostic, mirrors it to platform debug output, and flushes without showing a fatal popup.
     /// @param source Source text written into the report line and platform debug output line.
     /// @param message Message text written into the report line and platform debug output line.
-    INTERNAL_LOGGER_API void reportError(std::string_view source, std::string_view message);
+    GAMEWIP_LOGGER_EXPORT void reportError(std::string_view source, std::string_view message);
     /// @brief Synchronously reports an Error diagnostic, mirrors it to platform debug output, and waits for a bounded drain/flush.
     /// @param source Source text written into the report line and platform debug output line.
     /// @param timeout Maximum time to wait for the flush.
     /// @param message Message text written into the report line and platform debug output line.
     /// @return True when the bounded flush completed.
-    INTERNAL_LOGGER_API bool reportError(std::string_view source, Types::FlushTimeout timeout, std::string_view message);
+    GAMEWIP_LOGGER_EXPORT bool reportError(std::string_view source, Types::FlushTimeout timeout, std::string_view message);
     /// @brief Synchronously reports an Error diagnostic with a SourceId, mirrors it to platform debug output, and flushes without showing a fatal
     /// popup.
     /// @param source Registered SourceId resolved for the report line and platform debug output.
     /// @param message Message text written into the report line and platform debug output line.
-    INTERNAL_LOGGER_API void reportError(Types::SourceId source, std::string_view message);
+    GAMEWIP_LOGGER_EXPORT void reportError(Types::SourceId source, std::string_view message);
     /// @brief Synchronously reports an Error diagnostic with a SourceId, mirrors it to platform debug output, and waits for a bounded drain/flush.
     /// @param source Registered SourceId resolved for the report line and platform debug output.
     /// @param timeout Maximum time to wait for the flush.
     /// @param message Message text written into the report line and platform debug output line.
     /// @return True when the bounded flush completed.
-    INTERNAL_LOGGER_API bool reportError(Types::SourceId source, Types::FlushTimeout timeout, std::string_view message);
+    GAMEWIP_LOGGER_EXPORT bool reportError(Types::SourceId source, Types::FlushTimeout timeout, std::string_view message);
 
     /// @brief Synchronously reports an Error diagnostic with an enum source, mirrors it to platform debug output, and flushes without showing a fatal
     /// popup.
@@ -1410,26 +1402,26 @@ namespace GameWIP::Logger
     /// @brief Synchronously reports a Fatal diagnostic, mirrors it to platform debug output, flushes, and shows the fatal popup when enabled.
     /// @param source Source text written into the report line and platform debug output line.
     /// @param message Message text written into the report line, platform debug output line, and fatal popup.
-    INTERNAL_LOGGER_API void reportFatal(std::string_view source, std::string_view message);
+    GAMEWIP_LOGGER_EXPORT void reportFatal(std::string_view source, std::string_view message);
     /// @brief Synchronously reports a Fatal diagnostic, mirrors it to platform debug output, waits for a bounded drain/flush, and shows the fatal
     /// popup when enabled.
     /// @param source Source text written into the report line and platform debug output line.
     /// @param timeout Maximum time to wait for the flush.
     /// @param message Message text written into the report line, platform debug output line, and fatal popup.
     /// @return True when the bounded flush completed.
-    INTERNAL_LOGGER_API bool reportFatal(std::string_view source, Types::FlushTimeout timeout, std::string_view message);
+    GAMEWIP_LOGGER_EXPORT bool reportFatal(std::string_view source, Types::FlushTimeout timeout, std::string_view message);
     /// @brief Synchronously reports a Fatal diagnostic with a SourceId, mirrors it to platform debug output, flushes, and shows the fatal popup when
     /// enabled.
     /// @param source Registered SourceId resolved for the report line and platform debug output.
     /// @param message Message text written into the report line, platform debug output line, and fatal popup.
-    INTERNAL_LOGGER_API void reportFatal(Types::SourceId source, std::string_view message);
+    GAMEWIP_LOGGER_EXPORT void reportFatal(Types::SourceId source, std::string_view message);
     /// @brief Synchronously reports a Fatal diagnostic with a SourceId, mirrors it to platform debug output, waits for a bounded drain/flush, and
     /// shows the fatal popup when enabled.
     /// @param source Registered SourceId resolved for the report line and platform debug output.
     /// @param timeout Maximum time to wait for the flush.
     /// @param message Message text written into the report line, platform debug output line, and fatal popup.
     /// @return True when the bounded flush completed.
-    INTERNAL_LOGGER_API bool reportFatal(Types::SourceId source, Types::FlushTimeout timeout, std::string_view message);
+    GAMEWIP_LOGGER_EXPORT bool reportFatal(Types::SourceId source, Types::FlushTimeout timeout, std::string_view message);
 
     /// @brief Synchronously reports a Fatal diagnostic with an enum source, mirrors it to platform debug output, flushes, and shows the fatal popup
     /// when enabled.
@@ -1458,21 +1450,21 @@ namespace GameWIP::Logger
     /// @brief Logs fatal, mirrors to platform debug output, flushes, shows the fatal popup when enabled, then terminates the process.
     /// @param source Source text written into the report line and platform debug output line.
     /// @param message Message text written into the report line and platform debug output line.
-    [[noreturn]] INTERNAL_LOGGER_API void fatalTerminate(std::string_view source, std::string_view message);
+    [[noreturn]] GAMEWIP_LOGGER_EXPORT void fatalTerminate(std::string_view source, std::string_view message);
     /// @brief Logs fatal with a SourceId, mirrors to platform debug output, flushes, shows the fatal popup when enabled, then terminates.
     /// @param source Registered SourceId resolved for the report line and platform debug output.
     /// @param message Message text written into the report line and platform debug output line.
-    [[noreturn]] INTERNAL_LOGGER_API void fatalTerminate(Types::SourceId source, std::string_view message);
+    [[noreturn]] GAMEWIP_LOGGER_EXPORT void fatalTerminate(Types::SourceId source, std::string_view message);
     /// @brief Logs fatal, waits for a bounded flush, shows the fatal popup when enabled, then terminates.
     /// @param source Source text written into the report line and platform debug output line.
     /// @param timeout Maximum flush wait before termination continues.
     /// @param message Message text written into the report line and platform debug output line.
-    [[noreturn]] INTERNAL_LOGGER_API void fatalTerminate(std::string_view source, Types::FlushTimeout timeout, std::string_view message);
+    [[noreturn]] GAMEWIP_LOGGER_EXPORT void fatalTerminate(std::string_view source, Types::FlushTimeout timeout, std::string_view message);
     /// @brief Logs fatal with a SourceId, waits for a bounded flush, shows the fatal popup when enabled, then terminates.
     /// @param source Registered SourceId resolved for the report line and platform debug output.
     /// @param timeout Maximum flush wait before termination continues.
     /// @param message Message text written into the report line and platform debug output line.
-    [[noreturn]] INTERNAL_LOGGER_API void fatalTerminate(Types::SourceId source, Types::FlushTimeout timeout, std::string_view message);
+    [[noreturn]] GAMEWIP_LOGGER_EXPORT void fatalTerminate(Types::SourceId source, Types::FlushTimeout timeout, std::string_view message);
 
     /// @brief Logs fatal with an enum source, flushes, shows the fatal popup when enabled, then terminates.
     /// @param source Enum source stored as a SourceId.
@@ -2172,7 +2164,7 @@ namespace GameWIP::Logger
     /// @param level Severity label to write.
     /// @param source Source text to write.
     /// @param message Message text to write.
-    INTERNAL_LOGGER_API void writeDebugOutput(Types::Level level, std::string_view source, std::string_view message);
+    GAMEWIP_LOGGER_EXPORT void writeDebugOutput(Types::Level level, std::string_view source, std::string_view message);
     /// @}
 
     /// @cond INTERNAL_LOGGER_DETAIL

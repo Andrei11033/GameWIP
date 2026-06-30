@@ -1,6 +1,6 @@
 @page terminal_public_api Terminal public API
 
-Include `terminal/terminal.h` and link `Terminal`.
+Include `terminal/terminal.h` and link `GameWIP::Terminal` from an installed package. The source tree also provides the short `Terminal` target.
 
 Passive options, capabilities, and result shapes live in `GameWIP::Terminal::Types`. Free functions provide direct stdin/stdout/stderr access through paired default-stream and explicit-stream overloads.
 

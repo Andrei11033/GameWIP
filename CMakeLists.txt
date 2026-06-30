@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.20)
+cmake_minimum_required(VERSION 3.23)
 
 project(GameWIP VERSION 0.0.1 LANGUAGES CXX)
 

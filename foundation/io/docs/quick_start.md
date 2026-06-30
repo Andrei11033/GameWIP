@@ -1,6 +1,6 @@
 @page io_quick_start IO quick start
 
-Include the public header and link `IO`.
+Include the public header and link `GameWIP::IO` from an installed package. The source tree also provides the short `IO` target.
 
 ```cpp
 #include "io/io.h"

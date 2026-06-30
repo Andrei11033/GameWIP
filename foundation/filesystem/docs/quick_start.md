@@ -1,6 +1,6 @@
 @page foundation_filesystem_quick_start FileSystem quick start
 
-Include `filesystem/filesystem.h` and link `FileSystem`.
+Include `filesystem/filesystem.h` and link `GameWIP::FileSystem` from an installed package. The source tree also provides the short `FileSystem` target.
 
 Examples use this namespace alias:
 

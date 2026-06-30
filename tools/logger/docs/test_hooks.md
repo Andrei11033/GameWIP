@@ -20,7 +20,6 @@ Hooks make rare paths deterministic:
 - force the next file write failure,
 - force the next fatal popup failure,
 - force a timed flush timeout,
-- override the compiled default log directory while testing default-path APIs,
 - reset hook state after each scenario.
 
 ## Rules
@@ -30,7 +29,6 @@ Hooks make rare paths deterministic:
 - Hook headers are excluded from normal installs.
 - One-shot hooks use `forceNext...` naming.
 - Persistent hooks should use `set...Override` / `clear...Override` naming.
-- The default-directory override is changed only while Logger is stopped and is cleared by the owning test scope.
 - Tests must reset hooks so forced state cannot leak into later scenarios.
 
 ## Installed packages

@@ -361,6 +361,7 @@ File and environment helpers behave predictably and clean up after themselves.
 * [x] Timeout marks `timedOut`.
 * [x] Test-requested termination marks `wasTerminatedByTest`.
 * [x] Nonzero exit codes are reported.
+* [x] Win32 children do not inherit unrelated inheritable parent handles.
 * [x] Child-process support does not pretend to classify portable crash reasons.
 * [x] `Types::ChildProcessResult::exitedSuccessfully()` covers zero exit.
 * [x] `Types::ChildProcessResult::exitedSuccessfully()` covers nonzero exit.
@@ -467,6 +468,10 @@ Security-sensitive symlink policy behavior is validated where the test environme
 * [x] Metadata value queries and read-only mutation behavior are validated.
 * [x] File resize and truncate behavior is validated.
 * [x] Copy, move, and removal behavior is validated.
+* [x] A lock remains valid after its originating file owner is destroyed.
+* [x] Tree removal with a zero limit removes nothing and reports `SizeLimitExceeded`.
+* [x] Tree removal reports partial progress at an exact limit.
+* [x] High-fanout tree removal respects its limit without collecting all sibling paths.
 * [x] UTF-8 path conversion behavior is validated with non-ASCII paths.
 * [x] FileSystem package/install behavior is validated.
 * [x] FileSystem generated Doxygen output is inspected after the full runtime surface is implemented.
@@ -487,7 +492,10 @@ FileSystem validation should expand with the implementation so the full public c
 * [x] Assert tests run through the current test executable.
 * [x] TestSupport tests run through the current test executable.
 * [x] Terminal tests run through a shared Terminal runtime.
-* [x] Installed Terminal, Logger, Assert, and TestSupport packages configure, build, and run in a standalone consumer.
+* [x] Installed IO, FileSystem, Terminal, Logger, Assert, and TestSupport packages configure, build, and run in a standalone consumer.
+* [x] The installed consumer uses exact versions, canonical targets, and only installed public headers.
+* [x] Every public entry header compiles independently.
+* [x] Terminal, Logger, and Assert exports match reviewed symbol-root allowlists.
 * [x] Project executables receive the shared Terminal runtime beside the executable.
 * [x] Logger integration tests observe the same Terminal hook state as direct Terminal calls.
 * [x] FileSystem tests can use generic TestSupport helpers.
@@ -575,8 +583,9 @@ Windows backend behavior follows the explicit Unicode boundary rule and remains 
 * [x] If `gcovr` is missing, the `coverage` target fails with a clear installation message.
 * [x] If `gcovr` is missing, the `coverage` target does not silently disappear.
 * [x] Coverage reports are reviewed after hook-forced tests are added.
-* [x] Coverage generation tolerates known gcov negative-hit warnings.
-* [x] Coverage generation still writes HTML/XML reports when known negative-hit warnings occur.
+* [x] Parallel GCC coverage runs update profile counters atomically.
+* [x] Corrupt or negative profile data fails coverage report generation.
+* [x] GitHub validation uploads generated HTML/XML coverage reports.
 
 Completion goal:
 

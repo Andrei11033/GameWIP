@@ -1,6 +1,6 @@
 @page io_public_api IO public API
 
-Include `io/io.h` and link `IO`.
+Include `io/io.h` and link `GameWIP::IO` from an installed package. The source tree also provides the short `IO` target.
 
 ## Contract selection
 

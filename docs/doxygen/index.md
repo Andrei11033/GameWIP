@@ -17,6 +17,7 @@ This site separates reusable library manuals from GameWIP project integration. L
 ## Project build and integration
 
 - @subpage library_build
+- @subpage library_compatibility
 - @subpage project_validation
 
 ## Project quality workflows

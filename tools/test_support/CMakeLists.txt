@@ -7,9 +7,16 @@ if(NOT COMMAND library_target_platform_sources)
 endif()
 
 add_library(TestSupport STATIC)
+add_library(GameWIP::TestSupport ALIAS TestSupport)
 
-target_sources(TestSupport PRIVATE
-    core/test_support.cpp
+target_sources(TestSupport
+    PRIVATE
+        core/test_support.cpp
+    PUBLIC
+        FILE_SET public_headers
+        TYPE HEADERS
+        BASE_DIRS "${PROJECT_SOURCE_DIR}/tools"
+        FILES "${CMAKE_CURRENT_SOURCE_DIR}/test_support.h"
 )
 
 library_target_platform_sources(TestSupport TestSupport "${CMAKE_CURRENT_SOURCE_DIR}/platform")
@@ -41,11 +48,7 @@ endif()
 install(TARGETS TestSupport
     EXPORT TestSupportTargets
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-)
-
-install(FILES
-    "${CMAKE_CURRENT_SOURCE_DIR}/test_support.h"
-    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/test_support
+    FILE_SET public_headers DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
 )
 
 configure_package_config_file(
@@ -57,11 +60,12 @@ configure_package_config_file(
 write_basic_package_version_file(
     "${CMAKE_CURRENT_BINARY_DIR}/TestSupportConfigVersion.cmake"
     VERSION ${PROJECT_VERSION}
-    COMPATIBILITY SameMajorVersion
+    COMPATIBILITY ExactVersion
 )
 
 install(EXPORT TestSupportTargets
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/TestSupport
+    NAMESPACE GameWIP::
 )
 
 install(FILES

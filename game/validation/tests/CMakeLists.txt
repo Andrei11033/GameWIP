@@ -16,6 +16,46 @@ if(GAMEWIP_BUILD_TESTS)
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
     )
     gamewip_copy_runtime_dependencies(GameWIPTests)
+
+    add_test(NAME validation.packages.installed_consumer
+        COMMAND ${CMAKE_COMMAND}
+            "-DPROJECT_BUILD_DIR=${CMAKE_BINARY_DIR}"
+            "-DPROJECT_SOURCE_DIR=${PROJECT_SOURCE_DIR}"
+            "-DINSTALL_PREFIX=${CMAKE_BINARY_DIR}/installed-consumer/prefix"
+            "-DCONSUMER_SOURCE_DIR=${PROJECT_SOURCE_DIR}/game/validation/installed_consumer"
+            "-DCONSUMER_BUILD_DIR=${CMAKE_BINARY_DIR}/installed-consumer/build"
+            "-DGENERATOR=${CMAKE_GENERATOR}"
+            "-DBUILD_TYPE=${CMAKE_BUILD_TYPE}"
+            "-DPACKAGE_VERSION=${PROJECT_VERSION}"
+            "-DMULTI_CONFIG=$<BOOL:${CMAKE_CONFIGURATION_TYPES}>"
+            "-DCXX_COMPILER=${CMAKE_CXX_COMPILER}"
+            "-DCOVERAGE_ENABLED=${GAMEWIP_ENABLE_COVERAGE}"
+            "-DEXECUTABLE_SUFFIX=${CMAKE_EXECUTABLE_SUFFIX}"
+            -P "${PROJECT_SOURCE_DIR}/cmake/RunInstalledConsumerValidation.cmake"
+    )
+    set_tests_properties(validation.packages.installed_consumer PROPERTIES
+        LABELS "validation;packages"
+        RUN_SERIAL TRUE
+    )
+
+    function(gamewip_add_export_validation library allowlist allow_test_hooks)
+        add_test(NAME "validation.exports.${library}"
+            COMMAND ${CMAKE_COMMAND}
+                "-DNM=${CMAKE_NM}"
+                "-DLIBRARY_FILE=$<TARGET_LINKER_FILE:${library}>"
+                "-DALLOWLIST_FILE=${PROJECT_SOURCE_DIR}/cmake/export_allowlists/${allowlist}"
+                "-DALLOW_TEST_HOOKS=${allow_test_hooks}"
+                -P "${PROJECT_SOURCE_DIR}/cmake/ValidateExportedSymbols.cmake"
+        )
+        set_tests_properties("validation.exports.${library}" PROPERTIES LABELS "validation;exports")
+    endfunction()
+
+    gamewip_add_export_validation(Terminal terminal.txt "${TERMINAL_ENABLE_TEST_HOOKS}")
+    gamewip_add_export_validation(Logger logger.txt "${LOGGER_ENABLE_TEST_HOOKS}")
+    get_target_property(assert_target_type Assert TYPE)
+    if(NOT assert_target_type STREQUAL "INTERFACE_LIBRARY")
+        gamewip_add_export_validation(Assert assert.txt "${ASSERT_ENABLE_TEST_HOOKS}")
+    endif()
 endif()
 
 gamewip_add_validation_module_directories("${CMAKE_CURRENT_SOURCE_DIR}")

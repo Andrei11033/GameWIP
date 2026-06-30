@@ -1,6 +1,6 @@
 @page test_support_public_api TestSupport public API
 
-Include `test_support/test_support.h`. TestSupport remains independent of every project library, including IO, FileSystem, Terminal, Logger, Assert, engine, and game code. It uses the standard library and its own platform backend instead.
+Include `test_support/test_support.h` and link `GameWIP::TestSupport` from an installed package. The source tree also provides the short `TestSupport` target. TestSupport remains independent of every project library, including IO, FileSystem, Terminal, Logger, Assert, engine, and game code. It uses the standard library and its own platform backend instead.
 
 Passive options and results live in `GameWIP::TestSupport::Types`; active helpers live directly in `GameWIP::TestSupport`.
 
@@ -30,7 +30,7 @@ Scoped environment helpers restore the previous process state on destruction. En
 
 Child-process capture retains at most `maxCapturedOutputBytes` while continuing to drain excess output. A zero limit retains nothing. `outputTruncated` reports discarded bytes; disabling capture leaves output empty and ignores the limit.
 
-On Win32, the child process tree is assigned to a kill-on-close Job Object so timeouts and lingering descendants cannot keep inherited capture handles open.
+On Win32, an explicit inheritance list exposes only the selected standard handles. The child process tree is assigned to a kill-on-close Job Object so timeouts and lingering descendants cannot keep capture handles open.
 
 ## Timing and stress helpers
 

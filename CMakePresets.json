@@ -129,6 +129,7 @@
       "displayName": "Repository static analysis",
       "inherits": "validation",
       "cacheVariables": {
+        "CMAKE_CXX_COMPILER": "clang++",
         "GAMEWIP_ENABLE_STATIC_ANALYSIS": "ON"
       }
     },

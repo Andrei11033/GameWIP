@@ -1,6 +1,6 @@
 @page foundation_filesystem_public_api FileSystem public API
 
-Include `filesystem/filesystem.h` and link `FileSystem`.
+Include `filesystem/filesystem.h` and link `GameWIP::FileSystem` from an installed package. The source tree also provides the short `FileSystem` target.
 
 Passive values, options, and results live in `GameWIP::FileSystem::Types`. Active resource owners and free operations live directly in `GameWIP::FileSystem`.
 
@@ -52,7 +52,7 @@ See @ref foundation_filesystem_directory_operations for the detailed directory c
 
 ## Copy and move
 
-`copyFile()` copies one regular file. It can optionally copy portable basic metadata and flush the destination.
+`copyFile()` copies one regular file. It can optionally copy portable basic metadata and flush the destination. The operation is not atomic: after destination creation or truncation, a later read, write, flush, close, or metadata failure may leave a partial destination.
 
 `movePath()` performs one native rename or move. Cross-volume moves return `MoveFailed`; FileSystem does not silently copy and delete.
 
