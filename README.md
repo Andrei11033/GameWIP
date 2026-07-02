@@ -7,7 +7,7 @@ The repository currently emphasizes reusable foundation libraries, Windows platf
 ## Toolchain
 
 - Windows and MSYS2 UCRT64 GCC
-- CMake 3.20 or newer
+- CMake 3.23 or newer
 - Ninja
 - Git submodules
 

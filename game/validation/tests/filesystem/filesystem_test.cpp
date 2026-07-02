@@ -4,6 +4,7 @@
 #include "validation/tests/filesystem/filesystem_test.h"
 
 #include "filesystem/filesystem.h"
+#include "filesystem/internal/filesystem_platform.h"
 #include "test_support/test_support.h"
 
 #include <chrono>
@@ -582,6 +583,43 @@ namespace
             acquiredAfterDetachedUnlock.outcome));
         static_cast<void>(context.expectTrue("detached competitor unlock succeeds", acquiredAfterDetachedUnlock.lock.unlock().ok()));
         static_cast<void>(context.expectTrue("detached competitor closes", detachedCompetitor.close().ok()));
+
+#if INTERNAL_FILESYSTEM_TEST_HOOKS
+        const std::filesystem::path failedUnlockFile = root / "atomic-locks" / "failed-unlock.txt";
+        static_cast<void>(context.expectTrue("failed-unlock file write succeeds", FileSystem::writeAllText(failedUnlockFile, "lock").status.ok()));
+
+        FileSystem::File failedUnlockOwner;
+        FileSystem::File failedUnlockCompetitor;
+        static_cast<void>(context.expectTrue("failed-unlock owner opens", failedUnlockOwner.open(failedUnlockFile).ok()));
+        static_cast<void>(context.expectTrue("failed-unlock competitor opens", failedUnlockCompetitor.open(failedUnlockFile).ok()));
+
+        {
+            auto failedUnlockLock = failedUnlockOwner.tryLockExclusive();
+            static_cast<void>(
+                context.expectEq("failed-unlock owner acquires lock", FileSystem::Types::LockOutcome::Acquired, failedUnlockLock.outcome));
+
+            auto blockedBeforeCleanup = failedUnlockCompetitor.tryLockExclusive();
+            static_cast<void>(context.expectEq(
+                "failed-unlock competitor initially blocks",
+                FileSystem::Types::LockOutcome::WouldBlock,
+                blockedBeforeCleanup.outcome));
+
+            FileSystem::Detail::Platform::TestHooks::setFileUnlockFailure(true);
+            FileSystem::FileLock lockDestroyedDuringFailure = std::move(failedUnlockLock.lock);
+            static_cast<void>(context.expectTrue("failed-unlock injected lock remains active", lockDestroyedDuringFailure.active()));
+        }
+        FileSystem::Detail::Platform::TestHooks::reset();
+
+        static_cast<void>(context.expectTrue("failed-unlock owner count clears after lock destruction", failedUnlockOwner.close().ok()));
+        auto acquiredAfterFailedUnlockCleanup = failedUnlockCompetitor.tryLockExclusive();
+        static_cast<void>(context.expectEq(
+            "closing owner releases native lock after failed lock cleanup",
+            FileSystem::Types::LockOutcome::Acquired,
+            acquiredAfterFailedUnlockCleanup.outcome));
+        static_cast<void>(
+            context.expectTrue("failed-unlock competitor releases recovered lock", acquiredAfterFailedUnlockCleanup.lock.unlock().ok()));
+        static_cast<void>(context.expectTrue("failed-unlock competitor closes", failedUnlockCompetitor.close().ok()));
+#endif
     }
 } // namespace
 

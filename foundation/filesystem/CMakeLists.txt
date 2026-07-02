@@ -1,6 +1,8 @@
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 
+option(FILESYSTEM_ENABLE_TEST_HOOKS "Enable FileSystem internal test hooks" OFF)
+
 if(NOT COMMAND library_target_platform_sources)
     include("${PROJECT_SOURCE_DIR}/cmake/LibraryPlatform.cmake")
     library_resolve_platform_id(LIBRARY_PLATFORM_ID)
@@ -27,6 +29,12 @@ target_include_directories(FileSystem PUBLIC
 )
 
 target_compile_features(FileSystem PUBLIC cxx_std_23)
+target_compile_definitions(FileSystem
+    PRIVATE
+        INTERNAL_FILESYSTEM_TEST_HOOKS=$<BOOL:${FILESYSTEM_ENABLE_TEST_HOOKS}>
+    INTERFACE
+        $<BUILD_INTERFACE:INTERNAL_FILESYSTEM_TEST_HOOKS=$<BOOL:${FILESYSTEM_ENABLE_TEST_HOOKS}>>
+)
 
 target_link_libraries(FileSystem PUBLIC
     IO

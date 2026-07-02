@@ -461,6 +461,7 @@ Security-sensitive symlink policy behavior is validated where the test environme
 
 * [x] Persistent file handle open, close, read, write, flush, seek, and size behavior is validated.
 * [x] File lock acquisition, would-block behavior, and unlock behavior are validated.
+* [x] File lock destruction clears ownership after native unlock failure so the originating file can close and release the native lock.
 * [x] Whole-file read helpers are validated.
 * [x] Whole-file write and append helpers are validated.
 * [x] Atomic write commit, replacement, cleanup, and failure behavior is validated.

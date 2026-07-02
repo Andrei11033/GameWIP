@@ -9,6 +9,10 @@
 #include <memory>
 #include <vector>
 
+#ifndef INTERNAL_FILESYSTEM_TEST_HOOKS
+#define INTERNAL_FILESYSTEM_TEST_HOOKS 0
+#endif
+
 namespace GameWIP::FileSystem::Detail
 {
     /// @brief Platform-owned native file handle state used by File, FileReader, and FileWriter.
@@ -69,6 +73,16 @@ namespace GameWIP::FileSystem::Detail
 
 namespace GameWIP::FileSystem::Detail::Platform
 {
+#if INTERNAL_FILESYSTEM_TEST_HOOKS
+    namespace TestHooks
+    {
+        /// Forces native file-lock release attempts to fail until disabled.
+        void setFileUnlockFailure(bool enabled) noexcept;
+        /// Restores FileSystem platform test hooks to their default state.
+        void reset() noexcept;
+    } // namespace TestHooks
+#endif
+
     /// @brief Result returned by backend entry metadata queries.
     struct EntryQueryResult
     {

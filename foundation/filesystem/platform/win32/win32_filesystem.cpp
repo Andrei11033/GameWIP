@@ -13,6 +13,7 @@
 #include <winternl.h>
 
 #include <algorithm>
+#include <atomic>
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
@@ -41,6 +42,11 @@ namespace GameWIP::FileSystem::Detail::Platform
         constexpr ULONG kOpenOptionsBase = FILE_SYNCHRONOUS_IO_NONALERT | FILE_OPEN_FOR_BACKUP_INTENT;
         /// @brief Tick offset from the Windows 1601 epoch to the Unix 1970 epoch.
         constexpr std::int64_t kUnixEpochAsWindowsFileTime = 116'444'736'000'000'000LL;
+
+#if INTERNAL_FILESYSTEM_TEST_HOOKS
+        /// Persistent failure injection used to validate destructor cleanup after UnlockFileEx failure.
+        std::atomic_bool forceFileUnlockFailure = false;
+#endif
 
         using NtCreateFileFunction =
             NTSTATUS(NTAPI *)(PHANDLE, ACCESS_MASK, POBJECT_ATTRIBUTES, PIO_STATUS_BLOCK, PLARGE_INTEGER, ULONG, ULONG, ULONG, ULONG, PVOID, ULONG);
@@ -1494,6 +1500,13 @@ namespace GameWIP::FileSystem::Detail::Platform
                 return IO::successStatus();
             }
 
+#if INTERNAL_FILESYSTEM_TEST_HOOKS
+            if (forceFileUnlockFailure.load(std::memory_order_acquire))
+            {
+                return IO::makeStatus(ErrorCode::UnlockFailed);
+            }
+#endif
+
             OVERLAPPED overlapped{};
             if (UnlockFileEx(nativeHandle(state), 0, MAXDWORD, MAXDWORD, &overlapped) == FALSE)
             {
@@ -2907,6 +2920,21 @@ namespace GameWIP::FileSystem::Detail::Platform
             return {.status = IO::makeStatus(ErrorCode::Unknown), .value = false};
         }
     }
+
+#if INTERNAL_FILESYSTEM_TEST_HOOKS
+    namespace TestHooks
+    {
+        void setFileUnlockFailure(bool enabled) noexcept
+        {
+            forceFileUnlockFailure.store(enabled, std::memory_order_release);
+        }
+
+        void reset() noexcept
+        {
+            forceFileUnlockFailure.store(false, std::memory_order_release);
+        }
+    } // namespace TestHooks
+#endif
 } // namespace GameWIP::FileSystem::Detail::Platform
 
 namespace GameWIP::FileSystem::Detail
@@ -2940,21 +2968,24 @@ namespace GameWIP::FileSystem::Detail
     {
         if (active && isValidNativeHandle(nativeHandle))
         {
-            OVERLAPPED overlapped{};
-            if (UnlockFileEx(static_cast<HANDLE>(nativeHandle), 0, MAXDWORD, MAXDWORD, &overlapped) != FALSE)
-            {
-                active = false;
-                if (activeLocks && *activeLocks > 0)
-                {
-                    --(*activeLocks);
-                }
-            }
+            static_cast<void>(Platform::unlockFile(*this));
         }
 
         if (isValidNativeHandle(nativeHandle))
         {
-            static_cast<void>(CloseHandle(static_cast<HANDLE>(nativeHandle)));
-            nativeHandle = nullptr;
+            const bool closed = CloseHandle(static_cast<HANDLE>(nativeHandle)) != FALSE;
+            if (closed)
+            {
+                nativeHandle = nullptr;
+                if (active)
+                {
+                    active = false;
+                    if (activeLocks && *activeLocks > 0)
+                    {
+                        --(*activeLocks);
+                    }
+                }
+            }
         }
     }
 

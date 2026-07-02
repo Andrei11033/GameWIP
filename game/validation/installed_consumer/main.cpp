@@ -1,3 +1,8 @@
+#if defined(INTERNAL_FILESYSTEM_TEST_HOOKS) || defined(INTERNAL_TERMINAL_TEST_HOOKS) || defined(INTERNAL_LOGGER_TEST_HOOKS) || \
+    defined(INTERNAL_ASSERT_TEST_HOOKS)
+#error "Installed GameWIP targets must not expose internal test-hook compile definitions."
+#endif
+
 #include "debug/assert/assert.h"
 #include "filesystem/filesystem.h"
 #include "io/io.h"
