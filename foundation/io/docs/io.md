@@ -14,7 +14,7 @@ It defines shared reader, writer, status, error, and whole-stream helper APIs fo
 - @subpage io_examples
 - @subpage io_troubleshooting
 
-## Developer validation
+## Maintainer validation
 
 - @subpage io_testing
 

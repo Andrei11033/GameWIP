@@ -111,4 +111,4 @@ An invalid report path disables only file reporting. An invalid registration, un
 - `coverage`: standalone tests with coverage instrumentation.
 - `docs`: Doxygen only.
 
-See @ref library_testing and @ref project_benchmarking for module standards and commands.
+See @ref project_testing and @ref project_benchmarking for module standards and commands.

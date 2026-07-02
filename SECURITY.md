@@ -13,7 +13,7 @@ Security fixes are handled on the current default branch:
 
 ## Reporting a Vulnerability
 
-Report security vulnerabilities in public issues and discussions, or privately to the repository owner or through GitHub private vulnerability reporting.
+Do not report security vulnerabilities in public issues or discussions. Report them privately to the repository owner or through GitHub private vulnerability reporting.
 
 Please include:
 

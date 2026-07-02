@@ -91,7 +91,7 @@ Constructing a non-empty diagnostic message may allocate. Code-only statuses avo
 
 `Status::ok()` returns true only for `ErrorCode::Success`.
 
-`nativeCode` carries backend-native error data when a concrete backend has such data. IO itself has no platform backend in v1, but FileSystem and Terminal may return native error details through the shared status shape.
+`nativeCode` carries backend-native error data when a concrete backend has such data. IO itself has no platform backend, but FileSystem and Terminal may return native error details through the shared status shape.
 
 Expected I/O failures return `Status` rather than throwing.
 

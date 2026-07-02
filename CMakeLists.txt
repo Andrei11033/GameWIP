@@ -17,7 +17,7 @@ include(GameWIPCoverage)
 include(GameWIPDocumentation)
 include(GameWIPStaticAnalysis)
 
-library_resolve_platform_id(LIBRARY_PLATFORM_ID)
+gamewip_resolve_platform_id(GAMEWIP_PLATFORM_ID)
 
 if(GAMEWIP_BUILD_TESTS)
     enable_testing()

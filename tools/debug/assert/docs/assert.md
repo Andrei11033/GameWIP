@@ -16,7 +16,7 @@ The assert library reports through the Logger library. Fatal assertion paths use
 - @subpage assert_examples
 - @subpage assert_troubleshooting
 
-## Developer validation
+## Maintainer validation
 
 - @subpage assert_testing
 - @subpage assert_test_hooks

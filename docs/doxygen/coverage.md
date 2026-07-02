@@ -1,4 +1,4 @@
-@page library_coverage Coverage workflow
+@page project_coverage Coverage workflow
 
 Coverage is an opt-in validation build. It is separate from runtime test selection and requires standalone tests.
 

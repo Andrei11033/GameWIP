@@ -19,6 +19,8 @@ git submodule update --init --recursive
 
 Make sure `C:\MSYS2\ucrt64\bin` appears before other MinGW environments on `PATH` when configuring.
 
+VS Code users can open `GameWIP.code-workspace` for the shared UCRT64 formatting and task configuration.
+
 ## Development
 
 The development preset builds the game and runs modular correctness tests at startup:
@@ -87,13 +89,15 @@ Generated HTML starts at `build-docs/docs/doxygen/html/index.html`.
 
 Project references:
 
-- [Vision](docs/vision.txt)
-- [Roadmap](docs/roadmap.txt)
-- [Architecture decisions](docs/decisions.txt)
+- [Project structure](docs/doxygen/project_structure.md)
+- [Extending the project](docs/doxygen/extending.md)
+- [Vision](docs/vision.md)
+- [Roadmap](docs/roadmap.md)
+- [Architecture decisions](docs/decisions.md)
 - [Contribution workflow](docs/contributing.md)
-- [Implementation checklist](docs/implementation_checklist.txt)
-- [Testing checklist](docs/testing_checklist.txt)
-- [Platform backend contract](docs/platform_backend_contract.txt)
+- [Implementation checklist](docs/implementation_checklist.md)
+- [Testing checklist](docs/testing_checklist.md)
+- [Platform backend contract](docs/platform_backend_contract.md)
 - [Static analysis standard](docs/doxygen/static_analysis.md)
 - [Repository automation](docs/doxygen/repository_automation.md)
 

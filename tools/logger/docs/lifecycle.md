@@ -69,7 +69,7 @@ GameWIP::Logger::shutdown();
 - Producer threads should be stopped before final shutdown when possible.
 - Calls before init or after shutdown should not be treated as guaranteed persistent logging.
 - `flush(timeout)` can return false when producers keep adding work or sinks cannot finish before the bounded wait.
-- Repeated init/shutdown cycles should reset runtime state, filters, queue storage, and test-hook state according to the active build.
+- Repeated init/shutdown cycles reset runtime state, filters, and queue storage according to the active configuration.
 
 ## Related pages
 

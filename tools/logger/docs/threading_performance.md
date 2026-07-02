@@ -34,7 +34,7 @@ Use this checklist when reviewing changes:
 - Passing through filters should not allocate unnecessarily.
 - Direct formatted API calls may evaluate arguments before the logger checks filters.
 - Queue drop logic should not count filtered messages as drops.
-- Coverage and test-hook builds should not be used as final performance baselines.
+- Instrumented validation builds should not be used as final performance baselines.
 - Review long-message behavior with the active `FormatPolicy`; the bounded policy reduces peak memory, while the fast-normal policy favors common-case formatting speed.
 - Keep FileSystem/Terminal work on the worker or synchronous report path so the normal producer path does not gain I/O overhead.
 

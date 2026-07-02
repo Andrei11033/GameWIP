@@ -10,10 +10,10 @@ The goal of this roadmap is to reach a complete single-player V1: a playable san
 
 This file is not the implementation proof checklist and not the testing proof checklist.
 
-* Use `implementation_checklist.txt` to track what has already been implemented.
-* Use `testing_checklist.txt` to track what must be proven by tests.
-* Use `decisions.txt` for stable architecture and project decisions.
-* Use `vision.txt` for the high-level identity of the game.
+* Use `implementation_checklist.md` to track what has already been implemented.
+* Use `testing_checklist.md` to track what must be proven by tests.
+* Use `decisions.md` for stable architecture and project decisions.
+* Use `vision.md` for the high-level identity of the game.
 
 ---
 
@@ -1148,9 +1148,9 @@ When adding new roadmap work:
 1. Add it to the closest existing phase.
 2. Use a stable roadmap ID.
 3. Keep each milestone focused on one clear outcome.
-4. Put detailed proof requirements in `testing_checklist.txt`.
-5. Put implementation progress in `implementation_checklist.txt`.
-6. Put architectural decisions in `decisions.txt`.
+4. Put detailed proof requirements in `testing_checklist.md`.
+5. Put implementation progress in `implementation_checklist.md`.
+6. Put architectural decisions in `decisions.md`.
 7. Avoid adding tiny temporary tasks unless they are needed to define the milestone.
 8. Add a short completion goal for every new milestone.
 9. Do not move multiplayer into V1 unless V1 scope is intentionally changed.

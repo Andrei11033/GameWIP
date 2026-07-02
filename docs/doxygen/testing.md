@@ -1,4 +1,4 @@
-@page library_testing Correctness testing
+@page project_testing Correctness testing
 
 Correctness tests answer whether behavior is right. They must not contain benchmark loops, timing thresholds, or performance-regression policy.
 

@@ -1,9 +1,9 @@
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 
-if(NOT COMMAND library_target_platform_sources)
+if(NOT COMMAND gamewip_target_platform_sources)
     include("${PROJECT_SOURCE_DIR}/cmake/LibraryPlatform.cmake")
-    library_resolve_platform_id(LIBRARY_PLATFORM_ID)
+    gamewip_resolve_platform_id(GAMEWIP_PLATFORM_ID)
 endif()
 
 add_library(TestSupport STATIC)
@@ -19,7 +19,7 @@ target_sources(TestSupport
         FILES "${CMAKE_CURRENT_SOURCE_DIR}/test_support.h"
 )
 
-library_target_platform_sources(TestSupport TestSupport "${CMAKE_CURRENT_SOURCE_DIR}/platform")
+gamewip_target_platform_sources(TestSupport TestSupport "${CMAKE_CURRENT_SOURCE_DIR}/platform")
 
 target_include_directories(TestSupport PUBLIC
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/tools>
@@ -32,10 +32,10 @@ set_target_properties(TestSupport PROPERTIES
     ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
 )
 
-if(GAMEWIP_BUILD_DOCS AND COMMAND library_register_doxygen_library)
+if(GAMEWIP_BUILD_DOCS AND COMMAND gamewip_register_doxygen_library)
     # TestSupport owns its public API docs and Markdown manual pages. The root docs
     # target merges this into the unified library Doxygen site.
-    library_register_doxygen_library(
+    gamewip_register_doxygen_library(
         NAME TestSupport
         PAGE_ID test_support
         PUBLIC_HEADERS

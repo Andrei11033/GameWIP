@@ -11,7 +11,7 @@ The goal is to combine simple, fast building with deeper optional engineering. A
 GameWIP is built around five core ideas:
 
 * **Simple base building**
-  Building should feel approachable and fast, similar in spirit to Stormworks.
+  Building should feel approachable and fast, similar in spirit to Stormworks and Starbase.
 
 * **Optional engineering depth**
   Advanced configuration should exist for important systems, but it should not be required for basic building.
@@ -71,23 +71,13 @@ These principles guide technical and design decisions:
 6. **Debuggability matters**
    Early rendering, overlays, logs, assertions, and tests are part of the development foundation, not optional polish.
 
-## Early Non-Goals
-
-These are not priorities for the first versions:
-
-* full graphics polish before simulation foundations;
-* multiplayer before the core simulation works;
-* advanced component editing for every single part;
-* realism that makes normal building too slow or frustrating;
-* large gameplay systems before physics, structures, and components are reliable.
-
 ## How to Extend This File
 
 When adding to this vision document:
 
 * keep it high-level;
 * avoid implementation details unless they affect the identity of the game;
-* move technical decisions to `decisions.txt`;
-* move step-by-step work items to `roadmap.txt`;
-* move validation requirements to `testing_checklist.txt`;
+* move technical decisions to `decisions.md`;
+* move step-by-step work items to `roadmap.md`;
+* move validation requirements to `testing_checklist.md`;
 * prefer short principles over long explanations.

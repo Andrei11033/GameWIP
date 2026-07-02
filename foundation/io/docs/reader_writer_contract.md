@@ -126,7 +126,7 @@ IO intentionally has no `open()` function because it does not know which resourc
 
 ## Non-goals
 
-The v1 IO contract does not provide:
+The IO contract does not provide:
 
 - operating-system file access;
 - terminal output;

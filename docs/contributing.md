@@ -4,7 +4,7 @@
 
 This file defines the normal repository workflow for issues, branches, pull requests, validation notes, and merge messages.
 
-Use this file for day-to-day GitHub process. Use `docs/decisions.txt` for stable architecture, tooling, naming, and commit-message decisions.
+Use this file for day-to-day GitHub process. Use `docs/decisions.md` for stable architecture, tooling, naming, and commit-message decisions.
 
 ---
 
@@ -160,7 +160,7 @@ It performs:
 
 The `Doxygen Docs` workflow publishes GitHub Pages only from `master` or manual dispatch. Pull requests build docs for validation but do not publish them.
 
-After these workflows exist on `master`, branch protection should require:
+Branch protection for `master` must require:
 
 ```text
 PR Standards / Check PR Standards
@@ -195,7 +195,7 @@ After a PR is merged, delete the feature branch unless more work will continue o
 
 ## Squash Commit Messages
 
-Squash commit messages must follow the standard in `docs/decisions.txt`:
+Squash commit messages must follow the standard in `docs/decisions.md`:
 
 ```text
 area: imperative summary

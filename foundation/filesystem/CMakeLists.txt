@@ -3,9 +3,9 @@ include(CMakePackageConfigHelpers)
 
 option(FILESYSTEM_ENABLE_TEST_HOOKS "Enable FileSystem internal test hooks" OFF)
 
-if(NOT COMMAND library_target_platform_sources)
+if(NOT COMMAND gamewip_target_platform_sources)
     include("${PROJECT_SOURCE_DIR}/cmake/LibraryPlatform.cmake")
-    library_resolve_platform_id(LIBRARY_PLATFORM_ID)
+    gamewip_resolve_platform_id(GAMEWIP_PLATFORM_ID)
 endif()
 
 add_library(FileSystem STATIC)
@@ -21,7 +21,7 @@ target_sources(FileSystem
         FILES "${CMAKE_CURRENT_SOURCE_DIR}/filesystem.h"
 )
 
-library_target_platform_sources(FileSystem FileSystem "${CMAKE_CURRENT_SOURCE_DIR}/platform")
+gamewip_target_platform_sources(FileSystem FileSystem "${CMAKE_CURRENT_SOURCE_DIR}/platform")
 
 target_include_directories(FileSystem PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/..>
@@ -45,8 +45,8 @@ set_target_properties(FileSystem PROPERTIES
     ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
 )
 
-if(GAMEWIP_BUILD_DOCS AND COMMAND library_register_doxygen_library)
-    library_register_doxygen_library(
+if(GAMEWIP_BUILD_DOCS AND COMMAND gamewip_register_doxygen_library)
+    gamewip_register_doxygen_library(
         NAME FileSystem
         PAGE_ID foundation_filesystem
         PUBLIC_HEADERS

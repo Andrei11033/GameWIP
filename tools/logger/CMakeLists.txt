@@ -2,9 +2,9 @@ option(LOGGER_ENABLE_TEST_HOOKS "Enable Logger internal test hooks" OFF)
 
 include(GenerateExportHeader)
 
-if(NOT COMMAND library_target_platform_sources)
+if(NOT COMMAND gamewip_target_platform_sources)
     include("${PROJECT_SOURCE_DIR}/cmake/LibraryPlatform.cmake")
-    library_resolve_platform_id(LIBRARY_PLATFORM_ID)
+    gamewip_resolve_platform_id(GAMEWIP_PLATFORM_ID)
 endif()
 
 add_library(Logger SHARED)
@@ -40,7 +40,7 @@ target_sources(Logger
             "${LOGGER_GENERATED_INCLUDE_DIR}/logger/logger_export.h"
 )
 
-library_target_platform_sources(Logger Logger "${CMAKE_CURRENT_SOURCE_DIR}/platform")
+gamewip_target_platform_sources(Logger Logger "${CMAKE_CURRENT_SOURCE_DIR}/platform")
 
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
@@ -73,10 +73,10 @@ set_target_properties(Logger PROPERTIES
     ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
 )
 
-if(GAMEWIP_BUILD_DOCS AND COMMAND library_register_doxygen_library)
+if(GAMEWIP_BUILD_DOCS AND COMMAND gamewip_register_doxygen_library)
     # Logger owns its public API docs and Markdown manual pages. The root docs
     # target merges this into the unified library Doxygen site.
-    library_register_doxygen_library(
+    gamewip_register_doxygen_library(
         NAME Logger
         PAGE_ID logger
         PUBLIC_HEADERS

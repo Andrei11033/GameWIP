@@ -26,10 +26,10 @@ set_target_properties(IO PROPERTIES
     ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
 )
 
-if(GAMEWIP_BUILD_DOCS AND COMMAND library_register_doxygen_library)
+if(GAMEWIP_BUILD_DOCS AND COMMAND gamewip_register_doxygen_library)
     # IO owns its public API docs and Markdown manual pages. The root docs
     # target merges this into the unified library Doxygen site.
-    library_register_doxygen_library(
+    gamewip_register_doxygen_library(
         NAME IO
         PAGE_ID io
         PUBLIC_HEADERS

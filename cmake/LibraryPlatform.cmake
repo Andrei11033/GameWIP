@@ -1,8 +1,8 @@
 include_guard(GLOBAL)
 
-function(library_resolve_platform_id output_variable)
-    if(DEFINED LIBRARY_PLATFORM_ID AND NOT LIBRARY_PLATFORM_ID STREQUAL "")
-        set(${output_variable} "${LIBRARY_PLATFORM_ID}" PARENT_SCOPE)
+function(gamewip_resolve_platform_id output_variable)
+    if(DEFINED GAMEWIP_PLATFORM_ID AND NOT GAMEWIP_PLATFORM_ID STREQUAL "")
+        set(${output_variable} "${GAMEWIP_PLATFORM_ID}" PARENT_SCOPE)
         return()
     endif()
 
@@ -16,18 +16,18 @@ function(library_resolve_platform_id output_variable)
         message(FATAL_ERROR "No library platform backend id is defined for this CMake platform.")
     endif()
 
-    set(LIBRARY_PLATFORM_ID "${resolved_platform_id}" CACHE STRING "Library platform backend id")
+    set(GAMEWIP_PLATFORM_ID "${resolved_platform_id}" CACHE STRING "GameWIP library platform backend id")
     set(${output_variable} "${resolved_platform_id}" PARENT_SCOPE)
 endfunction()
 
-function(library_target_platform_sources target_name library_name platform_root)
-    if(NOT LIBRARY_PLATFORM_ID)
-        message(FATAL_ERROR "LIBRARY_PLATFORM_ID is not set before configuring ${library_name}.")
+function(gamewip_target_platform_sources target_name library_name platform_root)
+    if(NOT GAMEWIP_PLATFORM_ID)
+        message(FATAL_ERROR "GAMEWIP_PLATFORM_ID is not set before configuring ${library_name}.")
     endif()
 
-    set(platform_dir "${platform_root}/${LIBRARY_PLATFORM_ID}")
+    set(platform_dir "${platform_root}/${GAMEWIP_PLATFORM_ID}")
     if(NOT IS_DIRECTORY "${platform_dir}")
-        message(FATAL_ERROR "${library_name} has no platform backend directory for '${LIBRARY_PLATFORM_ID}': ${platform_dir}")
+        message(FATAL_ERROR "${library_name} has no platform backend directory for '${GAMEWIP_PLATFORM_ID}': ${platform_dir}")
     endif()
 
     file(GLOB platform_sources CONFIGURE_DEPENDS
@@ -35,7 +35,7 @@ function(library_target_platform_sources target_name library_name platform_root)
     )
 
     if(NOT platform_sources)
-        message(FATAL_ERROR "${library_name} has no platform backend sources for '${LIBRARY_PLATFORM_ID}' in ${platform_dir}.")
+        message(FATAL_ERROR "${library_name} has no platform backend sources for '${GAMEWIP_PLATFORM_ID}' in ${platform_dir}.")
     endif()
 
     target_sources("${target_name}" PRIVATE
@@ -48,12 +48,12 @@ function(library_target_platform_sources target_name library_name platform_root)
     endif()
 endfunction()
 
-function(library_include_platform_cmake_if_present platform_root)
-    if(NOT LIBRARY_PLATFORM_ID)
-        message(FATAL_ERROR "LIBRARY_PLATFORM_ID is not set before including platform CMake.")
+function(gamewip_include_platform_cmake_if_present platform_root)
+    if(NOT GAMEWIP_PLATFORM_ID)
+        message(FATAL_ERROR "GAMEWIP_PLATFORM_ID is not set before including platform CMake.")
     endif()
 
-    set(platform_cmake "${platform_root}/${LIBRARY_PLATFORM_ID}/platform.cmake")
+    set(platform_cmake "${platform_root}/${GAMEWIP_PLATFORM_ID}/platform.cmake")
     if(EXISTS "${platform_cmake}")
         include("${platform_cmake}")
     endif()

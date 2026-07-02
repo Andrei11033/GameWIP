@@ -1,38 +1,40 @@
-@page assert_test_hooks Assert test hooks
+@page assert_test_hooks Assert internal test hooks
 
-Assert test hooks are advanced testing-only features. They are not production API and are not installed as normal public headers.
+@warning These hooks are supported source-tree maintainer interfaces. They are not installed and are not versioned consumer API.
 
-## Enabling
+## Enable
+
+The GameWIP `validation` preset enables hooks automatically because it builds tests. A focused source build can enable them explicitly:
 
 ```powershell
 -DASSERT_ENABLE_TEST_HOOKS=ON
 ```
 
-This maps to the library-local `ASSERT_ENABLE_TEST_HOOKS` option and exports `INTERNAL_ASSERT_TEST_HOOKS=1` to test code.
+Approved test targets then receive `INTERNAL_ASSERT_TEST_HOOKS=1`.
 
-## Purpose
+A source-tree test links `Assert` (or `GameWIP::Assert`) and includes:
 
-Hooks make rare paths deterministic:
+```cpp
+#include "debug/assert/internal/assert_test_hooks.h"
+```
 
-- force primary action-dialog fallback,
-- force fallback action-dialog/default behavior,
-- override debugger-attached checks,
-- override popup suppression behavior,
-- reset forced state between tests.
+The build-tree target supplies the source include root and compile definition. This does not work from an installed package by design.
+
+## Deterministic paths
+
+Hooks can:
+
+- force the primary action dialog to fall back;
+- force fallback-dialog/default behavior;
+- override debugger-attached detection;
+- override popup suppression;
+- reset all forced state between tests.
 
 ## Rules
 
-- Hook namespaces exist only when `INTERNAL_ASSERT_TEST_HOOKS=1`.
-- Hook headers live under `tools/debug/assert/internal/`.
-- Hook headers are excluded from normal installs.
-- Hooks are for tests and coverage, not user code.
-- Tests must reset hook state after each forced scenario.
+- Hook declarations remain under `tools/debug/assert/internal/`.
+- Hook headers are excluded from installs and public CMake file sets.
+- Tests reset state after each forced scenario.
+- Consumer or game runtime code must not include or call hooks.
 
-## Installed packages
-
-Installed Assert packages intentionally do not expose internal hook headers as normal public API. Build hook-enabled tests from the source tree.
-
-## Related pages
-
-- @ref assert_testing
-- @ref assert_interactive
+See @ref assert_testing and @ref assert_interactive.

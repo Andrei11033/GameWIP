@@ -154,8 +154,8 @@
     { "name": "benchmark", "configurePreset": "benchmark", "targets": ["GameWIPBenchmarks"] },
     { "name": "tools", "configurePreset": "tools" },
     { "name": "profiling", "configurePreset": "profiling" },
-    { "name": "optimized", "configurePreset": "optimized" },
-    { "name": "shipping", "configurePreset": "shipping" },
+    { "name": "optimized", "configurePreset": "optimized", "targets": ["GameWIP"] },
+    { "name": "shipping", "configurePreset": "shipping", "targets": ["GameWIP"] },
     { "name": "coverage", "configurePreset": "coverage" },
     { "name": "static-analysis", "configurePreset": "static-analysis", "targets": ["static-analysis"] },
     { "name": "docs", "configurePreset": "docs", "targets": ["docs"] }

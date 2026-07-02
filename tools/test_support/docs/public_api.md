@@ -1,6 +1,6 @@
 @page test_support_public_api TestSupport public API
 
-Include `test_support/test_support.h` and link `GameWIP::TestSupport` from an installed package. The source tree also provides the short `TestSupport` target. TestSupport remains independent of every project library, including IO, FileSystem, Terminal, Logger, Assert, engine, and game code. It uses the standard library and its own platform backend instead.
+Include `test_support/test_support.h` and link `GameWIP::TestSupport` from an installed package. The source tree also provides the short `TestSupport` target. TestSupport remains independent of every other GameWIP library and uses only the C++ standard library in its public contract.
 
 Passive options and results live in `GameWIP::TestSupport::Types`; active helpers live directly in `GameWIP::TestSupport`.
 

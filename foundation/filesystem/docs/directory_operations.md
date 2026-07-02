@@ -1,6 +1,6 @@
 @page foundation_filesystem_directory_operations FileSystem directory operations
 
-`listDirectory()` returns direct children in backend/native order. v1 intentionally exposes no public iterator or recursive listing API.
+`listDirectory()` returns direct children in backend/native order. The API intentionally exposes no public iterator or recursive listing operation.
 
 `ListDirectoryOptions` controls included entry kinds, hidden entries, symlink metadata behavior, and `maxEntries`.
 

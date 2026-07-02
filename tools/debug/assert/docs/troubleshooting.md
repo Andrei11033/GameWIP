@@ -2,7 +2,7 @@
 
 ## A popup appears during automated tests
 
-Automated interactive tests must use `INTERNAL_ASSERT_TEST_ACTION` and should suppress real UI. Manual UI tests are runtime-gated and should run only when the user intentionally enables them.
+Automated and manual interactive validation are described under @ref assert_testing. Normal application runs should enable interactive UI only when a developer is present to respond.
 
 ## My expression is not evaluated
 

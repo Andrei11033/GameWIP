@@ -15,7 +15,7 @@ Include `filesystem/filesystem.h`. Passive values live under `GameWIP::FileSyste
 - @subpage foundation_filesystem_examples
 - @subpage foundation_filesystem_troubleshooting
 
-## Developer validation
+## Maintainer validation
 
 - @subpage foundation_filesystem_testing
 

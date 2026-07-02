@@ -1,17 +1,15 @@
-@page io_testing IO testing
+@page io_testing IO maintainer validation
 
-The IO library should be tested with focused unit tests covering memory readers, memory writers, whole-stream helpers, partial reads and writes, limits, capability queries, and failure propagation.
+@note This page is for maintainers. It describes proof coverage, not supported consumer API.
 
-## Coverage
+The focused IO suite covers:
 
-The IO suite covers:
-
-- public status helpers, status defaults, and stable error names;
-- Reader and Writer move/default/capability/seek contracts;
-- MemoryReader reading, overlapping destinations, seeking, position, close state, string-view input, and temporary-storage rejection;
+- status helpers, defaults, and stable error names;
+- Reader and Writer default, move, capability, seek, flush, close, and unsupported-operation contracts;
+- MemoryReader reads, overlapping destinations, seeking, position, close state, string-view input, and temporary-storage rejection;
 - MemoryWriter position, capacity reuse, close state, extraction, and aliased writes;
-- known-size, unknown-size, exact-limit, over-limit, and zero-limit reads;
-- partial reads, backend failures, invalid backend byte counts, and zero progress;
-- partial writes, backend failures, and invalid backend byte counts.
+- known-size, unknown-size, exact-limit, over-limit, and zero-limit whole-stream reads;
+- partial reads/writes, backend failures, invalid backend byte counts, and zero progress;
+- caller-owned scratch buffers and allocation-conscious paths.
 
-GameWIP owns the executable, focused-module command, CTest registration, presets, report location, and coverage workflow. See @ref library_testing and @ref library_coverage.
+GameWIP owns the executable, module selection, CTest registration, reports, and coverage workflow. See @ref project_testing and @ref project_coverage.

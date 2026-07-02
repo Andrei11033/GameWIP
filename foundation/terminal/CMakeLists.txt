@@ -4,9 +4,9 @@ include(GenerateExportHeader)
 
 option(TERMINAL_ENABLE_TEST_HOOKS "Enable Terminal internal test hooks" OFF)
 
-if(NOT COMMAND library_target_platform_sources)
+if(NOT COMMAND gamewip_target_platform_sources)
     include("${PROJECT_SOURCE_DIR}/cmake/LibraryPlatform.cmake")
-    library_resolve_platform_id(LIBRARY_PLATFORM_ID)
+    gamewip_resolve_platform_id(GAMEWIP_PLATFORM_ID)
 endif()
 
 add_library(Terminal SHARED)
@@ -37,7 +37,7 @@ target_sources(Terminal
             "${TERMINAL_GENERATED_INCLUDE_DIR}/terminal/terminal_export.h"
 )
 
-library_target_platform_sources(Terminal Terminal "${CMAKE_CURRENT_SOURCE_DIR}/platform")
+gamewip_target_platform_sources(Terminal Terminal "${CMAKE_CURRENT_SOURCE_DIR}/platform")
 
 target_include_directories(Terminal PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/..>
@@ -65,10 +65,10 @@ set_target_properties(Terminal PROPERTIES
     ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
 )
 
-if(GAMEWIP_BUILD_DOCS AND COMMAND library_register_doxygen_library)
+if(GAMEWIP_BUILD_DOCS AND COMMAND gamewip_register_doxygen_library)
     # Terminal owns its public API docs and Markdown manual pages. The root docs
     # target merges this into the unified library Doxygen site.
-    library_register_doxygen_library(
+    gamewip_register_doxygen_library(
         NAME Terminal
         PAGE_ID terminal
         PUBLIC_HEADERS

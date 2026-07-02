@@ -9,9 +9,9 @@ option(ASSERT_ENABLE_TEST_HOOKS "Enable Assert internal test hooks" OFF)
 
 include(GenerateExportHeader)
 
-if(NOT COMMAND library_target_platform_sources)
+if(NOT COMMAND gamewip_target_platform_sources)
     include("${PROJECT_SOURCE_DIR}/cmake/LibraryPlatform.cmake")
-    library_resolve_platform_id(LIBRARY_PLATFORM_ID)
+    gamewip_resolve_platform_id(GAMEWIP_PLATFORM_ID)
 endif()
 
 string(TOUPPER "${ASSERT_ENABLED}" ASSERT_ENABLED_VALUE)
@@ -126,9 +126,9 @@ if(ASSERT_RUNTIME_TARGET_ENABLED)
         core/assert.cpp
     )
 
-    library_target_platform_sources(Assert Assert "${CMAKE_CURRENT_SOURCE_DIR}/platform")
+    gamewip_target_platform_sources(Assert Assert "${CMAKE_CURRENT_SOURCE_DIR}/platform")
 else()
-    library_include_platform_cmake_if_present("${CMAKE_CURRENT_SOURCE_DIR}/platform")
+    gamewip_include_platform_cmake_if_present("${CMAKE_CURRENT_SOURCE_DIR}/platform")
 endif()
 
 include(GNUInstallDirs)
@@ -208,10 +208,10 @@ if(ASSERT_RUNTIME_TARGET_ENABLED)
     )
 endif()
 
-if(GAMEWIP_BUILD_DOCS AND COMMAND library_register_doxygen_library)
+if(GAMEWIP_BUILD_DOCS AND COMMAND gamewip_register_doxygen_library)
     # Assert owns its public API docs and Markdown manual pages. The root docs
     # target merges this into the unified library Doxygen site.
-    library_register_doxygen_library(
+    gamewip_register_doxygen_library(
         NAME Assert
         PAGE_ID assert
         PUBLIC_HEADERS
@@ -236,7 +236,7 @@ else()
     )
 endif()
 
-if(LIBRARY_PLATFORM_ID STREQUAL "win32")
+if(GAMEWIP_PLATFORM_ID STREQUAL "win32")
     install(FILES
         "${CMAKE_CURRENT_SOURCE_DIR}/cmake/common_controls_v6.manifest"
         "${CMAKE_CURRENT_SOURCE_DIR}/cmake/common_controls_v6.rc.in"

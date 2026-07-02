@@ -1,4 +1,4 @@
-@page library_build Build configurations
+@page project_build Build configurations
 
 GameWIP requires CMake 3.23 or newer, C++23, Ninja, and the MSYS2 UCRT64 GCC toolchain on Windows. The static-analysis preset uses UCRT64 Clang so clang-tidy receives a compatible compile database. Initialize submodules before configuring:
 

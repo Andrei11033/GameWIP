@@ -18,6 +18,6 @@ Configure `ASSERT_*` behavior through the project CMake options. Application cod
 
 Fatal failures report synchronously through Logger before debugger, popup, or termination handling. Recoverable checks report and continue. Message expressions are evaluated only on the enabled failure paths that need them; the exact expression-evaluation matrix is in @ref assert_macro_behavior.
 
-`FailureAction` and `debugBreak()` are the small runtime API used by interactive handling and explicit breakpoints. Test hooks remain internal and are documented in @ref assert_test_hooks.
+`FailureAction` and `debugBreak()` are the small runtime API used by interactive handling and explicit breakpoints.
 
 See @ref assert_macros, @ref assert_failure_actions, and @ref assert_interactive for the remaining contracts.

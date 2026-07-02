@@ -1,84 +1,37 @@
-@page terminal_testing Terminal testing
+@page terminal_testing Terminal maintainer validation and hooks
 
-Terminal-specific tests and internal test hooks are implemented. Hook-dependent tests run when `TERMINAL_ENABLE_TEST_HOOKS=ON` defines `INTERNAL_TERMINAL_TEST_HOOKS=1`; hook-disabled builds skip those deterministic backend-hook suites.
+@note This page is for maintainers. Hook declarations are internal, non-installed, and carry no consumer compatibility guarantee.
 
-## Normal behavior coverage
+## Behavior coverage
 
-Terminal implementation tests should cover:
+Terminal tests cover:
 
-- stdout text write;
-- stderr text write;
-- byte write;
-- line write behavior through `writeLine()` and `LineWriteOptions`;
-- formatted write behavior through `print()` and `println()`;
-- observational capability queries and explicit or lazy output preparation;
-- preparation idempotence, failure propagation, and `StyleMode::Auto` fallback;
-- one backend text write for styled lines, formatted lines, and text segment batches;
-- full-batch rejection before output for invalid or unsupported segments;
-- independent stdout and stderr synchronization and scratch storage;
-- buffered write behavior through `OutputBuffer`;
-- styled output fallback;
-- `StyleMode::Never`;
-- `StyleMode::Auto`;
-- `StyleMode::Required`;
-- segmented writes;
-- terminal redirection behavior;
-- stdin line read;
-- byte read;
-- text read max byte limits;
-- timeout and would-block outcomes;
-- input availability;
-- input mode get, set, and restore;
-- RAII input mode restoration, including complete native-mode snapshots where the backend has additional flags;
-- preservation of Terminal-buffered input across mode changes;
-- invalid read and write options rejected before input consumption or output emission;
-- flush success and failure behavior for each backend stream kind;
-- terminal size query;
-- clear;
-- cursor movement;
-- cursor position query;
-- alternate screen enter and leave;
-- cursor visibility;
-- title;
-- bell;
-- Unicode text;
-- failure hooks.
+- stdout/stderr text, byte, line, formatted, segmented, and buffered writes;
+- complete-record emission, per-stream synchronization, and scratch reuse;
+- capability queries, output preparation, idempotence, failure propagation, and style fallback;
+- `StyleMode::Never`, `Auto`, and `Required`;
+- redirected output, UTF-8, native line endings, and invalid-option rejection before emission;
+- stdin line/byte/text reads, byte limits, timeouts, would-block, and availability;
+- input-mode query/change/restore and preservation of buffered input;
+- cursor, alternate-screen, title, bell, clear, size, flush, and failure behavior;
+- RAII setup, nesting, explicit restoration, failed restoration, and retry behavior;
+- concurrent calls and Logger integration through the shared Terminal runtime.
 
-## Test hooks
+## Internal hooks
 
-Terminal test hooks are controlled by:
+The GameWIP `validation` preset enables hooks automatically. A focused source build can set `TERMINAL_ENABLE_TEST_HOOKS=ON`; approved build-tree targets then receive `INTERNAL_TERMINAL_TEST_HOOKS=1`.
 
-```text
-TERMINAL_ENABLE_TEST_HOOKS
-```
+A source-tree test links `Terminal` (or `GameWIP::Terminal`) and includes `terminal/internal/terminal_test_hooks.h`. The build-tree target supplies the source include root and compile definition. Installed packages intentionally do not provide this header.
 
-This maps to the library-local `TERMINAL_ENABLE_TEST_HOOKS` option and exports:
+Hook rules:
 
-```text
-INTERNAL_TERMINAL_TEST_HOOKS
-```
+- headers remain under `foundation/terminal/internal/` and are not installed;
+- names are backend-neutral;
+- one-shot failures use `forceNext...`;
+- persistent state uses `set...Override` and `clear...Override`;
+- a reset helper clears all forced state between scenarios;
+- production code must not depend on hook declarations.
 
-Hooks are internal only. They are not production API and are not installed as public headers.
+Tests cannot claim serialization against `std::cout`, `printf`, direct native writes, or third-party output because those paths do not use Terminal's lock.
 
-Terminal hooks should:
-
-- live under `foundation/terminal/internal/`;
-- use backend-neutral names;
-- be resettable;
-- use `forceNext...` for one-shot failures;
-- use `set...Override` and `clear...Override` for persistent overrides;
-- provide a `resetAll` style helper when more than one hook exists.
-
-Hook-enabled tests should reset forced state after each scenario.
-
-## Threading and performance validation
-
-Terminal public calls should serialize per stream.
-
-Terminal is a shared runtime, so integration tests may use its exported test-only hooks to verify calls made from another shared library. Logger integration coverage relies on this to prove both libraries observe the same stream state and output capture.
-
-Tests should not assume Terminal can prevent interleaving with `std::cout`, `std::cerr`, `printf`, direct OS writes, or third-party terminal writes.
-
-Successful hot paths should avoid unnecessary allocation. `StyleMode::Never` should avoid style overhead, and segmented writes should be the preferred logger/tool output path.
-
-GameWIP owns the test executable, focused-module selection, CTest registration, presets, and report placement. See @ref library_testing.
+GameWIP owns module selection, CTest registration, and reports. See @ref project_testing.
