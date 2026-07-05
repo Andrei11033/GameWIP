@@ -50,6 +50,7 @@ namespace GameWIP::Terminal
         {
             std::mutex mutex;
             std::string assembly;
+            std::string formatScratch;
             std::size_t cursorHiddenScopeDepth = 0;
             std::size_t alternateScreenScopeDepth = 0;
         };
@@ -62,6 +63,46 @@ namespace GameWIP::Terminal
         };
 
         inline constexpr std::size_t kRetainedAssemblyLimit = std::size_t{64} * 1024;
+
+        /// @brief Leases reusable format storage while callbacks run without the stream lock.
+        class FormatScratchLease
+        {
+        public:
+            explicit FormatScratchLease(OutputState &state)
+                : state_(state)
+            {
+                std::lock_guard lock(state_.mutex);
+                text_.swap(state_.formatScratch);
+                text_.clear();
+            }
+
+            ~FormatScratchLease() noexcept
+            {
+                text_.clear();
+                if (text_.capacity() > kRetainedAssemblyLimit)
+                {
+                    std::string{}.swap(text_);
+                }
+
+                std::lock_guard lock(state_.mutex);
+                if (text_.capacity() > state_.formatScratch.capacity())
+                {
+                    text_.swap(state_.formatScratch);
+                }
+            }
+
+            FormatScratchLease(const FormatScratchLease &) = delete;
+            FormatScratchLease &operator=(const FormatScratchLease &) = delete;
+
+            [[nodiscard]] std::string &text() noexcept
+            {
+                return text_;
+            }
+
+        private:
+            OutputState &state_;
+            std::string text_;
+        };
 
         /// @brief Validates the currently supported standard input stream enum.
         [[nodiscard]] bool validInputStream(Types::InputStream stream) noexcept
@@ -531,38 +572,6 @@ namespace GameWIP::Terminal
             }
             state.assembly.append(lineEndingText(options.lineEnding));
             return writeAssembly(stream, state, options.flushMode);
-        }
-
-        /// @brief Converts formatting exceptions/status into one serialized terminal write result.
-        [[nodiscard]] IO::Types::Status finishFormattedWriteUnlocked(
-            Types::OutputStream stream,
-            OutputState &state,
-            Types::StyleMode styleMode,
-            const Types::TextStyle &style,
-            std::string_view lineEnding,
-            IO::Types::FlushMode flushMode)
-        {
-            if (!IO::isValidFlushMode(flushMode))
-            {
-                releaseLargeAssembly(state);
-                return invalidArgumentStatus("Unknown IO flush mode.");
-            }
-
-            const StylePlan plan = stylePlan(stream, styleMode, style);
-            if (!plan.status.ok())
-            {
-                releaseLargeAssembly(state);
-                return plan.status;
-            }
-
-            if (plan.emitStyle)
-            {
-                const StyleSequence prefix = makeStyleSequence(style);
-                state.assembly.insert(0, prefix.bytes.data(), prefix.size);
-                state.assembly.append("\x1b[0m");
-            }
-            state.assembly.append(lineEnding);
-            return writeAssembly(stream, state, flushMode);
         }
 
         /// @brief Implements one serialized raw-byte write and optional flush.
@@ -1661,29 +1670,26 @@ namespace GameWIP::Terminal
             }
 
             OutputState &state = outputState(stream);
-            std::lock_guard lock(state.mutex);
-            state.assembly.clear();
+            FormatScratchLease scratch(state);
             try
             {
-                std::vformat_to(std::back_inserter(state.assembly), format, arguments);
+                std::vformat_to(std::back_inserter(scratch.text()), format, arguments);
             }
             catch (const std::format_error &)
             {
-                releaseLargeAssembly(state);
                 return invalidArgumentStatus("Terminal formatted output failed.");
             }
             catch (const std::bad_alloc &)
             {
-                releaseLargeAssembly(state);
                 return IO::makeStatus(ErrorCode::OutOfMemory);
             }
             catch (...)
             {
-                releaseLargeAssembly(state);
                 return IO::makeStatus(ErrorCode::Unknown);
             }
 
-            return finishFormattedWriteUnlocked(stream, state, options.styleMode, options.style, {}, options.flushMode);
+            std::lock_guard lock(state.mutex);
+            return writeTextUnlocked(stream, state, scratch.text(), options);
         }
 
         IO::Types::Status vprintln(
@@ -1706,35 +1712,26 @@ namespace GameWIP::Terminal
             }
 
             OutputState &state = outputState(stream);
-            std::lock_guard lock(state.mutex);
-            state.assembly.clear();
+            FormatScratchLease scratch(state);
             try
             {
-                std::vformat_to(std::back_inserter(state.assembly), format, arguments);
+                std::vformat_to(std::back_inserter(scratch.text()), format, arguments);
             }
             catch (const std::format_error &)
             {
-                releaseLargeAssembly(state);
                 return invalidArgumentStatus("Terminal formatted output failed.");
             }
             catch (const std::bad_alloc &)
             {
-                releaseLargeAssembly(state);
                 return IO::makeStatus(ErrorCode::OutOfMemory);
             }
             catch (...)
             {
-                releaseLargeAssembly(state);
                 return IO::makeStatus(ErrorCode::Unknown);
             }
 
-            return finishFormattedWriteUnlocked(
-                stream,
-                state,
-                options.styleMode,
-                options.style,
-                lineEndingText(options.lineEnding),
-                options.flushMode);
+            std::lock_guard lock(state.mutex);
+            return writeLineUnlocked(stream, state, scratch.text(), options);
         }
     } // namespace Detail
 

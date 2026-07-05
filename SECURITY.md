@@ -1,6 +1,6 @@
 # Security Policy
 
-## Supported Versions
+## Supported versions
 
 GameWIP is a private, pre-release project. There are no public release lines or supported production versions yet.
 
@@ -11,11 +11,11 @@ Security fixes are handled on the current default branch:
 | `master`          | Yes       |
 | Public releases   | No        |
 
-## Reporting a Vulnerability
+## Reporting a vulnerability
 
 Do not report security vulnerabilities in public issues or discussions. Report them privately to the repository owner or through GitHub private vulnerability reporting.
 
-Please include:
+Include:
 
 - The affected commit, branch, or tag.
 - Reproduction steps or a minimal proof of concept.

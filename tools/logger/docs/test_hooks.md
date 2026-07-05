@@ -1,4 +1,4 @@
-@page logger_test_hooks Logger internal test hooks
+@page logger_test_hooks Logger test hooks
 
 @warning These hooks are supported source-tree maintainer interfaces. They are not installed and are not versioned consumer API.
 
@@ -12,7 +12,7 @@ The GameWIP `validation` preset enables hooks automatically because it builds te
 
 Approved test targets then receive `INTERNAL_LOGGER_TEST_HOOKS=1`.
 
-A source-tree test links `Logger` (or `GameWIP::Logger`) and includes:
+A source-tree test links the short `Logger` target and includes:
 
 ```cpp
 #include "logger/internal/logger_test_hooks.h"

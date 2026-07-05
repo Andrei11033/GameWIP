@@ -44,11 +44,13 @@ Related documents:
 - [x] The development executable runs compiled-in modules before entering game runtime.
 - [x] Focused selection runs only the requested module.
 - [x] Unknown module selection fails with a nonzero result.
+- [x] Conflicting module selection and exclusion fails instead of reporting a zero-module pass.
 - [x] Child-process routes return their exact result without recursive full-suite startup.
+- [x] Ambiguous child routes and unexpected module exceptions become explicit failed results.
 - [x] Successful automated runs retain aggregate reports and clean scoped fixtures.
 - [x] Manual UI checks are opt-in and disabled by `--no-manual-ui`.
 
-Individual Logger, Assert, FileSystem, IO, Terminal, and TestSupport behaviors are not listed here. Their module sources and library-owned testing pages are the reviewable contract-to-test map.
+The detailed groups below summarize library behavior coverage. Module sources and library-owned testing pages remain the authoritative contract-to-test map.
 
 ## Detailed library verification
 
@@ -67,7 +69,7 @@ These sections provide milestone evidence at a finer level. They summarize behav
 
 - [x] MemoryReader covers byte spans, string views, vectors, sequential reads, seeking, overlap, end-of-input, and close state.
 - [x] Direct construction from temporary owning string/vector storage is rejected at compile time.
-- [x] MemoryWriter covers growth, overwrite after seek, capacity reuse, extraction, clear, close state, and aliased input.
+- [x] MemoryWriter covers append-only growth, position, capacity reuse, extraction, clear, close state, and aliased input.
 
 #### Whole-stream helpers
 
@@ -120,6 +122,7 @@ These sections provide milestone evidence at a finer level. They summarize behav
 - [x] UTF-8, native line endings, stdout/stderr routing, and redirected plain-text fallback are verified.
 - [x] `StyleMode::Never`, `Auto`, and `Required` success/failure behavior is verified.
 - [x] Invalid style/segment/write options are rejected before output.
+- [x] Isolated formatter reentry proves same-stream nested `print()` and `println()` calls complete without deadlock or outer-message corruption.
 
 #### Input and capabilities
 
@@ -155,6 +158,7 @@ These sections provide milestone evidence at a finer level. They summarize behav
 - [x] Minimum level, source filter, level filter, and dynamic filter changes are verified.
 - [x] Filtered calls do not enter the queue or inflate failure/drop counters.
 - [x] Compile-time and runtime format overloads, invalid runtime formats, long-message truncation, and formatting failure counters are verified.
+- [x] A reentrant custom formatter proves nested logging preserves both nested and outer messages.
 
 #### Async queue and sinks
 
@@ -223,11 +227,13 @@ These sections provide milestone evidence at a finer level. They summarize behav
 - [x] Text helper success/failure and parent creation behavior are verified.
 - [x] Scoped temporary directories are unique and clean nested artifacts.
 - [x] Scoped current path and set/unset environment variables restore prior state.
+- [x] Environment helpers reject empty or invalid names, embedded nulls, and invalid UTF-8, and their destructors remain non-throwing.
 - [x] Restoration occurs during normal return and exception unwinding.
 
 #### Child processes and coordination
 
 - [x] Successful/nonzero exit, timeout, requested termination, capture limits, continued pipe draining, and descendant cleanup are verified.
+- [x] Invalid UTF-8 arguments, embedded-null arguments/values, and invalid environment names are rejected before process creation.
 - [x] StartGate and StopFlag coordinate workers without timing-only correctness assumptions.
 - [x] Timers report diagnostic metrics without enforcing performance thresholds.
 - [x] Manual checks skip rather than block when unattended.
@@ -263,6 +269,7 @@ These sections provide milestone evidence at a finer level. They summarize behav
 - [x] Relative Markdown file links resolve.
 - [x] README commands, filenames, CMake minimum, presets, and output paths match the repository.
 - [x] Security reporting instructs private disclosure.
+- [x] Project documentation uses the shared heading, voice, terminology, list, and authority conventions.
 - [x] Generated HTML navigation exposes project structure, extension, build, validation, quality, and library sections without a duplicate documentation page.
 
 ### Performance and coverage evidence

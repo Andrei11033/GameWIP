@@ -10,7 +10,7 @@ runScenario();
 context.metric("scenarioMs=" + std::to_string(timer.elapsedMilliseconds()));
 ```
 
-`Timer` is intentionally limited to diagnostic elapsed-time reporting for test suites and sections. Use Google Benchmark for per-iteration timing, calibration, repetitions, and statistical output. See @ref project_benchmarking.
+`Timer` is intentionally limited to diagnostic elapsed-time reporting for test suites and sections. Use a dedicated benchmark framework for per-iteration timing, calibration, repetitions, and statistical output.
 
 ## StartGate
 
@@ -55,4 +55,4 @@ GameWIP::TestSupport::runWorkers(4, [](std::size_t workerIndex)
 });
 ```
 
-Use these helpers for simple stress patterns. Keep domain-specific checks in the relevant test file instead of adding foundation-, tool-, engine-, or game-specific logic to TestSupport.
+Use these helpers for simple stress patterns. Keep domain-specific checks in the relevant test file instead of adding application-specific logic to TestSupport.

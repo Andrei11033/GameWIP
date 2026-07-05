@@ -1,4 +1,4 @@
-@page foundation_filesystem_directory_operations FileSystem directory operations
+@page filesystem_directory_operations FileSystem directory operations
 
 `listDirectory()` returns direct children in backend/native order. The API intentionally exposes no public iterator or recursive listing operation.
 
@@ -10,7 +10,7 @@ When `maxEntries` is reached before completion, the operation returns `SizeLimit
 
 `removeDirectoryTree()` is the primitive tree-removal operation. It:
 
-- streams each directory through an explicit stack, retaining traversal state proportional to depth rather than the total entry count;
+- retains traversal state proportional to directory depth rather than the total entry count;
 - never follows symlinked directories discovered during traversal;
 - obeys the requested policy for the initial path;
 - returns `SizeLimitExceeded` when `maxEntries` stops removal;

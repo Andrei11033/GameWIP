@@ -1,4 +1,4 @@
-@page assert_test_hooks Assert internal test hooks
+@page assert_test_hooks Assert test hooks
 
 @warning These hooks are supported source-tree maintainer interfaces. They are not installed and are not versioned consumer API.
 
@@ -12,7 +12,7 @@ The GameWIP `validation` preset enables hooks automatically because it builds te
 
 Approved test targets then receive `INTERNAL_ASSERT_TEST_HOOKS=1`.
 
-A source-tree test links `Assert` (or `GameWIP::Assert`) and includes:
+A source-tree test links the short `Assert` target and includes:
 
 ```cpp
 #include "debug/assert/internal/assert_test_hooks.h"

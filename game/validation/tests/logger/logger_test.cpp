@@ -54,6 +54,27 @@
 #include <windows.h>
 #endif
 
+/// @brief Marker value whose formatter emits a nested Logger message.
+struct LoggerReentrantFormat
+{
+};
+
+template <> struct std::formatter<LoggerReentrantFormat>
+{
+    /// @brief Accepts the empty formatter specification used by the reentry fixture.
+    constexpr auto parse(std::format_parse_context &context)
+    {
+        return context.begin();
+    }
+
+    /// @brief Queues a nested message before producing the outer formatted value.
+    template <typename FormatContext> auto format(const LoggerReentrantFormat &, FormatContext &context) const
+    {
+        GameWIP::Logger::info("LoggerFormatter", "nested {}", 7);
+        return std::format_to(context.out(), "outer");
+    }
+};
+
 namespace
 {
     namespace Logger = GameWIP::Logger;
@@ -1009,9 +1030,10 @@ namespace
         Logger::info(testSource, Logger::runtimeFormat("runtime {} {}"), 13, "ok");
         Logger::info(testSource, Logger::runtimeFormat("{"), 1);
         Logger::info(testSource, "long {}", std::string(256, 'x'));
+        Logger::info(testSource, "reentrant {}", LoggerReentrantFormat{});
         context.expectTrue("strict format flush", Logger::flush(2s));
         Logger::Types::Stats strictStats = Logger::getStats();
-        expectEq(context, "strict format queued", strictStats.queued, std::size_t{3});
+        expectEq(context, "strict format queued", strictStats.queued, std::size_t{5});
         expectEq(context, "strict runtime format failure counted", strictStats.formatFailures, std::size_t{1});
         expectEq(context, "strict truncation counted", strictStats.truncated, std::size_t{1});
         const std::string strictPath = Logger::getLogFilePath();
@@ -1021,6 +1043,8 @@ namespace
         context.expectTrue("strict compile format content", strictContents.find("value 12 ok") != std::string::npos);
         context.expectTrue("strict runtime format content", strictContents.find("runtime 13 ok") != std::string::npos);
         context.expectTrue("strict truncation suffix content", strictContents.find("[truncated]") != std::string::npos);
+        context.expectTrue("reentrant formatter nested content", strictContents.find("nested 7") != std::string::npos);
+        context.expectTrue("reentrant formatter outer content", strictContents.find("reentrant outer") != std::string::npos);
 
         OwnedLoggerConfig fastConfig = makeFileConfig(context, "format-fast", Logger::Types::Level::Trace);
         fastConfig.maxMessageLength = 48;

@@ -31,13 +31,15 @@ configure and build path.
 
 The `Validation / Repository Checks` GitHub job runs the checks that do not belong to clang:
 
-- Node.js syntax checks and unit tests for repository automation JavaScript;
-- JSON parsing for maintained JSON files;
-- actionlint validation for every GitHub Actions workflow.
+- Node.js syntax checks and unit tests for repository automation JavaScript
+- JSON parsing for maintained JSON files
+- actionlint validation for every GitHub Actions workflow
 
 The regular validation jobs also configure all project CMake files, run modular correctness tests,
 dry-run benchmark registrations, build Doxygen, and reject Doxygen warnings. Markdown registered
 with Doxygen is therefore validated as part of the documentation build.
+
+Doxygen validates parsing and generated cross-references, but it does not judge prose consistency. First-party Markdown must also be reviewed against the heading, voice, terminology, list, example, and ownership rules in @ref project_documentation. The project verification pass checks relative Markdown links separately; `external/` and generated build output remain outside this editorial scope.
 
 The matching local commands are:
 

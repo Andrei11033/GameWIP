@@ -5,15 +5,16 @@ This page is the repository-level checklist for adding maintainable code, tests,
 ## Add a reusable library
 
 1. Choose `foundation/<name>` for foundational runtime behavior or `tools/<name>` for diagnostics and development support.
-2. Give the library one public include prefix and C++ namespace. Keep implementation headers under `<name>/internal/` and platform sources under `<name>/platform/<platform-id>/`.
-3. Create a target and canonical alias such as `add_library(GameWIP::Example ALIAS Example)`. Require `cxx_std_23` and list sources explicitly except for platform backend discovery.
-4. Put every supported header in a public CMake `FILE_SET`. Do not put internal or test-hook headers in that set.
-5. Declare dependency visibility accurately: `PUBLIC` when a public header requires the dependency, `PRIVATE` when only implementation does.
-6. For shared libraries, generate an export header, annotate required ABI declarations, hide other symbols, and add a reviewed export allowlist validation.
-7. Add install/export rules, a config package, an exact pre-1.0 version file, and `find_dependency()` calls for transitive public packages.
-8. Add an isolated public-header compile check and extend the clean installed-consumer validation.
-9. Add a library landing page and focused manual pages beside the library, then register only public headers and those docs with `gamewip_register_doxygen_library()`.
-10. Add correctness coverage before performance benchmarks. Update project policy docs only when the new library changes project-wide composition or standards.
+2. Add `add_subdirectory(<name>)` to `foundation/CMakeLists.txt` or `tools/CMakeLists.txt` so the root composition includes the library.
+3. Give the library one public include prefix and C++ namespace. Keep implementation headers under `<name>/internal/` and platform sources under `<name>/platform/<platform-id>/`.
+4. Create a target and canonical alias such as `add_library(GameWIP::Example ALIAS Example)`. Require `cxx_std_23` and list sources explicitly except for platform backend discovery.
+5. Put every supported header in a public CMake `FILE_SET`. Do not put internal or test-hook headers in that set.
+6. Declare dependency visibility accurately: `PUBLIC` when a public header requires the dependency, `PRIVATE` when only the implementation does.
+7. For shared libraries, generate an export header, annotate required ABI declarations, hide other symbols, and add a reviewed allowlist under `cmake/export_allowlists/` plus registration in `game/validation/tests/CMakeLists.txt`.
+8. Add install/export rules, a config package, an exact pre-1.0 version file, and `find_dependency()` calls for transitive public packages.
+9. Add an isolated public-header compile check and extend the clean consumer project under `game/validation/installed_consumer/`.
+10. Add a library landing page and focused manual pages beside the library, then register only public headers and those docs with `gamewip_register_doxygen_library()`.
+11. Add correctness coverage before performance benchmarks. Update project policy docs only when the new library changes project-wide composition or standards.
 
 Use `GameWIP` in CMake target namespaces, generated export macros, and project integration where ownership must be unambiguous. Do not put product-specific runtime policy into a reusable library. A standalone library may still use the `GameWIP` namespace; standalone means independently consumable, not anonymously owned.
 
@@ -78,13 +79,15 @@ Give generated pages stable lowercase snake_case IDs. Register project pages exp
 
 ## Add a platform backend
 
-Add `<library>/platform/<platform-id>/` with one or more `<platform-id>_<library>.cpp` files. Implement the existing internal platform contract without branching the portable public API. Use `platform.cmake` only for backend-local sources, system libraries, generated resources, or compile definitions. Then add the platform ID mapping in `cmake/LibraryPlatform.cmake` if CMake cannot already resolve it.
+Add `<library>/platform/<platform-id>/` with one or more `<platform-id>_<feature>.cpp` files. A single-file backend may use the library name as the feature, such as `win32_terminal.cpp`; a split backend uses descriptive feature names. Implement the existing internal platform contract without branching the portable public API. Use `platform.cmake` only for backend-local sources, system libraries, generated resources, or compile definitions. Then add the platform ID mapping in `cmake/LibraryPlatform.cmake` if CMake cannot already resolve it.
 
 A new backend must compile the public-header checks, library correctness suite, installed consumer, and documentation. Platform-specific behavior belongs behind the owning internal contract; do not scatter new `#ifdef` branches through portable core files.
 
 ## Add or change a CMake option
 
-Project composition options use the `GAMEWIP_` prefix. Library behavior options use the owning library prefix. Define defaults in `cmake/GameWIPOptions.cmake`, set intentional values in every relevant preset, and document user-facing controls under @ref project_build. Options that remove a feature must remove its sources and dependencies from shipping artifacts, not merely disable behavior at runtime.
+Project composition options use the `GAMEWIP_` prefix and define their defaults in `cmake/GameWIPOptions.cmake`. Set intentional project values in every relevant preset and document user-facing controls under @ref project_build.
+
+Library behavior options use the owning library prefix and define their defaults in that library's `CMakeLists.txt`. Top-level project composition may map a `GAMEWIP_` option to a library option explicitly, but the standalone library must not require the project option. Options that remove a feature must remove its sources and dependencies from shipping artifacts, not merely disable behavior at runtime.
 
 ## Final verification
 

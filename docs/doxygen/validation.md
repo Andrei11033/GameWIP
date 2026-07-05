@@ -2,8 +2,8 @@
 
 GameWIP uses the same modular validation sources in two launch modes:
 
-- standalone `GameWIPTests` and `GameWIPBenchmarks` executables for CI and focused local work;
-- optional startup validation compiled into `GameWIP` for the normal development workflow.
+- Standalone `GameWIPTests` and `GameWIPBenchmarks` executables for CI and focused local work
+- Optional startup validation compiled into `GameWIP` for the normal development workflow
 
 Validation is not linked into shipping builds.
 
@@ -77,7 +77,7 @@ The shared runner consumes project-level validation arguments before invoking a 
 
 Legacy focused aliases such as `--filesystem-only` remain supported, but new tooling should use `--test-module=<name>` because it scales without adding runner code.
 
-Module-owned child arguments are matched before normal selection. Exactly one owning module receives the original process arguments, and its exact exit code is returned directly. This prevents a crash-test child from recursively running the full validation set or entering game startup.
+Module-owned child arguments are matched before normal selection. One owning module receives the original process arguments, and its exact exit code is returned directly. No match continues to ordinary selection; multiple matches are an ambiguity error. This prevents a crash-test child from recursively running the full validation set or entering game startup.
 
 ### Output responsibilities
 
@@ -95,12 +95,12 @@ This split keeps successful runs scannable without discarding evidence. `--verbo
 1. A module's `module.cpp` creates one static `Registration` record.
 2. The runner copies registrations and sorts by order, then name.
 3. Registration validity and duplicate names are checked before any module runs.
-4. Child-argument ownership is checked before ordinary module selection.
+4. Child-argument ownership is checked before ordinary module selection; multiple owners fail explicitly.
 5. The runner resolves the report path once and passes shared policy through `ModuleInvocation`.
-6. Each adapter maps shared policy into its library-specific options and executes its suite.
+6. Each adapter maps shared policy into its library-specific options and executes its suite; an escaped exception becomes a failed module result.
 7. The runner records the module exit code, then continues to the next selected module.
 
-An invalid report path disables only file reporting. An invalid registration, unknown module selection, or failed module produces a nonzero validation result.
+An invalid report path disables only file reporting. An invalid registration, unknown module selection, selected-and-excluded module, ambiguous child route, escaped module exception, or failed module produces a nonzero validation result.
 
 ## Presets
 

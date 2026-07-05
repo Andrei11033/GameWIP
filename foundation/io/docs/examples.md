@@ -6,7 +6,8 @@
 GameWIP::IO::MemoryWriter writer;
 GameWIP::IO::Types::WriteResult result = GameWIP::IO::writeAllText(writer, "hello");
 
-if (status.ok()) {
+if (result.status.ok())
+{
     std::string text = writer.text();
 }
 ```
@@ -81,7 +82,8 @@ Resource-owning libraries can use the public helpers to create consistent IO sta
 ```cpp
 GameWIP::IO::MemoryWriter writer(4096);
 
-for (const Record& record : records) {
+for (const Record& record : records)
+{
     writer.clear();
     writeRecord(writer, record);
     consume(writer.bytes());

@@ -6,7 +6,7 @@ This site separates reusable library manuals from GameWIP project integration. L
 
 - @subpage io
 - @subpage terminal
-- @subpage foundation_filesystem
+- @subpage filesystem
 
 ## Tool libraries
 
@@ -18,7 +18,7 @@ This site separates reusable library manuals from GameWIP project integration. L
 
 - @subpage project_structure
 - @subpage project_build
-- @subpage library_compatibility
+- @subpage project_library_compatibility
 - @subpage project_validation
 - @subpage project_extending
 

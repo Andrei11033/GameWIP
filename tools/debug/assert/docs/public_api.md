@@ -1,6 +1,8 @@
 @page assert_public_api Assert public API
 
-Include `debug/assert/assert.h` and link `GameWIP::Assert` from an installed package. The assertion macros are global so call sites remain concise; runtime support lives in `GameWIP::Debug::Assert`. The source tree also provides the short `Assert` target.
+Include `debug/assert/assert.h`. Installed-package consumers link `GameWIP::Assert`; builds within the source tree link the short `Assert` target. See @ref assert_quick_start for complete CMake examples.
+
+The assertion macros are global so call sites remain concise; runtime support lives in `GameWIP::Debug::Assert`.
 
 ## Choosing a failure path
 

@@ -1,4 +1,4 @@
-@page foundation_filesystem_file_open_modes FileSystem open modes
+@page filesystem_file_open_modes FileSystem open modes
 
 ## Handle lifecycle
 

@@ -1,4 +1,4 @@
-@page foundation_filesystem_atomic_write FileSystem atomic writes
+@page filesystem_atomic_write FileSystem atomic writes
 
 `writeAllBytesAtomic()` and `writeAllTextAtomic()` replace exact file contents through a temporary file in the destination directory.
 

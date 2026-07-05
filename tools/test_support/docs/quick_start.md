@@ -1,5 +1,34 @@
 @page test_support_quick_start TestSupport quick start
 
+## Include
+
+Include the library's public header:
+
+```cpp
+#include "test_support/test_support.h"
+```
+
+## Installed CMake
+
+Use the package's namespaced imported target:
+
+```cmake
+find_package(TestSupport CONFIG REQUIRED)
+target_link_libraries(MyTests PRIVATE GameWIP::TestSupport)
+```
+
+## Source-tree CMake
+
+When TestSupport is part of the same source tree, use its short build target:
+
+```cmake
+target_link_libraries(MyTests PRIVATE TestSupport)
+```
+
+TestSupport has no dependencies on other project libraries, so it can support any test executable.
+
+## Minimal usage
+
 The normal test-executable flow is:
 
 1. Create `GameWIP::TestSupport::Types::ReportOptions`.
@@ -33,15 +62,6 @@ int main()
 ```
 
 Expectations return `true` when they pass and `false` when they fail. They also record the outcome in the context, so a failing expectation does not abort the suite.
-
-Installed-package consumers use the direct package and imported target names:
-
-```cmake
-find_package(TestSupport CONFIG REQUIRED)
-target_link_libraries(MyTests PRIVATE GameWIP::TestSupport)
-```
-
-Foundation, tool, engine, and game tests may use TestSupport, but TestSupport itself has no project-library dependencies and its examples remain generic.
 
 ## Where to go next
 

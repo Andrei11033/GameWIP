@@ -35,5 +35,3 @@ Report categories:
 ```
 
 `Runner` writes run-level lines and one `[RESULT]` line per completed suite. `Section` writes an informational begin line and a metric line with elapsed milliseconds when the section ends.
-
-GameWIP validation resolves relative report paths beneath the operating-system temporary directory. This is project policy layered above TestSupport; standalone TestSupport consumers retain direct control over `reportPath`.

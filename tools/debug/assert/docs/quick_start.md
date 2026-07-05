@@ -1,5 +1,32 @@
 @page assert_quick_start Assert quick start
 
+## Include
+
+Include the library's public header:
+
+```cpp
+#include "debug/assert/assert.h"
+```
+
+## Installed CMake
+
+Use the package's namespaced imported target. The package resolves its Logger dependency when runtime assertions are enabled:
+
+```cmake
+find_package(Assert CONFIG REQUIRED)
+target_link_libraries(MyTarget PRIVATE GameWIP::Assert)
+```
+
+## Source-tree CMake
+
+When Assert is part of the same source tree, use its short build target:
+
+```cmake
+target_link_libraries(MyTarget PRIVATE Assert)
+```
+
+## Minimal usage
+
 Use fatal assertions for invariants that should stop execution when they fail:
 
 ```cpp
@@ -21,7 +48,7 @@ CHECK_MSG(config.isValid(), "Invalid optional config; using defaults");
 CHECK_ONCE_MSG(false, "This warning should only appear once from this call site");
 ```
 
-Use `ENSURE` when you want a boolean result and exactly-one evaluation:
+Use `ENSURE` when the caller needs a boolean result and exactly-one evaluation:
 
 ```cpp
 if (!ENSURE_MSG(socket.isOpen(), "Socket should be open"))

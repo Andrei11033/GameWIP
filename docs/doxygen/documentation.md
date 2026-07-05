@@ -56,44 +56,61 @@ The root Doxygen page at `docs/doxygen/index.md` should link only to major libra
 
 ## Consumer manual versus maintainer validation
 
-The generated Doxygen site is primarily a professional user manual for the reusable libraries. A user should be able to learn how to use the public API from the generated docs without reading `.cpp` files.
+The generated Doxygen site is primarily a professional consumer manual for the reusable libraries. A consumer must be able to learn how to use the public API from the generated docs without reading `.cpp` files.
 
 Library landing pages split navigation into:
 
-- **User manual** pages: quick start, public API guide, concepts, configuration, examples, troubleshooting, and other pages needed by normal consumers of the library.
-- **Maintainer validation** pages: coverage summaries, manual validation procedures, and exact use of gated internal hooks. These pages are visibly non-consumer material and must state that hooks are source-tree-only, non-installed interfaces.
+- **Consumer manual** pages: quick start, public API guide, concepts, configuration, examples, troubleshooting, and other pages needed by normal consumers of the library.
+- **Maintainer validation** pages: coverage summaries, manual validation procedures, and exact use of gated internal hooks. These pages are visibly non-consumer material. Hook pages use one consistent contract: supported source-tree maintainer validation interfaces, compile-time gated, non-installed, and not versioned as consumer API.
 
-Every public API needs concise IntelliSense documentation in its public header. APIs with non-trivial behavior also need Markdown coverage in the library manual explaining when to use them, lifecycle/threading rules, failure behavior, blocking behavior, performance expectations, and examples. The manual must account for every public namespace, type, enum value, field, function, macro, and constant, while allowing genuinely related overloads to share one behavior table.
+Every public API needs concise IntelliSense documentation in its public header. APIs with non-trivial behavior also need Markdown coverage in the library manual explaining when to use them, lifecycle/threading rules, failure behavior, blocking behavior, performance expectations, and examples. The generated API reference must account for every public namespace, type, enum value, field, function, macro, and constant. Manual pages may group related overloads and symbols into one behavior table or workflow.
 
-## IntelliSense vs manual pages
+## IntelliSense and manual pages
 
 Public headers are for compact IntelliSense contracts:
 
-- what the API does,
-- parameters and return values,
-- lifecycle expectations,
-- thread-safety,
-- blocking/UI behavior,
-- failure behavior,
-- performance notes,
-- links to deeper manual pages.
+- What the API does
+- Parameters and return values
+- Lifecycle expectations
+- Thread-safety
+- Blocking and UI behavior
+- Failure behavior
+- Performance notes
+- Links to deeper manual pages
 
 Consumer Markdown pages are for the full supported manual:
 
-- quick starts,
-- API family and overload behavior tables,
-- recipes,
-- examples for every public function/macro,
-- common mistakes,
-- troubleshooting,
+- Quick starts
+- API-family and overload-behavior tables
+- Recipes
+- Examples for every distinct workflow or behavior family and for non-obvious or high-risk APIs
+- Common mistakes
+- Troubleshooting
 
 Maintainer validation pages may document hook enablement, internal include paths, reset rules, and proof coverage. They do not explain unrelated private implementation mechanics.
 
 Internal headers and implementation files are maintainer documentation. Give every named internal namespace, type, function, and non-obvious constant a concise purpose comment. Add ownership, locking, state-transition, platform, fallback, units, or performance details when the signature cannot communicate them safely. Do not narrate obvious control flow, assignments, accessors, or local variables. These source comments remain outside the generated public manual.
 
+## Editorial standard
+
+Use a consistent editorial style across project and library documentation:
+
+- Use title case for the document or Doxygen page title and sentence case for subordinate headings. Named roadmap phases and exact API identifiers retain their established capitalization.
+- Use the exact library names `IO`, `FileSystem`, `Terminal`, `Logger`, `Assert`, and `TestSupport`. Use lowercase words only when referring to the generic concept rather than the library.
+- Prefer direct, neutral descriptions and imperative instructions. Troubleshooting headings describe the symptom rather than speaking as “I” or “my.”
+- Describe implemented behavior in the present tense. Use `must` for a required contract, `may` for permitted behavior, and `should` only for a recommendation rather than an implementation promise.
+- Use `-` for unordered lists. End complete-sentence items with periods; leave short labels and fragments without punctuation. Do not join list fragments with semicolons.
+- Format C++ examples according to the repository `.clang-format` file. Examples use compile-ready syntax, show required headers and targets, and avoid private implementation symbols.
+- Keep reusable-library examples generic; application-specific helper logic belongs in the application or project documentation.
+- Give each quick-start page the same progression: required include, installed-package CMake usage, source-tree target when relevant, minimal example, failure handling, and links to deeper contracts.
+- Keep consumer pages focused on supported behavior. Native API choices, algorithms, private state, and backend wiring belong in internal source comments or clearly labeled maintainer validation pages.
+- Use one authoritative page for each detailed rule. Short summaries may link to it, but must not create a second competing contract.
+
+Repository-wide product and process documents follow the same voice and heading rules. Checklists may use sentence-form checkbox items; roadmap entries may use concise action fragments.
+
 ## Test-hook documentation
 
-Test hooks are supported for source-tree maintainers and documented in labeled maintainer pages because they matter for deterministic validation. Hook headers are not installed or versioned as consumer API. External installed-package consumers validate only supported public behavior.
+Test hooks are supported source-tree maintainer validation interfaces and are documented in labeled maintainer pages because they matter for deterministic validation. They are compile-time gated, their headers are not installed, and they are not versioned as consumer API. External installed-package consumers validate only supported public behavior.
 
 ## Doxygen verification
 

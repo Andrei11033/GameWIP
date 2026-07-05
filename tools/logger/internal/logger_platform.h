@@ -46,4 +46,7 @@ namespace GameWIP::Logger::Detail::Platform
     /// @brief Returns reusable per-thread format storage through the platform backend.
     /// @return Mutable per-thread scratch string.
     std::string &formatScratchForThread();
+
+    /// @brief Releases the most recently acquired per-thread format scratch lease.
+    void releaseFormatScratchForThread() noexcept;
 } // namespace GameWIP::Logger::Detail::Platform

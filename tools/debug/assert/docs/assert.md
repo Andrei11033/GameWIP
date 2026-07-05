@@ -2,9 +2,9 @@
 
 The Assert library provides fatal assertions, recoverable checks, and optional interactive developer failure actions.
 
-The assert library reports through the Logger library. Fatal assertion paths use synchronous logger reports so failure diagnostics are written immediately.
+The Assert library reports through the Logger library. Fatal assertion paths use synchronous Logger reports so failure diagnostics are written immediately.
 
-## User manual
+## Consumer manual
 
 - @subpage assert_quick_start
 - @subpage assert_public_api

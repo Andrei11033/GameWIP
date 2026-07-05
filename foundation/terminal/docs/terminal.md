@@ -4,7 +4,7 @@
 
 Terminal is a shared runtime library. One process-wide instance owns standard-stream serialization, reusable output state, input modes, cursor scopes, and alternate-screen nesting across the application and shared libraries such as Logger.
 
-## User manual
+## Consumer manual
 
 - @subpage terminal_quick_start
 - @subpage terminal_public_api

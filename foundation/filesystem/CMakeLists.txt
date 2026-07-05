@@ -48,7 +48,7 @@ set_target_properties(FileSystem PROPERTIES
 if(GAMEWIP_BUILD_DOCS AND COMMAND gamewip_register_doxygen_library)
     gamewip_register_doxygen_library(
         NAME FileSystem
-        PAGE_ID foundation_filesystem
+        PAGE_ID filesystem
         PUBLIC_HEADERS
             "${CMAKE_CURRENT_SOURCE_DIR}/filesystem.h"
         DOCS

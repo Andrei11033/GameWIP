@@ -4,7 +4,7 @@ Logger is the runtime diagnostics library for normal asynchronous logs and impor
 
 Use normal logs for regular runtime information. Use reports for failures where the message must be written immediately, such as assertion failures, startup errors, or shutdown errors.
 
-## User manual
+## Consumer manual
 
 - @subpage logger_quick_start
 - @subpage logger_public_api
@@ -28,7 +28,7 @@ Use @ref GameWIP::Logger for lifecycle, filtering, logging, reporting, statistic
 
 ## Key behavior
 
-Normal log calls are asynchronous, queue-based, and filterable. Report calls are synchronous, bypass filters and the async queue, write to active sinks immediately, and flush before returning.
+Normal log calls are asynchronous, queue-based, and filterable. Report calls are synchronous, bypass filters and the asynchronous queue, write to active sinks immediately, and flush before returning.
 
 Logger uses the shared Terminal behavior for stdout/stderr, portable styling, Unicode output, redirection, and line endings.
 

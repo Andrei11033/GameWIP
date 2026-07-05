@@ -21,7 +21,7 @@ These helpers are intentionally small and text-oriented. Use custom code for bin
 } // The workspace and every contained artifact are removed.
 ```
 
-Names are unique across concurrent scopes. The readable purpose is sanitized for use as a path prefix. Construction throws when the OS temporary directory cannot be resolved or a unique directory cannot be created; destruction suppresses cleanup errors so teardown cannot replace the test outcome.
+Names are unique across concurrent scopes. The readable purpose is sanitized for use as a path prefix. Construction throws when the operating-system temporary directory cannot be resolved or a unique directory cannot be created; destruction suppresses cleanup errors so teardown cannot replace the test outcome.
 
 `ScopedCurrentPath` temporarily changes the process working directory and restores the previous path on destruction. It is useful when testing APIs whose documented contract intentionally uses relative paths:
 
@@ -41,7 +41,7 @@ The working directory is process-global. Do not overlap `ScopedCurrentPath` inst
 
 ```cpp
 {
-    GameWIP::TestSupport::ScopedEnvironmentVariable variable("INTERNAL_TEST_SUPPORT_TEST_MODE", "1");
+    GameWIP::TestSupport::ScopedEnvironmentVariable variable("MYAPP_TEST_MODE", "1");
     runScenarioThatReadsEnvironment();
 }
 ```
@@ -50,12 +50,14 @@ The working directory is process-global. Do not overlap `ScopedCurrentPath` inst
 
 ```cpp
 {
-    GameWIP::TestSupport::ScopedUnsetEnvironmentVariable variable("INTERNAL_TEST_SUPPORT_OPTIONAL_SETTING");
+    GameWIP::TestSupport::ScopedUnsetEnvironmentVariable variable("MYAPP_OPTIONAL_SETTING");
     runScenarioWithoutSetting();
 }
 ```
 
 Environment variables are process-global. Avoid overlapping scoped environment changes for the same name across threads.
+
+Construction rejects empty names, names containing `=`, embedded nulls, and invalid UTF-8. It throws when the process environment cannot be changed. Destruction performs best-effort restoration and cannot throw.
 
 ## Windows behavior
 
@@ -64,4 +66,4 @@ On Windows, TestSupport updates both:
 - the CRT environment used by `std::getenv()`, and
 - the process environment inherited by child processes.
 
-Windows backend code follows the project Unicode standard: public text uses UTF-8 `std::string`, and Win32 platform calls convert to UTF-16 and call explicit `W` APIs.
+Names and values use UTF-8 `std::string` at the public boundary. Invalid UTF-8 is rejected before the environment is changed.

@@ -1,13 +1,13 @@
 @page logger_troubleshooting Logger troubleshooting
 
-## My logs do not appear
+## Logs do not appear
 
 Likely causes:
 
 - logger was not initialized,
 - message is below `minLevel`,
 - source or level filter suppresses it,
-- async queue has not flushed yet,
+- asynchronous queue has not flushed yet,
 - file output failed and fallback is disabled.
 
 Check:
@@ -18,7 +18,7 @@ GameWIP::Logger::getLastResult();
 GameWIP::Logger::getStats();
 ```
 
-## My file is empty
+## The log file is empty
 
 Normal logs are asynchronous. Call `flush()` or `shutdown()` before checking the file.
 
@@ -26,13 +26,13 @@ Normal logs are asynchronous. Call `flush()` or `shutdown()` before checking the
 GameWIP::Logger::flush();
 ```
 
-## I get dropped logs
+## Logs are dropped
 
-Drops mean queue pressure, not filtering. Check queue limits and stress volume. Consider a larger config, lower log volume, source filters, or using fewer expensive debug logs in hot paths.
+Drops mean queue pressure, not filtering. Check queue limits and stress volume. Consider a larger configuration, lower log volume, source filters, or fewer expensive debug logs in hot paths.
 
 ## Reports appear but normal logs do not
 
-Reports bypass normal filters and the async queue. If reports work but normal logs do not, inspect `minLevel`, source filters, level filters, and queue/drop stats.
+Reports bypass normal filters and the asynchronous queue. If reports work but normal logs do not, inspect `minLevel`, source filters, level filters, and queue/drop statistics.
 
 ## Flush times out
 
@@ -40,7 +40,7 @@ A timed flush returning false means the bounded wait expired. It does not automa
 
 ## Fatal log did not show a popup
 
-`Logger::fatal(...)` is a fatal-severity async log. Use `reportFatal(...)` or `fatalTerminate(...)` for the synchronous fatal report/popup path.
+`Logger::fatal(...)` is a fatal-severity asynchronous log. Use `reportFatal(...)` or `fatalTerminate(...)` for the synchronous fatal report and popup path.
 
 ## UnknownSource appears
 
@@ -48,7 +48,7 @@ A registered-source overload received a `SourceId` that was not present in `Conf
 
 ## Filtered logs look like drops
 
-Filtered logs are intentional skips and should not increment drop counters. Queue drops mean the logger accepted too much async work for the configured queue limits.
+Filtered logs are intentional skips and should not increment drop counters. Queue drops mean Logger accepted too much asynchronous work for the configured queue limits.
 
 ## Related pages
 

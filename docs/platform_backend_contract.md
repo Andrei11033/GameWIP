@@ -56,19 +56,19 @@ Avoid platform branches in public headers and portable core files. A narrowly ju
 
 Public APIs prefer:
 
-- standard C++ value types;
-- `std::string` for UTF-8 text;
-- `std::filesystem::path` for native filesystem paths;
-- library-owned enums, options, results, and RAII types.
+- Standard C++ value types
+- `std::string` for UTF-8 text
+- `std::filesystem::path` for native filesystem paths
+- Library-owned enums, options, results, and RAII types
 
 Public APIs do not expose:
 
-- `HANDLE`, `HWND`, `DWORD`, Win32 structs, or platform headers;
-- POSIX descriptors or structs as portable contracts;
-- native error codes as the only failure model;
-- backend storage layouts;
-- test-hook state;
-- a platform-specific string encoding disguised as portable text.
+- `HANDLE`, `HWND`, `DWORD`, Win32 structs, or platform headers
+- POSIX descriptors or structs as portable contracts
+- Native error codes as the only failure model
+- Backend storage layouts
+- Test-hook state
+- A platform-specific string encoding disguised as portable text
 
 When callers genuinely need native integration, add an explicitly platform-scoped adapter rather than weakening the portable primary API.
 
@@ -76,14 +76,14 @@ When callers genuinely need native integration, add an explicitly platform-scope
 
 Each internal backend declaration must document enough for another platform implementation:
 
-- purpose and observable result;
-- ownership and lifetime of handles/storage;
-- input/output encoding;
-- blocking and thread-safety behavior;
-- units, ranges, timeout semantics, and partial progress;
-- native failure mapping and fallback rules;
-- whether cleanup can fail and how retry/ownership state behaves;
-- performance constraints that affect the portable caller.
+- Purpose and observable result
+- Ownership and lifetime of handles and storage
+- Input and output encoding
+- Blocking and thread-safety behavior
+- Units, ranges, timeout semantics, and partial progress
+- Native failure mapping and fallback rules
+- Whether cleanup can fail and how retry and ownership state behave
+- Performance constraints that affect the portable caller
 
 Backend functions should return portable owning-library result types or narrow internal result structures. Core code translates those results into the public contract and owns cross-platform policy.
 
@@ -117,12 +117,12 @@ Timeouts use monotonic time for elapsed-duration decisions. A timeout result dis
 
 Hooks may make rare native failures deterministic, but they remain source-tree maintainer interfaces:
 
-- compile-time gated by the owning library option;
-- declared under the owning `internal/` directory;
-- named in backend-neutral terms when core tests share them;
-- resettable between scenarios;
-- absent from public file sets and installed target interfaces;
-- documented only in clearly labeled maintainer validation pages.
+- Compile-time gated by the owning library option
+- Declared under the owning `internal/` directory
+- Named in backend-neutral terms when core tests share them
+- Resettable between scenarios
+- Absent from public file sets and installed target interfaces
+- Documented only in clearly labeled maintainer validation pages
 
 Hooks do not replace normal public behavior tests or manual verification of genuinely interactive native UI.
 

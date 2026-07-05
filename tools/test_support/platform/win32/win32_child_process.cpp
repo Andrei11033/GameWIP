@@ -14,12 +14,12 @@
 #endif
 
 #include <algorithm>
-#include <cctype>
 #include <chrono>
 #include <cstddef>
 #include <cwchar>
 #include <cwctype>
 #include <limits>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <thread>
@@ -179,57 +179,46 @@ namespace GameWIP::TestSupport
             }
         }
 
-        /// @brief Builds printable fallback UTF-16 text when strict UTF-8 conversion fails.
-        [[nodiscard]] std::wstring asciiFallbackToWide(std::string_view text)
-        {
-            std::wstring output;
-            output.reserve(text.size());
-            for (char ch : text)
-            {
-                const unsigned char value = static_cast<unsigned char>(ch);
-                output.push_back(value >= 0x20 && value < 0x80 ? static_cast<wchar_t>(value) : L'?');
-            }
-            return output;
-        }
-
-        /// @brief Converts public UTF-8 process text to UTF-16 without throwing.
+        /// @brief Converts public UTF-8 process text to UTF-16 without lossy substitution.
         [[nodiscard]] std::wstring utf8ToWide(std::string_view text)
         {
+            if (text.find('\0') != std::string_view::npos)
+            {
+                throw std::invalid_argument("Child-process text contains an embedded null");
+            }
             if (text.empty())
             {
                 return {};
             }
             if (text.size() > static_cast<std::size_t>((std::numeric_limits<int>::max)()))
             {
-                return L"?";
+                throw std::length_error("Child-process text exceeds the Win32 conversion limit");
             }
 
             const int inputSize = static_cast<int>(text.size());
             const int wideSize = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, text.data(), inputSize, nullptr, 0);
             if (wideSize <= 0)
             {
-                return asciiFallbackToWide(text);
+                throw std::invalid_argument("Child-process text is not valid UTF-8");
             }
 
             std::wstring output(static_cast<std::size_t>(wideSize), L'\0');
             if (MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, text.data(), inputSize, output.data(), wideSize) != wideSize)
             {
-                return L"?";
+                throw std::runtime_error("Win32 child-process text conversion failed");
             }
             return output;
         }
 
-        /// @brief Converts a filesystem path to native UTF-16 with a narrow fallback.
+        /// @brief Returns a validated native UTF-16 executable path.
         [[nodiscard]] std::wstring pathToWide(const std::filesystem::path &path)
         {
-            try
+            std::wstring text = path.wstring();
+            if (text.find(L'\0') != std::wstring::npos)
             {
-                return path.wstring();
+                throw std::invalid_argument("Child-process executable path contains an embedded null");
             }
-            catch (...)
-            {
-                return utf8ToWide(path.string());
-            }
+            return text;
         }
 
         /// @brief Returns whether CreateProcess command-line grammar requires quoting.
@@ -323,7 +312,7 @@ namespace GameWIP::TestSupport
         {
             if (variable.name.empty() || variable.name.find('=') != std::string::npos)
             {
-                return;
+                throw std::invalid_argument("Child-process environment names must be non-empty and cannot contain '='");
             }
 
             const std::wstring variableName = utf8ToWide(variable.name);

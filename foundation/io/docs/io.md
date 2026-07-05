@@ -4,7 +4,7 @@
 
 It defines shared reader, writer, status, error, and whole-stream helper APIs for low-level libraries. IO does not call the operating system and has no platform backend.
 
-## User manual
+## Consumer manual
 
 - @subpage io_quick_start
 - @subpage io_public_api

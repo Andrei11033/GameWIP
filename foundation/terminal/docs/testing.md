@@ -1,12 +1,13 @@
 @page terminal_testing Terminal maintainer validation and hooks
 
-@note This page is for maintainers. Hook declarations are internal, non-installed, and carry no consumer compatibility guarantee.
+@note This page is for maintainers. It describes proof coverage, not supported consumer API.
 
 ## Behavior coverage
 
 Terminal tests cover:
 
 - stdout/stderr text, byte, line, formatted, segmented, and buffered writes;
+- isolated same-stream formatter reentry for both `print()` and `println()`;
 - complete-record emission, per-stream synchronization, and scratch reuse;
 - capability queries, output preparation, idempotence, failure propagation, and style fallback;
 - `StyleMode::Never`, `Auto`, and `Required`;
@@ -17,11 +18,15 @@ Terminal tests cover:
 - RAII setup, nesting, explicit restoration, failed restoration, and retry behavior;
 - concurrent calls and Logger integration through the shared Terminal runtime.
 
-## Internal hooks
+Platform-boundary coverage verifies explicit Unicode Win32 APIs for console text, byte-oriented redirected I/O, and separation between platform-neutral core code and native calls.
+
+## Test hooks
+
+@warning These hooks are supported source-tree maintainer interfaces. They are not installed and are not versioned consumer API.
 
 The GameWIP `validation` preset enables hooks automatically. A focused source build can set `TERMINAL_ENABLE_TEST_HOOKS=ON`; approved build-tree targets then receive `INTERNAL_TERMINAL_TEST_HOOKS=1`.
 
-A source-tree test links `Terminal` (or `GameWIP::Terminal`) and includes `terminal/internal/terminal_test_hooks.h`. The build-tree target supplies the source include root and compile definition. Installed packages intentionally do not provide this header.
+A source-tree test links the short `Terminal` target and includes `terminal/internal/terminal_test_hooks.h`. The build-tree target supplies the source include root and compile definition. Installed packages intentionally do not provide this header.
 
 Hook rules:
 

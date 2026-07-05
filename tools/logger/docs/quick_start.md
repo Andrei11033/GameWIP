@@ -1,10 +1,37 @@
 @page logger_quick_start Logger quick start
 
-A minimal logger setup initializes the process-wide runtime, writes normal async logs, uses reports for important synchronous diagnostics, and shuts down during application teardown.
+A minimal Logger setup initializes the process-wide runtime, writes normal asynchronous logs, uses reports for important synchronous diagnostics, and shuts down during application teardown.
+
+## Include
+
+Include the namespace API. Include the macro header only where the optional global `LOGGER_*` macros are used:
 
 ```cpp
 #include "logger/logger.h"
 #include "logger/logger_macros.h"
+```
+
+## Installed CMake
+
+Use the package's namespaced imported target. The package resolves its foundation-library dependencies:
+
+```cmake
+find_package(Logger CONFIG REQUIRED)
+target_link_libraries(MyTarget PRIVATE GameWIP::Logger)
+```
+
+## Source-tree CMake
+
+When Logger is part of the same source tree, use its short build target:
+
+```cmake
+target_link_libraries(MyTarget PRIVATE Logger)
+```
+
+## Minimal usage
+
+```cpp
+#include "logger/logger.h"
 
 namespace Logger = GameWIP::Logger;
 

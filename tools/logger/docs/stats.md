@@ -13,7 +13,7 @@ Important rules:
 
 ## Queue counters
 
-`queued` counts accepted async log entries. `written` counts entries or synchronous reports accepted by at least one sink. `queueDropsSoft` and `queueDropsHard` describe queue pressure only; filtered logs are not drops.
+`queued` counts accepted asynchronous log entries. `written` counts entries or synchronous reports accepted by at least one sink. `queueDropsSoft` and `queueDropsHard` describe queue pressure only; filtered logs are not drops.
 
 `getLifetimeDroppedLogCount()` preserves the lifetime drop total. `resetStats()` clears resettable stats but does not erase the lifetime drop value used by shutdown reporting.
 

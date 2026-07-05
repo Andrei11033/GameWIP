@@ -243,11 +243,12 @@ namespace GameWIP::Logger::Detail::Core
     /// @brief Publishes a filled or skip-marked slot and wakes the worker when it was sleeping.
     /// @param slot Slot to publish.
     /// @param ticket Producer ticket for this slot.
-    /// @param outNotifyWorker Receives true when the published-depth transition should wake the worker.
+    /// @param outNotifyWorker Receives true when publication may make the queue head drainable.
     void publishQueueSlot(QueueSlot &slot, std::size_t ticket, bool &outNotifyWorker)
     {
         slot.sequence.store(ticket + 1, std::memory_order_release);
-        outNotifyWorker = loggerState().publishedQueueDepth.fetch_add(1, std::memory_order_acq_rel) == 0;
+        const bool firstPublishedSlot = loggerState().publishedQueueDepth.fetch_add(1, std::memory_order_acq_rel) == 0;
+        outNotifyWorker = firstPublishedSlot || ticket == loggerState().dequeueTicket.load(std::memory_order_acquire);
     }
 
     /// @brief Publishes one pending entry into a reserved MPSC ring slot.
@@ -334,6 +335,19 @@ namespace GameWIP::Logger::Detail::Core
     // Worker helpers
     //-------------------------------------------------------------------------------------------------
 
+    /// @brief Returns whether the exact next ordered ring slot is ready for the worker.
+    [[nodiscard]] bool queueHeadIsPublished() noexcept
+    {
+        const std::size_t capacity = loggerState().logRingSize;
+        if (capacity == 0)
+        {
+            return false;
+        }
+
+        const std::size_t ticket = loggerState().dequeueTicket.load(std::memory_order_acquire);
+        return loggerState().logRing[ticket % capacity].sequence.load(std::memory_order_acquire) == ticket + 1;
+    }
+
     /// @brief Worker thread entry point that drains queued entries and writes output sinks.
     void loggerWorker()
     {
@@ -350,7 +364,7 @@ namespace GameWIP::Logger::Detail::Core
                     lock,
                     []
                     {
-                        return loggerState().publishedQueueDepth.load(std::memory_order_acquire) > 0 ||
+                        return queueHeadIsPublished() ||
                                (!loggerState().workerRunning && loggerState().activeProducers.load(std::memory_order_acquire) == 0 &&
                                 loggerState().queueDepth.load(std::memory_order_acquire) == 0);
                     });
@@ -372,7 +386,6 @@ namespace GameWIP::Logger::Detail::Core
                     loggerState().workerBusy = false;
                 }
                 loggerState().logCondition.notify_all();
-                std::this_thread::yield();
                 continue;
             }
 

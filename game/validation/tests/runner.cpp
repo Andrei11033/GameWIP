@@ -13,6 +13,7 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 namespace GameWIP::Validation::Tests
@@ -24,7 +25,19 @@ namespace GameWIP::Validation::Tests
         {
             std::optional<std::string> module;
             std::set<std::string, std::less<>> excludedModules;
+            bool conflictingModules = false;
         };
+
+        /// @brief Records one requested module and detects incompatible selectors.
+        void requestModule(Selection &selection, std::string module)
+        {
+            if (selection.module && *selection.module != module)
+            {
+                selection.conflictingModules = true;
+                return;
+            }
+            selection.module = std::move(module);
+        }
 
         /// @brief Returns whether the process arguments contain one exact option.
         [[nodiscard]] bool hasArgument(int argc, char **argv, std::string_view argument)
@@ -62,7 +75,20 @@ namespace GameWIP::Validation::Tests
         Selection applyArguments(int argc, char **argv, RunOptions &options)
         {
             Selection selection;
-            selection.module = argumentValue(argc, argv, "--test-module=");
+            for (int index = 1; index < argc; ++index)
+            {
+                if (argv[index] == nullptr)
+                {
+                    continue;
+                }
+
+                const std::string_view argument(argv[index]);
+                constexpr std::string_view modulePrefix = "--test-module=";
+                if (argument.starts_with(modulePrefix))
+                {
+                    requestModule(selection, std::string(argument.substr(modulePrefix.size())));
+                }
+            }
 
             if (const auto reportPath = argumentValue(argc, argv, "--test-report="))
             {
@@ -91,7 +117,7 @@ namespace GameWIP::Validation::Tests
             }
             if (hasArgument(argc, argv, "--test-support-manual"))
             {
-                selection.module = "test_support";
+                requestModule(selection, "test_support");
                 options.enableManualUiTests = true;
             }
 
@@ -105,7 +131,7 @@ namespace GameWIP::Validation::Tests
             {
                 if (hasArgument(argc, argv, argument))
                 {
-                    selection.module = std::string(module);
+                    requestModule(selection, std::string(module));
                 }
             }
 
@@ -200,6 +226,24 @@ namespace GameWIP::Validation::Tests
             }
             return true;
         }
+
+        /// @brief Converts an unexpected module exception into a normal failing module result.
+        [[nodiscard]] int invokeModule(const Module &module, const ModuleInvocation &invocation) noexcept
+        {
+            try
+            {
+                return module.run(invocation);
+            }
+            catch (const std::exception &exception)
+            {
+                std::cerr << "Validation module '" << module.name << "' threw an exception: " << exception.what() << '\n';
+            }
+            catch (...)
+            {
+                std::cerr << "Validation module '" << module.name << "' threw an unknown exception.\n";
+            }
+            return 1;
+        }
     } // namespace
 
     TestResult run(int argc, char **argv, RunOptions options)
@@ -210,21 +254,56 @@ namespace GameWIP::Validation::Tests
             return {.modulesFailed = 1, .exitCode = 1};
         }
 
+        const Module *childOwner = nullptr;
         for (const Module &module : modules)
         {
-            if (module.handlesChildArguments != nullptr && module.handlesChildArguments(argc, argv))
+            bool handlesChildArguments = false;
+            if (module.handlesChildArguments != nullptr)
             {
-                const int exitCode = module.run({argc, argv, options, false});
-                return {
-                    .modulesRun = 1,
-                    .modulesFailed = exitCode == 0 ? 0u : 1u,
-                    .exitCode = exitCode,
-                    .handledChildInvocation = true,
-                };
+                try
+                {
+                    handlesChildArguments = module.handlesChildArguments(argc, argv);
+                }
+                catch (const std::exception &exception)
+                {
+                    std::cerr << "Validation child matcher for module '" << module.name << "' threw an exception: " << exception.what() << '\n';
+                    return {.modulesFailed = 1, .exitCode = 1};
+                }
+                catch (...)
+                {
+                    std::cerr << "Validation child matcher for module '" << module.name << "' threw an unknown exception.\n";
+                    return {.modulesFailed = 1, .exitCode = 1};
+                }
+            }
+
+            if (handlesChildArguments)
+            {
+                if (childOwner != nullptr)
+                {
+                    std::cerr << "Ambiguous validation child invocation matched modules '" << childOwner->name << "' and '" << module.name << "'.\n";
+                    return {.modulesFailed = 1, .exitCode = 1, .handledChildInvocation = true};
+                }
+                childOwner = &module;
             }
         }
 
+        if (childOwner != nullptr)
+        {
+            const int exitCode = invokeModule(*childOwner, {argc, argv, options, false});
+            return {
+                .modulesRun = 1,
+                .modulesFailed = exitCode == 0 ? 0u : 1u,
+                .exitCode = exitCode,
+                .handledChildInvocation = true,
+            };
+        }
+
         const Selection selection = applyArguments(argc, argv, options);
+        if (selection.conflictingModules)
+        {
+            std::cerr << "Conflicting validation module selectors were provided.\n";
+            return {.modulesFailed = 1, .exitCode = 1};
+        }
         if (selection.module && std::ranges::none_of(
                                     modules,
                                     [&](const Module &module)
@@ -233,6 +312,11 @@ namespace GameWIP::Validation::Tests
                                     }))
         {
             std::cerr << "Unknown validation module: " << *selection.module << '\n';
+            return {.modulesFailed = 1, .exitCode = 1};
+        }
+        if (selection.module && selection.excludedModules.contains(*selection.module))
+        {
+            std::cerr << "Selected validation module is also excluded: " << *selection.module << '\n';
             return {.modulesFailed = 1, .exitCode = 1};
         }
 
@@ -251,7 +335,7 @@ namespace GameWIP::Validation::Tests
                 continue;
             }
 
-            const int moduleExitCode = module.run({argc, argv, options, appendReport});
+            const int moduleExitCode = invokeModule(module, {argc, argv, options, appendReport});
             ++result.modulesRun;
             if (moduleExitCode != 0)
             {

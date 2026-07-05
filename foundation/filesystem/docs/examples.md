@@ -1,4 +1,4 @@
-@page foundation_filesystem_examples FileSystem examples
+@page filesystem_examples FileSystem examples
 
 Examples use this namespace alias:
 
@@ -11,12 +11,14 @@ namespace IO = GameWIP::IO;
 
 ```cpp
 IO::Types::WriteResult write = FileSystem::writeAllText("settings.ini", "fullscreen=true\n");
-if (!write.status.ok()) {
+if (!write.status.ok())
+{
     return write.status;
 }
 
 IO::Types::ReadAllTextResult read = FileSystem::readAllText("settings.ini");
-if (!read.status.ok()) {
+if (!read.status.ok())
+{
     return read.status;
 }
 ```
@@ -35,14 +37,17 @@ IO::Types::WriteResult append = FileSystem::appendText("logs/session.txt", "load
 ```cpp
 FileSystem::FileReader reader;
 IO::Types::Status status = reader.open("data/package.bin");
-if (!status.ok()) {
+if (!status.ok())
+{
     return status;
 }
 
 std::array<std::byte, 8192> scratch{};
-while (true) {
+while (true)
+{
     IO::Types::ReadResult read = reader.read(std::span<std::byte>(scratch.data(), scratch.size()));
-    if (!read.status.ok() || read.endOfStream) {
+    if (!read.status.ok() || read.endOfStream)
+    {
         status = read.status;
         break;
     }
@@ -63,14 +68,17 @@ IO::Types::Status status = file.open(
         .access = FileSystem::Types::FileAccess::ReadWrite,
         .mode = FileSystem::Types::FileOpenMode::OpenExisting});
 
-if (status.ok()) {
+if (status.ok())
+{
     status = file.seek(0, IO::Types::SeekOrigin::End);
 }
-if (status.ok()) {
+if (status.ok())
+{
     const std::string marker = "done";
     status = file.write(std::as_bytes(std::span<const char>(marker.data(), marker.size()))).status;
 }
-if (status.ok()) {
+if (status.ok())
+{
     status = file.close();
 }
 ```
@@ -98,7 +106,8 @@ options.includeHidden = false;
 options.maxEntries = 1024;
 
 FileSystem::Types::ListDirectoryResult listing = FileSystem::listDirectory("assets", options);
-for (const FileSystem::Types::DirectoryEntry& entry : listing.entries) {
+for (const FileSystem::Types::DirectoryEntry& entry : listing.entries)
+{
     useEntry(entry.path, entry.info);
 }
 ```
@@ -124,10 +133,12 @@ FileSystem::Types::CopyFileOptions copyOptions{};
 copyOptions.metadataMode = FileSystem::Types::CopyMetadataMode::Basic;
 
 IO::Types::Status status = FileSystem::copyFile("source.dat", "backup/source.dat", copyOptions);
-if (status.ok()) {
+if (status.ok())
+{
     status = FileSystem::movePath("backup/source.dat", "backup/current.dat");
 }
-if (status.ok()) {
+if (status.ok())
+{
     status = FileSystem::removeFile("backup/current.dat");
 }
 ```
@@ -138,7 +149,8 @@ if (status.ok()) {
 
 ```cpp
 auto path = FileSystem::pathFromUtf8("saves/slot-\xE2\x98\x85.json");
-if (!path.status.ok()) {
+if (!path.status.ok())
+{
     return path.status;
 }
 
@@ -152,17 +164,20 @@ Use these helpers where external text is explicitly UTF-8.
 ```cpp
 FileSystem::File file;
 IO::Types::Status status = file.open("save.bin");
-if (!status.ok()) {
+if (!status.ok())
+{
     return status;
 }
 
 auto lock = file.tryLockExclusive();
-if (lock.status.ok() && lock.outcome == FileSystem::Types::LockOutcome::Acquired) {
+if (lock.status.ok() && lock.outcome == FileSystem::Types::LockOutcome::Acquired)
+{
     updateFile(file);
     status = lock.lock.unlock();
 }
 
-if (status.ok()) {
+if (status.ok())
+{
     status = file.close();
 }
 ```

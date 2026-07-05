@@ -1,6 +1,6 @@
 @page test_support_testing TestSupport maintainer validation
 
-@note This page describes how maintainers validate TestSupport itself. The public TestSupport API remains documented in the user-manual pages.
+@note This page describes how maintainers validate TestSupport itself. The public TestSupport API remains documented in the consumer-manual pages.
 
 The focused suite covers:
 

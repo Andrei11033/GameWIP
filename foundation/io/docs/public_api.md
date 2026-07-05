@@ -1,6 +1,6 @@
 @page io_public_api IO public API
 
-Include `io/io.h` and link `GameWIP::IO` from an installed package. The source tree also provides the short `IO` target.
+Include `io/io.h`. Installed-package consumers link `GameWIP::IO`; builds within the source tree link the short `IO` target. See @ref io_quick_start for complete CMake examples.
 
 ## Contract selection
 

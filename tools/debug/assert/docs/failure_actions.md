@@ -20,7 +20,7 @@ Use Abort when continuing would make the process state unsafe.
 
 Ignore Once continues this single failure. The same macro call site can report again later.
 
-Use Ignore Once when you want to step past a known transient failure but still catch future occurrences.
+Use Ignore Once to step past a known transient failure while still catching future occurrences.
 
 ## Always Ignore
 
@@ -33,7 +33,7 @@ Important rules:
 - Always Ignore does not affect normal `ASSERT` / `VERIFY`.
 - `ASSERT_INTERACTIVE` may skip condition evaluation after Always Ignore.
 - `VERIFY_INTERACTIVE` still evaluates its condition.
-- The per-call-site flag is an atomic local static, so concurrent failures may race only in which thread observes or sets the ignore first.
+- Per-call-site ignore state is thread-safe; concurrent failures may race only in which thread observes or sets the ignore first.
 
 ## Related pages
 

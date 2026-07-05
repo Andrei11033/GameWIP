@@ -10,7 +10,7 @@ Passing-path benchmarks verify that enabled successful macros avoid failure form
 
 ## Child and interactive coverage
 
-Abort, unreachable, and debugger-break paths run in child processes so the parent suite can continue and assert exact results. Automated interactive tests use the internal forced-action definition and do not open dialogs.
+Abort, unreachable, and debugger-break paths run in child processes so the parent suite can continue and assert exact results. Automated interactive tests use the internal `INTERNAL_ASSERT_TEST_ACTION` forced-action definition and do not open dialogs.
 
 Real Win32 UI is manual and runtime opt-in. It covers Ignore Once, Always Ignore, Break with a debugger, Abort in a child, primary-dialog fallback, and fallback default behavior.
 

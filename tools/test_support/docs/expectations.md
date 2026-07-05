@@ -4,7 +4,7 @@
 
 `GameWIP::TestSupport::Runner` owns one shared report sink and aggregates named suites.
 
-Use it when a test executable runs more than one suite or when you want one final exit code:
+Use it when a test executable runs more than one suite or needs one final exit code:
 
 ```cpp
 GameWIP::TestSupport::Types::ReportOptions options;

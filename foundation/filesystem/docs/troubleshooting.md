@@ -1,4 +1,4 @@
-@page foundation_filesystem_troubleshooting FileSystem troubleshooting
+@page filesystem_troubleshooting FileSystem troubleshooting
 
 ## A normal path operation returns `Unsupported`
 

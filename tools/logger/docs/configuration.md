@@ -8,7 +8,7 @@ Logger configuration controls output sinks, queue size, message storage behavior
 - `Logger::lowMemoryConfig()` reduces retained memory.
 - `Logger::throughputConfig()` favors high-volume logging and reuse.
 
-Each helper returns a `Logger::Types::Config` value that can be edited before `Logger::init(config)`. The logger copies the configuration it needs during init; later edits to the local config object do not reconfigure the running logger.
+Each helper returns a `Logger::Types::Config` value that can be edited before `Logger::init(config)`. Logger copies the configuration it needs during initialization; later edits to the local configuration object do not reconfigure Logger.
 
 ## Output modes
 

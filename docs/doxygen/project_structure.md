@@ -6,8 +6,8 @@ GameWIP is one product repository with reusable C++ libraries around a small exe
 
 | Path | Ownership |
 | --- | --- |
-| `foundation/` | Low-level reusable IO, filesystem, and terminal libraries. |
-| `tools/` | Reusable diagnostics and validation-support libraries. |
+| `foundation/` | Low-level reusable IO, FileSystem, and Terminal libraries. |
+| `tools/` | Reusable Logger, Assert, and TestSupport libraries. |
 | `engine/` | Engine systems. This section is developed and reviewed separately from the foundation described here. |
 | `game/` | Process entry point, runtime composition, and modular validation executables. |
 | `cmake/` | Repository-wide build, platform, validation, coverage, documentation, and analysis helpers. |
@@ -58,4 +58,4 @@ The libraries are standalone at the installed-package boundary: a clean external
 
 `GameWIP::` is intentional ownership, not unwanted coupling. Generic package names such as `Logger` or `IO` are acceptable while packages ship together inside this pre-1.0 repository, but a future public distribution should either use one `GameWIP` package with components or rename packages to globally distinctive names before compatibility is promised.
 
-See @ref project_build for presets, @ref library_compatibility for package contracts, and @ref project_extending for adding systems.
+See @ref project_build for presets, @ref project_library_compatibility for package contracts, and @ref project_extending for adding systems.

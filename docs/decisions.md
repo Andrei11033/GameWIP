@@ -151,6 +151,8 @@ The project-level evidence and commands are maintained in `testing_checklist.md`
 
 Each fact has one authoritative owner. Other documents link to it instead of copying it. Doxygen inputs are explicit public headers and selected Markdown files; recursion is disabled.
 
+First-party documentation follows the shared heading, voice, terminology, list, example, and consumer/maintainer boundary rules in `docs/doxygen/documentation.md`.
+
 ## Repository workflow
 
 Feature work normally uses an issue, short-lived branch, pull request, required validation, and squash merge. Branch protection must require the documented pull-request, build/test, repository, and documentation checks.

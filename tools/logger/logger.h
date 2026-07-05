@@ -420,7 +420,33 @@ namespace GameWIP::Logger
         GAMEWIP_LOGGER_EXPORT Types::FormatPolicy getFormatPolicyForFormatting();
         /// @brief Releases thread-local format scratch capacity when configured.
         /// @param scratch Scratch buffer to optionally shrink.
-        GAMEWIP_LOGGER_EXPORT void releaseFormatScratchIfNeeded(std::string &scratch);
+        GAMEWIP_LOGGER_EXPORT void releaseFormatScratchIfNeeded(std::string &scratch) noexcept;
+
+        /// @brief Owns one nesting-safe formatted-message scratch lease.
+        class FormatScratchLease
+        {
+        public:
+            FormatScratchLease()
+                : scratch_(formatScratch())
+            {
+            }
+
+            ~FormatScratchLease() noexcept
+            {
+                releaseFormatScratchIfNeeded(scratch_);
+            }
+
+            FormatScratchLease(const FormatScratchLease &) = delete;
+            FormatScratchLease &operator=(const FormatScratchLease &) = delete;
+
+            [[nodiscard]] std::string &text() noexcept
+            {
+                return scratch_;
+            }
+
+        private:
+            std::string &scratch_;
+        };
 
         template <typename Format, typename... Args>
         bool formatWithPolicy(std::string &scratch, std::size_t maxMessageLength, Format format, Args &&...args);
@@ -2387,11 +2413,11 @@ namespace GameWIP::Logger
         {
             try
             {
-                std::string &scratch = Detail::Core::formatScratch();
+                Detail::Core::FormatScratchLease scratchLease;
+                std::string &scratch = scratchLease.text();
                 const bool truncated =
                     Detail::Core::formatWithPolicy(scratch, Detail::Core::getMaxMessageLengthForFormatting(), format, std::forward<Args>(args)...);
                 Detail::Core::enqueuePreformattedMessage(level, source, scratch, truncated);
-                Detail::Core::releaseFormatScratchIfNeeded(scratch);
             }
             catch (const std::format_error &)
             {
@@ -2409,11 +2435,11 @@ namespace GameWIP::Logger
         {
             try
             {
-                std::string &scratch = Detail::Core::formatScratch();
+                Detail::Core::FormatScratchLease scratchLease;
+                std::string &scratch = scratchLease.text();
                 const bool truncated =
                     Detail::Core::formatWithPolicy(scratch, Detail::Core::getMaxMessageLengthForFormatting(), format, std::forward<Args>(args)...);
                 Detail::Core::enqueuePreformattedMessage(level, source, scratch, truncated);
-                Detail::Core::releaseFormatScratchIfNeeded(scratch);
             }
             catch (const std::format_error &)
             {
@@ -2431,11 +2457,11 @@ namespace GameWIP::Logger
         {
             try
             {
-                std::string &scratch = Detail::Core::formatScratch();
+                Detail::Core::FormatScratchLease scratchLease;
+                std::string &scratch = scratchLease.text();
                 const bool truncated =
                     Detail::Core::runtimeFormatWithPolicy(scratch, Detail::Core::getMaxMessageLengthForFormatting(), format, args...);
                 Detail::Core::enqueuePreformattedMessage(level, source, scratch, truncated);
-                Detail::Core::releaseFormatScratchIfNeeded(scratch);
             }
             catch (const std::format_error &)
             {
@@ -2453,11 +2479,11 @@ namespace GameWIP::Logger
         {
             try
             {
-                std::string &scratch = Detail::Core::formatScratch();
+                Detail::Core::FormatScratchLease scratchLease;
+                std::string &scratch = scratchLease.text();
                 const bool truncated =
                     Detail::Core::runtimeFormatWithPolicy(scratch, Detail::Core::getMaxMessageLengthForFormatting(), format, args...);
                 Detail::Core::enqueuePreformattedMessage(level, source, scratch, truncated);
-                Detail::Core::releaseFormatScratchIfNeeded(scratch);
             }
             catch (const std::format_error &)
             {
@@ -2540,11 +2566,11 @@ namespace GameWIP::Logger
         {
             try
             {
-                std::string &scratch = Detail::Core::formatScratch();
+                Detail::Core::FormatScratchLease scratchLease;
+                std::string &scratch = scratchLease.text();
                 const bool truncated =
                     Detail::Core::formatWithPolicy(scratch, Detail::Core::getMaxMessageLengthForFormatting(), format, std::forward<Args>(args)...);
                 Detail::Core::reportPreformattedMessage(level, source, scratch, showPopup, truncated, nullptr);
-                Detail::Core::releaseFormatScratchIfNeeded(scratch);
             }
             catch (const std::format_error &)
             {
@@ -2567,11 +2593,11 @@ namespace GameWIP::Logger
         {
             try
             {
-                std::string &scratch = Detail::Core::formatScratch();
+                Detail::Core::FormatScratchLease scratchLease;
+                std::string &scratch = scratchLease.text();
                 const bool truncated =
                     Detail::Core::formatWithPolicy(scratch, Detail::Core::getMaxMessageLengthForFormatting(), format, std::forward<Args>(args)...);
                 Detail::Core::reportPreformattedMessage(level, source, scratch, showPopup, truncated, nullptr);
-                Detail::Core::releaseFormatScratchIfNeeded(scratch);
             }
             catch (const std::format_error &)
             {
@@ -2596,11 +2622,11 @@ namespace GameWIP::Logger
         {
             try
             {
-                std::string &scratch = Detail::Core::formatScratch();
+                Detail::Core::FormatScratchLease scratchLease;
+                std::string &scratch = scratchLease.text();
                 const bool truncated =
                     Detail::Core::formatWithPolicy(scratch, Detail::Core::getMaxMessageLengthForFormatting(), format, std::forward<Args>(args)...);
                 const bool flushed = Detail::Core::reportPreformattedMessage(level, source, scratch, showPopup, truncated, &timeout);
-                Detail::Core::releaseFormatScratchIfNeeded(scratch);
                 return flushed;
             }
             catch (const std::format_error &)
@@ -2627,11 +2653,11 @@ namespace GameWIP::Logger
         {
             try
             {
-                std::string &scratch = Detail::Core::formatScratch();
+                Detail::Core::FormatScratchLease scratchLease;
+                std::string &scratch = scratchLease.text();
                 const bool truncated =
                     Detail::Core::formatWithPolicy(scratch, Detail::Core::getMaxMessageLengthForFormatting(), format, std::forward<Args>(args)...);
                 const bool flushed = Detail::Core::reportPreformattedMessage(level, source, scratch, showPopup, truncated, &timeout);
-                Detail::Core::releaseFormatScratchIfNeeded(scratch);
                 return flushed;
             }
             catch (const std::format_error &)
@@ -2656,11 +2682,11 @@ namespace GameWIP::Logger
         {
             try
             {
-                std::string &scratch = Detail::Core::formatScratch();
+                Detail::Core::FormatScratchLease scratchLease;
+                std::string &scratch = scratchLease.text();
                 const bool truncated =
                     Detail::Core::runtimeFormatWithPolicy(scratch, Detail::Core::getMaxMessageLengthForFormatting(), format, args...);
                 Detail::Core::reportPreformattedMessage(level, source, scratch, showPopup, truncated, nullptr);
-                Detail::Core::releaseFormatScratchIfNeeded(scratch);
             }
             catch (const std::format_error &)
             {
@@ -2683,11 +2709,11 @@ namespace GameWIP::Logger
         {
             try
             {
-                std::string &scratch = Detail::Core::formatScratch();
+                Detail::Core::FormatScratchLease scratchLease;
+                std::string &scratch = scratchLease.text();
                 const bool truncated =
                     Detail::Core::runtimeFormatWithPolicy(scratch, Detail::Core::getMaxMessageLengthForFormatting(), format, args...);
                 Detail::Core::reportPreformattedMessage(level, source, scratch, showPopup, truncated, nullptr);
-                Detail::Core::releaseFormatScratchIfNeeded(scratch);
             }
             catch (const std::format_error &)
             {
@@ -2712,11 +2738,11 @@ namespace GameWIP::Logger
         {
             try
             {
-                std::string &scratch = Detail::Core::formatScratch();
+                Detail::Core::FormatScratchLease scratchLease;
+                std::string &scratch = scratchLease.text();
                 const bool truncated =
                     Detail::Core::runtimeFormatWithPolicy(scratch, Detail::Core::getMaxMessageLengthForFormatting(), format, args...);
                 const bool flushed = Detail::Core::reportPreformattedMessage(level, source, scratch, showPopup, truncated, &timeout);
-                Detail::Core::releaseFormatScratchIfNeeded(scratch);
                 return flushed;
             }
             catch (const std::format_error &)
@@ -2743,11 +2769,11 @@ namespace GameWIP::Logger
         {
             try
             {
-                std::string &scratch = Detail::Core::formatScratch();
+                Detail::Core::FormatScratchLease scratchLease;
+                std::string &scratch = scratchLease.text();
                 const bool truncated =
                     Detail::Core::runtimeFormatWithPolicy(scratch, Detail::Core::getMaxMessageLengthForFormatting(), format, args...);
                 const bool flushed = Detail::Core::reportPreformattedMessage(level, source, scratch, showPopup, truncated, &timeout);
-                Detail::Core::releaseFormatScratchIfNeeded(scratch);
                 return flushed;
             }
             catch (const std::format_error &)

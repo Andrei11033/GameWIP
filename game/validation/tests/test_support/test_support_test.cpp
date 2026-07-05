@@ -563,6 +563,39 @@ namespace
     /// @brief Verifies scoped environment set/unset and exact restoration behavior.
     void testEnvironmentHelpers(TestSupport::Context &context)
     {
+        bool emptyNameRejected = false;
+        try
+        {
+            TestSupport::ScopedEnvironmentVariable invalid("", "value");
+        }
+        catch (const std::invalid_argument &)
+        {
+            emptyNameRejected = true;
+        }
+        static_cast<void>(context.expectTrue("ScopedEnvironmentVariable rejects an empty name", emptyNameRejected));
+
+        bool equalsNameRejected = false;
+        try
+        {
+            TestSupport::ScopedUnsetEnvironmentVariable invalid("INVALID=NAME");
+        }
+        catch (const std::invalid_argument &)
+        {
+            equalsNameRejected = true;
+        }
+        static_cast<void>(context.expectTrue("ScopedUnsetEnvironmentVariable rejects '=' in a name", equalsNameRejected));
+
+        bool invalidUtf8Rejected = false;
+        try
+        {
+            TestSupport::ScopedEnvironmentVariable invalid("\xFF", "value");
+        }
+        catch (const std::invalid_argument &)
+        {
+            invalidUtf8Rejected = true;
+        }
+        static_cast<void>(context.expectTrue("ScopedEnvironmentVariable rejects invalid UTF-8", invalidUtf8Rejected));
+
         {
             TestSupport::ScopedUnsetEnvironmentVariable clean(kScopedVariable);
             static_cast<void>(
@@ -613,6 +646,37 @@ namespace
         {
             context.skip("TestSupport child process tests", "disabled by TestSupportTestOptions");
             return;
+        }
+
+        const auto expectInvalidOptions = [&](std::string_view name, const TestSupport::Types::ChildProcessOptions &childOptions)
+        {
+            bool rejected = false;
+            try
+            {
+                static_cast<void>(TestSupport::runChildProcess(childOptions));
+            }
+            catch (const std::invalid_argument &)
+            {
+                rejected = true;
+            }
+            static_cast<void>(context.expectTrue(name, rejected));
+        };
+
+        {
+            TestSupport::Types::ChildProcessOptions childOptions;
+            childOptions.executablePath = std::filesystem::path(executablePath);
+            childOptions.arguments = {std::string("invalid-\0-argument", 18)};
+            expectInvalidOptions("Child process rejects embedded-null arguments", childOptions);
+
+            childOptions.arguments = {std::string("\xFF", 1)};
+            expectInvalidOptions("Child process rejects invalid UTF-8 arguments", childOptions);
+
+            childOptions.arguments.clear();
+            childOptions.environment = {{"INVALID=NAME", "value"}};
+            expectInvalidOptions("Child process rejects invalid environment names", childOptions);
+
+            childOptions.environment = {{"VALID_NAME", std::string("invalid-\0-value", 15)}};
+            expectInvalidOptions("Child process rejects embedded-null environment values", childOptions);
         }
 
         {

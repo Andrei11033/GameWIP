@@ -11,12 +11,20 @@
 
 #include <cstdint>
 #include <cstring>
+#include <deque>
 #include <limits>
 #include <new>
 #include <string>
 
 namespace
 {
+    /// @brief Nesting-safe per-thread storage used by public formatted Logger overloads.
+    struct FormatScratchStorage
+    {
+        std::deque<std::string> buffers;
+        std::size_t depth = 0;
+    };
+
     /// @brief Short local alias for the public platform error type.
     using PlatformError = GameWIP::Logger::Types::PlatformError;
     /// @brief Short local alias for the public platform error source enum.
@@ -105,7 +113,7 @@ namespace
     /// @brief Frees MinGW format scratch without using non-trivial C++ TLS destructors.
     void NTAPI destroyFormatScratch(void *value)
     {
-        delete static_cast<std::string *>(value);
+        delete static_cast<FormatScratchStorage *>(value);
     }
 
     /// @brief Returns the FLS slot used for per-thread format scratch on MinGW.
@@ -117,7 +125,7 @@ namespace
 
     /// @brief Returns MinGW per-thread format scratch through FLS.
     /// @return Mutable per-thread scratch string.
-    std::string &formatScratchForThreadFls()
+    FormatScratchStorage &formatScratchStorageForThreadFls()
     {
         const DWORD slot = formatScratchSlot();
         if (slot == FLS_OUT_OF_INDEXES)
@@ -125,19 +133,30 @@ namespace
             throw std::bad_alloc();
         }
 
-        auto *scratch = static_cast<std::string *>(FlsGetValue(slot));
-        if (!scratch)
+        auto *storage = static_cast<FormatScratchStorage *>(FlsGetValue(slot));
+        if (!storage)
         {
-            scratch = new std::string();
-            if (!FlsSetValue(slot, scratch))
+            storage = new FormatScratchStorage();
+            if (!FlsSetValue(slot, storage))
             {
-                delete scratch;
+                delete storage;
                 throw std::bad_alloc();
             }
         }
-        return *scratch;
+        return *storage;
     }
 #endif
+
+    /// @brief Returns process-lifetime access to the current thread's formatting storage.
+    FormatScratchStorage &formatScratchStorageForThread()
+    {
+#if defined(__MINGW32__)
+        return formatScratchStorageForThreadFls();
+#else
+        thread_local FormatScratchStorage storage;
+        return storage;
+#endif
+    }
 } // namespace
 
 namespace GameWIP::Logger::Detail::Platform
@@ -146,12 +165,30 @@ namespace GameWIP::Logger::Detail::Platform
     /// @return Mutable per-thread scratch string.
     std::string &formatScratchForThread()
     {
-#if defined(__MINGW32__)
-        return formatScratchForThreadFls();
-#else
-        thread_local std::string scratch;
+        FormatScratchStorage &storage = formatScratchStorageForThread();
+        if (storage.buffers.size() == storage.depth)
+        {
+            storage.buffers.emplace_back();
+        }
+
+        std::string &scratch = storage.buffers[storage.depth++];
+        scratch.clear();
         return scratch;
-#endif
+    }
+
+    void releaseFormatScratchForThread() noexcept
+    {
+        FormatScratchStorage &storage = formatScratchStorageForThread();
+        if (storage.depth == 0)
+        {
+            return;
+        }
+
+        --storage.depth;
+        if (storage.depth > 0 && storage.depth + 1 == storage.buffers.size())
+        {
+            storage.buffers.pop_back();
+        }
     }
 
     /// @brief Writes a formatted log line to the Win32 debugger output stream.

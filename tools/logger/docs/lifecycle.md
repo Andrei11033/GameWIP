@@ -6,13 +6,13 @@ Logger has one process-wide runtime instance. It is initialized, used from produ
 
 | API | Use when |
 | --- | --- |
-| `Logger::defaultConfig()` | You want the normal starting config and will customize fields. |
-| `Logger::lowMemoryConfig()` | You want smaller queue/message memory defaults. |
-| `Logger::throughputConfig()` | You want larger queue/batch defaults for heavier logging. |
-| `Logger::init(config)` | You have a complete custom config. |
-| `Logger::initDefault()` | You want the default config without editing it. |
-| `Logger::initConsole(level)` | You want a quick console logger. |
-| `Logger::initFile(directory, level)` | You want a quick file logger. |
+| `Logger::defaultConfig()` | Start from the normal configuration and customize fields. |
+| `Logger::lowMemoryConfig()` | Use smaller queue and message-memory defaults. |
+| `Logger::throughputConfig()` | Use larger queue and batch defaults for heavier logging. |
+| `Logger::init(config)` | Initialize from a complete custom configuration. |
+| `Logger::initDefault()` | Initialize with the default configuration without editing it. |
+| `Logger::initConsole(level)` | Initialize a console-only logger. |
+| `Logger::initFile(directory, level)` | Initialize a file-only logger. |
 
 Example:
 
@@ -63,7 +63,7 @@ GameWIP::Logger::shutdown();
 
 ## Important lifecycle rules
 
-- `init()` copies config state it needs; mutating the config object after `init()` does not reconfigure the logger.
+- `init()` copies the configuration state it needs; mutating the configuration object after `init()` does not reconfigure Logger.
 - Calling `init()` while already running returns `AlreadyRunning`.
 - Calling `shutdown()` repeatedly is safe as cleanup, but only a running logger can drain accepted work.
 - Producer threads should be stopped before final shutdown when possible.

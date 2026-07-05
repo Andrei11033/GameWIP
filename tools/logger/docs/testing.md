@@ -18,6 +18,16 @@ The Logger suite covers:
 
 Stress scenarios cover concurrent producers, reporting during production, timed flush while producers remain active, final drain, shutdown during activity, queue pressure, and repeated initialization/shutdown. They prove safety and progress; machine-dependent timing is not a correctness threshold.
 
+## Performance review checklist
+
+- Filtered macro calls avoid message and argument evaluation.
+- Accepted producer calls avoid unnecessary allocation.
+- Direct formatted calls account for argument evaluation before Logger checks filters.
+- Queue-drop statistics exclude filtered messages.
+- Instrumented validation builds are not used as final performance baselines.
+- Long-message tests cover the active `FormatPolicy`; the bounded policy reduces peak memory, while the fast-normal policy favors common-case formatting speed.
+- FileSystem and Terminal work remains on the worker or synchronous report path so normal producers do not gain I/O overhead.
+
 ## Hook-forced and manual paths
 
 When `INTERNAL_LOGGER_TEST_HOOKS=1`, source-tree tests force rare allocation, file open/write/flush, popup, and timed-flush paths. Every scenario resets forced state.

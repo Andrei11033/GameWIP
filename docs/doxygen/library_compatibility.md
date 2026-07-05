@@ -1,4 +1,4 @@
-@page library_compatibility Library packaging and compatibility
+@page project_library_compatibility Library packaging and compatibility
 
 Reusable libraries install CMake config packages and expose canonical imported targets under the `GameWIP::` CMake namespace:
 

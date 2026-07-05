@@ -5,9 +5,11 @@
 ## ErrorCode
 
 ```cpp
-namespace GameWIP::IO::Types {
+namespace GameWIP::IO::Types
+{
 
-enum class ErrorCode {
+enum class ErrorCode
+{
     Success,
 
     InvalidArgument,
@@ -58,7 +60,8 @@ enum class ErrorCode {
     Unknown
 };
 
-struct Status {
+struct Status
+{
     ErrorCode code = ErrorCode::Success;
     std::int64_t nativeCode = 0;
     std::string message;

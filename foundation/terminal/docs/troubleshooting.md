@@ -1,6 +1,6 @@
 @page terminal_troubleshooting Terminal troubleshooting
 
-## A control returns Unsupported
+## A control returns `Unsupported`
 
 Cursor movement, clearing, alternate screen, title, and bell require backend support on the selected output stream. Redirected and detached streams commonly report `Unsupported` or `NotOpen`.
 
@@ -10,7 +10,7 @@ Check `getOutputCapabilities()` before relying on controls.
 
 `StyleMode::Auto` writes plain text when the stream does not report support for the requested style. Use `StyleMode::Required` only when failure is preferable to plain output.
 
-## Text reads fail with EncodingFailed
+## Text reads fail with `EncodingFailed`
 
 Text and line helpers expect valid UTF-8. Use `readBytes()` for arbitrary redirected input.
 
@@ -20,4 +20,4 @@ Inspect both `status` and `outcome`. `TimedOut` and `WouldBlock` are successful 
 
 ## Flush succeeds but a pipe consumer sees no change
 
-Terminal writes directly to the native stdout or stderr handle. On Win32, pipe and console flush requests are successful no-ops; only a regular redirected disk file receives `FlushFileBuffers`. Flush any separate C or C++ stream buffer through the API that owns it.
+Terminal retains no unwritten output for stdout or stderr. On Win32, pipe and console flush requests are successful no-ops; only a regular redirected disk file receives an operating-system flush. Flush any separate C or C++ stream buffer through the API that owns it.

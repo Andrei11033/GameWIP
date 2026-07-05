@@ -42,7 +42,7 @@ Relative `--test-report` paths are resolved beneath `%TEMP%/GameWIP` on Windows,
 
 Normal validation uses minimal suite output: failures, skips, and manual instructions. The validation runner adds one result line per module and one final aggregate result, avoiding duplicate suite and module summaries. `--verbose-tests` also mirrors passing checks, informational lines, metrics, suite results, summaries, and stress diagnostics to stdout. The report file always receives the complete output.
 
-Each failing expectation emits `[FAIL]` with its suite, reason, source file, line, and function. A suite continues after an expectation failure so one run can report multiple defects. The module returns nonzero when any suite failed; the validation runner returns nonzero when any module failed; CTest and GitHub Actions therefore mark the corresponding module entry as failed. Child-process modes preserve their exact child exit code.
+Each failing expectation emits `[FAIL]` with its suite, reason, source file, line, and function. A suite continues after an expectation failure so one run can report multiple defects. The module returns nonzero when any suite failed; an escaped module exception is converted to a failed module result; the validation runner returns nonzero when any module failed. CTest and GitHub Actions therefore mark the corresponding module entry as failed. Child-process modes preserve their exact child exit code.
 
 The runner prints the absolute report location and a final `[VALIDATION] result=PASS|FAIL` summary. CTest uses one stable report filename per module and `--output-on-failure` exposes captured console details when a module fails.
 
@@ -56,9 +56,9 @@ Test fixtures, subsystem logs, and benchmark output use `TestSupport::ScopedTemp
 
 Each module owns a directory under `game/validation/tests` containing:
 
-- an explicit `CMakeLists.txt`;
-- its test implementation and local option header;
-- a small `module.cpp` registration adapter.
+- An explicit `CMakeLists.txt`
+- Its test implementation and local option header
+- A small `module.cpp` registration adapter
 
 Register sources and dependencies with:
 
@@ -84,6 +84,8 @@ The C++ registration name must match the CMake module name. Give the module a st
 - Relative report paths resolve under the GameWIP OS-temp root; only final reports persist.
 - Global process state is restored before a module returns.
 - Child-process modes route to exactly one owning module.
+- Multiple child-route owners and conflicting module selection/exclusion fail explicitly.
+- Unexpected exceptions escaping a module become failed module results instead of terminating validation.
 - New behavior and bug fixes receive focused regression coverage when practical.
 - Sleep-based synchronization is avoided; bounded timeouts protect unavoidable process and concurrency waits.
 - Report failures do not hide console results or change the behavior under test.

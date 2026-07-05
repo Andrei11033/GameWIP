@@ -52,4 +52,4 @@ The root CMake file orchestrates major directories. `external`, `foundation`, `t
 
 Every project executable uses the shared runtime-dependency helper. It scans the built executable and copies matching UCRT64 runtime DLLs beside it, avoiding accidental use of incompatible `mingw64` DLLs earlier on `PATH`.
 
-See @ref library_compatibility for installed package names, canonical imported targets, and ABI policy.
+See @ref project_library_compatibility for installed package names, canonical imported targets, and ABI policy.

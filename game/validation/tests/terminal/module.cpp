@@ -5,8 +5,23 @@
 
 #include "validation/tests/registry.h"
 
+#include <string_view>
+
 namespace
 {
+    /// @brief Detects isolated child invocations owned by Terminal tests.
+    bool handlesChildArguments(int argc, char **argv)
+    {
+        for (int index = 1; index < argc; ++index)
+        {
+            if (argv[index] != nullptr && std::string_view(argv[index]) == "--terminal-test-child=reentrant-format")
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /// @brief Maps shared runner policy to Terminal-specific test options and executes the suite.
     int run(const GameWIP::Validation::Tests::ModuleInvocation &invocation)
     {
@@ -23,5 +38,6 @@ namespace
         .name = "terminal",
         .order = 30,
         .run = run,
+        .handlesChildArguments = handlesChildArguments,
     });
 } // namespace

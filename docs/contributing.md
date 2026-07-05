@@ -8,7 +8,7 @@ Use this file for day-to-day GitHub process. Use `docs/decisions.md` for stable 
 
 ---
 
-## Default Branch
+## Default branch
 
 The default branch is currently:
 
@@ -79,7 +79,7 @@ Keep branches focused. If the branch starts solving unrelated problems, split th
 
 ---
 
-## Pull Requests
+## Pull requests
 
 Open a pull request before merging into `master`.
 
@@ -91,28 +91,28 @@ area: imperative summary
 
 The pull request body should include:
 
-* what changed;
-* linked issue numbers when applicable;
-* the validation commands or inspections performed;
-* checklist items from the template;
-* the intended squash merge message for non-trivial changes.
+- What changed
+- Linked issue numbers when applicable
+- The validation commands or inspections performed
+- Checklist items from the template
+- The intended squash merge message for non-trivial changes
 
 Use `Draft` only while the PR is not ready for final review or merge.
 
 ---
 
-## Required Pull Request Metadata
+## Required pull request metadata
 
 Ready-for-review pull requests must pass the `PR Standards` workflow.
 
 That workflow enforces:
 
-* title format: `area: imperative summary`;
-* required PR body sections from the template;
-* non-empty summary and validation notes;
-* a linked issue such as `Closes #123`, or an explicit `No linked issue: reason`;
-* a concrete merge-message title;
-* at least one `area:*`, one `type:*`, and one `priority:*` label.
+- Title format: `area: imperative summary`
+- Required PR body sections from the template
+- Non-empty summary and validation notes
+- A linked issue such as `Closes #123`, or an explicit `No linked issue: reason`
+- A concrete merge-message title
+- At least one `area:*`, one `type:*`, and one `priority:*` label
 
 Draft pull requests may be incomplete while work is still moving.
 
@@ -120,7 +120,7 @@ Dependabot pull requests are exempt from the human metadata check, but they stil
 
 ---
 
-## Validation Notes
+## Validation notes
 
 Validation notes should be concrete enough that a future maintainer understands what was actually proven.
 
@@ -145,18 +145,18 @@ If validation is not run, say so directly and explain why.
 
 ---
 
-## Automated Validation
+## Automated validation
 
 The `Validation` workflow runs on pull requests into `master`, pushes to `master`, and manual dispatch.
 
 It performs:
 
-* an MSYS2 UCRT64 configure/build pass with modular correctness tests and internal test hooks enabled;
-* a Google Benchmark registration dry run without performance thresholds;
-* a Doxygen docs build with `GAMEWIP_BUILD_DOCS=ON`;
-* a Doxygen warning-log check;
-* clang-tidy and clang-format checks for maintained C++ code;
-* JavaScript syntax and unit tests, JSON parsing, and actionlint workflow validation.
+- An MSYS2 UCRT64 configure/build pass with modular correctness tests and internal test hooks enabled
+- A Google Benchmark registration dry run without performance thresholds
+- A Doxygen docs build with `GAMEWIP_BUILD_DOCS=ON`
+- A Doxygen warning-log check
+- clang-tidy and clang-format checks for maintained C++ code
+- JavaScript syntax and unit tests, JSON parsing, and actionlint workflow validation
 
 The `Doxygen Docs` workflow publishes GitHub Pages only from `master` or manual dispatch. Pull requests build docs for validation but do not publish them.
 
@@ -173,7 +173,7 @@ Local static-analysis commands and file scope are documented under `docs/doxygen
 
 ---
 
-## Project Automation
+## Project automation
 
 Use a closing keyword such as `Closes #6` in the pull request body. The project workflow uses that relationship to copy issue labels, assignees, and a non-conflicting milestone to the pull request, then moves both items through In Progress, Review, and Done.
 
@@ -181,7 +181,7 @@ Issue status is derived from closure, **Blocked by** relationships, linked pull 
 
 ---
 
-## Merge Style
+## Merge style
 
 Prefer `Squash and merge` for feature branches so `master` keeps one clean changelog-style commit per completed piece of work.
 
@@ -193,9 +193,9 @@ After a PR is merged, delete the feature branch unless more work will continue o
 
 ---
 
-## Squash Commit Messages
+## Squash commit messages
 
-Squash commit messages must follow the standard in `docs/decisions.md`:
+This file is the authoritative workflow for squash commit messages. The durable `area: imperative summary` decision is summarized in `docs/decisions.md`.
 
 ```text
 area: imperative summary
@@ -227,7 +227,7 @@ Do not keep GitHub's default `(#123)` suffix if the project history should read 
 
 ---
 
-## Local Sync After Merge
+## Local sync after merge
 
 After a PR merges into `master`:
 

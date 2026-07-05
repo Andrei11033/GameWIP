@@ -653,16 +653,22 @@ namespace GameWIP::TestSupport
         Detail::Platform::setEnvironmentVariableValue(name_, value);
     }
 
-    ScopedEnvironmentVariable::~ScopedEnvironmentVariable()
+    ScopedEnvironmentVariable::~ScopedEnvironmentVariable() noexcept
     {
-        std::lock_guard lock(environmentMutex);
-        if (previousValue_)
+        try
         {
-            Detail::Platform::setEnvironmentVariableValue(name_, *previousValue_);
+            std::lock_guard lock(environmentMutex);
+            if (previousValue_)
+            {
+                Detail::Platform::setEnvironmentVariableValue(name_, *previousValue_);
+            }
+            else
+            {
+                Detail::Platform::unsetEnvironmentVariableValue(name_);
+            }
         }
-        else
+        catch (...) // NOLINT(bugprone-empty-catch) -- Destruction cannot report a best-effort process-state restoration failure.
         {
-            Detail::Platform::unsetEnvironmentVariableValue(name_);
         }
     }
 
@@ -674,16 +680,22 @@ namespace GameWIP::TestSupport
         Detail::Platform::unsetEnvironmentVariableValue(name_);
     }
 
-    ScopedUnsetEnvironmentVariable::~ScopedUnsetEnvironmentVariable()
+    ScopedUnsetEnvironmentVariable::~ScopedUnsetEnvironmentVariable() noexcept
     {
-        std::lock_guard lock(environmentMutex);
-        if (previousValue_)
+        try
         {
-            Detail::Platform::setEnvironmentVariableValue(name_, *previousValue_);
+            std::lock_guard lock(environmentMutex);
+            if (previousValue_)
+            {
+                Detail::Platform::setEnvironmentVariableValue(name_, *previousValue_);
+            }
+            else
+            {
+                Detail::Platform::unsetEnvironmentVariableValue(name_);
+            }
         }
-        else
+        catch (...) // NOLINT(bugprone-empty-catch) -- Destruction cannot report a best-effort process-state restoration failure.
         {
-            Detail::Platform::unsetEnvironmentVariableValue(name_);
         }
     }
 

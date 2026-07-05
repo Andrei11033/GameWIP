@@ -1,4 +1,4 @@
-@page foundation_filesystem_testing FileSystem maintainer validation
+@page filesystem_testing FileSystem maintainer validation
 
 @note This page is for maintainers. It describes proof coverage and environment requirements, not supported consumer API.
 
@@ -20,7 +20,11 @@ Symlink scenarios validate `DoNotFollow`, `FollowFinal`, and `FollowAll` for fin
 
 Backend coverage exercises native path conversion, strict traversal, sharing, read-only metadata, lock behavior, directory flushing, and native error mapping. Internal backend declarations are documented in source comments rather than the consumer manual.
 
-The GameWIP `validation` preset also enables `FILESYSTEM_ENABLE_TEST_HOOKS`. Source-tree tests that link `FileSystem` may include `filesystem/internal/filesystem_platform.h` and use its gated `Detail::Platform::TestHooks` declarations. The build-tree target supplies `INTERNAL_FILESYSTEM_TEST_HOOKS=1`; installed packages intentionally do not expose this internal contract.
+## Test hooks
+
+@warning These hooks are supported source-tree maintainer interfaces. They are not installed and are not versioned consumer API.
+
+The GameWIP `validation` preset enables `FILESYSTEM_ENABLE_TEST_HOOKS`. Source-tree tests that link the short `FileSystem` target may include `filesystem/internal/filesystem_platform.h` and use its gated `Detail::Platform::TestHooks` declarations. The build-tree target supplies `INTERNAL_FILESYSTEM_TEST_HOOKS=1`; installed packages intentionally do not expose this internal contract.
 
 ## Documentation coverage
 

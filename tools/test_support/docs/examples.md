@@ -36,7 +36,7 @@ Occurrence counts are non-overlapping. Empty search text counts as zero occurren
 ```cpp
 {
     GameWIP::TestSupport::ScopedEnvironmentVariable variable(
-        "INTERNAL_TEST_SUPPORT_TEST_MODE",
+        "MYAPP_TEST_MODE",
         "1");
 
     runScenarioThatReadsEnvironment();
@@ -79,8 +79,6 @@ GameWIP::TestSupport::runWorkers(
 starter.join();
 stopper.join();
 ```
-
-Examples should remain generic and avoid foundation-, tool-, engine-, or game-specific helper logic.
 
 ## Related pages
 

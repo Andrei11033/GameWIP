@@ -1,6 +1,31 @@
-@page foundation_filesystem_quick_start FileSystem quick start
+@page filesystem_quick_start FileSystem quick start
 
-Include `filesystem/filesystem.h` and link `GameWIP::FileSystem` from an installed package. The source tree also provides the short `FileSystem` target.
+## Include
+
+Include the library's public header:
+
+```cpp
+#include "filesystem/filesystem.h"
+```
+
+## Installed CMake
+
+Use the package's namespaced imported target. The package resolves its IO dependency:
+
+```cmake
+find_package(FileSystem CONFIG REQUIRED)
+target_link_libraries(MyTarget PRIVATE GameWIP::FileSystem)
+```
+
+## Source-tree CMake
+
+When FileSystem is part of the same source tree, use its short build target:
+
+```cmake
+target_link_libraries(MyTarget PRIVATE FileSystem)
+```
+
+## Minimal usage
 
 Examples use this namespace alias:
 
@@ -9,32 +34,35 @@ namespace FileSystem = GameWIP::FileSystem;
 namespace IO = GameWIP::IO;
 ```
 
-## Whole-file text
+### Whole-file text
 
 Use the whole-file helpers when the operation is one complete read, write, or append.
 
 ```cpp
 const auto write = FileSystem::writeAllText("config/player.cfg", "volume=80\n");
-if (!write.status.ok()) {
+if (!write.status.ok())
+{
     return write.status;
 }
 
 const auto read = FileSystem::readAllText("config/player.cfg");
-if (!read.status.ok()) {
+if (!read.status.ok())
+{
     return read.status;
 }
 ```
 
 Text helpers preserve UTF-8 bytes. They do not add a BOM, remove a BOM, validate encoding, or translate line endings.
 
-## Explicit handles
+### Explicit handles
 
 Use `FileReader`, `FileWriter`, or `File` when the caller needs repeated transfers, seeking, sharing policy, locking, or a controlled handle lifetime.
 
 ```cpp
 FileSystem::FileReader reader;
 IO::Types::Status status = reader.open("data/world.bin");
-if (!status.ok()) {
+if (!status.ok())
+{
     return status;
 }
 
@@ -45,7 +73,7 @@ status = reader.close();
 
 Close explicitly when the caller needs to observe close or flush failure. Destructors clean up on a best-effort basis and never throw.
 
-## Directories and metadata
+### Directories and metadata
 
 ```cpp
 IO::Types::Status create = FileSystem::createDirectories("saves/profile1");
@@ -55,7 +83,7 @@ auto info = FileSystem::getEntryInfo("saves/profile1");
 
 `listDirectory()` returns direct children only. Recursive traversal belongs in caller code unless the operation is `removeDirectoryTree()`.
 
-## Atomic replacement
+### Atomic replacement
 
 Use atomic writes for exact file replacement where readers should see either old content or complete new content.
 
@@ -69,8 +97,8 @@ IO::Types::Status status = FileSystem::writeAllTextAtomic("saves/profile1/save.j
 
 There is no non-atomic fallback. A failure before commit leaves an existing destination unchanged.
 
-## Default symlink policy
+### Default symlink policy
 
 Public operations that expose a symlink policy default to `SymlinkPolicy::DoNotFollow`. Choose `FollowFinal` or `FollowAll` only when traversal through symlinks is intentional.
 
-See @ref foundation_filesystem_public_api and @ref foundation_filesystem_examples for broader API coverage.
+See @ref filesystem_public_api and @ref filesystem_examples for broader API coverage.

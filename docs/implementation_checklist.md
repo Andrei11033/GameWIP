@@ -55,7 +55,7 @@ Related documents:
 - [x] Each reusable library owns its public API comments and manual pages beside its source.
 - [x] Project documentation describes composition and policy without copying library API manuals.
 
-This checklist deliberately does not restate each library's features. The current reusable set and dependency direction are maintained in `docs/doxygen/project_structure.md`; behavior is authoritative in each library's own docs and tests.
+This milestone summary does not restate each library's features. The detailed sections below track capability groups for completion review; exact behavior remains authoritative in each library's own docs and tests. The current reusable set and dependency direction are maintained in `docs/doxygen/project_structure.md`.
 
 ### Platform backend infrastructure
 
@@ -126,7 +126,7 @@ These sections are intentionally detailed because this file is the implementatio
 - [x] Results distinguish status from accepted/transferred byte counts.
 - [x] Closed, unsupported, invalid-argument, end-of-input, and partial-transfer paths are represented without platform error types in the public API.
 - [x] `MemoryReader` supports caller-owned byte, string, and vector storage while rejecting direct temporary owning objects that would dangle.
-- [x] `MemoryWriter` owns growable output, supports seeking/overwrite behavior, and handles input that aliases its current storage.
+- [x] `MemoryWriter` owns append-only growable output, reports its current end position, and handles input that aliases its current storage.
 
 #### Whole-stream helpers
 
@@ -193,6 +193,7 @@ These sections are intentionally detailed because this file is the implementatio
 - [x] Portable colors/styles degrade predictably when terminal capabilities are absent.
 - [x] Segmented writes and `OutputBuffer` compose styled output without exposing platform escape details to callers.
 - [x] Formatted print bridges support public templates while keeping backend implementation out of the header.
+- [x] Formatted output runs user formatter callbacks before taking the stream lock and uses nesting-safe reusable scratch storage.
 
 #### Input and control state
 
@@ -200,6 +201,7 @@ These sections are intentionally detailed because this file is the implementatio
 - [x] Input mode scopes capture and restore complete previous backend state.
 - [x] Cursor visibility and alternate-screen scopes are nesting-safe and expose setup/restore status.
 - [x] Capability and redirection queries let callers choose interactive versus plain behavior.
+- [x] Repeated Win32 input-availability polling reuses bounded event scratch instead of allocating on every poll.
 
 #### Ownership artifacts
 
@@ -221,11 +223,13 @@ These sections are intentionally detailed because this file is the implementatio
 - [x] Output modes, severity thresholds, source registration, source filters, and level filters are implemented.
 - [x] Compile-time and runtime format paths share bounded producer-side formatting behavior.
 - [x] Invalid formats, allocation failures, unknown sources, and truncation are counted separately.
+- [x] Reentrant custom formatters receive separate per-thread scratch so nested logging cannot overwrite the outer message.
 
 #### Queue, sinks, and reports
 
 - [x] Normal accepted messages use the bounded asynchronous queue.
 - [x] Queue pressure distinguishes soft and hard drops from intentional filtering and sink failures.
+- [x] Out-of-order producer publication wakes the worker when the exact queue head becomes drainable, avoiding a busy-yield loop.
 - [x] Console output delegates to Terminal and file output delegates to FileSystem/IO.
 - [x] Synchronous reports bypass filters and the async queue.
 - [x] Bounded report/flush paths preserve the distinction between “line written” and “queue drained.”
@@ -291,9 +295,9 @@ These sections are intentionally detailed because this file is the implementatio
 #### Isolation and process utilities
 
 - [x] Scoped temporary directories clean recursively on normal return and exception unwinding.
-- [x] Scoped current-directory and environment-variable helpers restore prior process state.
+- [x] Scoped current-directory and environment-variable helpers validate inputs, report setup failures, and restore prior process state without throwing from destructors.
 - [x] Text-file helpers support deterministic fixture and report setup.
-- [x] Child-process launching captures result, timeout, exit, and output evidence.
+- [x] Child-process launching captures result, timeout, exit, and output evidence while rejecting invalid UTF-8, embedded nulls, and invalid environment names.
 - [x] Start gates and stop flags support deterministic concurrency/stress coordination.
 - [x] Manual checks are explicit and never required by unattended runs.
 
@@ -308,6 +312,7 @@ These sections are intentionally detailed because this file is the implementatio
 
 - [x] Registration records include name, deterministic order, run callback, and optional child-argument ownership.
 - [x] Duplicate/invalid registrations are rejected before module execution.
+- [x] Ambiguous child routes, conflicting selection/exclusion, and module exceptions produce explicit failed results.
 - [x] Shared invocation policy carries report, verbosity, manual UI, popup, and child-process controls.
 - [x] The standalone test executable and development startup link the same object modules.
 - [x] CTest creates a focused entry and independent report path for each registered module.
@@ -323,9 +328,9 @@ These sections are intentionally detailed because this file is the implementatio
 
 - [ ] Add a project-level checklist entry only when a repository system, integration boundary, or milestone gate changes.
 - [ ] Put new product work in `roadmap.md`, not in this completed-foundation ledger.
-- [ ] Put individual library implementation status in the owning issue, pull request, tests, and manual.
+- [ ] Put individual library implementation status in the owning issue, pull request, tests, and source artifacts; update the consumer manual only when supported behavior changes.
 - [ ] Archive completed milestone evidence when this file becomes difficult to scan; do not let it grow into a second API manual.
 
 ## Update rule
 
-Every item must name a concrete repository capability. Mark it implemented only when the corresponding files and integration exist. Proof belongs in `testing_checklist.md` and automated results, not in duplicated implementation sublists.
+Every item must name a concrete repository capability. Mark it implemented only when the corresponding files and integration exist. Proof and test-case detail belong in `testing_checklist.md`, library validation pages, and automated results rather than being repeated in this implementation ledger.

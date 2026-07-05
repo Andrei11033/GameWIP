@@ -33,7 +33,7 @@ cmake --build --preset development
 
 `game/main.cpp` remains the stable process entry point. Validation is compiled out when its startup options are disabled.
 
-## Standalone Validation
+## Standalone validation
 
 ```powershell
 cmake --preset validation
@@ -101,7 +101,7 @@ Project references:
 - [Static analysis standard](docs/doxygen/static_analysis.md)
 - [Repository automation](docs/doxygen/repository_automation.md)
 
-## Repository Layout
+## Repository layout
 
 ```text
 foundation/   Reusable IO, Terminal, and FileSystem libraries.
