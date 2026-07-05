@@ -1,42 +1,33 @@
-@page foundation_filesystem_testing FileSystem testing
+@page filesystem_testing FileSystem maintainer validation
 
-FileSystem validation is split across compile-time API checks, normal runtime tests, symlink-policy tests, platform behavior checks, and generated documentation inspection.
+@note This page is for maintainers. It describes proof coverage and environment requirements, not supported consumer API.
 
-## Normal tests
+## Compile-time and normal coverage
 
-The FileSystem test suite covers:
+The focused FileSystem suite covers:
 
-- public result and option types;
-- default option values;
-- move-only handle and lock ownership;
-- entry predicates and metadata queries;
-- UTF-8 path conversion;
-- whole-file helpers and explicit handles;
-- directory creation, listing, and removal;
-- mutation, copy, move, and removal helpers;
-- atomic write replacement;
-- whole-file lock acquisition and contention.
+- result and option types, default values, and move-only handle/lock ownership;
+- entry predicates, metadata, canonicalization, and UTF-8 path conversion;
+- whole-file helpers and explicit reader/writer handles;
+- creation, enumeration, mutation, copy, move, and removal;
+- open/share/replace policies and partial IO progress;
+- atomic replacement, invalid temporary prefixes, flush requests, and cleanup;
+- shared/exclusive lock acquisition, contention, explicit unlock, and cleanup.
 
-## Symlink policy tests
+## Symlink and backend coverage
 
-Symlink tests validate `DoNotFollow`, `FollowFinal`, and `FollowAll` behavior for final file symlinks and intermediate directory symlinks.
+Symlink scenarios validate `DoNotFollow`, `FollowFinal`, and `FollowAll` for final and intermediate links. A host that cannot create symlinks records skips instead of failing unrelated validation. Complete proof therefore requires a Windows account with Developer Mode or create-symbolic-link privilege.
 
-On hosts where symlink creation is unavailable, the affected checks are skipped by the test suite instead of failing unrelated validation.
+Backend coverage exercises native path conversion, strict traversal, sharing, read-only metadata, lock behavior, directory flushing, and native error mapping. Internal backend declarations are documented in source comments rather than the consumer manual.
 
-## Atomic write and durability checks
+## Test hooks
 
-Atomic write tests verify visible content replacement and fail-if-exists behavior. The public contract also requires the generated docs to describe that there is no non-atomic fallback, temporary files use restrictive access, and `flushParentDirectory` is a real durability request rather than a best-effort hint.
+@warning These hooks are supported source-tree maintainer interfaces. They are not installed and are not versioned consumer API.
 
-## Platform backend checks
+The GameWIP `validation` preset enables `FILESYSTEM_ENABLE_TEST_HOOKS`. Source-tree tests that link the short `FileSystem` target may include `filesystem/internal/filesystem_platform.h` and use its gated `Detail::Platform::TestHooks` declarations. The build-tree target supplies `INTERNAL_FILESYSTEM_TEST_HOOKS=1`; installed packages intentionally do not expose this internal contract.
 
-FileSystem has a platform backend. Backend validation should cover native path conversion, strict symlink-policy traversal, sharing behavior, lock behavior, read-only metadata, directory flushing, and native error mapping.
+## Documentation coverage
 
-Internal backend contracts stay in source comments and private project notes rather than generated user docs. Public docs describe observable behavior and portable failure statuses.
+Doxygen is part of validation because the public surface is large. The warning log must be empty, and generated pages must describe portable observable behavior rather than Win32 implementation mechanics.
 
-## Documentation validation
-
-Doxygen generation is part of FileSystem validation because the public API is large enough that the generated manual is the consumer-facing contract.
-
-The warning log should be empty before treating the generated FileSystem manual as validated.
-
-GameWIP owns the test executable, focused-module command, CTest registration, documentation preset, report location, and generated-output paths. See @ref library_testing and @ref library_documentation.
+GameWIP owns module selection, CTest registration, reports, and generated output. See @ref project_testing and @ref project_documentation.

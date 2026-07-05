@@ -7,6 +7,11 @@
 
 #include <cstdint>
 #include <memory>
+#include <vector>
+
+#ifndef INTERNAL_FILESYSTEM_TEST_HOOKS
+#define INTERNAL_FILESYSTEM_TEST_HOOKS 0
+#endif
 
 namespace GameWIP::FileSystem::Detail
 {
@@ -32,7 +37,7 @@ namespace GameWIP::FileSystem::Detail
     /// @brief Platform-owned native whole-file lock state.
     struct FileLockState
     {
-        FileLockState();
+        FileLockState() noexcept = default;
         FileLockState(const FileLockState &) = delete;
         FileLockState &operator=(const FileLockState &) = delete;
         FileLockState(FileLockState &&) = delete;
@@ -44,10 +49,40 @@ namespace GameWIP::FileSystem::Detail
         bool active = false;
         bool exclusive = false;
     };
+
+    /// Owns one backend directory enumeration and the handles that prevent path-component replacement races.
+    struct DirectoryCursorState
+    {
+        DirectoryCursorState() = default;
+        DirectoryCursorState(const DirectoryCursorState &) = delete;
+        DirectoryCursorState &operator=(const DirectoryCursorState &) = delete;
+        DirectoryCursorState(DirectoryCursorState &&) = delete;
+        DirectoryCursorState &operator=(DirectoryCursorState &&) = delete;
+        ~DirectoryCursorState() noexcept;
+
+        Types::Path directoryPath;
+        Types::DirectoryEntry bufferedEntry;
+        std::vector<void *> stableHandles;
+        void *nativeFindHandle = nullptr;
+        Types::SymlinkPolicy symlinkPolicy = Types::SymlinkPolicy::DoNotFollow;
+        bool bufferedEntryHidden = false;
+        bool hasBufferedEntry = false;
+        bool finished = false;
+    };
 } // namespace GameWIP::FileSystem::Detail
 
 namespace GameWIP::FileSystem::Detail::Platform
 {
+#if INTERNAL_FILESYSTEM_TEST_HOOKS
+    namespace TestHooks
+    {
+        /// Forces native file-lock release attempts to fail until disabled.
+        void setFileUnlockFailure(bool enabled) noexcept;
+        /// Restores FileSystem platform test hooks to their default state.
+        void reset() noexcept;
+    } // namespace TestHooks
+#endif
+
     /// @brief Result returned by backend entry metadata queries.
     struct EntryQueryResult
     {
@@ -66,6 +101,22 @@ namespace GameWIP::FileSystem::Detail::Platform
         Types::LockOutcome outcome = Types::LockOutcome::WouldBlock;
         /// @brief Native lock state when outcome is Acquired.
         std::unique_ptr<Detail::FileLockState> state;
+    };
+
+    /// Cursor-open result; state is present only on success.
+    struct DirectoryCursorOpenResult
+    {
+        IO::Types::Status status;
+        std::unique_ptr<Detail::DirectoryCursorState> state;
+    };
+
+    /// One cursor step; successful exhaustion is represented by hasEntry=false.
+    struct DirectoryCursorNextResult
+    {
+        IO::Types::Status status;
+        Types::DirectoryEntry entry;
+        bool hidden = false;
+        bool hasEntry = false;
     };
 
     /// @brief Queries one existing entry using backend-native filesystem semantics.
@@ -151,6 +202,19 @@ namespace GameWIP::FileSystem::Detail::Platform
 
     /// @brief Lists direct directory children using backend-native path traversal.
     [[nodiscard]] Types::ListDirectoryResult listDirectory(const Types::Path &path, const Types::ListDirectoryOptions &options) noexcept;
+
+    /// Opens a streaming cursor over direct children while stabilizing strict-policy path components.
+    [[nodiscard]] DirectoryCursorOpenResult openDirectoryCursor(const Types::Path &path, Types::SymlinkPolicy symlinkPolicy) noexcept;
+
+    /// Opens a nested cursor relative to its active parent, retaining only the new directory handle.
+    /// The parent cursor must outlive the returned cursor.
+    [[nodiscard]] DirectoryCursorOpenResult openChildDirectoryCursor(
+        const Detail::DirectoryCursorState &parent,
+        const Types::Path &path,
+        Types::SymlinkPolicy symlinkPolicy) noexcept;
+
+    /// Reads one direct child without collecting siblings; exhaustion remains successful.
+    [[nodiscard]] DirectoryCursorNextResult readDirectoryCursor(Detail::DirectoryCursorState &state) noexcept;
 
     /// @brief Changes read-only metadata through a backend-native entry handle.
     [[nodiscard]] IO::Types::Status setReadOnly(const Types::Path &path, bool readOnly, Types::SymlinkPolicy symlinkPolicy) noexcept;

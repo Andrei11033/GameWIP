@@ -13,11 +13,12 @@
 
 #include <cstdlib>
 #include <limits>
+#include <stdexcept>
 #include <string>
 
 namespace
 {
-    /// @brief Converts public UTF-8 environment text to UTF-16 with a printable fallback.
+    /// @brief Converts public UTF-8 environment text to UTF-16 without lossy substitution.
     [[nodiscard]] std::wstring utf8ToWide(std::string_view text)
     {
         if (text.empty())
@@ -26,27 +27,24 @@ namespace
         }
         if (text.size() > static_cast<std::size_t>((std::numeric_limits<int>::max)()))
         {
-            return L"?";
+            throw std::length_error("Environment text exceeds the Win32 conversion limit");
+        }
+        if (text.find('\0') != std::string_view::npos)
+        {
+            throw std::invalid_argument("Environment text contains an embedded null");
         }
 
         const int inputSize = static_cast<int>(text.size());
         const int wideSize = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, text.data(), inputSize, nullptr, 0);
         if (wideSize <= 0)
         {
-            std::wstring fallback;
-            fallback.reserve(text.size());
-            for (char ch : text)
-            {
-                const unsigned char value = static_cast<unsigned char>(ch);
-                fallback.push_back(value >= 0x20 && value < 0x80 ? static_cast<wchar_t>(value) : L'?');
-            }
-            return fallback;
+            throw std::invalid_argument("Environment text is not valid UTF-8");
         }
 
         std::wstring output(static_cast<std::size_t>(wideSize), L'\0');
         if (MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, text.data(), inputSize, output.data(), wideSize) != wideSize)
         {
-            return L"?";
+            throw std::runtime_error("Win32 environment text conversion failed");
         }
         return output;
     }
@@ -60,22 +58,31 @@ namespace
         }
         if (text.size() > static_cast<std::size_t>((std::numeric_limits<int>::max)()))
         {
-            return {};
+            throw std::length_error("Environment value exceeds the UTF-8 conversion limit");
         }
 
         const int inputSize = static_cast<int>(text.size());
         const int utf8Size = WideCharToMultiByte(CP_UTF8, 0, text.data(), inputSize, nullptr, 0, nullptr, nullptr);
         if (utf8Size <= 0)
         {
-            return {};
+            throw std::runtime_error("Win32 environment value conversion failed");
         }
 
         std::string output(static_cast<std::size_t>(utf8Size), '\0');
         if (WideCharToMultiByte(CP_UTF8, 0, text.data(), inputSize, output.data(), utf8Size, nullptr, nullptr) != utf8Size)
         {
-            return {};
+            throw std::runtime_error("Win32 environment value conversion failed");
         }
         return output;
+    }
+
+    /// @brief Rejects names that Win32 and the CRT cannot represent as environment keys.
+    void validateEnvironmentName(std::string_view name)
+    {
+        if (name.empty() || name.find('=') != std::string_view::npos)
+        {
+            throw std::invalid_argument("Environment variable name must be non-empty and cannot contain '='");
+        }
     }
 } // namespace
 
@@ -83,6 +90,7 @@ namespace GameWIP::TestSupport::Detail::Platform
 {
     std::optional<std::string> readEnvironmentVariable(std::string_view name)
     {
+        validateEnvironmentName(name);
         const std::wstring nameText = utf8ToWide(name);
         SetLastError(ERROR_SUCCESS);
         const DWORD requiredSize = GetEnvironmentVariableW(nameText.c_str(), nullptr, 0);
@@ -104,16 +112,22 @@ namespace GameWIP::TestSupport::Detail::Platform
 
     void setEnvironmentVariableValue(std::string_view name, std::string_view value)
     {
+        validateEnvironmentName(name);
         const std::wstring nameWide = utf8ToWide(name);
         const std::wstring valueWide = utf8ToWide(value);
-        _wputenv_s(nameWide.c_str(), valueWide.c_str());
-        SetEnvironmentVariableW(nameWide.c_str(), valueWide.c_str());
+        if (_wputenv_s(nameWide.c_str(), valueWide.c_str()) != 0)
+        {
+            throw std::runtime_error("Could not set the environment variable");
+        }
     }
 
     void unsetEnvironmentVariableValue(std::string_view name)
     {
+        validateEnvironmentName(name);
         const std::wstring nameWide = utf8ToWide(name);
-        _wputenv_s(nameWide.c_str(), L"");
-        SetEnvironmentVariableW(nameWide.c_str(), nullptr);
+        if (_wputenv_s(nameWide.c_str(), L"") != 0)
+        {
+            throw std::runtime_error("Could not unset the environment variable");
+        }
     }
 } // namespace GameWIP::TestSupport::Detail::Platform

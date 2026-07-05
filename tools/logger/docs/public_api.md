@@ -1,6 +1,6 @@
 @page logger_public_api Logger public API
 
-Include `logger/logger.h` for the namespace API. Include `logger/logger_macros.h` only where the optional global `LOGGER_*` macros are wanted.
+Include `logger/logger.h` for the namespace API. Include `logger/logger_macros.h` only where the optional global `LOGGER_*` macros are used. Installed-package consumers link `GameWIP::Logger`; builds within the source tree link the short `Logger` target. See @ref logger_quick_start for complete CMake examples.
 
 ## Choosing an output path
 

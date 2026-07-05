@@ -29,9 +29,9 @@ Use this rule of thumb:
 
 - If the expression must always run, use `VERIFY`, `VERIFY_INTERACTIVE`, or `ENSURE`.
 - If the expression is only a debug contract, use `ASSERT`.
-- If the failure is recoverable and you do not need a bool result, use `CHECK`.
-- If the failure is recoverable and you need a bool result, use `ENSURE`.
-- If you want one report per macro expansion, use `CHECK_ONCE`.
+- If the failure is recoverable and no boolean result is needed, use `CHECK`.
+- If the failure is recoverable and a boolean result is needed, use `ENSURE`.
+- For one report per macro expansion, use `CHECK_ONCE`.
 
 ## Message rules
 

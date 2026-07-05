@@ -7,6 +7,7 @@
 
 #include <atomic>
 #include <chrono>
+#include <cstdint>
 #include <cstdlib>
 #include <filesystem>
 #include <format>
@@ -39,6 +40,7 @@ namespace
     constexpr std::string_view kExitCodeChildArgument = "--test-support-test-child=exit-code";
     constexpr std::string_view kOutputChildArgument = "--test-support-test-child=output";
     constexpr std::string_view kDescendantChildArgument = "--test-support-test-child=descendant";
+    constexpr std::string_view kHandleInheritanceChildArgument = "--test-support-test-child=handle-inheritance";
     constexpr std::string_view kChildSetVariable = "INTERNAL_TEST_SUPPORT_CHILD_SET";
     constexpr std::string_view kChildUnsetVariable = "INTERNAL_TEST_SUPPORT_CHILD_UNSET";
     constexpr std::string_view kScopedVariable = "INTERNAL_TEST_SUPPORT_SCOPED_ENV";
@@ -152,6 +154,16 @@ namespace
             const std::size_t byteCount = byteCountText.empty() ? 0 : static_cast<std::size_t>(std::stoull(byteCountText));
             const std::string output(byteCount, 'x');
             std::cout.write(output.data(), static_cast<std::streamsize>(output.size()));
+            return 0;
+        }
+
+        if (hasArgument(argc, argv, kHandleInheritanceChildArgument))
+        {
+#if defined(_WIN32)
+            const std::string handleText = argumentAfter(argc, argv, kHandleInheritanceChildArgument);
+            const auto handleValue = static_cast<std::uintptr_t>(std::stoull(handleText));
+            static_cast<void>(SetEvent(reinterpret_cast<HANDLE>(handleValue)));
+#endif
             return 0;
         }
 
@@ -551,6 +563,39 @@ namespace
     /// @brief Verifies scoped environment set/unset and exact restoration behavior.
     void testEnvironmentHelpers(TestSupport::Context &context)
     {
+        bool emptyNameRejected = false;
+        try
+        {
+            TestSupport::ScopedEnvironmentVariable invalid("", "value");
+        }
+        catch (const std::invalid_argument &)
+        {
+            emptyNameRejected = true;
+        }
+        static_cast<void>(context.expectTrue("ScopedEnvironmentVariable rejects an empty name", emptyNameRejected));
+
+        bool equalsNameRejected = false;
+        try
+        {
+            TestSupport::ScopedUnsetEnvironmentVariable invalid("INVALID=NAME");
+        }
+        catch (const std::invalid_argument &)
+        {
+            equalsNameRejected = true;
+        }
+        static_cast<void>(context.expectTrue("ScopedUnsetEnvironmentVariable rejects '=' in a name", equalsNameRejected));
+
+        bool invalidUtf8Rejected = false;
+        try
+        {
+            TestSupport::ScopedEnvironmentVariable invalid("\xFF", "value");
+        }
+        catch (const std::invalid_argument &)
+        {
+            invalidUtf8Rejected = true;
+        }
+        static_cast<void>(context.expectTrue("ScopedEnvironmentVariable rejects invalid UTF-8", invalidUtf8Rejected));
+
         {
             TestSupport::ScopedUnsetEnvironmentVariable clean(kScopedVariable);
             static_cast<void>(
@@ -603,6 +648,37 @@ namespace
             return;
         }
 
+        const auto expectInvalidOptions = [&](std::string_view name, const TestSupport::Types::ChildProcessOptions &childOptions)
+        {
+            bool rejected = false;
+            try
+            {
+                static_cast<void>(TestSupport::runChildProcess(childOptions));
+            }
+            catch (const std::invalid_argument &)
+            {
+                rejected = true;
+            }
+            static_cast<void>(context.expectTrue(name, rejected));
+        };
+
+        {
+            TestSupport::Types::ChildProcessOptions childOptions;
+            childOptions.executablePath = std::filesystem::path(executablePath);
+            childOptions.arguments = {std::string("invalid-\0-argument", 18)};
+            expectInvalidOptions("Child process rejects embedded-null arguments", childOptions);
+
+            childOptions.arguments = {std::string("\xFF", 1)};
+            expectInvalidOptions("Child process rejects invalid UTF-8 arguments", childOptions);
+
+            childOptions.arguments.clear();
+            childOptions.environment = {{"INVALID=NAME", "value"}};
+            expectInvalidOptions("Child process rejects invalid environment names", childOptions);
+
+            childOptions.environment = {{"VALID_NAME", std::string("invalid-\0-value", 15)}};
+            expectInvalidOptions("Child process rejects embedded-null environment values", childOptions);
+        }
+
         {
             TestSupport::ScopedEnvironmentVariable parentUnset(kChildUnsetVariable, "parent-value");
 
@@ -631,6 +707,35 @@ namespace
             static_cast<void>(context.expectTrue("Child process capture can be disabled", result.exitedSuccessfully()));
             static_cast<void>(context.expectEq("Disabled capture leaves output empty", std::string(), result.output));
         }
+
+#if defined(_WIN32)
+        {
+            SECURITY_ATTRIBUTES attributes{};
+            attributes.nLength = sizeof(attributes);
+            attributes.bInheritHandle = TRUE;
+            const HANDLE unrelatedEvent = CreateEventW(&attributes, TRUE, FALSE, nullptr);
+            static_cast<void>(context.expectTrue(
+                "Create inheritable sentinel handle succeeds",
+                unrelatedEvent != nullptr && unrelatedEvent != INVALID_HANDLE_VALUE));
+            if (unrelatedEvent != nullptr && unrelatedEvent != INVALID_HANDLE_VALUE)
+            {
+                TestSupport::Types::ChildProcessOptions childOptions;
+                childOptions.executablePath = std::filesystem::path(executablePath);
+                childOptions.arguments = {
+                    std::string(kHandleInheritanceChildArgument),
+                    std::to_string(reinterpret_cast<std::uintptr_t>(unrelatedEvent))};
+                childOptions.timeout = 5s;
+
+                const TestSupport::Types::ChildProcessResult result = TestSupport::runChildProcess(childOptions);
+                static_cast<void>(context.expectTrue("Handle inheritance probe child succeeds", result.exitedSuccessfully()));
+                static_cast<void>(context.expectEq(
+                    "Child does not inherit unrelated parent handles",
+                    static_cast<DWORD>(WAIT_TIMEOUT),
+                    WaitForSingleObject(unrelatedEvent, 0)));
+                CloseHandle(unrelatedEvent);
+            }
+        }
+#endif
 
         {
             TestSupport::Types::ChildProcessOptions childOptions;
@@ -843,7 +948,8 @@ namespace GameWIP::Test
     {
         if (hasArgument(argc, argv, kEnvironmentChildArgument) || hasArgument(argc, argv, kEchoChildArgument) ||
             hasArgument(argc, argv, kSleepChildArgument) || hasArgument(argc, argv, kExitCodeChildArgument) ||
-            hasArgument(argc, argv, kOutputChildArgument) || hasArgument(argc, argv, kDescendantChildArgument))
+            hasArgument(argc, argv, kOutputChildArgument) || hasArgument(argc, argv, kDescendantChildArgument) ||
+            hasArgument(argc, argv, kHandleInheritanceChildArgument))
         {
             return runTestSupportChild(argc, argv);
         }

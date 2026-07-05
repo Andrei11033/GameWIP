@@ -1,7 +1,7 @@
 ---
 Language: Cpp
 BasedOnStyle: LLVM
-Standard: c++20
+Standard: Latest
 
 ColumnLimit: 150
 UseTab: Never

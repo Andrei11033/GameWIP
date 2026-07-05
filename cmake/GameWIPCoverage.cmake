@@ -2,6 +2,9 @@ if(GAMEWIP_ENABLE_COVERAGE)
     if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
         add_compile_options(--coverage -O0 -g)
         add_link_options(--coverage)
+        if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+            add_compile_options(-fprofile-update=atomic)
+        endif()
     else()
         message(WARNING "GAMEWIP_ENABLE_COVERAGE is currently configured only for GCC and Clang toolchains.")
     endif()
@@ -26,7 +29,6 @@ function(gamewip_create_coverage_target)
             --filter "${PROJECT_SOURCE_DIR}/tools/test_support"
             --filter "${PROJECT_SOURCE_DIR}/game/validation/tests"
             --exclude "${PROJECT_SOURCE_DIR}/external"
-            --gcov-ignore-parse-errors negative_hits.warn_once_per_file
         )
 
         add_custom_target(coverage

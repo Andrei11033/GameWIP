@@ -5,9 +5,11 @@
 ## ErrorCode
 
 ```cpp
-namespace GameWIP::IO::Types {
+namespace GameWIP::IO::Types
+{
 
-enum class ErrorCode {
+enum class ErrorCode
+{
     Success,
 
     InvalidArgument,
@@ -58,7 +60,8 @@ enum class ErrorCode {
     Unknown
 };
 
-struct Status {
+struct Status
+{
     ErrorCode code = ErrorCode::Success;
     std::int64_t nativeCode = 0;
     std::string message;
@@ -91,7 +94,7 @@ Constructing a non-empty diagnostic message may allocate. Code-only statuses avo
 
 `Status::ok()` returns true only for `ErrorCode::Success`.
 
-`nativeCode` carries backend-native error data when a concrete backend has such data. IO itself has no platform backend in v1, but FileSystem and Terminal may return native error details through the shared status shape.
+`nativeCode` carries backend-native error data when a concrete backend has such data. IO itself has no platform backend, but FileSystem and Terminal may return native error details through the shared status shape.
 
 Expected I/O failures return `Status` rather than throwing.
 

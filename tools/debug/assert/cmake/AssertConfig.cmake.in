@@ -1,7 +1,9 @@
 @PACKAGE_INIT@
 
 include(CMakeFindDependencyMacro)
-find_dependency(Logger CONFIG)
+if(@ASSERT_RUNTIME_TARGET_ENABLED@)
+    find_dependency(Logger @PROJECT_VERSION@ EXACT CONFIG)
+endif()
 
 include("${CMAKE_CURRENT_LIST_DIR}/AssertTargets.cmake")
 
@@ -34,18 +36,18 @@ function(_internal_assert_configure_common_controls_v6 output_variable)
 endfunction()
 
 # Normal installed consumers get the manifest resource by linking Assert.
-if(WIN32)
+if(WIN32 AND @ASSERT_ENABLE_COMMON_CONTROLS_MANIFEST@)
     _internal_assert_configure_common_controls_v6(Assert_COMMON_CONTROLS_RC)
     get_property(
         Assert_COMMON_CONTROLS_ATTACHED
-        TARGET Assert
+        TARGET GameWIP::Assert
         PROPERTY INTERNAL_ASSERT_COMMON_CONTROLS_ATTACHED
     )
     if(NOT Assert_COMMON_CONTROLS_ATTACHED)
-        set_property(TARGET Assert APPEND PROPERTY
+        set_property(TARGET GameWIP::Assert APPEND PROPERTY
             INTERFACE_SOURCES "${Assert_COMMON_CONTROLS_RC}"
         )
-        set_property(TARGET Assert PROPERTY
+        set_property(TARGET GameWIP::Assert PROPERTY
             INTERNAL_ASSERT_COMMON_CONTROLS_ATTACHED TRUE
         )
     endif()

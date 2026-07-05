@@ -54,6 +54,27 @@
 #include <windows.h>
 #endif
 
+/// @brief Marker value whose formatter emits a nested Logger message.
+struct LoggerReentrantFormat
+{
+};
+
+template <> struct std::formatter<LoggerReentrantFormat>
+{
+    /// @brief Accepts the empty formatter specification used by the reentry fixture.
+    constexpr auto parse(std::format_parse_context &context)
+    {
+        return context.begin();
+    }
+
+    /// @brief Queues a nested message before producing the outer formatted value.
+    template <typename FormatContext> auto format(const LoggerReentrantFormat &, FormatContext &context) const
+    {
+        GameWIP::Logger::info("LoggerFormatter", "nested {}", 7);
+        return std::format_to(context.out(), "outer");
+    }
+};
+
 namespace
 {
     namespace Logger = GameWIP::Logger;
@@ -236,26 +257,6 @@ namespace
             Logger::shutdown();
         }
     };
-
-#if INTERNAL_LOGGER_TEST_HOOKS
-    /// @brief Installs and clears the test-only default log-directory override.
-    struct ScopedDefaultLogDirectoryOverride
-    {
-        /// @brief Redirects Logger's compiled default directory into a test-owned path.
-        explicit ScopedDefaultLogDirectoryOverride(const std::filesystem::path &path)
-        {
-            GameWIP::Logger::TestHooks::setDefaultLogDirectoryOverride(path.generic_string());
-        }
-
-        ~ScopedDefaultLogDirectoryOverride() noexcept
-        {
-            GameWIP::Logger::TestHooks::clearDefaultLogDirectoryOverride();
-        }
-
-        ScopedDefaultLogDirectoryOverride(const ScopedDefaultLogDirectoryOverride &) = delete;
-        ScopedDefaultLogDirectoryOverride &operator=(const ScopedDefaultLogDirectoryOverride &) = delete;
-    };
-#endif
 
     /// @brief Returns stable diagnostic text for every Logger result value.
     std::string_view toString(Logger::Types::Result result)
@@ -707,7 +708,7 @@ namespace
         context.expectTrue("zero message length still starts sanitized logger", Logger::isRunning());
     }
 
-    /// @brief Verifies convenience initialization APIs and the test-only default directory override.
+    /// @brief Verifies convenience initialization APIs and runtime default-directory resolution.
     void testConvenienceInitApis(TestContext &context)
     {
         ZoneScopedN("Logger convenience init API tests");
@@ -729,28 +730,28 @@ namespace
         Logger::shutdown();
         context.expectTrue("initFile wrote content", readWholeFile(initFilePath).find("initFile visible") != std::string::npos);
 
-#if INTERNAL_LOGGER_TEST_HOOKS
-        const ScopedDefaultLogDirectoryOverride defaultDirectoryOverride(context.logRoot);
-#endif
-        const Logger::Types::Result defaultResult = Logger::initDefault();
-        const bool defaultStarted = defaultResult == Logger::Types::Result::Success || defaultResult == Logger::Types::Result::FileOpenFailed ||
-                                    defaultResult == Logger::Types::Result::FileSetupFailed;
-        context.expectTrue("initDefault starts or falls back", defaultStarted);
-        context.expectTrue("initDefault leaves logger running", Logger::isRunning());
-        if (defaultResult == Logger::Types::Result::Success)
         {
-            expectEq(context, "initDefault output", Logger::getOutput(), Logger::Types::Output::Both);
-            context.expectFalse("initDefault path available", Logger::getLogFilePath().empty());
-            context.expectEq(
-                "initDefault test override contains the log file",
-                context.logRoot.lexically_normal(),
-                std::filesystem::path(Logger::getLogFilePath()).parent_path().lexically_normal());
+            const TestSupport::ScopedCurrentPath currentPath(context.logRoot);
+            const Logger::Types::Result defaultResult = Logger::initDefault();
+            const bool defaultStarted = defaultResult == Logger::Types::Result::Success || defaultResult == Logger::Types::Result::FileOpenFailed ||
+                                        defaultResult == Logger::Types::Result::FileSetupFailed;
+            context.expectTrue("initDefault starts or falls back", defaultStarted);
+            context.expectTrue("initDefault leaves logger running", Logger::isRunning());
+            if (defaultResult == Logger::Types::Result::Success)
+            {
+                expectEq(context, "initDefault output", Logger::getOutput(), Logger::Types::Output::Both);
+                context.expectFalse("initDefault path available", Logger::getLogFilePath().empty());
+                context.expectEq(
+                    "initDefault resolves logs beneath the working directory",
+                    std::filesystem::absolute(Logger::getLogFilePath()).parent_path().lexically_normal(),
+                    (context.logRoot / "logs").lexically_normal());
+            }
+            else
+            {
+                expectEq(context, "initDefault file failure falls back to console", Logger::getOutput(), Logger::Types::Output::Console);
+            }
+            Logger::shutdown();
         }
-        else
-        {
-            expectEq(context, "initDefault file failure falls back to console", Logger::getOutput(), Logger::Types::Output::Console);
-        }
-        Logger::shutdown();
     }
 
     /// @brief Verifies file sink creation, formatting, flushing, and message content.
@@ -1029,9 +1030,10 @@ namespace
         Logger::info(testSource, Logger::runtimeFormat("runtime {} {}"), 13, "ok");
         Logger::info(testSource, Logger::runtimeFormat("{"), 1);
         Logger::info(testSource, "long {}", std::string(256, 'x'));
+        Logger::info(testSource, "reentrant {}", LoggerReentrantFormat{});
         context.expectTrue("strict format flush", Logger::flush(2s));
         Logger::Types::Stats strictStats = Logger::getStats();
-        expectEq(context, "strict format queued", strictStats.queued, std::size_t{3});
+        expectEq(context, "strict format queued", strictStats.queued, std::size_t{5});
         expectEq(context, "strict runtime format failure counted", strictStats.formatFailures, std::size_t{1});
         expectEq(context, "strict truncation counted", strictStats.truncated, std::size_t{1});
         const std::string strictPath = Logger::getLogFilePath();
@@ -1041,6 +1043,8 @@ namespace
         context.expectTrue("strict compile format content", strictContents.find("value 12 ok") != std::string::npos);
         context.expectTrue("strict runtime format content", strictContents.find("runtime 13 ok") != std::string::npos);
         context.expectTrue("strict truncation suffix content", strictContents.find("[truncated]") != std::string::npos);
+        context.expectTrue("reentrant formatter nested content", strictContents.find("nested 7") != std::string::npos);
+        context.expectTrue("reentrant formatter outer content", strictContents.find("reentrant outer") != std::string::npos);
 
         OwnedLoggerConfig fastConfig = makeFileConfig(context, "format-fast", Logger::Types::Level::Trace);
         fastConfig.maxMessageLength = 48;

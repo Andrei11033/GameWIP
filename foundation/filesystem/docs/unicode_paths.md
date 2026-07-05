@@ -1,8 +1,8 @@
-@page foundation_filesystem_unicode_paths FileSystem Unicode paths
+@page filesystem_unicode_paths FileSystem Unicode paths
 
 Public operations use `GameWIP::FileSystem::Types::Path` everywhere. It is currently an alias to `std::filesystem::path`.
 
-Once a `Path` reaches FileSystem, the backend performs all required native conversion automatically. Windows uses the path's wide representation and explicit Unicode Win32 APIs.
+Once a `Path` reaches FileSystem, native conversion is automatic. On Windows, FileSystem preserves Unicode paths without routing them through the active narrow-code-page interpretation.
 
 Constructing a `std::filesystem::path` from narrow text happens before FileSystem can inspect it and is not guaranteed to interpret the bytes as UTF-8 on Windows. Use the explicit boundary helpers:
 

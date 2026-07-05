@@ -1,18 +1,25 @@
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 
-if(NOT COMMAND library_target_platform_sources)
+if(NOT COMMAND gamewip_target_platform_sources)
     include("${PROJECT_SOURCE_DIR}/cmake/LibraryPlatform.cmake")
-    library_resolve_platform_id(LIBRARY_PLATFORM_ID)
+    gamewip_resolve_platform_id(GAMEWIP_PLATFORM_ID)
 endif()
 
 add_library(TestSupport STATIC)
+add_library(GameWIP::TestSupport ALIAS TestSupport)
 
-target_sources(TestSupport PRIVATE
-    core/test_support.cpp
+target_sources(TestSupport
+    PRIVATE
+        core/test_support.cpp
+    PUBLIC
+        FILE_SET public_headers
+        TYPE HEADERS
+        BASE_DIRS "${PROJECT_SOURCE_DIR}/tools"
+        FILES "${CMAKE_CURRENT_SOURCE_DIR}/test_support.h"
 )
 
-library_target_platform_sources(TestSupport TestSupport "${CMAKE_CURRENT_SOURCE_DIR}/platform")
+gamewip_target_platform_sources(TestSupport TestSupport "${CMAKE_CURRENT_SOURCE_DIR}/platform")
 
 target_include_directories(TestSupport PUBLIC
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/tools>
@@ -25,10 +32,10 @@ set_target_properties(TestSupport PROPERTIES
     ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
 )
 
-if(GAMEWIP_BUILD_DOCS AND COMMAND library_register_doxygen_library)
+if(GAMEWIP_BUILD_DOCS AND COMMAND gamewip_register_doxygen_library)
     # TestSupport owns its public API docs and Markdown manual pages. The root docs
     # target merges this into the unified library Doxygen site.
-    library_register_doxygen_library(
+    gamewip_register_doxygen_library(
         NAME TestSupport
         PAGE_ID test_support
         PUBLIC_HEADERS
@@ -41,11 +48,7 @@ endif()
 install(TARGETS TestSupport
     EXPORT TestSupportTargets
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-)
-
-install(FILES
-    "${CMAKE_CURRENT_SOURCE_DIR}/test_support.h"
-    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/test_support
+    FILE_SET public_headers DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
 )
 
 configure_package_config_file(
@@ -57,11 +60,12 @@ configure_package_config_file(
 write_basic_package_version_file(
     "${CMAKE_CURRENT_BINARY_DIR}/TestSupportConfigVersion.cmake"
     VERSION ${PROJECT_VERSION}
-    COMPATIBILITY SameMajorVersion
+    COMPATIBILITY ExactVersion
 )
 
 install(EXPORT TestSupportTargets
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/TestSupport
+    NAMESPACE GameWIP::
 )
 
 install(FILES

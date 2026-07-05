@@ -498,9 +498,11 @@ namespace GameWIP::TestSupport
         /// @brief Sets name to value and stores the previous value, if any.
         /// @param name Environment variable name.
         /// @param value Temporary value visible to `std::getenv()` and child processes.
+        /// @throws std::invalid_argument for an invalid name or invalid UTF-8 text.
+        /// @throws std::runtime_error when the environment cannot be changed.
         ScopedEnvironmentVariable(std::string_view name, std::string_view value);
-        /// @brief Restores the previous value or unsets name when it was previously missing.
-        ~ScopedEnvironmentVariable();
+        /// @brief Best-effort restores the previous value or unsets name when it was previously missing.
+        ~ScopedEnvironmentVariable() noexcept;
 
         ScopedEnvironmentVariable(const ScopedEnvironmentVariable &) = delete;
         ScopedEnvironmentVariable &operator=(const ScopedEnvironmentVariable &) = delete;
@@ -519,9 +521,11 @@ namespace GameWIP::TestSupport
     public:
         /// @brief Unsets name and stores the previous value, if any.
         /// @param name Environment variable name to unset temporarily.
+        /// @throws std::invalid_argument for an invalid name or invalid UTF-8 text.
+        /// @throws std::runtime_error when the environment cannot be changed.
         explicit ScopedUnsetEnvironmentVariable(std::string_view name);
-        /// @brief Restores the previous value or leaves name unset when it was previously missing.
-        ~ScopedUnsetEnvironmentVariable();
+        /// @brief Best-effort restores the previous value or leaves name unset when it was previously missing.
+        ~ScopedUnsetEnvironmentVariable() noexcept;
 
         ScopedUnsetEnvironmentVariable(const ScopedUnsetEnvironmentVariable &) = delete;
         ScopedUnsetEnvironmentVariable &operator=(const ScopedUnsetEnvironmentVariable &) = delete;
@@ -611,6 +615,9 @@ namespace GameWIP::TestSupport
     /// @brief Runs one child process.
     /// @param options Launch path, arguments, environment, timeout, and capture settings.
     /// @return Exit, timeout, termination, and optional output details.
+    /// @throws std::invalid_argument when a path, argument, environment name, or environment value contains invalid process text.
+    /// @throws std::length_error when UTF-8 input exceeds the platform conversion limit.
+    /// @throws std::runtime_error when platform text conversion fails unexpectedly.
     [[nodiscard]] Types::ChildProcessResult runChildProcess(const Types::ChildProcessOptions &options);
 
     /// @brief Prompts the user for a manual yes/no/skipped check.

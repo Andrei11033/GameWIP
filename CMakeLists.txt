@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.20)
+cmake_minimum_required(VERSION 3.23)
 
 project(GameWIP VERSION 0.0.1 LANGUAGES CXX)
 
@@ -17,7 +17,7 @@ include(GameWIPCoverage)
 include(GameWIPDocumentation)
 include(GameWIPStaticAnalysis)
 
-library_resolve_platform_id(LIBRARY_PLATFORM_ID)
+gamewip_resolve_platform_id(GAMEWIP_PLATFORM_ID)
 
 if(GAMEWIP_BUILD_TESTS)
     enable_testing()

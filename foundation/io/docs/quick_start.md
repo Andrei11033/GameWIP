@@ -1,6 +1,33 @@
 @page io_quick_start IO quick start
 
-Include the public header and link `IO`.
+## Include
+
+Include the library's public header:
+
+```cpp
+#include "io/io.h"
+```
+
+## Installed CMake
+
+Use the package's namespaced imported target:
+
+```cmake
+find_package(IO CONFIG REQUIRED)
+target_link_libraries(MyTarget PRIVATE GameWIP::IO)
+```
+
+## Source-tree CMake
+
+When IO is part of the same source tree, use its short build target:
+
+```cmake
+target_link_libraries(MyTarget PRIVATE IO)
+```
+
+## Minimal usage
+
+Read a caller-owned byte sequence through `MemoryReader`:
 
 ```cpp
 #include "io/io.h"
@@ -20,7 +47,8 @@ GameWIP::IO::Types::ReadAllBytesResult result = GameWIP::IO::readAllBytes(reader
 Use `Status::ok()` for expected failures:
 
 ```cpp
-if (!result.status.ok()) {
+if (!result.status.ok())
+{
     // Inspect result.status.code, GameWIP::IO::errorCodeName(result.status.code),
     // result.status.nativeCode, and result.status.message.
 }
@@ -40,7 +68,8 @@ GameWIP::IO::MemoryWriter writer;
 GameWIP::IO::Types::WriteResult writeResult =
     GameWIP::IO::writeAllText(writer, "hello");
 
-if (writeResult.status.ok()) {
+if (writeResult.status.ok())
+{
     std::string collected = writer.text();
     std::vector<std::byte> movedBytes = writer.takeBytes();
 }

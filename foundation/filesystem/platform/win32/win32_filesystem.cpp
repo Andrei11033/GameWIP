@@ -13,6 +13,7 @@
 #include <winternl.h>
 
 #include <algorithm>
+#include <atomic>
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
@@ -41,6 +42,11 @@ namespace GameWIP::FileSystem::Detail::Platform
         constexpr ULONG kOpenOptionsBase = FILE_SYNCHRONOUS_IO_NONALERT | FILE_OPEN_FOR_BACKUP_INTENT;
         /// @brief Tick offset from the Windows 1601 epoch to the Unix 1970 epoch.
         constexpr std::int64_t kUnixEpochAsWindowsFileTime = 116'444'736'000'000'000LL;
+
+#if INTERNAL_FILESYSTEM_TEST_HOOKS
+        /// Persistent failure injection used to validate destructor cleanup after UnlockFileEx failure.
+        std::atomic_bool forceFileUnlockFailure = false;
+#endif
 
         using NtCreateFileFunction =
             NTSTATUS(NTAPI *)(PHANDLE, ACCESS_MASK, POBJECT_ATTRIBUTES, PIO_STATUS_BLOCK, PLARGE_INTEGER, ULONG, ULONG, ULONG, ULONG, PVOID, ULONG);
@@ -169,6 +175,12 @@ namespace GameWIP::FileSystem::Detail::Platform
             [[nodiscard]] HANDLE get() const noexcept
             {
                 return handle_;
+            }
+
+            /// @brief Releases enumeration ownership to another owner.
+            [[nodiscard]] HANDLE release() noexcept
+            {
+                return std::exchange(handle_, INVALID_HANDLE_VALUE);
             }
 
         private:
@@ -1488,6 +1500,13 @@ namespace GameWIP::FileSystem::Detail::Platform
                 return IO::successStatus();
             }
 
+#if INTERNAL_FILESYSTEM_TEST_HOOKS
+            if (forceFileUnlockFailure.load(std::memory_order_acquire))
+            {
+                return IO::makeStatus(ErrorCode::UnlockFailed);
+            }
+#endif
+
             OVERLAPPED overlapped{};
             if (UnlockFileEx(nativeHandle(state), 0, MAXDWORD, MAXDWORD, &overlapped) == FALSE)
             {
@@ -1740,16 +1759,28 @@ namespace GameWIP::FileSystem::Detail::Platform
             return false;
         }
 
-        /// @brief Enumerates direct children and applies metadata, hidden, and count policies.
-        [[nodiscard]] Types::ListDirectoryResult listDirectoryImpl(const Types::Path &path, const Types::ListDirectoryOptions &options)
+        /// Converts one native enumeration record into a platform-neutral directory entry.
+        [[nodiscard]] DirectoryCursorNextResult directoryCursorEntry(Detail::DirectoryCursorState &state, const WIN32_FIND_DATAW &findData)
         {
-            const StablePathResult stablePath = stabilizeExistingPath(path, options.symlinkPolicy, true);
-            if (!stablePath.status.ok())
+            const std::wstring_view childName{findData.cFileName};
+            const Types::Path childPath = state.directoryPath / std::filesystem::path{std::wstring(childName)};
+            const EntryQueryResult child = queryEntryImpl(childPath, state.symlinkPolicy);
+            if (!child.status.ok())
             {
-                return {.status = stablePath.status};
+                return {.status = child.status};
             }
 
-            const WidePathResult absolutePath = absoluteNativePath(path);
+            return {
+                .status = IO::successStatus(),
+                .entry = Types::DirectoryEntry{.path = childPath, .info = child.info},
+                .hidden = (findData.dwFileAttributes & FILE_ATTRIBUTE_HIDDEN) != 0,
+                .hasEntry = true};
+        }
+
+        /// Starts native enumeration after the caller has stabilized the directory path.
+        [[nodiscard]] DirectoryCursorOpenResult startDirectoryCursor(std::unique_ptr<Detail::DirectoryCursorState> state)
+        {
+            const WidePathResult absolutePath = absoluteNativePath(state->directoryPath);
             if (!absolutePath.status.ok())
             {
                 return {.status = absolutePath.status};
@@ -1762,47 +1793,170 @@ namespace GameWIP::FileSystem::Detail::Platform
                 const DWORD error = GetLastError();
                 if (error == ERROR_FILE_NOT_FOUND)
                 {
-                    return {.status = IO::successStatus()};
+                    state->finished = true;
                 }
-                return {.status = makeWin32Status(error, ErrorCode::DirectoryListFailed)};
+                else
+                {
+                    return {.status = makeWin32Status(error, ErrorCode::DirectoryListFailed)};
+                }
+            }
+            else
+            {
+                while (isDotDirectoryEntry(findData.cFileName))
+                {
+                    if (FindNextFileW(findHandle.get(), &findData) != FALSE)
+                    {
+                        continue;
+                    }
+
+                    const DWORD error = GetLastError();
+                    if (error != ERROR_NO_MORE_FILES)
+                    {
+                        return {.status = makeWin32Status(error, ErrorCode::DirectoryListFailed)};
+                    }
+                    state->finished = true;
+                    break;
+                }
+
+                if (!state->finished)
+                {
+                    DirectoryCursorNextResult first = directoryCursorEntry(*state, findData);
+                    if (!first.status.ok())
+                    {
+                        return {.status = first.status};
+                    }
+                    state->bufferedEntry = std::move(first.entry);
+                    state->bufferedEntryHidden = first.hidden;
+                    state->hasBufferedEntry = true;
+                }
+            }
+
+            if (findHandle.isValid())
+            {
+                state->nativeFindHandle = findHandle.release();
+            }
+            return {.status = IO::successStatus(), .state = std::move(state)};
+        }
+
+        /// Opens a root cursor while retaining the complete path traversal chain.
+        [[nodiscard]] DirectoryCursorOpenResult openDirectoryCursorImpl(const Types::Path &path, Types::SymlinkPolicy symlinkPolicy)
+        {
+            StablePathResult stablePath = stabilizeExistingPath(path, symlinkPolicy, true);
+            if (!stablePath.status.ok())
+            {
+                return {.status = stablePath.status};
+            }
+
+            auto state = std::make_unique<Detail::DirectoryCursorState>();
+            state->directoryPath = path;
+            state->symlinkPolicy = symlinkPolicy;
+            state->stableHandles.reserve(stablePath.handles.size());
+            for (UniqueHandle &handle : stablePath.handles)
+            {
+                state->stableHandles.push_back(handle.release());
+            }
+            return startDirectoryCursor(std::move(state));
+        }
+
+        /// Opens a child from its stabilized parent so active nested cursors retain one new handle per level.
+        [[nodiscard]] DirectoryCursorOpenResult openChildDirectoryCursorImpl(
+            const Detail::DirectoryCursorState &parent,
+            const Types::Path &path,
+            Types::SymlinkPolicy symlinkPolicy)
+        {
+            if (symlinkPolicy != Types::SymlinkPolicy::DoNotFollow || parent.stableHandles.empty())
+            {
+                return {.status = IO::makeStatus(ErrorCode::InvalidArgument)};
+            }
+
+            const std::wstring childName = path.filename().wstring();
+            if (childName.empty())
+            {
+                return {.status = IO::makeStatus(ErrorCode::InvalidArgument)};
+            }
+
+            const HANDLE parentHandle = static_cast<HANDLE>(parent.stableHandles.back());
+            HandleResult childHandle = openChild(parentHandle, childName, true, true, kShareAll & ~FILE_SHARE_DELETE);
+            if (!childHandle.status.ok())
+            {
+                return {.status = childHandle.status};
+            }
+
+            auto state = std::make_unique<Detail::DirectoryCursorState>();
+            state->directoryPath = path;
+            state->symlinkPolicy = symlinkPolicy;
+            state->stableHandles.push_back(childHandle.handle.release());
+            return startDirectoryCursor(std::move(state));
+        }
+
+        /// Advances one cursor without collecting sibling entries.
+        [[nodiscard]] DirectoryCursorNextResult readDirectoryCursorImpl(Detail::DirectoryCursorState &state)
+        {
+            if (state.hasBufferedEntry)
+            {
+                state.hasBufferedEntry = false;
+                return {
+                    .status = IO::successStatus(),
+                    .entry = std::move(state.bufferedEntry),
+                    .hidden = state.bufferedEntryHidden,
+                    .hasEntry = true};
+            }
+            if (state.finished)
+            {
+                return {.status = IO::successStatus()};
+            }
+
+            const HANDLE findHandle = static_cast<HANDLE>(state.nativeFindHandle);
+            WIN32_FIND_DATAW findData{};
+            while (FindNextFileW(findHandle, &findData) != FALSE)
+            {
+                if (!isDotDirectoryEntry(findData.cFileName))
+                {
+                    return directoryCursorEntry(state, findData);
+                }
+            }
+
+            const DWORD error = GetLastError();
+            if (error == ERROR_NO_MORE_FILES)
+            {
+                state.finished = true;
+                return {.status = IO::successStatus()};
+            }
+            return {.status = makeWin32Status(error, ErrorCode::DirectoryListFailed)};
+        }
+
+        /// Enumerates direct children and applies public filtering and count policy.
+        [[nodiscard]] Types::ListDirectoryResult listDirectoryImpl(const Types::Path &path, const Types::ListDirectoryOptions &options)
+        {
+            DirectoryCursorOpenResult opened = openDirectoryCursorImpl(path, options.symlinkPolicy);
+            if (!opened.status.ok())
+            {
+                return {.status = opened.status};
             }
 
             Types::ListDirectoryResult result{.status = IO::successStatus()};
             while (true)
             {
-                const std::wstring_view childName{findData.cFileName};
-                if (!isDotDirectoryEntry(childName))
+                DirectoryCursorNextResult next = readDirectoryCursorImpl(*opened.state);
+                if (!next.status.ok())
                 {
-                    const Types::Path childPath = path / std::filesystem::path{std::wstring(childName)};
-                    const EntryQueryResult child = queryEntryImpl(childPath, options.symlinkPolicy);
-                    if (!child.status.ok())
-                    {
-                        result.status = child.status;
-                        return result;
-                    }
-
-                    const bool hidden = (findData.dwFileAttributes & FILE_ATTRIBUTE_HIDDEN) != 0;
-                    if ((options.includeHidden || !hidden) && includeEntryKind(child.info.kind, options))
-                    {
-                        if (result.entries.size() >= options.maxEntries)
-                        {
-                            result.status = IO::makeStatus(ErrorCode::SizeLimitExceeded);
-                            return result;
-                        }
-                        result.entries.push_back(Types::DirectoryEntry{.path = childPath, .info = child.info});
-                    }
-                }
-
-                if (FindNextFileW(findHandle.get(), &findData) == FALSE)
-                {
-                    const DWORD error = GetLastError();
-                    if (error == ERROR_NO_MORE_FILES)
-                    {
-                        return result;
-                    }
-                    result.status = makeWin32Status(error, ErrorCode::DirectoryListFailed);
+                    result.status = next.status;
                     return result;
                 }
+                if (!next.hasEntry)
+                {
+                    return result;
+                }
+                if ((!options.includeHidden && next.hidden) || !includeEntryKind(next.entry.info.kind, options))
+                {
+                    continue;
+                }
+                if (result.entries.size() >= options.maxEntries)
+                {
+                    result.status = IO::makeStatus(ErrorCode::SizeLimitExceeded);
+                    return result;
+                }
+                result.entries.push_back(std::move(next.entry));
             }
         }
     } // namespace
@@ -2197,6 +2351,12 @@ namespace GameWIP::FileSystem::Detail::Platform
                 return {.status = IO::makeStatus(ErrorCode::InvalidArgument)};
             }
 
+            if (!state.activeLocks)
+            {
+                state.activeLocks = std::make_shared<std::uint32_t>(0);
+            }
+            auto lockState = std::make_unique<Detail::FileLockState>();
+
             OVERLAPPED overlapped{};
             if (LockFileEx(nativeHandle(state), flags, 0, MAXDWORD, MAXDWORD, &overlapped) == FALSE)
             {
@@ -2208,24 +2368,28 @@ namespace GameWIP::FileSystem::Detail::Platform
                 return {.status = makeWin32Status(error, ErrorCode::LockFailed)};
             }
 
-            HANDLE duplicatedHandle = INVALID_HANDLE_VALUE;
-            if (DuplicateHandle(GetCurrentProcess(), nativeHandle(state), GetCurrentProcess(), &duplicatedHandle, 0, FALSE, DUPLICATE_SAME_ACCESS) ==
-                FALSE)
+            HANDLE duplicatedHandleRaw = INVALID_HANDLE_VALUE;
+            if (DuplicateHandle(
+                    GetCurrentProcess(),
+                    nativeHandle(state),
+                    GetCurrentProcess(),
+                    &duplicatedHandleRaw,
+                    0,
+                    FALSE,
+                    DUPLICATE_SAME_ACCESS) == FALSE)
             {
+                const DWORD duplicateError = GetLastError();
                 OVERLAPPED unlockOverlapped{};
                 static_cast<void>(UnlockFileEx(nativeHandle(state), 0, MAXDWORD, MAXDWORD, &unlockOverlapped));
-                return {.status = makeLastErrorStatus(ErrorCode::LockFailed)};
+                return {.status = makeWin32Status(duplicateError, ErrorCode::LockFailed)};
             }
+            UniqueHandle duplicatedHandle{duplicatedHandleRaw};
 
-            auto lockState = std::make_unique<Detail::FileLockState>();
-            lockState->nativeHandle = duplicatedHandle;
+            lockState->nativeHandle = duplicatedHandle.release();
             lockState->activeLocks = state.activeLocks;
             lockState->active = true;
             lockState->exclusive = mode == Types::FileLockMode::Exclusive;
-            if (lockState->activeLocks)
-            {
-                ++(*lockState->activeLocks);
-            }
+            ++(*lockState->activeLocks);
 
             return {.status = IO::successStatus(), .outcome = Types::LockOutcome::Acquired, .state = std::move(lockState)};
         }
@@ -2374,6 +2538,65 @@ namespace GameWIP::FileSystem::Detail::Platform
                 return {.status = IO::makeStatus(ErrorCode::InvalidArgument)};
             }
             return listDirectoryImpl(path, options);
+        }
+        catch (const std::bad_alloc &)
+        {
+            return {.status = IO::makeStatus(ErrorCode::OutOfMemory)};
+        }
+        catch (...)
+        {
+            return {.status = IO::makeStatus(ErrorCode::Unknown)};
+        }
+    }
+
+    DirectoryCursorOpenResult openDirectoryCursor(const Types::Path &path, Types::SymlinkPolicy symlinkPolicy) noexcept
+    {
+        try
+        {
+            if (path.empty() || !isValidSymlinkPolicy(symlinkPolicy))
+            {
+                return {.status = IO::makeStatus(ErrorCode::InvalidArgument)};
+            }
+            return openDirectoryCursorImpl(path, symlinkPolicy);
+        }
+        catch (const std::bad_alloc &)
+        {
+            return {.status = IO::makeStatus(ErrorCode::OutOfMemory)};
+        }
+        catch (...)
+        {
+            return {.status = IO::makeStatus(ErrorCode::Unknown)};
+        }
+    }
+
+    DirectoryCursorNextResult readDirectoryCursor(Detail::DirectoryCursorState &state) noexcept
+    {
+        try
+        {
+            return readDirectoryCursorImpl(state);
+        }
+        catch (const std::bad_alloc &)
+        {
+            return {.status = IO::makeStatus(ErrorCode::OutOfMemory)};
+        }
+        catch (...)
+        {
+            return {.status = IO::makeStatus(ErrorCode::Unknown)};
+        }
+    }
+
+    DirectoryCursorOpenResult openChildDirectoryCursor(
+        const Detail::DirectoryCursorState &parent,
+        const Types::Path &path,
+        Types::SymlinkPolicy symlinkPolicy) noexcept
+    {
+        try
+        {
+            if (path.empty() || !isValidSymlinkPolicy(symlinkPolicy))
+            {
+                return {.status = IO::makeStatus(ErrorCode::InvalidArgument)};
+            }
+            return openChildDirectoryCursorImpl(parent, path, symlinkPolicy);
         }
         catch (const std::bad_alloc &)
         {
@@ -2697,6 +2920,21 @@ namespace GameWIP::FileSystem::Detail::Platform
             return {.status = IO::makeStatus(ErrorCode::Unknown), .value = false};
         }
     }
+
+#if INTERNAL_FILESYSTEM_TEST_HOOKS
+    namespace TestHooks
+    {
+        void setFileUnlockFailure(bool enabled) noexcept
+        {
+            forceFileUnlockFailure.store(enabled, std::memory_order_release);
+        }
+
+        void reset() noexcept
+        {
+            forceFileUnlockFailure.store(false, std::memory_order_release);
+        }
+    } // namespace TestHooks
+#endif
 } // namespace GameWIP::FileSystem::Detail::Platform
 
 namespace GameWIP::FileSystem::Detail
@@ -2711,10 +2949,7 @@ namespace GameWIP::FileSystem::Detail
         }
     } // namespace
 
-    FileState::FileState()
-        : activeLocks(std::make_shared<std::uint32_t>(0))
-    {
-    }
+    FileState::FileState() = default;
 
     FileState::~FileState() noexcept
     {
@@ -2729,30 +2964,48 @@ namespace GameWIP::FileSystem::Detail
         }
     }
 
-    FileLockState::FileLockState()
-        : activeLocks(std::make_shared<std::uint32_t>(0))
-    {
-    }
-
     FileLockState::~FileLockState() noexcept
     {
         if (active && isValidNativeHandle(nativeHandle))
         {
-            OVERLAPPED overlapped{};
-            if (UnlockFileEx(static_cast<HANDLE>(nativeHandle), 0, MAXDWORD, MAXDWORD, &overlapped) != FALSE)
-            {
-                active = false;
-                if (activeLocks && *activeLocks > 0)
-                {
-                    --(*activeLocks);
-                }
-            }
+            static_cast<void>(Platform::unlockFile(*this));
         }
 
         if (isValidNativeHandle(nativeHandle))
         {
-            static_cast<void>(CloseHandle(static_cast<HANDLE>(nativeHandle)));
-            nativeHandle = nullptr;
+            const bool closed = CloseHandle(static_cast<HANDLE>(nativeHandle)) != FALSE;
+            if (closed)
+            {
+                nativeHandle = nullptr;
+                if (active)
+                {
+                    active = false;
+                    if (activeLocks && *activeLocks > 0)
+                    {
+                        --(*activeLocks);
+                    }
+                }
+            }
         }
+    }
+
+    DirectoryCursorState::~DirectoryCursorState() noexcept
+    {
+        const HANDLE findHandle = static_cast<HANDLE>(nativeFindHandle);
+        if (findHandle != nullptr && findHandle != INVALID_HANDLE_VALUE)
+        {
+            static_cast<void>(FindClose(findHandle));
+            nativeFindHandle = nullptr;
+        }
+
+        for (void *handleValue : stableHandles)
+        {
+            const HANDLE handle = static_cast<HANDLE>(handleValue);
+            if (handle != nullptr && handle != INVALID_HANDLE_VALUE)
+            {
+                static_cast<void>(CloseHandle(handle));
+            }
+        }
+        stableHandles.clear();
     }
 } // namespace GameWIP::FileSystem::Detail

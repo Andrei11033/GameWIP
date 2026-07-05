@@ -1,6 +1,6 @@
-@page library_build Build configurations
+@page project_build Build configurations
 
-GameWIP requires CMake 3.20 or newer, C++23, Ninja, and the MSYS2 UCRT64 GCC toolchain on Windows. Initialize submodules before configuring:
+GameWIP requires CMake 3.23 or newer, C++23, Ninja, and the MSYS2 UCRT64 GCC toolchain on Windows. The static-analysis preset uses UCRT64 Clang so clang-tidy receives a compatible compile database. Initialize submodules before configuring:
 
 ```powershell
 git submodule update --init --recursive
@@ -51,3 +51,5 @@ The root CMake file orchestrates major directories. `external`, `foundation`, `t
 ## Runtime dependencies
 
 Every project executable uses the shared runtime-dependency helper. It scans the built executable and copies matching UCRT64 runtime DLLs beside it, avoiding accidental use of incompatible `mingw64` DLLs earlier on `PATH`.
+
+See @ref project_library_compatibility for installed package names, canonical imported targets, and ABI policy.

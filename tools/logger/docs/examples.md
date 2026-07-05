@@ -6,7 +6,7 @@ Examples use this namespace alias for readability:
 namespace Logger = GameWIP::Logger;
 ```
 
-## Initialize with a custom config
+## Initialize with a custom configuration
 
 ```cpp
 auto config = Logger::defaultConfig();

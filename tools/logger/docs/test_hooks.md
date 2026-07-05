@@ -1,38 +1,43 @@
 @page logger_test_hooks Logger test hooks
 
-Logger test hooks are advanced testing-only features. They are not production API and are not installed as normal public headers.
+@warning These hooks are supported source-tree maintainer interfaces. They are not installed and are not versioned consumer API.
 
-## Enabling
+## Enable
+
+The GameWIP `validation` preset enables hooks automatically because it builds tests. A focused source build can enable them explicitly:
 
 ```powershell
 -DLOGGER_ENABLE_TEST_HOOKS=ON
 ```
 
-This maps to the library-local `LOGGER_ENABLE_TEST_HOOKS` option and exports `INTERNAL_LOGGER_TEST_HOOKS=1` to test code.
+Approved test targets then receive `INTERNAL_LOGGER_TEST_HOOKS=1`.
 
-## Purpose
+A source-tree test links the short `Logger` target and includes:
 
-Hooks make rare paths deterministic:
+```cpp
+#include "logger/internal/logger_test_hooks.h"
+```
 
-- force the next file open failure,
-- force the next queue-entry allocation/copy failure,
-- force the next file flush failure,
-- force the next file write failure,
-- force the next fatal popup failure,
-- force a timed flush timeout,
-- override the compiled default log directory while testing default-path APIs,
-- reset hook state after each scenario.
+The build-tree target supplies the source include root and compile definition. This does not work from an installed package by design.
+
+## Deterministic paths
+
+Hooks can force:
+
+- the next file-open failure;
+- the next queue-entry allocation/copy failure;
+- the next file-flush failure;
+- the next file-write failure;
+- the next fatal-popup failure;
+- a timed-flush timeout;
+- complete reset after a scenario.
 
 ## Rules
 
-- Hook namespaces exist only when `INTERNAL_LOGGER_TEST_HOOKS=1`.
-- Hook headers live under `tools/logger/internal/`.
-- Hook headers are excluded from normal installs.
-- One-shot hooks use `forceNext...` naming.
-- Persistent hooks should use `set...Override` / `clear...Override` naming.
-- The default-directory override is changed only while Logger is stopped and is cleared by the owning test scope.
-- Tests must reset hooks so forced state cannot leak into later scenarios.
+- Hook declarations remain under `tools/logger/internal/`.
+- Hook headers are excluded from installs and public CMake file sets.
+- One-shot hooks use `forceNext...`; persistent overrides use paired set/clear operations.
+- Tests reset state even when an expectation fails.
+- Consumer or game runtime code must not include or call hooks.
 
-## Installed packages
-
-Installed Logger packages intentionally do not expose internal hook headers as normal public API. Build hook-enabled tests from the source tree.
+See @ref logger_testing for the complete validation split.

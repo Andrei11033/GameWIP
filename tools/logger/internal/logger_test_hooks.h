@@ -14,39 +14,31 @@ namespace GameWIP::Logger::TestHooks
 {
     /// @brief Clears all pending logger test-hook failures and overrides.
     /// @warning Test-only API. Available only when INTERNAL_LOGGER_TEST_HOOKS is enabled.
-    INTERNAL_LOGGER_API void reset() noexcept;
+    GAMEWIP_LOGGER_EXPORT void reset() noexcept;
 
     /// @brief Forces the next platform file-open attempt made by the logger to fail.
     /// @warning Test-only API. The hook is one-shot.
-    INTERNAL_LOGGER_API void forceNextFileOpenFailure() noexcept;
+    GAMEWIP_LOGGER_EXPORT void forceNextFileOpenFailure() noexcept;
 
     /// @brief Forces the next platform file-write attempt made by the logger to fail.
     /// @warning Test-only API. The hook is one-shot.
-    INTERNAL_LOGGER_API void forceNextFileWriteFailure() noexcept;
+    GAMEWIP_LOGGER_EXPORT void forceNextFileWriteFailure() noexcept;
 
     /// @brief Forces the next platform file-flush attempt made by the logger to fail.
     /// @warning Test-only API. The hook is one-shot.
-    INTERNAL_LOGGER_API void forceNextFileFlushFailure() noexcept;
+    GAMEWIP_LOGGER_EXPORT void forceNextFileFlushFailure() noexcept;
 
     /// @brief Forces the next queue-entry copy to behave like an allocation failure.
     /// @warning Test-only API. The hook is one-shot.
-    INTERNAL_LOGGER_API void forceNextQueueAllocationFailure() noexcept;
+    GAMEWIP_LOGGER_EXPORT void forceNextQueueAllocationFailure() noexcept;
 
     /// @brief Forces the next logger-owned fatal popup attempt to report a platform failure.
     /// @warning Test-only API. The hook is one-shot.
-    INTERNAL_LOGGER_API void forceNextFatalPopupFailure() noexcept;
+    GAMEWIP_LOGGER_EXPORT void forceNextFatalPopupFailure() noexcept;
 
     /// @brief Forces the next timed Logger::flush(timeout) wait to time out.
     /// @warning Test-only API. The hook is one-shot.
-    INTERNAL_LOGGER_API void forceNextTimedFlushTimeout() noexcept;
+    GAMEWIP_LOGGER_EXPORT void forceNextTimedFlushTimeout() noexcept;
 
-    /// @brief Overrides the compiled default log directory used by empty Config::logDirectory values.
-    /// @param directory Non-empty test-owned directory copied by the hook.
-    /// @warning Test-only API. Set or clear the override only while Logger is stopped.
-    INTERNAL_LOGGER_API void setDefaultLogDirectoryOverride(std::string_view directory);
-
-    /// @brief Clears the test-only compiled default log-directory override.
-    /// @warning Test-only API. Clear the override only while Logger is stopped.
-    INTERNAL_LOGGER_API void clearDefaultLogDirectoryOverride() noexcept;
 } // namespace GameWIP::Logger::TestHooks
 #endif

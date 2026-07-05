@@ -39,10 +39,10 @@ Construct segments with:
 
 Per-segment style lives in each `WriteSegment`. The batch options do not apply one global style to all text.
 
-Terminal validates the complete batch before emitting output. A byte segment targeting a real Win32 console returns `Unsupported` without writing earlier segments. Redirected batches may contain byte segments and are assembled into one backend write.
+Terminal validates the complete batch before emitting output. A byte segment targeting a real Win32 console returns `Unsupported` without writing earlier segments. Redirected batches may contain byte segments and are emitted as one Terminal operation.
 
-Text-only and styled batches are assembled into one backend text write. Per-stream scratch capacity is reused for normal writes and released after unusually large batches.
+Text-only and styled batches are emitted as one Terminal operation. Unusually large batches do not permanently retain their peak temporary capacity.
 
 Plain text-only batches skip capability queries. Capability work is performed only when byte segments or non-default styled segments require it.
 
-Segmented writes do not guarantee atomicity relative to `std::cout`, `std::cerr`, `printf`, direct OS writes, or third-party terminal writes.
+Segmented writes do not guarantee atomicity relative to `std::cout`, `std::cerr`, `printf`, direct operating-system writes, or third-party terminal writes.

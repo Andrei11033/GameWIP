@@ -14,15 +14,17 @@
 #endif
 
 #include <algorithm>
-#include <cctype>
 #include <chrono>
+#include <cstddef>
 #include <cwchar>
 #include <cwctype>
 #include <limits>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <thread>
 #include <utility>
+#include <vector>
 
 namespace GameWIP::TestSupport
 {
@@ -83,57 +85,140 @@ namespace GameWIP::TestSupport
             HANDLE handle_ = nullptr;
         };
 
-        /// @brief Builds printable fallback UTF-16 text when strict UTF-8 conversion fails.
-        [[nodiscard]] std::wstring asciiFallbackToWide(std::string_view text)
+        /// Owns the variable-sized attribute list that makes handle inheritance an explicit allowlist.
+        class StartupAttributeList final
         {
-            std::wstring output;
-            output.reserve(text.size());
-            for (char ch : text)
+        public:
+            explicit StartupAttributeList(const std::vector<HANDLE> &handles)
             {
-                const unsigned char value = static_cast<unsigned char>(ch);
-                output.push_back(value >= 0x20 && value < 0x80 ? static_cast<wchar_t>(value) : L'?');
+                SIZE_T requiredBytes = 0;
+                static_cast<void>(InitializeProcThreadAttributeList(nullptr, 1, 0, &requiredBytes));
+                if (requiredBytes == 0)
+                {
+                    return;
+                }
+
+                storage_.resize(requiredBytes);
+                list_ = reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(storage_.data());
+                if (InitializeProcThreadAttributeList(list_, 1, 0, &requiredBytes) == FALSE)
+                {
+                    list_ = nullptr;
+                    return;
+                }
+                initialized_ = true;
+
+                if (UpdateProcThreadAttribute(
+                        list_,
+                        0,
+                        PROC_THREAD_ATTRIBUTE_HANDLE_LIST,
+                        static_cast<void *>(const_cast<HANDLE *>(handles.data())),
+                        handles.size() * sizeof(HANDLE),
+                        nullptr,
+                        nullptr) == FALSE)
+                {
+                    DeleteProcThreadAttributeList(list_);
+                    initialized_ = false;
+                    list_ = nullptr;
+                }
             }
-            return output;
+
+            ~StartupAttributeList() noexcept
+            {
+                if (initialized_)
+                {
+                    DeleteProcThreadAttributeList(list_);
+                }
+            }
+
+            StartupAttributeList(const StartupAttributeList &) = delete;
+            StartupAttributeList &operator=(const StartupAttributeList &) = delete;
+
+            [[nodiscard]] bool valid() const noexcept
+            {
+                return initialized_;
+            }
+
+            [[nodiscard]] LPPROC_THREAD_ATTRIBUTE_LIST get() const noexcept
+            {
+                return list_;
+            }
+
+        private:
+            std::vector<std::byte> storage_;
+            LPPROC_THREAD_ATTRIBUTE_LIST list_ = nullptr;
+            bool initialized_ = false;
+        };
+
+        /// Duplicates an attached standard handle without changing its inheritance flags.
+        /// Detached streams use an inheritable NUL handle; duplication failures are not hidden by fallback.
+        [[nodiscard]] UniqueHandle inheritableStandardHandle(DWORD standardHandle, DWORD fallbackAccess)
+        {
+            const HANDLE source = GetStdHandle(standardHandle);
+            if (source != nullptr && source != INVALID_HANDLE_VALUE)
+            {
+                HANDLE duplicate = nullptr;
+                if (DuplicateHandle(GetCurrentProcess(), source, GetCurrentProcess(), &duplicate, 0, TRUE, DUPLICATE_SAME_ACCESS) != FALSE)
+                {
+                    return UniqueHandle(duplicate);
+                }
+                return {};
+            }
+
+            SECURITY_ATTRIBUTES attributes{};
+            attributes.nLength = sizeof(attributes);
+            attributes.bInheritHandle = TRUE;
+            return UniqueHandle(CreateFileW(L"NUL", fallbackAccess, FILE_SHARE_READ | FILE_SHARE_WRITE, &attributes, OPEN_EXISTING, 0, nullptr));
         }
 
-        /// @brief Converts public UTF-8 process text to UTF-16 without throwing.
+        /// Adds a valid child-side handle once; stdout and stderr may intentionally share a pipe.
+        void appendInheritedHandle(std::vector<HANDLE> &handles, HANDLE handle)
+        {
+            if (std::find(handles.begin(), handles.end(), handle) == handles.end())
+            {
+                handles.push_back(handle);
+            }
+        }
+
+        /// @brief Converts public UTF-8 process text to UTF-16 without lossy substitution.
         [[nodiscard]] std::wstring utf8ToWide(std::string_view text)
         {
+            if (text.find('\0') != std::string_view::npos)
+            {
+                throw std::invalid_argument("Child-process text contains an embedded null");
+            }
             if (text.empty())
             {
                 return {};
             }
             if (text.size() > static_cast<std::size_t>((std::numeric_limits<int>::max)()))
             {
-                return L"?";
+                throw std::length_error("Child-process text exceeds the Win32 conversion limit");
             }
 
             const int inputSize = static_cast<int>(text.size());
             const int wideSize = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, text.data(), inputSize, nullptr, 0);
             if (wideSize <= 0)
             {
-                return asciiFallbackToWide(text);
+                throw std::invalid_argument("Child-process text is not valid UTF-8");
             }
 
             std::wstring output(static_cast<std::size_t>(wideSize), L'\0');
             if (MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, text.data(), inputSize, output.data(), wideSize) != wideSize)
             {
-                return L"?";
+                throw std::runtime_error("Win32 child-process text conversion failed");
             }
             return output;
         }
 
-        /// @brief Converts a filesystem path to native UTF-16 with a narrow fallback.
+        /// @brief Returns a validated native UTF-16 executable path.
         [[nodiscard]] std::wstring pathToWide(const std::filesystem::path &path)
         {
-            try
+            std::wstring text = path.wstring();
+            if (text.find(L'\0') != std::wstring::npos)
             {
-                return path.wstring();
+                throw std::invalid_argument("Child-process executable path contains an embedded null");
             }
-            catch (...)
-            {
-                return utf8ToWide(path.string());
-            }
+            return text;
         }
 
         /// @brief Returns whether CreateProcess command-line grammar requires quoting.
@@ -227,7 +312,7 @@ namespace GameWIP::TestSupport
         {
             if (variable.name.empty() || variable.name.find('=') != std::string::npos)
             {
-                return;
+                throw std::invalid_argument("Child-process environment names must be non-empty and cannot contain '='");
             }
 
             const std::wstring variableName = utf8ToWide(variable.name);
@@ -374,12 +459,41 @@ namespace GameWIP::TestSupport
             }
         }
 
-        STARTUPINFOW startupInfo{};
-        startupInfo.cb = sizeof(startupInfo);
-        startupInfo.dwFlags = STARTF_USESTDHANDLES;
-        startupInfo.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
-        startupInfo.hStdOutput = options.captureOutput ? outputWrite.get() : GetStdHandle(STD_OUTPUT_HANDLE);
-        startupInfo.hStdError = options.captureOutput ? outputWrite.get() : GetStdHandle(STD_ERROR_HANDLE);
+        UniqueHandle childInput = inheritableStandardHandle(STD_INPUT_HANDLE, GENERIC_READ);
+        UniqueHandle childOutput;
+        UniqueHandle childError;
+        if (!options.captureOutput)
+        {
+            childOutput = inheritableStandardHandle(STD_OUTPUT_HANDLE, GENERIC_WRITE);
+            childError = inheritableStandardHandle(STD_ERROR_HANDLE, GENERIC_WRITE);
+        }
+        if (childInput.get() == nullptr || childInput.get() == INVALID_HANDLE_VALUE ||
+            (!options.captureOutput && (childOutput.get() == nullptr || childOutput.get() == INVALID_HANDLE_VALUE || childError.get() == nullptr ||
+                                        childError.get() == INVALID_HANDLE_VALUE)))
+        {
+            result.exitCode = -1;
+            return result;
+        }
+
+        std::vector<HANDLE> inheritedHandles;
+        inheritedHandles.reserve(3);
+        appendInheritedHandle(inheritedHandles, childInput.get());
+        appendInheritedHandle(inheritedHandles, options.captureOutput ? outputWrite.get() : childOutput.get());
+        appendInheritedHandle(inheritedHandles, options.captureOutput ? outputWrite.get() : childError.get());
+        StartupAttributeList attributeList(inheritedHandles);
+        if (!attributeList.valid())
+        {
+            result.exitCode = -1;
+            return result;
+        }
+
+        STARTUPINFOEXW startupInfo{};
+        startupInfo.StartupInfo.cb = sizeof(startupInfo);
+        startupInfo.StartupInfo.dwFlags = STARTF_USESTDHANDLES;
+        startupInfo.StartupInfo.hStdInput = childInput.get();
+        startupInfo.StartupInfo.hStdOutput = options.captureOutput ? outputWrite.get() : childOutput.get();
+        startupInfo.StartupInfo.hStdError = options.captureOutput ? outputWrite.get() : childError.get();
+        startupInfo.lpAttributeList = attributeList.get();
 
         PROCESS_INFORMATION processInfo{};
         const BOOL created = CreateProcessW(
@@ -388,13 +502,16 @@ namespace GameWIP::TestSupport
             nullptr,
             nullptr,
             TRUE,
-            CREATE_NO_WINDOW | CREATE_UNICODE_ENVIRONMENT | CREATE_SUSPENDED,
+            CREATE_NO_WINDOW | CREATE_UNICODE_ENVIRONMENT | CREATE_SUSPENDED | EXTENDED_STARTUPINFO_PRESENT,
             environmentBlock.data(),
             nullptr,
-            &startupInfo,
+            &startupInfo.StartupInfo,
             &processInfo);
 
         outputWrite.reset();
+        childInput.reset();
+        childOutput.reset();
+        childError.reset();
 
         if (created == FALSE)
         {
@@ -445,8 +562,15 @@ namespace GameWIP::TestSupport
                             while (true)
                             {
                                 DWORD bytesRead = 0;
-                                if (ReadFile(outputReadHandle, buffer, static_cast<DWORD>(sizeof(buffer)), &bytesRead, nullptr) == FALSE ||
-                                    bytesRead == 0)
+                                if (ReadFile(outputReadHandle, buffer, static_cast<DWORD>(sizeof(buffer)), &bytesRead, nullptr) == FALSE)
+                                {
+                                    if (GetLastError() != ERROR_BROKEN_PIPE)
+                                    {
+                                        outputReadFailed = true;
+                                    }
+                                    break;
+                                }
+                                if (bytesRead == 0)
                                 {
                                     break;
                                 }

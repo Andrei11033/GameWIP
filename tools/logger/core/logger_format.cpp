@@ -262,19 +262,20 @@ FormatPolicy GameWIP::Logger::Detail::Core::getFormatPolicyForFormatting()
 
 /// @brief Releases thread-local formatting scratch capacity when the active config requests it.
 /// @param scratch Scratch string to optionally shrink.
-void GameWIP::Logger::Detail::Core::releaseFormatScratchIfNeeded(std::string &scratch)
+void GameWIP::Logger::Detail::Core::releaseFormatScratchIfNeeded(std::string &scratch) noexcept
 {
-    if (!loggerState().releaseMessageMemoryAfterWriteAtomic.load(std::memory_order_acquire))
+    if (loggerState().releaseMessageMemoryAfterWriteAtomic.load(std::memory_order_acquire))
     {
-        return;
+        const std::size_t maxMessageLength = loggerState().maxMessageLengthAtomic.load(std::memory_order_acquire);
+        if (scratch.capacity() > maxMessageLength)
+        {
+            std::string{}.swap(scratch);
+        }
+        else
+        {
+            scratch.clear();
+        }
     }
 
-    const std::size_t maxMessageLength = loggerState().maxMessageLengthAtomic.load(std::memory_order_acquire);
-    if (scratch.capacity() > maxMessageLength)
-    {
-        std::string{}.swap(scratch);
-        return;
-    }
-
-    scratch.clear();
+    GameWIP::Logger::Detail::Platform::releaseFormatScratchForThread();
 }

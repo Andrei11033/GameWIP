@@ -1,31 +1,39 @@
-@page logger_testing Logger testing
+@page logger_testing Logger maintainer validation
 
-Logger validation is split into correctness tests, stress tests, hook-forced tests, manual UI tests, and Google Benchmark scenarios.
+@note This page is for maintainers. Internal hooks are source-tree validation interfaces, not consumer API.
 
-## Normal tests
+## Correctness coverage
 
-Normal tests cover public API behavior, configuration, formatting, filtering, reports, statistics, lifecycle, and file output.
+The Logger suite covers:
 
-Foundation integration tests use Terminal's shared test-hook state to verify severity styling, stdout/stderr routing, redirected plain-text fallback, UTF-8 text, native line endings, and one backend write per Logger record. File tests verify UTF-8 log-directory round trips and reader sharing while Logger retains its writer.
+- configuration presets, initialization, repeated lifecycle calls, and output modes;
+- source registration, severity/source/level filters, compile-time formats, and runtime formats;
+- asynchronous queue acceptance, filtering, pressure, soft/hard drops, and peak depth;
+- console/file output, UTF-8 paths, reader sharing, redirection, styles, and line endings;
+- synchronous reports, filter bypass, queue bypass, flush results, fatal reporting, and termination paths;
+- allocation, format, file, popup, unknown-source, and truncation counters;
+- counter reset rules and lifetime drop preservation.
 
-## Stress tests
+## Concurrency and stress
 
-Stress tests cover producer concurrency, flush while producers are active, shutdown while producers are active, queue pressure, and repeated init/shutdown.
+Stress scenarios cover concurrent producers, reporting during production, timed flush while producers remain active, final drain, shutdown during activity, queue pressure, and repeated initialization/shutdown. They prove safety and progress; machine-dependent timing is not a correctness threshold.
 
-## Test hooks
+## Performance review checklist
 
-When `INTERNAL_LOGGER_TEST_HOOKS=1`, internal hooks can force rare failure paths such as file write failure, file flush failure, fatal popup failure, and timed flush timeout.
+- Filtered macro calls avoid message and argument evaluation.
+- Accepted producer calls avoid unnecessary allocation.
+- Direct formatted calls account for argument evaluation before Logger checks filters.
+- Queue-drop statistics exclude filtered messages.
+- Instrumented validation builds are not used as final performance baselines.
+- Long-message tests cover the active `FormatPolicy`; the bounded policy reduces peak memory, while the fast-normal policy favors common-case formatting speed.
+- FileSystem and Terminal work remains on the worker or synchronous report path so normal producers do not gain I/O overhead.
 
-The default-directory override redirects `initDefault()` into a scoped OS-temp workspace. This preserves coverage of the production convenience API without creating the production `logs` directory during validation.
+## Hook-forced and manual paths
 
-Test hooks are internal, compile-time gated, and not part of the production public API.
+When `INTERNAL_LOGGER_TEST_HOOKS=1`, source-tree tests force rare allocation, file open/write/flush, popup, and timed-flush paths. Every scenario resets forced state.
 
-## Manual UI
+The fatal popup is a runtime opt-in manual test. Automated jobs never rely on a real popup.
 
-The logger fatal popup is manually validated through a report path that requests `ReportPopup::Fatal`.
+## Project integration
 
-Manual UI tests must remain runtime opt-in. Automated tests should use hook-controlled failure paths and must not rely on real popup interaction.
-
-## GameWIP integration
-
-GameWIP owns the Logger test-module registration, runtime stress/UI selection, report location, benchmark executable, and coverage target. See @ref library_testing, @ref project_benchmarking, and @ref library_coverage.
+GameWIP owns module registration, runtime selection, reports, benchmarks, and coverage. See @ref project_testing, @ref project_benchmarking, and @ref project_coverage.

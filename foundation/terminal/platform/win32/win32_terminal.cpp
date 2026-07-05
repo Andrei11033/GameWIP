@@ -142,6 +142,7 @@ namespace GameWIP::Terminal::Detail::Platform
             DWORD defaultConsoleMode = 0;
             PendingInputBuffer pendingBytes;
             wchar_t pendingHighSurrogate = L'\0';
+            std::vector<INPUT_RECORD> availabilityRecords;
         };
 
         /// @brief Reusable per-output-stream UTF-16 conversion storage.
@@ -152,10 +153,22 @@ namespace GameWIP::Terminal::Detail::Platform
 
         /// @brief UTF-16 scratch capacity retained after a write before releasing peak storage.
         inline constexpr std::size_t kRetainedConversionLimit = std::size_t{64} * 1024;
+        /// @brief Largest console-input availability scratch retained between polls.
+        inline constexpr std::size_t kRetainedAvailabilityRecordLimit = 4096;
         /// @brief Largest control-sequence numeric parameter accepted by the VT backend.
         inline constexpr std::uint32_t kMaxVtParameter = 32767;
         /// @brief Maximum title payload accepted before OSC framing bytes.
         inline constexpr std::size_t kMaxVtTitleBytes = 254;
+
+        /// @brief Clears console-event scratch and releases unusually large retained storage.
+        void releaseLargeAvailabilityRecords(InputState &state) noexcept
+        {
+            state.availabilityRecords.clear();
+            if (state.availabilityRecords.capacity() > kRetainedAvailabilityRecordLimit)
+            {
+                std::vector<INPUT_RECORD>{}.swap(state.availabilityRecords);
+            }
+        }
 
         /// @brief One backend input transfer before public UTF-8 and line processing.
         struct ReadChunk
@@ -692,7 +705,7 @@ namespace GameWIP::Terminal::Detail::Platform
         }
 
         /// @brief Inspects console input records for immediately readable character data.
-        [[nodiscard]] Terminal::Types::InputAvailabilityResult consoleInputAvailability(HANDLE handle)
+        [[nodiscard]] Terminal::Types::InputAvailabilityResult consoleInputAvailability(HANDLE handle, InputState &state)
         {
             Terminal::Types::InputAvailabilityResult result;
             result.status = IO::successStatus();
@@ -706,29 +719,32 @@ namespace GameWIP::Terminal::Detail::Platform
             }
             if (eventCount == 0)
             {
+                releaseLargeAvailabilityRecords(state);
                 return result;
             }
 
-            std::vector<INPUT_RECORD> records;
             try
             {
-                records.resize(eventCount);
+                state.availabilityRecords.resize(eventCount);
             }
             catch (const std::bad_alloc &)
             {
+                releaseLargeAvailabilityRecords(state);
                 result.status = IO::makeStatus(ErrorCode::OutOfMemory);
                 return result;
             }
             catch (const std::length_error &)
             {
+                releaseLargeAvailabilityRecords(state);
                 result.status = IO::makeStatus(ErrorCode::SizeLimitExceeded);
                 return result;
             }
 
             DWORD recordsRead = 0;
-            if (PeekConsoleInputW(handle, records.data(), eventCount, &recordsRead) == FALSE)
+            if (PeekConsoleInputW(handle, state.availabilityRecords.data(), eventCount, &recordsRead) == FALSE)
             {
                 const DWORD error = GetLastError();
+                releaseLargeAvailabilityRecords(state);
                 result.status = statusFromWin32(ErrorCode::StatFailed, error, "PeekConsoleInputW failed for terminal input.");
                 return result;
             }
@@ -737,14 +753,15 @@ namespace GameWIP::Terminal::Detail::Platform
             if (GetConsoleMode(handle, &mode) == FALSE)
             {
                 const DWORD error = GetLastError();
+                releaseLargeAvailabilityRecords(state);
                 result.status = statusFromWin32(ErrorCode::StatFailed, error, "GetConsoleMode failed for terminal input availability.");
                 return result;
             }
 
             const bool lineBuffered = (mode & ENABLE_LINE_INPUT) != 0;
-            for (DWORD index = 0; index < recordsRead; ++index)
+            for (DWORD index = 0; index < recordsRead && !result.available; ++index)
             {
-                const INPUT_RECORD &record = records[index];
+                const INPUT_RECORD &record = state.availabilityRecords[index];
                 if (record.EventType != KEY_EVENT || record.Event.KeyEvent.bKeyDown == FALSE)
                 {
                     continue;
@@ -758,9 +775,10 @@ namespace GameWIP::Terminal::Detail::Platform
                 if (!lineBuffered || character == L'\r' || character == L'\n')
                 {
                     result.available = true;
-                    return result;
                 }
             }
+
+            releaseLargeAvailabilityRecords(state);
 
             return result;
         }
@@ -1493,7 +1511,7 @@ namespace GameWIP::Terminal::Detail::Platform
 
         if (isConsoleHandle(handle))
         {
-            return consoleInputAvailability(handle);
+            return consoleInputAvailability(handle, state);
         }
 
         const DWORD type = fileType(handle);

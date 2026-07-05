@@ -27,7 +27,7 @@ If Debug is disabled or the source is filtered, the message expression is skippe
 Use macros when:
 
 - constructing the message is expensive,
-- arguments have side effects you do not want when filtered,
+- argument side effects must be skipped when filtered,
 - the call is in a frequently executed path.
 
 Use direct `Logger::info(...)` style calls when the message is already cheap or already built.

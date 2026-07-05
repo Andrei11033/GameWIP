@@ -20,7 +20,7 @@ Unknown-size readers may require a one-byte probe after collecting exactly `maxB
 
 ## MemoryReader
 
-`MemoryReader` performs bounded `memmove` transfers from caller-owned contiguous storage so overlapping destinations remain safe. It does not allocate.
+`MemoryReader` performs bounded, overlap-safe transfers from caller-owned contiguous storage. It does not allocate.
 
 The caller must keep the source bytes alive and at a stable address for the reader's full lifetime.
 

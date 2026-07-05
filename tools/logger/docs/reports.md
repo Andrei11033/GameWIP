@@ -2,10 +2,10 @@
 
 `Logger::report(...)` is the synchronous diagnostic path.
 
-Reports are intended for important messages that should not wait behind the async queue. A report:
+Reports are intended for important messages that should not wait behind the asynchronous queue. A report:
 
 - bypasses level and source filters,
-- bypasses the async queue,
+- bypasses the asynchronous queue,
 - writes directly to active sinks,
 - mirrors to platform debug output when enabled,
 - flushes sinks before returning,
@@ -27,4 +27,4 @@ Use `Logger::Types::ReportPopup::Fatal` with `report(...)` when a generic report
 
 ## Ordering
 
-Reports do not enter the async queue. They are written immediately relative to the calling thread, then the logger attempts to drain accepted queued work when the report overload requires a flush. Other producer threads can still enqueue normal logs while the runtime is accepting them, so report ordering should be documented as synchronous for the report line itself, not as a global stop-the-world ordering guarantee.
+Reports do not enter the asynchronous queue. They are written immediately relative to the calling thread, then Logger attempts to drain accepted queued work when the report overload requires a flush. Other producer threads can still enqueue normal logs while the runtime is accepting them, so report ordering is synchronous for the report line itself, not a global stop-the-world ordering guarantee.

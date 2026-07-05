@@ -1,31 +1,21 @@
-@page assert_testing Assert testing
+@page assert_testing Assert maintainer validation
 
-Assert validation is split into macro correctness tests, child-process crash tests, automated interactive tests, manual UI tests, hook-forced tests, and Google Benchmark scenarios.
+@note This page is for maintainers. Internal hooks and forced actions are source-tree validation interfaces, not consumer API.
 
-## Normal tests
+## Macro coverage
 
-Normal tests cover enabled/disabled macro behavior, expression side effects, message laziness, `CHECK_ONCE`, `ENSURE` return values, diagnostics settings, and Logger report integration.
+The Assert suite covers enabled and disabled builds, expression evaluation count, message laziness, fatal versus recoverable families, `CHECK_ONCE`, `ENSURE` return values, diagnostics controls, source location, and Logger report integration.
 
-## Child-process tests
+Passing-path benchmarks verify that enabled successful macros avoid failure formatting/report work. Disabled-build tests verify that each macro family preserves its documented evaluation contract.
 
-Fatal paths such as Abort, `UNREACHABLE`, and debugger break behavior should be isolated in child processes so the main runner can continue.
+## Child and interactive coverage
 
-## Automated interactive tests
+Abort, unreachable, and debugger-break paths run in child processes so the parent suite can continue and assert exact results. Automated interactive tests use the internal `INTERNAL_ASSERT_TEST_ACTION` forced-action definition and do not open dialogs.
 
-Automated interactive tests use `INTERNAL_ASSERT_TEST_ACTION` and must not open real popups.
+Real Win32 UI is manual and runtime opt-in. It covers Ignore Once, Always Ignore, Break with a debugger, Abort in a child, primary-dialog fallback, and fallback default behavior.
 
-## Manual UI tests
+## Hook coverage
 
-Manual UI tests open real Windows UI. They are allowed to block and should run only when runtime options enable them.
+With `INTERNAL_ASSERT_TEST_HOOKS=1`, tests can force primary action-dialog fallback, fallback behavior, debugger-attached results, and popup suppression. State is reset after every scenario.
 
-Manual UI coverage includes Ignore Once, Always Ignore, Break with debugger attached, and Abort in a child process.
-
-## Test hooks
-
-When `INTERNAL_ASSERT_TEST_HOOKS=1`, internal hooks can force primary action-dialog fallback, fallback action-dialog/default behavior, debugger-attached override paths, and popup suppression paths. On Windows, those dialog hooks exercise the TaskDialog and MessageBox paths.
-
-Hooks are compile-time gated and excluded from normal installs. Reset hook state after each forced scenario.
-
-## GameWIP integration
-
-GameWIP owns the Assert test-module registration, child routing, runtime stress/UI selection, benchmark executable, report location, and coverage target. See @ref library_testing, @ref project_benchmarking, and @ref library_coverage.
+GameWIP owns module registration, child routing, UI selection, benchmarks, reports, and coverage. See @ref project_testing, @ref project_benchmarking, and @ref project_coverage.

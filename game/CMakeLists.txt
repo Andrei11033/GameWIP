@@ -10,18 +10,8 @@ if(GAMEWIP_BUILD_GAME)
         GAMEWIP_STARTUP_BENCHMARKS_ENABLED=$<BOOL:${GAMEWIP_RUN_BENCHMARKS_AT_STARTUP}>
     )
     target_include_directories(GameWIP PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(GameWIP PRIVATE
-        IO
-        FileSystem
-        Terminal
-        Logger
-        Assert
-        Input
-        Window
-        WindowManager
-        Action
-        Tracy::TracyClient
-    )
+    # Runtime dependencies belong here only when game/runtime directly uses
+    # them. Startup validation modules declare and propagate their own links.
     set_target_properties(GameWIP PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
     )
@@ -41,7 +31,13 @@ if(GAMEWIP_TESTS_REQUIRED OR GAMEWIP_BENCHMARKS_REQUIRED)
 endif()
 
 if(GAMEWIP_RUN_TESTS_AT_STARTUP)
-    target_link_libraries(GameWIP PRIVATE GameWIPTestModules)
+    # Assert test objects use AssertCompileInterface to avoid attaching
+    # executable resources to the object library. Each runner links the
+    # concrete Assert runtime explicitly.
+    target_link_libraries(GameWIP PRIVATE
+        GameWIPTestModules
+        Assert
+    )
 endif()
 
 if(GAMEWIP_RUN_BENCHMARKS_AT_STARTUP)

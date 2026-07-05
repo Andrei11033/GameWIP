@@ -12,7 +12,7 @@ Backends may return `Unsupported` when a requested mode cannot be represented on
 
 On Win32, echo requires line-buffered input. A mode with `echoInput = true` and `lineBuffered = false` returns `InvalidArgument` without changing the console mode.
 
-On Win32 real-console input, finite and non-blocking reads are unsupported even in raw mode. The backend keeps blocking reads on `ReadConsoleW` so native cooked input, echo, control-key processing, and line editing retain their platform behavior.
+On Windows real-console input, finite and non-blocking reads are unsupported even in raw mode. Blocking reads preserve native cooked input, echo, control-key processing, and line editing.
 
 Use `restoreDefaultInputMode()` to restore the backend mode captured for the stream. A preset does not represent backend-specific default state.
 
@@ -34,4 +34,4 @@ Changing or restoring input mode does not discard bytes or an incomplete Unicode
 
 Terminal serializes input-mode changes with other Terminal input operations for the same stream. Restore nested scopes in reverse acquisition order.
 
-The Win32 default-mode cache follows the active standard-input handle. If the process replaces stdin, the next mode operation captures the default for the new handle instead of restoring mode bits from the previous handle.
+If the process replaces stdin, the next mode operation uses the new handle's default mode instead of restoring state from the previous handle.

@@ -6,50 +6,50 @@ GameWIP is a realistic sandbox building game focused on player-made vehicles, we
 
 The goal is to combine simple, fast building with deeper optional engineering. A new player should be able to place parts and build something quickly, while an advanced player should be able to tune important systems in more detail.
 
-## Core Identity
+## Core identity
 
 GameWIP is built around five core ideas:
 
-* **Simple base building**
-  Building should feel approachable and fast, similar in spirit to Stormworks.
+- **Simple base building**
+  Building should feel approachable and fast, similar in spirit to Stormworks and Starbase.
 
-* **Optional engineering depth**
+- **Optional engineering depth**
   Advanced configuration should exist for important systems, but it should not be required for basic building.
 
-* **Destructible structures and worlds**
+- **Destructible structures and worlds**
   Vehicles, buildings, and world structures should be damageable in a meaningful way.
 
-* **Granular damage and component behavior**
+- **Granular damage and component behavior**
   Destruction should affect both shape and function. Parts should be able to degrade, detach, fail, or expose internal systems.
 
-* **High-rate control where it matters**
+- **High-rate control where it matters**
   Systems such as stabilizers, missiles, servos, guidance, sensors, and weapons may need higher-frequency logic or control updates than normal gameplay systems.
 
-## Design Goals
+## Design goals
 
 The main design goals are:
 
-* Building must be easy to start with.
-* Complexity must be optional, not forced.
-* Realism matters, but usability matters more.
-* Damage must affect both structure and function.
-* Components should be fast to place, useful by default, and rich to configure when needed.
-* Vehicles and buildings should share the same structural foundation.
-* The simulation should be strong enough to support believable physics, destruction, and control systems.
+- Building must be easy to start with.
+- Complexity must be optional, not forced.
+- Realism matters, but usability matters more.
+- Damage must affect both structure and function.
+- Components should be fast to place, useful by default, and rich to configure when needed.
+- Vehicles and buildings should share the same structural foundation.
+- The simulation should be strong enough to support believable physics, destruction, and control systems.
 
-## Game Focus
+## Game focus
 
 GameWIP focuses on:
 
-* player-made creations;
-* military and technical vehicles;
-* programmable and controllable systems;
-* weapons, missiles, turrets, sensors, and guidance systems;
-* realistic-ish engineering decisions without making the game unbearable to build in.
+- Player-made creations
+- Military and technical vehicles
+- Programmable and controllable systems
+- Weapons, missiles, turrets, sensors, and guidance systems
+- Realistic engineering decisions without making the game frustrating to build in
 
 The game should reward engineering thinking, but it should still feel like a sandbox game, not a professional CAD tool.
 
-## Development Principles
+## Development principles
 
 These principles guide technical and design decisions:
 
@@ -71,23 +71,13 @@ These principles guide technical and design decisions:
 6. **Debuggability matters**
    Early rendering, overlays, logs, assertions, and tests are part of the development foundation, not optional polish.
 
-## Early Non-Goals
-
-These are not priorities for the first versions:
-
-* full graphics polish before simulation foundations;
-* multiplayer before the core simulation works;
-* advanced component editing for every single part;
-* realism that makes normal building too slow or frustrating;
-* large gameplay systems before physics, structures, and components are reliable.
-
-## How to Extend This File
+## How to extend this file
 
 When adding to this vision document:
 
-* keep it high-level;
-* avoid implementation details unless they affect the identity of the game;
-* move technical decisions to `decisions.txt`;
-* move step-by-step work items to `roadmap.txt`;
-* move validation requirements to `testing_checklist.txt`;
-* prefer short principles over long explanations.
+- Keep it high-level.
+- Avoid implementation details unless they affect the identity of the game.
+- Move technical decisions to `decisions.md`.
+- Move step-by-step work items to `roadmap.md`.
+- Move validation requirements to `testing_checklist.md`.
+- Prefer short principles over long explanations.

@@ -18,6 +18,7 @@
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
+#include <filesystem>
 #include <format>
 #include <span>
 #include <stdexcept>
@@ -28,6 +29,11 @@
 
 /// @brief Marker value whose formatter deliberately throws during output tests.
 struct TerminalThrowingFormat
+{
+};
+
+/// @brief Marker value whose formatter performs a nested write to the same Terminal stream.
+struct TerminalReentrantFormat
 {
 };
 
@@ -47,6 +53,26 @@ template <> struct std::formatter<TerminalThrowingFormat>
     }
 };
 
+template <> struct std::formatter<TerminalReentrantFormat>
+{
+    /// @brief Accepts the empty formatter specification used by the reentry fixture.
+    constexpr auto parse(std::format_parse_context &context)
+    {
+        return context.begin();
+    }
+
+    /// @brief Writes a nested record before producing the outer formatted value.
+    template <typename FormatContext> auto format(const TerminalReentrantFormat &, FormatContext &context) const
+    {
+        const GameWIP::IO::Types::Status status = GameWIP::Terminal::writeText("inner");
+        if (!status.ok())
+        {
+            throw std::runtime_error("terminal reentrant formatter write failed");
+        }
+        return std::format_to(context.out(), "outer");
+    }
+};
+
 namespace
 {
     namespace IO = GameWIP::IO;
@@ -55,6 +81,8 @@ namespace
 
     using ErrorCode = IO::Types::ErrorCode;
     using TerminalTestOptions = GameWIP::Test::TerminalTestOptions;
+
+    inline constexpr std::string_view kReentrantFormatChildArgument = "--terminal-test-child=reentrant-format";
 
     static_assert(!std::is_aggregate_v<Terminal::Types::Color>);
     static_assert(!std::is_aggregate_v<Terminal::Types::WriteSegment>);
@@ -84,6 +112,48 @@ namespace
     {
         const std::span<const std::byte> bytes = bytesOf(text);
         return std::vector<std::byte>(bytes.begin(), bytes.end());
+    }
+
+    /// @brief Returns true when the process arguments contain one exact value.
+    [[nodiscard]] bool hasArgument(int argc, char **argv, std::string_view expected)
+    {
+        for (int index = 1; index < argc; ++index)
+        {
+            if (argv[index] != nullptr && std::string_view(argv[index]) == expected)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /// @brief Exercises reentrant print and println calls in an isolated child process.
+    [[nodiscard]] int runReentrantFormatChild()
+    {
+        if (!Terminal::print("{}", TerminalReentrantFormat{}).ok())
+        {
+            return 1;
+        }
+
+        Terminal::Types::LineWriteOptions options;
+        options.lineEnding = Terminal::Types::LineEnding::Lf;
+        return Terminal::println(options, "{}", TerminalReentrantFormat{}).ok() ? 0 : 1;
+    }
+
+    /// @brief Verifies formatter reentry without allowing a deadlock to hang the parent suite.
+    void testReentrantFormatting(TestSupport::Context &context, std::string_view executablePath)
+    {
+        TestSupport::Types::ChildProcessOptions child;
+        child.executablePath = std::filesystem::path(executablePath);
+        child.arguments = {std::string(kReentrantFormatChildArgument)};
+        child.timeout = std::chrono::milliseconds{2000};
+        child.captureOutput = true;
+
+        const TestSupport::Types::ChildProcessResult result = TestSupport::runChildProcess(child);
+        static_cast<void>(context.expectFalse("reentrant formatter child does not time out", result.timedOut));
+        static_cast<void>(context.expectTrue("reentrant formatter child exits successfully", result.exitedSuccessfully()));
+        static_cast<void>(
+            context.expectEq("reentrant formatter preserves nested and outer output", std::string{"innerouterinnerouter\n"}, result.output));
     }
 
     /// @brief Verifies passive enum validators, style helpers, and line-ending text.
@@ -1033,8 +1103,13 @@ namespace
 
 namespace GameWIP::Test
 {
-    int runTerminalTests([[maybe_unused]] int argc, [[maybe_unused]] char **argv, const TerminalTestOptions &options)
+    int runTerminalTests(int argc, char **argv, const TerminalTestOptions &options)
     {
+        if (hasArgument(argc, argv, kReentrantFormatChildArgument))
+        {
+            return runReentrantFormatChild();
+        }
+
         TestSupport::Types::ReportOptions reportOptions;
         reportOptions.writeConsole = true;
         reportOptions.consoleVerbosity =
@@ -1048,6 +1123,12 @@ namespace GameWIP::Test
             std::format("Terminal test options: report={}", options.writeReport ? options.reportPath.string() : std::string_view{"disabled"}));
 
         runner.runSuite("Terminal passive helpers", testPassiveHelpers);
+        runner.runSuite(
+            "Terminal reentrant formatting",
+            [&](TestSupport::Context &context)
+            {
+                testReentrantFormatting(context, argc > 0 && argv[0] != nullptr ? argv[0] : "");
+            });
 
 #if INTERNAL_TERMINAL_TEST_HOOKS
         runner.runSuite("Terminal capabilities and queries", testCapabilitiesAndQueries);

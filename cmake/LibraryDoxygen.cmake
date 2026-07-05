@@ -4,7 +4,7 @@ include_guard(GLOBAL)
 # declare their own public headers/docs; the root docs target merges everything
 # into one generated library documentation site.
 
-function(library_register_doxygen_inputs)
+function(gamewip_register_doxygen_inputs)
     foreach(doxygen_input IN LISTS ARGN)
         if(NOT doxygen_input)
             continue()
@@ -41,7 +41,7 @@ function(library_register_doxygen_inputs)
     endforeach()
 endfunction()
 
-function(library_register_doxygen_library)
+function(gamewip_register_doxygen_library)
     set(options)
     set(one_value_args NAME PAGE_ID)
     set(multi_value_args PUBLIC_HEADERS DOCS)
@@ -54,29 +54,29 @@ function(library_register_doxygen_library)
 
     if(LIBRARY_DOXYGEN_LIBRARY_UNPARSED_ARGUMENTS)
         message(FATAL_ERROR
-            "library_register_doxygen_library received unknown arguments: "
+            "gamewip_register_doxygen_library received unknown arguments: "
             "${LIBRARY_DOXYGEN_LIBRARY_UNPARSED_ARGUMENTS}"
         )
     endif()
 
     if(NOT LIBRARY_DOXYGEN_LIBRARY_NAME)
-        message(FATAL_ERROR "library_register_doxygen_library requires NAME.")
+        message(FATAL_ERROR "gamewip_register_doxygen_library requires NAME.")
     endif()
 
     if(NOT LIBRARY_DOXYGEN_LIBRARY_PAGE_ID)
-        message(FATAL_ERROR "library_register_doxygen_library requires PAGE_ID.")
+        message(FATAL_ERROR "gamewip_register_doxygen_library requires PAGE_ID.")
     endif()
 
     if(NOT LIBRARY_DOXYGEN_LIBRARY_DOCS)
         message(FATAL_ERROR
-            "library_register_doxygen_library(${LIBRARY_DOXYGEN_LIBRARY_NAME}) "
+            "gamewip_register_doxygen_library(${LIBRARY_DOXYGEN_LIBRARY_NAME}) "
             "requires DOCS containing ${LIBRARY_DOXYGEN_LIBRARY_PAGE_ID}.md."
         )
     endif()
 
     if(NOT LIBRARY_DOXYGEN_LIBRARY_PUBLIC_HEADERS AND NOT LIBRARY_DOXYGEN_LIBRARY_DOCS)
         message(FATAL_ERROR
-            "library_register_doxygen_library(${LIBRARY_DOXYGEN_LIBRARY_NAME}) "
+            "gamewip_register_doxygen_library(${LIBRARY_DOXYGEN_LIBRARY_NAME}) "
             "must register at least one public header or docs folder."
         )
     endif()
@@ -98,7 +98,7 @@ function(library_register_doxygen_library)
 
     if(NOT LIBRARY_DOXYGEN_LIBRARY_LANDING_PAGE_FOUND)
         message(FATAL_ERROR
-            "library_register_doxygen_library(${LIBRARY_DOXYGEN_LIBRARY_NAME}) "
+            "gamewip_register_doxygen_library(${LIBRARY_DOXYGEN_LIBRARY_NAME}) "
             "requires a ${LIBRARY_DOXYGEN_LIBRARY_PAGE_ID}.md landing page."
         )
     endif()
@@ -107,13 +107,13 @@ function(library_register_doxygen_library)
         "${LIBRARY_DOXYGEN_LIBRARY_NAME}:${LIBRARY_DOXYGEN_LIBRARY_PAGE_ID}"
     )
 
-    library_register_doxygen_inputs(
+    gamewip_register_doxygen_inputs(
         ${LIBRARY_DOXYGEN_LIBRARY_PUBLIC_HEADERS}
         ${LIBRARY_DOXYGEN_LIBRARY_DOCS}
     )
 endfunction()
 
-function(library_create_doxygen_target)
+function(gamewip_create_doxygen_target)
     set(options)
     set(one_value_args MAINPAGE)
     set(multi_value_args)
@@ -125,7 +125,7 @@ function(library_create_doxygen_target)
     )
 
     if(NOT LIBRARY_DOXYGEN_MAINPAGE)
-        message(FATAL_ERROR "library_create_doxygen_target requires MAINPAGE.")
+        message(FATAL_ERROR "gamewip_create_doxygen_target requires MAINPAGE.")
     endif()
 
     get_property(LIBRARY_DOXYGEN_INPUT_LIST GLOBAL PROPERTY LIBRARY_DOXYGEN_INPUTS)

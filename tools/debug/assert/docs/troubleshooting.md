@@ -2,13 +2,13 @@
 
 ## A popup appears during automated tests
 
-Automated interactive tests must use `INTERNAL_ASSERT_TEST_ACTION` and should suppress real UI. Manual UI tests are runtime-gated and should run only when the user intentionally enables them.
+Automated and manual interactive validation are described under @ref assert_testing. Normal application runs should enable interactive UI only when a developer is present to respond.
 
-## My expression is not evaluated
+## The expression is not evaluated
 
-You probably used an assertion-like macro in a disabled build. `ASSERT`, `CHECK`, `CHECK_ONCE`, and `ASSERT_INTERACTIVE` may skip the condition when disabled. Use `VERIFY` or `ENSURE` if the expression must always run.
+An assertion-like macro was probably used in a disabled build. `ASSERT`, `CHECK`, `CHECK_ONCE`, and `ASSERT_INTERACTIVE` may skip the condition when disabled. Use `VERIFY` or `ENSURE` if the expression must always run.
 
-## My message code does not run
+## The message expression does not run
 
 `_MSG` message expressions are diagnostic-only. They are not evaluated unless the diagnostic path is taken and diagnostics are enabled.
 
@@ -16,17 +16,17 @@ You probably used an assertion-like macro in a disabled build. `ASSERT`, `CHECK`
 
 Always Ignore is per macro expansion site. It is not a global ignore registry and does not affect normal `ASSERT` / `VERIFY` macros.
 
-## Break does not enter my debugger
+## Break does not enter the debugger
 
 Check whether a debugger is attached and whether the platform break instruction is supported in the current environment. Child-process tests validate break behavior separately from the main runner.
 
-## MessageBox fallback has fewer actions
+## The fallback dialog has fewer actions
 
-The TaskDialog path can represent the full interactive action set. The MessageBox fallback is degraded and cannot present a true four-button Always Ignore UI.
+The preferred dialog can represent the full interactive action set. The fallback dialog cannot present a true four-action Always Ignore interface.
 
 ## Abort happens instead of Break
 
-Without an attached debugger, the safe default action is Abort. In automated tests, use `INTERNAL_ASSERT_TEST_ACTION=break` only for scenarios that are isolated and expected to handle the break path.
+Without an attached debugger, the safe default action is Abort. See @ref assert_testing for isolated validation of the Break path.
 
 ## CHECK_ONCE reports more than expected
 

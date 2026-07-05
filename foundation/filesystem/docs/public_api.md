@@ -1,6 +1,6 @@
-@page foundation_filesystem_public_api FileSystem public API
+@page filesystem_public_api FileSystem public API
 
-Include `filesystem/filesystem.h` and link `FileSystem`.
+Include `filesystem/filesystem.h`. Installed-package consumers link `GameWIP::FileSystem`; builds within the source tree link the short `FileSystem` target. See @ref filesystem_quick_start for complete CMake examples.
 
 Passive values, options, and results live in `GameWIP::FileSystem::Types`. Active resource owners and free operations live directly in `GameWIP::FileSystem`.
 
@@ -22,7 +22,7 @@ Use:
 - `FileWriterOpenOptions` for write mode, sharing, symlink behavior, parent creation, and close flushing.
 - `FileOpenOptions` for read/write access, open mode, initial position, sharing, symlink behavior, parent creation, and close flushing.
 
-See @ref foundation_filesystem_file_open_modes for mode, append, sharing, and lock details.
+See @ref filesystem_file_open_modes for mode, append, sharing, and lock details.
 
 ## Whole-file helpers
 
@@ -48,11 +48,11 @@ See @ref foundation_filesystem_file_open_modes for mode, append, sharing, and lo
 
 `removeFile()` removes one file or link-like file entry. `removeEmptyDirectory()` removes one empty directory. `removeDirectoryTree()` removes a tree with an explicit traversal stack and never follows discovered symlinked directories.
 
-See @ref foundation_filesystem_directory_operations for the detailed directory contract.
+See @ref filesystem_directory_operations for the detailed directory contract.
 
 ## Copy and move
 
-`copyFile()` copies one regular file. It can optionally copy portable basic metadata and flush the destination.
+`copyFile()` copies one regular file. It can optionally copy portable basic metadata and flush the destination. The operation is not atomic: after destination creation or truncation, a later read, write, flush, close, or metadata failure may leave a partial destination.
 
 `movePath()` performs one native rename or move. Cross-volume moves return `MoveFailed`; FileSystem does not silently copy and delete.
 
@@ -68,6 +68,6 @@ See @ref foundation_filesystem_directory_operations for the detailed directory c
 
 Expected failures use `IO::Types::Status`; public operations are `noexcept`.
 
-Path operations may block on storage, sharing, locks, metadata, directory traversal, or OS flush work. Different handle objects may be used concurrently, but a single handle or lock object is not internally synchronized.
+Path operations may block on storage, sharing, locks, metadata, directory traversal, or operating-system flush work. Different handle objects may be used concurrently, but a single handle or lock object is not internally synchronized.
 
 Free path operations are independently callable from multiple threads. `setCurrentDirectory()` affects the whole process.

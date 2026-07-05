@@ -9,9 +9,11 @@
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <filesystem>
 #include <limits>
 #include <span>
+#include <string>
 #include <system_error>
 #include <utility>
 
@@ -1852,53 +1854,62 @@ namespace GameWIP::FileSystem
                 return removeTreeFailure(ErrorCode::Unsupported);
             }
 
-            struct PendingEntry
+            if (options.maxEntries == 0)
+            {
+                return removeTreeFailure(ErrorCode::SizeLimitExceeded);
+            }
+
+            struct RemovalFrame
             {
                 Types::Path path;
                 Types::EntryInfo info{};
-                bool childrenVisited = false;
+                std::unique_ptr<Detail::DirectoryCursorState> cursor;
             };
 
-            std::vector<PendingEntry> pending;
-            pending.push_back(PendingEntry{.path = path, .info = existing.info, .childrenVisited = false});
+            std::vector<RemovalFrame> pending;
+            pending.push_back(RemovalFrame{.path = path, .info = existing.info});
 
             std::uint64_t removedEntries = 0;
             while (!pending.empty())
             {
-                PendingEntry current = std::move(pending.back());
-                pending.pop_back();
-
-                if (current.info.kind == Types::EntryKind::Directory && !current.childrenVisited)
-                {
-                    const Types::Path directoryPath = current.path;
-                    current.childrenVisited = true;
-                    pending.push_back(std::move(current));
-
-                    Types::ListDirectoryResult children = listDirectory(
-                        directoryPath,
-                        Types::ListDirectoryOptions{
-                            .includeFiles = true,
-                            .includeDirectories = true,
-                            .includeSymlinks = true,
-                            .includeOther = true,
-                            .includeHidden = true,
-                            .symlinkPolicy = Types::SymlinkPolicy::DoNotFollow,
-                            .maxEntries = kNoEntryLimit});
-                    if (!children.status.ok())
-                    {
-                        return removeTreeFailure(children.status, removedEntries);
-                    }
-
-                    for (auto iterator = children.entries.rbegin(); iterator != children.entries.rend(); ++iterator)
-                    {
-                        pending.push_back(PendingEntry{.path = iterator->path, .info = iterator->info, .childrenVisited = false});
-                    }
-                    continue;
-                }
-
                 if (removedEntries >= options.maxEntries)
                 {
                     return removeTreeFailure(ErrorCode::SizeLimitExceeded, removedEntries);
+                }
+
+                RemovalFrame &current = pending.back();
+                if (current.info.kind == Types::EntryKind::Directory)
+                {
+                    if (!current.cursor)
+                    {
+                        Detail::Platform::DirectoryCursorOpenResult opened;
+                        if (pending.size() == 1)
+                        {
+                            opened = Detail::Platform::openDirectoryCursor(current.path, Types::SymlinkPolicy::DoNotFollow);
+                        }
+                        else
+                        {
+                            const RemovalFrame &parent = pending[pending.size() - 2];
+                            opened = Detail::Platform::openChildDirectoryCursor(*parent.cursor, current.path, Types::SymlinkPolicy::DoNotFollow);
+                        }
+                        if (!opened.status.ok())
+                        {
+                            return removeTreeFailure(opened.status, removedEntries);
+                        }
+                        current.cursor = std::move(opened.state);
+                    }
+
+                    Detail::Platform::DirectoryCursorNextResult child = Detail::Platform::readDirectoryCursor(*current.cursor);
+                    if (!child.status.ok())
+                    {
+                        return removeTreeFailure(child.status, removedEntries);
+                    }
+                    if (child.hasEntry)
+                    {
+                        pending.push_back(RemovalFrame{.path = std::move(child.entry.path), .info = child.entry.info});
+                        continue;
+                    }
+                    current.cursor.reset();
                 }
 
                 const IO::Types::Status removeStatus =
@@ -1913,6 +1924,7 @@ namespace GameWIP::FileSystem
                 {
                     return removeTreeFailure(removeStatus, removedEntries);
                 }
+                pending.pop_back();
                 ++removedEntries;
             }
 
@@ -2214,9 +2226,12 @@ namespace GameWIP::FileSystem
     {
         try
         {
-            const char8_t *u8Data = reinterpret_cast<const char8_t *>(utf8Path.data());
-            std::u8string_view u8View{u8Data, utf8Path.size()};
-            Types::Path result{u8View};
+            std::u8string converted(utf8Path.size(), u8'\0');
+            if (!utf8Path.empty())
+            {
+                std::memcpy(converted.data(), utf8Path.data(), utf8Path.size());
+            }
+            Types::Path result{converted};
 
             return {.status = IO::successStatus(), .path = result};
         }

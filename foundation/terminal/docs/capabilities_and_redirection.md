@@ -46,7 +46,7 @@ The result type is `Types::InputCapabilitiesResult`.
 
 The result type is `Types::OutputCapabilitiesResult`.
 
-`supportsFlush` means the stream accepts Terminal flush requests. It does not imply a storage durability operation for every stream kind. On Win32, regular redirected files use `FlushFileBuffers`; console and pipe flushes are successful no-ops because Terminal writes directly to their native handles.
+`supportsFlush` means the stream accepts Terminal flush requests. It does not imply a storage durability operation for every stream kind. On Win32, regular redirected files receive an operating-system flush; console and pipe flushes are successful no-ops because Terminal retains no unwritten output for those stream kinds.
 
 `getOutputCapabilities()` is observational. It inspects the current stream state and never enables terminal features.
 
@@ -70,7 +70,7 @@ On Win32, real-console preparation enables virtual-terminal processing. Redirect
 
 Win32 style capabilities are conservative. The real-console backend reports only portable features documented for the console VT implementation. In particular, RGB, dim, italic, and strikethrough are not promised merely because VT processing is enabled.
 
-Win32 named-pipe input supports finite read timeouts. Real-console input preserves native cooked input, echo, and line editing through `ReadConsoleW`, so it supports only `kWaitForever`; finite and non-blocking console reads return `Unsupported`. Regular redirected files support availability queries from their current position but do not promise bounded read timeouts.
+Win32 named-pipe input supports finite read timeouts. Real-console input preserves native cooked input, echo, and line editing, so it supports only `kWaitForever`; finite and non-blocking console reads return `Unsupported`. Regular redirected files support availability queries from their current position but do not promise bounded read timeouts.
 
 ## Failure behavior
 

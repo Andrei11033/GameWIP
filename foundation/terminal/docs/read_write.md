@@ -15,7 +15,7 @@ Free read calls default to stdin. Free write calls default to stdout when no out
 GameWIP::Terminal::writeLine(GameWIP::Terminal::Types::OutputStream::Stderr, "error text");
 ```
 
-## Read Calls
+## Read calls
 
 Terminal reads use explicit operation names.
 
@@ -57,7 +57,7 @@ For line reads, `LineReadOptions::maxReturnedBytes` limits the returned line rep
 
 Unknown option enum values and a zero `maxReturnedBytes` return `InvalidArgument` before Terminal reads from the stream. This makes correcting an invalid request and retrying deterministic.
 
-## Write Calls
+## Write calls
 
 Terminal writes use explicit operation names.
 
@@ -76,7 +76,7 @@ Terminal writes use explicit operation names.
 
 Text and segmented writes return `IO::Types::Status` because the operation may transform UTF-8 text into a platform-native console representation, emit styling, append line endings, reset style, and flush. Byte writes return `IO::Types::WriteResult` because callers need the number of accepted bytes.
 
-`writeText()` writes text exactly as provided. Plain, unstyled text is passed directly to the backend without an assembly allocation. A single non-empty plain text segment with no appended line ending uses the same direct path. `writeLine()` and multi-part writes assemble their complete logical record before one backend text write. `print()` and `println()` format with `std::format` semantics directly into reusable per-stream scratch storage; formatting failures are returned as IO statuses before any backend write is attempted.
+`writeText()` writes text exactly as provided. `writeLine()` and multi-part writes emit their complete logical record as one Terminal operation. `print()` and `println()` apply `std::format` semantics before starting that operation. A custom formatter may therefore write to Terminal without deadlocking the same stream; its nested write completes before the outer formatted record. Formatting failures are returned as IO statuses before the outer write is attempted.
 
 Line reads retain the scan position between backend chunks. Long lines are therefore scanned linearly, including the special case where `\r\n` is split across two chunks.
 
@@ -99,11 +99,11 @@ buffer.flushTo();
 
 ## Flush behavior
 
-Terminal writes go directly through the platform backend and do not pass through a Terminal-owned userspace output buffer. `FlushMode::None` requests no flush. On Win32, `Data` and `DataAndMetadataBestEffort` call `FlushFileBuffers` only when stdout or stderr is redirected to a regular disk file. They are successful no-ops for console and pipe output, where Terminal has no additional data buffer to drain. `DataAndMetadataBestEffort` has the same Win32 behavior because standard output handles do not expose a stronger portable metadata guarantee.
+Terminal does not retain unwritten output in a library-owned buffer. `FlushMode::None` requests no flush. On Win32, `Data` and `DataAndMetadataBestEffort` request an operating-system flush only when stdout or stderr is redirected to a regular disk file. They are successful no-ops for console and pipe output. `DataAndMetadataBestEffort` has the same Win32 behavior because standard output handles do not expose a stronger portable metadata guarantee.
 
 Terminal flush does not flush `std::cout`, `std::cerr`, C `FILE*` buffers, or output owned by another library. Flush requests and unknown flush-mode values are validated before output is emitted.
 
-## Explicit Empty Calls
+## Explicit empty calls
 
 Use the operation name that matches the empty value:
 

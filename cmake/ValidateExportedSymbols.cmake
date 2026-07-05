@@ -1,0 +1,57 @@
+foreach(required_variable IN ITEMS NM LIBRARY_FILE ALLOWLIST_FILE)
+    if(NOT DEFINED ${required_variable})
+        message(FATAL_ERROR "${required_variable} is required for export validation.")
+    endif()
+endforeach()
+
+execute_process(
+    COMMAND "${NM}" -gC --defined-only "${LIBRARY_FILE}"
+    RESULT_VARIABLE nm_result
+    OUTPUT_VARIABLE nm_output
+    ERROR_VARIABLE nm_error
+)
+if(NOT nm_result EQUAL 0)
+    message(FATAL_ERROR "Could not inspect ${LIBRARY_FILE}.\n${nm_error}")
+endif()
+
+string(REPLACE "\r\n" "\n" nm_output "${nm_output}")
+string(REPLACE "\n" ";" nm_lines "${nm_output}")
+set(actual_symbols)
+foreach(line IN LISTS nm_lines)
+    if(NOT line MATCHES " [A-Z] (GameWIP::.*)$")
+        continue()
+    endif()
+
+    set(symbol "${CMAKE_MATCH_1}")
+    if(ALLOW_TEST_HOOKS AND symbol MATCHES "::(Detail::)?TestHooks::")
+        continue()
+    endif()
+
+    string(REPLACE "[abi:cxx11]" "" symbol "${symbol}")
+    string(FIND "${symbol}" "(" parameter_list)
+    if(parameter_list GREATER_EQUAL 0)
+        string(SUBSTRING "${symbol}" 0 ${parameter_list} symbol)
+    endif()
+    list(APPEND actual_symbols "${symbol}")
+endforeach()
+list(REMOVE_DUPLICATES actual_symbols)
+list(SORT actual_symbols)
+
+file(STRINGS "${ALLOWLIST_FILE}" expected_symbols)
+list(FILTER expected_symbols EXCLUDE REGEX "^[ \\t]*(#|$)")
+list(SORT expected_symbols)
+
+set(unexpected_symbols ${actual_symbols})
+list(REMOVE_ITEM unexpected_symbols ${expected_symbols})
+set(missing_symbols ${expected_symbols})
+list(REMOVE_ITEM missing_symbols ${actual_symbols})
+
+if(unexpected_symbols OR missing_symbols)
+    string(JOIN "\n  " unexpected_text ${unexpected_symbols})
+    string(JOIN "\n  " missing_text ${missing_symbols})
+    message(FATAL_ERROR
+        "Exported symbol roots differ from ${ALLOWLIST_FILE}.\n"
+        "Unexpected:\n  ${unexpected_text}\n"
+        "Missing:\n  ${missing_text}"
+    )
+endif()

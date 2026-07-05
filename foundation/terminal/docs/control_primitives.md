@@ -10,7 +10,7 @@ These controls do not make Terminal a widget, layout, prompt, menu, progress-bar
 
 ## Cursor position queries
 
-`getCursorPosition(options)` uses stdout and stdin. `getCursorPosition(outputStream, responseStream, options)` selects both protocol endpoints explicitly. Queries may send a request to the output stream and consume a response from the selected input stream. Implementations serialize both endpoints and return `Unsupported` when a reliable query is unavailable. The Windows backend uses `GetConsoleScreenBufferInfo` for real console streams instead of consuming input, so `CursorPositionQueryOptions::timeout` does not cause a wait on Win32 real-console streams.
+`getCursorPosition(options)` uses stdout and stdin. `getCursorPosition(outputStream, responseStream, options)` selects both protocol endpoints explicitly. Queries may send a request to the output stream and consume a response from the selected input stream. Implementations serialize both endpoints and return `Unsupported` when a reliable query is unavailable. On Win32 real-console streams, the query does not consume input and `CursorPositionQueryOptions::timeout` does not cause a wait.
 
 Absolute cursor positions are zero-based in the public API even when a backend protocol uses one-based coordinates.
 
@@ -36,6 +36,6 @@ Terminal controls use `Types::ControlOptions`, which currently carries `IO::Type
 
 Unsupported controls return `IO::Types::ErrorCode::Unsupported`. Expected backend failures are reported through `IO::Types::Status`.
 
-Unknown flush modes return `InvalidArgument` before a control sequence is written. On Win32, a requested flush reaches `FlushFileBuffers` only for output redirected to a regular disk file; console and pipe output have no Terminal-owned pending buffer and treat the request as a successful no-op.
+Unknown flush modes return `InvalidArgument` before a control sequence is written. On Win32, a requested flush reaches the operating system only for output redirected to a regular disk file; console and pipe output have no Terminal-owned pending buffer and treat the request as a successful no-op.
 
 A failed control write may already have emitted a prefix of its encoded sequence. Control statuses report completion, not transactional rollback.

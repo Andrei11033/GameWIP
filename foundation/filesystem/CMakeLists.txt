@@ -1,18 +1,27 @@
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 
-if(NOT COMMAND library_target_platform_sources)
+option(FILESYSTEM_ENABLE_TEST_HOOKS "Enable FileSystem internal test hooks" OFF)
+
+if(NOT COMMAND gamewip_target_platform_sources)
     include("${PROJECT_SOURCE_DIR}/cmake/LibraryPlatform.cmake")
-    library_resolve_platform_id(LIBRARY_PLATFORM_ID)
+    gamewip_resolve_platform_id(GAMEWIP_PLATFORM_ID)
 endif()
 
 add_library(FileSystem STATIC)
+add_library(GameWIP::FileSystem ALIAS FileSystem)
 
-target_sources(FileSystem PRIVATE
-    core/filesystem.cpp
+target_sources(FileSystem
+    PRIVATE
+        core/filesystem.cpp
+    PUBLIC
+        FILE_SET public_headers
+        TYPE HEADERS
+        BASE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/.."
+        FILES "${CMAKE_CURRENT_SOURCE_DIR}/filesystem.h"
 )
 
-library_target_platform_sources(FileSystem FileSystem "${CMAKE_CURRENT_SOURCE_DIR}/platform")
+gamewip_target_platform_sources(FileSystem FileSystem "${CMAKE_CURRENT_SOURCE_DIR}/platform")
 
 target_include_directories(FileSystem PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/..>
@@ -20,6 +29,12 @@ target_include_directories(FileSystem PUBLIC
 )
 
 target_compile_features(FileSystem PUBLIC cxx_std_23)
+target_compile_definitions(FileSystem
+    PRIVATE
+        INTERNAL_FILESYSTEM_TEST_HOOKS=$<BOOL:${FILESYSTEM_ENABLE_TEST_HOOKS}>
+    INTERFACE
+        $<BUILD_INTERFACE:INTERNAL_FILESYSTEM_TEST_HOOKS=$<BOOL:${FILESYSTEM_ENABLE_TEST_HOOKS}>>
+)
 
 target_link_libraries(FileSystem PUBLIC
     IO
@@ -30,10 +45,10 @@ set_target_properties(FileSystem PROPERTIES
     ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
 )
 
-if(GAMEWIP_BUILD_DOCS AND COMMAND library_register_doxygen_library)
-    library_register_doxygen_library(
+if(GAMEWIP_BUILD_DOCS AND COMMAND gamewip_register_doxygen_library)
+    gamewip_register_doxygen_library(
         NAME FileSystem
-        PAGE_ID foundation_filesystem
+        PAGE_ID filesystem
         PUBLIC_HEADERS
             "${CMAKE_CURRENT_SOURCE_DIR}/filesystem.h"
         DOCS
@@ -44,11 +59,7 @@ endif()
 install(TARGETS FileSystem
     EXPORT FileSystemTargets
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-)
-
-install(FILES
-    "${CMAKE_CURRENT_SOURCE_DIR}/filesystem.h"
-    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/filesystem
+    FILE_SET public_headers DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
 )
 
 configure_package_config_file(
@@ -60,11 +71,12 @@ configure_package_config_file(
 write_basic_package_version_file(
     "${CMAKE_CURRENT_BINARY_DIR}/FileSystemConfigVersion.cmake"
     VERSION ${PROJECT_VERSION}
-    COMPATIBILITY SameMajorVersion
+    COMPATIBILITY ExactVersion
 )
 
 install(EXPORT FileSystemTargets
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/FileSystem
+    NAMESPACE GameWIP::
 )
 
 install(FILES

@@ -1,4 +1,5 @@
 if(GAMEWIP_TESTS_REQUIRED)
+    add_subdirectory(public_headers)
     add_subdirectory(tests)
 endif()
 

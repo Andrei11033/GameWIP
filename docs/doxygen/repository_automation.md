@@ -26,10 +26,10 @@ are In Progress. Closed and merged pull requests are Done.
 
 Use a closing keyword such as `Closes #6` in the pull request body. For linked issues, automation:
 
-- adds their `area:*` and `type:*` labels;
-- selects the highest linked `priority:*` label;
-- adds linked issue assignees, or the pull request author when no issue is assigned;
-- copies the milestone when every linked milestone agrees.
+- Adds their `area:*` and `type:*` labels
+- Selects the highest linked `priority:*` label
+- Adds linked issue assignees, or the pull request author when no issue is assigned
+- Copies the milestone when every linked milestone agrees
 
 These updates are additive. Existing manually selected labels and assignees are preserved. A
 milestone conflict is reported in the workflow summary and is left for a maintainer to resolve.
