@@ -64,41 +64,43 @@ This phase contains the basic project foundation needed before real engine/game 
 
 ### R00 — Bootstrap
 
-Status: `[x]`
+Status: `[-]`
 
 - [x] Project builds from CMake.
 - [x] Executable runs.
 - [x] Folder structure exists.
 - [x] Logging system exists.
 - [x] Assertions/debug checks exist.
-- [x] Input handling exists.
+- [x] Automated validation and documentation workflows exist.
+- [ ] Final R00 validation and release/version rules are complete.
 
 Completion goal:
 
-The project can build, run, log, assert, and accept basic input.
+The project can configure, build, run, test, document, package, log, and assert on the supported development environment.
 
 ---
 
-## Phase 1 — Development Visibility
+## Phase 1 — Engine Runtime and Development Visibility
 
-This phase exists so future simulation work can be seen, debugged, heard, and tested.
+This phase establishes the runtime boundaries needed to receive input, represent engine state, display and hear results, and update simulation predictably.
 
-### R01 — Minimal Rendering and Debug View
+### R01 — Window, Input, and Action Foundation
 
 Status: `[ ]`
 
-- [ ] Window opens and closes.
-- [ ] Render one object.
-- [ ] Free camera works.
-- [ ] Transform system exists.
-- [ ] Debug draw exists.
-- [ ] On-screen debug info exists.
-- [ ] Debug camera controls are usable.
-- [ ] Debug overlays can be toggled.
+- [ ] A platform-neutral window API and Win32 backend exist.
+- [ ] A window opens, remains responsive, and closes cleanly through both application and operating-system requests.
+- [ ] Resize, move, focus, minimize, restore, and close events have explicit behavior.
+- [ ] Keyboard and mouse state expose current, pressed, and released transitions without losing events between frames.
+- [ ] Text input is distinct from physical key input.
+- [ ] Absolute and relative mouse modes, cursor visibility, and cursor capture restore operating-system state correctly.
+- [ ] Named digital actions and analog axes can bind to physical inputs without platform input leaking into gameplay code.
+- [ ] The event pump, window lifetime, input state, and action mapping have deterministic automated coverage and focused internal test hooks where native behavior cannot be synthesized publicly.
+- [ ] The executable demonstrates the window and input/action loop without depending on a renderer.
 
 Completion goal:
 
-The engine can show simple objects and debug information well enough to inspect simulation behavior.
+The engine can own a responsive native window and expose predictable, platform-independent input and named actions to later camera, UI, and gameplay systems.
 
 ---
 
@@ -123,7 +125,26 @@ The project has a reliable math layer for transforms, physics, collision, render
 
 ---
 
-### R03 — Simulation Timing
+### R03 — Minimal Rendering and Debug View
+
+Status: `[ ]`
+
+- [ ] A rendering backend, graphics device, and presentation surface initialize and shut down cleanly.
+- [ ] The renderer can clear and present the R01 window and recover correctly from resize/minimize events.
+- [ ] One transformed object renders through a minimal shader and pipeline.
+- [ ] A free debug camera uses R01 actions and R02 math.
+- [ ] Transform handling is sufficient for object and camera placement.
+- [ ] Debug lines and basic shapes can be drawn.
+- [ ] On-screen debug information exists.
+- [ ] Debug overlays can be toggled through named actions.
+
+Completion goal:
+
+The engine can show simple objects and debug information well enough to inspect later simulation behavior.
+
+---
+
+### R04 — Simulation Timing
 
 Status: `[ ]`
 
@@ -140,7 +161,7 @@ Simulation runs consistently enough that rendering FPS does not change physics b
 
 ---
 
-### R04 — Basic Audio Foundation
+### R05 — Basic Audio Foundation
 
 Status: `[ ]`
 
@@ -163,7 +184,7 @@ The engine can play simple sounds and attach them to world events without affect
 
 This phase creates the first physical simulation layer.
 
-### R05 — Rigid Body Physics Core
+### R06 — Rigid Body Physics Core
 
 Status: `[ ]`
 
@@ -183,7 +204,7 @@ A single rigid body can move, rotate, fall, and remain numerically stable.
 
 ---
 
-### R06 — Collision Detection
+### R07 — Collision Detection
 
 Status: `[ ]`
 
@@ -201,7 +222,7 @@ The engine can detect simple collisions and expose contact information for debug
 
 ---
 
-### R07 — Collision Response
+### R08 — Collision Response
 
 Status: `[ ]`
 
@@ -219,7 +240,7 @@ Bodies collide, rest, stack, and stop moving when appropriate without obvious in
 
 ---
 
-### R08 — Constraints and Joints
+### R09 — Constraints and Joints
 
 Status: `[ ]`
 
@@ -241,7 +262,7 @@ The physics system can support connected mechanical assemblies.
 
 This phase turns isolated physics into a world that can hold objects, structures, and destructible cells.
 
-### R09 — Simulation Framework
+### R10 — Simulation Framework
 
 Status: `[ ]`
 
@@ -259,7 +280,7 @@ The engine has a clear world/update structure that future systems can plug into.
 
 ---
 
-### R10 — Structural World
+### R11 — Structural World
 
 Status: `[ ]`
 
@@ -279,7 +300,7 @@ The player or debug tools can place, remove, display, and save simple structural
 
 ---
 
-### R11 — Structural Connectivity
+### R12 — Structural Connectivity
 
 Status: `[ ]`
 
@@ -297,7 +318,7 @@ Structures can split, detach, and become physical bodies when support is lost.
 
 ---
 
-### R12 — Materials
+### R13 — Materials
 
 Status: `[ ]`
 
@@ -316,7 +337,7 @@ Cells and structures have material properties that affect mass, damage, support,
 
 ---
 
-### R13 — Structural Destruction
+### R14 — Structural Destruction
 
 Status: `[ ]`
 
@@ -339,7 +360,7 @@ Damage can destroy parts of a structure and cause meaningful physical consequenc
 
 This phase starts turning structures into useful creations.
 
-### R14 — Building Tools
+### R15 — Building Tools
 
 Status: `[ ]`
 
@@ -357,7 +378,7 @@ Building becomes usable enough for creating simple test structures and vehicles.
 
 ---
 
-### R15 — Component Damage Model
+### R16 — Component Damage Model
 
 Status: `[ ]`
 
@@ -375,7 +396,7 @@ Components can be damaged, degraded, exposed, detached, or destroyed in a consis
 
 ---
 
-### R16 — Component Framework
+### R17 — Component Framework
 
 Status: `[ ]`
 
@@ -393,7 +414,7 @@ Components can be registered, mounted, connected, updated, saved, loaded, and in
 
 ---
 
-### R17 — First Components
+### R18 — First Components
 
 Status: `[ ]`
 
@@ -411,7 +432,7 @@ The first functional vehicle can be built from simple components.
 
 ---
 
-### R18 — First Vehicle
+### R19 — First Vehicle
 
 Status: `[ ]`
 
@@ -433,7 +454,7 @@ A player-controllable saved vehicle exists and behaves according to mass, thrust
 
 This phase makes the player a real gameplay entity, not only a camera or vehicle controller.
 
-### R19 — Player Character Foundation
+### R20 — Player Character Foundation
 
 Status: `[ ]`
 
@@ -453,7 +474,7 @@ The player can move through the world, interact with creations, and act as a rea
 
 ---
 
-### R20 — Player Interaction and Tools
+### R21 — Player Interaction and Tools
 
 Status: `[ ]`
 
@@ -471,7 +492,7 @@ The player can directly interact with vehicles, structures, components, and buil
 
 ---
 
-### R21 — Player Inventory and Equipment
+### R22 — Player Inventory and Equipment
 
 Status: `[ ]`
 
@@ -493,7 +514,7 @@ The player has enough inventory/equipment support for tools, weapons, ammo, and 
 
 This phase adds infantry weapons, vehicle weapons, projectiles, damage, and customization.
 
-### R22 — Projectile and Damage Foundation
+### R23 — Projectile and Damage Foundation
 
 Status: `[ ]`
 
@@ -512,7 +533,7 @@ Projectiles can hit structures and components, apply damage, and interact with t
 
 ---
 
-### R23 — Infantry Gunplay Foundation
+### R24 — Infantry Gunplay Foundation
 
 Status: `[ ]`
 
@@ -532,7 +553,7 @@ The player can use basic infantry weapons with readable firing, aiming, recoil, 
 
 ---
 
-### R24 — Weapon Customization
+### R25 — Weapon Customization
 
 Status: `[ ]`
 
@@ -554,7 +575,7 @@ Infantry weapons support meaningful customization depth while staying readable a
 
 ---
 
-### R25 — Vehicle Weapons
+### R26 — Vehicle Weapons
 
 Status: `[ ]`
 
@@ -572,7 +593,7 @@ Vehicles and structures can mount functional weapons that interact with the same
 
 ---
 
-### R26 — Explosives and Area Damage
+### R27 — Explosives and Area Damage
 
 Status: `[ ]`
 
@@ -590,7 +611,7 @@ Explosions can damage structures, components, and vehicles in a physically meani
 
 ---
 
-### R27 — Armor and Penetration
+### R28 — Armor and Penetration
 
 Status: `[ ]`
 
@@ -608,7 +629,7 @@ Armor is not only extra HP. Material, thickness, layering, layout, and ammo type
 
 ---
 
-### R28 — Damage Fidelity
+### R29 — Damage Fidelity
 
 Status: `[ ]`
 
@@ -630,7 +651,7 @@ Damage has enough depth that internal layout, exposure, and degraded parts matte
 
 This phase adds programmable/control behavior.
 
-### R29 — Logic System
+### R30 — Logic System
 
 Status: `[ ]`
 
@@ -649,7 +670,7 @@ Simple logic networks can control components in a predictable fixed-tick system.
 
 ---
 
-### R30 — Multi-Rate Simulation
+### R31 — Multi-Rate Simulation
 
 Status: `[ ]`
 
@@ -667,7 +688,7 @@ Only selected systems can run at higher rates without destabilizing the rest of 
 
 ---
 
-### R31 — Sensors and Actuators
+### R32 — Sensors and Actuators
 
 Status: `[ ]`
 
@@ -685,7 +706,7 @@ Feedback-control systems can sense state, act on components, and stabilize a cra
 
 ---
 
-### R32 — Guidance and Targeting Prototype
+### R33 — Guidance and Targeting Prototype
 
 Status: `[ ]`
 
@@ -706,7 +727,7 @@ The game proves that sensors, logic, control, and weapons can work together for 
 
 This phase improves construction depth without sacrificing usability.
 
-### R33 — Building Representation
+### R34 — Building Representation
 
 Status: `[ ]`
 
@@ -722,7 +743,7 @@ Players can build with convenient larger parts while the simulation still suppor
 
 ---
 
-### R34 — Component Tiers
+### R35 — Component Tiers
 
 Status: `[ ]`
 
@@ -739,7 +760,7 @@ Components support optional depth without making basic building harder.
 
 ---
 
-### R35 — Advanced Component Family
+### R36 — Advanced Component Family
 
 Status: `[ ]`
 
@@ -756,7 +777,7 @@ One component family proves the simple/configurable/advanced model before expand
 
 ---
 
-### R36 — Mechanical Assemblies
+### R37 — Mechanical Assemblies
 
 Status: `[ ]`
 
@@ -778,7 +799,7 @@ Mechanical assemblies can be built, controlled, and used for functional systems 
 
 This phase turns the technical prototype into something readable and enjoyable.
 
-### R37 — Gameplay Audio
+### R38 — Gameplay Audio
 
 Status: `[ ]`
 
@@ -800,7 +821,7 @@ Major gameplay systems produce useful sound feedback, making vehicles, weapons, 
 
 ---
 
-### R38 — Advanced Graphics and Visual Presentation
+### R39 — Advanced Graphics and Visual Presentation
 
 Status: `[ ]`
 
@@ -821,7 +842,7 @@ The game has a readable and consistent visual identity that supports building, c
 
 ---
 
-### R39 — UI Foundation
+### R40 — UI Foundation
 
 Status: `[ ]`
 
@@ -840,7 +861,7 @@ The player has the basic UI needed to launch, configure, play, pause, interact, 
 
 ---
 
-### R40 — Building and Configuration UX
+### R41 — Building and Configuration UX
 
 Status: `[ ]`
 
@@ -865,7 +886,7 @@ Building, configuring, debugging, saving, and modifying creations becomes easier
 
 This phase turns systems into a real playable sandbox.
 
-### R41 — World and Map
+### R42 — World and Map
 
 Status: `[ ]`
 
@@ -883,7 +904,7 @@ The game supports larger environments with terrain, structures, and streaming.
 
 ---
 
-### R42 — Save/Load and Persistence
+### R43 — Save/Load and Persistence
 
 Status: `[ ]`
 
@@ -902,7 +923,7 @@ The player can keep worlds, vehicles, structures, inventory, and damage states a
 
 ---
 
-### R43 — Content Expansion
+### R44 — Content Expansion
 
 Status: `[ ]`
 
@@ -923,7 +944,7 @@ The sandbox has enough parts and systems to support varied creations and combat 
 
 ---
 
-### R44 — Gameplay Loop
+### R45 — Gameplay Loop
 
 Status: `[ ]`
 
@@ -943,7 +964,7 @@ The sandbox gains enough structure, goals, or scenarios to feel like a playable 
 
 ---
 
-### R45 — AI and Targets
+### R46 — AI and Targets
 
 Status: `[ ]`
 
@@ -965,7 +986,7 @@ There are enough non-player threats or targets to test combat, damage, weapons, 
 
 This phase makes V1 stable enough to release or share.
 
-### R46 — Performance
+### R47 — Performance
 
 Status: `[ ]`
 
@@ -986,7 +1007,7 @@ The simulation can handle medium-scale structures, vehicles, components, damage 
 
 ---
 
-### R47 — Stability and Error Handling
+### R48 — Stability and Error Handling
 
 Status: `[ ]`
 
@@ -1004,7 +1025,7 @@ The game can run for normal play sessions without frequent crashes, corrupt save
 
 ---
 
-### R48 — Testing and Validation Pass
+### R49 — Testing and Validation Pass
 
 Status: `[ ]`
 
@@ -1026,7 +1047,7 @@ The major V1 systems are validated enough that bugs can be fixed against known e
 
 ---
 
-### R49 — V1 Content and Scenario Pass
+### R50 — V1 Content and Scenario Pass
 
 Status: `[ ]`
 
@@ -1046,7 +1067,7 @@ V1 has enough content and example scenarios to demonstrate the intended sandbox 
 
 ---
 
-### R50 — V1 Release Candidate
+### R51 — V1 Release Candidate
 
 Status: `[ ]`
 
@@ -1069,7 +1090,7 @@ The project has a stable V1 candidate that can be played, tested, shared, or rel
 
 ## Phase 12 — V1 Complete
 
-### R51 — V1
+### R52 — V1
 
 Status: `[ ]`
 
