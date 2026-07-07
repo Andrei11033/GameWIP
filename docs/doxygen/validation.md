@@ -26,8 +26,12 @@ When both build and startup options for a validation kind are off, its modules a
 game/validation/
   validation.h
   tests/
+    runner.h
     runner.cpp
+    registry.h
     registry.cpp
+    internal/
+      runner_test_hooks.h
     <module>/
       CMakeLists.txt
       module.cpp
@@ -40,6 +44,8 @@ game/validation/
 ```
 
 The tests and benchmarks parent directories discover immediate child directories containing `CMakeLists.txt`. Source discovery stops there: each module CMake file must explicitly list its sources and linked libraries.
+
+`tests/internal/` is not a module and is not discovered by CMake. It contains source-tree-only validation implementation seams. Ordinary modules should use `runner.h` and `registry.h`; they must not depend on internal runner testing interfaces.
 
 ## Runtime flow
 
@@ -70,12 +76,13 @@ The shared runner consumes project-level validation arguments before invoking a 
 | `--test-report=<path>` | Selects the aggregate report. Relative paths resolve under `%TEMP%/GameWIP`. |
 | `--no-test-report` | Disables the retained report without disabling console outcomes. |
 | `--verbose-tests` | Mirrors every TestSupport category to stdout. |
-| `--no-manual-ui` | Disables all human UI checks and Logger popup checks. |
-| `--no-logger-popup` | Disables only the Logger fatal-popup check. |
+| `--manual-ui` | Enables human-interactive validation checks. |
+| `--logger-popup` | Enables the Logger fatal-popup check. |
 | `--no-test-support-child-process` | Skips TestSupport process-launch scenarios. |
-| `--test-support-manual` | Selects TestSupport and enables its human prompt checks. |
 
 Legacy focused aliases such as `--filesystem-only` remain supported, but new tooling should use `--test-module=<name>` because it scales without adding runner code.
+
+`--manual-ui` and `--logger-popup` are independent capability switches: they do not select or exclude modules. For example, `--test-module=test_support --manual-ui` runs TestSupport human prompts, `--test-module=terminal --manual-ui` runs the real-console Terminal suite, and `--test-module=logger --logger-popup` runs the Logger fatal-popup check. Without the positive flags, validation remains unattended.
 
 Module-owned child arguments are matched before normal selection. One owning module receives the original process arguments, and its exact exit code is returned directly. No match continues to ordinary selection; multiple matches are an ambiguity error. This prevents a crash-test child from recursively running the full validation set or entering game startup.
 
@@ -101,6 +108,14 @@ This split keeps successful runs scannable without discarding evidence. `--verbo
 7. The runner records the module exit code, then continues to the next selected module.
 
 An invalid report path disables only file reporting. An invalid registration, unknown module selection, selected-and-excluded module, ambiguous child route, escaped module exception, or failed module produces a nonzero validation result.
+
+### Runner test seam
+
+The public `run()` entry point always executes the modules returned by `registeredModules()`. Its implementation delegates to the same `Detail::runWithModules()` path used by the `runner` correctness-test module.
+
+`runWithModules()` accepts an explicit module span so runner tests can supply isolated probe modules and verify parsing, selection, option propagation, ordering, and default behavior without mutating the process-wide registry. Its declaration lives in `tests/internal/runner_test_hooks.h`; it is source-tree-only, is not installed, and is not supported application or module API.
+
+The `tests/runner/` directory is different from `tests/internal/`: it is a normal registered validation module with its own focused CTest entry. It uses the internal seam only to test the shared runner implementation.
 
 ## Presets
 

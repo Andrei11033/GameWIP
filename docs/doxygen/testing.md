@@ -15,7 +15,7 @@ The same CTest run also verifies reviewed shared-library exports and builds a se
 Run all modules directly:
 
 ```powershell
-.\build-validation\GameWIPTests.exe --no-manual-ui
+.\build-validation\GameWIPTests.exe
 ```
 
 Run one module:
@@ -29,10 +29,22 @@ Run one module:
 Run the opt-in TestSupport prompt checks:
 
 ```powershell
-.\build-validation\GameWIPTests.exe --test-support-manual
+.\build-validation\GameWIPTests.exe --test-module=test_support --manual-ui
 ```
 
-Normal automated runs leave manual UI disabled.
+Run the Terminal real-console checks from Windows Terminal:
+
+```powershell
+.\build-validation\GameWIPTests.exe --test-module=terminal --manual-ui
+```
+
+Run the Logger fatal-popup check exactly once:
+
+```powershell
+.\build-validation\GameWIPTests.exe --test-module=logger --logger-popup
+```
+
+Normal automated runs leave manual UI and the Logger popup disabled. The positive flags enable capabilities without selecting a module; combine them with `--test-module=<name>` for focused manual validation.
 
 The development preset links the same modules into `GameWIP`, where they run before game startup.
 

@@ -19,7 +19,7 @@ git submodule update --init --recursive
 
 Make sure `C:\MSYS2\ucrt64\bin` appears before other MinGW environments on `PATH` when configuring.
 
-VS Code users can open `GameWIP.code-workspace` for the shared UCRT64 formatting and task configuration.
+VS Code users can open `GameWIP.code-workspace` for the shared UCRT64 formatting and task configuration. Configure the `development` preset before relying on IntelliSense because the workspace reads `build-development/compile_commands.json`.
 
 ## Development
 
@@ -28,7 +28,7 @@ The development preset builds the game and runs modular correctness tests at sta
 ```powershell
 cmake --preset development
 cmake --build --preset development
-.\build-development\GameWIP.exe --no-manual-ui
+.\build-development\GameWIP.exe
 ```
 
 `game/main.cpp` remains the stable process entry point. Validation is compiled out when its startup options are disabled.
@@ -55,7 +55,7 @@ Run one correctness module:
 .\build-validation\GameWIPTests.exe --test-module=filesystem
 ```
 
-Validation keeps complete reports under `%TEMP%\GameWIP\logs\tests` and removes temporary fixtures and subsystem logs after each run. Add `--verbose-tests` for full console output.
+Validation keeps complete reports under `%TEMP%\GameWIP\logs\tests` and removes temporary fixtures and subsystem logs after each run. Add `--verbose-tests` for full console output. Human UI is disabled by default; use `--manual-ui` for module-owned interactive checks or `--logger-popup` for the Logger fatal-popup check.
 
 Collect optimized benchmark results:
 

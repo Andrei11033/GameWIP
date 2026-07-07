@@ -27,7 +27,6 @@ function(gamewip_add_test_module)
             COMMAND $<TARGET_FILE:GameWIPTests>
                 "--test-module=${MODULE_NAME}"
                 "--test-report=logs/tests/${MODULE_NAME}_test_report.txt"
-                --no-manual-ui
         )
         set_tests_properties("validation.tests.${MODULE_NAME}" PROPERTIES
             LABELS "validation;${MODULE_NAME}"

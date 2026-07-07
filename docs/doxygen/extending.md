@@ -31,7 +31,6 @@ Create `game/validation/tests/<module>/CMakeLists.txt`, `module.cpp`, and focuse
 ```cmake
 gamewip_add_test_module(
     NAME example
-    ORDER 70
     SOURCES
         module.cpp
         example_test.cpp
@@ -41,7 +40,17 @@ gamewip_add_test_module(
 )
 ```
 
-The adapter registers one stable module name and maps `ModuleInvocation` policy into its suite. Tests must be deterministic, isolate filesystem state with TestSupport scopes, return meaningful exit codes, and avoid performance thresholds. Add child-argument ownership only for scenarios that must launch the test executable recursively. The parent directory discovers the module automatically; no central source list should change.
+The CMake helper does not own runtime order. In `module.cpp`, register the stable name, order, and adapter explicitly:
+
+```cpp
+const GameWIP::Validation::Tests::Registration registration({
+    .name = "example",
+    .order = 70,
+    .run = run,
+});
+```
+
+The adapter maps `ModuleInvocation` policy into its suite-specific options. Tests must be deterministic, isolate filesystem state with TestSupport scopes, return meaningful exit codes, and avoid performance thresholds. Add child-argument ownership only for scenarios that must launch the test executable recursively. The parent directory discovers the module automatically; no central source list should change.
 
 Run the module directly and through CTest:
 

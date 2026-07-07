@@ -12,6 +12,8 @@ namespace GameWIP::Test
     {
         /// @brief Mirrors complete suite output to stdout instead of only failures, skips, and manual instructions.
         bool verboseConsole = false;
+        /// @brief Enables tests that require manual user interaction. These tests will be skipped if this is false.
+        bool enableManualUiTests = false;
         /// @brief Writes test progress and summaries to reportPath in addition to stdout.
         bool writeReport = true;
         /// @brief Appends to reportPath instead of replacing it.

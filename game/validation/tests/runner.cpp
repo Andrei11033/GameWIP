@@ -3,6 +3,7 @@
 
 #include "validation/tests/runner.h"
 
+#include "validation/tests/internal/runner_test_hooks.h"
 #include "validation/tests/registry.h"
 
 #include <algorithm>
@@ -102,23 +103,17 @@ namespace GameWIP::Validation::Tests
             {
                 options.verboseConsole = true;
             }
-            if (hasArgument(argc, argv, "--no-manual-ui"))
+            if (hasArgument(argc, argv, "--manual-ui"))
             {
-                options.enableManualUiTests = false;
-                options.enableLoggerPopupTest = false;
+                options.enableManualUiTests = true;
             }
-            if (hasArgument(argc, argv, "--no-logger-popup"))
+            if (hasArgument(argc, argv, "--logger-popup"))
             {
-                options.enableLoggerPopupTest = false;
+                options.enableLoggerPopupTest = true;
             }
             if (hasArgument(argc, argv, "--no-test-support-child-process"))
             {
                 options.enableTestSupportChildProcessTests = false;
-            }
-            if (hasArgument(argc, argv, "--test-support-manual"))
-            {
-                requestModule(selection, "test_support");
-                options.enableManualUiTests = true;
             }
 
             const std::pair<std::string_view, std::string_view> focusedAliases[] = {
@@ -193,9 +188,8 @@ namespace GameWIP::Validation::Tests
         }
 
         /// @brief Copies static registrations into deterministic order for child routing and execution.
-        [[nodiscard]] std::vector<Module> sortedModules()
+        [[nodiscard]] std::vector<Module> sortedModules(std::span<const Module> registrations)
         {
-            const std::span<const Module> registrations = registeredModules();
             std::vector<Module> modules(registrations.begin(), registrations.end());
             std::ranges::sort(
                 modules,
@@ -246,9 +240,9 @@ namespace GameWIP::Validation::Tests
         }
     } // namespace
 
-    TestResult run(int argc, char **argv, RunOptions options)
+    TestResult Detail::runWithModules(int argc, char **argv, RunOptions options, std::span<const Module> registrations)
     {
-        const std::vector<Module> modules = sortedModules();
+        const std::vector<Module> modules = sortedModules(registrations);
         if (!validModules(modules))
         {
             return {.modulesFailed = 1, .exitCode = 1};
@@ -350,5 +344,10 @@ namespace GameWIP::Validation::Tests
         std::cout << "[VALIDATION] result=" << (result.ok() ? "PASS" : "FAIL") << " modules=" << result.modulesRun
                   << " failed=" << result.modulesFailed << '\n';
         return result;
+    }
+
+    TestResult run(int argc, char **argv, RunOptions options)
+    {
+        return Detail::runWithModules(argc, argv, std::move(options), registeredModules());
     }
 } // namespace GameWIP::Validation::Tests

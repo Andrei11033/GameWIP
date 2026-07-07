@@ -5,10 +5,15 @@
             "label": "Configure Development",
             "type": "shell",
             "command": "cmake",
-            "args": ["--preset", "development"],
+            "args": [
+                "--preset",
+                "development"
+            ],
             "options": {
                 "cwd": "${workspaceFolder}",
-                "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" }
+                "env": {
+                    "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
+                }
             },
             "problemMatcher": []
         },
@@ -16,23 +21,36 @@
             "label": "Build Development",
             "type": "shell",
             "command": "cmake",
-            "args": ["--build", "--preset", "development"],
+            "args": [
+                "--build",
+                "--preset",
+                "development"
+            ],
             "options": {
                 "cwd": "${workspaceFolder}",
-                "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" }
+                "env": {
+                    "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
+                }
             },
-            "problemMatcher": ["$gcc"],
-            "group": { "kind": "build", "isDefault": true },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
             "dependsOn": "Configure Development"
         },
         {
             "label": "Run Development",
             "type": "shell",
             "command": "${workspaceFolder}\\build-development\\GameWIP.exe",
-            "args": ["--no-manual-ui"],
+            "args": [],
             "options": {
                 "cwd": "${workspaceFolder}\\build-development",
-                "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" }
+                "env": {
+                    "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
+                }
             },
             "problemMatcher": [],
             "dependsOn": "Build Development"
@@ -41,10 +59,15 @@
             "label": "Configure Validation",
             "type": "shell",
             "command": "cmake",
-            "args": ["--preset", "validation"],
+            "args": [
+                "--preset",
+                "validation"
+            ],
             "options": {
                 "cwd": "${workspaceFolder}",
-                "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" }
+                "env": {
+                    "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
+                }
             },
             "problemMatcher": []
         },
@@ -52,35 +75,56 @@
             "label": "Build Validation",
             "type": "shell",
             "command": "cmake",
-            "args": ["--build", "--preset", "validation"],
+            "args": [
+                "--build",
+                "--preset",
+                "validation"
+            ],
             "options": {
                 "cwd": "${workspaceFolder}",
-                "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" }
+                "env": {
+                    "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
+                }
             },
-            "problemMatcher": ["$gcc"],
+            "problemMatcher": [
+                "$gcc"
+            ],
             "dependsOn": "Configure Validation"
         },
         {
             "label": "Test Validation",
             "type": "shell",
             "command": "ctest",
-            "args": ["--preset", "validation"],
+            "args": [
+                "--preset",
+                "validation"
+            ],
             "options": {
                 "cwd": "${workspaceFolder}",
-                "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" }
+                "env": {
+                    "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
+                }
             },
             "problemMatcher": [],
-            "group": { "kind": "test", "isDefault": true },
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            },
             "dependsOn": "Build Validation"
         },
         {
             "label": "Configure Static Analysis",
             "type": "shell",
             "command": "cmake",
-            "args": ["--preset", "static-analysis"],
+            "args": [
+                "--preset",
+                "static-analysis"
+            ],
             "options": {
                 "cwd": "${workspaceFolder}",
-                "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" }
+                "env": {
+                    "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
+                }
             },
             "problemMatcher": []
         },
@@ -88,22 +132,35 @@
             "label": "Run Static Analysis",
             "type": "shell",
             "command": "cmake",
-            "args": ["--build", "--preset", "static-analysis"],
+            "args": [
+                "--build",
+                "--preset",
+                "static-analysis"
+            ],
             "options": {
                 "cwd": "${workspaceFolder}",
-                "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" }
+                "env": {
+                    "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
+                }
             },
-            "problemMatcher": ["$gcc"],
+            "problemMatcher": [
+                "$gcc"
+            ],
             "dependsOn": "Configure Static Analysis"
         },
         {
             "label": "Configure Benchmarks",
             "type": "shell",
             "command": "cmake",
-            "args": ["--preset", "benchmark"],
+            "args": [
+                "--preset",
+                "benchmark"
+            ],
             "options": {
                 "cwd": "${workspaceFolder}",
-                "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" }
+                "env": {
+                    "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
+                }
             },
             "problemMatcher": []
         },
@@ -111,12 +168,20 @@
             "label": "Build Benchmarks",
             "type": "shell",
             "command": "cmake",
-            "args": ["--build", "--preset", "benchmark"],
+            "args": [
+                "--build",
+                "--preset",
+                "benchmark"
+            ],
             "options": {
                 "cwd": "${workspaceFolder}",
-                "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" }
+                "env": {
+                    "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
+                }
             },
-            "problemMatcher": ["$gcc"],
+            "problemMatcher": [
+                "$gcc"
+            ],
             "dependsOn": "Configure Benchmarks"
         },
         {
@@ -125,7 +190,9 @@
             "command": "${workspaceFolder}\\build-benchmark\\GameWIPBenchmarks.exe",
             "options": {
                 "cwd": "${workspaceFolder}\\build-benchmark",
-                "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" }
+                "env": {
+                    "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
+                }
             },
             "problemMatcher": [],
             "dependsOn": "Build Benchmarks"
@@ -134,10 +201,15 @@
             "label": "Configure Tools",
             "type": "shell",
             "command": "cmake",
-            "args": ["--preset", "tools"],
+            "args": [
+                "--preset",
+                "tools"
+            ],
             "options": {
                 "cwd": "${workspaceFolder}",
-                "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" }
+                "env": {
+                    "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
+                }
             },
             "problemMatcher": []
         },
@@ -145,22 +217,32 @@
             "label": "Build Tools",
             "type": "shell",
             "command": "cmake",
-            "args": ["--build", "--preset", "tools"],
+            "args": [
+                "--build",
+                "--preset",
+                "tools"
+            ],
             "options": {
                 "cwd": "${workspaceFolder}",
-                "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" }
+                "env": {
+                    "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
+                }
             },
-            "problemMatcher": ["$gcc"],
+            "problemMatcher": [
+                "$gcc"
+            ],
             "dependsOn": "Configure Tools"
         },
         {
             "label": "Run Tools",
             "type": "shell",
             "command": "${workspaceFolder}\\build-tools\\GameWIP.exe",
-            "args": ["--no-manual-ui"],
+            "args": [],
             "options": {
                 "cwd": "${workspaceFolder}\\build-tools",
-                "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" }
+                "env": {
+                    "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
+                }
             },
             "problemMatcher": [],
             "dependsOn": "Build Tools"
@@ -169,10 +251,15 @@
             "label": "Configure Profiling",
             "type": "shell",
             "command": "cmake",
-            "args": ["--preset", "profiling"],
+            "args": [
+                "--preset",
+                "profiling"
+            ],
             "options": {
                 "cwd": "${workspaceFolder}",
-                "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" }
+                "env": {
+                    "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
+                }
             },
             "problemMatcher": []
         },
@@ -180,12 +267,20 @@
             "label": "Build Profiling",
             "type": "shell",
             "command": "cmake",
-            "args": ["--build", "--preset", "profiling"],
+            "args": [
+                "--build",
+                "--preset",
+                "profiling"
+            ],
             "options": {
                 "cwd": "${workspaceFolder}",
-                "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" }
+                "env": {
+                    "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
+                }
             },
-            "problemMatcher": ["$gcc"],
+            "problemMatcher": [
+                "$gcc"
+            ],
             "dependsOn": "Configure Profiling"
         },
         {
@@ -195,11 +290,13 @@
             "args": [
                 "-NoProfile",
                 "-Command",
-                "$ErrorActionPreference = 'Stop'; $profiler = '${workspaceFolder}\\.tracy\\tracy-profiler.exe'; $game = '${workspaceFolder}\\build-profiling\\GameWIP.exe'; if (!(Test-Path -LiteralPath $profiler)) { throw \"Missing Tracy profiler: $profiler\" }; if ($null -eq (Get-Process -Name 'tracy-profiler' -ErrorAction SilentlyContinue)) { Start-Process -FilePath $profiler -WorkingDirectory (Split-Path -Parent $profiler) }; & $game --no-manual-ui; exit $LASTEXITCODE"
+                "$ErrorActionPreference = 'Stop'; $profiler = '${workspaceFolder}\\.tracy\\tracy-profiler.exe'; $game = '${workspaceFolder}\\build-profiling\\GameWIP.exe'; if (!(Test-Path -LiteralPath $profiler)) { throw \"Missing Tracy profiler: $profiler\" }; if ($null -eq (Get-Process -Name 'tracy-profiler' -ErrorAction SilentlyContinue)) { Start-Process -FilePath $profiler -WorkingDirectory (Split-Path -Parent $profiler) }; & $game; exit $LASTEXITCODE"
             ],
             "options": {
                 "cwd": "${workspaceFolder}\\build-profiling",
-                "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" }
+                "env": {
+                    "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
+                }
             },
             "problemMatcher": [],
             "dependsOn": "Build Profiling"
@@ -208,10 +305,15 @@
             "label": "Configure Shipping",
             "type": "shell",
             "command": "cmake",
-            "args": ["--preset", "shipping"],
+            "args": [
+                "--preset",
+                "shipping"
+            ],
             "options": {
                 "cwd": "${workspaceFolder}",
-                "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" }
+                "env": {
+                    "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
+                }
             },
             "problemMatcher": []
         },
@@ -219,12 +321,20 @@
             "label": "Build Shipping",
             "type": "shell",
             "command": "cmake",
-            "args": ["--build", "--preset", "shipping"],
+            "args": [
+                "--build",
+                "--preset",
+                "shipping"
+            ],
             "options": {
                 "cwd": "${workspaceFolder}",
-                "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" }
+                "env": {
+                    "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
+                }
             },
-            "problemMatcher": ["$gcc"],
+            "problemMatcher": [
+                "$gcc"
+            ],
             "dependsOn": "Configure Shipping"
         },
         {
@@ -233,7 +343,9 @@
             "command": "${workspaceFolder}\\build-shipping\\GameWIP.exe",
             "options": {
                 "cwd": "${workspaceFolder}\\build-shipping",
-                "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" }
+                "env": {
+                    "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
+                }
             },
             "problemMatcher": [],
             "dependsOn": "Build Shipping"

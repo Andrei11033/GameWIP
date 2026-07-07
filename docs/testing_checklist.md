@@ -48,7 +48,8 @@ Related documents:
 - [x] Child-process routes return their exact result without recursive full-suite startup.
 - [x] Ambiguous child routes and unexpected module exceptions become explicit failed results.
 - [x] Successful automated runs retain aggregate reports and clean scoped fixtures.
-- [x] Manual UI checks are opt-in and disabled by `--no-manual-ui`.
+- [x] Manual UI and the Logger fatal popup default off and are enabled independently by `--manual-ui` and `--logger-popup`.
+- [x] Automated runner tests verify positive-option parsing, module-selection independence, module-invocation propagation, and removal of the obsolete manual options.
 
 The detailed groups below summarize library behavior coverage. Module sources and library-owned testing pages remain the authoritative contract-to-test map.
 
@@ -134,6 +135,8 @@ These sections provide milestone evidence at a finer level. They summarize behav
 
 - [x] Input mode get/set and complete prior-state restoration are verified.
 - [x] Cursor movement/position/visibility, clear, title, bell, and alternate-screen operations are verified.
+- [x] The opt-in real-console suite covers Unicode, style/color, cursor behavior, alternate-screen handling, input, and terminal-state restoration.
+- [M] Run the real-console suite in Windows Terminal with `--test-module=terminal --manual-ui` and record the observations.
 - [x] Cursor and alternate-screen scopes cover nesting, failed setup, failed restoration, explicit retry, move, and destruction.
 - [x] Per-stream concurrency and shared-runtime behavior with Logger are verified.
 
