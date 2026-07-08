@@ -8,6 +8,22 @@ namespace GameWIP::Logger::Detail::Core
 #if INTERNAL_LOGGER_TEST_HOOKS
     LoggerTestHookState loggerTestHookState;
 
+    namespace
+    {
+        /// @brief Publishes one coordination milestone and wakes atomic waiters.
+        void publishHookMilestone(std::atomic_bool &milestone) noexcept
+        {
+            milestone.store(true, std::memory_order_release);
+            milestone.notify_all();
+        }
+
+        /// @brief Blocks until one coordination milestone has been published.
+        void waitForHookMilestone(const std::atomic_bool &milestone) noexcept
+        {
+            milestone.wait(false, std::memory_order_acquire);
+        }
+    } // namespace
+
     bool consumeTestHook(std::atomic_bool &flag) noexcept
     {
         return flag.exchange(false, std::memory_order_acq_rel);
@@ -21,6 +37,40 @@ namespace GameWIP::Logger::Detail::Core
         loggerTestHookState.nextQueueAllocationFailure.store(false, std::memory_order_release);
         loggerTestHookState.nextFatalPopupFailure.store(false, std::memory_order_release);
         loggerTestHookState.nextTimedFlushTimeout.store(false, std::memory_order_release);
+        loggerTestHookState.pauseBeforeWorkerWait.store(false, std::memory_order_release);
+        loggerTestHookState.workerWaitReached.store(false, std::memory_order_release);
+        loggerTestHookState.queuePublicationReached.store(false, std::memory_order_release);
+        loggerTestHookState.releaseWorkerWait.store(false, std::memory_order_release);
+        loggerTestHookState.pauseBeforeFinalProducerLeave.store(false, std::memory_order_release);
+        loggerTestHookState.finalProducerLeaveReached.store(false, std::memory_order_release);
+        loggerTestHookState.releaseFinalProducerLeave.store(false, std::memory_order_release);
+    }
+
+    void pauseWorkerBeforeWaitForTest() noexcept
+    {
+        if (!consumeTestHook(loggerTestHookState.pauseBeforeWorkerWait))
+        {
+            return;
+        }
+
+        publishHookMilestone(loggerTestHookState.workerWaitReached);
+        waitForHookMilestone(loggerTestHookState.releaseWorkerWait);
+    }
+
+    void recordQueuePublicationForTest() noexcept
+    {
+        publishHookMilestone(loggerTestHookState.queuePublicationReached);
+    }
+
+    void pauseFinalProducerLeaveForTest() noexcept
+    {
+        if (!consumeTestHook(loggerTestHookState.pauseBeforeFinalProducerLeave))
+        {
+            return;
+        }
+
+        publishHookMilestone(loggerTestHookState.finalProducerLeaveReached);
+        waitForHookMilestone(loggerTestHookState.releaseFinalProducerLeave);
     }
 #endif
 } // namespace GameWIP::Logger::Detail::Core
@@ -63,6 +113,46 @@ namespace GameWIP::Logger::TestHooks
     void forceNextTimedFlushTimeout() noexcept
     {
         loggerTestHookState.nextTimedFlushTimeout.store(true, std::memory_order_release);
+    }
+
+    void armWorkerWaitPause() noexcept
+    {
+        loggerTestHookState.workerWaitReached.store(false, std::memory_order_release);
+        loggerTestHookState.queuePublicationReached.store(false, std::memory_order_release);
+        loggerTestHookState.releaseWorkerWait.store(false, std::memory_order_release);
+        loggerTestHookState.pauseBeforeWorkerWait.store(true, std::memory_order_release);
+    }
+
+    void waitForWorkerWaitPause() noexcept
+    {
+        waitForHookMilestone(loggerTestHookState.workerWaitReached);
+    }
+
+    void waitForQueuePublication() noexcept
+    {
+        waitForHookMilestone(loggerTestHookState.queuePublicationReached);
+    }
+
+    void releaseWorkerWaitPause() noexcept
+    {
+        publishHookMilestone(loggerTestHookState.releaseWorkerWait);
+    }
+
+    void armFinalProducerLeavePause() noexcept
+    {
+        loggerTestHookState.finalProducerLeaveReached.store(false, std::memory_order_release);
+        loggerTestHookState.releaseFinalProducerLeave.store(false, std::memory_order_release);
+        loggerTestHookState.pauseBeforeFinalProducerLeave.store(true, std::memory_order_release);
+    }
+
+    void waitForFinalProducerLeavePause() noexcept
+    {
+        waitForHookMilestone(loggerTestHookState.finalProducerLeaveReached);
+    }
+
+    void releaseFinalProducerLeavePause() noexcept
+    {
+        publishHookMilestone(loggerTestHookState.releaseFinalProducerLeave);
     }
 
 } // namespace GameWIP::Logger::TestHooks

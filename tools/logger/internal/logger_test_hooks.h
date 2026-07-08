@@ -40,5 +40,33 @@ namespace GameWIP::Logger::TestHooks
     /// @warning Test-only API. The hook is one-shot.
     GAMEWIP_LOGGER_EXPORT void forceNextTimedFlushTimeout() noexcept;
 
+    /// @brief Arms a one-shot pause after the worker observes a false wait predicate.
+    /// @warning Test-only API. The worker retains Logger's coordination mutex while paused.
+    GAMEWIP_LOGGER_EXPORT void armWorkerWaitPause() noexcept;
+
+    /// @brief Blocks until the armed worker-wait pause is reached.
+    /// @warning Test-only API. Call only from an isolated child-process scenario.
+    GAMEWIP_LOGGER_EXPORT void waitForWorkerWaitPause() noexcept;
+
+    /// @brief Blocks until a queue slot is published after hook reset or arming.
+    /// @warning Test-only API. Call only from an isolated child-process scenario.
+    GAMEWIP_LOGGER_EXPORT void waitForQueuePublication() noexcept;
+
+    /// @brief Releases a worker stopped at the validation-only wait pause.
+    /// @warning Test-only API.
+    GAMEWIP_LOGGER_EXPORT void releaseWorkerWaitPause() noexcept;
+
+    /// @brief Arms a one-shot pause before the final active producer leaves.
+    /// @warning Test-only API.
+    GAMEWIP_LOGGER_EXPORT void armFinalProducerLeavePause() noexcept;
+
+    /// @brief Blocks until the final-producer pause is reached.
+    /// @warning Test-only API. Call only from an isolated child-process scenario.
+    GAMEWIP_LOGGER_EXPORT void waitForFinalProducerLeavePause() noexcept;
+
+    /// @brief Releases a producer stopped before its active count is decremented.
+    /// @warning Test-only API.
+    GAMEWIP_LOGGER_EXPORT void releaseFinalProducerLeavePause() noexcept;
+
 } // namespace GameWIP::Logger::TestHooks
 #endif

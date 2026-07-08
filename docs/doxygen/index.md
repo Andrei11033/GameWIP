@@ -26,6 +26,7 @@ This site separates reusable library manuals from GameWIP project integration. L
 
 - @subpage project_testing
 - @subpage project_benchmarking
+- @subpage project_profiling
 - @subpage project_coverage
 - @subpage project_static_analysis
 - @subpage project_repository_automation

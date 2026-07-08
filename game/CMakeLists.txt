@@ -8,10 +8,16 @@ if(GAMEWIP_BUILD_GAME)
     target_compile_definitions(GameWIP PRIVATE
         GAMEWIP_STARTUP_TESTS_ENABLED=$<BOOL:${GAMEWIP_RUN_TESTS_AT_STARTUP}>
         GAMEWIP_STARTUP_BENCHMARKS_ENABLED=$<BOOL:${GAMEWIP_RUN_BENCHMARKS_AT_STARTUP}>
+        GAMEWIP_TRACY_ENABLED=$<BOOL:${GAMEWIP_ENABLE_TRACY}>
     )
     target_include_directories(GameWIP PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    # Runtime dependencies belong here only when game/runtime directly uses
-    # them. Startup validation modules declare and propagate their own links.
+
+    if(GAMEWIP_ENABLE_TRACY)
+        target_link_libraries(GameWIP PRIVATE
+            Tracy::TracyClient
+        )
+    endif()
+
     set_target_properties(GameWIP PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
     )

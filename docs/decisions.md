@@ -135,6 +135,8 @@ Manual dialogs, terminal interaction, and privilege-dependent scenarios are opt-
 
 Google Benchmark owns measured loops, calibration, repetitions, and statistics. Correctness tests may record diagnostic elapsed time but do not enforce machine-dependent thresholds. Benchmarks report loss/error counters when a fast result could otherwise hide dropped work.
 
+The game executable owns Tracy enablement and the profiler client. Reusable libraries remain profiler-agnostic by default, but may add private compile-time zones when a representative capture shows meaningful opaque work that needs subdivision. Tracy never appears in public library APIs or replaces a repeatable benchmark. Disabled builds retain no project-owned Tracy instrumentation or runtime dependency.
+
 ### Coverage and analysis
 
 Coverage is diagnostic evidence, not a substitute for contract-based tests and not an arbitrary percentage gate. Static analysis and formatting warnings fail the project-owned check. Third-party and generated sources remain excluded.

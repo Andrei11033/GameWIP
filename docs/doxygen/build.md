@@ -1,6 +1,6 @@
 @page project_build Build configurations
 
-GameWIP requires CMake 3.23 or newer, C++23, Ninja, and the MSYS2 UCRT64 GCC toolchain on Windows. The static-analysis preset uses UCRT64 Clang so clang-tidy receives a compatible compile database. Initialize submodules before configuring:
+GameWIP requires CMake 3.23 or newer, C++23, Ninja, and the MSYS2 UCRT64 GCC toolchain on Windows. The static-analysis preset uses UCRT64 Clang so clang-tidy receives a compatible compile database. The address-sanitizer preset uses the separate MSYS2 CLANG64 environment because its compiler runtime provides Windows AddressSanitizer. Initialize submodules before configuring:
 
 ```powershell
 git submodule update --init --recursive
@@ -25,10 +25,22 @@ Available modes:
 | `optimized` | Optimized game with symbols and no validation. |
 | `shipping` | Stripped Release game without validation or assertions. |
 | `coverage` | Debug correctness tests with coverage instrumentation. |
+| `address-sanitizer` | Debug correctness tests instrumented with CLANG64 AddressSanitizer. |
 | `docs` | Doxygen target without game or validation executables. |
 | `static-analysis` | clang-tidy and clang-format checks for maintained C++ sources. |
 
 Build directories are named `build-<preset>`.
+
+The `address-sanitizer` preset uses CLANG64 because the UCRT64 GCC and Clang packages do not provide the Windows AddressSanitizer runtime. CLANG64 still targets UCRT, but uses LLVM, LLD, and libc++. Keep its build directory separate from UCRT64 builds and place the CLANG64 tools first on `PATH` when configuring, building, and testing:
+
+```powershell
+$env:PATH = "C:\MSYS2\clang64\bin;$env:PATH"
+cmake --preset address-sanitizer
+cmake --build --preset address-sanitizer
+ctest --preset address-sanitizer
+```
+
+See @ref project_profiling for the Tracy workflow, marker policy, and disabled-build contract.
 
 ## Project options
 
@@ -42,6 +54,7 @@ Validation options are documented under @ref project_validation. Other important
 - `GAMEWIP_ENABLE_TOOLS`
 - `GAMEWIP_OPEN_TOOLS_AT_STARTUP`
 - `GAMEWIP_ENABLE_COVERAGE`
+- `GAMEWIP_ENABLE_ADDRESS_SANITIZER`
 - `GAMEWIP_BUILD_DOCS`
 - `GAMEWIP_INSTALL_DOCS`
 - `GAMEWIP_ENABLE_STATIC_ANALYSIS`
@@ -50,6 +63,6 @@ The root CMake file orchestrates major directories. `external`, `foundation`, `t
 
 ## Runtime dependencies
 
-Every project executable uses the shared runtime-dependency helper. It scans the built executable and copies matching UCRT64 runtime DLLs beside it, avoiding accidental use of incompatible `mingw64` DLLs earlier on `PATH`.
+Every project executable uses the shared runtime-dependency helper. It derives the runtime search directory from the selected C++ compiler and copies matching runtime DLLs beside the executable, avoiding ABI mixing between MSYS2 environments.
 
 See @ref project_library_compatibility for installed package names, canonical imported targets, and ABI policy.

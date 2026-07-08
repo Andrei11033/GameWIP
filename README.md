@@ -7,6 +7,7 @@ The repository currently emphasizes reusable foundation libraries, Windows platf
 ## Toolchain
 
 - Windows and MSYS2 UCRT64 GCC
+- MSYS2 CLANG64 for AddressSanitizer validation
 - CMake 3.23 or newer
 - Ninja
 - Git submodules
@@ -49,6 +50,15 @@ cmake --preset static-analysis
 cmake --build --preset static-analysis
 ```
 
+Run correctness tests under AddressSanitizer with the separate CLANG64 environment:
+
+```powershell
+$env:PATH = "C:\MSYS2\clang64\bin;$env:PATH"
+cmake --preset address-sanitizer
+cmake --build --preset address-sanitizer
+ctest --preset address-sanitizer
+```
+
 Run one correctness module:
 
 ```powershell
@@ -64,6 +74,19 @@ cmake --preset benchmark
 cmake --build --preset benchmark
 .\build-benchmark\GameWIPBenchmarks.exe --benchmark_repetitions=5
 ```
+
+## Profiling
+
+The profiling preset enables game-owned Tracy instrumentation. Start the pinned profiler before launching the game, then connect to the discovered local client:
+
+```powershell
+cmake --preset profiling
+cmake --build --preset profiling
+Start-Process .\.tracy\tracy-profiler.exe
+.\build-profiling\GameWIP.exe
+```
+
+The initial capture names the main thread and separates startup validation, startup benchmarks, and game runtime. See the generated profiling guide for marker ownership and zero-overhead disabled-build rules.
 
 ## Shipping
 

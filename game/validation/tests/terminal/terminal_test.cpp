@@ -146,7 +146,7 @@ namespace
         TestSupport::Types::ChildProcessOptions child;
         child.executablePath = std::filesystem::path(executablePath);
         child.arguments = {std::string(kReentrantFormatChildArgument)};
-        child.timeout = std::chrono::milliseconds{2000};
+        child.timeout = std::chrono::milliseconds{5000};
         child.captureOutput = true;
 
         const TestSupport::Types::ChildProcessResult result = TestSupport::runChildProcess(child);
@@ -218,48 +218,153 @@ namespace
             "Does the preceding Unicode line show accented text, Greek, Japanese, and an emoji without replacement characters?");
     }
 
-    /// @brief Displays basic, RGB, and decorated text followed by restored default styling.
-    void testManualStyleOutput(TestSupport::Context &context, const Terminal::Types::OutputCapabilities &capabilities)
+    /// @brief Displays portable basic colors and verifies that they remain visually distinct.
+    void testManualBasicColorOutput(TestSupport::Context &context, const Terminal::Types::StyleCapabilities &capabilities)
     {
-        if (!capabilities.style.basicColor || !capabilities.style.rgbColor || !capabilities.style.bold || !capabilities.style.underline)
+        if (!capabilities.basicColor)
         {
-            context.skip("manual style and color output", "the terminal does not report the required color and style capabilities");
+            context.skip("manual basic-color output", "the terminal does not report basic-color support");
             return;
         }
 
-        Terminal::Types::LineWriteOptions basicOptions;
-        basicOptions.styleMode = Terminal::Types::StyleMode::Required;
-        basicOptions.style.foreground = Terminal::basicColor(Terminal::Types::BasicColor::BrightRed);
-        basicOptions.style.bold = true;
+        Terminal::Types::LineWriteOptions redOptions;
+        redOptions.styleMode = Terminal::Types::StyleMode::Required;
+        redOptions.style.foreground = Terminal::basicColor(Terminal::Types::BasicColor::BrightRed);
 
-        Terminal::Types::LineWriteOptions rgbOptions;
-        rgbOptions.styleMode = Terminal::Types::StyleMode::Required;
-        rgbOptions.style.foreground = Terminal::rgbColor(40, 210, 120);
-        rgbOptions.style.underline = true;
+        Terminal::Types::LineWriteOptions greenOptions;
+        greenOptions.styleMode = Terminal::Types::StyleMode::Required;
+        greenOptions.style.foreground = Terminal::basicColor(Terminal::Types::BasicColor::BrightGreen);
+
+        Terminal::Types::LineWriteOptions blueOptions;
+        blueOptions.styleMode = Terminal::Types::StyleMode::Required;
+        blueOptions.style.foreground = Terminal::basicColor(Terminal::Types::BasicColor::BrightBlue);
 
         if (!requireManualOperation(
                 context,
-                "manual style and color output",
-                "basic styled writeLine",
-                Terminal::writeLine("Style: bright red and bold", basicOptions)) ||
+                "manual basic-color output",
+                "red basic-color writeLine",
+                Terminal::writeLine("Basic color: bright red", redOptions)) ||
             !requireManualOperation(
                 context,
-                "manual style and color output",
-                "RGB styled writeLine",
-                Terminal::writeLine("Style: green RGB and underlined", rgbOptions)) ||
+                "manual basic-color output",
+                "green basic-color writeLine",
+                Terminal::writeLine("Basic color: bright green", greenOptions)) ||
             !requireManualOperation(
                 context,
-                "manual style and color output",
-                "default-style writeLine",
-                Terminal::writeLine("Style: terminal defaults restored")))
+                "manual basic-color output",
+                "blue basic-color writeLine",
+                Terminal::writeLine("Basic color: bright blue", blueOptions)))
         {
             return;
         }
 
         recordManualCheck(
             context,
-            "manual style and color output",
-            "Were the first two style lines distinct as described, with the final line restored to the terminal defaults?");
+            "manual basic-color output",
+            "Are the preceding basic-color lines visibly red, green, and blue according to the terminal palette?");
+    }
+
+    /// @brief Displays an RGB color when the terminal can honor exact RGB requests.
+    void testManualRgbColorOutput(TestSupport::Context &context, const Terminal::Types::StyleCapabilities &capabilities)
+    {
+        if (!capabilities.rgbColor)
+        {
+            context.skip("manual RGB-color output", "the terminal does not report RGB-color support");
+            return;
+        }
+
+        Terminal::Types::LineWriteOptions rgbOptions;
+        rgbOptions.styleMode = Terminal::Types::StyleMode::Required;
+        rgbOptions.style.foreground = Terminal::rgbColor(40, 210, 120);
+
+        if (!requireManualOperation(
+                context,
+                "manual RGB-color output",
+                "RGB styled writeLine",
+                Terminal::writeLine("RGB color: red=40 green=210 blue=120", rgbOptions)))
+        {
+            return;
+        }
+
+        recordManualCheck(context, "manual RGB-color output", "Does the preceding RGB line appear as the requested vivid green color?");
+    }
+
+    /// @brief Displays each text attribute independently when the terminal advertises it.
+    void testManualTextStyles(TestSupport::Context &context, const Terminal::Types::StyleCapabilities &capabilities)
+    {
+        bool wroteAttribute = false;
+        const auto testAttribute = [&](std::string_view label, bool supported, bool Terminal::Types::TextStyle::*attribute) -> bool
+        {
+            const std::string name = std::format("manual {} text style", label);
+            if (!supported)
+            {
+                context.skip(name, "the terminal does not report this text-style capability");
+                return true;
+            }
+
+            Terminal::Types::LineWriteOptions options;
+            options.styleMode = Terminal::Types::StyleMode::Required;
+            options.style.*attribute = true;
+            wroteAttribute = true;
+            return requireManualOperation(
+                context,
+                name,
+                std::format("{} styled writeLine", label),
+                Terminal::writeLine(std::format("Text style: {}", label), options));
+        };
+
+        if (!testAttribute("bold", capabilities.bold, &Terminal::Types::TextStyle::bold) ||
+            !testAttribute("dim", capabilities.dim, &Terminal::Types::TextStyle::dim) ||
+            !testAttribute("italic", capabilities.italic, &Terminal::Types::TextStyle::italic) ||
+            !testAttribute("underline", capabilities.underline, &Terminal::Types::TextStyle::underline) ||
+            !testAttribute("inverse", capabilities.inverse, &Terminal::Types::TextStyle::inverse) ||
+            !testAttribute("strikethrough", capabilities.strikethrough, &Terminal::Types::TextStyle::strikethrough))
+        {
+            return;
+        }
+
+        if (!wroteAttribute)
+        {
+            context.skip("manual text styles", "the terminal does not report any text-style capability");
+            return;
+        }
+
+        recordManualCheck(context, "manual text styles", "Did each displayed text-style line visibly match its label?");
+    }
+
+    /// @brief Verifies that a styled write does not leak state into the following plain write.
+    void testManualStyleRestoration(TestSupport::Context &context, const Terminal::Types::StyleCapabilities &capabilities)
+    {
+        if (!capabilities.basicColor)
+        {
+            context.skip("manual style restoration", "the terminal does not report basic-color support");
+            return;
+        }
+
+        Terminal::Types::LineWriteOptions styledOptions;
+        styledOptions.styleMode = Terminal::Types::StyleMode::Required;
+        styledOptions.style.foreground = Terminal::basicColor(Terminal::Types::BasicColor::BrightMagenta);
+        styledOptions.style.bold = capabilities.bold;
+        styledOptions.style.underline = capabilities.underline;
+
+        if (!requireManualOperation(
+                context,
+                "manual style restoration",
+                "styled writeLine",
+                Terminal::writeLine("Style restoration: styled magenta line", styledOptions)) ||
+            !requireManualOperation(
+                context,
+                "manual style restoration",
+                "plain writeLine",
+                Terminal::writeLine("Style restoration: terminal defaults restored")))
+        {
+            return;
+        }
+
+        recordManualCheck(
+            context,
+            "manual style restoration",
+            "Is only the first restoration line styled, with the second line using the terminal defaults?");
     }
 
     /// @brief Verifies visible cursor save/restore behavior without changing the final cursor position.
@@ -275,8 +380,8 @@ namespace
             !requireManualOperation(
                 context,
                 "manual cursor behavior",
-                "placeholder writeLine",
-                Terminal::writeLine("Cursor: this placeholder should be replaced                 ")) ||
+                "placeholder writeText",
+                Terminal::writeText("Cursor: this placeholder should be replaced                 ")) ||
             !requireManualOperation(context, "manual cursor behavior", "restoreCursorPosition", Terminal::restoreCursorPosition()) ||
             !requireManualOperation(
                 context,
@@ -486,7 +591,10 @@ namespace
 
         context.manual("Terminal UI checks: verify each observation and answer yes, no, or skip when prompted.");
         testManualUnicodeOutput(context);
-        testManualStyleOutput(context, output.capabilities);
+        testManualBasicColorOutput(context, output.capabilities.style);
+        testManualRgbColorOutput(context, output.capabilities.style);
+        testManualTextStyles(context, output.capabilities.style);
+        testManualStyleRestoration(context, output.capabilities.style);
         testManualCursorBehavior(context, output.capabilities);
         testManualAlternateScreen(context, output.capabilities);
         testManualInput(context);

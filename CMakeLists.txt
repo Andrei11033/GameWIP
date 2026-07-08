@@ -14,6 +14,7 @@ include(LibraryPlatform)
 include(GameWIPRuntimeDependencies)
 include(GameWIPValidationModules)
 include(GameWIPCoverage)
+include(GameWIPSanitizers)
 include(GameWIPDocumentation)
 include(GameWIPStaticAnalysis)
 

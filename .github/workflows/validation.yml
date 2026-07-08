@@ -153,6 +153,40 @@ jobs:
           name: coverage-report
           path: build-coverage/coverage
 
+  address-sanitizer:
+    name: AddressSanitizer
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install CLANG64 tools
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: CLANG64
+          update: true
+          install: >-
+            mingw-w64-clang-x86_64-cmake
+            mingw-w64-clang-x86_64-clang
+            mingw-w64-clang-x86_64-compiler-rt
+            mingw-w64-clang-x86_64-lld
+            mingw-w64-clang-x86_64-ninja
+
+      - name: Configure
+        shell: msys2 {0}
+        run: cmake --preset address-sanitizer
+
+      - name: Build
+        shell: msys2 {0}
+        run: cmake --build --preset address-sanitizer --parallel
+
+      - name: Test
+        shell: msys2 {0}
+        run: ctest --preset address-sanitizer
+
   docs-check:
     name: Docs Check
     runs-on: windows-latest

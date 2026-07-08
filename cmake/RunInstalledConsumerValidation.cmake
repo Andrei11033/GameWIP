@@ -10,6 +10,7 @@ foreach(required_variable IN ITEMS
         MULTI_CONFIG
         CXX_COMPILER
         COVERAGE_ENABLED
+        ADDRESS_SANITIZER_ENABLED
         EXECUTABLE_SUFFIX)
     if(NOT DEFINED ${required_variable})
         message(FATAL_ERROR "${required_variable} is required for installed-consumer validation.")
@@ -67,6 +68,7 @@ execute_process(
         "-DCMAKE_PREFIX_PATH=${INSTALL_PREFIX}"
         "-DGAMEWIP_PACKAGE_VERSION=${PACKAGE_VERSION}"
         "-DGAMEWIP_CONSUMER_LINK_COVERAGE=${COVERAGE_ENABLED}"
+        "-DGAMEWIP_CONSUMER_ENABLE_ADDRESS_SANITIZER=${ADDRESS_SANITIZER_ENABLED}"
     RESULT_VARIABLE configure_result
     OUTPUT_VARIABLE configure_output
     ERROR_VARIABLE configure_error

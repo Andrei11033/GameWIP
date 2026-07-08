@@ -11,6 +11,7 @@
         "GAMEWIP_ENABLE_TOOLS": "OFF",
         "GAMEWIP_OPEN_TOOLS_AT_STARTUP": "OFF",
         "GAMEWIP_ENABLE_COVERAGE": "OFF",
+        "GAMEWIP_ENABLE_ADDRESS_SANITIZER": "OFF",
         "GAMEWIP_ENABLE_STATIC_ANALYSIS": "OFF",
         "GAMEWIP_BUILD_DOCS": "OFF",
         "GAMEWIP_INSTALL_DOCS": "OFF"
@@ -125,6 +126,17 @@
       }
     },
     {
+      "name": "address-sanitizer",
+      "displayName": "AddressSanitizer validation",
+      "inherits": "validation",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_CXX_COMPILER": "clang++",
+        "GAMEWIP_BUILD_BENCHMARKS": "OFF",
+        "GAMEWIP_ENABLE_ADDRESS_SANITIZER": "ON"
+      }
+    },
+    {
       "name": "static-analysis",
       "displayName": "Repository static analysis",
       "inherits": "validation",
@@ -157,6 +169,7 @@
     { "name": "optimized", "configurePreset": "optimized", "targets": ["GameWIP"] },
     { "name": "shipping", "configurePreset": "shipping", "targets": ["GameWIP"] },
     { "name": "coverage", "configurePreset": "coverage" },
+    { "name": "address-sanitizer", "configurePreset": "address-sanitizer" },
     { "name": "static-analysis", "configurePreset": "static-analysis", "targets": ["static-analysis"] },
     { "name": "docs", "configurePreset": "docs", "targets": ["docs"] }
   ],
@@ -169,6 +182,11 @@
     {
       "name": "coverage",
       "configurePreset": "coverage",
+      "output": { "outputOnFailure": true }
+    },
+    {
+      "name": "address-sanitizer",
+      "configurePreset": "address-sanitizer",
       "output": { "outputOnFailure": true }
     }
   ]

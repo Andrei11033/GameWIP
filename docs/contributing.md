@@ -152,6 +152,7 @@ The `Validation` workflow runs on pull requests into `master`, pushes to `master
 It performs:
 
 - An MSYS2 UCRT64 configure/build pass with modular correctness tests and internal test hooks enabled
+- An MSYS2 CLANG64 AddressSanitizer configure/build/test pass
 - A Google Benchmark registration dry run without performance thresholds
 - A Doxygen docs build with `GAMEWIP_BUILD_DOCS=ON`
 - A Doxygen warning-log check
@@ -165,6 +166,7 @@ Branch protection for `master` must require:
 ```text
 PR Standards / Check PR Standards
 Validation / Build and Test
+Validation / AddressSanitizer
 Validation / Repository Checks
 Validation / Docs Check
 ```

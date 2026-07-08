@@ -547,6 +547,31 @@ namespace GameWIP::Logger::Detail::Core
         SourceId directSourceBase = 0;
     };
 
+#if defined(__cpp_lib_atomic_shared_ptr) && __cpp_lib_atomic_shared_ptr >= 201711L
+    template <typename Value> using AtomicSharedPointer = std::atomic<std::shared_ptr<Value>>;
+#else
+    template <typename Value> class AtomicSharedPointer
+    {
+    public:
+        AtomicSharedPointer() = default;
+        AtomicSharedPointer(const AtomicSharedPointer &) = delete;
+        AtomicSharedPointer &operator=(const AtomicSharedPointer &) = delete;
+
+        [[nodiscard]] std::shared_ptr<Value> load(std::memory_order order) const
+        {
+            return std::atomic_load_explicit(&value_, order);
+        }
+
+        void store(std::shared_ptr<Value> value, std::memory_order order)
+        {
+            std::atomic_store_explicit(&value_, std::move(value), order);
+        }
+
+    private:
+        std::shared_ptr<Value> value_;
+    };
+#endif
+
     /// @brief Cached formatted local time for one second.
     struct TimestampCache
     {
@@ -643,7 +668,7 @@ namespace GameWIP::Logger::Detail::Core
         /// @brief Current file sink path.
         FilePath logFilePath;
         /// @brief Atomically published registered source table used by registered source hot paths.
-        std::atomic<std::shared_ptr<SourceRegistry>> sourceRegistry;
+        AtomicSharedPointer<SourceRegistry> sourceRegistry;
         /// @brief Uninitialized arena bytes backing message storage for logRing.
         std::unique_ptr<char[]> ringMessageArena;
         /// @brief Uninitialized arena bytes backing message storage for workerBatch.
@@ -707,6 +732,11 @@ namespace GameWIP::Logger::Detail::Core
     /// @brief Returns the process-lifetime Logger state shared by all core translation units.
     LoggerState &loggerState();
 
+#if INTERNAL_LOGGER_TEST_HOOKS
+    /// @brief Pauses the final active producer at the validation-only shutdown race gate.
+    void pauseFinalProducerLeaveForTest() noexcept;
+#endif
+
     /// @brief Marks one producer as active while it may reserve or publish a queue slot.
     struct ProducerActivity
     {
@@ -745,8 +775,12 @@ namespace GameWIP::Logger::Detail::Core
             }
 
             active = false;
+#if INTERNAL_LOGGER_TEST_HOOKS
+            pauseFinalProducerLeaveForTest();
+#endif
             if (loggerState().activeProducers.fetch_sub(1, std::memory_order_acq_rel) == 1)
             {
+                std::lock_guard<std::mutex> lock(loggerState().logMutex);
                 loggerState().logCondition.notify_all();
             }
         }
@@ -815,6 +849,13 @@ namespace GameWIP::Logger::Detail::Core
         std::atomic_bool nextQueueAllocationFailure{false};
         std::atomic_bool nextFatalPopupFailure{false};
         std::atomic_bool nextTimedFlushTimeout{false};
+        std::atomic_bool pauseBeforeWorkerWait{false};
+        std::atomic_bool workerWaitReached{false};
+        std::atomic_bool queuePublicationReached{false};
+        std::atomic_bool releaseWorkerWait{false};
+        std::atomic_bool pauseBeforeFinalProducerLeave{false};
+        std::atomic_bool finalProducerLeaveReached{false};
+        std::atomic_bool releaseFinalProducerLeave{false};
     };
     /// @brief Shared test-hook state consumed by core and platform wrappers.
     extern LoggerTestHookState loggerTestHookState;
@@ -822,6 +863,10 @@ namespace GameWIP::Logger::Detail::Core
     bool consumeTestHook(std::atomic_bool &flag) noexcept;
     /// @brief Clears every failure flag and persistent override.
     void resetLoggerTestHooks() noexcept;
+    /// @brief Pauses an armed worker after its wait predicate observes no work.
+    void pauseWorkerBeforeWaitForTest() noexcept;
+    /// @brief Records queue publication for deterministic worker-wakeup coordination.
+    void recordQueuePublicationForTest() noexcept;
     /// @brief Returns the deterministic structured error for forced file failures.
     PlatformError forcedFileError() noexcept;
     /// @brief Returns the deterministic structured error for forced popup failures.

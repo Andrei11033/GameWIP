@@ -35,6 +35,7 @@ Related documents:
 - [x] The `benchmark` preset builds optimized benchmark targets.
 - [x] The `docs` preset builds documentation without requiring the game executable.
 - [x] The `static-analysis` preset configures with UCRT64 Clang.
+- [x] The `address-sanitizer` preset configures with MSYS2 CLANG64 and passes every registered project test under AddressSanitizer.
 - [x] Preset and workspace JSON parse successfully.
 
 ### Correctness and runtime integration
@@ -288,7 +289,7 @@ These sections provide milestone evidence at a finer level. They summarize behav
 
 - [M] Win32 manual dialogs and terminal interactions are checked when their owning library changes.
 - [M] Symlink creation and symlink-policy scenarios require a Windows account with Developer Mode or create-symbolic-link privilege; a skip must be recorded when unavailable.
-- [M] Tracy connection and profiling UI are checked when profiling integration changes.
+- [M] Tracy connection and profiling UI are checked when profiling integration changes; the capture must show `GameWIP Main`, `GameWIP process`, `Startup validation`, `Startup benchmarks`, and `Game runtime` without test-owned Tracy zones.
 - [M] Runtime DLL origin is inspected when the UCRT64 toolchain or dependency-copy helper changes.
 
 ### External GitHub configuration
@@ -316,6 +317,11 @@ cmake --build --preset docs
 
 cmake --preset shipping
 cmake --build --preset shipping
+
+$env:PATH = "C:\MSYS2\clang64\bin;$env:PATH"
+cmake --preset address-sanitizer
+cmake --build --preset address-sanitizer
+ctest --preset address-sanitizer --output-on-failure
 ```
 
 Also run the repository checks documented in `docs/doxygen/static_analysis.md`. Record exact commands, results, environment-dependent skips, and manual observations in the pull request.

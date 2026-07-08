@@ -825,7 +825,7 @@ namespace GameWIP::Terminal
         void release() noexcept;
 
     private:
-        friend InputModeScope scopedInputMode(Types::InputStream stream, const Types::InputMode &mode) noexcept;
+        friend GAMEWIP_TERMINAL_EXPORT InputModeScope scopedInputMode(Types::InputStream stream, const Types::InputMode &mode) noexcept;
 
         Types::InputStream stream_ = Types::InputStream::Stdin;
         Types::InputMode previousMode_{};
@@ -864,7 +864,8 @@ namespace GameWIP::Terminal
         [[nodiscard]] IO::Types::Status leave() noexcept;
 
     private:
-        friend AlternateScreenScope scopedAlternateScreen(Types::OutputStream stream, const Types::ControlOptions &options) noexcept;
+        friend GAMEWIP_TERMINAL_EXPORT AlternateScreenScope
+        scopedAlternateScreen(Types::OutputStream stream, const Types::ControlOptions &options) noexcept;
 
         Types::OutputStream stream_ = Types::OutputStream::Stdout;
         Types::ControlOptions options_{};
@@ -901,7 +902,8 @@ namespace GameWIP::Terminal
         [[nodiscard]] IO::Types::Status restore() noexcept;
 
     private:
-        friend CursorHiddenScope scopedCursorHidden(Types::OutputStream stream, const Types::ControlOptions &options) noexcept;
+        friend GAMEWIP_TERMINAL_EXPORT CursorHiddenScope
+        scopedCursorHidden(Types::OutputStream stream, const Types::ControlOptions &options) noexcept;
 
         Types::OutputStream stream_ = Types::OutputStream::Stdout;
         Types::ControlOptions options_{};

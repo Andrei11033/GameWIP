@@ -454,7 +454,7 @@ namespace GameWIP::Terminal::Detail::Platform
 
             try
             {
-                outText.__resize_and_overwrite(
+                outText.resize_and_overwrite(
                     text.size(),
                     [&text, sourceLength, flags, &wideLength, &conversionError](wchar_t *destination, std::size_t) noexcept
                     {

@@ -249,6 +249,9 @@ namespace GameWIP::Logger::Detail::Core
         slot.sequence.store(ticket + 1, std::memory_order_release);
         const bool firstPublishedSlot = loggerState().publishedQueueDepth.fetch_add(1, std::memory_order_acq_rel) == 0;
         outNotifyWorker = firstPublishedSlot || ticket == loggerState().dequeueTicket.load(std::memory_order_acquire);
+#if INTERNAL_LOGGER_TEST_HOOKS
+        recordQueuePublicationForTest();
+#endif
     }
 
     /// @brief Publishes one pending entry into a reserved MPSC ring slot.
@@ -364,9 +367,16 @@ namespace GameWIP::Logger::Detail::Core
                     lock,
                     []
                     {
-                        return queueHeadIsPublished() ||
-                               (!loggerState().workerRunning && loggerState().activeProducers.load(std::memory_order_acquire) == 0 &&
-                                loggerState().queueDepth.load(std::memory_order_acquire) == 0);
+                        const bool ready = queueHeadIsPublished() ||
+                                           (!loggerState().workerRunning && loggerState().activeProducers.load(std::memory_order_acquire) == 0 &&
+                                            loggerState().queueDepth.load(std::memory_order_acquire) == 0);
+#if INTERNAL_LOGGER_TEST_HOOKS
+                        if (!ready)
+                        {
+                            pauseWorkerBeforeWaitForTest();
+                        }
+#endif
+                        return ready;
                     });
 
                 if (loggerState().publishedQueueDepth.load(std::memory_order_acquire) == 0 &&
@@ -576,7 +586,8 @@ namespace GameWIP::Logger::Detail::Core
 
         if (enqueueResult.notifyWorker)
         {
-            loggerState().logCondition.notify_one();
+            std::lock_guard<std::mutex> lock(loggerState().logMutex);
+            loggerState().logCondition.notify_all();
         }
 
         return enqueueResult;

@@ -22,7 +22,4 @@ target_link_libraries(Window PUBLIC
     Input
 )
 
-target_link_libraries(Window PRIVATE
-    shell32
-    Tracy::TracyClient
-)
+target_link_libraries(Window PRIVATE shell32)

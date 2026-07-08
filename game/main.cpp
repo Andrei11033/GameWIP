@@ -4,11 +4,26 @@
 #include "runtime/game.h"
 #include "validation/validation.h"
 
+#if GAMEWIP_TRACY_ENABLED
+#include <tracy/Tracy.hpp>
+#endif
+
 #include <cstdlib>
 
 int main(int argc, char **argv)
 {
-    const GameWIP::Validation::TestResult tests = GameWIP::Validation::runTests(argc, argv);
+#if GAMEWIP_TRACY_ENABLED
+    tracy::SetThreadName("GameWIP Main");
+    ZoneScopedN("GameWIP process");
+#endif
+
+    GameWIP::Validation::TestResult tests;
+    {
+#if GAMEWIP_TRACY_ENABLED
+        ZoneScopedN("Startup validation");
+#endif
+        tests = GameWIP::Validation::runTests(argc, argv);
+    }
     if (tests.handledChildInvocation)
     {
         return tests.exitCode;
@@ -18,7 +33,13 @@ int main(int argc, char **argv)
         return tests.exitCode == 0 ? EXIT_FAILURE : tests.exitCode;
     }
 
-    const GameWIP::Validation::BenchmarkResult benchmarks = GameWIP::Validation::runBenchmarks(argc, argv);
+    GameWIP::Validation::BenchmarkResult benchmarks;
+    {
+#if GAMEWIP_TRACY_ENABLED
+        ZoneScopedN("Startup benchmarks");
+#endif
+        benchmarks = GameWIP::Validation::runBenchmarks(argc, argv);
+    }
     if (!benchmarks.ok())
     {
         return EXIT_FAILURE;
