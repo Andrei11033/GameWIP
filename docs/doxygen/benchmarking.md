@@ -1,8 +1,16 @@
 @page project_benchmarking Benchmarking
 
-Google Benchmark owns performance iteration, calibration, timing, repetitions, and statistics. TestSupport remains responsible only for correctness-test reporting and diagnostic elapsed durations.
+GameWIP uses Google Benchmark for performance measurement. Google Benchmark owns iteration, calibration, timing, repetitions, and statistics.
 
-## Build and run
+## Scope
+
+This page documents benchmark build commands, module structure, measurement rules, current scenarios, output expectations, and review requirements.
+
+Benchmarks are not correctness tests and do not set merge-gating performance thresholds. Correctness behavior must be covered by @ref project_testing before performance coverage is added.
+
+## Common workflow
+
+Build and run optimized benchmarks:
 
 ```powershell
 cmake --preset benchmark
@@ -10,7 +18,25 @@ cmake --build --preset benchmark
 .\build\benchmark\GameWIPBenchmarks.exe
 ```
 
-Run a focused family and save JSON:
+Validate registration without collecting meaningful timings:
+
+```powershell
+.\build\benchmark\GameWIPBenchmarks.exe --benchmark_dry_run
+```
+
+CI performs registration dry runs only. Machine-dependent timing values are not merge gates.
+
+## Commands
+
+### Run a focused benchmark family
+
+```powershell
+.\build\benchmark\GameWIPBenchmarks.exe --benchmark_filter=BM_Logger
+```
+
+Use this while developing or investigating one subsystem.
+
+### Run repetitions and save JSON
 
 ```powershell
 .\build\benchmark\GameWIPBenchmarks.exe `
@@ -20,54 +46,97 @@ Run a focused family and save JSON:
   --benchmark_out_format=json
 ```
 
-Validate registration without collecting meaningful timings:
+Use JSON output when comparing results or attaching evidence to an issue.
+
+### Dry-run benchmark registration
 
 ```powershell
 .\build\benchmark\GameWIPBenchmarks.exe --benchmark_dry_run
 ```
 
-CI performs only a dry run. Machine-dependent timing values are not merge gates.
+Use this in CI and after adding a module to verify registration and setup without relying on machine timing.
 
 ## Module standard
 
-Each module lives under `game/validation/benchmarks/<module>` and explicitly registers its sources and dependencies:
+Each benchmark module lives under:
+
+```text
+game/validation/benchmarks/<module>/
+  CMakeLists.txt
+  <module>_benchmark.cpp
+```
+
+Register sources and dependencies with:
 
 ```cmake
 gamewip_add_benchmark_module(
     NAME logger
-    SOURCES logger_benchmark.cpp
-    LINK_LIBRARIES Logger
+    SOURCES
+        logger_benchmark.cpp
+    LINK_LIBRARIES
+        Logger
 )
 ```
 
-Benchmark functions use `BM_<Module>_<Scenario>` names. Keep correctness setup checks minimal and use `SkipWithError()` for external setup failures.
+Benchmark functions should use `BM_<Module>_<Scenario>` names.
 
 ## Measurement rules
 
-- Build meaningful benchmark results with the `benchmark` Release preset.
+Benchmarks must:
+
+- Use the `benchmark` Release preset for meaningful measurements.
 - Let Google Benchmark control the iteration loop.
-- Use fixtures or setup/teardown callbacks for resources outside the measured loop.
-- Use `DoNotOptimize()` and `ClobberMemory()` only where optimizer removal would invalidate the scenario.
+- Keep setup and teardown outside the measured loop when possible.
+- Use fixtures or setup callbacks for reusable resources.
+- Use `DoNotOptimize()` and `ClobberMemory()` only when optimizer removal would invalidate the scenario.
 - State whether the scenario represents main-thread CPU, process CPU, or real elapsed time.
 - Use `UseRealTime()` for asynchronous user-visible producer latency.
-- Flush asynchronous work and record drop/error counters during teardown.
-- Do not mix correctness assertions or pass/fail thresholds into benchmark results.
-- Keep inputs stable enough for comparisons and record command-line options with saved output.
+- Flush asynchronous work and record drop or error counters during teardown.
+- Avoid correctness assertions based on machine-dependent timing.
+- Avoid pass/fail thresholds on elapsed time.
+- Keep benchmark inputs stable enough for comparisons.
+- Record command-line options with saved benchmark output.
 
-Assert benchmarks cover passing macro paths. Logger benchmarks cover disabled output, filtered formatted calls, and enabled asynchronous file output while reporting queue counters.
+Use `SkipWithError()` for external setup failures that prevent measurement.
 
 ## Current scenarios
 
-| Benchmark | Measured path | Timing |
-| --- | --- | --- |
-| `BM_Assert_Passing` | Enabled passing `ASSERT`. | Default Google Benchmark CPU time. |
-| `BM_Check_Passing` | Passing recoverable `CHECK`. | Default CPU time. |
-| `BM_Verify_Passing` | Passing always-evaluated `VERIFY`. | Default CPU time. |
-| `BM_AssertInteractive_Passing` | Passing interactive assertion without UI. | Default CPU time. |
-| `BM_VerifyInteractive_Passing` | Passing always-evaluated interactive verification. | Default CPU time. |
-| `BM_Ensure_Passing` | Passing `ENSURE`, including its observable boolean result. | Default CPU time. |
-| `BM_Logger_OutputDisabled` | Logger producer call while output is disabled. | Real elapsed time. |
-| `BM_Logger_FilteredFormatted` | Formatted producer call rejected by the severity filter. | Real elapsed time. |
-| `BM_Logger_EnabledFile` | Accepted asynchronous file producer call. | Real elapsed time. |
+| Benchmark family | Purpose |
+| --- | --- |
+| `BM_Assert_*` | Measures passing assertion and check macro paths. |
+| `BM_Logger_*` | Measures disabled output, filtered formatted calls, and enabled asynchronous file output. |
 
-The Logger fixture initializes before measurement and flushes, records counters, shuts down, and removes its temporary workspace after measurement. `queued`, `written`, `queue_drops`, and `peak_queue` counters must be reviewed with timing output: a fast run that dropped work is not equivalent to a run that accepted and wrote it.
+Logger benchmarks should report relevant queue, drop, and flush counters so a fast result cannot hide lost work.
+
+## Outputs and artifacts
+
+Google Benchmark console output is suitable for local inspection. Use JSON output for retained evidence or comparison.
+
+Benchmark artifacts should not be written into source directories. Store retained results in an explicit analysis location, issue attachment, or build artifact.
+
+## Failure behavior
+
+| Symptom | Likely cause | Action |
+| --- | --- | --- |
+| A benchmark is not listed. | The module was not registered or its directory was not discovered. | Check the module `CMakeLists.txt` and parent discovery rules. |
+| Dry run fails. | Setup code failed or the benchmark executable could not initialize. | Fix registration or setup before collecting timings. |
+| Results are unstable. | The scenario depends on machine load, asynchronous drain timing, or variable input. | Stabilize setup, record counters, use repetitions, and document the limitation. |
+| A benchmark passes despite dropped work. | The scenario measures enqueue cost without observing completion or loss. | Flush work and report drop/error counters during teardown. |
+
+## Maintainer notes
+
+When adding benchmark coverage:
+
+- Add correctness tests first.
+- Benchmark representative public behavior or a justified internal hot path.
+- Keep benchmark code separate from correctness-test modules.
+- Prefer stable workload names and parameters.
+- Keep setup failures explicit.
+- Do not make elapsed time a merge gate without a separate, documented performance policy.
+
+## Related pages
+
+- @ref project_validation
+- @ref project_testing
+- @ref project_profiling
+- @ref project_build

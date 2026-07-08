@@ -13,6 +13,11 @@ if(GAMEWIP_BUILD_DOCS)
 
     gamewip_register_doxygen_inputs(
         "${GAMEWIP_DOXYGEN_ROOT}/index.md"
+        "${GAMEWIP_DOXYGEN_ROOT}/project_reusable_libraries.md"
+        "${GAMEWIP_DOXYGEN_ROOT}/project_manual.md"
+        "${GAMEWIP_DOXYGEN_ROOT}/project_contracts.md"
+        "${GAMEWIP_DOXYGEN_ROOT}/project_quality_workflows.md"
+        "${GAMEWIP_DOXYGEN_ROOT}/project_planning.md"
         "${GAMEWIP_DOXYGEN_ROOT}/project_structure.md"
         "${GAMEWIP_DOXYGEN_ROOT}/build.md"
         "${GAMEWIP_DOXYGEN_ROOT}/library_compatibility.md"
@@ -25,6 +30,13 @@ if(GAMEWIP_BUILD_DOCS)
         "${GAMEWIP_DOXYGEN_ROOT}/repository_automation.md"
         "${GAMEWIP_DOXYGEN_ROOT}/documentation.md"
         "${GAMEWIP_DOXYGEN_ROOT}/extending.md"
+        "${GAMEWIP_DOXYGEN_ROOT}/cmake_infrastructure.md"
+        "${PROJECT_SOURCE_DIR}/docs/contributing.md"
+        "${PROJECT_SOURCE_DIR}/docs/decisions.md"
+        "${GAMEWIP_DOXYGEN_ROOT}/platform_backend_contract.md"
+        "${PROJECT_SOURCE_DIR}/docs/roadmap.md"
+        "${PROJECT_SOURCE_DIR}/docs/versioning.md"
+        "${PROJECT_SOURCE_DIR}/docs/vision.md"
     )
 endif()
 

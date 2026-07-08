@@ -1,16 +1,12 @@
-# GameWIP Contributor Workflow
+@page project_contributing Contributor workflow
 
-## Purpose
+This page defines the GitHub workflow used for GameWIP issues, branches, pull requests, validation notes, automation, and merge messages.
 
-This file defines the normal repository workflow for issues, branches, pull requests, validation notes, and merge messages.
-
-Use this file for day-to-day GitHub process. Use `docs/decisions.md` for stable architecture, tooling, naming, and commit-message decisions. Use `docs/versioning.md` for project, package, build, and release version policy.
-
----
+Use this page for day-to-day repository process. Use @ref project_extending for add/change checklists, @ref project_decisions for stable project decisions, and @ref project_versioning for version policy.
 
 ## Default branch
 
-The default branch is currently:
+The default branch is:
 
 ```text
 master
@@ -18,13 +14,13 @@ master
 
 Keep `master` readable and releasable. Normal feature work should happen on a short-lived branch and merge through a pull request.
 
----
-
 ## Issues
 
 Create an issue for work that is not a tiny local cleanup.
 
-Use issue titles in the same compact style as commit titles:
+GitHub issues are the active task tracker for implementation work, validation work, bugs, and follow-up cleanup. The roadmap defines milestone completion criteria; issues define the work items used to satisfy those criteria.
+
+Issue titles use the same compact style as commit and pull-request titles:
 
 ```text
 type: imperative summary
@@ -54,8 +50,6 @@ Assign an issue when work starts. Project automation then moves it to `In Progre
 
 Use GitHub's **Blocked by** relationship for real dependencies. Do not use the Blocked status as a general priority or waiting label.
 
----
-
 ## Branches
 
 Branch names should describe the work without encoding implementation history.
@@ -77,8 +71,6 @@ build/main-validation
 
 Keep branches focused. If the branch starts solving unrelated problems, split the extra work into a new issue and branch.
 
----
-
 ## Pull requests
 
 Open a pull request before merging into `master`.
@@ -91,34 +83,30 @@ area: imperative summary
 
 The pull request body should include:
 
-- What changed
-- Linked issue numbers when applicable
-- The validation commands or inspections performed
-- Checklist items from the template
-- The intended squash merge message for non-trivial changes
+- What changed.
+- Linked issue numbers when applicable.
+- The validation commands or inspections performed.
+- Checklist items from the pull-request template.
+- The intended squash merge message for non-trivial changes.
 
-Use `Draft` only while the PR is not ready for final review or merge.
+Use `Draft` only while the pull request is not ready for final review or merge.
 
----
-
-## Required pull request metadata
+## Required pull-request metadata
 
 Ready-for-review pull requests must pass the `PR Standards` workflow.
 
-That workflow enforces:
+The workflow enforces:
 
-- Title format: `area: imperative summary`
-- Required PR body sections from the template
-- Non-empty summary and validation notes
-- A linked issue such as `Closes #123`, or an explicit `No linked issue: reason`
-- A concrete merge-message title
-- At least one `area:*`, one `type:*`, and one `priority:*` label
+- Title format: `area: imperative summary`.
+- Required pull-request body sections from the template.
+- Non-empty summary and validation notes.
+- A linked issue such as `Closes #123`, or an explicit `No linked issue: reason`.
+- A concrete merge-message title.
+- At least one `area:*`, one `type:*`, and one `priority:*` label.
 
 Draft pull requests may be incomplete while work is still moving.
 
 Dependabot pull requests are exempt from the human metadata check, but they still run the normal validation workflow.
-
----
 
 ## Validation notes
 
@@ -143,21 +131,19 @@ Weak examples:
 
 If validation is not run, say so directly and explain why.
 
----
-
 ## Automated validation
 
 The `Validation` workflow runs on pull requests into `master`, pushes to `master`, and manual dispatch.
 
 It performs:
 
-- An MSYS2 UCRT64 configure/build pass with modular correctness tests and internal test hooks enabled
-- An MSYS2 CLANG64 AddressSanitizer configure/build/test pass
-- A Google Benchmark registration dry run without performance thresholds
-- A Doxygen docs build with `GAMEWIP_BUILD_DOCS=ON`
-- A Doxygen warning-log check
-- clang-tidy and clang-format checks for maintained C++ code
-- JavaScript syntax and unit tests, JSON parsing, and actionlint workflow validation
+- MSYS2 UCRT64 configure, build, and modular correctness tests with internal test hooks enabled.
+- MSYS2 CLANG64 AddressSanitizer configure, build, and test.
+- Google Benchmark registration dry run without performance thresholds.
+- Doxygen documentation build with `GAMEWIP_BUILD_DOCS=ON`.
+- Doxygen warning-log check.
+- clang-tidy and clang-format checks for maintained C++ code.
+- JavaScript syntax and unit tests, JSON parsing, and actionlint workflow validation.
 
 The `Doxygen Docs` workflow publishes GitHub Pages only from `master` or manual dispatch. Pull requests build docs for validation but do not publish them.
 
@@ -171,17 +157,13 @@ Validation / Repository Checks
 Validation / Docs Check
 ```
 
-Local static-analysis commands and file scope are documented under `docs/doxygen/static_analysis.md`.
-
----
+Local static-analysis commands and file scope are documented in @ref project_static_analysis.
 
 ## Project automation
 
 Use a closing keyword such as `Closes #6` in the pull request body. The project workflow uses that relationship to copy issue labels, assignees, and a non-conflicting milestone to the pull request, then moves both items through In Progress, Review, and Done.
 
-Issue status is derived from closure, **Blocked by** relationships, linked pull requests, assignees, active milestone, and required labels. The complete rule order, repository variables, token requirement, and dry-run command are documented under `docs/doxygen/repository_automation.md`.
-
----
+Issue status is derived from closure, **Blocked by** relationships, linked pull requests, assignees, active milestone, and required labels. The complete rule order, repository variables, token requirement, and dry-run command are documented in @ref project_repository_automation.
 
 ## Merge style
 
@@ -191,13 +173,13 @@ Use `Rebase and merge` only when the individual commits are already meaningful a
 
 Avoid ordinary merge commits on `master` unless there is a deliberate reason to preserve branch structure.
 
-After a PR is merged, delete the feature branch unless more work will continue on it immediately.
-
----
+After a pull request is merged, delete the feature branch unless more work will continue on it immediately.
 
 ## Squash commit messages
 
-This file is the authoritative workflow for squash commit messages. The durable `area: imperative summary` decision is summarized in `docs/decisions.md`.
+This file is the authoritative workflow for squash commit messages. The durable `area: imperative summary` decision is summarized in @ref project_decisions.
+
+Commit title format:
 
 ```text
 area: imperative summary
@@ -219,19 +201,17 @@ Build:
 - Changed CMake, toolchain, package, install, editor, or dependency setup.
 
 Tests:
-- Added or changed test coverage, test support, validation, or checklists.
+- Added or changed test coverage, test support, validation, or verification workflows.
 
 Documentation:
 - Added or changed docs, examples, public API notes, or developer guidance.
 ```
 
-Do not keep GitHub's default `(#123)` suffix if the project history should read like a standalone changelog. Mention the PR or issue in the body instead when it matters.
-
----
+Do not keep GitHub's default `(#123)` suffix if the project history should read like a standalone changelog. Mention the pull request or issue in the body instead when it matters.
 
 ## Local sync after merge
 
-After a PR merges into `master`:
+After a pull request merges into `master`:
 
 ```powershell
 git switch master
@@ -244,3 +224,11 @@ If GitHub deleted the remote branch, prune stale remote-tracking names:
 ```powershell
 git fetch origin --prune
 ```
+
+## Related pages
+
+- @ref project_extending
+- @ref project_repository_automation
+- @ref project_static_analysis
+- @ref project_versioning
+- @ref project_decisions

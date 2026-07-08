@@ -1,47 +1,45 @@
 @page project_static_analysis Static analysis and repository checks
 
-GameWIP applies format-specific checks to maintained project files. Third-party code under
-`external/` and generated files under `build/` are not project-owned and are excluded.
+GameWIP applies format, static-analysis, documentation, and repository-consistency checks to maintained project files. Third-party code under `external/` and generated files under `build/` are not project-owned and are excluded.
+
+## Scope
+
+This page documents C++ static-analysis checks, non-C++ repository checks, local commands, CI behavior, and suppression policy.
 
 ## C++ checks
 
-The `static-analysis` preset configures a compilation database and enables two targets:
+The `static-analysis` preset configures a compilation database and enables the `static-analysis` build target.
 
-- `clang-tidy` analyzes C and C++ translation units under `foundation/`, `tools/`, `engine/`,
-  and `game/`. Headers in those roots are checked when included by a translation unit.
-- `clang-format-check` verifies `.cpp`, `.h`, `.hpp`, and `.inl` files under the same roots
-  without modifying them.
-
-Run both checks with:
+Run the full local static-analysis target with:
 
 ```powershell
 cmake --preset static-analysis
 cmake --build --preset static-analysis
 ```
 
-The MSYS2 UCRT64 environment must provide `clang`, `clang-tools-extra`, `cmake`, `ninja`, and
-`python`. Diagnostics selected in the root `.clang-tidy` file are errors. Suppress a diagnostic
-only at the narrowest justified location and include a short reason in the `NOLINT` comment.
+The target includes:
 
-Win32 resource scripts are compiled by the Windows resource compiler and are intentionally not
-passed to clang-tidy. The root manifest and generated CMake inputs are validated by the normal
-configure and build path.
+| Check | Scope |
+| --- | --- |
+| `clang-tidy` | C and C++ translation units under maintained roots such as `foundation/`, `tools/`, `engine/`, and `game/`. Headers in those roots are checked when included by a translation unit. |
+| `clang-format-check` | `.cpp`, `.h`, `.hpp`, and `.inl` files under the same maintained roots. |
 
-## Other maintained formats
+The MSYS2 UCRT64 environment must provide `clang`, `clang-tools-extra`, `cmake`, `ninja`, and `python`.
 
-The `Validation / Repository Checks` GitHub job runs the checks that do not belong to clang:
+Diagnostics selected in the root `.clang-tidy` file are errors. Suppress a diagnostic only at the narrowest justified location and include a short reason in the `NOLINT` comment.
 
-- Node.js syntax checks and unit tests for repository automation JavaScript
-- JSON parsing for maintained JSON files
-- actionlint validation for every GitHub Actions workflow
+Win32 resource scripts are compiled by the Windows resource compiler and are intentionally not passed to clang-tidy. The root manifest and generated CMake inputs are validated by the normal configure and build path.
 
-The regular validation jobs also configure all project CMake files, run modular correctness tests,
-dry-run benchmark registrations, build Doxygen, and reject Doxygen warnings. Markdown registered
-with Doxygen is therefore validated as part of the documentation build.
+## Repository checks
 
-Doxygen validates parsing and generated cross-references, but it does not judge prose consistency. First-party Markdown must also be reviewed against the heading, voice, terminology, list, example, and ownership rules in @ref project_documentation. The project verification pass checks relative Markdown links separately; `external/` and generated build output remain outside this editorial scope.
+The `Validation / Repository Checks` GitHub job runs checks that do not belong to clang:
 
-The matching local commands are:
+- Node.js syntax checks and unit tests for repository automation JavaScript.
+- JSON parsing for maintained JSON files.
+- actionlint validation for GitHub Actions workflows.
+- Relative Markdown link validation for maintained documentation.
+
+Local commands:
 
 ```powershell
 node --check .github/scripts/project-automation.js
@@ -50,4 +48,57 @@ node --test .github/scripts/project-automation.test.js
 actionlint
 ```
 
+Run the release-preparation script checks when changing release automation:
+
+```powershell
+node --check .github/scripts/release-preparation.js
+node --check .github/scripts/release-preparation.test.js
+node --test .github/scripts/release-preparation.test.js
+```
+
+## Documentation checks
+
+The regular validation workflow also builds Doxygen and rejects Doxygen warnings. Markdown registered with Doxygen is therefore parsed and cross-reference checked as part of documentation validation.
+
+Doxygen validates syntax and links, but it does not judge prose consistency. First-party Markdown must also be reviewed against the heading, voice, terminology, list, example, and ownership rules in @ref project_documentation.
+
+## Exclusions
+
+Excluded areas include:
+
+- `external/` third-party source trees.
+- Generated build directories.
+- Generated documentation output.
+- Generated coverage output.
+- Other generated artifacts documented by their owning workflow.
+
+Do not fix third-party formatting or analysis warnings by rewriting vendor code. Adjust exclusions or upstream dependency versions instead.
+
+## Failure behavior
+
+| Symptom | Likely cause | Action |
+| --- | --- | --- |
+| clang-tidy fails on a new diagnostic. | The code violates an enabled check. | Fix the code or add a narrow justified suppression. |
+| clang-format check fails. | Maintained C++ formatting differs from `.clang-format`. | Run the formatter locally and commit the result. |
+| actionlint fails. | A workflow syntax or shell issue exists. | Fix the workflow before merging. |
+| Doxygen warnings appear. | A page, reference, or public comment is malformed. | Fix the owning documentation or registration. |
+| Vendor files are checked. | An exclusion pattern is incomplete. | Update the owning analysis helper without rewriting vendor code. |
+
+## Maintainer notes
+
+When adding a new maintained source root or file type:
+
+- Decide which checks own it.
+- Add local and CI validation when practical.
+- Exclude generated and third-party output deliberately.
+- Document required developer tools and local commands.
+- Keep suppressions narrow and justified.
+
 VS Code exposes `Run Static Analysis` as a workspace task.
+
+## Related pages
+
+- @ref project_build
+- @ref project_testing
+- @ref project_documentation
+- @ref project_repository_automation

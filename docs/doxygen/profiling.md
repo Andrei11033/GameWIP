@@ -1,48 +1,104 @@
-@page project_profiling Profiling
+@page project_profiling Profiling with Tracy
 
-GameWIP uses Tracy for contextual runtime profiling and Google Benchmark for repeatable isolated measurements. Tracy identifies where time is spent in a representative run; benchmarks validate whether a targeted change improves a stable scenario.
+GameWIP uses Tracy for interactive profiling of representative runtime sessions. Tracy answers where time is spent in a captured run. Benchmarks answer whether a repeatable operation changed in a controlled measurement.
 
-## Ownership and dependency rules
+## Scope
 
-The `GameWIP` executable owns Tracy enablement, the profiler client, and process-level markers. Reusable libraries remain profiler-agnostic by default and must not expose Tracy types, headers, macros, or package requirements through their public APIs.
+This page documents the Tracy build preset, capture workflow, marker policy, disabled-build contract, and the relationship between profiling and benchmarks.
 
-A library may add private profiling zones when a real capture shows a meaningful opaque cost that needs subdivision. Such instrumentation must remain an implementation detail, use the shared project enablement policy, and compile away when Tracy is disabled. Libraries do not initialize or manage an independent profiler client.
+## Common workflow
 
-Correctness tests use TestSupport section timing. Benchmarks use Google Benchmark. Tracy markers do not replace either mechanism.
+Build the profiling preset:
 
-## Disabled-build contract
+```powershell
+cmake --preset profiling
+cmake --build --preset profiling
+```
 
-`GAMEWIP_ENABLE_TRACY=OFF` means the game executable does not link Tracy, the client is excluded from the default build, and project-owned markers are removed at preprocessing time. Disabled builds must not retain Tracy runtime branches, threads, networking, allocations, imports, or symbols. The `profiling` preset is the supported Tracy-enabled build; shipping and other non-profiling presets keep it disabled.
+Start the Tracy profiler, then run the profiling build:
 
-## Initial process zones
+```powershell
+.\build\profiling\GameWIP.exe
+```
 
-The profiling build records from process start so startup work is not lost while a profiler connects. Start the capture or Tracy UI before launching the game. The initial integration names the main thread `GameWIP Main` and records only the major process phases:
+Use a representative scenario. A capture of an empty or artificial run is rarely useful evidence for optimization decisions.
 
-- `GameWIP process`
-- `Startup validation`
-- `Startup benchmarks`
-- `Game runtime`
+## Build controls
 
-The game has no frame loop yet, so it does not emit artificial frame marks. A future loop emits exactly one `FrameMark` for each completed real frame.
+The `profiling` preset enables `GAMEWIP_ENABLE_TRACY=ON` and inherits the development build configuration.
+
+Tracy support must remain optional:
+
+- Disabled builds must not require Tracy headers or runtime libraries.
+- Public reusable-library APIs must not expose Tracy types.
+- Project-owned Tracy instrumentation must compile away when disabled.
+- Shipping builds must not retain project-owned Tracy instrumentation or dependencies.
 
 ## Marker rules
 
-- Mark meaningful work phases rather than every function.
-- Use stable string-literal names and avoid high-cardinality dynamic zone names.
-- Name each long-lived worker thread once when it starts.
-- Add nested zones only when a capture needs more detail to explain a measured cost.
-- Add plots when workload size explains timing, such as entity, contact, job, queue, or allocation counts.
-- Instrument locks, allocations, or leaf functions only for a specific investigation.
-- Remove markers that no longer answer a performance question.
-- Keep every marker and Tracy include out of public headers.
+Markers should answer a specific performance question.
 
-Likely future candidates include physics broad phase, narrow phase, contact generation, solver phases, rendering passes, streaming, and job scheduling. Their instrumentation should be added with the systems and representative workloads, not speculatively.
+Use markers for:
+
+- Meaningful work phases.
+- Long-lived worker thread names.
+- Opaque blocks that need subdivision in a capture.
+- Workload-size plots that explain timing, such as entity, contact, job, queue, or allocation counts.
+
+Avoid markers for:
+
+- Every small function.
+- High-cardinality dynamic names.
+- Speculative future hotspots.
+- Public headers.
+- Reusable-library API surfaces.
+- Leaf functions that do not explain a measured cost.
+
+Remove markers that no longer answer a performance question.
 
 ## Optimization workflow
 
 1. Capture a representative Tracy session.
 2. Identify a hotspot, stall, or frame spike.
 3. Add narrower private zones only when needed to subdivide opaque time.
-4. Add or extend a repeatable benchmark for the targeted operation.
+4. Add or extend a repeatable benchmark for the targeted operation when practical.
 5. Optimize and compare benchmark results.
 6. Capture another representative Tracy session to verify the end-to-end effect.
+
+Profiling should guide investigation. Benchmarks should verify repeatable performance changes when the operation can be isolated.
+
+## Library instrumentation policy
+
+Reusable libraries remain profiler-agnostic by default. A library may add private compile-time zones only when a representative capture shows meaningful opaque work that needs subdivision.
+
+Tracy must not appear in public library APIs, installed public headers, package usage requirements, or consumer examples.
+
+## Future marker candidates
+
+Likely future candidates include:
+
+- Physics broad phase.
+- Physics narrow phase.
+- Contact generation.
+- Solver phases.
+- Rendering passes.
+- Asset or world streaming.
+- Job scheduling.
+- Queue processing.
+
+Add these markers with the systems and representative workloads, not speculatively.
+
+## Failure behavior
+
+| Symptom | Likely cause | Action |
+| --- | --- | --- |
+| The profiling build cannot find Tracy. | Submodules or external dependencies are not initialized. | Run `git submodule update --init --recursive` and reconfigure. |
+| A disabled build still references Tracy. | A Tracy include or symbol leaked outside the enable guard. | Move the include to private implementation code and guard instrumentation. |
+| A capture is too noisy. | Markers are too fine-grained or use unstable names. | Collapse markers to meaningful phases and remove high-cardinality names. |
+| A profile suggests an optimization but benchmarks do not change. | The benchmark does not represent the profiled workload or the hotspot is end-to-end only. | Adjust the benchmark or keep the evidence as profiling-only. |
+
+## Related pages
+
+- @ref project_build
+- @ref project_benchmarking
+- @ref project_static_analysis
