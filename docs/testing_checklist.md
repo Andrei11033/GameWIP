@@ -37,10 +37,12 @@ Related documents:
 - [x] The `static-analysis` preset configures with UCRT64 Clang.
 - [x] The `address-sanitizer` preset configures with MSYS2 CLANG64 and passes every registered project test under AddressSanitizer.
 - [x] Preset and workspace JSON parse successfully.
+- [x] Version tests cover release, untagged development, dirty-worktree, lightweight-tag rejection, annotated-tag acceptance, and Git-unavailable display forms.
 
 ### Correctness and runtime integration
 
 - [x] `ctest --preset validation` passes every registered project test.
+- [x] `GameWIP --version` matches the build-time generated header and exits before startup validation.
 - [x] Every correctness module appears as a focused CTest entry.
 - [x] The development executable runs compiled-in modules before entering game runtime.
 - [x] Focused selection runs only the requested module.

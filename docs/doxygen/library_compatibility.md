@@ -18,7 +18,7 @@ Packages are pre-1.0 and use exact version matching. A consumer must use a compa
 Example:
 
 ```cmake
-find_package(Logger 0.0.1 EXACT CONFIG REQUIRED)
+find_package(Logger CONFIG REQUIRED)
 target_link_libraries(MyTarget PRIVATE GameWIP::Logger)
 ```
 

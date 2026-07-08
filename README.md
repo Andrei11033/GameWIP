@@ -1,5 +1,7 @@
 # GameWIP
 
+[![Latest release](https://img.shields.io/github/v/release/Andrei11033/GameWIP?display_name=tag&sort=semver)](https://github.com/Andrei11033/GameWIP/releases/latest)
+
 GameWIP is an early-stage C++23 sandbox game project focused on player-built vehicles, structures, weapons, components, and meaningful destruction.
 
 The repository currently emphasizes reusable foundation libraries, Windows platform backends, diagnostics, modular correctness tests, Google Benchmark scenarios, generated documentation, and initial engine systems.
@@ -29,6 +31,7 @@ The development preset builds the game and runs modular correctness tests at sta
 ```powershell
 cmake --preset development
 cmake --build --preset development
+.\build-development\GameWIP.exe --version
 .\build-development\GameWIP.exe
 ```
 
@@ -117,6 +120,7 @@ Project references:
 - [Vision](docs/vision.md)
 - [Roadmap](docs/roadmap.md)
 - [Architecture decisions](docs/decisions.md)
+- [Versioning policy](docs/versioning.md)
 - [Contribution workflow](docs/contributing.md)
 - [Implementation checklist](docs/implementation_checklist.md)
 - [Testing checklist](docs/testing_checklist.md)

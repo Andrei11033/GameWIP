@@ -9,6 +9,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
+include(GameWIPVersion)
 include(GameWIPOptions)
 include(LibraryPlatform)
 include(GameWIPRuntimeDependencies)
@@ -18,10 +19,16 @@ include(GameWIPSanitizers)
 include(GameWIPDocumentation)
 include(GameWIPStaticAnalysis)
 
+gamewip_configure_version()
+
 gamewip_resolve_platform_id(GAMEWIP_PLATFORM_ID)
 
 if(GAMEWIP_BUILD_TESTS)
     enable_testing()
+    add_test(
+        NAME validation.version.composition
+        COMMAND "${CMAKE_COMMAND}" -P "${PROJECT_SOURCE_DIR}/cmake/TestGameWIPVersion.cmake"
+    )
 endif()
 
 add_subdirectory(external)

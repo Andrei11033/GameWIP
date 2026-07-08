@@ -4,7 +4,7 @@
 
 This file defines the normal repository workflow for issues, branches, pull requests, validation notes, and merge messages.
 
-Use this file for day-to-day GitHub process. Use `docs/decisions.md` for stable architecture, tooling, naming, and commit-message decisions.
+Use this file for day-to-day GitHub process. Use `docs/decisions.md` for stable architecture, tooling, naming, and commit-message decisions. Use `docs/versioning.md` for project, package, build, and release version policy.
 
 ---
 

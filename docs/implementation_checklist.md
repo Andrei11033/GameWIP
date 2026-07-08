@@ -35,10 +35,12 @@ Related documents:
 - [x] Third-party dependencies are pinned as Git submodules under `external/`.
 - [x] Shared editor settings use repository-relative configuration and the documented UCRT64 tools.
 - [x] Project-owned text uses UTF-8, LF, final newlines, and EditorConfig formatting rules.
+- [x] The root CMake project version is the single editable numeric version; generated build identity adds the first-parent count, Git commit, dirty state, and annotated-tag release status.
 
 ### Project composition and startup
 
 - [x] `game/main.cpp` is a stable process entry point.
+- [x] `GameWIP --version` reports generated build identity without entering validation, benchmarks, or game runtime.
 - [x] `game/runtime/` owns the game-facing runtime facade.
 - [x] The game executable links only dependencies used by its runtime or enabled startup modules.
 - [x] Development builds can run correctness modules before the game runtime.

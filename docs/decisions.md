@@ -9,6 +9,7 @@ This file records stable decisions that affect the whole product or repository. 
 - Use `implementation_checklist.md` for project-level implementation status.
 - Use `testing_checklist.md` for milestone verification gates.
 - Use `platform_backend_contract.md` for the shared platform boundary.
+- Use `versioning.md` for project, package, build, and release version policy.
 - Use each library's own docs for library-specific behavior and API contracts.
 - Use `contributing.md` for day-to-day GitHub and merge workflow.
 

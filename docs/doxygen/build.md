@@ -31,6 +31,14 @@ Available modes:
 
 Build directories are named `build-<preset>`.
 
+Every configure reports the generated GameWIP display version. The root numeric `PROJECT_VERSION` identifies the milestone or published correction, while untagged builds add the first-parent build count, abbreviated Git commit, and dirty state. The game reports the same identity without entering startup validation:
+
+```powershell
+.\build-development\GameWIP.exe --version
+```
+
+Doxygen uses this full display version as its project number. See `docs/versioning.md` for the source-version, build-identity, and release-tag policy.
+
 The `address-sanitizer` preset uses CLANG64 because the UCRT64 GCC and Clang packages do not provide the Windows AddressSanitizer runtime. CLANG64 still targets UCRT, but uses LLVM, LLD, and libc++. Keep its build directory separate from UCRT64 builds and place the CLANG64 tools first on `PATH` when configuring, building, and testing:
 
 ```powershell

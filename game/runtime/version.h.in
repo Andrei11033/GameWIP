@@ -1,0 +1,17 @@
+/// @file version.h
+/// @brief Generated GameWIP source and build identity.
+
+#pragma once
+
+#include <string_view>
+
+namespace GameWIP::Version
+{
+    inline constexpr std::string_view number = "@GAMEWIP_VERSION_NUMBER@";
+    inline constexpr std::string_view display = "@GAMEWIP_VERSION_DISPLAY@";
+    inline constexpr char productDisplay[] = "GameWIP @GAMEWIP_VERSION_DISPLAY@";
+    inline constexpr std::string_view buildNumber = "@GAMEWIP_VERSION_BUILD_NUMBER@";
+    inline constexpr std::string_view gitCommit = "@GAMEWIP_VERSION_GIT_COMMIT@";
+    inline constexpr bool dirty = std::string_view{"@GAMEWIP_VERSION_DIRTY_CPP@"} == "true";
+    inline constexpr bool release = std::string_view{"@GAMEWIP_VERSION_RELEASE_CPP@"} == "true";
+} // namespace GameWIP::Version

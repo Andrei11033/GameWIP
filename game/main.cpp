@@ -4,11 +4,23 @@
 #include "runtime/game.h"
 #include "validation/validation.h"
 
+#include <gamewip/version.h>
+
 #if GAMEWIP_TRACY_ENABLED
 #include <tracy/Tracy.hpp>
 #endif
 
 #include <cstdlib>
+#include <cstdio>
+#include <string_view>
+
+namespace
+{
+    bool requestsVersion(int argc, char **argv) noexcept
+    {
+        return argc == 2 && argv != nullptr && argv[1] != nullptr && std::string_view(argv[1]) == "--version";
+    }
+} // namespace
 
 int main(int argc, char **argv)
 {
@@ -16,6 +28,12 @@ int main(int argc, char **argv)
     tracy::SetThreadName("GameWIP Main");
     ZoneScopedN("GameWIP process");
 #endif
+
+    if (requestsVersion(argc, argv))
+    {
+        std::puts(GameWIP::Version::productDisplay);
+        return EXIT_SUCCESS;
+    }
 
     GameWIP::Validation::TestResult tests;
     {
