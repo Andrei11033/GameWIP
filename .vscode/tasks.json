@@ -44,10 +44,10 @@
         {
             "label": "Run Development",
             "type": "shell",
-            "command": "${workspaceFolder}\\build-development\\GameWIP.exe",
+            "command": "${workspaceFolder}\\build\\development\\GameWIP.exe",
             "args": [],
             "options": {
-                "cwd": "${workspaceFolder}\\build-development",
+                "cwd": "${workspaceFolder}\\build\\development",
                 "env": {
                     "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
                 }
@@ -187,9 +187,9 @@
         {
             "label": "Run Benchmarks",
             "type": "shell",
-            "command": "${workspaceFolder}\\build-benchmark\\GameWIPBenchmarks.exe",
+            "command": "${workspaceFolder}\\build\\benchmark\\GameWIPBenchmarks.exe",
             "options": {
-                "cwd": "${workspaceFolder}\\build-benchmark",
+                "cwd": "${workspaceFolder}\\build\\benchmark",
                 "env": {
                     "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
                 }
@@ -236,10 +236,10 @@
         {
             "label": "Run Tools",
             "type": "shell",
-            "command": "${workspaceFolder}\\build-tools\\GameWIP.exe",
+            "command": "${workspaceFolder}\\build\\tools\\GameWIP.exe",
             "args": [],
             "options": {
-                "cwd": "${workspaceFolder}\\build-tools",
+                "cwd": "${workspaceFolder}\\build\\tools",
                 "env": {
                     "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
                 }
@@ -290,10 +290,10 @@
             "args": [
                 "-NoProfile",
                 "-Command",
-                "$ErrorActionPreference = 'Stop'; $profiler = '${workspaceFolder}\\.tracy\\tracy-profiler.exe'; $game = '${workspaceFolder}\\build-profiling\\GameWIP.exe'; if (!(Test-Path -LiteralPath $profiler)) { throw \"Missing Tracy profiler: $profiler\" }; if ($null -eq (Get-Process -Name 'tracy-profiler' -ErrorAction SilentlyContinue)) { Start-Process -FilePath $profiler -WorkingDirectory (Split-Path -Parent $profiler) }; & $game; exit $LASTEXITCODE"
+                "$ErrorActionPreference = 'Stop'; $profiler = '${workspaceFolder}\\.tracy\\tracy-profiler.exe'; $game = '${workspaceFolder}\\build\\profiling\\GameWIP.exe'; if (!(Test-Path -LiteralPath $profiler)) { throw \"Missing Tracy profiler: $profiler\" }; if ($null -eq (Get-Process -Name 'tracy-profiler' -ErrorAction SilentlyContinue)) { Start-Process -FilePath $profiler -WorkingDirectory (Split-Path -Parent $profiler) }; & $game; exit $LASTEXITCODE"
             ],
             "options": {
-                "cwd": "${workspaceFolder}\\build-profiling",
+                "cwd": "${workspaceFolder}\\build\\profiling",
                 "env": {
                     "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
                 }
@@ -340,9 +340,9 @@
         {
             "label": "Run Shipping",
             "type": "shell",
-            "command": "${workspaceFolder}\\build-shipping\\GameWIP.exe",
+            "command": "${workspaceFolder}\\build\\shipping\\GameWIP.exe",
             "options": {
-                "cwd": "${workspaceFolder}\\build-shipping",
+                "cwd": "${workspaceFolder}\\build\\shipping",
                 "env": {
                     "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
                 }

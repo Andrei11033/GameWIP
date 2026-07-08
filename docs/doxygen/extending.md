@@ -57,7 +57,7 @@ Run the module directly and through CTest:
 ```powershell
 cmake --preset validation
 cmake --build --preset validation
-.\build-validation\GameWIPTests.exe --test-module=example
+.\build\validation\GameWIPTests.exe --test-module=example
 ctest --preset validation
 ```
 

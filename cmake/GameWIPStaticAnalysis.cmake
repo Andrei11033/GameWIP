@@ -10,7 +10,7 @@ function(gamewip_create_static_analysis_targets)
 
     set(gamewip_owned_source_regex ".*[\\\\/](foundation|tools|engine|game)[\\\\/].*[.](c|cc|cpp|cxx)$")
     set(gamewip_owned_header_regex ".*[\\\\/](foundation|tools|engine|game)[\\\\/].*")
-    set(gamewip_excluded_header_regex ".*[\\\\/](external|build-[^\\\\/]+)[\\\\/].*")
+    set(gamewip_excluded_header_regex ".*[\\\\/](external|build)[\\\\/].*")
 
     add_custom_target(clang-tidy
         COMMAND "${Python3_EXECUTABLE}" "${GAMEWIP_RUN_CLANG_TIDY_EXECUTABLE}"

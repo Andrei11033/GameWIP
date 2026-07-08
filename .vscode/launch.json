@@ -5,10 +5,10 @@
             "name": "Debug GameWIP Development",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}\\build-development\\GameWIP.exe",
+            "program": "${workspaceFolder}\\build\\development\\GameWIP.exe",
             "args": [],
             "stopAtEntry": false,
-            "cwd": "${workspaceFolder}\\build-development",
+            "cwd": "${workspaceFolder}\\build\\development",
             "environment": [
                 {
                     "name": "PATH",
@@ -31,10 +31,10 @@
             "name": "Profile GameWIP with Tracy",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}\\build-profiling\\GameWIP.exe",
+            "program": "${workspaceFolder}\\build\\profiling\\GameWIP.exe",
             "args": [],
             "stopAtEntry": false,
-            "cwd": "${workspaceFolder}\\build-profiling",
+            "cwd": "${workspaceFolder}\\build\\profiling",
             "environment": [
                 {
                     "name": "PATH",

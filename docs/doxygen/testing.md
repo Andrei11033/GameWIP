@@ -15,13 +15,13 @@ The same CTest run also verifies reviewed shared-library exports and builds a se
 Run all modules directly:
 
 ```powershell
-.\build-validation\GameWIPTests.exe
+.\build\validation\GameWIPTests.exe
 ```
 
 Run one module:
 
 ```powershell
-.\build-validation\GameWIPTests.exe `
+.\build\validation\GameWIPTests.exe `
   --test-module=filesystem `
   --test-report=logs/tests/filesystem_test_report.txt
 ```
@@ -29,19 +29,19 @@ Run one module:
 Run the opt-in TestSupport prompt checks:
 
 ```powershell
-.\build-validation\GameWIPTests.exe --test-module=test_support --manual-ui
+.\build\validation\GameWIPTests.exe --test-module=test_support --manual-ui
 ```
 
 Run the Terminal real-console checks from Windows Terminal:
 
 ```powershell
-.\build-validation\GameWIPTests.exe --test-module=terminal --manual-ui
+.\build\validation\GameWIPTests.exe --test-module=terminal --manual-ui
 ```
 
 Run the Logger fatal-popup check exactly once:
 
 ```powershell
-.\build-validation\GameWIPTests.exe --test-module=logger --logger-popup
+.\build\validation\GameWIPTests.exe --test-module=logger --logger-popup
 ```
 
 Normal automated runs leave manual UI and the Logger popup disabled. The positive flags enable capabilities without selecting a module; combine them with `--test-module=<name>` for focused manual validation.

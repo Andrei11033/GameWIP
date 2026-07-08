@@ -29,12 +29,12 @@ Available modes:
 | `docs` | Doxygen target without game or validation executables. |
 | `static-analysis` | clang-tidy and clang-format checks for maintained C++ sources. |
 
-Build directories are named `build-<preset>`.
+Build directories are grouped under `build/<preset>`.
 
 Every configure reports the generated GameWIP display version. The root numeric `PROJECT_VERSION` identifies the milestone or published correction, while untagged builds add the first-parent build count, abbreviated Git commit, and dirty state. The game reports the same identity without entering startup validation:
 
 ```powershell
-.\build-development\GameWIP.exe --version
+.\build\development\GameWIP.exe --version
 ```
 
 Doxygen uses this full display version as its project number. See `docs/versioning.md` for the source-version, build-identity, and release-tag policy.

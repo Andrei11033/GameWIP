@@ -7,13 +7,13 @@ Google Benchmark owns performance iteration, calibration, timing, repetitions, a
 ```powershell
 cmake --preset benchmark
 cmake --build --preset benchmark
-.\build-benchmark\GameWIPBenchmarks.exe
+.\build\benchmark\GameWIPBenchmarks.exe
 ```
 
 Run a focused family and save JSON:
 
 ```powershell
-.\build-benchmark\GameWIPBenchmarks.exe `
+.\build\benchmark\GameWIPBenchmarks.exe `
   --benchmark_filter=BM_Logger `
   --benchmark_repetitions=5 `
   --benchmark_out=logger_results.json `
@@ -23,7 +23,7 @@ Run a focused family and save JSON:
 Validate registration without collecting meaningful timings:
 
 ```powershell
-.\build-benchmark\GameWIPBenchmarks.exe --benchmark_dry_run
+.\build\benchmark\GameWIPBenchmarks.exe --benchmark_dry_run
 ```
 
 CI performs only a dry run. Machine-dependent timing values are not merge gates.

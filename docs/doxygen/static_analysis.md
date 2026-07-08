@@ -1,7 +1,7 @@
 @page project_static_analysis Static analysis and repository checks
 
 GameWIP applies format-specific checks to maintained project files. Third-party code under
-`external/` and generated files under `build-*` are not project-owned and are excluded.
+`external/` and generated files under `build/` are not project-owned and are excluded.
 
 ## C++ checks
 

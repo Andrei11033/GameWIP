@@ -31,7 +31,7 @@ Related documents:
 - [x] Presets exist for development, validation, benchmark, tools, profiling, optimized, shipping, coverage, AddressSanitizer, documentation, and static analysis.
 - [x] AddressSanitizer validation uses the isolated MSYS2 CLANG64 environment because the UCRT64 compiler packages do not provide its Windows runtime.
 - [x] The game executable owns compile-time Tracy enablement and process-phase markers; reusable libraries remain profiler-agnostic unless measured work needs private subdivision.
-- [x] Build output is isolated under `build-<preset>/` and ignored by Git.
+- [x] Build output is isolated under `build/<preset>/` and ignored by Git.
 - [x] Third-party dependencies are pinned as Git submodules under `external/`.
 - [x] Shared editor settings use repository-relative configuration and the documented UCRT64 tools.
 - [x] Project-owned text uses UTF-8, LF, final newlines, and EditorConfig formatting rules.

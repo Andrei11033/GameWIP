@@ -44,7 +44,7 @@ jobs:
       - name: Configure
         shell: msys2 {0}
         run: >
-          cmake -S . -B build-validation
+          cmake -S . -B build/validation
           -G Ninja
           -DCMAKE_BUILD_TYPE=RelWithDebInfo
           -DGAMEWIP_BUILD_GAME=ON
@@ -59,15 +59,15 @@ jobs:
 
       - name: Build
         shell: msys2 {0}
-        run: cmake --build build-validation --parallel
+        run: cmake --build build/validation --parallel
 
       - name: Test
         shell: msys2 {0}
-        run: ctest --test-dir build-validation --output-on-failure
+        run: ctest --test-dir build/validation --output-on-failure
 
       - name: Benchmark smoke test
         shell: msys2 {0}
-        run: ./build-validation/GameWIPBenchmarks.exe --benchmark_dry_run
+        run: ./build/validation/GameWIPBenchmarks.exe --benchmark_dry_run
 
       - name: Static analysis
         shell: msys2 {0}
@@ -103,7 +103,7 @@ jobs:
             jq empty "$file"
           done < <(find . -type f -name '*.json' \
             -not -path './external/*' \
-            -not -path './build-*/*' \
+            -not -path './build/*' \
             -print0)
 
       - name: Check GitHub Actions workflows
@@ -147,13 +147,13 @@ jobs:
 
       - name: Generate report
         shell: msys2 {0}
-        run: cmake --build build-coverage --target coverage
+        run: cmake --build build/coverage --target coverage
 
       - name: Upload report
         uses: actions/upload-artifact@v4
         with:
           name: coverage-report
-          path: build-coverage/coverage
+          path: build/coverage/coverage
 
   address-sanitizer:
     name: AddressSanitizer
@@ -216,7 +216,7 @@ jobs:
       - name: Configure documentation build
         shell: msys2 {0}
         run: >
-          cmake -S . -B build-docs
+          cmake -S . -B build/docs
           -G Ninja
           -DCMAKE_BUILD_TYPE=Release
           -DGAMEWIP_BUILD_GAME=OFF
@@ -228,12 +228,12 @@ jobs:
 
       - name: Build documentation
         shell: msys2 {0}
-        run: cmake --build build-docs --target docs --verbose
+        run: cmake --build build/docs --target docs --verbose
 
       - name: Check Doxygen warnings
         shell: msys2 {0}
         run: |
-          if [ -s build-docs/docs/doxygen/doxygen_warnings.log ]; then
-            cat build-docs/docs/doxygen/doxygen_warnings.log
+          if [ -s build/docs/docs/doxygen/doxygen_warnings.log ]; then
+            cat build/docs/docs/doxygen/doxygen_warnings.log
             exit 1
           fi

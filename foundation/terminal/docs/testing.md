@@ -25,7 +25,7 @@ Platform-boundary coverage verifies explicit Unicode Win32 APIs for console text
 Automated runs leave human interaction disabled. From a real Windows Terminal session, run:
 
 ```powershell
-.\build-validation\GameWIPTests.exe --test-module=terminal --manual-ui
+.\build\validation\GameWIPTests.exe --test-module=terminal --manual-ui
 ```
 
 The opt-in suite records human confirmation for Unicode rendering, styles and colors, cursor save/restore, alternate-screen entry and restoration, interactive input, input-mode restoration, and cursor-visibility restoration. It skips with an explicit reason when stdin or stdout is not attached to a real terminal.

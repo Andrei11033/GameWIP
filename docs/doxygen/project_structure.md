@@ -16,7 +16,7 @@ GameWIP is one product repository with reusable C++ libraries around a small exe
 | `.github/` | Pull-request policy, CI, documentation publishing, and project automation. |
 | `external/` | Pinned third-party dependencies; project checks do not rewrite or analyze their sources. |
 
-Build output belongs only in `build-<preset>/` directories. Runtime tests use scoped operating-system temporary directories and retain only their requested aggregate reports.
+Build output belongs only in `build/<preset>/` directories. Runtime tests use scoped operating-system temporary directories and retain only their requested aggregate reports.
 
 ## Dependency direction
 

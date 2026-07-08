@@ -309,7 +309,7 @@ Run the relevant focused command while developing, then use this complete local 
 cmake --preset validation
 cmake --build --preset validation
 ctest --preset validation --output-on-failure
-.\build-validation\GameWIPBenchmarks.exe --benchmark_dry_run
+.\build\validation\GameWIPBenchmarks.exe --benchmark_dry_run
 
 cmake --preset static-analysis
 cmake --build --preset static-analysis

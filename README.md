@@ -22,7 +22,7 @@ git submodule update --init --recursive
 
 Make sure `C:\MSYS2\ucrt64\bin` appears before other MinGW environments on `PATH` when configuring.
 
-VS Code users can open `GameWIP.code-workspace` for the shared UCRT64 formatting and task configuration. Configure the `development` preset before relying on IntelliSense because the workspace reads `build-development/compile_commands.json`.
+VS Code users can open `GameWIP.code-workspace` for the shared UCRT64 formatting and task configuration. Configure the `development` preset before relying on IntelliSense because the workspace reads `build/development/compile_commands.json`.
 
 ## Development
 
@@ -31,8 +31,8 @@ The development preset builds the game and runs modular correctness tests at sta
 ```powershell
 cmake --preset development
 cmake --build --preset development
-.\build-development\GameWIP.exe --version
-.\build-development\GameWIP.exe
+.\build\development\GameWIP.exe --version
+.\build\development\GameWIP.exe
 ```
 
 `game/main.cpp` remains the stable process entry point. Validation is compiled out when its startup options are disabled.
@@ -43,7 +43,7 @@ cmake --build --preset development
 cmake --preset validation
 cmake --build --preset validation
 ctest --preset validation
-.\build-validation\GameWIPBenchmarks.exe --benchmark_dry_run
+.\build\validation\GameWIPBenchmarks.exe --benchmark_dry_run
 ```
 
 Run static analysis and formatting checks for maintained C++ code:
@@ -65,7 +65,7 @@ ctest --preset address-sanitizer
 Run one correctness module:
 
 ```powershell
-.\build-validation\GameWIPTests.exe --test-module=filesystem
+.\build\validation\GameWIPTests.exe --test-module=filesystem
 ```
 
 Validation keeps complete reports under `%TEMP%\GameWIP\logs\tests` and removes temporary fixtures and subsystem logs after each run. Add `--verbose-tests` for full console output. Human UI is disabled by default; use `--manual-ui` for module-owned interactive checks or `--logger-popup` for the Logger fatal-popup check.
@@ -75,7 +75,7 @@ Collect optimized benchmark results:
 ```powershell
 cmake --preset benchmark
 cmake --build --preset benchmark
-.\build-benchmark\GameWIPBenchmarks.exe --benchmark_repetitions=5
+.\build\benchmark\GameWIPBenchmarks.exe --benchmark_repetitions=5
 ```
 
 ## Profiling
@@ -86,7 +86,7 @@ The profiling preset enables game-owned Tracy instrumentation. Start the pinned 
 cmake --preset profiling
 cmake --build --preset profiling
 Start-Process .\.tracy\tracy-profiler.exe
-.\build-profiling\GameWIP.exe
+.\build\profiling\GameWIP.exe
 ```
 
 The initial capture names the main thread and separates startup validation, startup benchmarks, and game runtime. See the generated profiling guide for marker ownership and zero-overhead disabled-build rules.
@@ -111,7 +111,7 @@ cmake --preset docs
 cmake --build --preset docs
 ```
 
-Generated HTML starts at `build-docs/docs/doxygen/html/index.html`.
+Generated HTML starts at `build/docs/docs/doxygen/html/index.html`.
 
 Project references:
 
