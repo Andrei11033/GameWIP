@@ -1,5 +1,8 @@
 /// @file runner.h
-/// @brief Modular correctness-test runner.
+/// @brief Modular correctness-test runner used by standalone and startup validation.
+///
+/// The runner owns command-line policy, module selection, child-process routing,
+/// and aggregate reporting. Individual modules own their library-specific tests.
 
 #pragma once
 
@@ -10,7 +13,7 @@
 
 namespace GameWIP::Validation::Tests
 {
-    /// @brief Shared runtime policy applied to every selected correctness-test module.
+    /// @brief Shared runtime policy applied by the runner to selected correctness-test modules.
     struct RunOptions
     {
         /// @brief Enables deterministic stress scenarios.

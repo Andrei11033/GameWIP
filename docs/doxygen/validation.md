@@ -8,7 +8,7 @@ Validation is not linked into shipping builds.
 
 This page documents validation build controls, source layout, module registration, runner command-line behavior, startup validation, child-process routing, report ownership, and module lifecycle.
 
-Correctness-test authoring rules are documented in @ref project_testing. Benchmark authoring rules are documented in @ref project_benchmarking.
+Correctness-test authoring rules are documented in @ref project_testing. Benchmark authoring rules are documented in @ref project_benchmarking. Executable startup integration is documented in @ref project_game_executable.
 
 ## Build controls
 
@@ -181,6 +181,8 @@ When adding validation behavior:
 - Record focused validation commands in the pull request.
 
 ## Related pages
+
+- @ref project_game_executable
 
 - @ref project_testing
 - @ref project_benchmarking

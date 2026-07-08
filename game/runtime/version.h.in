@@ -1,5 +1,8 @@
 /// @file version.h
 /// @brief Generated GameWIP source and build identity.
+///
+/// CMake configures this template into gamewip/version.h. The generated header
+/// is executable/project metadata, not a reusable library API.
 
 #pragma once
 
@@ -7,11 +10,18 @@
 
 namespace GameWIP::Version
 {
+    /// @brief Numeric project version used by package and build metadata.
     inline constexpr std::string_view number = "@GAMEWIP_VERSION_NUMBER@";
+    /// @brief Human-readable version label, including milestone or build qualifiers.
     inline constexpr std::string_view display = "@GAMEWIP_VERSION_DISPLAY@";
+    /// @brief Full product display string suitable for `--version` output.
     inline constexpr char productDisplay[] = "GameWIP @GAMEWIP_VERSION_DISPLAY@";
+    /// @brief Repository-local build number or fallback value selected at configure time.
     inline constexpr std::string_view buildNumber = "@GAMEWIP_VERSION_BUILD_NUMBER@";
+    /// @brief Git commit recorded at configure time, when available.
     inline constexpr std::string_view gitCommit = "@GAMEWIP_VERSION_GIT_COMMIT@";
+    /// @brief True when configure-time metadata detected uncommitted source changes.
     inline constexpr bool dirty = std::string_view{"@GAMEWIP_VERSION_DIRTY_CPP@"} == "true";
+    /// @brief True when the configured build is marked as a release build.
     inline constexpr bool release = std::string_view{"@GAMEWIP_VERSION_RELEASE_CPP@"} == "true";
 } // namespace GameWIP::Version

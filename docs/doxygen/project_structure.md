@@ -13,7 +13,7 @@ This page defines where code belongs and which direction dependencies may flow. 
 | `foundation/` | Low-level reusable libraries such as IO, FileSystem, and Terminal. |
 | `tools/` | Diagnostics, assertions, logging, validation support, and development tooling libraries. |
 | `engine/` | Engine systems developed and reviewed separately from the reusable foundation and tool libraries. |
-| `game/` | Process entry point, runtime composition, validation executable wiring, and game-facing integration. |
+| `game/` | Executable entry point, runtime facade, startup validation wiring, validation runners, and game-facing integration. |
 | `cmake/` | Repository-wide build, platform, validation, coverage, documentation, packaging, and analysis helpers. |
 | `docs/doxygen/` | Generated project manual pages. |
 | `docs/` | Vision, roadmap, decisions, versioning, and contributor workflow records. |
@@ -111,19 +111,11 @@ The validation runner owns command-line behavior, module selection, report gener
 
 See @ref project_validation, @ref project_testing, and @ref project_benchmarking.
 
-## Runtime startup flow
+## Executable integration
 
-`game/main.cpp` remains the stable process entry point.
+The `game/` tree owns executable composition, startup validation wiring, standalone validation runners, and the current runtime facade. `main.cpp` should remain a small process entry point that delegates runtime work behind `GameWIP::Game::run()`.
 
-The startup path is:
-
-1. Run compiled-in startup validation when enabled.
-2. Return immediately for child-process validation scenarios when requested.
-3. Return immediately on startup-validation failure.
-4. Run compiled-in benchmarks when configured.
-5. Enter `GameWIP::Game::run()`.
-
-Disabled startup validation should compile to inline no-op code so shipping builds do not retain test or benchmark dependencies.
+Executable layout, startup sequencing, generated version metadata, and source-comment expectations for `game/` files are documented in @ref project_game_executable.
 
 ## Documentation ownership
 
@@ -134,6 +126,7 @@ See @ref project_documentation and @ref project_planning.
 ## Related pages
 
 - @ref project_build
+- @ref project_game_executable
 - @ref project_testing
 - @ref project_validation
 - @ref project_extending

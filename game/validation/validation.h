@@ -1,5 +1,9 @@
 /// @file validation.h
-/// @brief Compile-time facade for optional startup validation.
+/// @brief Compile-time facade for optional validation embedded in the GameWIP executable.
+///
+/// main.cpp includes this header unconditionally. When startup tests or
+/// benchmarks are disabled, the inline functions become lightweight no-ops so
+/// the executable does not retain validation runner dependencies.
 
 #pragma once
 

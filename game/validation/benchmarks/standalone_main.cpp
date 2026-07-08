@@ -1,5 +1,7 @@
 /// @file standalone_main.cpp
 /// @brief Standalone Google Benchmark process entry point.
+///
+/// This binary is the normal entry point for benchmark registration checks and benchmark measurement runs.
 
 #include "validation/benchmarks/runner.h"
 

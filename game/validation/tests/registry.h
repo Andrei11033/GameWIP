@@ -1,5 +1,8 @@
 /// @file registry.h
-/// @brief Registration contract for modular correctness-test suites.
+/// @brief Registration contract for source-tree correctness-test modules.
+///
+/// Modules register statically so the standalone runner, startup validation, and
+/// CTest module entries can share the same suite implementations.
 
 #pragma once
 
@@ -42,6 +45,9 @@ namespace GameWIP::Validation::Tests
     };
 
     /// @brief Adds one module to the process-local registry during static initialization.
+    ///
+    /// The registration object is normally declared in a module.cpp translation
+    /// unit owned by the validation module.
     class Registration
     {
     public:

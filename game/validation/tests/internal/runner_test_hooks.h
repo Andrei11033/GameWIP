@@ -1,5 +1,8 @@
 /// @file runner_test_hooks.h
-/// @brief Source-tree hooks for testing validation-runner policy with isolated modules.
+/// @brief Source-tree hooks for testing validation-runner policy with explicit module sets.
+///
+/// These hooks let runner self-tests bypass the process-wide static registry so
+/// they can exercise ordering, selection, and conflict handling deterministically.
 
 #pragma once
 

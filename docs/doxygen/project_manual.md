@@ -7,6 +7,7 @@ Use these pages when you need to understand how the project is arranged, how to 
 ## Repository and build workflows
 
 - @subpage project_structure
+- @subpage project_game_executable
 - @subpage project_build
 - @subpage project_library_compatibility
 - @subpage project_repository_automation

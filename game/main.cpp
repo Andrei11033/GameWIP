@@ -1,5 +1,9 @@
 /// @file main.cpp
-/// @brief GameWIP process entry point.
+/// @brief GameWIP process entry point and startup sequencing.
+///
+/// This file should remain the stable process boundary. It handles process-level
+/// utility arguments, runs optional startup validation/benchmarks, and then
+/// delegates runtime execution to GameWIP::Game::run().
 
 #include "runtime/game.h"
 #include "validation/validation.h"
@@ -16,6 +20,7 @@
 
 namespace
 {
+    /// @brief Returns whether the process was invoked only to print version metadata.
     bool requestsVersion(int argc, char **argv) noexcept
     {
         return argc == 2 && argv != nullptr && argv[1] != nullptr && std::string_view(argv[1]) == "--version";

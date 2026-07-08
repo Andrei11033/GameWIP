@@ -1,5 +1,9 @@
 /// @file types.h
 /// @brief Result types shared by embedded and standalone validation runners.
+///
+/// These types describe process-level validation outcomes. They are used by the
+/// executable integration layer and by standalone validation binaries, not by
+/// reusable library consumers.
 
 #pragma once
 
@@ -16,10 +20,10 @@ namespace GameWIP::Validation
         std::size_t modulesFailed = 0;
         /// @brief Process exit code requested by the validation run.
         int exitCode = 0;
-        /// @brief True when one module handled a child-process protocol argument.
+        /// @brief True when a selected module handled a child-process protocol argument and the process should exit immediately.
         bool handledChildInvocation = false;
 
-        /// @brief Returns true when no module failed and exitCode is zero.
+        /// @brief Returns true when no selected module failed and the requested process exit code is zero.
         [[nodiscard]] bool ok() const noexcept
         {
             return modulesFailed == 0 && exitCode == 0;

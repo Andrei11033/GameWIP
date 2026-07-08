@@ -1,5 +1,9 @@
 /// @file game.cpp
-/// @brief Game runtime entry point implementation.
+/// @brief Implementation of the executable-owned runtime facade.
+///
+/// This file is intentionally small until game/runtime composition moves behind
+/// more specific runtime systems. Keep process startup policy in main.cpp and
+/// reusable behavior in the owning reusable library.
 
 #include "runtime/game.h"
 

@@ -1,5 +1,7 @@
 /// @file standalone_main.cpp
 /// @brief Standalone correctness-test process entry point.
+///
+/// This binary is the normal focused local and CI entry point for modular correctness validation.
 
 #include "validation/tests/runner.h"
 

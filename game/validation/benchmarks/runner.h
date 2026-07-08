@@ -1,5 +1,8 @@
 /// @file runner.h
-/// @brief Embedded and standalone Google Benchmark runner.
+/// @brief Google Benchmark runner used by standalone and optional startup benchmark execution.
+///
+/// The runner forwards only benchmark-owned command-line arguments when it is
+/// embedded in the GameWIP executable.
 
 #pragma once
 
