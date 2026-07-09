@@ -10,9 +10,9 @@ Use this page when writing or reviewing:
 
 - Generated project manual pages under `docs/doxygen/`.
 - Library manuals under `<library>/docs/`.
-- Public header comments.
+- Public and ABI-facing header comments.
 - Approved internal test-hook documentation.
-- Source comments for non-obvious implementation contracts.
+- Source comments for file purpose, internal helpers, and non-obvious implementation contracts.
 
 Use @ref project_planning to decide whether product planning or policy material belongs in ordinary `docs/` files instead of the generated manual.
 
@@ -30,13 +30,13 @@ Use @ref project_planning to decide whether product planning or policy material 
 
 | Area | Owner |
 | --- | --- |
-| `README.md` | Short repository entry point. |
+| `README.md` | Repository entry point. |
 | `CONTRIBUTING.md` | Short contributor entry point. |
 | `docs/doxygen/` | Generated project manual pages. |
 | `docs/` | Vision, roadmap, decisions, versioning, and contributor workflow records. |
 | `<library>/docs/` | Library manual pages. |
-| Public headers | Compact generated API reference and IntelliSense documentation. |
-| Internal headers and source files | Maintainer comments for implementation details. |
+| Public headers | Detailed generated API and ABI reference plus IntelliSense documentation. |
+| Internal headers and source files | File purpose, internal helper contracts, and maintainer comments for implementation details. |
 
 Project manual pages own repository workflows and contracts. Library manuals own library-specific API usage, examples, troubleshooting, validation coverage, and approved test hooks.
 
@@ -78,7 +78,7 @@ Each reusable library should provide:
   troubleshooting.md
 ```
 
-Add `test_hooks.md` only when the library exposes approved source-tree-only validation hooks.
+Optional pages such as `test_hooks.md`, `platform.md`, or `design.md` should be added only when the library exposes approved validation hooks, platform-specific contracts, or design constraints that need a stable owner.
 
 A library landing page should contain:
 
@@ -98,11 +98,11 @@ A quick-start page should contain:
 - Failure handling.
 - Where to go next.
 
-## Public API documentation standard
+## Public API and ABI documentation standard
 
-Every public API must be accounted for in generated documentation. This includes public namespaces, classes, structs, enums, enum values, constants, macros, free functions, constructors, member functions, fields, option types, and result types.
+Every public API and ABI-facing contract must be accounted for in generated documentation. This includes public namespaces, classes, structs, enums, enum values, constants, macros, free functions, constructors, member functions, fields, option types, result types, binary boundary assumptions, and exported-symbol expectations.
 
-Header comments provide compact reference documentation. Manual pages provide practical usage guidance.
+Header comments provide the detailed reference documentation for API and ABI contracts. Manual pages provide practical usage guidance, examples, troubleshooting, and broader workflow context.
 
 Document these properties when relevant:
 
@@ -222,7 +222,9 @@ The registered docs folder must contain a landing page named `<PAGE_ID>.md`.
 
 ## Source comments
 
-Public headers should document contracts that are useful in generated reference pages and IntelliSense. Internal headers and implementation files should document non-obvious ownership, locking, state transitions, platform behavior, fallback behavior, units, and performance constraints.
+Every `.h` and `.cpp` file should start with a Doxygen `@file` and `@brief` that describe the file purpose.
+
+Public headers should document public API and ABI contracts in enough detail for generated reference pages, IntelliSense, maintainers, and readers. Internal headers and implementation files should document internal helpers, ownership, locking, state transitions, platform behavior, fallback behavior, units, and performance constraints. Internal helper comments may be shorter than public API comments, but they should still explain what the helper does and why it exists when that is not obvious from the surrounding code.
 
 Do not comment obvious assignments, getters, or local variables.
 

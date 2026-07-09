@@ -1,8 +1,17 @@
 include_guard(GLOBAL)
 
-# Project-wide Doxygen helpers. Library-specific CMake files should only
-# declare their own public headers/docs; the root docs target merges everything
-# into one generated library documentation site.
+# Provides project-wide generated-documentation registration helpers.
+#
+# Public helpers:
+# - gamewip_register_doxygen_inputs(...)
+# - gamewip_register_doxygen_library(...)
+# - gamewip_create_doxygen_target(...)
+#
+# Contract:
+# - Register only explicit public headers and Markdown manual pages.
+# - Require each registered reusable library to provide its landing page.
+# - Keep library CMakeLists.txt files declarative and local to their own docs.
+# - Fail configuration on unsupported inputs instead of silently omitting docs.
 
 function(gamewip_register_doxygen_inputs)
     foreach(doxygen_input IN LISTS ARGN)

@@ -37,7 +37,7 @@ The `Validation / Repository Checks` GitHub job runs checks that do not belong t
 - Node.js syntax checks and unit tests for repository automation JavaScript.
 - JSON parsing for maintained JSON files.
 - actionlint validation for GitHub Actions workflows.
-- Relative Markdown link validation for maintained documentation.
+- Local relative Markdown link validation for maintained documentation.
 
 Local commands:
 
@@ -45,6 +45,7 @@ Local commands:
 node --check .github/scripts/project-automation.js
 node --check .github/scripts/project-automation.test.js
 node --test .github/scripts/project-automation.test.js
+python .github/scripts/check-markdown-links.py
 actionlint
 ```
 
@@ -59,6 +60,8 @@ node --test .github/scripts/release-preparation.test.js
 ## Documentation checks
 
 The regular validation workflow also builds Doxygen and rejects Doxygen warnings. Markdown registered with Doxygen is therefore parsed and cross-reference checked as part of documentation validation.
+
+The repository link checker validates local relative links in maintained Markdown entry points, generated-manual source pages, and GitHub documentation files. It ignores external URLs and `#anchor` fragments; Doxygen-owned anchors and API cross-references are validated by the documentation build.
 
 Doxygen validates syntax and links, but it does not judge prose consistency. First-party Markdown must also be reviewed against the heading, voice, terminology, list, example, and ownership rules in @ref project_documentation.
 
@@ -81,6 +84,7 @@ Do not fix third-party formatting or analysis warnings by rewriting vendor code.
 | clang-tidy fails on a new diagnostic. | The code violates an enabled check. | Fix the code or add a narrow justified suppression. |
 | clang-format check fails. | Maintained C++ formatting differs from `.clang-format`. | Run the formatter locally and commit the result. |
 | actionlint fails. | A workflow syntax or shell issue exists. | Fix the workflow before merging. |
+| Markdown link check fails. | A maintained Markdown file points to a missing local target. | Fix the link, add the missing page, or move the target behind an excluded generated/third-party boundary. |
 | Doxygen warnings appear. | A page, reference, or public comment is malformed. | Fix the owning documentation or registration. |
 | Vendor files are checked. | An exclusion pattern is incomplete. | Update the owning analysis helper without rewriting vendor code. |
 

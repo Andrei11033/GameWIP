@@ -1,4 +1,4 @@
-PROJECT_NAME           = "GameWIP Documentation"
+PROJECT_NAME           = "GameWIP Developer Manual"
 PROJECT_BRIEF          = "Project workflows, reusable libraries, validation, packaging, and maintainer contracts"
 PROJECT_NUMBER         = "@GAMEWIP_VERSION_DISPLAY@"
 OUTPUT_DIRECTORY       = "@LIBRARY_DOXYGEN_OUTPUT_DIR@"
@@ -39,6 +39,7 @@ PLANTUML_CFG_FILE      =
 PLANTUML_INCLUDE_PATH  =
 
 MARKDOWN_SUPPORT       = YES
+TOC_INCLUDE_HEADINGS   = 0
 AUTOLINK_SUPPORT       = YES
 EXTRACT_ALL            = NO
 EXTRACT_PRIVATE        = NO

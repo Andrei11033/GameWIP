@@ -13,6 +13,7 @@ if(GAMEWIP_BUILD_DOCS)
 
     gamewip_register_doxygen_inputs(
         "${GAMEWIP_DOXYGEN_ROOT}/index.md"
+        "${GAMEWIP_DOXYGEN_ROOT}/getting_started.md"
         "${GAMEWIP_DOXYGEN_ROOT}/project_reusable_libraries.md"
         "${GAMEWIP_DOXYGEN_ROOT}/project_manual.md"
         "${GAMEWIP_DOXYGEN_ROOT}/project_contracts.md"

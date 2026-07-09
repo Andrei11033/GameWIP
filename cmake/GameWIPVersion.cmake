@@ -2,6 +2,19 @@ include_guard(GLOBAL)
 
 include(CMakeParseArguments)
 
+# Provides project version detection and generated version-header helpers.
+#
+# Public helpers:
+# - gamewip_compose_display_version(...)
+# - gamewip_detect_version(...)
+# - gamewip_write_version_header(...)
+# - gamewip_configure_version()
+#
+# Contract:
+# - Compose stable release versions from annotated release tags.
+# - Compose development versions from the project version, build count, commit, and dirty state.
+# - Generate the runtime version header during configure without requiring Git in exported consumers.
+
 function(gamewip_compose_display_version output_variable)
     set(options RELEASE DIRTY)
     set(one_value_arguments PROJECT_VERSION BUILD_NUMBER GIT_COMMIT)

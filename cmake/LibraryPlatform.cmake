@@ -1,5 +1,17 @@
 include_guard(GLOBAL)
 
+# Provides shared platform-backend selection helpers for reusable libraries.
+#
+# Public helpers:
+# - gamewip_resolve_platform_id(...)
+# - gamewip_target_platform_sources(...)
+# - gamewip_include_platform_cmake_if_present(...)
+#
+# Contract:
+# - Resolve one repository-wide platform backend id for the current configure.
+# - Require each platform-backed library to provide backend sources for that id.
+# - Keep optional platform CMake files scoped to their backend directory.
+
 function(gamewip_resolve_platform_id output_variable)
     if(DEFINED GAMEWIP_PLATFORM_ID AND NOT GAMEWIP_PLATFORM_ID STREQUAL "")
         set(${output_variable} "${GAMEWIP_PLATFORM_ID}" PARENT_SCOPE)

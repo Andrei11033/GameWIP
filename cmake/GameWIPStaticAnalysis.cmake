@@ -1,3 +1,13 @@
+# Provides static-analysis target creation for maintained C++ sources.
+#
+# Public helper:
+# - gamewip_create_static_analysis_targets()
+#
+# Contract:
+# - Create no targets unless static analysis is enabled for the configure.
+# - Run clang-tidy and clang-format checks on GameWIP-owned C++ roots.
+# - Exclude generated and third-party headers from project-owned diagnostics.
+
 function(gamewip_create_static_analysis_targets)
     if(NOT GAMEWIP_ENABLE_STATIC_ANALYSIS)
         return()

@@ -1,5 +1,18 @@
 include(CMakeParseArguments)
 
+# Provides registration helpers for correctness-test and benchmark modules.
+#
+# Public helpers:
+# - gamewip_add_validation_module_directories(...)
+# - gamewip_add_test_module(...)
+# - gamewip_add_benchmark_module(...)
+#
+# Contract:
+# - Keep validation modules discoverable by directory.
+# - Add module sources to the aggregate validation targets.
+# - Register ctest entries only for correctness-test modules.
+# - Keep benchmark modules separate from correctness-test thresholds.
+
 function(gamewip_add_validation_module_directories root_directory)
     file(GLOB gamewip_module_cmake_files CONFIGURE_DEPENDS
         "${root_directory}/*/CMakeLists.txt"
