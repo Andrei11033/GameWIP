@@ -72,6 +72,8 @@ The numeric `PROJECT_VERSION` does not change for every merge. Only the generate
 7. After merge, verify the exact commit and post-merge checks before creating the annotated `vX.Y.Z` tag and GitHub release.
 8. Never move, overwrite, or reuse a published tag or version. Any correction receives a newer version.
 
+Release preparation is performed by the guarded release-preparation workflow. The workflow must pass in read-only mode before it is allowed to create or reuse a release-preparation branch and pull request.
+
 Only an immutable annotated tag and matching GitHub release make a version a completed release. A numeric value in an untagged source tree is a release target, not proof that the release exists.
 
 ## Generated and package versions
@@ -97,4 +99,5 @@ Each schema receives its own version only when that domain requires migration or
 - @ref project_roadmap
 - @ref project_library_compatibility
 - @ref project_repository_automation
+- @ref project_release_automation
 - @ref project_contributing

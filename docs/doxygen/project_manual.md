@@ -11,6 +11,7 @@ Use these pages when you need to understand how the project is arranged, how to 
 - @subpage project_build
 - @subpage project_library_compatibility
 - @subpage project_repository_automation
+- @subpage project_release_automation
 - @subpage project_contributing
 
 ## Validation workflows

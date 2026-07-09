@@ -13,9 +13,15 @@ const {
     parseReleaseVersion,
     planFinalizationArtifacts,
     planPreparationArtifacts,
+    releaseBodyFromNotes,
+    releaseNotesPath,
+    releaseNotesTemplate,
     releaseNames,
+    releasePullRequestBody,
     selectNextMilestone,
+    validateMergedReleasePullRequest,
     validateMilestoneReadiness,
+    validateReleaseNotesReady,
     validateRequiredChecks,
     validateTargetVersion,
 } = require('./release-preparation');
@@ -433,4 +439,100 @@ test('builds a complete read-only preparation plan', () => {
     assert.equal(plan.nextMilestone.title, 'R01 - Window, Input, and Action Foundation');
     assert.equal(plan.artifacts.createBranch, true);
     assert.equal(plan.artifacts.createPullRequest, true);
+});
+
+test('generates release notes without closing the release issue', () => {
+    const version = parseReleaseVersion('0.0.1');
+    const notes = releaseNotesTemplate({
+        version,
+        milestoneTitle: 'R00 - Bootstrap',
+        releaseIssue: {number: 11},
+        nextMilestoneTitle: 'R01 - Window, Input, and Action Foundation',
+    });
+
+    assert.equal(releaseNotesPath(version), 'docs/releases/v0.0.1.md');
+    assert.match(notes, /^# GameWIP v0\.0\.1 release notes/);
+    assert.match(notes, /Release issue: #11/);
+    assert.match(notes, /Next milestone: R01 - Window, Input, and Action Foundation/);
+
+    const body = releaseBodyFromNotes(notes);
+    assert.match(body, /# GameWIP v0\.0\.1 release notes/);
+    assert.doesNotMatch(body, /- \[ \]/);
+
+    assert.throws(() => validateReleaseNotesReady(notes), /validation-evidence placeholder/);
+    const notesWithEvidence = notes.replace(
+        'Paste the final validation commands, environment, results, skips, and observed manual UI behavior here before merging this release-preparation pull request.',
+        'Final validation evidence was recorded in this pull request.',
+    );
+    assert.throws(() => validateReleaseNotesReady(notesWithEvidence), /unchecked release checklist/);
+
+    const completedNotes = notesWithEvidence
+        .replaceAll('- [ ]', '- [x]');
+    assert.equal(validateReleaseNotesReady(completedNotes), true);
+});
+
+test('generates release pull request body for human merge', () => {
+    const snapshot = {
+        activeMilestone: 'R00 - Bootstrap',
+        milestone: releaseMilestone(),
+        issues: milestoneIssues(),
+        cmakeContents: 'project(GameWIP VERSION 0.0.1 LANGUAGES CXX)',
+        tagNames: [],
+        masterSha,
+        evaluatedSha: masterSha,
+        requiredChecks,
+        checks: successfulChecks(),
+        milestones: [releaseMilestone(), {title: 'R01 - Window, Input, and Action Foundation'}],
+        branches: [],
+        pullRequests: [],
+    };
+
+    const body = releasePullRequestBody(buildReleasePreparationPlan(snapshot));
+    assert.match(body, /release-preparation workflow/);
+    assert.match(body, /Refs #11/);
+    assert.doesNotMatch(body, /Closes #11/);
+    assert.match(body, /human review and merge/);
+});
+
+test('finalization requires the merged release pull request commit', () => {
+    const version = parseReleaseVersion('0.0.1');
+    const merged = planPreparationArtifacts({
+        version,
+        masterSha,
+        branches: [],
+        pullRequests: [
+            {
+                number: 42,
+                headRefName: releaseNames(version).branchName,
+                headSha: '3333333333333333333333333333333333333333',
+                baseRefName: 'master',
+                mergeBaseSha: masterSha,
+                mergeCommitSha: masterSha,
+                state: 'merged',
+            },
+        ],
+    });
+    assert.equal(validateMergedReleasePullRequest({artifacts: merged}, masterSha), true);
+
+    const open = planPreparationArtifacts({
+        version,
+        masterSha,
+        branches: [{name: releaseNames(version).branchName, sha: masterSha}],
+        pullRequests: [
+            {
+                number: 42,
+                headRefName: releaseNames(version).branchName,
+                headSha: masterSha,
+                baseRefName: 'master',
+                mergeBaseSha: masterSha,
+                mergeCommitSha: null,
+                state: 'open',
+            },
+        ],
+    });
+    assert.throws(() => validateMergedReleasePullRequest({artifacts: open}, masterSha), /must be merged/);
+    assert.throws(
+        () => validateMergedReleasePullRequest({artifacts: {...merged, pullRequestMergeCommitSha: masterSha}}, '2222'),
+        /is not release commit/,
+    );
 });
