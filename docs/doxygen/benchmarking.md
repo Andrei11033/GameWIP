@@ -42,7 +42,7 @@ Use this while developing or investigating one subsystem.
 .\build\benchmark\GameWIPBenchmarks.exe `
   --benchmark_filter=BM_Logger `
   --benchmark_repetitions=5 `
-  --benchmark_out=logger_results.json `
+  --benchmark_out=build/benchmark/logger_results.json `
   --benchmark_out_format=json
 ```
 

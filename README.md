@@ -53,12 +53,14 @@ Run one validation module directly:
 .\build\validation\GameWIPTests.exe --test-module=filesystem
 ```
 
-Run static-analysis and repository checks:
+Run C++ static-analysis and formatting checks:
 
 ```powershell
 cmake --preset static-analysis
 cmake --build --preset static-analysis
 ```
+
+Repository script, Markdown-link, workflow, and documentation checks are documented in [Static analysis and repository checks](docs/doxygen/static_analysis.md).
 
 Run the AddressSanitizer workflow from an MSYS2 CLANG64 environment:
 

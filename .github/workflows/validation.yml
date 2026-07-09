@@ -106,6 +106,10 @@ jobs:
             -not -path './build/*' \
             -print0)
 
+      - name: Check Python scripts
+        shell: bash
+        run: python3 -m py_compile .github/scripts/check-markdown-links.py
+
       - name: Check Markdown links
         shell: bash
         run: python3 .github/scripts/check-markdown-links.py

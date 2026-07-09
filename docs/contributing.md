@@ -143,7 +143,7 @@ It performs:
 - Doxygen documentation build with `GAMEWIP_BUILD_DOCS=ON`.
 - Doxygen warning-log check.
 - clang-tidy and clang-format checks for maintained C++ code.
-- JavaScript syntax and unit tests, JSON parsing, and actionlint workflow validation.
+- JavaScript syntax and unit tests, Python maintenance-script syntax checks, JSON parsing, local Markdown link validation, and actionlint workflow validation.
 
 The `Doxygen Docs` workflow publishes GitHub Pages only from `master` or manual dispatch. Pull requests build docs for validation but do not publish them.
 
