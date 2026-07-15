@@ -139,6 +139,8 @@ It performs:
 
 - MSYS2 UCRT64 configure, build, and modular correctness tests with internal test hooks enabled.
 - MSYS2 CLANG64 AddressSanitizer configure, build, and test.
+- Installed-package validation with the single supported CMake line across Ninja and Ninja Multi-Config consumers.
+- GCC coverage configure, test, and report generation.
 - Google Benchmark registration dry run without performance thresholds.
 - Doxygen documentation build with `GAMEWIP_BUILD_DOCS=ON`.
 - Doxygen warning-log check.
@@ -153,6 +155,8 @@ Branch protection for `master` must require:
 PR Standards / Check PR Standards
 Validation / Build and Test
 Validation / AddressSanitizer
+Validation / Coverage
+Validation / Packages (CMake)
 Validation / Repository Checks
 Validation / Docs Check
 ```

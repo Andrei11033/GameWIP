@@ -18,12 +18,8 @@ concurrency:
 
 jobs:
   package-compatibility:
-    name: Packages (CMake ${{ matrix.cmake }})
+    name: Packages (CMake)
     runs-on: windows-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        cmake: ["~3.23.0", "~3.29.0"]
 
     steps:
       - name: Checkout
@@ -36,17 +32,16 @@ jobs:
         uses: msys2/setup-msys2@v2
         with:
           msystem: UCRT64
-          path-type: inherit
           update: true
           install: >-
             git
+            mingw-w64-ucrt-x86_64-cmake
             mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-ninja
 
-      - name: Install compatibility CMake and Ninja
-        uses: lukka/get-cmake@latest
-        with:
-          cmakeVersion: ${{ matrix.cmake }}
-          ninjaVersion: "^1.11.1"
+      - name: Report CMake version
+        shell: msys2 {0}
+        run: cmake --version
 
       - name: Configure package validation
         shell: msys2 {0}
@@ -71,7 +66,6 @@ jobs:
         run: ctest --test-dir build/package-compatibility -R validation.packages --output-on-failure
 
       - name: Configure multi-config package validation
-        if: matrix.cmake == '~3.29.0'
         shell: msys2 {0}
         run: >
           cmake -S . -B build/package-multi-config
@@ -85,7 +79,6 @@ jobs:
           -DGAMEWIP_ENABLE_ASSERTS=ON
 
       - name: Test multi-config installed packages
-        if: matrix.cmake == '~3.29.0'
         shell: msys2 {0}
         run: |
           cmake --build build/package-multi-config --target GameWIPTests --config RelWithDebInfo --parallel
@@ -115,6 +108,10 @@ jobs:
             mingw-w64-ucrt-x86_64-gcc
             mingw-w64-ucrt-x86_64-ninja
             mingw-w64-ucrt-x86_64-python
+
+      - name: Report CMake version
+        shell: msys2 {0}
+        run: cmake --version
 
       - name: Configure
         shell: msys2 {0}
@@ -226,6 +223,10 @@ jobs:
             mingw-w64-ucrt-x86_64-ninja
             mingw-w64-ucrt-x86_64-gcovr
 
+      - name: Report CMake version
+        shell: msys2 {0}
+        run: cmake --version
+
       - name: Configure
         shell: msys2 {0}
         run: cmake --preset coverage
@@ -272,6 +273,10 @@ jobs:
             mingw-w64-clang-x86_64-lld
             mingw-w64-clang-x86_64-ninja
 
+      - name: Report CMake version
+        shell: msys2 {0}
+        run: cmake --version
+
       - name: Configure
         shell: msys2 {0}
         run: cmake --preset address-sanitizer
@@ -307,6 +312,10 @@ jobs:
             mingw-w64-ucrt-x86_64-gcc
             mingw-w64-ucrt-x86_64-graphviz
             mingw-w64-ucrt-x86_64-ninja
+
+      - name: Report CMake version
+        shell: msys2 {0}
+        run: cmake --version
 
       - name: Configure documentation build
         shell: msys2 {0}

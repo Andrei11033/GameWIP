@@ -10,7 +10,7 @@ The repository currently emphasizes reusable foundation libraries, Windows platf
 
 - Windows with MSYS2 UCRT64 GCC for normal development.
 - MSYS2 CLANG64 for AddressSanitizer validation.
-- CMake 3.23 or newer.
+- CMake 4.4.x.
 - Ninja.
 - Git submodules.
 

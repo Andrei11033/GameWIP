@@ -38,6 +38,10 @@ jobs:
             mingw-w64-ucrt-x86_64-graphviz
             mingw-w64-ucrt-x86_64-ninja
 
+      - name: Report CMake version
+        shell: msys2 {0}
+        run: cmake --version
+
       - name: Configure documentation build
         shell: msys2 {0}
         run: >

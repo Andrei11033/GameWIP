@@ -144,7 +144,7 @@ Stress tests may remain correctness tests when they verify invariants rather tha
 
 The combined consumer verifies cross-library integration. Separate isolated consumers call only one `find_package()` for each package, proving that higher-level configs discover every imported dependency in their exported interface. Additional cases cover split-prefix runtime Assert and disabled/interface-only Assert.
 
-CI runs the package cases with the minimum supported CMake 3.23 line and the final pre-3.30 line, where nested dependency discovery had different `PACKAGE_PREFIX_DIR` behavior.
+CI runs every package case with the single supported CMake 4.4 line. One package-validation job covers Ninja and Ninja Multi-Config consumers, and the root requirement is propagated into each independently configured consumer instead of being duplicated.
 
 These checks complement runtime suites; they do not replace behavior validation.
 

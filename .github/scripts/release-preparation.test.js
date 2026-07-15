@@ -186,7 +186,6 @@ test('compares release versions numerically', () => {
 
 test('parses the authoritative root CMake version', () => {
     const cmake = [
-        'cmake_minimum_required(VERSION 3.23)',
         '# project(GameWIP VERSION 9.9.9)',
         'project(',
         '    GameWIP',

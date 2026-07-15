@@ -10,7 +10,7 @@ GameWIP is currently Windows-first. Normal development uses:
 
 - Windows.
 - MSYS2 UCRT64 GCC.
-- CMake 3.23 or newer.
+- CMake 4.4.x.
 - Ninja.
 - Git submodules.
 

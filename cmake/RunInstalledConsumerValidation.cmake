@@ -7,6 +7,7 @@ foreach(required_variable IN ITEMS
         GENERATOR
         BUILD_TYPE
         PACKAGE_VERSION
+        GAMEWIP_CMAKE_MINIMUM_VERSION
         MULTI_CONFIG
         CXX_COMPILER
         COVERAGE_ENABLED
@@ -73,6 +74,7 @@ function(run_installed_consumer source_dir build_dir executable_name package_nam
         "-DCMAKE_CXX_COMPILER=${CXX_COMPILER}"
         "-DCMAKE_PREFIX_PATH=${escaped_prefix_path}"
         "-DGAMEWIP_PACKAGE_VERSION=${PACKAGE_VERSION}"
+        "-DGAMEWIP_CMAKE_MINIMUM_VERSION=${GAMEWIP_CMAKE_MINIMUM_VERSION}"
         "-DGAMEWIP_CONSUMER_LINK_COVERAGE=${COVERAGE_ENABLED}"
         "-DGAMEWIP_CONSUMER_ENABLE_ADDRESS_SANITIZER=${ADDRESS_SANITIZER_ENABLED}"
     )
