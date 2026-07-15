@@ -52,7 +52,8 @@ cmake --build --preset docs
 | `validation` | `RelWithDebInfo` | `GameWIP`, `GameWIPTests`, `GameWIPBenchmarks` | Standalone correctness validation and benchmark registration checks. |
 | `benchmark` | `Release` | `GameWIPBenchmarks` | Optimized benchmark executable without the game. |
 | `tools` | `RelWithDebInfo` | `GameWIP` | Development build with tool support enabled and opened at startup. |
-| `profiling` | `RelWithDebInfo` | `GameWIP` | Development build with Tracy profiling enabled. |
+| `profiling` | `RelWithDebInfo` | `GameWIP` | Tracy profiling with startup validation disabled for clean runtime captures. |
+| `profiling-validation` | `RelWithDebInfo` | `GameWIP` | Tracy profiling with startup correctness tests enabled. |
 | `optimized` | `RelWithDebInfo` with `-O3` | `GameWIP` | Optimized game build with symbols and validation disabled. |
 | `shipping` | `Release` with stripping | `GameWIP` | Shipping-style game build without validation or assertions. |
 | `coverage` | `Debug` | `GameWIPTests`, coverage target | Correctness tests with coverage instrumentation. |

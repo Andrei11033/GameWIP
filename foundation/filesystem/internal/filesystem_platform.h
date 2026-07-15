@@ -85,6 +85,14 @@ namespace GameWIP::FileSystem::Detail::Platform
     {
         /// Forces native file-lock release attempts to fail until disabled.
         void setFileUnlockFailure(bool enabled) noexcept;
+        /// Arms a pause after strict move destination validation and before native commit.
+        void armMoveDestinationValidatedPause() noexcept;
+        /// Arms a pause after native move commit and before the backend returns.
+        void armMoveCommittedPause() noexcept;
+        /// Waits until the selected move pause point is reached.
+        [[nodiscard]] bool waitForMovePause(std::chrono::milliseconds timeout) noexcept;
+        /// Releases a move paused by a test hook.
+        void releaseMovePause() noexcept;
         /// Restores FileSystem platform test hooks to their default state.
         void reset() noexcept;
     } // namespace TestHooks

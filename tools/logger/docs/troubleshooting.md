@@ -52,7 +52,7 @@ A `SourceId`/enum value was not present in `Config::sources` for the active init
 
 ## `flush(timeout)` or a timed report returned false
 
-The timed queue wait did not observe a drain, or an observable file flush failed. Producers may still be active or the worker may still have queued work. A timed report writes its report line first; if its initial file flush fails, the current implementation returns false without attempting the later queue drain. The timeout is not an end-to-end deadline for lock or sink waits.
+The best-effort deadline expired during Logger-owned locking/draining, or an observable file flush failed. Producers may still be active or the worker may still have queued work. Timed reports attempt the later queue drain even when the initial flush fails. Native sink I/O that already started is not cancellable and may outlast the deadline.
 
 ## Fatal logging did not show a popup or terminate
 

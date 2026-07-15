@@ -54,7 +54,7 @@ Atomic write resolves the destination according to policy before creating the sa
 
 Choose `FollowFinal` or `FollowAll` only when link traversal is part of the caller's intended trust model. Do not perform a separate query and assume that a later open or mutation sees the same entry.
 
-Current Win32 limitation: `movePath()` validates a strict destination parent but issues the final rename by absolute path. An adversarial concurrent replacement of a destination ancestor can therefore redirect the move between validation and commit. Atomic writes use the same commit path. Until the rename is anchored to the retained parent handle, `DoNotFollow` and `FollowFinal` are not a complete security boundary for move or atomic-commit destinations under concurrent namespace mutation.
+On Win32, strict `movePath()` and atomic-write commits issue the final rename relative to the retained, validated destination-parent handle. Concurrent replacement of an ancestor spelling cannot redirect that native commit. This protection does not turn general path queries into reservations; later operations must still enforce their own symlink policy.
 
 ## Related pages
 

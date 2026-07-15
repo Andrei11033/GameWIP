@@ -32,6 +32,7 @@ namespace GameWIP::FileSystem
     {
         struct FileState;
         struct FileLockState;
+        struct DirectoryCursorState;
     } // namespace Detail
     /// @endcond
 
@@ -468,6 +469,18 @@ namespace GameWIP::FileSystem
             std::vector<DirectoryEntry> entries;
         };
 
+        /// @brief Result returned by one DirectoryCursor step.
+        /// @details Successful exhaustion is represented by hasEntry=false. A failed result does not contain an entry.
+        struct DirectoryCursorNextResult
+        {
+            /// @brief Operation status.
+            IO::Types::Status status;
+            /// @brief Direct child returned when hasEntry is true.
+            DirectoryEntry entry;
+            /// @brief Whether this step returned one accepted child.
+            bool hasEntry = false;
+        };
+
         /// @brief Options used by removeFile() and removeEmptyDirectory().
         struct RemoveOptions
         {
@@ -526,6 +539,46 @@ namespace GameWIP::FileSystem
 
         struct LockResult;
     } // namespace Types
+
+    /// @brief Move-only, bounded-memory cursor over direct directory children.
+    /// @details The cursor owns backend enumeration state and applies the same filters, symlink policy, native ordering,
+    /// and maximum-entry contract as listDirectory(). Retained memory is independent of the number of sibling entries.
+    /// A cursor object is not safe for concurrent calls.
+    class DirectoryCursor final
+    {
+    public:
+        /// @brief Creates a closed cursor.
+        DirectoryCursor() noexcept;
+        /// @brief Directory cursors are not copy-constructible.
+        DirectoryCursor(const DirectoryCursor &) = delete;
+        /// @brief Directory cursors are not copy-assignable.
+        DirectoryCursor &operator=(const DirectoryCursor &) = delete;
+        /// @brief Move-constructs a cursor and leaves the source closed.
+        DirectoryCursor(DirectoryCursor &&other) noexcept;
+        /// @brief Move-assigns a cursor, closing any enumeration previously owned by this object.
+        DirectoryCursor &operator=(DirectoryCursor &&other) noexcept;
+        /// @brief Closes an active enumeration without throwing.
+        ~DirectoryCursor() noexcept;
+
+        /// @brief Opens a direct-child enumeration. Failure leaves this cursor closed.
+        /// @param path Directory path to enumerate.
+        /// @param options Filtering, symlink, hidden-entry, and entry-limit behavior.
+        /// @return Success, AlreadyOpen, or a validation/open failure status.
+        [[nodiscard]] IO::Types::Status open(const Types::Path &path, const Types::ListDirectoryOptions &options = {}) noexcept;
+        /// @brief Returns whether this object owns an active enumeration.
+        [[nodiscard]] bool isOpen() const noexcept;
+        /// @brief Returns the next accepted child or successful exhaustion.
+        /// @return One entry, successful exhaustion, NotOpen, SizeLimitExceeded, or an enumeration failure.
+        [[nodiscard]] Types::DirectoryCursorNextResult next() noexcept;
+        /// @brief Closes the enumeration. Repeated close calls succeed.
+        [[nodiscard]] IO::Types::Status close() noexcept;
+
+    private:
+        std::unique_ptr<Detail::DirectoryCursorState> state_;
+        Types::ListDirectoryOptions options_{};
+        std::uint64_t emittedEntries_ = 0;
+        bool limitReached_ = false;
+    };
 
     /// @brief RAII owner for a whole-file lock.
     /// @details FileLock is move-constructible and non-copyable. Move assignment is deleted because replacing an active lock could hide unlock
@@ -1012,8 +1065,7 @@ namespace GameWIP::FileSystem
     /// @param options Replacement, symlink, and parent creation behavior.
     /// @return Success or a validation, lookup, permission, conflict, or move failure status.
     /// @note Cross-volume moves return MoveFailed; no copy-and-delete fallback is performed.
-    /// @warning Concurrent path mutation can currently produce a failure after native rename succeeds; do not retry
-    /// ReplaceExisting blindly when another actor can recreate the source or remove/replace the destination.
+    /// @note Native rename success is the operation's linearization point; later namespace changes do not change the returned success.
     [[nodiscard]] IO::Types::Status movePath(const Types::Path &from, const Types::Path &to, const Types::MoveOptions &options = {}) noexcept;
 
     /// @brief Removes one regular file or symlink-to-file entry.

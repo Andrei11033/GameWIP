@@ -1249,8 +1249,13 @@ void GameWIP::Logger::flush()
 /// @return True when queued work drained and sink flushing succeeded before timeout expired.
 bool GameWIP::Logger::flush(std::chrono::milliseconds timeout)
 {
-    std::lock_guard<std::mutex> lifecycleLock(loggerState().lifecycleMutex);
-    return flushInternal(timeout);
+    const FlushDeadline deadline = makeFlushDeadline(timeout);
+    std::unique_lock<std::mutex> lifecycleLock(loggerState().lifecycleMutex, std::defer_lock);
+    if (!lockBefore(lifecycleLock, deadline))
+    {
+        return false;
+    }
+    return flushInternal(deadline);
 }
 
 /// @brief Stops the worker, drains queued logs, and closes the file sink.

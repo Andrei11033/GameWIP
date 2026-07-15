@@ -15,10 +15,12 @@
 #include <algorithm>
 #include <atomic>
 #include <chrono>
+#include <condition_variable>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
 #include <memory>
+#include <mutex>
 #include <span>
 #include <string>
 #include <string_view>
@@ -46,16 +48,51 @@ namespace GameWIP::FileSystem::Detail::Platform
 #if INTERNAL_FILESYSTEM_TEST_HOOKS
         /// Persistent failure injection used to validate destructor cleanup after UnlockFileEx failure.
         std::atomic_bool forceFileUnlockFailure = false;
+
+        struct MovePauseHook
+        {
+            std::mutex mutex;
+            std::condition_variable condition;
+            bool pauseAfterValidation = false;
+            bool pauseAfterCommit = false;
+            bool reached = false;
+            bool released = false;
+        };
+
+        MovePauseHook movePauseHook;
+
+        void pauseMoveIfArmed(bool afterCommit)
+        {
+            std::unique_lock lock(movePauseHook.mutex);
+            bool &armed = afterCommit ? movePauseHook.pauseAfterCommit : movePauseHook.pauseAfterValidation;
+            if (!armed)
+            {
+                return;
+            }
+            movePauseHook.reached = true;
+            movePauseHook.condition.notify_all();
+            movePauseHook.condition.wait(
+                lock,
+                []
+                {
+                    return movePauseHook.released;
+                });
+            armed = false;
+            movePauseHook.reached = false;
+            movePauseHook.released = false;
+        }
 #endif
 
         using NtCreateFileFunction =
             NTSTATUS(NTAPI *)(PHANDLE, ACCESS_MASK, POBJECT_ATTRIBUTES, PIO_STATUS_BLOCK, PLARGE_INTEGER, ULONG, ULONG, ULONG, ULONG, PVOID, ULONG);
+        using NtSetInformationFileFunction = NTSTATUS(NTAPI *)(HANDLE, PIO_STATUS_BLOCK, PVOID, ULONG, FILE_INFORMATION_CLASS);
         using RtlNtStatusToDosErrorFunction = ULONG(NTAPI *)(NTSTATUS);
 
         /// @brief Lazily resolved NT entry points needed for race-resistant relative traversal.
         struct NtApi
         {
             NtCreateFileFunction createFile = nullptr;
+            NtSetInformationFileFunction setInformationFile = nullptr;
             RtlNtStatusToDosErrorFunction ntStatusToDosError = nullptr;
         };
 
@@ -452,6 +489,7 @@ namespace GameWIP::FileSystem::Detail::Platform
                 if (module != nullptr)
                 {
                     result.createFile = reinterpret_cast<NtCreateFileFunction>(GetProcAddress(module, "NtCreateFile"));
+                    result.setInformationFile = reinterpret_cast<NtSetInformationFileFunction>(GetProcAddress(module, "NtSetInformationFile"));
                     result.ntStatusToDosError = reinterpret_cast<RtlNtStatusToDosErrorFunction>(GetProcAddress(module, "RtlNtStatusToDosError"));
                 }
                 return result;
@@ -1762,9 +1800,22 @@ namespace GameWIP::FileSystem::Detail::Platform
         /// Converts one native enumeration record into a platform-neutral directory entry.
         [[nodiscard]] DirectoryCursorNextResult directoryCursorEntry(Detail::DirectoryCursorState &state, const WIN32_FIND_DATAW &findData)
         {
-            const std::wstring_view childName{findData.cFileName};
-            const Types::Path childPath = state.directoryPath / std::filesystem::path{std::wstring(childName)};
-            const EntryQueryResult child = queryEntryImpl(childPath, state.symlinkPolicy);
+            const std::wstring childName{findData.cFileName};
+            const Types::Path childPath = state.directoryPath / std::filesystem::path{childName};
+            if (state.stableHandles.empty())
+            {
+                return {.status = IO::makeStatus(ErrorCode::DirectoryListFailed)};
+            }
+
+            // Query relative to the retained directory handle. This preserves strict traversal and
+            // avoids reopening the complete ancestry once per child.
+            const HANDLE parentHandle = static_cast<HANDLE>(state.stableHandles.back());
+            HandleResult childHandle = openChild(parentHandle, childName, state.symlinkPolicy == Types::SymlinkPolicy::DoNotFollow, false);
+            if (!childHandle.status.ok())
+            {
+                return {.status = childHandle.status};
+            }
+            const EntryQueryResult child = queryHandleInfo(childHandle.handle.get());
             if (!child.status.ok())
             {
                 return {.status = child.status};
@@ -2811,19 +2862,40 @@ namespace GameWIP::FileSystem::Detail::Platform
                     return destinationParent.status;
                 }
 
-                const std::wstring &fileName = nativeTo.path;
+#if INTERNAL_FILESYSTEM_TEST_HOOKS
+                pauseMoveIfArmed(false);
+#endif
+
+                // Keep the validated parent handle authoritative through commit. An absolute name
+                // would re-resolve every ancestor and reopen the validation-to-rename race.
+                const std::wstring &fileName = parsedTo.components.back();
                 const DWORD fileNameBytes = static_cast<DWORD>(fileName.size() * sizeof(wchar_t));
                 std::vector<std::byte> renameBuffer(sizeof(FILE_RENAME_INFO) + fileNameBytes + sizeof(wchar_t));
                 auto *renameInfo = reinterpret_cast<FILE_RENAME_INFO *>(renameBuffer.data());
                 renameInfo->ReplaceIfExists = replaceMode == Types::ReplaceMode::ReplaceExisting;
-                renameInfo->RootDirectory = nullptr;
+                renameInfo->RootDirectory = destinationParent.handle.get();
                 renameInfo->FileNameLength = fileNameBytes;
                 std::copy(fileName.begin(), fileName.end(), renameInfo->FileName);
 
-                if (SetFileInformationByHandle(source.handle.get(), FileRenameInfo, renameInfo, static_cast<DWORD>(renameBuffer.size())) == FALSE)
+                const NtApi &api = ntApi();
+                if (api.setInformationFile == nullptr)
                 {
-                    return makeLastErrorStatus(ErrorCode::MoveFailed);
+                    return IO::makeStatus(ErrorCode::Unsupported, 0, "NtSetInformationFile is unavailable");
                 }
+                IO_STATUS_BLOCK renameStatus{};
+                const NTSTATUS status = api.setInformationFile(
+                    source.handle.get(),
+                    &renameStatus,
+                    renameInfo,
+                    static_cast<ULONG>(renameBuffer.size()),
+                    FileRenameInformation);
+                if (!NT_SUCCESS(status))
+                {
+                    return makeNtStatus(status, ErrorCode::MoveFailed);
+                }
+#if INTERNAL_FILESYSTEM_TEST_HOOKS
+                pauseMoveIfArmed(true);
+#endif
                 return IO::successStatus();
             }
 
@@ -2931,9 +3003,52 @@ namespace GameWIP::FileSystem::Detail::Platform
             forceFileUnlockFailure.store(enabled, std::memory_order_release);
         }
 
+        void armMoveDestinationValidatedPause() noexcept
+        {
+            std::lock_guard lock(movePauseHook.mutex);
+            movePauseHook.pauseAfterValidation = true;
+            movePauseHook.pauseAfterCommit = false;
+            movePauseHook.reached = false;
+            movePauseHook.released = false;
+        }
+
+        void armMoveCommittedPause() noexcept
+        {
+            std::lock_guard lock(movePauseHook.mutex);
+            movePauseHook.pauseAfterValidation = false;
+            movePauseHook.pauseAfterCommit = true;
+            movePauseHook.reached = false;
+            movePauseHook.released = false;
+        }
+
+        bool waitForMovePause(std::chrono::milliseconds timeout) noexcept
+        {
+            std::unique_lock lock(movePauseHook.mutex);
+            return movePauseHook.condition.wait_for(
+                lock,
+                timeout,
+                []
+                {
+                    return movePauseHook.reached;
+                });
+        }
+
+        void releaseMovePause() noexcept
+        {
+            std::lock_guard lock(movePauseHook.mutex);
+            movePauseHook.released = true;
+            movePauseHook.condition.notify_all();
+        }
+
         void reset() noexcept
         {
             forceFileUnlockFailure.store(false, std::memory_order_release);
+            std::lock_guard lock(movePauseHook.mutex);
+            movePauseHook.pauseAfterValidation = false;
+            movePauseHook.pauseAfterCommit = false;
+            movePauseHook.reached = false;
+            movePauseHook.released = true;
+            movePauseHook.condition.notify_all();
         }
     } // namespace TestHooks
 #endif

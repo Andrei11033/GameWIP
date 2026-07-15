@@ -632,10 +632,10 @@ namespace GameWIP::TestSupport
         /// @brief Result of one child-process execution.
         struct ChildProcessResult
         {
-            /// @brief Native process exit code narrowed to int, or -1 for launch/setup/wait/inspection/capture infrastructure failure.
-            /// @warning On Win32, native codes above INT_MAX are not represented faithfully and 0xffffffff collides
-            /// with the -1 infrastructure sentinel.
-            int exitCode = 0;
+            /// @brief Complete native process exit code when infrastructureFailure is false.
+            std::uint32_t exitCode = 0;
+            /// @brief True when launch, setup, wait, inspection, or capture infrastructure failed.
+            bool infrastructureFailure = true;
             /// @brief True when the configured wait expired before normal process completion.
             bool timedOut = false;
             /// @brief True when TestSupport requested primary-process termination during timeout or failure handling.
@@ -670,9 +670,8 @@ namespace GameWIP::TestSupport
 
     /// @brief Launches one process directly without a shell and waits for its process tree to finish or be terminated.
     /// @param options Launch path, arguments, environment, timeout, and combined-output capture settings.
-    /// @return Exit, timeout, termination, and optional raw output details. `exitCode == -1` reports TestSupport infrastructure failure.
+    /// @return Exit, timeout, termination, infrastructure health, and optional raw output details.
     /// @note The child inherits the parent working directory. Timeout is not a strict total-duration deadline.
-    /// @warning Win32 exit codes above INT_MAX are narrowed to int; 0xffffffff is indistinguishable from the -1 infrastructure sentinel.
     /// @throws std::invalid_argument when a path, argument, environment name, or environment value contains invalid process text.
     /// @throws std::length_error when UTF-8 input exceeds the platform conversion limit.
     /// @throws std::runtime_error when platform text conversion fails unexpectedly.

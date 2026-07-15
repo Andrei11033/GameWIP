@@ -92,6 +92,9 @@ Start-Process .\.tracy\tracy-profiler.exe
 .\build\profiling\GameWIP.exe
 ```
 
+The default profiling preset skips startup validation so captures begin with the runtime workload. Use
+`profiling-validation` when validation itself needs to appear in the Tracy capture.
+
 The profiling guide in the generated documentation explains marker ownership, capture expectations, and disabled-build rules.
 
 ## Shipping build

@@ -20,7 +20,7 @@ With `INTERNAL_ASSERT_TEST_HOOKS=1`, tests can force primary action-dialog fallb
 
 GameWIP owns module registration, child routing, UI selection, benchmarks, reports, and coverage. See @ref project_testing, @ref project_benchmarking, and @ref project_coverage.
 
-The installed interface-only Assert package selected when both assertion families are forced off does not currently have a dedicated package-consumer configuration. Disabled macro behavior is tested, but changes to that alternate install/export branch need a manual clean install and consumer build until a matrix case is added.
+Installed-package validation includes a dedicated interface-only Assert configuration with both assertion families disabled and a custom absolute data directory. The normal runtime package is also consumed with Assert and Logger in separate prefixes.
 
 ## Related pages
 

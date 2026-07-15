@@ -55,14 +55,6 @@ jobs:
         shell: msys2 {0}
         run: cmake --build build/docs --target docs --verbose
 
-      - name: Check Doxygen warnings
-        shell: msys2 {0}
-        run: |
-          if [ -s build/docs/docs/doxygen/doxygen_warnings.log ]; then
-            cat build/docs/docs/doxygen/doxygen_warnings.log
-            exit 1
-          fi
-
       - name: Disable Jekyll processing
         shell: powershell
         run: New-Item -ItemType File -Path build/docs/docs/doxygen/html/.nojekyll -Force

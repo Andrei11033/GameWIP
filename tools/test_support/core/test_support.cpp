@@ -718,12 +718,12 @@ namespace GameWIP::TestSupport
 
     bool Types::ChildProcessResult::exitedSuccessfully() const noexcept
     {
-        return exitCode == 0 && !timedOut && !wasTerminatedByTest;
+        return !infrastructureFailure && exitCode == 0 && !timedOut && !wasTerminatedByTest;
     }
 
     bool Types::ChildProcessResult::exitedWithFailure() const noexcept
     {
-        return exitCode != 0 || timedOut || wasTerminatedByTest;
+        return infrastructureFailure || exitCode != 0 || timedOut || wasTerminatedByTest;
     }
 
     Types::ManualAnswer promptManualCheck(std::string_view question)

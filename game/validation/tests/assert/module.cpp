@@ -5,17 +5,24 @@
 
 #include "validation/tests/registry.h"
 
+#include <algorithm>
 #include <string_view>
 
 namespace
 {
-    /// @brief Claims the Assert child prefix for routing before validating its exact protocol suffix.
-    /// @note An unknown reserved suffix currently reaches the Assert module and can fall through to its full suite.
+    /// @brief Claims only exact Assert child protocols recognized by the suite.
     bool handlesChildArguments(int argc, char **argv)
     {
+        constexpr std::string_view selectors[] = {
+            "--assert-test-child=assert-failure",
+            "--assert-test-child=debug-break",
+            "--assert-test-child=unreachable",
+            "--assert-test-child=interactive-abort",
+            "--assert-test-child=interactive-break",
+        };
         for (int index = 1; index < argc; ++index)
         {
-            if (argv[index] != nullptr && std::string_view(argv[index]).starts_with("--assert-test-child="))
+            if (argv[index] != nullptr && std::ranges::find(selectors, std::string_view(argv[index])) != std::end(selectors))
             {
                 return true;
             }

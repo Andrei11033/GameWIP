@@ -170,12 +170,12 @@ namespace GameWIP::Logger
             std::string_view text = {};
         };
 
-        /// @brief Explicit wrapper for the queue-drain wait used by timed report APIs.
-        /// @details The value bounds the queue condition wait after internal serialization. Lock acquisition
-        /// and synchronous sink flushing are not covered by an end-to-end deadline and can take longer.
+        /// @brief Explicit wrapper for the best-effort end-to-end deadline used by timed report APIs.
+        /// @details Logger-owned lock acquisition, queue draining, and pre-I/O deadline checks share one absolute deadline.
+        /// A synchronous native write or flush that has already started cannot be cancelled and may overrun it.
         struct FlushTimeout
         {
-            /// @brief Maximum queue condition-wait duration after internal serialization.
+            /// @brief Best-effort total duration available to Logger-owned waits and deadline checks.
             std::chrono::milliseconds value{};
         };
 
@@ -604,9 +604,9 @@ namespace GameWIP::Logger
     /// @note Concurrent producers may enqueue after flush() observes the queue as drained; this is not a stop-the-world barrier.
     GAMEWIP_LOGGER_EXPORT void flush();
     /// @brief Waits for accepted queued logs to drain and flushes console/file sinks using a timed queue wait.
-    /// @param timeout Maximum queue condition-wait duration after internal serialization.
+    /// @param timeout Best-effort end-to-end duration for Logger-owned lock waits, queue drain, and sink-flush entry.
     /// @return True when the queue drained within that wait and the observable sink flush succeeded.
-    /// @note This is not an end-to-end call deadline; lock acquisition and synchronous sink operations can exceed timeout.
+    /// @note Native sink I/O that has already started is not cancellable and can exceed timeout.
     /// @note Concurrent producers may enqueue after flush(timeout) observes the queue as drained; this is not a stop-the-world barrier.
     GAMEWIP_LOGGER_EXPORT bool flush(std::chrono::milliseconds timeout);
     /// @}

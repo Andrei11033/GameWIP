@@ -26,7 +26,7 @@ Assert has two package forms:
 
 The runtime-enabled package has an implementation dependency on Logger. The installed package resolves that dependency through `find_dependency(Logger ... CONFIG)`.
 
-Current compatibility limitation: with CMake 3.23 through 3.29, resolving Logger from a different installation prefix can overwrite `PACKAGE_PREFIX_DIR` before Assert derives its installed Common Controls resource paths. Keep runtime Assert and Logger in the same prefix on those CMake versions, or use CMake 3.30 or newer, until Assert preserves its own prefix across dependency discovery. A custom absolute `CMAKE_INSTALL_DATADIR` is also not supported by the current resource-path concatenation.
+Assert resolves its installed Common Controls resource paths before dependency discovery and uses `configure_package_config_file(PATH_VARS ...)`. Split Assert/Logger prefixes are therefore supported across the minimum CMake range, and relative or absolute `CMAKE_INSTALL_DATADIR` values remain valid.
 
 ## Exported symbols
 

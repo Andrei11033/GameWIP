@@ -44,6 +44,11 @@ namespace GameWIP::Logger::Detail::Core
         loggerTestHookState.pauseBeforeFinalProducerLeave.store(false, std::memory_order_release);
         loggerTestHookState.finalProducerLeaveReached.store(false, std::memory_order_release);
         loggerTestHookState.releaseFinalProducerLeave.store(false, std::memory_order_release);
+        loggerTestHookState.pauseBeforeWorkerDelivery.store(false, std::memory_order_release);
+        loggerTestHookState.workerDeliveryReached.store(false, std::memory_order_release);
+        loggerTestHookState.releaseWorkerDelivery.store(false, std::memory_order_release);
+        loggerTestHookState.lifecycleLockReached.store(false, std::memory_order_release);
+        loggerTestHookState.releaseLifecycleLock.store(false, std::memory_order_release);
     }
 
     void pauseWorkerBeforeWaitForTest() noexcept
@@ -60,6 +65,16 @@ namespace GameWIP::Logger::Detail::Core
     void recordQueuePublicationForTest() noexcept
     {
         publishHookMilestone(loggerTestHookState.queuePublicationReached);
+    }
+
+    void pauseWorkerBeforeDeliveryForTest() noexcept
+    {
+        if (!consumeTestHook(loggerTestHookState.pauseBeforeWorkerDelivery))
+        {
+            return;
+        }
+        publishHookMilestone(loggerTestHookState.workerDeliveryReached);
+        waitForHookMilestone(loggerTestHookState.releaseWorkerDelivery);
     }
 
     void pauseFinalProducerLeaveForTest() noexcept
@@ -153,6 +168,42 @@ namespace GameWIP::Logger::TestHooks
     void releaseFinalProducerLeavePause() noexcept
     {
         publishHookMilestone(loggerTestHookState.releaseFinalProducerLeave);
+    }
+
+    void armWorkerDeliveryPause() noexcept
+    {
+        loggerTestHookState.workerDeliveryReached.store(false, std::memory_order_release);
+        loggerTestHookState.releaseWorkerDelivery.store(false, std::memory_order_release);
+        loggerTestHookState.pauseBeforeWorkerDelivery.store(true, std::memory_order_release);
+    }
+
+    void waitForWorkerDeliveryPause() noexcept
+    {
+        waitForHookMilestone(loggerTestHookState.workerDeliveryReached);
+    }
+
+    void releaseWorkerDeliveryPause() noexcept
+    {
+        publishHookMilestone(loggerTestHookState.releaseWorkerDelivery);
+    }
+
+    void holdLifecycleLockPause() noexcept
+    {
+        loggerTestHookState.lifecycleLockReached.store(false, std::memory_order_release);
+        loggerTestHookState.releaseLifecycleLock.store(false, std::memory_order_release);
+        std::lock_guard lock(loggerState().lifecycleMutex);
+        publishHookMilestone(loggerTestHookState.lifecycleLockReached);
+        waitForHookMilestone(loggerTestHookState.releaseLifecycleLock);
+    }
+
+    void waitForLifecycleLockPause() noexcept
+    {
+        waitForHookMilestone(loggerTestHookState.lifecycleLockReached);
+    }
+
+    void releaseLifecycleLockPause() noexcept
+    {
+        publishHookMilestone(loggerTestHookState.releaseLifecycleLock);
     }
 
 } // namespace GameWIP::Logger::TestHooks

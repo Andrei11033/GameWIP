@@ -21,7 +21,7 @@ Stress scenarios cover concurrent producers, reports during production, timed fl
 
 These scenarios validate safety and progress. Machine-dependent timing and throughput are not correctness thresholds.
 
-Concurrent filter mutation, a deterministic filter change after queueing but before worker delivery, and registered-`SourceId` contention do not yet have focused stress coverage. Add those scenarios before treating the worker-side filter recheck or shared registry path as regression-protected under contention.
+Coverage includes concurrent source/level filter togglers with producers, a deterministic filter change after queueing but before worker delivery, and registered-`SourceId` multi-producer contention benchmarks.
 
 ## Package and header validation
 

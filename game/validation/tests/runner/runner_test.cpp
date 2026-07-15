@@ -184,6 +184,35 @@ namespace
         static_cast<void>(context.expectFalse("no-test-report propagates", probeState.alpha.writeReport));
         static_cast<void>(context.expectFalse("no-test-support-child-process propagates", probeState.alpha.childProcesses));
     }
+
+    void testReservedChildAndReportValidation(TestSupport::Context &context)
+    {
+        Validation::TestResult result = runProbe({"--assert-test-child=unknown"});
+        static_cast<void>(context.expectFalse("unknown reserved child selector fails", result.ok()));
+        static_cast<void>(context.expectTrue("unknown reserved child selector is handled", result.handledChildInvocation));
+        static_cast<void>(context.expectEq("unknown reserved child selector runs no module", std::size_t{0}, result.modulesRun));
+
+        result = runProbe({"--assert-test-child=unknown", "--test-support-test-child=unknown"});
+        static_cast<void>(context.expectFalse("multiple reserved child selectors fail", result.ok()));
+        static_cast<void>(context.expectTrue("multiple reserved child selectors are handled", result.handledChildInvocation));
+        static_cast<void>(context.expectEq("multiple reserved child selectors run no module", std::size_t{0}, result.modulesRun));
+
+#if defined(_WIN32)
+        ValidationTests::RunOptions rootRelative = unattendedOptions();
+        rootRelative.writeReport = true;
+        rootRelative.reportPath = R"(\escaped-report.txt)";
+        result = runProbe({}, std::move(rootRelative));
+        static_cast<void>(context.expectTrue("root-relative report rejection does not fail tests", result.ok()));
+        static_cast<void>(context.expectFalse("root-relative report path disables report output", probeState.alpha.writeReport));
+
+        ValidationTests::RunOptions driveRelative = unattendedOptions();
+        driveRelative.writeReport = true;
+        driveRelative.reportPath = "C:escaped-report.txt";
+        result = runProbe({}, std::move(driveRelative));
+        static_cast<void>(context.expectTrue("drive-relative report rejection does not fail tests", result.ok()));
+        static_cast<void>(context.expectFalse("drive-relative report path disables report output", probeState.alpha.writeReport));
+#endif
+    }
 } // namespace
 
 namespace GameWIP::Test
@@ -203,6 +232,7 @@ namespace GameWIP::Test
         runner.runSuite("Validation runner capability options", testPositiveCapabilityOptions);
         runner.runSuite("Validation runner selection independence", testSelectionIndependence);
         runner.runSuite("Validation runner removed and retained options", testRemovedAndRetainedOptions);
+        runner.runSuite("Validation runner reserved input validation", testReservedChildAndReportValidation);
 
         const TestSupport::Types::Summary result = runner.result();
         runner.summary(std::format("Validation runner tests passed={} failed={} skipped={}", result.passed, result.failed, result.skipped));

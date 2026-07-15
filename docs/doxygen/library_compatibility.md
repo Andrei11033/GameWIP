@@ -97,7 +97,7 @@ cmake --build --preset validation
 ctest --preset validation
 ```
 
-The current installed-consumer case finds every package in dependency order. It validates the combined installed surface but can mask a missing transitive `find_dependency()` call because the dependency target already exists. Validate a changed package independently by requesting only that package until isolated per-package consumer cases are part of the project suite.
+Installed-package validation includes the combined surface plus isolated per-package consumers. Each isolated case requests only the package under test, so a missing transitive `find_dependency()` call cannot be masked by an earlier dependency lookup.
 
 ## Failure behavior
 

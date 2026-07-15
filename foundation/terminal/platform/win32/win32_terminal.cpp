@@ -136,16 +136,25 @@ namespace GameWIP::Terminal::Detail::Platform
 
         /// @brief Process-lifetime stdin mode snapshot and pending Unicode conversion state.
         /// @details Pending bytes and surrogate state survive individual reads and portable mode changes so chunk
-        /// boundaries do not corrupt UTF-8 conversion. The current state is not keyed by native endpoint identity;
-        /// replacing stdin while a remainder exists can carry that remainder into the next endpoint.
+        /// boundaries do not corrupt UTF-8 conversion. Endpoint replacement discards that endpoint-owned state.
         struct InputState
         {
+            HANDLE endpointHandleValue = nullptr;
+            HANDLE endpointIdentity = nullptr;
             bool defaultConsoleModeCaptured = false;
             HANDLE defaultConsoleHandle = nullptr;
             DWORD defaultConsoleMode = 0;
             PendingInputBuffer pendingBytes;
             wchar_t pendingHighSurrogate = L'\0';
             std::vector<INPUT_RECORD> availabilityRecords;
+
+            ~InputState() noexcept
+            {
+                if (endpointIdentity != nullptr && endpointIdentity != INVALID_HANDLE_VALUE)
+                {
+                    CloseHandle(endpointIdentity);
+                }
+            }
         };
 
         /// @brief Reusable per-output-stream UTF-16 conversion storage.
@@ -223,10 +232,76 @@ namespace GameWIP::Terminal::Detail::Platform
             return GetStdHandle(stdHandleId(stream));
         }
 
+        [[nodiscard]] bool isUsableHandle(HANDLE handle) noexcept;
+
+        /// @brief Resolves CompareObjectHandles without raising the minimum import-library requirement.
+        [[nodiscard]] auto compareObjectHandlesFunction() noexcept
+        {
+            using Function = BOOL(WINAPI *)(HANDLE, HANDLE);
+            static const Function function = []() noexcept -> Function
+            {
+                HMODULE module = GetModuleHandleW(L"kernelbase.dll");
+                if (module == nullptr)
+                {
+                    module = GetModuleHandleW(L"kernel32.dll");
+                }
+                return module == nullptr ? nullptr : reinterpret_cast<Function>(GetProcAddress(module, "CompareObjectHandles"));
+            }();
+            return function;
+        }
+
+        /// @brief Returns whether the current standard handle still names the observed native endpoint.
+        [[nodiscard]] bool sameInputEndpoint(const InputState &state, HANDLE currentHandle) noexcept
+        {
+            if (!isUsableHandle(currentHandle))
+            {
+                return state.endpointIdentity == nullptr && state.endpointHandleValue == currentHandle;
+            }
+            if (!isUsableHandle(state.endpointIdentity))
+            {
+                return false;
+            }
+            if (const auto compare = compareObjectHandlesFunction())
+            {
+                return compare(state.endpointIdentity, currentHandle) != FALSE;
+            }
+            return state.endpointHandleValue == currentHandle;
+        }
+
+        /// @brief Retains an identity handle so numeric handle reuse is detected on later calls.
+        void observeInputEndpoint(InputState &state, HANDLE currentHandle) noexcept
+        {
+            if (isUsableHandle(state.endpointIdentity))
+            {
+                CloseHandle(state.endpointIdentity);
+            }
+            state.endpointIdentity = nullptr;
+            state.endpointHandleValue = currentHandle;
+
+            if (isUsableHandle(currentHandle))
+            {
+                HANDLE duplicate = nullptr;
+                if (DuplicateHandle(GetCurrentProcess(), currentHandle, GetCurrentProcess(), &duplicate, 0, FALSE, DUPLICATE_SAME_ACCESS) != FALSE)
+                {
+                    state.endpointIdentity = duplicate;
+                }
+            }
+        }
+
         /// @brief Returns process-lifetime state for the only supported input stream.
         [[nodiscard]] InputState &inputState([[maybe_unused]] InputStream stream) noexcept
         {
             static InputState stdinState;
+            const HANDLE currentHandle = inputHandle(stream);
+            if (!sameInputEndpoint(stdinState, currentHandle))
+            {
+                stdinState.pendingBytes.clear();
+                stdinState.pendingHighSurrogate = L'\0';
+                releaseLargeAvailabilityRecords(stdinState);
+                stdinState.defaultConsoleModeCaptured = false;
+                stdinState.defaultConsoleHandle = nullptr;
+                observeInputEndpoint(stdinState, currentHandle);
+            }
             return stdinState;
         }
 
@@ -2270,4 +2345,19 @@ namespace GameWIP::Terminal::Detail::Platform
 
         return IO::successStatus();
     }
+
+#if INTERNAL_TERMINAL_TEST_HOOKS
+    namespace TestHooks
+    {
+        void setPendingHighSurrogate(Terminal::Types::InputStream stream, std::uint16_t surrogate) noexcept
+        {
+            inputState(stream).pendingHighSurrogate = static_cast<wchar_t>(surrogate);
+        }
+
+        bool hasPendingHighSurrogate(Terminal::Types::InputStream stream) noexcept
+        {
+            return inputState(stream).pendingHighSurrogate != L'\0';
+        }
+    } // namespace TestHooks
+#endif
 } // namespace GameWIP::Terminal::Detail::Platform

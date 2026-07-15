@@ -22,7 +22,7 @@ There is no non-atomic fallback. Before commit, failure leaves an existing desti
 
 `FailIfExists` checks destination policy before commit, but concurrent filesystem activity can still determine the final native result. `ReplaceExisting` permits replacement where the backend can satisfy the selected sharing, access, and symlink contract.
 
-On the current Win32 backend, strict destination-parent validation and the final absolute-path rename are separate steps. Concurrent destination-ancestor replacement can redirect the commit. Concurrent recreation of the temporary source or removal/replacement of the destination immediately after native rename can also make the operation report failure after the replacement is already visible. Treat an ambiguous failure as potentially post-commit; do not retry blindly over valuable data.
+On Win32, strict commits retain the validated destination-parent handle and rename only the final relative component. Replacing an ancestor path after validation therefore cannot redirect the commit. Native rename success is the linearization point; later source recreation or destination removal does not turn the completed replacement into a reported failure.
 
 Atomicity applies to replacement of one path. It does not create a transaction across multiple files, directories, or metadata operations.
 

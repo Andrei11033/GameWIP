@@ -425,7 +425,7 @@ namespace GameWIP::TestSupport
         UniqueHandle jobHandle(CreateJobObjectW(nullptr, nullptr));
         if (jobHandle.get() == nullptr)
         {
-            result.exitCode = -1;
+            result.exitCode = 0;
             return result;
         }
 
@@ -433,7 +433,7 @@ namespace GameWIP::TestSupport
         jobLimits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
         if (SetInformationJobObject(jobHandle.get(), JobObjectExtendedLimitInformation, &jobLimits, static_cast<DWORD>(sizeof(jobLimits))) == FALSE)
         {
-            result.exitCode = -1;
+            result.exitCode = 0;
             return result;
         }
 
@@ -449,7 +449,7 @@ namespace GameWIP::TestSupport
             HANDLE outputWriteRaw = nullptr;
             if (CreatePipe(&outputReadRaw, &outputWriteRaw, &securityAttributes, 0) == FALSE)
             {
-                result.exitCode = -1;
+                result.exitCode = 0;
                 return result;
             }
 
@@ -458,7 +458,7 @@ namespace GameWIP::TestSupport
 
             if (SetHandleInformation(outputRead.get(), HANDLE_FLAG_INHERIT, 0) == FALSE)
             {
-                result.exitCode = -1;
+                result.exitCode = 0;
                 return result;
             }
         }
@@ -475,7 +475,7 @@ namespace GameWIP::TestSupport
             (!options.captureOutput && (childOutput.get() == nullptr || childOutput.get() == INVALID_HANDLE_VALUE || childError.get() == nullptr ||
                                         childError.get() == INVALID_HANDLE_VALUE)))
         {
-            result.exitCode = -1;
+            result.exitCode = 0;
             return result;
         }
 
@@ -489,7 +489,7 @@ namespace GameWIP::TestSupport
         StartupAttributeList attributeList(inheritedHandles);
         if (!attributeList.valid())
         {
-            result.exitCode = -1;
+            result.exitCode = 0;
             return result;
         }
 
@@ -521,7 +521,7 @@ namespace GameWIP::TestSupport
 
         if (created == FALSE)
         {
-            result.exitCode = -1;
+            result.exitCode = 0;
             return result;
         }
 
@@ -533,7 +533,7 @@ namespace GameWIP::TestSupport
         {
             TerminateProcess(processHandle.get(), kTestTerminationCode);
             WaitForSingleObject(processHandle.get(), INFINITE);
-            result.exitCode = -1;
+            result.exitCode = 0;
             result.wasTerminatedByTest = true;
             return result;
         }
@@ -550,7 +550,7 @@ namespace GameWIP::TestSupport
             {
                 TerminateJobObject(jobHandle.get(), kTestTerminationCode);
                 WaitForSingleObject(processHandle.get(), INFINITE);
-                result.exitCode = -1;
+                result.exitCode = 0;
                 result.wasTerminatedByTest = true;
                 return result;
             }
@@ -608,7 +608,7 @@ namespace GameWIP::TestSupport
             {
                 TerminateJobObject(jobHandle.get(), kTestTerminationCode);
                 WaitForSingleObject(processHandle.get(), INFINITE);
-                result.exitCode = -1;
+                result.exitCode = 0;
                 result.wasTerminatedByTest = true;
                 return result;
             }
@@ -618,11 +618,15 @@ namespace GameWIP::TestSupport
         {
             TerminateJobObject(jobHandle.get(), kTestTerminationCode);
             WaitForSingleObject(processHandle.get(), INFINITE);
-            result.exitCode = -1;
+            result.exitCode = 0;
             result.wasTerminatedByTest = true;
         }
+        else
+        {
+            result.infrastructureFailure = false;
+        }
 
-        bool processInspectionFailed = result.exitCode == -1;
+        bool processInspectionFailed = result.infrastructureFailure;
         const DWORD waitResult = WaitForSingleObject(processHandle.get(), timeoutMilliseconds(options.timeout));
         if (waitResult == WAIT_TIMEOUT)
         {
@@ -642,11 +646,13 @@ namespace GameWIP::TestSupport
         DWORD exitCode = 0;
         if (!processInspectionFailed && GetExitCodeProcess(processHandle.get(), &exitCode) != FALSE)
         {
-            result.exitCode = static_cast<int>(exitCode);
+            result.exitCode = static_cast<std::uint32_t>(exitCode);
+            result.infrastructureFailure = false;
         }
         else
         {
-            result.exitCode = -1;
+            result.exitCode = 0;
+            result.infrastructureFailure = true;
         }
 
         // Even after normal primary-process completion, descendants can retain stdout/stderr pipe
@@ -669,7 +675,8 @@ namespace GameWIP::TestSupport
 
         if (outputReadFailed)
         {
-            result.exitCode = -1;
+            result.exitCode = 0;
+            result.infrastructureFailure = true;
         }
 
         result.output = std::move(output);
@@ -677,7 +684,7 @@ namespace GameWIP::TestSupport
         return result;
 #else
         (void)options;
-        result.exitCode = -1;
+        result.exitCode = 0;
         return result;
 #endif
     }

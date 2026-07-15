@@ -32,9 +32,9 @@ On Win32, setting an environment guard to an empty string removes the variable.
 
 Check `captureOutput`. stdout and stderr share one retained byte stream. A zero retained limit discards output while still draining it. Inspect `outputTruncated`.
 
-## Child returned `exitCode == -1`
+## Child reports `infrastructureFailure`
 
-This indicates TestSupport launch, setup, wait, inspection, or capture failure. It is not a normal child exit code. Also inspect `timedOut` and `wasTerminatedByTest`.
+This indicates TestSupport launch, setup, wait, inspection, or capture failure. `exitCode` is not a normal child result in this state. Also inspect `timedOut` and `wasTerminatedByTest`.
 
 ## Child call exceeded the configured timeout
 

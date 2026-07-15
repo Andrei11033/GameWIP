@@ -70,10 +70,20 @@
     },
     {
       "name": "profiling",
-      "displayName": "Tracy profiling",
+      "displayName": "Tracy profiling without startup validation",
       "inherits": "development",
       "cacheVariables": {
-        "GAMEWIP_ENABLE_TRACY": "ON"
+        "GAMEWIP_ENABLE_TRACY": "ON",
+        "GAMEWIP_RUN_TESTS_AT_STARTUP": "OFF",
+        "GAMEWIP_RUN_BENCHMARKS_AT_STARTUP": "OFF"
+      }
+    },
+    {
+      "name": "profiling-validation",
+      "displayName": "Tracy profiling with startup validation",
+      "inherits": "profiling",
+      "cacheVariables": {
+        "GAMEWIP_RUN_TESTS_AT_STARTUP": "ON"
       }
     },
     {
@@ -166,6 +176,7 @@
     { "name": "benchmark", "configurePreset": "benchmark", "targets": ["GameWIPBenchmarks"] },
     { "name": "tools", "configurePreset": "tools" },
     { "name": "profiling", "configurePreset": "profiling" },
+    { "name": "profiling-validation", "configurePreset": "profiling-validation" },
     { "name": "optimized", "configurePreset": "optimized", "targets": ["GameWIP"] },
     { "name": "shipping", "configurePreset": "shipping", "targets": ["GameWIP"] },
     { "name": "coverage", "configurePreset": "coverage" },

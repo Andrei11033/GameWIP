@@ -142,7 +142,9 @@ Stress tests may remain correctness tests when they verify invariants rather tha
 
 `game/validation/installed_consumer/` configures and builds against the installed package surface only. It verifies installed header usability, representative cross-library integration, the current imported targets after all packages are found, and the absence of source-tree test-hook definitions.
 
-The combined consumer calls `find_package()` for every library in dependency order. It therefore does not prove that requesting one higher-level package discovers its dependencies transitively; a dependency target can already exist and mask a missing `find_dependency()` call. Package work needs isolated consumers that request only the package under test in addition to the combined integration case.
+The combined consumer verifies cross-library integration. Separate isolated consumers call only one `find_package()` for each package, proving that higher-level configs discover every imported dependency in their exported interface. Additional cases cover split-prefix runtime Assert and disabled/interface-only Assert.
+
+CI runs the package cases with the minimum supported CMake 3.23 line and the final pre-3.30 line, where nested dependency discovery had different `PACKAGE_PREFIX_DIR` behavior.
 
 These checks complement runtime suites; they do not replace behavior validation.
 

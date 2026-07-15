@@ -147,8 +147,7 @@ namespace GameWIP::Validation::Tests
         }
 
         /// @brief Resolves ordinary relative reports beneath the GameWIP temp root and rejects parent traversal.
-        /// @details Invalid or empty paths disable file reporting without changing test execution. Root-relative and
-        /// drive-relative Windows forms are not currently rejected and can escape the intended temporary subtree.
+        /// @details Invalid or empty paths disable file reporting without changing test execution.
         void resolveReportOutput(RunOptions &options)
         {
             if (!options.writeReport)
@@ -166,6 +165,10 @@ namespace GameWIP::Validation::Tests
             {
                 if (!options.reportPath.is_absolute())
                 {
+                    if (options.reportPath.has_root_name() || options.reportPath.has_root_directory())
+                    {
+                        throw std::invalid_argument("relative report paths cannot contain a root name or root directory");
+                    }
                     const std::filesystem::path normalized = options.reportPath.lexically_normal();
                     for (const std::filesystem::path &component : normalized)
                     {
@@ -222,6 +225,12 @@ namespace GameWIP::Validation::Tests
             return true;
         }
 
+        /// @brief Returns whether one argument belongs to a reserved validation child namespace.
+        [[nodiscard]] bool isReservedChildArgument(std::string_view argument) noexcept
+        {
+            return argument.starts_with("--assert-test-child=") || argument.starts_with("--test-support-test-child=");
+        }
+
         /// @brief Converts an unexpected module exception into a normal failing module result.
         [[nodiscard]] int invokeModule(const Module &module, const ModuleInvocation &invocation) noexcept
         {
@@ -253,6 +262,14 @@ namespace GameWIP::Validation::Tests
         // fatal-path checks, and subprocess helpers. Route them before normal
         // selection so a child process cannot recursively run the full suite.
         const Module *childOwner = nullptr;
+        std::size_t reservedChildArguments = 0;
+        for (int index = 1; index < argc; ++index)
+        {
+            if (argv[index] != nullptr && isReservedChildArgument(argv[index]))
+            {
+                ++reservedChildArguments;
+            }
+        }
         for (const Module &module : modules)
         {
             bool handlesChildArguments = false;
@@ -285,6 +302,17 @@ namespace GameWIP::Validation::Tests
                 }
                 childOwner = &module;
             }
+        }
+
+        if (reservedChildArguments > 1)
+        {
+            std::cerr << "Validation child invocation must contain exactly one reserved child selector.\n";
+            return {.modulesFailed = 1, .exitCode = 1, .handledChildInvocation = true};
+        }
+        if (reservedChildArguments == 1 && childOwner == nullptr)
+        {
+            std::cerr << "Unknown or malformed validation child selector.\n";
+            return {.modulesFailed = 1, .exitCode = 1, .handledChildInvocation = true};
         }
 
         if (childOwner != nullptr)

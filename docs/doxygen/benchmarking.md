@@ -138,9 +138,12 @@ Benchmarks must:
 | Benchmark family | Purpose |
 | --- | --- |
 | `BM_Assert_*` | Passing assertion and check macro paths. |
-| `BM_Logger_*` | Disabled output, filtered formatting, and enabled asynchronous output paths. |
+| `BM_Logger_*` | Disabled output, filtered formatting, enabled asynchronous output, registered-`SourceId`, and 2/4/8-thread producer contention paths. |
+| `BM_FileSystem_*` | Materialized and streaming directory enumeration at 1K/10K entries and path depths 1/8/32. |
 
 Logger scenarios report queue, drop, flush, or error counters where necessary so a fast producer result cannot hide lost work.
+
+FileSystem fixtures are created below the operating-system temporary directory and reused across scenarios. Set the host temporary-directory environment to a representative local or network volume before launching the benchmark when comparing storage backends.
 
 ## Outputs and artifacts
 

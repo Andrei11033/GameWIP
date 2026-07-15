@@ -30,6 +30,13 @@
 #include <type_traits>
 #include <vector>
 
+#if defined(_WIN32)
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <windows.h>
+#endif
+
 /// @brief Marker value whose formatter deliberately throws during output tests.
 struct TerminalThrowingFormat
 {
@@ -1478,6 +1485,86 @@ namespace
         Hooks::reset();
     }
 
+#if defined(_WIN32)
+    /// @brief Verifies buffered bytes are owned by native stdin identity, including numeric handle reuse.
+    void testInputEndpointReplacement(TestSupport::Context &context)
+    {
+        Hooks::reset();
+        const HANDLE originalInput = GetStdHandle(STD_INPUT_HANDLE);
+
+        HANDLE firstRead = nullptr;
+        HANDLE firstWrite = nullptr;
+        static_cast<void>(context.expectTrue("create first stdin pipe", CreatePipe(&firstRead, &firstWrite, nullptr, 0) != FALSE));
+        if (firstRead == nullptr || firstWrite == nullptr)
+        {
+            return;
+        }
+
+        static_cast<void>(context.expectTrue("install first stdin pipe", SetStdHandle(STD_INPUT_HANDLE, firstRead) != FALSE));
+        DWORD bytesWritten = 0;
+        static_cast<void>(context.expectTrue("write first stdin pipe", WriteFile(firstWrite, "AB", 2, &bytesWritten, nullptr) != FALSE));
+        CloseHandle(firstWrite);
+
+        Terminal::Types::TextReadOptions oneByte;
+        oneByte.maxReturnedBytes = 1;
+        static_cast<void>(context.expectEq("first endpoint returns first byte", std::string{"A"}, Terminal::readText(oneByte).text));
+        Hooks::setPendingHighSurrogate(Terminal::Types::InputStream::Stdin, UINT16_C(0xD83D));
+        static_cast<void>(
+            context.expectTrue("first endpoint retains seeded high surrogate", Hooks::hasPendingHighSurrogate(Terminal::Types::InputStream::Stdin)));
+
+        const HANDLE reusedValue = firstRead;
+        CloseHandle(firstRead);
+
+        HANDLE replacementRead = nullptr;
+        HANDLE replacementWrite = nullptr;
+        for (std::size_t attempt = 0; attempt < 256; ++attempt)
+        {
+            HANDLE candidateRead = nullptr;
+            HANDLE candidateWrite = nullptr;
+            if (CreatePipe(&candidateRead, &candidateWrite, nullptr, 0) == FALSE)
+            {
+                break;
+            }
+            if (candidateRead == reusedValue)
+            {
+                replacementRead = candidateRead;
+                replacementWrite = candidateWrite;
+                break;
+            }
+            CloseHandle(candidateRead);
+            CloseHandle(candidateWrite);
+        }
+
+        if (replacementRead == nullptr)
+        {
+            context.skip("stdin numeric handle reuse", "Win32 did not reuse the released handle value within 256 attempts");
+            static_cast<void>(SetStdHandle(STD_INPUT_HANDLE, originalInput));
+            Hooks::reset();
+            return;
+        }
+
+        static_cast<void>(context.expectTrue("install reused stdin handle", SetStdHandle(STD_INPUT_HANDLE, replacementRead) != FALSE));
+        bytesWritten = 0;
+        static_cast<void>(context.expectTrue("write replacement stdin pipe", WriteFile(replacementWrite, "C", 1, &bytesWritten, nullptr) != FALSE));
+        CloseHandle(replacementWrite);
+
+        const Terminal::Types::TextReadResult replacement = Terminal::readText(oneByte);
+        static_cast<void>(context.expectTrue("replacement endpoint read succeeds", replacement.status.ok()));
+        static_cast<void>(context.expectEq("replacement endpoint discards stale byte", std::string{"C"}, replacement.text));
+        static_cast<void>(context.expectFalse(
+            "replacement endpoint discards stale high surrogate",
+            Hooks::hasPendingHighSurrogate(Terminal::Types::InputStream::Stdin)));
+
+        static_cast<void>(context.expectTrue("detach stdin", SetStdHandle(STD_INPUT_HANDLE, nullptr) != FALSE));
+        static_cast<void>(
+            context.expectEq("detached stdin reports NotOpen after state reset", ErrorCode::NotOpen, Terminal::getInputAvailability().status.code));
+
+        static_cast<void>(SetStdHandle(STD_INPUT_HANDLE, originalInput));
+        CloseHandle(replacementRead);
+        Hooks::reset();
+    }
+#endif
+
     /// @brief Verifies mode queries, updates, default restore, and scoped exact restoration.
     void testInputModes(TestSupport::Context &context)
     {
@@ -1591,6 +1678,9 @@ namespace GameWIP::Test
         runner.runSuite("Terminal segmented and byte output", testSegmentedAndByteOutput);
         runner.runSuite("Terminal controls", testControls);
         runner.runSuite("Terminal input reads", testInputReads);
+#if defined(_WIN32)
+        runner.runSuite("Terminal stdin endpoint replacement", testInputEndpointReplacement);
+#endif
         runner.runSuite("Terminal input modes", testInputModes);
 #else
         runner.runSuite("Terminal hook-dependent suites", testHookDependentSuitesSkipped);

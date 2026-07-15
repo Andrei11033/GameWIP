@@ -47,6 +47,6 @@ Changing or restoring input mode does not discard bytes or an incomplete Unicode
 
 If the process replaces stdin, the next mode operation recognizes the new handle and uses that handle's captured default rather than restoring state belonging to the previous handle.
 
-Current Win32 limitation: pending bytes and an incomplete surrogate are not associated with native endpoint identity. Replacing stdin after Terminal has buffered unread input can therefore expose data from the previous endpoint to the next read. Coordinate replacement so no Terminal read remainder is pending; mode recapture alone does not clear it.
+On Win32, Terminal retains a duplicated identity handle for stdin. A replacement, detachment, or reused numeric handle clears pending bytes, incomplete surrogate state, availability scratch, and captured default-mode state before the new endpoint is read.
 
 See @ref terminal_read_write and @ref terminal_capabilities_and_redirection.

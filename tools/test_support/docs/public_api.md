@@ -94,12 +94,13 @@ Fields are:
 
 ### `Types::ChildProcessResult`
 
-- `exitCode`: native exit code, or `-1` for TestSupport launch/setup/wait/inspection/capture failure.
+- `exitCode`: complete native unsigned 32-bit exit code when infrastructure is healthy.
+- `infrastructureFailure`: TestSupport launch/setup/wait/inspection/capture failure occurred.
 - `timedOut`: the configured wait expired before normal completion.
 - `wasTerminatedByTest`: TestSupport requested primary-process termination during timeout or infrastructure-failure handling.
 - `output`: retained combined stdout/stderr bytes.
 - `outputTruncated`: bytes were drained but discarded after the retained limit.
-- `exitedSuccessfully()` and `exitedWithFailure()`: convenience predicates over exit, timeout, and termination state.
+- `exitedSuccessfully()` and `exitedWithFailure()`: convenience predicates over infrastructure, exit, timeout, and termination state.
 
 ### `Types::ManualAnswer`
 

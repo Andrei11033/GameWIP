@@ -145,6 +145,14 @@ namespace GameWIP::Terminal::TestHooks
     /// @warning Test-only API.
     GAMEWIP_TERMINAL_EXPORT void clearInputBytes(Terminal::Types::InputStream stream) noexcept;
 
+    /// @brief Seeds the native pending UTF-16 high surrogate for endpoint-replacement validation.
+    /// @warning Test-only API. Available only on the Win32 validation backend.
+    GAMEWIP_TERMINAL_EXPORT void setPendingHighSurrogate(Terminal::Types::InputStream stream, std::uint16_t surrogate) noexcept;
+
+    /// @brief Returns whether the current native input endpoint retains a pending UTF-16 high surrogate.
+    /// @warning Test-only API. Available only on the Win32 validation backend.
+    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT bool hasPendingHighSurrogate(Terminal::Types::InputStream stream) noexcept;
+
     /// @brief Overrides input mode operations with an in-memory mode.
     /// @warning Test-only API.
     GAMEWIP_TERMINAL_EXPORT void setInputModeOverride(Terminal::Types::InputStream stream, const Terminal::Types::InputMode &defaultMode);

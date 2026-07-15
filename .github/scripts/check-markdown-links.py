@@ -18,12 +18,12 @@ SCANNED_MARKDOWN_FILES = (
 SCANNED_MARKDOWN_DIRS = (
     Path("docs"),
     Path(".github"),
+    Path("foundation"),
+    Path("tools"),
 )
 EXCLUDED_ROOTS = (
     Path("engine"),
     Path("external"),
-    Path("foundation"),
-    Path("tools"),
     Path("build"),
 )
 INLINE_LINK_PATTERN = re.compile(r"(?<!!)\[[^\]\n]*(?:\][^\[]*)?\]\(([^)\n]+)\)")

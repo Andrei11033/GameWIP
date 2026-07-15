@@ -70,6 +70,7 @@ Unknown enum values and invalid option combinations return `InvalidArgument`.
 - `PathResult`: `status`, `path`.
 - `Utf8PathResult`: `status`, `utf8`.
 - `DirectoryEntry`: child `path` and `info`. The path is the supplied parent path joined with the child name; it is not necessarily absolute.
+- `DirectoryCursorNextResult`: `status`, one `entry`, and `hasEntry`; successful exhaustion has `hasEntry == false`.
 - `ListDirectoryResult`: `status`, collected `entries`.
 - `RemoveDirectoryTreeResult`: `status`, completed `removedEntries`.
 - `LockResult`: `status`, `outcome`, and active `lock` only when acquired.
@@ -77,6 +78,10 @@ Unknown enum values and invalid option combinations return `InvalidArgument`.
 A failed status can coexist with meaningful progress for listing and tree removal. Payload values in ordinary query results are meaningful only when their status is successful.
 
 ## Resource owners
+
+### `DirectoryCursor`
+
+Move-only, bounded-memory direct-child enumeration with `open()`, `isOpen()`, `next()`, and `close()`. Move assignment closes the destination cursor's previous enumeration. It applies `ListDirectoryOptions` without retaining accepted siblings.
 
 ### `FileReader`
 
@@ -94,7 +99,7 @@ Read/write `IO::Reader` and `IO::Writer` with the common stream operations plus 
 
 Move-only unlock owner with `active()`, `mode()`, and retryable `unlock()`. A lock owns independent native state and can remain active after the object from which it was acquired is destroyed.
 
-All four classes are move-constructible, non-copyable, and deliberately not move-assignable. See @ref filesystem_file_open_modes.
+The file and lock owners are move-constructible, non-copyable, and deliberately not move-assignable. `DirectoryCursor` is move-constructible and move-assignable because replacing an enumeration cannot hide a flush, unlock, or close error. See @ref filesystem_file_open_modes.
 
 ## Whole-file operation families
 
@@ -117,7 +122,7 @@ See @ref filesystem_metadata.
 ## Directory and path mutation families
 
 - Creation: `createDirectory()`, `createDirectories()`.
-- Enumeration: `listDirectory()`.
+- Enumeration: bounded-memory `DirectoryCursor` or materializing `listDirectory()`.
 - Copy and move: `copyFile()`, `movePath()`.
 - Removal: `removeFile()`, `removeEmptyDirectory()`, `removeDirectoryTree()`.
 

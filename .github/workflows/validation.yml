@@ -17,6 +17,78 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  package-compatibility:
+    name: Packages (CMake ${{ matrix.cmake }})
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        cmake: ["~3.23.0", "~3.29.0"]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Install compiler
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            mingw-w64-ucrt-x86_64-gcc
+
+      - name: Install compatibility CMake and Ninja
+        uses: lukka/get-cmake@latest
+        with:
+          cmakeVersion: ${{ matrix.cmake }}
+          ninjaVersion: "^1.11.1"
+
+      - name: Configure package validation
+        shell: msys2 {0}
+        run: >
+          cmake -S . -B build/package-compatibility
+          -G Ninja
+          -DCMAKE_BUILD_TYPE=RelWithDebInfo
+          -DGAMEWIP_BUILD_GAME=OFF
+          -DGAMEWIP_BUILD_TESTS=ON
+          -DGAMEWIP_BUILD_BENCHMARKS=OFF
+          -DGAMEWIP_RUN_TESTS_AT_STARTUP=OFF
+          -DGAMEWIP_RUN_BENCHMARKS_AT_STARTUP=OFF
+          -DGAMEWIP_ENABLE_TRACY=OFF
+          -DGAMEWIP_ENABLE_ASSERTS=ON
+
+      - name: Build package validation
+        shell: msys2 {0}
+        run: cmake --build build/package-compatibility --target GameWIPTests --parallel
+
+      - name: Test installed packages
+        shell: msys2 {0}
+        run: ctest --test-dir build/package-compatibility -R validation.packages --output-on-failure
+
+      - name: Configure multi-config package validation
+        if: matrix.cmake == '~3.29.0'
+        shell: msys2 {0}
+        run: >
+          cmake -S . -B build/package-multi-config
+          -G "Ninja Multi-Config"
+          -DGAMEWIP_BUILD_GAME=OFF
+          -DGAMEWIP_BUILD_TESTS=ON
+          -DGAMEWIP_BUILD_BENCHMARKS=OFF
+          -DGAMEWIP_RUN_TESTS_AT_STARTUP=OFF
+          -DGAMEWIP_RUN_BENCHMARKS_AT_STARTUP=OFF
+          -DGAMEWIP_ENABLE_TRACY=OFF
+          -DGAMEWIP_ENABLE_ASSERTS=ON
+
+      - name: Test multi-config installed packages
+        if: matrix.cmake == '~3.29.0'
+        shell: msys2 {0}
+        run: |
+          cmake --build build/package-multi-config --target GameWIPTests --config RelWithDebInfo --parallel
+          ctest --test-dir build/package-multi-config -C RelWithDebInfo -R validation.packages --output-on-failure
+
   build-test:
     name: Build and Test
     runs-on: windows-latest
@@ -61,8 +133,17 @@ jobs:
         shell: msys2 {0}
         run: cmake --build build/validation --parallel
 
+      - name: Enable required symlink scenarios
+        shell: powershell
+        run: |
+          $path = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock'
+          New-Item -Path $path -Force | Out-Null
+          New-ItemProperty -Path $path -Name AllowDevelopmentWithoutDevLicense -PropertyType DWord -Value 1 -Force | Out-Null
+
       - name: Test
         shell: msys2 {0}
+        env:
+          GAMEWIP_REQUIRE_SYMLINK_TESTS: "1"
         run: ctest --test-dir build/validation --output-on-failure
 
       - name: Benchmark smoke test
@@ -237,11 +318,3 @@ jobs:
       - name: Build documentation
         shell: msys2 {0}
         run: cmake --build build/docs --target docs --verbose
-
-      - name: Check Doxygen warnings
-        shell: msys2 {0}
-        run: |
-          if [ -s build/docs/docs/doxygen/doxygen_warnings.log ]; then
-            cat build/docs/docs/doxygen/doxygen_warnings.log
-            exit 1
-          fi

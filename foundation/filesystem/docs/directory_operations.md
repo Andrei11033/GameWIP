@@ -16,7 +16,28 @@ When another matching child exists beyond the accepted limit, the operation retu
 
 `DirectoryEntry::path` is the supplied parent path joined with the child name. A relative parent produces relative child paths.
 
-`ListDirectoryResult` owns every accepted entry, so peak result storage is proportional to the number and path length of returned children. There is no public cursor for bounded-memory enumeration. On the current Win32 strict-policy path, child metadata also re-traverses the complete supplied ancestry for each child, giving roughly O(children x path depth) native path work; measure deep or remote directory workloads before using listing as a hot path.
+`ListDirectoryResult` owns every accepted entry, so peak result storage is proportional to the number and path length of returned children. `DirectoryCursor` provides the same filters, ordering, symlink policy, and entry limit without retaining siblings. On Win32, child metadata is queried relative to the retained directory handle, avoiding a complete ancestry traversal for every entry.
+
+```cpp
+GameWIP::FileSystem::DirectoryCursor cursor;
+if (auto status = cursor.open("assets"); !status.ok())
+{
+    return 1;
+}
+for (;;)
+{
+    auto next = cursor.next();
+    if (!next.status.ok())
+    {
+        return 1;
+    }
+    if (!next.hasEntry)
+    {
+        break;
+    }
+    // Process next.entry without retaining every sibling.
+}
+```
 
 The API intentionally exposes no public recursive iterator. Recursive traversal belongs in caller code unless the requested operation is tree removal.
 
@@ -44,7 +65,7 @@ The implementation compares copied byte progress with source metadata captured f
 - Cross-volume moves return `MoveFailed`.
 - There is no copy-and-delete fallback.
 
-A successful native rename is followed by path-based source and destination checks. Concurrent recreation of the source or removal/replacement of the destination can therefore produce a failure status after the move already committed. Do not blindly retry a failed `ReplaceExisting` move when another actor can mutate either path.
+Native rename success is the move's linearization point. Concurrent recreation of the source or removal/replacement of the destination after that point does not change the returned success.
 
 ## Removing entries
 

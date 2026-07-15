@@ -160,7 +160,7 @@ int main(int argc, char** argv)
     options.maxCapturedOutputBytes = 64 * 1024;
 
     const TS::Types::ChildProcessResult result = TS::runChildProcess(options);
-    if (result.timedOut || result.wasTerminatedByTest || result.exitCode == -1)
+    if (result.infrastructureFailure || result.timedOut || result.wasTerminatedByTest)
     {
         return 1;
     }

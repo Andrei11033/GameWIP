@@ -47,6 +47,7 @@
 
 namespace GameWIP::Logger::Detail::Core
 {
+    using FlushDeadline = std::chrono::steady_clock::time_point;
     using LogLevel = GameWIP::Logger::Types::Level;
     using OutputMode = GameWIP::Logger::Types::Output;
     using FormatPolicy = GameWIP::Logger::Types::FormatPolicy;
@@ -856,6 +857,11 @@ namespace GameWIP::Logger::Detail::Core
         std::atomic_bool pauseBeforeFinalProducerLeave{false};
         std::atomic_bool finalProducerLeaveReached{false};
         std::atomic_bool releaseFinalProducerLeave{false};
+        std::atomic_bool pauseBeforeWorkerDelivery{false};
+        std::atomic_bool workerDeliveryReached{false};
+        std::atomic_bool releaseWorkerDelivery{false};
+        std::atomic_bool lifecycleLockReached{false};
+        std::atomic_bool releaseLifecycleLock{false};
     };
     /// @brief Shared test-hook state consumed by core and platform wrappers.
     extern LoggerTestHookState loggerTestHookState;
@@ -865,6 +871,8 @@ namespace GameWIP::Logger::Detail::Core
     void resetLoggerTestHooks() noexcept;
     /// @brief Pauses an armed worker after its wait predicate observes no work.
     void pauseWorkerBeforeWaitForTest() noexcept;
+    /// @brief Pauses an armed worker after dequeue and before its delivery-time filter check.
+    void pauseWorkerBeforeDeliveryForTest() noexcept;
     /// @brief Records queue publication for deterministic worker-wakeup coordination.
     void recordQueuePublicationForTest() noexcept;
     /// @brief Returns the deterministic structured error for forced file failures.
@@ -1076,9 +1084,15 @@ namespace GameWIP::Logger::Detail::Core
         std::string_view source,
         std::string_view message,
         bool unknownSource = false,
-        bool alreadyTruncated = false);
+        bool alreadyTruncated = false,
+        const FlushDeadline *deadline = nullptr);
     /// @brief Resolves a registered source and writes one report directly to active sinks.
-    bool writeReportSynchronously(LogLevel level, SourceId source, std::string_view message, bool alreadyTruncated = false);
+    bool writeReportSynchronously(
+        LogLevel level,
+        SourceId source,
+        std::string_view message,
+        bool alreadyTruncated = false,
+        const FlushDeadline *deadline = nullptr);
     /// @brief Formats one worker entry and routes it to immediate/file-batch sinks.
     SinkWriteResult writeLogEntry(
         const QueuedLogEntry &entry,
@@ -1136,8 +1150,14 @@ namespace GameWIP::Logger::Detail::Core
     void showFatalPopupIfEnabled(std::string_view message);
     /// @brief Flushes currently active console and file sinks without taking lifecycleMutex.
     bool flushSinksInternal();
+    /// @brief Flushes active sinks when output ownership is acquired before deadline.
+    bool flushSinksInternal(FlushDeadline deadline);
     /// @brief Drains all accepted work and flushes sinks without a timeout.
     void flushInternal();
-    /// @brief Attempts a bounded drain and sink flush; returns false on timeout or sink failure.
-    bool flushInternal(std::chrono::milliseconds timeout);
+    /// @brief Attempts a deadline-bounded drain and sink flush; returns false on timeout or sink failure.
+    bool flushInternal(FlushDeadline deadline);
+    /// @brief Converts one relative timeout to a saturating absolute deadline.
+    [[nodiscard]] FlushDeadline makeFlushDeadline(std::chrono::milliseconds timeout) noexcept;
+    /// @brief Acquires a normal mutex before deadline without an unbounded initial lock wait.
+    [[nodiscard]] bool lockBefore(std::unique_lock<std::mutex> &lock, FlushDeadline deadline) noexcept;
 } // namespace GameWIP::Logger::Detail::Core

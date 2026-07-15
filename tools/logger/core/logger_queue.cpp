@@ -400,6 +400,10 @@ namespace GameWIP::Logger::Detail::Core
                 continue;
             }
 
+#if INTERNAL_LOGGER_TEST_HOOKS
+            pauseWorkerBeforeDeliveryForTest();
+#endif
+
             std::size_t writtenCount = 0;
             std::size_t filePendingCount = 0;
             for (std::size_t index = 0; index < batchCount; ++index)

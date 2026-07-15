@@ -42,9 +42,9 @@ Runtime filters and visible statistics are reset for each initialization.
 
 `flush()` waits for accepted asynchronous work to drain and then flushes active sinks. The unbounded overload can wait indefinitely if producers continue submitting records or an underlying sink does not complete.
 
-`flush(timeout)` uses the duration for its queue condition wait after Logger acquires the lifecycle and queue serialization boundaries. It returns true only when that wait observes a drained queue and Logger's observable sink flush succeeds. Negative durations make the queue wait immediate.
+`flush(timeout)` computes one absolute deadline before acquiring Logger's lifecycle boundary. Lifecycle, queue, and output serialization plus the drain wait and pre-I/O checks all consume that same duration. It returns true only when the queue drains and observable sink flushing completes by the deadline. Non-positive durations make the attempt immediate.
 
-The duration is not an end-to-end deadline. Waiting for lifecycle, queue, or output serialization and performing synchronous sink flushes can extend the call beyond it. Logger requests console flushes, but console-flush status is not surfaced; a file-flush failure makes the result false.
+The bound is best-effort at the native I/O boundary. Once a synchronous console or filesystem flush begins, the operating-system call is not cancellable and can extend the total call beyond the deadline. Logger requests console flushes, but console-flush status is not surfaced; a file-flush failure makes the result false.
 
 Neither overload prevents other threads from attempting new normal logs. Stop producers before a final deterministic flush where possible.
 

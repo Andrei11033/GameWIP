@@ -18,7 +18,7 @@ Include `logger/logger.h`. Installed consumers link `GameWIP::Logger`; source-tr
 | `SourceFilter` | Registered `source` ID plus its initial or runtime `enabled` state. |
 | `LevelFilter` | Exact `level` plus its initial or runtime `enabled` state. |
 | `RuntimeFormat` | Explicit wrapper whose `text` field holds a format string known only at runtime. |
-| `FlushTimeout` | Queue condition-wait wrapper used by report APIs; it is not an end-to-end call deadline. |
+| `FlushTimeout` | Best-effort end-to-end deadline wrapper for timed report APIs; already-started native sink I/O is not cancellable. |
 | `ReportPopup` | Selects no popup or the logger-owned fatal popup for a report. |
 | `PlatformError` | Snapshot with `source` and backend-specific `nativeCode` fields. |
 | `Config` | Complete startup configuration. |

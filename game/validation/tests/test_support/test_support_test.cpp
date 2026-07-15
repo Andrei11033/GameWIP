@@ -8,6 +8,7 @@
 
 #include "test_support/test_support.h"
 
+#include <array>
 #include <atomic>
 #include <chrono>
 #include <cstdint>
@@ -761,8 +762,44 @@ namespace
             childOptions.timeout = 5s;
 
             const TestSupport::Types::ChildProcessResult result = TestSupport::runChildProcess(childOptions);
-            static_cast<void>(context.expectEq("Child process reports nonzero exit", 7, result.exitCode));
+            static_cast<void>(context.expectEq("Child process reports nonzero exit", std::uint32_t{7}, result.exitCode));
+            static_cast<void>(context.expectFalse("Normal child exit is not infrastructure failure", result.infrastructureFailure));
             static_cast<void>(context.expectTrue("Child process nonzero exit is failure", result.exitedWithFailure()));
+        }
+
+#if defined(_WIN32)
+        {
+            struct ExitBoundary
+            {
+                std::string_view argument;
+                std::uint32_t expected;
+            };
+            constexpr std::array boundaries{
+                ExitBoundary{"2147483647", 0x7fffffffu},
+                ExitBoundary{"-2147483648", 0x80000000u},
+                ExitBoundary{"-1", 0xffffffffu},
+            };
+            for (const ExitBoundary &boundary : boundaries)
+            {
+                TestSupport::Types::ChildProcessOptions childOptions;
+                childOptions.executablePath = std::filesystem::path(executablePath);
+                childOptions.arguments = {std::string(kExitCodeChildArgument), std::string(boundary.argument)};
+                childOptions.timeout = 5s;
+
+                const TestSupport::Types::ChildProcessResult result = TestSupport::runChildProcess(childOptions);
+                static_cast<void>(context.expectFalse("Boundary child exit is not infrastructure failure", result.infrastructureFailure));
+                static_cast<void>(context.expectEq("Boundary child exit preserves all native bits", boundary.expected, result.exitCode));
+            }
+        }
+#endif
+
+        {
+            TestSupport::Types::ChildProcessOptions childOptions;
+            childOptions.executablePath = std::filesystem::path(executablePath).parent_path() / "missing-gamewip-child.exe";
+            childOptions.timeout = 5s;
+            const TestSupport::Types::ChildProcessResult result = TestSupport::runChildProcess(childOptions);
+            static_cast<void>(context.expectTrue("Missing child reports infrastructure failure", result.infrastructureFailure));
+            static_cast<void>(context.expectTrue("Infrastructure failure is a failed result", result.exitedWithFailure()));
         }
 
         {

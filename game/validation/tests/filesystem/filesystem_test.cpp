@@ -12,6 +12,7 @@
 
 #include <chrono>
 #include <cstddef>
+#include <cstdlib>
 #include <filesystem>
 #include <format>
 #include <functional>
@@ -79,6 +80,10 @@ namespace
     static_assert(!std::is_move_assignable_v<FileSystem::FileWriter>);
     static_assert(std::is_move_constructible_v<FileSystem::FileLock>);
     static_assert(!std::is_move_assignable_v<FileSystem::FileLock>);
+    static_assert(std::is_move_constructible_v<FileSystem::DirectoryCursor>);
+    static_assert(std::is_move_assignable_v<FileSystem::DirectoryCursor>);
+    static_assert(!std::is_copy_constructible_v<FileSystem::DirectoryCursor>);
+    static_assert(!std::is_copy_assignable_v<FileSystem::DirectoryCursor>);
     static_assert(std::is_same_v<decltype(FileSystem::Types::AtomicWriteOptions{}.temporaryNamePrefix), std::string>);
 
     namespace TestSupport = GameWIP::TestSupport;
@@ -138,6 +143,13 @@ namespace
         if (CreateSymbolicLinkW(link.wstring().c_str(), target.wstring().c_str(), flags) == FALSE)
         {
             const DWORD error = GetLastError();
+            if (std::getenv("GAMEWIP_REQUIRE_SYMLINK_TESTS") != nullptr)
+            {
+                context.fail(
+                    directory ? "intermediate symlink policy checks" : "file symlink policy checks",
+                    std::format("CI requires symlink creation: {}", std::system_category().message(static_cast<int>(error))));
+                return false;
+            }
             context.skip(
                 directory ? "intermediate symlink policy checks" : "file symlink policy checks",
                 std::format("symlink creation unavailable: {}", std::system_category().message(static_cast<int>(error))));
@@ -156,6 +168,13 @@ namespace
         }
         if (error)
         {
+            if (std::getenv("GAMEWIP_REQUIRE_SYMLINK_TESTS") != nullptr)
+            {
+                context.fail(
+                    directory ? "intermediate symlink policy checks" : "file symlink policy checks",
+                    std::format("CI requires symlink creation: {}", error.message()));
+                return false;
+            }
             context.skip(
                 directory ? "intermediate symlink policy checks" : "file symlink policy checks",
                 std::format("symlink creation unavailable: {}", error.message()));
@@ -313,6 +332,26 @@ namespace
         const auto limitedListing = FileSystem::listDirectory(directory, FileSystem::Types::ListDirectoryOptions{.maxEntries = 0});
         static_cast<void>(
             context.expectEq("listDirectory maxEntries returns SizeLimitExceeded", ErrorCode::SizeLimitExceeded, limitedListing.status.code));
+
+        FileSystem::DirectoryCursor cursor;
+        static_cast<void>(context.expectEq("closed directory cursor reports NotOpen", ErrorCode::NotOpen, cursor.next().status.code));
+        static_cast<void>(context.expectTrue("directory cursor opens", cursor.open(directory).ok()));
+        static_cast<void>(context.expectEq("open directory cursor rejects AlreadyOpen", ErrorCode::AlreadyOpen, cursor.open(directory).code));
+        FileSystem::DirectoryCursor movedCursor = std::move(cursor);
+        const auto cursorEntry = movedCursor.next();
+        static_cast<void>(context.expectTrue("directory cursor returns an entry", cursorEntry.status.ok() && cursorEntry.hasEntry));
+        const auto cursorEnd = movedCursor.next();
+        static_cast<void>(context.expectTrue("directory cursor reports successful exhaustion", cursorEnd.status.ok() && !cursorEnd.hasEntry));
+        static_cast<void>(context.expectTrue("directory cursor closes", movedCursor.close().ok()));
+        static_cast<void>(context.expectFalse("closed directory cursor is not open", movedCursor.isOpen()));
+
+        FileSystem::DirectoryCursor limitedCursor;
+        static_cast<void>(context.expectTrue(
+            "limited directory cursor opens",
+            limitedCursor.open(directory, FileSystem::Types::ListDirectoryOptions{.maxEntries = 0}).ok()));
+        static_cast<void>(context.expectEq("directory cursor enforces maxEntries", ErrorCode::SizeLimitExceeded, limitedCursor.next().status.code));
+        static_cast<void>(
+            context.expectEq("directory cursor keeps the terminal limit status", ErrorCode::SizeLimitExceeded, limitedCursor.next().status.code));
     }
 
     /// @brief Verifies explicit UTF-8 path conversion with non-ASCII fixture names.
@@ -439,6 +478,72 @@ namespace
         static_cast<void>(context.expectFalse("movePath removes source", copyExists.value));
         static_cast<void>(context.expectTrue("move destination existence query succeeds", movedExists.status.ok()));
         static_cast<void>(context.expectTrue("movePath creates destination", movedExists.value));
+
+#if defined(_WIN32) && INTERNAL_FILESYSTEM_TEST_HOOKS
+        {
+            const std::filesystem::path raceSource = directory / "move-race-source.txt";
+            const std::filesystem::path validatedParent = directory / "validated-parent";
+            const std::filesystem::path parkedParent = directory / "validated-parent-parked";
+            const std::filesystem::path destination = validatedParent / "destination.txt";
+            static_cast<void>(context.expectTrue("write move race source", FileSystem::writeAllText(raceSource, "anchored").status.ok()));
+            static_cast<void>(context.expectTrue("create validated move parent", FileSystem::createDirectory(validatedParent).ok()));
+
+            FileSystem::Detail::Platform::TestHooks::armMoveDestinationValidatedPause();
+            IO::Types::Status moveRaceStatus;
+            std::thread moveThread(
+                [&]
+                {
+                    moveRaceStatus = FileSystem::movePath(raceSource, destination);
+                });
+            const bool movePaused = FileSystem::Detail::Platform::TestHooks::waitForMovePause(std::chrono::seconds{5});
+            static_cast<void>(context.expectTrue("strict move reaches destination validation pause", movePaused));
+            if (movePaused)
+            {
+                std::error_code renameError;
+                std::filesystem::rename(validatedParent, parkedParent, renameError);
+                static_cast<void>(context.expectFalse("validated parent can be renamed during pause", static_cast<bool>(renameError)));
+                static_cast<void>(context.expectTrue("create replacement move parent", FileSystem::createDirectory(validatedParent).ok()));
+            }
+            FileSystem::Detail::Platform::TestHooks::releaseMovePause();
+            moveThread.join();
+
+            static_cast<void>(context.expectTrue("anchored strict move succeeds", moveRaceStatus.ok()));
+            static_cast<void>(
+                context.expectTrue("anchored move lands in retained parent", FileSystem::exists(parkedParent / "destination.txt").value));
+            static_cast<void>(context.expectFalse("anchored move avoids replacement parent", FileSystem::exists(destination).value));
+            FileSystem::Detail::Platform::TestHooks::reset();
+        }
+
+        {
+            const std::filesystem::path commitSource = directory / "commit-source.txt";
+            const std::filesystem::path commitDestination = directory / "commit-destination.txt";
+            static_cast<void>(context.expectTrue("write post-commit source", FileSystem::writeAllText(commitSource, "original").status.ok()));
+
+            FileSystem::Detail::Platform::TestHooks::armMoveCommittedPause();
+            IO::Types::Status committedStatus;
+            std::thread moveThread(
+                [&]
+                {
+                    committedStatus = FileSystem::movePath(commitSource, commitDestination);
+                });
+            const bool movePaused = FileSystem::Detail::Platform::TestHooks::waitForMovePause(std::chrono::seconds{5});
+            static_cast<void>(context.expectTrue("move reaches committed pause", movePaused));
+            if (movePaused)
+            {
+                static_cast<void>(
+                    context.expectTrue("source can be recreated after commit", FileSystem::writeAllText(commitSource, "replacement").status.ok()));
+                static_cast<void>(context.expectTrue("destination can be removed after commit", FileSystem::removeFile(commitDestination).ok()));
+            }
+            FileSystem::Detail::Platform::TestHooks::releaseMovePause();
+            moveThread.join();
+
+            static_cast<void>(context.expectTrue("native commit remains successful after namespace mutation", committedStatus.ok()));
+            static_cast<void>(
+                context.expectEq("recreated source remains caller-visible", std::string{"replacement"}, FileSystem::readAllText(commitSource).text));
+            static_cast<void>(context.expectFalse("concurrently removed destination remains absent", FileSystem::exists(commitDestination).value));
+            FileSystem::Detail::Platform::TestHooks::reset();
+        }
+#endif
 
         static_cast<void>(context.expectTrue("remove metadata copy succeeds", FileSystem::removeFile(metadataCopy).ok()));
         static_cast<void>(context.expectTrue("truncateFile succeeds", FileSystem::truncateFile(source).ok()));

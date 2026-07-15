@@ -970,6 +970,73 @@ namespace
             "invalid runtime level filter rejected",
             Logger::setLevelFilter(static_cast<Logger::Types::Level>(99), true),
             Logger::Types::Result::InvalidLevelFilter);
+
+        std::atomic<bool> beginConcurrentFilters{false};
+        std::atomic<bool> filterOperationsSucceeded{true};
+        std::array<std::thread, 4> filterThreads{
+            std::thread{[&]
+                        {
+                            while (!beginConcurrentFilters.load(std::memory_order_acquire))
+                            {
+                                std::this_thread::yield();
+                            }
+                            for (int index = 0; index < 2'000; ++index)
+                            {
+                                Logger::info(TestSource::Core, "concurrent filter producer {}", index);
+                            }
+                        }},
+            std::thread{[&]
+                        {
+                            while (!beginConcurrentFilters.load(std::memory_order_acquire))
+                            {
+                                std::this_thread::yield();
+                            }
+                            for (int index = 0; index < 2'000; ++index)
+                            {
+                                Logger::info(TestSource::Core, "second concurrent producer {}", index);
+                            }
+                        }},
+            std::thread{[&]
+                        {
+                            while (!beginConcurrentFilters.load(std::memory_order_acquire))
+                            {
+                                std::this_thread::yield();
+                            }
+                            for (int index = 0; index < 2'000; ++index)
+                            {
+                                if (Logger::setSourceFilter(TestSource::Core, (index & 1) == 0) != Logger::Types::Result::Success)
+                                {
+                                    filterOperationsSucceeded.store(false, std::memory_order_relaxed);
+                                }
+                            }
+                        }},
+            std::thread{[&]
+                        {
+                            while (!beginConcurrentFilters.load(std::memory_order_acquire))
+                            {
+                                std::this_thread::yield();
+                            }
+                            for (int index = 0; index < 2'000; ++index)
+                            {
+                                if (Logger::setLevelFilter(Logger::Types::Level::Info, (index & 1) != 0) != Logger::Types::Result::Success)
+                                {
+                                    filterOperationsSucceeded.store(false, std::memory_order_relaxed);
+                                }
+                            }
+                        }}};
+        beginConcurrentFilters.store(true, std::memory_order_release);
+        for (std::thread &thread : filterThreads)
+        {
+            thread.join();
+        }
+        context.expectTrue("concurrent source and level filter updates succeed", filterOperationsSucceeded.load(std::memory_order_relaxed));
+        expectEq(context, "restore source filter after concurrency", Logger::setSourceFilter(TestSource::Core, true), Logger::Types::Result::Success);
+        expectEq(
+            context,
+            "restore level filter after concurrency",
+            Logger::setLevelFilter(Logger::Types::Level::Info, true),
+            Logger::Types::Result::Success);
+        context.expectTrue("concurrent filter stress flushes", Logger::flush(2s));
     }
 
     /// @brief Verifies source definition/filter validation and unknown-source behavior.
@@ -1216,6 +1283,59 @@ namespace
             context.expectTrue(
                 "hook report timeout line reached file",
                 readWholeFile(logFile).find("report timeout still writes first") != std::string::npos);
+        }
+
+        {
+            ScopedLoggerShutdown shutdown;
+            OwnedLoggerConfig config = makeFileConfig(context, "hook-report-combined-failure", Logger::Types::Level::Trace);
+            expectInitSuccess(context, "hook combined report failure init", Logger::init(config.ready()));
+            Logger::resetStats();
+            GameWIP::Logger::TestHooks::forceNextFileFlushFailure();
+            GameWIP::Logger::TestHooks::forceNextTimedFlushTimeout();
+            context.expectFalse(
+                "sink failure and drain timeout combine to failure",
+                Logger::reportError(testSource, Logger::flushTimeout(2s), "combined report failure"));
+            context.expectTrue("combined report failure records sink error", Logger::getStats().fileWriteFailures > 0);
+            context.expectTrue("combined report failure still consumes drain attempt", Logger::flush(2s));
+        }
+
+        {
+            ScopedLoggerShutdown shutdown;
+            OwnedLoggerConfig config = makeFileConfig(context, "hook-lifecycle-deadline", Logger::Types::Level::Trace);
+            expectInitSuccess(context, "hook lifecycle deadline init", Logger::init(config.ready()));
+
+            std::thread holder(
+                []
+                {
+                    GameWIP::Logger::TestHooks::holdLifecycleLockPause();
+                });
+            GameWIP::Logger::TestHooks::waitForLifecycleLockPause();
+            const auto start = Clock::now();
+            context.expectFalse("timed flush expires while lifecycle mutex is held", Logger::flush(25ms));
+            const auto elapsed = Clock::now() - start;
+            context.expectTrue("timed flush lifecycle wait stays bounded", elapsed < 500ms);
+            GameWIP::Logger::TestHooks::releaseLifecycleLockPause();
+            holder.join();
+        }
+
+        {
+            ScopedLoggerShutdown shutdown;
+            std::array sources{Logger::defineSource(TestSource::Core, "Core")};
+            OwnedLoggerConfig config = makeFileConfig(context, "hook-delivery-filter", Logger::Types::Level::Trace);
+            config.sources = sources;
+            config.workerBatchSize = 1;
+            expectInitSuccess(context, "hook delivery filter init", Logger::init(config.ready()));
+            Logger::resetStats();
+
+            GameWIP::Logger::TestHooks::armWorkerDeliveryPause();
+            Logger::info(TestSource::Core, "filtered after enqueue");
+            GameWIP::Logger::TestHooks::waitForWorkerDeliveryPause();
+            expectEq(context, "delivery filter update succeeds", Logger::setSourceFilter(TestSource::Core, false), Logger::Types::Result::Success);
+            GameWIP::Logger::TestHooks::releaseWorkerDeliveryPause();
+            context.expectTrue("delivery filter test flush", Logger::flush(2s));
+            const Logger::Types::Stats stats = Logger::getStats();
+            expectEq(context, "delivery filter entry was queued", stats.queued, std::size_t{1});
+            expectEq(context, "delivery filter suppresses queued entry", stats.written, std::size_t{0});
         }
 
         GameWIP::Logger::TestHooks::reset();

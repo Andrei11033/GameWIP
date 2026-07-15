@@ -41,6 +41,7 @@ Overrides persist until cleared or reset.
 - `setInputBytes()` replaces the deterministic input bytes and selects EOF-versus-no-data behavior when the buffer becomes empty.
 - `appendInputBytes()` adds bytes to the deterministic input stream.
 - `clearInputBytes()` disables the in-memory input path.
+- `setPendingHighSurrogate()` and `hasPendingHighSurrogate()` expose the Win32 converter's endpoint-owned surrogate state for the stdin-replacement regression.
 - `setInputModeOverride()` provides deterministic current/default mode state.
 - `clearInputModeOverride()` restores normal backend behavior.
 

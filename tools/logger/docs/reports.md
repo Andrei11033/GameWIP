@@ -23,7 +23,7 @@ An untimed report writes and flushes the report itself but does not wait for old
 Logger::reportError("Startup", "Configuration is invalid");
 ```
 
-A timed report writes and flushes the report first. If that initial observable sink flush succeeds, it then attempts a timeout-parameterized drain of accepted asynchronous work and another sink flush:
+A timed report uses one absolute deadline across lifecycle/output locking, the synchronous report attempt, an initial sink flush, the accepted asynchronous-work drain, and the final sink flush:
 
 ```cpp
 const bool drained = Logger::reportError(
@@ -32,7 +32,7 @@ const bool drained = Logger::reportError(
     "Configuration is invalid");
 ```
 
-The returned `bool` describes those observable sink flushes and the queue drain. If the initial file flush fails, the current implementation returns false without attempting the queue drain. Otherwise, the timeout value bounds only the queue condition wait after internal serialization; lock acquisition and synchronous sink operations can extend the total call beyond it. Logger requests console flushes, but console-flush status is not reflected in the boolean. The value is not a delivery receipt for the report line and does not indicate whether a normal sink accepted that line.
+The returned `bool` combines both observable sink flush attempts with the queue drain. Every phase is attempted even when the initial file flush fails, and the individual results are combined afterward. Logger-owned waits and pre-I/O checks share the deadline; native writes or flushes already in progress are synchronous and cannot be cancelled, so they can overrun it. Logger requests console flushes, but console-flush status is not reflected in the boolean. The value is not a delivery receipt for the report line and does not indicate whether a normal sink accepted that line.
 
 ## Generic report overloads
 
@@ -54,7 +54,7 @@ The returned `bool` describes those observable sink flushes and the queue drain.
 | `reportFatal()` | Reports at `Fatal` and requests the fatal popup. |
 | `fatalTerminate()` | Performs the fatal report path, then calls `std::terminate()`. |
 
-`fatalTerminate()` is `[[noreturn]]`. It does not provide normal stack unwinding. The untimed form does not drain older queued entries; the timeout form attempts a queue drain when the initial observable sink flush succeeds before termination proceeds.
+`fatalTerminate()` is `[[noreturn]]`. It does not provide normal stack unwinding. The untimed form does not drain older queued entries; the timeout form attempts the queue drain regardless of the initial observable sink-flush result before termination proceeds.
 
 ## Ordering and concurrency
 

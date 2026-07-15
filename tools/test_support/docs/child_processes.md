@@ -38,19 +38,18 @@ Inspect fields together:
 
 1. `timedOut` says whether the configured wait expired.
 2. `wasTerminatedByTest` says TestSupport requested termination during timeout or infrastructure-failure handling.
-3. `exitCode` is meaningful as a normal child result only when neither flag indicates intervention.
+3. `infrastructureFailure` distinguishes launch, setup, wait, inspection, or capture failure from a child result.
+4. `exitCode` is the complete native unsigned 32-bit code when `infrastructureFailure` is false.
 
-`exitCode == -1` means launch, setup, wait, inspection, or capture infrastructure failure. The API does not expose a native error code or distinguish every cause. Capture failure can therefore replace an otherwise completed child's exit code with `-1`.
+Infrastructure failure leaves `exitCode` at zero; inspect `infrastructureFailure` rather than using a sentinel. Native values from `0` through `0xffffffff` are represented without narrowing or collision.
 
-Current Win32 limitation: the native unsigned 32-bit code is narrowed into `int`. Values above `INT_MAX` are not represented faithfully, and a normal native code of `0xffffffff` collides with the `-1` infrastructure sentinel. Do not use those exit-code values in TestSupport child protocols until the result representation separates native exit and infrastructure status.
-
-The exit code following test-requested termination is not a portable child result. `exitedSuccessfully()` means zero exit with no timeout or test termination. `exitedWithFailure()` is true for any nonzero exit, timeout, or test termination; an infrastructure `-1` also qualifies.
+The exit code following test-requested termination is not a portable child result. `exitedSuccessfully()` means zero exit with no infrastructure failure, timeout, or test termination. `exitedWithFailure()` is true for infrastructure failure, any nonzero exit, timeout, or test termination.
 
 ## Exceptions
 
 Invalid process text throws `std::invalid_argument`. Oversized UTF-8 conversion input throws `std::length_error`. Unexpected text-conversion failure throws `std::runtime_error`. Standard allocation/path exceptions may also propagate.
 
-Platform launch and wait failures normally return `exitCode == -1` rather than throwing.
+Platform launch and wait failures normally return `infrastructureFailure == true` rather than throwing.
 
 ## Related pages
 

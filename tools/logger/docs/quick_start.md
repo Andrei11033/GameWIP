@@ -87,7 +87,7 @@ Use synchronous reports for important diagnostics that must bypass filters and q
 Logger::reportError("Startup", "Could not load required configuration");
 ```
 
-A timed report writes and flushes the report first, then attempts a timeout-parameterized drain of older queued records when that initial observable sink flush succeeds:
+A timed report uses one best-effort deadline across its report/flush attempt and the drain of older queued records:
 
 ```cpp
 const bool drained = Logger::reportError(
@@ -96,7 +96,7 @@ const bool drained = Logger::reportError(
     "Could not load required configuration");
 ```
 
-`drained == false` does not mean the report line was skipped; it means an observable file flush failed or the queue wait did not drain. The timeout value does not bound lock acquisition or synchronous sink work.
+`drained == false` does not mean the report line was skipped; it means an observable file flush failed, a Logger-owned lock wait expired, or the queue did not drain. Native sink I/O already in progress cannot be cancelled and may overrun the deadline.
 
 ## Where to go next
 
