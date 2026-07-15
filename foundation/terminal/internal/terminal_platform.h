@@ -1,5 +1,6 @@
 /// @file terminal_platform.h
-/// @brief Internal platform abstraction used by the Terminal library.
+/// @brief Internal backend boundary used by the platform-neutral Terminal core.
+/// @details Native handles, encoding conversion, and endpoint-specific behavior stay behind this interface.
 
 #pragma once
 

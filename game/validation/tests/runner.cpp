@@ -146,8 +146,9 @@ namespace GameWIP::Validation::Tests
             return selection;
         }
 
-        /// @brief Resolves relative reports beneath the GameWIP temp root and rejects parent traversal.
-        /// @details Invalid or empty paths disable file reporting without changing test execution.
+        /// @brief Resolves ordinary relative reports beneath the GameWIP temp root and rejects parent traversal.
+        /// @details Invalid or empty paths disable file reporting without changing test execution. Root-relative and
+        /// drive-relative Windows forms are not currently rejected and can escape the intended temporary subtree.
         void resolveReportOutput(RunOptions &options)
         {
             if (!options.writeReport)
@@ -248,6 +249,9 @@ namespace GameWIP::Validation::Tests
             return {.modulesFailed = 1, .exitCode = 1};
         }
 
+        // Child-process scenarios use module-owned arguments for crash tests,
+        // fatal-path checks, and subprocess helpers. Route them before normal
+        // selection so a child process cannot recursively run the full suite.
         const Module *childOwner = nullptr;
         for (const Module &module : modules)
         {
@@ -272,6 +276,8 @@ namespace GameWIP::Validation::Tests
 
             if (handlesChildArguments)
             {
+                // Child routes must be exclusive; otherwise two modules could
+                // disagree about the expected protocol and exit-code meaning.
                 if (childOwner != nullptr)
                 {
                     std::cerr << "Ambiguous validation child invocation matched modules '" << childOwner->name << "' and '" << module.name << "'.\n";
@@ -283,6 +289,8 @@ namespace GameWIP::Validation::Tests
 
         if (childOwner != nullptr)
         {
+            // Preserve the owning module's exact exit code for the parent test
+            // that launched this child process.
             const int exitCode = invokeModule(*childOwner, {argc, argv, options, false});
             return {
                 .modulesRun = 1,
@@ -314,6 +322,8 @@ namespace GameWIP::Validation::Tests
             return {.modulesFailed = 1, .exitCode = 1};
         }
 
+        // Report validation is intentionally non-fatal: invalid report paths
+        // disable retained output but should not hide console failures.
         resolveReportOutput(options);
         if (options.writeReport)
         {
@@ -338,6 +348,9 @@ namespace GameWIP::Validation::Tests
             }
             std::cout << "[VALIDATION] module=" << module.name << " result=" << (moduleExitCode == 0 ? "PASS" : "FAIL")
                       << " exitCode=" << moduleExitCode << '\n';
+
+            // Once one module has written the aggregate report, later modules
+            // must append so their summaries do not replace earlier evidence.
             appendReport = appendReport || options.writeReport;
         }
 

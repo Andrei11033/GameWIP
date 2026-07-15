@@ -1,5 +1,7 @@
 /// @file assert.cpp
-/// @brief Core implementation for the Assert library.
+/// @brief Core runtime implementation for Assert failure handling.
+/// @details This file owns bounded failure formatting, synchronous Logger reporting, popup dispatch,
+/// debugger-break policy, abort policy, and interactive action application.
 
 #include "debug/assert/assert.h"
 #include "debug/assert/internal/assert_platform.h"
@@ -34,7 +36,7 @@ namespace
     using FailureAction = GameWIP::Debug::Assert::FailureAction;
 
 #if ASSERT_DIAGNOSTICS
-    /// @brief Fixed-size stack message builder used to keep assert-side failure reporting allocation-free.
+    /// @brief Fixed-size stack message builder used to keep failure formatting allocation-free.
     class FixedFailureMessage
     {
     public:
@@ -263,8 +265,8 @@ namespace
         return false;
     }
 
-    /// @brief Returns true when assert popups are suppressed by environment.
-    /// @return True when INTERNAL_ASSERT_SUPPRESS_POPUP is exactly 1.
+    /// @brief Returns true when real assert UI is suppressed by the validation override or environment.
+    /// @return True when a hook forces suppression or `INTERNAL_ASSERT_SUPPRESS_POPUP` is exactly `1`.
     bool popupsSuppressedByEnvironment() noexcept
     {
 #if INTERNAL_ASSERT_TEST_HOOKS
@@ -294,7 +296,7 @@ namespace
 
     /// @brief Selects an action for one interactive fatal assert failure.
     /// @param message Failure text to display in the platform action dialog.
-    /// @return Selected failure action.
+    /// @return Selected action from test override, suppression/default policy, or platform UI.
     FailureAction selectInteractiveAction(std::string_view message) noexcept
     {
         if (const char *testActionText = std::getenv("INTERNAL_ASSERT_TEST_ACTION"))
@@ -317,7 +319,7 @@ namespace
 
     /// @brief Applies the selected action for an interactive fatal assert failure.
     /// @param action Action selected by test override, popup suppression, or platform UI.
-    /// @param alwaysIgnoreFlag Per-call-site flag to set for Always Ignore.
+    /// @param alwaysIgnoreFlag Per-call-site flag to set for Always Ignore. Null means no site can be suppressed.
     void applyInteractiveAction(FailureAction action, std::atomic_bool *alwaysIgnoreFlag) noexcept
     {
         switch (action)
@@ -358,7 +360,7 @@ namespace
     }
 #endif
 
-    /// @brief Reports one failed assertion through Logger and the assert-owned popup path.
+    /// @brief Reports one failed non-interactive assertion through Logger and the Assert-owned popup path.
     /// @param conditionText Expression text, or empty when diagnostics are disabled.
     /// @param message Caller message, or empty when absent/diagnostics are disabled.
     /// @param file Source file text, or empty when diagnostics are disabled.

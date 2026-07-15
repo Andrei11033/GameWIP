@@ -1,5 +1,7 @@
 /// @file assert_test_hooks.h
-/// @brief Internal test hooks for forcing rare Assert failure paths.
+/// @brief Source-tree-only test hooks for deterministic Assert validation.
+/// @details This header is excluded from installed public file sets. Hooks are enabled only when
+/// `INTERNAL_ASSERT_TEST_HOOKS` is `1`.
 
 #pragma once
 
@@ -14,15 +16,15 @@
 #if INTERNAL_ASSERT_TEST_HOOKS
 namespace GameWIP::Debug::Assert::TestHooks
 {
-    /// @brief Clears all pending assert test-hook failures and overrides.
+    /// @brief Clears all pending one-shot failures and persistent overrides.
     /// @warning Test-only API. Available only when INTERNAL_ASSERT_TEST_HOOKS is enabled.
     GAMEWIP_ASSERT_EXPORT void reset() noexcept;
 
-    /// @brief Forces the next primary platform action-dialog attempt to fail.
+    /// @brief Forces the next primary platform action-dialog attempt to use the fallback path.
     /// @warning Test-only API. The hook is one-shot and is intended to exercise fallback behavior.
     GAMEWIP_ASSERT_EXPORT void forceNextActionDialogFailure() noexcept;
 
-    /// @brief Forces the next platform fallback action-dialog attempt to fail.
+    /// @brief Forces the next fallback action-dialog attempt to return the default action.
     /// @warning Test-only API. The hook is one-shot and is intended to exercise default-action fallback behavior.
     GAMEWIP_ASSERT_EXPORT void forceNextFallbackActionDialogFailure() noexcept;
 
@@ -35,7 +37,7 @@ namespace GameWIP::Debug::Assert::TestHooks
     /// @warning Test-only API.
     GAMEWIP_ASSERT_EXPORT void clearDebuggerAttachedOverride() noexcept;
 
-    /// @brief Overrides popup-suppression checks used by assert failure handling.
+    /// @brief Overrides popup-suppression checks used by Assert failure handling.
     /// @param suppressed Value returned while the override is active.
     /// @warning Test-only API. Persistent until clearPopupSuppressedOverride() or reset().
     GAMEWIP_ASSERT_EXPORT void setPopupSuppressedOverride(bool suppressed) noexcept;

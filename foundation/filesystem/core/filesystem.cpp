@@ -398,7 +398,8 @@ namespace GameWIP::FileSystem
             }
         }
 
-        /// @brief Detects source/destination identity using native equivalence with lexical fallback.
+        /// @brief Detects self-copy/self-move paths without requiring both paths to exist.
+        /// @details Native equivalence is preferred for existing entries; lexical equality covers missing destinations and identical spellings.
         [[nodiscard]] bool equivalentOrSameLexically(const Types::Path &left, const Types::Path &right) noexcept
         {
             if (left == right)
@@ -1394,6 +1395,7 @@ namespace GameWIP::FileSystem
             Types::Path temporaryPath;
             IO::Types::Status openStatus = IO::makeStatus(ErrorCode::AlreadyExists);
             FileWriter writer;
+            // Bound collision retries so a hostile or exhausted directory cannot make temporary-name creation loop indefinitely.
             for (std::uint64_t attempt = 0; attempt < 64 && openStatus.code == ErrorCode::AlreadyExists; ++attempt)
             {
                 temporaryPath = uniqueAtomicTemporaryPath(parent, options.temporaryNamePrefix, attempt);
@@ -1441,6 +1443,7 @@ namespace GameWIP::FileSystem
                 return commitStatus;
             }
 
+            // Commit already succeeded; a failure below is a late durability failure and must not be reported as a pre-commit rollback.
             if (options.flushParentDirectory)
             {
                 const IO::Types::Status parentFlushStatus = Detail::Platform::flushDirectory(parent);
@@ -1665,6 +1668,7 @@ namespace GameWIP::FileSystem
                 }
             }
 
+            // A changing source is not a coherent snapshot; reject a byte-count mismatch rather than reporting a misleading successful copy.
             if (source.info.hasSize && copiedBytes != source.info.sizeBytes)
             {
                 static_cast<void>(writer.close());
@@ -1723,6 +1727,7 @@ namespace GameWIP::FileSystem
             {
                 return source.status;
             }
+            // A native move to the same entry is already satisfied; unlike copy, no destination content would be produced by doing work.
             if (equivalentOrSameLexically(from, to))
             {
                 return IO::successStatus();
@@ -1866,6 +1871,7 @@ namespace GameWIP::FileSystem
                 std::unique_ptr<Detail::DirectoryCursorState> cursor;
             };
 
+            // Keep one frame per active depth level so deep trees do not require collecting the complete entry set before removal begins.
             std::vector<RemovalFrame> pending;
             pending.push_back(RemovalFrame{.path = path, .info = existing.info});
 

@@ -1,5 +1,5 @@
 /// @file logger_core.h
-/// @brief Private coordination declarations shared by Logger core translation units.
+/// @brief Private Logger state, queue, formatting, sink, and lifecycle contracts shared by core translation units.
 
 #pragma once
 

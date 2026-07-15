@@ -1,31 +1,40 @@
-@page terminal_unicode_io Terminal Unicode I/O
+@page terminal_unicode_io Terminal Unicode and byte I/O
 
-Terminal presents one UTF-8 text contract while preserving byte-oriented access for redirected streams and callers that need arbitrary bytes.
+Terminal presents UTF-8 text at its public boundary and preserves a separate raw-byte path for endpoints and callers that need arbitrary bytes.
 
-## Public text
+## Public text contract
 
-Public Terminal text is UTF-8 `std::string` and `std::string_view`.
+Text arguments supplied to `writeText()`, `writeLine()`, formatted output, styled segments, titles, and `OutputBuffer` are expected to contain UTF-8.
 
-Text reads preserve valid UTF-8 code point boundaries. Byte reads remain available when callers need arbitrary bytes.
+Text and line reads return complete UTF-8 code points. Invalid input observed by text helpers returns `EncodingFailed`. Byte operations perform no UTF-8 validation.
 
-Invalid UTF-8 observed by text helpers returns `IO::Types::ErrorCode::EncodingFailed`.
+## Real Windows console
 
-## Windows real console output
+Real-console output converts public UTF-8 to UTF-16 and uses the native Unicode console API. Invalid UTF-8 can therefore fail conversion with `EncodingFailed` before the requested text is written.
 
-On Windows, real-console output accepts public UTF-8 text and displays the corresponding Unicode text. Terminal applies this behavior only when stdout or stderr is attached to a real console.
+Real-console input converts native Unicode input to UTF-8. An incomplete native surrogate sequence can be retained until a later read completes it; end-of-stream with an incomplete sequence returns `EncodingFailed`.
 
-## Windows redirected output
+Arbitrary `writeBytes()` and byte segments are unsupported for a real Win32 console because raw bytes do not define console text.
 
-On Windows, redirected stdout and stderr remain byte-oriented. Text writes preserve their UTF-8 bytes, and byte writes preserve arbitrary input bytes.
+## Redirected endpoints
 
-## Windows real console input
+Redirected stdin/stdout/stderr remain byte-oriented.
 
-On Windows, real-console text input returns UTF-8.
+- Text output writes supplied bytes without independent UTF-8 validation by the redirection path.
+- Byte output preserves arbitrary bytes.
+- Text and line input validate redirected bytes as UTF-8.
+- Byte input returns bytes unchanged.
 
-## Windows redirected input
+Therefore invalid UTF-8 may pass through a redirected text write even though the same text would fail on a real-console conversion path. Applications requiring validation independent of endpoint kind must validate before calling Terminal.
 
-Redirected stdin is byte-oriented. Byte reads return bytes. Text and line helpers interpret those bytes as UTF-8.
+## Buffers and segments
 
-## Failure behavior
+`OutputBuffer` and segment factories capture or append text without eagerly validating UTF-8. Text payload lifetime rules are separate from encoding validity. Validation/conversion occurs only when required by the selected output backend.
 
-Text operations reject invalid Unicode conversion with `EncodingFailed`. Byte operations do not perform text conversion or UTF-8 validation.
+## Limits and truncation
+
+`maxReturnedBytes` counts UTF-8 bytes. Text and line reads never split a valid code point. If the limit is smaller than the next complete code point, the operation returns `SizeLimitExceeded` rather than a partial encoding.
+
+`wasTruncated` reports successful limit-based truncation when at least a complete permitted prefix can be returned. Incomplete UTF-8 at a terminating end-of-stream returns `EncodingFailed`.
+
+See @ref terminal_read_write and @ref terminal_capabilities_and_redirection.

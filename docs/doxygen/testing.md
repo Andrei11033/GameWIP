@@ -1,16 +1,16 @@
 @page project_testing Correctness testing
 
-Correctness tests answer whether behavior is correct. They must not contain benchmark loops, timing thresholds, or performance-regression policy.
+Correctness tests answer whether behavior is correct. They must not contain benchmark loops, machine-dependent timing thresholds, or performance-regression policy.
 
 ## Scope
 
-This page documents how to run correctness tests, how reports and exit codes behave, how modules should be structured, and what standards new tests must follow.
+This page owns test-module structure, source interfaces, authoring rules, reports, artifacts, manual checks, and validation coverage expectations.
 
-Runner architecture and command-line ownership are documented in @ref project_validation. Performance measurements are documented in @ref project_benchmarking.
+Runner architecture and command-line ownership are documented in @ref project_validation. Performance measurements are documented in @ref project_benchmarking. Library-specific test coverage and approved hooks remain documented in each library manual.
 
 ## Common workflow
 
-Configure, build, and run all validation tests through CTest:
+Configure, build, and run all validation through CTest:
 
 ```powershell
 cmake --preset validation
@@ -18,19 +18,17 @@ cmake --build --preset validation
 ctest --preset validation
 ```
 
-The same CTest run also verifies reviewed shared-library exports and builds a separate consumer against a clean install prefix. That consumer has no source-tree include paths or short build-tree targets, so package dependency leaks and public-header leaks fail validation.
+The same validation composition checks reviewed shared-library exports, public-header self-containment, generated version output, and clean installed-package consumption.
 
 ## Commands
 
-### Run all modules directly
+Run all modules directly:
 
 ```powershell
 .\build\validation\GameWIPTests.exe
 ```
 
-Use this when you want the validation runner's direct console output instead of CTest grouping.
-
-### Run one module
+Run one module and retain a focused report:
 
 ```powershell
 .\build\validation\GameWIPTests.exe `
@@ -38,129 +36,136 @@ Use this when you want the validation runner's direct console output instead of 
   --test-report=logs/tests/filesystem_test_report.txt
 ```
 
-Use focused module runs while debugging one library.
-
-### Disable the retained report
+Disable the retained report for quick local iteration:
 
 ```powershell
 .\build\validation\GameWIPTests.exe --test-module=logger --no-test-report
 ```
 
-Use this for quick local iteration when console output is enough.
-
-### Mirror full suite output to the console
+Mirror complete suite output to stdout:
 
 ```powershell
 .\build\validation\GameWIPTests.exe --test-module=logger --verbose-tests --no-test-report
 ```
 
-Use this when diagnosing ordering, intermediate metrics, or stress diagnostics interactively.
-
-### Run opt-in manual checks
+Run opt-in human checks:
 
 ```powershell
 .\build\validation\GameWIPTests.exe --test-module=test_support --manual-ui
 .\build\validation\GameWIPTests.exe --test-module=terminal --manual-ui
-```
-
-Manual checks are disabled in unattended validation runs.
-
-### Run the Logger fatal-popup check
-
-```powershell
 .\build\validation\GameWIPTests.exe --test-module=logger --logger-popup
 ```
 
-Run this check intentionally and normally only once per validation session.
+The complete runner argument contract is owned by @ref project_validation.
 
-## Reports and exit behavior
+## Test-module source API
 
-Relative `--test-report` paths resolve beneath `%TEMP%/GameWIP` on Windows. Absolute paths are honored as explicit overrides. `--no-test-report` disables the retained file while preserving console results.
+Use @ref GameWIP::Test for the generated reference to each source-tree test option type and suite entry point.
 
-Normal validation uses minimal suite output: failures, skips, and manual instructions. The validation runner adds one result line per module and one final aggregate result. This avoids duplicate suite and module summaries. `--verbose-tests` also mirrors passing checks, informational lines, metrics, suite results, summaries, and stress diagnostics to stdout. The retained report always receives the complete output.
+The module headers are validation interfaces, not installed library APIs. Each one provides:
 
-Each failing expectation emits `[FAIL]` with its suite, reason, source file, line, and function. A suite continues after an expectation failure so one run can report multiple defects.
+- A module-specific options structure with unattended defaults.
+- A `run...Tests()` entry point returning zero for pass and nonzero for failure.
+- Borrowed process arguments when the module owns a child protocol; a direct caller must keep `argv` and its pointed-to strings valid for the call, and a module must copy any value it retains.
+- TestSupport report settings passed through the module adapter.
 
-Exit behavior is:
-
-- A module returns nonzero when any suite failed.
-- An escaped module exception becomes a failed module result.
-- The validation runner returns nonzero when any selected module failed.
-- CTest and GitHub Actions mark the corresponding module entry as failed.
-- Child-process modes preserve their exact child exit code.
-
-The runner prints the absolute report location and a final `[VALIDATION] result=PASS|FAIL` summary.
-
-## Artifact lifecycle
-
-Test fixtures, subsystem logs, and benchmark output use `TestSupport::ScopedTemporaryDirectory` beneath the operating-system temporary directory. Scoped cleanup removes complete workspaces on normal return and exception unwinding.
-
-Only final report files remain under `%TEMP%/GameWIP/logs/tests` unless a test explicitly retains a diagnostic artifact. Validation must not create `logs/` in the repository or build directory. Future game-runtime logging remains independent of validation reporting.
+The shared validation runner may replace module-local defaults with `RunOptions`. Code that invokes a module entry point directly is responsible for supplying suitable report paths, restoring process-global state, and interpreting child arguments consistently.
 
 ## Module standard
 
-Each correctness module owns a directory under `game/validation/tests` containing:
+Each correctness module owns:
 
 ```text
 game/validation/tests/<module>/
   CMakeLists.txt
   module.cpp
+  <module>_test.h
   <module>_test.cpp
 ```
 
-Register sources and dependencies with:
+- `<module>_test.h` defines the source-tree options and entry point.
+- `<module>_test.cpp` owns suites, fixtures, child behavior, and TestSupport reporting.
+- `module.cpp` maps shared runner policy and creates one static registration.
+- `CMakeLists.txt` explicitly lists sources and linked libraries.
 
-```cmake
-gamewip_add_test_module(
-    NAME filesystem
-    SOURCES
-        filesystem_test.cpp
-        module.cpp
-    LINK_LIBRARIES
-        FileSystem
-        TestSupport
-)
+Example registration:
+
+```cpp
+const GameWIP::Validation::Tests::Registration registration({
+    .name = "filesystem",
+    .order = 20,
+    .run = run,
+});
 ```
 
-The C++ registration name must match the CMake module name. Give each module a stable order. Add a child-argument matcher only when the module owns a child-process protocol.
+The registration name must match the CMake module name. Add a child matcher only when the module owns a distinct child-process protocol.
 
-The parent validation directory discovers modules automatically. Do not add a central source list for normal test modules.
+## Reports and exit behavior
+
+Normal validation uses concise console output: failures, skips, manual instructions, one module result, and one aggregate result. `--verbose-tests` additionally mirrors passing checks, informational lines, metrics, stress diagnostics, suite results, and summaries.
+
+The retained report receives complete TestSupport output when file reporting is enabled. An invalid report path disables only retained output; it must not hide console failures or change test counts.
+
+- A failed expectation does not abort the suite.
+- A suite entry point returns nonzero when its recorded result fails.
+- The runner catches an exception escaping a module callback, marks the module failed, and continues normal aggregate execution.
+- Routed child processes preserve their exact exit code.
+- Standalone `GameWIPTests` returns success only when the aggregate result is successful.
+
+## Artifact lifecycle
+
+Use `TestSupport::ScopedTemporaryDirectory` for test workspaces, subsystem logs, generated fixtures, and child artifacts. Cleanup occurs on normal return and exception unwinding but remains best effort; process termination or open native resources can leave diagnostics behind.
+
+Final validation reports belong under the operating-system temporary GameWIP root unless a caller supplies an absolute path. Tests must not create persistent `logs/` or fixture output in the source or build tree.
 
 ## Test requirements
 
 Correctness tests must:
 
-- Be deterministic, order-independent, and safe to run repeatedly.
-- Avoid benchmark loops and machine-dependent pass/fail thresholds.
-- Avoid sleep-based synchronization unless no deterministic signal exists.
-- Use bounded timeouts for unavoidable process and concurrency waits.
-- Keep default CTest runs unattended.
-- Use isolated temporary directories and scoped cleanup.
-- Restore global process state before returning.
-- Route child-process modes to exactly one owning module.
-- Fail explicitly for multiple child-route owners or conflicting selection rules.
-- Convert unexpected module exceptions into failed module results.
-- Add focused regression coverage for new behavior and bug fixes when practical.
-- Ensure report failures do not hide console results or alter the behavior under test.
-- Compile test hooks only when tests or startup validation require them.
+- Cover a supported public or maintainer contract rather than an implementation coincidence.
+- Be deterministic, order-independent, and repeatable.
+- Keep unattended defaults free of UI, prompts, and fatal popups.
+- Avoid benchmark loops and elapsed-time pass/fail thresholds.
+- Prefer deterministic coordination hooks over sleeps.
+- Use bounded waits where operating-system scheduling is unavoidable.
+- Isolate files and restore current directory, environment, terminal state, hooks, and singleton configuration.
+- Keep child protocols uniquely owned and route them before full-suite execution.
+- Preserve exact failure evidence and continue after ordinary expectation failures.
+- Add regression coverage for behavior changes and fixed defects.
+- Use approved internal hooks only when the public API cannot make the scenario deterministic.
 
-Long-running stress scenarios may remain correctness tests when they verify invariants rather than compare speed. Use @ref project_benchmarking for throughput and latency measurements.
+Stress tests may remain correctness tests when they verify invariants rather than speed. Throughput and latency measurements belong in @ref project_benchmarking.
 
-## Manual and interactive tests
+## Public-header and installed-consumer checks
 
-Manual checks must be opt-in. Default validation must not open UI, display fatal popups, wait for keyboard input, or require a real console.
+`game/validation/public_headers/` contains one compile-only translation unit per supported consumer entry header. Each file includes its target header first and no other GameWIP header, proving self-containment and include-order independence. Generated shared-library export headers are installed visibility scaffolding rather than direct consumer entry points; these checks exercise them transitively, and installed-consumer validation verifies the complete installed header allowlist.
 
-Manual checks should print clear instructions, support skip behavior when appropriate, and record the manual result in the retained report.
+`game/validation/installed_consumer/` configures and builds against the installed package surface only. It verifies installed header usability, representative cross-library integration, the current imported targets after all packages are found, and the absence of source-tree test-hook definitions.
+
+The combined consumer calls `find_package()` for every library in dependency order. It therefore does not prove that requesting one higher-level package discovers its dependencies transitively; a dependency target can already exist and mask a missing `find_dependency()` call. Package work needs isolated consumers that request only the package under test in addition to the combined integration case.
+
+These checks complement runtime suites; they do not replace behavior validation.
+
+## Manual and interactive checks
+
+Manual checks must be opt-in and provide clear instructions, pass/fail/skip input, and retained reporting. Default CTest, startup validation, coverage, and sanitizer runs must not require a real console, display dialogs, wait for keyboard input, or show fatal popups.
+
+## Source documentation
+
+Large `_test.cpp` files do not require Doxygen comments on every local helper or test case. File-level documentation, descriptive function names, and focused comments around child protocols, global-state restoration, concurrency coordination, abnormal termination, and platform limitations are the preferred standard.
+
+Module headers and adapters require complete contract comments because they are shared source interfaces between validation components.
 
 ## Maintainer notes
 
 When adding tests:
 
-- Start with the public API behavior being guaranteed.
-- Use approved internal hooks only when public APIs cannot make the scenario deterministic.
-- Reset hook state before and after scenarios that mutate global, backend, process, or singleton state.
-- Keep correctness tests separate from benchmarks.
-- Record exact focused commands in the pull request.
+- Start from the contract being guaranteed.
+- Put reusable fixtures in TestSupport only when multiple modules need them.
+- Keep module adapters thin.
+- Reset approved hook state before and after mutation.
+- Record focused commands in the pull request.
+- Update the owning library manual when a test reveals an undocumented public contract.
 
 ## Related pages
 
@@ -168,3 +173,4 @@ When adding tests:
 - @ref project_benchmarking
 - @ref project_coverage
 - @ref project_extending
+- @ref project_documentation

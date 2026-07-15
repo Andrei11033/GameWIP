@@ -10,6 +10,8 @@
 int main(int argc, char **argv)
 {
     const GameWIP::Validation::TestResult result = GameWIP::Validation::Tests::run(argc, argv);
+    // Routed child invocations preserve the module-owned protocol exit code;
+    // normal aggregate runs expose only process success or failure.
     if (result.handledChildInvocation)
     {
         return result.exitCode;

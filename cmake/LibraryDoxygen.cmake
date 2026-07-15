@@ -8,7 +8,7 @@ include_guard(GLOBAL)
 # - gamewip_create_doxygen_target(...)
 #
 # Contract:
-# - Register only explicit public headers and Markdown manual pages.
+# - Register only explicit documented headers and Markdown manual pages.
 # - Require each registered reusable library to provide its landing page.
 # - Keep library CMakeLists.txt files declarative and local to their own docs.
 # - Fail configuration on unsupported inputs instead of silently omitting docs.
@@ -42,7 +42,7 @@ function(gamewip_register_doxygen_inputs)
                 AND NOT doxygen_input_extension_lower STREQUAL ".md")
                 message(FATAL_ERROR
                     "Unsupported Doxygen input '${doxygen_input_absolute}'. "
-                    "Register only public headers and Markdown manual pages."
+                    "Register only documented headers and Markdown manual pages."
                 )
             endif()
             set_property(GLOBAL APPEND PROPERTY LIBRARY_DOXYGEN_INPUTS "${doxygen_input_absolute}")
@@ -169,7 +169,7 @@ function(gamewip_create_doxygen_target)
     add_custom_target(docs
         COMMAND "${CMAKE_COMMAND}" -E make_directory "${LIBRARY_DOXYGEN_OUTPUT_DIR}"
         COMMAND "${CMAKE_COMMAND}" -E rm -rf "${LIBRARY_DOXYGEN_OUTPUT_DIR}/html"
-        COMMAND "${CMAKE_COMMAND}" -E echo "Doxygen input is explicit public headers + Markdown manual pages only."
+        COMMAND "${CMAKE_COMMAND}" -E echo "Doxygen input is explicit documented headers + Markdown manual pages only."
         COMMAND "${CMAKE_COMMAND}" -E echo "Generating Doxygen HTML into: ${LIBRARY_DOXYGEN_OUTPUT_DIR}/html"
         COMMAND Doxygen::doxygen "${CMAKE_CURRENT_BINARY_DIR}/Doxyfile"
         COMMAND "${CMAKE_COMMAND}" -E echo "Generated Doxygen HTML: ${LIBRARY_DOXYGEN_HTML_INDEX}"

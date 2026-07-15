@@ -45,4 +45,4 @@ Release maintainers should read @ref project_versioning, @ref project_repository
 
 ## Generated reference
 
-The generated namespace, class, file, and member reference is built from public headers. Use those pages for exact symbol documentation after reading the workflow or library manual page that explains the behavior.
+The generated namespace, class, file, and member reference is built from supported consumer entry headers and documented source-tree integration headers. Generated export scaffolding is owned by each library's ABI page. Use the reference pages for exact symbol documentation after reading the workflow or library manual page that explains the behavior.

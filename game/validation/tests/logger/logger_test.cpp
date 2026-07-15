@@ -1,5 +1,8 @@
 /// @file logger_test.cpp
 /// @brief Executable self-tests for the Logger library.
+///
+/// The suite coordinates process-global Logger lifecycle, approved hooks,
+/// concurrency stress, child termination, and opt-in popup behavior.
 
 #include "validation/tests/logger/logger_test.h"
 

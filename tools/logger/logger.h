@@ -23,10 +23,10 @@
 /// @brief Process-wide asynchronous logging module for runtime diagnostics.
 ///
 /// Contract:
-/// Normal log calls are bounded, filterable, and queue-backed. Messages are copied before
-/// queueing, so caller-owned text only needs to live through the call. `report()` is the
-/// synchronous diagnostic path: it bypasses runtime filters and the async queue, writes to the
-/// active sinks immediately, mirrors to platform debug output when enabled, and flushes.
+/// Normal log calls are bounded, filterable, and queue-backed. Source/message text is copied before
+/// the call returns. Reports bypass runtime filters and queue pressure, write synchronously to active
+/// sinks, mirror to platform debug output when enabled, and flush those sinks. Timed reports then
+/// attempt a timeout-parameterized drain of older asynchronous work; untimed reports do not drain that queue.
 ///
 /// Thread-safety:
 /// Logging calls are safe from multiple producer threads. Lifecycle calls such as `init()`,
@@ -49,20 +49,30 @@ namespace GameWIP::Logger
         /// @brief Severity used for startup minLevel checks, runtime level filters, and output styling.
         enum class Level
         {
+            /// @brief Highest-volume diagnostic detail.
             Trace,
+            /// @brief Development-oriented diagnostic detail.
             Debug,
+            /// @brief Normal informational event.
             Info,
+            /// @brief Recoverable condition that deserves attention.
             Warn,
+            /// @brief Operation or subsystem failure.
             Error,
+            /// @brief Critical failure severity. Normal Fatal logs do not terminate by themselves.
             Fatal
         };
 
         /// @brief Enabled output sinks. File-only setup may fall back to Console when Config::fallbackToConsoleOnFileFailure is true.
         enum class Output
         {
+            /// @brief Disables normal console/file logging and does not start the asynchronous worker.
             None,
+            /// @brief Writes normal records to stdout/stderr through Terminal.
             Console,
+            /// @brief Writes normal records to the active log file, subject to configured fallback.
             File,
+            /// @brief Writes normal records to both console and file sinks.
             Both
         };
 
@@ -78,29 +88,48 @@ namespace GameWIP::Logger
         /// @brief Operation result for init and runtime filter changes.
         enum class Result
         {
+            /// @brief Operation completed without a recorded fallback or validation issue.
             Success,
+            /// @brief Initialization was requested while an existing worker was active.
             AlreadyRunning,
+            /// @brief Output contained an undefined enum value.
             InvalidOutputMode,
+            /// @brief Queue configuration was invalid, sanitized, or could not be allocated as requested.
             InvalidQueueSize,
+            /// @brief A zero message limit was replaced with the runtime fallback.
             InvalidMessageLength,
+            /// @brief The requested log directory could not be accepted as a directory selection.
             InvalidLogDirectory,
+            /// @brief A source definition was empty, duplicated, or otherwise invalid.
             InvalidSourceDefinition,
+            /// @brief An initial or runtime source filter referenced an unregistered source.
             InvalidSourceFilter,
+            /// @brief A minimum level or exact-level filter contained an undefined severity value.
             InvalidLevelFilter,
+            /// @brief No collision-safe file candidate could be opened.
             FileOpenFailed,
+            /// @brief A runtime file write or flush failed.
             FileWriteFailed,
+            /// @brief File path conversion or directory preparation failed.
             FileSetupFailed,
+            /// @brief The asynchronous worker thread could not be started.
             ThreadStartFailed,
+            /// @brief A platform operation such as time conversion, debugger output, or popup handling failed.
             PlatformCallFailed
         };
 
         /// @brief Native platform call family that produced PlatformError::nativeCode.
         enum class PlatformErrorSource
         {
+            /// @brief No native platform failure is recorded.
             None,
+            /// @brief Platform debugger-output conversion or write path.
             DebugOutput,
+            /// @brief Logger-owned fatal popup conversion or display path.
             FatalPopup,
+            /// @brief Local-time conversion or formatting path.
             TimeConversion,
+            /// @brief File path, open, write, or flush path.
             File
         };
 
@@ -141,10 +170,12 @@ namespace GameWIP::Logger
             std::string_view text = {};
         };
 
-        /// @brief Explicit wrapper for report/flush APIs that should wait for a bounded duration.
+        /// @brief Explicit wrapper for the queue-drain wait used by timed report APIs.
+        /// @details The value bounds the queue condition wait after internal serialization. Lock acquisition
+        /// and synchronous sink flushing are not covered by an end-to-end deadline and can take longer.
         struct FlushTimeout
         {
-            /// @brief Maximum time to wait for queued work and sink flushing.
+            /// @brief Maximum queue condition-wait duration after internal serialization.
             std::chrono::milliseconds value{};
         };
 
@@ -177,11 +208,11 @@ namespace GameWIP::Logger
             /// @brief Startup severity floor.
             /// @details Runtime LevelFilter changes cannot re-enable levels below this floor.
             Level minLevel = Level::Info;
-            /// @brief Soft queue limit where low-priority messages may start dropping.
-            /// @details This bounds normal burst memory. Error and Fatal messages may continue until the hard limit.
+            /// @brief Soft queue limit where Trace through Warn messages may start dropping.
+            /// @details Error and Fatal normal logs may continue until the hard limit; synchronous reports bypass queue pressure.
             std::size_t maxQueueSize = 1024;
             /// @brief Multiplier used to derive the hard queue limit from maxQueueSize.
-            /// @details Effective hard limit is ceil(maxQueueSize * hardQueueMultiplier), with validation/fallback during init().
+            /// @details Effective hard limit is ceil(maxQueueSize * hardQueueMultiplier). Every normal severity may drop at this limit.
             double hardQueueMultiplier = 1.25;
             /// @brief Maximum stored message length before truncation.
             /// @details Formatted and preformatted messages longer than this are retained with a truncation suffix.
@@ -225,7 +256,7 @@ namespace GameWIP::Logger
             /// @details False retains peak capacity for better post-spike throughput. lowMemoryConfig() sets this true.
             bool releaseMessageMemoryAfterWrite = false;
             /// @brief Releases queue, batch, arena, and source-registry storage during shutdown.
-            /// @details Lowers idle memory at the cost of reallocating on the next init().
+            /// @details False permits retained storage to be reused by a later init(), but does not guarantee an exact retained capacity.
             bool releaseStorageOnShutdown = true;
         };
 
@@ -265,7 +296,7 @@ namespace GameWIP::Logger
             std::size_t fileWriteFailures = 0;
             /// @brief Written queued entries or synchronous reports that used unregistered SourceId values.
             std::size_t unknownSourceUses = 0;
-            /// @brief Runtime format strings that failed validation in std::vformat.
+            /// @brief Formatting operations that ended in std::format_error, including invalid runtime formats and formatter failures.
             std::size_t formatFailures = 0;
             /// @brief Messages truncated to Config::maxMessageLength.
             std::size_t truncated = 0;
@@ -536,9 +567,10 @@ namespace GameWIP::Logger
     /// @name Lifecycle
     /// @{
 
-    /// @brief Starts the async logger with copied source definitions and preallocated queue storage.
-    /// @param config Startup configuration. Source and filter spans only need to live through this call.
-    /// @return Success on normal startup, or a non-success Types::Result if configuration or setup fell back/failed.
+    /// @brief Applies configuration and starts the asynchronous worker when effective normal output is enabled.
+    /// @param config Startup configuration. Source/filter spans and referenced text only need to live through this call.
+    /// @return Success or the first validation/setup diagnostic. A non-success result may accompany sanitized limits or sink fallback while Logger
+    /// remains usable; inspect isRunning(), getOutput(), and getQueueLimits() for effective state.
     /// @note init(), shutdown(), and process-exit cleanup are memory-safe against racing producers; logs submitted after disabled state is published
     /// may be skipped.
     GAMEWIP_LOGGER_EXPORT Types::Result init(const Types::Config &config);
@@ -571,9 +603,10 @@ namespace GameWIP::Logger
     /// @details This public call is serialized with init() and shutdown().
     /// @note Concurrent producers may enqueue after flush() observes the queue as drained; this is not a stop-the-world barrier.
     GAMEWIP_LOGGER_EXPORT void flush();
-    /// @brief Waits for accepted queued logs to drain and flushes console/file sinks until timeout expires.
-    /// @param timeout Maximum duration to wait.
-    /// @return True when the queue drained and sinks flushed before timeout expired.
+    /// @brief Waits for accepted queued logs to drain and flushes console/file sinks using a timed queue wait.
+    /// @param timeout Maximum queue condition-wait duration after internal serialization.
+    /// @return True when the queue drained within that wait and the observable sink flush succeeded.
+    /// @note This is not an end-to-end call deadline; lock acquisition and synchronous sink operations can exceed timeout.
     /// @note Concurrent producers may enqueue after flush(timeout) observes the queue as drained; this is not a stop-the-world barrier.
     GAMEWIP_LOGGER_EXPORT bool flush(std::chrono::milliseconds timeout);
     /// @}
@@ -601,11 +634,12 @@ namespace GameWIP::Logger
     /// @brief Returns the lifetime count of logs refused because of queue pressure since init().
     /// @return Soft and hard queue-drop total since init().
     GAMEWIP_LOGGER_EXPORT std::size_t getLifetimeDroppedLogCount();
-    /// @brief Returns the most recent operation result recorded by the logger.
-    /// @return Last logger Types::Result value.
+    /// @brief Returns the most recent process-wide operation result recorded by Logger.
+    /// @return Current Types::Result snapshot; later operations may replace it.
     GAMEWIP_LOGGER_EXPORT Types::Result getLastResult();
-    /// @brief Returns the most recent native platform error details, if any.
-    /// @return Last platform error, or Types::PlatformErrorSource::None when no platform error is recorded.
+    /// @brief Returns the most recent process-wide native platform error details, if any.
+    /// @return Current platform-error snapshot, or Types::PlatformErrorSource::None when no platform
+    /// error is recorded; later operations may replace it.
     GAMEWIP_LOGGER_EXPORT Types::PlatformError getLastPlatformError();
 
     /// @brief Returns a relaxed atomic snapshot of visible counters since init or resetStats().
@@ -1318,18 +1352,18 @@ namespace GameWIP::Logger
     /// @param message Message text to write.
     GAMEWIP_LOGGER_EXPORT void report(Types::Level level, std::string_view source, std::string_view message);
     /// @brief Synchronously reports a preformatted diagnostic with a string source and bounded drain/flush.
-    /// @return True when the bounded post-report drain/flush completed.
+    /// @return True when the post-report bounded queue drain and sink flush completed; this is not report-line delivery status.
     GAMEWIP_LOGGER_EXPORT bool report(Types::Level level, std::string_view source, Types::FlushTimeout timeout, std::string_view message);
     /// @brief Synchronously reports a preformatted diagnostic with a SourceId and no logger-owned popup.
     GAMEWIP_LOGGER_EXPORT void report(Types::Level level, Types::SourceId source, std::string_view message);
     /// @brief Synchronously reports a preformatted diagnostic with a SourceId and bounded drain/flush.
-    /// @return True when the bounded post-report drain/flush completed.
+    /// @return True when the post-report bounded queue drain and sink flush completed; this is not report-line delivery status.
     GAMEWIP_LOGGER_EXPORT bool report(Types::Level level, Types::SourceId source, Types::FlushTimeout timeout, std::string_view message);
 
     /// @brief Synchronously reports a preformatted diagnostic with explicit popup behavior.
     GAMEWIP_LOGGER_EXPORT void report(Types::Level level, std::string_view source, Types::ReportPopup popup, std::string_view message);
     /// @brief Synchronously reports a preformatted diagnostic with explicit popup behavior and bounded drain/flush.
-    /// @return True when the bounded post-report drain/flush completed.
+    /// @return True when the post-report bounded queue drain and sink flush completed; this is not report-line delivery status.
     GAMEWIP_LOGGER_EXPORT bool report(
         Types::Level level,
         std::string_view source,
@@ -1339,7 +1373,7 @@ namespace GameWIP::Logger
     /// @brief Synchronously reports a preformatted diagnostic with a SourceId and explicit popup behavior.
     GAMEWIP_LOGGER_EXPORT void report(Types::Level level, Types::SourceId source, Types::ReportPopup popup, std::string_view message);
     /// @brief Synchronously reports a preformatted diagnostic with a SourceId, popup behavior, and bounded drain/flush.
-    /// @return True when the bounded post-report drain/flush completed.
+    /// @return True when the post-report bounded queue drain and sink flush completed; this is not report-line delivery status.
     GAMEWIP_LOGGER_EXPORT bool report(
         Types::Level level,
         Types::SourceId source,
@@ -1387,7 +1421,7 @@ namespace GameWIP::Logger
     /// @param source Source text written into the report line and platform debug output line.
     /// @param timeout Maximum time to wait for the flush.
     /// @param message Message text written into the report line and platform debug output line.
-    /// @return True when the bounded flush completed.
+    /// @return True when the post-report bounded queue drain and sink flush completed; this is not report-line delivery status.
     GAMEWIP_LOGGER_EXPORT bool reportError(std::string_view source, Types::FlushTimeout timeout, std::string_view message);
     /// @brief Synchronously reports an Error diagnostic with a SourceId, mirrors it to platform debug output, and flushes without showing a fatal
     /// popup.
@@ -1398,7 +1432,7 @@ namespace GameWIP::Logger
     /// @param source Registered SourceId resolved for the report line and platform debug output.
     /// @param timeout Maximum time to wait for the flush.
     /// @param message Message text written into the report line and platform debug output line.
-    /// @return True when the bounded flush completed.
+    /// @return True when the post-report bounded queue drain and sink flush completed; this is not report-line delivery status.
     GAMEWIP_LOGGER_EXPORT bool reportError(Types::SourceId source, Types::FlushTimeout timeout, std::string_view message);
 
     /// @brief Synchronously reports an Error diagnostic with an enum source, mirrors it to platform debug output, and flushes without showing a fatal
@@ -1417,7 +1451,7 @@ namespace GameWIP::Logger
     /// @param source Enum source stored as a SourceId in the queue entry and resolved for platform debug output.
     /// @param timeout Maximum time to wait for the flush.
     /// @param message Message text written into the report line and platform debug output line.
-    /// @return True when the bounded flush completed.
+    /// @return True when the post-report bounded queue drain and sink flush completed; this is not report-line delivery status.
     template <typename Source>
         requires(Detail::Core::isSourceEnum<Source>)
     bool reportError(Source source, Types::FlushTimeout timeout, std::string_view message)
@@ -1434,7 +1468,7 @@ namespace GameWIP::Logger
     /// @param source Source text written into the report line and platform debug output line.
     /// @param timeout Maximum time to wait for the flush.
     /// @param message Message text written into the report line, platform debug output line, and fatal popup.
-    /// @return True when the bounded flush completed.
+    /// @return True when the post-report bounded queue drain and sink flush completed; this is not report-line delivery status.
     GAMEWIP_LOGGER_EXPORT bool reportFatal(std::string_view source, Types::FlushTimeout timeout, std::string_view message);
     /// @brief Synchronously reports a Fatal diagnostic with a SourceId, mirrors it to platform debug output, flushes, and shows the fatal popup when
     /// enabled.
@@ -1446,7 +1480,7 @@ namespace GameWIP::Logger
     /// @param source Registered SourceId resolved for the report line and platform debug output.
     /// @param timeout Maximum time to wait for the flush.
     /// @param message Message text written into the report line, platform debug output line, and fatal popup.
-    /// @return True when the bounded flush completed.
+    /// @return True when the post-report bounded queue drain and sink flush completed; this is not report-line delivery status.
     GAMEWIP_LOGGER_EXPORT bool reportFatal(Types::SourceId source, Types::FlushTimeout timeout, std::string_view message);
 
     /// @brief Synchronously reports a Fatal diagnostic with an enum source, mirrors it to platform debug output, flushes, and shows the fatal popup
@@ -1465,7 +1499,7 @@ namespace GameWIP::Logger
     /// @param source Enum source stored as a SourceId in the queue entry and resolved for platform debug output.
     /// @param timeout Maximum time to wait for the flush.
     /// @param message Message text written into the report line, platform debug output line, and fatal popup.
-    /// @return True when the bounded flush completed.
+    /// @return True when the post-report bounded queue drain and sink flush completed; this is not report-line delivery status.
     template <typename Source>
         requires(Detail::Core::isSourceEnum<Source>)
     bool reportFatal(Source source, Types::FlushTimeout timeout, std::string_view message)
@@ -1473,20 +1507,23 @@ namespace GameWIP::Logger
         return reportFatal(Detail::Core::sourceId(source), timeout, message);
     }
 
-    /// @brief Logs fatal, mirrors to platform debug output, flushes, shows the fatal popup when enabled, then terminates the process.
+    /// @brief Reports fatal, flushes active sinks, shows the fatal popup when enabled, then calls std::terminate().
     /// @param source Source text written into the report line and platform debug output line.
     /// @param message Message text written into the report line and platform debug output line.
+    /// @note Does not provide normal stack unwinding.
     [[noreturn]] GAMEWIP_LOGGER_EXPORT void fatalTerminate(std::string_view source, std::string_view message);
-    /// @brief Logs fatal with a SourceId, mirrors to platform debug output, flushes, shows the fatal popup when enabled, then terminates.
+    /// @brief Reports fatal with a SourceId, flushes active sinks, shows the fatal popup when enabled, then calls std::terminate().
     /// @param source Registered SourceId resolved for the report line and platform debug output.
     /// @param message Message text written into the report line and platform debug output line.
+    /// @note Does not provide normal stack unwinding.
     [[noreturn]] GAMEWIP_LOGGER_EXPORT void fatalTerminate(Types::SourceId source, std::string_view message);
-    /// @brief Logs fatal, waits for a bounded flush, shows the fatal popup when enabled, then terminates.
+    /// @brief Reports fatal, attempts a bounded queue drain/sink flush, shows the fatal popup when enabled, then calls std::terminate().
     /// @param source Source text written into the report line and platform debug output line.
     /// @param timeout Maximum flush wait before termination continues.
     /// @param message Message text written into the report line and platform debug output line.
     [[noreturn]] GAMEWIP_LOGGER_EXPORT void fatalTerminate(std::string_view source, Types::FlushTimeout timeout, std::string_view message);
-    /// @brief Logs fatal with a SourceId, waits for a bounded flush, shows the fatal popup when enabled, then terminates.
+    /// @brief Reports fatal with a SourceId, attempts a bounded queue drain/sink flush, shows the fatal
+    /// popup when enabled, then calls std::terminate().
     /// @param source Registered SourceId resolved for the report line and platform debug output.
     /// @param timeout Maximum flush wait before termination continues.
     /// @param message Message text written into the report line and platform debug output line.
@@ -1649,7 +1686,7 @@ namespace GameWIP::Logger
     /// @param timeout Maximum time to wait for the flush.
     /// @param format Compile-time checked format string.
     /// @param args Format arguments.
-    /// @return True when the bounded flush completed.
+    /// @return True when the post-report bounded queue drain and sink flush completed; this is not report-line delivery status.
     template <typename... Args>
         requires(sizeof...(Args) > 0)
     bool reportError(std::string_view source, Types::FlushTimeout timeout, std::format_string<Args...> format, Args &&...args)
@@ -1673,7 +1710,7 @@ namespace GameWIP::Logger
     /// @param timeout Maximum time to wait for the flush.
     /// @param format Compile-time checked format string.
     /// @param args Format arguments.
-    /// @return True when the bounded flush completed.
+    /// @return True when the post-report bounded queue drain and sink flush completed; this is not report-line delivery status.
     template <typename... Args>
         requires(sizeof...(Args) > 0)
     bool reportError(Types::SourceId source, Types::FlushTimeout timeout, std::format_string<Args...> format, Args &&...args)
@@ -1697,7 +1734,7 @@ namespace GameWIP::Logger
     /// @param timeout Maximum time to wait for the flush.
     /// @param format Compile-time checked format string.
     /// @param args Format arguments.
-    /// @return True when the bounded flush completed.
+    /// @return True when the post-report bounded queue drain and sink flush completed; this is not report-line delivery status.
     template <typename Source, typename... Args>
         requires(Detail::Core::isSourceEnum<Source> && sizeof...(Args) > 0)
     bool reportError(Source source, Types::FlushTimeout timeout, std::format_string<Args...> format, Args &&...args)
@@ -1721,7 +1758,7 @@ namespace GameWIP::Logger
     /// @param timeout Maximum time to wait for the flush.
     /// @param format Compile-time checked format string.
     /// @param args Format arguments.
-    /// @return True when the bounded flush completed.
+    /// @return True when the post-report bounded queue drain and sink flush completed; this is not report-line delivery status.
     template <typename... Args>
         requires(sizeof...(Args) > 0)
     bool reportFatal(std::string_view source, Types::FlushTimeout timeout, std::format_string<Args...> format, Args &&...args)
@@ -1745,7 +1782,7 @@ namespace GameWIP::Logger
     /// @param timeout Maximum time to wait for the flush.
     /// @param format Compile-time checked format string.
     /// @param args Format arguments.
-    /// @return True when the bounded flush completed.
+    /// @return True when the post-report bounded queue drain and sink flush completed; this is not report-line delivery status.
     template <typename... Args>
         requires(sizeof...(Args) > 0)
     bool reportFatal(Types::SourceId source, Types::FlushTimeout timeout, std::format_string<Args...> format, Args &&...args)
@@ -1769,7 +1806,7 @@ namespace GameWIP::Logger
     /// @param timeout Maximum time to wait for the flush.
     /// @param format Compile-time checked format string.
     /// @param args Format arguments.
-    /// @return True when the bounded flush completed.
+    /// @return True when the post-report bounded queue drain and sink flush completed; this is not report-line delivery status.
     template <typename Source, typename... Args>
         requires(Detail::Core::isSourceEnum<Source> && sizeof...(Args) > 0)
     bool reportFatal(Source source, Types::FlushTimeout timeout, std::format_string<Args...> format, Args &&...args)
@@ -1907,7 +1944,7 @@ namespace GameWIP::Logger
     /// @param timeout Maximum time to wait for the flush.
     /// @param format Runtime format wrapper created by Logger::runtimeFormat().
     /// @param args Format arguments.
-    /// @return True when the bounded flush completed.
+    /// @return True when the post-report bounded queue drain and sink flush completed; this is not report-line delivery status.
     template <typename... Args>
         requires(sizeof...(Args) > 0)
     bool reportError(std::string_view source, Types::FlushTimeout timeout, Types::RuntimeFormat format, Args &&...args)
@@ -1931,7 +1968,7 @@ namespace GameWIP::Logger
     /// @param timeout Maximum time to wait for the flush.
     /// @param format Runtime format wrapper created by Logger::runtimeFormat().
     /// @param args Format arguments.
-    /// @return True when the bounded flush completed.
+    /// @return True when the post-report bounded queue drain and sink flush completed; this is not report-line delivery status.
     template <typename... Args>
         requires(sizeof...(Args) > 0)
     bool reportError(Types::SourceId source, Types::FlushTimeout timeout, Types::RuntimeFormat format, Args &&...args)
@@ -1955,7 +1992,7 @@ namespace GameWIP::Logger
     /// @param timeout Maximum time to wait for the flush.
     /// @param format Runtime format wrapper created by Logger::runtimeFormat().
     /// @param args Format arguments.
-    /// @return True when the bounded flush completed.
+    /// @return True when the post-report bounded queue drain and sink flush completed; this is not report-line delivery status.
     template <typename Source, typename... Args>
         requires(Detail::Core::isSourceEnum<Source> && sizeof...(Args) > 0)
     bool reportError(Source source, Types::FlushTimeout timeout, Types::RuntimeFormat format, Args &&...args)
@@ -1979,7 +2016,7 @@ namespace GameWIP::Logger
     /// @param timeout Maximum time to wait for the flush.
     /// @param format Runtime format wrapper created by Logger::runtimeFormat().
     /// @param args Format arguments.
-    /// @return True when the bounded flush completed.
+    /// @return True when the post-report bounded queue drain and sink flush completed; this is not report-line delivery status.
     template <typename... Args>
         requires(sizeof...(Args) > 0)
     bool reportFatal(std::string_view source, Types::FlushTimeout timeout, Types::RuntimeFormat format, Args &&...args)
@@ -2003,7 +2040,7 @@ namespace GameWIP::Logger
     /// @param timeout Maximum time to wait for the flush.
     /// @param format Runtime format wrapper created by Logger::runtimeFormat().
     /// @param args Format arguments.
-    /// @return True when the bounded flush completed.
+    /// @return True when the post-report bounded queue drain and sink flush completed; this is not report-line delivery status.
     template <typename... Args>
         requires(sizeof...(Args) > 0)
     bool reportFatal(Types::SourceId source, Types::FlushTimeout timeout, Types::RuntimeFormat format, Args &&...args)
@@ -2027,7 +2064,7 @@ namespace GameWIP::Logger
     /// @param timeout Maximum time to wait for the flush.
     /// @param format Runtime format wrapper created by Logger::runtimeFormat().
     /// @param args Format arguments.
-    /// @return True when the bounded flush completed.
+    /// @return True when the post-report bounded queue drain and sink flush completed; this is not report-line delivery status.
     template <typename Source, typename... Args>
         requires(Detail::Core::isSourceEnum<Source> && sizeof...(Args) > 0)
     bool reportFatal(Source source, Types::FlushTimeout timeout, Types::RuntimeFormat format, Args &&...args)
@@ -2610,7 +2647,7 @@ namespace GameWIP::Logger
         }
 
         /// @brief Formats and reports a compile-time checked message with a string source and bounded flush.
-        /// @return True when the bounded flush completed.
+        /// @return True when the post-report bounded queue drain and observable sink flush completed; not report-line delivery status.
         template <typename... Args>
         bool formatAndReport(
             Types::Level level,
@@ -2641,7 +2678,7 @@ namespace GameWIP::Logger
         }
 
         /// @brief Formats and reports a compile-time checked message with a registered SourceId and bounded flush.
-        /// @return True when the bounded flush completed.
+        /// @return True when the post-report bounded queue drain and observable sink flush completed; not report-line delivery status.
         template <typename... Args>
         bool formatAndReport(
             Types::Level level,
@@ -2726,7 +2763,7 @@ namespace GameWIP::Logger
         }
 
         /// @brief Runtime-formats and reports a message with a string source and bounded flush.
-        /// @return True when the bounded flush completed.
+        /// @return True when the post-report bounded queue drain and observable sink flush completed; not report-line delivery status.
         template <typename... Args>
         bool runtimeFormatAndReport(
             Types::Level level,
@@ -2757,7 +2794,7 @@ namespace GameWIP::Logger
         }
 
         /// @brief Runtime-formats and reports a message with a registered SourceId and bounded flush.
-        /// @return True when the bounded flush completed.
+        /// @return True when the post-report bounded queue drain and observable sink flush completed; not report-line delivery status.
         template <typename... Args>
         bool runtimeFormatAndReport(
             Types::Level level,

@@ -1,41 +1,134 @@
 @page test_support_public_api TestSupport public API
 
-Include `test_support/test_support.h`. Installed-package consumers link `GameWIP::TestSupport`; builds within the source tree link the short `TestSupport` target. See @ref test_support_quick_start for complete CMake examples.
+Include `test_support/test_support.h`. Installed consumers link `GameWIP::TestSupport`; source-tree consumers link `TestSupport`.
 
-TestSupport has no dependencies on other project libraries and uses only the C++ standard library in its public contract.
+## Constant
 
-Passive options and results live in `GameWIP::TestSupport::Types`; active helpers live directly in `GameWIP::TestSupport`.
+`kDefaultMaxCapturedOutputBytes` is the default retained-memory limit for combined child stdout/stderr capture. The child pipe continues to drain after that limit so discarded output does not deadlock a verbose child.
 
-## Suite ownership
+## Reporting and result types
 
-`Runner` owns a shared report sink, runs named suites, catches uncaught suite exceptions as failures, and aggregates completed results. `Context` records one suite's output and counts. Standalone contexts own their own report sink.
+### `Types::ConsoleVerbosity`
 
-Expectations record pass or failure and return whether the check passed. They do not abort execution or invoke another assertion system.
+- `Minimal`: failures, skips, and manual instructions.
+- `Concise`: minimal output plus suite results and summaries.
+- `Full`: every report category, including passes and diagnostics.
 
-`Section` is an RAII timing/reporting scope and does not affect pass, failure, or skip counts.
+Console verbosity does not filter the report file.
 
-## Reporting
+### `Types::ReportOptions`
 
-Report files are buffered by default, flushed after each completed suite, and flushed when the sink is destroyed. Set `flushReportEachLine` only when another reader must observe each line immediately.
+- `writeConsole`: enables stdout mirroring.
+- `writeReport`: enables the report-file sink.
+- `appendReport`: appends instead of truncating when the sink is created.
+- `flushReportEachLine`: flushes the report file after each written line.
+- `consoleVerbosity`: selects stdout categories.
+- `reportPath`: report-file path; an empty path disables file opening.
 
-Report write failures do not abort the test process. They disable further file output while console reporting and result aggregation continue.
+### `Types::Summary`
 
-`ConsoleVerbosity::Minimal` writes only failures, skips, and manual instructions. `ConsoleVerbosity::Concise` also writes results and summaries. `ConsoleVerbosity::Full` mirrors every category. The report file receives every category in all three modes.
+Fields are `passed`, `failed`, and `skipped`. `total()` returns their sum. `ok()` tests only `failed == 0`; skipped checks and an empty summary remain successful.
 
-## Process and environment isolation
+### `Types::SuiteResult`
 
-Scoped environment helpers restore the previous process state on destruction. Environment mutation is process-global, so overlapping conflicting scopes across threads are unsupported.
+Fields are the owning suite `name`, its `summary`, and `elapsedMilliseconds`. `ok()` forwards to `summary.ok()`.
 
-`ScopedTemporaryDirectory` owns an isolated workspace beneath the operating-system temporary directory and removes its complete tree on destruction. Test executables should use it instead of writing fixtures or subsystem logs relative to their working directory.
+## Reporting owners
 
-`ScopedCurrentPath` supports tests of intentionally relative-path APIs and restores the previous process path. Because the current path is process-global, such scopes require exclusive control over relative path resolution.
+### `Context`
 
-Child-process capture retains at most `maxCapturedOutputBytes` while continuing to drain excess output. A zero limit retains nothing. `outputTruncated` reports discarded bytes; disabling capture leaves output empty and ignores the limit.
+A context owns one suite name, one result counter, and a shared report sink. A standalone context creates its own sink from `ReportOptions`; contexts constructed by `Runner` share the runner sink.
 
-On Win32, the child inherits only the selected standard handles. Timeouts and primary-process completion terminate lingering descendants so they cannot keep capture handles open.
+Recording methods are:
 
-## Timing and stress helpers
+- informational: `info()`, `manual()`, `metric()`, `stress()`, `summary()`;
+- counted outcomes: `pass()`, `fail()`, `skip()`;
+- expectations: `expectTrue()`, `expectFalse()`, `expectEq()`, `expectNe()`, `expectNear()`, `expectContains()`, `expectFileContains()`, `expectFileOccurrenceCount()`;
+- queries: `suiteName()`, `result()`, and `ok()`.
 
-Timer reports diagnostic elapsed time; benchmark-style iteration metrics belong to Google Benchmark. `runWorkers()` joins every worker and rethrows a captured worker exception after joining.
+Public recording serializes count updates and sink writes. `suiteName()` returns an object-owned reference valid for the context lifetime.
 
-See @ref test_support_expectations, @ref test_support_reports, @ref test_support_child_processes, @ref test_support_files_environment, and @ref test_support_timing_stress for examples and detailed contracts.
+### `Runner`
+
+`Runner` owns one report sink and aggregates suites completed through `runSuite()`. It also provides run-level `info()` and `summary()` lines plus `result()`, `ok()`, and `exitCode()`.
+
+`runSuite()` accepts a callable invocable with `Context&` or with no arguments. If both forms are viable, the `Context&` form is selected. Uncaught exceptions become one failed check and do not escape the suite call.
+
+### `Section`
+
+`Section` writes an informational begin line on construction and attempts to write an elapsed-time metric on destruction. It does not affect result counts. The referenced `Context` must outlive the section. Destructor reporting failures are suppressed.
+
+## Timing
+
+`Timer` starts at construction, can be restarted with `reset()`, and returns steady-clock elapsed milliseconds through `elapsedMilliseconds()`. It is diagnostic infrastructure, not benchmark-grade measurement, and one object is not internally synchronized.
+
+## File and process-state helpers
+
+- `ScopedTemporaryDirectory`: unique temporary workspace with best-effort recursive cleanup.
+- `ScopedCurrentPath`: process-current-directory guard with best-effort restoration.
+- `readTextFile()`: binary whole-file convenience read with an empty-result ambiguity.
+- `writeTextFile()`: binary truncate-and-replace write that creates parents.
+- `fileExists()`, `fileContains()`, `countFileOccurrences()`.
+- `createDirectories()` and best-effort `removeIfExists()`.
+- `ScopedEnvironmentVariable` and `ScopedUnsetEnvironmentVariable`: process-environment guards.
+
+See @ref test_support_files_environment for ownership, ambiguity, exception, and coordination rules.
+
+## Child-process and manual-check types
+
+### `Types::EnvironmentVariable`
+
+`name` is the child environment key. `value` sets the key; `std::nullopt` removes it. Overrides are applied in vector order.
+
+### `Types::ChildProcessOptions`
+
+Fields are:
+
+- `executablePath`;
+- `arguments`;
+- `environment`;
+- `timeout`;
+- `captureOutput`;
+- `maxCapturedOutputBytes`;
+- `inheritParentEnvironment`.
+
+### `Types::ChildProcessResult`
+
+- `exitCode`: native exit code, or `-1` for TestSupport launch/setup/wait/inspection/capture failure.
+- `timedOut`: the configured wait expired before normal completion.
+- `wasTerminatedByTest`: TestSupport requested primary-process termination during timeout or infrastructure-failure handling.
+- `output`: retained combined stdout/stderr bytes.
+- `outputTruncated`: bytes were drained but discarded after the retained limit.
+- `exitedSuccessfully()` and `exitedWithFailure()`: convenience predicates over exit, timeout, and termination state.
+
+### `Types::ManualAnswer`
+
+`Yes`, `No`, and `Skipped` represent the recognized manual-check outcomes. `promptManualCheck()` returns `Skipped` on end-of-input.
+
+See @ref test_support_child_processes and @ref test_support_manual_tests.
+
+## Stress helpers
+
+- `StartGate`: one-shot gate; `wait()` blocks until idempotent `open()`.
+- `StopFlag`: one-way cooperative stop request through `requestStop()` and `stopRequested()`.
+- `runWorkers()`: creates, joins, and coordinates a fixed set of worker threads, then rethrows one captured failure.
+
+See @ref test_support_timing_stress.
+
+## Ownership and copying
+
+`Summary`, `SuiteResult`, report/process option values, process results, environment overrides, and `Timer` are ordinary value types. `Context`, `Runner`, `Section`, both filesystem guards, both environment guards, `StartGate`, and `StopFlag` are non-copyable and non-movable owners of synchronization, references, or process state.
+
+`Section` stores a non-owning `Context&`. Guard query methods such as `path()` and `previousPath()` return references owned by the guard. Child-process options and results own their strings, paths, vectors, and captured output.
+
+## Exceptions, blocking, and threading
+
+APIs marked `noexcept` do not throw. Other APIs may propagate standard allocation, formatting, filesystem, standard-stream, thread, or platform-conversion exceptions as documented by their owner page.
+
+Report calls serialize sink access. Summary counters are protected. File helpers do not create a transaction around external filesystem activity. Current-directory and environment state are process-global. Child execution, manual prompts, gate waits, worker joins, and filesystem operations can block.
+
+## Package and binary boundary
+
+TestSupport is a static library. Its exact-version installed package exports `GameWIP::TestSupport`, installs `test_support/test_support.h`, has no generated export header, and has no GameWIP library dependency.
+
+Public standard-library layouts and templates require compatible compiler, standard library, runtime, and C++23 settings. Internal declarations under `test_support/internal` and platform implementations are not installed API.

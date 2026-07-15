@@ -3,7 +3,8 @@
 ///
 /// This executable is built from the installed package surface. It verifies that
 /// public headers are usable together and that internal test-hook definitions do
-/// not leak through installed imported targets.
+/// not leak through installed imported targets. It is a package-boundary smoke
+/// test, not a replacement for each library's behavior validation suite.
 
 #if defined(INTERNAL_FILESYSTEM_TEST_HOOKS) || defined(INTERNAL_TERMINAL_TEST_HOOKS) || defined(INTERNAL_LOGGER_TEST_HOOKS) || \
     defined(INTERNAL_ASSERT_TEST_HOOKS)
@@ -29,6 +30,8 @@ int main()
     const GameWIP::Logger::Types::Config loggerConfig = GameWIP::Logger::defaultConfig();
     GameWIP::TestSupport::Timer timer;
 
+    // Exercise the installed Assert macro surface through a normal consumer
+    // target. The detailed behavior is covered by the source-tree Assert tests.
     CHECK(write.status.ok());
     CHECK(path.status.ok());
     static_cast<void>(capabilities);

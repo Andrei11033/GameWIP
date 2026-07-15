@@ -1,40 +1,71 @@
 @page assert_test_hooks Assert test hooks
 
-@warning These hooks are supported source-tree maintainer interfaces. They are not installed and are not versioned consumer API.
+@warning Assert test hooks are supported source-tree maintainer interfaces. They are not installed, not consumer API, and not public compatibility promises.
 
-## Enable
+## Availability
 
-The GameWIP `validation` preset enables hooks automatically because it builds tests. A focused source build can enable them explicitly:
+Enable hooks with:
 
 ```powershell
 -DASSERT_ENABLE_TEST_HOOKS=ON
 ```
 
-Approved test targets then receive `INTERNAL_ASSERT_TEST_HOOKS=1`.
+Approved source-tree test targets then receive `INTERNAL_ASSERT_TEST_HOOKS=1`. The repository validation preset enables this path for Assert validation.
 
-A source-tree test links the short `Assert` target and includes:
+## Include
+
+Source-tree validation code includes:
 
 ```cpp
 #include "debug/assert/internal/assert_test_hooks.h"
 ```
 
-The build-tree target supplies the source include root and compile definition. This does not work from an installed package by design.
+The header is under `tools/debug/assert/internal/` and is excluded from installed public header file sets.
 
-## Deterministic paths
+## Reset rule
 
-Hooks can:
+Call `GameWIP::Debug::Assert::TestHooks::reset()` after every forced scenario. Reset clears one-shot dialog failures and persistent debugger/popup overrides.
 
-- force the primary action dialog to fall back;
-- force fallback-dialog/default behavior;
-- override debugger-attached detection;
-- override popup suppression;
-- reset all forced state between tests.
+## Hook groups
 
-## Rules
+| Group | Hooks | Lifetime |
+| --- | --- | --- |
+| Dialog fallback | `forceNextActionDialogFailure`, `forceNextFallbackActionDialogFailure` | One-shot. |
+| Debugger state | `setDebuggerAttachedOverride`, `clearDebuggerAttachedOverride`, `debuggerAttachedForTest` | Persistent until clear or reset. |
+| Popup suppression | `setPopupSuppressedOverride`, `clearPopupSuppressedOverride` | Persistent until clear or reset. |
+| Backend exercise | `showFailureActionDialogForTest`, `showErrorPopupForTest` | Direct test adapter calls. |
 
-- Hook declarations remain under `tools/debug/assert/internal/`.
-- Hook headers are excluded from installs and public CMake file sets.
-- Tests reset state after each forced scenario.
-- Consumer or game runtime code must not include or call hooks.
+## API reference
 
-See @ref assert_testing and @ref assert_interactive.
+| API | Purpose |
+| --- | --- |
+| `reset()` | Clears all pending hook state. |
+| `forceNextActionDialogFailure()` | Forces the next primary action-dialog attempt to use fallback behavior. |
+| `forceNextFallbackActionDialogFailure()` | Forces the next fallback action-dialog attempt to return the default action. |
+| `setDebuggerAttachedOverride(bool)` | Overrides debugger detection. |
+| `clearDebuggerAttachedOverride()` | Removes the debugger override. |
+| `setPopupSuppressedOverride(bool)` | Overrides popup suppression checks. |
+| `clearPopupSuppressedOverride()` | Removes the popup suppression override. |
+| `debuggerAttachedForTest()` | Queries debugger state through the Assert backend. |
+| `showFailureActionDialogForTest(...)` | Exercises the platform interactive action dialog path. |
+| `showErrorPopupForTest(...)` | Exercises the platform error-popup path. |
+
+## Example
+
+```cpp
+using namespace GameWIP::Debug::Assert;
+
+TestHooks::setDebuggerAttachedOverride(false);
+// Run the scenario that must observe no debugger.
+TestHooks::reset();
+```
+
+## Restrictions
+
+Installed consumers and production code must not include internal hook headers or call hook functions. Hook symbols may exist in validation builds only to make rare platform and process-control paths deterministic.
+
+## Related pages
+
+- @ref assert_testing
+- @ref assert_interactive
+- @ref assert_configuration

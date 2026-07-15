@@ -9,7 +9,8 @@
 
 namespace
 {
-    /// @brief Detects child-process protocol invocations owned by TestSupport tests.
+    /// @brief Claims the TestSupport child prefix for routing before validating its exact protocol suffix.
+    /// @note An unknown reserved suffix currently reaches the TestSupport module and can fall through to its full suite.
     bool handlesChildArguments(int argc, char **argv)
     {
         for (int index = 1; index < argc; ++index)

@@ -1,5 +1,5 @@
 /// @file terminal_test_hooks.cpp
-/// @brief Terminal internal test hook definitions.
+/// @brief Source-tree deterministic Terminal overrides, capture, counters, and one-shot failure injection.
 
 #include "terminal/internal/terminal_test_hooks.h"
 

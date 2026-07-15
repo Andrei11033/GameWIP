@@ -1,5 +1,8 @@
 /// @file logger_benchmark.cpp
 /// @brief Google Benchmark scenarios for Logger producer paths.
+///
+/// Scenarios isolate producer-path costs and report queue/drop state so measured
+/// throughput cannot silently hide discarded asynchronous work.
 
 #include "logger/logger.h"
 #include "test_support/test_support.h"

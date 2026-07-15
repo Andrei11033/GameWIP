@@ -1,42 +1,97 @@
 @page logger_configuration Logger configuration
 
-Logger configuration controls output sinks, queue size, message storage behavior, filtering defaults, and fatal popup behavior.
+`Logger::Types::Config` is consumed by `init()`. Logger copies the strings, source definitions, and filter state it retains before `init()` returns; later edits to the caller's `Config` and backing arrays do not reconfigure the runtime.
 
-## Built-in configurations
+## Presets
 
-- `Logger::defaultConfig()` is the normal general-purpose configuration.
-- `Logger::lowMemoryConfig()` reduces retained memory.
-- `Logger::throughputConfig()` favors high-volume logging and reuse.
+| Factory | Intended tradeoff | Changed queue/message fields |
+| --- | --- | --- |
+| `defaultConfig()` | General-purpose baseline. | Soft queue 1024, hard multiplier 1.25, message limit 4096, inline capacity 256, batch 256. |
+| `lowMemoryConfig()` | Lower retained storage and post-spike retention. | Soft queue 256, hard multiplier 1.0, message limit 1024, inline capacity 128, batch 64, release message/storage enabled. |
+| `throughputConfig()` | Larger bursts and less reallocation across reinitialization. | Soft queue 4096, hard multiplier 1.25, message limit 4096, inline capacity 256, batch 512, release message/storage disabled. |
 
-Each helper returns a `Logger::Types::Config` value that can be edited before `Logger::init(config)`. Logger copies the configuration it needs during initialization; later edits to the local configuration object do not reconfigure Logger.
+All other fields retain their `Config` defaults unless changed by the caller.
 
-## Output modes
+## Output and path fields
 
-`Config::output` controls the active sinks. The supported modes are `None`, `Console`, `File`, and `Both`.
+| Field | Default | Contract |
+| --- | --- | --- |
+| `output` | `Both` | Selects normal console/file sinks. `None` creates a successfully configured disabled runtime with no worker. |
+| `logDirectory` | `"logs"` | UTF-8 directory for file output. Empty selects the same default. Relative paths use the process working directory at initialization. |
+| `fallbackToConsoleOnFileFailure` | `true` | Allows a file-only request to continue as console output when file setup fails. `Both` already retains console output. |
+| `enableConsoleColor` | `true` | Requests severity styling through Terminal; redirected streams receive plain text. |
+| `enableDebugOutput` | `true` | Enables explicit debugger output and report mirroring. It is independent of normal sink selection. |
+| `enableFatalPopup` | `true` | Enables popup attempts only for report paths that request `ReportPopup::Fatal`. |
+| `flushFileEveryBatch` | `false` | Flushes file data after each worker batch. |
+| `flushConsoleEveryWrite` | `false` | Flushes the selected standard stream after each console record. |
 
-File output uses `Config::logDirectory` as UTF-8 text. Its default is `logs`, resolved against the process current directory when Logger initializes; an empty value selects the same runtime default. Applications can choose another directory through `Config` or `initFile()` without rebuilding Logger. Logger converts paths through FileSystem, keeps one persistent `FileWriter`, and allows other processes to read the active log. If file setup fails and `fallbackToConsoleOnFileFailure` is true, startup can continue with console output and `getLastResult()` / `getLastPlatformError()` describe the file failure.
+@ref logger_output owns sink routing and line-format details.
 
-Console output goes through the shared Terminal runtime. `enableConsoleColor` requests portable severity colors for supported interactive terminals; redirected streams receive plain UTF-8 text.
+## Severity and filters
 
-## Filtering
+| Field | Default | Contract |
+| --- | --- | --- |
+| `minLevel` | `Info` | Permanent startup floor for the active initialization. Runtime filters cannot re-enable lower levels. |
+| `sources` | empty | Registered ID/name table copied during initialization. IDs and names must be non-duplicate; names must be non-empty. |
+| `sourceFilters` | empty | Initial enabled states for registered source IDs. Unknown IDs make initialization fail with `InvalidSourceFilter`. |
+| `levelFilters` | empty | Initial enabled states for exact severities. Invalid enum values make initialization fail with `InvalidLevelFilter`. |
 
-`Config::minLevel` is the startup severity floor. `Config::sourceFilters` and `Config::levelFilters` apply initial runtime filters. Runtime APIs can then update filters:
+String sources are controlled only by `minLevel` and level filters. Source filters apply to registered `SourceId` and enum-source calls.
 
-```cpp
-Logger::setLevelFilter(Logger::Types::Level::Debug, false);
-Logger::setSourceFilter(Logger::sourceId(LogSource::AI), false);
-Logger::clearLevelFilters();
-Logger::clearSourceFilters();
-```
+## Queue and formatting fields
 
-Level and source filters apply to normal logs. String sources are severity-filtered only. Registered `SourceId` / enum sources can use both severity and source filters. Unknown `SourceId` values are accepted and written as `UnknownSource`; they increment `Stats::unknownSourceUses`.
+| Field | Default | Contract |
+| --- | --- | --- |
+| `maxQueueSize` | 1024 | Soft depth. `Trace` through `Warn` may drop at or above this depth. |
+| `hardQueueMultiplier` | 1.25 | Hard depth is `ceil(maxQueueSize * multiplier)`, never below the soft depth. Every severity may drop at the hard depth. |
+| `maxMessageLength` | 4096 | Maximum retained message bytes, including the truncation suffix. It is a byte limit, not a Unicode code-point limit. |
+| `formatPolicy` | `StrictBounded` | Chooses bounded formatting or reusable full-format scratch followed by truncation. Invalid enum values fall back to `StrictBounded`. |
+| `inlineMessageCapacity` | 256 | Per-queue-slot preallocated message bytes. Zero disables the arena; values above the message limit are clamped. |
+| `workerBatchSize` | 256 | Maximum worker drain batch. Zero selects the library default; the effective value is clamped to `[1, hardQueueSize]`. |
+| `releaseMessageMemoryAfterWrite` | `false` | Releases oversized heap fallback capacity after entries are cleared instead of retaining it for reuse. |
+| `releaseStorageOnShutdown` | `true` | Releases queue, batch, arena, and source-registry storage during shutdown. When false, storage may be retained for a later initialization; callers must not depend on an exact retained capacity. |
 
-Filtered normal logs are intentional skips. They must not count as dropped logs.
+### Sanitization
 
-## Queue and message storage
+`maxQueueSize == 0` is replaced with 4. `maxMessageLength == 0` is replaced with 512. A non-finite or less-than-one hard multiplier becomes 1.0. Queue-allocation failure triggers a second attempt with a four-entry queue. These recoveries preserve the first `InvalidQueueSize` or `InvalidMessageLength` result while allowing Logger to continue when setup succeeds.
 
-`maxQueueSize`, `hardQueueLimitMultiplier`, `maxMessageLength`, `formatPolicy`, `preallocatedMessageBytes`, and `workerBatchSize` tune queue pressure, truncation, retained memory, and worker batching. Use @ref logger_threading_performance when changing these values.
+Use `getQueueLimits()` after initialization to inspect authoritative effective values.
 
-## Fatal popup
+The returned `QueueLimits` fields are:
 
-`Config::enableFatalPopup` controls logger-owned fatal popup behavior used by report paths that request it. Normal `Logger::fatal(...)` does not request a popup and does not terminate the process.
+| Field | Effective value |
+| --- | --- |
+| `softQueueSize` | Sanitized soft queue depth. |
+| `hardQueueSize` | Authoritative rounded/fallback hard queue depth. |
+| `hardQueueMultiplier` | Sanitized multiplier requested for hard-limit derivation. |
+| `maxMessageLength` | Effective retained-message byte limit. |
+| `inlineMessageCapacity` | Effective per-slot arena capacity. |
+| `workerBatchSize` | Effective worker drain batch. |
+
+## Interpreting `init()` results
+
+A non-`Success` result does not always mean Logger is unavailable.
+
+| Result family | Typical effective state |
+| --- | --- |
+| `Success` | Requested configuration started, or `Output::None` was configured successfully. |
+| `AlreadyRunning` | Existing runtime remains unchanged. |
+| Invalid output, severity, source definition, or initial filter | Initialization is rejected; no new worker is started. |
+| `InvalidQueueSize` or `InvalidMessageLength` | Logger may be running with sanitized values. Inspect `isRunning()` and `getQueueLimits()`. |
+| File path/open/setup failure | Logger may be running with console fallback, may retain console from `Both`, or may have no active normal sink. Inspect `getOutput()` and `getLastPlatformError()`. |
+| `ThreadStartFailed` | No running asynchronous logger. |
+
+`getLastResult()` is process-wide mutable diagnostic state. Later operations can replace it; do not treat it as an immutable result object for an earlier call. See @ref logger_public_api for every `Result` enumerator.
+
+## Compile-time macro controls
+
+`LOGGER_TRACE` and `LOGGER_DEBUG` are included in non-`NDEBUG` translation units. In release-style translation units they compile out unless `LOGGER_ENABLE_TRACE_LOGS` or `LOGGER_ENABLE_DEBUG_LOGS` is defined, respectively.
+
+These definitions are translation-unit compile controls, not runtime configuration. Apply them consistently at target level. See @ref logger_macros.
+
+## Related pages
+
+- @ref logger_lifecycle
+- @ref logger_messages_sources
+- @ref logger_threading_performance
+- @ref logger_output

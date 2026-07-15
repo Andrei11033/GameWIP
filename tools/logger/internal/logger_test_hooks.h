@@ -1,5 +1,5 @@
 /// @file logger_test_hooks.h
-/// @brief Internal test hooks for forcing rare Logger failure paths.
+/// @brief Source-tree validation hooks for deterministic Logger failures and concurrency milestones.
 
 #pragma once
 

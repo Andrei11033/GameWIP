@@ -1,16 +1,34 @@
 @page filesystem_unicode_paths FileSystem Unicode paths
 
-Public operations use `GameWIP::FileSystem::Types::Path` everywhere. It is currently an alias to `std::filesystem::path`.
+Public operations use `GameWIP::FileSystem::Types::Path`, currently an alias to `std::filesystem::path`.
 
-Once a `Path` reaches FileSystem, native conversion is automatic. On Windows, FileSystem preserves Unicode paths without routing them through the active narrow-code-page interpretation.
+## Explicit UTF-8 boundary
 
-Constructing a `std::filesystem::path` from narrow text happens before FileSystem can inspect it and is not guaranteed to interpret the bytes as UTF-8 on Windows. Use the explicit boundary helpers:
+Constructing `std::filesystem::path` directly from narrow text happens before FileSystem can inspect the bytes and is not guaranteed to interpret them as UTF-8 on every platform. Use:
 
 ```cpp
 const auto pathResult = GameWIP::FileSystem::pathFromUtf8(utf8Text);
 const auto textResult = GameWIP::FileSystem::pathToUtf8(pathResult.path);
 ```
 
-These are the only explicit conversions callers normally need. FileSystem does not add narrow-string overloads to every path operation and does not require application code to call `std::filesystem` conversion functions.
+`pathFromUtf8()` converts UTF-8 text to the native `Path` representation. `pathToUtf8()` converts a path's stored spelling to UTF-8.
 
-File text helpers treat text as UTF-8 bytes. They do not add or remove a BOM and do not perform encoding conversion.
+Neither helper makes a path absolute, canonical, or normalized. `pathToUtf8()` does not promise portable separators or a portable path grammar; it preserves the representation produced by `std::filesystem::path` for the current platform.
+
+Invalid or unrepresentable text returns `EncodingFailed`; allocation failure returns `OutOfMemory`.
+
+## Native operations
+
+Once a `Path` reaches FileSystem, the backend performs native conversion. On Windows, this preserves Unicode paths without routing them through the active narrow code page.
+
+FileSystem intentionally does not add narrow-string overloads to every operation. Store paths as `Types::Path` and convert only at explicit text boundaries.
+
+## File contents
+
+`readAllText()`, `writeAllText()`, `appendText()`, and `writeAllTextAtomic()` treat contents as bytes. They do not validate UTF-8, add or remove a BOM, or convert line endings or encodings.
+
+## Related pages
+
+- @ref filesystem_path_operations
+- @ref filesystem_whole_file_io
+- @ref filesystem_troubleshooting

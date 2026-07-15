@@ -16,9 +16,10 @@ namespace GameWIP::TestSupport
 {
     namespace
     {
-        /// @brief Serializes process-global environment mutation performed by scoped guards.
+        /// @brief Serializes individual environment read/mutate/restore operations made by TestSupport guards.
+        /// @note A guard does not retain this mutex for its lifetime; overlapping scopes still require caller coordination.
         std::mutex environmentMutex;
-        /// @brief Adds process-local uniqueness to temporary workspace names.
+        /// @brief Adds process-local uniqueness when time and readable purpose components collide.
         std::atomic_uint64_t temporaryDirectoryCounter{0};
 
         /// @brief Formats a named failure and its reason for report output.
@@ -53,7 +54,10 @@ namespace GameWIP::TestSupport
 
     namespace Detail
     {
-        /// @brief Thread-safe shared sink that independently mirrors report lines to console and file.
+        /// @brief Shared line sink with independent console policy and degradable report-file output.
+        ///
+        /// Sink locking protects complete line emission. Context and Runner counters deliberately use
+        /// their own locks so counting does not hold the output lock while formatting or aggregation occurs.
         class ReportSink
         {
         public:
@@ -171,7 +175,8 @@ namespace GameWIP::TestSupport
                 return isActionable || category == "SUMMARY" || category == "RESULT";
             }
 
-            /// @brief Permanently disables this sink's file path and emits one stderr diagnostic.
+            /// @brief Permanently disables only this sink's file output and emits at most one stderr diagnostic.
+            /// @note Test result counters remain independent from report-file health.
             void disableReport(std::string_view reason)
             {
                 reportOpenFailed_ = true;
@@ -440,6 +445,8 @@ namespace GameWIP::TestSupport
             summary_.skipped += result.summary.skipped;
         }
 
+        // Aggregate counts are committed before formatting/output so result queries never depend on
+        // report-file availability. The sink then serializes the visible completion record.
         std::ostringstream message;
         message << result.name << " passed=" << result.summary.passed << " failed=" << result.summary.failed << " skipped=" << result.summary.skipped
                 << " elapsedMs=" << result.elapsedMilliseconds;
@@ -493,6 +500,8 @@ namespace GameWIP::TestSupport
     {
         std::filesystem::create_directories(root_);
 
+        // A readable prefix aids diagnostics, while steady-clock ticks and a process-local allocation
+        // id make collisions unlikely. The bounded attempt suffix still handles races/external entries.
         const std::string prefix = sanitizeTemporaryPurpose(purpose);
         const auto ticks = std::chrono::steady_clock::now().time_since_epoch().count();
         const std::uint64_t allocationId = temporaryDirectoryCounter.fetch_add(1, std::memory_order_relaxed);
@@ -648,6 +657,8 @@ namespace GameWIP::TestSupport
     ScopedEnvironmentVariable::ScopedEnvironmentVariable(std::string_view name, std::string_view value)
         : name_(name)
     {
+        // Lock only the snapshot-and-mutate operation. Holding a global lock for the full RAII
+        // lifetime would deadlock nested guards and would not coordinate external environment APIs.
         std::lock_guard lock(environmentMutex);
         previousValue_ = Detail::Platform::readEnvironmentVariable(name_);
         Detail::Platform::setEnvironmentVariableValue(name_, value);
@@ -657,6 +668,8 @@ namespace GameWIP::TestSupport
     {
         try
         {
+            // Restoration is serialized as one mutation, but another overlapping scope may have
+            // changed the same process-global name since this guard was constructed.
             std::lock_guard lock(environmentMutex);
             if (previousValue_)
             {
@@ -675,6 +688,8 @@ namespace GameWIP::TestSupport
     ScopedUnsetEnvironmentVariable::ScopedUnsetEnvironmentVariable(std::string_view name)
         : name_(name)
     {
+        // Lock only the snapshot-and-mutate operation. Holding a global lock for the full RAII
+        // lifetime would deadlock nested guards and would not coordinate external environment APIs.
         std::lock_guard lock(environmentMutex);
         previousValue_ = Detail::Platform::readEnvironmentVariable(name_);
         Detail::Platform::unsetEnvironmentVariableValue(name_);
@@ -684,6 +699,8 @@ namespace GameWIP::TestSupport
     {
         try
         {
+            // Restoration is serialized as one mutation, but another overlapping scope may have
+            // changed the same process-global name since this guard was constructed.
             std::lock_guard lock(environmentMutex);
             if (previousValue_)
             {

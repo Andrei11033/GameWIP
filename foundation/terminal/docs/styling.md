@@ -1,63 +1,35 @@
 @page terminal_styling Terminal styling
 
-Styling is emitted for streams whose capabilities report support. On unsupported streams, `StyleMode::Auto` writes plain text and `StyleMode::Required` reports `IO::Types::ErrorCode::Unsupported`.
+Terminal accepts portable style requests and emits them only when the selected endpoint reports support.
 
-## Text style
+## Color and style values
 
-`Types::TextStyle` carries a portable style request:
+Create colors with `defaultColor()`, `basicColor()`, or `rgbColor()`. `BasicColor` provides the normal and bright variants of black, red, green, yellow, blue, magenta, cyan, and white.
 
-- foreground color;
-- background color;
-- bold;
-- dim;
-- italic;
-- underline;
-- inverse;
-- strikethrough.
+`TextStyle` contains foreground/background color plus bold, dim, italic, underline, inverse, and strikethrough requests. The corresponding `StyleCapabilities` fields describe what the current endpoint can honor.
 
-Colors use `Types::Color`, `Types::ColorKind`, and `Types::BasicColor`. Use `defaultColor`, `basicColor`, and `rgbColor` to create color requests.
+## Per-operation options
 
-## TextWriteOptions
+`TextWriteOptions` contains `styleMode`, `style`, and `flushMode`. `LineWriteOptions` adds `lineEnding`. Per-segment style is stored in each `WriteSegment`; `SegmentWriteOptions::styleMode` controls how styled segments handle unavailable features.
 
-`Types::TextWriteOptions` contains style for one text write:
+## Style modes
 
-- `styleMode`;
-- `style`;
-- `flushMode`.
+- `Never` emits plain text and skips style capability work.
+- `Auto` prepares when useful and falls back to plain text when the requested style cannot be honored.
+- `Required` returns preparation or `Unsupported` failure without normal text emission when the complete requested style is unavailable.
 
-`Types::LineWriteOptions` contains the same style and flush fields plus `lineEnding` for `writeLine()` and `println()`.
+Terminal treats a style request as a whole. It does not silently emit only a supported subset of attributes.
 
-Styling for one text or line call belongs in the operation options, not in a separate styled-write public function.
+## Emission and reset
 
-## StyleMode
+Terminal assembles the style prefix, text, reset sequence, and optional line ending into one logical operation where practical. This reduces interleaving between those pieces, but output is not transactional: a platform write can complete partially and leave a prefix without its reset sequence.
 
-`StyleMode::Never` writes plain text and should avoid style overhead.
+Use `resetStyle()` to request an explicit portable reset when recovering from output not controlled entirely by Terminal. It still requires a supported terminal endpoint.
 
-`StyleMode::Auto` prepares a terminal output stream when styling is not already active. Redirected streams require no preparation and fall back directly to plain text when they do not advertise the requested style. If preparation or style support is unavailable, the call writes plain text.
+## Redirected output
 
-`StyleMode::Required` prepares the stream when needed. A preparation failure or unsupported style is returned without writing.
+In `Auto`, redirected streams normally receive plain text without styling bytes. `Required` succeeds only if the endpoint can honestly support the request. Do not branch on an assumed ANSI/VT flag; query portable capabilities or let Terminal apply the selected style mode.
 
-## Style reset
+## Selection guidance
 
-Terminal assembles the style prefix, text, reset sequence, and optional line ending before one platform write. This prevents a failed middle write from leaving the stream in a partially styled state.
-
-## Capability reporting
-
-`Types::StyleCapabilities` reports portable style features:
-
-- basic colors;
-- RGB colors;
-- bold;
-- dim;
-- italic;
-- underline;
-- inverse;
-- strikethrough.
-
-The public capability shape intentionally does not expose an ANSI/VT implementation flag. Callers should ask Terminal to emit styles instead of branching on the backend protocol.
-
-## Segments
-
-For per-segment styling, use `Types::WriteSegment` with `WriteSegmentKind::StyledText` and write the batch through `writeSegments(std::span<const Types::WriteSegment>, SegmentWriteOptions)`.
-
-See @ref terminal_segmented_writes.
+Use plain `writeText()`/`writeLine()` with default styling when styles are unnecessary. For mixed styles in one logical record, use @ref terminal_segmented_writes. Allocation and exception behavior is owned by @ref terminal_read_write.

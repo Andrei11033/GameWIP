@@ -1,140 +1,187 @@
-@page io_reader_writer_contract IO Reader and Writer contract
+@page io_reader_writer_contract IO reader and writer contract
 
-## Reader
+`Reader` and `Writer` are extension interfaces for resource-owning libraries. This page owns the transfer, capability, lifetime, exception, and concurrency rules that implementations and generic callers must preserve.
 
-`GameWIP::IO::Reader` is the active byte-reading contract.
+## Interface model
 
-Reader objects are movable and non-copyable. `canSeek()` reports whether seek operations are currently available; the default is false.
+Both interfaces are movable and non-copyable. Their destructors are virtual and non-throwing.
 
-Reader responsibilities:
+The only required virtual operation is `Reader::read()` or `Writer::write()`. Base implementations provide neutral defaults for optional behavior.
 
-- report whether readable state is currently open through `isOpen()`;
-- read zero or more bytes into caller-provided storage;
-- report how many bytes were actually read;
-- report end-of-stream separately from ordinary failures;
-- close owned readable state through `close()` when applicable;
-- expose position and size when the concrete reader supports them;
-- report `NotSeekable` for seek/position/size operations that are not supported;
-- avoid throwing for expected I/O failures.
+### Reader defaults
 
-`read()` must never report `bytesRead` greater than the destination size.
+| Operation | Base behavior |
+| --- | --- |
+| `isOpen()` | Returns `true`. |
+| `canSeek()` | Returns `false`. |
+| `close()` | Successful no-op. |
+| `position()` | Returns `NotSeekable`. |
+| `size()` | Returns `NotSeekable`. |
+| `seek()` | Returns `NotSeekable`. |
 
-A successful read may return fewer bytes than requested. It must report end-of-stream when no more bytes are available. Returning success with zero bytes and `endOfStream = false` prevents whole-stream helpers from making progress and is treated as `ReadFailed`.
+### Writer defaults
 
-A read may return bytes together with a failure status. Whole-stream helpers preserve those bytes before returning the failure.
+| Operation | Base behavior |
+| --- | --- |
+| `isOpen()` | Returns `true`. |
+| `canSeek()` | Returns `false`. |
+| `flush()` | Rejects unknown modes, otherwise succeeds without requiring physical I/O. |
+| `close()` | Successful no-op. |
+| `position()` | Returns `NotSeekable`. |
+| `seek()` | Returns `NotSeekable`. |
 
-`MemoryReader` is an in-memory Reader implementation for tests, parsing helpers, and code that already has bytes in memory. It preserves binary data exactly, including NUL bytes.
+These defaults are suitable for stateless streaming adapters. Resource-owning implementations should override state and lifecycle operations that have meaningful behavior.
 
-`MemoryReader` is non-owning. The caller-owned span, string view, or vector storage must outlive the reader. Direct construction from temporary `std::string` or vector storage is rejected because it would leave the reader dangling.
+## Read contract
 
-`MemoryReader::read()` safely handles destination spans that overlap its source memory.
+`read(destination)` may copy from zero through `destination.size()` bytes.
 
-## Writer
+An implementation must:
 
-`GameWIP::IO::Writer` is the active byte-writing contract.
+- Never report `bytesRead > destination.size()`.
+- Report valid copied bytes even when the same call also reports failure.
+- Set `endOfStream` according to whether no additional input remains after the call.
+- Return a successful zero-byte result only for an empty request or when end-of-stream is reported.
+- Avoid retaining the destination span after the call returns unless a separate public contract explicitly transfers or extends its lifetime.
 
-Writer objects are movable and non-copyable. `canSeek()` reports whether seek operations are currently available; the default is false.
+The final non-empty read may set `endOfStream = true`. Callers must inspect both fields.
 
-Writer responsibilities:
+## Write contract
 
-- report whether writable state is currently open through `isOpen()`;
-- write zero or more bytes from caller-provided storage;
-- report how many bytes were actually written;
-- expose the current stream position when the concrete writer supports it;
-- move the stream position when the concrete writer supports seeking;
-- expose flush and close operations where the concrete writer owns a flushable or closeable resource;
-- return `PartialWrite`, `WriteFailed`, `FlushFailed`, or `CloseFailed` through `Types::Status` for expected failures;
-- avoid throwing for expected I/O failures.
+`write(bytes)` may accept from zero through `bytes.size()` bytes.
 
-`write()` must never report `bytesWritten` greater than the source size.
+An implementation must:
 
-A successful write may accept fewer bytes than requested. Returning success with zero bytes for non-empty input prevents whole-stream helpers from making progress and is treated as `WriteFailed`.
+- Never report `bytesWritten > bytes.size()`.
+- Report valid accepted bytes even when the same call also reports failure.
+- Return success with zero bytes for an empty request.
+- Avoid returning success with zero bytes while non-empty input remains, because generic retry loops cannot make progress.
+- Avoid retaining the input span after the call returns unless a separate public contract explicitly transfers or extends its lifetime.
 
-A write may report accepted bytes together with a failure status. Whole-stream helpers return that failure and do not retry it.
+A successful short write means progress was made and the remaining suffix may be retried. A writer may instead accept a prefix and return a failure in the same call; generic helpers preserve that accepted count and stop.
 
-`MemoryWriter` is an in-memory Writer implementation for tests, formatting helpers, and code that needs to collect bytes. It preserves binary data exactly, including NUL bytes.
+## Optional capabilities
 
-Unknown `FlushMode` values return `InvalidArgument`. `isValidFlushMode()` provides the shared validation rule used by IO and libraries that consume its flush contract. The default `Writer` implementation and `MemoryWriter` perform no physical flush, but still validate the enum so invalid requests do not silently succeed.
+`canSeek()` is an advisory query. Callers must still inspect the result of `position()`, `size()`, and `seek()` because runtime state may change and size support is not implied by seek support.
 
-`MemoryWriter::write()` handles input spans that alias the writer's own current bytes without allocating a temporary copy.
+Whole-stream read helpers do not rely on `canSeek()`. They query `size()` and `position()` directly:
 
-`MemoryWriter::position()` reports the current append position while open. MemoryWriter remains append-only, reports `canSeek() == false`, and returns `NotSeekable` from `seek()`.
+- If `size()` returns `NotSeekable` or `Unsupported`, the reader is treated as unknown-size.
+- If size succeeds but position returns either of those codes, the known size is discarded and the unknown-size path is used.
+- Other capability-query failures are propagated before payload reads.
+- A reported position greater than size is an invalid contract and returns `InvalidArgument`.
 
-## Helper functions
+A backend should use `NotSeekable` for stream-position capabilities and `Unsupported` for other intentionally absent capabilities.
 
-`readAllBytes()` and `readAllText()` repeatedly read from a Reader until end-of-stream or failure.
+## Whole-stream reads
 
-`maxBytes` is a hard maximum accepted stream size. The helpers return `SizeLimitExceeded` if they detect the stream exceeds the caller-provided limit.
+`readAllBytes()` and `readAllText()` start at the reader's current position.
 
-For readers that expose both size and position, the helpers use the remaining byte count from the current position and read directly into the final output storage. If either capability returns `NotSeekable` or `Unsupported`, the helpers use the unknown-size path. Other capability-query failures are propagated. If a reader reports an impossible position greater than its size, the helpers return `InvalidArgument`.
+### Known-size path
 
-If a known-size reader reaches end-of-stream before producing the known remaining byte count, the helpers return `PartialRead` and preserve bytes collected before the failure.
+When both size and position succeed, the helpers calculate the remaining byte count and:
 
-For unknown-size readers, overloads that take a caller-owned scratch buffer avoid allocating the temporary transfer buffer internally. The scratch buffer must not be empty.
+- Reject counts above `maxBytes` or the result container's representational limit before reading.
+- Allocate the final output to the known remaining size.
+- Read until that exact count is produced or a failure occurs.
+- Preserve bytes produced by a final failing read.
+- Return `PartialRead` if end-of-stream occurs before the promised count.
+- Return `ReadFailed` for an impossible byte count or zero progress before completion.
 
-At a finite `maxBytes`, an unknown-size reader may be advanced by one extra byte so the helper can distinguish exact end-of-stream from an over-limit stream. That byte is not stored in the returned result.
+An exact known byte count is authoritative; the final read does not need to set `endOfStream` once the promised count has been produced.
 
-`writeAllBytes()` and `writeAllText()` repeatedly write to a Writer until all requested bytes are accepted or a failure occurs. They return `Types::WriteResult`, preserving the total accepted byte count even when the final writer call accepts bytes and reports failure.
+### Unknown-size path
 
-Text helpers treat text as UTF-8 bytes. They do not normalize, parse, or validate higher-level formats.
+When size or position is unavailable, the helpers read through either an internally allocated buffer or caller-owned scratch storage.
 
-## Thread-safety
+They:
 
-Different Reader/Writer objects may be used concurrently.
+- Require a nonzero internal buffer size or non-empty scratch span.
+- Append valid bytes before processing a failure from the same read.
+- Stop successfully when `endOfStream` is reported.
+- Return `ReadFailed` for impossible counts or successful zero progress without end-of-stream.
+- Never retain the scratch span after the call returns.
 
-The same Reader/Writer object is not thread-safe unless the concrete implementation explicitly says otherwise.
+The scratch buffer is ignored when the reader qualifies for the known-size path.
 
-`MemoryReader` and `MemoryWriter` are not internally synchronized.
+### Hard byte limits
 
-## Blocking behavior
+`maxBytes` is the maximum accepted output size, not a truncation request.
 
-`GameWIP::IO` does not perform operating-system calls by itself.
+For an unknown-size reader, reaching the limit requires a one-byte probe:
 
-Whether `read()`, `write()`, `position()`, `size()`, `seek()`, `flush()`, or `close()` may block depends on the concrete Reader or Writer implementation.
+- End-of-stream makes the operation successful.
+- One additional byte returns `SizeLimitExceeded` and consumes that byte without storing it.
+- A zero-byte backend failure is propagated.
+- A zero-byte success without end-of-stream returns `ReadFailed`.
 
-`MemoryReader` and `MemoryWriter` do not block on the operating system.
+A zero limit accepts an empty stream and probes unknown-size input immediately.
 
-## Exception behavior
+## Whole-stream writes
 
-Expected I/O failures are returned through `Types::Status`.
+`writeAllBytes()` repeatedly passes the unwritten suffix to the writer until all input is accepted or a call fails.
 
-Memory allocation failure inside whole-stream helpers is converted to `OutOfMemory` where practical.
+It:
 
-Constructors and direct container-capacity operations, such as `MemoryWriter::reserve()`, may still throw allocation exceptions because they do not return `Types::Status`.
+- Succeeds for empty input without calling `write()`.
+- Retries successful short writes.
+- Includes bytes accepted by a final failing call in `bytesWritten`.
+- Returns `WriteFailed` if a writer reports an impossible count or successful zero progress.
+- Does not flush or close the writer.
 
-`MemoryWriter::text()` may also throw while allocating its returned string copy. `MemoryWriter::takeBytes()` transfers ownership without allocation and may discard the writer's reserved capacity.
+`writeAllText()` applies the same contract to the exact bytes in a string view, including embedded NUL bytes. It does not validate UTF-8.
 
-Destructors must not throw.
+## MemoryReader
 
-## Zero-length operations
+`MemoryReader` is a non-owning view over contiguous bytes.
 
-A zero-length read request should return success with `bytesRead = 0`.
+- The source must remain alive and at a stable address while the reader is used.
+- Direct temporary `std::string` and byte-vector construction is deleted.
+- Caller-created dangling spans and string views remain the caller's responsibility.
+- Reads use overlap-safe copying, so the destination may overlap the source.
+- Seeking is bounded to the inclusive range from position zero through end-of-stream.
+- An invalid origin returns `InvalidArgument`; an out-of-range target returns `SeekFailed`.
+- `close()` is idempotent and never modifies the source.
+- After close, read, size, position, and seek operations return `NotOpen`; `canSeek()` returns false.
 
-A zero-length write request should return success with `bytesWritten = 0`.
+## MemoryWriter
 
-A zero-length read may report `endOfStream = true` if the reader is already at the end.
+`MemoryWriter` owns append-only `std::vector<std::byte>` storage.
 
-## Lifetime
+- Writes from a valid subspan of the writer's current `bytes()` view are supported, including when appending reallocates storage.
+- `flush()` validates its mode and otherwise performs no physical work.
+- `close()` is idempotent and preserves collected output.
+- After close, `write()`, `flush()`, and `position()` return `NotOpen`.
+- `bytes()`, `text()`, `takeBytes()`, `size()`, `capacity()`, `empty()`, `reserve()`, and `clear()` remain available after close.
+- `clear()` preserves capacity.
+- `takeBytes()` transfers ownership, leaves the writer empty, preserves open/closed state, and may discard reserved capacity.
 
-Destructors must not throw. Concrete implementations that own resources should expose explicit close behavior. Callers that need to observe close failure must call close explicitly before destruction.
+`bytes()` returns a non-owning view into writer-owned storage. Do not retain it across operations that can modify storage or ownership. A write or reserve may reallocate; clear, take, move assignment, destruction, and ownership transfer invalidate the prior logical view.
 
-Closing `MemoryReader` or `MemoryWriter` is idempotent. A closed memory object cannot be reopened. `MemoryWriter` output remains inspectable, clearable, reservable, and extractable after close.
+`text()` returns an independent copy and preserves embedded NUL bytes. It performs no UTF-8 validation.
 
-## Open behavior
+## Exceptions
 
-IO intentionally has no `open()` function because it does not know which resource should be opened. Resource-owning libraries such as FileSystem and Terminal own open behavior. Memory-backed IO is created directly with constructors and uses `close()` / `isOpen()` state.
+Expected I/O failures use statuses, but the virtual transfer and capability functions are not globally `noexcept`.
+
+- Exceptions thrown by a custom `Reader` or `Writer` may propagate through generic helpers.
+- The helpers convert their own documented allocation failures to `OutOfMemory`; they do not catch arbitrary backend exceptions.
+- `MemoryWriter` construction, `reserve()`, and `text()` may throw standard allocation or length exceptions.
+- Destructors must not throw. Call `close()` explicitly when close failure must be observed.
+
+## Thread-safety and blocking
+
+Different reader or writer objects may be used concurrently. The same object is not thread-safe unless its concrete implementation explicitly says otherwise.
+
+IO itself performs no operating-system calls. Blocking behavior belongs to the concrete backend. `MemoryReader` and `MemoryWriter` are not internally synchronized and do not block on operating-system I/O.
 
 ## Non-goals
 
-The IO contract does not provide:
+IO does not provide file opening, terminal access, network I/O, asynchronous I/O, memory mapping, file watching, parsing, or format decoding. Resource-owning libraries implement those concerns behind the shared contracts.
 
-- operating-system file access;
-- terminal output;
-- network I/O;
-- async I/O;
-- memory-mapped files;
-- file watching;
-- JSON parsing;
-- config parsing;
-- asset package parsing;
-- texture decoding.
+## Related pages
+
+- @ref io_public_api
+- @ref io_error_model
+- @ref io_runtime_performance
+- @ref io_examples

@@ -1,5 +1,5 @@
 /// @file win32_logger.cpp
-/// @brief Windows platform backend for the Logger library.
+/// @brief Windows debugger output, fatal popup, local-time, process-memory, and nesting-safe formatting-scratch backend.
 
 #include "logger/internal/logger_platform.h"
 

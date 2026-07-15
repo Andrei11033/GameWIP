@@ -7,6 +7,7 @@
 
 namespace
 {
+    /// @brief Maps shared runner report policy into the validation-runner self-test suite.
     int run(const GameWIP::Validation::Tests::ModuleInvocation &invocation)
     {
         GameWIP::Test::RunnerTestOptions options;
@@ -17,6 +18,7 @@ namespace
         return GameWIP::Test::runRunnerTests(options);
     }
 
+    /// @brief Process-local static registration for deterministic runner-module discovery.
     const GameWIP::Validation::Tests::Registration registration({
         .name = "runner",
         .order = 5,

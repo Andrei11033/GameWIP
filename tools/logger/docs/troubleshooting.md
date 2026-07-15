@@ -1,57 +1,75 @@
 @page logger_troubleshooting Logger troubleshooting
 
-## Logs do not appear
+## `init()` returned an error but logging still works
 
-Likely causes:
-
-- logger was not initialized,
-- message is below `minLevel`,
-- source or level filter suppresses it,
-- asynchronous queue has not flushed yet,
-- file output failed and fallback is disabled.
-
-Check:
+Queue/message options may have been sanitized, or file output may have fallen back to console. Check:
 
 ```cpp
-GameWIP::Logger::isRunning();
-GameWIP::Logger::getLastResult();
-GameWIP::Logger::getStats();
+Logger::isRunning();
+Logger::getOutput();
+Logger::getQueueLimits();
+Logger::getLastResult();
+Logger::getLastPlatformError();
 ```
 
-## The log file is empty
+Do not interpret every non-`Success` result as an all-or-nothing startup failure.
 
-Normal logs are asynchronous. Call `flush()` or `shutdown()` before checking the file.
+## `init()` returned `Success` but `isRunning()` is false
 
-```cpp
-GameWIP::Logger::flush();
-```
+`Output::None` is a successful disabled configuration and does not start the asynchronous worker.
 
-## Logs are dropped
+## Normal logs do not appear
 
-Drops mean queue pressure, not filtering. Check queue limits and stress volume. Consider a larger configuration, lower log volume, source filters, or fewer expensive debug logs in hot paths.
+Check the effective output, startup `minLevel`, runtime level filters, source filters for registered IDs, queue-drop counters, and final flush/shutdown. Normal calls made before initialization or after shutdown are not persistent logging guarantees.
 
 ## Reports appear but normal logs do not
 
-Reports bypass normal filters and the asynchronous queue. If reports work but normal logs do not, inspect `minLevel`, source filters, level filters, and queue/drop statistics.
+Reports bypass normal filters and queue pressure. Inspect `getOutput()`, `isRunning()`, filters, and `Stats::queueDropsSoft` / `queueDropsHard`.
 
-## Flush times out
+## File output became console output
 
-A timed flush returning false means the bounded wait expired. It does not automatically mean every log was lost. Stop producers before final shutdown when possible.
+File setup failed while fallback was allowed. Inspect `getLastResult()`, `getLastPlatformError()`, `getOutput()`, and `getLogFilePath()`.
 
-## Fatal log did not show a popup
+## The file is empty or missing recent records
 
-`Logger::fatal(...)` is a fatal-severity asynchronous log. Use `reportFatal(...)` or `fatalTerminate(...)` for the synchronous fatal report and popup path.
+Normal records are asynchronous and file writes are batched. Call `flush()` before inspecting during tests, or `shutdown()` during final teardown. Also check `fileWriteFailures`.
 
-## UnknownSource appears
+## Error or Fatal normal logs were dropped
 
-A registered-source overload received a `SourceId` that was not present in `Config::sources` during init. The message is intentionally written with the fallback label instead of being dropped. Check `Stats::unknownSourceUses` and the source registration table.
+The hard queue limit applies to every normal severity. Use a synchronous report for a diagnostic that must bypass queue capacity.
 
-## Filtered logs look like drops
+## A filtered macro still evaluated the source
 
-Filtered logs are intentional skips and should not increment drop counters. Queue drops mean Logger accepted too much asynchronous work for the configured queue limits.
+Active `LOGGER_*` normal macros evaluate the source expression once before `shouldLog()`. Only message/format arguments are guarded by the first filter check. Compiled-out Trace/Debug macros evaluate neither.
+
+## A direct formatted call evaluated expensive work
+
+C++ evaluates function arguments before Logger checks filters. Use a lazy macro or explicit `shouldLog()` guard.
+
+## `UnknownSource` appears
+
+A `SourceId`/enum value was not present in `Config::sources` for the active initialization. Unknown IDs are intentionally accepted. Check `unknownSourceUses` and the registration table.
+
+## `flush(timeout)` or a timed report returned false
+
+The timed queue wait did not observe a drain, or an observable file flush failed. Producers may still be active or the worker may still have queued work. A timed report writes its report line first; if its initial file flush fails, the current implementation returns false without attempting the later queue drain. The timeout is not an end-to-end deadline for lock or sink waits.
+
+## Fatal logging did not show a popup or terminate
+
+`fatal()` and `LOGGER_FATAL` are normal asynchronous logs. Use `reportFatal()` for the popup-report path or `fatalTerminate()` / `LOGGER_FATAL_TERMINATE` for termination. Popup behavior also requires `enableFatalPopup`.
+
+## Debugger output appears with `Output::None`
+
+Normal sink output and platform debugger output are separate channels. Set `enableDebugOutput = false` to disable debugger writes.
+
+## Runtime format text produced no record
+
+Invalid runtime formatting is contained, increments `formatFailures`, and skips the operation. Prefer compile-time checked format strings when possible.
 
 ## Related pages
 
+- @ref logger_configuration
 - @ref logger_lifecycle
+- @ref logger_messages_sources
 - @ref logger_reports
 - @ref logger_stats

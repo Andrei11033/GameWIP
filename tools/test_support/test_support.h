@@ -33,7 +33,8 @@
 /// @brief Test reporting, isolation, child-process, timing, and stress helpers.
 namespace GameWIP::TestSupport
 {
-    /// @brief Default in-memory limit for combined child stdout/stderr capture.
+    /// @brief Default number of combined child stdout/stderr bytes retained in memory.
+    /// @note Capture continues draining after this limit; excess bytes are discarded and reported through `outputTruncated`.
     inline constexpr std::size_t kDefaultMaxCapturedOutputBytes = std::size_t{4} * 1024 * 1024;
 
     /// @cond INTERNAL_TEST_SUPPORT
@@ -84,16 +85,16 @@ namespace GameWIP::TestSupport
         {
             /// @brief Writes report lines to stdout when true.
             bool writeConsole = true;
-            /// @brief Writes report lines to reportPath when true.
+            /// @brief Enables report-file setup when true and `reportPath` is non-empty.
             bool writeReport = true;
-            /// @brief Appends to reportPath instead of replacing it at the start of a run.
+            /// @brief Appends instead of truncating when this sink opens `reportPath`.
             bool appendReport = false;
-            /// @brief Flushes every report line for readers that cannot wait for suite completion.
+            /// @brief Flushes the report file after each line; this does not explicitly flush stdout.
             bool flushReportEachLine = false;
             /// @brief Controls which report categories are written to stdout.
             ConsoleVerbosity consoleVerbosity = ConsoleVerbosity::Full;
 
-            /// @brief Text report path used when writeReport is true.
+            /// @brief Text report path used when file output is enabled. Empty path opens no file.
             std::filesystem::path reportPath = "logs/tests/latest_test_report.txt";
         };
 
@@ -109,7 +110,7 @@ namespace GameWIP::TestSupport
 
             /// @brief Returns passed + failed + skipped.
             [[nodiscard]] std::size_t total() const noexcept;
-            /// @brief Returns true when failed is zero.
+            /// @brief Returns true when failed is zero, including empty and skipped-only summaries.
             [[nodiscard]] bool ok() const noexcept;
         };
 
@@ -133,8 +134,9 @@ namespace GameWIP::TestSupport
     /// @name Timing helpers
     /// @{
 
-    /// @brief Monotonic elapsed-time helper for test metrics.
-    /// @note Timer is intended for lightweight diagnostic metrics, not benchmark-grade pass/fail thresholds.
+    /// @brief Monotonic elapsed-time helper for test diagnostics.
+    /// @note Timer uses `std::chrono::steady_clock` and is not benchmark-grade measurement.
+    /// @note Concurrent reset/read of the same Timer is not internally synchronized.
     class Timer
     {
     public:
@@ -158,9 +160,12 @@ namespace GameWIP::TestSupport
     /// @{
 
     /// @brief Test context passed to suite functions.
-    /// Thread-safety: public recording methods serialize summary updates and report writes.
-    /// Contract: expectations record failures and return false instead of aborting the process.
-    /// Failure behavior: report file write failures do not throw from recording methods; console output still continues when enabled.
+    ///
+    /// Public recording methods serialize summary updates and report-sink access. Expectations
+    /// record exactly one pass or failure and return the same outcome instead of aborting.
+    /// Ordinary report-file stream failures disable only that sink and do not change result counts.
+    /// Formatting, allocation, path-conversion, and standard-stream exceptions may still propagate
+    /// from methods that are not marked `noexcept`.
     class Context
     {
     public:
@@ -168,9 +173,12 @@ namespace GameWIP::TestSupport
         /// @param suiteName Name written into report lines.
         /// @param options Runtime output options.
         Context(std::string_view suiteName, const Types::ReportOptions &options);
+        /// @brief Releases this context and its shared report-sink ownership.
         ~Context();
 
+        /// @brief Context owns synchronization and a report-sink reference and is not copyable.
         Context(const Context &) = delete;
+        /// @brief Context owns synchronization and a report-sink reference and is not copy-assignable.
         Context &operator=(const Context &) = delete;
 
         /// @name Recording methods
@@ -280,25 +288,27 @@ namespace GameWIP::TestSupport
             std::string_view expectedSubstring,
             std::source_location location = std::source_location::current());
 
-        /// @brief Expects a text file to contain expectedSubstring.
+        /// @brief Expects `fileContains(path, expectedSubstring)` to succeed.
         /// @param name Check name written into the report.
         /// @param path Text file to read.
-        /// @param expectedSubstring Substring that must appear in the file.
+        /// @param expectedSubstring Substring that must appear in the helper's returned text. An empty substring inherits `fileContains()` ambiguity.
         /// @param location Source location attached when the expectation fails.
-        /// @return True when the file can be read and contains expectedSubstring.
+        /// @return True when `fileContains()` returns true.
+        /// @note Use `fileExists()` or a detailed I/O API when existence/readability is a separate requirement.
         [[nodiscard]] bool expectFileContains(
             std::string_view name,
             const std::filesystem::path &path,
             std::string_view expectedSubstring,
             std::source_location location = std::source_location::current());
 
-        /// @brief Expects a text file to contain text exactly expectedCount times.
+        /// @brief Expects `countFileOccurrences(path, text)` to equal expectedCount.
         /// @param name Check name written into the report.
         /// @param path Text file to read.
         /// @param text Non-overlapping substring to count. Empty text counts as zero.
         /// @param expectedCount Required occurrence count.
         /// @param location Source location attached when the expectation fails.
-        /// @return True when the observed occurrence count equals expectedCount.
+        /// @return True when the helper's observed count equals expectedCount.
+        /// @note A zero count does not distinguish no matches from missing or unreadable input.
         [[nodiscard]] bool expectFileOccurrenceCount(
             std::string_view name,
             const std::filesystem::path &path,
@@ -311,6 +321,7 @@ namespace GameWIP::TestSupport
         /// @{
 
         /// @brief Returns the suite name copied at construction.
+        /// @return Object-owned reference valid until this Context is destroyed.
         [[nodiscard]] const std::string &suiteName() const noexcept;
         /// @brief Returns a thread-safe snapshot of current counts.
         [[nodiscard]] Types::Summary result() const noexcept;
@@ -332,23 +343,29 @@ namespace GameWIP::TestSupport
         void writeFailureLine(std::string_view name, std::string_view reason, const std::source_location &location);
     };
 
-    /// @brief Runs named suites and aggregates one unified report.
-    /// Thread-safety: runner recording methods serialize aggregate summary updates and report writes.
+    /// @brief Runs named suites and aggregates one shared report.
+    ///
+    /// Aggregate updates and report-sink access are serialized. Concurrent suite completion order
+    /// is not deterministic; `result()` contains only suites that have completed.
     class Runner
     {
     public:
         /// @brief Creates a runner with one shared report sink.
         explicit Runner(Types::ReportOptions options);
+        /// @brief Releases the runner's ownership of its shared report sink.
         ~Runner();
 
+        /// @brief Runner owns synchronization and one shared report sink and is not copyable.
         Runner(const Runner &) = delete;
+        /// @brief Runner owns synchronization and one shared report sink and is not copy-assignable.
         Runner &operator=(const Runner &) = delete;
 
-        /// @brief Runs a named suite and catches uncaught exceptions as failures.
-        /// @tparam SuiteFunction Callable that accepts `Context&` or accepts no arguments.
-        /// @param suiteName Display name written into report lines and the returned result.
+        /// @brief Runs a named suite and converts an uncaught suite exception into one failed check.
+        /// @tparam SuiteFunction Callable that accepts `Context&` or accepts no arguments. The `Context&` form is selected when both are viable.
+        /// @param suiteName Display name copied into report lines and the returned result.
         /// @param function Suite function to execute.
-        /// @return Per-suite result, including counts and elapsed time.
+        /// @return Per-suite result, including counts and elapsed time, after it has been added to the aggregate.
+        /// @note Exceptions thrown while recording the converted failure or final result can still propagate.
         template <typename SuiteFunction> Types::SuiteResult runSuite(std::string_view suiteName, SuiteFunction &&function);
 
         /// @brief Writes a run-level informational line.
@@ -362,7 +379,8 @@ namespace GameWIP::TestSupport
         [[nodiscard]] Types::Summary result() const noexcept;
         /// @brief Returns result().ok().
         [[nodiscard]] bool ok() const noexcept;
-        /// @brief Returns zero when ok(), otherwise one.
+        /// @brief Returns zero when no failures have been recorded, otherwise one.
+        /// @note An empty or skipped-only run returns zero; report-file health is not reflected.
         [[nodiscard]] int exitCode() const noexcept;
 
     private:
@@ -374,6 +392,7 @@ namespace GameWIP::TestSupport
     };
 
     /// @brief RAII helper that reports a named section and its elapsed time.
+    /// @note The referenced Context must outlive the Section. Section reporting does not affect result counts.
     class Section
     {
     public:
@@ -381,10 +400,13 @@ namespace GameWIP::TestSupport
         /// @param context Context that receives section info and metric lines.
         /// @param name Section display name copied by the helper.
         Section(Context &context, std::string_view name);
-        /// @brief Reports section duration.
+        /// @brief Attempts to report section duration.
+        /// @note Formatting or reporting failures are suppressed because the destructor cannot throw.
         ~Section() noexcept;
 
+        /// @brief Section owns a context reference and is not copyable.
         Section(const Section &) = delete;
+        /// @brief Section owns a context reference and is not copy-assignable.
         Section &operator=(const Section &) = delete;
 
     private:
@@ -399,24 +421,29 @@ namespace GameWIP::TestSupport
 
     /// @brief Owns one unique directory under the operating-system temporary directory.
     ///
-    /// The directory and all contents are removed when the object is destroyed. This is intended
-    /// for test files that must not escape into a repository or build directory.
-    /// Failure behavior: construction throws on setup failure; destruction performs best-effort
-    /// cleanup and suppresses filesystem errors so teardown cannot replace the test outcome.
+    /// The non-copyable, non-movable guard removes its complete tree at destruction. Construction
+    /// uses a sanitized readable purpose plus bounded collision retries. Destruction is best effort;
+    /// locked resources, external activity, or abnormal process termination can leave artifacts.
     class ScopedTemporaryDirectory
     {
     public:
         /// @brief Creates a unique temporary directory using purpose as its readable name prefix.
         /// @throws std::filesystem::filesystem_error when the temporary root cannot be resolved or created.
         explicit ScopedTemporaryDirectory(std::string_view purpose = "test");
+        /// @brief Best-effort removes the owned directory tree and empty GameWIP temp parents.
         ~ScopedTemporaryDirectory() noexcept;
 
+        /// @brief Temporary-directory ownership cannot be copied.
         ScopedTemporaryDirectory(const ScopedTemporaryDirectory &) = delete;
+        /// @brief Temporary-directory ownership cannot be copy-assigned.
         ScopedTemporaryDirectory &operator=(const ScopedTemporaryDirectory &) = delete;
+        /// @brief Temporary-directory ownership cannot be moved.
         ScopedTemporaryDirectory(ScopedTemporaryDirectory &&) = delete;
+        /// @brief Temporary-directory ownership cannot be move-assigned.
         ScopedTemporaryDirectory &operator=(ScopedTemporaryDirectory &&) = delete;
 
         /// @brief Returns the owned temporary directory path.
+        /// @return Object-owned reference valid until this guard is destroyed.
         [[nodiscard]] const std::filesystem::path &path() const noexcept;
 
     private:
@@ -425,65 +452,78 @@ namespace GameWIP::TestSupport
     };
 
     /// @brief Temporarily changes the process working directory and restores it on destruction.
-    /// Thread-safety: the working directory is process-global; do not overlap scopes or use this
-    /// helper while unrelated threads resolve relative paths.
-    /// Failure behavior: construction throws on setup failure; destruction performs a best-effort
-    /// restore and suppresses filesystem errors.
+    ///
+    /// The current directory is process-global. Safe use requires strict LIFO scope ownership and
+    /// no unrelated relative-path resolution or direct current-directory mutation. Construction
+    /// throws on setup failure; destruction performs a best-effort restore and suppresses errors.
     class ScopedCurrentPath
     {
     public:
         /// @brief Stores the current working directory and changes it to path.
         /// @throws std::filesystem::filesystem_error when the current directory cannot be read or changed.
         explicit ScopedCurrentPath(const std::filesystem::path &path);
+        /// @brief Best-effort restores the captured working directory.
         ~ScopedCurrentPath() noexcept;
 
+        /// @brief Process-global current-directory ownership cannot be copied.
         ScopedCurrentPath(const ScopedCurrentPath &) = delete;
+        /// @brief Process-global current-directory ownership cannot be copy-assigned.
         ScopedCurrentPath &operator=(const ScopedCurrentPath &) = delete;
+        /// @brief Process-global current-directory ownership cannot be moved.
         ScopedCurrentPath(ScopedCurrentPath &&) = delete;
+        /// @brief Process-global current-directory ownership cannot be move-assigned.
         ScopedCurrentPath &operator=(ScopedCurrentPath &&) = delete;
 
         /// @brief Returns the working directory that will be restored.
+        /// @return Object-owned reference valid until this guard is destroyed.
         [[nodiscard]] const std::filesystem::path &previousPath() const noexcept;
 
     private:
         std::filesystem::path previousPath_;
     };
 
-    /// @brief Reads an entire text file, returning empty text when it cannot be opened.
+    /// @brief Reads one file in binary mode through a single whole-file convenience operation.
     /// @param path Text file path.
-    /// @return Full file contents, or empty text on open failure.
+    /// @return Read bytes, or empty text for an empty file, open failure, or non-positive initial size.
+    /// @note The function performs no encoding, BOM, or newline conversion and cannot distinguish its empty-result cases.
+    /// @note A short stream read returns the bytes actually read; standard path, allocation, length, or stream exceptions may propagate.
     [[nodiscard]] std::string readTextFile(const std::filesystem::path &path);
 
-    /// @brief Writes a text file and creates parent directories as needed.
+    /// @brief Creates parent directories and writes one file in binary truncate mode.
     /// @param path Text file path.
-    /// @param text Contents written to the file.
-    /// Failure behavior: throws std::runtime_error when the file cannot be opened or written.
+    /// @param text Bytes written unchanged; no encoding or newline conversion is performed.
+    /// @throws std::filesystem::filesystem_error when parent-directory creation fails.
+    /// @throws std::runtime_error when the file cannot be opened or written.
+    /// @throws std::exception Standard path, allocation, length, or stream exceptions may also propagate.
     void writeTextFile(const std::filesystem::path &path, std::string_view text);
 
-    /// @brief Returns true when path exists.
+    /// @brief Queries whether path exists without throwing filesystem errors.
     /// @param path File or directory path.
-    /// @return True when the filesystem reports that path exists.
+    /// @return True when the filesystem reports that path exists; false for missing paths and query errors.
     [[nodiscard]] bool fileExists(const std::filesystem::path &path) noexcept;
 
-    /// @brief Returns true when a text file contains text.
+    /// @brief Searches the bytes returned by `readTextFile()` after an existence query.
     /// @param path Text file to read.
-    /// @param text Substring to search for.
-    /// @return True when text appears in the file contents.
+    /// @param text Substring to search for. An empty substring succeeds for any existing path whose read returns empty text.
+    /// @return True when path exists and text appears in the helper's returned bytes.
+    /// @note Open/read failure is not distinguishable from empty content.
     [[nodiscard]] bool fileContains(const std::filesystem::path &path, std::string_view text);
 
-    /// @brief Counts non-overlapping occurrences of text in a text file.
+    /// @brief Counts non-overlapping occurrences in the bytes returned by `readTextFile()`.
     /// @param path Text file to read.
     /// @param text Substring to count. Empty text returns zero.
     /// @return Number of non-overlapping occurrences.
+    /// @note Zero also represents missing/unreadable input and no matches.
     [[nodiscard]] std::size_t countFileOccurrences(const std::filesystem::path &path, std::string_view text);
 
     /// @brief Creates a directory tree when path is non-empty.
-    /// @param path Directory path to create.
+    /// @param path Directory path to create; an empty path is a no-op.
+    /// @throws std::filesystem::filesystem_error when creation fails.
     void createDirectories(const std::filesystem::path &path);
 
-    /// @brief Removes a file or directory tree when it exists.
+    /// @brief Best-effort removes a file or complete directory tree.
     /// @param path File or directory tree to remove.
-    /// @note Removal errors are intentionally ignored for cleanup convenience in tests.
+    /// @note All removal errors are intentionally suppressed for cleanup convenience.
     void removeIfExists(const std::filesystem::path &path);
     /// @}
 
@@ -491,23 +531,31 @@ namespace GameWIP::TestSupport
     /// @{
 
     /// @brief Temporarily sets an environment variable and restores the previous state on destruction.
-    /// Thread-safety: process environment mutation is serialized inside this library. Other process environment access is still process-global.
+    ///
+    /// TestSupport serializes each mutation/restoration operation, not the guard lifetime. The
+    /// process environment remains global, and other environment APIs do not participate in that
+    /// serialization. On Win32, an empty value follows `_wputenv_s` removal semantics.
     class ScopedEnvironmentVariable
     {
     public:
         /// @brief Sets name to value and stores the previous value, if any.
         /// @param name Environment variable name.
-        /// @param value Temporary value visible to `std::getenv()` and child processes.
-        /// @throws std::invalid_argument for an invalid name or invalid UTF-8 text.
-        /// @throws std::runtime_error when the environment cannot be changed.
+        /// @param value Temporary UTF-8 value visible to `std::getenv()` and child processes. An empty value removes the variable on Win32.
+        /// @throws std::invalid_argument for an empty/invalid name, embedded null, or invalid UTF-8 text.
+        /// @throws std::length_error when conversion input exceeds the Win32 limit.
+        /// @throws std::runtime_error when conversion or environment mutation fails.
         ScopedEnvironmentVariable(std::string_view name, std::string_view value);
         /// @brief Best-effort restores the previous value or unsets name when it was previously missing.
         ~ScopedEnvironmentVariable() noexcept;
 
+        /// @brief Process-global environment ownership cannot be copied.
         ScopedEnvironmentVariable(const ScopedEnvironmentVariable &) = delete;
+        /// @brief Process-global environment ownership cannot be copy-assigned.
         ScopedEnvironmentVariable &operator=(const ScopedEnvironmentVariable &) = delete;
 
+        /// @brief Process-global environment ownership cannot be moved.
         ScopedEnvironmentVariable(ScopedEnvironmentVariable &&) = delete;
+        /// @brief Process-global environment ownership cannot be move-assigned.
         ScopedEnvironmentVariable &operator=(ScopedEnvironmentVariable &&) = delete;
 
     private:
@@ -521,16 +569,21 @@ namespace GameWIP::TestSupport
     public:
         /// @brief Unsets name and stores the previous value, if any.
         /// @param name Environment variable name to unset temporarily.
-        /// @throws std::invalid_argument for an invalid name or invalid UTF-8 text.
-        /// @throws std::runtime_error when the environment cannot be changed.
+        /// @throws std::invalid_argument for an empty/invalid name, embedded null, or invalid UTF-8 text.
+        /// @throws std::length_error when conversion input exceeds the Win32 limit.
+        /// @throws std::runtime_error when conversion or environment mutation fails.
         explicit ScopedUnsetEnvironmentVariable(std::string_view name);
         /// @brief Best-effort restores the previous value or leaves name unset when it was previously missing.
         ~ScopedUnsetEnvironmentVariable() noexcept;
 
+        /// @brief Process-global environment ownership cannot be copied.
         ScopedUnsetEnvironmentVariable(const ScopedUnsetEnvironmentVariable &) = delete;
+        /// @brief Process-global environment ownership cannot be copy-assigned.
         ScopedUnsetEnvironmentVariable &operator=(const ScopedUnsetEnvironmentVariable &) = delete;
 
+        /// @brief Process-global environment ownership cannot be moved.
         ScopedUnsetEnvironmentVariable(ScopedUnsetEnvironmentVariable &&) = delete;
+        /// @brief Process-global environment ownership cannot be move-assigned.
         ScopedUnsetEnvironmentVariable &operator=(ScopedUnsetEnvironmentVariable &&) = delete;
 
     private:
@@ -561,31 +614,34 @@ namespace GameWIP::TestSupport
             /// @brief Command-line arguments passed after executablePath.
             std::vector<std::string> arguments;
 
-            /// @brief Environment overrides and unsets applied to the child.
+            /// @brief Environment overrides/unsets applied in vector order; later duplicate names win.
             std::vector<EnvironmentVariable> environment;
 
-            /// @brief Maximum time to wait before terminating the child.
+            /// @brief Wait before TestSupport begins termination. Negative waits indefinitely; zero polls immediately.
+            /// @note Cleanup and output-reader shutdown can extend total call duration beyond this value.
             std::chrono::milliseconds timeout{5000};
 
-            /// @brief Captures stdout and stderr into ChildProcessResult::output when true.
+            /// @brief Routes stdout and stderr to one combined capture pipe when true.
             bool captureOutput = true;
             /// @brief Retained capture limit; excess bytes are drained and discarded. Zero retains nothing.
             std::size_t maxCapturedOutputBytes = kDefaultMaxCapturedOutputBytes;
-            /// @brief Starts from the parent environment before applying environment overrides when true.
+            /// @brief Copies the parent environment before overrides; false starts from an otherwise empty block.
             bool inheritParentEnvironment = true;
         };
 
         /// @brief Result of one child-process execution.
         struct ChildProcessResult
         {
-            /// @brief Process exit code, or -1 when the process could not be launched or inspected.
+            /// @brief Native process exit code narrowed to int, or -1 for launch/setup/wait/inspection/capture infrastructure failure.
+            /// @warning On Win32, native codes above INT_MAX are not represented faithfully and 0xffffffff collides
+            /// with the -1 infrastructure sentinel.
             int exitCode = 0;
-            /// @brief True when timeout expired before the child exited.
+            /// @brief True when the configured wait expired before normal process completion.
             bool timedOut = false;
-            /// @brief True when the TestSupport library terminated the child after timeout.
+            /// @brief True when TestSupport requested primary-process termination during timeout or failure handling.
             bool wasTerminatedByTest = false;
 
-            /// @brief Captured stdout/stderr text when ChildProcessOptions::captureOutput is true.
+            /// @brief Retained combined stdout/stderr bytes when capture is enabled; no UTF-8 validation is performed.
             std::string output;
             /// @brief True when capture stayed active but discarded bytes beyond the retained limit.
             bool outputTruncated = false;
@@ -612,25 +668,29 @@ namespace GameWIP::TestSupport
     /// @name Child-process and manual-check helpers
     /// @{
 
-    /// @brief Runs one child process.
-    /// @param options Launch path, arguments, environment, timeout, and capture settings.
-    /// @return Exit, timeout, termination, and optional output details.
+    /// @brief Launches one process directly without a shell and waits for its process tree to finish or be terminated.
+    /// @param options Launch path, arguments, environment, timeout, and combined-output capture settings.
+    /// @return Exit, timeout, termination, and optional raw output details. `exitCode == -1` reports TestSupport infrastructure failure.
+    /// @note The child inherits the parent working directory. Timeout is not a strict total-duration deadline.
+    /// @warning Win32 exit codes above INT_MAX are narrowed to int; 0xffffffff is indistinguishable from the -1 infrastructure sentinel.
     /// @throws std::invalid_argument when a path, argument, environment name, or environment value contains invalid process text.
     /// @throws std::length_error when UTF-8 input exceeds the platform conversion limit.
     /// @throws std::runtime_error when platform text conversion fails unexpectedly.
     [[nodiscard]] Types::ChildProcessResult runChildProcess(const Types::ChildProcessOptions &options);
 
-    /// @brief Prompts the user for a manual yes/no/skipped check.
-    /// Blocking behavior: blocks on standard input when the process has an interactive input stream.
+    /// @brief Repeatedly prompts for a recognized yes/no/skip line.
     /// @param question Prompt text shown to the user.
-    /// @return Manual answer selected by the user, or Types::ManualAnswer::Skipped on EOF.
+    /// @return Selected answer, or `Skipped` on EOF.
+    /// @note The function can block indefinitely, does not trim whitespace, and does not repair failed stream state.
+    /// @throws std::ios_base::failure when standard streams are configured to throw.
     Types::ManualAnswer promptManualCheck(std::string_view question);
     /// @}
 
     /// @name Stress helpers
     /// @{
 
-    /// @brief Gate that blocks worker threads until opened.
+    /// @brief One-shot gate that blocks workers until opened.
+    /// @note `open()` is idempotent; current and future waiters pass after opening and the gate cannot be reset.
     class StartGate
     {
     public:
@@ -645,7 +705,8 @@ namespace GameWIP::TestSupport
         bool open_ = false;
     };
 
-    /// @brief Atomic stop flag for stress workers.
+    /// @brief One-way atomic cooperative-stop flag.
+    /// @note `requestStop()` uses release ordering, `stopRequested()` uses acquire ordering, and there is no reset operation.
     class StopFlag
     {
     public:
@@ -658,12 +719,15 @@ namespace GameWIP::TestSupport
         std::atomic<bool> stopRequested_{false};
     };
 
-    /// @brief Starts workerCount threads, joins them, and rethrows the first worker exception.
-    /// @tparam WorkerFunction Copy-constructible callable that accepts `std::size_t` worker index or accepts no arguments.
-    /// @param workerCount Number of worker threads to start.
-    /// @param workerFunction Prototype callable copied once into each worker thread.
-    /// @note All started workers are joined before any captured exception is rethrown.
-    /// @note Each worker receives its own callable copy, so mutable callable state is not shared between workers.
+    /// @brief Starts workerCount threads, joins every started thread, and rethrows one captured failure.
+    /// @tparam WorkerFunction Copy-constructible callable that accepts `std::size_t` or no arguments.
+    /// The indexed form is selected when both are viable.
+    /// @param workerCount Number of workers; zero starts no threads.
+    /// @param workerFunction Prototype callable copied into each worker.
+    /// @note Callable objects are separate, but captured references, pointers, and shared objects remain shared.
+    /// @note Worker exceptions do not stop peers; one scheduling-dependent exception is rethrown after all joins.
+    /// @note Startup allocation/thread/copy failure joins already-started workers before rethrowing.
+    /// Coordination must tolerate a partially started set.
     template <typename WorkerFunction> void runWorkers(std::size_t workerCount, WorkerFunction &&workerFunction);
     /// @}
 

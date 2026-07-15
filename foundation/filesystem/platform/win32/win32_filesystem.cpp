@@ -2313,6 +2313,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             return IO::makeStatus(ErrorCode::SizeLimitExceeded);
         }
 
+        // Preserve the caller's position when possible; a shrink below it naturally leaves the native pointer at the new end.
         const IO::Types::PositionResult originalPosition = state.appendMode ? IO::Types::PositionResult{} : filePosition(state);
 
         LARGE_INTEGER target{};
@@ -2368,6 +2369,7 @@ namespace GameWIP::FileSystem::Detail::Platform
                 return {.status = makeWin32Status(error, ErrorCode::LockFailed)};
             }
 
+            // The lock must own an independent handle so it can remain valid after the originating public wrapper is destroyed.
             HANDLE duplicatedHandleRaw = INVALID_HANDLE_VALUE;
             if (DuplicateHandle(
                     GetCurrentProcess(),

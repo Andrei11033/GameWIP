@@ -40,6 +40,23 @@ if(GAMEWIP_BUILD_DOCS)
         "${PROJECT_SOURCE_DIR}/docs/roadmap.md"
         "${PROJECT_SOURCE_DIR}/docs/versioning.md"
         "${PROJECT_SOURCE_DIR}/docs/vision.md"
+
+        # Executable-owned source interfaces are documented for contributors and
+        # maintainers. They are not installed consumer APIs.
+        "${PROJECT_SOURCE_DIR}/game/runtime/game.h"
+        "${PROJECT_BINARY_DIR}/generated/gamewip/version.h"
+        "${PROJECT_SOURCE_DIR}/game/validation/types.h"
+        "${PROJECT_SOURCE_DIR}/game/validation/validation.h"
+        "${PROJECT_SOURCE_DIR}/game/validation/benchmarks/runner.h"
+        "${PROJECT_SOURCE_DIR}/game/validation/tests/runner.h"
+        "${PROJECT_SOURCE_DIR}/game/validation/tests/registry.h"
+        "${PROJECT_SOURCE_DIR}/game/validation/tests/assert/assert_test.h"
+        "${PROJECT_SOURCE_DIR}/game/validation/tests/filesystem/filesystem_test.h"
+        "${PROJECT_SOURCE_DIR}/game/validation/tests/io/io_test.h"
+        "${PROJECT_SOURCE_DIR}/game/validation/tests/logger/logger_test.h"
+        "${PROJECT_SOURCE_DIR}/game/validation/tests/runner/runner_test.h"
+        "${PROJECT_SOURCE_DIR}/game/validation/tests/terminal/terminal_test.h"
+        "${PROJECT_SOURCE_DIR}/game/validation/tests/test_support/test_support_test.h"
     )
 endif()
 

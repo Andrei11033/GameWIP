@@ -22,6 +22,8 @@ namespace GameWIP::Validation::Benchmarks
 
     BenchmarkResult run(int argc, char **argv, bool embedded)
     {
+        // Embedded startup runs share GameWIP's command line, so only Google
+        // Benchmark-owned switches are forwarded to benchmark::Initialize().
         std::vector<std::string> arguments;
         arguments.emplace_back(argc > 0 && argv[0] != nullptr ? argv[0] : "GameWIPBenchmarks");
         for (int index = 1; index < argc; ++index)
@@ -32,6 +34,8 @@ namespace GameWIP::Validation::Benchmarks
             }
         }
 
+        // Keep the strings alive while exposing mutable argv-style pointers;
+        // benchmark::Initialize() follows the traditional int*/char** contract.
         std::vector<char *> argumentPointers;
         argumentPointers.reserve(arguments.size());
         for (std::string &argument : arguments)

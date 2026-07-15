@@ -1,41 +1,51 @@
 @page terminal_control_primitives Terminal control primitives
 
-Primitive controls are implemented for Windows real console output streams when the backend can enable virtual terminal processing. Detached, redirected, or unsupported streams return explicit status failures for controls that cannot run.
+Terminal exposes low-level cursor, screen, title, bell, and alternate-screen operations. They are building blocks for higher-level tools, not a widget, layout, prompt, menu, progress, mouse, keyboard-event, or terminal-session framework.
 
-## Scope
+Controls require a supported terminal endpoint. Redirected, detached, and unclassified endpoints commonly return `Unsupported` or `NotOpen`.
 
-Terminal controls are low-level terminal primitives. They exist because higher-level tools need a stable foundation for basic terminal state changes.
+## Cursor movement and position
 
-These controls do not make Terminal a widget, layout, prompt, menu, progress-bar, table, mouse, keyboard-event, terminal-session, or command framework.
+`moveCursor()` accepts `Up`, `Down`, `Left`, or `Right`. `setCursorPosition()` uses zero-based public coordinates even when the backend protocol is one-based.
 
-## Cursor position queries
+A zero movement or scroll amount emits no control sequence, but the operation can still honor a requested flush.
 
-`getCursorPosition(options)` uses stdout and stdin. `getCursorPosition(outputStream, responseStream, options)` selects both protocol endpoints explicitly. Queries may send a request to the output stream and consume a response from the selected input stream. Implementations serialize both endpoints and return `Unsupported` when a reliable query is unavailable. On Win32 real-console streams, the query does not consume input and `CursorPositionQueryOptions::timeout` does not cause a wait.
+`getCursorPosition()` can use an output endpoint for the query and an input endpoint for a protocol response. The current Win32 real-console backend answers directly without consuming stdin; its timeout therefore does not cause a wait.
 
-Absolute cursor positions are zero-based in the public API even when a backend protocol uses one-based coordinates.
+`saveCursorPosition()` and `restoreCursorPosition()` expose backend save/restore state. They are not specified as a stack: repeated saves may replace the previously saved position. Do not assume arbitrary nesting.
 
-The active backend validates control parameters before output. The Win32 VT backend limits movement and scroll parameters to 32767, zero-based absolute coordinates to 32766, and titles to 254 UTF-8 bytes. Other backends may expose different limits without changing the public types.
+## Clearing and scrolling
 
-## Temporary state
+`clear()` targets the whole visible screen, regions before/after the cursor, the screen plus scrollback where supported, or the current line and its regions. `scroll()` moves terminal content up or down.
 
-`CursorHiddenScope` is an RAII helper for temporary hidden-cursor states. Nested scopes on the same output stream emit one hide on the outer transition and one show after the final scope restores. Its destructor must not throw. Failed explicit restoration remains active and may be retried.
+The active backend validates parameters. The current Win32 VT path limits movement and scroll values to 32767 and zero-based absolute coordinates to 32766.
 
-`AlternateScreenScope` is nesting-safe per output stream and leaves alternate screen mode after the final active scope. Its destructor must not throw. Failed explicit leave remains active and may be retried.
+## Temporary cursor visibility
 
-Restore or leave nested scopes in reverse acquisition order. Use the manual visibility and alternate-screen functions when the state must outlive a lexical scope.
+`scopedCursorHidden()` returns a `CursorHiddenScope`. Nested active scopes on the same stream emit one hide at the outer transition and one show after the final scope restores.
 
-Do not mix manual visibility or alternate-screen transitions with active scopes for the same stream.
+The factory is `noexcept`. Inspect `status()` and `active()` because setup can fail. `restore()` is idempotent for an inactive scope; failed restoration leaves the scope active for retry. The destructor makes a best-effort non-throwing restore.
+
+## Alternate screen
+
+`scopedAlternateScreen()` follows the same status, nesting, retry, and destructor rules. Manual enter/leave functions are available when state must outlive one lexical scope.
+
+Do not mix manual visibility or alternate-screen transitions with active scopes for the same stream. Restore scopes in reverse acquisition order.
+
+## Scope move assignment
+
+`CursorHiddenScope` and `AlternateScreenScope` are movable and non-copyable. Move assignment first restores/leaves state currently owned by the destination. If that operation fails, the destination remains active and the source is not consumed.
 
 ## Title and bell
 
-Title output removes embedded escape and bell bytes so caller text cannot terminate the control sequence early.
+`setTitle()` accepts UTF-8. The current Win32 backend limits the title to 254 UTF-8 bytes and replaces all C0 control bytes plus DEL with spaces before constructing the control sequence.
 
-## Flush behavior
+`ringBell()` emits the terminal bell control. It cannot guarantee an audible sound; user and terminal settings decide the final effect.
 
-Terminal controls use `Types::ControlOptions`, which currently carries `IO::Types::FlushMode`.
+## Flush and failure behavior
 
-Unsupported controls return `IO::Types::ErrorCode::Unsupported`. Expected backend failures are reported through `IO::Types::Status`.
+Controls use `ControlOptions::flushMode`. Invalid values are rejected before normal emission. A requested flush reaches the operating system only where the endpoint supports a meaningful flush.
 
-Unknown flush modes return `InvalidArgument` before a control sequence is written. On Win32, a requested flush reaches the operating system only for output redirected to a regular disk file; console and pipe output have no Terminal-owned pending buffer and treat the request as a successful no-op.
+A failed control write can already have emitted a prefix. Status reports completion, not rollback.
 
-A failed control write may already have emitted a prefix of its encoded sequence. Control statuses report completion, not transactional rollback.
+See @ref terminal_capabilities_and_redirection and @ref terminal_styling.

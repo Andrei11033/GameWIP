@@ -1,5 +1,8 @@
 /// @file terminal_test.cpp
 /// @brief Executable self-tests for the Terminal library.
+///
+/// The suite combines backend hooks, redirected and console-like endpoints,
+/// reentrant child execution, state restoration, and opt-in manual UI checks.
 
 #include "validation/tests/terminal/terminal_test.h"
 

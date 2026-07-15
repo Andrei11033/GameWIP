@@ -23,6 +23,8 @@ Start the Tracy profiler, then run the profiling build:
 
 Use a representative scenario. A capture of an empty or artificial run is rarely useful evidence for optimization decisions.
 
+As currently defined, `profiling` inherits development startup validation, so the default capture includes the validation suites before runtime. For a runtime-only capture, configure the preset with `-DGAMEWIP_RUN_TESTS_AT_STARTUP=OFF` before building; keep a separate validation run as correctness evidence.
+
 ## Build controls
 
 The `profiling` preset enables `GAMEWIP_ENABLE_TRACY=ON` and inherits the development build configuration.

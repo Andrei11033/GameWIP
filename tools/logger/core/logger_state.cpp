@@ -1,5 +1,5 @@
 /// @file logger_state.cpp
-/// @brief Logger shared state, configuration factories, stats snapshots, and lifecycle operations.
+/// @brief Process-wide Logger state, configuration sanitization, lifecycle transitions, and diagnostic snapshots.
 
 #include "logger/internal/logger_core.h"
 
@@ -858,9 +858,10 @@ LoggerResult GameWIP::Logger::initFile(std::string_view directory, Types::Level 
     return init(config);
 }
 
-/// @brief Initializes the async logger and starts its worker thread.
-/// @param config Startup configuration.
-/// @return Success or the first non-fatal setup/configuration result.
+/// @brief Applies sanitized configuration and starts the asynchronous worker when effective output requires it.
+/// @param config Startup configuration whose referenced views/spans are copied before return.
+/// @return Success or the first validation/setup diagnostic; recoverable sanitization or sink fallback
+/// can return non-success while Logger remains usable.
 LoggerResult GameWIP::Logger::init(const Types::Config &config)
 {
     std::lock_guard<std::mutex> lifecycleLock(loggerState().lifecycleMutex);

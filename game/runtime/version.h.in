@@ -8,6 +8,7 @@
 
 #include <string_view>
 
+/// @brief Configure-time project identity exposed to the GameWIP executable.
 namespace GameWIP::Version
 {
     /// @brief Numeric project version used by package and build metadata.
@@ -20,7 +21,7 @@ namespace GameWIP::Version
     inline constexpr std::string_view buildNumber = "@GAMEWIP_VERSION_BUILD_NUMBER@";
     /// @brief Git commit recorded at configure time, when available.
     inline constexpr std::string_view gitCommit = "@GAMEWIP_VERSION_GIT_COMMIT@";
-    /// @brief True when configure-time metadata detected uncommitted source changes.
+    /// @brief True when configure-time metadata detected tracked worktree modifications.
     inline constexpr bool dirty = std::string_view{"@GAMEWIP_VERSION_DIRTY_CPP@"} == "true";
     /// @brief True when the configured build is marked as a release build.
     inline constexpr bool release = std::string_view{"@GAMEWIP_VERSION_RELEASE_CPP@"} == "true";

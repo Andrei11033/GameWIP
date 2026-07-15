@@ -1,33 +1,42 @@
 @page filesystem_testing FileSystem maintainer validation
 
-@note This page is for maintainers. It describes proof coverage and environment requirements, not supported consumer API.
+@note This page describes proof coverage and environment requirements, not installed consumer API.
 
-## Compile-time and normal coverage
+## Focused validation
 
-The focused FileSystem suite covers:
+The FileSystem module covers:
 
-- result and option types, default values, and move-only handle/lock ownership;
-- entry predicates, metadata, canonicalization, and UTF-8 path conversion;
-- whole-file helpers and explicit reader/writer handles;
-- creation, enumeration, mutation, copy, move, and removal;
-- open/share/replace policies and partial IO progress;
-- atomic replacement, invalid temporary prefixes, flush requests, and cleanup;
-- shared/exclusive lock acquisition, contention, explicit unlock, and cleanup.
+- option/result defaults and move-only resource ownership;
+- predicates, metadata, path operations, canonicalization, and UTF-8 conversion;
+- whole-file helpers and explicit handles, including partial progress;
+- create, list, resize, copy, move, remove, and tree-removal limits;
+- open modes, sharing, replacement, append, and flush behavior;
+- atomic replacement, prefix validation, durability requests, and cleanup;
+- shared/exclusive lock acquisition, contention, detached ownership, failed unlock, and destructor cleanup.
+
+Run the FileSystem-focused module through the project validation workflow documented by @ref project_testing.
 
 ## Symlink and backend coverage
 
-Symlink scenarios validate `DoNotFollow`, `FollowFinal`, and `FollowAll` for final and intermediate links. A host that cannot create symlinks records skips instead of failing unrelated validation. Complete proof therefore requires a Windows account with Developer Mode or create-symbolic-link privilege.
+Scenarios validate `DoNotFollow`, `FollowFinal`, and `FollowAll` for final and intermediate links. A host without symbolic-link creation capability records skips rather than failing unrelated coverage. Complete Windows proof therefore requires Developer Mode or create-symbolic-link privilege.
 
-Backend coverage exercises native path conversion, strict traversal, sharing, read-only metadata, lock behavior, directory flushing, and native error mapping. Internal backend declarations are documented in source comments rather than the consumer manual.
+Backend tests cover native path conversion, strict traversal, sharing, read-only metadata, directory cursors, lock ownership, directory flushing, and native error mapping.
+
+## Other validation boundaries
+
+Project validation also checks:
+
+- `filesystem/filesystem.h` as a self-contained public header;
+- exact-version installed-package consumption through `GameWIP::FileSystem`;
+- integration with Logger's file output and other consumers;
+- Doxygen warnings and page references.
 
 ## Test hooks
 
-@warning These hooks are supported source-tree maintainer interfaces. They are not installed and are not versioned consumer API.
+Use @ref filesystem_test_hooks for the source-tree-only failed-unlock hook and reset protocol.
 
-The GameWIP `validation` preset enables `FILESYSTEM_ENABLE_TEST_HOOKS`. Source-tree tests that link the short `FileSystem` target may include `filesystem/internal/filesystem_platform.h` and use its gated `Detail::Platform::TestHooks` declarations. The build-tree target supplies `INTERNAL_FILESYSTEM_TEST_HOOKS=1`; installed packages intentionally do not expose this internal contract.
+## Documentation validation
 
-## Documentation coverage
+The Doxygen warning log must be empty. Manual pages document portable observable behavior; backend-specific mechanics belong in internal source comments unless they define a consumer-visible constraint.
 
-Doxygen is part of validation because the public surface is large. The warning log must be empty, and generated pages must describe portable observable behavior rather than Win32 implementation mechanics.
-
-GameWIP owns module selection, CTest registration, reports, and generated output. See @ref project_testing and @ref project_documentation.
+See @ref project_documentation and @ref project_testing.

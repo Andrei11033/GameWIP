@@ -34,12 +34,17 @@ int main(int argc, char **argv)
     ZoneScopedN("GameWIP process");
 #endif
 
+    // Keep utility-only invocations independent from validation so packaging and
+    // smoke-test scripts can query metadata from any build configuration.
     if (requestsVersion(argc, argv))
     {
         std::puts(GameWIP::Version::productDisplay);
         return EXIT_SUCCESS;
     }
 
+    // Startup tests are allowed to consume child-process validation arguments.
+    // In that case the process must return the child route result directly and
+    // must not continue into benchmarks or the runtime.
     GameWIP::Validation::TestResult tests;
     {
 #if GAMEWIP_TRACY_ENABLED
@@ -56,6 +61,8 @@ int main(int argc, char **argv)
         return tests.exitCode == 0 ? EXIT_FAILURE : tests.exitCode;
     }
 
+    // Benchmarks run after correctness validation so startup measurements are not
+    // collected from a build whose reusable-library checks already failed.
     GameWIP::Validation::BenchmarkResult benchmarks;
     {
 #if GAMEWIP_TRACY_ENABLED

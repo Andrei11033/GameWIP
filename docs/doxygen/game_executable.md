@@ -1,122 +1,141 @@
 @page project_game_executable Game executable
 
-The `game/` tree owns the GameWIP executable boundary. It connects reusable libraries, optional startup validation, generated version metadata, and the current runtime facade into one process.
+The `game/` tree owns the GameWIP executable boundary. It connects generated build identity, optional startup validation, benchmark startup, and the current runtime facade into one process.
 
-This page explains the executable and integration layer. It does not replace the validation, testing, benchmarking, build, or library manuals.
+This page owns process startup and executable integration. Correctness-runner behavior is documented in @ref project_validation, test-module authoring in @ref project_testing, and benchmark behavior in @ref project_benchmarking.
 
 ## Scope
 
-Use this page when you need to understand or change:
+Use this page when changing:
 
-- The process entry point in `game/main.cpp`.
-- The runtime facade in `game/runtime/`.
-- Startup validation wiring.
-- Generated executable version metadata.
-- The distinction between executable integration code and reusable libraries.
-- Source-level documentation expectations for `game/` files.
-
-Validation module authoring is documented in @ref project_testing. Validation runner behavior is documented in @ref project_validation. Benchmark authoring is documented in @ref project_benchmarking.
+- `game/main.cpp` startup sequencing.
+- The executable-owned runtime facade in `game/runtime/`.
+- Generated version metadata and `--version` output.
+- The compile-time facade in `game/validation/validation.h`.
+- The boundary between executable integration code and reusable libraries.
 
 ## Source layout
 
 | Path | Purpose |
 | --- | --- |
 | `game/main.cpp` | Process entry point and startup sequencing. |
-| `game/runtime/` | Runtime facade entered after optional validation and benchmark startup phases. |
+| `game/runtime/game.h` | Source-tree runtime facade called after startup work succeeds. |
+| `game/runtime/game.cpp` | Current runtime implementation. |
 | `game/runtime/version.h.in` | Template for generated build and release identity. |
-| `game/validation/validation.h` | Compile-time facade that keeps `main.cpp` stable when validation is disabled. |
-| `game/validation/types.h` | Shared result types for embedded and standalone validation runners. |
-| `game/validation/tests/` | Correctness-test runner, module registry, standalone test executable, and test modules. |
-| `game/validation/benchmarks/` | Google Benchmark runner, standalone benchmark executable, and benchmark modules. |
-| `game/validation/public_headers/` | Compile-only checks for public header self-containment. |
+| `game/validation/validation.h` | Compile-time facade that keeps `main.cpp` stable when startup validation is disabled. |
+| `game/validation/types.h` | Result types shared by embedded and standalone validation runners. |
+| `game/validation/tests/` | Correctness runner, module registry, standalone executable, and modules. |
+| `game/validation/benchmarks/` | Google Benchmark runner, standalone executable, and benchmark modules. |
+| `game/validation/public_headers/` | Compile-only public-header self-containment checks. |
 | `game/validation/installed_consumer/` | Clean installed-package consumer check. |
 
 ## Runtime sequence
 
-`main.cpp` should remain small and predictable:
+`main.cpp` follows one process-level sequence:
 
-1. Handle process-level utility arguments such as `--version`.
-2. Run startup correctness validation when it is compiled into the executable.
-3. Return immediately when validation handles a child-process route.
-4. Return immediately when startup validation fails.
-5. Run startup benchmarks when they are compiled into the executable.
-6. Enter `GameWIP::Game::run()`.
+1. When the only user argument is `--version`, print `GameWIP::Version::productDisplay` and exit successfully.
+2. Run startup correctness validation when it was compiled into the executable.
+3. Return the validation child-route exit code immediately when `handledChildInvocation` is true.
+4. Stop startup when correctness validation fails.
+5. Run startup benchmarks when they were compiled into the executable.
+6. Stop startup when Google Benchmark rejects its arguments.
+7. Return the exit code from `GameWIP::Game::run()`.
 
-Startup validation and startup benchmarks are development-time features. Disabled startup validation should compile to inline no-op functions so the executable entry point does not need preprocessor branches around every validation call.
+Utility-only version queries intentionally bypass validation and runtime startup. A `--version` token combined with other arguments is not treated as the utility-only form.
+
+There is no process-wide exception boundary around startup validation, benchmark execution, or `GameWIP::Game::run()`. The correctness runner converts exceptions escaping module callbacks, but its outer setup/allocation work and the benchmark runner may still propagate. Runtime code should express expected startup or shutdown failures through its returned exit code. Any exception that reaches `main()` follows the language runtime's uncaught-exception behavior.
 
 ## Runtime facade
 
-`GameWIP::Game::run()` is the transition point from process startup into game runtime code. It is intentionally small while the engine-facing runtime is still evolving.
+`GameWIP::Game::run(int, char **)` is the executable-owned transition from startup wiring into runtime composition.
 
-Keep `main.cpp` focused on process startup. Put game runtime composition behind `GameWIP::Game::run()` or a more specific runtime component as the executable grows.
+- `argc` and `argv` are the original process arguments and are borrowed for the call.
+- The returned integer becomes the executable's process exit code.
+- The current implementation is intentionally a successful placeholder while runtime composition evolves.
+- Reusable behavior must remain in its owning foundation or tools library rather than accumulating behind this facade.
+
+Use @ref GameWIP::Game for the generated source API reference.
 
 ## Version metadata
 
-`game/runtime/version.h.in` generates `gamewip/version.h` during configuration. The generated header provides product display text, version number, build number, Git commit, dirty-state, and release-state metadata.
+CMake configures `game/runtime/version.h.in` into `gamewip/version.h` during project configuration and refreshes it before building the game executable.
 
-The executable may expose this metadata through process-level utility arguments such as `--version`. Version policy and release interpretation are documented in @ref project_versioning.
+@ref GameWIP::Version exposes:
 
-## Validation integration
+| Name | Meaning |
+| --- | --- |
+| `number` | Numeric project version. |
+| `display` | Human-readable release or development version. |
+| `productDisplay` | Complete product line printed by `--version`. |
+| `buildNumber` | Repository-derived build count or configured fallback. |
+| `gitCommit` | Configure-time abbreviated commit or fallback. |
+| `dirty` | Whether tracked source changes were detected at configuration time. |
+| `release` | Whether the build was configured from the expected clean annotated release tag. |
 
-`game/validation/validation.h` is the stable startup facade included by `main.cpp`. Depending on compile-time options, it either forwards to embedded validation runners or returns successful empty results.
+The values are configure-time metadata. A long-lived build tree must be reconfigured or rebuild the version-header target to observe newer repository state. Release interpretation is owned by @ref project_versioning.
 
-Standalone validation executables remain the normal CI and focused local workflow. Startup validation exists to make development builds fail before entering runtime code when enabled.
+## Startup validation facade
 
-See @ref project_validation for runner behavior and command-line flags.
+`game/validation/validation.h` is included unconditionally by `main.cpp`.
 
-## What belongs in `game/`
+- `GAMEWIP_STARTUP_TESTS_ENABLED` controls whether `runTests()` forwards to the correctness runner.
+- `GAMEWIP_STARTUP_BENCHMARKS_ENABLED` controls whether `runBenchmarks()` forwards to the benchmark runner.
+- Each macro defaults to `0` when the including target does not define it.
+- Disabled functions return successful empty results and do not retain runner dependencies.
 
-Use `game/` for executable integration code:
+These definitions are target-private composition controls, not installed configuration API. Use @ref GameWIP::Validation for the generated result and facade reference.
 
-- Process entry-point behavior.
-- Runtime composition.
-- Startup validation wiring.
-- Standalone validation and benchmark executables.
-- Public-header and installed-consumer boundary checks.
-- Game-facing adaptation that should not live in reusable libraries.
+## Source API boundary
 
-Move code into a reusable library when it becomes general-purpose, independently testable, and useful outside the executable.
+The generated manual includes the explicitly registered headers that connect `game/` components. They are documented source-tree interfaces for contributors and validation modules; they are not installed package APIs or long-term binary compatibility promises.
 
-## What should stay out of `game/`
+The documented namespaces are:
 
-Do not put reusable foundation or tooling behavior in `game/` only because the executable is the first consumer.
+- @ref GameWIP::Game for the runtime facade.
+- @ref GameWIP::Version for generated process identity.
+- @ref GameWIP::Validation for shared validation results and startup facade.
+- @ref GameWIP::Validation::Tests for correctness-runner and module-registration contracts.
+- @ref GameWIP::Validation::Benchmarks for benchmark-runner integration.
+- @ref GameWIP::Test for source-tree library self-test entry points and option types.
 
-In particular, avoid adding these to `game/`:
+Private helpers, module-local functions, and approved internal test seams remain implementation or maintainer interfaces and are not presented as installed consumer API.
 
-- File, terminal, logging, assertion, or validation-support behavior that belongs to an existing reusable library.
-- Platform backend code that belongs under an owning library's backend contract.
-- Library-specific examples or troubleshooting guidance.
-- Long-term engine systems that belong under `engine/` once that layer owns them.
-- Generic CMake infrastructure that belongs under `cmake/`.
+## Dependency boundary
+
+`game/` may compose reusable libraries, validation objects, Google Benchmark, Tracy instrumentation, and generated project metadata. It must not become the implementation owner for behavior that belongs to an existing library.
+
+Move code into a reusable library when it becomes general-purpose, independently testable, and useful outside the executable. Long-term engine systems belong under `engine/` when that layer owns them.
 
 ## Source comments
 
-`game/` is not an installed reusable library, but its headers and source files should still explain ownership and integration behavior clearly.
+Every important `.h`, `.cpp`, and generated-header template under `game/` starts with `@file` and `@brief` documentation.
 
-Use source comments to document:
+Source comments should explain:
 
-- File purpose.
-- Stable integration boundaries.
-- Startup sequencing.
-- Validation route handling.
+- Ownership and integration boundaries.
+- Startup and shutdown sequencing.
 - Compile-time disabled behavior.
-- Generated-file purpose.
-- Non-obvious module registration or child-process protocols.
+- Registration lifetime and module adaptation.
+- Child-process routing protocols.
+- Process-global or generated state.
+- Non-obvious validation and benchmark framework requirements.
 
-Do not document every local helper, obvious forwarding function, or simple compile-only include file beyond a short file-level purpose comment.
+Do not narrate simple assignments, forwarding calls, obvious test expectations, or compile-only includes beyond their file-level purpose.
 
-## Add or change checklist
+## Review checklist
 
-When changing executable or validation integration code:
+When changing executable integration:
 
 - Keep `main.cpp` small and sequencing-focused.
-- Keep reusable behavior in the owning library.
-- Keep validation disabled paths lightweight and dependency-free.
-- Update @ref project_validation when runner behavior or command-line flags change.
-- Update @ref project_testing when correctness-test authoring rules change.
-- Update @ref project_benchmarking when benchmark authoring or runner behavior changes.
-- Update @ref project_versioning when generated version metadata changes.
-- Add or update source comments when ownership or integration boundaries change.
+- Preserve utility-only version behavior.
+- Keep disabled validation paths dependency-free.
+- Return child-route results before benchmarks and runtime code.
+- Keep expected runtime failures representable as process exit codes.
+- Update @ref project_validation for runner or command-line changes.
+- Update @ref project_testing for test-module contract changes.
+- Update @ref project_benchmarking for benchmark-runner changes.
+- Update @ref project_versioning for generated identity changes.
+- Update registered source API comments when contracts change.
 
 ## Related pages
 
@@ -126,3 +145,4 @@ When changing executable or validation integration code:
 - @ref project_testing
 - @ref project_benchmarking
 - @ref project_versioning
+- @ref project_documentation

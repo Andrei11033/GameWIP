@@ -1,5 +1,5 @@
 /// @file logger_queue.cpp
-/// @brief Logger queue storage, enqueue/dequeue paths, and async worker loop.
+/// @brief Bounded MPSC queue storage, ordered publication, producer admission, and asynchronous worker draining.
 
 #include "logger/internal/logger_core.h"
 
@@ -241,6 +241,7 @@ namespace GameWIP::Logger::Detail::Core
     }
 
     /// @brief Publishes a filled or skip-marked slot and wakes the worker when it was sleeping.
+    /// @details Failed producers still publish a skip marker so ticket order cannot leave an unfillable hole that blocks every later record.
     /// @param slot Slot to publish.
     /// @param ticket Producer ticket for this slot.
     /// @param outNotifyWorker Receives true when publication may make the queue head drainable.

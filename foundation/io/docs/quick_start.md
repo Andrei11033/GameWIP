@@ -2,24 +2,20 @@
 
 ## Include
 
-Include the library's public header:
-
 ```cpp
 #include "io/io.h"
 ```
 
 ## Installed CMake
 
-Use the package's namespaced imported target:
+Set `GAMEWIP_REQUIRED_VERSION` from the consuming project's dependency lock; see @ref project_library_compatibility.
 
 ```cmake
-find_package(IO CONFIG REQUIRED)
+find_package(IO ${GAMEWIP_REQUIRED_VERSION} EXACT CONFIG REQUIRED)
 target_link_libraries(MyTarget PRIVATE GameWIP::IO)
 ```
 
 ## Source-tree CMake
-
-When IO is part of the same source tree, use its short build target:
 
 ```cmake
 target_link_libraries(MyTarget PRIVATE IO)
@@ -27,54 +23,86 @@ target_link_libraries(MyTarget PRIVATE IO)
 
 ## Minimal usage
 
-Read a caller-owned byte sequence through `MemoryReader`:
+The following example reads stable caller-owned text with a hard size limit, then writes a result to memory:
 
 ```cpp
 #include "io/io.h"
 
-#include <cstddef>
-#include <vector>
+#include <string>
 
-std::vector<std::byte> bytes{
-    std::byte{0x61},
-    std::byte{0x62},
-    std::byte{0x63}};
-
-GameWIP::IO::MemoryReader reader(bytes);
-GameWIP::IO::Types::ReadAllBytesResult result = GameWIP::IO::readAllBytes(reader);
-```
-
-Use `Status::ok()` for expected failures:
-
-```cpp
-if (!result.status.ok())
+int main()
 {
-    // Inspect result.status.code, GameWIP::IO::errorCodeName(result.status.code),
-    // result.status.nativeCode, and result.status.message.
+    std::string source = "jump=Space";
+    GameWIP::IO::MemoryReader reader(source);
+
+    constexpr std::uint64_t maximumConfigBytes = 16 * 1024;
+    GameWIP::IO::Types::ReadAllTextResult readResult =
+        GameWIP::IO::readAllText(reader, maximumConfigBytes);
+
+    if (!readResult.status.ok())
+    {
+        // readResult.text may contain bytes produced before the failure.
+        return 1;
+    }
+
+    GameWIP::IO::MemoryWriter writer;
+    GameWIP::IO::Types::WriteResult writeResult =
+        GameWIP::IO::writeAllText(writer, readResult.text);
+
+    if (!writeResult.status.ok())
+    {
+        // writeResult.bytesWritten reports total accepted progress.
+        return 1;
+    }
+
+    const std::string copy = writer.text();
+    return copy == source ? 0 : 1;
 }
 ```
 
-For text helpers, strings are treated as UTF-8 bytes. The IO layer does not validate or parse higher-level file formats.
+`MemoryReader` is non-owning. Its source must remain alive and at a stable address until the reader is no longer used. Direct construction from temporary `std::string` and `std::vector<std::byte>` objects is rejected, but caller-created dangling spans and string views cannot be detected.
+
+## Failure handling
+
+Expected I/O failures are returned through `Types::Status`:
 
 ```cpp
-GameWIP::IO::MemoryReader textReader("jump=Space");
-GameWIP::IO::Types::ReadAllTextResult text = GameWIP::IO::readAllText(textReader);
-```
+#include "io/io.h"
 
-Collect output with `MemoryWriter`:
+#include <cstdint>
+#include <string>
+#include <string_view>
 
-```cpp
-GameWIP::IO::MemoryWriter writer;
-GameWIP::IO::Types::WriteResult writeResult =
-    GameWIP::IO::writeAllText(writer, "hello");
-
-if (writeResult.status.ok())
+void inspectFailure(const GameWIP::IO::Types::Status& status)
 {
-    std::string collected = writer.text();
-    std::vector<std::byte> movedBytes = writer.takeBytes();
+    if (status.ok())
+    {
+        return;
+    }
+
+    const GameWIP::IO::Types::ErrorCode code = status.code;
+    const std::string_view name = GameWIP::IO::errorCodeName(code);
+    const std::int64_t nativeCode = status.nativeCode;
+    const std::string& detail = status.message;
+
+    // Send name, nativeCode, and detail to the application's diagnostic system.
+    static_cast<void>(name);
+    static_cast<void>(nativeCode);
+    static_cast<void>(detail);
 }
 ```
 
-`MemoryReader` is non-owning. Keep its source bytes alive and at a stable address while the reader is used. Direct construction from temporary `std::string` and vector storage is rejected.
+Treat the portable `ErrorCode` as the primary decision field. Native codes and messages are supplemental diagnostics and are not stable machine-readable interfaces.
 
-Use a finite `maxBytes` when reading untrusted or externally controlled streams. The limit is a hard accepted-size limit, not a truncation request.
+Read and write results may contain partial progress when the status is a failure. Preserve or discard that progress according to the calling operation's policy.
+
+Use a finite `maxBytes` for externally controlled input. The limit is a hard accepted-size limit, not a truncation request.
+
+## Where to go next
+
+- @ref io_public_api inventories the complete public surface and package boundary.
+- @ref io_reader_writer_contract defines transfer, lifetime, capability, and backend-extension rules.
+- @ref io_error_model explains status selection and partial failures.
+- @ref io_runtime_performance explains allocation and limit behavior.
+- @ref io_examples provides complete usage and backend examples.
+- @ref io_troubleshooting maps common symptoms to contract violations.

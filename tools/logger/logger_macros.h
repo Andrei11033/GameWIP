@@ -2,10 +2,10 @@
 /// @brief Optional lazy convenience macros for Logger.
 ///
 /// Include this header only when the global `LOGGER_*` shortcuts are wanted.
-/// The macros call `GameWIP::Logger::shouldLog(...)` before evaluating
-/// message/format arguments, so filtered log calls avoid expensive formatting
-/// and argument construction. The class API in `logger/logger.h` remains the
-/// primary public API.
+/// Active normal macros evaluate the source expression once, call
+/// `GameWIP::Logger::shouldLog(...)`, and evaluate message/format arguments only
+/// after that check passes. Compiled-out Trace/Debug macros evaluate no arguments.
+/// The namespace API in `logger/logger.h` remains the primary public API.
 
 #pragma once
 
@@ -14,8 +14,8 @@
 /// @cond INTERNAL_LOGGER_MACRO_DETAIL
 /// @def INTERNAL_LOGGER_LOG(levelValue, callName, sourceValue, ...)
 /// @brief Internal lazy logger macro body shared by the public `LOGGER_*` macros.
-/// @details Captures the source expression once and evaluates message/format arguments only after
-/// Logger::shouldLog() passes. Filtered logs are intentional skips and do not affect dropped-log counters.
+/// @details Evaluates and captures the source expression once, then evaluates message/format arguments only after
+/// Logger::shouldLog() passes. The called Logger function rechecks filters before queueing because filters may change concurrently.
 #define INTERNAL_LOGGER_LOG(levelValue, callName, sourceValue, ...) \
     do \
     { \
@@ -62,7 +62,8 @@
 #define LOGGER_FATAL(source, ...) INTERNAL_LOGGER_LOG(::GameWIP::Logger::Types::Level::Fatal, fatal, source, __VA_ARGS__)
 
 /// @def LOGGER_FATAL_TERMINATE(source, ...)
-/// @brief Logs Fatal, flushes, shows the fatal popup when enabled, then terminates the process.
+/// @brief Enters the synchronous fatal-report path and then calls std::terminate().
+/// @details This macro is not runtime-filtered and evaluates all arguments.
 #define LOGGER_FATAL_TERMINATE(source, ...) \
     do \
     { \

@@ -1,5 +1,8 @@
 /// @file test_support_test.cpp
 /// @brief Executable self-tests for the TestSupport library.
+///
+/// Coverage includes process-global guards, report sinks, child-process cleanup,
+/// manual prompts, temporary resources, and deterministic stress primitives.
 
 #include "validation/tests/test_support/test_support_test.h"
 

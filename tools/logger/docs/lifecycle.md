@@ -1,78 +1,77 @@
 @page logger_lifecycle Logger lifecycle
 
-Logger has one process-wide runtime instance. It is initialized, used from producer threads, flushed when needed, and shut down before exit.
+Logger owns one process-wide runtime instance. Public lifecycle operations are internally serialized with one another.
 
-## Startup functions
+## Initialization functions
 
 | API | Use when |
 | --- | --- |
-| `Logger::defaultConfig()` | Start from the normal configuration and customize fields. |
-| `Logger::lowMemoryConfig()` | Use smaller queue and message-memory defaults. |
-| `Logger::throughputConfig()` | Use larger queue and batch defaults for heavier logging. |
-| `Logger::init(config)` | Initialize from a complete custom configuration. |
-| `Logger::initDefault()` | Initialize with the default configuration without editing it. |
-| `Logger::initConsole(level)` | Initialize a console-only logger. |
-| `Logger::initFile(directory, level)` | Initialize a file-only logger. |
+| `defaultConfig()` | Start from the general-purpose preset and edit fields. |
+| `lowMemoryConfig()` | Prefer lower retained memory. |
+| `throughputConfig()` | Prefer larger bursts and retained storage. |
+| `init(config)` | Supply the complete configuration. |
+| `initDefault()` | Use `defaultConfig()` unchanged. |
+| `initConsole(level)` | Start console-only output. |
+| `initFile(directory, level)` | Request file-only output, with the default fallback policy. |
 
-Example:
+`init()` copies retained configuration state before returning. Caller-owned arrays behind `sources`, `sourceFilters`, and `levelFilters`, and text behind their `string_view` fields, need to remain valid only for the duration of the call.
 
-```cpp
-auto config = GameWIP::Logger::throughputConfig();
-config.minLevel = GameWIP::Logger::Types::Level::Debug;
-GameWIP::Logger::init(config);
-```
+Calling `init()` while a worker is already active returns `AlreadyRunning` and leaves that runtime unchanged.
 
-## Runtime state
+## Disabled configuration
 
-```cpp
-if (GameWIP::Logger::isRunning())
-{
-    const auto output = GameWIP::Logger::getOutput();
-    const auto path = GameWIP::Logger::getLogFilePath();
-}
-```
+`Output::None` is a valid configuration. Logger publishes the configuration and filters but does not allocate a queue or start a worker. `init()` may return `Success`, while `isRunning()` remains false because no normal asynchronous sink is active.
 
-Useful inspection APIs:
+`enableDebugOutput` and `enableFatalPopup` are separate channels; their APIs can still be used according to configuration even when normal output is `None`.
 
-- `getMinLevel()`
-- `getOutput()`
-- `getLogFilePath()`
-- `getQueueLimits()`
-- `getLastResult()`
-- `getLastPlatformError()`
+## Effective state
 
-## Flush and shutdown
+| API | Meaning |
+| --- | --- |
+| `isRunning()` | True while the asynchronous worker accepts normal logs. |
+| `getMinLevel()` | Active startup severity floor. |
+| `getOutput()` | Effective normal sink mode after fallback. |
+| `getLogFilePath()` | UTF-8 active file path, or empty when no file sink is active. |
+| `getQueueLimits()` | Effective sanitized queue/message values. |
+| `getLastResult()` | Most recent process-wide Logger result. |
+| `getLastPlatformError()` | Most recent recorded native-platform failure. |
 
-`flush()` waits until accepted queued records have been drained and sinks are flushed.
+Runtime filters and visible statistics are reset for each initialization.
 
-```cpp
-GameWIP::Logger::flush();
-```
+## Flush
 
-Use the timeout overload when a shutdown path should not wait forever:
+`flush()` waits for accepted asynchronous work to drain and then flushes active sinks. The unbounded overload can wait indefinitely if producers continue submitting records or an underlying sink does not complete.
 
-```cpp
-const bool drained = GameWIP::Logger::flush(std::chrono::milliseconds{250});
-```
+`flush(timeout)` uses the duration for its queue condition wait after Logger acquires the lifecycle and queue serialization boundaries. It returns true only when that wait observes a drained queue and Logger's observable sink flush succeeds. Negative durations make the queue wait immediate.
 
-`shutdown()` stops normal acceptance, drains accepted work, flushes sinks, and tears down the worker.
+The duration is not an end-to-end deadline. Waiting for lifecycle, queue, or output serialization and performing synchronous sink flushes can extend the call beyond it. Logger requests console flushes, but console-flush status is not surfaced; a file-flush failure makes the result false.
 
-```cpp
-GameWIP::Logger::shutdown();
-```
+Neither overload prevents other threads from attempting new normal logs. Stop producers before a final deterministic flush where possible.
 
-## Important lifecycle rules
+## Shutdown
 
-- `init()` copies the configuration state it needs; mutating the configuration object after `init()` does not reconfigure Logger.
-- Calling `init()` while already running returns `AlreadyRunning`.
-- Calling `shutdown()` repeatedly is safe as cleanup, but only a running logger can drain accepted work.
-- Producer threads should be stopped before final shutdown when possible.
-- Calls before init or after shutdown should not be treated as guaranteed persistent logging.
-- `flush(timeout)` can return false when producers keep adding work or sinks cannot finish before the bounded wait.
-- Repeated init/shutdown cycles reset runtime state, filters, and queue storage according to the active configuration.
+`shutdown()`:
+
+1. publishes disabled producer state;
+2. wakes and joins the worker after accepted work is drained;
+3. flushes and closes the file sink;
+4. clears filters, source registry, path, and queue state;
+5. releases or retains storage according to `releaseStorageOnShutdown`.
+
+Repeated calls and calls before initialization are safe cleanup operations. An `atexit` callback also invokes shutdown, but explicit shutdown is preferred so producer lifetime and teardown ordering remain under application control.
+
+A producer that races shutdown remains memory-safe. Calls made after disabled state is published can be skipped; callers must not expect persistent logging after final shutdown begins.
+
+## Synchronization
+
+- Normal producer logging is thread-safe.
+- Lifecycle calls, public flush calls, and synchronous report paths are serialized internally through the lifecycle boundary.
+- Filter updates and queries are thread-safe.
+- State and statistics getters are snapshots; they are not transactions with concurrent logging.
 
 ## Related pages
 
 - @ref logger_configuration
 - @ref logger_threading_performance
+- @ref logger_reports
 - @ref logger_troubleshooting

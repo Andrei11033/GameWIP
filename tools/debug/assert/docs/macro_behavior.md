@@ -1,48 +1,56 @@
 @page assert_macro_behavior Assert macro behavior
 
-This is the most important Assert reference page. Use it when deciding whether an expression or message may have side effects.
+Use this page when an Assert expression or message could have side effects.
 
-## Evaluation table
+## Evaluation matrix
 
-| Macro | Enabled false behavior | Disabled behavior | Condition evaluated when disabled? | Message evaluated when disabled/pass? |
-| --- | --- | --- | --- | --- |
-| `ASSERT(expr)` | fatal report / popup policy / abort | skipped | no | n/a |
-| `ASSERT_MSG(expr, msg)` | fatal report with message | skipped | no | no |
-| `VERIFY(expr)` | fatal report / popup policy / abort | expression only | yes | n/a |
-| `VERIFY_MSG(expr, msg)` | fatal report with message | expression only | yes | no |
-| `CHECK(expr)` | recoverable report and continue | skipped | no | n/a |
-| `CHECK_MSG(expr, msg)` | recoverable report with message | skipped | no | no |
-| `CHECK_ONCE(expr)` | first report per call site and continue | skipped | no | n/a |
-| `CHECK_ONCE_MSG(expr, msg)` | first report per call site with message | skipped | no | no |
-| `ENSURE(expr)` | report false and return bool | returns bool | yes | n/a |
-| `ENSURE_MSG(expr, msg)` | report false with message and return bool | returns bool | yes | no unless reporting |
-| `ASSERT_INTERACTIVE(expr)` | interactive action choice | skipped | no | n/a |
-| `ASSERT_INTERACTIVE_MSG(expr, msg)` | interactive action choice with message | skipped | no | no |
-| `VERIFY_INTERACTIVE(expr)` | interactive action choice | expression only | yes | n/a |
-| `VERIFY_INTERACTIVE_MSG(expr, msg)` | interactive action choice with message | expression only | yes | no unless reporting |
-| `UNREACHABLE()` | fatal unreachable path | trap or compiler unreachable hint | n/a | n/a |
-| `DEBUG_BREAK()` | break/trap path | break/trap path | n/a | n/a |
+| Macro | Condition evaluated when enabled? | Condition evaluated when disabled? | Message evaluated on pass? | Message evaluated on reported failure? | Return value |
+| --- | --- | --- | --- | --- | --- |
+| `ASSERT(expr)` | yes | no | n/a | n/a | none |
+| `ASSERT_MSG(expr, msg)` | yes | no | no | only when diagnostics are enabled | none |
+| `VERIFY(expr)` | yes | yes | n/a | n/a | none |
+| `VERIFY_MSG(expr, msg)` | yes | yes | no | only when diagnostics are enabled | none |
+| `ASSERT_INTERACTIVE(expr)` | yes, unless Always Ignore suppresses the call site | no | n/a | n/a | none |
+| `ASSERT_INTERACTIVE_MSG(expr, msg)` | yes, unless Always Ignore suppresses the call site | no | no | only when diagnostics are enabled and reporting is not suppressed | none |
+| `VERIFY_INTERACTIVE(expr)` | yes | yes | n/a | n/a | none |
+| `VERIFY_INTERACTIVE_MSG(expr, msg)` | yes | yes | no | only when diagnostics are enabled and reporting is not suppressed | none |
+| `CHECK(expr)` | yes | no | n/a | n/a | none |
+| `CHECK_MSG(expr, msg)` | yes | no | no | only when diagnostics are enabled | none |
+| `CHECK_ONCE(expr)` | yes | no | n/a | n/a | none |
+| `CHECK_ONCE_MSG(expr, msg)` | yes | no | no | only for the first reported failure when diagnostics are enabled | none |
+| `ENSURE(expr)` | yes, exactly once | yes, exactly once | n/a | n/a | `bool` |
+| `ENSURE_MSG(expr, msg)` | yes, exactly once | yes, exactly once | no | only when diagnostics are enabled | `bool` |
+| `UNREACHABLE()` | n/a | n/a | n/a | n/a | does not return by contract |
+| `DEBUG_BREAK()` | n/a | n/a | n/a | n/a | none |
+
+For this table, disabled means the relevant family is disabled: `ASSERT_ENABLED=0` for fatal assertion families and `ASSERT_CHECKS_ENABLED=0` for recoverable check families.
+
+## Failure behavior matrix
+
+| Macro family | Enabled false behavior | Disabled behavior |
+| --- | --- | --- |
+| `ASSERT`, `VERIFY` | Logger Fatal report, optional popup, debugger break when attached, then abort. | `ASSERT` skipped; `VERIFY` evaluates only. |
+| Interactive fatal macros | Logger Fatal report, action selection, then Break, Abort, Ignore Once, or Always Ignore. | `ASSERT_INTERACTIVE` skipped; `VERIFY_INTERACTIVE` evaluates only. |
+| `CHECK` | Logger Error report and continue. | skipped. |
+| `CHECK_ONCE` | First failed reporting attempt per macro expansion site reports and continues. | skipped. |
+| `ENSURE` | Reports false results and returns the evaluated boolean. | returns the evaluated boolean without reporting. |
+| `UNREACHABLE` | Fatal unreachable report. | trap or compiler unreachable hint. |
+| `DEBUG_BREAK` | Force break/trap path. | same. |
 
 ## Side-effect rules
 
-Use this rule of thumb:
+- Use `VERIFY`, `VERIFY_INTERACTIVE`, or `ENSURE` when the expression must always run.
+- Use `ASSERT` when the expression is only a development contract.
+- Use `CHECK` when the failure is recoverable and no boolean result is needed.
+- Use `ENSURE` when recoverable control flow needs the boolean result.
+- Use `CHECK_ONCE` only when repeated reports from the same macro expansion site would hide more useful diagnostics.
 
-- If the expression must always run, use `VERIFY`, `VERIFY_INTERACTIVE`, or `ENSURE`.
-- If the expression is only a debug contract, use `ASSERT`.
-- If the failure is recoverable and no boolean result is needed, use `CHECK`.
-- If the failure is recoverable and a boolean result is needed, use `ENSURE`.
-- For one report per macro expansion, use `CHECK_ONCE`.
+Message expressions are diagnostic-only. Keep required side effects in the condition expression or surrounding code.
 
-## Message rules
-
-`_MSG` message expressions are intended for diagnostics. They should not be required for program behavior. Message expressions are evaluated only when the diagnostic path needs them and diagnostics are enabled.
-
-This means message expressions are not evaluated for passing assertions/checks, disabled macros, or diagnostics-disabled builds. Keep required side effects in the condition expression or surrounding code, not in the message expression.
-
-## Common mistakes
+## Examples
 
 ```cpp
-// Bad if release builds still need pop() to run.
+// Bad if release-style builds still need pop() to run.
 ASSERT(queue.pop());
 
 // Better: pop() always runs; false still reports when assertions are enabled.
@@ -50,7 +58,6 @@ VERIFY(queue.pop());
 ```
 
 ```cpp
-// Good: exactly one call and the result is useful to control flow.
 if (!ENSURE(loadConfig()))
 {
     return false;
@@ -59,6 +66,6 @@ if (!ENSURE(loadConfig()))
 
 ## Related pages
 
-- @ref assert_examples
+- @ref assert_macros
 - @ref assert_diagnostics
 - @ref assert_failure_actions

@@ -85,7 +85,8 @@ namespace GameWIP::TestSupport
             HANDLE handle_ = nullptr;
         };
 
-        /// Owns the variable-sized attribute list that makes handle inheritance an explicit allowlist.
+        /// Owns the variable-sized attribute list that makes standard-handle inheritance an explicit allowlist.
+        /// @note Unrelated inheritable parent handles must never cross the child-test boundary.
         class StartupAttributeList final
         {
         public:
@@ -265,7 +266,8 @@ namespace GameWIP::TestSupport
             return quoted;
         }
 
-        /// @brief Builds the mutable UTF-16 command line consumed by CreateProcessW.
+        /// @brief Builds the mutable UTF-16 command line consumed directly by CreateProcessW.
+        /// @note No shell is involved; each public argument is quoted using Windows command-line rules.
         [[nodiscard]] std::wstring buildCommandLine(const Types::ChildProcessOptions &options)
         {
             std::wstring commandLine = quoteWindowsArgument(pathToWide(options.executablePath));
@@ -418,6 +420,8 @@ namespace GameWIP::TestSupport
         std::wstring commandLine = buildCommandLine(options);
         std::wstring environmentBlock = buildEnvironmentBlock(options);
 
+        // The job owns the complete child tree and guarantees that closing/termination cannot leave
+        // descendants alive with inherited capture handles.
         UniqueHandle jobHandle(CreateJobObjectW(nullptr, nullptr));
         if (jobHandle.get() == nullptr)
         {
@@ -475,6 +479,8 @@ namespace GameWIP::TestSupport
             return result;
         }
 
+        // Restrict inheritance to the three selected standard handles. CREATE_SUSPENDED below then
+        // gives us a chance to assign the process to the kill-on-close job before child code runs.
         std::vector<HANDLE> inheritedHandles;
         inheritedHandles.reserve(3);
         appendInheritedHandle(inheritedHandles, childInput.get());
@@ -522,6 +528,7 @@ namespace GameWIP::TestSupport
         UniqueHandle processHandle(processInfo.hProcess);
         UniqueHandle threadHandle(processInfo.hThread);
 
+        // Assignment must succeed before ResumeThread; otherwise descendants could escape the job.
         if (AssignProcessToJobObject(jobHandle.get(), processHandle.get()) == FALSE)
         {
             TerminateProcess(processHandle.get(), kTestTerminationCode);
@@ -559,6 +566,8 @@ namespace GameWIP::TestSupport
                         try
                         {
                             char buffer[4096];
+                            // Continue reading after the retained limit. Draining is required so a
+                            // verbose child cannot block forever on a full pipe.
                             while (true)
                             {
                                 DWORD bytesRead = 0;
@@ -640,8 +649,8 @@ namespace GameWIP::TestSupport
             result.exitCode = -1;
         }
 
-        // The primary process may have launched descendants that inherited the capture pipe.
-        // Terminating the job ensures those descendants cannot keep the reader blocked.
+        // Even after normal primary-process completion, descendants can retain stdout/stderr pipe
+        // handles. Terminate the job before joining the reader so process-tree cleanup is bounded.
         TerminateJobObject(jobHandle.get(), kTestTerminationCode);
 
         if (outputReader.joinable())

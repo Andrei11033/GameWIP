@@ -1,26 +1,39 @@
-@page terminal_testing Terminal maintainer validation and hooks
+@page terminal_testing Terminal maintainer validation
 
-@note This page is for maintainers. It describes proof coverage, not supported consumer API.
+@note This page describes validation coverage and commands. Source-tree hook APIs are documented separately in @ref terminal_test_hooks.
 
-## Behavior coverage
+## Automated coverage
 
-Terminal tests cover:
+The Terminal validation module covers:
 
-- stdout/stderr text, byte, line, formatted, segmented, and buffered writes;
-- isolated same-stream formatter reentry for both `print()` and `println()`;
-- complete-record emission, per-stream synchronization, and scratch reuse;
-- capability queries, output preparation, idempotence, failure propagation, and style fallback;
+- public constants, value types, factories, deleted dangling-storage overloads, and header self-containment;
+- stdout/stderr text, line, byte, formatted, segmented, and buffered writes;
+- same-stream formatter reentry for `print()` and `println()`;
+- complete-operation serialization, independent stdout/stderr state, and reusable scratch storage;
+- capability observation, preparation, idempotence, and failure propagation;
 - `StyleMode::Never`, `Auto`, and `Required`;
-- redirected output, UTF-8, native line endings, and invalid-option rejection before emission;
-- stdin line/byte/text reads, byte limits, timeouts, would-block, and availability;
-- input-mode query/change/restore and preservation of buffered input;
-- cursor, alternate-screen, title, bell, clear, size, flush, and failure behavior;
-- RAII setup, nesting, explicit restoration, failed restoration, and retry behavior;
-- concurrent calls and Logger integration through the shared Terminal runtime.
+- redirected output, native line endings, UTF-8 conversion, and invalid-option rejection before normal emission;
+- stdin line, text, and byte reads, code-point-safe limits, timeouts, would-block, EOF, and availability;
+- input-mode query, set, default restore, scoped restore, and preservation of Terminal-buffered input;
+- cursor, alternate screen, title, bell, clear, scroll, size, position, and flush behavior;
+- scope setup, nesting, move behavior, explicit restoration, failed restoration, and retry;
+- Logger integration through the shared Terminal runtime;
+- internal backend boundaries and forced failure paths.
 
-Platform-boundary coverage verifies explicit Unicode Win32 APIs for console text, byte-oriented redirected I/O, and separation between platform-neutral core code and native calls.
+## Project validation layers
 
-## Real-console validation
+Terminal participates in:
+
+- the focused Terminal validation module;
+- public-header self-containment validation;
+- installed-package consumer validation through `GameWIP::Terminal`;
+- Logger integration validation;
+- child-process validation for reentrant formatting paths;
+- opt-in manual real-terminal validation.
+
+GameWIP owns module selection, CTest registration, reports, and sanitizer workflows. See @ref project_testing and @ref project_validation.
+
+## Real-terminal validation
 
 Automated runs leave human interaction disabled. From a real Windows Terminal session, run:
 
@@ -28,25 +41,8 @@ Automated runs leave human interaction disabled. From a real Windows Terminal se
 .\build\validation\GameWIPTests.exe --test-module=terminal --manual-ui
 ```
 
-The opt-in suite records human confirmation for Unicode rendering, styles and colors, cursor save/restore, alternate-screen entry and restoration, interactive input, input-mode restoration, and cursor-visibility restoration. It skips with an explicit reason when stdin or stdout is not attached to a real terminal.
+The opt-in suite requests human confirmation for Unicode rendering, colors and styles, cursor save/restore, alternate-screen restoration, interactive input, input-mode restoration, and cursor visibility. It skips with an explicit reason when the required streams are not real terminals.
 
 ## Test hooks
 
-@warning These hooks are supported source-tree maintainer interfaces. They are not installed and are not versioned consumer API.
-
-The GameWIP `validation` preset enables hooks automatically. A focused source build can set `TERMINAL_ENABLE_TEST_HOOKS=ON`; approved build-tree targets then receive `INTERNAL_TERMINAL_TEST_HOOKS=1`.
-
-A source-tree test links the short `Terminal` target and includes `terminal/internal/terminal_test_hooks.h`. The build-tree target supplies the source include root and compile definition. Installed packages intentionally do not provide this header.
-
-Hook rules:
-
-- headers remain under `foundation/terminal/internal/` and are not installed;
-- names are backend-neutral;
-- one-shot failures use `forceNext...`;
-- persistent state uses `set...Override` and `clear...Override`;
-- a reset helper clears all forced state between scenarios;
-- production code must not depend on hook declarations.
-
-Tests cannot claim serialization against `std::cout`, `printf`, direct native writes, or third-party output because those paths do not use Terminal's lock.
-
-GameWIP owns module selection, CTest registration, and reports. See @ref project_testing.
+The validation preset enables internal hooks for approved build-tree targets. Their complete availability, reset, override, capture, and failure-injection contract is documented in @ref terminal_test_hooks.

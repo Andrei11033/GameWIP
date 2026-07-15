@@ -1,5 +1,5 @@
 /// @file io.h
-/// @brief Public API for the IO contract library.
+/// @brief Public status, reader, writer, memory-stream, and whole-transfer APIs for GameWIP IO.
 
 #pragma once
 
@@ -13,19 +13,24 @@
 #include <type_traits>
 #include <vector>
 
-/// @brief Platform-neutral reader, writer, status, and whole-stream helper APIs.
+/// @brief Platform-neutral byte-transfer contracts shared by low-level GameWIP libraries.
+/// @details IO defines portable status/result shapes and resource-agnostic transfer interfaces. It
+/// does not open operating-system resources or provide a platform backend.
 namespace GameWIP::IO
 {
-    /// @brief Sentinel byte limit meaning no caller-imposed read limit.
+    /// @brief Sentinel meaning a whole-stream read has no caller-imposed byte limit.
+    /// @note Result-container, address-space, and allocation limits still apply.
     inline constexpr std::uint64_t kNoByteLimit = std::numeric_limits<std::uint64_t>::max();
 
-    /// @brief Default temporary buffer size used by whole-stream helpers.
+    /// @brief Default temporary buffer size for internally buffered unknown-size reads.
+    /// @note Known-size reads allocate their final output directly and do not use this buffer size.
     inline constexpr std::size_t kDefaultBufferSize = std::size_t{64} * 1024;
 
     /// @brief IO status, result, and option types.
     namespace Types
     {
-        /// @brief Common error codes used by low-level IO contracts.
+        /// @brief Portable error categories shared by IO and resource-owning backend libraries.
+        /// @note Enumerator numeric values are not serialization IDs or stable wire-format values.
         enum class ErrorCode
         {
             /// @brief Operation completed successfully.
@@ -162,20 +167,23 @@ namespace GameWIP::IO
         /// @brief Result returned by byte read operations.
         struct ReadResult
         {
-            /// @brief Operation status. Partial successful reads may still provide bytesRead.
+            /// @brief Operation status. A failure may accompany valid bytes reported by bytesRead.
             Status status;
-            /// @brief Number of bytes copied into the caller destination.
+            /// @brief Number of valid bytes copied into the caller destination.
+            /// @note Must not exceed the destination span supplied to Reader::read().
             std::size_t bytesRead = 0;
-            /// @brief True when the reader has reached the end of available input.
+            /// @brief True when no additional input remains after this read.
+            /// @note This is independent of bytesRead and may be true on a final non-empty read.
             bool endOfStream = false;
         };
 
         /// @brief Result returned by byte write operations.
         struct WriteResult
         {
-            /// @brief Operation status. Partial successful writes may still provide bytesWritten.
+            /// @brief Operation status. A failure may accompany valid bytes reported by bytesWritten.
             Status status;
             /// @brief Number of bytes accepted from the caller input.
+            /// @note Must not exceed the input span supplied to Writer::write().
             std::size_t bytesWritten = 0;
         };
 
@@ -233,31 +241,39 @@ namespace GameWIP::IO
     }
 
     /// @brief Creates an IO status with portable, native, and diagnostic details.
-    /// @param code Portable status code.
+    /// @param code Portable status code used for program decisions.
     /// @param nativeCode Backend-native error code, or zero when unavailable.
     /// @param message Developer-facing diagnostic text; not stable for machine parsing.
     /// @return Status containing the supplied values.
-    /// @note Constructing the message argument occurs before function entry and may allocate; code-only calls are non-throwing.
+    /// @note The function is non-throwing, but constructing the by-value message argument occurs
+    /// before function entry and may allocate. Code-only calls avoid that allocation.
     [[nodiscard]] Types::Status makeStatus(Types::ErrorCode code, std::int64_t nativeCode = 0, std::string message = {}) noexcept;
 
     /// @brief Creates a successful IO status.
     /// @return Status whose code is ErrorCode::Success.
     [[nodiscard]] Types::Status successStatus() noexcept;
 
-    /// @brief Returns a stable string name for an ErrorCode value.
+    /// @brief Returns the symbolic name of an ErrorCode value.
     /// @param code Error code to name.
     /// @return Stable non-owning string literal for known values, or "Unknown" for unknown enumerators.
+    /// @note Use the name for diagnostics and tests, not as a substitute for an application-owned
+    /// serialized or wire-format error representation.
     [[nodiscard]] std::string_view errorCodeName(Types::ErrorCode code) noexcept;
 
-    /// @brief Movable abstract byte reader contract used by generic IO helpers.
+    /// @brief Movable, non-copyable byte-input interface used by generic IO helpers.
+    /// @details A concrete reader must implement read(). The base class models a stateless open
+    /// stream: close() succeeds, canSeek() is false, and position(), size(), and seek() return
+    /// NotSeekable. Backends override only the lifecycle and capabilities they support.
     ///
-    /// Contract:
-    /// `read()` reports byte count and end-of-stream independently. Optional capabilities return
-    /// `NotSeekable` or `Unsupported` when unavailable. Expected IO failures return status values.
+    /// read() reports copied bytes and end-of-stream independently. A final non-empty read may set
+    /// endOfStream. A failure may report valid partial progress. Implementations must not retain the
+    /// caller destination span after return unless a separate public contract extends its lifetime.
     ///
-    /// Thread-safety:
+    /// Expected I/O failures use status values. The virtual functions are not globally noexcept, so
+    /// exceptions from a custom implementation may propagate through callers and generic helpers.
+    ///
     /// Different Reader objects may be used concurrently. The same object is not thread-safe unless
-    /// the concrete implementation explicitly documents otherwise.
+    /// its concrete implementation explicitly documents otherwise.
     class Reader
     {
     public:
@@ -285,12 +301,14 @@ namespace GameWIP::IO
 
         /// @brief Returns whether this reader currently supports seek operations.
         /// @return False by default.
+        /// @note This is advisory. Callers must still inspect position(), size(), and seek() results.
         [[nodiscard]] virtual bool canSeek() const noexcept;
 
         /// @brief Reads bytes into caller-owned memory.
-        /// @param destination Destination memory to fill.
+        /// @param destination Destination memory valid for the duration of the call.
         /// @return Read status, byte count, and end-of-stream state.
-        /// @note bytesRead must never exceed destination.size().
+        /// @note bytesRead must never exceed destination.size(). A successful zero-byte result is
+        /// valid only for an empty request or when endOfStream is true.
         [[nodiscard]] virtual Types::ReadResult read(std::span<std::byte> destination) = 0;
 
         /// @brief Closes the reader when it owns closeable state.
@@ -312,16 +330,21 @@ namespace GameWIP::IO
         [[nodiscard]] virtual Types::Status seek(std::int64_t offset, Types::SeekOrigin origin);
     };
 
-    /// @brief Movable abstract byte writer contract used by generic IO helpers.
+    /// @brief Movable, non-copyable byte-output interface used by generic IO helpers.
+    /// @details A concrete writer must implement write(). The base class models a stateless open
+    /// stream: close() succeeds, canSeek() is false, position() and seek() return NotSeekable, and
+    /// flush() validates the mode before succeeding without requiring physical I/O.
     ///
-    /// Contract:
-    /// `write()` reports the accepted byte count independently from failure status. Optional
-    /// capabilities return `NotSeekable` or `Unsupported` when unavailable. Expected IO failures
-    /// return status values.
+    /// write() reports accepted bytes independently from failure status. A failure may report valid
+    /// partial progress. Implementations must not retain the caller input span after return unless a
+    /// separate public contract extends its lifetime. Successful zero progress for non-empty input
+    /// violates the retry contract used by writeAllBytes().
     ///
-    /// Thread-safety:
+    /// Expected I/O failures use status values. The virtual functions are not globally noexcept, so
+    /// exceptions from a custom implementation may propagate through callers and generic helpers.
+    ///
     /// Different Writer objects may be used concurrently. The same object is not thread-safe unless
-    /// the concrete implementation explicitly documents otherwise.
+    /// its concrete implementation explicitly documents otherwise.
     class Writer
     {
     public:
@@ -349,17 +372,20 @@ namespace GameWIP::IO
 
         /// @brief Returns whether this writer currently supports seek operations.
         /// @return False by default.
+        /// @note This is advisory. Callers must still inspect position() and seek() results.
         [[nodiscard]] virtual bool canSeek() const noexcept;
 
         /// @brief Writes bytes from caller-owned memory.
-        /// @param bytes Bytes to write.
-        /// @return Write status and byte count.
-        /// @note bytesWritten must never exceed bytes.size().
+        /// @param bytes Input memory valid for the duration of the call.
+        /// @return Write status and accepted-byte count.
+        /// @note bytesWritten must never exceed bytes.size(). Empty input succeeds with zero bytes;
+        /// non-empty input must not return successful zero progress.
         [[nodiscard]] virtual Types::WriteResult write(std::span<const std::byte> bytes) = 0;
 
         /// @brief Flushes buffered data when the writer owns flushable state.
         /// @param mode Requested flush strength.
-        /// @return Success, InvalidArgument for an unknown mode, or a flush failure status.
+        /// @return InvalidArgument for an unknown mode; otherwise success by default.
+        /// @note The base implementation performs no physical I/O.
         [[nodiscard]] virtual Types::Status flush(Types::FlushMode mode = Types::FlushMode::Data);
 
         /// @brief Closes the writer when it owns closeable state.
@@ -377,10 +403,13 @@ namespace GameWIP::IO
         [[nodiscard]] virtual Types::Status seek(std::int64_t offset, Types::SeekOrigin origin);
     };
 
-    /// @brief Non-owning Reader over existing contiguous byte storage.
-    /// @details The source storage must remain alive and at a stable address while this reader is used.
-    /// Temporary std::string and std::vector storage is rejected to prevent immediate dangling views.
-    /// @note MemoryReader is seekable only while open and performs no allocation or operating-system calls.
+    /// @brief Non-owning, seekable Reader over existing contiguous byte storage.
+    /// @details The source must remain alive and at a stable address while this reader is used.
+    /// Direct temporary std::string and std::vector construction is rejected, but caller-created
+    /// dangling spans and string views cannot be detected. Closing the reader never modifies the
+    /// source and cannot be reversed.
+    /// @note Reads are overlap-safe. MemoryReader allocates nothing, performs no operating-system
+    /// calls, and is not internally synchronized.
     class MemoryReader final : public Reader
     {
     public:
@@ -427,9 +456,10 @@ namespace GameWIP::IO
         [[nodiscard]] bool canSeek() const noexcept override;
 
         /// @brief Reads from the current position into caller-owned memory.
-        /// @param destination Destination memory to fill.
-        /// @return Read status, byte count, and end-of-stream state.
-        /// @note Destination may overlap the source memory.
+        /// @param destination Destination memory valid for the duration of the call.
+        /// @return NotOpen when closed; otherwise success, copied-byte count, and end-of-stream state.
+        /// @note Destination may overlap the source memory. An empty destination reports whether the
+        /// current position is already at end-of-stream.
         [[nodiscard]] Types::ReadResult read(std::span<std::byte> destination) override;
 
         /// @brief Closes this reader without affecting caller-owned source storage.
@@ -456,10 +486,12 @@ namespace GameWIP::IO
         bool open_ = true;
     };
 
-    /// @brief Owning Writer that appends bytes to memory.
-    /// @details MemoryWriter remains non-seekable. Collected output remains inspectable, clearable,
-    /// reservable, and extractable after close(), but write(), flush(), and position() require open state.
-    /// @note MemoryWriter is not internally synchronized and performs no operating-system calls.
+    /// @brief Owning, append-only Writer backed by std::vector<std::byte>.
+    /// @details Collected output remains inspectable, clearable, reservable, and extractable after
+    /// close(), while write(), flush(), and position() require open state. Writes from a valid
+    /// subspan of the writer's current bytes() view are supported even when appending reallocates.
+    /// @note MemoryWriter is non-seekable, not internally synchronized, and performs no
+    /// operating-system calls.
     class MemoryWriter final : public Writer
     {
     public:
@@ -480,9 +512,11 @@ namespace GameWIP::IO
         /// @return False; MemoryWriter is append-only.
         [[nodiscard]] bool canSeek() const noexcept override;
 
-        /// @brief Appends bytes, including spans that refer to this writer's current bytes.
-        /// @param bytes Bytes to append.
-        /// @return Write status and byte count.
+        /// @brief Appends bytes, including valid subspans of this writer's current bytes() view.
+        /// @param bytes Bytes valid for the duration of the call.
+        /// @return Success and the full byte count, or NotOpen, SizeLimitExceeded, OutOfMemory, or
+        /// InvalidArgument with zero accepted bytes.
+        /// @note Any previously returned bytes() view may be invalidated by the append.
         [[nodiscard]] Types::WriteResult write(std::span<const std::byte> bytes) override;
 
         /// @brief Validates open state; memory-backed writes require no physical flush.
@@ -511,10 +545,13 @@ namespace GameWIP::IO
         /// @param capacity Byte capacity to reserve.
         /// @throws std::bad_alloc When the requested capacity cannot be allocated.
         /// @throws std::length_error When capacity exceeds the vector maximum size.
+        /// @note This operation is available after close() and may invalidate a bytes() view.
         void reserve(std::size_t capacity);
 
         /// @brief Returns a read-only view of the bytes written so far.
-        /// @return Byte view owned by this writer.
+        /// @return Non-owning view into this writer's current storage.
+        /// @warning Do not retain the view across write(), reserve(), clear(), takeBytes(), move,
+        /// destruction, or any operation that may change storage or ownership.
         [[nodiscard]] std::span<const std::byte> bytes() const noexcept;
 
         /// @brief Returns collected bytes interpreted as a string of UTF-8 bytes.
@@ -523,10 +560,10 @@ namespace GameWIP::IO
         /// @throws std::length_error When the collected byte count exceeds the string maximum size.
         [[nodiscard]] std::string text() const;
 
-        /// @brief Moves collected bytes out of the writer and replaces its storage with an empty vector.
+        /// @brief Moves collected bytes out and replaces writer storage with an empty vector.
         /// @return Collected byte vector.
-        /// @note The writer remains open or closed according to its state before this call.
-        /// @note Transferring ownership may discard the writer's previously reserved capacity.
+        /// @note The writer preserves its open or closed state. The operation invalidates prior
+        /// bytes() views and may discard previously reserved capacity.
         [[nodiscard]] std::vector<std::byte> takeBytes() noexcept;
 
         /// @brief Returns the number of bytes written so far.
@@ -542,6 +579,7 @@ namespace GameWIP::IO
         [[nodiscard]] bool empty() const noexcept;
 
         /// @brief Clears written bytes while preserving allocated capacity.
+        /// @note This operation is available after close() and invalidates prior bytes() views.
         void clear() noexcept;
 
     private:
@@ -549,51 +587,64 @@ namespace GameWIP::IO
         bool open_ = true;
     };
 
-    /// @brief Reads all bytes from a reader until end-of-stream or failure.
+    /// @brief Reads from the current reader position until the known remainder, end-of-stream, or failure.
     /// @param reader Reader to drain.
-    /// @param maxBytes Maximum accepted stream size, or kNoByteLimit for no caller limit.
-    /// @param bufferSize Temporary transfer buffer size. Must be greater than zero.
-    /// @return Collected bytes and final status. SizeLimitExceeded is returned if the stream exceeds maxBytes.
-    /// @note At a finite limit, an unknown-size reader may be advanced by one extra byte to determine whether more data exists.
+    /// @param maxBytes Hard maximum accepted output size, or kNoByteLimit for no caller limit.
+    /// @param bufferSize Temporary transfer-buffer size for unknown-size readers. Must be nonzero.
+    /// @return Collected bytes and final status, preserving valid bytes produced before a later failure.
+    /// @note Known-size readers allocate final output directly. An unknown-size reader at a finite
+    /// limit may be advanced by one extra probe byte that is not stored.
+    /// @note Invalid buffer arguments, capability failures, partial known-size reads, invalid backend
+    /// progress, representation limits, and internal allocation failures are reported through status.
+    /// Arbitrary exceptions from custom readers may propagate.
     [[nodiscard]] Types::ReadAllBytesResult readAllBytes(
         Reader &reader,
         std::uint64_t maxBytes = kNoByteLimit,
         std::size_t bufferSize = kDefaultBufferSize);
 
     /// @brief Reads all bytes using caller-owned temporary storage for unknown-size readers.
-    /// @param reader Reader to drain.
-    /// @param scratchBuffer Temporary transfer buffer. Must not be empty.
-    /// @param maxBytes Maximum accepted stream size, or kNoByteLimit for no caller limit.
-    /// @return Collected bytes and final status. SizeLimitExceeded is returned if the stream exceeds maxBytes.
-    /// @note At a finite limit, an unknown-size reader may be advanced by one extra byte to determine whether more data exists.
+    /// @param reader Reader to drain from its current position.
+    /// @param scratchBuffer Non-empty temporary storage that may be overwritten during the call.
+    /// @param maxBytes Hard maximum accepted output size, or kNoByteLimit for no caller limit.
+    /// @return Collected bytes and final status, preserving valid bytes produced before a later failure.
+    /// @note The scratch buffer is ignored for known-size readers and is never retained. At a finite
+    /// limit, an unknown-size reader may be advanced by one extra probe byte that is not stored.
+    /// Arbitrary exceptions from custom readers may propagate.
     [[nodiscard]] Types::ReadAllBytesResult readAllBytes(Reader &reader, std::span<std::byte> scratchBuffer, std::uint64_t maxBytes = kNoByteLimit);
 
-    /// @brief Reads all text bytes from a reader as UTF-8 text bytes.
+    /// @brief Reads bytes from the current reader position into an owning string.
     /// @param reader Reader to drain.
-    /// @param maxBytes Maximum accepted stream size, or kNoByteLimit for no caller limit.
-    /// @param bufferSize Temporary transfer buffer size. Must be greater than zero.
-    /// @return Collected text bytes and final status. SizeLimitExceeded is returned if the stream exceeds maxBytes.
-    /// @note At a finite limit, an unknown-size reader may be advanced by one extra byte to determine whether more data exists.
+    /// @param maxBytes Hard maximum accepted output size, or kNoByteLimit for no caller limit.
+    /// @param bufferSize Temporary transfer-buffer size for unknown-size readers. Must be nonzero.
+    /// @return Collected text bytes and final status, preserving valid bytes produced before a later failure.
+    /// @note Bytes are copied without UTF-8 validation, normalization, or parsing. Known-size readers
+    /// allocate final output directly. An unknown-size reader at a finite limit may consume one
+    /// additional probe byte. Arbitrary exceptions from custom readers may propagate.
     [[nodiscard]] Types::ReadAllTextResult readAllText(
         Reader &reader,
         std::uint64_t maxBytes = kNoByteLimit,
         std::size_t bufferSize = kDefaultBufferSize);
 
     /// @brief Reads all text bytes using caller-owned temporary storage for unknown-size readers.
-    /// @param reader Reader to drain.
-    /// @param scratchBuffer Temporary transfer buffer. Must not be empty.
-    /// @param maxBytes Maximum accepted stream size, or kNoByteLimit for no caller limit.
-    /// @return Collected text bytes and final status. SizeLimitExceeded is returned if the stream exceeds maxBytes.
-    /// @note At a finite limit, an unknown-size reader may be advanced by one extra byte to determine whether more data exists.
+    /// @param reader Reader to drain from its current position.
+    /// @param scratchBuffer Non-empty temporary storage that may be overwritten during the call.
+    /// @param maxBytes Hard maximum accepted output size, or kNoByteLimit for no caller limit.
+    /// @return Collected text bytes and final status, preserving valid bytes produced before a later failure.
+    /// @note The scratch buffer is ignored for known-size readers and is never retained. Bytes are not
+    /// validated as UTF-8. A finite-limit probe may consume one additional unstored byte. Arbitrary
+    /// exceptions from custom readers may propagate.
     [[nodiscard]] Types::ReadAllTextResult readAllText(Reader &reader, std::span<std::byte> scratchBuffer, std::uint64_t maxBytes = kNoByteLimit);
 
-    /// @brief Writes all bytes to a writer, retrying partial writes until complete or failed.
-    /// @param writer Writer to drain bytes into.
-    /// @param bytes Bytes to write.
-    /// @return Final status and the total number of bytes accepted, including bytes accepted by a failing write.
+    /// @brief Writes all bytes, retrying successful short writes until complete or failed.
+    /// @param writer Writer that receives the bytes.
+    /// @param bytes Bytes valid for the duration of the call.
+    /// @return Final status and total accepted bytes, including progress from a final failing write.
+    /// @note Empty input succeeds without calling writer.write(). The helper does not flush or close
+    /// the writer. Impossible counts and successful zero progress return WriteFailed. Arbitrary
+    /// exceptions from a custom writer may propagate.
     [[nodiscard]] Types::WriteResult writeAllBytes(Writer &writer, std::span<const std::byte> bytes);
 
-    /// @brief Writes all vector bytes to a writer, retrying partial writes until complete or failed.
+    /// @brief Writes all vector bytes, retrying successful short writes until complete or failed.
     /// @tparam Allocator Vector allocator type.
     /// @param writer Writer to drain bytes into.
     /// @param bytes Bytes to write.
@@ -603,9 +654,10 @@ namespace GameWIP::IO
         return writeAllBytes(writer, std::span<const std::byte>(bytes.data(), bytes.size()));
     }
 
-    /// @brief Writes UTF-8 text bytes to a writer.
-    /// @param writer Writer to drain text into.
-    /// @param utf8Text Text bytes to write.
-    /// @return Final status and the total number of bytes accepted, including bytes accepted by a failing write.
+    /// @brief Writes every byte in a string view through writeAllBytes().
+    /// @param writer Writer that receives the bytes.
+    /// @param utf8Text Text byte view; embedded NUL bytes are preserved.
+    /// @return Final status and total accepted bytes, including progress from a final failing write.
+    /// @note No UTF-8 validation, normalization, parsing, flush, or close operation is performed.
     [[nodiscard]] Types::WriteResult writeAllText(Writer &writer, std::string_view utf8Text);
 } // namespace GameWIP::IO

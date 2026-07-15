@@ -9,7 +9,8 @@ namespace GameWIP::Validation::Tests
 {
     namespace
     {
-        /// @brief Owns registrations without depending on cross-translation-unit initialization order.
+        /// @brief Lazily owns module records without depending on another translation unit's initialization order.
+        /// @note Registration still occurs during static initialization and must finish before the returned registry view is used.
         std::vector<Module> &moduleStorage()
         {
             static std::vector<Module> modules;

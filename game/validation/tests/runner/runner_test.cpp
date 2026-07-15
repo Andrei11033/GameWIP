@@ -1,5 +1,8 @@
 /// @file runner_test.cpp
 /// @brief Tests validation-runner option parsing, selection, and module propagation.
+///
+/// Probe modules are supplied through the approved runner seam so parsing,
+/// selection, ordering, and option propagation can be tested deterministically.
 
 #include "validation/tests/runner/runner_test.h"
 

@@ -1,28 +1,27 @@
 @page logger_quick_start Logger quick start
 
-A minimal Logger setup initializes the process-wide runtime, writes normal asynchronous logs, uses reports for important synchronous diagnostics, and shuts down during application teardown.
-
 ## Include
-
-Include the namespace API. Include the macro header only where the optional global `LOGGER_*` macros are used:
 
 ```cpp
 #include "logger/logger.h"
+```
+
+Include the macro header only in translation units that use the optional global shortcuts:
+
+```cpp
 #include "logger/logger_macros.h"
 ```
 
 ## Installed CMake
 
-Use the package's namespaced imported target. The package resolves its foundation-library dependencies:
+Set `GAMEWIP_REQUIRED_VERSION` from the consuming project's dependency lock; see @ref project_library_compatibility.
 
 ```cmake
-find_package(Logger CONFIG REQUIRED)
+find_package(Logger ${GAMEWIP_REQUIRED_VERSION} EXACT CONFIG REQUIRED)
 target_link_libraries(MyTarget PRIVATE GameWIP::Logger)
 ```
 
 ## Source-tree CMake
-
-When Logger is part of the same source tree, use its short build target:
 
 ```cmake
 target_link_libraries(MyTarget PRIVATE Logger)
@@ -33,38 +32,79 @@ target_link_libraries(MyTarget PRIVATE Logger)
 ```cpp
 #include "logger/logger.h"
 
+#include <array>
+
 namespace Logger = GameWIP::Logger;
 
-void runApplication()
+enum class LogSource : Logger::Types::SourceId
 {
+    Game = 1,
+    Assets = 2,
+};
+
+int main()
+{
+    constexpr std::array sources{
+        Logger::defineSource(LogSource::Game, "Game"),
+        Logger::defineSource(LogSource::Assets, "Assets"),
+    };
+
     Logger::Types::Config config = Logger::defaultConfig();
-    Logger::init(config);
+    config.output = Logger::Types::Output::Console;
+    config.sources = sources;
 
-    Logger::info("Game", "Game started");
-    Logger::warn("Assets", "Missing optional asset: {}", "config/defaults.json");
+    const Logger::Types::Result initResult = Logger::init(config);
+    if (!Logger::isRunning())
+    {
+        return 1;
+    }
 
-    Logger::report(
-        Logger::Types::Level::Error,
-        "SaveSystem",
-        "Failed to write save file"
-    );
+    // A non-Success init result can describe a sanitized option or sink fallback.
+    // Inspect the effective state before deciding whether startup must fail.
+    static_cast<void>(initResult);
+    static_cast<void>(Logger::getOutput());
+    static_cast<void>(Logger::getQueueLimits());
+
+    Logger::info(LogSource::Game, "Application started");
+    Logger::warn(LogSource::Assets, "Optional asset '{}' is unavailable", "defaults.json");
 
     Logger::shutdown();
+    return 0;
 }
 ```
 
-Normal logs are asynchronous, queue-based, and filterable. Reports are synchronous, immediate, filter-bypassing, and non-queued. Use `flush()` before inspecting a log file during a test, and `shutdown()` during final application teardown.
+The source-registration array must remain alive until `init()` returns because `Config::sources` is a span. Logger copies the source IDs and names during initialization.
 
-For cheap call sites, direct formatted APIs are fine:
+## Failure handling
+
+`init()` returns the first setup or validation result it observes. Some non-success results are recoverable: Logger may sanitize queue/message limits or fall back from file output to console and still start. Determine the effective state with `isRunning()`, `getOutput()`, `getQueueLimits()`, `getLastResult()`, and `getLastPlatformError()`.
+
+Normal log calls return `void`. A filtered call, a call made while Logger is disabled, a queue drop, or an internal formatting/allocation failure is therefore observed through configuration, statistics, and diagnostic state rather than a per-call result.
+
+Use synchronous reports for important diagnostics that must bypass filters and queue pressure:
 
 ```cpp
-Logger::info("Game", "Frame {}", frameIndex);
+Logger::reportError("Startup", "Could not load required configuration");
 ```
 
-For hot paths or expensive message construction, use `LOGGER_*` macros or `shouldLog()` so message work can be skipped when the level/source is filtered:
+A timed report writes and flushes the report first, then attempts a timeout-parameterized drain of older queued records when that initial observable sink flush succeeds:
 
 ```cpp
-LOGGER_DEBUG(LogSource::Physics, std::format("contacts {}", contactCount));
+const bool drained = Logger::reportError(
+    "Startup",
+    Logger::flushTimeout(std::chrono::milliseconds{250}),
+    "Could not load required configuration");
 ```
 
-See @ref logger_lifecycle for startup/shutdown rules and @ref logger_examples for more recipes.
+`drained == false` does not mean the report line was skipped; it means an observable file flush failed or the queue wait did not drain. The timeout value does not bound lock acquisition or synchronous sink work.
+
+## Where to go next
+
+- @ref logger_public_api inventories the complete supported surface.
+- @ref logger_configuration explains every configuration field and initialization result.
+- @ref logger_messages_sources explains sources, formats, copying, and truncation.
+- @ref logger_lifecycle defines startup, flush, shutdown, and state-query behavior.
+- @ref logger_output explains console, file, debugger, and popup channels.
+- @ref logger_threading_performance explains queue pressure and concurrency.
+- @ref logger_reports explains synchronous reporting and termination.
+- @ref logger_examples provides complete usage recipes.

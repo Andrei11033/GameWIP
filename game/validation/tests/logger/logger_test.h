@@ -1,5 +1,7 @@
 /// @file logger_test.h
 /// @brief Runtime options and entry point for the Logger self-tests.
+///
+/// This header is a source-tree validation interface for the Logger suite. It is not installed consumer API.
 
 #pragma once
 
@@ -27,15 +29,15 @@ namespace GameWIP::Test
         std::size_t stressIterationsPerThread = 2'000;
         /// @brief Writes test progress and summaries to reportPath in addition to stdout.
         bool writeReport = true;
-        /// @brief Appends to reportPath instead of replacing it.
+        /// @brief Appends to reportPath instead of replacing it when report writing is enabled.
         bool appendReport = true;
-        /// @brief Text report path used when writeReport is true.
+        /// @brief Report destination used as supplied; the shared runner normally resolves it before invocation.
         std::filesystem::path reportPath = "logs/tests/latest_test_report.txt";
     };
 
     /// @brief Runs the Logger library self-tests.
-    /// @param argc Process argument count.
-    /// @param argv Process argument values.
+    /// @param argc Borrowed process argument count for the duration of the call.
+    /// @param argv Borrowed process argument values; pointed-to strings must remain valid for the call.
     /// @param options Runtime toggles for stress, subprocess, UI, and reporting behavior.
     /// @return Zero when every Logger self-test passes, nonzero otherwise.
     int runLoggerTests(int argc, char **argv, const LoggerTestOptions &options = {});

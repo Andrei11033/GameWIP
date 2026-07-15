@@ -135,6 +135,9 @@ namespace GameWIP::Terminal::Detail::Platform
         };
 
         /// @brief Process-lifetime stdin mode snapshot and pending Unicode conversion state.
+        /// @details Pending bytes and surrogate state survive individual reads and portable mode changes so chunk
+        /// boundaries do not corrupt UTF-8 conversion. The current state is not keyed by native endpoint identity;
+        /// replacing stdin while a remainder exists can carry that remainder into the next endpoint.
         struct InputState
         {
             bool defaultConsoleModeCaptured = false;
@@ -1132,6 +1135,8 @@ namespace GameWIP::Terminal::Detail::Platform
         }
 
         /// @brief Finds LF, CRLF, or optionally terminal CR without rescanning an earlier prefix.
+        /// @details The caller retains a scan offset so long lines remain linear; one trailing CR is rescanned because a
+        /// following backend chunk can turn it into CRLF.
         [[nodiscard]] LineEndingMatch findLineEnding(std::string_view bytes, std::size_t startOffset, bool allowTrailingCr) noexcept
         {
             for (std::size_t index = std::min(startOffset, bytes.size()); index < bytes.size(); ++index)
@@ -1158,7 +1163,9 @@ namespace GameWIP::Terminal::Detail::Platform
             return {};
         }
 
-        /// @brief Moves a complete UTF-8 prefix to output and leaves unread bytes pending.
+        /// @brief Moves the largest complete UTF-8 prefix within the limit and leaves unread bytes pending.
+        /// @details Returning SizeLimitExceeded when even one complete code point cannot fit prevents callers from ever
+        /// receiving a partial UTF-8 encoding.
         [[nodiscard]] IO::Types::Status copyTruncatedUtf8Prefix(std::string &outText, PendingInputBuffer &pendingBytes, std::size_t maxBytes)
         {
             const Utf8Prefix prefix = utf8Prefix(pendingBytes.view(), maxBytes);
@@ -1423,6 +1430,8 @@ namespace GameWIP::Terminal::Detail::Platform
             result.status = statusFromWin32(ErrorCode::StatFailed, error, "GetConsoleMode failed while preparing terminal output.");
             return result;
         }
+        // Preparation is intentionally persistent for the current standard handle. Terminal does not return a scope
+        // that restores this capability because later styling and control calls share the prepared process endpoint.
         if (SetConsoleMode(handle, mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING) == FALSE)
         {
             const DWORD error = GetLastError();

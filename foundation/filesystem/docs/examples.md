@@ -1,185 +1,288 @@
 @page filesystem_examples FileSystem examples
 
-Examples use this namespace alias:
+The examples are complete translation units intended to show contract handling rather than application policy.
+
+## Bounded whole-file read
 
 ```cpp
-namespace FileSystem = GameWIP::FileSystem;
-namespace IO = GameWIP::IO;
-```
+#include "filesystem/filesystem.h"
 
-## Read and write text
+#include <cstdint>
 
-```cpp
-IO::Types::WriteResult write = FileSystem::writeAllText("settings.ini", "fullscreen=true\n");
-if (!write.status.ok())
+GameWIP::IO::Types::Status loadSmallConfig()
 {
-    return write.status;
-}
+    GameWIP::FileSystem::Types::ReadFileOptions options{};
+    options.maxBytes = 1024U * 1024U;
 
-IO::Types::ReadAllTextResult read = FileSystem::readAllText("settings.ini");
-if (!read.status.ok())
-{
-    return read.status;
-}
-```
-
-## Append a line
-
-```cpp
-FileSystem::Types::AppendFileOptions options{};
-options.flushMode = IO::Types::FlushMode::Data;
-
-IO::Types::WriteResult append = FileSystem::appendText("logs/session.txt", "loaded save\n", options);
-```
-
-## Stream bytes with a reader
-
-```cpp
-FileSystem::FileReader reader;
-IO::Types::Status status = reader.open("data/package.bin");
-if (!status.ok())
-{
-    return status;
-}
-
-std::array<std::byte, 8192> scratch{};
-while (true)
-{
-    IO::Types::ReadResult read = reader.read(std::span<std::byte>(scratch.data(), scratch.size()));
-    if (!read.status.ok() || read.endOfStream)
+    const auto result = GameWIP::FileSystem::readAllText("config.json", options);
+    if (!result.status.ok())
     {
-        status = read.status;
-        break;
+        // result.text can contain data collected before failure.
+        return result.status;
     }
 
-    consumeBytes(std::span<const std::byte>(scratch.data(), read.bytesRead));
+    return GameWIP::IO::successStatus();
 }
-
-IO::Types::Status close = reader.close();
 ```
 
-## Modify an existing file
+## Streaming read with a final nonzero chunk
 
 ```cpp
-FileSystem::File file;
-IO::Types::Status status = file.open(
-    "save.bin",
-    FileSystem::Types::FileOpenOptions{
-        .access = FileSystem::Types::FileAccess::ReadWrite,
-        .mode = FileSystem::Types::FileOpenMode::OpenExisting});
+#include "filesystem/filesystem.h"
 
-if (status.ok())
+#include <array>
+#include <cstddef>
+#include <span>
+
+GameWIP::IO::Types::Status scanFile(const GameWIP::FileSystem::Types::Path& path)
 {
-    status = file.seek(0, IO::Types::SeekOrigin::End);
-}
-if (status.ok())
-{
-    const std::string marker = "done";
-    status = file.write(std::as_bytes(std::span<const char>(marker.data(), marker.size()))).status;
-}
-if (status.ok())
-{
-    status = file.close();
+    GameWIP::FileSystem::FileReader reader;
+    auto status = reader.open(path);
+    if (!status.ok())
+    {
+        return status;
+    }
+
+    std::array<std::byte, 8192> buffer{};
+    while (true)
+    {
+        const auto result = reader.read(buffer);
+        if (result.bytesRead != 0)
+        {
+            const std::span<const std::byte> chunk{buffer.data(), result.bytesRead};
+            (void)chunk; // Consume the chunk before the next read.
+        }
+
+        if (!result.status.ok() || result.endOfStream)
+        {
+            status = result.status;
+            break;
+        }
+    }
+
+    const auto closeStatus = reader.close();
+    return status.ok() ? closeStatus : status;
 }
 ```
 
-`FileInitialPosition::End` performs one initial seek. Use append modes when every write must target the then-current end of file.
+## Modify and resize an existing file
+
+```cpp
+#include "filesystem/filesystem.h"
+
+#include <cstddef>
+#include <span>
+#include <string_view>
+
+GameWIP::IO::Types::Status addMarker(const GameWIP::FileSystem::Types::Path& path)
+{
+    namespace FileSystem = GameWIP::FileSystem;
+    namespace IO = GameWIP::IO;
+
+    FileSystem::File file;
+    FileSystem::Types::FileOpenOptions options{};
+    options.access = FileSystem::Types::FileAccess::ReadWrite;
+    options.mode = FileSystem::Types::FileOpenMode::OpenExisting;
+    options.initialPosition = FileSystem::Types::FileInitialPosition::End;
+
+    auto status = file.open(path, options);
+    if (!status.ok())
+    {
+        return status;
+    }
+
+    constexpr std::string_view marker = "done";
+    const auto write = file.write(std::as_bytes(std::span{marker.data(), marker.size()}));
+    if (!write.status.ok() || write.bytesWritten != marker.size())
+    {
+        const auto closeStatus = file.close();
+        return write.status.ok() ? IO::makeStatus(IO::Types::ErrorCode::PartialWrite) : write.status;
+    }
+
+    status = file.flush(IO::Types::FlushMode::Data);
+    if (status.ok())
+    {
+        status = file.close();
+    }
+    return status;
+}
+```
+
+## Normal replacement and append
+
+```cpp
+#include "filesystem/filesystem.h"
+
+GameWIP::IO::Types::Status writeSessionLog()
+{
+    namespace FileSystem = GameWIP::FileSystem;
+
+    const auto replace = FileSystem::writeAllText("session.log", "start\n");
+    if (!replace.status.ok())
+    {
+        return replace.status;
+    }
+
+    FileSystem::Types::AppendFileOptions options{};
+    options.flushMode = GameWIP::IO::Types::FlushMode::Data;
+
+    const auto append = FileSystem::appendText("session.log", "ready\n", options);
+    return append.status;
+}
+```
 
 ## Atomic save replacement
 
 ```cpp
-FileSystem::Types::AtomicWriteOptions options{};
-options.replaceMode = FileSystem::Types::ReplaceMode::ReplaceExisting;
-options.flushMode = IO::Types::FlushMode::Data;
-options.flushParentDirectory = true;
+#include "filesystem/filesystem.h"
 
-IO::Types::Status status = FileSystem::writeAllTextAtomic("saves/profile.json", jsonText, options);
-```
+#include <string_view>
 
-Before commit, failure leaves an existing destination unchanged. After commit, the path names the complete replacement.
-
-## List direct children
-
-```cpp
-FileSystem::Types::ListDirectoryOptions options{};
-options.includeHidden = false;
-options.maxEntries = 1024;
-
-FileSystem::Types::ListDirectoryResult listing = FileSystem::listDirectory("assets", options);
-for (const FileSystem::Types::DirectoryEntry& entry : listing.entries)
+GameWIP::IO::Types::Status commitSave(std::string_view json)
 {
-    useEntry(entry.path, entry.info);
+    GameWIP::FileSystem::Types::AtomicWriteOptions options{};
+    options.replaceMode = GameWIP::FileSystem::Types::ReplaceMode::ReplaceExisting;
+    options.flushMode = GameWIP::IO::Types::FlushMode::Data;
+    options.flushParentDirectory = true;
+
+    return GameWIP::FileSystem::writeAllTextAtomic("saves/profile.json", json, options);
 }
 ```
 
-If `maxEntries` is reached, the status is `SizeLimitExceeded` and the entries collected so far remain available.
-
-## Query and mutate metadata
+## Listing with partial-result handling
 
 ```cpp
-auto size = FileSystem::getFileSize("save.bin");
-auto info = FileSystem::getEntryInfo("save.bin");
+#include "filesystem/filesystem.h"
 
-IO::Types::Status readOnly = FileSystem::setReadOnly("save.bin", true);
-IO::Types::Status writable = FileSystem::setReadOnly("save.bin", false);
-```
+#include <cstdint>
 
-Predicate helpers such as `exists()` and `isDirectory()` return successful `false` for missing paths. Value queries report `NotFound`.
-
-## Copy, move, and remove
-
-```cpp
-FileSystem::Types::CopyFileOptions copyOptions{};
-copyOptions.metadataMode = FileSystem::Types::CopyMetadataMode::Basic;
-
-IO::Types::Status status = FileSystem::copyFile("source.dat", "backup/source.dat", copyOptions);
-if (status.ok())
+GameWIP::IO::Types::Status listAssets()
 {
-    status = FileSystem::movePath("backup/source.dat", "backup/current.dat");
-}
-if (status.ok())
-{
-    status = FileSystem::removeFile("backup/current.dat");
+    GameWIP::FileSystem::Types::ListDirectoryOptions options{};
+    options.includeHidden = false;
+    options.maxEntries = 1024;
+
+    auto result = GameWIP::FileSystem::listDirectory("assets", options);
+    for (const auto& entry : result.entries)
+    {
+        const auto& path = entry.path;
+        const auto kind = entry.info.kind;
+        (void)path;
+        (void)kind;
+    }
+
+    return result.status;
 }
 ```
 
-`movePath()` is a native move or rename. It does not perform a cross-volume copy/delete fallback.
-
-## UTF-8 path boundary
+## Metadata, copy, move, and removal
 
 ```cpp
-auto path = FileSystem::pathFromUtf8("saves/slot-\xE2\x98\x85.json");
-if (!path.status.ok())
+#include "filesystem/filesystem.h"
+
+GameWIP::IO::Types::Status rotateDataFile()
 {
-    return path.status;
-}
+    namespace FileSystem = GameWIP::FileSystem;
 
-auto utf8 = FileSystem::pathToUtf8(path.path.filename());
-```
+    const auto size = FileSystem::getFileSize("data.bin");
+    if (!size.status.ok())
+    {
+        return size.status;
+    }
 
-Use these helpers where external text is explicitly UTF-8.
+    FileSystem::Types::CopyFileOptions copy{};
+    copy.replaceMode = FileSystem::Types::ReplaceMode::ReplaceExisting;
+    copy.metadataMode = FileSystem::Types::CopyMetadataMode::Basic;
+    copy.createParentDirectories = true;
 
-## Whole-file lock
-
-```cpp
-FileSystem::File file;
-IO::Types::Status status = file.open("save.bin");
-if (!status.ok())
-{
+    auto status = FileSystem::copyFile("data.bin", "backup/data.bin", copy);
+    if (status.ok())
+    {
+        FileSystem::Types::MoveOptions move{};
+        move.replaceMode = FileSystem::Types::ReplaceMode::ReplaceExisting;
+        status = FileSystem::movePath("backup/data.bin", "backup/current.bin", move);
+    }
+    if (status.ok())
+    {
+        status = FileSystem::removeFile("backup/current.bin");
+    }
     return status;
 }
+```
 
-auto lock = file.tryLockExclusive();
-if (lock.status.ok() && lock.outcome == FileSystem::Types::LockOutcome::Acquired)
-{
-    updateFile(file);
-    status = lock.lock.unlock();
-}
+## UTF-8 path boundary and lexical operations
 
-if (status.ok())
+```cpp
+#include "filesystem/filesystem.h"
+
+GameWIP::IO::Types::Status buildSavePath()
 {
-    status = file.close();
+    namespace FileSystem = GameWIP::FileSystem;
+
+    const auto leaf = FileSystem::pathFromUtf8("slot-\xE2\x98\x85.json");
+    if (!leaf.status.ok())
+    {
+        return leaf.status;
+    }
+
+    const auto joined = FileSystem::joinPath("saves", leaf.path);
+    if (!joined.status.ok())
+    {
+        return joined.status;
+    }
+
+    const auto text = FileSystem::pathToUtf8(joined.path);
+    return text.status;
 }
 ```
 
-Lock attempts are non-blocking. `WouldBlock` is reported through `LockResult::outcome`, not as a failure status.
+## Whole-file lock ownership
+
+Because `FileLock` deliberately deletes move assignment, APIs that transfer a lock should return it or construct the destination directly. A practical ownership pattern is:
+
+```cpp
+#include "filesystem/filesystem.h"
+
+GameWIP::FileSystem::Types::LockResult openAndLock(
+    const GameWIP::FileSystem::Types::Path& path,
+    GameWIP::FileSystem::File& owner)
+{
+    const auto status = owner.open(path);
+    if (!status.ok())
+    {
+        return {.status = status};
+    }
+    return owner.tryLockExclusive();
+}
+```
+
+The returned `FileLock` remains responsible for unlocking. Explicit `owner.close()` reports `ResourceBusy` until the lock is released.
+
+## Process current directory
+
+```cpp
+#include "filesystem/filesystem.h"
+
+GameWIP::IO::Types::Status temporarilySelectDirectory(
+    const GameWIP::FileSystem::Types::Path& directory)
+{
+    const auto previous = GameWIP::FileSystem::getCurrentDirectory();
+    if (!previous.status.ok())
+    {
+        return previous.status;
+    }
+
+    auto status = GameWIP::FileSystem::setCurrentDirectory(directory);
+    if (!status.ok())
+    {
+        return status;
+    }
+
+    // All threads now resolve relative paths from directory.
+
+    const auto restore = GameWIP::FileSystem::setCurrentDirectory(previous.path);
+    return restore;
+}
+```
+
+Avoid this pattern in concurrent application code unless process-wide coordination is explicit.

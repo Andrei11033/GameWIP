@@ -19,7 +19,9 @@
 #include "io/io.h"
 #include "terminal/terminal_export.h"
 
-/// @brief Platform-neutral terminal stream I/O, styling, and control primitives.
+/// @brief Platform-neutral UTF-8 standard-stream I/O, styling, and terminal control primitives.
+/// @details The shared library owns process-wide stdin/stdout/stderr coordination. Expected terminal and backend failures
+/// use IO statuses/results; selected caller-owned in-memory operations retain normal standard-library exception behavior.
 namespace GameWIP::Terminal
 {
     namespace Types
@@ -77,19 +79,23 @@ namespace GameWIP::Terminal
                  !std::ranges::borrowed_range<Range>)
     [[nodiscard]] Types::WriteSegment byteSegment(Range &&bytes) noexcept = delete;
 
-    /// @brief Sentinel timeout meaning wait forever.
+    /// @brief Sentinel timeout requesting an unbounded wait.
+    /// @note The selected endpoint may still reject blocking or timeout behavior as Unsupported.
     inline constexpr std::chrono::milliseconds kWaitForever{-1};
 
-    /// @brief Sentinel timeout meaning do not wait.
+    /// @brief Sentinel timeout requesting a non-blocking attempt.
+    /// @note A stream without non-blocking/timed-read support returns Unsupported.
     inline constexpr std::chrono::milliseconds kNoWait{0};
 
     /// @brief Default timeout used by best-effort terminal control queries.
     inline constexpr std::chrono::milliseconds kDefaultQueryTimeout{100};
 
-    /// @brief Default maximum byte count accepted by text reads.
+    /// @brief Default maximum UTF-8 byte count returned by one text read.
+    /// @note Text reads preserve complete code points and can return SizeLimitExceeded when the next code point does not fit.
     inline constexpr std::uint64_t kDefaultMaxReturnedTextBytes = IO::kDefaultBufferSize;
 
-    /// @brief Default maximum byte count accepted by line reads.
+    /// @brief Default maximum UTF-8 byte count returned by one line read.
+    /// @note The limit applies to the returned representation after the selected line-ending policy.
     inline constexpr std::uint64_t kDefaultMaxReturnedLineBytes = std::uint64_t{64} * 1024;
 
     /// @brief Terminal stream, styling, input, and result types.
@@ -189,22 +195,38 @@ namespace GameWIP::Terminal
         /// @brief Portable basic terminal colors.
         enum class BasicColor
         {
+            /// @brief Normal black.
             Black,
+            /// @brief Normal red.
             Red,
+            /// @brief Normal green.
             Green,
+            /// @brief Normal yellow.
             Yellow,
+            /// @brief Normal blue.
             Blue,
+            /// @brief Normal magenta.
             Magenta,
+            /// @brief Normal cyan.
             Cyan,
+            /// @brief Normal white.
             White,
 
+            /// @brief Bright black, commonly rendered as gray.
             BrightBlack,
+            /// @brief Bright red.
             BrightRed,
+            /// @brief Bright green.
             BrightGreen,
+            /// @brief Bright yellow.
             BrightYellow,
+            /// @brief Bright blue.
             BrightBlue,
+            /// @brief Bright magenta.
             BrightMagenta,
+            /// @brief Bright cyan.
             BrightCyan,
+            /// @brief Bright white.
             BrightWhite
         };
 
@@ -510,9 +532,13 @@ namespace GameWIP::Terminal
         /// @brief Relative cursor movement direction.
         enum class CursorMoveDirection
         {
+            /// @brief Move toward smaller row coordinates.
             Up,
+            /// @brief Move toward larger row coordinates.
             Down,
+            /// @brief Move toward smaller column coordinates.
             Left,
+            /// @brief Move toward larger column coordinates.
             Right
         };
 
@@ -544,7 +570,9 @@ namespace GameWIP::Terminal
         /// @brief Terminal scroll direction.
         enum class ScrollDirection
         {
+            /// @brief Scroll terminal contents upward.
             Up,
+            /// @brief Scroll terminal contents downward.
             Down
         };
 
@@ -681,6 +709,7 @@ namespace GameWIP::Terminal
         };
 
         /// @brief Result returned by byte reads.
+        /// @details bytesRead can preserve partial progress together with a terminating outcome or later failure.
         struct ByteReadResult
         {
             /// @brief Operation status.
@@ -694,6 +723,7 @@ namespace GameWIP::Terminal
         };
 
         /// @brief Result returned by text reads.
+        /// @details A non-empty text payload represents one completed UTF-8 chunk. Other outcomes describe why no chunk completed.
         struct TextReadResult
         {
             /// @brief Operation status.
@@ -710,6 +740,7 @@ namespace GameWIP::Terminal
         };
 
         /// @brief Result returned by line reads.
+        /// @details line can contain an unterminated UTF-8 prefix together with EndOfStream, TimedOut, or WouldBlock.
         struct LineReadResult
         {
             /// @brief Operation status.
@@ -742,8 +773,9 @@ namespace GameWIP::Terminal
         };
 
         /// @brief One piece of optimized batched terminal output.
-        /// @details Text and byte payloads are non-owning views. Their caller-owned storage must remain valid until the
-        /// writeSegments() call using this segment returns. TextStyle is copied into styled segments.
+        /// @details Text and byte payloads are non-owning views. Copying a segment copies those views rather than the
+        /// referenced storage. Caller-owned payload storage must remain valid and unchanged until writeSegments() returns.
+        /// TextStyle is copied into styled segments.
         struct WriteSegment
         {
             /// @brief Returns the segment kind.
@@ -753,18 +785,21 @@ namespace GameWIP::Terminal
             }
 
             /// @brief Returns text stored by Text and StyledText segments.
+            /// @note Meaningful only when kind() is Text or StyledText. The returned view has the payload's caller-owned lifetime.
             [[nodiscard]] std::string_view text() const noexcept
             {
                 return text_;
             }
 
             /// @brief Returns bytes stored by Bytes segments.
+            /// @note Meaningful only when kind() is Bytes. The returned span has the payload's caller-owned lifetime.
             [[nodiscard]] std::span<const std::byte> bytes() const noexcept
             {
                 return bytes_;
             }
 
             /// @brief Returns the style stored by StyledText segments.
+            /// @note Meaningful only when kind() is StyledText. The returned reference remains valid for this segment's lifetime.
             [[nodiscard]] const TextStyle &style() const noexcept
             {
                 return style_;
@@ -793,20 +828,25 @@ namespace GameWIP::Terminal
     /// @return The requested mode. Unknown preset values fall back to InteractiveLine.
     [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::InputMode makeInputMode(Types::InputModePreset preset) noexcept;
 
-    /// @brief RAII helper that restores a complete previous backend terminal input mode.
+    /// @brief Movable, non-copyable RAII helper that restores a complete previous backend terminal input mode.
+    /// @details A failed setup produces an inactive scope carrying the setup status. Failed explicit restoration leaves the
+    /// scope active for retry. Move assignment does not consume its source when restoring the destination's current state fails.
     class GAMEWIP_TERMINAL_EXPORT InputModeScope final
     {
     public:
         /// @brief Creates an inactive input mode scope.
         InputModeScope() noexcept;
 
+        /// @brief Input-mode restoration responsibility cannot be copied.
         InputModeScope(const InputModeScope &) = delete;
+        /// @brief Input-mode restoration responsibility cannot be copy-assigned.
         InputModeScope &operator=(const InputModeScope &) = delete;
 
         /// @brief Move-constructs the scope and transfers restoration responsibility.
         InputModeScope(InputModeScope &&other) noexcept;
 
-        /// @brief Move-assigns the scope and transfers restoration responsibility.
+        /// @brief Restores any destination-owned mode, then transfers restoration responsibility.
+        /// @note If destination restoration fails, this scope remains active and other is not consumed.
         InputModeScope &operator=(InputModeScope &&other) noexcept;
 
         /// @brief Restores the complete previous backend input mode on a best-effort basis without throwing.
@@ -835,20 +875,25 @@ namespace GameWIP::Terminal
         bool active_ = false;
     };
 
-    /// @brief RAII helper that leaves alternate screen mode when destroyed.
+    /// @brief Movable, non-copyable RAII helper that leaves alternate screen mode when destroyed.
+    /// @details Setup failure produces an inactive scope. Failed explicit leave remains active for retry. Nesting is coordinated
+    /// per output stream; do not mix manual transitions with active scopes for that stream.
     class GAMEWIP_TERMINAL_EXPORT AlternateScreenScope final
     {
     public:
         /// @brief Creates an inactive alternate screen scope.
         AlternateScreenScope() noexcept;
 
+        /// @brief Alternate-screen leave responsibility cannot be copied.
         AlternateScreenScope(const AlternateScreenScope &) = delete;
+        /// @brief Alternate-screen leave responsibility cannot be copy-assigned.
         AlternateScreenScope &operator=(const AlternateScreenScope &) = delete;
 
         /// @brief Move-constructs the scope and transfers leave responsibility.
         AlternateScreenScope(AlternateScreenScope &&other) noexcept;
 
-        /// @brief Move-assigns the scope and transfers leave responsibility.
+        /// @brief Leaves any destination-owned state, then transfers leave responsibility.
+        /// @note If leaving the destination fails, this scope remains active and other is not consumed.
         AlternateScreenScope &operator=(AlternateScreenScope &&other) noexcept;
 
         /// @brief Leaves alternate screen mode on a best-effort basis without throwing.
@@ -873,20 +918,25 @@ namespace GameWIP::Terminal
         bool active_ = false;
     };
 
-    /// @brief RAII helper that restores cursor visibility by showing the cursor when destroyed.
+    /// @brief Movable, non-copyable RAII helper that restores cursor visibility when destroyed.
+    /// @details Setup failure produces an inactive scope. Failed explicit restoration remains active for retry. Nesting is
+    /// coordinated per output stream; do not mix manual visibility changes with active scopes for that stream.
     class GAMEWIP_TERMINAL_EXPORT CursorHiddenScope final
     {
     public:
         /// @brief Creates an inactive cursor-hidden scope.
         CursorHiddenScope() noexcept;
 
+        /// @brief Cursor-restoration responsibility cannot be copied.
         CursorHiddenScope(const CursorHiddenScope &) = delete;
+        /// @brief Cursor-restoration responsibility cannot be copy-assigned.
         CursorHiddenScope &operator=(const CursorHiddenScope &) = delete;
 
         /// @brief Move-constructs the scope and transfers restoration responsibility.
         CursorHiddenScope(CursorHiddenScope &&other) noexcept;
 
-        /// @brief Move-assigns the scope and transfers restoration responsibility.
+        /// @brief Restores any destination-owned state, then transfers restoration responsibility.
+        /// @note If destination restoration fails, this scope remains active and other is not consumed.
         CursorHiddenScope &operator=(CursorHiddenScope &&other) noexcept;
 
         /// @brief Restores cursor visibility on a best-effort basis without throwing.
@@ -911,7 +961,9 @@ namespace GameWIP::Terminal
         bool active_ = false;
     };
 
-    /// @brief Reusable plain-text output buffer for batching Terminal writes.
+    /// @brief Reusable caller-owned plain-text buffer for batching one Terminal write.
+    /// @details The object owns its string storage and is not internally synchronized. It does not validate UTF-8 while
+    /// appending. Formatting and storage operations retain normal std::string/std::format exception behavior.
     class GAMEWIP_TERMINAL_EXPORT OutputBuffer final
     {
     public:
@@ -920,6 +972,7 @@ namespace GameWIP::Terminal
         explicit OutputBuffer(Types::LineEnding lineEnding = Types::LineEnding::Native);
 
         /// @brief Reserves text storage for future appends.
+        /// @throws Any exception propagated by std::string::reserve().
         void reserve(std::size_t bytes);
 
         /// @brief Clears buffered text while retaining capacity.
@@ -931,19 +984,24 @@ namespace GameWIP::Terminal
         /// @brief Returns buffered text size in bytes.
         [[nodiscard]] std::size_t size() const noexcept;
 
-        /// @brief Returns a view of buffered UTF-8 text.
+        /// @brief Returns a non-owning view of buffered text.
+        /// @warning Mutating, moving, assigning, or destroying this buffer can invalidate the view.
         [[nodiscard]] std::string_view text() const noexcept;
 
-        /// @brief Appends UTF-8 text to the buffer.
+        /// @brief Appends bytes expected to contain UTF-8 text.
+        /// @throws Any exception propagated by std::string::append().
         void appendText(std::string_view utf8Text);
 
-        /// @brief Appends UTF-8 text followed by the configured line ending.
+        /// @brief Appends bytes expected to contain UTF-8 text followed by the configured line ending.
+        /// @throws Any exception propagated by std::string::append().
         void appendLine(std::string_view utf8Text = {});
 
         /// @brief Formats text and appends it to the buffer.
+        /// @throws std::format_error or any exception propagated by formatting, custom formatters, or allocation.
         template <class... Args> void print(std::format_string<Args...> format, Args &&...args);
 
         /// @brief Formats text and appends it followed by the configured line ending.
+        /// @throws std::format_error or any exception propagated by formatting, custom formatters, or allocation.
         template <class... Args> void println(std::format_string<Args...> format, Args &&...args);
 
         /// @brief Writes buffered text to stdout without clearing the buffer.
@@ -953,11 +1011,11 @@ namespace GameWIP::Terminal
         [[nodiscard]] IO::Types::Status writeTo(Types::OutputStream stream, const Types::TextWriteOptions &options = {}) const;
 
         /// @brief Writes buffered text to stdout and clears it only when the write succeeds.
-        /// @note A backend flush is requested only when options.flushMode is not None.
+        /// @note The name describes buffer clearing; a backend flush is requested only when options.flushMode is not None.
         [[nodiscard]] IO::Types::Status flushTo(const Types::TextWriteOptions &options = {});
 
         /// @brief Writes buffered text to an output stream and clears it only when the write succeeds.
-        /// @note A backend flush is requested only when options.flushMode is not None.
+        /// @note The name describes buffer clearing; a backend flush is requested only when options.flushMode is not None.
         [[nodiscard]] IO::Types::Status flushTo(Types::OutputStream stream, const Types::TextWriteOptions &options = {});
 
     private:
@@ -965,13 +1023,15 @@ namespace GameWIP::Terminal
         Types::LineEnding lineEnding_ = Types::LineEnding::Native;
     };
 
-    /// @brief Gets capabilities for stdin.
+    /// @brief Gets a snapshot of capabilities for stdin.
+    /// @return Status and capabilities observed for the current stdin endpoint. A successful Detached result is possible.
     [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::InputCapabilitiesResult getInputCapabilities();
 
     /// @brief Gets capabilities for an input stream.
     [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::InputCapabilitiesResult getInputCapabilities(Types::InputStream stream);
 
-    /// @brief Observes currently active stdout capabilities without preparing the stream.
+    /// @brief Observes a snapshot of currently active stdout capabilities without preparing the stream.
+    /// @return Status and capabilities observed for the current stdout endpoint. Later endpoint changes can stale the snapshot.
     [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::OutputCapabilitiesResult getOutputCapabilities();
 
     /// @brief Observes currently active capabilities without preparing the stream.
@@ -1016,24 +1076,29 @@ namespace GameWIP::Terminal
     [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status restoreDefaultInputMode(Types::InputStream stream);
 
     /// @brief Temporarily sets stdin mode and returns a restoration scope.
+    /// @return Active scope on success; inactive scope carrying setup failure in status() otherwise.
     [[nodiscard]] GAMEWIP_TERMINAL_EXPORT InputModeScope scopedInputMode(const Types::InputMode &mode) noexcept;
 
     /// @brief Temporarily sets an input stream mode and returns a restoration scope.
     [[nodiscard]] GAMEWIP_TERMINAL_EXPORT InputModeScope scopedInputMode(Types::InputStream stream, const Types::InputMode &mode) noexcept;
 
-    /// @brief Reads one line from stdin.
+    /// @brief Reads one UTF-8 line from stdin.
+    /// @return Status, stopping outcome, returned line, consumed ending, and truncation state. Partial line text may accompany
+    /// EndOfStream, TimedOut, WouldBlock, or a later failure.
     [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::LineReadResult readLine(const Types::LineReadOptions &options = {});
 
     /// @brief Reads one line from an input stream.
     [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::LineReadResult readLine(Types::InputStream stream, const Types::LineReadOptions &options = {});
 
-    /// @brief Reads one available UTF-8 text chunk from stdin.
+    /// @brief Reads one available complete UTF-8 text chunk from stdin.
+    /// @return Status, stopping outcome, text, and truncation state. Size limits never split a valid UTF-8 code point.
     [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::TextReadResult readText(const Types::TextReadOptions &options = {});
 
     /// @brief Reads one available UTF-8 text chunk from an input stream.
     [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::TextReadResult readText(Types::InputStream stream, const Types::TextReadOptions &options = {});
 
     /// @brief Reads bytes from stdin into caller storage.
+    /// @return Status, stopping outcome, and bytes copied. Partial progress may accompany a later failure or terminating outcome.
     [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::ByteReadResult readBytes(
         std::span<std::byte> outputBuffer,
         const Types::ByteReadOptions &options = {});
@@ -1062,7 +1127,8 @@ namespace GameWIP::Terminal
         std::string_view utf8Text = {},
         const Types::LineWriteOptions &options = {});
 
-    /// @brief Writes bytes to stdout.
+    /// @brief Writes bytes to stdout where the endpoint supports raw byte output.
+    /// @return Accepted-byte count and status. A requested flush can fail after the full byte count was accepted.
     [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::WriteResult writeBytes(
         std::span<const std::byte> bytes,
         const Types::ByteWriteOptions &options = {});
@@ -1085,6 +1151,7 @@ namespace GameWIP::Terminal
         const Types::SegmentWriteOptions &options = {});
 
     /// @brief Formats text and writes it to stdout.
+    /// @details Formatting occurs before final stdout serialization. Formatting-stage failures are converted to IO statuses.
     template <class... Args> [[nodiscard]] IO::Types::Status print(std::format_string<Args...> format, Args &&...args);
 
     /// @brief Formats text and writes it to an output stream.
@@ -1103,6 +1170,7 @@ namespace GameWIP::Terminal
         Args &&...args);
 
     /// @brief Formats text and writes it followed by a line ending to stdout.
+    /// @details Formatting occurs before final stdout serialization. Formatting-stage failures are converted to IO statuses.
     template <class... Args> [[nodiscard]] IO::Types::Status println(std::format_string<Args...> format, Args &&...args);
 
     /// @brief Formats text and writes it followed by a line ending to an output stream.
@@ -1133,6 +1201,7 @@ namespace GameWIP::Terminal
     [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status resetStyle(Types::OutputStream stream, const Types::ControlOptions &options = {});
 
     /// @brief Moves the cursor on stdout.
+    /// @note A zero amount emits no control sequence but can still honor options.flushMode.
     [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status moveCursor(
         Types::CursorMoveDirection direction,
         std::uint32_t amount = 1,
@@ -1166,6 +1235,7 @@ namespace GameWIP::Terminal
         const Types::CursorPositionQueryOptions &options = {});
 
     /// @brief Saves cursor position on stdout.
+    /// @note Saved position is backend state, not a guaranteed stack; a later save can replace it.
     [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status saveCursorPosition(const Types::ControlOptions &options = {});
 
     /// @brief Saves cursor position on an output stream.
@@ -1211,6 +1281,7 @@ namespace GameWIP::Terminal
         const Types::ControlOptions &options = {});
 
     /// @brief Scrolls stdout.
+    /// @note A zero line count emits no control sequence but can still honor options.flushMode.
     [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status scroll(
         Types::ScrollDirection direction,
         std::uint32_t lines = 1,
@@ -1253,6 +1324,7 @@ namespace GameWIP::Terminal
     scopedAlternateScreen(Types::OutputStream stream, const Types::ControlOptions &options = {}) noexcept;
 
     /// @brief Sets the terminal title through stdout.
+    /// @details Backend limits and sanitization apply; the current Win32 backend replaces C0 controls and DEL with spaces.
     [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status setTitle(std::string_view utf8Title, const Types::ControlOptions &options = {});
 
     /// @brief Sets the terminal title through an output stream.
@@ -1261,7 +1333,8 @@ namespace GameWIP::Terminal
         std::string_view utf8Title,
         const Types::ControlOptions &options = {});
 
-    /// @brief Rings the terminal bell through stdout.
+    /// @brief Emits the terminal bell control through stdout.
+    /// @note Terminal or user settings decide whether the control produces an audible sound.
     [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status ringBell(const Types::ControlOptions &options = {});
 
     /// @brief Rings the terminal bell through an output stream.
@@ -1270,12 +1343,16 @@ namespace GameWIP::Terminal
     /// @cond INTERNAL_TERMINAL_DETAIL
     namespace Detail
     {
+        /// @brief Exported ABI bridge used by the public print() templates.
+        /// @warning Internal support symbol; consumers must call print() instead.
         [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status vprint(
             Types::OutputStream stream,
             const Types::TextWriteOptions &options,
             std::string_view format,
             std::format_args arguments);
 
+        /// @brief Exported ABI bridge used by the public println() templates.
+        /// @warning Internal support symbol; consumers must call println() instead.
         [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status vprintln(
             Types::OutputStream stream,
             const Types::LineWriteOptions &options,

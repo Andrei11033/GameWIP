@@ -124,6 +124,8 @@ cmake --preset docs
 cmake --build --preset docs
 ```
 
+Then perform the warning-log check in @ref project_documentation. A successful Doxygen process exit alone does not prove that the generated manual is warning-free.
+
 Doxygen validates syntax and links, but it does not judge prose consistency. First-party Markdown must also be reviewed against the heading, voice, terminology, list, example, and ownership rules in @ref project_documentation.
 
 ## Local pre-commit checklist

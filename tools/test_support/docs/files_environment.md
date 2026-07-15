@@ -1,69 +1,63 @@
 @page test_support_files_environment TestSupport files and environment
 
+These helpers favor compact test setup and cleanup. Use FileSystem or custom code when a test must preserve detailed status, native errors, encoding policy, durability, sharing, or atomicity.
+
 ## Text file helpers
 
-These helpers are intentionally small and text-oriented. Use custom code for binary fixtures, structured parsing, or tests that need detailed I/O error reporting.
+### `readTextFile()`
 
-`readTextFile()` returns empty text on open failure, so use `fileExists()` when an empty file and an unreadable file must be distinguished. Search helpers return false for missing files, including an empty search. Occurrence counting is non-overlapping and treats an empty needle as zero.
+The function opens in binary mode, determines an initial size, reads once, and returns the bytes in `std::string`. It performs no UTF-8 validation, BOM handling, or newline conversion.
 
-`writeTextFile()` creates parent directories and throws on open or write failure. Cleanup helpers suppress filesystem errors so teardown does not hide the test result.
+It returns empty text when:
 
-## Scoped temporary directories
+- the file is empty;
+- the file cannot be opened;
+- the initial position is non-positive.
 
-`ScopedTemporaryDirectory` creates a unique directory beneath the operating-system temporary directory and removes the complete tree when its scope ends. Use it for test inputs, generated files, captured logs, and other artifacts that must not appear in a repository or build directory.
+Those outcomes cannot be distinguished from the return value. A short underlying stream read produces a shorter string. Allocation, length, path conversion, or stream exceptions may propagate.
 
-```cpp
-{
-    GameWIP::TestSupport::ScopedTemporaryDirectory workspace("parser_tests");
-    const std::filesystem::path input = workspace.path() / "input.txt";
-    GameWIP::TestSupport::writeTextFile(input, "fixture");
-    runParserTest(input);
-} // The workspace and every contained artifact are removed.
-```
+### `writeTextFile()`
 
-Names are unique across concurrent scopes. The readable purpose is sanitized for use as a path prefix. Construction throws when the operating-system temporary directory cannot be resolved or a unique directory cannot be created; destruction suppresses cleanup errors so teardown cannot replace the test outcome.
+The function creates non-empty parent paths, opens in binary truncation mode, and replaces existing contents. It performs no encoding or line-ending conversion.
 
-`ScopedCurrentPath` temporarily changes the process working directory and restores the previous path on destruction. It is useful when testing APIs whose documented contract intentionally uses relative paths:
+Filesystem setup, path conversion, allocation, open, and write failures can throw `std::filesystem::filesystem_error`, `std::runtime_error`, or another standard exception.
 
-```cpp
-GameWIP::TestSupport::ScopedTemporaryDirectory workspace("default_path_test");
-{
-    GameWIP::TestSupport::ScopedCurrentPath currentPath(workspace.path());
-    runApiThatUsesRelativePaths();
-}
-```
+### Queries and cleanup
 
-The working directory is process-global. Do not overlap `ScopedCurrentPath` instances or use one while unrelated threads resolve relative paths. Stop subsystem workers before restoring the path.
+- `fileExists()` returns false for a missing path and for a filesystem-query error.
+- `fileContains()` first requires `fileExists()`, then searches the ambiguous `readTextFile()` result. An empty substring can therefore succeed for an existing path whose read returned empty text.
+- `countFileOccurrences()` counts non-overlapping matches. Empty search text returns zero; open failure and no matches are also indistinguishable.
+- `createDirectories()` treats an empty path as a successful no-op and otherwise permits filesystem exceptions.
+- `removeIfExists()` removes a complete tree and suppresses every removal error.
 
-## Scoped environment variables
+## Scoped temporary directory
 
-`ScopedEnvironmentVariable` temporarily sets an environment variable and restores the previous state on destruction:
+`ScopedTemporaryDirectory` creates a unique child beneath the operating-system temporary directory. The purpose is sanitized into a readable filename prefix, and allocation uses a bounded collision-retry loop.
 
-```cpp
-{
-    GameWIP::TestSupport::ScopedEnvironmentVariable variable("MYAPP_TEST_MODE", "1");
-    runScenarioThatReadsEnvironment();
-}
-```
+The object is non-copyable and non-movable. `path()` returns an object-owned reference valid until destruction. The destructor attempts recursive removal and then removes empty TestSupport parent directories. Cleanup failure is suppressed; open/locked resources, abnormal process termination, or external filesystem activity can leave artifacts.
 
-`ScopedUnsetEnvironmentVariable` temporarily unsets a variable and restores it later:
+Construction can throw when the temporary root cannot be resolved/created, a candidate cannot be created, collision attempts are exhausted, or formatting/allocation fails.
 
-```cpp
-{
-    GameWIP::TestSupport::ScopedUnsetEnvironmentVariable variable("MYAPP_OPTIONAL_SETTING");
-    runScenarioWithoutSetting();
-}
-```
+## Scoped current path
 
-Environment variables are process-global. Avoid overlapping scoped environment changes for the same name across threads.
+`ScopedCurrentPath` reads the current process directory and changes to the requested path during construction. `previousPath()` returns an object-owned reference. Destruction attempts restoration and suppresses failure.
 
-Construction rejects empty names, names containing `=`, embedded nulls, and invalid UTF-8. It throws when the process environment cannot be changed. Destruction performs best-effort restoration and cannot throw.
+The current directory is process-global. Safe use requires strict LIFO ownership and no unrelated relative-path resolution or direct current-directory mutation during the scope. TestSupport does not hold a process-wide lock for the scope lifetime.
 
-## Windows behavior
+## Environment guards
 
-On Windows, TestSupport updates both:
+`ScopedEnvironmentVariable` copies a name and value, records the prior value, and restores it at destruction. `ScopedUnsetEnvironmentVariable` records the prior value and removes the variable temporarily.
 
-- the CRT environment used by `std::getenv()`, and
-- the process environment inherited by child processes.
+Names must be non-empty and contain no `=`. Win32 narrow names and values are UTF-8, embedded nulls and invalid UTF-8 are rejected, and oversized conversion input can throw `std::length_error`.
 
-Names and values use UTF-8 `std::string` at the public boundary. Invalid UTF-8 is rejected before the environment is changed.
+Environment names are case-insensitive on Windows. Mutations and restoration operations performed through TestSupport are serialized, but a guard does not own the environment mutex for its lifetime. Overlapping scopes for the same logical name can therefore restore stale state in surprising order. Other environment APIs do not participate in the mutex, and environment mutation may invalidate pointers previously returned by `std::getenv()`.
+
+On the Win32 backend, `ScopedEnvironmentVariable(name, "")` follows `_wputenv_s` semantics and removes the variable rather than representing a distinguishable empty value. Child-process overrides can represent an explicitly empty child value.
+
+Guard destructors suppress restoration failures.
+
+## Related pages
+
+- @ref test_support_expectations
+- @ref test_support_child_processes
+- @ref test_support_troubleshooting

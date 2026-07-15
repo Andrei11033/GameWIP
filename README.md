@@ -112,6 +112,11 @@ Build it locally:
 ```powershell
 cmake --preset docs
 cmake --build --preset docs
+$warningLog = Get-Item .\build\docs\docs\doxygen\doxygen_warnings.log
+if ($warningLog.Length -ne 0) {
+    Get-Content $warningLog
+    throw "Doxygen emitted warnings."
+}
 ```
 
 Generated HTML starts at `build/docs/docs/doxygen/html/index.html`.

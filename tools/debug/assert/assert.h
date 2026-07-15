@@ -1,5 +1,7 @@
 /// @file assert.h
-/// @brief Assertion, verification, recoverable-check, unreachable, and debug-break macros.
+/// @brief Public Assert macros and runtime support declarations.
+/// @details Include this header as `debug/assert/assert.h`. The public macro API is intentionally
+/// global for concise call sites; typed runtime support lives in `GameWIP::Debug::Assert`.
 
 #pragma once
 
@@ -8,20 +10,23 @@
 
 #include "debug/assert/assert_export.h"
 
-/// Contract:
-/// The macro API is split into fatal assertions (`ASSERT`, `VERIFY`, `UNREACHABLE`), recoverable
-/// diagnostics (`CHECK`, `CHECK_ONCE`, `ENSURE`), explicit debugger breaks (`DEBUG_BREAK`), and
-/// interactive developer assertions (`ASSERT_INTERACTIVE`, `VERIFY_INTERACTIVE`).
+/// Macro families:
+/// Fatal assertions use `ASSERT`, `VERIFY`, and `UNREACHABLE`. Recoverable diagnostics use
+/// `CHECK`, `CHECK_ONCE`, and `ENSURE`. Developer interaction uses `ASSERT_INTERACTIVE` and
+/// `VERIFY_INTERACTIVE`. Explicit debugger breaks use `DEBUG_BREAK`.
 
 /// @def INTERNAL_ASSERT_RUNTIME
-/// @brief Internal/exported build flag that tells the header whether the assert runtime library is available.
-/// @details 1 means runtime handlers are linked; 0 means the header uses inline trap/no-op behavior only.
+/// @brief ABI-facing build flag that tells the header whether the Assert runtime is linked.
+/// @details This definition is owned by the Assert CMake target. `1` enables calls to exported
+/// runtime bridge symbols; `0` selects header-only disabled behavior. Consumers should not set it manually.
 #ifndef INTERNAL_ASSERT_RUNTIME
 #define INTERNAL_ASSERT_RUNTIME 1
 #endif
 
 /// @def INTERNAL_ASSERT_TEST_HOOKS
-/// @brief Enables internal assert test-hook declarations for dedicated test builds.
+/// @brief Enables source-tree-only Assert test-hook declarations for validation builds.
+/// @details This definition is not installed consumer API. It exists so approved tests can include
+/// `debug/assert/internal/assert_test_hooks.h` when `ASSERT_ENABLE_TEST_HOOKS` is enabled.
 #ifndef INTERNAL_ASSERT_TEST_HOOKS
 #define INTERNAL_ASSERT_TEST_HOOKS 0
 #endif
@@ -38,31 +43,39 @@
 //-------------------------------------------------------------------------------------------------
 
 /// @def ASSERT_DIAGNOSTICS
-/// @brief Controls whether expression/file/line/function/message diagnostic text is embedded in assert reports.
+/// @brief Controls whether condition, message, file, line, and function text are captured in failure reports.
+/// @details When this is `0`, `_MSG` message expressions are not evaluated by Assert macros.
 #ifndef ASSERT_DIAGNOSTICS
 #define ASSERT_DIAGNOSTICS 1
 #endif
 
 /// @def ASSERT_POPUP_ON_ASSERT
-/// @brief Controls whether failed ASSERT/VERIFY/UNREACHABLE reports may show a platform popup.
+/// @brief Controls whether fatal assertion reports may show Assert-owned platform UI.
+/// @details This is compiled into the Assert runtime. Defining it only for a consumer target does
+/// not reconfigure an already-built runtime library.
 #ifndef ASSERT_POPUP_ON_ASSERT
 #define ASSERT_POPUP_ON_ASSERT 1
 #endif
 
 /// @def ASSERT_POPUP_ON_CHECK
-/// @brief Controls whether failed CHECK/ENSURE reports may show a platform popup.
+/// @brief Controls whether recoverable check reports may show Assert-owned platform UI.
+/// @details This is compiled into the Assert runtime. Defining it only for a consumer target does
+/// not reconfigure an already-built runtime library.
 #ifndef ASSERT_POPUP_ON_CHECK
 #define ASSERT_POPUP_ON_CHECK 0
 #endif
 
 /// @def ASSERT_UNREACHABLE_ASSUME
-/// @brief Controls whether disabled UNREACHABLE uses compiler unreachable assumptions instead of a trap.
+/// @brief Selects the disabled-build backend used by `UNREACHABLE()`.
+/// @details `1` permits a compiler unreachable assumption where supported; `0` uses the trap path.
 #ifndef ASSERT_UNREACHABLE_ASSUME
 #define ASSERT_UNREACHABLE_ASSUME 0
 #endif
 
 /// @def ASSERT_ENABLED
-/// @brief Controls ASSERT/VERIFY/UNREACHABLE failure handling. Defaults to enabled when NDEBUG is not defined.
+/// @brief Controls fatal assertion failure handling.
+/// @details This is normally propagated from the `ASSERT_ENABLED` CMake option. It affects
+/// `ASSERT`, `VERIFY`, interactive fatal macros, and `UNREACHABLE`.
 #ifndef ASSERT_ENABLED
 #if !defined(NDEBUG)
 #define ASSERT_ENABLED 1
@@ -72,7 +85,9 @@
 #endif
 
 /// @def ASSERT_CHECKS_ENABLED
-/// @brief Controls CHECK/CHECK_ONCE/ENSURE reporting. Defaults to enabled when NDEBUG is not defined.
+/// @brief Controls recoverable check reporting.
+/// @details This is normally propagated from the `ASSERT_CHECKS_ENABLED` CMake option. It affects
+/// `CHECK`, `CHECK_ONCE`, and `ENSURE`; `ENSURE` still evaluates and returns its condition when disabled.
 #ifndef ASSERT_CHECKS_ENABLED
 #if !defined(NDEBUG)
 #define ASSERT_CHECKS_ENABLED 1
@@ -126,18 +141,20 @@ static_assert(ASSERT_UNREACHABLE_ASSUME == 0 || ASSERT_UNREACHABLE_ASSUME == 1, 
 #error "INTERNAL_ASSERT_RUNTIME=0 requires ASSERT_ENABLED=0 and ASSERT_CHECKS_ENABLED=0."
 #endif
 
-/// @brief Runtime support for fatal, recoverable, and interactive assertion macros.
+/// @namespace GameWIP::Debug::Assert
+/// @brief Runtime support for Assert macros.
+/// @details Public consumers normally use the global macros. This namespace contains the small typed
+/// API required for interactive actions and explicit debugger breaks.
 namespace GameWIP::Debug::Assert
 {
     /// @name Runtime support
     /// @{
 
-    /// @brief Action selected for an interactive fatal assertion failure.
+    /// @brief Action selected after an interactive fatal assertion failure.
     ///
-    /// @details Used by ASSERT_INTERACTIVE / VERIFY_INTERACTIVE failure handling.
-    /// Break force-breaks into the debugger and then continues if execution resumes.
-    /// Abort terminates with std::abort. IgnoreOnce continues this failure only.
-    /// AlwaysIgnore continues and suppresses future failures from the same macro call site.
+    /// @details `ASSERT_INTERACTIVE` and `VERIFY_INTERACTIVE` use this enum after a failed
+    /// condition has been reported through Logger. `AlwaysIgnore` is scoped to the macro expansion
+    /// site that owns the interactive failure.
     enum class FailureAction
     {
         /// @brief Trigger the debugger break path and continue if execution resumes.
@@ -153,10 +170,9 @@ namespace GameWIP::Debug::Assert
 #if INTERNAL_ASSERT_RUNTIME
     /// @brief Triggers the platform debugger break instruction.
     ///
-    /// Contract:
-    /// `DEBUG_BREAK()` uses this runtime function as its explicit force-break path. Normal fatal
-    /// `ASSERT`/`VERIFY` failures call the platform break instruction only when a debugger is
-    /// attached before aborting.
+    /// @details `DEBUG_BREAK()` calls this function when the runtime is available. Normal fatal
+    /// assertion handling checks whether a debugger is attached before breaking; this function is
+    /// the explicit force-break path.
     ///
     /// @note Continuing from the debugger resumes execution.
     /// @see DEBUG_BREAK
@@ -169,6 +185,7 @@ namespace GameWIP::Debug::Assert
 namespace GameWIP::Debug::Assert::Detail
 {
 #if INTERNAL_ASSERT_RUNTIME
+    /// @brief Exported ABI bridge used by fatal public macros; not public consumer API.
     [[noreturn]] GAMEWIP_ASSERT_EXPORT void handleAssertFailure(
         std::string_view conditionText,
         std::string_view message,
@@ -176,6 +193,7 @@ namespace GameWIP::Debug::Assert::Detail
         int line,
         std::string_view function) noexcept;
 
+    /// @brief Exported ABI bridge used by interactive public macros; not public consumer API.
     GAMEWIP_ASSERT_EXPORT void handleInteractiveAssertFailure(
         std::string_view conditionText,
         std::string_view message,
@@ -184,6 +202,7 @@ namespace GameWIP::Debug::Assert::Detail
         std::string_view function,
         std::atomic_bool *alwaysIgnoreFlag) noexcept;
 
+    /// @brief Exported ABI bridge used by recoverable public macros; not public consumer API.
     GAMEWIP_ASSERT_EXPORT void handleCheckFailure(
         std::string_view conditionText,
         std::string_view message,
@@ -354,7 +373,7 @@ namespace GameWIP::Debug::Assert::Detail
 /// @def ASSERT_INTERACTIVE_MSG(condition, message)
 /// @brief ASSERT_INTERACTIVE with a custom diagnostic message.
 /// @param condition Boolean expression to validate.
-/// @param message Message text evaluated only on failure and only when diagnostics are enabled.
+/// @param message Message text evaluated only on an unsuppressed failure and only when diagnostics are enabled.
 #define ASSERT_INTERACTIVE_MSG(condition, message) \
     do \
     { \
@@ -379,7 +398,7 @@ namespace GameWIP::Debug::Assert::Detail
 /// @def VERIFY_MSG(condition, message)
 /// @brief VERIFY with a custom diagnostic message.
 /// @param condition Boolean expression to evaluate.
-/// @param message Message text passed to the assert report when condition is false.
+/// @param message Message text evaluated only on failure and only when diagnostics are enabled.
 #define VERIFY_MSG(condition, message) ASSERT_MSG(condition, message)
 
 /// @def VERIFY_INTERACTIVE(condition)
@@ -405,7 +424,7 @@ namespace GameWIP::Debug::Assert::Detail
 /// @def VERIFY_INTERACTIVE_MSG(condition, message)
 /// @brief VERIFY_INTERACTIVE with a custom diagnostic message.
 /// @param condition Boolean expression to evaluate once.
-/// @param message Message text evaluated only on failure and only when diagnostics are enabled.
+/// @param message Message text evaluated only on an unsuppressed failure and only when diagnostics are enabled.
 #define VERIFY_INTERACTIVE_MSG(condition, message) \
     do \
     { \
@@ -509,7 +528,7 @@ namespace GameWIP::Debug::Assert::Detail
 /// @def CHECK_MSG(condition, message)
 /// @brief Recoverable check with a custom diagnostic message.
 /// @param condition Boolean expression to validate.
-/// @param message Message text passed to the check report when condition is false.
+/// @param message Message text evaluated only on failure and only when diagnostics are enabled.
 #define CHECK_MSG(condition, message) \
     do \
     { \
@@ -541,7 +560,7 @@ namespace GameWIP::Debug::Assert::Detail
 /// @def CHECK_ONCE_MSG(condition, message)
 /// @brief CHECK_ONCE with a custom diagnostic message.
 /// @param condition Boolean expression to validate.
-/// @param message Message text passed to the first failure report at this call site.
+/// @param message Message text evaluated only for the first reported failure at this call site and only when diagnostics are enabled.
 #define CHECK_ONCE_MSG(condition, message) \
     do \
     { \
@@ -575,7 +594,7 @@ namespace GameWIP::Debug::Assert::Detail
 /// @def ENSURE_MSG(condition, message)
 /// @brief ENSURE with a custom diagnostic message.
 /// @param condition Boolean expression to evaluate.
-/// @param message Message text passed to the check report when condition is false.
+/// @param message Message text evaluated only on false results and only when diagnostics are enabled.
 /// @return true when condition is true, false otherwise.
 #define ENSURE_MSG(condition, message) \
     ( \

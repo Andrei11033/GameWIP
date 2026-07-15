@@ -1,5 +1,8 @@
 /// @file filesystem_test.cpp
 /// @brief Compile-time and runtime checks for the FileSystem public API.
+///
+/// Tests use an isolated temporary workspace and group coverage by metadata,
+/// symlink policy, whole-file I/O, mutation, atomic replacement, and locking.
 
 #include "validation/tests/filesystem/filesystem_test.h"
 

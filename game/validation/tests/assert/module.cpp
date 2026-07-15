@@ -9,7 +9,8 @@
 
 namespace
 {
-    /// @brief Detects crash/debug child invocations owned by Assert tests.
+    /// @brief Claims the Assert child prefix for routing before validating its exact protocol suffix.
+    /// @note An unknown reserved suffix currently reaches the Assert module and can fall through to its full suite.
     bool handlesChildArguments(int argc, char **argv)
     {
         for (int index = 1; index < argc; ++index)

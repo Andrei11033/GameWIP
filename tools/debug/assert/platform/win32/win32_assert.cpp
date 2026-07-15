@@ -1,5 +1,7 @@
 /// @file win32_assert.cpp
-/// @brief Windows platform backend for the Assert library.
+/// @brief Windows platform backend for Assert UI, debugger detection, and debug breaks.
+/// @details The backend prefers Task Dialog for interactive failures, falls back to MessageBox,
+/// converts UTF-8 diagnostics to UTF-16, and bounds popup text before showing UI.
 
 #include "debug/assert/internal/assert_platform.h"
 
@@ -31,7 +33,7 @@
 
 namespace
 {
-    /// @brief Returns whether real assert UI is suppressed by test override or Unicode environment state.
+    /// @brief Returns whether real Assert UI is suppressed by test override or environment state.
     bool popupsSuppressed() noexcept
     {
 #if INTERNAL_ASSERT_TEST_HOOKS
@@ -70,7 +72,7 @@ namespace
     }
 #endif
 
-    /// @brief Builds a printable ASCII-only wide string when strict UTF-8 conversion fails.
+    /// @brief Builds printable ASCII-only UTF-16 text when strict UTF-8 conversion fails.
     std::wstring asciiFallbackToWide(std::string_view text)
     {
         std::wstring output;
@@ -190,7 +192,7 @@ namespace
     /// @brief Runtime-loaded TaskDialogIndirect signature for systems without static availability.
     using TaskDialogIndirectFn = HRESULT(WINAPI *)(const TASKDIALOGCONFIG *, int *, int *, BOOL *);
 
-    /// @brief Resolves TaskDialogIndirect from Comctl32 without making it a load-time dependency.
+    /// @brief Resolves TaskDialogIndirect from Comctl32 without making it a static load-time dependency.
     TaskDialogIndirectFn loadTaskDialogIndirect() noexcept
     {
         HMODULE commonControls = GetModuleHandleW(L"comctl32.dll");
@@ -208,6 +210,7 @@ namespace
     }
 
     /// @brief Presents the reduced Abort/Break/Ignore fallback through MessageBoxW.
+    /// @details MessageBoxW cannot represent the full Always Ignore action set.
     FailureAction fallbackMessageBoxAction(const wchar_t *title, const wchar_t *message, FailureAction defaultAction) noexcept
     {
 #if INTERNAL_ASSERT_TEST_HOOKS

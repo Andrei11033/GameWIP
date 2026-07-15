@@ -1,7 +1,7 @@
 /// @file assert_header.cpp
 /// @brief Assert public-header self-containment compile check.
 ///
-/// This translation unit intentionally includes only `debug/assert/assert.h` first to prove
+/// This translation unit intentionally includes only `debug/assert/assert.h` first. This proves
 /// the installed public header can be parsed without relying on include order
 /// from another GameWIP header.
 

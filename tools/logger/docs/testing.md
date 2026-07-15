@@ -1,39 +1,57 @@
 @page logger_testing Logger maintainer validation
 
-@note This page is for maintainers. Internal hooks are source-tree validation interfaces, not consumer API.
+@note Logger validation uses source-tree interfaces. Internal hooks and implementation headers are not installed consumer API.
 
 ## Correctness coverage
 
-The Logger suite covers:
+The Logger validation module covers:
 
-- configuration presets, initialization, repeated lifecycle calls, and output modes;
-- source registration, severity/source/level filters, compile-time formats, and runtime formats;
-- asynchronous queue acceptance, filtering, pressure, soft/hard drops, and peak depth;
-- console/file output, UTF-8 paths, reader sharing, redirection, styles, and line endings;
-- synchronous reports, filter bypass, queue bypass, flush results, fatal reporting, and termination paths;
-- allocation, format, file, popup, unknown-source, and truncation counters;
-- counter reset rules and lifetime drop preservation.
+- configuration presets, sanitization, effective limits, output modes, file fallback, and repeated lifecycle calls;
+- source registration, string/ID/enum sources, initial and runtime filters, and unknown IDs;
+- preformatted, compile-time, runtime, nested, bounded, and truncating formatting paths;
+- asynchronous acceptance, ordered publication, worker filtering, soft/hard pressure, allocation skip markers, and final drain;
+- console/file routing, UTF-8 paths, collision-safe files, read sharing, redirection, styles, line endings, write and flush failure;
+- synchronous reports, debugger mirroring, bounded drains, popup handling, and termination child paths;
+- every public statistics and memory-diagnostic field;
+- macro compile-out and lazy-evaluation rules.
 
 ## Concurrency and stress
 
-Stress scenarios cover concurrent producers, reporting during production, timed flush while producers remain active, final drain, shutdown during activity, queue pressure, and repeated initialization/shutdown. They prove safety and progress; machine-dependent timing is not a correctness threshold.
+Stress scenarios cover concurrent producers, reports during production, timed flush with active producers, worker wait transitions, shutdown during a final producer departure, queue pressure, and repeated initialization/shutdown.
 
-## Performance review checklist
+These scenarios validate safety and progress. Machine-dependent timing and throughput are not correctness thresholds.
 
-- Filtered macro calls avoid message and argument evaluation.
-- Accepted producer calls avoid unnecessary allocation.
-- Direct formatted calls account for argument evaluation before Logger checks filters.
-- Queue-drop statistics exclude filtered messages.
-- Instrumented validation builds are not used as final performance baselines.
-- Long-message tests cover the active `FormatPolicy`; the bounded policy reduces peak memory, while the fast-normal policy favors common-case formatting speed.
-- FileSystem and Terminal work remains on the worker or synchronous report path so normal producers do not gain I/O overhead.
+Concurrent filter mutation, a deterministic filter change after queueing but before worker delivery, and registered-`SourceId` contention do not yet have focused stress coverage. Add those scenarios before treating the worker-side filter recheck or shared registry path as regression-protected under contention.
 
-## Hook-forced and manual paths
+## Package and header validation
 
-When `INTERNAL_LOGGER_TEST_HOOKS=1`, source-tree tests force rare allocation, file open/write/flush, popup, and timed-flush paths. Every scenario resets forced state.
+Project validation also checks:
 
-The fatal popup is a runtime opt-in manual test. Automated jobs never rely on a real popup.
+- public-header self-containment;
+- installed-package consumption through `GameWIP::Logger`;
+- exact dependency/package behavior;
+- exported-symbol allowlists where configured.
 
-## Project integration
+See @ref project_testing for module selection and child-process protocol, @ref project_coverage for coverage workflow, and @ref project_benchmarking for performance runs.
 
-GameWIP owns module registration, runtime selection, reports, benchmarks, and coverage. See @ref project_testing, @ref project_benchmarking, and @ref project_coverage.
+## Manual paths
+
+Real fatal popup behavior is a runtime opt-in manual test. Automated validation uses hooks and isolated child processes instead of depending on interactive UI or terminating the parent test process.
+
+## Performance review
+
+Instrumented validation builds are not final performance baselines. Benchmark/review should separately consider:
+
+- filtered macro cost;
+- producer formatting cost;
+- source representation;
+- queue pressure and batching;
+- file flush policy;
+- `FormatPolicy` peak memory;
+- retained storage choices.
+
+## Related pages
+
+- @ref logger_test_hooks
+- @ref logger_threading_performance
+- @ref logger_abi

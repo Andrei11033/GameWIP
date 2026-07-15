@@ -11,6 +11,7 @@ Use this page when writing or reviewing:
 - Generated project manual pages under `docs/doxygen/`.
 - Library manuals under `<library>/docs/`.
 - Public and ABI-facing header comments.
+- Explicitly documented executable and validation source interfaces.
 - Approved internal test-hook documentation.
 - Source comments for file purpose, internal helpers, and non-obvious implementation contracts.
 
@@ -21,6 +22,7 @@ Use @ref project_planning to decide whether product planning or policy material 
 - Write each rule, workflow, or contract in one authoritative place.
 - Summaries may appear on nearby pages, but they must link back to the owner instead of restating the full rule.
 - Register Doxygen inputs explicitly; do not rely on recursive source-tree discovery.
+- Use `@ref` and `@subpage` for navigation between registered manual pages; reserve relative Markdown links for ordinary Markdown documents outside the generated manual.
 - Keep consumer documentation focused on supported public behavior.
 - Keep implementation mechanics in internal headers, source comments, backend contracts, or maintainer-only pages.
 - Keep examples copy-pasteable when the page is teaching a workflow or public API.
@@ -36,9 +38,10 @@ Use @ref project_planning to decide whether product planning or policy material 
 | `docs/` | Vision, roadmap, decisions, versioning, and contributor workflow records. |
 | `<library>/docs/` | Library manual pages. |
 | Public headers | Detailed generated API and ABI reference plus IntelliSense documentation. |
+| Documented `game/` headers | Generated reference for executable-owned and validation source interfaces; these are not installed consumer APIs. |
 | Internal headers and source files | File purpose, internal helper contracts, and maintainer comments for implementation details. |
 
-Project manual pages own repository workflows and contracts. Library manuals own library-specific API usage, examples, troubleshooting, validation coverage, and approved test hooks.
+Project manual pages own repository workflows and contracts. They also own executable and validation source interfaces under `game/`. Library manuals own library-specific API usage, examples, troubleshooting, validation coverage, and approved test hooks.
 
 ## Page IDs and file names
 
@@ -78,7 +81,9 @@ Each reusable library should provide:
   troubleshooting.md
 ```
 
-Optional pages such as `test_hooks.md`, `platform.md`, or `design.md` should be added only when the library exposes approved validation hooks, platform-specific contracts, or design constraints that need a stable owner.
+Libraries may add additional manual pages when the public or maintainer-facing contract needs a focused owner. Extra pages should make the manual easier to use or maintain; do not create pages just to mirror the source tree.
+
+For example, a library with many build options may add a configuration page, a library with exported runtime symbols may add an ABI or package-boundary page, and a library with source-tree-only validation hooks may add a test-hooks page.
 
 A library landing page should contain:
 
@@ -100,7 +105,7 @@ A quick-start page should contain:
 
 ## Public API and ABI documentation standard
 
-Every public API and ABI-facing contract must be accounted for in generated documentation. This includes public namespaces, classes, structs, enums, enum values, constants, macros, free functions, constructors, member functions, fields, option types, result types, binary boundary assumptions, and exported-symbol expectations.
+Every public API and ABI-facing contract must be accounted for in generated documentation. The same rule applies to source-tree interfaces that connect the executable, validation runners, and validation modules, even though those interfaces are not installed compatibility promises. This includes namespaces, classes, structs, enums, enum values, constants, macros, free functions, constructors, member functions, fields, option types, result types, binary boundary assumptions, and exported-symbol expectations.
 
 Header comments provide the detailed reference documentation for API and ABI contracts. Manual pages provide practical usage guidance, examples, troubleshooting, and broader workflow context.
 
@@ -202,6 +207,12 @@ Use this structure when it fits:
 ## Related pages
 ```
 
+## Registering project source interfaces
+
+Executable-owned headers that define stable source-tree integration contracts may be registered explicitly with `gamewip_register_doxygen_inputs()`. Keep that list narrow: register headers used between executable or validation components, not private implementation headers or every test helper.
+
+Documented `game/` headers must state that they are source-tree interfaces rather than installed consumer APIs. Approved internal test seams remain excluded from the generated API reference and are documented on their owning maintainer page.
+
 ## Registering a library
 
 A library target registers its public headers and docs folder with `gamewip_register_doxygen_library()`:
@@ -219,6 +230,8 @@ gamewip_register_doxygen_library(
 ```
 
 The registered docs folder must contain a landing page named `<PAGE_ID>.md`.
+
+Register supported consumer entry headers as generated-reference owners. Generated export headers that only provide visibility macros remain transitive build artifacts: list their installed names and ABI role on the owning ABI page, exercise them through the entry headers and installed-consumer validation, and do not present them as independent consumer APIs.
 
 ## Source comments
 
@@ -246,7 +259,19 @@ Do not comment obvious assignments, getters, or local variables.
 
 Documentation generation is opt-in through `GAMEWIP_BUILD_DOCS`. Normal builds must not require Doxygen.
 
-The generated Doxyfile should keep explicit inputs, write HTML output under the build tree, and write warnings to `build/docs/docs/doxygen/doxygen_warnings.log`.
+Build the generated manual and reject any recorded warning:
+
+```powershell
+cmake --preset docs
+cmake --build --preset docs
+$warningLog = Get-Item .\build\docs\docs\doxygen\doxygen_warnings.log
+if ($warningLog.Length -ne 0) {
+    Get-Content $warningLog
+    throw "Doxygen emitted warnings."
+}
+```
+
+The generated Doxyfile should keep explicit inputs, write HTML output under the build tree, and write warnings to `build/docs/docs/doxygen/doxygen_warnings.log`. Local and CI validation must reject a non-empty warning log; a successful Doxygen process exit alone is insufficient.
 
 The documentation build should be warning-free.
 

@@ -1,58 +1,65 @@
 @page test_support_timing_stress TestSupport timing and stress helpers
 
-## Timer
+## `Timer`
 
-`Timer` measures wall-clock elapsed time:
+`Timer` uses `std::chrono::steady_clock`, starts at construction, and can be restarted with `reset()`. It is suitable for suite diagnostics and section metrics, not calibrated benchmark assertions. Concurrent reset/read of the same object is not synchronized.
+
+## `StartGate`
+
+`StartGate` is a one-shot gate. `wait()` blocks until `open()` is called. `open()` is idempotent; after opening, current and future waiters pass. The gate cannot be reset.
+
+## `StopFlag`
+
+`StopFlag` is a one-way cooperative stop signal. `requestStop()` performs a release store and `stopRequested()` performs an acquire load. There is no reset operation.
+
+## `runWorkers()`
+
+`runWorkers(workerCount, workerFunction)`:
+
+- starts no threads when `workerCount == 0`;
+- requires a copy-constructible callable;
+- gives each worker a separate callable-object copy;
+- invokes `worker(index)` when the callable accepts `std::size_t`, otherwise invokes `worker()`;
+- selects the indexed form when both are viable;
+- joins every successfully started thread;
+- captures one worker exception and rethrows it after all workers join;
+- allows other workers to continue after one throws.
+
+A separate callable object does not imply isolated captured state. References, pointers, and shared objects captured by the callable remain shared and need their own synchronization.
+
+When multiple workers throw concurrently, which exception is retained is scheduling-dependent. Thread creation, vector allocation, or callable copy/move can also throw. If startup fails after some threads were created, TestSupport joins those threads before rethrowing the startup failure.
+
+Design worker coordination so a partial-startup failure cannot strand already-started workers waiting for a participant that was never created. A fixed barrier expecting exactly `workerCount` participants is unsafe unless startup failure has an independent release path.
+
+## Example
 
 ```cpp
-GameWIP::TestSupport::Timer timer;
-runScenario();
-context.metric("scenarioMs=" + std::to_string(timer.elapsedMilliseconds()));
-```
+#include "test_support/test_support.h"
 
-`Timer` is intentionally limited to diagnostic elapsed-time reporting for test suites and sections. Use a dedicated benchmark framework for per-iteration timing, calibration, repetitions, and statistical output.
+#include <atomic>
+#include <cstddef>
+#include <thread>
 
-## StartGate
-
-`StartGate` lets worker threads wait until the main test releases them:
-
-```cpp
-GameWIP::TestSupport::StartGate gate;
-
-std::thread worker([&]
+int main()
 {
-    gate.wait();
-    runWorker();
-});
+    std::atomic_size_t visits{0};
+    GameWIP::TestSupport::StartGate gate;
 
-gate.open();
-worker.join();
-```
+    std::thread coordinator([&gate] { gate.open(); });
+    GameWIP::TestSupport::runWorkers(
+        4,
+        [&](std::size_t)
+        {
+            gate.wait();
+            visits.fetch_add(1, std::memory_order_relaxed);
+        });
+    coordinator.join();
 
-## StopFlag
-
-`StopFlag` is a tiny atomic cooperative-stop helper:
-
-```cpp
-GameWIP::TestSupport::StopFlag stop;
-
-while (!stop.stopRequested())
-{
-    runOneStep();
+    return visits.load(std::memory_order_relaxed) == 4 ? 0 : 1;
 }
 ```
 
-## runWorkers
+## Related pages
 
-`runWorkers(workerCount, workerFunction)` starts `workerCount` threads, gives each worker its own callable copy, joins all workers, and rethrows the first captured worker exception.
-
-The callable may accept either no arguments or a `std::size_t` worker index:
-
-```cpp
-GameWIP::TestSupport::runWorkers(4, [](std::size_t workerIndex)
-{
-    runWorker(workerIndex);
-});
-```
-
-Use these helpers for simple stress patterns. Keep domain-specific checks in the relevant test file instead of adding application-specific logic to TestSupport.
+- @ref test_support_examples
+- @ref test_support_testing

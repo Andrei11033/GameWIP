@@ -9,6 +9,7 @@
 
 #include <cstddef>
 
+/// @brief Source-tree validation results and optional executable startup facade.
 namespace GameWIP::Validation
 {
     /// @brief Aggregated outcome of one correctness-validation invocation.
@@ -16,14 +17,15 @@ namespace GameWIP::Validation
     {
         /// @brief Number of selected modules that ran.
         std::size_t modulesRun = 0;
-        /// @brief Number of modules that returned a failing exit code.
+        /// @brief Number of invoked modules that failed, or one for a runner-level failure before module execution.
         std::size_t modulesFailed = 0;
-        /// @brief Process exit code requested by the validation run.
+        /// @brief Normal aggregate exit code, or the exact owning-module code for a routed child invocation.
         int exitCode = 0;
-        /// @brief True when a selected module handled a child-process protocol argument and the process should exit immediately.
+        /// @brief True when the caller must return immediately because child routing handled or rejected the invocation.
         bool handledChildInvocation = false;
 
-        /// @brief Returns true when no selected module failed and the requested process exit code is zero.
+        /// @brief Returns true when no module or runner-level failure was recorded.
+        /// @return True when modulesFailed and exitCode are both zero.
         [[nodiscard]] bool ok() const noexcept
         {
             return modulesFailed == 0 && exitCode == 0;
@@ -33,12 +35,13 @@ namespace GameWIP::Validation
     /// @brief Outcome of one Google Benchmark invocation.
     struct BenchmarkResult
     {
-        /// @brief Number of benchmark instances selected by Google Benchmark.
+        /// @brief Number returned by Google Benchmark for the selected invocation; zero is not inherently a failure.
         std::size_t benchmarksRun = 0;
-        /// @brief False when Google Benchmark rejected command-line arguments.
+        /// @brief False when Google Benchmark rejected one or more forwarded command-line arguments.
         bool argumentsValid = true;
 
-        /// @brief Returns true when benchmark arguments were valid.
+        /// @brief Returns whether runner-level argument validation succeeded.
+        /// @return True when forwarded arguments were accepted; scenario-level benchmark errors are reported by Google Benchmark output.
         [[nodiscard]] bool ok() const noexcept
         {
             return argumentsValid;

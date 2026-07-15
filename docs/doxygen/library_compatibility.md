@@ -23,10 +23,13 @@ The `GameWIP::` prefix belongs to CMake target names. It does not add another le
 
 ## Consumer workflow
 
-A clean external CMake project should consume an installed library through `find_package()` and the canonical imported target:
+A clean external CMake project should consume an installed library through `find_package()` and the canonical imported target. The consuming project's dependency lock owns `GAMEWIP_REQUIRED_VERSION`; supply it as a numeric cache or preset value instead of copying a version from this repository:
 
 ```cmake
-find_package(Logger CONFIG REQUIRED)
+if(NOT DEFINED GAMEWIP_REQUIRED_VERSION OR GAMEWIP_REQUIRED_VERSION STREQUAL "")
+    message(FATAL_ERROR "Set GAMEWIP_REQUIRED_VERSION to the required numeric GameWIP package version.")
+endif()
+find_package(Logger ${GAMEWIP_REQUIRED_VERSION} EXACT CONFIG REQUIRED)
 target_link_libraries(MyTarget PRIVATE GameWIP::Logger)
 ```
 
@@ -44,7 +47,7 @@ See `docs/versioning.md` for the project versioning policy.
 
 ## Public-header boundary
 
-Only headers in each target's public CMake file set are installed. Generated shared-library export headers are part of the installed public surface when required by that target.
+Only headers in each target's public CMake file set are installed. Generated shared-library export headers are part of the installed surface when required by a target, but they are visibility scaffolding included by the owning consumer entry header rather than independent entry points. Their installed names and ABI role are documented by the owning library's ABI page.
 
 The following must not be installed or exposed through imported target interfaces:
 
@@ -56,7 +59,7 @@ The following must not be installed or exposed through imported target interface
 - Source-tree-only helper headers.
 - Native platform handles or backend storage layouts unless an explicitly platform-scoped adapter is documented.
 
-Public-header checks compile every installed entry header in isolation. The installed-consumer validation configures outside the source tree using only package config files and installed headers.
+Public-header checks compile every supported consumer entry header in isolation and therefore exercise required export scaffolding transitively. The installed-consumer validation checks the complete installed header allowlist and configures outside the source tree using only package config files and installed headers.
 
 ## Dependency rules
 
@@ -93,6 +96,8 @@ cmake --preset validation
 cmake --build --preset validation
 ctest --preset validation
 ```
+
+The current installed-consumer case finds every package in dependency order. It validates the combined installed surface but can mask a missing transitive `find_dependency()` call because the dependency target already exists. Validate a changed package independently by requesting only that package until isolated per-package consumer cases are part of the project suite.
 
 ## Failure behavior
 
