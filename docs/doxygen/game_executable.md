@@ -68,11 +68,11 @@ CMake configures `game/runtime/version.h.in` into `gamewip/version.h` during pro
 | `display` | Human-readable release or development version. |
 | `productDisplay` | Complete product line printed by `--version`. |
 | `buildNumber` | Repository-derived build count or configured fallback. |
-| `gitCommit` | Configure-time abbreviated commit or fallback. |
-| `dirty` | Whether tracked source changes were detected at configuration time. |
-| `release` | Whether the build was configured from the expected clean annotated release tag. |
+| `gitCommit` | Generation-time abbreviated commit or fallback. |
+| `dirty` | Whether tracked source changes were detected when identity was generated. |
+| `release` | Whether generation observed the expected clean annotated release tag. |
 
-The values are configure-time metadata. A long-lived build tree must be reconfigured or rebuild the version-header target to observe newer repository state. Release interpretation is owned by @ref project_versioning.
+Configuration creates the initial values, and the game version-header target refreshes them whenever the executable is built. A long-lived build tree therefore observes newer repository state on rebuild without requiring reconfiguration. Release interpretation is owned by @ref project_versioning.
 
 ## Startup validation facade
 

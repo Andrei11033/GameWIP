@@ -135,13 +135,13 @@ Matchers should inspect arguments only. They should not perform the child operat
 
 This routing prevents crash, fatal, reentrant-format, and process-helper child invocations from recursively running the full suite or entering game runtime code.
 
-Current limitation: the Assert and TestSupport matchers claim any argument with their reserved child prefix, while their suites recognize only defined complete selectors. A malformed reserved selector is routed to the owner but can fall through to that module's ordinary full suite. Reserved child arguments are internal protocol values; callers must use only the documented/generated exact forms until unknown suffixes fail closed.
+Reserved child namespaces fail closed. Exactly one recognized selector invokes its owning module; an unknown or malformed reserved selector, or more than one reserved selector, returns a handled validation failure without running an ordinary module suite.
 
 ## Report paths and output
 
 Relative report paths are lexically normalized under the GameWIP directory in the operating-system temporary root. A relative path that still contains a parent-traversal component after normalization is rejected. Absolute paths are normalized and honored as explicit destinations.
 
-On Windows, use an ordinary relative path with neither a root name nor a root directory when temporary-root containment is required. The current classifier does not reject drive-relative forms such as `D:report.txt` or root-relative forms such as `\report.txt`; path composition can place those outside the intended GameWIP subtree.
+On Windows, temporary-root containment accepts only an ordinary relative path with neither a root name nor a root directory. Drive-relative forms such as `D:report.txt`, root-relative forms such as `\report.txt`, and normalized parent traversal are rejected. Fully absolute paths remain explicit caller-selected destinations.
 
 An empty or invalid report path disables retained file reporting and emits a console diagnostic; it does not fail the tests. `--no-test-report` has the same execution semantics without treating the path as invalid.
 

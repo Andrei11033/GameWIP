@@ -159,7 +159,7 @@ Every configure reports the generated GameWIP display version. The root numeric 
 
 Doxygen uses the generated display version as its project number. Runtime diagnostics use the same identity. See `docs/versioning.md` for source-version, build-identity, and release-tag policy.
 
-The game target refreshes its generated identity during a build. The docs target currently uses identity captured at CMake configure time; after switching commits or creating a commit without another CMake input change, rerun `cmake --preset docs` before publishing the manual so the Doxygen project number and generated version reference are current.
+The game and docs targets refresh generated identity during every build. After switching commits or creating a commit, rebuilding either target updates its generated version header; the docs target also refreshes the Doxygen project number before generation.
 
 ## Failure behavior
 

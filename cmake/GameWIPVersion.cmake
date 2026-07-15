@@ -13,7 +13,7 @@ include(CMakeParseArguments)
 # Contract:
 # - Compose stable release versions from annotated release tags.
 # - Compose development versions from the project version, build count, commit, and dirty state.
-# - Generate the runtime version header during configure without requiring Git in exported consumers.
+# - Generate the runtime version header during configure or a target refresh without requiring Git in exported consumers.
 
 function(gamewip_compose_display_version output_variable)
     set(options RELEASE DIRTY)
