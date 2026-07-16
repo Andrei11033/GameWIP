@@ -1,37 +1,52 @@
-@page terminal_input_modes Terminal input modes
+@page terminal_input_modes Terminal input modes and scoped restoration
 
-Input mode query, set, restore, and scoped restoration are implemented for Windows real console stdin. Redirected or detached input streams report explicit unsupported or not-open statuses for mode operations.
+Input-mode operations apply to real terminal stdin when the backend can represent the requested portable mode. Redirected, detached, or unsupported endpoints return explicit statuses.
 
-## Presets
+## Portable modes
 
-`InputModePreset::InteractiveLine` requests normal interactive input: line-buffered, echoed, and platform control keys processed.
+`InputMode` contains `lineBuffered`, `echoInput`, and `processControlKeys`. `makeInputMode()` creates values for:
 
-`InputModePreset::RawBytes` requests raw byte-oriented input where practical.
+- `InteractiveLine`: line buffering, echo, and platform control-key processing enabled;
+- `RawBytes`: raw byte-oriented input where practical.
 
-Backends may return `Unsupported` when a requested mode cannot be represented on the current stream.
+A preset is a portable request, not the complete backend default. Use `restoreDefaultInputMode()` to restore the mode captured for the current native stdin handle.
 
-On Win32, echo requires line-buffered input. A mode with `echoInput = true` and `lineBuffered = false` returns `InvalidArgument` without changing the console mode.
+On Win32, echo requires line-buffered input. `echoInput == true` with `lineBuffered == false` returns `InvalidArgument` without changing native mode.
 
-On Windows real-console input, finite and non-blocking reads are unsupported even in raw mode. Blocking reads preserve native cooked input, echo, control-key processing, and line editing.
-
-Use `restoreDefaultInputMode()` to restore the backend mode captured for the stream. A preset does not represent backend-specific default state.
+Finite and non-blocking reads remain unsupported for the current Windows real-console path even in raw mode.
 
 ## InputModeScope
 
-`InputModeScope` captures and restores the complete previous backend mode for a temporary mode change. On Win32 this includes native console flags that are not represented by the three portable `InputMode` booleans.
+`scopedInputMode()` captures the complete previous backend state and applies the requested mode while holding Terminal's input lock. The returned `InputModeScope` stores both the portable and native state required for exact restoration.
 
-Capture and mode application occur while holding the same Terminal input lock, so another Terminal input operation cannot interleave between them. Restore is serialized through that lock as well.
+The factory is `noexcept`. Setup failure produces an inactive scope whose `status()` reports the failure:
 
-Destructors must not throw. A destructor should attempt best-effort restoration when the scope is active, but callers that care about restoration failure must call `restore()` explicitly and inspect the returned `IO::Types::Status`.
+```cpp
+const auto raw = GameWIP::Terminal::makeInputMode(
+    GameWIP::Terminal::Types::InputModePreset::RawBytes);
+auto scope = GameWIP::Terminal::scopedInputMode(raw);
+if (!scope.status().ok())
+{
+    // The requested mode was not activated.
+}
+```
 
-`release()` disables automatic restoration. Use it only when ownership of restoration has intentionally moved somewhere else.
+`restore()` is idempotent for an inactive scope and returns its last tracked status. A failed explicit restoration leaves the scope active so the caller can retry. `release()` abandons restoration responsibility without changing the current mode.
 
-## Safety
+The destructor never throws and makes a best-effort restore. Call `restore()` explicitly when restoration failure must be observed.
 
-Prefer `InputModeScope` for raw or non-echoing modes so ordinary exits restore interactive input.
+## Move behavior
 
-Changing or restoring input mode does not discard bytes or an incomplete Unicode sequence already buffered by Terminal. It does not promise to preserve unread input that an external API removes directly from the native stream.
+Scopes are movable and non-copyable. Move construction transfers responsibility. Move assignment first tries to restore the destination's currently owned mode. If that restoration fails, the destination remains active and the source is not consumed.
 
-Terminal serializes input-mode changes with other Terminal input operations for the same stream. Restore nested scopes in reverse acquisition order.
+Restore nested scopes in reverse acquisition order.
 
-If the process replaces stdin, the next mode operation uses the new handle's default mode instead of restoring state from the previous handle.
+## Buffered input and handle replacement
+
+Changing or restoring input mode does not discard bytes or an incomplete Unicode sequence already buffered inside Terminal. It cannot preserve unread input removed by an external API.
+
+If the process replaces stdin, the next mode operation recognizes the new handle and uses that handle's captured default rather than restoring state belonging to the previous handle.
+
+On Win32, Terminal retains a duplicated identity handle for stdin. A replacement, detachment, or reused numeric handle clears pending bytes, incomplete surrogate state, availability scratch, and captured default-mode state before the new endpoint is read.
+
+See @ref terminal_read_write and @ref terminal_capabilities_and_redirection.

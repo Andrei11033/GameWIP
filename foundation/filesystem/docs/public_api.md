@@ -1,73 +1,151 @@
 @page filesystem_public_api FileSystem public API
 
-Include `filesystem/filesystem.h`. Installed-package consumers link `GameWIP::FileSystem`; builds within the source tree link the short `FileSystem` target. See @ref filesystem_quick_start for complete CMake examples.
+Include `filesystem/filesystem.h`. Installed consumers link `GameWIP::FileSystem`; source-tree consumers link `FileSystem`.
 
-Passive values, options, and results live in `GameWIP::FileSystem::Types`. Active resource owners and free operations live directly in `GameWIP::FileSystem`.
+## Constants and aliases
 
-## Paths and text
+| API | Contract |
+| --- | --- |
+| `kAtomicTemporaryNamePrefix` | Default same-directory temporary filename prefix used by atomic writes. |
+| `kNoEntryLimit` | Sentinel meaning no caller-imposed listing or tree-removal entry limit. Backend and container limits still apply. |
+| `Types::Path` | Alias for `std::filesystem::path`; it is not a portable path-grammar abstraction. |
+| `Types::FileTime` | Alias for `std::chrono::system_clock::time_point`; native precision may be reduced. |
 
-`Types::Path` is the project spelling for `std::filesystem::path`. Store and pass paths through that type, but use `pathFromUtf8()` and `pathToUtf8()` at text boundaries where UTF-8 behavior must be explicit.
+## Enum types
 
-`readAllText()`, `writeAllText()`, `appendText()`, and `writeAllTextAtomic()` treat text as UTF-8 bytes without encoding conversion.
+### Entry, access, and open policy
 
-## Handles
+- `EntryKind`: `RegularFile`, `Directory`, `Symlink`, `Other`.
+- `FileAccess`: `Read`, `Write`, `ReadWrite`.
+- `FileOpenMode`: `OpenExisting`, `CreateNew`, `OpenOrCreate`, `TruncateExisting`, `CreateOrTruncate`.
+- `FileInitialPosition`: `Beginning`, `End`.
+- `FileWriterMode`: `CreateNew`, `CreateOrTruncate`, `TruncateExisting`, `OpenOrCreate`, `AppendOrCreate`, `AppendExisting`.
+- `WriteFileMode`: `CreateNew`, `CreateOrTruncate`, `TruncateExisting`.
+- `AppendMode`: `AppendOrCreate`, `AppendExisting`.
+- `ReplaceMode`: `FailIfExists`, `ReplaceExisting`.
 
-`FileReader` is a read-only `IO::Reader`. `FileWriter` is a write-only `IO::Writer`. `File` is a read/write object for modification workflows.
+`FileInitialPosition::End` is one initial seek. It does not provide append semantics.
 
-All handle types start closed, are move-constructible, are not copyable, and do not support move assignment. A failed `open()` leaves the object closed. Repeated `close()` calls succeed unless an active lock keeps the handle busy.
+### Sharing, links, locks, and metadata
 
-Use:
+- `FileShare`: `None`, `Read`, `Write`, `Delete`, `ReadWrite`, `All`. The `operator|`, `operator&`, `operator|=`, and `operator&=` overloads combine and test masks.
+- `SymlinkPolicy`: `DoNotFollow`, `FollowFinal`, `FollowAll`.
+- `FileLockMode`: `Shared`, `Exclusive`.
+- `LockOutcome`: `Acquired`, `WouldBlock`.
+- `CopyMetadataMode`: `None`, `Basic`.
 
-- `FileReaderOpenOptions` for read sharing and symlink behavior.
-- `FileWriterOpenOptions` for write mode, sharing, symlink behavior, parent creation, and close flushing.
-- `FileOpenOptions` for read/write access, open mode, initial position, sharing, symlink behavior, parent creation, and close flushing.
+See @ref filesystem_file_open_modes and @ref filesystem_symlink_policies for operational meaning.
 
-See @ref filesystem_file_open_modes for mode, append, sharing, and lock details.
+## Option structures
 
-## Whole-file helpers
+### Handle and whole-file I/O
 
-`readAllBytes()` and `readAllText()` open, drain, and close a file. `ReadFileOptions` controls the open options, maximum accepted bytes, and transfer buffer size.
+- `FileOpenOptions`: `access`, `mode`, `initialPosition`, `share`, `symlinkPolicy`, `createParentDirectories`, `flushOnClose`.
+- `FileReaderOpenOptions`: `share`, `symlinkPolicy`.
+- `FileWriterOpenOptions`: `mode`, `share`, `symlinkPolicy`, `createParentDirectories`, `flushOnClose`.
+- `ReadFileOptions`: nested reader `open`, hard `maxBytes`, and transfer `bufferSize`.
+- `WriteFileOptions`: `mode`, `share`, `symlinkPolicy`, `createParentDirectories`, `flushMode`.
+- `AppendFileOptions`: `mode`, `share`, `symlinkPolicy`, `createParentDirectories`, `flushMode`.
+- `AtomicWriteOptions`: `createParentDirectories`, `replaceMode`, `symlinkPolicy`, `flushMode`, `flushParentDirectory`, owning `temporaryNamePrefix`.
 
-`writeAllBytes()` and `writeAllText()` replace exact contents through a normal writer and return `IO::Types::WriteResult` so payload progress is preserved if a later flush or close fails.
+### Queries, directories, copy, move, and removal
 
-`appendBytes()` and `appendText()` use append-mode writer handles and also return `WriteResult`.
+- `QueryOptions`: query `symlinkPolicy`.
+- `MutationOptions`: resize/truncate `symlinkPolicy`.
+- `CreateDirectoryOptions`: `succeedIfAlreadyExists`, `symlinkPolicy`.
+- `ListDirectoryOptions`: `includeFiles`, `includeDirectories`, `includeSymlinks`, `includeOther`, `includeHidden`, child-metadata `symlinkPolicy`, and `maxEntries`.
+- `RemoveOptions`: `succeedIfMissing`, `symlinkPolicy`.
+- `RemoveDirectoryTreeOptions`: `succeedIfMissing`, initial-path `symlinkPolicy`, `maxEntries`.
+- `MoveOptions`: `replaceMode`, source `symlinkPolicy`, `createParentDirectories`.
+- `CopyFileOptions`: `replaceMode`, source `symlinkPolicy`, `createParentDirectories`, `metadataMode`, `flushMode`.
 
-`writeAllBytesAtomic()` and `writeAllTextAtomic()` replace through a same-directory temporary file and return only `IO::Types::Status` because the externally visible contract is complete path replacement.
+Unknown enum values and invalid option combinations return `InvalidArgument`.
 
-## Metadata and predicates
+## Metadata and result structures
 
-`exists()`, `isRegularFile()`, `isDirectory()`, `isSymlink()`, and `isReadOnly()` return `Types::BoolResult`. Missing paths are successful `false` results for predicates.
+- `EntryInfo`: `kind`, optional `sizeBytes`/`hasSize`, optional `lastWriteTime`/`hasLastWriteTime`, and portable `readOnly` state.
+- `BoolResult`: `status`, `value`.
+- `EntryInfoResult`: `status`, `info`.
+- `LastWriteTimeResult`: `status`, `time`.
+- `PathResult`: `status`, `path`.
+- `Utf8PathResult`: `status`, `utf8`.
+- `DirectoryEntry`: child `path` and `info`. The path is the supplied parent path joined with the child name; it is not necessarily absolute.
+- `DirectoryCursorNextResult`: `status`, one `entry`, and `hasEntry`; successful exhaustion has `hasEntry == false`.
+- `ListDirectoryResult`: `status`, collected `entries`.
+- `RemoveDirectoryTreeResult`: `status`, completed `removedEntries`.
+- `LockResult`: `status`, `outcome`, and active `lock` only when acquired.
 
-`getEntryInfo()`, `getFileSize()`, and `getLastWriteTime()` return value results and report `NotFound` when the target is missing.
+A failed status can coexist with meaningful progress for listing and tree removal. Payload values in ordinary query results are meaningful only when their status is successful.
 
-`setReadOnly()`, `resizeFile()`, and `truncateFile()` mutate one existing entry and use the requested symlink policy.
+## Resource owners
 
-## Directories and tree operations
+### `DirectoryCursor`
 
-`createDirectory()` creates one level. `createDirectories()` creates missing parents. `listDirectory()` returns direct children in native order and can filter kinds, hidden entries, and collected count.
+Move-only, bounded-memory direct-child enumeration with `open()`, `isOpen()`, `next()`, and `close()`. Move assignment closes the destination cursor's previous enumeration. It applies `ListDirectoryOptions` without retaining accepted siblings.
 
-`removeFile()` removes one file or link-like file entry. `removeEmptyDirectory()` removes one empty directory. `removeDirectoryTree()` removes a tree with an explicit traversal stack and never follows discovered symlinked directories.
+### `FileReader`
 
-See @ref filesystem_directory_operations for the detailed directory contract.
+Read-only `IO::Reader` with `open()`, `isOpen()`, `canSeek()`, `read()`, `close()`, `position()`, `size()`, `seek()`, and `tryLockShared()`.
 
-## Copy and move
+### `FileWriter`
 
-`copyFile()` copies one regular file. It can optionally copy portable basic metadata and flush the destination. The operation is not atomic: after destination creation or truncation, a later read, write, flush, close, or metadata failure may leave a partial destination.
+Write-only `IO::Writer` with `open()`, `isOpen()`, `canSeek()`, `write()`, `flush()`, `close()`, `position()`, `size()`, `seek()`, and `tryLockExclusive()`. Append modes are non-seekable.
 
-`movePath()` performs one native rename or move. Cross-volume moves return `MoveFailed`; FileSystem does not silently copy and delete.
+### `File`
 
-## Path helpers
+Read/write `IO::Reader` and `IO::Writer` with the common stream operations plus `access()`, `resize()`, and shared/exclusive lock acquisition. `access()` is meaningful only while open.
 
-`getCurrentDirectory()` and `setCurrentDirectory()` access the process current directory. Current-directory changes are process-global.
+### `FileLock`
 
-`parentPath()`, `filename()`, `stem()`, `extension()`, `replaceExtension()`, and `joinPath()` wrap common path transformations with status-returning failure behavior.
+Move-only unlock owner with `active()`, `mode()`, and retryable `unlock()`. A lock owns independent native state and can remain active after the object from which it was acquired is destroyed.
 
-`isAbsolutePath()`, `isRelativePath()`, `absolutePath()`, `canonicalPath()`, `weaklyCanonicalPath()`, and `getTemporaryDirectoryPath()` expose common path queries and resolution.
+The file and lock owners are move-constructible, non-copyable, and deliberately not move-assignable. `DirectoryCursor` is move-constructible and move-assignable because replacing an enumeration cannot hide a flush, unlock, or close error. See @ref filesystem_file_open_modes.
 
-## Failure, blocking, and threading
+## Whole-file operation families
 
-Expected failures use `IO::Types::Status`; public operations are `noexcept`.
+- Read: `readAllBytes()`, `readAllText()`.
+- Exact non-atomic write: span/vector `writeAllBytes()`, `writeAllText()`.
+- Append: span/vector `appendBytes()`, `appendText()`.
+- Atomic replacement: span/vector `writeAllBytesAtomic()`, `writeAllTextAtomic()`.
 
-Path operations may block on storage, sharing, locks, metadata, directory traversal, or operating-system flush work. Different handle objects may be used concurrently, but a single handle or lock object is not internally synchronized.
+The vector overloads forward to the corresponding span overload without changing semantics. See @ref filesystem_whole_file_io and @ref filesystem_atomic_write.
 
-Free path operations are independently callable from multiple threads. `setCurrentDirectory()` affects the whole process.
+## Metadata and mutation families
+
+- Predicates: `exists()`, `isRegularFile()`, `isDirectory()`, `isSymlink()`.
+- Value queries: `getEntryInfo()`, `getFileSize()`, `getLastWriteTime()`, `isReadOnly()`.
+- Metadata mutation: `setReadOnly()`.
+- Size mutation: `resizeFile()`, `truncateFile()`, and `File::resize()`.
+
+See @ref filesystem_metadata.
+
+## Directory and path mutation families
+
+- Creation: `createDirectory()`, `createDirectories()`.
+- Enumeration: bounded-memory `DirectoryCursor` or materializing `listDirectory()`.
+- Copy and move: `copyFile()`, `movePath()`.
+- Removal: `removeFile()`, `removeEmptyDirectory()`, `removeDirectoryTree()`.
+
+See @ref filesystem_directory_operations and @ref filesystem_symlink_policies.
+
+## Path operation families
+
+- Process directory: `getCurrentDirectory()`, `setCurrentDirectory()`.
+- Lexical components: `parentPath()`, `filename()`, `stem()`, `extension()`, `replaceExtension()`, `joinPath()`.
+- Lexical classification: `isAbsolutePath()`, `isRelativePath()`.
+- Filesystem resolution: `absolutePath()`, `canonicalPath()`, `weaklyCanonicalPath()`, `getTemporaryDirectoryPath()`.
+- UTF-8 boundary: `pathFromUtf8()`, `pathToUtf8()`.
+
+See @ref filesystem_path_operations and @ref filesystem_unicode_paths.
+
+## Failure, exceptions, blocking, and threading
+
+Every public FileSystem operation is `noexcept`. Allocation and standard-library exceptions are translated to `OutOfMemory`, `EncodingFailed`, `InvalidArgument`, or `Unknown` according to the operation. Expected native failures use the portable IO error model and may include native diagnostic data.
+
+Operations may block on storage, sharing, locks, metadata, traversal, or flush work. Different handle objects and free operations may be called concurrently. The same handle or lock object is not internally synchronized. Current-directory mutation remains process-wide.
+
+## Package and binary boundary
+
+FileSystem is a static library. Its installed package exports `GameWIP::FileSystem`, installs `filesystem/filesystem.h`, requires the exact matching IO package, and has no generated export header.
+
+Public inheritance from IO interfaces and exposure of standard-library types require compatible compiler, standard-library, runtime, and build settings. Internal declarations under `filesystem/internal` and platform code are not installed API.

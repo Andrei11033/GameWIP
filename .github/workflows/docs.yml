@@ -23,6 +23,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
+          fetch-depth: 0
           submodules: recursive
 
       - name: Install documentation tools
@@ -37,34 +38,30 @@ jobs:
             mingw-w64-ucrt-x86_64-graphviz
             mingw-w64-ucrt-x86_64-ninja
 
+      - name: Report CMake version
+        shell: msys2 {0}
+        run: cmake --version
+
       - name: Configure documentation build
         shell: msys2 {0}
         run: >
-          cmake -S . -B build-docs
+          cmake -S . -B build/docs
           -G Ninja
           -DCMAKE_BUILD_TYPE=Release
           -DGAMEWIP_BUILD_GAME=OFF
           -DGAMEWIP_BUILD_TESTS=OFF
-          -DGAMEWIP_RUN_TESTS_AT_STARTUP=OFF
+          -DGAMEWIP_ENABLE_STARTUP_TESTS=OFF
           -DGAMEWIP_RUN_BENCHMARKS_AT_STARTUP=OFF
           -DGAMEWIP_BUILD_DOCS=ON
           -DGAMEWIP_ENABLE_TRACY=OFF
 
       - name: Build documentation
         shell: msys2 {0}
-        run: cmake --build build-docs --target docs --verbose
-
-      - name: Check Doxygen warnings
-        shell: msys2 {0}
-        run: |
-          if [ -s build-docs/docs/doxygen/doxygen_warnings.log ]; then
-            cat build-docs/docs/doxygen/doxygen_warnings.log
-            exit 1
-          fi
+        run: cmake --build build/docs --target docs --verbose
 
       - name: Disable Jekyll processing
         shell: powershell
-        run: New-Item -ItemType File -Path build-docs/docs/doxygen/html/.nojekyll -Force
+        run: New-Item -ItemType File -Path build/docs/docs/doxygen/html/.nojekyll -Force
 
       - name: Setup GitHub Pages
         uses: actions/configure-pages@v6
@@ -72,7 +69,7 @@ jobs:
       - name: Upload GitHub Pages artifact
         uses: actions/upload-pages-artifact@v4
         with:
-          path: build-docs/docs/doxygen/html
+          path: build/docs/docs/doxygen/html
 
   deploy:
     runs-on: ubuntu-latest

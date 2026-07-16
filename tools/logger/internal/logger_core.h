@@ -1,5 +1,5 @@
 /// @file logger_core.h
-/// @brief Private coordination declarations shared by Logger core translation units.
+/// @brief Private Logger state, queue, formatting, sink, and lifecycle contracts shared by core translation units.
 
 #pragma once
 
@@ -47,6 +47,7 @@
 
 namespace GameWIP::Logger::Detail::Core
 {
+    using FlushDeadline = std::chrono::steady_clock::time_point;
     using LogLevel = GameWIP::Logger::Types::Level;
     using OutputMode = GameWIP::Logger::Types::Output;
     using FormatPolicy = GameWIP::Logger::Types::FormatPolicy;
@@ -547,6 +548,31 @@ namespace GameWIP::Logger::Detail::Core
         SourceId directSourceBase = 0;
     };
 
+#if defined(__cpp_lib_atomic_shared_ptr) && __cpp_lib_atomic_shared_ptr >= 201711L
+    template <typename Value> using AtomicSharedPointer = std::atomic<std::shared_ptr<Value>>;
+#else
+    template <typename Value> class AtomicSharedPointer
+    {
+    public:
+        AtomicSharedPointer() = default;
+        AtomicSharedPointer(const AtomicSharedPointer &) = delete;
+        AtomicSharedPointer &operator=(const AtomicSharedPointer &) = delete;
+
+        [[nodiscard]] std::shared_ptr<Value> load(std::memory_order order) const
+        {
+            return std::atomic_load_explicit(&value_, order);
+        }
+
+        void store(std::shared_ptr<Value> value, std::memory_order order)
+        {
+            std::atomic_store_explicit(&value_, std::move(value), order);
+        }
+
+    private:
+        std::shared_ptr<Value> value_;
+    };
+#endif
+
     /// @brief Cached formatted local time for one second.
     struct TimestampCache
     {
@@ -643,7 +669,7 @@ namespace GameWIP::Logger::Detail::Core
         /// @brief Current file sink path.
         FilePath logFilePath;
         /// @brief Atomically published registered source table used by registered source hot paths.
-        std::atomic<std::shared_ptr<SourceRegistry>> sourceRegistry;
+        AtomicSharedPointer<SourceRegistry> sourceRegistry;
         /// @brief Uninitialized arena bytes backing message storage for logRing.
         std::unique_ptr<char[]> ringMessageArena;
         /// @brief Uninitialized arena bytes backing message storage for workerBatch.
@@ -707,6 +733,11 @@ namespace GameWIP::Logger::Detail::Core
     /// @brief Returns the process-lifetime Logger state shared by all core translation units.
     LoggerState &loggerState();
 
+#if INTERNAL_LOGGER_TEST_HOOKS
+    /// @brief Pauses the final active producer at the validation-only shutdown race gate.
+    void pauseFinalProducerLeaveForTest() noexcept;
+#endif
+
     /// @brief Marks one producer as active while it may reserve or publish a queue slot.
     struct ProducerActivity
     {
@@ -745,8 +776,12 @@ namespace GameWIP::Logger::Detail::Core
             }
 
             active = false;
+#if INTERNAL_LOGGER_TEST_HOOKS
+            pauseFinalProducerLeaveForTest();
+#endif
             if (loggerState().activeProducers.fetch_sub(1, std::memory_order_acq_rel) == 1)
             {
+                std::lock_guard<std::mutex> lock(loggerState().logMutex);
                 loggerState().logCondition.notify_all();
             }
         }
@@ -815,6 +850,18 @@ namespace GameWIP::Logger::Detail::Core
         std::atomic_bool nextQueueAllocationFailure{false};
         std::atomic_bool nextFatalPopupFailure{false};
         std::atomic_bool nextTimedFlushTimeout{false};
+        std::atomic_bool pauseBeforeWorkerWait{false};
+        std::atomic_bool workerWaitReached{false};
+        std::atomic_bool queuePublicationReached{false};
+        std::atomic_bool releaseWorkerWait{false};
+        std::atomic_bool pauseBeforeFinalProducerLeave{false};
+        std::atomic_bool finalProducerLeaveReached{false};
+        std::atomic_bool releaseFinalProducerLeave{false};
+        std::atomic_bool pauseBeforeWorkerDelivery{false};
+        std::atomic_bool workerDeliveryReached{false};
+        std::atomic_bool releaseWorkerDelivery{false};
+        std::atomic_bool lifecycleLockReached{false};
+        std::atomic_bool releaseLifecycleLock{false};
     };
     /// @brief Shared test-hook state consumed by core and platform wrappers.
     extern LoggerTestHookState loggerTestHookState;
@@ -822,6 +869,12 @@ namespace GameWIP::Logger::Detail::Core
     bool consumeTestHook(std::atomic_bool &flag) noexcept;
     /// @brief Clears every failure flag and persistent override.
     void resetLoggerTestHooks() noexcept;
+    /// @brief Pauses an armed worker after its wait predicate observes no work.
+    void pauseWorkerBeforeWaitForTest() noexcept;
+    /// @brief Pauses an armed worker after dequeue and before its delivery-time filter check.
+    void pauseWorkerBeforeDeliveryForTest() noexcept;
+    /// @brief Records queue publication for deterministic worker-wakeup coordination.
+    void recordQueuePublicationForTest() noexcept;
     /// @brief Returns the deterministic structured error for forced file failures.
     PlatformError forcedFileError() noexcept;
     /// @brief Returns the deterministic structured error for forced popup failures.
@@ -1031,9 +1084,15 @@ namespace GameWIP::Logger::Detail::Core
         std::string_view source,
         std::string_view message,
         bool unknownSource = false,
-        bool alreadyTruncated = false);
+        bool alreadyTruncated = false,
+        const FlushDeadline *deadline = nullptr);
     /// @brief Resolves a registered source and writes one report directly to active sinks.
-    bool writeReportSynchronously(LogLevel level, SourceId source, std::string_view message, bool alreadyTruncated = false);
+    bool writeReportSynchronously(
+        LogLevel level,
+        SourceId source,
+        std::string_view message,
+        bool alreadyTruncated = false,
+        const FlushDeadline *deadline = nullptr);
     /// @brief Formats one worker entry and routes it to immediate/file-batch sinks.
     SinkWriteResult writeLogEntry(
         const QueuedLogEntry &entry,
@@ -1091,8 +1150,14 @@ namespace GameWIP::Logger::Detail::Core
     void showFatalPopupIfEnabled(std::string_view message);
     /// @brief Flushes currently active console and file sinks without taking lifecycleMutex.
     bool flushSinksInternal();
+    /// @brief Flushes active sinks when output ownership is acquired before deadline.
+    bool flushSinksInternal(FlushDeadline deadline);
     /// @brief Drains all accepted work and flushes sinks without a timeout.
     void flushInternal();
-    /// @brief Attempts a bounded drain and sink flush; returns false on timeout or sink failure.
-    bool flushInternal(std::chrono::milliseconds timeout);
+    /// @brief Attempts a deadline-bounded drain and sink flush; returns false on timeout or sink failure.
+    bool flushInternal(FlushDeadline deadline);
+    /// @brief Converts one relative timeout to a saturating absolute deadline.
+    [[nodiscard]] FlushDeadline makeFlushDeadline(std::chrono::milliseconds timeout) noexcept;
+    /// @brief Acquires a normal mutex before deadline without an unbounded initial lock wait.
+    [[nodiscard]] bool lockBefore(std::unique_lock<std::mutex> &lock, FlushDeadline deadline) noexcept;
 } // namespace GameWIP::Logger::Detail::Core

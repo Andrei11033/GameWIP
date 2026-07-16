@@ -1,30 +1,64 @@
 @page filesystem_atomic_write FileSystem atomic writes
 
-`writeAllBytesAtomic()` and `writeAllTextAtomic()` replace exact file contents through a temporary file in the destination directory.
+`writeAllBytesAtomic()` and `writeAllTextAtomic()` replace exact contents through a temporary file in the destination directory.
+
+## Operation sequence
 
 The operation:
 
-1. validates `temporaryNamePrefix` as a filename prefix rather than a path;
+1. validates `temporaryNamePrefix` as a filename prefix, not a path;
 2. resolves the destination according to `symlinkPolicy`;
-3. creates a unique temporary file in the destination directory with restrictive access;
-4. writes the complete content;
-5. flushes it according to `flushMode`;
-6. commits it with one native rename or replacement according to `replaceMode`;
-7. optionally flushes the parent directory;
-8. removes the temporary file after failure where practical.
+3. optionally creates missing parent directories;
+4. creates a unique same-directory temporary file with restrictive access;
+5. writes the complete payload, including a valid empty payload;
+6. flushes the temporary file according to `flushMode`;
+7. commits using one native rename or replacement according to `replaceMode`;
+8. optionally flushes the parent directory;
+9. attempts best-effort temporary cleanup after failure.
 
-There is no non-atomic fallback. Before the commit point, failure leaves an existing destination unchanged. Concurrent path observers see either the old destination content or the complete new content, never an in-place partial rewrite.
+There is no non-atomic fallback. Before commit, failure leaves an existing destination unchanged. At the destination path, concurrent observers see either the previous file or the complete replacement rather than an in-place partial rewrite.
 
-## Metadata and access
+## Replacement and races
 
-Atomic write guarantees content replacement, not identity preservation. An open handle or hard link to the previous file object may continue to observe that old object after the path is replaced.
+`FailIfExists` checks destination policy before commit, but concurrent filesystem activity can still determine the final native result. `ReplaceExisting` permits replacement where the backend can satisfy the selected sharing, access, and symlink contract.
 
-Temporary files are created with restrictive access. The backend must not silently broaden access because copying or merging security-relevant metadata failed. If it cannot perform replacement without a known access broadening, it returns a failure before commit.
+On Win32, strict commits retain the validated destination-parent handle and rename only the final relative component. Replacing an ancestor path after validation therefore cannot redirect the commit. Native rename success is the linearization point; later source recreation or destination removal does not turn the completed replacement into a reported failure.
 
-Successful replacement does not guarantee preservation of timestamps, ownership, complete ACLs, extended attributes, named streams, compression, encryption, file identifiers, or hard-link identity. A backend may preserve native metadata where its atomic replacement primitive does so, but callers needing a specific metadata contract must manage that separately.
+Atomicity applies to replacement of one path. It does not create a transaction across multiple files, directories, or metadata operations.
 
-`flushParentDirectory` requests directory-entry durability after replacement. When it is enabled, a backend that cannot flush the parent directory reports failure instead of silently downgrading the durability contract.
+## Temporary files
 
-`temporaryNamePrefix` is an owning `std::string`, so an `AtomicWriteOptions` value may be stored or moved without depending on a caller-owned character buffer. The prefix must be non-empty: it cannot contain path separators, name `.` or `..`, or contain an embedded NUL. Invalid prefixes return `InvalidArgument` before a temporary file is created.
+`temporaryNamePrefix` is an owning `std::string`. It must be non-empty, contain no path separator or embedded NUL, and not be the complete name `.` or `..`.
 
-Atomic write does not promise multi-file transactions or database durability. Text is treated as UTF-8 bytes without BOM handling, validation, or encoding conversion.
+Temporary-name collision retries are bounded. Exhaustion returns the final creation failure. Cleanup after failure is best effort, so an orphan temporary file can remain after unusual cleanup or process failures.
+
+## Metadata, identity, and access
+
+Atomic replacement changes the object named by the path. Existing handles and hard links to the previous object can continue to observe that object.
+
+Temporary files use restrictive access. The backend must not silently broaden security-relevant access because metadata preservation failed.
+
+Successful replacement does not promise preservation of timestamps, ownership, complete ACLs, extended attributes, named streams, compression, encryption, file identifiers, or hard-link identity. Callers requiring a specific metadata contract must apply and verify it separately.
+
+## Durability
+
+A successful file flush and rename do not by themselves promise directory-entry durability.
+
+When `flushParentDirectory` is true, inability to flush the parent directory is returned rather than silently weakening the request. That failure occurs after commit, so the replacement may already be visible and must not be retried as though the old destination were necessarily intact.
+
+Atomic write is not a database durability or crash-consistency protocol beyond the explicitly requested file and parent-directory flushes.
+
+## Symlinks
+
+Destination resolution follows `symlinkPolicy`. Following a destination that is itself a symlink may return `Unsupported` when replacement of the resolved target cannot be implemented without weakening the selected race-safety contract.
+
+## Text
+
+Text is treated as bytes. No BOM handling, validation, encoding conversion, or line-ending translation occurs.
+
+## Related pages
+
+- @ref filesystem_whole_file_io
+- @ref filesystem_symlink_policies
+- @ref filesystem_metadata
+- @ref filesystem_troubleshooting

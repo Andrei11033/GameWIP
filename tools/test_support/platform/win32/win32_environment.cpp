@@ -76,7 +76,8 @@ namespace
         return output;
     }
 
-    /// @brief Rejects names that Win32 and the CRT cannot represent as environment keys.
+    /// @brief Enforces the shared key syntax before either Win32 or CRT environment access.
+    /// @note Windows compares environment names case-insensitively; no normalization is needed for the native calls.
     void validateEnvironmentName(std::string_view name)
     {
         if (name.empty() || name.find('=') != std::string_view::npos)
@@ -112,6 +113,8 @@ namespace GameWIP::TestSupport::Detail::Platform
 
     void setEnvironmentVariableValue(std::string_view name, std::string_view value)
     {
+        // `_wputenv_s(name, L"")` removes the entry. The public guard documentation exposes this
+        // Win32/CRT limitation instead of pretending an empty and missing process value are distinct.
         validateEnvironmentName(name);
         const std::wstring nameWide = utf8ToWide(name);
         const std::wstring valueWide = utf8ToWide(value);

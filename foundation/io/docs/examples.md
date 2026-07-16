@@ -1,93 +1,241 @@
 @page io_examples IO examples
 
-## Collect text
+The examples use only installed public APIs.
+
+## Read bounded text from stable memory
 
 ```cpp
-GameWIP::IO::MemoryWriter writer;
-GameWIP::IO::Types::WriteResult result = GameWIP::IO::writeAllText(writer, "hello");
+#include "io/io.h"
 
-if (result.status.ok())
+#include <string>
+#include <utility>
+
+bool loadSmallConfig(std::string& output)
 {
-    std::string text = writer.text();
+    std::string source = "width=1920\nheight=1080\n";
+    GameWIP::IO::MemoryReader reader(source);
+
+    GameWIP::IO::Types::ReadAllTextResult result =
+        GameWIP::IO::readAllText(reader, 64 * 1024);
+
+    if (!result.status.ok())
+    {
+        return false;
+    }
+
+    output = std::move(result.text);
+    return true;
 }
 ```
 
-`MemoryWriter::bytes()` returns the exact bytes written so far.
+The source string outlives the reader. The limit rejects oversized input rather than truncating it.
 
-`MemoryWriter::takeBytes()` moves the collected byte vector out of the writer and may discard the writer's previous reserved capacity.
-
-## Read text from memory
+## Seek and read one byte
 
 ```cpp
-GameWIP::IO::MemoryReader reader("controls.default.jump=Space");
-GameWIP::IO::Types::ReadAllTextResult result = GameWIP::IO::readAllText(reader);
+#include "io/io.h"
+
+#include <array>
+#include <cstddef>
+#include <vector>
+
+bool readThirdByte(std::byte& output)
+{
+    const std::vector<std::byte> source{
+        std::byte{0x10}, std::byte{0x20}, std::byte{0x30}, std::byte{0x40}};
+
+    GameWIP::IO::MemoryReader reader(source);
+    const GameWIP::IO::Types::Status seekStatus =
+        reader.seek(2, GameWIP::IO::Types::SeekOrigin::Begin);
+
+    if (!seekStatus.ok())
+    {
+        return false;
+    }
+
+    std::array<std::byte, 1> destination{};
+    const GameWIP::IO::Types::ReadResult readResult = reader.read(destination);
+
+    if (!readResult.status.ok() || readResult.bytesRead != 1)
+    {
+        return false;
+    }
+
+    output = destination[0];
+    return true;
+}
 ```
 
-The string view passed to `MemoryReader` must outlive the reader.
-
-## Seek in memory
+## Reuse scratch storage for unknown-size readers
 
 ```cpp
-GameWIP::IO::MemoryReader reader(bytes);
-reader.seek(2, GameWIP::IO::Types::SeekOrigin::Begin);
+#include "io/io.h"
 
-std::array<std::byte, 1> next{};
-GameWIP::IO::Types::ReadResult read = reader.read(next);
-GameWIP::IO::Types::PositionResult position = reader.position();
+#include <array>
+#include <cstddef>
+#include <span>
+
+GameWIP::IO::Types::ReadAllBytesResult readBoundedStream(
+    GameWIP::IO::Reader& reader)
+{
+    std::array<std::byte, 4096> scratch{};
+    return GameWIP::IO::readAllBytes(
+        reader,
+        std::span<std::byte>(scratch),
+        8 * 1024 * 1024);
+}
 ```
 
-## Byte limits
-
-```cpp
-GameWIP::IO::Types::ReadAllBytesResult limited =
-    GameWIP::IO::readAllBytes(reader, 1024);
-```
-
-`maxBytes` is a hard maximum accepted stream size. For seekable readers that can report size and position, `readAllBytes()` returns `SizeLimitExceeded` before reading when the known remaining byte count is greater than the caller limit.
-
-For unknown-size readers, observing data beyond `maxBytes` returns `SizeLimitExceeded`.
-
-An unknown-size helper may consume one additional probe byte to distinguish an exact-limit stream from an over-limit stream. Exact end-of-stream succeeds, and the returned result never contains more than `maxBytes` bytes.
-
-## Scratch buffers
-
-```cpp
-std::array<std::byte, 4096> scratch{};
-GameWIP::IO::Types::ReadAllBytesResult result =
-    GameWIP::IO::readAllBytes(reader, std::span<std::byte>(scratch));
-```
-
-Scratch-buffer overloads are useful for repeated reads from unknown-size streams. Known-size readers use direct output-buffer reads and do not need the scratch storage.
-
-## Error names
-
-```cpp
-std::string_view name = GameWIP::IO::errorCodeName(result.status.code);
-```
-
-Use `errorCodeName()` for stable symbolic names in tests, logs, and diagnostics.
-
-## Create statuses
-
-```cpp
-GameWIP::IO::Types::Status success = GameWIP::IO::successStatus();
-GameWIP::IO::Types::Status failure =
-    GameWIP::IO::makeStatus(GameWIP::IO::Types::ErrorCode::NativeFailure, nativeCode, "operation failed");
-```
-
-Resource-owning libraries can use the public helpers to create consistent IO statuses.
+The scratch storage is used only when size or position is unavailable. It may be overwritten and is not retained after the call.
 
 ## Reuse writer capacity
 
 ```cpp
-GameWIP::IO::MemoryWriter writer(4096);
+#include "io/io.h"
 
-for (const Record& record : records)
+#include <string>
+#include <string_view>
+
+bool encodeTwice(GameWIP::IO::MemoryWriter& writer)
 {
+    writer.reserve(4096);
+
     writer.clear();
-    writeRecord(writer, record);
-    consume(writer.bytes());
+    if (!GameWIP::IO::writeAllText(writer, "first").status.ok())
+    {
+        return false;
+    }
+
+    const std::string firstCopy = writer.text();
+
+    writer.clear();
+    if (!GameWIP::IO::writeAllText(writer, "second").status.ok())
+    {
+        return false;
+    }
+
+    return firstCopy == "first" && writer.text() == "second";
 }
 ```
 
-`clear()` preserves capacity. Use `takeBytes()` instead when the caller should own the collected vector.
+`clear()` preserves capacity. A view returned by `bytes()` must not be retained across either clear or a later write.
+
+## Transfer ownership from MemoryWriter
+
+```cpp
+#include "io/io.h"
+
+#include <cstddef>
+#include <vector>
+
+std::vector<std::byte> buildPacket()
+{
+    GameWIP::IO::MemoryWriter writer(128);
+    const std::vector<std::byte> header{
+        std::byte{0x47}, std::byte{0x57}, std::byte{0x49}, std::byte{0x50}};
+
+    const GameWIP::IO::Types::WriteResult result =
+        GameWIP::IO::writeAllBytes(writer, header);
+
+    if (!result.status.ok())
+    {
+        return {};
+    }
+
+    return writer.takeBytes();
+}
+```
+
+`takeBytes()` leaves the writer empty and preserves whether it was open or closed.
+
+## Inspect a failure
+
+```cpp
+#include "io/io.h"
+
+#include <string_view>
+
+std::string_view portableFailureName(const GameWIP::IO::Types::Status& status)
+{
+    return GameWIP::IO::errorCodeName(status.code);
+}
+```
+
+Use the portable code for control flow. Treat `nativeCode` and `message` as supplemental diagnostics.
+
+## Create a backend status
+
+```cpp
+#include "io/io.h"
+
+#include <cstdint>
+
+GameWIP::IO::Types::Status permissionFailure(std::int64_t platformCode)
+{
+    return GameWIP::IO::makeStatus(
+        GameWIP::IO::Types::ErrorCode::PermissionDenied,
+        platformCode,
+        "opening the resource was denied");
+}
+```
+
+Prefer the specific portable category over a generic operation failure.
+
+## Implement a minimal writer
+
+A stateless or externally owned adapter can implement only `write()` and inherit the neutral lifecycle and capability defaults:
+
+```cpp
+#include "io/io.h"
+
+#include <algorithm>
+#include <cstddef>
+#include <cstring>
+#include <span>
+
+class FixedBufferWriter final : public GameWIP::IO::Writer
+{
+public:
+    explicit FixedBufferWriter(std::span<std::byte> destination) noexcept
+        : destination_(destination)
+    {
+    }
+
+    [[nodiscard]] GameWIP::IO::Types::WriteResult write(
+        std::span<const std::byte> bytes) override
+    {
+        const std::size_t available = destination_.size() - position_;
+        const std::size_t accepted = std::min(available, bytes.size());
+
+        if (accepted != 0)
+        {
+            std::memcpy(destination_.data() + position_, bytes.data(), accepted);
+            position_ += accepted;
+        }
+
+        if (accepted != bytes.size())
+        {
+            return {
+                .status = GameWIP::IO::makeStatus(
+                    GameWIP::IO::Types::ErrorCode::StorageFull),
+                .bytesWritten = accepted};
+        }
+
+        return {
+            .status = GameWIP::IO::successStatus(),
+            .bytesWritten = accepted};
+    }
+
+private:
+    std::span<std::byte> destination_;
+    std::size_t position_ = 0;
+};
+```
+
+The adapter does not retain any input span. It reports accepted progress with the capacity failure, allowing `writeAllBytes()` to return the exact total.
+
+## Related pages
+
+- @ref io_quick_start
+- @ref io_reader_writer_contract
+- @ref io_error_model

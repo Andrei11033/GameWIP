@@ -2,132 +2,119 @@
 
 `GameWIP::IO::Types::Status` is the shared error-reporting shape for expected I/O failures.
 
-## ErrorCode
+## Status fields
 
-```cpp
-namespace GameWIP::IO::Types
-{
+| Field | Meaning |
+| --- | --- |
+| `code` | Portable category used for program decisions. |
+| `nativeCode` | Backend-native error value when one exists, otherwise zero. |
+| `message` | Optional developer-facing diagnostic text. It is not stable for parsing. |
 
-enum class ErrorCode
-{
-    Success,
+`Status::ok()` returns true only when `code == ErrorCode::Success`.
 
-    InvalidArgument,
-    Unsupported,
-    NotOpen,
-    AlreadyOpen,
+A successful status should normally use `nativeCode == 0` and an empty message. Backends may attach diagnostic detail to failures when the additional allocation and text are useful.
 
-    NotFound,
-    AlreadyExists,
-    PermissionDenied,
-    PathTooLong,
+## Error-code categories
 
-    IsDirectory,
-    NotDirectory,
-    NotSeekable,
-    EndOfStream,
+The generated API reference documents each enumerator. Use the following categories when selecting a code.
 
-    OpenFailed,
-    ReadFailed,
-    WriteFailed,
-    FlushFailed,
-    CloseFailed,
-    SeekFailed,
-    StatFailed,
-    RemoveFailed,
-    ReplaceFailed,
-    CopyFailed,
-    MoveFailed,
-    ResizeFailed,
-    LockFailed,
-    UnlockFailed,
-    DirectoryCreateFailed,
-    DirectoryListFailed,
-    DirectoryNotEmpty,
+### Contract and state
 
-    PartialRead,
-    PartialWrite,
-    SizeLimitExceeded,
-    OutOfMemory,
+| Code | Use when |
+| --- | --- |
+| `InvalidArgument` | Input violates the API contract, including an unknown option enumerator or an internally inconsistent capability result. |
+| `Unsupported` | The operation or capability is intentionally unavailable and no more specific capability code applies. |
+| `NotOpen` | An operation requires an open resource or memory object. |
+| `AlreadyOpen` | Opening was requested for an already-open resource. |
 
-    ResourceBusy,
-    StorageFull,
-    BrokenPipe,
-    Interrupted,
+### Resource lookup, path, and kind
 
-    EncodingFailed,
-    NativeFailure,
-    Unknown
-};
+| Code | Use when |
+| --- | --- |
+| `NotFound` | The requested resource does not exist. |
+| `AlreadyExists` | Creation or replacement policy rejects an existing resource. |
+| `PermissionDenied` | Access policy rejects the operation. |
+| `PathTooLong` | A backend path limit is exceeded. |
+| `IsDirectory` | A directory was supplied where a non-directory resource was required. |
+| `NotDirectory` | A non-directory was supplied where a directory was required. |
+| `NotSeekable` | Position, size, or seek behavior is unavailable for a stream. |
+| `EndOfStream` | An API explicitly represents end-of-stream as a status. Ordinary reads should prefer `ReadResult::endOfStream`. |
 
-struct Status
-{
-    ErrorCode code = ErrorCode::Success;
-    std::int64_t nativeCode = 0;
-    std::string message;
+### Generic operation failures
 
-    [[nodiscard]] bool ok() const noexcept;
-};
+Use `OpenFailed`, `ReadFailed`, `WriteFailed`, `FlushFailed`, `CloseFailed`, `SeekFailed`, `StatFailed`, `RemoveFailed`, `ReplaceFailed`, `CopyFailed`, `MoveFailed`, `ResizeFailed`, `LockFailed`, `UnlockFailed`, `DirectoryCreateFailed`, or `DirectoryListFailed` when the named operation failed and no more specific portable category applies.
 
-} // namespace GameWIP::IO::Types
-```
+Use `DirectoryNotEmpty` when removal fails specifically because a directory still contains entries.
 
-## Stable error names
+### Transfer, size, and allocation
 
-`GameWIP::IO::errorCodeName()` returns a stable string literal for an `ErrorCode` value.
+| Code | Use when |
+| --- | --- |
+| `PartialRead` | A reader promised a known remaining byte count but reached end-of-stream before producing it. |
+| `PartialWrite` | A backend chooses to classify an incomplete write explicitly. The generic write-all helper does not synthesize this code for every successful short write. |
+| `SizeLimitExceeded` | A caller limit, destination representation, or supported stream-size range is exceeded. |
+| `OutOfMemory` | A required allocation failed in an operation whose status contract converts allocation failure. |
 
-Use this for diagnostics, tests, and logs when a stable symbolic name is more useful than `Status::message`.
+### Resource and platform state
 
-`Status::message` is developer-facing diagnostic text and is not a stable machine-readable field.
+| Code | Use when |
+| --- | --- |
+| `ResourceBusy` | Sharing, lock, or active-use state prevents the operation. |
+| `StorageFull` | Storage or quota capacity is exhausted. |
+| `BrokenPipe` | A pipe or redirected output no longer has a reader. |
+| `Interrupted` | The operation was interrupted before completion. |
 
-## Status helpers
+### Encoding and fallback
 
-`GameWIP::IO::makeStatus()` creates a `Status` from a portable code, optional native code, and optional diagnostic message.
+| Code | Use when |
+| --- | --- |
+| `EncodingFailed` | Text encoding or conversion failed. IO text helpers themselves do not validate UTF-8. |
+| `NativeFailure` | A backend-native failure has no useful portable category. |
+| `Unknown` | The failure category cannot be determined. Prefer a more specific code whenever possible. |
 
-`GameWIP::IO::successStatus()` creates a default successful status.
+## Selecting the primary code
 
-These helpers are public so resource-owning libraries such as FileSystem and Terminal can create statuses that use the shared IO shape consistently.
+Return the most specific portable category that describes the failure. Use generic operation codes only when no better category is available. For example, a file open denied by access control should normally use `PermissionDenied`, not `OpenFailed`.
 
-Constructing a non-empty diagnostic message may allocate. Code-only statuses avoid that cost in allocation-sensitive failure paths.
+The native code and message supplement the portable category; they must not replace it.
 
-## Status contract
+## Symbolic and numeric stability
 
-`Status::ok()` returns true only for `ErrorCode::Success`.
+`errorCodeName()` returns stable symbolic names for diagnostics, logs, and tests. Unknown enumerator values map to `"Unknown"`.
 
-`nativeCode` carries backend-native error data when a concrete backend has such data. IO itself has no platform backend, but FileSystem and Terminal may return native error details through the shared status shape.
+`ErrorCode` numeric values are not serialization identifiers or protocol values. Do not persist enum ordinals or expose them as a cross-version wire contract. Persist an application-owned representation when storage or protocol stability is required.
 
-Expected I/O failures return `Status` rather than throwing.
+## Partial progress
 
-Allocation failure inside status-returning helpers is converted to `OutOfMemory` where practical. Construction and direct container operations may still throw allocation exceptions when they do not return `Status`.
+Transfer count and status are independent:
+
+- A reader or writer may report nonzero progress with a failure status.
+- Whole-stream helpers preserve valid progress produced by the final failing call.
+- Callers decide whether partial output is useful, retryable, or must be discarded.
+- A backend must never report a byte count larger than the supplied span.
+
+A successful short write is not itself a failure. `writeAllBytes()` retries it. A successful zero-byte write while input remains is invalid progress and becomes `WriteFailed`.
+
+For known-size reads, early end-of-stream becomes `PartialRead`. For unknown-size reads, a successful zero-byte read without end-of-stream becomes `ReadFailed` because the helper cannot make progress.
 
 ## End-of-stream
 
-End-of-stream can be reported through `ReadResult::endOfStream`.
+`ReadResult::endOfStream` is independent of `bytesRead`:
 
-`ErrorCode::EndOfStream` exists for APIs where returning an error-like code is the clearest contract, but ordinary completed reads should not require callers to treat end-of-stream as a hard failure.
+- The final non-empty read may return bytes and set `endOfStream = true`.
+- An empty read at the end may return success, zero bytes, and `endOfStream = true`.
+- A zero-byte success with `endOfStream = false` does not permit a whole-stream helper to continue safely.
 
-## Partial transfers
+## Status helpers and allocation
 
-Partial reads and writes must be observable. A function that accepts or produces fewer bytes than requested should report both the byte count and the status that explains whether the operation can continue.
+`makeStatus()` accepts a portable code, optional native code, and optional owning message. The function is `noexcept`; however, construction of the message argument happens before function entry and may allocate.
 
-Whole-stream helpers return `PartialRead` when a reader reports a known remaining size but reaches end-of-stream before that many bytes are produced.
+`successStatus()` creates a default successful status. Code-only statuses avoid diagnostic-string allocation.
 
-Whole-stream helpers return `ReadFailed` or `WriteFailed` when a backend reports an impossible byte count or cannot make progress without reporting end-of-stream or a failure.
+Whole-stream and memory-writer operations convert the allocations they perform internally to `OutOfMemory` where documented. Constructors, `MemoryWriter::reserve()`, `MemoryWriter::text()`, and exceptions thrown by custom backend implementations are not universally converted because those operations do not all have a status-returning allocation boundary.
 
-## Size limits
+## Related pages
 
-`SizeLimitExceeded` means the requested or observed stream size cannot be accepted.
-
-For known-size reads, the helper returns it before reading when the remaining size exceeds `maxBytes`. For unknown-size reads, the helper returns it after observing a byte beyond the limit. Bytes collected up to the limit remain available in the result.
-
-`OutOfMemory` means a required allocation failed. It is distinct from a caller limit or a container maximum being exceeded.
-
-## Resource and stream failures
-
-`ResourceBusy` represents lock/share/resource conflicts, such as FileSystem failing to open a file because another process has incompatible sharing rules.
-
-`StorageFull` is intended for disk-full or quota-full write failures.
-
-`BrokenPipe` represents pipe/redirected-stream failures, such as Terminal writing to a closed redirected stdout/stderr pipe.
-
-`Interrupted` is intended for platform operations interrupted before completion.
+- @ref io_reader_writer_contract
+- @ref io_runtime_performance
+- @ref io_troubleshooting

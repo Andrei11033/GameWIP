@@ -1,51 +1,28 @@
 {
-    "version": "0.2.0",
-    "configurations": [
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "GameWIP: Debug Development",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}\\build\\dev\\GameWIP.exe",
+      "args": [],
+      "stopAtEntry": false,
+      "cwd": "${workspaceFolder}\\build\\dev",
+      "environment": [
+        { "name": "PATH", "value": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" }
+      ],
+      "externalConsole": false,
+      "MIMode": "gdb",
+      "miDebuggerPath": "C:\\MSYS2\\ucrt64\\bin\\gdb.exe",
+      "setupCommands": [
         {
-            "name": "Debug GameWIP Development",
-            "type": "cppdbg",
-            "request": "launch",
-            "program": "${workspaceFolder}\\build-development\\GameWIP.exe",
-            "args": ["--no-manual-ui"],
-            "stopAtEntry": false,
-            "cwd": "${workspaceFolder}\\build-development",
-            "environment": [
-                { "name": "PATH", "value": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" }
-            ],
-            "externalConsole": false,
-            "MIMode": "gdb",
-            "miDebuggerPath": "C:\\MSYS2\\ucrt64\\bin\\gdb.exe",
-            "setupCommands": [
-                {
-                    "description": "Enable pretty-printing for gdb",
-                    "text": "-enable-pretty-printing",
-                    "ignoreFailures": true
-                }
-            ],
-            "preLaunchTask": "Build Development"
-        },
-        {
-            "name": "Profile GameWIP with Tracy",
-            "type": "cppdbg",
-            "request": "launch",
-            "program": "${workspaceFolder}\\build-profiling\\GameWIP.exe",
-            "args": ["--no-manual-ui"],
-            "stopAtEntry": false,
-            "cwd": "${workspaceFolder}\\build-profiling",
-            "environment": [
-                { "name": "PATH", "value": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" }
-            ],
-            "externalConsole": false,
-            "MIMode": "gdb",
-            "miDebuggerPath": "C:\\MSYS2\\ucrt64\\bin\\gdb.exe",
-            "setupCommands": [
-                {
-                    "description": "Enable pretty-printing for gdb",
-                    "text": "-enable-pretty-printing",
-                    "ignoreFailures": true
-                }
-            ],
-            "preLaunchTask": "Build Profiling"
+          "description": "Enable GDB pretty-printing",
+          "text": "-enable-pretty-printing",
+          "ignoreFailures": true
         }
-    ]
+      ],
+      "preLaunchTask": "GameWIP: Build Development"
+    }
+  ]
 }

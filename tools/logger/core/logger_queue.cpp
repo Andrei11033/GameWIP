@@ -1,5 +1,5 @@
 /// @file logger_queue.cpp
-/// @brief Logger queue storage, enqueue/dequeue paths, and async worker loop.
+/// @brief Bounded MPSC queue storage, ordered publication, producer admission, and asynchronous worker draining.
 
 #include "logger/internal/logger_core.h"
 
@@ -241,6 +241,7 @@ namespace GameWIP::Logger::Detail::Core
     }
 
     /// @brief Publishes a filled or skip-marked slot and wakes the worker when it was sleeping.
+    /// @details Failed producers still publish a skip marker so ticket order cannot leave an unfillable hole that blocks every later record.
     /// @param slot Slot to publish.
     /// @param ticket Producer ticket for this slot.
     /// @param outNotifyWorker Receives true when publication may make the queue head drainable.
@@ -249,6 +250,9 @@ namespace GameWIP::Logger::Detail::Core
         slot.sequence.store(ticket + 1, std::memory_order_release);
         const bool firstPublishedSlot = loggerState().publishedQueueDepth.fetch_add(1, std::memory_order_acq_rel) == 0;
         outNotifyWorker = firstPublishedSlot || ticket == loggerState().dequeueTicket.load(std::memory_order_acquire);
+#if INTERNAL_LOGGER_TEST_HOOKS
+        recordQueuePublicationForTest();
+#endif
     }
 
     /// @brief Publishes one pending entry into a reserved MPSC ring slot.
@@ -364,9 +368,16 @@ namespace GameWIP::Logger::Detail::Core
                     lock,
                     []
                     {
-                        return queueHeadIsPublished() ||
-                               (!loggerState().workerRunning && loggerState().activeProducers.load(std::memory_order_acquire) == 0 &&
-                                loggerState().queueDepth.load(std::memory_order_acquire) == 0);
+                        const bool ready = queueHeadIsPublished() ||
+                                           (!loggerState().workerRunning && loggerState().activeProducers.load(std::memory_order_acquire) == 0 &&
+                                            loggerState().queueDepth.load(std::memory_order_acquire) == 0);
+#if INTERNAL_LOGGER_TEST_HOOKS
+                        if (!ready)
+                        {
+                            pauseWorkerBeforeWaitForTest();
+                        }
+#endif
+                        return ready;
                     });
 
                 if (loggerState().publishedQueueDepth.load(std::memory_order_acquire) == 0 &&
@@ -388,6 +399,10 @@ namespace GameWIP::Logger::Detail::Core
                 loggerState().logCondition.notify_all();
                 continue;
             }
+
+#if INTERNAL_LOGGER_TEST_HOOKS
+            pauseWorkerBeforeDeliveryForTest();
+#endif
 
             std::size_t writtenCount = 0;
             std::size_t filePendingCount = 0;
@@ -576,7 +591,8 @@ namespace GameWIP::Logger::Detail::Core
 
         if (enqueueResult.notifyWorker)
         {
-            loggerState().logCondition.notify_one();
+            std::lock_guard<std::mutex> lock(loggerState().logMutex);
+            loggerState().logCondition.notify_all();
         }
 
         return enqueueResult;

@@ -1,77 +1,57 @@
-@page terminal_capabilities_and_redirection Terminal capabilities and redirection
+@page terminal_capabilities_and_redirection Terminal capabilities, preparation, and redirection
 
-Terminal reports capabilities for stdin, stdout, and stderr across real terminals, redirected streams, detached streams, and other platform endpoints.
+Capabilities describe the current stdin, stdout, or stderr endpoint. They are snapshots, not reservations: redirection, handle replacement, mode changes, or external native calls can make a previous result stale. The status returned by the requested operation remains authoritative.
 
-## StreamKind
+## Stream kinds
 
-`Types::StreamKind` replaces separate attached, terminal, and redirected boolean combinations.
-
-| Kind | Meaning |
+| `StreamKind` | Meaning |
 | --- | --- |
-| `Detached` | The stream is missing, detached, or has no valid backend handle. |
-| `Terminal` | The stream is attached to a real terminal or console. |
-| `Redirected` | The stream is redirected to or from a pipe, file, IDE capture stream, or similar endpoint. |
-| `Other` | The stream exists but does not fit the normal terminal or redirected categories. |
+| `Detached` | No usable backend handle is currently attached. |
+| `Terminal` | A real interactive terminal/console endpoint. |
+| `Redirected` | A pipe, regular file, IDE capture stream, or similar byte endpoint. |
+| `Other` | A valid endpoint that cannot be classified safely as terminal or redirected. |
+
+A detached capability query can succeed and report `Detached`; an operation that requires an open endpoint can then return `NotOpen`. Do not infer terminal behavior from `Other`.
 
 ## Input capabilities
 
-`Types::InputCapabilities` reports:
-
-- stream kind;
-- UTF-8 text input support;
-- byte input support;
-- line input support;
-- raw byte input mode support;
-- echo control support;
-- input mode query/change support;
-- input availability query support;
-- read timeout support.
-
-The result type is `Types::InputCapabilitiesResult`.
+`InputCapabilities` reports stream kind, UTF-8 text, byte and line input, raw mode, echo control, input-mode operations, availability queries, and finite-timeout support. `InputCapabilitiesResult` pairs that snapshot with an IO status.
 
 ## Output capabilities
 
-`Types::OutputCapabilities` reports:
+`OutputCapabilities` reports stream kind, UTF-8 text, byte output, flush support, portable styles, terminal size, cursor operations, clear/scroll, alternate screen, title, and bell support. `OutputCapabilitiesResult` pairs the snapshot with an IO status.
 
-- stream kind;
-- UTF-8 text output support;
-- byte output support;
-- flush support;
-- style capabilities;
-- terminal size query support;
-- cursor movement and cursor position query support;
-- cursor save/restore support;
-- cursor visibility support;
-- clear, scroll, alternate screen, title, and bell support.
+`supportsFlush` means Terminal accepts a flush request for the endpoint. It does not promise storage durability for every endpoint. On Win32, only standard handles redirected to regular disk files receive an operating-system flush; console and pipe requests are successful no-ops.
 
-The result type is `Types::OutputCapabilitiesResult`.
+## Observation versus preparation
 
-`supportsFlush` means the stream accepts Terminal flush requests. It does not imply a storage durability operation for every stream kind. On Win32, regular redirected files receive an operating-system flush; console and pipe flushes are successful no-ops because Terminal retains no unwritten output for those stream kinds.
+`getOutputCapabilities()` is observational and never changes terminal mode.
 
-`getOutputCapabilities()` is observational. It inspects the current stream state and never enables terminal features.
+`prepareOutput()` enables backend state required by styling and controls. It is idempotent for the current handle. On Win32 real consoles it enables virtual-terminal processing where supported. That mode change persists for the current console handle; Terminal does not return an RAII object that restores preparation.
 
-`prepareOutput()` enables platform support required by styles and terminal controls. Preparation is idempotent. Redirected streams require no setup and return their normal capabilities; detached streams return `IO::Types::ErrorCode::NotOpen`. A capability query after successful preparation reports the support that is currently active.
+Preparation is not required for plain text. Redirected streams need no setup and return their redirected capabilities. Detached streams return `NotOpen`. stdout and stderr are prepared and tracked independently.
 
-Styled writes and terminal controls prepare lazily when their required capability is not active. Explicit preparation is useful during startup when the application wants to report configuration failures before its first styled or interactive output.
+Styled writes and controls prepare lazily when their requested feature is not active. Explicit preparation is useful when startup wants to diagnose unsupported terminal behavior before first use.
 
-## StyleCapabilities
+## Redirection rules
 
-`Types::StyleCapabilities` reports portable style features rather than backend protocol details. It intentionally does not expose an ANSI flag.
+Redirected endpoints are byte-oriented:
 
-## Redirection
+- text output preserves supplied UTF-8 bytes;
+- byte output preserves arbitrary bytes where supported;
+- text and line input interpret redirected bytes as UTF-8;
+- byte input performs no text interpretation.
 
-Redirected input and output are byte-oriented.
+`StyleMode::Auto` omits style sequences on redirected output that does not advertise the requested style. `StyleMode::Required` returns `Unsupported` without normal text emission when the style cannot be honored.
 
-Text helpers interpret redirected input bytes as UTF-8 and return `IO::Types::ErrorCode::EncodingFailed` when text conversion fails. Byte reads remain available for arbitrary input.
+## Current Win32 behavior
 
-Redirected stdout and stderr should not receive styling bytes in `StyleMode::Auto`. `StyleMode::Required` may force styling only when the backend can honestly support the request; otherwise it reports `Unsupported`.
+Real-console output converts UTF-8 to UTF-16 and uses the native Unicode console path. Redirected output writes bytes. The reported style set is conservative; enabling virtual-terminal processing does not by itself promise RGB, dim, italic, or strikethrough support.
 
-On Win32, real-console preparation enables virtual-terminal processing. Redirected UTF-8 output is written byte-for-byte and does not require console preparation.
-
-Win32 style capabilities are conservative. The real-console backend reports only portable features documented for the console VT implementation. In particular, RGB, dim, italic, and strikethrough are not promised merely because VT processing is enabled.
-
-Win32 named-pipe input supports finite read timeouts. Real-console input preserves native cooked input, echo, and line editing, so it supports only `kWaitForever`; finite and non-blocking console reads return `Unsupported`. Regular redirected files support availability queries from their current position but do not promise bounded read timeouts.
+Named-pipe input supports finite read timeouts. Real-console input preserves native cooked input, echo, and line editing and currently supports only `kWaitForever`. Regular redirected files support availability queries from their current position but do not promise bounded timeouts.
 
 ## Failure behavior
 
-`StyleMode::Auto` falls back to plain text when preparation fails. `StyleMode::Required` and terminal controls return the preparation or unsupported status without writing. Plain text, byte output, size queries, cursor-position queries, and input operations never prepare output.
+`StyleMode::Auto` falls back to plain text when preparation or style support is unavailable. `StyleMode::Required` and terminal controls return the preparation or capability failure without normal emission. Plain text, byte output, size queries, cursor-position queries, and input operations do not implicitly prepare output.
+
+See @ref terminal_styling, @ref terminal_read_write, and @ref terminal_control_primitives.

@@ -2,71 +2,85 @@
 
 ## Include
 
-Include the library's public header:
-
 ```cpp
 #include "test_support/test_support.h"
 ```
 
 ## Installed CMake
 
-Use the package's namespaced imported target:
+Set `GAMEWIP_REQUIRED_VERSION` from the consuming project's dependency lock; see @ref project_library_compatibility.
 
 ```cmake
-find_package(TestSupport CONFIG REQUIRED)
+find_package(TestSupport ${GAMEWIP_REQUIRED_VERSION} EXACT CONFIG REQUIRED)
 target_link_libraries(MyTests PRIVATE GameWIP::TestSupport)
 ```
 
 ## Source-tree CMake
 
-When TestSupport is part of the same source tree, use its short build target:
-
 ```cmake
 target_link_libraries(MyTests PRIVATE TestSupport)
 ```
 
-TestSupport has no dependencies on other project libraries, so it can support any test executable.
+TestSupport has no dependency on another project library.
 
 ## Minimal usage
-
-The normal test-executable flow is:
-
-1. Create `GameWIP::TestSupport::Types::ReportOptions`.
-2. Create a `GameWIP::TestSupport::Runner`.
-3. Run named suites.
-4. Use `GameWIP::TestSupport::Context` inside each suite.
-5. Return `runner.exitCode()` from `main`.
-
-Example:
 
 ```cpp
 #include "test_support/test_support.h"
 
 int main()
 {
-    GameWIP::TestSupport::Types::ReportOptions options;
+    namespace TS = GameWIP::TestSupport;
+
+    TS::Types::ReportOptions options;
     options.reportPath = "logs/tests/latest_test_report.txt";
 
-    GameWIP::TestSupport::Runner runner(options);
-
+    TS::Runner runner(options);
     runner.runSuite(
         "Math",
-        [](GameWIP::TestSupport::Context& context)
+        [](TS::Context& context)
         {
-            context.expectEq("one plus one", 2, 1 + 1);
-            context.expectNear("fraction", 0.5, 1.0 / 2.0, 0.0001);
+            static_cast<void>(context.expectEq("one plus one", 2, 1 + 1));
+            static_cast<void>(
+                context.expectNear("one half", 0.5, 1.0 / 2.0, 0.0001));
         });
 
     return runner.exitCode();
 }
 ```
 
-Expectations return `true` when they pass and `false` when they fail. They also record the outcome in the context, so a failing expectation does not abort the suite.
+A failed expectation records a failure and returns `false`; it does not stop the suite. Use the returned value when later work depends on the check:
+
+```cpp
+#include "test_support/test_support.h"
+
+void validateFixture(
+    GameWIP::TestSupport::Context& context,
+    bool fixtureLoaded)
+{
+    if (!context.expectTrue("fixture loaded", fixtureLoaded))
+    {
+        return;
+    }
+
+    context.info("fixture-dependent checks can now run");
+}
+```
+
+## Failure handling
+
+- `Runner::runSuite()` catches exceptions thrown by the suite callable and records one failed check named `uncaught exception`.
+- Reporting and report-file operations do not determine the test result. A report-file open, write, or flush failure disables that sink and emits at most one stderr diagnostic.
+- Formatting, allocation, path conversion, filesystem setup, standard-stream, and thread-creation failures can still throw from APIs that are not marked `noexcept`.
+- `runChildProcess()` preserves the native `std::uint32_t` exit code and reports launch, wait, inspection, or capture failure separately through `infrastructureFailure`. Inspect that flag, `timedOut`, and `wasTerminatedByTest` before interpreting the exit code.
+- `runner.exitCode()` reflects recorded failures only. A skipped-only or empty run returns zero.
 
 ## Where to go next
 
-- @ref test_support_expectations explains `Runner`, `Context`, expectations, summaries, and sections.
-- @ref test_support_reports explains console/report-file behavior and report categories.
-- @ref test_support_files_environment explains file helpers and scoped environment variables.
-- @ref test_support_child_processes explains isolated child-process tests.
-- @ref test_support_timing_stress explains timers, metrics, start gates, stop flags, and workers.
+- @ref test_support_public_api maps every public type and operation family.
+- @ref test_support_expectations explains runners, contexts, expectations, and sections.
+- @ref test_support_reports explains console and report-file behavior.
+- @ref test_support_files_environment explains fixture helpers and process-global guards.
+- @ref test_support_child_processes explains launch, capture, timeout, and result interpretation.
+- @ref test_support_timing_stress explains timers and worker coordination.
+- @ref test_support_examples provides complete integration examples.

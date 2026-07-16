@@ -1,8 +1,8 @@
 @page io IO
 
-`GameWIP::IO` is the platform-neutral byte and text I/O contract library.
+`GameWIP::IO` is the platform-neutral byte-transfer contract shared by low-level GameWIP libraries.
 
-It defines shared reader, writer, status, error, and whole-stream helper APIs for low-level libraries. IO does not call the operating system and has no platform backend.
+It defines status and result types, abstract reader and writer interfaces, memory-backed implementations, and helpers that complete whole-stream transfers. IO does not open operating-system resources and has no platform backend.
 
 ## Consumer manual
 
@@ -20,19 +20,23 @@ It defines shared reader, writer, status, error, and whole-stream helper APIs fo
 
 ## Generated API reference
 
-Use @ref GameWIP::IO for active interfaces and helpers, and @ref GameWIP::IO::Types for passive status, option, and result shapes. These generated pages document every public type, enum value, field, function, overload, and constant from `io/io.h`; the manual pages above explain how those symbols work together.
+Use @ref GameWIP::IO for active interfaces, implementations, constants, and helpers. Use @ref GameWIP::IO::Types for passive status, option, and result types.
+
+The generated reference documents every public declaration from `io/io.h`. The manual explains how those declarations work together, which contracts backend implementations must preserve, and which caveats affect callers.
 
 ## Key behavior
 
-- `Reader` and `Writer` define active byte-transfer contracts.
-- Public status helpers create consistent success and failure statuses for IO consumers.
-- `MemoryReader` is a non-owning reader over caller-owned contiguous bytes.
-- `MemoryWriter` owns a growing byte vector and supports explicit capacity reuse or byte extraction.
-- `readAllBytes()` and `readAllText()` optimize known-size readers and enforce a hard caller byte limit.
-- `writeAllBytes()` and `writeAllText()` retry partial successful writes and report total accepted bytes.
-- Expected I/O failures return `Types::Status`.
-- Text helpers preserve UTF-8 bytes without validating or parsing them.
+- `Reader` and `Writer` are movable, non-copyable byte-transfer interfaces.
+- Optional capabilities use statuses rather than separate interface hierarchies.
+- `MemoryReader` is a non-owning, seekable view over stable caller-owned storage.
+- `MemoryWriter` owns append-only storage that can be inspected, reused, or transferred.
+- Whole-stream read helpers optimize readers that report both size and position.
+- Unknown-size reads enforce hard byte limits and support reusable caller-owned scratch storage.
+- Whole-stream write helpers retry successful short writes and preserve progress reported with a later failure.
+- Text helpers preserve bytes; they do not validate UTF-8 or parse text formats.
 
-`GameWIP::IO` is the dependency root for FileSystem and Terminal. Those libraries depend on IO; IO must not depend on either of them.
+## Dependency boundary
 
-IO intentionally has no `open()` API because it does not know which resource is being opened. Resource-owning libraries such as FileSystem and Terminal own open behavior. Memory-backed IO is created directly with constructors and uses `close()` / `isOpen()` state.
+IO is the dependency root for FileSystem and Terminal. Those libraries use IO contracts; IO must not depend on them.
+
+IO intentionally has no `open()` API. Resource-owning libraries create their own concrete readers and writers, while memory-backed IO is constructed directly.

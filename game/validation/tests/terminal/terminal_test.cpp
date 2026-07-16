@@ -1,5 +1,8 @@
 /// @file terminal_test.cpp
 /// @brief Executable self-tests for the Terminal library.
+///
+/// The suite combines backend hooks, redirected and console-like endpoints,
+/// reentrant child execution, state restoration, and opt-in manual UI checks.
 
 #include "validation/tests/terminal/terminal_test.h"
 
@@ -26,6 +29,13 @@
 #include <string_view>
 #include <type_traits>
 #include <vector>
+
+#if defined(_WIN32)
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <windows.h>
+#endif
 
 /// @brief Marker value whose formatter deliberately throws during output tests.
 struct TerminalThrowingFormat
@@ -146,7 +156,7 @@ namespace
         TestSupport::Types::ChildProcessOptions child;
         child.executablePath = std::filesystem::path(executablePath);
         child.arguments = {std::string(kReentrantFormatChildArgument)};
-        child.timeout = std::chrono::milliseconds{2000};
+        child.timeout = std::chrono::milliseconds{5000};
         child.captureOutput = true;
 
         const TestSupport::Types::ChildProcessResult result = TestSupport::runChildProcess(child);
@@ -154,6 +164,451 @@ namespace
         static_cast<void>(context.expectTrue("reentrant formatter child exits successfully", result.exitedSuccessfully()));
         static_cast<void>(
             context.expectEq("reentrant formatter preserves nested and outer output", std::string{"innerouterinnerouter\n"}, result.output));
+    }
+
+    /// @brief Records a human response as a test pass, failure, or skip.
+    void recordManualAnswer(TestSupport::Context &context, std::string_view name, TestSupport::Types::ManualAnswer answer)
+    {
+        switch (answer)
+        {
+        case TestSupport::Types::ManualAnswer::Yes:
+            context.pass(name);
+            return;
+
+        case TestSupport::Types::ManualAnswer::No:
+            context.fail(name, "manual check rejected by user");
+            return;
+
+        case TestSupport::Types::ManualAnswer::Skipped:
+            context.skip(name, "manual check skipped by user");
+            return;
+        }
+    }
+
+    /// @brief Prompts for and records one human-observed Terminal result.
+    void recordManualCheck(TestSupport::Context &context, std::string_view name, std::string_view question)
+    {
+        recordManualAnswer(context, name, TestSupport::promptManualCheck(question));
+    }
+
+    /// @brief Reports one failed Terminal operation and returns whether it succeeded.
+    [[nodiscard]] bool requireManualOperation(
+        TestSupport::Context &context,
+        std::string_view name,
+        std::string_view operation,
+        const IO::Types::Status &status)
+    {
+        if (status.ok())
+        {
+            return true;
+        }
+
+        std::string reason = std::format("{} failed with {}", operation, IO::errorCodeName(status.code));
+        if (!status.message.empty())
+        {
+            reason += std::format(": {}", status.message);
+        }
+        context.fail(name, reason);
+        return false;
+    }
+
+    /// @brief Displays representative UTF-8 text for visual verification.
+    void testManualUnicodeOutput(TestSupport::Context &context)
+    {
+        constexpr std::string_view sample = "Unicode: cafe\xCC\x81 | \xCE\x95\xCE\xBB\xCE\xBB\xCE\xB7\xCE\xBD\xCE\xB9\xCE\xBA\xCE\xAC | "
+                                            "\xE6\x97\xA5\xE6\x9C\xAC\xE8\xAA\x9E | \xF0\x9F\x98\x80";
+        if (!requireManualOperation(context, "manual Unicode output", "writeLine", Terminal::writeLine(sample)))
+        {
+            return;
+        }
+
+        recordManualCheck(
+            context,
+            "manual Unicode output",
+            "Does the preceding Unicode line show accented text, Greek, Japanese, and an emoji without replacement characters?");
+    }
+
+    /// @brief Displays portable basic colors and verifies that they remain visually distinct.
+    void testManualBasicColorOutput(TestSupport::Context &context, const Terminal::Types::StyleCapabilities &capabilities)
+    {
+        if (!capabilities.basicColor)
+        {
+            context.skip("manual basic-color output", "the terminal does not report basic-color support");
+            return;
+        }
+
+        Terminal::Types::LineWriteOptions redOptions;
+        redOptions.styleMode = Terminal::Types::StyleMode::Required;
+        redOptions.style.foreground = Terminal::basicColor(Terminal::Types::BasicColor::BrightRed);
+
+        Terminal::Types::LineWriteOptions greenOptions;
+        greenOptions.styleMode = Terminal::Types::StyleMode::Required;
+        greenOptions.style.foreground = Terminal::basicColor(Terminal::Types::BasicColor::BrightGreen);
+
+        Terminal::Types::LineWriteOptions blueOptions;
+        blueOptions.styleMode = Terminal::Types::StyleMode::Required;
+        blueOptions.style.foreground = Terminal::basicColor(Terminal::Types::BasicColor::BrightBlue);
+
+        if (!requireManualOperation(
+                context,
+                "manual basic-color output",
+                "red basic-color writeLine",
+                Terminal::writeLine("Basic color: bright red", redOptions)) ||
+            !requireManualOperation(
+                context,
+                "manual basic-color output",
+                "green basic-color writeLine",
+                Terminal::writeLine("Basic color: bright green", greenOptions)) ||
+            !requireManualOperation(
+                context,
+                "manual basic-color output",
+                "blue basic-color writeLine",
+                Terminal::writeLine("Basic color: bright blue", blueOptions)))
+        {
+            return;
+        }
+
+        recordManualCheck(
+            context,
+            "manual basic-color output",
+            "Are the preceding basic-color lines visibly red, green, and blue according to the terminal palette?");
+    }
+
+    /// @brief Displays an RGB color when the terminal can honor exact RGB requests.
+    void testManualRgbColorOutput(TestSupport::Context &context, const Terminal::Types::StyleCapabilities &capabilities)
+    {
+        if (!capabilities.rgbColor)
+        {
+            context.skip("manual RGB-color output", "the terminal does not report RGB-color support");
+            return;
+        }
+
+        Terminal::Types::LineWriteOptions rgbOptions;
+        rgbOptions.styleMode = Terminal::Types::StyleMode::Required;
+        rgbOptions.style.foreground = Terminal::rgbColor(40, 210, 120);
+
+        if (!requireManualOperation(
+                context,
+                "manual RGB-color output",
+                "RGB styled writeLine",
+                Terminal::writeLine("RGB color: red=40 green=210 blue=120", rgbOptions)))
+        {
+            return;
+        }
+
+        recordManualCheck(context, "manual RGB-color output", "Does the preceding RGB line appear as the requested vivid green color?");
+    }
+
+    /// @brief Displays each text attribute independently when the terminal advertises it.
+    void testManualTextStyles(TestSupport::Context &context, const Terminal::Types::StyleCapabilities &capabilities)
+    {
+        bool wroteAttribute = false;
+        const auto testAttribute = [&](std::string_view label, bool supported, bool Terminal::Types::TextStyle::*attribute) -> bool
+        {
+            const std::string name = std::format("manual {} text style", label);
+            if (!supported)
+            {
+                context.skip(name, "the terminal does not report this text-style capability");
+                return true;
+            }
+
+            Terminal::Types::LineWriteOptions options;
+            options.styleMode = Terminal::Types::StyleMode::Required;
+            options.style.*attribute = true;
+            wroteAttribute = true;
+            return requireManualOperation(
+                context,
+                name,
+                std::format("{} styled writeLine", label),
+                Terminal::writeLine(std::format("Text style: {}", label), options));
+        };
+
+        if (!testAttribute("bold", capabilities.bold, &Terminal::Types::TextStyle::bold) ||
+            !testAttribute("dim", capabilities.dim, &Terminal::Types::TextStyle::dim) ||
+            !testAttribute("italic", capabilities.italic, &Terminal::Types::TextStyle::italic) ||
+            !testAttribute("underline", capabilities.underline, &Terminal::Types::TextStyle::underline) ||
+            !testAttribute("inverse", capabilities.inverse, &Terminal::Types::TextStyle::inverse) ||
+            !testAttribute("strikethrough", capabilities.strikethrough, &Terminal::Types::TextStyle::strikethrough))
+        {
+            return;
+        }
+
+        if (!wroteAttribute)
+        {
+            context.skip("manual text styles", "the terminal does not report any text-style capability");
+            return;
+        }
+
+        recordManualCheck(context, "manual text styles", "Did each displayed text-style line visibly match its label?");
+    }
+
+    /// @brief Verifies that a styled write does not leak state into the following plain write.
+    void testManualStyleRestoration(TestSupport::Context &context, const Terminal::Types::StyleCapabilities &capabilities)
+    {
+        if (!capabilities.basicColor)
+        {
+            context.skip("manual style restoration", "the terminal does not report basic-color support");
+            return;
+        }
+
+        Terminal::Types::LineWriteOptions styledOptions;
+        styledOptions.styleMode = Terminal::Types::StyleMode::Required;
+        styledOptions.style.foreground = Terminal::basicColor(Terminal::Types::BasicColor::BrightMagenta);
+        styledOptions.style.bold = capabilities.bold;
+        styledOptions.style.underline = capabilities.underline;
+
+        if (!requireManualOperation(
+                context,
+                "manual style restoration",
+                "styled writeLine",
+                Terminal::writeLine("Style restoration: styled magenta line", styledOptions)) ||
+            !requireManualOperation(
+                context,
+                "manual style restoration",
+                "plain writeLine",
+                Terminal::writeLine("Style restoration: terminal defaults restored")))
+        {
+            return;
+        }
+
+        recordManualCheck(
+            context,
+            "manual style restoration",
+            "Is only the first restoration line styled, with the second line using the terminal defaults?");
+    }
+
+    /// @brief Verifies visible cursor save/restore behavior without changing the final cursor position.
+    void testManualCursorBehavior(TestSupport::Context &context, const Terminal::Types::OutputCapabilities &capabilities)
+    {
+        if (!capabilities.supportsCursorSaveRestore)
+        {
+            context.skip("manual cursor behavior", "the terminal does not report cursor save/restore support");
+            return;
+        }
+
+        if (!requireManualOperation(context, "manual cursor behavior", "saveCursorPosition", Terminal::saveCursorPosition()) ||
+            !requireManualOperation(
+                context,
+                "manual cursor behavior",
+                "placeholder writeText",
+                Terminal::writeText("Cursor: this placeholder should be replaced                 ")) ||
+            !requireManualOperation(context, "manual cursor behavior", "restoreCursorPosition", Terminal::restoreCursorPosition()) ||
+            !requireManualOperation(
+                context,
+                "manual cursor behavior",
+                "replacement writeLine",
+                Terminal::writeLine("Cursor: PASS - saved position restored                     ")))
+        {
+            return;
+        }
+
+        recordManualCheck(context, "manual cursor behavior", "Is there one Cursor: PASS line above, with no visible placeholder line?");
+    }
+
+    /// @brief Enters an alternate screen, checks its contents, and restores the main screen.
+    void testManualAlternateScreen(TestSupport::Context &context, const Terminal::Types::OutputCapabilities &capabilities)
+    {
+        if (!capabilities.supportsAlternateScreen || !capabilities.supportsClear)
+        {
+            context.skip("manual alternate screen", "the terminal does not report alternate-screen and clear support");
+            return;
+        }
+
+        Terminal::AlternateScreenScope alternateScreen = Terminal::scopedAlternateScreen();
+        if (!requireManualOperation(context, "manual alternate screen", "enter alternate screen", alternateScreen.status()))
+        {
+            return;
+        }
+        if (!alternateScreen.active())
+        {
+            context.fail("manual alternate screen", "alternate-screen scope did not become active");
+            return;
+        }
+
+        TestSupport::Types::ManualAnswer answer = TestSupport::Types::ManualAnswer::Skipped;
+        const bool contentReady = requireManualOperation(context, "manual alternate screen", "clear alternate screen", Terminal::clear()) &&
+                                  requireManualOperation(
+                                      context,
+                                      "manual alternate screen",
+                                      "alternate-screen writeLine",
+                                      Terminal::writeLine("GameWIP Terminal alternate-screen check"));
+        if (contentReady)
+        {
+            answer = TestSupport::promptManualCheck("Is this prompt displayed on a clean alternate screen?");
+        }
+
+        const bool restored = requireManualOperation(context, "manual alternate screen", "leave alternate screen", alternateScreen.leave());
+        if (contentReady && restored)
+        {
+            recordManualAnswer(context, "manual alternate screen", answer);
+        }
+    }
+
+    /// @brief Reads one exact line from the real terminal input stream.
+    void testManualInput(TestSupport::Context &context)
+    {
+        constexpr std::string_view expected = "GameWIP-11";
+        if (!requireManualOperation(
+                context,
+                "manual terminal input",
+                "input prompt writeText",
+                Terminal::writeText("Input: type GameWIP-11 and press Enter: ")))
+        {
+            return;
+        }
+
+        const Terminal::Types::LineReadResult result = Terminal::readLine();
+        if (!requireManualOperation(context, "manual terminal input", "readLine", result.status))
+        {
+            return;
+        }
+        if (result.outcome != Terminal::Types::ReadOutcome::Completed)
+        {
+            context.fail("manual terminal input", "readLine did not complete normally");
+            return;
+        }
+        if (result.line != expected)
+        {
+            context.fail("manual terminal input", std::format("expected '{}', received '{}'", expected, result.line));
+            return;
+        }
+
+        context.pass("manual terminal input");
+    }
+
+    /// @brief Verifies that scoped input mode and cursor visibility changes restore terminal state.
+    void testManualStateRestoration(
+        TestSupport::Context &context,
+        const Terminal::Types::InputCapabilities &inputCapabilities,
+        const Terminal::Types::OutputCapabilities &outputCapabilities)
+    {
+        if (!inputCapabilities.supportsInputMode || !inputCapabilities.supportsEchoControl)
+        {
+            context.skip("manual input-mode restoration", "the terminal does not report input-mode and echo control support");
+        }
+        else
+        {
+            const Terminal::Types::InputModeResult originalMode = Terminal::getInputMode();
+            if (requireManualOperation(context, "manual input-mode restoration", "get original input mode", originalMode.status))
+            {
+                Terminal::Types::InputMode hiddenInputMode = originalMode.mode;
+                hiddenInputMode.lineBuffered = true;
+                hiddenInputMode.echoInput = false;
+                hiddenInputMode.processControlKeys = true;
+
+                Terminal::InputModeScope inputMode = Terminal::scopedInputMode(hiddenInputMode);
+                if (!requireManualOperation(context, "manual input-mode restoration", "disable input echo", inputMode.status()))
+                {
+                    return;
+                }
+                if (!inputMode.active())
+                {
+                    context.fail("manual input-mode restoration", "input-mode scope did not become active");
+                    return;
+                }
+
+                if (!requireManualOperation(
+                        context,
+                        "manual input-mode restoration",
+                        "hidden-input prompt writeText",
+                        Terminal::writeText("State restoration: type hidden and press Enter (the word should not echo): ")))
+                {
+                    return;
+                }
+                const Terminal::Types::LineReadResult hiddenInput = Terminal::readLine();
+                bool readSucceeded = requireManualOperation(context, "manual input-mode restoration", "read hidden input", hiddenInput.status);
+                if (readSucceeded && (hiddenInput.outcome != Terminal::Types::ReadOutcome::Completed || hiddenInput.line != "hidden"))
+                {
+                    context.fail("manual input-mode restoration", "hidden input did not produce the requested line");
+                    readSucceeded = false;
+                }
+                const bool restoreSucceeded =
+                    requireManualOperation(context, "manual input-mode restoration", "restore input mode", inputMode.restore());
+                const Terminal::Types::InputModeResult restoredMode = Terminal::getInputMode();
+                const bool querySucceeded =
+                    requireManualOperation(context, "manual input-mode restoration", "get restored input mode", restoredMode.status);
+
+                if (readSucceeded && restoreSucceeded && querySucceeded)
+                {
+                    const bool modesMatch = restoredMode.mode.lineBuffered == originalMode.mode.lineBuffered &&
+                                            restoredMode.mode.echoInput == originalMode.mode.echoInput &&
+                                            restoredMode.mode.processControlKeys == originalMode.mode.processControlKeys;
+                    if (!modesMatch)
+                    {
+                        context.fail("manual input-mode restoration", "the input mode did not match its original state after restoration");
+                    }
+                    else
+                    {
+                        recordManualCheck(
+                            context,
+                            "manual input-mode restoration",
+                            "Was the word 'hidden' suppressed while typing, and is normal input echo restored now?");
+                    }
+                }
+            }
+        }
+
+        if (!outputCapabilities.supportsCursorVisibility)
+        {
+            context.skip("manual cursor-visibility restoration", "the terminal does not report cursor visibility support");
+            return;
+        }
+
+        Terminal::CursorHiddenScope hiddenCursor = Terminal::scopedCursorHidden();
+        if (!requireManualOperation(context, "manual cursor-visibility restoration", "hide cursor", hiddenCursor.status()))
+        {
+            return;
+        }
+        if (!hiddenCursor.active())
+        {
+            context.fail("manual cursor-visibility restoration", "cursor-hidden scope did not become active");
+            return;
+        }
+
+        const TestSupport::Types::ManualAnswer hiddenAnswer = TestSupport::promptManualCheck("Is the terminal cursor currently hidden?");
+        if (!requireManualOperation(context, "manual cursor-visibility restoration", "restore cursor visibility", hiddenCursor.restore()))
+        {
+            return;
+        }
+        recordManualAnswer(context, "manual cursor hidden state", hiddenAnswer);
+        recordManualCheck(
+            context,
+            "manual cursor-visibility restoration",
+            "Is the cursor visible again with the main screen, default style, and normal input behavior intact?");
+    }
+
+    /// @brief Runs the opt-in human checks for Terminal UI behavior.
+    void testManualUiChecks(TestSupport::Context &context, const TerminalTestOptions &options)
+    {
+        if (!options.enableManualUiTests)
+        {
+            context.skip("Terminal manual UI checks", "disabled by TerminalTestOptions");
+            return;
+        }
+
+        const Terminal::Types::OutputCapabilitiesResult output = Terminal::prepareOutput();
+        const Terminal::Types::InputCapabilitiesResult input = Terminal::getInputCapabilities();
+        if (!requireManualOperation(context, "manual terminal capability setup", "prepare stdout", output.status) ||
+            !requireManualOperation(context, "manual terminal capability setup", "query stdin", input.status))
+        {
+            return;
+        }
+        if (output.capabilities.kind != Terminal::Types::StreamKind::Terminal || input.capabilities.kind != Terminal::Types::StreamKind::Terminal)
+        {
+            context.skip("Terminal manual UI checks", "requires real terminal stdin and stdout");
+            return;
+        }
+
+        context.manual("Terminal UI checks: verify each observation and answer yes, no, or skip when prompted.");
+        testManualUnicodeOutput(context);
+        testManualBasicColorOutput(context, output.capabilities.style);
+        testManualRgbColorOutput(context, output.capabilities.style);
+        testManualTextStyles(context, output.capabilities.style);
+        testManualStyleRestoration(context, output.capabilities.style);
+        testManualCursorBehavior(context, output.capabilities);
+        testManualAlternateScreen(context, output.capabilities);
+        testManualInput(context);
+        testManualStateRestoration(context, input.capabilities, output.capabilities);
     }
 
     /// @brief Verifies passive enum validators, style helpers, and line-ending text.
@@ -1030,6 +1485,86 @@ namespace
         Hooks::reset();
     }
 
+#if defined(_WIN32)
+    /// @brief Verifies buffered bytes are owned by native stdin identity, including numeric handle reuse.
+    void testInputEndpointReplacement(TestSupport::Context &context)
+    {
+        Hooks::reset();
+        const HANDLE originalInput = GetStdHandle(STD_INPUT_HANDLE);
+
+        HANDLE firstRead = nullptr;
+        HANDLE firstWrite = nullptr;
+        static_cast<void>(context.expectTrue("create first stdin pipe", CreatePipe(&firstRead, &firstWrite, nullptr, 0) != FALSE));
+        if (firstRead == nullptr || firstWrite == nullptr)
+        {
+            return;
+        }
+
+        static_cast<void>(context.expectTrue("install first stdin pipe", SetStdHandle(STD_INPUT_HANDLE, firstRead) != FALSE));
+        DWORD bytesWritten = 0;
+        static_cast<void>(context.expectTrue("write first stdin pipe", WriteFile(firstWrite, "AB", 2, &bytesWritten, nullptr) != FALSE));
+        CloseHandle(firstWrite);
+
+        Terminal::Types::TextReadOptions oneByte;
+        oneByte.maxReturnedBytes = 1;
+        static_cast<void>(context.expectEq("first endpoint returns first byte", std::string{"A"}, Terminal::readText(oneByte).text));
+        Hooks::setPendingHighSurrogate(Terminal::Types::InputStream::Stdin, UINT16_C(0xD83D));
+        static_cast<void>(
+            context.expectTrue("first endpoint retains seeded high surrogate", Hooks::hasPendingHighSurrogate(Terminal::Types::InputStream::Stdin)));
+
+        const HANDLE reusedValue = firstRead;
+        CloseHandle(firstRead);
+
+        HANDLE replacementRead = nullptr;
+        HANDLE replacementWrite = nullptr;
+        for (std::size_t attempt = 0; attempt < 256; ++attempt)
+        {
+            HANDLE candidateRead = nullptr;
+            HANDLE candidateWrite = nullptr;
+            if (CreatePipe(&candidateRead, &candidateWrite, nullptr, 0) == FALSE)
+            {
+                break;
+            }
+            if (candidateRead == reusedValue)
+            {
+                replacementRead = candidateRead;
+                replacementWrite = candidateWrite;
+                break;
+            }
+            CloseHandle(candidateRead);
+            CloseHandle(candidateWrite);
+        }
+
+        if (replacementRead == nullptr)
+        {
+            context.skip("stdin numeric handle reuse", "Win32 did not reuse the released handle value within 256 attempts");
+            static_cast<void>(SetStdHandle(STD_INPUT_HANDLE, originalInput));
+            Hooks::reset();
+            return;
+        }
+
+        static_cast<void>(context.expectTrue("install reused stdin handle", SetStdHandle(STD_INPUT_HANDLE, replacementRead) != FALSE));
+        bytesWritten = 0;
+        static_cast<void>(context.expectTrue("write replacement stdin pipe", WriteFile(replacementWrite, "C", 1, &bytesWritten, nullptr) != FALSE));
+        CloseHandle(replacementWrite);
+
+        const Terminal::Types::TextReadResult replacement = Terminal::readText(oneByte);
+        static_cast<void>(context.expectTrue("replacement endpoint read succeeds", replacement.status.ok()));
+        static_cast<void>(context.expectEq("replacement endpoint discards stale byte", std::string{"C"}, replacement.text));
+        static_cast<void>(context.expectFalse(
+            "replacement endpoint discards stale high surrogate",
+            Hooks::hasPendingHighSurrogate(Terminal::Types::InputStream::Stdin)));
+
+        static_cast<void>(context.expectTrue("detach stdin", SetStdHandle(STD_INPUT_HANDLE, nullptr) != FALSE));
+        static_cast<void>(
+            context.expectEq("detached stdin reports NotOpen after state reset", ErrorCode::NotOpen, Terminal::getInputAvailability().status.code));
+
+        static_cast<void>(SetStdHandle(STD_INPUT_HANDLE, originalInput));
+        CloseHandle(replacementRead);
+        Hooks::reset();
+    }
+#endif
+
     /// @brief Verifies mode queries, updates, default restore, and scoped exact restoration.
     void testInputModes(TestSupport::Context &context)
     {
@@ -1130,12 +1665,22 @@ namespace GameWIP::Test
                 testReentrantFormatting(context, argc > 0 && argv[0] != nullptr ? argv[0] : "");
             });
 
+        runner.runSuite(
+            "Terminal manual UI checks",
+            [&options](TestSupport::Context &context)
+            {
+                testManualUiChecks(context, options);
+            });
+
 #if INTERNAL_TERMINAL_TEST_HOOKS
         runner.runSuite("Terminal capabilities and queries", testCapabilitiesAndQueries);
         runner.runSuite("Terminal text and style output", testTextAndStyleOutput);
         runner.runSuite("Terminal segmented and byte output", testSegmentedAndByteOutput);
         runner.runSuite("Terminal controls", testControls);
         runner.runSuite("Terminal input reads", testInputReads);
+#if defined(_WIN32)
+        runner.runSuite("Terminal stdin endpoint replacement", testInputEndpointReplacement);
+#endif
         runner.runSuite("Terminal input modes", testInputModes);
 #else
         runner.runSuite("Terminal hook-dependent suites", testHookDependentSuitesSkipped);

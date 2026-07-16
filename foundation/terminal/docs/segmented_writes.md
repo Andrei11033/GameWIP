@@ -1,48 +1,50 @@
 @page terminal_segmented_writes Terminal segmented writes
 
-Segmented writes let callers write a mixed batch of text, styled text, and bytes without concatenating strings first.
+Segmented writes emit one logical batch containing plain text, styled text, and—on suitable endpoints—raw bytes without requiring the caller to concatenate one owning string first.
 
-The optimized path is:
+## Segment construction
 
-```cpp
-GameWIP::Terminal::writeSegments(std::span<const GameWIP::Terminal::Types::WriteSegment>{segments});
-```
+`WriteSegmentKind` contains `Text`, `StyledText`, and `Bytes`. Construct values with `textSegment()`, `styledTextSegment()`, and `byteSegment()`.
 
-Use segmented writes when one logical output record contains independently styled or byte-oriented parts.
+A segment is valid by construction. Its payload accessors are interpreted according to `kind()`:
 
-## Segment kinds
+- `text()` is meaningful for `Text` and `StyledText`;
+- `style()` is meaningful for `StyledText`;
+- `bytes()` is meaningful for `Bytes`.
 
-`Types::WriteSegmentKind` contains:
+`TextStyle` is copied into a styled segment. Text and byte payloads are non-owning views. Copying a segment copies those views, not the referenced storage.
 
-- `Text`;
-- `StyledText`;
-- `Bytes`.
+The source storage must remain alive and unchanged until `writeSegments()` returns. Factory overloads delete common temporary-owning-string and non-borrowed temporary-byte-range cases, but lvalue lifetime remains the caller's responsibility.
 
-Construct segments with:
+## Batch options
 
-- `textSegment(text)`;
-- `styledTextSegment(text, style)`;
-- `byteSegment(bytes)`.
-
-`Types::WriteSegment` stores non-owning views. The caller-owned text and byte storage must remain alive until the write call returns.
-
-`WriteSegment` is valid by construction: its kind and payload cannot be changed independently after a factory creates it. `Color` follows the same rule and exposes read-only accessors.
-
-## SegmentWriteOptions
-
-`Types::SegmentWriteOptions` controls the batch:
+`SegmentWriteOptions` contains:
 
 - `styleMode` for styled segments;
-- `appendLineEnding` after all segments;
-- `lineEnding`;
-- `flushMode`.
+- `appendLineEnding` after the complete batch;
+- `lineEnding` used when appending;
+- `flushMode` applied after emission.
 
-Per-segment style lives in each `WriteSegment`. The batch options do not apply one global style to all text.
+Per-segment style remains in each segment; there is no global style object for the batch.
 
-Terminal validates the complete batch before emitting output. A byte segment targeting a real Win32 console returns `Unsupported` without writing earlier segments. Redirected batches may contain byte segments and are emitted as one Terminal operation.
+## Validation and endpoint behavior
 
-Text-only and styled batches are emitted as one Terminal operation. Unusually large batches do not permanently retain their peak temporary capacity.
+Terminal validates the complete batch before normal emission. Invalid enum values, unavailable required styles, or a byte segment targeting a real Win32 console fail before earlier segments are intentionally written.
 
-Plain text-only batches skip capability queries. Capability work is performed only when byte segments or non-default styled segments require it.
+Validation and assembly can allocate temporary storage. Allocation failure can therefore stop the operation before the platform write. Once platform emission begins, the operation is not transactional: a failing endpoint can emit a prefix.
 
-Segmented writes do not guarantee atomicity relative to `std::cout`, `std::cerr`, `printf`, direct operating-system writes, or third-party terminal writes.
+Redirected endpoints can accept mixed text and byte segments when their capabilities allow byte output. Real Win32 consoles reject raw byte segments with `Unsupported` because arbitrary bytes are not valid console text.
+
+Plain text-only batches skip unnecessary capability work. Large temporary assembly capacity is not retained indefinitely.
+
+## Empty batches and flushing
+
+An empty batch is valid. It can still append the requested line ending or perform the requested flush according to `SegmentWriteOptions`.
+
+A flush failure can occur after the full assembled batch was accepted. `writeSegments()` returns a status rather than a byte count, so applications requiring byte-level progress should use `writeBytes()` for that transfer shape.
+
+## Concurrency
+
+One `writeSegments()` call is one Terminal serialization unit for the selected stream. It does not coordinate with `std::cout`, `std::cerr`, `printf`, native writes, or third-party terminal APIs.
+
+See @ref terminal_read_write and @ref terminal_styling.

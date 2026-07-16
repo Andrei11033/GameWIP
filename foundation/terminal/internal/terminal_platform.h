@@ -1,5 +1,6 @@
 /// @file terminal_platform.h
-/// @brief Internal platform abstraction used by the Terminal library.
+/// @brief Internal backend boundary used by the platform-neutral Terminal core.
+/// @details Native handles, encoding conversion, and endpoint-specific behavior stay behind this interface.
 
 #pragma once
 
@@ -143,4 +144,14 @@ namespace GameWIP::Terminal::Detail::Platform
     /// @param mode Requested flush strength.
     /// @return Success or portable/backend-native failure status.
     [[nodiscard]] IO::Types::Status flush(Terminal::Types::OutputStream stream, IO::Types::FlushMode mode);
+
+#if INTERNAL_TERMINAL_TEST_HOOKS
+    namespace TestHooks
+    {
+        /// @brief Seeds the Win32 pending UTF-16 high surrogate for endpoint-replacement validation.
+        void setPendingHighSurrogate(Terminal::Types::InputStream stream, std::uint16_t surrogate) noexcept;
+        /// @brief Returns whether the current Win32 input endpoint retains a pending high surrogate.
+        [[nodiscard]] bool hasPendingHighSurrogate(Terminal::Types::InputStream stream) noexcept;
+    } // namespace TestHooks
+#endif
 } // namespace GameWIP::Terminal::Detail::Platform

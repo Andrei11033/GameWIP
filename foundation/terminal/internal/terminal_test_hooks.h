@@ -1,5 +1,6 @@
 /// @file terminal_test_hooks.h
-/// @brief Internal test hooks for deterministic Terminal tests.
+/// @brief Source-tree-only deterministic overrides, capture, and failure injection for Terminal validation.
+/// @warning This header is not installed and must not be used by production consumers.
 
 #pragma once
 
@@ -131,16 +132,26 @@ namespace GameWIP::Terminal::TestHooks
 
     /// @brief Replaces the in-memory input bytes used by read hooks.
     /// @param endOfStreamWhenEmpty True makes an empty hook stream report EOF; false reports WouldBlock/TimedOut.
+    /// @throws Any allocation exception from copying bytes into hook-owned storage.
     /// @warning Test-only API.
     GAMEWIP_TERMINAL_EXPORT void setInputBytes(Terminal::Types::InputStream stream, std::string_view bytes, bool endOfStreamWhenEmpty = true);
 
     /// @brief Appends bytes to the in-memory input stream.
+    /// @throws Any allocation exception from extending hook-owned storage.
     /// @warning Test-only API.
     GAMEWIP_TERMINAL_EXPORT void appendInputBytes(Terminal::Types::InputStream stream, std::string_view bytes);
 
     /// @brief Disables in-memory input bytes for a stream.
     /// @warning Test-only API.
     GAMEWIP_TERMINAL_EXPORT void clearInputBytes(Terminal::Types::InputStream stream) noexcept;
+
+    /// @brief Seeds the native pending UTF-16 high surrogate for endpoint-replacement validation.
+    /// @warning Test-only API. Available only on the Win32 validation backend.
+    GAMEWIP_TERMINAL_EXPORT void setPendingHighSurrogate(Terminal::Types::InputStream stream, std::uint16_t surrogate) noexcept;
+
+    /// @brief Returns whether the current native input endpoint retains a pending UTF-16 high surrogate.
+    /// @warning Test-only API. Available only on the Win32 validation backend.
+    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT bool hasPendingHighSurrogate(Terminal::Types::InputStream stream) noexcept;
 
     /// @brief Overrides input mode operations with an in-memory mode.
     /// @warning Test-only API.
@@ -155,10 +166,12 @@ namespace GameWIP::Terminal::TestHooks
     GAMEWIP_TERMINAL_EXPORT void setOutputCapture(Terminal::Types::OutputStream stream, bool enabled) noexcept;
 
     /// @brief Returns captured output bytes in write order.
+    /// @throws Any allocation exception from creating the returned snapshot.
     /// @warning Test-only API.
     [[nodiscard]] GAMEWIP_TERMINAL_EXPORT std::vector<std::byte> capturedOutput(Terminal::Types::OutputStream stream);
 
     /// @brief Returns captured output bytes as a string for text-oriented assertions.
+    /// @throws Any allocation exception from creating the returned snapshot.
     /// @warning Test-only API.
     [[nodiscard]] GAMEWIP_TERMINAL_EXPORT std::string capturedOutputText(Terminal::Types::OutputStream stream);
 

@@ -1,77 +1,122 @@
 # GameWIP
 
+[![Latest release](https://img.shields.io/github/v/release/Andrei11033/GameWIP?display_name=tag&sort=semver)](https://github.com/Andrei11033/GameWIP/releases/latest)
+
 GameWIP is an early-stage C++23 sandbox game project focused on player-built vehicles, structures, weapons, components, and meaningful destruction.
 
-The repository currently emphasizes reusable foundation libraries, Windows platform backends, diagnostics, modular correctness tests, Google Benchmark scenarios, generated documentation, and initial engine systems.
+The repository currently emphasizes reusable foundation libraries, Windows platform backends, diagnostics, modular validation, benchmark registration, generated documentation, and initial engine systems.
 
-## Toolchain
+## Setup
 
-- Windows and MSYS2 UCRT64 GCC
-- CMake 3.23 or newer
-- Ninja
-- Git submodules
-
-Initialize dependencies:
+GameWIP supports Windows 11. From a fresh Git checkout, run the repository
+bootstrap utility:
 
 ```powershell
-git submodule update --init --recursive
+.\setup.bat
 ```
 
-Make sure `C:\MSYS2\ucrt64\bin` appears before other MinGW environments on `PATH` when configuring.
+Choose Visual Studio Code, optional Visual Studio Community, or both. Setup
+installs the selected environment, prepares pinned dependencies and profiler
+tools, builds the manual, and verifies the checkout. It is also the supported
+update and repair entry point. See the [development environment manual](docs/doxygen/environment_setup.md)
+for actions, update boundaries, visible command output, and the repository-only
+workflow key map.
 
-VS Code users can open `GameWIP.code-workspace` for the shared UCRT64 formatting and task configuration.
+After setup, open `GameWIP.code-workspace`. The installed repository-scoped
+shortcuts cover development builds, tests, benchmarks, analysis,
+documentation, profiling, coverage, AddressSanitizer, and release runs; all are
+also available as `GameWIP: ...` entries under **Terminal > Run Task**.
 
-## Development
+## Quick start
 
-The development preset builds the game and runs modular correctness tests at startup:
+Configure, build, and run the development preset with tools:
 
 ```powershell
-cmake --preset development
-cmake --build --preset development
-.\build-development\GameWIP.exe --no-manual-ui
+cmake --preset dev
+cmake --build --preset dev
+.\build\dev\GameWIP.exe --version
+.\build\dev\GameWIP.exe
 ```
 
-`game/main.cpp` remains the stable process entry point. Validation is compiled out when its startup options are disabled.
+Use `dev-no-tools` to prove the runtime does not depend on optional development tooling. Both development presets compile embedded tests, but run them only when explicitly requested with `GameWIP.exe --startup-tests`.
 
-## Standalone validation
+## Validation
+
+Run the standalone correctness-test workflow:
 
 ```powershell
-cmake --preset validation
-cmake --build --preset validation
-ctest --preset validation
-.\build-validation\GameWIPBenchmarks.exe --benchmark_dry_run
+cmake --preset test
+cmake --build --preset test
+ctest --preset test
 ```
 
-Run static analysis and formatting checks for maintained C++ code:
+Run one validation module directly:
 
 ```powershell
-cmake --preset static-analysis
-cmake --build --preset static-analysis
+.\build\test\GameWIPTests.exe --test-module=filesystem
 ```
 
-Run one correctness module:
+Run C++ static-analysis and formatting checks:
 
 ```powershell
-.\build-validation\GameWIPTests.exe --test-module=filesystem
+cmake --preset analyze
+cmake --build --preset analyze
 ```
 
-Validation keeps complete reports under `%TEMP%\GameWIP\logs\tests` and removes temporary fixtures and subsystem logs after each run. Add `--verbose-tests` for full console output.
+Repository script, Markdown-link, workflow, and documentation checks are documented in [Static analysis and repository checks](docs/doxygen/static_analysis.md).
 
-Collect optimized benchmark results:
+Run the AddressSanitizer workflow from an MSYS2 CLANG64 environment:
+
+```powershell
+$env:PATH = "C:\MSYS2\clang64\bin;$env:PATH"
+cmake --preset asan
+cmake --build --preset asan
+ctest --preset asan
+```
+
+Run a benchmark registration dry run:
 
 ```powershell
 cmake --preset benchmark
 cmake --build --preset benchmark
-.\build-benchmark\GameWIPBenchmarks.exe --benchmark_repetitions=5
+.\build\benchmark\GameWIPBenchmarks.exe --benchmark_dry_run
 ```
 
-## Shipping
+The generated project manual documents the full validation, testing, static-analysis, coverage, profiling, and benchmarking workflows.
 
-The shipping preset excludes tests, benchmarks, TestSupport startup code, assertions, Tracy, and tools from the game executable:
+## Profiling
+
+The profiling preset enables game-owned Tracy instrumentation:
+
+Install the official Windows profiler tools matching the Tracy client pinned by
+the current checkout:
 
 ```powershell
-cmake --preset shipping
-cmake --build --preset shipping
+.\setup.bat profiler
+```
+
+```powershell
+cmake --preset profile
+cmake --build --preset profile
+Start-Process .\.tracy\tracy-profiler.exe
+.\build\profile\GameWIP.exe
+```
+
+The profiling preset skips startup tests unless they are explicitly requested:
+
+```powershell
+.\build\profile\GameWIP.exe --startup-tests
+```
+
+The profiling guide in the generated documentation explains marker ownership, capture expectations, and disabled-build rules.
+
+## Release build
+
+The release preset enables supported whole-program optimization and excludes validation, benchmarks, assertions, Tracy, and development tools from the game executable:
+
+```powershell
+cmake --preset release
+cmake --build --preset release
 ```
 
 ## Documentation
@@ -83,23 +128,28 @@ Build it locally:
 ```powershell
 cmake --preset docs
 cmake --build --preset docs
+$warningLog = Get-Item .\build\docs\docs\doxygen\doxygen_warnings.log
+if ($warningLog.Length -ne 0) {
+    Get-Content $warningLog
+    throw "Doxygen emitted warnings."
+}
 ```
 
-Generated HTML starts at `build-docs/docs/doxygen/html/index.html`.
+Generated HTML starts at `build/docs/docs/doxygen/html/index.html`.
 
-Project references:
+Start with these pages when reading the source tree:
 
 - [Project structure](docs/doxygen/project_structure.md)
+- [CMake infrastructure](docs/doxygen/cmake_infrastructure.md)
+- [Development environment setup](docs/doxygen/environment_setup.md)
 - [Extending the project](docs/doxygen/extending.md)
+- [Documentation system](docs/doxygen/documentation.md)
+- [Platform backend contract](docs/doxygen/platform_backend_contract.md)
 - [Vision](docs/vision.md)
 - [Roadmap](docs/roadmap.md)
-- [Architecture decisions](docs/decisions.md)
-- [Contribution workflow](docs/contributing.md)
-- [Implementation checklist](docs/implementation_checklist.md)
-- [Testing checklist](docs/testing_checklist.md)
-- [Platform backend contract](docs/platform_backend_contract.md)
-- [Static analysis standard](docs/doxygen/static_analysis.md)
-- [Repository automation](docs/doxygen/repository_automation.md)
+- [Project decisions](docs/decisions.md)
+- [Versioning policy](docs/versioning.md)
+- [Contributor workflow](docs/contributing.md)
 
 ## Repository layout
 
@@ -108,9 +158,10 @@ foundation/   Reusable IO, Terminal, and FileSystem libraries.
 engine/       Input, action, window, and window-management systems.
 tools/        Logger, Assert, and TestSupport libraries.
 game/         Stable game entry point, runtime facade, and modular validation.
-external/     Pinned Tracy and Google Benchmark submodules.
+external/     Pinned third-party dependencies.
 cmake/        Project orchestration and shared CMake helpers.
-docs/         Generated-doc sources, decisions, roadmap, and checklists.
+docs/         Product direction, roadmap, decisions, versioning, and contributor workflow.
+docs/doxygen/ Generated developer-manual pages and documentation infrastructure.
 ```
 
-Commit and pull-request standards are defined in [docs/contributing.md](docs/contributing.md).
+Root `README.md`, `CONTRIBUTING.md`, and `SECURITY.md` are short repository entry points. The generated manual and `docs/` pages contain the detailed coder-facing project documentation.

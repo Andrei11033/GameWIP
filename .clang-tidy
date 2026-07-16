@@ -57,7 +57,7 @@ Checks: >
   -readability-redundant-parentheses
 WarningsAsErrors: '*'
 HeaderFilterRegex: '.*[\\/](foundation|tools|engine|game)[\\/].*'
-ExcludeHeaderFilterRegex: '.*[\\/](external|build-[^\\/]+)[\\/].*'
+ExcludeHeaderFilterRegex: '.*[\\/](external|build)[\\/].*'
 SystemHeaders: false
 FormatStyle: file
 CheckOptions:

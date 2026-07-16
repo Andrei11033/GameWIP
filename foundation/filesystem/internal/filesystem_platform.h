@@ -25,9 +25,13 @@ namespace GameWIP::FileSystem::Detail
         FileState &operator=(FileState &&) = delete;
         ~FileState() noexcept;
 
+        /// Backend-native file handle owned by this state.
         void *nativeHandle = nullptr;
+        /// Public access selected at open time; meaningful while nativeHandle is active.
         Types::FileAccess access = Types::FileAccess::ReadWrite;
+        /// Flush strength attempted before explicit close releases a writable handle.
         IO::Types::FlushMode flushOnClose = IO::Types::FlushMode::None;
+        /// Shared active-lock count retained by the handle and every detached lock owner.
         std::shared_ptr<std::uint32_t> activeLocks;
         bool readable = false;
         bool writable = false;
@@ -44,7 +48,9 @@ namespace GameWIP::FileSystem::Detail
         FileLockState &operator=(FileLockState &&) = delete;
         ~FileLockState() noexcept;
 
+        /// Duplicated backend handle that lets the lock outlive its originating wrapper.
         void *nativeHandle = nullptr;
+        /// Counter shared with the originating file state for explicit-close ResourceBusy checks.
         std::shared_ptr<std::uint32_t> activeLocks;
         bool active = false;
         bool exclusive = false;
@@ -62,6 +68,7 @@ namespace GameWIP::FileSystem::Detail
 
         Types::Path directoryPath;
         Types::DirectoryEntry bufferedEntry;
+        /// Native handles retained to prevent strict-policy path components from being replaced during enumeration.
         std::vector<void *> stableHandles;
         void *nativeFindHandle = nullptr;
         Types::SymlinkPolicy symlinkPolicy = Types::SymlinkPolicy::DoNotFollow;
@@ -78,6 +85,14 @@ namespace GameWIP::FileSystem::Detail::Platform
     {
         /// Forces native file-lock release attempts to fail until disabled.
         void setFileUnlockFailure(bool enabled) noexcept;
+        /// Arms a pause after strict move destination validation and before native commit.
+        void armMoveDestinationValidatedPause() noexcept;
+        /// Arms a pause after native move commit and before the backend returns.
+        void armMoveCommittedPause() noexcept;
+        /// Waits until the selected move pause point is reached.
+        [[nodiscard]] bool waitForMovePause(std::chrono::milliseconds timeout) noexcept;
+        /// Releases a move paused by a test hook.
+        void releaseMovePause() noexcept;
         /// Restores FileSystem platform test hooks to their default state.
         void reset() noexcept;
     } // namespace TestHooks

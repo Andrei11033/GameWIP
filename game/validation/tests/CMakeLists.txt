@@ -25,15 +25,36 @@ if(GAMEWIP_BUILD_TESTS)
             "-DCONSUMER_SOURCE_DIR=${PROJECT_SOURCE_DIR}/game/validation/installed_consumer"
             "-DCONSUMER_BUILD_DIR=${CMAKE_BINARY_DIR}/installed-consumer/build"
             "-DGENERATOR=${CMAKE_GENERATOR}"
-            "-DBUILD_TYPE=${CMAKE_BUILD_TYPE}"
+            "-DBUILD_TYPE=$<CONFIG>"
             "-DPACKAGE_VERSION=${PROJECT_VERSION}"
+            "-DGAMEWIP_CMAKE_MINIMUM_VERSION=${CMAKE_MINIMUM_REQUIRED_VERSION}"
             "-DMULTI_CONFIG=$<BOOL:${CMAKE_CONFIGURATION_TYPES}>"
             "-DCXX_COMPILER=${CMAKE_CXX_COMPILER}"
             "-DCOVERAGE_ENABLED=${GAMEWIP_ENABLE_COVERAGE}"
+            "-DADDRESS_SANITIZER_ENABLED=${GAMEWIP_ENABLE_ADDRESS_SANITIZER}"
             "-DEXECUTABLE_SUFFIX=${CMAKE_EXECUTABLE_SUFFIX}"
             -P "${PROJECT_SOURCE_DIR}/cmake/RunInstalledConsumerValidation.cmake"
     )
     set_tests_properties(validation.packages.installed_consumer PROPERTIES
+        LABELS "validation;packages"
+        RUN_SERIAL TRUE
+    )
+
+    add_test(NAME validation.packages.assert_interface
+        COMMAND ${CMAKE_COMMAND}
+            "-DPROJECT_SOURCE_DIR=${PROJECT_SOURCE_DIR}"
+            "-DWORK_DIR=${CMAKE_BINARY_DIR}/assert-interface-consumer"
+            "-DCONSUMER_SOURCE_DIR=${PROJECT_SOURCE_DIR}/game/validation/installed_consumer/isolated"
+            "-DGENERATOR=${CMAKE_GENERATOR}"
+            "-DBUILD_TYPE=$<CONFIG>"
+            "-DPACKAGE_VERSION=${PROJECT_VERSION}"
+            "-DGAMEWIP_CMAKE_MINIMUM_VERSION=${CMAKE_MINIMUM_REQUIRED_VERSION}"
+            "-DMULTI_CONFIG=$<BOOL:${CMAKE_CONFIGURATION_TYPES}>"
+            "-DCXX_COMPILER=${CMAKE_CXX_COMPILER}"
+            "-DEXECUTABLE_SUFFIX=${CMAKE_EXECUTABLE_SUFFIX}"
+            -P "${PROJECT_SOURCE_DIR}/cmake/RunAssertInterfaceConsumerValidation.cmake"
+    )
+    set_tests_properties(validation.packages.assert_interface PROPERTIES
         LABELS "validation;packages"
         RUN_SERIAL TRUE
     )

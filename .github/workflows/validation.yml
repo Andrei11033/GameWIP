@@ -17,6 +17,73 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  package-compatibility:
+    name: Packages (CMake)
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Install compiler
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            git
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-ninja
+
+      - name: Report CMake version
+        shell: msys2 {0}
+        run: cmake --version
+
+      - name: Configure package validation
+        shell: msys2 {0}
+        run: >
+          cmake -S . -B build/package-compatibility
+          -G Ninja
+          -DCMAKE_BUILD_TYPE=RelWithDebInfo
+          -DGAMEWIP_BUILD_GAME=OFF
+          -DGAMEWIP_BUILD_TESTS=ON
+          -DGAMEWIP_BUILD_BENCHMARKS=OFF
+          -DGAMEWIP_ENABLE_STARTUP_TESTS=OFF
+          -DGAMEWIP_RUN_BENCHMARKS_AT_STARTUP=OFF
+          -DGAMEWIP_ENABLE_TRACY=OFF
+          -DGAMEWIP_ENABLE_ASSERTS=ON
+
+      - name: Build package validation
+        shell: msys2 {0}
+        run: cmake --build build/package-compatibility --target GameWIPTests --parallel
+
+      - name: Test installed packages
+        shell: msys2 {0}
+        run: ctest --test-dir build/package-compatibility -R validation.packages --output-on-failure
+
+      - name: Configure multi-config package validation
+        shell: msys2 {0}
+        run: >
+          cmake -S . -B build/package-multi-config
+          -G "Ninja Multi-Config"
+          -DGAMEWIP_BUILD_GAME=OFF
+          -DGAMEWIP_BUILD_TESTS=ON
+          -DGAMEWIP_BUILD_BENCHMARKS=OFF
+          -DGAMEWIP_ENABLE_STARTUP_TESTS=OFF
+          -DGAMEWIP_RUN_BENCHMARKS_AT_STARTUP=OFF
+          -DGAMEWIP_ENABLE_TRACY=OFF
+          -DGAMEWIP_ENABLE_ASSERTS=ON
+
+      - name: Test multi-config installed packages
+        shell: msys2 {0}
+        run: |
+          cmake --build build/package-multi-config --target GameWIPTests --config RelWithDebInfo --parallel
+          ctest --test-dir build/package-multi-config -C RelWithDebInfo -R validation.packages --output-on-failure
+
   build-test:
     name: Build and Test
     runs-on: windows-latest
@@ -25,6 +92,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
+          fetch-depth: 0
           submodules: recursive
 
       - name: Install build tools
@@ -33,6 +101,7 @@ jobs:
           msystem: UCRT64
           update: true
           install: >-
+            git
             mingw-w64-ucrt-x86_64-cmake
             mingw-w64-ucrt-x86_64-clang
             mingw-w64-ucrt-x86_64-clang-tools-extra
@@ -40,16 +109,20 @@ jobs:
             mingw-w64-ucrt-x86_64-ninja
             mingw-w64-ucrt-x86_64-python
 
+      - name: Report CMake version
+        shell: msys2 {0}
+        run: cmake --version
+
       - name: Configure
         shell: msys2 {0}
         run: >
-          cmake -S . -B build-validation
+          cmake -S . -B build/validation
           -G Ninja
           -DCMAKE_BUILD_TYPE=RelWithDebInfo
           -DGAMEWIP_BUILD_GAME=ON
           -DGAMEWIP_BUILD_TESTS=ON
           -DGAMEWIP_BUILD_BENCHMARKS=ON
-          -DGAMEWIP_RUN_TESTS_AT_STARTUP=OFF
+          -DGAMEWIP_ENABLE_STARTUP_TESTS=OFF
           -DGAMEWIP_RUN_BENCHMARKS_AT_STARTUP=OFF
           -DGAMEWIP_ENABLE_TRACY=OFF
           -DGAMEWIP_ENABLE_TOOLS=OFF
@@ -58,21 +131,30 @@ jobs:
 
       - name: Build
         shell: msys2 {0}
-        run: cmake --build build-validation --parallel
+        run: cmake --build build/validation --parallel
+
+      - name: Enable required symlink scenarios
+        shell: powershell
+        run: |
+          $path = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock'
+          New-Item -Path $path -Force | Out-Null
+          New-ItemProperty -Path $path -Name AllowDevelopmentWithoutDevLicense -PropertyType DWord -Value 1 -Force | Out-Null
 
       - name: Test
         shell: msys2 {0}
-        run: ctest --test-dir build-validation --output-on-failure
+        env:
+          GAMEWIP_REQUIRE_SYMLINK_TESTS: "1"
+        run: ctest --test-dir build/validation --output-on-failure
 
       - name: Benchmark smoke test
         shell: msys2 {0}
-        run: ./build-validation/GameWIPBenchmarks.exe --benchmark_dry_run
+        run: ./build/validation/GameWIPBenchmarks.exe --benchmark_dry_run
 
       - name: Static analysis
         shell: msys2 {0}
         run: |
-          cmake --preset static-analysis
-          cmake --build --preset static-analysis
+          cmake --preset analyze
+          cmake --build --preset analyze
 
   repository-checks:
     name: Repository Checks
@@ -102,8 +184,16 @@ jobs:
             jq empty "$file"
           done < <(find . -type f -name '*.json' \
             -not -path './external/*' \
-            -not -path './build-*/*' \
+            -not -path './build/*' \
             -print0)
+
+      - name: Check Python scripts
+        shell: bash
+        run: python3 -m py_compile .github/scripts/check-markdown-links.py
+
+      - name: Check Markdown links
+        shell: bash
+        run: python3 .github/scripts/check-markdown-links.py
 
       - name: Check GitHub Actions workflows
         uses: docker://rhysd/actionlint:1.7.12
@@ -118,6 +208,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
+          fetch-depth: 0
           submodules: recursive
 
       - name: Install coverage tools
@@ -126,10 +217,15 @@ jobs:
           msystem: UCRT64
           update: true
           install: >-
+            git
             mingw-w64-ucrt-x86_64-cmake
             mingw-w64-ucrt-x86_64-gcc
             mingw-w64-ucrt-x86_64-ninja
             mingw-w64-ucrt-x86_64-gcovr
+
+      - name: Report CMake version
+        shell: msys2 {0}
+        run: cmake --version
 
       - name: Configure
         shell: msys2 {0}
@@ -145,13 +241,53 @@ jobs:
 
       - name: Generate report
         shell: msys2 {0}
-        run: cmake --build build-coverage --target coverage
+        run: cmake --build build/coverage --target coverage
 
       - name: Upload report
         uses: actions/upload-artifact@v4
         with:
           name: coverage-report
-          path: build-coverage/coverage
+          path: build/coverage/coverage
+
+  address-sanitizer:
+    name: AddressSanitizer
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Install CLANG64 tools
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: CLANG64
+          update: true
+          install: >-
+            git
+            mingw-w64-clang-x86_64-cmake
+            mingw-w64-clang-x86_64-clang
+            mingw-w64-clang-x86_64-compiler-rt
+            mingw-w64-clang-x86_64-lld
+            mingw-w64-clang-x86_64-ninja
+
+      - name: Report CMake version
+        shell: msys2 {0}
+        run: cmake --version
+
+      - name: Configure
+        shell: msys2 {0}
+        run: cmake --preset asan
+
+      - name: Build
+        shell: msys2 {0}
+        run: cmake --build --preset asan --parallel
+
+      - name: Test
+        shell: msys2 {0}
+        run: ctest --preset asan
 
   docs-check:
     name: Docs Check
@@ -161,6 +297,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
+          fetch-depth: 0
           submodules: recursive
 
       - name: Install documentation tools
@@ -169,33 +306,30 @@ jobs:
           msystem: UCRT64
           update: true
           install: >-
+            git
             mingw-w64-ucrt-x86_64-cmake
             mingw-w64-ucrt-x86_64-doxygen
             mingw-w64-ucrt-x86_64-gcc
             mingw-w64-ucrt-x86_64-graphviz
             mingw-w64-ucrt-x86_64-ninja
 
+      - name: Report CMake version
+        shell: msys2 {0}
+        run: cmake --version
+
       - name: Configure documentation build
         shell: msys2 {0}
         run: >
-          cmake -S . -B build-docs
+          cmake -S . -B build/docs
           -G Ninja
           -DCMAKE_BUILD_TYPE=Release
           -DGAMEWIP_BUILD_GAME=OFF
           -DGAMEWIP_BUILD_TESTS=OFF
-          -DGAMEWIP_RUN_TESTS_AT_STARTUP=OFF
+          -DGAMEWIP_ENABLE_STARTUP_TESTS=OFF
           -DGAMEWIP_RUN_BENCHMARKS_AT_STARTUP=OFF
           -DGAMEWIP_BUILD_DOCS=ON
           -DGAMEWIP_ENABLE_TRACY=OFF
 
       - name: Build documentation
         shell: msys2 {0}
-        run: cmake --build build-docs --target docs --verbose
-
-      - name: Check Doxygen warnings
-        shell: msys2 {0}
-        run: |
-          if [ -s build-docs/docs/doxygen/doxygen_warnings.log ]; then
-            cat build-docs/docs/doxygen/doxygen_warnings.log
-            exit 1
-          fi
+        run: cmake --build build/docs --target docs --verbose

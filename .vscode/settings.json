@@ -1,10 +1,10 @@
 {
-    "C_Cpp.default.compileCommands": "${workspaceFolder}/build/compile_commands.json",
+    "C_Cpp.default.compileCommands": "${workspaceFolder}/build/dev/compile_commands.json",
     "C_Cpp.default.compilerPath": "C:/MSYS2/ucrt64/bin/g++.exe",
-    "C_Cpp.default.cppStandard": "c++20",
+    "C_Cpp.default.cppStandard": "c++23",
     "C_Cpp.default.intelliSenseMode": "windows-gcc-x64",
-    "C_Cpp.clang_format_path": "C:/Users/andre/.vscode/extensions/ms-vscode.cpptools-1.32.2-win32-x64/LLVM/bin/clang-format.exe",
+    "C_Cpp.clang_format_path": "C:/MSYS2/ucrt64/bin/clang-format.exe",
     "C_Cpp.clang_format_style": "file",
-    "clang-format.executable": "C:/Users/andre/.vscode/extensions/ms-vscode.cpptools-1.32.2-win32-x64/LLVM/bin/clang-format.exe",
-    "editor.formatOnSave": true
+    "clang-format.executable": "C:/MSYS2/ucrt64/bin/clang-format.exe",
+    "editor.formatOnSave": false
 }

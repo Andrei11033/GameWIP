@@ -1,0 +1,86 @@
+name: Release Preparation
+
+on:
+  issues:
+    types:
+      - opened
+      - closed
+      - reopened
+      - milestoned
+      - demilestoned
+  milestone:
+    types:
+      - opened
+      - closed
+      - edited
+      - deleted
+  workflow_dispatch:
+    inputs:
+      command:
+        description: Check readiness, prepare the release PR, or finalize the release.
+        required: true
+        default: check
+        type: choice
+        options:
+          - check
+          - prepare
+          - finalize
+      dry_run:
+        description: Report planned actions without mutating GitHub.
+        required: true
+        default: true
+        type: boolean
+      release_commit:
+        description: Exact master commit to finalize. Required for finalization writes.
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-preparation
+  cancel-in-progress: false
+
+jobs:
+  release-preparation:
+    name: Release Preparation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout trusted release automation
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Validate release token
+        env:
+          RELEASE_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+        run: |
+          if [ -z "$RELEASE_TOKEN" ]; then
+            echo "PROJECT_TOKEN must contain a token that can read repo state and create release-preparation branches, pull requests, tags, and releases." >&2
+            exit 1
+          fi
+
+      - name: Run release preparation
+        uses: actions/github-script@v7
+        env:
+          ACTIVE_MILESTONE: ${{ vars.ACTIVE_MILESTONE }}
+          RELEASE_COMMAND: ${{ github.event_name == 'workflow_dispatch' && inputs.command || 'check' }}
+          DRY_RUN: ${{ github.event_name != 'workflow_dispatch' || inputs.dry_run }}
+          RELEASE_COMMIT: ${{ github.event_name == 'workflow_dispatch' && inputs.release_commit || '' }}
+          ALLOW_NOT_READY: ${{ github.event_name != 'workflow_dispatch' }}
+          REQUIRED_CHECKS: |
+            Validation
+        with:
+          github-token: ${{ secrets.PROJECT_TOKEN }}
+          script: |
+            const releasePreparation = require(`${process.env.GITHUB_WORKSPACE}/.github/scripts/release-preparation.js`);
+            await releasePreparation.run({github, context, core});

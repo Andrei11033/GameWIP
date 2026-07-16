@@ -1,41 +1,48 @@
-# GameWIP Developer Documentation
+# GameWIP Developer Manual
 
-This site separates reusable library manuals from GameWIP project integration. Library pages explain their owning API and behavior. Project pages explain how GameWIP builds, combines, validates, and ships those libraries.
+This generated manual is the authoritative developer manual for GameWIP. It is written for contributors, maintainers, and first-party reusable-library consumers who need to understand how the project is built, validated, extended, packaged, documented, and released.
 
-## Foundation libraries
+The README is the short repository entry point. This manual is the detailed reference. It is not player-facing game documentation.
 
-- @subpage io
-- @subpage terminal
-- @subpage filesystem
+## Start here
 
-## Tool libraries
+Read these pages first when joining the project or returning after a long break:
 
-- @subpage logger
-- @subpage assert
-- @subpage test_support
+- @ref project_getting_started
+- @ref project_structure
+- @ref project_build
+- @ref project_validation
+- @ref project_testing
+- @ref project_extending
 
-## Project build and integration
+## Manual sections
 
-- @subpage project_structure
-- @subpage project_build
-- @subpage project_library_compatibility
-- @subpage project_validation
-- @subpage project_extending
+- @subpage project_reusable_libraries
+- @subpage project_manual
+- @subpage project_contracts
+- @subpage project_quality_workflows
+- @subpage project_planning
 
-## Project quality workflows
+## Common tasks
 
-- @subpage project_testing
-- @subpage project_benchmarking
-- @subpage project_coverage
-- @subpage project_static_analysis
-- @subpage project_repository_automation
+- Build and run the project: @ref project_build
+- Run correctness validation: @ref project_validation
+- Add or change tests: @ref project_testing
+- Add a library, API, backend, workflow, or documentation page: @ref project_extending
+- Update documentation correctly: @ref project_documentation
+- Check static analysis and repository rules: @ref project_static_analysis
+- Prepare or finalize release work: @ref project_release_automation
 
-## Documentation system
+## Reader paths
 
-- @subpage project_documentation
+New contributors should start with @ref project_getting_started, @ref project_structure, @ref project_build, @ref project_validation, and @ref project_contributing.
 
-## Documentation model
+Reusable-library consumers should start with @ref project_reusable_libraries and then the owning library's quick start, public API guide, examples, troubleshooting page, and generated API reference.
 
-The generated site combines compact public-header API reference with Markdown manual pages. Header comments are optimized for IntelliSense and quick use; library Markdown pages are the full API manuals. Project Markdown pages own repository-level behavior such as presets, startup sequencing, modular validation, report locations, CI expectations, and documentation generation. Each library landing page separates its consumer manual from clearly labeled maintainer validation and internal-hook material.
+Maintainers should read @ref project_contracts, @ref project_cmake_infrastructure, @ref project_documentation, @ref project_platform_backend_contract, and @ref project_library_compatibility before changing shared structure.
 
-Repository planning and checklist Markdown under `docs/` is intentionally excluded unless registered as a generated-manual input.
+Release maintainers should read @ref project_versioning, @ref project_repository_automation, @ref project_release_automation, and @ref project_contributing.
+
+## Generated reference
+
+The generated namespace, class, file, and member reference is built from supported consumer entry headers and documented source-tree integration headers. Generated export scaffolding is owned by each library's ABI page. Use the reference pages for exact symbol documentation after reading the workflow or library manual page that explains the behavior.

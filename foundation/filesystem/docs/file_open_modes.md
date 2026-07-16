@@ -1,70 +1,92 @@
-@page filesystem_file_open_modes FileSystem open modes
+@page filesystem_file_open_modes FileSystem handles, sharing, and locks
 
-## Handle lifecycle
+## Lifecycle and ownership
 
-`FileReader`, `FileWriter`, and `File` start closed and expose member `open()` operations.
+`FileReader`, `FileWriter`, and `File` start closed.
 
-- opening an open object returns `AlreadyOpen`;
-- a failed open leaves the object closed;
-- operations requiring a handle return `NotOpen` while closed;
-- `close()` is idempotent;
-- a closed object may be reopened;
-- destruction closes best-effort without throwing;
-- move construction transfers the complete native state;
-- move assignment is deleted because replacing an active destination could hide close, flush, or unlock failure.
+- `open()` on an open object returns `AlreadyOpen`.
+- A failed open leaves the object closed.
+- Operations requiring a handle return `NotOpen` while closed.
+- `close()` is idempotent.
+- A closed object can be reopened.
+- Move construction transfers the complete state and leaves the source closed.
+- Copy and move assignment are disabled so implicit replacement cannot hide close, flush, or unlock failure.
+- Destructors perform best-effort cleanup and cannot report failure.
 
-Call `close()` explicitly when close or flush failure must be observed.
+Call `close()` explicitly when the result matters. If close or configured `flushOnClose` fails, the object remains open and close can be retried.
+
+The same handle object is not internally synchronized. Spans passed to `read()` and `write()` are call-scoped and are never retained.
 
 ## Handle roles
 
-`FileReaderOpenOptions` controls read-only sharing and symlink resolution.
+`FileReader` is read-only. `FileWriter` is write-only. `File` selects `Read`, `Write`, or `ReadWrite` access through `FileOpenOptions`.
 
-`FileWriterOpenOptions` controls write mode, sharing, symlink resolution, optional parent creation, and flush-on-close behavior.
+Modes that create or truncate require write access. A non-`None` `flushOnClose` also requires write access. Invalid combinations return `InvalidArgument` before a native handle is opened.
 
-`FileOpenOptions` controls read/write access, open mode, initial position, sharing, symlink resolution, optional parent creation, and flush-on-close behavior.
+A `File` opened without the required access returns `PermissionDenied` from the disallowed read or write operation. `File::access()` is meaningful only while open.
 
-`FileInitialPosition::End` performs one initial seek. It is not append mode.
+## Transfer behavior
 
-Modes that may create or truncate a file require `FileAccess::Write` or `ReadWrite`. A non-`None` `flushOnClose` also requires write access. Invalid option combinations and unknown enum values return `InvalidArgument` before opening a handle.
+Reads and writes can complete partially. Inspect `bytesRead`, `endOfStream`, and `bytesWritten` even when the status is successful.
 
-Open options default to `SymlinkPolicy::DoNotFollow`. Callers must opt into `FollowFinal` or `FollowAll` when opening through a symlink is intentional.
+An empty read performs no transfer but reports the current end-of-stream state. An empty write succeeds without transferring bytes.
 
-## Append
+`flush(IO::Types::FlushMode::None)` validates the handle and mode but requests no physical flush. Stronger flush modes follow the IO contract.
+
+## Position, size, and resize
+
+Normal file handles are seekable. Append writer modes are not.
+
+`FileInitialPosition::End` performs one seek after open; subsequent writes occur at the current position and do not have append semantics.
+
+`File::resize()` requires write access. On success it attempts to restore the previous position when that position still fits. If shrinking places the old position beyond the new end, the position remains at the new end.
+
+Capability queries such as `canSeek()` are advisory state snapshots. The status returned by the requested operation remains authoritative.
+
+## Append modes
 
 `FileWriterMode::AppendOrCreate` and `AppendExisting` are true append modes:
 
-- the handle is non-seekable;
-- each write targets the then-current end of file atomically with respect to other append handles where the backend supports it;
-- `position()` may be unsupported because another writer can change the endpoint.
-
-Whole-file exact-content helpers use `WriteFileOptions` and `WriteFileMode`. Append helpers use `AppendFileOptions` and `AppendMode`. These operation-specific types prevent callers from supplying a valid general writer mode that is invalid for the selected helper.
-
-Non-atomic whole-file and append helpers return `IO::Types::WriteResult`. `bytesWritten` is payload progress, including bytes accepted by a final failing write. A later flush or close failure returns that failure while preserving the complete payload byte count already accepted.
+- each write targets the then-current end of file;
+- another append handle can change the endpoint between calls;
+- `seek()` and `position()` return `NotSeekable`;
+- `size()` remains available.
 
 ## Sharing
 
-`FileShare` is a bitmask open-time policy and is separate from `FileLockMode`.
+`FileShare` controls which access other opens may request while the handle remains open:
 
-- `Read`: allows other opens requesting read access;
-- `Write`: allows other opens requesting write access;
-- `Delete`: allows rename, removal, or replacement while the handle remains open;
-- `ReadWrite`: convenience combination of `Read | Write`;
-- `All`: convenience combination of `Read | Write | Delete`;
-- `None`: allows none of those operations.
+- `Read` permits read opens;
+- `Write` permits write opens;
+- `Delete` permits rename, removal, or replacement;
+- `ReadWrite` and `All` are convenience masks;
+- `None` requests exclusive open-time access.
 
-Options default to `All`, the naturally portable and least surprising policy for interoperating with external tools and atomic replacement. Use locks for portable coordination. A backend that cannot enforce an explicitly restrictive policy returns `Unsupported`; it must not silently weaken the policy.
+Options default to `All`, which interoperates with external tools and atomic replacement. Restrictive sharing is a native open contract, not a substitute for cooperative locking. A backend that cannot enforce an explicit restrictive policy returns `Unsupported` rather than weakening it.
 
-## Locking
+## Whole-file locks
 
-Locks are acquired from an open object:
+Lock acquisition is non-blocking and covers the complete file:
 
-```cpp
-auto shared = reader.tryLockShared();
-auto exclusive = writer.tryLockExclusive();
-```
+- `FileReader` offers shared locking;
+- `FileWriter` offers exclusive locking;
+- `File` offers both.
 
-Lock acquisition is non-blocking and covers the complete file. `LockOutcome::WouldBlock` is a successful expected outcome with an inactive lock. Backend failures use `LockFailed`.
+A successful status with `LockOutcome::WouldBlock` means no lock was acquired. Backend failures use a failed status.
 
-Locks are process-visible coordination primitives but may be advisory on platforms whose native locks do not prevent uncooperative I/O. A backend that cannot provide compatible shared/exclusive whole-file locking returns `Unsupported`.
+`FileLock` owns enough native state to remain active after the originating handle object is destroyed. This supports detached lock ownership but has an important lifecycle distinction:
 
-`FileLock` owns unlock responsibility. Failed explicit unlock remains active and may be retried. A file handle cannot close while locks acquired from it remain active; explicit close returns `ResourceBusy`.
+- explicit handle `close()` returns `ResourceBusy` while locks acquired from that handle remain active;
+- a handle destructor cannot report that condition and performs best-effort native cleanup;
+- the independently owned `FileLock` remains responsible for unlocking.
+
+A failed explicit `unlock()` leaves the lock active and can be retried. `mode()` is meaningful only while `active()` is true.
+
+Locks are process-visible coordination primitives, but native locks may be advisory with respect to uncooperative tools. Use sharing to constrain opens and locks to coordinate cooperating code.
+
+## Related pages
+
+- @ref filesystem_whole_file_io
+- @ref filesystem_symlink_policies
+- @ref filesystem_troubleshooting
+- @ref io_reader_writer_contract

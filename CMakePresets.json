@@ -1,135 +1,129 @@
 {
-  "version": 2,
+  "version": 12,
   "configurePresets": [
     {
       "name": "base",
       "hidden": true,
       "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build-${presetName}",
+      "binaryDir": "${sourceDir}/build/${presetName}",
       "cacheVariables": {
+        "GAMEWIP_BUILD_GAME": "OFF",
+        "GAMEWIP_BUILD_TESTS": "OFF",
+        "GAMEWIP_BUILD_BENCHMARKS": "OFF",
+        "GAMEWIP_ENABLE_STARTUP_TESTS": "OFF",
+        "GAMEWIP_RUN_BENCHMARKS_AT_STARTUP": "OFF",
         "GAMEWIP_ENABLE_TRACY": "OFF",
         "GAMEWIP_ENABLE_TOOLS": "OFF",
         "GAMEWIP_OPEN_TOOLS_AT_STARTUP": "OFF",
         "GAMEWIP_ENABLE_COVERAGE": "OFF",
+        "GAMEWIP_ENABLE_ADDRESS_SANITIZER": "OFF",
         "GAMEWIP_ENABLE_STATIC_ANALYSIS": "OFF",
         "GAMEWIP_BUILD_DOCS": "OFF",
         "GAMEWIP_INSTALL_DOCS": "OFF"
       }
     },
     {
-      "name": "development",
-      "displayName": "Development with startup tests",
+      "name": "dev",
+      "displayName": "Development game with tools",
+      "description": "Daily development build with symbols, assertions, optional startup tests, and game tooling.",
       "inherits": "base",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "RelWithDebInfo",
         "GAMEWIP_BUILD_GAME": "ON",
-        "GAMEWIP_BUILD_TESTS": "ON",
-        "GAMEWIP_BUILD_BENCHMARKS": "OFF",
-        "GAMEWIP_RUN_TESTS_AT_STARTUP": "ON",
-        "GAMEWIP_RUN_BENCHMARKS_AT_STARTUP": "OFF",
+        "GAMEWIP_ENABLE_STARTUP_TESTS": "ON",
+        "GAMEWIP_ENABLE_TOOLS": "ON",
+        "GAMEWIP_OPEN_TOOLS_AT_STARTUP": "ON",
         "GAMEWIP_ENABLE_ASSERTS": "ON"
       }
     },
     {
-      "name": "validation",
-      "displayName": "Standalone validation",
+      "name": "dev-no-tools",
+      "displayName": "Development game without tools",
+      "description": "Development-equivalent runtime build that proves the game does not depend on optional tooling.",
+      "inherits": "dev",
+      "cacheVariables": {
+        "GAMEWIP_ENABLE_TOOLS": "OFF",
+        "GAMEWIP_OPEN_TOOLS_AT_STARTUP": "OFF"
+      }
+    },
+    {
+      "name": "test",
+      "displayName": "Correctness tests",
+      "description": "Standalone automated correctness and package validation without the game or benchmarks.",
       "inherits": "base",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "RelWithDebInfo",
-        "GAMEWIP_BUILD_GAME": "ON",
         "GAMEWIP_BUILD_TESTS": "ON",
-        "GAMEWIP_BUILD_BENCHMARKS": "ON",
-        "GAMEWIP_RUN_TESTS_AT_STARTUP": "OFF",
-        "GAMEWIP_RUN_BENCHMARKS_AT_STARTUP": "OFF",
         "GAMEWIP_ENABLE_ASSERTS": "ON"
       }
     },
     {
       "name": "benchmark",
-      "displayName": "Release benchmarks",
+      "displayName": "Performance benchmarks",
       "inherits": "base",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
-        "GAMEWIP_BUILD_GAME": "OFF",
-        "GAMEWIP_BUILD_TESTS": "OFF",
         "GAMEWIP_BUILD_BENCHMARKS": "ON",
-        "GAMEWIP_RUN_TESTS_AT_STARTUP": "OFF",
-        "GAMEWIP_RUN_BENCHMARKS_AT_STARTUP": "OFF",
         "GAMEWIP_ENABLE_ASSERTS": "ON"
       }
     },
     {
-      "name": "tools",
-      "displayName": "Development tools",
-      "inherits": "development",
-      "cacheVariables": {
-        "GAMEWIP_ENABLE_TOOLS": "ON",
-        "GAMEWIP_OPEN_TOOLS_AT_STARTUP": "ON"
-      }
-    },
-    {
-      "name": "profiling",
+      "name": "profile",
       "displayName": "Tracy profiling",
-      "inherits": "development",
-      "cacheVariables": {
-        "GAMEWIP_ENABLE_TRACY": "ON"
-      }
-    },
-    {
-      "name": "optimized",
-      "displayName": "Maximum optimization with symbols",
+      "description": "Profile the game or opt into embedded tests with GameWIP.exe --startup-tests.",
       "inherits": "base",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "RelWithDebInfo",
-        "CMAKE_INTERPROCEDURAL_OPTIMIZATION": "ON",
-        "CMAKE_CXX_FLAGS_RELWITHDEBINFO": "-O3 -g -DNDEBUG",
         "GAMEWIP_BUILD_GAME": "ON",
-        "GAMEWIP_BUILD_TESTS": "OFF",
-        "GAMEWIP_BUILD_BENCHMARKS": "OFF",
-        "GAMEWIP_RUN_TESTS_AT_STARTUP": "OFF",
-        "GAMEWIP_RUN_BENCHMARKS_AT_STARTUP": "OFF",
-        "GAMEWIP_ENABLE_ASSERTS": "OFF"
+        "GAMEWIP_ENABLE_STARTUP_TESTS": "ON",
+        "GAMEWIP_ENABLE_TRACY": "ON",
+        "GAMEWIP_ENABLE_ASSERTS": "ON"
       }
     },
     {
-      "name": "shipping",
-      "displayName": "Shipping release",
+      "name": "release",
+      "displayName": "Release game",
+      "description": "Optimized distributable game without validation, profiling, assertions, or development tooling.",
       "inherits": "base",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
         "CMAKE_INTERPROCEDURAL_OPTIMIZATION": "ON",
-        "CMAKE_CXX_FLAGS_RELEASE": "-O3 -DNDEBUG",
-        "CMAKE_EXE_LINKER_FLAGS_RELEASE": "-s",
-        "CMAKE_SHARED_LINKER_FLAGS_RELEASE": "-s",
         "GAMEWIP_BUILD_GAME": "ON",
-        "GAMEWIP_BUILD_TESTS": "OFF",
-        "GAMEWIP_BUILD_BENCHMARKS": "OFF",
-        "GAMEWIP_RUN_TESTS_AT_STARTUP": "OFF",
-        "GAMEWIP_RUN_BENCHMARKS_AT_STARTUP": "OFF",
         "GAMEWIP_ENABLE_ASSERTS": "OFF"
       }
     },
     {
       "name": "coverage",
-      "displayName": "Coverage validation",
-      "inherits": "base",
+      "displayName": "Test coverage",
+      "inherits": "test",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "GAMEWIP_BUILD_GAME": "OFF",
-        "GAMEWIP_BUILD_TESTS": "ON",
-        "GAMEWIP_BUILD_BENCHMARKS": "OFF",
-        "GAMEWIP_RUN_TESTS_AT_STARTUP": "OFF",
-        "GAMEWIP_RUN_BENCHMARKS_AT_STARTUP": "OFF",
-        "GAMEWIP_ENABLE_ASSERTS": "ON",
         "GAMEWIP_ENABLE_COVERAGE": "ON"
       }
     },
     {
-      "name": "static-analysis",
-      "displayName": "Repository static analysis",
-      "inherits": "validation",
+      "name": "asan",
+      "displayName": "AddressSanitizer tests",
+      "description": "CLANG64 correctness tests with AddressSanitizer instrumentation.",
+      "inherits": "test",
       "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
         "CMAKE_CXX_COMPILER": "clang++",
+        "GAMEWIP_ENABLE_ADDRESS_SANITIZER": "ON"
+      }
+    },
+    {
+      "name": "analyze",
+      "displayName": "Repository analysis",
+      "description": "Compile representative project surfaces and run clang-tidy plus formatting checks.",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "CMAKE_CXX_COMPILER": "clang++",
+        "GAMEWIP_BUILD_GAME": "ON",
+        "GAMEWIP_BUILD_TESTS": "ON",
+        "GAMEWIP_BUILD_BENCHMARKS": "ON",
+        "GAMEWIP_ENABLE_ASSERTS": "ON",
         "GAMEWIP_ENABLE_STATIC_ANALYSIS": "ON"
       }
     },
@@ -139,36 +133,36 @@
       "inherits": "base",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
-        "GAMEWIP_BUILD_GAME": "OFF",
-        "GAMEWIP_BUILD_TESTS": "OFF",
-        "GAMEWIP_BUILD_BENCHMARKS": "OFF",
-        "GAMEWIP_RUN_TESTS_AT_STARTUP": "OFF",
-        "GAMEWIP_RUN_BENCHMARKS_AT_STARTUP": "OFF",
         "GAMEWIP_BUILD_DOCS": "ON"
       }
     }
   ],
   "buildPresets": [
-    { "name": "development", "configurePreset": "development" },
-    { "name": "validation", "configurePreset": "validation" },
+    { "name": "dev", "configurePreset": "dev", "targets": ["GameWIP"] },
+    { "name": "dev-no-tools", "configurePreset": "dev-no-tools", "targets": ["GameWIP"] },
+    { "name": "test", "configurePreset": "test", "targets": ["GameWIPTests"] },
     { "name": "benchmark", "configurePreset": "benchmark", "targets": ["GameWIPBenchmarks"] },
-    { "name": "tools", "configurePreset": "tools" },
-    { "name": "profiling", "configurePreset": "profiling" },
-    { "name": "optimized", "configurePreset": "optimized", "targets": ["GameWIP"] },
-    { "name": "shipping", "configurePreset": "shipping", "targets": ["GameWIP"] },
-    { "name": "coverage", "configurePreset": "coverage" },
-    { "name": "static-analysis", "configurePreset": "static-analysis", "targets": ["static-analysis"] },
+    { "name": "profile", "configurePreset": "profile", "targets": ["GameWIP"] },
+    { "name": "release", "configurePreset": "release", "targets": ["GameWIP"] },
+    { "name": "coverage", "configurePreset": "coverage", "targets": ["GameWIPTests"] },
+    { "name": "asan", "configurePreset": "asan", "targets": ["GameWIPTests"] },
+    { "name": "analyze", "configurePreset": "analyze", "targets": ["static-analysis"] },
     { "name": "docs", "configurePreset": "docs", "targets": ["docs"] }
   ],
   "testPresets": [
     {
-      "name": "validation",
-      "configurePreset": "validation",
+      "name": "test",
+      "configurePreset": "test",
       "output": { "outputOnFailure": true }
     },
     {
       "name": "coverage",
       "configurePreset": "coverage",
+      "output": { "outputOnFailure": true }
+    },
+    {
+      "name": "asan",
+      "configurePreset": "asan",
       "output": { "outputOnFailure": true }
     }
   ]

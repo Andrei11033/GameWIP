@@ -19,10 +19,12 @@
 /// @brief Platform-neutral local path, file, directory, metadata, and locking primitives.
 namespace GameWIP::FileSystem
 {
-    /// @brief Prefix used for same-directory temporary files created by atomic writes.
+    /// @brief Default prefix used for same-directory temporary files created by atomic writes.
+    /// @note Callers may replace the prefix through Types::AtomicWriteOptions; it is a filename prefix, not a path.
     inline constexpr std::string_view kAtomicTemporaryNamePrefix = ".gamewip_tmp_";
 
-    /// @brief Sentinel entry limit meaning no caller-imposed traversal limit.
+    /// @brief Sentinel entry limit meaning no caller-imposed listing or tree-removal limit.
+    /// @note Backend, container, address-space, and resource limits still apply.
     inline constexpr std::uint64_t kNoEntryLimit = std::numeric_limits<std::uint64_t>::max();
 
     /// @cond INTERNAL_FILESYSTEM_DETAIL
@@ -30,6 +32,7 @@ namespace GameWIP::FileSystem
     {
         struct FileState;
         struct FileLockState;
+        struct DirectoryCursorState;
     } // namespace Detail
     /// @endcond
 
@@ -41,11 +44,12 @@ namespace GameWIP::FileSystem
     /// @brief Passive FileSystem values, options, and results.
     namespace Types
     {
-        /// @brief Project-wide canonical filesystem path spelling.
-        /// @details This is a naming alias, not an ABI or behavioral abstraction over std::filesystem::path.
+        /// @brief Project-wide filesystem path spelling.
+        /// @details This is a naming alias, not a portable path-grammar or ABI abstraction over std::filesystem::path.
         using Path = std::filesystem::path;
 
         /// @brief Portable wall-clock representation used for filesystem timestamps.
+        /// @note Native precision may be reduced; an unrepresentable value is reported as SizeLimitExceeded.
         using FileTime = std::chrono::system_clock::time_point;
 
         /// @brief Kind of existing filesystem entry.
@@ -284,8 +288,10 @@ namespace GameWIP::FileSystem
             /// @brief Options used to open the underlying reader.
             FileReaderOpenOptions open{};
             /// @brief Maximum accepted file size, or IO::kNoByteLimit for no caller limit.
+            /// @note This is a hard limit, not a successful truncation request.
             std::uint64_t maxBytes = IO::kNoByteLimit;
             /// @brief Temporary transfer buffer size. Must be greater than zero.
+            /// @note The buffer is internal to the call and does not limit the final result size.
             std::size_t bufferSize = IO::kDefaultBufferSize;
         };
 
@@ -364,7 +370,8 @@ namespace GameWIP::FileSystem
             FileTime lastWriteTime{};
             /// @brief Whether lastWriteTime is available and meaningful.
             bool hasLastWriteTime = false;
-            /// @brief Whether the entry is known to be read-only.
+            /// @brief Portable basic read-only state.
+            /// @note This is not a complete permissions, ownership, or ACL model.
             bool readOnly = false;
         };
 
@@ -444,20 +451,34 @@ namespace GameWIP::FileSystem
         /// @brief One direct child returned by listDirectory().
         struct DirectoryEntry
         {
-            /// @brief Full child path.
+            /// @brief Supplied parent path joined with the child name.
+            /// @note A relative parent produces a relative child path; this field is not necessarily absolute.
             Path path;
             /// @brief Portable metadata for the child.
             EntryInfo info{};
         };
 
         /// @brief Result returned by listDirectory().
-        /// @details SizeLimitExceeded may return entries collected before the limit was reached.
+        /// @details SizeLimitExceeded may return entries collected before the limit was reached. The result owns all
+        /// accepted entries, so retained storage is proportional to their count and path sizes.
         struct ListDirectoryResult
         {
             /// @brief Operation status.
             IO::Types::Status status;
             /// @brief Direct children collected before completion or failure.
             std::vector<DirectoryEntry> entries;
+        };
+
+        /// @brief Result returned by one DirectoryCursor step.
+        /// @details Successful exhaustion is represented by hasEntry=false. A failed result does not contain an entry.
+        struct DirectoryCursorNextResult
+        {
+            /// @brief Operation status.
+            IO::Types::Status status;
+            /// @brief Direct child returned when hasEntry is true.
+            DirectoryEntry entry;
+            /// @brief Whether this step returned one accepted child.
+            bool hasEntry = false;
         };
 
         /// @brief Options used by removeFile() and removeEmptyDirectory().
@@ -495,7 +516,7 @@ namespace GameWIP::FileSystem
         {
             /// @brief Destination replacement behavior.
             ReplaceMode replaceMode = ReplaceMode::FailIfExists;
-            /// @brief Symlink traversal policy applied to the source entry.
+            /// @brief Symlink traversal policy used for source resolution and destination parent traversal.
             SymlinkPolicy symlinkPolicy = SymlinkPolicy::DoNotFollow;
             /// @brief Create missing destination parent directories before moving.
             bool createParentDirectories = false;
@@ -506,7 +527,7 @@ namespace GameWIP::FileSystem
         {
             /// @brief Destination replacement behavior.
             ReplaceMode replaceMode = ReplaceMode::FailIfExists;
-            /// @brief Symlink traversal policy applied to the source entry.
+            /// @brief Symlink traversal policy used for source resolution and destination path traversal.
             SymlinkPolicy symlinkPolicy = SymlinkPolicy::DoNotFollow;
             /// @brief Create missing destination parent directories before copying.
             bool createParentDirectories = false;
@@ -519,9 +540,49 @@ namespace GameWIP::FileSystem
         struct LockResult;
     } // namespace Types
 
+    /// @brief Move-only, bounded-memory cursor over direct directory children.
+    /// @details The cursor owns backend enumeration state and applies the same filters, symlink policy, native ordering,
+    /// and maximum-entry contract as listDirectory(). Retained memory is independent of the number of sibling entries.
+    /// A cursor object is not safe for concurrent calls.
+    class DirectoryCursor final
+    {
+    public:
+        /// @brief Creates a closed cursor.
+        DirectoryCursor() noexcept;
+        /// @brief Directory cursors are not copy-constructible.
+        DirectoryCursor(const DirectoryCursor &) = delete;
+        /// @brief Directory cursors are not copy-assignable.
+        DirectoryCursor &operator=(const DirectoryCursor &) = delete;
+        /// @brief Move-constructs a cursor and leaves the source closed.
+        DirectoryCursor(DirectoryCursor &&other) noexcept;
+        /// @brief Move-assigns a cursor, closing any enumeration previously owned by this object.
+        DirectoryCursor &operator=(DirectoryCursor &&other) noexcept;
+        /// @brief Closes an active enumeration without throwing.
+        ~DirectoryCursor() noexcept;
+
+        /// @brief Opens a direct-child enumeration. Failure leaves this cursor closed.
+        /// @param path Directory path to enumerate.
+        /// @param options Filtering, symlink, hidden-entry, and entry-limit behavior.
+        /// @return Success, AlreadyOpen, or a validation/open failure status.
+        [[nodiscard]] IO::Types::Status open(const Types::Path &path, const Types::ListDirectoryOptions &options = {}) noexcept;
+        /// @brief Returns whether this object owns an active enumeration.
+        [[nodiscard]] bool isOpen() const noexcept;
+        /// @brief Returns the next accepted child or successful exhaustion.
+        /// @return One entry, successful exhaustion, NotOpen, SizeLimitExceeded, or an enumeration failure.
+        [[nodiscard]] Types::DirectoryCursorNextResult next() noexcept;
+        /// @brief Closes the enumeration. Repeated close calls succeed.
+        [[nodiscard]] IO::Types::Status close() noexcept;
+
+    private:
+        std::unique_ptr<Detail::DirectoryCursorState> state_;
+        Types::ListDirectoryOptions options_{};
+        std::uint64_t emittedEntries_ = 0;
+        bool limitReached_ = false;
+    };
+
     /// @brief RAII owner for a whole-file lock.
     /// @details FileLock is move-constructible and non-copyable. Move assignment is deleted because replacing an active lock could hide unlock
-    /// failure.
+    /// failure. An acquired lock owns independent native state and can remain active after the originating handle object is destroyed.
     class FileLock final
     {
     public:
@@ -537,6 +598,7 @@ namespace GameWIP::FileSystem
         /// @brief Move assignment is disabled to avoid hiding an unlock failure.
         FileLock &operator=(FileLock &&other) = delete;
         /// @brief Releases an active lock on a best-effort basis without throwing.
+        /// @note Use unlock() when release failure must be observed.
         ~FileLock() noexcept;
 
         /// @brief Returns whether this object owns an active lock.
@@ -592,11 +654,13 @@ namespace GameWIP::FileSystem
         /// @return True while a normal file handle is open.
         [[nodiscard]] bool canSeek() const noexcept override;
         /// @brief Reads bytes from the current file position.
-        /// @param destination Caller-owned destination memory.
-        /// @return Read status, copied byte count, and end-of-stream state.
+        /// @param destination Caller-owned call-scoped memory; the reader does not retain it.
+        /// @return Read status, copied byte count, and end-of-stream state. A successful final read may contain bytes and set endOfStream.
+        /// @note An empty destination performs no transfer and queries the current end-of-stream state.
         [[nodiscard]] IO::Types::ReadResult read(std::span<std::byte> destination) noexcept override;
         /// @brief Closes the file. Repeated close calls succeed.
-        /// @return ResourceBusy while a lock acquired from this reader remains active.
+        /// @return ResourceBusy while a lock acquired from this reader remains active, or a close failure status.
+        /// @note Failure leaves the reader open so close() can be retried.
         [[nodiscard]] IO::Types::Status close() noexcept override;
         /// @brief Returns the current byte position.
         /// @return Current position, or NotOpen while closed.
@@ -649,15 +713,17 @@ namespace GameWIP::FileSystem
         /// @return False for append modes and while closed; true for other open modes.
         [[nodiscard]] bool canSeek() const noexcept override;
         /// @brief Writes bytes at the current position or current end in append mode.
-        /// @param bytes Caller-owned bytes to write.
-        /// @return Write status and accepted byte count.
+        /// @param bytes Caller-owned call-scoped bytes; the writer does not retain them.
+        /// @return Write status and accepted byte count. Success can report fewer bytes than requested.
+        /// @note Empty input succeeds without transferring bytes.
         [[nodiscard]] IO::Types::WriteResult write(std::span<const std::byte> bytes) noexcept override;
         /// @brief Flushes written data according to the requested strength.
-        /// @param mode Requested flush strength.
+        /// @param mode Requested flush strength. None validates state but requests no physical flush.
         /// @return Success, NotOpen, InvalidArgument, or a flush failure status.
         [[nodiscard]] IO::Types::Status flush(IO::Types::FlushMode mode = IO::Types::FlushMode::Data) noexcept override;
-        /// @brief Closes the file. Repeated close calls succeed.
-        /// @return ResourceBusy while a lock acquired from this writer remains active.
+        /// @brief Applies configured flush-on-close and closes the file. Repeated close calls succeed.
+        /// @return ResourceBusy while a lock acquired from this writer remains active, or a flush/close failure status.
+        /// @note Failure leaves the writer open so close() can be retried.
         [[nodiscard]] IO::Types::Status close() noexcept override;
         /// @brief Returns the current byte position when meaningful.
         /// @return Current position, NotOpen, or NotSeekable for append mode.
@@ -716,19 +782,21 @@ namespace GameWIP::FileSystem
         /// @note Meaningful only while isOpen() is true.
         [[nodiscard]] Types::FileAccess access() const noexcept;
         /// @brief Reads bytes from the current file position.
-        /// @param destination Caller-owned destination memory.
-        /// @return Read status, copied byte count, and end-of-stream state.
+        /// @param destination Caller-owned call-scoped memory; the reader does not retain it.
+        /// @return Read status, copied byte count, and end-of-stream state. A successful final read may contain bytes and set endOfStream.
+        /// @note An empty destination performs no transfer and queries the current end-of-stream state.
         [[nodiscard]] IO::Types::ReadResult read(std::span<std::byte> destination) noexcept override;
         /// @brief Writes bytes at the current file position.
         /// @param bytes Caller-owned bytes to write.
         /// @return Write status and accepted byte count.
         [[nodiscard]] IO::Types::WriteResult write(std::span<const std::byte> bytes) noexcept override;
         /// @brief Flushes written data according to the requested strength.
-        /// @param mode Requested flush strength.
+        /// @param mode Requested flush strength. None validates state but requests no physical flush.
         /// @return Success, NotOpen, InvalidArgument, or a flush failure status.
         [[nodiscard]] IO::Types::Status flush(IO::Types::FlushMode mode = IO::Types::FlushMode::Data) noexcept override;
-        /// @brief Closes the file. Repeated close calls succeed.
-        /// @return ResourceBusy while a lock acquired from this file remains active.
+        /// @brief Applies configured flush-on-close and closes the file. Repeated close calls succeed.
+        /// @return ResourceBusy while a lock acquired from this file remains active, or a flush/close failure status.
+        /// @note Failure leaves the file open so close() can be retried.
         [[nodiscard]] IO::Types::Status close() noexcept override;
         /// @brief Returns the current byte position.
         /// @return Current position, or NotOpen while closed.
@@ -743,7 +811,8 @@ namespace GameWIP::FileSystem
         [[nodiscard]] IO::Types::Status seek(std::int64_t offset, IO::Types::SeekOrigin origin) noexcept override;
         /// @brief Resizes the open file.
         /// @param sizeBytes Requested file size in bytes.
-        /// @return Success, NotOpen, PermissionDenied for read-only access, or a resize failure status.
+        /// @return Success, NotOpen, PermissionDenied for read-only access, SizeLimitExceeded, or a resize failure status.
+        /// @note On success, the previous position is restored when it still fits; otherwise a shrink leaves the position at the new end.
         [[nodiscard]] IO::Types::Status resize(std::uint64_t sizeBytes) noexcept;
         /// @brief Attempts to acquire a non-blocking shared whole-file lock.
         /// @return Lock status, acquisition outcome, and active lock owner when acquired.
@@ -766,25 +835,27 @@ namespace GameWIP::FileSystem
             IO::Types::Status status;
             /// @brief Whether the lock was acquired or could not be acquired immediately.
             LockOutcome outcome = LockOutcome::WouldBlock;
-            /// @brief Active lock owner when outcome is Acquired.
+            /// @brief Active lock owner when outcome is Acquired; inactive otherwise.
             FileLock lock;
         };
     } // namespace Types
 
     /// @brief Reads an entire file as bytes.
     /// @param path File path to read.
-    /// @param options Open behavior, byte limit, and transfer buffer size.
-    /// @return Collected bytes and final status. Partial data may be present on failure.
+    /// @param options Open behavior, hard byte limit, and transfer buffer size.
+    /// @return Collected bytes and final status. Partial data may be present after transfer or close failure.
+    /// @note SizeLimitExceeded is a failed hard-limit result, not successful truncation.
     [[nodiscard]] IO::Types::ReadAllBytesResult readAllBytes(const Types::Path &path, const Types::ReadFileOptions &options = {}) noexcept;
 
-    /// @brief Reads an entire file as UTF-8 bytes without BOM or encoding conversion.
+    /// @brief Reads an entire file as text bytes without validation, BOM handling, or encoding conversion.
     /// @param path File path to read.
-    /// @param options Open behavior, byte limit, and transfer buffer size.
-    /// @return Collected text bytes and final status. Partial text may be present on failure.
+    /// @param options Open behavior, hard byte limit, and transfer buffer size.
+    /// @return Collected text bytes and final status. Partial text may be present after transfer or close failure.
     [[nodiscard]] IO::Types::ReadAllTextResult readAllText(const Types::Path &path, const Types::ReadFileOptions &options = {}) noexcept;
 
-    /// @brief Writes exact file contents and reports accepted payload bytes.
-    /// @details A flush or close failure preserves the payload byte count accepted before that failure.
+    /// @brief Writes exact file contents through a non-atomic writer and reports accepted payload bytes.
+    /// @details Empty input still performs the requested create/truncate, flush, and close sequence. A flush or close failure preserves the payload
+    /// byte count accepted before that failure.
     /// @param path Destination file path.
     /// @param bytes Exact payload bytes.
     /// @param options Creation, sharing, symlink, parent, and flush behavior.
@@ -809,8 +880,9 @@ namespace GameWIP::FileSystem
         return writeAllBytes(path, std::span<const std::byte>(bytes.data(), bytes.size()), options);
     }
 
-    /// @brief Writes exact UTF-8 byte contents without BOM or encoding conversion.
-    /// @details A flush or close failure preserves the payload byte count accepted before that failure.
+    /// @brief Writes exact text bytes without validation, BOM handling, or encoding conversion.
+    /// @details Empty input still performs the requested create/truncate, flush, and close sequence. A flush or close failure preserves the payload
+    /// byte count accepted before that failure.
     /// @param path Destination file path.
     /// @param utf8Text Exact text bytes.
     /// @param options Creation, sharing, symlink, parent, and flush behavior.
@@ -958,7 +1030,7 @@ namespace GameWIP::FileSystem
     /// @brief Returns the size of an existing regular file.
     /// @param path File path to query.
     /// @param options Symlink traversal behavior.
-    /// @return File size, or NotFound when the entry is missing.
+    /// @return File size, NotFound when missing, or InvalidArgument when the resolved entry is not a regular file with portable size.
     [[nodiscard]] IO::Types::SizeResult getFileSize(const Types::Path &path, const Types::QueryOptions &options = {}) noexcept;
 
     /// @brief Returns the last-write time of an existing filesystem entry.
@@ -967,10 +1039,10 @@ namespace GameWIP::FileSystem
     /// @return Last-write time, or NotFound when the entry is missing.
     [[nodiscard]] Types::LastWriteTimeResult getLastWriteTime(const Types::Path &path, const Types::QueryOptions &options = {}) noexcept;
 
-    /// @brief Tests whether an existing entry is known to be read-only.
+    /// @brief Returns the portable basic read-only state of an existing entry.
     /// @param path Path to query.
     /// @param options Symlink traversal behavior.
-    /// @return Successful true or false; missing entries produce successful false.
+    /// @return Successful true or false, or NotFound when the entry is missing.
     [[nodiscard]] Types::BoolResult isReadOnly(const Types::Path &path, const Types::QueryOptions &options = {}) noexcept;
 
     /// @brief Changes the portable read-only state of an existing entry.
@@ -993,6 +1065,7 @@ namespace GameWIP::FileSystem
     /// @param options Replacement, symlink, and parent creation behavior.
     /// @return Success or a validation, lookup, permission, conflict, or move failure status.
     /// @note Cross-volume moves return MoveFailed; no copy-and-delete fallback is performed.
+    /// @note Native rename success is the operation's linearization point; later namespace changes do not change the returned success.
     [[nodiscard]] IO::Types::Status movePath(const Types::Path &from, const Types::Path &to, const Types::MoveOptions &options = {}) noexcept;
 
     /// @brief Removes one regular file or symlink-to-file entry.
@@ -1050,10 +1123,11 @@ namespace GameWIP::FileSystem
     /// @return Updated path or a conversion/allocation failure status.
     [[nodiscard]] Types::PathResult replaceExtension(const Types::Path &path, const Types::Path &newExtension) noexcept;
 
-    /// @brief Joins two path parts using platform path rules.
+    /// @brief Joins two path parts using std::filesystem::path component rules.
     /// @param left Base path.
-    /// @param right Path component to append.
+    /// @param right Path component to append. A rooted right-hand path may replace part or all of left.
     /// @return Joined path or a conversion/allocation failure status.
+    /// @note This is lexical and does not access, normalize, or canonicalize the filesystem.
     [[nodiscard]] Types::PathResult joinPath(const Types::Path &left, const Types::Path &right) noexcept;
 
     /// @brief Tests whether a path is absolute according to platform path rules.
@@ -1066,32 +1140,37 @@ namespace GameWIP::FileSystem
     /// @return Successful boolean result or a conversion/allocation failure status.
     [[nodiscard]] Types::BoolResult isRelativePath(const Types::Path &path) noexcept;
 
-    /// @brief Converts a path to an absolute path using the current working directory when needed.
-    /// @param path Path to resolve.
+    /// @brief Converts a path to an absolute path using the process current directory when needed.
+    /// @param path Non-empty path to resolve.
     /// @return Absolute path or a query/conversion/allocation failure status.
+    /// @note This does not require the target to exist and does not promise canonical or normalized spelling.
     [[nodiscard]] Types::PathResult absolutePath(const Types::Path &path) noexcept;
 
     /// @brief Resolves a canonical path whose complete target must exist.
-    /// @param path Path to resolve.
+    /// @param path Non-empty path to resolve.
     /// @return Canonical path or a lookup, permission, conversion, or allocation failure status.
+    /// @note Uses ordinary std::filesystem symlink resolution and does not apply SymlinkPolicy.
     [[nodiscard]] Types::PathResult canonicalPath(const Types::Path &path) noexcept;
 
     /// @brief Resolves a best-effort canonical path that permits missing trailing components.
-    /// @param path Path to resolve.
+    /// @param path Non-empty path to resolve.
     /// @return Weakly canonical path or a permission, conversion, or allocation failure status.
+    /// @note Uses ordinary std::filesystem symlink resolution and does not apply SymlinkPolicy.
     [[nodiscard]] Types::PathResult weaklyCanonicalPath(const Types::Path &path) noexcept;
 
     /// @brief Returns the platform temporary-directory path.
     /// @return Temporary-directory path or a query/conversion/allocation failure status.
     [[nodiscard]] Types::PathResult getTemporaryDirectoryPath() noexcept;
 
-    /// @brief Converts UTF-8 text to the platform-correct Path representation.
+    /// @brief Converts UTF-8 text to the platform-native Path representation.
     /// @param utf8Path UTF-8 path text.
     /// @return Converted path or EncodingFailed/OutOfMemory.
+    /// @note Conversion does not make the path absolute, canonical, or normalized.
     [[nodiscard]] Types::PathResult pathFromUtf8(std::string_view utf8Path) noexcept;
 
-    /// @brief Converts a Path to UTF-8 text.
+    /// @brief Converts a Path's stored spelling to UTF-8 text.
     /// @param path Path to convert.
     /// @return UTF-8 path text or EncodingFailed/OutOfMemory.
+    /// @note The result does not promise normalized or platform-independent separators.
     [[nodiscard]] Types::Utf8PathResult pathToUtf8(const Types::Path &path) noexcept;
 } // namespace GameWIP::FileSystem

@@ -2,24 +2,22 @@
 
 ## Include
 
-Include the library's public header:
-
 ```cpp
 #include "filesystem/filesystem.h"
 ```
 
 ## Installed CMake
 
-Use the package's namespaced imported target. The package resolves its IO dependency:
+Set `GAMEWIP_REQUIRED_VERSION` from the consuming project's dependency lock; see @ref project_library_compatibility.
 
 ```cmake
-find_package(FileSystem CONFIG REQUIRED)
+find_package(FileSystem ${GAMEWIP_REQUIRED_VERSION} EXACT CONFIG REQUIRED)
 target_link_libraries(MyTarget PRIVATE GameWIP::FileSystem)
 ```
 
-## Source-tree CMake
+The package resolves the exact-version IO dependency.
 
-When FileSystem is part of the same source tree, use its short build target:
+## Source-tree CMake
 
 ```cmake
 target_link_libraries(MyTarget PRIVATE FileSystem)
@@ -27,78 +25,102 @@ target_link_libraries(MyTarget PRIVATE FileSystem)
 
 ## Minimal usage
 
-Examples use this namespace alias:
-
 ```cpp
+#include "filesystem/filesystem.h"
+
 namespace FileSystem = GameWIP::FileSystem;
-namespace IO = GameWIP::IO;
-```
 
-### Whole-file text
-
-Use the whole-file helpers when the operation is one complete read, write, or append.
-
-```cpp
-const auto write = FileSystem::writeAllText("config/player.cfg", "volume=80\n");
-if (!write.status.ok())
+GameWIP::IO::Types::Status saveAndLoadSettings()
 {
-    return write.status;
-}
+    const auto write = FileSystem::writeAllText("config/player.cfg", "volume=80\n");
+    if (!write.status.ok())
+    {
+        return write.status;
+    }
 
-const auto read = FileSystem::readAllText("config/player.cfg");
-if (!read.status.ok())
-{
-    return read.status;
+    const auto read = FileSystem::readAllText("config/player.cfg");
+    if (!read.status.ok())
+    {
+        return read.status;
+    }
+
+    return GameWIP::IO::successStatus();
 }
 ```
 
-Text helpers preserve UTF-8 bytes. They do not add a BOM, remove a BOM, validate encoding, or translate line endings.
+Text helpers preserve bytes. They do not validate UTF-8, add or remove a BOM, or translate line endings.
 
-### Explicit handles
-
-Use `FileReader`, `FileWriter`, or `File` when the caller needs repeated transfers, seeking, sharing policy, locking, or a controlled handle lifetime.
+## Explicit handle
 
 ```cpp
-FileSystem::FileReader reader;
-IO::Types::Status status = reader.open("data/world.bin");
-if (!status.ok())
+#include "filesystem/filesystem.h"
+
+#include <array>
+#include <cstddef>
+#include <span>
+
+GameWIP::IO::Types::Status inspectPrefix(const GameWIP::FileSystem::Types::Path& path)
 {
+    namespace FileSystem = GameWIP::FileSystem;
+
+    FileSystem::FileReader reader;
+    auto status = reader.open(path);
+    if (!status.ok())
+    {
+        return status;
+    }
+
+    std::array<std::byte, 4096> scratch{};
+    const auto read = reader.read(scratch);
+    if (!read.status.ok())
+    {
+        const auto closeStatus = reader.close();
+        return read.status;
+    }
+
+    // Process scratch[0..read.bytesRead). A final read may contain bytes and set endOfStream.
+
+    status = reader.close();
     return status;
 }
-
-std::array<std::byte, 4096> scratch{};
-IO::Types::ReadResult read = reader.read(std::span<std::byte>(scratch.data(), scratch.size()));
-status = reader.close();
 ```
 
-Close explicitly when the caller needs to observe close or flush failure. Destructors clean up on a best-effort basis and never throw.
+Close explicitly when close or configured flush-on-close failure must be observed. Destructors perform best-effort cleanup and cannot report failure.
 
-### Directories and metadata
+## Atomic replacement
 
 ```cpp
-IO::Types::Status create = FileSystem::createDirectories("saves/profile1");
-auto entries = FileSystem::listDirectory("saves");
-auto info = FileSystem::getEntryInfo("saves/profile1");
+#include "filesystem/filesystem.h"
+
+GameWIP::IO::Types::Status replaceSave(std::string_view json)
+{
+    GameWIP::FileSystem::Types::AtomicWriteOptions options{};
+    options.flushMode = GameWIP::IO::Types::FlushMode::Data;
+    options.flushParentDirectory = true;
+
+    return GameWIP::FileSystem::writeAllTextAtomic("saves/profile.json", json, options);
+}
 ```
 
-`listDirectory()` returns direct children only. Recursive traversal belongs in caller code unless the operation is `removeDirectoryTree()`.
+There is no non-atomic fallback. Failure before commit preserves an existing destination. A late parent-directory flush failure can be returned after the replacement is already visible.
 
-### Atomic replacement
+## Failure handling
 
-Use atomic writes for exact file replacement where readers should see either old content or complete new content.
+Always inspect the status before consuming a result as complete. Some failures intentionally preserve progress:
 
-```cpp
-FileSystem::Types::AtomicWriteOptions options{};
-options.replaceMode = FileSystem::Types::ReplaceMode::ReplaceExisting;
-options.flushMode = IO::Types::FlushMode::Data;
+- whole-file reads may return collected bytes or text with a failed status;
+- non-atomic writes may return a nonzero `bytesWritten` with failure;
+- directory listing may return collected entries with `SizeLimitExceeded` or another failure;
+- tree removal may report entries already removed before failure;
+- a failed `close()` or `unlock()` leaves the resource active so the operation can be retried.
 
-IO::Types::Status status = FileSystem::writeAllTextAtomic("saves/profile1/save.json", jsonText, options);
-```
+`LockOutcome::WouldBlock` is a successful non-acquisition result, not a failed status.
 
-There is no non-atomic fallback. A failure before commit leaves an existing destination unchanged.
+## Where to go next
 
-### Default symlink policy
-
-Public operations that expose a symlink policy default to `SymlinkPolicy::DoNotFollow`. Choose `FollowFinal` or `FollowAll` only when traversal through symlinks is intentional.
-
-See @ref filesystem_public_api and @ref filesystem_examples for broader API coverage.
+- @ref filesystem_public_api maps the complete public surface.
+- @ref filesystem_whole_file_io explains whole-file transfer and progress.
+- @ref filesystem_file_open_modes covers handles, sharing, locking, and close behavior.
+- @ref filesystem_symlink_policies explains traversal policy by operation family.
+- @ref filesystem_atomic_write covers replacement atomicity and durability.
+- @ref filesystem_examples provides complete integration examples.

@@ -1,121 +1,128 @@
-@page terminal_read_write Terminal read and write
+@page terminal_read_write Terminal read, write, buffering, and concurrency
 
-## Streams
+This page owns the transfer, outcome, exception, lifetime, blocking, and serialization contracts for Terminal I/O.
 
-Terminal input currently exposes `Types::InputStream::Stdin`.
+## Streams and overloads
 
-Terminal output exposes:
+Terminal currently exposes `InputStream::Stdin` and `OutputStream::{Stdout, Stderr}`. Free reads default to stdin; free writes and controls default to stdout. Explicit-stream overloads make stderr or protocol endpoint selection visible.
 
-- `Types::OutputStream::Stdout`;
-- `Types::OutputStream::Stderr`.
+Unknown stream enum values return `InvalidArgument` before endpoint access.
 
-Free read calls default to stdin. Free write calls default to stdout when no output stream is supplied. Stderr is selected explicitly:
+## Process-wide serialization
 
-```cpp
-GameWIP::Terminal::writeLine(GameWIP::Terminal::Types::OutputStream::Stderr, "error text");
-```
+Terminal owns one process-wide input mutex and independent process-wide output state for stdout and stderr.
 
-## Read calls
+- stdin operations serialize with one another;
+- stdout operations serialize with one another;
+- stderr operations serialize with one another;
+- stdout and stderr can progress independently;
+- one public operation is one Terminal serialization unit;
+- a sequence of public calls is not a transaction.
 
-Terminal reads use explicit operation names.
+`getCursorPosition(outputStream, responseStream, ...)` may coordinate both endpoints. Direct C streams, iostreams, native handles, and third-party terminal libraries bypass Terminal's locks.
 
-| Operation | Shape | Result |
+Formatted free functions perform formatting before taking the final output lock. This permits a custom formatter to call Terminal without deadlocking the same stream; the nested operation completes before the outer formatted record is emitted.
+
+Caller-owned objects such as `OutputBuffer` and scope objects are not automatically safe for concurrent access to the same object.
+
+## Read operations
+
+| Operation | Purpose | Result |
 | --- | --- | --- |
-| Line read | `readLine()` or `readLine(LineReadOptions{})` | `Types::LineReadResult` |
-| Stream line read | `readLine(InputStream::Stdin, LineReadOptions{})` | `Types::LineReadResult` |
-| Text chunk read | `readText()` or `readText(TextReadOptions{})` | `Types::TextReadResult` |
-| Stream text chunk read | `readText(InputStream::Stdin, TextReadOptions{})` | `Types::TextReadResult` |
-| Byte read | `readBytes(std::span<std::byte>{...})` | `Types::ByteReadResult` |
-| Stream byte read | `readBytes(InputStream::Stdin, std::span<std::byte>{...})` | `Types::ByteReadResult` |
+| `readBytes()` | Copies raw bytes into caller storage. | `ByteReadResult` |
+| `readText()` | Returns one available complete UTF-8 chunk. | `TextReadResult` |
+| `readLine()` | Returns one UTF-8 line or a terminating partial line. | `LineReadResult` |
 
-`readLine()` with no arguments reads one line from stdin. `readText()` reads one available UTF-8 chunk. `readBytes()` reads into caller-owned storage.
+`ByteReadOptions::allowPartial = true` permits success after any positive byte count. With `allowPartial = false`, the operation attempts to fill the supplied span until completion, a terminating outcome, or failure.
 
-Text chunk reads wait according to `TextReadOptions::timeout`. Once input becomes available, they read one practical available UTF-8 chunk, return no more than `TextReadOptions::maxReturnedBytes`, and preserve valid UTF-8 code point boundaries. The chunk boundary and terminating outcome define what is returned.
+An empty byte span performs no transfer and returns a successful completed result with `bytesRead == 0`.
 
-Byte reads use caller-owned storage. `ByteReadOptions::allowPartial = true` allows a successful read to return after any positive byte count. `allowPartial = false` means the operation attempts to fill the buffer unless an outcome or failure stops it.
+Text and line reads require `maxReturnedBytes > 0`. They preserve complete UTF-8 code points. If the configured limit cannot hold the next complete code point, the operation returns `SizeLimitExceeded` rather than returning a partial encoding.
 
-Line reads do not expose `allowPartial`. They wait for a line ending, end-of-stream, timeout, would-block result, truncation, or failure. If a timeout or end-of-stream occurs after line text has been read but before a line ending, the result returns the partial line text together with the terminating outcome.
+## Read outcomes and partial progress
 
-## Read results
-
-Read results separate expected read outcomes from backend failures.
+Expected stopping conditions are separate from backend failures:
 
 | Situation | `status` | `outcome` |
 | --- | --- | --- |
-| Data read normally | Success | `ReadOutcome::Completed` |
-| Stream ended | Success | `ReadOutcome::EndOfStream` |
-| Timed read expired | Success | `ReadOutcome::TimedOut` |
-| Non-blocking read found no input | Success | `ReadOutcome::WouldBlock` |
-| Backend operation failed | Failure | The outcome reports the best available stopping state. |
+| Requested data completed normally | Success | `Completed` |
+| Endpoint ended | Success | `EndOfStream` |
+| Finite wait expired | Success | `TimedOut` |
+| Non-blocking read found no data | Success | `WouldBlock` |
+| Validation, encoding, or backend failure | Failure | Best available stopping state |
 
-If bytes or text are read before a terminating outcome, the result preserves the terminating outcome. For example, a line read that receives partial line text and then reaches end-of-stream returns that text with `ReadOutcome::EndOfStream`.
+`ByteReadResult` can preserve copied bytes together with a terminating outcome or a later backend failure. `LineReadResult` can preserve an unterminated line with `EndOfStream`, `TimedOut`, or `WouldBlock`. `readText()` returns as soon as one complete UTF-8 chunk is available, so a non-empty text payload uses `Completed`. Always inspect the status, outcome, and payload together.
 
-`wasTruncated = true` means the configured maximum byte count limited the returned text or line. Truncation is a successful result unless the backend also failed. Where practical, unread input remains available to later reads.
+`wasTruncated` means the configured returned-byte limit stopped the text or line. Truncation is normally a successful result and unread data remains pending where the backend can preserve it.
 
-`LineReadResult::consumedLineEnding` reports which line ending ended a successful line read. `ReadLineEndingMode` controls whether the returned `line` strips, keeps, or normalizes the consumed line ending.
-For line reads, `LineReadOptions::maxReturnedBytes` limits the returned line representation. If the line body fits but a kept or normalized line ending would exceed the limit, the line ending is consumed and reported, `wasTruncated` is set, and the returned line omits that ending instead of returning a partial line ending.
+For line reads, `consumedLineEnding` reports `None`, `Lf`, `CrLf`, or `Cr`. `ReadLineEndingMode` controls whether the returned string strips, keeps, or normalizes a consumed ending. If the line body fits but a retained ending does not, the ending is consumed and reported while the returned string omits the partial ending and sets `wasTruncated`.
 
-Unknown option enum values and a zero `maxReturnedBytes` return `InvalidArgument` before Terminal reads from the stream. This makes correcting an invalid request and retrying deterministic.
+Long-line scanning retains progress between backend chunks, including the case where `\r\n` is split across reads.
 
-## Write calls
+## Timeouts and blocking
 
-Terminal writes use explicit operation names.
+A negative timeout requests an unbounded wait, zero requests a non-blocking attempt, and a positive duration requests a finite wait. Endpoint support is authoritative:
 
-| Operation | Shape | Result |
-| --- | --- | --- |
-| Text write | `writeText("text")` | `IO::Types::Status` |
-| Stream text write | `writeText(OutputStream::Stderr, "text")` | `IO::Types::Status` |
-| Line write | `writeLine("text")` | `IO::Types::Status` |
-| Stream line write | `writeLine(OutputStream::Stderr, "text")` | `IO::Types::Status` |
-| Byte write | `writeBytes(std::span<const std::byte>{...})` | `IO::Types::WriteResult` |
-| Stream byte write | `writeBytes(OutputStream::Stdout, std::span<const std::byte>{...})` | `IO::Types::WriteResult` |
-| Segmented write | `writeSegments(std::span<const WriteSegment>{...})` | `IO::Types::Status` |
-| Stream segmented write | `writeSegments(OutputStream::Stdout, std::span<const WriteSegment>{...})` | `IO::Types::Status` |
-| Formatted text write | `print("value {}", value)` | `IO::Types::Status` |
-| Formatted line write | `println("value {}", value)` | `IO::Types::Status` |
+- Windows real-console input currently supports only `kWaitForever`;
+- named-pipe input supports finite waits;
+- regular redirected files support availability queries but do not promise bounded reads.
 
-Text and segmented writes return `IO::Types::Status` because the operation may transform UTF-8 text into a platform-native console representation, emit styling, append line endings, reset style, and flush. Byte writes return `IO::Types::WriteResult` because callers need the number of accepted bytes.
+Blocking reads can wait indefinitely. Output writes can block in the operating-system endpoint. Terminal does not create an asynchronous output layer.
 
-`writeText()` writes text exactly as provided. `writeLine()` and multi-part writes emit their complete logical record as one Terminal operation. `print()` and `println()` apply `std::format` semantics before starting that operation. A custom formatter may therefore write to Terminal without deadlocking the same stream; its nested write completes before the outer formatted record. Formatting failures are returned as IO statuses before the outer write is attempted.
+## Text writes
 
-Line reads retain the scan position between backend chunks. Long lines are therefore scanned linearly, including the special case where `\r\n` is split across two chunks.
+`writeText()` writes exactly the supplied text. `writeLine()` appends the selected line ending. `print()` and `println()` use compile-time-checked `std::format_string` overloads, format before final stream serialization, then write one logical record.
 
-Terminal calls are internally serialized per standard stream, so concurrent calls through this API do not data-race its stream state. Each stdout or stderr operation is one Terminal serialization unit, but a failed platform write can still have emitted a prefix. Terminal cannot coordinate with `std::cout`, `std::cerr`, `printf`, direct operating-system calls, or third-party output APIs.
+Plain text writes avoid formatting and style-assembly work when those features are not requested; they are not promised to be allocation-free on every backend or failure path.
+
+A failed platform write can have emitted a prefix. Terminal reports completion status but does not provide rollback or transactional output.
+
+## Byte writes
+
+`writeBytes()` returns `IO::Types::WriteResult`. Real Win32 console handles do not support arbitrary byte output; redirected endpoints can accept bytes.
+
+`bytesWritten` reports bytes accepted before the operation stopped. If a requested flush fails after all bytes were written, `bytesWritten` can equal the full input size while `status` is a failure.
+
+## Segmented writes
+
+`writeSegments()` validates a batch, assembles it as one Terminal operation, and writes the result. It does not make output transactional and does not coordinate with non-Terminal writers. See @ref terminal_segmented_writes.
 
 ## OutputBuffer
 
-`OutputBuffer` batches plain UTF-8 text in memory before one terminal write. Use it in loops or code that naturally builds many small pieces:
+`OutputBuffer` owns plain-text storage for caller-controlled batching.
 
-```cpp
-GameWIP::Terminal::OutputBuffer buffer(GameWIP::Terminal::Types::LineEnding::Lf);
+- `reserve()` changes capacity without changing text;
+- `appendText()` appends bytes expected to contain UTF-8;
+- `appendLine()` appends text and the constructor-selected line ending;
+- `print()` and `println()` append formatted text;
+- `writeTo()` writes without clearing;
+- `flushTo()` writes and clears only when the write succeeds.
 
-buffer.reserve(4096);
-buffer.print("entity {} ", id);
-buffer.println("hp {}", hp);
-buffer.flushTo();
-```
+Despite its name, `flushTo()` does not automatically request an operating-system flush. A backend flush occurs only when `TextWriteOptions::flushMode` is not `None`.
 
-`OutputBuffer::writeTo()` writes without clearing. `OutputBuffer::flushTo()` clears only when the write succeeds. Both provide stdout and explicit-output-stream overloads. Constructing a buffer with an unknown `LineEnding` throws `std::invalid_argument`; later buffer operations therefore cannot carry an invalid line-ending state. `OutputBuffer::print()` and `OutputBuffer::println()` retain normal `std::format` exception behavior because the buffer has not crossed into Terminal's status-returning write boundary yet.
+A failed `flushTo()` preserves the text for retry. Closing or initialization concepts do not apply because `OutputBuffer` is only caller-owned memory.
+
+`text()` returns a non-owning view into the internal string. Reserve, append, clear, formatting, move, assignment, or destruction can invalidate it. Do not access the same buffer concurrently without external synchronization.
+
+The buffer does not validate UTF-8 when text is appended. Validation/conversion behavior occurs when a Terminal text write reaches the selected endpoint.
 
 ## Flush behavior
 
-Terminal does not retain unwritten output in a library-owned buffer. `FlushMode::None` requests no flush. On Win32, `Data` and `DataAndMetadataBestEffort` request an operating-system flush only when stdout or stderr is redirected to a regular disk file. They are successful no-ops for console and pipe output. `DataAndMetadataBestEffort` has the same Win32 behavior because standard output handles do not expose a stronger portable metadata guarantee.
+Terminal retains no unwritten output in a library-owned stream buffer. `FlushMode::None` requests no flush. On Win32, `Data` and `DataAndMetadataBestEffort` request an operating-system flush only for a standard handle redirected to a regular disk file. Console and pipe flushes are successful no-ops.
 
-Terminal flush does not flush `std::cout`, `std::cerr`, C `FILE*` buffers, or output owned by another library. Flush requests and unknown flush-mode values are validated before output is emitted.
+Terminal flush does not flush `std::cout`, `std::cerr`, C `FILE*` buffers, or storage owned by another library. Invalid flush modes are rejected before normal emission begins.
 
-## Explicit empty calls
+## Failure and exception model
 
-Use the operation name that matches the empty value:
+Expected option, endpoint, capability, Unicode, and backend failures use IO statuses/results. Public functions are not universally `noexcept`.
 
-```cpp
-GameWIP::Terminal::readLine();
-GameWIP::Terminal::readText();
-GameWIP::Terminal::writeText(std::string_view{});
-GameWIP::Terminal::writeLine();
-GameWIP::Terminal::writeBytes(std::span<const std::byte>{});
-GameWIP::Terminal::writeSegments(std::span<const GameWIP::Terminal::Types::WriteSegment>{});
-```
+Free formatted output converts `std::format_error`, allocation failure, and unexpected formatting-stage exceptions to portable statuses before the outer write begins. `OutputBuffer` construction, reserve, append, and formatting use ordinary `std::string` and `std::format` semantics and may throw. Other operations can allocate temporary assembly or conversion storage and can propagate exceptions not explicitly converted by the implementation.
 
-## Stream selection
+Scope factories are `noexcept`. Their returned objects store setup failure in `status()` and remain inactive.
 
-Terminal intentionally has no `Reader` or `Writer` convenience wrappers. Operations that default to stdin or stdout also provide an explicit-stream overload. This keeps stream selection visible and avoids duplicating the complete Terminal API through stateful forwarding classes.
+## Related pages
+
+- @ref terminal_unicode_io
+- @ref terminal_capabilities_and_redirection
+- @ref terminal_segmented_writes
+- @ref terminal_troubleshooting

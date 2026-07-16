@@ -64,7 +64,9 @@ namespace GameWIP::Terminal
 
         inline constexpr std::size_t kRetainedAssemblyLimit = std::size_t{64} * 1024;
 
-        /// @brief Leases reusable format storage while callbacks run without the stream lock.
+        /// @brief Leases reusable format storage while custom formatters run without the stream lock.
+        /// @details Formatting before final stream serialization permits formatter reentry: a nested Terminal write can
+        /// complete before the outer record without deadlocking on the same OutputState mutex.
         class FormatScratchLease
         {
         public:
@@ -201,7 +203,9 @@ namespace GameWIP::Terminal
                    capabilities.underline || capabilities.inverse || capabilities.strikethrough;
         }
 
-        /// @brief Returns process-lifetime state for stdout or stderr.
+        /// @brief Returns shared process-lifetime state for stdout or stderr.
+        /// @details Function-local statics avoid cross-translation-unit initialization ordering while the shared library
+        /// still provides one coordination domain to every module that resolves this Terminal runtime.
         [[nodiscard]] OutputState &outputState(Types::OutputStream stream) noexcept
         {
             static OutputState stdoutState;
@@ -210,7 +214,9 @@ namespace GameWIP::Terminal
             return stream == Types::OutputStream::Stderr ? stderrState : stdoutState;
         }
 
-        /// @brief Returns the process-lifetime mutex serializing stdin operations.
+        /// @brief Returns the shared process-lifetime mutex serializing stdin operations.
+        /// @details stdin has one supported public stream today; retaining the stream parameter keeps this boundary ready
+        /// for future stream expansion without spreading storage decisions through callers.
         [[nodiscard]] std::mutex &inputMutex([[maybe_unused]] Types::InputStream stream) noexcept
         {
             static std::mutex stdinMutex;
@@ -656,7 +662,9 @@ namespace GameWIP::Terminal
             return requirements;
         }
 
-        /// @brief Assembles and emits one atomic mixed text/style/byte record under the stream lock.
+        /// @brief Validates, assembles, and emits one logical mixed text/style/byte record under the stream lock.
+        /// @details Validation finishes before intentional emission begins, but the platform write itself is not
+        /// transactional and can still emit a prefix before reporting failure.
         [[nodiscard]] IO::Types::Status writeSegmentsUnlocked(
             Types::OutputStream stream,
             OutputState &state,
@@ -1091,6 +1099,7 @@ namespace GameWIP::Terminal
         {
             if (active_)
             {
+                // Do not discard restoration responsibility: transfer is allowed only after this scope restores its state.
                 static_cast<void>(restore());
                 if (active_)
                 {
@@ -1157,6 +1166,7 @@ namespace GameWIP::Terminal
         {
             if (active_)
             {
+                // Preserve ownership on failure instead of silently losing an alternate-screen leave obligation.
                 static_cast<void>(leave());
                 if (active_)
                 {
@@ -1216,6 +1226,7 @@ namespace GameWIP::Terminal
         {
             if (active_)
             {
+                // Preserve ownership on failure instead of silently losing a cursor-visibility restoration obligation.
                 static_cast<void>(restore());
                 if (active_)
                 {

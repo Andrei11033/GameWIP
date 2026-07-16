@@ -1,5 +1,5 @@
 /// @file logger_platform.h
-/// @brief Internal platform abstraction for Logger-specific OS behavior not owned by foundation libraries.
+/// @brief Internal platform boundary for debugger output, fatal UI, local-time conversion, process memory, and format scratch.
 
 #pragma once
 

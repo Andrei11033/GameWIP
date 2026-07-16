@@ -1,14 +1,58 @@
 /// @file main.cpp
-/// @brief GameWIP process entry point.
+/// @brief GameWIP process entry point and startup sequencing.
+///
+/// This file should remain the stable process boundary. It handles process-level
+/// utility arguments, runs optional startup validation/benchmarks, and then
+/// delegates runtime execution to GameWIP::Game::run().
 
 #include "runtime/game.h"
 #include "validation/validation.h"
 
+#include <gamewip/version.h>
+
+#if GAMEWIP_TRACY_ENABLED
+#include <tracy/Tracy.hpp>
+#endif
+
 #include <cstdlib>
+#include <cstdio>
+#include <string_view>
+
+namespace
+{
+    /// @brief Returns whether the process was invoked only to print version metadata.
+    bool requestsVersion(int argc, char **argv) noexcept
+    {
+        return argc == 2 && argv != nullptr && argv[1] != nullptr && std::string_view(argv[1]) == "--version";
+    }
+} // namespace
 
 int main(int argc, char **argv)
 {
-    const GameWIP::Validation::TestResult tests = GameWIP::Validation::runTests(argc, argv);
+#if GAMEWIP_TRACY_ENABLED
+    tracy::SetThreadName("GameWIP Main");
+    ZoneScopedN("GameWIP process");
+#endif
+
+    // Keep utility-only invocations independent from validation so packaging and
+    // smoke-test scripts can query metadata from any build configuration.
+    if (requestsVersion(argc, argv))
+    {
+        std::puts(GameWIP::Version::productDisplay);
+        return EXIT_SUCCESS;
+    }
+
+    // Startup tests are allowed to consume child-process validation arguments.
+    // In that case the process must return the child route result directly and
+    // must not continue into benchmarks or the runtime.
+    GameWIP::Validation::TestResult tests;
+    if (GameWIP::Validation::shouldRunTests(argc, argv))
+    {
+#if GAMEWIP_TRACY_ENABLED
+        ZoneScopedN("Startup validation");
+#endif
+        tests = GameWIP::Validation::runTests(argc, argv);
+    }
     if (tests.handledChildInvocation)
     {
         return tests.exitCode;
@@ -18,7 +62,15 @@ int main(int argc, char **argv)
         return tests.exitCode == 0 ? EXIT_FAILURE : tests.exitCode;
     }
 
-    const GameWIP::Validation::BenchmarkResult benchmarks = GameWIP::Validation::runBenchmarks(argc, argv);
+    // Benchmarks run after correctness validation so startup measurements are not
+    // collected from a build whose reusable-library checks already failed.
+    GameWIP::Validation::BenchmarkResult benchmarks;
+    {
+#if GAMEWIP_TRACY_ENABLED
+        ZoneScopedN("Startup benchmarks");
+#endif
+        benchmarks = GameWIP::Validation::runBenchmarks(argc, argv);
+    }
     if (!benchmarks.ok())
     {
         return EXIT_FAILURE;

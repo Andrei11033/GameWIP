@@ -85,7 +85,8 @@ namespace GameWIP::TestSupport
             HANDLE handle_ = nullptr;
         };
 
-        /// Owns the variable-sized attribute list that makes handle inheritance an explicit allowlist.
+        /// Owns the variable-sized attribute list that makes standard-handle inheritance an explicit allowlist.
+        /// @note Unrelated inheritable parent handles must never cross the child-test boundary.
         class StartupAttributeList final
         {
         public:
@@ -265,7 +266,8 @@ namespace GameWIP::TestSupport
             return quoted;
         }
 
-        /// @brief Builds the mutable UTF-16 command line consumed by CreateProcessW.
+        /// @brief Builds the mutable UTF-16 command line consumed directly by CreateProcessW.
+        /// @note No shell is involved; each public argument is quoted using Windows command-line rules.
         [[nodiscard]] std::wstring buildCommandLine(const Types::ChildProcessOptions &options)
         {
             std::wstring commandLine = quoteWindowsArgument(pathToWide(options.executablePath));
@@ -418,10 +420,12 @@ namespace GameWIP::TestSupport
         std::wstring commandLine = buildCommandLine(options);
         std::wstring environmentBlock = buildEnvironmentBlock(options);
 
+        // The job owns the complete child tree and guarantees that closing/termination cannot leave
+        // descendants alive with inherited capture handles.
         UniqueHandle jobHandle(CreateJobObjectW(nullptr, nullptr));
         if (jobHandle.get() == nullptr)
         {
-            result.exitCode = -1;
+            result.exitCode = 0;
             return result;
         }
 
@@ -429,7 +433,7 @@ namespace GameWIP::TestSupport
         jobLimits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
         if (SetInformationJobObject(jobHandle.get(), JobObjectExtendedLimitInformation, &jobLimits, static_cast<DWORD>(sizeof(jobLimits))) == FALSE)
         {
-            result.exitCode = -1;
+            result.exitCode = 0;
             return result;
         }
 
@@ -445,7 +449,7 @@ namespace GameWIP::TestSupport
             HANDLE outputWriteRaw = nullptr;
             if (CreatePipe(&outputReadRaw, &outputWriteRaw, &securityAttributes, 0) == FALSE)
             {
-                result.exitCode = -1;
+                result.exitCode = 0;
                 return result;
             }
 
@@ -454,7 +458,7 @@ namespace GameWIP::TestSupport
 
             if (SetHandleInformation(outputRead.get(), HANDLE_FLAG_INHERIT, 0) == FALSE)
             {
-                result.exitCode = -1;
+                result.exitCode = 0;
                 return result;
             }
         }
@@ -471,10 +475,12 @@ namespace GameWIP::TestSupport
             (!options.captureOutput && (childOutput.get() == nullptr || childOutput.get() == INVALID_HANDLE_VALUE || childError.get() == nullptr ||
                                         childError.get() == INVALID_HANDLE_VALUE)))
         {
-            result.exitCode = -1;
+            result.exitCode = 0;
             return result;
         }
 
+        // Restrict inheritance to the three selected standard handles. CREATE_SUSPENDED below then
+        // gives us a chance to assign the process to the kill-on-close job before child code runs.
         std::vector<HANDLE> inheritedHandles;
         inheritedHandles.reserve(3);
         appendInheritedHandle(inheritedHandles, childInput.get());
@@ -483,7 +489,7 @@ namespace GameWIP::TestSupport
         StartupAttributeList attributeList(inheritedHandles);
         if (!attributeList.valid())
         {
-            result.exitCode = -1;
+            result.exitCode = 0;
             return result;
         }
 
@@ -515,18 +521,19 @@ namespace GameWIP::TestSupport
 
         if (created == FALSE)
         {
-            result.exitCode = -1;
+            result.exitCode = 0;
             return result;
         }
 
         UniqueHandle processHandle(processInfo.hProcess);
         UniqueHandle threadHandle(processInfo.hThread);
 
+        // Assignment must succeed before ResumeThread; otherwise descendants could escape the job.
         if (AssignProcessToJobObject(jobHandle.get(), processHandle.get()) == FALSE)
         {
             TerminateProcess(processHandle.get(), kTestTerminationCode);
             WaitForSingleObject(processHandle.get(), INFINITE);
-            result.exitCode = -1;
+            result.exitCode = 0;
             result.wasTerminatedByTest = true;
             return result;
         }
@@ -543,7 +550,7 @@ namespace GameWIP::TestSupport
             {
                 TerminateJobObject(jobHandle.get(), kTestTerminationCode);
                 WaitForSingleObject(processHandle.get(), INFINITE);
-                result.exitCode = -1;
+                result.exitCode = 0;
                 result.wasTerminatedByTest = true;
                 return result;
             }
@@ -559,6 +566,8 @@ namespace GameWIP::TestSupport
                         try
                         {
                             char buffer[4096];
+                            // Continue reading after the retained limit. Draining is required so a
+                            // verbose child cannot block forever on a full pipe.
                             while (true)
                             {
                                 DWORD bytesRead = 0;
@@ -599,7 +608,7 @@ namespace GameWIP::TestSupport
             {
                 TerminateJobObject(jobHandle.get(), kTestTerminationCode);
                 WaitForSingleObject(processHandle.get(), INFINITE);
-                result.exitCode = -1;
+                result.exitCode = 0;
                 result.wasTerminatedByTest = true;
                 return result;
             }
@@ -609,11 +618,15 @@ namespace GameWIP::TestSupport
         {
             TerminateJobObject(jobHandle.get(), kTestTerminationCode);
             WaitForSingleObject(processHandle.get(), INFINITE);
-            result.exitCode = -1;
+            result.exitCode = 0;
             result.wasTerminatedByTest = true;
         }
+        else
+        {
+            result.infrastructureFailure = false;
+        }
 
-        bool processInspectionFailed = result.exitCode == -1;
+        bool processInspectionFailed = result.infrastructureFailure;
         const DWORD waitResult = WaitForSingleObject(processHandle.get(), timeoutMilliseconds(options.timeout));
         if (waitResult == WAIT_TIMEOUT)
         {
@@ -633,15 +646,17 @@ namespace GameWIP::TestSupport
         DWORD exitCode = 0;
         if (!processInspectionFailed && GetExitCodeProcess(processHandle.get(), &exitCode) != FALSE)
         {
-            result.exitCode = static_cast<int>(exitCode);
+            result.exitCode = static_cast<std::uint32_t>(exitCode);
+            result.infrastructureFailure = false;
         }
         else
         {
-            result.exitCode = -1;
+            result.exitCode = 0;
+            result.infrastructureFailure = true;
         }
 
-        // The primary process may have launched descendants that inherited the capture pipe.
-        // Terminating the job ensures those descendants cannot keep the reader blocked.
+        // Even after normal primary-process completion, descendants can retain stdout/stderr pipe
+        // handles. Terminate the job before joining the reader so process-tree cleanup is bounded.
         TerminateJobObject(jobHandle.get(), kTestTerminationCode);
 
         if (outputReader.joinable())
@@ -660,7 +675,8 @@ namespace GameWIP::TestSupport
 
         if (outputReadFailed)
         {
-            result.exitCode = -1;
+            result.exitCode = 0;
+            result.infrastructureFailure = true;
         }
 
         result.output = std::move(output);
@@ -668,7 +684,7 @@ namespace GameWIP::TestSupport
         return result;
 #else
         (void)options;
-        result.exitCode = -1;
+        result.exitCode = 0;
         return result;
 #endif
     }

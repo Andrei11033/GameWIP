@@ -5,16 +5,24 @@
 
 #include "validation/tests/registry.h"
 
+#include <algorithm>
 #include <string_view>
 
 namespace
 {
-    /// @brief Detects crash/debug child invocations owned by Assert tests.
+    /// @brief Claims only exact Assert child protocols recognized by the suite.
     bool handlesChildArguments(int argc, char **argv)
     {
+        constexpr std::string_view selectors[] = {
+            "--assert-test-child=assert-failure",
+            "--assert-test-child=debug-break",
+            "--assert-test-child=unreachable",
+            "--assert-test-child=interactive-abort",
+            "--assert-test-child=interactive-break",
+        };
         for (int index = 1; index < argc; ++index)
         {
-            if (argv[index] != nullptr && std::string_view(argv[index]).starts_with("--assert-test-child="))
+            if (argv[index] != nullptr && std::ranges::find(selectors, std::string_view(argv[index])) != std::end(selectors))
             {
                 return true;
             }

@@ -1,5 +1,8 @@
 /// @file logger_test.cpp
 /// @brief Executable self-tests for the Logger library.
+///
+/// The suite coordinates process-global Logger lifecycle, approved hooks,
+/// concurrency stress, child termination, and opt-in popup behavior.
 
 #include "validation/tests/logger/logger_test.h"
 
@@ -23,8 +26,6 @@
 #if INTERNAL_TERMINAL_TEST_HOOKS
 #include "terminal/internal/terminal_test_hooks.h"
 #endif
-
-#include <tracy/Tracy.hpp>
 
 #include <algorithm>
 #include <array>
@@ -88,6 +89,8 @@ namespace
     constexpr std::string_view shortMessage = "logger test message";
     constexpr std::string_view childLogDirectoryEnvironmentVariable = "INTERNAL_LOGGER_TEST_CHILD_LOG_DIR";
     constexpr std::string_view fatalTerminateChildMessage = "child fatal terminate";
+    constexpr std::string_view enqueueWakeupChildArgument = "--logger-test-child=enqueue-wakeup";
+    constexpr std::string_view shutdownWakeupChildArgument = "--logger-test-child=shutdown-wakeup";
 
     /// @brief Stable source identifiers used by source registration and filtering tests.
     enum class TestSource : Logger::Types::SourceId
@@ -631,7 +634,6 @@ namespace
     /// @brief Verifies default, low-memory, and throughput configuration factories.
     void testConfigFactories(TestContext &context)
     {
-        ZoneScopedN("Logger config factory tests");
 
         const Logger::Types::Config defaults = Logger::defaultConfig();
         expectEq(context, "defaultConfig output", defaults.output, Logger::Types::Output::Both);
@@ -654,7 +656,6 @@ namespace
     /// @brief Verifies disabled output and invalid initialization inputs leave stable state.
     void testDisabledAndInvalidInit(TestContext &context)
     {
-        ZoneScopedN("Logger disabled and invalid init tests");
         ScopedLoggerShutdown shutdown;
 
         Logger::Types::Config disabled = makeConsoleConfig(Logger::Types::Level::Trace);
@@ -711,7 +712,6 @@ namespace
     /// @brief Verifies convenience initialization APIs and runtime default-directory resolution.
     void testConvenienceInitApis(TestContext &context)
     {
-        ZoneScopedN("Logger convenience init API tests");
         ScopedLoggerShutdown shutdown;
 
         expectEq(context, "initConsole succeeds", Logger::initConsole(Logger::Types::Level::Warn), Logger::Types::Result::Success);
@@ -757,7 +757,6 @@ namespace
     /// @brief Verifies file sink creation, formatting, flushing, and message content.
     void testFileOutputAndContent(TestContext &context)
     {
-        ZoneScopedN("Logger file output tests");
         ScopedLoggerShutdown shutdown;
 
         OwnedLoggerConfig config = makeFileConfig(context, "file-output");
@@ -797,7 +796,6 @@ namespace
     /// @brief Verifies Logger's FileSystem path boundary, sharing mode, and UTF-8 path reporting.
     void testFoundationFileSink(TestContext &context)
     {
-        ZoneScopedN("Logger foundation file sink tests");
         ScopedLoggerShutdown shutdown;
 
         const std::filesystem::path unicodeDirectory = context.logRoot / std::filesystem::path(u8"unicode-\u2605");
@@ -824,7 +822,6 @@ namespace
     void testTerminalConsoleSink(TestContext &context)
     {
 #if INTERNAL_TERMINAL_TEST_HOOKS
-        ZoneScopedN("Logger Terminal console sink tests");
         ScopedLoggerShutdown shutdown;
         const ScopedTerminalHookReset terminalHookReset;
 
@@ -884,7 +881,6 @@ namespace
     /// @brief Verifies process-wide lifecycle transitions and runtime state queries.
     void testLifecycleAndQueries(TestContext &context)
     {
-        ZoneScopedN("Logger lifecycle and query tests");
         ScopedLoggerShutdown shutdown;
 
         OwnedLoggerConfig config = makeFileConfig(context, "lifecycle", Logger::Types::Level::Info);
@@ -922,7 +918,6 @@ namespace
     /// @brief Verifies severity/source filtering and intentional-skip accounting.
     void testLevelAndSourceFilters(TestContext &context)
     {
-        ZoneScopedN("Logger level and source filter tests");
         ScopedLoggerShutdown shutdown;
 
         std::array sources{
@@ -975,12 +970,78 @@ namespace
             "invalid runtime level filter rejected",
             Logger::setLevelFilter(static_cast<Logger::Types::Level>(99), true),
             Logger::Types::Result::InvalidLevelFilter);
+
+        std::atomic<bool> beginConcurrentFilters{false};
+        std::atomic<bool> filterOperationsSucceeded{true};
+        std::array<std::thread, 4> filterThreads{
+            std::thread{[&]
+                        {
+                            while (!beginConcurrentFilters.load(std::memory_order_acquire))
+                            {
+                                std::this_thread::yield();
+                            }
+                            for (int index = 0; index < 2'000; ++index)
+                            {
+                                Logger::info(TestSource::Core, "concurrent filter producer {}", index);
+                            }
+                        }},
+            std::thread{[&]
+                        {
+                            while (!beginConcurrentFilters.load(std::memory_order_acquire))
+                            {
+                                std::this_thread::yield();
+                            }
+                            for (int index = 0; index < 2'000; ++index)
+                            {
+                                Logger::info(TestSource::Core, "second concurrent producer {}", index);
+                            }
+                        }},
+            std::thread{[&]
+                        {
+                            while (!beginConcurrentFilters.load(std::memory_order_acquire))
+                            {
+                                std::this_thread::yield();
+                            }
+                            for (int index = 0; index < 2'000; ++index)
+                            {
+                                if (Logger::setSourceFilter(TestSource::Core, (index & 1) == 0) != Logger::Types::Result::Success)
+                                {
+                                    filterOperationsSucceeded.store(false, std::memory_order_relaxed);
+                                }
+                            }
+                        }},
+            std::thread{[&]
+                        {
+                            while (!beginConcurrentFilters.load(std::memory_order_acquire))
+                            {
+                                std::this_thread::yield();
+                            }
+                            for (int index = 0; index < 2'000; ++index)
+                            {
+                                if (Logger::setLevelFilter(Logger::Types::Level::Info, (index & 1) != 0) != Logger::Types::Result::Success)
+                                {
+                                    filterOperationsSucceeded.store(false, std::memory_order_relaxed);
+                                }
+                            }
+                        }}};
+        beginConcurrentFilters.store(true, std::memory_order_release);
+        for (std::thread &thread : filterThreads)
+        {
+            thread.join();
+        }
+        context.expectTrue("concurrent source and level filter updates succeed", filterOperationsSucceeded.load(std::memory_order_relaxed));
+        expectEq(context, "restore source filter after concurrency", Logger::setSourceFilter(TestSource::Core, true), Logger::Types::Result::Success);
+        expectEq(
+            context,
+            "restore level filter after concurrency",
+            Logger::setLevelFilter(Logger::Types::Level::Info, true),
+            Logger::Types::Result::Success);
+        context.expectTrue("concurrent filter stress flushes", Logger::flush(2s));
     }
 
     /// @brief Verifies source definition/filter validation and unknown-source behavior.
     void testSourceValidation(TestContext &context)
     {
-        ZoneScopedN("Logger source validation tests");
         ScopedLoggerShutdown shutdown;
 
         std::array emptyNameSources{Logger::Types::SourceDefinition{1, {}}};
@@ -1017,7 +1078,6 @@ namespace
     /// @brief Verifies strict/runtime formatting, invalid formats, and bounded truncation.
     void testFormattingAndTruncation(TestContext &context)
     {
-        ZoneScopedN("Logger formatting and truncation tests");
         ScopedLoggerShutdown shutdown;
 
         OwnedLoggerConfig strictConfig = makeFileConfig(context, "format-strict", Logger::Types::Level::Trace);
@@ -1059,7 +1119,6 @@ namespace
     /// @brief Verifies synchronous report behavior, filter bypass, and debug-output mirroring.
     void testReportsAndDebugOutput(TestContext &context)
     {
-        ZoneScopedN("Logger report and debug output tests");
         ScopedLoggerShutdown shutdown;
 
         std::array sources{Logger::defineSource(TestSource::Core, "Core")};
@@ -1098,7 +1157,6 @@ namespace
     /// @brief Verifies report sink failures and unknown registered-source fallback paths.
     void testReportFailureAndUnknownSourcePaths(TestContext &context)
     {
-        ZoneScopedN("Logger report failure and unknown-source tests");
         ScopedLoggerShutdown shutdown;
 
         OwnedLoggerConfig config = makeFileConfig(context, "report-edge-paths", Logger::Types::Level::Fatal);
@@ -1136,7 +1194,6 @@ namespace
     void testLoggerTestHooks(TestContext &context)
     {
 #if INTERNAL_LOGGER_TEST_HOOKS
-        ZoneScopedN("Logger test hook tests");
         GameWIP::Logger::TestHooks::reset();
 
         {
@@ -1228,6 +1285,59 @@ namespace
                 readWholeFile(logFile).find("report timeout still writes first") != std::string::npos);
         }
 
+        {
+            ScopedLoggerShutdown shutdown;
+            OwnedLoggerConfig config = makeFileConfig(context, "hook-report-combined-failure", Logger::Types::Level::Trace);
+            expectInitSuccess(context, "hook combined report failure init", Logger::init(config.ready()));
+            Logger::resetStats();
+            GameWIP::Logger::TestHooks::forceNextFileFlushFailure();
+            GameWIP::Logger::TestHooks::forceNextTimedFlushTimeout();
+            context.expectFalse(
+                "sink failure and drain timeout combine to failure",
+                Logger::reportError(testSource, Logger::flushTimeout(2s), "combined report failure"));
+            context.expectTrue("combined report failure records sink error", Logger::getStats().fileWriteFailures > 0);
+            context.expectTrue("combined report failure still consumes drain attempt", Logger::flush(2s));
+        }
+
+        {
+            ScopedLoggerShutdown shutdown;
+            OwnedLoggerConfig config = makeFileConfig(context, "hook-lifecycle-deadline", Logger::Types::Level::Trace);
+            expectInitSuccess(context, "hook lifecycle deadline init", Logger::init(config.ready()));
+
+            std::thread holder(
+                []
+                {
+                    GameWIP::Logger::TestHooks::holdLifecycleLockPause();
+                });
+            GameWIP::Logger::TestHooks::waitForLifecycleLockPause();
+            const auto start = Clock::now();
+            context.expectFalse("timed flush expires while lifecycle mutex is held", Logger::flush(25ms));
+            const auto elapsed = Clock::now() - start;
+            context.expectTrue("timed flush lifecycle wait stays bounded", elapsed < 500ms);
+            GameWIP::Logger::TestHooks::releaseLifecycleLockPause();
+            holder.join();
+        }
+
+        {
+            ScopedLoggerShutdown shutdown;
+            std::array sources{Logger::defineSource(TestSource::Core, "Core")};
+            OwnedLoggerConfig config = makeFileConfig(context, "hook-delivery-filter", Logger::Types::Level::Trace);
+            config.sources = sources;
+            config.workerBatchSize = 1;
+            expectInitSuccess(context, "hook delivery filter init", Logger::init(config.ready()));
+            Logger::resetStats();
+
+            GameWIP::Logger::TestHooks::armWorkerDeliveryPause();
+            Logger::info(TestSource::Core, "filtered after enqueue");
+            GameWIP::Logger::TestHooks::waitForWorkerDeliveryPause();
+            expectEq(context, "delivery filter update succeeds", Logger::setSourceFilter(TestSource::Core, false), Logger::Types::Result::Success);
+            GameWIP::Logger::TestHooks::releaseWorkerDeliveryPause();
+            context.expectTrue("delivery filter test flush", Logger::flush(2s));
+            const Logger::Types::Stats stats = Logger::getStats();
+            expectEq(context, "delivery filter entry was queued", stats.queued, std::size_t{1});
+            expectEq(context, "delivery filter suppresses queued entry", stats.written, std::size_t{0});
+        }
+
         GameWIP::Logger::TestHooks::reset();
 #else
         context.pass("logger test hooks skipped because INTERNAL_LOGGER_TEST_HOOKS=0");
@@ -1243,7 +1353,6 @@ namespace
             return;
         }
 
-        ZoneScopedN("Logger report bypasses full queue test");
         ScopedLoggerShutdown shutdown;
 
         OwnedLoggerConfig config = makeFileConfig(context, "report-full-queue", Logger::Types::Level::Trace);
@@ -1313,7 +1422,6 @@ namespace
             return;
         }
 
-        ZoneScopedN("Logger report while producers active stress");
         ScopedLoggerShutdown shutdown;
 
         OwnedLoggerConfig config = makeFileConfig(context, "report-while-producers", Logger::Types::Level::Trace);
@@ -1376,7 +1484,6 @@ namespace
     /// @brief Verifies file-setup failure fallback and no-fallback initialization outcomes.
     void testFileFallback(TestContext &context)
     {
-        ZoneScopedN("Logger file fallback tests");
         ScopedLoggerShutdown shutdown;
 
         const std::filesystem::path blockingFile = context.logRoot / "not-a-directory";
@@ -1406,7 +1513,6 @@ namespace
     /// @brief Verifies lazy macro filtering, source routing, and argument evaluation.
     void testMacroBehavior(TestContext &context)
     {
-        ZoneScopedN("Logger macro behavior tests");
         ScopedLoggerShutdown shutdown;
 
         OwnedLoggerConfig config = makeFileConfig(context, "macros", Logger::Types::Level::Fatal);
@@ -1441,7 +1547,6 @@ namespace
             return;
         }
 
-        ZoneScopedN("Logger pressure and concurrency tests");
         ScopedLoggerShutdown shutdown;
         const int stressThreads = static_cast<int>(std::max<std::size_t>(1, options.stressThreadCount));
         const int stressIterations = static_cast<int>(std::max<std::size_t>(1, options.stressIterationsPerThread));
@@ -1545,7 +1650,6 @@ namespace
     /// @brief Verifies filtered messages are intentional skips rather than queue drops.
     void testFilteredLogsDoNotCountAsDrops(TestContext &context)
     {
-        ZoneScopedN("Logger filtered log stats tests");
         ScopedLoggerShutdown shutdown;
 
         OwnedLoggerConfig config = makeFileConfig(context, "filtered-stats", Logger::Types::Level::Trace);
@@ -1567,7 +1671,6 @@ namespace
     /// @brief Verifies stats reset clears visible counters but preserves lifetime drop totals.
     void testStatsResetKeepsLifetimeQueueDrops(TestContext &context)
     {
-        ZoneScopedN("Logger lifetime queue drop reset tests");
         ScopedLoggerShutdown shutdown;
 
         OwnedLoggerConfig config = makeFileConfig(context, "stats-queue-drops", Logger::Types::Level::Trace);
@@ -1651,7 +1754,6 @@ namespace
             return;
         }
 
-        ZoneScopedN("Logger flush while producers active stress");
         ScopedLoggerShutdown shutdown;
 
         OwnedLoggerConfig config = makeFileConfig(context, "flush-while-producers", Logger::Types::Level::Trace);
@@ -1739,8 +1841,6 @@ namespace
             return;
         }
 
-        ZoneScopedN("Logger shutdown while producers active stress");
-
         OwnedLoggerConfig config = makeFileConfig(context, "shutdown-while-producers", Logger::Types::Level::Trace);
         config.maxQueueSize = 1024;
         config.workerBatchSize = 64;
@@ -1794,7 +1894,6 @@ namespace
             return;
         }
 
-        ZoneScopedN("Logger repeated init shutdown stress");
         constexpr int iterations = 100;
 
         for (int iteration = 0; iteration < iterations; ++iteration)
@@ -1822,6 +1921,111 @@ namespace
         child.timeout = timeout;
         child.captureOutput = true;
         return TestSupport::runChildProcess(child);
+    }
+
+#if INTERNAL_LOGGER_TEST_HOOKS
+    /// @brief Starts the console-only Logger used by synchronization child scenarios.
+    bool initWakeupChildLogger()
+    {
+        Logger::Types::Config config = makeConsoleConfig();
+        config.maxQueueSize = 64;
+        config.workerBatchSize = 16;
+        return Logger::init(config) == Logger::Types::Result::Success;
+    }
+
+    /// @brief Forces queue publication into the worker's predicate-to-wait transition.
+    int runEnqueueWakeupChild()
+    {
+        Logger::shutdown();
+        Logger::TestHooks::reset();
+        Logger::TestHooks::armWorkerWaitPause();
+        if (!initWakeupChildLogger())
+        {
+            return 2;
+        }
+
+        Logger::TestHooks::waitForWorkerWaitPause();
+        std::thread producer(
+            []
+            {
+                Logger::info(testSource, "deterministic enqueue wakeup");
+            });
+
+        Logger::TestHooks::waitForQueuePublication();
+        Logger::TestHooks::releaseWorkerWaitPause();
+        producer.join();
+
+        const bool flushed = Logger::flush(1s);
+        Logger::shutdown();
+        Logger::TestHooks::reset();
+        return flushed ? 0 : 3;
+    }
+
+    /// @brief Forces the final-producer notification into the worker's shutdown wait transition.
+    int runShutdownWakeupChild()
+    {
+        Logger::shutdown();
+        Logger::TestHooks::reset();
+        if (!initWakeupChildLogger())
+        {
+            return 2;
+        }
+
+        Logger::TestHooks::armFinalProducerLeavePause();
+        std::thread producer(
+            []
+            {
+                Logger::info(testSource, "deterministic shutdown wakeup");
+            });
+
+        Logger::TestHooks::waitForFinalProducerLeavePause();
+        Logger::TestHooks::armWorkerWaitPause();
+        std::thread shutdown(
+            []
+            {
+                Logger::shutdown();
+            });
+
+        Logger::TestHooks::waitForWorkerWaitPause();
+        Logger::TestHooks::releaseFinalProducerLeavePause();
+        Logger::TestHooks::releaseWorkerWaitPause();
+        producer.join();
+        shutdown.join();
+
+        const bool stopped = !Logger::isRunning();
+        Logger::TestHooks::reset();
+        return stopped ? 0 : 3;
+    }
+#endif
+
+    /// @brief Verifies queue and final-producer notifications cannot be lost by condition waits.
+    void testWakeupRegressionChildren(TestContext &context, const LoggerTestOptions &options)
+    {
+#if INTERNAL_LOGGER_TEST_HOOKS
+        if (!options.enableChildCrashTests)
+        {
+            context.pass("Logger wakeup regression children disabled by LoggerTestOptions");
+            return;
+        }
+
+        constexpr auto childTimeout = 10s;
+        const TestSupport::Types::ChildProcessResult enqueueResult =
+            runChildProcessResult(context.executablePath, enqueueWakeupChildArgument, childTimeout);
+        context.expectTrue(
+            "queue publication wakes worker deterministically",
+            enqueueResult.exitedSuccessfully(),
+            std::format("exitCode={} timedOut={} output={}", enqueueResult.exitCode, enqueueResult.timedOut, enqueueResult.output));
+
+        const TestSupport::Types::ChildProcessResult shutdownResult =
+            runChildProcessResult(context.executablePath, shutdownWakeupChildArgument, childTimeout);
+        context.expectTrue(
+            "final producer wakes shutdown worker deterministically",
+            shutdownResult.exitedSuccessfully(),
+            std::format("exitCode={} timedOut={} output={}", shutdownResult.exitCode, shutdownResult.timedOut, shutdownResult.output));
+#else
+        (void)options;
+        context.pass("Logger wakeup regression children skipped because INTERNAL_LOGGER_TEST_HOOKS=0");
+#endif
     }
 
     /// @brief Executes the fatal-termination child protocol; successful behavior does not return normally.
@@ -1855,7 +2059,6 @@ namespace
             return;
         }
 
-        ZoneScopedN("Logger fatalTerminate child test");
         const std::filesystem::path childLogDirectory = context.logRoot / "fatal_terminate_child";
         TestSupport::createDirectories(childLogDirectory);
         const ScopedEnvironmentVariable childLogDirectoryOverride(childLogDirectoryEnvironmentVariable, pathText(childLogDirectory));
@@ -1962,12 +2165,21 @@ namespace GameWIP::Test
 {
     int runLoggerTests(int argc, char **argv, const LoggerTestOptions &options)
     {
-        tracy::SetThreadName("LoggerTestMain");
 
         if (hasArgument(argc, argv, "--logger-test-child=fatal-terminate"))
         {
             return runFatalTerminateChild();
         }
+#if INTERNAL_LOGGER_TEST_HOOKS
+        if (hasArgument(argc, argv, enqueueWakeupChildArgument))
+        {
+            return runEnqueueWakeupChild();
+        }
+        if (hasArgument(argc, argv, shutdownWakeupChildArgument))
+        {
+            return runShutdownWakeupChild();
+        }
+#endif
 
         TestSupport::Types::ReportOptions reportOptions;
         reportOptions.writeConsole = true;
@@ -2158,6 +2370,13 @@ namespace GameWIP::Test
                     [&]
                     {
                         testShutdownWhileProducersActive(context, options);
+                    });
+                runCase(
+                    context,
+                    "condition wakeup regressions",
+                    [&]
+                    {
+                        testWakeupRegressionChildren(context, options);
                     });
                 runCase(
                     context,

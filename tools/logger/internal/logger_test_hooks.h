@@ -1,5 +1,5 @@
 /// @file logger_test_hooks.h
-/// @brief Internal test hooks for forcing rare Logger failure paths.
+/// @brief Source-tree validation hooks for deterministic Logger failures and concurrency milestones.
 
 #pragma once
 
@@ -39,6 +39,49 @@ namespace GameWIP::Logger::TestHooks
     /// @brief Forces the next timed Logger::flush(timeout) wait to time out.
     /// @warning Test-only API. The hook is one-shot.
     GAMEWIP_LOGGER_EXPORT void forceNextTimedFlushTimeout() noexcept;
+
+    /// @brief Arms a one-shot pause after the worker observes a false wait predicate.
+    /// @warning Test-only API. The worker retains Logger's coordination mutex while paused.
+    GAMEWIP_LOGGER_EXPORT void armWorkerWaitPause() noexcept;
+
+    /// @brief Blocks until the armed worker-wait pause is reached.
+    /// @warning Test-only API. Call only from an isolated child-process scenario.
+    GAMEWIP_LOGGER_EXPORT void waitForWorkerWaitPause() noexcept;
+
+    /// @brief Blocks until a queue slot is published after hook reset or arming.
+    /// @warning Test-only API. Call only from an isolated child-process scenario.
+    GAMEWIP_LOGGER_EXPORT void waitForQueuePublication() noexcept;
+
+    /// @brief Releases a worker stopped at the validation-only wait pause.
+    /// @warning Test-only API.
+    GAMEWIP_LOGGER_EXPORT void releaseWorkerWaitPause() noexcept;
+
+    /// @brief Arms a one-shot pause before the final active producer leaves.
+    /// @warning Test-only API.
+    GAMEWIP_LOGGER_EXPORT void armFinalProducerLeavePause() noexcept;
+
+    /// @brief Blocks until the final-producer pause is reached.
+    /// @warning Test-only API. Call only from an isolated child-process scenario.
+    GAMEWIP_LOGGER_EXPORT void waitForFinalProducerLeavePause() noexcept;
+
+    /// @brief Releases a producer stopped before its active count is decremented.
+    /// @warning Test-only API.
+    GAMEWIP_LOGGER_EXPORT void releaseFinalProducerLeavePause() noexcept;
+
+    /// @brief Arms a worker pause after dequeue and before delivery-time filtering.
+    GAMEWIP_LOGGER_EXPORT void armWorkerDeliveryPause() noexcept;
+    /// @brief Waits until the worker reaches the delivery pause.
+    GAMEWIP_LOGGER_EXPORT void waitForWorkerDeliveryPause() noexcept;
+    /// @brief Releases the worker delivery pause.
+    GAMEWIP_LOGGER_EXPORT void releaseWorkerDeliveryPause() noexcept;
+
+    /// @brief Holds the lifecycle mutex until releaseLifecycleLockPause() is called.
+    /// @note Call this blocking function from a dedicated test thread.
+    GAMEWIP_LOGGER_EXPORT void holdLifecycleLockPause() noexcept;
+    /// @brief Waits until holdLifecycleLockPause() owns the lifecycle mutex.
+    GAMEWIP_LOGGER_EXPORT void waitForLifecycleLockPause() noexcept;
+    /// @brief Releases a lifecycle-mutex test pause.
+    GAMEWIP_LOGGER_EXPORT void releaseLifecycleLockPause() noexcept;
 
 } // namespace GameWIP::Logger::TestHooks
 #endif

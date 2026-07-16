@@ -1,14 +1,16 @@
 @PACKAGE_INIT@
 
+# Resolve package-owned resources before dependency discovery. CMake versions
+# before 3.30 may let a nested find_dependency() overwrite PACKAGE_PREFIX_DIR.
+set(Assert_COMMON_CONTROLS_MANIFEST "@PACKAGE_CMAKE_INSTALL_DATADIR@/Assert/common_controls_v6.manifest")
+set(Assert_COMMON_CONTROLS_RC_TEMPLATE "@PACKAGE_CMAKE_INSTALL_DATADIR@/Assert/common_controls_v6.rc.in")
+
 include(CMakeFindDependencyMacro)
 if(@ASSERT_RUNTIME_TARGET_ENABLED@)
     find_dependency(Logger @PROJECT_VERSION@ EXACT CONFIG)
 endif()
 
 include("${CMAKE_CURRENT_LIST_DIR}/AssertTargets.cmake")
-
-set(Assert_COMMON_CONTROLS_MANIFEST "${PACKAGE_PREFIX_DIR}/@CMAKE_INSTALL_DATADIR@/Assert/common_controls_v6.manifest")
-set(Assert_COMMON_CONTROLS_RC_TEMPLATE "${PACKAGE_PREFIX_DIR}/@CMAKE_INSTALL_DATADIR@/Assert/common_controls_v6.rc.in")
 
 # Configures a build-directory resource that points at the installed manifest.
 function(_internal_assert_configure_common_controls_v6 output_variable)

@@ -1,5 +1,8 @@
 /// @file assert_test.cpp
 /// @brief Executable self-tests for the Assert library.
+///
+/// The suite combines public macro checks with isolated child processes, approved
+/// test hooks, deterministic stress scenarios, and opt-in real UI validation.
 
 #include "validation/tests/assert/assert_test.h"
 

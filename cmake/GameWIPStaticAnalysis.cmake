@@ -1,3 +1,13 @@
+# Provides static-analysis target creation for maintained C++ sources.
+#
+# Public helper:
+# - gamewip_create_static_analysis_targets()
+#
+# Contract:
+# - Create no targets unless static analysis is enabled for the configure.
+# - Run clang-tidy and clang-format checks on GameWIP-owned C++ roots.
+# - Exclude generated and third-party headers from project-owned diagnostics.
+
 function(gamewip_create_static_analysis_targets)
     if(NOT GAMEWIP_ENABLE_STATIC_ANALYSIS)
         return()
@@ -10,7 +20,7 @@ function(gamewip_create_static_analysis_targets)
 
     set(gamewip_owned_source_regex ".*[\\\\/](foundation|tools|engine|game)[\\\\/].*[.](c|cc|cpp|cxx)$")
     set(gamewip_owned_header_regex ".*[\\\\/](foundation|tools|engine|game)[\\\\/].*")
-    set(gamewip_excluded_header_regex ".*[\\\\/](external|build-[^\\\\/]+)[\\\\/].*")
+    set(gamewip_excluded_header_regex ".*[\\\\/](external|build)[\\\\/].*")
 
     add_custom_target(clang-tidy
         COMMAND "${Python3_EXECUTABLE}" "${GAMEWIP_RUN_CLANG_TIDY_EXECUTABLE}"

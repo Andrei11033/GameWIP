@@ -1,5 +1,5 @@
 /// @file logger_format.cpp
-/// @brief Logger formatting helpers and public bridge functions used by header templates.
+/// @brief Message bounding, line construction, timestamp/source resolution, and exported formatting bridges used by public templates.
 
 #include "logger/internal/logger_core.h"
 

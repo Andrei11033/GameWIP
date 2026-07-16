@@ -5,16 +5,26 @@
 
 #include "validation/tests/registry.h"
 
+#include <algorithm>
 #include <string_view>
 
 namespace
 {
-    /// @brief Detects child-process protocol invocations owned by TestSupport tests.
+    /// @brief Claims only exact TestSupport child protocols recognized by the suite.
     bool handlesChildArguments(int argc, char **argv)
     {
+        constexpr std::string_view selectors[] = {
+            "--test-support-test-child=environment",
+            "--test-support-test-child=echo",
+            "--test-support-test-child=sleep",
+            "--test-support-test-child=exit-code",
+            "--test-support-test-child=output",
+            "--test-support-test-child=descendant",
+            "--test-support-test-child=handle-inheritance",
+        };
         for (int index = 1; index < argc; ++index)
         {
-            if (argv[index] != nullptr && std::string_view(argv[index]).starts_with("--test-support-test-child="))
+            if (argv[index] != nullptr && std::ranges::find(selectors, std::string_view(argv[index])) != std::end(selectors))
             {
                 return true;
             }

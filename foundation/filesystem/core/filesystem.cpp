@@ -102,6 +102,23 @@ namespace GameWIP::FileSystem
             return {.status = IO::makeStatus(code), .entries = {}};
         }
 
+        /// @brief Applies directory-list kind filters to one queried entry.
+        bool includeDirectoryEntryKind(Types::EntryKind kind, const Types::ListDirectoryOptions &options) noexcept
+        {
+            switch (kind)
+            {
+            case Types::EntryKind::RegularFile:
+                return options.includeFiles;
+            case Types::EntryKind::Directory:
+                return options.includeDirectories;
+            case Types::EntryKind::Symlink:
+                return options.includeSymlinks;
+            case Types::EntryKind::Other:
+                return options.includeOther;
+            }
+            return false;
+        }
+
         /// @brief Builds a failed tree-removal result while preserving completed removal progress.
         Types::RemoveDirectoryTreeResult removeTreeFailure(IO::Types::Status status, std::uint64_t removedEntries = 0) noexcept
         {
@@ -398,7 +415,8 @@ namespace GameWIP::FileSystem
             }
         }
 
-        /// @brief Detects source/destination identity using native equivalence with lexical fallback.
+        /// @brief Detects self-copy/self-move paths without requiring both paths to exist.
+        /// @details Native equivalence is preferred for existing entries; lexical equality covers missing destinations and identical spellings.
         [[nodiscard]] bool equivalentOrSameLexically(const Types::Path &left, const Types::Path &right) noexcept
         {
             if (left == right)
@@ -445,6 +463,110 @@ namespace GameWIP::FileSystem
         }
 
     } // namespace
+
+    DirectoryCursor::DirectoryCursor() noexcept = default;
+
+    DirectoryCursor::DirectoryCursor(DirectoryCursor &&other) noexcept = default;
+
+    DirectoryCursor &DirectoryCursor::operator=(DirectoryCursor &&other) noexcept = default;
+
+    DirectoryCursor::~DirectoryCursor() noexcept = default;
+
+    IO::Types::Status DirectoryCursor::open(const Types::Path &path, const Types::ListDirectoryOptions &options) noexcept
+    {
+        try
+        {
+            if (state_)
+            {
+                return IO::makeStatus(ErrorCode::AlreadyOpen);
+            }
+            if (path.empty() || !isValidSymlinkPolicy(options.symlinkPolicy))
+            {
+                return IO::makeStatus(ErrorCode::InvalidArgument);
+            }
+
+            Detail::Platform::DirectoryCursorOpenResult opened = Detail::Platform::openDirectoryCursor(path, options.symlinkPolicy);
+            if (!opened.status.ok())
+            {
+                return opened.status;
+            }
+
+            options_ = options;
+            emittedEntries_ = 0;
+            limitReached_ = false;
+            state_ = std::move(opened.state);
+            return IO::successStatus();
+        }
+        catch (const std::bad_alloc &)
+        {
+            return IO::makeStatus(ErrorCode::OutOfMemory);
+        }
+        catch (...)
+        {
+            return IO::makeStatus(ErrorCode::Unknown);
+        }
+    }
+
+    bool DirectoryCursor::isOpen() const noexcept
+    {
+        return state_ != nullptr;
+    }
+
+    Types::DirectoryCursorNextResult DirectoryCursor::next() noexcept
+    {
+        try
+        {
+            if (!state_)
+            {
+                return {.status = IO::makeStatus(ErrorCode::NotOpen)};
+            }
+            if (limitReached_)
+            {
+                return {.status = IO::makeStatus(ErrorCode::SizeLimitExceeded)};
+            }
+
+            while (true)
+            {
+                Detail::Platform::DirectoryCursorNextResult next = Detail::Platform::readDirectoryCursor(*state_);
+                if (!next.status.ok())
+                {
+                    return {.status = next.status};
+                }
+                if (!next.hasEntry)
+                {
+                    return {.status = IO::successStatus()};
+                }
+                if ((!options_.includeHidden && next.hidden) || !includeDirectoryEntryKind(next.entry.info.kind, options_))
+                {
+                    continue;
+                }
+                if (emittedEntries_ >= options_.maxEntries)
+                {
+                    limitReached_ = true;
+                    return {.status = IO::makeStatus(ErrorCode::SizeLimitExceeded)};
+                }
+
+                ++emittedEntries_;
+                return {.status = IO::successStatus(), .entry = std::move(next.entry), .hasEntry = true};
+            }
+        }
+        catch (const std::bad_alloc &)
+        {
+            return {.status = IO::makeStatus(ErrorCode::OutOfMemory)};
+        }
+        catch (...)
+        {
+            return {.status = IO::makeStatus(ErrorCode::Unknown)};
+        }
+    }
+
+    IO::Types::Status DirectoryCursor::close() noexcept
+    {
+        state_.reset();
+        emittedEntries_ = 0;
+        limitReached_ = false;
+        return IO::successStatus();
+    }
 
     FileLock::FileLock() noexcept = default;
 
@@ -1394,6 +1516,7 @@ namespace GameWIP::FileSystem
             Types::Path temporaryPath;
             IO::Types::Status openStatus = IO::makeStatus(ErrorCode::AlreadyExists);
             FileWriter writer;
+            // Bound collision retries so a hostile or exhausted directory cannot make temporary-name creation loop indefinitely.
             for (std::uint64_t attempt = 0; attempt < 64 && openStatus.code == ErrorCode::AlreadyExists; ++attempt)
             {
                 temporaryPath = uniqueAtomicTemporaryPath(parent, options.temporaryNamePrefix, attempt);
@@ -1441,6 +1564,7 @@ namespace GameWIP::FileSystem
                 return commitStatus;
             }
 
+            // Commit already succeeded; a failure below is a late durability failure and must not be reported as a pre-commit rollback.
             if (options.flushParentDirectory)
             {
                 const IO::Types::Status parentFlushStatus = Detail::Platform::flushDirectory(parent);
@@ -1542,7 +1666,28 @@ namespace GameWIP::FileSystem
     {
         try
         {
-            return Detail::Platform::listDirectory(path, options);
+            DirectoryCursor cursor;
+            const IO::Types::Status openStatus = cursor.open(path, options);
+            if (!openStatus.ok())
+            {
+                return listDirectoryFailure(openStatus);
+            }
+
+            Types::ListDirectoryResult result{.status = IO::successStatus()};
+            while (true)
+            {
+                Types::DirectoryCursorNextResult next = cursor.next();
+                if (!next.status.ok())
+                {
+                    result.status = next.status;
+                    return result;
+                }
+                if (!next.hasEntry)
+                {
+                    return result;
+                }
+                result.entries.push_back(std::move(next.entry));
+            }
         }
         catch (const std::bad_alloc &)
         {
@@ -1665,6 +1810,7 @@ namespace GameWIP::FileSystem
                 }
             }
 
+            // A changing source is not a coherent snapshot; reject a byte-count mismatch rather than reporting a misleading successful copy.
             if (source.info.hasSize && copiedBytes != source.info.sizeBytes)
             {
                 static_cast<void>(writer.close());
@@ -1723,6 +1869,7 @@ namespace GameWIP::FileSystem
             {
                 return source.status;
             }
+            // A native move to the same entry is already satisfied; unlike copy, no destination content would be produced by doing work.
             if (equivalentOrSameLexically(from, to))
             {
                 return IO::successStatus();
@@ -1748,23 +1895,9 @@ namespace GameWIP::FileSystem
             {
                 return moveStatus;
             }
-
-            const Detail::Platform::EntryQueryResult sourceAfter = queryEntry(from, Types::SymlinkPolicy::DoNotFollow);
-            if (sourceAfter.status.ok())
-            {
-                return IO::makeStatus(ErrorCode::MoveFailed);
-            }
-            if (sourceAfter.status.code != ErrorCode::NotFound)
-            {
-                return sourceAfter.status;
-            }
-
-            const Detail::Platform::EntryQueryResult destinationAfter = queryEntry(to, Types::SymlinkPolicy::DoNotFollow);
-            if (!destinationAfter.status.ok())
-            {
-                return destinationAfter.status;
-            }
-
+            // Native success is the move's linearization point. Re-querying either name here could
+            // turn a completed move into an apparent failure when another actor recreates the
+            // source or removes the destination, making a caller's retry unsafe.
             return IO::successStatus();
         }
         catch (const std::bad_alloc &)
@@ -1866,6 +1999,7 @@ namespace GameWIP::FileSystem
                 std::unique_ptr<Detail::DirectoryCursorState> cursor;
             };
 
+            // Keep one frame per active depth level so deep trees do not require collecting the complete entry set before removal begins.
             std::vector<RemovalFrame> pending;
             pending.push_back(RemovalFrame{.path = path, .info = existing.info});
 

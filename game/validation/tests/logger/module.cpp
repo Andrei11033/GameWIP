@@ -14,7 +14,17 @@ namespace
     {
         for (int index = 1; index < argc; ++index)
         {
-            if (argv[index] != nullptr && std::string_view(argv[index]) == "--logger-test-child=fatal-terminate")
+            if (argv[index] == nullptr)
+            {
+                continue;
+            }
+
+            const std::string_view argument(argv[index]);
+            if (argument == "--logger-test-child=fatal-terminate"
+#if INTERNAL_LOGGER_TEST_HOOKS
+                || argument == "--logger-test-child=enqueue-wakeup" || argument == "--logger-test-child=shutdown-wakeup"
+#endif
+            )
             {
                 return true;
             }

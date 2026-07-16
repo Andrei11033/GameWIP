@@ -1,10 +1,38 @@
 /// @file logger_reports.cpp
-/// @brief Logger synchronous reporting, sink writes, fatal popup, and debug-output mirroring.
+/// @brief Normal sink writes, synchronous reports, bounded drains, fatal popup, and platform debugger mirroring.
 
 #include "logger/internal/logger_core.h"
 
 namespace GameWIP::Logger::Detail::Core
 {
+    FlushDeadline makeFlushDeadline(std::chrono::milliseconds timeout) noexcept
+    {
+        const FlushDeadline now = std::chrono::steady_clock::now();
+        if (timeout.count() <= 0)
+        {
+            return now;
+        }
+        const auto available = FlushDeadline::max() - now;
+        if (timeout >= std::chrono::duration_cast<std::chrono::milliseconds>(available))
+        {
+            return FlushDeadline::max();
+        }
+        return now + timeout;
+    }
+
+    bool lockBefore(std::unique_lock<std::mutex> &lock, FlushDeadline deadline) noexcept
+    {
+        while (!lock.try_lock())
+        {
+            if (std::chrono::steady_clock::now() >= deadline)
+            {
+                return false;
+            }
+            std::this_thread::yield();
+        }
+        return true;
+    }
+
     /// @brief Writes one complete Logger console record through the shared Terminal runtime.
     /// @param style Severity style and stdout/stderr route.
     /// @param line Complete log line without its line ending.
@@ -33,7 +61,13 @@ namespace GameWIP::Logger::Detail::Core
     /// @param unknownSource True when source came from an unregistered SourceId.
     /// @param alreadyTruncated True when the caller already bounded the message and appended the truncation suffix.
     /// @return True when at least one configured normal sink accepted the line.
-    bool writeReportSynchronously(LogLevel level, std::string_view source, std::string_view message, bool unknownSource, bool alreadyTruncated)
+    bool writeReportSynchronously(
+        LogLevel level,
+        std::string_view source,
+        std::string_view message,
+        bool unknownSource,
+        bool alreadyTruncated,
+        const FlushDeadline *deadline)
     {
         try
         {
@@ -65,7 +99,15 @@ namespace GameWIP::Logger::Detail::Core
             bool fileWriteFailed = false;
             PlatformError fileErrorDetail;
             {
-                std::lock_guard<std::mutex> outputLock(loggerState().outputMutex);
+                std::unique_lock<std::mutex> outputLock(loggerState().outputMutex, std::defer_lock);
+                if (deadline == nullptr)
+                {
+                    outputLock.lock();
+                }
+                else if (!lockBefore(outputLock, *deadline))
+                {
+                    return false;
+                }
                 if (consoleOutput)
                 {
                     accepted = accepted || writeConsoleLine(style, line).ok();
@@ -178,15 +220,16 @@ namespace GameWIP::Logger::Detail::Core
     /// @param message Message text to write.
     /// @param alreadyTruncated True when the caller already bounded the message and appended the truncation suffix.
     /// @return True when at least one configured normal sink accepted the line.
-    bool writeReportSynchronously(LogLevel level, SourceId source, std::string_view message, bool alreadyTruncated)
+    bool writeReportSynchronously(LogLevel level, SourceId source, std::string_view message, bool alreadyTruncated, const FlushDeadline *deadline)
     {
         const std::shared_ptr<SourceRegistry> registry = loadSourceRegistry();
         bool unknownSource = false;
         const std::string_view sourceText = findSourceName(registry.get(), source, unknownSource);
-        return writeReportSynchronously(level, sourceText, message, unknownSource, alreadyTruncated);
+        return writeReportSynchronously(level, sourceText, message, unknownSource, alreadyTruncated, deadline);
     }
 
     /// @brief Writes one entry to console immediately and appends file text to the batch buffer.
+    /// @details Filters are deliberately rechecked on the worker so a concurrent filter update can suppress work accepted earlier.
     /// @param entry Entry to write.
     /// @param timestampCache Worker timestamp cache.
     /// @param lineScratch Reusable line scratch buffer.
@@ -350,6 +393,41 @@ namespace GameWIP::Logger::Detail::Core
         return true;
     }
 
+    bool flushSinksInternal(FlushDeadline deadline)
+    {
+        bool fileFlushFailed = false;
+        PlatformError fileError;
+        {
+            std::unique_lock<std::mutex> outputLock(loggerState().outputMutex, std::defer_lock);
+            if (!lockBefore(outputLock, deadline))
+            {
+                return false;
+            }
+            if (std::chrono::steady_clock::now() >= deadline)
+            {
+                return false;
+            }
+
+            // Native console and filesystem flushes are synchronous and not reliably cancellable
+            // after entry. The deadline bounds all Logger-owned waits before those calls.
+            static_cast<void>(GameWIP::Terminal::flush(GameWIP::Terminal::Types::OutputStream::Stdout, GameWIP::IO::Types::FlushMode::Data));
+            static_cast<void>(GameWIP::Terminal::flush(GameWIP::Terminal::Types::OutputStream::Stderr, GameWIP::IO::Types::FlushMode::Data));
+
+            if (loggerState().logFile.isOpen())
+            {
+                fileError = flushFileForLogger(loggerState().logFile);
+                fileFlushFailed = hasPlatformError(fileError);
+            }
+        }
+
+        if (fileFlushFailed)
+        {
+            recordFileWriteFailure(fileError);
+            return false;
+        }
+        return std::chrono::steady_clock::now() <= deadline;
+    }
+
     /// @brief Waits for accepted queued work to drain, then flushes active sinks.
     /// @details Caller must serialize lifecycle if sink lifetime may change concurrently.
     void flushInternal()
@@ -371,7 +449,7 @@ namespace GameWIP::Logger::Detail::Core
     /// @brief Waits for accepted queued work to drain until timeout, then flushes active sinks.
     /// @details Caller must serialize lifecycle if sink lifetime may change concurrently.
     /// @return True when the queue drained and sink flushing succeeded before timeout expired.
-    bool flushInternal(std::chrono::milliseconds timeout)
+    bool flushInternal(FlushDeadline deadline)
     {
 #if INTERNAL_LOGGER_TEST_HOOKS
         if (consumeTestHook(loggerTestHookState.nextTimedFlushTimeout))
@@ -381,10 +459,14 @@ namespace GameWIP::Logger::Detail::Core
 #endif
         const bool drained = [&]
         {
-            std::unique_lock<std::mutex> lock(loggerState().logMutex);
-            return loggerState().logCondition.wait_for(
+            std::unique_lock<std::mutex> lock(loggerState().logMutex, std::defer_lock);
+            if (!lockBefore(lock, deadline))
+            {
+                return false;
+            }
+            return loggerState().logCondition.wait_until(
                 lock,
-                timeout,
+                deadline,
                 []
                 {
                     return (!loggerState().workerRunning && !loggerState().workerBusy) ||
@@ -397,7 +479,7 @@ namespace GameWIP::Logger::Detail::Core
             return false;
         }
 
-        return flushSinksInternal();
+        return flushSinksInternal(deadline);
     }
 } // namespace GameWIP::Logger::Detail::Core
 
@@ -619,14 +701,14 @@ void GameWIP::Logger::Detail::Core::reportPreformattedMessage(LogLevel level, st
     reportPreformattedMessage(level, source, message, showPopup, false, nullptr);
 }
 
-/// @brief Reports a preformatted message with a string source and optional bounded flush.
+/// @brief Reports a preformatted message with a string source, then optionally attempts a bounded queue drain.
 /// @param level Severity to log and mirror.
 /// @param source Source text to copy.
 /// @param message Formatted message copied before this call returns.
 /// @param showPopup True to run the fatal popup path after flush.
 /// @param alreadyTruncated True when message already includes the truncation suffix.
 /// @param timeout Optional bounded flush duration.
-/// @return True when the flush completed.
+/// @return True when the requested post-report drain and observable sink flush completed; not report-line delivery status.
 bool GameWIP::Logger::Detail::Core::reportPreformattedMessage(
     LogLevel level,
     std::string_view source,
@@ -645,12 +727,31 @@ bool GameWIP::Logger::Detail::Core::reportPreformattedMessage(
     const std::string_view reportMessage = boundedMessageView(message, alreadyTruncated, boundedMessageScratch, truncatedNow);
     const bool storedMessageAlreadyTruncated = alreadyTruncated || truncatedNow;
 
-    std::lock_guard<std::mutex> lifecycleLock(loggerState().lifecycleMutex);
+    const FlushDeadline deadline = timeout == nullptr ? FlushDeadline{} : makeFlushDeadline(timeout->value);
+    std::unique_lock<std::mutex> lifecycleLock(loggerState().lifecycleMutex, std::defer_lock);
+    if (timeout == nullptr)
+    {
+        lifecycleLock.lock();
+    }
+    else if (!lockBefore(lifecycleLock, deadline))
+    {
+        return false;
+    }
 
-    (void)writeReportSynchronously(level, source, reportMessage, false, storedMessageAlreadyTruncated);
+    (void)writeReportSynchronously(level, source, reportMessage, false, storedMessageAlreadyTruncated, timeout == nullptr ? nullptr : &deadline);
 
     writeDebugOutput(level, source, reportMessage);
-    const bool flushed = timeout == nullptr ? flushSinksInternal() : (flushSinksInternal() && flushInternal(timeout->value));
+    bool flushed = true;
+    if (timeout == nullptr)
+    {
+        flushed = flushSinksInternal();
+    }
+    else
+    {
+        const bool initialFlush = flushSinksInternal(deadline);
+        const bool drained = flushInternal(deadline);
+        flushed = initialFlush && drained;
+    }
 
     if (showPopup)
     {
@@ -669,14 +770,14 @@ void GameWIP::Logger::Detail::Core::reportPreformattedMessage(LogLevel level, So
     reportPreformattedMessage(level, source, message, showPopup, false, nullptr);
 }
 
-/// @brief Reports a preformatted message with a registered SourceId and optional bounded flush.
+/// @brief Reports a preformatted message with a registered SourceId, then optionally attempts a bounded queue drain.
 /// @param level Severity to log and mirror.
 /// @param source Registered SourceId to resolve for platform debug output.
 /// @param message Formatted message copied before this call returns.
 /// @param showPopup True to run the fatal popup path after flush.
 /// @param alreadyTruncated True when message already includes the truncation suffix.
 /// @param timeout Optional bounded flush duration.
-/// @return True when the flush completed.
+/// @return True when the requested post-report drain and observable sink flush completed; not report-line delivery status.
 bool GameWIP::Logger::Detail::Core::reportPreformattedMessage(
     LogLevel level,
     SourceId source,
@@ -695,15 +796,34 @@ bool GameWIP::Logger::Detail::Core::reportPreformattedMessage(
     const std::string_view reportMessage = boundedMessageView(message, alreadyTruncated, boundedMessageScratch, truncatedNow);
     const bool storedMessageAlreadyTruncated = alreadyTruncated || truncatedNow;
 
-    std::lock_guard<std::mutex> lifecycleLock(loggerState().lifecycleMutex);
+    const FlushDeadline deadline = timeout == nullptr ? FlushDeadline{} : makeFlushDeadline(timeout->value);
+    std::unique_lock<std::mutex> lifecycleLock(loggerState().lifecycleMutex, std::defer_lock);
+    if (timeout == nullptr)
+    {
+        lifecycleLock.lock();
+    }
+    else if (!lockBefore(lifecycleLock, deadline))
+    {
+        return false;
+    }
 
-    (void)writeReportSynchronously(level, source, reportMessage, storedMessageAlreadyTruncated);
+    (void)writeReportSynchronously(level, source, reportMessage, storedMessageAlreadyTruncated, timeout == nullptr ? nullptr : &deadline);
 
     bool unknownSource = false;
     const std::shared_ptr<SourceRegistry> registry = loadSourceRegistry();
     const std::string_view sourceText = findSourceName(registry.get(), source, unknownSource);
     writeDebugOutput(level, sourceText, reportMessage);
-    const bool flushed = timeout == nullptr ? flushSinksInternal() : (flushSinksInternal() && flushInternal(timeout->value));
+    bool flushed = true;
+    if (timeout == nullptr)
+    {
+        flushed = flushSinksInternal();
+    }
+    else
+    {
+        const bool initialFlush = flushSinksInternal(deadline);
+        const bool drained = flushInternal(deadline);
+        flushed = initialFlush && drained;
+    }
 
     if (showPopup)
     {
@@ -760,7 +880,7 @@ bool GameWIP::Logger::report(LogLevel level, SourceId source, Types::FlushTimeou
     return reportPreformattedMessage(level, source, message, popup == Types::ReportPopup::Fatal, false, &timeout);
 }
 
-/// @brief Logs an error, mirrors it to platform debug output, and flushes.
+/// @brief Reports an error, mirrors it to platform debug output, and flushes active sinks without draining older queued records.
 /// @param source Source text to copy.
 /// @param message Message text to copy.
 void GameWIP::Logger::reportError(std::string_view source, std::string_view message)
@@ -768,17 +888,17 @@ void GameWIP::Logger::reportError(std::string_view source, std::string_view mess
     report(LogLevel::Error, source, message);
 }
 
-/// @brief Logs an error, mirrors it to platform debug output, and waits for a bounded flush.
+/// @brief Reports an error, mirrors it to platform debug output, then attempts a bounded queue drain and sink flush.
 /// @param source Source text to copy.
 /// @param timeout Maximum flush wait.
 /// @param message Message text to copy.
-/// @return True when the bounded flush completed.
+/// @return True when the post-report bounded queue drain and observable sink flush completed; not report-line delivery status.
 bool GameWIP::Logger::reportError(std::string_view source, Types::FlushTimeout timeout, std::string_view message)
 {
     return report(LogLevel::Error, source, timeout, message);
 }
 
-/// @brief Logs an error with a SourceId, mirrors it to platform debug output, and flushes.
+/// @brief Reports an error with a SourceId, mirrors it to platform debug output, and flushes active sinks without draining older queued records.
 /// @param source Registered SourceId to store and resolve.
 /// @param message Message text to copy.
 void GameWIP::Logger::reportError(SourceId source, std::string_view message)
@@ -786,17 +906,17 @@ void GameWIP::Logger::reportError(SourceId source, std::string_view message)
     report(LogLevel::Error, source, message);
 }
 
-/// @brief Logs an error with a SourceId, mirrors it to platform debug output, and waits for a bounded flush.
+/// @brief Reports an error with a SourceId, mirrors it to platform debug output, then attempts a bounded queue drain and sink flush.
 /// @param source Registered SourceId to store and resolve.
 /// @param timeout Maximum flush wait.
 /// @param message Message text to copy.
-/// @return True when the bounded flush completed.
+/// @return True when the post-report bounded queue drain and observable sink flush completed; not report-line delivery status.
 bool GameWIP::Logger::reportError(SourceId source, Types::FlushTimeout timeout, std::string_view message)
 {
     return report(LogLevel::Error, source, timeout, message);
 }
 
-/// @brief Logs fatal, mirrors it to platform debug output, flushes, and shows the fatal popup when enabled.
+/// @brief Reports fatal, mirrors it to platform debug output, flushes active sinks, and shows the fatal popup when enabled.
 /// @param source Source text to copy.
 /// @param message Message text to copy.
 void GameWIP::Logger::reportFatal(std::string_view source, std::string_view message)
@@ -804,17 +924,17 @@ void GameWIP::Logger::reportFatal(std::string_view source, std::string_view mess
     report(LogLevel::Fatal, source, Types::ReportPopup::Fatal, message);
 }
 
-/// @brief Logs fatal, mirrors it to platform debug output, waits for a bounded flush, and shows the fatal popup when enabled.
+/// @brief Reports fatal, mirrors it to platform debug output, attempts a bounded queue drain/sink flush, and shows the popup when enabled.
 /// @param source Source text to copy.
 /// @param timeout Maximum flush wait.
 /// @param message Message text to copy.
-/// @return True when the bounded flush completed.
+/// @return True when the post-report bounded queue drain and observable sink flush completed; not report-line delivery status.
 bool GameWIP::Logger::reportFatal(std::string_view source, Types::FlushTimeout timeout, std::string_view message)
 {
     return report(LogLevel::Fatal, source, timeout, Types::ReportPopup::Fatal, message);
 }
 
-/// @brief Logs fatal with a SourceId, mirrors it to platform debug output, flushes, and shows the fatal popup when enabled.
+/// @brief Reports fatal with a SourceId, mirrors it to platform debug output, flushes active sinks, and shows the popup when enabled.
 /// @param source Registered SourceId to store and resolve.
 /// @param message Message text to copy.
 void GameWIP::Logger::reportFatal(SourceId source, std::string_view message)
@@ -822,38 +942,39 @@ void GameWIP::Logger::reportFatal(SourceId source, std::string_view message)
     report(LogLevel::Fatal, source, Types::ReportPopup::Fatal, message);
 }
 
-/// @brief Logs fatal with a SourceId, mirrors it to platform debug output, waits for a bounded flush, and shows the fatal popup when enabled.
+/// @brief Reports fatal with a SourceId, mirrors it to platform debug output, attempts a bounded queue
+/// drain/sink flush, and shows the popup when enabled.
 /// @param source Registered SourceId to store and resolve.
 /// @param timeout Maximum flush wait.
 /// @param message Message text to copy.
-/// @return True when the bounded flush completed.
+/// @return True when the post-report bounded queue drain and observable sink flush completed; not report-line delivery status.
 bool GameWIP::Logger::reportFatal(SourceId source, Types::FlushTimeout timeout, std::string_view message)
 {
     return report(LogLevel::Fatal, source, timeout, Types::ReportPopup::Fatal, message);
 }
 
-/// @brief Logs fatal, flushes, optionally shows fatal popup, then terminates.
+/// @brief Performs the untimed fatal report path, then calls std::terminate() without normal stack unwinding.
 [[noreturn]] void GameWIP::Logger::fatalTerminate(std::string_view source, std::string_view message)
 {
     report(LogLevel::Fatal, source, Types::ReportPopup::Fatal, message);
     std::terminate();
 }
 
-/// @brief Logs fatal with a SourceId, flushes, optionally shows fatal popup, then terminates.
+/// @brief Performs the untimed fatal report path for a SourceId, then calls std::terminate() without normal stack unwinding.
 [[noreturn]] void GameWIP::Logger::fatalTerminate(Types::SourceId source, std::string_view message)
 {
     report(LogLevel::Fatal, source, Types::ReportPopup::Fatal, message);
     std::terminate();
 }
 
-/// @brief Logs fatal, waits for a bounded flush, optionally shows fatal popup, then terminates.
+/// @brief Performs the timed fatal report path, then calls std::terminate() without normal stack unwinding.
 [[noreturn]] void GameWIP::Logger::fatalTerminate(std::string_view source, Types::FlushTimeout timeout, std::string_view message)
 {
     report(LogLevel::Fatal, source, timeout, Types::ReportPopup::Fatal, message);
     std::terminate();
 }
 
-/// @brief Logs fatal with a SourceId, waits for a bounded flush, optionally shows fatal popup, then terminates.
+/// @brief Performs the timed fatal report path for a SourceId, then calls std::terminate() without normal stack unwinding.
 [[noreturn]] void GameWIP::Logger::fatalTerminate(Types::SourceId source, Types::FlushTimeout timeout, std::string_view message)
 {
     report(LogLevel::Fatal, source, timeout, Types::ReportPopup::Fatal, message);

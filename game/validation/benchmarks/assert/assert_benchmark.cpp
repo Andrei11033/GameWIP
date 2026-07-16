@@ -1,5 +1,8 @@
 /// @file assert_benchmark.cpp
 /// @brief Passing-path Google Benchmark scenarios for Assert macros.
+///
+/// These scenarios measure passing macro paths only; correctness and failure
+/// behavior remain owned by the Assert validation module.
 
 #include "debug/assert/assert.h"
 

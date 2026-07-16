@@ -1,46 +1,36 @@
 @page assert_diagnostics Assert diagnostics
 
-Diagnostics are controlled by `ASSERT_DIAGNOSTICS`, normally through the Assert CMake target.
+`ASSERT_DIAGNOSTICS` controls the diagnostic payload captured by Assert failure reports.
 
 ## Captured information
 
-When diagnostics are enabled, failure reports can include:
+When diagnostics are enabled, failure reports can include condition text, custom message text, file, line, function, and failure category. When diagnostics are disabled, reports keep the failure category and intentionally omit caller-specific text.
 
-- condition text,
-- custom message text,
-- file,
-- line,
-- function,
-- failure category.
+Assert builds diagnostic messages with bounded storage. Long reports may be truncated with a visible suffix before they are sent to Logger or platform UI.
 
 ## Message evaluation
 
-Message expressions are intentionally lazy. They are not evaluated when:
-
-- the macro is disabled,
-- the condition passes,
-- diagnostics are disabled,
-- the macro path does not need the message.
-
-Example:
+`_MSG` arguments are lazy diagnostic expressions. They are not evaluated when the macro is disabled, the condition passes, diagnostics are disabled, or reporting is suppressed before the message is needed.
 
 ```cpp
 ASSERT_MSG(isValid(), buildExpensiveDiagnosticMessage());
 ```
 
-`buildExpensiveDiagnosticMessage()` should run only when the assertion is enabled, fails, and diagnostics are enabled.
+`buildExpensiveDiagnosticMessage()` should not be required for program behavior.
+
+## Logger reporting
+
+Fatal assertion failures report at Logger Fatal severity through Logger's synchronous report path. Recoverable check failures report at Logger Error severity through the same synchronous path. This avoids leaving failure diagnostics queued while assertion handling proceeds to popup, break, abort, or continuation behavior.
 
 ## Popup policy
 
-`ASSERT_POPUP_ON_ASSERT` controls whether fatal assertion reports may show UI. `ASSERT_POPUP_ON_CHECK` controls whether recoverable check failures may show UI. Automated tests should not rely on real UI.
+`ASSERT_POPUP_ON_ASSERT` controls whether fatal assertion reports may show Assert-owned UI. `ASSERT_POPUP_ON_CHECK` controls whether recoverable check failures may show UI. These are runtime compile definitions, not current cache options exposed by `tools/debug/assert/CMakeLists.txt`.
 
-Fatal assertion and check failures report through Logger's synchronous report path. This keeps failure diagnostics out of the async queue and writes them immediately before Abort, Break, Ignore, or continuation behavior is applied.
-
-## Disabled diagnostics
-
-When `ASSERT_DIAGNOSTICS=0`, the runtime still reports failure categories, but condition text, custom message text, file, line, and function details are intentionally omitted. Message expressions should not run in this mode.
+Automated tests should not depend on real UI. Use the validation hooks described in @ref assert_test_hooks when deterministic popup behavior is needed.
 
 ## Related pages
 
+- @ref assert_configuration
 - @ref assert_macro_behavior
+- @ref assert_failure_actions
 - @ref assert_interactive

@@ -1,61 +1,136 @@
 @page project_structure Project structure and runtime flow
 
-GameWIP is one product repository with reusable C++ libraries around a small executable shell. Project code owns composition and policy; each library owns its public contract, implementation, platform backends, package, tests, and manual.
+GameWIP is a product repository built around reusable C++ libraries, project-level build infrastructure, validation tooling, generated documentation, and a small executable shell. Project code owns composition and runtime policy. Reusable libraries own their public contracts, implementations, platform backends, package boundaries, validation coverage, and manuals.
+
+## Purpose
+
+This page defines where code belongs and which direction dependencies may flow. It is the repository map, not a replacement for library manuals, workflow pages, or the platform backend contract.
 
 ## Repository map
 
 | Path | Ownership |
 | --- | --- |
-| `foundation/` | Low-level reusable IO, FileSystem, and Terminal libraries. |
-| `tools/` | Reusable Logger, Assert, and TestSupport libraries. |
-| `engine/` | Engine systems. This section is developed and reviewed separately from the foundation described here. |
-| `game/` | Process entry point, runtime composition, and modular validation executables. |
-| `cmake/` | Repository-wide build, platform, validation, coverage, documentation, and analysis helpers. |
-| `docs/doxygen/` | Project-wide generated manual pages. |
-| `docs/` | Vision, decisions, roadmap, contribution policy, contracts, and milestone checklists. These are ordinary repository Markdown, not generated-manual inputs. |
-| `.github/` | Pull-request policy, CI, documentation publishing, and project automation. |
-| `external/` | Pinned third-party dependencies; project checks do not rewrite or analyze their sources. |
+| `foundation/` | Low-level reusable libraries such as IO, FileSystem, and Terminal. |
+| `tools/` | Diagnostics, assertions, logging, validation support, and development tooling libraries. |
+| `engine/` | Engine systems developed and reviewed separately from the reusable foundation and tool libraries. |
+| `game/` | Executable entry point, runtime facade, startup validation wiring, validation runners, and game-facing integration. |
+| `cmake/` | Repository-wide build, platform, validation, coverage, documentation, packaging, and analysis helpers. |
+| `docs/doxygen/` | Generated project manual pages. |
+| `docs/` | Vision, roadmap, decisions, versioning, and contributor workflow records. |
+| `.github/` | Pull-request policy, CI, documentation publishing, and repository automation. |
+| `external/` | Pinned third-party dependencies. |
 
-Build output belongs only in `build-<preset>/` directories. Runtime tests use scoped operating-system temporary directories and retain only their requested aggregate reports.
+Build output belongs under build directories selected by CMake presets.
 
 ## Dependency direction
 
-The intended reusable dependency flow is:
+The reusable dependency flow is:
 
 ```text
 IO
   -> FileSystem
   -> Terminal
+
 IO + FileSystem + Terminal
   -> Logger
+
 Logger
   -> Assert runtime
+
 TestSupport
   -> validation modules
-libraries + optional validation modules
+
+Reusable libraries + optional validation modules
   -> GameWIP executable
 ```
 
-Arrows mean “is consumed by.” Lower-level libraries must not depend on the game executable or validation runner. Tests may include explicitly enabled internal hooks, but installed consumers cannot see those headers.
+Arrows mean “is consumed by.” Lower-level libraries must not depend on the game executable, runtime facade, validation runner, or benchmark runner.
 
-## Process startup
+Validation code may use libraries and approved internal hooks. Installed consumers must not see internal headers, test-hook headers, source-tree-only helper targets, or validation-only compile definitions.
 
-`game/main.cpp` is deliberately stable. It runs compiled-in correctness tests, returns immediately for a test child process or failure, optionally runs benchmarks, and then calls `GameWIP::Game::run()`. Disabled startup validation becomes inline no-op code, so shipping builds do not retain test or benchmark dependencies.
+## Library ownership
 
-The current game runtime is intentionally thin. Most implemented behavior is in reusable libraries and their validation modules; future game and engine composition should remain behind the runtime facade rather than accumulating in `main.cpp`.
+Each reusable library owns:
+
+- Public headers and namespace.
+- Public CMake target and package boundary.
+- Core implementation and internal headers.
+- Platform backend contract and backend sources.
+- Correctness tests and benchmark coverage when applicable.
+- Library manual, public API guide, examples, testing guide, troubleshooting notes, and approved test-hook docs when applicable.
+
+A reusable library should not require the game executable to compile, test, install, or be consumed from a clean external CMake project.
 
 ## Public and internal boundaries
 
-Every installable library declares a CMake `FILE_SET` containing its public headers. Installation exports only that file set and generated shared-library export headers. Internal platform contracts and test-hook headers are not installed. Validation builds compile every public entry header independently, inspect shared-library export allowlists, and build a separate consumer against a clean install prefix.
+Installation exports only the public header file set and any generated shared-library export headers required by the package.
 
-Public templates, pImpl ownership, and assertion macros require a few declarations in `Detail` namespaces. These declarations are implementation bridges, not an independently supported API. External callers receive the minimum header set needed to compile the supported API, but C++ cannot make declarations in a public header literally invisible.
+These are not consumer API:
 
-Inside this source tree, target include roots make owning-library `internal/` headers physically reachable. Only the owning implementation and explicit validation tests may include them. The install boundary is mechanically enforced; the source-tree rule is an architectural convention reviewed in changes.
+- Internal headers.
+- Platform backend headers.
+- Test-hook headers.
+- Validation-only helpers.
+- Private `Detail` implementation helpers.
+- Backend-native handles and platform-specific types.
+- Source-tree-only CMake helpers.
 
-## What “standalone library” means here
+Public manuals should not require readers to understand `Detail` namespaces. Maintainer documentation may mention them when explaining implementation boundaries, validation hooks, or backend contracts.
 
-The libraries are standalone at the installed-package boundary: a clean external CMake project can use `find_package()` and link a canonical `GameWIP::` imported target without source-tree paths or the game executable. They are not currently independent top-level source distributions; their CMake files use repository helpers, the root version, and the shared platform selection.
+## Installed-package boundary
 
-`GameWIP::` is intentional ownership, not unwanted coupling. Generic package names such as `Logger` or `IO` are acceptable while packages ship together inside this pre-1.0 repository, but a future public distribution should either use one `GameWIP` package with components or rename packages to globally distinctive names before compatibility is promised.
+A library is standalone at the installed-package boundary when a clean external CMake project can use it through `find_package()` and the canonical imported target without source-tree paths or game executable dependencies.
 
-See @ref project_build for presets, @ref project_library_compatibility for package contracts, and @ref project_extending for adding systems.
+In the pre-1.0 repository, standalone libraries may still share repository CMake helpers, the root project version, platform-selection logic, validation infrastructure, and documentation infrastructure.
+
+`GameWIP::` imported targets are project ownership markers. They do not imply game-runtime coupling.
+
+Package rules are documented in @ref project_library_compatibility.
+
+## Platform backend boundary
+
+Platform-specific implementation belongs behind the owning library's internal backend contract. Backend file layout, native error translation, Unicode/path behavior, cleanup rules, and test-hook restrictions are documented in @ref project_platform_backend_contract.
+
+## Validation ownership
+
+Validation code belongs under `game/validation/`.
+
+Correctness tests live under:
+
+```text
+game/validation/tests/<module>/
+```
+
+Benchmarks live under:
+
+```text
+game/validation/benchmarks/<module>/
+```
+
+The validation runner owns command-line behavior, module selection, report generation, manual checks, child-process scenarios, and aggregate exit-code policy. Individual modules own their test cases and module-specific options.
+
+See @ref project_validation, @ref project_testing, and @ref project_benchmarking.
+
+## Executable integration
+
+The `game/` tree owns executable composition, startup validation wiring, standalone validation runners, and the current runtime facade. `main.cpp` should remain a small process entry point that delegates runtime work behind `GameWIP::Game::run()`.
+
+Executable layout, startup sequencing, generated version metadata, and source-comment expectations for `game/` files are documented in @ref project_game_executable.
+
+## Documentation ownership
+
+Generated workflow and contract pages are owned by `docs/doxygen/`. Product planning and policy records are owned by `docs/`. Library manuals are owned by each library's `docs/` directory.
+
+See @ref project_documentation and @ref project_planning.
+
+## Related pages
+
+- @ref project_build
+- @ref project_game_executable
+- @ref project_testing
+- @ref project_validation
+- @ref project_extending
+- @ref project_documentation
+- @ref project_library_compatibility
+- @ref project_platform_backend_contract
+- @ref project_planning

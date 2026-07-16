@@ -1,70 +1,82 @@
 @page filesystem_troubleshooting FileSystem troubleshooting
 
-## A normal path operation returns `Unsupported`
+## A policy-bearing operation returns `Unsupported`
 
-The most common cause is a requested `SymlinkPolicy` that the backend cannot enforce without a path-replacement race. Public operations default to `DoNotFollow`; choose `FollowFinal` or `FollowAll` only when symlink traversal is intentional.
+The backend could not enforce the selected `SymlinkPolicy` or restrictive sharing request without weakening it. Final-link move, removal, or atomic replacement with follow semantics are common examples. Review @ref filesystem_symlink_policies rather than replacing the operation with a check-then-open sequence.
 
-Final-symlink move and removal with follow semantics may also report `Unsupported` when the backend cannot safely mutate the resolved target while preserving the requested contract.
+## A predicate returns success with `false`
 
-## `exists()` returns success with `false`
+Missing paths are successful `false` only for `exists()`, `isRegularFile()`, `isDirectory()`, and `isSymlink()`.
 
-Predicate queries treat a missing path as a successful negative answer. Value queries such as `getEntryInfo()`, `getFileSize()`, and `getLastWriteTime()` report `NotFound` for a missing target.
+`isReadOnly()` is a value query and returns `NotFound` for a missing path. `getFileSize()` returns `InvalidArgument` for a non-regular entry.
 
 ## An operation returns `InvalidArgument`
 
 Common causes include:
 
-- an empty target path;
-- an unknown enum value;
+- an empty target path for an operation that requires one;
+- an unknown enum value or unsupported flag bits;
 - a create/truncate mode without write access;
-- `flushOnClose` on a read-only handle;
-- a zero transfer buffer size;
-- an atomic temporary-name prefix that is empty, names `.` or `..`, contains a path separator, or contains an embedded NUL.
+- `flushOnClose` on a read-only `File`;
+- `ReadFileOptions::bufferSize == 0`;
+- equivalent source and destination supplied to `copyFile()`;
+- an invalid atomic temporary prefix.
 
-## A handle returns `AlreadyOpen` or `NotOpen`
+Lexical path helpers accept empty paths; path-accessing operations generally do not.
 
-`open()` on an already-open `FileReader`, `FileWriter`, or `File` returns `AlreadyOpen`. Operations that require an open handle return `NotOpen` while closed.
+## A handle returns `AlreadyOpen`, `NotOpen`, or `PermissionDenied`
 
-Failed `open()` calls leave the object closed. Repeated `close()` calls succeed unless an active lock acquired from the handle still exists.
+`open()` on an active object returns `AlreadyOpen`. Handle operations return `NotOpen` while closed. `File` returns `PermissionDenied` when the selected access does not permit the requested read, write, flush, or resize operation.
+
+A failed open leaves the object closed.
 
 ## `close()` returns `ResourceBusy`
 
-A whole-file lock acquired from the handle is still active. Unlock it first, then close the handle.
+A lock acquired from the handle remains active. Unlock it before explicit close.
 
-If explicit `unlock()` fails, the lock remains active and may be retried. Destruction performs best-effort cleanup but cannot report failure.
+A detached `FileLock` can outlive the originating handle object. Handle destruction cannot report close failure, so the detached lock remains responsible for release.
 
-## Append mode cannot seek or report a stable position
+## `close()` or `unlock()` fails
 
-Append modes are non-seekable because each write targets the then-current end of file. Another append handle may change the endpoint between calls.
+The resource remains active and the operation can be retried. Destruction performs best-effort cleanup but cannot report the outcome.
 
-Use `File` with a normal open mode when explicit seeking is required. Use `AppendOrCreate` or `AppendExisting` when true append behavior is required.
+## Append mode cannot seek
+
+Append modes target the then-current end for each write and return `NotSeekable` from `seek()` and `position()`. Use `FileInitialPosition::End` only when one initial end position is sufficient; it does not protect later writes from concurrent endpoint changes.
 
 ## A whole-file read returns `SizeLimitExceeded`
 
-`ReadFileOptions::maxBytes` is a hard retained-data limit. It does not request truncation. Increase the limit or stream with `FileReader` when large files are expected.
+`maxBytes` is a hard accepted-data limit, not a truncation request. Increase it or stream through `FileReader`. A file exactly equal to the limit succeeds; additional data triggers the probe and failure.
 
-`listDirectory()` also returns `SizeLimitExceeded` when `maxEntries` is reached; collected entries remain available in the result.
+`listDirectory()` and `removeDirectoryTree()` use the same error for caller entry limits while preserving completed progress.
 
-## A write helper reports fewer bytes than requested
+## A write reports the full payload with failure
 
-Non-atomic write and append helpers return `IO::Types::WriteResult`. The byte count is payload accepted before the final failure, including bytes accepted by a write that is followed by flush or close failure.
+The payload may have been fully accepted before a later flush or close failure. Inspect both `status` and `bytesWritten`. The destination may contain complete or partial new content after non-atomic operations.
 
-Atomic write helpers return only `Status` because partial temporary-file progress is not part of the visible path-replacement contract.
+## Atomic write fails after replacement
 
-## Atomic write fails after replacing content
+A requested parent-directory flush occurs after commit. Its failure can be returned when the replacement is already visible. Do not assume retrying is equivalent to retrying a pre-commit failure.
 
-When `flushParentDirectory` is true, a backend that cannot flush the parent directory reports that failure instead of silently downgrading the durability request. The path replacement may already be visible when that late durability failure is returned.
+## Copy leaves destination content after failure
 
-Disable `flushParentDirectory` only when directory-entry durability is not required for the caller's use case.
+`copyFile()` is not atomic. It can create or truncate the destination before read, write, flush, close, consistency, or metadata failure. Use atomic replacement when the caller already has the complete replacement payload.
 
-## UTF-8 filenames are not round-tripping
+## UTF-8 path text does not round-trip
 
-Constructing `std::filesystem::path` from narrow text happens before FileSystem can inspect it. Use `pathFromUtf8()` for UTF-8 input text and `pathToUtf8()` when text output must be UTF-8.
+Use `pathFromUtf8()` and `pathToUtf8()` at explicit text boundaries. Do not assume that direct narrow-string `std::filesystem::path` construction interprets UTF-8 or that path output uses portable separators.
 
-Text file helpers treat file contents as UTF-8 bytes. They do not validate path text or convert file encodings.
+## Relative paths resolve unexpectedly
 
-## Sharing or locking behaves differently across tools
+Relative resolution depends on the process current directory. Another thread or library can change it through process APIs. Prefer absolute paths and avoid uncoordinated `setCurrentDirectory()`.
 
-`FileShare` controls open-time sharing where the backend can enforce it. `FileLock` is a process-visible coordination primitive but may be advisory on platforms whose native locks do not stop uncooperative I/O.
+## Sharing or locking differs across tools
 
-Use sharing to constrain concurrent opens and locks to coordinate cooperating code. Do not assume unrelated tools honor advisory locks.
+`FileShare` constrains compatible native opens. `FileLock` coordinates compatible lock users and can be advisory relative to uncooperative software. Choose the mechanism for the actual coordination boundary and do not assume unrelated tools honor advisory locks.
+
+## Related pages
+
+- @ref filesystem_file_open_modes
+- @ref filesystem_symlink_policies
+- @ref filesystem_atomic_write
+- @ref filesystem_unicode_paths

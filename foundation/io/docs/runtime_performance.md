@@ -1,49 +1,61 @@
 @page io_runtime_performance IO runtime and performance
 
-IO itself performs no operating-system calls. Blocking behavior comes from the concrete `Reader` or `Writer` implementation.
+This page owns allocation, buffering, and data-movement characteristics. Transfer correctness and backend obligations are documented in @ref io_reader_writer_contract.
 
-## Whole-stream reads
+## Known-size reads
 
-When both `Reader::size()` and `Reader::position()` succeed, `readAllBytes()` and `readAllText()` calculate the known remaining byte count and read directly into final output storage. This avoids a temporary transfer buffer and allocates the final result once.
+When both `Reader::size()` and `Reader::position()` succeed, read-all helpers calculate the remaining byte count and allocate the final vector or string directly.
 
-If size or position is unsupported, the helpers use the unknown-size path. The normal overload allocates one temporary transfer buffer without pre-filling it; the scratch-buffer overload reuses caller-owned storage and avoids that allocation.
+This path:
 
-Unknown-size output grows geometrically through `std::vector` or `std::string`. Reusing a scratch buffer removes temporary-buffer churn, but the returned result still owns its collected bytes.
+- Avoids a separate temporary transfer allocation.
+- Rejects caller and representation limits before allocating.
+- Starts from the current reader position rather than assuming position zero.
+- Ignores the caller scratch buffer because direct destination reads are available.
 
-## Hard byte limits
+The final output is resized before reading, then reduced to valid progress if a later failure occurs.
 
-`maxBytes` is a hard maximum accepted stream size, not a truncation request.
+## Unknown-size reads
 
-Known-size readers are rejected before output allocation when their remaining byte count exceeds the limit.
+The ordinary overload allocates one temporary buffer with an effective size of `min(bufferSize, maxBytes)`. `kDefaultBufferSize` is used when the caller does not supply a size.
 
-Unknown-size readers may require a one-byte probe after collecting exactly `maxBytes` bytes. End-of-stream makes the read successful; another byte returns `SizeLimitExceeded`. That probe advances the reader by one additional byte when the stream exceeds the limit, but the returned result never stores more than `maxBytes` bytes.
+The scratch-buffer overload reuses caller-owned temporary storage and avoids that allocation. The returned vector or string still owns and grows its output storage.
+
+Unknown-size output grows according to the standard container's allocation strategy. Reusing scratch storage controls temporary-buffer churn but does not preallocate the final unknown-size result.
+
+## Hard limits and probing
+
+`maxBytes` is a hard accepted-size limit.
+
+Known-size readers are rejected before output allocation when the remaining count exceeds the limit. Unknown-size readers may consume one additional probe byte after collecting exactly the limit. The probe distinguishes exact end-of-stream from over-limit input; the extra byte is never stored.
+
+`kNoByteLimit` removes only the caller-imposed limit. Container `max_size()`, address-space, and allocation limits still apply and may produce `SizeLimitExceeded` or `OutOfMemory`.
 
 ## MemoryReader
 
-`MemoryReader` performs bounded, overlap-safe transfers from caller-owned contiguous storage. It does not allocate.
+`MemoryReader` performs bounded `memmove` transfers from caller-owned storage. It allocates nothing and supports overlapping source and destination ranges.
 
-The caller must keep the source bytes alive and at a stable address for the reader's full lifetime.
+Its performance depends on keeping the source alive and stable; it never copies the source for ownership safety.
 
 ## MemoryWriter
 
 `MemoryWriter` uses a growing `std::vector<std::byte>`.
 
-- Use the initial-capacity constructor or `reserve()` when the expected output size is known.
-- `clear()` removes bytes while preserving capacity for reuse.
-- `takeBytes()` transfers the owned vector out, replaces writer storage with an empty vector, and may discard reserved capacity.
-- Writes from a span that aliases current writer bytes are supported without allocating a temporary copy.
-- `text()` creates a separate `std::string` copy.
+- Use the initial-capacity constructor or `reserve()` when output size is predictable.
+- Use `clear()` to reuse capacity between operations.
+- Use `takeBytes()` when ownership should move to the caller; the writer may lose its reserved capacity.
+- `bytes()` is zero-copy but returns a temporary view into writer-owned storage.
+- `text()` allocates and copies the complete byte sequence.
+- Appending a valid subspan of current writer storage is handled without a separate temporary copy.
 
-## Status allocation behavior
+## Status cost
 
-IO-generated statuses leave `Status::message` empty. Concrete backends may add diagnostic text when the extra allocation and detail are appropriate.
+`Status` owns an optional `std::string`. IO-generated statuses normally leave it empty. Backends should avoid constructing success messages and should attach failure text only when the diagnostic value justifies the allocation.
 
-Status-returning helpers report failed allocations as `OutOfMemory`. `SizeLimitExceeded` remains reserved for explicit or representational size limits.
+Code-only statuses remain useful in hot or allocation-sensitive paths, while `nativeCode` and `message` preserve backend detail when needed.
 
-`Status` intentionally retains its owning diagnostic string. This makes successful result objects larger than a code-only status type, but preserves backend diagnostics without a second error channel. Hot paths should prefer empty code-only statuses and avoid constructing messages on success.
+## Related pages
 
-## Threading
-
-Different Reader or Writer objects may be used concurrently.
-
-The same object is not thread-safe unless its concrete implementation explicitly says otherwise. `MemoryReader` and `MemoryWriter` are not internally synchronized.
+- @ref io_reader_writer_contract
+- @ref io_examples
+- @ref io_troubleshooting

@@ -1,5 +1,8 @@
 /// @file io_test.cpp
 /// @brief Executable self-tests for the IO library.
+///
+/// The suite exercises public transfer contracts, partial progress, limits,
+/// seeking, error propagation, and custom Reader/Writer implementations.
 
 #include "validation/tests/io/io_test.h"
 

@@ -1,21 +1,19 @@
 @page test_support_reports TestSupport reports
 
-`GameWIP::TestSupport::Types::ReportOptions` controls where test output goes:
+## Output selection
 
-- `writeConsole` writes report lines to stdout.
-- `writeReport` writes report lines to `reportPath`.
-- `appendReport` appends instead of truncating the report at runner/context creation.
-- `flushReportEachLine` flushes after every report line when immediate external reads are required.
-- `consoleVerbosity` selects minimal, concise, or full stdout output.
-- `reportPath` defaults to `logs/tests/latest_test_report.txt`.
+`Types::ReportOptions` controls independent console and report-file sinks.
 
-`ConsoleVerbosity::Full` writes every category. `ConsoleVerbosity::Concise` writes failures, skips, manual instructions, suite results, and summaries. `ConsoleVerbosity::Minimal` writes only failures, skips, and manual instructions so an outer runner can own aggregate status output without duplication. Categories omitted from the console remain in the report file.
+- `writeConsole` enables stdout.
+- `writeReport` enables report-file setup.
+- `reportPath` selects the file; an empty path opens no file even when `writeReport` is true.
+- `appendReport` appends rather than truncating when the sink is created.
+- `flushReportEachLine` flushes the report file after each line.
+- `consoleVerbosity` filters stdout categories only.
 
-Parent directories for the report path are created when possible. Report open, write, and flush failures emit one `[TEST REPORT]` diagnostic to stderr, disable further file output for that sink, and do not change test results.
+`Full` writes every category to stdout. `Concise` writes failures, skips, manual instructions, suite results, and summaries. `Minimal` writes failures, skips, and manual instructions. The report file receives all categories.
 
-Report files are buffered by default. `Runner` flushes after each completed suite result, and the report sink flushes when destroyed. Tests that inspect a report before either boundary should set `flushReportEachLine = true`.
-
-Report categories:
+## Categories
 
 - `[INFO]`
 - `[PASS]`
@@ -27,11 +25,29 @@ Report categories:
 - `[SUMMARY]`
 - `[RESULT]`
 
-`Context` writes suite-scoped lines such as:
+Context lines include the suite name. Failure lines include source-location details. Runner-level lines omit a suite label. Each completed suite produces one `[RESULT]` line.
 
-```text
-[PASS] [Physics] mass remains positive
-[FAIL] [Physics] velocity clamp: expected true (file.cpp:42 in runPhysicsTests)
-```
+## Buffering and flush boundaries
 
-`Runner` writes run-level lines and one `[RESULT]` line per completed suite. `Section` writes an informational begin line and a metric line with elapsed milliseconds when the section ends.
+Report files are buffered by default. A runner flushes its shared file after each completed suite. A standalone context normally relies on sink destruction for the final flush. Set `flushReportEachLine` only when an external reader must observe each line immediately.
+
+`flushReportEachLine` does not request an explicit stdout flush. Console output follows normal `std::cout` buffering.
+
+## Sink failure
+
+Directory creation, file open, file write, and file flush failures disable only that report-file sink and emit at most one `[TEST REPORT]` diagnostic to stderr. Counting and console output continue.
+
+The result summary does not encode report health. `Runner::exitCode()` can be zero even when the report file failed.
+
+This degradation rule covers ordinary stream-state failures. Reporting methods are not universally `noexcept`: allocation, formatting, path conversion, and standard-stream exceptions can still propagate.
+
+## Concurrency and ownership
+
+One report sink serializes complete lines. Context count updates are also serialized. Concurrent call ordering follows lock acquisition and is not a deterministic event timeline.
+
+Independent contexts/runners own independent sinks. TestSupport does not coordinate two sinks writing the same path; use one shared runner or distinct paths.
+
+## Related pages
+
+- @ref test_support_expectations
+- @ref test_support_troubleshooting

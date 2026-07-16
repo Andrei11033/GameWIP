@@ -1,19 +1,40 @@
 @page test_support_testing TestSupport maintainer validation
 
-@note This page describes how maintainers validate TestSupport itself. The public TestSupport API remains documented in the consumer-manual pages.
+@note This page describes proof coverage and environment requirements, not installed consumer API.
 
-The focused suite covers:
+## Focused validation
 
-- runner/context result aggregation and section lifetime;
-- expectation pass/fail, throw/no-throw, skip, manual, and continuation behavior;
-- report buffering, suite-boundary flushing, immediate flushing, category filtering, and report-failure diagnostics;
-- scoped temporary-directory creation, uniqueness, nested artifacts, and cleanup;
-- scoped current-path and environment restoration;
-- text-file helper success and failure;
-- child exit, nonzero exit, timeout, bounded capture, continued draining, descendant cleanup, and requested termination;
-- manual-check skip behavior for unattended input;
-- timer, start gate, stop flag, and worker coordination.
+The `test_support` module covers:
 
-TestSupport must remain independent of IO, FileSystem, Terminal, Logger, Assert, engine, and game code. Child-process tests assert portable observable results rather than private Win32 implementation details.
+- `Runner`, `Context`, summaries, sections, exception conversion, and continuation;
+- every expectation family and value-formatting fallback;
+- report buffering, suite-boundary and immediate flushing, verbosity, append/truncate, and one-time sink-failure diagnostics;
+- temporary-directory uniqueness, nested cleanup, current-path restoration, file-helper success and ambiguity cases;
+- environment set/unset/restoration and invalid UTF-8/name input;
+- child zero/nonzero exit, launch failure, timeout, capture limits, continued draining, environment blocks, descendant cleanup, and test-requested termination;
+- manual-check EOF/skip behavior;
+- timer, one-shot gate, stop flag, worker indexing, exceptions, and partial-startup cleanup.
 
-See @ref test_support_child_processes and @ref test_support_reports for public contracts. GameWIP's module routing and report policy are documented under @ref project_testing and @ref project_validation.
+Run it through the project workflow documented by @ref project_testing and @ref project_validation.
+
+## Other validation boundaries
+
+Project validation also checks:
+
+- `test_support/test_support.h` as a self-contained C++23 public header;
+- clean exact-version installed-package consumption through `GameWIP::TestSupport`;
+- game validation child routes that use TestSupport process isolation;
+- report modes and process-global state restoration;
+- Doxygen warnings and local page references.
+
+TestSupport must remain independent of IO, FileSystem, Terminal, Logger, Assert, engine, and game runtime code. It exposes no special source-tree test-hook header.
+
+## Platform scope
+
+The current environment and process backend is Win32. Portable tests should assert public result fields and state restoration rather than private native handles or implementation ordering.
+
+## Documentation validation
+
+The Doxygen warning log must be empty. Manual examples should compile against the installed public header and target. Maintainer comments explain backend safety and cleanup invariants without promoting internal mechanics to public guarantees.
+
+See @ref project_documentation and @ref project_testing.

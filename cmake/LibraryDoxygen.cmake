@@ -1,8 +1,17 @@
 include_guard(GLOBAL)
 
-# Project-wide Doxygen helpers. Library-specific CMake files should only
-# declare their own public headers/docs; the root docs target merges everything
-# into one generated library documentation site.
+# Provides project-wide generated-documentation registration helpers.
+#
+# Public helpers:
+# - gamewip_register_doxygen_inputs(...)
+# - gamewip_register_doxygen_library(...)
+# - gamewip_create_doxygen_target(...)
+#
+# Contract:
+# - Register only explicit documented headers and Markdown manual pages.
+# - Require each registered reusable library to provide its landing page.
+# - Keep library CMakeLists.txt files declarative and local to their own docs.
+# - Fail configuration on unsupported inputs instead of silently omitting docs.
 
 function(gamewip_register_doxygen_inputs)
     foreach(doxygen_input IN LISTS ARGN)
@@ -33,7 +42,7 @@ function(gamewip_register_doxygen_inputs)
                 AND NOT doxygen_input_extension_lower STREQUAL ".md")
                 message(FATAL_ERROR
                     "Unsupported Doxygen input '${doxygen_input_absolute}'. "
-                    "Register only public headers and Markdown manual pages."
+                    "Register only documented headers and Markdown manual pages."
                 )
             endif()
             set_property(GLOBAL APPEND PROPERTY LIBRARY_DOXYGEN_INPUTS "${doxygen_input_absolute}")
@@ -150,6 +159,7 @@ function(gamewip_create_doxygen_target)
     set(LIBRARY_DOXYGEN_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/docs/doxygen")
     set(LIBRARY_DOXYGEN_HTML_INDEX "${LIBRARY_DOXYGEN_OUTPUT_DIR}/html/index.html")
     set(LIBRARY_DOXYGEN_WARNING_LOG "${LIBRARY_DOXYGEN_OUTPUT_DIR}/doxygen_warnings.log")
+    set(LIBRARY_DOXYGEN_VERSION_FILE "${CMAKE_CURRENT_BINARY_DIR}/DoxyfileVersion")
 
     configure_file(
         "${CMAKE_CURRENT_SOURCE_DIR}/docs/doxygen/Doxyfile.in"
@@ -160,9 +170,18 @@ function(gamewip_create_doxygen_target)
     add_custom_target(docs
         COMMAND "${CMAKE_COMMAND}" -E make_directory "${LIBRARY_DOXYGEN_OUTPUT_DIR}"
         COMMAND "${CMAKE_COMMAND}" -E rm -rf "${LIBRARY_DOXYGEN_OUTPUT_DIR}/html"
-        COMMAND "${CMAKE_COMMAND}" -E echo "Doxygen input is explicit public headers + Markdown manual pages only."
+        COMMAND "${CMAKE_COMMAND}"
+            "-DSOURCE_DIR=${PROJECT_SOURCE_DIR}"
+            "-DBINARY_DIR=${PROJECT_BINARY_DIR}"
+            "-DPROJECT_VERSION=${PROJECT_VERSION}"
+            "-DOUTPUT_FILE=${LIBRARY_DOXYGEN_VERSION_FILE}"
+            -P "${PROJECT_SOURCE_DIR}/cmake/RefreshDoxygenVersion.cmake"
+        COMMAND "${CMAKE_COMMAND}" -E echo "Doxygen input is explicit documented headers + Markdown manual pages only."
         COMMAND "${CMAKE_COMMAND}" -E echo "Generating Doxygen HTML into: ${LIBRARY_DOXYGEN_OUTPUT_DIR}/html"
         COMMAND Doxygen::doxygen "${CMAKE_CURRENT_BINARY_DIR}/Doxyfile"
+        COMMAND "${CMAKE_COMMAND}"
+            "-DWARNING_LOG=${LIBRARY_DOXYGEN_WARNING_LOG}"
+            -P "${PROJECT_SOURCE_DIR}/cmake/RejectDoxygenWarnings.cmake"
         COMMAND "${CMAKE_COMMAND}" -E echo "Generated Doxygen HTML: ${LIBRARY_DOXYGEN_HTML_INDEX}"
         COMMAND "${CMAKE_COMMAND}" -E echo "Doxygen warnings: ${LIBRARY_DOXYGEN_WARNING_LOG}"
         WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"

@@ -1,5 +1,8 @@
 /// @file logger_benchmark.cpp
 /// @brief Google Benchmark scenarios for Logger producer paths.
+///
+/// Scenarios isolate producer-path costs and report queue/drop state so measured
+/// throughput cannot silently hide discarded asynchronous work.
 
 #include "logger/logger.h"
 #include "test_support/test_support.h"
@@ -7,8 +10,11 @@
 #include <benchmark/benchmark.h>
 
 #include <chrono>
+#include <array>
 #include <exception>
+#include <format>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <string_view>
 
@@ -19,6 +25,7 @@ namespace
 
     constexpr std::string_view source = "LoggerBenchmark";
     constexpr std::string_view message = "logger benchmark message";
+    constexpr Logger::Types::SourceId registeredSource = 1;
 
     /// @brief Creates deterministic Logger settings shared by all producer benchmarks.
     Logger::Types::Config baseConfig()
@@ -65,10 +72,17 @@ namespace
                 }
             }
 
-            initialized_ = Logger::init(config) == Logger::Types::Result::Success;
+            const Logger::Types::Result initResult = Logger::init(config);
+            initialized_ = initResult == Logger::Types::Result::Success;
             if (!initialized_)
             {
-                state.SkipWithError("Logger initialization failed.");
+                const Logger::Types::PlatformError platformError = Logger::getLastPlatformError();
+                const std::string error = std::format(
+                    "Logger initialization failed (result={}, source={}, native={}).",
+                    static_cast<int>(initResult),
+                    static_cast<int>(platformError.source),
+                    platformError.nativeCode);
+                state.SkipWithError(error);
             }
             return initialized_;
         }
@@ -188,7 +202,110 @@ namespace
         state.SetItemsProcessed(state.iterations());
     }
 
+    /// @brief Configures the registered-SourceId producer path with asynchronous file output.
+    class RegisteredSourceFixture : public LoggerFixture
+    {
+    public:
+        /// @brief Starts the registered-source producer configuration.
+        void SetUp(benchmark::State &state) override
+        {
+            const std::array sources{Logger::Types::SourceDefinition{registeredSource, "RegisteredBenchmark"}};
+            Logger::Types::Config config = baseConfig();
+            config.output = Logger::Types::Output::File;
+            config.sources = sources;
+            initialize(state, config, "registered_source");
+        }
+    };
+
+    BENCHMARK_DEFINE_F(RegisteredSourceFixture, Producer)(benchmark::State &state)
+    {
+        if (!initialized_)
+        {
+            return;
+        }
+        for (auto iteration : state)
+        {
+            static_cast<void>(iteration);
+            Logger::info(registeredSource, message);
+        }
+        state.SetItemsProcessed(state.iterations());
+    }
+
+    /// @brief Shares one Logger lifecycle across a Google Benchmark thread group.
+    void multiProducerContention(benchmark::State &state)
+    {
+        static std::mutex lifecycleMutex;
+        static std::size_t activeThreads = 0;
+        static bool initialized = false;
+        static std::unique_ptr<TestSupport::ScopedTemporaryDirectory> workspace;
+        static std::string directoryText;
+
+        {
+            const std::lock_guard lock{lifecycleMutex};
+            if (activeThreads == 0)
+            {
+                Logger::shutdown();
+                try
+                {
+                    workspace = std::make_unique<TestSupport::ScopedTemporaryDirectory>("logger_benchmark_multi_producer");
+                    directoryText = workspace->path().string();
+                    const std::array sources{Logger::Types::SourceDefinition{registeredSource, "RegisteredBenchmark"}};
+                    Logger::Types::Config config = baseConfig();
+                    config.output = Logger::Types::Output::File;
+                    config.logDirectory = directoryText;
+                    config.sources = sources;
+                    initialized = Logger::init(config) == Logger::Types::Result::Success;
+                }
+                catch (const std::exception &exception)
+                {
+                    state.SkipWithError(exception.what());
+                    initialized = false;
+                }
+            }
+            ++activeThreads;
+        }
+
+        if (!initialized)
+        {
+            state.SkipWithError("Logger initialization failed.");
+        }
+        else
+        {
+            for (auto iteration : state)
+            {
+                static_cast<void>(iteration);
+                Logger::info(registeredSource, message);
+            }
+            state.SetItemsProcessed(state.iterations());
+        }
+
+        {
+            const std::lock_guard lock{lifecycleMutex};
+            --activeThreads;
+            if (activeThreads == 0)
+            {
+                const bool flushed = initialized && Logger::flush(std::chrono::seconds{10});
+                const Logger::Types::Stats stats = Logger::getStats();
+                Logger::shutdown();
+                workspace.reset();
+                directoryText.clear();
+                initialized = false;
+
+                state.counters["queued"] = static_cast<double>(stats.queued);
+                state.counters["written"] = static_cast<double>(stats.written);
+                state.counters["queue_drops"] = static_cast<double>(stats.queueDropsSoft + stats.queueDropsHard);
+                state.counters["peak_queue"] = static_cast<double>(stats.peakQueueDepth);
+                if (!flushed)
+                {
+                    state.SkipWithError("Logger flush timed out.");
+                }
+            }
+        }
+    }
+
     BENCHMARK_REGISTER_F(OutputDisabledFixture, Producer)->Name("BM_Logger_OutputDisabled")->UseRealTime();
     BENCHMARK_REGISTER_F(FilteredFormattedFixture, Producer)->Name("BM_Logger_FilteredFormatted")->UseRealTime();
     BENCHMARK_REGISTER_F(EnabledFileFixture, Producer)->Name("BM_Logger_EnabledFile")->UseRealTime();
+    BENCHMARK_REGISTER_F(RegisteredSourceFixture, Producer)->Name("BM_Logger_RegisteredSourceId")->UseRealTime();
+    BENCHMARK(multiProducerContention)->Name("BM_Logger_MultiProducerContention")->Threads(2)->Threads(4)->Threads(8)->UseRealTime();
 } // namespace

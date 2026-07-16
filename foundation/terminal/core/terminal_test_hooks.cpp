@@ -1,7 +1,8 @@
 /// @file terminal_test_hooks.cpp
-/// @brief Terminal internal test hook definitions.
+/// @brief Source-tree deterministic Terminal overrides, capture, counters, and one-shot failure injection.
 
 #include "terminal/internal/terminal_test_hooks.h"
+#include "terminal/internal/terminal_platform.h"
 
 #if INTERNAL_TERMINAL_TEST_HOOKS
 #include <cstring>
@@ -90,6 +91,7 @@ namespace GameWIP::Terminal::TestHooks
     void reset() noexcept
     {
         resetTerminalTestHooks();
+        Detail::Platform::TestHooks::setPendingHighSurrogate(Terminal::Types::InputStream::Stdin, 0);
     }
 
     void setInputCapabilitiesOverride(Terminal::Types::InputStream stream, const Terminal::Types::InputCapabilities &capabilities)
@@ -160,6 +162,16 @@ namespace GameWIP::Terminal::TestHooks
         state.inputBytes.clear();
         state.inputBytesOverrideEnabled = false;
         state.endOfStreamWhenInputEmpty = true;
+    }
+
+    void setPendingHighSurrogate(Terminal::Types::InputStream stream, std::uint16_t surrogate) noexcept
+    {
+        Detail::Platform::TestHooks::setPendingHighSurrogate(stream, surrogate);
+    }
+
+    bool hasPendingHighSurrogate(Terminal::Types::InputStream stream) noexcept
+    {
+        return Detail::Platform::TestHooks::hasPendingHighSurrogate(stream);
     }
 
     void setInputModeOverride(Terminal::Types::InputStream stream, const Terminal::Types::InputMode &defaultMode)

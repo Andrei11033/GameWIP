@@ -1,5 +1,5 @@
 /// @file io.cpp
-/// @brief Core implementation for the IO contract library.
+/// @brief Implements IO status helpers, default interfaces, memory streams, and whole-transfer algorithms.
 
 #include "io/io.h"
 
@@ -13,9 +13,10 @@
 #include <utility>
 #include <vector>
 
+/// @brief Internal algorithms shared by the public whole-stream and memory-writer implementations.
 namespace GameWIP::IO::Detail::Core
 {
-    /// @brief Returns whether a reader capability failure should be treated as unknown size/position.
+    /// @brief Returns whether a reader capability failure should select the unknown-size path.
     /// @param status Status returned by a reader capability query.
     /// @return True when helpers may continue through the unknown-size path.
     [[nodiscard]] bool isUnsupportedReaderCapability(const Types::Status &status) noexcept
@@ -23,10 +24,14 @@ namespace GameWIP::IO::Detail::Core
         return status.code == Types::ErrorCode::NotSeekable || status.code == Types::ErrorCode::Unsupported;
     }
 
+    /// @brief Result of probing a reader for an exact remaining byte count.
     struct KnownReadableByteCount
     {
+        /// @brief Capability-query failure, or success when the count is known or intentionally unknown.
         Types::Status status;
+        /// @brief Remaining bytes from the current position when known is true.
         std::uint64_t byteCount = 0;
+        /// @brief Whether byteCount is authoritative for the next reads.
         bool known = false;
     };
 
@@ -57,6 +62,8 @@ namespace GameWIP::IO::Detail::Core
         {
             if (isUnsupportedReaderCapability(positionResult.status))
             {
+                // A total size is not enough to preallocate the remaining range without a current
+                // position, so fall back to streaming instead of assuming position zero.
                 result.known = false;
                 result.byteCount = 0;
                 return result;
@@ -314,6 +321,7 @@ namespace GameWIP::IO::Detail::Core
             return makeStatus(Types::ErrorCode::SizeLimitExceeded);
         }
 
+        // sourceOffset remains valid even if resize reallocates and invalidates the original span.
         try
         {
             destination.resize(oldSize + sourceSize);
@@ -327,7 +335,7 @@ namespace GameWIP::IO::Detail::Core
         return successStatus();
     }
 
-    /// @brief Probes an unknown-size reader after the caller byte limit has been collected.
+    /// @brief Consumes at most one byte to distinguish exact-limit EOF from over-limit input.
     /// @param reader Reader to probe.
     /// @return Success for end-of-stream, SizeLimitExceeded for more data, or the observed failure.
     [[nodiscard]] Types::Status probeForMoreData(Reader &reader)
@@ -819,6 +827,8 @@ namespace GameWIP::IO
             return {.status = makeStatus(Types::ErrorCode::SizeLimitExceeded), .bytesWritten = 0};
         }
 
+        // Detect self-aliasing before appending can reallocate the vector. The source offset, rather
+        // than the input pointer, remains usable after storage moves.
         const std::byte *const inputBegin = bytes.data();
         const std::byte *const ownBegin = bytes_.data();
         const std::byte *const ownEnd = ownBegin == nullptr ? nullptr : ownBegin + oldSize;
@@ -948,6 +958,7 @@ namespace GameWIP::IO
         const auto effectiveBufferSize = static_cast<std::size_t>(std::min<std::uint64_t>(static_cast<std::uint64_t>(bufferSize), maxBytes));
         std::unique_ptr<std::byte[]> buffer;
 
+        // The scratch bytes are immediately overwritten by Reader::read(), so avoid value-initializing them.
         try
         {
             buffer = std::make_unique_for_overwrite<std::byte[]>(effectiveBufferSize);
@@ -1012,6 +1023,7 @@ namespace GameWIP::IO
         const auto effectiveBufferSize = static_cast<std::size_t>(std::min<std::uint64_t>(static_cast<std::uint64_t>(bufferSize), maxBytes));
         std::unique_ptr<std::byte[]> buffer;
 
+        // The scratch bytes are immediately overwritten by Reader::read(), so avoid value-initializing them.
         try
         {
             buffer = std::make_unique_for_overwrite<std::byte[]>(effectiveBufferSize);

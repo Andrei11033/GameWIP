@@ -1,9 +1,15 @@
 # Contributing to GameWIP
 
-GameWIP uses a focused issue, branch, and pull request workflow.
+GameWIP uses GitHub issues, short-lived branches, pull requests, required validation notes, and squash merges to keep `master` readable and releasable.
 
-Use [docs/contributing.md](docs/contributing.md) for the full repository workflow standard, including issue titles, labels, branch names, pull request descriptions, validation notes, and squash commit messages.
+Read [docs/contributing.md](docs/contributing.md) for the full contributor workflow, including issue titles, labels, branch names, pull request metadata, validation evidence, project automation, and squash commit messages.
 
-Project status and linked pull request metadata are reconciled automatically. Static-analysis scope and repository-check commands are documented in [docs/doxygen/static_analysis.md](docs/doxygen/static_analysis.md).
+For implementation and review standards, also read:
+
+- [Extending the project](docs/doxygen/extending.md)
+- [CMake infrastructure](docs/doxygen/cmake_infrastructure.md)
+- [Documentation system](docs/doxygen/documentation.md)
+- [Project decisions](docs/decisions.md)
+- [Versioning policy](docs/versioning.md)
 
 Correctness tests live in discovered modules under `game/validation/tests`; benchmarks live under `game/validation/benchmarks`. Keep behavior checks out of benchmarks and performance thresholds out of correctness tests and CI.

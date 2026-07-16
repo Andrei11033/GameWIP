@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.23)
+cmake_minimum_required(VERSION "${GAMEWIP_CMAKE_MINIMUM_VERSION}")
 
 project(GameWIPInstalledConsumer LANGUAGES CXX)
 
@@ -26,4 +26,14 @@ target_link_libraries(GameWIPInstalledConsumer PRIVATE
 
 if(GAMEWIP_CONSUMER_LINK_COVERAGE)
     target_link_options(GameWIPInstalledConsumer PRIVATE --coverage)
+endif()
+
+if(GAMEWIP_CONSUMER_ENABLE_ADDRESS_SANITIZER)
+    target_compile_options(GameWIPInstalledConsumer PRIVATE
+        -fsanitize=address
+        -fno-omit-frame-pointer
+    )
+    target_link_options(GameWIPInstalledConsumer PRIVATE
+        -fsanitize=address
+    )
 endif()
