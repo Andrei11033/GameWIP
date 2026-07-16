@@ -1,8 +1,8 @@
 @page project_environment_setup Development environment setup
 
 This manual covers the repository-owned Windows 11 bootstrap utility. Use it
-after obtaining a Git checkout of GameWIP; it installs the selected development
-environment, initializes pinned dependencies, prepares editor workflows, builds
+from either a Git checkout or an extracted GitHub ZIP of GameWIP; it installs
+the selected development environment, initializes pinned dependencies, prepares editor workflows, builds
 the profiler tools and manual, and verifies the result.
 
 ## Fresh-machine quick start
@@ -47,6 +47,7 @@ Menu and consent choices take effect on one keypress; Enter is not required.
 | `8` | Install common machine tools. |
 | `9` | Build the manual, reject warnings, and open it in the default browser. |
 | `0` | Rebuild the pinned Tracy tools under `.tracy`. |
+| `U` | Remove GameWIP-owned integrations and software installed by setup. |
 | `Esc` | Exit. |
 
 An interactive action returns to the complete menu after either success or a
@@ -67,6 +68,7 @@ is useful for repeat runs and automation:
 | `setup.bat check` | Verify required tools and project state without changing the machine. |
 | `setup.bat update` | Update compatible tools and rebuild repository-owned integrations. |
 | `setup.bat repair` | Reapply the complete required state without requesting ordinary upgrades. |
+| `setup.bat uninstall` | Remove setup-owned software, integrations, Tracy, and setup-generated `dev`/documentation build trees while preserving pre-existing software and the checkout. |
 | `setup.bat editor` | Choose editors interactively and install their GameWIP integration. |
 | `setup.bat tools` | Install the common WinGet-managed command-line tools. |
 | `setup.bat visual-studio` | Install or repair Visual Studio Community from `.vsconfig`. |
@@ -83,6 +85,21 @@ needed for that run. Options may follow the action as shown above.
 
 Without `-NonInteractive`, machine-changing actions offer Automatic, Manual
 instructions, or Cancel before making changes.
+
+Complete setup, repair, and update show conservative download, installed-disk,
+temporary-build, and peak-memory estimates before requesting consent. Actual
+usage depends on the chosen editor and packages already present.
+
+`update` also updates the main repository. It fetches the configured upstream
+and permits only a fast-forward, then synchronizes the pinned submodules. Commit
+or stash tracked changes first; setup never discards or automatically merges
+local work.
+
+Extracted GitHub ZIPs are supported directly. Repository setup initializes Git
+metadata in the existing folder, connects the official remote and its default
+branch, and never replaces the extracted working files. If those files differ
+from the current default branch, they remain visible as local changes; commit or
+stash them before using `setup.bat update`.
 
 ## Daily project commands
 

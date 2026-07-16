@@ -79,6 +79,7 @@ The validation command builder helps assemble `GameWIPTests.exe` arguments from 
 Common non-interactive usage:
 
 ```powershell
+.\gamewip.bat doctor
 .\gamewip.bat list
 .\gamewip.bat build -Preset test
 .\gamewip.bat test -Preset test
@@ -88,6 +89,12 @@ Common non-interactive usage:
 .\gamewip.bat run -ProjectCommand benchmark-dry-run -BuildIfMissing
 .\gamewip.bat bundle -Bundle quick
 ```
+
+`doctor` checks the repository metadata and the exact UCRT64/CLANG64 tools used
+by project commands. Build and test actions automatically configure a missing
+build tree. All normal presets explicitly use `C:\MSYS2\ucrt64\bin`; ASan uses
+`C:\MSYS2\clang64\bin`, so an unrelated CMake or compiler earlier on the user's
+global `PATH` cannot silently change the build.
 
 Running `gamewip.bat` without arguments opens the interactive menu. The helper is intentionally project-scoped: stress and project-command actions are selected from known GameWIP validation, benchmark, and executable checks instead of accepting arbitrary shell commands.
 

@@ -314,7 +314,9 @@ function Install-GameWipEditorIntegration
 
     foreach ($extension in $Extensions)
     {
+        $installedBefore = @(& code --list-extensions) -contains $extension
         Invoke-SetupNative -FilePath 'code' -ArgumentList @('--install-extension', $extension, '--force') | Out-Null
+        if (-not $installedBefore) { Add-GameWipOwnedVsCodeExtension -Id $extension }
     }
 
     $source = Join-Path $RepositoryRoot 'scripts\setup\editor\gamewip-workflows'

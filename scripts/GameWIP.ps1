@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [ValidateSet('menu', 'configure', 'build', 'test', 'module', 'wizard', 'stress', 'run', 'bundle', 'docs', 'analysis', 'coverage', 'asan', 'benchmark', 'list', 'help')]
+    [ValidateSet('menu', 'doctor', 'configure', 'build', 'test', 'module', 'wizard', 'stress', 'run', 'bundle', 'docs', 'analysis', 'coverage', 'asan', 'benchmark', 'list', 'help')]
     [string]$Action = 'menu',
     [string]$Preset,
     [string]$Module,
@@ -301,7 +301,64 @@ function Get-ToolchainPathPrefix
     {
         return 'C:\MSYS2\clang64\bin'
     }
-    return ''
+    return 'C:\MSYS2\ucrt64\bin'
+}
+
+function Test-GameWipProjectReadiness
+{
+    param([switch]$ThrowOnFailure)
+
+    $requirements = @(
+        @{ Name = 'UCRT64 CMake'; Path = 'C:\MSYS2\ucrt64\bin\cmake.exe' }
+        @{ Name = 'UCRT64 Ninja'; Path = 'C:\MSYS2\ucrt64\bin\ninja.exe' }
+        @{ Name = 'UCRT64 C++ compiler'; Path = 'C:\MSYS2\ucrt64\bin\g++.exe' }
+        @{ Name = 'CLANG64 C++ compiler'; Path = 'C:\MSYS2\clang64\bin\clang++.exe' }
+    )
+    $failures = New-Object System.Collections.Generic.List[string]
+    Write-GameWipSection 'Project readiness'
+    foreach ($requirement in $requirements)
+    {
+        if (Test-Path -LiteralPath $requirement.Path)
+        {
+            Write-Host "  [ready] $($requirement.Name)"
+        }
+        else
+        {
+            Write-Host "  [missing] $($requirement.Name): $($requirement.Path)" -ForegroundColor Yellow
+            $failures.Add($requirement.Name) | Out-Null
+        }
+    }
+    if (Test-Path -LiteralPath (Join-Path $RepositoryRoot '.git'))
+    {
+        Write-Host '  [ready] Git repository metadata'
+    }
+    else
+    {
+        Write-Host '  [missing] Git repository metadata' -ForegroundColor Yellow
+        $failures.Add('Git repository metadata') | Out-Null
+    }
+    $drive = [IO.DriveInfo]::new([IO.Path]::GetPathRoot($RepositoryRoot))
+    if ($drive.IsReady) { Write-Host ('  Free disk space: {0:N1} GB' -f ($drive.AvailableFreeSpace / 1GB)) }
+
+    if ($failures.Count -ne 0)
+    {
+        $message = "$($failures.Count) project requirement(s) are missing. Run .\setup.bat repair, then rerun gamewip."
+        if ($ThrowOnFailure) { throw $message }
+        Write-Host "  $message" -ForegroundColor Yellow
+        return $false
+    }
+    Write-Host '  Ready: the project toolchain is available.' -ForegroundColor Green
+    return $true
+}
+
+function Confirm-GameWipToolchain
+{
+    param([Parameter(Mandatory = $true)][string]$PresetName)
+    $prefix = Get-ToolchainPathPrefix $PresetName
+    if (-not (Test-Path -LiteralPath (Join-Path $prefix 'cmake.exe')))
+    {
+        Test-GameWipProjectReadiness -ThrowOnFailure | Out-Null
+    }
 }
 
 function Invoke-ConfigurePreset
@@ -309,6 +366,7 @@ function Invoke-ConfigurePreset
     param([Parameter(Mandatory = $true)][string]$Name)
 
     Assert-ValidPreset -Kind 'configure' -Name $Name
+    Confirm-GameWipToolchain -PresetName $Name
     Invoke-GameWipNative -Name "configure-$Name" -FilePath 'cmake' -Arguments @('--preset', $Name) -PathPrefix (Get-ToolchainPathPrefix $Name)
 }
 
@@ -317,6 +375,13 @@ function Invoke-BuildPreset
     param([Parameter(Mandatory = $true)][string]$Name)
 
     Assert-ValidPreset -Kind 'build' -Name $Name
+    Confirm-GameWipToolchain -PresetName $Name
+    $cache = Join-Path $RepositoryRoot "build\$Name\CMakeCache.txt"
+    if (-not (Test-Path -LiteralPath $cache))
+    {
+        Write-Host "Build preset '$Name' has not been configured; configuring it now." -ForegroundColor Cyan
+        Invoke-ConfigurePreset -Name $Name
+    }
     Invoke-GameWipNative -Name "build-$Name" -FilePath 'cmake' -Arguments @('--build', '--preset', $Name, '--parallel') -PathPrefix (Get-ToolchainPathPrefix $Name)
 }
 
@@ -339,6 +404,14 @@ function Invoke-TestPreset
     )
 
     Assert-ValidPreset -Kind 'test' -Name $Name
+    Confirm-GameWipToolchain -PresetName $Name
+    $testFile = Join-Path $RepositoryRoot "build\$Name\CTestTestfile.cmake"
+    if (-not (Test-Path -LiteralPath $testFile))
+    {
+        Write-Host "Test preset '$Name' is not built; configuring and building it now." -ForegroundColor Cyan
+        Invoke-ConfigurePreset -Name $Name
+        Invoke-BuildPreset -Name $Name
+    }
     Invoke-GameWipNative -Name "ctest-$Name" -FilePath 'ctest' -Arguments @('--preset', $Name, '--output-on-failure') -UseWorkspaceTemp:$UseWorkspaceTemp -PathPrefix (Get-ToolchainPathPrefix $Name)
 }
 
@@ -1085,6 +1158,7 @@ function Show-GameWipMenu
         Write-Host '7. Run known project command'
         Write-Host '8. Run command bundle'
         Write-Host '9. List commands and presets'
+        Write-Host '0. Check project readiness'
         Write-Host 'Esc. Exit'
         Write-Host 'Choose an action: ' -NoNewline
         $key = [Console]::ReadKey($true)
@@ -1152,6 +1226,7 @@ function Show-GameWipMenu
                     if ($null -ne $choice) { Invoke-Bundle -Id $choice }
                 }
                 '9' { Show-ProjectCatalog }
+                '0' { Test-GameWipProjectReadiness | Out-Null }
                 default { Write-Host 'Press one of the listed number keys, or Esc to exit.' -ForegroundColor Yellow }
             }
         }
@@ -1170,6 +1245,7 @@ function Show-Help
 {
     Write-Host 'Usage:'
     Write-Host '  gamewip'
+    Write-Host '  gamewip doctor'
     Write-Host '  gamewip list'
     Write-Host '  gamewip configure -Preset test'
     Write-Host '  gamewip build -Preset test'
@@ -1189,6 +1265,7 @@ try
     switch ($Action)
     {
         'menu' { Show-GameWipMenu }
+        'doctor' { Test-GameWipProjectReadiness -ThrowOnFailure | Out-Null }
         'configure' {
             if ([string]::IsNullOrWhiteSpace($Preset)) { $Preset = $CommandConfig.DefaultConfigurePreset }
             Invoke-ConfigurePreset -Name $Preset

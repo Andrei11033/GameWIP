@@ -23,8 +23,24 @@ function Install-WingetPackage
     {
         $arguments += @('--override', $Override)
     }
+    $wasInstalled = Test-WingetPackage -Id $Id
     Invoke-SetupNative -FilePath 'winget' -ArgumentList $arguments | Out-Null
+    if (-not $wasInstalled) { Add-GameWipOwnedWingetPackage -Id $Id }
     Update-SetupProcessPath
+}
+
+function Uninstall-WingetPackage
+{
+    param([Parameter(Mandatory = $true)][string]$Id)
+    if (-not (Test-WingetPackage -Id $Id))
+    {
+        Write-Host "  Already absent: $Id"
+        return
+    }
+    Invoke-SetupNative -FilePath 'winget' -ArgumentList @(
+        'uninstall', '--id', $Id, '--exact', '--source', 'winget',
+        '--accept-source-agreements', '--silent'
+    ) | Out-Null
 }
 
 function Update-WingetPackage
