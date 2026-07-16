@@ -88,6 +88,13 @@ namespace GameWIP::Validation::Tests
                 if (argument.starts_with(modulePrefix))
                 {
                     requestModule(selection, std::string(argument.substr(modulePrefix.size())));
+                    continue;
+                }
+
+                constexpr std::string_view skipModulePrefix = "--skip-test-module=";
+                if (argument.starts_with(skipModulePrefix))
+                {
+                    selection.excludedModules.emplace(argument.substr(skipModulePrefix.size()));
                 }
             }
 
@@ -114,33 +121,6 @@ namespace GameWIP::Validation::Tests
             if (hasArgument(argc, argv, "--no-test-support-child-process"))
             {
                 options.enableTestSupportChildProcessTests = false;
-            }
-
-            const std::pair<std::string_view, std::string_view> focusedAliases[] = {
-                {"--io-only", "io"},
-                {"--filesystem-only", "filesystem"},
-                {"--terminal-only", "terminal"},
-                {"--test-support-only", "test_support"},
-            };
-            for (const auto &[argument, module] : focusedAliases)
-            {
-                if (hasArgument(argc, argv, argument))
-                {
-                    requestModule(selection, std::string(module));
-                }
-            }
-
-            const std::pair<std::string_view, std::string_view> exclusionAliases[] = {
-                {"--no-io-tests", "io"},
-                {"--no-filesystem-tests", "filesystem"},
-                {"--no-terminal-tests", "terminal"},
-            };
-            for (const auto &[argument, module] : exclusionAliases)
-            {
-                if (hasArgument(argc, argv, argument))
-                {
-                    selection.excludedModules.emplace(module);
-                }
             }
 
             return selection;
@@ -344,6 +324,19 @@ namespace GameWIP::Validation::Tests
             std::cerr << "Unknown validation module: " << *selection.module << '\n';
             return {.modulesFailed = 1, .exitCode = 1};
         }
+        for (const std::string &excludedModule : selection.excludedModules)
+        {
+            if (std::ranges::none_of(
+                    modules,
+                    [&](const Module &module)
+                    {
+                        return module.name == excludedModule;
+                    }))
+            {
+                std::cerr << "Unknown skipped validation module: " << excludedModule << '\n';
+                return {.modulesFailed = 1, .exitCode = 1};
+            }
+        }
         if (selection.module && selection.excludedModules.contains(*selection.module))
         {
             std::cerr << "Selected validation module is also excluded: " << *selection.module << '\n';
@@ -380,6 +373,13 @@ namespace GameWIP::Validation::Tests
             // Once one module has written the aggregate report, later modules
             // must append so their summaries do not replace earlier evidence.
             appendReport = appendReport || options.writeReport;
+        }
+
+        if (result.modulesRun == 0)
+        {
+            std::cerr << "No validation modules were selected.\n";
+            result.modulesFailed = 1;
+            result.exitCode = 1;
         }
 
         std::cout << "[VALIDATION] result=" << (result.ok() ? "PASS" : "FAIL") << " modules=" << result.modulesRun

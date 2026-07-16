@@ -84,6 +84,27 @@ needed for that run. Options may follow the action as shown above.
 Without `-NonInteractive`, machine-changing actions offer Automatic, Manual
 instructions, or Cancel before making changes.
 
+## Daily project commands
+
+After setup has prepared the machine and checkout, use the root project helper
+for ordinary build, validation, benchmark, documentation, and stress workflows:
+
+```powershell
+.\gamewip.bat
+.\gamewip.bat list
+.\gamewip.bat build -Preset test
+.\gamewip.bat wizard
+.\gamewip.bat stress -Module logger -Count 100 -Parallel 16 -BuildIfMissing
+```
+
+`setup.bat` owns environment installation and repair. `gamewip.bat` owns
+repository-local project commands, streams native output live, helps assemble
+validation executable arguments, reports stress-run progress, and stores run
+logs under `build/tool-runs/`.
+The command catalog lives in `scripts/config/gamewip-commands.psd1` so project
+commands and bundles can be extended without turning the helper into a generic
+shell launcher.
+
 ## What setup owns
 
 Complete setup prepares these project requirements:

@@ -99,6 +99,7 @@ The runner recognizes these project-level arguments:
 | Argument | Behavior |
 | --- | --- |
 | `--test-module=<name>` | Selects one registered module. Unknown or empty names fail validation. |
+| `--skip-test-module=<name>` | Excludes one registered module from an all-module run. Unknown, empty, or all-excluding skip sets fail validation. |
 | `--test-report=<path>` | Selects the aggregate report path. |
 | `--no-test-report` | Disables retained file output. |
 | `--verbose-tests` | Mirrors every TestSupport report category to stdout. |
@@ -106,19 +107,7 @@ The runner recognizes these project-level arguments:
 | `--logger-popup` | Enables Logger's real fatal-popup check. |
 | `--no-test-support-child-process` | Disables TestSupport child-process scenarios. |
 
-Compatibility selectors remain supported:
-
-| Argument | Equivalent policy |
-| --- | --- |
-| `--io-only` | Select `io`. |
-| `--filesystem-only` | Select `filesystem`. |
-| `--terminal-only` | Select `terminal`. |
-| `--test-support-only` | Select `test_support`. |
-| `--no-io-tests` | Exclude `io`. |
-| `--no-filesystem-tests` | Exclude `filesystem`. |
-| `--no-terminal-tests` | Exclude `terminal`. |
-
-New tooling should use `--test-module=<name>`. Repeating the same selector is accepted; selecting different modules or selecting and excluding the same module is an error.
+Repeating the same selector or skip is accepted. Selecting different modules, selecting and skipping the same module, skipping an unknown module, or skipping every selected module is an error.
 
 The runner does not remove recognized arguments or reject unrelated arguments. Every selected module receives the original `argc` and `argv`, allowing module-owned child protocols and library-specific test logic to inspect them.
 

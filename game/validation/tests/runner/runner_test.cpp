@@ -168,6 +168,33 @@ namespace
         static_cast<void>(context.expectTrue("focused module receives Logger popup", probeState.alpha.loggerPopup));
     }
 
+    void testModuleSkipSelection(TestSupport::Context &context)
+    {
+        Validation::TestResult result = runProbe({"--skip-test-module=alpha"});
+        static_cast<void>(context.expectTrue("single skipped module invocation succeeds", result.ok()));
+        static_cast<void>(context.expectEq("single skipped module leaves one module selected", std::size_t{1}, result.modulesRun));
+        static_cast<void>(context.expectEq("skipped module is not invoked", std::size_t{0}, probeState.alpha.runs));
+        static_cast<void>(context.expectEq("unskipped module is invoked", std::size_t{1}, probeState.beta.runs));
+
+        result = runProbe({"--test-module=alpha", "--skip-test-module=beta"});
+        static_cast<void>(context.expectTrue("selected module can skip unrelated module", result.ok()));
+        static_cast<void>(context.expectEq("selection plus unrelated skip runs selected module", std::size_t{1}, result.modulesRun));
+        static_cast<void>(context.expectEq("selected module still runs", std::size_t{1}, probeState.alpha.runs));
+        static_cast<void>(context.expectEq("unrelated skipped module does not run", std::size_t{0}, probeState.beta.runs));
+
+        result = runProbe({"--skip-test-module=gamma"});
+        static_cast<void>(context.expectFalse("unknown skipped module fails", result.ok()));
+        static_cast<void>(context.expectEq("unknown skipped module runs no module", std::size_t{0}, result.modulesRun));
+
+        result = runProbe({"--test-module=alpha", "--skip-test-module=alpha"});
+        static_cast<void>(context.expectFalse("selected and skipped module fails", result.ok()));
+        static_cast<void>(context.expectEq("selected and skipped module runs no module", std::size_t{0}, result.modulesRun));
+
+        result = runProbe({"--skip-test-module=alpha", "--skip-test-module=beta"});
+        static_cast<void>(context.expectFalse("skipping every module fails", result.ok()));
+        static_cast<void>(context.expectEq("skipping every module runs no module", std::size_t{0}, result.modulesRun));
+    }
+
     void testRemovedAndRetainedOptions(TestSupport::Context &context)
     {
         ValidationTests::RunOptions enabledOptions = unattendedOptions();
@@ -249,6 +276,7 @@ namespace GameWIP::Test
         runner.runSuite("Validation runner default options", testDefaultManualOptions);
         runner.runSuite("Validation runner capability options", testPositiveCapabilityOptions);
         runner.runSuite("Validation runner selection independence", testSelectionIndependence);
+        runner.runSuite("Validation runner module skips", testModuleSkipSelection);
         runner.runSuite("Validation runner removed and retained options", testRemovedAndRetainedOptions);
         runner.runSuite("Validation runner reserved input validation", testReservedChildAndReportValidation);
         runner.runSuite("Validation runner embedded request", testEmbeddedRunRequest);

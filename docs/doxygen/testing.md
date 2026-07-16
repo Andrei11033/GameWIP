@@ -48,6 +48,12 @@ Mirror complete suite output to stdout:
 .\build\test\GameWIPTests.exe --test-module=logger --verbose-tests --no-test-report
 ```
 
+Run all modules except one project module:
+
+```powershell
+.\build\test\GameWIPTests.exe --skip-test-module=terminal
+```
+
 Run opt-in human checks:
 
 ```powershell
@@ -57,6 +63,31 @@ Run opt-in human checks:
 ```
 
 The complete runner argument contract is owned by @ref project_validation.
+
+## Project command helper
+
+The root `gamewip.bat` launcher opens `scripts/GameWIP.ps1`, a project-scoped command menu for configure, build, test, benchmark, docs, analysis, coverage, ASan, validation command-building, and validation stress workflows.
+
+The tool discovers CMake presets from `CMakePresets.json` and reads project command definitions from `scripts/config/gamewip-commands.psd1`. Add new project actions by updating that catalog instead of accepting arbitrary shell commands.
+
+Every command run prints the exact native command, streams output live, and stores logs under `build/tool-runs/<timestamp>/`. Validation and stress actions default `TEMP` and `TMP` to `build/gamewip-temp` so local Windows temp-folder permissions cannot make FileSystem and Logger checks fail spuriously.
+
+The validation command builder helps assemble `GameWIPTests.exe` arguments from the supported runner flags, including `--test-module=<name>`, `--skip-test-module=<name>`, report behavior, verbose output, manual UI checks, Logger popup checks, and TestSupport child-process checks. Stress runs report launched, active, completed, and failed worker counts while they run.
+
+Common non-interactive usage:
+
+```powershell
+.\gamewip.bat list
+.\gamewip.bat build -Preset test
+.\gamewip.bat test -Preset test
+.\gamewip.bat wizard
+.\gamewip.bat module -Module terminal -BuildIfMissing
+.\gamewip.bat stress -Module logger -Count 100 -Parallel 16 -BuildIfMissing
+.\gamewip.bat run -ProjectCommand benchmark-dry-run -BuildIfMissing
+.\gamewip.bat bundle -Bundle quick
+```
+
+Running `gamewip.bat` without arguments opens the interactive menu. The helper is intentionally project-scoped: stress and project-command actions are selected from known GameWIP validation, benchmark, and executable checks instead of accepting arbitrary shell commands.
 
 ## Test-module source API
 
