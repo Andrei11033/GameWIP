@@ -115,7 +115,7 @@ Validation notes should be concrete enough that a future maintainer understands 
 Good examples:
 
 ```text
-- `ctest --preset validation` passed all modular correctness-test entries.
+- `ctest --preset test` passed all modular correctness-test entries.
 - `GameWIPBenchmarks.exe --benchmark_dry_run` passed.
 - Doxygen docs built with `GAMEWIP_BUILD_DOCS=ON`; warning log was empty.
 - Inspected the generated FileSystem public API page.

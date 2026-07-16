@@ -387,6 +387,48 @@ namespace GameWIP::Validation::Tests
         return result;
     }
 
+    bool requestsRun(int argc, char **argv) noexcept
+    {
+        for (int index = 1; index < argc; ++index)
+        {
+            if (argv[index] == nullptr)
+            {
+                continue;
+            }
+            const std::string_view argument(argv[index]);
+            if (argument == "--startup-tests" || isReservedChildArgument(argument))
+            {
+                return true;
+            }
+        }
+
+        // Some modules own child protocols outside the runner-reserved
+        // namespaces (for example Logger and Terminal subprocess scenarios).
+        // Embedded validation must route those invocations back into the test
+        // runner or the child would accidentally start the game runtime.
+        for (const Module &module : registeredModules())
+        {
+            if (module.handlesChildArguments == nullptr)
+            {
+                continue;
+            }
+            try
+            {
+                if (module.handlesChildArguments(argc, argv))
+                {
+                    return true;
+                }
+            }
+            catch (...)
+            {
+                // Enter the runner so its normal exception-to-diagnostic path
+                // reports the broken matcher instead of starting the game.
+                return true;
+            }
+        }
+        return false;
+    }
+
     TestResult run(int argc, char **argv, RunOptions options)
     {
         return Detail::runWithModules(argc, argv, std::move(options), registeredModules());

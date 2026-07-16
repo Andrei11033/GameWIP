@@ -4,69 +4,58 @@ This page is the first manual page for a developer who has the repository but do
 
 Use the linked pages for the full contracts. This page intentionally summarizes the first session instead of replacing the detailed build, validation, structure, and contribution pages.
 
-## Prerequisites
-
-GameWIP is currently Windows-first. Normal development uses:
-
-- Windows.
-- MSYS2 UCRT64 GCC.
-- CMake 4.4.x.
-- Ninja.
-- Git submodules.
-
-AddressSanitizer validation uses the MSYS2 CLANG64 environment. Keep UCRT64 and CLANG64 builds in separate preset build trees and put the matching MSYS2 `bin` directory first on `PATH` before configuring that preset.
-
-The full preset and toolchain details are documented in @ref project_build.
-
 ## First checkout setup
 
-Initialize third-party dependencies after cloning:
+Run the repository setup entry point after cloning:
 
 ```powershell
-git submodule update --init --recursive
+.\setup.bat
 ```
 
-For normal development, ensure `C:\MSYS2\ucrt64\bin` appears before other MinGW or MSYS2 environments on `PATH`.
+The fresh-machine flow, editor selection, and repair/update actions are
+documented in @ref project_environment_setup. Preset and toolchain contracts
+are documented in @ref project_build.
 
-VS Code users can open `GameWIP.code-workspace`. Configure the `development` preset before relying on IntelliSense because the workspace reads `build/development/compile_commands.json`.
+VS Code users should open `GameWIP.code-workspace`. The setup utility prepares
+the `dev` compilation database used by workspace IntelliSense.
 
 ## Configure, build, and run
 
 Configure and build the development preset:
 
 ```powershell
-cmake --preset development
-cmake --build --preset development
+cmake --preset dev
+cmake --build --preset dev
 ```
 
 Print runtime version information:
 
 ```powershell
-.\build\development\GameWIP.exe --version
+.\build\dev\GameWIP.exe --version
 ```
 
 Run the development executable:
 
 ```powershell
-.\build\development\GameWIP.exe
+.\build\dev\GameWIP.exe
 ```
 
-The development preset builds the game and runs configured startup validation before entering the runtime facade. Shipping builds intentionally exclude validation, benchmarks, assertions, Tracy, and development tools from the game executable.
+The development preset builds the game with tools and compiles embedded tests for explicit `--startup-tests` execution. The `dev-no-tools` preset proves the game does not depend on optional tooling. Release builds intentionally exclude validation, benchmarks, assertions, Tracy, and development tools.
 
 ## Run validation
 
 Use the validation preset for standalone correctness testing:
 
 ```powershell
-cmake --preset validation
-cmake --build --preset validation
-ctest --preset validation
+cmake --preset test
+cmake --build --preset test
+ctest --preset test
 ```
 
 Run one module directly when investigating a focused area:
 
 ```powershell
-.\build\validation\GameWIPTests.exe --test-module=filesystem
+.\build\test\GameWIPTests.exe --test-module=filesystem
 ```
 
 The validation architecture, module registration, child-process routing, report paths, and startup behavior are documented in @ref project_validation. Test authoring rules are documented in @ref project_testing.
@@ -93,9 +82,9 @@ CMake presets write build trees under `build/<preset>`.
 
 Common outputs include:
 
-- `build/development/GameWIP.exe`
-- `build/validation/GameWIPTests.exe`
-- `build/validation/GameWIPBenchmarks.exe`
+- `build/dev/GameWIP.exe`
+- `build/test/GameWIPTests.exe`
+- `build/benchmark/GameWIPBenchmarks.exe`
 - `build/docs/docs/doxygen/html/index.html`
 
 Generated files and build artifacts should stay in build directories unless a workflow page explicitly documents a retained source artifact.

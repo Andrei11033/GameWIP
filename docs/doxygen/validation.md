@@ -2,7 +2,7 @@
 
 GameWIP validation is modular. The same correctness-test and benchmark code can run in standalone executables for CI and focused local work or be linked into the development game executable as startup validation.
 
-Validation is development infrastructure and is not linked into shipping builds.
+Validation is development infrastructure and is not linked into release builds.
 
 ## Scope
 
@@ -16,7 +16,7 @@ Test authoring is documented in @ref project_testing. Benchmark measurement poli
 | --- | --- | --- |
 | `GAMEWIP_BUILD_TESTS` | Builds `GameWIPTests` and CTest entries. | `ON` |
 | `GAMEWIP_BUILD_BENCHMARKS` | Builds `GameWIPBenchmarks`. | `OFF` |
-| `GAMEWIP_RUN_TESTS_AT_STARTUP` | Links correctness modules into `GameWIP` and runs them before runtime code. | `ON` |
+| `GAMEWIP_ENABLE_STARTUP_TESTS` | Links correctness modules into `GameWIP` for explicit `--startup-tests` execution. | `OFF` |
 | `GAMEWIP_RUN_BENCHMARKS_AT_STARTUP` | Links benchmarks into `GameWIP` and runs them after startup tests. | `OFF` |
 
 When both build and startup options for one validation kind are disabled, its modules are not compiled or linked into the executable. Google Benchmark is added only when benchmark targets or startup benchmarks require it.
@@ -176,12 +176,14 @@ Its declaration lives in `game/validation/tests/internal/runner_test_hooks.h`. I
 
 | Preset | Validation behavior |
 | --- | --- |
-| `development` | Startup correctness tests enabled. |
-| `validation` | Standalone correctness tests and benchmark registration checks. |
+| `dev` | Embedded correctness tests compiled for opt-in `--startup-tests` execution. |
+| `dev-no-tools` | Same embedded-test behavior as `dev`, without optional tooling. |
+| `test` | Standalone correctness and package validation. |
 | `benchmark` | Optimized standalone benchmarks. |
-| `shipping` | Validation, benchmarks, and development assertions disabled. |
+| `profile` | Embedded correctness tests available for profiled `--startup-tests` execution. |
+| `release` | Validation, benchmarks, and development assertions disabled. |
 | `coverage` | Standalone correctness tests with coverage instrumentation. |
-| `address-sanitizer` | Standalone correctness tests with AddressSanitizer instrumentation. |
+| `asan` | Standalone correctness tests with AddressSanitizer instrumentation. |
 | `docs` | Doxygen only; validation execution disabled. |
 
 ## Maintainer notes

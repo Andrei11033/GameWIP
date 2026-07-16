@@ -32,8 +32,10 @@ Rendering is initially a development and debugging tool. Foundational simulation
 
 - The project language standard is C++23 without compiler extensions.
 - CMake and Ninja own configuration and builds.
+- Visual Studio Code is the recommended editor and owns repository-scoped workflow integration. Visual Studio Community is an optional selected IDE, not a compiler prerequisite.
 - Windows with MSYS2 UCRT64 GCC is the normal development environment.
 - MSYS2 CLANG64 is used for AddressSanitizer validation.
+- The root setup entry point owns reproducible installation, update, repair, editor integration, and environment verification on Windows 11.
 - The repository is Windows-first, but reusable public APIs remain portable unless a platform concept is itself the contract.
 - Project-owned text and public UTF-8 strings use UTF-8 unless an owning API documents a narrower contract.
 - Win32 backends convert at the operating-system boundary and use wide-character APIs where required.

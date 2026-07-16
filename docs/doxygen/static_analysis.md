@@ -10,7 +10,7 @@ Build presets, compiler selection, and output locations are documented in @ref p
 
 ## Environment
 
-Run C++ analysis and formatting from the MSYS2 UCRT64 environment used for normal development. The `static-analysis` preset selects `clang++` and requires the UCRT64 packages for CMake, Ninja, Clang, clang-tools-extra, GCC runtime support, Git, and Python.
+Run C++ analysis and formatting from the MSYS2 UCRT64 environment used for normal development. The `analyze` preset selects `clang++` and requires the UCRT64 packages for CMake, Ninja, Clang, clang-tools-extra, GCC runtime support, Git, and Python.
 
 When running local commands from PowerShell instead of an MSYS2 UCRT64 shell, put UCRT64 first on `PATH` before invoking Python, CMake, or clang tools:
 
@@ -24,13 +24,13 @@ Do not run project clang-tidy checks from an unrelated Visual Studio, standalone
 
 ## C++ static analysis
 
-The `static-analysis` preset configures a compilation database under `build/static-analysis` and enables the `static-analysis` build target.
+The `analyze` preset configures a compilation database under `build/analyze` and enables the `static-analysis` build target.
 
 Run the full local C++ analysis target from the repository root:
 
 ```bash
-cmake --preset static-analysis
-cmake --build --preset static-analysis
+cmake --preset analyze
+cmake --build --preset analyze
 ```
 
 The target includes:
@@ -43,11 +43,11 @@ The target includes:
 Run one C++ check target when investigating a focused failure:
 
 ```bash
-cmake --build --preset static-analysis --target clang-tidy
-cmake --build --preset static-analysis --target clang-format-check
+cmake --build --preset analyze --target clang-tidy
+cmake --build --preset analyze --target clang-format-check
 ```
 
-`clang-tidy` reads the root `.clang-tidy` file, uses the static-analysis compilation database, and filters diagnostics to GameWIP-owned source and header roots. Diagnostics selected by `.clang-tidy` are errors. Suppress a diagnostic only at the narrowest justified location and include a short reason in the `NOLINT` comment.
+`clang-tidy` reads the root `.clang-tidy` file, uses the analyze compilation database, and filters diagnostics to GameWIP-owned source and header roots. Diagnostics selected by `.clang-tidy` are errors. Suppress a diagnostic only at the narrowest justified location and include a short reason in the `NOLINT` comment.
 
 Headers are analyzed when they are included by a compiled translation unit. Public headers should also have matching validation translation units under `game/validation/public_headers/` so the header can be checked as an include boundary instead of only through incidental implementation includes.
 
@@ -136,8 +136,8 @@ Use this focused checklist before committing documentation, validation, or C++ s
 python -c "from pathlib import Path; p = Path('.github/scripts/check-markdown-links.py'); compile(p.read_text(encoding='utf-8'), str(p), 'exec')"
 python .github/scripts/check-markdown-links.py
 git diff --check
-cmake --preset static-analysis
-cmake --build --preset static-analysis
+cmake --preset analyze
+cmake --build --preset analyze
 ```
 
 Add `cmake --preset docs` and `cmake --build --preset docs` when the change touches public comments, Doxygen pages, library docs, or documentation registration.
@@ -158,7 +158,7 @@ Do not fix third-party formatting or analysis warnings by rewriting vendor code.
 
 | Symptom | Likely cause | Action |
 | --- | --- | --- |
-| clang-tidy cannot find `compile_commands.json`. | The static-analysis preset was not configured, or the command is running against the wrong build tree. | Run `cmake --preset static-analysis` from the MSYS2 UCRT64 environment. |
+| clang-tidy cannot find `compile_commands.json`. | The analyze preset was not configured, or the command is running against the wrong build tree. | Run `cmake --preset analyze` from the MSYS2 UCRT64 environment. |
 | clang-tidy fails on a new diagnostic. | The code violates an enabled check. | Fix the code or add a narrow justified suppression. |
 | clang-format check fails. | Maintained C++ formatting differs from `.clang-format`. | Run the formatter locally, review the diff, and commit the result. |
 | A public header is not checked directly. | No validation translation unit includes it as a public boundary. | Add or update the matching file under `game/validation/public_headers/`. |
@@ -178,7 +178,7 @@ When adding a new maintained source root or file type:
 - Document required developer tools and local commands.
 - Keep suppressions narrow and justified.
 
-VS Code exposes `Run Static Analysis` as a workspace task.
+VS Code exposes this workflow as `GameWIP: Analyze` on `Alt+F8`.
 
 ## Related pages
 

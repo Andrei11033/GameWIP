@@ -13,6 +13,9 @@
 
 namespace GameWIP::Validation::Tests
 {
+    /// @brief Returns whether arguments request embedded startup tests or a validation child route.
+    [[nodiscard]] bool requestsRun(int argc, char **argv) noexcept;
+
     /// @brief Shared runtime policy applied by the runner to selected correctness-test modules.
     struct RunOptions
     {

@@ -92,9 +92,9 @@ Package and compatibility changes must preserve:
 Run the validation preset after changing package behavior:
 
 ```powershell
-cmake --preset validation
-cmake --build --preset validation
-ctest --preset validation
+cmake --preset test
+cmake --build --preset test
+ctest --preset test
 ```
 
 Installed-package validation includes the combined surface plus isolated per-package consumers. Each isolated case requests only the package under test, so a missing transitive `find_dependency()` call cannot be masked by an earlier dependency lookup.

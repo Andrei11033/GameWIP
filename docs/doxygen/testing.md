@@ -13,9 +13,9 @@ Runner architecture and command-line ownership are documented in @ref project_va
 Configure, build, and run all validation through CTest:
 
 ```powershell
-cmake --preset validation
-cmake --build --preset validation
-ctest --preset validation
+cmake --preset test
+cmake --build --preset test
+ctest --preset test
 ```
 
 The same validation composition checks reviewed shared-library exports, public-header self-containment, generated version output, and clean installed-package consumption.
@@ -25,13 +25,13 @@ The same validation composition checks reviewed shared-library exports, public-h
 Run all modules directly:
 
 ```powershell
-.\build\validation\GameWIPTests.exe
+.\build\test\GameWIPTests.exe
 ```
 
 Run one module and retain a focused report:
 
 ```powershell
-.\build\validation\GameWIPTests.exe `
+.\build\test\GameWIPTests.exe `
   --test-module=filesystem `
   --test-report=logs/tests/filesystem_test_report.txt
 ```
@@ -39,21 +39,21 @@ Run one module and retain a focused report:
 Disable the retained report for quick local iteration:
 
 ```powershell
-.\build\validation\GameWIPTests.exe --test-module=logger --no-test-report
+.\build\test\GameWIPTests.exe --test-module=logger --no-test-report
 ```
 
 Mirror complete suite output to stdout:
 
 ```powershell
-.\build\validation\GameWIPTests.exe --test-module=logger --verbose-tests --no-test-report
+.\build\test\GameWIPTests.exe --test-module=logger --verbose-tests --no-test-report
 ```
 
 Run opt-in human checks:
 
 ```powershell
-.\build\validation\GameWIPTests.exe --test-module=test_support --manual-ui
-.\build\validation\GameWIPTests.exe --test-module=terminal --manual-ui
-.\build\validation\GameWIPTests.exe --test-module=logger --logger-popup
+.\build\test\GameWIPTests.exe --test-module=test_support --manual-ui
+.\build\test\GameWIPTests.exe --test-module=terminal --manual-ui
+.\build\test\GameWIPTests.exe --test-module=logger --logger-popup
 ```
 
 The complete runner argument contract is owned by @ref project_validation.

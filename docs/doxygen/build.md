@@ -1,6 +1,6 @@
 @page project_build Build configurations
 
-GameWIP uses CMake presets to keep local development, validation, benchmarking, profiling, coverage, static analysis, documentation, optimized, and shipping builds separate. Presets write build trees under `build/<preset>` and set the project composition options required by each workflow.
+GameWIP uses CMake presets to keep development, testing, benchmarking, profiling, coverage, analysis, documentation, and release builds separate. Presets write build trees under `build/<preset>` and set the project composition options required by each workflow.
 
 ## Scope
 
@@ -20,23 +20,23 @@ Before configuring a fresh checkout, initialize submodules:
 git submodule update --init --recursive
 ```
 
-The `address-sanitizer` preset uses the MSYS2 CLANG64 environment because the Windows AddressSanitizer runtime is provided there. Keep CLANG64 builds in their own build directory and place CLANG64 tools first on `PATH` before configuring that preset.
+The `asan` preset uses the MSYS2 CLANG64 environment because the Windows AddressSanitizer runtime is provided there. Keep CLANG64 builds in their own build directory and place CLANG64 tools first on `PATH` before configuring that preset.
 
 ## Common workflow
 
 From the repository root, configure and build one preset:
 
 ```powershell
-cmake --preset development
-cmake --build --preset development
+cmake --preset dev
+cmake --build --preset dev
 ```
 
 Run tests through the validation preset:
 
 ```powershell
-cmake --preset validation
-cmake --build --preset validation
-ctest --preset validation
+cmake --preset test
+cmake --build --preset test
+ctest --preset test
 ```
 
 Generate documentation through the docs preset:
@@ -50,17 +50,15 @@ cmake --build --preset docs
 
 | Preset | Build type | Main output | Purpose |
 | --- | --- | --- | --- |
-| `development` | `RelWithDebInfo` | `GameWIP` | Development game build with startup correctness tests enabled. |
-| `validation` | `RelWithDebInfo` | `GameWIP`, `GameWIPTests`, `GameWIPBenchmarks` | Standalone correctness validation and benchmark registration checks. |
+| `dev` | `RelWithDebInfo` | `GameWIP` | Daily game build with tools, assertions, and opt-in embedded tests. |
+| `dev-no-tools` | `RelWithDebInfo` | `GameWIP` | Development-equivalent game without optional tooling. |
+| `test` | `RelWithDebInfo` | `GameWIPTests` | Standalone correctness and package validation. |
 | `benchmark` | `Release` | `GameWIPBenchmarks` | Optimized benchmark executable without the game. |
-| `tools` | `RelWithDebInfo` | `GameWIP` | Development build with tool support enabled and opened at startup. |
-| `profiling` | `RelWithDebInfo` | `GameWIP` | Tracy profiling with startup validation disabled for clean runtime captures. |
-| `profiling-validation` | `RelWithDebInfo` | `GameWIP` | Tracy profiling with startup correctness tests enabled. |
-| `optimized` | `RelWithDebInfo` with `-O3` | `GameWIP` | Optimized game build with symbols and validation disabled. |
-| `shipping` | `Release` with stripping | `GameWIP` | Shipping-style game build without validation or assertions. |
+| `profile` | `RelWithDebInfo` | `GameWIP` | Tracy game build; `--startup-tests` profiles embedded validation. |
+| `release` | `Release` with interprocedural optimization | `GameWIP` | Distributable game without validation, profiling, assertions, or tools. |
 | `coverage` | `Debug` | `GameWIPTests`, coverage target | Correctness tests with coverage instrumentation. |
-| `address-sanitizer` | `Debug` | `GameWIP`, `GameWIPTests` | CLANG64 AddressSanitizer validation build. |
-| `static-analysis` | `RelWithDebInfo` | `static-analysis` target | clang-tidy and clang-format checks for maintained C++ sources. |
+| `asan` | `Debug` | `GameWIPTests` | CLANG64 AddressSanitizer validation build. |
+| `analyze` | `RelWithDebInfo` | `static-analysis` target | clang-tidy and clang-format checks for maintained C++ sources. |
 | `docs` | `Release` | `docs` target | Doxygen documentation only. |
 
 ## Commands
@@ -68,7 +66,7 @@ cmake --build --preset docs
 ### Configure a preset
 
 ```powershell
-cmake --preset validation
+cmake --preset test
 ```
 
 Use this after changing CMake files, options, package rules, platform selection, documentation registration, or dependencies.
@@ -76,7 +74,7 @@ Use this after changing CMake files, options, package rules, platform selection,
 ### Build a preset
 
 ```powershell
-cmake --build --preset validation
+cmake --build --preset test
 ```
 
 Use this to build the targets selected by the preset.
@@ -84,15 +82,15 @@ Use this to build the targets selected by the preset.
 ### Run a CTest preset
 
 ```powershell
-ctest --preset validation
+ctest --preset test
 ```
 
-CTest presets exist for `validation`, `coverage`, and `address-sanitizer`.
+CTest presets exist for `test`, `coverage`, and `asan`.
 
 ### Print runtime version information
 
 ```powershell
-.\build\development\GameWIP.exe --version
+.\build\dev\GameWIP.exe --version
 ```
 
 The executable prints the same generated display version used by Doxygen and runtime diagnostics without entering startup validation.
@@ -101,9 +99,9 @@ The executable prints the same generated display version used by Doxygen and run
 
 ```powershell
 $env:PATH = "C:\MSYS2\clang64\bin;$env:PATH"
-cmake --preset address-sanitizer
-cmake --build --preset address-sanitizer
-ctest --preset address-sanitizer
+cmake --preset asan
+cmake --build --preset asan
+ctest --preset asan
 ```
 
 Use this only from an environment where CLANG64 tools are first on `PATH`.
@@ -117,7 +115,7 @@ Project composition options use the `GAMEWIP_` prefix and are defined in `cmake/
 | `GAMEWIP_BUILD_GAME` | `ON` | Builds the `GameWIP` runtime executable. |
 | `GAMEWIP_BUILD_TESTS` | `ON` | Builds the standalone `GameWIPTests` executable and CTest entries. |
 | `GAMEWIP_BUILD_BENCHMARKS` | `OFF` | Builds the standalone `GameWIPBenchmarks` executable. |
-| `GAMEWIP_RUN_TESTS_AT_STARTUP` | `ON` | Compiles correctness tests into `GameWIP` and runs them before game startup. |
+| `GAMEWIP_ENABLE_STARTUP_TESTS` | `OFF` | Compiles correctness tests into `GameWIP` for explicit `--startup-tests` execution. |
 | `GAMEWIP_RUN_BENCHMARKS_AT_STARTUP` | `OFF` | Compiles benchmark entry points into `GameWIP` and runs them after startup tests. |
 | `GAMEWIP_ENABLE_TRACY` | `ON` | Enables Tracy profiler integration when selected by a preset. |
 | `GAMEWIP_ENABLE_TOOLS` | `OFF` | Enables editor and tool-window support in the game executable. |
@@ -130,11 +128,11 @@ Project composition options use the `GAMEWIP_` prefix and are defined in `cmake/
 | `GAMEWIP_INSTALL_DOCS` | `OFF` | Installs generated Doxygen HTML documentation. |
 | `GAMEWIP_CLANG_TIDY_JOBS` | `4` | Controls parallel clang-tidy process count. |
 
-Preset cache values may intentionally override source defaults. For example, the base preset disables Tracy and documentation by default, while the `profiling` and `docs` presets enable those workflows explicitly.
+Preset cache values may intentionally override source defaults. For example, the base preset disables Tracy and documentation by default, while the `profile` and `docs` presets enable those workflows explicitly.
 
 ## Option constraints
 
-- `GAMEWIP_RUN_TESTS_AT_STARTUP` and `GAMEWIP_RUN_BENCHMARKS_AT_STARTUP` require `GAMEWIP_BUILD_GAME=ON`.
+- `GAMEWIP_ENABLE_STARTUP_TESTS` and `GAMEWIP_RUN_BENCHMARKS_AT_STARTUP` require `GAMEWIP_BUILD_GAME=ON`.
 - `GAMEWIP_INSTALL_DOCS=ON` requires `GAMEWIP_BUILD_DOCS=ON`.
 - `GAMEWIP_ENABLE_COVERAGE=ON` requires `GAMEWIP_BUILD_TESTS=ON`.
 - Google Benchmark is required only when benchmark targets or startup benchmarks are enabled.
@@ -146,7 +144,7 @@ Preset cache values may intentionally override source defaults. For example, the
 | --- | --- | --- |
 | Build tree | `build/<preset>/` | CMake preset |
 | Game executable | `build/<preset>/GameWIP.exe` | Game target presets |
-| Test executable | `build/validation/GameWIPTests.exe` | Validation preset |
+| Test executable | `build/test/GameWIPTests.exe` | Test preset |
 | Benchmark executable | `build/benchmark/GameWIPBenchmarks.exe` | Benchmark preset |
 | Doxygen HTML | `build/docs/docs/doxygen/html/` | Docs preset |
 | Doxygen warning log | `build/docs/docs/doxygen/doxygen_warnings.log` | Docs preset |

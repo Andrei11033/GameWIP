@@ -7,7 +7,7 @@
 The `io` correctness module validates the public contract through the shared GameWIP validation runner. Run it with:
 
 ```powershell
-.\build\validation\GameWIPTests.exe --test-module=io --no-test-report
+.\build\test\GameWIPTests.exe --test-module=io --no-test-report
 ```
 
 Use @ref project_testing for configure/build commands, reporting, CTest behavior, and validation authoring rules.

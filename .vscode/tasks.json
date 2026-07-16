@@ -1,354 +1,153 @@
 {
-    "version": "2.0.0",
-    "tasks": [
-        {
-            "label": "Configure Development",
-            "type": "shell",
-            "command": "cmake",
-            "args": [
-                "--preset",
-                "development"
-            ],
-            "options": {
-                "cwd": "${workspaceFolder}",
-                "env": {
-                    "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
-                }
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "Build Development",
-            "type": "shell",
-            "command": "cmake",
-            "args": [
-                "--build",
-                "--preset",
-                "development"
-            ],
-            "options": {
-                "cwd": "${workspaceFolder}",
-                "env": {
-                    "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
-                }
-            },
-            "problemMatcher": [
-                "$gcc"
-            ],
-            "group": {
-                "kind": "build",
-                "isDefault": true
-            },
-            "dependsOn": "Configure Development"
-        },
-        {
-            "label": "Run Development",
-            "type": "shell",
-            "command": "${workspaceFolder}\\build\\development\\GameWIP.exe",
-            "args": [],
-            "options": {
-                "cwd": "${workspaceFolder}\\build\\development",
-                "env": {
-                    "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
-                }
-            },
-            "problemMatcher": [],
-            "dependsOn": "Build Development"
-        },
-        {
-            "label": "Configure Validation",
-            "type": "shell",
-            "command": "cmake",
-            "args": [
-                "--preset",
-                "validation"
-            ],
-            "options": {
-                "cwd": "${workspaceFolder}",
-                "env": {
-                    "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
-                }
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "Build Validation",
-            "type": "shell",
-            "command": "cmake",
-            "args": [
-                "--build",
-                "--preset",
-                "validation"
-            ],
-            "options": {
-                "cwd": "${workspaceFolder}",
-                "env": {
-                    "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
-                }
-            },
-            "problemMatcher": [
-                "$gcc"
-            ],
-            "dependsOn": "Configure Validation"
-        },
-        {
-            "label": "Test Validation",
-            "type": "shell",
-            "command": "ctest",
-            "args": [
-                "--preset",
-                "validation"
-            ],
-            "options": {
-                "cwd": "${workspaceFolder}",
-                "env": {
-                    "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
-                }
-            },
-            "problemMatcher": [],
-            "group": {
-                "kind": "test",
-                "isDefault": true
-            },
-            "dependsOn": "Build Validation"
-        },
-        {
-            "label": "Configure Static Analysis",
-            "type": "shell",
-            "command": "cmake",
-            "args": [
-                "--preset",
-                "static-analysis"
-            ],
-            "options": {
-                "cwd": "${workspaceFolder}",
-                "env": {
-                    "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
-                }
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "Run Static Analysis",
-            "type": "shell",
-            "command": "cmake",
-            "args": [
-                "--build",
-                "--preset",
-                "static-analysis"
-            ],
-            "options": {
-                "cwd": "${workspaceFolder}",
-                "env": {
-                    "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
-                }
-            },
-            "problemMatcher": [
-                "$gcc"
-            ],
-            "dependsOn": "Configure Static Analysis"
-        },
-        {
-            "label": "Configure Benchmarks",
-            "type": "shell",
-            "command": "cmake",
-            "args": [
-                "--preset",
-                "benchmark"
-            ],
-            "options": {
-                "cwd": "${workspaceFolder}",
-                "env": {
-                    "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
-                }
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "Build Benchmarks",
-            "type": "shell",
-            "command": "cmake",
-            "args": [
-                "--build",
-                "--preset",
-                "benchmark"
-            ],
-            "options": {
-                "cwd": "${workspaceFolder}",
-                "env": {
-                    "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
-                }
-            },
-            "problemMatcher": [
-                "$gcc"
-            ],
-            "dependsOn": "Configure Benchmarks"
-        },
-        {
-            "label": "Run Benchmarks",
-            "type": "shell",
-            "command": "${workspaceFolder}\\build\\benchmark\\GameWIPBenchmarks.exe",
-            "options": {
-                "cwd": "${workspaceFolder}\\build\\benchmark",
-                "env": {
-                    "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
-                }
-            },
-            "problemMatcher": [],
-            "dependsOn": "Build Benchmarks"
-        },
-        {
-            "label": "Configure Tools",
-            "type": "shell",
-            "command": "cmake",
-            "args": [
-                "--preset",
-                "tools"
-            ],
-            "options": {
-                "cwd": "${workspaceFolder}",
-                "env": {
-                    "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
-                }
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "Build Tools",
-            "type": "shell",
-            "command": "cmake",
-            "args": [
-                "--build",
-                "--preset",
-                "tools"
-            ],
-            "options": {
-                "cwd": "${workspaceFolder}",
-                "env": {
-                    "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
-                }
-            },
-            "problemMatcher": [
-                "$gcc"
-            ],
-            "dependsOn": "Configure Tools"
-        },
-        {
-            "label": "Run Tools",
-            "type": "shell",
-            "command": "${workspaceFolder}\\build\\tools\\GameWIP.exe",
-            "args": [],
-            "options": {
-                "cwd": "${workspaceFolder}\\build\\tools",
-                "env": {
-                    "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
-                }
-            },
-            "problemMatcher": [],
-            "dependsOn": "Build Tools"
-        },
-        {
-            "label": "Configure Profiling",
-            "type": "shell",
-            "command": "cmake",
-            "args": [
-                "--preset",
-                "profiling"
-            ],
-            "options": {
-                "cwd": "${workspaceFolder}",
-                "env": {
-                    "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
-                }
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "Build Profiling",
-            "type": "shell",
-            "command": "cmake",
-            "args": [
-                "--build",
-                "--preset",
-                "profiling"
-            ],
-            "options": {
-                "cwd": "${workspaceFolder}",
-                "env": {
-                    "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
-                }
-            },
-            "problemMatcher": [
-                "$gcc"
-            ],
-            "dependsOn": "Configure Profiling"
-        },
-        {
-            "label": "Run Profiling",
-            "type": "shell",
-            "command": "powershell",
-            "args": [
-                "-NoProfile",
-                "-Command",
-                "$ErrorActionPreference = 'Stop'; $profiler = '${workspaceFolder}\\.tracy\\tracy-profiler.exe'; $game = '${workspaceFolder}\\build\\profiling\\GameWIP.exe'; if (!(Test-Path -LiteralPath $profiler)) { throw \"Missing Tracy profiler: $profiler\" }; if ($null -eq (Get-Process -Name 'tracy-profiler' -ErrorAction SilentlyContinue)) { Start-Process -FilePath $profiler -WorkingDirectory (Split-Path -Parent $profiler) }; & $game; exit $LASTEXITCODE"
-            ],
-            "options": {
-                "cwd": "${workspaceFolder}\\build\\profiling",
-                "env": {
-                    "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
-                }
-            },
-            "problemMatcher": [],
-            "dependsOn": "Build Profiling"
-        },
-        {
-            "label": "Configure Shipping",
-            "type": "shell",
-            "command": "cmake",
-            "args": [
-                "--preset",
-                "shipping"
-            ],
-            "options": {
-                "cwd": "${workspaceFolder}",
-                "env": {
-                    "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
-                }
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "Build Shipping",
-            "type": "shell",
-            "command": "cmake",
-            "args": [
-                "--build",
-                "--preset",
-                "shipping"
-            ],
-            "options": {
-                "cwd": "${workspaceFolder}",
-                "env": {
-                    "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
-                }
-            },
-            "problemMatcher": [
-                "$gcc"
-            ],
-            "dependsOn": "Configure Shipping"
-        },
-        {
-            "label": "Run Shipping",
-            "type": "shell",
-            "command": "${workspaceFolder}\\build\\shipping\\GameWIP.exe",
-            "options": {
-                "cwd": "${workspaceFolder}\\build\\shipping",
-                "env": {
-                    "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
-                }
-            },
-            "problemMatcher": [],
-            "dependsOn": "Build Shipping"
-        }
-    ]
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "GameWIP: Configure Development",
+      "type": "process",
+      "command": "cmake",
+      "args": ["--preset", "dev"],
+      "options": { "cwd": "${workspaceFolder}", "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" } },
+      "problemMatcher": [],
+      "presentation": { "reveal": "silent" },
+      "hide": true
+    },
+    {
+      "label": "GameWIP: Build Development",
+      "type": "process",
+      "command": "cmake",
+      "args": ["--build", "--preset", "dev", "--parallel"],
+      "options": { "cwd": "${workspaceFolder}", "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" } },
+      "problemMatcher": ["$gcc"],
+      "dependsOn": "GameWIP: Configure Development",
+      "dependsOrder": "sequence",
+      "group": { "kind": "build", "isDefault": true }
+    },
+    {
+      "label": "GameWIP: Run Development",
+      "type": "process",
+      "command": "${workspaceFolder}\\build\\dev\\GameWIP.exe",
+      "options": { "cwd": "${workspaceFolder}\\build\\dev", "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" } },
+      "problemMatcher": [],
+      "dependsOn": "GameWIP: Build Development",
+      "dependsOrder": "sequence"
+    },
+    {
+      "label": "GameWIP: Configure Development Without Tools",
+      "type": "process",
+      "command": "cmake",
+      "args": ["--preset", "dev-no-tools"],
+      "options": { "cwd": "${workspaceFolder}", "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" } },
+      "problemMatcher": [],
+      "presentation": { "reveal": "silent" },
+      "hide": true
+    },
+    {
+      "label": "GameWIP: Build Development Without Tools",
+      "type": "process",
+      "command": "cmake",
+      "args": ["--build", "--preset", "dev-no-tools", "--parallel"],
+      "options": { "cwd": "${workspaceFolder}", "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" } },
+      "problemMatcher": ["$gcc"],
+      "dependsOn": "GameWIP: Configure Development Without Tools",
+      "dependsOrder": "sequence",
+      "hide": true
+    },
+    {
+      "label": "GameWIP: Run Development Without Tools",
+      "type": "process",
+      "command": "${workspaceFolder}\\build\\dev-no-tools\\GameWIP.exe",
+      "options": { "cwd": "${workspaceFolder}\\build\\dev-no-tools", "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" } },
+      "problemMatcher": [],
+      "dependsOn": "GameWIP: Build Development Without Tools",
+      "dependsOrder": "sequence"
+    },
+    {
+      "label": "GameWIP: Configure Tests",
+      "type": "process",
+      "command": "cmake",
+      "args": ["--preset", "test"],
+      "options": { "cwd": "${workspaceFolder}", "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" } },
+      "problemMatcher": [],
+      "presentation": { "reveal": "silent" },
+      "hide": true
+    },
+    {
+      "label": "GameWIP: Build Tests",
+      "type": "process",
+      "command": "cmake",
+      "args": ["--build", "--preset", "test", "--parallel"],
+      "options": { "cwd": "${workspaceFolder}", "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" } },
+      "problemMatcher": ["$gcc"],
+      "dependsOn": "GameWIP: Configure Tests",
+      "dependsOrder": "sequence",
+      "hide": true
+    },
+    {
+      "label": "GameWIP: Test",
+      "type": "process",
+      "command": "ctest",
+      "args": ["--preset", "test"],
+      "options": { "cwd": "${workspaceFolder}", "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" } },
+      "problemMatcher": [],
+      "dependsOn": "GameWIP: Build Tests",
+      "dependsOrder": "sequence",
+      "group": { "kind": "test", "isDefault": true }
+    },
+    {
+      "label": "GameWIP: Benchmark",
+      "type": "shell",
+      "command": "cmake --preset benchmark; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; cmake --build --preset benchmark --parallel; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; & '${workspaceFolder}\\build\\benchmark\\GameWIPBenchmarks.exe'",
+      "options": { "cwd": "${workspaceFolder}", "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" }, "shell": { "executable": "powershell.exe", "args": ["-NoProfile", "-Command"] } },
+      "problemMatcher": ["$gcc"]
+    },
+    {
+      "label": "GameWIP: Profile",
+      "type": "shell",
+      "command": "cmake --preset profile; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; cmake --build --preset profile --parallel; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; $profiler = '${workspaceFolder}\\.tracy\\tracy-profiler.exe'; if (!(Test-Path -LiteralPath $profiler)) { throw 'Matching Tracy profiler tools are missing; run setup.bat profiler.' }; if ($null -eq (Get-Process -Name tracy-profiler -ErrorAction SilentlyContinue)) { Start-Process -FilePath $profiler -WorkingDirectory (Split-Path $profiler) }; & '${workspaceFolder}\\build\\profile\\GameWIP.exe'",
+      "options": { "cwd": "${workspaceFolder}", "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" }, "shell": { "executable": "powershell.exe", "args": ["-NoProfile", "-Command"] } },
+      "problemMatcher": ["$gcc"]
+    },
+    {
+      "label": "GameWIP: Profile Startup Tests",
+      "type": "shell",
+      "command": "cmake --preset profile; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; cmake --build --preset profile --parallel; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; $profiler = '${workspaceFolder}\\.tracy\\tracy-profiler.exe'; if (!(Test-Path -LiteralPath $profiler)) { throw 'Matching Tracy profiler tools are missing; run setup.bat profiler.' }; if ($null -eq (Get-Process -Name tracy-profiler -ErrorAction SilentlyContinue)) { Start-Process -FilePath $profiler -WorkingDirectory (Split-Path $profiler) }; & '${workspaceFolder}\\build\\profile\\GameWIP.exe' --startup-tests",
+      "options": { "cwd": "${workspaceFolder}", "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" }, "shell": { "executable": "powershell.exe", "args": ["-NoProfile", "-Command"] } },
+      "problemMatcher": ["$gcc"]
+    },
+    {
+      "label": "GameWIP: Coverage",
+      "type": "shell",
+      "command": "cmake --preset coverage; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; cmake --build --preset coverage --parallel; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; ctest --preset coverage; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; cmake --build build/coverage --target coverage; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; $report = '${workspaceFolder}\\build\\coverage\\coverage\\index.html'; if (!(Test-Path -LiteralPath $report)) { throw 'Coverage HTML report was not generated.' }; Start-Process -FilePath $report",
+      "options": { "cwd": "${workspaceFolder}", "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" }, "shell": { "executable": "powershell.exe", "args": ["-NoProfile", "-Command"] } },
+      "problemMatcher": ["$gcc"]
+    },
+    {
+      "label": "GameWIP: Address Sanitizer",
+      "type": "shell",
+      "command": "cmake --preset asan; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; cmake --build --preset asan --parallel; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; ctest --preset asan",
+      "options": { "cwd": "${workspaceFolder}", "env": { "PATH": "C:\\MSYS2\\clang64\\bin;${env:PATH}" }, "shell": { "executable": "powershell.exe", "args": ["-NoProfile", "-Command"] } },
+      "problemMatcher": ["$gcc"]
+    },
+    {
+      "label": "GameWIP: Analyze",
+      "type": "shell",
+      "command": "cmake --preset analyze; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; cmake --build --preset analyze --parallel",
+      "options": { "cwd": "${workspaceFolder}", "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" }, "shell": { "executable": "powershell.exe", "args": ["-NoProfile", "-Command"] } },
+      "problemMatcher": ["$gcc"]
+    },
+    {
+      "label": "GameWIP: Documentation",
+      "type": "shell",
+      "command": "cmake --preset docs; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; cmake --build --preset docs --parallel; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; $warnings = '${workspaceFolder}\\build\\docs\\docs\\doxygen\\doxygen_warnings.log'; if (!(Test-Path -LiteralPath $warnings)) { throw 'Doxygen warning log was not generated.' }; if ((Get-Item -LiteralPath $warnings).Length -ne 0) { Get-Content -LiteralPath $warnings; throw 'Doxygen emitted warnings.' }; $index = '${workspaceFolder}\\build\\docs\\docs\\doxygen\\html\\index.html'; if (!(Test-Path -LiteralPath $index)) { throw 'Doxygen HTML index was not generated.' }; Start-Process -FilePath $index",
+      "options": { "cwd": "${workspaceFolder}", "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" }, "shell": { "executable": "powershell.exe", "args": ["-NoProfile", "-Command"] } },
+      "problemMatcher": []
+    },
+    {
+      "label": "GameWIP: Run Release",
+      "type": "shell",
+      "command": "cmake --preset release; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; cmake --build --preset release --parallel; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; & '${workspaceFolder}\\build\\release\\GameWIP.exe'",
+      "options": { "cwd": "${workspaceFolder}", "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" }, "shell": { "executable": "powershell.exe", "args": ["-NoProfile", "-Command"] } },
+      "problemMatcher": ["$gcc"]
+    }
+  ]
 }

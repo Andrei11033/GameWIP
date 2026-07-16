@@ -46,6 +46,7 @@ int main(int argc, char **argv)
     // In that case the process must return the child route result directly and
     // must not continue into benchmarks or the runtime.
     GameWIP::Validation::TestResult tests;
+    if (GameWIP::Validation::shouldRunTests(argc, argv))
     {
 #if GAMEWIP_TRACY_ENABLED
         ZoneScopedN("Startup validation");

@@ -213,6 +213,24 @@ namespace
         static_cast<void>(context.expectFalse("drive-relative report path disables report output", probeState.alpha.writeReport));
 #endif
     }
+
+    void testEmbeddedRunRequest(TestSupport::Context &context)
+    {
+        std::string executable = "gamewip.exe";
+        std::string startupTests = "--startup-tests";
+        std::string version = "--version";
+
+        std::array<char *, 2> startupArguments = {executable.data(), startupTests.data()};
+        std::array<char *, 2> ordinaryArguments = {executable.data(), version.data()};
+
+        static_cast<void>(context.expectTrue(
+            "startup-tests requests embedded validation",
+            ValidationTests::requestsRun(static_cast<int>(startupArguments.size()), startupArguments.data())));
+        static_cast<void>(context.expectFalse(
+            "ordinary game arguments do not request embedded validation",
+            ValidationTests::requestsRun(static_cast<int>(ordinaryArguments.size()), ordinaryArguments.data())));
+        static_cast<void>(context.expectFalse("empty arguments do not request embedded validation", ValidationTests::requestsRun(0, nullptr)));
+    }
 } // namespace
 
 namespace GameWIP::Test
@@ -233,6 +251,7 @@ namespace GameWIP::Test
         runner.runSuite("Validation runner selection independence", testSelectionIndependence);
         runner.runSuite("Validation runner removed and retained options", testRemovedAndRetainedOptions);
         runner.runSuite("Validation runner reserved input validation", testReservedChildAndReportValidation);
+        runner.runSuite("Validation runner embedded request", testEmbeddedRunRequest);
 
         const TestSupport::Types::Summary result = runner.result();
         runner.summary(std::format("Validation runner tests passed={} failed={} skipped={}", result.passed, result.failed, result.skipped));

@@ -18,7 +18,7 @@ if(GAMEWIP_BUILD_GAME)
 
     target_compile_features(GameWIP PRIVATE cxx_std_23)
     target_compile_definitions(GameWIP PRIVATE
-        GAMEWIP_STARTUP_TESTS_ENABLED=$<BOOL:${GAMEWIP_RUN_TESTS_AT_STARTUP}>
+        GAMEWIP_STARTUP_TESTS_ENABLED=$<BOOL:${GAMEWIP_ENABLE_STARTUP_TESTS}>
         GAMEWIP_STARTUP_BENCHMARKS_ENABLED=$<BOOL:${GAMEWIP_RUN_BENCHMARKS_AT_STARTUP}>
         GAMEWIP_TRACY_ENABLED=$<BOOL:${GAMEWIP_ENABLE_TRACY}>
     )
@@ -62,7 +62,7 @@ if(GAMEWIP_TESTS_REQUIRED OR GAMEWIP_BENCHMARKS_REQUIRED)
     add_subdirectory(validation)
 endif()
 
-if(GAMEWIP_RUN_TESTS_AT_STARTUP)
+if(GAMEWIP_ENABLE_STARTUP_TESTS)
     # Assert test objects use AssertCompileInterface to avoid attaching
     # executable resources to the object library. Each runner links the
     # concrete Assert runtime explicitly.

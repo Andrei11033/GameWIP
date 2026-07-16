@@ -1,46 +1,62 @@
 @page project_profiling Profiling with Tracy
 
-GameWIP uses Tracy for interactive profiling of representative runtime sessions. Tracy answers where time is spent in a captured run. Benchmarks answer whether a repeatable operation changed in a controlled measurement.
-
-## Scope
-
-This page documents the Tracy build preset, capture workflow, marker policy, disabled-build contract, and the relationship between profiling and benchmarks.
+GameWIP uses Tracy for interactive profiling of representative runtime
+sessions. Use benchmarks for repeatable isolated measurements; use a Tracy
+capture to explain where an end-to-end run spends time.
 
 ## Common workflow
+
+Rebuild the Windows tools from the Tracy client pinned by the checkout:
+
+```powershell
+.\setup.bat profiler
+```
+
+The focused command produces `tracy-profiler.exe`, `tracy-capture.exe`,
+`tracy-csvexport.exe`, `tracy-import-chrome.exe`,
+`tracy-import-fuchsia.exe`, and `tracy-update.exe` under `.tracy`. It uses
+UCRT64 GCC/Ninja Release builds with a reproducible `x86-64-v3` baseline,
+stages the complete set and required UCRT DLLs, then replaces the existing tools
+only after verification. Visual Studio is not required. First use may take
+several minutes because the GUI profiler compiles substantial pinned
+dependencies.
 
 Build the profiling preset:
 
 ```powershell
-cmake --preset profiling
-cmake --build --preset profiling
+cmake --preset profile
+cmake --build --preset profile
 ```
 
-Start the Tracy profiler, then run the profiling build:
+Start the matching profiler, then run the profiling build:
 
 ```powershell
-.\build\profiling\GameWIP.exe
+Start-Process .\.tracy\tracy-profiler.exe
+.\build\profile\GameWIP.exe
 ```
 
 Use a representative scenario. A capture of an empty or artificial run is rarely useful evidence for optimization decisions.
 
-The `profiling` preset disables startup tests and startup benchmarks so the default capture begins with the runtime workload. Use `profiling-validation` when the validation startup path is itself the workload being profiled:
+The VS Code `F9` workflow performs the configure, build, profiler
+launch, and game launch sequence. Pass `--startup-tests` when validation itself
+is the workload being profiled:
 
 ```powershell
-cmake --preset profiling-validation
-cmake --build --preset profiling-validation
-.\build\profiling-validation\GameWIP.exe
+cmake --preset profile
+cmake --build --preset profile
+.\build\profile\GameWIP.exe --startup-tests
 ```
 
 ## Build controls
 
-Both profiling presets enable `GAMEWIP_ENABLE_TRACY=ON` and inherit the development build configuration. `profiling-validation` differs only by enabling startup correctness tests.
+The profile preset enables `GAMEWIP_ENABLE_TRACY=ON` and `GAMEWIP_ENABLE_STARTUP_TESTS=ON`. Runtime arguments decide whether a capture covers the game or embedded correctness tests; no cache option needs to be changed.
 
 Tracy support must remain optional:
 
 - Disabled builds must not require Tracy headers or runtime libraries.
 - Public reusable-library APIs must not expose Tracy types.
 - Project-owned Tracy instrumentation must compile away when disabled.
-- Shipping builds must not retain project-owned Tracy instrumentation or dependencies.
+- Release builds must not retain project-owned Tracy instrumentation or dependencies.
 
 ## Marker rules
 
@@ -101,6 +117,7 @@ Add these markers with the systems and representative workloads, not speculative
 | Symptom | Likely cause | Action |
 | --- | --- | --- |
 | The profiling build cannot find Tracy. | Submodules or external dependencies are not initialized. | Run `git submodule update --init --recursive` and reconfigure. |
+| The profiler executable is missing or mismatched. | `.tracy` was not prepared for the pinned client. | Run `setup.bat profiler`; existing tools remain intact if rebuilding fails. |
 | A disabled build still references Tracy. | A Tracy include or symbol leaked outside the enable guard. | Move the include to private implementation code and guard instrumentation. |
 | A capture is too noisy. | Markers are too fine-grained or use unstable names. | Collapse markers to meaningful phases and remove high-cardinality names. |
 | A profile suggests an optimization but benchmarks do not change. | The benchmark does not represent the profiled workload or the hotspot is end-to-end only. | Adjust the benchmark or keep the evidence as profiling-only. |

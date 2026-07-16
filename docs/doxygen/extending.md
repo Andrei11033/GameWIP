@@ -133,10 +133,10 @@ Tests must be deterministic, isolated, and behavior-focused. Use TestSupport sco
 Run focused and aggregate validation before merge:
 
 ```powershell
-cmake --preset validation
-cmake --build --preset validation
-.\build\validation\GameWIPTests.exe --test-module=<module>
-ctest --preset validation
+cmake --preset test
+cmake --build --preset test
+.\build\test\GameWIPTests.exe --test-module=<module>
+ctest --preset test
 ```
 
 Detailed runner behavior is documented in @ref project_validation. Test authoring rules are documented in @ref project_testing.
@@ -242,9 +242,9 @@ Run the preset that matches the change and record the exact commands in the pull
 Common verification paths:
 
 ```powershell
-cmake --preset validation
-cmake --build --preset validation
-ctest --preset validation
+cmake --preset test
+cmake --build --preset test
+ctest --preset test
 ```
 
 ```powershell

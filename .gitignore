@@ -6,6 +6,7 @@
 /install-*/
 # Local tools
 /.tracy/
+/.gamewip-setup.json
 
 # MSYS / temp
 *.log

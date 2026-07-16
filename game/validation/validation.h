@@ -31,6 +31,18 @@
 
 namespace GameWIP::Validation
 {
+    /// @brief Returns whether this invocation must enter the embedded correctness-test runner.
+    [[nodiscard]] inline bool shouldRunTests(int argc, char **argv) noexcept
+    {
+#if GAMEWIP_STARTUP_TESTS_ENABLED
+        return Tests::requestsRun(argc, argv);
+#else
+        static_cast<void>(argc);
+        static_cast<void>(argv);
+        return false;
+#endif
+    }
+
     /// @brief Runs startup correctness validation when it was compiled into GameWIP.
     /// @param argc Original process argument count.
     /// @param argv Borrowed original process argument values forwarded unchanged to the runner.

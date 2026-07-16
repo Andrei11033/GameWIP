@@ -6,58 +6,56 @@ GameWIP is an early-stage C++23 sandbox game project focused on player-built veh
 
 The repository currently emphasizes reusable foundation libraries, Windows platform backends, diagnostics, modular validation, benchmark registration, generated documentation, and initial engine systems.
 
-## Requirements
+## Setup
 
-- Windows with MSYS2 UCRT64 GCC for normal development.
-- MSYS2 CLANG64 for AddressSanitizer validation.
-- CMake 4.4.x.
-- Ninja.
-- Git submodules.
-
-Initialize third-party dependencies after cloning:
+GameWIP supports Windows 11. From a fresh Git checkout, run the repository
+bootstrap utility:
 
 ```powershell
-git submodule update --init --recursive
+.\setup.bat
 ```
 
-When configuring with UCRT64, make sure `C:\MSYS2\ucrt64\bin` appears before other MinGW environments on `PATH`.
-
-VS Code users can open `GameWIP.code-workspace`. Configure the `development` preset before relying on IntelliSense because the workspace reads `build/development/compile_commands.json`.
+Choose Visual Studio Code, optional Visual Studio Community, or both. Setup
+installs the selected environment, prepares pinned dependencies and profiler
+tools, builds the manual, and verifies the checkout. It is also the supported
+update and repair entry point. See the [development environment manual](docs/doxygen/environment_setup.md)
+for actions, update boundaries, visible command output, and the repository-only
+workflow key map.
 
 ## Quick start
 
-Configure, build, and run the development preset:
+Configure, build, and run the development preset with tools:
 
 ```powershell
-cmake --preset development
-cmake --build --preset development
-.\build\development\GameWIP.exe --version
-.\build\development\GameWIP.exe
+cmake --preset dev
+cmake --build --preset dev
+.\build\dev\GameWIP.exe --version
+.\build\dev\GameWIP.exe
 ```
 
-The development preset builds the game and runs configured startup validation before entering the runtime facade.
+Use `dev-no-tools` to prove the runtime does not depend on optional development tooling. Both development presets compile embedded tests, but run them only when explicitly requested with `GameWIP.exe --startup-tests`.
 
 ## Validation
 
 Run the standalone correctness-test workflow:
 
 ```powershell
-cmake --preset validation
-cmake --build --preset validation
-ctest --preset validation
+cmake --preset test
+cmake --build --preset test
+ctest --preset test
 ```
 
 Run one validation module directly:
 
 ```powershell
-.\build\validation\GameWIPTests.exe --test-module=filesystem
+.\build\test\GameWIPTests.exe --test-module=filesystem
 ```
 
 Run C++ static-analysis and formatting checks:
 
 ```powershell
-cmake --preset static-analysis
-cmake --build --preset static-analysis
+cmake --preset analyze
+cmake --build --preset analyze
 ```
 
 Repository script, Markdown-link, workflow, and documentation checks are documented in [Static analysis and repository checks](docs/doxygen/static_analysis.md).
@@ -66,17 +64,17 @@ Run the AddressSanitizer workflow from an MSYS2 CLANG64 environment:
 
 ```powershell
 $env:PATH = "C:\MSYS2\clang64\bin;$env:PATH"
-cmake --preset address-sanitizer
-cmake --build --preset address-sanitizer
-ctest --preset address-sanitizer
+cmake --preset asan
+cmake --build --preset asan
+ctest --preset asan
 ```
 
 Run a benchmark registration dry run:
 
 ```powershell
-cmake --preset validation
-cmake --build --preset validation
-.\build\validation\GameWIPBenchmarks.exe --benchmark_dry_run
+cmake --preset benchmark
+cmake --build --preset benchmark
+.\build\benchmark\GameWIPBenchmarks.exe --benchmark_dry_run
 ```
 
 The generated project manual documents the full validation, testing, static-analysis, coverage, profiling, and benchmarking workflows.
@@ -85,25 +83,35 @@ The generated project manual documents the full validation, testing, static-anal
 
 The profiling preset enables game-owned Tracy instrumentation:
 
+Install the official Windows profiler tools matching the Tracy client pinned by
+the current checkout:
+
 ```powershell
-cmake --preset profiling
-cmake --build --preset profiling
-Start-Process .\.tracy\tracy-profiler.exe
-.\build\profiling\GameWIP.exe
+.\setup.bat profiler
 ```
 
-The default profiling preset skips startup validation so captures begin with the runtime workload. Use
-`profiling-validation` when validation itself needs to appear in the Tracy capture.
+```powershell
+cmake --preset profile
+cmake --build --preset profile
+Start-Process .\.tracy\tracy-profiler.exe
+.\build\profile\GameWIP.exe
+```
+
+The profiling preset skips startup tests unless they are explicitly requested:
+
+```powershell
+.\build\profile\GameWIP.exe --startup-tests
+```
 
 The profiling guide in the generated documentation explains marker ownership, capture expectations, and disabled-build rules.
 
-## Shipping build
+## Release build
 
-The shipping preset excludes validation, benchmarks, TestSupport startup code, assertions, Tracy, and development tools from the game executable:
+The release preset enables supported whole-program optimization and excludes validation, benchmarks, assertions, Tracy, and development tools from the game executable:
 
 ```powershell
-cmake --preset shipping
-cmake --build --preset shipping
+cmake --preset release
+cmake --build --preset release
 ```
 
 ## Documentation
@@ -128,6 +136,7 @@ Start with these pages when reading the source tree:
 
 - [Project structure](docs/doxygen/project_structure.md)
 - [CMake infrastructure](docs/doxygen/cmake_infrastructure.md)
+- [Development environment setup](docs/doxygen/environment_setup.md)
 - [Extending the project](docs/doxygen/extending.md)
 - [Documentation system](docs/doxygen/documentation.md)
 - [Platform backend contract](docs/doxygen/platform_backend_contract.md)

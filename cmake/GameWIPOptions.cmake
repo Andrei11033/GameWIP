@@ -1,7 +1,7 @@
 option(GAMEWIP_BUILD_GAME "Build the GameWIP runtime executable" ON)
 option(GAMEWIP_BUILD_TESTS "Build the standalone GameWIPTests executable" ON)
 option(GAMEWIP_BUILD_BENCHMARKS "Build the standalone GameWIPBenchmarks executable" OFF)
-option(GAMEWIP_RUN_TESTS_AT_STARTUP "Compile and run correctness tests before game startup" ON)
+option(GAMEWIP_ENABLE_STARTUP_TESTS "Compile correctness tests into the game for opt-in --startup-tests execution" OFF)
 option(GAMEWIP_RUN_BENCHMARKS_AT_STARTUP "Compile and run benchmarks before game startup" OFF)
 
 option(GAMEWIP_ENABLE_TRACY "Enable Tracy profiler instrumentation" ON)
@@ -16,7 +16,7 @@ option(GAMEWIP_INSTALL_DOCS "Install generated Doxygen HTML documentation" OFF)
 
 set(GAMEWIP_CLANG_TIDY_JOBS "4" CACHE STRING "Parallel clang-tidy process count")
 
-if(NOT GAMEWIP_BUILD_GAME AND (GAMEWIP_RUN_TESTS_AT_STARTUP OR GAMEWIP_RUN_BENCHMARKS_AT_STARTUP))
+if(NOT GAMEWIP_BUILD_GAME AND (GAMEWIP_ENABLE_STARTUP_TESTS OR GAMEWIP_RUN_BENCHMARKS_AT_STARTUP))
     message(FATAL_ERROR
         "Startup validation requires GAMEWIP_BUILD_GAME=ON. Disable the startup option or build the game executable."
     )
@@ -30,7 +30,7 @@ if(GAMEWIP_ENABLE_COVERAGE AND NOT GAMEWIP_BUILD_TESTS)
     message(FATAL_ERROR "GAMEWIP_ENABLE_COVERAGE requires GAMEWIP_BUILD_TESTS=ON.")
 endif()
 
-if(GAMEWIP_BUILD_TESTS OR GAMEWIP_RUN_TESTS_AT_STARTUP)
+if(GAMEWIP_BUILD_TESTS OR GAMEWIP_ENABLE_STARTUP_TESTS)
     set(GAMEWIP_TESTS_REQUIRED ON)
 else()
     set(GAMEWIP_TESTS_REQUIRED OFF)

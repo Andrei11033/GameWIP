@@ -7,6 +7,7 @@ Use these pages when you need to understand how the project is arranged, how to 
 ## Start here
 
 - @subpage project_getting_started
+- @subpage project_environment_setup
 - @subpage project_structure
 - @subpage project_build
 
