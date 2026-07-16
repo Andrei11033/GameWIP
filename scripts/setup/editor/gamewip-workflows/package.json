@@ -2,7 +2,7 @@
   "name": "gamewip-workflows",
   "displayName": "GameWIP Workflow Keybindings",
   "description": "Repository-scoped keyboard shortcuts for complete GameWIP development workflows.",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "publisher": "gamewip",
   "engines": {
     "vscode": "^1.90.0"
