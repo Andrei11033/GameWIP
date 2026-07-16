@@ -99,8 +99,11 @@ for ordinary build, validation, benchmark, documentation, and stress workflows:
 
 `setup.bat` owns environment installation and repair. `gamewip.bat` owns
 repository-local project commands, streams native output live, helps assemble
-validation executable arguments, reports stress-run progress, and stores run
-logs under `build/tool-runs/`.
+validation executable arguments, reports stress-run progress, offers follow-up
+actions after configure and build steps, and stores run logs under
+`build/tool-runs/`. Its interactive selections use one keypress with Enter for
+defaults, matching the setup menu style. When a project command fails, the tool
+prints the failed action, retained log location, and focused next-step guidance.
 The command catalog lives in `scripts/config/gamewip-commands.psd1` so project
 commands and bundles can be extended without turning the helper into a generic
 shell launcher.

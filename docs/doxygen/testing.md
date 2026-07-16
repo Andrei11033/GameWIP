@@ -70,7 +70,9 @@ The root `gamewip.bat` launcher opens `scripts/GameWIP.ps1`, a project-scoped co
 
 The tool discovers CMake presets from `CMakePresets.json` and reads project command definitions from `scripts/config/gamewip-commands.psd1`. Add new project actions by updating that catalog instead of accepting arbitrary shell commands.
 
-Every command run prints the exact native command, streams output live, and stores logs under `build/tool-runs/<timestamp>/`. Validation and stress actions default `TEMP` and `TMP` to `build/gamewip-temp` so local Windows temp-folder permissions cannot make FileSystem and Logger checks fail spuriously.
+Every command run prints the exact native command, streams output live, and stores logs under `build/tool-runs/<timestamp>/`. Interactive selections use one-key input with Enter for defaults. Configure and build flows offer the next useful action, such as building after configure, running CTest after a test build, generating coverage after a coverage test run, or running benchmark registration after a benchmark build. Failures print the failed action and focused next steps instead of only returning a native exit code.
+
+Validation and stress actions default `TEMP` and `TMP` to `build/gamewip-temp` so local Windows temp-folder permissions cannot make FileSystem and Logger checks fail spuriously.
 
 The validation command builder helps assemble `GameWIPTests.exe` arguments from the supported runner flags, including `--test-module=<name>`, `--skip-test-module=<name>`, report behavior, verbose output, manual UI checks, Logger popup checks, and TestSupport child-process checks. Stress runs report launched, active, completed, and failed worker counts while they run.
 

@@ -624,35 +624,43 @@ function Read-MenuChoice
         [string]$Default
     )
 
+    $keys = @('1', '2', '3', '4', '5', '6', '7', '8', '9', '0', 'a', 'b', 'c', 'd', 'e', 'f')
+    if ($Choices.Count -gt $keys.Count)
+    {
+        throw "Too many choices for single-key selection: $($Choices.Count)."
+    }
+
     while ($true)
     {
         Write-Host ''
         Write-Host $Prompt
         for ($index = 0; $index -lt $Choices.Count; ++$index)
         {
-            Write-Host ("  {0}. {1}" -f ($index + 1), $Choices[$index])
+            Write-Host ("  [{0}] {1}" -f $keys[$index], $Choices[$index])
         }
         if (-not [string]::IsNullOrWhiteSpace($Default))
         {
-            Write-Host "Default: $Default"
+            Write-Host "  [Enter] $Default"
         }
-        $text = Read-Host 'Choose number, exact name, blank for default, or q to cancel'
-        if ($text -eq 'q' -or $text -eq 'Q')
+        Write-Host 'Choose one key, or Esc/q to cancel: ' -NoNewline
+        $key = [Console]::ReadKey($true)
+        if ($key.Key -eq [ConsoleKey]::Escape -or $key.KeyChar -eq 'q' -or $key.KeyChar -eq 'Q')
         {
+            Write-Host 'cancel'
             return $null
         }
-        if ([string]::IsNullOrWhiteSpace($text) -and -not [string]::IsNullOrWhiteSpace($Default))
+        if ($key.Key -eq [ConsoleKey]::Enter -and -not [string]::IsNullOrWhiteSpace($Default))
         {
+            Write-Host 'Enter'
             return $Default
         }
-        $number = 0
-        if ([int]::TryParse($text, [ref]$number) -and $number -ge 1 -and $number -le $Choices.Count)
+
+        $selectionKey = $key.KeyChar.ToString().ToLowerInvariant()
+        Write-Host $selectionKey
+        $index = [array]::IndexOf($keys, $selectionKey)
+        if ($index -ge 0 -and $index -lt $Choices.Count)
         {
-            return $Choices[$number - 1]
-        }
-        if ($Choices -contains $text)
-        {
-            return $text
+            return $Choices[$index]
         }
         Write-Host 'Invalid selection.' -ForegroundColor Yellow
     }
@@ -687,15 +695,45 @@ function Read-IntegerValue
         [Parameter(Mandatory = $true)][int]$Default
     )
 
+    $values = @(1, 2, 4, 8, 16, 32, 64, 100)
+    $keys = @('1', '2', '3', '4', '5', '6', '7', '8')
     while ($true)
     {
-        $value = Read-TextValue -Prompt $Prompt -Default ([string]$Default)
-        $parsed = 0
-        if ([int]::TryParse($value, [ref]$parsed) -and $parsed -gt 0)
+        Write-Host ''
+        Write-Host $Prompt
+        for ($index = 0; $index -lt $values.Count; ++$index)
         {
-            return $parsed
+            Write-Host ("  [{0}] {1}" -f $keys[$index], $values[$index])
         }
-        Write-Host 'Enter a positive integer.' -ForegroundColor Yellow
+        Write-Host "  [Enter] $Default"
+        Write-Host '  [c] custom'
+        Write-Host 'Choose one key: ' -NoNewline
+        $key = [Console]::ReadKey($true)
+        if ($key.Key -eq [ConsoleKey]::Enter)
+        {
+            Write-Host 'Enter'
+            return $Default
+        }
+        $selectionKey = $key.KeyChar.ToString().ToLowerInvariant()
+        Write-Host $selectionKey
+        if ($selectionKey -eq 'c')
+        {
+            $value = Read-TextValue -Prompt 'Custom positive integer' -Default ([string]$Default)
+            $parsed = 0
+            if ([int]::TryParse($value, [ref]$parsed) -and $parsed -gt 0)
+            {
+                return $parsed
+            }
+            Write-Host 'Enter a positive integer.' -ForegroundColor Yellow
+            continue
+        }
+
+        $index = [array]::IndexOf($keys, $selectionKey)
+        if ($index -ge 0)
+        {
+            return $values[$index]
+        }
+        Write-Host 'Invalid selection.' -ForegroundColor Yellow
     }
 }
 
@@ -709,17 +747,19 @@ function Read-YesNo
     $suffix = if ($Default) { '[Y/n]' } else { '[y/N]' }
     while ($true)
     {
-        $value = Read-Host "$Prompt $suffix"
-        if ([string]::IsNullOrWhiteSpace($value))
+        Write-Host "$Prompt $suffix " -NoNewline
+        $key = [Console]::ReadKey($true)
+        if ($key.Key -eq [ConsoleKey]::Enter)
         {
+            Write-Host 'Enter'
             return $Default
         }
-        switch ($value.Trim().ToLowerInvariant())
+        $value = $key.KeyChar.ToString().ToLowerInvariant()
+        Write-Host $value
+        switch ($value)
         {
             'y' { return $true }
-            'yes' { return $true }
             'n' { return $false }
-            'no' { return $false }
             default { Write-Host 'Enter y or n.' -ForegroundColor Yellow }
         }
     }
@@ -732,57 +772,197 @@ function Read-MultiChoice
         [Parameter(Mandatory = $true)][string[]]$Choices
     )
 
+    $keys = @('1', '2', '3', '4', '5', '6', '7', '8', '9', '0', 'a', 'b', 'c', 'd', 'e', 'f')
+    if ($Choices.Count -gt $keys.Count)
+    {
+        throw "Too many choices for single-key selection: $($Choices.Count)."
+    }
+
+    $selected = New-Object System.Collections.Generic.HashSet[string]
     while ($true)
     {
         Write-Host ''
         Write-Host $Prompt
         for ($index = 0; $index -lt $Choices.Count; ++$index)
         {
-            Write-Host ("  {0}. {1}" -f ($index + 1), $Choices[$index])
+            $marker = if ($selected.Contains($Choices[$index])) { 'x' } else { ' ' }
+            Write-Host ("  [{0}] [{1}] {2}" -f $keys[$index], $marker, $Choices[$index])
         }
-        $value = Read-Host 'Choose comma-separated numbers/names, or blank for none'
-        if ([string]::IsNullOrWhiteSpace($value))
+        Write-Host 'Toggle one key, Enter to accept, or Esc/q to cancel: ' -NoNewline
+        $key = [Console]::ReadKey($true)
+        if ($key.Key -eq [ConsoleKey]::Escape -or $key.KeyChar -eq 'q' -or $key.KeyChar -eq 'Q')
         {
+            Write-Host 'cancel'
             return @()
         }
-
-        $selected = New-Object System.Collections.Generic.List[string]
-        $valid = $true
-        foreach ($token in ($value -split ',' | ForEach-Object { $_.Trim() } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }))
+        if ($key.Key -eq [ConsoleKey]::Enter)
         {
-            $number = 0
-            if ([int]::TryParse($token, [ref]$number))
+            Write-Host 'Enter'
+            $result = New-Object System.Collections.Generic.List[string]
+            foreach ($choice in $selected)
             {
-                if ($number -lt 1 -or $number -gt $Choices.Count)
-                {
-                    Write-Host "Unknown selection number '$token'." -ForegroundColor Yellow
-                    $valid = $false
-                    break
-                }
-                $name = $Choices[$number - 1]
+                $result.Add($choice) | Out-Null
+            }
+            return $result.ToArray()
+        }
+
+        $selectionKey = $key.KeyChar.ToString().ToLowerInvariant()
+        Write-Host $selectionKey
+        $index = [array]::IndexOf($keys, $selectionKey)
+        if ($index -ge 0 -and $index -lt $Choices.Count)
+        {
+            $choice = $Choices[$index]
+            if ($selected.Contains($choice))
+            {
+                [void]$selected.Remove($choice)
             }
             else
             {
-                $name = $token
-                if ($Choices -notcontains $name)
-                {
-                    Write-Host "Unknown selection '$token'." -ForegroundColor Yellow
-                    $valid = $false
-                    break
-                }
+                [void]$selected.Add($choice)
             }
-
-            if (-not $selected.Contains($name))
-            {
-                $selected.Add($name) | Out-Null
-            }
+            continue
         }
 
-        if ($valid)
+        Write-Host 'Invalid selection.' -ForegroundColor Yellow
+    }
+}
+
+function Show-ActionFailure
+{
+    param([Parameter(Mandatory = $true)][System.Management.Automation.ErrorRecord]$ErrorRecord)
+
+    $message = $ErrorRecord.Exception.Message
+    Write-Host ''
+    Write-Host 'Action failed' -ForegroundColor Red
+    Write-Host $message -ForegroundColor Red
+
+    $suggestions = New-Object System.Collections.Generic.List[string]
+    if ($message -match "Unknown .+ Run 'gamewip list'")
+    {
+        $suggestions.Add('Run .\gamewip.bat list to see the valid presets, modules, commands, and bundles.') | Out-Null
+    }
+    if ($message -match "Missing executable '([^']+)'.+build preset '([^']+)'")
+    {
+        $suggestions.Add(("Build the missing executable with .\gamewip.bat build -Preset {0}." -f $Matches[2])) | Out-Null
+        $suggestions.Add('For project commands and modules, add -BuildIfMissing when you want the helper to configure/build first.') | Out-Null
+    }
+    if ($message -match 'failed with exit code')
+    {
+        $suggestions.Add('Open the step log path printed above; it has the complete native command output.') | Out-Null
+        $suggestions.Add('Rerun the smallest focused command: .\gamewip.bat wizard or .\gamewip.bat module -Module <name>.') | Out-Null
+    }
+    if ($message -match 'stress runs failed')
+    {
+        $suggestions.Add('Inspect the stress_####.out.log and stress_####.err.log files in the printed run-log folder.') | Out-Null
+    }
+    if ($message -match 'Logger|logger')
+    {
+        $suggestions.Add('For rare Logger failures, rerun .\gamewip.bat stress -Module logger -Count 100 -Parallel 16 -BuildIfMissing to measure repeatability.') | Out-Null
+    }
+    if ($suggestions.Count -eq 0)
+    {
+        $suggestions.Add('Rerun the same command after reviewing the printed native command and run-log folder.') | Out-Null
+        $suggestions.Add('Use .\gamewip.bat list if the failure was caused by an unknown command, module, or preset.') | Out-Null
+    }
+
+    Write-Host ''
+    Write-Host 'What to do next:' -ForegroundColor Cyan
+    foreach ($suggestion in ($suggestions | Select-Object -Unique))
+    {
+        Write-Host "  - $suggestion"
+    }
+}
+
+function Invoke-InteractivePostBuildFlow
+{
+    param([Parameter(Mandatory = $true)][string]$Name)
+
+    if ((Get-VisiblePresetNames -Kind 'test') -contains $Name)
+    {
+        if (Read-YesNo -Prompt "Run CTest preset '$Name' now?" -Default $true)
         {
-            return $selected.ToArray()
+            Invoke-TestPreset -Name $Name -UseWorkspaceTemp
+            if ($Name -eq 'coverage' -and (Read-YesNo -Prompt "Generate the coverage report target now?" -Default $true))
+            {
+                Invoke-BuildTarget -Name 'coverage' -Target 'coverage'
+            }
+        }
+        else
+        {
+            Write-NextStepHint "run tests with: .\gamewip.bat test -Preset $Name"
+        }
+        return
+    }
+
+    switch ($Name)
+    {
+        'benchmark' {
+            if (Read-YesNo -Prompt 'Run the benchmark dry-run registration check now?' -Default $true)
+            {
+                Invoke-ProjectCommand -Id 'benchmark-dry-run' -ForceBuild
+            }
+            else
+            {
+                Write-NextStepHint 'run benchmark registration with: .\gamewip.bat run -ProjectCommand benchmark-dry-run'
+            }
+        }
+        'dev' {
+            if (Read-YesNo -Prompt 'Print the development executable version now?' -Default $true)
+            {
+                Invoke-ProjectCommand -Id 'dev-version' -ForceBuild
+            }
+            else
+            {
+                Write-NextStepHint 'print it later with: .\gamewip.bat run -ProjectCommand dev-version'
+            }
+        }
+        'release' {
+            if (Read-YesNo -Prompt 'Print the release executable version now?' -Default $true)
+            {
+                Invoke-ProjectCommand -Id 'release-version' -ForceBuild
+            }
+            else
+            {
+                Write-NextStepHint 'print it later with: .\gamewip.bat run -ProjectCommand release-version'
+            }
+        }
+        'docs' {
+            Write-NextStepHint 'open build\docs\docs\doxygen\html\index.html to inspect the generated manual.'
+        }
+        'analyze' {
+            Write-NextStepHint 'static analysis is complete when the build exits successfully.'
+        }
+        default {
+            Write-NextStepHint 'use .\gamewip.bat list to see follow-up project commands and bundles.'
         }
     }
+}
+
+function Invoke-InteractiveConfigureFlow
+{
+    param([Parameter(Mandatory = $true)][string]$Name)
+
+    Invoke-ConfigurePreset -Name $Name
+    if ((Get-VisiblePresetNames -Kind 'build') -contains $Name)
+    {
+        if (Read-YesNo -Prompt "Build preset '$Name' now?" -Default $true)
+        {
+            Invoke-BuildPreset -Name $Name
+            Invoke-InteractivePostBuildFlow -Name $Name
+        }
+        else
+        {
+            Write-NextStepHint "build it with: .\gamewip.bat build -Preset $Name"
+        }
+    }
+}
+
+function Invoke-InteractiveBuildFlow
+{
+    param([Parameter(Mandatory = $true)][string]$Name)
+
+    Invoke-BuildPreset -Name $Name
+    Invoke-InteractivePostBuildFlow -Name $Name
 }
 
 function Split-ExtraArguments
@@ -923,23 +1103,14 @@ function Show-GameWipMenu
                     $choice = Read-MenuChoice -Prompt 'Configure preset' -Choices (Get-VisiblePresetNames -Kind 'configure') -Default $CommandConfig.DefaultConfigurePreset
                     if ($null -ne $choice)
                     {
-                        Invoke-ConfigurePreset -Name $choice
-                        Write-NextStepHint "build it with: .\gamewip.bat build -Preset $choice"
+                        Invoke-InteractiveConfigureFlow -Name $choice
                     }
                 }
                 '2' {
                     $choice = Read-MenuChoice -Prompt 'Build preset' -Choices (Get-VisiblePresetNames -Kind 'build') -Default $CommandConfig.DefaultBuildPreset
                     if ($null -ne $choice)
                     {
-                        Invoke-BuildPreset -Name $choice
-                        if ((Get-VisiblePresetNames -Kind 'test') -contains $choice)
-                        {
-                            Write-NextStepHint "run tests with: .\gamewip.bat test -Preset $choice"
-                        }
-                        elseif ($choice -eq 'benchmark')
-                        {
-                            Write-NextStepHint 'run benchmark registration with: .\gamewip.bat run -ProjectCommand benchmark-dry-run'
-                        }
+                        Invoke-InteractiveBuildFlow -Name $choice
                     }
                 }
                 '3' {
@@ -986,7 +1157,7 @@ function Show-GameWipMenu
         }
         catch
         {
-            Write-Host $_.Exception.Message -ForegroundColor Red
+            Show-ActionFailure -ErrorRecord $_
         }
         finally
         {
@@ -1089,6 +1260,11 @@ try
         'list' { Show-ProjectCatalog }
         'help' { Show-Help }
     }
+}
+catch
+{
+    Show-ActionFailure -ErrorRecord $_
+    exit 1
 }
 finally
 {
