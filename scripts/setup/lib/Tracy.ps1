@@ -50,10 +50,9 @@ function Test-GameWipTracyTools
     $versionFile = Join-Path $RepositoryRoot '.tracy\version.txt'
     if (-not (Test-Path -LiteralPath $versionFile))
     {
-        # Pre-setup GameWIP environments already contained the complete tool
-        # set but did not write a version marker. Accept it during read-only
-        # checks; update/profiler rebuilds it and writes a source marker.
-        return $true
+        # Executable presence alone cannot prove that the tools match the
+        # pinned client. Rebuild once to establish a trustworthy marker.
+        return $false
     }
     $expected = "source-$(Get-GameWipTracyVersion -RepositoryRoot $RepositoryRoot)"
     return (Get-Content -LiteralPath $versionFile -Raw).Trim() -eq $expected
@@ -109,12 +108,11 @@ function Build-GameWipTracyTools
 {
     param(
         [Parameter(Mandatory = $true)][string]$RepositoryRoot,
-        [Parameter(Mandatory = $true)][string]$MsysRoot,
-        [switch]$Force
+        [Parameter(Mandatory = $true)][string]$MsysRoot
     )
 
     $version = Get-GameWipTracyVersion -RepositoryRoot $RepositoryRoot
-    if (-not $Force -and (Test-GameWipTracyTools -RepositoryRoot $RepositoryRoot))
+    if (Test-GameWipTracyTools -RepositoryRoot $RepositoryRoot)
     {
         Write-Host "  Ready: complete Tracy tool set for pinned client $version"
         return

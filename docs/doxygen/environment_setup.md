@@ -107,8 +107,9 @@ does not advance submodule pins; changing a pin is a reviewed source update.
 ## Update and repair rules
 
 `update` applies the newest compatible WinGet and pacman releases, refreshes
-selected editor integration, rebuilds the Tracy executables from the pinned
-client, rebuilds documentation, and verifies the environment. CMake remains on
+selected editor integration, reuses Tracy executables when their complete set
+and recorded pinned source version match, rebuilds them otherwise, rebuilds
+documentation, and verifies the environment. CMake remains on
 `4.4.x`, and submodules return to their committed revisions.
 
 An existing `C:\MSYS2` root is updated in place with complete `pacman -Syu`
@@ -134,9 +135,10 @@ and the following reference:
 
 | Shortcut | End-to-end workflow |
 | --- | --- |
-| `F6` | Configure, build, and run `dev`. |
-| `Ctrl+F6` | Configure and build `dev` without launching it. |
-| `Alt+F6` | Configure, build, and run `dev-no-tools`. |
+| `F5` | Configure, build, and run `dev`. |
+| `Ctrl+F5` | Configure and build `dev` without launching it. |
+| `Alt+F5` | Configure, build, and run `dev-no-tools`. |
+| `F6` | Configure, build, run embedded correctness tests, and start `dev` when they pass. |
 | `F7` | Configure, build, and run correctness tests. |
 | `Alt+F7` | Configure, build, and run benchmarks. |
 | `F8` | Build, verify, and open the generated manual. |
@@ -147,8 +149,9 @@ and the following reference:
 | `F11` | Build and run CLANG64 AddressSanitizer tests. |
 | `F12` | Configure, build, and run the release game. |
 
-`F5` and `Ctrl+F5` retain their normal VS Code behavior. The selected launch
-configuration builds `dev` before starting GDB.
+In the GameWIP workspace, `F5` and `Ctrl+F5` intentionally run repository tasks
+instead of VS Code's default launch commands. Use the **Run and Debug** view to
+start the configured GDB session when interactive debugging is needed.
 
 Open `GameWIP.code-workspace`, rather than only the repository folder, to enable
 the shortcuts. They invoke the matching `GameWIP: ...` tasks from
@@ -156,6 +159,10 @@ the shortcuts. They invoke the matching `GameWIP: ...` tasks from
 shortcut from **Terminal > Run Task** or the **Tasks: Run Task** command in the
 Command Palette. The task terminal shows each configure, build, test, or run
 failure and stops the remaining steps when a prerequisite fails.
+
+Game run tasks use a dedicated terminal for executable output. Their CMake
+configure and build prerequisites remain in the shared task terminal, keeping
+build diagnostics separate from the running game's output.
 
 To temporarily turn off every GameWIP shortcut in the current workspace, set
 `gamewip.keybindings.enabled` to `false`. To change an individual shortcut,

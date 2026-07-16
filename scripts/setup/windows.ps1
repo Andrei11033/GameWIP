@@ -135,7 +135,7 @@ function Invoke-SetupAction
         'visual-studio' { Invoke-VisualStudioStep }
         'msys2' { Invoke-Msys2Step }
         'repository' { Invoke-RepositoryStep }
-        'profiler' { Invoke-TracyStep -Update }
+        'profiler' { Invoke-TracyStep }
         'editor' { Invoke-EditorStep -Choose:(-not $NonInteractive) }
         'docs' { Invoke-DocumentationStep -Open }
         'help' {
@@ -213,9 +213,8 @@ function Invoke-EditorStep
 
 function Invoke-TracyStep
 {
-    param([switch]$Update)
     Write-SetupSection 'Tracy profiler tools'
-    Build-GameWipTracyTools -RepositoryRoot $RepositoryRoot -MsysRoot $ToolConfig.MsysRoot -Force:$Update
+    Build-GameWipTracyTools -RepositoryRoot $RepositoryRoot -MsysRoot $ToolConfig.MsysRoot
 }
 
 function Invoke-DocumentationStep
@@ -333,7 +332,7 @@ function Invoke-CompleteSetup
     Invoke-Msys2Step -Update:$Update
     Invoke-RepositoryStep
     Invoke-EditorStep -Update:$Update
-    Invoke-TracyStep -Update:$Update
+    Invoke-TracyStep
     if (-not $SkipDocs)
     {
         Invoke-DocumentationStep

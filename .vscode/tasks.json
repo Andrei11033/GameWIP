@@ -29,7 +29,19 @@
       "options": { "cwd": "${workspaceFolder}\\build\\dev", "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" } },
       "problemMatcher": [],
       "dependsOn": "GameWIP: Build Development",
-      "dependsOrder": "sequence"
+      "dependsOrder": "sequence",
+      "presentation": { "reveal": "always", "panel": "dedicated" }
+    },
+    {
+      "label": "GameWIP: Run Development With Startup Tests",
+      "type": "process",
+      "command": "${workspaceFolder}\\build\\dev\\GameWIP.exe",
+      "args": ["--startup-tests"],
+      "options": { "cwd": "${workspaceFolder}\\build\\dev", "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" } },
+      "problemMatcher": [],
+      "dependsOn": "GameWIP: Build Development",
+      "dependsOrder": "sequence",
+      "presentation": { "reveal": "always", "panel": "dedicated" }
     },
     {
       "label": "GameWIP: Configure Development Without Tools",
@@ -59,7 +71,8 @@
       "options": { "cwd": "${workspaceFolder}\\build\\dev-no-tools", "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" } },
       "problemMatcher": [],
       "dependsOn": "GameWIP: Build Development Without Tools",
-      "dependsOrder": "sequence"
+      "dependsOrder": "sequence",
+      "presentation": { "reveal": "always", "panel": "dedicated" }
     },
     {
       "label": "GameWIP: Configure Tests",

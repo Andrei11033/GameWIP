@@ -18,13 +18,18 @@ corresponding `GameWIP: ...` entry in `.vscode/tasks.json`; the same workflows
 remain available through **Terminal > Run Task** when a function key is
 unavailable.
 
+Game run tasks use a dedicated terminal for executable output. Their CMake
+configure and build prerequisites remain in the shared task terminal, keeping
+build diagnostics separate from the running game's output.
+
 ## Shortcut reference
 
 | Shortcut | Workflow |
 | --- | --- |
-| `F6` | Configure, build, and run `dev`. |
-| `Ctrl+F6` | Configure and build `dev` without launching it. |
-| `Alt+F6` | Configure, build, and run `dev-no-tools`. |
+| `F5` | Configure, build, and run `dev`. |
+| `Ctrl+F5` | Configure and build `dev` without launching it. |
+| `Alt+F5` | Configure, build, and run `dev-no-tools`. |
+| `F6` | Configure, build, run embedded correctness tests, and start `dev` when they pass. |
 | `F7` | Configure, build, and run correctness tests. |
 | `Alt+F7` | Configure, build, and run benchmarks. |
 | `F8` | Build, verify, and open the generated manual. |
@@ -35,8 +40,9 @@ unavailable.
 | `F11` | Build and run CLANG64 AddressSanitizer tests. |
 | `F12` | Configure, build, and run the release game. |
 
-`F5` and `Ctrl+F5` retain their normal VS Code launch behavior. The extension's
-`package.json` is the source of truth for contributed bindings and the setup
+In the GameWIP workspace, `F5` and `Ctrl+F5` intentionally run repository tasks
+instead of VS Code's default launch commands. The extension's `package.json`
+is the source of truth for contributed bindings and the setup
 script's generated user rules. Task behavior, customization rules, and
 troubleshooting guidance are maintained in the generated
 [development environment manual](../../../../docs/doxygen/environment_setup.md).

@@ -45,11 +45,14 @@ a marked, repository-guarded block at the end of the user's
 replace only that block. This is required because VS Code user rules outrank
 extension defaults.
 
-Tracy rebuilds five upstream CMake projects from the pinned submodule using
-UCRT64 GCC/Ninja. Generated compatibility adjustments remove upstream
-MSVC-only `/MP` and incompatible COFF LTO flags without modifying the
-submodule. All six EXEs and recursively discovered UCRT DLLs stage under
-`build/setup/tracy`; `.tracy` changes only after complete verification.
+Tracy checks the complete installed executable set and its recorded pinned
+source version before doing build work. When they match, setup reuses the
+installed tools; otherwise it rebuilds five upstream CMake projects from the
+pinned submodule using UCRT64 GCC/Ninja. Generated compatibility adjustments
+remove upstream MSVC-only `/MP` and incompatible COFF LTO flags without
+modifying the submodule. All six EXEs and recursively discovered UCRT DLLs
+stage under `build/setup/tracy`; `.tracy` changes only after complete
+verification.
 
 Focused `docs` builds, verifies, and opens the generated manual. Complete
 setup/update/repair builds the same manual without launching a browser.
