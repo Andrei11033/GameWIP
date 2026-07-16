@@ -1,6 +1,6 @@
 @page project_release_automation Release automation
 
-GameWIP release automation prepares milestone releases without deriving versions from issue counts, bypassing branch protection, or pushing release changes directly to `master`.
+GameWIP release automation prepares any milestone release without deriving versions from issue counts, bypassing branch protection, or pushing release changes directly to `master`.
 
 ## Required configuration
 
@@ -9,6 +9,8 @@ Configure these Actions variables:
 ```text
 ACTIVE_MILESTONE=R00 - Bootstrap
 ```
+
+Change `ACTIVE_MILESTONE` to the next milestone only after the previous milestone's tag, GitHub release, closure issue, and handoff are complete. The same workflow applies to R00, R01, later roadmap milestones, and compatible PATCH releases.
 
 Configure `PROJECT_TOKEN` as an Actions secret. The token must be a dedicated GitHub App token or dedicated maintainer token with the minimum permissions needed to:
 
@@ -19,6 +21,27 @@ Configure `PROJECT_TOKEN` as an Actions secret. The token must be a dedicated Gi
 - Create or publish GitHub releases.
 
 Do not store the token in source, logs, variables, issue comments, pull request bodies, or generated release notes.
+
+## Milestone release metadata
+
+Every releasable milestone needs exactly one target version and exactly one release issue.
+
+The milestone description must contain:
+
+```text
+Release version: `X.Y.Z`
+```
+
+The release issue can be resolved in either of these ways:
+
+- Preferred for new milestones: exactly one issue in the milestone is labeled `type:release` or has a title beginning with `release:`.
+- Explicit compatibility form: the milestone description contains:
+
+```text
+Release issue: `#N`
+```
+
+The release issue must stay open during readiness checks and release-preparation pull-request creation. It closes only after finalization has created the immutable tag and GitHub release and the milestone handoff is complete.
 
 ## Readiness check
 
@@ -32,6 +55,7 @@ The check verifies that:
 
 - The selected milestone matches `ACTIVE_MILESTONE`.
 - The milestone has explicit `Release version:` metadata.
+- The milestone has exactly one release issue, resolved from a `type:release` label, a `release:` title, or explicit milestone metadata.
 - The root CMake project version matches the milestone release version.
 - The milestone has no open implementation issues except its release issue.
 - The target version is newer than the latest immutable release tag.
@@ -54,7 +78,7 @@ The workflow creates or reuses:
 - `release: prepare vX.Y.Z`
 - `docs/releases/vX.Y.Z.md`
 
-The generated pull request references the release issue but does not close it. The release issue remains open until the tag and GitHub release exist.
+The generated pull request references the release issue but does not close it. The release issue remains open until the tag, GitHub release, and milestone handoff exist.
 
 A maintainer must fill in the final validation evidence, review the release-preparation pull request, and merge it manually. The workflow must not write directly to `master`.
 
@@ -87,6 +111,7 @@ Finalization creates an annotated `vX.Y.Z` tag and a matching GitHub release. Ex
 | Failure | Required action |
 | --- | --- |
 | Readiness check fails. | Fix the reported milestone, version, open issue, or workflow state. Run the check again. |
+| Release issue closed early. | Reopen it. The implementation pull request may reference it, but the release issue must remain open until finalization and handoff are complete. |
 | Release branch exists without a valid pull request. | Inspect the branch. Reuse it only if it is based on the expected `master` commit; otherwise delete it manually and rerun preparation. |
 | Release pull request was closed without merge. | Reopen it if correct, or delete the release branch and rerun preparation. |
 | Validation fails on the release pull request. | Fix through normal pull-request commits. Do not tag. |

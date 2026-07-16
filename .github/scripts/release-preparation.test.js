@@ -52,6 +52,14 @@ function milestoneIssues(overrides = []) {
     ];
 }
 
+function automaticReleaseMilestone(overrides = {}) {
+    return releaseMilestone({
+        title: 'R07 - Combat Foundation',
+        description: 'Release version: `0.7.0`',
+        ...overrides,
+    });
+}
+
 test('parses numeric release versions', () => {
     assert.deepEqual(parseReleaseVersion('0.0.1'), {
         text: '0.0.1',
@@ -93,7 +101,7 @@ test('parses R00 milestone release metadata', () => {
     });
 });
 
-test('allows future milestone metadata without a release issue', () => {
+test('parses milestone metadata without an explicit release issue', () => {
     const description = [
         'Release version: `0.1.0`',
         'Completion goal:',
@@ -275,10 +283,71 @@ test('accepts only a ready active milestone with one open release issue', () => 
         () =>
             validateMilestoneReadiness({
                 activeMilestone: 'R00 - Bootstrap',
-                milestone: releaseMilestone({description: 'Release version: `0.0.1`'}),
-                issues: milestoneIssues(),
+                milestone: releaseMilestone(),
+                issues: [
+                    {number: 11, state: 'closed', title: 'Complete R00 release'},
+                    {number: 10, state: 'closed', title: 'Completed implementation'},
+                ],
             }),
-        /does not designate a release issue/,
+        /Release issue #11 must remain open/,
+    );
+});
+
+test('discovers a future milestone release issue without hard-coded metadata', () => {
+    const byLabel = validateMilestoneReadiness({
+        activeMilestone: 'R07 - Combat Foundation',
+        milestone: automaticReleaseMilestone(),
+        issues: [
+            {number: 70, state: 'closed', title: 'combat: implementation work'},
+            {number: 71, state: 'open', title: 'task: complete R07 release', labels: ['type:release']},
+        ],
+    });
+    assert.equal(byLabel.version.text, '0.7.0');
+    assert.equal(byLabel.releaseIssue.number, 71);
+
+    const byTitle = validateMilestoneReadiness({
+        activeMilestone: 'R07 - Combat Foundation',
+        milestone: automaticReleaseMilestone(),
+        issues: [
+            {number: 70, state: 'closed', title: 'combat: implementation work'},
+            {number: 71, state: 'open', title: 'release: complete R07 release'},
+        ],
+    });
+    assert.equal(byTitle.releaseIssue.number, 71);
+});
+
+test('rejects missing, duplicate, and closed automatically discovered release issues', () => {
+    assert.throws(
+        () =>
+            validateMilestoneReadiness({
+                activeMilestone: 'R07 - Combat Foundation',
+                milestone: automaticReleaseMilestone(),
+                issues: [{number: 70, state: 'closed', title: 'combat: implementation work'}],
+            }),
+        /exactly one release issue/,
+    );
+
+    assert.throws(
+        () =>
+            validateMilestoneReadiness({
+                activeMilestone: 'R07 - Combat Foundation',
+                milestone: automaticReleaseMilestone(),
+                issues: [
+                    {number: 71, state: 'open', title: 'release: complete R07 release'},
+                    {number: 72, state: 'open', title: 'task: publish R07', labels: ['type:release']},
+                ],
+            }),
+        /found #71, #72/,
+    );
+
+    assert.throws(
+        () =>
+            validateMilestoneReadiness({
+                activeMilestone: 'R07 - Combat Foundation',
+                milestone: automaticReleaseMilestone(),
+                issues: [{number: 71, state: 'closed', title: 'release: complete R07 release'}],
+            }),
+        /Release issue #71 must remain open/,
     );
 });
 
@@ -325,6 +394,13 @@ test('selects the next roadmap milestone by title number', () => {
         {title: 'R01 - Window, Input, and Action Foundation'},
     ];
     assert.equal(selectNextMilestone(milestones, 'R00 - Bootstrap').title, 'R01 - Window, Input, and Action Foundation');
+    assert.equal(
+        selectNextMilestone(
+            [{title: 'R08 - AI Foundation'}, {title: 'R07 - Combat Foundation'}],
+            'R07 - Combat Foundation',
+        ).title,
+        'R08 - AI Foundation',
+    );
     assert.equal(selectNextMilestone([{title: 'R52 - V1'}], 'R52 - V1'), null);
     assert.throws(() => selectNextMilestone(milestones, 'R03 - Missing successor'), /found 0/);
 });
@@ -490,6 +566,8 @@ test('generates release pull request body for human merge', () => {
     assert.match(body, /release-preparation workflow/);
     assert.match(body, /Refs #11/);
     assert.doesNotMatch(body, /Closes #11/);
+    assert.doesNotMatch(body, /when R00 is ready/);
+    assert.match(body, /when this release is ready/);
     assert.match(body, /human review and merge/);
 });
 
