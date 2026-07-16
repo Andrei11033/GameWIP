@@ -22,6 +22,11 @@ update and repair entry point. See the [development environment manual](docs/dox
 for actions, update boundaries, visible command output, and the repository-only
 workflow key map.
 
+After setup, open `GameWIP.code-workspace`. The installed repository-scoped
+shortcuts cover development builds, tests, benchmarks, analysis,
+documentation, profiling, coverage, AddressSanitizer, and release runs; all are
+also available as `GameWIP: ...` entries under **Terminal > Run Task**.
+
 ## Quick start
 
 Configure, build, and run the development preset with tools:

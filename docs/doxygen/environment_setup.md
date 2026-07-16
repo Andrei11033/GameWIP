@@ -50,7 +50,8 @@ Menu and consent choices take effect on one keypress; Enter is not required.
 | `Esc` | Exit. |
 
 An interactive action returns to the complete menu after either success or a
-concise failure. Named actions return a nonzero exit code for automation:
+concise failure. The same actions are available directly from a terminal, which
+is useful for repeat runs and automation:
 
 ```powershell
 .\setup.bat check
@@ -59,9 +60,29 @@ concise failure. Named actions return a nonzero exit code for automation:
 .\setup.bat full -NonInteractive
 ```
 
-`-NonInteractive` selects automatic installation and the default editor when
-no preference exists. Machine-changing interactive actions instead offer
-Automatic, Manual instructions, or Cancel.
+| Command | Result |
+| --- | --- |
+| `setup.bat` or `setup.bat menu` | Open the persistent interactive menu. |
+| `setup.bat full` | Install or repair every required component and verify the checkout. |
+| `setup.bat check` | Verify required tools and project state without changing the machine. |
+| `setup.bat update` | Update compatible tools and rebuild repository-owned integrations. |
+| `setup.bat repair` | Reapply the complete required state without requesting ordinary upgrades. |
+| `setup.bat editor` | Choose editors interactively and install their GameWIP integration. |
+| `setup.bat tools` | Install the common WinGet-managed command-line tools. |
+| `setup.bat visual-studio` | Install or repair Visual Studio Community from `.vsconfig`. |
+| `setup.bat msys2` | Install or repair the declared UCRT64 and CLANG64 packages. |
+| `setup.bat repository` | Initialize pinned submodules and configure the `dev` build tree. |
+| `setup.bat profiler` | Rebuild the matching Tracy tools from the pinned source revision. |
+| `setup.bat docs` | Build, verify, and open the generated manual. |
+| `setup.bat help` | Print the command-line usage summary. |
+
+Named actions return a nonzero exit code when they fail. Add `-NonInteractive`
+to approve automatic installation and use the saved or default editor choice.
+Add `-SkipDocs` to `full`, `update`, or `repair` when documentation is not
+needed for that run. Options may follow the action as shown above.
+
+Without `-NonInteractive`, machine-changing actions offer Automatic, Manual
+instructions, or Cancel before making changes.
 
 ## What setup owns
 
@@ -129,6 +150,23 @@ and the following reference:
 `F5` and `Ctrl+F5` retain their normal VS Code behavior. The selected launch
 configuration builds `dev` before starting GDB.
 
+Open `GameWIP.code-workspace`, rather than only the repository folder, to enable
+the shortcuts. They invoke the matching `GameWIP: ...` tasks from
+`.vscode/tasks.json`; every visible workflow can also be started without a
+shortcut from **Terminal > Run Task** or the **Tasks: Run Task** command in the
+Command Palette. The task terminal shows each configure, build, test, or run
+failure and stops the remaining steps when a prerequisite fails.
+
+To temporarily turn off every GameWIP shortcut in the current workspace, set
+`gamewip.keybindings.enabled` to `false`. To change an individual shortcut,
+edit the GameWIP-managed rule in the VS Code Keyboard Shortcuts JSON. Rerunning
+`setup.bat editor`, `setup.bat update`, or `setup.bat repair` regenerates that
+managed block from the extension and therefore replaces local edits inside it;
+put durable personal bindings after the managed block or invoke the task from
+the Command Palette. The one-time `.gamewip-backup` remains available beside
+`keybindings.json` if the pre-setup bindings need to be consulted or restored
+manually.
+
 ## Tracy and documentation outputs
 
 Tracy builds use the pinned source under `external/tracy`, UCRT64 GCC/Ninja,
@@ -161,6 +199,8 @@ and verification-driven.
 | --- | --- |
 | Check reports missing state. | Run repair (`4`) and choose Automatic. Check itself is read-only. |
 | A shortcut still runs a personal command. | Rerun editor setup (`5`), then reload the VS Code window. |
+| No GameWIP shortcuts are active. | Open `GameWIP.code-workspace`, confirm `gamewip.keybindings.enabled` is `true`, and reload VS Code after editor setup. |
+| A function key is handled by the laptop or operating system. | Use the keyboard's `Fn` modifier, or run the same `GameWIP: ...` task from **Terminal > Run Task**. |
 | MSYS2 tries to use `C:\msys64`. | Stop and use the repository setup, which owns `C:\MSYS2`. Do not delete either root without reviewing its contents. |
 | Tracy rebuild is quiet or slow on first use. | Allow the large profiler dependency build to finish; command output identifies active work and failures. |
 | Direct automation fails. | Use the printed failing command and native diagnostic; named actions intentionally preserve a nonzero exit code. |
