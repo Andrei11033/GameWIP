@@ -8,8 +8,8 @@ The repository currently emphasizes reusable foundation libraries, Windows platf
 
 ## Setup
 
-GameWIP supports Windows 11. From a fresh checkout or extracted ZIP, run the repository
-bootstrap utility (a normal Git checkout or an extracted GitHub ZIP both work):
+GameWIP supports Windows 11. From a fresh checkout or extracted ZIP, run the
+repository bootstrap utility:
 
 ```powershell
 .\setup.bat
@@ -18,9 +18,13 @@ bootstrap utility (a normal Git checkout or an extracted GitHub ZIP both work):
 Choose Visual Studio Code, optional Visual Studio Community, or both. Setup
 installs the selected environment, prepares pinned dependencies and profiler
 tools, builds the manual, and verifies the checkout. It is also the supported
-update, repair, and ownership-aware uninstall entry point. See the [development environment manual](docs/doxygen/environment_setup.md)
-for actions, update boundaries, visible command output, and the repository-only
-workflow key map.
+update, repair, and ownership-aware uninstall entry point. See the
+[development environment manual](docs/doxygen/environment_setup.md) for actions,
+update boundaries, visible command output, and the repository-only workflow key
+map.
+
+Setup asks which fetched branch an extracted ZIP should track; automation can
+provide the same choice with `-Branch <name>`.
 
 After setup, open `GameWIP.code-workspace`. The installed repository-scoped
 shortcuts cover development builds, tests, benchmarks, analysis,

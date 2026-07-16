@@ -2,6 +2,7 @@
 param(
     [ValidateSet('menu', 'full', 'check', 'update', 'repair', 'uninstall', 'tools', 'visual-studio', 'msys2', 'repository', 'profiler', 'editor', 'docs', 'help')]
     [string]$Action = 'menu',
+    [string]$Branch,
     [switch]$NonInteractive,
     [switch]$SkipDocs
 )
@@ -162,7 +163,7 @@ function Invoke-SetupAction
         'editor' { Invoke-EditorStep -Choose:(-not $NonInteractive) }
         'docs' { Invoke-DocumentationStep -Open }
         'help' {
-            Write-Host 'Usage: setup.bat [full|check|update|repair|uninstall|tools|visual-studio|msys2|repository|profiler|editor|docs] [-NonInteractive] [-SkipDocs]'
+            Write-Host 'Usage: setup.bat [full|check|update|repair|uninstall|tools|visual-studio|msys2|repository|profiler|editor|docs] [-Branch <name>] [-NonInteractive] [-SkipDocs]'
         }
     }
 }
@@ -201,8 +202,25 @@ function Invoke-RepositoryStep
 {
     param([switch]$Update)
     Write-SetupSection 'Repository'
-    if ($Update) { Update-GameWipRepository -RepositoryRoot $RepositoryRoot }
-    Initialize-GameWipRepository -RepositoryRoot $RepositoryRoot
+    $wasZip = -not (Test-Path -LiteralPath (Join-Path $RepositoryRoot '.git'))
+    $alreadyFetched = $false
+    if ($wasZip)
+    {
+        # Populate submodules before an update checks for tracked changes; GitHub
+        # ZIP archives do not contain gitlink working trees.
+        Initialize-GameWipRepository -RepositoryRoot $RepositoryRoot -Branch $Branch -ChooseBranch:(-not $NonInteractive)
+        $alreadyFetched = $true
+    }
+    else
+    {
+        Set-GameWipRepositoryBranch -RepositoryRoot $RepositoryRoot -Branch $Branch -ChooseBranch:(-not $NonInteractive)
+        $alreadyFetched = -not $NonInteractive -or -not [string]::IsNullOrWhiteSpace($Branch)
+    }
+    if ($Update) { Update-GameWipRepository -RepositoryRoot $RepositoryRoot -SkipFetch:$alreadyFetched }
+    if (-not $wasZip -or $Update)
+    {
+        Initialize-GameWipRepository -RepositoryRoot $RepositoryRoot
+    }
     Test-GameWipRepositoryState -RepositoryRoot $RepositoryRoot
     Write-Host '  Ready: submodules and development configuration'
 }
@@ -376,7 +394,7 @@ if ($Action -eq 'menu' -and $NonInteractive)
     $Action = 'full'
 }
 
-$machineChangeActions = @('full', 'repair', 'update', 'uninstall', 'tools', 'visual-studio', 'msys2', 'profiler', 'editor')
+$machineChangeActions = @('full', 'repair', 'update', 'uninstall', 'tools', 'visual-studio', 'msys2', 'repository', 'profiler', 'editor')
 
 if ($Action -eq 'menu')
 {

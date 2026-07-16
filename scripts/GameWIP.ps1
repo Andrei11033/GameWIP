@@ -1,11 +1,14 @@
 [CmdletBinding()]
 param(
-    [ValidateSet('menu', 'doctor', 'configure', 'build', 'test', 'module', 'wizard', 'stress', 'run', 'bundle', 'docs', 'analysis', 'coverage', 'asan', 'benchmark', 'list', 'help')]
+    [ValidateSet('menu', 'doctor', 'git', 'configure', 'build', 'test', 'module', 'wizard', 'stress', 'run', 'bundle', 'docs', 'analysis', 'coverage', 'asan', 'benchmark', 'list', 'help')]
     [string]$Action = 'menu',
     [string]$Preset,
     [string]$Module,
     [string]$ProjectCommand,
     [string]$Bundle,
+    [ValidateSet('menu', 'status', 'fetch', 'switch', 'update', 'cleanup', 'create', 'push', 'log')]
+    [string]$GitAction = 'menu',
+    [string]$GitBranch,
     [ValidateRange(1, 100000)]
     [int]$Count = 0,
     [ValidateRange(1, 256)]
@@ -358,6 +361,258 @@ function Confirm-GameWipToolchain
     if (-not (Test-Path -LiteralPath (Join-Path $prefix 'cmake.exe')))
     {
         Test-GameWipProjectReadiness -ThrowOnFailure | Out-Null
+    }
+}
+
+function Assert-GameWipGitRepository
+{
+    if (-not (Test-Path -LiteralPath (Join-Path $RepositoryRoot '.git')))
+    {
+        throw 'Git metadata is missing. Run .\setup.bat repair to prepare this checkout.'
+    }
+    if ($null -eq (Get-Command git -ErrorAction SilentlyContinue))
+    {
+        throw 'Git is unavailable. Run .\setup.bat repair to install it.'
+    }
+}
+
+function Get-GameWipCurrentBranch
+{
+    Assert-GameWipGitRepository
+    $branch = (& git branch --show-current).Trim()
+    if ($LASTEXITCODE -ne 0 -or -not $branch) { throw 'Could not determine the current Git branch.' }
+    return $branch
+}
+
+function Assert-GameWipCleanTrackedTree
+{
+    $changes = @(& git status --porcelain --untracked-files=no)
+    if ($LASTEXITCODE -ne 0) { throw 'Could not inspect the Git working tree.' }
+    if ($changes.Count -ne 0)
+    {
+        throw 'Tracked files have local changes. Commit or stash them before switching or updating branches.'
+    }
+}
+
+function Show-GameWipGitStatus
+{
+    Assert-GameWipGitRepository
+    Write-GameWipSection 'Git workspace status'
+    & git status --short --branch
+    if ($LASTEXITCODE -ne 0) { throw 'Could not read Git status.' }
+}
+
+function Read-GameWipIndexedChoice
+{
+    param(
+        [Parameter(Mandatory = $true)][string]$Prompt,
+        [Parameter(Mandatory = $true)][string[]]$Choices
+    )
+    if ($Choices.Count -eq 0) { return $null }
+    Write-Host ''
+    Write-Host $Prompt
+    for ($index = 0; $index -lt $Choices.Count; ++$index)
+    {
+        Write-Host ("  [{0}] {1}" -f ($index + 1), $Choices[$index])
+    }
+    while ($true)
+    {
+        $answer = Read-Host 'Selection [Q = cancel]'
+        if ($answer -eq 'q' -or $answer -eq 'Q' -or [string]::IsNullOrWhiteSpace($answer)) { return $null }
+        $number = 0
+        if ([int]::TryParse($answer, [ref]$number) -and $number -ge 1 -and $number -le $Choices.Count)
+        {
+            return $Choices[$number - 1]
+        }
+        Write-Host 'Enter one of the listed numbers or Q.' -ForegroundColor Yellow
+    }
+}
+
+function Invoke-GameWipGitFetch
+{
+    Assert-GameWipGitRepository
+    Invoke-GameWipNative -Name 'git-fetch-prune' -FilePath 'git' -Arguments @('fetch', '--all', '--prune')
+}
+
+function Invoke-GameWipBranchSwitch
+{
+    param([string]$TargetBranch)
+    Assert-GameWipCleanTrackedTree
+    Invoke-GameWipGitFetch
+    $localBranches = @(& git for-each-ref '--format=%(refname:short)' refs/heads)
+    $remoteBranches = @(& git for-each-ref '--format=%(refname:short)' refs/remotes/origin) |
+        Where-Object { $_ -like 'origin/*' } |
+        ForEach-Object { $_.Substring('origin/'.Length) }
+    $branches = @($localBranches + $remoteBranches | Sort-Object -Unique)
+    $selected = if ([string]::IsNullOrWhiteSpace($TargetBranch)) {
+        Read-GameWipIndexedChoice -Prompt 'Switch to branch' -Choices $branches
+    } else {
+        $TargetBranch -replace '^origin/', ''
+    }
+    if ($null -eq $selected) { return }
+    if ($branches -notcontains $selected) { throw "Unknown local or origin branch '$selected'." }
+    if ($selected -eq (Get-GameWipCurrentBranch))
+    {
+        Write-Host "Already on '$selected'."
+        return
+    }
+    if ($localBranches -contains $selected)
+    {
+        Invoke-GameWipNative -Name "git-switch-$selected" -FilePath 'git' -Arguments @('switch', $selected)
+    }
+    else
+    {
+        Invoke-GameWipNative -Name "git-switch-$selected" -FilePath 'git' -Arguments @('switch', '--track', '-c', $selected, "origin/$selected")
+    }
+    Show-GameWipGitStatus
+}
+
+function Invoke-GameWipCurrentBranchUpdate
+{
+    Assert-GameWipCleanTrackedTree
+    $branch = Get-GameWipCurrentBranch
+    $upstream = (& git rev-parse --abbrev-ref --symbolic-full-name '@{upstream}' 2>$null)
+    if ($LASTEXITCODE -ne 0 -or -not $upstream)
+    {
+        throw "Branch '$branch' has no upstream. Push it with -u or select a tracked remote branch first."
+    }
+    Invoke-GameWipGitFetch
+    Invoke-GameWipNative -Name "git-update-$branch" -FilePath 'git' -Arguments @('merge', '--ff-only', $upstream.Trim())
+}
+
+function Invoke-GameWipBranchCreate
+{
+    param([string]$BranchName)
+    Assert-GameWipCleanTrackedTree
+    $name = if ([string]::IsNullOrWhiteSpace($BranchName)) { Read-TextValue -Prompt 'New branch name' } else { $BranchName }
+    if ([string]::IsNullOrWhiteSpace($name))
+    {
+        Write-Host 'Branch creation cancelled.'
+        return
+    }
+    & git check-ref-format --branch $name 2>$null | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw "'$name' is not a valid Git branch name." }
+    Invoke-GameWipNative -Name "git-create-$name" -FilePath 'git' -Arguments @('switch', '-c', $name)
+    Show-GameWipGitStatus
+}
+
+function Invoke-GameWipCurrentBranchPush
+{
+    $branch = Get-GameWipCurrentBranch
+    $upstream = (& git rev-parse --abbrev-ref --symbolic-full-name '@{upstream}' 2>$null)
+    if ($LASTEXITCODE -eq 0 -and $upstream)
+    {
+        Invoke-GameWipNative -Name "git-push-$branch" -FilePath 'git' -Arguments @('push')
+        return
+    }
+    if (-not (Read-YesNo -Prompt "Publish '$branch' to origin and set its upstream?" -Default $true))
+    {
+        Write-Host 'Push cancelled.'
+        return
+    }
+    Invoke-GameWipNative -Name "git-publish-$branch" -FilePath 'git' -Arguments @('push', '--set-upstream', 'origin', $branch)
+}
+
+function Show-GameWipRecentCommits
+{
+    Assert-GameWipGitRepository
+    Write-GameWipSection 'Recent commits'
+    & git log -12 --oneline --decorate --graph
+    if ($LASTEXITCODE -ne 0) { throw 'Could not read Git history.' }
+}
+
+function Invoke-GameWipBranchCleanup
+{
+    Assert-GameWipCleanTrackedTree
+    Invoke-GameWipGitFetch
+    $current = Get-GameWipCurrentBranch
+    $defaultRemote = (& git symbolic-ref --short refs/remotes/origin/HEAD 2>$null)
+    $defaultName = if ($LASTEXITCODE -eq 0 -and $defaultRemote) { $defaultRemote.Trim().Substring('origin/'.Length) } else { 'main' }
+    $protected = [System.Collections.Generic.HashSet[string]]::new(
+        [string[]]@($current, $defaultName, 'main', 'master', 'develop'),
+        [StringComparer]::OrdinalIgnoreCase
+    )
+    $merged = @(& git for-each-ref "--merged=origin/$defaultName" '--format=%(refname:short)' refs/heads) |
+        Where-Object { -not $protected.Contains($_) }
+    $deleted = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    foreach ($branch in $merged)
+    {
+        if (Read-YesNo -Prompt "Delete fully merged local branch '$branch'?" -Default $true)
+        {
+            Invoke-GameWipNative -Name "git-delete-$branch" -FilePath 'git' -Arguments @('branch', '-d', $branch)
+            $deleted.Add($branch) | Out-Null
+        }
+    }
+
+    $gone = @(& git for-each-ref '--format=%(refname:short)|%(upstream:track)' refs/heads) |
+        Where-Object { $_ -match '\|\[gone\]$' } |
+        ForEach-Object { ($_ -split '\|', 2)[0] } |
+        Where-Object { -not $protected.Contains($_) -and -not $deleted.Contains($_) }
+    foreach ($branch in $gone)
+    {
+        Write-Host "Branch '$branch' has a deleted upstream but is not ancestry-merged; this is common after squash merges." -ForegroundColor Yellow
+        if (Read-YesNo -Prompt "Force-delete local branch '$branch' after confirming its work is preserved remotely?" -Default $false)
+        {
+            Invoke-GameWipNative -Name "git-force-delete-$branch" -FilePath 'git' -Arguments @('branch', '-D', $branch)
+            $deleted.Add($branch) | Out-Null
+        }
+    }
+    if ($deleted.Count -eq 0) { Write-Host 'No local branches were deleted.' }
+    else { Write-Host "Deleted local branches: $($deleted -join ', ')" -ForegroundColor Green }
+}
+
+function Show-GameWipGitMenu
+{
+    while ($true)
+    {
+        Write-Host ''
+        Write-Host "Git Workspace ($(Get-GameWipCurrentBranch))"
+        Write-Host '============='
+        Write-Host '1. Show status'
+        Write-Host '2. Fetch and prune remote references'
+        Write-Host '3. Switch branch'
+        Write-Host '4. Update current branch (fast-forward only)'
+        Write-Host '5. Clean merged or gone local branches'
+        Write-Host '6. Create and switch to a new branch'
+        Write-Host '7. Push/publish the current branch'
+        Write-Host '8. Show recent commits'
+        Write-Host 'Esc. Back'
+        Write-Host 'Choose an action: ' -NoNewline
+        $key = [Console]::ReadKey($true)
+        if ($key.Key -eq [ConsoleKey]::Escape) { Write-Host 'Esc'; return }
+        Write-Host $key.KeyChar
+        switch ($key.KeyChar)
+        {
+            '1' { Show-GameWipGitStatus }
+            '2' { Invoke-GameWipGitFetch }
+            '3' { Invoke-GameWipBranchSwitch }
+            '4' { Invoke-GameWipCurrentBranchUpdate }
+            '5' { Invoke-GameWipBranchCleanup }
+            '6' { Invoke-GameWipBranchCreate }
+            '7' { Invoke-GameWipCurrentBranchPush }
+            '8' { Show-GameWipRecentCommits }
+            default { Write-Host 'Press 1-8 or Esc.' -ForegroundColor Yellow }
+        }
+    }
+}
+
+function Invoke-GameWipGitAction
+{
+    param(
+        [Parameter(Mandatory = $true)][string]$Name,
+        [string]$BranchName
+    )
+    switch ($Name)
+    {
+        'menu' { Show-GameWipGitMenu }
+        'status' { Show-GameWipGitStatus }
+        'fetch' { Invoke-GameWipGitFetch }
+        'switch' { Invoke-GameWipBranchSwitch -TargetBranch $BranchName }
+        'update' { Invoke-GameWipCurrentBranchUpdate }
+        'cleanup' { Invoke-GameWipBranchCleanup }
+        'create' { Invoke-GameWipBranchCreate -BranchName $BranchName }
+        'push' { Invoke-GameWipCurrentBranchPush }
+        'log' { Show-GameWipRecentCommits }
     }
 }
 
@@ -1159,6 +1414,7 @@ function Show-GameWipMenu
         Write-Host '8. Run command bundle'
         Write-Host '9. List commands and presets'
         Write-Host '0. Check project readiness'
+        Write-Host 'G. Git branches and workspace cleanup'
         Write-Host 'Esc. Exit'
         Write-Host 'Choose an action: ' -NoNewline
         $key = [Console]::ReadKey($true)
@@ -1227,6 +1483,7 @@ function Show-GameWipMenu
                 }
                 '9' { Show-ProjectCatalog }
                 '0' { Test-GameWipProjectReadiness | Out-Null }
+                { $_ -eq 'g' -or $_ -eq 'G' } { Show-GameWipGitMenu }
                 default { Write-Host 'Press one of the listed number keys, or Esc to exit.' -ForegroundColor Yellow }
             }
         }
@@ -1246,6 +1503,9 @@ function Show-Help
     Write-Host 'Usage:'
     Write-Host '  gamewip'
     Write-Host '  gamewip doctor'
+    Write-Host '  gamewip git'
+    Write-Host '  gamewip git -GitAction status'
+    Write-Host '  gamewip git -GitAction switch -GitBranch <name>'
     Write-Host '  gamewip list'
     Write-Host '  gamewip configure -Preset test'
     Write-Host '  gamewip build -Preset test'
@@ -1266,6 +1526,7 @@ try
     {
         'menu' { Show-GameWipMenu }
         'doctor' { Test-GameWipProjectReadiness -ThrowOnFailure | Out-Null }
+        'git' { Invoke-GameWipGitAction -Name $GitAction -BranchName $GitBranch }
         'configure' {
             if ([string]::IsNullOrWhiteSpace($Preset)) { $Preset = $CommandConfig.DefaultConfigurePreset }
             Invoke-ConfigurePreset -Name $Preset

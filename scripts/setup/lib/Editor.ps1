@@ -314,6 +314,7 @@ function Install-GameWipEditorIntegration
 
     foreach ($extension in $Extensions)
     {
+        Write-Host "  Checking Visual Studio Code extension: $extension"
         $installedBefore = @(& code --list-extensions) -contains $extension
         Invoke-SetupNative -FilePath 'code' -ArgumentList @('--install-extension', $extension, '--force') | Out-Null
         if (-not $installedBefore) { Add-GameWipOwnedVsCodeExtension -Id $extension }

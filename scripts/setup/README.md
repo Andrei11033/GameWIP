@@ -60,8 +60,11 @@ Focused `docs` builds, verifies, and opens the generated manual. Complete
 setup/update/repair builds the same manual without launching a browser.
 
 An extracted GitHub ZIP is supported. After Git is available, repository setup
-initializes metadata in place, connects the official remote, tracks its default
-branch, and preserves extracted files while making pinned submodules available.
+initializes metadata in place, connects the official remote, compares fetched
+branches with the extracted files, and asks which branch to track. Existing
+interactive checkouts also offer a branch choice; `-Branch` supplies it for
+automation. Branch switches refuse tracked local changes. Extracted files remain
+untouched while pinned submodules become available.
 
 Uninstall removes repository-owned integrations and artifacts plus only the
 WinGet applications recorded as newly installed by setup. It preserves software

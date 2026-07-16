@@ -59,6 +59,7 @@ is useful for repeat runs and automation:
 .\setup.bat update
 .\setup.bat repair -SkipDocs
 .\setup.bat full -NonInteractive
+.\setup.bat full -Branch release/example
 ```
 
 | Command | Result |
@@ -81,7 +82,8 @@ is useful for repeat runs and automation:
 Named actions return a nonzero exit code when they fail. Add `-NonInteractive`
 to approve automatic installation and use the saved or default editor choice.
 Add `-SkipDocs` to `full`, `update`, or `repair` when documentation is not
-needed for that run. Options may follow the action as shown above.
+needed for that run. Add `-Branch <name>` to select a fetched branch explicitly.
+Options may follow the action as shown above.
 
 Without `-NonInteractive`, machine-changing actions offer Automatic, Manual
 instructions, or Cancel before making changes.
@@ -97,9 +99,18 @@ local work.
 
 Extracted GitHub ZIPs are supported directly. Repository setup initializes Git
 metadata in the existing folder, connects the official remote and its default
-branch, and never replaces the extracted working files. If those files differ
-from the current default branch, they remain visible as local changes; commit or
-stash them before using `setup.bat update`.
+branch, compares the extracted files with fetched branches, and recommends the
+closest match. Interactive setup asks which branch to track; noninteractive
+setup uses the detected match unless `-Branch` is supplied. It never replaces
+the extracted working files. If those files differ from the selected branch,
+they remain visible as local changes; commit or stash them before using
+`setup.bat update`.
+
+For an existing interactive checkout, complete setup, repair, update, and the
+repository action fetch the branch list and offer the current branch as the
+default. Keeping it does not rewrite the working tree. Switching requires a
+clean tracked tree. `-NonInteractive` keeps the current branch unless `-Branch`
+requests another one.
 
 ## Daily project commands
 
