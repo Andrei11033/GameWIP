@@ -470,6 +470,10 @@ function readConfig(context, environment) {
     return config;
 }
 
+function isPullRequestIssueEvent(context) {
+    return context.eventName === 'issues' && Boolean(context.payload.issue?.pull_request);
+}
+
 async function run({github, context, core, environment = process.env}) {
     const config = readConfig(context, environment);
     const automation = new ProjectAutomation({github, core, config});
@@ -477,8 +481,13 @@ async function run({github, context, core, environment = process.env}) {
 
     const {owner, repository} = splitRepository(config.repository);
     if (context.eventName === 'issues') {
-        await automation.reconcileIssue(owner, repository, context.payload.issue.number);
-        await automation.reconcileDependents(owner, repository, context.payload.issue.number);
+        const number = context.payload.issue.number;
+        if (isPullRequestIssueEvent(context)) {
+            await automation.reconcilePullRequest(owner, repository, number);
+        } else {
+            await automation.reconcileIssue(owner, repository, number);
+            await automation.reconcileDependents(owner, repository, number);
+        }
     } else if (context.eventName === 'pull_request_target') {
         await automation.reconcilePullRequest(owner, repository, context.payload.pull_request.number);
     } else if (context.eventName === 'workflow_dispatch' && context.payload.inputs?.kind !== 'all') {
@@ -504,6 +513,7 @@ module.exports = {
     deriveIssueStatus,
     derivePullRequestStatus,
     hasRequiredLabels,
+    isPullRequestIssueEvent,
     mergeLinkedIssueMetadata,
     readConfig,
     run,

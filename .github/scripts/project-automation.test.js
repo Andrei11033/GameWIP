@@ -8,6 +8,7 @@ const {
     deriveIssueStatus,
     derivePullRequestStatus,
     hasRequiredLabels,
+    isPullRequestIssueEvent,
     mergeLinkedIssueMetadata,
     readConfig,
     splitRepository,
@@ -104,6 +105,21 @@ test('metadata falls back to the PR author and reports milestone conflicts', () 
     assert.deepEqual(metadata.assignees, ['author']);
     assert.equal(metadata.milestone, null);
     assert.deepEqual(metadata.milestoneConflict, ['R00', 'R01']);
+});
+
+test('issues events distinguish pull requests from issues', () => {
+    assert.equal(
+        isPullRequestIssueEvent({
+            eventName: 'issues',
+            payload: {issue: {number: 23, pull_request: {url: 'https://api.github.com/repos/owner/repo/pulls/23'}}},
+        }),
+        true,
+    );
+    assert.equal(isPullRequestIssueEvent({eventName: 'issues', payload: {issue: {number: 24}}}), false);
+    assert.equal(
+        isPullRequestIssueEvent({eventName: 'pull_request_target', payload: {issue: {number: 23, pull_request: {}}}}),
+        false,
+    );
 });
 
 test('configuration and repository names are validated', () => {
