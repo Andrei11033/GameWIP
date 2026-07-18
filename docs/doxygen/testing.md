@@ -79,6 +79,10 @@ The validation command builder helps assemble `GameWIPTests.exe` arguments from 
 Common non-interactive usage:
 
 ```powershell
+.\gamewip.bat doctor
+.\gamewip.bat git
+.\gamewip.bat git -GitAction status
+.\gamewip.bat git -GitAction switch -GitBranch feature/example
 .\gamewip.bat list
 .\gamewip.bat build -Preset test
 .\gamewip.bat test -Preset test
@@ -88,6 +92,21 @@ Common non-interactive usage:
 .\gamewip.bat run -ProjectCommand benchmark-dry-run -BuildIfMissing
 .\gamewip.bat bundle -Bundle quick
 ```
+
+`doctor` checks the repository metadata and the exact UCRT64/CLANG64 tools used
+by project commands. Build and test actions automatically configure a missing
+build tree. All normal presets explicitly use `C:\MSYS2\ucrt64\bin`; ASan uses
+`C:\MSYS2\clang64\bin`, so an unrelated CMake or compiler earlier on the user's
+global `PATH` cannot silently change the build.
+
+`gamewip.bat git` opens the guarded Git workspace menu. It shows concise status,
+fetches and prunes remote references, switches between local or fetched remote
+branches, creates branches, shows recent history, fast-forwards the current
+tracked branch, and pushes or publishes it with an upstream. Its cleanup flow
+offers safe deletion for ancestry-merged local branches. A branch whose upstream
+is gone after a squash merge is never assumed safe: force deletion requires a
+separate explicit confirmation, and the current/default/common integration
+branches are protected.
 
 Running `gamewip.bat` without arguments opens the interactive menu. The helper is intentionally project-scoped: stress and project-command actions are selected from known GameWIP validation, benchmark, and executable checks instead of accepting arbitrary shell commands.
 

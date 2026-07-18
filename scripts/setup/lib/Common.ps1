@@ -1,5 +1,45 @@
 Set-StrictMode -Version Latest
 
+function Get-GameWipSetupState
+{
+    if (-not (Test-Path -LiteralPath $script:SetupStatePath))
+    {
+        return [ordered]@{ schemaVersion = 1; wingetPackages = @(); vscodeExtensions = @(); msys2InstalledBySetup = $false }
+    }
+    $state = Get-Content -LiteralPath $script:SetupStatePath -Raw | ConvertFrom-Json
+    $wingetPackages = if ($state.PSObject.Properties['wingetPackages']) { @($state.wingetPackages) } else { @() }
+    $vscodeExtensions = if ($state.PSObject.Properties['vscodeExtensions']) { @($state.vscodeExtensions) } else { @() }
+    $ownsMsys2 = if ($state.PSObject.Properties['msys2InstalledBySetup']) { [bool]$state.msys2InstalledBySetup } else { $false }
+    return [ordered]@{
+        schemaVersion = 1
+        wingetPackages = $wingetPackages
+        vscodeExtensions = $vscodeExtensions
+        msys2InstalledBySetup = $ownsMsys2
+    }
+}
+
+function Add-GameWipOwnedVsCodeExtension
+{
+    param([Parameter(Mandatory = $true)][string]$Id)
+    $state = Get-GameWipSetupState
+    $state.vscodeExtensions = @($state.vscodeExtensions + $Id | Sort-Object -Unique)
+    Save-GameWipSetupState -State $state
+}
+
+function Save-GameWipSetupState
+{
+    param([Parameter(Mandatory = $true)]$State)
+    $State | ConvertTo-Json | Set-Content -LiteralPath $script:SetupStatePath -Encoding UTF8
+}
+
+function Add-GameWipOwnedWingetPackage
+{
+    param([Parameter(Mandatory = $true)][string]$Id)
+    $state = Get-GameWipSetupState
+    $state.wingetPackages = @($state.wingetPackages + $Id | Sort-Object -Unique)
+    Save-GameWipSetupState -State $state
+}
+
 function Write-SetupSection
 {
     param([Parameter(Mandatory = $true)][string]$Title)

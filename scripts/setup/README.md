@@ -32,9 +32,11 @@ and reports successful exit codes. Stages print source and destination paths,
 selected options, reasons for skips, and verification results. Do not hide
 installer, pacman, Git, compiler, or documentation diagnostics in new code.
 
-Setup and repair install missing state. Update applies newest compatible
-WinGet/pacman releases but retains CMake `4.4.x` and the submodule revisions
-recorded by the checkout. Existing `C:\MSYS2` installations update through
+Setup and repair install missing state. Update fetches and fast-forwards
+the current branch from its configured upstream and applies newest compatible
+WinGet/pacman releases while retaining CMake `4.4.x` and the submodule revisions
+recorded by the updated checkout. It refuses dirty trees, missing upstreams, and
+non-fast-forward merges. Existing `C:\MSYS2` installations update through
 complete `pacman -Syu` passes; WinGet is used only for the first installation at
 that explicit root.
 
@@ -56,6 +58,18 @@ verification.
 
 Focused `docs` builds, verifies, and opens the generated manual. Complete
 setup/update/repair builds the same manual without launching a browser.
+
+An extracted GitHub ZIP is supported. After Git is available, repository setup
+initializes metadata in place, connects the official remote, compares fetched
+branches with the extracted files, and asks which branch to track. Existing
+interactive checkouts also offer a branch choice; `-Branch` supplies it for
+automation. Branch switches refuse tracked local changes. Extracted files remain
+untouched while pinned submodules become available.
+
+Uninstall removes repository-owned integrations and artifacts plus only the
+WinGet applications recorded as newly installed by setup. It preserves software
+that existed beforehand, the checkout, user files, and an MSYS2 tree that may
+contain later user data.
 
 ## Extension rules
 

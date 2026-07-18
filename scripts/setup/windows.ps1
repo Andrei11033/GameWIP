@@ -1,7 +1,8 @@
 [CmdletBinding()]
 param(
-    [ValidateSet('menu', 'full', 'check', 'update', 'repair', 'tools', 'visual-studio', 'msys2', 'repository', 'profiler', 'editor', 'docs', 'help')]
+    [ValidateSet('menu', 'full', 'check', 'update', 'repair', 'uninstall', 'tools', 'visual-studio', 'msys2', 'repository', 'profiler', 'editor', 'docs', 'help')]
     [string]$Action = 'menu',
+    [string]$Branch,
     [switch]$NonInteractive,
     [switch]$SkipDocs
 )
@@ -10,6 +11,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 $RepositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
+$script:SetupStatePath = Join-Path $RepositoryRoot '.gamewip-install-state.json'
 $ToolConfig = Import-PowerShellDataFile (Join-Path $PSScriptRoot 'config\tools.psd1')
 $MsysPackageConfig = Import-PowerShellDataFile (Join-Path $PSScriptRoot 'config\msys2-packages.psd1')
 $EditorConfig = Import-PowerShellDataFile (Join-Path $PSScriptRoot 'config\editors.psd1')
@@ -31,12 +33,13 @@ function Show-SetupMenu
     Write-Host '8. Install common machine tools'
     Write-Host '9. Build documentation'
     Write-Host '0. Install matching Tracy profiler tools'
+    Write-Host 'U. Uninstall everything installed by GameWIP'
     Write-Host 'Esc. Exit'
 
     $mapping = @{
         '1' = 'full'; '2' = 'check'; '3' = 'update'; '4' = 'repair'
         '5' = 'editor'; '6' = 'msys2'; '7' = 'repository'
-        '8' = 'tools'; '9' = 'docs'; '0' = 'profiler'
+        '8' = 'tools'; '9' = 'docs'; '0' = 'profiler'; 'U' = 'uninstall'
     }
 
     while ($true)
@@ -91,14 +94,24 @@ function Confirm-SetupMachineChanges
 {
     param([Parameter(Mandatory = $true)][string]$SelectedAction)
 
+    if ($SelectedAction -in @('full', 'repair', 'update')) { Show-SetupSizeEstimate }
+
     if ($NonInteractive)
     {
         return $true
     }
 
     Write-Host ''
-    Write-Host "The '$SelectedAction' action may install or update software, download packages, and request administrator approval."
-    Write-Host 'It can manage the selected editors/IDEs, Git, MSYS2, UCRT64, CLANG64, and editor extensions.'
+    if ($SelectedAction -eq 'uninstall')
+    {
+        Write-Host 'Uninstall removes repository-owned integrations and only software recorded as installed by GameWIP.'
+        Write-Host 'The repository, pre-existing software, and user-created files are preserved.'
+    }
+    else
+    {
+        Write-Host "The '$SelectedAction' action may install or update software, download packages, and request administrator approval."
+        Write-Host 'It can manage the selected editors/IDEs, Git, MSYS2, UCRT64, CLANG64, and editor extensions.'
+    }
     while ($true)
     {
         Write-Host 'Choose [A]utomatic installation, [M]anual instructions, or [C]ancel: ' -NoNewline
@@ -121,6 +134,16 @@ function Confirm-SetupMachineChanges
     }
 }
 
+function Show-SetupSizeEstimate
+{
+    Write-SetupSection 'Estimated resource use'
+    Write-Host '  Download: approximately 1-4 GB (depends on selected editor and existing packages)'
+    Write-Host '  Installed disk space: approximately 4-15 GB'
+    Write-Host '  Temporary build space: up to approximately 6 GB (mainly Tracy and documentation)'
+    Write-Host '  Runtime memory: setup can peak near 2-4 GB while compiling Tracy'
+    Write-Host '  These are conservative estimates; WinGet and pacman determine exact dependency sizes.'
+}
+
 function Invoke-SetupAction
 {
     param([Parameter(Mandatory = $true)][string]$SelectedAction)
@@ -130,6 +153,7 @@ function Invoke-SetupAction
         'full' { Invoke-CompleteSetup }
         'repair' { Invoke-CompleteSetup }
         'update' { Invoke-CompleteSetup -Update }
+        'uninstall' { Invoke-GameWipUninstall -RepositoryRoot $RepositoryRoot }
         'check' { Invoke-EnvironmentCheck }
         'tools' { Invoke-ToolStep }
         'visual-studio' { Invoke-VisualStudioStep }
@@ -139,7 +163,7 @@ function Invoke-SetupAction
         'editor' { Invoke-EditorStep -Choose:(-not $NonInteractive) }
         'docs' { Invoke-DocumentationStep -Open }
         'help' {
-            Write-Host 'Usage: setup.bat [full|check|update|repair|tools|visual-studio|msys2|repository|profiler|editor|docs] [-NonInteractive] [-SkipDocs]'
+            Write-Host 'Usage: setup.bat [full|check|update|repair|uninstall|tools|visual-studio|msys2|repository|profiler|editor|docs] [-Branch <name>] [-NonInteractive] [-SkipDocs]'
         }
     }
 }
@@ -166,6 +190,9 @@ function Invoke-Msys2Step
     if (-not (Test-Path -LiteralPath (Join-Path $ToolConfig.MsysRoot 'usr\bin\bash.exe')))
     {
         Install-WingetPackage -Id 'MSYS2.MSYS2' -Override "install --confirm-command --root $($ToolConfig.MsysRoot)"
+        $state = Get-GameWipSetupState
+        $state.msys2InstalledBySetup = $true
+        Save-GameWipSetupState -State $state
     }
     Install-GameWipMsys2Packages -MsysRoot $ToolConfig.MsysRoot -PackageConfig $MsysPackageConfig -Update:$Update
     Test-GameWipMsys2Tools -MsysRoot $ToolConfig.MsysRoot -CMakeVersionPattern $ToolConfig.CMakeVersionPattern
@@ -173,8 +200,27 @@ function Invoke-Msys2Step
 
 function Invoke-RepositoryStep
 {
+    param([switch]$Update)
     Write-SetupSection 'Repository'
-    Initialize-GameWipRepository -RepositoryRoot $RepositoryRoot
+    $wasZip = -not (Test-Path -LiteralPath (Join-Path $RepositoryRoot '.git'))
+    $alreadyFetched = $false
+    if ($wasZip)
+    {
+        # Populate submodules before an update checks for tracked changes; GitHub
+        # ZIP archives do not contain gitlink working trees.
+        Initialize-GameWipRepository -RepositoryRoot $RepositoryRoot -Branch $Branch -ChooseBranch:(-not $NonInteractive)
+        $alreadyFetched = $true
+    }
+    else
+    {
+        Set-GameWipRepositoryBranch -RepositoryRoot $RepositoryRoot -Branch $Branch -ChooseBranch:(-not $NonInteractive)
+        $alreadyFetched = -not $NonInteractive -or -not [string]::IsNullOrWhiteSpace($Branch)
+    }
+    if ($Update) { Update-GameWipRepository -RepositoryRoot $RepositoryRoot -SkipFetch:$alreadyFetched }
+    if (-not $wasZip -or $Update)
+    {
+        Initialize-GameWipRepository -RepositoryRoot $RepositoryRoot
+    }
     Test-GameWipRepositoryState -RepositoryRoot $RepositoryRoot
     Write-Host '  Ready: submodules and development configuration'
 }
@@ -319,7 +365,7 @@ function Invoke-CompleteSetup
     Write-Host "  Editors/IDEs: $($selectedNames -join ', ')"
     Write-Host '  1. Install or verify common machine tools'
     Write-Host '  2. Install or verify MSYS2 packages and toolchains'
-    Write-Host '  3. Initialize pinned submodules and configure the dev preset'
+    Write-Host '  3. Connect an extracted ZIP to Git if needed, initialize pinned submodules, and configure dev'
     Write-Host '  4. Install or update the selected editor integrations'
     Write-Host '  5. Build and verify the pinned Tracy tool set'
     if (-not $SkipDocs)
@@ -330,7 +376,7 @@ function Invoke-CompleteSetup
 
     Invoke-ToolStep -Update:$Update
     Invoke-Msys2Step -Update:$Update
-    Invoke-RepositoryStep
+    Invoke-RepositoryStep -Update:$Update
     Invoke-EditorStep -Update:$Update
     Invoke-TracyStep
     if (-not $SkipDocs)
@@ -348,7 +394,7 @@ if ($Action -eq 'menu' -and $NonInteractive)
     $Action = 'full'
 }
 
-$machineChangeActions = @('full', 'repair', 'update', 'tools', 'visual-studio', 'msys2', 'profiler', 'editor')
+$machineChangeActions = @('full', 'repair', 'update', 'uninstall', 'tools', 'visual-studio', 'msys2', 'repository', 'profiler', 'editor')
 
 if ($Action -eq 'menu')
 {

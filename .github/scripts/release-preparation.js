@@ -5,6 +5,8 @@ const fs = require('node:fs');
 const DEFAULT_REQUIRED_CHECKS = Object.freeze(['Validation']);
 const MASTER_BRANCH = 'master';
 const RELEASE_COMMANDS = Object.freeze(new Set(['check', 'prepare', 'finalize']));
+const RELEASE_ISSUE_LABEL = 'type:release';
+const RELEASE_ISSUE_TITLE_PATTERN = /^release:/i;
 
 function compareReleaseVersions(left, right) {
     for (const field of ['major', 'minor', 'patch']) {
@@ -116,6 +118,50 @@ function parseMilestoneReleaseMetadata(description) {
     };
 }
 
+function issueLabelNames(issue) {
+    if (!Array.isArray(issue.labels)) {
+        return [];
+    }
+
+    return issue.labels
+        .map((label) => {
+            if (typeof label === 'string') {
+                return label;
+            }
+            return String(label?.name ?? '');
+        })
+        .filter((name) => name.length > 0);
+}
+
+function isAutomaticReleaseIssueCandidate(issue) {
+    const title = String(issue.title ?? '');
+    return issueLabelNames(issue).includes(RELEASE_ISSUE_LABEL) || RELEASE_ISSUE_TITLE_PATTERN.test(title);
+}
+
+function resolveReleaseIssue({milestone, metadataReleaseIssue, issues}) {
+    if (metadataReleaseIssue !== null) {
+        const releaseIssues = issues.filter((issue) => issue.number === metadataReleaseIssue);
+        if (releaseIssues.length !== 1) {
+            throw new Error(
+                `Milestone '${milestone.title}' must contain release issue #${metadataReleaseIssue} exactly once.`,
+            );
+        }
+        return releaseIssues[0];
+    }
+
+    const releaseIssues = issues.filter(isAutomaticReleaseIssueCandidate);
+    if (releaseIssues.length !== 1) {
+        const suffix =
+            releaseIssues.length === 0
+                ? 'none were found'
+                : `found ${releaseIssues.map((issue) => `#${issue.number}`).join(', ')}`;
+        throw new Error(
+            `Milestone '${milestone.title}' must have exactly one release issue labeled '${RELEASE_ISSUE_LABEL}' or titled 'release: ...'; ${suffix}.`,
+        );
+    }
+    return releaseIssues[0];
+}
+
 function validateTargetVersion({targetVersion, projectVersion, latestVersion}) {
     if (compareReleaseVersions(targetVersion, projectVersion) !== 0) {
         throw new Error(
@@ -145,22 +191,17 @@ function validateMilestoneReadiness({activeMilestone, milestone, issues}) {
     }
 
     const metadata = parseMilestoneReleaseMetadata(milestone.description);
-    if (metadata.releaseIssue === null) {
-        throw new Error(`Milestone '${milestone.title}' does not designate a release issue.`);
-    }
-
-    const releaseIssues = issues.filter((issue) => issue.number === metadata.releaseIssue);
-    if (releaseIssues.length !== 1) {
-        throw new Error(
-            `Milestone '${milestone.title}' must contain release issue #${metadata.releaseIssue} exactly once.`,
-        );
-    }
-    if (String(releaseIssues[0].state).toLowerCase() !== 'open') {
-        throw new Error(`Release issue #${metadata.releaseIssue} must remain open during preparation.`);
+    const releaseIssue = resolveReleaseIssue({
+        milestone,
+        metadataReleaseIssue: metadata.releaseIssue,
+        issues,
+    });
+    if (String(releaseIssue.state).toLowerCase() !== 'open') {
+        throw new Error(`Release issue #${releaseIssue.number} must remain open during preparation.`);
     }
 
     const otherOpenIssues = issues
-        .filter((issue) => issue.number !== metadata.releaseIssue && String(issue.state).toLowerCase() === 'open')
+        .filter((issue) => issue.number !== releaseIssue.number && String(issue.state).toLowerCase() === 'open')
         .map((issue) => issue.number)
         .sort((left, right) => left - right);
     if (otherOpenIssues.length > 0) {
@@ -169,7 +210,7 @@ function validateMilestoneReadiness({activeMilestone, milestone, issues}) {
 
     return {
         version: metadata.version,
-        releaseIssue: releaseIssues[0],
+        releaseIssue,
     };
 }
 
@@ -403,7 +444,7 @@ function releasePullRequestBody(plan) {
         '',
         '- Fill in the final validation evidence in the release notes file.',
         '- Verify the pull request checks pass.',
-        '- Merge this pull request manually when R00 is ready to publish.',
+        '- Merge this pull request manually when this release is ready to publish.',
         '- Run release finalization only after the post-merge `master` checks pass.',
         '',
         `Refs #${plan.releaseIssue.number}`,
@@ -497,6 +538,7 @@ async function listMilestoneIssues(github, owner, repository, milestoneNumber) {
             number: issue.number,
             state: issue.state,
             title: issue.title,
+            labels: issue.labels.map((label) => label.name),
         }));
 }
 
