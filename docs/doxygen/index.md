@@ -1,48 +1,47 @@
 # GameWIP Developer Manual
 
-This generated manual is the authoritative developer manual for GameWIP. It is written for contributors, maintainers, and first-party reusable-library consumers who need to understand how the project is built, validated, extended, packaged, documented, and released.
+This generated manual is the authoritative developer reference for GameWIP. It
+serves contributors, maintainers, and first-party reusable-library consumers who
+need to build, validate, extend, package, document, or release the project.
 
-The README is the short repository entry point. This manual is the detailed reference. It is not player-facing game documentation.
+The root README is the short repository entry point. This manual owns detailed
+engineering workflows and contracts; it is not player-facing game documentation.
 
-## Start here
+## Choose a path
 
-Read these pages first when joining the project or returning after a long break:
-
-- @ref project_getting_started
-- @ref project_structure
-- @ref project_build
-- @ref project_validation
-- @ref project_testing
-- @ref project_extending
+| Reader or task | Start here | Continue with |
+| --- | --- | --- |
+| First checkout | @ref project_getting_started | @ref project_environment_setup, then @ref project_build |
+| Contributor | @ref project_structure | @ref project_validation, @ref project_testing, then @ref project_contributing |
+| Reusable-library consumer | @ref project_reusable_libraries | Quick start, public API, examples, troubleshooting, and generated reference |
+| Project maintainer | @ref project_contracts | @ref project_extending, @ref project_cmake_infrastructure, and @ref project_documentation |
+| Repository maintainer | @ref project_repository_maintenance | @ref project_repository_automation and @ref project_static_analysis |
+| Release maintainer | @ref project_versioning | @ref project_release_automation and @ref project_contributing |
 
 ## Manual sections
 
-- @subpage project_reusable_libraries
 - @subpage project_manual
+- @subpage project_reusable_libraries
 - @subpage project_contracts
 - @subpage project_quality_workflows
 - @subpage project_planning
 
 ## Common tasks
 
-- Build and run the project: @ref project_build
+- Set up a checkout: @ref project_getting_started
+- Configure, build, and run: @ref project_build
 - Run correctness validation: @ref project_validation
 - Add or change tests: @ref project_testing
 - Add a library, API, backend, workflow, or documentation page: @ref project_extending
 - Update documentation correctly: @ref project_documentation
 - Check static analysis and repository rules: @ref project_static_analysis
-- Prepare or finalize release work: @ref project_release_automation
-
-## Reader paths
-
-New contributors should start with @ref project_getting_started, @ref project_structure, @ref project_build, @ref project_validation, and @ref project_contributing.
-
-Reusable-library consumers should start with @ref project_reusable_libraries and then the owning library's quick start, public API guide, examples, troubleshooting page, and generated API reference.
-
-Maintainers should read @ref project_contracts, @ref project_cmake_infrastructure, @ref project_documentation, @ref project_platform_backend_contract, and @ref project_library_compatibility before changing shared structure.
-
-Release maintainers should read @ref project_versioning, @ref project_repository_automation, @ref project_release_automation, and @ref project_contributing.
+- Contribute through GitHub: @ref project_contributing
+- Maintain repository settings and automation: @ref project_repository_maintenance
+- Prepare or finalize a release: @ref project_release_automation
 
 ## Generated reference
 
-The generated namespace, class, file, and member reference is built from supported consumer entry headers and documented source-tree integration headers. Generated export scaffolding is owned by each library's ABI page. Use the reference pages for exact symbol documentation after reading the workflow or library manual page that explains the behavior.
+The generated namespace, class, file, and member reference covers supported
+consumer entry headers and selected source-tree integration headers. Generated
+export scaffolding belongs to each library's ABI page. Read the owning workflow
+or library manual first, then use the generated reference for exact symbols.

@@ -1,4 +1,4 @@
-@page logger_configuration Logger configuration
+@page logger_configuration Configuration
 
 `Logger::Types::Config` is consumed by `init()`. Logger copies the strings, source definitions, and filter state it retains before `init()` returns; later edits to the caller's `Config` and backing arrays do not reconfigure the runtime.
 

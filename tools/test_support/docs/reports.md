@@ -1,4 +1,4 @@
-@page test_support_reports TestSupport reports
+@page test_support_reports Reports
 
 ## Output selection
 

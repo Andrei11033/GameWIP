@@ -1,4 +1,4 @@
-@page assert_macros Assert macros
+@page assert_macros Macros
 
 This page explains when to use each macro family. The authoritative side-effect matrix is @ref assert_macro_behavior.
 

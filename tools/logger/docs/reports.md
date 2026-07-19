@@ -1,4 +1,4 @@
-@page logger_reports Logger reports
+@page logger_reports Reports
 
 Reports are the synchronous diagnostic path. Use them when a message must bypass runtime filtering and queue pressure.
 

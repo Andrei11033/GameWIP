@@ -1,4 +1,4 @@
-@page logger_troubleshooting Logger troubleshooting
+@page logger_troubleshooting Troubleshooting
 
 ## `init()` returned an error but logging still works
 

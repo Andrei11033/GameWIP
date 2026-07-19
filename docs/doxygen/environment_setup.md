@@ -1,9 +1,9 @@
 @page project_environment_setup Development environment setup
 
 This manual covers the repository-owned Windows 11 bootstrap utility. Use it
-from either a Git checkout or an extracted GitHub ZIP of GameWIP; it installs
-the selected development environment, initializes pinned dependencies, prepares editor workflows, builds
-the profiler tools and manual, and verifies the result.
+from either a Git checkout or an extracted GitHub ZIP of GameWIP. It installs
+the selected development environment, initializes pinned dependencies, prepares
+editor workflows, builds the profiler tools and manual, and verifies the result.
 
 ## Fresh-machine quick start
 
@@ -192,8 +192,11 @@ ordered execution plan, selected editors, source/build/staging destinations,
 verification results, and reasons for skipped work. A failing command names the
 command and retains its native diagnostic.
 
-Setup does not pull or switch the current branch. Ordinary setup/update also
-does not advance submodule pins; changing a pin is a reviewed source update.
+Repository preparation never performs an implicit merge or discards tracked
+work. `update` may fast-forward the configured upstream, and an explicitly
+selected branch may be checked out only when tracked files are clean. Setup,
+repair, and update synchronize submodules to the revisions committed by the
+selected branch; advancing a submodule pin remains a reviewed source change.
 
 ## Update and repair rules
 

@@ -1,4 +1,4 @@
-@page terminal_unicode_io Terminal Unicode and byte I/O
+@page terminal_unicode_io Unicode and byte I/O
 
 Terminal presents UTF-8 text at its public boundary and preserves a separate raw-byte path for endpoints and callers that need arbitrary bytes.
 

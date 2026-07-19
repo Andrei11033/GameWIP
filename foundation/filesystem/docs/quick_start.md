@@ -1,4 +1,4 @@
-@page filesystem_quick_start FileSystem quick start
+@page filesystem_quick_start Quick start
 
 ## Include
 

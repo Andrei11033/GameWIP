@@ -1,4 +1,4 @@
-@page io_runtime_performance IO runtime and performance
+@page io_runtime_performance Runtime and performance
 
 This page owns allocation, buffering, and data-movement characteristics. Transfer correctness and backend obligations are documented in @ref io_reader_writer_contract.
 

@@ -1,4 +1,4 @@
-@page assert_failure_actions Assert failure actions
+@page assert_failure_actions Failure actions
 
 Interactive failures use `GameWIP::Debug::Assert::FailureAction`. Non-interactive fatal failures do not ask for an action.
 

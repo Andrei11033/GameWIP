@@ -153,17 +153,20 @@
     {
       "name": "test",
       "configurePreset": "test",
-      "output": { "outputOnFailure": true }
+      "output": { "outputOnFailure": true },
+      "execution": { "noTestsAction": "error" }
     },
     {
       "name": "coverage",
       "configurePreset": "coverage",
-      "output": { "outputOnFailure": true }
+      "output": { "outputOnFailure": true },
+      "execution": { "noTestsAction": "error" }
     },
     {
       "name": "asan",
       "configurePreset": "asan",
-      "output": { "outputOnFailure": true }
+      "output": { "outputOnFailure": true },
+      "execution": { "noTestsAction": "error" }
     }
   ]
 }

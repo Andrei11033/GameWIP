@@ -1,4 +1,4 @@
-@page filesystem_symlink_policies FileSystem symlink policies
+@page filesystem_symlink_policies Symlink policies
 
 `SymlinkPolicy` controls how policy-bearing operations resolve the supplied path. The default is `DoNotFollow` because a path check followed by an ordinary reopen can be replaced between those steps.
 

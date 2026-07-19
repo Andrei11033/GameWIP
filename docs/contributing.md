@@ -73,7 +73,9 @@ Keep branches focused. If the branch starts solving unrelated problems, split th
 
 ## Pull requests
 
-Open a pull request before merging into `master`.
+Open a pull request before merging into `master`. `CODEOWNERS` routes review to
+the maintainer, while required checks and resolved conversations enforce the
+merge boundary.
 
 The pull request title should normally be the squash commit title:
 
@@ -137,17 +139,23 @@ The `Validation` workflow runs on pull requests into `master`, pushes to `master
 
 It performs:
 
-- MSYS2 UCRT64 configure, build, and modular correctness tests with internal test hooks enabled.
-- MSYS2 CLANG64 AddressSanitizer configure, build, and test.
-- Installed-package validation with the single supported CMake line across Ninja and Ninja Multi-Config consumers.
-- GCC coverage configure, test, and report generation.
+- MSYS2 UCRT64 configure, build, non-package CTest contracts, and modular correctness tests with internal test hooks enabled.
+- MSYS2 CLANG64 AddressSanitizer configure, build, and test, including instrumented package consumers.
+- Ordinary installed-package validation with the single supported CMake line across Ninja and Ninja Multi-Config consumers.
+- GCC coverage configure, test, instrumented package-consumer validation, and report generation.
 - Google Benchmark registration dry run without performance thresholds.
 - Doxygen documentation build with `GAMEWIP_BUILD_DOCS=ON`.
 - Doxygen warning-log check.
 - clang-tidy and clang-format checks for maintained C++ code.
-- JavaScript syntax and unit tests, Python maintenance-script syntax checks, JSON parsing, local Markdown link validation, and actionlint workflow validation.
+- JavaScript syntax and unit tests, Python maintenance-script syntax checks,
+  JSON parsing, local Markdown link validation, immutable Action pins, workflow
+  timeouts and permissions, public repository files, and actionlint validation.
 
-The `Doxygen Docs` workflow publishes GitHub Pages only from `master` or manual dispatch. Pull requests build docs for validation but do not publish them.
+The `Doxygen Docs` workflow publishes the retained documentation artifact only
+after the complete `Validation` workflow succeeds on a `master` push. This
+avoids rebuilding the same documentation for Pages. Pull requests build docs
+for validation but do not publish them. Manual dispatch remains a guarded
+recovery path that performs its own build.
 
 Branch protection for `master` must require:
 
@@ -161,7 +169,10 @@ Validation / Repository Checks
 Validation / Docs Check
 ```
 
-Local static-analysis commands and file scope are documented in @ref project_static_analysis.
+Local static-analysis commands and file scope are documented in
+@ref project_static_analysis. The authoritative check ownership, validation
+tiers, manual dispatch map, protected-branch baseline, and repository audit
+checklist are documented in @ref project_repository_maintenance.
 
 ## Project automation
 

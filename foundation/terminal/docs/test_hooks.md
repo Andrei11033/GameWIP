@@ -1,4 +1,4 @@
-@page terminal_test_hooks Terminal source-tree test hooks
+@page terminal_test_hooks Source-tree test hooks
 
 @warning These hooks are source-tree maintainer interfaces. They are not installed, not consumer API, and not covered by package compatibility guarantees.
 

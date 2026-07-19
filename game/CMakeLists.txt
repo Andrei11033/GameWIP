@@ -55,6 +55,7 @@ if(GAMEWIP_BUILD_GAME)
                 "-DPROJECT_VERSION_VALUE=${PROJECT_VERSION}"
                 -P "${PROJECT_SOURCE_DIR}/cmake/ValidateGameWIPVersionOutput.cmake"
         )
+        set_tests_properties(validation.game.version PROPERTIES TIMEOUT 60)
     endif()
 endif()
 

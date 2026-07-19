@@ -1,4 +1,4 @@
-@page test_support_examples TestSupport examples
+@page test_support_examples Examples
 
 Each example is complete apart from the linked TestSupport library.
 

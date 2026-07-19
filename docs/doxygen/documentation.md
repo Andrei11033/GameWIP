@@ -65,7 +65,19 @@ Use these prefixes:
 | Assert pages | `assert_` |
 | TestSupport pages | `test_support_` |
 
-A library child page should start with the library page ID. For example, Logger child pages use IDs such as `logger_quick_start`, `logger_public_api`, and `logger_troubleshooting`.
+A library child page ID should start with the library page ID. For example,
+Logger child pages use IDs such as `logger_quick_start`, `logger_public_api`, and
+`logger_troubleshooting`. The displayed child title should omit the repeated
+library name because the Doxygen sidebar already supplies that context:
+
+```markdown
+@page logger_quick_start Quick start
+@page logger_public_api Public API
+@page logger_troubleshooting Troubleshooting
+```
+
+Keep the library name in the landing-page title and in prose where the page may
+be read outside its navigation context.
 
 ## Required library documentation
 
@@ -277,8 +289,15 @@ The documentation build should be warning-free.
 
 ## GitHub Pages deployment
 
-The `Doxygen Docs` workflow builds and deploys the manual from `master`.
-Maintainers can preview and dispatch the repository-owned command with:
+`Validation / Docs Check` builds the manual once for each pull request and
+`master` push. A successful `master` push retains that validated HTML for one
+day; the `Doxygen Docs` workflow consumes the artifact and deploys it without a
+second Doxygen build. Failed validation never publishes documentation.
+
+Manual `Doxygen Docs` dispatch is the recovery and deliberate-republication
+path. Because it has no preceding validation artifact, it builds and verifies
+the manual before deployment. Maintainers can preview and dispatch the
+repository-owned command with:
 
 ```powershell
 .\gamewip.bat workflow -WorkflowAction run -Workflow docs-deploy -Preview

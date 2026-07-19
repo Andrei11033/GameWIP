@@ -133,7 +133,7 @@ function ConvertTo-NativeArgument
     {
         return '""'
     }
-    if ($Argument -notmatch '[\s"]')
+    if ($Argument -notmatch '[\s"&|<>^()%!]')
     {
         return $Argument
     }
@@ -283,8 +283,7 @@ function Invoke-GameWipNative
             Write-Host "  PATH prefix: $PathPrefix"
         }
 
-        $cmdScript = "$commandLine 2>&1"
-        & $env:ComSpec /d /s /c $cmdScript | Tee-Object -FilePath $logPath
+        & $FilePath @Arguments 2>&1 | Tee-Object -FilePath $logPath
         $exitCode = if ($null -ne $LASTEXITCODE) { [int]$LASTEXITCODE } else { 0 }
     }
     finally
@@ -449,7 +448,7 @@ function Invoke-GameWipBranchSwitch
     Invoke-GameWipGitFetch
     $localBranches = @(& git for-each-ref '--format=%(refname:short)' refs/heads)
     $remoteBranches = @(& git for-each-ref '--format=%(refname:short)' refs/remotes/origin) |
-        Where-Object { $_ -like 'origin/*' } |
+        Where-Object { $_ -like 'origin/*' -and $_ -ne 'origin/HEAD' } |
         ForEach-Object { $_.Substring('origin/'.Length) }
     $branches = @($localBranches + $remoteBranches | Sort-Object -Unique)
     $selected = if ([string]::IsNullOrWhiteSpace($TargetBranch)) {
@@ -535,7 +534,11 @@ function Invoke-GameWipBranchCleanup
     Invoke-GameWipGitFetch
     $current = Get-GameWipCurrentBranch
     $defaultRemote = (& git symbolic-ref --short refs/remotes/origin/HEAD 2>$null)
-    $defaultName = if ($LASTEXITCODE -eq 0 -and $defaultRemote) { $defaultRemote.Trim().Substring('origin/'.Length) } else { 'main' }
+    $defaultName = if ($LASTEXITCODE -eq 0 -and $defaultRemote) {
+        $defaultRemote.Trim().Substring('origin/'.Length)
+    } else {
+        $CommandConfig.GitHubDefaultBranch
+    }
     $protected = [System.Collections.Generic.HashSet[string]]::new(
         [string[]]@($current, $defaultName, 'main', 'master', 'develop'),
         [StringComparer]::OrdinalIgnoreCase

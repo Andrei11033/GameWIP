@@ -1,4 +1,4 @@
-@page logger_examples Logger examples
+@page logger_examples Examples
 
 The examples use supported public headers and can be adapted directly into an application target linked with Logger.
 

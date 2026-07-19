@@ -1,4 +1,4 @@
-@page terminal_quick_start Terminal quick start
+@page terminal_quick_start Quick start
 
 Terminal exposes checked operations for stdin, stdout, stderr, styling, and primitive controls. It has no explicit initialization or shutdown lifecycle.
 

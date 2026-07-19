@@ -1,4 +1,4 @@
-@page terminal_public_api Terminal public API
+@page terminal_public_api Public API
 
 Include `terminal/terminal.h`. Installed consumers link `GameWIP::Terminal`; source-tree consumers link `Terminal`. Exact signatures and default arguments are in the generated reference; this page maps every public family and explains how the pieces fit together.
 

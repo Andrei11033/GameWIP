@@ -1736,13 +1736,18 @@ namespace
     }
 
     /// @brief Waits for observable producer progress with a hard deadline to avoid unbounded stress tests.
-    void waitForProducerAttempts(const std::atomic<std::size_t> &attempts, std::size_t minimumAttempts, std::chrono::milliseconds timeout)
+    /// @return True when the requested progress was observed before the deadline.
+    [[nodiscard]] bool waitForProducerAttempts(
+        const std::atomic<std::size_t> &attempts,
+        std::size_t minimumAttempts,
+        std::chrono::milliseconds timeout)
     {
         const auto waitStart = Clock::now();
         while (attempts.load(std::memory_order_acquire) < minimumAttempts && Clock::now() - waitStart < timeout)
         {
             std::this_thread::yield();
         }
+        return attempts.load(std::memory_order_acquire) >= minimumAttempts;
     }
 
     /// @brief Verifies timed flush remains bounded and preserves accounting while producers continue.
@@ -1787,7 +1792,7 @@ namespace
         }
 
         start.store(true, std::memory_order_release);
-        waitForProducerAttempts(attempts, 1024, 500ms);
+        context.expectTrue("flush active producers become ready", waitForProducerAttempts(attempts, 1024, 500ms));
 
         std::size_t flushSuccesses = 0;
         std::size_t flushTimeouts = 0;
@@ -1871,9 +1876,11 @@ namespace
         }
 
         start.store(true, std::memory_order_release);
-        waitForProducerAttempts(attempts, 1024, 500ms);
+        context.expectTrue("shutdown active producers become ready", waitForProducerAttempts(attempts, 1024, 500ms));
+
+        const std::size_t attemptsAtShutdown = attempts.load(std::memory_order_acquire);
         Logger::shutdown();
-        std::this_thread::sleep_for(1ms);
+        const bool attemptedAfterShutdown = waitForProducerAttempts(attempts, attemptsAtShutdown + static_cast<std::size_t>(stressThreads), 500ms);
         stop.store(true, std::memory_order_release);
 
         for (std::thread &worker : workers)
@@ -1883,6 +1890,7 @@ namespace
 
         context.expectFalse("shutdown active producers leaves logger stopped", Logger::isRunning());
         context.expectTrue("shutdown active producers attempted logs", attempts.load(std::memory_order_relaxed) > 0);
+        context.expectTrue("shutdown active producers continued through shutdown", attemptedAfterShutdown);
     }
 
     /// @brief Verifies repeated process-wide initialization and shutdown release runtime storage.

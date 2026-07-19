@@ -38,6 +38,7 @@ if(GAMEWIP_BUILD_TESTS)
     set_tests_properties(validation.packages.installed_consumer PROPERTIES
         LABELS "validation;packages"
         RUN_SERIAL TRUE
+        TIMEOUT 600
     )
 
     add_test(NAME validation.packages.assert_interface
@@ -57,6 +58,7 @@ if(GAMEWIP_BUILD_TESTS)
     set_tests_properties(validation.packages.assert_interface PROPERTIES
         LABELS "validation;packages"
         RUN_SERIAL TRUE
+        TIMEOUT 600
     )
 
     function(gamewip_add_export_validation library allowlist allow_test_hooks)
@@ -68,7 +70,10 @@ if(GAMEWIP_BUILD_TESTS)
                 "-DALLOW_TEST_HOOKS=${allow_test_hooks}"
                 -P "${PROJECT_SOURCE_DIR}/cmake/ValidateExportedSymbols.cmake"
         )
-        set_tests_properties("validation.exports.${library}" PROPERTIES LABELS "validation;exports")
+        set_tests_properties("validation.exports.${library}" PROPERTIES
+            LABELS "validation;exports"
+            TIMEOUT 120
+        )
     endfunction()
 
     gamewip_add_export_validation(Terminal terminal.txt "${TERMINAL_ENABLE_TEST_HOOKS}")

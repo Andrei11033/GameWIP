@@ -47,6 +47,7 @@ jobs:
     name: Approve Manual Release Write
     if: github.event_name == 'workflow_dispatch' && !inputs.dry_run
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     environment:
       name: ${{ inputs.command == 'finalize' && 'release-production' || 'maintainer-write' }}
     steps:
@@ -70,17 +71,18 @@ jobs:
       (needs.manual-write-approval.result == 'success' ||
        needs.manual-write-approval.result == 'skipped')
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
       - name: Checkout trusted release automation
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
         with:
           ref: ${{ github.event.repository.default_branch }}
           fetch-depth: 0
           persist-credentials: false
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: 24
 
@@ -94,7 +96,7 @@ jobs:
           fi
 
       - name: Run release preparation
-        uses: actions/github-script@v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           ACTIVE_MILESTONE: ${{ vars.ACTIVE_MILESTONE }}
           RELEASE_COMMAND: ${{ github.event_name == 'workflow_dispatch' && inputs.command || 'check' }}

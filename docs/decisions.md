@@ -92,6 +92,12 @@ Documentation rules are documented in @ref project_documentation.
 
 Feature work normally uses an issue, short-lived branch, pull request, required validation evidence, and squash merge.
 
+The seven protected `master` checks are the authoritative pre-merge CI gate.
+Manual validation dispatches rerun that gate for diagnostics or post-merge
+verification; they do not create a second required path. Expensive local quality
+workflows remain change-driven, while release preparation uses the documented
+release-readiness bundle.
+
 Commit and pull-request titles use:
 
 ```text
@@ -99,6 +105,8 @@ area: imperative summary
 ```
 
 The full GitHub workflow, required metadata, automation behavior, and squash message format are documented in @ref project_contributing.
+Repository settings, check ownership, manual dispatch policy, and public-release
+audits are documented in @ref project_repository_maintenance.
 
 ## Changing a decision
 

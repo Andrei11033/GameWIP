@@ -1,4 +1,4 @@
-@page assert_public_api Assert public API
+@page assert_public_api Public API
 
 Assert's public C++ surface is the installed header `debug/assert/assert.h`. The macros are global by design; runtime support lives in `GameWIP::Debug::Assert`.
 

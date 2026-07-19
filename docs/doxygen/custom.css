@@ -1,14 +1,41 @@
 :root {
-    --library-accent: #2f6fed;
+    --gamewip-accent: #2f6fed;
+    --gamewip-border: color-mix(in srgb, var(--gamewip-accent) 24%, transparent);
+}
+
+body,
+table,
+div,
+p,
+li {
+    line-height: 1.5;
 }
 
 .contents a:visited,
 .contents a:link {
-    color: var(--library-accent);
+    color: var(--gamewip-accent);
 }
 
 div.contents {
-    max-width: 1200px;
+    max-width: 1180px;
+}
+
+#side-nav {
+    border-right: 1px solid var(--gamewip-border);
+}
+
+#nav-tree .item {
+    padding-block: 2px;
+}
+
+#nav-tree .label {
+    line-height: 1.35;
+}
+
+.contents table.markdownTable {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
 }
 
 div.line {
@@ -18,6 +45,6 @@ div.line {
 .memdoc dl.note,
 .memdoc dl.warning,
 .memdoc dl.section {
-    border-left: 4px solid var(--library-accent);
+    border-left: 4px solid var(--gamewip-accent);
     padding-left: 0.75rem;
 }

@@ -21,6 +21,8 @@ GENERATE_LATEX         = NO
 HTML_OUTPUT            = html
 HTML_EXTRA_STYLESHEET  = "@CMAKE_CURRENT_SOURCE_DIR@/docs/doxygen/custom.css"
 GENERATE_TREEVIEW      = YES
+FULL_SIDEBAR           = YES
+TREEVIEW_WIDTH         = 320
 SEARCHENGINE           = YES
 
 # Keep the docs target quick and deterministic. Graph/PlantUML-style output can

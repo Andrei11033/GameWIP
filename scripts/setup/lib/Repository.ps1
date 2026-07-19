@@ -58,7 +58,7 @@ function Initialize-GameWipZipCheckout
         # the temporary index. This supports ZIPs downloaded from release branches
         # as well as the default branch, without replacing working files.
         $candidates = @(& git for-each-ref '--format=%(refname:short)' refs/remotes/origin) |
-            Where-Object { $_ -like 'origin/*' }
+            Where-Object { $_ -like 'origin/*' -and $_ -ne 'origin/HEAD' }
         $selectedBranch = $defaultBranch
         $fewestChanges = [int]::MaxValue
         foreach ($candidate in @($defaultBranch) + @($candidates | Where-Object { $_ -ne $defaultBranch }))
@@ -125,7 +125,7 @@ function Set-GameWipRepositoryBranch
         if ($LASTEXITCODE -ne 0 -or -not $current) { throw 'Could not determine the current repository branch.' }
         Invoke-SetupNative -FilePath 'git' -ArgumentList @('fetch', 'origin', '--prune') | Out-Null
         $remoteBranches = @(& git for-each-ref '--format=%(refname:short)' refs/remotes/origin) |
-            Where-Object { $_ -like 'origin/*' } |
+            Where-Object { $_ -like 'origin/*' -and $_ -ne 'origin/HEAD' } |
             ForEach-Object { $_.Substring('origin/'.Length) } |
             Sort-Object -Unique
         if ($remoteBranches.Count -eq 0) { throw 'The origin remote has no branches.' }

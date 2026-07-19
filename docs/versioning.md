@@ -48,12 +48,15 @@ Intended display forms:
 ```text
 0.1.0-dev.247+g2238b22
 0.1.0-dev.247+g2238b22.dirty
-0.1.0 (build 247)
+0.1.0
 ```
 
 An untagged commit uses the `-dev.<build>` form. A build with tracked worktree modifications adds `dirty` to its build metadata. A clean commit carrying the exact annotated `v<PROJECT_VERSION>` tag uses the release form.
 
-Development identifiers are diagnostics. They must not be published or treated as package-compatibility releases.
+Development identifiers are diagnostics. They must not be published or treated
+as package-compatibility releases. The generated header exposes the build count
+separately; the clean annotated release display remains exactly the numeric
+version.
 
 Build identity is generated from Git when available. CI must fetch enough history to compute the first-parent count. A source archive or environment without Git must receive explicit generated identity inputs or report the build number and commit as unknown; it must not invent them.
 

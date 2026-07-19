@@ -1,4 +1,4 @@
-@page test_support_expectations TestSupport expectations and runners
+@page test_support_expectations Expectations and runners
 
 ## Runner and suite completion
 
