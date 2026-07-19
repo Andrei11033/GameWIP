@@ -818,7 +818,7 @@ function Wait-GameWipWorkflowRun
 {
     param(
         [Parameter(Mandatory = $true)][string]$WorkflowFile,
-        [Parameter(Mandatory = $true)][string[]]$PreviousIds
+        [Parameter(Mandatory = $true)][AllowEmptyCollection()][string[]]$PreviousIds
     )
 
     for ($attempt = 0; $attempt -lt 15; ++$attempt)
