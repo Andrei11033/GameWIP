@@ -324,7 +324,7 @@ test('rejects missing, duplicate, and closed automatically discovered release is
                 milestone: automaticReleaseMilestone(),
                 issues: [{number: 70, state: 'closed', title: 'combat: implementation work'}],
             }),
-        /exactly one release issue/,
+        /exactly one release issue.*none were found/,
     );
 
     assert.throws(

@@ -180,6 +180,10 @@ jobs:
           done
           node --test .github/scripts/*.test.js
 
+      - name: Check PowerShell workflow helper
+        shell: pwsh
+        run: ./.github/scripts/workflow-helper.test.ps1
+
       - name: Check JSON
         shell: bash
         run: |
