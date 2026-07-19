@@ -164,13 +164,17 @@ the pull-request template, label descriptions, and automation mappings aligned.
 
 Before changing visibility:
 
-1. Choose and add an explicit license; absence of a license means reuse rights
-   have not been granted.
+1. Confirm the selected Apache-2.0 root `LICENSE`, project `NOTICE`, README
+   summary, contributor terms, and GitHub license detection agree. Third-party
+   dependency licenses remain separate.
 2. Review the complete Git history for credentials, personal data, generated
-   artifacts, large files, and material that should not become public. Rotate a
+   artifacts, large files, and material that should not become public. Record
+   whether reviewed findings are accepted or require a rewrite. Rotate a
    disclosed credential even if history is later rewritten.
-3. Publish a monitored private contact on the owner's profile for conduct and
-   pre-activation security reports.
+3. Confirm Issues and Discussions are monitored for ordinary project contact.
+   Before private vulnerability reporting is available, a security or conduct
+   issue may request a private follow-up route but must contain no sensitive
+   report details.
 4. Confirm the README description, topics, homepage, latest release, roadmap,
    contribution entry point, code of conduct, security policy, issue forms, and
    `CODEOWNERS` routing are accurate.
@@ -204,8 +208,9 @@ Immediately after changing visibility:
    then verify issue forms, Discussions, security reporting, release downloads,
    and generated documentation while signed out.
 
-License choice and history sanitization require explicit maintainer decisions;
-do not silently infer either during a documentation or CI cleanup.
+Record license choice and history-sanitization decisions in the decision log
+and their focused GitHub issues; do not silently infer either during a
+documentation or CI cleanup.
 
 ## Periodic audit
 

@@ -23,6 +23,8 @@ REQUIRED_REPOSITORY_FILES = (
     ROOT / "README.md",
     ROOT / "CONTRIBUTING.md",
     ROOT / "CODE_OF_CONDUCT.md",
+    ROOT / "LICENSE",
+    ROOT / "NOTICE",
     ROOT / "SECURITY.md",
     ROOT / ".github" / "CODEOWNERS",
     ROOT / ".github" / "dependabot.yml",
@@ -64,6 +66,53 @@ ISSUE_AREA_OPTIONS = re.compile(
     r"(?ms)^    id: area\s*$.*?^      options:\s*$\n((?:^        - [^\n]+\n?)+)"
 )
 ISSUE_AREA_MAPPING = re.compile(r'^\s+\["([^"]+)", "(area:[^"]+)"\],$', re.MULTILINE)
+
+APACHE_LICENSE_MARKERS = (
+    "Apache License\n                           Version 2.0, January 2004",
+    "TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION",
+    "END OF TERMS AND CONDITIONS",
+)
+
+
+def check_license_metadata(failures: list[str]) -> None:
+    """Require one coherent first-party license and attribution boundary."""
+    license_path = ROOT / "LICENSE"
+    notice_path = ROOT / "NOTICE"
+    readme_path = ROOT / "README.md"
+    contributing_path = ROOT / "docs" / "contributing.md"
+    decisions_path = ROOT / "docs" / "decisions.md"
+
+    if license_path.is_file():
+        license_text = license_path.read_text(encoding="utf-8")
+        for marker in APACHE_LICENSE_MARKERS:
+            if marker not in license_text:
+                failures.append(
+                    f"LICENSE: canonical Apache-2.0 marker is missing: {marker!r}"
+                )
+
+    if notice_path.is_file():
+        notice_text = notice_path.read_text(encoding="utf-8")
+        for marker in ("GameWIP", "Copyright 2026 Andrei11033", "external/"):
+            if marker not in notice_text:
+                failures.append(
+                    f"NOTICE: required attribution marker is missing: {marker!r}"
+                )
+
+    required_references = {
+        readme_path: ("Apache License 2.0", "(LICENSE)", "(NOTICE)", "external/"),
+        contributing_path: ("Apache License 2.0", "section 5", "third-party"),
+        decisions_path: ("Apache License 2.0", "accepted for public", "external/"),
+    }
+    for metadata_path, markers in required_references.items():
+        if not metadata_path.is_file():
+            continue
+        text = metadata_path.read_text(encoding="utf-8")
+        for marker in markers:
+            if marker not in text:
+                relative = metadata_path.relative_to(ROOT).as_posix()
+                failures.append(
+                    f"{relative}: license-policy marker is missing: {marker!r}"
+                )
 
 
 def workflow_jobs(lines: list[str]) -> list[tuple[str, list[str]]]:
@@ -222,6 +271,7 @@ def main() -> int:
         elif path.stat().st_size == 0:
             failures.append(f"{path.relative_to(ROOT).as_posix()}: required repository file is empty")
 
+    check_license_metadata(failures)
     check_issue_area_mapping(failures)
     safe_ctest_presets = fail_closed_ctest_presets(failures)
     workflows = sorted((*WORKFLOW_ROOT.glob("*.yml"), *WORKFLOW_ROOT.glob("*.yaml")))

@@ -71,6 +71,21 @@ build/main-validation
 
 Keep branches focused. If the branch starts solving unrelated problems, split the extra work into a new issue and branch.
 
+## Contribution licensing
+
+GameWIP first-party source code and documentation are distributed under the
+[Apache License 2.0](https://github.com/Andrei11033/GameWIP/blob/master/LICENSE).
+Unless a contributor explicitly states otherwise in writing and the maintainer
+accepts different terms, a contribution intentionally submitted for inclusion
+is provided under Apache-2.0 as described by section 5 of that license.
+
+Submit only original work or material that you have the right to contribute.
+Keep third-party license and attribution notices with the corresponding
+dependency or material. Do not copy code, documentation, media, or generated
+assets into the project merely because they are publicly visible. Contributors
+retain copyright in their work; contribution does not transfer ownership of
+the official repository, project settings, releases, or branding.
+
 ## Pull requests
 
 Open a pull request before merging into `master`. `CODEOWNERS` routes review to
