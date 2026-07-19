@@ -10,16 +10,13 @@ import sys
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
 
-SCANNED_MARKDOWN_FILES = (
-    Path("README.md"),
-    Path("CONTRIBUTING.md"),
-    Path("SECURITY.md"),
-)
 SCANNED_MARKDOWN_DIRS = (
     Path("docs"),
     Path(".github"),
     Path("foundation"),
     Path("tools"),
+    Path("game"),
+    Path("scripts"),
 )
 EXCLUDED_ROOTS = (
     Path("engine"),
@@ -65,10 +62,10 @@ def is_excluded(path: Path) -> bool:
 def iter_markdown_files(root: Path) -> list[Path]:
     markdown_files: set[Path] = set()
 
-    for file_path in SCANNED_MARKDOWN_FILES:
-        absolute_path = root / file_path
-        if absolute_path.is_file() and not is_excluded(file_path):
-            markdown_files.add(absolute_path)
+    for file_path in root.glob("*.md"):
+        relative_file_path = normalized_relative_path(file_path, root)
+        if relative_file_path is not None and not is_excluded(relative_file_path):
+            markdown_files.add(file_path)
 
     for directory in SCANNED_MARKDOWN_DIRS:
         absolute_directory = root / directory
@@ -132,7 +129,7 @@ def resolve_target(markdown_file: Path, target: str, root: Path) -> Path | None:
         resolved_path = markdown_file.parent / target_path
 
     relative_resolved_path = normalized_relative_path(resolved_path, root)
-    if relative_resolved_path is None or is_excluded(relative_resolved_path):
+    if relative_resolved_path is None:
         return None
 
     return resolved_path

@@ -1,4 +1,4 @@
-@page filesystem_troubleshooting FileSystem troubleshooting
+@page filesystem_troubleshooting Troubleshooting
 
 ## A policy-bearing operation returns `Unsupported`
 

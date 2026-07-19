@@ -1,8 +1,21 @@
 # Contributing to GameWIP
 
-GameWIP uses GitHub issues, short-lived branches, pull requests, required validation notes, and squash merges to keep `master` readable and releasable.
+GameWIP uses GitHub issues, short-lived branches, pull requests, required
+validation notes, and squash merges to keep `master` readable and releasable.
+Participation is governed by the
+[Contributor Code of Conduct](CODE_OF_CONDUCT.md).
+
+Unless explicitly agreed otherwise, contributions accepted into GameWIP are
+licensed under the repository's [Apache License 2.0](LICENSE). Submit only work
+that you have the right to contribute; third-party material must retain its
+applicable license and attribution.
 
 Read [docs/contributing.md](docs/contributing.md) for the full contributor workflow, including issue titles, labels, branch names, pull request metadata, validation evidence, project automation, and squash commit messages.
+
+Maintainers should also use the
+[repository maintenance policy](docs/doxygen/repository_maintenance.md) for
+required checks, branch settings, manual workflow ownership, release gates, and
+the public-repository audit checklist.
 
 For implementation and review standards, also read:
 

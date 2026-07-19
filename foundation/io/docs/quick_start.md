@@ -1,4 +1,4 @@
-@page io_quick_start IO quick start
+@page io_quick_start Quick start
 
 ## Include
 

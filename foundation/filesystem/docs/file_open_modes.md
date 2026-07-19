@@ -1,4 +1,4 @@
-@page filesystem_file_open_modes FileSystem handles, sharing, and locks
+@page filesystem_file_open_modes Handles, sharing, and locks
 
 ## Lifecycle and ownership
 

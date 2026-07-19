@@ -1,4 +1,4 @@
-@page assert_macro_behavior Assert macro behavior
+@page assert_macro_behavior Macro behavior
 
 Use this page when an Assert expression or message could have side effects.
 

@@ -53,7 +53,7 @@ Configure these Actions variables:
 ```text
 PROJECT_OWNER=Andrei11033
 PROJECT_NUMBER=2
-ACTIVE_MILESTONE=R00 - Bootstrap
+ACTIVE_MILESTONE=R01 - Window, Input, and Action Foundation
 ```
 
 Add a `PROJECT_TOKEN` Actions secret containing a dedicated classic personal access token with the `repo` and `project` scopes.
@@ -122,6 +122,7 @@ When changing automation:
 
 ## Related pages
 
+- @ref project_repository_maintenance
 - @ref project_static_analysis
 - @ref project_extending
 - @ref project_documentation

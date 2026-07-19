@@ -1,4 +1,4 @@
-@page io_testing IO maintainer validation
+@page io_testing Maintainer validation
 
 @note This page documents validation coverage, not consumer API.
 

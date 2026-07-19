@@ -1,4 +1,4 @@
-@page terminal_capabilities_and_redirection Terminal capabilities, preparation, and redirection
+@page terminal_capabilities_and_redirection Capabilities, preparation, and redirection
 
 Capabilities describe the current stdin, stdout, or stderr endpoint. They are snapshots, not reservations: redirection, handle replacement, mode changes, or external native calls can make a previous result stale. The status returned by the requested operation remains authoritative.
 

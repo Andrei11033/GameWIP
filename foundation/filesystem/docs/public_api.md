@@ -1,4 +1,4 @@
-@page filesystem_public_api FileSystem public API
+@page filesystem_public_api Public API
 
 Include `filesystem/filesystem.h`. Installed consumers link `GameWIP::FileSystem`; source-tree consumers link `FileSystem`.
 

@@ -1,4 +1,4 @@
-@page test_support_timing_stress TestSupport timing and stress helpers
+@page test_support_timing_stress Timing and stress helpers
 
 ## `Timer`
 

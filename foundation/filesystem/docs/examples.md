@@ -1,4 +1,4 @@
-@page filesystem_examples FileSystem examples
+@page filesystem_examples Examples
 
 The examples are complete translation units intended to show contract handling rather than application policy.
 

@@ -1,4 +1,4 @@
-@page test_support_manual_tests TestSupport manual checks
+@page test_support_manual_tests Manual checks
 
 Manual checks cover behavior that automated code cannot reliably verify, such as visual UI, audible/terminal effects, or debugger interaction. They should be runtime-gated and normally run after automated scenarios.
 

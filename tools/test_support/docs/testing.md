@@ -1,4 +1,4 @@
-@page test_support_testing TestSupport maintainer validation
+@page test_support_testing Maintainer validation
 
 @note This page describes proof coverage and environment requirements, not installed consumer API.
 

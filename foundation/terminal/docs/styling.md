@@ -1,4 +1,4 @@
-@page terminal_styling Terminal styling
+@page terminal_styling Styling
 
 Terminal accepts portable style requests and emits them only when the selected endpoint reports support.
 

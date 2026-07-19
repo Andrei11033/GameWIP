@@ -1,4 +1,4 @@
-@page logger_threading_performance Logger threading and performance
+@page logger_threading_performance Threading and performance
 
 Normal logging is designed for concurrent producer threads. Formatting and message construction occur on the producer; sink I/O occurs on the worker.
 

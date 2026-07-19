@@ -1,4 +1,4 @@
-@page terminal_input_modes Terminal input modes and scoped restoration
+@page terminal_input_modes Input modes and scoped restoration
 
 Input-mode operations apply to real terminal stdin when the backend can represent the requested portable mode. Redirected, detached, or unsupported endpoints return explicit statuses.
 

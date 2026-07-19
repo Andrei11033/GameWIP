@@ -30,5 +30,7 @@ cmake_install.cmake
 *.ilk
 
 # Other
+__pycache__/
+*.py[cod]
 *.user
 *.suo

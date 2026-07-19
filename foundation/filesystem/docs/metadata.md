@@ -1,4 +1,4 @@
-@page filesystem_metadata FileSystem metadata and predicates
+@page filesystem_metadata Metadata and predicates
 
 ## `EntryInfo`
 

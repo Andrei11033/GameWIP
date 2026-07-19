@@ -1,4 +1,4 @@
-@page filesystem_unicode_paths FileSystem Unicode paths
+@page filesystem_unicode_paths Unicode paths
 
 Public operations use `GameWIP::FileSystem::Types::Path`, currently an alias to `std::filesystem::path`.
 

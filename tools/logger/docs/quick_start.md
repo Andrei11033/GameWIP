@@ -1,4 +1,4 @@
-@page logger_quick_start Logger quick start
+@page logger_quick_start Quick start
 
 ## Include
 

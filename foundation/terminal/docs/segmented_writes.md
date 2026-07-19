@@ -1,4 +1,4 @@
-@page terminal_segmented_writes Terminal segmented writes
+@page terminal_segmented_writes Segmented writes
 
 Segmented writes emit one logical batch containing plain text, styled text, and—on suitable endpoints—raw bytes without requiring the caller to concatenate one owning string first.
 

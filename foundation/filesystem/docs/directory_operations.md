@@ -1,4 +1,4 @@
-@page filesystem_directory_operations FileSystem directories, copy, move, and removal
+@page filesystem_directory_operations Directories, copy, move, and removal
 
 ## Directory creation
 

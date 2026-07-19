@@ -1,4 +1,4 @@
-@page assert_diagnostics Assert diagnostics
+@page assert_diagnostics Diagnostics
 
 `ASSERT_DIAGNOSTICS` controls the diagnostic payload captured by Assert failure reports.
 

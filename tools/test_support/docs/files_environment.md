@@ -1,4 +1,4 @@
-@page test_support_files_environment TestSupport files and environment
+@page test_support_files_environment Files and environment
 
 These helpers favor compact test setup and cleanup. Use FileSystem or custom code when a test must preserve detailed status, native errors, encoding policy, durability, sharing, or atomicity.
 

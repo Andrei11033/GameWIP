@@ -1,4 +1,4 @@
-@page test_support_child_processes TestSupport child processes
+@page test_support_child_processes Child processes
 
 Child execution is configured through `Types::ChildProcessOptions`, returns `Types::ChildProcessResult`, and is implemented by the Win32 backend.
 

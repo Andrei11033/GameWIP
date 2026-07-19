@@ -1,4 +1,4 @@
-@page test_support_quick_start TestSupport quick start
+@page test_support_quick_start Quick start
 
 ## Include
 
