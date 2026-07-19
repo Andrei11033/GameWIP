@@ -43,8 +43,32 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  manual-write-approval:
+    name: Approve Manual Release Write
+    if: github.event_name == 'workflow_dispatch' && !inputs.dry_run
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.command == 'finalize' && 'release-production' || 'maintainer-write' }}
+    steps:
+      - name: Validate environment protection
+        env:
+          PROTECTION_CONFIGURED: ${{ inputs.command == 'finalize' && secrets.RELEASE_PRODUCTION_PROTECTION_CONFIGURED || secrets.MANUAL_WRITE_PROTECTION_CONFIGURED }}
+        run: |
+          if [ "$PROTECTION_CONFIGURED" != "required-reviewer" ]; then
+            echo "The selected release environment must have a required reviewer before writes are enabled." >&2
+            exit 1
+          fi
+      - name: Record approval
+        run: echo "Protected-environment approval granted for the manual release operation."
+
   release-preparation:
     name: Release Preparation
+    needs:
+      - manual-write-approval
+    if: >-
+      always() &&
+      (needs.manual-write-approval.result == 'success' ||
+       needs.manual-write-approval.result == 'skipped')
     runs-on: ubuntu-latest
 
     steps:

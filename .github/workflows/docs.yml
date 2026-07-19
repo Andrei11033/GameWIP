@@ -80,6 +80,16 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
+      - name: Validate environment protection
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          PROTECTION_CONFIGURED: ${{ secrets.PAGES_PROTECTION_CONFIGURED }}
+        run: |
+          if [ "$PROTECTION_CONFIGURED" != "required-reviewer" ]; then
+            echo "github-pages must have a required reviewer before manual deployment is enabled." >&2
+            exit 1
+          fi
+
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5

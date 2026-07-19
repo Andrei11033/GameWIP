@@ -60,12 +60,30 @@ Add a `PROJECT_TOKEN` Actions secret containing a dedicated classic personal acc
 
 Do not place the token in a variable, workflow file, commit, test fixture, issue comment, pull request body, or log.
 
+Create a `maintainer-write` GitHub environment, restrict its deployment branch
+to `master`, and configure a required maintainer reviewer. Self-approval may
+remain enabled for a single-maintainer repository; the approval is a deliberate
+second gate, not a two-person policy. Disable administrator bypass if manual
+writes must never skip the gate.
+
+After the reviewer rule is active, add the environment secret
+`MANUAL_WRITE_PROTECTION_CONFIGURED=required-reviewer`. The approval job fails
+closed while this marker is absent. Do not add the marker merely to bypass a
+plan that does not support required reviewers.
+
+The approval job runs only for a manually dispatched reconciliation with
+`dry_run=false`. Scheduled and event-driven reconciliation continues
+unattended, and manual dry runs do not request approval. A repository secret is
+a workflow credential, not an interactive password; never add a password input
+or attempt to compare a user-entered value with `PROJECT_TOKEN`.
+
 ## Verification commands
 
 After the workflow reaches `master`, verify configuration without writes:
 
 ```powershell
 gh workflow run project-automation.yml -f kind=all -f dry_run=true
+.\gamewip.bat workflow -WorkflowAction run -Workflow project-dry-run
 ```
 
 Inspect the workflow summary. If the dry run is correct, run one normal reconciliation.

@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [ValidateSet('menu', 'doctor', 'git', 'configure', 'build', 'test', 'module', 'wizard', 'stress', 'run', 'bundle', 'docs', 'analysis', 'coverage', 'asan', 'benchmark', 'list', 'help')]
+    [ValidateSet('menu', 'doctor', 'git', 'workflow', 'configure', 'build', 'test', 'module', 'wizard', 'stress', 'run', 'bundle', 'docs', 'analysis', 'coverage', 'asan', 'benchmark', 'list', 'help')]
     [string]$Action = 'menu',
     [string]$Preset,
     [string]$Module,
@@ -9,13 +9,21 @@ param(
     [ValidateSet('menu', 'status', 'fetch', 'switch', 'update', 'cleanup', 'create', 'push', 'log')]
     [string]$GitAction = 'menu',
     [string]$GitBranch,
+    [ValidateSet('menu', 'list', 'status', 'run')]
+    [string]$WorkflowAction = 'menu',
+    [string]$Workflow,
+    [ValidateSet('all', 'issue', 'pull_request')]
+    [string]$WorkflowKind = 'all',
+    [int]$WorkflowNumber = 0,
+    [string]$ReleaseCommit,
     [ValidateRange(1, 100000)]
     [int]$Count = 0,
     [ValidateRange(1, 256)]
     [int]$Parallel = 0,
     [string[]]$ExtraArgs = @(),
     [switch]$BuildIfMissing,
-    [switch]$NoWorkspaceTemp
+    [switch]$NoWorkspaceTemp,
+    [switch]$Preview
 )
 
 Set-StrictMode -Version Latest
@@ -616,6 +624,371 @@ function Invoke-GameWipGitAction
     }
 }
 
+function Get-GameWipWorkflow
+{
+    param([Parameter(Mandatory = $true)][string]$Id)
+
+    $workflowInfo = @($CommandConfig.ManualWorkflows | Where-Object { $_.Id -eq $Id } | Select-Object -First 1)
+    if ($workflowInfo.Count -eq 0)
+    {
+        throw "Unknown manual workflow '$Id'. Run '.\gamewip.bat workflow -WorkflowAction list' to see supported workflows."
+    }
+    $workflowInfo[0]
+}
+
+function Show-GameWipWorkflowCatalog
+{
+    Write-GameWipSection 'Manual GitHub workflows'
+    Write-Host "Repository: $($CommandConfig.GitHubRepository)"
+    Write-Host "Dispatch ref: $($CommandConfig.GitHubDefaultBranch) (fixed)"
+    Write-Host ''
+    foreach ($workflowInfo in $CommandConfig.ManualWorkflows)
+    {
+        Write-Host ('  {0,-27} [{1,-8}] {2}' -f $workflowInfo.Id, $workflowInfo.Safety, $workflowInfo.Name)
+    }
+    Write-Host ''
+    Write-Host 'check/dry-run operations do not mutate repository state.'
+    Write-Host 'write/deploy/finalize operations require typed confirmation and protected-environment approval.'
+}
+
+function Assert-GameWipGitHubCli
+{
+    param([Parameter(Mandatory = $true)][string]$WorkflowId)
+
+    if ($null -eq (Get-Command gh -ErrorAction SilentlyContinue))
+    {
+        throw "GitHub CLI is unavailable. Run '.\setup.bat repair' to install it, then run 'gh auth login'."
+    }
+    $previousErrorActionPreference = $ErrorActionPreference
+    try
+    {
+        $ErrorActionPreference = 'Continue'
+        $authLines = @(& gh auth status --hostname github.com 2>&1)
+        $authExitCode = $LASTEXITCODE
+    }
+    finally
+    {
+        $ErrorActionPreference = $previousErrorActionPreference
+    }
+    if ($authExitCode -ne 0)
+    {
+        throw "GitHub CLI is not authenticated. Run 'gh auth login --hostname github.com --scopes repo,workflow,project'."
+    }
+    $authText = $authLines -join [Environment]::NewLine
+    if ($authText -match 'Token scopes:' -and ($authText -notmatch "'repo'" -or $authText -notmatch "'workflow'"))
+    {
+        throw "GitHub authentication lacks repo or workflow scope. Run 'gh auth refresh --hostname github.com --scopes repo,workflow'."
+    }
+    if ($WorkflowId -like 'project-*' -and $authText -match 'Token scopes:' -and $authText -notmatch "'project'")
+    {
+        throw "Project automation requires project scope. Run 'gh auth refresh --hostname github.com --scopes project'."
+    }
+}
+
+function Invoke-GameWipGhJson
+{
+    param([Parameter(Mandatory = $true)][string[]]$Arguments)
+
+    $previousErrorActionPreference = $ErrorActionPreference
+    try
+    {
+        $ErrorActionPreference = 'Continue'
+        $output = @(& gh @Arguments 2>&1)
+        $exitCode = $LASTEXITCODE
+    }
+    finally
+    {
+        $ErrorActionPreference = $previousErrorActionPreference
+    }
+    if ($exitCode -ne 0)
+    {
+        throw "GitHub CLI command failed: gh $($Arguments -join ' ')$([Environment]::NewLine)$($output -join [Environment]::NewLine)"
+    }
+    $json = ($output -join [Environment]::NewLine).Trim()
+    if ([string]::IsNullOrWhiteSpace($json)) { return @() }
+    @($json | ConvertFrom-Json)
+}
+
+function Resolve-GameWipWorkflowArguments
+{
+    param(
+        [Parameter(Mandatory = $true)][string]$WorkflowId,
+        [Parameter(Mandatory = $true)][string]$ItemKind,
+        [int]$ItemNumber,
+        [string]$Commit
+    )
+
+    $workflowInfo = Get-GameWipWorkflow -Id $WorkflowId
+    $arguments = New-Object System.Collections.Generic.List[string]
+    @('workflow', 'run', $workflowInfo.File, '--repo', $CommandConfig.GitHubRepository, '--ref', $CommandConfig.GitHubDefaultBranch) |
+        ForEach-Object { $arguments.Add($_) | Out-Null }
+
+    if ($WorkflowId -like 'project-*')
+    {
+        if ($ItemKind -ne 'all' -and $ItemNumber -le 0)
+        {
+            $numberText = Read-TextValue -Prompt "$ItemKind number"
+            if (-not [int]::TryParse($numberText, [ref]$ItemNumber))
+            {
+                $ItemNumber = 0
+            }
+        }
+        if ($ItemKind -ne 'all' -and $ItemNumber -le 0)
+        {
+            throw "Project kind '$ItemKind' requires -WorkflowNumber with a positive issue or pull-request number."
+        }
+        @('-f', "kind=$ItemKind") | ForEach-Object { $arguments.Add($_) | Out-Null }
+        if ($ItemKind -ne 'all')
+        {
+            @('-f', "number=$ItemNumber") | ForEach-Object { $arguments.Add($_) | Out-Null }
+        }
+        $dryRunValue = if ($WorkflowId -eq 'project-dry-run') { 'true' } else { 'false' }
+        @('-f', "dry_run=$dryRunValue") | ForEach-Object { $arguments.Add($_) | Out-Null }
+    }
+
+    if ($WorkflowId -like 'release-*')
+    {
+        $command = switch ($WorkflowId)
+        {
+            'release-check' { 'check' }
+            'release-prepare' { 'prepare' }
+            default { 'finalize' }
+        }
+        $dryRunValue = if ($WorkflowId -eq 'release-prepare' -or $WorkflowId -eq 'release-finalize') { 'false' } else { 'true' }
+        @('-f', "command=$command", '-f', "dry_run=$dryRunValue") |
+            ForEach-Object { $arguments.Add($_) | Out-Null }
+
+        if ($WorkflowId -like 'release-finalize*')
+        {
+            if ([string]::IsNullOrWhiteSpace($Commit))
+            {
+                $Commit = Read-TextValue -Prompt 'Exact master commit SHA to finalize'
+            }
+            if ($Commit -notmatch '^[0-9a-fA-F]{40}$')
+            {
+                throw 'Release finalization requires the complete 40-character master commit SHA.'
+            }
+            @('-f', "release_commit=$Commit") | ForEach-Object { $arguments.Add($_) | Out-Null }
+        }
+    }
+
+    [pscustomobject]@{
+        Definition = $workflowInfo
+        Arguments = $arguments.ToArray()
+        ReleaseCommit = $Commit
+    }
+}
+
+function Confirm-GameWipTypedPhrase
+{
+    param([Parameter(Mandatory = $true)][string]$Phrase)
+
+    Write-Host ''
+    Write-Host 'This operation can change shared GitHub state.' -ForegroundColor Yellow
+    Write-Host "Type exactly: $Phrase"
+    $answer = Read-Host 'Confirmation'
+    if ($answer -cne $Phrase)
+    {
+        Write-Host 'Confirmation did not match; workflow dispatch cancelled.' -ForegroundColor Yellow
+        return $false
+    }
+    return $true
+}
+
+function Get-GameWipWorkflowRunIds
+{
+    param([Parameter(Mandatory = $true)][string]$WorkflowFile)
+
+    $runs = Invoke-GameWipGhJson -Arguments @(
+        'run', 'list',
+        '--repo', $CommandConfig.GitHubRepository,
+        '--workflow', $WorkflowFile,
+        '--event', 'workflow_dispatch',
+        '--branch', $CommandConfig.GitHubDefaultBranch,
+        '--limit', '10',
+        '--json', 'databaseId'
+    )
+    @($runs | ForEach-Object { [string]$_.databaseId })
+}
+
+function Wait-GameWipWorkflowRun
+{
+    param(
+        [Parameter(Mandatory = $true)][string]$WorkflowFile,
+        [Parameter(Mandatory = $true)][string[]]$PreviousIds
+    )
+
+    for ($attempt = 0; $attempt -lt 15; ++$attempt)
+    {
+        Start-Sleep -Seconds 2
+        $runs = Invoke-GameWipGhJson -Arguments @(
+            'run', 'list',
+            '--repo', $CommandConfig.GitHubRepository,
+            '--workflow', $WorkflowFile,
+            '--event', 'workflow_dispatch',
+            '--branch', $CommandConfig.GitHubDefaultBranch,
+            '--limit', '10',
+            '--json', 'databaseId,url,status,createdAt'
+        )
+        $run = @($runs | Where-Object { $PreviousIds -notcontains [string]$_.databaseId } | Select-Object -First 1)
+        if ($run.Count -ne 0) { return $run[0] }
+    }
+    return $null
+}
+
+function Show-GameWipWorkflowVerification
+{
+    param(
+        [Parameter(Mandatory = $true)][string]$WorkflowId,
+        [Parameter(Mandatory = $true)][string]$RunId
+    )
+
+    Write-GameWipSection 'Verification commands'
+    Write-Host (ConvertTo-NativeCommandLine -FilePath 'gh' -Arguments @('run', 'view', $RunId, '--repo', $CommandConfig.GitHubRepository))
+    Write-Host (ConvertTo-NativeCommandLine -FilePath 'gh' -Arguments @('run', 'view', $RunId, '--repo', $CommandConfig.GitHubRepository, '--log-failed'))
+    if ($WorkflowId -eq 'release-finalize')
+    {
+        Write-Host (ConvertTo-NativeCommandLine -FilePath 'gh' -Arguments @('release', 'list', '--repo', $CommandConfig.GitHubRepository, '--limit', '5'))
+        Write-Host (ConvertTo-NativeCommandLine -FilePath 'git' -Arguments @('ls-remote', '--tags', 'origin'))
+    }
+    elseif ($WorkflowId -eq 'release-prepare')
+    {
+        Write-Host (ConvertTo-NativeCommandLine -FilePath 'gh' -Arguments @('pr', 'list', '--repo', $CommandConfig.GitHubRepository, '--state', 'open'))
+    }
+    elseif ($WorkflowId -eq 'docs-deploy')
+    {
+        Write-Host (ConvertTo-NativeCommandLine -FilePath 'gh' -Arguments @('api', "repos/$($CommandConfig.GitHubRepository)/pages"))
+    }
+}
+
+function Invoke-GameWipManualWorkflow
+{
+    param(
+        [Parameter(Mandatory = $true)][string]$WorkflowId,
+        [Parameter(Mandatory = $true)][string]$ItemKind,
+        [int]$ItemNumber,
+        [string]$Commit
+    )
+
+    $resolved = Resolve-GameWipWorkflowArguments -WorkflowId $WorkflowId -ItemKind $ItemKind -ItemNumber $ItemNumber -Commit $Commit
+    $workflowInfo = $resolved.Definition
+    $dispatchCommand = ConvertTo-NativeCommandLine -FilePath 'gh' -Arguments $resolved.Arguments
+
+    Write-GameWipSection 'Workflow dispatch preview'
+    Write-Host "Workflow: $($workflowInfo.Name)"
+    Write-Host "Safety:   $($workflowInfo.Safety)"
+    Write-Host "Ref:      $($CommandConfig.GitHubDefaultBranch) (fixed)"
+    Write-Host ''
+    Write-Host $dispatchCommand
+    Write-Host 'gh run watch <run-id> --exit-status'
+    Write-Host 'gh run view <run-id> --log-failed'
+
+    if ($Preview)
+    {
+        Write-Host ''
+        Write-Host 'Preview only; nothing was dispatched.' -ForegroundColor Green
+        return
+    }
+
+    Assert-GameWipGitHubCli -WorkflowId $WorkflowId
+    if (@('write', 'deploy', 'finalize') -contains $workflowInfo.Safety)
+    {
+        $phrase = "$WorkflowId $($CommandConfig.GitHubDefaultBranch)"
+        if ($WorkflowId -eq 'release-finalize') { $phrase = "$phrase $($resolved.ReleaseCommit)" }
+        if (-not (Confirm-GameWipTypedPhrase -Phrase $phrase)) { return }
+    }
+    elseif (-not (Read-YesNo -Prompt 'Dispatch this non-mutating workflow now?' -Default $true))
+    {
+        Write-Host 'Workflow dispatch cancelled.'
+        return
+    }
+
+    $previousIds = @(Get-GameWipWorkflowRunIds -WorkflowFile $workflowInfo.File)
+    Invoke-GameWipNative -Name "workflow-dispatch-$WorkflowId" -FilePath 'gh' -Arguments $resolved.Arguments
+    $run = Wait-GameWipWorkflowRun -WorkflowFile $workflowInfo.File -PreviousIds $previousIds
+    if ($null -eq $run)
+    {
+        Write-Host 'Dispatch succeeded, but the new run was not visible within 30 seconds.' -ForegroundColor Yellow
+        Write-Host "Check it with: .\gamewip.bat workflow -WorkflowAction status"
+        return
+    }
+
+    $runId = [string]$run.databaseId
+    Write-Host ''
+    Write-Host "Queued run: $($run.url)" -ForegroundColor Green
+    $watchArguments = @('run', 'watch', $runId, '--repo', $CommandConfig.GitHubRepository, '--exit-status')
+    Write-Host (ConvertTo-NativeCommandLine -FilePath 'gh' -Arguments $watchArguments)
+    if (Read-YesNo -Prompt 'Watch this run until it finishes?' -Default $true)
+    {
+        Invoke-GameWipNative -Name "workflow-watch-$runId" -FilePath 'gh' -Arguments $watchArguments
+    }
+    Show-GameWipWorkflowVerification -WorkflowId $WorkflowId -RunId $runId
+}
+
+function Show-GameWipWorkflowStatus
+{
+    Assert-GameWipGitHubCli -WorkflowId 'validation'
+    Invoke-GameWipNative -Name 'workflow-recent-runs' -FilePath 'gh' -Arguments @(
+        'run', 'list',
+        '--repo', $CommandConfig.GitHubRepository,
+        '--event', 'workflow_dispatch',
+        '--limit', '12'
+    )
+}
+
+function Show-GameWipWorkflowMenu
+{
+    while ($true)
+    {
+        Write-Host ''
+        Write-Host 'GitHub Workflows'
+        Write-Host '================'
+        Write-Host '1. List supported workflows'
+        Write-Host '2. Dispatch a supported workflow'
+        Write-Host '3. Show recent manual runs'
+        Write-Host 'Esc. Back'
+        Write-Host 'Choose an action: ' -NoNewline
+        $key = [Console]::ReadKey($true)
+        if ($key.Key -eq [ConsoleKey]::Escape) { Write-Host 'Esc'; return }
+        Write-Host $key.KeyChar
+        switch ($key.KeyChar)
+        {
+            '1' { Show-GameWipWorkflowCatalog }
+            '2' {
+                Show-GameWipWorkflowCatalog
+                $choice = Read-GameWipIndexedChoice -Prompt 'Workflow to dispatch' -Choices @($CommandConfig.ManualWorkflows | ForEach-Object { $_.Id })
+                if ($null -ne $choice)
+                {
+                    Invoke-GameWipManualWorkflow -WorkflowId $choice -ItemKind $WorkflowKind -ItemNumber $WorkflowNumber -Commit $ReleaseCommit
+                }
+            }
+            '3' { Show-GameWipWorkflowStatus }
+            default { Write-Host 'Press 1-3 or Esc.' -ForegroundColor Yellow }
+        }
+    }
+}
+
+function Invoke-GameWipWorkflowAction
+{
+    param(
+        [Parameter(Mandatory = $true)][string]$Name,
+        [string]$WorkflowId
+    )
+    switch ($Name)
+    {
+        'menu' { Show-GameWipWorkflowMenu }
+        'list' { Show-GameWipWorkflowCatalog }
+        'status' { Show-GameWipWorkflowStatus }
+        'run' {
+            if ([string]::IsNullOrWhiteSpace($WorkflowId))
+            {
+                throw "WorkflowAction 'run' requires -Workflow <id>. Run '.\gamewip.bat workflow -WorkflowAction list' first."
+            }
+            Invoke-GameWipManualWorkflow -WorkflowId $WorkflowId -ItemKind $WorkflowKind -ItemNumber $WorkflowNumber -Commit $ReleaseCommit
+        }
+    }
+}
+
 function Invoke-ConfigurePreset
 {
     param([Parameter(Mandatory = $true)][string]$Name)
@@ -942,6 +1315,8 @@ function Show-ProjectCatalog
     {
         Write-Host ("  {0} - {1}" -f $bundleInfo.Id, $bundleInfo.Name)
     }
+
+    Show-GameWipWorkflowCatalog
 }
 
 function Read-MenuChoice
@@ -1179,6 +1554,15 @@ function Show-ActionFailure
         $suggestions.Add('Open the step log path printed above; it has the complete native command output.') | Out-Null
         $suggestions.Add('Rerun the smallest focused command: .\gamewip.bat wizard or .\gamewip.bat module -Module <name>.') | Out-Null
     }
+    if ($message -match 'GitHub CLI|GitHub authentication|workflow scope|project scope')
+    {
+        $suggestions.Add("Check authentication with 'gh auth status', then refresh the scopes named above.") | Out-Null
+    }
+    if ($message -match 'workflow|Workflow')
+    {
+        $suggestions.Add("Preview a safe command with '.\gamewip.bat workflow -WorkflowAction run -Workflow <id> -Preview'.") | Out-Null
+        $suggestions.Add("List supported workflows with '.\gamewip.bat workflow -WorkflowAction list'.") | Out-Null
+    }
     if ($message -match 'stress runs failed')
     {
         $suggestions.Add('Inspect the stress_####.out.log and stress_####.err.log files in the printed run-log folder.') | Out-Null
@@ -1415,6 +1799,7 @@ function Show-GameWipMenu
         Write-Host '9. List commands and presets'
         Write-Host '0. Check project readiness'
         Write-Host 'G. Git branches and workspace cleanup'
+        Write-Host 'W. Guarded GitHub workflows'
         Write-Host 'Esc. Exit'
         Write-Host 'Choose an action: ' -NoNewline
         $key = [Console]::ReadKey($true)
@@ -1484,6 +1869,7 @@ function Show-GameWipMenu
                 '9' { Show-ProjectCatalog }
                 '0' { Test-GameWipProjectReadiness | Out-Null }
                 { $_ -eq 'g' -or $_ -eq 'G' } { Show-GameWipGitMenu }
+                { $_ -eq 'w' -or $_ -eq 'W' } { Show-GameWipWorkflowMenu }
                 default { Write-Host 'Press one of the listed number keys, or Esc to exit.' -ForegroundColor Yellow }
             }
         }
@@ -1506,6 +1892,11 @@ function Show-Help
     Write-Host '  gamewip git'
     Write-Host '  gamewip git -GitAction status'
     Write-Host '  gamewip git -GitAction switch -GitBranch <name>'
+    Write-Host '  gamewip workflow'
+    Write-Host '  gamewip workflow -WorkflowAction list'
+    Write-Host '  gamewip workflow -WorkflowAction run -Workflow release-check -Preview'
+    Write-Host '  gamewip workflow -WorkflowAction run -Workflow project-dry-run -WorkflowKind issue -WorkflowNumber <number>'
+    Write-Host '  gamewip workflow -WorkflowAction run -Workflow release-finalize-dry-run -ReleaseCommit <sha>'
     Write-Host '  gamewip list'
     Write-Host '  gamewip configure -Preset test'
     Write-Host '  gamewip build -Preset test'
@@ -1527,6 +1918,7 @@ try
         'menu' { Show-GameWipMenu }
         'doctor' { Test-GameWipProjectReadiness -ThrowOnFailure | Out-Null }
         'git' { Invoke-GameWipGitAction -Name $GitAction -BranchName $GitBranch }
+        'workflow' { Invoke-GameWipWorkflowAction -Name $WorkflowAction -WorkflowId $Workflow }
         'configure' {
             if ([string]::IsNullOrWhiteSpace($Preset)) { $Preset = $CommandConfig.DefaultConfigurePreset }
             Invoke-ConfigurePreset -Name $Preset

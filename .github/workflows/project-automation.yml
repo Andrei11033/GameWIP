@@ -61,8 +61,32 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  manual-write-approval:
+    name: Approve Manual Project Write
+    if: github.event_name == 'workflow_dispatch' && !inputs.dry_run
+    runs-on: ubuntu-latest
+    environment:
+      name: maintainer-write
+    steps:
+      - name: Validate environment protection
+        env:
+          PROTECTION_CONFIGURED: ${{ secrets.MANUAL_WRITE_PROTECTION_CONFIGURED }}
+        run: |
+          if [ "$PROTECTION_CONFIGURED" != "required-reviewer" ]; then
+            echo "maintainer-write must have a required reviewer before manual writes are enabled." >&2
+            exit 1
+          fi
+      - name: Record approval
+        run: echo "Protected-environment approval granted for manual project reconciliation."
+
   reconcile:
     name: Reconcile Project
+    needs:
+      - manual-write-approval
+    if: >-
+      always() &&
+      (needs.manual-write-approval.result == 'success' ||
+       needs.manual-write-approval.result == 'skipped')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout trusted automation

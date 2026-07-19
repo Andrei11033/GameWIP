@@ -275,4 +275,27 @@ The generated Doxyfile should keep explicit inputs, write HTML output under the 
 
 The documentation build should be warning-free.
 
+## GitHub Pages deployment
+
+The `Doxygen Docs` workflow builds and deploys the manual from `master`.
+Maintainers can preview and dispatch the repository-owned command with:
+
+```powershell
+.\gamewip.bat workflow -WorkflowAction run -Workflow docs-deploy -Preview
+.\gamewip.bat workflow -WorkflowAction run -Workflow docs-deploy
+```
+
+There is no remote dry-run mode for Pages deployment, so the helper classifies
+this operation as a deployment and requires the typed phrase
+`docs-deploy master`. Configure the existing `github-pages` environment with
+a required maintainer reviewer and a `master` deployment-branch restriction.
+The workflow then provides the second, GitHub-hosted approval gate. Do not use a
+workflow input or repository secret as an entered deployment password.
+
+After the reviewer rule is active, add
+`PAGES_PROTECTION_CONFIGURED=required-reviewer` as an environment secret on
+`github-pages`. Manual deployment fails closed while this marker is absent;
+trusted deployment triggered by a push to `master` remains automatic. Keep the
+marker unset when the repository plan does not support required reviewers.
+
 See @ref project_extending for add/change checklists.

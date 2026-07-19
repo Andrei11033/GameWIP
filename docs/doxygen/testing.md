@@ -83,6 +83,9 @@ Common non-interactive usage:
 .\gamewip.bat git
 .\gamewip.bat git -GitAction status
 .\gamewip.bat git -GitAction switch -GitBranch feature/example
+.\gamewip.bat workflow -WorkflowAction list
+.\gamewip.bat workflow -WorkflowAction run -Workflow validation -Preview
+.\gamewip.bat workflow -WorkflowAction status
 .\gamewip.bat list
 .\gamewip.bat build -Preset test
 .\gamewip.bat test -Preset test
@@ -107,6 +110,20 @@ offers safe deletion for ancestry-merged local branches. A branch whose upstream
 is gone after a squash merge is never assumed safe: force deletion requires a
 separate explicit confirmation, and the current/default/common integration
 branches are protected.
+
+`gamewip.bat workflow` opens a separate GitHub workflow menu backed by the
+declarative `ManualWorkflows` catalog. The helper supports validation, project
+reconciliation dry-run/write modes, release check/prepare/finalize modes, and
+Doxygen Pages deployment. It always dispatches from `master`, prints the exact
+`gh workflow run`, `gh run watch`, and verification commands, discovers the
+queued run, and can watch it through completion.
+
+Use `-Preview` to validate constructed commands without GitHub authentication
+or network access. Checks and dry runs use a yes/no confirmation. Writes,
+deployments, and finalization use an operation-specific typed phrase; manually
+dispatched project and release writes also wait for GitHub protected-environment
+approval. Finalization requires the complete 40-character master commit SHA.
+Arbitrary workflow names, refs, and input flags are intentionally unsupported.
 
 Running `gamewip.bat` without arguments opens the interactive menu. The helper is intentionally project-scoped: stress and project-command actions are selected from known GameWIP validation, benchmark, and executable checks instead of accepting arbitrary shell commands.
 

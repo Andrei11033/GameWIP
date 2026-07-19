@@ -22,6 +22,30 @@ Configure `PROJECT_TOKEN` as an Actions secret. The token must be a dedicated Gi
 
 Do not store the token in source, logs, variables, issue comments, pull request bodies, or generated release notes.
 
+Create two protected GitHub environments:
+
+| Environment | Protects | Required configuration |
+| --- | --- | --- |
+| `maintainer-write` | Release-preparation branch and pull-request writes | Restrict to `master`; require a maintainer review. |
+| `release-production` | Immutable tag and GitHub release creation | Restrict to `master`; require a maintainer review; disable administrator bypass when the gate must be mandatory. |
+
+Self-approval may remain enabled for a single-maintainer repository. These
+environment reviews are the remote authorization gates; `PROJECT_TOKEN` is a
+workflow credential and must not be treated as an entered project password.
+Readiness and finalization dry runs do not wait for environment approval.
+
+After required reviewers are active, add these environment secrets:
+
+```text
+maintainer-write: MANUAL_WRITE_PROTECTION_CONFIGURED=required-reviewer
+release-production: RELEASE_PRODUCTION_PROTECTION_CONFIGURED=required-reviewer
+```
+
+The approval jobs fail closed while the matching marker is absent. GitHub Free,
+Pro, and Team provide required reviewers only for public repositories; keep the
+markers unset until this repository is public or its plan supports the
+protection rule for private repositories.
+
 ## Milestone release metadata
 
 Every releasable milestone needs exactly one target version and exactly one release issue.
@@ -48,8 +72,12 @@ The release issue must stay open during readiness checks and release-preparation
 Run the read-only readiness check first:
 
 ```powershell
+.\gamewip.bat workflow -WorkflowAction run -Workflow release-check
 gh workflow run release-preparation.yml -f command=check -f dry_run=true
 ```
+
+The helper prints the raw `gh` command before asking for confirmation. Add
+`-Preview` to print it without authentication or dispatch.
 
 The check verifies that:
 
@@ -69,8 +97,12 @@ Automatic issue and milestone events run the same readiness logic without mutati
 After the dry run is correct, prepare the release pull request:
 
 ```powershell
+.\gamewip.bat workflow -WorkflowAction run -Workflow release-prepare
 gh workflow run release-preparation.yml -f command=prepare -f dry_run=false
 ```
+
+The helper requires the typed phrase `release-prepare master`. GitHub then
+holds the write behind the `maintainer-write` environment approval.
 
 The workflow creates or reuses:
 
@@ -95,14 +127,19 @@ $releaseCommit = gh api repos/Andrei11033/GameWIP/branches/master --jq .commit.s
 Run a finalization dry run:
 
 ```powershell
+.\gamewip.bat workflow -WorkflowAction run -Workflow release-finalize-dry-run -ReleaseCommit $releaseCommit
 gh workflow run release-preparation.yml -f command=finalize -f dry_run=true -f release_commit=$releaseCommit
 ```
 
 If the dry run verifies the exact commit, publish the tag and release:
 
 ```powershell
+.\gamewip.bat workflow -WorkflowAction run -Workflow release-finalize -ReleaseCommit $releaseCommit
 gh workflow run release-preparation.yml -f command=finalize -f dry_run=false -f release_commit=$releaseCommit
 ```
+
+The write requires a typed phrase containing the exact commit SHA and approval
+through the `release-production` environment.
 
 Finalization creates an annotated `vX.Y.Z` tag and a matching GitHub release. Existing matching artifacts are reused. Conflicting tags, releases, branches, or pull requests cause a safe failure.
 

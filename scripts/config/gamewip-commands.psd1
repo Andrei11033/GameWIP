@@ -7,6 +7,59 @@
     DefaultStressParallel = 8
     WorkspaceTemp = 'build\gamewip-temp'
     RunLogRoot = 'build\tool-runs'
+    GitHubRepository = 'Andrei11033/GameWIP'
+    GitHubDefaultBranch = 'master'
+
+    ManualWorkflows = @(
+        @{
+            Id = 'validation'
+            Name = 'Run repository validation'
+            File = 'validation.yml'
+            Safety = 'check'
+        }
+        @{
+            Id = 'project-dry-run'
+            Name = 'Preview project reconciliation'
+            File = 'project-automation.yml'
+            Safety = 'dry-run'
+        }
+        @{
+            Id = 'project-write'
+            Name = 'Apply project reconciliation'
+            File = 'project-automation.yml'
+            Safety = 'write'
+        }
+        @{
+            Id = 'release-check'
+            Name = 'Check release readiness'
+            File = 'release-preparation.yml'
+            Safety = 'dry-run'
+        }
+        @{
+            Id = 'release-prepare'
+            Name = 'Create or update the release-preparation pull request'
+            File = 'release-preparation.yml'
+            Safety = 'write'
+        }
+        @{
+            Id = 'release-finalize-dry-run'
+            Name = 'Preview release finalization'
+            File = 'release-preparation.yml'
+            Safety = 'dry-run'
+        }
+        @{
+            Id = 'release-finalize'
+            Name = 'Create the immutable tag and GitHub release'
+            File = 'release-preparation.yml'
+            Safety = 'finalize'
+        }
+        @{
+            Id = 'docs-deploy'
+            Name = 'Build and deploy Doxygen GitHub Pages'
+            File = 'docs.yml'
+            Safety = 'deploy'
+        }
+    )
 
     Modules = @(
         'assert'
