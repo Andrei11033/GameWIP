@@ -78,6 +78,7 @@ gh workflow run release-preparation.yml -f command=check -f dry_run=true
 
 The helper prints the raw `gh` command before asking for confirmation. Add
 `-Preview` to print it without authentication or dispatch.
+
 The manually dispatched check exits unsuccessfully and names the unmet release
 condition while the active milestone is not ready. That fail-closed result is
 expected during normal milestone development and must not be bypassed merely to
