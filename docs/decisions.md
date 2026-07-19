@@ -108,6 +108,28 @@ The full GitHub workflow, required metadata, automation behavior, and squash mes
 Repository settings, check ownership, manual dispatch policy, and public-release
 audits are documented in @ref project_repository_maintenance.
 
+## Licensing and public history
+
+GameWIP first-party source code and documentation use the
+[Apache License 2.0](https://github.com/Andrei11033/GameWIP/blob/master/LICENSE).
+The root
+[NOTICE](https://github.com/Andrei11033/GameWIP/blob/master/NOTICE) records
+project attribution. Pinned dependencies under `external/` retain their own
+licenses and notices; a future non-code asset may declare a separate license
+when its distribution requirements differ from the source repository.
+
+Unless explicitly stated otherwise in writing and accepted by the maintainer,
+contributions intentionally submitted for inclusion use Apache-2.0 under the
+license's contribution terms. The license permits reuse of published versions;
+it does not transfer control of the official repository, releases, settings,
+or project identity.
+
+The reachable Git history was reviewed before public activation. Known author
+metadata and the historical source-snapshot archive are accepted for public
+visibility, so no history rewrite is required. This acceptance does not excuse
+a newly discovered credential or sensitive artifact: rotate affected secrets
+and sanitize history before public exposure when a real disclosure is found.
+
 ## Changing a decision
 
 Update this page only for durable project-wide decisions. Keep the decision concise, update affected workflow or contract pages in the same change, and put implementation work in GitHub issues rather than turning this page into a task list.

@@ -3,6 +3,7 @@
 [![Latest release](https://img.shields.io/github/v/release/Andrei11033/GameWIP?display_name=tag&sort=semver)](https://github.com/Andrei11033/GameWIP/releases/latest)
 [![Validation](https://github.com/Andrei11033/GameWIP/actions/workflows/validation.yml/badge.svg?branch=master)](https://github.com/Andrei11033/GameWIP/actions/workflows/validation.yml)
 [![Documentation](https://github.com/Andrei11033/GameWIP/actions/workflows/docs.yml/badge.svg?branch=master)](https://andrei11033.github.io/GameWIP/)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
 GameWIP is an early-stage C++23 sandbox game project focused on player-built vehicles, structures, weapons, components, and meaningful destruction.
 
@@ -21,6 +22,7 @@ the [R01 milestone](https://github.com/Andrei11033/GameWIP/milestone/176) and th
 - [Roadmap](docs/roadmap.md)
 - [Discussions](https://github.com/Andrei11033/GameWIP/discussions)
 - [Issue tracker](https://github.com/Andrei11033/GameWIP/issues)
+- [License](LICENSE)
 - [Releases](https://github.com/Andrei11033/GameWIP/releases)
 - [Security policy](SECURITY.md)
 
@@ -188,3 +190,11 @@ docs/doxygen/ Generated developer-manual pages and documentation infrastructure.
 ```
 
 Root `README.md`, `CONTRIBUTING.md`, and `SECURITY.md` are short repository entry points. The generated manual and `docs/` pages contain the detailed coder-facing project documentation.
+
+## License
+
+GameWIP first-party source code and documentation are licensed under the
+[Apache License 2.0](LICENSE). See [NOTICE](NOTICE) for project attribution.
+Third-party dependencies under `external/` remain under their own licenses and
+notices. Future non-code assets may declare a separate license when their
+distribution needs differ from the source repository.

@@ -36,6 +36,7 @@ engineering workflows and contracts; it is not player-facing game documentation.
 - Update documentation correctly: @ref project_documentation
 - Check static analysis and repository rules: @ref project_static_analysis
 - Contribute through GitHub: @ref project_contributing
+- Review licensing and accepted-history policy: @ref project_decisions
 - Maintain repository settings and automation: @ref project_repository_maintenance
 - Prepare or finalize a release: @ref project_release_automation
 
