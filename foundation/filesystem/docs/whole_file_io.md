@@ -1,4 +1,4 @@
-@page filesystem_whole_file_io FileSystem whole-file I/O
+@page filesystem_whole_file_io Whole-file I/O
 
 Whole-file helpers are for one complete operation whose open, transfer, optional flush, and close sequence belongs to FileSystem. Use explicit handles for incremental protocols, seeking, locks, or caller-controlled lifetime.
 

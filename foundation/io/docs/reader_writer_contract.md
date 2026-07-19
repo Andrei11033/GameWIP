@@ -1,4 +1,4 @@
-@page io_reader_writer_contract IO reader and writer contract
+@page io_reader_writer_contract Reader and writer contract
 
 `Reader` and `Writer` are extension interfaces for resource-owning libraries. This page owns the transfer, capability, lifetime, exception, and concurrency rules that implementations and generic callers must preserve.
 

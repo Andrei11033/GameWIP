@@ -1,4 +1,4 @@
-@page terminal_read_write Terminal read, write, buffering, and concurrency
+@page terminal_read_write Read, write, buffering, and concurrency
 
 This page owns the transfer, outcome, exception, lifetime, blocking, and serialization contracts for Terminal I/O.
 

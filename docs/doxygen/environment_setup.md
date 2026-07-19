@@ -1,9 +1,9 @@
 @page project_environment_setup Development environment setup
 
 This manual covers the repository-owned Windows 11 bootstrap utility. Use it
-from either a Git checkout or an extracted GitHub ZIP of GameWIP; it installs
-the selected development environment, initializes pinned dependencies, prepares editor workflows, builds
-the profiler tools and manual, and verifies the result.
+from either a Git checkout or an extracted GitHub ZIP of GameWIP. It installs
+the selected development environment, initializes pinned dependencies, prepares
+editor workflows, builds the profiler tools and manual, and verifies the result.
 
 ## Fresh-machine quick start
 
@@ -123,6 +123,8 @@ for ordinary build, validation, benchmark, documentation, and stress workflows:
 .\gamewip.bat build -Preset test
 .\gamewip.bat wizard
 .\gamewip.bat stress -Module logger -Count 100 -Parallel 16 -BuildIfMissing
+.\gamewip.bat workflow -WorkflowAction list
+.\gamewip.bat workflow -WorkflowAction run -Workflow release-check -Preview
 ```
 
 `setup.bat` owns environment installation and repair. `gamewip.bat` owns
@@ -135,6 +137,43 @@ prints the failed action, retained log location, and focused next-step guidance.
 The command catalog lives in `scripts/config/gamewip-commands.psd1` so project
 commands and bundles can be extended without turning the helper into a generic
 shell launcher.
+
+`gamewip.bat workflow` opens the guarded GitHub workflow menu. Supported
+dispatches are declared beside the other project commands, always target
+`master`, and are shown in full before execution. `-Preview` prints the
+dispatch, watch, and verification commands without contacting GitHub.
+Non-mutating checks use an ordinary confirmation. Shared-state writes,
+documentation deployment, and release finalization require an exact typed
+phrase and then any protected-environment approval configured on GitHub.
+
+The workflow helper requires an authenticated GitHub CLI. Maintainers using a
+classic token need `repo` and `workflow` scopes, plus `project` for project
+reconciliation. The helper never requests, stores, or compares a project
+password. Repository secrets remain workflow credentials; GitHub environment
+review is the remote authorization gate.
+
+Mutating workflows also require an environment-scoped protection marker and
+fail closed when it is absent. The marker is enabled only after the associated
+environment has a required reviewer; it is not a substitute for that reviewer.
+
+### Deferred public-repository activation
+
+While GameWIP remains private on GitHub Pro, manually dispatched project writes,
+release writes, and Pages deployments intentionally remain disabled. Keep the
+three protection-marker secrets unset. Read-only previews, dry runs, validation,
+automatic repository reconciliation, and trusted Pages publication from
+`master` remain available.
+
+If the repository later becomes public:
+
+1. Add the maintainer as required reviewer for `maintainer-write`,
+   `release-production`, and `github-pages`, with self-approval enabled.
+2. Confirm all three environments allow deployments only from `master`.
+3. Add each environment-scoped protection marker documented by the owning
+   automation page.
+4. Run the helper preview and dry-run paths first.
+5. Dispatch one guarded write and verify that GitHub pauses for approval before
+   the write job starts.
 
 ## What setup owns
 
@@ -153,8 +192,11 @@ ordered execution plan, selected editors, source/build/staging destinations,
 verification results, and reasons for skipped work. A failing command names the
 command and retains its native diagnostic.
 
-Setup does not pull or switch the current branch. Ordinary setup/update also
-does not advance submodule pins; changing a pin is a reviewed source update.
+Repository preparation never performs an implicit merge or discards tracked
+work. `update` may fast-forward the configured upstream, and an explicitly
+selected branch may be checked out only when tracked files are clean. Setup,
+repair, and update synchronize submodules to the revisions committed by the
+selected branch; advancing a submodule pin remains a reviewed source change.
 
 ## Update and repair rules
 

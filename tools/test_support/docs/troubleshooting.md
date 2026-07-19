@@ -1,4 +1,4 @@
-@page test_support_troubleshooting TestSupport troubleshooting
+@page test_support_troubleshooting Troubleshooting
 
 ## Report file is missing or empty
 

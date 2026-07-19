@@ -1,4 +1,4 @@
-@page assert_configuration Assert configuration
+@page assert_configuration Configuration
 
 Assert behavior is controlled by the Assert CMake target. Consumers should configure the library before it is built and should not redefine `ASSERT_*` macros in application source after including `debug/assert/assert.h`.
 

@@ -31,6 +31,7 @@ if(GAMEWIP_BUILD_DOCS)
         "${GAMEWIP_DOXYGEN_ROOT}/coverage.md"
         "${GAMEWIP_DOXYGEN_ROOT}/static_analysis.md"
         "${GAMEWIP_DOXYGEN_ROOT}/repository_automation.md"
+        "${GAMEWIP_DOXYGEN_ROOT}/repository_maintenance.md"
         "${GAMEWIP_DOXYGEN_ROOT}/release_automation.md"
         "${GAMEWIP_DOXYGEN_ROOT}/documentation.md"
         "${GAMEWIP_DOXYGEN_ROOT}/extending.md"

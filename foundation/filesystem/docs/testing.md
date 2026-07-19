@@ -1,4 +1,4 @@
-@page filesystem_testing FileSystem maintainer validation
+@page filesystem_testing Maintainer validation
 
 @note This page describes proof coverage and environment requirements, not installed consumer API.
 

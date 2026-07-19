@@ -1,4 +1,4 @@
-@page logger_output Logger output channels
+@page logger_output Output channels
 
 Logger has four distinct output channels: normal console output, normal file output, platform debugger output, and the fatal popup. Normal sink selection does not automatically enable or disable the latter two channels.
 

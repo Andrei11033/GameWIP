@@ -65,7 +65,19 @@ Use these prefixes:
 | Assert pages | `assert_` |
 | TestSupport pages | `test_support_` |
 
-A library child page should start with the library page ID. For example, Logger child pages use IDs such as `logger_quick_start`, `logger_public_api`, and `logger_troubleshooting`.
+A library child page ID should start with the library page ID. For example,
+Logger child pages use IDs such as `logger_quick_start`, `logger_public_api`, and
+`logger_troubleshooting`. The displayed child title should omit the repeated
+library name because the Doxygen sidebar already supplies that context:
+
+```markdown
+@page logger_quick_start Quick start
+@page logger_public_api Public API
+@page logger_troubleshooting Troubleshooting
+```
+
+Keep the library name in the landing-page title and in prose where the page may
+be read outside its navigation context.
 
 ## Required library documentation
 
@@ -274,5 +286,35 @@ if ($warningLog.Length -ne 0) {
 The generated Doxyfile should keep explicit inputs, write HTML output under the build tree, and write warnings to `build/docs/docs/doxygen/doxygen_warnings.log`. Local and CI validation must reject a non-empty warning log; a successful Doxygen process exit alone is insufficient.
 
 The documentation build should be warning-free.
+
+## GitHub Pages deployment
+
+`Validation / Docs Check` builds the manual once for each pull request and
+`master` push. A successful `master` push retains that validated HTML for one
+day; the `Doxygen Docs` workflow consumes the artifact and deploys it without a
+second Doxygen build. Failed validation never publishes documentation.
+
+Manual `Doxygen Docs` dispatch is the recovery and deliberate-republication
+path. Because it has no preceding validation artifact, it builds and verifies
+the manual before deployment. Maintainers can preview and dispatch the
+repository-owned command with:
+
+```powershell
+.\gamewip.bat workflow -WorkflowAction run -Workflow docs-deploy -Preview
+.\gamewip.bat workflow -WorkflowAction run -Workflow docs-deploy
+```
+
+There is no remote dry-run mode for Pages deployment, so the helper classifies
+this operation as a deployment and requires the typed phrase
+`docs-deploy master`. Configure the existing `github-pages` environment with
+a required maintainer reviewer and a `master` deployment-branch restriction.
+The workflow then provides the second, GitHub-hosted approval gate. Do not use a
+workflow input or repository secret as an entered deployment password.
+
+After the reviewer rule is active, add
+`PAGES_PROTECTION_CONFIGURED=required-reviewer` as an environment secret on
+`github-pages`. Manual deployment fails closed while this marker is absent;
+trusted deployment triggered by a push to `master` remains automatic. Keep the
+marker unset when the repository plan does not support required reviewers.
 
 See @ref project_extending for add/change checklists.

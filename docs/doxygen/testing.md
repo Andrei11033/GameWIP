@@ -18,7 +18,9 @@ cmake --build --preset test
 ctest --preset test
 ```
 
-The same validation composition checks reviewed shared-library exports, public-header self-containment, generated version output, and clean installed-package consumption.
+The same validation composition checks shared-library exports, public-header
+self-containment, generated version output, and clean installed-package
+consumption.
 
 ## Commands
 
@@ -27,6 +29,16 @@ Run all modules directly:
 ```powershell
 .\build\test\GameWIPTests.exe
 ```
+
+CTest registers one entry per correctness module so failures remain focused and
+modules can be selected by name. It does not add a second all-module entry; the
+direct aggregate form above is reserved for explicit local, stress, and embedded
+startup use.
+
+CTest presets and CI fail when discovery selects zero tests. Project contracts
+have two-minute bounds, ordinary modules have five-minute bounds, and installed
+package consumers have ten-minute bounds for nested configure/build work. These
+limits detect hangs; they are deliberately not performance thresholds.
 
 Run one module and retain a focused report:
 
@@ -83,6 +95,9 @@ Common non-interactive usage:
 .\gamewip.bat git
 .\gamewip.bat git -GitAction status
 .\gamewip.bat git -GitAction switch -GitBranch feature/example
+.\gamewip.bat workflow -WorkflowAction list
+.\gamewip.bat workflow -WorkflowAction run -Workflow validation -Preview
+.\gamewip.bat workflow -WorkflowAction status
 .\gamewip.bat list
 .\gamewip.bat build -Preset test
 .\gamewip.bat test -Preset test
@@ -107,6 +122,20 @@ offers safe deletion for ancestry-merged local branches. A branch whose upstream
 is gone after a squash merge is never assumed safe: force deletion requires a
 separate explicit confirmation, and the current/default/common integration
 branches are protected.
+
+`gamewip.bat workflow` opens a separate GitHub workflow menu backed by the
+declarative `ManualWorkflows` catalog. The helper supports validation, project
+reconciliation dry-run/write modes, release check/prepare/finalize modes, and
+Doxygen Pages deployment. It always dispatches from `master`, prints the exact
+`gh workflow run`, `gh run watch`, and verification commands, discovers the
+queued run, and can watch it through completion.
+
+Use `-Preview` to validate constructed commands without GitHub authentication
+or network access. Checks and dry runs use a yes/no confirmation. Writes,
+deployments, and finalization use an operation-specific typed phrase; manually
+dispatched project and release writes also wait for GitHub protected-environment
+approval. Finalization requires the complete 40-character master commit SHA.
+Arbitrary workflow names, refs, and input flags are intentionally unsupported.
 
 Running `gamewip.bat` without arguments opens the interactive menu. The helper is intentionally project-scoped: stress and project-command actions are selected from known GameWIP validation, benchmark, and executable checks instead of accepting arbitrary shell commands.
 
@@ -177,9 +206,12 @@ Correctness tests must:
 - Cover a supported public or maintainer contract rather than an implementation coincidence.
 - Be deterministic, order-independent, and repeatable.
 - Keep unattended defaults free of UI, prompts, and fatal popups.
-- Avoid benchmark loops and elapsed-time pass/fail thresholds.
+- Avoid benchmark loops and elapsed-time thresholds used as performance gates.
 - Prefer deterministic coordination hooks over sleeps.
 - Use bounded waits where operating-system scheduling is unavoidable.
+- Use a deliberately generous elapsed-time bound only to verify an owned
+  timeout contract when no deterministic observation can prove that the
+  operation returned.
 - Isolate files and restore current directory, environment, terminal state, hooks, and singleton configuration.
 - Keep child protocols uniquely owned and route them before full-suite execution.
 - Preserve exact failure evidence and continue after ordinary expectation failures.
@@ -196,7 +228,13 @@ Stress tests may remain correctness tests when they verify invariants rather tha
 
 The combined consumer verifies cross-library integration. Separate isolated consumers call only one `find_package()` for each package, proving that higher-level configs discover every imported dependency in their exported interface. Additional cases cover split-prefix runtime Assert and disabled/interface-only Assert.
 
-CI runs every package case with the single supported CMake 4.4 line. One package-validation job covers Ninja and Ninja Multi-Config consumers, and the root requirement is propagated into each independently configured consumer instead of being duplicated.
+The dedicated `Packages (CMake)` job owns ordinary package compatibility across
+Ninja and Ninja Multi-Config, so `Build and Test` excludes package-labeled CTest
+entries instead of repeating the single-config cases. Coverage and
+AddressSanitizer still run their package entries because those executions prove
+that separately instrumented consumers link and run. The root CMake 4.4
+requirement is propagated into each independently configured consumer rather
+than copied into consumer source.
 
 These checks complement runtime suites; they do not replace behavior validation.
 

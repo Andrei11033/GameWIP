@@ -9,7 +9,7 @@ if(NOT CMAKE_VERSION MATCHES "^${gamewip_cmake_version_pattern}(\\.|$)")
 endif()
 unset(gamewip_cmake_version_pattern)
 
-project(GameWIP VERSION 0.0.1 LANGUAGES CXX)
+project(GameWIP VERSION 0.1.0 LANGUAGES CXX)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_STANDARD 23)
@@ -47,6 +47,11 @@ if(GAMEWIP_BUILD_TESTS)
             "-DPROJECT_SOURCE_DIR=${PROJECT_SOURCE_DIR}"
             "-DGAMEWIP_CMAKE_MINIMUM_VERSION=${CMAKE_MINIMUM_REQUIRED_VERSION}"
             -P "${PROJECT_SOURCE_DIR}/cmake/ValidateCMakeRequirements.cmake"
+    )
+    set_tests_properties(
+        validation.version.composition
+        validation.cmake.requirement_propagation
+        PROPERTIES TIMEOUT 120
     )
 endif()
 

@@ -1,4 +1,4 @@
-@page terminal_troubleshooting Terminal troubleshooting
+@page terminal_troubleshooting Troubleshooting
 
 ## A control returns `Unsupported`
 

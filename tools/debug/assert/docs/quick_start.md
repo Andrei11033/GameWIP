@@ -1,4 +1,4 @@
-@page assert_quick_start Assert quick start
+@page assert_quick_start Quick start
 
 ## Include
 

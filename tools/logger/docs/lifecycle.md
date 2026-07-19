@@ -1,4 +1,4 @@
-@page logger_lifecycle Logger lifecycle
+@page logger_lifecycle Lifecycle
 
 Logger owns one process-wide runtime instance. Public lifecycle operations are internally serialized with one another.
 

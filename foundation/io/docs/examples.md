@@ -1,4 +1,4 @@
-@page io_examples IO examples
+@page io_examples Examples
 
 The examples use only installed public APIs.
 

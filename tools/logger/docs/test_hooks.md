@@ -1,4 +1,4 @@
-@page logger_test_hooks Logger test hooks
+@page logger_test_hooks Test hooks
 
 @warning These are source-tree maintainer interfaces. They are not installed, versioned, or supported for consumer/game runtime use.
 

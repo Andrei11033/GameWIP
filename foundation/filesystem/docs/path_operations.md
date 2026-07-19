@@ -1,4 +1,4 @@
-@page filesystem_path_operations FileSystem path operations
+@page filesystem_path_operations Path operations
 
 FileSystem exposes both lexical path transformations and operations that consult process or filesystem state. They are deliberately separate.
 

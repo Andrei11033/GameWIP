@@ -1,4 +1,4 @@
-@page filesystem_test_hooks FileSystem test hooks
+@page filesystem_test_hooks Test hooks
 
 @warning These hooks are source-tree maintainer interfaces. They are not installed, exported as consumer API, or covered by installed-package compatibility guarantees.
 

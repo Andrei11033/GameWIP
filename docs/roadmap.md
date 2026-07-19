@@ -11,6 +11,8 @@ Early milestones have explicit completion checklists. Later milestones intention
 | Marker | Meaning |
 | --- | --- |
 | `[x]` | Complete or already established in the current repository baseline. |
+| `[~]` | In progress or waiting for review. |
+| `[!]` | Blocked. |
 | `[ ]` | Required before the milestone is complete. |
 | `[TBD]` | Required area exists, but the exact design or checklist is not known yet. |
 
@@ -31,7 +33,7 @@ V1 does not require multiplayer, advanced world generation, full modding, or fin
 
 ### R00 — Bootstrap and reusable-library baseline
 
-Status: `[x]` implementation baseline complete; release publication is tracked through GitHub release issues.
+Status: `[x]` complete and published as `v0.0.1`.
 
 Completion checklist:
 
@@ -51,13 +53,13 @@ Completion checklist:
 - [x] Static analysis, formatting, Doxygen, coverage, profiling, and repository-check workflows exist.
 - [x] Generated coder-facing documentation is grouped by reusable libraries, project manual pages, project contracts, quality workflows, and planning.
 - [x] GitHub issues are the active task tracker; this roadmap is the milestone checklist.
-- [ ] First R00 release tag and GitHub release are published, if the project chooses to publish R00.
+- [x] The `v0.0.1` R00 tag and GitHub release are published.
 
 ## Phase 1 — Engine runtime and development visibility
 
 ### R01 — Window, input, and action foundation
 
-Status: `[ ]`
+Status: `[~]`
 
 Purpose: establish the first engine-facing runtime loop and user input layer without committing to final rendering or gameplay systems.
 
