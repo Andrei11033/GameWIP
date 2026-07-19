@@ -1,4 +1,4 @@
-@page assert_testing Assert maintainer validation
+@page assert_testing Maintainer validation
 
 @note This page is for maintainers. Internal hooks and forced actions are source-tree validation interfaces, not consumer API.
 

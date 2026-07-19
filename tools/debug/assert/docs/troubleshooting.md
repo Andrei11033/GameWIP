@@ -1,4 +1,4 @@
-@page assert_troubleshooting Assert troubleshooting
+@page assert_troubleshooting Troubleshooting
 
 ## The expression is not evaluated
 

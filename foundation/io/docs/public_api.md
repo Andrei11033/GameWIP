@@ -1,4 +1,4 @@
-@page io_public_api IO public API
+@page io_public_api Public API
 
 Include `io/io.h`. Installed consumers link `GameWIP::IO`; source-tree consumers link `IO`. See @ref io_quick_start for complete CMake usage.
 

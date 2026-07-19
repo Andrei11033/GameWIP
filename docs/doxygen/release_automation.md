@@ -7,7 +7,7 @@ GameWIP release automation prepares any milestone release without deriving versi
 Configure these Actions variables:
 
 ```text
-ACTIVE_MILESTONE=R00 - Bootstrap
+ACTIVE_MILESTONE=R01 - Window, Input, and Action Foundation
 ```
 
 Change `ACTIVE_MILESTONE` to the next milestone only after the previous milestone's tag, GitHub release, closure issue, and handoff are complete. The same workflow applies to R00, R01, later roadmap milestones, and compatible PATCH releases.
@@ -78,6 +78,11 @@ gh workflow run release-preparation.yml -f command=check -f dry_run=true
 
 The helper prints the raw `gh` command before asking for confirmation. Add
 `-Preview` to print it without authentication or dispatch.
+
+The manually dispatched check exits unsuccessfully and names the unmet release
+condition while the active milestone is not ready. That fail-closed result is
+expected during normal milestone development and must not be bypassed merely to
+produce a green workflow run.
 
 The check verifies that:
 
@@ -167,6 +172,7 @@ Finalization creates an annotated `vX.Y.Z` tag and a matching GitHub release. Ex
 
 ## Related pages
 
+- @ref project_repository_maintenance
 - @ref project_versioning
 - @ref project_repository_automation
 - @ref project_static_analysis

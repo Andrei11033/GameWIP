@@ -1,4 +1,4 @@
-@page terminal_control_primitives Terminal control primitives
+@page terminal_control_primitives Control primitives
 
 Terminal exposes low-level cursor, screen, title, bell, and alternate-screen operations. They are building blocks for higher-level tools, not a widget, layout, prompt, menu, progress, mouse, keyboard-event, or terminal-session framework.
 

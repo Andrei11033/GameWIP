@@ -43,6 +43,7 @@ function(gamewip_add_test_module)
         )
         set_tests_properties("validation.tests.${MODULE_NAME}" PROPERTIES
             LABELS "validation;${MODULE_NAME}"
+            TIMEOUT 300
             WORKING_DIRECTORY "$<TARGET_FILE_DIR:GameWIPTests>"
         )
     endif()

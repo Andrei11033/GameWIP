@@ -1,15 +1,17 @@
 name: Doxygen Docs
 
 on:
-  push:
+  workflow_run:
+    workflows:
+      - Validation
+    types:
+      - completed
     branches:
       - master
   workflow_dispatch:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: pages
@@ -17,17 +19,22 @@ concurrency:
 
 jobs:
   build:
+    if: github.event_name == 'workflow_dispatch'
     runs-on: windows-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      pages: write
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
         with:
           fetch-depth: 0
           submodules: recursive
 
       - name: Install documentation tools
-        uses: msys2/setup-msys2@v2
+        uses: msys2/setup-msys2@66cd2cce69caa17b53920067426061ca1de3a884 # v2
         with:
           msystem: UCRT64
           update: true
@@ -64,16 +71,60 @@ jobs:
         run: New-Item -ItemType File -Path build/docs/docs/doxygen/html/.nojekyll -Force
 
       - name: Setup GitHub Pages
-        uses: actions/configure-pages@v6
+        uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6
 
       - name: Upload GitHub Pages artifact
-        uses: actions/upload-pages-artifact@v5
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5
         with:
           path: build/docs/docs/doxygen/html
 
+  reuse-validated-docs:
+    name: Reuse Validated Documentation
+    if: >-
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: read
+      pages: write
+
+    steps:
+      - name: Download validated documentation
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with:
+          name: doxygen-pages
+          path: docs-html
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ github.event.workflow_run.id }}
+
+      - name: Disable Jekyll processing
+        run: touch docs-html/.nojekyll
+
+      - name: Setup GitHub Pages
+        uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6
+
+      - name: Upload GitHub Pages artifact
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5
+        with:
+          path: docs-html
+
   deploy:
     runs-on: ubuntu-latest
-    needs: build
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    needs:
+      - build
+      - reuse-validated-docs
+    if: >-
+      always() &&
+      (needs.build.result == 'success' ||
+       needs.reuse-validated-docs.result == 'success')
 
     environment:
       name: github-pages
@@ -92,4 +143,4 @@ jobs:
 
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v5
+        uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128 # v5

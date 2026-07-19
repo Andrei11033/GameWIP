@@ -8,7 +8,9 @@
 
 ## Validation
 
-- 
+- Required CI: expected to run on the pull request.
+- Change-specific local checks:
+- Manual/optional checks (or why not needed):
 
 ## Merge Message
 
@@ -25,3 +27,4 @@
 - [ ] Kept platform-specific code behind the internal backend boundary where applicable.
 - [ ] Kept public API comments focused and moved extended usage guidance to Markdown docs where applicable.
 - [ ] Followed the repository workflow standard in `docs/contributing.md`.
+- [ ] Kept required checks, manual dispatches, and release-only validation distinct as documented in `docs/doxygen/repository_maintenance.md`.

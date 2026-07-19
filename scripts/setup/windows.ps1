@@ -161,7 +161,7 @@ function Invoke-SetupAction
         'repository' { Invoke-RepositoryStep }
         'profiler' { Invoke-TracyStep }
         'editor' { Invoke-EditorStep -Choose:(-not $NonInteractive) }
-        'docs' { Invoke-DocumentationStep -Open }
+        'docs' { Invoke-DocumentationStep -Open:(-not $NonInteractive) }
         'help' {
             Write-Host 'Usage: setup.bat [full|check|update|repair|uninstall|tools|visual-studio|msys2|repository|profiler|editor|docs] [-Branch <name>] [-NonInteractive] [-SkipDocs]'
         }

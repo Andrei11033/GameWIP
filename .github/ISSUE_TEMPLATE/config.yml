@@ -1,5 +1,8 @@
 blank_issues_enabled: false
 contact_links:
+  - name: Questions and design discussion
+    url: https://github.com/Andrei11033/GameWIP/discussions
+    about: Ask usage questions or discuss an idea before turning it into a focused issue.
   - name: Contributor workflow
     url: https://github.com/Andrei11033/GameWIP/blob/master/docs/contributing.md
     about: Read the issue, branch, pull request, validation, and merge-message standards.

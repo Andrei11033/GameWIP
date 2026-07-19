@@ -1,4 +1,4 @@
-@page logger_messages_sources Logger messages and sources
+@page logger_messages_sources Messages and sources
 
 This page owns source selection, formatting, copying, and message-bound behavior for normal logs and reports.
 

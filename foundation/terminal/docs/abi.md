@@ -1,4 +1,4 @@
-@page terminal_abi Terminal package and ABI boundary
+@page terminal_abi Package and ABI boundary
 
 Terminal is distributed as a shared C++ library with an exact-version CMake package.
 

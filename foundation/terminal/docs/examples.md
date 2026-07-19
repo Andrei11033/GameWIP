@@ -1,4 +1,4 @@
-@page terminal_examples Terminal examples
+@page terminal_examples Examples
 
 The examples include the complete local setup required for the operation being demonstrated. Production code should propagate or report richer status detail according to its own error policy.
 

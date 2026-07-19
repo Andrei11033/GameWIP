@@ -1,10 +1,30 @@
 # GameWIP
 
 [![Latest release](https://img.shields.io/github/v/release/Andrei11033/GameWIP?display_name=tag&sort=semver)](https://github.com/Andrei11033/GameWIP/releases/latest)
+[![Validation](https://github.com/Andrei11033/GameWIP/actions/workflows/validation.yml/badge.svg?branch=master)](https://github.com/Andrei11033/GameWIP/actions/workflows/validation.yml)
+[![Documentation](https://github.com/Andrei11033/GameWIP/actions/workflows/docs.yml/badge.svg?branch=master)](https://andrei11033.github.io/GameWIP/)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
 GameWIP is an early-stage C++23 sandbox game project focused on player-built vehicles, structures, weapons, components, and meaningful destruction.
 
 The repository currently emphasizes reusable foundation libraries, Windows platform backends, diagnostics, modular validation, benchmark registration, generated documentation, and initial engine systems.
+
+GameWIP is pre-1.0 and under active development. The current work is tracked in
+the [R01 milestone](https://github.com/Andrei11033/GameWIP/milestone/176) and the
+[roadmap](docs/roadmap.md); the latest published baseline is
+[v0.0.1](docs/releases/v0.0.1.md).
+
+## Project links
+
+- [Developer manual](https://andrei11033.github.io/GameWIP/)
+- [Contributing](CONTRIBUTING.md)
+- [Code of conduct](CODE_OF_CONDUCT.md)
+- [Roadmap](docs/roadmap.md)
+- [Discussions](https://github.com/Andrei11033/GameWIP/discussions)
+- [Issue tracker](https://github.com/Andrei11033/GameWIP/issues)
+- [License](LICENSE)
+- [Releases](https://github.com/Andrei11033/GameWIP/releases)
+- [Security policy](SECURITY.md)
 
 ## Setup
 
@@ -154,6 +174,7 @@ Start with these pages when reading the source tree:
 - [Project decisions](docs/decisions.md)
 - [Versioning policy](docs/versioning.md)
 - [Contributor workflow](docs/contributing.md)
+- [Repository maintenance policy](docs/doxygen/repository_maintenance.md)
 
 ## Repository layout
 
@@ -161,7 +182,7 @@ Start with these pages when reading the source tree:
 foundation/   Reusable IO, Terminal, and FileSystem libraries.
 engine/       Input, action, window, and window-management systems.
 tools/        Logger, Assert, and TestSupport libraries.
-game/         Stable game entry point, runtime facade, and modular validation.
+game/         Stable game entry point, runtime facade, modular validation, and its local orientation guide.
 external/     Pinned third-party dependencies.
 cmake/        Project orchestration and shared CMake helpers.
 docs/         Product direction, roadmap, decisions, versioning, and contributor workflow.
@@ -169,3 +190,11 @@ docs/doxygen/ Generated developer-manual pages and documentation infrastructure.
 ```
 
 Root `README.md`, `CONTRIBUTING.md`, and `SECURITY.md` are short repository entry points. The generated manual and `docs/` pages contain the detailed coder-facing project documentation.
+
+## License
+
+GameWIP first-party source code and documentation are licensed under the
+[Apache License 2.0](LICENSE). See [NOTICE](NOTICE) for project attribution.
+Third-party dependencies under `external/` remain under their own licenses and
+notices. Future non-code assets may declare a separate license when their
+distribution needs differ from the source repository.

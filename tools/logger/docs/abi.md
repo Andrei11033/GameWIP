@@ -1,4 +1,4 @@
-@page logger_abi Logger package and ABI boundary
+@page logger_abi Package and ABI boundary
 
 Logger is a shared C++ library with an exact-version CMake package.
 

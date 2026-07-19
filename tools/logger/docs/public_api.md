@@ -1,4 +1,4 @@
-@page logger_public_api Logger public API
+@page logger_public_api Public API
 
 Include `logger/logger.h`. Installed consumers link `GameWIP::Logger`; source-tree consumers link `Logger`. Include `logger/logger_macros.h` only for the optional global macros. See @ref logger_quick_start for complete CMake usage.
 

@@ -79,7 +79,9 @@ body:
     id: logs
     attributes:
       label: Logs or screenshots
-      description: Paste relevant output, stack traces, test report excerpts, or screenshots.
+      description: >-
+        Paste relevant output, stack traces, test report excerpts, or screenshots
+        after removing secrets, tokens, personal data, and unrelated local paths.
       render: text
 
   - type: checkboxes

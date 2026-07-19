@@ -14,10 +14,11 @@ permissions:
 jobs:
   label-area:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
 
     steps:
       - name: Apply area label
-        uses: actions/github-script@v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
             const areaLabelsByValue = new Map([
@@ -34,6 +35,7 @@ jobs:
               ["Tools/developer support", "area:tools"],
               ["Documentation", "area:docs"],
               ["GitHub/repository setup", "area:github"],
+              ["Gameplay roadmap", "area:gameplay"],
             ]);
 
             function readIssueFormField(body, heading) {

@@ -1,4 +1,4 @@
-@page io_troubleshooting IO troubleshooting
+@page io_troubleshooting Troubleshooting
 
 ## A whole-stream read returns `SizeLimitExceeded`
 

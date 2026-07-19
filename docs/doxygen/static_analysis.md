@@ -82,17 +82,25 @@ The `Validation / Repository Checks` GitHub job runs checks that do not belong t
 - Python syntax validation for repository maintenance scripts.
 - JSON parsing for maintained JSON files.
 - actionlint validation for GitHub Actions workflows.
-- Local relative Markdown link validation for maintained documentation.
+- Immutable action pins, explicit workflow permissions, bounded job timeouts,
+  and required non-empty public repository files.
+- Issue-form area choices aligned with automatic area-label routing.
+- Documentation ownership, page registration, sidebar structure/order, concise
+  library child titles, and `game/` file-purpose validation.
+- Local relative Markdown link validation for maintained root, project, GitHub,
+  game, setup/helper, and library documentation.
 
 Run the script and documentation checks locally from the repository root:
 
 ```bash
-python -c "from pathlib import Path; p = Path('.github/scripts/check-markdown-links.py'); compile(p.read_text(encoding='utf-8'), str(p), 'exec')"
+python -m py_compile .github/scripts/*.py
+python .github/scripts/check-documentation-standards.py
+python .github/scripts/check-repository-standards.py
 python .github/scripts/check-markdown-links.py
 git diff --check
 ```
 
-The explicit `compile(...)` syntax check avoids writing Python bytecode caches under `.github/scripts`.
+Python bytecode caches are ignored as generated local artifacts.
 
 Run JavaScript automation checks when changing repository or release automation:
 
@@ -105,7 +113,9 @@ node --check .github/scripts/release-preparation.test.js
 node --test .github/scripts/release-preparation.test.js
 ```
 
-Run workflow linting when changing GitHub Actions. CI runs actionlint through a container; local usage requires actionlint to be installed or run through an equivalent container command:
+Run workflow linting when changing GitHub Actions. CI downloads the pinned
+official actionlint release and verifies its SHA-256 before execution. Local
+usage requires a compatible actionlint installation:
 
 ```bash
 actionlint
@@ -115,7 +125,20 @@ actionlint
 
 The regular validation workflow builds Doxygen and rejects Doxygen warnings. Markdown registered with Doxygen is therefore parsed and cross-reference checked as part of documentation validation.
 
-The repository link checker validates local relative links in maintained Markdown entry points, generated-manual source pages, and GitHub documentation files. It ignores external URLs and `#anchor` fragments; Doxygen-owned anchors and API cross-references are validated by the documentation build.
+The documentation-standards checker validates exactly one unique page ID per
+manual file, exactly one sidebar parent per page, intentional sidebar order,
+explicit project-page registration, concise library child titles, and leading
+`@file`/`@brief` ownership for `game/` sources.
+
+The repository-standards checker keeps GitHub Actions dependencies immutable,
+requires explicit permissions and job timeouts, fails closed on empty CTest
+selection, preserves trusted `pull_request_target` checkout boundaries, and
+verifies that public repository files exist and are non-empty.
+
+The repository link checker validates local relative links in maintained root,
+project, GitHub, game, setup/helper, and library Markdown. It ignores external
+URLs and `#anchor` fragments; Doxygen-owned anchors and API cross-references are
+validated by the documentation build.
 
 When documentation, public headers, Doxygen registration, or manual pages change, also run the documentation preset:
 
@@ -130,17 +153,11 @@ Doxygen validates syntax and links, but it does not judge prose consistency. Fir
 
 ## Local pre-commit checklist
 
-Use this focused checklist before committing documentation, validation, or C++ standardization work:
-
-```bash
-python -c "from pathlib import Path; p = Path('.github/scripts/check-markdown-links.py'); compile(p.read_text(encoding='utf-8'), str(p), 'exec')"
-python .github/scripts/check-markdown-links.py
-git diff --check
-cmake --preset analyze
-cmake --build --preset analyze
-```
-
-Add `cmake --preset docs` and `cmake --build --preset docs` when the change touches public comments, Doxygen pages, library docs, or documentation registration.
+Run the repository-check commands above when changing documentation or
+GitHub/setup automation. Add the C++ analysis commands when changing maintained
+C++ code, and add the documentation preset when changing public comments,
+manual pages, or Doxygen registration. Before a release, run the complete
+`local-release-check` bundle documented in @ref project_repository_maintenance.
 
 ## Exclusions
 
@@ -164,6 +181,8 @@ Do not fix third-party formatting or analysis warnings by rewriting vendor code.
 | A public header is not checked directly. | No validation translation unit includes it as a public boundary. | Add or update the matching file under `game/validation/public_headers/`. |
 | Python script validation fails. | A repository maintenance script contains invalid syntax for the configured Python. | Fix the script before running repository checks again. |
 | actionlint fails. | A workflow syntax or shell issue exists. | Fix the workflow before merging. |
+| Repository standards fail. | An Action pin, job policy, or public file drifted. | Restore the reported repository contract. |
+| Documentation standards fail. | Ownership, navigation, or coverage drifted. | Fix the owner or update the checker intentionally. |
 | Markdown link check fails. | A maintained Markdown file points to a missing local target. | Fix the link, add the missing page, or move the target behind an excluded generated/third-party boundary. |
 | Doxygen warnings appear. | A page, reference, or public comment is malformed. | Fix the owning documentation or registration. |
 | Vendor files are checked. | An exclusion pattern is incomplete. | Update the owning analysis helper without rewriting vendor code. |

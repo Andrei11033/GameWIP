@@ -1,4 +1,4 @@
-@page test_support_public_api TestSupport public API
+@page test_support_public_api Public API
 
 Include `test_support/test_support.h`. Installed consumers link `GameWIP::TestSupport`; source-tree consumers link `TestSupport`.
 

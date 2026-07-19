@@ -1,4 +1,4 @@
-@page logger_stats Logger statistics
+@page logger_stats Statistics
 
 `getStats()` returns a relaxed snapshot of resettable counters. Fields can reflect slightly different instants under concurrent activity; use them for diagnostics and tests, not transactional application state.
 
