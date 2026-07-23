@@ -32,7 +32,8 @@ and reports successful exit codes. Stages print source and destination paths,
 selected options, reasons for skips, and verification results. Do not hide
 installer, pacman, Git, compiler, or documentation diagnostics in new code.
 
-Setup and repair install missing state. Update fetches and fast-forwards
+Full setup installs missing state and refreshes MSYS2 before installing its declared packages.
+Repair reapplies missing state without requesting ordinary upgrades. Update fetches and fast-forwards
 the current branch from its configured upstream and applies newest compatible
 WinGet/pacman releases while retaining CMake `4.4.x` and the submodule revisions
 recorded by the updated checkout. It refuses dirty trees, missing upstreams, and

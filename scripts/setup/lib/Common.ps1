@@ -7,8 +7,8 @@ function Get-GameWipSetupState
         return [ordered]@{ schemaVersion = 1; wingetPackages = @(); vscodeExtensions = @(); msys2InstalledBySetup = $false }
     }
     $state = Get-Content -LiteralPath $script:SetupStatePath -Raw | ConvertFrom-Json
-    $wingetPackages = if ($state.PSObject.Properties['wingetPackages']) { @($state.wingetPackages) } else { @() }
-    $vscodeExtensions = if ($state.PSObject.Properties['vscodeExtensions']) { @($state.vscodeExtensions) } else { @() }
+    [object[]]$wingetPackages = if ($state.PSObject.Properties['wingetPackages']) { @($state.wingetPackages) } else { @() }
+    [object[]]$vscodeExtensions = if ($state.PSObject.Properties['vscodeExtensions']) { @($state.vscodeExtensions) } else { @() }
     $ownsMsys2 = if ($state.PSObject.Properties['msys2InstalledBySetup']) { [bool]$state.msys2InstalledBySetup } else { $false }
     return [ordered]@{
         schemaVersion = 1
@@ -22,7 +22,7 @@ function Add-GameWipOwnedVsCodeExtension
 {
     param([Parameter(Mandatory = $true)][string]$Id)
     $state = Get-GameWipSetupState
-    $state.vscodeExtensions = @($state.vscodeExtensions + $Id | Sort-Object -Unique)
+    $state.vscodeExtensions = @(@($state.vscodeExtensions) + @($Id) | Sort-Object -Unique)
     Save-GameWipSetupState -State $state
 }
 
@@ -36,7 +36,7 @@ function Add-GameWipOwnedWingetPackage
 {
     param([Parameter(Mandatory = $true)][string]$Id)
     $state = Get-GameWipSetupState
-    $state.wingetPackages = @($state.wingetPackages + $Id | Sort-Object -Unique)
+    $state.wingetPackages = @(@($state.wingetPackages) + @($Id) | Sort-Object -Unique)
     Save-GameWipSetupState -State $state
 }
 
