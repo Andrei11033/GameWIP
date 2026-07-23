@@ -42,7 +42,9 @@ complete `pacman -Syu` passes; WinGet is used only for the first installation at
 that explicit root.
 
 The editor stage installs only selected editors. VS Code integration installs
-Microsoft C++/CMake extensions and the local workflow extension. It also writes
+Microsoft C++/CMake extensions and packages the local workflow extension as a
+VSIX so the VS Code CLI installs and reports it like any other extension. It
+also writes
 a marked, repository-guarded block at the end of the user's
 `keybindings.json`, after preserving a one-time `.gamewip-backup`; later runs
 replace only that block. This is required because VS Code user rules outrank
