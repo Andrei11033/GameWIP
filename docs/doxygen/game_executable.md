@@ -1,6 +1,6 @@
 @page project_game_executable Game executable
 
-The `game/` tree owns the GameWIP executable boundary. It connects generated build identity, optional startup validation, benchmark startup, and the current runtime facade into one process.
+The `game/` tree owns the GameWIP executable boundary. It connects generated build identity, optional startup validation, benchmark startup, and the runtime facade into one process.
 
 This page owns process startup and executable integration. Correctness-runner behavior is documented in @ref project_validation, test-module authoring in @ref project_testing, and benchmark behavior in @ref project_benchmarking.
 
@@ -20,7 +20,7 @@ Use this page when changing:
 | --- | --- |
 | `game/main.cpp` | Process entry point and startup sequencing. |
 | `game/runtime/game.h` | Source-tree runtime facade called after startup work succeeds. |
-| `game/runtime/game.cpp` | Current runtime implementation. |
+| `game/runtime/game.cpp` | Runtime facade implementation. |
 | `game/runtime/version.h.in` | Template for generated build and release identity. |
 | `game/validation/validation.h` | Compile-time facade that keeps `main.cpp` stable when startup validation is disabled. |
 | `game/validation/types.h` | Result types shared by embedded and standalone validation runners. |
@@ -33,15 +33,23 @@ Use this page when changing:
 
 `main.cpp` follows one process-level sequence:
 
-1. When the only user argument is `--version`, print `GameWIP::Version::productDisplay` and exit successfully.
-2. Run startup correctness validation when it was compiled into the executable.
-3. Return the validation child-route exit code immediately when `handledChildInvocation` is true.
-4. Stop startup when correctness validation fails.
-5. Run startup benchmarks when they were compiled into the executable.
-6. Stop startup when Google Benchmark rejects its arguments.
-7. Return the exit code from `GameWIP::Game::run()`.
+1. In Tracy-enabled builds, name the main thread, open the process zone, and
+   wait 500 milliseconds so the profiler can attach before startup work.
+2. When the only user argument is `--version`, print
+   `GameWIP::Version::productDisplay` and exit successfully.
+3. Run startup correctness validation when it was compiled into the executable.
+4. Return the validation child-route exit code immediately when
+   `handledChildInvocation` is true.
+5. Stop startup when correctness validation fails.
+6. Run startup benchmarks when they were compiled into the executable.
+7. Stop startup when Google Benchmark rejects its arguments.
+8. Return the exit code from `GameWIP::Game::run()`.
 
 Utility-only version queries intentionally bypass validation and runtime startup. A `--version` token combined with other arguments is not treated as the utility-only form.
+
+Tracy-enabled builds emit frame marks before startup validation, startup
+benchmarks, and runtime execution. The enclosing named zones identify those
+process phases in a capture.
 
 There is no process-wide exception boundary around startup validation, benchmark execution, or `GameWIP::Game::run()`. The correctness runner converts exceptions escaping module callbacks, but its outer setup/allocation work and the benchmark runner may still propagate. Runtime code should express expected startup or shutdown failures through its returned exit code. Any exception that reaches `main()` follows the language runtime's uncaught-exception behavior.
 
@@ -51,8 +59,12 @@ There is no process-wide exception boundary around startup validation, benchmark
 
 - `argc` and `argv` are the original process arguments and are borrowed for the call.
 - The returned integer becomes the executable's process exit code.
-- The current implementation is intentionally a successful placeholder while runtime composition evolves.
 - Reusable behavior must remain in its owning foundation or tools library rather than accumulating behind this facade.
+
+`run()` calls Logger console initialization at Debug severity, reports runtime
+startup, reports shutdown, and shuts Logger down before returning
+`EXIT_SUCCESS`. It does not retain or interpret `argc` or `argv`. Tracy-enabled
+builds mark the runtime, Logger initialization, and Logger shutdown phases.
 
 Use @ref GameWIP::Game for the generated source API reference.
 

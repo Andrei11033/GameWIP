@@ -42,7 +42,9 @@ GCC profile updates are atomic so parallel test processes cannot overwrite one a
 
 The Validation workflow runs the coverage preset on Windows and uploads the HTML/XML output as a build artifact.
 
-Coverage values are not currently percentage gates. A lower coverage number is not automatically a failure unless the workflow, report generation, or tests fail.
+Coverage percentages are informational rather than validation gates. A lower
+coverage value does not fail validation; the workflow fails only when its
+configuration, tests, or report generation fail.
 
 ## Failure behavior
 

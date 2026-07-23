@@ -60,7 +60,7 @@ Do not add hidden option coupling. If one option requires another, express that 
 
 ## Library targets
 
-Reusable libraries own their own `CMakeLists.txt` files. A library CMake file should:
+Reusable libraries own their own `CMakeLists.txt` files. A library CMake file must:
 
 - Create one canonical target.
 - Provide one canonical project alias when appropriate.

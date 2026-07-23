@@ -33,6 +33,10 @@ if(GAMEWIP_BUILD_GAME)
         )
     endif()
 
+    target_link_libraries(GameWIP PRIVATE
+        GameWIP::Logger
+    )
+
     set_target_properties(GameWIP PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
     )

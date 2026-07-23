@@ -34,7 +34,11 @@ The Assert target propagates the compile definitions that the public header cons
 | `ASSERT_UNREACHABLE_ASSUME` | `ASSERT_UNREACHABLE_ASSUME` CMake option | Selects the disabled `UNREACHABLE()` backend. |
 | `INTERNAL_ASSERT_TEST_HOOKS` | source-tree validation build | Exposes internal hook declarations only to approved test targets. |
 
-`ASSERT_POPUP_ON_ASSERT` and `ASSERT_POPUP_ON_CHECK` are compile-time runtime controls declared by the public header. The current CMake target does not expose them as cache options. Because popup decisions are compiled into the Assert runtime, changing those definitions only on a consumer target does not reconfigure an already-built runtime library.
+`ASSERT_POPUP_ON_ASSERT` and `ASSERT_POPUP_ON_CHECK` are compile-time runtime
+controls declared by the public header. The Assert CMake target does not expose
+them as cache options. Because popup decisions are compiled into the Assert
+runtime, changing those definitions only on a consumer target does not
+reconfigure an already-built runtime library.
 
 ## Diagnostics
 

@@ -18,6 +18,11 @@
 #include <cstdio>
 #include <string_view>
 
+#if GAMEWIP_TRACY_ENABLED
+#include <chrono>
+#include <thread>
+#endif
+
 namespace
 {
     /// @brief Returns whether the process was invoked only to print version metadata.
@@ -32,6 +37,10 @@ int main(int argc, char **argv)
 #if GAMEWIP_TRACY_ENABLED
     tracy::SetThreadName("GameWIP Main");
     ZoneScopedN("GameWIP process");
+    {
+        ZoneScopedN("Tracy startup wait");
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    }
 #endif
 
     // Keep utility-only invocations independent from validation so packaging and
@@ -49,6 +58,7 @@ int main(int argc, char **argv)
     if (GameWIP::Validation::shouldRunTests(argc, argv))
     {
 #if GAMEWIP_TRACY_ENABLED
+        FrameMark;
         ZoneScopedN("Startup validation");
 #endif
         tests = GameWIP::Validation::runTests(argc, argv);
@@ -67,6 +77,7 @@ int main(int argc, char **argv)
     GameWIP::Validation::BenchmarkResult benchmarks;
     {
 #if GAMEWIP_TRACY_ENABLED
+        FrameMark;
         ZoneScopedN("Startup benchmarks");
 #endif
         benchmarks = GameWIP::Validation::runBenchmarks(argc, argv);
