@@ -7,7 +7,7 @@ reusable-library code; reusable behavior itself belongs in `engine/`,
 ## Layout
 
 - `main.cpp` keeps process startup small and delegates runtime work.
-- `runtime/` owns the current game runtime facade and generated version header.
+- `runtime/` owns the game runtime facade and generated version header.
 - `validation/tests/` owns modular correctness tests and their standalone runner.
 - `validation/benchmarks/` owns performance measurements and registration smoke tests.
 - `validation/public_headers/` proves supported consumer headers compile independently.

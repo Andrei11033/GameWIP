@@ -26,7 +26,9 @@ Simulation uses a fixed timestep and remains separate from rendering. Behavior m
 
 Only systems with a demonstrated need use higher-frequency updates. Ordinary gameplay does not inherit the highest simulation rate by default.
 
-Rendering is initially a development and debugging tool. Foundational simulation, visibility, and correctness come before presentation polish.
+Rendering supports development, debugging, and validation before presentation
+polish. Foundational simulation, visibility, and correctness take priority over
+visual refinement during foundational development.
 
 ## Toolchain and platform
 
@@ -55,11 +57,11 @@ Dependency direction is documented in @ref project_structure.
 
 ## Reusable library standard
 
-Reusable libraries should be independently buildable, testable, installable, and consumable from a clean external CMake project through their installed package boundary.
+Reusable libraries must be independently buildable, testable, installable, and consumable from a clean external CMake project through their installed package boundary.
 
 Standalone does not mean anonymous ownership. First-party installed targets intentionally use the `GameWIP::` namespace.
 
-A reusable library owns its public API, package boundary, docs, tests, platform backend, and compatibility notes. Public headers should expose portable types and should not require consumers to include internal headers, platform headers, validation hooks, or game-runtime types.
+A reusable library owns its public API, package boundary, docs, tests, platform backend, and compatibility notes. Public headers must expose portable types and must not require consumers to include internal headers, platform headers, validation hooks, or game-runtime types.
 
 ## Build and packaging
 

@@ -24,7 +24,10 @@ Fatal assertion failures report at Logger Fatal severity through Logger's synchr
 
 ## Popup policy
 
-`ASSERT_POPUP_ON_ASSERT` controls whether fatal assertion reports may show Assert-owned UI. `ASSERT_POPUP_ON_CHECK` controls whether recoverable check failures may show UI. These are runtime compile definitions, not current cache options exposed by `tools/debug/assert/CMakeLists.txt`.
+`ASSERT_POPUP_ON_ASSERT` controls whether fatal assertion reports may show
+Assert-owned UI. `ASSERT_POPUP_ON_CHECK` controls whether recoverable check
+failures may show UI. These are runtime compile definitions; the Assert CMake
+target does not expose them as cache options.
 
 Automated tests should not depend on real UI. Use the validation hooks described in @ref assert_test_hooks when deterministic popup behavior is needed.
 

@@ -80,6 +80,13 @@ Avoid markers for:
 
 Remove markers that no longer answer a performance question.
 
+The game executable supplies process-level markers for profiler attachment,
+startup validation, startup benchmarks, runtime execution, Logger
+initialization, and Logger shutdown. Profile builds also emit frame marks at
+the validation, benchmark, and runtime boundaries. These markers describe the
+executable composition path; subsystem implementations own any narrower zones
+needed to explain measured work.
+
 ## Optimization workflow
 
 1. Capture a representative Tracy session.
@@ -97,20 +104,6 @@ Reusable libraries remain profiler-agnostic by default. A library may add privat
 
 Tracy must not appear in public library APIs, installed public headers, package usage requirements, or consumer examples.
 
-## Future marker candidates
-
-Likely future candidates include:
-
-- Physics broad phase.
-- Physics narrow phase.
-- Contact generation.
-- Solver phases.
-- Rendering passes.
-- Asset or world streaming.
-- Job scheduling.
-- Queue processing.
-
-Add these markers with the systems and representative workloads, not speculatively.
 
 ## Failure behavior
 

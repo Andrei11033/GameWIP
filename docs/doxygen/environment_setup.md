@@ -156,24 +156,22 @@ Mutating workflows also require an environment-scoped protection marker and
 fail closed when it is absent. The marker is enabled only after the associated
 environment has a required reviewer; it is not a substitute for that reviewer.
 
-### Deferred public-repository activation
+### Public-repository workflow protection
 
-While GameWIP remains private on GitHub Pro, manually dispatched project writes,
-release writes, and Pages deployments intentionally remain disabled. Keep the
-three protection-marker secrets unset. Read-only previews, dry runs, validation,
-automatic repository reconciliation, and trusted Pages publication from
-`master` remain available.
+GameWIP is a public repository. Manually dispatched project writes, release
+writes, and Pages deployments use the `maintainer-write`,
+`release-production`, and `github-pages` environments respectively. Each
+environment must restrict deployments to `master` and require maintainer review
+before its protection marker is enabled.
 
-If the repository later becomes public:
+The environment-scoped marker documented by the owning automation page records
+that the matching reviewer rule has been configured; it does not replace that
+rule. Keep a marker unset whenever its reviewer or branch restriction is absent.
+Read-only previews and dry runs remain available without a write marker.
 
-1. Add the maintainer as required reviewer for `maintainer-write`,
-   `release-production`, and `github-pages`, with self-approval enabled.
-2. Confirm all three environments allow deployments only from `master`.
-3. Add each environment-scoped protection marker documented by the owning
-   automation page.
-4. Run the helper preview and dry-run paths first.
-5. Dispatch one guarded write and verify that GitHub pauses for approval before
-   the write job starts.
+After changing an environment rule, run the helper preview or dry-run path,
+dispatch one guarded operation, and verify that GitHub pauses for approval
+before the write job starts.
 
 ## What setup owns
 

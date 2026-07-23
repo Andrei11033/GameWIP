@@ -65,9 +65,9 @@ Use these prefixes:
 | Assert pages | `assert_` |
 | TestSupport pages | `test_support_` |
 
-A library child page ID should start with the library page ID. For example,
+A library child page ID must start with the library page ID. For example,
 Logger child pages use IDs such as `logger_quick_start`, `logger_public_api`, and
-`logger_troubleshooting`. The displayed child title should omit the repeated
+`logger_troubleshooting`. The displayed child title must omit the repeated
 library name because the Doxygen sidebar already supplies that context:
 
 ```markdown
@@ -81,7 +81,7 @@ be read outside its navigation context.
 
 ## Required library documentation
 
-Each reusable library should provide:
+Each reusable library must provide:
 
 ```text
 <library>/docs/
@@ -93,11 +93,11 @@ Each reusable library should provide:
   troubleshooting.md
 ```
 
-Libraries may add additional manual pages when the public or maintainer-facing contract needs a focused owner. Extra pages should make the manual easier to use or maintain; do not create pages just to mirror the source tree.
+Libraries may add additional manual pages when the public or maintainer-facing contract needs a focused owner. Extra pages must make the manual easier to use or maintain; do not create pages just to mirror the source tree.
 
 For example, a library with many build options may add a configuration page, a library with exported runtime symbols may add an ABI or package-boundary page, and a library with source-tree-only validation hooks may add a test-hooks page.
 
-A library landing page should contain:
+A library landing page must contain:
 
 - A short library summary.
 - Consumer manual links.
@@ -106,7 +106,7 @@ A library landing page should contain:
 - Key behavior.
 - Dependency boundary.
 
-A quick-start page should contain:
+A quick-start page must contain:
 
 - Include path.
 - Installed CMake usage.
@@ -157,7 +157,7 @@ Examples may be omitted for simple getters, obvious value containers, and overlo
 
 Test hooks are supported source-tree maintainer interfaces. They are not consumer API, are not installed, and are not public compatibility promises.
 
-A test-hook page should document:
+A test-hook page must document:
 
 - The compile-time option or definition that enables the hooks.
 - The internal include path used by validation code.
@@ -247,9 +247,9 @@ Register supported consumer entry headers as generated-reference owners. Generat
 
 ## Source comments
 
-Every `.h` and `.cpp` file should start with a Doxygen `@file` and `@brief` that describe the file purpose.
+Every `.h` and `.cpp` file must start with a Doxygen `@file` and `@brief` that describe the file purpose.
 
-Public headers should document public API and ABI contracts in enough detail for generated reference pages, IntelliSense, maintainers, and readers. Internal headers and implementation files should document internal helpers, ownership, locking, state transitions, platform behavior, fallback behavior, units, and performance constraints. Internal helper comments may be shorter than public API comments, but they should still explain what the helper does and why it exists when that is not obvious from the surrounding code.
+Public headers must document public API and ABI contracts in enough detail for generated reference pages, IntelliSense, maintainers, and readers. Internal headers and implementation files must document internal helpers, ownership, locking, state transitions, platform behavior, fallback behavior, units, and performance constraints. Internal helper comments may be shorter than public API comments, but they must still explain what the helper does and why it exists when that is not obvious from the surrounding code.
 
 Do not comment obvious assignments, getters, or local variables.
 
@@ -283,9 +283,9 @@ if ($warningLog.Length -ne 0) {
 }
 ```
 
-The generated Doxyfile should keep explicit inputs, write HTML output under the build tree, and write warnings to `build/docs/docs/doxygen/doxygen_warnings.log`. Local and CI validation must reject a non-empty warning log; a successful Doxygen process exit alone is insufficient.
+The generated Doxyfile must keep explicit inputs, write HTML output under the build tree, and write warnings to `build/docs/docs/doxygen/doxygen_warnings.log`. Local and CI validation must reject a non-empty warning log; a successful Doxygen process exit alone is insufficient.
 
-The documentation build should be warning-free.
+The documentation build must be warning-free.
 
 ## GitHub Pages deployment
 

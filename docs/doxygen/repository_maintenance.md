@@ -160,57 +160,53 @@ and `priority:*` label. Add a new label only when it represents durable routing
 or triage information that existing labels cannot express. Keep issue forms,
 the pull-request template, label descriptions, and automation mappings aligned.
 
-## Public-repository activation audit
+## Public-repository baseline
 
-Before changing visibility:
+The public repository must preserve these conditions:
 
-1. Confirm the selected Apache-2.0 root `LICENSE`, project `NOTICE`, README
-   summary, contributor terms, and GitHub license detection agree. Third-party
-   dependency licenses remain separate.
-2. Review the complete Git history for credentials, personal data, generated
-   artifacts, large files, and material that should not become public. Record
-   whether reviewed findings are accepted or require a rewrite. Rotate a
-   disclosed credential even if history is later rewritten.
-3. Confirm Issues and Discussions are monitored for ordinary project contact.
-   Before private vulnerability reporting is available, a security or conduct
-   issue may request a private follow-up route but must contain no sensitive
-   report details.
-4. Confirm the README description, topics, homepage, latest release, roadmap,
+1. The Apache-2.0 root `LICENSE`, project `NOTICE`, README summary, contributor
+   terms, and GitHub license detection agree. Third-party dependency licenses
+   remain separate.
+2. Credentials, personal data, generated artifacts, large files, and material
+   without distribution rights must not enter reachable history. Rotate a
+   disclosed credential immediately and sanitize history when the disclosure
+   requires it.
+3. Issues and Discussions provide ordinary project contact. Security and
+   conduct reports must follow their owning policies and must not place
+   sensitive report details in public issues.
+4. The README description, topics, homepage, latest release, roadmap,
    contribution entry point, code of conduct, security policy, issue forms, and
-   `CODEOWNERS` routing are accurate.
-5. Merge the intended public baseline and confirm branch protection plus all
-   seven required checks on that exact `master` revision.
-6. Run project and release dry runs, preview every guarded helper command, and
-   verify Pages from `master`.
-7. Inspect collaborators, deploy keys, webhooks, installed apps, Actions
-   secrets and variables, environment secrets, and repository access before
-   exposing the history.
+   `CODEOWNERS` routing remain accurate.
+5. Branch protection and all seven required checks remain enabled for `master`.
+6. Project and release dry runs, guarded-command previews, and Pages publication
+   from `master` continue to succeed.
+7. Collaborators, deploy keys, webhooks, installed apps, Actions secrets and
+   variables, environment secrets, and repository access remain limited to
+   their documented owners and purposes.
 
-Immediately after changing visibility:
+### Security and access configuration
 
-1. Confirm Discussions remains enabled so the README and issue-form question
-   links have a real destination.
-2. Enable private vulnerability reporting, Dependabot alerts and security
-   updates, secret scanning, push protection, and code scanning; subscribe to
-   security-alert notifications.
-3. Require Actions to be pinned to a full-length commit SHA. The local
-   repository checker already enforces the same rule in pull requests.
-4. Configure required reviewers and `master` deployment restrictions on
-   `maintainer-write`, `release-production`, and `github-pages`; only then add
-   their protection-marker secrets.
-5. Recheck `master` protection, Actions permissions, fork-pull-request approval
-   policy, merge methods, branch deletion, signoff policy, Pages, homepage,
-   topics, and the social preview.
-6. Open a harmless pull request from a fork and verify that untrusted code gets
-   only read access, receives no maintainer secrets, runs all seven checks, and
-   cannot merge or deploy without the maintainer.
-7. Run the project and release dry runs again against public repository state,
-   then verify issue forms, Discussions, security reporting, release downloads,
-   and generated documentation while signed out.
+- Discussions remains enabled so the README and issue-form question links have
+  a valid destination.
+- Private vulnerability reporting, Dependabot alerts and security updates,
+  secret scanning, push protection, and code scanning remain enabled, with
+  security-alert notifications routed to the maintainer.
+- Actions are pinned to full-length commit SHAs. The local repository checker
+  enforces the same rule in pull requests.
+- The `maintainer-write`, `release-production`, and `github-pages` environments
+  require review and restrict deployments to `master` before their protection
+  markers are set.
+- Actions permissions, fork-pull-request approval, merge methods, branch
+  deletion, signoff policy, Pages, homepage, topics, and the social preview
+  remain consistent with the documented repository workflow.
+- Untrusted pull-request code receives no maintainer secrets or write access and
+  cannot merge or deploy without maintainer authorization.
+- Issue forms, Discussions, security reporting, release downloads, and generated
+  documentation remain usable to signed-out visitors.
 
-Record license choice and history-sanitization decisions in the decision log
-and their focused GitHub issues; do not silently infer either during a
-documentation or CI cleanup.
+License choice and accepted history decisions are recorded in @ref
+project_decisions. A newly discovered credential or distribution problem still
+requires immediate investigation and a focused GitHub issue.
 
 ## Periodic audit
 

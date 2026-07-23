@@ -59,7 +59,7 @@ Each reusable library owns:
 - Correctness tests and benchmark coverage when applicable.
 - Library manual, public API guide, examples, testing guide, troubleshooting notes, and approved test-hook docs when applicable.
 
-A reusable library should not require the game executable to compile, test, install, or be consumed from a clean external CMake project.
+A reusable library must not require the game executable to compile, test, install, or be consumed from a clean external CMake project.
 
 ## Public and internal boundaries
 
@@ -75,7 +75,7 @@ These are not consumer API:
 - Backend-native handles and platform-specific types.
 - Source-tree-only CMake helpers.
 
-Public manuals should not require readers to understand `Detail` namespaces. Maintainer documentation may mention them when explaining implementation boundaries, validation hooks, or backend contracts.
+Public manuals must not require readers to understand `Detail` namespaces. Maintainer documentation may mention them when explaining implementation boundaries, validation hooks, or backend contracts.
 
 ## Installed-package boundary
 
@@ -113,7 +113,7 @@ See @ref project_validation, @ref project_testing, and @ref project_benchmarking
 
 ## Executable integration
 
-The `game/` tree owns executable composition, startup validation wiring, standalone validation runners, and the current runtime facade. `main.cpp` should remain a small process entry point that delegates runtime work behind `GameWIP::Game::run()`.
+The `game/` tree owns executable composition, startup validation wiring, standalone validation runners, and the runtime facade. `main.cpp` must remain a small process entry point that delegates runtime work behind `GameWIP::Game::run()`.
 
 Executable layout, startup sequencing, generated version metadata, and source-comment expectations for `game/` files are documented in @ref project_game_executable.
 

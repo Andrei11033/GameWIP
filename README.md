@@ -7,9 +7,11 @@
 
 GameWIP is an early-stage C++23 sandbox game project focused on player-built vehicles, structures, weapons, components, and meaningful destruction.
 
-The repository currently emphasizes reusable foundation libraries, Windows platform backends, diagnostics, modular validation, benchmark registration, generated documentation, and initial engine systems.
+The repository provides reusable foundation libraries, Windows platform
+backends, diagnostics, modular validation, benchmark registration, generated
+documentation, and engine-system foundations.
 
-GameWIP is pre-1.0 and under active development. The current work is tracked in
+GameWIP is pre-1.0. Active work is tracked in
 the [R01 milestone](https://github.com/Andrei11033/GameWIP/milestone/176) and the
 [roadmap](docs/roadmap.md); the latest published baseline is
 [v0.0.1](docs/releases/v0.0.1.md).
@@ -196,5 +198,5 @@ Root `README.md`, `CONTRIBUTING.md`, and `SECURITY.md` are short repository entr
 GameWIP first-party source code and documentation are licensed under the
 [Apache License 2.0](LICENSE). See [NOTICE](NOTICE) for project attribution.
 Third-party dependencies under `external/` remain under their own licenses and
-notices. Future non-code assets may declare a separate license when their
-distribution needs differ from the source repository.
+notices. A non-code asset may declare a separate license when its distribution
+requirements differ from the source repository.
