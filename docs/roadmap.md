@@ -65,9 +65,10 @@ Purpose: establish the first engine-facing runtime loop and user input layer wit
 
 Completion checklist:
 
-- [ ] `engine/window` has a documented public API and package boundary.
-- [ ] A native Win32 window can be created, shown, resized, focused, and closed.
-- [ ] Window lifecycle errors are reported through project status/result types.
+- [x] `engine/window` has a documented public API and package boundary.
+- [x] A native Win32 window can be created, shown, resized, focused, and closed.
+- [x] Window lifecycle errors are reported through project status/result types.
+- [x] Window event queues, high-DPI behavior, native renderer attachment, and renderer occlusion feedback boundaries are documented and validated.
 - [ ] `engine/input` captures keyboard and mouse input from the active window.
 - [ ] Input snapshots are stable across frame boundaries.
 - [ ] `engine/action` maps raw input to named actions.
@@ -77,10 +78,10 @@ Completion checklist:
 - [ ] The runtime loop can exit cleanly through window close and an explicit action.
 - [ ] Logger and Assert integration exists for engine startup failures.
 - [ ] Correctness tests cover action mapping, input-state transitions that can be tested deterministically, and lifecycle edge cases.
-- [ ] Manual validation exists for behavior that requires a real window.
+- [x] Manual validation exists for behavior that requires a real window.
 - [ ] Public API docs, quick starts, examples, testing docs, troubleshooting docs, and backend notes exist for new engine libraries.
 - [ ] Package and installed-consumer validation include new engine libraries when they become installable.
-- [TBD] Final event queue shape, multi-window policy, controller support, and high-DPI behavior.
+- [TBD] WindowManager multi-window policy and Input controller support.
 
 ### R02 — Math foundation
 

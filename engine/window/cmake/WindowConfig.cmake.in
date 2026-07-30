@@ -1,0 +1,7 @@
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+find_dependency(IO @PROJECT_VERSION@ EXACT CONFIG)
+find_dependency(FileSystem @PROJECT_VERSION@ EXACT CONFIG)
+
+include("${CMAKE_CURRENT_LIST_DIR}/WindowTargets.cmake")
