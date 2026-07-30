@@ -6,3 +6,5 @@ target_link_libraries(Window PRIVATE
     shcore
     user32
 )
+
+target_sources(Window PRIVATE "${CMAKE_CURRENT_LIST_DIR}/internal/win32_compat.h")

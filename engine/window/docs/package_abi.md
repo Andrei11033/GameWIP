@@ -21,7 +21,7 @@ Internal backend headers, `window/internal/window_test_hooks.h`, source-tree com
 
 ## Host DPI requirement
 
-On Windows, the host executable must establish Per-Monitor-V2 DPI awareness through its application manifest. Window validates the effective thread context during `open()` and returns `Unsupported` with a diagnostic when the host is incompatible. The library does not call `SetProcessDpiAwarenessContext()` or silently change process-wide policy.
+On Windows, linking `GameWIP::Window` automatically propagates Window's application resource to executable consumers, including transitive build-tree and installed-package consumers. The single manifest declares Common Controls v6, Per-Monitor-V2 `dpiAwareness`, and the compatible legacy `dpiAware` setting. Window therefore does not depend on Assert for DPI policy. `open()` validates the effective thread context and returns `Unsupported` when the host is incompatible; it never calls `SetProcessDpiAwarenessContext()`.
 
 A minimal manifest fragment is:
 
@@ -33,7 +33,7 @@ A minimal manifest fragment is:
 </application>
 ```
 
-Embed it as `CREATEPROCESS_MANIFEST_RESOURCE_ID RT_MANIFEST` in a Win32 resource compiled into the executable. GameWIP executables receive this setting through the project manifest resource.
+The package compiles this as the executable's single `CREATEPROCESS_MANIFEST_RESOURCE_ID RT_MANIFEST` resource. Assert's standalone Common Controls helper is explicit, so ordinary Window + Assert linking does not add a competing resource.
 
 ## Compatibility
 

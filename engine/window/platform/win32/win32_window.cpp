@@ -2,6 +2,7 @@
 /// @brief Win32 Window lifecycle, dispatcher, native callback, and interoperability adapter.
 
 #include "window/platform/win32/internal/win32_window_backend.h"
+#include "window/platform/win32/internal/win32_compat.h"
 
 #include "window/native/win32.h"
 
@@ -630,12 +631,9 @@ namespace GameWIP::Window::Detail::Platform
         const auto physicalWidth = static_cast<std::uint32_t>(std::max<LONG>(0, client.right - client.left));
         const auto physicalHeight = static_cast<std::uint32_t>(std::max<LONG>(0, client.bottom - client.top));
         state.framebufferSize = {physicalWidth, physicalHeight};
-        if (!state.pointerHitMask.empty() && state.pointerHitMaskSize != state.framebufferSize)
-        {
-            state.pointerHitMask.clear();
-            state.pointerHitMaskSize = {};
-            state.pointerHitMaskRevision = 0;
-        }
+        if ((state.pointerHitMaskActiveGeneration != 0 && state.pointerHitMaskSize != state.framebufferSize) ||
+            (state.pointerHitMaskTargetGeneration != 0 && state.pointerHitMaskTargetSize != state.framebufferSize))
+            invalidatePointerHitMask(state);
         state.clientSize = physicalToLogicalSize(physicalWidth, physicalHeight, dpi);
         state.clientPosition = {clientOrigin.x, clientOrigin.y};
         state.frameRect = {
@@ -1135,6 +1133,7 @@ namespace GameWIP::Window::Detail::Platform
                 const bool unexpected = !state->platform->destroying;
                 if (unexpected)
                 {
+                    invalidatePointerHitMask(*state);
                     IO::Types::Status restoreStatus = leaveExclusive(*state);
                     if (!restoreStatus.ok())
                         recordPumpFailure(std::move(restoreStatus));
@@ -1333,12 +1332,9 @@ namespace GameWIP::Window::Detail::Platform
 
             if (state.transparentFramebuffer)
             {
-                // DWMWA_REDIRECTIONBITMAP_ALPHA is value 39 in the current documented
-                // Windows SDK enum. MinGW's stable header may lag that SDK addition.
-                constexpr auto redirectionBitmapAlpha = static_cast<DWMWINDOWATTRIBUTE>(39);
                 const BOOL enabled = TRUE;
                 const HRESULT result =
-                    DwmSetWindowAttribute(state.platform->handle, redirectionBitmapAlpha, &enabled, sizeof(enabled));
+                    DwmSetWindowAttribute(state.platform->handle, Compat::kRedirectionBitmapAlpha, &enabled, sizeof(enabled));
                 if (FAILED(result))
                     return IO::makeStatus(IO::Types::ErrorCode::Unsupported, result);
             }

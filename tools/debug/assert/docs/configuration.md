@@ -10,7 +10,7 @@ Assert behavior is controlled by the Assert CMake target. Consumers should confi
 | `ASSERT_CHECKS_ENABLED` | `AUTO`, `ON`, `OFF` | `AUTO` | Controls recoverable reporting for `CHECK`, `CHECK_ONCE`, and `ENSURE`. |
 | `ASSERT_DIAGNOSTICS` | `ON`, `OFF` | `ON` | Includes condition text, message text, file, line, and function data in failure reports. |
 | `ASSERT_UNREACHABLE_ASSUME` | `ON`, `OFF` | `OFF` | Uses compiler unreachable assumptions instead of a trap when `UNREACHABLE()` is compiled without assertion handling. |
-| `ASSERT_ENABLE_COMMON_CONTROLS_MANIFEST` | `ON`, `OFF` | `ON` | On Windows, propagates the Common Controls v6 manifest resource needed by the preferred interactive dialog. |
+| `ASSERT_ENABLE_COMMON_CONTROLS_MANIFEST` | `ON`, `OFF` | `ON` | On Windows, prepares the explicit standalone Common Controls v6 helper resource. It is not propagated automatically. |
 | `ASSERT_ENABLE_TEST_HOOKS` | `ON`, `OFF` | `OFF` | Enables source-tree-only validation hooks. It is not consumer API. |
 
 `AUTO` follows the active build configuration: assertions and checks are enabled outside release-style configurations and disabled for `Release`, `RelWithDebInfo`, and `MinSizeRel`.
@@ -47,6 +47,8 @@ When `ASSERT_DIAGNOSTICS=ON`, `_MSG` arguments are evaluated only on enabled fai
 See @ref assert_diagnostics and @ref assert_macro_behavior for the diagnostic and expression-evaluation contracts.
 
 ## Windows Common Controls manifest
+
+Assert-only applications may call `assert_enable_common_controls_v6(target)` explicitly. Applications linking Window receive Window's combined Common Controls v6 and Per-Monitor-V2 manifest automatically and must not attach Assert's standalone helper as well.
 
 Installed Windows consumers that link `GameWIP::Assert` receive the Common Controls v6 resource automatically when `ASSERT_ENABLE_COMMON_CONTROLS_MANIFEST=ON`. This enables the preferred Task Dialog path for interactive assertions.
 

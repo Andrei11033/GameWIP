@@ -12,6 +12,16 @@ endif()
 add_library(Window SHARED)
 add_library(GameWIP::Window ALIAS Window)
 
+if(WIN32)
+    enable_language(RC)
+    set(INTERNAL_WINDOW_APPLICATION_MANIFEST "${CMAKE_CURRENT_SOURCE_DIR}/cmake/window_application.manifest")
+    set(INTERNAL_WINDOW_APPLICATION_RC "${CMAKE_CURRENT_BINARY_DIR}/window_application.rc")
+    configure_file("${CMAKE_CURRENT_SOURCE_DIR}/cmake/window_application.rc.in" "${INTERNAL_WINDOW_APPLICATION_RC}" @ONLY)
+    target_sources(Window INTERFACE
+        "$<BUILD_INTERFACE:${INTERNAL_WINDOW_APPLICATION_RC}>"
+    )
+endif()
+
 set(WINDOW_GENERATED_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
 file(MAKE_DIRECTORY "${WINDOW_GENERATED_INCLUDE_DIR}/window")
 generate_export_header(Window
@@ -86,7 +96,7 @@ set_target_properties(Window PROPERTIES
 if(GAMEWIP_BUILD_DOCS AND COMMAND gamewip_register_doxygen_library)
     gamewip_register_doxygen_library(
         NAME Window
-        PAGE_ID window
+        PAGE_ID window_library
         PUBLIC_HEADERS
             "${CMAKE_CURRENT_SOURCE_DIR}/renderer.h"
             "${CMAKE_CURRENT_SOURCE_DIR}/window.h"
@@ -106,10 +116,19 @@ install(TARGETS Window
     FILE_SET public_headers DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
 )
 
+if(WIN32)
+    install(FILES
+        "${CMAKE_CURRENT_SOURCE_DIR}/cmake/window_application.manifest"
+        "${CMAKE_CURRENT_SOURCE_DIR}/cmake/window_application.rc.in"
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/Window
+    )
+endif()
+
 configure_package_config_file(
     "${CMAKE_CURRENT_SOURCE_DIR}/cmake/WindowConfig.cmake.in"
     "${CMAKE_CURRENT_BINARY_DIR}/WindowConfig.cmake"
     INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/Window
+    PATH_VARS CMAKE_INSTALL_DATADIR
 )
 
 write_basic_package_version_file(
