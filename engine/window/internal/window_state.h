@@ -147,10 +147,9 @@ namespace GameWIP::Window::Detail
     /// @brief Samples a logical client position with interactive fallback on every invalid condition.
     [[nodiscard]] inline bool pointerHitMaskAccepts(const WindowState &state, Types::LogicalPosition position) noexcept
     {
-        if (state.pointerHitMask.empty() || state.pointerHitMaskActiveGeneration == 0 ||
-            state.pointerHitMaskSize != state.framebufferSize || state.clientSize.width == 0 || state.clientSize.height == 0 ||
-            position.x < 0 || position.y < 0 || static_cast<std::uint32_t>(position.x) >= state.clientSize.width ||
-            static_cast<std::uint32_t>(position.y) >= state.clientSize.height)
+        if (state.pointerHitMask.empty() || state.pointerHitMaskActiveGeneration == 0 || state.pointerHitMaskSize != state.framebufferSize ||
+            state.clientSize.width == 0 || state.clientSize.height == 0 || position.x < 0 || position.y < 0 ||
+            static_cast<std::uint32_t>(position.x) >= state.clientSize.width || static_cast<std::uint32_t>(position.y) >= state.clientSize.height)
             return true;
 
         const std::uint64_t x = static_cast<std::uint64_t>(position.x) * state.framebufferSize.width / state.clientSize.width;

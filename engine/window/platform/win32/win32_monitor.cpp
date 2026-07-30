@@ -53,14 +53,12 @@ namespace GameWIP::Window::Detail::Platform
                 return 0;
             const std::uint64_t scaled = static_cast<std::uint64_t>(value.Numerator) * 1000U;
             const std::uint64_t rounded = (scaled + value.Denominator / 2U) / value.Denominator;
-            return static_cast<std::uint32_t>(
-                std::min<std::uint64_t>(rounded, std::numeric_limits<std::uint32_t>::max()));
+            return static_cast<std::uint32_t>(std::min<std::uint64_t>(rounded, std::numeric_limits<std::uint32_t>::max()));
         }
 
         [[nodiscard]] bool interlaced(DISPLAYCONFIG_SCANLINE_ORDERING ordering) noexcept
         {
-            return ordering == DISPLAYCONFIG_SCANLINE_ORDERING_INTERLACED ||
-                   ordering == DISPLAYCONFIG_SCANLINE_ORDERING_INTERLACED_LOWERFIELDFIRST;
+            return ordering == DISPLAYCONFIG_SCANLINE_ORDERING_INTERLACED || ordering == DISPLAYCONFIG_SCANLINE_ORDERING_INTERLACED_LOWERFIELDFIRST;
         }
 
         struct ActiveDisplayPath
@@ -68,9 +66,7 @@ namespace GameWIP::Window::Detail::Platform
             DISPLAYCONFIG_PATH_INFO path{};
         };
 
-        [[nodiscard]] IO::Types::Status findActiveDisplayPath(
-            std::wstring_view device,
-            ActiveDisplayPath &result) noexcept
+        [[nodiscard]] IO::Types::Status findActiveDisplayPath(std::wstring_view device, ActiveDisplayPath &result) noexcept
         {
             constexpr UINT32 flags = QDC_ONLY_ACTIVE_PATHS | QDC_VIRTUAL_MODE_AWARE;
             for (unsigned int attempt = 0; attempt < 4; ++attempt)
@@ -79,27 +75,15 @@ namespace GameWIP::Window::Detail::Platform
                 UINT32 modeCount = 0;
                 LONG nativeResult = GetDisplayConfigBufferSizes(flags, &pathCount, &modeCount);
                 if (nativeResult != ERROR_SUCCESS)
-                    return statusFromWin32(
-                        IO::Types::ErrorCode::StatFailed,
-                        static_cast<DWORD>(nativeResult),
-                        "GetDisplayConfigBufferSizes");
+                    return statusFromWin32(IO::Types::ErrorCode::StatFailed, static_cast<DWORD>(nativeResult), "GetDisplayConfigBufferSizes");
 
                 std::vector<DISPLAYCONFIG_PATH_INFO> paths(pathCount);
                 std::vector<DISPLAYCONFIG_MODE_INFO> modes(modeCount);
-                nativeResult = QueryDisplayConfig(
-                    flags,
-                    &pathCount,
-                    paths.data(),
-                    &modeCount,
-                    modes.data(),
-                    nullptr);
+                nativeResult = QueryDisplayConfig(flags, &pathCount, paths.data(), &modeCount, modes.data(), nullptr);
                 if (nativeResult == ERROR_INSUFFICIENT_BUFFER)
                     continue;
                 if (nativeResult != ERROR_SUCCESS)
-                    return statusFromWin32(
-                        IO::Types::ErrorCode::StatFailed,
-                        static_cast<DWORD>(nativeResult),
-                        "QueryDisplayConfig");
+                    return statusFromWin32(IO::Types::ErrorCode::StatFailed, static_cast<DWORD>(nativeResult), "QueryDisplayConfig");
 
                 paths.resize(pathCount);
                 for (const DISPLAYCONFIG_PATH_INFO &path : paths)
@@ -226,8 +210,7 @@ namespace GameWIP::Window::Detail::Platform
             const HMODULE ntdll = GetModuleHandleW(L"ntdll.dll");
             if (ntdll == nullptr)
                 return std::uint32_t{0};
-            const auto getVersion =
-                reinterpret_cast<RtlGetVersionFunction>(GetProcAddress(ntdll, "RtlGetVersion"));
+            const auto getVersion = reinterpret_cast<RtlGetVersionFunction>(GetProcAddress(ntdll, "RtlGetVersion"));
             if (getVersion == nullptr)
                 return std::uint32_t{0};
             OSVERSIONINFOW version{};
@@ -252,23 +235,20 @@ namespace GameWIP::Window::Detail::Platform
     Types::CapabilitiesResult getCapabilities() noexcept
     {
         using C = Types::Capability;
-        std::uint64_t flags =
-            capabilityBit(C::MultipleWindows) | capabilityBit(C::MultipleWindowThreads) | capabilityBit(C::OwnedWindows) |
-            capabilityBit(C::RuntimeOwnerChange) | capabilityBit(C::WindowPositioning) | capabilityBit(C::ProgrammaticFocus) |
-            capabilityBit(C::AttentionRequest) | capabilityBit(C::RuntimeDecorationChange) | capabilityBit(C::CustomChrome) |
-            capabilityBit(C::WindowIcon) | capabilityBit(C::AspectRatioConstraint) | capabilityBit(C::RuntimeInteractionControl) |
-            capabilityBit(C::AlwaysOnTop) | capabilityBit(C::Opacity) | capabilityBit(C::PointerClickThrough) | capabilityBit(C::CursorConfinement) |
-            capabilityBit(C::RelativeCursor) | capabilityBit(C::CursorWarping) | capabilityBit(C::FileDrop) | capabilityBit(C::ExclusiveFullscreen);
+        std::uint64_t flags = capabilityBit(C::MultipleWindows) | capabilityBit(C::MultipleWindowThreads) | capabilityBit(C::OwnedWindows) |
+                              capabilityBit(C::RuntimeOwnerChange) | capabilityBit(C::WindowPositioning) | capabilityBit(C::ProgrammaticFocus) |
+                              capabilityBit(C::AttentionRequest) | capabilityBit(C::RuntimeDecorationChange) | capabilityBit(C::CustomChrome) |
+                              capabilityBit(C::WindowIcon) | capabilityBit(C::AspectRatioConstraint) | capabilityBit(C::RuntimeInteractionControl) |
+                              capabilityBit(C::AlwaysOnTop) | capabilityBit(C::Opacity) | capabilityBit(C::PointerClickThrough) |
+                              capabilityBit(C::CursorConfinement) | capabilityBit(C::RelativeCursor) | capabilityBit(C::CursorWarping) |
+                              capabilityBit(C::FileDrop) | capabilityBit(C::ExclusiveFullscreen);
         if (supportsSystemBackdrop())
             flags |= capabilityBit(C::SystemBackdrop);
         if (supportsTransparentFramebuffer())
             flags |= capabilityBit(C::TransparentFramebuffer);
         return {
             .status = IO::successStatus(),
-            .capabilities = {
-                .flags = flags,
-                .maximumCustomChromeRegions = kMaximumChromeRegions,
-                .maximumPointerInputRegions = 0}};
+            .capabilities = {.flags = flags, .maximumCustomChromeRegions = kMaximumChromeRegions, .maximumPointerInputRegions = 0}};
     }
 
     Types::MonitorInfoResult monitorFromNative(HMONITOR monitor) noexcept

@@ -227,14 +227,23 @@ namespace GameWIP::Window::Detail::Platform
         DWM_SYSTEMBACKDROP_TYPE nativeEffect = DWMSBT_NONE;
         switch (effect)
         {
-        case Types::BackdropEffect::None: nativeEffect = DWMSBT_NONE; break;
-        case Types::BackdropEffect::Automatic: nativeEffect = DWMSBT_AUTO; break;
-        case Types::BackdropEffect::MainWindow: nativeEffect = DWMSBT_MAINWINDOW; break;
-        case Types::BackdropEffect::TransientWindow: nativeEffect = DWMSBT_TRANSIENTWINDOW; break;
-        case Types::BackdropEffect::TabbedWindow: nativeEffect = DWMSBT_TABBEDWINDOW; break;
+        case Types::BackdropEffect::None:
+            nativeEffect = DWMSBT_NONE;
+            break;
+        case Types::BackdropEffect::Automatic:
+            nativeEffect = DWMSBT_AUTO;
+            break;
+        case Types::BackdropEffect::MainWindow:
+            nativeEffect = DWMSBT_MAINWINDOW;
+            break;
+        case Types::BackdropEffect::TransientWindow:
+            nativeEffect = DWMSBT_TRANSIENTWINDOW;
+            break;
+        case Types::BackdropEffect::TabbedWindow:
+            nativeEffect = DWMSBT_TABBEDWINDOW;
+            break;
         }
-        const HRESULT result =
-            DwmSetWindowAttribute(state.platform->handle, DWMWA_SYSTEMBACKDROP_TYPE, &nativeEffect, sizeof(nativeEffect));
+        const HRESULT result = DwmSetWindowAttribute(state.platform->handle, DWMWA_SYSTEMBACKDROP_TYPE, &nativeEffect, sizeof(nativeEffect));
         if (FAILED(result))
             return IO::makeStatus(
                 effect != Types::BackdropEffect::None ? IO::Types::ErrorCode::Unsupported : IO::Types::ErrorCode::NativeFailure,

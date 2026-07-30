@@ -11,9 +11,9 @@ namespace GameWIP::Window::Renderer
     /// @brief Window-owned target for one asynchronous packed-mask update.
     struct PointerHitMaskTarget
     {
-        std::uint64_t generation = 0;          ///< Nonzero generation created by Window.
-        Types::PixelSize framebufferSize;      ///< Coherent physical framebuffer snapshot.
-        std::size_t requiredWordCount = 0;     ///< Exact number of packed 64-bit words.
+        std::uint64_t generation = 0;      ///< Nonzero generation created by Window.
+        Types::PixelSize framebufferSize;  ///< Coherent physical framebuffer snapshot.
+        std::size_t requiredWordCount = 0; ///< Exact number of packed 64-bit words.
     };
 
     /// @brief Status and target returned when beginning a packed-mask update.

@@ -177,8 +177,8 @@ namespace GameWIP::Window
         /// @brief Portable native-resource lifecycle state.
         enum class LifetimeState
         {
-            Closed,                         ///< No retained native or pending-finalization state.
-            Open,                           ///< A live native Window exists.
+            Closed,                        ///< No retained native or pending-finalization state.
+            Open,                          ///< A live native Window exists.
             NativeDestroyedPendingFinalize ///< Native destruction was unexpected; events and cached state remain readable.
         };
 
@@ -255,8 +255,8 @@ namespace GameWIP::Window
         /// @brief Behavior applied when the effective monitor DPI changes.
         enum class DpiResizePolicy
         {
-            PreserveLogicalClientSize,  ///< Preserve logical extent and change framebuffer pixels.
-            PreservePhysicalClientSize  ///< Preserve framebuffer pixels and recalculate logical extent.
+            PreserveLogicalClientSize, ///< Preserve logical extent and change framebuffer pixels.
+            PreservePhysicalClientSize ///< Preserve framebuffer pixels and recalculate logical extent.
         };
 
         /// @brief Window-owned cursor policy.
@@ -311,30 +311,30 @@ namespace GameWIP::Window
         /// @brief Complete initial top-level window description.
         struct Description
         {
-            std::string title = "GameWIP";                                ///< UTF-8; invalid text and embedded NUL are rejected.
-            LogicalSize clientSize{1280, 720};                            ///< Positive initial logical client extent.
+            std::string title = "GameWIP";                                                ///< UTF-8; invalid text and embedded NUL are rejected.
+            LogicalSize clientSize{1280, 720};                                            ///< Positive initial logical client extent.
             DpiResizePolicy dpiResizePolicy = DpiResizePolicy::PreserveLogicalClientSize; ///< Future DPI-transition policy.
-            Placement placement;                                          ///< Initial desktop placement.
-            ModeRequest mode;                                             ///< Initial window/fullscreen mode.
-            PresentationState presentation = PresentationState::Normal;   ///< Initial presentation.
-            DecorationMode decoration = DecorationMode::System;           ///< Initial decorations.
-            WindowControls controls;                                      ///< Initial standard controls.
-            SizeLimits sizeLimits;                                        ///< Initial client-size constraints.
-            std::optional<AspectRatio> aspectRatio;                       ///< Optional client ratio.
-            WindowId owner;                                               ///< Optional existing same-thread owner.
-            CursorMode cursorMode = CursorMode::Normal;                   ///< Initial cursor mode.
-            CursorShape cursorShape = CursorShape::Arrow;                 ///< Initial cursor shape.
-            PointerInputMode pointerInputMode = PointerInputMode::Normal; ///< Initial pointer policy.
-            BackdropEffect backdropEffect = BackdropEffect::None;         ///< Initial backdrop.
-            float opacity = 1.0F;                                         ///< Inclusive range [0, 1].
-            bool visible = false;                                         ///< Show after successful hidden creation.
-            bool requestFocus = false;                                    ///< Request focus after initial state.
-            bool resizable = true;                                        ///< Enable user resizing.
-            bool focusable = true;                                        ///< Permit native activation.
-            bool userInteractionEnabled = true;                           ///< Enable native interaction.
-            bool alwaysOnTop = false;                                     ///< Stay above ordinary windows.
-            bool acceptsFileDrops = false;                                ///< Enable file-drop delivery.
-            bool transparentFramebuffer = false;                          ///< Enable composited client transparency.
+            Placement placement;                                                          ///< Initial desktop placement.
+            ModeRequest mode;                                                             ///< Initial window/fullscreen mode.
+            PresentationState presentation = PresentationState::Normal;                   ///< Initial presentation.
+            DecorationMode decoration = DecorationMode::System;                           ///< Initial decorations.
+            WindowControls controls;                                                      ///< Initial standard controls.
+            SizeLimits sizeLimits;                                                        ///< Initial client-size constraints.
+            std::optional<AspectRatio> aspectRatio;                                       ///< Optional client ratio.
+            WindowId owner;                                                               ///< Optional existing same-thread owner.
+            CursorMode cursorMode = CursorMode::Normal;                                   ///< Initial cursor mode.
+            CursorShape cursorShape = CursorShape::Arrow;                                 ///< Initial cursor shape.
+            PointerInputMode pointerInputMode = PointerInputMode::Normal;                 ///< Initial pointer policy.
+            BackdropEffect backdropEffect = BackdropEffect::None;                         ///< Initial backdrop.
+            float opacity = 1.0F;                                                         ///< Inclusive range [0, 1].
+            bool visible = false;                                                         ///< Show after successful hidden creation.
+            bool requestFocus = false;                                                    ///< Request focus after initial state.
+            bool resizable = true;                                                        ///< Enable user resizing.
+            bool focusable = true;                                                        ///< Permit native activation.
+            bool userInteractionEnabled = true;                                           ///< Enable native interaction.
+            bool alwaysOnTop = false;                                                     ///< Stay above ordinary windows.
+            bool acceptsFileDrops = false;                                                ///< Enable file-drop delivery.
+            bool transparentFramebuffer = false;                                          ///< Enable composited client transparency.
         };
 
         /// @brief Call-scoped declarative custom-chrome hit-test layout.
@@ -514,7 +514,7 @@ namespace GameWIP::Window
         struct FilesDroppedEvent
         {
             std::optional<LogicalPosition> clientPosition; ///< Logical drop position when available.
-            std::vector<FileSystem::Types::Path> paths; ///< Native FileSystem paths.
+            std::vector<FileSystem::Types::Path> paths;    ///< Native FileSystem paths.
         };
 
         /// @brief Backend-reported occlusion transition.

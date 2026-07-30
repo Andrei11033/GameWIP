@@ -271,15 +271,13 @@ namespace GameWIP::Window
 
         template <> bool validEnum(Types::BackdropEffect value) noexcept
         {
-            return value == Types::BackdropEffect::None || value == Types::BackdropEffect::Automatic ||
-                   value == Types::BackdropEffect::MainWindow || value == Types::BackdropEffect::TransientWindow ||
-                   value == Types::BackdropEffect::TabbedWindow;
+            return value == Types::BackdropEffect::None || value == Types::BackdropEffect::Automatic || value == Types::BackdropEffect::MainWindow ||
+                   value == Types::BackdropEffect::TransientWindow || value == Types::BackdropEffect::TabbedWindow;
         }
 
         template <> bool validEnum(Types::DpiResizePolicy value) noexcept
         {
-            return value == Types::DpiResizePolicy::PreserveLogicalClientSize ||
-                   value == Types::DpiResizePolicy::PreservePhysicalClientSize;
+            return value == Types::DpiResizePolicy::PreserveLogicalClientSize || value == Types::DpiResizePolicy::PreservePhysicalClientSize;
         }
 
         [[nodiscard]] bool validDisplayMode(const Types::DisplayMode &mode) noexcept
@@ -434,8 +432,7 @@ namespace GameWIP::Window
             Detail::invalidatePointerHitMask(*state_);
             state_->pointerHitMaskGeneration = nullptr;
             state_->pointerHitMaskGenerationExhausted = nullptr;
-            if (!Detail::Platform::isOwnedByCurrentThread(*state_) &&
-                Detail::Platform::deferCleanupToOwner(state_))
+            if (!Detail::Platform::isOwnedByCurrentThread(*state_) && Detail::Platform::deferCleanupToOwner(state_))
             {
                 return;
             }
@@ -916,8 +913,7 @@ namespace GameWIP::Window
         IO::Types::Status status = requireState(state_.get());
         if (!status.ok())
             return status;
-        return state_->mode == Types::WindowMode::Windowed ? Detail::Platform::setClientPosition(*state_, position)
-                                                          : error(ErrorCode::ResourceBusy);
+        return state_->mode == Types::WindowMode::Windowed ? Detail::Platform::setClientPosition(*state_, position) : error(ErrorCode::ResourceBusy);
     }
 
     IO::Types::Status Window::setClientRect(Types::ScreenPosition position, Types::LogicalSize size) noexcept
@@ -937,8 +933,7 @@ namespace GameWIP::Window
         IO::Types::Status status = requireState(state_.get());
         if (!status.ok())
             return status;
-        return state_->mode == Types::WindowMode::Windowed ? Detail::Platform::centerOn(*state_, monitor)
-                                                          : error(ErrorCode::ResourceBusy);
+        return state_->mode == Types::WindowMode::Windowed ? Detail::Platform::centerOn(*state_, monitor) : error(ErrorCode::ResourceBusy);
     }
 
     IO::Types::Status Window::setSizeLimits(const Types::SizeLimits &limits) noexcept
@@ -1198,15 +1193,13 @@ namespace GameWIP::Window
         const Types::CapabilitiesResult capabilities = getCapabilities();
         if (!capabilities.status.ok())
             return capabilities.status;
-        if (layout.mode == Types::PointerInputMode::ClickThrough &&
-            !capabilities.capabilities.supports(Types::Capability::PointerClickThrough))
+        if (layout.mode == Types::PointerInputMode::ClickThrough && !capabilities.capabilities.supports(Types::Capability::PointerClickThrough))
         {
             return error(ErrorCode::Unsupported);
         }
         if (regionMode && !capabilities.capabilities.supports(Types::Capability::PointerRegions))
             return error(ErrorCode::Unsupported);
-        if (layout.mode == Types::PointerInputMode::HitMask &&
-            !capabilities.capabilities.supports(Types::Capability::PointerHitMask))
+        if (layout.mode == Types::PointerInputMode::HitMask && !capabilities.capabilities.supports(Types::Capability::PointerHitMask))
             return error(ErrorCode::Unsupported);
         if (layout.regions.size() > capabilities.capabilities.maximumPointerInputRegions)
         {

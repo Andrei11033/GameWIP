@@ -22,8 +22,7 @@ namespace GameWIP::Window::Detail::Platform
             return IO::successStatus();
         }
 
-        [[nodiscard]] IO::Types::Status setOuterRect(
-            WindowState &state, Types::ScreenPosition position, Types::LogicalSize size) noexcept
+        [[nodiscard]] IO::Types::Status setOuterRect(WindowState &state, Types::ScreenPosition position, Types::LogicalSize size) noexcept
         {
             const UINT dpi = dpiForWindow(state.platform->handle);
             const Types::PixelSize physicalSize = logicalToPhysicalSize(size, dpi);
@@ -45,15 +44,11 @@ namespace GameWIP::Window::Detail::Platform
             const std::int64_t outerHeight = static_cast<std::int64_t>(outer.bottom) - outer.top;
             const std::int64_t wideX = static_cast<std::int64_t>(position.x) + outer.left;
             const std::int64_t wideY = static_cast<std::int64_t>(position.y) + outer.top;
-            if (wideX < std::numeric_limits<int>::min() || wideX > std::numeric_limits<int>::max() ||
-                wideY < std::numeric_limits<int>::min() || wideY > std::numeric_limits<int>::max() ||
-                outerWidth <= 0 || outerWidth > std::numeric_limits<int>::max() ||
-                outerHeight <= 0 || outerHeight > std::numeric_limits<int>::max())
+            if (wideX < std::numeric_limits<int>::min() || wideX > std::numeric_limits<int>::max() || wideY < std::numeric_limits<int>::min() ||
+                wideY > std::numeric_limits<int>::max() || outerWidth <= 0 || outerWidth > std::numeric_limits<int>::max() || outerHeight <= 0 ||
+                outerHeight > std::numeric_limits<int>::max())
             {
-                return IO::makeStatus(
-                    IO::Types::ErrorCode::InvalidArgument,
-                    ERROR_ARITHMETIC_OVERFLOW,
-                    "outer frame position exceeds Win32 range");
+                return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument, ERROR_ARITHMETIC_OVERFLOW, "outer frame position exceeds Win32 range");
             }
             const int x = static_cast<int>(wideX);
             const int y = static_cast<int>(wideY);
@@ -159,11 +154,8 @@ namespace GameWIP::Window::Detail::Platform
         }
         const Types::WindowId previous = state.owner;
         WindowState *previousOwnerState = previous.valid() ? resolveWindowId(previous) : nullptr;
-        HWND previousOwnerHandle =
-            previousOwnerState != nullptr && previousOwnerState->platform ? previousOwnerState->platform->handle : nullptr;
-        IO::Types::Status status = setNativeParent(
-            state.platform->handle,
-            ownerState != nullptr ? ownerState->platform->handle : nullptr);
+        HWND previousOwnerHandle = previousOwnerState != nullptr && previousOwnerState->platform ? previousOwnerState->platform->handle : nullptr;
+        IO::Types::Status status = setNativeParent(state.platform->handle, ownerState != nullptr ? ownerState->platform->handle : nullptr);
         if (!status.ok())
             return status;
         state.owner = owner;

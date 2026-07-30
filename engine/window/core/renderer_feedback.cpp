@@ -96,8 +96,7 @@ namespace GameWIP::Window::Renderer
         if (state->nativeDestroyedPendingFinalize)
             return {.status = IO::makeStatus(IO::Types::ErrorCode::ResourceBusy)};
         if (state->pointerHitMaskGeneration == nullptr || state->pointerHitMaskGenerationExhausted == nullptr ||
-            *state->pointerHitMaskGenerationExhausted ||
-            *state->pointerHitMaskGeneration == std::numeric_limits<std::uint64_t>::max())
+            *state->pointerHitMaskGenerationExhausted || *state->pointerHitMaskGeneration == std::numeric_limits<std::uint64_t>::max())
         {
             if (state->pointerHitMaskGenerationExhausted != nullptr)
                 *state->pointerHitMaskGenerationExhausted = true;
@@ -115,16 +114,10 @@ namespace GameWIP::Window::Renderer
         state->pointerHitMaskTargetWordCount = required;
         return {
             .status = IO::successStatus(),
-            .target = {
-                .generation = generation,
-                .framebufferSize = state->framebufferSize,
-                .requiredWordCount = required}};
+            .target = {.generation = generation, .framebufferSize = state->framebufferSize, .requiredWordCount = required}};
     }
 
-    IO::Types::Status publishPointerHitMask(
-        Window &window,
-        std::uint64_t generation,
-        std::span<const std::uint64_t> words) noexcept
+    IO::Types::Status publishPointerHitMask(Window &window, std::uint64_t generation, std::span<const std::uint64_t> words) noexcept
     {
         Detail::WindowState *state = nullptr;
         IO::Types::Status status = requireOwner(window, state);

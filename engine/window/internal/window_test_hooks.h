@@ -72,9 +72,7 @@ namespace GameWIP::Window::TestHooks
     /// @brief Sets the persistent generation for deterministic overflow validation.
     GAMEWIP_WINDOW_EXPORT void setPointerHitMaskGeneration(Window &window, std::uint64_t generation) noexcept;
     /// @brief Samples the production packed-mask helper in logical client coordinates.
-    [[nodiscard]] GAMEWIP_WINDOW_EXPORT bool pointerHitMaskAccepts(
-        const Window &window,
-        Types::LogicalPosition position) noexcept;
+    [[nodiscard]] GAMEWIP_WINDOW_EXPORT bool pointerHitMaskAccepts(const Window &window, Types::LogicalPosition position) noexcept;
 
     /// @brief Exercises fullscreen-target removal recovery without changing display topology.
     [[nodiscard]] GAMEWIP_WINDOW_EXPORT IO::Types::Status simulateFullscreenMonitorRemoval(Window &window) noexcept;
@@ -89,9 +87,7 @@ namespace GameWIP::Window::TestHooks
     [[nodiscard]] GAMEWIP_WINDOW_EXPORT const void *pointerHitMaskStorage(const Window &window) noexcept;
 
     /// @brief Applies the production rational-refresh conversion.
-    [[nodiscard]] GAMEWIP_WINDOW_EXPORT std::uint32_t refreshRateMillihertz(
-        std::uint32_t numerator,
-        std::uint32_t denominator) noexcept;
+    [[nodiscard]] GAMEWIP_WINDOW_EXPORT std::uint32_t refreshRateMillihertz(std::uint32_t numerator, std::uint32_t denominator) noexcept;
 
     /// @brief Applies the exact native exclusive-mode comparator without switching displays.
     [[nodiscard]] GAMEWIP_WINDOW_EXPORT bool exactNativeDisplayModeMatches(

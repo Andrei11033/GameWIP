@@ -118,13 +118,9 @@ namespace GameWIP::Window::Detail::Platform
                     if (candidate->platform && candidate->platform->handle != nullptr)
                     {
                         SetLastError(ERROR_SUCCESS);
-                        if (SetWindowLongPtrW(candidate->platform->handle, GWLP_HWNDPARENT, 0) == 0 &&
-                            GetLastError() != ERROR_SUCCESS)
+                        if (SetWindowLongPtrW(candidate->platform->handle, GWLP_HWNDPARENT, 0) == 0 && GetLastError() != ERROR_SUCCESS)
                         {
-                            recordPumpFailure(statusFromWin32(
-                                IO::Types::ErrorCode::NativeFailure,
-                                GetLastError(),
-                                "clear destroyed window owner"));
+                            recordPumpFailure(statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "clear destroyed window owner"));
                         }
                         if (IO::Types::Status styleStatus = applyStyle(*candidate); !styleStatus.ok())
                             recordPumpFailure(std::move(styleStatus));
@@ -533,8 +529,7 @@ namespace GameWIP::Window::Detail::Platform
         if (dpi == 0)
             return false;
         const std::int64_t product = static_cast<std::int64_t>(value) * dpi;
-        const std::int64_t rounded =
-            product >= 0 ? (product + kBaselineDpi / 2) / kBaselineDpi : (product - kBaselineDpi / 2) / kBaselineDpi;
+        const std::int64_t rounded = product >= 0 ? (product + kBaselineDpi / 2) / kBaselineDpi : (product - kBaselineDpi / 2) / kBaselineDpi;
         if (rounded < std::numeric_limits<LONG>::min() || rounded > std::numeric_limits<LONG>::max())
             return false;
         output = static_cast<LONG>(rounded);
@@ -928,10 +923,11 @@ namespace GameWIP::Window::Detail::Platform
                 desiredClient.width > static_cast<std::uint32_t>(std::numeric_limits<LONG>::max()) ||
                 desiredClient.height > static_cast<std::uint32_t>(std::numeric_limits<LONG>::max()))
             {
-                recordPumpFailure(IO::makeStatus(
-                    IO::Types::ErrorCode::InvalidArgument,
-                    ERROR_ARITHMETIC_OVERFLOW,
-                    "WM_DPICHANGED client size exceeds Win32 range"));
+                recordPumpFailure(
+                    IO::makeStatus(
+                        IO::Types::ErrorCode::InvalidArgument,
+                        ERROR_ARITHMETIC_OVERFLOW,
+                        "WM_DPICHANGED client size exceeds Win32 range"));
                 return 0;
             }
             RECT desiredOuter{0, 0, static_cast<LONG>(desiredClient.width), static_cast<LONG>(desiredClient.height)};
@@ -1167,29 +1163,18 @@ namespace GameWIP::Window::Detail::Platform
         try
         {
             const DPI_AWARENESS_CONTEXT context = GetThreadDpiAwarenessContext();
-            if (context == nullptr ||
-                AreDpiAwarenessContextsEqual(context, DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2) == FALSE)
+            if (context == nullptr || AreDpiAwarenessContextsEqual(context, DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2) == FALSE)
             {
-                return IO::makeStatus(
-                    IO::Types::ErrorCode::Unsupported,
-                    0,
-                    "Window requires a Per-Monitor-V2-aware executable manifest");
+                return IO::makeStatus(IO::Types::ErrorCode::Unsupported, 0, "Window requires a Per-Monitor-V2-aware executable manifest");
             }
             const Types::Capabilities capabilities = getCapabilities().capabilities;
             if (description.transparentFramebuffer && !capabilities.supports(Types::Capability::TransparentFramebuffer))
             {
-                return IO::makeStatus(
-                    IO::Types::ErrorCode::Unsupported,
-                    0,
-                    "transparentFramebuffer requires Windows 11 build 26100 or newer");
+                return IO::makeStatus(IO::Types::ErrorCode::Unsupported, 0, "transparentFramebuffer requires Windows 11 build 26100 or newer");
             }
-            if (description.backdropEffect != Types::BackdropEffect::None &&
-                !capabilities.supports(Types::Capability::SystemBackdrop))
+            if (description.backdropEffect != Types::BackdropEffect::None && !capabilities.supports(Types::Capability::SystemBackdrop))
             {
-                return IO::makeStatus(
-                    IO::Types::ErrorCode::Unsupported,
-                    0,
-                    "system backdrop effects require Windows 11 build 22621 or newer");
+                return IO::makeStatus(IO::Types::ErrorCode::Unsupported, 0, "system backdrop effects require Windows 11 build 22621 or newer");
             }
 
             auto data = std::unique_ptr<WindowData, WindowDataDeleter>(new WindowData{});
@@ -1257,8 +1242,7 @@ namespace GameWIP::Window::Detail::Platform
                 return statusFromWin32(IO::Types::ErrorCode::OpenFailed, GetLastError(), "AdjustWindowRectExForDpi create");
             const std::int64_t outerWidth = static_cast<std::int64_t>(outer.right) - outer.left;
             const std::int64_t outerHeight = static_cast<std::int64_t>(outer.bottom) - outer.top;
-            if (outerWidth <= 0 || outerWidth > std::numeric_limits<int>::max() ||
-                outerHeight <= 0 || outerHeight > std::numeric_limits<int>::max())
+            if (outerWidth <= 0 || outerWidth > std::numeric_limits<int>::max() || outerHeight <= 0 || outerHeight > std::numeric_limits<int>::max())
             {
                 return IO::makeStatus(
                     IO::Types::ErrorCode::InvalidArgument,
@@ -1272,8 +1256,8 @@ namespace GameWIP::Window::Detail::Platform
             {
                 const std::int64_t wideX = static_cast<std::int64_t>(description.placement.position.x) + outer.left;
                 const std::int64_t wideY = static_cast<std::int64_t>(description.placement.position.y) + outer.top;
-                if (wideX < std::numeric_limits<int>::min() || wideX > std::numeric_limits<int>::max() ||
-                    wideY < std::numeric_limits<int>::min() || wideY > std::numeric_limits<int>::max())
+                if (wideX < std::numeric_limits<int>::min() || wideX > std::numeric_limits<int>::max() || wideY < std::numeric_limits<int>::min() ||
+                    wideY > std::numeric_limits<int>::max())
                 {
                     return IO::makeStatus(
                         IO::Types::ErrorCode::InvalidArgument,
@@ -1333,8 +1317,7 @@ namespace GameWIP::Window::Detail::Platform
             if (state.transparentFramebuffer)
             {
                 const BOOL enabled = TRUE;
-                const HRESULT result =
-                    DwmSetWindowAttribute(state.platform->handle, Compat::kRedirectionBitmapAlpha, &enabled, sizeof(enabled));
+                const HRESULT result = DwmSetWindowAttribute(state.platform->handle, Compat::kRedirectionBitmapAlpha, &enabled, sizeof(enabled));
                 if (FAILED(result))
                     return IO::makeStatus(IO::Types::ErrorCode::Unsupported, result);
             }
@@ -1637,10 +1620,7 @@ namespace GameWIP::Window::TestHooks
         if (!Detail::Platform::isOwnedByCurrentThread(*state))
             return IO::makeStatus(IO::Types::ErrorCode::ResourceBusy);
         if (DestroyWindow(state->platform->handle) == FALSE)
-            return Detail::Platform::statusFromWin32(
-                IO::Types::ErrorCode::CloseFailed,
-                GetLastError(),
-                "test-hook unexpected DestroyWindow");
+            return Detail::Platform::statusFromWin32(IO::Types::ErrorCode::CloseFailed, GetLastError(), "test-hook unexpected DestroyWindow");
         return IO::successStatus();
     }
 
@@ -1668,12 +1648,7 @@ namespace GameWIP::Window::TestHooks
             return {logicalSize, Detail::Platform::logicalToPhysicalSize(logicalSize, newDpi)};
         if (policy == Types::DpiResizePolicy::PreservePhysicalClientSize)
         {
-            return {
-                Detail::Platform::physicalToLogicalSize(
-                    framebufferSize.width,
-                    framebufferSize.height,
-                    newDpi),
-                framebufferSize};
+            return {Detail::Platform::physicalToLogicalSize(framebufferSize.width, framebufferSize.height, newDpi), framebufferSize};
         }
         return {};
     }

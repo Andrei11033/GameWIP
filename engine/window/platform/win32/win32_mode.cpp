@@ -331,8 +331,7 @@ namespace GameWIP::Window::Detail::Platform
         const Types::ContentScale previousScale = state.contentScale;
         const Types::Dpi previousDpi = state.dpi;
 
-        if (state.mode == Types::WindowMode::Windowed ||
-            (!forceRemovedMonitor && nativeMonitor(state.fullscreen.monitor) != nullptr))
+        if (state.mode == Types::WindowMode::Windowed || (!forceRemovedMonitor && nativeMonitor(state.fullscreen.monitor) != nullptr))
         {
             routeEvent(state, Types::DisplayConfigurationChangedEvent{});
             updateCurrentMonitor(state);
@@ -355,13 +354,12 @@ namespace GameWIP::Window::Detail::Platform
         }
 
         WindowData &data = *state.platform;
-        RECT desired = data.hasWindowedPlacement ? data.windowedPlacement.rcNormalPosition : RECT{
-                                                                                          state.frameRect.position.x,
-                                                                                          state.frameRect.position.y,
-                                                                                          state.frameRect.position.x +
-                                                                                              static_cast<LONG>(state.frameRect.size.width),
-                                                                                          state.frameRect.position.y +
-                                                                                              static_cast<LONG>(state.frameRect.size.height)};
+        RECT desired = data.hasWindowedPlacement ? data.windowedPlacement.rcNormalPosition
+                                                 : RECT{
+                                                       state.frameRect.position.x,
+                                                       state.frameRect.position.y,
+                                                       state.frameRect.position.x + static_cast<LONG>(state.frameRect.size.width),
+                                                       state.frameRect.position.y + static_cast<LONG>(state.frameRect.size.height)};
         const LONG workWidth = std::max<LONG>(1, primaryInfo.rcWork.right - primaryInfo.rcWork.left);
         const LONG workHeight = std::max<LONG>(1, primaryInfo.rcWork.bottom - primaryInfo.rcWork.top);
         const LONG width = std::clamp<LONG>(desired.right - desired.left, 1, workWidth);
@@ -388,14 +386,7 @@ namespace GameWIP::Window::Detail::Platform
         IO::Types::Status status = applyStyle(state);
         if (!status.ok() && firstFailure.ok())
             firstFailure = status;
-        if (SetWindowPos(
-                data.handle,
-                state.alwaysOnTop ? HWND_TOPMOST : HWND_TOP,
-                x,
-                y,
-                width,
-                height,
-                SWP_NOACTIVATE | SWP_FRAMECHANGED) == FALSE)
+        if (SetWindowPos(data.handle, state.alwaysOnTop ? HWND_TOPMOST : HWND_TOP, x, y, width, height, SWP_NOACTIVATE | SWP_FRAMECHANGED) == FALSE)
         {
             status = statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "place recovered window on primary monitor");
             if (firstFailure.ok())
@@ -419,14 +410,7 @@ namespace GameWIP::Window::Detail::Platform
             routeEvent(state, Types::FramebufferSizeChangedEvent{state.framebufferSize});
         if (previousScale != state.contentScale || previousDpi != state.dpi)
         {
-            routeEvent(
-                state,
-                Types::ContentScaleChangedEvent{
-                    previousScale,
-                    state.contentScale,
-                    previousDpi,
-                    state.dpi,
-                    state.framebufferSize});
+            routeEvent(state, Types::ContentScaleChangedEvent{previousScale, state.contentScale, previousDpi, state.dpi, state.framebufferSize});
         }
         return firstFailure;
     }
