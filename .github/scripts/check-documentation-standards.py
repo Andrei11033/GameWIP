@@ -21,6 +21,7 @@ LIBRARY_DOCS = (
     (Path("foundation/io/docs"), "IO", "io.md"),
     (Path("foundation/filesystem/docs"), "FileSystem", "filesystem.md"),
     (Path("foundation/terminal/docs"), "Terminal", "terminal.md"),
+    (Path("engine/window/docs"), "Window", "window_library.md"),
     (Path("tools/logger/docs"), "Logger", "logger.md"),
     (Path("tools/debug/assert/docs"), "Assert", "assert.md"),
     (Path("tools/test_support/docs"), "TestSupport", "test_support.md"),
@@ -56,7 +57,7 @@ def relative(path: Path) -> str:
 
 def maintained_manual_files() -> list[Path]:
     files: list[Path] = []
-    for root in (ROOT / "docs", ROOT / "foundation", ROOT / "tools"):
+    for root in (ROOT / "docs", ROOT / "foundation", ROOT / "engine", ROOT / "tools"):
         files.extend(
             path
             for path in root.rglob("*.md")

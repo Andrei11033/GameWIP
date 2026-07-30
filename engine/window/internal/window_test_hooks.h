@@ -16,22 +16,22 @@ namespace GameWIP::Window::TestHooks
     /// @brief Deterministic result of applying one DPI resize policy.
     struct DpiTransitionResult
     {
-        Types::LogicalSize logicalSize;
-        Types::PixelSize framebufferSize;
+        Types::LogicalSize logicalSize;   ///< Resulting logical client extent.
+        Types::PixelSize framebufferSize; ///< Resulting physical framebuffer extent.
     };
 
     /// @brief Backend-neutral display facts used for deterministic conversion validation.
     struct DisplayColorSnapshot
     {
-        Types::DisplayColorSpace activeColorSpace = Types::DisplayColorSpace::Unknown;
-        bool wideColorGamutSupported = false;
-        bool hdrSupported = false;
-        bool hdrEnabled = false;
-        std::uint32_t bitsPerColorChannel = 0;
-        float minimumLuminanceNits = 0.0F;
-        float maximumLuminanceNits = 0.0F;
-        float maximumFullFrameLuminanceNits = 0.0F;
-        std::uint32_t sdrWhiteLevelMilli80Nits = 0;
+        Types::DisplayColorSpace activeColorSpace = Types::DisplayColorSpace::Unknown; ///< Injected active mode.
+        bool wideColorGamutSupported = false;                                          ///< Injected WCG support.
+        bool hdrSupported = false;                                                     ///< Injected HDR support.
+        bool hdrEnabled = false;                                                       ///< Injected HDR enablement.
+        std::uint32_t bitsPerColorChannel = 0;                                         ///< Injected unsaturated precision.
+        float minimumLuminanceNits = 0.0F;                                             ///< Injected minimum luminance.
+        float maximumLuminanceNits = 0.0F;                                             ///< Injected peak luminance.
+        float maximumFullFrameLuminanceNits = 0.0F;                                    ///< Injected full-frame luminance.
+        std::uint32_t sdrWhiteLevelMilli80Nits = 0;                                    ///< Injected native SDR-white units.
     };
 
     /// @brief One-shot production boundary that can be failed by validation builds.

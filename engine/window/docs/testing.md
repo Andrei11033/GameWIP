@@ -22,14 +22,14 @@ The repository installed-consumer test additionally proves exact-version depende
 
 `cmake/export_allowlists/window.txt` records normalized public symbol roots. Source-tree hooks are permitted only when `WINDOW_ENABLE_TEST_HOOKS` is enabled and are ignored by the public export comparison. Internal backend declarations are absent from the import library.
 
-## Related pages
-
-- @ref window_test_hooks
-- @ref window_manual_validation
-- @ref window_package_abi
-
 ## Scope
 
 Automated tests keep native windows hidden. Visible behavior, genuine cross-application pointer routing, real focus arbitration, shell visuals, drag/drop gestures, DPI transitions across physical monitors, actual monitor disconnect/reconnect, physical SDR/HDR transitions, transparent renderer output, and exclusive display restoration need the scenarios in @ref window_manual_validation.
 
 The user performs the final repository validation matrix. During implementation, focused builds and Window/package checks are sufficient to catch local regressions without claiming complete platform validation.
+
+## Related pages
+
+- @ref window_test_hooks
+- @ref window_manual_validation
+- @ref window_package_abi

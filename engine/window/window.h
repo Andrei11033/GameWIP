@@ -272,20 +272,20 @@ namespace GameWIP::Window
         /// @brief Standard system cursor shape.
         enum class CursorShape
         {
-            Arrow,
-            Text,
-            Crosshair,
-            Hand,
-            Help,
-            Wait,
-            Progress,
-            Move,
-            ResizeAll,
-            ResizeHorizontal,
-            ResizeVertical,
-            ResizeDiagonalNorthWestSouthEast,
-            ResizeDiagonalNorthEastSouthWest,
-            NotAllowed
+            Arrow,                            ///< Default arrow pointer.
+            Text,                             ///< Text-selection I-beam.
+            Crosshair,                        ///< Precision crosshair.
+            Hand,                             ///< Pointing hand for links or actions.
+            Help,                             ///< Arrow with contextual-help indicator.
+            Wait,                             ///< Busy indicator that blocks interaction.
+            Progress,                         ///< Background-busy indicator that permits interaction.
+            Move,                             ///< Four-direction move indicator.
+            ResizeAll,                        ///< Four-direction resize indicator.
+            ResizeHorizontal,                 ///< Horizontal resize indicator.
+            ResizeVertical,                   ///< Vertical resize indicator.
+            ResizeDiagonalNorthWestSouthEast, ///< Northwest-to-southeast resize indicator.
+            ResizeDiagonalNorthEastSouthWest, ///< Northeast-to-southwest resize indicator.
+            NotAllowed                        ///< Operation-not-permitted indicator.
         };
 
         /// @brief Pointer hit-test policy.
@@ -340,11 +340,11 @@ namespace GameWIP::Window
         /// @brief Call-scoped declarative custom-chrome hit-test layout.
         struct CustomChromeLayout
         {
-            std::span<const LogicalRect> draggableRegions;
-            std::optional<LogicalRect> systemMenuRegion;
-            std::optional<LogicalRect> minimizeButtonRegion;
-            std::optional<LogicalRect> maximizeButtonRegion;
-            std::optional<LogicalRect> closeButtonRegion;
+            std::span<const LogicalRect> draggableRegions;   ///< Regions that initiate native window dragging.
+            std::optional<LogicalRect> systemMenuRegion;     ///< Optional native system-menu region.
+            std::optional<LogicalRect> minimizeButtonRegion; ///< Optional native minimize-button region.
+            std::optional<LogicalRect> maximizeButtonRegion; ///< Optional native maximize-button region.
+            std::optional<LogicalRect> closeButtonRegion;    ///< Optional native close-button region.
         };
 
         /// @brief Call-scoped declarative pointer-region layout.
@@ -378,32 +378,32 @@ namespace GameWIP::Window
         /// @brief Portable backend capability.
         enum class Capability : std::uint8_t
         {
-            MultipleWindows,
-            MultipleWindowThreads,
-            OwnedWindows,
-            RuntimeOwnerChange,
-            WindowPositioning,
-            ProgrammaticFocus,
-            AttentionRequest,
-            RuntimeDecorationChange,
-            CustomChrome,
-            WindowIcon,
-            AspectRatioConstraint,
-            RuntimeInteractionControl,
-            AlwaysOnTop,
-            Opacity,
-            TransparentFramebuffer,
-            SystemBackdrop,
-            PointerClickThrough,
-            PointerRegions,
-            PointerHitMask,
-            CursorConfinement,
-            RelativeCursor,
-            CursorWarping,
-            FileDrop,
-            ExclusiveFullscreen,
-            OcclusionReporting,
-            Count ///< Enumerator count; not a capability.
+            MultipleWindows,           ///< Supports more than one simultaneous Window.
+            MultipleWindowThreads,     ///< Supports Windows owned by different threads.
+            OwnedWindows,              ///< Supports native owner relationships.
+            RuntimeOwnerChange,        ///< Supports changing ownership after open.
+            WindowPositioning,         ///< Supports explicit client positioning.
+            ProgrammaticFocus,         ///< Supports requesting keyboard focus.
+            AttentionRequest,          ///< Supports requesting native user attention.
+            RuntimeDecorationChange,   ///< Supports changing decorations after open.
+            CustomChrome,              ///< Supports declarative client-rendered chrome.
+            WindowIcon,                ///< Supports replacing the native window icon.
+            AspectRatioConstraint,     ///< Supports interactive aspect-ratio constraints.
+            RuntimeInteractionControl, ///< Supports enabling or disabling user interaction.
+            AlwaysOnTop,               ///< Supports topmost-window policy.
+            Opacity,                   ///< Supports whole-window opacity.
+            TransparentFramebuffer,    ///< Supports composited client transparency.
+            SystemBackdrop,            ///< Supports native system backdrops.
+            PointerClickThrough,       ///< Supports whole-window pointer pass-through.
+            PointerRegions,            ///< Supports rectangular pointer routing.
+            PointerHitMask,            ///< Supports renderer-published per-pixel pointer routing.
+            CursorConfinement,         ///< Supports confining the cursor to the client.
+            RelativeCursor,            ///< Supports relative cursor input mode.
+            CursorWarping,             ///< Supports programmatic cursor positioning.
+            FileDrop,                  ///< Supports native file-drop events.
+            ExclusiveFullscreen,       ///< Supports native exclusive display modes.
+            OcclusionReporting,        ///< Supports authoritative renderer occlusion feedback.
+            Count                      ///< Enumerator count; not a capability.
         };
 
         /// @brief Backend capability flags and declarative-region limits.
@@ -610,8 +610,8 @@ namespace GameWIP::Window
         /// @brief Logical client-position conversion result.
         struct LogicalPositionResult
         {
-            IO::Types::Status status;
-            LogicalPosition position;
+            IO::Types::Status status; ///< Conversion or query status.
+            LogicalPosition position; ///< Meaningful on success.
         };
 
         /// @brief Materialized monitor enumeration result.
@@ -839,8 +839,8 @@ namespace GameWIP::Window
 
     private:
         friend struct Detail::WindowAccess;
-        std::unique_ptr<Detail::WindowState> state_;
-        std::uint64_t pointerHitMaskGeneration_ = 0;
-        bool pointerHitMaskGenerationExhausted_ = false;
+        std::unique_ptr<Detail::WindowState> state_;     ///< Stable-address internal state for the current lifetime.
+        std::uint64_t pointerHitMaskGeneration_ = 0;     ///< Monotonic mask-publication generation across reopen.
+        bool pointerHitMaskGenerationExhausted_ = false; ///< Sticky guard against generation wrap and stale reuse.
     };
 } // namespace GameWIP::Window

@@ -24,12 +24,15 @@
 
 namespace GameWIP::Window::Detail::Platform
 {
-    inline constexpr UINT kBaselineDpi = 96;
-    inline constexpr wchar_t kWindowClassName[] = L"GameWIP.Window.TopLevel";
-    inline constexpr std::uint32_t kMaximumChromeRegions = 256;
-    inline constexpr std::uint32_t kMaximumPointerRegions = 256;
+    inline constexpr UINT kBaselineDpi = 96;                                  ///< Win32 logical-coordinate baseline.
+    inline constexpr wchar_t kWindowClassName[] = L"GameWIP.Window.TopLevel"; ///< Process-wide registered class name.
+    inline constexpr std::uint32_t kMaximumChromeRegions = 256;               ///< Copied custom-chrome region limit.
+    inline constexpr std::uint32_t kMaximumPointerRegions = 256;              ///< Copied pointer-region limit.
 
     /// @brief Backend-owned state for one native HWND.
+    /// @details The owning WindowState has a stable address while this record is registered.
+    /// Native handles are released by the owner thread; icon and display-mode members record
+    /// resources that must be restored or destroyed during rollback and close.
     struct WindowData
     {
         WindowState *owner = nullptr;
@@ -61,6 +64,9 @@ namespace GameWIP::Window::Detail::Platform
     };
 
     /// @brief One native message dispatcher per Window-owning thread.
+    /// @details The thread-local dispatcher owns deferred cleanup transferred from wrong-thread
+    /// destructors. deferredMutex protects only the transfer list; the Window list, pump state,
+    /// and active result remain owner-thread-only.
     struct Dispatcher
     {
         explicit Dispatcher(DWORD owningThreadId) noexcept;
@@ -68,14 +74,18 @@ namespace GameWIP::Window::Detail::Platform
         Dispatcher(const Dispatcher &) = delete;
         Dispatcher &operator=(const Dispatcher &) = delete;
 
-        DWORD threadId = 0;
-        std::vector<WindowState *> windows;
-        std::mutex deferredMutex;
-        std::unique_ptr<WindowState> deferredCleanupHead;
-        bool pumping = false;
-        Types::EventPumpResult *activeResult = nullptr;
+        DWORD threadId = 0;                               ///< Native identity of the owning thread.
+        std::vector<WindowState *> windows;               ///< Non-owning registered states on this thread.
+        std::mutex deferredMutex;                         ///< Synchronizes cross-thread cleanup transfer.
+        std::unique_ptr<WindowState> deferredCleanupHead; ///< Intrusive chain awaiting owner-thread cleanup.
+        bool pumping = false;                             ///< Reentrancy guard for the native message pump.
+        Types::EventPumpResult *activeResult = nullptr;   ///< Call-scoped accumulator during a pump.
     };
 
+    /// @name Dispatcher and routing helpers
+    /// These helpers operate on the calling thread's dispatcher. Registered WindowState pointers
+    /// remain valid until explicit unregister or deferred owner-thread cleanup.
+    /// @{
     [[nodiscard]] Dispatcher &dispatcher() noexcept;
     [[nodiscard]] UINT wakeMessage() noexcept;
     void routeEvent(WindowState &state, Types::EventData data) noexcept;
@@ -83,7 +93,12 @@ namespace GameWIP::Window::Detail::Platform
     void registerOpenState(WindowState &state);
     void unregisterOpenState(WindowState &state) noexcept;
     [[nodiscard]] WindowState *resolveWindowId(Types::WindowId id) noexcept;
+    /// @}
 
+    /// @name Native conversion helpers
+    /// Conversion functions preserve the most useful Win32 code for translation at the portable
+    /// boundary and never expose partially converted output as a successful result.
+    /// @{
     [[nodiscard]] IO::Types::Status statusFromWin32(IO::Types::ErrorCode fallback, DWORD nativeCode, std::string_view operation) noexcept;
     [[nodiscard]] IO::Types::Status statusFromDisplayChange(LONG nativeCode, std::string_view operation) noexcept;
     [[nodiscard]] bool utf8ToUtf16(std::string_view text, std::wstring &output, DWORD &nativeCode);
@@ -91,6 +106,7 @@ namespace GameWIP::Window::Detail::Platform
     [[nodiscard]] UINT dpiForWindow(HWND window) noexcept;
     [[nodiscard]] bool logicalToPhysicalChecked(std::int32_t value, UINT dpi, LONG &output) noexcept;
     [[nodiscard]] LONG logicalToPhysical(std::int32_t value, UINT dpi) noexcept;
+    /// @}
     [[nodiscard]] std::int32_t physicalToLogical(LONG value, UINT dpi) noexcept;
     [[nodiscard]] Types::PixelSize logicalToPhysicalSize(Types::LogicalSize value, UINT dpi) noexcept;
     [[nodiscard]] Types::LogicalSize physicalToLogicalSize(std::uint32_t width, std::uint32_t height, UINT dpi) noexcept;

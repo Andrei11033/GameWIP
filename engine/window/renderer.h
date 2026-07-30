@@ -34,8 +34,8 @@ namespace GameWIP::Window::Types
     /// @brief Status and current display-color information.
     struct DisplayColorInfoResult
     {
-        IO::Types::Status status;
-        DisplayColorInfo info;
+        IO::Types::Status status; ///< Query status.
+        DisplayColorInfo info;    ///< Current display-color facts on success.
     };
 } // namespace GameWIP::Window::Types
 
@@ -53,8 +53,8 @@ namespace GameWIP::Window::Renderer
     /// @brief Status and target returned when beginning a packed-mask update.
     struct PointerHitMaskTargetResult
     {
-        IO::Types::Status status;
-        PointerHitMaskTarget target;
+        IO::Types::Status status;    ///< Begin-update status.
+        PointerHitMaskTarget target; ///< New publication target on success.
     };
 
     /// @brief Attaches the sole authoritative occlusion provider.

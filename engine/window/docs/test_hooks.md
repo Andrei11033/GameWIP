@@ -1,4 +1,4 @@
-@page window_test_hooks Window test hooks
+@page window_test_hooks Test hooks
 
 ## Availability
 

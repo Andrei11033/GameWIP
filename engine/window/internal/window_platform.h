@@ -16,31 +16,35 @@ namespace GameWIP::Window::Detail::Platform
     /// @brief Backend-neutral native facts converted into the public display-color result.
     struct DisplayColorSnapshot
     {
-        Types::DisplayColorSpace activeColorSpace = Types::DisplayColorSpace::Unknown;
-        bool wideColorGamutSupported = false;
-        bool hdrSupported = false;
-        bool hdrEnabled = false;
-        std::uint32_t bitsPerColorChannel = 0;
-        float minimumLuminanceNits = 0.0F;
-        float maximumLuminanceNits = 0.0F;
-        float maximumFullFrameLuminanceNits = 0.0F;
-        std::uint32_t sdrWhiteLevelMilli80Nits = 0;
+        Types::DisplayColorSpace activeColorSpace = Types::DisplayColorSpace::Unknown; ///< Classified active output mode.
+        bool wideColorGamutSupported = false;                                          ///< Native advanced-color support.
+        bool hdrSupported = false;                                                     ///< Native HDR support independent of enablement.
+        bool hdrEnabled = false;                                                       ///< Current operating-system HDR state.
+        std::uint32_t bitsPerColorChannel = 0;                                         ///< Native precision before public saturation.
+        float minimumLuminanceNits = 0.0F;                                             ///< Sanitized minimum luminance, or zero.
+        float maximumLuminanceNits = 0.0F;                                             ///< Sanitized peak luminance, or zero.
+        float maximumFullFrameLuminanceNits = 0.0F;                                    ///< Sanitized full-frame luminance, or zero.
+        std::uint32_t sdrWhiteLevelMilli80Nits = 0;                                    ///< DisplayConfig white level in 1/1000 of 80 nits.
     };
 
     /// @brief Close result distinguishes retryable ownership from late cleanup diagnostics.
     struct CloseResult
     {
-        IO::Types::Status status;
-        bool resourceClosed = false;
+        IO::Types::Status status;    ///< Cleanup result or late diagnostic.
+        bool resourceClosed = false; ///< Whether native ownership ended despite the status.
     };
 
     /// @brief Internal native handles represented without native public-header dependencies.
     struct NativeHandleView
     {
-        void *instance = nullptr;
-        void *window = nullptr;
+        void *instance = nullptr; ///< Non-owning platform module handle.
+        void *window = nullptr;   ///< Non-owning native window handle.
     };
 
+    /// @name Process and monitor operations
+    /// These operations translate native failures into public result values and retain no
+    /// caller-owned views after returning.
+    /// @{
     [[nodiscard]] Types::CapabilitiesResult getCapabilities() noexcept;
     [[nodiscard]] Types::EventPumpResult pumpEvents(std::chrono::milliseconds timeout, bool wait) noexcept;
     [[nodiscard]] Types::MonitorListResult getMonitors() noexcept;
@@ -52,7 +56,12 @@ namespace GameWIP::Window::Detail::Platform
     [[nodiscard]] Types::DisplayColorInfoResult getDisplayColorInfo(Types::MonitorId monitor) noexcept;
     [[nodiscard]] Types::DisplayColorInfo makeDisplayColorInfo(Types::MonitorId monitor, const DisplayColorSnapshot &snapshot) noexcept;
     [[nodiscard]] bool consumeDisplayColorConfigurationChange() noexcept;
+    /// @}
 
+    /// @name Native lifetime operations
+    /// Open-state operations require the owning thread. Cleanup either leaves a retryable live
+    /// resource, completes synchronously, or transfers the complete state owner to its dispatcher.
+    /// @{
     [[nodiscard]] IO::Types::Status open(WindowState &state, const Types::Description &description) noexcept;
     [[nodiscard]] CloseResult close(WindowState &state) noexcept;
     void closeBestEffort(WindowState &state) noexcept;
@@ -61,7 +70,12 @@ namespace GameWIP::Window::Detail::Platform
     [[nodiscard]] bool hasLiveNativeWindow(const WindowState &state) noexcept;
     [[nodiscard]] IO::Types::Status wakeEventWait(const WindowState &state) noexcept;
     [[nodiscard]] NativeHandleView nativeHandle(const WindowState &state) noexcept;
+    /// @}
 
+    /// @name Native state mutations
+    /// Inputs are validated and copied by portable core code before this boundary. Backends update
+    /// the authoritative WindowState only after the corresponding native transition succeeds.
+    /// @{
     [[nodiscard]] IO::Types::Status setOwner(WindowState &state, Types::WindowId owner) noexcept;
     [[nodiscard]] IO::Types::Status setTitle(WindowState &state, std::string_view utf8Title) noexcept;
     [[nodiscard]] IO::Types::Status setIcon(WindowState &state, std::span<const Types::IconImageView> images) noexcept;
@@ -97,4 +111,5 @@ namespace GameWIP::Window::Detail::Platform
     [[nodiscard]] IO::Types::Status setCursorShape(WindowState &state, Types::CursorShape shape) noexcept;
     [[nodiscard]] IO::Types::Status setCursorPosition(WindowState &state, Types::LogicalPosition position) noexcept;
     [[nodiscard]] Types::LogicalPositionResult cursorPosition(const WindowState &state) noexcept;
+    /// @}
 } // namespace GameWIP::Window::Detail::Platform
