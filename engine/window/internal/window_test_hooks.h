@@ -67,12 +67,20 @@ namespace GameWIP::Window::TestHooks
     /// @brief Destroys the live HWND without entering the explicit-close path.
     /// @details Exercises unexpected native destruction and pending finalization.
     [[nodiscard]] GAMEWIP_WINDOW_EXPORT IO::Types::Status destroyNativeWindow(Window &window) noexcept;
+    /// @brief Enables the backend-independent HitMask bridge without advertising native support.
+    GAMEWIP_WINDOW_EXPORT void enablePointerHitMaskBridge(Window &window) noexcept;
+    /// @brief Sets the persistent generation for deterministic overflow validation.
+    GAMEWIP_WINDOW_EXPORT void setPointerHitMaskGeneration(Window &window, std::uint64_t generation) noexcept;
+    /// @brief Samples the production packed-mask helper in logical client coordinates.
+    [[nodiscard]] GAMEWIP_WINDOW_EXPORT bool pointerHitMaskAccepts(
+        const Window &window,
+        Types::LogicalPosition position) noexcept;
 
     /// @brief Exercises fullscreen-target removal recovery without changing display topology.
     [[nodiscard]] GAMEWIP_WINDOW_EXPORT IO::Types::Status simulateFullscreenMonitorRemoval(Window &window) noexcept;
 
-    /// @brief Returns the active packed pointer-mask revision.
-    [[nodiscard]] GAMEWIP_WINDOW_EXPORT std::uint64_t pointerHitMaskRevision(const Window &window) noexcept;
+    /// @brief Returns the active packed pointer-mask generation.
+    [[nodiscard]] GAMEWIP_WINDOW_EXPORT std::uint64_t pointerHitMaskGeneration(const Window &window) noexcept;
     /// @brief Returns the active packed pointer-mask word count.
     [[nodiscard]] GAMEWIP_WINDOW_EXPORT std::size_t pointerHitMaskWordCount(const Window &window) noexcept;
     /// @brief Returns one active packed pointer-mask word, or zero outside the active range.

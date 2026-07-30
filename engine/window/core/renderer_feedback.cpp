@@ -85,18 +85,56 @@ namespace GameWIP::Window::Renderer
         return (pixels + bitsPerWord - 1) / bitsPerWord;
     }
 
+    PointerHitMaskTargetResult beginPointerHitMaskUpdate(Window &window) noexcept
+    {
+        Detail::WindowState *state = nullptr;
+        IO::Types::Status status = requireOwner(window, state);
+        if (!status.ok())
+            return {.status = status};
+        if (!window.supports(Types::Capability::PointerHitMask) && !state->pointerHitMaskBackendSupportedForTesting)
+            return {.status = IO::makeStatus(IO::Types::ErrorCode::Unsupported)};
+        if (state->nativeDestroyedPendingFinalize)
+            return {.status = IO::makeStatus(IO::Types::ErrorCode::ResourceBusy)};
+        if (state->pointerHitMaskGeneration == nullptr || state->pointerHitMaskGenerationExhausted == nullptr ||
+            *state->pointerHitMaskGenerationExhausted ||
+            *state->pointerHitMaskGeneration == std::numeric_limits<std::uint64_t>::max())
+        {
+            if (state->pointerHitMaskGenerationExhausted != nullptr)
+                *state->pointerHitMaskGenerationExhausted = true;
+            state->pointerHitMaskTargetGeneration = 0;
+            return {.status = IO::makeStatus(IO::Types::ErrorCode::ResourceBusy)};
+        }
+
+        const std::size_t required = requiredPointerHitMaskWords(state->framebufferSize);
+        if (required == 0)
+            return {.status = IO::makeStatus(IO::Types::ErrorCode::InvalidArgument)};
+
+        const std::uint64_t generation = ++*state->pointerHitMaskGeneration;
+        state->pointerHitMaskTargetGeneration = generation;
+        state->pointerHitMaskTargetSize = state->framebufferSize;
+        state->pointerHitMaskTargetWordCount = required;
+        return {
+            .status = IO::successStatus(),
+            .target = {
+                .generation = generation,
+                .framebufferSize = state->framebufferSize,
+                .requiredWordCount = required}};
+    }
+
     IO::Types::Status publishPointerHitMask(
         Window &window,
-        Types::PixelSize size,
-        std::uint64_t revision,
+        std::uint64_t generation,
         std::span<const std::uint64_t> words) noexcept
     {
         Detail::WindowState *state = nullptr;
         IO::Types::Status status = requireOwner(window, state);
         if (!status.ok())
             return status;
-        const std::size_t required = requiredPointerHitMaskWords(size);
-        if (required == 0 || required != words.size() || size != state->framebufferSize || revision == 0)
+        if (generation == 0 || generation != state->pointerHitMaskTargetGeneration)
+            return IO::makeStatus(IO::Types::ErrorCode::Interrupted);
+        const Types::PixelSize size = state->pointerHitMaskTargetSize;
+        const std::size_t required = state->pointerHitMaskTargetWordCount;
+        if (required == 0 || required != words.size() || size != state->framebufferSize)
             return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
         const std::size_t pixelCount = static_cast<std::size_t>(size.width) * size.height;
         const unsigned int trailingBitCount = static_cast<unsigned int>(pixelCount % 64U);
@@ -106,13 +144,14 @@ namespace GameWIP::Window::Renderer
             if ((words.back() & ~validBits) != 0)
                 return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
         }
-        if (revision <= state->pointerHitMaskRevision)
-            return IO::makeStatus(IO::Types::ErrorCode::ResourceBusy);
         if (state->pointerHitMask.size() == required)
         {
             std::copy(words.begin(), words.end(), state->pointerHitMask.begin());
-            state->pointerHitMaskRevision = revision;
+            state->pointerHitMaskActiveGeneration = generation;
             state->pointerHitMaskSize = size;
+            state->pointerHitMaskTargetGeneration = 0;
+            state->pointerHitMaskTargetSize = {};
+            state->pointerHitMaskTargetWordCount = 0;
             return IO::successStatus();
         }
         try
@@ -121,8 +160,11 @@ namespace GameWIP::Window::Renderer
                 return IO::makeStatus(IO::Types::ErrorCode::OutOfMemory);
             std::vector<std::uint64_t> replacement(words.begin(), words.end());
             state->pointerHitMask.swap(replacement);
-            state->pointerHitMaskRevision = revision;
+            state->pointerHitMaskActiveGeneration = generation;
             state->pointerHitMaskSize = size;
+            state->pointerHitMaskTargetGeneration = 0;
+            state->pointerHitMaskTargetSize = {};
+            state->pointerHitMaskTargetWordCount = 0;
             return IO::successStatus();
         }
         catch (const std::bad_alloc &)
@@ -141,9 +183,14 @@ namespace GameWIP::Window::Renderer
         IO::Types::Status status = requireOwner(window, state);
         if (!status.ok())
             return status;
-        state->pointerHitMask.clear();
-        state->pointerHitMaskSize = {};
-        state->pointerHitMaskRevision = 0;
+        Detail::invalidatePointerHitMask(*state);
         return IO::successStatus();
+    }
+
+    bool hasPointerHitMask(const Window &window) noexcept
+    {
+        const Detail::WindowState *state = Detail::WindowAccess::state(window);
+        return state != nullptr && window.isOpen() && window.isOwnedByCurrentThread() && !state->pointerHitMask.empty() &&
+               state->pointerHitMaskActiveGeneration != 0 && state->pointerHitMaskSize == state->framebufferSize;
     }
 } // namespace GameWIP::Window::Renderer

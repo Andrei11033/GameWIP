@@ -18,7 +18,7 @@ The portable enum does not by itself prove native region support. Rectangular mo
 
 ## Packed pointer mask
 
-The optional @ref window_renderer_integration bridge stores one bit per physical framebuffer pixel. Zero means pass through and one means accept. The mask is persistent across movement, invalidated by framebuffer resizing, and protected by monotonically increasing publication revisions.
+The optional @ref window_renderer_integration bridge stores one bit per physical framebuffer pixel. Zero requests pass-through and one accepts. Window-generated generations protect asynchronous publication. Movement preserves the mask; framebuffer changes, clear, destruction, close, and reopen invalidate it. Win32 keeps the capability false because it lacks documented arbitrary cross-application per-pixel pass-through.
 
 Window storage of a mask does not imply that the backend can perform genuine per-pixel desktop routing. The Win32 backend does not advertise per-pixel routing; publication remains an integration/storage contract rather than a passthrough guarantee.
 

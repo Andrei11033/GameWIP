@@ -265,7 +265,8 @@ namespace GameWIP::Window
         template <> bool validEnum(Types::PointerInputMode value) noexcept
         {
             return value == Types::PointerInputMode::Normal || value == Types::PointerInputMode::ClickThrough ||
-                   value == Types::PointerInputMode::AcceptRegions || value == Types::PointerInputMode::IgnoreRegions;
+                   value == Types::PointerInputMode::AcceptRegions || value == Types::PointerInputMode::IgnoreRegions ||
+                   value == Types::PointerInputMode::HitMask;
         }
 
         template <> bool validEnum(Types::BackdropEffect value) noexcept
@@ -311,7 +312,8 @@ namespace GameWIP::Window
                 !validLimits(description.sizeLimits) || !sizeWithin(description.clientSize, description.sizeLimits) ||
                 !validRatio(description.aspectRatio) || !validEnum(description.cursorMode) || !validEnum(description.cursorShape) ||
                 !validEnum(description.pointerInputMode) || description.pointerInputMode == Types::PointerInputMode::AcceptRegions ||
-                description.pointerInputMode == Types::PointerInputMode::IgnoreRegions || !validEnum(description.backdropEffect) ||
+                description.pointerInputMode == Types::PointerInputMode::IgnoreRegions ||
+                description.pointerInputMode == Types::PointerInputMode::HitMask || !validEnum(description.backdropEffect) ||
                 !validEnum(description.dpiResizePolicy) || (!description.resizable && description.controls.maximizable) ||
                 !std::isfinite(description.opacity) || description.opacity < 0.0F || description.opacity > 1.0F ||
                 (!description.visible && (description.requestFocus || description.presentation != Types::PresentationState::Normal)) ||
@@ -429,6 +431,9 @@ namespace GameWIP::Window
     {
         if (state_)
         {
+            Detail::invalidatePointerHitMask(*state_);
+            state_->pointerHitMaskGeneration = nullptr;
+            state_->pointerHitMaskGenerationExhausted = nullptr;
             if (!Detail::Platform::isOwnedByCurrentThread(*state_) &&
                 Detail::Platform::deferCleanupToOwner(state_))
             {
@@ -466,6 +471,7 @@ namespace GameWIP::Window
         try
         {
             auto candidate = std::make_unique<Detail::WindowState>();
+            Detail::WindowAccess::bindPointerHitMaskLifetime(*this, *candidate);
             initializeCachedState(*candidate, description);
             if (eventQueueCapacity > candidate->internalEvents.max_size())
             {
@@ -516,6 +522,7 @@ namespace GameWIP::Window
         try
         {
             auto candidate = std::make_unique<Detail::WindowState>();
+            Detail::WindowAccess::bindPointerHitMaskLifetime(*this, *candidate);
             initializeCachedState(*candidate, description);
             candidate->eventStorage = eventStorage;
             candidate->eventStorageKind = Types::EventStorageKind::External;
@@ -565,6 +572,7 @@ namespace GameWIP::Window
         if (state_ && !Detail::Platform::isOwnedByCurrentThread(*state_))
             return error(ErrorCode::ResourceBusy);
 
+        Detail::invalidatePointerHitMask(*state_);
         Detail::Platform::CloseResult result = Detail::Platform::close(*state_);
         if (result.resourceClosed)
         {
@@ -1196,6 +1204,9 @@ namespace GameWIP::Window
             return error(ErrorCode::Unsupported);
         }
         if (regionMode && !capabilities.capabilities.supports(Types::Capability::PointerRegions))
+            return error(ErrorCode::Unsupported);
+        if (layout.mode == Types::PointerInputMode::HitMask &&
+            !capabilities.capabilities.supports(Types::Capability::PointerHitMask))
             return error(ErrorCode::Unsupported);
         if (layout.regions.size() > capabilities.capabilities.maximumPointerInputRegions)
         {

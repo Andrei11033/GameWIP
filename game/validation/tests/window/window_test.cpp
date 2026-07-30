@@ -527,6 +527,12 @@ namespace
         if (!window.isOpen())
             return;
 
+        static_cast<void>(context.expectEq(
+            "unadvertised native HitMask bridge is unsupported",
+            ErrorCode::Unsupported,
+            Feedback::beginPointerHitMaskUpdate(window).status.code));
+        Window::TestHooks::enablePointerHitMaskBridge(window);
+
         Window::Types::PixelSize size = window.framebufferSize();
         if ((static_cast<std::size_t>(size.width) * size.height) % 64U == 0)
         {
@@ -539,15 +545,21 @@ namespace
         const std::size_t lastPixel = static_cast<std::size_t>(size.width) * size.height - 1U;
         words[lastPixel / 64U] |= std::uint64_t{1} << (lastPixel % 64U);
 
+        const Feedback::PointerHitMaskTargetResult first = Feedback::beginPointerHitMaskUpdate(window);
+        static_cast<void>(context.expectTrue("Window creates a nonzero mask generation", first.status.ok() && first.target.generation != 0));
+        static_cast<void>(context.expectEq("target snapshots framebuffer size", size, first.target.framebufferSize));
+        static_cast<void>(context.expectEq("target reports exact word count", wordCount, first.target.requiredWordCount));
         Window::TestHooks::failNext(Window::TestHooks::FailurePoint::Allocation);
         static_cast<void>(context.expectEq(
             "first mask allocation failure is reported",
             ErrorCode::OutOfMemory,
-            Feedback::publishPointerHitMask(window, size, 1, words).code));
+            Feedback::publishPointerHitMask(window, first.target.generation, words).code));
         static_cast<void>(
             context.expectEq("failed first publication keeps no mask", std::size_t{0}, Window::TestHooks::pointerHitMaskWordCount(window)));
 
-        static_cast<void>(context.expectTrue("first mask publication succeeds", Feedback::publishPointerHitMask(window, size, 1, words).ok()));
+        static_cast<void>(
+            context.expectTrue("first mask publication succeeds", Feedback::publishPointerHitMask(window, first.target.generation, words).ok()));
+        static_cast<void>(context.expectTrue("active mask is reported", Feedback::hasPointerHitMask(window)));
         static_cast<void>(context.expectEq(
             "mask stores exact word count",
             wordCount,
@@ -559,20 +571,36 @@ namespace
         static_cast<void>(context.expectTrue(
             "mask stores last physical pixel",
             (Window::TestHooks::pointerHitMaskWord(window, lastPixel / 64U) & (std::uint64_t{1} << (lastPixel % 64U))) != 0));
+        static_cast<void>(context.expectTrue(
+            "first logical position samples the first interactive pixel",
+            Window::TestHooks::pointerHitMaskAccepts(window, {0, 0})));
+        static_cast<void>(context.expectTrue(
+            "out-of-range sampling uses interactive fallback",
+            Window::TestHooks::pointerHitMaskAccepts(window, {-1, -1})));
 
         const void *storage = Window::TestHooks::pointerHitMaskStorage(window);
         words.front() = 2;
-        static_cast<void>(context.expectTrue("newer same-size mask succeeds", Feedback::publishPointerHitMask(window, size, 2, words).ok()));
+        const Feedback::PointerHitMaskTargetResult stale = Feedback::beginPointerHitMaskUpdate(window);
+        const Feedback::PointerHitMaskTargetResult newer = Feedback::beginPointerHitMaskUpdate(window);
+        static_cast<void>(context.expectTrue(
+            "Window generations increase monotonically",
+            stale.status.ok() && newer.status.ok() && newer.target.generation > stale.target.generation));
+        static_cast<void>(context.expectEq(
+            "superseded outstanding update is interrupted",
+            ErrorCode::Interrupted,
+            Feedback::publishPointerHitMask(window, stale.target.generation, words).code));
+        static_cast<void>(
+            context.expectTrue("newer same-size mask succeeds", Feedback::publishPointerHitMask(window, newer.target.generation, words).ok()));
         static_cast<void>(
             context.expectEq("same-size publication reuses storage", storage, Window::TestHooks::pointerHitMaskStorage(window)));
         static_cast<void>(context.expectEq(
             "newer publication updates revision",
-            std::uint64_t{2},
-            Window::TestHooks::pointerHitMaskRevision(window)));
+            newer.target.generation,
+            Window::TestHooks::pointerHitMaskGeneration(window)));
         static_cast<void>(context.expectEq(
             "stale publication is rejected",
-            ErrorCode::ResourceBusy,
-            Feedback::publishPointerHitMask(window, size, 1, words).code));
+            ErrorCode::Interrupted,
+            Feedback::publishPointerHitMask(window, newer.target.generation, words).code));
         static_cast<void>(context.expectEq(
             "stale publication preserves active data",
             std::uint64_t{2},
@@ -582,29 +610,58 @@ namespace
         {
             std::vector<std::uint64_t> invalidTrailing = words;
             invalidTrailing.back() |= std::uint64_t{1} << 63U;
+            const Feedback::PointerHitMaskTargetResult trailing = Feedback::beginPointerHitMaskUpdate(window);
             static_cast<void>(context.expectEq(
                 "set trailing bits are rejected",
                 ErrorCode::InvalidArgument,
-                Feedback::publishPointerHitMask(window, size, 3, invalidTrailing).code));
+                Feedback::publishPointerHitMask(window, trailing.target.generation, invalidTrailing).code));
             static_cast<void>(context.expectEq(
                 "invalid trailing bits preserve revision",
-                std::uint64_t{2},
-                Window::TestHooks::pointerHitMaskRevision(window)));
+                newer.target.generation,
+                Window::TestHooks::pointerHitMaskGeneration(window)));
         }
 
         const Window::Types::ScreenPosition originalPosition = window.clientPosition();
         static_cast<void>(window.setClientPosition({originalPosition.x + 1, originalPosition.y + 1}));
         static_cast<void>(context.expectEq(
             "movement preserves active mask revision",
-            std::uint64_t{2},
-            Window::TestHooks::pointerHitMaskRevision(window)));
+            newer.target.generation,
+            Window::TestHooks::pointerHitMaskGeneration(window)));
+        const Feedback::PointerHitMaskTargetResult beforeResize = Feedback::beginPointerHitMaskUpdate(window);
         static_cast<void>(window.setClientSize({window.clientSize().width + 1, window.clientSize().height}));
         static_cast<void>(context.expectEq(
             "framebuffer resize invalidates active mask",
             std::uint64_t{0},
-            Window::TestHooks::pointerHitMaskRevision(window)));
+            Window::TestHooks::pointerHitMaskGeneration(window)));
+        static_cast<void>(context.expectFalse("resize removes active-mask state", Feedback::hasPointerHitMask(window)));
+        static_cast<void>(context.expectEq(
+            "pre-resize update is interrupted",
+            ErrorCode::Interrupted,
+            Feedback::publishPointerHitMask(window, beforeResize.target.generation, words).code));
         static_cast<void>(context.expectTrue("mask clear is idempotent", Feedback::clearPointerHitMask(window).ok()));
+
+        const Feedback::PointerHitMaskTargetResult beforeClose = Feedback::beginPointerHitMaskUpdate(window);
         static_cast<void>(context.expectTrue("pointer-mask fixture closes", window.close().ok()));
+        static_cast<void>(context.expectTrue("pointer-mask fixture reopens", window.open(description, 8).ok()));
+        if (window.isOpen())
+        {
+            Window::TestHooks::enablePointerHitMaskBridge(window);
+            static_cast<void>(context.expectEq(
+                "pre-close generation stays stale after reopen",
+                ErrorCode::Interrupted,
+                Feedback::publishPointerHitMask(window, beforeClose.target.generation, words).code));
+            Window::TestHooks::setPointerHitMaskGeneration(window, std::numeric_limits<std::uint64_t>::max() - 1U);
+            const Feedback::PointerHitMaskTargetResult lastGeneration = Feedback::beginPointerHitMaskUpdate(window);
+            static_cast<void>(context.expectEq(
+                "last representable generation is deterministic",
+                std::numeric_limits<std::uint64_t>::max(),
+                lastGeneration.target.generation));
+            static_cast<void>(context.expectEq(
+                "generation overflow never wraps",
+                ErrorCode::ResourceBusy,
+                Feedback::beginPointerHitMaskUpdate(window).status.code));
+            static_cast<void>(window.close());
+        }
     }
 #endif
 

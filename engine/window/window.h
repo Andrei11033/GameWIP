@@ -294,7 +294,8 @@ namespace GameWIP::Window
             Normal,        ///< Accept throughout the client.
             ClickThrough,  ///< Pass the complete native Window through to underlying desktop windows.
             AcceptRegions, ///< Accept only inside configured rectangles.
-            IgnoreRegions  ///< Pass through inside configured rectangles.
+            IgnoreRegions, ///< Pass through inside configured rectangles.
+            HitMask        ///< Use the renderer-published physical-pixel mask when supported.
         };
 
         /// @brief Optional platform backdrop treatment.
@@ -395,6 +396,7 @@ namespace GameWIP::Window
             SystemBackdrop,
             PointerClickThrough,
             PointerRegions,
+            PointerHitMask,
             CursorConfinement,
             RelativeCursor,
             CursorWarping,
@@ -838,5 +840,7 @@ namespace GameWIP::Window
     private:
         friend struct Detail::WindowAccess;
         std::unique_ptr<Detail::WindowState> state_;
+        std::uint64_t pointerHitMaskGeneration_ = 0;
+        bool pointerHitMaskGenerationExhausted_ = false;
     };
 } // namespace GameWIP::Window

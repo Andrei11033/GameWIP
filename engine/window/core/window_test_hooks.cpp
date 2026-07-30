@@ -36,6 +36,30 @@ namespace GameWIP::Window::TestHooks
         armedFailure = FailurePoint::None;
     }
 
+    void enablePointerHitMaskBridge(Window &window) noexcept
+    {
+        Detail::WindowState *state = Detail::WindowAccess::state(window);
+        if (state != nullptr)
+            state->pointerHitMaskBackendSupportedForTesting = true;
+    }
+
+    void setPointerHitMaskGeneration(Window &window, std::uint64_t generation) noexcept
+    {
+        Detail::WindowState *state = Detail::WindowAccess::state(window);
+        if (state != nullptr && state->pointerHitMaskGeneration != nullptr)
+        {
+            *state->pointerHitMaskGeneration = generation;
+            *state->pointerHitMaskGenerationExhausted = false;
+            state->pointerHitMaskTargetGeneration = 0;
+        }
+    }
+
+    bool pointerHitMaskAccepts(const Window &window, Types::LogicalPosition position) noexcept
+    {
+        const Detail::WindowState *state = Detail::WindowAccess::state(window);
+        return state == nullptr || Detail::pointerHitMaskAccepts(*state, position);
+    }
+
     IO::Types::Status openPortable(Window &window, std::span<Types::Event> storage) noexcept
     {
         if (Detail::WindowAccess::state(window) != nullptr)
@@ -80,10 +104,10 @@ namespace GameWIP::Window::TestHooks
         return IO::successStatus();
     }
 
-    std::uint64_t pointerHitMaskRevision(const Window &window) noexcept
+    std::uint64_t pointerHitMaskGeneration(const Window &window) noexcept
     {
         const Detail::WindowState *state = Detail::WindowAccess::state(window);
-        return state != nullptr ? state->pointerHitMaskRevision : 0;
+        return state != nullptr ? state->pointerHitMaskActiveGeneration : 0;
     }
 
     std::size_t pointerHitMaskWordCount(const Window &window) noexcept

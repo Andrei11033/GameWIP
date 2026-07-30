@@ -6,6 +6,7 @@
 #include "window/window.h"
 
 #include <memory>
+#include <limits>
 #include <span>
 #include <thread>
 #include <vector>
@@ -100,7 +101,13 @@ namespace GameWIP::Window::Detail
         bool occlusionProviderAttached = false;
         std::vector<std::uint64_t> pointerHitMask;
         Types::PixelSize pointerHitMaskSize;
-        std::uint64_t pointerHitMaskRevision = 0;
+        std::uint64_t pointerHitMaskActiveGeneration = 0;
+        std::uint64_t pointerHitMaskTargetGeneration = 0;
+        Types::PixelSize pointerHitMaskTargetSize;
+        std::size_t pointerHitMaskTargetWordCount = 0;
+        std::uint64_t *pointerHitMaskGeneration = nullptr;
+        bool *pointerHitMaskGenerationExhausted = nullptr;
+        bool pointerHitMaskBackendSupportedForTesting = false;
         bool cursorInside = false;
         bool resizable = true;
         bool focusable = true;
@@ -119,6 +126,46 @@ namespace GameWIP::Window::Detail
     /// @brief Sets sticky close intent and queues the first corresponding event.
     [[nodiscard]] EnqueueResult requestClose(WindowState &state, Types::CloseRequestSource source) noexcept;
 
+    /// @brief Invalidates active and outstanding mask state while retaining allocation capacity.
+    inline void invalidatePointerHitMask(WindowState &state) noexcept
+    {
+        state.pointerHitMask.clear();
+        state.pointerHitMaskSize = {};
+        state.pointerHitMaskActiveGeneration = 0;
+        state.pointerHitMaskTargetGeneration = 0;
+        state.pointerHitMaskTargetSize = {};
+        state.pointerHitMaskTargetWordCount = 0;
+        if (state.pointerHitMaskGeneration != nullptr && state.pointerHitMaskGenerationExhausted != nullptr)
+        {
+            if (*state.pointerHitMaskGeneration == std::numeric_limits<std::uint64_t>::max())
+                *state.pointerHitMaskGenerationExhausted = true;
+            else
+                ++*state.pointerHitMaskGeneration;
+        }
+    }
+
+    /// @brief Samples a logical client position with interactive fallback on every invalid condition.
+    [[nodiscard]] inline bool pointerHitMaskAccepts(const WindowState &state, Types::LogicalPosition position) noexcept
+    {
+        if (state.pointerHitMask.empty() || state.pointerHitMaskActiveGeneration == 0 ||
+            state.pointerHitMaskSize != state.framebufferSize || state.clientSize.width == 0 || state.clientSize.height == 0 ||
+            position.x < 0 || position.y < 0 || static_cast<std::uint32_t>(position.x) >= state.clientSize.width ||
+            static_cast<std::uint32_t>(position.y) >= state.clientSize.height)
+            return true;
+
+        const std::uint64_t x = static_cast<std::uint64_t>(position.x) * state.framebufferSize.width / state.clientSize.width;
+        const std::uint64_t y = static_cast<std::uint64_t>(position.y) * state.framebufferSize.height / state.clientSize.height;
+        if (x >= state.framebufferSize.width || y >= state.framebufferSize.height ||
+            y > (std::numeric_limits<std::size_t>::max() - x) / state.framebufferSize.width)
+            return true;
+        const std::size_t index = static_cast<std::size_t>(y * state.framebufferSize.width + x);
+        const std::size_t word = index / 64U;
+        if (word >= state.pointerHitMask.size())
+            return true;
+        const std::uint64_t stableWord = state.pointerHitMask[word];
+        return (stableWord & (std::uint64_t{1} << (index % 64U))) != 0;
+    }
+
     /// @brief Controlled private-state access for native adapters and approved test hooks.
     struct WindowAccess
     {
@@ -133,6 +180,11 @@ namespace GameWIP::Window::Detail
         [[nodiscard]] static std::unique_ptr<WindowState> &stateOwner(Window &window) noexcept
         {
             return window.state_;
+        }
+        static void bindPointerHitMaskLifetime(Window &window, WindowState &state) noexcept
+        {
+            state.pointerHitMaskGeneration = &window.pointerHitMaskGeneration_;
+            state.pointerHitMaskGenerationExhausted = &window.pointerHitMaskGenerationExhausted_;
         }
     };
 } // namespace GameWIP::Window::Detail

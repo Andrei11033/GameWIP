@@ -45,9 +45,11 @@ Renderer surface or swapchain creation remains a Renderer responsibility. Obtain
 
 ## Packed pointer hit masks
 
-`publishPointerHitMask()` accepts one row-major bit per physical framebuffer pixel, least-significant bit first within each 64-bit word. Unused high bits in the final word must be zero. Revisions must increase, so stale asynchronous GPU readbacks cannot replace newer data. Failures preserve the active mask; same-size publication reuses storage, movement preserves it, and framebuffer resizing invalidates it.
+`beginPointerHitMaskUpdate()` returns a Window-generated nonzero generation, a coherent physical framebuffer size, and the exact required word count. Renderer performs GPU work and asynchronous readback outside Window, then passes that generation and the completed words to `publishPointerHitMask()`. Beginning a newer update supersedes older unfinished work; clear, framebuffer changes, native destruction, close, finalization, and reopen invalidate it.
 
-Renderer owns GPU work, thresholding, bit packing, synchronization, and asynchronous readback. Use `requiredPointerHitMaskWords()` for exact storage sizing. Publication is owner-thread-only, rejects stale or zero revisions, and requires the supplied `PixelSize` to match the current framebuffer. `clearPointerHitMask()` removes the active mask.
+The packed format is row-major, top-left origin, one physical-framebuffer pixel per bit, least-significant bit first in each 64-bit word. Zero requests pass-through and one is interactive; unused trailing bits must be zero. Publication is owner-thread-only and copies before committing. Failures preserve the previous active mask, same-size updates reuse its allocation, clear may retain capacity, movement preserves it, and framebuffer changes invalidate it. Missing or invalid masks fall back to interactive.
+
+The Win32 backend does not advertise `PointerHitMask`: documented Win32 hit testing does not provide stable selected-pixel pass-through to arbitrary underlying applications without visual holes or synthetic input. Selecting `HitMask` and beginning an update therefore return `Unsupported` in production while the deterministic Window-owned bridge remains testable.
 
 Native per-pixel desktop routing is a separate capability. Publishing data does not make an unsupported backend claim passthrough support.
 

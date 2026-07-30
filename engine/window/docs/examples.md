@@ -151,19 +151,20 @@ The Renderer bridge defines how `presentWasOccluded` reaches the owner thread. R
 ```cpp
 #include <window/renderer.h>
 
-const auto size = window.framebufferSize();
+const auto target = GameWIP::Window::Renderer::beginPointerHitMaskUpdate(window);
+if (!target.status.ok()) return 1;
 std::vector<std::uint64_t> words(
-    GameWIP::Window::Renderer::requiredPointerHitMaskWords(size), 0);
+    target.target.requiredWordCount, 0);
 
 // Example: accept the first physical framebuffer pixel.
 if (!words.empty()) words[0] |= 1ULL;
 
 const auto status =
-    GameWIP::Window::Renderer::publishPointerHitMask(window, size, revision, words);
+    GameWIP::Window::Renderer::publishPointerHitMask(window, target.target.generation, words);
 if (!status.ok()) return 1;
 ```
 
-Run publication on the Window owner thread. Renderer owns thresholding and asynchronous readback; use monotonically increasing revisions so an older completion returns `ResourceBusy` instead of replacing newer data.
+Run begin and publication on the Window owner thread. Renderer owns thresholding and asynchronous readback; Window owns generations, and an older completion returns `Interrupted`.
 
 ## Monitor and display-mode enumeration
 
