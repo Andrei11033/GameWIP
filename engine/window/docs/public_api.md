@@ -38,7 +38,7 @@ Unexpected native destruction sets `lifetimeState()` to `NativeDestroyedPendingF
 
 ## Renderer feedback
 
-The optional `window/renderer.h` adapter accepts renderer occlusion feedback and packed pointer masks without making Renderer a Window dependency. See @ref window_renderer_integration.
+The optional `window/renderer.h` adapter accepts renderer occlusion feedback and packed pointer masks and exposes opt-in per-monitor display-color facts without making Renderer a Window dependency. Display color remains a dynamic query because support and active HDR/WCG state can differ by monitor and change while the process runs. See @ref window_renderer_integration.
 
 ## Status authority
 

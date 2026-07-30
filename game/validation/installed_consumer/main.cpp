@@ -35,6 +35,7 @@ int main()
     const GameWIP::Window::Types::LogicalSize windowSize{640, 360};
     GameWIP::Window::Window closedWindow;
     const GameWIP::IO::Types::Status rendererFeedbackStatus = GameWIP::Window::Renderer::attachOcclusionProvider(closedWindow);
+    const GameWIP::Window::Types::DisplayColorInfoResult displayColor = GameWIP::Window::Renderer::getWindowDisplayColorInfo(closedWindow);
 
     // Exercise the installed Assert macro surface through a normal consumer
     // target. The detailed behavior is covered by the source-tree Assert tests.
@@ -45,7 +46,8 @@ int main()
     static_cast<void>(windowCapabilities);
 
     return write.status.ok() && path.status.ok() && rendererFeedbackStatus.code == GameWIP::IO::Types::ErrorCode::NotOpen &&
-                   windowSize.width == 640 && loggerConfig.logDirectory == std::string_view{"logs"}
+                   displayColor.status.code == GameWIP::IO::Types::ErrorCode::NotOpen && windowSize.width == 640 &&
+                   loggerConfig.logDirectory == std::string_view{"logs"}
                ? 0
                : 1;
 }

@@ -45,6 +45,8 @@ namespace
     static_assert(noexcept(Window::pollEvents()));
     static_assert(noexcept(Window::waitEvents()));
     static_assert(noexcept(std::declval<Window::Window &>().close()));
+    static_assert(noexcept(Window::Renderer::getDisplayColorInfo({})));
+    static_assert(noexcept(Window::Renderer::getWindowDisplayColorInfo(std::declval<const Window::Window &>())));
     static_assert(std::is_same_v<decltype(Window::Types::FilesDroppedEvent{}.paths)::value_type, GameWIP::FileSystem::Types::Path>);
 
     template <typename Payload> [[nodiscard]] bool consumeEventOfType(Window::Window &window)
@@ -128,7 +130,7 @@ namespace
 
     void testDescriptionValidation(TestSupport::Context &context)
     {
-        const auto expectInvalid = [&context](std::string_view name, Window::Types::Description description)
+        const auto expectInvalid = [&context](std::string_view name, const Window::Types::Description &description)
         {
             Window::Window window;
             const IO::Types::Status status = window.open(description);
@@ -861,6 +863,142 @@ namespace
         }
     }
 
+    void testDisplayColorInformation(TestSupport::Context &context)
+    {
+        namespace Feedback = Window::Renderer;
+
+        Window::Window closed;
+        static_cast<void>(context.expectEq(
+            "closed Window rejects display-color query",
+            ErrorCode::NotOpen,
+            Feedback::getWindowDisplayColorInfo(closed).status.code));
+        static_cast<void>(context.expectEq(
+            "invalid monitor rejects display-color query",
+            ErrorCode::InvalidArgument,
+            Feedback::getDisplayColorInfo({}).status.code));
+        static_cast<void>(context.expectEq(
+            "disconnected monitor rejects display-color query",
+            ErrorCode::NotFound,
+            Feedback::getDisplayColorInfo({std::numeric_limits<std::uint64_t>::max()}).status.code));
+
+        const Window::Types::MonitorInfoResult primary = Window::getPrimaryMonitor();
+        static_cast<void>(context.expectTrue("display-color primary monitor resolves", primary.status.ok()));
+        if (!primary.status.ok())
+            return;
+
+        const Window::Types::DisplayColorInfoResult primaryColor = Feedback::getDisplayColorInfo(primary.monitor.id);
+        static_cast<void>(context.expectTrue("native display-color query succeeds", primaryColor.status.ok()));
+        if (primaryColor.status.ok())
+        {
+            static_cast<void>(context.expectEq("display-color result retains monitor identity", primary.monitor.id, primaryColor.info.monitor));
+            static_cast<void>(context.expectTrue(
+                "display-color channel precision is plausible",
+                primaryColor.info.bitsPerColorChannel == 0 || primaryColor.info.bitsPerColorChannel <= 64));
+            static_cast<void>(context.expectTrue(
+                "display-color luminance is nonnegative",
+                primaryColor.info.minimumLuminanceNits >= 0.0F && primaryColor.info.maximumLuminanceNits >= 0.0F &&
+                    primaryColor.info.maximumFullFrameLuminanceNits >= 0.0F && primaryColor.info.sdrWhiteLevelNits >= 0.0F));
+        }
+
+        Window::Types::Description description;
+        description.title = "Window display-color validation";
+        description.clientSize = {240, 160};
+        description.visible = false;
+        Window::Window window;
+        static_cast<void>(context.expectTrue("display-color Window fixture opens", window.open(description, 8).ok()));
+        if (!window.isOpen())
+            return;
+
+        const Window::Types::DisplayColorInfoResult windowColor = Feedback::getWindowDisplayColorInfo(window);
+        static_cast<void>(context.expectTrue("Window display-color query succeeds", windowColor.status.ok()));
+        if (windowColor.status.ok())
+            static_cast<void>(context.expectEq("Window color query uses its cached monitor", window.currentMonitor(), windowColor.info.monitor));
+
+        ErrorCode wrongThreadCode = ErrorCode::Success;
+        std::thread worker(
+            [&window, &wrongThreadCode]
+            {
+                wrongThreadCode = Feedback::getWindowDisplayColorInfo(window).status.code;
+            });
+        worker.join();
+        static_cast<void>(context.expectEq("wrong-thread Window color query is rejected", ErrorCode::ResourceBusy, wrongThreadCode));
+
+#if INTERNAL_WINDOW_TEST_HOOKS
+        Window::TestHooks::failNext(Window::TestHooks::FailurePoint::DisplayColorQuery);
+        static_cast<void>(context.expectEq(
+            "display-color native failure is translated",
+            ErrorCode::StatFailed,
+            Feedback::getDisplayColorInfo(window.currentMonitor()).status.code));
+
+        Window::TestHooks::makeNextDisplayColorMetadataUnavailable();
+        const Window::Types::DisplayColorInfoResult runtimeUnavailable = Feedback::getDisplayColorInfo(window.currentMonitor());
+        static_cast<void>(context.expectTrue("runtime metadata absence still succeeds", runtimeUnavailable.status.ok()));
+        static_cast<void>(context.expectEq(
+            "runtime metadata absence remains unknown",
+            Window::Types::DisplayColorSpace::Unknown,
+            runtimeUnavailable.info.activeColorSpace));
+        static_cast<void>(
+            context.expectEq("runtime metadata absence keeps zero precision", std::uint16_t{0}, runtimeUnavailable.info.bitsPerColorChannel));
+
+        const Window::Types::MonitorId fixtureMonitor{42};
+        const Window::Types::DisplayColorInfo unavailable = Window::TestHooks::makeDisplayColorInfo(fixtureMonitor, {});
+        static_cast<void>(context.expectEq("unavailable color metadata preserves identity", fixtureMonitor, unavailable.monitor));
+        static_cast<void>(
+            context.expectEq("unavailable color metadata remains unknown", Window::Types::DisplayColorSpace::Unknown, unavailable.activeColorSpace));
+        static_cast<void>(context.expectEq("unavailable color precision remains zero", std::uint16_t{0}, unavailable.bitsPerColorChannel));
+        static_cast<void>(context.expectNear("unavailable SDR white remains zero", 0.0, unavailable.sdrWhiteLevelNits, 0.001));
+
+        const Window::Types::DisplayColorInfo hdrDisabled = Window::TestHooks::makeDisplayColorInfo(
+            fixtureMonitor,
+            {.activeColorSpace = Window::Types::DisplayColorSpace::Srgb,
+             .wideColorGamutSupported = true,
+             .hdrSupported = true,
+             .hdrEnabled = false,
+             .bitsPerColorChannel = 10,
+             .minimumLuminanceNits = -1.0F,
+             .maximumLuminanceNits = 1000.0F,
+             .maximumFullFrameLuminanceNits = std::numeric_limits<float>::quiet_NaN(),
+             .sdrWhiteLevelMilli80Nits = 2500});
+        static_cast<void>(context.expectTrue("HDR-capable disabled fixture retains support", hdrDisabled.hdrSupported));
+        static_cast<void>(context.expectFalse("HDR-capable disabled fixture remains disabled", hdrDisabled.hdrEnabled));
+        static_cast<void>(context.expectEq("HDR-disabled fixture remains SDR", Window::Types::DisplayColorSpace::Srgb, hdrDisabled.activeColorSpace));
+        static_cast<void>(context.expectEq("color precision converts to public width", std::uint16_t{10}, hdrDisabled.bitsPerColorChannel));
+        static_cast<void>(context.expectNear("negative luminance becomes unavailable", 0.0, hdrDisabled.minimumLuminanceNits, 0.001));
+        static_cast<void>(context.expectNear("peak luminance keeps nit units", 1000.0, hdrDisabled.maximumLuminanceNits, 0.001));
+        static_cast<void>(
+            context.expectNear("non-finite full-frame luminance becomes unavailable", 0.0, hdrDisabled.maximumFullFrameLuminanceNits, 0.001));
+        static_cast<void>(context.expectNear("SDR white converts from 80-nit thousandths", 200.0, hdrDisabled.sdrWhiteLevelNits, 0.001));
+
+        const Window::Types::DisplayColorInfo hdrEnabled = Window::TestHooks::makeDisplayColorInfo(
+            fixtureMonitor,
+            {.activeColorSpace = Window::Types::DisplayColorSpace::Hdr10Pq,
+             .wideColorGamutSupported = true,
+             .hdrSupported = true,
+             .hdrEnabled = true,
+             .bitsPerColorChannel = std::numeric_limits<std::uint32_t>::max()});
+        static_cast<void>(context.expectTrue("HDR fixture remains enabled", hdrEnabled.hdrEnabled));
+        static_cast<void>(context.expectEq("HDR fixture remains PQ", Window::Types::DisplayColorSpace::Hdr10Pq, hdrEnabled.activeColorSpace));
+        static_cast<void>(
+            context.expectEq("oversized channel precision saturates", std::numeric_limits<std::uint16_t>::max(), hdrEnabled.bitsPerColorChannel));
+
+        const Window::Types::DisplayColorInfo wideColor = Window::TestHooks::makeDisplayColorInfo(
+            fixtureMonitor,
+            {.activeColorSpace = Window::Types::DisplayColorSpace::WideColorGamut, .wideColorGamutSupported = true});
+        static_cast<void>(
+            context.expectEq("advanced-color SDR remains wide-gamut", Window::Types::DisplayColorSpace::WideColorGamut, wideColor.activeColorSpace));
+        static_cast<void>(context.expectFalse("wide-gamut SDR is not inferred as HDR", wideColor.hdrEnabled));
+
+        window.clearEvents();
+        Window::TestHooks::simulateDisplayColorConfigurationChange();
+        static_cast<void>(context.expectTrue("display-color transition pump succeeds", Window::pollEvents().status.ok()));
+        static_cast<void>(context.expectTrue(
+            "display-color transition reuses display-configuration event",
+            consumeEventOfType<Window::Types::DisplayConfigurationChangedEvent>(window)));
+#endif
+
+        static_cast<void>(context.expectTrue("display-color Window fixture closes", window.close().ok()));
+    }
+
     void testHiddenNativeWindow(TestSupport::Context &context)
     {
         Window::Types::Description description;
@@ -1115,6 +1253,7 @@ namespace GameWIP::Test
         runner.runSuite("Window hidden native lifecycle", testHiddenNativeWindow);
         runner.runSuite("Window native event translation", testNativeEventTranslation);
         runner.runSuite("Window renderer occlusion feedback", testRendererOcclusionFeedback);
+        runner.runSuite("Window display color information", testDisplayColorInformation);
         runner.runSuite("Window monitors and display modes", testMonitors);
 
         const TestSupport::Types::Summary result = runner.result();

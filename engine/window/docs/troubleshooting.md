@@ -44,6 +44,10 @@ Global `supports(Types::Capability::OcclusionReporting)` is false by design: the
 
 Attachment, reporting, and detachment must run on the Window owner thread. `reportOcclusion()` returns `NotOpen` before attachment and after detachment. Forward only an authoritative Renderer presentation result; minimization, visibility, or focus alone are not equivalent to renderer occlusion.
 
+## Display color is unknown or stale
+
+Include `window/renderer.h` and perform the first color query on the Window owner thread if that thread should receive advanced-color transition signals. Keep pumping events and re-query after `MonitorChangedEvent` or `DisplayConfigurationChangedEvent`. Optional numeric fields legitimately remain zero when the operating system, display driver, or output interface does not expose reliable metadata; do not replace them with assumed panel defaults.
+
 ## Close reports failure
 
 If `isOpen()` remains true, cleanup stopped before native destruction and the owning thread may retry. If `isOpen()` is false, destruction completed and the status is a late cleanup diagnostic. In both cases the object remains valid.

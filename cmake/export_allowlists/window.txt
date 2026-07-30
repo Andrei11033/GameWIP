@@ -9,6 +9,8 @@ GameWIP::Window::Renderer::attachOcclusionProvider
 GameWIP::Window::Renderer::beginPointerHitMaskUpdate
 GameWIP::Window::Renderer::clearPointerHitMask
 GameWIP::Window::Renderer::detachOcclusionProvider
+GameWIP::Window::Renderer::getDisplayColorInfo
+GameWIP::Window::Renderer::getWindowDisplayColorInfo
 GameWIP::Window::Renderer::hasPointerHitMask
 GameWIP::Window::Renderer::publishPointerHitMask
 GameWIP::Window::Renderer::reportOcclusion

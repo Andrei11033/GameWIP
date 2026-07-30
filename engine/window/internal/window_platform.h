@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "window/renderer.h"
 #include "window/internal/window_state.h"
 
 #include <chrono>
@@ -12,6 +13,20 @@
 
 namespace GameWIP::Window::Detail::Platform
 {
+    /// @brief Backend-neutral native facts converted into the public display-color result.
+    struct DisplayColorSnapshot
+    {
+        Types::DisplayColorSpace activeColorSpace = Types::DisplayColorSpace::Unknown;
+        bool wideColorGamutSupported = false;
+        bool hdrSupported = false;
+        bool hdrEnabled = false;
+        std::uint32_t bitsPerColorChannel = 0;
+        float minimumLuminanceNits = 0.0F;
+        float maximumLuminanceNits = 0.0F;
+        float maximumFullFrameLuminanceNits = 0.0F;
+        std::uint32_t sdrWhiteLevelMilli80Nits = 0;
+    };
+
     /// @brief Close result distinguishes retryable ownership from late cleanup diagnostics.
     struct CloseResult
     {
@@ -34,6 +49,9 @@ namespace GameWIP::Window::Detail::Platform
     [[nodiscard]] Types::DisplayModeListResult getDisplayModes(Types::MonitorId monitor) noexcept;
     [[nodiscard]] Types::DisplayModeResult getCurrentDisplayMode(Types::MonitorId monitor) noexcept;
     [[nodiscard]] Types::DisplayModeResult getPreferredDisplayMode(Types::MonitorId monitor) noexcept;
+    [[nodiscard]] Types::DisplayColorInfoResult getDisplayColorInfo(Types::MonitorId monitor) noexcept;
+    [[nodiscard]] Types::DisplayColorInfo makeDisplayColorInfo(Types::MonitorId monitor, const DisplayColorSnapshot &snapshot) noexcept;
+    [[nodiscard]] bool consumeDisplayColorConfigurationChange() noexcept;
 
     [[nodiscard]] IO::Types::Status open(WindowState &state, const Types::Description &description) noexcept;
     [[nodiscard]] CloseResult close(WindowState &state) noexcept;

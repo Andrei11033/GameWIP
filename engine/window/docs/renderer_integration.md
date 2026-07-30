@@ -1,6 +1,6 @@
 @page window_renderer_integration Renderer integration
 
-Window owns the cached occlusion state and its event, but only a renderer can reliably determine whether presenting a particular surface is occluded. The installed adapter keeps that ownership boundary explicit:
+Window owns native display facts and cached Window state, but Renderer owns presentation policy and is the only component that can reliably determine whether presenting a particular surface is occluded. The installed adapter keeps those ownership boundaries explicit:
 
 ```cpp
 #include <window/renderer.h>
@@ -38,6 +38,18 @@ if (!RendererFeedback::reportOcclusion(window, presentWasOccluded).ok())
 `reportOcclusion()` updates `Window::isOccluded()` before attempting to enqueue `OcclusionChangedEvent`. Repeating the same value succeeds without adding an event. If the fixed queue is full, the notification may be dropped and `eventQueueInfo().droppedEvents` increases, but `isOccluded()` still contains the latest truth.
 
 The adapter intentionally provides no cross-thread mailbox. A render thread may record its result in renderer-owned synchronization, but the application or Renderer bridge must forward that value while pumping work on the Window owner thread. This keeps Window free of polling, worker threads, callbacks, and renderer synchronization policy.
+
+## Display color information
+
+`getDisplayColorInfo()` queries current operating-system color facts for one connected `MonitorId`. `getWindowDisplayColorInfo()` reads an open Window's cached current monitor on its owner thread and performs the same query. A disconnected identity reports `NotFound`, a closed Window reports `NotOpen`, and a wrong-thread Window query reports `ResourceBusy`.
+
+`DisplayColorInfo` separates support, current HDR enablement, and active color-space classification. `Srgb` means ordinary SDR, `WideColorGamut` means advanced-color SDR with a wider gamut, `Hdr10Pq` means HDR10/PQ output, and `Unknown` means the native state could not be classified reliably. Zero bit depth, luminance, or SDR white level means that optional metadata was unavailable. Window never infers HDR from bit depth.
+
+On Win32, DisplayConfig supplies HDR/WCG support, enablement, active mode, channel precision, and SDR white level when the running OS supports those queries. `IDXGIOutput6` supplies current output color space and reliable luminance metadata when available. The Windows 11 advanced-color query is selected at runtime with the documented Windows 10 query as fallback; no Windows App SDK dependency is introduced.
+
+The first color query lazily establishes native change observation on that owner thread. Continue pumping Window events. A stale native output factory queues the existing `DisplayConfigurationChangedEvent`; `WM_DISPLAYCHANGE` and `MonitorChangedEvent` remain the other re-query signals. Re-query after either event, after Window reopen or display reconnect, and after an HDR/advanced-color toggle. No per-frame native metadata query is required.
+
+Window only reports display facts. Renderer still owns swapchain format and presentation color space, HDR metadata, tone mapping, SDR/HDR rendering policy, and mastering decisions. These functions neither change operating-system HDR state nor configure a swapchain or apply an ICC profile.
 
 ## Surface ownership
 

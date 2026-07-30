@@ -1,9 +1,43 @@
 /// @file renderer.h
-/// @brief Optional renderer-to-Window feedback and packed pointer-hit-mask bridge.
+/// @brief Optional display-color queries and renderer-to-Window integration.
 
 #pragma once
 
 #include "window/window.h"
+
+namespace GameWIP::Window::Types
+{
+    /// @brief Current operating-system display-color classification.
+    enum class DisplayColorSpace
+    {
+        Unknown,        ///< The active display-color mode could not be classified.
+        Srgb,           ///< Standard dynamic range using the sRGB/BT.709 color space.
+        WideColorGamut, ///< Advanced-color SDR with a wider-than-sRGB gamut.
+        Hdr10Pq         ///< HDR output using BT.2100/ST.2084 (PQ).
+    };
+
+    /// @brief Current native color capabilities and state for one monitor.
+    struct DisplayColorInfo
+    {
+        MonitorId monitor;                                               ///< Queried process-local monitor identity.
+        DisplayColorSpace activeColorSpace = DisplayColorSpace::Unknown; ///< Current operating-system display mode.
+        bool wideColorGamutSupported = false;                            ///< Whether advanced wider-gamut output is supported.
+        bool hdrSupported = false;                                       ///< Whether HDR output is supported.
+        bool hdrEnabled = false;                                         ///< Whether HDR is currently enabled.
+        std::uint16_t bitsPerColorChannel = 0;                           ///< Active wire precision, or zero when unavailable.
+        float minimumLuminanceNits = 0.0F;                               ///< Minimum panel luminance, or zero when unavailable.
+        float maximumLuminanceNits = 0.0F;                               ///< Peak panel luminance, or zero when unavailable.
+        float maximumFullFrameLuminanceNits = 0.0F;                      ///< Full-frame panel luminance, or zero when unavailable.
+        float sdrWhiteLevelNits = 0.0F;                                  ///< Current SDR white level, or zero when unavailable.
+    };
+
+    /// @brief Status and current display-color information.
+    struct DisplayColorInfoResult
+    {
+        IO::Types::Status status;
+        DisplayColorInfo info;
+    };
+} // namespace GameWIP::Window::Types
 
 /// @brief Renderer-owned presentation feedback accepted by Window.
 namespace GameWIP::Window::Renderer
@@ -52,4 +86,14 @@ namespace GameWIP::Window::Renderer
 
     /// @brief Reports whether the current native lifetime has a valid active mask.
     [[nodiscard]] GAMEWIP_WINDOW_EXPORT bool hasPointerHitMask(const Window &window) noexcept;
+
+    /// @brief Queries current operating-system color facts for one connected monitor.
+    /// @details This does not inspect or configure a renderer swapchain. Optional numeric
+    /// metadata remains zero when the operating system cannot report it reliably.
+    [[nodiscard]] GAMEWIP_WINDOW_EXPORT Types::DisplayColorInfoResult getDisplayColorInfo(Types::MonitorId monitor) noexcept;
+
+    /// @brief Queries color facts for the monitor currently associated with an open Window.
+    /// @details This owner-thread operation reads the cached current monitor and then performs
+    /// the same native query as getDisplayColorInfo().
+    [[nodiscard]] GAMEWIP_WINDOW_EXPORT Types::DisplayColorInfoResult getWindowDisplayColorInfo(const Window &window) noexcept;
 } // namespace GameWIP::Window::Renderer

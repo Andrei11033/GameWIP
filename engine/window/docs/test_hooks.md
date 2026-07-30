@@ -24,7 +24,7 @@ Each `openPortable()` call creates state owned by the supplied Window and borrow
 
 ## Hook groups
 
-`failNext()` exercises real production error and rollback boundaries for allocation, dispatcher registration, native creation, partial open, title/region/icon/cursor mutation, monitor/display queries, fullscreen transitions and restoration, close, and event pumping. The hook changes only the selected boundary's result; ordinary rollback and retry code remains active.
+`failNext()` exercises real production error and rollback boundaries for allocation, dispatcher registration, native creation, partial open, title/region/icon/cursor mutation, monitor/display/display-color queries, fullscreen transitions and restoration, close, and event pumping. The hook changes only the selected boundary's result; ordinary rollback and retry code remains active.
 
 `pumpReentrantly()` activates the owning-thread dispatcher guard around the production pump so its `ResourceBusy` contract can be checked without callbacks or visible UI.
 
@@ -35,6 +35,8 @@ Each `openPortable()` call creates state owned by the supplied Window and borrow
 `requestClose()` uses the production sticky close-request path so repeated-source and full-queue behavior can be deterministic.
 
 `destroyNativeWindow()` enters the real unexpected `WM_NCDESTROY` path. Tests verify `ClosedEvent`, `NativeDestroyedPendingFinalize`, native-operation rejection, controlled finalization, and reopening. `simulateFullscreenMonitorRemoval()` exercises the production fullscreen recovery transaction and event order without changing the physical display topology.
+
+`makeDisplayColorInfo()` validates backend-neutral classification, numeric sanitization, precision saturation, and the DisplayConfig SDR-white conversion without requiring HDR hardware. `makeNextDisplayColorMetadataUnavailable()` verifies that runtime API/metadata absence succeeds with documented unknown/zero fields. `simulateDisplayColorConfigurationChange()` makes the next owner-thread pump exercise the production `DisplayConfigurationChangedEvent` route used by stale native color state.
 
 The packed-mask accessors expose active word count, values, revision, and storage identity for first allocation, same-size reuse, stale-publication, trailing-bit, movement, resize, and clear checks. They never mutate state.
 

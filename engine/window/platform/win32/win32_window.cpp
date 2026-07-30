@@ -1550,6 +1550,7 @@ namespace GameWIP::Window::Detail::Platform
             }
         }
 
+        bool receivedDisplayChange = false;
         MSG message{};
         while (PeekMessageW(&message, nullptr, 0, 0, PM_REMOVE) != FALSE)
         {
@@ -1564,8 +1565,20 @@ namespace GameWIP::Window::Detail::Platform
                 }
                 continue;
             }
+            if (message.message == WM_DISPLAYCHANGE)
+                receivedDisplayChange = true;
             TranslateMessage(&message);
             DispatchMessageW(&message);
+        }
+
+        const bool displayColorChanged = consumeDisplayColorConfigurationChange();
+        if (!receivedDisplayChange && displayColorChanged)
+        {
+            for (WindowState *state : current.windows)
+            {
+                if (state != nullptr)
+                    routeEvent(*state, Types::DisplayConfigurationChangedEvent{});
+            }
         }
 
         for (WindowState *state : current.windows)

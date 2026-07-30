@@ -3,6 +3,10 @@
 
 #include "window/platform/win32/internal/win32_window_backend.h"
 
+#include "window/platform/win32/internal/win32_compat.h"
+
+#include <dxgi1_6.h>
+
 #include <algorithm>
 #include <cwchar>
 #include <limits>
@@ -18,6 +22,132 @@ namespace GameWIP::Window::Detail::Platform
         std::unordered_map<std::wstring, Types::MonitorId> monitorIds;
         std::unordered_map<std::uint64_t, std::wstring> monitorDevices;
         std::atomic_uint64_t nextMonitorId{1};
+
+        template <typename Interface> class ComReference final
+        {
+        public:
+            ComReference() noexcept = default;
+            ~ComReference() noexcept
+            {
+                reset();
+            }
+
+            ComReference(const ComReference &) = delete;
+            ComReference &operator=(const ComReference &) = delete;
+
+            [[nodiscard]] Interface *get() const noexcept
+            {
+                return value;
+            }
+
+            [[nodiscard]] Interface **put() noexcept
+            {
+                reset();
+                return &value;
+            }
+
+            void reset() noexcept
+            {
+                if (value != nullptr)
+                {
+                    value->Release();
+                    value = nullptr;
+                }
+            }
+
+            [[nodiscard]] Interface *operator->() const noexcept
+            {
+                return value;
+            }
+
+            [[nodiscard]] explicit operator bool() const noexcept
+            {
+                return value != nullptr;
+            }
+
+        private:
+            Interface *value = nullptr;
+        };
+
+        struct DisplayColorFactoryState
+        {
+            ComReference<IDXGIFactory1> factory;
+            bool queried = false;
+#if INTERNAL_WINDOW_TEST_HOOKS
+            bool forceConfigurationChange = false;
+            bool forceMetadataUnavailable = false;
+#endif
+        };
+
+        thread_local DisplayColorFactoryState displayColorFactory;
+
+        [[nodiscard]] bool ensureDisplayColorFactory() noexcept
+        {
+            if (displayColorFactory.factory && displayColorFactory.factory->IsCurrent() != FALSE)
+                return true;
+
+            displayColorFactory.factory.reset();
+            return SUCCEEDED(CreateDXGIFactory1(IID_IDXGIFactory1, reinterpret_cast<void **>(displayColorFactory.factory.put())));
+        }
+
+        void addDxgiColorMetadata(HMONITOR monitor, DisplayColorSnapshot &snapshot) noexcept
+        {
+            if (!ensureDisplayColorFactory())
+                return;
+
+            for (UINT adapterIndex = 0;; ++adapterIndex)
+            {
+                ComReference<IDXGIAdapter1> adapter;
+                const HRESULT adapterResult = displayColorFactory.factory->EnumAdapters1(adapterIndex, adapter.put());
+                if (adapterResult == DXGI_ERROR_NOT_FOUND)
+                    return;
+                if (FAILED(adapterResult))
+                    return;
+
+                for (UINT outputIndex = 0;; ++outputIndex)
+                {
+                    ComReference<IDXGIOutput> output;
+                    const HRESULT outputResult = adapter->EnumOutputs(outputIndex, output.put());
+                    if (outputResult == DXGI_ERROR_NOT_FOUND)
+                        break;
+                    if (FAILED(outputResult))
+                        break;
+
+                    DXGI_OUTPUT_DESC outputDescription{};
+                    if (FAILED(output->GetDesc(&outputDescription)) || outputDescription.Monitor != monitor)
+                        continue;
+
+                    ComReference<IDXGIOutput6> output6;
+                    if (FAILED(output->QueryInterface(IID_IDXGIOutput6, reinterpret_cast<void **>(output6.put()))))
+                        return;
+
+                    DXGI_OUTPUT_DESC1 colorDescription{};
+                    if (FAILED(output6->GetDesc1(&colorDescription)))
+                        return;
+
+                    if (snapshot.bitsPerColorChannel == 0)
+                        snapshot.bitsPerColorChannel = colorDescription.BitsPerColor;
+                    snapshot.minimumLuminanceNits = colorDescription.MinLuminance;
+                    snapshot.maximumLuminanceNits = colorDescription.MaxLuminance;
+                    snapshot.maximumFullFrameLuminanceNits = colorDescription.MaxFullFrameLuminance;
+
+                    if (colorDescription.ColorSpace == DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020)
+                    {
+                        snapshot.activeColorSpace = Types::DisplayColorSpace::Hdr10Pq;
+                        snapshot.wideColorGamutSupported = true;
+                        snapshot.hdrSupported = true;
+                        snapshot.hdrEnabled = true;
+                    }
+                    else if (
+                        colorDescription.ColorSpace == DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709 &&
+                        snapshot.activeColorSpace == Types::DisplayColorSpace::Unknown)
+                    {
+                        snapshot.activeColorSpace = Types::DisplayColorSpace::Srgb;
+                    }
+                    return;
+                }
+            }
+        }
 
         [[nodiscard]] Types::MonitorId idForDevice(std::wstring_view device)
         {
@@ -63,7 +193,7 @@ namespace GameWIP::Window::Detail::Platform
 
         struct ActiveDisplayPath
         {
-            DISPLAYCONFIG_PATH_INFO path{};
+            DISPLAYCONFIG_PATH_INFO path;
         };
 
         [[nodiscard]] IO::Types::Status findActiveDisplayPath(std::wstring_view device, ActiveDisplayPath &result) noexcept
@@ -88,11 +218,12 @@ namespace GameWIP::Window::Detail::Platform
                 paths.resize(pathCount);
                 for (const DISPLAYCONFIG_PATH_INFO &path : paths)
                 {
-                    DISPLAYCONFIG_SOURCE_DEVICE_NAME source{};
-                    source.header.type = DISPLAYCONFIG_DEVICE_INFO_GET_SOURCE_NAME;
-                    source.header.size = sizeof(source);
-                    source.header.adapterId = path.sourceInfo.adapterId;
-                    source.header.id = path.sourceInfo.id;
+                    DISPLAYCONFIG_SOURCE_DEVICE_NAME source{
+                        .header = {
+                            .type = DISPLAYCONFIG_DEVICE_INFO_GET_SOURCE_NAME,
+                            .size = sizeof(DISPLAYCONFIG_SOURCE_DEVICE_NAME),
+                            .adapterId = path.sourceInfo.adapterId,
+                            .id = path.sourceInfo.id}};
                     nativeResult = DisplayConfigGetDeviceInfo(&source.header);
                     if (nativeResult != ERROR_SUCCESS)
                         continue;
@@ -108,6 +239,70 @@ namespace GameWIP::Window::Detail::Platform
                 IO::Types::ErrorCode::ResourceBusy,
                 ERROR_INSUFFICIENT_BUFFER,
                 "display topology changed repeatedly during QueryDisplayConfig");
+        }
+
+        void addDisplayConfigColorMetadata(const ActiveDisplayPath &active, DisplayColorSnapshot &snapshot) noexcept
+        {
+            Compat::AdvancedColorInfo2 advanced{
+                .header = {
+                    .type = Compat::kGetAdvancedColorInfo2,
+                    .size = sizeof(Compat::AdvancedColorInfo2),
+                    .adapterId = active.path.targetInfo.adapterId,
+                    .id = active.path.targetInfo.id}};
+            if (DisplayConfigGetDeviceInfo(&advanced.header) == ERROR_SUCCESS)
+            {
+                snapshot.hdrSupported = (advanced.flags & Compat::kHighDynamicRangeSupported) != 0;
+                snapshot.hdrEnabled =
+                    (advanced.flags & Compat::kHighDynamicRangeUserEnabled) != 0 || advanced.activeColorMode == Compat::AdvancedColorMode::Hdr;
+                snapshot.wideColorGamutSupported = (advanced.flags & (Compat::kWideColorSupported | Compat::kHighDynamicRangeSupported)) != 0;
+                snapshot.bitsPerColorChannel = advanced.bitsPerColorChannel;
+
+                switch (advanced.activeColorMode)
+                {
+                case Compat::AdvancedColorMode::Sdr:
+                    snapshot.activeColorSpace = Types::DisplayColorSpace::Srgb;
+                    break;
+                case Compat::AdvancedColorMode::WideColorGamut:
+                    snapshot.activeColorSpace = Types::DisplayColorSpace::WideColorGamut;
+                    break;
+                case Compat::AdvancedColorMode::Hdr:
+                    snapshot.activeColorSpace = Types::DisplayColorSpace::Hdr10Pq;
+                    break;
+                default:
+                    if ((advanced.flags & Compat::kAdvancedColorActive) == 0)
+                        snapshot.activeColorSpace = Types::DisplayColorSpace::Srgb;
+                    break;
+                }
+
+                if ((advanced.flags & Compat::kWideColorUserEnabled) != 0 && snapshot.activeColorSpace == Types::DisplayColorSpace::Unknown)
+                    snapshot.activeColorSpace = Types::DisplayColorSpace::WideColorGamut;
+            }
+            else
+            {
+                DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO legacy{
+                    .header = {
+                        .type = DISPLAYCONFIG_DEVICE_INFO_GET_ADVANCED_COLOR_INFO,
+                        .size = sizeof(DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO),
+                        .adapterId = active.path.targetInfo.adapterId,
+                        .id = active.path.targetInfo.id}};
+                if (DisplayConfigGetDeviceInfo(&legacy.header) == ERROR_SUCCESS)
+                {
+                    snapshot.wideColorGamutSupported = legacy.advancedColorSupported != 0;
+                    snapshot.hdrSupported = legacy.advancedColorSupported != 0;
+                    snapshot.hdrEnabled = legacy.advancedColorEnabled != 0;
+                    snapshot.bitsPerColorChannel = legacy.bitsPerColorChannel;
+                    snapshot.activeColorSpace = legacy.advancedColorEnabled != 0 ? Types::DisplayColorSpace::Unknown : Types::DisplayColorSpace::Srgb;
+                }
+            }
+
+            DISPLAYCONFIG_SDR_WHITE_LEVEL whiteLevel{
+                .header = {
+                    .type = DISPLAYCONFIG_DEVICE_INFO_GET_SDR_WHITE_LEVEL,
+                    .size = sizeof(DISPLAYCONFIG_SDR_WHITE_LEVEL),
+                    .adapterId = active.path.targetInfo.adapterId,
+                    .id = active.path.targetInfo.id}};
+            if (DisplayConfigGetDeviceInfo(&whiteLevel.header) == ERROR_SUCCESS)
+                snapshot.sdrWhiteLevelMilli80Nits = whiteLevel.SDRWhiteLevel;
         }
 
         [[nodiscard]] Types::DisplayModeResult queryDisplayMode(Types::MonitorId monitor, DWORD selector) noexcept
@@ -485,11 +680,12 @@ namespace GameWIP::Window::Detail::Platform
             if (!status.ok())
                 return {.status = std::move(status)};
 
-            DISPLAYCONFIG_TARGET_PREFERRED_MODE preferred{};
-            preferred.header.type = DISPLAYCONFIG_DEVICE_INFO_GET_TARGET_PREFERRED_MODE;
-            preferred.header.size = sizeof(preferred);
-            preferred.header.adapterId = active.path.targetInfo.adapterId;
-            preferred.header.id = active.path.targetInfo.id;
+            DISPLAYCONFIG_TARGET_PREFERRED_MODE preferred{
+                .header = {
+                    .type = DISPLAYCONFIG_DEVICE_INFO_GET_TARGET_PREFERRED_MODE,
+                    .size = sizeof(DISPLAYCONFIG_TARGET_PREFERRED_MODE),
+                    .adapterId = active.path.targetInfo.adapterId,
+                    .id = active.path.targetInfo.id}};
             const LONG nativeResult = DisplayConfigGetDeviceInfo(&preferred.header);
             if (nativeResult != ERROR_SUCCESS)
             {
@@ -519,6 +715,65 @@ namespace GameWIP::Window::Detail::Platform
             return {.status = IO::makeStatus(IO::Types::ErrorCode::Unknown)};
         }
     }
+
+    Types::DisplayColorInfoResult getDisplayColorInfo(Types::MonitorId monitor) noexcept
+    {
+        if (!monitor.valid())
+            return {.status = IO::makeStatus(IO::Types::ErrorCode::InvalidArgument)};
+        if (Detail::consumeFailure(TestHooks::FailurePoint::DisplayColorQuery))
+            return {.status = IO::makeStatus(IO::Types::ErrorCode::StatFailed)};
+        try
+        {
+            const std::wstring device = monitorDeviceName(monitor);
+            if (device.empty())
+                return {.status = IO::makeStatus(IO::Types::ErrorCode::NotFound)};
+            const HMONITOR native = nativeMonitor(monitor);
+            if (native == nullptr)
+                return {.status = IO::makeStatus(IO::Types::ErrorCode::NotFound)};
+
+            ActiveDisplayPath active;
+            IO::Types::Status status = findActiveDisplayPath(device, active);
+            if (!status.ok())
+                return {.status = std::move(status)};
+
+            displayColorFactory.queried = true;
+            DisplayColorSnapshot snapshot;
+#if INTERNAL_WINDOW_TEST_HOOKS
+            if (displayColorFactory.forceMetadataUnavailable)
+            {
+                displayColorFactory.forceMetadataUnavailable = false;
+                return {.status = IO::successStatus(), .info = makeDisplayColorInfo(monitor, snapshot)};
+            }
+#endif
+            addDisplayConfigColorMetadata(active, snapshot);
+            addDxgiColorMetadata(native, snapshot);
+            return {.status = IO::successStatus(), .info = makeDisplayColorInfo(monitor, snapshot)};
+        }
+        catch (const std::bad_alloc &)
+        {
+            return {.status = IO::makeStatus(IO::Types::ErrorCode::OutOfMemory)};
+        }
+        catch (...)
+        {
+            return {.status = IO::makeStatus(IO::Types::ErrorCode::Unknown)};
+        }
+    }
+
+    bool consumeDisplayColorConfigurationChange() noexcept
+    {
+#if INTERNAL_WINDOW_TEST_HOOKS
+        if (displayColorFactory.forceConfigurationChange)
+        {
+            displayColorFactory.forceConfigurationChange = false;
+            displayColorFactory.factory.reset();
+            return true;
+        }
+#endif
+        if (!displayColorFactory.queried || !displayColorFactory.factory || displayColorFactory.factory->IsCurrent() != FALSE)
+            return false;
+        displayColorFactory.factory.reset();
+        return true;
+    }
 } // namespace GameWIP::Window::Detail::Platform
 
 #if INTERNAL_WINDOW_TEST_HOOKS
@@ -527,6 +782,16 @@ namespace GameWIP::Window::TestHooks
     std::uint32_t refreshRateMillihertz(std::uint32_t numerator, std::uint32_t denominator) noexcept
     {
         return Detail::Platform::rationalMillihertz({numerator, denominator});
+    }
+
+    void simulateDisplayColorConfigurationChange() noexcept
+    {
+        Detail::Platform::displayColorFactory.forceConfigurationChange = true;
+    }
+
+    void makeNextDisplayColorMetadataUnavailable() noexcept
+    {
+        Detail::Platform::displayColorFactory.forceMetadataUnavailable = true;
     }
 } // namespace GameWIP::Window::TestHooks
 #endif

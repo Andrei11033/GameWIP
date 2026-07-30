@@ -23,7 +23,7 @@ HWND hwnd = native.handle.window;
 
 Including this adapter intentionally includes `windows.h`; isolate it in platform-specific translation units. Do not cache the handle beyond the Window lifetime, replace its window procedure, destroy it, change its owner directly, or mutate state that has a portable Window setter. Such native mutations bypass cached-state and rollback contracts.
 
-The adapter is installed because renderer surface attachment is a legitimate ABI boundary. Renderer owns the surface and swapchain; Window owns the top-level native handle. Renderer feedback uses `window/renderer.h`. See @ref window_renderer_integration.
+The adapter is installed because renderer surface attachment is a legitimate ABI boundary. Renderer owns the surface and swapchain; Window owns the top-level native handle. Renderer feedback and portable display-color queries use `window/renderer.h`. See @ref window_renderer_integration.
 
 Internal backend headers and test hooks are not installed.
 

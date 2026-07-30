@@ -14,7 +14,7 @@ The package resolves its public IO and FileSystem dependencies. The generated `w
 ## Public headers
 
 - `window/window.h` is the canonical portable entry point.
-- `window/renderer.h` is the optional portable renderer-integration entry point.
+- `window/renderer.h` is the optional portable renderer-integration and display-color query entry point.
 - `window/native/win32.h` is installed and documented only for Win32 packages and deliberately includes `windows.h`.
 
 Internal backend headers, `window/internal/window_test_hooks.h`, source-tree compile definitions, and platform implementation files are not installed consumer interfaces.

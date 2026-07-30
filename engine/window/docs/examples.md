@@ -183,6 +183,24 @@ for (const auto &monitor : monitors.monitors)
 }
 ```
 
+## Display color information
+
+```cpp
+#include <window/renderer.h>
+
+const auto color =
+    GameWIP::Window::Renderer::getWindowDisplayColorInfo(window);
+if (!color.status.ok()) return 1;
+
+if (color.info.hdrSupported && color.info.hdrEnabled)
+{
+    // Renderer chooses its swapchain, presentation color space,
+    // HDR metadata, and tone-mapping policy.
+}
+```
+
+Run the Window form on its owner thread. Re-query after `MonitorChangedEvent` or `DisplayConfigurationChangedEvent`; zero luminance or channel-precision fields mean the operating system did not provide reliable optional metadata.
+
 ## Related pages
 
 - @ref window_coordinates_and_dpi

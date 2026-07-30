@@ -60,6 +60,16 @@ Run these scenarios in a normal interactive desktop session. Record OS version, 
 6. Disconnect the active borderless and exclusive target. Verify exclusive display state is restored and the Window recovers visibly to windowed mode on the surviving primary monitor.
 7. Verify recovery clears `FullscreenInfo` and orders events as display configuration, mode, optional monitor, optional geometry/framebuffer, then optional DPI/content scale. Confirm the pump reports any restoration/repositioning failure without leaving stale fullscreen state.
 
+## HDR and advanced color
+
+1. On an SDR-only display, query both the monitor and Window forms. Verify the monitor identity matches, HDR is unsupported and disabled, active color is SDR or unknown only when the driver cannot classify it, and unavailable optional metadata remains zero.
+2. On an HDR-capable display with HDR disabled, verify support remains true while `hdrEnabled` is false and the active mode is not reported as HDR merely because channel precision exceeds eight bits.
+3. Enable HDR while the Window remains on that monitor. Pump events, verify `DisplayConfigurationChangedEvent` is delivered, re-query, and confirm HDR enablement and `Hdr10Pq` where the driver reports PQ output. Disable HDR and repeat.
+4. Move a Window between SDR and HDR monitors. Verify `MonitorChangedEvent`, re-query through the Window form, and confirm the returned monitor and state follow the destination.
+5. Where supported, compare minimum, peak, and full-frame luminance against the display/driver report. Verify SDR white level is expressed in nits; at the native value 2500 the public value is 200 nits.
+6. Disconnect and reconnect the queried display. Verify the stale `MonitorId` fails safely, enumerate again, and confirm a new query succeeds without stale metadata.
+7. Repeat on a Windows 10 system without the Windows 11 advanced-color query. Verify the documented legacy query remains functional and unavailable WCG-specific metadata stays unknown rather than fabricated.
+
 ## Modern Windows capabilities
 
 1. On Windows 11 build 22621 or newer, apply and clear every `BackdropEffect`; repeat on an older supported build and verify `Unsupported`.

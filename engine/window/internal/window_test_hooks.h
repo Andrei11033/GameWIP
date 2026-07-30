@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "window/window.h"
+#include "window/renderer.h"
 
 #ifndef INTERNAL_WINDOW_TEST_HOOKS
 /// @brief Build-interface switch enabling source-tree Window validation hooks.
@@ -18,6 +18,20 @@ namespace GameWIP::Window::TestHooks
     {
         Types::LogicalSize logicalSize;
         Types::PixelSize framebufferSize;
+    };
+
+    /// @brief Backend-neutral display facts used for deterministic conversion validation.
+    struct DisplayColorSnapshot
+    {
+        Types::DisplayColorSpace activeColorSpace = Types::DisplayColorSpace::Unknown;
+        bool wideColorGamutSupported = false;
+        bool hdrSupported = false;
+        bool hdrEnabled = false;
+        std::uint32_t bitsPerColorChannel = 0;
+        float minimumLuminanceNits = 0.0F;
+        float maximumLuminanceNits = 0.0F;
+        float maximumFullFrameLuminanceNits = 0.0F;
+        std::uint32_t sdrWhiteLevelMilli80Nits = 0;
     };
 
     /// @brief One-shot production boundary that can be failed by validation builds.
@@ -34,6 +48,7 @@ namespace GameWIP::Window::TestHooks
         Cursor,             ///< Native cursor application.
         MonitorQuery,       ///< Native monitor metadata query.
         DisplayEnumeration, ///< Monitor or display-mode enumeration.
+        DisplayColorQuery,  ///< Native display-color metadata query.
         FullscreenPartial,  ///< Fullscreen transaction after style mutation.
         DisplayRestoration, ///< Fullscreen display restoration.
         Close,              ///< Native close before ownership release.
@@ -88,6 +103,17 @@ namespace GameWIP::Window::TestHooks
 
     /// @brief Applies the production rational-refresh conversion.
     [[nodiscard]] GAMEWIP_WINDOW_EXPORT std::uint32_t refreshRateMillihertz(std::uint32_t numerator, std::uint32_t denominator) noexcept;
+
+    /// @brief Converts backend-neutral display facts through the production result policy.
+    [[nodiscard]] GAMEWIP_WINDOW_EXPORT Types::DisplayColorInfo makeDisplayColorInfo(
+        Types::MonitorId monitor,
+        const DisplayColorSnapshot &snapshot) noexcept;
+
+    /// @brief Makes the next owner-thread pump observe a native display-color transition.
+    GAMEWIP_WINDOW_EXPORT void simulateDisplayColorConfigurationChange() noexcept;
+
+    /// @brief Makes the next valid query succeed with unavailable optional color metadata.
+    GAMEWIP_WINDOW_EXPORT void makeNextDisplayColorMetadataUnavailable() noexcept;
 
     /// @brief Applies the exact native exclusive-mode comparator without switching displays.
     [[nodiscard]] GAMEWIP_WINDOW_EXPORT bool exactNativeDisplayModeMatches(

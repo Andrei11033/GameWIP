@@ -4,6 +4,7 @@
 #include "window/internal/window_test_hooks.h"
 
 #if INTERNAL_WINDOW_TEST_HOOKS
+#include "window/internal/window_platform.h"
 #include "window/internal/window_state.h"
 
 #include <new>
@@ -126,6 +127,21 @@ namespace GameWIP::Window::TestHooks
     {
         const Detail::WindowState *state = Detail::WindowAccess::state(window);
         return state != nullptr && !state->pointerHitMask.empty() ? state->pointerHitMask.data() : nullptr;
+    }
+
+    Types::DisplayColorInfo makeDisplayColorInfo(Types::MonitorId monitor, const DisplayColorSnapshot &snapshot) noexcept
+    {
+        return Detail::Platform::makeDisplayColorInfo(
+            monitor,
+            {.activeColorSpace = snapshot.activeColorSpace,
+             .wideColorGamutSupported = snapshot.wideColorGamutSupported,
+             .hdrSupported = snapshot.hdrSupported,
+             .hdrEnabled = snapshot.hdrEnabled,
+             .bitsPerColorChannel = snapshot.bitsPerColorChannel,
+             .minimumLuminanceNits = snapshot.minimumLuminanceNits,
+             .maximumLuminanceNits = snapshot.maximumLuminanceNits,
+             .maximumFullFrameLuminanceNits = snapshot.maximumFullFrameLuminanceNits,
+             .sdrWhiteLevelMilli80Nits = snapshot.sdrWhiteLevelMilli80Nits});
     }
 } // namespace GameWIP::Window::TestHooks
 #endif
