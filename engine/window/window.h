@@ -64,22 +64,22 @@ namespace GameWIP::Window
             friend constexpr bool operator==(MonitorId, MonitorId) noexcept = default;
         };
 
-        /// @brief Logical two-dimensional position; desktop values may be negative.
-        struct Position
+        /// @brief Position in a Window's logical client coordinate space.
+        struct LogicalPosition
         {
             std::int32_t x = 0; ///< Horizontal coordinate.
             std::int32_t y = 0; ///< Vertical coordinate.
-            /// @brief Compares both coordinates.
-            friend constexpr bool operator==(Position, Position) noexcept = default;
+            /// @brief Compares both logical coordinates.
+            friend constexpr bool operator==(LogicalPosition, LogicalPosition) noexcept = default;
         };
 
-        /// @brief Logical two-dimensional extent.
-        struct Size
+        /// @brief Extent in a Window's DPI-independent logical client units.
+        struct LogicalSize
         {
             std::uint32_t width = 0;  ///< Logical width.
             std::uint32_t height = 0; ///< Logical height.
-            /// @brief Compares both dimensions.
-            friend constexpr bool operator==(Size, Size) noexcept = default;
+            /// @brief Compares both logical dimensions.
+            friend constexpr bool operator==(LogicalSize, LogicalSize) noexcept = default;
         };
 
         /// @brief Physical drawable extent in pixels.
@@ -91,13 +91,32 @@ namespace GameWIP::Window
             friend constexpr bool operator==(PixelSize, PixelSize) noexcept = default;
         };
 
-        /// @brief Logical rectangle represented by a top-left position and extent.
-        struct Rect
+        /// @brief Client-local logical rectangle.
+        struct LogicalRect
         {
-            Position position; ///< Rectangle top-left.
-            Size size;         ///< Rectangle extent.
-            /// @brief Compares position and extent.
-            friend constexpr bool operator==(Rect, Rect) noexcept = default;
+            LogicalPosition position; ///< Rectangle top-left.
+            LogicalSize size;         ///< Rectangle extent.
+            /// @brief Compares logical position and extent.
+            friend constexpr bool operator==(LogicalRect, LogicalRect) noexcept = default;
+        };
+
+        /// @brief Physical position in the shared Win32 virtual-screen coordinate space.
+        /// @details Either coordinate may be negative.
+        struct ScreenPosition
+        {
+            std::int32_t x = 0; ///< Physical virtual-screen x coordinate.
+            std::int32_t y = 0; ///< Physical virtual-screen y coordinate.
+            /// @brief Compares both physical screen coordinates.
+            friend constexpr bool operator==(ScreenPosition, ScreenPosition) noexcept = default;
+        };
+
+        /// @brief Physical rectangle in the shared virtual-screen coordinate space.
+        struct ScreenRect
+        {
+            ScreenPosition position; ///< Physical top-left, possibly negative.
+            PixelSize size;          ///< Physical pixel extent.
+            /// @brief Compares physical position and extent.
+            friend constexpr bool operator==(ScreenRect, ScreenRect) noexcept = default;
         };
 
         /// @brief Logical distances between a client area and complete outer frame.
@@ -132,8 +151,8 @@ namespace GameWIP::Window
         /// @brief Optional logical client-size constraints.
         struct SizeLimits
         {
-            std::optional<Size> minimum; ///< Minimum client extent when present.
-            std::optional<Size> maximum; ///< Maximum client extent when present.
+            std::optional<LogicalSize> minimum; ///< Minimum client extent when present.
+            std::optional<LogicalSize> maximum; ///< Maximum client extent when present.
             /// @brief Compares both optional constraints.
             friend bool operator==(const SizeLimits &, const SizeLimits &) noexcept = default;
         };
@@ -153,6 +172,14 @@ namespace GameWIP::Window
             Windowed,             ///< Ordinary desktop window.
             BorderlessFullscreen, ///< Monitor-sized without changing the display mode.
             ExclusiveFullscreen   ///< Monitor-sized with an exclusive display mode.
+        };
+
+        /// @brief Portable native-resource lifecycle state.
+        enum class LifetimeState
+        {
+            Closed,                         ///< No retained native or pending-finalization state.
+            Open,                           ///< A live native Window exists.
+            NativeDestroyedPendingFinalize ///< Native destruction was unexpected; events and cached state remain readable.
         };
 
         /// @brief Native presentation state independent from WindowMode.
@@ -184,7 +211,7 @@ namespace GameWIP::Window
         {
             PlacementKind kind = PlacementKind::PlatformDefault; ///< Placement policy.
             MonitorId monitor;                                   ///< Center target; invalid selects primary.
-            Position position;                                   ///< Logical client position for Explicit.
+            ScreenPosition position;                             ///< Physical client top-left for Explicit.
         };
 
         /// @brief Physical monitor display mode.
@@ -225,6 +252,13 @@ namespace GameWIP::Window
             friend constexpr bool operator==(WindowControls, WindowControls) noexcept = default;
         };
 
+        /// @brief Behavior applied when the effective monitor DPI changes.
+        enum class DpiResizePolicy
+        {
+            PreserveLogicalClientSize,  ///< Preserve logical extent and change framebuffer pixels.
+            PreservePhysicalClientSize  ///< Preserve framebuffer pixels and recalculate logical extent.
+        };
+
         /// @brief Window-owned cursor policy.
         enum class CursorMode
         {
@@ -258,7 +292,7 @@ namespace GameWIP::Window
         enum class PointerInputMode
         {
             Normal,        ///< Accept throughout the client.
-            ClickThrough,  ///< Pass through the complete client.
+            ClickThrough,  ///< Pass the complete native Window through to underlying desktop windows.
             AcceptRegions, ///< Accept only inside configured rectangles.
             IgnoreRegions  ///< Pass through inside configured rectangles.
         };
@@ -266,15 +300,19 @@ namespace GameWIP::Window
         /// @brief Optional platform backdrop treatment.
         enum class BackdropEffect
         {
-            None,      ///< No treatment.
-            BlurBehind ///< Platform blur-behind treatment.
+            None,            ///< No system backdrop.
+            Automatic,       ///< Let the system choose for this Window.
+            MainWindow,      ///< Backdrop intended for a long-lived main Window.
+            TransientWindow, ///< Backdrop intended for a transient Window.
+            TabbedWindow     ///< Backdrop intended for a tabbed title-bar treatment.
         };
 
         /// @brief Complete initial top-level window description.
         struct Description
         {
             std::string title = "GameWIP";                                ///< UTF-8; invalid text and embedded NUL are rejected.
-            Size clientSize{1280, 720};                                   ///< Positive initial logical client extent.
+            LogicalSize clientSize{1280, 720};                            ///< Positive initial logical client extent.
+            DpiResizePolicy dpiResizePolicy = DpiResizePolicy::PreserveLogicalClientSize; ///< Future DPI-transition policy.
             Placement placement;                                          ///< Initial desktop placement.
             ModeRequest mode;                                             ///< Initial window/fullscreen mode.
             PresentationState presentation = PresentationState::Normal;   ///< Initial presentation.
@@ -301,18 +339,18 @@ namespace GameWIP::Window
         /// @brief Call-scoped declarative custom-chrome hit-test layout.
         struct CustomChromeLayout
         {
-            std::span<const Rect> draggableRegions;   ///< Logical draggable caption rectangles.
-            std::optional<Rect> systemMenuRegion;     ///< Optional system-menu target.
-            std::optional<Rect> minimizeButtonRegion; ///< Optional minimize target.
-            std::optional<Rect> maximizeButtonRegion; ///< Optional maximize target.
-            std::optional<Rect> closeButtonRegion;    ///< Optional close target.
+            std::span<const LogicalRect> draggableRegions;
+            std::optional<LogicalRect> systemMenuRegion;
+            std::optional<LogicalRect> minimizeButtonRegion;
+            std::optional<LogicalRect> maximizeButtonRegion;
+            std::optional<LogicalRect> closeButtonRegion;
         };
 
         /// @brief Call-scoped declarative pointer-region layout.
         struct PointerInputLayout
         {
             PointerInputMode mode = PointerInputMode::Normal; ///< Pointer policy.
-            std::span<const Rect> regions;                    ///< Logical client rectangles.
+            std::span<const LogicalRect> regions;             ///< Logical client rectangles.
         };
 
         /// @brief Call-scoped tightly packed RGBA8 icon image.
@@ -327,8 +365,8 @@ namespace GameWIP::Window
         {
             MonitorId id;                                ///< Opaque process-local monitor identity.
             std::string name;                            ///< UTF-8 display name.
-            Rect bounds;                                 ///< Logical complete desktop bounds.
-            Rect workArea;                               ///< Logical working area.
+            ScreenRect bounds;                           ///< Physical virtual-screen bounds.
+            ScreenRect workArea;                         ///< Physical virtual-screen working area.
             ContentScale contentScale;                   ///< Physical-to-logical scale.
             Dpi effectiveDpi;                            ///< Effective monitor DPI.
             std::uint32_t physicalWidthMillimeters = 0;  ///< Physical width or zero.
@@ -354,7 +392,7 @@ namespace GameWIP::Window
             AlwaysOnTop,
             Opacity,
             TransparentFramebuffer,
-            BackdropBlur,
+            SystemBackdrop,
             PointerClickThrough,
             PointerRegions,
             CursorConfinement,
@@ -394,6 +432,10 @@ namespace GameWIP::Window
         {
             CloseRequestSource source = CloseRequestSource::User; ///< Request source.
         };
+        /// @brief Unexpected native destruction observed before controlled finalization.
+        struct ClosedEvent
+        {
+        };
         /// @brief Visibility transition.
         struct VisibilityChangedEvent
         {
@@ -402,12 +444,12 @@ namespace GameWIP::Window
         /// @brief Logical client-position transition.
         struct MovedEvent
         {
-            Position position; ///< New client top-left.
+            ScreenPosition position; ///< New physical client top-left.
         };
         /// @brief Logical client-size transition.
         struct ClientSizeChangedEvent
         {
-            Size size; ///< New client extent.
+            LogicalSize size; ///< New client extent.
         };
         /// @brief Physical drawable-size transition.
         struct FramebufferSizeChangedEvent
@@ -469,7 +511,7 @@ namespace GameWIP::Window
         /// @brief One native file-drop operation and its owning payload.
         struct FilesDroppedEvent
         {
-            std::optional<Position> clientPosition;     ///< Logical drop position when available.
+            std::optional<LogicalPosition> clientPosition; ///< Logical drop position when available.
             std::vector<FileSystem::Types::Path> paths; ///< Native FileSystem paths.
         };
 
@@ -484,10 +526,11 @@ namespace GameWIP::Window
         };
 
         /// @brief Tagged payload for one portable Window event.
-        /// @note Destruction is observed through close() and isOpen(). close() tears down event
-        /// storage and therefore does not enqueue an unobservable closed event.
+        /// @note Explicit close tears down event storage without an event. Unexpected native
+        /// destruction retains state and queues ClosedEvent for controlled finalization.
         using EventData = std::variant<
             CloseRequestedEvent,
+            ClosedEvent,
             VisibilityChangedEvent,
             MovedEvent,
             ClientSizeChangedEvent,
@@ -555,11 +598,18 @@ namespace GameWIP::Window
             Capabilities capabilities; ///< Meaningful on success.
         };
 
-        /// @brief Logical position query/conversion result.
-        struct PositionResult
+        /// @brief Physical screen-position query/conversion result.
+        struct ScreenPositionResult
         {
             IO::Types::Status status; ///< Operation status.
-            Position position;        ///< Meaningful on success.
+            ScreenPosition position;  ///< Meaningful on success.
+        };
+
+        /// @brief Logical client-position conversion result.
+        struct LogicalPositionResult
+        {
+            IO::Types::Status status;
+            LogicalPosition position;
         };
 
         /// @brief Materialized monitor enumeration result.
@@ -610,13 +660,13 @@ namespace GameWIP::Window
     [[nodiscard]] GAMEWIP_WINDOW_EXPORT Types::DisplayModeListResult getDisplayModes(Types::MonitorId monitor) noexcept;
     /// @brief Returns the active display mode for a monitor.
     [[nodiscard]] GAMEWIP_WINDOW_EXPORT Types::DisplayModeResult getCurrentDisplayMode(Types::MonitorId monitor) noexcept;
-    /// @brief Returns the backend-preferred display mode for a monitor.
+    /// @brief Returns the connected target's DisplayConfig preferred/native mode.
     [[nodiscard]] GAMEWIP_WINDOW_EXPORT Types::DisplayModeResult getPreferredDisplayMode(Types::MonitorId monitor) noexcept;
 
-    /// @brief Move-only RAII owner of one native top-level desktop window.
+    /// @brief Non-copyable, non-movable RAII owner of one native top-level desktop window.
     /// @details Except wakeEventWait(), open-object operations require the opening thread. Cached
-    /// getters do not query the backend and are not synchronized. Move construction transfers the
-    /// stable state and external-storage binding but does not transfer native thread affinity.
+    /// getters do not query the backend and are not synchronized. The stable object address and
+    /// thread affinity last until explicit close or destruction.
     class GAMEWIP_WINDOW_EXPORT Window final
     {
     public:
@@ -624,10 +674,9 @@ namespace GameWIP::Window
         Window() noexcept;
         Window(const Window &) = delete;
         Window &operator=(const Window &) = delete;
-        /// @brief Transfers private state and leaves other closed.
-        Window(Window &&other) noexcept;
-        Window &operator=(Window &&other) = delete;
-        /// @brief Performs best-effort non-throwing cleanup.
+        Window(Window &&) = delete;
+        Window &operator=(Window &&) = delete;
+        /// @brief Performs non-throwing cleanup, transferring wrong-thread native work to the owner dispatcher.
         ~Window() noexcept;
 
         /// @brief Opens with kDefaultEventQueueCapacity internal slots.
@@ -635,12 +684,14 @@ namespace GameWIP::Window
         /// @brief Opens with a positive fixed internal capacity.
         [[nodiscard]] IO::Types::Status open(const Types::Description &description, std::size_t eventQueueCapacity) noexcept;
         /// @brief Opens with non-empty caller-owned slots borrowed exclusively until close().
-        /// @warning Storage must remain alive and unmoved; moving Window transfers the binding.
+        /// @warning Storage must remain alive and unmoved until close().
         [[nodiscard]] IO::Types::Status open(const Types::Description &description, std::span<Types::Event> eventStorage) noexcept;
 
-        /// @brief Returns whether a native resource is owned.
+        /// @brief Returns whether a live native Window exists.
         [[nodiscard]] bool isOpen() const noexcept;
-        /// @brief Destroys native state and releases event storage; repeated calls succeed.
+        /// @brief Returns open, closed, or unexpected-native-destruction pending-finalize state.
+        [[nodiscard]] Types::LifetimeState lifetimeState() const noexcept;
+        /// @brief Destroys or finalizes native state and releases event storage; repeated calls succeed.
         [[nodiscard]] IO::Types::Status close() noexcept;
 
         /// @brief Returns the current open-lifetime identity or an invalid ID.
@@ -674,15 +725,16 @@ namespace GameWIP::Window
         /// @brief Wakes waitEvents() on the owning thread; intentionally cross-thread safe.
         [[nodiscard]] IO::Types::Status wakeEventWait() const noexcept;
 
-        /// @brief Returns a view invalidated by setTitle(), close(), move, or destruction.
+        /// @brief Returns a view invalidated by setTitle(), close(), or destruction.
         [[nodiscard]] std::string_view title() const noexcept;
-        [[nodiscard]] Types::Size clientSize() const noexcept;                        ///< Cached logical client extent.
+        [[nodiscard]] Types::LogicalSize clientSize() const noexcept;                 ///< Cached logical client extent.
         [[nodiscard]] Types::PixelSize framebufferSize() const noexcept;              ///< Cached physical client extent.
-        [[nodiscard]] Types::Position clientPosition() const noexcept;                ///< Cached logical client top-left.
-        [[nodiscard]] Types::Rect frameRect() const noexcept;                         ///< Cached complete logical frame.
+        [[nodiscard]] Types::ScreenPosition clientPosition() const noexcept;          ///< Cached physical screen position.
+        [[nodiscard]] Types::ScreenRect frameRect() const noexcept;                   ///< Cached physical outer frame.
         [[nodiscard]] Types::Insets frameInsets() const noexcept;                     ///< Cached logical frame insets.
         [[nodiscard]] Types::ContentScale contentScale() const noexcept;              ///< Cached content scale.
         [[nodiscard]] Types::Dpi effectiveDpi() const noexcept;                       ///< Cached effective DPI.
+        [[nodiscard]] Types::DpiResizePolicy dpiResizePolicy() const noexcept;        ///< Cached future DPI-transition policy.
         [[nodiscard]] Types::MonitorId currentMonitor() const noexcept;               ///< Cached monitor identity.
         [[nodiscard]] Types::WindowMode mode() const noexcept;                        ///< Cached window mode.
         [[nodiscard]] Types::FullscreenInfo fullscreenInfo() const noexcept;          ///< Cached fullscreen detail.
@@ -717,21 +769,23 @@ namespace GameWIP::Window
         /// @brief Restores the platform-default window icon.
         [[nodiscard]] IO::Types::Status clearIcon() noexcept;
         /// @brief Changes the positive logical client extent within current limits.
-        [[nodiscard]] IO::Types::Status setClientSize(Types::Size size) noexcept;
-        /// @brief Changes the logical desktop position of the client top-left.
-        [[nodiscard]] IO::Types::Status setClientPosition(Types::Position position) noexcept;
-        /// @brief Atomically requests logical client position and extent.
-        [[nodiscard]] IO::Types::Status setClientRect(const Types::Rect &rect) noexcept;
+        [[nodiscard]] IO::Types::Status setClientSize(Types::LogicalSize size) noexcept;
+        /// @brief Changes the physical virtual-screen position of the client top-left.
+        [[nodiscard]] IO::Types::Status setClientPosition(Types::ScreenPosition position) noexcept;
+        /// @brief Atomically requests physical placement and logical client extent.
+        [[nodiscard]] IO::Types::Status setClientRect(Types::ScreenPosition position, Types::LogicalSize size) noexcept;
         /// @brief Centers the frame on monitor, or the current monitor when invalid.
         [[nodiscard]] IO::Types::Status centerOn(Types::MonitorId monitor = {}) noexcept;
         /// @brief Replaces logical client-size constraints and clamps the current size if needed.
         [[nodiscard]] IO::Types::Status setSizeLimits(const Types::SizeLimits &limits) noexcept;
         /// @brief Replaces or clears the positive interactive resize ratio.
         [[nodiscard]] IO::Types::Status setAspectRatio(std::optional<Types::AspectRatio> aspectRatio) noexcept;
-        /// @brief Converts a logical client point to a logical desktop point.
-        [[nodiscard]] Types::PositionResult clientToScreen(Types::Position position) const noexcept;
-        /// @brief Converts a logical desktop point to a logical client point.
-        [[nodiscard]] Types::PositionResult screenToClient(Types::Position position) const noexcept;
+        /// @brief Converts a logical client point to a physical virtual-screen point.
+        [[nodiscard]] Types::ScreenPositionResult clientToScreen(Types::LogicalPosition position) const noexcept;
+        /// @brief Converts a physical virtual-screen point to a logical client point.
+        [[nodiscard]] Types::LogicalPositionResult screenToClient(Types::ScreenPosition position) const noexcept;
+        /// @brief Selects how future DPI changes resize the client.
+        [[nodiscard]] IO::Types::Status setDpiResizePolicy(Types::DpiResizePolicy policy) noexcept;
         /// @brief Makes the window visible without changing its mode.
         [[nodiscard]] IO::Types::Status show() noexcept;
         /// @brief Hides the window without destroying it.
@@ -777,9 +831,9 @@ namespace GameWIP::Window
         /// @brief Replaces the standard cursor shape used over the client area.
         [[nodiscard]] IO::Types::Status setCursorShape(Types::CursorShape shape) noexcept;
         /// @brief Warps the cursor to a logical client position.
-        [[nodiscard]] IO::Types::Status setCursorPosition(Types::Position clientPosition) noexcept;
+        [[nodiscard]] IO::Types::Status setCursorPosition(Types::LogicalPosition clientPosition) noexcept;
         /// @brief Queries the current cursor position in logical client coordinates.
-        [[nodiscard]] Types::PositionResult cursorPosition() const noexcept;
+        [[nodiscard]] Types::LogicalPositionResult cursorPosition() const noexcept;
 
     private:
         friend struct Detail::WindowAccess;

@@ -1,14 +1,14 @@
-@page window_renderer_feedback Renderer feedback
+@page window_renderer_integration Renderer integration
 
 Window owns the cached occlusion state and its event, but only a renderer can reliably determine whether presenting a particular surface is occluded. The installed adapter keeps that ownership boundary explicit:
 
 ```cpp
-#include "window/integration/renderer_feedback.h"
+#include <window/renderer.h>
 ```
 
 ## Provider lifecycle
 
-Call `GameWIP::Window::Integration::Renderer::attachOcclusionProvider()` after both the Window and its renderer-owned surface exist. Exactly one provider may be attached to an open Window. A duplicate attachment reports `AlreadyOpen`; use `detachOcclusionProvider()` before replacing the provider.
+Call `GameWIP::Window::Renderer::attachOcclusionProvider()` after both the Window and its renderer-owned surface exist. Exactly one provider may be attached to an open Window.
 
 Attachment, reporting, and detachment belong to the Window owner thread. Calls from another thread report `ResourceBusy`. Calls on a closed Window report `NotOpen`, and closing implicitly discards the provider and cached state without producing an event.
 
@@ -25,7 +25,7 @@ The operation status remains authoritative. `reportOcclusion()` reports `NotOpen
 The renderer records the authoritative result of presentation. Its owner-thread integration step then calls:
 
 ```cpp
-namespace RendererFeedback = GameWIP::Window::Integration::Renderer;
+namespace RendererFeedback = GameWIP::Window::Renderer;
 
 if (!RendererFeedback::attachOcclusionProvider(window).ok())
     return false;
@@ -42,3 +42,17 @@ The adapter intentionally provides no cross-thread mailbox. A render thread may 
 ## Surface ownership
 
 Renderer surface or swapchain creation remains a Renderer responsibility. Obtain the non-owning platform handle through the opt-in native adapter described by @ref window_native_interop, create or destroy the surface in Renderer, and use this feedback adapter only for state that Window exposes to consumers.
+
+## Packed pointer hit masks
+
+`publishPointerHitMask()` accepts one row-major bit per physical framebuffer pixel, least-significant bit first within each 64-bit word. Unused high bits in the final word must be zero. Revisions must increase, so stale asynchronous GPU readbacks cannot replace newer data. Failures preserve the active mask; same-size publication reuses storage, movement preserves it, and framebuffer resizing invalidates it.
+
+Renderer owns GPU work, thresholding, bit packing, synchronization, and asynchronous readback. Use `requiredPointerHitMaskWords()` for exact storage sizing. Publication is owner-thread-only, rejects stale or zero revisions, and requires the supplied `PixelSize` to match the current framebuffer. `clearPointerHitMask()` removes the active mask.
+
+Native per-pixel desktop routing is a separate capability. Publishing data does not make an unsupported backend claim passthrough support.
+
+## Related pages
+
+- @ref window_chrome_and_pointer_input
+- @ref window_coordinates_and_dpi
+- @ref window_native_interop

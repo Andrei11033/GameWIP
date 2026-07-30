@@ -22,24 +22,48 @@ namespace GameWIP::Window::Detail::Platform
             return IO::successStatus();
         }
 
-        [[nodiscard]] IO::Types::Status setOuterRect(WindowState &state, const Types::Rect &clientRect) noexcept
+        [[nodiscard]] IO::Types::Status setOuterRect(
+            WindowState &state, Types::ScreenPosition position, Types::LogicalSize size) noexcept
         {
             const UINT dpi = dpiForWindow(state.platform->handle);
-            const Types::Size physicalSize = logicalToPhysicalSize(clientRect.size, dpi);
+            const Types::PixelSize physicalSize = logicalToPhysicalSize(size, dpi);
+            if (physicalSize.width == 0 || physicalSize.height == 0 ||
+                physicalSize.width > static_cast<std::uint32_t>(std::numeric_limits<LONG>::max()) ||
+                physicalSize.height > static_cast<std::uint32_t>(std::numeric_limits<LONG>::max()))
+            {
+                return IO::makeStatus(
+                    IO::Types::ErrorCode::InvalidArgument,
+                    ERROR_ARITHMETIC_OVERFLOW,
+                    "client size exceeds Win32 range at the effective DPI");
+            }
             RECT outer{0, 0, static_cast<LONG>(physicalSize.width), static_cast<LONG>(physicalSize.height)};
             const DWORD style = static_cast<DWORD>(GetWindowLongPtrW(state.platform->handle, GWL_STYLE));
             const DWORD extendedStyle = static_cast<DWORD>(GetWindowLongPtrW(state.platform->handle, GWL_EXSTYLE));
             if (AdjustWindowRectExForDpi(&outer, style, FALSE, extendedStyle, dpi) == FALSE)
                 return statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "AdjustWindowRectExForDpi");
-            const int x = logicalToPhysical(clientRect.position.x, dpi) + outer.left;
-            const int y = logicalToPhysical(clientRect.position.y, dpi) + outer.top;
+            const std::int64_t outerWidth = static_cast<std::int64_t>(outer.right) - outer.left;
+            const std::int64_t outerHeight = static_cast<std::int64_t>(outer.bottom) - outer.top;
+            const std::int64_t wideX = static_cast<std::int64_t>(position.x) + outer.left;
+            const std::int64_t wideY = static_cast<std::int64_t>(position.y) + outer.top;
+            if (wideX < std::numeric_limits<int>::min() || wideX > std::numeric_limits<int>::max() ||
+                wideY < std::numeric_limits<int>::min() || wideY > std::numeric_limits<int>::max() ||
+                outerWidth <= 0 || outerWidth > std::numeric_limits<int>::max() ||
+                outerHeight <= 0 || outerHeight > std::numeric_limits<int>::max())
+            {
+                return IO::makeStatus(
+                    IO::Types::ErrorCode::InvalidArgument,
+                    ERROR_ARITHMETIC_OVERFLOW,
+                    "outer frame position exceeds Win32 range");
+            }
+            const int x = static_cast<int>(wideX);
+            const int y = static_cast<int>(wideY);
             if (SetWindowPos(
                     state.platform->handle,
                     nullptr,
                     x,
                     y,
-                    outer.right - outer.left,
-                    outer.bottom - outer.top,
+                    static_cast<int>(outerWidth),
+                    static_cast<int>(outerHeight),
                     SWP_NOZORDER | SWP_NOACTIVATE) == FALSE)
             {
                 return statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "SetWindowPos client rectangle");
@@ -134,10 +158,23 @@ namespace GameWIP::Window::Detail::Platform
             ancestor = resolveWindowId(ancestor->owner);
         }
         const Types::WindowId previous = state.owner;
-        IO::Types::Status status = setNativeParent(state.platform->handle, ownerState != nullptr ? ownerState->platform->handle : nullptr);
+        WindowState *previousOwnerState = previous.valid() ? resolveWindowId(previous) : nullptr;
+        HWND previousOwnerHandle =
+            previousOwnerState != nullptr && previousOwnerState->platform ? previousOwnerState->platform->handle : nullptr;
+        IO::Types::Status status = setNativeParent(
+            state.platform->handle,
+            ownerState != nullptr ? ownerState->platform->handle : nullptr);
         if (!status.ok())
             return status;
         state.owner = owner;
+        status = applyStyle(state);
+        if (!status.ok())
+        {
+            state.owner = previous;
+            static_cast<void>(setNativeParent(state.platform->handle, previousOwnerHandle));
+            static_cast<void>(applyStyle(state));
+            return status;
+        }
         if (state.owner != previous)
             routeEvent(state, Types::OwnerChangedEvent{previous, state.owner});
         return IO::successStatus();
@@ -153,9 +190,10 @@ namespace GameWIP::Window::Detail::Platform
             DWORD nativeCode = ERROR_SUCCESS;
             if (!utf8ToUtf16(utf8Title, title, nativeCode))
                 return statusFromWin32(IO::Types::ErrorCode::EncodingFailed, nativeCode, "convert window title");
+            std::string cachedTitle(utf8Title);
             if (SetWindowTextW(state.platform->handle, title.c_str()) == FALSE)
                 return statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "SetWindowTextW");
-            state.title.assign(utf8Title);
+            state.title.swap(cachedTitle);
             return IO::successStatus();
         }
         catch (const std::bad_alloc &)
@@ -210,19 +248,19 @@ namespace GameWIP::Window::Detail::Platform
         return IO::successStatus();
     }
 
-    IO::Types::Status setClientSize(WindowState &state, Types::Size size) noexcept
+    IO::Types::Status setClientSize(WindowState &state, Types::LogicalSize size) noexcept
     {
-        return setOuterRect(state, {state.clientPosition, size});
+        return setOuterRect(state, state.clientPosition, size);
     }
 
-    IO::Types::Status setClientPosition(WindowState &state, Types::Position position) noexcept
+    IO::Types::Status setClientPosition(WindowState &state, Types::ScreenPosition position) noexcept
     {
-        return setOuterRect(state, {position, state.clientSize});
+        return setOuterRect(state, position, state.clientSize);
     }
 
-    IO::Types::Status setClientRect(WindowState &state, const Types::Rect &rect) noexcept
+    IO::Types::Status setClientRect(WindowState &state, Types::ScreenPosition position, Types::LogicalSize size) noexcept
     {
-        return setOuterRect(state, rect);
+        return setOuterRect(state, position, size);
     }
 
     IO::Types::Status centerOn(WindowState &state, Types::MonitorId monitor) noexcept
@@ -255,7 +293,7 @@ namespace GameWIP::Window::Detail::Platform
     {
         const Types::SizeLimits previous = state.sizeLimits;
         state.sizeLimits = limits;
-        Types::Size clamped = state.clientSize;
+        Types::LogicalSize clamped = state.clientSize;
         if (limits.minimum)
         {
             clamped.width = std::max(clamped.width, limits.minimum->width);
@@ -284,19 +322,27 @@ namespace GameWIP::Window::Detail::Platform
         return IO::successStatus();
     }
 
-    Types::PositionResult clientToScreen(const WindowState &state, Types::Position position) noexcept
+    Types::ScreenPositionResult clientToScreen(const WindowState &state, Types::LogicalPosition position) noexcept
     {
         const UINT dpi = dpiForWindow(state.platform->handle);
-        POINT point{logicalToPhysical(position.x, dpi), logicalToPhysical(position.y, dpi)};
+        POINT point{};
+        if (!logicalToPhysicalChecked(position.x, dpi, point.x) || !logicalToPhysicalChecked(position.y, dpi, point.y))
+        {
+            return {
+                .status = IO::makeStatus(
+                    IO::Types::ErrorCode::InvalidArgument,
+                    ERROR_ARITHMETIC_OVERFLOW,
+                    "logical client position exceeds Win32 range at the effective DPI")};
+        }
         if (ClientToScreen(state.platform->handle, &point) == FALSE)
             return {.status = statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "ClientToScreen")};
-        return {.status = IO::successStatus(), .position = {physicalToLogical(point.x, dpi), physicalToLogical(point.y, dpi)}};
+        return {.status = IO::successStatus(), .position = {point.x, point.y}};
     }
 
-    Types::PositionResult screenToClient(const WindowState &state, Types::Position position) noexcept
+    Types::LogicalPositionResult screenToClient(const WindowState &state, Types::ScreenPosition position) noexcept
     {
         const UINT dpi = dpiForWindow(state.platform->handle);
-        POINT point{logicalToPhysical(position.x, dpi), logicalToPhysical(position.y, dpi)};
+        POINT point{position.x, position.y};
         if (ScreenToClient(state.platform->handle, &point) == FALSE)
             return {.status = statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "ScreenToClient")};
         return {.status = IO::successStatus(), .position = {physicalToLogical(point.x, dpi), physicalToLogical(point.y, dpi)}};

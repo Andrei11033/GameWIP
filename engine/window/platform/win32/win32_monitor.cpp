@@ -7,6 +7,7 @@
 #include <cwchar>
 #include <limits>
 #include <new>
+#include <optional>
 #include <unordered_map>
 
 namespace GameWIP::Window::Detail::Platform
@@ -46,6 +47,85 @@ namespace GameWIP::Window::Detail::Platform
                 .interlaced = (native.dmDisplayFlags & DM_INTERLACED) != 0};
         }
 
+        [[nodiscard]] std::uint32_t rationalMillihertz(DISPLAYCONFIG_RATIONAL value) noexcept
+        {
+            if (value.Numerator == 0 || value.Denominator == 0)
+                return 0;
+            const std::uint64_t scaled = static_cast<std::uint64_t>(value.Numerator) * 1000U;
+            const std::uint64_t rounded = (scaled + value.Denominator / 2U) / value.Denominator;
+            return static_cast<std::uint32_t>(
+                std::min<std::uint64_t>(rounded, std::numeric_limits<std::uint32_t>::max()));
+        }
+
+        [[nodiscard]] bool interlaced(DISPLAYCONFIG_SCANLINE_ORDERING ordering) noexcept
+        {
+            return ordering == DISPLAYCONFIG_SCANLINE_ORDERING_INTERLACED ||
+                   ordering == DISPLAYCONFIG_SCANLINE_ORDERING_INTERLACED_LOWERFIELDFIRST;
+        }
+
+        struct ActiveDisplayPath
+        {
+            DISPLAYCONFIG_PATH_INFO path{};
+        };
+
+        [[nodiscard]] IO::Types::Status findActiveDisplayPath(
+            std::wstring_view device,
+            ActiveDisplayPath &result) noexcept
+        {
+            constexpr UINT32 flags = QDC_ONLY_ACTIVE_PATHS | QDC_VIRTUAL_MODE_AWARE;
+            for (unsigned int attempt = 0; attempt < 4; ++attempt)
+            {
+                UINT32 pathCount = 0;
+                UINT32 modeCount = 0;
+                LONG nativeResult = GetDisplayConfigBufferSizes(flags, &pathCount, &modeCount);
+                if (nativeResult != ERROR_SUCCESS)
+                    return statusFromWin32(
+                        IO::Types::ErrorCode::StatFailed,
+                        static_cast<DWORD>(nativeResult),
+                        "GetDisplayConfigBufferSizes");
+
+                std::vector<DISPLAYCONFIG_PATH_INFO> paths(pathCount);
+                std::vector<DISPLAYCONFIG_MODE_INFO> modes(modeCount);
+                nativeResult = QueryDisplayConfig(
+                    flags,
+                    &pathCount,
+                    paths.data(),
+                    &modeCount,
+                    modes.data(),
+                    nullptr);
+                if (nativeResult == ERROR_INSUFFICIENT_BUFFER)
+                    continue;
+                if (nativeResult != ERROR_SUCCESS)
+                    return statusFromWin32(
+                        IO::Types::ErrorCode::StatFailed,
+                        static_cast<DWORD>(nativeResult),
+                        "QueryDisplayConfig");
+
+                paths.resize(pathCount);
+                for (const DISPLAYCONFIG_PATH_INFO &path : paths)
+                {
+                    DISPLAYCONFIG_SOURCE_DEVICE_NAME source{};
+                    source.header.type = DISPLAYCONFIG_DEVICE_INFO_GET_SOURCE_NAME;
+                    source.header.size = sizeof(source);
+                    source.header.adapterId = path.sourceInfo.adapterId;
+                    source.header.id = path.sourceInfo.id;
+                    nativeResult = DisplayConfigGetDeviceInfo(&source.header);
+                    if (nativeResult != ERROR_SUCCESS)
+                        continue;
+                    if (_wcsicmp(source.viewGdiDeviceName, std::wstring(device).c_str()) == 0)
+                    {
+                        result.path = path;
+                        return IO::successStatus();
+                    }
+                }
+                return IO::makeStatus(IO::Types::ErrorCode::NotFound);
+            }
+            return IO::makeStatus(
+                IO::Types::ErrorCode::ResourceBusy,
+                ERROR_INSUFFICIENT_BUFFER,
+                "display topology changed repeatedly during QueryDisplayConfig");
+        }
+
         [[nodiscard]] Types::DisplayModeResult queryDisplayMode(Types::MonitorId monitor, DWORD selector) noexcept
         {
             if (!monitor.valid())
@@ -59,7 +139,17 @@ namespace GameWIP::Window::Detail::Platform
                 native.dmSize = sizeof(native);
                 if (EnumDisplaySettingsExW(device.c_str(), selector, &native, 0) == FALSE)
                     return {.status = statusFromWin32(IO::Types::ErrorCode::StatFailed, GetLastError(), "EnumDisplaySettingsExW")};
-                return {.status = IO::successStatus(), .displayMode = toDisplayMode(native)};
+                Types::DisplayMode mode = toDisplayMode(native);
+                if (selector == ENUM_CURRENT_SETTINGS)
+                {
+                    ActiveDisplayPath active;
+                    if (findActiveDisplayPath(device, active).ok())
+                    {
+                        mode.refreshRateMillihertz = rationalMillihertz(active.path.targetInfo.refreshRate);
+                        mode.interlaced = interlaced(active.path.targetInfo.scanLineOrdering);
+                    }
+                }
+                return {.status = IO::successStatus(), .displayMode = mode};
             }
             catch (const std::bad_alloc &)
             {
@@ -128,23 +218,57 @@ namespace GameWIP::Window::Detail::Platform
         }
     } // namespace
 
+    std::uint32_t runtimeWindowsBuild() noexcept
+    {
+        static const std::uint32_t build = []
+        {
+            using RtlGetVersionFunction = LONG(WINAPI *)(OSVERSIONINFOW *);
+            const HMODULE ntdll = GetModuleHandleW(L"ntdll.dll");
+            if (ntdll == nullptr)
+                return std::uint32_t{0};
+            const auto getVersion =
+                reinterpret_cast<RtlGetVersionFunction>(GetProcAddress(ntdll, "RtlGetVersion"));
+            if (getVersion == nullptr)
+                return std::uint32_t{0};
+            OSVERSIONINFOW version{};
+            version.dwOSVersionInfoSize = sizeof(version);
+            if (getVersion(&version) != 0 || version.dwMajorVersion < 10)
+                return std::uint32_t{0};
+            return static_cast<std::uint32_t>(version.dwBuildNumber);
+        }();
+        return build;
+    }
+
+    bool supportsSystemBackdrop() noexcept
+    {
+        return runtimeWindowsBuild() >= 22621;
+    }
+
+    bool supportsTransparentFramebuffer() noexcept
+    {
+        return runtimeWindowsBuild() >= 26100;
+    }
+
     Types::CapabilitiesResult getCapabilities() noexcept
     {
         using C = Types::Capability;
-        constexpr std::uint64_t flags =
+        std::uint64_t flags =
             capabilityBit(C::MultipleWindows) | capabilityBit(C::MultipleWindowThreads) | capabilityBit(C::OwnedWindows) |
             capabilityBit(C::RuntimeOwnerChange) | capabilityBit(C::WindowPositioning) | capabilityBit(C::ProgrammaticFocus) |
             capabilityBit(C::AttentionRequest) | capabilityBit(C::RuntimeDecorationChange) | capabilityBit(C::CustomChrome) |
             capabilityBit(C::WindowIcon) | capabilityBit(C::AspectRatioConstraint) | capabilityBit(C::RuntimeInteractionControl) |
-            capabilityBit(C::AlwaysOnTop) | capabilityBit(C::Opacity) | capabilityBit(C::TransparentFramebuffer) | capabilityBit(C::BackdropBlur) |
-            capabilityBit(C::PointerClickThrough) | capabilityBit(C::PointerRegions) | capabilityBit(C::CursorConfinement) |
+            capabilityBit(C::AlwaysOnTop) | capabilityBit(C::Opacity) | capabilityBit(C::PointerClickThrough) | capabilityBit(C::CursorConfinement) |
             capabilityBit(C::RelativeCursor) | capabilityBit(C::CursorWarping) | capabilityBit(C::FileDrop) | capabilityBit(C::ExclusiveFullscreen);
+        if (supportsSystemBackdrop())
+            flags |= capabilityBit(C::SystemBackdrop);
+        if (supportsTransparentFramebuffer())
+            flags |= capabilityBit(C::TransparentFramebuffer);
         return {
             .status = IO::successStatus(),
             .capabilities = {
                 .flags = flags,
                 .maximumCustomChromeRegions = kMaximumChromeRegions,
-                .maximumPointerInputRegions = kMaximumPointerRegions}};
+                .maximumPointerInputRegions = 0}};
     }
 
     Types::MonitorInfoResult monitorFromNative(HMONITOR monitor) noexcept
@@ -195,15 +319,13 @@ namespace GameWIP::Window::Detail::Platform
                 DeleteDC(displayContext);
             }
 
-            const auto makeRect = [dpiX, dpiY](const RECT &rect) noexcept
+            const auto makeRect = [](const RECT &rect) noexcept
             {
-                const std::int32_t left = MulDiv(rect.left, kBaselineDpi, static_cast<int>(dpiX));
-                const std::int32_t top = MulDiv(rect.top, kBaselineDpi, static_cast<int>(dpiY));
-                const std::int32_t right = MulDiv(rect.right, kBaselineDpi, static_cast<int>(dpiX));
-                const std::int32_t bottom = MulDiv(rect.bottom, kBaselineDpi, static_cast<int>(dpiY));
-                return Types::Rect{
-                    .position = {left, top},
-                    .size = {static_cast<std::uint32_t>(std::max(0, right - left)), static_cast<std::uint32_t>(std::max(0, bottom - top))}};
+                return Types::ScreenRect{
+                    .position = {rect.left, rect.top},
+                    .size = {
+                        static_cast<std::uint32_t>(std::max<LONG>(0, rect.right - rect.left)),
+                        static_cast<std::uint32_t>(std::max<LONG>(0, rect.bottom - rect.top))}};
             };
 
             return {
@@ -335,6 +457,21 @@ namespace GameWIP::Window::Detail::Platform
                 if (std::find(result.displayModes.begin(), result.displayModes.end(), mode) == result.displayModes.end())
                     result.displayModes.push_back(mode);
             }
+            std::sort(
+                result.displayModes.begin(),
+                result.displayModes.end(),
+                [](const Types::DisplayMode &left, const Types::DisplayMode &right)
+                {
+                    if (left.resolution.width != right.resolution.width)
+                        return left.resolution.width < right.resolution.width;
+                    if (left.resolution.height != right.resolution.height)
+                        return left.resolution.height < right.resolution.height;
+                    if (left.refreshRateMillihertz != right.refreshRateMillihertz)
+                        return left.refreshRateMillihertz < right.refreshRateMillihertz;
+                    if (left.bitsPerPixel != right.bitsPerPixel)
+                        return left.bitsPerPixel < right.bitsPerPixel;
+                    return left.interlaced < right.interlaced;
+                });
             result.status = IO::successStatus();
             return result;
         }
@@ -355,6 +492,61 @@ namespace GameWIP::Window::Detail::Platform
 
     Types::DisplayModeResult getPreferredDisplayMode(Types::MonitorId monitor) noexcept
     {
-        return queryDisplayMode(monitor, ENUM_REGISTRY_SETTINGS);
+        if (!monitor.valid())
+            return {.status = IO::makeStatus(IO::Types::ErrorCode::InvalidArgument)};
+        try
+        {
+            const std::wstring device = monitorDeviceName(monitor);
+            if (device.empty())
+                return {.status = IO::makeStatus(IO::Types::ErrorCode::NotFound)};
+
+            ActiveDisplayPath active;
+            IO::Types::Status status = findActiveDisplayPath(device, active);
+            if (!status.ok())
+                return {.status = std::move(status)};
+
+            DISPLAYCONFIG_TARGET_PREFERRED_MODE preferred{};
+            preferred.header.type = DISPLAYCONFIG_DEVICE_INFO_GET_TARGET_PREFERRED_MODE;
+            preferred.header.size = sizeof(preferred);
+            preferred.header.adapterId = active.path.targetInfo.adapterId;
+            preferred.header.id = active.path.targetInfo.id;
+            const LONG nativeResult = DisplayConfigGetDeviceInfo(&preferred.header);
+            if (nativeResult != ERROR_SUCCESS)
+            {
+                return {
+                    .status = statusFromWin32(
+                        IO::Types::ErrorCode::StatFailed,
+                        static_cast<DWORD>(nativeResult),
+                        "DisplayConfigGetDeviceInfo preferred mode")};
+            }
+
+            const Types::DisplayModeResult current = queryDisplayMode(monitor, ENUM_CURRENT_SETTINGS);
+            const DISPLAYCONFIG_VIDEO_SIGNAL_INFO &signal = preferred.targetMode.targetVideoSignalInfo;
+            return {
+                .status = IO::successStatus(),
+                .displayMode = {
+                    .resolution = {preferred.width, preferred.height},
+                    .refreshRateMillihertz = rationalMillihertz(signal.vSyncFreq),
+                    .bitsPerPixel = current.status.ok() ? current.displayMode.bitsPerPixel : std::uint16_t{0},
+                    .interlaced = interlaced(signal.scanLineOrdering)}};
+        }
+        catch (const std::bad_alloc &)
+        {
+            return {.status = IO::makeStatus(IO::Types::ErrorCode::OutOfMemory)};
+        }
+        catch (...)
+        {
+            return {.status = IO::makeStatus(IO::Types::ErrorCode::Unknown)};
+        }
     }
 } // namespace GameWIP::Window::Detail::Platform
+
+#if INTERNAL_WINDOW_TEST_HOOKS
+namespace GameWIP::Window::TestHooks
+{
+    std::uint32_t refreshRateMillihertz(std::uint32_t numerator, std::uint32_t denominator) noexcept
+    {
+        return Detail::Platform::rationalMillihertz({numerator, denominator});
+    }
+} // namespace GameWIP::Window::TestHooks
+#endif

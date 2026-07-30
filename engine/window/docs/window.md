@@ -1,4 +1,4 @@
-@page window Window
+@page window_library Window
 
 `GameWIP::Window` is the standalone, portable owner of native top-level desktop windows. It provides checked lifecycle and mutation operations, fixed-capacity typed event queues, cached state, monitor and display-mode discovery, and an explicit native interoperability boundary.
 
@@ -8,11 +8,13 @@ Window is usable without Input, Action, WindowManager, Renderer, UI, or the game
 
 - @subpage window_quick_start
 - @subpage window_public_api
+- @subpage window_package_abi
+- @subpage window_coordinates_and_dpi
 - @subpage window_lifecycle_and_events
 - @subpage window_chrome_and_pointer_input
 - @subpage window_fullscreen_and_monitors
 - @subpage window_native_interop
-- @subpage window_renderer_feedback
+- @subpage window_renderer_integration
 - @subpage window_examples
 - @subpage window_troubleshooting
 - @subpage window_future_extensions
@@ -25,18 +27,20 @@ Window is usable without Input, Action, WindowManager, Renderer, UI, or the game
 
 ## Generated API reference
 
-Use @ref GameWIP::Window for library operations and the move-only @ref GameWIP::Window::Window owner. Use @ref GameWIP::Window::Types for passive descriptions, geometry, monitor snapshots, capabilities, events, and result values. Win32 consumers that deliberately need native handles use @ref GameWIP::Window::Native::Win32. Renderer integrations report authoritative occlusion transitions through the `GameWIP::Window::Integration::Renderer` adapter.
+Use @ref GameWIP::Window for library operations and the non-copyable, non-movable @ref GameWIP::Window::Window owner. Use @ref GameWIP::Window::Types for passive values. Win32 consumers use @ref GameWIP::Window::Native::Win32 deliberately; renderer integrations use @ref GameWIP::Window::Renderer.
 
 ## Key behavior
 
-Every successful `open()` creates one process-local `WindowId` and one fixed event queue. Cached getters are allocation-free and never query the operating system. Native callbacks update cached state before attempting event insertion, so an overflow never makes state stale. Close requests are sticky even if their queue event cannot be retained.
+Every successful `open()` creates one process-local `WindowId` and one fixed event queue. `Window` is non-copyable and non-movable so its address and thread affinity remain stable. Cached getters are allocation-free and never query the operating system. Native callbacks update cached state before event insertion, so queue overflow never makes state stale. Close requests are sticky even if their event cannot be retained.
 
 The opening thread owns native mutation, queue consumption, and event pumping. `wakeEventWait()` is the only intentionally cross-thread object operation. A thread-local dispatcher pumps every Window opened by that thread; no WindowManager is involved.
 
-Public text is UTF-8 and rejects invalid sequences and embedded NUL. Geometry and custom-region values use logical client units. Framebuffer sizes and display-mode resolutions use physical pixels.
+Wrong-thread destruction transfers complete state ownership to that dispatcher without allocation. Dispatcher/thread shutdown closes any remaining HWNDs and restores exclusive/cursor/class/identity resources. Unexpected native destruction retains portable state and a typed `ClosedEvent` until controlled owner-thread finalization.
+
+Public text is UTF-8 and rejects invalid sequences and embedded NUL. Client-local values use logical units; desktop placement and monitor rectangles use physical virtual-screen coordinates; framebuffer and display-mode extents use physical pixels. Screen coordinates may be negative. A per-Window DPI resize policy controls whether a monitor transition preserves logical client size or physical client pixels.
 
 ## Dependency boundary
 
-The portable installed header is `window/window.h`; it does not include native platform headers or expose native handle types. Installed consumers link `GameWIP::Window`. Window publicly depends only on IO and FileSystem. The explicit `window/native/win32.h` adapter includes `windows.h` and is opt-in. The portable `window/integration/renderer_feedback.h` adapter is also opt-in and adds no Renderer dependency.
+The portable installed header is `window/window.h`; it does not include native platform headers. Installed consumers link `GameWIP::Window`. The Win32-only `window/native/win32.h` adapter is opt-in. The portable `window/renderer.h` adapter is also opt-in and adds no Renderer dependency.
 
-Window owns top-level native window state and event translation. Input state, action mapping, renderer surfaces, swapchains, UI layout, application loops, and multi-window coordination remain outside this library. The renderer-feedback adapter accepts only the occlusion truth that Window caches and publishes.
+Window owns top-level native state, cached geometry, event translation, and the persistent packed pointer mask published through `window/renderer.h`. Input state, action mapping, renderer surfaces, swapchains, GPU readback, UI layout, application loops, and multi-window coordination remain outside this library.

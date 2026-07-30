@@ -34,6 +34,12 @@ Each `openPortable()` call creates state owned by the supplied Window and borrow
 
 `requestClose()` uses the production sticky close-request path so repeated-source and full-queue behavior can be deterministic.
 
+`destroyNativeWindow()` enters the real unexpected `WM_NCDESTROY` path. Tests verify `ClosedEvent`, `NativeDestroyedPendingFinalize`, native-operation rejection, controlled finalization, and reopening. `simulateFullscreenMonitorRemoval()` exercises the production fullscreen recovery transaction and event order without changing the physical display topology.
+
+The packed-mask accessors expose active word count, values, revision, and storage identity for first allocation, same-size reuse, stale-publication, trailing-bit, movement, resize, and clear checks. They never mutate state.
+
+`calculateDpiTransition()`, `refreshRateMillihertz()`, and `exactNativeDisplayModeMatches()` expose the production arithmetic/comparison seams without synthesizing an invalid OS DPI or display transition.
+
 ## API reference
 
 The hook declarations are documented in `window/internal/window_test_hooks.h`. They are validation interfaces, not installed compatibility promises.

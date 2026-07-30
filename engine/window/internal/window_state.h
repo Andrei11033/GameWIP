@@ -31,10 +31,28 @@ namespace GameWIP::Window::Detail
         Dropped
     };
 
-    /// @brief Stable state addressed by native callbacks across Window moves.
+    /// @brief Stable state addressed by native callbacks for one open lifetime.
     struct WindowState
     {
+        ~WindowState() noexcept
+        {
+            clearRetainedEvents();
+        }
+
+        void clearRetainedEvents() noexcept
+        {
+            if (!eventStorage.empty())
+            {
+                for (std::size_t index = 0; index < eventCount; ++index)
+                    eventStorage[(eventHead + index) % eventStorage.size()] = {};
+            }
+            eventHead = 0;
+            eventCount = 0;
+            eventStorage = {};
+        }
+
         std::unique_ptr<Platform::WindowData, Platform::WindowDataDeleter> platform;
+        WindowState *deferredCleanupNext = nullptr;
         std::thread::id ownerThread;
         Types::WindowId id;
         Types::WindowId owner;
@@ -48,13 +66,14 @@ namespace GameWIP::Window::Detail
         std::uint64_t droppedEvents = 0;
 
         std::string title;
-        Types::Size clientSize;
+        Types::LogicalSize clientSize;
         Types::PixelSize framebufferSize;
-        Types::Position clientPosition;
-        Types::Rect frameRect;
+        Types::ScreenPosition clientPosition;
+        Types::ScreenRect frameRect;
         Types::Insets frameInsets;
         Types::ContentScale contentScale;
         Types::Dpi dpi;
+        Types::DpiResizePolicy dpiResizePolicy = Types::DpiResizePolicy::PreserveLogicalClientSize;
         Types::MonitorId monitor;
         Types::WindowMode mode = Types::WindowMode::Windowed;
         Types::FullscreenInfo fullscreen;
@@ -66,12 +85,12 @@ namespace GameWIP::Window::Detail
         Types::CursorMode cursorMode = Types::CursorMode::Normal;
         Types::CursorShape cursorShape = Types::CursorShape::Arrow;
         Types::PointerInputMode pointerInputMode = Types::PointerInputMode::Normal;
-        std::vector<Types::Rect> pointerInputRegions;
-        std::vector<Types::Rect> draggableRegions;
-        std::optional<Types::Rect> systemMenuRegion;
-        std::optional<Types::Rect> minimizeButtonRegion;
-        std::optional<Types::Rect> maximizeButtonRegion;
-        std::optional<Types::Rect> closeButtonRegion;
+        std::vector<Types::LogicalRect> pointerInputRegions;
+        std::vector<Types::LogicalRect> draggableRegions;
+        std::optional<Types::LogicalRect> systemMenuRegion;
+        std::optional<Types::LogicalRect> minimizeButtonRegion;
+        std::optional<Types::LogicalRect> maximizeButtonRegion;
+        std::optional<Types::LogicalRect> closeButtonRegion;
         Types::BackdropEffect backdrop = Types::BackdropEffect::None;
         float opacity = 1.0F;
         bool closeRequested = false;
@@ -79,6 +98,9 @@ namespace GameWIP::Window::Detail
         bool focused = false;
         bool occluded = false;
         bool occlusionProviderAttached = false;
+        std::vector<std::uint64_t> pointerHitMask;
+        Types::PixelSize pointerHitMaskSize;
+        std::uint64_t pointerHitMaskRevision = 0;
         bool cursorInside = false;
         bool resizable = true;
         bool focusable = true;
@@ -87,6 +109,7 @@ namespace GameWIP::Window::Detail
         bool fileDropEnabled = false;
         bool transparentFramebuffer = false;
         bool suppressEvents = false;
+        bool nativeDestroyedPendingFinalize = false;
     };
 
     /// @brief Returns whether an event payload participates in compatible coalescing.

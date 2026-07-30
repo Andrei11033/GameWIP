@@ -4,7 +4,7 @@
 #include "validation/tests/window/window_test.h"
 
 #include "test_support/test_support.h"
-#include "window/integration/renderer_feedback.h"
+#include "window/renderer.h"
 #include "window/native/win32.h"
 #include "window/window.h"
 
@@ -24,10 +24,12 @@
 #include <chrono>
 #include <format>
 #include <limits>
+#include <memory>
 #include <string>
 #include <thread>
 #include <type_traits>
 #include <utility>
+#include <vector>
 
 namespace
 {
@@ -36,7 +38,7 @@ namespace
     namespace Window = GameWIP::Window;
     using ErrorCode = IO::Types::ErrorCode;
 
-    static_assert(std::is_move_constructible_v<Window::Window>);
+    static_assert(!std::is_move_constructible_v<Window::Window>);
     static_assert(!std::is_move_assignable_v<Window::Window>);
     static_assert(!std::is_copy_constructible_v<Window::Window>);
     static_assert(!std::is_copy_assignable_v<Window::Window>);
@@ -63,7 +65,64 @@ namespace
         static_cast<void>(context.expectFalse("default monitor id is invalid", Window::Types::MonitorId{}.valid()));
         static_cast<void>(context.expectTrue(
             "geometry values compare structurally",
-            Window::Types::Rect{{-4, 8}, {10, 12}} == Window::Types::Rect{{-4, 8}, {10, 12}}));
+            Window::Types::LogicalRect{{-4, 8}, {10, 12}} == Window::Types::LogicalRect{{-4, 8}, {10, 12}}));
+        static_cast<void>(context.expectEq(
+            "hit-mask words round up one bit per pixel",
+            std::size_t{2},
+            Window::Renderer::requiredPointerHitMaskWords({9, 8})));
+        static_cast<void>(context.expectEq(
+            "empty hit-mask extent is invalid",
+            std::size_t{0},
+            Window::Renderer::requiredPointerHitMaskWords({0, 8})));
+#if INTERNAL_WINDOW_TEST_HOOKS
+        static_cast<void>(context.expectEq(
+            "60000/1001 refresh rounds to millihertz",
+            std::uint32_t{59'940},
+            Window::TestHooks::refreshRateMillihertz(60'000, 1'001)));
+        static_cast<void>(context.expectEq(
+            "unknown rational refresh remains zero",
+            std::uint32_t{0},
+            Window::TestHooks::refreshRateMillihertz(60'000, 0)));
+        static_cast<void>(context.expectEq(
+            "rational refresh conversion saturates",
+            std::numeric_limits<std::uint32_t>::max(),
+            Window::TestHooks::refreshRateMillihertz(std::numeric_limits<std::uint32_t>::max(), 1)));
+        const Window::Types::DisplayMode exactMode{{1920, 1080}, 60'000, 32, false};
+        static_cast<void>(context.expectTrue(
+            "exclusive comparator accepts an exact native mode",
+            Window::TestHooks::exactNativeDisplayModeMatches(exactMode, 1920, 1080, 60, 32, false)));
+        Window::Types::DisplayMode fractionalMode = exactMode;
+        fractionalMode.refreshRateMillihertz = 59'940;
+        static_cast<void>(context.expectFalse(
+            "exclusive comparator rejects a nearest integer-Hz mode",
+            Window::TestHooks::exactNativeDisplayModeMatches(fractionalMode, 1920, 1080, 60, 32, false)));
+        const Window::TestHooks::DpiTransitionResult preserveLogical =
+            Window::TestHooks::calculateDpiTransition(
+                {800, 600},
+                {800, 600},
+                144,
+                Window::Types::DpiResizePolicy::PreserveLogicalClientSize);
+        static_cast<void>(
+            context.expectEq("logical-size DPI policy preserves logical extent", Window::Types::LogicalSize{800, 600}, preserveLogical.logicalSize));
+        static_cast<void>(context.expectEq(
+            "logical-size DPI policy scales framebuffer",
+            Window::Types::PixelSize{1200, 900},
+            preserveLogical.framebufferSize));
+        const Window::TestHooks::DpiTransitionResult preservePhysical =
+            Window::TestHooks::calculateDpiTransition(
+                {800, 600},
+                {800, 600},
+                144,
+                Window::Types::DpiResizePolicy::PreservePhysicalClientSize);
+        static_cast<void>(context.expectEq(
+            "physical-size DPI policy recalculates logical extent",
+            Window::Types::LogicalSize{533, 400},
+            preservePhysical.logicalSize));
+        static_cast<void>(context.expectEq(
+            "physical-size DPI policy preserves framebuffer",
+            Window::Types::PixelSize{800, 600},
+            preservePhysical.framebufferSize));
+#endif
 
         const Window::Types::CapabilitiesResult capabilities = Window::getCapabilities();
         static_cast<void>(context.expectTrue("capability query succeeds", capabilities.status.ok()));
@@ -78,6 +137,8 @@ namespace
 
         Window::Window closed;
         static_cast<void>(context.expectFalse("default Window is closed", closed.isOpen()));
+        static_cast<void>(
+            context.expectEq("default lifetime is Closed", Window::Types::LifetimeState::Closed, closed.lifetimeState()));
         static_cast<void>(context.expectEq("closed id is invalid", Window::Types::WindowId{}, closed.id()));
         static_cast<void>(context.expectEq("closed title is empty", std::string_view{}, closed.title()));
         static_cast<void>(context.expectEq("closed operation reports NotOpen", ErrorCode::NotOpen, closed.setTitle("unused").code));
@@ -111,8 +172,8 @@ namespace
         expectInvalid("opacity above one is invalid", description);
 
         description = {};
-        description.sizeLimits.minimum = Window::Types::Size{900, 700};
-        description.sizeLimits.maximum = Window::Types::Size{800, 600};
+        description.sizeLimits.minimum = Window::Types::LogicalSize{900, 700};
+        description.sizeLimits.maximum = Window::Types::LogicalSize{800, 600};
         expectInvalid("inverted size limits are invalid", description);
 
         description = {};
@@ -130,6 +191,15 @@ namespace
         description = {};
         description.cursorMode = static_cast<Window::Types::CursorMode>(99);
         expectInvalid("unknown enum is invalid", description);
+
+        description = {};
+        description.dpiResizePolicy = static_cast<Window::Types::DpiResizePolicy>(99);
+        expectInvalid("unknown DPI resize policy is invalid", description);
+
+        description = {};
+        description.resizable = false;
+        description.controls.maximizable = true;
+        expectInvalid("maximize requires resize at creation", description);
 
         description = {};
         description.placement.monitor = {std::numeric_limits<std::uint64_t>::max()};
@@ -197,7 +267,7 @@ namespace
         const auto *moved = second.getIf<Window::Types::MovedEvent>();
         static_cast<void>(context.expectTrue("post-barrier movement remains", moved != nullptr));
         if (moved != nullptr)
-            static_cast<void>(context.expectEq("coalesced movement keeps latest payload", Window::Types::Position{5, 6}, moved->position));
+            static_cast<void>(context.expectEq("coalesced movement keeps latest payload", Window::Types::ScreenPosition{5, 6}, moved->position));
         static_cast<void>(context.expectTrue("third retained event pops", window.popEvent(third)));
         static_cast<void>(context.expectTrue("new noncoalescible event remains", third.getIf<Window::Types::RedrawRequestedEvent>() != nullptr));
         static_cast<void>(
@@ -219,7 +289,7 @@ namespace
             payloadStorage[0].getIf<Window::Types::FilesDroppedEvent>() == nullptr));
     }
 
-    void testStickyCloseAndMove(TestSupport::Context &context)
+    void testStickyClose(TestSupport::Context &context)
     {
         std::array<Window::Types::Event, 4> storage;
         Window::Window source;
@@ -229,16 +299,13 @@ namespace
         static_cast<void>(context.expectTrue("close request is sticky", source.closeRequested()));
         static_cast<void>(context.expectEq("repeated close request emits once", std::size_t{1}, source.eventQueueInfo().pendingEvents));
 
-        Window::Window destination(std::move(source));
-        static_cast<void>(context.expectEq("move source loses queue", std::size_t{0}, source.eventQueueInfo().capacity));
-        static_cast<void>(context.expectEq("move destination retains queue", storage.size(), destination.eventQueueInfo().capacity));
         Window::Types::Event event;
-        static_cast<void>(context.expectTrue("moved queue remains readable", destination.popEvent(event)));
+        static_cast<void>(context.expectTrue("queue remains readable", source.popEvent(event)));
         const auto *close = event.getIf<Window::Types::CloseRequestedEvent>();
         static_cast<void>(context.expectTrue("typed close payload remains", close != nullptr));
         if (close != nullptr)
             static_cast<void>(context.expectEq("first close source wins", Window::Types::CloseRequestSource::User, close->source));
-        static_cast<void>(destination.close());
+        static_cast<void>(source.close());
     }
 
     void testFailureInjection(TestSupport::Context &context)
@@ -276,13 +343,11 @@ namespace
         static_cast<void>(context.expectEq("title conversion failure is translated", ErrorCode::EncodingFailed, window.setTitle("changed").code));
         static_cast<void>(context.expectEq("failed title update preserves cache", std::string_view{originalTitle}, window.title()));
 
-        const std::array pointerRegions{Window::Types::Rect{{0, 0}, {16, 16}}};
+        const std::array pointerRegions{Window::Types::LogicalRect{{0, 0}, {16, 16}}};
         Window::TestHooks::failNext(FailurePoint::RegionCopy);
-        const Window::Types::PointerInputLayout pointerLayout{.mode = Window::Types::PointerInputMode::AcceptRegions, .regions = pointerRegions};
+        const Window::Types::CustomChromeLayout chromeLayout{.draggableRegions = pointerRegions};
         static_cast<void>(
-            context.expectEq("region copy failure is translated", ErrorCode::OutOfMemory, window.setPointerInputLayout(pointerLayout).code));
-        static_cast<void>(context.expectEq("failed region copy preserves mode", Window::Types::PointerInputMode::Normal, window.pointerInputMode()));
-        static_cast<void>(context.expectEq("failed region copy preserves storage", std::size_t{0}, window.pointerInputRegionCount()));
+            context.expectEq("region copy failure is translated", ErrorCode::OutOfMemory, window.setCustomChromeLayout(chromeLayout).code));
 
         const std::array<std::byte, 4> pixel{std::byte{0x40}, std::byte{0x80}, std::byte{0xC0}, std::byte{0xFF}};
         const std::array iconImages{Window::Types::IconImageView{{1, 1}, pixel}};
@@ -346,18 +411,21 @@ namespace
         ErrorCode mutationCode = ErrorCode::Success;
         ErrorCode closeCode = ErrorCode::Success;
         ErrorCode wakeCode = ErrorCode::Unknown;
+        ErrorCode nativeHandleCode = ErrorCode::Success;
         std::thread worker(
-            [&window, &mutationCode, &closeCode, &wakeCode]
+            [&window, &mutationCode, &closeCode, &wakeCode, &nativeHandleCode]
             {
                 mutationCode = window.setTitle("wrong-thread mutation").code;
                 closeCode = window.close().code;
                 wakeCode = window.wakeEventWait().code;
+                nativeHandleCode = Window::Native::Win32::getHandle(window).status.code;
             });
         worker.join();
 
         static_cast<void>(context.expectEq("wrong-thread mutation is rejected", ErrorCode::ResourceBusy, mutationCode));
         static_cast<void>(context.expectEq("wrong-thread close is rejected", ErrorCode::ResourceBusy, closeCode));
         static_cast<void>(context.expectEq("wake is intentionally cross-thread safe", ErrorCode::Success, wakeCode));
+        static_cast<void>(context.expectEq("wrong-thread native handle is rejected", ErrorCode::ResourceBusy, nativeHandleCode));
         static_cast<void>(context.expectEq("wrong-thread mutation preserves title", std::string_view{description.title}, window.title()));
         static_cast<void>(context.expectTrue("wrong-thread close preserves ownership", window.isOpen()));
 
@@ -366,6 +434,177 @@ namespace
         static_cast<void>(
             context.expectEq("reentrant event pump is rejected", ErrorCode::ResourceBusy, Window::TestHooks::pumpReentrantly().status.code));
         static_cast<void>(context.expectTrue("threading fixture closes", window.close().ok()));
+    }
+
+    void testExceptionalLifetime(TestSupport::Context &context)
+    {
+        Window::Types::Description description;
+        description.title = "Window exceptional lifetime validation";
+        description.clientSize = {240, 160};
+        description.visible = false;
+
+        Window::Window unexpected;
+        static_cast<void>(context.expectTrue("unexpected-destruction fixture opens", unexpected.open(description, 1).ok()));
+        if (unexpected.isOpen())
+        {
+            static_cast<void>(Window::TestHooks::enqueue(unexpected, Window::Types::RedrawRequestedEvent{}));
+            static_cast<void>(
+                context.expectTrue("test hook destroys native HWND unexpectedly", Window::TestHooks::destroyNativeWindow(unexpected).ok()));
+            static_cast<void>(context.expectFalse("unexpectedly destroyed HWND is not open", unexpected.isOpen()));
+            static_cast<void>(context.expectEq(
+                "unexpected destruction enters pending finalize",
+                Window::Types::LifetimeState::NativeDestroyedPendingFinalize,
+                unexpected.lifetimeState()));
+            static_cast<void>(
+                context.expectEq("mutation while pending finalize reports NotOpen", ErrorCode::NotOpen, unexpected.setTitle("unused").code));
+            static_cast<void>(
+                context.expectEq("reopen before finalization is rejected", ErrorCode::AlreadyOpen, unexpected.open(description).code));
+            static_cast<void>(context.expectEq(
+                "native handle is unavailable while pending finalize",
+                ErrorCode::NotOpen,
+                Window::Native::Win32::getHandle(unexpected).status.code));
+            Window::Types::Event event;
+            static_cast<void>(context.expectTrue("pending finalize retains a terminal event", unexpected.popEvent(event)));
+            static_cast<void>(
+                context.expectTrue("terminal event is typed ClosedEvent", event.getIf<Window::Types::ClosedEvent>() != nullptr));
+            static_cast<void>(context.expectTrue("controlled finalization succeeds", unexpected.close().ok()));
+            static_cast<void>(context.expectEq(
+                "controlled finalization reaches Closed",
+                Window::Types::LifetimeState::Closed,
+                unexpected.lifetimeState()));
+            static_cast<void>(context.expectTrue("Window reopens after finalization", unexpected.open(description, 4).ok()));
+            static_cast<void>(context.expectTrue("reopened Window closes normally", unexpected.close().ok()));
+        }
+
+        auto deferred = std::make_unique<Window::Window>();
+        static_cast<void>(context.expectTrue("deferred-destruction fixture opens", deferred->open(description, 4).ok()));
+        HWND deferredHandle = nullptr;
+        if (deferred->isOpen())
+            deferredHandle = Window::Native::Win32::getHandle(*deferred).handle.window;
+        std::thread destroyer(
+            [owned = std::move(deferred)]() mutable
+            {
+                owned.reset();
+            });
+        destroyer.join();
+        static_cast<void>(context.expectTrue("wrong-thread destructor leaves cleanup queued", IsWindow(deferredHandle) != FALSE));
+        static_cast<void>(context.expectTrue("owner pump drains deferred cleanup", Window::pollEvents().status.ok()));
+        static_cast<void>(context.expectFalse("deferred owner cleanup destroys HWND", IsWindow(deferredHandle) != FALSE));
+
+        std::unique_ptr<Window::Window> survivingObject;
+        HWND ownerExitHandle = nullptr;
+        std::thread ownerThread(
+            [&]
+            {
+                auto owned = std::make_unique<Window::Window>();
+                if (owned->open(description, 4).ok())
+                    ownerExitHandle = Window::Native::Win32::getHandle(*owned).handle.window;
+                survivingObject = std::move(owned);
+            });
+        ownerThread.join();
+        static_cast<void>(context.expectTrue("owner-exit fixture created a native HWND", ownerExitHandle != nullptr));
+        static_cast<void>(context.expectFalse("thread-local dispatcher destroys HWND on owner exit", IsWindow(ownerExitHandle) != FALSE));
+        if (survivingObject)
+        {
+            static_cast<void>(context.expectEq(
+                "portable object observes Closed after owner exit",
+                Window::Types::LifetimeState::Closed,
+                survivingObject->lifetimeState()));
+            survivingObject.reset();
+        }
+    }
+
+    void testPointerHitMask(TestSupport::Context &context)
+    {
+        namespace Feedback = Window::Renderer;
+        Window::Types::Description description;
+        description.title = "Window pointer-mask validation";
+        description.clientSize = {241, 161};
+        description.visible = false;
+
+        Window::Window window;
+        static_cast<void>(context.expectTrue("pointer-mask fixture opens", window.open(description, 8).ok()));
+        if (!window.isOpen())
+            return;
+
+        Window::Types::PixelSize size = window.framebufferSize();
+        if ((static_cast<std::size_t>(size.width) * size.height) % 64U == 0)
+        {
+            static_cast<void>(window.setClientSize({description.clientSize.width + 1, description.clientSize.height}));
+            size = window.framebufferSize();
+        }
+        const std::size_t wordCount = Feedback::requiredPointerHitMaskWords(size);
+        std::vector<std::uint64_t> words(wordCount);
+        words.front() = 1;
+        const std::size_t lastPixel = static_cast<std::size_t>(size.width) * size.height - 1U;
+        words[lastPixel / 64U] |= std::uint64_t{1} << (lastPixel % 64U);
+
+        Window::TestHooks::failNext(Window::TestHooks::FailurePoint::Allocation);
+        static_cast<void>(context.expectEq(
+            "first mask allocation failure is reported",
+            ErrorCode::OutOfMemory,
+            Feedback::publishPointerHitMask(window, size, 1, words).code));
+        static_cast<void>(
+            context.expectEq("failed first publication keeps no mask", std::size_t{0}, Window::TestHooks::pointerHitMaskWordCount(window)));
+
+        static_cast<void>(context.expectTrue("first mask publication succeeds", Feedback::publishPointerHitMask(window, size, 1, words).ok()));
+        static_cast<void>(context.expectEq(
+            "mask stores exact word count",
+            wordCount,
+            Window::TestHooks::pointerHitMaskWordCount(window)));
+        static_cast<void>(context.expectEq(
+            "mask stores first physical pixel",
+            std::uint64_t{1},
+            Window::TestHooks::pointerHitMaskWord(window, 0) & 1U));
+        static_cast<void>(context.expectTrue(
+            "mask stores last physical pixel",
+            (Window::TestHooks::pointerHitMaskWord(window, lastPixel / 64U) & (std::uint64_t{1} << (lastPixel % 64U))) != 0));
+
+        const void *storage = Window::TestHooks::pointerHitMaskStorage(window);
+        words.front() = 2;
+        static_cast<void>(context.expectTrue("newer same-size mask succeeds", Feedback::publishPointerHitMask(window, size, 2, words).ok()));
+        static_cast<void>(
+            context.expectEq("same-size publication reuses storage", storage, Window::TestHooks::pointerHitMaskStorage(window)));
+        static_cast<void>(context.expectEq(
+            "newer publication updates revision",
+            std::uint64_t{2},
+            Window::TestHooks::pointerHitMaskRevision(window)));
+        static_cast<void>(context.expectEq(
+            "stale publication is rejected",
+            ErrorCode::ResourceBusy,
+            Feedback::publishPointerHitMask(window, size, 1, words).code));
+        static_cast<void>(context.expectEq(
+            "stale publication preserves active data",
+            std::uint64_t{2},
+            Window::TestHooks::pointerHitMaskWord(window, 0)));
+
+        if (lastPixel % 64U != 63U)
+        {
+            std::vector<std::uint64_t> invalidTrailing = words;
+            invalidTrailing.back() |= std::uint64_t{1} << 63U;
+            static_cast<void>(context.expectEq(
+                "set trailing bits are rejected",
+                ErrorCode::InvalidArgument,
+                Feedback::publishPointerHitMask(window, size, 3, invalidTrailing).code));
+            static_cast<void>(context.expectEq(
+                "invalid trailing bits preserve revision",
+                std::uint64_t{2},
+                Window::TestHooks::pointerHitMaskRevision(window)));
+        }
+
+        const Window::Types::ScreenPosition originalPosition = window.clientPosition();
+        static_cast<void>(window.setClientPosition({originalPosition.x + 1, originalPosition.y + 1}));
+        static_cast<void>(context.expectEq(
+            "movement preserves active mask revision",
+            std::uint64_t{2},
+            Window::TestHooks::pointerHitMaskRevision(window)));
+        static_cast<void>(window.setClientSize({window.clientSize().width + 1, window.clientSize().height}));
+        static_cast<void>(context.expectEq(
+            "framebuffer resize invalidates active mask",
+            std::uint64_t{0},
+            Window::TestHooks::pointerHitMaskRevision(window)));
+        static_cast<void>(context.expectTrue("mask clear is idempotent", Feedback::clearPointerHitMask(window).ok()));
+        static_cast<void>(context.expectTrue("pointer-mask fixture closes", window.close().ok()));
     }
 #endif
 
@@ -400,6 +639,28 @@ namespace
         static_cast<void>(window.setMode({.mode = Window::Types::WindowMode::BorderlessFullscreen, .monitor = window.currentMonitor()}));
         static_cast<void>(
             context.expectTrue("fullscreen transition translates to ModeChangedEvent", consumeEventOfType<Window::Types::ModeChangedEvent>(window)));
+#if INTERNAL_WINDOW_TEST_HOOKS
+        window.clearEvents();
+        static_cast<void>(context.expectTrue(
+            "synthetic monitor removal recovery succeeds",
+            Window::TestHooks::simulateFullscreenMonitorRemoval(window).ok()));
+        static_cast<void>(
+            context.expectEq("monitor removal recovers Windowed mode", Window::Types::WindowMode::Windowed, window.mode()));
+        static_cast<void>(context.expectFalse(
+            "monitor removal clears fullscreen monitor",
+            window.fullscreenInfo().monitor.valid()));
+        Window::Types::Event recoveryEvent;
+        static_cast<void>(context.expectTrue("recovery queues display event first", window.popEvent(recoveryEvent)));
+        static_cast<void>(context.expectTrue(
+            "first recovery event is display configuration",
+            recoveryEvent.getIf<Window::Types::DisplayConfigurationChangedEvent>() != nullptr));
+        static_cast<void>(context.expectTrue("recovery queues mode event second", window.popEvent(recoveryEvent)));
+        static_cast<void>(context.expectTrue(
+            "second recovery event is mode change",
+            recoveryEvent.getIf<Window::Types::ModeChangedEvent>() != nullptr));
+        window.clearEvents();
+        static_cast<void>(window.setMode({.mode = Window::Types::WindowMode::BorderlessFullscreen, .monitor = window.currentMonitor()}));
+#endif
         window.clearEvents();
         static_cast<void>(window.setMode({}));
         static_cast<void>(
@@ -504,7 +765,7 @@ namespace
 
     void testRendererOcclusionFeedback(TestSupport::Context &context)
     {
-        namespace Feedback = Window::Integration::Renderer;
+        namespace Feedback = Window::Renderer;
         using Capability = Window::Types::Capability;
 
         Window::Window closed;
@@ -549,7 +810,7 @@ namespace
         std::thread worker(
             [&window, &wrongThreadCode]
             {
-                wrongThreadCode = Window::Integration::Renderer::reportOcclusion(window, false).code;
+                wrongThreadCode = Window::Renderer::reportOcclusion(window, false).code;
             });
         worker.join();
         static_cast<void>(context.expectEq("wrong-thread renderer feedback is rejected", ErrorCode::ResourceBusy, wrongThreadCode));
@@ -597,6 +858,8 @@ namespace
         if (!openStatus.ok())
             return;
         static_cast<void>(context.expectTrue("open Window has an id", owner.id().valid()));
+        static_cast<void>(
+            context.expectEq("open Window reports Open lifetime", Window::Types::LifetimeState::Open, owner.lifetimeState()));
         static_cast<void>(context.expectEq("title cache matches", std::string_view{description.title}, owner.title()));
         static_cast<void>(
             context.expectEq("internal event storage is reported", Window::Types::EventStorageKind::Internal, owner.eventQueueInfo().storage));
@@ -607,14 +870,29 @@ namespace
 
         static_cast<void>(context.expectTrue("UTF-8 title update succeeds", owner.setTitle("Fenêtre GameWIP").ok()));
         static_cast<void>(context.expectTrue("logical client resize succeeds", owner.setClientSize({360, 240}).ok()));
-        static_cast<void>(context.expectEq("client-size cache reports applied resize", Window::Types::Size{360, 240}, owner.clientSize()));
+        static_cast<void>(context.expectEq("client-size cache reports applied resize", Window::Types::LogicalSize{360, 240}, owner.clientSize()));
+        const Window::Types::LogicalSize beforePolicyChange = owner.clientSize();
+        static_cast<void>(context.expectTrue(
+            "DPI resize policy changes for future transitions",
+            owner.setDpiResizePolicy(Window::Types::DpiResizePolicy::PreservePhysicalClientSize).ok()));
+        static_cast<void>(context.expectEq(
+            "DPI policy setter does not resize immediately",
+            beforePolicyChange,
+            owner.clientSize()));
+        static_cast<void>(context.expectEq(
+            "unknown runtime DPI policy is invalid",
+            ErrorCode::InvalidArgument,
+            owner.setDpiResizePolicy(static_cast<Window::Types::DpiResizePolicy>(99)).code));
+        static_cast<void>(context.expectTrue(
+            "default DPI policy restores",
+            owner.setDpiResizePolicy(Window::Types::DpiResizePolicy::PreserveLogicalClientSize).ok()));
 
-        const Window::Types::Position localPoint{12, 18};
-        const Window::Types::PositionResult screenPoint = owner.clientToScreen(localPoint);
+        const Window::Types::LogicalPosition localPoint{12, 18};
+        const Window::Types::ScreenPositionResult screenPoint = owner.clientToScreen(localPoint);
         static_cast<void>(context.expectTrue("client-to-screen conversion succeeds", screenPoint.status.ok()));
         if (screenPoint.status.ok())
         {
-            const Window::Types::PositionResult roundTrip = owner.screenToClient(screenPoint.position);
+            const Window::Types::LogicalPositionResult roundTrip = owner.screenToClient(screenPoint.position);
             static_cast<void>(context.expectTrue("screen-to-client conversion succeeds", roundTrip.status.ok()));
             if (roundTrip.status.ok())
                 static_cast<void>(context.expectEq("coordinate conversion round trips", localPoint, roundTrip.position));
@@ -633,13 +911,82 @@ namespace
         static_cast<void>(context.expectTrue(
             "click-through pointer policy succeeds",
             owner.setPointerInputLayout({.mode = Window::Types::PointerInputMode::ClickThrough}).ok()));
+        const LONG_PTR clickThroughStyle = GetWindowLongPtrW(handle.handle.window, GWL_EXSTYLE);
+        static_cast<void>(context.expectTrue(
+            "click-through uses documented layered hit-testing styles",
+            (clickThroughStyle & WS_EX_LAYERED) != 0 && (clickThroughStyle & WS_EX_TRANSPARENT) != 0));
         static_cast<void>(context.expectTrue("normal pointer policy restores", owner.setPointerInputLayout({}).ok()));
+        const LONG_PTR normalPointerStyle = GetWindowLongPtrW(handle.handle.window, GWL_EXSTYLE);
+        static_cast<void>(context.expectFalse(
+            "normal pointer policy removes transparent hit-testing style",
+            (normalPointerStyle & WS_EX_TRANSPARENT) != 0));
+        const std::array<Window::Types::LogicalRect, 1> pointerRegions{{{{0, 0}, {10, 10}}}};
+        static_cast<void>(context.expectEq(
+            "rectangular pointer routing remains Unsupported",
+            ErrorCode::Unsupported,
+            owner.setPointerInputLayout(
+                     {.mode = Window::Types::PointerInputMode::AcceptRegions, .regions = pointerRegions})
+                .code));
+        static_cast<void>(context.expectEq(
+            "unsupported region request preserves pointer mode",
+            Window::Types::PointerInputMode::Normal,
+            owner.pointerInputMode()));
         static_cast<void>(context.expectTrue("opacity update succeeds", owner.setOpacity(0.8F).ok()));
         static_cast<void>(context.expectTrue("opacity restores", owner.setOpacity(1.0F).ok()));
         static_cast<void>(context.expectTrue("file-drop enable succeeds", owner.setFileDropEnabled(true).ok()));
         static_cast<void>(context.expectTrue("file-drop disable succeeds", owner.setFileDropEnabled(false).ok()));
         static_cast<void>(context.expectTrue("interaction disable succeeds", owner.setUserInteractionEnabled(false).ok()));
         static_cast<void>(context.expectTrue("interaction re-enable succeeds", owner.setUserInteractionEnabled(true).ok()));
+
+        static_cast<void>(context.expectEq(
+            "resize cannot be disabled while maximize remains enabled",
+            ErrorCode::InvalidArgument,
+            owner.setResizable(false).code));
+        Window::Types::WindowControls controls = owner.windowControls();
+        controls.maximizable = false;
+        static_cast<void>(context.expectTrue("maximize is explicitly disabled", owner.setWindowControls(controls).ok()));
+        static_cast<void>(context.expectTrue("resize can then be disabled", owner.setResizable(false).ok()));
+        controls.maximizable = true;
+        static_cast<void>(context.expectEq(
+            "maximize cannot be enabled while resize is disabled",
+            ErrorCode::InvalidArgument,
+            owner.setWindowControls(controls).code));
+        controls.maximizable = false;
+        controls.closable = false;
+        controls.minimizable = false;
+        static_cast<void>(context.expectTrue(
+            "close and minimize remain independent from resize",
+            owner.setWindowControls(controls).ok()));
+        static_cast<void>(context.expectTrue("resize can be re-enabled explicitly", owner.setResizable(true).ok()));
+        controls.maximizable = true;
+        controls.closable = true;
+        controls.minimizable = true;
+        static_cast<void>(context.expectTrue("maximize restores after resize", owner.setWindowControls(controls).ok()));
+
+        const Window::Types::Capabilities capabilities = Window::getCapabilities().capabilities;
+        static_cast<void>(context.expectFalse(
+            "Win32 does not advertise cross-application pointer regions",
+            capabilities.supports(Window::Types::Capability::PointerRegions)));
+        static_cast<void>(context.expectEq(
+            "unsupported pointer regions expose zero native limit",
+            std::uint32_t{0},
+            capabilities.maximumPointerInputRegions));
+        if (capabilities.supports(Window::Types::Capability::SystemBackdrop))
+        {
+            static_cast<void>(context.expectTrue(
+                "runtime-supported system backdrop applies",
+                owner.setBackdropEffect(Window::Types::BackdropEffect::Automatic).ok()));
+            static_cast<void>(context.expectTrue(
+                "system backdrop clears",
+                owner.setBackdropEffect(Window::Types::BackdropEffect::None).ok()));
+        }
+        else
+        {
+            static_cast<void>(context.expectEq(
+                "unsupported system backdrop is rejected",
+                ErrorCode::Unsupported,
+                owner.setBackdropEffect(Window::Types::BackdropEffect::Automatic).code));
+        }
 
         const std::array<std::byte, 4> redPixel{std::byte{0xFF}, std::byte{0x00}, std::byte{0x00}, std::byte{0xFF}};
         const std::array iconImages{Window::Types::IconImageView{{1, 1}, redPixel}};
@@ -658,12 +1005,22 @@ namespace
         if (child.isOpen())
         {
             static_cast<void>(context.expectEq("owner identity is cached", owner.id(), child.ownerId()));
+            const HWND childHandle = Window::Native::Win32::getHandle(child).handle.window;
+            static_cast<void>(context.expectFalse(
+                "owned Window has no independent taskbar style",
+                (GetWindowLongPtrW(childHandle, GWL_EXSTYLE) & WS_EX_APPWINDOW) != 0));
             child.clearEvents();
             static_cast<void>(context.expectTrue("owner can be cleared at runtime", child.setOwner({}).ok()));
+            static_cast<void>(context.expectTrue(
+                "owner removal restores independent taskbar style",
+                (GetWindowLongPtrW(childHandle, GWL_EXSTYLE) & WS_EX_APPWINDOW) != 0));
             static_cast<void>(
                 context.expectTrue("owner clear translates to OwnerChangedEvent", consumeEventOfType<Window::Types::OwnerChangedEvent>(child)));
             child.clearEvents();
             static_cast<void>(context.expectTrue("owner can be restored at runtime", child.setOwner(owner.id()).ok()));
+            static_cast<void>(context.expectFalse(
+                "owner restoration removes independent taskbar style",
+                (GetWindowLongPtrW(childHandle, GWL_EXSTYLE) & WS_EX_APPWINDOW) != 0));
             static_cast<void>(
                 context.expectTrue("owner restore translates to OwnerChangedEvent", consumeEventOfType<Window::Types::OwnerChangedEvent>(child)));
         }
@@ -671,10 +1028,33 @@ namespace
         if (child.isOpen())
         {
             static_cast<void>(context.expectFalse("closing owner clears child owner identity", child.ownerId().valid()));
+            static_cast<void>(context.expectTrue(
+                "closing owner restores child taskbar style",
+                (GetWindowLongPtrW(Window::Native::Win32::getHandle(child).handle.window, GWL_EXSTYLE) & WS_EX_APPWINDOW) != 0));
             static_cast<void>(context.expectTrue("child closes after owner", child.close().ok()));
         }
         static_cast<void>(context.expectFalse("closed owner reports closed", owner.isOpen()));
         static_cast<void>(context.expectTrue("repeated native close succeeds", owner.close().ok()));
+
+        Window::Types::Description alphaDescription = description;
+        alphaDescription.title = "Transparent framebuffer capability validation";
+        alphaDescription.transparentFramebuffer = true;
+        Window::Window alphaWindow;
+        const IO::Types::Status alphaStatus = alphaWindow.open(alphaDescription, 4);
+        if (capabilities.supports(Window::Types::Capability::TransparentFramebuffer))
+        {
+            static_cast<void>(context.expectTrue("runtime-supported transparent framebuffer opens", alphaStatus.ok()));
+            if (alphaWindow.isOpen())
+                static_cast<void>(alphaWindow.close());
+        }
+        else
+        {
+            static_cast<void>(context.expectEq(
+                "unsupported transparent framebuffer is rejected before open",
+                ErrorCode::Unsupported,
+                alphaStatus.code));
+            static_cast<void>(context.expectFalse("unsupported alpha request creates no HWND", alphaWindow.isOpen()));
+        }
     }
 
     void testMonitors(TestSupport::Context &context)
@@ -693,6 +1073,14 @@ namespace
         static_cast<void>(context.expectTrue("display-mode enumeration succeeds", modes.status.ok()));
         static_cast<void>(context.expectFalse("display-mode enumeration is nonempty", modes.displayModes.empty()));
         static_cast<void>(context.expectTrue("current display mode succeeds", Window::getCurrentDisplayMode(primary.monitor.id).status.ok()));
+        const Window::Types::DisplayModeResult preferred = Window::getPreferredDisplayMode(primary.monitor.id);
+        static_cast<void>(context.expectTrue("DisplayConfig preferred mode succeeds", preferred.status.ok()));
+        if (preferred.status.ok())
+        {
+            static_cast<void>(context.expectTrue(
+                "preferred mode has a physical resolution",
+                preferred.displayMode.resolution.width != 0 && preferred.displayMode.resolution.height != 0));
+        }
         static_cast<void>(context.expectEq("invalid monitor lookup is rejected", ErrorCode::InvalidArgument, Window::getMonitor({}).status.code));
     }
 } // namespace
@@ -714,9 +1102,11 @@ namespace GameWIP::Test
         runner.runSuite("Window description validation", testDescriptionValidation);
 #if INTERNAL_WINDOW_TEST_HOOKS
         runner.runSuite("Window fixed event queue", testFixedEventQueue);
-        runner.runSuite("Window sticky close and move", testStickyCloseAndMove);
+        runner.runSuite("Window sticky close", testStickyClose);
         runner.runSuite("Window deterministic failure paths", testFailureInjection);
         runner.runSuite("Window threading contracts", testThreadingContracts);
+        runner.runSuite("Window exceptional lifetime", testExceptionalLifetime);
+        runner.runSuite("Window packed pointer hit mask", testPointerHitMask);
 #else
         runner.runSuite(
             "Window fixed event queue",

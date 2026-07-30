@@ -14,9 +14,9 @@ Taskbar or dock features, notifications, tray icons, jump lists, file associatio
 
 A future UI system will own the semantic accessibility tree. Window may host a platform bridge when that owner and contract exist; it does not invent an accessibility model now.
 
-## Renderer-driven alpha-mask hit testing
+## Native pointer-mask routing
 
-Window currently supports whole-client and rectangular-region pointer pass-through. A future Renderer integration may provide an alpha-mask source while retaining the declarative native boundary.
+The packed Renderer-to-Window mask bridge exists in `window/renderer.h`. Genuine cross-application rectangular and per-pixel routing remains backend work and stays `Unsupported` until a documented stable native API can satisfy the contract.
 
 ## Resource and dialog additions
 

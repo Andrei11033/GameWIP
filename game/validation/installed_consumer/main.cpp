@@ -18,7 +18,7 @@
 #include "logger/logger_macros.h"
 #include "terminal/terminal.h"
 #include "test_support/test_support.h"
-#include "window/integration/renderer_feedback.h"
+#include "window/renderer.h"
 #include "window/window.h"
 
 #include <string_view>
@@ -32,9 +32,9 @@ int main()
     const GameWIP::Logger::Types::Config loggerConfig = GameWIP::Logger::defaultConfig();
     GameWIP::TestSupport::Timer timer;
     const GameWIP::Window::Types::CapabilitiesResult windowCapabilities = GameWIP::Window::getCapabilities();
-    const GameWIP::Window::Types::Size windowSize{640, 360};
+    const GameWIP::Window::Types::LogicalSize windowSize{640, 360};
     GameWIP::Window::Window closedWindow;
-    const GameWIP::IO::Types::Status rendererFeedbackStatus = GameWIP::Window::Integration::Renderer::attachOcclusionProvider(closedWindow);
+    const GameWIP::IO::Types::Status rendererFeedbackStatus = GameWIP::Window::Renderer::attachOcclusionProvider(closedWindow);
 
     // Exercise the installed Assert macro surface through a normal consumer
     // target. The detailed behavior is covered by the source-tree Assert tests.

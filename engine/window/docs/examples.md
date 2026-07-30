@@ -56,12 +56,12 @@ Types::Description description;
 description.decoration = Types::DecorationMode::Custom;
 if (!window.open(description).ok()) return 1;
 
-const std::array draggable{Types::Rect{{0, 0}, {800, 40}}};
+const std::array draggable{Types::LogicalRect{{0, 0}, {800, 40}}};
 Types::CustomChromeLayout chrome;
 chrome.draggableRegions = draggable;
-chrome.minimizeButtonRegion = Types::Rect{{680, 0}, {40, 40}};
-chrome.maximizeButtonRegion = Types::Rect{{720, 0}, {40, 40}};
-chrome.closeButtonRegion = Types::Rect{{760, 0}, {40, 40}};
+chrome.minimizeButtonRegion = Types::LogicalRect{{680, 0}, {40, 40}};
+chrome.maximizeButtonRegion = Types::LogicalRect{{720, 0}, {40, 40}};
+chrome.closeButtonRegion = Types::LogicalRect{{760, 0}, {40, 40}};
 return window.setCustomChromeLayout(chrome).ok() ? 0 : 2;
 ```
 
@@ -80,17 +80,32 @@ mode = {};
 return window.setMode(mode).ok() ? 0 : 2;
 ```
 
-## Click-through overlay with accepted controls
+## Whole-window click-through overlay
 
 ```cpp
 using namespace GameWIP::Window;
-const std::array controls{Types::Rect{{16, 16}, {240, 80}}};
+if (!window.supports(Types::Capability::PointerClickThrough)) return 0;
+if (!window.setPointerInputLayout(
+        {.mode = Types::PointerInputMode::ClickThrough}).ok()) return 1;
+
+// Later restore native client and frame input.
+return window.setPointerInputLayout({}).ok() ? 0 : 2;
+```
+
+## Capability-guarded pointer regions
+
+```cpp
+using namespace GameWIP::Window;
+if (!window.supports(Types::Capability::PointerRegions)) return 0;
+const std::array controls{Types::LogicalRect{{16, 16}, {240, 80}}};
 Types::PointerInputLayout input;
 input.mode = Types::PointerInputMode::AcceptRegions;
 input.regions = controls;
 if (!window.setPointerInputLayout(input).ok()) return 1;
 return window.setAlwaysOnTop(true).ok() ? 0 : 2;
 ```
+
+The current Win32 backend takes the early return: it does not advertise region or per-pixel desktop routing.
 
 ## Native Win32 handle
 
@@ -108,9 +123,9 @@ if (result.status.ok())
 ## Renderer occlusion feedback
 
 ```cpp
-#include "window/integration/renderer_feedback.h"
+#include <window/renderer.h>
 
-namespace Feedback = GameWIP::Window::Integration::Renderer;
+namespace Feedback = GameWIP::Window::Renderer;
 
 if (!Feedback::attachOcclusionProvider(window).ok()) return 1;
 
@@ -131,6 +146,25 @@ return Feedback::detachOcclusionProvider(window).ok() ? 0 : 3;
 
 The Renderer bridge defines how `presentWasOccluded` reaches the owner thread. Repeated values do not add events, and the cached `window.isOccluded()` value remains authoritative if the queue overflows.
 
+## Packed pointer mask publication
+
+```cpp
+#include <window/renderer.h>
+
+const auto size = window.framebufferSize();
+std::vector<std::uint64_t> words(
+    GameWIP::Window::Renderer::requiredPointerHitMaskWords(size), 0);
+
+// Example: accept the first physical framebuffer pixel.
+if (!words.empty()) words[0] |= 1ULL;
+
+const auto status =
+    GameWIP::Window::Renderer::publishPointerHitMask(window, size, revision, words);
+if (!status.ok()) return 1;
+```
+
+Run publication on the Window owner thread. Renderer owns thresholding and asynchronous readback; use monotonically increasing revisions so an older completion returns `ResourceBusy` instead of replacing newer data.
+
 ## Monitor and display-mode enumeration
 
 ```cpp
@@ -147,3 +181,9 @@ for (const auto &monitor : monitors.monitors)
     }
 }
 ```
+
+## Related pages
+
+- @ref window_coordinates_and_dpi
+- @ref window_renderer_integration
+- @ref window_manual_validation

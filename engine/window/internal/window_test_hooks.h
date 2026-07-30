@@ -13,6 +13,13 @@
 
 namespace GameWIP::Window::TestHooks
 {
+    /// @brief Deterministic result of applying one DPI resize policy.
+    struct DpiTransitionResult
+    {
+        Types::LogicalSize logicalSize;
+        Types::PixelSize framebufferSize;
+    };
+
     /// @brief One-shot production boundary that can be failed by validation builds.
     enum class FailurePoint
     {
@@ -56,6 +63,43 @@ namespace GameWIP::Window::TestHooks
 
     /// @brief Applies the production sticky close-request path to a portable hook state.
     [[nodiscard]] GAMEWIP_WINDOW_EXPORT IO::Types::Status requestClose(Window &window, Types::CloseRequestSource source) noexcept;
+
+    /// @brief Destroys the live HWND without entering the explicit-close path.
+    /// @details Exercises unexpected native destruction and pending finalization.
+    [[nodiscard]] GAMEWIP_WINDOW_EXPORT IO::Types::Status destroyNativeWindow(Window &window) noexcept;
+
+    /// @brief Exercises fullscreen-target removal recovery without changing display topology.
+    [[nodiscard]] GAMEWIP_WINDOW_EXPORT IO::Types::Status simulateFullscreenMonitorRemoval(Window &window) noexcept;
+
+    /// @brief Returns the active packed pointer-mask revision.
+    [[nodiscard]] GAMEWIP_WINDOW_EXPORT std::uint64_t pointerHitMaskRevision(const Window &window) noexcept;
+    /// @brief Returns the active packed pointer-mask word count.
+    [[nodiscard]] GAMEWIP_WINDOW_EXPORT std::size_t pointerHitMaskWordCount(const Window &window) noexcept;
+    /// @brief Returns one active packed pointer-mask word, or zero outside the active range.
+    [[nodiscard]] GAMEWIP_WINDOW_EXPORT std::uint64_t pointerHitMaskWord(const Window &window, std::size_t index) noexcept;
+    /// @brief Returns the active vector storage address for reuse validation.
+    [[nodiscard]] GAMEWIP_WINDOW_EXPORT const void *pointerHitMaskStorage(const Window &window) noexcept;
+
+    /// @brief Applies the production rational-refresh conversion.
+    [[nodiscard]] GAMEWIP_WINDOW_EXPORT std::uint32_t refreshRateMillihertz(
+        std::uint32_t numerator,
+        std::uint32_t denominator) noexcept;
+
+    /// @brief Applies the exact native exclusive-mode comparator without switching displays.
+    [[nodiscard]] GAMEWIP_WINDOW_EXPORT bool exactNativeDisplayModeMatches(
+        const Types::DisplayMode &requested,
+        std::uint32_t width,
+        std::uint32_t height,
+        std::uint32_t frequencyHertz,
+        std::uint16_t bitsPerPixel,
+        bool interlaced) noexcept;
+
+    /// @brief Applies the production DPI resize-policy size calculation.
+    [[nodiscard]] GAMEWIP_WINDOW_EXPORT DpiTransitionResult calculateDpiTransition(
+        Types::LogicalSize logicalSize,
+        Types::PixelSize framebufferSize,
+        std::uint32_t newDpi,
+        Types::DpiResizePolicy policy) noexcept;
 #endif
 } // namespace GameWIP::Window::TestHooks
 

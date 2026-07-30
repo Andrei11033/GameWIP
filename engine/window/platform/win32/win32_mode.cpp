@@ -317,4 +317,140 @@ namespace GameWIP::Window::Detail::Platform
     {
         return applyMode(state, request);
     }
+
+    IO::Types::Status recoverAfterDisplayChange(WindowState &state, bool forceRemovedMonitor) noexcept
+    {
+        if (!state.platform || state.platform->handle == nullptr)
+            return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
+
+        const Types::WindowMode previousMode = state.mode;
+        const Types::MonitorId previousMonitor = state.monitor;
+        const Types::ScreenPosition previousPosition = state.clientPosition;
+        const Types::LogicalSize previousClient = state.clientSize;
+        const Types::PixelSize previousFramebuffer = state.framebufferSize;
+        const Types::ContentScale previousScale = state.contentScale;
+        const Types::Dpi previousDpi = state.dpi;
+
+        if (state.mode == Types::WindowMode::Windowed ||
+            (!forceRemovedMonitor && nativeMonitor(state.fullscreen.monitor) != nullptr))
+        {
+            routeEvent(state, Types::DisplayConfigurationChangedEvent{});
+            updateCurrentMonitor(state);
+            return IO::successStatus();
+        }
+
+        HMONITOR primary = MonitorFromPoint(POINT{}, MONITOR_DEFAULTTOPRIMARY);
+        MONITORINFO primaryInfo{};
+        primaryInfo.cbSize = sizeof(primaryInfo);
+        Types::MonitorInfoResult portablePrimary = monitorFromNative(primary);
+        if (primary == nullptr || GetMonitorInfoW(primary, &primaryInfo) == FALSE || !portablePrimary.status.ok())
+        {
+            state.fullscreen = {};
+            state.mode = Types::WindowMode::Windowed;
+            routeEvent(state, Types::DisplayConfigurationChangedEvent{});
+            routeEvent(state, Types::ModeChangedEvent{previousMode, state.mode});
+            return portablePrimary.status.ok()
+                       ? statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "resolve primary monitor after removal")
+                       : std::move(portablePrimary.status);
+        }
+
+        WindowData &data = *state.platform;
+        RECT desired = data.hasWindowedPlacement ? data.windowedPlacement.rcNormalPosition : RECT{
+                                                                                          state.frameRect.position.x,
+                                                                                          state.frameRect.position.y,
+                                                                                          state.frameRect.position.x +
+                                                                                              static_cast<LONG>(state.frameRect.size.width),
+                                                                                          state.frameRect.position.y +
+                                                                                              static_cast<LONG>(state.frameRect.size.height)};
+        const LONG workWidth = std::max<LONG>(1, primaryInfo.rcWork.right - primaryInfo.rcWork.left);
+        const LONG workHeight = std::max<LONG>(1, primaryInfo.rcWork.bottom - primaryInfo.rcWork.top);
+        const LONG width = std::clamp<LONG>(desired.right - desired.left, 1, workWidth);
+        const LONG height = std::clamp<LONG>(desired.bottom - desired.top, 1, workHeight);
+        const LONG x = primaryInfo.rcWork.left + (workWidth - width) / 2;
+        const LONG y = primaryInfo.rcWork.top + (workHeight - height) / 2;
+
+        const bool previousSuppression = state.suppressEvents;
+        state.suppressEvents = true;
+        IO::Types::Status firstFailure = leaveExclusive(state);
+        // A disconnected target can reject restoration because it no longer exists. The
+        // topology change has already removed that mode; clear stale ownership after
+        // surfacing the failure through the pump result.
+        data.hasSavedDisplayMode = false;
+        data.exclusiveSuspended = false;
+        data.exclusiveDevice.clear();
+        data.activeNativeDisplayMode = {};
+        data.activeDisplayMode = {};
+        data.exactDisplayMode = false;
+        state.mode = Types::WindowMode::Windowed;
+        state.fullscreen = {};
+        state.presentation = Types::PresentationState::Normal;
+
+        IO::Types::Status status = applyStyle(state);
+        if (!status.ok() && firstFailure.ok())
+            firstFailure = status;
+        if (SetWindowPos(
+                data.handle,
+                state.alwaysOnTop ? HWND_TOPMOST : HWND_TOP,
+                x,
+                y,
+                width,
+                height,
+                SWP_NOACTIVATE | SWP_FRAMECHANGED) == FALSE)
+        {
+            status = statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "place recovered window on primary monitor");
+            if (firstFailure.ok())
+                firstFailure = status;
+        }
+        status = refreshCachedGeometry(state);
+        if (!status.ok() && firstFailure.ok())
+            firstFailure = status;
+        state.monitor = portablePrimary.monitor.id;
+        state.suppressEvents = previousSuppression;
+
+        routeEvent(state, Types::DisplayConfigurationChangedEvent{});
+        routeEvent(state, Types::ModeChangedEvent{previousMode, state.mode});
+        if (previousMonitor != state.monitor)
+            routeEvent(state, Types::MonitorChangedEvent{previousMonitor, state.monitor});
+        if (previousPosition != state.clientPosition)
+            routeEvent(state, Types::MovedEvent{state.clientPosition});
+        if (previousClient != state.clientSize)
+            routeEvent(state, Types::ClientSizeChangedEvent{state.clientSize});
+        if (previousFramebuffer != state.framebufferSize)
+            routeEvent(state, Types::FramebufferSizeChangedEvent{state.framebufferSize});
+        if (previousScale != state.contentScale || previousDpi != state.dpi)
+        {
+            routeEvent(
+                state,
+                Types::ContentScaleChangedEvent{
+                    previousScale,
+                    state.contentScale,
+                    previousDpi,
+                    state.dpi,
+                    state.framebufferSize});
+        }
+        return firstFailure;
+    }
 } // namespace GameWIP::Window::Detail::Platform
+
+#if INTERNAL_WINDOW_TEST_HOOKS
+namespace GameWIP::Window::TestHooks
+{
+    bool exactNativeDisplayModeMatches(
+        const Types::DisplayMode &requested,
+        std::uint32_t width,
+        std::uint32_t height,
+        std::uint32_t frequencyHertz,
+        std::uint16_t bitsPerPixel,
+        bool isInterlaced) noexcept
+    {
+        DEVMODEW native{};
+        native.dmSize = sizeof(native);
+        native.dmPelsWidth = width;
+        native.dmPelsHeight = height;
+        native.dmDisplayFrequency = frequencyHertz;
+        native.dmBitsPerPel = bitsPerPixel;
+        native.dmDisplayFlags = isInterlaced ? DM_INTERLACED : 0;
+        return Detail::Platform::displayModeMatches(native, requested);
+    }
+} // namespace GameWIP::Window::TestHooks
+#endif

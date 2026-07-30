@@ -87,6 +87,10 @@ namespace GameWIP::Window::Detail
                 }
             }
 
+            if (replaceIndex == state.eventCount && std::holds_alternative<Types::ClosedEvent>(data))
+            {
+                replaceIndex = 0;
+            }
             if (replaceIndex == state.eventCount)
             {
                 ++state.droppedEvents;
@@ -184,7 +188,7 @@ namespace GameWIP::Window
             return true;
         }
 
-        [[nodiscard]] bool validSize(Types::Size size) noexcept
+        [[nodiscard]] bool validSize(Types::LogicalSize size) noexcept
         {
             constexpr auto nativeMaximum = static_cast<std::uint32_t>(std::numeric_limits<std::int32_t>::max());
             return size.width != 0 && size.height != 0 && size.width <= nativeMaximum && size.height <= nativeMaximum;
@@ -196,7 +200,7 @@ namespace GameWIP::Window
             return size.width != 0 && size.height != 0 && size.width <= nativeMaximum && size.height <= nativeMaximum;
         }
 
-        [[nodiscard]] bool validRect(const Types::Rect &rect) noexcept
+        [[nodiscard]] bool validRect(const Types::LogicalRect &rect) noexcept
         {
             return validSize(rect.size);
         }
@@ -211,7 +215,7 @@ namespace GameWIP::Window
                    (limits.minimum->width <= limits.maximum->width && limits.minimum->height <= limits.maximum->height);
         }
 
-        [[nodiscard]] bool sizeWithin(Types::Size size, const Types::SizeLimits &limits) noexcept
+        [[nodiscard]] bool sizeWithin(Types::LogicalSize size, const Types::SizeLimits &limits) noexcept
         {
             return (!limits.minimum || (size.width >= limits.minimum->width && size.height >= limits.minimum->height)) &&
                    (!limits.maximum || (size.width <= limits.maximum->width && size.height <= limits.maximum->height));
@@ -266,7 +270,15 @@ namespace GameWIP::Window
 
         template <> bool validEnum(Types::BackdropEffect value) noexcept
         {
-            return value == Types::BackdropEffect::None || value == Types::BackdropEffect::BlurBehind;
+            return value == Types::BackdropEffect::None || value == Types::BackdropEffect::Automatic ||
+                   value == Types::BackdropEffect::MainWindow || value == Types::BackdropEffect::TransientWindow ||
+                   value == Types::BackdropEffect::TabbedWindow;
+        }
+
+        template <> bool validEnum(Types::DpiResizePolicy value) noexcept
+        {
+            return value == Types::DpiResizePolicy::PreserveLogicalClientSize ||
+                   value == Types::DpiResizePolicy::PreservePhysicalClientSize;
         }
 
         [[nodiscard]] bool validDisplayMode(const Types::DisplayMode &mode) noexcept
@@ -300,6 +312,7 @@ namespace GameWIP::Window
                 !validRatio(description.aspectRatio) || !validEnum(description.cursorMode) || !validEnum(description.cursorShape) ||
                 !validEnum(description.pointerInputMode) || description.pointerInputMode == Types::PointerInputMode::AcceptRegions ||
                 description.pointerInputMode == Types::PointerInputMode::IgnoreRegions || !validEnum(description.backdropEffect) ||
+                !validEnum(description.dpiResizePolicy) || (!description.resizable && description.controls.maximizable) ||
                 !std::isfinite(description.opacity) || description.opacity < 0.0F || description.opacity > 1.0F ||
                 (!description.visible && (description.requestFocus || description.presentation != Types::PresentationState::Normal)) ||
                 (!description.focusable && description.requestFocus))
@@ -311,7 +324,7 @@ namespace GameWIP::Window
 
         [[nodiscard]] IO::Types::Status requireState(Detail::WindowState *state) noexcept
         {
-            if (state == nullptr || !state->platform)
+            if (state == nullptr || !state->platform || !Detail::Platform::hasLiveNativeWindow(*state))
             {
                 return error(ErrorCode::NotOpen);
             }
@@ -334,6 +347,7 @@ namespace GameWIP::Window
             state.owner = description.owner;
             state.title = description.title;
             state.clientSize = description.clientSize;
+            state.dpiResizePolicy = description.dpiResizePolicy;
             state.mode = description.mode.mode;
             state.presentation = description.presentation;
             state.decoration = description.decoration;
@@ -357,13 +371,7 @@ namespace GameWIP::Window
 
         void releaseEventStorage(Detail::WindowState &state) noexcept
         {
-            for (std::size_t index = 0; index < state.eventCount; ++index)
-            {
-                state.eventStorage[(state.eventHead + index) % state.eventStorage.size()] = {};
-            }
-            state.eventHead = 0;
-            state.eventCount = 0;
-            state.eventStorage = {};
+            state.clearRetainedEvents();
         }
     } // namespace
 
@@ -417,15 +425,15 @@ namespace GameWIP::Window
     }
 
     Window::Window() noexcept = default;
-    Window::Window(Window &&other) noexcept
-        : state_(std::move(other.state_))
-    {
-    }
-
     Window::~Window() noexcept
     {
         if (state_)
         {
+            if (!Detail::Platform::isOwnedByCurrentThread(*state_) &&
+                Detail::Platform::deferCleanupToOwner(state_))
+            {
+                return;
+            }
             Detail::Platform::closeBestEffort(*state_);
             releaseEventStorage(*state_);
         }
@@ -533,22 +541,29 @@ namespace GameWIP::Window
 
     bool Window::isOpen() const noexcept
     {
-        return state_ != nullptr && state_->platform != nullptr;
+        return state_ != nullptr && state_->platform != nullptr && Detail::Platform::hasLiveNativeWindow(*state_);
+    }
+
+    Types::LifetimeState Window::lifetimeState() const noexcept
+    {
+        if (!state_)
+            return Types::LifetimeState::Closed;
+        if (state_->nativeDestroyedPendingFinalize)
+            return Types::LifetimeState::NativeDestroyedPendingFinalize;
+        return isOpen() ? Types::LifetimeState::Open : Types::LifetimeState::Closed;
     }
 
     IO::Types::Status Window::close() noexcept
     {
-        if (!isOpen())
+        if (!isOpen() && (!state_ || !state_->nativeDestroyedPendingFinalize))
         {
             if (state_)
                 releaseEventStorage(*state_);
             state_.reset();
             return IO::successStatus();
         }
-        if (!Detail::Platform::isOwnedByCurrentThread(*state_))
-        {
+        if (state_ && !Detail::Platform::isOwnedByCurrentThread(*state_))
             return error(ErrorCode::ResourceBusy);
-        }
 
         Detail::Platform::CloseResult result = Detail::Platform::close(*state_);
         if (result.resourceClosed)
@@ -694,21 +709,21 @@ namespace GameWIP::Window
     {
         return state_ ? std::string_view(state_->title) : std::string_view{};
     }
-    Types::Size Window::clientSize() const noexcept
+    Types::LogicalSize Window::clientSize() const noexcept
     {
-        return state_ ? state_->clientSize : Types::Size{};
+        return state_ ? state_->clientSize : Types::LogicalSize{};
     }
     Types::PixelSize Window::framebufferSize() const noexcept
     {
         return state_ ? state_->framebufferSize : Types::PixelSize{};
     }
-    Types::Position Window::clientPosition() const noexcept
+    Types::ScreenPosition Window::clientPosition() const noexcept
     {
-        return state_ ? state_->clientPosition : Types::Position{};
+        return state_ ? state_->clientPosition : Types::ScreenPosition{};
     }
-    Types::Rect Window::frameRect() const noexcept
+    Types::ScreenRect Window::frameRect() const noexcept
     {
-        return state_ ? state_->frameRect : Types::Rect{};
+        return state_ ? state_->frameRect : Types::ScreenRect{};
     }
     Types::Insets Window::frameInsets() const noexcept
     {
@@ -721,6 +736,10 @@ namespace GameWIP::Window
     Types::Dpi Window::effectiveDpi() const noexcept
     {
         return state_ ? state_->dpi : Types::Dpi{};
+    }
+    Types::DpiResizePolicy Window::dpiResizePolicy() const noexcept
+    {
+        return state_ ? state_->dpiResizePolicy : Types::DpiResizePolicy::PreserveLogicalClientSize;
     }
     Types::MonitorId Window::currentMonitor() const noexcept
     {
@@ -872,36 +891,46 @@ namespace GameWIP::Window
         return status.ok() ? Detail::Platform::clearIcon(*state_) : status;
     }
 
-    IO::Types::Status Window::setClientSize(Types::Size size) noexcept
+    IO::Types::Status Window::setClientSize(Types::LogicalSize size) noexcept
     {
         IO::Types::Status status = requireState(state_.get());
         if (!status.ok())
             return status;
+        if (state_->mode != Types::WindowMode::Windowed)
+            return error(ErrorCode::ResourceBusy);
         if (!validSize(size) || !sizeWithin(size, state_->sizeLimits))
             return error(ErrorCode::InvalidArgument);
         return Detail::Platform::setClientSize(*state_, size);
     }
 
-    IO::Types::Status Window::setClientPosition(Types::Position position) noexcept
-    {
-        IO::Types::Status status = requireState(state_.get());
-        return status.ok() ? Detail::Platform::setClientPosition(*state_, position) : status;
-    }
-
-    IO::Types::Status Window::setClientRect(const Types::Rect &rect) noexcept
+    IO::Types::Status Window::setClientPosition(Types::ScreenPosition position) noexcept
     {
         IO::Types::Status status = requireState(state_.get());
         if (!status.ok())
             return status;
-        if (!validRect(rect) || !sizeWithin(rect.size, state_->sizeLimits))
+        return state_->mode == Types::WindowMode::Windowed ? Detail::Platform::setClientPosition(*state_, position)
+                                                          : error(ErrorCode::ResourceBusy);
+    }
+
+    IO::Types::Status Window::setClientRect(Types::ScreenPosition position, Types::LogicalSize size) noexcept
+    {
+        IO::Types::Status status = requireState(state_.get());
+        if (!status.ok())
+            return status;
+        if (state_->mode != Types::WindowMode::Windowed)
+            return error(ErrorCode::ResourceBusy);
+        if (!validSize(size) || !sizeWithin(size, state_->sizeLimits))
             return error(ErrorCode::InvalidArgument);
-        return Detail::Platform::setClientRect(*state_, rect);
+        return Detail::Platform::setClientRect(*state_, position, size);
     }
 
     IO::Types::Status Window::centerOn(Types::MonitorId monitor) noexcept
     {
         IO::Types::Status status = requireState(state_.get());
-        return status.ok() ? Detail::Platform::centerOn(*state_, monitor) : status;
+        if (!status.ok())
+            return status;
+        return state_->mode == Types::WindowMode::Windowed ? Detail::Platform::centerOn(*state_, monitor)
+                                                          : error(ErrorCode::ResourceBusy);
     }
 
     IO::Types::Status Window::setSizeLimits(const Types::SizeLimits &limits) noexcept
@@ -909,6 +938,8 @@ namespace GameWIP::Window
         IO::Types::Status status = requireState(state_.get());
         if (!status.ok())
             return status;
+        if (state_->mode != Types::WindowMode::Windowed)
+            return error(ErrorCode::ResourceBusy);
         if (!validLimits(limits))
             return error(ErrorCode::InvalidArgument);
         return Detail::Platform::setSizeLimits(*state_, limits);
@@ -919,21 +950,34 @@ namespace GameWIP::Window
         IO::Types::Status status = requireState(state_.get());
         if (!status.ok())
             return status;
+        if (state_->mode != Types::WindowMode::Windowed)
+            return error(ErrorCode::ResourceBusy);
         if (!validRatio(ratio))
             return error(ErrorCode::InvalidArgument);
         return Detail::Platform::setAspectRatio(*state_, ratio);
     }
 
-    Types::PositionResult Window::clientToScreen(Types::Position position) const noexcept
+    Types::ScreenPositionResult Window::clientToScreen(Types::LogicalPosition position) const noexcept
     {
         IO::Types::Status status = requireState(state_.get());
-        return status.ok() ? Detail::Platform::clientToScreen(*state_, position) : Types::PositionResult{status, {}};
+        return status.ok() ? Detail::Platform::clientToScreen(*state_, position) : Types::ScreenPositionResult{status, {}};
     }
 
-    Types::PositionResult Window::screenToClient(Types::Position position) const noexcept
+    Types::LogicalPositionResult Window::screenToClient(Types::ScreenPosition position) const noexcept
     {
         IO::Types::Status status = requireState(state_.get());
-        return status.ok() ? Detail::Platform::screenToClient(*state_, position) : Types::PositionResult{status, {}};
+        return status.ok() ? Detail::Platform::screenToClient(*state_, position) : Types::LogicalPositionResult{status, {}};
+    }
+
+    IO::Types::Status Window::setDpiResizePolicy(Types::DpiResizePolicy policy) noexcept
+    {
+        IO::Types::Status status = requireState(state_.get());
+        if (!status.ok())
+            return status;
+        if (!validEnum(policy))
+            return error(ErrorCode::InvalidArgument);
+        state_->dpiResizePolicy = policy;
+        return IO::successStatus();
     }
 
     IO::Types::Status Window::show() noexcept
@@ -991,7 +1035,11 @@ namespace GameWIP::Window
     IO::Types::Status Window::setResizable(bool resizable) noexcept
     {
         IO::Types::Status status = requireState(state_.get());
-        return status.ok() ? Detail::Platform::setResizable(*state_, resizable) : status;
+        if (!status.ok())
+            return status;
+        if (!resizable && state_->controls.maximizable)
+            return error(ErrorCode::InvalidArgument);
+        return Detail::Platform::setResizable(*state_, resizable);
     }
 
     IO::Types::Status Window::setDecorationMode(Types::DecorationMode mode) noexcept
@@ -1007,7 +1055,11 @@ namespace GameWIP::Window
     IO::Types::Status Window::setWindowControls(const Types::WindowControls &controls) noexcept
     {
         IO::Types::Status status = requireState(state_.get());
-        return status.ok() ? Detail::Platform::setWindowControls(*state_, controls) : status;
+        if (!status.ok())
+            return status;
+        if (controls.maximizable && !state_->resizable)
+            return error(ErrorCode::InvalidArgument);
+        return Detail::Platform::setWindowControls(*state_, controls);
     }
 
     IO::Types::Status Window::setFocusable(bool focusable) noexcept
@@ -1069,7 +1121,7 @@ namespace GameWIP::Window
         {
             return capabilities.status.ok() ? error(ErrorCode::InvalidArgument) : capabilities.status;
         }
-        for (const Types::Rect &rect : layout.draggableRegions)
+        for (const Types::LogicalRect &rect : layout.draggableRegions)
         {
             if (!validRect(rect))
                 return error(ErrorCode::InvalidArgument);
@@ -1086,8 +1138,8 @@ namespace GameWIP::Window
         {
             if (Detail::consumeFailure(TestHooks::FailurePoint::RegionCopy))
                 return error(ErrorCode::OutOfMemory);
-            std::vector<Types::Rect> copied(layout.draggableRegions.begin(), layout.draggableRegions.end());
-            std::vector<Types::Rect> previous = std::move(state_->draggableRegions);
+            std::vector<Types::LogicalRect> copied(layout.draggableRegions.begin(), layout.draggableRegions.end());
+            std::vector<Types::LogicalRect> previous = std::move(state_->draggableRegions);
             const auto previousSystem = state_->systemMenuRegion;
             const auto previousMinimize = state_->minimizeButtonRegion;
             const auto previousMaximize = state_->maximizeButtonRegion;
@@ -1138,11 +1190,18 @@ namespace GameWIP::Window
         const Types::CapabilitiesResult capabilities = getCapabilities();
         if (!capabilities.status.ok())
             return capabilities.status;
+        if (layout.mode == Types::PointerInputMode::ClickThrough &&
+            !capabilities.capabilities.supports(Types::Capability::PointerClickThrough))
+        {
+            return error(ErrorCode::Unsupported);
+        }
+        if (regionMode && !capabilities.capabilities.supports(Types::Capability::PointerRegions))
+            return error(ErrorCode::Unsupported);
         if (layout.regions.size() > capabilities.capabilities.maximumPointerInputRegions)
         {
             return error(ErrorCode::InvalidArgument);
         }
-        for (const Types::Rect &rect : layout.regions)
+        for (const Types::LogicalRect &rect : layout.regions)
         {
             if (!validRect(rect))
                 return error(ErrorCode::InvalidArgument);
@@ -1152,8 +1211,8 @@ namespace GameWIP::Window
         {
             if (Detail::consumeFailure(TestHooks::FailurePoint::RegionCopy))
                 return error(ErrorCode::OutOfMemory);
-            std::vector<Types::Rect> copied(layout.regions.begin(), layout.regions.end());
-            std::vector<Types::Rect> previous = std::move(state_->pointerInputRegions);
+            std::vector<Types::LogicalRect> copied(layout.regions.begin(), layout.regions.end());
+            std::vector<Types::LogicalRect> previous = std::move(state_->pointerInputRegions);
             const Types::PointerInputMode previousMode = state_->pointerInputMode;
             state_->pointerInputRegions = std::move(copied);
             state_->pointerInputMode = layout.mode;
@@ -1162,6 +1221,7 @@ namespace GameWIP::Window
             {
                 state_->pointerInputRegions = std::move(previous);
                 state_->pointerInputMode = previousMode;
+                static_cast<void>(Detail::Platform::setPointerInputLayout(*state_));
             }
             return status;
         }
@@ -1195,15 +1255,15 @@ namespace GameWIP::Window
         return Detail::Platform::setCursorShape(*state_, shape);
     }
 
-    IO::Types::Status Window::setCursorPosition(Types::Position position) noexcept
+    IO::Types::Status Window::setCursorPosition(Types::LogicalPosition position) noexcept
     {
         IO::Types::Status status = requireState(state_.get());
         return status.ok() ? Detail::Platform::setCursorPosition(*state_, position) : status;
     }
 
-    Types::PositionResult Window::cursorPosition() const noexcept
+    Types::LogicalPositionResult Window::cursorPosition() const noexcept
     {
         IO::Types::Status status = requireState(state_.get());
-        return status.ok() ? Detail::Platform::cursorPosition(*state_) : Types::PositionResult{status, {}};
+        return status.ok() ? Detail::Platform::cursorPosition(*state_) : Types::LogicalPositionResult{status, {}};
     }
 } // namespace GameWIP::Window

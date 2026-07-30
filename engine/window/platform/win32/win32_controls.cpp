@@ -53,7 +53,7 @@ namespace GameWIP::Window::Detail::Platform
 
     IO::Types::Status show(WindowState &state) noexcept
     {
-        ShowWindow(state.platform->handle, state.focusable ? SW_SHOW : SW_SHOWNOACTIVATE);
+        ShowWindow(state.platform->handle, SW_SHOWNOACTIVATE);
         synchronizeVisibility(state);
         synchronizePresentation(state);
         return applyCursorState(state);
@@ -140,15 +140,8 @@ namespace GameWIP::Window::Detail::Platform
             state,
             state.decoration,
             mode,
-            [&state]
+            []
             {
-                if (state.transparentFramebuffer)
-                {
-                    const MARGINS margins{-1, -1, -1, -1};
-                    const HRESULT result = DwmExtendFrameIntoClientArea(state.platform->handle, &margins);
-                    if (FAILED(result))
-                        return IO::makeStatus(IO::Types::ErrorCode::NativeFailure, result);
-                }
                 return IO::successStatus();
             });
     }
@@ -207,7 +200,7 @@ namespace GameWIP::Window::Detail::Platform
         const float previous = state.opacity;
         state.opacity = opacity;
         IO::Types::Status status = applyStyle(state);
-        if (status.ok() && (opacity < 1.0F || state.transparentFramebuffer))
+        if (status.ok() && (opacity < 1.0F || state.pointerInputMode == Types::PointerInputMode::ClickThrough))
         {
             const BYTE alpha = static_cast<BYTE>(std::lround(std::clamp(opacity, 0.0F, 1.0F) * 255.0F));
             if (SetLayeredWindowAttributes(state.platform->handle, 0, alpha, LWA_ALPHA) == FALSE)
@@ -223,13 +216,28 @@ namespace GameWIP::Window::Detail::Platform
 
     IO::Types::Status setBackdropEffect(WindowState &state, Types::BackdropEffect effect) noexcept
     {
-        DWM_BLURBEHIND blur{};
-        blur.dwFlags = DWM_BB_ENABLE;
-        blur.fEnable = effect == Types::BackdropEffect::BlurBehind ? TRUE : FALSE;
-        const HRESULT result = DwmEnableBlurBehindWindow(state.platform->handle, &blur);
+        if (effect == Types::BackdropEffect::None && !supportsSystemBackdrop())
+        {
+            state.backdrop = effect;
+            return IO::successStatus();
+        }
+        if (!supportsSystemBackdrop())
+            return IO::makeStatus(IO::Types::ErrorCode::Unsupported);
+
+        DWM_SYSTEMBACKDROP_TYPE nativeEffect = DWMSBT_NONE;
+        switch (effect)
+        {
+        case Types::BackdropEffect::None: nativeEffect = DWMSBT_NONE; break;
+        case Types::BackdropEffect::Automatic: nativeEffect = DWMSBT_AUTO; break;
+        case Types::BackdropEffect::MainWindow: nativeEffect = DWMSBT_MAINWINDOW; break;
+        case Types::BackdropEffect::TransientWindow: nativeEffect = DWMSBT_TRANSIENTWINDOW; break;
+        case Types::BackdropEffect::TabbedWindow: nativeEffect = DWMSBT_TABBEDWINDOW; break;
+        }
+        const HRESULT result =
+            DwmSetWindowAttribute(state.platform->handle, DWMWA_SYSTEMBACKDROP_TYPE, &nativeEffect, sizeof(nativeEffect));
         if (FAILED(result))
             return IO::makeStatus(
-                effect == Types::BackdropEffect::BlurBehind ? IO::Types::ErrorCode::Unsupported : IO::Types::ErrorCode::NativeFailure,
+                effect != Types::BackdropEffect::None ? IO::Types::ErrorCode::Unsupported : IO::Types::ErrorCode::NativeFailure,
                 result);
         state.backdrop = effect;
         return IO::successStatus();
@@ -255,7 +263,15 @@ namespace GameWIP::Window::Detail::Platform
 
     IO::Types::Status setPointerInputLayout(WindowState &state) noexcept
     {
-        RedrawWindow(state.platform->handle, nullptr, nullptr, RDW_FRAME | RDW_INVALIDATE);
+        IO::Types::Status status = applyStyle(state);
+        if (!status.ok())
+            return status;
+        if (state.pointerInputMode == Types::PointerInputMode::ClickThrough || state.opacity < 1.0F)
+        {
+            const BYTE alpha = static_cast<BYTE>(std::lround(std::clamp(state.opacity, 0.0F, 1.0F) * 255.0F));
+            if (SetLayeredWindowAttributes(state.platform->handle, 0, alpha, LWA_ALPHA) == FALSE)
+                return statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "SetLayeredWindowAttributes pointer policy");
+        }
         return IO::successStatus();
     }
 
@@ -293,10 +309,17 @@ namespace GameWIP::Window::Detail::Platform
         return IO::successStatus();
     }
 
-    IO::Types::Status setCursorPosition(WindowState &state, Types::Position position) noexcept
+    IO::Types::Status setCursorPosition(WindowState &state, Types::LogicalPosition position) noexcept
     {
         const UINT dpi = dpiForWindow(state.platform->handle);
-        POINT point{logicalToPhysical(position.x, dpi), logicalToPhysical(position.y, dpi)};
+        POINT point{};
+        if (!logicalToPhysicalChecked(position.x, dpi, point.x) || !logicalToPhysicalChecked(position.y, dpi, point.y))
+        {
+            return IO::makeStatus(
+                IO::Types::ErrorCode::InvalidArgument,
+                ERROR_ARITHMETIC_OVERFLOW,
+                "logical cursor position exceeds Win32 range at the effective DPI");
+        }
         if (ClientToScreen(state.platform->handle, &point) == FALSE)
             return statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "ClientToScreen cursor");
         if (SetCursorPos(point.x, point.y) == FALSE)
@@ -304,7 +327,7 @@ namespace GameWIP::Window::Detail::Platform
         return IO::successStatus();
     }
 
-    Types::PositionResult cursorPosition(const WindowState &state) noexcept
+    Types::LogicalPositionResult cursorPosition(const WindowState &state) noexcept
     {
         POINT point{};
         if (GetCursorPos(&point) == FALSE)

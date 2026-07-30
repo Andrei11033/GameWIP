@@ -34,11 +34,19 @@ target_sources(Window
             "${CMAKE_CURRENT_SOURCE_DIR}/.."
             "${WINDOW_GENERATED_INCLUDE_DIR}"
         FILES
-            "${CMAKE_CURRENT_SOURCE_DIR}/integration/renderer_feedback.h"
+            "${CMAKE_CURRENT_SOURCE_DIR}/renderer.h"
             "${CMAKE_CURRENT_SOURCE_DIR}/window.h"
-            "${CMAKE_CURRENT_SOURCE_DIR}/native/win32.h"
             "${WINDOW_GENERATED_INCLUDE_DIR}/window/window_export.h"
 )
+
+if(WIN32)
+    target_sources(Window PUBLIC
+        FILE_SET public_headers
+        TYPE HEADERS
+        BASE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/.."
+        FILES "${CMAKE_CURRENT_SOURCE_DIR}/native/win32.h"
+    )
+endif()
 
 gamewip_target_platform_sources(Window Window "${CMAKE_CURRENT_SOURCE_DIR}/platform")
 
@@ -80,13 +88,14 @@ if(GAMEWIP_BUILD_DOCS AND COMMAND gamewip_register_doxygen_library)
         NAME Window
         PAGE_ID window
         PUBLIC_HEADERS
-            "${CMAKE_CURRENT_SOURCE_DIR}/integration/renderer_feedback.h"
+            "${CMAKE_CURRENT_SOURCE_DIR}/renderer.h"
             "${CMAKE_CURRENT_SOURCE_DIR}/window.h"
-            "${CMAKE_CURRENT_SOURCE_DIR}/native/win32.h"
-            "${CMAKE_CURRENT_SOURCE_DIR}/internal/window_test_hooks.h"
         DOCS
             "${CMAKE_CURRENT_SOURCE_DIR}/docs"
     )
+    if(WIN32)
+        gamewip_register_doxygen_inputs("${CMAKE_CURRENT_SOURCE_DIR}/native/win32.h")
+    endif()
 endif()
 
 install(TARGETS Window

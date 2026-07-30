@@ -38,7 +38,9 @@ namespace GameWIP::Window::Detail::Platform
     [[nodiscard]] IO::Types::Status open(WindowState &state, const Types::Description &description) noexcept;
     [[nodiscard]] CloseResult close(WindowState &state) noexcept;
     void closeBestEffort(WindowState &state) noexcept;
+    [[nodiscard]] bool deferCleanupToOwner(std::unique_ptr<WindowState> &state) noexcept;
     [[nodiscard]] bool isOwnedByCurrentThread(const WindowState &state) noexcept;
+    [[nodiscard]] bool hasLiveNativeWindow(const WindowState &state) noexcept;
     [[nodiscard]] IO::Types::Status wakeEventWait(const WindowState &state) noexcept;
     [[nodiscard]] NativeHandleView nativeHandle(const WindowState &state) noexcept;
 
@@ -46,14 +48,14 @@ namespace GameWIP::Window::Detail::Platform
     [[nodiscard]] IO::Types::Status setTitle(WindowState &state, std::string_view utf8Title) noexcept;
     [[nodiscard]] IO::Types::Status setIcon(WindowState &state, std::span<const Types::IconImageView> images) noexcept;
     [[nodiscard]] IO::Types::Status clearIcon(WindowState &state) noexcept;
-    [[nodiscard]] IO::Types::Status setClientSize(WindowState &state, Types::Size size) noexcept;
-    [[nodiscard]] IO::Types::Status setClientPosition(WindowState &state, Types::Position position) noexcept;
-    [[nodiscard]] IO::Types::Status setClientRect(WindowState &state, const Types::Rect &rect) noexcept;
+    [[nodiscard]] IO::Types::Status setClientSize(WindowState &state, Types::LogicalSize size) noexcept;
+    [[nodiscard]] IO::Types::Status setClientPosition(WindowState &state, Types::ScreenPosition position) noexcept;
+    [[nodiscard]] IO::Types::Status setClientRect(WindowState &state, Types::ScreenPosition position, Types::LogicalSize size) noexcept;
     [[nodiscard]] IO::Types::Status centerOn(WindowState &state, Types::MonitorId monitor) noexcept;
     [[nodiscard]] IO::Types::Status setSizeLimits(WindowState &state, const Types::SizeLimits &limits) noexcept;
     [[nodiscard]] IO::Types::Status setAspectRatio(WindowState &state, std::optional<Types::AspectRatio> ratio) noexcept;
-    [[nodiscard]] Types::PositionResult clientToScreen(const WindowState &state, Types::Position position) noexcept;
-    [[nodiscard]] Types::PositionResult screenToClient(const WindowState &state, Types::Position position) noexcept;
+    [[nodiscard]] Types::ScreenPositionResult clientToScreen(const WindowState &state, Types::LogicalPosition position) noexcept;
+    [[nodiscard]] Types::LogicalPositionResult screenToClient(const WindowState &state, Types::ScreenPosition position) noexcept;
     [[nodiscard]] IO::Types::Status show(WindowState &state) noexcept;
     [[nodiscard]] IO::Types::Status hide(WindowState &state) noexcept;
     [[nodiscard]] IO::Types::Status requestFocus(WindowState &state) noexcept;
@@ -75,6 +77,6 @@ namespace GameWIP::Window::Detail::Platform
     [[nodiscard]] IO::Types::Status setPointerInputLayout(WindowState &state) noexcept;
     [[nodiscard]] IO::Types::Status setCursorMode(WindowState &state, Types::CursorMode mode) noexcept;
     [[nodiscard]] IO::Types::Status setCursorShape(WindowState &state, Types::CursorShape shape) noexcept;
-    [[nodiscard]] IO::Types::Status setCursorPosition(WindowState &state, Types::Position position) noexcept;
-    [[nodiscard]] Types::PositionResult cursorPosition(const WindowState &state) noexcept;
+    [[nodiscard]] IO::Types::Status setCursorPosition(WindowState &state, Types::LogicalPosition position) noexcept;
+    [[nodiscard]] Types::LogicalPositionResult cursorPosition(const WindowState &state) noexcept;
 } // namespace GameWIP::Window::Detail::Platform

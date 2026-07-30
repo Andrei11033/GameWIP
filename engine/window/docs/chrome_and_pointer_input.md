@@ -2,26 +2,39 @@
 
 ## Declarative custom chrome
 
-`DecorationMode::Custom` removes the visible system frame while retaining native resize, move, snap, system-menu, and caption-button hit testing. The application supplies logical client rectangles through `setCustomChromeLayout()`.
+`DecorationMode::Custom` removes the visible system frame while retaining native hit-test roles for resizing, dragging, the system menu, and caption buttons. `setCustomChromeLayout()` copies `LogicalRect` values; caller spans may expire when the call returns.
 
-Caption and system-button rectangles override draggable rectangles. Draggable rectangles override ordinary client behavior. Resize borders remain native while the Window is resizable, normally presented, and windowed. Rectangle arrays are copied; the caller's spans may expire when the call returns. The total region count must not exceed `maximumCustomChromeRegions`.
+System-button rectangles take precedence over draggable rectangles. Resize borders take precedence while the Window is resizable, normally presented, and windowed. The total region count must not exceed `maximumCustomChromeRegions`.
 
-The native window procedure performs only bounded rectangle tests. It never calls application code. UI code may replace the complete declarative layout whenever its own layout changes.
+The native window procedure performs bounded rectangle tests and never calls application code. Replace the complete layout when UI geometry changes.
 
-## Pointer input policy
+## Pointer modes
 
-`PointerInputMode::Normal` accepts input across the client. `ClickThrough` passes the complete client through to windows below. `AcceptRegions` accepts only inside copied rectangles; `IgnoreRegions` passes through inside copied rectangles.
+`PointerInputMode` contains `Normal`, whole-window `ClickThrough`, `AcceptRegions`, and `IgnoreRegions`. Region modes require a non-empty logical rectangle span; non-region modes require an empty span. Rectangles use client-local half-open bounds.
 
-Region modes require a non-empty layout. Non-region modes require an empty region span. The count is bounded by `maximumPointerInputRegions`. Coordinates are logical client coordinates and use half-open rectangle bounds.
+Win32 implements whole-window click-through with the documented top-level layered-window hit-testing combination `WS_EX_LAYERED | WS_EX_TRANSPARENT`; mouse input reaches arbitrary underlying desktop windows. Returning to `Normal` removes the transparent hit-testing style and removes the layered style when opacity does not otherwise need it.
 
-Custom caption/system buttons and resize borders take precedence over pointer pass-through. This keeps native window manipulation available even for overlay-style clients.
+The portable enum does not by itself prove native region support. Rectangular modes may be enabled only when the backend can route to arbitrary underlying desktop windows. Win32 does not advertise `PointerRegions`, exposes a zero region limit, and returns `Unsupported` without copying or changing state. It does not use same-thread-only `HTTRANSPARENT` as an approximation.
 
-## Layering and opacity
+## Packed pointer mask
 
-Opacity is a global value in `[0, 1]`. A transparent framebuffer is a creation-time compositing request. Backdrop blur is a separate runtime effect and may be unsupported for a particular Window state; inspect `Window::supports()` and the setter status.
+The optional @ref window_renderer_integration bridge stores one bit per physical framebuffer pixel. Zero means pass through and one means accept. The mask is persistent across movement, invalidated by framebuffer resizing, and protected by monotonically increasing publication revisions.
 
-Pointer click-through is hit-test policy, not opacity. A fully transparent Window still accepts pointer input unless a click-through policy is selected.
+Window storage of a mask does not imply that the backend can perform genuine per-pixel desktop routing. The Win32 backend does not advertise per-pixel routing; publication remains an integration/storage contract rather than a passthrough guarantee.
 
-## Current boundary
+## Opacity, framebuffer alpha, and backdrop
 
-Only whole-window and rectangular policies are implemented. Renderer-driven alpha-mask hit testing is intentionally deferred; see @ref window_future_extensions.
+Whole-window opacity, transparent framebuffer alpha, system backdrop, and pointer routing are separate concepts.
+
+- Opacity scales the complete Window.
+- Transparent framebuffer is a creation-time request. On Windows 11 build 26100 or newer, Window enables `DWMWA_REDIRECTIONBITMAP_ALPHA`; renderer/native presentation must still supply valid premultiplied-alpha pixels.
+- `BackdropEffect` uses `DWMWA_SYSTEMBACKDROP_TYPE` on Windows 11 build 22621 or newer and returns `Unsupported` for a non-`None` request on older builds.
+- A visually transparent pixel still accepts input unless a supported pointer policy passes it through.
+
+Capability flags are computed from the actual runtime Windows build. Unsupported creation requests are rejected before HWND/class/dispatcher allocation, and runtime setter status remains authoritative.
+
+## Related pages
+
+- @ref window_coordinates_and_dpi
+- @ref window_renderer_integration
+- @ref window_troubleshooting

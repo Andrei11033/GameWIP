@@ -22,10 +22,11 @@ namespace GameWIP::Window::Native::Win32
     /// @brief Result of a native handle query.
     struct HandleResult
     {
-        IO::Types::Status status; ///< Success or NotOpen.
+        IO::Types::Status status; ///< Success, NotOpen, or ResourceBusy.
         HandleView handle;        ///< Non-owning handles on success.
     };
 
-    /// @brief Returns non-owning Win32 handles for an open Window.
+    /// @brief Returns non-owning Win32 handles for an open Window on its owner thread.
+    /// @warning Native use must not race Window close.
     [[nodiscard]] GAMEWIP_WINDOW_EXPORT HandleResult getHandle(const GameWIP::Window::Window &window) noexcept;
 } // namespace GameWIP::Window::Native::Win32

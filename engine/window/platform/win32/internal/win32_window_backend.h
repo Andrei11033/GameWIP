@@ -63,8 +63,15 @@ namespace GameWIP::Window::Detail::Platform
     /// @brief One native message dispatcher per Window-owning thread.
     struct Dispatcher
     {
+        explicit Dispatcher(DWORD owningThreadId) noexcept;
+        ~Dispatcher() noexcept;
+        Dispatcher(const Dispatcher &) = delete;
+        Dispatcher &operator=(const Dispatcher &) = delete;
+
         DWORD threadId = 0;
         std::vector<WindowState *> windows;
+        std::mutex deferredMutex;
+        std::unique_ptr<WindowState> deferredCleanupHead;
         bool pumping = false;
         Types::EventPumpResult *activeResult = nullptr;
     };
@@ -82,12 +89,13 @@ namespace GameWIP::Window::Detail::Platform
     [[nodiscard]] bool utf8ToUtf16(std::string_view text, std::wstring &output, DWORD &nativeCode);
     [[nodiscard]] bool utf16ToUtf8(std::wstring_view text, std::string &output, DWORD &nativeCode);
     [[nodiscard]] UINT dpiForWindow(HWND window) noexcept;
+    [[nodiscard]] bool logicalToPhysicalChecked(std::int32_t value, UINT dpi, LONG &output) noexcept;
     [[nodiscard]] LONG logicalToPhysical(std::int32_t value, UINT dpi) noexcept;
     [[nodiscard]] std::int32_t physicalToLogical(LONG value, UINT dpi) noexcept;
-    [[nodiscard]] Types::Size logicalToPhysicalSize(Types::Size value, UINT dpi) noexcept;
-    [[nodiscard]] Types::Size physicalToLogicalSize(std::uint32_t width, std::uint32_t height, UINT dpi) noexcept;
+    [[nodiscard]] Types::PixelSize logicalToPhysicalSize(Types::LogicalSize value, UINT dpi) noexcept;
+    [[nodiscard]] Types::LogicalSize physicalToLogicalSize(std::uint32_t width, std::uint32_t height, UINT dpi) noexcept;
     [[nodiscard]] HCURSOR loadCursor(Types::CursorShape shape) noexcept;
-    [[nodiscard]] bool pointInRect(Types::Position point, const Types::Rect &rect) noexcept;
+    [[nodiscard]] bool pointInRect(Types::LogicalPosition point, const Types::LogicalRect &rect) noexcept;
 
     [[nodiscard]] IO::Types::Status refreshCachedGeometry(WindowState &state) noexcept;
     void updateCurrentMonitor(WindowState &state) noexcept;
@@ -97,10 +105,14 @@ namespace GameWIP::Window::Detail::Platform
     [[nodiscard]] IO::Types::Status suspendExclusive(WindowState &state) noexcept;
     [[nodiscard]] IO::Types::Status resumeExclusive(WindowState &state) noexcept;
     [[nodiscard]] IO::Types::Status applyMode(WindowState &state, const Types::ModeRequest &request) noexcept;
+    [[nodiscard]] IO::Types::Status recoverAfterDisplayChange(WindowState &state, bool forceRemovedMonitor = false) noexcept;
 
     [[nodiscard]] Types::MonitorInfoResult monitorFromNative(HMONITOR monitor) noexcept;
     [[nodiscard]] HMONITOR nativeMonitor(Types::MonitorId id) noexcept;
     [[nodiscard]] std::wstring monitorDeviceName(Types::MonitorId id) noexcept;
+    [[nodiscard]] std::uint32_t runtimeWindowsBuild() noexcept;
+    [[nodiscard]] bool supportsSystemBackdrop() noexcept;
+    [[nodiscard]] bool supportsTransparentFramebuffer() noexcept;
 
     [[nodiscard]] LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam);
 } // namespace GameWIP::Window::Detail::Platform

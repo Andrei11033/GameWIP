@@ -13,7 +13,7 @@
 #elif defined(GAMEWIP_CONSUMER_Terminal)
 #include "terminal/terminal.h"
 #elif defined(GAMEWIP_CONSUMER_Window)
-#include "window/integration/renderer_feedback.h"
+#include "window/renderer.h"
 #include "window/window.h"
 #elif defined(GAMEWIP_CONSUMER_Logger)
 #include "logger/logger.h"
@@ -24,7 +24,7 @@
 #elif defined(__INTELLISENSE__)
 // CMake compiles this source once per selected package. The standalone editor parse has no
 // selection, so give IntelliSense a representative branch without weakening the real-build guard.
-#include "window/integration/renderer_feedback.h"
+#include "window/renderer.h"
 #include "window/window.h"
 #else
 #error "An isolated consumer package must be selected."
@@ -42,7 +42,7 @@ int main()
     return 0;
 #elif defined(GAMEWIP_CONSUMER_Window)
     GameWIP::Window::Window window;
-    const auto feedback = GameWIP::Window::Integration::Renderer::attachOcclusionProvider(window);
+    const auto feedback = GameWIP::Window::Renderer::attachOcclusionProvider(window);
     return GameWIP::Window::getCapabilities().status.ok() && feedback.code == GameWIP::IO::Types::ErrorCode::NotOpen ? 0 : 1;
 #elif defined(GAMEWIP_CONSUMER_Logger)
     static_cast<void>(GameWIP::Logger::defaultConfig());
@@ -55,6 +55,6 @@ int main()
     return timer.elapsedMilliseconds() >= 0.0 ? 0 : 1;
 #elif defined(__INTELLISENSE__)
     GameWIP::Window::Window window;
-    return GameWIP::Window::Integration::Renderer::attachOcclusionProvider(window).code == GameWIP::IO::Types::ErrorCode::NotOpen ? 0 : 1;
+    return GameWIP::Window::Renderer::attachOcclusionProvider(window).code == GameWIP::IO::Types::ErrorCode::NotOpen ? 0 : 1;
 #endif
 }

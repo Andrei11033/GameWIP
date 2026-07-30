@@ -79,5 +79,29 @@ namespace GameWIP::Window::TestHooks
         static_cast<void>(Detail::requestClose(*state, source));
         return IO::successStatus();
     }
+
+    std::uint64_t pointerHitMaskRevision(const Window &window) noexcept
+    {
+        const Detail::WindowState *state = Detail::WindowAccess::state(window);
+        return state != nullptr ? state->pointerHitMaskRevision : 0;
+    }
+
+    std::size_t pointerHitMaskWordCount(const Window &window) noexcept
+    {
+        const Detail::WindowState *state = Detail::WindowAccess::state(window);
+        return state != nullptr ? state->pointerHitMask.size() : 0;
+    }
+
+    std::uint64_t pointerHitMaskWord(const Window &window, std::size_t index) noexcept
+    {
+        const Detail::WindowState *state = Detail::WindowAccess::state(window);
+        return state != nullptr && index < state->pointerHitMask.size() ? state->pointerHitMask[index] : 0;
+    }
+
+    const void *pointerHitMaskStorage(const Window &window) noexcept
+    {
+        const Detail::WindowState *state = Detail::WindowAccess::state(window);
+        return state != nullptr && !state->pointerHitMask.empty() ? state->pointerHitMask.data() : nullptr;
+    }
 } // namespace GameWIP::Window::TestHooks
 #endif

@@ -5,9 +5,12 @@ GameWIP::Window::getMonitor
 GameWIP::Window::getMonitors
 GameWIP::Window::getPreferredDisplayMode
 GameWIP::Window::getPrimaryMonitor
-GameWIP::Window::Integration::Renderer::attachOcclusionProvider
-GameWIP::Window::Integration::Renderer::detachOcclusionProvider
-GameWIP::Window::Integration::Renderer::reportOcclusion
+GameWIP::Window::Renderer::attachOcclusionProvider
+GameWIP::Window::Renderer::clearPointerHitMask
+GameWIP::Window::Renderer::detachOcclusionProvider
+GameWIP::Window::Renderer::publishPointerHitMask
+GameWIP::Window::Renderer::reportOcclusion
+GameWIP::Window::Renderer::requiredPointerHitMaskWords
 GameWIP::Window::Native::Win32::getHandle
 GameWIP::Window::pollEvents
 GameWIP::Window::supports
@@ -33,6 +36,7 @@ GameWIP::Window::Window::cursorMode
 GameWIP::Window::Window::cursorPosition
 GameWIP::Window::Window::cursorShape
 GameWIP::Window::Window::decorationMode
+GameWIP::Window::Window::dpiResizePolicy
 GameWIP::Window::Window::effectiveDpi
 GameWIP::Window::Window::eventQueueInfo
 GameWIP::Window::Window::framebufferSize
@@ -54,6 +58,7 @@ GameWIP::Window::Window::isOwnedByCurrentThread
 GameWIP::Window::Window::isResizable
 GameWIP::Window::Window::isUserInteractionEnabled
 GameWIP::Window::Window::isVisible
+GameWIP::Window::Window::lifetimeState
 GameWIP::Window::Window::maximize
 GameWIP::Window::Window::minimize
 GameWIP::Window::Window::mode
@@ -81,6 +86,7 @@ GameWIP::Window::Window::setCursorPosition
 GameWIP::Window::Window::setCursorShape
 GameWIP::Window::Window::setCustomChromeLayout
 GameWIP::Window::Window::setDecorationMode
+GameWIP::Window::Window::setDpiResizePolicy
 GameWIP::Window::Window::setFileDropEnabled
 GameWIP::Window::Window::setFocusable
 GameWIP::Window::Window::setIcon

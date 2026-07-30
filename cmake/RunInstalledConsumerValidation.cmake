@@ -41,7 +41,7 @@ set(expected_gamewip_headers
     terminal/terminal.h
     terminal/terminal_export.h
     test_support/test_support.h
-    window/integration/renderer_feedback.h
+    window/renderer.h
     window/native/win32.h
     window/window.h
     window/window_export.h

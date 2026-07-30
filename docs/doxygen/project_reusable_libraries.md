@@ -10,6 +10,10 @@ Use this page as the library index. Use @ref project_structure for dependency di
 - @subpage filesystem
 - @subpage terminal
 
+## Engine libraries
+
+- @subpage window_library
+
 ## Tool libraries
 
 - @subpage logger
