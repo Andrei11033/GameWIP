@@ -33,8 +33,7 @@ Use this page when changing:
 
 `main.cpp` follows one process-level sequence:
 
-1. In Tracy-enabled builds, name the main thread, open the process zone, and
-   wait 500 milliseconds so the profiler can attach before startup work.
+1. In Tracy-enabled builds, name the main thread and open the process zone.
 2. When the only user argument is `--version`, print
    `GameWIP::Version::productDisplay` and exit successfully.
 3. Run startup correctness validation when it was compiled into the executable.
@@ -51,7 +50,9 @@ Utility-only version queries intentionally bypass validation and runtime startup
 
 Tracy-enabled builds emit frame marks before startup validation, startup
 benchmarks, and runtime execution. The enclosing named zones identify those
-process phases in a capture.
+process phases in a capture. Zone colors distinguish process/runtime work,
+initialization, frames, waits, validation, benchmarks, and cleanup or failure
+paths.
 
 There is no process-wide exception boundary around startup validation, benchmark execution, or `GameWIP::Game::run()`. The correctness runner converts exceptions escaping module callbacks, but its outer setup/allocation work and the benchmark runner may still propagate. Runtime code should express expected startup or shutdown failures through its returned exit code. Any exception that reaches `main()` follows the language runtime's uncaught-exception behavior.
 

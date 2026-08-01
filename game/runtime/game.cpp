@@ -24,6 +24,17 @@
 
 namespace
 {
+#if GAMEWIP_TRACY_ENABLED
+    namespace ProfileZoneColor
+    {
+        inline constexpr auto Runtime = 0x4C78A8;
+        inline constexpr auto Initialization = 0x72B7B2;
+        inline constexpr auto Frame = 0x54A24B;
+        inline constexpr auto Wait = 0x9D9DA1;
+        inline constexpr auto Shutdown = 0xE45756;
+    } // namespace ProfileZoneColor
+#endif
+
     [[nodiscard]] constexpr std::string_view colorSpaceName(GameWIP::Window::Types::DisplayColorSpace colorSpace) noexcept
     {
         using GameWIP::Window::Types::DisplayColorSpace;
@@ -47,11 +58,11 @@ namespace GameWIP::Game
     int run(int argc, char **argv)
     {
 #if GAMEWIP_TRACY_ENABLED
-        ZoneScopedN("Game runtime");
+        ZoneScopedNC("Game runtime", ProfileZoneColor::Runtime);
 #endif
         {
 #if GAMEWIP_TRACY_ENABLED
-            ZoneScopedN("Init Logger");
+            ZoneScopedNC("Init Logger", ProfileZoneColor::Initialization);
 #endif
             Logger::initConsole(Logger::Types::Level::Debug);
         }
@@ -60,7 +71,7 @@ namespace GameWIP::Game
         Window::Types::MonitorListResult monitors;
         {
 #if GAMEWIP_TRACY_ENABLED
-            ZoneScopedN("Enumerate displays, display modes, and HDR state");
+            ZoneScopedNC("Enumerate displays, display modes, and HDR state", ProfileZoneColor::Initialization);
 #endif
             monitors = Window::getMonitors();
             if (monitors.status.ok())
@@ -147,7 +158,7 @@ namespace GameWIP::Game
         IO::Types::Status openStatus;
         {
 #if GAMEWIP_TRACY_ENABLED
-            ZoneScopedN("Open borderless-fullscreen window");
+            ZoneScopedNC("Open borderless-fullscreen window", ProfileZoneColor::Initialization);
 #endif
             openStatus = window.open(windowDescription);
         }
@@ -169,12 +180,12 @@ namespace GameWIP::Game
         while (!window.closeRequested())
         {
 #if GAMEWIP_TRACY_ENABLED
-            ZoneScopedN("Game frame");
+            ZoneScopedNC("Game frame", ProfileZoneColor::Frame);
 #endif
             Window::Types::EventPumpResult events;
             {
 #if GAMEWIP_TRACY_ENABLED
-                ZoneScopedN("Wait for and pump window events");
+                ZoneScopedNC("Wait for and pump window events", ProfileZoneColor::Wait);
 #endif
                 events = Window::waitEvents(std::chrono::milliseconds(16));
             }
@@ -186,7 +197,7 @@ namespace GameWIP::Game
                 Logger::error("Window", "Event pump failed: {}", events.status.message);
                 {
 #if GAMEWIP_TRACY_ENABLED
-                    ZoneScopedN("Close window after event-pump failure");
+                    ZoneScopedNC("Close window after event-pump failure", ProfileZoneColor::Shutdown);
 #endif
                     static_cast<void>(window.close());
                 }
@@ -201,7 +212,7 @@ namespace GameWIP::Game
         IO::Types::Status closeStatus;
         {
 #if GAMEWIP_TRACY_ENABLED
-            ZoneScopedN("Close borderless-fullscreen window");
+            ZoneScopedNC("Close borderless-fullscreen window", ProfileZoneColor::Shutdown);
 #endif
             closeStatus = window.close();
         }
@@ -221,7 +232,7 @@ namespace GameWIP::Game
 
         {
 #if GAMEWIP_TRACY_ENABLED
-            ZoneScopedN("Logger shutdown");
+            ZoneScopedNC("Logger shutdown", ProfileZoneColor::Shutdown);
 #endif
             Logger::warn("Shutdown", "Logger shutting down");
             Logger::shutdown();
