@@ -14,7 +14,7 @@ Foreground activation is subject to operating-system policy. A hidden or non-foc
 
 ## Events appear missing
 
-Inspect `eventQueueInfo().droppedEvents`. Geometry and DPI events can coalesce. When full, the queue prefers evicting an older coalescible event; if it contains only noncoalescible events, an ordinary new event is dropped. Terminal `ClosedEvent` evicts the oldest entry so unexpected native destruction remains observable. Cached getters remain current even when another notification was dropped.
+Inspect `eventQueueInfo().droppedEvents`. Geometry and DPI events can coalesce. When full, the queue prefers evicting an older coalescible event; if it contains only noncoalescible events, a new event other than `ClosedEvent` is dropped. `ClosedEvent` evicts the oldest entry so unexpected native destruction remains observable. Cached getters remain current even when another notification was dropped.
 
 `closeRequested()` is independent of the queue. Handle it even if no `CloseRequestedEvent` was retained.
 

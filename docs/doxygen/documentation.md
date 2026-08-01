@@ -1,6 +1,8 @@
 @page project_documentation Documentation system
 
-GameWIP uses Doxygen for the generated developer manual and ordinary Markdown files for long-form project records. The generated manual is coder-facing documentation for contributors, maintainers, and reusable-library consumers; it is not player-facing game documentation. It documents project workflows, reusable-library manuals, and public API reference material. The ordinary `docs/` files record product direction, milestone criteria, stable decisions, versioning, and contributor workflow. Active task tracking belongs in GitHub issues.
+GameWIP uses Doxygen for its generated developer manual and Markdown for long-form project records. The manual serves contributors, maintainers, and reusable-library consumers; it is not player-facing documentation.
+
+The manual contains project workflows, library manuals, and public API reference material. Files under `docs/` record product direction, milestone criteria, stable decisions, versioning, and contributor policy. GitHub issues track active work.
 
 This page defines the documentation standard used across the repository.
 
@@ -61,6 +63,7 @@ Use these prefixes:
 | IO pages | `io_` |
 | FileSystem pages | `filesystem_` |
 | Terminal pages | `terminal_` |
+| Window pages | `window_` |
 | Logger pages | `logger_` |
 | Assert pages | `assert_` |
 | TestSupport pages | `test_support_` |
@@ -79,19 +82,27 @@ library name because the Doxygen sidebar already supplies that context:
 Keep the library name in the landing-page title and in prose where the page may
 be read outside its navigation context.
 
+Window is the deliberate naming exception: its landing page uses
+`window_library` so it cannot be confused with generated namespace and class
+reference names, while its child pages retain the concise `window_` prefix.
+
 ## Required library documentation
 
 Each reusable library must provide:
 
 ```text
 <library>/docs/
-  <library>.md
+  <page-id>.md
   quick_start.md
   public_api.md
   examples.md
   testing.md
   troubleshooting.md
 ```
+
+The landing filename must match the `PAGE_ID` registered for the library. For
+most libraries this is the lowercase library name; Window uses the documented
+`window_library` exception above.
 
 Libraries may add additional manual pages when the public or maintainer-facing contract needs a focused owner. Extra pages must make the manual easier to use or maintain; do not create pages just to mirror the source tree.
 
@@ -117,7 +128,9 @@ A quick-start page must contain:
 
 ## Public API and ABI documentation standard
 
-Every public API and ABI-facing contract must be accounted for in generated documentation. The same rule applies to source-tree interfaces that connect the executable, validation runners, and validation modules, even though those interfaces are not installed compatibility promises. This includes namespaces, classes, structs, enums, enum values, constants, macros, free functions, constructors, member functions, fields, option types, result types, binary boundary assumptions, and exported-symbol expectations.
+Generated documentation must account for every public API and ABI-facing contract. The same rule applies to source-tree interfaces between the executable, validation runners, and validation modules, even though those interfaces are not installed compatibility promises.
+
+Coverage includes namespaces, classes, structs, enums and their values, constants, macros, free functions, constructors, member functions, fields, option and result types, binary-boundary assumptions, and exported-symbol expectations.
 
 Header comments provide the detailed reference documentation for API and ABI contracts. Manual pages provide practical usage guidance, examples, troubleshooting, and broader workflow context.
 

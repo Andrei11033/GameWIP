@@ -84,7 +84,7 @@ Manual checks are opt-in. CI should remain unattended unless a workflow explicit
 
 ## Documentation ownership
 
-Doxygen is the generated coder-facing manual for contributors, maintainers, and reusable-library consumers. It is not player-facing game documentation.
+Doxygen is the generated developer manual for contributors, maintainers, and reusable-library consumers. It is not player-facing game documentation.
 
 Project workflow and contract pages live under `docs/doxygen/`. Product direction, roadmap, decisions, versioning, and contributor workflow records live under `docs/`. Library manuals live under each library's `docs/` directory.
 

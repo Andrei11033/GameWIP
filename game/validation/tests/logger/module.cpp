@@ -38,8 +38,7 @@ namespace
         GameWIP::Test::LoggerTestOptions options;
         options.enableStressTests = invocation.options.enableStressTests;
         options.enableChildCrashTests = invocation.options.enableChildCrashTests;
-        options.enableManualUiTests = invocation.options.enableManualUiTests;
-        options.enableLoggerPopupTest = invocation.options.enableLoggerPopupTest;
+        options.enableManualTests = invocation.options.enableManualTests;
         options.verboseConsole = invocation.options.verboseConsole;
         options.stressThreadCount = invocation.options.stressThreadCount;
         options.stressIterationsPerThread = invocation.options.loggerStressIterationsPerThread;

@@ -1119,7 +1119,7 @@ namespace
     /// @brief Runs opt-in human checks for real action dialogs, fallback UI, and debugger breaks.
     void testManualAssertUi(TestContext &context, const AssertTestOptions &options)
     {
-        if (!options.enableManualUiTests)
+        if (!options.enableManualTests)
         {
             context.pass("manual assert UI tests skipped by AssertTestOptions");
             return;
@@ -1263,12 +1263,12 @@ namespace GameWIP::Test
                         ASSERT_POPUP_ON_CHECK));
                 context.emit(
                     std::format(
-                        "[INFO] Assert test options: stress={} fatalChild={} automatedInteractive={} manualUi={} "
+                        "[INFO] Assert test options: stress={} fatalChild={} automatedInteractive={} manualTests={} "
                         "stressThreads={} stressIterations={} report={}\n",
                         options.enableStressTests,
                         options.enableChildCrashTests,
                         options.enableAutomatedInteractiveTests,
-                        options.enableManualUiTests,
+                        options.enableManualTests,
                         options.stressThreadCount,
                         options.stressIterations,
                         options.writeReport ? options.reportPath.string() : std::string{"disabled"}));

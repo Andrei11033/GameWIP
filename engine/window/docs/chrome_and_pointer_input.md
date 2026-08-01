@@ -4,6 +4,8 @@
 
 `DecorationMode::Custom` removes the visible system frame while retaining native hit-test roles for resizing, dragging, the system menu, and caption buttons. `setCustomChromeLayout()` copies `LogicalRect` values; caller spans may expire when the call returns.
 
+On Win32, changing decoration, controls, ownership, pointer policy, or another configurable frame property preserves native state managed by separate operations. In particular, style recomposition retains visibility, disabled, minimized, and maximized bits, and it retains unrelated extended styles such as file-drop acceptance. A visible Window therefore remains eligible for taskbar and Alt+Tab presentation across windowed, borderless, and exclusive style transitions.
+
 System-button rectangles take precedence over draggable rectangles. Resize borders take precedence while the Window is resizable, normally presented, and windowed. The total region count must not exceed `maximumCustomChromeRegions`.
 
 The native window procedure performs bounded rectangle tests and never calls application code. Replace the complete layout when UI geometry changes.
@@ -14,11 +16,11 @@ The native window procedure performs bounded rectangle tests and never calls app
 
 Win32 implements whole-window click-through with the documented top-level layered-window hit-testing combination `WS_EX_LAYERED | WS_EX_TRANSPARENT`; mouse input reaches arbitrary underlying desktop windows. Returning to `Normal` removes the transparent hit-testing style and removes the layered style when opacity does not otherwise need it.
 
-The portable enum does not by itself prove native region support. Rectangular modes may be enabled only when the backend can route to arbitrary underlying desktop windows. Win32 does not advertise `PointerRegions`, exposes a zero region limit, and returns `Unsupported` without copying or changing state. It does not use same-thread-only `HTTRANSPARENT` as an approximation.
+The portable enum does not guarantee native region support. Rectangular modes are available only when the backend can route input to arbitrary underlying desktop windows. Win32 reports `PointerRegions` as unavailable, exposes a zero region limit, and returns `Unsupported` without copying the layout or changing Window state. It does not use same-thread-only `HTTRANSPARENT` as an approximation.
 
 ## Packed pointer mask
 
-The optional @ref window_renderer_integration bridge stores one bit per physical framebuffer pixel. Zero requests pass-through and one accepts. Window-generated generations protect asynchronous publication. Movement preserves the mask; framebuffer changes, clear, destruction, close, and reopen invalidate it. Win32 keeps the capability false because it lacks documented arbitrary cross-application per-pixel pass-through.
+The optional @ref window_renderer_integration bridge stores one bit per physical framebuffer pixel. A zero bit passes input through; a one bit accepts input. Window-generated generations protect asynchronous publication. Movement preserves the mask. Framebuffer changes, explicit clearing, native destruction, close, and reopen invalidate it. Win32 reports the capability as unavailable because no documented native mechanism provides arbitrary cross-application per-pixel pass-through.
 
 Window storage of a mask does not imply that the backend can perform genuine per-pixel desktop routing. The Win32 backend does not advertise per-pixel routing; publication remains an integration/storage contract rather than a passthrough guarantee.
 
@@ -31,7 +33,7 @@ Whole-window opacity, transparent framebuffer alpha, system backdrop, and pointe
 - `BackdropEffect` uses `DWMWA_SYSTEMBACKDROP_TYPE` on Windows 11 build 22621 or newer and returns `Unsupported` for a non-`None` request on older builds.
 - A visually transparent pixel still accepts input unless a supported pointer policy passes it through.
 
-Capability flags are computed from the actual runtime Windows build. Unsupported creation requests are rejected before HWND/class/dispatcher allocation, and runtime setter status remains authoritative.
+Capability flags reflect the running Windows build. An unsupported creation request fails without leaving a partially open Window, and the status returned by a runtime setter remains authoritative.
 
 ## Related pages
 

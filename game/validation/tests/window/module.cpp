@@ -10,6 +10,7 @@ namespace
     int run(const GameWIP::Validation::Tests::ModuleInvocation &invocation)
     {
         GameWIP::Test::WindowTestOptions options;
+        options.enableManualTests = invocation.options.enableManualTests;
         options.verboseConsole = invocation.options.verboseConsole;
         options.writeReport = invocation.options.writeReport;
         options.appendReport = invocation.appendReport;

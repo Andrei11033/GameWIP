@@ -2,7 +2,7 @@
 
 The @ref window_quick_start page contains a complete single-window event loop. The focused examples below omit repetitive status reporting but always check operations whose failure affects the workflow.
 
-## Multiple Windows without WindowManager
+## Multiple independent windows
 
 ```cpp
 GameWIP::Window::Window mainWindow;
@@ -65,7 +65,7 @@ chrome.closeButtonRegion = Types::LogicalRect{{760, 0}, {40, 40}};
 return window.setCustomChromeLayout(chrome).ok() ? 0 : 2;
 ```
 
-The array may expire after the setter returns because Window copies it.
+Window copies the array during the call, so the caller does not need to retain it afterward.
 
 ## Borderless fullscreen
 
@@ -79,6 +79,27 @@ if (!window.setMode(mode).ok()) return 1;
 mode = {};
 return window.setMode(mode).ok() ? 0 : 2;
 ```
+
+Borderless fullscreen changes only the native Window style and monitor-sized placement; it does not change the monitor's display mode.
+
+## Exclusive fullscreen
+
+```cpp
+const auto monitor = window.currentMonitor();
+const auto modes = GameWIP::Window::getDisplayModes(monitor);
+if (!modes.status.ok() || modes.displayModes.empty()) return 1;
+
+GameWIP::Window::Types::ModeRequest mode;
+mode.mode = GameWIP::Window::Types::WindowMode::ExclusiveFullscreen;
+mode.monitor = monitor;
+mode.displayMode = modes.displayModes.front(); // Choose an appropriate enumerated mode.
+if (!window.setMode(mode).ok()) return 2;
+
+// Later restore the saved desktop mode, style, and windowed placement.
+return window.setMode({}).ok() ? 0 : 3;
+```
+
+An exact exclusive request must use a mode returned for the target monitor. Exclusive mode suspends when the Window loses focus and resumes when it regains focus.
 
 ## Whole-window click-through overlay
 
@@ -105,7 +126,7 @@ if (!window.setPointerInputLayout(input).ok()) return 1;
 return window.setAlwaysOnTop(true).ok() ? 0 : 2;
 ```
 
-The current Win32 backend takes the early return: it does not advertise region or per-pixel desktop routing.
+The current Win32 backend takes the early return because it does not advertise region-based or per-pixel desktop routing.
 
 ## Native Win32 handle
 

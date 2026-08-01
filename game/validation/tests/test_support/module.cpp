@@ -38,7 +38,7 @@ namespace
         GameWIP::Test::TestSupportTestOptions options;
         options.enableChildProcessTests = invocation.options.enableTestSupportChildProcessTests;
         options.enableStressTests = invocation.options.enableStressTests;
-        options.enableManualTests = invocation.options.enableManualUiTests;
+        options.enableManualTests = invocation.options.enableManualTests;
         options.verboseConsole = invocation.options.verboseConsole;
         options.writeReport = invocation.options.writeReport;
         options.appendReport = invocation.appendReport;

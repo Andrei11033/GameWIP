@@ -37,7 +37,7 @@ repository bootstrap utility:
 .\setup.bat
 ```
 
-Choose Visual Studio Code, optional Visual Studio Community, or both. Setup
+Choose Visual Studio Code, Visual Studio Community, or both. Setup
 installs the selected environment, prepares pinned dependencies and profiler
 tools, builds the manual, and verifies the checkout. It is also the supported
 update, repair, and ownership-aware uninstall entry point. See the
@@ -48,8 +48,8 @@ map.
 Setup asks which fetched branch an extracted ZIP should track; automation can
 provide the same choice with `-Branch <name>`.
 
-After setup, open `GameWIP.code-workspace`. The installed repository-scoped
-shortcuts cover development builds, tests, benchmarks, analysis,
+After setup, open `GameWIP.code-workspace`. The repository-scoped shortcuts
+installed by setup cover development builds, tests, benchmarks, analysis,
 documentation, profiling, coverage, AddressSanitizer, and release runs; all are
 also available as `GameWIP: ...` entries under **Terminal > Run Task**.
 
@@ -64,7 +64,7 @@ cmake --build --preset dev
 .\build\dev\GameWIP.exe
 ```
 
-Use `dev-no-tools` to prove the runtime does not depend on optional development tooling. Both development presets compile embedded tests, but run them only when explicitly requested with `GameWIP.exe --startup-tests`.
+Use `dev-no-tools` to verify that the runtime does not depend on optional development tooling. Both development presets compile embedded tests but run them only when explicitly requested with `GameWIP.exe --startup-tests`.
 
 ## Validation
 
@@ -112,10 +112,9 @@ The generated project manual documents the full validation, testing, static-anal
 
 ## Profiling
 
-The profiling preset enables game-owned Tracy instrumentation:
-
-Install the official Windows profiler tools matching the Tracy client pinned by
-the current checkout:
+The profiling preset enables game-owned Tracy instrumentation. Install the
+official Windows profiler tools matching the Tracy client pinned by the current
+checkout:
 
 ```powershell
 .\setup.bat profiler
@@ -147,7 +146,7 @@ cmake --build --preset release
 
 ## Documentation
 
-Generated API and developer documentation is published at [GameWIP Doxygen Documentation](https://andrei11033.github.io/GameWIP/).
+Generated API documentation and the developer manual are published at the [GameWIP documentation site](https://andrei11033.github.io/GameWIP/).
 
 Build it locally:
 
@@ -191,7 +190,7 @@ docs/         Product direction, roadmap, decisions, versioning, and contributor
 docs/doxygen/ Generated developer-manual pages and documentation infrastructure.
 ```
 
-Root `README.md`, `CONTRIBUTING.md`, and `SECURITY.md` are short repository entry points. The generated manual and `docs/` pages contain the detailed coder-facing project documentation.
+Root `README.md`, `CONTRIBUTING.md`, and `SECURITY.md` are short repository entry points. The generated manual and `docs/` pages contain the detailed developer documentation.
 
 ## License
 

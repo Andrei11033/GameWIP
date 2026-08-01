@@ -1,12 +1,12 @@
 @page window_native_interop Native Win32 interoperability
 
-Portable consumers include only `window/window.h`. Code that deliberately attaches a renderer or another Win32 integration may opt into:
+Portable consumers include only `window/window.h`. Code that deliberately integrates a renderer or uses another Win32 API may opt into:
 
 ```cpp
 #include "window/native/win32.h"
 ```
 
-`GameWIP::Window::Native::Win32::getHandle()` is owner-thread-only and returns a non-owning `HINSTANCE`/`HWND` pair. It returns `ResourceBusy` from another thread and `NotOpen` when no live HWND exists. Handles remain valid only until close or a future reopen and must not be destroyed by the consumer.
+`GameWIP::Window::Native::Win32::getHandle()` is owner-thread-only and returns a non-owning `HINSTANCE`/`HWND` pair. It returns `ResourceBusy` on another thread and `NotOpen` when no live HWND exists. The handles remain valid only until close or reopen and must not be destroyed by the consumer.
 
 ```cpp
 GameWIP::Window::Window window;

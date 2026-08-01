@@ -1,8 +1,6 @@
 @page project_getting_started Getting started with the project
 
-This page is the first manual page for a developer who has the repository but does not yet know how GameWIP is arranged. It gives the shortest complete path from a fresh checkout to a built, runnable, validated source tree.
-
-Use the linked pages for the full contracts. This page intentionally summarizes the first session instead of replacing the detailed build, validation, structure, and contribution pages.
+This page provides the shortest complete path from a fresh checkout to a built, runnable, and validated GameWIP source tree. The linked pages define the complete build, validation, structure, and contribution contracts.
 
 ## First checkout setup
 
@@ -100,7 +98,7 @@ After the first build and validation run:
 - Read @ref project_extending before adding APIs, libraries, backends, benchmarks, packages, or manual pages.
 - Read @ref project_documentation before writing public API comments or manual pages.
 
-Specialized workflows such as coverage, profiling, benchmarking, static analysis, repository automation, and release automation are documented under @ref project_quality_workflows and @ref project_contracts. Use those pages when the work actually touches those systems.
+Coverage, profiling, benchmarking, and static analysis are documented under @ref project_quality_workflows. Repository and release automation are documented under @ref project_contracts.
 
 ## Change workflow
 

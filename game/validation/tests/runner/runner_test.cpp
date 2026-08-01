@@ -31,8 +31,7 @@ namespace
     struct ProbeRecord
     {
         std::size_t runs = 0;
-        bool manualUi = false;
-        bool loggerPopup = false;
+        bool manualTests = false;
         bool childProcesses = true;
         bool writeReport = true;
     };
@@ -75,8 +74,7 @@ namespace
     void recordInvocation(ProbeRecord &record, std::string_view name, const ValidationTests::ModuleInvocation &invocation)
     {
         ++record.runs;
-        record.manualUi = invocation.options.enableManualUiTests;
-        record.loggerPopup = invocation.options.enableLoggerPopupTest;
+        record.manualTests = invocation.options.enableManualTests;
         record.childProcesses = invocation.options.enableTestSupportChildProcessTests;
         record.writeReport = invocation.options.writeReport;
         probeState.invocationOrder.push_back(name);
@@ -203,8 +201,7 @@ namespace
         static_cast<void>(context.expectEq("default runner keeps both modules selected", std::size_t{2}, result.modulesRun));
         static_cast<void>(context.expectEq("default runner invokes alpha", std::size_t{1}, probeState.alpha.runs));
         static_cast<void>(context.expectEq("default runner invokes beta", std::size_t{1}, probeState.beta.runs));
-        static_cast<void>(context.expectFalse("manual UI defaults off", probeState.alpha.manualUi));
-        static_cast<void>(context.expectFalse("Logger popup defaults off", probeState.alpha.loggerPopup));
+        static_cast<void>(context.expectFalse("manual tests default off", probeState.alpha.manualTests));
         static_cast<void>(context.expectTrue(
             "default runner uses stable order then name",
             probeState.invocationOrder == std::vector<std::string_view>{"beta", "alpha"}));
@@ -212,30 +209,21 @@ namespace
 
     void testPositiveCapabilityOptions(TestSupport::Context &context)
     {
-        Validation::TestResult result = runProbe({"--manual-ui"});
-        static_cast<void>(context.expectTrue("manual UI runner invocation succeeds", result.ok()));
-        static_cast<void>(context.expectEq("manual UI does not focus a module", std::size_t{2}, result.modulesRun));
-        static_cast<void>(context.expectTrue("manual UI propagates to alpha", probeState.alpha.manualUi));
-        static_cast<void>(context.expectTrue("manual UI propagates to beta", probeState.beta.manualUi));
-        static_cast<void>(context.expectFalse("manual UI does not enable Logger popup", probeState.alpha.loggerPopup));
-
-        result = runProbe({"--logger-popup"});
-        static_cast<void>(context.expectTrue("Logger popup runner invocation succeeds", result.ok()));
-        static_cast<void>(context.expectEq("Logger popup does not focus a module", std::size_t{2}, result.modulesRun));
-        static_cast<void>(context.expectTrue("Logger popup propagates to alpha", probeState.alpha.loggerPopup));
-        static_cast<void>(context.expectTrue("Logger popup propagates to beta", probeState.beta.loggerPopup));
-        static_cast<void>(context.expectFalse("Logger popup does not enable general manual UI", probeState.alpha.manualUi));
+        const Validation::TestResult result = runProbe({"--manual-tests"});
+        static_cast<void>(context.expectTrue("manual-tests runner invocation succeeds", result.ok()));
+        static_cast<void>(context.expectEq("manual-tests does not focus a module", std::size_t{2}, result.modulesRun));
+        static_cast<void>(context.expectTrue("manual-tests propagates to alpha", probeState.alpha.manualTests));
+        static_cast<void>(context.expectTrue("manual-tests propagates to beta", probeState.beta.manualTests));
     }
 
     void testSelectionIndependence(TestSupport::Context &context)
     {
-        const Validation::TestResult result = runProbe({"--manual-ui", "--logger-popup", "--test-module=alpha"});
+        const Validation::TestResult result = runProbe({"--manual-tests", "--test-module=alpha"});
         static_cast<void>(context.expectTrue("focused capability invocation succeeds", result.ok()));
         static_cast<void>(context.expectEq("explicit selector runs one module", std::size_t{1}, result.modulesRun));
         static_cast<void>(context.expectEq("explicit selector invokes alpha", std::size_t{1}, probeState.alpha.runs));
         static_cast<void>(context.expectEq("capability flags do not invoke beta", std::size_t{0}, probeState.beta.runs));
-        static_cast<void>(context.expectTrue("focused module receives manual UI", probeState.alpha.manualUi));
-        static_cast<void>(context.expectTrue("focused module receives Logger popup", probeState.alpha.loggerPopup));
+        static_cast<void>(context.expectTrue("focused module receives manual-tests", probeState.alpha.manualTests));
     }
 
     void testModuleSkipSelection(TestSupport::Context &context)
@@ -288,13 +276,11 @@ namespace
     void testRemovedAndRetainedOptions(TestSupport::Context &context)
     {
         ValidationTests::RunOptions enabledOptions = unattendedOptions();
-        enabledOptions.enableManualUiTests = true;
-        enabledOptions.enableLoggerPopupTest = true;
+        enabledOptions.enableManualTests = true;
         Validation::TestResult result = runProbe({"--no-manual-ui", "--no-logger-popup", "--test-support-manual"}, std::move(enabledOptions));
         static_cast<void>(context.expectTrue("removed options are ignored", result.ok()));
         static_cast<void>(context.expectEq("removed TestSupport alias does not select a module", std::size_t{2}, result.modulesRun));
-        static_cast<void>(context.expectTrue("removed manual disable option has no effect", probeState.alpha.manualUi));
-        static_cast<void>(context.expectTrue("removed popup disable option has no effect", probeState.alpha.loggerPopup));
+        static_cast<void>(context.expectTrue("removed manual disable options have no effect", probeState.alpha.manualTests));
 
         result = runProbe({"--no-test-report", "--no-test-support-child-process"});
         static_cast<void>(context.expectTrue("retained negative options succeed", result.ok()));

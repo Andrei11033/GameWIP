@@ -21,7 +21,9 @@ Internal backend headers, `window/internal/window_test_hooks.h`, source-tree com
 
 ## Host DPI requirement
 
-On Windows, linking `GameWIP::Window` automatically propagates Window's application resource to executable consumers, including transitive build-tree and installed-package consumers. The single manifest declares Common Controls v6, Per-Monitor-V2 `dpiAwareness`, and the compatible legacy `dpiAware` setting. Window therefore does not depend on Assert for DPI policy. `open()` validates the effective thread context and returns `Unsupported` when the host is incompatible; it never calls `SetProcessDpiAwarenessContext()`.
+On Windows, linking `GameWIP::Window` propagates Window's application resource to executable consumers in both build-tree and installed-package use. The manifest declares Common Controls v6, Per-Monitor-V2 `dpiAwareness`, and the compatible legacy `dpiAware` setting.
+
+Window therefore does not depend on Assert for DPI policy. `open()` validates the effective thread context and returns `Unsupported` when the host is incompatible; it never changes process DPI awareness at runtime.
 
 A minimal manifest fragment is:
 
@@ -37,7 +39,7 @@ The package compiles this as the executable's single `CREATEPROCESS_MANIFEST_RES
 
 ## Compatibility
 
-`Window` is a shared C++23 library with a pImpl object boundary. Consumers still follow the project compiler, standard-library, runtime, architecture, and exact-version policy described by @ref project_library_compatibility. The reviewed shared-library symbol roots are maintained in `cmake/export_allowlists/window.txt`.
+`Window` is a shared C++23 library with a pImpl object boundary. Consumers follow the compiler, standard-library, runtime, architecture, and exact-version policy in @ref project_library_compatibility. The reviewed shared-library symbol roots are maintained in `cmake/export_allowlists/window.txt`.
 
 ## Related pages
 

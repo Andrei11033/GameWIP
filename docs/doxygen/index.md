@@ -1,11 +1,11 @@
 # GameWIP Developer Manual
 
-This generated manual is the authoritative developer reference for GameWIP. It
-serves contributors, maintainers, and first-party reusable-library consumers who
-need to build, validate, extend, package, document, or release the project.
+This generated manual is the authoritative engineering reference for GameWIP.
+It serves contributors, maintainers, and first-party library consumers who
+build, validate, extend, package, document, or release the project.
 
-The root README is the short repository entry point. This manual owns detailed
-engineering workflows and contracts; it is not player-facing game documentation.
+The root README is the repository entry point. This manual defines detailed
+engineering workflows and contracts; it is not player-facing documentation.
 
 ## Choose a path
 
@@ -42,7 +42,7 @@ engineering workflows and contracts; it is not player-facing game documentation.
 
 ## Generated reference
 
-The generated namespace, class, file, and member reference covers supported
-consumer entry headers and selected source-tree integration headers. Generated
-export scaffolding belongs to each library's ABI page. Read the owning workflow
-or library manual first, then use the generated reference for exact symbols.
+The namespace, class, file, and member reference covers supported consumer entry
+headers and selected source-tree integration headers. Each library's ABI page
+documents its generated export scaffolding. Read the relevant workflow or
+library manual first, then use the generated reference for exact declarations.

@@ -1,6 +1,6 @@
 @page project_quality_workflows Quality workflows and reports
 
-Quality workflow pages document optional or specialized verification workflows. They explain how to run analysis tools, where outputs are written, and what evidence should be recorded when a change affects quality gates or performance investigation.
+Quality workflow pages explain how to run specialized verification tools, where they write results, and what evidence to record for quality-gate or performance work.
 
 Correctness validation is documented separately in @ref project_validation and @ref project_testing.
 

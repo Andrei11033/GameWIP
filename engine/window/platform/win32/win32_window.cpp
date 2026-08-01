@@ -711,10 +711,21 @@ namespace GameWIP::Window::Detail::Platform
     {
         if (!state.platform || state.platform->handle == nullptr)
             return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
+        // ShowWindow, EnableWindow, minimize, and maximize own these runtime bits. Rebuilding
+        // the configurable frame must not make a still-painted HWND invisible to Explorer or
+        // silently re-enable/restore it by replacing the complete style word.
+        constexpr DWORD runtimeStyleBits = WS_VISIBLE | WS_DISABLED | WS_MINIMIZE | WS_MAXIMIZE;
+        const DWORD currentStyle = static_cast<DWORD>(GetWindowLongPtrW(state.platform->handle, GWL_STYLE));
+        const DWORD desiredStyle = styleFor(state) | (currentStyle & runtimeStyleBits);
+        // Window owns these extended-style policies. Preserve unrelated native state such as
+        // WS_EX_ACCEPTFILES, which DragAcceptFiles manages independently.
+        constexpr DWORD controlledExtendedStyleBits = WS_EX_APPWINDOW | WS_EX_NOACTIVATE | WS_EX_TOPMOST | WS_EX_LAYERED | WS_EX_TRANSPARENT;
+        const DWORD currentExtendedStyle = static_cast<DWORD>(GetWindowLongPtrW(state.platform->handle, GWL_EXSTYLE));
+        const DWORD desiredExtendedStyle = extendedStyleFor(state) | (currentExtendedStyle & ~controlledExtendedStyleBits);
         DWORD nativeCode = ERROR_SUCCESS;
-        if (!setLong(state.platform->handle, GWL_STYLE, styleFor(state), nativeCode))
+        if (!setLong(state.platform->handle, GWL_STYLE, desiredStyle, nativeCode))
             return statusFromWin32(IO::Types::ErrorCode::NativeFailure, nativeCode, "SetWindowLongPtrW style");
-        if (!setLong(state.platform->handle, GWL_EXSTYLE, extendedStyleFor(state), nativeCode))
+        if (!setLong(state.platform->handle, GWL_EXSTYLE, desiredExtendedStyle, nativeCode))
             return statusFromWin32(IO::Types::ErrorCode::NativeFailure, nativeCode, "SetWindowLongPtrW extended style");
         if (SetWindowPos(
                 state.platform->handle,

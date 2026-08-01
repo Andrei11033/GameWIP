@@ -1710,8 +1710,7 @@ function Invoke-ValidationCommandWizard
     }
 
     $verbose = Read-YesNo -Prompt 'Mirror full test output to stdout?' -Default $false
-    $manualUi = Read-YesNo -Prompt 'Enable manual UI checks?' -Default $false
-    $loggerPopup = Read-YesNo -Prompt 'Enable Logger fatal popup check?' -Default $false
+    $manualTests = Read-YesNo -Prompt 'Enable manual tests?' -Default $false
     $childProcesses = Read-YesNo -Prompt 'Enable TestSupport child-process checks?' -Default $true
     $writeReport = Read-YesNo -Prompt 'Write retained test report?' -Default $false
 
@@ -1737,13 +1736,9 @@ function Invoke-ValidationCommandWizard
     {
         $arguments.Add('--verbose-tests') | Out-Null
     }
-    if ($manualUi)
+    if ($manualTests)
     {
-        $arguments.Add('--manual-ui') | Out-Null
-    }
-    if ($loggerPopup)
-    {
-        $arguments.Add('--logger-popup') | Out-Null
+        $arguments.Add('--manual-tests') | Out-Null
     }
     if ($childProcesses -eq $false)
     {

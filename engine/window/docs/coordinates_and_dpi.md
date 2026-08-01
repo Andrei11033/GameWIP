@@ -19,7 +19,7 @@ Virtual-screen x and y coordinates may be negative. Monitor origins are never in
 
 `clientToScreen(LogicalPosition)` returns a `ScreenPositionResult`. `screenToClient(ScreenPosition)` returns a `LogicalPositionResult`. Win32 performs the native client/screen conversion and Window applies DPI rounding at the boundary. Round trips near fractional scale boundaries may differ by one logical unit because physical pixels are integral.
 
-Conversion rejects a closed Window with `NotOpen` and wrong-thread native access with the normal ownership status. Logical scaling and client-to-frame placement use widened arithmetic; a value that cannot be represented by Win32's signed physical coordinates returns `InvalidArgument` with an arithmetic-overflow native diagnostic instead of wrapping. Positive extents are likewise checked after DPI scaling and frame adjustment. Returned positions describe actual native geometry, not an unverified request.
+Conversion rejects a closed Window with `NotOpen` and wrong-thread native access with `ResourceBusy`. Logical scaling and client-to-frame placement use widened arithmetic. A value that cannot be represented by Win32's signed physical coordinates returns `InvalidArgument` with an arithmetic-overflow diagnostic instead of wrapping. Positive extents receive the same validation after DPI scaling and frame adjustment. Returned positions describe confirmed native geometry rather than an unverified request.
 
 ## Framebuffer and scale
 

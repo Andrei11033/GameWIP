@@ -27,7 +27,7 @@ namespace
     {
         GameWIP::Test::TerminalTestOptions options;
         options.verboseConsole = invocation.options.verboseConsole;
-        options.enableManualUiTests = invocation.options.enableManualUiTests;
+        options.enableManualTests = invocation.options.enableManualTests;
         options.writeReport = invocation.options.writeReport;
         options.appendReport = invocation.appendReport;
         options.reportPath = invocation.options.reportPath;

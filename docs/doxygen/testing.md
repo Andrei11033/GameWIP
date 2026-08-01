@@ -66,13 +66,18 @@ Run all modules except one project module:
 .\build\test\GameWIPTests.exe --skip-test-module=terminal
 ```
 
-Run opt-in human checks:
+Run opt-in manual checks:
 
 ```powershell
-.\build\test\GameWIPTests.exe --test-module=test_support --manual-ui
-.\build\test\GameWIPTests.exe --test-module=terminal --manual-ui
-.\build\test\GameWIPTests.exe --test-module=logger --logger-popup
+.\build\test\GameWIPTests.exe --test-module=test_support --manual-tests
+.\build\test\GameWIPTests.exe --test-module=terminal --manual-tests
+.\build\test\GameWIPTests.exe --test-module=logger --manual-tests
+.\build\test\GameWIPTests.exe --test-module=window --manual-tests
 ```
+
+Each selected module owns its manual scenarios. The Window module groups the full visible, shell, DPI, cursor, fullscreen, topology, HDR, and modern-capability workflow from @ref window_manual_validation. Unsupported or unavailable environments are recorded as skips and are not passing evidence.
+
+Window manual runs open a live diagnostics companion. A module-specific `--window-manual-suite=<name>` selector may narrow a repeat run without creating another project-wide manual enable flag; the selector contract is owned by @ref window_testing.
 
 The complete runner argument contract is owned by @ref project_validation.
 
@@ -86,7 +91,7 @@ Every command run prints the exact native command, streams output live, and stor
 
 Validation and stress actions default `TEMP` and `TMP` to `build/gamewip-temp` so local Windows temp-folder permissions cannot make FileSystem and Logger checks fail spuriously.
 
-The validation command builder helps assemble `GameWIPTests.exe` arguments from the supported runner flags, including `--test-module=<name>`, `--skip-test-module=<name>`, report behavior, verbose output, manual UI checks, Logger popup checks, and TestSupport child-process checks. Stress runs report launched, active, completed, and failed worker counts while they run.
+The validation command builder helps assemble `GameWIPTests.exe` arguments from the supported runner flags, including `--test-module=<name>`, `--skip-test-module=<name>`, report behavior, verbose output, manual tests, and TestSupport child-process checks. Stress runs report launched, active, completed, and failed worker counts while they run.
 
 Common non-interactive usage:
 

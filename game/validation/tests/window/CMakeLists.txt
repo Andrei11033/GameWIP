@@ -7,3 +7,7 @@ gamewip_add_test_module(
         Window
         TestSupport
 )
+
+if(WIN32)
+    target_link_libraries(GameWIPTestModules PRIVATE shell32)
+endif()

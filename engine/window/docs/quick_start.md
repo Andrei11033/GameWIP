@@ -69,9 +69,9 @@ int main()
 
 ## Failure handling
 
-Expected validation, unsupported-operation, ownership, creation, conversion, and native failures use IO status/result values. Failed creation leaves the object closed. Recoverable `close()` failure leaves it open so the owning thread may retry; a late cleanup diagnostic may accompany an already completed close, in which case `isOpen()` is false.
+Expected validation, unsupported-operation, ownership, creation, conversion, and native failures are reported through IO status and result types. Failed creation leaves the object closed. A recoverable `close()` failure leaves it open so the owner thread can retry. A late cleanup diagnostic may accompany a completed close; in that case, `isOpen()` is false.
 
-Use explicit `close()` when cleanup errors matter. The destructor is `noexcept`; normal cleanup belongs on the owner thread. Wrong-thread destruction transfers the state to that dispatcher for complete owner-thread cleanup, including during dispatcher/thread shutdown.
+Use explicit `close()` when cleanup errors matter. The destructor is `noexcept`; call `close()` on the owner thread during normal control flow. Destruction on another thread transfers state to the owner dispatcher for cleanup, including during dispatcher or thread shutdown.
 
 ## Where to go next
 

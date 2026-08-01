@@ -2,13 +2,18 @@
 
 ## Library operations
 
-`getCapabilities()` and `supports()` expose backend feature flags and region limits. `pollEvents()` and `waitEvents()` operate on every Window owned by the calling thread. Monitor functions enumerate snapshots and resolve process-local monitor IDs. Display-mode functions return physical mode information.
+Library-level operations provide four groups of behavior:
+
+- `getCapabilities()` and `supports()` report backend features and region limits.
+- `pollEvents()` and `waitEvents()` pump every Window owned by the calling thread.
+- Monitor functions enumerate current snapshots and resolve process-local monitor IDs.
+- Display-mode functions report physical monitor modes.
 
 `pollEvents()` never blocks. `waitEvents()` accepts zero, a finite non-negative timeout, or `kWaitForever`. Pumping with no open Window on the calling thread is a successful no-op. Recursive pumping returns `ResourceBusy`.
 
 ## Window ownership
 
-`Window` is default-constructible, non-copyable, and non-movable. Store dynamically managed Windows in stable `std::unique_ptr<Window>` objects when a container needs indirection. `open()` may allocate its internal queue once or borrow a caller-provided non-empty `span<Event>` until close.
+`Window` is default-constructible, non-copyable, and non-movable. Use stable `std::unique_ptr<Window>` storage when a container needs indirection. `open()` either allocates one internal queue or borrows a caller-provided non-empty `span<Event>` until close.
 
 Placement monitor IDs are meaningful only for centered placement, and mode monitor IDs are meaningful only for fullscreen requests. Focus or non-normal presentation requires an initially visible Window; a focus request also requires `focusable`. Contradictory combinations are rejected instead of being silently ignored.
 
@@ -30,11 +35,11 @@ Input spans for icons and regions are call-scoped. Window copies the required da
 
 ## Events
 
-`EventData` is a typed variant. `Event::getIf<T>()` performs non-throwing typed access. Events represent close intent, unexpected native destruction, visibility, geometry, focus, presentation, content scale/DPI, monitor, mode, owner, display configuration, cursor presence, file drops, occlusion where supported, and redraw requests.
+`EventData` is a typed variant, and `Event::getIf<T>()` provides non-throwing typed access. Events report close intent, unexpected native destruction, visibility, geometry, focus, presentation, content scale and DPI, monitor, mode, owner, display configuration, cursor presence, file drops, supported occlusion changes, and redraw requests.
 
 Explicit `close()` is synchronous and emits no `ClosedEvent` because it intentionally destroys the Window and releases the queue. Observe user/system intent through sticky `closeRequested()` and `CloseRequestedEvent`.
 
-Unexpected native destruction sets `lifetimeState()` to `NativeDestroyedPendingFinalize`, makes `isOpen()` false, preserves cached state and the queue, and retains a typed `ClosedEvent` even when a full queue contains no coalescible entry. Native mutations report `NotOpen`, and another `open()` reports `AlreadyOpen` until owner-thread `close()` performs controlled finalization. The object can then reopen normally.
+Unexpected native destruction sets `lifetimeState()` to `NativeDestroyedPendingFinalize` and makes `isOpen()` false. Cached state and the event queue remain available, and a typed `ClosedEvent` is retained even when a full queue has no coalescible entry. Native mutations then report `NotOpen`; another `open()` reports `AlreadyOpen` until owner-thread `close()` completes controlled finalization. The object may reopen afterward.
 
 ## Renderer feedback
 

@@ -24,23 +24,18 @@ Each `openPortable()` call creates state owned by the supplied Window and borrow
 
 ## Hook groups
 
-`failNext()` exercises real production error and rollback boundaries for allocation, dispatcher registration, native creation, partial open, title/region/icon/cursor mutation, monitor/display/display-color queries, fullscreen transitions and restoration, close, and event pumping. The hook changes only the selected boundary's result; ordinary rollback and retry code remains active.
-
-`pumpReentrantly()` activates the owning-thread dispatcher guard around the production pump so its `ResourceBusy` contract can be checked without callbacks or visible UI.
-
-`openPortable()` creates a backend-free queue fixture. It intentionally leaves native-only operations and `isOpen()` in their normal closed-native state. Public queue inspection and consumption remain available on the creating thread.
-
-`enqueue()` routes an arbitrary typed payload through the production coalescing, sequence, eviction, and drop-count algorithm. It does not synthesize cached property changes; native routing tests must update state through actual backend messages or operations.
-
-`requestClose()` uses the production sticky close-request path so repeated-source and full-queue behavior can be deterministic.
-
-`destroyNativeWindow()` enters the real unexpected `WM_NCDESTROY` path. Tests verify `ClosedEvent`, `NativeDestroyedPendingFinalize`, native-operation rejection, controlled finalization, and reopening. `simulateFullscreenMonitorRemoval()` exercises the production fullscreen recovery transaction and event order without changing the physical display topology.
-
-`makeDisplayColorInfo()` validates backend-neutral classification, numeric sanitization, precision saturation, and the DisplayConfig SDR-white conversion without requiring HDR hardware. `makeNextDisplayColorMetadataUnavailable()` verifies that runtime API/metadata absence succeeds with documented unknown/zero fields. `simulateDisplayColorConfigurationChange()` makes the next owner-thread pump exercise the production `DisplayConfigurationChangedEvent` route used by stale native color state.
-
-The packed-mask accessors expose active word count, values, revision, and storage identity for first allocation, same-size reuse, stale-publication, trailing-bit, movement, resize, and clear checks. They never mutate state.
-
-`calculateDpiTransition()`, `refreshRateMillihertz()`, and `exactNativeDisplayModeMatches()` expose the production arithmetic/comparison seams without synthesizing an invalid OS DPI or display transition.
+- `failNext()` exercises production error and rollback boundaries for allocation, dispatcher registration, native creation, partial open, mutations, native queries, fullscreen transitions and restoration, close, and event pumping. The hook changes only the selected boundary's result, leaving production rollback and retry logic active.
+- `pumpReentrantly()` activates the owner-thread dispatcher guard around the production pump so validation can verify its `ResourceBusy` contract without callbacks or visible UI.
+- `openPortable()` creates a backend-free queue fixture. Native-only operations and `isOpen()` retain their closed-state behavior, while public queue inspection and consumption remain available on the creating thread.
+- `enqueue()` routes an arbitrary typed payload through the production coalescing, sequence, eviction, and drop-count algorithm. It does not synthesize cached property changes; native-routing tests update state through backend messages or operations.
+- `requestClose()` uses the production sticky close-request path for deterministic repeated-source and full-queue checks.
+- `destroyNativeWindow()` enters the unexpected `WM_NCDESTROY` path. Tests verify `ClosedEvent`, `NativeDestroyedPendingFinalize`, native-operation rejection, controlled finalization, and reopening.
+- `simulateFullscreenMonitorRemoval()` exercises the production fullscreen-recovery transaction and event order without changing physical display topology.
+- `makeDisplayColorInfo()` validates backend-neutral classification, numeric sanitization, precision saturation, and DisplayConfig SDR-white conversion without requiring HDR hardware.
+- `makeNextDisplayColorMetadataUnavailable()` verifies that unavailable runtime APIs or metadata produce the documented unknown or zero fields.
+- `simulateDisplayColorConfigurationChange()` makes the next owner-thread pump exercise the production `DisplayConfigurationChangedEvent` route used for stale native color state.
+- Packed-mask accessors expose active word count, values, revision, and storage identity for allocation, reuse, stale publication, trailing-bit, movement, resize, and clear checks. They never mutate state.
+- `calculateDpiTransition()`, `refreshRateMillihertz()`, and `exactNativeDisplayModeMatches()` expose production arithmetic and comparison seams without synthesizing an invalid operating-system DPI or display transition.
 
 ## API reference
 
