@@ -13,7 +13,7 @@ function Get-GameWipTracyVersion
     $text = Get-Content -LiteralPath $header -Raw
     $parts = foreach ($name in @('Major', 'Minor', 'Patch'))
     {
-        $match = [regex]::Match($text, "enum\s*\{\s*$name\s*=\s*(\d+)\s*\}")
+        $match = [regex]::Match($text, "(?m)^\s*constexpr\s+int\s+$name\s*=\s*(\d+)\s*;")
         if (-not $match.Success)
         {
             throw "Could not read Tracy $name version from $header."
