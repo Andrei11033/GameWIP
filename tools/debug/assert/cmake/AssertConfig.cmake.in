@@ -37,24 +37,6 @@ function(_internal_assert_configure_common_controls_v6 output_variable)
     set(${output_variable} "${Assert_COMMON_CONTROLS_RC}" PARENT_SCOPE)
 endfunction()
 
-# Normal installed consumers get the manifest resource by linking Assert.
-if(WIN32 AND @ASSERT_ENABLE_COMMON_CONTROLS_MANIFEST@)
-    _internal_assert_configure_common_controls_v6(Assert_COMMON_CONTROLS_RC)
-    get_property(
-        Assert_COMMON_CONTROLS_ATTACHED
-        TARGET GameWIP::Assert
-        PROPERTY INTERNAL_ASSERT_COMMON_CONTROLS_ATTACHED
-    )
-    if(NOT Assert_COMMON_CONTROLS_ATTACHED)
-        set_property(TARGET GameWIP::Assert APPEND PROPERTY
-            INTERFACE_SOURCES "${Assert_COMMON_CONTROLS_RC}"
-        )
-        set_property(TARGET GameWIP::Assert PROPERTY
-            INTERNAL_ASSERT_COMMON_CONTROLS_ATTACHED TRUE
-        )
-    endif()
-endif()
-
 # Explicit helper for unusual consumers that need to attach the resource to a
 # target that does not link Assert directly.
 function(assert_enable_common_controls_v6 target_name)

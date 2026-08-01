@@ -2086,7 +2086,7 @@ namespace
     /// @brief Runs the opt-in human check for Logger-owned fatal popup presentation.
     void testManualLoggerFatalPopup(TestContext &context, const LoggerTestOptions &options)
     {
-        if (!options.enableLoggerPopupTest)
+        if (!options.enableManualTests)
         {
             context.pass("manual logger fatal popup test skipped by LoggerTestOptions");
             return;
@@ -2214,12 +2214,11 @@ namespace GameWIP::Test
                 context.emit(std::format("[INFO] Logger test log root: {}\n", pathText(context.logRoot)));
                 context.emit(
                     std::format(
-                        "[INFO] Logger test options: stress={} fatalChild={} manualUi={} loggerPopup={} "
+                        "[INFO] Logger test options: stress={} fatalChild={} manualTests={} "
                         "stressThreads={} stressIterations={} report={}\n",
                         options.enableStressTests,
                         options.enableChildCrashTests,
-                        options.enableManualUiTests,
-                        options.enableLoggerPopupTest,
+                        options.enableManualTests,
                         options.stressThreadCount,
                         options.stressIterationsPerThread,
                         options.writeReport ? options.reportPath.string() : std::string{"disabled"}));
@@ -2412,7 +2411,7 @@ namespace GameWIP::Test
                     "manual logger UI option",
                     [&]
                     {
-                        if (options.enableManualUiTests)
+                        if (options.enableManualTests)
                         {
                             context.pass("manual logger UI tests enabled; add explicit manual scenarios before running unattended");
                         }

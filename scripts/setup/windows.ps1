@@ -150,9 +150,9 @@ function Invoke-SetupAction
 
     switch ($SelectedAction)
     {
-        'full' { Invoke-CompleteSetup }
+        'full' { Invoke-CompleteSetup -RefreshMsys2 }
         'repair' { Invoke-CompleteSetup }
-        'update' { Invoke-CompleteSetup -Update }
+        'update' { Invoke-CompleteSetup -Update -RefreshMsys2 }
         'uninstall' { Invoke-GameWipUninstall -RepositoryRoot $RepositoryRoot }
         'check' { Invoke-EnvironmentCheck }
         'tools' { Invoke-ToolStep }
@@ -339,7 +339,10 @@ function Invoke-EnvironmentCheck
 
 function Invoke-CompleteSetup
 {
-    param([switch]$Update)
+    param(
+        [switch]$Update,
+        [switch]$RefreshMsys2
+    )
 
     $preferencePath = Get-GameWipEditorPreferencePath -RepositoryRoot $RepositoryRoot
     if (-not (Test-Path -LiteralPath $preferencePath))
@@ -375,7 +378,7 @@ function Invoke-CompleteSetup
     Write-Host '  Final. Verify the complete selected environment'
 
     Invoke-ToolStep -Update:$Update
-    Invoke-Msys2Step -Update:$Update
+    Invoke-Msys2Step -Update:$RefreshMsys2
     Invoke-RepositoryStep -Update:$Update
     Invoke-EditorStep -Update:$Update
     Invoke-TracyStep

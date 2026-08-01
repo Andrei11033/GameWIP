@@ -46,8 +46,7 @@ These are source-tree integration interfaces. They are not installed package API
 | `enableChildCrashTests` | Enables subprocess scenarios that intentionally terminate abnormally. |
 | `enableTestSupportChildProcessTests` | Enables TestSupport process-launch validation. |
 | `enableAutomatedInteractiveTests` | Enables non-UI simulations of interactive Assert behavior. |
-| `enableManualUiTests` | Enables checks requiring human input or real UI. |
-| `enableLoggerPopupTest` | Enables Logger's real fatal-popup validation. |
+| `enableManualTests` | Enables checks requiring human input or observation, including Logger's real fatal-popup validation. |
 | `verboseConsole` | Mirrors full TestSupport report categories to stdout. |
 | `stressThreadCount` | Shared worker count for module stress scenarios. |
 | `loggerStressIterationsPerThread` | Per-worker Logger stress operation count. |
@@ -79,7 +78,7 @@ Registration appends to process-local vector storage and may allocate. It is int
 
 The runner copies registrations before sorting and execution. It rejects empty names, null run callbacks, and duplicate names before invoking any module.
 
-Current correctness modules are `runner`, `io`, `filesystem`, `terminal`, `test_support`, `logger`, and `assert` in their stable order.
+Current correctness modules are `runner`, `io`, `filesystem`, `terminal`, `window`, `test_support`, `logger`, and `assert` in their stable order.
 
 ## Module invocation
 
@@ -103,8 +102,7 @@ The runner recognizes these project-level arguments:
 | `--test-report=<path>` | Selects the aggregate report path. |
 | `--no-test-report` | Disables retained file output. |
 | `--verbose-tests` | Mirrors every TestSupport report category to stdout. |
-| `--manual-ui` | Enables human-interactive checks. |
-| `--logger-popup` | Enables Logger's real fatal-popup check. |
+| `--manual-tests` | Enables every applicable human-interactive check in the selected modules. |
 | `--no-test-support-child-process` | Disables TestSupport child-process scenarios. |
 
 Repeating the same selector or skip is accepted. Selecting different modules, selecting and skipping the same module, skipping an unknown module, or skipping every selected module is an error.

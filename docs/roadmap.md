@@ -1,10 +1,8 @@
 @page project_roadmap Roadmap
 
-The roadmap is the milestone checklist for GameWIP. It defines what must be true before each milestone can be considered complete.
+The roadmap defines the completion gates for each GameWIP milestone. GitHub issues track implementation, validation, bugs, and follow-up work; the roadmap does not duplicate those tasks.
 
-GitHub issues are the active tracker for implementation tasks, validation tasks, bugs, and follow-up cleanup. The roadmap should not duplicate every issue. It should define milestone gates clearly enough that issues can be created, reviewed, and closed against those gates.
-
-Early milestones have explicit completion checklists. Later milestones intentionally keep `TBD` items until the required design boundaries are known.
+Early milestones have explicit checklists. Later milestones retain `TBD` entries until their design boundaries are known.
 
 ## Status legend
 
@@ -51,7 +49,7 @@ Completion checklist:
 - [x] Modular correctness validation exists under `game/validation/tests`.
 - [x] Benchmark registration exists under `game/validation/benchmarks`.
 - [x] Static analysis, formatting, Doxygen, coverage, profiling, and repository-check workflows exist.
-- [x] Generated coder-facing documentation is grouped by reusable libraries, project manual pages, project contracts, quality workflows, and planning.
+- [x] Generated developer documentation is grouped by reusable libraries, project manual pages, project contracts, quality workflows, and planning.
 - [x] GitHub issues are the active task tracker; this roadmap is the milestone checklist.
 - [x] The `v0.0.1` R00 tag and GitHub release are published.
 
@@ -65,9 +63,10 @@ Purpose: establish the first engine-facing runtime loop and user input layer wit
 
 Completion checklist:
 
-- [ ] `engine/window` has a documented public API and package boundary.
-- [ ] A native Win32 window can be created, shown, resized, focused, and closed.
-- [ ] Window lifecycle errors are reported through project status/result types.
+- [x] `engine/window` has a documented public API and package boundary.
+- [x] A native Win32 window can be created, shown, resized, focused, and closed.
+- [x] Window lifecycle errors are reported through project status/result types.
+- [x] Window event queues, high-DPI behavior, native renderer attachment, and renderer occlusion feedback boundaries are documented and validated.
 - [ ] `engine/input` captures keyboard and mouse input from the active window.
 - [ ] Input snapshots are stable across frame boundaries.
 - [ ] `engine/action` maps raw input to named actions.
@@ -77,10 +76,10 @@ Completion checklist:
 - [ ] The runtime loop can exit cleanly through window close and an explicit action.
 - [ ] Logger and Assert integration exists for engine startup failures.
 - [ ] Correctness tests cover action mapping, input-state transitions that can be tested deterministically, and lifecycle edge cases.
-- [ ] Manual validation exists for behavior that requires a real window.
-- [ ] Public API docs, quick starts, examples, testing docs, troubleshooting docs, and backend notes exist for new engine libraries.
-- [ ] Package and installed-consumer validation include new engine libraries when they become installable.
-- [TBD] Final event queue shape, multi-window policy, controller support, and high-DPI behavior.
+- [x] Manual validation exists for behavior that requires a real window.
+- [ ] Every new engine library has public API documentation, a quick start, examples, validation guidance, troubleshooting guidance, and backend notes. Window meets this gate; the remaining R01 libraries do not yet.
+- [ ] Package and installed-consumer validation cover every installable new engine library. Window meets this gate; the remaining R01 libraries do not yet.
+- [TBD] WindowManager multi-window policy and Input controller support.
 
 ### R02 — Math foundation
 
@@ -211,7 +210,7 @@ Completion checklist:
 
 ## Later phases
 
-Later milestones are placeholders until earlier systems prove the required architecture. Create detailed GitHub issues when a milestone becomes active, then update this roadmap with concrete completion criteria.
+Later milestones remain placeholders until earlier systems establish the required architecture. Create detailed GitHub issues when a milestone becomes active, then update this roadmap with concrete completion criteria.
 
 | Milestone | Focus | Known completion gate |
 | --- | --- | --- |

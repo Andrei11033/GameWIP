@@ -110,13 +110,9 @@ namespace GameWIP::Validation::Tests
             {
                 options.verboseConsole = true;
             }
-            if (hasArgument(argc, argv, "--manual-ui"))
+            if (hasArgument(argc, argv, "--manual-tests"))
             {
-                options.enableManualUiTests = true;
-            }
-            if (hasArgument(argc, argv, "--logger-popup"))
-            {
-                options.enableLoggerPopupTest = true;
+                options.enableManualTests = true;
             }
             if (hasArgument(argc, argv, "--no-test-support-child-process"))
             {

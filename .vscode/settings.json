@@ -6,5 +6,8 @@
     "C_Cpp.clang_format_path": "C:/MSYS2/ucrt64/bin/clang-format.exe",
     "C_Cpp.clang_format_style": "file",
     "clang-format.executable": "C:/MSYS2/ucrt64/bin/clang-format.exe",
-    "editor.formatOnSave": false
+    "editor.formatOnSave": true,
+    "[cpp]": {
+        "editor.defaultFormatter": "ms-vscode.cpptools"
+    }
 }

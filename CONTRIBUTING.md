@@ -10,7 +10,7 @@ licensed under the repository's [Apache License 2.0](LICENSE). Submit only work
 that you have the right to contribute; third-party material must retain its
 applicable license and attribution.
 
-Read [docs/contributing.md](docs/contributing.md) for the full contributor workflow, including issue titles, labels, branch names, pull request metadata, validation evidence, project automation, and squash commit messages.
+Read [docs/contributing.md](docs/contributing.md) for the complete contributor workflow: issues, labels, branches, pull requests, validation evidence, project automation, and squash commit messages.
 
 Maintainers should also use the
 [repository maintenance policy](docs/doxygen/repository_maintenance.md) for

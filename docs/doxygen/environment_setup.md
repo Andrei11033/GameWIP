@@ -65,7 +65,7 @@ is useful for repeat runs and automation:
 | Command | Result |
 | --- | --- |
 | `setup.bat` or `setup.bat menu` | Open the persistent interactive menu. |
-| `setup.bat full` | Install or repair every required component and verify the checkout. |
+| `setup.bat full` | Install or repair every required component, refresh MSYS2, and verify the checkout. |
 | `setup.bat check` | Verify required tools and project state without changing the machine. |
 | `setup.bat update` | Update compatible tools and rebuild repository-owned integrations. |
 | `setup.bat repair` | Reapply the complete required state without requesting ordinary upgrades. |

@@ -38,7 +38,7 @@ GameWIP owns module selection, CTest registration, reports, and sanitizer workfl
 Automated runs leave human interaction disabled. From a real Windows Terminal session, run:
 
 ```powershell
-.\build\test\GameWIPTests.exe --test-module=terminal --manual-ui
+.\build\test\GameWIPTests.exe --test-module=terminal --manual-tests
 ```
 
 The opt-in suite requests human confirmation for Unicode rendering, colors and styles, cursor save/restore, alternate-screen restoration, interactive input, input-mode restoration, and cursor visibility. It skips with an explicit reason when the required streams are not real terminals.

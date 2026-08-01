@@ -32,7 +32,8 @@ and reports successful exit codes. Stages print source and destination paths,
 selected options, reasons for skips, and verification results. Do not hide
 installer, pacman, Git, compiler, or documentation diagnostics in new code.
 
-Setup and repair install missing state. Update fetches and fast-forwards
+Full setup installs missing state and refreshes MSYS2 before installing its declared packages.
+Repair reapplies missing state without requesting ordinary upgrades. Update fetches and fast-forwards
 the current branch from its configured upstream and applies newest compatible
 WinGet/pacman releases while retaining CMake `4.4.x` and the submodule revisions
 recorded by the updated checkout. It refuses dirty trees, missing upstreams, and
@@ -41,7 +42,9 @@ complete `pacman -Syu` passes; WinGet is used only for the first installation at
 that explicit root.
 
 The editor stage installs only selected editors. VS Code integration installs
-Microsoft C++/CMake extensions and the local workflow extension. It also writes
+Microsoft C++/CMake extensions and packages the local workflow extension as a
+VSIX so the VS Code CLI installs and reports it like any other extension. It
+also writes
 a marked, repository-guarded block at the end of the user's
 `keybindings.json`, after preserving a one-time `.gamewip-backup`; later runs
 replace only that block. This is required because VS Code user rules outrank

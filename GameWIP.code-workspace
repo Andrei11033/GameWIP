@@ -10,6 +10,9 @@
 		"C_Cpp.clang_format_style": "file",
 		"clang-format.executable": "C:/MSYS2/ucrt64/bin/clang-format.exe",
 		"clang-format.style": "file",
-		"editor.formatOnSave": false
+		"editor.formatOnSave": true,
+		"[cpp]": {
+			"editor.defaultFormatter": "ms-vscode.cpptools"
+		}
 	}
 }

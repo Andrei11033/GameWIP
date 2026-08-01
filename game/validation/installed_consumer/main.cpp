@@ -7,7 +7,7 @@
 /// test, not a replacement for each library's behavior validation suite.
 
 #if defined(INTERNAL_FILESYSTEM_TEST_HOOKS) || defined(INTERNAL_TERMINAL_TEST_HOOKS) || defined(INTERNAL_LOGGER_TEST_HOOKS) || \
-    defined(INTERNAL_ASSERT_TEST_HOOKS)
+    defined(INTERNAL_ASSERT_TEST_HOOKS) || defined(INTERNAL_WINDOW_TEST_HOOKS)
 #error "Installed GameWIP targets must not expose internal test-hook compile definitions."
 #endif
 
@@ -18,6 +18,8 @@
 #include "logger/logger_macros.h"
 #include "terminal/terminal.h"
 #include "test_support/test_support.h"
+#include "window/renderer.h"
+#include "window/window.h"
 
 #include <string_view>
 
@@ -29,6 +31,11 @@ int main()
     const GameWIP::Terminal::Types::OutputCapabilitiesResult capabilities = GameWIP::Terminal::getOutputCapabilities();
     const GameWIP::Logger::Types::Config loggerConfig = GameWIP::Logger::defaultConfig();
     GameWIP::TestSupport::Timer timer;
+    const GameWIP::Window::Types::CapabilitiesResult windowCapabilities = GameWIP::Window::getCapabilities();
+    const GameWIP::Window::Types::LogicalSize windowSize{640, 360};
+    GameWIP::Window::Window closedWindow;
+    const GameWIP::IO::Types::Status rendererFeedbackStatus = GameWIP::Window::Renderer::attachOcclusionProvider(closedWindow);
+    const GameWIP::Window::Types::DisplayColorInfoResult displayColor = GameWIP::Window::Renderer::getWindowDisplayColorInfo(closedWindow);
 
     // Exercise the installed Assert macro surface through a normal consumer
     // target. The detailed behavior is covered by the source-tree Assert tests.
@@ -36,6 +43,11 @@ int main()
     CHECK(path.status.ok());
     static_cast<void>(capabilities);
     static_cast<void>(timer.elapsedMilliseconds());
+    static_cast<void>(windowCapabilities);
 
-    return write.status.ok() && path.status.ok() && loggerConfig.logDirectory == std::string_view{"logs"} ? 0 : 1;
+    return write.status.ok() && path.status.ok() && rendererFeedbackStatus.code == GameWIP::IO::Types::ErrorCode::NotOpen &&
+                   displayColor.status.code == GameWIP::IO::Types::ErrorCode::NotOpen && windowSize.width == 640 &&
+                   loggerConfig.logDirectory == std::string_view{"logs"}
+               ? 0
+               : 1;
 }

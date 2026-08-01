@@ -2,7 +2,7 @@
 /// @brief Executable self-tests for the Terminal library.
 ///
 /// The suite combines backend hooks, redirected and console-like endpoints,
-/// reentrant child execution, state restoration, and opt-in manual UI checks.
+/// reentrant child execution, state restoration, and opt-in manual tests.
 
 #include "validation/tests/terminal/terminal_test.h"
 
@@ -580,9 +580,9 @@ namespace
     /// @brief Runs the opt-in human checks for Terminal UI behavior.
     void testManualUiChecks(TestSupport::Context &context, const TerminalTestOptions &options)
     {
-        if (!options.enableManualUiTests)
+        if (!options.enableManualTests)
         {
-            context.skip("Terminal manual UI checks", "disabled by TerminalTestOptions");
+            context.skip("Terminal manual tests", "disabled by TerminalTestOptions");
             return;
         }
 
@@ -595,7 +595,7 @@ namespace
         }
         if (output.capabilities.kind != Terminal::Types::StreamKind::Terminal || input.capabilities.kind != Terminal::Types::StreamKind::Terminal)
         {
-            context.skip("Terminal manual UI checks", "requires real terminal stdin and stdout");
+            context.skip("Terminal manual tests", "requires real terminal stdin and stdout");
             return;
         }
 
@@ -1666,7 +1666,7 @@ namespace GameWIP::Test
             });
 
         runner.runSuite(
-            "Terminal manual UI checks",
+            "Terminal manual tests",
             [&options](TestSupport::Context &context)
             {
                 testManualUiChecks(context, options);

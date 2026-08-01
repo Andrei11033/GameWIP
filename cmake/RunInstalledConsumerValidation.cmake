@@ -41,6 +41,10 @@ set(expected_gamewip_headers
     terminal/terminal.h
     terminal/terminal_export.h
     test_support/test_support.h
+    window/renderer.h
+    window/native/win32.h
+    window/window.h
+    window/window_export.h
 )
 list(SORT expected_gamewip_headers)
 
@@ -136,7 +140,7 @@ run_installed_consumer(
     "${INSTALL_PREFIX}"
 )
 
-foreach(package_name IN ITEMS IO FileSystem Terminal Logger Assert TestSupport)
+foreach(package_name IN ITEMS IO FileSystem Terminal Window Logger Assert TestSupport)
     string(TOLOWER "${package_name}" package_directory)
     run_installed_consumer(
         "${CONSUMER_SOURCE_DIR}/isolated"

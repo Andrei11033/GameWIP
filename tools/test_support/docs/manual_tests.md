@@ -46,6 +46,10 @@ int main()
 
 Automated validation must not depend on a person interacting with dialogs or stdin. The application owns how manual mode is selected and whether a skipped manual check is acceptable.
 
+## Scope boundary
+
+TestSupport owns the reusable prompt syntax, answer parsing, and pass/fail/skip recording shown above. Scenario-specific diagnostics, windows, artwork, event pumping, and native interaction remain in the validation module that owns the system under test. This keeps TestSupport independent from engine libraries and lets each module present the exact state required by its manual scenarios.
+
 ## Related pages
 
 - @ref test_support_expectations

@@ -27,10 +27,8 @@ namespace GameWIP::Validation::Tests
         bool enableTestSupportChildProcessTests = true;
         /// @brief Enables non-UI simulations of interactive assertion behavior.
         bool enableAutomatedInteractiveTests = true;
-        /// @brief Enables tests that require user interaction.
-        bool enableManualUiTests = false;
-        /// @brief Enables Logger's real fatal-popup check.
-        bool enableLoggerPopupTest = false;
+        /// @brief Enables tests that require human interaction or observation.
+        bool enableManualTests = false;
         /// @brief Mirrors all suite report categories to stdout instead of minimal actionable output.
         bool verboseConsole = false;
         /// @brief Worker count shared by stress scenarios.

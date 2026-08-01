@@ -9,6 +9,7 @@ endif()
 find_package(IO ${GAMEWIP_PACKAGE_VERSION} EXACT CONFIG REQUIRED)
 find_package(FileSystem ${GAMEWIP_PACKAGE_VERSION} EXACT CONFIG REQUIRED)
 find_package(Terminal ${GAMEWIP_PACKAGE_VERSION} EXACT CONFIG REQUIRED)
+find_package(Window ${GAMEWIP_PACKAGE_VERSION} EXACT CONFIG REQUIRED)
 find_package(Logger ${GAMEWIP_PACKAGE_VERSION} EXACT CONFIG REQUIRED)
 find_package(Assert ${GAMEWIP_PACKAGE_VERSION} EXACT CONFIG REQUIRED)
 find_package(TestSupport ${GAMEWIP_PACKAGE_VERSION} EXACT CONFIG REQUIRED)
@@ -19,6 +20,7 @@ target_link_libraries(GameWIPInstalledConsumer PRIVATE
     GameWIP::IO
     GameWIP::FileSystem
     GameWIP::Terminal
+    GameWIP::Window
     GameWIP::Logger
     GameWIP::Assert
     GameWIP::TestSupport
