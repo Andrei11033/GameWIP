@@ -36,6 +36,20 @@ if(GAMEWIP_BUILD_GAME)
     target_link_libraries(GameWIP PRIVATE
         GameWIP::Logger
     )
+    if(NOT GAMEWIP_ENABLE_STARTUP_TESTS)
+        target_link_libraries(GameWIP PRIVATE GameWIP::Window)
+    else()
+        # Startup test modules already carry Window and its executable manifest.
+        # Supply the game runtime's Window header paths without attaching that
+        # manifest to GameWIP a second time.
+        target_include_directories(GameWIP PRIVATE
+            "${PROJECT_SOURCE_DIR}/engine"
+            "${PROJECT_BINARY_DIR}/engine/window/generated"
+            "${PROJECT_SOURCE_DIR}/foundation"
+            "${PROJECT_BINARY_DIR}/foundation/filesystem/generated"
+            "${PROJECT_BINARY_DIR}/foundation/io/generated"
+        )
+    endif()
 
     set_target_properties(GameWIP PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
