@@ -28,7 +28,7 @@ file or run the editor action to choose again.
 
 The reproducible compiler environment is MSYS2: UCRT64 GCC drives normal
 development, and CLANG64 drives AddressSanitizer validation. CMake remains on
-the project-required `4.4.x` line. Pacman installs only packages required by a
+the project-required `4.4.2` or newer 4.4 release line. Pacman installs only packages required by a
 documented GameWIP workflow plus their dependencies.
 
 ## Interactive menu
@@ -202,7 +202,7 @@ selected branch; advancing a submodule pin remains a reviewed source change.
 selected editor integration, reuses Tracy executables when their complete set
 and recorded pinned source version match, rebuilds them otherwise, rebuilds
 documentation, and verifies the environment. CMake remains on
-`4.4.x`, and submodules return to their committed revisions.
+`4.4.2` or newer on the 4.4 release line, and submodules return to their committed revisions.
 
 An existing `C:\MSYS2` root is updated in place with complete `pacman -Syu`
 passes. WinGet is used for MSYS2 only when that root is absent, preventing a

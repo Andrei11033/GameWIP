@@ -1,9 +1,10 @@
-cmake_minimum_required(VERSION 4.4)
+cmake_minimum_required(VERSION 4.4.2)
 
-string(REPLACE "." "\\." gamewip_cmake_version_pattern "${CMAKE_MINIMUM_REQUIRED_VERSION}")
+string(REGEX MATCH "^([0-9]+)\\.([0-9]+)" _ "${CMAKE_MINIMUM_REQUIRED_VERSION}")
+set(gamewip_cmake_version_pattern "${CMAKE_MATCH_1}\\.${CMAKE_MATCH_2}")
 if(NOT CMAKE_VERSION MATCHES "^${gamewip_cmake_version_pattern}(\\.|$)")
     message(FATAL_ERROR
-        "GameWIP requires CMake ${CMAKE_MINIMUM_REQUIRED_VERSION}.x; "
+        "GameWIP requires CMake ${CMAKE_MINIMUM_REQUIRED_VERSION} or newer on its release line; "
         "found ${CMAKE_VERSION}."
     )
 endif()

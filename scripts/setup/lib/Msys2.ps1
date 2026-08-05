@@ -104,7 +104,7 @@ function Test-GameWipMsys2Tools
     $version = & (Join-Path $ucrt 'cmake.exe') --version | Select-Object -First 1
     if ($version -notmatch $CMakeVersionPattern)
     {
-        throw "GameWIP requires CMake 4.4.x, but UCRT64 reports '$version'."
+        throw "GameWIP requires CMake 4.4.2 or newer on the 4.4 release line, but UCRT64 reports '$version'."
     }
     Write-Host "  Ready: UCRT64 and CLANG64 ($version)"
 }

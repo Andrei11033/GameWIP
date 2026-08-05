@@ -104,58 +104,6 @@ function Copy-GameWipTracyRuntimeDependencies
     }
 }
 
-function Initialize-GameWipTracyBase64Source
-{
-    param(
-        [Parameter(Mandatory = $true)][string]$SetupRoot,
-        [Parameter(Mandatory = $true)][string]$Git
-    )
-
-    $revision = '8bdda2d47caf8b066999c5bd01069e55bcd0d396'
-    $source = Join-Path $SetupRoot 'sources\base64'
-    if (-not (Test-Path -LiteralPath (Join-Path $source '.git')))
-    {
-        if (Test-Path -LiteralPath $source)
-        {
-            Remove-Item -LiteralPath $source -Recurse -Force
-        }
-        New-Item -ItemType Directory -Path (Split-Path -Parent $source) -Force | Out-Null
-        Invoke-SetupNative -FilePath $Git -ArgumentList @(
-            'clone', '--no-checkout', 'https://github.com/aklomp/base64.git', $source
-        ) | Out-Null
-        Invoke-SetupNative -FilePath $Git -ArgumentList @(
-            '-C', $source, 'checkout', '--detach', $revision
-        ) | Out-Null
-    }
-
-    $actualRevision = (& $Git -C $source rev-parse HEAD).Trim()
-    if ($LASTEXITCODE -ne 0 -or $actualRevision -ne $revision)
-    {
-        throw "The Tracy base64 compatibility source is not at pinned revision $revision."
-    }
-
-    $targetArch = Join-Path $source 'cmake\Modules\TargetArch.cmake'
-    $text = Get-Content -LiteralPath $targetArch -Raw
-    $legacy = '(?m)^    try_compile\(_IGNORED "\$\{CMAKE_CURRENT_BINARY_DIR\}"\r?\n' +
-        '        "\$\{TARGET_ARCHITECTURE_TEST_FILE\}"'
-    $compatible = "    try_compile(_IGNORED`r`n" +
-        '        SOURCES "${TARGET_ARCHITECTURE_TEST_FILE}"'
-    if ([regex]::IsMatch($text, $legacy))
-    {
-        [IO.File]::WriteAllText(
-            $targetArch,
-            [regex]::Replace($text, $legacy, $compatible),
-            [Text.UTF8Encoding]::new($false)
-        )
-    }
-    elseif ($text -notmatch '(?m)^    try_compile\(_IGNORED\r?\n' +
-        '        SOURCES "\$\{TARGET_ARCHITECTURE_TEST_FILE\}"')
-    {
-        throw 'The pinned Tracy base64 architecture check no longer matches its compatibility adjustment.'
-    }
-    return $source
-}
-
 function New-GameWipTracyCompilerCompatibilityHeader
 {
     param([Parameter(Mandatory = $true)][string]$SetupRoot)
@@ -229,7 +177,6 @@ function Build-GameWipTracyTools
     $stageRoot = Join-Path $setupRoot 'stage'
     $cacheRoot = Join-Path $setupRoot 'cpm-cache'
     $destination = Join-Path $RepositoryRoot '.tracy'
-    $git = (Get-Command git.exe -ErrorAction Stop).Source
     Write-Host "  Source: $tracyRoot"
     Write-Host "  Build trees: $buildRoot"
     Write-Host "  Staging: $stageRoot"
@@ -240,7 +187,6 @@ function Build-GameWipTracyTools
     }
     New-Item -ItemType Directory -Path $stageRoot -Force | Out-Null
     New-Item -ItemType Directory -Path $cacheRoot -Force | Out-Null
-    $base64Source = Initialize-GameWipTracyBase64Source -SetupRoot $setupRoot -Git $git
     $compilerCompatibilityHeader = New-GameWipTracyCompilerCompatibilityHeader -SetupRoot $setupRoot
 
     $projects = @(
@@ -264,7 +210,6 @@ function Build-GameWipTracyTools
         $env:GIT_CONFIG_KEY_0 = 'safe.directory'
         $env:GIT_CONFIG_VALUE_0 = $tracyRoot.Replace('\', '/')
         $cmakeUcrtBin = $ucrtBin.Replace('\', '/')
-        $cmakeBase64Source = $base64Source.Replace('\', '/')
         $cmakeCompilerCompatibilityHeader = $compilerCompatibilityHeader.Replace('\', '/')
         foreach ($project in $projects)
         {
@@ -285,21 +230,17 @@ function Build-GameWipTracyTools
                 "-DCMAKE_CXX_FLAGS=-march=x86-64-v3 -include cstdint -include `"$cmakeCompilerCompatibilityHeader`"",
                 '-DCMAKE_EXE_LINKER_FLAGS=-static -static-libgcc -static-libstdc++',
                 '-DCMAKE_CXX_STANDARD_LIBRARIES=-lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32 -lws2_32 -ldbghelp -lsecur32',
-                "-DCPM_base64_SOURCE=$cmakeBase64Source",
                 '-DNO_ISA_EXTENSIONS=ON'
             ) | Out-Null
 
-            # Tracy 0.13.1 adds MSVC's /MP switch for every Windows compiler
-            # and forces IPO/LTO for Release builds. UCRT64 GCC already gets
-            # parallel jobs from Ninja, treats /MP as an input file, and can
-            # produce incompatible COFF LTO objects across Tracy's dependency
-            # graph. Strip only those generated build flags while keeping the
+            # Tracy forces IPO/LTO for Release builds, which can produce
+            # incompatible COFF LTO objects across its dependency graph under
+            # UCRT64 GCC. Strip only those generated flags while keeping the
             # pinned submodule pristine.
             foreach ($ninjaFile in Get-ChildItem -LiteralPath $build -Recurse -Filter '*.ninja')
             {
                 $ninjaText = Get-Content -LiteralPath $ninjaFile.FullName -Raw
-                $updatedNinjaText = $ninjaText.Replace('/MP', '')
-                $updatedNinjaText = $updatedNinjaText.Replace('-flto=auto', '')
+                $updatedNinjaText = $ninjaText.Replace('-flto=auto', '')
                 $updatedNinjaText = $updatedNinjaText.Replace('-fno-fat-lto-objects', '')
                 if ($updatedNinjaText -ne $ninjaText)
                 {

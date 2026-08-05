@@ -10,7 +10,7 @@ Library-local options remain documented in the owning library manual when they a
 
 ## Requirements
 
-The supported Windows development environment is MSYS2 UCRT64 with CMake 4.4.x, Ninja, GCC or Clang as selected by the preset, and C++23 support. The root `cmake_minimum_required()` declaration is the authoritative CMake version; standalone validation entry points receive that value from the root configuration.
+The supported Windows development environment is MSYS2 UCRT64 with CMake 4.4.2 or newer on the 4.4 release line, Ninja, GCC or Clang as selected by the preset, and C++23 support. The root `cmake_minimum_required()` declaration is the authoritative CMake version; standalone validation entry points receive that value from the root configuration.
 
 GameWIP does not use C++ modules. Module dependency scanning is therefore
 disabled globally, which keeps Ninja compilation databases directly consumable
