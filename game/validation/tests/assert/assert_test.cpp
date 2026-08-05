@@ -32,6 +32,7 @@
 #include <string>
 #include <string_view>
 #include <thread>
+#include <utility>
 #include <vector>
 
 #if defined(_WIN32)
@@ -209,6 +210,18 @@ namespace
     using ScopedEnvironmentVariable = TestSupport::ScopedEnvironmentVariable;
     using ScopedClearedEnvironmentVariable = TestSupport::ScopedUnsetEnvironmentVariable;
 
+    /// @brief Records one TestSupport infrastructure failure without changing successful scenario counts.
+    bool requireInfrastructure(TestContext &context, std::string_view operation, const TestSupport::Types::InfrastructureStatus &status)
+    {
+        if (status.ok())
+        {
+            return true;
+        }
+
+        context.fail(operation, TestSupport::formatInfrastructureStatus(status));
+        return false;
+    }
+
     /// @brief Stops the logger when a test scope exits.
     struct ScopedLoggerShutdown
     {
@@ -263,15 +276,20 @@ namespace
     /// @brief Reads an entire text file.
     /// @param path File path to read.
     /// @return File contents, or empty text when the file cannot be opened.
-    std::string readFile(const std::filesystem::path &path)
+    std::string readFile(TestContext &context, const std::filesystem::path &path)
     {
-        return TestSupport::readTextFile(path);
+        TestSupport::Types::TextResult result = TestSupport::readTextFile(path);
+        if (!requireInfrastructure(context, "read Assert log fixture", result.status))
+        {
+            return {};
+        }
+        return std::move(result.text);
     }
 
     /// @brief Reads and concatenates every regular file in a directory.
     /// @param directory Directory to scan.
     /// @return Concatenated file contents.
-    std::string readDirectoryFiles(const std::filesystem::path &directory)
+    std::string readDirectoryFiles(TestContext &context, const std::filesystem::path &directory)
     {
         std::string contents;
         if (!std::filesystem::exists(directory))
@@ -283,7 +301,7 @@ namespace
         {
             if (entry.is_regular_file())
             {
-                contents += readFile(entry.path());
+                contents += readFile(context, entry.path());
             }
         }
         return contents;
@@ -324,7 +342,10 @@ namespace
     {
         Logger::shutdown();
         const std::filesystem::path directory = context.logRoot / std::string(name);
-        TestSupport::createDirectories(directory);
+        if (!TestSupport::createDirectories(directory).ok())
+        {
+            return false;
+        }
         const std::string directoryText = pathText(directory);
 
         Logger::Types::Config config;
@@ -409,7 +430,7 @@ namespace
         context.expectEq("ENSURE evaluates once per call", evaluations, 2);
 
 #if ASSERT_CHECKS_ENABLED
-        const std::string contents = readFile(Logger::getLogFilePath());
+        const std::string contents = readFile(context, Logger::getLogFilePath());
 #if ASSERT_DIAGNOSTICS
         context.expectTrue(
             "ENSURE diagnostics include caller function",
@@ -447,7 +468,7 @@ namespace
         }
         Logger::flush(2s);
         const Logger::Types::Stats stats = Logger::getStats();
-        const std::string contents = readFile(Logger::getLogFilePath());
+        const std::string contents = readFile(context, Logger::getLogFilePath());
         context.expectEq("CHECK_ONCE reports without queueing", stats.queued, std::size_t{0});
         context.expectEq("CHECK_ONCE writes one failure synchronously", stats.written, std::size_t{1});
         context.expectTrue(
@@ -473,7 +494,7 @@ namespace
 
         CHECK_MSG(false, "assert diagnostic message");
         Logger::flush(2s);
-        const std::string contents = readFile(Logger::getLogFilePath());
+        const std::string contents = readFile(context, Logger::getLogFilePath());
 
 #if ASSERT_DIAGNOSTICS
         context.expectTrue("diagnostics include condition", contents.find("false") != std::string::npos, "condition text missing");
@@ -510,7 +531,7 @@ namespace
 
         int evaluations = 0;
         CHECK_MSG(false, makeDiagnosticMessage(evaluations));
-        const std::string contents = readFile(Logger::getLogFilePath());
+        const std::string contents = readFile(context, Logger::getLogFilePath());
 
 #if ASSERT_DIAGNOSTICS
         context.expectEq("diagnostic message evaluated when enabled", evaluations, 1);
@@ -626,11 +647,15 @@ namespace
         }
 
         const ScopedEnvironmentVariable testAction(testActionEnvironmentVariable, "ignore_once");
+        if (!requireInfrastructure(context, "set interactive ignore-once action", testAction.status()))
+        {
+            return;
+        }
         ASSERT_INTERACTIVE_MSG(false, "interactive ignore once test");
 
         Logger::flush(2s);
         const Logger::Types::Stats stats = Logger::getStats();
-        const std::string contents = readFile(Logger::getLogFilePath());
+        const std::string contents = readFile(context, Logger::getLogFilePath());
         context.expectEq("ASSERT_INTERACTIVE ignore_once not queued", stats.queued, std::size_t{0});
         context.expectEq("ASSERT_INTERACTIVE ignore_once writes one fatal", stats.written, std::size_t{1});
         context.expectTrue(
@@ -665,12 +690,16 @@ namespace
         }
 
         const ScopedEnvironmentVariable testAction(testActionEnvironmentVariable, "always_ignore");
+        if (!requireInfrastructure(context, "set interactive always-ignore action", testAction.status()))
+        {
+            return;
+        }
         interactiveAlwaysIgnoreSite();
         interactiveAlwaysIgnoreSite();
 
         Logger::flush(2s);
         const Logger::Types::Stats stats = Logger::getStats();
-        const std::string contents = readFile(Logger::getLogFilePath());
+        const std::string contents = readFile(context, Logger::getLogFilePath());
         context.expectEq("ASSERT_INTERACTIVE always_ignore not queued", stats.queued, std::size_t{0});
         context.expectEq("ASSERT_INTERACTIVE always_ignore writes once", stats.written, std::size_t{1});
 #if ASSERT_DIAGNOSTICS
@@ -705,12 +734,16 @@ namespace
 
         int failingEvaluations = 0;
         const ScopedEnvironmentVariable testAction(testActionEnvironmentVariable, "ignore_once");
+        if (!requireInfrastructure(context, "set VERIFY_INTERACTIVE action", testAction.status()))
+        {
+            return;
+        }
         VERIFY_INTERACTIVE_MSG(++failingEvaluations < 0, "verify interactive ignore once test");
         context.expectEq("VERIFY_INTERACTIVE failing evaluates once", failingEvaluations, 1);
 
 #if ASSERT_ENABLED
         Logger::flush(2s);
-        const std::string contents = readFile(Logger::getLogFilePath());
+        const std::string contents = readFile(context, Logger::getLogFilePath());
 #if ASSERT_DIAGNOSTICS
         context.expectTrue(
             "VERIFY_INTERACTIVE failure logs when enabled",
@@ -742,11 +775,15 @@ namespace
 
         int evaluations = 0;
         const ScopedEnvironmentVariable testAction(testActionEnvironmentVariable, "always_ignore");
+        if (!requireInfrastructure(context, "set VERIFY_INTERACTIVE always-ignore action", testAction.status()))
+        {
+            return;
+        }
         verifyInteractiveAlwaysIgnoreSite(evaluations);
         verifyInteractiveAlwaysIgnoreSite(evaluations);
 
         Logger::flush(2s);
-        const std::string contents = readFile(Logger::getLogFilePath());
+        const std::string contents = readFile(context, Logger::getLogFilePath());
         context.expectEq("VERIFY_INTERACTIVE Always Ignore still evaluates", evaluations, 2);
 #if ASSERT_DIAGNOSTICS
         context.expectEq(
@@ -806,7 +843,7 @@ namespace
         }
 
         Logger::flush(2s);
-        const std::string contents = readFile(Logger::getLogFilePath());
+        const std::string contents = readFile(context, Logger::getLogFilePath());
 #if ASSERT_DIAGNOSTICS
         context.expectEq("CHECK_ONCE thread stress logs once", countOccurrences(contents, "threaded check once stress"), std::size_t{1});
 #else
@@ -836,13 +873,17 @@ namespace
 
         const int iterations = static_cast<int>(std::max<std::size_t>(1, options.stressIterations));
         const ScopedEnvironmentVariable testAction(testActionEnvironmentVariable, "ignore_once");
+        if (!requireInfrastructure(context, "set interactive stress action", testAction.status()))
+        {
+            return;
+        }
         for (int index = 0; index < iterations; ++index)
         {
             interactiveIgnoreOnceSite();
         }
 
         Logger::flush(5s);
-        const std::string contents = readFile(Logger::getLogFilePath());
+        const std::string contents = readFile(context, Logger::getLogFilePath());
 #if ASSERT_DIAGNOSTICS
         context.expectEq(
             "ASSERT_INTERACTIVE ignore_once stress logs every failure",
@@ -960,7 +1001,10 @@ namespace
         std::cout.flush();
         std::cerr.flush();
         const TestSupport::Types::ChildProcessResult result = runChildProcessResult(context.executablePath, argument);
-        context.expectTrue(testName, result.exitedWithFailure(), "child process returned zero");
+        context.expectTrue(
+            testName,
+            result.status.ok() && result.outcome == TestSupport::Types::ChildProcessOutcome::Exited && result.exitCode != 0,
+            "child process did not produce a normal nonzero exit");
     }
 
     /// @brief Verifies a failed ASSERT triggers an abnormal child-process exit when assertions are enabled.
@@ -976,13 +1020,21 @@ namespace
         }
 
         const std::filesystem::path childLogDirectory = context.logRoot / "assert_child";
-        TestSupport::createDirectories(childLogDirectory);
+        if (!requireInfrastructure(context, "create ASSERT child log directory", TestSupport::createDirectories(childLogDirectory)))
+        {
+            return;
+        }
         const ScopedEnvironmentVariable childLogDirectoryOverride(childLogDirectoryEnvironmentVariable, pathText(childLogDirectory));
         const ScopedEnvironmentVariable suppressPopupOverride(suppressPopupEnvironmentVariable, "1");
+        if (!requireInfrastructure(context, "set ASSERT child log directory", childLogDirectoryOverride.status()) ||
+            !requireInfrastructure(context, "suppress ASSERT child popup", suppressPopupOverride.status()))
+        {
+            return;
+        }
 
         expectAbnormalChildExit(context, assertFailureChildArgument, "ASSERT failure child exits abnormally with popup suppressed");
 
-        const std::string childLogContents = readDirectoryFiles(childLogDirectory);
+        const std::string childLogContents = readDirectoryFiles(context, childLogDirectory);
         context.expectTrue(
             "ASSERT failure child logs fatal through Logger",
             childLogContents.find("[FATAL][Assert]: Assert failed") != std::string::npos,
@@ -1014,13 +1066,21 @@ namespace
         }
 
         const std::filesystem::path childLogDirectory = context.logRoot / "interactive_abort_child";
-        TestSupport::createDirectories(childLogDirectory);
+        if (!requireInfrastructure(context, "create interactive Abort child log directory", TestSupport::createDirectories(childLogDirectory)))
+        {
+            return;
+        }
         const ScopedEnvironmentVariable childLogDirectoryOverride(childLogDirectoryEnvironmentVariable, pathText(childLogDirectory));
         const ScopedEnvironmentVariable testAction(testActionEnvironmentVariable, "abort");
+        if (!requireInfrastructure(context, "set interactive Abort child log directory", childLogDirectoryOverride.status()) ||
+            !requireInfrastructure(context, "set interactive Abort action", testAction.status()))
+        {
+            return;
+        }
 
         expectAbnormalChildExit(context, interactiveAbortChildArgument, "ASSERT_INTERACTIVE abort child exits abnormally");
 
-        const std::string childLogContents = readDirectoryFiles(childLogDirectory);
+        const std::string childLogContents = readDirectoryFiles(context, childLogDirectory);
         context.expectTrue(
             "ASSERT_INTERACTIVE abort child logs fatal",
             childLogContents.find("[FATAL][Assert]: Assert failed") != std::string::npos,
@@ -1052,13 +1112,21 @@ namespace
         }
 
         const std::filesystem::path childLogDirectory = context.logRoot / "interactive_break_child";
-        TestSupport::createDirectories(childLogDirectory);
+        if (!requireInfrastructure(context, "create interactive Break child log directory", TestSupport::createDirectories(childLogDirectory)))
+        {
+            return;
+        }
         const ScopedEnvironmentVariable childLogDirectoryOverride(childLogDirectoryEnvironmentVariable, pathText(childLogDirectory));
         const ScopedEnvironmentVariable testAction(testActionEnvironmentVariable, "break");
+        if (!requireInfrastructure(context, "set interactive Break child log directory", childLogDirectoryOverride.status()) ||
+            !requireInfrastructure(context, "set interactive Break action", testAction.status()))
+        {
+            return;
+        }
 
         expectAbnormalChildExit(context, interactiveBreakChildArgument, "ASSERT_INTERACTIVE break child exits abnormally without debugger");
 
-        const std::string childLogContents = readDirectoryFiles(childLogDirectory);
+        const std::string childLogContents = readDirectoryFiles(context, childLogDirectory);
         context.expectTrue(
             "ASSERT_INTERACTIVE break child logs fatal",
             childLogContents.find("[FATAL][Assert]: Assert failed") != std::string::npos,
@@ -1092,6 +1160,10 @@ namespace
     {
 #if ASSERT_ENABLED || !ASSERT_UNREACHABLE_ASSUME
         const ScopedEnvironmentVariable suppressPopupOverride(suppressPopupEnvironmentVariable, "1");
+        if (!requireInfrastructure(context, "suppress UNREACHABLE child popup", suppressPopupOverride.status()))
+        {
+            return;
+        }
         expectAbnormalChildExit(context, unreachableChildArgument, "UNREACHABLE child exits abnormally with popup suppressed");
 #else
         context.pass("UNREACHABLE child test skipped because ASSERT_UNREACHABLE_ASSUME=1");
@@ -1135,6 +1207,11 @@ namespace
 
         const ScopedClearedEnvironmentVariable clearTestAction(testActionEnvironmentVariable);
         const ScopedClearedEnvironmentVariable clearSuppressPopup(suppressPopupEnvironmentVariable);
+        if (!requireInfrastructure(context, "clear manual test action", clearTestAction.status()) ||
+            !requireInfrastructure(context, "clear manual popup suppression", clearSuppressPopup.status()))
+        {
+            return;
+        }
 
         context.emit("[MANUAL] Assert UI Ignore Once: click Ignore Once. The test should continue.\n");
         manualInteractiveIgnoreOnceSite();
@@ -1163,15 +1240,24 @@ namespace
         if (options.enableChildCrashTests)
         {
             const std::filesystem::path childLogDirectory = context.logRoot / "manual_interactive_abort_child";
-            TestSupport::createDirectories(childLogDirectory);
+            if (!requireInfrastructure(context, "create manual Abort child log directory", TestSupport::createDirectories(childLogDirectory)))
+            {
+                return;
+            }
             const ScopedEnvironmentVariable childLogDirectoryOverride(childLogDirectoryEnvironmentVariable, pathText(childLogDirectory));
             const ScopedClearedEnvironmentVariable clearChildTestAction(testActionEnvironmentVariable);
             const ScopedClearedEnvironmentVariable clearChildSuppressPopup(suppressPopupEnvironmentVariable);
+            if (!requireInfrastructure(context, "set manual Abort child log directory", childLogDirectoryOverride.status()) ||
+                !requireInfrastructure(context, "clear manual Abort child action", clearChildTestAction.status()) ||
+                !requireInfrastructure(context, "clear manual Abort child popup suppression", clearChildSuppressPopup.status()))
+            {
+                return;
+            }
 
             context.emit("[MANUAL] Assert UI Abort: a child process dialog should appear. Click Abort; the parent should detect abnormal exit.\n");
             expectAbnormalChildExit(context, interactiveAbortChildArgument, "manual assert UI Abort child exits abnormally");
 
-            const std::string childLogContents = readDirectoryFiles(childLogDirectory);
+            const std::string childLogContents = readDirectoryFiles(context, childLogDirectory);
             context.expectTrue(
                 "manual assert UI Abort child logs fatal",
                 childLogContents.find("[FATAL][Assert]: Assert failed") != std::string::npos,
@@ -1248,6 +1334,10 @@ namespace GameWIP::Test
                 TestContext context(suiteContext);
                 context.executablePath = argc > 0 && argv[0] != nullptr ? argv[0] : "";
                 const TestSupport::ScopedTemporaryDirectory workspace("assert_tests");
+                if (!requireInfrastructure(context, "create Assert test workspace", workspace.status()))
+                {
+                    return;
+                }
                 const ScopedLoggerShutdown loggerShutdown;
                 context.logRoot = workspace.path();
 

@@ -44,9 +44,11 @@ Reusable libraries + optional validation modules
   -> GameWIP executable
 ```
 
-Arrows mean “is consumed by.” Lower-level libraries must not depend on the game executable, runtime facade, validation runner, or benchmark runner.
+Arrows mean "is consumed by." Lower-level libraries must not depend on the game executable, runtime facade, validation runner, or benchmark runner.
 
-Validation code may use libraries and approved internal hooks. Installed consumers must not see internal headers, test-hook headers, source-tree-only helper targets, or validation-only compile definitions.
+TestSupport is a standalone validation library and installed package. Its target must not link to another GameWIP library; validation modules depend on it, not the reverse. This keeps `find_package(TestSupport)` independently usable and prevents its portable result contracts from acquiring unrelated library dependencies.
+
+Validation code may use libraries and approved internal hooks. Installed consumers must not see internal headers, test-hook headers, source-tree-only helper targets, or validation-only compile definitions such as `INTERNAL_TEST_SUPPORT_TEST_HOOKS`.
 
 ## Library ownership
 

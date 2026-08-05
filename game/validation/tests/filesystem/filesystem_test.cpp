@@ -16,6 +16,7 @@
 #include <filesystem>
 #include <format>
 #include <functional>
+#include <iostream>
 #include <span>
 #include <string>
 #include <string_view>
@@ -108,8 +109,8 @@ namespace
         const std::filesystem::path file = root / "basic" / "file.txt";
         const std::filesystem::path missing = root / "basic" / "missing.txt";
 
-        TestSupport::createDirectories(directory);
-        TestSupport::writeTextFile(file, "payload");
+        static_cast<void>(context.expectTrue("basic fixture directory creation succeeds", TestSupport::createDirectories(directory).ok()));
+        static_cast<void>(context.expectTrue("basic fixture file write succeeds", TestSupport::writeTextFile(file, "payload").ok()));
 
         const auto fileExists = FileSystem::exists(file, queryOptions(FileSystem::Types::SymlinkPolicy::FollowAll));
         static_cast<void>(context.expectTrue("exists reports regular file success", fileExists.status.ok()));
@@ -204,8 +205,8 @@ namespace
         const std::filesystem::path finalFileLink = root / "symlinks" / "final-file-link";
         const std::filesystem::path intermediateDirectoryLink = root / "symlinks" / "intermediate-directory-link";
 
-        TestSupport::createDirectories(targetDirectory);
-        TestSupport::writeTextFile(targetFile, "payload");
+        static_cast<void>(context.expectTrue("symlink fixture directory creation succeeds", TestSupport::createDirectories(targetDirectory).ok()));
+        static_cast<void>(context.expectTrue("symlink fixture file write succeeds", TestSupport::writeTextFile(targetFile, "payload").ok()));
 
         const auto doNotFollow = queryOptions(FileSystem::Types::SymlinkPolicy::DoNotFollow);
         const auto followFinal = queryOptions(FileSystem::Types::SymlinkPolicy::FollowFinal);
@@ -736,6 +737,11 @@ namespace GameWIP::Test
     int runFileSystemTests(int, char **, const FileSystemTestOptions &options)
     {
         const TestSupport::ScopedTemporaryDirectory workspace("filesystem_tests");
+        if (!workspace.status().ok())
+        {
+            std::cerr << "FileSystem could not create its test workspace: " << TestSupport::formatInfrastructureStatus(workspace.status()) << '\n';
+            return 1;
+        }
         const std::filesystem::path &runRoot = workspace.path();
 
         TestSupport::Types::ReportOptions reportOptions;

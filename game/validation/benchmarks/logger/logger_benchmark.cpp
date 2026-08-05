@@ -62,6 +62,15 @@ namespace
                 {
                     workspace_ =
                         std::make_unique<TestSupport::ScopedTemporaryDirectory>(std::string("logger_benchmark_") + std::string(directoryName));
+                    if (!workspace_->status().ok())
+                    {
+                        const std::string error = std::format(
+                            "Could not create Logger benchmark workspace: {}.",
+                            TestSupport::formatInfrastructureStatus(workspace_->status()));
+                        state.SkipWithError(error);
+                        workspace_.reset();
+                        return false;
+                    }
                     directoryText_ = workspace_->path().string();
                     config.logDirectory = directoryText_;
                 }
@@ -248,13 +257,25 @@ namespace
                 try
                 {
                     workspace = std::make_unique<TestSupport::ScopedTemporaryDirectory>("logger_benchmark_multi_producer");
-                    directoryText = workspace->path().string();
-                    const std::array sources{Logger::Types::SourceDefinition{registeredSource, "RegisteredBenchmark"}};
-                    Logger::Types::Config config = baseConfig();
-                    config.output = Logger::Types::Output::File;
-                    config.logDirectory = directoryText;
-                    config.sources = sources;
-                    initialized = Logger::init(config) == Logger::Types::Result::Success;
+                    if (!workspace->status().ok())
+                    {
+                        const std::string error = std::format(
+                            "Could not create multi-producer workspace: {}.",
+                            TestSupport::formatInfrastructureStatus(workspace->status()));
+                        state.SkipWithError(error);
+                        workspace.reset();
+                        initialized = false;
+                    }
+                    else
+                    {
+                        directoryText = workspace->path().string();
+                        const std::array sources{Logger::Types::SourceDefinition{registeredSource, "RegisteredBenchmark"}};
+                        Logger::Types::Config config = baseConfig();
+                        config.output = Logger::Types::Output::File;
+                        config.logDirectory = directoryText;
+                        config.sources = sources;
+                        initialized = Logger::init(config) == Logger::Types::Result::Success;
+                    }
                 }
                 catch (const std::exception &exception)
                 {

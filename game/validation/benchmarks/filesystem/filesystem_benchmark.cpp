@@ -39,6 +39,13 @@ namespace
             if (!workspace_)
             {
                 workspace_ = std::make_unique<TestSupport::ScopedTemporaryDirectory>("filesystem_directory_benchmark");
+                if (!workspace_->status().ok())
+                {
+                    throw std::runtime_error(
+                        std::format(
+                            "Could not create FileSystem benchmark workspace: {}",
+                            TestSupport::formatInfrastructureStatus(workspace_->status())));
+                }
             }
             std::filesystem::path directoryPath = workspace_->path() / ("entries_" + std::to_string(entryCount) + "_depth_" + std::to_string(depth));
             for (int level = 0; level < depth; ++level)

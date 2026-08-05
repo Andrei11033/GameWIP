@@ -14,9 +14,9 @@ This is expected. `exitCode()` reflects recorded test failures, not report-file 
 
 Expectations record and return a result; they do not abort. Return early based on the boolean when later steps require the check to pass.
 
-## A zero file-occurrence expectation passed for a missing file
+## A file helper returns failed status
 
-`countFileOccurrences()` returns zero for empty search text, missing/unreadable input, and no matches. Check `fileExists()` first or use a helper with detailed I/O status.
+Inspect `status.error` and `status.nativeCode`. Missing input is a read failure, while `fileExists()` represents an absent path as successful status plus `value == false`.
 
 ## Temporary files remain
 
@@ -32,9 +32,9 @@ On Win32, setting an environment guard to an empty string removes the variable.
 
 Check `captureOutput`. stdout and stderr share one retained byte stream. A zero retained limit discards output while still draining it. Inspect `outputTruncated`.
 
-## Child reports `infrastructureFailure`
+## Child reports failed infrastructure status
 
-This indicates TestSupport launch, setup, wait, inspection, or capture failure. `exitCode` is not a normal child result in this state. Also inspect `timedOut` and `wasTerminatedByTest`.
+Inspect `status.error`, `status.nativeCode`, and `outcome` together. A failed status may still preserve partial output or an exact exit code when `outcome == ChildProcessOutcome::Exited`. `TimedOut` with successful status means timeout policy was enforced normally.
 
 ## Child call exceeded the configured timeout
 

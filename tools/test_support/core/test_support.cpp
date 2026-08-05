@@ -3,14 +3,19 @@
 
 #include "test_support/test_support.h"
 #include "test_support/internal/test_support_platform.h"
+#include "test_support/internal/test_support_test_hooks.h"
 
+#include <cerrno>
 #include <cmath>
 #include <cstdint>
 #include <format>
 #include <fstream>
 #include <iostream>
+#include <limits>
+#include <new>
 #include <stdexcept>
 #include <string_view>
+#include <system_error>
 
 namespace GameWIP::TestSupport
 {
@@ -21,6 +26,18 @@ namespace GameWIP::TestSupport
         std::mutex environmentMutex;
         /// @brief Adds process-local uniqueness when time and readable purpose components collide.
         std::atomic_uint64_t temporaryDirectoryCounter{0};
+
+        /// @brief Converts a standard error code to the public unsigned diagnostic field.
+        [[nodiscard]] std::uint64_t nativeCode(const std::error_code &error) noexcept
+        {
+            return static_cast<std::uint64_t>(static_cast<std::uint32_t>(error.value()));
+        }
+
+        /// @brief Creates a failed TestSupport infrastructure status without allocating.
+        [[nodiscard]] Types::InfrastructureStatus failureStatus(Types::InfrastructureError error, std::uint64_t code = 0) noexcept
+        {
+            return Types::InfrastructureStatus{.error = error, .nativeCode = code};
+        }
 
         /// @brief Formats a named failure and its reason for report output.
         [[nodiscard]] std::string makeNameReason(std::string_view name, std::string_view reason)
@@ -51,6 +68,57 @@ namespace GameWIP::TestSupport
             static_cast<void>(std::filesystem::remove(path, error));
         }
     } // namespace
+
+    std::string formatInfrastructureStatus(const Types::InfrastructureStatus &status)
+    {
+        std::string_view errorName = "PlatformFailure";
+        switch (status.error)
+        {
+        case Types::InfrastructureError::None:
+            errorName = "None";
+            break;
+        case Types::InfrastructureError::InvalidArgument:
+            errorName = "InvalidArgument";
+            break;
+        case Types::InfrastructureError::Unsupported:
+            errorName = "Unsupported";
+            break;
+        case Types::InfrastructureError::OutOfMemory:
+            errorName = "OutOfMemory";
+            break;
+        case Types::InfrastructureError::ProcessSetupFailed:
+            errorName = "ProcessSetupFailed";
+            break;
+        case Types::InfrastructureError::ProcessLaunchFailed:
+            errorName = "ProcessLaunchFailed";
+            break;
+        case Types::InfrastructureError::ProcessCleanupFailed:
+            errorName = "ProcessCleanupFailed";
+            break;
+        case Types::InfrastructureError::PipeCreationFailed:
+            errorName = "PipeCreationFailed";
+            break;
+        case Types::InfrastructureError::CaptureFailed:
+            errorName = "CaptureFailed";
+            break;
+        case Types::InfrastructureError::WaitFailed:
+            errorName = "WaitFailed";
+            break;
+        case Types::InfrastructureError::ProcessInspectionFailed:
+            errorName = "ProcessInspectionFailed";
+            break;
+        case Types::InfrastructureError::EnvironmentFailed:
+            errorName = "EnvironmentFailed";
+            break;
+        case Types::InfrastructureError::FileOperationFailed:
+            errorName = "FileOperationFailed";
+            break;
+        case Types::InfrastructureError::PlatformFailure:
+            break;
+        }
+
+        return status.nativeCode == 0 ? std::string(errorName) : std::format("{} (nativeCode={})", errorName, status.nativeCode);
+    }
 
     namespace Detail
     {
@@ -343,7 +411,8 @@ namespace GameWIP::TestSupport
         std::string_view expectedSubstring,
         std::source_location location)
     {
-        if (fileContains(path, expectedSubstring))
+        const Types::BoolResult result = fileContains(path, expectedSubstring);
+        if (result.status.ok() && result.value)
         {
             pass(name);
             return true;
@@ -351,6 +420,10 @@ namespace GameWIP::TestSupport
 
         std::ostringstream reason;
         reason << "expected file '" << path.string() << "' to contain '" << expectedSubstring << "'";
+        if (!result.status.ok())
+        {
+            reason << ", infrastructure error " << formatInfrastructureStatus(result.status);
+        }
         fail(name, reason.str(), location);
         return false;
     }
@@ -362,15 +435,19 @@ namespace GameWIP::TestSupport
         std::size_t expectedCount,
         std::source_location location)
     {
-        const std::size_t actualCount = countFileOccurrences(path, text);
-        if (actualCount == expectedCount)
+        const Types::CountResult result = countFileOccurrences(path, text);
+        if (result.status.ok() && result.count == expectedCount)
         {
             pass(name);
             return true;
         }
 
         std::ostringstream reason;
-        reason << "expected " << expectedCount << " occurrences of '" << text << "' in file '" << path.string() << "', got " << actualCount;
+        reason << "expected " << expectedCount << " occurrences of '" << text << "' in file '" << path.string() << "', got " << result.count;
+        if (!result.status.ok())
+        {
+            reason << ", infrastructure error " << formatInfrastructureStatus(result.status);
+        }
         fail(name, reason.str(), location);
         return false;
     }
@@ -495,44 +572,89 @@ namespace GameWIP::TestSupport
         return std::chrono::duration<double, std::milli>(elapsed).count();
     }
 
-    ScopedTemporaryDirectory::ScopedTemporaryDirectory(std::string_view purpose)
-        : root_(std::filesystem::temp_directory_path() / "GameWIP" / "TestSupport")
+    ScopedTemporaryDirectory::ScopedTemporaryDirectory(std::string_view purpose) noexcept
     {
-        std::filesystem::create_directories(root_);
-
-        // A readable prefix aids diagnostics, while steady-clock ticks and a process-local allocation
-        // id make collisions unlikely. The bounded attempt suffix still handles races/external entries.
-        const std::string prefix = sanitizeTemporaryPurpose(purpose);
-        const auto ticks = std::chrono::steady_clock::now().time_since_epoch().count();
-        const std::uint64_t allocationId = temporaryDirectoryCounter.fetch_add(1, std::memory_order_relaxed);
-
-        for (std::size_t attempt = 0; attempt < 128; ++attempt)
+#if INTERNAL_TEST_SUPPORT_TEST_HOOKS
+        if (const auto injected = Detail::TestHooks::consumeFileFailure(TestHooks::FileFailurePoint::TemporaryDirectory))
         {
-            const std::filesystem::path candidate = root_ / std::format("{}_{:x}_{:x}_{:x}", prefix, ticks, allocationId, attempt);
+            status_ = failureStatus(Types::InfrastructureError::FileOperationFailed, *injected);
+            return;
+        }
+#endif
+        try
+        {
             std::error_code error;
-            if (std::filesystem::create_directory(candidate, error))
+            root_ = std::filesystem::temp_directory_path(error);
+            if (error)
             {
-                path_ = candidate;
+                status_ = failureStatus(Types::InfrastructureError::FileOperationFailed, nativeCode(error));
                 return;
             }
-            if (error && error != std::errc::file_exists)
+            root_ /= "GameWIP";
+            root_ /= "TestSupport";
+            static_cast<void>(std::filesystem::create_directories(root_, error));
+            if (error)
             {
-                throw std::filesystem::filesystem_error("Could not create a test temporary directory", candidate, error);
+                status_ = failureStatus(Types::InfrastructureError::FileOperationFailed, nativeCode(error));
+                return;
             }
-        }
 
-        throw std::filesystem::filesystem_error(
-            "Could not allocate a unique test temporary directory",
-            root_,
-            std::make_error_code(std::errc::file_exists));
+            // A readable prefix aids diagnostics, while steady-clock ticks and a process-local allocation
+            // id make collisions unlikely. The bounded attempt suffix still handles races/external entries.
+            const std::string prefix = sanitizeTemporaryPurpose(purpose);
+            const auto ticks = std::chrono::steady_clock::now().time_since_epoch().count();
+            const std::uint64_t allocationId = temporaryDirectoryCounter.fetch_add(1, std::memory_order_relaxed);
+
+            for (std::size_t attempt = 0; attempt < 128; ++attempt)
+            {
+                const std::filesystem::path candidate = root_ / std::format("{}_{:x}_{:x}_{:x}", prefix, ticks, allocationId, attempt);
+                error.clear();
+                if (std::filesystem::create_directory(candidate, error))
+                {
+                    path_ = candidate;
+                    return;
+                }
+                if (error && error != std::errc::file_exists)
+                {
+                    status_ = failureStatus(Types::InfrastructureError::FileOperationFailed, nativeCode(error));
+                    return;
+                }
+            }
+
+            status_ = failureStatus(Types::InfrastructureError::FileOperationFailed, nativeCode(std::make_error_code(std::errc::file_exists)));
+        }
+        catch (const std::bad_alloc &)
+        {
+            status_ = failureStatus(Types::InfrastructureError::OutOfMemory);
+        }
+        catch (const std::filesystem::filesystem_error &error)
+        {
+            status_ = failureStatus(Types::InfrastructureError::FileOperationFailed, nativeCode(error.code()));
+        }
+        catch (...)
+        {
+            status_ = failureStatus(Types::InfrastructureError::FileOperationFailed);
+        }
     }
 
     ScopedTemporaryDirectory::~ScopedTemporaryDirectory() noexcept
     {
-        std::error_code error;
-        std::filesystem::remove_all(path_, error);
-        removeDirectoryIfEmpty(root_);
-        removeDirectoryIfEmpty(root_.parent_path());
+        try
+        {
+            std::error_code error;
+            if (!path_.empty())
+            {
+                static_cast<void>(std::filesystem::remove_all(path_, error));
+            }
+            if (!root_.empty())
+            {
+                removeDirectoryIfEmpty(root_);
+                removeDirectoryIfEmpty(root_.parent_path());
+            }
+        }
+        catch (...) // NOLINT(bugprone-empty-catch) -- Destruction cannot report best-effort temporary-directory cleanup failure.
+        {
+        }
     }
 
     const std::filesystem::path &ScopedTemporaryDirectory::path() const noexcept
@@ -540,16 +662,63 @@ namespace GameWIP::TestSupport
         return path_;
     }
 
-    ScopedCurrentPath::ScopedCurrentPath(const std::filesystem::path &path)
-        : previousPath_(std::filesystem::current_path())
+    Types::InfrastructureStatus ScopedTemporaryDirectory::status() const noexcept
     {
-        std::filesystem::current_path(path);
+        return status_;
+    }
+
+    ScopedCurrentPath::ScopedCurrentPath(const std::filesystem::path &path) noexcept
+    {
+#if INTERNAL_TEST_SUPPORT_TEST_HOOKS
+        if (const auto injected = Detail::TestHooks::consumeFileFailure(TestHooks::FileFailurePoint::CurrentPath))
+        {
+            status_ = failureStatus(Types::InfrastructureError::FileOperationFailed, *injected);
+            return;
+        }
+#endif
+        try
+        {
+            std::error_code error;
+            previousPath_ = std::filesystem::current_path(error);
+            if (error)
+            {
+                status_ = failureStatus(Types::InfrastructureError::FileOperationFailed, nativeCode(error));
+                previousPath_.clear();
+                return;
+            }
+
+            std::filesystem::current_path(path, error);
+            if (error)
+            {
+                status_ = failureStatus(Types::InfrastructureError::FileOperationFailed, nativeCode(error));
+                previousPath_.clear();
+            }
+        }
+        catch (const std::bad_alloc &)
+        {
+            status_ = failureStatus(Types::InfrastructureError::OutOfMemory);
+            previousPath_.clear();
+        }
+        catch (...)
+        {
+            status_ = failureStatus(Types::InfrastructureError::FileOperationFailed);
+            previousPath_.clear();
+        }
     }
 
     ScopedCurrentPath::~ScopedCurrentPath() noexcept
     {
-        std::error_code error;
-        std::filesystem::current_path(previousPath_, error);
+        if (status_.ok())
+        {
+            try
+            {
+                std::error_code error;
+                std::filesystem::current_path(previousPath_, error);
+            }
+            catch (...) // NOLINT(bugprone-empty-catch) -- Destruction cannot report best-effort current-path restoration failure.
+            {
+            }
+        }
     }
 
     const std::filesystem::path &ScopedCurrentPath::previousPath() const noexcept
@@ -557,115 +726,299 @@ namespace GameWIP::TestSupport
         return previousPath_;
     }
 
-    std::string readTextFile(const std::filesystem::path &path)
+    Types::InfrastructureStatus ScopedCurrentPath::status() const noexcept
     {
-        std::ifstream file(path, std::ios::binary | std::ios::ate);
-        if (!file.is_open())
+        return status_;
+    }
+
+    Types::TextResult readTextFile(const std::filesystem::path &path) noexcept
+    {
+        Types::TextResult result;
+#if INTERNAL_TEST_SUPPORT_TEST_HOOKS
+        if (const auto injected = Detail::TestHooks::consumeFileFailure(TestHooks::FileFailurePoint::Read))
         {
+            result.status = failureStatus(Types::InfrastructureError::FileOperationFailed, *injected);
+            return result;
+        }
+#endif
+        try
+        {
+            errno = 0;
+            std::ifstream file(path, std::ios::binary | std::ios::ate);
+            if (!file.is_open())
+            {
+                result.status = failureStatus(Types::InfrastructureError::FileOperationFailed, static_cast<std::uint64_t>(errno));
+                return result;
+            }
+
+            const auto endPosition = file.tellg();
+            if (endPosition < std::ifstream::pos_type{0})
+            {
+                result.status = failureStatus(Types::InfrastructureError::FileOperationFailed, static_cast<std::uint64_t>(errno));
+                return result;
+            }
+            if (endPosition == std::ifstream::pos_type{0})
+            {
+                return result;
+            }
+
+            const auto fileSize = static_cast<std::uintmax_t>(endPosition);
+            if (fileSize > result.text.max_size())
+            {
+                result.status = failureStatus(Types::InfrastructureError::OutOfMemory);
+                return result;
+            }
+            if (fileSize > static_cast<std::uintmax_t>(std::numeric_limits<std::streamsize>::max()))
+            {
+                result.status = failureStatus(Types::InfrastructureError::FileOperationFailed);
+                return result;
+            }
+
+            result.text.resize(static_cast<std::size_t>(fileSize));
+            file.seekg(0, std::ios::beg);
+            if (!file)
+            {
+                result.text.clear();
+                result.status = failureStatus(Types::InfrastructureError::FileOperationFailed, static_cast<std::uint64_t>(errno));
+                return result;
+            }
+
+            file.read(result.text.data(), static_cast<std::streamsize>(result.text.size()));
+            result.text.resize(static_cast<std::size_t>(file.gcount()));
+            if (file.bad())
+            {
+                result.status = failureStatus(Types::InfrastructureError::FileOperationFailed, static_cast<std::uint64_t>(errno));
+            }
+            return result;
+        }
+        catch (const std::bad_alloc &)
+        {
+            result.status = failureStatus(Types::InfrastructureError::OutOfMemory);
+            return result;
+        }
+        catch (const std::length_error &)
+        {
+            result.status = failureStatus(Types::InfrastructureError::OutOfMemory);
+            return result;
+        }
+        catch (const std::filesystem::filesystem_error &error)
+        {
+            result.status = failureStatus(Types::InfrastructureError::FileOperationFailed, nativeCode(error.code()));
+            return result;
+        }
+        catch (...)
+        {
+            result.status = failureStatus(Types::InfrastructureError::FileOperationFailed);
+            return result;
+        }
+    }
+
+    Types::InfrastructureStatus writeTextFile(const std::filesystem::path &path, std::string_view text) noexcept
+    {
+#if INTERNAL_TEST_SUPPORT_TEST_HOOKS
+        if (const auto injected = Detail::TestHooks::consumeFileFailure(TestHooks::FileFailurePoint::Write))
+        {
+            return failureStatus(Types::InfrastructureError::FileOperationFailed, *injected);
+        }
+#endif
+        try
+        {
+            if (text.size() > static_cast<std::size_t>(std::numeric_limits<std::streamsize>::max()))
+            {
+                return failureStatus(Types::InfrastructureError::InvalidArgument);
+            }
+
+            const std::filesystem::path parentPath = path.parent_path();
+            if (!parentPath.empty())
+            {
+                const Types::InfrastructureStatus directoryStatus = createDirectories(parentPath);
+                if (!directoryStatus.ok())
+                {
+                    return directoryStatus;
+                }
+            }
+
+            errno = 0;
+            std::ofstream file(path, std::ios::binary | std::ios::trunc);
+            if (!file.is_open())
+            {
+                return failureStatus(Types::InfrastructureError::FileOperationFailed, static_cast<std::uint64_t>(errno));
+            }
+
+            file.write(text.data(), static_cast<std::streamsize>(text.size()));
+            file.flush();
+            if (!file)
+            {
+                return failureStatus(Types::InfrastructureError::FileOperationFailed, static_cast<std::uint64_t>(errno));
+            }
             return {};
         }
-
-        const auto endPosition = file.tellg();
-        if (endPosition <= std::ifstream::pos_type{0})
+        catch (const std::bad_alloc &)
         {
-            return {};
+            return failureStatus(Types::InfrastructureError::OutOfMemory);
         }
-
-        const auto fileSize = static_cast<std::uintmax_t>(endPosition);
-        std::string contents;
-        if (fileSize > contents.max_size())
+        catch (const std::length_error &)
         {
-            throw std::length_error("TestSupport text file is too large to read: " + path.string());
+            return failureStatus(Types::InfrastructureError::OutOfMemory);
         }
-
-        contents.resize(static_cast<std::size_t>(fileSize));
-        file.seekg(0, std::ios::beg);
-        file.read(contents.data(), static_cast<std::streamsize>(contents.size()));
-        contents.resize(static_cast<std::size_t>(file.gcount()));
-        return contents;
-    }
-
-    void writeTextFile(const std::filesystem::path &path, std::string_view text)
-    {
-        const std::filesystem::path parentPath = path.parent_path();
-        if (!parentPath.empty())
+        catch (const std::filesystem::filesystem_error &error)
         {
-            createDirectories(parentPath);
+            return failureStatus(Types::InfrastructureError::FileOperationFailed, nativeCode(error.code()));
         }
-
-        std::ofstream file(path, std::ios::binary | std::ios::trunc);
-        if (!file.is_open())
+        catch (...)
         {
-            throw std::runtime_error("TestSupport could not open text file for writing: " + path.string());
-        }
-
-        file << text;
-        if (!file)
-        {
-            throw std::runtime_error("TestSupport could not write text file: " + path.string());
+            return failureStatus(Types::InfrastructureError::FileOperationFailed);
         }
     }
 
-    bool fileExists(const std::filesystem::path &path) noexcept
+    Types::BoolResult fileExists(const std::filesystem::path &path) noexcept
     {
-        std::error_code error;
-        return std::filesystem::exists(path, error);
+        Types::BoolResult result;
+#if INTERNAL_TEST_SUPPORT_TEST_HOOKS
+        if (const auto injected = Detail::TestHooks::consumeFileFailure(TestHooks::FileFailurePoint::Exists))
+        {
+            result.status = failureStatus(Types::InfrastructureError::FileOperationFailed, *injected);
+            return result;
+        }
+#endif
+        try
+        {
+            std::error_code error;
+            result.value = std::filesystem::exists(path, error);
+            if (error)
+            {
+                result.status = failureStatus(Types::InfrastructureError::FileOperationFailed, nativeCode(error));
+            }
+            return result;
+        }
+        catch (const std::bad_alloc &)
+        {
+            result.status = failureStatus(Types::InfrastructureError::OutOfMemory);
+            return result;
+        }
+        catch (...)
+        {
+            result.status = failureStatus(Types::InfrastructureError::FileOperationFailed);
+            return result;
+        }
     }
 
-    bool fileContains(const std::filesystem::path &path, std::string_view text)
+    Types::BoolResult fileContains(const std::filesystem::path &path, std::string_view text) noexcept
     {
-        if (!fileExists(path))
+        Types::TextResult readResult = readTextFile(path);
+        Types::BoolResult result{.status = readResult.status};
+        if (result.status.ok())
         {
-            return false;
+            result.value = readResult.text.find(text) != std::string::npos;
         }
-
-        return readTextFile(path).find(text) != std::string::npos;
+        return result;
     }
 
-    std::size_t countFileOccurrences(const std::filesystem::path &path, std::string_view text)
+    Types::CountResult countFileOccurrences(const std::filesystem::path &path, std::string_view text) noexcept
     {
-        if (text.empty())
+        Types::TextResult readResult = readTextFile(path);
+        Types::CountResult result{.status = readResult.status};
+        if (!result.status.ok() || text.empty())
         {
-            return 0;
+            return result;
         }
 
-        const std::string contents = readTextFile(path);
-        std::size_t count = 0;
         std::size_t position = 0;
-        while ((position = contents.find(text, position)) != std::string::npos)
+        while ((position = readResult.text.find(text, position)) != std::string::npos)
         {
-            ++count;
+            ++result.count;
             position += text.size();
         }
-        return count;
+        return result;
     }
 
-    void createDirectories(const std::filesystem::path &path)
+    Types::InfrastructureStatus createDirectories(const std::filesystem::path &path) noexcept
     {
-        if (!path.empty())
+#if INTERNAL_TEST_SUPPORT_TEST_HOOKS
+        if (const auto injected = Detail::TestHooks::consumeFileFailure(TestHooks::FileFailurePoint::CreateDirectories))
         {
-            std::filesystem::create_directories(path);
+            return failureStatus(Types::InfrastructureError::FileOperationFailed, *injected);
+        }
+#endif
+        if (path.empty())
+        {
+            return {};
+        }
+
+        try
+        {
+            std::error_code error;
+            static_cast<void>(std::filesystem::create_directories(path, error));
+            return error ? failureStatus(Types::InfrastructureError::FileOperationFailed, nativeCode(error)) : Types::InfrastructureStatus{};
+        }
+        catch (const std::bad_alloc &)
+        {
+            return failureStatus(Types::InfrastructureError::OutOfMemory);
+        }
+        catch (...)
+        {
+            return failureStatus(Types::InfrastructureError::FileOperationFailed);
         }
     }
 
-    void removeIfExists(const std::filesystem::path &path)
+    Types::InfrastructureStatus removeIfExists(const std::filesystem::path &path) noexcept
     {
-        std::error_code error;
-        std::filesystem::remove_all(path, error);
+#if INTERNAL_TEST_SUPPORT_TEST_HOOKS
+        if (const auto injected = Detail::TestHooks::consumeFileFailure(TestHooks::FileFailurePoint::Remove))
+        {
+            return failureStatus(Types::InfrastructureError::FileOperationFailed, *injected);
+        }
+#endif
+        try
+        {
+            std::error_code error;
+            static_cast<void>(std::filesystem::remove_all(path, error));
+            return error ? failureStatus(Types::InfrastructureError::FileOperationFailed, nativeCode(error)) : Types::InfrastructureStatus{};
+        }
+        catch (const std::bad_alloc &)
+        {
+            return failureStatus(Types::InfrastructureError::OutOfMemory);
+        }
+        catch (...)
+        {
+            return failureStatus(Types::InfrastructureError::FileOperationFailed);
+        }
     }
 
-    ScopedEnvironmentVariable::ScopedEnvironmentVariable(std::string_view name, std::string_view value)
-        : name_(name)
+    ScopedEnvironmentVariable::ScopedEnvironmentVariable(std::string_view name, std::string_view value) noexcept
     {
-        // Lock only the snapshot-and-mutate operation. Holding a global lock for the full RAII
-        // lifetime would deadlock nested guards and would not coordinate external environment APIs.
-        std::lock_guard lock(environmentMutex);
-        previousValue_ = Detail::Platform::readEnvironmentVariable(name_);
-        Detail::Platform::setEnvironmentVariableValue(name_, value);
+        try
+        {
+            name_.assign(name);
+            // Lock only the snapshot-and-mutate operation. Holding a global lock for the full RAII
+            // lifetime would deadlock nested guards and would not coordinate external environment APIs.
+            std::lock_guard lock(environmentMutex);
+            Detail::Platform::EnvironmentReadResult readResult = Detail::Platform::readEnvironmentVariable(name_);
+            if (!readResult.status.ok())
+            {
+                status_ = readResult.status;
+                return;
+            }
+            previousValue_ = std::move(readResult.value);
+            status_ = Detail::Platform::setEnvironmentVariableValue(name_, value);
+        }
+        catch (const std::bad_alloc &)
+        {
+            status_ = failureStatus(Types::InfrastructureError::OutOfMemory);
+        }
+        catch (...)
+        {
+            status_ = failureStatus(Types::InfrastructureError::EnvironmentFailed);
+        }
     }
 
     ScopedEnvironmentVariable::~ScopedEnvironmentVariable() noexcept
     {
+        if (!status_.ok())
+        {
+            return;
+        }
+
         try
         {
             // Restoration is serialized as one mutation, but another overlapping scope may have
@@ -673,11 +1026,11 @@ namespace GameWIP::TestSupport
             std::lock_guard lock(environmentMutex);
             if (previousValue_)
             {
-                Detail::Platform::setEnvironmentVariableValue(name_, *previousValue_);
+                static_cast<void>(Detail::Platform::setEnvironmentVariableValue(name_, *previousValue_));
             }
             else
             {
-                Detail::Platform::unsetEnvironmentVariableValue(name_);
+                static_cast<void>(Detail::Platform::unsetEnvironmentVariableValue(name_));
             }
         }
         catch (...) // NOLINT(bugprone-empty-catch) -- Destruction cannot report a best-effort process-state restoration failure.
@@ -685,18 +1038,45 @@ namespace GameWIP::TestSupport
         }
     }
 
-    ScopedUnsetEnvironmentVariable::ScopedUnsetEnvironmentVariable(std::string_view name)
-        : name_(name)
+    Types::InfrastructureStatus ScopedEnvironmentVariable::status() const noexcept
     {
-        // Lock only the snapshot-and-mutate operation. Holding a global lock for the full RAII
-        // lifetime would deadlock nested guards and would not coordinate external environment APIs.
-        std::lock_guard lock(environmentMutex);
-        previousValue_ = Detail::Platform::readEnvironmentVariable(name_);
-        Detail::Platform::unsetEnvironmentVariableValue(name_);
+        return status_;
+    }
+
+    ScopedUnsetEnvironmentVariable::ScopedUnsetEnvironmentVariable(std::string_view name) noexcept
+    {
+        try
+        {
+            name_.assign(name);
+            // Lock only the snapshot-and-mutate operation. Holding a global lock for the full RAII
+            // lifetime would deadlock nested guards and would not coordinate external environment APIs.
+            std::lock_guard lock(environmentMutex);
+            Detail::Platform::EnvironmentReadResult readResult = Detail::Platform::readEnvironmentVariable(name_);
+            if (!readResult.status.ok())
+            {
+                status_ = readResult.status;
+                return;
+            }
+            previousValue_ = std::move(readResult.value);
+            status_ = Detail::Platform::unsetEnvironmentVariableValue(name_);
+        }
+        catch (const std::bad_alloc &)
+        {
+            status_ = failureStatus(Types::InfrastructureError::OutOfMemory);
+        }
+        catch (...)
+        {
+            status_ = failureStatus(Types::InfrastructureError::EnvironmentFailed);
+        }
     }
 
     ScopedUnsetEnvironmentVariable::~ScopedUnsetEnvironmentVariable() noexcept
     {
+        if (!status_.ok())
+        {
+            return;
+        }
+
         try
         {
             // Restoration is serialized as one mutation, but another overlapping scope may have
@@ -704,11 +1084,11 @@ namespace GameWIP::TestSupport
             std::lock_guard lock(environmentMutex);
             if (previousValue_)
             {
-                Detail::Platform::setEnvironmentVariableValue(name_, *previousValue_);
+                static_cast<void>(Detail::Platform::setEnvironmentVariableValue(name_, *previousValue_));
             }
             else
             {
-                Detail::Platform::unsetEnvironmentVariableValue(name_);
+                static_cast<void>(Detail::Platform::unsetEnvironmentVariableValue(name_));
             }
         }
         catch (...) // NOLINT(bugprone-empty-catch) -- Destruction cannot report a best-effort process-state restoration failure.
@@ -716,14 +1096,9 @@ namespace GameWIP::TestSupport
         }
     }
 
-    bool Types::ChildProcessResult::exitedSuccessfully() const noexcept
+    Types::InfrastructureStatus ScopedUnsetEnvironmentVariable::status() const noexcept
     {
-        return !infrastructureFailure && exitCode == 0 && !timedOut && !wasTerminatedByTest;
-    }
-
-    bool Types::ChildProcessResult::exitedWithFailure() const noexcept
-    {
-        return infrastructureFailure || exitCode != 0 || timedOut || wasTerminatedByTest;
+        return status_;
     }
 
     Types::ManualAnswer promptManualCheck(std::string_view question)

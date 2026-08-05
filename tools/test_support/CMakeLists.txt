@@ -1,6 +1,8 @@
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 
+option(TEST_SUPPORT_ENABLE_TEST_HOOKS "Enable TestSupport internal test hooks" OFF)
+
 if(NOT COMMAND gamewip_target_platform_sources)
     include("${PROJECT_SOURCE_DIR}/cmake/LibraryPlatform.cmake")
     gamewip_resolve_platform_id(GAMEWIP_PLATFORM_ID)
@@ -12,6 +14,7 @@ add_library(GameWIP::TestSupport ALIAS TestSupport)
 target_sources(TestSupport
     PRIVATE
         core/test_support.cpp
+        core/test_support_test_hooks.cpp
     PUBLIC
         FILE_SET public_headers
         TYPE HEADERS
@@ -27,6 +30,28 @@ target_include_directories(TestSupport PUBLIC
 )
 
 target_compile_features(TestSupport PUBLIC cxx_std_23)
+target_compile_definitions(TestSupport
+    PRIVATE
+        INTERNAL_TEST_SUPPORT_TEST_HOOKS=$<BOOL:${TEST_SUPPORT_ENABLE_TEST_HOOKS}>
+    INTERFACE
+        $<BUILD_INTERFACE:INTERNAL_TEST_SUPPORT_TEST_HOOKS=$<BOOL:${TEST_SUPPORT_ENABLE_TEST_HOOKS}>>
+)
+
+# TestSupport is the validation leaf and must not acquire another GameWIP library dependency.
+set(test_support_forbidden_gamewip_targets
+    IO FileSystem Terminal Window Logger Assert
+    GameWIP::IO GameWIP::FileSystem GameWIP::Terminal GameWIP::Window GameWIP::Logger GameWIP::Assert
+)
+foreach(property_name LINK_LIBRARIES INTERFACE_LINK_LIBRARIES)
+    get_target_property(property_value TestSupport ${property_name})
+    if(property_value)
+        foreach(link_item IN LISTS property_value)
+            if(link_item IN_LIST test_support_forbidden_gamewip_targets OR link_item MATCHES "^GameWIP::")
+                message(FATAL_ERROR "TestSupport must not depend on another GameWIP library, but ${property_name} contains '${link_item}'.")
+            endif()
+        endforeach()
+    endif()
+endforeach()
 
 set_target_properties(TestSupport PROPERTIES
     ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"

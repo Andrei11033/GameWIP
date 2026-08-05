@@ -20,6 +20,7 @@ Include `test_support/test_support.h`. Passive configuration and result values l
 ## Maintainer validation
 
 - @subpage test_support_testing
+- @subpage test_support_test_hooks
 
 ## Generated API reference
 
@@ -30,7 +31,7 @@ Use @ref GameWIP::TestSupport for active helpers and @ref GameWIP::TestSupport::
 - Expectations record one pass or failure and return a boolean; they do not abort the suite.
 - `Runner` converts an uncaught suite exception into one failed check, records the completed suite, and permits later suites to run.
 - Report-file failure disables only that file sink. It does not alter pass, failure, or skip counts.
-- Filesystem, current-directory, and environment helpers are convenient test infrastructure. Process-global state still requires exclusive coordination by the test executable.
+- Filesystem, current-directory, environment, and child-process helpers return TestSupport-owned infrastructure status without depending on another GameWIP library. Process-global state still requires exclusive coordination by the test executable.
 - Child-process and manual-input helpers can block. Child timeouts begin termination but are not strict upper bounds on total cleanup time.
 - RAII cleanup and state restoration performed by destructors are best effort and cannot report failure.
 

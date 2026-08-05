@@ -75,6 +75,8 @@ Reusable libraries own their own `CMakeLists.txt` files. A library CMake file mu
 
 Avoid global include directories, global compile definitions, and recursive source discovery for maintained library sources.
 
+TestSupport is a dependency leaf among reusable GameWIP targets: its CMake target must not link another GameWIP library. `TEST_SUPPORT_ENABLE_TEST_HOOKS` may enable deterministic failure injection only for source-tree validation composition; neither the option's internal compile definition nor its hook header belongs to the installed target.
+
 ## Documentation helpers
 
 Use `gamewip_register_doxygen_inputs()` for project-level Doxygen pages and other explicit Doxygen inputs.
@@ -169,7 +171,7 @@ These helpers are controlled by presets and `GAMEWIP_` options. Do not enable co
 
 `gamewip_configure_version()` generates the build identity used by runtime diagnostics and documentation. Version policy is documented in @ref project_versioning.
 
-Package-boundary validation is part of the validation workflow. Changes to install rules, exported targets, package config files, exact version files, or public dependency visibility must preserve clean installed-consumer validation.
+Package-boundary validation is part of the validation workflow. Changes to install rules, exported targets, package config files, exact version files, or public dependency visibility must preserve clean installed-consumer validation. Combined and isolated consumers must also reject every source-tree-only test-hook definition, including TestSupport's.
 
 Shared-library exported-symbol checks use allowlists under `cmake/export_allowlists/`. Update an allowlist only when the public exported surface intentionally changes.
 

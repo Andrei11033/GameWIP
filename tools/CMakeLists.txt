@@ -15,4 +15,8 @@ set(ASSERT_ENABLE_TEST_HOOKS ${GAMEWIP_TESTS_REQUIRED}
     CACHE BOOL "Enable Assert internal test hooks" FORCE
 )
 add_subdirectory(debug/assert)
+
+set(TEST_SUPPORT_ENABLE_TEST_HOOKS ${GAMEWIP_TESTS_REQUIRED}
+    CACHE BOOL "Enable TestSupport internal test hooks" FORCE
+)
 add_subdirectory(test_support)

@@ -4,11 +4,9 @@ Child execution is configured through `Types::ChildProcessOptions`, returns `Typ
 
 ## Launch model
 
-The executable is launched directly; no shell is involved. Shell expansion, pipelines, quoting syntax from a shell, and redirection operators are not interpreted. TestSupport quotes the argument vector according to Windows command-line rules.
+The executable is launched directly; no shell is involved. Shell expansion, pipelines, shell quoting, and redirection operators are not interpreted. TestSupport quotes the argument vector according to Windows command-line rules.
 
-The child inherits the parent's working directory. The API does not provide a child working-directory option or stdin payload.
-
-`executablePath` uses native `std::filesystem::path` representation. Narrow arguments and environment names/values are UTF-8. Embedded nulls are rejected. Environment names must be non-empty and contain no `=`.
+The child inherits the parent's working directory. `executablePath` uses native `std::filesystem::path` representation. Narrow arguments and environment names/values are UTF-8. Embedded nulls are rejected, and environment names must be non-empty and contain no `=`.
 
 ## Environment block
 
@@ -16,40 +14,40 @@ When `inheritParentEnvironment` is true, the parent block is copied before overr
 
 ## Standard handles and capture
 
-When capture is enabled, child stdout and stderr share one pipe. They cannot be separated afterward; retained byte order reflects the actual writes observed by the pipe.
+When capture is enabled, child stdout and stderr share one pipe. `output` stores retained raw bytes without UTF-8 validation or newline conversion. At most `maxCapturedOutputBytes` are retained; excess bytes continue to be drained. `outputTruncated` is true only when bytes were discarded because of this limit.
 
-`output` stores raw bytes in `std::string`. TestSupport does not validate UTF-8 or perform newline conversion. At most `maxCapturedOutputBytes` are retained, while excess bytes continue to be drained and are discarded. `outputTruncated` is true only when bytes were actually discarded. A zero limit with a silent child is not truncated.
+A capture failure is reported through `status` and may preserve partial output. `outputTruncated` does not mean capture failed.
 
-When capture is disabled, the child receives inheritable duplicates of the selected parent standard handles, `output` stays empty, and the retained limit is ignored. Other inheritable parent handles are excluded through an explicit handle allowlist.
+When capture is disabled, the child receives inheritable duplicates of the selected parent standard handles. Other inheritable parent handles are excluded through an explicit allowlist.
 
 ## Timeout and process tree
 
 A negative timeout waits indefinitely. Zero performs an immediate wait. Durations above the largest finite Win32 wait are clamped.
 
-Timeout controls when termination begins; it is not a strict upper bound on total `runChildProcess()` duration. TestSupport still completes job termination, process inspection, and output-reader shutdown before returning.
+Timeout controls when termination begins; it is not a strict total-duration limit. TestSupport completes job termination and output-reader shutdown before returning. A successfully enforced timeout has successful infrastructure status and `ChildProcessOutcome::TimedOut`.
 
-The process is assigned to a Win32 job before it is resumed. Timeout and infrastructure failures terminate the job. Remaining descendants are also terminated after the primary process completes so descendants cannot retain capture handles indefinitely.
-
-`wasTerminatedByTest` describes TestSupport's primary-process termination handling. It does not enumerate every descendant terminated by the job.
+The process is assigned to a Win32 job before it is resumed. Failure recovery and timeouts terminate the job. Remaining descendants are also terminated after primary-process completion so they cannot retain capture handles indefinitely.
 
 ## Result interpretation
 
-Inspect fields together:
+Interpret infrastructure status and child outcome independently:
 
-1. `timedOut` says whether the configured wait expired.
-2. `wasTerminatedByTest` says TestSupport requested termination during timeout or infrastructure-failure handling.
-3. `infrastructureFailure` distinguishes launch, setup, wait, inspection, or capture failure from a child result.
-4. `exitCode` is the complete native unsigned 32-bit code when `infrastructureFailure` is false.
+| Situation | Status | Outcome | Exit code |
+| --- | --- | --- | --- |
+| Child exits zero or nonzero | Success | `Exited` | Exact native code |
+| Timeout is enforced | Success | `TimedOut` | Not meaningful |
+| Setup or launch fails before creation | Failed | `NotStarted` | Not meaningful |
+| Failure recovery requests termination | Failed | `TerminatedDuringCleanup` | Not meaningful |
+| Exit inspection fails after launch | `ProcessInspectionFailed` | `OutcomeUnavailable` | Not meaningful |
+| Capture fails but exit inspection succeeds | `CaptureFailed` | `Exited` | Exact native code |
 
-Infrastructure failure leaves `exitCode` at zero; inspect `infrastructureFailure` rather than using a sentinel. Native values from `0` through `0xffffffff` are represented without narrowing or collision.
+`nativeCode` retains the Win32 or standard-library diagnostic when available. Values from `0` through `0xffffffff` remain representable without colliding with child exit codes.
 
-The exit code following test-requested termination is not a portable child result. `exitedSuccessfully()` means zero exit with no infrastructure failure, timeout, or test termination. `exitedWithFailure()` is true for infrastructure failure, any nonzero exit, timeout, or test termination.
+## Failure behavior
 
-## Exceptions
+`runChildProcess()` is `noexcept`. Invalid input, unsupported platforms, allocation failure, setup, launch, pipe, capture, thread, wait, inspection, and cleanup failures are returned through `status`.
 
-Invalid process text throws `std::invalid_argument`. Oversized UTF-8 conversion input throws `std::length_error`. Unexpected text-conversion failure throws `std::runtime_error`. Standard allocation/path exceptions may also propagate.
-
-Platform launch and wait failures normally return `infrastructureFailure == true` rather than throwing.
+Caller-side construction of allocating option fields remains governed by their standard-library types. A failed result may retain useful child outcome, exit-code, output, and truncation evidence when those values were observed before the failure.
 
 ## Related pages
 

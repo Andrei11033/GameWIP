@@ -118,6 +118,8 @@ A hook interface must define:
 
 Libraries with approved hooks should provide `docs/test_hooks.md` using the structure in @ref project_documentation.
 
+Failure-injection hooks must be deterministic, resettable, and narrow enough to identify the intended failure boundary. Tests must verify the same public status, native diagnostic, payload, and cleanup invariants that a real failure promises. Installed-consumer checks must reject the enabling compile definition so hooks cannot become accidental package API.
+
 ## Add a correctness-test module
 
 Create modules under:
@@ -128,7 +130,7 @@ game/validation/tests/<module>/
 
 A module must have a stable lowercase name, deterministic order, explicit sources, and a `module.cpp` registration. The registration name must match the CMake module name.
 
-Tests must be deterministic, isolated, and behavior-focused. Use TestSupport scopes for temporary filesystem state. Use child-process execution only for scenarios that require process isolation. Use approved hooks only when public APIs cannot validate the scenario.
+Tests must be deterministic, isolated, and behavior-focused. Use TestSupport scopes for temporary filesystem state and inspect each scope's construction status before using it. Inspect infrastructure result status before consuming its payload. Use child-process execution only for scenarios that require process isolation, and evaluate its infrastructure status separately from its process outcome and exit code. Use approved hooks only when public APIs cannot validate the scenario.
 
 Run focused and aggregate validation before merge:
 

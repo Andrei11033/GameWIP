@@ -71,8 +71,9 @@ void validateFixture(
 
 - `Runner::runSuite()` catches exceptions thrown by the suite callable and records one failed check named `uncaught exception`.
 - Reporting and report-file operations do not determine the test result. A report-file open, write, or flush failure disables that sink and emits at most one stderr diagnostic.
-- Formatting, allocation, path conversion, filesystem setup, standard-stream, and thread-creation failures can still throw from APIs that are not marked `noexcept`.
-- `runChildProcess()` preserves the native `std::uint32_t` exit code and reports launch, wait, inspection, or capture failure separately through `infrastructureFailure`. Inspect that flag, `timedOut`, and `wasTerminatedByTest` before interpreting the exit code.
+- File, environment, guard-construction, and child-process helpers convert expected implementation failures into `Types::InfrastructureStatus`.
+- `runChildProcess()` reports infrastructure through `status` and child behavior through `outcome`. Interpret `exitCode` only for `ChildProcessOutcome::Exited`; nonzero exit and enforced timeout are not infrastructure failures.
+- Caller-side construction of allocating strings, paths, vectors, and options remains governed by their standard-library types.
 - `runner.exitCode()` reflects recorded failures only. A skipped-only or empty run returns zero.
 
 ## Where to go next

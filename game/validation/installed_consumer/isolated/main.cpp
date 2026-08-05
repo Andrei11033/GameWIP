@@ -2,7 +2,7 @@
 /// @brief Isolated installed-package dependency-discovery check.
 
 #if defined(INTERNAL_FILESYSTEM_TEST_HOOKS) || defined(INTERNAL_TERMINAL_TEST_HOOKS) || defined(INTERNAL_LOGGER_TEST_HOOKS) || \
-    defined(INTERNAL_ASSERT_TEST_HOOKS) || defined(INTERNAL_WINDOW_TEST_HOOKS)
+    defined(INTERNAL_ASSERT_TEST_HOOKS) || defined(INTERNAL_TEST_SUPPORT_TEST_HOOKS) || defined(INTERNAL_WINDOW_TEST_HOOKS)
 #error "Installed GameWIP targets must not expose internal test-hook compile definitions."
 #endif
 
@@ -30,6 +30,8 @@
 #error "An isolated consumer package must be selected."
 #endif
 
+#include <string>
+
 int main()
 {
 #if defined(GAMEWIP_CONSUMER_IO)
@@ -56,7 +58,12 @@ int main()
     return 0;
 #elif defined(GAMEWIP_CONSUMER_TestSupport)
     GameWIP::TestSupport::Timer timer;
-    return timer.elapsedMilliseconds() >= 0.0 ? 0 : 1;
+    const GameWIP::TestSupport::Types::InfrastructureStatus status;
+    const GameWIP::TestSupport::Types::ChildProcessResult childResult;
+    const std::string statusText = GameWIP::TestSupport::formatInfrastructureStatus(status);
+    const bool defaultsAreUsable = status.ok() && statusText == "None" && childResult.status.ok() &&
+                                   childResult.outcome == GameWIP::TestSupport::Types::ChildProcessOutcome::NotStarted;
+    return timer.elapsedMilliseconds() >= 0.0 && defaultsAreUsable ? 0 : 1;
 #elif defined(__INTELLISENSE__)
     GameWIP::Window::Window window;
     return GameWIP::Window::Renderer::attachOcclusionProvider(window).code == GameWIP::IO::Types::ErrorCode::NotOpen &&

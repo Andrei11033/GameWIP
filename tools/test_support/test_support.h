@@ -15,6 +15,7 @@
 #include <chrono>
 #include <condition_variable>
 #include <cstddef>
+#include <cstdint>
 #include <exception>
 #include <filesystem>
 #include <memory>
@@ -68,6 +69,85 @@ namespace GameWIP::TestSupport
     /// @brief Report, suite, child-process, and manual-check types.
     namespace Types
     {
+        /// @brief Portable error categories for TestSupport-owned infrastructure operations.
+        /// @note Enumerator numeric values are not serialization identifiers or stable wire-format values.
+        enum class InfrastructureError : std::uint8_t
+        {
+            /// @brief The infrastructure operation completed successfully.
+            None,
+            /// @brief An argument was invalid after control entered the operation.
+            InvalidArgument,
+            /// @brief The requested operation has no supported backend on the current platform.
+            Unsupported,
+            /// @brief TestSupport could not allocate implementation-owned storage.
+            OutOfMemory,
+            /// @brief Native process state, handles, jobs, attributes, or startup sequencing could not be prepared.
+            ProcessSetupFailed,
+            /// @brief The child executable could not be launched.
+            ProcessLaunchFailed,
+            /// @brief Timeout or failure cleanup could not be completed as requested.
+            ProcessCleanupFailed,
+            /// @brief The child-output pipe could not be created or configured.
+            PipeCreationFailed,
+            /// @brief Output capture setup, reading, or worker execution failed.
+            CaptureFailed,
+            /// @brief Waiting for a child process failed.
+            WaitFailed,
+            /// @brief A started child process could not be inspected for its exit code.
+            ProcessInspectionFailed,
+            /// @brief An environment read or mutation failed.
+            EnvironmentFailed,
+            /// @brief A filesystem or text-file operation failed.
+            FileOperationFailed,
+            /// @brief A platform operation failed without a more specific stable category.
+            PlatformFailure
+        };
+
+        /// @brief Compact status returned by expected TestSupport infrastructure operations.
+        /// @details A successful status has `error == InfrastructureError::None` and `nativeCode == 0`.
+        /// A failed status preserves a platform-native or standard-library diagnostic code when one is available;
+        /// zero means that no numeric diagnostic was available.
+        struct InfrastructureStatus
+        {
+            /// @brief Stable TestSupport-owned error category.
+            InfrastructureError error = InfrastructureError::None;
+            /// @brief Platform-native diagnostic code, or zero when unavailable.
+            std::uint64_t nativeCode = 0;
+
+            /// @brief Returns true only when the infrastructure operation completed successfully.
+            [[nodiscard]] constexpr bool ok() const noexcept
+            {
+                return error == InfrastructureError::None;
+            }
+        };
+
+        /// @brief Result returned by a text-producing infrastructure operation.
+        struct TextResult
+        {
+            /// @brief Infrastructure operation status.
+            InfrastructureStatus status;
+            /// @brief Text retained by the operation; a failed result may contain useful partial text.
+            std::string text;
+        };
+
+        /// @brief Result returned by a boolean infrastructure query.
+        struct BoolResult
+        {
+            /// @brief Infrastructure operation status.
+            InfrastructureStatus status;
+            /// @brief Domain value. Interpret this field only as documented by the owning operation.
+            bool value = false;
+        };
+
+        /// @brief Result returned by a counting infrastructure query.
+        struct CountResult
+        {
+            /// @brief Infrastructure operation status.
+            InfrastructureStatus status;
+            /// @brief Count produced by the operation; zero remains a valid successful value.
+            std::size_t count = 0;
+        };
+
         /// @brief Controls which report categories are mirrored to stdout.
         enum class ConsoleVerbosity
         {
@@ -129,6 +209,16 @@ namespace GameWIP::TestSupport
         };
 
     } // namespace Types
+    /// @}
+
+    /// @name Infrastructure status helpers
+    /// @{
+
+    /// @brief Formats a TestSupport infrastructure status for human-readable reporting.
+    /// @param status Status to describe.
+    /// @return Stable error-category name plus the numeric native diagnostic when present.
+    /// @note Formatting is performed only when this function is called and may allocate.
+    [[nodiscard]] std::string formatInfrastructureStatus(const Types::InfrastructureStatus &status);
     /// @}
 
     /// @name Timing helpers
@@ -288,27 +378,26 @@ namespace GameWIP::TestSupport
             std::string_view expectedSubstring,
             std::source_location location = std::source_location::current());
 
-        /// @brief Expects `fileContains(path, expectedSubstring)` to succeed.
+        /// @brief Expects `fileContains(path, expectedSubstring)` to return successful status and true.
         /// @param name Check name written into the report.
         /// @param path Text file to read.
-        /// @param expectedSubstring Substring that must appear in the helper's returned text. An empty substring inherits `fileContains()` ambiguity.
+        /// @param expectedSubstring Substring that must appear in the successfully read file text.
         /// @param location Source location attached when the expectation fails.
-        /// @return True when `fileContains()` returns true.
-        /// @note Use `fileExists()` or a detailed I/O API when existence/readability is a separate requirement.
+        /// @return True when the file read succeeds and the returned value is true.
         [[nodiscard]] bool expectFileContains(
             std::string_view name,
             const std::filesystem::path &path,
             std::string_view expectedSubstring,
             std::source_location location = std::source_location::current());
 
-        /// @brief Expects `countFileOccurrences(path, text)` to equal expectedCount.
+        /// @brief Expects `countFileOccurrences(path, text)` to return successful status and expectedCount.
         /// @param name Check name written into the report.
         /// @param path Text file to read.
         /// @param text Non-overlapping substring to count. Empty text counts as zero.
         /// @param expectedCount Required occurrence count.
         /// @param location Source location attached when the expectation fails.
         /// @return True when the helper's observed count equals expectedCount.
-        /// @note A zero count does not distinguish no matches from missing or unreadable input.
+        /// @note Failed reads are reported as expectation failures independently from a returned zero count.
         [[nodiscard]] bool expectFileOccurrenceCount(
             std::string_view name,
             const std::filesystem::path &path,
@@ -421,15 +510,14 @@ namespace GameWIP::TestSupport
 
     /// @brief Owns one unique directory under the operating-system temporary directory.
     ///
-    /// The non-copyable, non-movable guard removes its complete tree at destruction. Construction
-    /// uses a sanitized readable purpose plus bounded collision retries. Destruction is best effort;
+    /// The non-copyable, non-movable guard removes its complete tree at destruction. Non-throwing construction
+    /// uses a sanitized readable purpose plus bounded collision retries and leaves the guard inert on failure. Destruction is best effort;
     /// locked resources, external activity, or abnormal process termination can leave artifacts.
     class ScopedTemporaryDirectory
     {
     public:
-        /// @brief Creates a unique temporary directory using purpose as its readable name prefix.
-        /// @throws std::filesystem::filesystem_error when the temporary root cannot be resolved or created.
-        explicit ScopedTemporaryDirectory(std::string_view purpose = "test");
+        /// @brief Attempts to create a unique temporary directory using purpose as its readable name prefix.
+        explicit ScopedTemporaryDirectory(std::string_view purpose = "test") noexcept;
         /// @brief Best-effort removes the owned directory tree and empty GameWIP temp parents.
         ~ScopedTemporaryDirectory() noexcept;
 
@@ -445,23 +533,25 @@ namespace GameWIP::TestSupport
         /// @brief Returns the owned temporary directory path.
         /// @return Object-owned reference valid until this guard is destroyed.
         [[nodiscard]] const std::filesystem::path &path() const noexcept;
+        /// @brief Returns the construction status. A failed guard is inert and has an empty path.
+        [[nodiscard]] Types::InfrastructureStatus status() const noexcept;
 
     private:
         std::filesystem::path path_;
         std::filesystem::path root_;
+        Types::InfrastructureStatus status_;
     };
 
     /// @brief Temporarily changes the process working directory and restores it on destruction.
     ///
     /// The current directory is process-global. Safe use requires strict LIFO scope ownership and
-    /// no unrelated relative-path resolution or direct current-directory mutation. Construction
-    /// throws on setup failure; destruction performs a best-effort restore and suppresses errors.
+    /// no unrelated relative-path resolution or direct current-directory mutation. Failed construction
+    /// leaves an inert guard; destruction performs a best-effort restore and suppresses errors.
     class ScopedCurrentPath
     {
     public:
-        /// @brief Stores the current working directory and changes it to path.
-        /// @throws std::filesystem::filesystem_error when the current directory cannot be read or changed.
-        explicit ScopedCurrentPath(const std::filesystem::path &path);
+        /// @brief Attempts to store the current working directory and change it to path.
+        explicit ScopedCurrentPath(const std::filesystem::path &path) noexcept;
         /// @brief Best-effort restores the captured working directory.
         ~ScopedCurrentPath() noexcept;
 
@@ -477,54 +567,52 @@ namespace GameWIP::TestSupport
         /// @brief Returns the working directory that will be restored.
         /// @return Object-owned reference valid until this guard is destroyed.
         [[nodiscard]] const std::filesystem::path &previousPath() const noexcept;
+        /// @brief Returns the construction status. A failed guard performs no restoration.
+        [[nodiscard]] Types::InfrastructureStatus status() const noexcept;
 
     private:
         std::filesystem::path previousPath_;
+        Types::InfrastructureStatus status_;
     };
 
-    /// @brief Reads one file in binary mode through a single whole-file convenience operation.
+    /// @brief Reads one file in binary mode through a single non-throwing whole-file convenience operation.
     /// @param path Text file path.
-    /// @return Read bytes, or empty text for an empty file, open failure, or non-positive initial size.
-    /// @note The function performs no encoding, BOM, or newline conversion and cannot distinguish its empty-result cases.
-    /// @note A short stream read returns the bytes actually read; standard path, allocation, length, or stream exceptions may propagate.
-    [[nodiscard]] std::string readTextFile(const std::filesystem::path &path);
+    /// @return Infrastructure status and bytes read. Empty text remains a successful empty-file result.
+    /// @note The function performs no encoding, BOM, or newline conversion. A failed result may retain bytes read before failure.
+    [[nodiscard]] Types::TextResult readTextFile(const std::filesystem::path &path) noexcept;
 
     /// @brief Creates parent directories and writes one file in binary truncate mode.
     /// @param path Text file path.
     /// @param text Bytes written unchanged; no encoding or newline conversion is performed.
-    /// @throws std::filesystem::filesystem_error when parent-directory creation fails.
-    /// @throws std::runtime_error when the file cannot be opened or written.
-    /// @throws std::exception Standard path, allocation, length, or stream exceptions may also propagate.
-    void writeTextFile(const std::filesystem::path &path, std::string_view text);
+    /// @return Success, or an explicit file/allocation failure with a native diagnostic when available.
+    [[nodiscard]] Types::InfrastructureStatus writeTextFile(const std::filesystem::path &path, std::string_view text) noexcept;
 
     /// @brief Queries whether path exists without throwing filesystem errors.
     /// @param path File or directory path.
-    /// @return True when the filesystem reports that path exists; false for missing paths and query errors.
-    [[nodiscard]] bool fileExists(const std::filesystem::path &path) noexcept;
+    /// @return Successful false for absence, successful true for existence, or failed status for an inspection error.
+    [[nodiscard]] Types::BoolResult fileExists(const std::filesystem::path &path) noexcept;
 
-    /// @brief Searches the bytes returned by `readTextFile()` after an existence query.
+    /// @brief Searches the bytes returned by `readTextFile()`.
     /// @param path Text file to read.
     /// @param text Substring to search for. An empty substring succeeds for any existing path whose read returns empty text.
-    /// @return True when path exists and text appears in the helper's returned bytes.
-    /// @note Open/read failure is not distinguishable from empty content.
-    [[nodiscard]] bool fileContains(const std::filesystem::path &path, std::string_view text);
+    /// @return Read status plus whether text appears in the returned bytes.
+    [[nodiscard]] Types::BoolResult fileContains(const std::filesystem::path &path, std::string_view text) noexcept;
 
     /// @brief Counts non-overlapping occurrences in the bytes returned by `readTextFile()`.
     /// @param path Text file to read.
     /// @param text Substring to count. Empty text returns zero.
-    /// @return Number of non-overlapping occurrences.
-    /// @note Zero also represents missing/unreadable input and no matches.
-    [[nodiscard]] std::size_t countFileOccurrences(const std::filesystem::path &path, std::string_view text);
+    /// @return Read status plus the number of non-overlapping occurrences. Zero remains a valid successful count.
+    [[nodiscard]] Types::CountResult countFileOccurrences(const std::filesystem::path &path, std::string_view text) noexcept;
 
     /// @brief Creates a directory tree when path is non-empty.
     /// @param path Directory path to create; an empty path is a no-op.
-    /// @throws std::filesystem::filesystem_error when creation fails.
-    void createDirectories(const std::filesystem::path &path);
+    /// @return Success for an empty path, an existing directory tree, or successful creation; otherwise a failed status.
+    [[nodiscard]] Types::InfrastructureStatus createDirectories(const std::filesystem::path &path) noexcept;
 
-    /// @brief Best-effort removes a file or complete directory tree.
+    /// @brief Removes a file or complete directory tree without throwing expected infrastructure failures.
     /// @param path File or directory tree to remove.
-    /// @note All removal errors are intentionally suppressed for cleanup convenience.
-    void removeIfExists(const std::filesystem::path &path);
+    /// @return Success when path is absent or removed, otherwise a failed status.
+    [[nodiscard]] Types::InfrastructureStatus removeIfExists(const std::filesystem::path &path) noexcept;
     /// @}
 
     /// @name Environment helpers
@@ -538,13 +626,10 @@ namespace GameWIP::TestSupport
     class ScopedEnvironmentVariable
     {
     public:
-        /// @brief Sets name to value and stores the previous value, if any.
+        /// @brief Attempts to set name to value and store the previous value, if any.
         /// @param name Environment variable name.
         /// @param value Temporary UTF-8 value visible to `std::getenv()` and child processes. An empty value removes the variable on Win32.
-        /// @throws std::invalid_argument for an empty/invalid name, embedded null, or invalid UTF-8 text.
-        /// @throws std::length_error when conversion input exceeds the Win32 limit.
-        /// @throws std::runtime_error when conversion or environment mutation fails.
-        ScopedEnvironmentVariable(std::string_view name, std::string_view value);
+        ScopedEnvironmentVariable(std::string_view name, std::string_view value) noexcept;
         /// @brief Best-effort restores the previous value or unsets name when it was previously missing.
         ~ScopedEnvironmentVariable() noexcept;
 
@@ -558,21 +643,22 @@ namespace GameWIP::TestSupport
         /// @brief Process-global environment ownership cannot be move-assigned.
         ScopedEnvironmentVariable &operator=(ScopedEnvironmentVariable &&) = delete;
 
+        /// @brief Returns the construction status. A failed guard is inert.
+        [[nodiscard]] Types::InfrastructureStatus status() const noexcept;
+
     private:
         std::string name_;
         std::optional<std::string> previousValue_;
+        Types::InfrastructureStatus status_;
     };
 
     /// @brief Temporarily unsets an environment variable and restores the previous state on destruction.
     class ScopedUnsetEnvironmentVariable
     {
     public:
-        /// @brief Unsets name and stores the previous value, if any.
+        /// @brief Attempts to unset name and store the previous value, if any.
         /// @param name Environment variable name to unset temporarily.
-        /// @throws std::invalid_argument for an empty/invalid name, embedded null, or invalid UTF-8 text.
-        /// @throws std::length_error when conversion input exceeds the Win32 limit.
-        /// @throws std::runtime_error when conversion or environment mutation fails.
-        explicit ScopedUnsetEnvironmentVariable(std::string_view name);
+        explicit ScopedUnsetEnvironmentVariable(std::string_view name) noexcept;
         /// @brief Best-effort restores the previous value or leaves name unset when it was previously missing.
         ~ScopedUnsetEnvironmentVariable() noexcept;
 
@@ -586,9 +672,13 @@ namespace GameWIP::TestSupport
         /// @brief Process-global environment ownership cannot be move-assigned.
         ScopedUnsetEnvironmentVariable &operator=(ScopedUnsetEnvironmentVariable &&) = delete;
 
+        /// @brief Returns the construction status. A failed guard is inert.
+        [[nodiscard]] Types::InfrastructureStatus status() const noexcept;
+
     private:
         std::string name_;
         std::optional<std::string> previousValue_;
+        Types::InfrastructureStatus status_;
     };
     /// @}
 
@@ -629,27 +719,34 @@ namespace GameWIP::TestSupport
             bool inheritParentEnvironment = true;
         };
 
+        /// @brief Observable outcome of one child process, separate from TestSupport infrastructure status.
+        enum class ChildProcessOutcome : std::uint8_t
+        {
+            /// @brief The child process was never created.
+            NotStarted,
+            /// @brief The child exited and `ChildProcessResult::exitCode` is exact.
+            Exited,
+            /// @brief The configured wait expired; timeout is a successful domain outcome when enforcement succeeds.
+            TimedOut,
+            /// @brief TestSupport requested termination while recovering from an infrastructure failure.
+            TerminatedDuringCleanup,
+            /// @brief The child started, but its final outcome could not be inspected.
+            OutcomeUnavailable
+        };
+
         /// @brief Result of one child-process execution.
         struct ChildProcessResult
         {
-            /// @brief Complete native process exit code when infrastructureFailure is false.
+            /// @brief TestSupport infrastructure status, independent of the child-process outcome.
+            InfrastructureStatus status;
+            /// @brief Complete native exit code, meaningful only when `outcome == ChildProcessOutcome::Exited`.
             std::uint32_t exitCode = 0;
-            /// @brief True when launch, setup, wait, inspection, or capture infrastructure failed.
-            bool infrastructureFailure = true;
-            /// @brief True when the configured wait expired before normal process completion.
-            bool timedOut = false;
-            /// @brief True when TestSupport requested primary-process termination during timeout or failure handling.
-            bool wasTerminatedByTest = false;
-
-            /// @brief Retained combined stdout/stderr bytes when capture is enabled; no UTF-8 validation is performed.
-            std::string output;
+            /// @brief Observable child-process outcome.
+            ChildProcessOutcome outcome = ChildProcessOutcome::NotStarted;
             /// @brief True when capture stayed active but discarded bytes beyond the retained limit.
             bool outputTruncated = false;
-
-            /// @brief Returns true only for a zero exit without timeout or test termination.
-            [[nodiscard]] bool exitedSuccessfully() const noexcept;
-            /// @brief Returns true for nonzero exit, timeout, or test-requested termination.
-            [[nodiscard]] bool exitedWithFailure() const noexcept;
+            /// @brief Retained combined stdout/stderr bytes when capture is enabled; a failed result may preserve useful partial output.
+            std::string output;
         };
 
         /// @brief Answer selected by a human for a manual check.
@@ -670,12 +767,11 @@ namespace GameWIP::TestSupport
 
     /// @brief Launches one process directly without a shell and waits for its process tree to finish or be terminated.
     /// @param options Launch path, arguments, environment, timeout, and combined-output capture settings.
-    /// @return Exit, timeout, termination, infrastructure health, and optional raw output details.
+    /// @return Infrastructure status, child outcome, exact exit code when available, and optional raw output details.
     /// @note The child inherits the parent working directory. Timeout is not a strict total-duration deadline.
-    /// @throws std::invalid_argument when a path, argument, environment name, or environment value contains invalid process text.
-    /// @throws std::length_error when UTF-8 input exceeds the platform conversion limit.
-    /// @throws std::runtime_error when platform text conversion fails unexpectedly.
-    [[nodiscard]] Types::ChildProcessResult runChildProcess(const Types::ChildProcessOptions &options);
+    /// @note Invalid process text, unsupported platforms, native failures, and implementation allocation failures are returned through status.
+    /// Caller-side construction of allocating option fields remains governed by their standard-library types.
+    [[nodiscard]] Types::ChildProcessResult runChildProcess(const Types::ChildProcessOptions &options) noexcept;
 
     /// @brief Repeatedly prompts for a recognized yes/no/skip line.
     /// @param question Prompt text shown to the user.
