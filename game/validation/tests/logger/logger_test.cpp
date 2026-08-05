@@ -43,6 +43,7 @@
 #include <string>
 #include <string_view>
 #include <thread>
+#include <utility>
 #include <vector>
 
 #if defined(_WIN32)
@@ -231,6 +232,18 @@ namespace
             static_cast<void>(testContext.expectFileOccurrenceCount(name, path, text, expectedCount));
         }
     };
+
+    /// @brief Records one TestSupport infrastructure failure without changing successful scenario counts.
+    bool requireInfrastructure(TestContext &context, std::string_view operation, const TestSupport::Types::InfrastructureStatus &status)
+    {
+        if (status.ok())
+        {
+            return true;
+        }
+
+        context.fail(operation, TestSupport::formatInfrastructureStatus(status));
+        return false;
+    }
 
     /// @brief Runs one scenario with timing and converts uncaught exceptions into test failures.
     template <typename Function> void runCase(TestContext &context, std::string_view name, Function &&function)
@@ -450,14 +463,19 @@ namespace
     std::filesystem::path testDirectory(TestContext &context, std::string_view name)
     {
         std::filesystem::path directory = context.logRoot / std::string(name);
-        TestSupport::createDirectories(directory);
+        static_cast<void>(requireInfrastructure(context, "create Logger test directory", TestSupport::createDirectories(directory)));
         return directory;
     }
 
     /// @brief Reads one complete log fixture through TestSupport.
-    std::string readWholeFile(const std::filesystem::path &path)
+    std::string readWholeFile(TestContext &context, const std::filesystem::path &path)
     {
-        return TestSupport::readTextFile(path);
+        TestSupport::Types::TextResult result = TestSupport::readTextFile(path);
+        if (!requireInfrastructure(context, "read Logger log fixture", result.status))
+        {
+            return {};
+        }
+        return std::move(result.text);
     }
 
     /// @brief Counts non-overlapping occurrences in captured log text.
@@ -498,12 +516,12 @@ namespace
     }
 
     /// @brief Concatenates every regular log file in one scenario directory.
-    std::string readDirectoryFiles(const std::filesystem::path &directory)
+    std::string readDirectoryFiles(TestContext &context, const std::filesystem::path &directory)
     {
         std::string contents;
         for (const std::filesystem::path &path : filesIn(directory))
         {
-            contents += readWholeFile(path);
+            contents += readWholeFile(context, path);
         }
         return contents;
     }
@@ -728,10 +746,14 @@ namespace
         const std::string initFilePath = Logger::getLogFilePath();
         context.expectFalse("initFile path available", initFilePath.empty());
         Logger::shutdown();
-        context.expectTrue("initFile wrote content", readWholeFile(initFilePath).find("initFile visible") != std::string::npos);
+        context.expectTrue("initFile wrote content", readWholeFile(context, initFilePath).find("initFile visible") != std::string::npos);
 
         {
             const TestSupport::ScopedCurrentPath currentPath(context.logRoot);
+            if (!requireInfrastructure(context, "set initDefault working directory", currentPath.status()))
+            {
+                return;
+            }
             const Logger::Types::Result defaultResult = Logger::initDefault();
             const bool defaultStarted = defaultResult == Logger::Types::Result::Success || defaultResult == Logger::Types::Result::FileOpenFailed ||
                                         defaultResult == Logger::Types::Result::FileSetupFailed;
@@ -786,7 +808,7 @@ namespace
         expectEq(context, "file output no diagnostics", totalDiagnosticFailures(stats), std::size_t{0});
         Logger::shutdown();
 
-        const std::string contents = readWholeFile(logFile);
+        const std::string contents = readWholeFile(context, logFile);
         context.expectTrue("file contains trace", contents.find("[TRACE][LoggerTest]: trace line") != std::string::npos);
         context.expectTrue("file contains formatted debug", contents.find("[DEBUG][LoggerTest]: debug 7") != std::string::npos);
         context.expectTrue("file contains runtime format", contents.find("[INFO][LoggerTest]: runtime 11") != std::string::npos);
@@ -811,11 +833,12 @@ namespace
         const std::filesystem::path logFile = pathFromText(logFileText);
         context.expectTrue(
             "file sink permits live readers",
-            readWholeFile(logFile).find("foundation file sink") != std::string::npos,
+            readWholeFile(context, logFile).find("foundation file sink") != std::string::npos,
             "flushed log file was not readable while Logger retained its writer");
 
         Logger::shutdown();
-        context.expectTrue("UTF-8 log file exists after shutdown", TestSupport::fileExists(logFile));
+        const TestSupport::Types::BoolResult logFileExists = TestSupport::fileExists(logFile);
+        context.expectTrue("UTF-8 log file exists after shutdown", logFileExists.status.ok() && logFileExists.value);
     }
 
     /// @brief Verifies Logger routes complete console records through the process-wide Terminal runtime.
@@ -1099,7 +1122,7 @@ namespace
         const std::string strictPath = Logger::getLogFilePath();
         Logger::shutdown();
 
-        const std::string strictContents = readWholeFile(strictPath);
+        const std::string strictContents = readWholeFile(context, strictPath);
         context.expectTrue("strict compile format content", strictContents.find("value 12 ok") != std::string::npos);
         context.expectTrue("strict runtime format content", strictContents.find("runtime 13 ok") != std::string::npos);
         context.expectTrue("strict truncation suffix content", strictContents.find("[truncated]") != std::string::npos);
@@ -1146,7 +1169,7 @@ namespace
         const std::string logFile = Logger::getLogFilePath();
         Logger::shutdown();
 
-        const std::string contents = readWholeFile(logFile);
+        const std::string contents = readWholeFile(context, logFile);
         context.expectTrue("report file plain", contents.find("plain report") != std::string::npos);
         context.expectTrue("report file formatted", contents.find("formatted report 21") != std::string::npos);
         context.expectTrue("report fatal wrapper file", contents.find("[FATAL][LoggerTest]: fatal wrapper report") != std::string::npos);
@@ -1182,7 +1205,7 @@ namespace
 
         const std::string logFile = Logger::getLogFilePath();
         Logger::shutdown();
-        const std::string contents = readWholeFile(logFile);
+        const std::string contents = readWholeFile(context, logFile);
         context.expectTrue(
             "report bypassed filters reached file",
             contents.find("report bypasses disabled core source and error level") != std::string::npos);
@@ -1210,7 +1233,7 @@ namespace
             Logger::shutdown();
             context.expectTrue(
                 "hook file open retry wrote content",
-                readWholeFile(logFile).find("file open retry still writes") != std::string::npos);
+                readWholeFile(context, logFile).find("file open retry still writes") != std::string::npos);
         }
 
         {
@@ -1282,7 +1305,7 @@ namespace
             Logger::shutdown();
             context.expectTrue(
                 "hook report timeout line reached file",
-                readWholeFile(logFile).find("report timeout still writes first") != std::string::npos);
+                readWholeFile(context, logFile).find("report timeout still writes first") != std::string::npos);
         }
 
         {
@@ -1409,7 +1432,7 @@ namespace
         const std::string logFile = Logger::getLogFilePath();
         context.expectTrue("report full queue flush", Logger::flush(5s));
         Logger::shutdown();
-        const std::string contents = readWholeFile(logFile);
+        const std::string contents = readWholeFile(context, logFile);
         context.expectTrue("report survived full queue reached file", contents.find("synchronous report survived full queue") != std::string::npos);
     }
 
@@ -1477,7 +1500,7 @@ namespace
         const std::string logFile = Logger::getLogFilePath();
         context.expectTrue("report active producers final flush", Logger::flush(5s));
         Logger::shutdown();
-        const std::string contents = readWholeFile(logFile);
+        const std::string contents = readWholeFile(context, logFile);
         context.expectTrue("report active producers reached file", contents.find("synchronous report while producers active") != std::string::npos);
     }
 
@@ -2021,15 +2044,25 @@ namespace
             runChildProcessResult(context.executablePath, enqueueWakeupChildArgument, childTimeout);
         context.expectTrue(
             "queue publication wakes worker deterministically",
-            enqueueResult.exitedSuccessfully(),
-            std::format("exitCode={} timedOut={} output={}", enqueueResult.exitCode, enqueueResult.timedOut, enqueueResult.output));
+            enqueueResult.status.ok() && enqueueResult.outcome == TestSupport::Types::ChildProcessOutcome::Exited && enqueueResult.exitCode == 0,
+            std::format(
+                "status={} outcome={} exitCode={} output={}",
+                static_cast<int>(enqueueResult.status.error),
+                static_cast<int>(enqueueResult.outcome),
+                enqueueResult.exitCode,
+                enqueueResult.output));
 
         const TestSupport::Types::ChildProcessResult shutdownResult =
             runChildProcessResult(context.executablePath, shutdownWakeupChildArgument, childTimeout);
         context.expectTrue(
             "final producer wakes shutdown worker deterministically",
-            shutdownResult.exitedSuccessfully(),
-            std::format("exitCode={} timedOut={} output={}", shutdownResult.exitCode, shutdownResult.timedOut, shutdownResult.output));
+            shutdownResult.status.ok() && shutdownResult.outcome == TestSupport::Types::ChildProcessOutcome::Exited && shutdownResult.exitCode == 0,
+            std::format(
+                "status={} outcome={} exitCode={} output={}",
+                static_cast<int>(shutdownResult.status.error),
+                static_cast<int>(shutdownResult.outcome),
+                shutdownResult.exitCode,
+                shutdownResult.output));
 #else
         (void)options;
         context.pass("Logger wakeup regression children skipped because INTERNAL_LOGGER_TEST_HOOKS=0");
@@ -2068,14 +2101,24 @@ namespace
         }
 
         const std::filesystem::path childLogDirectory = context.logRoot / "fatal_terminate_child";
-        TestSupport::createDirectories(childLogDirectory);
+        if (!requireInfrastructure(context, "create fatalTerminate child log directory", TestSupport::createDirectories(childLogDirectory)))
+        {
+            return;
+        }
         const ScopedEnvironmentVariable childLogDirectoryOverride(childLogDirectoryEnvironmentVariable, pathText(childLogDirectory));
+        if (!requireInfrastructure(context, "set fatalTerminate child log directory", childLogDirectoryOverride.status()))
+        {
+            return;
+        }
 
         std::cout.flush();
         std::cerr.flush();
         const TestSupport::Types::ChildProcessResult result = runChildProcessResult(context.executablePath, "--logger-test-child=fatal-terminate");
-        context.expectTrue("fatalTerminate child exits abnormally", result.exitedWithFailure(), "child process returned zero");
-        const std::string childLogContents = readDirectoryFiles(childLogDirectory);
+        context.expectTrue(
+            "fatalTerminate child exits abnormally",
+            result.status.ok() && result.outcome == TestSupport::Types::ChildProcessOutcome::Exited && result.exitCode != 0,
+            "child process did not produce a normal nonzero exit");
+        const std::string childLogContents = readDirectoryFiles(context, childLogDirectory);
         context.expectTrue(
             "fatalTerminate child logs fatal through report",
             childLogContents.find("[FATAL][LoggerTest]: child fatal terminate") != std::string::npos,
@@ -2206,8 +2249,16 @@ namespace GameWIP::Test
             {
                 TestContext context(suiteContext);
                 const TestSupport::ScopedTemporaryDirectory workspace("logger_tests");
+                if (!requireInfrastructure(context, "create Logger test workspace", workspace.status()))
+                {
+                    return;
+                }
                 context.executablePath = argc > 0 && argv[0] != nullptr ? std::filesystem::absolute(argv[0]).string() : "";
                 const TestSupport::ScopedCurrentPath temporaryCurrentPath(workspace.path());
+                if (!requireInfrastructure(context, "set Logger test working directory", temporaryCurrentPath.status()))
+                {
+                    return;
+                }
                 const ScopedLoggerShutdown loggerShutdown;
                 context.logRoot = workspace.path();
 

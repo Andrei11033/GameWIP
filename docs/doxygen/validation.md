@@ -140,6 +140,8 @@ The runner prints:
 
 TestSupport owns suite detail and report-file behavior. After the first selected module writes an aggregate report, subsequent modules receive `appendReport == true` so earlier evidence is preserved.
 
+Validation modules that use TestSupport infrastructure must convert a failed infrastructure `status` into a recorded failure at the call site before reading the result payload. They must not reinterpret a child process's nonzero exit or timeout as a launch failure: the child result keeps infrastructure status, process outcome, and exact exit code separate. The detailed helper contracts belong to @ref test_support_public_api, @ref test_support_child_processes, and @ref test_support_files_environment.
+
 ## Module lifecycle
 
 1. Copy and sort registrations by order, then name.

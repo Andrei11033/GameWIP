@@ -2,7 +2,7 @@
     DefaultConfigurePreset = 'test'
     DefaultBuildPreset = 'test'
     DefaultTestPreset = 'test'
-    DefaultModule = 'logger'
+    DefaultModule = 'all'
     DefaultStressCount = 32
     DefaultStressParallel = 8
     WorkspaceTemp = 'build\gamewip-temp'
@@ -69,6 +69,7 @@
         'runner'
         'terminal'
         'test_support'
+        'window'
     )
 
     ProjectCommands = @(

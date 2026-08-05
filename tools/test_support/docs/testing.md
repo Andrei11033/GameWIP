@@ -9,9 +9,9 @@ The `test_support` module covers:
 - `Runner`, `Context`, summaries, sections, exception conversion, and continuation;
 - every expectation family and value-formatting fallback;
 - report buffering, suite-boundary and immediate flushing, verbosity, append/truncate, and one-time sink-failure diagnostics;
-- temporary-directory uniqueness, nested cleanup, current-path restoration, file-helper success and ambiguity cases;
-- environment set/unset/restoration and invalid UTF-8/name input;
-- child zero/nonzero exit, launch failure, timeout, capture limits, continued draining, environment blocks, descendant cleanup, and test-requested termination;
+- temporary-directory uniqueness, inert construction failure, nested cleanup, current-path restoration, and explicit file-helper status/value cases;
+- environment set/unset/restoration, inert construction failure, and invalid UTF-8/name input;
+- child zero/nonzero exit, launch failure, timeout, capture limits, continued draining, environment blocks, descendant cleanup, exact native codes, and every approved injected failure category;
 - manual-check EOF/skip behavior;
 - timer, one-shot gate, stop flag, worker indexing, exceptions, and partial-startup cleanup.
 
@@ -27,7 +27,7 @@ Project validation also checks:
 - report modes and process-global state restoration;
 - Doxygen warnings and local page references.
 
-TestSupport must remain independent of IO, FileSystem, Terminal, Logger, Assert, engine, and game runtime code. It exposes no special source-tree test-hook header.
+TestSupport must remain independent of IO, FileSystem, Terminal, Logger, Assert, engine, and game runtime code. CMake rejects accidental GameWIP target dependencies. Approved deterministic hooks are documented by @ref test_support_test_hooks and remain source-tree-only.
 
 ## Platform scope
 

@@ -2,6 +2,7 @@
 /// @brief Windows environment-variable backend for the TestSupport library.
 
 #include "test_support/internal/test_support_platform.h"
+#include "test_support/internal/test_support_test_hooks.h"
 
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
@@ -13,11 +14,20 @@
 
 #include <cstdlib>
 #include <limits>
+#include <new>
 #include <stdexcept>
 #include <string>
 
 namespace
 {
+    /// @brief Creates a failed environment status without allocating.
+    [[nodiscard]] GameWIP::TestSupport::Types::InfrastructureStatus environmentFailure(
+        GameWIP::TestSupport::Types::InfrastructureError error,
+        std::uint64_t nativeCode = 0) noexcept
+    {
+        return {.error = error, .nativeCode = nativeCode};
+    }
+
     /// @brief Converts public UTF-8 environment text to UTF-16 without lossy substitution.
     [[nodiscard]] std::wstring utf8ToWide(std::string_view text)
     {
@@ -89,48 +99,145 @@ namespace
 
 namespace GameWIP::TestSupport::Detail::Platform
 {
-    std::optional<std::string> readEnvironmentVariable(std::string_view name)
+    EnvironmentReadResult readEnvironmentVariable(std::string_view name) noexcept
     {
-        validateEnvironmentName(name);
-        const std::wstring nameText = utf8ToWide(name);
-        SetLastError(ERROR_SUCCESS);
-        const DWORD requiredSize = GetEnvironmentVariableW(nameText.c_str(), nullptr, 0);
-        if (requiredSize == 0)
+        EnvironmentReadResult result;
+#if INTERNAL_TEST_SUPPORT_TEST_HOOKS
+        if (const auto injected = ::GameWIP::TestSupport::Detail::TestHooks::consumeEnvironmentFailure(
+                ::GameWIP::TestSupport::TestHooks::EnvironmentFailurePoint::Read))
         {
-            return GetLastError() == ERROR_ENVVAR_NOT_FOUND ? std::nullopt : std::optional<std::string>{std::string{}};
+            result.status = environmentFailure(Types::InfrastructureError::EnvironmentFailed, *injected);
+            return result;
         }
-
-        std::wstring value(requiredSize, L'\0');
-        const DWORD copied = GetEnvironmentVariableW(nameText.c_str(), value.data(), requiredSize);
-        if (copied == 0 || copied >= requiredSize)
+#endif
+        try
         {
-            return std::nullopt;
-        }
+            validateEnvironmentName(name);
+            const std::wstring nameText = utf8ToWide(name);
+            SetLastError(ERROR_SUCCESS);
+            const DWORD requiredSize = GetEnvironmentVariableW(nameText.c_str(), nullptr, 0);
+            if (requiredSize == 0)
+            {
+                const DWORD readError = GetLastError();
+                if (readError == ERROR_ENVVAR_NOT_FOUND)
+                {
+                    return result;
+                }
+                if (readError == ERROR_SUCCESS)
+                {
+                    result.value = std::string{};
+                    return result;
+                }
 
-        value.resize(copied);
-        return wideToUtf8(value);
+                result.status = environmentFailure(Types::InfrastructureError::EnvironmentFailed, readError);
+                return result;
+            }
+
+            std::wstring value(requiredSize, L'\0');
+            SetLastError(ERROR_SUCCESS);
+            const DWORD copied = GetEnvironmentVariableW(nameText.c_str(), value.data(), requiredSize);
+            if (copied == 0 || copied >= requiredSize)
+            {
+                result.status = environmentFailure(Types::InfrastructureError::EnvironmentFailed, GetLastError());
+                return result;
+            }
+
+            value.resize(copied);
+            result.value = wideToUtf8(value);
+            return result;
+        }
+        catch (const std::bad_alloc &)
+        {
+            result.status = environmentFailure(Types::InfrastructureError::OutOfMemory);
+            return result;
+        }
+        catch (const std::invalid_argument &)
+        {
+            result.status = environmentFailure(Types::InfrastructureError::InvalidArgument);
+            return result;
+        }
+        catch (const std::length_error &)
+        {
+            result.status = environmentFailure(Types::InfrastructureError::InvalidArgument);
+            return result;
+        }
+        catch (...)
+        {
+            result.status = environmentFailure(Types::InfrastructureError::EnvironmentFailed);
+            return result;
+        }
     }
 
-    void setEnvironmentVariableValue(std::string_view name, std::string_view value)
+    Types::InfrastructureStatus setEnvironmentVariableValue(std::string_view name, std::string_view value) noexcept
     {
-        // `_wputenv_s(name, L"")` removes the entry. The public guard documentation exposes this
-        // Win32/CRT limitation instead of pretending an empty and missing process value are distinct.
-        validateEnvironmentName(name);
-        const std::wstring nameWide = utf8ToWide(name);
-        const std::wstring valueWide = utf8ToWide(value);
-        if (_wputenv_s(nameWide.c_str(), valueWide.c_str()) != 0)
+#if INTERNAL_TEST_SUPPORT_TEST_HOOKS
+        if (const auto injected =
+                ::GameWIP::TestSupport::Detail::TestHooks::consumeEnvironmentFailure(::GameWIP::TestSupport::TestHooks::EnvironmentFailurePoint::Set))
         {
-            throw std::runtime_error("Could not set the environment variable");
+            return environmentFailure(Types::InfrastructureError::EnvironmentFailed, *injected);
+        }
+#endif
+        try
+        {
+            // `_wputenv_s(name, L"")` removes the entry. The public guard documentation exposes this
+            // Win32/CRT limitation instead of pretending an empty and missing process value are distinct.
+            validateEnvironmentName(name);
+            const std::wstring nameWide = utf8ToWide(name);
+            const std::wstring valueWide = utf8ToWide(value);
+            const errno_t error = _wputenv_s(nameWide.c_str(), valueWide.c_str());
+            return error == 0 ? Types::InfrastructureStatus{}
+                              : environmentFailure(Types::InfrastructureError::EnvironmentFailed, static_cast<std::uint64_t>(error));
+        }
+        catch (const std::bad_alloc &)
+        {
+            return environmentFailure(Types::InfrastructureError::OutOfMemory);
+        }
+        catch (const std::invalid_argument &)
+        {
+            return environmentFailure(Types::InfrastructureError::InvalidArgument);
+        }
+        catch (const std::length_error &)
+        {
+            return environmentFailure(Types::InfrastructureError::InvalidArgument);
+        }
+        catch (...)
+        {
+            return environmentFailure(Types::InfrastructureError::EnvironmentFailed);
         }
     }
 
-    void unsetEnvironmentVariableValue(std::string_view name)
+    Types::InfrastructureStatus unsetEnvironmentVariableValue(std::string_view name) noexcept
     {
-        validateEnvironmentName(name);
-        const std::wstring nameWide = utf8ToWide(name);
-        if (_wputenv_s(nameWide.c_str(), L"") != 0)
+#if INTERNAL_TEST_SUPPORT_TEST_HOOKS
+        if (const auto injected = ::GameWIP::TestSupport::Detail::TestHooks::consumeEnvironmentFailure(
+                ::GameWIP::TestSupport::TestHooks::EnvironmentFailurePoint::Unset))
         {
-            throw std::runtime_error("Could not unset the environment variable");
+            return environmentFailure(Types::InfrastructureError::EnvironmentFailed, *injected);
+        }
+#endif
+        try
+        {
+            validateEnvironmentName(name);
+            const std::wstring nameWide = utf8ToWide(name);
+            const errno_t error = _wputenv_s(nameWide.c_str(), L"");
+            return error == 0 ? Types::InfrastructureStatus{}
+                              : environmentFailure(Types::InfrastructureError::EnvironmentFailed, static_cast<std::uint64_t>(error));
+        }
+        catch (const std::bad_alloc &)
+        {
+            return environmentFailure(Types::InfrastructureError::OutOfMemory);
+        }
+        catch (const std::invalid_argument &)
+        {
+            return environmentFailure(Types::InfrastructureError::InvalidArgument);
+        }
+        catch (const std::length_error &)
+        {
+            return environmentFailure(Types::InfrastructureError::InvalidArgument);
+        }
+        catch (...)
+        {
+            return environmentFailure(Types::InfrastructureError::EnvironmentFailed);
         }
     }
 } // namespace GameWIP::TestSupport::Detail::Platform

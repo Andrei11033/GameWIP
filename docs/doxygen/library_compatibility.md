@@ -69,6 +69,8 @@ Installed package configs must call `find_dependency()` for public transitive pa
 
 A standalone installed library may still be first-party and project-owned. Standalone means independently consumable from an installed package; it does not mean the library has no repository-level owner or shared version policy.
 
+TestSupport is deliberately standalone: `GameWIP::TestSupport` has no link dependency on another GameWIP library, its public status and result types are locally owned, and its package config needs no first-party `find_dependency()` call. Source-tree CMake checks enforce this dependency direction.
+
 ## Shared-library export policy
 
 Shared-library exports are declaration-driven and checked against reviewed symbol-root allowlists.
@@ -97,7 +99,7 @@ cmake --build --preset test
 ctest --preset test
 ```
 
-Installed-package validation includes the combined surface plus isolated per-package consumers. Each isolated case requests only the package under test, so a missing transitive `find_dependency()` call cannot be masked by an earlier dependency lookup.
+Installed-package validation includes the combined surface plus isolated per-package consumers. Each isolated case requests only the package under test, so a missing transitive `find_dependency()` call cannot be masked by an earlier dependency lookup. TestSupport consumers exercise its public status/result surface and verify that its internal hook definition is absent from installed usage requirements.
 
 ## Failure behavior
 

@@ -2,6 +2,7 @@
 /// @brief Windows child-process backend for the TestSupport library.
 
 #include "test_support/test_support.h"
+#include "test_support/internal/test_support_test_hooks.h"
 
 #if defined(_WIN32)
 #ifndef WIN32_LEAN_AND_MEAN
@@ -19,9 +20,11 @@
 #include <cwchar>
 #include <cwctype>
 #include <limits>
+#include <new>
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <system_error>
 #include <thread>
 #include <utility>
 #include <vector>
@@ -31,6 +34,13 @@ namespace GameWIP::TestSupport
 #if defined(_WIN32)
     namespace
     {
+        /// @brief Allocation-free exception used to preserve a specific infrastructure category and native code.
+        struct NativeInfrastructureFailure
+        {
+            Types::InfrastructureError error;
+            std::uint64_t nativeCode;
+        };
+
         /// @brief Move-only owner for Win32 process, thread, pipe, and job handles.
         class UniqueHandle
         {
@@ -96,6 +106,7 @@ namespace GameWIP::TestSupport
                 static_cast<void>(InitializeProcThreadAttributeList(nullptr, 1, 0, &requiredBytes));
                 if (requiredBytes == 0)
                 {
+                    nativeCode_ = GetLastError();
                     return;
                 }
 
@@ -103,6 +114,7 @@ namespace GameWIP::TestSupport
                 list_ = reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(storage_.data());
                 if (InitializeProcThreadAttributeList(list_, 1, 0, &requiredBytes) == FALSE)
                 {
+                    nativeCode_ = GetLastError();
                     list_ = nullptr;
                     return;
                 }
@@ -117,6 +129,7 @@ namespace GameWIP::TestSupport
                         nullptr,
                         nullptr) == FALSE)
                 {
+                    nativeCode_ = GetLastError();
                     DeleteProcThreadAttributeList(list_);
                     initialized_ = false;
                     list_ = nullptr;
@@ -144,10 +157,17 @@ namespace GameWIP::TestSupport
                 return list_;
             }
 
+            /// @brief Returns the native setup failure captured while constructing an invalid list.
+            [[nodiscard]] DWORD nativeCode() const noexcept
+            {
+                return nativeCode_;
+            }
+
         private:
             std::vector<std::byte> storage_;
             LPPROC_THREAD_ATTRIBUTE_LIST list_ = nullptr;
             bool initialized_ = false;
+            DWORD nativeCode_ = ERROR_SUCCESS;
         };
 
         /// Duplicates an attached standard handle without changing its inheritance flags.
@@ -348,15 +368,26 @@ namespace GameWIP::TestSupport
             LPWCH environmentStrings = GetEnvironmentStringsW();
             if (environmentStrings == nullptr)
             {
-                return entries;
+                throw NativeInfrastructureFailure{.error = Types::InfrastructureError::ProcessSetupFailed, .nativeCode = GetLastError()};
             }
 
-            for (LPWCH current = environmentStrings; *current != L'\0'; current += std::wcslen(current) + 1)
+            try
             {
-                entries.emplace_back(current);
+                for (LPWCH current = environmentStrings; *current != L'\0'; current += std::wcslen(current) + 1)
+                {
+                    entries.emplace_back(current);
+                }
+            }
+            catch (...)
+            {
+                static_cast<void>(FreeEnvironmentStringsW(environmentStrings));
+                throw;
             }
 
-            FreeEnvironmentStringsW(environmentStrings);
+            if (FreeEnvironmentStringsW(environmentStrings) == FALSE)
+            {
+                throw NativeInfrastructureFailure{.error = Types::InfrastructureError::ProcessSetupFailed, .nativeCode = GetLastError()};
+            }
             return entries;
         }
 
@@ -411,280 +442,532 @@ namespace GameWIP::TestSupport
     } // namespace
 #endif
 
-    Types::ChildProcessResult runChildProcess(const Types::ChildProcessOptions &options)
+    Types::ChildProcessResult runChildProcess(const Types::ChildProcessOptions &options) noexcept
     {
         Types::ChildProcessResult result;
 
 #if defined(_WIN32)
-        constexpr DWORD kTestTerminationCode = 0x54455354u;
-        std::wstring commandLine = buildCommandLine(options);
-        std::wstring environmentBlock = buildEnvironmentBlock(options);
-
-        // The job owns the complete child tree and guarantees that closing/termination cannot leave
-        // descendants alive with inherited capture handles.
-        UniqueHandle jobHandle(CreateJobObjectW(nullptr, nullptr));
-        if (jobHandle.get() == nullptr)
+        const auto setFailure = [&result](Types::InfrastructureError error, std::uint64_t nativeCode = 0) noexcept
         {
-            result.exitCode = 0;
-            return result;
-        }
-
-        JOBOBJECT_EXTENDED_LIMIT_INFORMATION jobLimits{};
-        jobLimits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
-        if (SetInformationJobObject(jobHandle.get(), JobObjectExtendedLimitInformation, &jobLimits, static_cast<DWORD>(sizeof(jobLimits))) == FALSE)
+            result.status.error = error;
+            result.status.nativeCode = nativeCode;
+        };
+        const auto setFailureIfSuccessful = [&result](Types::InfrastructureError error, std::uint64_t nativeCode = 0) noexcept
         {
-            result.exitCode = 0;
-            return result;
-        }
-
-        SECURITY_ATTRIBUTES securityAttributes{};
-        securityAttributes.nLength = sizeof(securityAttributes);
-        securityAttributes.bInheritHandle = TRUE;
-
-        UniqueHandle outputRead;
-        UniqueHandle outputWrite;
-        if (options.captureOutput)
-        {
-            HANDLE outputReadRaw = nullptr;
-            HANDLE outputWriteRaw = nullptr;
-            if (CreatePipe(&outputReadRaw, &outputWriteRaw, &securityAttributes, 0) == FALSE)
+            if (result.status.ok())
             {
-                result.exitCode = 0;
+                result.status.error = error;
+                result.status.nativeCode = nativeCode;
+            }
+        };
+
+        try
+        {
+            constexpr DWORD kTestTerminationCode = 0x54455354u;
+#if INTERNAL_TEST_SUPPORT_TEST_HOOKS
+            if (const auto injected = Detail::TestHooks::consumeChildProcessFailure(TestHooks::ChildProcessFailurePoint::Allocation))
+            {
+                setFailure(Types::InfrastructureError::OutOfMemory, *injected);
+                return result;
+            }
+            if (const auto injected = Detail::TestHooks::consumeChildProcessFailure(TestHooks::ChildProcessFailurePoint::Unsupported))
+            {
+                setFailure(Types::InfrastructureError::Unsupported, *injected);
+                return result;
+            }
+            if (const auto injected = Detail::TestHooks::consumeChildProcessFailure(TestHooks::ChildProcessFailurePoint::Platform))
+            {
+                setFailure(Types::InfrastructureError::PlatformFailure, *injected);
+                return result;
+            }
+#endif
+            std::wstring commandLine = buildCommandLine(options);
+            std::wstring environmentBlock = buildEnvironmentBlock(options);
+
+            // The job owns the complete child tree and guarantees that closing/termination cannot leave
+            // descendants alive with inherited capture handles.
+#if INTERNAL_TEST_SUPPORT_TEST_HOOKS
+            if (const auto injected = Detail::TestHooks::consumeChildProcessFailure(TestHooks::ChildProcessFailurePoint::ProcessSetup))
+            {
+                setFailure(Types::InfrastructureError::ProcessSetupFailed, *injected);
+                return result;
+            }
+#endif
+            UniqueHandle jobHandle(CreateJobObjectW(nullptr, nullptr));
+            if (jobHandle.get() == nullptr)
+            {
+                setFailure(Types::InfrastructureError::ProcessSetupFailed, GetLastError());
                 return result;
             }
 
-            outputRead.reset(outputReadRaw);
-            outputWrite.reset(outputWriteRaw);
-
-            if (SetHandleInformation(outputRead.get(), HANDLE_FLAG_INHERIT, 0) == FALSE)
+            JOBOBJECT_EXTENDED_LIMIT_INFORMATION jobLimits{};
+            jobLimits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+            if (SetInformationJobObject(jobHandle.get(), JobObjectExtendedLimitInformation, &jobLimits, static_cast<DWORD>(sizeof(jobLimits))) ==
+                FALSE)
             {
-                result.exitCode = 0;
-                return result;
-            }
-        }
-
-        UniqueHandle childInput = inheritableStandardHandle(STD_INPUT_HANDLE, GENERIC_READ);
-        UniqueHandle childOutput;
-        UniqueHandle childError;
-        if (!options.captureOutput)
-        {
-            childOutput = inheritableStandardHandle(STD_OUTPUT_HANDLE, GENERIC_WRITE);
-            childError = inheritableStandardHandle(STD_ERROR_HANDLE, GENERIC_WRITE);
-        }
-        if (childInput.get() == nullptr || childInput.get() == INVALID_HANDLE_VALUE ||
-            (!options.captureOutput && (childOutput.get() == nullptr || childOutput.get() == INVALID_HANDLE_VALUE || childError.get() == nullptr ||
-                                        childError.get() == INVALID_HANDLE_VALUE)))
-        {
-            result.exitCode = 0;
-            return result;
-        }
-
-        // Restrict inheritance to the three selected standard handles. CREATE_SUSPENDED below then
-        // gives us a chance to assign the process to the kill-on-close job before child code runs.
-        std::vector<HANDLE> inheritedHandles;
-        inheritedHandles.reserve(3);
-        appendInheritedHandle(inheritedHandles, childInput.get());
-        appendInheritedHandle(inheritedHandles, options.captureOutput ? outputWrite.get() : childOutput.get());
-        appendInheritedHandle(inheritedHandles, options.captureOutput ? outputWrite.get() : childError.get());
-        StartupAttributeList attributeList(inheritedHandles);
-        if (!attributeList.valid())
-        {
-            result.exitCode = 0;
-            return result;
-        }
-
-        STARTUPINFOEXW startupInfo{};
-        startupInfo.StartupInfo.cb = sizeof(startupInfo);
-        startupInfo.StartupInfo.dwFlags = STARTF_USESTDHANDLES;
-        startupInfo.StartupInfo.hStdInput = childInput.get();
-        startupInfo.StartupInfo.hStdOutput = options.captureOutput ? outputWrite.get() : childOutput.get();
-        startupInfo.StartupInfo.hStdError = options.captureOutput ? outputWrite.get() : childError.get();
-        startupInfo.lpAttributeList = attributeList.get();
-
-        PROCESS_INFORMATION processInfo{};
-        const BOOL created = CreateProcessW(
-            nullptr,
-            commandLine.data(),
-            nullptr,
-            nullptr,
-            TRUE,
-            CREATE_NO_WINDOW | CREATE_UNICODE_ENVIRONMENT | CREATE_SUSPENDED | EXTENDED_STARTUPINFO_PRESENT,
-            environmentBlock.data(),
-            nullptr,
-            &startupInfo.StartupInfo,
-            &processInfo);
-
-        outputWrite.reset();
-        childInput.reset();
-        childOutput.reset();
-        childError.reset();
-
-        if (created == FALSE)
-        {
-            result.exitCode = 0;
-            return result;
-        }
-
-        UniqueHandle processHandle(processInfo.hProcess);
-        UniqueHandle threadHandle(processInfo.hThread);
-
-        // Assignment must succeed before ResumeThread; otherwise descendants could escape the job.
-        if (AssignProcessToJobObject(jobHandle.get(), processHandle.get()) == FALSE)
-        {
-            TerminateProcess(processHandle.get(), kTestTerminationCode);
-            WaitForSingleObject(processHandle.get(), INFINITE);
-            result.exitCode = 0;
-            result.wasTerminatedByTest = true;
-            return result;
-        }
-
-        std::string output;
-        bool outputTruncated = false;
-        bool outputReadFailed = false;
-        std::thread outputReader;
-        UniqueHandle outputDoneEvent;
-        if (options.captureOutput)
-        {
-            outputDoneEvent.reset(CreateEventW(nullptr, TRUE, FALSE, nullptr));
-            if (outputDoneEvent.get() == nullptr)
-            {
-                TerminateJobObject(jobHandle.get(), kTestTerminationCode);
-                WaitForSingleObject(processHandle.get(), INFINITE);
-                result.exitCode = 0;
-                result.wasTerminatedByTest = true;
+                setFailure(Types::InfrastructureError::ProcessSetupFailed, GetLastError());
                 return result;
             }
 
-            try
+            SECURITY_ATTRIBUTES securityAttributes{};
+            securityAttributes.nLength = sizeof(securityAttributes);
+            securityAttributes.bInheritHandle = TRUE;
+
+            UniqueHandle outputRead;
+            UniqueHandle outputWrite;
+            if (options.captureOutput)
             {
-                const HANDLE outputReadHandle = outputRead.get();
-                const HANDLE outputDoneHandle = outputDoneEvent.get();
-                const std::size_t captureLimit = options.maxCapturedOutputBytes;
-                outputReader = std::thread(
-                    [outputReadHandle, outputDoneHandle, captureLimit, &output, &outputTruncated, &outputReadFailed]
-                    {
-                        try
-                        {
-                            char buffer[4096];
-                            // Continue reading after the retained limit. Draining is required so a
-                            // verbose child cannot block forever on a full pipe.
-                            while (true)
-                            {
-                                DWORD bytesRead = 0;
-                                if (ReadFile(outputReadHandle, buffer, static_cast<DWORD>(sizeof(buffer)), &bytesRead, nullptr) == FALSE)
-                                {
-                                    if (GetLastError() != ERROR_BROKEN_PIPE)
-                                    {
-                                        outputReadFailed = true;
-                                    }
-                                    break;
-                                }
-                                if (bytesRead == 0)
-                                {
-                                    break;
-                                }
-
-                                const std::size_t retained = output.size();
-                                const std::size_t available = retained < captureLimit ? captureLimit - retained : 0;
-                                const std::size_t appendCount = std::min<std::size_t>(available, bytesRead);
-                                if (appendCount > 0)
-                                {
-                                    output.append(buffer, appendCount);
-                                }
-                                if (appendCount < bytesRead)
-                                {
-                                    outputTruncated = true;
-                                }
-                            }
-                        }
-                        catch (...)
-                        {
-                            outputReadFailed = true;
-                        }
-                        SetEvent(outputDoneHandle);
-                    });
-            }
-            catch (...)
-            {
-                TerminateJobObject(jobHandle.get(), kTestTerminationCode);
-                WaitForSingleObject(processHandle.get(), INFINITE);
-                result.exitCode = 0;
-                result.wasTerminatedByTest = true;
-                return result;
-            }
-        }
-
-        if (ResumeThread(threadHandle.get()) == static_cast<DWORD>(-1))
-        {
-            TerminateJobObject(jobHandle.get(), kTestTerminationCode);
-            WaitForSingleObject(processHandle.get(), INFINITE);
-            result.exitCode = 0;
-            result.wasTerminatedByTest = true;
-        }
-        else
-        {
-            result.infrastructureFailure = false;
-        }
-
-        bool processInspectionFailed = result.infrastructureFailure;
-        const DWORD waitResult = WaitForSingleObject(processHandle.get(), timeoutMilliseconds(options.timeout));
-        if (waitResult == WAIT_TIMEOUT)
-        {
-            result.timedOut = true;
-            result.wasTerminatedByTest = true;
-            TerminateJobObject(jobHandle.get(), kTestTerminationCode);
-            WaitForSingleObject(processHandle.get(), INFINITE);
-        }
-        else if (waitResult != WAIT_OBJECT_0)
-        {
-            processInspectionFailed = true;
-            result.wasTerminatedByTest = true;
-            TerminateJobObject(jobHandle.get(), kTestTerminationCode);
-            WaitForSingleObject(processHandle.get(), INFINITE);
-        }
-
-        DWORD exitCode = 0;
-        if (!processInspectionFailed && GetExitCodeProcess(processHandle.get(), &exitCode) != FALSE)
-        {
-            result.exitCode = static_cast<std::uint32_t>(exitCode);
-            result.infrastructureFailure = false;
-        }
-        else
-        {
-            result.exitCode = 0;
-            result.infrastructureFailure = true;
-        }
-
-        // Even after normal primary-process completion, descendants can retain stdout/stderr pipe
-        // handles. Terminate the job before joining the reader so process-tree cleanup is bounded.
-        TerminateJobObject(jobHandle.get(), kTestTerminationCode);
-
-        if (outputReader.joinable())
-        {
-            if (WaitForSingleObject(outputDoneEvent.get(), 2000) != WAIT_OBJECT_0)
-            {
-                CancelSynchronousIo(reinterpret_cast<HANDLE>(outputReader.native_handle()));
-                if (WaitForSingleObject(outputDoneEvent.get(), 2000) != WAIT_OBJECT_0)
+#if INTERNAL_TEST_SUPPORT_TEST_HOOKS
+                if (const auto injected = Detail::TestHooks::consumeChildProcessFailure(TestHooks::ChildProcessFailurePoint::PipeCreation))
                 {
-                    outputRead.reset();
-                    WaitForSingleObject(outputDoneEvent.get(), INFINITE);
+                    setFailure(Types::InfrastructureError::PipeCreationFailed, *injected);
+                    return result;
+                }
+#endif
+                HANDLE outputReadRaw = nullptr;
+                HANDLE outputWriteRaw = nullptr;
+                if (CreatePipe(&outputReadRaw, &outputWriteRaw, &securityAttributes, 0) == FALSE)
+                {
+                    setFailure(Types::InfrastructureError::PipeCreationFailed, GetLastError());
+                    return result;
+                }
+
+                outputRead.reset(outputReadRaw);
+                outputWrite.reset(outputWriteRaw);
+
+                if (SetHandleInformation(outputRead.get(), HANDLE_FLAG_INHERIT, 0) == FALSE)
+                {
+                    setFailure(Types::InfrastructureError::PipeCreationFailed, GetLastError());
+                    return result;
                 }
             }
-            outputReader.join();
-        }
 
-        if (outputReadFailed)
+#if INTERNAL_TEST_SUPPORT_TEST_HOOKS
+            if (const auto injected = Detail::TestHooks::consumeChildProcessFailure(TestHooks::ChildProcessFailurePoint::HandleSetup))
+            {
+                setFailure(Types::InfrastructureError::ProcessSetupFailed, *injected);
+                return result;
+            }
+#endif
+            UniqueHandle childInput = inheritableStandardHandle(STD_INPUT_HANDLE, GENERIC_READ);
+            if (childInput.get() == nullptr || childInput.get() == INVALID_HANDLE_VALUE)
+            {
+                setFailure(Types::InfrastructureError::ProcessSetupFailed, GetLastError());
+                return result;
+            }
+
+            UniqueHandle childOutput;
+            UniqueHandle childError;
+            if (!options.captureOutput)
+            {
+                childOutput = inheritableStandardHandle(STD_OUTPUT_HANDLE, GENERIC_WRITE);
+                if (childOutput.get() == nullptr || childOutput.get() == INVALID_HANDLE_VALUE)
+                {
+                    setFailure(Types::InfrastructureError::ProcessSetupFailed, GetLastError());
+                    return result;
+                }
+
+                childError = inheritableStandardHandle(STD_ERROR_HANDLE, GENERIC_WRITE);
+                if (childError.get() == nullptr || childError.get() == INVALID_HANDLE_VALUE)
+                {
+                    setFailure(Types::InfrastructureError::ProcessSetupFailed, GetLastError());
+                    return result;
+                }
+            }
+
+            // Restrict inheritance to the three selected standard handles. CREATE_SUSPENDED below then
+            // gives us a chance to assign the process to the kill-on-close job before child code runs.
+            std::vector<HANDLE> inheritedHandles;
+            inheritedHandles.reserve(3);
+            appendInheritedHandle(inheritedHandles, childInput.get());
+            appendInheritedHandle(inheritedHandles, options.captureOutput ? outputWrite.get() : childOutput.get());
+            appendInheritedHandle(inheritedHandles, options.captureOutput ? outputWrite.get() : childError.get());
+            StartupAttributeList attributeList(inheritedHandles);
+            if (!attributeList.valid())
+            {
+                setFailure(Types::InfrastructureError::ProcessSetupFailed, attributeList.nativeCode());
+                return result;
+            }
+
+            STARTUPINFOEXW startupInfo{};
+            startupInfo.StartupInfo.cb = sizeof(startupInfo);
+            startupInfo.StartupInfo.dwFlags = STARTF_USESTDHANDLES;
+            startupInfo.StartupInfo.hStdInput = childInput.get();
+            startupInfo.StartupInfo.hStdOutput = options.captureOutput ? outputWrite.get() : childOutput.get();
+            startupInfo.StartupInfo.hStdError = options.captureOutput ? outputWrite.get() : childError.get();
+            startupInfo.lpAttributeList = attributeList.get();
+
+#if INTERNAL_TEST_SUPPORT_TEST_HOOKS
+            if (const auto injected = Detail::TestHooks::consumeChildProcessFailure(TestHooks::ChildProcessFailurePoint::ProcessLaunch))
+            {
+                setFailure(Types::InfrastructureError::ProcessLaunchFailed, *injected);
+                return result;
+            }
+#endif
+            PROCESS_INFORMATION processInfo{};
+            const BOOL created = CreateProcessW(
+                nullptr,
+                commandLine.data(),
+                nullptr,
+                nullptr,
+                TRUE,
+                CREATE_NO_WINDOW | CREATE_UNICODE_ENVIRONMENT | CREATE_SUSPENDED | EXTENDED_STARTUPINFO_PRESENT,
+                environmentBlock.data(),
+                nullptr,
+                &startupInfo.StartupInfo,
+                &processInfo);
+            const DWORD launchError = created == FALSE ? GetLastError() : ERROR_SUCCESS;
+
+            outputWrite.reset();
+            childInput.reset();
+            childOutput.reset();
+            childError.reset();
+
+            if (created == FALSE)
+            {
+                setFailure(Types::InfrastructureError::ProcessLaunchFailed, launchError);
+                return result;
+            }
+
+            UniqueHandle processHandle(processInfo.hProcess);
+            UniqueHandle threadHandle(processInfo.hThread);
+
+            // Assignment must succeed before ResumeThread; otherwise descendants could escape the job.
+#if INTERNAL_TEST_SUPPORT_TEST_HOOKS
+            if (const auto injected = Detail::TestHooks::consumeChildProcessFailure(TestHooks::ChildProcessFailurePoint::JobAssignment))
+            {
+                static_cast<void>(TerminateProcess(processHandle.get(), kTestTerminationCode));
+                static_cast<void>(WaitForSingleObject(processHandle.get(), INFINITE));
+                setFailure(Types::InfrastructureError::ProcessSetupFailed, *injected);
+                result.outcome = Types::ChildProcessOutcome::TerminatedDuringCleanup;
+                return result;
+            }
+#endif
+            if (AssignProcessToJobObject(jobHandle.get(), processHandle.get()) == FALSE)
+            {
+                const DWORD assignmentError = GetLastError();
+                static_cast<void>(TerminateProcess(processHandle.get(), kTestTerminationCode));
+                static_cast<void>(WaitForSingleObject(processHandle.get(), INFINITE));
+                setFailure(Types::InfrastructureError::ProcessSetupFailed, assignmentError);
+                result.outcome = Types::ChildProcessOutcome::TerminatedDuringCleanup;
+                return result;
+            }
+
+            std::string output;
+            bool outputTruncated = false;
+            Types::InfrastructureStatus outputStatus;
+            std::thread outputReader;
+            UniqueHandle outputDoneEvent;
+            if (options.captureOutput)
+            {
+#if INTERNAL_TEST_SUPPORT_TEST_HOOKS
+                if (const auto injected = Detail::TestHooks::consumeChildProcessFailure(TestHooks::ChildProcessFailurePoint::CaptureSetup))
+                {
+                    static_cast<void>(TerminateJobObject(jobHandle.get(), kTestTerminationCode));
+                    static_cast<void>(WaitForSingleObject(processHandle.get(), INFINITE));
+                    setFailure(Types::InfrastructureError::CaptureFailed, *injected);
+                    result.outcome = Types::ChildProcessOutcome::TerminatedDuringCleanup;
+                    return result;
+                }
+#endif
+                outputDoneEvent.reset(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+                if (outputDoneEvent.get() == nullptr)
+                {
+                    const DWORD eventError = GetLastError();
+                    static_cast<void>(TerminateJobObject(jobHandle.get(), kTestTerminationCode));
+                    static_cast<void>(WaitForSingleObject(processHandle.get(), INFINITE));
+                    setFailure(Types::InfrastructureError::CaptureFailed, eventError);
+                    result.outcome = Types::ChildProcessOutcome::TerminatedDuringCleanup;
+                    return result;
+                }
+
+                try
+                {
+#if INTERNAL_TEST_SUPPORT_TEST_HOOKS
+                    if (const auto injected = Detail::TestHooks::consumeChildProcessFailure(TestHooks::ChildProcessFailurePoint::ThreadCreation))
+                    {
+                        static_cast<void>(TerminateJobObject(jobHandle.get(), kTestTerminationCode));
+                        static_cast<void>(WaitForSingleObject(processHandle.get(), INFINITE));
+                        setFailure(Types::InfrastructureError::CaptureFailed, *injected);
+                        result.outcome = Types::ChildProcessOutcome::TerminatedDuringCleanup;
+                        return result;
+                    }
+#endif
+                    const HANDLE outputReadHandle = outputRead.get();
+                    const HANDLE outputDoneHandle = outputDoneEvent.get();
+                    const std::size_t captureLimit = options.maxCapturedOutputBytes;
+                    outputReader = std::thread(
+                        [outputReadHandle, outputDoneHandle, captureLimit, &output, &outputTruncated, &outputStatus]
+                        {
+                            const auto setOutputFailure = [&outputStatus](Types::InfrastructureError error, std::uint64_t nativeCode = 0) noexcept
+                            {
+                                if (outputStatus.ok())
+                                {
+                                    outputStatus.error = error;
+                                    outputStatus.nativeCode = nativeCode;
+                                }
+                            };
+
+                            try
+                            {
+                                char buffer[4096];
+#if INTERNAL_TEST_SUPPORT_TEST_HOOKS
+                                if (const auto injected =
+                                        Detail::TestHooks::consumeChildProcessFailure(TestHooks::ChildProcessFailurePoint::CaptureRead))
+                                {
+                                    setOutputFailure(Types::InfrastructureError::CaptureFailed, *injected);
+                                }
+                                else
+#endif
+                                {
+                                    // Continue reading after the retained limit. Draining is required so a
+                                    // verbose child cannot block forever on a full pipe.
+                                    while (true)
+                                    {
+                                        DWORD bytesRead = 0;
+                                        if (ReadFile(outputReadHandle, buffer, static_cast<DWORD>(sizeof(buffer)), &bytesRead, nullptr) == FALSE)
+                                        {
+                                            const DWORD readError = GetLastError();
+                                            if (readError != ERROR_BROKEN_PIPE)
+                                            {
+                                                setOutputFailure(Types::InfrastructureError::CaptureFailed, readError);
+                                            }
+                                            break;
+                                        }
+                                        if (bytesRead == 0)
+                                        {
+                                            break;
+                                        }
+
+                                        const std::size_t retained = output.size();
+                                        const std::size_t available = retained < captureLimit ? captureLimit - retained : 0;
+                                        const std::size_t appendCount = std::min<std::size_t>(available, bytesRead);
+                                        if (appendCount > 0)
+                                        {
+                                            output.append(buffer, appendCount);
+                                        }
+                                        if (appendCount < bytesRead)
+                                        {
+                                            outputTruncated = true;
+                                        }
+                                    }
+                                }
+                            }
+                            catch (const std::bad_alloc &)
+                            {
+                                setOutputFailure(Types::InfrastructureError::OutOfMemory);
+                            }
+                            catch (...)
+                            {
+                                setOutputFailure(Types::InfrastructureError::CaptureFailed);
+                            }
+
+                            if (SetEvent(outputDoneHandle) == FALSE)
+                            {
+                                setOutputFailure(Types::InfrastructureError::CaptureFailed, GetLastError());
+                            }
+                        });
+                }
+                catch (const std::bad_alloc &)
+                {
+                    static_cast<void>(TerminateJobObject(jobHandle.get(), kTestTerminationCode));
+                    static_cast<void>(WaitForSingleObject(processHandle.get(), INFINITE));
+                    setFailure(Types::InfrastructureError::OutOfMemory);
+                    result.outcome = Types::ChildProcessOutcome::TerminatedDuringCleanup;
+                    return result;
+                }
+                catch (const std::system_error &error)
+                {
+                    static_cast<void>(TerminateJobObject(jobHandle.get(), kTestTerminationCode));
+                    static_cast<void>(WaitForSingleObject(processHandle.get(), INFINITE));
+                    setFailure(
+                        Types::InfrastructureError::CaptureFailed,
+                        static_cast<std::uint64_t>(static_cast<std::uint32_t>(error.code().value())));
+                    result.outcome = Types::ChildProcessOutcome::TerminatedDuringCleanup;
+                    return result;
+                }
+                catch (...)
+                {
+                    static_cast<void>(TerminateJobObject(jobHandle.get(), kTestTerminationCode));
+                    static_cast<void>(WaitForSingleObject(processHandle.get(), INFINITE));
+                    setFailure(Types::InfrastructureError::CaptureFailed);
+                    result.outcome = Types::ChildProcessOutcome::TerminatedDuringCleanup;
+                    return result;
+                }
+            }
+
+            bool resumeFailed = false;
+            std::uint64_t resumeNativeCode = 0;
+#if INTERNAL_TEST_SUPPORT_TEST_HOOKS
+            if (const auto injected = Detail::TestHooks::consumeChildProcessFailure(TestHooks::ChildProcessFailurePoint::ThreadResume))
+            {
+                resumeFailed = true;
+                resumeNativeCode = *injected;
+            }
+#endif
+            if (!resumeFailed && ResumeThread(threadHandle.get()) == static_cast<DWORD>(-1))
+            {
+                resumeFailed = true;
+                resumeNativeCode = GetLastError();
+            }
+
+            if (resumeFailed)
+            {
+                static_cast<void>(TerminateJobObject(jobHandle.get(), kTestTerminationCode));
+                static_cast<void>(WaitForSingleObject(processHandle.get(), INFINITE));
+                setFailure(Types::InfrastructureError::ProcessSetupFailed, resumeNativeCode);
+                result.outcome = Types::ChildProcessOutcome::TerminatedDuringCleanup;
+            }
+            else
+            {
+#if INTERNAL_TEST_SUPPORT_TEST_HOOKS
+                if (const auto injected = Detail::TestHooks::consumeChildProcessFailure(TestHooks::ChildProcessFailurePoint::Wait))
+                {
+                    setFailure(Types::InfrastructureError::WaitFailed, *injected);
+                    result.outcome = Types::ChildProcessOutcome::TerminatedDuringCleanup;
+                    static_cast<void>(TerminateJobObject(jobHandle.get(), kTestTerminationCode));
+                    static_cast<void>(WaitForSingleObject(processHandle.get(), INFINITE));
+                }
+                else
+#endif
+                {
+                    const DWORD waitResult = WaitForSingleObject(processHandle.get(), timeoutMilliseconds(options.timeout));
+                    if (waitResult == WAIT_TIMEOUT)
+                    {
+                        result.outcome = Types::ChildProcessOutcome::TimedOut;
+#if INTERNAL_TEST_SUPPORT_TEST_HOOKS
+                        if (const auto injected = Detail::TestHooks::consumeChildProcessFailure(TestHooks::ChildProcessFailurePoint::ProcessCleanup))
+                        {
+                            setFailure(Types::InfrastructureError::ProcessCleanupFailed, *injected);
+                        }
+#endif
+                        if (TerminateJobObject(jobHandle.get(), kTestTerminationCode) == FALSE)
+                        {
+                            setFailure(Types::InfrastructureError::ProcessCleanupFailed, GetLastError());
+                        }
+                        if (WaitForSingleObject(processHandle.get(), INFINITE) == WAIT_FAILED)
+                        {
+                            setFailureIfSuccessful(Types::InfrastructureError::ProcessCleanupFailed, GetLastError());
+                        }
+                    }
+                    else if (waitResult != WAIT_OBJECT_0)
+                    {
+                        const DWORD waitError = GetLastError();
+                        setFailure(Types::InfrastructureError::WaitFailed, waitError);
+                        result.outcome = Types::ChildProcessOutcome::TerminatedDuringCleanup;
+                        static_cast<void>(TerminateJobObject(jobHandle.get(), kTestTerminationCode));
+                        static_cast<void>(WaitForSingleObject(processHandle.get(), INFINITE));
+                    }
+                    else
+                    {
+                        DWORD exitCode = 0;
+                        bool inspectionFailed = false;
+                        std::uint64_t inspectionNativeCode = 0;
+#if INTERNAL_TEST_SUPPORT_TEST_HOOKS
+                        if (const auto injected =
+                                Detail::TestHooks::consumeChildProcessFailure(TestHooks::ChildProcessFailurePoint::ProcessInspection))
+                        {
+                            inspectionFailed = true;
+                            inspectionNativeCode = *injected;
+                        }
+#endif
+                        if (!inspectionFailed && GetExitCodeProcess(processHandle.get(), &exitCode) == FALSE)
+                        {
+                            inspectionFailed = true;
+                            inspectionNativeCode = GetLastError();
+                        }
+
+                        if (!inspectionFailed)
+                        {
+                            result.exitCode = static_cast<std::uint32_t>(exitCode);
+                            result.outcome = Types::ChildProcessOutcome::Exited;
+                        }
+                        else
+                        {
+                            setFailure(Types::InfrastructureError::ProcessInspectionFailed, inspectionNativeCode);
+                            result.outcome = Types::ChildProcessOutcome::OutcomeUnavailable;
+                        }
+
+                        // Even after normal primary-process completion, descendants can retain stdout/stderr pipe
+                        // handles. Terminate the job before joining the reader so process-tree cleanup is bounded.
+#if INTERNAL_TEST_SUPPORT_TEST_HOOKS
+                        if (const auto injected = Detail::TestHooks::consumeChildProcessFailure(TestHooks::ChildProcessFailurePoint::ProcessCleanup))
+                        {
+                            setFailureIfSuccessful(Types::InfrastructureError::ProcessCleanupFailed, *injected);
+                        }
+#endif
+                        if (TerminateJobObject(jobHandle.get(), kTestTerminationCode) == FALSE)
+                        {
+                            setFailureIfSuccessful(Types::InfrastructureError::ProcessCleanupFailed, GetLastError());
+                        }
+                    }
+                }
+            }
+
+            if (outputReader.joinable())
+            {
+                DWORD outputWait = WaitForSingleObject(outputDoneEvent.get(), 2000);
+                if (outputWait != WAIT_OBJECT_0)
+                {
+                    const DWORD outputWaitError = outputWait == WAIT_FAILED ? GetLastError() : outputWait;
+                    if (outputStatus.ok())
+                    {
+                        outputStatus.error = Types::InfrastructureError::CaptureFailed;
+                        outputStatus.nativeCode = outputWaitError;
+                    }
+                    static_cast<void>(CancelSynchronousIo(reinterpret_cast<HANDLE>(outputReader.native_handle())));
+                    outputWait = WaitForSingleObject(outputDoneEvent.get(), 2000);
+                    if (outputWait != WAIT_OBJECT_0)
+                    {
+                        outputRead.reset();
+                        static_cast<void>(WaitForSingleObject(outputDoneEvent.get(), INFINITE));
+                    }
+                }
+                outputReader.join();
+            }
+
+            if (!outputStatus.ok())
+            {
+                setFailureIfSuccessful(outputStatus.error, outputStatus.nativeCode);
+            }
+
+            result.outputTruncated = outputTruncated;
+            result.output = std::move(output);
+            return result;
+        }
+        catch (const NativeInfrastructureFailure &failure)
         {
-            result.exitCode = 0;
-            result.infrastructureFailure = true;
+            setFailure(failure.error, failure.nativeCode);
+            return result;
         }
-
-        result.output = std::move(output);
-        result.outputTruncated = outputTruncated;
-        return result;
+        catch (const std::bad_alloc &)
+        {
+            setFailure(Types::InfrastructureError::OutOfMemory);
+            return result;
+        }
+        catch (const std::invalid_argument &)
+        {
+            setFailure(Types::InfrastructureError::InvalidArgument);
+            return result;
+        }
+        catch (const std::length_error &)
+        {
+            setFailure(Types::InfrastructureError::InvalidArgument);
+            return result;
+        }
+        catch (const std::system_error &error)
+        {
+            setFailure(Types::InfrastructureError::PlatformFailure, static_cast<std::uint64_t>(static_cast<std::uint32_t>(error.code().value())));
+            return result;
+        }
+        catch (...)
+        {
+            setFailure(Types::InfrastructureError::PlatformFailure);
+            return result;
+        }
 #else
         (void)options;
-        result.exitCode = 0;
+        result.status.error = Types::InfrastructureError::Unsupported;
         return result;
 #endif
     }

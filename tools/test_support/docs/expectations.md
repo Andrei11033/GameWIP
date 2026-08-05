@@ -26,8 +26,8 @@ Every expectation is an ordinary function call. Arguments are evaluated before T
 | `expectNe()` | `unexpected != actual` | Comparison or failure formatting can throw. |
 | `expectNear()` | `abs(expected - actual) <= tolerance` | Negative tolerance fails. Floating-point non-finite values follow normal comparison rules. |
 | `expectContains()` | substring occurs in text | Empty substring succeeds. |
-| `expectFileContains()` | `fileContains()` returns true | Inherits the text-file helper's empty/open ambiguity. |
-| `expectFileOccurrenceCount()` | observed non-overlapping count equals expected count | A zero count does not prove the file was readable. |
+| `expectFileContains()` | `fileContains()` returns successful status and true | A failed file operation records a failed expectation with status details. |
+| `expectFileOccurrenceCount()` | successful status and observed non-overlapping count equals expected count | Successful zero distinguishes no matches from read failure. |
 
 Each method records one pass or failure and returns the same outcome. Use the return value for dependent control flow; do not expect the helper to abort.
 
@@ -37,14 +37,9 @@ Each method records one pass or failure and returns the same outcome. Use the re
 
 Comparison, `operator<<`, `std::ostringstream`, allocation, or report formatting can throw before a failure is fully recorded. Use a domain-specific check and explicit reason when formatting a value has side effects or requires a stronger diagnostic.
 
-## File-expectation ambiguity
+## File-expectation status
 
-`readTextFile()` returns an empty string for an empty file and for open failure. `countFileOccurrences()` also returns zero for an empty search string, a missing/unreadable file, or no matches. Consequently:
-
-- expecting zero occurrences can pass for a missing or unreadable file;
-- `fileContains(path, "")` can succeed for an existing path whose read produced empty text.
-
-Check `fileExists()` separately when existence is part of the contract. Use FileSystem or custom fixture code when open and read failures must be distinguished.
+File expectations require successful infrastructure status before considering the domain value. `expectFileContains(path, "")` passes for any successfully read file, including an empty file, but fails for missing or unreadable input. A zero occurrence expectation likewise requires a successful read.
 
 ## Sections
 

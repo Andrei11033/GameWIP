@@ -45,7 +45,7 @@ Completion checklist:
 - [x] `foundation/terminal` exists with console IO and Win32 backend coverage.
 - [x] `tools/logger` exists with async logging, sinks, filters, reports, macros, and validation hooks.
 - [x] `tools/debug/assert` exists with assertion macros integrated with Logger.
-- [x] `tools/test_support` exists for validation suites, reports, temp directories, environment guards, and child processes.
+- [x] `tools/test_support` exists with validation suites, reports, explicit infrastructure status/value results, non-throwing state guards, and child-process outcomes.
 - [x] Modular correctness validation exists under `game/validation/tests`.
 - [x] Benchmark registration exists under `game/validation/benchmarks`.
 - [x] Static analysis, formatting, Doxygen, coverage, profiling, and repository-check workflows exist.

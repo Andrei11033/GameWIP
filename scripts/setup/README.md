@@ -35,7 +35,7 @@ installer, pacman, Git, compiler, or documentation diagnostics in new code.
 Full setup installs missing state and refreshes MSYS2 before installing its declared packages.
 Repair reapplies missing state without requesting ordinary upgrades. Update fetches and fast-forwards
 the current branch from its configured upstream and applies newest compatible
-WinGet/pacman releases while retaining CMake `4.4.x` and the submodule revisions
+WinGet/pacman releases while retaining CMake `4.4.2` or newer on the 4.4 release line and the submodule revisions
 recorded by the updated checkout. It refuses dirty trees, missing upstreams, and
 non-fast-forward merges. Existing `C:\MSYS2` installations update through
 complete `pacman -Syu` passes; WinGet is used only for the first installation at
@@ -54,10 +54,10 @@ Tracy checks the complete installed executable set and its recorded pinned
 source version before doing build work. When they match, setup reuses the
 installed tools; otherwise it rebuilds five upstream CMake projects from the
 pinned submodule using UCRT64 GCC/Ninja. Generated compatibility adjustments
-remove upstream MSVC-only `/MP` and incompatible COFF LTO flags without
-modifying the submodule. All six EXEs and recursively discovered UCRT DLLs
-stage under `build/setup/tracy`; `.tracy` changes only after complete
-verification.
+provide the POSIX `memmem` operation missing from UCRT64 and remove incompatible
+COFF LTO flags without modifying the submodule. The required Windows security
+library is linked explicitly. All six EXEs and recursively discovered UCRT DLLs stage under
+`build/setup/tracy`; `.tracy` changes only after complete verification.
 
 Focused `docs` builds, verifies, and opens the generated manual. Complete
 setup/update/repair builds the same manual without launching a browser.

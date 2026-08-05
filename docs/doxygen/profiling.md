@@ -87,6 +87,12 @@ the validation, benchmark, and runtime boundaries. These markers describe the
 executable composition path; subsystem implementations own any narrower zones
 needed to explain measured work.
 
+Colors group executable-owned zones by purpose: blue identifies the enclosing
+process and runtime, teal identifies initialization, green identifies frames,
+gray identifies waits, orange and purple identify validation and benchmarks,
+and red identifies cleanup or failure paths. Preserve these meanings when
+adding a related zone; prefer an uncolored marker when no category applies.
+
 ## Optimization workflow
 
 1. Capture a representative Tracy session.

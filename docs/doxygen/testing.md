@@ -192,6 +192,8 @@ Normal validation uses concise console output: failures, skips, manual instructi
 
 The retained report receives complete TestSupport output when file reporting is enabled. An invalid report path disables only retained output; it must not hide console failures or change test counts.
 
+TestSupport infrastructure helpers keep setup and operating-system failures separate from the behavior under test. Callers must inspect a result's `status` before using its payload. For child processes, infrastructure `status`, process `outcome`, and exact `exitCode` are independent: a nonzero child exit or an expected timeout is a domain outcome, not an infrastructure failure. Use `TestSupport::formatInfrastructureStatus()` only when a failed status needs to be recorded in diagnostics. See @ref test_support_public_api, @ref test_support_child_processes, and @ref test_support_files_environment for the complete API contract.
+
 - A failed expectation does not abort the suite.
 - A suite entry point returns nonzero when its recorded result fails.
 - The runner catches an exception escaping a module callback, marks the module failed, and continues normal aggregate execution.
@@ -200,7 +202,7 @@ The retained report receives complete TestSupport output when file reporting is 
 
 ## Artifact lifecycle
 
-Use `TestSupport::ScopedTemporaryDirectory` for test workspaces, subsystem logs, generated fixtures, and child artifacts. Cleanup occurs on normal return and exception unwinding but remains best effort; process termination or open native resources can leave diagnostics behind.
+Use `TestSupport::ScopedTemporaryDirectory` for test workspaces, subsystem logs, generated fixtures, and child artifacts. Construction is non-throwing and fallible, so inspect `status()` before using `path()`; a failed guard is inert and exposes an empty path. Cleanup occurs on normal return and exception unwinding but remains best effort; process termination or open native resources can leave diagnostics behind. Apply the same status-first rule to current-directory and environment guards before assuming their requested process-state change took effect.
 
 Final validation reports belong under the operating-system temporary GameWIP root unless a caller supplies an absolute path. Tests must not create persistent `logs/` or fixture output in the source or build tree.
 
@@ -220,6 +222,7 @@ Correctness tests must:
 - Isolate files and restore current directory, environment, terminal state, hooks, and singleton configuration.
 - Keep child protocols uniquely owned and route them before full-suite execution.
 - Preserve exact failure evidence and continue after ordinary expectation failures.
+- Inspect TestSupport infrastructure status before consuming returned text, boolean, count, path, or child-process fields.
 - Add regression coverage for behavior changes and fixed defects.
 - Use approved internal hooks only when the public API cannot make the scenario deterministic.
 
@@ -231,13 +234,13 @@ Stress tests may remain correctness tests when they verify invariants rather tha
 
 `game/validation/installed_consumer/` configures and builds against the installed package surface only. It verifies installed header usability, representative cross-library integration, the current imported targets after all packages are found, and the absence of source-tree test-hook definitions.
 
-The combined consumer verifies cross-library integration. Separate isolated consumers call only one `find_package()` for each package, proving that higher-level configs discover every imported dependency in their exported interface. Additional cases cover split-prefix runtime Assert and disabled/interface-only Assert.
+The combined consumer verifies cross-library integration. Separate isolated consumers call only one `find_package()` for each package, proving that higher-level configs discover every imported dependency in their exported interface. The combined and isolated TestSupport cases compile and run representative status, formatting, and child-result contracts while explicitly rejecting `INTERNAL_TEST_SUPPORT_TEST_HOOKS`. Additional cases cover split-prefix runtime Assert and disabled/interface-only Assert.
 
 The dedicated `Packages (CMake)` job owns ordinary package compatibility across
 Ninja and Ninja Multi-Config, so `Build and Test` excludes package-labeled CTest
 entries instead of repeating the single-config cases. Coverage and
 AddressSanitizer still run their package entries because those executions prove
-that separately instrumented consumers link and run. The root CMake 4.4
+that separately instrumented consumers link and run. The root CMake 4.4.2
 requirement is propagated into each independently configured consumer rather
 than copied into consumer source.
 

@@ -69,10 +69,21 @@ int main()
     TS::Context context("Files", options);
 
     TS::ScopedTemporaryDirectory workspace("file_example");
-    const auto path = workspace.path() / "sample.txt";
-    TS::writeTextFile(path, "alpha beta alpha");
+    if (!workspace.status().ok())
+    {
+        return 1;
+    }
 
-    static_cast<void>(context.expectTrue("sample exists", TS::fileExists(path)));
+    const auto path = workspace.path() / "sample.txt";
+    if (!TS::writeTextFile(path, "alpha beta alpha").ok())
+    {
+        return 1;
+    }
+
+    const TS::Types::BoolResult exists = TS::fileExists(path);
+    static_cast<void>(context.expectTrue(
+        "sample exists",
+        exists.status.ok() && exists.value));
     static_cast<void>(context.expectFileContains("sample contains beta", path, "beta"));
     static_cast<void>(
         context.expectFileOccurrenceCount("sample alpha count", path, "alpha", 2));
@@ -92,12 +103,23 @@ int main()
     namespace TS = GameWIP::TestSupport;
 
     TS::ScopedTemporaryDirectory workspace("relative_path");
+    if (!workspace.status().ok())
     {
-        TS::ScopedCurrentPath currentPath(workspace.path());
-        TS::writeTextFile("relative.txt", "fixture");
+        return 1;
     }
 
-    return TS::fileExists(workspace.path() / "relative.txt") ? 0 : 1;
+    {
+        TS::ScopedCurrentPath currentPath(workspace.path());
+        if (!currentPath.status().ok() ||
+            !TS::writeTextFile("relative.txt", "fixture").ok())
+        {
+            return 1;
+        }
+    }
+
+    const TS::Types::BoolResult exists =
+        TS::fileExists(workspace.path() / "relative.txt");
+    return exists.status.ok() && exists.value ? 0 : 1;
 }
 ```
 
@@ -118,6 +140,11 @@ int main()
 
     {
         TS::ScopedEnvironmentVariable value(name, "enabled");
+        if (!value.status().ok())
+        {
+            return 1;
+        }
+
         const char* current = std::getenv(name.data());
         if (current == nullptr || std::string_view(current) != "enabled")
         {
@@ -127,7 +154,7 @@ int main()
 
     {
         TS::ScopedUnsetEnvironmentVariable unset(name);
-        if (std::getenv(name.data()) != nullptr)
+        if (!unset.status().ok() || std::getenv(name.data()) != nullptr)
         {
             return 1;
         }
@@ -160,7 +187,8 @@ int main(int argc, char** argv)
     options.maxCapturedOutputBytes = 64 * 1024;
 
     const TS::Types::ChildProcessResult result = TS::runChildProcess(options);
-    if (result.infrastructureFailure || result.timedOut || result.wasTerminatedByTest)
+    if (!result.status.ok() ||
+        result.outcome != TS::Types::ChildProcessOutcome::Exited)
     {
         return 1;
     }

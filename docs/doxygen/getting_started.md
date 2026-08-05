@@ -38,6 +38,11 @@ Run the development executable:
 .\build\dev\GameWIP.exe
 ```
 
+The executable reports connected-display modes and HDR/color capabilities,
+then opens a borderless-fullscreen window at the desktop resolution. Press
+`Alt+F4` to close it. See @ref project_game_executable for the complete runtime
+sequence and failure behavior.
+
 The development preset builds the game with tools and compiles embedded tests for explicit `--startup-tests` execution. The `dev-no-tools` preset proves the game does not depend on optional tooling. Release builds intentionally exclude validation, benchmarks, assertions, Tracy, and development tools.
 
 ## Run validation

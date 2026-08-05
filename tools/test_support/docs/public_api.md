@@ -33,6 +33,14 @@ Fields are `passed`, `failed`, and `skipped`. `total()` returns their sum. `ok()
 
 Fields are the owning suite `name`, its `summary`, and `elapsedMilliseconds`. `ok()` forwards to `summary.ok()`.
 
+### Infrastructure status and value results
+
+`Types::InfrastructureError` provides compact TestSupport-owned categories for invalid input, unsupported backends, allocation, process, capture, environment, file, and platform failures. `Types::InfrastructureStatus` stores one category and a `std::uint64_t nativeCode`; `ok()` is true only for `None`.
+
+`Types::TextResult`, `Types::BoolResult`, and `Types::CountResult` pair that status with text, a boolean value, or a count. Successful status construction and inspection do not allocate. A native code of zero means no numeric diagnostic was available.
+
+`formatInfrastructureStatus()` turns a status into a stable category name and appends a nonzero native code. Call it only when constructing a human-readable diagnostic; formatting may allocate.
+
 ## Reporting owners
 
 ### `Context`
@@ -64,15 +72,15 @@ Public recording serializes count updates and sink writes. `suiteName()` returns
 
 ## File and process-state helpers
 
-- `ScopedTemporaryDirectory`: unique temporary workspace with best-effort recursive cleanup.
-- `ScopedCurrentPath`: process-current-directory guard with best-effort restoration.
-- `readTextFile()`: binary whole-file convenience read with an empty-result ambiguity.
-- `writeTextFile()`: binary truncate-and-replace write that creates parents.
-- `fileExists()`, `fileContains()`, `countFileOccurrences()`.
-- `createDirectories()` and best-effort `removeIfExists()`.
-- `ScopedEnvironmentVariable` and `ScopedUnsetEnvironmentVariable`: process-environment guards.
+- `ScopedTemporaryDirectory`: non-throwing unique temporary workspace with construction status and best-effort recursive cleanup.
+- `ScopedCurrentPath`: non-throwing process-current-directory guard with construction status and best-effort restoration.
+- `readTextFile()`: status plus binary whole-file text.
+- `writeTextFile()`: status-returning binary truncate-and-replace write that creates parents.
+- `fileExists()`, `fileContains()`, and `countFileOccurrences()`: status plus an unambiguous domain value.
+- `createDirectories()` and `removeIfExists()`: explicit cleanup status.
+- `ScopedEnvironmentVariable` and `ScopedUnsetEnvironmentVariable`: non-throwing process-environment guards with construction status.
 
-See @ref test_support_files_environment for ownership, ambiguity, exception, and coordination rules.
+See @ref test_support_files_environment for ownership, failure, cleanup, and coordination rules.
 
 ## Child-process and manual-check types
 
@@ -94,13 +102,13 @@ Fields are:
 
 ### `Types::ChildProcessResult`
 
-- `exitCode`: complete native unsigned 32-bit exit code when infrastructure is healthy.
-- `infrastructureFailure`: TestSupport launch/setup/wait/inspection/capture failure occurred.
-- `timedOut`: the configured wait expired before normal completion.
-- `wasTerminatedByTest`: TestSupport requested primary-process termination during timeout or infrastructure-failure handling.
-- `output`: retained combined stdout/stderr bytes.
+- `status`: infrastructure status independent of child outcome.
+- `exitCode`: complete native unsigned 32-bit exit code when `outcome` is `Exited`.
+- `outcome`: `NotStarted`, `Exited`, `TimedOut`, `TerminatedDuringCleanup`, or `OutcomeUnavailable`.
 - `outputTruncated`: bytes were drained but discarded after the retained limit.
-- `exitedSuccessfully()` and `exitedWithFailure()`: convenience predicates over infrastructure, exit, timeout, and termination state.
+- `output`: retained combined stdout/stderr bytes, including useful partial capture on failure.
+
+`Types::ChildProcessOutcome` describes the child domain independently from `Types::InfrastructureStatus`. A nonzero exit and an enforced timeout are not infrastructure failures.
 
 ### `Types::ManualAnswer`
 
@@ -124,7 +132,7 @@ See @ref test_support_timing_stress.
 
 ## Exceptions, blocking, and threading
 
-APIs marked `noexcept` do not throw. Other APIs may propagate standard allocation, formatting, filesystem, standard-stream, thread, or platform-conversion exceptions as documented by their owner page.
+Infrastructure helpers marked `noexcept` convert expected implementation allocation, filesystem, environment, process, and platform failures into status. Caller-side construction of allocating standard-library arguments remains governed by those types. Other APIs may propagate formatting, standard-stream, thread, or allocation exceptions as documented by their owner page.
 
 Report calls serialize sink access. Summary counters are protected. File helpers do not create a transaction around external filesystem activity. Current-directory and environment state are process-global. Child execution, manual prompts, gate waits, worker joins, and filesystem operations can block.
 

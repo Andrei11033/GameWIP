@@ -13,7 +13,7 @@ function Get-GameWipTracyVersion
     $text = Get-Content -LiteralPath $header -Raw
     $parts = foreach ($name in @('Major', 'Minor', 'Patch'))
     {
-        $match = [regex]::Match($text, "enum\s*\{\s*$name\s*=\s*(\d+)\s*\}")
+        $match = [regex]::Match($text, "(?m)^\s*constexpr\s+int\s+$name\s*=\s*(\d+)\s*;")
         if (-not $match.Success)
         {
             throw "Could not read Tracy $name version from $header."
@@ -104,6 +104,39 @@ function Copy-GameWipTracyRuntimeDependencies
     }
 }
 
+function New-GameWipTracyCompilerCompatibilityHeader
+{
+    param([Parameter(Mandatory = $true)][string]$SetupRoot)
+
+    $header = Join-Path $SetupRoot 'compat\TracyCompilerCompatibility.hpp'
+    New-Item -ItemType Directory -Path (Split-Path -Parent $header) -Force | Out-Null
+    $content = @'
+#pragma once
+
+#if defined(_WIN32) && !defined(_MSC_VER)
+#include <cstddef>
+#include <cstring>
+
+inline void* memmem(const void* haystack, std::size_t haystackSize, const char* needle, std::size_t needleSize)
+{
+    auto remaining = std::ptrdiff_t(haystackSize) - std::ptrdiff_t(needleSize);
+    while (remaining >= 0)
+    {
+        if (std::memcmp(haystack, needle, needleSize) == 0)
+        {
+            return const_cast<void*>(haystack);
+        }
+        haystack = static_cast<const char*>(haystack) + 1;
+        --remaining;
+    }
+    return nullptr;
+}
+#endif
+'@
+    [IO.File]::WriteAllText($header, $content, [Text.UTF8Encoding]::new($false))
+    return $header
+}
+
 function Build-GameWipTracyTools
 {
     param(
@@ -154,6 +187,7 @@ function Build-GameWipTracyTools
     }
     New-Item -ItemType Directory -Path $stageRoot -Force | Out-Null
     New-Item -ItemType Directory -Path $cacheRoot -Force | Out-Null
+    $compilerCompatibilityHeader = New-GameWipTracyCompilerCompatibilityHeader -SetupRoot $setupRoot
 
     $projects = @(
         @{ Name = 'profiler'; Source = 'profiler'; Outputs = @('tracy-profiler.exe') }
@@ -176,6 +210,7 @@ function Build-GameWipTracyTools
         $env:GIT_CONFIG_KEY_0 = 'safe.directory'
         $env:GIT_CONFIG_VALUE_0 = $tracyRoot.Replace('\', '/')
         $cmakeUcrtBin = $ucrtBin.Replace('\', '/')
+        $cmakeCompilerCompatibilityHeader = $compilerCompatibilityHeader.Replace('\', '/')
         foreach ($project in $projects)
         {
             Write-Host "Building Tracy $($project.Name) $version from the pinned submodule..."
@@ -192,23 +227,20 @@ function Build-GameWipTracyTools
                 "-DCMAKE_C_COMPILER=$cmakeUcrtBin/gcc.exe",
                 "-DCMAKE_CXX_COMPILER=$cmakeUcrtBin/g++.exe",
                 "-DCMAKE_RC_COMPILER=$cmakeUcrtBin/windres.exe",
-                '-DCMAKE_CXX_FLAGS=-march=x86-64-v3 -include cstdint',
+                "-DCMAKE_CXX_FLAGS=-march=x86-64-v3 -include cstdint -include `"$cmakeCompilerCompatibilityHeader`"",
                 '-DCMAKE_EXE_LINKER_FLAGS=-static -static-libgcc -static-libstdc++',
-                '-DCMAKE_CXX_STANDARD_LIBRARIES=-lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32 -lws2_32 -ldbghelp',
+                '-DCMAKE_CXX_STANDARD_LIBRARIES=-lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32 -lws2_32 -ldbghelp -lsecur32',
                 '-DNO_ISA_EXTENSIONS=ON'
             ) | Out-Null
 
-            # Tracy 0.13.1 adds MSVC's /MP switch for every Windows compiler
-            # and forces IPO/LTO for Release builds. UCRT64 GCC already gets
-            # parallel jobs from Ninja, treats /MP as an input file, and can
-            # produce incompatible COFF LTO objects across Tracy's dependency
-            # graph. Strip only those generated build flags while keeping the
+            # Tracy forces IPO/LTO for Release builds, which can produce
+            # incompatible COFF LTO objects across its dependency graph under
+            # UCRT64 GCC. Strip only those generated flags while keeping the
             # pinned submodule pristine.
             foreach ($ninjaFile in Get-ChildItem -LiteralPath $build -Recurse -Filter '*.ninja')
             {
                 $ninjaText = Get-Content -LiteralPath $ninjaFile.FullName -Raw
-                $updatedNinjaText = $ninjaText.Replace('/MP', '')
-                $updatedNinjaText = $updatedNinjaText.Replace('-flto=auto', '')
+                $updatedNinjaText = $ninjaText.Replace('-flto=auto', '')
                 $updatedNinjaText = $updatedNinjaText.Replace('-fno-fat-lto-objects', '')
                 if ($updatedNinjaText -ne $ninjaText)
                 {

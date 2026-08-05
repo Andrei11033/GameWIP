@@ -72,6 +72,8 @@ A backend must translate native errors before returning to portable core code. N
 
 When the public API returns an `IO::Types::Status` or a library result type, backend failures must preserve the most useful stable project error code available. Avoid leaking platform-only numeric codes into public behavior unless the public type explicitly stores diagnostic detail for that purpose.
 
+TestSupport backends return `InfrastructureStatus`, including a stable error category and optional native diagnostic code. Child-process backends must keep infrastructure failure separate from process outcome and exact exit code. An approved deterministic hook may exercise the public `Unsupported` category, but it does not substitute for a real platform backend: a missing backend for the selected project platform remains a configuration error.
+
 ## Concurrency and process state
 
 Backends that mutate process-global state, console state, environment variables, current directory, signal handlers, handles, file locks, or logger state must document restoration and synchronization rules in the owning library's maintainer docs.
@@ -89,6 +91,8 @@ A hook interface must define:
 - Whether hooks are one-shot, persistent, scoped, or query-only.
 - How state is reset between tests.
 - Which backend behavior the hook validates.
+
+Failure-injection hooks must preserve the same public status and cleanup invariants as real backend failures. They must not escape their source-tree compile definition into installed targets.
 
 A library with approved hooks must document them in `docs/test_hooks.md`.
 

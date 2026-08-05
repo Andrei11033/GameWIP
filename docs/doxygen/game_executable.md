@@ -33,8 +33,7 @@ Use this page when changing:
 
 `main.cpp` follows one process-level sequence:
 
-1. In Tracy-enabled builds, name the main thread, open the process zone, and
-   wait 500 milliseconds so the profiler can attach before startup work.
+1. In Tracy-enabled builds, name the main thread and open the process zone.
 2. When the only user argument is `--version`, print
    `GameWIP::Version::productDisplay` and exit successfully.
 3. Run startup correctness validation when it was compiled into the executable.
@@ -43,13 +42,17 @@ Use this page when changing:
 5. Stop startup when correctness validation fails.
 6. Run startup benchmarks when they were compiled into the executable.
 7. Stop startup when Google Benchmark rejects its arguments.
-8. Return the exit code from `GameWIP::Game::run()`.
+8. Enter `GameWIP::Game::run()`, which initializes runtime services, opens the
+   game window, and runs the event loop.
+9. Return the runtime facade's exit code.
 
 Utility-only version queries intentionally bypass validation and runtime startup. A `--version` token combined with other arguments is not treated as the utility-only form.
 
 Tracy-enabled builds emit frame marks before startup validation, startup
 benchmarks, and runtime execution. The enclosing named zones identify those
-process phases in a capture.
+process phases in a capture. Zone colors distinguish process/runtime work,
+initialization, frames, waits, validation, benchmarks, and cleanup or failure
+paths.
 
 There is no process-wide exception boundary around startup validation, benchmark execution, or `GameWIP::Game::run()`. The correctness runner converts exceptions escaping module callbacks, but its outer setup/allocation work and the benchmark runner may still propagate. Runtime code should express expected startup or shutdown failures through its returned exit code. Any exception that reaches `main()` follows the language runtime's uncaught-exception behavior.
 
@@ -61,10 +64,30 @@ There is no process-wide exception boundary around startup validation, benchmark
 - The returned integer becomes the executable's process exit code.
 - Reusable behavior must remain in its owning foundation or tools library rather than accumulating behind this facade.
 
-`run()` calls Logger console initialization at Debug severity, reports runtime
-startup, reports shutdown, and shuts Logger down before returning
-`EXIT_SUCCESS`. It does not retain or interpret `argc` or `argv`. Tracy-enabled
-builds mark the runtime, Logger initialization, and Logger shutdown phases.
+`run()` currently performs this runtime sequence:
+
+1. Initialize Logger console output at Debug severity.
+2. Enumerate connected displays and query each display's active mode, supported
+   modes, and HDR/color information.
+3. Open a visible, focused borderless-fullscreen window on the default display.
+   Borderless fullscreen uses the desktop resolution and does not change the
+   system display mode.
+4. Emit one startup report containing the display inventory, available modes,
+   color capabilities, and active-window state.
+5. Wait for and pump window events at intervals of up to 16 milliseconds until
+   the window receives a close request. On Windows, `Alt+F4` is the expected
+   manual exit path.
+6. Close the window, report shutdown, and shut Logger down.
+
+Failure to enumerate displays, open or close the window, or pump events is
+logged and returns `EXIT_FAILURE`. A failed HDR/color query is included in the
+startup report for that display but does not prevent the window from opening.
+The facade currently ignores `argc` and `argv`; it neither retains nor
+interprets them.
+
+Tracy-enabled builds identify display discovery, window open and close, the
+event wait/pump, individual game frames, and Logger lifetime with named zones
+and messages. A frame mark is emitted after each successful event-pump cycle.
 
 Use @ref GameWIP::Game for the generated source API reference.
 
@@ -114,7 +137,12 @@ Private helpers, module-local functions, and approved internal test seams remain
 
 ## Dependency boundary
 
-`game/` may compose reusable libraries, validation objects, Google Benchmark, Tracy instrumentation, and generated project metadata. It must not become the implementation owner for behavior that belongs to an existing library.
+`game/` may compose reusable libraries, including Logger and Window, validation
+objects, Google Benchmark, Tracy instrumentation, and generated project
+metadata. It must not become the implementation owner for behavior that belongs
+to an existing library. The runtime consumes Window's public display,
+renderer/color, window-lifetime, and event-pump interfaces; platform-specific
+display and window mechanics remain owned by Window.
 
 Move code into a reusable library when it becomes general-purpose, independently testable, and useful outside the executable. Long-term engine systems belong under `engine/` when that layer owns them.
 

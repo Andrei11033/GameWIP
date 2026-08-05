@@ -160,8 +160,9 @@ namespace
         child.captureOutput = true;
 
         const TestSupport::Types::ChildProcessResult result = TestSupport::runChildProcess(child);
-        static_cast<void>(context.expectFalse("reentrant formatter child does not time out", result.timedOut));
-        static_cast<void>(context.expectTrue("reentrant formatter child exits successfully", result.exitedSuccessfully()));
+        static_cast<void>(context.expectTrue("reentrant formatter child infrastructure succeeds", result.status.ok()));
+        static_cast<void>(context.expectEq("reentrant formatter child exits", TestSupport::Types::ChildProcessOutcome::Exited, result.outcome));
+        static_cast<void>(context.expectEq("reentrant formatter child returns zero", std::uint32_t{0}, result.exitCode));
         static_cast<void>(
             context.expectEq("reentrant formatter preserves nested and outer output", std::string{"innerouterinnerouter\n"}, result.output));
     }

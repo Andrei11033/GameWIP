@@ -18,13 +18,17 @@
 #include <cstdio>
 #include <string_view>
 
-#if GAMEWIP_TRACY_ENABLED
-#include <chrono>
-#include <thread>
-#endif
-
 namespace
 {
+#if GAMEWIP_TRACY_ENABLED
+    namespace ProfileZoneColor
+    {
+        inline constexpr auto Process = 0x4C78A8;
+        inline constexpr auto Validation = 0xF58518;
+        inline constexpr auto Benchmark = 0xB279A2;
+    } // namespace ProfileZoneColor
+#endif
+
     /// @brief Returns whether the process was invoked only to print version metadata.
     bool requestsVersion(int argc, char **argv) noexcept
     {
@@ -36,11 +40,7 @@ int main(int argc, char **argv)
 {
 #if GAMEWIP_TRACY_ENABLED
     tracy::SetThreadName("GameWIP Main");
-    ZoneScopedN("GameWIP process");
-    {
-        ZoneScopedN("Tracy startup wait");
-        std::this_thread::sleep_for(std::chrono::milliseconds(500));
-    }
+    ZoneScopedNC("GameWIP process", ProfileZoneColor::Process);
 #endif
 
     // Keep utility-only invocations independent from validation so packaging and
@@ -59,7 +59,7 @@ int main(int argc, char **argv)
     {
 #if GAMEWIP_TRACY_ENABLED
         FrameMark;
-        ZoneScopedN("Startup validation");
+        ZoneScopedNC("Startup validation", ProfileZoneColor::Validation);
 #endif
         tests = GameWIP::Validation::runTests(argc, argv);
     }
@@ -78,7 +78,7 @@ int main(int argc, char **argv)
     {
 #if GAMEWIP_TRACY_ENABLED
         FrameMark;
-        ZoneScopedN("Startup benchmarks");
+        ZoneScopedNC("Startup benchmarks", ProfileZoneColor::Benchmark);
 #endif
         benchmarks = GameWIP::Validation::runBenchmarks(argc, argv);
     }
