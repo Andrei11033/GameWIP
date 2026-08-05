@@ -730,6 +730,121 @@ namespace
         static_cast<void>(context.expectTrue("failed-unlock competitor closes", failedUnlockCompetitor.close().ok()));
 #endif
     }
+
+#if INTERNAL_FILESYSTEM_TEST_HOOKS
+    /// @brief Verifies checked file operations translate exceptions and retain retryable close state.
+    void testCheckedFileFailureTranslation(TestSupport::Context &context, const std::filesystem::path &root)
+    {
+        namespace Hooks = FileSystem::Detail::Platform::TestHooks;
+        using Operation = Hooks::CheckedFileOperation;
+        using Failure = Hooks::CheckedFailure;
+
+        const std::filesystem::path filePath = root / "checked_failures" / "stream.txt";
+        static_cast<void>(context.expectTrue("checked failure fixture write succeeds", FileSystem::writeAllText(filePath, "payload").status.ok()));
+
+        FileSystem::File file;
+        const IO::Types::Status openStatus = file.open(
+            filePath,
+            FileSystem::Types::FileOpenOptions{
+                .access = FileSystem::Types::FileAccess::ReadWrite,
+                .mode = FileSystem::Types::FileOpenMode::OpenExisting,
+                .flushOnClose = IO::Types::FlushMode::None});
+        static_cast<void>(context.expectTrue("checked failure fixture opens", openStatus.ok()));
+
+        auto verifyTranslations = [&context](Operation operation, std::string_view label, auto &&invoke)
+        {
+            Hooks::forceNextCheckedFailure(operation, Failure::Status, ErrorCode::PermissionDenied, 1977);
+            IO::Types::Status status = std::invoke(invoke);
+            static_cast<void>(context.expectEq(std::format("{} preserves injected status", label), ErrorCode::PermissionDenied, status.code));
+            static_cast<void>(context.expectEq(std::format("{} preserves injected native code", label), std::int64_t{1977}, status.nativeCode));
+
+            Hooks::forceNextCheckedFailure(operation, Failure::OutOfMemory);
+            status = std::invoke(invoke);
+            static_cast<void>(context.expectEq(std::format("{} translates allocation failure", label), ErrorCode::OutOfMemory, status.code));
+
+            Hooks::forceNextCheckedFailure(operation, Failure::Unexpected);
+            status = std::invoke(invoke);
+            static_cast<void>(context.expectEq(std::format("{} translates unexpected failure", label), ErrorCode::Unknown, status.code));
+        };
+
+        std::byte byte{};
+        verifyTranslations(
+            Operation::Read,
+            "File read",
+            [&file, &byte]
+            {
+                IO::Types::ReadResult result = file.read(std::span<std::byte>{&byte, 1});
+                return std::move(result.status);
+            });
+        verifyTranslations(
+            Operation::Write,
+            "File write",
+            [&file, &byte]
+            {
+                IO::Types::WriteResult result = file.write(std::span<const std::byte>{&byte, 1});
+                return std::move(result.status);
+            });
+        verifyTranslations(
+            Operation::Flush,
+            "File flush",
+            [&file]
+            {
+                return file.flush(IO::Types::FlushMode::None);
+            });
+        verifyTranslations(
+            Operation::Position,
+            "File position",
+            [&file]
+            {
+                IO::Types::PositionResult result = file.position();
+                return std::move(result.status);
+            });
+        verifyTranslations(
+            Operation::Size,
+            "File size",
+            [&file]
+            {
+                IO::Types::SizeResult result = file.size();
+                return std::move(result.status);
+            });
+        verifyTranslations(
+            Operation::Seek,
+            "File seek",
+            [&file]
+            {
+                return file.seek(0, IO::Types::SeekOrigin::Begin);
+            });
+        verifyTranslations(
+            Operation::Resize,
+            "File resize",
+            [&file]
+            {
+                return file.resize(7);
+            });
+        verifyTranslations(
+            Operation::Close,
+            "File close",
+            [&file]
+            {
+                return file.close();
+            });
+        static_cast<void>(context.expectTrue("failed checked closes retain open state", file.isOpen()));
+        static_cast<void>(context.expectTrue("checked close can be retried", file.close().ok()));
+
+        const std::filesystem::path missingPath = root / "checked_failures" / "missing.txt";
+        for (const Failure failure : {Failure::OutOfMemory, Failure::Unexpected})
+        {
+            Hooks::forceNextCheckedFailure(Operation::DiagnosticMessage, failure);
+            FileSystem::FileReader missingReader;
+            IO::Types::Status missingStatus = missingReader.open(missingPath);
+            static_cast<void>(context.expectEq("diagnostic failure preserves portable error", ErrorCode::NotFound, missingStatus.code));
+            static_cast<void>(context.expectTrue("diagnostic failure preserves native error", missingStatus.nativeCode != 0));
+            static_cast<void>(context.expectTrue("diagnostic failure falls back to an empty message", missingStatus.message.empty()));
+        }
+
+        Hooks::reset();
+    }
+#endif
 } // namespace
 
 namespace GameWIP::Test
@@ -797,6 +912,14 @@ namespace GameWIP::Test
             {
                 testAtomicWriteAndLocks(context, runRoot);
             });
+#if INTERNAL_FILESYSTEM_TEST_HOOKS
+        runner.runSuite(
+            "FileSystem checked failure translation",
+            [&runRoot](TestSupport::Context &context)
+            {
+                testCheckedFileFailureTranslation(context, runRoot);
+            });
+#endif
 
         const TestSupport::Types::Summary result = runner.result();
         runner.summary(std::format("FileSystem library self-tests passed={} failed={} skipped={}", result.passed, result.failed, result.skipped));

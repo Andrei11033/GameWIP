@@ -5,6 +5,7 @@
 
 #include "filesystem/filesystem.h"
 
+#include <chrono>
 #include <cstdint>
 #include <memory>
 #include <vector>
@@ -83,6 +84,35 @@ namespace GameWIP::FileSystem::Detail::Platform
 #if INTERNAL_FILESYSTEM_TEST_HOOKS
     namespace TestHooks
     {
+        /// Checked file operations that support deterministic one-shot failure injection.
+        enum class CheckedFileOperation : std::uint8_t
+        {
+            None,
+            Read,
+            Write,
+            Flush,
+            Close,
+            Position,
+            Size,
+            Seek,
+            Resize,
+            DiagnosticMessage
+        };
+
+        /// Failure category injected into one checked file operation.
+        enum class CheckedFailure : std::uint8_t
+        {
+            Status,
+            OutOfMemory,
+            Unexpected
+        };
+
+        /// Forces the next matching checked operation to return or translate the selected failure.
+        void forceNextCheckedFailure(
+            CheckedFileOperation operation,
+            CheckedFailure failure,
+            IO::Types::ErrorCode code = IO::Types::ErrorCode::NativeFailure,
+            std::int64_t nativeCode = 0) noexcept;
         /// Forces native file-lock release attempts to fail until disabled.
         void setFileUnlockFailure(bool enabled) noexcept;
         /// Arms a pause after strict move destination validation and before native commit.

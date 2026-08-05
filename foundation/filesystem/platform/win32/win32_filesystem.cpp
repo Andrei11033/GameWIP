@@ -21,7 +21,9 @@
 #include <limits>
 #include <memory>
 #include <mutex>
+#include <new>
 #include <span>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <system_error>
@@ -46,6 +48,49 @@ namespace GameWIP::FileSystem::Detail::Platform
         constexpr std::int64_t kUnixEpochAsWindowsFileTime = 116'444'736'000'000'000LL;
 
 #if INTERNAL_FILESYSTEM_TEST_HOOKS
+        using CheckedFileOperation = TestHooks::CheckedFileOperation;
+        using CheckedFailure = TestHooks::CheckedFailure;
+
+        std::atomic<CheckedFileOperation> checkedFailureOperation = CheckedFileOperation::None;
+        std::atomic<CheckedFailure> checkedFailureKind = CheckedFailure::Status;
+        std::atomic<ErrorCode> checkedFailureCode = ErrorCode::NativeFailure;
+        std::atomic<std::int64_t> checkedFailureNativeCode = 0;
+
+        struct CheckedFailureResult
+        {
+            IO::Types::Status status;
+            bool injected = false;
+        };
+
+        [[nodiscard]] CheckedFailureResult consumeCheckedFailure(CheckedFileOperation operation)
+        {
+            CheckedFileOperation expected = operation;
+            if (!checkedFailureOperation.compare_exchange_strong(expected, CheckedFileOperation::None, std::memory_order_acq_rel))
+            {
+                return {};
+            }
+
+            switch (checkedFailureKind.load(std::memory_order_relaxed))
+            {
+            case CheckedFailure::Status:
+                return {
+                    .status =
+                        IO::makeStatus(checkedFailureCode.load(std::memory_order_relaxed), checkedFailureNativeCode.load(std::memory_order_relaxed)),
+                    .injected = true};
+            case CheckedFailure::OutOfMemory:
+                throw std::bad_alloc{};
+            case CheckedFailure::Unexpected:
+                throw std::runtime_error{"injected checked file failure"};
+            }
+
+            throw std::runtime_error{"invalid checked file failure"};
+        }
+
+        void consumeDiagnosticFailure()
+        {
+            static_cast<void>(consumeCheckedFailure(CheckedFileOperation::DiagnosticMessage));
+        }
+
         /// Persistent failure injection used to validate destructor cleanup after UnlockFileEx failure.
         std::atomic_bool forceFileUnlockFailure = false;
 
@@ -328,7 +373,7 @@ namespace GameWIP::FileSystem::Detail::Platform
         }
 
         /// @brief Maps common Win32 errors to portable IO status while preserving native detail.
-        [[nodiscard]] IO::Types::Status makeWin32Status(DWORD error, ErrorCode fallback)
+        [[nodiscard]] IO::Types::Status makeWin32Status(DWORD error, ErrorCode fallback) noexcept
         {
             if (error == ERROR_SUCCESS)
             {
@@ -380,13 +425,36 @@ namespace GameWIP::FileSystem::Detail::Platform
                 break;
             }
 
-            return IO::makeStatus(code, static_cast<std::int64_t>(error), std::system_category().message(static_cast<int>(error)));
+            try
+            {
+#if INTERNAL_FILESYSTEM_TEST_HOOKS
+                consumeDiagnosticFailure();
+#endif
+                return IO::makeStatus(code, static_cast<std::int64_t>(error), std::system_category().message(static_cast<int>(error)));
+            }
+            catch (...)
+            {
+                return IO::makeStatus(code, static_cast<std::int64_t>(error));
+            }
         }
 
         /// @brief Maps the calling thread's current GetLastError value.
-        [[nodiscard]] IO::Types::Status makeLastErrorStatus(ErrorCode fallback)
+        [[nodiscard]] IO::Types::Status makeLastErrorStatus(ErrorCode fallback) noexcept
         {
             return makeWin32Status(GetLastError(), fallback);
+        }
+
+        /// @brief Builds a diagnostic status without allowing message allocation to escape.
+        [[nodiscard]] IO::Types::Status makeDiagnosticStatus(ErrorCode code, std::int64_t nativeCode, std::string_view message) noexcept
+        {
+            try
+            {
+                return IO::makeStatus(code, nativeCode, std::string{message});
+            }
+            catch (...)
+            {
+                return IO::makeStatus(code, nativeCode);
+            }
         }
 
         /// @brief Rejects file-sharing bits outside the supported mask.
@@ -499,21 +567,21 @@ namespace GameWIP::FileSystem::Detail::Platform
         }
 
         /// @brief Converts NTSTATUS through RtlNtStatusToDosError when available.
-        [[nodiscard]] IO::Types::Status makeNtStatus(NTSTATUS status, ErrorCode fallback)
+        [[nodiscard]] IO::Types::Status makeNtStatus(NTSTATUS status, ErrorCode fallback) noexcept
         {
             const NtApi &api = ntApi();
             if (api.ntStatusToDosError == nullptr)
             {
-                return IO::makeStatus(fallback, static_cast<std::int64_t>(status), "NTSTATUS conversion is unavailable");
+                return makeDiagnosticStatus(fallback, static_cast<std::int64_t>(status), "NTSTATUS conversion is unavailable");
             }
 
             return makeWin32Status(api.ntStatusToDosError(status), fallback);
         }
 
         /// @brief Returns the stable failure used when traversal encounters a forbidden symlink.
-        [[nodiscard]] IO::Types::Status symlinkPolicyRejectedStatus()
+        [[nodiscard]] IO::Types::Status symlinkPolicyRejectedStatus() noexcept
         {
-            return IO::makeStatus(ErrorCode::PermissionDenied, 0, "path rejected by symlink policy");
+            return makeDiagnosticStatus(ErrorCode::PermissionDenied, 0, "path rejected by symlink policy");
         }
 
         /// @brief Detects embedded nulls that Win32 APIs would otherwise truncate.
@@ -2232,14 +2300,19 @@ namespace GameWIP::FileSystem::Detail::Platform
 
         try
         {
+#if INTERNAL_FILESYSTEM_TEST_HOOKS
+            CheckedFailureResult injected = consumeCheckedFailure(CheckedFileOperation::Read);
+            if (injected.injected)
+            {
+                return {.status = std::move(injected.status)};
+            }
+#endif
             if (destination.empty())
             {
-                const IO::Types::PositionResult position = filePosition(state);
-                const IO::Types::SizeResult size = fileSize(state);
-                return {
-                    .status = position.status.ok() ? size.status : position.status,
-                    .bytesRead = 0,
-                    .endOfStream = position.status.ok() && size.status.ok() && position.position >= size.sizeBytes};
+                IO::Types::PositionResult position = filePosition(state);
+                IO::Types::SizeResult size = fileSize(state);
+                const bool atEnd = position.status.ok() && size.status.ok() && position.position >= size.sizeBytes;
+                return {.status = position.status.ok() ? std::move(size.status) : std::move(position.status), .bytesRead = 0, .endOfStream = atEnd};
             }
 
             const auto requestSize =
@@ -2251,6 +2324,10 @@ namespace GameWIP::FileSystem::Detail::Platform
             }
 
             return {.status = IO::successStatus(), .bytesRead = bytesRead, .endOfStream = bytesRead < requestSize};
+        }
+        catch (const std::bad_alloc &)
+        {
+            return {.status = IO::makeStatus(ErrorCode::OutOfMemory)};
         }
         catch (...)
         {
@@ -2267,6 +2344,13 @@ namespace GameWIP::FileSystem::Detail::Platform
 
         try
         {
+#if INTERNAL_FILESYSTEM_TEST_HOOKS
+            CheckedFailureResult injected = consumeCheckedFailure(CheckedFileOperation::Write);
+            if (injected.injected)
+            {
+                return {.status = std::move(injected.status)};
+            }
+#endif
             if (bytes.empty())
             {
                 return {.status = IO::successStatus(), .bytesWritten = 0};
@@ -2282,6 +2366,10 @@ namespace GameWIP::FileSystem::Detail::Platform
 
             return {.status = IO::successStatus(), .bytesWritten = bytesWritten};
         }
+        catch (const std::bad_alloc &)
+        {
+            return {.status = IO::makeStatus(ErrorCode::OutOfMemory)};
+        }
         catch (...)
         {
             return {.status = IO::makeStatus(ErrorCode::Unknown)};
@@ -2290,101 +2378,209 @@ namespace GameWIP::FileSystem::Detail::Platform
 
     IO::Types::Status flushFile(Detail::FileState &state, IO::Types::FlushMode mode) noexcept
     {
-        if (!IO::isValidFlushMode(mode))
+        try
         {
-            return IO::makeStatus(ErrorCode::InvalidArgument);
-        }
-        if (mode == IO::Types::FlushMode::None)
-        {
+#if INTERNAL_FILESYSTEM_TEST_HOOKS
+            CheckedFailureResult injected = consumeCheckedFailure(CheckedFileOperation::Flush);
+            if (injected.injected)
+            {
+                return std::move(injected.status);
+            }
+#endif
+            if (!IO::isValidFlushMode(mode))
+            {
+                return IO::makeStatus(ErrorCode::InvalidArgument);
+            }
+            if (mode == IO::Types::FlushMode::None)
+            {
+                return IO::successStatus();
+            }
+            if (FlushFileBuffers(nativeHandle(state)) == FALSE)
+            {
+                return makeLastErrorStatus(ErrorCode::FlushFailed);
+            }
+
             return IO::successStatus();
         }
-        if (FlushFileBuffers(nativeHandle(state)) == FALSE)
+        catch (const std::bad_alloc &)
         {
-            return makeLastErrorStatus(ErrorCode::FlushFailed);
+            return IO::makeStatus(ErrorCode::OutOfMemory);
         }
-
-        return IO::successStatus();
+        catch (...)
+        {
+            return IO::makeStatus(ErrorCode::Unknown);
+        }
     }
 
     IO::Types::Status closeFile(Detail::FileState &state) noexcept
     {
-        if (state.activeLocks && *state.activeLocks > 0)
+        try
         {
-            return IO::makeStatus(ErrorCode::ResourceBusy);
-        }
-
-        if (state.writable)
-        {
-            const IO::Types::Status flushStatus = flushFile(state, state.flushOnClose);
-            if (!flushStatus.ok())
+#if INTERNAL_FILESYSTEM_TEST_HOOKS
+            CheckedFailureResult injected = consumeCheckedFailure(CheckedFileOperation::Close);
+            if (injected.injected)
             {
-                return flushStatus;
+                return std::move(injected.status);
             }
-        }
+#endif
+            if (state.activeLocks && *state.activeLocks > 0)
+            {
+                return IO::makeStatus(ErrorCode::ResourceBusy);
+            }
 
-        const IO::Types::Status closeStatus = closeNativeHandle(state.nativeHandle);
-        if (closeStatus.ok())
-        {
-            clearNativeHandle(state);
+            if (state.writable)
+            {
+                IO::Types::Status flushStatus = flushFile(state, state.flushOnClose);
+                if (!flushStatus.ok())
+                {
+                    return flushStatus;
+                }
+            }
+
+            IO::Types::Status closeStatus = closeNativeHandle(state.nativeHandle);
+            if (closeStatus.ok())
+            {
+                clearNativeHandle(state);
+            }
+            return closeStatus;
         }
-        return closeStatus;
+        catch (const std::bad_alloc &)
+        {
+            return IO::makeStatus(ErrorCode::OutOfMemory);
+        }
+        catch (...)
+        {
+            return IO::makeStatus(ErrorCode::Unknown);
+        }
     }
 
     IO::Types::PositionResult filePosition(const Detail::FileState &state) noexcept
     {
-        if (state.appendMode)
+        try
         {
-            return {.status = IO::makeStatus(ErrorCode::NotSeekable)};
+#if INTERNAL_FILESYSTEM_TEST_HOOKS
+            CheckedFailureResult injected = consumeCheckedFailure(CheckedFileOperation::Position);
+            if (injected.injected)
+            {
+                return {.status = std::move(injected.status)};
+            }
+#endif
+            if (state.appendMode)
+            {
+                return {.status = IO::makeStatus(ErrorCode::NotSeekable)};
+            }
+            return nativePosition(nativeHandle(state));
         }
-        return nativePosition(nativeHandle(state));
+        catch (const std::bad_alloc &)
+        {
+            return {.status = IO::makeStatus(ErrorCode::OutOfMemory)};
+        }
+        catch (...)
+        {
+            return {.status = IO::makeStatus(ErrorCode::Unknown)};
+        }
     }
 
     IO::Types::SizeResult fileSize(const Detail::FileState &state) noexcept
     {
-        return nativeFileSize(nativeHandle(state));
+        try
+        {
+#if INTERNAL_FILESYSTEM_TEST_HOOKS
+            CheckedFailureResult injected = consumeCheckedFailure(CheckedFileOperation::Size);
+            if (injected.injected)
+            {
+                return {.status = std::move(injected.status)};
+            }
+#endif
+            return nativeFileSize(nativeHandle(state));
+        }
+        catch (const std::bad_alloc &)
+        {
+            return {.status = IO::makeStatus(ErrorCode::OutOfMemory)};
+        }
+        catch (...)
+        {
+            return {.status = IO::makeStatus(ErrorCode::Unknown)};
+        }
     }
 
     IO::Types::Status seekFile(Detail::FileState &state, std::int64_t offset, IO::Types::SeekOrigin origin) noexcept
     {
-        if (state.appendMode)
+        try
         {
-            return IO::makeStatus(ErrorCode::NotSeekable);
+#if INTERNAL_FILESYSTEM_TEST_HOOKS
+            CheckedFailureResult injected = consumeCheckedFailure(CheckedFileOperation::Seek);
+            if (injected.injected)
+            {
+                return std::move(injected.status);
+            }
+#endif
+            if (state.appendMode)
+            {
+                return IO::makeStatus(ErrorCode::NotSeekable);
+            }
+            return seekNativeHandle(nativeHandle(state), offset, origin);
         }
-        return seekNativeHandle(nativeHandle(state), offset, origin);
+        catch (const std::bad_alloc &)
+        {
+            return IO::makeStatus(ErrorCode::OutOfMemory);
+        }
+        catch (...)
+        {
+            return IO::makeStatus(ErrorCode::Unknown);
+        }
     }
 
     IO::Types::Status resizeFile(Detail::FileState &state, std::uint64_t sizeBytes) noexcept
     {
-        if (!state.writable)
+        try
         {
-            return IO::makeStatus(ErrorCode::PermissionDenied);
-        }
-        if (sizeBytes > static_cast<std::uint64_t>(std::numeric_limits<std::int64_t>::max()))
-        {
-            return IO::makeStatus(ErrorCode::SizeLimitExceeded);
-        }
+#if INTERNAL_FILESYSTEM_TEST_HOOKS
+            CheckedFailureResult injected = consumeCheckedFailure(CheckedFileOperation::Resize);
+            if (injected.injected)
+            {
+                return std::move(injected.status);
+            }
+#endif
+            if (!state.writable)
+            {
+                return IO::makeStatus(ErrorCode::PermissionDenied);
+            }
+            if (sizeBytes > static_cast<std::uint64_t>(std::numeric_limits<std::int64_t>::max()))
+            {
+                return IO::makeStatus(ErrorCode::SizeLimitExceeded);
+            }
 
-        // Preserve the caller's position when possible; a shrink below it naturally leaves the native pointer at the new end.
-        const IO::Types::PositionResult originalPosition = state.appendMode ? IO::Types::PositionResult{} : filePosition(state);
+            // Preserve the caller's position when possible; a shrink below it naturally leaves the native pointer at the new end.
+            const IO::Types::PositionResult originalPosition = state.appendMode ? IO::Types::PositionResult{} : filePosition(state);
 
-        LARGE_INTEGER target{};
-        target.QuadPart = static_cast<LONGLONG>(sizeBytes);
-        if (SetFilePointerEx(nativeHandle(state), target, nullptr, FILE_BEGIN) == FALSE)
-        {
-            return makeLastErrorStatus(ErrorCode::ResizeFailed);
-        }
-        if (SetEndOfFile(nativeHandle(state)) == FALSE)
-        {
-            return makeLastErrorStatus(ErrorCode::ResizeFailed);
-        }
+            LARGE_INTEGER target{};
+            target.QuadPart = static_cast<LONGLONG>(sizeBytes);
+            if (SetFilePointerEx(nativeHandle(state), target, nullptr, FILE_BEGIN) == FALSE)
+            {
+                return makeLastErrorStatus(ErrorCode::ResizeFailed);
+            }
+            if (SetEndOfFile(nativeHandle(state)) == FALSE)
+            {
+                return makeLastErrorStatus(ErrorCode::ResizeFailed);
+            }
 
-        if (!state.appendMode && originalPosition.status.ok() && originalPosition.position <= sizeBytes)
-        {
-            static_cast<void>(
-                seekNativeHandle(nativeHandle(state), static_cast<std::int64_t>(originalPosition.position), IO::Types::SeekOrigin::Begin));
-        }
+            if (!state.appendMode && originalPosition.status.ok() && originalPosition.position <= sizeBytes)
+            {
+                static_cast<void>(
+                    seekNativeHandle(nativeHandle(state), static_cast<std::int64_t>(originalPosition.position), IO::Types::SeekOrigin::Begin));
+            }
 
-        return IO::successStatus();
+            return IO::successStatus();
+        }
+        catch (const std::bad_alloc &)
+        {
+            return IO::makeStatus(ErrorCode::OutOfMemory);
+        }
+        catch (...)
+        {
+            return IO::makeStatus(ErrorCode::Unknown);
+        }
     }
 
     NativeLockResult tryLockFile(Detail::FileState &state, Types::FileLockMode mode) noexcept
@@ -2998,6 +3194,18 @@ namespace GameWIP::FileSystem::Detail::Platform
 #if INTERNAL_FILESYSTEM_TEST_HOOKS
     namespace TestHooks
     {
+        void forceNextCheckedFailure(
+            CheckedFileOperation operation,
+            CheckedFailure failure,
+            IO::Types::ErrorCode code,
+            std::int64_t nativeCode) noexcept
+        {
+            checkedFailureKind.store(failure, std::memory_order_relaxed);
+            checkedFailureCode.store(code, std::memory_order_relaxed);
+            checkedFailureNativeCode.store(nativeCode, std::memory_order_relaxed);
+            checkedFailureOperation.store(operation, std::memory_order_release);
+        }
+
         void setFileUnlockFailure(bool enabled) noexcept
         {
             forceFileUnlockFailure.store(enabled, std::memory_order_release);
@@ -3042,6 +3250,7 @@ namespace GameWIP::FileSystem::Detail::Platform
 
         void reset() noexcept
         {
+            checkedFailureOperation.store(CheckedFileOperation::None, std::memory_order_release);
             forceFileUnlockFailure.store(false, std::memory_order_release);
             std::lock_guard lock(movePauseHook.mutex);
             movePauseHook.pauseAfterValidation = false;
