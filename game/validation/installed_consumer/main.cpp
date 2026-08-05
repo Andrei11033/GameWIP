@@ -6,8 +6,9 @@
 /// not leak through installed imported targets. It is a package-boundary smoke
 /// test, not a replacement for each library's behavior validation suite.
 
-#if defined(INTERNAL_FILESYSTEM_TEST_HOOKS) || defined(INTERNAL_TERMINAL_TEST_HOOKS) || defined(INTERNAL_LOGGER_TEST_HOOKS) || \
-    defined(INTERNAL_ASSERT_TEST_HOOKS) || defined(INTERNAL_TEST_SUPPORT_TEST_HOOKS) || defined(INTERNAL_WINDOW_TEST_HOOKS)
+#if defined(INTERNAL_IO_TEST_HOOKS) || defined(INTERNAL_FILESYSTEM_TEST_HOOKS) || defined(INTERNAL_TERMINAL_TEST_HOOKS) || \
+    defined(INTERNAL_LOGGER_TEST_HOOKS) || defined(INTERNAL_ASSERT_TEST_HOOKS) || defined(INTERNAL_TEST_SUPPORT_TEST_HOOKS) || \
+    defined(INTERNAL_WINDOW_TEST_HOOKS)
 #error "Installed GameWIP targets must not expose internal test-hook compile definitions."
 #endif
 
@@ -27,7 +28,9 @@
 int main()
 {
     GameWIP::IO::MemoryWriter writer;
+    const GameWIP::IO::Types::Status reserve = writer.reserve(64);
     const GameWIP::IO::Types::WriteResult write = GameWIP::IO::writeAllText(writer, "installed consumer");
+    const GameWIP::IO::Types::TextCopyResult text = writer.copyText();
     const GameWIP::FileSystem::Types::PathResult path = GameWIP::FileSystem::pathFromUtf8("installed-consumer.txt");
     const GameWIP::Terminal::Types::OutputCapabilitiesResult capabilities = GameWIP::Terminal::getOutputCapabilities();
     const GameWIP::Logger::Types::Config loggerConfig = GameWIP::Logger::defaultConfig();
@@ -44,12 +47,14 @@ int main()
     // Exercise the installed Assert macro surface through a normal consumer
     // target. The detailed behavior is covered by the source-tree Assert tests.
     CHECK(write.status.ok());
+    CHECK(text.status.ok());
     CHECK(path.status.ok());
     static_cast<void>(capabilities);
     static_cast<void>(timer.elapsedMilliseconds());
     static_cast<void>(windowCapabilities);
 
-    return write.status.ok() && path.status.ok() && infrastructureStatus.ok() && infrastructureText == "None" && childResult.status.ok() &&
+    return reserve.ok() && write.status.ok() && text.status.ok() && text.text == "installed consumer" && path.status.ok() &&
+                   infrastructureStatus.ok() && infrastructureText == "None" && childResult.status.ok() &&
                    childResult.outcome == GameWIP::TestSupport::Types::ChildProcessOutcome::NotStarted &&
                    rendererFeedbackStatus.code == GameWIP::IO::Types::ErrorCode::NotOpen &&
                    displayColor.status.code == GameWIP::IO::Types::ErrorCode::NotOpen && windowSize.width == 640 &&

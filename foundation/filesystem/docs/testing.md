@@ -13,6 +13,8 @@ The FileSystem module covers:
 - open modes, sharing, replacement, append, and flush behavior;
 - atomic replacement, prefix validation, durability requests, and cleanup;
 - shared/exclusive lock acquisition, contention, detached ownership, failed unlock, and destructor cleanup.
+- deterministic status, allocation, and unexpected failures for checked read, write, flush, close, position, size, seek, and resize operations;
+- diagnostic-message allocation fallback and retryable file state after close failure.
 
 Run the FileSystem-focused module through the project validation workflow documented by @ref project_testing.
 
@@ -33,7 +35,7 @@ Project validation also checks:
 
 ## Test hooks
 
-Use @ref filesystem_test_hooks for the source-tree-only failed-unlock hook and reset protocol.
+Use @ref filesystem_test_hooks for source-tree-only checked-operation, diagnostic, move-pause, and failed-unlock hooks and their reset protocol.
 
 ## Documentation validation
 

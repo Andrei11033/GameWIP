@@ -98,7 +98,10 @@ The scratch storage is used only when size or position is unavailable. It may be
 
 bool encodeTwice(GameWIP::IO::MemoryWriter& writer)
 {
-    writer.reserve(4096);
+    if (!writer.reserve(4096).ok())
+    {
+        return false;
+    }
 
     writer.clear();
     if (!GameWIP::IO::writeAllText(writer, "first").status.ok())
@@ -106,7 +109,11 @@ bool encodeTwice(GameWIP::IO::MemoryWriter& writer)
         return false;
     }
 
-    const std::string firstCopy = writer.text();
+    GameWIP::IO::Types::TextCopyResult firstCopy = writer.copyText();
+    if (!firstCopy.status.ok())
+    {
+        return false;
+    }
 
     writer.clear();
     if (!GameWIP::IO::writeAllText(writer, "second").status.ok())
@@ -114,7 +121,8 @@ bool encodeTwice(GameWIP::IO::MemoryWriter& writer)
         return false;
     }
 
-    return firstCopy == "first" && writer.text() == "second";
+    GameWIP::IO::Types::TextCopyResult secondCopy = writer.copyText();
+    return secondCopy.status.ok() && firstCopy.text == "first" && secondCopy.text == "second";
 }
 ```
 
@@ -130,7 +138,11 @@ bool encodeTwice(GameWIP::IO::MemoryWriter& writer)
 
 std::vector<std::byte> buildPacket()
 {
-    GameWIP::IO::MemoryWriter writer(128);
+    GameWIP::IO::MemoryWriter writer;
+    if (!writer.reserve(128).ok())
+    {
+        return {};
+    }
     const std::vector<std::byte> header{
         std::byte{0x47}, std::byte{0x57}, std::byte{0x49}, std::byte{0x50}};
 
@@ -202,7 +214,7 @@ public:
     }
 
     [[nodiscard]] GameWIP::IO::Types::WriteResult write(
-        std::span<const std::byte> bytes) override
+        std::span<const std::byte> bytes) noexcept override
     {
         const std::size_t available = destination_.size() - position_;
         const std::size_t accepted = std::min(available, bytes.size());

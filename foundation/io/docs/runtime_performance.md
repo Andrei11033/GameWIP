@@ -41,11 +41,11 @@ Its performance depends on keeping the source alive and stable; it never copies 
 
 `MemoryWriter` uses a growing `std::vector<std::byte>`.
 
-- Use the initial-capacity constructor or `reserve()` when output size is predictable.
+- Call checked `reserve()` before writing when output size is predictable.
 - Use `clear()` to reuse capacity between operations.
 - Use `takeBytes()` when ownership should move to the caller; the writer may lose its reserved capacity.
 - `bytes()` is zero-copy but returns a temporary view into writer-owned storage.
-- `text()` allocates and copies the complete byte sequence.
+- `copyText()` allocates and copies the complete byte sequence, returning allocation or size failures through status.
 - Appending a valid subspan of current writer storage is handled without a separate temporary copy.
 
 ## Status cost
@@ -53,6 +53,10 @@ Its performance depends on keeping the source alive and stable; it never copies 
 `Status` owns an optional `std::string`. IO-generated statuses normally leave it empty. Backends should avoid constructing success messages and should attach failure text only when the diagnostic value justifies the allocation.
 
 Code-only statuses remain useful in hot or allocation-sensitive paths, while `nativeCode` and `message` preserve backend detail when needed.
+
+## Benchmarks
+
+The `io` benchmark module provides stable `BM_IO_*` registrations for fixed-size `MemoryReader` reads, pre-reserved `MemoryWriter` writes, and the known-size `readAllBytes()` path. Run optimized measurements through @ref project_benchmarking; correctness and failure translation remain owned by the focused test module.
 
 ## Related pages
 

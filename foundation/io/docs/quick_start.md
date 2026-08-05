@@ -55,8 +55,8 @@ int main()
         return 1;
     }
 
-    const std::string copy = writer.text();
-    return copy == source ? 0 : 1;
+    GameWIP::IO::Types::TextCopyResult copy = writer.copyText();
+    return copy.status.ok() && copy.text == source ? 0 : 1;
 }
 ```
 

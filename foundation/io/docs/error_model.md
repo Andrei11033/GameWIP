@@ -111,7 +111,9 @@ For known-size reads, early end-of-stream becomes `PartialRead`. For unknown-siz
 
 `successStatus()` creates a default successful status. Code-only statuses avoid diagnostic-string allocation.
 
-Whole-stream and memory-writer operations convert the allocations they perform internally to `OutOfMemory` where documented. Constructors, `MemoryWriter::reserve()`, `MemoryWriter::text()`, and exceptions thrown by custom backend implementations are not universally converted because those operations do not all have a status-returning allocation boundary.
+Whole-stream and memory-writer operations convert allocations they perform internally to `OutOfMemory`, representation or container-length failures to `SizeLimitExceeded`, and unexpected internal exceptions to `Unknown`. `MemoryWriter::reserve()` and `MemoryWriter::copyText()` provide status-bearing allocation boundaries.
+
+Reader and Writer checked virtual functions are `noexcept`. A custom implementation must perform the same containment for its own expected failures; throwing from an override is a contract violation and invokes `std::terminate`.
 
 ## Related pages
 

@@ -19,11 +19,13 @@ The focused suite covers:
 - Every `ErrorCode` symbolic name, status defaults, and public status helpers.
 - Reader and Writer construction, move-only behavior, default capabilities, flush validation, close, position, size, and seek behavior.
 - MemoryReader source forms, temporary-source rejection, reads, overlapping destinations, end-of-stream, seeks, position, size, move state, and close state.
-- MemoryWriter writes, self-aliasing input, flush and close state, capacity reservation and reuse, byte/text inspection, ownership transfer, and move state.
+- MemoryWriter writes, self-aliasing input, flush and close state, checked capacity reservation and reuse, byte/text inspection and checked text copying, ownership transfer, and move state.
 - Known-size and unknown-size whole-stream reads.
 - Current-position reads, empty streams, zero limits, exact limits, over-limit probes, custom scratch buffers, and invalid buffer arguments.
 - Partial progress, backend failures, impossible transfer counts, zero progress, premature end-of-stream, and capability-query failures.
 - Whole-stream write retries, final-call progress, empty input, text bytes, and invalid writer behavior.
+- Deterministic allocation, length, and unexpected-failure translation for memory-writer and whole-stream allocation points.
+- Compile-time proof that public checked Reader and Writer operations are `noexcept`.
 
 ## Public and package validation
 
@@ -34,6 +36,8 @@ The repository validation also checks:
 - Project-wide compiler, sanitizer, coverage, and static-analysis workflows where enabled.
 
 IO is static, so it has no shared-library export allowlist test. Package and compatibility policy are documented in @ref project_library_compatibility.
+
+Use @ref io_test_hooks for the source-tree-only deterministic failure API and reset protocol.
 
 ## Extension changes
 

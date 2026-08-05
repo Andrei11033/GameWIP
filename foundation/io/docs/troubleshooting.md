@@ -50,9 +50,11 @@ The writer either reported more bytes than were supplied or returned successful 
 
 A legitimate failure may still carry nonzero `bytesWritten`; that count includes valid progress from the final failing call.
 
-## An exception escapes a whole-stream helper
+## A custom Reader or Writer terminates after throwing
 
-Generic helpers convert their own documented allocation failures, but they do not catch arbitrary exceptions from custom Reader or Writer implementations. Backends should use statuses for expected I/O failures and document any exceptional programming or allocation failures they permit.
+Checked virtual operations are `noexcept`. An exception escaping a custom override violates the interface contract and invokes `std::terminate` before a whole-stream helper can translate it. Catch expected backend, allocation, and conversion failures inside the override and return a status.
+
+Whole-stream helpers translate their own allocation and length failures. This does not extend to caller-side argument construction performed before the helper is entered.
 
 ## Memory usage is higher than expected
 

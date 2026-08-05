@@ -140,7 +140,9 @@ See @ref filesystem_path_operations and @ref filesystem_unicode_paths.
 
 ## Failure, exceptions, blocking, and threading
 
-Every public FileSystem operation is `noexcept`. Allocation and standard-library exceptions are translated to `OutOfMemory`, `EncodingFailed`, `InvalidArgument`, or `Unknown` according to the operation. Expected native failures use the portable IO error model and may include native diagnostic data.
+Every public FileSystem operation is `noexcept`. Allocation and standard-library exceptions arising inside an operation are translated to `OutOfMemory`, `EncodingFailed`, `InvalidArgument`, or `Unknown` according to the operation. Expected native failures use the portable IO error model and may include native diagnostic data. Diagnostic message creation is best-effort: if it cannot allocate, the portable and native codes are preserved with an empty message.
+
+Caller-side construction of `std::filesystem::path`, owning strings, options, or other arguments occurs before function entry and is not contained by the FileSystem `noexcept` boundary.
 
 Operations may block on storage, sharing, locks, metadata, traversal, or flush work. Different handle objects and free operations may be called concurrently. The same handle or lock object is not internally synchronized. Current-directory mutation remains process-wide.
 

@@ -25,6 +25,7 @@ The `GameWIP::IO::Types` namespace contains passive value types:
 | `SizeResult` | Fields `status` and total byte count `sizeBytes`. |
 | `ReadAllBytesResult` | Fields `status` and collected binary `bytes`. |
 | `ReadAllTextResult` | Fields `status` and collected `text` bytes. |
+| `TextCopyResult` | Fields `status` and an owning copy of memory-writer `text`. |
 
 A nonzero transfer count may accompany a failure status. `ReadResult::endOfStream` is independent of `bytesRead` and may be true on the final non-empty read.
 
@@ -44,7 +45,7 @@ A nonzero transfer count may accompany a failure status. `ReadResult::endOfStrea
 `Reader` is the platform-neutral input contract. It is movable, non-copyable, and has one required operation:
 
 ```cpp
-virtual Types::ReadResult read(std::span<std::byte> destination) = 0;
+virtual Types::ReadResult read(std::span<std::byte> destination) noexcept = 0;
 ```
 
 The base class supplies defaults for `isOpen()`, `canSeek()`, `close()`, `position()`, `size()`, and `seek()`. This lets a stateless streaming adapter implement only `read()` while resource-owning readers override the capabilities they support.
@@ -56,7 +57,7 @@ The base class supplies defaults for `isOpen()`, `canSeek()`, `close()`, `positi
 `Writer` is the platform-neutral output contract. It is movable, non-copyable, and has one required operation:
 
 ```cpp
-virtual Types::WriteResult write(std::span<const std::byte> bytes) = 0;
+virtual Types::WriteResult write(std::span<const std::byte> bytes) noexcept = 0;
 ```
 
 The base class supplies defaults for `isOpen()`, `canSeek()`, `flush()`, `close()`, `position()`, and `seek()`.
@@ -64,13 +65,15 @@ The base class supplies defaults for `isOpen()`, `canSeek()`, `flush()`, `close(
 `MemoryWriter` is the provided concrete writer. It owns append-only byte storage and exposes:
 
 - Span and vector write overloads.
-- Capacity reservation and reuse.
+- Checked capacity reservation and reuse through `reserve()`.
 - Non-owning byte inspection through `bytes()`.
-- Owning text copies through `text()`.
+- Checked owning text copies through `copyText()`.
 - Ownership transfer through `takeBytes()`.
 - `size()`, `capacity()`, `empty()`, and `clear()` state access.
 
 Collected output remains available after `close()`, but writing, flushing, and position queries require open state.
+
+Every checked Reader, Writer, MemoryReader, MemoryWriter, and whole-stream operation is `noexcept`. Extension implementations must translate expected failures into statuses and must not let exceptions escape an override.
 
 ## Whole-stream helpers
 

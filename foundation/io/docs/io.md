@@ -17,6 +17,7 @@ It defines status and result types, abstract reader and writer interfaces, memor
 ## Maintainer validation
 
 - @subpage io_testing
+- @subpage io_test_hooks
 
 ## Generated API reference
 
@@ -30,6 +31,7 @@ The generated reference documents every public declaration from `io/io.h`. The m
 - Optional capabilities use statuses rather than separate interface hierarchies.
 - `MemoryReader` is a non-owning, seekable view over stable caller-owned storage.
 - `MemoryWriter` owns append-only storage that can be inspected, reused, or transferred.
+- Checked interface and helper operations are `noexcept`; expected failures are returned through status-bearing results.
 - Whole-stream read helpers optimize readers that report both size and position.
 - Unknown-size reads enforce hard byte limits and support reusable caller-owned scratch storage.
 - Whole-stream write helpers retry successful short writes and preserve progress reported with a later failure.
