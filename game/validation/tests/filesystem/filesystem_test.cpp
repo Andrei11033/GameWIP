@@ -831,6 +831,33 @@ namespace
         static_cast<void>(context.expectTrue("failed checked closes retain open state", file.isOpen()));
         static_cast<void>(context.expectTrue("checked close can be retried", file.close().ok()));
 
+        Hooks::reset();
+
+        FileSystem::File flushOnCloseFile;
+        const IO::Types::Status flushOnCloseOpenStatus = flushOnCloseFile.open(
+            filePath,
+            FileSystem::Types::FileOpenOptions{
+                .access = FileSystem::Types::FileAccess::ReadWrite,
+                .mode = FileSystem::Types::FileOpenMode::OpenExisting,
+                .flushOnClose = IO::Types::FlushMode::Data});
+        static_cast<void>(context.expectTrue("flush-on-close fixture opens", flushOnCloseOpenStatus.ok()));
+
+        Hooks::forceNextCheckedFailure(Operation::Flush, Failure::Status, ErrorCode::FlushFailed, 1978);
+        const IO::Types::Status failedFlushOnCloseStatus = flushOnCloseFile.close();
+        static_cast<void>(
+            context.expectEq("flush-on-close preserves injected status", ErrorCode::FlushFailed, failedFlushOnCloseStatus.code));
+        static_cast<void>(context.expectEq(
+            "flush-on-close preserves injected native code",
+            std::int64_t{1978},
+            failedFlushOnCloseStatus.nativeCode));
+        static_cast<void>(context.expectTrue("flush-on-close failure retains open state", flushOnCloseFile.isOpen()));
+
+        const IO::Types::Status flushOnCloseRetryStatus = flushOnCloseFile.close();
+        static_cast<void>(context.expectTrue("flush-on-close retry succeeds", flushOnCloseRetryStatus.ok()));
+        static_cast<void>(context.expectTrue("flush-on-close retry closes state", !flushOnCloseFile.isOpen()));
+
+        Hooks::reset();
+
         const std::filesystem::path missingPath = root / "checked_failures" / "missing.txt";
         for (const Failure failure : {Failure::OutOfMemory, Failure::Unexpected})
         {
