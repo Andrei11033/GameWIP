@@ -1,5 +1,5 @@
-/// @file unicode.cpp
-/// @brief Portable implementation of the Unicode library.
+/// @file utf8.cpp
+/// @brief UTF-8 encoding, decoding, validation, conversion, and boundary implementation.
 
 #include "unicode/unicode.h"
 
