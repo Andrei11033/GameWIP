@@ -894,6 +894,53 @@ namespace
         }
     };
 
+    /// @brief Unknown-size reader that arms a text-storage failure after one successful chunk.
+    class DeferredTextStorageFailureReader final : public IO::Reader
+    {
+    public:
+        DeferredTextStorageFailureReader(
+            std::span<const std::byte> bytes,
+            IO::TestHooks::FailureKind failureKind)
+            : bytes_(bytes)
+            , failureKind_(failureKind)
+        {
+        }
+
+        /// @brief Returns one byte per read and arms the configured failure before the second append.
+        [[nodiscard]] IO::Types::ReadResult read(std::span<std::byte> destination) noexcept override
+        {
+            if (destination.empty())
+            {
+                return {.status = {}, .bytesRead = 0, .endOfStream = position_ >= bytes_.size()};
+            }
+
+            if (position_ >= bytes_.size())
+            {
+                return {.status = {}, .bytesRead = 0, .endOfStream = true};
+            }
+
+            if (readCount_ == 1)
+            {
+                IO::TestHooks::forceNextFailure(
+                    IO::TestHooks::FailurePoint::ReadAllTextStorage,
+                    failureKind_);
+            }
+
+            const std::size_t count = std::min<std::size_t>(1, bytes_.size() - position_);
+            std::copy_n(bytes_.data() + position_, count, destination.data());
+            position_ += count;
+            ++readCount_;
+
+            return {.status = {}, .bytesRead = count, .endOfStream = position_ == bytes_.size()};
+        }
+
+    private:
+        std::span<const std::byte> bytes_;
+        IO::TestHooks::FailureKind failureKind_ = IO::TestHooks::FailureKind::None;
+        std::size_t position_ = 0;
+        std::size_t readCount_ = 0;
+    };
+
     /// @brief Verifies deterministic allocation, length, and unexpected-exception translation.
     void testCheckedFailureTranslation(TestSupport::Context &context)
     {
@@ -960,6 +1007,25 @@ namespace
             const IO::Types::ReadAllTextResult textResult = IO::readAllText(textReader);
             static_cast<void>(context.expectEq("readAllText translates output-storage failure", expected, textResult.status.code));
             static_cast<void>(context.expectTrue("readAllText storage failure returns no invalid text", textResult.text.empty()));
+        }
+
+        std::array<std::byte, 2> textScratch{};
+        for (const auto [kind, expected] :
+             {std::pair{FailureKind::OutOfMemory, ErrorCode::OutOfMemory},
+              std::pair{FailureKind::LengthError, ErrorCode::SizeLimitExceeded},
+              std::pair{FailureKind::Unexpected, ErrorCode::Unknown}})
+        {
+            DeferredTextStorageFailureReader textAppendReader(spanOf(source), kind);
+            const IO::Types::ReadAllTextResult textAppendFailure =
+                IO::readAllText(textAppendReader, std::span<std::byte>(textScratch));
+            static_cast<void>(context.expectEq(
+                "readAllText translates unknown-size append failure",
+                expected,
+                textAppendFailure.status.code));
+            static_cast<void>(context.expectEq(
+                "readAllText unknown-size append failure preserves prior text",
+                std::string{"A"},
+                textAppendFailure.text));
         }
 
         UnknownSizeChunkReader scratchAllocationReader(spanOf(source), 1);
