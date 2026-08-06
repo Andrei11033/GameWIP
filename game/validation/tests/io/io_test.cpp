@@ -1028,12 +1028,35 @@ namespace
                 textAppendFailure.text));
         }
 
-        UnknownSizeChunkReader scratchAllocationReader(spanOf(source), 1);
-        IO::TestHooks::forceNextFailure(FailurePoint::ReadAllScratchAllocation, FailureKind::OutOfMemory);
-        static_cast<void>(context.expectEq(
-            "readAllBytes translates scratch allocation failure",
-            ErrorCode::OutOfMemory,
-            IO::readAllBytes(scratchAllocationReader).status.code));
+        for (const auto [kind, expected] :
+             {std::pair{FailureKind::OutOfMemory, ErrorCode::OutOfMemory},
+              std::pair{FailureKind::LengthError, ErrorCode::SizeLimitExceeded},
+              std::pair{FailureKind::Unexpected, ErrorCode::Unknown}})
+        {
+            UnknownSizeChunkReader bytesScratchAllocationReader(spanOf(source), 1);
+            IO::TestHooks::forceNextFailure(FailurePoint::ReadAllScratchAllocation, kind);
+            const IO::Types::ReadAllBytesResult bytesScratchAllocationFailure =
+                IO::readAllBytes(bytesScratchAllocationReader);
+            static_cast<void>(context.expectEq(
+                "readAllBytes translates scratch allocation failure",
+                expected,
+                bytesScratchAllocationFailure.status.code));
+            static_cast<void>(context.expectTrue(
+                "readAllBytes scratch allocation failure returns no bytes",
+                bytesScratchAllocationFailure.bytes.empty()));
+
+            UnknownSizeChunkReader textScratchAllocationReader(spanOf(source), 1);
+            IO::TestHooks::forceNextFailure(FailurePoint::ReadAllScratchAllocation, kind);
+            const IO::Types::ReadAllTextResult textScratchAllocationFailure =
+                IO::readAllText(textScratchAllocationReader);
+            static_cast<void>(context.expectEq(
+                "readAllText translates scratch allocation failure",
+                expected,
+                textScratchAllocationFailure.status.code));
+            static_cast<void>(context.expectTrue(
+                "readAllText scratch allocation failure returns no text",
+                textScratchAllocationFailure.text.empty()));
+        }
 
         std::array<std::byte, 2> scratch{};
         UnknownSizeChunkReader appendReader(spanOf(source), 1);
