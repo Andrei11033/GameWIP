@@ -7,6 +7,7 @@
 #include "validation/tests/io/io_test.h"
 
 #include "io/io.h"
+#include "io/internal/io_test_hooks.h"
 #include "test_support/test_support.h"
 
 #include <algorithm>
@@ -14,6 +15,7 @@
 #include <cstddef>
 #include <format>
 #include <initializer_list>
+#include <limits>
 #include <span>
 #include <string>
 #include <string_view>
@@ -66,7 +68,7 @@ namespace
     {
     public:
         /// @brief Returns a successful empty read while leaving optional operations inherited.
-        [[nodiscard]] IO::Types::ReadResult read([[maybe_unused]] std::span<std::byte> destination) override
+        [[nodiscard]] IO::Types::ReadResult read([[maybe_unused]] std::span<std::byte> destination) noexcept override
         {
             return {.status = {}, .bytesRead = 0, .endOfStream = true};
         }
@@ -84,7 +86,7 @@ namespace
         }
 
         /// @brief Copies at most maxChunkSize_ bytes and applies configured final-read EOF reporting.
-        [[nodiscard]] IO::Types::ReadResult read(std::span<std::byte> destination) override
+        [[nodiscard]] IO::Types::ReadResult read(std::span<std::byte> destination) noexcept override
         {
             if (destination.empty())
             {
@@ -122,7 +124,7 @@ namespace
         }
 
         /// @brief Reads remaining backing bytes from the internal position.
-        [[nodiscard]] IO::Types::ReadResult read(std::span<std::byte> destination) override
+        [[nodiscard]] IO::Types::ReadResult read(std::span<std::byte> destination) noexcept override
         {
             if (position_ >= bytes_.size())
             {
@@ -136,7 +138,7 @@ namespace
         }
 
         /// @brief Reports the complete backing size while position() remains inherited/unsupported.
-        [[nodiscard]] IO::Types::SizeResult size() const override
+        [[nodiscard]] IO::Types::SizeResult size() const noexcept override
         {
             return {.status = {}, .sizeBytes = static_cast<std::uint64_t>(bytes_.size())};
         }
@@ -157,7 +159,7 @@ namespace
         }
 
         /// @brief Reads available backing bytes independently from the configured reported size.
-        [[nodiscard]] IO::Types::ReadResult read(std::span<std::byte> destination) override
+        [[nodiscard]] IO::Types::ReadResult read(std::span<std::byte> destination) noexcept override
         {
             if (position_ >= bytes_.size())
             {
@@ -171,13 +173,13 @@ namespace
         }
 
         /// @brief Reports the current backing-data read position.
-        [[nodiscard]] IO::Types::PositionResult position() const override
+        [[nodiscard]] IO::Types::PositionResult position() const noexcept override
         {
             return {.status = {}, .position = static_cast<std::uint64_t>(position_)};
         }
 
         /// @brief Returns the deliberately configurable logical size.
-        [[nodiscard]] IO::Types::SizeResult size() const override
+        [[nodiscard]] IO::Types::SizeResult size() const noexcept override
         {
             return {.status = {}, .sizeBytes = reportedSize_};
         }
@@ -193,14 +195,14 @@ namespace
     {
     public:
         /// @brief Records an unexpected payload read after the size-query failure.
-        [[nodiscard]] IO::Types::ReadResult read([[maybe_unused]] std::span<std::byte> destination) override
+        [[nodiscard]] IO::Types::ReadResult read([[maybe_unused]] std::span<std::byte> destination) noexcept override
         {
             readCalled_ = true;
             return {.status = {}, .bytesRead = 0, .endOfStream = true};
         }
 
         /// @brief Returns the configured size-query failure.
-        [[nodiscard]] IO::Types::SizeResult size() const override
+        [[nodiscard]] IO::Types::SizeResult size() const noexcept override
         {
             return {.status = IO::makeStatus(ErrorCode::PermissionDenied), .sizeBytes = 0};
         }
@@ -220,20 +222,20 @@ namespace
     {
     public:
         /// @brief Records an unexpected payload read after the position-query failure.
-        [[nodiscard]] IO::Types::ReadResult read([[maybe_unused]] std::span<std::byte> destination) override
+        [[nodiscard]] IO::Types::ReadResult read([[maybe_unused]] std::span<std::byte> destination) noexcept override
         {
             readCalled_ = true;
             return {.status = {}, .bytesRead = 0, .endOfStream = true};
         }
 
         /// @brief Returns the configured position-query failure.
-        [[nodiscard]] IO::Types::PositionResult position() const override
+        [[nodiscard]] IO::Types::PositionResult position() const noexcept override
         {
             return {.status = IO::makeStatus(ErrorCode::PermissionDenied), .position = 0};
         }
 
         /// @brief Reports a known logical size so position is queried next.
-        [[nodiscard]] IO::Types::SizeResult size() const override
+        [[nodiscard]] IO::Types::SizeResult size() const noexcept override
         {
             return {.status = {}, .sizeBytes = 1};
         }
@@ -253,20 +255,20 @@ namespace
     {
     public:
         /// @brief Records an unexpected payload read after impossible metadata is detected.
-        [[nodiscard]] IO::Types::ReadResult read([[maybe_unused]] std::span<std::byte> destination) override
+        [[nodiscard]] IO::Types::ReadResult read([[maybe_unused]] std::span<std::byte> destination) noexcept override
         {
             readCalled_ = true;
             return {.status = {}, .bytesRead = 0, .endOfStream = true};
         }
 
         /// @brief Reports a position greater than size().
-        [[nodiscard]] IO::Types::PositionResult position() const override
+        [[nodiscard]] IO::Types::PositionResult position() const noexcept override
         {
             return {.status = {}, .position = 2};
         }
 
         /// @brief Reports the smaller logical size used by the invariant test.
-        [[nodiscard]] IO::Types::SizeResult size() const override
+        [[nodiscard]] IO::Types::SizeResult size() const noexcept override
         {
             return {.status = {}, .sizeBytes = 1};
         }
@@ -286,19 +288,19 @@ namespace
     {
     public:
         /// @brief Returns success with zero bytes and no EOF to simulate a stalled backend.
-        [[nodiscard]] IO::Types::ReadResult read([[maybe_unused]] std::span<std::byte> destination) override
+        [[nodiscard]] IO::Types::ReadResult read([[maybe_unused]] std::span<std::byte> destination) noexcept override
         {
             return {.status = {}, .bytesRead = 0, .endOfStream = false};
         }
 
         /// @brief Reports the beginning of the logical stream.
-        [[nodiscard]] IO::Types::PositionResult position() const override
+        [[nodiscard]] IO::Types::PositionResult position() const noexcept override
         {
             return {.status = {}, .position = 0};
         }
 
         /// @brief Reports one remaining byte so zero progress is invalid.
-        [[nodiscard]] IO::Types::SizeResult size() const override
+        [[nodiscard]] IO::Types::SizeResult size() const noexcept override
         {
             return {.status = {}, .sizeBytes = 1};
         }
@@ -315,7 +317,7 @@ namespace
         }
 
         /// @brief Reads all available backing bytes and reports EOF when exhausted.
-        [[nodiscard]] IO::Types::ReadResult read(std::span<std::byte> destination) override
+        [[nodiscard]] IO::Types::ReadResult read(std::span<std::byte> destination) noexcept override
         {
             if (position_ >= bytes_.size())
             {
@@ -329,7 +331,7 @@ namespace
         }
 
         /// @brief Explicitly reports Unsupported so helpers take the unknown-size path.
-        [[nodiscard]] IO::Types::SizeResult size() const override
+        [[nodiscard]] IO::Types::SizeResult size() const noexcept override
         {
             return {.status = IO::makeStatus(ErrorCode::Unsupported), .sizeBytes = 0};
         }
@@ -350,7 +352,7 @@ namespace
         }
 
         /// @brief Returns backing bytes, then fails the next probe read.
-        [[nodiscard]] IO::Types::ReadResult read(std::span<std::byte> destination) override
+        [[nodiscard]] IO::Types::ReadResult read(std::span<std::byte> destination) noexcept override
         {
             if (position_ >= bytes_.size())
             {
@@ -373,7 +375,7 @@ namespace
     {
     public:
         /// @brief Deliberately reports one byte beyond destination capacity.
-        [[nodiscard]] IO::Types::ReadResult read(std::span<std::byte> destination) override
+        [[nodiscard]] IO::Types::ReadResult read(std::span<std::byte> destination) noexcept override
         {
             return {.status = {}, .bytesRead = destination.size() + 1, .endOfStream = false};
         }
@@ -391,7 +393,7 @@ namespace
         }
 
         /// @brief Returns configured prefix progress, then the configured read failure.
-        [[nodiscard]] IO::Types::ReadResult read(std::span<std::byte> destination) override
+        [[nodiscard]] IO::Types::ReadResult read(std::span<std::byte> destination) noexcept override
         {
             if (destination.empty())
             {
@@ -419,13 +421,13 @@ namespace
         }
 
         /// @brief Reports current progress through the configured backing bytes.
-        [[nodiscard]] IO::Types::PositionResult position() const override
+        [[nodiscard]] IO::Types::PositionResult position() const noexcept override
         {
             return {.status = {}, .position = static_cast<std::uint64_t>(position_)};
         }
 
         /// @brief Reports the full backing size to select the known-size helper path.
-        [[nodiscard]] IO::Types::SizeResult size() const override
+        [[nodiscard]] IO::Types::SizeResult size() const noexcept override
         {
             return {.status = {}, .sizeBytes = static_cast<std::uint64_t>(bytes_.size())};
         }
@@ -448,7 +450,7 @@ namespace
         }
 
         /// @brief Accepts one bounded chunk and appends it to retained fixture bytes.
-        [[nodiscard]] IO::Types::WriteResult write(std::span<const std::byte> bytes) override
+        [[nodiscard]] IO::Types::WriteResult write(std::span<const std::byte> bytes) noexcept override
         {
             if (bytes.empty())
             {
@@ -488,7 +490,7 @@ namespace
         }
 
         /// @brief Rejects every transfer with no accepted progress.
-        [[nodiscard]] IO::Types::WriteResult write([[maybe_unused]] std::span<const std::byte> bytes) override
+        [[nodiscard]] IO::Types::WriteResult write([[maybe_unused]] std::span<const std::byte> bytes) noexcept override
         {
             return {.status = IO::makeStatus(code_), .bytesWritten = 0};
         }
@@ -508,7 +510,7 @@ namespace
         }
 
         /// @brief Accepts a configured prefix and returns failure in the same transfer.
-        [[nodiscard]] IO::Types::WriteResult write(std::span<const std::byte> bytes) override
+        [[nodiscard]] IO::Types::WriteResult write(std::span<const std::byte> bytes) noexcept override
         {
             const std::size_t count = std::min(acceptedBytes_, bytes.size());
             return {.status = IO::makeStatus(code_), .bytesWritten = count};
@@ -524,7 +526,7 @@ namespace
     {
     public:
         /// @brief Deliberately reports one accepted byte beyond the input span.
-        [[nodiscard]] IO::Types::WriteResult write(std::span<const std::byte> bytes) override
+        [[nodiscard]] IO::Types::WriteResult write(std::span<const std::byte> bytes) noexcept override
         {
             return {.status = {}, .bytesWritten = bytes.size() + 1};
         }
@@ -548,6 +550,26 @@ namespace
     static_assert(!IO::isValidFlushMode(static_cast<IO::Types::FlushMode>(-1)));
     static_assert(noexcept(IO::isValidFlushMode(IO::Types::FlushMode::None)));
     static_assert(noexcept(IO::makeStatus(ErrorCode::Unknown)));
+    static_assert(noexcept(std::declval<IO::Reader &>().isOpen()));
+    static_assert(noexcept(std::declval<IO::Reader &>().canSeek()));
+    static_assert(noexcept(std::declval<IO::Reader &>().read(std::declval<std::span<std::byte>>())));
+    static_assert(noexcept(std::declval<IO::Reader &>().close()));
+    static_assert(noexcept(std::declval<IO::Reader &>().position()));
+    static_assert(noexcept(std::declval<IO::Reader &>().size()));
+    static_assert(noexcept(std::declval<IO::Reader &>().seek(0, IO::Types::SeekOrigin::Begin)));
+    static_assert(noexcept(std::declval<IO::Writer &>().isOpen()));
+    static_assert(noexcept(std::declval<IO::Writer &>().canSeek()));
+    static_assert(noexcept(std::declval<IO::Writer &>().write(std::declval<std::span<const std::byte>>())));
+    static_assert(noexcept(std::declval<IO::Writer &>().flush()));
+    static_assert(noexcept(std::declval<IO::Writer &>().close()));
+    static_assert(noexcept(std::declval<IO::Writer &>().position()));
+    static_assert(noexcept(std::declval<IO::Writer &>().seek(0, IO::Types::SeekOrigin::Begin)));
+    static_assert(noexcept(IO::readAllBytes(std::declval<IO::Reader &>())));
+    static_assert(noexcept(IO::readAllText(std::declval<IO::Reader &>())));
+    static_assert(noexcept(IO::writeAllBytes(std::declval<IO::Writer &>(), std::declval<std::span<const std::byte>>())));
+    static_assert(noexcept(IO::writeAllText(std::declval<IO::Writer &>(), std::declval<std::string_view>())));
+    static_assert(noexcept(std::declval<IO::MemoryWriter &>().reserve(0)));
+    static_assert(noexcept(std::declval<const IO::MemoryWriter &>().copyText()));
     static_assert(std::is_constructible_v<IO::MemoryReader, std::string &>);
     static_assert(!std::is_constructible_v<IO::MemoryReader, std::string &&>);
     static_assert(std::is_constructible_v<IO::MemoryReader, std::vector<std::byte> &>);
@@ -769,8 +791,10 @@ namespace
     /// @brief Verifies MemoryWriter ownership, aliasing, reserve, clear, and close behavior.
     void testMemoryWriter(TestSupport::Context &context)
     {
-        IO::MemoryWriter writer(8);
+        IO::MemoryWriter writer;
         const std::vector<std::byte> source = makeBytes({0x01, 0x00, 0x02, 0xff});
+        const IO::Types::Status initialReserve = writer.reserve(8);
+        static_cast<void>(context.expectTrue("MemoryWriter initial reserve succeeds", initialReserve.ok()));
         static_cast<void>(context.expectTrue("MemoryWriter starts open", writer.isOpen()));
         static_cast<void>(context.expectFalse("MemoryWriter is append-only", writer.canSeek()));
         static_cast<void>(context.expectTrue("MemoryWriter initial capacity is reserved", writer.capacity() >= 8));
@@ -802,20 +826,28 @@ namespace
             ErrorCode::InvalidArgument,
             writer.flush(static_cast<IO::Types::FlushMode>(-1)).code));
 
-        writer.reserve(32);
+        const IO::Types::Status largerReserve = writer.reserve(32);
+        static_cast<void>(context.expectTrue("MemoryWriter larger reserve succeeds", largerReserve.ok()));
         static_cast<void>(context.expectTrue("MemoryWriter reserve grows capacity", writer.capacity() >= 32));
 
         IO::MemoryWriter textWriter;
         static_cast<void>(IO::writeAllText(textWriter, std::string_view{"a\0b", 3}));
-        static_cast<void>(context.expectEq("MemoryWriter text preserves NUL bytes", std::string("a\0b", 3), textWriter.text()));
+        const IO::Types::TextCopyResult textCopy = textWriter.copyText();
+        static_cast<void>(context.expectTrue("MemoryWriter text copy succeeds", textCopy.status.ok()));
+        static_cast<void>(context.expectEq("MemoryWriter text copy preserves NUL bytes", std::string("a\0b", 3), textCopy.text));
         IO::MemoryWriter movedWriter(std::move(textWriter));
-        static_cast<void>(context.expectEq("MemoryWriter move preserves bytes", std::string("a\0b", 3), movedWriter.text()));
+        const IO::Types::TextCopyResult movedText = movedWriter.copyText();
+        static_cast<void>(context.expectTrue("MemoryWriter moved text copy succeeds", movedText.status.ok()));
+        static_cast<void>(context.expectEq("MemoryWriter move preserves bytes", std::string("a\0b", 3), movedText.text));
         static_cast<void>(context.expectTrue("MemoryWriter move preserves open state", movedWriter.isOpen()));
 
         IO::MemoryWriter emptyTextWriter;
-        static_cast<void>(context.expectTrue("MemoryWriter empty text extraction is empty", emptyTextWriter.text().empty()));
+        const IO::Types::TextCopyResult emptyText = emptyTextWriter.copyText();
+        static_cast<void>(context.expectTrue("MemoryWriter empty text copy succeeds", emptyText.status.ok()));
+        static_cast<void>(context.expectTrue("MemoryWriter empty text copy is empty", emptyText.text.empty()));
 
-        IO::MemoryWriter aliasWriter(source.size());
+        IO::MemoryWriter aliasWriter;
+        static_cast<void>(aliasWriter.reserve(source.size()));
         static_cast<void>(aliasWriter.write(source));
         const IO::Types::WriteResult aliasWrite = aliasWriter.write(aliasWriter.bytes().subspan(1, 2));
         static_cast<void>(context.expectTrue("MemoryWriter aliased write succeeds", aliasWrite.status.ok()));
@@ -838,8 +870,184 @@ namespace
         static_cast<void>(context.expectEq("MemoryWriter write after close reports NotOpen", ErrorCode::NotOpen, writer.write(source).status.code));
         static_cast<void>(context.expectEq("MemoryWriter flush after close reports NotOpen", ErrorCode::NotOpen, writer.flush().code));
         static_cast<void>(context.expectEq("MemoryWriter position after close reports NotOpen", ErrorCode::NotOpen, writer.position().status.code));
+        static_cast<void>(context.expectTrue("MemoryWriter reserve remains available after close", writer.reserve(64).ok()));
+        static_cast<void>(context.expectTrue("MemoryWriter copied text remains available after close", writer.copyText().status.ok()));
         static_cast<void>(context.expectTrue("MemoryWriter repeated close succeeds", writer.close().ok()));
     }
+
+#if INTERNAL_IO_TEST_HOOKS
+    /// @brief Resets process-wide IO failure injection before and after one validation scenario.
+    class ScopedIOFailureHooks final
+    {
+    public:
+        ScopedIOFailureHooks() noexcept
+        {
+            IO::TestHooks::reset();
+        }
+
+        ScopedIOFailureHooks(const ScopedIOFailureHooks &) = delete;
+        ScopedIOFailureHooks &operator=(const ScopedIOFailureHooks &) = delete;
+
+        ~ScopedIOFailureHooks() noexcept
+        {
+            IO::TestHooks::reset();
+        }
+    };
+
+    /// @brief Unknown-size reader that arms a text-storage failure after one successful chunk.
+    class DeferredTextStorageFailureReader final : public IO::Reader
+    {
+    public:
+        DeferredTextStorageFailureReader(std::span<const std::byte> bytes, IO::TestHooks::FailureKind failureKind)
+            : bytes_(bytes)
+            , failureKind_(failureKind)
+        {
+        }
+
+        /// @brief Returns one byte per read and arms the configured failure before the second append.
+        [[nodiscard]] IO::Types::ReadResult read(std::span<std::byte> destination) noexcept override
+        {
+            if (destination.empty())
+            {
+                return {.status = {}, .bytesRead = 0, .endOfStream = position_ >= bytes_.size()};
+            }
+
+            if (position_ >= bytes_.size())
+            {
+                return {.status = {}, .bytesRead = 0, .endOfStream = true};
+            }
+
+            if (readCount_ == 1)
+            {
+                IO::TestHooks::forceNextFailure(IO::TestHooks::FailurePoint::ReadAllTextStorage, failureKind_);
+            }
+
+            const std::size_t count = std::min<std::size_t>(1, bytes_.size() - position_);
+            std::copy_n(bytes_.data() + position_, count, destination.data());
+            position_ += count;
+            ++readCount_;
+
+            return {.status = {}, .bytesRead = count, .endOfStream = position_ == bytes_.size()};
+        }
+
+    private:
+        std::span<const std::byte> bytes_;
+        IO::TestHooks::FailureKind failureKind_ = IO::TestHooks::FailureKind::None;
+        std::size_t position_ = 0;
+        std::size_t readCount_ = 0;
+    };
+
+    /// @brief Verifies deterministic allocation, length, and unexpected-exception translation.
+    void testCheckedFailureTranslation(TestSupport::Context &context)
+    {
+        using FailureKind = IO::TestHooks::FailureKind;
+        using FailurePoint = IO::TestHooks::FailurePoint;
+
+        const ScopedIOFailureHooks hooks;
+        const std::vector<std::byte> source = makeBytes({0x41, 0x42, 0x43});
+
+        IO::MemoryWriter writer;
+        static_cast<void>(writer.write(source));
+        const std::vector<std::byte> original = copyBytes(writer.bytes());
+
+        IO::TestHooks::forceNextFailure(FailurePoint::MemoryWriterReserve, FailureKind::OutOfMemory);
+        static_cast<void>(context.expectEq("MemoryWriter reserve translates allocation failure", ErrorCode::OutOfMemory, writer.reserve(64).code));
+
+        IO::TestHooks::forceNextFailure(FailurePoint::MemoryWriterReserve, FailureKind::LengthError);
+        static_cast<void>(context.expectEq("MemoryWriter reserve translates length failure", ErrorCode::SizeLimitExceeded, writer.reserve(64).code));
+
+        IO::TestHooks::forceNextFailure(FailurePoint::MemoryWriterReserve, FailureKind::Unexpected);
+        static_cast<void>(context.expectEq("MemoryWriter reserve translates unexpected failure", ErrorCode::Unknown, writer.reserve(64).code));
+
+        const IO::Types::Status oversizeReserve = writer.reserve(std::numeric_limits<std::size_t>::max());
+        static_cast<void>(context.expectEq("MemoryWriter reserve rejects impossible capacity", ErrorCode::SizeLimitExceeded, oversizeReserve.code));
+
+        IO::TestHooks::forceNextFailure(FailurePoint::MemoryWriterCopyText, FailureKind::OutOfMemory);
+        const IO::Types::TextCopyResult allocationText = writer.copyText();
+        static_cast<void>(
+            context.expectEq("MemoryWriter copyText translates allocation failure", ErrorCode::OutOfMemory, allocationText.status.code));
+        static_cast<void>(context.expectTrue("MemoryWriter failed text copy returns no invalid text", allocationText.text.empty()));
+
+        IO::TestHooks::forceNextFailure(FailurePoint::MemoryWriterCopyText, FailureKind::LengthError);
+        static_cast<void>(
+            context.expectEq("MemoryWriter copyText translates length failure", ErrorCode::SizeLimitExceeded, writer.copyText().status.code));
+
+        IO::TestHooks::forceNextFailure(FailurePoint::MemoryWriterCopyText, FailureKind::Unexpected);
+        static_cast<void>(context.expectEq("MemoryWriter copyText translates unexpected failure", ErrorCode::Unknown, writer.copyText().status.code));
+
+        for (const auto [kind, expected] :
+             {std::pair{FailureKind::OutOfMemory, ErrorCode::OutOfMemory},
+              std::pair{FailureKind::LengthError, ErrorCode::SizeLimitExceeded},
+              std::pair{FailureKind::Unexpected, ErrorCode::Unknown}})
+        {
+            IO::TestHooks::forceNextFailure(FailurePoint::MemoryWriterWrite, kind);
+            const IO::Types::WriteResult failedWrite = writer.write(source);
+            static_cast<void>(context.expectEq("MemoryWriter write translates injected failure", expected, failedWrite.status.code));
+            static_cast<void>(context.expectEq("MemoryWriter failed write reports zero progress", std::size_t{0}, failedWrite.bytesWritten));
+            static_cast<void>(context.expectEq("MemoryWriter failed write preserves bytes", original, copyBytes(writer.bytes())));
+        }
+
+        for (const auto [kind, expected] :
+             {std::pair{FailureKind::OutOfMemory, ErrorCode::OutOfMemory},
+              std::pair{FailureKind::LengthError, ErrorCode::SizeLimitExceeded},
+              std::pair{FailureKind::Unexpected, ErrorCode::Unknown}})
+        {
+            IO::MemoryReader bytesReader(source);
+            IO::TestHooks::forceNextFailure(FailurePoint::ReadAllBytesStorage, kind);
+            const IO::Types::ReadAllBytesResult bytesResult = IO::readAllBytes(bytesReader);
+            static_cast<void>(context.expectEq("readAllBytes translates output-storage failure", expected, bytesResult.status.code));
+            static_cast<void>(context.expectTrue("readAllBytes storage failure returns no invalid bytes", bytesResult.bytes.empty()));
+
+            IO::MemoryReader textReader(source);
+            IO::TestHooks::forceNextFailure(FailurePoint::ReadAllTextStorage, kind);
+            const IO::Types::ReadAllTextResult textResult = IO::readAllText(textReader);
+            static_cast<void>(context.expectEq("readAllText translates output-storage failure", expected, textResult.status.code));
+            static_cast<void>(context.expectTrue("readAllText storage failure returns no invalid text", textResult.text.empty()));
+        }
+
+        std::array<std::byte, 2> textScratch{};
+        for (const auto [kind, expected] :
+             {std::pair{FailureKind::OutOfMemory, ErrorCode::OutOfMemory},
+              std::pair{FailureKind::LengthError, ErrorCode::SizeLimitExceeded},
+              std::pair{FailureKind::Unexpected, ErrorCode::Unknown}})
+        {
+            DeferredTextStorageFailureReader textAppendReader(spanOf(source), kind);
+            const IO::Types::ReadAllTextResult textAppendFailure = IO::readAllText(textAppendReader, std::span<std::byte>(textScratch));
+            static_cast<void>(context.expectEq("readAllText translates unknown-size append failure", expected, textAppendFailure.status.code));
+            static_cast<void>(
+                context.expectEq("readAllText unknown-size append failure preserves prior text", std::string{"A"}, textAppendFailure.text));
+        }
+
+        for (const auto [kind, expected] :
+             {std::pair{FailureKind::OutOfMemory, ErrorCode::OutOfMemory},
+              std::pair{FailureKind::LengthError, ErrorCode::SizeLimitExceeded},
+              std::pair{FailureKind::Unexpected, ErrorCode::Unknown}})
+        {
+            UnknownSizeChunkReader bytesScratchAllocationReader(spanOf(source), 1);
+            IO::TestHooks::forceNextFailure(FailurePoint::ReadAllScratchAllocation, kind);
+            const IO::Types::ReadAllBytesResult bytesScratchAllocationFailure = IO::readAllBytes(bytesScratchAllocationReader);
+            static_cast<void>(
+                context.expectEq("readAllBytes translates scratch allocation failure", expected, bytesScratchAllocationFailure.status.code));
+            static_cast<void>(
+                context.expectTrue("readAllBytes scratch allocation failure returns no bytes", bytesScratchAllocationFailure.bytes.empty()));
+
+            UnknownSizeChunkReader textScratchAllocationReader(spanOf(source), 1);
+            IO::TestHooks::forceNextFailure(FailurePoint::ReadAllScratchAllocation, kind);
+            const IO::Types::ReadAllTextResult textScratchAllocationFailure = IO::readAllText(textScratchAllocationReader);
+            static_cast<void>(
+                context.expectEq("readAllText translates scratch allocation failure", expected, textScratchAllocationFailure.status.code));
+            static_cast<void>(
+                context.expectTrue("readAllText scratch allocation failure returns no text", textScratchAllocationFailure.text.empty()));
+        }
+
+        std::array<std::byte, 2> scratch{};
+        UnknownSizeChunkReader appendReader(spanOf(source), 1);
+        IO::TestHooks::forceNextFailure(FailurePoint::ReadAllBytesStorage, FailureKind::OutOfMemory);
+        const IO::Types::ReadAllBytesResult appendFailure = IO::readAllBytes(appendReader, std::span<std::byte>(scratch));
+        static_cast<void>(context.expectEq("readAllBytes translates append allocation failure", ErrorCode::OutOfMemory, appendFailure.status.code));
+        static_cast<void>(context.expectTrue("readAllBytes append failure returns no invalid bytes", appendFailure.bytes.empty()));
+    }
+#endif
 
     /// @brief Verifies whole-reader byte draining across known-size, unknown-size, limit, and failure paths.
     void testReadAllBytes(TestSupport::Context &context)
@@ -1178,6 +1386,9 @@ namespace GameWIP::Test
         runner.runSuite("IO MemoryReader", testMemoryReader);
         runner.runSuite("IO MemoryReader seek", testMemoryReaderSeek);
         runner.runSuite("IO MemoryWriter", testMemoryWriter);
+#if INTERNAL_IO_TEST_HOOKS
+        runner.runSuite("IO checked failure translation", testCheckedFailureTranslation);
+#endif
         runner.runSuite("IO readAllBytes", testReadAllBytes);
         runner.runSuite("IO readAllText", testReadAllText);
         runner.runSuite("IO writeAllBytes", testWriteAllBytes);

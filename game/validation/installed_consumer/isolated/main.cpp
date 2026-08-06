@@ -1,8 +1,9 @@
 /// @file main.cpp
 /// @brief Isolated installed-package dependency-discovery check.
 
-#if defined(INTERNAL_FILESYSTEM_TEST_HOOKS) || defined(INTERNAL_TERMINAL_TEST_HOOKS) || defined(INTERNAL_LOGGER_TEST_HOOKS) || \
-    defined(INTERNAL_ASSERT_TEST_HOOKS) || defined(INTERNAL_TEST_SUPPORT_TEST_HOOKS) || defined(INTERNAL_WINDOW_TEST_HOOKS)
+#if defined(INTERNAL_IO_TEST_HOOKS) || defined(INTERNAL_FILESYSTEM_TEST_HOOKS) || defined(INTERNAL_TERMINAL_TEST_HOOKS) || \
+    defined(INTERNAL_LOGGER_TEST_HOOKS) || defined(INTERNAL_ASSERT_TEST_HOOKS) || defined(INTERNAL_TEST_SUPPORT_TEST_HOOKS) || \
+    defined(INTERNAL_WINDOW_TEST_HOOKS)
 #error "Installed GameWIP targets must not expose internal test-hook compile definitions."
 #endif
 
@@ -36,7 +37,10 @@ int main()
 {
 #if defined(GAMEWIP_CONSUMER_IO)
     GameWIP::IO::MemoryWriter writer;
-    return GameWIP::IO::writeAllText(writer, "isolated").status.ok() ? 0 : 1;
+    const auto reserve = writer.reserve(32);
+    const auto write = GameWIP::IO::writeAllText(writer, "isolated");
+    const auto text = writer.copyText();
+    return reserve.ok() && write.status.ok() && text.status.ok() && text.text == "isolated" ? 0 : 1;
 #elif defined(GAMEWIP_CONSUMER_FileSystem)
     return GameWIP::FileSystem::pathFromUtf8("isolated.txt").status.ok() ? 0 : 1;
 #elif defined(GAMEWIP_CONSUMER_Terminal)

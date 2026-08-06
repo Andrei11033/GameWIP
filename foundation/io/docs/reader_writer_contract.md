@@ -152,22 +152,25 @@ It:
 - `flush()` validates its mode and otherwise performs no physical work.
 - `close()` is idempotent and preserves collected output.
 - After close, `write()`, `flush()`, and `position()` return `NotOpen`.
-- `bytes()`, `text()`, `takeBytes()`, `size()`, `capacity()`, `empty()`, `reserve()`, and `clear()` remain available after close.
+- `bytes()`, `copyText()`, `takeBytes()`, `size()`, `capacity()`, `empty()`, `reserve()`, and `clear()` remain available after close.
 - `clear()` preserves capacity.
 - `takeBytes()` transfers ownership, leaves the writer empty, preserves open/closed state, and may discard reserved capacity.
 
 `bytes()` returns a non-owning view into writer-owned storage. Do not retain it across operations that can modify storage or ownership. A write or reserve may reallocate; clear, take, move assignment, destruction, and ownership transfer invalidate the prior logical view.
 
-`text()` returns an independent copy and preserves embedded NUL bytes. It performs no UTF-8 validation.
+`copyText()` returns a `TextCopyResult` containing an independent copy and preserves embedded NUL bytes. It performs no UTF-8 validation. `reserve()` and `copyText()` report allocation, representation-limit, and unexpected failures through status.
 
 ## Exceptions
 
-Expected I/O failures use statuses, but the virtual transfer and capability functions are not globally `noexcept`.
+Every virtual transfer, lifecycle, and checked capability operation is `noexcept`.
 
-- Exceptions thrown by a custom `Reader` or `Writer` may propagate through generic helpers.
-- The helpers convert their own documented allocation failures to `OutOfMemory`; they do not catch arbitrary backend exceptions.
-- `MemoryWriter` construction, `reserve()`, and `text()` may throw standard allocation or length exceptions.
-- Destructors must not throw. Call `close()` explicitly when close failure must be observed.
+- Custom `Reader` and `Writer` overrides must contain expected backend and allocation failures and return the most specific status available.
+- Throwing from an override violates the interface contract and terminates the process through the language `noexcept` rule; generic helpers cannot recover from that violation.
+- Whole-stream helpers translate their own allocation failures to `OutOfMemory`, representation failures to `SizeLimitExceeded`, and unexpected internal failures to `Unknown`.
+- `MemoryWriter::write()`, `reserve()`, and `copyText()` use the same translation categories and never expose a partially mutated result after an injected allocation or length failure.
+- Destructors do not throw. Call `close()` explicitly when close failure must be observed.
+
+Argument construction still occurs before function entry. For example, creating an owning diagnostic string for `makeStatus()` may throw before its `noexcept` boundary; build optional diagnostics best-effort when operating in a non-throwing backend.
 
 ## Thread-safety and blocking
 

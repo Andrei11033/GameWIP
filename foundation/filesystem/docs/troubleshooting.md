@@ -40,6 +40,14 @@ A detached `FileLock` can outlive the originating handle object. Handle destruct
 
 The resource remains active and the operation can be retried. Destruction performs best-effort cleanup but cannot report the outcome.
 
+## A native failure has an empty diagnostic message
+
+The portable `code` and backend `nativeCode` are the stable diagnostic fields. FileSystem constructs human-readable native messages best-effort; allocation failure leaves `message` empty rather than replacing the original failure or terminating a `noexcept` operation.
+
+## An exception occurs before a FileSystem call starts
+
+Public operations contain failures that occur after function entry. Constructing a `std::filesystem::path`, owning string, or options object at the call site happens first and may still throw. Construct reusable arguments outside a non-throwing caller boundary when that distinction matters.
+
 ## Append mode cannot seek
 
 Append modes target the then-current end for each write and return `NotSeekable` from `seek()` and `position()`. Use `FileInitialPosition::End` only when one initial end position is sufficient; it does not protect later writes from concurrent endpoint changes.

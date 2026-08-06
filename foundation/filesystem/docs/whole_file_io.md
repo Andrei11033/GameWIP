@@ -53,7 +53,7 @@ Vector byte overloads forward to the span overloads. FileSystem does not retain 
 
 Direct handle writes and whole-file helpers can return a nonzero count with failure. A successful direct `write()` may also accept fewer bytes than requested; callers using handles must inspect `bytesWritten` and loop or use IO's whole-stream helper when complete transfer is required.
 
-A close failure leaves the handle open and can be retried. Whole-file helpers cannot return their internal handle, so they preserve the close status and any useful payload progress in the returned result.
+A close failure leaves an explicit handle open and can be retried. This includes allocation or unexpected failures contained while producing a close status. Whole-file helpers cannot return their internal handle, so they preserve the close status and any useful payload progress in the returned result; destruction then performs best-effort cleanup.
 
 ## Atomic replacement
 

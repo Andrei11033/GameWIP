@@ -222,6 +222,15 @@ namespace GameWIP::IO
             /// @brief Text bytes collected before end-of-stream or failure.
             std::string text;
         };
+
+        /// @brief Result returned when memory-writer bytes are copied into an owning string.
+        struct TextCopyResult
+        {
+            /// @brief Operation status.
+            Status status;
+            /// @brief Owning copy of the writer bytes when status is successful.
+            std::string text;
+        };
     } // namespace Types
 
     /// @brief Returns whether a flush mode is one of the defined FlushMode values.
@@ -269,8 +278,9 @@ namespace GameWIP::IO
     /// endOfStream. A failure may report valid partial progress. Implementations must not retain the
     /// caller destination span after return unless a separate public contract extends its lifetime.
     ///
-    /// Expected I/O failures use status values. The virtual functions are not globally noexcept, so
-    /// exceptions from a custom implementation may propagate through callers and generic helpers.
+    /// Expected I/O, allocation, length, platform, and implementation failures must be translated
+    /// into status values by concrete implementations. Throwing from an override violates the
+    /// extension contract.
     ///
     /// Different Reader objects may be used concurrently. The same object is not thread-safe unless
     /// its concrete implementation explicitly documents otherwise.
@@ -309,25 +319,25 @@ namespace GameWIP::IO
         /// @return Read status, byte count, and end-of-stream state.
         /// @note bytesRead must never exceed destination.size(). A successful zero-byte result is
         /// valid only for an empty request or when endOfStream is true.
-        [[nodiscard]] virtual Types::ReadResult read(std::span<std::byte> destination) = 0;
+        [[nodiscard]] virtual Types::ReadResult read(std::span<std::byte> destination) noexcept = 0;
 
         /// @brief Closes the reader when it owns closeable state.
         /// @return Success or a close failure status.
-        [[nodiscard]] virtual Types::Status close();
+        [[nodiscard]] virtual Types::Status close() noexcept;
 
         /// @brief Returns the current stream position when supported.
         /// @return Current position, or NotSeekable for non-position-aware readers.
-        [[nodiscard]] virtual Types::PositionResult position() const;
+        [[nodiscard]] virtual Types::PositionResult position() const noexcept;
 
         /// @brief Returns the stream size when supported.
         /// @return Stream size, or NotSeekable for non-size-aware readers.
-        [[nodiscard]] virtual Types::SizeResult size() const;
+        [[nodiscard]] virtual Types::SizeResult size() const noexcept;
 
         /// @brief Moves the stream position when supported.
         /// @param offset Signed offset relative to origin.
         /// @param origin Origin used to interpret offset.
         /// @return Success or a seek-related failure status.
-        [[nodiscard]] virtual Types::Status seek(std::int64_t offset, Types::SeekOrigin origin);
+        [[nodiscard]] virtual Types::Status seek(std::int64_t offset, Types::SeekOrigin origin) noexcept;
     };
 
     /// @brief Movable, non-copyable byte-output interface used by generic IO helpers.
@@ -340,8 +350,9 @@ namespace GameWIP::IO
     /// separate public contract extends its lifetime. Successful zero progress for non-empty input
     /// violates the retry contract used by writeAllBytes().
     ///
-    /// Expected I/O failures use status values. The virtual functions are not globally noexcept, so
-    /// exceptions from a custom implementation may propagate through callers and generic helpers.
+    /// Expected I/O, allocation, length, platform, and implementation failures must be translated
+    /// into status values by concrete implementations. Throwing from an override violates the
+    /// extension contract.
     ///
     /// Different Writer objects may be used concurrently. The same object is not thread-safe unless
     /// its concrete implementation explicitly documents otherwise.
@@ -380,27 +391,27 @@ namespace GameWIP::IO
         /// @return Write status and accepted-byte count.
         /// @note bytesWritten must never exceed bytes.size(). Empty input succeeds with zero bytes;
         /// non-empty input must not return successful zero progress.
-        [[nodiscard]] virtual Types::WriteResult write(std::span<const std::byte> bytes) = 0;
+        [[nodiscard]] virtual Types::WriteResult write(std::span<const std::byte> bytes) noexcept = 0;
 
         /// @brief Flushes buffered data when the writer owns flushable state.
         /// @param mode Requested flush strength.
         /// @return InvalidArgument for an unknown mode; otherwise success by default.
         /// @note The base implementation performs no physical I/O.
-        [[nodiscard]] virtual Types::Status flush(Types::FlushMode mode = Types::FlushMode::Data);
+        [[nodiscard]] virtual Types::Status flush(Types::FlushMode mode = Types::FlushMode::Data) noexcept;
 
         /// @brief Closes the writer when it owns closeable state.
         /// @return Success or a close failure status.
-        [[nodiscard]] virtual Types::Status close();
+        [[nodiscard]] virtual Types::Status close() noexcept;
 
         /// @brief Returns the current stream position when supported.
         /// @return Current position, or NotSeekable for non-position-aware writers.
-        [[nodiscard]] virtual Types::PositionResult position() const;
+        [[nodiscard]] virtual Types::PositionResult position() const noexcept;
 
         /// @brief Moves the stream position when supported.
         /// @param offset Signed offset relative to origin.
         /// @param origin Origin used to interpret offset.
         /// @return Success or a seek-related failure status.
-        [[nodiscard]] virtual Types::Status seek(std::int64_t offset, Types::SeekOrigin origin);
+        [[nodiscard]] virtual Types::Status seek(std::int64_t offset, Types::SeekOrigin origin) noexcept;
     };
 
     /// @brief Non-owning, seekable Reader over existing contiguous byte storage.
@@ -460,25 +471,25 @@ namespace GameWIP::IO
         /// @return NotOpen when closed; otherwise success, copied-byte count, and end-of-stream state.
         /// @note Destination may overlap the source memory. An empty destination reports whether the
         /// current position is already at end-of-stream.
-        [[nodiscard]] Types::ReadResult read(std::span<std::byte> destination) override;
+        [[nodiscard]] Types::ReadResult read(std::span<std::byte> destination) noexcept override;
 
         /// @brief Closes this reader without affecting caller-owned source storage.
         /// @return Success. Repeated close calls also succeed.
-        [[nodiscard]] Types::Status close() override;
+        [[nodiscard]] Types::Status close() noexcept override;
 
         /// @brief Returns the current byte position while open.
         /// @return Current position, or NotOpen after close().
-        [[nodiscard]] Types::PositionResult position() const override;
+        [[nodiscard]] Types::PositionResult position() const noexcept override;
 
         /// @brief Returns the source byte count while open.
         /// @return Source size, or NotOpen after close().
-        [[nodiscard]] Types::SizeResult size() const override;
+        [[nodiscard]] Types::SizeResult size() const noexcept override;
 
         /// @brief Moves the current position within the source byte range.
         /// @param offset Signed offset relative to origin.
         /// @param origin Origin used to interpret offset.
         /// @return Success, NotOpen, InvalidArgument, SizeLimitExceeded, or SeekFailed.
-        [[nodiscard]] Types::Status seek(std::int64_t offset, Types::SeekOrigin origin) override;
+        [[nodiscard]] Types::Status seek(std::int64_t offset, Types::SeekOrigin origin) noexcept override;
 
     private:
         std::span<const std::byte> bytes_;
@@ -496,13 +507,7 @@ namespace GameWIP::IO
     {
     public:
         /// @brief Creates an open writer with empty storage.
-        MemoryWriter() = default;
-
-        /// @brief Creates a memory writer with reserved capacity.
-        /// @param initialCapacity Initial byte capacity to reserve.
-        /// @throws std::bad_alloc When the requested capacity cannot be allocated.
-        /// @throws std::length_error When initialCapacity exceeds the vector maximum size.
-        explicit MemoryWriter(std::size_t initialCapacity);
+        MemoryWriter() noexcept = default;
 
         /// @brief Returns whether the memory writer accepts writes and flushes.
         /// @return True until close() is called.
@@ -517,36 +522,35 @@ namespace GameWIP::IO
         /// @return Success and the full byte count, or NotOpen, SizeLimitExceeded, OutOfMemory, or
         /// InvalidArgument with zero accepted bytes.
         /// @note Any previously returned bytes() view may be invalidated by the append.
-        [[nodiscard]] Types::WriteResult write(std::span<const std::byte> bytes) override;
+        [[nodiscard]] Types::WriteResult write(std::span<const std::byte> bytes) noexcept override;
 
         /// @brief Validates open state; memory-backed writes require no physical flush.
         /// @param mode Requested flush strength.
         /// @return Success while open, InvalidArgument for an unknown mode, or NotOpen after close().
-        [[nodiscard]] Types::Status flush(Types::FlushMode mode = Types::FlushMode::Data) override;
+        [[nodiscard]] Types::Status flush(Types::FlushMode mode = Types::FlushMode::Data) noexcept override;
 
         /// @brief Closes this writer without discarding collected output.
         /// @return Success. Repeated close calls also succeed.
-        [[nodiscard]] Types::Status close() override;
+        [[nodiscard]] Types::Status close() noexcept override;
 
         /// @brief Returns the append position while open.
         /// @return Current byte count as the position, or NotOpen after close().
-        [[nodiscard]] Types::PositionResult position() const override;
+        [[nodiscard]] Types::PositionResult position() const noexcept override;
 
         /// @brief Writes bytes from vector storage.
         /// @tparam Allocator Vector allocator type.
         /// @param bytes Bytes to append.
         /// @return Write status and byte count.
-        template <typename Allocator> [[nodiscard]] Types::WriteResult write(const std::vector<std::byte, Allocator> &bytes)
+        template <typename Allocator> [[nodiscard]] Types::WriteResult write(const std::vector<std::byte, Allocator> &bytes) noexcept
         {
             return write(std::span<const std::byte>(bytes.data(), bytes.size()));
         }
 
         /// @brief Reserves at least the requested byte capacity.
         /// @param capacity Byte capacity to reserve.
-        /// @throws std::bad_alloc When the requested capacity cannot be allocated.
-        /// @throws std::length_error When capacity exceeds the vector maximum size.
+        /// @return Success, SizeLimitExceeded, OutOfMemory, or Unknown.
         /// @note This operation is available after close() and may invalidate a bytes() view.
-        void reserve(std::size_t capacity);
+        [[nodiscard]] Types::Status reserve(std::size_t capacity) noexcept;
 
         /// @brief Returns a read-only view of the bytes written so far.
         /// @return Non-owning view into this writer's current storage.
@@ -554,11 +558,10 @@ namespace GameWIP::IO
         /// destruction, or any operation that may change storage or ownership.
         [[nodiscard]] std::span<const std::byte> bytes() const noexcept;
 
-        /// @brief Returns collected bytes interpreted as a string of UTF-8 bytes.
-        /// @return Copy of collected bytes as std::string. No UTF-8 validation is performed.
-        /// @throws std::bad_alloc When the returned string cannot be allocated.
-        /// @throws std::length_error When the collected byte count exceeds the string maximum size.
-        [[nodiscard]] std::string text() const;
+        /// @brief Copies collected bytes into an owning string without interpreting their encoding.
+        /// @return Copied text and success, SizeLimitExceeded, OutOfMemory, or Unknown.
+        /// @note The operation is available after close() and preserves embedded NUL bytes.
+        [[nodiscard]] Types::TextCopyResult copyText() const noexcept;
 
         /// @brief Moves collected bytes out and replaces writer storage with an empty vector.
         /// @return Collected byte vector.
@@ -596,11 +599,10 @@ namespace GameWIP::IO
     /// limit may be advanced by one extra probe byte that is not stored.
     /// @note Invalid buffer arguments, capability failures, partial known-size reads, invalid backend
     /// progress, representation limits, and internal allocation failures are reported through status.
-    /// Arbitrary exceptions from custom readers may propagate.
     [[nodiscard]] Types::ReadAllBytesResult readAllBytes(
         Reader &reader,
         std::uint64_t maxBytes = kNoByteLimit,
-        std::size_t bufferSize = kDefaultBufferSize);
+        std::size_t bufferSize = kDefaultBufferSize) noexcept;
 
     /// @brief Reads all bytes using caller-owned temporary storage for unknown-size readers.
     /// @param reader Reader to drain from its current position.
@@ -609,8 +611,10 @@ namespace GameWIP::IO
     /// @return Collected bytes and final status, preserving valid bytes produced before a later failure.
     /// @note The scratch buffer is ignored for known-size readers and is never retained. At a finite
     /// limit, an unknown-size reader may be advanced by one extra probe byte that is not stored.
-    /// Arbitrary exceptions from custom readers may propagate.
-    [[nodiscard]] Types::ReadAllBytesResult readAllBytes(Reader &reader, std::span<std::byte> scratchBuffer, std::uint64_t maxBytes = kNoByteLimit);
+    [[nodiscard]] Types::ReadAllBytesResult readAllBytes(
+        Reader &reader,
+        std::span<std::byte> scratchBuffer,
+        std::uint64_t maxBytes = kNoByteLimit) noexcept;
 
     /// @brief Reads bytes from the current reader position into an owning string.
     /// @param reader Reader to drain.
@@ -619,11 +623,11 @@ namespace GameWIP::IO
     /// @return Collected text bytes and final status, preserving valid bytes produced before a later failure.
     /// @note Bytes are copied without UTF-8 validation, normalization, or parsing. Known-size readers
     /// allocate final output directly. An unknown-size reader at a finite limit may consume one
-    /// additional probe byte. Arbitrary exceptions from custom readers may propagate.
+    /// additional probe byte.
     [[nodiscard]] Types::ReadAllTextResult readAllText(
         Reader &reader,
         std::uint64_t maxBytes = kNoByteLimit,
-        std::size_t bufferSize = kDefaultBufferSize);
+        std::size_t bufferSize = kDefaultBufferSize) noexcept;
 
     /// @brief Reads all text bytes using caller-owned temporary storage for unknown-size readers.
     /// @param reader Reader to drain from its current position.
@@ -631,25 +635,27 @@ namespace GameWIP::IO
     /// @param maxBytes Hard maximum accepted output size, or kNoByteLimit for no caller limit.
     /// @return Collected text bytes and final status, preserving valid bytes produced before a later failure.
     /// @note The scratch buffer is ignored for known-size readers and is never retained. Bytes are not
-    /// validated as UTF-8. A finite-limit probe may consume one additional unstored byte. Arbitrary
-    /// exceptions from custom readers may propagate.
-    [[nodiscard]] Types::ReadAllTextResult readAllText(Reader &reader, std::span<std::byte> scratchBuffer, std::uint64_t maxBytes = kNoByteLimit);
+    /// validated as UTF-8. A finite-limit probe may consume one additional unstored byte.
+    [[nodiscard]] Types::ReadAllTextResult readAllText(
+        Reader &reader,
+        std::span<std::byte> scratchBuffer,
+        std::uint64_t maxBytes = kNoByteLimit) noexcept;
 
     /// @brief Writes all bytes, retrying successful short writes until complete or failed.
     /// @param writer Writer that receives the bytes.
     /// @param bytes Bytes valid for the duration of the call.
     /// @return Final status and total accepted bytes, including progress from a final failing write.
     /// @note Empty input succeeds without calling writer.write(). The helper does not flush or close
-    /// the writer. Impossible counts and successful zero progress return WriteFailed. Arbitrary
-    /// exceptions from a custom writer may propagate.
-    [[nodiscard]] Types::WriteResult writeAllBytes(Writer &writer, std::span<const std::byte> bytes);
+    /// the writer. Impossible counts and successful zero progress return WriteFailed.
+    [[nodiscard]] Types::WriteResult writeAllBytes(Writer &writer, std::span<const std::byte> bytes) noexcept;
 
     /// @brief Writes all vector bytes, retrying successful short writes until complete or failed.
     /// @tparam Allocator Vector allocator type.
     /// @param writer Writer to drain bytes into.
     /// @param bytes Bytes to write.
     /// @return Final status and the total number of bytes accepted, including bytes accepted by a failing write.
-    template <typename Allocator> [[nodiscard]] Types::WriteResult writeAllBytes(Writer &writer, const std::vector<std::byte, Allocator> &bytes)
+    template <typename Allocator>
+    [[nodiscard]] Types::WriteResult writeAllBytes(Writer &writer, const std::vector<std::byte, Allocator> &bytes) noexcept
     {
         return writeAllBytes(writer, std::span<const std::byte>(bytes.data(), bytes.size()));
     }
@@ -659,5 +665,5 @@ namespace GameWIP::IO
     /// @param utf8Text Text byte view; embedded NUL bytes are preserved.
     /// @return Final status and total accepted bytes, including progress from a final failing write.
     /// @note No UTF-8 validation, normalization, parsing, flush, or close operation is performed.
-    [[nodiscard]] Types::WriteResult writeAllText(Writer &writer, std::string_view utf8Text);
+    [[nodiscard]] Types::WriteResult writeAllText(Writer &writer, std::string_view utf8Text) noexcept;
 } // namespace GameWIP::IO

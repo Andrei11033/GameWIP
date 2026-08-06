@@ -1,12 +1,15 @@
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 
+option(IO_ENABLE_TEST_HOOKS "Enable IO internal test hooks" OFF)
+
 add_library(IO STATIC)
 add_library(GameWIP::IO ALIAS IO)
 
 target_sources(IO
     PRIVATE
         core/io.cpp
+        core/io_test_hooks.cpp
     PUBLIC
         FILE_SET public_headers
         TYPE HEADERS
@@ -20,6 +23,12 @@ target_include_directories(IO PUBLIC
 )
 
 target_compile_features(IO PUBLIC cxx_std_23)
+target_compile_definitions(IO
+    PRIVATE
+        INTERNAL_IO_TEST_HOOKS=$<BOOL:${IO_ENABLE_TEST_HOOKS}>
+    INTERFACE
+        $<BUILD_INTERFACE:INTERNAL_IO_TEST_HOOKS=$<BOOL:${IO_ENABLE_TEST_HOOKS}>>
+)
 
 set_target_properties(IO PROPERTIES
     POSITION_INDEPENDENT_CODE ON

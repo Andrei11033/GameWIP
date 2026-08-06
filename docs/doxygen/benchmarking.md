@@ -140,6 +140,7 @@ Benchmarks must:
 | `BM_Assert_*` | Passing assertion and check macro paths. |
 | `BM_Logger_*` | Disabled output, filtered formatting, enabled asynchronous output, registered-`SourceId`, and 2/4/8-thread producer contention paths. |
 | `BM_FileSystem_*` | Materialized and streaming directory enumeration at 1K/10K entries and path depths 1/8/32. |
+| `BM_IO_*` | Fixed-size memory reads, pre-reserved memory writes, and known-size whole-read allocation at 4 KiB and 1 MiB. |
 
 Logger scenarios report queue, drop, flush, or error counters where necessary so a fast producer result cannot hide lost work.
 
