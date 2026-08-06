@@ -228,7 +228,7 @@ namespace GameWIP::IO
         {
             /// @brief Operation status.
             Status status;
-            /// @brief Copied text bytes when successful; valid copied progress is retained on failure.
+            /// @brief Owning copy of the writer bytes when status is successful.
             std::string text;
         };
     } // namespace Types
