@@ -844,12 +844,8 @@ namespace
 
         Hooks::forceNextCheckedFailure(Operation::Flush, Failure::Status, ErrorCode::FlushFailed, 1978);
         const IO::Types::Status failedFlushOnCloseStatus = flushOnCloseFile.close();
-        static_cast<void>(
-            context.expectEq("flush-on-close preserves injected status", ErrorCode::FlushFailed, failedFlushOnCloseStatus.code));
-        static_cast<void>(context.expectEq(
-            "flush-on-close preserves injected native code",
-            std::int64_t{1978},
-            failedFlushOnCloseStatus.nativeCode));
+        static_cast<void>(context.expectEq("flush-on-close preserves injected status", ErrorCode::FlushFailed, failedFlushOnCloseStatus.code));
+        static_cast<void>(context.expectEq("flush-on-close preserves injected native code", std::int64_t{1978}, failedFlushOnCloseStatus.nativeCode));
         static_cast<void>(context.expectTrue("flush-on-close failure retains open state", flushOnCloseFile.isOpen()));
 
         const IO::Types::Status flushOnCloseRetryStatus = flushOnCloseFile.close();

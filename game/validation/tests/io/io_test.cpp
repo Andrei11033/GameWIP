@@ -898,9 +898,7 @@ namespace
     class DeferredTextStorageFailureReader final : public IO::Reader
     {
     public:
-        DeferredTextStorageFailureReader(
-            std::span<const std::byte> bytes,
-            IO::TestHooks::FailureKind failureKind)
+        DeferredTextStorageFailureReader(std::span<const std::byte> bytes, IO::TestHooks::FailureKind failureKind)
             : bytes_(bytes)
             , failureKind_(failureKind)
         {
@@ -921,9 +919,7 @@ namespace
 
             if (readCount_ == 1)
             {
-                IO::TestHooks::forceNextFailure(
-                    IO::TestHooks::FailurePoint::ReadAllTextStorage,
-                    failureKind_);
+                IO::TestHooks::forceNextFailure(IO::TestHooks::FailurePoint::ReadAllTextStorage, failureKind_);
             }
 
             const std::size_t count = std::min<std::size_t>(1, bytes_.size() - position_);
@@ -1016,16 +1012,10 @@ namespace
               std::pair{FailureKind::Unexpected, ErrorCode::Unknown}})
         {
             DeferredTextStorageFailureReader textAppendReader(spanOf(source), kind);
-            const IO::Types::ReadAllTextResult textAppendFailure =
-                IO::readAllText(textAppendReader, std::span<std::byte>(textScratch));
-            static_cast<void>(context.expectEq(
-                "readAllText translates unknown-size append failure",
-                expected,
-                textAppendFailure.status.code));
-            static_cast<void>(context.expectEq(
-                "readAllText unknown-size append failure preserves prior text",
-                std::string{"A"},
-                textAppendFailure.text));
+            const IO::Types::ReadAllTextResult textAppendFailure = IO::readAllText(textAppendReader, std::span<std::byte>(textScratch));
+            static_cast<void>(context.expectEq("readAllText translates unknown-size append failure", expected, textAppendFailure.status.code));
+            static_cast<void>(
+                context.expectEq("readAllText unknown-size append failure preserves prior text", std::string{"A"}, textAppendFailure.text));
         }
 
         for (const auto [kind, expected] :
@@ -1035,27 +1025,19 @@ namespace
         {
             UnknownSizeChunkReader bytesScratchAllocationReader(spanOf(source), 1);
             IO::TestHooks::forceNextFailure(FailurePoint::ReadAllScratchAllocation, kind);
-            const IO::Types::ReadAllBytesResult bytesScratchAllocationFailure =
-                IO::readAllBytes(bytesScratchAllocationReader);
-            static_cast<void>(context.expectEq(
-                "readAllBytes translates scratch allocation failure",
-                expected,
-                bytesScratchAllocationFailure.status.code));
-            static_cast<void>(context.expectTrue(
-                "readAllBytes scratch allocation failure returns no bytes",
-                bytesScratchAllocationFailure.bytes.empty()));
+            const IO::Types::ReadAllBytesResult bytesScratchAllocationFailure = IO::readAllBytes(bytesScratchAllocationReader);
+            static_cast<void>(
+                context.expectEq("readAllBytes translates scratch allocation failure", expected, bytesScratchAllocationFailure.status.code));
+            static_cast<void>(
+                context.expectTrue("readAllBytes scratch allocation failure returns no bytes", bytesScratchAllocationFailure.bytes.empty()));
 
             UnknownSizeChunkReader textScratchAllocationReader(spanOf(source), 1);
             IO::TestHooks::forceNextFailure(FailurePoint::ReadAllScratchAllocation, kind);
-            const IO::Types::ReadAllTextResult textScratchAllocationFailure =
-                IO::readAllText(textScratchAllocationReader);
-            static_cast<void>(context.expectEq(
-                "readAllText translates scratch allocation failure",
-                expected,
-                textScratchAllocationFailure.status.code));
-            static_cast<void>(context.expectTrue(
-                "readAllText scratch allocation failure returns no text",
-                textScratchAllocationFailure.text.empty()));
+            const IO::Types::ReadAllTextResult textScratchAllocationFailure = IO::readAllText(textScratchAllocationReader);
+            static_cast<void>(
+                context.expectEq("readAllText translates scratch allocation failure", expected, textScratchAllocationFailure.status.code));
+            static_cast<void>(
+                context.expectTrue("readAllText scratch allocation failure returns no text", textScratchAllocationFailure.text.empty()));
         }
 
         std::array<std::byte, 2> scratch{};
