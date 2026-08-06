@@ -916,11 +916,7 @@ namespace GameWIP::IO
                 return {.status = {}, .bytesWritten = bytes.size()};
             }
 
-            Types::Status appendStatus = appendBytes(bytes_, bytes, false);
-            if (!appendStatus.ok())
-            {
-                return {.status = std::move(appendStatus), .bytesWritten = 0};
-            }
+            bytes_.insert(bytes_.end(), bytes.begin(), bytes.end());
 
             return {.status = {}, .bytesWritten = bytes.size()};
         }
