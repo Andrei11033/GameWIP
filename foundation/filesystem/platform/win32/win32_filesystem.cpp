@@ -944,10 +944,10 @@ namespace GameWIP::FileSystem::Detail::Platform
                 result.info.hasSize = true;
             }
 
-            const TimeResult lastWriteTime = fileTimeToSystemTimePoint(basicInfo.LastWriteTime);
+            TimeResult lastWriteTime = fileTimeToSystemTimePoint(basicInfo.LastWriteTime);
             if (!lastWriteTime.status.ok())
             {
-                return {.status = lastWriteTime.status};
+                return {.status = std::move(lastWriteTime.status)};
             }
             result.info.lastWriteTime = lastWriteTime.time;
             result.info.hasLastWriteTime = true;
@@ -961,7 +961,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             HandleResult parent = openRootDirectory(path.root);
             if (!parent.status.ok())
             {
-                return {.status = parent.status};
+                return {.status = std::move(parent.status)};
             }
 
             if (path.components.empty())
@@ -974,7 +974,7 @@ namespace GameWIP::FileSystem::Detail::Platform
                 HandleResult child = openChild(parent.handle.get(), path.components[index], true, true);
                 if (!child.status.ok())
                 {
-                    return {.status = child.status};
+                    return {.status = std::move(child.status)};
                 }
 
                 EntryQueryResult childInfo = queryHandleInfo(child.handle.get());
@@ -998,7 +998,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             HandleResult finalHandle = openChild(parent.handle.get(), path.components.back(), doNotFollowFinal, false);
             if (!finalHandle.status.ok())
             {
-                return {.status = finalHandle.status};
+                return {.status = std::move(finalHandle.status)};
             }
 
             return queryHandleInfo(finalHandle.handle.get());
@@ -1017,10 +1017,10 @@ namespace GameWIP::FileSystem::Detail::Platform
                 return {.status = IO::makeStatus(ErrorCode::InvalidArgument)};
             }
 
-            const WidePathResult absolutePath = absoluteNativePath(path);
+            WidePathResult absolutePath = absoluteNativePath(path);
             if (!absolutePath.status.ok())
             {
-                return {.status = absolutePath.status};
+                return {.status = std::move(absolutePath.status)};
             }
 
             if (symlinkPolicy == Types::SymlinkPolicy::FollowAll)
@@ -1028,15 +1028,15 @@ namespace GameWIP::FileSystem::Detail::Platform
                 HandleResult handle = openFullPathFollowAll(absolutePath.path);
                 if (!handle.status.ok())
                 {
-                    return {.status = handle.status};
+                    return {.status = std::move(handle.status)};
                 }
                 return queryHandleInfo(handle.handle.get());
             }
 
-            const ParsedPathResult parsedPath = parseAbsolutePath(absolutePath.path);
+            ParsedPathResult parsedPath = parseAbsolutePath(absolutePath.path);
             if (!parsedPath.status.ok())
             {
-                return {.status = parsedPath.status};
+                return {.status = std::move(parsedPath.status)};
             }
 
             return queryStrictPath(parsedPath, symlinkPolicy);
@@ -1077,7 +1077,7 @@ namespace GameWIP::FileSystem::Detail::Platform
                 EntryQueryResult childInfo = queryHandleInfo(child.handle.get());
                 if (!childInfo.status.ok())
                 {
-                    return {.status = childInfo.status};
+                    return {.status = std::move(childInfo.status)};
                 }
                 if (childInfo.info.kind == Types::EntryKind::Symlink)
                 {
@@ -1116,10 +1116,10 @@ namespace GameWIP::FileSystem::Detail::Platform
             bool allowDirectory,
             ErrorCode fallback)
         {
-            const WidePathResult absolutePath = absoluteNativePath(path);
+            WidePathResult absolutePath = absoluteNativePath(path);
             if (!absolutePath.status.ok())
             {
-                return {.status = absolutePath.status};
+                return {.status = std::move(absolutePath.status)};
             }
 
             if (symlinkPolicy == Types::SymlinkPolicy::FollowAll)
@@ -1139,7 +1139,7 @@ namespace GameWIP::FileSystem::Detail::Platform
                 EntryQueryResult info = queryHandleInfo(handle.get());
                 if (!info.status.ok())
                 {
-                    return {.status = info.status};
+                    return {.status = std::move(info.status)};
                 }
                 if (!allowDirectory && info.info.kind == Types::EntryKind::Directory)
                 {
@@ -1148,10 +1148,10 @@ namespace GameWIP::FileSystem::Detail::Platform
                 return {.status = IO::successStatus(), .handle = std::move(handle), .info = info.info};
             }
 
-            const ParsedPathResult parsedPath = parseAbsolutePath(absolutePath.path);
+            ParsedPathResult parsedPath = parseAbsolutePath(absolutePath.path);
             if (!parsedPath.status.ok())
             {
-                return {.status = parsedPath.status};
+                return {.status = std::move(parsedPath.status)};
             }
             if (parsedPath.components.empty())
             {
@@ -1161,7 +1161,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             HandleResult parent = openParentStrict(parsedPath, shareMode);
             if (!parent.status.ok())
             {
-                return {.status = parent.status};
+                return {.status = std::move(parent.status)};
             }
 
             ULONG openOptions = kOpenOptionsBase;
@@ -1185,13 +1185,13 @@ namespace GameWIP::FileSystem::Detail::Platform
                 fallback);
             if (!finalHandle.status.ok())
             {
-                return {.status = finalHandle.status};
+                return {.status = std::move(finalHandle.status)};
             }
 
             EntryQueryResult info = queryHandleInfo(finalHandle.handle.get());
             if (!info.status.ok())
             {
-                return {.status = info.status};
+                return {.status = std::move(info.status)};
             }
             if (!allowDirectory && info.info.kind == Types::EntryKind::Directory)
             {
@@ -1204,10 +1204,10 @@ namespace GameWIP::FileSystem::Detail::Platform
         /// @brief Retains every traversal handle so a multi-step operation cannot swap path components.
         [[nodiscard]] StablePathResult stabilizeExistingPath(const Types::Path &path, Types::SymlinkPolicy symlinkPolicy, bool requireDirectory)
         {
-            const WidePathResult absolutePath = absoluteNativePath(path);
+            WidePathResult absolutePath = absoluteNativePath(path);
             if (!absolutePath.status.ok())
             {
-                return {.status = absolutePath.status};
+                return {.status = std::move(absolutePath.status)};
             }
 
             if (symlinkPolicy == Types::SymlinkPolicy::FollowAll)
@@ -1216,7 +1216,7 @@ namespace GameWIP::FileSystem::Detail::Platform
                     openExistingPath(path, symlinkPolicy, kQueryAccess, kShareAll & ~FILE_SHARE_DELETE, true, ErrorCode::StatFailed);
                 if (!opened.status.ok())
                 {
-                    return {.status = opened.status};
+                    return {.status = std::move(opened.status)};
                 }
                 if (requireDirectory && opened.info.kind != Types::EntryKind::Directory)
                 {
@@ -1228,10 +1228,10 @@ namespace GameWIP::FileSystem::Detail::Platform
                 return {.status = IO::successStatus(), .handles = std::move(handles), .info = opened.info};
             }
 
-            const ParsedPathResult parsedPath = parseAbsolutePath(absolutePath.path);
+            ParsedPathResult parsedPath = parseAbsolutePath(absolutePath.path);
             if (!parsedPath.status.ok())
             {
-                return {.status = parsedPath.status};
+                return {.status = std::move(parsedPath.status)};
             }
 
             std::vector<UniqueHandle> handles;
@@ -1241,12 +1241,12 @@ namespace GameWIP::FileSystem::Detail::Platform
                 HandleResult root = openRootDirectory(parsedPath.root, stableShare);
                 if (!root.status.ok())
                 {
-                    return {.status = root.status};
+                    return {.status = std::move(root.status)};
                 }
                 EntryQueryResult info = queryHandleInfo(root.handle.get());
                 if (!info.status.ok())
                 {
-                    return {.status = info.status};
+                    return {.status = std::move(info.status)};
                 }
                 handles.push_back(std::move(root.handle));
                 return {.status = IO::successStatus(), .handles = std::move(handles), .info = info.info};
@@ -1255,19 +1255,19 @@ namespace GameWIP::FileSystem::Detail::Platform
             HandleResult parent = openParentStrict(parsedPath, stableShare, &handles);
             if (!parent.status.ok())
             {
-                return {.status = parent.status};
+                return {.status = std::move(parent.status)};
             }
 
             const bool doNotFollowFinal = symlinkPolicy == Types::SymlinkPolicy::DoNotFollow;
             HandleResult finalHandle = openChild(handles.back().get(), parsedPath.components.back(), doNotFollowFinal, requireDirectory, stableShare);
             if (!finalHandle.status.ok())
             {
-                return {.status = finalHandle.status};
+                return {.status = std::move(finalHandle.status)};
             }
             EntryQueryResult info = queryHandleInfo(finalHandle.handle.get());
             if (!info.status.ok())
             {
-                return {.status = info.status};
+                return {.status = std::move(info.status)};
             }
             if (requireDirectory && info.info.kind != Types::EntryKind::Directory)
             {
@@ -1304,7 +1304,7 @@ namespace GameWIP::FileSystem::Detail::Platform
         /// @brief Enforces an open request's existing-entry kind and replacement rules.
         [[nodiscard]] IO::Types::Status validateExistingEntry(const Types::Path &path, const NativeOpenRequest &request)
         {
-            const EntryQueryResult entry = queryEntryImpl(path, request.symlinkPolicy);
+            EntryQueryResult entry = queryEntryImpl(path, request.symlinkPolicy);
             if (!entry.status.ok())
             {
                 if (entry.status.code == ErrorCode::NotFound && request.existingEntryRule == ExistingEntryRule::MayCreateRegularFile)
@@ -1312,7 +1312,7 @@ namespace GameWIP::FileSystem::Detail::Platform
                     return IO::successStatus();
                 }
 
-                return entry.status;
+                return std::move(entry.status);
             }
 
             if (request.creationDisposition == CREATE_NEW)
@@ -1389,16 +1389,16 @@ namespace GameWIP::FileSystem::Detail::Platform
             const Types::Path &path,
             const NativeOpenRequest &request)
         {
-            const WidePathResult absolutePath = absoluteNativePath(path);
+            WidePathResult absolutePath = absoluteNativePath(path);
             if (!absolutePath.status.ok())
             {
-                return absolutePath.status;
+                return std::move(absolutePath.status);
             }
 
-            const ParsedPathResult parsedPath = parseAbsolutePath(absolutePath.path);
+            ParsedPathResult parsedPath = parseAbsolutePath(absolutePath.path);
             if (!parsedPath.status.ok())
             {
-                return parsedPath.status;
+                return std::move(parsedPath.status);
             }
             if (parsedPath.components.empty())
             {
@@ -1408,7 +1408,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             HandleResult parent = openParentStrict(parsedPath);
             if (!parent.status.ok())
             {
-                return parent.status;
+                return std::move(parent.status);
             }
 
             ULONG openOptions = kOpenOptionsBase | FILE_NON_DIRECTORY_FILE;
@@ -1461,13 +1461,13 @@ namespace GameWIP::FileSystem::Detail::Platform
 
             if (!finalHandle.status.ok())
             {
-                return finalHandle.status;
+                return std::move(finalHandle.status);
             }
 
-            const EntryQueryResult info = queryHandleInfo(finalHandle.handle.get());
+            EntryQueryResult info = queryHandleInfo(finalHandle.handle.get());
             if (!info.status.ok())
             {
-                return info.status;
+                return std::move(info.status);
             }
             if (info.info.kind == Types::EntryKind::Directory)
             {
@@ -1480,7 +1480,7 @@ namespace GameWIP::FileSystem::Detail::Platform
 
             if (truncateAfterOpen)
             {
-                const IO::Types::Status truncateStatus = truncateNativeHandle(finalHandle.handle.get(), 0);
+                IO::Types::Status truncateStatus = truncateNativeHandle(finalHandle.handle.get(), 0);
                 if (!truncateStatus.ok())
                 {
                     return truncateStatus;
@@ -1507,16 +1507,16 @@ namespace GameWIP::FileSystem::Detail::Platform
                 return openNativeFileStrict(state, path, request);
             }
 
-            const IO::Types::Status existingStatus = validateExistingEntry(path, request);
+            IO::Types::Status existingStatus = validateExistingEntry(path, request);
             if (!existingStatus.ok())
             {
                 return existingStatus;
             }
 
-            const WidePathResult absolutePath = absoluteNativePath(path);
+            WidePathResult absolutePath = absoluteNativePath(path);
             if (!absolutePath.status.ok())
             {
-                return absolutePath.status;
+                return std::move(absolutePath.status);
             }
 
             UniqueHandle handle{CreateFileW(
@@ -1726,23 +1726,23 @@ namespace GameWIP::FileSystem::Detail::Platform
         /// @brief Creates one final directory through a stable parent handle.
         [[nodiscard]] IO::Types::Status createDirectoryStrict(const Types::Path &path, const Types::CreateDirectoryOptions &options)
         {
-            const WidePathResult absolutePath = absoluteNativePath(path);
+            WidePathResult absolutePath = absoluteNativePath(path);
             if (!absolutePath.status.ok())
             {
-                return absolutePath.status;
+                return std::move(absolutePath.status);
             }
 
-            const ParsedPathResult parsedPath = parseAbsolutePath(absolutePath.path);
+            ParsedPathResult parsedPath = parseAbsolutePath(absolutePath.path);
             if (!parsedPath.status.ok())
             {
-                return parsedPath.status;
+                return std::move(parsedPath.status);
             }
             if (parsedPath.components.empty())
             {
                 return options.succeedIfAlreadyExists ? IO::successStatus() : IO::makeStatus(ErrorCode::AlreadyExists);
             }
 
-            const EntryQueryResult existing = queryStrictPath(parsedPath, options.symlinkPolicy);
+            EntryQueryResult existing = queryStrictPath(parsedPath, options.symlinkPolicy);
             if (existing.status.ok())
             {
                 if (existing.info.kind == Types::EntryKind::Directory)
@@ -1753,13 +1753,13 @@ namespace GameWIP::FileSystem::Detail::Platform
             }
             if (existing.status.code != ErrorCode::NotFound)
             {
-                return existing.status;
+                return std::move(existing.status);
             }
 
             HandleResult parent = openParentStrict(parsedPath);
             if (!parent.status.ok())
             {
-                return parent.status;
+                return std::move(parent.status);
             }
 
             HandleResult created = openChildNative(
@@ -1771,22 +1771,22 @@ namespace GameWIP::FileSystem::Detail::Platform
                 kOpenOptionsBase | FILE_DIRECTORY_FILE,
                 FILE_ATTRIBUTE_DIRECTORY,
                 ErrorCode::DirectoryCreateFailed);
-            return created.status;
+            return std::move(created.status);
         }
 
         /// @brief Creates missing components one at a time while retaining strict traversal handles.
         [[nodiscard]] IO::Types::Status createDirectoriesStrict(const Types::Path &path, const Types::CreateDirectoryOptions &options)
         {
-            const WidePathResult absolutePath = absoluteNativePath(path);
+            WidePathResult absolutePath = absoluteNativePath(path);
             if (!absolutePath.status.ok())
             {
-                return absolutePath.status;
+                return std::move(absolutePath.status);
             }
 
-            const ParsedPathResult parsedPath = parseAbsolutePath(absolutePath.path);
+            ParsedPathResult parsedPath = parseAbsolutePath(absolutePath.path);
             if (!parsedPath.status.ok())
             {
-                return parsedPath.status;
+                return std::move(parsedPath.status);
             }
             if (parsedPath.components.empty())
             {
@@ -1796,7 +1796,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             HandleResult current = openRootDirectory(parsedPath.root);
             if (!current.status.ok())
             {
-                return current.status;
+                return std::move(current.status);
             }
 
             bool createdAny = false;
@@ -1809,7 +1809,7 @@ namespace GameWIP::FileSystem::Detail::Platform
                 {
                     if (child.status.code != ErrorCode::NotFound)
                     {
-                        return child.status;
+                        return std::move(child.status);
                     }
 
                     child = openChildNative(
@@ -1823,7 +1823,7 @@ namespace GameWIP::FileSystem::Detail::Platform
                         ErrorCode::DirectoryCreateFailed);
                     if (!child.status.ok())
                     {
-                        return child.status;
+                        return std::move(child.status);
                     }
                     createdAny = true;
                 }
@@ -1831,7 +1831,7 @@ namespace GameWIP::FileSystem::Detail::Platform
                 EntryQueryResult childInfo = queryHandleInfo(child.handle.get());
                 if (!childInfo.status.ok())
                 {
-                    return childInfo.status;
+                    return std::move(childInfo.status);
                 }
                 if (childInfo.info.kind == Types::EntryKind::Symlink && !followThisComponent)
                 {
@@ -1881,12 +1881,12 @@ namespace GameWIP::FileSystem::Detail::Platform
             HandleResult childHandle = openChild(parentHandle, childName, state.symlinkPolicy == Types::SymlinkPolicy::DoNotFollow, false);
             if (!childHandle.status.ok())
             {
-                return {.status = childHandle.status};
+                return {.status = std::move(childHandle.status)};
             }
-            const EntryQueryResult child = queryHandleInfo(childHandle.handle.get());
+            EntryQueryResult child = queryHandleInfo(childHandle.handle.get());
             if (!child.status.ok())
             {
-                return {.status = child.status};
+                return {.status = std::move(child.status)};
             }
 
             return {
@@ -1899,10 +1899,10 @@ namespace GameWIP::FileSystem::Detail::Platform
         /// Starts native enumeration after the caller has stabilized the directory path.
         [[nodiscard]] DirectoryCursorOpenResult startDirectoryCursor(std::unique_ptr<Detail::DirectoryCursorState> state)
         {
-            const WidePathResult absolutePath = absoluteNativePath(state->directoryPath);
+            WidePathResult absolutePath = absoluteNativePath(state->directoryPath);
             if (!absolutePath.status.ok())
             {
-                return {.status = absolutePath.status};
+                return {.status = std::move(absolutePath.status)};
             }
 
             WIN32_FIND_DATAW findData{};
@@ -1942,7 +1942,7 @@ namespace GameWIP::FileSystem::Detail::Platform
                     DirectoryCursorNextResult first = directoryCursorEntry(*state, findData);
                     if (!first.status.ok())
                     {
-                        return {.status = first.status};
+                        return {.status = std::move(first.status)};
                     }
                     state->bufferedEntry = std::move(first.entry);
                     state->bufferedEntryHidden = first.hidden;
@@ -1963,7 +1963,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             StablePathResult stablePath = stabilizeExistingPath(path, symlinkPolicy, true);
             if (!stablePath.status.ok())
             {
-                return {.status = stablePath.status};
+                return {.status = std::move(stablePath.status)};
             }
 
             auto state = std::make_unique<Detail::DirectoryCursorState>();
@@ -1998,7 +1998,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             HandleResult childHandle = openChild(parentHandle, childName, true, true, kShareAll & ~FILE_SHARE_DELETE);
             if (!childHandle.status.ok())
             {
-                return {.status = childHandle.status};
+                return {.status = std::move(childHandle.status)};
             }
 
             auto state = std::make_unique<Detail::DirectoryCursorState>();
@@ -2050,7 +2050,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             DirectoryCursorOpenResult opened = openDirectoryCursorImpl(path, options.symlinkPolicy);
             if (!opened.status.ok())
             {
-                return {.status = opened.status};
+                return {.status = std::move(opened.status)};
             }
 
             Types::ListDirectoryResult result{.status = IO::successStatus()};
@@ -2059,7 +2059,7 @@ namespace GameWIP::FileSystem::Detail::Platform
                 DirectoryCursorNextResult next = readDirectoryCursorImpl(*opened.state);
                 if (!next.status.ok())
                 {
-                    result.status = next.status;
+                    result.status = std::move(next.status);
                     return result;
                 }
                 if (!next.hasEntry)
@@ -2256,7 +2256,7 @@ namespace GameWIP::FileSystem::Detail::Platform
                 .readable = readable,
                 .writable = writable,
                 .appendMode = false};
-            const IO::Types::Status openStatus = openNativeFile(state, path, request);
+            IO::Types::Status openStatus = openNativeFile(state, path, request);
             if (!openStatus.ok())
             {
                 return openStatus;
@@ -2264,7 +2264,7 @@ namespace GameWIP::FileSystem::Detail::Platform
 
             if (options.initialPosition == Types::FileInitialPosition::End)
             {
-                const IO::Types::Status seekStatus = seekFile(*state, 0, IO::Types::SeekOrigin::End);
+                IO::Types::Status seekStatus = seekFile(*state, 0, IO::Types::SeekOrigin::End);
                 if (!seekStatus.ok())
                 {
                     static_cast<void>(closeFile(*state));
@@ -2671,7 +2671,7 @@ namespace GameWIP::FileSystem::Detail::Platform
                 return createDirectoryStrict(path, options);
             }
 
-            const EntryQueryResult existing = queryEntryImpl(path, Types::SymlinkPolicy::FollowAll);
+            EntryQueryResult existing = queryEntryImpl(path, Types::SymlinkPolicy::FollowAll);
             if (existing.status.ok())
             {
                 if (existing.info.kind == Types::EntryKind::Directory)
@@ -2682,13 +2682,13 @@ namespace GameWIP::FileSystem::Detail::Platform
             }
             if (existing.status.code != ErrorCode::NotFound)
             {
-                return existing.status;
+                return std::move(existing.status);
             }
 
-            const WidePathResult nativePath = absoluteNativePath(path);
+            WidePathResult nativePath = absoluteNativePath(path);
             if (!nativePath.status.ok())
             {
-                return nativePath.status;
+                return std::move(nativePath.status);
             }
             if (CreateDirectoryW(nativePath.path.c_str(), nullptr) == FALSE)
             {
@@ -2720,15 +2720,15 @@ namespace GameWIP::FileSystem::Detail::Platform
                 return createDirectoriesStrict(path, options);
             }
 
-            const WidePathResult absolutePath = absoluteNativePath(path);
+            WidePathResult absolutePath = absoluteNativePath(path);
             if (!absolutePath.status.ok())
             {
-                return absolutePath.status;
+                return std::move(absolutePath.status);
             }
-            const ParsedPathResult parsedPath = parseAbsolutePath(absolutePath.path);
+            ParsedPathResult parsedPath = parseAbsolutePath(absolutePath.path);
             if (!parsedPath.status.ok())
             {
-                return parsedPath.status;
+                return std::move(parsedPath.status);
             }
             if (parsedPath.components.empty())
             {
@@ -2740,7 +2740,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             for (const std::wstring &component : parsedPath.components)
             {
                 current /= std::filesystem::path{component};
-                const EntryQueryResult existing = queryEntryImpl(current, Types::SymlinkPolicy::FollowAll);
+                EntryQueryResult existing = queryEntryImpl(current, Types::SymlinkPolicy::FollowAll);
                 if (existing.status.ok())
                 {
                     if (existing.info.kind != Types::EntryKind::Directory)
@@ -2751,13 +2751,13 @@ namespace GameWIP::FileSystem::Detail::Platform
                 }
                 if (existing.status.code != ErrorCode::NotFound)
                 {
-                    return existing.status;
+                    return std::move(existing.status);
                 }
 
-                const WidePathResult nativeCurrent = absoluteNativePath(current);
+                WidePathResult nativeCurrent = absoluteNativePath(current);
                 if (!nativeCurrent.status.ok())
                 {
-                    return nativeCurrent.status;
+                    return std::move(nativeCurrent.status);
                 }
                 if (CreateDirectoryW(nativeCurrent.path.c_str(), nullptr) == FALSE)
                 {
@@ -2870,7 +2870,7 @@ namespace GameWIP::FileSystem::Detail::Platform
                 openExistingPath(path, symlinkPolicy, FILE_READ_ATTRIBUTES | FILE_WRITE_ATTRIBUTES, kShareAll, true, ErrorCode::StatFailed);
             if (!opened.status.ok())
             {
-                return opened.status;
+                return std::move(opened.status);
             }
 
             return setHandleReadOnly(opened.handle.get(), readOnly);
@@ -2897,7 +2897,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             OpenPathResult source = openExistingPath(from, symlinkPolicy, FILE_READ_ATTRIBUTES, kShareAll, false, ErrorCode::StatFailed);
             if (!source.status.ok())
             {
-                return source.status;
+                return std::move(source.status);
             }
             if (source.info.kind != Types::EntryKind::RegularFile)
             {
@@ -2913,7 +2913,7 @@ namespace GameWIP::FileSystem::Detail::Platform
                 ErrorCode::StatFailed);
             if (!destination.status.ok())
             {
-                return destination.status;
+                return std::move(destination.status);
             }
             if (destination.info.kind != Types::EntryKind::RegularFile)
             {
@@ -2949,7 +2949,7 @@ namespace GameWIP::FileSystem::Detail::Platform
                 {
                     return IO::successStatus();
                 }
-                return opened.status;
+                return std::move(opened.status);
             }
             if (opened.info.kind == Types::EntryKind::Directory)
             {
@@ -2985,7 +2985,7 @@ namespace GameWIP::FileSystem::Detail::Platform
                 {
                     return IO::successStatus();
                 }
-                return opened.status;
+                return std::move(opened.status);
             }
             if (opened.info.kind != Types::EntryKind::Directory)
             {
@@ -3034,18 +3034,18 @@ namespace GameWIP::FileSystem::Detail::Platform
                 OpenPathResult source = openExistingPath(from, symlinkPolicy, DELETE | FILE_READ_ATTRIBUTES, kShareAll, true, ErrorCode::MoveFailed);
                 if (!source.status.ok())
                 {
-                    return source.status;
+                    return std::move(source.status);
                 }
 
-                const WidePathResult nativeTo = absoluteNativePath(to);
+                WidePathResult nativeTo = absoluteNativePath(to);
                 if (!nativeTo.status.ok())
                 {
-                    return nativeTo.status;
+                    return std::move(nativeTo.status);
                 }
-                const ParsedPathResult parsedTo = parseAbsolutePath(nativeTo.path);
+                ParsedPathResult parsedTo = parseAbsolutePath(nativeTo.path);
                 if (!parsedTo.status.ok())
                 {
-                    return parsedTo.status;
+                    return std::move(parsedTo.status);
                 }
                 if (parsedTo.components.empty())
                 {
@@ -3055,7 +3055,7 @@ namespace GameWIP::FileSystem::Detail::Platform
                 HandleResult destinationParent = openParentStrict(parsedTo);
                 if (!destinationParent.status.ok())
                 {
-                    return destinationParent.status;
+                    return std::move(destinationParent.status);
                 }
 
 #if INTERNAL_FILESYSTEM_TEST_HOOKS
@@ -3095,15 +3095,15 @@ namespace GameWIP::FileSystem::Detail::Platform
                 return IO::successStatus();
             }
 
-            const WidePathResult nativeFrom = absoluteNativePath(from);
+            WidePathResult nativeFrom = absoluteNativePath(from);
             if (!nativeFrom.status.ok())
             {
-                return nativeFrom.status;
+                return std::move(nativeFrom.status);
             }
-            const WidePathResult nativeTo = absoluteNativePath(to);
+            WidePathResult nativeTo = absoluteNativePath(to);
             if (!nativeTo.status.ok())
             {
-                return nativeTo.status;
+                return std::move(nativeTo.status);
             }
 
             if (MoveFileExW(nativeFrom.path.c_str(), nativeTo.path.c_str(), flags) == FALSE)
@@ -3141,7 +3141,7 @@ namespace GameWIP::FileSystem::Detail::Platform
                 ErrorCode::FlushFailed);
             if (!opened.status.ok())
             {
-                return opened.status;
+                return std::move(opened.status);
             }
             if (opened.info.kind != Types::EntryKind::Directory)
             {
@@ -3167,10 +3167,10 @@ namespace GameWIP::FileSystem::Detail::Platform
     {
         try
         {
-            const WidePathResult nativePath = absoluteNativePath(path);
+            WidePathResult nativePath = absoluteNativePath(path);
             if (!nativePath.status.ok())
             {
-                return {.status = nativePath.status, .value = false};
+                return {.status = std::move(nativePath.status), .value = false};
             }
 
             const DWORD attributes = GetFileAttributesW(nativePath.path.c_str());
