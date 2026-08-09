@@ -10,6 +10,17 @@
     GitHubRepository = 'Andrei11033/GameWIP'
     GitHubDefaultBranch = 'master'
 
+    Formatting = @{
+        ClangFormatPath = 'C:\MSYS2\ucrt64\bin\clang-format.exe'
+        ConfigPath = '.clang-format'
+        SourceRoots = @(
+            'foundation'
+            'tools'
+            'engine'
+            'game'
+        )
+    }
+
     Unicode = @{
         Version = '17.0.0'
         CacheRoot = 'build\unicode-data'
@@ -84,6 +95,7 @@
         'runner'
         'terminal'
         'test_support'
+        'unicode'
         'window'
     )
 

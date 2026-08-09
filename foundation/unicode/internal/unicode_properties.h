@@ -93,8 +93,7 @@ namespace GameWIP::Unicode::Internal
 
         const std::size_t blockIndexOffset = static_cast<std::size_t>(codePoint) >> Generated::kBlockShift;
         const std::size_t blockIndex = Generated::kBlockIndexes[blockIndexOffset];
-        const std::size_t propertyOffset =
-            (blockIndex << Generated::kBlockShift) | (static_cast<std::size_t>(codePoint) & Generated::kBlockMask);
+        const std::size_t propertyOffset = (blockIndex << Generated::kBlockShift) | (static_cast<std::size_t>(codePoint) & Generated::kBlockMask);
         const std::uint8_t packed = Generated::kPropertyBlocks[propertyOffset];
 
         return {

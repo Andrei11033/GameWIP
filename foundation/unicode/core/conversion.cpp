@@ -15,11 +15,7 @@ namespace GameWIP::Unicode
     namespace
     {
         /// @brief Returns whether two non-owning byte ranges overlap in the process address order.
-        bool memoryRangesOverlap(
-            const void *firstData,
-            std::size_t firstSizeBytes,
-            const void *secondData,
-            std::size_t secondSizeBytes) noexcept
+        bool memoryRangesOverlap(const void *firstData, std::size_t firstSizeBytes, const void *secondData, std::size_t secondSizeBytes) noexcept
         {
             if (firstSizeBytes == 0 || secondSizeBytes == 0)
             {
@@ -38,15 +34,13 @@ namespace GameWIP::Unicode
         /// @brief Maps a scalar-decoding failure to its measurement outcome.
         Types::MeasureOutcome measureOutcome(Types::DecodeOutcome outcome) noexcept
         {
-            return outcome == Types::DecodeOutcome::Incomplete ? Types::MeasureOutcome::Incomplete
-                                                              : Types::MeasureOutcome::InvalidEncoding;
+            return outcome == Types::DecodeOutcome::Incomplete ? Types::MeasureOutcome::Incomplete : Types::MeasureOutcome::InvalidEncoding;
         }
 
         /// @brief Maps a scalar-decoding failure to its conversion outcome.
         Types::ConversionOutcome conversionOutcome(Types::DecodeOutcome outcome) noexcept
         {
-            return outcome == Types::DecodeOutcome::Incomplete ? Types::ConversionOutcome::Incomplete
-                                                              : Types::ConversionOutcome::InvalidEncoding;
+            return outcome == Types::DecodeOutcome::Incomplete ? Types::ConversionOutcome::Incomplete : Types::ConversionOutcome::InvalidEncoding;
         }
     } // namespace
 
@@ -59,8 +53,7 @@ namespace GameWIP::Unicode
 
             while (sourceBytesProcessed < source.size())
             {
-                const Types::Utf8DecodeResult decoded =
-                    Internal::decodeUtf8Scalar(source.substr(sourceBytesProcessed));
+                const Types::Utf8DecodeResult decoded = Internal::decodeUtf8Scalar(source.substr(sourceBytesProcessed));
                 if (decoded.outcome != Types::DecodeOutcome::Decoded)
                 {
                     return {
@@ -91,9 +84,7 @@ namespace GameWIP::Unicode
             };
         }
 
-        Types::Utf8ToUtf16Result convertToUtf16(
-            std::string_view source,
-            std::span<char16_t> destination) noexcept
+        Types::Utf8ToUtf16Result convertToUtf16(std::string_view source, std::span<char16_t> destination) noexcept
         {
             if (memoryRangesOverlap(source.data(), source.size(), destination.data(), destination.size_bytes()))
             {
@@ -105,8 +96,7 @@ namespace GameWIP::Unicode
 
             while (sourceBytesConsumed < source.size())
             {
-                const Types::Utf8DecodeResult decoded =
-                    Internal::decodeUtf8Scalar(source.substr(sourceBytesConsumed));
+                const Types::Utf8DecodeResult decoded = Internal::decodeUtf8Scalar(source.substr(sourceBytesConsumed));
                 if (decoded.outcome != Types::DecodeOutcome::Decoded)
                 {
                     return {
@@ -148,8 +138,7 @@ namespace GameWIP::Unicode
 
             while (sourceCodeUnitsProcessed < source.size())
             {
-                const Types::Utf16DecodeResult decoded =
-                    Internal::decodeUtf16Scalar(source.subspan(sourceCodeUnitsProcessed));
+                const Types::Utf16DecodeResult decoded = Internal::decodeUtf16Scalar(source.subspan(sourceCodeUnitsProcessed));
                 if (decoded.outcome != Types::DecodeOutcome::Decoded)
                 {
                     return {
@@ -180,9 +169,7 @@ namespace GameWIP::Unicode
             };
         }
 
-        Types::Utf16ToUtf8Result convertToUtf8(
-            std::span<const char16_t> source,
-            std::span<char> destination) noexcept
+        Types::Utf16ToUtf8Result convertToUtf8(std::span<const char16_t> source, std::span<char> destination) noexcept
         {
             if (memoryRangesOverlap(source.data(), source.size_bytes(), destination.data(), destination.size()))
             {
@@ -194,8 +181,7 @@ namespace GameWIP::Unicode
 
             while (sourceCodeUnitsConsumed < source.size())
             {
-                const Types::Utf16DecodeResult decoded =
-                    Internal::decodeUtf16Scalar(source.subspan(sourceCodeUnitsConsumed));
+                const Types::Utf16DecodeResult decoded = Internal::decodeUtf16Scalar(source.subspan(sourceCodeUnitsConsumed));
                 if (decoded.outcome != Types::DecodeOutcome::Decoded)
                 {
                     return {

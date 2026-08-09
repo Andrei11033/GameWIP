@@ -70,8 +70,7 @@ namespace GameWIP::Unicode::Utf8
 
         if (byteOffset > 0)
         {
-            const Internal::PreviousUtf8ScalarResult previous =
-                Internal::decodePreviousUtf8Scalar(text, byteOffset);
+            const Internal::PreviousUtf8ScalarResult previous = Internal::decodePreviousUtf8Scalar(text, byteOffset);
             if (previous.decoded.outcome != Types::DecodeOutcome::Decoded)
             {
                 return {.byteOffset = byteOffset, .outcome = Types::BoundaryOutcome::InvalidEncoding};
