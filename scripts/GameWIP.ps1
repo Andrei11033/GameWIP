@@ -661,13 +661,25 @@ function Invoke-GameWipFormat
         return
     }
 
+    $repositoryPrefix = [IO.Path]::GetFullPath($RepositoryRoot)
+    if (-not $repositoryPrefix.EndsWith([IO.Path]::DirectorySeparatorChar.ToString()))
+    {
+        $repositoryPrefix += [IO.Path]::DirectorySeparatorChar
+    }
+
     $changed = New-Object System.Collections.Generic.List[string]
     foreach ($file in $files)
     {
         $afterHash = (Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash
         if ($beforeHashes[$file] -ne $afterHash)
         {
-            $changed.Add([IO.Path]::GetRelativePath($RepositoryRoot, $file)) | Out-Null
+            $fullPath = [IO.Path]::GetFullPath($file)
+            $relativePath = $fullPath
+            if ($fullPath.StartsWith($repositoryPrefix, [StringComparison]::OrdinalIgnoreCase))
+            {
+                $relativePath = $fullPath.Substring($repositoryPrefix.Length)
+            }
+            $changed.Add($relativePath) | Out-Null
         }
     }
 
