@@ -10,6 +10,21 @@
     GitHubRepository = 'Andrei11033/GameWIP'
     GitHubDefaultBranch = 'master'
 
+    Unicode = @{
+        Version = '17.0.0'
+        CacheRoot = 'build\unicode-data'
+        PythonPath = 'C:\MSYS2\ucrt64\bin\python.exe'
+        Generator = 'foundation\unicode\tools\generate_unicode_data.py'
+        GeneratedHeader = 'foundation\unicode\internal\generated\unicode_properties.h'
+        UcdUrlTemplate = 'https://www.unicode.org/Public/{0}/ucd/UCD.zip'
+        RequiredFiles = @(
+            'auxiliary\GraphemeBreakProperty.txt'
+            'DerivedCoreProperties.txt'
+            'emoji\emoji-data.txt'
+            'auxiliary\GraphemeBreakTest.txt'
+        )
+    }
+
     ManualWorkflows = @(
         @{
             Id = 'validation'

@@ -6,6 +6,10 @@ add_library(GameWIP::Unicode ALIAS Unicode)
 
 target_sources(Unicode
     PRIVATE
+        core/conversion.cpp
+        core/grapheme.cpp
+        core/unicode.cpp
+        core/utf16.cpp
         core/utf8.cpp
     PUBLIC
         FILE_SET public_headers
