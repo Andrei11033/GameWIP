@@ -14,21 +14,18 @@ namespace
 {
     namespace Unicode = GameWIP::Unicode;
 
-    constexpr std::string_view kAsciiText =
-        "GameWIP Unicode benchmark payload: ASCII validation and traversal stay on the common fast path.";
+    constexpr std::string_view kAsciiText = "GameWIP Unicode benchmark payload: ASCII validation and traversal stay on the common fast path.";
 
-    constexpr std::string_view kMixedText =
-        "ASCII "
-        "\xE2\x82\xAC "
-        "\xF0\x9F\x98\x80 "
-        "a\xCC\x88 "
-        "\xF0\x9F\x87\xBA\xF0\x9F\x87\xB8";
+    constexpr std::string_view kMixedText = "ASCII "
+                                            "\xE2\x82\xAC "
+                                            "\xF0\x9F\x98\x80 "
+                                            "a\xCC\x88 "
+                                            "\xF0\x9F\x87\xBA\xF0\x9F\x87\xB8";
 
-    constexpr std::string_view kComplexGraphemeText =
-        "A"
-        "a\xCC\x88"
-        "\xF0\x9F\x91\xA9\xE2\x80\x8D\xF0\x9F\x92\xBB"
-        "\xF0\x9F\x87\xBA\xF0\x9F\x87\xB8";
+    constexpr std::string_view kComplexGraphemeText = "A"
+                                                      "a\xCC\x88"
+                                                      "\xF0\x9F\x91\xA9\xE2\x80\x8D\xF0\x9F\x92\xBB"
+                                                      "\xF0\x9F\x87\xBA\xF0\x9F\x87\xB8";
 
     constexpr std::array<char32_t, 8> kScalars{
         U'A',
@@ -50,8 +47,7 @@ namespace
             std::size_t offset = 0;
             while (offset < text.size())
             {
-                const Unicode::Types::Utf8DecodeResult decoded =
-                    Unicode::Utf8::decodeScalar(text.substr(offset));
+                const Unicode::Types::Utf8DecodeResult decoded = Unicode::Utf8::decodeScalar(text.substr(offset));
                 if (decoded.outcome != Unicode::Types::DecodeOutcome::Decoded)
                 {
                     state.SkipWithError("Unicode decode benchmark fixture is invalid.");
@@ -63,8 +59,7 @@ namespace
             }
         }
 
-        state.SetBytesProcessed(
-            state.iterations() * static_cast<std::int64_t>(text.size()));
+        state.SetBytesProcessed(state.iterations() * static_cast<std::int64_t>(text.size()));
     }
 
     /// @brief Measures repeated whole-range strict UTF-8 validation.
@@ -73,8 +68,7 @@ namespace
         for (auto iteration : state)
         {
             static_cast<void>(iteration);
-            const Unicode::Types::Utf8ValidationResult result =
-                Unicode::Utf8::validate(text);
+            const Unicode::Types::Utf8ValidationResult result = Unicode::Utf8::validate(text);
             if (result.outcome != Unicode::Types::ValidationOutcome::Valid)
             {
                 state.SkipWithError("Unicode validation benchmark fixture is invalid.");
@@ -84,8 +78,7 @@ namespace
             benchmark::DoNotOptimize(result.validPrefixBytes);
         }
 
-        state.SetBytesProcessed(
-            state.iterations() * static_cast<std::int64_t>(text.size()));
+        state.SetBytesProcessed(state.iterations() * static_cast<std::int64_t>(text.size()));
     }
 
     /// @brief Measures sequential forward UTF-8 code-point traversal.
@@ -97,8 +90,7 @@ namespace
             std::size_t offset = 0;
             while (offset < text.size())
             {
-                const Unicode::Types::Utf8BoundaryResult next =
-                    Unicode::Utf8::nextCodePointBoundary(text, offset);
+                const Unicode::Types::Utf8BoundaryResult next = Unicode::Utf8::nextCodePointBoundary(text, offset);
                 if (next.outcome != Unicode::Types::BoundaryOutcome::Found)
                 {
                     state.SkipWithError("Unicode forward code-point traversal failed.");
@@ -110,8 +102,7 @@ namespace
             }
         }
 
-        state.SetBytesProcessed(
-            state.iterations() * static_cast<std::int64_t>(text.size()));
+        state.SetBytesProcessed(state.iterations() * static_cast<std::int64_t>(text.size()));
     }
 
     /// @brief Measures sequential backward UTF-8 code-point traversal.
@@ -123,8 +114,7 @@ namespace
             std::size_t offset = text.size();
             while (offset > 0)
             {
-                const Unicode::Types::Utf8BoundaryResult previous =
-                    Unicode::Utf8::previousCodePointBoundary(text, offset);
+                const Unicode::Types::Utf8BoundaryResult previous = Unicode::Utf8::previousCodePointBoundary(text, offset);
                 if (previous.outcome != Unicode::Types::BoundaryOutcome::Found)
                 {
                     state.SkipWithError("Unicode backward code-point traversal failed.");
@@ -136,8 +126,7 @@ namespace
             }
         }
 
-        state.SetBytesProcessed(
-            state.iterations() * static_cast<std::int64_t>(text.size()));
+        state.SetBytesProcessed(state.iterations() * static_cast<std::int64_t>(text.size()));
     }
 
     /// @brief Measures sequential forward extended grapheme-cluster traversal.
@@ -149,8 +138,7 @@ namespace
             std::size_t offset = 0;
             while (offset < text.size())
             {
-                const Unicode::Types::Utf8BoundaryResult next =
-                    Unicode::Utf8::nextGraphemeBoundary(text, offset);
+                const Unicode::Types::Utf8BoundaryResult next = Unicode::Utf8::nextGraphemeBoundary(text, offset);
                 if (next.outcome != Unicode::Types::BoundaryOutcome::Found)
                 {
                     state.SkipWithError("Unicode forward grapheme traversal failed.");
@@ -162,8 +150,7 @@ namespace
             }
         }
 
-        state.SetBytesProcessed(
-            state.iterations() * static_cast<std::int64_t>(text.size()));
+        state.SetBytesProcessed(state.iterations() * static_cast<std::int64_t>(text.size()));
     }
 
     /// @brief Measures sequential backward extended grapheme-cluster traversal.
@@ -175,8 +162,7 @@ namespace
             std::size_t offset = text.size();
             while (offset > 0)
             {
-                const Unicode::Types::Utf8BoundaryResult previous =
-                    Unicode::Utf8::previousGraphemeBoundary(text, offset);
+                const Unicode::Types::Utf8BoundaryResult previous = Unicode::Utf8::previousGraphemeBoundary(text, offset);
                 if (previous.outcome != Unicode::Types::BoundaryOutcome::Found)
                 {
                     state.SkipWithError("Unicode backward grapheme traversal failed.");
@@ -188,8 +174,7 @@ namespace
             }
         }
 
-        state.SetBytesProcessed(
-            state.iterations() * static_cast<std::int64_t>(text.size()));
+        state.SetBytesProcessed(state.iterations() * static_cast<std::int64_t>(text.size()));
     }
 
     void BM_Unicode_Utf8DecodeAscii(benchmark::State &state)
@@ -220,8 +205,7 @@ namespace
             static_cast<void>(iteration);
             for (const char32_t scalar : kScalars)
             {
-                const Unicode::Types::Utf8EncodeResult encoded =
-                    Unicode::Utf8::encodeScalar(scalar);
+                const Unicode::Types::Utf8EncodeResult encoded = Unicode::Utf8::encodeScalar(scalar);
                 if (encoded.outcome != Unicode::Types::EncodeOutcome::Encoded)
                 {
                     state.SkipWithError("Unicode encode benchmark scalar is invalid.");
@@ -233,8 +217,7 @@ namespace
             }
         }
 
-        state.SetItemsProcessed(
-            state.iterations() * static_cast<std::int64_t>(kScalars.size()));
+        state.SetItemsProcessed(state.iterations() * static_cast<std::int64_t>(kScalars.size()));
     }
 
     void BM_Unicode_NextCodePointBoundaryMixed(benchmark::State &state)

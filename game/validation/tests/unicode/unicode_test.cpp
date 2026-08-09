@@ -576,8 +576,7 @@ namespace
 
             for (std::size_t split = 1; split < static_cast<std::size_t>(utf8.byteCount); ++split)
             {
-                const Unicode::Types::Utf8DecodeResult prefix =
-                    Unicode::Utf8::decodeScalar(std::string_view(utf8.bytes.data(), split));
+                const Unicode::Types::Utf8DecodeResult prefix = Unicode::Utf8::decodeScalar(std::string_view(utf8.bytes.data(), split));
                 if (prefix.outcome != DecodeOutcome::Incomplete || prefix.scalar != U'\0' || prefix.bytesConsumed != 0)
                 {
                     context.fail(
