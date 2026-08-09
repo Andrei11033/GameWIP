@@ -18,6 +18,7 @@ FENCED_CODE_PATTERN = re.compile(
 )
 
 LIBRARY_DOCS = (
+    (Path("foundation/unicode/docs"), "Unicode", "unicode.md"),
     (Path("foundation/io/docs"), "IO", "io.md"),
     (Path("foundation/filesystem/docs"), "FileSystem", "filesystem.md"),
     (Path("foundation/terminal/docs"), "Terminal", "terminal.md"),

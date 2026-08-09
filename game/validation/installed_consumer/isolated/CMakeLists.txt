@@ -6,7 +6,7 @@ if(NOT DEFINED GAMEWIP_PACKAGE_VERSION)
     message(FATAL_ERROR "GAMEWIP_PACKAGE_VERSION is required.")
 endif()
 
-set(supported_packages IO FileSystem Terminal Window Logger Assert TestSupport)
+set(supported_packages Unicode IO FileSystem Terminal Window Logger Assert TestSupport)
 if(NOT GAMEWIP_CONSUMER_PACKAGE IN_LIST supported_packages)
     message(FATAL_ERROR
         "GAMEWIP_CONSUMER_PACKAGE must be one of: ${supported_packages}."

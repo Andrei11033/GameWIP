@@ -19,6 +19,7 @@
 #include "logger/logger_macros.h"
 #include "terminal/terminal.h"
 #include "test_support/test_support.h"
+#include "unicode/unicode.h"
 #include "window/renderer.h"
 #include "window/window.h"
 
@@ -27,6 +28,8 @@
 
 int main()
 {
+    const GameWIP::Unicode::Types::UnicodeVersion unicodeVersion = GameWIP::Unicode::getStandardVersion();
+    const GameWIP::Unicode::Types::Utf8EncodeResult unicodeEncoding = GameWIP::Unicode::Utf8::encodeScalar(static_cast<char32_t>(0x1F600));
     GameWIP::IO::MemoryWriter writer;
     const GameWIP::IO::Types::Status reserve = writer.reserve(64);
     const GameWIP::IO::Types::WriteResult write = GameWIP::IO::writeAllText(writer, "installed consumer");
@@ -53,8 +56,10 @@ int main()
     static_cast<void>(timer.elapsedMilliseconds());
     static_cast<void>(windowCapabilities);
 
-    return reserve.ok() && write.status.ok() && text.status.ok() && text.text == "installed consumer" && path.status.ok() &&
-                   infrastructureStatus.ok() && infrastructureText == "None" && childResult.status.ok() &&
+    return unicodeVersion.major == 17 && unicodeVersion.minor == 0 && unicodeVersion.patch == 0 &&
+                   unicodeEncoding.outcome == GameWIP::Unicode::Types::EncodeOutcome::Encoded && unicodeEncoding.byteCount == 4 && reserve.ok() &&
+                   write.status.ok() && text.status.ok() && text.text == "installed consumer" && path.status.ok() && infrastructureStatus.ok() &&
+                   infrastructureText == "None" && childResult.status.ok() &&
                    childResult.outcome == GameWIP::TestSupport::Types::ChildProcessOutcome::NotStarted &&
                    rendererFeedbackStatus.code == GameWIP::IO::Types::ErrorCode::NotOpen &&
                    displayColor.status.code == GameWIP::IO::Types::ErrorCode::NotOpen && windowSize.width == 640 &&

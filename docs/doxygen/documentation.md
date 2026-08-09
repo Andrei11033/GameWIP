@@ -60,6 +60,7 @@ Use these prefixes:
 | Page type | Prefix |
 | --- | --- |
 | Project pages | `project_` |
+| Unicode pages | `unicode_` |
 | IO pages | `io_` |
 | FileSystem pages | `filesystem_` |
 | Terminal pages | `terminal_` |

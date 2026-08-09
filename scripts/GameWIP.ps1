@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [ValidateSet('menu', 'doctor', 'git', 'workflow', 'configure', 'build', 'test', 'module', 'wizard', 'stress', 'run', 'bundle', 'docs', 'analysis', 'coverage', 'asan', 'benchmark', 'list', 'help')]
+    [ValidateSet('menu', 'doctor', 'git', 'workflow', 'unicode', 'format', 'configure', 'build', 'test', 'module', 'wizard', 'stress', 'run', 'bundle', 'docs', 'analysis', 'analyze', 'coverage', 'asan', 'benchmark', 'list', 'help')]
     [string]$Action = 'menu',
     [string]$Preset,
     [string]$Module,
@@ -11,6 +11,14 @@ param(
     [string]$GitBranch,
     [ValidateSet('menu', 'list', 'status', 'run')]
     [string]$WorkflowAction = 'menu',
+    [ValidateSet('menu', 'status', 'verify', 'regenerate')]
+    [string]$UnicodeAction = 'menu',
+    [string]$PythonPath,
+    [string]$ClangFormatPath,
+    [ValidateSet('check', 'apply')]
+    [string]$FormatAction = 'check',
+    [string]$UnicodeDataRoot,
+    [switch]$RefreshUnicodeData,
     [string]$Workflow,
     [ValidateSet('all', 'issue', 'pull_request')]
     [string]$WorkflowKind = 'all',
@@ -322,6 +330,8 @@ function Test-GameWipProjectReadiness
         @{ Name = 'UCRT64 CMake'; Path = 'C:\MSYS2\ucrt64\bin\cmake.exe' }
         @{ Name = 'UCRT64 Ninja'; Path = 'C:\MSYS2\ucrt64\bin\ninja.exe' }
         @{ Name = 'UCRT64 C++ compiler'; Path = 'C:\MSYS2\ucrt64\bin\g++.exe' }
+        @{ Name = 'UCRT64 Python'; Path = 'C:\MSYS2\ucrt64\bin\python.exe' }
+        @{ Name = 'UCRT64 clang-format'; Path = 'C:\MSYS2\ucrt64\bin\clang-format.exe' }
         @{ Name = 'CLANG64 C++ compiler'; Path = 'C:\MSYS2\clang64\bin\clang++.exe' }
     )
     $failures = New-Object System.Collections.Generic.List[string]
@@ -368,6 +378,633 @@ function Confirm-GameWipToolchain
     if (-not (Test-Path -LiteralPath (Join-Path $prefix 'cmake.exe')))
     {
         Test-GameWipProjectReadiness -ThrowOnFailure | Out-Null
+    }
+}
+
+function Resolve-GameWipRepositoryPath
+{
+    param([Parameter(Mandatory = $true)][string]$Path)
+
+    if ([IO.Path]::IsPathRooted($Path))
+    {
+        return [IO.Path]::GetFullPath($Path)
+    }
+    return [IO.Path]::GetFullPath((Join-Path $RepositoryRoot $Path))
+}
+
+function Write-GameWipUnicodeState
+{
+    param(
+        [Parameter(Mandatory = $true)][string]$State,
+        [Parameter(Mandatory = $true)][string]$Label,
+        [string]$Detail = ''
+    )
+
+    $marker = "[$($State.ToLowerInvariant())]"
+    $color = switch ($State.ToLowerInvariant())
+    {
+        'pass' { 'Green' }
+        'ready' { 'Green' }
+        'cached' { 'Cyan' }
+        'downloaded' { 'Cyan' }
+        'updated' { 'Yellow' }
+        'unchanged' { 'Green' }
+        'missing' { 'Yellow' }
+        'fail' { 'Red' }
+        default { 'Gray' }
+    }
+    $suffix = if ([string]::IsNullOrWhiteSpace($Detail)) { '' } else { ": $Detail" }
+    Write-Host ("  {0,-12} {1}{2}" -f $marker, $Label, $suffix) -ForegroundColor $color
+}
+
+function Get-GameWipUnicodePaths
+{
+    $unicodeConfig = $CommandConfig.Unicode
+    $cacheRootSetting = if (-not [string]::IsNullOrWhiteSpace($UnicodeDataRoot))
+    {
+        $UnicodeDataRoot
+    }
+    elseif (-not [string]::IsNullOrWhiteSpace($env:GAMEWIP_UNICODE_DATA_ROOT))
+    {
+        $env:GAMEWIP_UNICODE_DATA_ROOT
+    }
+    else
+    {
+        [string]$unicodeConfig.CacheRoot
+    }
+
+    $cacheRoot = Resolve-GameWipRepositoryPath -Path $cacheRootSetting
+    $version = [string]$unicodeConfig.Version
+    $versionRoot = Join-Path $cacheRoot $version
+
+    [pscustomobject]@{
+        Version = $version
+        VersionRoot = $versionRoot
+        Archive = Join-Path $versionRoot 'UCD.zip'
+        UcdRoot = Join-Path $versionRoot 'ucd'
+        GeneratedRoot = Join-Path $versionRoot 'generated'
+        TemporaryHeader = Join-Path $versionRoot 'generated\unicode_properties.h'
+        Generator = Resolve-GameWipRepositoryPath -Path ([string]$unicodeConfig.Generator)
+        CheckedInHeader = Resolve-GameWipRepositoryPath -Path ([string]$unicodeConfig.GeneratedHeader)
+        FormatConfig = Resolve-GameWipRepositoryPath -Path '.clang-format'
+        Url = ([string]$unicodeConfig.UcdUrlTemplate -f $version)
+        RequiredFiles = @($unicodeConfig.RequiredFiles)
+    }
+}
+
+function Resolve-GameWipPython
+{
+    $configuredPath = [string]$CommandConfig.Unicode.PythonPath
+    $candidate = $null
+    $source = $null
+
+    if (-not [string]::IsNullOrWhiteSpace($PythonPath))
+    {
+        $candidate = Resolve-GameWipRepositoryPath -Path $PythonPath
+        $source = '-PythonPath override'
+        if (-not (Test-Path -LiteralPath $candidate))
+        {
+            throw "Python override does not exist: $candidate"
+        }
+    }
+    elseif (-not [string]::IsNullOrWhiteSpace($env:GAMEWIP_PYTHON))
+    {
+        $candidate = Resolve-GameWipRepositoryPath -Path $env:GAMEWIP_PYTHON
+        $source = 'GAMEWIP_PYTHON override'
+        if (-not (Test-Path -LiteralPath $candidate))
+        {
+            throw "GAMEWIP_PYTHON does not exist: $candidate"
+        }
+    }
+    else
+    {
+        $candidate = Resolve-GameWipRepositoryPath -Path $configuredPath
+        $source = 'GameWIP UCRT64 toolchain'
+        if (-not (Test-Path -LiteralPath $candidate))
+        {
+            $command = Get-Command python.exe -ErrorAction SilentlyContinue
+            if ($null -ne $command)
+            {
+                $candidate = $command.Source
+                $source = 'PATH fallback'
+            }
+            else
+            {
+                throw "UCRT64 Python is unavailable at '$candidate'. Run .\setup.bat repair to install the GameWIP toolchain."
+            }
+        }
+    }
+
+    $versionOutput = @(& $candidate --version 2>&1)
+    $exitCode = if ($null -ne $LASTEXITCODE) { [int]$LASTEXITCODE } else { 0 }
+    if ($exitCode -ne 0)
+    {
+        throw "Python failed to start from '$candidate' with exit code $exitCode."
+    }
+
+    [pscustomobject]@{
+        Path = $candidate
+        Source = $source
+        Version = (($versionOutput | Out-String).Trim())
+    }
+}
+
+function Resolve-GameWipClangFormat
+{
+    $configuredPath = [string]$CommandConfig.Formatting.ClangFormatPath
+    $candidate = $null
+    $source = $null
+
+    if (-not [string]::IsNullOrWhiteSpace($ClangFormatPath))
+    {
+        $candidate = Resolve-GameWipRepositoryPath -Path $ClangFormatPath
+        $source = '-ClangFormatPath override'
+        if (-not (Test-Path -LiteralPath $candidate))
+        {
+            throw "clang-format override does not exist: $candidate"
+        }
+    }
+    elseif (-not [string]::IsNullOrWhiteSpace($env:GAMEWIP_CLANG_FORMAT))
+    {
+        $candidate = Resolve-GameWipRepositoryPath -Path $env:GAMEWIP_CLANG_FORMAT
+        $source = 'GAMEWIP_CLANG_FORMAT override'
+        if (-not (Test-Path -LiteralPath $candidate))
+        {
+            throw "GAMEWIP_CLANG_FORMAT does not exist: $candidate"
+        }
+    }
+    else
+    {
+        $candidate = Resolve-GameWipRepositoryPath -Path $configuredPath
+        $source = 'GameWIP UCRT64 toolchain'
+        if (-not (Test-Path -LiteralPath $candidate))
+        {
+            $command = Get-Command clang-format.exe -ErrorAction SilentlyContinue
+            if ($null -ne $command)
+            {
+                $candidate = $command.Source
+                $source = 'PATH fallback'
+            }
+            else
+            {
+                throw "UCRT64 clang-format is unavailable at '$candidate'. Run .\setup.bat repair to install the GameWIP toolchain."
+            }
+        }
+    }
+
+    $versionOutput = @(& $candidate --version 2>&1)
+    $exitCode = if ($null -ne $LASTEXITCODE) { [int]$LASTEXITCODE } else { 0 }
+    if ($exitCode -ne 0)
+    {
+        throw "clang-format failed to start from '$candidate' with exit code $exitCode."
+    }
+
+    [pscustomobject]@{
+        Path = $candidate
+        Source = $source
+        Version = (($versionOutput | Out-String).Trim())
+    }
+}
+
+function Get-GameWipFormatFiles
+{
+    $extensions = @('.cpp', '.h', '.hpp', '.inl')
+    $files = New-Object System.Collections.Generic.List[string]
+
+    foreach ($relativeRoot in @($CommandConfig.Formatting.SourceRoots))
+    {
+        $root = Resolve-GameWipRepositoryPath -Path ([string]$relativeRoot)
+        if (-not (Test-Path -LiteralPath $root))
+        {
+            continue
+        }
+
+        foreach ($file in Get-ChildItem -LiteralPath $root -Recurse -File)
+        {
+            if ($extensions -contains $file.Extension.ToLowerInvariant())
+            {
+                $files.Add($file.FullName) | Out-Null
+            }
+        }
+    }
+
+    @($files | Sort-Object -Unique)
+}
+
+function Invoke-GameWipFormat
+{
+    param([Parameter(Mandatory = $true)][ValidateSet('check', 'apply')][string]$Mode)
+
+    $formatter = Resolve-GameWipClangFormat
+    $formatConfig = Resolve-GameWipRepositoryPath -Path ([string]$CommandConfig.Formatting.ConfigPath)
+    if (-not (Test-Path -LiteralPath $formatConfig))
+    {
+        throw "Repository clang-format configuration is missing: $formatConfig"
+    }
+
+    $files = @(Get-GameWipFormatFiles)
+    if ($files.Count -eq 0)
+    {
+        throw 'No GameWIP-owned C/C++ files were found to format.'
+    }
+
+    Write-GameWipSection 'C++ formatting'
+    Write-Host "  Mode:       $Mode"
+    Write-Host "  Formatter:  $($formatter.Version)"
+    Write-Host "  Source:     $($formatter.Source)"
+    Write-Host "  Style:      $formatConfig"
+    Write-Host "  Files:      $($files.Count)"
+
+    $beforeHashes = @{}
+    if ($Mode -eq 'apply')
+    {
+        foreach ($file in $files)
+        {
+            $beforeHashes[$file] = (Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash
+        }
+    }
+
+    # Keep native command lines comfortably below Windows command-line limits as the repository grows.
+    $batchSize = 40
+    $batchCount = [int][Math]::Ceiling($files.Count / [double]$batchSize)
+    for ($offset = 0; $offset -lt $files.Count; $offset += $batchSize)
+    {
+        $last = [Math]::Min($offset + $batchSize - 1, $files.Count - 1)
+        $batch = @($files[$offset..$last])
+        $arguments = New-Object System.Collections.Generic.List[string]
+        $arguments.Add("--style=file:$formatConfig") | Out-Null
+        $arguments.Add('--Werror') | Out-Null
+        $arguments.Add('--fail-on-incomplete-format') | Out-Null
+        if ($Mode -eq 'check')
+        {
+            $arguments.Add('--dry-run') | Out-Null
+        }
+        else
+        {
+            $arguments.Add('-i') | Out-Null
+        }
+        foreach ($file in $batch)
+        {
+            $arguments.Add($file) | Out-Null
+        }
+
+        $batchNumber = [int]($offset / $batchSize) + 1
+        Invoke-GameWipNative `
+            -Name "clang-format-$Mode-$batchNumber-of-$batchCount" `
+            -FilePath $formatter.Path `
+            -Arguments $arguments.ToArray()
+    }
+
+    if ($Mode -eq 'check')
+    {
+        Write-Host "  [pass] All $($files.Count) GameWIP-owned C/C++ files match the repository format." -ForegroundColor Green
+        return
+    }
+
+    $repositoryPrefix = [IO.Path]::GetFullPath($RepositoryRoot)
+    if (-not $repositoryPrefix.EndsWith([IO.Path]::DirectorySeparatorChar.ToString()))
+    {
+        $repositoryPrefix += [IO.Path]::DirectorySeparatorChar
+    }
+
+    $changed = New-Object System.Collections.Generic.List[string]
+    foreach ($file in $files)
+    {
+        $afterHash = (Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash
+        if ($beforeHashes[$file] -ne $afterHash)
+        {
+            $fullPath = [IO.Path]::GetFullPath($file)
+            $relativePath = $fullPath
+            if ($fullPath.StartsWith($repositoryPrefix, [StringComparison]::OrdinalIgnoreCase))
+            {
+                $relativePath = $fullPath.Substring($repositoryPrefix.Length)
+            }
+            $changed.Add($relativePath) | Out-Null
+        }
+    }
+
+    if ($changed.Count -eq 0)
+    {
+        Write-Host "  [unchanged] All $($files.Count) files were already formatted." -ForegroundColor Green
+        return
+    }
+
+    Write-Host "  [updated] $($changed.Count) file(s) formatted." -ForegroundColor Yellow
+    foreach ($relativePath in $changed)
+    {
+        Write-Host "    $relativePath"
+    }
+    Write-NextStepHint 'review formatting changes with: git diff --check && git diff'
+}
+
+function Invoke-GameWipUnicodeFormatter
+{
+    param(
+        [Parameter(Mandatory = $true)]$Paths,
+        [Parameter(Mandatory = $true)][string]$InputPath
+    )
+
+    if (-not (Test-Path -LiteralPath $Paths.FormatConfig))
+    {
+        throw "Repository clang-format configuration is missing: $($Paths.FormatConfig)"
+    }
+
+    $formatter = Resolve-GameWipClangFormat
+    Write-GameWipUnicodeState -State 'ready' -Label 'clang-format' -Detail "$($formatter.Version) via $($formatter.Source)"
+    Invoke-GameWipNative `
+        -Name "unicode-format-$($Paths.Version)" `
+        -FilePath $formatter.Path `
+        -Arguments @("--style=file:$($Paths.FormatConfig)", '--Werror', '--fail-on-incomplete-format', '-i', $InputPath)
+    Write-GameWipUnicodeState -State 'pass' -Label 'Generated formatting' -Detail 'repository .clang-format applied'
+}
+
+function Test-GameWipUnicodeInputs
+{
+    param([Parameter(Mandatory = $true)]$Paths)
+
+    foreach ($relativePath in $Paths.RequiredFiles)
+    {
+        if (-not (Test-Path -LiteralPath (Join-Path $Paths.UcdRoot $relativePath)))
+        {
+            return $false
+        }
+    }
+    return $true
+}
+
+function Show-GameWipUnicodeStatus
+{
+    $paths = Get-GameWipUnicodePaths
+    Write-GameWipSection 'Unicode data status'
+    Write-Host "  Standard:    Unicode $($paths.Version)"
+    Write-Host "  Cache:       $($paths.VersionRoot)"
+    Write-Host "  Generator:   $($paths.Generator)"
+    Write-Host "  Runtime data: $($paths.CheckedInHeader)"
+
+    try
+    {
+        $python = Resolve-GameWipPython
+        Write-GameWipUnicodeState -State 'ready' -Label 'Python' -Detail "$($python.Version) via $($python.Source) [$($python.Path)]"
+    }
+    catch
+    {
+        Write-GameWipUnicodeState -State 'missing' -Label 'Python' -Detail $_.Exception.Message
+    }
+
+    try
+    {
+        $formatter = Resolve-GameWipClangFormat
+        Write-GameWipUnicodeState -State 'ready' -Label 'clang-format' -Detail "$($formatter.Version) via $($formatter.Source) [$($formatter.Path)]"
+    }
+    catch
+    {
+        Write-GameWipUnicodeState -State 'missing' -Label 'clang-format' -Detail $_.Exception.Message
+    }
+
+    if (Test-Path -LiteralPath $paths.FormatConfig)
+    {
+        Write-GameWipUnicodeState -State 'ready' -Label 'Format config' -Detail $paths.FormatConfig
+    }
+    else
+    {
+        Write-GameWipUnicodeState -State 'missing' -Label 'Format config' -Detail $paths.FormatConfig
+    }
+
+    if (Test-Path -LiteralPath $paths.Archive)
+    {
+        Write-GameWipUnicodeState -State 'cached' -Label 'UCD archive' -Detail $paths.Archive
+    }
+    else
+    {
+        Write-GameWipUnicodeState -State 'missing' -Label 'UCD archive' -Detail 'downloaded automatically by verify/regenerate'
+    }
+
+    foreach ($relativePath in $paths.RequiredFiles)
+    {
+        $inputPath = Join-Path $paths.UcdRoot $relativePath
+        if (Test-Path -LiteralPath $inputPath)
+        {
+            Write-GameWipUnicodeState -State 'ready' -Label $relativePath
+        }
+        else
+        {
+            Write-GameWipUnicodeState -State 'missing' -Label $relativePath
+        }
+    }
+
+    if (Test-Path -LiteralPath $paths.CheckedInHeader)
+    {
+        $hash = (Get-FileHash -LiteralPath $paths.CheckedInHeader -Algorithm SHA256).Hash.ToLowerInvariant()
+        Write-GameWipUnicodeState -State 'ready' -Label 'Checked-in property table' -Detail "sha256=$hash"
+    }
+    else
+    {
+        Write-GameWipUnicodeState -State 'missing' -Label 'Checked-in property table' -Detail $paths.CheckedInHeader
+    }
+}
+
+function Initialize-GameWipUnicodeData
+{
+    param(
+        [Parameter(Mandatory = $true)]$Paths,
+        [switch]$Refresh
+    )
+
+    if (-not $Refresh -and (Test-GameWipUnicodeInputs -Paths $Paths))
+    {
+        Write-GameWipUnicodeState -State 'cached' -Label "Unicode $($Paths.Version) source data" -Detail $Paths.UcdRoot
+        return
+    }
+
+    New-Item -ItemType Directory -Force -Path $Paths.VersionRoot | Out-Null
+    if ($Refresh -or -not (Test-Path -LiteralPath $Paths.Archive))
+    {
+        Write-Host "  Downloading: $($Paths.Url)"
+        $temporaryArchive = "$($Paths.Archive).download"
+        Remove-Item -LiteralPath $temporaryArchive -Force -ErrorAction SilentlyContinue
+        try
+        {
+            Invoke-WebRequest -Uri $Paths.Url -OutFile $temporaryArchive -UseBasicParsing
+            Move-Item -LiteralPath $temporaryArchive -Destination $Paths.Archive -Force
+        }
+        finally
+        {
+            Remove-Item -LiteralPath $temporaryArchive -Force -ErrorAction SilentlyContinue
+        }
+        Write-GameWipUnicodeState -State 'downloaded' -Label 'UCD archive' -Detail $Paths.Archive
+    }
+    else
+    {
+        Write-GameWipUnicodeState -State 'cached' -Label 'UCD archive' -Detail $Paths.Archive
+    }
+
+    Remove-Item -LiteralPath $Paths.UcdRoot -Recurse -Force -ErrorAction SilentlyContinue
+    New-Item -ItemType Directory -Force -Path $Paths.UcdRoot | Out-Null
+    Expand-Archive -LiteralPath $Paths.Archive -DestinationPath $Paths.UcdRoot -Force
+
+    $missing = New-Object System.Collections.Generic.List[string]
+    foreach ($relativePath in $Paths.RequiredFiles)
+    {
+        $inputPath = Join-Path $Paths.UcdRoot $relativePath
+        if (Test-Path -LiteralPath $inputPath)
+        {
+            Write-GameWipUnicodeState -State 'ready' -Label $relativePath
+        }
+        else
+        {
+            Write-GameWipUnicodeState -State 'missing' -Label $relativePath
+            $missing.Add($relativePath) | Out-Null
+        }
+    }
+    if ($missing.Count -ne 0)
+    {
+        throw "Unicode $($Paths.Version) archive is missing $($missing.Count) required data file(s). Delete '$($Paths.VersionRoot)' and retry with -RefreshUnicodeData."
+    }
+}
+
+function Invoke-GameWipUnicodeGenerator
+{
+    param(
+        [Parameter(Mandatory = $true)]$Paths,
+        [Parameter(Mandatory = $true)][string]$OutputPath
+    )
+
+    if (-not (Test-Path -LiteralPath $Paths.Generator))
+    {
+        throw "Unicode generator is missing: $($Paths.Generator)"
+    }
+
+    $python = Resolve-GameWipPython
+    $outputDirectory = Split-Path -Parent $OutputPath
+    New-Item -ItemType Directory -Force -Path $outputDirectory | Out-Null
+    Remove-Item -LiteralPath $OutputPath -Force -ErrorAction SilentlyContinue
+
+    Write-GameWipUnicodeState -State 'ready' -Label 'Python' -Detail "$($python.Version) via $($python.Source)"
+    Invoke-GameWipNative `
+        -Name "unicode-generate-$($Paths.Version)" `
+        -FilePath $python.Path `
+        -Arguments @($Paths.Generator, '--ucd-dir', $Paths.UcdRoot, '--output', $OutputPath)
+
+    if (-not (Test-Path -LiteralPath $OutputPath))
+    {
+        throw "Unicode generator completed without producing '$OutputPath'."
+    }
+
+    Invoke-GameWipUnicodeFormatter -Paths $Paths -InputPath $OutputPath
+}
+
+function Test-GameWipFilesEqual
+{
+    param(
+        [Parameter(Mandatory = $true)][string]$First,
+        [Parameter(Mandatory = $true)][string]$Second
+    )
+
+    $firstBytes = [IO.File]::ReadAllBytes($First)
+    $secondBytes = [IO.File]::ReadAllBytes($Second)
+    [System.Collections.StructuralComparisons]::StructuralEqualityComparer.Equals($firstBytes, $secondBytes)
+}
+
+function Invoke-GameWipUnicodeVerify
+{
+    $paths = Get-GameWipUnicodePaths
+    Write-GameWipSection "Unicode $($paths.Version) reproducibility verification"
+    Initialize-GameWipUnicodeData -Paths $paths -Refresh:$RefreshUnicodeData
+
+    if (-not (Test-Path -LiteralPath $paths.CheckedInHeader))
+    {
+        throw "Checked-in Unicode property table is missing: $($paths.CheckedInHeader)"
+    }
+
+    Invoke-GameWipUnicodeGenerator -Paths $paths -OutputPath $paths.TemporaryHeader
+    $checkedHash = (Get-FileHash -LiteralPath $paths.CheckedInHeader -Algorithm SHA256).Hash.ToLowerInvariant()
+    $generatedHash = (Get-FileHash -LiteralPath $paths.TemporaryHeader -Algorithm SHA256).Hash.ToLowerInvariant()
+
+    Write-GameWipSection 'Unicode generation result'
+    Write-Host "  Checked-in SHA-256: $checkedHash"
+    Write-Host "  Generated  SHA-256: $generatedHash"
+    if (-not (Test-GameWipFilesEqual -First $paths.CheckedInHeader -Second $paths.TemporaryHeader))
+    {
+        Write-GameWipUnicodeState -State 'fail' -Label 'Reproducibility' -Detail 'generated output differs from the checked-in property table'
+        Write-Host "  Generated candidate retained at: $($paths.TemporaryHeader)"
+        throw "Unicode $($paths.Version) generated data does not match the checked-in table. Review the candidate, then regenerate intentionally with '.\gamewip.bat unicode -UnicodeAction regenerate'."
+    }
+
+    Write-GameWipUnicodeState -State 'pass' -Label 'Reproducibility' -Detail 'official versioned UCD input reproduces the checked-in table exactly'
+}
+
+function Invoke-GameWipUnicodeRegenerate
+{
+    $paths = Get-GameWipUnicodePaths
+    Write-GameWipSection "Unicode $($paths.Version) table regeneration"
+    Initialize-GameWipUnicodeData -Paths $paths -Refresh:$RefreshUnicodeData
+    Invoke-GameWipUnicodeGenerator -Paths $paths -OutputPath $paths.TemporaryHeader
+
+    $beforeHash = if (Test-Path -LiteralPath $paths.CheckedInHeader)
+    {
+        (Get-FileHash -LiteralPath $paths.CheckedInHeader -Algorithm SHA256).Hash.ToLowerInvariant()
+    }
+    else
+    {
+        '<missing>'
+    }
+    $afterHash = (Get-FileHash -LiteralPath $paths.TemporaryHeader -Algorithm SHA256).Hash.ToLowerInvariant()
+
+    if ((Test-Path -LiteralPath $paths.CheckedInHeader) -and (Test-GameWipFilesEqual -First $paths.CheckedInHeader -Second $paths.TemporaryHeader))
+    {
+        Write-GameWipUnicodeState -State 'unchanged' -Label 'Property table' -Detail "sha256=$afterHash"
+        return
+    }
+
+    $destinationDirectory = Split-Path -Parent $paths.CheckedInHeader
+    New-Item -ItemType Directory -Force -Path $destinationDirectory | Out-Null
+    Copy-Item -LiteralPath $paths.TemporaryHeader -Destination $paths.CheckedInHeader -Force
+    Write-GameWipUnicodeState -State 'updated' -Label 'Property table' -Detail $paths.CheckedInHeader
+    Write-Host "  Previous SHA-256: $beforeHash"
+    Write-Host "  Current  SHA-256: $afterHash"
+    Write-NextStepHint 'review the generated change with: git diff -- foundation/unicode/internal/generated/unicode_properties.h'
+}
+
+function Show-GameWipUnicodeMenu
+{
+    while ($true)
+    {
+        Write-Host ''
+        Write-Host 'Unicode Data Maintenance'
+        Write-Host '========================'
+        Write-Host '1. Show Unicode data status'
+        Write-Host '2. Verify checked-in data against official Unicode input'
+        Write-Host '3. Regenerate the checked-in property table'
+        Write-Host 'ESC. Back'
+        Write-Host 'Choose an action: ' -NoNewline
+        $key = [Console]::ReadKey($true)
+        if ($key.Key -eq [ConsoleKey]::ESCape) { Write-Host 'ESC'; return }
+        Write-Host $key.KeyChar
+        switch ($key.KeyChar)
+        {
+            '1' { Show-GameWipUnicodeStatus }
+            '2' { Invoke-GameWipUnicodeVerify }
+            '3' {
+                if (Read-YesNo -Prompt 'Regenerate the tracked Unicode property table?' -Default $false)
+                {
+                    Invoke-GameWipUnicodeRegenerate
+                }
+            }
+            default { Write-Host 'Press 1-3 or ESC.' -ForegroundColor Yellow }
+        }
+    }
+}
+
+function Invoke-GameWipUnicodeAction
+{
+    param([Parameter(Mandatory = $true)][string]$Name)
+
+    switch ($Name)
+    {
+        'menu' { Show-GameWipUnicodeMenu }
+        'status' { Show-GameWipUnicodeStatus }
+        'verify' { Invoke-GameWipUnicodeVerify }
+        'regenerate' { Invoke-GameWipUnicodeRegenerate }
     }
 }
 
@@ -587,10 +1224,10 @@ function Show-GameWipGitMenu
         Write-Host '6. Create and switch to a new branch'
         Write-Host '7. Push/publish the current branch'
         Write-Host '8. Show recent commits'
-        Write-Host 'Esc. Back'
+        Write-Host 'ESC. Back'
         Write-Host 'Choose an action: ' -NoNewline
         $key = [Console]::ReadKey($true)
-        if ($key.Key -eq [ConsoleKey]::Escape) { Write-Host 'Esc'; return }
+        if ($key.Key -eq [ConsoleKey]::ESCape) { Write-Host 'ESC'; return }
         Write-Host $key.KeyChar
         switch ($key.KeyChar)
         {
@@ -602,7 +1239,7 @@ function Show-GameWipGitMenu
             '6' { Invoke-GameWipBranchCreate }
             '7' { Invoke-GameWipCurrentBranchPush }
             '8' { Show-GameWipRecentCommits }
-            default { Write-Host 'Press 1-8 or Esc.' -ForegroundColor Yellow }
+            default { Write-Host 'Press 1-8 or ESC.' -ForegroundColor Yellow }
         }
     }
 }
@@ -949,10 +1586,10 @@ function Show-GameWipWorkflowMenu
         Write-Host '1. List supported workflows'
         Write-Host '2. Dispatch a supported workflow'
         Write-Host '3. Show recent manual runs'
-        Write-Host 'Esc. Back'
+        Write-Host 'ESC. Back'
         Write-Host 'Choose an action: ' -NoNewline
         $key = [Console]::ReadKey($true)
-        if ($key.Key -eq [ConsoleKey]::Escape) { Write-Host 'Esc'; return }
+        if ($key.Key -eq [ConsoleKey]::ESCape) { Write-Host 'ESC'; return }
         Write-Host $key.KeyChar
         switch ($key.KeyChar)
         {
@@ -966,7 +1603,7 @@ function Show-GameWipWorkflowMenu
                 }
             }
             '3' { Show-GameWipWorkflowStatus }
-            default { Write-Host 'Press 1-3 or Esc.' -ForegroundColor Yellow }
+            default { Write-Host 'Press 1-3 or ESC.' -ForegroundColor Yellow }
         }
     }
 }
@@ -1307,6 +1944,10 @@ function Show-ProjectCatalog
     Write-GameWipSection 'Validation modules'
     @($CommandConfig.Modules) | ForEach-Object { Write-Host "  $_" }
 
+    Write-GameWipSection 'Unicode data maintenance'
+    Write-Host ("  version - Unicode {0}" -f $CommandConfig.Unicode.Version)
+    Write-Host '  actions - status, verify, regenerate'
+
     Write-GameWipSection 'Project commands'
     foreach ($command in $CommandConfig.ProjectCommands)
     {
@@ -1348,9 +1989,9 @@ function Read-MenuChoice
         {
             Write-Host "  [Enter] $Default"
         }
-        Write-Host 'Choose one key, or Esc/q to cancel: ' -NoNewline
+        Write-Host 'Choose one key, or ESC/q to cancel: ' -NoNewline
         $key = [Console]::ReadKey($true)
-        if ($key.Key -eq [ConsoleKey]::Escape -or $key.KeyChar -eq 'q' -or $key.KeyChar -eq 'Q')
+        if ($key.Key -eq [ConsoleKey]::ESCape -or $key.KeyChar -eq 'q' -or $key.KeyChar -eq 'Q')
         {
             Write-Host 'cancel'
             return $null
@@ -1494,9 +2135,9 @@ function Read-MultiChoice
             $marker = if ($selected.Contains($Choices[$index])) { 'x' } else { ' ' }
             Write-Host ("  [{0}] [{1}] {2}" -f $keys[$index], $marker, $Choices[$index])
         }
-        Write-Host 'Toggle one key, Enter to accept, or Esc/q to cancel: ' -NoNewline
+        Write-Host 'Toggle one key, Enter to accept, or ESC/q to cancel: ' -NoNewline
         $key = [Console]::ReadKey($true)
-        if ($key.Key -eq [ConsoleKey]::Escape -or $key.KeyChar -eq 'q' -or $key.KeyChar -eq 'Q')
+        if ($key.Key -eq [ConsoleKey]::ESCape -or $key.KeyChar -eq 'q' -or $key.KeyChar -eq 'Q')
         {
             Write-Host 'cancel'
             return @()
@@ -1573,6 +2214,11 @@ function Show-ActionFailure
     if ($message -match 'Logger|logger')
     {
         $suggestions.Add('For rare Logger failures, rerun .\gamewip.bat stress -Module logger -Count 100 -Parallel 16 -BuildIfMissing to measure repeatability.') | Out-Null
+    }
+    if ($message -match 'Unicode|UCRT64 Python|Python override|GAMEWIP_PYTHON|clang-format|ClangFormatPath|GAMEWIP_CLANG_FORMAT')
+    {
+        $suggestions.Add('Inspect Unicode tooling with .\gamewip.bat unicode -UnicodeAction status.') | Out-Null
+        $suggestions.Add('If UCRT64 Python or clang-format is missing, run .\setup.bat repair; GameWIP setup owns those dependencies.') | Out-Null
     }
     if ($suggestions.Count -eq 0)
     {
@@ -1678,6 +2324,61 @@ function Invoke-InteractiveBuildFlow
 
     Invoke-BuildPreset -Name $Name
     Invoke-InteractivePostBuildFlow -Name $Name
+}
+
+function Show-GameWipQualityMenu
+{
+    while ($true)
+    {
+        Write-Host ''
+        Write-Host 'Quality and Maintenance'
+        Write-Host '======================='
+        Write-Host '1. Check C/C++ formatting'
+        Write-Host '2. Apply C/C++ formatting'
+        Write-Host '3. Run static analysis'
+        Write-Host '4. Run AddressSanitizer validation'
+        Write-Host '5. Run coverage validation'
+        Write-Host '6. Build documentation'
+        Write-Host '7. Run benchmark validation'
+        Write-Host '8. Run full local release-readiness bundle'
+        Write-Host 'ESC. Back'
+        Write-Host 'Choose an action: ' -NoNewline
+        $key = [Console]::ReadKey($true)
+        if ($key.Key -eq [ConsoleKey]::ESCape) { Write-Host 'ESC'; return }
+        Write-Host $key.KeyChar
+
+        switch ($key.KeyChar)
+        {
+            '1' { Invoke-GameWipFormat -Mode 'check' }
+            '2' { Invoke-GameWipFormat -Mode 'apply' }
+            '3' {
+                Invoke-ConfigurePreset -Name 'analyze'
+                Invoke-BuildPreset -Name 'analyze'
+            }
+            '4' {
+                Invoke-ConfigurePreset -Name 'asan'
+                Invoke-BuildPreset -Name 'asan'
+                Invoke-TestPreset -Name 'asan' -UseWorkspaceTemp
+            }
+            '5' {
+                Invoke-ConfigurePreset -Name 'coverage'
+                Invoke-BuildPreset -Name 'coverage'
+                Invoke-TestPreset -Name 'coverage' -UseWorkspaceTemp
+                Invoke-BuildTarget -Name 'coverage' -Target 'coverage'
+            }
+            '6' {
+                Invoke-ConfigurePreset -Name 'docs'
+                Invoke-BuildPreset -Name 'docs'
+            }
+            '7' {
+                Invoke-ConfigurePreset -Name 'benchmark'
+                Invoke-BuildPreset -Name 'benchmark'
+                Invoke-ProjectCommand -Id 'benchmark-dry-run' -ForceBuild
+            }
+            '8' { Invoke-Bundle -Id 'local-release-check' }
+            default { Write-Host 'Press 1-8 or ESC.' -ForegroundColor Yellow }
+        }
+    }
 }
 
 function Split-ExtraArguments
@@ -1798,12 +2499,14 @@ function Show-GameWipMenu
         Write-Host '0. Check project readiness'
         Write-Host 'G. Git branches and workspace cleanup'
         Write-Host 'W. Guarded GitHub workflows'
-        Write-Host 'Esc. Exit'
+        Write-Host 'Q. Quality and maintenance'
+        Write-Host 'U. Unicode data maintenance'
+        Write-Host 'ESC. Exit'
         Write-Host 'Choose an action: ' -NoNewline
         $key = [Console]::ReadKey($true)
-        if ($key.Key -eq [ConsoleKey]::Escape -or [int]$key.KeyChar -eq 27)
+        if ($key.Key -eq [ConsoleKey]::ESCape -or [int]$key.KeyChar -eq 27)
         {
-            Write-Host 'Esc'
+            Write-Host 'ESC'
             return
         }
         Write-Host $key.KeyChar
@@ -1868,7 +2571,9 @@ function Show-GameWipMenu
                 '0' { Test-GameWipProjectReadiness | Out-Null }
                 { $_ -eq 'g' -or $_ -eq 'G' } { Show-GameWipGitMenu }
                 { $_ -eq 'w' -or $_ -eq 'W' } { Show-GameWipWorkflowMenu }
-                default { Write-Host 'Press one of the listed number keys, or Esc to exit.' -ForegroundColor Yellow }
+                { $_ -eq 'q' -or $_ -eq 'Q' } { Show-GameWipQualityMenu }
+                { $_ -eq 'u' -or $_ -eq 'U' } { Show-GameWipUnicodeMenu }
+                default { Write-Host 'Press one of the listed number keys, or ESC to exit.' -ForegroundColor Yellow }
             }
         }
         catch
@@ -1895,6 +2600,14 @@ function Show-Help
     Write-Host '  gamewip workflow -WorkflowAction run -Workflow release-check -Preview'
     Write-Host '  gamewip workflow -WorkflowAction run -Workflow project-dry-run -WorkflowKind issue -WorkflowNumber <number>'
     Write-Host '  gamewip workflow -WorkflowAction run -Workflow release-finalize-dry-run -ReleaseCommit <sha>'
+    Write-Host '  gamewip unicode'
+    Write-Host '  gamewip unicode -UnicodeAction status'
+    Write-Host '  gamewip unicode -UnicodeAction verify [-RefreshUnicodeData] [-PythonPath <path>] [-ClangFormatPath <path>] [-UnicodeDataRoot <path>]'
+    Write-Host '  gamewip unicode -UnicodeAction regenerate [-RefreshUnicodeData] [-PythonPath <path>] [-ClangFormatPath <path>]'
+    Write-Host '  gamewip format'
+    Write-Host '  gamewip format -FormatAction check'
+    Write-Host '  gamewip format -FormatAction apply'
+    Write-Host '  gamewip analyze    # alias for gamewip analysis'
     Write-Host '  gamewip list'
     Write-Host '  gamewip configure -Preset test'
     Write-Host '  gamewip build -Preset test'
@@ -1917,6 +2630,8 @@ try
         'doctor' { Test-GameWipProjectReadiness -ThrowOnFailure | Out-Null }
         'git' { Invoke-GameWipGitAction -Name $GitAction -BranchName $GitBranch }
         'workflow' { Invoke-GameWipWorkflowAction -Name $WorkflowAction -WorkflowId $Workflow }
+        'unicode' { Invoke-GameWipUnicodeAction -Name $UnicodeAction }
+        'format' { Invoke-GameWipFormat -Mode $FormatAction }
         'configure' {
             if ([string]::IsNullOrWhiteSpace($Preset)) { $Preset = $CommandConfig.DefaultConfigurePreset }
             Invoke-ConfigurePreset -Name $Preset
@@ -1966,6 +2681,10 @@ try
             Invoke-BuildPreset -Name 'docs'
         }
         'analysis' {
+            Invoke-ConfigurePreset -Name 'analyze'
+            Invoke-BuildPreset -Name 'analyze'
+        }
+        'analyze' {
             Invoke-ConfigurePreset -Name 'analyze'
             Invoke-BuildPreset -Name 'analyze'
         }

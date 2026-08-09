@@ -83,7 +83,9 @@ The complete runner argument contract is owned by @ref project_validation.
 
 ## Project command helper
 
-The root `gamewip.bat` launcher opens `scripts/GameWIP.ps1`, a project-scoped command menu for configure, build, test, benchmark, docs, analysis, coverage, ASan, validation command-building, and validation stress workflows.
+The root `gamewip.bat` launcher opens `scripts/GameWIP.ps1`, a project-scoped command menu for configure, build, test, formatting, Unicode data maintenance, benchmarks, documentation, static analysis, coverage, AddressSanitizer, validation command-building, and validation stress workflows.
+
+The interactive `Q` menu groups quality and maintenance actions. The `U` menu owns Unicode data status, verification, and regeneration. Non-interactive `format`, `analyze`, `asan`, `coverage`, `benchmark`, and `docs` actions expose the same project-owned workflows directly.
 
 The tool discovers CMake presets from `CMakePresets.json` and reads project command definitions from `scripts/config/gamewip-commands.psd1`. Add new project actions by updating that catalog instead of accepting arbitrary shell commands.
 
@@ -97,6 +99,12 @@ Common non-interactive usage:
 
 ```powershell
 .\gamewip.bat doctor
+.\gamewip.bat unicode -UnicodeAction status
+.\gamewip.bat unicode -UnicodeAction verify
+.\gamewip.bat format -FormatAction check
+.\gamewip.bat format -FormatAction apply
+.\gamewip.bat analyze
+.\gamewip.bat asan
 .\gamewip.bat git
 .\gamewip.bat git -GitAction status
 .\gamewip.bat git -GitAction switch -GitBranch feature/example
@@ -113,11 +121,7 @@ Common non-interactive usage:
 .\gamewip.bat bundle -Bundle quick
 ```
 
-`doctor` checks the repository metadata and the exact UCRT64/CLANG64 tools used
-by project commands. Build and test actions automatically configure a missing
-build tree. All normal presets explicitly use `C:\MSYS2\ucrt64\bin`; ASan uses
-`C:\MSYS2\clang64\bin`, so an unrelated CMake or compiler earlier on the user's
-global `PATH` cannot silently change the build.
+`doctor` checks repository metadata and the exact UCRT64/CLANG64 tools used by project commands, including the Python and clang-format executables required by maintenance workflows. Build and test actions automatically configure a missing build tree. All normal presets explicitly use `C:\MSYS2\ucrt64\bin`; ASan uses `C:\MSYS2\clang64\bin`, so an unrelated CMake or compiler earlier on the user's global `PATH` cannot silently change the build.
 
 `gamewip.bat git` opens the guarded Git workspace menu. It shows concise status,
 fetches and prunes remote references, switches between local or fetched remote

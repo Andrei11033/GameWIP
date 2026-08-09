@@ -10,23 +10,28 @@ Build presets, compiler selection, and output locations are documented in @ref p
 
 ## Environment
 
-Run C++ analysis and formatting from the MSYS2 UCRT64 environment used for normal development. The `analyze` preset selects `clang++` and requires the UCRT64 packages for CMake, Ninja, Clang, clang-tools-extra, GCC runtime support, Git, and Python.
-
-When running local commands from PowerShell instead of an MSYS2 UCRT64 shell, put UCRT64 first on `PATH` before invoking Python, CMake, or clang tools:
+The GameWIP helper is the preferred Windows entry point because it selects project-owned tool paths, records native command logs, and reports failures consistently:
 
 ```powershell
-$env:PATH = "C:\MSYS2\ucrt64\bin;$env:PATH"
+.\gamewip.bat format -FormatAction check
+.\gamewip.bat analyze
 ```
 
-AddressSanitizer is the exception: it uses the MSYS2 CLANG64 environment and is documented in @ref project_build.
+The `analyze` preset selects `clang++` and requires the UCRT64 packages for CMake, Ninja, Clang, clang-tools-extra, GCC runtime support, Git, and Python. AddressSanitizer is the exception: it uses the MSYS2 CLANG64 environment and is documented in @ref project_build.
 
-Do not run project clang-tidy checks from an unrelated Visual Studio, standalone LLVM, or different MSYS2 environment. The tool that configures the preset should be the same toolchain family that provides `clang-tidy`, `run-clang-tidy`, and `clang-format`.
+When invoking CMake or clang tools directly instead of through `gamewip.bat`, run them from the MSYS2 UCRT64 environment or put that toolchain first on `PATH`. Do not mix the analyze configure with an unrelated Visual Studio, standalone LLVM, or different MSYS2 environment. The toolchain that configures the preset should also provide `clang-tidy`, `run-clang-tidy`, and `clang-format`.
 
 ## C++ static analysis
 
 The `analyze` preset configures a compilation database under `build/analyze` and enables the `static-analysis` build target.
 
 Run the full local C++ analysis target from the repository root:
+
+```powershell
+.\gamewip.bat analyze
+```
+
+For low-level investigation from a correctly configured UCRT64 shell, the equivalent CMake workflow is:
 
 ```bash
 cmake --preset analyze
@@ -55,24 +60,23 @@ Win32 resource scripts are compiled by the Windows resource compiler and are int
 
 ## Formatting fixes
 
-The static-analysis target checks formatting but does not rewrite files. Use this command from an MSYS2 UCRT64 shell to format maintained C++ files locally:
+The static-analysis target checks formatting but does not rewrite files. Check or apply the same maintained-source scope through the project helper:
 
-```bash
-git ls-files -z -- \
-  'foundation/*.cpp' 'foundation/*.h' 'foundation/*.hpp' 'foundation/*.inl' \
-  'tools/*.cpp' 'tools/*.h' 'tools/*.hpp' 'tools/*.inl' \
-  'engine/*.cpp' 'engine/*.h' 'engine/*.hpp' 'engine/*.inl' \
-  'game/*.cpp' 'game/*.h' 'game/*.hpp' 'game/*.inl' \
-| xargs -0 clang-format -i --style=file
+```powershell
+.\gamewip.bat format -FormatAction check
+.\gamewip.bat format -FormatAction apply
 ```
 
-Review the diff before committing formatter output:
+Both actions use the repository `.clang-format` and the GameWIP-owned `.cpp`, `.h`, `.hpp`, and `.inl` files under `foundation/`, `tools/`, `engine/`, and `game/`. `check` is non-mutating; `apply` reports the maintained files whose content changed.
 
-```bash
+Review formatter output before committing:
+
+```powershell
+git diff --check
 git diff -- foundation tools engine game
 ```
 
-Do not run project formatting over `external/`, generated build trees, generated documentation output, or other third-party or generated artifacts.
+Do not run project formatting over `external/`, generated build trees, generated documentation output, or other third-party artifacts. The checked-in Unicode property header is a deliberate maintained-source exception: its regeneration workflow applies the repository formatter before reproducibility comparison.
 
 ## Repository checks
 

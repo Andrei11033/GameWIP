@@ -142,10 +142,22 @@ jobs:
           New-Item -Path $path -Force | Out-Null
           New-ItemProperty -Path $path -Name AllowDevelopmentWithoutDevLicense -PropertyType DWord -Value 1 -Force | Out-Null
 
+      - name: Prepare pinned Unicode conformance data
+        shell: msys2 {0}
+        run: |
+          python_path="$(cygpath -w "$(command -v python)")"
+          clang_format_path="$(cygpath -w "$(command -v clang-format)")"
+          helper_path="$(cygpath -w "$PWD/scripts/GameWIP.ps1")"
+          powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$helper_path" \
+            unicode -UnicodeAction verify \
+            -PythonPath "$python_path" \
+            -ClangFormatPath "$clang_format_path"
+
       - name: Test runtime and project contracts
         shell: msys2 {0}
         env:
           GAMEWIP_REQUIRE_SYMLINK_TESTS: "1"
+          GAMEWIP_REQUIRE_UNICODE_CONFORMANCE_TESTS: "1"
         run: ctest --test-dir build/validation --output-on-failure --no-tests=error -LE packages
 
       - name: Benchmark smoke test
