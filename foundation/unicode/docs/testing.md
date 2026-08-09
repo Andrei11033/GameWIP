@@ -24,7 +24,7 @@ The Unicode module covers:
 - Unicode Standard version reporting and scalar/surrogate boundaries.
 - Strict UTF-8 decoding, encoding, and whole-range validation.
 - Invalid lead and continuation bytes, overlong sequences, encoded surrogates, and values above `U+10FFFF`.
- Every proper split point of every valid multi-byte UTF-8 scalar, with deterministic zero-progress `Incomplete` results.
+- Every proper split point of every valid multi-byte UTF-8 scalar, with deterministic zero-progress `Incomplete` results.
 - Strict UTF-16 BMP, surrogate-pair, dangling-high-surrogate, isolated-low-surrogate, and malformed-pair behavior.
 - UTF-8/UTF-16 measurement and conversion, exact and insufficient destinations, completed progress, untouched destination tails, empty input, embedded `U+0000`, and overlapping ranges.
 - Exhaustive UTF-8/UTF-16 encode/decode/conversion round trips for all 1,112,064 Unicode scalar values.
