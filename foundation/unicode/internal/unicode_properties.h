@@ -1,5 +1,5 @@
 /// @file unicode_properties.h
-/// @brief Internal constant-time Unicode grapheme-property lookup.
+/// @brief Internal constant-time Unicode 17.0.0 grapheme-property lookup.
 
 #pragma once
 

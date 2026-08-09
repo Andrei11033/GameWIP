@@ -78,7 +78,7 @@ Registration appends to process-local vector storage and may allocate. It is int
 
 The runner copies registrations before sorting and execution. It rejects empty names, null run callbacks, and duplicate names before invoking any module.
 
-Current correctness modules are `runner`, `io`, `filesystem`, `terminal`, `window`, `test_support`, `logger`, and `assert` in their stable order.
+Current correctness modules are `runner`, `io`, `unicode`, `filesystem`, `terminal`, `window`, `test_support`, `logger`, and `assert` in their stable order.
 
 ## Module invocation
 

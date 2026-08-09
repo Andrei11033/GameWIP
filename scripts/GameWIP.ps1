@@ -568,7 +568,7 @@ function Resolve-GameWipClangFormat
 
 function Get-GameWipFormatFiles
 {
-    $extensions = @('.c', '.cc', '.cpp', '.cxx', '.h', '.hh', '.hpp', '.hxx', '.inl', '.ipp')
+    $extensions = @('.cpp', '.h', '.hpp', '.inl')
     $files = New-Object System.Collections.Generic.List[string]
 
     foreach ($relativeRoot in @($CommandConfig.Formatting.SourceRoots))

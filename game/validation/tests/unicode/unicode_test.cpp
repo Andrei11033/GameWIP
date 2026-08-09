@@ -1,5 +1,5 @@
 /// @file unicode_test.cpp
-/// @brief Compile-time, exhaustive scalar, conversion, and grapheme checks for the Unicode public API.
+/// @brief Unicode correctness, exhaustive scalar, generated-data, and grapheme-conformance tests.
 
 #include "validation/tests/unicode/unicode_test.h"
 
@@ -549,7 +549,7 @@ namespace
         static_cast<void>(context.expectEq("UTF-16 to UTF-8 overlap writes nothing", std::size_t{0}, overlapToUtf8.bytesWritten));
     }
 
-    /// @brief Exhaustively round-trips every Unicode scalar through both codecs and both conversion directions.
+    /// @brief Exhaustively verifies scalar round trips and every proper UTF-8 split point.
     void testExhaustiveScalarRoundTrips(TestSupport::Context &context)
     {
         std::size_t testedScalars = 0;
@@ -572,6 +572,19 @@ namespace
             {
                 context.fail("exhaustive UTF-8 round trip", std::format("U+{:06X} did not decode back exactly", value));
                 return;
+            }
+
+            for (std::size_t split = 1; split < static_cast<std::size_t>(utf8.byteCount); ++split)
+            {
+                const Unicode::Types::Utf8DecodeResult prefix =
+                    Unicode::Utf8::decodeScalar(std::string_view(utf8.bytes.data(), split));
+                if (prefix.outcome != DecodeOutcome::Incomplete || prefix.scalar != U'\0' || prefix.bytesConsumed != 0)
+                {
+                    context.fail(
+                        "exhaustive UTF-8 split point",
+                        std::format("U+{:06X} split at byte {} did not report deterministic incomplete input", value, split));
+                    return;
+                }
             }
 
             const Unicode::Types::Utf16EncodeResult utf16 = Unicode::Utf16::encodeScalar(scalar);

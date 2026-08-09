@@ -6,6 +6,7 @@ Use this page as the library index. Use @ref project_structure for dependency di
 
 ## Foundation libraries
 
+- @subpage unicode
 - @subpage io
 - @subpage filesystem
 - @subpage terminal

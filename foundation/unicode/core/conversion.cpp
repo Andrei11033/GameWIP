@@ -1,5 +1,5 @@
 /// @file conversion.cpp
-/// @brief Allocation-free strict UTF-8 and UTF-16 measurement and conversion.
+/// @brief Non-allocating strict UTF-8 and UTF-16 measurement and conversion.
 
 #include "unicode/unicode.h"
 #include "unicode/internal/encoding.h"

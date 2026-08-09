@@ -1,7 +1,7 @@
 /// @file unicode_properties.h
 /// @brief Generated Unicode 17.0.0 grapheme-property trie. Do not edit manually.
-/// @details Derived from GraphemeBreakProperty.txt, DerivedCoreProperties.txt, and emoji-data.txt
-/// under the Unicode Terms of Use: https://www.unicode.org/terms_of_use.html
+/// @details Derived from pinned Unicode 17.0.0 data files.
+/// Unicode data license: Unicode License v3 (SPDX Unicode-3.0), https://www.unicode.org/license.txt
 
 #pragma once
 

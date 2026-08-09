@@ -21,7 +21,7 @@ namespace
     /// @brief Process-local static registration for deterministic Unicode module discovery.
     const GameWIP::Validation::Tests::Registration registration({
         .name = "unicode",
-        .order = 5,
+        .order = 15,
         .run = run,
     });
 } // namespace

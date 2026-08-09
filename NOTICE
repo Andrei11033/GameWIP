@@ -1,6 +1,13 @@
 GameWIP
 Copyright 2026 Andrei11033
 
-This product includes third-party software under separate licenses. Those
-licenses and notices remain with the corresponding dependencies under
-external/ and are not replaced by the GameWIP license.
+This product includes third-party software and data under separate licenses.
+Those licenses and notices are not replaced by the GameWIP license.
+
+The generated Unicode property table under foundation/unicode is derived from
+Unicode 17.0.0 Data Files copyright Unicode, Inc. The source data is licensed
+under Unicode License v3 (SPDX Unicode-3.0). See:
+https://www.unicode.org/license.txt
+
+Third-party dependencies under external/ retain their corresponding licenses
+and notices.

@@ -69,7 +69,7 @@ Start with these directories:
 
 | Path | First meaning |
 | --- | --- |
-| `foundation/` | Low-level reusable libraries such as IO, FileSystem, and Terminal. |
+| `foundation/` | Low-level reusable libraries such as Unicode, IO, FileSystem, and Terminal. |
 | `tools/` | Logger, Assert, TestSupport, diagnostics, and development support libraries. |
 | `game/` | Executable entry point, runtime facade, startup validation wiring, and validation runners. |
 | `cmake/` | Project-wide CMake helpers, presets, packaging, validation, docs, and analysis wiring. |

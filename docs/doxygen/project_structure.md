@@ -10,7 +10,7 @@ This page defines where code belongs and which direction dependencies may flow. 
 
 | Path | Ownership |
 | --- | --- |
-| `foundation/` | Low-level reusable libraries such as IO, FileSystem, and Terminal. |
+| `foundation/` | Low-level reusable libraries such as Unicode, IO, FileSystem, and Terminal. |
 | `tools/` | Diagnostics, assertions, logging, validation support, and development tooling libraries. |
 | `engine/` | Engine systems developed and reviewed separately from the reusable foundation and tool libraries. |
 | `game/` | Executable entry point, runtime facade, startup validation wiring, validation runners, and game-facing integration. |
@@ -27,6 +27,8 @@ Build output belongs under build directories selected by CMake presets.
 The reusable dependency flow is:
 
 ```text
+Unicode
+
 IO
   -> FileSystem
   -> Terminal
@@ -45,6 +47,8 @@ Reusable libraries + optional validation modules
 ```
 
 Arrows mean "is consumed by." Lower-level libraries must not depend on the game executable, runtime facade, validation runner, or benchmark runner.
+
+Unicode is a dependency-free foundation root. It owns platform-neutral scalar, encoding, conversion, and grapheme algorithms without taking filesystem-path, terminal, rendering, or editing policy.
 
 TestSupport is a standalone validation library and installed package. Its target must not link to another GameWIP library; validation modules depend on it, not the reverse. This keeps `find_package(TestSupport)` independently usable and prevents its portable result contracts from acquiring unrelated library dependencies.
 

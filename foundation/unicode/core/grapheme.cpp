@@ -1,5 +1,5 @@
 /// @file grapheme.cpp
-/// @brief Unicode 17 extended grapheme-cluster boundary traversal.
+/// @brief Unicode 17.0.0 default extended grapheme-cluster boundary traversal.
 
 #include "unicode/unicode.h"
 #include "unicode/internal/encoding.h"

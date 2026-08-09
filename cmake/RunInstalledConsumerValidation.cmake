@@ -141,7 +141,7 @@ run_installed_consumer(
     "${INSTALL_PREFIX}"
 )
 
-foreach(package_name IN ITEMS IO FileSystem Terminal Window Logger Assert TestSupport)
+foreach(package_name IN ITEMS Unicode IO FileSystem Terminal Window Logger Assert TestSupport)
     string(TOLOWER "${package_name}" package_directory)
     run_installed_consumer(
         "${CONSUMER_SOURCE_DIR}/isolated"

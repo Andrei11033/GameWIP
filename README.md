@@ -180,7 +180,7 @@ Start with these pages when reading the source tree:
 ## Repository layout
 
 ```text
-foundation/   Reusable IO, Terminal, and FileSystem libraries.
+foundation/   Reusable Unicode, IO, FileSystem, and Terminal libraries.
 engine/       Input, action, window, and window-management systems.
 tools/        Logger, Assert, and TestSupport libraries.
 game/         Stable game entry point, runtime facade, modular validation, and its local orientation guide.

@@ -12,6 +12,7 @@ It does not document individual library APIs. Public APIs are documented in the 
 
 | Package | Imported target | Library form |
 | --- | --- | --- |
+| `Unicode` | `GameWIP::Unicode` | Static |
 | `IO` | `GameWIP::IO` | Static |
 | `FileSystem` | `GameWIP::FileSystem` | Static |
 | `Terminal` | `GameWIP::Terminal` | Shared |
@@ -69,7 +70,9 @@ Installed package configs must call `find_dependency()` for public transitive pa
 
 A standalone installed library may still be first-party and project-owned. Standalone means independently consumable from an installed package; it does not mean the library has no repository-level owner or shared version policy.
 
-TestSupport is deliberately standalone: `GameWIP::TestSupport` has no link dependency on another GameWIP library, its public status and result types are locally owned, and its package config needs no first-party `find_dependency()` call. Source-tree CMake checks enforce this dependency direction.
+Unicode is deliberately standalone: `GameWIP::Unicode` has no link dependency on another GameWIP library, and its package config needs no first-party `find_dependency()` call.
+
+TestSupport is also deliberately standalone: `GameWIP::TestSupport` has no link dependency on another GameWIP library, its public status and result types are locally owned, and its package config needs no first-party `find_dependency()` call. Source-tree CMake checks enforce these dependency directions.
 
 ## Shared-library export policy
 

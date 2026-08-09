@@ -1,5 +1,5 @@
 /// @file encoding.h
-/// @brief Internal allocation-free Unicode scalar codec primitives.
+/// @brief Internal non-allocating Unicode scalar codec primitives.
 
 #pragma once
 

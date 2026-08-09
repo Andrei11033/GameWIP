@@ -10,9 +10,11 @@
 #include <string_view>
 
 /// @brief Platform-neutral Unicode encoding, validation, conversion, and text-boundary primitives.
-/// @details GameWIP text uses UTF-8 as its canonical public representation. This library provides strict,
+/// @details GameWIP text uses UTF-8 as its canonical public representation. The library provides strict,
 /// non-allocating Unicode primitives and a portable UTF-16 bridge without defining recovery, editing,
-/// rendering, locale, normalization, or terminal-cell-width policy.
+/// rendering, locale, normalization, or terminal-cell-width policy. Public operations are noexcept, use
+/// immutable generated data, perform no implementation-owned dynamic allocation, and keep no mutable
+/// process-wide or thread-local last-error state.
 namespace GameWIP::Unicode
 {
     /// @brief Highest valid Unicode scalar value.
@@ -41,7 +43,7 @@ namespace GameWIP::Unicode
             /// @brief One complete Unicode scalar was decoded.
             Decoded,
 
-            /// @brief The supplied input is a valid prefix but requires additional code units.
+            /// @brief The supplied input is a valid encoded prefix but requires additional input.
             Incomplete,
 
             /// @brief The supplied input is malformed and cannot become valid by appending input.
@@ -261,7 +263,7 @@ namespace GameWIP::Unicode
             BoundaryOutcome outcome = BoundaryOutcome::InvalidOffset;
         };
 
-        /// @brief Unicode Standard version implemented by the library's generated data.
+        /// @brief Unicode Standard version used by generated property data and grapheme segmentation.
         struct UnicodeVersion
         {
             /// @brief Major Unicode Standard version.
@@ -313,6 +315,7 @@ namespace GameWIP::Unicode
         /// @brief Measures the UTF-16 storage required for strict UTF-8 input.
         /// @param source UTF-8 source text.
         /// @return Measurement outcome, measured source prefix, and required UTF-16 code units.
+        /// @note On source failure, progress describes only the complete valid prefix before the failing sequence.
         [[nodiscard]] Types::Utf8ToUtf16MeasureResult measureToUtf16(std::string_view source) noexcept;
 
         /// @brief Converts strict UTF-8 input to caller-provided UTF-16 storage.
@@ -322,6 +325,8 @@ namespace GameWIP::Unicode
         /// @note No partial scalar or surrogate pair is written.
         /// @note No terminating U+0000 code unit is appended.
         /// @note Destination elements after codeUnitsWritten remain untouched.
+        /// @note Completed progress is preserved before source failure or destination exhaustion.
+        /// @note Overlapping source and destination memory is rejected before any output is written.
         [[nodiscard]] Types::Utf8ToUtf16Result convertToUtf16(std::string_view source, std::span<char16_t> destination) noexcept;
 
         /// @brief Finds the next UTF-8 code-point boundary after a byte offset.
@@ -329,6 +334,7 @@ namespace GameWIP::Unicode
         /// @param byteOffset Current byte offset.
         /// @return The next boundary or a deterministic endpoint/error result.
         /// @note byteOffset must identify a UTF-8 code-point boundary and may equal text.size().
+        /// @note Malformed or incomplete UTF-8 required to establish the boundary produces InvalidEncoding.
         [[nodiscard]] Types::Utf8BoundaryResult nextCodePointBoundary(std::string_view text, std::size_t byteOffset) noexcept;
 
         /// @brief Finds the previous UTF-8 code-point boundary before a byte offset.
@@ -336,6 +342,7 @@ namespace GameWIP::Unicode
         /// @param byteOffset Current byte offset.
         /// @return The previous boundary or a deterministic endpoint/error result.
         /// @note byteOffset must identify a UTF-8 code-point boundary and may equal text.size().
+        /// @note Malformed or incomplete UTF-8 required to establish the boundary produces InvalidEncoding.
         [[nodiscard]] Types::Utf8BoundaryResult previousCodePointBoundary(std::string_view text, std::size_t byteOffset) noexcept;
 
         /// @brief Finds the next extended grapheme-cluster boundary after a byte offset.
@@ -343,7 +350,8 @@ namespace GameWIP::Unicode
         /// @param byteOffset Current code-point-aligned byte offset.
         /// @return The next grapheme boundary or a deterministic endpoint/error result.
         /// @details When byteOffset lies inside an extended grapheme cluster, the returned boundary is
-        /// the end of that containing cluster.
+        /// the end of that containing cluster. Context-sensitive rules may require inspection of earlier
+        /// text; malformed or incomplete UTF-8 encountered in required context produces InvalidEncoding.
         [[nodiscard]] Types::Utf8BoundaryResult nextGraphemeBoundary(std::string_view text, std::size_t byteOffset) noexcept;
 
         /// @brief Finds the previous extended grapheme-cluster boundary before a byte offset.
@@ -351,7 +359,8 @@ namespace GameWIP::Unicode
         /// @param byteOffset Current code-point-aligned byte offset.
         /// @return The previous grapheme boundary or a deterministic endpoint/error result.
         /// @details When byteOffset lies inside an extended grapheme cluster, the returned boundary is
-        /// the beginning of that containing cluster.
+        /// the beginning of that containing cluster. Context-sensitive rules may require inspection of
+        /// earlier text; malformed or incomplete UTF-8 encountered in required context produces InvalidEncoding.
         [[nodiscard]] Types::Utf8BoundaryResult previousGraphemeBoundary(std::string_view text, std::size_t byteOffset) noexcept;
     } // namespace Utf8
 
@@ -403,6 +412,7 @@ namespace GameWIP::Unicode
         /// @brief Measures the UTF-8 storage required for strict UTF-16 input.
         /// @param source UTF-16 source text.
         /// @return Measurement outcome, measured source prefix, and required UTF-8 bytes.
+        /// @note On source failure, progress describes only the complete valid prefix before the failing sequence.
         [[nodiscard]] Types::Utf16ToUtf8MeasureResult measureToUtf8(std::span<const char16_t> source) noexcept;
 
         /// @brief Converts strict UTF-16 input to caller-provided UTF-8 storage.
@@ -412,6 +422,8 @@ namespace GameWIP::Unicode
         /// @note No partial UTF-8 sequence is written.
         /// @note No terminating U+0000 byte is appended.
         /// @note Destination elements after bytesWritten remain untouched.
+        /// @note Completed progress is preserved before source failure or destination exhaustion.
+        /// @note Overlapping source and destination memory is rejected before any output is written.
         [[nodiscard]] Types::Utf16ToUtf8Result convertToUtf8(std::span<const char16_t> source, std::span<char> destination) noexcept;
     } // namespace Utf16
 } // namespace GameWIP::Unicode

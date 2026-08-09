@@ -215,8 +215,8 @@ def render_header(trie: GeneratedTrie) -> str:
     flattened_blocks = tuple(value for block in trie.blocks for value in block)
     return f'''/// @file unicode_properties.h
 /// @brief Generated Unicode {UNICODE_VERSION} grapheme-property trie. Do not edit manually.
-/// @details Derived from GraphemeBreakProperty.txt, DerivedCoreProperties.txt, and emoji-data.txt
-/// under the Unicode Terms of Use: https://www.unicode.org/terms_of_use.html
+/// @details Derived from pinned Unicode {UNICODE_VERSION} data files.
+/// Unicode data license: Unicode License v3 (SPDX Unicode-3.0), https://www.unicode.org/license.txt
 
 #pragma once
 
