@@ -30,8 +30,9 @@ The Unicode module covers:
 - Exhaustive UTF-8/UTF-16 encode/decode/conversion round trips for all 1,112,064 Unicode scalar values.
 - Previous and next UTF-8 code-point boundaries at empty, beginning, middle, end, malformed, incomplete, and misaligned offsets.
 - Targeted extended grapheme cases for CR/LF, combining marks, Hangul, Prepend, SpacingMark, Indic conjuncts, emoji ZWJ sequences, regional indicators, and emoji modifiers.
+- Caller-backed `Utf8::GraphemeCursor` sizing, indexing, exact seek, forward/backward stepping, endpoint behavior, malformed input, empty input, and suffix-index discard.
 - Generated-table shape, packed-value invariants, and representative property lookups.
-- Every case in the official Unicode 17.0.0 `GraphemeBreakTest.txt`, checked in both traversal directions and from every code-point-aligned offset.
+- Every case in the official Unicode 17.0.0 `GraphemeBreakTest.txt`, checked through both stateless traversal directions and the indexed cursor boundary sequence.
 
 ## Official conformance data
 
@@ -133,7 +134,9 @@ Build benchmark registration and run the Unicode family:
 .\build\benchmark\GameWIPBenchmarks.exe --benchmark_filter=BM_Unicode
 ```
 
-The Unicode benchmark family covers representative UTF-8 decoding, validation, scalar encoding, code-point traversal, and extended grapheme traversal in both directions. Timings are diagnostic and are never correctness gates; see @ref project_benchmarking.
+The Unicode benchmark family covers representative UTF-8 decoding, validation, scalar encoding, code-point traversal, existing stateless grapheme traversal, deep non-ASCII stateless next/previous queries, indexed forward traversal, and repeated grapheme-aware suffix deletion on a long combining/emoji/Indic/regional-indicator fixture. Timings are diagnostic and are never correctness gates; see @ref project_benchmarking.
+
+For the new traversal benchmarks, compare scaling as fixture size grows. The intended behavior is bounded local work for ordinary stateless queries where a nearby safe restart exists, and linear-overall repeated cursor traversal/edit work after one linear index build.
 
 ## Final validation
 

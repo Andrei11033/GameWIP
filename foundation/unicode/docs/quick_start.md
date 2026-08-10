@@ -62,6 +62,8 @@ Inspect the result outcome before consuming success-only fields:
 - `OverlappingRanges` is rejected before any output is written.
 - Boundary failures preserve the caller-provided byte offset.
 - Grapheme traversal reports malformed or incomplete UTF-8 as `InvalidEncoding`; it does not apply replacement-character recovery.
+- Repeated grapheme traversal should use `Utf8::GraphemeCursor`, which stores boundary offsets in caller-provided storage and performs no implementation-owned allocation.
+- A sizing `GraphemeCursor::reset()` may return `DestinationTooSmall` together with the complete `requiredBoundaryCount`; resize caller storage and retry.
 
 All public operations are `noexcept` and perform no implementation-owned dynamic allocation.
 

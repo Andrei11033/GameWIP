@@ -120,6 +120,44 @@ std::optional<std::size_t> graphemeCount(std::string_view text) noexcept
 
 This counts Unicode extended grapheme clusters. It does not count glyphs, words, display columns, or terminal cells.
 
+For a repeated walk, build one caller-backed index rather than making a stateless query at every step:
+
+```cpp
+#include "unicode/unicode.h"
+
+#include <string_view>
+#include <vector>
+
+bool eraseSuffixByGrapheme(std::string &text)
+{
+    namespace Unicode = GameWIP::Unicode;
+
+    std::vector<std::size_t> boundaries(text.size() + 1);
+    Unicode::Utf8::GraphemeCursor cursor;
+    if (cursor.reset(text, boundaries).outcome != Unicode::Types::GraphemeIndexOutcome::Indexed ||
+        cursor.seek(text.size()).outcome != Unicode::Types::BoundaryOutcome::Found)
+    {
+        return false;
+    }
+
+    while (!text.empty())
+    {
+        const Unicode::Types::Utf8BoundaryResult previous = cursor.previous();
+        if (previous.outcome != Unicode::Types::BoundaryOutcome::Found)
+        {
+            return false;
+        }
+
+        text.resize(previous.byteOffset);
+        cursor.discardAfterCurrent();
+    }
+
+    return true;
+}
+```
+
+The cursor does not retain the text. A suffix truncation exactly at its current indexed boundary can therefore discard later stale offsets in O(1). Arbitrary insertion, replacement, or non-suffix deletion can change grapheme boundaries and requires re-indexing.
+
 ## Traverse backward
 
 ```cpp
@@ -150,7 +188,7 @@ std::optional<std::size_t> previousClusterStart(
 }
 ```
 
-The offset may be `text.size()` or any code-point boundary inside a cluster.
+The offset may be `text.size()` or any code-point boundary inside a cluster. This stateless form is intended for isolated queries; use `GraphemeCursor` for repeated stepping through the same segmentation.
 
 ## Query from inside a cluster
 
@@ -177,4 +215,4 @@ bool verifyContainingCluster() noexcept
 }
 ```
 
-Callers do not need to precompute grapheme boundaries before querying a known code-point-aligned caret or selection offset.
+Callers do not need to precompute grapheme boundaries before an isolated query at a known code-point-aligned caret or selection offset. Repeated forward/backward movement should use `GraphemeCursor`.

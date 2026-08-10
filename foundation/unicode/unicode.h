@@ -127,6 +127,19 @@ namespace GameWIP::Unicode
             InvalidEncoding
         };
 
+        /// @brief Outcome of indexing UTF-8 grapheme boundaries for repeated traversal.
+        enum class GraphemeIndexOutcome : std::uint8_t
+        {
+            /// @brief The complete valid range was indexed successfully.
+            Indexed,
+
+            /// @brief Caller-provided boundary storage cannot hold the complete index.
+            DestinationTooSmall,
+
+            /// @brief Malformed or incomplete UTF-8 prevented complete indexing.
+            InvalidEncoding
+        };
+
         /// @brief Result of decoding one UTF-8 scalar.
         struct Utf8DecodeResult
         {
@@ -263,6 +276,18 @@ namespace GameWIP::Unicode
             BoundaryOutcome outcome = BoundaryOutcome::InvalidOffset;
         };
 
+        /// @brief Result of building caller-owned UTF-8 grapheme-boundary traversal state.
+        struct Utf8GraphemeIndexResult
+        {
+            /// @brief Number of boundary offsets required for the complete valid text.
+            /// @details The count includes byte offset 0 and the final text-size boundary. Empty text
+            /// therefore requires one entry. The value is meaningful for Indexed and DestinationTooSmall.
+            std::size_t requiredBoundaryCount = 0;
+
+            /// @brief Classification of the indexing attempt.
+            GraphemeIndexOutcome outcome = GraphemeIndexOutcome::Indexed;
+        };
+
         /// @brief Unicode Standard version used by generated property data and grapheme segmentation.
         struct UnicodeVersion
         {
@@ -362,6 +387,62 @@ namespace GameWIP::Unicode
         /// the beginning of that containing cluster. Context-sensitive rules may require inspection of
         /// earlier text; malformed or incomplete UTF-8 encountered in required context produces InvalidEncoding.
         [[nodiscard]] Types::Utf8BoundaryResult previousGraphemeBoundary(std::string_view text, std::size_t byteOffset) noexcept;
+
+        /// @brief Caller-backed cursor for efficient repeated UTF-8 grapheme-boundary traversal.
+        /// @details reset() performs one complete segmentation pass and records every grapheme boundary
+        /// in caller-provided storage. Once ready, next() and previous() are constant-time and seek() is
+        /// logarithmic in the number of indexed boundaries. The cursor performs no implementation-owned
+        /// allocation and does not retain the indexed text.
+        class GraphemeCursor final
+        {
+        public:
+            GraphemeCursor() noexcept = default;
+
+            /// @brief Rebuilds the complete grapheme-boundary index and starts at byte offset 0.
+            /// @param text UTF-8 text to segment.
+            /// @param boundaryStorage Caller-owned offsets retained by the cursor after success.
+            /// @return Required complete boundary count and indexing outcome.
+            /// @details DestinationTooSmall still reports the complete required count. InvalidEncoding
+            /// clears the cursor and reports a zero required count. Caller storage may contain an
+            /// incomplete prefix after either failure.
+            [[nodiscard]] Types::Utf8GraphemeIndexResult reset(
+                std::string_view text,
+                std::span<std::size_t> boundaryStorage) noexcept;
+
+            /// @brief Clears retained boundary storage and traversal position.
+            void clear() noexcept;
+
+            /// @brief Returns whether reset() completed successfully.
+            [[nodiscard]] bool isReady() const noexcept;
+
+            /// @brief Returns the current indexed grapheme-boundary byte offset, or 0 while not ready.
+            [[nodiscard]] std::size_t byteOffset() const noexcept;
+
+            /// @brief Returns the number of currently retained indexed boundaries, or 0 while not ready.
+            [[nodiscard]] std::size_t boundaryCount() const noexcept;
+
+            /// @brief Moves to one exact indexed grapheme boundary.
+            /// @param byteOffset Boundary offset to locate.
+            /// @return Found on success or InvalidOffset when not ready or the offset is not indexed.
+            [[nodiscard]] Types::Utf8BoundaryResult seek(std::size_t byteOffset) noexcept;
+
+            /// @brief Advances to the next retained indexed grapheme boundary.
+            /// @return Found with the new offset, AtEnd at the final boundary, or InvalidOffset while not ready.
+            [[nodiscard]] Types::Utf8BoundaryResult next() noexcept;
+
+            /// @brief Moves to the previous retained indexed grapheme boundary.
+            /// @return Found with the new offset, AtBeginning at offset 0, or InvalidOffset while not ready.
+            [[nodiscard]] Types::Utf8BoundaryResult previous() noexcept;
+
+            /// @brief Discards every retained boundary after the current position.
+            /// @details This is an O(1) index operation intended for callers that truncate or otherwise
+            /// permanently discard the corresponding text suffix at the current indexed boundary.
+            void discardAfterCurrent() noexcept;
+
+        private:
+            std::span<const std::size_t> boundaries_{};
+            std::size_t currentBoundaryIndex_ = 0;
+        };
     } // namespace Utf8
 
     /// @brief Strict UTF-16 encoding, validation, and conversion operations.

@@ -36,6 +36,16 @@ Malformed or incomplete UTF-8 was encountered while establishing the requested b
 
 Validate or repair the complete owning text according to component policy before retrying. Unicode does not segment through replacement-character recovery.
 
+## `GraphemeCursor::reset()` returns `DestinationTooSmall`
+
+The caller-provided boundary span cannot hold every grapheme boundary, including offset 0 and the final `text.size()` boundary. Resize caller storage to `requiredBoundaryCount` entries and call `reset()` again. The cursor remains unready until a complete valid index fits.
+
+## Repeated grapheme traversal is unexpectedly slow
+
+The stateless `nextGraphemeBoundary()` and `previousGraphemeBoundary()` functions optimize ordinary one-off queries by restarting from a nearby boundary when that break is provable without earlier state, but Unicode rules such as Indic conjuncts, emoji ZWJ sequences, and regional-indicator pairing can still require longer lookbehind.
+
+For repeated movement through one segmentation, use `Utf8::GraphemeCursor`. For suffix deletion, move backward, truncate the caller-owned text exactly at the returned boundary, and call `discardAfterCurrent()`. Arbitrary insertion, replacement, normalization, or non-suffix deletion can change nearby boundaries and requires re-indexing.
+
 ## Official grapheme conformance is skipped
 
 `GraphemeBreakTest.txt` is not available in the normal Unicode data cache and no explicit fixture path was provided.
