@@ -28,6 +28,7 @@
 #include <string>
 #include <string_view>
 #include <type_traits>
+#include <variant>
 #include <vector>
 
 #if defined(_WIN32)
@@ -645,6 +646,73 @@ namespace
         static_cast<void>(context.expectTrue("invalid mode falls back to line buffered", invalidMode.lineBuffered));
         static_cast<void>(context.expectTrue("invalid mode falls back to echo", invalidMode.echoInput));
         static_cast<void>(context.expectTrue("invalid mode falls back to control keys", invalidMode.processControlKeys));
+
+        constexpr Terminal::Types::KeyModifier modifiers =
+            Terminal::Types::KeyModifier::Shift | Terminal::Types::KeyModifier::Control;
+        static_cast<void>(context.expectTrue(
+            "key modifier bitmask reports present shift",
+            Terminal::Types::hasModifier(modifiers, Terminal::Types::KeyModifier::Shift)));
+        static_cast<void>(context.expectTrue(
+            "key modifier bitmask reports present control",
+            Terminal::Types::hasModifier(modifiers, Terminal::Types::KeyModifier::Control)));
+        static_cast<void>(context.expectFalse(
+            "key modifier bitmask reports absent alt",
+            Terminal::Types::hasModifier(modifiers, Terminal::Types::KeyModifier::Alt)));
+
+        Terminal::Types::KeyEvent keyEvent;
+        keyEvent.key = Terminal::Types::CharacterKey{U'\u03BB'};
+        keyEvent.modifiers = modifiers;
+        keyEvent.action = Terminal::Types::KeyAction::Press;
+        keyEvent.location = Terminal::Types::KeyLocation::Standard;
+        Terminal::Types::Event event{.data = keyEvent};
+
+        const Terminal::Types::KeyEvent *storedKeyEvent = event.getIf<Terminal::Types::KeyEvent>();
+        static_cast<void>(context.expectTrue("event getIf returns matching key event", storedKeyEvent != nullptr));
+        static_cast<void>(context.expectTrue("event getIf rejects paste alternative", event.getIf<Terminal::Types::PasteEvent>() == nullptr));
+        if (storedKeyEvent != nullptr)
+        {
+            const auto *character = std::get_if<Terminal::Types::CharacterKey>(&storedKeyEvent->key);
+            static_cast<void>(context.expectTrue("key variant stores character alternative", character != nullptr));
+            if (character != nullptr)
+            {
+                static_cast<void>(context.expectTrue("character key preserves Unicode scalar", character->value == U'\u03BB'));
+            }
+            static_cast<void>(context.expectEq("key event preserves modifiers", modifiers, storedKeyEvent->modifiers));
+            static_cast<void>(context.expectEq("key event preserves action", Terminal::Types::KeyAction::Press, storedKeyEvent->action));
+            static_cast<void>(context.expectEq("key event preserves location", Terminal::Types::KeyLocation::Standard, storedKeyEvent->location));
+            static_cast<void>(context.expectEq("key event defaults to one occurrence", std::uint32_t{1}, storedKeyEvent->repeatCount));
+        }
+
+        keyEvent.key = Terminal::Types::FunctionKey{24};
+        event.data = keyEvent;
+        storedKeyEvent = event.getIf<Terminal::Types::KeyEvent>();
+        static_cast<void>(context.expectTrue("event getIf preserves function-key event", storedKeyEvent != nullptr));
+        if (storedKeyEvent != nullptr)
+        {
+            const auto *functionKey = std::get_if<Terminal::Types::FunctionKey>(&storedKeyEvent->key);
+            static_cast<void>(context.expectTrue("key variant stores function-key alternative", functionKey != nullptr));
+            if (functionKey != nullptr)
+            {
+                static_cast<void>(context.expectEq("function key preserves numeric value", std::uint16_t{24}, functionKey->number));
+            }
+        }
+
+        event.data = Terminal::Types::PasteEvent{.text = "paste"};
+        const Terminal::Types::PasteEvent *paste = event.getIf<Terminal::Types::PasteEvent>();
+        static_cast<void>(context.expectTrue("event getIf returns paste event", paste != nullptr));
+        if (paste != nullptr)
+        {
+            static_cast<void>(context.expectEq("paste event preserves UTF-8 text", std::string{"paste"}, paste->text));
+        }
+
+        event.data = Terminal::Types::ResizeEvent{.size = {.columns = 120, .rows = 40}};
+        const Terminal::Types::ResizeEvent *resize = event.getIf<Terminal::Types::ResizeEvent>();
+        static_cast<void>(context.expectTrue("event getIf returns resize event", resize != nullptr));
+        if (resize != nullptr)
+        {
+            static_cast<void>(context.expectEq("resize event preserves columns", std::uint32_t{120}, resize->size.columns));
+            static_cast<void>(context.expectEq("resize event preserves rows", std::uint32_t{40}, resize->size.rows));
+        }
 
         const Terminal::Types::WriteSegment text = Terminal::textSegment("text");
         static_cast<void>(context.expectEq("text segment kind", Terminal::Types::WriteSegmentKind::Text, text.kind()));

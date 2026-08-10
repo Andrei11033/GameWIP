@@ -15,6 +15,7 @@
 #include <string_view>
 #include <type_traits>
 #include <utility>
+#include <variant>
 
 #include "io/io.h"
 #include "terminal/terminal_export.h"
@@ -132,6 +133,170 @@ namespace GameWIP::Terminal
 
             /// @brief The stream exists but does not fit the normal terminal/redirected categories.
             Other
+        };
+
+        /// @brief Input representation selected for one managed terminal input owner.
+        enum class InputDeliveryMode : std::uint8_t
+        {
+            /// @brief Deliver normalized logical key, paste, and resize events where supported.
+            Events,
+
+            /// @brief Deliver byte, UTF-8 text, and managed line input.
+            Stream
+        };
+
+        /// @brief Policy for platform terminal control-key processing.
+        enum class ControlKeyMode : std::uint8_t
+        {
+            /// @brief Preserve normal platform processing such as ordinary Ctrl+C interrupt behavior.
+            NativeProcessing,
+
+            /// @brief Request reportable control-key combinations as logical terminal input.
+            ReportAsInput
+        };
+
+        /// @brief One valid Unicode scalar reported as a logical terminal key.
+        struct CharacterKey
+        {
+            /// @brief Unicode scalar value. Terminal-produced values are never surrogate code points.
+            char32_t value = U'\0';
+
+            friend constexpr bool operator==(CharacterKey, CharacterKey) noexcept = default;
+        };
+
+        /// @brief Portable non-character key reported by terminal input.
+        enum class NamedKey : std::uint8_t
+        {
+            Backspace, ///< Backspace key.
+            Tab,       ///< Tab key. Shift+Tab is represented by the Shift modifier.
+            Enter,     ///< Enter or Return key.
+            Escape,    ///< Escape key.
+            Insert,    ///< Insert key.
+            Delete,    ///< Delete key.
+            Home,      ///< Home key.
+            End,       ///< End key.
+            PageUp,    ///< Page Up key.
+            PageDown,  ///< Page Down key.
+            ArrowUp,   ///< Up-arrow key.
+            ArrowDown, ///< Down-arrow key.
+            ArrowLeft, ///< Left-arrow key.
+            ArrowRight, ///< Right-arrow key.
+            Begin,     ///< Begin or keypad-center navigation key where reportable.
+            CapsLock,  ///< Caps Lock key transition where reportable.
+            NumLock,   ///< Num Lock key transition where reportable.
+            ScrollLock, ///< Scroll Lock key transition where reportable.
+            PrintScreen, ///< Print Screen key where reportable.
+            Pause,       ///< Pause/Break key where reportable.
+            Menu         ///< Menu/context key where reportable.
+        };
+
+        /// @brief Numeric function key without an arbitrary public upper bound.
+        struct FunctionKey
+        {
+            /// @brief One-based function-key number. Terminal-produced values are always nonzero.
+            std::uint16_t number = 0;
+
+            friend constexpr bool operator==(FunctionKey, FunctionKey) noexcept = default;
+        };
+
+        /// @brief Standalone logical modifier key where the backend can report modifier transitions.
+        enum class ModifierKey : std::uint8_t
+        {
+            Shift,   ///< Shift modifier key.
+            Control, ///< Control modifier key.
+            Alt,     ///< Alt modifier key.
+            Super,   ///< Super-style modifier key.
+            Hyper,   ///< Hyper modifier key where reportable.
+            Meta     ///< Meta modifier key where reportable.
+        };
+
+        /// @brief Logical media key where the backend can report media-key input.
+        enum class MediaKey : std::uint8_t
+        {
+            Play,          ///< Start playback.
+            Pause,         ///< Pause playback.
+            PlayPause,     ///< Toggle playback/pause.
+            Stop,          ///< Stop playback.
+            NextTrack,     ///< Select the next track/item.
+            PreviousTrack, ///< Select the previous track/item.
+            FastForward,   ///< Fast-forward media.
+            Rewind,        ///< Rewind media.
+            Record,        ///< Start or toggle recording.
+            VolumeUp,      ///< Increase output volume.
+            VolumeDown,    ///< Decrease output volume.
+            Mute           ///< Toggle or request mute.
+        };
+
+        /// @brief Modifier and lock state accompanying a logical key event.
+        enum class KeyModifier : std::uint16_t
+        {
+            None = 0,             ///< No known modifier or lock state.
+            Shift = 1U << 0U,     ///< Shift is active.
+            Control = 1U << 1U,   ///< Control is active.
+            Alt = 1U << 2U,       ///< Alt is active.
+            Super = 1U << 3U,     ///< Super-style modifier is active.
+            Hyper = 1U << 4U,     ///< Hyper is active where reportable.
+            Meta = 1U << 5U,      ///< Meta is active where reportable.
+            CapsLock = 1U << 6U,  ///< Caps Lock state is active where reportable.
+            NumLock = 1U << 7U,   ///< Num Lock state is active where reportable.
+            ScrollLock = 1U << 8U ///< Scroll Lock state is active where reportable.
+        };
+
+        /// @brief Combines modifier-state bits.
+        [[nodiscard]] constexpr KeyModifier operator|(KeyModifier left, KeyModifier right) noexcept
+        {
+            return static_cast<KeyModifier>(static_cast<std::uint16_t>(left) | static_cast<std::uint16_t>(right));
+        }
+
+        /// @brief Intersects modifier-state bits.
+        [[nodiscard]] constexpr KeyModifier operator&(KeyModifier left, KeyModifier right) noexcept
+        {
+            return static_cast<KeyModifier>(static_cast<std::uint16_t>(left) & static_cast<std::uint16_t>(right));
+        }
+
+        /// @brief Adds modifier-state bits to an existing mask.
+        constexpr KeyModifier &operator|=(KeyModifier &left, KeyModifier right) noexcept
+        {
+            left = left | right;
+            return left;
+        }
+
+        /// @brief Returns whether every requested modifier bit is present.
+        [[nodiscard]] constexpr bool hasModifier(KeyModifier modifiers, KeyModifier requested) noexcept
+        {
+            return (modifiers & requested) == requested;
+        }
+
+        /// @brief Logical phase of one reportable key transition.
+        enum class KeyAction : std::uint8_t
+        {
+            Press,  ///< Initial logical key press.
+            Repeat, ///< Auto-repeat occurrence where distinguishable.
+            Release ///< Logical key release where reportable.
+        };
+
+        /// @brief Logical location of a key where the backend can distinguish it.
+        enum class KeyLocation : std::uint8_t
+        {
+            Unknown,  ///< Location information is unavailable.
+            Standard, ///< Ordinary non-side-specific key location.
+            Left,     ///< Left-side modifier location.
+            Right,    ///< Right-side modifier location.
+            Numpad    ///< Numeric-keypad location.
+        };
+
+        /// @brief Portable logical terminal key representation.
+        using Key = std::variant<CharacterKey, NamedKey, FunctionKey, ModifierKey, MediaKey>;
+
+        /// @brief One normalized logical key input event.
+        /// @details For standalone ModifierKey events, modifiers describes other active modifiers and does not duplicate key.
+        struct KeyEvent
+        {
+            Key key;                                      ///< Logical key reported by the terminal.
+            KeyModifier modifiers = KeyModifier::None;    ///< Active modifier/lock state known for this event.
+            KeyAction action = KeyAction::Press;          ///< Press/repeat/release phase.
+            KeyLocation location = KeyLocation::Unknown;  ///< Location, or Unknown when unavailable.
+            std::uint32_t repeatCount = 1;                ///< Number of occurrences represented by a Repeat event.
         };
 
         /// @brief Outcome of a terminal read operation.
@@ -497,6 +662,42 @@ namespace GameWIP::Terminal
 
             /// @brief Height in rows.
             std::uint32_t rows = 0;
+        };
+
+        /// @brief Recognized paste input delivered as one bounded owned UTF-8 payload.
+        struct PasteEvent
+        {
+            /// @brief Valid UTF-8 paste payload assembled by the managed input backend.
+            std::string text;
+        };
+
+        /// @brief Terminal-size change delivered through structured event input.
+        struct ResizeEvent
+        {
+            /// @brief Resulting terminal dimensions in character cells.
+            TerminalSize size;
+        };
+
+        /// @brief Tagged payload for one portable Terminal event.
+        using EventData = std::variant<KeyEvent, PasteEvent, ResizeEvent>;
+
+        /// @brief One normalized pull-based Terminal input event.
+        /// @details Key and resize alternatives use only inline value storage. Paste owns bounded UTF-8 text.
+        struct Event
+        {
+            EventData data; ///< Typed event payload.
+
+            /// @brief Returns the payload when it has EventType, otherwise nullptr.
+            template <typename EventType> [[nodiscard]] EventType *getIf() noexcept
+            {
+                return std::get_if<EventType>(&data);
+            }
+
+            /// @brief Returns the payload when it has EventType, otherwise nullptr.
+            template <typename EventType> [[nodiscard]] const EventType *getIf() const noexcept
+            {
+                return std::get_if<EventType>(&data);
+            }
         };
 
         /// @brief Result returned by terminal size queries.
