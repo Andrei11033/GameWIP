@@ -169,6 +169,7 @@ Start with these pages when reading the source tree:
 - [Development environment setup](docs/doxygen/environment_setup.md)
 - [Extending the project](docs/doxygen/extending.md)
 - [Documentation system](docs/doxygen/documentation.md)
+- [Public API contract](docs/doxygen/project_public_api_contract.md)
 - [Platform backend contract](docs/doxygen/platform_backend_contract.md)
 - [Vision](docs/vision.md)
 - [Roadmap](docs/roadmap.md)

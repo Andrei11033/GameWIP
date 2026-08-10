@@ -6,6 +6,7 @@ Use these pages when reviewing whether a change belongs in the project, how it s
 
 ## Standards and extension contracts
 
+- @subpage project_public_api_contract
 - @subpage project_documentation
 - @subpage project_extending
 - @subpage project_cmake_infrastructure

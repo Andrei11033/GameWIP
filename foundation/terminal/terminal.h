@@ -161,30 +161,31 @@ namespace GameWIP::Terminal
             /// @brief Unicode scalar value. Terminal-produced values are never surrogate code points.
             char32_t value = U'\0';
 
+            /// @brief Compares Unicode scalar values.
             friend constexpr bool operator==(CharacterKey, CharacterKey) noexcept = default;
         };
 
         /// @brief Portable non-character key reported by terminal input.
         enum class NamedKey : std::uint8_t
         {
-            Backspace, ///< Backspace key.
-            Tab,       ///< Tab key. Shift+Tab is represented by the Shift modifier.
-            Enter,     ///< Enter or Return key.
-            Escape,    ///< Escape key.
-            Insert,    ///< Insert key.
-            Delete,    ///< Delete key.
-            Home,      ///< Home key.
-            End,       ///< End key.
-            PageUp,    ///< Page Up key.
-            PageDown,  ///< Page Down key.
-            ArrowUp,   ///< Up-arrow key.
-            ArrowDown, ///< Down-arrow key.
-            ArrowLeft, ///< Left-arrow key.
-            ArrowRight, ///< Right-arrow key.
-            Begin,     ///< Begin or keypad-center navigation key where reportable.
-            CapsLock,  ///< Caps Lock key transition where reportable.
-            NumLock,   ///< Num Lock key transition where reportable.
-            ScrollLock, ///< Scroll Lock key transition where reportable.
+            Backspace,   ///< Backspace key.
+            Tab,         ///< Tab key. Shift+Tab is represented by the Shift modifier.
+            Enter,       ///< Enter or Return key.
+            Escape,      ///< Escape key.
+            Insert,      ///< Insert key.
+            Delete,      ///< Delete key.
+            Home,        ///< Home key.
+            End,         ///< End key.
+            PageUp,      ///< Page Up key.
+            PageDown,    ///< Page Down key.
+            ArrowUp,     ///< Up-arrow key.
+            ArrowDown,   ///< Down-arrow key.
+            ArrowLeft,   ///< Left-arrow key.
+            ArrowRight,  ///< Right-arrow key.
+            Begin,       ///< Begin or keypad-center navigation key where reportable.
+            CapsLock,    ///< Caps Lock key transition where reportable.
+            NumLock,     ///< Num Lock key transition where reportable.
+            ScrollLock,  ///< Scroll Lock key transition where reportable.
             PrintScreen, ///< Print Screen key where reportable.
             Pause,       ///< Pause/Break key where reportable.
             Menu         ///< Menu/context key where reportable.
@@ -196,6 +197,7 @@ namespace GameWIP::Terminal
             /// @brief One-based function-key number. Terminal-produced values are always nonzero.
             std::uint16_t number = 0;
 
+            /// @brief Compares function-key numbers.
             friend constexpr bool operator==(FunctionKey, FunctionKey) noexcept = default;
         };
 
@@ -292,11 +294,11 @@ namespace GameWIP::Terminal
         /// @details For standalone ModifierKey events, modifiers describes other active modifiers and does not duplicate key.
         struct KeyEvent
         {
-            Key key;                                      ///< Logical key reported by the terminal.
-            KeyModifier modifiers = KeyModifier::None;    ///< Active modifier/lock state known for this event.
-            KeyAction action = KeyAction::Press;          ///< Press/repeat/release phase.
-            KeyLocation location = KeyLocation::Unknown;  ///< Location, or Unknown when unavailable.
-            std::uint32_t repeatCount = 1;                ///< Number of occurrences represented by a Repeat event.
+            Key key;                                     ///< Logical key reported by the terminal.
+            KeyModifier modifiers = KeyModifier::None;   ///< Active modifier/lock state known for this event.
+            KeyAction action = KeyAction::Press;         ///< Press/repeat/release phase.
+            KeyLocation location = KeyLocation::Unknown; ///< Location, or Unknown when unavailable.
+            std::uint32_t repeatCount = 1;               ///< Number of occurrences represented by a Repeat event.
         };
 
         /// @brief Outcome of a terminal read operation.

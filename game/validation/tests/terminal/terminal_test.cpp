@@ -647,8 +647,7 @@ namespace
         static_cast<void>(context.expectTrue("invalid mode falls back to echo", invalidMode.echoInput));
         static_cast<void>(context.expectTrue("invalid mode falls back to control keys", invalidMode.processControlKeys));
 
-        constexpr Terminal::Types::KeyModifier modifiers =
-            Terminal::Types::KeyModifier::Shift | Terminal::Types::KeyModifier::Control;
+        constexpr Terminal::Types::KeyModifier modifiers = Terminal::Types::KeyModifier::Shift | Terminal::Types::KeyModifier::Control;
         static_cast<void>(context.expectTrue(
             "key modifier bitmask reports present shift",
             Terminal::Types::hasModifier(modifiers, Terminal::Types::KeyModifier::Shift)));
