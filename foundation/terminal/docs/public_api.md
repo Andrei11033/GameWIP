@@ -78,7 +78,7 @@ Capabilities are snapshots. Replacing or redirecting a standard handle can inval
 | `EventReadOptions` | `timeout`, `stopToken` |
 | `ByteReadOptions` | `timeout`, `stopToken`, `allowPartial` |
 | `TextReadOptions` | `timeout`, `stopToken`, `maxReturnedBytes` |
-| `LineReadOptions` | `timeout`, `stopToken`, `maxReturnedBytes`, `lineEndingMode` |
+| `LineReadOptions` | `timeout`, `stopToken`, `maxReturnedBytes`, `echo`, `lineEndingMode` |
 | `TextWriteOptions` | `styleMode`, `style`, `flushMode` |
 | `LineWriteOptions` | `styleMode`, `style`, `lineEnding`, `flushMode` |
 | `ByteWriteOptions` | `flushMode` |
@@ -106,6 +106,8 @@ A write or control flush request applies after emission. A flush failure can the
 
 Every direct read family also has an explicit `InputStream` overload. Availability-check-then-read and public native-mode mutation are intentionally absent; use a zero-duration read for polling and `Session` for persistent ownership.
 
+On an interactive terminal, both delivery modes use the same immediate native event engine. `readText()` and `readBytes()` derive stream data from logical character/control events, while `readLine()` adds Terminal-owned Unicode line discipline. `LineReadOptions::echo` controls managed rendering; redirected input keeps byte/text/line semantics and ignores the echo option.
+
 ## Session
 
 `Session` is closed by default, move-constructible, non-copyable, and deliberately not move-assignable. `open()` binds `SessionOptions`, claims exclusive managed input ownership, caches input capabilities, and configures required native terminal state. `isOpen()` reports ownership state. `close()` restores the exact captured native input state before releasing ownership.
@@ -113,6 +115,8 @@ Every direct read family also has an explicit `InputStream` overload. Availabili
 Opening an already-open object returns `AlreadyOpen`. Another session or direct read competing for the same input returns `ResourceBusy`. Explicit close restoration failure leaves the session open and ownership retained so the caller can retry; destruction makes a best-effort non-throwing restoration attempt and cannot surface cleanup failure.
 
 `Session::readEvent()` requires `InputDeliveryMode::Events`. `Session::readBytes()`, `readText()`, and `readLine()` require `InputDeliveryMode::Stream`. Incompatible operations return `Unsupported` without consuming unrelated input. One session operation is serialized against `close()` on the same object.
+
+Interactive Stream sessions are not a fallback to native cooked input: Terminal disables native line buffering/echo, retains structured decoder state, and implements Backspace/Delete, grapheme-aware left/right movement, Home/End, Enter completion, bounded paste insertion, optional echo, deadlines, and cancellation itself.
 
 ## Output operations
 

@@ -24,7 +24,7 @@ The public hook namespace is `GameWIP::Terminal::TestHooks`.
 
 ## Reset rule
 
-Call `TestHooks::reset()` before and after each scenario. It clears capability overrides, prepared state, input bytes, internal native-mode overrides, output capture, counters, size/position overrides, and every one-shot forced failure.
+Call `TestHooks::reset()` before and after each scenario. It clears capability overrides, prepared state, input bytes/events, Win32 decoder state, internal native-mode overrides, output capture, counters, size/position overrides, and every one-shot forced failure.
 
 Tests sharing a process must not assume hook state is isolated automatically.
 
@@ -40,13 +40,15 @@ Overrides persist until cleared or reset.
 
 - `setInputBytes()` replaces the deterministic input bytes and selects EOF-versus-no-data behavior when the buffer becomes empty.
 - `appendInputBytes()` adds bytes to the deterministic input stream.
-- `clearInputBytes()` disables the in-memory input path.
-- `setPendingHighSurrogate()` and `hasPendingHighSurrogate()` expose the Win32 converter's endpoint-owned surrogate state for the stdin-replacement regression.
+- `clearInputBytes()` disables the in-memory byte-input path.
+- `setInputEvents()` and `clearInputEvents()` provide deterministic portable events for managed line-editor tests.
+- `setPendingHighSurrogate()` and `hasPendingHighSurrogate()` expose the Win32 event decoder's endpoint-owned surrogate state for the stdin-replacement regression.
 - `setInputModeOverride()` provides deterministic internal line-buffer, echo, and control-processing flags for Session/direct-read setup and restoration tests.
-- `inputModeOverrideMatches()` verifies those internal flags without exposing a public consumer mode type.
+- `inputModeOverrideMatches()` and `inputManagedEventModeOverrideMatches()` verify the native flags managed by an open session.
+- Win32-only `resetWin32KeyDecoder()`, `decodeWin32KeyRecord()`, and `takePendingWin32KeyEvent()` exercise native key normalization without exporting production decoder symbols.
 - `clearInputModeOverride()` restores normal backend behavior.
 
-The byte strings may intentionally contain invalid or incomplete UTF-8 to validate text-read failures. Native-mode hooks exist only because validation must prove exact managed restoration; public consumers configure input through `SessionOptions`.
+The byte strings may intentionally contain invalid or incomplete UTF-8 to validate redirected text-read failures. Event fixtures are already-portable backend output and therefore obey the normal Event contract. Native-mode/decoder hooks exist only because validation must prove exact managed restoration and Win32 normalization; public consumers configure input through `SessionOptions`.
 
 ## Output capture and counters
 

@@ -26,7 +26,15 @@ The next UTF-8 code point does not fit in `maxReturnedBytes`. Increase the limit
 
 Inspect both `status` and `outcome`. `TimedOut`, `WouldBlock`, and `Cancelled` are normal domain outcomes with a successful status.
 
-Read timeouts are optional: `std::nullopt` waits indefinitely, `0ms` polls, positive durations establish one total deadline, and negative durations are `InvalidArgument`. The current Win32 real-console stream path does not yet support finite deadlines, polling, or in-progress cancellation and returns `Unsupported`; named-pipe input supports all three.
+Read timeouts are optional: `std::nullopt` waits indefinitely, `0ms` polls, positive durations establish one total deadline, and negative durations are `InvalidArgument`. Real Win32 console input and named-pipe input support polling, finite deadlines, and requested cancellation. Regular redirected files still do not promise bounded waiting.
+
+## Interactive `readLine()` returns `Unsupported` before reading
+
+Managed echo requires a terminal output that supports cursor positioning, cursor-position queries, and line clearing. If input is interactive but the bound output cannot render managed echo, set `LineReadOptions::echo = false` and render the application UI yourself.
+
+## A special key does not appear in `readText()`
+
+Stream text/byte reads project only text-producing/control events into stream data. Navigation, function, modifier, resize, and other logical events are intentionally not serialized into arbitrary escape sequences. Use `InputDeliveryMode::Events` when the application needs those keys.
 
 ## `flushTo()` did not force an OS flush
 

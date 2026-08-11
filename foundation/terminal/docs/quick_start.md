@@ -92,11 +92,40 @@ if (!session.open(options).ok())
     return 1;
 }
 
-const Types::LineReadResult line = session.readLine();
+Types::LineReadOptions lineOptions;
+lineOptions.echo = true;
+const Types::LineReadResult line = session.readLine(lineOptions);
 const auto closeStatus = session.close();
 ```
 
+Interactive `readLine()` owns Unicode editing and echo rather than delegating to native cooked input. Set `lineOptions.echo = false` for password-like or application-rendered input.
+
 Only one managed owner may consume stdin at a time. Re-opening the same object returns `AlreadyOpen`; a competing session or direct read returns `ResourceBusy`. Explicit `close()` reports restoration failures and retains ownership when restoration can be retried.
+
+## Structured event input
+
+```cpp
+using namespace GameWIP::Terminal;
+
+Session session;
+if (!session.open().ok()) // Events is the explicit-session default.
+{
+    return 1;
+}
+
+const Types::EventReadResult event = session.readEvent();
+if (event.status.ok() && event.outcome == Types::ReadOutcome::Completed)
+{
+    if (const Types::KeyEvent *key = event.event->getIf<Types::KeyEvent>())
+    {
+        // Portable logical key; no Win32 virtual-key code escapes the backend.
+    }
+}
+
+const auto closeStatus = session.close();
+```
+
+Real Win32 consoles deliver key and resize events through native `INPUT_RECORD`. Mouse records are intentionally ignored today, but the backend dispatcher keeps a separate mouse branch so a future portable mouse contract can be added without redesigning the reader.
 
 ## Capability-aware styling
 

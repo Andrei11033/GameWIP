@@ -10,6 +10,13 @@
 #include <span>
 #include <string_view>
 
+#if INTERNAL_TERMINAL_TEST_HOOKS && defined(_WIN32)
+namespace GameWIP::Terminal::TestHooks
+{
+    struct Win32KeyDecodeResult;
+}
+#endif
+
 namespace GameWIP::Terminal::Detail::Platform
 {
     /// @brief Internal portable shape used only to configure and restore backend terminal input state.
@@ -18,6 +25,9 @@ namespace GameWIP::Terminal::Detail::Platform
         bool lineBuffered = true;
         bool echoInput = true;
         bool processControlKeys = true;
+        bool reportResizeEvents = false;
+        bool reportPointerEvents = false;
+        bool exclusiveEventDelivery = false;
     };
 
     /// @brief Complete backend input-mode snapshot used by managed Session/direct-read restoration.
@@ -99,9 +109,13 @@ namespace GameWIP::Terminal::Detail::Platform
 
     /// @brief Reads one normalized structured event from a standard input stream.
     /// @param stream Standard input stream to read.
+    /// @param outputStream Bound output used to resolve resize dimensions consistently with getTerminalSize().
     /// @param options Event-read deadline and cancellation behavior.
-    /// @return Event result or Unsupported until the selected backend implements event delivery.
-    [[nodiscard]] Terminal::Types::EventReadResult readEvent(Terminal::Types::InputStream stream, const Terminal::Types::EventReadOptions &options);
+    /// @return Event result, normal stopping outcome, or checked backend failure.
+    [[nodiscard]] Terminal::Types::EventReadResult readEvent(
+        Terminal::Types::InputStream stream,
+        Terminal::Types::OutputStream outputStream,
+        const Terminal::Types::EventReadOptions &options);
 
     /// @brief Reads bytes from a standard input stream.
     /// @param stream Standard input stream to read.
@@ -147,6 +161,18 @@ namespace GameWIP::Terminal::Detail::Platform
 #if INTERNAL_TERMINAL_TEST_HOOKS
     namespace TestHooks
     {
+#if defined(_WIN32)
+        void resetWin32KeyDecoder() noexcept;
+        [[nodiscard]] Terminal::TestHooks::Win32KeyDecodeResult decodeWin32KeyRecord(
+            bool keyDown,
+            std::uint16_t virtualKey,
+            char16_t unicodeCharacter,
+            std::uint32_t controlState,
+            std::uint16_t repeatCount,
+            std::uint16_t scanCode) noexcept;
+        [[nodiscard]] std::optional<Terminal::Types::Event> takePendingWin32KeyEvent() noexcept;
+#endif
+
         /// @brief Seeds the Win32 pending UTF-16 high surrogate for endpoint-replacement validation.
         void setPendingHighSurrogate(Terminal::Types::InputStream stream, std::uint16_t surrogate) noexcept;
         /// @brief Returns whether the current Win32 input endpoint retains a pending high surrogate.

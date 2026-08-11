@@ -199,6 +199,42 @@ int main()
 
 Explicit `close()` is preferred when native restoration failure matters. A failed close retains session ownership for retry.
 
+## Persistent structured-event session
+
+```cpp
+#include "terminal/terminal.h"
+
+int main()
+{
+    using namespace GameWIP::Terminal;
+
+    Session session; // Events is the default delivery mode.
+    if (!session.open().ok())
+    {
+        return 1;
+    }
+
+    const Types::EventReadResult result = session.readEvent();
+    if (!result.status.ok())
+    {
+        static_cast<void>(session.close());
+        return 2;
+    }
+
+    if (result.outcome == Types::ReadOutcome::Completed && result.event.has_value())
+    {
+        if (const Types::ResizeEvent *resize = result.event->getIf<Types::ResizeEvent>())
+        {
+            // resize->size uses the same viewport semantics as getTerminalSize().
+        }
+    }
+
+    return session.close().ok() ? 0 : 3;
+}
+```
+
+On native Win32 consoles, key/repeat/release/modifier/location and resize events come from `INPUT_RECORD`. Mouse records are ignored until Terminal has a deliberate portable mouse contract.
+
 ## Cancel a managed read
 
 ```cpp

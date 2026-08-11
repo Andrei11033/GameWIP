@@ -43,6 +43,8 @@ Text and line reads require `maxReturnedBytes > 0`. They preserve complete valid
 
 Direct input functions use temporary managed ownership. `Session` selects `InputDeliveryMode::Events` or `Stream` once at `open()`. Event delivery accepts only `readEvent()`; Stream delivery accepts byte/text/line reads. A mode-incompatible read returns `Unsupported` without consuming input.
 
+Interactive terminals use one immediate structured-input engine for both delivery modes. Stream byte/text reads project text-producing logical events back to stream bytes; managed `readLine()` consumes the same events through Terminal-owned line discipline. `LineReadOptions::echo` defaults to true for interactive terminals and is ignored for redirected input.
+
 ## Read outcomes and partial progress
 
 Expected stopping conditions are separate from backend failures:
@@ -62,7 +64,9 @@ Expected stopping conditions are separate from backend failures:
 
 For line reads, `consumedLineEnding` reports `None`, `Lf`, `CrLf`, or `Cr`. `ReadLineEndingMode` controls whether the returned string strips, keeps, or normalizes a consumed ending. If the line body fits but a retained ending does not, the ending is consumed and reported while the returned string omits the partial ending and sets `wasTruncated`.
 
-Long-line scanning retains progress between backend chunks, including the case where `\r\n` is split across reads.
+Redirected long-line scanning retains progress between backend chunks, including the case where `\r\n` is split across reads.
+
+Interactive managed line editing operates on Unicode grapheme boundaries for Backspace/Delete and left/right caret movement. Home/End, Enter completion, bounded paste insertion, repeat events, resize-aware redraw, timeout/cancellation, and optional echo are handled above the platform decoder. The editor lazily builds caller-backed grapheme indexes and retains Session storage capacity so repeated suffix deletion does not repeatedly reconstruct the full Unicode prefix.
 
 ## Deadlines, polling, and cancellation
 
@@ -77,9 +81,9 @@ Partial input does not restart a positive deadline. `kNoWait` remains a readable
 
 A `std::stop_token` is a requested-cancellation channel, not an operational failure. A pre-requested stop returns successful `ReadOutcome::Cancelled` without consuming input. When a read could block and the selected endpoint cannot observe cancellation, a stoppable token is rejected as `Unsupported` rather than silently ignored.
 
-Current Win32 named-pipe input supports non-blocking reads, finite deadlines, and cooperative cancellation. The current cooked real-console stream backend still supports only unbounded non-cancellable blocking reads; structured Win32 event delivery and its cancellation path are completed in the following #57 backend slice.
+Current Win32 named-pipe input supports non-blocking reads, finite deadlines, and cooperative cancellation. Real Win32 console input now uses waitable console handles plus one lazily-created cancellation event, so event, byte/text, and managed line reads support polling, finite total deadlines, and requested cancellation without a permanent worker thread or sleep-based polling loop.
 
-Blocking reads can wait indefinitely when requested. Output writes can block in the operating-system endpoint. Terminal does not require an asynchronous runtime or permanent background thread.
+The console backend reads `INPUT_RECORD` in a small fixed batch, retains unread records in endpoint-owned state, and emits portable key/resize events without per-key implementation-owned allocation. Key repeat follow-up state, key-down tracking, UTF-16 surrogate state, and the native record batch are inline. Blocking reads can still wait indefinitely when requested; output writes can block in the operating-system endpoint.
 
 ## Text writes
 

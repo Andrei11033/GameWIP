@@ -57,7 +57,7 @@ Real-console output converts UTF-8 to UTF-16 and uses the native Unicode console
 
 Named-pipe input reports byte/text/line input plus non-blocking reads, finite deadlines, and cooperative cancellation. Regular redirected files report byte/text/line input without bounded-wait guarantees.
 
-The current real-console stream backend reports byte/text/line input but does not yet advertise non-blocking reads, finite deadlines, cancellation, or structured events. `Session` still owns and restores native input mode, but the structured `INPUT_RECORD` event backend is the next #57 slice; capabilities remain false until that implementation exists.
+Real Win32 consoles report byte/text/line input plus structured events, non-blocking reads, finite deadlines, cancellation, resize notifications, repeat/release events, standalone modifiers, key location, and modifier state. Native paste recognition and guaranteed media-key delivery remain false. The backend reads `INPUT_RECORD` directly; Stream delivery projects logical text events back into stream data and managed `readLine()` owns interactive editing/echo.
 
 ## Failure behavior
 

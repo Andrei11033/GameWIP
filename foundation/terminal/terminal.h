@@ -838,6 +838,10 @@ namespace GameWIP::Terminal
             /// @brief Maximum accepted byte count for the returned line representation.
             std::uint64_t maxReturnedBytes = kDefaultMaxReturnedLineBytes;
 
+            /// @brief Whether an interactive terminal read manages visible echo and editing feedback on the bound output stream.
+            /// @note Redirected input ignores this option because no terminal line discipline is active.
+            bool echo = true;
+
             /// @brief How a consumed line ending is represented.
             ReadLineEndingMode lineEndingMode = ReadLineEndingMode::Strip;
         };

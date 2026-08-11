@@ -33,7 +33,7 @@ The destructor is `noexcept` and makes one best-effort restoration attempt. Beca
 
 An incompatible read returns `Unsupported` without consuming input.
 
-The explicit-session default is `Events`. On the current Win32 backend this mode remains `Unsupported` for real console input until the following #57 structured `INPUT_RECORD` backend slice lands. Capability reporting remains false until the backend exists.
+The explicit-session default is `Events`. Real Win32 consoles implement this mode directly from `INPUT_RECORD`; Stream sessions use the same immediate native engine and rebuild byte/text/line semantics above the logical decoder instead of falling back to cooked console reads.
 
 ## Control-key policy
 
@@ -46,7 +46,7 @@ This is a high-level policy, not exposure of native console flags.
 
 ## Native state is internal
 
-Terminal may disable native line buffering/echo or change processed-input behavior while it owns a real terminal. Those flags are implementation details behind the backend contract. The public API does not expose:
+Terminal disables native line buffering/echo for managed interactive console input and can change processed-input, resize-event, mouse-event, Quick Edit, or backend protocol flags while it owns the endpoint. Those flags are implementation details behind the backend contract. The current Win32 native path enables window/resize records, disables mouse record generation and Quick Edit, and keeps VT-input translation disabled so `INPUT_RECORD` retains release/repeat/location information. The public API does not expose:
 
 - raw/cooked mode structures;
 - echo toggles;
@@ -54,7 +54,7 @@ Terminal may disable native line buffering/echo or change processed-input behavi
 - default-mode restoration functions;
 - an availability-check-then-read preflight.
 
-Direct reads capture and restore exact native state for one operation. Persistent sessions capture once and retain the state until close.
+Direct reads capture and restore exact native state for one operation. Persistent sessions capture once and retain the state until close. Mouse support is intentionally absent from the public event contract today, but the Win32 record dispatcher treats mouse as a distinct ignored record class so a future portable mouse event can be added without redesigning the reader.
 
 ## Move behavior
 
@@ -78,7 +78,7 @@ A pre-requested stop returns `ReadOutcome::Cancelled` without consuming input. B
 
 ## Buffered input and handle replacement
 
-Native mode transitions do not intentionally discard Terminal-owned pending UTF-8 bytes or incomplete conversion state. If the process replaces stdin, the Win32 backend recognizes the new endpoint identity and discards pending state belonging to the old handle before reading the replacement.
+Native mode transitions do not intentionally discard Terminal-owned pending UTF-8 bytes, unread native record batches, pending repeat events, key-down state, or incomplete UTF-16 surrogate state. If the process replaces stdin, the Win32 backend recognizes the new endpoint identity and discards pending state belonging to the old handle before reading the replacement.
 
 Terminal cannot preserve unread input removed by an external native API, and external native mode changes bypass the managed ownership contract.
 

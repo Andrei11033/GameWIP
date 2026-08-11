@@ -11,6 +11,7 @@
 #include <cstddef>
 #include <mutex>
 #include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -39,10 +40,18 @@ namespace GameWIP::Terminal::Detail::TestHooks
         bool endOfStreamWhenInputEmpty = true;
         std::string inputBytes;
 
+        bool inputEventsOverrideEnabled = false;
+        bool endOfStreamWhenEventsEmpty = true;
+        std::vector<Terminal::Types::Event> inputEvents;
+        std::size_t nextInputEvent = 0;
+
         bool inputModeOverrideEnabled = false;
         bool lineBuffered = true;
         bool echoInput = true;
         bool processControlKeys = true;
+        bool reportResizeEvents = false;
+        bool reportPointerEvents = false;
+        bool exclusiveEventDelivery = false;
     };
 
     /// @brief Mutable deterministic stdout/stderr state protected by TerminalTestHookState::mutex.
@@ -145,6 +154,52 @@ namespace GameWIP::Terminal::TestHooks
     /// @warning Test-only API.
     GAMEWIP_TERMINAL_EXPORT void clearInputBytes(Terminal::Types::InputStream stream) noexcept;
 
+    /// @brief Replaces deterministic structured events consumed by readEvent() and managed line editing.
+    /// @param endOfStreamWhenEmpty True reports EOF after the final event; false reports WouldBlock/TimedOut.
+    /// @warning Test-only API.
+    GAMEWIP_TERMINAL_EXPORT void setInputEvents(
+        Terminal::Types::InputStream stream,
+        std::span<const Terminal::Types::Event> events,
+        bool endOfStreamWhenEmpty = true);
+
+    /// @brief Disables deterministic structured-event input.
+    /// @warning Test-only API.
+    GAMEWIP_TERMINAL_EXPORT void clearInputEvents(Terminal::Types::InputStream stream) noexcept;
+
+#if defined(_WIN32)
+    /// @brief Test-only mirror of native Win32 key-decoder dispositions.
+    enum class Win32KeyDecodeDisposition : std::uint8_t
+    {
+        Produced,
+        Pending,
+        Ignored,
+        Failed
+    };
+
+    /// @brief Test-only result returned by deterministic Win32 key-record decoding.
+    struct Win32KeyDecodeResult
+    {
+        IO::Types::Status status;
+        Win32KeyDecodeDisposition disposition = Win32KeyDecodeDisposition::Ignored;
+        std::optional<Terminal::Types::Event> event;
+    };
+
+    /// @brief Clears deterministic Win32 key-down, surrogate, and pending-repeat decoder state.
+    GAMEWIP_TERMINAL_EXPORT void resetWin32KeyDecoder() noexcept;
+
+    /// @brief Decodes one synthetic Win32 KEY_EVENT_RECORD described only by portable integer fields.
+    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Win32KeyDecodeResult decodeWin32KeyRecord(
+        bool keyDown,
+        std::uint16_t virtualKey,
+        char16_t unicodeCharacter = u'\0',
+        std::uint32_t controlState = 0,
+        std::uint16_t repeatCount = 1,
+        std::uint16_t scanCode = 0) noexcept;
+
+    /// @brief Returns a pending repeat event retained by the deterministic Win32 decoder.
+    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT std::optional<Terminal::Types::Event> takePendingWin32KeyEvent() noexcept;
+#endif
+
     /// @brief Seeds the native pending UTF-16 high surrogate for endpoint-replacement validation.
     /// @warning Test-only API. Available only on the Win32 validation backend.
     GAMEWIP_TERMINAL_EXPORT void setPendingHighSurrogate(Terminal::Types::InputStream stream, std::uint16_t surrogate) noexcept;
@@ -168,6 +223,14 @@ namespace GameWIP::Terminal::TestHooks
         bool lineBuffered,
         bool echoInput,
         bool processControlKeys) noexcept;
+
+    /// @brief Returns whether deterministic managed-event flags match the requested state.
+    /// @warning Test-only API.
+    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT bool inputManagedEventModeOverrideMatches(
+        Terminal::Types::InputStream stream,
+        bool reportResizeEvents,
+        bool reportPointerEvents,
+        bool exclusiveEventDelivery) noexcept;
 
     /// @brief Clears an input mode override.
     /// @warning Test-only API.

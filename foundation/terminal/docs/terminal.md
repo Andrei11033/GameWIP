@@ -32,7 +32,7 @@ The generated reference owns exact declarations and overload signatures from `te
 
 ## Key behavior
 
-Public text is UTF-8. Real-console text is converted through the native Unicode console API, while redirected text remains UTF-8 bytes. Raw byte operations are available for redirected endpoints and do not perform text validation.
+Public text is UTF-8. Real-console output is converted through the native Unicode console API, while redirected text remains UTF-8 bytes. Native Win32 console input is decoded from structured `INPUT_RECORD` data into portable logical events; interactive Stream reads and Unicode line editing are built on that same immediate event engine. Raw byte operations remain byte-oriented.
 
 Terminal has one process-wide managed stdin ownership domain plus backend input serialization. A persistent `Session` owns stdin until `close()`, while each direct read acquires temporary ownership, performs the operation, restores exact native state, and releases ownership. stdout and stderr retain independent process-wide serialization. Terminal cannot coordinate with direct C, C++, native-handle, or third-party stream access.
 
@@ -42,4 +42,4 @@ Capabilities depend on the current endpoint. Real terminals, redirected streams,
 
 The public C++ header is `terminal/terminal.h`. Installed consumers link `GameWIP::Terminal`; source-tree consumers may link `Terminal`.
 
-Terminal publicly depends on IO for statuses, flush modes, and byte-write results. Logger uses Terminal for normal console output, but Terminal does not depend on Logger. Terminal owns managed standard-stream coordination, session/native-state restoration, UTF-8/native conversion, capability discovery, styling, and primitive controls; higher-level prompts, menus, layout, logging policy, and game runtime behavior belong elsewhere.
+Terminal publicly depends on IO for statuses, flush modes, and byte-write results and privately reuses Unicode for strict scalar conversion and grapheme traversal. Logger uses Terminal for normal console output, but Terminal does not depend on Logger. Terminal owns managed standard-stream coordination, session/native-state restoration, key/event normalization, interactive line discipline, UTF-8/native conversion, capability discovery, styling, and primitive controls; history, completion, prompts, menus, multi-line widgets, logging policy, and game runtime behavior belong elsewhere.
