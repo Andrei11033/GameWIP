@@ -16,7 +16,7 @@ Terminal owns one process-wide managed stdin ownership domain plus backend input
 - a competing session/direct read returns `ResourceBusy` rather than waiting behind an unrelated owner;
 - input-consuming operations on one `Session` serialize with each other;
 - Session output operations may run while another thread is blocked in a Session read;
-- `close()` takes exclusive Session lifecycle ownership and waits for active Session operations before restoration;
+- `close()` closes Session operation admission and waits for active Session operations before restoration;
 - stdout operations serialize with one another, including global and Session-bound output;
 - stderr operations serialize with one another;
 - stdout and stderr can progress independently;
@@ -24,7 +24,9 @@ Terminal owns one process-wide managed stdin ownership domain plus backend input
 
 `getInputCapabilities()` remains observational. `getCursorPosition(outputStream, responseStream, ...)` may coordinate both endpoints; future response-consuming protocol paths must participate in the same managed input ownership contract. Direct C streams, iostreams, native handles, and third-party terminal libraries bypass Terminal's coordination.
 
-Formatted free functions perform formatting before taking the final output lock. This permits a custom formatter to call Terminal without deadlocking the same stream; the nested operation completes before the outer formatted record is emitted.
+Formatted free functions and Session formatting bridges perform formatting before taking the final output lock. This permits a custom formatter to call global Terminal output or the same Session without deadlocking the same stream; the nested operation completes before the outer formatted record is emitted.
+
+Each Session call holds a private active-operation lease for its complete logical lifetime. The lease keeps the bound options, managed input ownership, and persistent state valid, but does not hold the lifecycle mutex while backend work or arbitrary formatter code executes. `close()` prevents unrelated new operations from entering and waits for all active leases. Reentrant calls from a formatter share this lifetime safely. A formatter-triggered `close()` on that same Session cannot wait for its own outer lease, so it returns `ResourceBusy`, leaves the Session open, and lets the outer formatting operation complete. A later non-reentrant `close()` remains normal and retryable.
 
 `Session` internally synchronizes the concurrent operation combinations listed above. Its lifetime must still be stable: do not move or destroy a Session while another thread is using it. `OutputBuffer` and output-state scope objects are not internally synchronized and require external synchronization for concurrent access. External `std::stop_token` cancellation requests follow the standard stop-token thread-safety contract.
 
@@ -68,7 +70,7 @@ For line reads, `consumedLineEnding` reports `None`, `Lf`, `CrLf`, or `Cr`. `Rea
 
 Redirected long-line scanning retains progress between backend chunks, including the case where `\r\n` is split across reads.
 
-Interactive managed line editing operates on Unicode grapheme boundaries for Backspace/Delete and left/right caret movement. Home/End, Enter completion, bounded paste insertion, repeat events, resize-aware redraw, timeout/cancellation, and optional echo are handled above the platform decoder. The editor lazily builds caller-backed grapheme indexes and retains Session storage capacity so repeated suffix deletion does not repeatedly reconstruct the full Unicode prefix.
+Interactive managed line editing operates on Unicode grapheme boundaries for Backspace/Delete and left/right caret movement. Home/End, Enter completion, bounded paste insertion, repeat events, resize-aware redraw, timeout/cancellation, and optional echo are handled above the platform decoder. Echo tracks rendered and caret cell spans separately. Before destructive editing it rebuilds the anchor from the live caret in a backend-stable rendering coordinate, so a viewport scroll cannot leave the original viewport-relative row permanently stale. A resize reflows that coordinate and the next redraw derives a coherent anchor under the new width before clearing or rewriting the suffix. Ordinary printable-ASCII append-at-end typing advances the tracked span without a cursor query; Unicode/control append uses measured cursor advancement instead of imposing a guessed terminal-width policy. The editor lazily builds caller-backed grapheme indexes and retains Session storage capacity so repeated suffix deletion does not repeatedly reconstruct the full Unicode prefix.
 
 ## Deadlines, polling, and cancellation
 
@@ -85,7 +87,7 @@ A `std::stop_token` is a requested-cancellation channel, not an operational fail
 
 Current Win32 named-pipe input supports non-blocking reads, finite deadlines, and cooperative cancellation. Real Win32 console input now uses waitable console handles plus one lazily-created cancellation event, so event, byte/text, and managed line reads support polling, finite total deadlines, and requested cancellation without a permanent worker thread or sleep-based polling loop.
 
-The console backend reads `INPUT_RECORD` in a small fixed batch, retains unread records in endpoint-owned state, and emits portable key/resize events without per-key implementation-owned allocation. Key repeat follow-up state, key-down tracking, UTF-16 surrogate state, and the native record batch are inline. Blocking reads can still wait indefinitely when requested; output writes can block in the operating-system endpoint.
+The console backend reads `INPUT_RECORD` in a small fixed batch, retains unread records in endpoint-owned state, and emits portable key/resize events without per-key implementation-owned allocation. Key repeat follow-up state, key-down tracking, UTF-16 surrogate state, and the native record batch are inline. Public Win32 cursor queries remain relative to `srWindow`, matching terminal-size viewport semantics; managed line echo privately uses stable screen-buffer coordinates so visible-window scrolling does not invalidate its anchor. Blocking reads can still wait indefinitely when requested; output writes can block in the operating-system endpoint.
 
 ## Text writes
 
@@ -142,7 +144,7 @@ A persistent `Session::close()` behaves differently because the caller can retry
 
 Expected option, endpoint, ownership, capability, Unicode, cancellation, formatting, allocation, and backend failures use IO statuses/results. Session lifecycle, input, bound output, query, formatting, and control entry points are `noexcept`. `OutputBuffer` allocating mutations and formatting are also `noexcept`.
 
-Free formatted output contains formatter, allocation, length, and unexpected formatting-stage exceptions before the outer write begins. Checked direct output paths contain Terminal-owned assembly allocation where it occurs, and diagnostic enrichment is best effort so constructing an error message never replaces the primary code-only failure. Caller-owned argument construction that happens before Terminal receives control remains outside the checked boundary.
+Free and Session formatted output contain formatter, allocation, length, and unexpected formatting-stage exceptions before the outer write begins. Checked direct output paths contain Terminal-owned assembly allocation where it occurs, and diagnostic enrichment is best effort so constructing an error message never replaces the primary code-only failure. Caller-owned argument construction that happens before Terminal receives control remains outside the checked boundary.
 
 Output-state scope factories are `noexcept` and store setup failure in `status()`. Failure before the state-changing control sequence is emitted produces an inactive scope. If the sequence is emitted and its requested flush then fails, the scope remains active, owns the inverse transition, and retries only the pending flush after a successful inverse emission.
 

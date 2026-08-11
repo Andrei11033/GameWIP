@@ -351,6 +351,88 @@ namespace GameWIP::Terminal::Detail::Platform
             appendCapturedOutput(stream, std::as_bytes(std::span<const char>(text.data(), text.size())));
         }
 
+        /// @brief Advances the deterministic ASCII rendering cursor while the hook mutex is held.
+        void advanceCursorRenderingSimulation(HookDetail::OutputHookState &state, std::string_view text) noexcept
+        {
+            if (!state.cursorRenderingSimulationEnabled || state.terminalSizeOverride.columns == 0 || state.terminalSizeOverride.rows == 0)
+            {
+                return;
+            }
+
+            const std::uint32_t columns = state.terminalSizeOverride.columns;
+            const std::uint32_t rows = state.terminalSizeOverride.rows;
+            const auto keepVisible = [&state, rows]
+            {
+                if (state.cursorRenderingPosition.row >= state.cursorRenderingViewportOrigin.row + rows)
+                {
+                    state.cursorRenderingViewportOrigin.row = state.cursorRenderingPosition.row - rows + 1;
+                }
+            };
+
+            for (const unsigned char byte : text)
+            {
+                if (byte == '\r')
+                {
+                    state.cursorRenderingPosition.column = 0;
+                    continue;
+                }
+                if (byte == '\n')
+                {
+                    ++state.cursorRenderingPosition.row;
+                    keepVisible();
+                    continue;
+                }
+
+                // Managed rendering tests deliberately use ASCII fixtures. Treat one complete non-ASCII scalar as
+                // one cell so unrelated hook-backed Unicode cases remain deterministic without pretending to define
+                // a production terminal-width policy.
+                if ((byte & 0xc0U) == 0x80U)
+                {
+                    continue;
+                }
+
+                ++state.cursorRenderingPosition.column;
+                if (state.cursorRenderingPosition.column >= columns)
+                {
+                    state.cursorRenderingPosition.column = 0;
+                    ++state.cursorRenderingPosition.row;
+                    keepVisible();
+                }
+            }
+        }
+
+        /// @brief Applies deterministic row-major resize reflow while the hook mutex is held.
+        void resizeCursorRenderingSimulation(HookDetail::OutputHookState &state, Terminal::Types::TerminalSize size) noexcept
+        {
+            if (!state.cursorRenderingSimulationEnabled || size.columns == 0 || size.rows == 0)
+            {
+                return;
+            }
+
+            const std::uint32_t oldColumns = state.terminalSizeOverride.columns;
+            if (oldColumns > 0)
+            {
+                const std::uint64_t cursorLinear =
+                    static_cast<std::uint64_t>(state.cursorRenderingPosition.row) * oldColumns + state.cursorRenderingPosition.column;
+                const std::uint64_t viewportLinear =
+                    static_cast<std::uint64_t>(state.cursorRenderingViewportOrigin.row) * oldColumns + state.cursorRenderingViewportOrigin.column;
+                state.cursorRenderingPosition = {
+                    .column = static_cast<std::uint32_t>(cursorLinear % size.columns),
+                    .row = static_cast<std::uint32_t>(cursorLinear / size.columns)};
+                state.cursorRenderingViewportOrigin = {
+                    .column = static_cast<std::uint32_t>(viewportLinear % size.columns),
+                    .row = static_cast<std::uint32_t>(viewportLinear / size.columns)};
+            }
+
+            state.terminalSizeOverrideEnabled = true;
+            state.terminalSizeOverride = size;
+            if (state.cursorRenderingPosition.row >= state.cursorRenderingViewportOrigin.row + size.rows)
+            {
+                state.cursorRenderingViewportOrigin.row = state.cursorRenderingPosition.row - size.rows + 1;
+                state.cursorRenderingViewportOrigin.column = 0;
+            }
+        }
+
         /// @brief Returns deterministic hook input when enabled, otherwise delegates via nullopt.
         [[nodiscard]] std::optional<ReadChunk> readHookInputChunk(
             InputStream stream,
@@ -1861,6 +1943,17 @@ namespace GameWIP::Terminal::Detail::Platform
         {
             std::lock_guard lock(HookDetail::terminalTestHookState.mutex);
             const HookDetail::OutputHookState &state = HookDetail::terminalTestHookState.outputStreams[HookDetail::outputIndex(stream)];
+            if (state.cursorRenderingSimulationEnabled)
+            {
+                result.status = IO::successStatus();
+                result.position.column = state.cursorRenderingPosition.column >= state.cursorRenderingViewportOrigin.column
+                                             ? state.cursorRenderingPosition.column - state.cursorRenderingViewportOrigin.column
+                                             : 0;
+                result.position.row = state.cursorRenderingPosition.row >= state.cursorRenderingViewportOrigin.row
+                                          ? state.cursorRenderingPosition.row - state.cursorRenderingViewportOrigin.row
+                                          : 0;
+                return result;
+            }
             if (state.cursorPositionOverrideEnabled)
             {
                 result.status = IO::successStatus();
@@ -1901,6 +1994,108 @@ namespace GameWIP::Terminal::Detail::Platform
         return result;
     }
 
+    Terminal::Types::CursorPositionResult getLineRenderingCursorPosition(OutputStream stream)
+    {
+        Terminal::Types::CursorPositionResult result;
+
+#if INTERNAL_TERMINAL_TEST_HOOKS
+        if (std::optional<IO::Types::Status> failure =
+                consumeHookFailure(HookDetail::terminalTestHookState.nextCursorPositionFailure, "Forced terminal cursor position failure."))
+        {
+            result.status = *failure;
+            return result;
+        }
+
+        {
+            std::lock_guard lock(HookDetail::terminalTestHookState.mutex);
+            const HookDetail::OutputHookState &state = HookDetail::terminalTestHookState.outputStreams[HookDetail::outputIndex(stream)];
+            if (state.cursorRenderingSimulationEnabled)
+            {
+                result.status = IO::successStatus();
+                result.position = state.cursorRenderingPosition;
+                return result;
+            }
+            if (state.cursorPositionOverrideEnabled)
+            {
+                result.status = IO::successStatus();
+                result.position = state.cursorPositionOverride;
+                return result;
+            }
+        }
+#endif
+
+        const HANDLE handle = outputHandle(stream);
+        if (!isUsableHandle(handle))
+        {
+            result.status = IO::makeStatus(ErrorCode::NotOpen, 0, "Terminal output stream is detached.");
+            return result;
+        }
+        if (!isConsoleHandle(handle))
+        {
+            result.status = IO::makeStatus(ErrorCode::Unsupported, 0, "Managed line rendering requires a real console output stream.");
+            return result;
+        }
+
+        CONSOLE_SCREEN_BUFFER_INFO info{};
+        if (GetConsoleScreenBufferInfo(handle, &info) == FALSE)
+        {
+            const DWORD error = GetLastError();
+            result.status = statusFromWin32(ErrorCode::StatFailed, error, "GetConsoleScreenBufferInfo failed for managed line rendering.");
+            return result;
+        }
+
+        result.status = IO::successStatus();
+        result.position.column = static_cast<std::uint32_t>(std::max<SHORT>(info.dwCursorPosition.X, 0));
+        result.position.row = static_cast<std::uint32_t>(std::max<SHORT>(info.dwCursorPosition.Y, 0));
+        return result;
+    }
+
+    IO::Types::Status setLineRenderingCursorPosition(OutputStream stream, Terminal::Types::CursorPosition position)
+    {
+#if INTERNAL_TERMINAL_TEST_HOOKS
+        {
+            std::lock_guard lock(HookDetail::terminalTestHookState.mutex);
+            HookDetail::OutputHookState &state = HookDetail::terminalTestHookState.outputStreams[HookDetail::outputIndex(stream)];
+            if (state.cursorRenderingSimulationEnabled)
+            {
+                state.cursorRenderingPosition = position;
+                state.cursorRenderingSetHistory.push_back(position);
+                if (state.terminalSizeOverride.rows > 0 &&
+                    state.cursorRenderingPosition.row >= state.cursorRenderingViewportOrigin.row + state.terminalSizeOverride.rows)
+                {
+                    state.cursorRenderingViewportOrigin.row = state.cursorRenderingPosition.row - state.terminalSizeOverride.rows + 1;
+                    state.cursorRenderingViewportOrigin.column = 0;
+                }
+                return IO::successStatus();
+            }
+        }
+#endif
+
+        if (position.column > static_cast<std::uint32_t>(std::numeric_limits<SHORT>::max()) ||
+            position.row > static_cast<std::uint32_t>(std::numeric_limits<SHORT>::max()))
+        {
+            return IO::makeStatus(ErrorCode::InvalidArgument, 0, "Managed line rendering cursor position exceeds Win32 limits.");
+        }
+
+        const HANDLE handle = outputHandle(stream);
+        if (!isUsableHandle(handle))
+        {
+            return IO::makeStatus(ErrorCode::NotOpen, 0, "Terminal output stream is detached.");
+        }
+        if (!isConsoleHandle(handle))
+        {
+            return IO::makeStatus(ErrorCode::Unsupported, 0, "Managed line rendering requires a real console output stream.");
+        }
+
+        const COORD nativePosition{static_cast<SHORT>(position.column), static_cast<SHORT>(position.row)};
+        if (SetConsoleCursorPosition(handle, nativePosition) == FALSE)
+        {
+            const DWORD error = GetLastError();
+            return statusFromWin32(ErrorCode::NativeFailure, error, "SetConsoleCursorPosition failed for managed line rendering.");
+        }
+        return IO::successStatus();
+    }
+
     Terminal::Types::EventReadResult readEvent(InputStream stream, OutputStream outputStream, const Terminal::Types::EventReadOptions &options)
     {
         Terminal::Types::EventReadResult result;
@@ -1930,6 +2125,12 @@ namespace GameWIP::Terminal::Detail::Platform
                 if (state.nextInputEvent < state.inputEvents.size())
                 {
                     result.event = state.inputEvents[state.nextInputEvent++];
+                    if (const auto *resize = result.event->getIf<Terminal::Types::ResizeEvent>())
+                    {
+                        HookDetail::OutputHookState &outputState =
+                            HookDetail::terminalTestHookState.outputStreams[HookDetail::outputIndex(outputStream)];
+                        resizeCursorRenderingSimulation(outputState, resize->size);
+                    }
                     return result;
                 }
 
@@ -2212,10 +2413,14 @@ namespace GameWIP::Terminal::Detail::Platform
 
         {
             std::lock_guard lock(HookDetail::terminalTestHookState.mutex);
-            const HookDetail::OutputHookState &state = HookDetail::terminalTestHookState.outputStreams[HookDetail::outputIndex(stream)];
-            if (state.captureEnabled)
+            HookDetail::OutputHookState &state = HookDetail::terminalTestHookState.outputStreams[HookDetail::outputIndex(stream)];
+            if (state.captureEnabled || state.cursorRenderingSimulationEnabled)
             {
-                appendCapturedOutput(stream, utf8Text);
+                if (state.captureEnabled)
+                {
+                    appendCapturedOutput(stream, utf8Text);
+                }
+                advanceCursorRenderingSimulation(state, utf8Text);
                 return IO::successStatus();
             }
         }

@@ -62,6 +62,8 @@ Close the existing owner explicitly before opening another one. Do not reintrodu
 
 A Session-owned persistent output restoration or exact native input restoration failed. Explicit close intentionally keeps the session open and retains stdin ownership so cleanup can be retried. Output state is restored in reverse activation order before input restoration; successfully restored obligations are not repeated on retry. Fix or report the backend problem, then call `close()` again.
 
+`ResourceBusy` has one additional deliberate meaning for `close()`: custom formatter code attempted to close the same Session whose formatted operation is active. The nested close cannot wait for its own operation, so it returns immediately and leaves the Session open. Let the outer call finish, then close from a non-reentrant context.
+
 Destruction is different: the destructor makes best-effort output and input restoration attempts and releases process-wide input ownership because the destroyed object cannot be retried.
 
 ## A stop token returns `Unsupported`

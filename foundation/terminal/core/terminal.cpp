@@ -1941,6 +1941,42 @@ namespace GameWIP::Terminal
         }
     }
 
+    Types::CursorPositionResult Detail::getLineRenderingCursorPosition(Types::OutputStream outputStream, Types::InputStream inputStream) noexcept
+    {
+        try
+        {
+            if (!validOutputStream(outputStream) || !validInputStream(inputStream))
+            {
+                return {.status = invalidArgumentStatus("Unknown terminal stream selected for line rendering."), .position = {}};
+            }
+
+            std::scoped_lock lock(outputState(outputStream).mutex, Detail::inputIoMutex(inputStream));
+            return Detail::Platform::getLineRenderingCursorPosition(outputStream);
+        }
+        catch (...)
+        {
+            return {.status = exceptionStatus(), .position = {}};
+        }
+    }
+
+    IO::Types::Status Detail::setLineRenderingCursorPosition(Types::OutputStream outputStream, Types::CursorPosition position) noexcept
+    {
+        try
+        {
+            if (!validOutputStream(outputStream))
+            {
+                return invalidArgumentStatus("Unknown terminal output stream selected for line rendering.");
+            }
+
+            std::lock_guard lock(outputState(outputStream).mutex);
+            return Detail::Platform::setLineRenderingCursorPosition(outputStream, position);
+        }
+        catch (...)
+        {
+            return exceptionStatus();
+        }
+    }
+
     IO::Types::Status saveCursorPosition(const Types::ControlOptions &options)
     {
         return saveCursorPosition(Types::OutputStream::Stdout, options);

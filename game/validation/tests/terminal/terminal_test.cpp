@@ -55,6 +55,27 @@ struct TerminalReentrantFormat
 {
 };
 
+/// @brief Marker value whose formatter performs nested Session or global Terminal output.
+struct TerminalSessionReentrantFormat
+{
+    GameWIP::Terminal::Session *session = nullptr;
+    bool useGlobalOutput = false;
+};
+
+/// @brief Marker value whose formatter attempts to close its own active Session operation.
+struct TerminalSessionCloseFormat
+{
+    GameWIP::Terminal::Session *session = nullptr;
+    GameWIP::IO::Types::ErrorCode *closeCode = nullptr;
+};
+
+/// @brief Marker value whose formatter pauses so close-wait behavior can be observed deterministically.
+struct TerminalSessionBlockingFormat
+{
+    std::latch *entered = nullptr;
+    std::latch *release = nullptr;
+};
+
 template <> struct std::formatter<TerminalThrowingFormat>
 {
     /// @brief Accepts the empty formatter specification used by the failure fixture.
@@ -92,6 +113,53 @@ template <> struct std::formatter<TerminalReentrantFormat>
     }
 };
 
+template <> struct std::formatter<TerminalSessionReentrantFormat>
+{
+    constexpr auto parse(std::format_parse_context &context)
+    {
+        return context.begin();
+    }
+
+    template <typename FormatContext> auto format(const TerminalSessionReentrantFormat &value, FormatContext &context) const
+    {
+        const GameWIP::IO::Types::Status status = value.useGlobalOutput ? GameWIP::Terminal::writeText("global") : value.session->writeText("inner");
+        if (!status.ok())
+        {
+            throw std::runtime_error("terminal Session reentrant formatter write failed");
+        }
+        return std::format_to(context.out(), "outer");
+    }
+};
+
+template <> struct std::formatter<TerminalSessionCloseFormat>
+{
+    constexpr auto parse(std::format_parse_context &context)
+    {
+        return context.begin();
+    }
+
+    template <typename FormatContext> auto format(const TerminalSessionCloseFormat &value, FormatContext &context) const
+    {
+        *value.closeCode = value.session->close().code;
+        return std::format_to(context.out(), "outer");
+    }
+};
+
+template <> struct std::formatter<TerminalSessionBlockingFormat>
+{
+    constexpr auto parse(std::format_parse_context &context)
+    {
+        return context.begin();
+    }
+
+    template <typename FormatContext> auto format(const TerminalSessionBlockingFormat &value, FormatContext &context) const
+    {
+        value.entered->count_down();
+        value.release->wait();
+        return std::format_to(context.out(), "blocked-format");
+    }
+};
+
 namespace
 {
     namespace IO = GameWIP::IO;
@@ -102,6 +170,7 @@ namespace
     using TerminalTestOptions = GameWIP::Test::TerminalTestOptions;
 
     inline constexpr std::string_view kReentrantFormatChildArgument = "--terminal-test-child=reentrant-format";
+    inline constexpr std::string_view kSessionReentrantFormatChildArgument = "--terminal-test-child=session-reentrant-format";
 
     static_assert(!std::is_aggregate_v<Terminal::Types::Color>);
     static_assert(!std::is_aggregate_v<Terminal::Types::WriteSegment>);
@@ -159,6 +228,42 @@ namespace
         return Terminal::println(options, "{}", TerminalReentrantFormat{}).ok() ? 0 : 1;
     }
 
+    /// @brief Exercises Session formatter reentry and same-operation close behavior in an isolated child.
+    [[nodiscard]] int runSessionReentrantFormatChild()
+    {
+        Terminal::Types::SessionOptions sessionOptions;
+        sessionOptions.deliveryMode = Terminal::Types::InputDeliveryMode::Stream;
+
+        Terminal::Session session;
+        if (!session.open(sessionOptions).ok())
+        {
+            return 1;
+        }
+        if (!session.print("{}", TerminalSessionReentrantFormat{.session = &session}).ok())
+        {
+            return 2;
+        }
+
+        Terminal::Types::LineWriteOptions lineOptions;
+        lineOptions.lineEnding = Terminal::Types::LineEnding::Lf;
+        if (!session.println(lineOptions, "{}", TerminalSessionReentrantFormat{.session = &session}).ok())
+        {
+            return 3;
+        }
+        if (!session.print("{}", TerminalSessionReentrantFormat{.session = &session, .useGlobalOutput = true}).ok())
+        {
+            return 4;
+        }
+
+        ErrorCode closeCode = ErrorCode::Unknown;
+        if (!session.print("{}", TerminalSessionCloseFormat{.session = &session, .closeCode = &closeCode}).ok() ||
+            closeCode != ErrorCode::ResourceBusy || !session.isOpen())
+        {
+            return 5;
+        }
+        return session.close().ok() ? 0 : 6;
+    }
+
     /// @brief Verifies formatter reentry without allowing a deadlock to hang the parent suite.
     void testReentrantFormatting(TestSupport::Context &context, std::string_view executablePath)
     {
@@ -174,6 +279,17 @@ namespace
         static_cast<void>(context.expectEq("reentrant formatter child returns zero", std::uint32_t{0}, result.exitCode));
         static_cast<void>(
             context.expectEq("reentrant formatter preserves nested and outer output", std::string{"innerouterinnerouter\n"}, result.output));
+
+        child.arguments = {std::string(kSessionReentrantFormatChildArgument)};
+        const TestSupport::Types::ChildProcessResult sessionResult = TestSupport::runChildProcess(child);
+        static_cast<void>(context.expectTrue("Session reentrant formatter child infrastructure succeeds", sessionResult.status.ok()));
+        static_cast<void>(
+            context.expectEq("Session reentrant formatter child exits", TestSupport::Types::ChildProcessOutcome::Exited, sessionResult.outcome));
+        static_cast<void>(context.expectEq("Session reentrant formatter child returns zero", std::uint32_t{0}, sessionResult.exitCode));
+        static_cast<void>(context.expectEq(
+            "Session formatter supports nested Session/global output and checked close",
+            std::string{"innerouterinnerouter\nglobalouterouter"},
+            sessionResult.output));
     }
 
     /// @brief Records a human response as a test pass, failure, or skip.
@@ -486,6 +602,58 @@ namespace
         context.pass("manual terminal input");
     }
 
+    /// @brief Exercises wrapped managed-line editing, viewport scroll, and live resize on a real terminal.
+    void testManualWrappedLineEditing(TestSupport::Context &context)
+    {
+        const Terminal::Types::TerminalSizeResult size = Terminal::getTerminalSize();
+        const Terminal::Types::CursorPositionResult position = Terminal::getCursorPosition();
+        if (!requireManualOperation(context, "manual wrapped line editing", "query terminal size", size.status) ||
+            !requireManualOperation(context, "manual wrapped line editing", "query cursor position", position.status))
+        {
+            return;
+        }
+
+        // Place the prompt close enough to the viewport bottom that wrapping exercises visible scrolling.
+        if (size.size.rows > 2 && position.position.row + 2 < size.size.rows)
+        {
+            const std::uint32_t blankLines = size.size.rows - position.position.row - 2;
+            for (std::uint32_t line = 0; line < blankLines; ++line)
+            {
+                if (!requireManualOperation(context, "manual wrapped line editing", "position prompt near viewport bottom", Terminal::writeLine()))
+                {
+                    return;
+                }
+            }
+        }
+
+        const std::uint32_t minimumCharacters = size.size.columns + 10;
+        context.manual(
+            std::format(
+                "Wrapped input check: type at least {} ASCII characters. Before Enter, use Left, Home, End, Backspace, and Delete to edit both "
+                "rows; resize the terminal narrower and wider while the line is active. Watch for stale or misplaced text.",
+                minimumCharacters));
+        if (!requireManualOperation(context, "manual wrapped line editing", "wrapped-input prompt", Terminal::writeText("Wrapped/resize input: ")))
+        {
+            return;
+        }
+
+        const Terminal::Types::LineReadResult result = Terminal::readLine();
+        if (!requireManualOperation(context, "manual wrapped line editing", "wrapped readLine", result.status))
+        {
+            return;
+        }
+        if (result.outcome != Terminal::Types::ReadOutcome::Completed || result.line.size() < minimumCharacters)
+        {
+            context.fail("manual wrapped line editing", "the completed line was not long enough to prove wrapping");
+            return;
+        }
+
+        recordManualCheck(
+            context,
+            "manual wrapped line editing",
+            "Did wrapping, scrolling, navigation, editing, and redraw remain coherent before and after resize, with no stale text?");
+    }
+
     /// @brief Verifies native structured key delivery through a real interactive terminal session.
     void testManualEventInput(TestSupport::Context &context, const Terminal::Types::InputCapabilities &inputCapabilities)
     {
@@ -664,6 +832,7 @@ namespace
         testManualCursorBehavior(context, output.capabilities);
         testManualAlternateScreen(context, output.capabilities);
         testManualInput(context);
+        testManualWrappedLineEditing(context);
         testManualEventInput(context, input.capabilities);
         testManualStateRestoration(context, input.capabilities, output.capabilities);
     }
@@ -2059,6 +2228,44 @@ namespace
             return result;
         };
 
+        struct EchoRunResult
+        {
+            Terminal::Types::LineReadResult line;
+            std::vector<Terminal::Types::CursorPosition> cursorSets;
+            Terminal::Types::CursorPosition viewportOrigin{};
+        };
+
+        const auto runEchoLine =
+            [&context](std::span<const Terminal::Types::Event> events, Terminal::Types::TerminalSize size, Terminal::Types::CursorPosition position)
+        {
+            Hooks::reset();
+            Hooks::setInputCapabilitiesOverride(Terminal::Types::InputStream::Stdin, terminalInputCapabilities());
+            Hooks::setInputModeOverride(Terminal::Types::InputStream::Stdin, true, true, true);
+            Hooks::setInputEvents(Terminal::Types::InputStream::Stdin, events);
+            setupCapturedOutput(Terminal::Types::OutputStream::Stdout);
+            Hooks::enableCursorRenderingSimulation(Terminal::Types::OutputStream::Stdout, size, position);
+
+            Terminal::Types::SessionOptions sessionOptions;
+            sessionOptions.deliveryMode = Terminal::Types::InputDeliveryMode::Stream;
+
+            Terminal::Session session;
+            const IO::Types::Status openStatus = session.open(sessionOptions);
+            static_cast<void>(context.expectTrue("managed echo session opens", openStatus.ok()));
+            if (!openStatus.ok())
+            {
+                return EchoRunResult{.line = {.status = openStatus}};
+            }
+
+            Terminal::Types::LineReadOptions echoOptions;
+            echoOptions.echo = true;
+            EchoRunResult result;
+            result.line = session.readLine(echoOptions);
+            result.cursorSets = Hooks::cursorRenderingSetHistory(Terminal::Types::OutputStream::Stdout);
+            result.viewportOrigin = Hooks::cursorRenderingViewportOrigin(Terminal::Types::OutputStream::Stdout);
+            static_cast<void>(context.expectTrue("managed echo session closes", session.close().ok()));
+            return result;
+        };
+
         Terminal::Types::LineReadOptions options;
         options.echo = false;
 
@@ -2134,6 +2341,77 @@ namespace
             static_cast<void>(context.expectTrue("bounded paste status", result.status.ok()));
             static_cast<void>(context.expectEq("bounded paste preserves scalar boundary", std::string{"\xc3\xa9"}, result.line));
             static_cast<void>(context.expectTrue("bounded paste reports truncation", result.wasTruncated));
+        }
+
+        {
+            const std::array<Terminal::Types::Event, 11> events{
+                characterEvent(U'a'),
+                characterEvent(U'b'),
+                characterEvent(U'c'),
+                characterEvent(U'd'),
+                namedEvent(Terminal::Types::NamedKey::ArrowLeft),
+                characterEvent(U'X'),
+                namedEvent(Terminal::Types::NamedKey::Home),
+                namedEvent(Terminal::Types::NamedKey::Delete),
+                namedEvent(Terminal::Types::NamedKey::End),
+                characterEvent(U'Y'),
+                namedEvent(Terminal::Types::NamedKey::Enter),
+            };
+
+            const EchoRunResult result = runEchoLine(events, {.columns = 5, .rows = 3}, {.column = 3, .row = 2});
+            static_cast<void>(context.expectTrue("wrapped edit status", result.line.status.ok()));
+            static_cast<void>(context.expectEq("wrapped left/home edit text", std::string{"bcXdY"}, result.line.line));
+            static_cast<void>(context.expectTrue("wrapped edit performs cursor redraw", !result.cursorSets.empty()));
+            if (!result.cursorSets.empty())
+            {
+                static_cast<void>(
+                    context.expectEq("wrapped redraw rebuilds stable origin column", std::uint32_t{3}, result.cursorSets.front().column));
+                static_cast<void>(context.expectEq("wrapped redraw rebuilds stable origin row", std::uint32_t{2}, result.cursorSets.front().row));
+            }
+            static_cast<void>(context.expectTrue("wrapped typing simulates viewport scroll", result.viewportOrigin.row > 0));
+        }
+
+        {
+            const std::array<Terminal::Types::Event, 8> events{
+                characterEvent(U'a'),
+                characterEvent(U'b'),
+                characterEvent(U'c'),
+                characterEvent(U'd'),
+                namedEvent(Terminal::Types::NamedKey::Backspace),
+                namedEvent(Terminal::Types::NamedKey::ArrowLeft),
+                namedEvent(Terminal::Types::NamedKey::Delete),
+                namedEvent(Terminal::Types::NamedKey::Enter),
+            };
+
+            const EchoRunResult result = runEchoLine(events, {.columns = 4, .rows = 3}, {.column = 3, .row = 1});
+            static_cast<void>(context.expectTrue("wrapped backspace/delete status", result.line.status.ok()));
+            static_cast<void>(context.expectEq("wrapped backspace/delete text", std::string{"ab"}, result.line.line));
+            static_cast<void>(context.expectTrue("wrapped backspace/delete redraws from tracked anchor", !result.cursorSets.empty()));
+        }
+
+        {
+            const std::array<Terminal::Types::Event, 9> events{
+                characterEvent(U'a'),
+                characterEvent(U'b'),
+                characterEvent(U'c'),
+                characterEvent(U'd'),
+                Terminal::Types::Event{.data = Terminal::Types::ResizeEvent{.size = {.columns = 4, .rows = 3}}},
+                namedEvent(Terminal::Types::NamedKey::Home),
+                characterEvent(U'Z'),
+                namedEvent(Terminal::Types::NamedKey::End),
+                namedEvent(Terminal::Types::NamedKey::Enter),
+            };
+
+            const EchoRunResult result = runEchoLine(events, {.columns = 5, .rows = 3}, {.column = 3, .row = 1});
+            static_cast<void>(context.expectTrue("resize redraw status", result.line.status.ok()));
+            static_cast<void>(context.expectEq("resize redraw preserves editable text", std::string{"Zabcd"}, result.line.line));
+            static_cast<void>(context.expectTrue("resize redraw performs cursor positioning", !result.cursorSets.empty()));
+            if (!result.cursorSets.empty())
+            {
+                static_cast<void>(
+                    context.expectEq("resize redraw rebuilds reflowed origin column", std::uint32_t{0}, result.cursorSets.front().column));
+                static_cast<void>(context.expectEq("resize redraw rebuilds reflowed origin row", std::uint32_t{2}, result.cursorSets.front().row));
+            }
         }
 
         {
@@ -2451,6 +2729,43 @@ namespace
             Hooks::capturedOutputText(Terminal::Types::OutputStream::Stdout)));
 
         Hooks::clearCapturedOutput(Terminal::Types::OutputStream::Stdout);
+        std::latch formatterEntered{1};
+        std::latch releaseFormatter{1};
+        IO::Types::Status blockedFormatStatus;
+        std::jthread formatterThread(
+            [&]
+            {
+                blockedFormatStatus =
+                    concurrencySession.print("{}", TerminalSessionBlockingFormat{.entered = &formatterEntered, .release = &releaseFormatter});
+            });
+        formatterEntered.wait();
+
+        std::atomic_bool formattingCloseFinished = false;
+        std::latch formattingCloseStarted{1};
+        IO::Types::Status formattingCloseStatus;
+        std::jthread formattingCloser(
+            [&]
+            {
+                formattingCloseStarted.count_down();
+                formattingCloseStatus = concurrencySession.close();
+                formattingCloseFinished.store(true, std::memory_order_release);
+            });
+        formattingCloseStarted.wait();
+        static_cast<void>(context.expectFalse(
+            "close waits while a Session formatter owns an active operation",
+            formattingCloseFinished.load(std::memory_order_acquire)));
+        releaseFormatter.count_down();
+        formatterThread.join();
+        formattingCloser.join();
+        static_cast<void>(context.expectTrue("blocked Session formatting completes", blockedFormatStatus.ok()));
+        static_cast<void>(context.expectTrue("close completes after Session formatting", formattingCloseStatus.ok()));
+        static_cast<void>(context.expectEq(
+            "blocked Session formatter emits its complete outer record",
+            std::string{"blocked-format"},
+            Hooks::capturedOutputText(Terminal::Types::OutputStream::Stdout)));
+        static_cast<void>(context.expectTrue("concurrency fixture reopens after formatting close", concurrencySession.open(streamOptions).ok()));
+
+        Hooks::clearCapturedOutput(Terminal::Types::OutputStream::Stdout);
         Hooks::blockNextRead();
         Terminal::Types::TextReadResult blockedRead;
         std::jthread reader(
@@ -2594,6 +2909,10 @@ namespace GameWIP::Test
         if (hasArgument(argc, argv, kReentrantFormatChildArgument))
         {
             return runReentrantFormatChild();
+        }
+        if (hasArgument(argc, argv, kSessionReentrantFormatChildArgument))
+        {
+            return runSessionReentrantFormatChild();
         }
 
         TestSupport::Types::ReportOptions reportOptions;

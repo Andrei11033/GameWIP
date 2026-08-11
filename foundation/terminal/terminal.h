@@ -1062,7 +1062,8 @@ namespace GameWIP::Terminal
     /// @details A Session is closed by default. open() acquires exclusive Terminal ownership of its input stream,
     /// configures required native state, and retains that state until close() or best-effort destruction. Input-consuming
     /// calls are serialized with each other while bound output remains independently serialized by the shared Terminal
-    /// output coordinator. close() waits for active Session operations and restores Session-owned persistent state.
+    /// output coordinator. Active-operation leases keep the binding valid without holding a lifecycle mutex across
+    /// backend work or user formatter code. close() waits for active operations and restores Session-owned persistent state.
     class GAMEWIP_TERMINAL_EXPORT Session final
     {
     public:
@@ -1092,7 +1093,8 @@ namespace GameWIP::Terminal
         [[nodiscard]] IO::Types::Status open(const Types::SessionOptions &options = {}) noexcept;
 
         /// @brief Restores Session-owned persistent output state in reverse order, then exact native input state.
-        /// @return Success when closed. Restoration failure leaves the session open and retryable ownership retained.
+        /// @return Success when closed. ResourceBusy when called reentrantly from the same Session operation. Restoration
+        /// failure leaves the session open and retryable ownership retained.
         [[nodiscard]] IO::Types::Status close() noexcept;
 
         /// @brief Returns the input capabilities captured when this Session opened.

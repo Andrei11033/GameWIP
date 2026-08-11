@@ -107,6 +107,12 @@ namespace GameWIP::Terminal::Detail::Platform
         Terminal::Types::InputStream responseStream,
         const Terminal::Types::CursorPositionQueryOptions &options);
 
+    /// @brief Gets a backend-stable cursor coordinate for managed line rendering.
+    [[nodiscard]] Terminal::Types::CursorPositionResult getLineRenderingCursorPosition(Terminal::Types::OutputStream stream);
+
+    /// @brief Sets a backend-stable cursor coordinate for managed line rendering.
+    [[nodiscard]] IO::Types::Status setLineRenderingCursorPosition(Terminal::Types::OutputStream stream, Terminal::Types::CursorPosition position);
+
     /// @brief Reads one normalized structured event from a standard input stream.
     /// @param stream Standard input stream to read.
     /// @param outputStream Bound output used to resolve resize dimensions consistently with getTerminalSize().

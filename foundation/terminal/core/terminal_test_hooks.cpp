@@ -91,6 +91,10 @@ namespace GameWIP::Terminal::Detail::TestHooks
             state.terminalSizeOverride = {};
             state.cursorPositionOverrideEnabled = false;
             state.cursorPositionOverride = {};
+            state.cursorRenderingSimulationEnabled = false;
+            state.cursorRenderingPosition = {};
+            state.cursorRenderingViewportOrigin = {};
+            state.cursorRenderingSetHistory.clear();
         }
 
         terminalTestHookState.nextInputCapabilityFailure.enabled.store(false, std::memory_order_release);
@@ -369,6 +373,34 @@ namespace GameWIP::Terminal::TestHooks
         OutputHookState &state = terminalTestHookState.outputStreams[outputIndex(stream)];
         state.cursorPositionOverride = {};
         state.cursorPositionOverrideEnabled = false;
+    }
+
+    void enableCursorRenderingSimulation(
+        Terminal::Types::OutputStream stream,
+        Terminal::Types::TerminalSize size,
+        Terminal::Types::CursorPosition position,
+        Terminal::Types::CursorPosition viewportOrigin)
+    {
+        std::lock_guard lock(terminalTestHookState.mutex);
+        OutputHookState &state = terminalTestHookState.outputStreams[outputIndex(stream)];
+        state.terminalSizeOverrideEnabled = true;
+        state.terminalSizeOverride = size;
+        state.cursorRenderingSimulationEnabled = true;
+        state.cursorRenderingPosition = position;
+        state.cursorRenderingViewportOrigin = viewportOrigin;
+        state.cursorRenderingSetHistory.clear();
+    }
+
+    Terminal::Types::CursorPosition cursorRenderingViewportOrigin(Terminal::Types::OutputStream stream) noexcept
+    {
+        std::lock_guard lock(terminalTestHookState.mutex);
+        return terminalTestHookState.outputStreams[outputIndex(stream)].cursorRenderingViewportOrigin;
+    }
+
+    std::vector<Terminal::Types::CursorPosition> cursorRenderingSetHistory(Terminal::Types::OutputStream stream)
+    {
+        std::lock_guard lock(terminalTestHookState.mutex);
+        return terminalTestHookState.outputStreams[outputIndex(stream)].cursorRenderingSetHistory;
     }
 
     void blockNextRead()

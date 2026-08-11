@@ -12,13 +12,13 @@
 #include <atomic>
 #include <chrono>
 #include <cstddef>
+#include <condition_variable>
 #include <exception>
 #include <format>
 #include <limits>
 #include <mutex>
 #include <new>
 #include <optional>
-#include <shared_mutex>
 #include <span>
 #include <stop_token>
 #include <stdexcept>
@@ -661,7 +661,7 @@ namespace GameWIP::Terminal
                 }
                 size_ = size.size;
 
-                const Types::CursorPositionResult position = queryPosition();
+                const Types::CursorPositionResult position = queryRenderingPosition();
                 if (!position.status.ok())
                 {
                     return position.status;
@@ -670,7 +670,7 @@ namespace GameWIP::Terminal
                 origin_ = position.position;
                 active_ = true;
                 renderedCells_ = 0;
-                renderedCellsKnown_ = true;
+                caretCells_ = 0;
                 return IO::successStatus();
             }
 
@@ -691,13 +691,40 @@ namespace GameWIP::Terminal
                 }
 
                 IO::Types::Status status = writeText(output_, appendedText);
-                if (status.ok())
+                if (!status.ok())
                 {
-                    // We intentionally avoid a cursor query on the normal typing hot path. If a later
-                    // edit needs redraw, establish the rendered span once from the then-current cursor.
-                    renderedCellsKnown_ = false;
+                    return status;
                 }
-                return status;
+
+                const bool simpleAscii = std::all_of(
+                    appendedText.begin(),
+                    appendedText.end(),
+                    [](unsigned char byte)
+                    {
+                        return byte >= 0x20 && byte < 0x7f;
+                    });
+                if (simpleAscii && appendedText.size() <= std::numeric_limits<std::size_t>::max() - renderedCells_)
+                {
+                    // Ordinary append-at-end typing remains query-free. Printable ASCII advances by one cell;
+                    // Unicode and control text take the measured slow path so Terminal does not invent a width policy.
+                    renderedCells_ += appendedText.size();
+                    caretCells_ = renderedCells_;
+                    return IO::successStatus();
+                }
+
+                const Types::CursorPositionResult current = queryRenderingPosition();
+                if (!current.status.ok())
+                {
+                    return current.status;
+                }
+                const std::optional<std::size_t> cells = cellDistance(origin_, current.position);
+                if (!cells.has_value())
+                {
+                    return unsupportedStatus();
+                }
+                renderedCells_ = *cells;
+                caretCells_ = renderedCells_;
+                return IO::successStatus();
             }
 
             /// @brief Erases one known single-cell ASCII suffix without rewriting the line.
@@ -712,10 +739,16 @@ namespace GameWIP::Terminal
                     return unsupportedStatus();
                 }
 
-                const Types::CursorPositionResult current = queryPosition();
+                const Types::CursorPositionResult current = queryRenderingPosition();
                 if (!current.status.ok())
                 {
                     return current.status;
+                }
+
+                const std::optional<Types::CursorPosition> currentOrigin = positionBefore(current.position, caretCells_);
+                if (!currentOrigin.has_value())
+                {
+                    return unsupportedStatus();
                 }
 
                 Types::CursorPosition previous = current.position;
@@ -733,7 +766,7 @@ namespace GameWIP::Terminal
                     return unsupportedStatus();
                 }
 
-                IO::Types::Status status = setCursorPosition(output_, previous);
+                IO::Types::Status status = setRenderingPosition(previous);
                 if (!status.ok())
                 {
                     return status;
@@ -743,10 +776,12 @@ namespace GameWIP::Terminal
                 {
                     return status;
                 }
-                status = setCursorPosition(output_, previous);
+                status = setRenderingPosition(previous);
                 if (status.ok())
                 {
-                    renderedCellsKnown_ = false;
+                    origin_ = *currentOrigin;
+                    --renderedCells_;
+                    --caretCells_;
                 }
                 return status;
             }
@@ -763,24 +798,19 @@ namespace GameWIP::Terminal
                     return invalidArgumentStatus();
                 }
 
-                if (!renderedCellsKnown_)
+                const Types::CursorPositionResult current = queryRenderingPosition();
+                if (!current.status.ok())
                 {
-                    const Types::CursorPositionResult current = queryPosition();
-                    if (!current.status.ok())
-                    {
-                        return current.status;
-                    }
-
-                    const std::optional<std::size_t> cells = cellDistance(origin_, current.position);
-                    if (!cells.has_value())
-                    {
-                        return unsupportedStatus();
-                    }
-                    renderedCells_ = *cells;
-                    renderedCellsKnown_ = true;
+                    return current.status;
                 }
+                const std::optional<Types::CursorPosition> rebuiltOrigin = positionBefore(current.position, caretCells_);
+                if (!rebuiltOrigin.has_value())
+                {
+                    return unsupportedStatus();
+                }
+                origin_ = *rebuiltOrigin;
 
-                IO::Types::Status status = setCursorPosition(output_, origin_);
+                IO::Types::Status status = setRenderingPosition(origin_);
                 if (!status.ok())
                 {
                     return status;
@@ -792,7 +822,7 @@ namespace GameWIP::Terminal
                     return status;
                 }
 
-                const Types::CursorPositionResult end = queryPosition();
+                const Types::CursorPositionResult end = queryRenderingPosition();
                 if (!end.status.ok())
                 {
                     return end.status;
@@ -814,9 +844,8 @@ namespace GameWIP::Terminal
                 }
 
                 renderedCells_ = *newCells;
-                renderedCellsKnown_ = true;
 
-                status = setCursorPosition(output_, origin_);
+                status = setRenderingPosition(origin_);
                 if (!status.ok())
                 {
                     return status;
@@ -828,6 +857,22 @@ namespace GameWIP::Terminal
                     {
                         return status;
                     }
+
+                    const Types::CursorPositionResult caretPosition = queryRenderingPosition();
+                    if (!caretPosition.status.ok())
+                    {
+                        return caretPosition.status;
+                    }
+                    const std::optional<std::size_t> cells = cellDistance(origin_, caretPosition.position);
+                    if (!cells.has_value())
+                    {
+                        return unsupportedStatus();
+                    }
+                    caretCells_ = *cells;
+                }
+                else
+                {
+                    caretCells_ = 0;
                 }
                 return IO::successStatus();
             }
@@ -851,16 +896,37 @@ namespace GameWIP::Terminal
             }
 
         private:
-            [[nodiscard]] Types::CursorPositionResult queryPosition() const
+            [[nodiscard]] Types::CursorPositionResult queryRenderingPosition() const
             {
-                Types::CursorPositionQueryOptions options;
-                options.flushMode = IO::Types::FlushMode::None;
-                return getCursorPosition(output_, input_, options);
+                return Detail::getLineRenderingCursorPosition(output_, input_);
+            }
+
+            [[nodiscard]] IO::Types::Status setRenderingPosition(Types::CursorPosition position) const
+            {
+                return Detail::setLineRenderingCursorPosition(output_, position);
+            }
+
+            [[nodiscard]] std::optional<Types::CursorPosition> positionBefore(Types::CursorPosition end, std::size_t cells) const noexcept
+            {
+                if (size_.columns == 0 || end.column >= size_.columns)
+                {
+                    return std::nullopt;
+                }
+
+                const std::uint64_t endLinear = static_cast<std::uint64_t>(end.row) * size_.columns + end.column;
+                if (cells > endLinear)
+                {
+                    return std::nullopt;
+                }
+                const std::uint64_t beginLinear = endLinear - cells;
+                return Types::CursorPosition{
+                    .column = static_cast<std::uint32_t>(beginLinear % size_.columns),
+                    .row = static_cast<std::uint32_t>(beginLinear / size_.columns)};
             }
 
             [[nodiscard]] std::optional<std::size_t> cellDistance(Types::CursorPosition begin, Types::CursorPosition end) const noexcept
             {
-                if (size_.columns == 0 || end.row < begin.row)
+                if (size_.columns == 0 || begin.column >= size_.columns || end.column >= size_.columns || end.row < begin.row)
                 {
                     return std::nullopt;
                 }
@@ -896,9 +962,9 @@ namespace GameWIP::Terminal
             Types::TerminalSize size_{};
             Types::CursorPosition origin_{};
             std::size_t renderedCells_ = 0;
+            std::size_t caretCells_ = 0;
             bool enabled_ = false;
             bool active_ = false;
-            bool renderedCellsKnown_ = true;
         };
 
         [[nodiscard]] IO::Types::Status insertScalar(
@@ -1419,8 +1485,12 @@ namespace GameWIP::Terminal
             AlternateScreen
         };
 
-        // Shared operations may proceed together; open/close/destruction take exclusive lifecycle ownership.
-        std::shared_mutex lifecycleMutex;
+        // Operations retain the open binding through a lightweight count without holding this mutex while backend
+        // work or user formatters execute. Lifecycle mutation closes the admission gate and waits for the count.
+        std::mutex lifecycleMutex;
+        std::condition_variable lifecycleCondition;
+        bool lifecycleMutation = false;
+        std::size_t activeOperations = 0;
         std::mutex inputOperationMutex;
         std::mutex persistentOutputMutex;
         std::atomic_bool open = false;
@@ -1434,6 +1504,125 @@ namespace GameWIP::Terminal
         AlternateScreenScope alternateScreenScope;
         std::array<PersistentOutputState, 2> outputRestoreOrder{};
         std::size_t outputRestoreCount = 0;
+
+        class Operation final
+        {
+        public:
+            explicit Operation(State &requested)
+                : previous_(current_)
+            {
+                bool reentrant = false;
+                for (const Operation *operation = current_; operation != nullptr; operation = operation->previous_)
+                {
+                    if (operation->state_ == &requested)
+                    {
+                        reentrant = true;
+                        break;
+                    }
+                }
+
+                std::unique_lock lock(requested.lifecycleMutex);
+                if (!reentrant)
+                {
+                    requested.lifecycleCondition.wait(
+                        lock,
+                        [&requested]
+                        {
+                            return !requested.lifecycleMutation;
+                        });
+                }
+                if (!requested.open.load(std::memory_order_acquire))
+                {
+                    return;
+                }
+
+                ++requested.activeOperations;
+                state_ = &requested;
+                current_ = this;
+            }
+
+            Operation(const Operation &) = delete;
+            Operation &operator=(const Operation &) = delete;
+
+            ~Operation()
+            {
+                if (state_ == nullptr)
+                {
+                    return;
+                }
+
+                current_ = previous_;
+                std::lock_guard lock(state_->lifecycleMutex);
+                --state_->activeOperations;
+                if (state_->activeOperations == 0)
+                {
+                    state_->lifecycleCondition.notify_all();
+                }
+            }
+
+            [[nodiscard]] static bool activeOnCurrentThread(const State &state) noexcept
+            {
+                for (const Operation *operation = current_; operation != nullptr; operation = operation->previous_)
+                {
+                    if (operation->state_ == &state)
+                    {
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+        private:
+            inline static thread_local Operation *current_ = nullptr;
+            State *state_ = nullptr;
+            Operation *previous_ = nullptr;
+        };
+
+        class Mutation final
+        {
+        public:
+            explicit Mutation(State &state)
+                : state_(state)
+                , lock_(state.lifecycleMutex)
+            {
+                state_.lifecycleCondition.wait(
+                    lock_,
+                    [this]
+                    {
+                        return !state_.lifecycleMutation;
+                    });
+                state_.lifecycleMutation = true;
+                try
+                {
+                    state_.lifecycleCondition.wait(
+                        lock_,
+                        [this]
+                        {
+                            return state_.activeOperations == 0;
+                        });
+                }
+                catch (...)
+                {
+                    state_.lifecycleMutation = false;
+                    state_.lifecycleCondition.notify_all();
+                    throw;
+                }
+            }
+
+            Mutation(const Mutation &) = delete;
+            Mutation &operator=(const Mutation &) = delete;
+
+            ~Mutation()
+            {
+                state_.lifecycleMutation = false;
+                lock_.unlock();
+                state_.lifecycleCondition.notify_all();
+            }
+
+        private:
+            State &state_;
+            std::unique_lock<std::mutex> lock_;
+        };
     };
 
     Session::Session() noexcept = default;
@@ -1512,7 +1701,7 @@ namespace GameWIP::Terminal
 
         try
         {
-            std::unique_lock lock(state_->lifecycleMutex);
+            State::Mutation mutation(*state_);
             if (!state_->open.load(std::memory_order_acquire))
             {
                 return;
@@ -1550,7 +1739,12 @@ namespace GameWIP::Terminal
                 state_ = std::make_unique<State>();
             }
 
-            std::unique_lock lock(state_->lifecycleMutex);
+            if (State::Operation::activeOnCurrentThread(*state_))
+            {
+                return IO::makeStatus(ErrorCode::AlreadyOpen);
+            }
+
+            State::Mutation mutation(*state_);
             if (state_->open.load(std::memory_order_acquire))
             {
                 return IO::makeStatus(ErrorCode::AlreadyOpen);
@@ -1587,7 +1781,12 @@ namespace GameWIP::Terminal
 
         try
         {
-            std::unique_lock lock(state_->lifecycleMutex);
+            if (State::Operation::activeOnCurrentThread(*state_))
+            {
+                return IO::makeStatus(ErrorCode::ResourceBusy);
+            }
+
+            State::Mutation mutation(*state_);
             if (!state_->open.load(std::memory_order_acquire))
             {
                 return IO::successStatus();
@@ -1627,7 +1826,7 @@ namespace GameWIP::Terminal
 
         try
         {
-            std::shared_lock lifecycleLock(state_->lifecycleMutex);
+            State::Operation operation(*state_);
             std::lock_guard inputOperationLock(state_->inputOperationMutex);
             if (!state_->open.load(std::memory_order_acquire))
             {
@@ -1671,7 +1870,7 @@ namespace GameWIP::Terminal
 
         try
         {
-            std::shared_lock lifecycleLock(state_->lifecycleMutex);
+            State::Operation operation(*state_);
             std::lock_guard inputOperationLock(state_->inputOperationMutex);
             if (!state_->open.load(std::memory_order_acquire))
             {
@@ -1720,7 +1919,7 @@ namespace GameWIP::Terminal
 
         try
         {
-            std::shared_lock lifecycleLock(state_->lifecycleMutex);
+            State::Operation operation(*state_);
             std::lock_guard inputOperationLock(state_->inputOperationMutex);
             if (!state_->open.load(std::memory_order_acquire))
             {
@@ -1769,7 +1968,7 @@ namespace GameWIP::Terminal
 
         try
         {
-            std::shared_lock lifecycleLock(state_->lifecycleMutex);
+            State::Operation operation(*state_);
             std::lock_guard inputOperationLock(state_->inputOperationMutex);
             if (!state_->open.load(std::memory_order_acquire))
             {
@@ -1818,7 +2017,7 @@ namespace GameWIP::Terminal
 
         try
         {
-            std::shared_lock lock(state_->lifecycleMutex);
+            State::Operation operation(*state_);
             if (!state_->open.load(std::memory_order_acquire))
             {
                 return {.status = notOpenStatus(), .capabilities = {}};
@@ -1840,7 +2039,7 @@ namespace GameWIP::Terminal
 
         try
         {
-            std::shared_lock lock(state_->lifecycleMutex);
+            State::Operation operation(*state_);
             if (!state_->open.load(std::memory_order_acquire))
             {
                 return {.status = notOpenStatus(), .capabilities = {}};
@@ -1862,7 +2061,7 @@ namespace GameWIP::Terminal
 
         try
         {
-            std::shared_lock lock(state_->lifecycleMutex);
+            State::Operation operation(*state_);
             if (!state_->open.load(std::memory_order_acquire))
             {
                 return {.status = notOpenStatus(), .capabilities = {}};
@@ -1884,7 +2083,7 @@ namespace GameWIP::Terminal
 
         try
         {
-            std::shared_lock lock(state_->lifecycleMutex);
+            State::Operation operation(*state_);
             if (!state_->open.load(std::memory_order_acquire))
             {
                 return {.status = notOpenStatus(), .size = {}};
@@ -1906,7 +2105,7 @@ namespace GameWIP::Terminal
 
         try
         {
-            std::shared_lock lock(state_->lifecycleMutex);
+            State::Operation operation(*state_);
             if (!state_->open.load(std::memory_order_acquire))
             {
                 return notOpenStatus();
@@ -1928,7 +2127,7 @@ namespace GameWIP::Terminal
 
         try
         {
-            std::shared_lock lock(state_->lifecycleMutex);
+            State::Operation operation(*state_);
             if (!state_->open.load(std::memory_order_acquire))
             {
                 return notOpenStatus();
@@ -1950,7 +2149,7 @@ namespace GameWIP::Terminal
 
         try
         {
-            std::shared_lock lock(state_->lifecycleMutex);
+            State::Operation operation(*state_);
             if (!state_->open.load(std::memory_order_acquire))
             {
                 return {.status = notOpenStatus(), .bytesWritten = 0};
@@ -1972,7 +2171,7 @@ namespace GameWIP::Terminal
 
         try
         {
-            std::shared_lock lock(state_->lifecycleMutex);
+            State::Operation operation(*state_);
             if (!state_->open.load(std::memory_order_acquire))
             {
                 return notOpenStatus();
@@ -1994,7 +2193,7 @@ namespace GameWIP::Terminal
 
         try
         {
-            std::shared_lock lock(state_->lifecycleMutex);
+            State::Operation operation(*state_);
             if (!state_->open.load(std::memory_order_acquire))
             {
                 return notOpenStatus();
@@ -2016,7 +2215,7 @@ namespace GameWIP::Terminal
 
         try
         {
-            std::shared_lock lock(state_->lifecycleMutex);
+            State::Operation operation(*state_);
             if (!state_->open.load(std::memory_order_acquire))
             {
                 return notOpenStatus();
@@ -2038,7 +2237,7 @@ namespace GameWIP::Terminal
 
         try
         {
-            std::shared_lock lock(state_->lifecycleMutex);
+            State::Operation operation(*state_);
             if (!state_->open.load(std::memory_order_acquire))
             {
                 return notOpenStatus();
@@ -2060,7 +2259,7 @@ namespace GameWIP::Terminal
 
         try
         {
-            std::shared_lock lock(state_->lifecycleMutex);
+            State::Operation operation(*state_);
             if (!state_->open.load(std::memory_order_acquire))
             {
                 return notOpenStatus();
@@ -2082,7 +2281,7 @@ namespace GameWIP::Terminal
 
         try
         {
-            std::shared_lock lock(state_->lifecycleMutex);
+            State::Operation operation(*state_);
             if (!state_->open.load(std::memory_order_acquire))
             {
                 return notOpenStatus();
@@ -2104,7 +2303,7 @@ namespace GameWIP::Terminal
 
         try
         {
-            std::shared_lock lock(state_->lifecycleMutex);
+            State::Operation operation(*state_);
             if (!state_->open.load(std::memory_order_acquire))
             {
                 return notOpenStatus();
@@ -2126,7 +2325,7 @@ namespace GameWIP::Terminal
 
         try
         {
-            std::shared_lock lifecycleLock(state_->lifecycleMutex);
+            State::Operation operation(*state_);
             std::lock_guard inputOperationLock(state_->inputOperationMutex);
             if (!state_->open.load(std::memory_order_acquire))
             {
@@ -2149,7 +2348,7 @@ namespace GameWIP::Terminal
 
         try
         {
-            std::shared_lock lock(state_->lifecycleMutex);
+            State::Operation operation(*state_);
             if (!state_->open.load(std::memory_order_acquire))
             {
                 return notOpenStatus();
@@ -2171,7 +2370,7 @@ namespace GameWIP::Terminal
 
         try
         {
-            std::shared_lock lock(state_->lifecycleMutex);
+            State::Operation operation(*state_);
             if (!state_->open.load(std::memory_order_acquire))
             {
                 return notOpenStatus();
@@ -2193,7 +2392,7 @@ namespace GameWIP::Terminal
 
         try
         {
-            std::shared_lock lifecycleLock(state_->lifecycleMutex);
+            State::Operation operation(*state_);
             if (!state_->open.load(std::memory_order_acquire))
             {
                 return notOpenStatus();
@@ -2263,7 +2462,7 @@ namespace GameWIP::Terminal
 
         try
         {
-            std::shared_lock lock(state_->lifecycleMutex);
+            State::Operation operation(*state_);
             if (!state_->open.load(std::memory_order_acquire))
             {
                 return notOpenStatus();
@@ -2285,7 +2484,7 @@ namespace GameWIP::Terminal
 
         try
         {
-            std::shared_lock lock(state_->lifecycleMutex);
+            State::Operation operation(*state_);
             if (!state_->open.load(std::memory_order_acquire))
             {
                 return notOpenStatus();
@@ -2307,7 +2506,7 @@ namespace GameWIP::Terminal
 
         try
         {
-            std::shared_lock lifecycleLock(state_->lifecycleMutex);
+            State::Operation operation(*state_);
             if (!state_->open.load(std::memory_order_acquire))
             {
                 return notOpenStatus();
@@ -2348,7 +2547,7 @@ namespace GameWIP::Terminal
 
         try
         {
-            std::shared_lock lifecycleLock(state_->lifecycleMutex);
+            State::Operation operation(*state_);
             if (!state_->open.load(std::memory_order_acquire))
             {
                 return notOpenStatus();
@@ -2400,7 +2599,7 @@ namespace GameWIP::Terminal
 
         try
         {
-            std::shared_lock lock(state_->lifecycleMutex);
+            State::Operation operation(*state_);
             if (!state_->open.load(std::memory_order_acquire))
             {
                 return notOpenStatus();
@@ -2422,7 +2621,7 @@ namespace GameWIP::Terminal
 
         try
         {
-            std::shared_lock lock(state_->lifecycleMutex);
+            State::Operation operation(*state_);
             if (!state_->open.load(std::memory_order_acquire))
             {
                 return notOpenStatus();

@@ -10,7 +10,7 @@ Controls require a supported terminal endpoint. Redirected, detached, and unclas
 
 A zero movement or scroll amount emits no control sequence, but the operation can still honor a requested flush.
 
-`getCursorPosition()` can use an output endpoint for the query and an input endpoint for a protocol response. The current Win32 real-console backend answers directly without consuming stdin; its timeout therefore does not cause a wait.
+`getCursorPosition()` can use an output endpoint for the query and an input endpoint for a protocol response. The current Win32 real-console backend answers directly without consuming stdin; its timeout therefore does not cause a wait. Its public coordinates are relative to the current visible `srWindow`, matching `getTerminalSize()` viewport dimensions. Managed line echo uses a private stable screen-buffer coordinate instead because a viewport scroll must not invalidate an active wrapped line.
 
 `saveCursorPosition()` and `restoreCursorPosition()` expose backend save/restore state. They are not specified as a stack: repeated saves may replace the previously saved position. Do not assume arbitrary nesting.
 

@@ -62,7 +62,7 @@ A Session binds `SessionOptions::output` for its complete open lifetime. Bound o
 
 Opening a Session does not automatically hide the cursor or enter alternate screen. `Session::setCursorVisible(false)` and `Session::enterAlternateScreen()` use the existing nesting-aware output-state machinery and record only the obligations created by that Session. Their inverse operations remove the corresponding obligation when successful. `close()` replays any remaining obligations in actual reverse activation order.
 
-Input-consuming calls on one Session remain serialized with each other, but bound output may proceed from another thread while a read blocks. `close()` takes exclusive lifecycle ownership and waits for active Session operations before restoration.
+Input-consuming calls on one Session remain serialized with each other, but bound output may proceed from another thread while a read blocks. Each call holds an active-operation lease without retaining the lifecycle mutex across backend or formatter work. `close()` stops unrelated operation admission and waits for active Session operations before restoration; same-Session reentrant close returns `ResourceBusy` instead of waiting on itself.
 
 ## Move behavior
 

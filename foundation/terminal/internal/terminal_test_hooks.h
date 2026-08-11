@@ -84,6 +84,11 @@ namespace GameWIP::Terminal::Detail::TestHooks
 
         bool cursorPositionOverrideEnabled = false;
         Terminal::Types::CursorPosition cursorPositionOverride{};
+
+        bool cursorRenderingSimulationEnabled = false;
+        Terminal::Types::CursorPosition cursorRenderingPosition{};
+        Terminal::Types::CursorPosition cursorRenderingViewportOrigin{};
+        std::vector<Terminal::Types::CursorPosition> cursorRenderingSetHistory;
     };
 
     /// @brief Process-wide Terminal hook state shared by core and Win32 backend tests.
@@ -292,6 +297,22 @@ namespace GameWIP::Terminal::TestHooks
     /// @brief Clears a cursor position override.
     /// @warning Test-only API.
     GAMEWIP_TERMINAL_EXPORT void clearCursorPositionOverride(Terminal::Types::OutputStream stream) noexcept;
+
+    /// @brief Enables deterministic cursor advancement, wrapping, viewport scrolling, and resize reflow.
+    /// @warning Test-only API. Text-cell simulation is intended for ASCII managed-line rendering fixtures.
+    GAMEWIP_TERMINAL_EXPORT void enableCursorRenderingSimulation(
+        Terminal::Types::OutputStream stream,
+        Terminal::Types::TerminalSize size,
+        Terminal::Types::CursorPosition position,
+        Terminal::Types::CursorPosition viewportOrigin = {});
+
+    /// @brief Returns the simulated viewport origin after writes and resize events.
+    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Terminal::Types::CursorPosition cursorRenderingViewportOrigin(
+        Terminal::Types::OutputStream stream) noexcept;
+
+    /// @brief Returns backend-stable positions requested by managed line redraw.
+    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT std::vector<Terminal::Types::CursorPosition> cursorRenderingSetHistory(
+        Terminal::Types::OutputStream stream);
 
     /// @brief Arms the next backend read to pause after taking Terminal input serialization.
     GAMEWIP_TERMINAL_EXPORT void blockNextRead();

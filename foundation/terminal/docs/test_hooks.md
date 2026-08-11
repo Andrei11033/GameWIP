@@ -46,6 +46,7 @@ Overrides persist until cleared or reset.
 - `setInputEvents()` and `clearInputEvents()` provide deterministic portable events for managed line-editor tests.
 - `setPendingHighSurrogate()` and `hasPendingHighSurrogate()` expose the Win32 event decoder's endpoint-owned surrogate state for the stdin-replacement regression.
 - `setInputModeOverride()` provides deterministic internal line-buffer, echo, and control-processing flags for Session/direct-read setup and restoration tests.
+- cursor-rendering simulation advances an absolute test cursor through ASCII writes, wraps at the configured width, scrolls a separate viewport origin, reflows on resize events, and records managed redraw positions. This narrowly models the distinction between Win32 screen-buffer and `srWindow`-relative coordinates without becoming production API.
 - `inputModeOverrideMatches()` and `inputManagedEventModeOverrideMatches()` verify the native flags managed by an open session.
 - Win32-only `resetWin32KeyDecoder()`, `decodeWin32KeyRecord()`, and `takePendingWin32KeyEvent()` exercise native key normalization without exporting production decoder symbols.
 - `clearInputModeOverride()` restores normal backend behavior.

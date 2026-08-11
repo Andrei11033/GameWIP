@@ -111,7 +111,7 @@ const auto closeStatus = session.close();
 
 Interactive `readLine()` owns Unicode editing and echo rather than delegating to native cooked input. Set `lineOptions.echo = false` for password-like or application-rendered input.
 
-Only one managed owner may consume stdin at a time. Re-opening the same object returns `AlreadyOpen`; a competing session or direct read returns `ResourceBusy`. Explicit `close()` reports restoration failures and retains ownership when restoration can be retried.
+Only one managed owner may consume stdin at a time. Re-opening the same object returns `AlreadyOpen`; a competing session or direct read returns `ResourceBusy`. Explicit `close()` reports restoration failures and retains ownership when restoration can be retried. It also waits for active Session calls; if formatter code tries to close its own Session operation, that nested `close()` returns `ResourceBusy` without changing the open state.
 
 ## Structured event input
 

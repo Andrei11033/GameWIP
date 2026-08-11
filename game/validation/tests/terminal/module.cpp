@@ -14,7 +14,8 @@ namespace
     {
         for (int index = 1; index < argc; ++index)
         {
-            if (argv[index] != nullptr && std::string_view(argv[index]) == "--terminal-test-child=reentrant-format")
+            if (argv[index] != nullptr && (std::string_view(argv[index]) == "--terminal-test-child=reentrant-format" ||
+                                           std::string_view(argv[index]) == "--terminal-test-child=session-reentrant-format"))
             {
                 return true;
             }
