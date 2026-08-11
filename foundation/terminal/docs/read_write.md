@@ -14,8 +14,10 @@ Terminal owns one process-wide managed stdin ownership domain plus backend input
 
 - one persistent `Session` or one direct input operation may own stdin at a time;
 - a competing session/direct read returns `ResourceBusy` rather than waiting behind an unrelated owner;
-- one `Session` read is serialized with `close()` on that object so restoration cannot race active input;
-- stdout operations serialize with one another;
+- input-consuming operations on one `Session` serialize with each other;
+- Session output operations may run while another thread is blocked in a Session read;
+- `close()` takes exclusive Session lifecycle ownership and waits for active Session operations before restoration;
+- stdout operations serialize with one another, including global and Session-bound output;
 - stderr operations serialize with one another;
 - stdout and stderr can progress independently;
 - a sequence of public calls is not a transaction.
@@ -107,10 +109,12 @@ A failed platform write can have emitted a prefix. Terminal reports completion s
 
 `OutputBuffer` owns plain-text storage for caller-controlled batching.
 
-- `reserve()` changes capacity without changing text;
-- `appendText()` appends bytes expected to contain UTF-8;
-- `appendLine()` appends text and the constructor-selected line ending;
-- `print()` and `println()` append formatted text;
+- construction is non-throwing and starts with `LineEnding::Native`;
+- `setLineEnding()` changes future line policy through a checked status;
+- `reserve()` changes capacity without changing text and translates allocation/length failure;
+- `appendText()` appends valid UTF-8 by contract through a checked mutation;
+- `appendLine()` appends text and the configured line ending atomically;
+- `print()` and `println()` format into retained storage and roll back to the previous size on failure;
 - `writeTo()` writes without clearing;
 - `flushTo()` writes and clears only when the write succeeds.
 
@@ -132,13 +136,13 @@ Terminal flush does not flush `std::cout`, `std::cerr`, C `FILE*` buffers, or st
 
 A direct read captures required native terminal state, performs the read, restores the exact snapshot, and releases ownership before returning. If the read succeeds but restoration fails, the restoration failure becomes the returned status. If both fail, the read failure remains primary and restoration failure is appended to that result's diagnostic text on a best-effort basis.
 
-A persistent `Session::close()` behaves differently because the caller can retry cleanup: failed restoration leaves the session open and stdin ownership retained. The non-throwing destructor attempts restoration once and then releases process-wide ownership because no caller remains to retry through that object.
+A persistent `Session::close()` behaves differently because the caller can retry cleanup: Session-owned persistent output state is restored in reverse activation order before input state. A failed output or input restoration leaves the session open and stdin ownership retained. The non-throwing destructor makes best-effort output and input restoration attempts and then releases process-wide input ownership because no caller remains to retry through that object.
 
 ## Failure and exception model
 
-Expected option, endpoint, ownership, capability, Unicode, cancellation, and backend failures use IO statuses/results. Managed read entry points and `Session` lifecycle functions are `noexcept` and translate owned allocation/setup/backend exceptions to statuses.
+Expected option, endpoint, ownership, capability, Unicode, cancellation, formatting, allocation, and backend failures use IO statuses/results. Session lifecycle, input, bound output, query, formatting, and control entry points are `noexcept`. `OutputBuffer` allocating mutations and formatting are also `noexcept`.
 
-Free formatted output converts `std::format_error`, allocation failure, and unexpected formatting-stage exceptions to portable statuses before the outer write begins. `OutputBuffer` construction, reserve, append, and formatting use ordinary `std::string` and `std::format` semantics and may throw in this intermediate #57 slice. Other unchanged output/control paths retain their documented exception behavior until the checked-output migration is completed.
+Free formatted output contains formatter, allocation, length, and unexpected formatting-stage exceptions before the outer write begins. Checked direct output paths contain Terminal-owned assembly allocation where it occurs, and diagnostic enrichment is best effort so constructing an error message never replaces the primary code-only failure. Caller-owned argument construction that happens before Terminal receives control remains outside the checked boundary.
 
 Output-state scope factories are `noexcept`. Their returned objects store setup failure in `status()` and remain inactive.
 

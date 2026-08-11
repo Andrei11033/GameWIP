@@ -34,7 +34,7 @@ The generated reference owns exact declarations and overload signatures from `te
 
 Public text is UTF-8. Real-console output is converted through the native Unicode console API, while redirected text remains UTF-8 bytes. Native Win32 console input is decoded from structured `INPUT_RECORD` data into portable logical events; interactive Stream reads and Unicode line editing are built on that same immediate event engine. Raw byte operations remain byte-oriented.
 
-Terminal has one process-wide managed stdin ownership domain plus backend input serialization. A persistent `Session` owns stdin until `close()`, while each direct read acquires temporary ownership, performs the operation, restores exact native state, and releases ownership. stdout and stderr retain independent process-wide serialization. Terminal cannot coordinate with direct C, C++, native-handle, or third-party stream access.
+Terminal has one process-wide managed stdin ownership domain plus backend input serialization. A persistent `Session` owns stdin until `close()`, binds one primary output, and can track reversible output state it explicitly changes. Each direct read acquires temporary ownership, performs the operation, restores exact native state, and releases ownership. Global and Session output share the same independent stdout/stderr serialization, so output can continue while a Session read blocks. Terminal cannot coordinate with direct C, C++, native-handle, or third-party stream access.
 
 Capabilities depend on the current endpoint. Real terminals, redirected streams, detached streams, and other handles can support different operations. Capability queries are snapshots; the status returned by the requested operation remains authoritative.
 

@@ -20,9 +20,9 @@ const auto status = session.open(options);
 
 Opening an already-open object returns `AlreadyOpen`. A second session or a direct read competing for managed stdin ownership returns `ResourceBusy`.
 
-`close()` restores the exact captured native input state before releasing ownership. Closing an already-closed session succeeds. If explicit restoration fails, `close()` returns that failure while the session remains open and retains ownership so cleanup can be retried.
+`close()` first restores persistent output state explicitly owned by the Session in reverse activation order, then restores the exact captured native input state before releasing ownership. Closing an already-closed session succeeds. If explicit restoration fails, `close()` returns that failure while the session remains open and retains ownership so cleanup can be retried. Successfully completed restoration steps are not repeated on retry.
 
-The destructor is `noexcept` and makes one best-effort restoration attempt. Because no caller remains to retry afterward, destruction releases process-wide ownership even if native restoration fails.
+The destructor is `noexcept` and makes best-effort output and input restoration attempts. Because no caller remains to retry afterward, destruction releases process-wide input ownership even if restoration fails.
 
 ## Delivery mode
 
@@ -55,6 +55,14 @@ Terminal disables native line buffering/echo for managed interactive console inp
 - an availability-check-then-read preflight.
 
 Direct reads capture and restore exact native state for one operation. Persistent sessions capture once and retain the state until close. Mouse support is intentionally absent from the public event contract today, but the Win32 record dispatcher treats mouse as a distinct ignored record class so a future portable mouse event can be added without redesigning the reader.
+
+## Bound output and persistent output state
+
+A Session binds `SessionOptions::output` for its complete open lifetime. Bound output writes, formatting, capability/geometry queries, styling, cursor operations, clearing, scrolling, title, bell, and flush delegate to the same process-wide output implementation used by direct calls.
+
+Opening a Session does not automatically hide the cursor or enter alternate screen. `Session::setCursorVisible(false)` and `Session::enterAlternateScreen()` use the existing nesting-aware output-state machinery and record only the obligations created by that Session. Their inverse operations remove the corresponding obligation when successful. `close()` replays any remaining obligations in actual reverse activation order.
+
+Input-consuming calls on one Session remain serialized with each other, but bound output may proceed from another thread while a read blocks. `close()` takes exclusive lifecycle ownership and waits for active Session operations before restoration.
 
 ## Move behavior
 

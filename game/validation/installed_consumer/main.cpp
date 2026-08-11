@@ -36,6 +36,16 @@ int main()
     const GameWIP::IO::Types::TextCopyResult text = writer.copyText();
     const GameWIP::FileSystem::Types::PathResult path = GameWIP::FileSystem::pathFromUtf8("installed-consumer.txt");
     const GameWIP::Terminal::Types::OutputCapabilitiesResult capabilities = GameWIP::Terminal::getOutputCapabilities();
+
+    GameWIP::Terminal::OutputBuffer terminalBuffer;
+    const GameWIP::IO::Types::Status terminalBufferLineEnding =
+        terminalBuffer.setLineEnding(GameWIP::Terminal::Types::LineEnding::Lf);
+    const GameWIP::IO::Types::Status terminalBufferReserve = terminalBuffer.reserve(64);
+    const GameWIP::IO::Types::Status terminalBufferAppend = terminalBuffer.appendLine("installed terminal buffer");
+
+    GameWIP::Terminal::Session closedTerminalSession;
+    const GameWIP::IO::Types::Status closedSessionWrite = closedTerminalSession.writeText("must-not-write");
+
     const GameWIP::Logger::Types::Config loggerConfig = GameWIP::Logger::defaultConfig();
     GameWIP::TestSupport::Timer timer;
     const GameWIP::TestSupport::Types::InfrastructureStatus infrastructureStatus;
@@ -58,7 +68,10 @@ int main()
 
     return unicodeVersion.major == 17 && unicodeVersion.minor == 0 && unicodeVersion.patch == 0 &&
                    unicodeEncoding.outcome == GameWIP::Unicode::Types::EncodeOutcome::Encoded && unicodeEncoding.byteCount == 4 && reserve.ok() &&
-                   write.status.ok() && text.status.ok() && text.text == "installed consumer" && path.status.ok() && infrastructureStatus.ok() &&
+                   write.status.ok() && text.status.ok() && text.text == "installed consumer" && path.status.ok() &&
+                   terminalBufferLineEnding.ok() && terminalBufferReserve.ok() && terminalBufferAppend.ok() &&
+                   terminalBuffer.text() == std::string_view{"installed terminal buffer\n"} &&
+                   closedSessionWrite.code == GameWIP::IO::Types::ErrorCode::NotOpen && infrastructureStatus.ok() &&
                    infrastructureText == "None" && childResult.status.ok() &&
                    childResult.outcome == GameWIP::TestSupport::Types::ChildProcessOutcome::NotStarted &&
                    rendererFeedbackStatus.code == GameWIP::IO::Types::ErrorCode::NotOpen &&

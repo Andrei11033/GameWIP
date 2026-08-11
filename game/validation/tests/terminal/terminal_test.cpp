@@ -1031,16 +1031,15 @@ namespace
             ErrorCode::InvalidArgument,
             Terminal::flush(static_cast<IO::Types::FlushMode>(-1)).code));
 
-        bool invalidOutputBufferThrew = false;
-        try
-        {
-            [[maybe_unused]] Terminal::OutputBuffer invalidBuffer(static_cast<Terminal::Types::LineEnding>(-1));
-        }
-        catch (const std::invalid_argument &)
-        {
-            invalidOutputBufferThrew = true;
-        }
-        static_cast<void>(context.expectTrue("output buffer rejects invalid line ending", invalidOutputBufferThrew));
+        Terminal::OutputBuffer lineEndingBuffer;
+        static_cast<void>(
+            context.expectEq("output buffer defaults to native line ending", Terminal::Types::LineEnding::Native, lineEndingBuffer.lineEnding()));
+        static_cast<void>(context.expectEq(
+            "output buffer rejects invalid line ending without throwing",
+            ErrorCode::InvalidArgument,
+            lineEndingBuffer.setLineEnding(static_cast<Terminal::Types::LineEnding>(-1)).code));
+        static_cast<void>(
+            context.expectEq("invalid line ending preserves previous setting", Terminal::Types::LineEnding::Native, lineEndingBuffer.lineEnding()));
 
         Terminal::Types::TextStyle style;
         style.foreground = Terminal::basicColor(Terminal::Types::BasicColor::BrightRed);
@@ -1143,13 +1142,22 @@ namespace
             context.expectTrue("formatted println failure writes nothing", Hooks::capturedOutputText(Terminal::Types::OutputStream::Stdout).empty()));
 
         Hooks::clearCapturedOutput(Terminal::Types::OutputStream::Stdout);
-        Terminal::OutputBuffer outputBuffer(Terminal::Types::LineEnding::Lf);
-        outputBuffer.reserve(64);
-        outputBuffer.appendText("alpha");
-        outputBuffer.appendLine(" beta");
-        outputBuffer.print("{}", 3);
-        outputBuffer.println(" {}", 4);
+        Terminal::OutputBuffer outputBuffer;
+        static_cast<void>(context.expectTrue("output buffer sets LF line ending", outputBuffer.setLineEnding(Terminal::Types::LineEnding::Lf).ok()));
+        static_cast<void>(context.expectTrue("output buffer reserve succeeds", outputBuffer.reserve(64).ok()));
+        static_cast<void>(context.expectTrue("output buffer appendText succeeds", outputBuffer.appendText("alpha").ok()));
+        static_cast<void>(context.expectTrue("output buffer appendLine succeeds", outputBuffer.appendLine(" beta").ok()));
+        static_cast<void>(context.expectTrue("output buffer print succeeds", outputBuffer.print("{}", 3).ok()));
+        static_cast<void>(context.expectTrue("output buffer println succeeds", outputBuffer.println(" {}", 4).ok()));
         static_cast<void>(context.expectEq("output buffer text", std::string_view{"alpha beta\n3 4\n"}, outputBuffer.text()));
+
+        const std::string beforeFormattingFailure(outputBuffer.text());
+        static_cast<void>(context.expectEq(
+            "output buffer formatting failure returns status",
+            ErrorCode::InvalidArgument,
+            outputBuffer.print("{}", TerminalThrowingFormat{}).code));
+        static_cast<void>(
+            context.expectEq("output buffer formatting failure rolls back partial record", beforeFormattingFailure, outputBuffer.text()));
 
         static_cast<void>(context.expectTrue("output buffer flush succeeds", outputBuffer.flushTo().ok()));
         static_cast<void>(context.expectTrue("output buffer clears after flush", outputBuffer.empty()));
@@ -1158,7 +1166,7 @@ namespace
             std::string{"alpha beta\n3 4\n"},
             Hooks::capturedOutputText(Terminal::Types::OutputStream::Stdout)));
 
-        outputBuffer.appendText("retry");
+        static_cast<void>(context.expectTrue("output buffer retry append succeeds", outputBuffer.appendText("retry").ok()));
         Hooks::forceNextTextWriteFailure(ErrorCode::WriteFailed);
         static_cast<void>(context.expectEq("output buffer failure propagates", ErrorCode::WriteFailed, outputBuffer.flushTo().code));
         static_cast<void>(context.expectEq("output buffer failure preserves text", std::string_view{"retry"}, outputBuffer.text()));
@@ -2149,10 +2157,16 @@ namespace
         Hooks::reset();
         Hooks::setInputCapabilitiesOverride(Terminal::Types::InputStream::Stdin, terminalInputCapabilities());
         Hooks::setInputModeOverride(Terminal::Types::InputStream::Stdin, true, true, true);
+        setupCapturedOutput(Terminal::Types::OutputStream::Stdout);
+        Hooks::setTerminalSizeOverride(Terminal::Types::OutputStream::Stdout, {.columns = 100, .rows = 30});
+        Hooks::setCursorPositionOverride(Terminal::Types::OutputStream::Stdout, {.column = 3, .row = 4});
 
         Terminal::Session closed;
         static_cast<void>(context.expectFalse("default session starts closed", closed.isOpen()));
         static_cast<void>(context.expectEq("closed session read reports NotOpen", ErrorCode::NotOpen, closed.readText().status.code));
+        static_cast<void>(context.expectEq("closed session write reports NotOpen", ErrorCode::NotOpen, closed.writeText("closed").code));
+        static_cast<void>(
+            context.expectEq("closed session output query reports NotOpen", ErrorCode::NotOpen, closed.getOutputCapabilities().status.code));
         static_cast<void>(context.expectTrue("closing a closed session is idempotent", closed.close().ok()));
 
         Terminal::Types::SessionOptions streamOptions;
@@ -2167,6 +2181,64 @@ namespace
         static_cast<void>(context.expectTrue(
             "stream session enables resize records without mouse/Quick Edit",
             Hooks::inputManagedEventModeOverrideMatches(Terminal::Types::InputStream::Stdin, true, false, true)));
+
+        const Terminal::Types::InputCapabilitiesResult sessionInputCapabilities = session.getInputCapabilities();
+        static_cast<void>(context.expectTrue("session input capability query succeeds", sessionInputCapabilities.status.ok()));
+        static_cast<void>(context.expectTrue("session reuses captured event capability", sessionInputCapabilities.capabilities.supportsEventInput));
+
+        const Terminal::Types::OutputCapabilitiesResult sessionOutputCapabilities = session.getOutputCapabilities();
+        static_cast<void>(context.expectTrue("session output capability query succeeds", sessionOutputCapabilities.status.ok()));
+        static_cast<void>(context.expectTrue("session output capability is bound stdout", sessionOutputCapabilities.capabilities.supportsUtf8Text));
+        static_cast<void>(context.expectTrue("session output preparation succeeds", session.prepareOutput().status.ok()));
+
+        const Terminal::Types::TerminalSizeResult sessionSize = session.getTerminalSize();
+        static_cast<void>(context.expectTrue("session size query succeeds", sessionSize.status.ok()));
+        static_cast<void>(context.expectEq("session size query uses bound output", std::uint32_t{100}, sessionSize.size.columns));
+
+        const Terminal::Types::CursorPositionResult sessionPosition =
+            session.getCursorPosition({.timeout = Terminal::kNoWait, .flushMode = IO::Types::FlushMode::None});
+        static_cast<void>(context.expectTrue("session cursor position query succeeds", sessionPosition.status.ok()));
+        static_cast<void>(context.expectEq("session cursor query uses owned input", std::uint32_t{3}, sessionPosition.position.column));
+
+        Hooks::clearCapturedOutput(Terminal::Types::OutputStream::Stdout);
+        Terminal::Types::LineWriteOptions sessionLineOptions;
+        sessionLineOptions.lineEnding = Terminal::Types::LineEnding::Lf;
+        static_cast<void>(context.expectTrue("session text write succeeds", session.writeText("session").ok()));
+        static_cast<void>(context.expectTrue("session line write succeeds", session.writeLine("-line", sessionLineOptions).ok()));
+        static_cast<void>(context.expectTrue("session print succeeds", session.print("-{}", 7).ok()));
+        static_cast<void>(context.expectTrue("session println succeeds", session.println(sessionLineOptions, "-{}", 8).ok()));
+
+        const std::string sessionBytesText = "!";
+        const IO::Types::WriteResult sessionBytes = session.writeBytes(bytesOf(sessionBytesText));
+        static_cast<void>(context.expectTrue("session byte write succeeds", sessionBytes.status.ok()));
+        static_cast<void>(context.expectEq("session byte write count", std::size_t{1}, sessionBytes.bytesWritten));
+
+        const std::array<Terminal::Types::WriteSegment, 2> sessionSegments{
+            Terminal::textSegment("seg"),
+            Terminal::textSegment("ment")};
+        static_cast<void>(context.expectTrue(
+            "session segmented write succeeds",
+            session.writeSegments(std::span<const Terminal::Types::WriteSegment>(sessionSegments)).ok()));
+        static_cast<void>(context.expectTrue(
+            "direct global output remains available while session owns stdin",
+            Terminal::writeText("-global").ok()));
+        static_cast<void>(context.expectEq(
+            "session output shares global serialization implementation",
+            std::string{"session-line\n-7-8\n!segment-global"},
+            Hooks::capturedOutputText(Terminal::Types::OutputStream::Stdout)));
+
+        Hooks::clearCapturedOutput(Terminal::Types::OutputStream::Stdout);
+        static_cast<void>(context.expectTrue("session reset style succeeds", session.resetStyle().ok()));
+        static_cast<void>(context.expectTrue("session cursor move succeeds", session.moveCursor(Terminal::Types::CursorMoveDirection::Up, 2).ok()));
+        static_cast<void>(context.expectTrue("session cursor set succeeds", session.setCursorPosition({.column = 4, .row = 2}).ok()));
+        static_cast<void>(context.expectTrue("session cursor save succeeds", session.saveCursorPosition().ok()));
+        static_cast<void>(context.expectTrue("session cursor restore succeeds", session.restoreCursorPosition().ok()));
+        static_cast<void>(context.expectTrue("session clear succeeds", session.clear(Terminal::Types::ClearTarget::LineAfterCursor).ok()));
+        static_cast<void>(context.expectTrue("session scroll succeeds", session.scroll(Terminal::Types::ScrollDirection::Up, 1).ok()));
+        static_cast<void>(context.expectTrue("session title succeeds", session.setTitle("Session").ok()));
+        static_cast<void>(context.expectTrue("session bell succeeds", session.ringBell().ok()));
+        static_cast<void>(context.expectTrue("session flush succeeds", session.flush(IO::Types::FlushMode::Data).ok()));
+
         static_cast<void>(context.expectEq("same session re-open reports AlreadyOpen", ErrorCode::AlreadyOpen, session.open(streamOptions).code));
 
         Terminal::Session competing;
@@ -2203,9 +2275,17 @@ namespace
         static_cast<void>(context.expectEq("pre-cancelled read outcome", Terminal::Types::ReadOutcome::Cancelled, cancelled.outcome));
         static_cast<void>(context.expectEq("pre-cancelled read consumes nothing", std::string{"cancelled"}, session.readText().text));
 
+        Hooks::clearCapturedOutput(Terminal::Types::OutputStream::Stdout);
+        static_cast<void>(context.expectTrue("session owns hidden cursor state", session.setCursorVisible(false).ok()));
+        static_cast<void>(context.expectTrue("session owns alternate-screen state", session.enterAlternateScreen().ok()));
+
         Hooks::forceNextInputModeFailure(ErrorCode::NativeFailure);
-        static_cast<void>(context.expectEq("session close restoration failure propagates", ErrorCode::NativeFailure, session.close().code));
+        static_cast<void>(context.expectEq("session input restoration failure propagates", ErrorCode::NativeFailure, session.close().code));
         static_cast<void>(context.expectTrue("failed close leaves session open", session.isOpen()));
+        static_cast<void>(context.expectEq(
+            "session restores persistent output in reverse order before input",
+            std::string{"\x1b[?25l\x1b[?1049h\x1b[?1049l\x1b[?25h"},
+            Hooks::capturedOutputText(Terminal::Types::OutputStream::Stdout)));
         static_cast<void>(context.expectEq("failed close retains ownership", ErrorCode::ResourceBusy, competing.open(streamOptions).code));
         static_cast<void>(context.expectTrue("session close retry succeeds", session.close().ok()));
         static_cast<void>(context.expectFalse("successful close clears open state", session.isOpen()));

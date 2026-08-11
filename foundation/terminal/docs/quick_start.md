@@ -1,6 +1,6 @@
 @page terminal_quick_start Quick start
 
-Terminal exposes checked direct operations for stdin, stdout, stderr, styling, and primitive controls. Persistent interactive input uses an explicit move-only `Session`; direct reads acquire and restore managed input ownership automatically.
+Terminal exposes checked direct operations for stdin, stdout, stderr, styling, and primitive controls. Persistent interactive applications use an explicit move-only `Session` that owns input and binds one primary output; direct reads acquire and restore managed input ownership automatically.
 
 ## Include
 
@@ -78,7 +78,7 @@ Always inspect `status`, `outcome`, and the payload together. A successful statu
 
 Read deadlines use `std::optional<std::chrono::milliseconds>`: `std::nullopt` waits indefinitely, `0ms` polls, positive values bound the complete operation, and negative values are `InvalidArgument`. A `std::stop_token` requests cancellation where the endpoint supports cancellable blocking reads.
 
-## Persistent managed input
+## Persistent managed session
 
 ```cpp
 using namespace GameWIP::Terminal;
@@ -92,9 +92,20 @@ if (!session.open(options).ok())
     return 1;
 }
 
+if (!session.writeText("command: ").ok())
+{
+    static_cast<void>(session.close());
+    return 2;
+}
+
 Types::LineReadOptions lineOptions;
 lineOptions.echo = true;
 const Types::LineReadResult line = session.readLine(lineOptions);
+if (line.status.ok() && line.outcome == Types::ReadOutcome::Completed)
+{
+    static_cast<void>(session.println("received {}", line.line));
+}
+
 const auto closeStatus = session.close();
 ```
 
@@ -146,7 +157,7 @@ const auto status = writeLine("ready", options);
 
 Expected validation, detached-stream, unsupported-operation, encoding, timeout, and backend failures use IO status/result types. Check the status before relying on payload fields.
 
-Some in-memory preparation remains ordinary C++ code and may throw. In particular, `OutputBuffer` allocation and formatting operations can propagate standard exceptions. Managed read and `Session` lifecycle entry points are `noexcept` and translate owned setup/allocation/backend failures to IO statuses.
+Checked Terminal operations contain failures from Terminal-owned allocation, formatting, conversion, and backend work. `OutputBuffer` allocating mutations/formatting and the complete Session lifecycle/input/output/control surface use status-returning non-throwing contracts. Caller-owned argument construction that occurs before Terminal receives control remains ordinary C++ behavior.
 
 ## Where to go next
 

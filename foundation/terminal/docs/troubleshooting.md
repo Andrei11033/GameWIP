@@ -36,6 +36,10 @@ Managed echo requires a terminal output that supports cursor positioning, cursor
 
 Stream text/byte reads project only text-producing/control events into stream data. Navigation, function, modifier, resize, and other logical events are intentionally not serialized into arbitrary escape sequences. Use `InputDeliveryMode::Events` when the application needs those keys.
 
+## An `OutputBuffer` mutation returned a failure
+
+`OutputBuffer` no longer throws for reserve, append, line-policy, or formatting failures. Inspect the returned status. Failed append/format operations preserve the previous complete buffer contents; a failed `flushTo()` preserves the buffered text for retry.
+
 ## `flushTo()` did not force an OS flush
 
 `OutputBuffer::flushTo()` means write and clear on success. Set `TextWriteOptions::flushMode` to request a backend flush.
@@ -56,9 +60,9 @@ Close the existing owner explicitly before opening another one. Do not reintrodu
 
 ## `Session::close()` failed and `isOpen()` is still true
 
-Exact native input restoration failed. Explicit close intentionally keeps the session open and retains stdin ownership so cleanup can be retried. Fix or report the backend problem, then call `close()` again.
+A Session-owned persistent output restoration or exact native input restoration failed. Explicit close intentionally keeps the session open and retains stdin ownership so cleanup can be retried. Output state is restored in reverse activation order before input restoration; successfully restored obligations are not repeated on retry. Fix or report the backend problem, then call `close()` again.
 
-Destruction is different: the destructor makes one best-effort restoration attempt and releases process-wide ownership because the destroyed object cannot be retried.
+Destruction is different: the destructor makes best-effort output and input restoration attempts and releases process-wide input ownership because the destroyed object cannot be retried.
 
 ## A stop token returns `Unsupported`
 

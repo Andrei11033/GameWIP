@@ -24,8 +24,9 @@
 #include "terminal/terminal_export.h"
 
 /// @brief Platform-neutral UTF-8 standard-stream I/O, styling, and terminal control primitives.
-/// @details The shared library owns process-wide stdin/stdout/stderr coordination. Expected terminal and backend failures
-/// use IO statuses/results; selected caller-owned in-memory operations retain normal standard-library exception behavior.
+/// @details The shared library owns process-wide stdin/stdout/stderr coordination. Checked Terminal operations translate
+/// expected owned allocation, formatting, conversion, and backend failures into IO statuses/results. Caller-owned argument
+/// construction that occurs before Terminal receives control remains outside that boundary.
 namespace GameWIP::Terminal
 {
     namespace Types
@@ -1059,8 +1060,9 @@ namespace GameWIP::Terminal
 
     /// @brief Persistent managed Terminal input owner with one bound primary output stream.
     /// @details A Session is closed by default. open() acquires exclusive Terminal ownership of its input stream,
-    /// configures required native state, and retains that state until close() or best-effort destruction. The object
-    /// serializes its own input operations and close() so native restoration cannot race an active read.
+    /// configures required native state, and retains that state until close() or best-effort destruction. Input-consuming
+    /// calls are serialized with each other while bound output remains independently serialized by the shared Terminal
+    /// output coordinator. close() waits for active Session operations and restores Session-owned persistent state.
     class GAMEWIP_TERMINAL_EXPORT Session final
     {
     public:
@@ -1072,7 +1074,7 @@ namespace GameWIP::Terminal
         /// @brief Session ownership cannot be copy-assigned.
         Session &operator=(const Session &) = delete;
 
-        /// @brief Transfers an existing session, including any open input ownership.
+        /// @brief Transfers an existing session, including any open input ownership and output-restoration obligations.
         Session(Session &&other) noexcept;
 
         /// @brief Move assignment is disabled so replacing an open session cannot hide restoration failure.
@@ -1089,9 +1091,21 @@ namespace GameWIP::Terminal
         /// @return Success, AlreadyOpen, ResourceBusy, Unsupported, or another checked setup failure.
         [[nodiscard]] IO::Types::Status open(const Types::SessionOptions &options = {}) noexcept;
 
-        /// @brief Restores exact session-owned native state and releases managed input ownership.
-        /// @return Success when closed. Restoration failure leaves the session open and ownership retained for retry.
+        /// @brief Restores Session-owned persistent output state in reverse order, then exact native input state.
+        /// @return Success when closed. Restoration failure leaves the session open and retryable ownership retained.
         [[nodiscard]] IO::Types::Status close() noexcept;
+
+        /// @brief Returns the input capabilities captured when this Session opened.
+        [[nodiscard]] Types::InputCapabilitiesResult getInputCapabilities() const noexcept;
+
+        /// @brief Observes capabilities for the bound primary output stream.
+        [[nodiscard]] Types::OutputCapabilitiesResult getOutputCapabilities() const noexcept;
+
+        /// @brief Prepares the bound primary output stream and returns resulting capabilities.
+        [[nodiscard]] Types::OutputCapabilitiesResult prepareOutput() noexcept;
+
+        /// @brief Returns terminal dimensions for the bound primary output stream.
+        [[nodiscard]] Types::TerminalSizeResult getTerminalSize() const noexcept;
 
         /// @brief Reads one structured input event in an Events-delivery session.
         /// @return Status, stopping outcome, and optional event payload.
@@ -1108,7 +1122,100 @@ namespace GameWIP::Terminal
         /// @brief Reads one valid UTF-8 line in a Stream-delivery session.
         [[nodiscard]] Types::LineReadResult readLine(const Types::LineReadOptions &options = {}) noexcept;
 
+        /// @brief Writes UTF-8 text to the bound primary output stream.
+        [[nodiscard]] IO::Types::Status writeText(std::string_view utf8Text, const Types::TextWriteOptions &options = {}) noexcept;
+
+        /// @brief Writes UTF-8 text followed by a line ending to the bound primary output stream.
+        [[nodiscard]] IO::Types::Status writeLine(std::string_view utf8Text = {}, const Types::LineWriteOptions &options = {}) noexcept;
+
+        /// @brief Writes arbitrary bytes to the bound primary output stream.
+        [[nodiscard]] IO::Types::WriteResult writeBytes(
+            std::span<const std::byte> bytes,
+            const Types::ByteWriteOptions &options = {}) noexcept;
+
+        /// @brief Writes one atomic logical batch of text, styled text, and bytes to the bound output.
+        [[nodiscard]] IO::Types::Status writeSegments(
+            std::span<const Types::WriteSegment> segments,
+            const Types::SegmentWriteOptions &options = {}) noexcept;
+
+        /// @brief Formats UTF-8 text and writes it to the bound output.
+        template <class... Args>
+        [[nodiscard]] IO::Types::Status print(std::format_string<Args...> format, Args &&...args) noexcept;
+
+        /// @brief Formats UTF-8 text with explicit write options and writes it to the bound output.
+        template <class... Args>
+        [[nodiscard]] IO::Types::Status
+        print(const Types::TextWriteOptions &options, std::format_string<Args...> format, Args &&...args) noexcept;
+
+        /// @brief Formats UTF-8 text and writes it followed by a line ending to the bound output.
+        template <class... Args>
+        [[nodiscard]] IO::Types::Status println(std::format_string<Args...> format, Args &&...args) noexcept;
+
+        /// @brief Formats UTF-8 text with explicit line options and writes it to the bound output.
+        template <class... Args>
+        [[nodiscard]] IO::Types::Status
+        println(const Types::LineWriteOptions &options, std::format_string<Args...> format, Args &&...args) noexcept;
+
+        /// @brief Flushes the bound primary output stream.
+        [[nodiscard]] IO::Types::Status flush(IO::Types::FlushMode mode = IO::Types::FlushMode::Data) noexcept;
+
+        /// @brief Resets text style on the bound output.
+        [[nodiscard]] IO::Types::Status resetStyle(const Types::ControlOptions &options = {}) noexcept;
+
+        /// @brief Moves the cursor on the bound output.
+        [[nodiscard]] IO::Types::Status moveCursor(
+            Types::CursorMoveDirection direction,
+            std::uint32_t amount = 1,
+            const Types::ControlOptions &options = {}) noexcept;
+
+        /// @brief Sets the cursor position on the bound output.
+        [[nodiscard]] IO::Types::Status
+        setCursorPosition(Types::CursorPosition position, const Types::ControlOptions &options = {}) noexcept;
+
+        /// @brief Queries cursor position using the Session's bound output and owned input.
+        /// @note The query is an input-consuming operation on backends that require a terminal response.
+        [[nodiscard]] Types::CursorPositionResult
+        getCursorPosition(const Types::CursorPositionQueryOptions &options = {}) noexcept;
+
+        /// @brief Saves cursor position on the bound output.
+        [[nodiscard]] IO::Types::Status saveCursorPosition(const Types::ControlOptions &options = {}) noexcept;
+
+        /// @brief Restores cursor position on the bound output.
+        [[nodiscard]] IO::Types::Status restoreCursorPosition(const Types::ControlOptions &options = {}) noexcept;
+
+        /// @brief Changes cursor visibility and tracks Session-owned hiding for close-time restoration.
+        [[nodiscard]] IO::Types::Status setCursorVisible(bool visible, const Types::ControlOptions &options = {}) noexcept;
+
+        /// @brief Clears a screen or line region on the bound output.
+        [[nodiscard]] IO::Types::Status clear(
+            Types::ClearTarget target = Types::ClearTarget::EntireScreen,
+            const Types::ControlOptions &options = {}) noexcept;
+
+        /// @brief Scrolls the bound output.
+        [[nodiscard]] IO::Types::Status scroll(
+            Types::ScrollDirection direction,
+            std::uint32_t lines = 1,
+            const Types::ControlOptions &options = {}) noexcept;
+
+        /// @brief Enters alternate-screen mode and records a close-time leave obligation.
+        [[nodiscard]] IO::Types::Status enterAlternateScreen(const Types::ControlOptions &options = {}) noexcept;
+
+        /// @brief Leaves Session-owned alternate-screen mode, or performs an explicit leave when not Session-owned.
+        [[nodiscard]] IO::Types::Status leaveAlternateScreen(const Types::ControlOptions &options = {}) noexcept;
+
+        /// @brief Sets the terminal title through the bound output.
+        [[nodiscard]] IO::Types::Status setTitle(std::string_view utf8Title, const Types::ControlOptions &options = {}) noexcept;
+
+        /// @brief Emits the terminal bell through the bound output.
+        [[nodiscard]] IO::Types::Status ringBell(const Types::ControlOptions &options = {}) noexcept;
+
     private:
+        [[nodiscard]] IO::Types::Status restoreOutputState(bool retainOnFailure) noexcept;
+        [[nodiscard]] IO::Types::Status
+        vprint(const Types::TextWriteOptions &options, std::string_view format, std::format_args arguments) noexcept;
+        [[nodiscard]] IO::Types::Status
+        vprintln(const Types::LineWriteOptions &options, std::string_view format, std::format_args arguments) noexcept;
+
         struct State;
         std::unique_ptr<State> state_;
     };
@@ -1199,19 +1306,26 @@ namespace GameWIP::Terminal
         bool active_ = false;
     };
 
-    /// @brief Reusable caller-owned plain-text buffer for batching one Terminal write.
-    /// @details The object owns its string storage and is not internally synchronized. It does not validate UTF-8 while
-    /// appending. Formatting and storage operations retain normal std::string/std::format exception behavior.
+    /// @brief Reusable caller-owned checked plain-text buffer for batching one Terminal write.
+    /// @details The object owns its string storage and is not internally synchronized. Text arguments are valid UTF-8 by
+    /// contract. Allocating mutation and formatting report failures through IO::Types::Status and preserve the previous
+    /// complete buffer contents when an operation fails.
     class GAMEWIP_TERMINAL_EXPORT OutputBuffer final
     {
     public:
-        /// @brief Creates an empty output buffer using a line ending for appendLine() and println().
-        /// @throws std::invalid_argument when lineEnding is not a known Types::LineEnding value.
-        explicit OutputBuffer(Types::LineEnding lineEnding = Types::LineEnding::Native);
+        /// @brief Creates an empty output buffer using the native line ending.
+        OutputBuffer() noexcept = default;
+
+        /// @brief Returns the line ending used by appendLine() and println().
+        [[nodiscard]] Types::LineEnding lineEnding() const noexcept;
+
+        /// @brief Changes the line ending used by future line appends.
+        /// @return InvalidArgument for an unknown enum value; the previous setting is preserved on failure.
+        [[nodiscard]] IO::Types::Status setLineEnding(Types::LineEnding lineEnding) noexcept;
 
         /// @brief Reserves text storage for future appends.
-        /// @throws Any exception propagated by std::string::reserve().
-        void reserve(std::size_t bytes);
+        /// @return OutOfMemory or SizeLimitExceeded instead of propagating allocation/length failures.
+        [[nodiscard]] IO::Types::Status reserve(std::size_t bytes) noexcept;
 
         /// @brief Clears buffered text while retaining capacity.
         void clear() noexcept;
@@ -1226,37 +1340,42 @@ namespace GameWIP::Terminal
         /// @warning Mutating, moving, assigning, or destroying this buffer can invalidate the view.
         [[nodiscard]] std::string_view text() const noexcept;
 
-        /// @brief Appends bytes expected to contain UTF-8 text.
-        /// @throws Any exception propagated by std::string::append().
-        void appendText(std::string_view utf8Text);
+        /// @brief Appends valid UTF-8 text.
+        /// @return Checked allocation/size status. Failure preserves the previous buffer.
+        [[nodiscard]] IO::Types::Status appendText(std::string_view utf8Text) noexcept;
 
-        /// @brief Appends bytes expected to contain UTF-8 text followed by the configured line ending.
-        /// @throws Any exception propagated by std::string::append().
-        void appendLine(std::string_view utf8Text = {});
+        /// @brief Appends valid UTF-8 text followed by the configured line ending.
+        /// @return Checked allocation/size status. Failure rolls back the complete line append.
+        [[nodiscard]] IO::Types::Status appendLine(std::string_view utf8Text = {}) noexcept;
 
-        /// @brief Formats text and appends it to the buffer.
-        /// @throws std::format_error or any exception propagated by formatting, custom formatters, or allocation.
-        template <class... Args> void print(std::format_string<Args...> format, Args &&...args);
+        /// @brief Formats text and appends it atomically to the buffer.
+        /// @return InvalidArgument for formatting failure, OutOfMemory/SizeLimitExceeded for storage failure, or Unknown.
+        template <class... Args>
+        [[nodiscard]] IO::Types::Status print(std::format_string<Args...> format, Args &&...args) noexcept;
 
-        /// @brief Formats text and appends it followed by the configured line ending.
-        /// @throws std::format_error or any exception propagated by formatting, custom formatters, or allocation.
-        template <class... Args> void println(std::format_string<Args...> format, Args &&...args);
+        /// @brief Formats text and appends it plus the configured line ending atomically.
+        template <class... Args>
+        [[nodiscard]] IO::Types::Status println(std::format_string<Args...> format, Args &&...args) noexcept;
 
         /// @brief Writes buffered text to stdout without clearing the buffer.
-        [[nodiscard]] IO::Types::Status writeTo(const Types::TextWriteOptions &options = {}) const;
+        [[nodiscard]] IO::Types::Status writeTo(const Types::TextWriteOptions &options = {}) const noexcept;
 
         /// @brief Writes buffered text to an output stream without clearing the buffer.
-        [[nodiscard]] IO::Types::Status writeTo(Types::OutputStream stream, const Types::TextWriteOptions &options = {}) const;
+        [[nodiscard]] IO::Types::Status
+        writeTo(Types::OutputStream stream, const Types::TextWriteOptions &options = {}) const noexcept;
 
         /// @brief Writes buffered text to stdout and clears it only when the write succeeds.
         /// @note The name describes buffer clearing; a backend flush is requested only when options.flushMode is not None.
-        [[nodiscard]] IO::Types::Status flushTo(const Types::TextWriteOptions &options = {});
+        [[nodiscard]] IO::Types::Status flushTo(const Types::TextWriteOptions &options = {}) noexcept;
 
         /// @brief Writes buffered text to an output stream and clears it only when the write succeeds.
         /// @note The name describes buffer clearing; a backend flush is requested only when options.flushMode is not None.
-        [[nodiscard]] IO::Types::Status flushTo(Types::OutputStream stream, const Types::TextWriteOptions &options = {});
+        [[nodiscard]] IO::Types::Status
+        flushTo(Types::OutputStream stream, const Types::TextWriteOptions &options = {}) noexcept;
 
     private:
+        [[nodiscard]] IO::Types::Status vprint(std::string_view format, std::format_args arguments, bool appendLineEnding) noexcept;
+
         std::string text_;
         Types::LineEnding lineEnding_ = Types::LineEnding::Native;
     };
@@ -1569,7 +1688,7 @@ namespace GameWIP::Terminal
             Types::OutputStream stream,
             const Types::TextWriteOptions &options,
             std::string_view format,
-            std::format_args arguments);
+            std::format_args arguments) noexcept;
 
         /// @brief Exported ABI bridge used by the public println() templates.
         /// @warning Internal support symbol; consumers must call println() instead.
@@ -1577,19 +1696,50 @@ namespace GameWIP::Terminal
             Types::OutputStream stream,
             const Types::LineWriteOptions &options,
             std::string_view format,
-            std::format_args arguments);
+            std::format_args arguments) noexcept;
     } // namespace Detail
     /// @endcond
 
-    template <class... Args> void OutputBuffer::print(std::format_string<Args...> format, Args &&...args)
+    template <class... Args>
+    IO::Types::Status Session::print(std::format_string<Args...> format, Args &&...args) noexcept
     {
-        std::format_to(std::back_inserter(text_), format, std::forward<Args>(args)...);
+        return print(Types::TextWriteOptions{}, format, std::forward<Args>(args)...);
     }
 
-    template <class... Args> void OutputBuffer::println(std::format_string<Args...> format, Args &&...args)
+    template <class... Args>
+    IO::Types::Status Session::print(
+        const Types::TextWriteOptions &options,
+        std::format_string<Args...> format,
+        Args &&...args) noexcept
     {
-        print(format, std::forward<Args>(args)...);
-        appendLine();
+        return vprint(options, format.get(), std::make_format_args(args...));
+    }
+
+    template <class... Args>
+    IO::Types::Status Session::println(std::format_string<Args...> format, Args &&...args) noexcept
+    {
+        return println(Types::LineWriteOptions{}, format, std::forward<Args>(args)...);
+    }
+
+    template <class... Args>
+    IO::Types::Status Session::println(
+        const Types::LineWriteOptions &options,
+        std::format_string<Args...> format,
+        Args &&...args) noexcept
+    {
+        return vprintln(options, format.get(), std::make_format_args(args...));
+    }
+
+    template <class... Args>
+    IO::Types::Status OutputBuffer::print(std::format_string<Args...> format, Args &&...args) noexcept
+    {
+        return vprint(format.get(), std::make_format_args(args...), false);
+    }
+
+    template <class... Args>
+    IO::Types::Status OutputBuffer::println(std::format_string<Args...> format, Args &&...args) noexcept
+    {
+        return vprint(format.get(), std::make_format_args(args...), true);
     }
 
     template <class... Args> IO::Types::Status print(std::format_string<Args...> format, Args &&...args)

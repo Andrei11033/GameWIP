@@ -110,11 +110,13 @@ On an interactive terminal, both delivery modes use the same immediate native ev
 
 ## Session
 
-`Session` is closed by default, move-constructible, non-copyable, and deliberately not move-assignable. `open()` binds `SessionOptions`, claims exclusive managed input ownership, caches input capabilities, and configures required native terminal state. `isOpen()` reports ownership state. `close()` restores the exact captured native input state before releasing ownership.
+`Session` is closed by default, move-constructible, non-copyable, and deliberately not move-assignable. `open()` binds `SessionOptions`, claims exclusive managed input ownership, caches input capabilities, and configures required native terminal state. `isOpen()` reports ownership state. `close()` restores Session-owned persistent output state in reverse activation order and then restores the exact captured native input state before releasing ownership.
 
 Opening an already-open object returns `AlreadyOpen`. Another session or direct read competing for the same input returns `ResourceBusy`. Explicit close restoration failure leaves the session open and ownership retained so the caller can retry; destruction makes a best-effort non-throwing restoration attempt and cannot surface cleanup failure.
 
-`Session::readEvent()` requires `InputDeliveryMode::Events`. `Session::readBytes()`, `readText()`, and `readLine()` require `InputDeliveryMode::Stream`. Incompatible operations return `Unsupported` without consuming unrelated input. One session operation is serialized against `close()` on the same object.
+`Session::readEvent()` requires `InputDeliveryMode::Events`. `Session::readBytes()`, `readText()`, and `readLine()` require `InputDeliveryMode::Stream`. Incompatible operations return `Unsupported` without consuming unrelated input. Input-consuming Session operations serialize with each other. Output operations take shared lifecycle ownership and continue to use the process-wide per-output coordinator, so a Session can emit output while another thread is blocked in its input read. `close()` obtains exclusive lifecycle ownership and therefore waits until active Session operations complete.
+
+The bound output surface mirrors direct output through `Session::getOutputCapabilities()`, `prepareOutput()`, size/cursor queries, text/line/byte/segment writes, formatting, flush, styling, cursor controls, clear/scroll, alternate screen, title, and bell. Those methods delegate to the same global output implementation rather than duplicating backend logic. Session-owned cursor hiding and alternate-screen entry are tracked for reverse-order cleanup; opening a Session does not change either state automatically.
 
 Interactive Stream sessions are not a fallback to native cooked input: Terminal disables native line buffering/echo, retains structured decoder state, and implements Backspace/Delete, grapheme-aware left/right movement, Home/End, Enter completion, bounded paste insertion, optional echo, deadlines, and cancellation itself.
 
@@ -145,15 +147,15 @@ Managed input lifetime is not represented by a scope factory anymore; use `Sessi
 
 ## OutputBuffer
 
-`OutputBuffer` owns reusable plain-text storage. It has ordinary copy/move value semantics and supports reserve, clear, size/query access, append operations, compile-time-checked formatting, and write-without-clear or write-and-clear-on-success operations.
+`OutputBuffer` owns reusable plain-text storage. It defaults safely to the native line ending; `setLineEnding()` is the checked way to change that policy. `reserve()`, `appendText()`, `appendLine()`, `print()`, and `println()` are status-returning `noexcept` mutations. Formatting writes directly into retained caller-owned storage and rolls back to the previous size if formatting or allocation fails, avoiding a second permanent scratch buffer and preventing partial formatted records.
 
-`text()` returns a non-owning view into the buffer. Mutating, moving, or destroying the buffer can invalidate that view. The object is not internally synchronized for concurrent access. See @ref terminal_read_write.
+`writeTo()` preserves the buffer. `flushTo()` writes and clears only after a successful write, preserving retry data on failure. `clear()` retains capacity. `text()` returns a non-owning view into the buffer; mutating, moving, or destroying the buffer can invalidate that view. The object is not internally synchronized for concurrent access. See @ref terminal_read_write.
 
 ## Exceptions
 
-Expected terminal/backend failures use IO statuses and results, but the public API is not universally `noexcept`.
+Checked Terminal operations contain failures caused by Terminal-owned allocation, formatting, conversion, and backend work and represent them with IO statuses/results. `OutputBuffer` allocating mutations and formatting are explicitly `noexcept`; Session lifecycle, input, output, formatting, query, and control operations are also `noexcept`.
 
-Free formatted output converts formatting and allocation failures from its formatting stage into statuses. `OutputBuffer` construction, reserve, append, and formatting retain normal standard-library exception behavior in this intermediate #57 slice. `Session` lifecycle and managed read entry points are `noexcept` and translate owned allocation/setup/backend exceptions to statuses. Output-state scope factories remain `noexcept` and store setup failure in the returned scope.
+Caller-side construction of owning `std::string`, custom formatter arguments, or other allocating arguments before Terminal receives control is outside this guarantee. Common code-only failure statuses remain allocation-free; diagnostic enrichment is best effort and never replaces the primary failure.
 
 ## Package boundary
 

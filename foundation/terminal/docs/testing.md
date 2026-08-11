@@ -7,7 +7,8 @@
 The Terminal validation module covers:
 
 - public constants, value types, factories, deleted dangling-storage overloads, and header self-containment;
-- stdout/stderr text, line, byte, formatted, segmented, and buffered writes;
+- stdout/stderr text, line, byte, formatted, segmented, and checked buffered writes;
+- checked `OutputBuffer` line-ending configuration, mutation, formatting rollback, capacity reuse, flush retry, and `noexcept` header contracts;
 - same-stream formatter reentry for `print()` and `println()`;
 - complete-operation serialization, independent stdout/stderr state, and reusable scratch storage;
 - capability observation, preparation, idempotence, and failure propagation;
@@ -17,6 +18,7 @@ The Terminal validation module covers:
 - stdin event/line/text/byte read contracts, code-point-safe limits, deadlines, polling, cancellation, EOF, resize dispatch, and incompatible-delivery rejection;
 - managed Unicode line editing including grapheme-aware Backspace/Delete/navigation, Home/End, repeat handling, bounded paste insertion, partial outcomes, and no-echo operation;
 - persistent Session open/close, AlreadyOpen, ResourceBusy ownership conflicts, exact native restoration, managed event-mode flags, failed-close retry, move construction, destructor cleanup, and direct-read temporary restoration;
+- Session-bound capability/geometry queries, text/line/byte/segment/formatted output, control forwarding, and reverse-order persistent output restoration;
 - cursor, alternate screen, title, bell, clear, scroll, size, position, and flush behavior;
 - scope setup, nesting, move behavior, explicit restoration, failed restoration, and retry;
 - Logger integration through the shared Terminal runtime;
@@ -34,6 +36,10 @@ Terminal participates in:
 - opt-in manual real-terminal validation.
 
 GameWIP owns module selection, CTest registration, reports, and sanitizer workflows. See @ref project_testing and @ref project_validation.
+
+## Diagnostic benchmarks
+
+The `terminal` benchmark module covers retained-capacity checked `OutputBuffer` append, line batching, and formatting. These benchmarks are intended to catch accidental extra allocation/copying in the caller-owned buffering path; they do not benchmark console-driver latency.
 
 ## Real-terminal validation
 

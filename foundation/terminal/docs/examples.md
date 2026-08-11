@@ -150,10 +150,14 @@ int main()
 {
     using namespace GameWIP::Terminal;
 
-    OutputBuffer buffer(Types::LineEnding::Lf);
-    buffer.reserve(1024);
-    buffer.println("entity {} hp {}", 7, 95);
-    buffer.println("entity {} hp {}", 8, 42);
+    OutputBuffer buffer;
+    if (!buffer.setLineEnding(Types::LineEnding::Lf).ok() ||
+        !buffer.reserve(1024).ok() ||
+        !buffer.println("entity {} hp {}", 7, 95).ok() ||
+        !buffer.println("entity {} hp {}", 8, 42).ok())
+    {
+        return 1;
+    }
 
     const auto status = buffer.flushTo();
     if (!status.ok())
@@ -185,15 +189,22 @@ int main()
         return 1;
     }
 
-    const Types::LineReadResult line = session.readLine();
-    const auto closeStatus = session.close();
-
-    if (!line.status.ok() || !closeStatus.ok())
+    if (!session.writeText("name: ").ok())
     {
+        static_cast<void>(session.close());
         return 2;
     }
 
-    return line.outcome == Types::ReadOutcome::Completed ? 0 : 3;
+    const Types::LineReadResult line = session.readLine();
+    if (!line.status.ok() ||
+        !session.println("hello {}", line.line).ok())
+    {
+        static_cast<void>(session.close());
+        return 3;
+    }
+
+    const auto closeStatus = session.close();
+    return line.outcome == Types::ReadOutcome::Completed && closeStatus.ok() ? 0 : 4;
 }
 ```
 
