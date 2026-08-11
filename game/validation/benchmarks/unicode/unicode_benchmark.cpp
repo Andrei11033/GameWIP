@@ -124,8 +124,8 @@ namespace
                     return;
                 }
 
-                benchmark::DoNotOptimize(next.byteOffset);
                 offset = next.byteOffset;
+                benchmark::DoNotOptimize(next.byteOffset);
             }
         }
 
@@ -148,8 +148,8 @@ namespace
                     return;
                 }
 
-                benchmark::DoNotOptimize(previous.byteOffset);
                 offset = previous.byteOffset;
+                benchmark::DoNotOptimize(previous.byteOffset);
             }
         }
 
@@ -172,8 +172,8 @@ namespace
                     return;
                 }
 
-                benchmark::DoNotOptimize(next.byteOffset);
                 offset = next.byteOffset;
+                benchmark::DoNotOptimize(next.byteOffset);
             }
         }
 
@@ -196,8 +196,8 @@ namespace
                     return;
                 }
 
-                benchmark::DoNotOptimize(previous.byteOffset);
                 offset = previous.byteOffset;
+                benchmark::DoNotOptimize(previous.byteOffset);
             }
         }
 
