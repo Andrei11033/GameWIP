@@ -8,7 +8,7 @@ The Terminal validation module covers:
 
 - public constants, value types, factories, deleted dangling-storage overloads, and header self-containment;
 - stdout/stderr text, line, byte, formatted, segmented, and checked buffered writes;
-- checked `OutputBuffer` line-ending configuration, mutation, formatting rollback, capacity reuse, flush retry, and `noexcept` header contracts;
+- checked `OutputBuffer` line-ending configuration, mutation, partial-format rollback, size-limit translation, capacity reuse, flush retry, and `noexcept` header contracts;
 - same-stream formatter reentry for `print()` and `println()`;
 - complete-operation serialization, independent stdout/stderr state, and reusable scratch storage;
 - capability observation, preparation, idempotence, and failure propagation;
@@ -17,10 +17,10 @@ The Terminal validation module covers:
 - Win32 `INPUT_RECORD` key normalization including Unicode surrogate pairs, Ctrl/AltGr behavior, named/function/modifier keys, location, repeat splitting, and releases;
 - stdin event/line/text/byte read contracts, code-point-safe limits, deadlines, polling, cancellation, EOF, resize dispatch, and incompatible-delivery rejection;
 - managed Unicode line editing including grapheme-aware Backspace/Delete/navigation, Home/End, repeat handling, bounded paste insertion, partial outcomes, and no-echo operation;
-- persistent Session open/close, AlreadyOpen, ResourceBusy ownership conflicts, exact native restoration, managed event-mode flags, failed-close retry, move construction, destructor cleanup, and direct-read temporary restoration;
-- Session-bound capability/geometry queries, text/line/byte/segment/formatted output, control forwarding, and reverse-order persistent output restoration;
+- persistent Session open/close, AlreadyOpen, ResourceBusy ownership conflicts, exact native restoration, managed event-mode flags, output/input failed-close retry, move construction with pending output obligations, ordered destructor cleanup and failure bookkeeping release, and direct-read temporary restoration;
+- Session-bound stdout/stderr capability/geometry queries, text/line/byte/segment/formatted output, control forwarding, reverse-order persistent output restoration, output progress during a deterministically blocked read, and close waiting for active operations;
 - cursor, alternate screen, title, bell, clear, scroll, size, position, and flush behavior;
-- scope setup, nesting, move behavior, explicit restoration, failed restoration, and retry;
+- scope setup, nesting, move behavior, explicit restoration, write failure, post-emission flush failure, ownership preservation, and non-duplicating retry;
 - Logger integration through the shared Terminal runtime;
 - internal backend boundaries and forced failure paths.
 

@@ -99,6 +99,7 @@ namespace GameWIP::Terminal
                 catch (...)
                 {
                     // Scratch retention is an optimization; destruction must never terminate on cleanup failure.
+                    static_cast<void>(0);
                 }
             }
 
@@ -159,6 +160,24 @@ namespace GameWIP::Terminal
             }
         }
 
+        /// @brief Copies a stored status without letting optional diagnostic allocation escape a noexcept boundary.
+        [[nodiscard]] IO::Types::Status copyStatus(const IO::Types::Status &status) noexcept
+        {
+            if (status.message.empty())
+            {
+                return IO::makeStatus(status.code, status.nativeCode);
+            }
+
+            try
+            {
+                return IO::makeStatus(status.code, status.nativeCode, status.message);
+            }
+            catch (...)
+            {
+                return IO::makeStatus(status.code, status.nativeCode);
+            }
+        }
+
         /// @brief Maps an exception raised by Terminal-owned checked work to a portable status.
         [[nodiscard]] IO::Types::Status exceptionStatus() noexcept
         {
@@ -181,6 +200,15 @@ namespace GameWIP::Terminal
             catch (...)
             {
                 return IO::makeStatus(ErrorCode::Unknown);
+            }
+        }
+
+        /// @brief Restores a string to a previously observed size without allocating or throwing.
+        void rollbackString(std::string &text, std::size_t previousSize) noexcept
+        {
+            while (text.size() > previousSize)
+            {
+                text.pop_back();
             }
         }
 
@@ -861,8 +889,13 @@ namespace GameWIP::Terminal
             std::string_view sequence,
             ControlFeature feature,
             std::string_view unsupportedMessage,
-            IO::Types::FlushMode flushMode)
+            IO::Types::FlushMode flushMode,
+            bool *emitted = nullptr)
         {
+            if (emitted != nullptr)
+            {
+                *emitted = false;
+            }
             if (!IO::isValidFlushMode(flushMode))
             {
                 return invalidArgumentStatus("Unknown IO flush mode.");
@@ -893,6 +926,11 @@ namespace GameWIP::Terminal
                 return status;
             }
 
+            if (emitted != nullptr)
+            {
+                *emitted = true;
+            }
+
             return flushIfRequested(stream, flushMode);
         }
 
@@ -910,8 +948,12 @@ namespace GameWIP::Terminal
         }
 
         /// @brief Decrements nested cursor-hide depth and restores visibility at the outer boundary.
-        [[nodiscard]] IO::Types::Status restoreCursorHiddenScope(Types::OutputStream stream, const Types::ControlOptions &options) noexcept
+        [[nodiscard]] IO::Types::Status restoreCursorHiddenScope(
+            Types::OutputStream stream,
+            const Types::ControlOptions &options,
+            bool &restored) noexcept
         {
+            restored = false;
             try
             {
                 OutputState &state = outputState(stream);
@@ -919,24 +961,29 @@ namespace GameWIP::Terminal
 
                 if (state.cursorHiddenScopeDepth == 0)
                 {
+                    restored = true;
                     return IO::successStatus();
                 }
 
                 if (state.cursorHiddenScopeDepth > 1)
                 {
                     --state.cursorHiddenScopeDepth;
+                    restored = true;
                     return IO::successStatus();
                 }
 
+                bool emitted = false;
                 IO::Types::Status status = writeControlSequenceUnlocked(
                     stream,
                     "\x1b[?25h",
                     ControlFeature::CursorVisibility,
                     "Terminal cursor visibility is unsupported for this output stream.",
-                    options.flushMode);
-                if (status.ok())
+                    options.flushMode,
+                    &emitted);
+                if (emitted)
                 {
                     state.cursorHiddenScopeDepth = 0;
+                    restored = true;
                 }
                 return status;
             }
@@ -947,8 +994,12 @@ namespace GameWIP::Terminal
         }
 
         /// @brief Decrements nested alternate-screen depth and leaves at the outer boundary.
-        [[nodiscard]] IO::Types::Status leaveAlternateScreenScope(Types::OutputStream stream, const Types::ControlOptions &options) noexcept
+        [[nodiscard]] IO::Types::Status leaveAlternateScreenScope(
+            Types::OutputStream stream,
+            const Types::ControlOptions &options,
+            bool &restored) noexcept
         {
+            restored = false;
             try
             {
                 OutputState &state = outputState(stream);
@@ -956,30 +1007,73 @@ namespace GameWIP::Terminal
 
                 if (state.alternateScreenScopeDepth == 0)
                 {
+                    restored = true;
                     return IO::successStatus();
                 }
 
                 if (state.alternateScreenScopeDepth > 1)
                 {
                     --state.alternateScreenScopeDepth;
+                    restored = true;
                     return IO::successStatus();
                 }
 
+                bool emitted = false;
                 IO::Types::Status status = writeControlSequenceUnlocked(
                     stream,
                     "\x1b[?1049l",
                     ControlFeature::AlternateScreen,
                     "Terminal alternate screen is unsupported for this output stream.",
-                    options.flushMode);
-                if (status.ok())
+                    options.flushMode,
+                    &emitted);
+                if (emitted)
                 {
                     state.alternateScreenScopeDepth = 0;
+                    restored = true;
                 }
                 return status;
             }
             catch (...)
             {
                 return exceptionStatus();
+            }
+        }
+
+        /// @brief Releases one cursor-hide nesting obligation after destructor restoration has failed.
+        void abandonCursorHiddenScope(Types::OutputStream stream) noexcept
+        {
+            try
+            {
+                OutputState &state = outputState(stream);
+                std::lock_guard lock(state.mutex);
+                if (state.cursorHiddenScopeDepth > 0)
+                {
+                    --state.cursorHiddenScopeDepth;
+                }
+            }
+            catch (...)
+            {
+                // Destruction-time bookkeeping release is best effort and cannot be reported.
+                return;
+            }
+        }
+
+        /// @brief Releases one alternate-screen nesting obligation after destructor restoration has failed.
+        void abandonAlternateScreenScope(Types::OutputStream stream) noexcept
+        {
+            try
+            {
+                OutputState &state = outputState(stream);
+                std::lock_guard lock(state.mutex);
+                if (state.alternateScreenScopeDepth > 0)
+                {
+                    --state.alternateScreenScopeDepth;
+                }
+            }
+            catch (...)
+            {
+                // Destruction-time bookkeeping release is best effort and cannot be reported.
+                return;
             }
         }
 
@@ -1069,8 +1163,12 @@ namespace GameWIP::Terminal
         , options_(other.options_)
         , status_(std::move(other.status_))
         , active_(other.active_)
+        , restorationEmitted_(other.restorationEmitted_)
+        , restoreOnDestruction_(other.restoreOnDestruction_)
     {
         other.active_ = false;
+        other.restorationEmitted_ = false;
+        other.restoreOnDestruction_ = true;
     }
 
     AlternateScreenScope &AlternateScreenScope::operator=(AlternateScreenScope &&other) noexcept
@@ -1090,7 +1188,11 @@ namespace GameWIP::Terminal
             options_ = other.options_;
             status_ = std::move(other.status_);
             active_ = other.active_;
+            restorationEmitted_ = other.restorationEmitted_;
+            restoreOnDestruction_ = other.restoreOnDestruction_;
             other.active_ = false;
+            other.restorationEmitted_ = false;
+            other.restoreOnDestruction_ = true;
         }
 
         return *this;
@@ -1098,7 +1200,16 @@ namespace GameWIP::Terminal
 
     AlternateScreenScope::~AlternateScreenScope() noexcept
     {
-        static_cast<void>(leave());
+        if (restoreOnDestruction_)
+        {
+            static_cast<void>(leave());
+        }
+        if (active_)
+        {
+            abandonAlternateScreenScope(stream_);
+            active_ = false;
+            restorationEmitted_ = false;
+        }
     }
 
     bool AlternateScreenScope::active() const noexcept
@@ -1115,11 +1226,34 @@ namespace GameWIP::Terminal
     {
         if (active_)
         {
-            status_ = leaveAlternateScreenScope(stream_, options_);
-            active_ = !status_.ok();
+            if (restorationEmitted_)
+            {
+                status_ = Terminal::flush(stream_, options_.flushMode);
+                if (status_.ok())
+                {
+                    active_ = false;
+                    restorationEmitted_ = false;
+                }
+            }
+            else
+            {
+                bool restored = false;
+                status_ = leaveAlternateScreenScope(stream_, options_, restored);
+                if (restored)
+                {
+                    if (status_.ok())
+                    {
+                        active_ = false;
+                    }
+                    else
+                    {
+                        restorationEmitted_ = true;
+                    }
+                }
+            }
         }
 
-        return status_;
+        return copyStatus(status_);
     }
 
     CursorHiddenScope::CursorHiddenScope() noexcept = default;
@@ -1129,8 +1263,12 @@ namespace GameWIP::Terminal
         , options_(other.options_)
         , status_(std::move(other.status_))
         , active_(other.active_)
+        , restorationEmitted_(other.restorationEmitted_)
+        , restoreOnDestruction_(other.restoreOnDestruction_)
     {
         other.active_ = false;
+        other.restorationEmitted_ = false;
+        other.restoreOnDestruction_ = true;
     }
 
     CursorHiddenScope &CursorHiddenScope::operator=(CursorHiddenScope &&other) noexcept
@@ -1150,7 +1288,11 @@ namespace GameWIP::Terminal
             options_ = other.options_;
             status_ = std::move(other.status_);
             active_ = other.active_;
+            restorationEmitted_ = other.restorationEmitted_;
+            restoreOnDestruction_ = other.restoreOnDestruction_;
             other.active_ = false;
+            other.restorationEmitted_ = false;
+            other.restoreOnDestruction_ = true;
         }
 
         return *this;
@@ -1158,7 +1300,16 @@ namespace GameWIP::Terminal
 
     CursorHiddenScope::~CursorHiddenScope() noexcept
     {
-        static_cast<void>(restore());
+        if (restoreOnDestruction_)
+        {
+            static_cast<void>(restore());
+        }
+        if (active_)
+        {
+            abandonCursorHiddenScope(stream_);
+            active_ = false;
+            restorationEmitted_ = false;
+        }
     }
 
     bool CursorHiddenScope::active() const noexcept
@@ -1175,11 +1326,34 @@ namespace GameWIP::Terminal
     {
         if (active_)
         {
-            status_ = restoreCursorHiddenScope(stream_, options_);
-            active_ = !status_.ok();
+            if (restorationEmitted_)
+            {
+                status_ = Terminal::flush(stream_, options_.flushMode);
+                if (status_.ok())
+                {
+                    active_ = false;
+                    restorationEmitted_ = false;
+                }
+            }
+            else
+            {
+                bool restored = false;
+                status_ = restoreCursorHiddenScope(stream_, options_, restored);
+                if (restored)
+                {
+                    if (status_.ok())
+                    {
+                        active_ = false;
+                    }
+                    else
+                    {
+                        restorationEmitted_ = true;
+                    }
+                }
+            }
         }
 
-        return status_;
+        return copyStatus(status_);
     }
 
     Types::LineEnding OutputBuffer::lineEnding() const noexcept
@@ -1866,6 +2040,11 @@ namespace GameWIP::Terminal
             scope.status_ = IO::makeStatus(ErrorCode::InvalidArgument);
             return scope;
         }
+        if (!IO::isValidFlushMode(options.flushMode))
+        {
+            scope.status_ = IO::makeStatus(ErrorCode::InvalidArgument);
+            return scope;
+        }
 
         try
         {
@@ -1879,13 +2058,15 @@ namespace GameWIP::Terminal
 
             if (state.cursorHiddenScopeDepth == 0)
             {
+                bool emitted = false;
                 scope.status_ = writeControlSequenceUnlocked(
                     stream,
                     "\x1b[?25l",
                     ControlFeature::CursorVisibility,
                     "Terminal cursor visibility is unsupported for this output stream.",
-                    options.flushMode);
-                if (!scope.status_.ok())
+                    options.flushMode,
+                    &emitted);
+                if (!emitted)
                 {
                     return scope;
                 }
@@ -2086,6 +2267,11 @@ namespace GameWIP::Terminal
             scope.status_ = IO::makeStatus(ErrorCode::InvalidArgument);
             return scope;
         }
+        if (!IO::isValidFlushMode(options.flushMode))
+        {
+            scope.status_ = IO::makeStatus(ErrorCode::InvalidArgument);
+            return scope;
+        }
 
         try
         {
@@ -2099,13 +2285,15 @@ namespace GameWIP::Terminal
 
             if (state.alternateScreenScopeDepth == 0)
             {
+                bool emitted = false;
                 scope.status_ = writeControlSequenceUnlocked(
                     stream,
                     "\x1b[?1049h",
                     ControlFeature::AlternateScreen,
                     "Terminal alternate screen is unsupported for this output stream.",
-                    options.flushMode);
-                if (!scope.status_.ok())
+                    options.flushMode,
+                    &emitted);
+                if (!emitted)
                 {
                     return scope;
                 }

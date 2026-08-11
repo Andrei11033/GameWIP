@@ -72,7 +72,7 @@ A token that is already stopped returns `ReadOutcome::Cancelled` before input is
 
 ## An output-state scope is inactive immediately after creation
 
-Cursor-hidden or alternate-screen setup failed. Inspect `status()`. Those scope factories are `noexcept` and return an inactive object rather than throwing.
+Cursor-hidden or alternate-screen setup failed before its state-changing sequence was emitted. Inspect `status()`. Those scope factories are `noexcept` and return an inactive object rather than throwing. A requested flush failure after sequence emission differs: `status()` reports the failure, but `active()` remains true because the scope still owns the inverse transition.
 
 ## Output-state scope move assignment did not consume the source
 

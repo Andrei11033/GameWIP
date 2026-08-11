@@ -8,6 +8,8 @@
 
 #include <array>
 #include <atomic>
+#include <chrono>
+#include <condition_variable>
 #include <cstddef>
 #include <mutex>
 #include <optional>
@@ -28,6 +30,15 @@ namespace GameWIP::Terminal::Detail::TestHooks
     {
         std::atomic_bool enabled = false;
         std::atomic<int> code = static_cast<int>(IO::Types::ErrorCode::Unknown);
+    };
+
+    /// @brief One deterministic backend-operation gate used by concurrency validation.
+    struct HookBlock
+    {
+        std::condition_variable condition;
+        bool enabled = false;
+        bool reached = false;
+        bool released = true;
     };
 
     /// @brief Mutable deterministic stdin state protected by TerminalTestHookState::mutex.
@@ -92,6 +103,8 @@ namespace GameWIP::Terminal::Detail::TestHooks
         HookFailure nextTextWriteFailure;
         HookFailure nextByteWriteFailure;
         HookFailure nextFlushFailure;
+        HookBlock nextReadBlock;
+        HookBlock nextTextWriteBlock;
     };
 
     /// @brief Singleton hook state; callers lock mutex before non-atomic access.
@@ -103,6 +116,8 @@ namespace GameWIP::Terminal::Detail::TestHooks
     [[nodiscard]] std::size_t outputIndex(Terminal::Types::OutputStream stream) noexcept;
     /// @brief Atomically consumes a one-shot forced failure and returns its portable code.
     [[nodiscard]] std::optional<IO::Types::ErrorCode> consumeFailure(HookFailure &failure) noexcept;
+    /// @brief Blocks at an armed operation gate until the test releases it.
+    void waitAtBlock(HookBlock &block);
     /// @brief Restores the complete process-wide hook state to deterministic defaults.
     void resetTerminalTestHooks() noexcept;
 } // namespace GameWIP::Terminal::Detail::TestHooks
@@ -277,6 +292,20 @@ namespace GameWIP::Terminal::TestHooks
     /// @brief Clears a cursor position override.
     /// @warning Test-only API.
     GAMEWIP_TERMINAL_EXPORT void clearCursorPositionOverride(Terminal::Types::OutputStream stream) noexcept;
+
+    /// @brief Arms the next backend read to pause after taking Terminal input serialization.
+    GAMEWIP_TERMINAL_EXPORT void blockNextRead();
+    /// @brief Waits until an armed backend read reaches its deterministic pause point.
+    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT bool waitUntilReadBlocked(std::chrono::milliseconds timeout = std::chrono::seconds{5});
+    /// @brief Releases a backend read paused by blockNextRead().
+    GAMEWIP_TERMINAL_EXPORT void releaseBlockedRead() noexcept;
+
+    /// @brief Arms the next backend text write to pause while holding Terminal stream serialization.
+    GAMEWIP_TERMINAL_EXPORT void blockNextTextWrite();
+    /// @brief Waits until an armed backend text write reaches its deterministic pause point.
+    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT bool waitUntilTextWriteBlocked(std::chrono::milliseconds timeout = std::chrono::seconds{5});
+    /// @brief Releases a backend text write paused by blockNextTextWrite().
+    GAMEWIP_TERMINAL_EXPORT void releaseBlockedTextWrite() noexcept;
 
     /// @brief Forces the next input-capability query to fail with code.
     GAMEWIP_TERMINAL_EXPORT void forceNextInputCapabilityFailure(IO::Types::ErrorCode code = IO::Types::ErrorCode::StatFailed) noexcept;

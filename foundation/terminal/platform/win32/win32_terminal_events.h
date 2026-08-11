@@ -11,6 +11,7 @@
 #include <windows.h>
 
 #include <bitset>
+#include <cstddef>
 #include <cstdint>
 #include <optional>
 
@@ -28,7 +29,7 @@ namespace GameWIP::Terminal::Detail::Platform::Win32Events
     /// @brief Persistent allocation-free logical decoder state for one observed Win32 stdin endpoint.
     struct DecoderState
     {
-        std::bitset<256U * 5U> keyDown{};
+        std::bitset<std::size_t{256} * std::size_t{5}> keyDown{};
         char16_t pendingHighSurrogate = u'\0';
         KEY_EVENT_RECORD pendingHighSurrogateRecord{};
         std::optional<Terminal::Types::Event> pendingEvent;

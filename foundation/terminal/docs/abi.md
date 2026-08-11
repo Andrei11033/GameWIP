@@ -33,7 +33,7 @@ The exact-version package file prevents CMake from treating a different GameWIP 
 
 All modules in one process must resolve the same Terminal shared library. Its process-wide stdin ownership coordinator and stdout/stderr state provide the synchronization, Session/direct-read conflict detection, and output scope-nesting behavior documented by the manual. Statically duplicating or privately embedding separate Terminal runtimes would not provide one shared coordination domain.
 
-`Session`'s private state keeps native handles/mode snapshots, lifecycle/input synchronization, persistent output-restoration obligations, decoder/parser state, and later backend-specific buffers out of the installed header. Move construction transfers that same state allocation, preserving managed input ownership identity and output cleanup obligations without exposing implementation layout.
+`Session`'s private state keeps native-mode snapshots and ownership identity, lifecycle/input synchronization, persistent output-restoration obligations, decoder/parser state, and later backend-specific buffers out of the installed header. Process-wide backend state owns the standard endpoint handles. Move construction transfers the same Session state allocation, preserving managed input ownership identity and output cleanup obligations without exposing implementation layout.
 
 ## Exported template bridges
 

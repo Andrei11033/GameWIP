@@ -18,17 +18,21 @@
 #endif
 
 #include <array>
+#include <atomic>
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
 #include <format>
+#include <latch>
+#include <limits>
 #include <optional>
 #include <span>
 #include <stop_token>
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <thread>
 #include <type_traits>
 #include <utility>
 #include <variant>
@@ -62,8 +66,9 @@ template <> struct std::formatter<TerminalThrowingFormat>
     /// @brief Throws deliberately so Terminal formatting error conversion can be verified.
     template <typename FormatContext> auto format(const TerminalThrowingFormat &, FormatContext &context) const
     {
+        auto output = std::format_to(context.out(), "partial");
         throw std::format_error("terminal test formatter failure");
-        return context.out();
+        return output;
     }
 };
 
@@ -1158,6 +1163,19 @@ namespace
             outputBuffer.print("{}", TerminalThrowingFormat{}).code));
         static_cast<void>(
             context.expectEq("output buffer formatting failure rolls back partial record", beforeFormattingFailure, outputBuffer.text()));
+        static_cast<void>(context.expectEq(
+            "output buffer println failure returns status",
+            ErrorCode::InvalidArgument,
+            outputBuffer.println("{}", TerminalThrowingFormat{}).code));
+        static_cast<void>(context.expectEq(
+            "output buffer println failure rolls back formatted text and line ending",
+            beforeFormattingFailure,
+            outputBuffer.text()));
+        static_cast<void>(context.expectEq(
+            "output buffer oversized reserve is checked",
+            ErrorCode::SizeLimitExceeded,
+            outputBuffer.reserve(std::numeric_limits<std::size_t>::max()).code));
+        static_cast<void>(context.expectEq("output buffer reserve failure preserves contents", beforeFormattingFailure, outputBuffer.text()));
 
         static_cast<void>(context.expectTrue("output buffer flush succeeds", outputBuffer.flushTo().ok()));
         static_cast<void>(context.expectTrue("output buffer clears after flush", outputBuffer.empty()));
@@ -1389,6 +1407,47 @@ namespace
             static_cast<void>(context.expectTrue("cursor restore retry succeeds", scope.restore().ok()));
             static_cast<void>(context.expectFalse("successful cursor restore becomes inactive", scope.active()));
         }
+
+        Hooks::clearCapturedOutput(Terminal::Types::OutputStream::Stdout);
+        {
+            Hooks::forceNextFlushFailure(ErrorCode::FlushFailed);
+            Terminal::CursorHiddenScope scope = Terminal::scopedCursorHidden({.flushMode = IO::Types::FlushMode::Data});
+            static_cast<void>(context.expectEq("cursor setup flush failure propagates", ErrorCode::FlushFailed, scope.status().code));
+            static_cast<void>(context.expectTrue("cursor setup flush failure retains restoration ownership", scope.active()));
+            static_cast<void>(context.expectTrue("cursor setup flush failure can still restore", scope.restore().ok()));
+        }
+        static_cast<void>(context.expectEq(
+            "cursor setup flush failure does not leak hidden state",
+            std::string{"\x1b[?25l\x1b[?25h"},
+            Hooks::capturedOutputText(Terminal::Types::OutputStream::Stdout)));
+
+        Hooks::clearCapturedOutput(Terminal::Types::OutputStream::Stdout);
+        {
+            Terminal::CursorHiddenScope scope = Terminal::scopedCursorHidden({.flushMode = IO::Types::FlushMode::Data});
+            Hooks::forceNextFlushFailure(ErrorCode::FlushFailed);
+            static_cast<void>(context.expectEq("cursor restore flush failure propagates", ErrorCode::FlushFailed, scope.restore().code));
+            static_cast<void>(context.expectTrue("cursor restore flush failure remains retryable", scope.active()));
+            static_cast<void>(context.expectTrue("cursor restore flush retry succeeds", scope.restore().ok()));
+            static_cast<void>(context.expectFalse("cursor restore flush retry releases ownership", scope.active()));
+        }
+        static_cast<void>(context.expectEq(
+            "cursor restore flush retry does not repeat the show transition",
+            std::string{"\x1b[?25l\x1b[?25h"},
+            Hooks::capturedOutputText(Terminal::Types::OutputStream::Stdout)));
+
+        Hooks::clearCapturedOutput(Terminal::Types::OutputStream::Stdout);
+        {
+            Terminal::CursorHiddenScope failedDestructorScope = Terminal::scopedCursorHidden();
+            Hooks::forceNextTextWriteFailure(ErrorCode::WriteFailed);
+        }
+        {
+            Terminal::CursorHiddenScope laterScope = Terminal::scopedCursorHidden();
+            static_cast<void>(context.expectTrue("scope nesting remains usable after destructor restoration failure", laterScope.restore().ok()));
+        }
+        static_cast<void>(context.expectEq(
+            "failed scope destructor releases stale nesting ownership",
+            std::string{"\x1b[?25l\x1b[?25l\x1b[?25h"},
+            Hooks::capturedOutputText(Terminal::Types::OutputStream::Stdout)));
 
         Hooks::clearCapturedOutput(Terminal::Types::OutputStream::Stdout);
         {
@@ -1655,10 +1714,8 @@ namespace
             [&context](std::string_view label, const Hooks::Win32KeyDecodeResult &decoded) -> const Terminal::Types::KeyEvent *
         {
             static_cast<void>(context.expectTrue(std::format("{} status", label), decoded.status.ok()));
-            static_cast<void>(context.expectEq(
-                std::format("{} disposition", label),
-                Hooks::Win32KeyDecodeDisposition::Produced,
-                decoded.disposition));
+            static_cast<void>(
+                context.expectEq(std::format("{} disposition", label), Hooks::Win32KeyDecodeDisposition::Produced, decoded.disposition));
 
             if (!decoded.event.has_value())
             {
@@ -1673,8 +1730,7 @@ namespace
 
         Hooks::resetWin32KeyDecoder();
         {
-            const Hooks::Win32KeyDecodeResult decoded =
-                Hooks::decodeWin32KeyRecord(true, 'A', u'a');
+            const Hooks::Win32KeyDecodeResult decoded = Hooks::decodeWin32KeyRecord(true, 'A', u'a');
             const Terminal::Types::KeyEvent *key = expectKeyEvent("character A", decoded);
             if (key != nullptr)
             {
@@ -1685,15 +1741,13 @@ namespace
                     static_cast<void>(context.expectEq("character A scalar", U'a', character->value));
                 }
                 static_cast<void>(context.expectEq("character A press", Terminal::Types::KeyAction::Press, key->action));
-                static_cast<void>(
-                    context.expectEq("character A standard location", Terminal::Types::KeyLocation::Standard, key->location));
+                static_cast<void>(context.expectEq("character A standard location", Terminal::Types::KeyLocation::Standard, key->location));
             }
         }
 
         Hooks::resetWin32KeyDecoder();
         {
-            const Hooks::Win32KeyDecodeResult decoded =
-                Hooks::decodeWin32KeyRecord(true, 'A', static_cast<char16_t>(0x0001), LEFT_CTRL_PRESSED);
+            const Hooks::Win32KeyDecodeResult decoded = Hooks::decodeWin32KeyRecord(true, 'A', static_cast<char16_t>(0x0001), LEFT_CTRL_PRESSED);
             const Terminal::Types::KeyEvent *key = expectKeyEvent("Ctrl+A", decoded);
             if (key != nullptr)
             {
@@ -1711,8 +1765,7 @@ namespace
 
         Hooks::resetWin32KeyDecoder();
         {
-            const Hooks::Win32KeyDecodeResult decoded =
-                Hooks::decodeWin32KeyRecord(true, 'Q', u'@', RIGHT_ALT_PRESSED | LEFT_CTRL_PRESSED);
+            const Hooks::Win32KeyDecodeResult decoded = Hooks::decodeWin32KeyRecord(true, 'Q', u'@', RIGHT_ALT_PRESSED | LEFT_CTRL_PRESSED);
             const Terminal::Types::KeyEvent *key = expectKeyEvent("AltGr character", decoded);
             if (key != nullptr)
             {
@@ -1733,8 +1786,7 @@ namespace
 
         Hooks::resetWin32KeyDecoder();
         {
-            const Hooks::Win32KeyDecodeResult decoded =
-                Hooks::decodeWin32KeyRecord(true, VK_LCONTROL, u'\0', LEFT_CTRL_PRESSED);
+            const Hooks::Win32KeyDecodeResult decoded = Hooks::decodeWin32KeyRecord(true, VK_LCONTROL, u'\0', LEFT_CTRL_PRESSED);
             const Terminal::Types::KeyEvent *key = expectKeyEvent("left control", decoded);
             if (key != nullptr)
             {
@@ -1742,11 +1794,9 @@ namespace
                 static_cast<void>(context.expectTrue("left control modifier alternative", modifier != nullptr));
                 if (modifier != nullptr)
                 {
-                    static_cast<void>(
-                        context.expectEq("left control logical key", Terminal::Types::ModifierKey::Control, *modifier));
+                    static_cast<void>(context.expectEq("left control logical key", Terminal::Types::ModifierKey::Control, *modifier));
                 }
-                static_cast<void>(
-                    context.expectEq("left control location", Terminal::Types::KeyLocation::Left, key->location));
+                static_cast<void>(context.expectEq("left control location", Terminal::Types::KeyLocation::Left, key->location));
                 static_cast<void>(context.expectFalse(
                     "standalone modifier excludes itself",
                     Terminal::Types::hasModifier(key->modifiers, Terminal::Types::KeyModifier::Control)));
@@ -1755,41 +1805,30 @@ namespace
 
         Hooks::resetWin32KeyDecoder();
         {
-            const Hooks::Win32KeyDecodeResult left =
-                Hooks::decodeWin32KeyRecord(true, VK_CONTROL, u'\0', LEFT_CTRL_PRESSED);
+            const Hooks::Win32KeyDecodeResult left = Hooks::decodeWin32KeyRecord(true, VK_CONTROL, u'\0', LEFT_CTRL_PRESSED);
             const Terminal::Types::KeyEvent *key = expectKeyEvent("generic left control", left);
             if (key != nullptr)
             {
-                static_cast<void>(
-                    context.expectEq("generic left control press", Terminal::Types::KeyAction::Press, key->action));
-                static_cast<void>(
-                    context.expectEq("generic left control location", Terminal::Types::KeyLocation::Left, key->location));
+                static_cast<void>(context.expectEq("generic left control press", Terminal::Types::KeyAction::Press, key->action));
+                static_cast<void>(context.expectEq("generic left control location", Terminal::Types::KeyLocation::Left, key->location));
             }
 
             const Hooks::Win32KeyDecodeResult right =
-                Hooks::decodeWin32KeyRecord(
-                    true,
-                    VK_CONTROL,
-                    u'\0',
-                    LEFT_CTRL_PRESSED | RIGHT_CTRL_PRESSED | ENHANCED_KEY);
+                Hooks::decodeWin32KeyRecord(true, VK_CONTROL, u'\0', LEFT_CTRL_PRESSED | RIGHT_CTRL_PRESSED | ENHANCED_KEY);
             key = expectKeyEvent("generic right control", right);
             if (key != nullptr)
             {
-                static_cast<void>(
-                    context.expectEq("other-side control is a press", Terminal::Types::KeyAction::Press, key->action));
-                static_cast<void>(
-                    context.expectEq("generic right control location", Terminal::Types::KeyLocation::Right, key->location));
+                static_cast<void>(context.expectEq("other-side control is a press", Terminal::Types::KeyAction::Press, key->action));
+                static_cast<void>(context.expectEq("generic right control location", Terminal::Types::KeyLocation::Right, key->location));
             }
         }
 
         Hooks::resetWin32KeyDecoder();
         {
-            const Hooks::Win32KeyDecodeResult super =
-                Hooks::decodeWin32KeyRecord(true, VK_LWIN);
+            const Hooks::Win32KeyDecodeResult super = Hooks::decodeWin32KeyRecord(true, VK_LWIN);
             static_cast<void>(expectKeyEvent("left super", super));
 
-            const Hooks::Win32KeyDecodeResult character =
-                Hooks::decodeWin32KeyRecord(true, 'A', u'a');
+            const Hooks::Win32KeyDecodeResult character = Hooks::decodeWin32KeyRecord(true, 'A', u'a');
             const Terminal::Types::KeyEvent *key = expectKeyEvent("Super+A", character);
             if (key != nullptr)
             {
@@ -1801,8 +1840,7 @@ namespace
 
         Hooks::resetWin32KeyDecoder();
         {
-            const Hooks::Win32KeyDecodeResult dedicated =
-                Hooks::decodeWin32KeyRecord(true, VK_LEFT, u'\0', ENHANCED_KEY);
+            const Hooks::Win32KeyDecodeResult dedicated = Hooks::decodeWin32KeyRecord(true, VK_LEFT, u'\0', ENHANCED_KEY);
             const Terminal::Types::KeyEvent *key = expectKeyEvent("dedicated left arrow", dedicated);
             if (key != nullptr)
             {
@@ -1810,28 +1848,23 @@ namespace
                 static_cast<void>(context.expectTrue("left arrow named alternative", named != nullptr));
                 if (named != nullptr)
                 {
-                    static_cast<void>(
-                        context.expectEq("left arrow logical key", Terminal::Types::NamedKey::ArrowLeft, *named));
+                    static_cast<void>(context.expectEq("left arrow logical key", Terminal::Types::NamedKey::ArrowLeft, *named));
                 }
-                static_cast<void>(
-                    context.expectEq("dedicated arrow location", Terminal::Types::KeyLocation::Standard, key->location));
+                static_cast<void>(context.expectEq("dedicated arrow location", Terminal::Types::KeyLocation::Standard, key->location));
             }
 
             Hooks::resetWin32KeyDecoder();
-            const Hooks::Win32KeyDecodeResult numpad =
-                Hooks::decodeWin32KeyRecord(true, VK_LEFT);
+            const Hooks::Win32KeyDecodeResult numpad = Hooks::decodeWin32KeyRecord(true, VK_LEFT);
             key = expectKeyEvent("numpad left arrow", numpad);
             if (key != nullptr)
             {
-                static_cast<void>(
-                    context.expectEq("numpad arrow location", Terminal::Types::KeyLocation::Numpad, key->location));
+                static_cast<void>(context.expectEq("numpad arrow location", Terminal::Types::KeyLocation::Numpad, key->location));
             }
         }
 
         Hooks::resetWin32KeyDecoder();
         {
-            const Hooks::Win32KeyDecodeResult decoded =
-                Hooks::decodeWin32KeyRecord(true, VK_F24);
+            const Hooks::Win32KeyDecodeResult decoded = Hooks::decodeWin32KeyRecord(true, VK_F24);
             const Terminal::Types::KeyEvent *key = expectKeyEvent("F24", decoded);
             if (key != nullptr)
             {
@@ -1846,13 +1879,11 @@ namespace
 
         Hooks::resetWin32KeyDecoder();
         {
-            const Hooks::Win32KeyDecodeResult first =
-                Hooks::decodeWin32KeyRecord(true, 'A', u'a', 0, 3);
+            const Hooks::Win32KeyDecodeResult first = Hooks::decodeWin32KeyRecord(true, 'A', u'a', 0, 3);
             const Terminal::Types::KeyEvent *key = expectKeyEvent("combined repeat press", first);
             if (key != nullptr)
             {
-                static_cast<void>(
-                    context.expectEq("combined repeat first action", Terminal::Types::KeyAction::Press, key->action));
+                static_cast<void>(context.expectEq("combined repeat first action", Terminal::Types::KeyAction::Press, key->action));
                 static_cast<void>(context.expectEq("combined repeat press count", std::uint32_t{1}, key->repeatCount));
             }
 
@@ -1864,34 +1895,25 @@ namespace
                 static_cast<void>(context.expectTrue("combined repeat follow-up payload", repeat != nullptr));
                 if (repeat != nullptr)
                 {
-                    static_cast<void>(
-                        context.expectEq("combined repeat action", Terminal::Types::KeyAction::Repeat, repeat->action));
-                    static_cast<void>(
-                        context.expectEq("combined repeat count", std::uint32_t{2}, repeat->repeatCount));
+                    static_cast<void>(context.expectEq("combined repeat action", Terminal::Types::KeyAction::Repeat, repeat->action));
+                    static_cast<void>(context.expectEq("combined repeat count", std::uint32_t{2}, repeat->repeatCount));
                 }
             }
 
-            const Hooks::Win32KeyDecodeResult released =
-                Hooks::decodeWin32KeyRecord(false, 'A', u'a');
+            const Hooks::Win32KeyDecodeResult released = Hooks::decodeWin32KeyRecord(false, 'A', u'a');
             key = expectKeyEvent("character release", released);
             if (key != nullptr)
             {
-                static_cast<void>(
-                    context.expectEq("character release action", Terminal::Types::KeyAction::Release, key->action));
+                static_cast<void>(context.expectEq("character release action", Terminal::Types::KeyAction::Release, key->action));
             }
         }
 
         Hooks::resetWin32KeyDecoder();
         {
-            const Hooks::Win32KeyDecodeResult high =
-                Hooks::decodeWin32KeyRecord(true, VK_PACKET, static_cast<char16_t>(0xd83d));
-            static_cast<void>(context.expectEq(
-                "surrogate high waits",
-                Hooks::Win32KeyDecodeDisposition::Pending,
-                high.disposition));
+            const Hooks::Win32KeyDecodeResult high = Hooks::decodeWin32KeyRecord(true, VK_PACKET, static_cast<char16_t>(0xd83d));
+            static_cast<void>(context.expectEq("surrogate high waits", Hooks::Win32KeyDecodeDisposition::Pending, high.disposition));
 
-            const Hooks::Win32KeyDecodeResult low =
-                Hooks::decodeWin32KeyRecord(true, VK_PACKET, static_cast<char16_t>(0xde00));
+            const Hooks::Win32KeyDecodeResult low = Hooks::decodeWin32KeyRecord(true, VK_PACKET, static_cast<char16_t>(0xde00));
             const Terminal::Types::KeyEvent *key = expectKeyEvent("surrogate pair", low);
             if (key != nullptr)
             {
@@ -1899,22 +1921,14 @@ namespace
                 static_cast<void>(context.expectTrue("surrogate pair character alternative", character != nullptr));
                 if (character != nullptr)
                 {
-                    static_cast<void>(context.expectEq(
-                        "surrogate pair scalar",
-                        static_cast<char32_t>(0x1f600),
-                        character->value));
+                    static_cast<void>(context.expectEq("surrogate pair scalar", static_cast<char32_t>(0x1f600), character->value));
                 }
             }
 
             Hooks::resetWin32KeyDecoder();
-            const Hooks::Win32KeyDecodeResult malformed =
-                Hooks::decodeWin32KeyRecord(true, VK_PACKET, static_cast<char16_t>(0xde00));
-            static_cast<void>(
-                context.expectEq("lone low surrogate fails", ErrorCode::EncodingFailed, malformed.status.code));
-            static_cast<void>(context.expectEq(
-                "lone low surrogate disposition",
-                Hooks::Win32KeyDecodeDisposition::Failed,
-                malformed.disposition));
+            const Hooks::Win32KeyDecodeResult malformed = Hooks::decodeWin32KeyRecord(true, VK_PACKET, static_cast<char16_t>(0xde00));
+            static_cast<void>(context.expectEq("lone low surrogate fails", ErrorCode::EncodingFailed, malformed.status.code));
+            static_cast<void>(context.expectEq("lone low surrogate disposition", Hooks::Win32KeyDecodeDisposition::Failed, malformed.disposition));
         }
     }
 
@@ -1999,28 +2013,29 @@ namespace
     /// @brief Verifies the managed Unicode line editor over deterministic structured events.
     void testManagedLineEditing(TestSupport::Context &context)
     {
-        const auto characterEvent = [](char32_t scalar, Terminal::Types::KeyAction action = Terminal::Types::KeyAction::Press, std::uint32_t repeat = 1)
+        const auto characterEvent =
+            [](char32_t scalar, Terminal::Types::KeyAction action = Terminal::Types::KeyAction::Press, std::uint32_t repeat = 1)
         {
             Terminal::Types::KeyEvent key;
             key.key = Terminal::Types::CharacterKey{.value = scalar};
             key.action = action;
             key.location = Terminal::Types::KeyLocation::Standard;
             key.repeatCount = repeat;
-            return Terminal::Types::Event{.data = std::move(key)};
+            return Terminal::Types::Event{.data = key};
         };
 
-        const auto namedEvent = [](Terminal::Types::NamedKey named, Terminal::Types::KeyAction action = Terminal::Types::KeyAction::Press, std::uint32_t repeat = 1)
+        const auto namedEvent =
+            [](Terminal::Types::NamedKey named, Terminal::Types::KeyAction action = Terminal::Types::KeyAction::Press, std::uint32_t repeat = 1)
         {
             Terminal::Types::KeyEvent key;
             key.key = named;
             key.action = action;
             key.location = Terminal::Types::KeyLocation::Standard;
             key.repeatCount = repeat;
-            return Terminal::Types::Event{.data = std::move(key)};
+            return Terminal::Types::Event{.data = key};
         };
 
-        const auto runLine =
-            [&context](std::span<const Terminal::Types::Event> events, const Terminal::Types::LineReadOptions &options)
+        const auto runLine = [&context](std::span<const Terminal::Types::Event> events, const Terminal::Types::LineReadOptions &options)
         {
             Hooks::reset();
             Hooks::setInputCapabilitiesOverride(Terminal::Types::InputStream::Stdin, terminalInputCapabilities());
@@ -2092,10 +2107,7 @@ namespace
 
             const Terminal::Types::LineReadResult result = runLine(events, options);
             static_cast<void>(context.expectTrue("middle grapheme merge status", result.status.ok()));
-            static_cast<void>(context.expectEq(
-                "middle grapheme merge keeps caret on a cluster boundary",
-                std::string{},
-                result.line));
+            static_cast<void>(context.expectEq("middle grapheme merge keeps caret on a cluster boundary", std::string{}, result.line));
         }
 
         {
@@ -2112,9 +2124,7 @@ namespace
 
         {
             const std::array<Terminal::Types::Event, 2> events{
-                Terminal::Types::Event{
-                    .data = Terminal::Types::PasteEvent{
-                        .text = std::string{"\xc3\xa9\xf0\x9f\x99\x82"}}},
+                Terminal::Types::Event{.data = Terminal::Types::PasteEvent{.text = std::string{"\xc3\xa9\xf0\x9f\x99\x82"}}},
                 namedEvent(Terminal::Types::NamedKey::Enter),
             };
 
@@ -2164,9 +2174,37 @@ namespace
         Terminal::Session closed;
         static_cast<void>(context.expectFalse("default session starts closed", closed.isOpen()));
         static_cast<void>(context.expectEq("closed session read reports NotOpen", ErrorCode::NotOpen, closed.readText().status.code));
+        static_cast<void>(
+            context.expectEq("closed session input query reports NotOpen", ErrorCode::NotOpen, closed.getInputCapabilities().status.code));
         static_cast<void>(context.expectEq("closed session write reports NotOpen", ErrorCode::NotOpen, closed.writeText("closed").code));
         static_cast<void>(
             context.expectEq("closed session output query reports NotOpen", ErrorCode::NotOpen, closed.getOutputCapabilities().status.code));
+        static_cast<void>(context.expectEq("closed session prepare reports NotOpen", ErrorCode::NotOpen, closed.prepareOutput().status.code));
+        static_cast<void>(context.expectEq("closed session size reports NotOpen", ErrorCode::NotOpen, closed.getTerminalSize().status.code));
+        static_cast<void>(context.expectEq("closed session line write reports NotOpen", ErrorCode::NotOpen, closed.writeLine().code));
+        static_cast<void>(context.expectEq("closed session byte write reports NotOpen", ErrorCode::NotOpen, closed.writeBytes({}).status.code));
+        static_cast<void>(context.expectEq("closed session segment write reports NotOpen", ErrorCode::NotOpen, closed.writeSegments({}).code));
+        static_cast<void>(context.expectEq("closed session print reports NotOpen", ErrorCode::NotOpen, closed.print("{}", 1).code));
+        static_cast<void>(context.expectEq("closed session println reports NotOpen", ErrorCode::NotOpen, closed.println("{}", 1).code));
+        static_cast<void>(context.expectEq("closed session flush reports NotOpen", ErrorCode::NotOpen, closed.flush().code));
+        static_cast<void>(context.expectEq("closed session style reports NotOpen", ErrorCode::NotOpen, closed.resetStyle().code));
+        static_cast<void>(context.expectEq(
+            "closed session cursor move reports NotOpen",
+            ErrorCode::NotOpen,
+            closed.moveCursor(Terminal::Types::CursorMoveDirection::Up).code));
+        static_cast<void>(context.expectEq("closed session cursor set reports NotOpen", ErrorCode::NotOpen, closed.setCursorPosition({}).code));
+        static_cast<void>(
+            context.expectEq("closed session cursor query reports NotOpen", ErrorCode::NotOpen, closed.getCursorPosition().status.code));
+        static_cast<void>(context.expectEq("closed session cursor save reports NotOpen", ErrorCode::NotOpen, closed.saveCursorPosition().code));
+        static_cast<void>(context.expectEq("closed session cursor restore reports NotOpen", ErrorCode::NotOpen, closed.restoreCursorPosition().code));
+        static_cast<void>(context.expectEq("closed session visibility reports NotOpen", ErrorCode::NotOpen, closed.setCursorVisible(false).code));
+        static_cast<void>(context.expectEq("closed session clear reports NotOpen", ErrorCode::NotOpen, closed.clear().code));
+        static_cast<void>(
+            context.expectEq("closed session scroll reports NotOpen", ErrorCode::NotOpen, closed.scroll(Terminal::Types::ScrollDirection::Up).code));
+        static_cast<void>(context.expectEq("closed session alternate enter reports NotOpen", ErrorCode::NotOpen, closed.enterAlternateScreen().code));
+        static_cast<void>(context.expectEq("closed session alternate leave reports NotOpen", ErrorCode::NotOpen, closed.leaveAlternateScreen().code));
+        static_cast<void>(context.expectEq("closed session title reports NotOpen", ErrorCode::NotOpen, closed.setTitle("closed").code));
+        static_cast<void>(context.expectEq("closed session bell reports NotOpen", ErrorCode::NotOpen, closed.ringBell().code));
         static_cast<void>(context.expectTrue("closing a closed session is idempotent", closed.close().ok()));
 
         Terminal::Types::SessionOptions streamOptions;
@@ -2213,15 +2251,11 @@ namespace
         static_cast<void>(context.expectTrue("session byte write succeeds", sessionBytes.status.ok()));
         static_cast<void>(context.expectEq("session byte write count", std::size_t{1}, sessionBytes.bytesWritten));
 
-        const std::array<Terminal::Types::WriteSegment, 2> sessionSegments{
-            Terminal::textSegment("seg"),
-            Terminal::textSegment("ment")};
+        const std::array<Terminal::Types::WriteSegment, 2> sessionSegments{Terminal::textSegment("seg"), Terminal::textSegment("ment")};
         static_cast<void>(context.expectTrue(
             "session segmented write succeeds",
             session.writeSegments(std::span<const Terminal::Types::WriteSegment>(sessionSegments)).ok()));
-        static_cast<void>(context.expectTrue(
-            "direct global output remains available while session owns stdin",
-            Terminal::writeText("-global").ok()));
+        static_cast<void>(context.expectTrue("direct global output remains available while session owns stdin", Terminal::writeText("-global").ok()));
         static_cast<void>(context.expectEq(
             "session output shares global serialization implementation",
             std::string{"session-line\n-7-8\n!segment-global"},
@@ -2295,18 +2329,187 @@ namespace
         static_cast<void>(context.expectTrue(
             "successful close restores exact managed-event flags",
             Hooks::inputManagedEventModeOverrideMatches(Terminal::Types::InputStream::Stdin, false, false, false)));
+        static_cast<void>(context.expectEq("session output after close reports NotOpen", ErrorCode::NotOpen, session.writeText("closed").code));
+
+        Hooks::clearCapturedOutput(Terminal::Types::OutputStream::Stdout);
+        Terminal::Session duplicateOutputState;
+        static_cast<void>(context.expectTrue("duplicate output-state fixture opens", duplicateOutputState.open(streamOptions).ok()));
+        static_cast<void>(context.expectTrue("duplicate output-state fixture hides cursor", duplicateOutputState.setCursorVisible(false).ok()));
+        static_cast<void>(context.expectTrue("duplicate cursor hide is idempotent", duplicateOutputState.setCursorVisible(false).ok()));
+        static_cast<void>(
+            context.expectTrue("duplicate output-state fixture enters alternate screen", duplicateOutputState.enterAlternateScreen().ok()));
+        static_cast<void>(context.expectTrue("duplicate alternate enter is idempotent", duplicateOutputState.enterAlternateScreen().ok()));
+        static_cast<void>(context.expectTrue("explicit cursor show removes obligation", duplicateOutputState.setCursorVisible(true).ok()));
+        static_cast<void>(context.expectTrue("explicit alternate leave removes obligation", duplicateOutputState.leaveAlternateScreen().ok()));
+        static_cast<void>(context.expectTrue("closing after explicit inverses succeeds", duplicateOutputState.close().ok()));
+        static_cast<void>(context.expectEq(
+            "duplicate state changes emit once and explicit inverses are not repeated by close",
+            std::string{"\x1b[?25l\x1b[?1049h\x1b[?25h\x1b[?1049l"},
+            Hooks::capturedOutputText(Terminal::Types::OutputStream::Stdout)));
+
+        Hooks::clearCapturedOutput(Terminal::Types::OutputStream::Stdout);
+        Terminal::Session setupFlushFailure;
+        static_cast<void>(context.expectTrue("setup flush failure fixture opens", setupFlushFailure.open(streamOptions).ok()));
+        Hooks::forceNextFlushFailure(ErrorCode::FlushFailed);
+        static_cast<void>(context.expectEq(
+            "Session cursor setup flush failure propagates",
+            ErrorCode::FlushFailed,
+            setupFlushFailure.setCursorVisible(false, {.flushMode = IO::Types::FlushMode::Data}).code));
+        static_cast<void>(context.expectTrue("Session retains cleanup after setup flush failure", setupFlushFailure.close().ok()));
+        static_cast<void>(context.expectEq(
+            "Session setup flush failure does not lose cleanup ownership",
+            std::string{"\x1b[?25l\x1b[?25h"},
+            Hooks::capturedOutputText(Terminal::Types::OutputStream::Stdout)));
+
+        Hooks::clearCapturedOutput(Terminal::Types::OutputStream::Stdout);
+        Terminal::Session outputRestoreFailure;
+        static_cast<void>(context.expectTrue("output restoration failure fixture opens", outputRestoreFailure.open(streamOptions).ok()));
+        static_cast<void>(context.expectTrue("output restoration fixture hides cursor", outputRestoreFailure.setCursorVisible(false).ok()));
+        static_cast<void>(context.expectTrue("output restoration fixture enters alternate screen", outputRestoreFailure.enterAlternateScreen().ok()));
+        Hooks::forceNextTextWriteFailure(ErrorCode::WriteFailed);
+        static_cast<void>(
+            context.expectEq("output restoration failure propagates from close", ErrorCode::WriteFailed, outputRestoreFailure.close().code));
+        static_cast<void>(context.expectTrue("output restoration failure leaves session open", outputRestoreFailure.isOpen()));
+        static_cast<void>(context.expectEq(
+            "failed top restoration does not run older obligations",
+            std::string{"\x1b[?25l\x1b[?1049h"},
+            Hooks::capturedOutputText(Terminal::Types::OutputStream::Stdout)));
+        static_cast<void>(
+            context.expectEq("output restoration failure retains input ownership", ErrorCode::ResourceBusy, competing.open(streamOptions).code));
+        static_cast<void>(context.expectTrue("output restoration close retry succeeds", outputRestoreFailure.close().ok()));
+        static_cast<void>(context.expectEq(
+            "output restoration retry preserves reverse order",
+            std::string{"\x1b[?25l\x1b[?1049h\x1b[?1049l\x1b[?25h"},
+            Hooks::capturedOutputText(Terminal::Types::OutputStream::Stdout)));
+
+        Hooks::clearCapturedOutput(Terminal::Types::OutputStream::Stdout);
+        Terminal::Session flushRestoreFailure;
+        static_cast<void>(context.expectTrue("restoration flush failure fixture opens", flushRestoreFailure.open(streamOptions).ok()));
+        const Terminal::Types::ControlOptions flushedControl{.flushMode = IO::Types::FlushMode::Data};
+        static_cast<void>(
+            context.expectTrue("restoration flush fixture hides cursor", flushRestoreFailure.setCursorVisible(false, flushedControl).ok()));
+        Hooks::forceNextFlushFailure(ErrorCode::FlushFailed);
+        static_cast<void>(context.expectEq("close restoration flush failure propagates", ErrorCode::FlushFailed, flushRestoreFailure.close().code));
+        static_cast<void>(context.expectTrue("restoration flush failure leaves session open", flushRestoreFailure.isOpen()));
+        static_cast<void>(context.expectEq(
+            "restoration transition was emitted before flush failure",
+            std::string{"\x1b[?25l\x1b[?25h"},
+            Hooks::capturedOutputText(Terminal::Types::OutputStream::Stdout)));
+        static_cast<void>(context.expectTrue("restoration flush retry closes session", flushRestoreFailure.close().ok()));
+        static_cast<void>(context.expectEq(
+            "restoration flush retry does not repeat completed transition",
+            std::string{"\x1b[?25l\x1b[?25h"},
+            Hooks::capturedOutputText(Terminal::Types::OutputStream::Stdout)));
+
+        setupCapturedOutput(Terminal::Types::OutputStream::Stderr);
+        Hooks::setTerminalSizeOverride(Terminal::Types::OutputStream::Stderr, {.columns = 72, .rows = 20});
+        Hooks::setCursorPositionOverride(Terminal::Types::OutputStream::Stderr, {.column = 11, .row = 6});
+        Terminal::Types::SessionOptions stderrOptions = streamOptions;
+        stderrOptions.output = Terminal::Types::OutputStream::Stderr;
+        Terminal::Session stderrSession;
+        static_cast<void>(context.expectTrue("stderr-bound session opens", stderrSession.open(stderrOptions).ok()));
+        static_cast<void>(context.expectTrue("stderr-bound session write succeeds", stderrSession.writeText("bound-stderr").ok()));
+        static_cast<void>(context.expectEq(
+            "session output is bound to requested stream",
+            std::string{"bound-stderr"},
+            Hooks::capturedOutputText(Terminal::Types::OutputStream::Stderr)));
+        static_cast<void>(context.expectEq("stderr-bound size query", std::uint32_t{72}, stderrSession.getTerminalSize().size.columns));
+        static_cast<void>(context.expectEq(
+            "stderr-bound cursor query",
+            std::uint32_t{11},
+            stderrSession.getCursorPosition({.timeout = Terminal::kNoWait, .flushMode = IO::Types::FlushMode::None}).position.column));
+        static_cast<void>(context.expectTrue("stderr-bound session closes", stderrSession.close().ok()));
+
+        Hooks::clearCapturedOutput(Terminal::Types::OutputStream::Stdout);
+        Hooks::setInputBytes(Terminal::Types::InputStream::Stdin, "blocked-read");
+        Terminal::Session concurrencySession;
+        static_cast<void>(context.expectTrue("concurrency fixture opens", concurrencySession.open(streamOptions).ok()));
+
+        Hooks::blockNextTextWrite();
+        IO::Types::Status sessionSerializedWrite;
+        IO::Types::Status globalSerializedWrite;
+        std::jthread sessionWriter(
+            [&]
+            {
+                sessionSerializedWrite = concurrencySession.writeText("session-first");
+            });
+        const bool writeReachedBlock = Hooks::waitUntilTextWriteBlocked();
+        static_cast<void>(context.expectTrue("session write reaches deterministic backend gate", writeReachedBlock));
+        std::jthread globalWriter(
+            [&]
+            {
+                globalSerializedWrite = Terminal::writeText("-global-second");
+            });
+        Hooks::releaseBlockedTextWrite();
+        sessionWriter.join();
+        globalWriter.join();
+        static_cast<void>(context.expectTrue("serialized session write succeeds", sessionSerializedWrite.ok()));
+        static_cast<void>(context.expectTrue("serialized global write succeeds", globalSerializedWrite.ok()));
+        static_cast<void>(context.expectEq(
+            "Session and global writes use one stream serialization domain",
+            std::string{"session-first-global-second"},
+            Hooks::capturedOutputText(Terminal::Types::OutputStream::Stdout)));
+
+        Hooks::clearCapturedOutput(Terminal::Types::OutputStream::Stdout);
+        Hooks::blockNextRead();
+        Terminal::Types::TextReadResult blockedRead;
+        std::jthread reader(
+            [&]
+            {
+                blockedRead = concurrencySession.readText();
+            });
+        const bool readReachedBlock = Hooks::waitUntilReadBlocked();
+        static_cast<void>(context.expectTrue("blocking read reaches deterministic backend gate", readReachedBlock));
+        static_cast<void>(
+            context.expectTrue("session output remains usable during blocked session input", concurrencySession.writeText("during-read").ok()));
+        static_cast<void>(context.expectEq(
+            "output during blocked read is emitted immediately",
+            std::string{"during-read"},
+            Hooks::capturedOutputText(Terminal::Types::OutputStream::Stdout)));
+
+        std::atomic_bool closeFinished = false;
+        std::latch closeStarted{1};
+        IO::Types::Status concurrentCloseStatus;
+        std::jthread closer(
+            [&]
+            {
+                closeStarted.count_down();
+                concurrentCloseStatus = concurrencySession.close();
+                closeFinished.store(true, std::memory_order_release);
+            });
+        closeStarted.wait();
+        static_cast<void>(
+            context.expectFalse("close waits while a session read owns shared lifecycle access", closeFinished.load(std::memory_order_acquire)));
+        Hooks::releaseBlockedRead();
+        reader.join();
+        closer.join();
+        static_cast<void>(context.expectTrue("blocked read completes after release", blockedRead.status.ok()));
+        static_cast<void>(context.expectEq("blocked read payload", std::string{"blocked-read"}, blockedRead.text));
+        static_cast<void>(context.expectTrue("close completes after active read", concurrentCloseStatus.ok()));
+        static_cast<void>(context.expectFalse("concurrency fixture is closed", concurrencySession.isOpen()));
 
         Terminal::Session movable;
         static_cast<void>(context.expectTrue("movable session opens", movable.open(streamOptions).ok()));
+        Hooks::clearCapturedOutput(Terminal::Types::OutputStream::Stdout);
+        static_cast<void>(context.expectTrue("movable session hides cursor", movable.setCursorVisible(false).ok()));
+        static_cast<void>(context.expectTrue("movable session enters alternate screen", movable.enterAlternateScreen().ok()));
         Terminal::Session moved(std::move(movable));
+        // NOLINTNEXTLINE(bugprone-use-after-move) -- Session explicitly specifies a closed, queryable moved-from state.
         static_cast<void>(context.expectFalse("moved-from session becomes closed", movable.isOpen()));
         static_cast<void>(context.expectTrue("move construction preserves open ownership", moved.isOpen()));
         static_cast<void>(context.expectEq("moved session still blocks competitors", ErrorCode::ResourceBusy, competing.open(streamOptions).code));
         static_cast<void>(context.expectTrue("moved session closes", moved.close().ok()));
+        static_cast<void>(context.expectEq(
+            "move construction preserves pending output cleanup",
+            std::string{"\x1b[?25l\x1b[?1049h\x1b[?1049l\x1b[?25h"},
+            Hooks::capturedOutputText(Terminal::Types::OutputStream::Stdout)));
 
+        Hooks::clearCapturedOutput(Terminal::Types::OutputStream::Stdout);
         {
             Terminal::Session scoped;
             static_cast<void>(context.expectTrue("destructor fixture opens", scoped.open(streamOptions).ok()));
+            static_cast<void>(context.expectTrue("destructor fixture hides cursor", scoped.setCursorVisible(false).ok()));
+            static_cast<void>(context.expectTrue("destructor fixture enters alternate screen", scoped.enterAlternateScreen().ok()));
             static_cast<void>(context.expectTrue(
                 "destructor fixture owns immediate stream mode",
                 Hooks::inputModeOverrideMatches(Terminal::Types::InputStream::Stdin, false, false, true)));
@@ -2314,6 +2517,36 @@ namespace
         static_cast<void>(context.expectTrue(
             "session destructor restores mode",
             Hooks::inputModeOverrideMatches(Terminal::Types::InputStream::Stdin, true, true, true)));
+        static_cast<void>(context.expectEq(
+            "session destructor restores pending output state",
+            std::string{"\x1b[?25l\x1b[?1049h\x1b[?1049l\x1b[?25h"},
+            Hooks::capturedOutputText(Terminal::Types::OutputStream::Stdout)));
+
+        Hooks::clearCapturedOutput(Terminal::Types::OutputStream::Stdout);
+        {
+            Terminal::Session failedDestructor;
+            static_cast<void>(context.expectTrue("failed destructor fixture opens", failedDestructor.open(streamOptions).ok()));
+            static_cast<void>(context.expectTrue("failed destructor fixture hides cursor", failedDestructor.setCursorVisible(false).ok()));
+            static_cast<void>(context.expectTrue("failed destructor fixture enters alternate screen", failedDestructor.enterAlternateScreen().ok()));
+            Hooks::forceNextTextWriteFailure(ErrorCode::WriteFailed);
+        }
+        static_cast<void>(context.expectTrue(
+            "failed Session destructor still restores input mode",
+            Hooks::inputModeOverrideMatches(Terminal::Types::InputStream::Stdin, true, true, true)));
+        static_cast<void>(context.expectEq(
+            "failed Session destructor does not retry out of reverse order",
+            std::string{"\x1b[?25l\x1b[?1049h\x1b[?25h"},
+            Hooks::capturedOutputText(Terminal::Types::OutputStream::Stdout)));
+        Hooks::clearCapturedOutput(Terminal::Types::OutputStream::Stdout);
+        {
+            Terminal::AlternateScreenScope laterAlternateScope = Terminal::scopedAlternateScreen();
+            static_cast<void>(
+                context.expectTrue("alternate scope nesting remains usable after Session destructor failure", laterAlternateScope.leave().ok()));
+        }
+        static_cast<void>(context.expectEq(
+            "Session destructor failure releases stale alternate nesting ownership",
+            std::string{"\x1b[?1049h\x1b[?1049l"},
+            Hooks::capturedOutputText(Terminal::Types::OutputStream::Stdout)));
 
         Terminal::Session events;
         static_cast<void>(context.expectTrue("default event session opens with event-capable hook", events.open().ok()));
@@ -2325,8 +2558,7 @@ namespace
         eventCancelledOptions.stopToken = eventStopSource.get_token();
         const Terminal::Types::EventReadResult cancelledEvent = events.readEvent(eventCancelledOptions);
         static_cast<void>(context.expectTrue("event cancellation keeps success status", cancelledEvent.status.ok()));
-        static_cast<void>(
-            context.expectEq("event cancellation outcome", Terminal::Types::ReadOutcome::Cancelled, cancelledEvent.outcome));
+        static_cast<void>(context.expectEq("event cancellation outcome", Terminal::Types::ReadOutcome::Cancelled, cancelledEvent.outcome));
         static_cast<void>(context.expectTrue("event session closes", events.close().ok()));
 
         Terminal::Types::SessionOptions reportControlOptions = streamOptions;

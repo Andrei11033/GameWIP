@@ -1129,9 +1129,7 @@ namespace GameWIP::Terminal
         [[nodiscard]] IO::Types::Status writeLine(std::string_view utf8Text = {}, const Types::LineWriteOptions &options = {}) noexcept;
 
         /// @brief Writes arbitrary bytes to the bound primary output stream.
-        [[nodiscard]] IO::Types::WriteResult writeBytes(
-            std::span<const std::byte> bytes,
-            const Types::ByteWriteOptions &options = {}) noexcept;
+        [[nodiscard]] IO::Types::WriteResult writeBytes(std::span<const std::byte> bytes, const Types::ByteWriteOptions &options = {}) noexcept;
 
         /// @brief Writes one atomic logical batch of text, styled text, and bytes to the bound output.
         [[nodiscard]] IO::Types::Status writeSegments(
@@ -1139,22 +1137,18 @@ namespace GameWIP::Terminal
             const Types::SegmentWriteOptions &options = {}) noexcept;
 
         /// @brief Formats UTF-8 text and writes it to the bound output.
-        template <class... Args>
-        [[nodiscard]] IO::Types::Status print(std::format_string<Args...> format, Args &&...args) noexcept;
+        template <class... Args> [[nodiscard]] IO::Types::Status print(std::format_string<Args...> format, Args &&...args) noexcept;
 
         /// @brief Formats UTF-8 text with explicit write options and writes it to the bound output.
         template <class... Args>
-        [[nodiscard]] IO::Types::Status
-        print(const Types::TextWriteOptions &options, std::format_string<Args...> format, Args &&...args) noexcept;
+        [[nodiscard]] IO::Types::Status print(const Types::TextWriteOptions &options, std::format_string<Args...> format, Args &&...args) noexcept;
 
         /// @brief Formats UTF-8 text and writes it followed by a line ending to the bound output.
-        template <class... Args>
-        [[nodiscard]] IO::Types::Status println(std::format_string<Args...> format, Args &&...args) noexcept;
+        template <class... Args> [[nodiscard]] IO::Types::Status println(std::format_string<Args...> format, Args &&...args) noexcept;
 
         /// @brief Formats UTF-8 text with explicit line options and writes it to the bound output.
         template <class... Args>
-        [[nodiscard]] IO::Types::Status
-        println(const Types::LineWriteOptions &options, std::format_string<Args...> format, Args &&...args) noexcept;
+        [[nodiscard]] IO::Types::Status println(const Types::LineWriteOptions &options, std::format_string<Args...> format, Args &&...args) noexcept;
 
         /// @brief Flushes the bound primary output stream.
         [[nodiscard]] IO::Types::Status flush(IO::Types::FlushMode mode = IO::Types::FlushMode::Data) noexcept;
@@ -1169,13 +1163,11 @@ namespace GameWIP::Terminal
             const Types::ControlOptions &options = {}) noexcept;
 
         /// @brief Sets the cursor position on the bound output.
-        [[nodiscard]] IO::Types::Status
-        setCursorPosition(Types::CursorPosition position, const Types::ControlOptions &options = {}) noexcept;
+        [[nodiscard]] IO::Types::Status setCursorPosition(Types::CursorPosition position, const Types::ControlOptions &options = {}) noexcept;
 
         /// @brief Queries cursor position using the Session's bound output and owned input.
         /// @note The query is an input-consuming operation on backends that require a terminal response.
-        [[nodiscard]] Types::CursorPositionResult
-        getCursorPosition(const Types::CursorPositionQueryOptions &options = {}) noexcept;
+        [[nodiscard]] Types::CursorPositionResult getCursorPosition(const Types::CursorPositionQueryOptions &options = {}) noexcept;
 
         /// @brief Saves cursor position on the bound output.
         [[nodiscard]] IO::Types::Status saveCursorPosition(const Types::ControlOptions &options = {}) noexcept;
@@ -1211,18 +1203,20 @@ namespace GameWIP::Terminal
 
     private:
         [[nodiscard]] IO::Types::Status restoreOutputState(bool retainOnFailure) noexcept;
-        [[nodiscard]] IO::Types::Status
-        vprint(const Types::TextWriteOptions &options, std::string_view format, std::format_args arguments) noexcept;
-        [[nodiscard]] IO::Types::Status
-        vprintln(const Types::LineWriteOptions &options, std::string_view format, std::format_args arguments) noexcept;
+        [[nodiscard]] IO::Types::Status vprint(const Types::TextWriteOptions &options, std::string_view format, std::format_args arguments) noexcept;
+        [[nodiscard]] IO::Types::Status vprintln(
+            const Types::LineWriteOptions &options,
+            std::string_view format,
+            std::format_args arguments) noexcept;
 
         struct State;
         std::unique_ptr<State> state_;
     };
 
     /// @brief Movable, non-copyable RAII helper that leaves alternate screen mode when destroyed.
-    /// @details Setup failure produces an inactive scope. Failed explicit leave remains active for retry. Nesting is coordinated
-    /// per output stream; do not mix manual transitions with active scopes for that stream.
+    /// @details Failure before the enter sequence is emitted produces an inactive scope. A flush failure after emission preserves
+    /// active leave responsibility. Failed explicit leave remains active for retry. Nesting is coordinated per output stream; do
+    /// not mix manual transitions with active scopes for that stream.
     class GAMEWIP_TERMINAL_EXPORT AlternateScreenScope final
     {
     public:
@@ -1254,6 +1248,7 @@ namespace GameWIP::Terminal
         [[nodiscard]] IO::Types::Status leave() noexcept;
 
     private:
+        friend class Session;
         friend GAMEWIP_TERMINAL_EXPORT AlternateScreenScope
         scopedAlternateScreen(Types::OutputStream stream, const Types::ControlOptions &options) noexcept;
 
@@ -1261,11 +1256,14 @@ namespace GameWIP::Terminal
         Types::ControlOptions options_{};
         IO::Types::Status status_{};
         bool active_ = false;
+        bool restorationEmitted_ = false;
+        bool restoreOnDestruction_ = true;
     };
 
     /// @brief Movable, non-copyable RAII helper that restores cursor visibility when destroyed.
-    /// @details Setup failure produces an inactive scope. Failed explicit restoration remains active for retry. Nesting is
-    /// coordinated per output stream; do not mix manual visibility changes with active scopes for that stream.
+    /// @details Failure before the hide sequence is emitted produces an inactive scope. A flush failure after emission preserves
+    /// active restoration responsibility. Failed explicit restoration remains active for retry. Nesting is coordinated per output
+    /// stream; do not mix manual visibility changes with active scopes for that stream.
     class GAMEWIP_TERMINAL_EXPORT CursorHiddenScope final
     {
     public:
@@ -1297,6 +1295,7 @@ namespace GameWIP::Terminal
         [[nodiscard]] IO::Types::Status restore() noexcept;
 
     private:
+        friend class Session;
         friend GAMEWIP_TERMINAL_EXPORT CursorHiddenScope
         scopedCursorHidden(Types::OutputStream stream, const Types::ControlOptions &options) noexcept;
 
@@ -1304,6 +1303,8 @@ namespace GameWIP::Terminal
         Types::ControlOptions options_{};
         IO::Types::Status status_{};
         bool active_ = false;
+        bool restorationEmitted_ = false;
+        bool restoreOnDestruction_ = true;
     };
 
     /// @brief Reusable caller-owned checked plain-text buffer for batching one Terminal write.
@@ -1350,19 +1351,16 @@ namespace GameWIP::Terminal
 
         /// @brief Formats text and appends it atomically to the buffer.
         /// @return InvalidArgument for formatting failure, OutOfMemory/SizeLimitExceeded for storage failure, or Unknown.
-        template <class... Args>
-        [[nodiscard]] IO::Types::Status print(std::format_string<Args...> format, Args &&...args) noexcept;
+        template <class... Args> [[nodiscard]] IO::Types::Status print(std::format_string<Args...> format, Args &&...args) noexcept;
 
         /// @brief Formats text and appends it plus the configured line ending atomically.
-        template <class... Args>
-        [[nodiscard]] IO::Types::Status println(std::format_string<Args...> format, Args &&...args) noexcept;
+        template <class... Args> [[nodiscard]] IO::Types::Status println(std::format_string<Args...> format, Args &&...args) noexcept;
 
         /// @brief Writes buffered text to stdout without clearing the buffer.
         [[nodiscard]] IO::Types::Status writeTo(const Types::TextWriteOptions &options = {}) const noexcept;
 
         /// @brief Writes buffered text to an output stream without clearing the buffer.
-        [[nodiscard]] IO::Types::Status
-        writeTo(Types::OutputStream stream, const Types::TextWriteOptions &options = {}) const noexcept;
+        [[nodiscard]] IO::Types::Status writeTo(Types::OutputStream stream, const Types::TextWriteOptions &options = {}) const noexcept;
 
         /// @brief Writes buffered text to stdout and clears it only when the write succeeds.
         /// @note The name describes buffer clearing; a backend flush is requested only when options.flushMode is not None.
@@ -1370,8 +1368,7 @@ namespace GameWIP::Terminal
 
         /// @brief Writes buffered text to an output stream and clears it only when the write succeeds.
         /// @note The name describes buffer clearing; a backend flush is requested only when options.flushMode is not None.
-        [[nodiscard]] IO::Types::Status
-        flushTo(Types::OutputStream stream, const Types::TextWriteOptions &options = {}) noexcept;
+        [[nodiscard]] IO::Types::Status flushTo(Types::OutputStream stream, const Types::TextWriteOptions &options = {}) noexcept;
 
     private:
         [[nodiscard]] IO::Types::Status vprint(std::string_view format, std::format_args arguments, bool appendLineEnding) noexcept;
@@ -1700,44 +1697,34 @@ namespace GameWIP::Terminal
     } // namespace Detail
     /// @endcond
 
-    template <class... Args>
-    IO::Types::Status Session::print(std::format_string<Args...> format, Args &&...args) noexcept
+    template <class... Args> IO::Types::Status Session::print(std::format_string<Args...> format, Args &&...args) noexcept
     {
         return print(Types::TextWriteOptions{}, format, std::forward<Args>(args)...);
     }
 
     template <class... Args>
-    IO::Types::Status Session::print(
-        const Types::TextWriteOptions &options,
-        std::format_string<Args...> format,
-        Args &&...args) noexcept
+    IO::Types::Status Session::print(const Types::TextWriteOptions &options, std::format_string<Args...> format, Args &&...args) noexcept
     {
         return vprint(options, format.get(), std::make_format_args(args...));
     }
 
-    template <class... Args>
-    IO::Types::Status Session::println(std::format_string<Args...> format, Args &&...args) noexcept
+    template <class... Args> IO::Types::Status Session::println(std::format_string<Args...> format, Args &&...args) noexcept
     {
         return println(Types::LineWriteOptions{}, format, std::forward<Args>(args)...);
     }
 
     template <class... Args>
-    IO::Types::Status Session::println(
-        const Types::LineWriteOptions &options,
-        std::format_string<Args...> format,
-        Args &&...args) noexcept
+    IO::Types::Status Session::println(const Types::LineWriteOptions &options, std::format_string<Args...> format, Args &&...args) noexcept
     {
         return vprintln(options, format.get(), std::make_format_args(args...));
     }
 
-    template <class... Args>
-    IO::Types::Status OutputBuffer::print(std::format_string<Args...> format, Args &&...args) noexcept
+    template <class... Args> IO::Types::Status OutputBuffer::print(std::format_string<Args...> format, Args &&...args) noexcept
     {
         return vprint(format.get(), std::make_format_args(args...), false);
     }
 
-    template <class... Args>
-    IO::Types::Status OutputBuffer::println(std::format_string<Args...> format, Args &&...args) noexcept
+    template <class... Args> IO::Types::Status OutputBuffer::println(std::format_string<Args...> format, Args &&...args) noexcept
     {
         return vprint(format.get(), std::make_format_args(args...), true);
     }

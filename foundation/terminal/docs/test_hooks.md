@@ -26,6 +26,8 @@ The public hook namespace is `GameWIP::Terminal::TestHooks`.
 
 Call `TestHooks::reset()` before and after each scenario. It clears capability overrides, prepared state, input bytes/events, Win32 decoder state, internal native-mode overrides, output capture, counters, size/position overrides, and every one-shot forced failure.
 
+Reset also releases any deterministic read or text-write gate so a failed test cannot strand a worker thread.
+
 Tests sharing a process must not assume hook state is isolated automatically.
 
 ## Capability overrides
@@ -60,6 +62,13 @@ The byte strings may intentionally contain invalid or incomplete UTF-8 to valida
 - `textWriteCallCount()` reports backend text-write calls.
 
 Returned vectors and strings are snapshots owned by the caller.
+
+## Deterministic operation gates
+
+- `blockNextRead()` arms a one-shot gate at the next backend read; `waitUntilReadBlocked()` observes arrival and `releaseBlockedRead()` resumes it.
+- `blockNextTextWrite()` provides the equivalent gate for the next backend text write.
+
+The gates coordinate concurrency tests without timing-dependent sleeps. Arm a gate before starting the target operation, require the bounded wait to succeed, and release it before joining the worker. A gate is consumed only by the matching operation.
 
 ## Exception behavior
 

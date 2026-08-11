@@ -38,13 +38,19 @@ int main()
     const GameWIP::Terminal::Types::OutputCapabilitiesResult capabilities = GameWIP::Terminal::getOutputCapabilities();
 
     GameWIP::Terminal::OutputBuffer terminalBuffer;
-    const GameWIP::IO::Types::Status terminalBufferLineEnding =
-        terminalBuffer.setLineEnding(GameWIP::Terminal::Types::LineEnding::Lf);
+    const GameWIP::IO::Types::Status terminalBufferLineEnding = terminalBuffer.setLineEnding(GameWIP::Terminal::Types::LineEnding::Lf);
     const GameWIP::IO::Types::Status terminalBufferReserve = terminalBuffer.reserve(64);
     const GameWIP::IO::Types::Status terminalBufferAppend = terminalBuffer.appendLine("installed terminal buffer");
+    const GameWIP::IO::Types::Status terminalBufferPrint = terminalBuffer.print("{} {}", "formatted", 7);
+    const GameWIP::IO::Types::Status terminalBufferPrintln = terminalBuffer.println(" {}", "line");
 
     GameWIP::Terminal::Session closedTerminalSession;
     const GameWIP::IO::Types::Status closedSessionWrite = closedTerminalSession.writeText("must-not-write");
+    const GameWIP::IO::Types::Status closedSessionPrint = closedTerminalSession.print("must-not-write {}", 1);
+    const GameWIP::IO::Types::Status closedSessionPrintln = closedTerminalSession.println("must-not-write {}", 2);
+    const GameWIP::IO::Types::Status invalidDirectPrint = GameWIP::Terminal::print(static_cast<GameWIP::Terminal::Types::OutputStream>(-1), "{}", 1);
+    const GameWIP::IO::Types::Status invalidDirectPrintln =
+        GameWIP::Terminal::println(static_cast<GameWIP::Terminal::Types::OutputStream>(-1), "{}", 2);
 
     const GameWIP::Logger::Types::Config loggerConfig = GameWIP::Logger::defaultConfig();
     GameWIP::TestSupport::Timer timer;
@@ -68,10 +74,14 @@ int main()
 
     return unicodeVersion.major == 17 && unicodeVersion.minor == 0 && unicodeVersion.patch == 0 &&
                    unicodeEncoding.outcome == GameWIP::Unicode::Types::EncodeOutcome::Encoded && unicodeEncoding.byteCount == 4 && reserve.ok() &&
-                   write.status.ok() && text.status.ok() && text.text == "installed consumer" && path.status.ok() &&
-                   terminalBufferLineEnding.ok() && terminalBufferReserve.ok() && terminalBufferAppend.ok() &&
-                   terminalBuffer.text() == std::string_view{"installed terminal buffer\n"} &&
-                   closedSessionWrite.code == GameWIP::IO::Types::ErrorCode::NotOpen && infrastructureStatus.ok() &&
+                   write.status.ok() && text.status.ok() && text.text == "installed consumer" && path.status.ok() && terminalBufferLineEnding.ok() &&
+                   terminalBufferReserve.ok() && terminalBufferAppend.ok() && terminalBufferPrint.ok() && terminalBufferPrintln.ok() &&
+                   terminalBuffer.text() == std::string_view{"installed terminal buffer\nformatted 7 line\n"} &&
+                   closedSessionWrite.code == GameWIP::IO::Types::ErrorCode::NotOpen &&
+                   closedSessionPrint.code == GameWIP::IO::Types::ErrorCode::NotOpen &&
+                   closedSessionPrintln.code == GameWIP::IO::Types::ErrorCode::NotOpen &&
+                   invalidDirectPrint.code == GameWIP::IO::Types::ErrorCode::InvalidArgument &&
+                   invalidDirectPrintln.code == GameWIP::IO::Types::ErrorCode::InvalidArgument && infrastructureStatus.ok() &&
                    infrastructureText == "None" && childResult.status.ok() &&
                    childResult.outcome == GameWIP::TestSupport::Types::ChildProcessOutcome::NotStarted &&
                    rendererFeedbackStatus.code == GameWIP::IO::Types::ErrorCode::NotOpen &&

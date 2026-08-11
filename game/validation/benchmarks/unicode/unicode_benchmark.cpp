@@ -74,7 +74,7 @@ namespace
             std::size_t offset = 0;
             while (offset < text.size())
             {
-                const Unicode::Types::Utf8DecodeResult decoded = Unicode::Utf8::decodeScalar(text.substr(offset));
+                Unicode::Types::Utf8DecodeResult decoded = Unicode::Utf8::decodeScalar(text.substr(offset));
                 if (decoded.outcome != Unicode::Types::DecodeOutcome::Decoded)
                 {
                     state.SkipWithError("Unicode decode benchmark fixture is invalid.");
@@ -95,7 +95,7 @@ namespace
         for (auto iteration : state)
         {
             static_cast<void>(iteration);
-            const Unicode::Types::Utf8ValidationResult result = Unicode::Utf8::validate(text);
+            Unicode::Types::Utf8ValidationResult result = Unicode::Utf8::validate(text);
             if (result.outcome != Unicode::Types::ValidationOutcome::Valid)
             {
                 state.SkipWithError("Unicode validation benchmark fixture is invalid.");
@@ -117,7 +117,7 @@ namespace
             std::size_t offset = 0;
             while (offset < text.size())
             {
-                const Unicode::Types::Utf8BoundaryResult next = Unicode::Utf8::nextCodePointBoundary(text, offset);
+                Unicode::Types::Utf8BoundaryResult next = Unicode::Utf8::nextCodePointBoundary(text, offset);
                 if (next.outcome != Unicode::Types::BoundaryOutcome::Found)
                 {
                     state.SkipWithError("Unicode forward code-point traversal failed.");
@@ -141,7 +141,7 @@ namespace
             std::size_t offset = text.size();
             while (offset > 0)
             {
-                const Unicode::Types::Utf8BoundaryResult previous = Unicode::Utf8::previousCodePointBoundary(text, offset);
+                Unicode::Types::Utf8BoundaryResult previous = Unicode::Utf8::previousCodePointBoundary(text, offset);
                 if (previous.outcome != Unicode::Types::BoundaryOutcome::Found)
                 {
                     state.SkipWithError("Unicode backward code-point traversal failed.");
@@ -165,7 +165,7 @@ namespace
             std::size_t offset = 0;
             while (offset < text.size())
             {
-                const Unicode::Types::Utf8BoundaryResult next = Unicode::Utf8::nextGraphemeBoundary(text, offset);
+                Unicode::Types::Utf8BoundaryResult next = Unicode::Utf8::nextGraphemeBoundary(text, offset);
                 if (next.outcome != Unicode::Types::BoundaryOutcome::Found)
                 {
                     state.SkipWithError("Unicode forward grapheme traversal failed.");
@@ -189,7 +189,7 @@ namespace
             std::size_t offset = text.size();
             while (offset > 0)
             {
-                const Unicode::Types::Utf8BoundaryResult previous = Unicode::Utf8::previousGraphemeBoundary(text, offset);
+                Unicode::Types::Utf8BoundaryResult previous = Unicode::Utf8::previousGraphemeBoundary(text, offset);
                 if (previous.outcome != Unicode::Types::BoundaryOutcome::Found)
                 {
                     state.SkipWithError("Unicode backward grapheme traversal failed.");
@@ -210,7 +210,7 @@ namespace
         for (auto iteration : state)
         {
             static_cast<void>(iteration);
-            const Unicode::Types::Utf8BoundaryResult next = Unicode::Utf8::nextGraphemeBoundary(text, byteOffset);
+            Unicode::Types::Utf8BoundaryResult next = Unicode::Utf8::nextGraphemeBoundary(text, byteOffset);
             if (next.outcome != Unicode::Types::BoundaryOutcome::Found)
             {
                 state.SkipWithError("Unicode local next-grapheme query failed.");
@@ -226,7 +226,7 @@ namespace
         for (auto iteration : state)
         {
             static_cast<void>(iteration);
-            const Unicode::Types::Utf8BoundaryResult previous = Unicode::Utf8::previousGraphemeBoundary(text, byteOffset);
+            Unicode::Types::Utf8BoundaryResult previous = Unicode::Utf8::previousGraphemeBoundary(text, byteOffset);
             if (previous.outcome != Unicode::Types::BoundaryOutcome::Found)
             {
                 state.SkipWithError("Unicode local previous-grapheme query failed.");
@@ -254,7 +254,7 @@ namespace
 
             while (cursor.byteOffset() < text.size())
             {
-                const Unicode::Types::Utf8BoundaryResult next = cursor.next();
+                Unicode::Types::Utf8BoundaryResult next = cursor.next();
                 if (next.outcome != Unicode::Types::BoundaryOutcome::Found)
                 {
                     state.SkipWithError("Unicode indexed forward grapheme traversal failed.");
@@ -332,7 +332,7 @@ namespace
             static_cast<void>(iteration);
             for (const char32_t scalar : kScalars)
             {
-                const Unicode::Types::Utf8EncodeResult encoded = Unicode::Utf8::encodeScalar(scalar);
+                Unicode::Types::Utf8EncodeResult encoded = Unicode::Utf8::encodeScalar(scalar);
                 if (encoded.outcome != Unicode::Types::EncodeOutcome::Encoded)
                 {
                     state.SkipWithError("Unicode encode benchmark scalar is invalid.");

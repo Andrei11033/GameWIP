@@ -26,7 +26,7 @@ Terminal owns one process-wide managed stdin ownership domain plus backend input
 
 Formatted free functions perform formatting before taking the final output lock. This permits a custom formatter to call Terminal without deadlocking the same stream; the nested operation completes before the outer formatted record is emitted.
 
-Caller-owned objects such as `OutputBuffer`, `Session`, and output-state scope objects must not be mutated concurrently except for the documented external `std::stop_token` cancellation request.
+`Session` internally synchronizes the concurrent operation combinations listed above. Its lifetime must still be stable: do not move or destroy a Session while another thread is using it. `OutputBuffer` and output-state scope objects are not internally synchronized and require external synchronization for concurrent access. External `std::stop_token` cancellation requests follow the standard stop-token thread-safety contract.
 
 ## Read operations
 
@@ -136,7 +136,7 @@ Terminal flush does not flush `std::cout`, `std::cerr`, C `FILE*` buffers, or st
 
 A direct read captures required native terminal state, performs the read, restores the exact snapshot, and releases ownership before returning. If the read succeeds but restoration fails, the restoration failure becomes the returned status. If both fail, the read failure remains primary and restoration failure is appended to that result's diagnostic text on a best-effort basis.
 
-A persistent `Session::close()` behaves differently because the caller can retry cleanup: Session-owned persistent output state is restored in reverse activation order before input state. A failed output or input restoration leaves the session open and stdin ownership retained. The non-throwing destructor makes best-effort output and input restoration attempts and then releases process-wide input ownership because no caller remains to retry through that object.
+A persistent `Session::close()` behaves differently because the caller can retry cleanup: Session-owned persistent output state is restored in reverse activation order before input state. A failed output or input restoration leaves the session open and stdin ownership retained. The non-throwing destructor attempts each pending output restoration once in reverse order, attempts input restoration, and then releases process-wide input and output-scope bookkeeping because no caller remains to retry through that object. A failed destructor restoration is not retried later out of order.
 
 ## Failure and exception model
 
@@ -144,7 +144,7 @@ Expected option, endpoint, ownership, capability, Unicode, cancellation, formatt
 
 Free formatted output contains formatter, allocation, length, and unexpected formatting-stage exceptions before the outer write begins. Checked direct output paths contain Terminal-owned assembly allocation where it occurs, and diagnostic enrichment is best effort so constructing an error message never replaces the primary code-only failure. Caller-owned argument construction that happens before Terminal receives control remains outside the checked boundary.
 
-Output-state scope factories are `noexcept`. Their returned objects store setup failure in `status()` and remain inactive.
+Output-state scope factories are `noexcept` and store setup failure in `status()`. Failure before the state-changing control sequence is emitted produces an inactive scope. If the sequence is emitted and its requested flush then fails, the scope remains active, owns the inverse transition, and retries only the pending flush after a successful inverse emission.
 
 ## Related pages
 

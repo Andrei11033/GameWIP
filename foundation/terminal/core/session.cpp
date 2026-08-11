@@ -174,7 +174,7 @@ namespace GameWIP::Terminal
             const Types::InputCapabilities &capabilities,
             ReadOperation operation,
             const std::optional<std::chrono::milliseconds> &timeout,
-            std::stop_token stopToken)
+            const std::stop_token &stopToken)
         {
             ReadDecision decision;
             decision.status = validateTimeout(timeout);
@@ -270,6 +270,7 @@ namespace GameWIP::Terminal
             catch (...)
             {
                 // The primary failure remains authoritative when diagnostic enrichment cannot allocate.
+                static_cast<void>(0);
             }
         }
 
@@ -480,10 +481,8 @@ namespace GameWIP::Terminal
 
         [[nodiscard]] bool hasShortcutModifier(Types::KeyModifier modifiers) noexcept
         {
-            return Types::hasModifier(modifiers, Types::KeyModifier::Control) ||
-                   Types::hasModifier(modifiers, Types::KeyModifier::Alt) ||
-                   Types::hasModifier(modifiers, Types::KeyModifier::Super) ||
-                   Types::hasModifier(modifiers, Types::KeyModifier::Hyper) ||
+            return Types::hasModifier(modifiers, Types::KeyModifier::Control) || Types::hasModifier(modifiers, Types::KeyModifier::Alt) ||
+                   Types::hasModifier(modifiers, Types::KeyModifier::Super) || Types::hasModifier(modifiers, Types::KeyModifier::Hyper) ||
                    Types::hasModifier(modifiers, Types::KeyModifier::Meta);
         }
 
@@ -580,8 +579,7 @@ namespace GameWIP::Terminal
                     return IO::successStatus();
                 }
 
-                const Unicode::Types::Utf8BoundaryResult next =
-                    Unicode::Utf8::nextGraphemeBoundary(text, byteOffset);
+                const Unicode::Types::Utf8BoundaryResult next = Unicode::Utf8::nextGraphemeBoundary(text, byteOffset);
                 if (next.outcome == Unicode::Types::BoundaryOutcome::Found)
                 {
                     byteOffset = next.byteOffset;
@@ -605,8 +603,7 @@ namespace GameWIP::Terminal
                     return IO::successStatus();
                 }
 
-                Unicode::Types::Utf8GraphemeIndexResult indexed =
-                    cursor_.reset(text, std::span<std::size_t>(storage_.data(), storage_.size()));
+                Unicode::Types::Utf8GraphemeIndexResult indexed = cursor_.reset(text, std::span<std::size_t>(storage_.data(), storage_.size()));
 
                 if (indexed.outcome == Unicode::Types::GraphemeIndexOutcome::DestinationTooSmall)
                 {
@@ -651,8 +648,7 @@ namespace GameWIP::Terminal
                 {
                     return prepared.status;
                 }
-                if (!prepared.capabilities.supportsCursorMovement ||
-                    !prepared.capabilities.supportsCursorPositionQuery ||
+                if (!prepared.capabilities.supportsCursorMovement || !prepared.capabilities.supportsCursorPositionQuery ||
                     !prepared.capabilities.supportsTerminalSize)
                 {
                     return unsupportedStatus();
@@ -862,19 +858,15 @@ namespace GameWIP::Terminal
                 return getCursorPosition(output_, input_, options);
             }
 
-            [[nodiscard]] std::optional<std::size_t> cellDistance(
-                Types::CursorPosition begin,
-                Types::CursorPosition end) const noexcept
+            [[nodiscard]] std::optional<std::size_t> cellDistance(Types::CursorPosition begin, Types::CursorPosition end) const noexcept
             {
                 if (size_.columns == 0 || end.row < begin.row)
                 {
                     return std::nullopt;
                 }
 
-                const std::uint64_t beginLinear =
-                    static_cast<std::uint64_t>(begin.row) * size_.columns + begin.column;
-                const std::uint64_t endLinear =
-                    static_cast<std::uint64_t>(end.row) * size_.columns + end.column;
+                const std::uint64_t beginLinear = static_cast<std::uint64_t>(begin.row) * size_.columns + begin.column;
+                const std::uint64_t endLinear = static_cast<std::uint64_t>(end.row) * size_.columns + end.column;
                 if (endLinear < beginLinear || endLinear - beginLinear > std::numeric_limits<std::size_t>::max())
                 {
                     return std::nullopt;
@@ -884,8 +876,7 @@ namespace GameWIP::Terminal
 
             [[nodiscard]] IO::Types::Status writeSpaces(std::size_t count)
             {
-                static constexpr std::string_view spaces =
-                    "                                                                ";
+                static constexpr std::string_view spaces = "                                                                ";
 
                 while (count > 0)
                 {
@@ -969,7 +960,7 @@ namespace GameWIP::Terminal
             if (accepted > 0)
             {
                 const bool appendedAtEnd = caret == line.size();
-                line.insert(caret, text.data(), accepted);
+                line.insert(line.begin() + static_cast<std::ptrdiff_t>(caret), text.begin(), text.begin() + static_cast<std::ptrdiff_t>(accepted));
                 caret += accepted;
                 graphemes.invalidate();
                 if (!appendedAtEnd)
@@ -980,10 +971,7 @@ namespace GameWIP::Terminal
             return IO::successStatus();
         }
 
-        [[nodiscard]] IO::Types::Status completeManagedLine(
-            Types::LineReadResult &result,
-            std::string line,
-            const Types::LineReadOptions &options)
+        [[nodiscard]] IO::Types::Status completeManagedLine(Types::LineReadResult &result, std::string line, const Types::LineReadOptions &options)
         {
             result.consumedLineEnding = Types::ConsumedLineEnding::CrLf;
 
@@ -1001,10 +989,9 @@ namespace GameWIP::Terminal
                 break;
             }
 
-            const std::size_t maxBytes =
-                options.maxReturnedBytes > static_cast<std::uint64_t>(std::numeric_limits<std::size_t>::max())
-                    ? std::numeric_limits<std::size_t>::max()
-                    : static_cast<std::size_t>(options.maxReturnedBytes);
+            const std::size_t maxBytes = options.maxReturnedBytes > static_cast<std::uint64_t>(std::numeric_limits<std::size_t>::max())
+                                             ? std::numeric_limits<std::size_t>::max()
+                                             : static_cast<std::size_t>(options.maxReturnedBytes);
 
             if (ending.size() <= maxBytes - std::min(maxBytes, line.size()))
             {
@@ -1037,10 +1024,9 @@ namespace GameWIP::Terminal
             Types::LineReadResult result;
             result.status = IO::successStatus();
 
-            const std::size_t maxBytes =
-                options.maxReturnedBytes > static_cast<std::uint64_t>(std::numeric_limits<std::size_t>::max())
-                    ? std::numeric_limits<std::size_t>::max()
-                    : static_cast<std::size_t>(options.maxReturnedBytes);
+            const std::size_t maxBytes = options.maxReturnedBytes > static_cast<std::uint64_t>(std::numeric_limits<std::size_t>::max())
+                                             ? std::numeric_limits<std::size_t>::max()
+                                             : static_cast<std::size_t>(options.maxReturnedBytes);
 
             std::string line;
             line.reserve(std::min<std::size_t>(maxBytes, 256));
@@ -1058,8 +1044,7 @@ namespace GameWIP::Terminal
 
             while (true)
             {
-                if (options.timeout.has_value() && options.timeout->count() > 0 &&
-                    std::chrono::steady_clock::now() - start >= *options.timeout)
+                if (options.timeout.has_value() && options.timeout->count() > 0 && std::chrono::steady_clock::now() - start >= *options.timeout)
                 {
                     result.outcome = Types::ReadOutcome::TimedOut;
                     result.line = std::move(line);
@@ -1108,10 +1093,7 @@ namespace GameWIP::Terminal
                         return result;
                     }
 
-                    result.status =
-                        oldCaret == oldSize
-                            ? echo.append(std::string_view(line).substr(oldSize))
-                            : echo.redraw(line, caret);
+                    result.status = oldCaret == oldSize ? echo.append(std::string_view(line).substr(oldSize)) : echo.redraw(line, caret);
                     if (!result.status.ok())
                     {
                         result.line = std::move(line);
@@ -1126,8 +1108,7 @@ namespace GameWIP::Terminal
                     continue;
                 }
 
-                const std::uint32_t occurrences =
-                    keyEvent->action == Types::KeyAction::Repeat ? std::max(keyEvent->repeatCount, 1U) : 1U;
+                const std::uint32_t occurrences = keyEvent->action == Types::KeyAction::Repeat ? std::max(keyEvent->repeatCount, 1U) : 1U;
 
                 if (const auto *character = std::get_if<Types::CharacterKey>(&keyEvent->key))
                 {
@@ -1148,10 +1129,7 @@ namespace GameWIP::Terminal
                         }
                     }
 
-                    result.status =
-                        oldCaret == oldSize
-                            ? echo.append(std::string_view(line).substr(oldSize))
-                            : echo.redraw(line, caret);
+                    result.status = oldCaret == oldSize ? echo.append(std::string_view(line).substr(oldSize)) : echo.redraw(line, caret);
                     if (!result.status.ok())
                     {
                         result.line = std::move(line);
@@ -1205,11 +1183,9 @@ namespace GameWIP::Terminal
                         }
 
                         const bool suffixDeletion = caret == line.size();
-                        const bool singleCellAscii =
-                            suffixDeletion &&
-                            caret - *previous == 1 &&
-                            static_cast<unsigned char>(line[*previous]) >= 0x20 &&
-                            static_cast<unsigned char>(line[*previous]) < 0x7f;
+                        const bool singleCellAscii = suffixDeletion && caret - *previous == 1 &&
+                                                     static_cast<unsigned char>(line[*previous]) >= 0x20 &&
+                                                     static_cast<unsigned char>(line[*previous]) < 0x7f;
 
                         if (suffixDeletion)
                         {
@@ -1429,6 +1405,8 @@ namespace GameWIP::Terminal
             }
             catch (...)
             {
+                // Ownership release is best effort at a noexcept cleanup boundary.
+                return;
             }
         }
     } // namespace Detail
@@ -1476,8 +1454,7 @@ namespace GameWIP::Terminal
 
             while (state_->outputRestoreCount > 0)
             {
-                const State::PersistentOutputState restore =
-                    state_->outputRestoreOrder[state_->outputRestoreCount - 1];
+                const State::PersistentOutputState restore = state_->outputRestoreOrder[state_->outputRestoreCount - 1];
 
                 IO::Types::Status status = IO::successStatus();
                 switch (restore)
@@ -1492,13 +1469,22 @@ namespace GameWIP::Terminal
 
                 if (!status.ok())
                 {
-                    if (firstFailure.ok())
-                    {
-                        firstFailure = status;
-                    }
                     if (retainOnFailure)
                     {
                         return status;
+                    }
+                    switch (restore)
+                    {
+                    case State::PersistentOutputState::CursorHidden:
+                        state_->cursorHiddenScope.restoreOnDestruction_ = false;
+                        break;
+                    case State::PersistentOutputState::AlternateScreen:
+                        state_->alternateScreenScope.restoreOnDestruction_ = false;
+                        break;
+                    }
+                    if (firstFailure.ok())
+                    {
+                        firstFailure = std::move(status);
                     }
                 }
 
@@ -1578,7 +1564,7 @@ namespace GameWIP::Terminal
             }
 
             state_->options = options;
-            state_->ownership = std::move(ownership);
+            state_->ownership = ownership;
             state_->open.store(true, std::memory_order_release);
             return IO::successStatus();
         }
@@ -1805,14 +1791,9 @@ namespace GameWIP::Terminal
                 return cancelledResult<Types::LineReadResult>();
             }
 
-            if (state_->ownership.capabilities.kind == Types::StreamKind::Terminal &&
-                state_->ownership.capabilities.supportsEventInput)
+            if (state_->ownership.capabilities.kind == Types::StreamKind::Terminal && state_->ownership.capabilities.supportsEventInput)
             {
-                return managedTerminalLineRead(
-                    state_->options.input,
-                    state_->options.output,
-                    options,
-                    state_->lineBoundaryStorage);
+                return managedTerminalLineRead(state_->options.input, state_->options.output, options, state_->lineBoundaryStorage);
             }
 
             std::lock_guard inputLock(Detail::inputIoMutex(state_->options.input));
@@ -1982,9 +1963,7 @@ namespace GameWIP::Terminal
         }
     }
 
-    IO::Types::Status Session::writeSegments(
-        std::span<const Types::WriteSegment> segments,
-        const Types::SegmentWriteOptions &options) noexcept
+    IO::Types::Status Session::writeSegments(std::span<const Types::WriteSegment> segments, const Types::SegmentWriteOptions &options) noexcept
     {
         if (!state_)
         {
@@ -2006,10 +1985,7 @@ namespace GameWIP::Terminal
         }
     }
 
-    IO::Types::Status Session::vprint(
-        const Types::TextWriteOptions &options,
-        std::string_view format,
-        std::format_args arguments) noexcept
+    IO::Types::Status Session::vprint(const Types::TextWriteOptions &options, std::string_view format, std::format_args arguments) noexcept
     {
         if (!state_)
         {
@@ -2031,10 +2007,7 @@ namespace GameWIP::Terminal
         }
     }
 
-    IO::Types::Status Session::vprintln(
-        const Types::LineWriteOptions &options,
-        std::string_view format,
-        std::format_args arguments) noexcept
+    IO::Types::Status Session::vprintln(const Types::LineWriteOptions &options, std::string_view format, std::format_args arguments) noexcept
     {
         if (!state_)
         {
@@ -2100,10 +2073,7 @@ namespace GameWIP::Terminal
         }
     }
 
-    IO::Types::Status Session::moveCursor(
-        Types::CursorMoveDirection direction,
-        std::uint32_t amount,
-        const Types::ControlOptions &options) noexcept
+    IO::Types::Status Session::moveCursor(Types::CursorMoveDirection direction, std::uint32_t amount, const Types::ControlOptions &options) noexcept
     {
         if (!state_)
         {
@@ -2228,6 +2198,10 @@ namespace GameWIP::Terminal
             {
                 return notOpenStatus();
             }
+            if (!IO::isValidFlushMode(options.flushMode))
+            {
+                return invalidArgumentStatus();
+            }
 
             std::lock_guard persistentLock(state_->persistentOutputMutex);
             if (!visible)
@@ -2238,14 +2212,14 @@ namespace GameWIP::Terminal
                 }
 
                 CursorHiddenScope scope = scopedCursorHidden(state_->options.output, options);
-                if (!scope.status().ok())
+                if (scope.active())
                 {
-                    return scope.status();
+                    state_->cursorHiddenScope = std::move(scope);
+                    state_->outputRestoreOrder[state_->outputRestoreCount++] = State::PersistentOutputState::CursorHidden;
+                    return state_->cursorHiddenScope.status();
                 }
 
-                state_->cursorHiddenScope = std::move(scope);
-                state_->outputRestoreOrder[state_->outputRestoreCount++] = State::PersistentOutputState::CursorHidden;
-                return IO::successStatus();
+                return scope.status();
             }
 
             if (!state_->cursorHiddenScope.active())
@@ -2253,6 +2227,7 @@ namespace GameWIP::Terminal
                 return Terminal::setCursorVisible(state_->options.output, true, options);
             }
 
+            state_->cursorHiddenScope.options_ = options;
             IO::Types::Status status = state_->cursorHiddenScope.restore();
             if (!status.ok())
             {
@@ -2301,10 +2276,7 @@ namespace GameWIP::Terminal
         }
     }
 
-    IO::Types::Status Session::scroll(
-        Types::ScrollDirection direction,
-        std::uint32_t lines,
-        const Types::ControlOptions &options) noexcept
+    IO::Types::Status Session::scroll(Types::ScrollDirection direction, std::uint32_t lines, const Types::ControlOptions &options) noexcept
     {
         if (!state_)
         {
@@ -2340,6 +2312,10 @@ namespace GameWIP::Terminal
             {
                 return notOpenStatus();
             }
+            if (!IO::isValidFlushMode(options.flushMode))
+            {
+                return invalidArgumentStatus();
+            }
 
             std::lock_guard persistentLock(state_->persistentOutputMutex);
             if (state_->alternateScreenScope.active())
@@ -2348,14 +2324,14 @@ namespace GameWIP::Terminal
             }
 
             AlternateScreenScope scope = scopedAlternateScreen(state_->options.output, options);
-            if (!scope.status().ok())
+            if (scope.active())
             {
-                return scope.status();
+                state_->alternateScreenScope = std::move(scope);
+                state_->outputRestoreOrder[state_->outputRestoreCount++] = State::PersistentOutputState::AlternateScreen;
+                return state_->alternateScreenScope.status();
             }
 
-            state_->alternateScreenScope = std::move(scope);
-            state_->outputRestoreOrder[state_->outputRestoreCount++] = State::PersistentOutputState::AlternateScreen;
-            return IO::successStatus();
+            return scope.status();
         }
         catch (...)
         {
@@ -2377,6 +2353,10 @@ namespace GameWIP::Terminal
             {
                 return notOpenStatus();
             }
+            if (!IO::isValidFlushMode(options.flushMode))
+            {
+                return invalidArgumentStatus();
+            }
 
             std::lock_guard persistentLock(state_->persistentOutputMutex);
             if (!state_->alternateScreenScope.active())
@@ -2384,6 +2364,7 @@ namespace GameWIP::Terminal
                 return Terminal::leaveAlternateScreen(state_->options.output, options);
             }
 
+            state_->alternateScreenScope.options_ = options;
             IO::Types::Status status = state_->alternateScreenScope.leave();
             if (!status.ok())
             {
@@ -2670,11 +2651,7 @@ namespace GameWIP::Terminal
             if (lease.capabilities().kind == Types::StreamKind::Terminal && lease.capabilities().supportsEventInput)
             {
                 std::vector<std::size_t> graphemeStorage;
-                result = managedTerminalLineRead(
-                    stream,
-                    Types::OutputStream::Stdout,
-                    options,
-                    graphemeStorage);
+                result = managedTerminalLineRead(stream, Types::OutputStream::Stdout, options, graphemeStorage);
             }
             else
             {

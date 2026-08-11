@@ -31,6 +31,27 @@ namespace GameWIP::Terminal::Detail::TestHooks
         return static_cast<IO::Types::ErrorCode>(failure.code.load(std::memory_order_acquire));
     }
 
+    void waitAtBlock(HookBlock &block)
+    {
+        std::unique_lock lock(terminalTestHookState.mutex);
+        if (!block.enabled)
+        {
+            return;
+        }
+
+        block.enabled = false;
+        block.reached = true;
+        block.released = false;
+        block.condition.notify_all();
+        block.condition.wait(
+            lock,
+            [&block]
+            {
+                return block.released;
+            });
+        block.reached = false;
+    }
+
     void resetTerminalTestHooks() noexcept
     {
         std::lock_guard lock(terminalTestHookState.mutex);
@@ -82,6 +103,12 @@ namespace GameWIP::Terminal::Detail::TestHooks
         terminalTestHookState.nextTextWriteFailure.enabled.store(false, std::memory_order_release);
         terminalTestHookState.nextByteWriteFailure.enabled.store(false, std::memory_order_release);
         terminalTestHookState.nextFlushFailure.enabled.store(false, std::memory_order_release);
+        terminalTestHookState.nextReadBlock.enabled = false;
+        terminalTestHookState.nextReadBlock.released = true;
+        terminalTestHookState.nextReadBlock.condition.notify_all();
+        terminalTestHookState.nextTextWriteBlock.enabled = false;
+        terminalTestHookState.nextTextWriteBlock.released = true;
+        terminalTestHookState.nextTextWriteBlock.condition.notify_all();
     }
 
     void forceFailure(HookFailure &failure, IO::Types::ErrorCode code) noexcept
@@ -118,13 +145,7 @@ namespace GameWIP::Terminal::TestHooks
         std::uint16_t repeatCount,
         std::uint16_t scanCode) noexcept
     {
-        return Detail::Platform::TestHooks::decodeWin32KeyRecord(
-            keyDown,
-            virtualKey,
-            unicodeCharacter,
-            controlState,
-            repeatCount,
-            scanCode);
+        return Detail::Platform::TestHooks::decodeWin32KeyRecord(keyDown, virtualKey, unicodeCharacter, controlState, repeatCount, scanCode);
     }
 
     std::optional<Terminal::Types::Event> takePendingWin32KeyEvent() noexcept
@@ -203,10 +224,7 @@ namespace GameWIP::Terminal::TestHooks
         state.endOfStreamWhenInputEmpty = true;
     }
 
-    void setInputEvents(
-        Terminal::Types::InputStream stream,
-        std::span<const Terminal::Types::Event> events,
-        bool endOfStreamWhenEmpty)
+    void setInputEvents(Terminal::Types::InputStream stream, std::span<const Terminal::Types::Event> events, bool endOfStreamWhenEmpty)
     {
         std::lock_guard lock(terminalTestHookState.mutex);
         InputHookState &state = terminalTestHookState.inputStreams[inputIndex(stream)];
@@ -262,8 +280,8 @@ namespace GameWIP::Terminal::TestHooks
     {
         std::lock_guard lock(terminalTestHookState.mutex);
         const InputHookState &state = terminalTestHookState.inputStreams[inputIndex(stream)];
-        return state.inputModeOverrideEnabled && state.reportResizeEvents == reportResizeEvents &&
-               state.reportPointerEvents == reportPointerEvents && state.exclusiveEventDelivery == exclusiveEventDelivery;
+        return state.inputModeOverrideEnabled && state.reportResizeEvents == reportResizeEvents && state.reportPointerEvents == reportPointerEvents &&
+               state.exclusiveEventDelivery == exclusiveEventDelivery;
     }
 
     void clearInputModeOverride(Terminal::Types::InputStream stream) noexcept
@@ -351,6 +369,80 @@ namespace GameWIP::Terminal::TestHooks
         OutputHookState &state = terminalTestHookState.outputStreams[outputIndex(stream)];
         state.cursorPositionOverride = {};
         state.cursorPositionOverrideEnabled = false;
+    }
+
+    void blockNextRead()
+    {
+        std::lock_guard lock(terminalTestHookState.mutex);
+        HookBlock &block = terminalTestHookState.nextReadBlock;
+        block.enabled = true;
+        block.reached = false;
+        block.released = false;
+    }
+
+    bool waitUntilReadBlocked(std::chrono::milliseconds timeout)
+    {
+        std::unique_lock lock(terminalTestHookState.mutex);
+        HookBlock &block = terminalTestHookState.nextReadBlock;
+        return block.condition.wait_for(
+            lock,
+            timeout,
+            [&block]
+            {
+                return block.reached;
+            });
+    }
+
+    void releaseBlockedRead() noexcept
+    {
+        try
+        {
+            std::lock_guard lock(terminalTestHookState.mutex);
+            terminalTestHookState.nextReadBlock.released = true;
+            terminalTestHookState.nextReadBlock.condition.notify_all();
+        }
+        catch (...)
+        {
+            // Test cleanup is best effort at this noexcept synchronization boundary.
+            return;
+        }
+    }
+
+    void blockNextTextWrite()
+    {
+        std::lock_guard lock(terminalTestHookState.mutex);
+        HookBlock &block = terminalTestHookState.nextTextWriteBlock;
+        block.enabled = true;
+        block.reached = false;
+        block.released = false;
+    }
+
+    bool waitUntilTextWriteBlocked(std::chrono::milliseconds timeout)
+    {
+        std::unique_lock lock(terminalTestHookState.mutex);
+        HookBlock &block = terminalTestHookState.nextTextWriteBlock;
+        return block.condition.wait_for(
+            lock,
+            timeout,
+            [&block]
+            {
+                return block.reached;
+            });
+    }
+
+    void releaseBlockedTextWrite() noexcept
+    {
+        try
+        {
+            std::lock_guard lock(terminalTestHookState.mutex);
+            terminalTestHookState.nextTextWriteBlock.released = true;
+            terminalTestHookState.nextTextWriteBlock.condition.notify_all();
+        }
+        catch (...)
+        {
+            // Test cleanup is best effort at this noexcept synchronization boundary.
+            return;
+        }
     }
 
     void forceNextInputCapabilityFailure(IO::Types::ErrorCode code) noexcept

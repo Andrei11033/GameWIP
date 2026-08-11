@@ -43,9 +43,7 @@ namespace
             benchmark::ClobberMemory();
         }
 
-        state.SetBytesProcessed(
-            state.iterations() *
-            static_cast<std::int64_t>(kChunk.size() * 64));
+        state.SetBytesProcessed(state.iterations() * static_cast<std::int64_t>(kChunk.size() * 64));
     }
 
     /// @brief Measures rollback-capable formatting into retained OutputBuffer storage.
@@ -81,8 +79,7 @@ namespace
     void benchmarkOutputBufferLines(benchmark::State &state)
     {
         Terminal::OutputBuffer buffer;
-        if (!buffer.setLineEnding(Terminal::Types::LineEnding::Lf).ok() ||
-            !buffer.reserve(4096).ok())
+        if (!buffer.setLineEnding(Terminal::Types::LineEnding::Lf).ok() || !buffer.reserve(4096).ok())
         {
             state.SkipWithError("Terminal OutputBuffer setup failed.");
             return;
@@ -106,9 +103,7 @@ namespace
             benchmark::ClobberMemory();
         }
 
-        state.SetBytesProcessed(
-            state.iterations() *
-            static_cast<std::int64_t>((kChunk.size() + 1) * 64));
+        state.SetBytesProcessed(state.iterations() * static_cast<std::int64_t>((kChunk.size() + 1) * 64));
     }
 } // namespace
 

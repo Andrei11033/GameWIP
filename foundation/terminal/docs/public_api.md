@@ -141,7 +141,7 @@ Terminal provides `resetStyle()`, `moveCursor()`, `setCursorPosition()`, `getCur
 
 ## Output-state RAII scopes
 
-`CursorHiddenScope` and `AlternateScreenScope` remain movable and non-copyable helpers for temporary output control state. A scope returned after failed setup is inactive and retains the setup status. Destructors make a best-effort non-throwing restore/leave attempt; call `restore()` or `leave()` explicitly when failure must be observed.
+`CursorHiddenScope` and `AlternateScreenScope` remain movable and non-copyable helpers for temporary output control state. A setup failure before control-sequence emission returns an inactive scope. A requested flush failure after successful emission is also retained in `status()`, but the scope stays active and owns cleanup. Destructors make a best-effort non-throwing restore/leave attempt; call `restore()` or `leave()` explicitly when failure must be observed.
 
 Managed input lifetime is not represented by a scope factory anymore; use `Session::open()` / `close()` so ownership, delivery mode, cancellation, and exact native restoration share one contract.
 
