@@ -2,6 +2,7 @@
 /// @brief Core implementation for the Terminal library.
 
 #include "terminal/terminal.h"
+#include "terminal/internal/terminal_input.h"
 #include "terminal/internal/terminal_platform.h"
 
 #include <algorithm>
@@ -132,20 +133,6 @@ namespace GameWIP::Terminal
             return false;
         }
 
-        /// @brief Validates line-read ending-mode enum values.
-        [[nodiscard]] bool validReadLineEndingMode(Types::ReadLineEndingMode mode) noexcept
-        {
-            switch (mode)
-            {
-            case Types::ReadLineEndingMode::Strip:
-            case Types::ReadLineEndingMode::Keep:
-            case Types::ReadLineEndingMode::NormalizeToLf:
-                return true;
-            }
-
-            return false;
-        }
-
         /// @brief Builds an Unsupported status with optional diagnostic text.
         [[nodiscard]] IO::Types::Status unsupportedStatus(std::string message = {})
         {
@@ -212,15 +199,6 @@ namespace GameWIP::Terminal
             static OutputState stderrState;
 
             return stream == Types::OutputStream::Stderr ? stderrState : stdoutState;
-        }
-
-        /// @brief Returns the shared process-lifetime mutex serializing stdin operations.
-        /// @details stdin has one supported public stream today; retaining the stream parameter keeps this boundary ready
-        /// for future stream expansion without spreading storage decisions through callers.
-        [[nodiscard]] std::mutex &inputMutex([[maybe_unused]] Types::InputStream stream) noexcept
-        {
-            static std::mutex stdinMutex;
-            return stdinMutex;
         }
 
         /// @brief Resolves a validated line-ending policy to emitted bytes.
@@ -921,32 +899,6 @@ namespace GameWIP::Terminal
             }
         }
 
-        /// @brief Restores the complete input-mode snapshot owned by a scope.
-        [[nodiscard]] IO::Types::Status restoreInputModeScope(
-            Types::InputStream stream,
-            const Types::InputMode &previousMode,
-            std::uint64_t previousNativeMode,
-            bool hasPreviousNativeMode) noexcept
-        {
-            try
-            {
-                std::lock_guard lock(inputMutex(stream));
-                Detail::Platform::InputModeSnapshot snapshot;
-                snapshot.mode = previousMode;
-                snapshot.nativeMode = previousNativeMode;
-                snapshot.hasNativeMode = hasPreviousNativeMode;
-                return Detail::Platform::restoreInputMode(stream, snapshot);
-            }
-            catch (const std::bad_alloc &)
-            {
-                return IO::makeStatus(ErrorCode::OutOfMemory);
-            }
-            catch (...)
-            {
-                return IO::makeStatus(ErrorCode::NativeFailure);
-            }
-        }
-
         /// @brief Decrements nested alternate-screen depth and leaves at the outer boundary.
         [[nodiscard]] IO::Types::Status leaveAlternateScreenScope(Types::OutputStream stream, const Types::ControlOptions &options) noexcept
         {
@@ -1040,19 +992,6 @@ namespace GameWIP::Terminal
         return Types::Color(red, green, blue);
     }
 
-    Types::InputMode makeInputMode(Types::InputModePreset preset) noexcept
-    {
-        switch (preset)
-        {
-        case Types::InputModePreset::InteractiveLine:
-            return {.lineBuffered = true, .echoInput = true, .processControlKeys = true};
-        case Types::InputModePreset::RawBytes:
-            return {.lineBuffered = false, .echoInput = false, .processControlKeys = false};
-        }
-
-        return {.lineBuffered = true, .echoInput = true, .processControlKeys = true};
-    }
-
     Types::WriteSegment::WriteSegment(
         Types::WriteSegmentKind kind,
         std::string_view text,
@@ -1078,75 +1017,6 @@ namespace GameWIP::Terminal
     Types::WriteSegment byteSegment(std::span<const std::byte> bytes) noexcept
     {
         return Types::WriteSegment(Types::WriteSegmentKind::Bytes, {}, bytes, {});
-    }
-
-    InputModeScope::InputModeScope() noexcept = default;
-
-    InputModeScope::InputModeScope(InputModeScope &&other) noexcept
-        : stream_(other.stream_)
-        , previousMode_(other.previousMode_)
-        , previousNativeMode_(other.previousNativeMode_)
-        , status_(std::move(other.status_))
-        , hasPreviousNativeMode_(other.hasPreviousNativeMode_)
-        , active_(other.active_)
-    {
-        other.active_ = false;
-    }
-
-    InputModeScope &InputModeScope::operator=(InputModeScope &&other) noexcept
-    {
-        if (this != &other)
-        {
-            if (active_)
-            {
-                // Do not discard restoration responsibility: transfer is allowed only after this scope restores its state.
-                static_cast<void>(restore());
-                if (active_)
-                {
-                    return *this;
-                }
-            }
-            stream_ = other.stream_;
-            previousMode_ = other.previousMode_;
-            previousNativeMode_ = other.previousNativeMode_;
-            status_ = std::move(other.status_);
-            hasPreviousNativeMode_ = other.hasPreviousNativeMode_;
-            active_ = other.active_;
-            other.active_ = false;
-        }
-
-        return *this;
-    }
-
-    InputModeScope::~InputModeScope() noexcept
-    {
-        static_cast<void>(restore());
-    }
-
-    bool InputModeScope::active() const noexcept
-    {
-        return active_;
-    }
-
-    const IO::Types::Status &InputModeScope::status() const noexcept
-    {
-        return status_;
-    }
-
-    IO::Types::Status InputModeScope::restore() noexcept
-    {
-        if (active_)
-        {
-            status_ = restoreInputModeScope(stream_, previousMode_, previousNativeMode_, hasPreviousNativeMode_);
-            active_ = !status_.ok();
-        }
-
-        return status_;
-    }
-
-    void InputModeScope::release() noexcept
-    {
-        active_ = false;
     }
 
     AlternateScreenScope::AlternateScreenScope() noexcept = default;
@@ -1352,7 +1222,7 @@ namespace GameWIP::Terminal
             return {.status = invalidArgumentStatus("Unknown terminal input stream."), .capabilities = {}};
         }
 
-        std::lock_guard lock(inputMutex(stream));
+        std::lock_guard lock(Detail::inputIoMutex(stream));
         return Detail::Platform::getInputCapabilities(stream);
     }
 
@@ -1402,195 +1272,6 @@ namespace GameWIP::Terminal
 
         std::lock_guard lock(outputState(stream).mutex);
         return Detail::Platform::getTerminalSize(stream);
-    }
-
-    Types::InputAvailabilityResult getInputAvailability()
-    {
-        return getInputAvailability(Types::InputStream::Stdin);
-    }
-
-    Types::InputAvailabilityResult getInputAvailability(Types::InputStream stream)
-    {
-        if (!validInputStream(stream))
-        {
-            return {.status = invalidArgumentStatus("Unknown terminal input stream."), .available = false, .estimatedBytes = 0};
-        }
-
-        std::lock_guard lock(inputMutex(stream));
-        return Detail::Platform::getInputAvailability(stream);
-    }
-
-    Types::InputModeResult getInputMode()
-    {
-        return getInputMode(Types::InputStream::Stdin);
-    }
-
-    Types::InputModeResult getInputMode(Types::InputStream stream)
-    {
-        if (!validInputStream(stream))
-        {
-            return {.status = invalidArgumentStatus("Unknown terminal input stream."), .mode = {}};
-        }
-
-        std::lock_guard lock(inputMutex(stream));
-        return Detail::Platform::getInputMode(stream);
-    }
-
-    IO::Types::Status setInputMode(const Types::InputMode &mode)
-    {
-        return setInputMode(Types::InputStream::Stdin, mode);
-    }
-
-    IO::Types::Status setInputMode(Types::InputStream stream, const Types::InputMode &mode)
-    {
-        if (!validInputStream(stream))
-        {
-            return invalidArgumentStatus("Unknown terminal input stream.");
-        }
-
-        std::lock_guard lock(inputMutex(stream));
-        return Detail::Platform::setInputMode(stream, mode);
-    }
-
-    IO::Types::Status restoreDefaultInputMode()
-    {
-        return restoreDefaultInputMode(Types::InputStream::Stdin);
-    }
-
-    IO::Types::Status restoreDefaultInputMode(Types::InputStream stream)
-    {
-        if (!validInputStream(stream))
-        {
-            return invalidArgumentStatus("Unknown terminal input stream.");
-        }
-
-        std::lock_guard lock(inputMutex(stream));
-        return Detail::Platform::restoreDefaultInputMode(stream);
-    }
-
-    InputModeScope scopedInputMode(const Types::InputMode &mode) noexcept
-    {
-        return scopedInputMode(Types::InputStream::Stdin, mode);
-    }
-
-    InputModeScope scopedInputMode(Types::InputStream stream, const Types::InputMode &mode) noexcept
-    {
-        InputModeScope scope;
-        scope.stream_ = stream;
-        if (!validInputStream(stream))
-        {
-            scope.status_ = IO::makeStatus(ErrorCode::InvalidArgument);
-            return scope;
-        }
-
-        try
-        {
-            std::lock_guard lock(inputMutex(stream));
-            const Detail::Platform::InputModeSnapshotResult previousMode = Detail::Platform::captureInputMode(stream);
-            scope.status_ = previousMode.status;
-            if (!scope.status_.ok())
-            {
-                return scope;
-            }
-
-            scope.previousMode_ = previousMode.snapshot.mode;
-            scope.previousNativeMode_ = previousMode.snapshot.nativeMode;
-            scope.hasPreviousNativeMode_ = previousMode.snapshot.hasNativeMode;
-            scope.status_ = Detail::Platform::setInputMode(stream, mode);
-            scope.active_ = scope.status_.ok();
-        }
-        catch (const std::bad_alloc &)
-        {
-            scope.status_ = IO::makeStatus(ErrorCode::OutOfMemory);
-        }
-        catch (...)
-        {
-            scope.status_ = IO::makeStatus(ErrorCode::NativeFailure);
-        }
-        return scope;
-    }
-
-    Types::LineReadResult readLine(const Types::LineReadOptions &options)
-    {
-        return readLine(Types::InputStream::Stdin, options);
-    }
-
-    Types::LineReadResult readLine(Types::InputStream stream, const Types::LineReadOptions &options)
-    {
-        if (!validInputStream(stream))
-        {
-            return {
-                .status = invalidArgumentStatus("Unknown terminal input stream."),
-                .outcome = Types::ReadOutcome::Completed,
-                .line = {},
-                .consumedLineEnding = Types::ConsumedLineEnding::None,
-                .wasTruncated = false};
-        }
-        if (!validReadLineEndingMode(options.lineEndingMode))
-        {
-            return {
-                .status = invalidArgumentStatus("Unknown terminal line-ending read mode."),
-                .outcome = Types::ReadOutcome::Completed,
-                .line = {},
-                .consumedLineEnding = Types::ConsumedLineEnding::None,
-                .wasTruncated = false};
-        }
-        if (options.maxReturnedBytes == 0)
-        {
-            return {
-                .status = invalidArgumentStatus("Terminal line read maxReturnedBytes must be greater than zero."),
-                .outcome = Types::ReadOutcome::Completed,
-                .line = {},
-                .consumedLineEnding = Types::ConsumedLineEnding::None,
-                .wasTruncated = false};
-        }
-
-        std::lock_guard lock(inputMutex(stream));
-        return Detail::Platform::readLine(stream, options);
-    }
-
-    Types::TextReadResult readText(const Types::TextReadOptions &options)
-    {
-        return readText(Types::InputStream::Stdin, options);
-    }
-
-    Types::TextReadResult readText(Types::InputStream stream, const Types::TextReadOptions &options)
-    {
-        if (!validInputStream(stream))
-        {
-            return {
-                .status = invalidArgumentStatus("Unknown terminal input stream."),
-                .outcome = Types::ReadOutcome::Completed,
-                .text = {},
-                .wasTruncated = false};
-        }
-        if (options.maxReturnedBytes == 0)
-        {
-            return {
-                .status = invalidArgumentStatus("Terminal text read maxReturnedBytes must be greater than zero."),
-                .outcome = Types::ReadOutcome::Completed,
-                .text = {},
-                .wasTruncated = false};
-        }
-
-        std::lock_guard lock(inputMutex(stream));
-        return Detail::Platform::readText(stream, options);
-    }
-
-    Types::ByteReadResult readBytes(std::span<std::byte> outputBuffer, const Types::ByteReadOptions &options)
-    {
-        return readBytes(Types::InputStream::Stdin, outputBuffer, options);
-    }
-
-    Types::ByteReadResult readBytes(Types::InputStream stream, std::span<std::byte> outputBuffer, const Types::ByteReadOptions &options)
-    {
-        if (!validInputStream(stream))
-        {
-            return {.status = invalidArgumentStatus("Unknown terminal input stream."), .outcome = Types::ReadOutcome::Completed, .bytesRead = 0};
-        }
-
-        std::lock_guard lock(inputMutex(stream));
-        return Detail::Platform::readBytes(stream, outputBuffer, options);
     }
 
     IO::Types::Status writeText(std::string_view utf8Text, const Types::TextWriteOptions &options)
@@ -1896,7 +1577,7 @@ namespace GameWIP::Terminal
             return {.status = invalidArgumentStatus("Unknown terminal stream selected for cursor position query."), .position = {}};
         }
 
-        std::scoped_lock lock(outputState(outputStream).mutex, inputMutex(responseStream));
+        std::scoped_lock lock(outputState(outputStream).mutex, Detail::inputIoMutex(responseStream));
 
         IO::Types::Status status = flushIfRequested(outputStream, options.flushMode);
         if (!status.ok())

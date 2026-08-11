@@ -1,6 +1,6 @@
 @page terminal_quick_start Quick start
 
-Terminal exposes checked operations for stdin, stdout, stderr, styling, and primitive controls. It has no explicit initialization or shutdown lifecycle.
+Terminal exposes checked direct operations for stdin, stdout, stderr, styling, and primitive controls. Persistent interactive input uses an explicit move-only `Session`; direct reads acquire and restore managed input ownership automatically.
 
 ## Include
 
@@ -67,11 +67,36 @@ else
     case GameWIP::Terminal::Types::ReadOutcome::WouldBlock:
         // No normal backend failure occurred. Partial text may still be present.
         break;
+    case GameWIP::Terminal::Types::ReadOutcome::Cancelled:
+        // The caller's stop token requested cancellation.
+        break;
     }
 }
 ```
 
 Always inspect `status`, `outcome`, and the payload together. A successful status does not imply `ReadOutcome::Completed`, and a terminating outcome can accompany partial data.
+
+Read deadlines use `std::optional<std::chrono::milliseconds>`: `std::nullopt` waits indefinitely, `0ms` polls, positive values bound the complete operation, and negative values are `InvalidArgument`. A `std::stop_token` requests cancellation where the endpoint supports cancellable blocking reads.
+
+## Persistent managed input
+
+```cpp
+using namespace GameWIP::Terminal;
+
+Session session;
+Types::SessionOptions options;
+options.deliveryMode = Types::InputDeliveryMode::Stream;
+
+if (!session.open(options).ok())
+{
+    return 1;
+}
+
+const Types::LineReadResult line = session.readLine();
+const auto closeStatus = session.close();
+```
+
+Only one managed owner may consume stdin at a time. Re-opening the same object returns `AlreadyOpen`; a competing session or direct read returns `ResourceBusy`. Explicit `close()` reports restoration failures and retains ownership when restoration can be retried.
 
 ## Capability-aware styling
 
@@ -92,7 +117,7 @@ const auto status = writeLine("ready", options);
 
 Expected validation, detached-stream, unsupported-operation, encoding, timeout, and backend failures use IO status/result types. Check the status before relying on payload fields.
 
-Some in-memory preparation remains ordinary C++ code and may throw. In particular, `OutputBuffer` allocation and formatting operations can propagate standard exceptions. Scope factories are `noexcept`; inspect the returned scope's `status()` and `active()` state to determine whether setup succeeded.
+Some in-memory preparation remains ordinary C++ code and may throw. In particular, `OutputBuffer` allocation and formatting operations can propagate standard exceptions. Managed read and `Session` lifecycle entry points are `noexcept` and translate owned setup/allocation/backend failures to IO statuses.
 
 ## Where to go next
 
@@ -100,5 +125,5 @@ Some in-memory preparation remains ordinary C++ code and may throw. In particula
 - @ref terminal_read_write owns read, write, buffering, exception, and concurrency contracts.
 - @ref terminal_capabilities_and_redirection explains endpoint-dependent behavior.
 - @ref terminal_styling and @ref terminal_segmented_writes cover styled and batched output.
-- @ref terminal_input_modes and @ref terminal_control_primitives cover temporary terminal state.
+- @ref terminal_input_modes covers persistent managed input ownership and session restoration; @ref terminal_control_primitives covers output control state.
 - @ref terminal_examples contains complete integration examples.

@@ -22,9 +22,11 @@ Text and line reads require complete valid UTF-8. Use `readBytes()` for arbitrar
 
 The next UTF-8 code point does not fit in `maxReturnedBytes`. Increase the limit; Terminal will not split the encoding.
 
-## A timed read returns no text
+## A timed, polled, or cancelled read returns no text
 
-Inspect both `status` and `outcome`. `TimedOut` and `WouldBlock` are normal outcomes. Real Windows console input currently does not support finite or non-blocking reads and returns `Unsupported` instead.
+Inspect both `status` and `outcome`. `TimedOut`, `WouldBlock`, and `Cancelled` are normal domain outcomes with a successful status.
+
+Read timeouts are optional: `std::nullopt` waits indefinitely, `0ms` polls, positive durations establish one total deadline, and negative durations are `InvalidArgument`. The current Win32 real-console stream path does not yet support finite deadlines, polling, or in-progress cancellation and returns `Unsupported`; named-pipe input supports all three.
 
 ## `flushTo()` did not force an OS flush
 
@@ -38,13 +40,31 @@ Terminal retains no unwritten stream buffer. On Win32, console and pipe flushes 
 
 A requested flush can fail after all bytes were accepted. Inspect both `status` and `bytesWritten`.
 
-## A scope is inactive immediately after creation
+## `Session::open()` returns `AlreadyOpen` or `ResourceBusy`
 
-Setup failed. Inspect `status()`. Scope factories are `noexcept` and return an inactive object rather than throwing.
+`AlreadyOpen` means that same `Session` object is already open. `ResourceBusy` means another persistent session or direct managed input operation owns stdin.
 
-## Move assignment did not consume the source scope
+Close the existing owner explicitly before opening another one. Do not reintroduce availability-check-then-read logic; ownership is intentionally acquired by the operation itself.
 
-The destination already owned active state and failed to restore or leave it. The destination remains active and the source retains its responsibility so state ownership is not silently lost.
+## `Session::close()` failed and `isOpen()` is still true
+
+Exact native input restoration failed. Explicit close intentionally keeps the session open and retains stdin ownership so cleanup can be retried. Fix or report the backend problem, then call `close()` again.
+
+Destruction is different: the destructor makes one best-effort restoration attempt and releases process-wide ownership because the destroyed object cannot be retried.
+
+## A stop token returns `Unsupported`
+
+The token is stoppable and the requested read may block, but the endpoint cannot currently observe cancellation safely. Use an endpoint that advertises `supportsCancellation`, use a `0ms` poll loop owned by the application where appropriate, or omit the stoppable token when indefinite blocking is acceptable.
+
+A token that is already stopped returns `ReadOutcome::Cancelled` before input is consumed.
+
+## An output-state scope is inactive immediately after creation
+
+Cursor-hidden or alternate-screen setup failed. Inspect `status()`. Those scope factories are `noexcept` and return an inactive object rather than throwing.
+
+## Output-state scope move assignment did not consume the source
+
+The destination already owned active output state and failed to restore or leave it. The destination remains active and the source retains its responsibility so state ownership is not silently lost.
 
 ## Output interleaves with `std::cout` or `printf`
 

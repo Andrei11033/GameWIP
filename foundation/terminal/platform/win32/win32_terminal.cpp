@@ -134,19 +134,15 @@ namespace GameWIP::Terminal::Detail::Platform
             std::size_t offset_ = 0;
         };
 
-        /// @brief Process-lifetime stdin mode snapshot and pending Unicode conversion state.
-        /// @details Pending bytes and surrogate state survive individual reads and portable mode changes so chunk
-        /// boundaries do not corrupt UTF-8 conversion. Endpoint replacement discards that endpoint-owned state.
+        /// @brief Process-lifetime pending Unicode conversion state owned by the observed stdin endpoint.
+        /// @details Pending bytes and surrogate state survive individual managed reads so chunk boundaries do not
+        /// corrupt UTF-8 conversion. Endpoint replacement discards that endpoint-owned state.
         struct InputState
         {
             HANDLE endpointHandleValue = nullptr;
             HANDLE endpointIdentity = nullptr;
-            bool defaultConsoleModeCaptured = false;
-            HANDLE defaultConsoleHandle = nullptr;
-            DWORD defaultConsoleMode = 0;
             PendingInputBuffer pendingBytes;
             wchar_t pendingHighSurrogate = L'\0';
-            std::vector<INPUT_RECORD> availabilityRecords;
 
             ~InputState() noexcept
             {
@@ -165,22 +161,10 @@ namespace GameWIP::Terminal::Detail::Platform
 
         /// @brief UTF-16 scratch capacity retained after a write before releasing peak storage.
         inline constexpr std::size_t kRetainedConversionLimit = std::size_t{64} * 1024;
-        /// @brief Largest console-input availability scratch retained between polls.
-        inline constexpr std::size_t kRetainedAvailabilityRecordLimit = 4096;
         /// @brief Largest control-sequence numeric parameter accepted by the VT backend.
         inline constexpr std::uint32_t kMaxVtParameter = 32767;
         /// @brief Maximum title payload accepted before OSC framing bytes.
         inline constexpr std::size_t kMaxVtTitleBytes = 254;
-
-        /// @brief Clears console-event scratch and releases unusually large retained storage.
-        void releaseLargeAvailabilityRecords(InputState &state) noexcept
-        {
-            state.availabilityRecords.clear();
-            if (state.availabilityRecords.capacity() > kRetainedAvailabilityRecordLimit)
-            {
-                std::vector<INPUT_RECORD>{}.swap(state.availabilityRecords);
-            }
-        }
 
         /// @brief One backend input transfer before public UTF-8 and line processing.
         struct ReadChunk
@@ -297,9 +281,6 @@ namespace GameWIP::Terminal::Detail::Platform
             {
                 stdinState.pendingBytes.clear();
                 stdinState.pendingHighSurrogate = L'\0';
-                releaseLargeAvailabilityRecords(stdinState);
-                stdinState.defaultConsoleModeCaptured = false;
-                stdinState.defaultConsoleHandle = nullptr;
                 observeInputEndpoint(stdinState, currentHandle);
             }
             return stdinState;
@@ -712,6 +693,13 @@ namespace GameWIP::Terminal::Detail::Platform
             return timeout - elapsed;
         }
 
+        /// @brief Converts the public optional deadline to the backend's internal negative-forever representation.
+        [[nodiscard]] std::chrono::milliseconds backendTimeout(
+            const std::optional<std::chrono::milliseconds> &timeout) noexcept
+        {
+            return timeout.value_or(std::chrono::milliseconds{-1});
+        }
+
         /// @brief Waits for console/pipe input and maps timeout or wait failure to a read outcome.
         [[nodiscard]] ReadChunk waitForInput(HANDLE handle, std::chrono::milliseconds timeout)
         {
@@ -736,30 +724,8 @@ namespace GameWIP::Terminal::Detail::Platform
                 .bytes = {}};
         }
 
-        /// @brief Captures the first observed native console mode for later default restoration.
-        [[nodiscard]] IO::Types::Status captureDefaultInputMode(InputStream stream, HANDLE handle)
-        {
-            InputState &state = inputState(stream);
-            if (state.defaultConsoleModeCaptured && state.defaultConsoleHandle == handle)
-            {
-                return IO::successStatus();
-            }
-
-            DWORD mode = 0;
-            if (GetConsoleMode(handle, &mode) == FALSE)
-            {
-                const DWORD error = GetLastError();
-                return statusFromWin32(ErrorCode::StatFailed, error, "GetConsoleMode failed for terminal input mode.");
-            }
-
-            state.defaultConsoleMode = mode;
-            state.defaultConsoleHandle = handle;
-            state.defaultConsoleModeCaptured = true;
-            return IO::successStatus();
-        }
-
-        /// @brief Converts Win32 console-mode flags into the portable input-mode shape.
-        [[nodiscard]] Terminal::Types::InputMode inputModeFromConsoleMode(DWORD mode) noexcept
+        /// @brief Converts Win32 console-mode flags into Terminal's internal managed input-mode shape.
+        [[nodiscard]] InputMode inputModeFromConsoleMode(DWORD mode) noexcept
         {
             return {
                 .lineBuffered = (mode & ENABLE_LINE_INPUT) != 0,
@@ -780,113 +746,6 @@ namespace GameWIP::Terminal::Detail::Platform
 
             error = GetLastError();
             return false;
-        }
-
-        /// @brief Inspects console input records for immediately readable character data.
-        [[nodiscard]] Terminal::Types::InputAvailabilityResult consoleInputAvailability(HANDLE handle, InputState &state)
-        {
-            Terminal::Types::InputAvailabilityResult result;
-            result.status = IO::successStatus();
-
-            DWORD eventCount = 0;
-            if (GetNumberOfConsoleInputEvents(handle, &eventCount) == FALSE)
-            {
-                const DWORD error = GetLastError();
-                result.status = statusFromWin32(ErrorCode::StatFailed, error, "GetNumberOfConsoleInputEvents failed for terminal input.");
-                return result;
-            }
-            if (eventCount == 0)
-            {
-                releaseLargeAvailabilityRecords(state);
-                return result;
-            }
-
-            try
-            {
-                state.availabilityRecords.resize(eventCount);
-            }
-            catch (const std::bad_alloc &)
-            {
-                releaseLargeAvailabilityRecords(state);
-                result.status = IO::makeStatus(ErrorCode::OutOfMemory);
-                return result;
-            }
-            catch (const std::length_error &)
-            {
-                releaseLargeAvailabilityRecords(state);
-                result.status = IO::makeStatus(ErrorCode::SizeLimitExceeded);
-                return result;
-            }
-
-            DWORD recordsRead = 0;
-            if (PeekConsoleInputW(handle, state.availabilityRecords.data(), eventCount, &recordsRead) == FALSE)
-            {
-                const DWORD error = GetLastError();
-                releaseLargeAvailabilityRecords(state);
-                result.status = statusFromWin32(ErrorCode::StatFailed, error, "PeekConsoleInputW failed for terminal input.");
-                return result;
-            }
-
-            DWORD mode = 0;
-            if (GetConsoleMode(handle, &mode) == FALSE)
-            {
-                const DWORD error = GetLastError();
-                releaseLargeAvailabilityRecords(state);
-                result.status = statusFromWin32(ErrorCode::StatFailed, error, "GetConsoleMode failed for terminal input availability.");
-                return result;
-            }
-
-            const bool lineBuffered = (mode & ENABLE_LINE_INPUT) != 0;
-            for (DWORD index = 0; index < recordsRead && !result.available; ++index)
-            {
-                const INPUT_RECORD &record = state.availabilityRecords[index];
-                if (record.EventType != KEY_EVENT || record.Event.KeyEvent.bKeyDown == FALSE)
-                {
-                    continue;
-                }
-
-                const wchar_t character = record.Event.KeyEvent.uChar.UnicodeChar;
-                if (character == L'\0')
-                {
-                    continue;
-                }
-                if (!lineBuffered || character == L'\r' || character == L'\n')
-                {
-                    result.available = true;
-                }
-            }
-
-            releaseLargeAvailabilityRecords(state);
-
-            return result;
-        }
-
-        /// @brief Compares current and end positions for redirected disk input.
-        [[nodiscard]] Terminal::Types::InputAvailabilityResult diskInputAvailability(HANDLE handle)
-        {
-            Terminal::Types::InputAvailabilityResult result;
-            result.status = IO::successStatus();
-
-            LARGE_INTEGER zero{};
-            LARGE_INTEGER position{};
-            LARGE_INTEGER size{};
-            if (SetFilePointerEx(handle, zero, &position, FILE_CURRENT) == FALSE || GetFileSizeEx(handle, &size) == FALSE)
-            {
-                const DWORD error = GetLastError();
-                result.status = statusFromWin32(ErrorCode::StatFailed, error, "File position query failed for terminal input availability.");
-                return result;
-            }
-
-            if (position.QuadPart < 0 || size.QuadPart < position.QuadPart)
-            {
-                result.status = IO::makeStatus(ErrorCode::InvalidArgument, 0, "Redirected terminal input reported an invalid file position.");
-                return result;
-            }
-
-            const auto remaining = static_cast<std::uint64_t>(size.QuadPart - position.QuadPart);
-            result.available = remaining > 0;
-            result.estimatedBytes = remaining;
-            return result;
         }
 
         /// @brief Reads console UTF-16 input and returns one complete UTF-8 chunk.
@@ -988,15 +847,24 @@ namespace GameWIP::Terminal::Detail::Platform
             }
         }
 
-        /// @brief Reads bytes from redirected disk/pipe/character input with bounded waiting.
-        [[nodiscard]] ReadChunk readFileInputChunk(HANDLE handle, std::chrono::milliseconds timeout, std::size_t requestedBytesHint)
+        /// @brief Reads bytes from redirected disk/pipe/character input with bounded waiting and cooperative pipe cancellation.
+        [[nodiscard]] ReadChunk readFileInputChunk(
+            HANDLE handle,
+            std::chrono::milliseconds timeout,
+            std::stop_token stopToken,
+            std::size_t requestedBytesHint)
         {
             const DWORD type = fileType(handle);
-            if (timeout.count() >= 0 && type == FILE_TYPE_PIPE)
+            if (type == FILE_TYPE_PIPE && (timeout.count() >= 0 || stopToken.stop_possible()))
             {
                 const auto start = std::chrono::steady_clock::now();
                 while (true)
                 {
+                    if (stopToken.stop_requested())
+                    {
+                        return {.status = IO::successStatus(), .outcome = ReadOutcome::Cancelled, .bytes = {}};
+                    }
+
                     DWORD availableBytes = 0;
                     DWORD error = ERROR_SUCCESS;
                     if (!peekPipeBytes(handle, availableBytes, error))
@@ -1022,7 +890,7 @@ namespace GameWIP::Terminal::Detail::Platform
                         return {.status = IO::successStatus(), .outcome = ReadOutcome::WouldBlock, .bytes = {}};
                     }
 
-                    if (std::chrono::steady_clock::now() - start >= timeout)
+                    if (timeout.count() > 0 && std::chrono::steady_clock::now() - start >= timeout)
                     {
                         return {.status = IO::successStatus(), .outcome = ReadOutcome::TimedOut, .bytes = {}};
                     }
@@ -1067,8 +935,17 @@ namespace GameWIP::Terminal::Detail::Platform
         }
 
         /// @brief Routes one input transfer through hooks, console Unicode input, or redirected bytes.
-        [[nodiscard]] ReadChunk readInputChunk(InputStream stream, std::chrono::milliseconds timeout, std::size_t requestedBytesHint)
+        [[nodiscard]] ReadChunk readInputChunk(
+            InputStream stream,
+            std::chrono::milliseconds timeout,
+            std::stop_token stopToken,
+            std::size_t requestedBytesHint)
         {
+            if (stopToken.stop_requested())
+            {
+                return {.status = IO::successStatus(), .outcome = ReadOutcome::Cancelled, .bytes = {}};
+            }
+
 #if INTERNAL_TERMINAL_TEST_HOOKS
             if (std::optional<IO::Types::Status> failure =
                     consumeHookFailure(HookDetail::terminalTestHookState.nextReadFailure, "Forced terminal read failure."))
@@ -1104,7 +981,7 @@ namespace GameWIP::Terminal::Detail::Platform
                     .bytes = {}};
             }
 
-            return readFileInputChunk(handle, timeout, requestedBytesHint);
+            return readFileInputChunk(handle, timeout, stopToken, requestedBytesHint);
         }
 
         /// @brief Finds the largest valid complete UTF-8 prefix that fits maxBytes.
@@ -1378,17 +1255,17 @@ namespace GameWIP::Terminal::Detail::Platform
 
         if (result.capabilities.kind == StreamKind::Terminal)
         {
-            result.capabilities.supportsRawInput = true;
-            result.capabilities.supportsEchoControl = true;
-            result.capabilities.supportsInputMode = true;
-            result.capabilities.supportsInputAvailability = true;
-            result.capabilities.supportsReadTimeout = false;
+            // Structured Win32 console-event delivery lands in the next Terminal backend slice.
             return result;
         }
 
         const DWORD type = fileType(handle);
-        result.capabilities.supportsInputAvailability = type == FILE_TYPE_PIPE || type == FILE_TYPE_DISK;
-        result.capabilities.supportsReadTimeout = type == FILE_TYPE_PIPE;
+        if (type == FILE_TYPE_PIPE)
+        {
+            result.capabilities.supportsNonBlockingReads = true;
+            result.capabilities.supportsFiniteTimeouts = true;
+            result.capabilities.supportsCancellation = true;
+        }
         return result;
     }
 
@@ -1553,88 +1430,6 @@ namespace GameWIP::Terminal::Detail::Platform
         return IO::successStatus();
     }
 
-    Terminal::Types::InputAvailabilityResult getInputAvailability(InputStream stream)
-    {
-        Terminal::Types::InputAvailabilityResult result;
-        result.status = IO::successStatus();
-
-#if INTERNAL_TERMINAL_TEST_HOOKS
-        if (std::optional<IO::Types::Status> failure =
-                consumeHookFailure(HookDetail::terminalTestHookState.nextInputAvailabilityFailure, "Forced terminal input availability failure."))
-        {
-            result.status = *failure;
-            return result;
-        }
-
-        {
-            std::lock_guard lock(HookDetail::terminalTestHookState.mutex);
-            const HookDetail::InputHookState &state = HookDetail::terminalTestHookState.inputStreams[HookDetail::inputIndex(stream)];
-            if (state.inputBytesOverrideEnabled)
-            {
-                result.available = !state.inputBytes.empty();
-                result.estimatedBytes = state.inputBytes.size();
-                return result;
-            }
-        }
-#endif
-
-        InputState &state = inputState(stream);
-        if (!state.pendingBytes.empty())
-        {
-            result.available = true;
-            result.estimatedBytes = state.pendingBytes.size();
-            return result;
-        }
-
-        const HANDLE handle = inputHandle(stream);
-        if (!isUsableHandle(handle))
-        {
-            result.status = IO::makeStatus(ErrorCode::NotOpen, 0, "Terminal input stream is detached.");
-            return result;
-        }
-
-        if (isConsoleHandle(handle))
-        {
-            return consoleInputAvailability(handle, state);
-        }
-
-        const DWORD type = fileType(handle);
-        if (type == FILE_TYPE_PIPE)
-        {
-            DWORD availableBytes = 0;
-            DWORD error = ERROR_SUCCESS;
-            if (!peekPipeBytes(handle, availableBytes, error))
-            {
-                if (error == ERROR_BROKEN_PIPE || error == ERROR_HANDLE_EOF)
-                {
-                    result.available = false;
-                    return result;
-                }
-
-                result.status = statusFromWin32(readErrorCode(error), error, "PeekNamedPipe failed for terminal input availability.");
-                return result;
-            }
-
-            result.available = availableBytes > 0;
-            result.estimatedBytes = availableBytes;
-            return result;
-        }
-
-        if (type == FILE_TYPE_DISK)
-        {
-            return diskInputAvailability(handle);
-        }
-
-        result.status = IO::makeStatus(ErrorCode::Unsupported, 0, "Input availability is unsupported for this Win32 input stream type.");
-        return result;
-    }
-
-    Terminal::Types::InputModeResult getInputMode(InputStream stream)
-    {
-        const InputModeSnapshotResult snapshotResult = captureInputMode(stream);
-        return {.status = snapshotResult.status, .mode = snapshotResult.snapshot.mode};
-    }
-
     InputModeSnapshotResult captureInputMode(InputStream stream)
     {
         InputModeSnapshotResult result;
@@ -1653,7 +1448,11 @@ namespace GameWIP::Terminal::Detail::Platform
             if (state.inputModeOverrideEnabled)
             {
                 result.status = IO::successStatus();
-                result.snapshot.mode = state.currentInputMode;
+                result.snapshot.mode = {
+                    .lineBuffered = state.lineBuffered,
+                    .echoInput = state.echoInput,
+                    .processControlKeys = state.processControlKeys,
+                };
                 return result;
             }
         }
@@ -1673,13 +1472,6 @@ namespace GameWIP::Terminal::Detail::Platform
             return result;
         }
 
-        IO::Types::Status status = captureDefaultInputMode(stream, handle);
-        if (!status.ok())
-        {
-            result.status = status;
-            return result;
-        }
-
         DWORD mode = 0;
         if (GetConsoleMode(handle, &mode) == FALSE)
         {
@@ -1695,7 +1487,7 @@ namespace GameWIP::Terminal::Detail::Platform
         return result;
     }
 
-    IO::Types::Status setInputMode(InputStream stream, const Terminal::Types::InputMode &mode)
+    IO::Types::Status setInputMode(InputStream stream, const InputMode &mode)
     {
         if (mode.echoInput && !mode.lineBuffered)
         {
@@ -1714,7 +1506,9 @@ namespace GameWIP::Terminal::Detail::Platform
             HookDetail::InputHookState &state = HookDetail::terminalTestHookState.inputStreams[HookDetail::inputIndex(stream)];
             if (state.inputModeOverrideEnabled)
             {
-                state.currentInputMode = mode;
+                state.lineBuffered = mode.lineBuffered;
+                state.echoInput = mode.echoInput;
+                state.processControlKeys = mode.processControlKeys;
                 return IO::successStatus();
             }
         }
@@ -1729,12 +1523,6 @@ namespace GameWIP::Terminal::Detail::Platform
         if (!isConsoleHandle(handle))
         {
             return IO::makeStatus(ErrorCode::Unsupported, 0, "Terminal input mode is available only for real console input streams.");
-        }
-
-        IO::Types::Status status = captureDefaultInputMode(stream, handle);
-        if (!status.ok())
-        {
-            return status;
         }
 
         DWORD consoleMode = 0;
@@ -1793,7 +1581,9 @@ namespace GameWIP::Terminal::Detail::Platform
             HookDetail::InputHookState &state = HookDetail::terminalTestHookState.inputStreams[HookDetail::inputIndex(stream)];
             if (state.inputModeOverrideEnabled)
             {
-                state.currentInputMode = snapshot.mode;
+                state.lineBuffered = snapshot.mode.lineBuffered;
+                state.echoInput = snapshot.mode.echoInput;
+                state.processControlKeys = snapshot.mode.processControlKeys;
                 return IO::successStatus();
             }
         }
@@ -1818,53 +1608,7 @@ namespace GameWIP::Terminal::Detail::Platform
         if (SetConsoleMode(handle, static_cast<DWORD>(snapshot.nativeMode)) == FALSE)
         {
             const DWORD error = GetLastError();
-            return statusFromWin32(ErrorCode::NativeFailure, error, "SetConsoleMode failed while restoring a scoped terminal input mode.");
-        }
-
-        return IO::successStatus();
-    }
-
-    IO::Types::Status restoreDefaultInputMode(InputStream stream)
-    {
-#if INTERNAL_TERMINAL_TEST_HOOKS
-        if (std::optional<IO::Types::Status> failure =
-                consumeHookFailure(HookDetail::terminalTestHookState.nextInputModeFailure, "Forced terminal input mode failure."))
-        {
-            return *failure;
-        }
-
-        {
-            std::lock_guard lock(HookDetail::terminalTestHookState.mutex);
-            HookDetail::InputHookState &state = HookDetail::terminalTestHookState.inputStreams[HookDetail::inputIndex(stream)];
-            if (state.inputModeOverrideEnabled)
-            {
-                state.currentInputMode = state.defaultInputMode;
-                return IO::successStatus();
-            }
-        }
-#endif
-
-        const HANDLE handle = inputHandle(stream);
-        if (!isUsableHandle(handle))
-        {
-            return IO::makeStatus(ErrorCode::NotOpen, 0, "Terminal input stream is detached.");
-        }
-
-        if (!isConsoleHandle(handle))
-        {
-            return IO::makeStatus(ErrorCode::Unsupported, 0, "Terminal input mode is available only for real console input streams.");
-        }
-
-        IO::Types::Status status = captureDefaultInputMode(stream, handle);
-        if (!status.ok())
-        {
-            return status;
-        }
-
-        if (SetConsoleMode(handle, inputState(stream).defaultConsoleMode) == FALSE)
-        {
-            const DWORD error = GetLastError();
-            return statusFromWin32(ErrorCode::NativeFailure, error, "SetConsoleMode failed while restoring terminal input mode.");
+            return statusFromWin32(ErrorCode::NativeFailure, error, "SetConsoleMode failed while restoring managed terminal input state.");
         }
 
         return IO::successStatus();
@@ -1980,6 +1724,26 @@ namespace GameWIP::Terminal::Detail::Platform
         return result;
     }
 
+    Terminal::Types::EventReadResult readEvent(
+        [[maybe_unused]] InputStream stream,
+        const Terminal::Types::EventReadOptions &options)
+    {
+        Terminal::Types::EventReadResult result;
+        result.status = IO::successStatus();
+
+        if (options.stopToken.stop_requested())
+        {
+            result.outcome = ReadOutcome::Cancelled;
+            return result;
+        }
+
+        result.status = IO::makeStatus(
+            ErrorCode::Unsupported,
+            0,
+            "Structured Win32 terminal event input is not implemented yet.");
+        return result;
+    }
+
     Terminal::Types::ByteReadResult readBytes(InputStream stream, std::span<std::byte> outputBuffer, const Terminal::Types::ByteReadOptions &options)
     {
         Terminal::Types::ByteReadResult result;
@@ -1990,6 +1754,7 @@ namespace GameWIP::Terminal::Detail::Platform
             return result;
         }
 
+        const std::chrono::milliseconds requestedTimeout = backendTimeout(options.timeout);
         InputState &state = inputState(stream);
         const auto start = std::chrono::steady_clock::now();
 
@@ -2008,14 +1773,14 @@ namespace GameWIP::Terminal::Detail::Platform
                 }
             }
 
-            const std::chrono::milliseconds timeout = remainingTimeout(start, options.timeout);
-            if (options.timeout.count() > 0 && timeout.count() == 0)
+            const std::chrono::milliseconds timeout = remainingTimeout(start, requestedTimeout);
+            if (requestedTimeout.count() > 0 && timeout.count() == 0)
             {
                 result.outcome = ReadOutcome::TimedOut;
                 return result;
             }
 
-            ReadChunk chunk = readInputChunk(stream, timeout, outputBuffer.size() - result.bytesRead);
+            ReadChunk chunk = readInputChunk(stream, timeout, options.stopToken, outputBuffer.size() - result.bytesRead);
             if (!chunk.status.ok())
             {
                 result.status = chunk.status;
@@ -2047,6 +1812,7 @@ namespace GameWIP::Terminal::Detail::Platform
         }
 
         const std::size_t maxBytes = clampedMaxBytes(options.maxReturnedBytes);
+        const std::chrono::milliseconds requestedTimeout = backendTimeout(options.timeout);
         InputState &state = inputState(stream);
         const auto start = std::chrono::steady_clock::now();
 
@@ -2079,15 +1845,15 @@ namespace GameWIP::Terminal::Detail::Platform
                 }
             }
 
-            const std::chrono::milliseconds timeout = remainingTimeout(start, options.timeout);
-            if (options.timeout.count() > 0 && timeout.count() == 0)
+            const std::chrono::milliseconds timeout = remainingTimeout(start, requestedTimeout);
+            if (requestedTimeout.count() > 0 && timeout.count() == 0)
             {
                 result.outcome = ReadOutcome::TimedOut;
                 return result;
             }
 
             const std::size_t requestBytes = maxBytes >= 4096 ? 4096 : std::min<std::size_t>(maxBytes + std::min<std::size_t>(4, maxBytes), 4096);
-            ReadChunk chunk = readInputChunk(stream, timeout, requestBytes);
+            ReadChunk chunk = readInputChunk(stream, timeout, options.stopToken, requestBytes);
             if (!chunk.status.ok())
             {
                 result.status = chunk.status;
@@ -2124,6 +1890,7 @@ namespace GameWIP::Terminal::Detail::Platform
         }
 
         const std::size_t maxBytes = clampedMaxBytes(options.maxReturnedBytes);
+        const std::chrono::milliseconds requestedTimeout = backendTimeout(options.timeout);
         InputState &state = inputState(stream);
         const auto start = std::chrono::steady_clock::now();
         std::size_t scanOffset = 0;
@@ -2147,8 +1914,8 @@ namespace GameWIP::Terminal::Detail::Platform
 
             scanOffset = !pending.empty() && pending.back() == '\r' ? pending.size() - 1 : pending.size();
 
-            const std::chrono::milliseconds timeout = remainingTimeout(start, options.timeout);
-            if (options.timeout.count() > 0 && timeout.count() == 0)
+            const std::chrono::milliseconds timeout = remainingTimeout(start, requestedTimeout);
+            if (requestedTimeout.count() > 0 && timeout.count() == 0)
             {
                 ending = findLineEnding(state.pendingBytes.view(), scanOffset, true);
                 if (ending.found)
@@ -2173,7 +1940,7 @@ namespace GameWIP::Terminal::Detail::Platform
                 return result;
             }
 
-            ReadChunk chunk = readInputChunk(stream, timeout, 4096);
+            ReadChunk chunk = readInputChunk(stream, timeout, options.stopToken, 4096);
             if (!chunk.status.ok())
             {
                 result.status = chunk.status;

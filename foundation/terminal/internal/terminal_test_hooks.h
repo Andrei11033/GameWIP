@@ -40,8 +40,9 @@ namespace GameWIP::Terminal::Detail::TestHooks
         std::string inputBytes;
 
         bool inputModeOverrideEnabled = false;
-        Terminal::Types::InputMode currentInputMode{};
-        Terminal::Types::InputMode defaultInputMode{};
+        bool lineBuffered = true;
+        bool echoInput = true;
+        bool processControlKeys = true;
     };
 
     /// @brief Mutable deterministic stdout/stderr state protected by TerminalTestHookState::mutex.
@@ -75,7 +76,6 @@ namespace GameWIP::Terminal::Detail::TestHooks
         HookFailure nextInputCapabilityFailure;
         HookFailure nextOutputCapabilityFailure;
         HookFailure nextOutputPreparationFailure;
-        HookFailure nextInputAvailabilityFailure;
         HookFailure nextInputModeFailure;
         HookFailure nextReadFailure;
         HookFailure nextTerminalSizeFailure;
@@ -153,9 +153,21 @@ namespace GameWIP::Terminal::TestHooks
     /// @warning Test-only API. Available only on the Win32 validation backend.
     [[nodiscard]] GAMEWIP_TERMINAL_EXPORT bool hasPendingHighSurrogate(Terminal::Types::InputStream stream) noexcept;
 
-    /// @brief Overrides input mode operations with an in-memory mode.
+    /// @brief Overrides internal native-mode capture/set/restore with deterministic in-memory flags.
     /// @warning Test-only API.
-    GAMEWIP_TERMINAL_EXPORT void setInputModeOverride(Terminal::Types::InputStream stream, const Terminal::Types::InputMode &defaultMode);
+    GAMEWIP_TERMINAL_EXPORT void setInputModeOverride(
+        Terminal::Types::InputStream stream,
+        bool lineBuffered = true,
+        bool echoInput = true,
+        bool processControlKeys = true);
+
+    /// @brief Returns whether the deterministic input-mode override currently matches all requested flags.
+    /// @warning Test-only API.
+    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT bool inputModeOverrideMatches(
+        Terminal::Types::InputStream stream,
+        bool lineBuffered,
+        bool echoInput,
+        bool processControlKeys) noexcept;
 
     /// @brief Clears an input mode override.
     /// @warning Test-only API.
@@ -209,9 +221,7 @@ namespace GameWIP::Terminal::TestHooks
     GAMEWIP_TERMINAL_EXPORT void forceNextOutputCapabilityFailure(IO::Types::ErrorCode code = IO::Types::ErrorCode::StatFailed) noexcept;
     /// @brief Forces the next output-preparation attempt to fail with code.
     GAMEWIP_TERMINAL_EXPORT void forceNextOutputPreparationFailure(IO::Types::ErrorCode code = IO::Types::ErrorCode::NativeFailure) noexcept;
-    /// @brief Forces the next input-availability query to fail with code.
-    GAMEWIP_TERMINAL_EXPORT void forceNextInputAvailabilityFailure(IO::Types::ErrorCode code = IO::Types::ErrorCode::StatFailed) noexcept;
-    /// @brief Forces the next input-mode operation to fail with code.
+    /// @brief Forces the next internal input-mode capture/set/restore operation to fail with code.
     GAMEWIP_TERMINAL_EXPORT void forceNextInputModeFailure(IO::Types::ErrorCode code = IO::Types::ErrorCode::NativeFailure) noexcept;
     /// @brief Forces the next input read to fail with code.
     GAMEWIP_TERMINAL_EXPORT void forceNextReadFailure(IO::Types::ErrorCode code = IO::Types::ErrorCode::ReadFailed) noexcept;

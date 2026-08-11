@@ -13,8 +13,8 @@ The Terminal validation module covers:
 - capability observation, preparation, idempotence, and failure propagation;
 - `StyleMode::Never`, `Auto`, and `Required`;
 - redirected output, native line endings, UTF-8 conversion, and invalid-option rejection before normal emission;
-- stdin line, text, and byte reads, code-point-safe limits, timeouts, would-block, EOF, and availability;
-- input-mode query, set, default restore, scoped restore, and preservation of Terminal-buffered input;
+- stdin event/line/text/byte read contracts, code-point-safe limits, deadlines, polling, cancellation, EOF, and incompatible-delivery rejection;
+- persistent Session open/close, AlreadyOpen, ResourceBusy ownership conflicts, exact native restoration, failed-close retry, move construction, destructor cleanup, and direct-read temporary restoration;
 - cursor, alternate screen, title, bell, clear, scroll, size, position, and flush behavior;
 - scope setup, nesting, move behavior, explicit restoration, failed restoration, and retry;
 - Logger integration through the shared Terminal runtime;
@@ -41,7 +41,7 @@ Automated runs leave human interaction disabled. From a real Windows Terminal se
 .\build\test\GameWIPTests.exe --test-module=terminal --manual-tests
 ```
 
-The opt-in suite requests human confirmation for Unicode rendering, colors and styles, cursor save/restore, alternate-screen restoration, interactive input, input-mode restoration, and cursor visibility. It skips with an explicit reason when the required streams are not real terminals.
+The opt-in suite requests human confirmation for Unicode rendering, colors and styles, cursor save/restore, alternate-screen restoration, interactive input, managed session restoration, and cursor visibility. Structured event interaction is expanded with the Win32 event-backend slice. It skips with an explicit reason when the required streams are not real terminals.
 
 ## Test hooks
 

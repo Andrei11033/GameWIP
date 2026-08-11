@@ -9,8 +9,11 @@
 #include <cstdint>
 #include <format>
 #include <iterator>
+#include <memory>
+#include <optional>
 #include <ranges>
 #include <span>
+#include <stop_token>
 #include <string>
 #include <string_view>
 #include <type_traits>
@@ -80,12 +83,8 @@ namespace GameWIP::Terminal
                  !std::ranges::borrowed_range<Range>)
     [[nodiscard]] Types::WriteSegment byteSegment(Range &&bytes) noexcept = delete;
 
-    /// @brief Sentinel timeout requesting an unbounded wait.
-    /// @note The selected endpoint may still reject blocking or timeout behavior as Unsupported.
-    inline constexpr std::chrono::milliseconds kWaitForever{-1};
-
-    /// @brief Sentinel timeout requesting a non-blocking attempt.
-    /// @note A stream without non-blocking/timed-read support returns Unsupported.
+    /// @brief Read timeout requesting a non-blocking attempt.
+    /// @note A stream without non-blocking-read support returns Unsupported.
     inline constexpr std::chrono::milliseconds kNoWait{0};
 
     /// @brief Default timeout used by best-effort terminal control queries.
@@ -153,6 +152,22 @@ namespace GameWIP::Terminal
 
             /// @brief Request reportable control-key combinations as logical terminal input.
             ReportAsInput
+        };
+
+        /// @brief Configuration retained by one persistent Terminal input session.
+        struct SessionOptions
+        {
+            /// @brief Standard input stream owned by the session.
+            InputStream input = InputStream::Stdin;
+
+            /// @brief Primary output stream bound to the session for later output operations.
+            OutputStream output = OutputStream::Stdout;
+
+            /// @brief Input representation selected for the complete open session.
+            InputDeliveryMode deliveryMode = InputDeliveryMode::Events;
+
+            /// @brief Native control-key policy applied while the session owns terminal input.
+            ControlKeyMode controlKeyMode = ControlKeyMode::NativeProcessing;
         };
 
         /// @brief One valid Unicode scalar reported as a logical terminal key.
@@ -314,7 +329,10 @@ namespace GameWIP::Terminal
             TimedOut,
 
             /// @brief A non-blocking read found no available input.
-            WouldBlock
+            WouldBlock,
+
+            /// @brief The caller-requested stop token cancelled the read.
+            Cancelled
         };
 
         /// @brief Line ending consumed by a line read.
@@ -533,58 +551,56 @@ namespace GameWIP::Terminal
             NormalizeToLf
         };
 
-        /// @brief Common terminal input mode presets.
-        enum class InputModePreset
-        {
-            /// @brief Normal interactive input: line-buffered, echoed, and control keys processed.
-            InteractiveLine,
-
-            /// @brief Raw byte-oriented input where practical.
-            RawBytes
-        };
-
-        /// @brief Portable terminal input mode.
-        struct InputMode
-        {
-            /// @brief Whether input waits for a complete line before reads complete.
-            bool lineBuffered = true;
-
-            /// @brief Whether typed input is echoed by the terminal.
-            bool echoInput = true;
-
-            /// @brief Whether platform terminal control keys are processed.
-            bool processControlKeys = true;
-        };
-
-        /// @brief Capabilities of a standard terminal input stream.
+        /// @brief Capabilities of the managed Terminal input abstraction for one standard input endpoint.
         struct InputCapabilities
         {
             /// @brief Detected stream endpoint kind.
             StreamKind kind = StreamKind::Detached;
 
-            /// @brief True when UTF-8 text input is supported.
+            /// @brief True when valid UTF-8 text input is supported.
             bool supportsUtf8Text = false;
 
-            /// @brief True when byte input is supported.
+            /// @brief True when arbitrary byte input is supported.
             bool supportsByteInput = false;
 
             /// @brief True when line input is supported.
             bool supportsLineInput = false;
 
-            /// @brief True when raw byte input mode is supported.
-            bool supportsRawInput = false;
+            /// @brief True when normalized structured event input is supported.
+            bool supportsEventInput = false;
 
-            /// @brief True when echo can be controlled.
-            bool supportsEchoControl = false;
+            /// @brief True when a zero-duration read can poll without a normal blocking wait.
+            bool supportsNonBlockingReads = false;
 
-            /// @brief True when input mode can be queried or changed.
-            bool supportsInputMode = false;
+            /// @brief True when positive finite read deadlines are supported.
+            bool supportsFiniteTimeouts = false;
 
-            /// @brief True when input availability can be queried without normal blocking.
-            bool supportsInputAvailability = false;
+            /// @brief True when an in-progress blocking read can observe a caller stop request.
+            bool supportsCancellation = false;
 
-            /// @brief True when timed reads are supported.
-            bool supportsReadTimeout = false;
+            /// @brief True when terminal resize changes can be delivered as structured events.
+            bool supportsResizeEvents = false;
+
+            /// @brief True when recognized paste input can be delivered as PasteEvent.
+            bool supportsPasteEvents = false;
+
+            /// @brief True when key repeat events can be distinguished from initial presses.
+            bool supportsKeyRepeatEvents = false;
+
+            /// @brief True when key release events can be reported.
+            bool supportsKeyReleaseEvents = false;
+
+            /// @brief True when standalone modifier-key events can be reported.
+            bool supportsStandaloneModifierEvents = false;
+
+            /// @brief True when media-key events can be reported.
+            bool supportsMediaKeyEvents = false;
+
+            /// @brief True when key location is reported reliably where meaningful.
+            bool supportsKeyLocation = false;
+
+            /// @brief True when accompanying modifier/lock state is reported reliably.
+            bool supportsModifierState = false;
         };
 
         /// @brief Capabilities of a standard terminal output stream.
@@ -782,21 +798,27 @@ namespace GameWIP::Terminal
         /// @brief Options used by byte reads.
         struct ByteReadOptions
         {
-            /// @brief Negative waits forever, zero does not wait, positive waits up to that duration.
-            /// @note A finite timeout may return Unsupported when the input capabilities do not advertise timeout support.
-            std::chrono::milliseconds timeout = kWaitForever;
+            /// @brief Total read deadline: nullopt waits indefinitely, zero polls, and positive values bound the complete operation.
+            /// @note Negative values are InvalidArgument. Endpoint support remains authoritative.
+            std::optional<std::chrono::milliseconds> timeout = std::nullopt;
+
+            /// @brief Caller-controlled cancellation request observed where the endpoint supports cancellable blocking reads.
+            std::stop_token stopToken{};
 
             /// @brief Whether a successful read may return fewer bytes than requested.
             bool allowPartial = true;
         };
 
         /// @brief Options used by text reads.
-        /// @details Text reads return one available UTF-8 chunk after input becomes available.
+        /// @details Text reads return one available valid UTF-8 chunk after input becomes available.
         struct TextReadOptions
         {
-            /// @brief Negative waits forever, zero does not wait, positive waits up to that duration.
-            /// @note A finite timeout may return Unsupported when the input capabilities do not advertise timeout support.
-            std::chrono::milliseconds timeout = kWaitForever;
+            /// @brief Total read deadline: nullopt waits indefinitely, zero polls, and positive values bound the complete operation.
+            /// @note Negative values are InvalidArgument. Endpoint support remains authoritative.
+            std::optional<std::chrono::milliseconds> timeout = std::nullopt;
+
+            /// @brief Caller-controlled cancellation request observed where the endpoint supports cancellable blocking reads.
+            std::stop_token stopToken{};
 
             /// @brief Maximum accepted byte count for one available UTF-8 text chunk.
             std::uint64_t maxReturnedBytes = kDefaultMaxReturnedTextBytes;
@@ -806,15 +828,29 @@ namespace GameWIP::Terminal
         /// @details Line reads do not expose allowPartial; they stop at a line ending, terminating outcome, truncation, or failure.
         struct LineReadOptions
         {
-            /// @brief Negative waits forever, zero does not wait, positive waits up to that duration.
-            /// @note A finite timeout may return Unsupported when the input capabilities do not advertise timeout support.
-            std::chrono::milliseconds timeout = kWaitForever;
+            /// @brief Total read deadline: nullopt waits indefinitely, zero polls, and positive values bound the complete operation.
+            /// @note Negative values are InvalidArgument. Endpoint support remains authoritative.
+            std::optional<std::chrono::milliseconds> timeout = std::nullopt;
+
+            /// @brief Caller-controlled cancellation request observed where the endpoint supports cancellable blocking reads.
+            std::stop_token stopToken{};
 
             /// @brief Maximum accepted byte count for the returned line representation.
             std::uint64_t maxReturnedBytes = kDefaultMaxReturnedLineBytes;
 
             /// @brief How a consumed line ending is represented.
             ReadLineEndingMode lineEndingMode = ReadLineEndingMode::Strip;
+        };
+
+        /// @brief Options used by structured event reads.
+        struct EventReadOptions
+        {
+            /// @brief Total read deadline: nullopt waits indefinitely, zero polls, and positive values bound the complete operation.
+            /// @note Negative values are InvalidArgument. Endpoint support remains authoritative.
+            std::optional<std::chrono::milliseconds> timeout = std::nullopt;
+
+            /// @brief Caller-controlled cancellation request observed where the endpoint supports cancellable blocking reads.
+            std::stop_token stopToken{};
         };
 
         /// @brief Options used by text output calls.
@@ -888,27 +924,18 @@ namespace GameWIP::Terminal
             IO::Types::FlushMode flushMode = IO::Types::FlushMode::Data;
         };
 
-        /// @brief Result returned by input mode queries.
-        struct InputModeResult
+        /// @brief Result returned by structured event reads.
+        struct EventReadResult
         {
             /// @brief Operation status.
             IO::Types::Status status;
 
-            /// @brief Reported input mode.
-            InputMode mode;
-        };
+            /// @brief Read outcome.
+            ReadOutcome outcome = ReadOutcome::Completed;
 
-        /// @brief Result returned by input availability queries.
-        struct InputAvailabilityResult
-        {
-            /// @brief Operation status.
-            IO::Types::Status status;
-
-            /// @brief True when input can be read without a normal blocking wait.
-            bool available = false;
-
-            /// @brief Best-effort byte estimate. May be zero even when available is true.
-            std::uint64_t estimatedBytes = 0;
+            /// @brief Event produced by a completed event read.
+            /// @details Empty for non-completed outcomes and failures.
+            std::optional<Event> event;
         };
 
         /// @brief Result returned by byte reads.
@@ -943,7 +970,7 @@ namespace GameWIP::Terminal
         };
 
         /// @brief Result returned by line reads.
-        /// @details line can contain an unterminated UTF-8 prefix together with EndOfStream, TimedOut, or WouldBlock.
+        /// @details line can contain an unterminated valid UTF-8 prefix together with EndOfStream, TimedOut, WouldBlock, or Cancelled.
         struct LineReadResult
         {
             /// @brief Operation status.
@@ -1026,56 +1053,62 @@ namespace GameWIP::Terminal
     /// @brief Creates a terminal default color.
     [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::Color defaultColor() noexcept;
 
-    /// @brief Creates an input mode from a preset.
-    /// @param preset Preset to convert.
-    /// @return The requested mode. Unknown preset values fall back to InteractiveLine.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::InputMode makeInputMode(Types::InputModePreset preset) noexcept;
-
-    /// @brief Movable, non-copyable RAII helper that restores a complete previous backend terminal input mode.
-    /// @details A failed setup produces an inactive scope carrying the setup status. Failed explicit restoration leaves the
-    /// scope active for retry. Move assignment does not consume its source when restoring the destination's current state fails.
-    class GAMEWIP_TERMINAL_EXPORT InputModeScope final
+    /// @brief Persistent managed Terminal input owner with one bound primary output stream.
+    /// @details A Session is closed by default. open() acquires exclusive Terminal ownership of its input stream,
+    /// configures required native state, and retains that state until close() or best-effort destruction. The object
+    /// serializes its own input operations and close() so native restoration cannot race an active read.
+    class GAMEWIP_TERMINAL_EXPORT Session final
     {
     public:
-        /// @brief Creates an inactive input mode scope.
-        InputModeScope() noexcept;
+        /// @brief Creates a closed session without allocating or touching terminal state.
+        Session() noexcept;
 
-        /// @brief Input-mode restoration responsibility cannot be copied.
-        InputModeScope(const InputModeScope &) = delete;
-        /// @brief Input-mode restoration responsibility cannot be copy-assigned.
-        InputModeScope &operator=(const InputModeScope &) = delete;
+        /// @brief Session ownership cannot be copied.
+        Session(const Session &) = delete;
+        /// @brief Session ownership cannot be copy-assigned.
+        Session &operator=(const Session &) = delete;
 
-        /// @brief Move-constructs the scope and transfers restoration responsibility.
-        InputModeScope(InputModeScope &&other) noexcept;
+        /// @brief Transfers an existing session, including any open input ownership.
+        Session(Session &&other) noexcept;
 
-        /// @brief Restores any destination-owned mode, then transfers restoration responsibility.
-        /// @note If destination restoration fails, this scope remains active and other is not consumed.
-        InputModeScope &operator=(InputModeScope &&other) noexcept;
+        /// @brief Move assignment is disabled so replacing an open session cannot hide restoration failure.
+        Session &operator=(Session &&other) = delete;
 
-        /// @brief Restores the complete previous backend input mode on a best-effort basis without throwing.
-        ~InputModeScope() noexcept;
+        /// @brief Makes a best-effort non-throwing close and releases any remaining process-wide ownership.
+        ~Session() noexcept;
 
-        /// @brief Returns whether this scope still owns restoration responsibility.
-        [[nodiscard]] bool active() const noexcept;
+        /// @brief Returns whether this object currently owns an open Terminal session.
+        [[nodiscard]] bool isOpen() const noexcept;
 
-        /// @brief Returns the last setup or restoration status tracked by this scope.
-        [[nodiscard]] const IO::Types::Status &status() const noexcept;
+        /// @brief Opens the session and acquires exclusive managed ownership of the selected input stream.
+        /// @param options Input/output binding and delivery/control policy retained until close().
+        /// @return Success, AlreadyOpen, ResourceBusy, Unsupported, or another checked setup failure.
+        [[nodiscard]] IO::Types::Status open(const Types::SessionOptions &options = {}) noexcept;
 
-        /// @brief Restores the complete previous backend input mode and reports restoration failure.
-        [[nodiscard]] IO::Types::Status restore() noexcept;
+        /// @brief Restores exact session-owned native state and releases managed input ownership.
+        /// @return Success when closed. Restoration failure leaves the session open and ownership retained for retry.
+        [[nodiscard]] IO::Types::Status close() noexcept;
 
-        /// @brief Releases restoration responsibility without changing input mode.
-        void release() noexcept;
+        /// @brief Reads one structured input event in an Events-delivery session.
+        /// @return Status, stopping outcome, and optional event payload.
+        [[nodiscard]] Types::EventReadResult readEvent(const Types::EventReadOptions &options = {}) noexcept;
+
+        /// @brief Reads bytes into caller storage in a Stream-delivery session.
+        /// @param outputBuffer Caller-owned byte destination.
+        /// @param options Deadline, cancellation, and partial-read behavior.
+        [[nodiscard]] Types::ByteReadResult readBytes(
+            std::span<std::byte> outputBuffer,
+            const Types::ByteReadOptions &options = {}) noexcept;
+
+        /// @brief Reads one valid UTF-8 text chunk in a Stream-delivery session.
+        [[nodiscard]] Types::TextReadResult readText(const Types::TextReadOptions &options = {}) noexcept;
+
+        /// @brief Reads one valid UTF-8 line in a Stream-delivery session.
+        [[nodiscard]] Types::LineReadResult readLine(const Types::LineReadOptions &options = {}) noexcept;
 
     private:
-        friend GAMEWIP_TERMINAL_EXPORT InputModeScope scopedInputMode(Types::InputStream stream, const Types::InputMode &mode) noexcept;
-
-        Types::InputStream stream_ = Types::InputStream::Stdin;
-        Types::InputMode previousMode_{};
-        std::uint64_t previousNativeMode_ = 0;
-        IO::Types::Status status_{};
-        bool hasPreviousNativeMode_ = false;
-        bool active_ = false;
+        struct State;
+        std::unique_ptr<State> state_;
     };
 
     /// @brief Movable, non-copyable RAII helper that leaves alternate screen mode when destroyed.
@@ -1254,63 +1287,42 @@ namespace GameWIP::Terminal
     /// @brief Gets terminal size for an output stream.
     [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::TerminalSizeResult getTerminalSize(Types::OutputStream stream);
 
-    /// @brief Checks whether input is available on stdin.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::InputAvailabilityResult getInputAvailability();
+    /// @brief Reads one structured input event from stdin through temporary managed ownership.
+    /// @return Status, stopping outcome, and optional event payload.
+    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::EventReadResult readEvent(const Types::EventReadOptions &options = {}) noexcept;
 
-    /// @brief Checks whether input is available on an input stream.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::InputAvailabilityResult getInputAvailability(Types::InputStream stream);
-
-    /// @brief Gets the current mode for stdin.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::InputModeResult getInputMode();
-
-    /// @brief Gets the current mode for an input stream.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::InputModeResult getInputMode(Types::InputStream stream);
-
-    /// @brief Sets the mode for stdin without discarding Terminal-buffered input.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status setInputMode(const Types::InputMode &mode);
-
-    /// @brief Sets the mode for an input stream without discarding Terminal-buffered input.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status setInputMode(Types::InputStream stream, const Types::InputMode &mode);
-
-    /// @brief Restores the backend/default mode for stdin.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status restoreDefaultInputMode();
-
-    /// @brief Restores the backend/default mode for an input stream.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status restoreDefaultInputMode(Types::InputStream stream);
-
-    /// @brief Temporarily sets stdin mode and returns a restoration scope.
-    /// @return Active scope on success; inactive scope carrying setup failure in status() otherwise.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT InputModeScope scopedInputMode(const Types::InputMode &mode) noexcept;
-
-    /// @brief Temporarily sets an input stream mode and returns a restoration scope.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT InputModeScope scopedInputMode(Types::InputStream stream, const Types::InputMode &mode) noexcept;
+    /// @brief Reads one structured input event from an input stream through temporary managed ownership.
+    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::EventReadResult
+    readEvent(Types::InputStream stream, const Types::EventReadOptions &options = {}) noexcept;
 
     /// @brief Reads one UTF-8 line from stdin.
     /// @return Status, stopping outcome, returned line, consumed ending, and truncation state. Partial line text may accompany
-    /// EndOfStream, TimedOut, WouldBlock, or a later failure.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::LineReadResult readLine(const Types::LineReadOptions &options = {});
+    /// EndOfStream, TimedOut, WouldBlock, Cancelled, or a later failure.
+    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::LineReadResult readLine(const Types::LineReadOptions &options = {}) noexcept;
 
     /// @brief Reads one line from an input stream.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::LineReadResult readLine(Types::InputStream stream, const Types::LineReadOptions &options = {});
+    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::LineReadResult
+    readLine(Types::InputStream stream, const Types::LineReadOptions &options = {}) noexcept;
 
     /// @brief Reads one available complete UTF-8 text chunk from stdin.
     /// @return Status, stopping outcome, text, and truncation state. Size limits never split a valid UTF-8 code point.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::TextReadResult readText(const Types::TextReadOptions &options = {});
+    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::TextReadResult readText(const Types::TextReadOptions &options = {}) noexcept;
 
     /// @brief Reads one available UTF-8 text chunk from an input stream.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::TextReadResult readText(Types::InputStream stream, const Types::TextReadOptions &options = {});
+    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::TextReadResult
+    readText(Types::InputStream stream, const Types::TextReadOptions &options = {}) noexcept;
 
     /// @brief Reads bytes from stdin into caller storage.
     /// @return Status, stopping outcome, and bytes copied. Partial progress may accompany a later failure or terminating outcome.
     [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::ByteReadResult readBytes(
         std::span<std::byte> outputBuffer,
-        const Types::ByteReadOptions &options = {});
+        const Types::ByteReadOptions &options = {}) noexcept;
 
     /// @brief Reads bytes from an input stream into caller storage.
     [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::ByteReadResult readBytes(
         Types::InputStream stream,
         std::span<std::byte> outputBuffer,
-        const Types::ByteReadOptions &options = {});
+        const Types::ByteReadOptions &options = {}) noexcept;
 
     /// @brief Writes UTF-8 text to stdout.
     [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status writeText(std::string_view utf8Text, const Types::TextWriteOptions &options = {});

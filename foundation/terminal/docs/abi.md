@@ -25,13 +25,15 @@ Internal platform headers and test hooks are not installed.
 
 ## Binary compatibility
 
-The public interface exposes C++ standard-library types including `std::string`, `std::string_view`, `std::span`, `std::format_string`, `std::chrono::milliseconds`, and standard exceptions. Consumers must follow the project compiler, language-mode, standard-library, runtime-library, architecture, and build-configuration compatibility policy. See @ref project_library_compatibility.
+The public interface exposes C++ standard-library types including `std::string`, `std::string_view`, `std::span`, `std::optional`, `std::stop_token`, `std::format_string`, `std::chrono::milliseconds`, and standard exceptions. `Session` contains a private `std::unique_ptr` to an incomplete implementation state. Consumers must follow the project compiler, language-mode, standard-library, runtime-library, architecture, and build-configuration compatibility policy. See @ref project_library_compatibility.
 
 The exact-version package file prevents CMake from treating a different GameWIP release as package-compatible. It does not make arbitrary compiler or runtime combinations ABI-compatible.
 
 ## Process-wide runtime
 
-All modules in one process must resolve the same Terminal shared library. Its process-wide stdin/stdout/stderr state provides the synchronization and scope-nesting behavior documented by the manual. Statically duplicating or privately embedding separate Terminal runtimes would not provide one shared coordination domain.
+All modules in one process must resolve the same Terminal shared library. Its process-wide stdin ownership coordinator and stdout/stderr state provide the synchronization, Session/direct-read conflict detection, and output scope-nesting behavior documented by the manual. Statically duplicating or privately embedding separate Terminal runtimes would not provide one shared coordination domain.
+
+`Session`'s private state keeps native handles/mode snapshots, synchronization, decoder/parser state, and later backend-specific buffers out of the installed header. Move construction transfers that same state allocation, preserving managed input ownership identity without exposing implementation layout.
 
 ## Exported template bridges
 

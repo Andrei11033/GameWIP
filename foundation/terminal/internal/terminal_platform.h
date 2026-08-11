@@ -12,10 +12,18 @@
 
 namespace GameWIP::Terminal::Detail::Platform
 {
-    /// @brief Complete backend input-mode snapshot used by scoped restoration.
+    /// @brief Internal portable shape used only to configure and restore backend terminal input state.
+    struct InputMode
+    {
+        bool lineBuffered = true;
+        bool echoInput = true;
+        bool processControlKeys = true;
+    };
+
+    /// @brief Complete backend input-mode snapshot used by managed Session/direct-read restoration.
     struct InputModeSnapshot
     {
-        Terminal::Types::InputMode mode{};
+        InputMode mode{};
         std::uint64_t nativeMode = 0;
         bool hasNativeMode = false;
     };
@@ -57,37 +65,22 @@ namespace GameWIP::Terminal::Detail::Platform
     /// @brief Validates a terminal title for the selected backend.
     [[nodiscard]] IO::Types::Status validateTitle(Terminal::Types::OutputStream stream, std::string_view utf8Title);
 
-    /// @brief Checks whether input can be read without a normal blocking wait.
-    /// @param stream Standard input stream to inspect.
-    /// @return Best-effort availability result.
-    [[nodiscard]] Terminal::Types::InputAvailabilityResult getInputAvailability(Terminal::Types::InputStream stream);
-
-    /// @brief Gets the current input mode for a standard input stream.
-    /// @param stream Standard input stream to inspect.
-    /// @return Portable input mode or an Unsupported/StatFailed-style status.
-    [[nodiscard]] Terminal::Types::InputModeResult getInputMode(Terminal::Types::InputStream stream);
-
     /// @brief Captures the current portable and backend-native input mode.
     /// @param stream Standard input stream to inspect.
-    /// @return Complete snapshot suitable for exact scoped restoration.
+    /// @return Complete snapshot suitable for exact managed restoration.
     [[nodiscard]] InputModeSnapshotResult captureInputMode(Terminal::Types::InputStream stream);
 
-    /// @brief Sets the current input mode for a standard input stream.
+    /// @brief Sets an internal managed input mode for a standard input stream.
     /// @param stream Standard input stream to update.
-    /// @param mode Portable input mode request.
+    /// @param mode Internal mode request.
     /// @return Success or portable/backend-native failure status.
-    [[nodiscard]] IO::Types::Status setInputMode(Terminal::Types::InputStream stream, const Terminal::Types::InputMode &mode);
+    [[nodiscard]] IO::Types::Status setInputMode(Terminal::Types::InputStream stream, const InputMode &mode);
 
     /// @brief Restores a previously captured complete input mode.
     /// @param stream Standard input stream to restore.
     /// @param snapshot Snapshot produced by captureInputMode().
     /// @return Success or portable/backend-native failure status.
     [[nodiscard]] IO::Types::Status restoreInputMode(Terminal::Types::InputStream stream, const InputModeSnapshot &snapshot);
-
-    /// @brief Restores the backend/default input mode for a standard input stream.
-    /// @param stream Standard input stream to restore.
-    /// @return Success or portable/backend-native failure status.
-    [[nodiscard]] IO::Types::Status restoreDefaultInputMode(Terminal::Types::InputStream stream);
 
     /// @brief Gets terminal size for a standard output stream when the backend can query it.
     /// @param stream Standard output stream to inspect.
@@ -103,6 +96,14 @@ namespace GameWIP::Terminal::Detail::Platform
         Terminal::Types::OutputStream outputStream,
         Terminal::Types::InputStream responseStream,
         const Terminal::Types::CursorPositionQueryOptions &options);
+
+    /// @brief Reads one normalized structured event from a standard input stream.
+    /// @param stream Standard input stream to read.
+    /// @param options Event-read deadline and cancellation behavior.
+    /// @return Event result or Unsupported until the selected backend implements event delivery.
+    [[nodiscard]] Terminal::Types::EventReadResult readEvent(
+        Terminal::Types::InputStream stream,
+        const Terminal::Types::EventReadOptions &options);
 
     /// @brief Reads bytes from a standard input stream.
     /// @param stream Standard input stream to read.

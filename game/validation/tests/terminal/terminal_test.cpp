@@ -24,6 +24,7 @@
 #include <filesystem>
 #include <format>
 #include <span>
+#include <stop_token>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -478,74 +479,51 @@ namespace
         context.pass("manual terminal input");
     }
 
-    /// @brief Verifies that scoped input mode and cursor visibility changes restore terminal state.
+    /// @brief Verifies managed Session input restoration and cursor visibility restoration.
     void testManualStateRestoration(
         TestSupport::Context &context,
         const Terminal::Types::InputCapabilities &inputCapabilities,
         const Terminal::Types::OutputCapabilities &outputCapabilities)
     {
-        if (!inputCapabilities.supportsInputMode || !inputCapabilities.supportsEchoControl)
+        if (!inputCapabilities.supportsLineInput)
         {
-            context.skip("manual input-mode restoration", "the terminal does not report input-mode and echo control support");
+            context.skip("manual session restoration", "the terminal does not report managed line input support");
         }
         else
         {
-            const Terminal::Types::InputModeResult originalMode = Terminal::getInputMode();
-            if (requireManualOperation(context, "manual input-mode restoration", "get original input mode", originalMode.status))
+            Terminal::Session session;
+            Terminal::Types::SessionOptions options;
+            options.deliveryMode = Terminal::Types::InputDeliveryMode::Stream;
+
+            const IO::Types::Status openStatus = session.open(options);
+            if (requireManualOperation(context, "manual session restoration", "open managed input session", openStatus))
             {
-                Terminal::Types::InputMode hiddenInputMode = originalMode.mode;
-                hiddenInputMode.lineBuffered = true;
-                hiddenInputMode.echoInput = false;
-                hiddenInputMode.processControlKeys = true;
-
-                Terminal::InputModeScope inputMode = Terminal::scopedInputMode(hiddenInputMode);
-                if (!requireManualOperation(context, "manual input-mode restoration", "disable input echo", inputMode.status()))
-                {
-                    return;
-                }
-                if (!inputMode.active())
-                {
-                    context.fail("manual input-mode restoration", "input-mode scope did not become active");
-                    return;
-                }
-
                 if (!requireManualOperation(
                         context,
-                        "manual input-mode restoration",
-                        "hidden-input prompt writeText",
-                        Terminal::writeText("State restoration: type hidden and press Enter (the word should not echo): ")))
+                        "manual session restoration",
+                        "session-input prompt writeText",
+                        Terminal::writeText("State restoration: type hidden and press Enter: ")))
                 {
+                    static_cast<void>(session.close());
                     return;
                 }
-                const Terminal::Types::LineReadResult hiddenInput = Terminal::readLine();
-                bool readSucceeded = requireManualOperation(context, "manual input-mode restoration", "read hidden input", hiddenInput.status);
+
+                const Terminal::Types::LineReadResult hiddenInput = session.readLine();
+                bool readSucceeded = requireManualOperation(context, "manual session restoration", "read managed session input", hiddenInput.status);
                 if (readSucceeded && (hiddenInput.outcome != Terminal::Types::ReadOutcome::Completed || hiddenInput.line != "hidden"))
                 {
-                    context.fail("manual input-mode restoration", "hidden input did not produce the requested line");
+                    context.fail("manual session restoration", "managed hidden input did not produce the requested line");
                     readSucceeded = false;
                 }
-                const bool restoreSucceeded =
-                    requireManualOperation(context, "manual input-mode restoration", "restore input mode", inputMode.restore());
-                const Terminal::Types::InputModeResult restoredMode = Terminal::getInputMode();
-                const bool querySucceeded =
-                    requireManualOperation(context, "manual input-mode restoration", "get restored input mode", restoredMode.status);
 
-                if (readSucceeded && restoreSucceeded && querySucceeded)
+                const bool closeSucceeded =
+                    requireManualOperation(context, "manual session restoration", "close and restore managed session", session.close());
+                if (readSucceeded && closeSucceeded)
                 {
-                    const bool modesMatch = restoredMode.mode.lineBuffered == originalMode.mode.lineBuffered &&
-                                            restoredMode.mode.echoInput == originalMode.mode.echoInput &&
-                                            restoredMode.mode.processControlKeys == originalMode.mode.processControlKeys;
-                    if (!modesMatch)
-                    {
-                        context.fail("manual input-mode restoration", "the input mode did not match its original state after restoration");
-                    }
-                    else
-                    {
-                        recordManualCheck(
-                            context,
-                            "manual input-mode restoration",
-                            "Was the word 'hidden' suppressed while typing, and is normal input echo restored now?");
-                    }
+                    recordManualCheck(
+                        context,
+                        "manual session restoration",
+                        "Did input behave normally during the Stream session, and is normal terminal input behavior still intact after close?");
                 }
             }
         }
@@ -632,20 +610,23 @@ namespace
         static_cast<void>(context.expectEq("rgbColor green", std::uint8_t{2}, rgb.green()));
         static_cast<void>(context.expectEq("rgbColor blue", std::uint8_t{3}, rgb.blue()));
 
-        const Terminal::Types::InputMode interactive = Terminal::makeInputMode(Terminal::Types::InputModePreset::InteractiveLine);
-        static_cast<void>(context.expectTrue("interactive mode line buffered", interactive.lineBuffered));
-        static_cast<void>(context.expectTrue("interactive mode echo", interactive.echoInput));
-        static_cast<void>(context.expectTrue("interactive mode control keys", interactive.processControlKeys));
-
-        const Terminal::Types::InputMode raw = Terminal::makeInputMode(Terminal::Types::InputModePreset::RawBytes);
-        static_cast<void>(context.expectFalse("raw mode not line buffered", raw.lineBuffered));
-        static_cast<void>(context.expectFalse("raw mode no echo", raw.echoInput));
-        static_cast<void>(context.expectFalse("raw mode no control keys", raw.processControlKeys));
-
-        const Terminal::Types::InputMode invalidMode = Terminal::makeInputMode(static_cast<Terminal::Types::InputModePreset>(-1));
-        static_cast<void>(context.expectTrue("invalid mode falls back to line buffered", invalidMode.lineBuffered));
-        static_cast<void>(context.expectTrue("invalid mode falls back to echo", invalidMode.echoInput));
-        static_cast<void>(context.expectTrue("invalid mode falls back to control keys", invalidMode.processControlKeys));
+        const Terminal::Types::SessionOptions sessionDefaults;
+        static_cast<void>(context.expectEq(
+            "session defaults to stdin",
+            Terminal::Types::InputStream::Stdin,
+            sessionDefaults.input));
+        static_cast<void>(context.expectEq(
+            "session defaults to stdout",
+            Terminal::Types::OutputStream::Stdout,
+            sessionDefaults.output));
+        static_cast<void>(context.expectEq(
+            "session defaults to event delivery",
+            Terminal::Types::InputDeliveryMode::Events,
+            sessionDefaults.deliveryMode));
+        static_cast<void>(context.expectEq(
+            "session defaults to native control processing",
+            Terminal::Types::ControlKeyMode::NativeProcessing,
+            sessionDefaults.controlKeyMode));
 
         constexpr Terminal::Types::KeyModifier modifiers = Terminal::Types::KeyModifier::Shift | Terminal::Types::KeyModifier::Control;
         static_cast<void>(context.expectTrue(
@@ -797,7 +778,7 @@ namespace
             .supportsBell = true};
     }
 
-    /// @brief Returns interactive-input capabilities for hook-backed tests.
+    /// @brief Returns fully managed interactive-input capabilities for hook-backed tests.
     [[nodiscard]] Terminal::Types::InputCapabilities terminalInputCapabilities() noexcept
     {
         return {
@@ -805,11 +786,18 @@ namespace
             .supportsUtf8Text = true,
             .supportsByteInput = true,
             .supportsLineInput = true,
-            .supportsRawInput = true,
-            .supportsEchoControl = true,
-            .supportsInputMode = true,
-            .supportsInputAvailability = true,
-            .supportsReadTimeout = true};
+            .supportsEventInput = true,
+            .supportsNonBlockingReads = true,
+            .supportsFiniteTimeouts = true,
+            .supportsCancellation = true,
+            .supportsResizeEvents = true,
+            .supportsPasteEvents = true,
+            .supportsKeyRepeatEvents = true,
+            .supportsKeyReleaseEvents = true,
+            .supportsStandaloneModifierEvents = true,
+            .supportsMediaKeyEvents = true,
+            .supportsKeyLocation = true,
+            .supportsModifierState = true};
     }
 
     /// @brief Resets hooks, installs output capabilities, and enables byte capture.
@@ -824,10 +812,11 @@ namespace
     void setupInput(std::string_view bytes, bool endOfStreamWhenEmpty = true)
     {
         Hooks::setInputCapabilitiesOverride(Terminal::Types::InputStream::Stdin, terminalInputCapabilities());
+        Hooks::setInputModeOverride(Terminal::Types::InputStream::Stdin, true, true, true);
         Hooks::setInputBytes(Terminal::Types::InputStream::Stdin, bytes, endOfStreamWhenEmpty);
     }
 
-    /// @brief Verifies capability observation, preparation, size, position, and availability queries.
+    /// @brief Verifies capability observation plus output preparation, size, and position queries.
     void testCapabilitiesAndQueries(TestSupport::Context &context)
     {
         Hooks::reset();
@@ -836,7 +825,8 @@ namespace
         const Terminal::Types::InputCapabilitiesResult inputCapabilities = Terminal::getInputCapabilities();
         static_cast<void>(context.expectTrue("input capabilities status", inputCapabilities.status.ok()));
         static_cast<void>(context.expectEq("input capability kind", Terminal::Types::StreamKind::Terminal, inputCapabilities.capabilities.kind));
-        static_cast<void>(context.expectTrue("input capability mode support", inputCapabilities.capabilities.supportsInputMode));
+        static_cast<void>(context.expectTrue("input capability event support", inputCapabilities.capabilities.supportsEventInput));
+        static_cast<void>(context.expectTrue("input capability cancellation support", inputCapabilities.capabilities.supportsCancellation));
 
         Hooks::forceNextInputCapabilityFailure(ErrorCode::PermissionDenied);
         static_cast<void>(
@@ -1416,6 +1406,9 @@ namespace
         static_cast<void>(context.expectEq("byte read outcome", Terminal::Types::ReadOutcome::Completed, bytes.outcome));
         static_cast<void>(context.expectEq("byte read count", buffer.size(), bytes.bytesRead));
         static_cast<void>(context.expectEq("byte read contents", copyBytes("abcd"), std::vector<std::byte>(buffer.begin(), buffer.end())));
+        static_cast<void>(context.expectTrue(
+            "direct read restores exact hook input mode",
+            Hooks::inputModeOverrideMatches(Terminal::Types::InputStream::Stdin, true, true, true)));
 
         const Terminal::Types::ByteReadResult eof = Terminal::readBytes(std::span<std::byte>(buffer), byteOptions);
         static_cast<void>(context.expectTrue("byte EOF status", eof.status.ok()));
@@ -1625,7 +1618,7 @@ namespace
 
         static_cast<void>(context.expectTrue("detach stdin", SetStdHandle(STD_INPUT_HANDLE, nullptr) != FALSE));
         static_cast<void>(
-            context.expectEq("detached stdin reports NotOpen after state reset", ErrorCode::NotOpen, Terminal::getInputAvailability().status.code));
+            context.expectEq("detached stdin reports NotOpen after state reset", ErrorCode::NotOpen, Terminal::readText().status.code));
 
         static_cast<void>(SetStdHandle(STD_INPUT_HANDLE, originalInput));
         CloseHandle(replacementRead);
@@ -1633,64 +1626,115 @@ namespace
     }
 #endif
 
-    /// @brief Verifies mode queries, updates, default restore, and scoped exact restoration.
-    void testInputModes(TestSupport::Context &context)
+    /// @brief Verifies persistent Session lifecycle, ownership, cancellation, and exact restoration.
+    void testSessions(TestSupport::Context &context)
     {
         Hooks::reset();
         Hooks::setInputCapabilitiesOverride(Terminal::Types::InputStream::Stdin, terminalInputCapabilities());
+        Hooks::setInputModeOverride(Terminal::Types::InputStream::Stdin, true, true, true);
 
-        const Terminal::Types::InputMode interactive = Terminal::makeInputMode(Terminal::Types::InputModePreset::InteractiveLine);
-        const Terminal::Types::InputMode raw = Terminal::makeInputMode(Terminal::Types::InputModePreset::RawBytes);
-        Hooks::setInputModeOverride(Terminal::Types::InputStream::Stdin, interactive);
+        Terminal::Session closed;
+        static_cast<void>(context.expectFalse("default session starts closed", closed.isOpen()));
+        static_cast<void>(context.expectEq("closed session read reports NotOpen", ErrorCode::NotOpen, closed.readText().status.code));
+        static_cast<void>(context.expectTrue("closing a closed session is idempotent", closed.close().ok()));
 
-        Terminal::Types::InputModeResult mode = Terminal::getInputMode();
-        static_cast<void>(context.expectTrue("input mode status", mode.status.ok()));
-        static_cast<void>(context.expectTrue("input mode starts interactive", mode.mode.lineBuffered));
+        Terminal::Types::SessionOptions streamOptions;
+        streamOptions.deliveryMode = Terminal::Types::InputDeliveryMode::Stream;
 
-        static_cast<void>(context.expectTrue("set raw mode succeeds", Terminal::setInputMode(raw).ok()));
-        mode = Terminal::getInputMode();
-        static_cast<void>(context.expectFalse("raw mode line buffering off", mode.mode.lineBuffered));
-        static_cast<void>(context.expectFalse("raw mode echo off", mode.mode.echoInput));
+        Terminal::Session session;
+        static_cast<void>(context.expectTrue("stream session opens", session.open(streamOptions).ok()));
+        static_cast<void>(context.expectTrue("opened session reports open", session.isOpen()));
+        static_cast<void>(context.expectTrue(
+            "stream session preserves captured line/echo state",
+            Hooks::inputModeOverrideMatches(Terminal::Types::InputStream::Stdin, true, true, true)));
+        static_cast<void>(context.expectEq("same session re-open reports AlreadyOpen", ErrorCode::AlreadyOpen, session.open(streamOptions).code));
 
-        Terminal::Types::InputMode invalidEchoMode = raw;
-        invalidEchoMode.echoInput = true;
+        Terminal::Session competing;
+        static_cast<void>(context.expectEq("competing session reports ResourceBusy", ErrorCode::ResourceBusy, competing.open(streamOptions).code));
+        static_cast<void>(context.expectEq("direct read conflicts with session ownership", ErrorCode::ResourceBusy, Terminal::readText().status.code));
+
+        Hooks::setInputBytes(Terminal::Types::InputStream::Stdin, "session");
+        const Terminal::Types::TextReadResult sessionText = session.readText();
+        static_cast<void>(context.expectTrue("session text read succeeds", sessionText.status.ok()));
+        static_cast<void>(context.expectEq("session text read payload", std::string{"session"}, sessionText.text));
+
+        Hooks::setInputBytes(Terminal::Types::InputStream::Stdin, "preserved");
         static_cast<void>(context.expectEq(
-            "Win32 input mode rejects echo without line buffering",
+            "stream session rejects event consumer",
+            ErrorCode::Unsupported,
+            session.readEvent({.timeout = Terminal::kNoWait}).status.code));
+        static_cast<void>(context.expectEq("incompatible event read consumes nothing", std::string{"preserved"}, session.readText().text));
+
+        Hooks::setInputBytes(Terminal::Types::InputStream::Stdin, "deadline");
+        Terminal::Types::TextReadOptions negativeTimeout;
+        negativeTimeout.timeout = std::chrono::milliseconds{-1};
+        static_cast<void>(context.expectEq(
+            "negative read deadline is rejected",
             ErrorCode::InvalidArgument,
-            Terminal::setInputMode(invalidEchoMode).code));
-        mode = Terminal::getInputMode();
-        static_cast<void>(context.expectFalse("invalid input mode leaves current mode unchanged", mode.mode.lineBuffered));
-        static_cast<void>(context.expectFalse("invalid input mode leaves echo unchanged", mode.mode.echoInput));
+            session.readText(negativeTimeout).status.code));
+        static_cast<void>(context.expectEq("negative deadline consumes nothing", std::string{"deadline"}, session.readText().text));
 
-        setupInput("\xc3\xa9z");
-        Terminal::Types::TextReadOptions splitTextOptions;
-        splitTextOptions.maxReturnedBytes = 2;
-        static_cast<void>(context.expectEq(
-            "mode preservation setup reads one UTF-8 code point",
-            std::string{"\xc3\xa9"},
-            Terminal::readText(splitTextOptions).text));
-        static_cast<void>(context.expectTrue("mode change with pending input succeeds", Terminal::setInputMode(interactive).ok()));
-        splitTextOptions.maxReturnedBytes = 8;
-        static_cast<void>(context.expectEq("mode change preserves pending input", std::string{"z"}, Terminal::readText(splitTextOptions).text));
-        static_cast<void>(context.expectTrue("raw mode restored after pending-input check", Terminal::setInputMode(raw).ok()));
-
-        {
-            Terminal::InputModeScope scope = Terminal::scopedInputMode(interactive);
-            static_cast<void>(context.expectTrue("input mode scope active", scope.active()));
-            mode = Terminal::getInputMode();
-            static_cast<void>(context.expectTrue("scoped mode applied", mode.mode.lineBuffered));
-            static_cast<void>(context.expectTrue("scope explicit restore succeeds", scope.restore().ok()));
-        }
-
-        mode = Terminal::getInputMode();
-        static_cast<void>(context.expectFalse("scope restored previous raw mode", mode.mode.lineBuffered));
-
-        static_cast<void>(context.expectTrue("restore default input mode succeeds", Terminal::restoreDefaultInputMode().ok()));
-        mode = Terminal::getInputMode();
-        static_cast<void>(context.expectTrue("default input mode restored", mode.mode.lineBuffered));
+        Hooks::setInputBytes(Terminal::Types::InputStream::Stdin, "cancelled");
+        std::stop_source stopSource;
+        stopSource.request_stop();
+        Terminal::Types::TextReadOptions cancelledOptions;
+        cancelledOptions.stopToken = stopSource.get_token();
+        const Terminal::Types::TextReadResult cancelled = session.readText(cancelledOptions);
+        static_cast<void>(context.expectTrue("pre-cancelled read keeps success status", cancelled.status.ok()));
+        static_cast<void>(context.expectEq("pre-cancelled read outcome", Terminal::Types::ReadOutcome::Cancelled, cancelled.outcome));
+        static_cast<void>(context.expectEq("pre-cancelled read consumes nothing", std::string{"cancelled"}, session.readText().text));
 
         Hooks::forceNextInputModeFailure(ErrorCode::NativeFailure);
-        static_cast<void>(context.expectEq("forced input mode failure", ErrorCode::NativeFailure, Terminal::setInputMode(raw).code));
+        static_cast<void>(context.expectEq("session close restoration failure propagates", ErrorCode::NativeFailure, session.close().code));
+        static_cast<void>(context.expectTrue("failed close leaves session open", session.isOpen()));
+        static_cast<void>(
+            context.expectEq("failed close retains ownership", ErrorCode::ResourceBusy, competing.open(streamOptions).code));
+        static_cast<void>(context.expectTrue("session close retry succeeds", session.close().ok()));
+        static_cast<void>(context.expectFalse("successful close clears open state", session.isOpen()));
+        static_cast<void>(context.expectTrue(
+            "successful close restores exact input mode",
+            Hooks::inputModeOverrideMatches(Terminal::Types::InputStream::Stdin, true, true, true)));
+
+        Terminal::Session movable;
+        static_cast<void>(context.expectTrue("movable session opens", movable.open(streamOptions).ok()));
+        Terminal::Session moved(std::move(movable));
+        static_cast<void>(context.expectFalse("moved-from session becomes closed", movable.isOpen()));
+        static_cast<void>(context.expectTrue("move construction preserves open ownership", moved.isOpen()));
+        static_cast<void>(context.expectEq("moved session still blocks competitors", ErrorCode::ResourceBusy, competing.open(streamOptions).code));
+        static_cast<void>(context.expectTrue("moved session closes", moved.close().ok()));
+
+        {
+            Terminal::Session scoped;
+            static_cast<void>(context.expectTrue("destructor fixture opens", scoped.open(streamOptions).ok()));
+            static_cast<void>(context.expectTrue(
+                "destructor fixture preserves captured stream mode",
+                Hooks::inputModeOverrideMatches(Terminal::Types::InputStream::Stdin, true, true, true)));
+        }
+        static_cast<void>(context.expectTrue(
+            "session destructor restores mode",
+            Hooks::inputModeOverrideMatches(Terminal::Types::InputStream::Stdin, true, true, true)));
+
+        Terminal::Session events;
+        static_cast<void>(context.expectTrue("default event session opens with event-capable hook", events.open().ok()));
+        static_cast<void>(context.expectEq("event session rejects stream reads", ErrorCode::Unsupported, events.readText().status.code));
+        static_cast<void>(context.expectEq(
+            "Win32 event backend remains explicitly unsupported in this slice",
+            ErrorCode::Unsupported,
+            events.readEvent({.timeout = Terminal::kNoWait}).status.code));
+        static_cast<void>(context.expectTrue("event session closes", events.close().ok()));
+
+        Terminal::Types::SessionOptions reportControlOptions = streamOptions;
+        reportControlOptions.controlKeyMode = Terminal::Types::ControlKeyMode::ReportAsInput;
+        Terminal::Session reportControl;
+        static_cast<void>(context.expectTrue("report-as-input session opens", reportControl.open(reportControlOptions).ok()));
+        static_cast<void>(context.expectTrue(
+            "report-as-input disables native control processing",
+            Hooks::inputModeOverrideMatches(Terminal::Types::InputStream::Stdin, true, true, false)));
+        static_cast<void>(context.expectTrue("report-as-input session closes", reportControl.close().ok()));
+
+        Terminal::Types::SessionOptions invalidOptions = streamOptions;
+        invalidOptions.deliveryMode = static_cast<Terminal::Types::InputDeliveryMode>(99);
+        static_cast<void>(context.expectEq("invalid session delivery mode is rejected", ErrorCode::InvalidArgument, competing.open(invalidOptions).code));
 
         Hooks::reset();
     }
@@ -1749,7 +1793,7 @@ namespace GameWIP::Test
 #if defined(_WIN32)
         runner.runSuite("Terminal stdin endpoint replacement", testInputEndpointReplacement);
 #endif
-        runner.runSuite("Terminal input modes", testInputModes);
+        runner.runSuite("Terminal sessions and ownership", testSessions);
 #else
         runner.runSuite("Terminal hook-dependent suites", testHookDependentSuitesSkipped);
 #endif

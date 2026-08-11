@@ -43,8 +43,9 @@ namespace GameWIP::Terminal::Detail::TestHooks
             state.endOfStreamWhenInputEmpty = true;
             state.inputBytes.clear();
             state.inputModeOverrideEnabled = false;
-            state.currentInputMode = {};
-            state.defaultInputMode = {};
+            state.lineBuffered = true;
+            state.echoInput = true;
+            state.processControlKeys = true;
         }
 
         for (OutputHookState &state : terminalTestHookState.outputStreams)
@@ -67,7 +68,6 @@ namespace GameWIP::Terminal::Detail::TestHooks
         terminalTestHookState.nextInputCapabilityFailure.enabled.store(false, std::memory_order_release);
         terminalTestHookState.nextOutputCapabilityFailure.enabled.store(false, std::memory_order_release);
         terminalTestHookState.nextOutputPreparationFailure.enabled.store(false, std::memory_order_release);
-        terminalTestHookState.nextInputAvailabilityFailure.enabled.store(false, std::memory_order_release);
         terminalTestHookState.nextInputModeFailure.enabled.store(false, std::memory_order_release);
         terminalTestHookState.nextReadFailure.enabled.store(false, std::memory_order_release);
         terminalTestHookState.nextTerminalSizeFailure.enabled.store(false, std::memory_order_release);
@@ -174,21 +174,39 @@ namespace GameWIP::Terminal::TestHooks
         return Detail::Platform::TestHooks::hasPendingHighSurrogate(stream);
     }
 
-    void setInputModeOverride(Terminal::Types::InputStream stream, const Terminal::Types::InputMode &defaultMode)
+    void setInputModeOverride(
+        Terminal::Types::InputStream stream,
+        bool lineBuffered,
+        bool echoInput,
+        bool processControlKeys)
     {
         std::lock_guard lock(terminalTestHookState.mutex);
         InputHookState &state = terminalTestHookState.inputStreams[inputIndex(stream)];
-        state.defaultInputMode = defaultMode;
-        state.currentInputMode = defaultMode;
+        state.lineBuffered = lineBuffered;
+        state.echoInput = echoInput;
+        state.processControlKeys = processControlKeys;
         state.inputModeOverrideEnabled = true;
+    }
+
+    bool inputModeOverrideMatches(
+        Terminal::Types::InputStream stream,
+        bool lineBuffered,
+        bool echoInput,
+        bool processControlKeys) noexcept
+    {
+        std::lock_guard lock(terminalTestHookState.mutex);
+        const InputHookState &state = terminalTestHookState.inputStreams[inputIndex(stream)];
+        return state.inputModeOverrideEnabled && state.lineBuffered == lineBuffered && state.echoInput == echoInput &&
+               state.processControlKeys == processControlKeys;
     }
 
     void clearInputModeOverride(Terminal::Types::InputStream stream) noexcept
     {
         std::lock_guard lock(terminalTestHookState.mutex);
         InputHookState &state = terminalTestHookState.inputStreams[inputIndex(stream)];
-        state.currentInputMode = {};
-        state.defaultInputMode = {};
+        state.lineBuffered = true;
+        state.echoInput = true;
+        state.processControlKeys = true;
         state.inputModeOverrideEnabled = false;
     }
 
@@ -279,11 +297,6 @@ namespace GameWIP::Terminal::TestHooks
     void forceNextOutputPreparationFailure(IO::Types::ErrorCode code) noexcept
     {
         forceFailure(terminalTestHookState.nextOutputPreparationFailure, code);
-    }
-
-    void forceNextInputAvailabilityFailure(IO::Types::ErrorCode code) noexcept
-    {
-        forceFailure(terminalTestHookState.nextInputAvailabilityFailure, code);
     }
 
     void forceNextInputModeFailure(IO::Types::ErrorCode code) noexcept

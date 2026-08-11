@@ -24,7 +24,7 @@ The public hook namespace is `GameWIP::Terminal::TestHooks`.
 
 ## Reset rule
 
-Call `TestHooks::reset()` before and after each scenario. It clears capability overrides, prepared state, input bytes, mode overrides, output capture, counters, size/position overrides, and every one-shot forced failure.
+Call `TestHooks::reset()` before and after each scenario. It clears capability overrides, prepared state, input bytes, internal native-mode overrides, output capture, counters, size/position overrides, and every one-shot forced failure.
 
 Tests sharing a process must not assume hook state is isolated automatically.
 
@@ -36,16 +36,17 @@ Tests sharing a process must not assume hook state is isolated automatically.
 
 Overrides persist until cleared or reset.
 
-## In-memory input and modes
+## In-memory input and internal native-mode state
 
 - `setInputBytes()` replaces the deterministic input bytes and selects EOF-versus-no-data behavior when the buffer becomes empty.
 - `appendInputBytes()` adds bytes to the deterministic input stream.
 - `clearInputBytes()` disables the in-memory input path.
 - `setPendingHighSurrogate()` and `hasPendingHighSurrogate()` expose the Win32 converter's endpoint-owned surrogate state for the stdin-replacement regression.
-- `setInputModeOverride()` provides deterministic current/default mode state.
+- `setInputModeOverride()` provides deterministic internal line-buffer, echo, and control-processing flags for Session/direct-read setup and restoration tests.
+- `inputModeOverrideMatches()` verifies those internal flags without exposing a public consumer mode type.
 - `clearInputModeOverride()` restores normal backend behavior.
 
-The byte strings may intentionally contain invalid or incomplete UTF-8 to validate text-read failures.
+The byte strings may intentionally contain invalid or incomplete UTF-8 to validate text-read failures. Native-mode hooks exist only because validation must prove exact managed restoration; public consumers configure input through `SessionOptions`.
 
 ## Output capture and counters
 
@@ -74,7 +75,6 @@ Each function arms one failure consumed atomically by the next matching operatio
 - `forceNextInputCapabilityFailure()`;
 - `forceNextOutputCapabilityFailure()`;
 - `forceNextOutputPreparationFailure()`;
-- `forceNextInputAvailabilityFailure()`;
 - `forceNextInputModeFailure()`;
 - `forceNextReadFailure()`;
 - `forceNextTerminalSizeFailure()`;

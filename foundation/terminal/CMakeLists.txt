@@ -24,6 +24,7 @@ generate_export_header(Terminal
 
 target_sources(Terminal
     PRIVATE
+        core/session.cpp
         core/terminal.cpp
         core/terminal_test_hooks.cpp
     PUBLIC
