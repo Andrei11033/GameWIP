@@ -224,9 +224,7 @@ namespace GameWIP::Unicode::Utf8
         }
 
         /// @brief Returns whether a boundary is guaranteed without earlier grapheme state.
-        [[nodiscard]] bool isGuaranteedBreak(
-            const Internal::UnicodeProperties &previous,
-            const Internal::UnicodeProperties &current) noexcept
+        [[nodiscard]] bool isGuaranteedBreak(const Internal::UnicodeProperties &previous, const Internal::UnicodeProperties &current) noexcept
         {
             using Class = Internal::GraphemeBreakClass;
 
@@ -252,8 +250,8 @@ namespace GameWIP::Unicode::Utf8
             {
                 return false;
             }
-            if (current.graphemeBreak == Class::Extend || current.graphemeBreak == Class::ZWJ ||
-                current.graphemeBreak == Class::SpacingMark || previous.graphemeBreak == Class::Prepend)
+            if (current.graphemeBreak == Class::Extend || current.graphemeBreak == Class::ZWJ || current.graphemeBreak == Class::SpacingMark ||
+                previous.graphemeBreak == Class::Prepend)
             {
                 return false;
             }
@@ -306,8 +304,7 @@ namespace GameWIP::Unicode::Utf8
         }
 
         /// @brief Visits every grapheme boundary in one complete left-to-right segmentation pass.
-        template <typename BoundaryVisitor>
-        [[nodiscard]] bool visitGraphemeBoundaries(std::string_view text, BoundaryVisitor &visitor) noexcept
+        template <typename BoundaryVisitor> [[nodiscard]] bool visitGraphemeBoundaries(std::string_view text, BoundaryVisitor &visitor) noexcept
         {
             visitor(std::size_t{0});
             if (text.empty())
@@ -351,10 +348,7 @@ namespace GameWIP::Unicode::Utf8
         }
 
         /// @brief Finds the first grapheme boundary after target using state rebuilt from a safe restart.
-        [[nodiscard]] Types::Utf8BoundaryResult scanNextFrom(
-            std::string_view text,
-            std::size_t restartOffset,
-            std::size_t targetOffset) noexcept
+        [[nodiscard]] Types::Utf8BoundaryResult scanNextFrom(std::string_view text, std::size_t restartOffset, std::size_t targetOffset) noexcept
         {
             Types::Utf8DecodeResult previousDecoded = Internal::decodeUtf8Scalar(text.substr(restartOffset));
             if (previousDecoded.outcome != Types::DecodeOutcome::Decoded)
@@ -390,10 +384,7 @@ namespace GameWIP::Unicode::Utf8
         }
 
         /// @brief Finds the last grapheme boundary before target using state rebuilt from a safe restart.
-        [[nodiscard]] Types::Utf8BoundaryResult scanPreviousFrom(
-            std::string_view text,
-            std::size_t restartOffset,
-            std::size_t targetOffset) noexcept
+        [[nodiscard]] Types::Utf8BoundaryResult scanPreviousFrom(std::string_view text, std::size_t restartOffset, std::size_t targetOffset) noexcept
         {
             std::size_t previousBoundary = restartOffset;
             Types::Utf8DecodeResult previousDecoded = Internal::decodeUtf8Scalar(text.substr(restartOffset));
@@ -434,9 +425,7 @@ namespace GameWIP::Unicode::Utf8
         }
     } // namespace
 
-    Types::Utf8GraphemeIndexResult GraphemeCursor::reset(
-        std::string_view text,
-        std::span<std::size_t> boundaryStorage) noexcept
+    Types::Utf8GraphemeIndexResult GraphemeCursor::reset(std::string_view text, std::span<std::size_t> boundaryStorage) noexcept
     {
         clear();
 

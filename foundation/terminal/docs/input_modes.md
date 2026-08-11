@@ -66,7 +66,7 @@ The moved-from object is closed.
 
 ## Reads, deadlines, and cancellation
 
-Every managed read supports the common public model described in @ref terminal_read_write:
+Every managed read supports the common public model described in @ref terminal_read_write.
 
 - `std::nullopt` timeout waits indefinitely;
 - `0ms` polls;

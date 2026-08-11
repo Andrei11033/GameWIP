@@ -909,18 +909,15 @@ namespace
         std::array<std::size_t, 3> shortBoundaryStorage{};
         Unicode::Utf8::GraphemeCursor cursor;
         const Unicode::Types::Utf8GraphemeIndexResult tooSmall = cursor.reset(cursorFixture.text, shortBoundaryStorage);
-        static_cast<void>(context.expectEq(
-            "grapheme cursor short storage outcome",
-            Unicode::Types::GraphemeIndexOutcome::DestinationTooSmall,
-            tooSmall.outcome));
+        static_cast<void>(
+            context.expectEq("grapheme cursor short storage outcome", Unicode::Types::GraphemeIndexOutcome::DestinationTooSmall, tooSmall.outcome));
         static_cast<void>(
             context.expectEq("grapheme cursor required boundary count", cursorFixture.boundaries.size(), tooSmall.requiredBoundaryCount));
         static_cast<void>(context.expectFalse("grapheme cursor short storage remains unready", cursor.isReady()));
 
         std::array<std::size_t, 8> boundaryStorage{};
         const Unicode::Types::Utf8GraphemeIndexResult ready = cursor.reset(cursorFixture.text, boundaryStorage);
-        static_cast<void>(
-            context.expectEq("grapheme cursor reset outcome", Unicode::Types::GraphemeIndexOutcome::Indexed, ready.outcome));
+        static_cast<void>(context.expectEq("grapheme cursor reset outcome", Unicode::Types::GraphemeIndexOutcome::Indexed, ready.outcome));
         static_cast<void>(context.expectTrue("grapheme cursor becomes ready", cursor.isReady()));
         static_cast<void>(context.expectEq("grapheme cursor starts at zero", std::size_t{0}, cursor.byteOffset()));
         static_cast<void>(context.expectEq("grapheme cursor indexed count", cursorFixture.boundaries.size(), cursor.boundaryCount()));
@@ -932,25 +929,22 @@ namespace
             cursor.seek(insideCombiningCluster).outcome));
         static_cast<void>(context.expectEq("failed grapheme cursor seek preserves position", std::size_t{0}, cursor.byteOffset()));
 
-        static_cast<void>(context.expectEq(
-            "grapheme cursor seek exact boundary",
-            BoundaryOutcome::Found,
-            cursor.seek(cursorFixture.boundaries[2]).outcome));
+        static_cast<void>(
+            context.expectEq("grapheme cursor seek exact boundary", BoundaryOutcome::Found, cursor.seek(cursorFixture.boundaries[2]).outcome));
         cursor.discardAfterCurrent();
         static_cast<void>(context.expectEq("grapheme cursor discard retained count", std::size_t{3}, cursor.boundaryCount()));
         static_cast<void>(context.expectEq("grapheme cursor discard makes current end", BoundaryOutcome::AtEnd, cursor.next().outcome));
         static_cast<void>(context.expectEq("grapheme cursor can move backward after discard", BoundaryOutcome::Found, cursor.previous().outcome));
 
         const Unicode::Types::Utf8GraphemeIndexResult invalidCursor = cursor.reset(malformed, boundaryStorage);
-        static_cast<void>(context.expectEq(
-            "grapheme cursor malformed outcome", Unicode::Types::GraphemeIndexOutcome::InvalidEncoding, invalidCursor.outcome));
+        static_cast<void>(
+            context.expectEq("grapheme cursor malformed outcome", Unicode::Types::GraphemeIndexOutcome::InvalidEncoding, invalidCursor.outcome));
         static_cast<void>(context.expectEq("grapheme cursor malformed required count", std::size_t{0}, invalidCursor.requiredBoundaryCount));
         static_cast<void>(context.expectFalse("grapheme cursor malformed reset clears state", cursor.isReady()));
 
         std::array<std::size_t, 1> emptyStorage{};
         const Unicode::Types::Utf8GraphemeIndexResult emptyCursor = cursor.reset({}, emptyStorage);
-        static_cast<void>(
-            context.expectEq("empty grapheme cursor outcome", Unicode::Types::GraphemeIndexOutcome::Indexed, emptyCursor.outcome));
+        static_cast<void>(context.expectEq("empty grapheme cursor outcome", Unicode::Types::GraphemeIndexOutcome::Indexed, emptyCursor.outcome));
         static_cast<void>(context.expectEq("empty grapheme cursor required count", std::size_t{1}, emptyCursor.requiredBoundaryCount));
         static_cast<void>(context.expectEq("empty grapheme cursor boundary count", std::size_t{1}, cursor.boundaryCount()));
         static_cast<void>(context.expectEq("empty grapheme cursor next outcome", BoundaryOutcome::AtEnd, cursor.next().outcome));

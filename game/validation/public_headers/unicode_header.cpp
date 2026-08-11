@@ -32,9 +32,8 @@ static_assert(noexcept(Unicode::Utf8::nextCodePointBoundary(std::declval<std::st
 static_assert(noexcept(Unicode::Utf8::previousCodePointBoundary(std::declval<std::string_view>(), 0)));
 static_assert(noexcept(Unicode::Utf8::nextGraphemeBoundary(std::declval<std::string_view>(), 0)));
 static_assert(noexcept(Unicode::Utf8::previousGraphemeBoundary(std::declval<std::string_view>(), 0)));
-static_assert(noexcept(std::declval<Unicode::Utf8::GraphemeCursor &>().reset(
-    std::declval<std::string_view>(),
-    std::declval<std::span<std::size_t>>())));
+static_assert(
+    noexcept(std::declval<Unicode::Utf8::GraphemeCursor &>().reset(std::declval<std::string_view>(), std::declval<std::span<std::size_t>>())));
 static_assert(noexcept(std::declval<Unicode::Utf8::GraphemeCursor &>().clear()));
 static_assert(noexcept(std::declval<const Unicode::Utf8::GraphemeCursor &>().isReady()));
 static_assert(noexcept(std::declval<const Unicode::Utf8::GraphemeCursor &>().byteOffset()));

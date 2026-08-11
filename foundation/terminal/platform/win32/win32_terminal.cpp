@@ -694,8 +694,7 @@ namespace GameWIP::Terminal::Detail::Platform
         }
 
         /// @brief Converts the public optional deadline to the backend's internal negative-forever representation.
-        [[nodiscard]] std::chrono::milliseconds backendTimeout(
-            const std::optional<std::chrono::milliseconds> &timeout) noexcept
+        [[nodiscard]] std::chrono::milliseconds backendTimeout(const std::optional<std::chrono::milliseconds> &timeout) noexcept
         {
             return timeout.value_or(std::chrono::milliseconds{-1});
         }
@@ -1724,9 +1723,7 @@ namespace GameWIP::Terminal::Detail::Platform
         return result;
     }
 
-    Terminal::Types::EventReadResult readEvent(
-        [[maybe_unused]] InputStream stream,
-        const Terminal::Types::EventReadOptions &options)
+    Terminal::Types::EventReadResult readEvent([[maybe_unused]] InputStream stream, const Terminal::Types::EventReadOptions &options)
     {
         Terminal::Types::EventReadResult result;
         result.status = IO::successStatus();
@@ -1737,10 +1734,7 @@ namespace GameWIP::Terminal::Detail::Platform
             return result;
         }
 
-        result.status = IO::makeStatus(
-            ErrorCode::Unsupported,
-            0,
-            "Structured Win32 terminal event input is not implemented yet.");
+        result.status = IO::makeStatus(ErrorCode::Unsupported, 0, "Structured Win32 terminal event input is not implemented yet.");
         return result;
     }
 

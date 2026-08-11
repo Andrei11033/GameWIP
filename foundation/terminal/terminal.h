@@ -1096,9 +1096,7 @@ namespace GameWIP::Terminal
         /// @brief Reads bytes into caller storage in a Stream-delivery session.
         /// @param outputBuffer Caller-owned byte destination.
         /// @param options Deadline, cancellation, and partial-read behavior.
-        [[nodiscard]] Types::ByteReadResult readBytes(
-            std::span<std::byte> outputBuffer,
-            const Types::ByteReadOptions &options = {}) noexcept;
+        [[nodiscard]] Types::ByteReadResult readBytes(std::span<std::byte> outputBuffer, const Types::ByteReadOptions &options = {}) noexcept;
 
         /// @brief Reads one valid UTF-8 text chunk in a Stream-delivery session.
         [[nodiscard]] Types::TextReadResult readText(const Types::TextReadOptions &options = {}) noexcept;
@@ -1292,8 +1290,9 @@ namespace GameWIP::Terminal
     [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::EventReadResult readEvent(const Types::EventReadOptions &options = {}) noexcept;
 
     /// @brief Reads one structured input event from an input stream through temporary managed ownership.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::EventReadResult
-    readEvent(Types::InputStream stream, const Types::EventReadOptions &options = {}) noexcept;
+    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::EventReadResult readEvent(
+        Types::InputStream stream,
+        const Types::EventReadOptions &options = {}) noexcept;
 
     /// @brief Reads one UTF-8 line from stdin.
     /// @return Status, stopping outcome, returned line, consumed ending, and truncation state. Partial line text may accompany
@@ -1301,16 +1300,18 @@ namespace GameWIP::Terminal
     [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::LineReadResult readLine(const Types::LineReadOptions &options = {}) noexcept;
 
     /// @brief Reads one line from an input stream.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::LineReadResult
-    readLine(Types::InputStream stream, const Types::LineReadOptions &options = {}) noexcept;
+    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::LineReadResult readLine(
+        Types::InputStream stream,
+        const Types::LineReadOptions &options = {}) noexcept;
 
     /// @brief Reads one available complete UTF-8 text chunk from stdin.
     /// @return Status, stopping outcome, text, and truncation state. Size limits never split a valid UTF-8 code point.
     [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::TextReadResult readText(const Types::TextReadOptions &options = {}) noexcept;
 
     /// @brief Reads one available UTF-8 text chunk from an input stream.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::TextReadResult
-    readText(Types::InputStream stream, const Types::TextReadOptions &options = {}) noexcept;
+    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::TextReadResult readText(
+        Types::InputStream stream,
+        const Types::TextReadOptions &options = {}) noexcept;
 
     /// @brief Reads bytes from stdin into caller storage.
     /// @return Status, stopping outcome, and bytes copied. Partial progress may accompany a later failure or terminating outcome.

@@ -116,9 +116,7 @@ namespace GameWIP::Terminal
             return false;
         }
 
-        [[nodiscard]] bool deliverySupported(
-            const Types::InputCapabilities &capabilities,
-            Types::InputDeliveryMode deliveryMode) noexcept
+        [[nodiscard]] bool deliverySupported(const Types::InputCapabilities &capabilities, Types::InputDeliveryMode deliveryMode) noexcept
         {
             if (deliveryMode == Types::InputDeliveryMode::Events)
             {
@@ -192,9 +190,7 @@ namespace GameWIP::Terminal
             return decision;
         }
 
-        [[nodiscard]] Detail::Platform::InputMode managedMode(
-            const Types::SessionOptions &options,
-            Detail::Platform::InputMode previousMode) noexcept
+        [[nodiscard]] Detail::Platform::InputMode managedMode(const Types::SessionOptions &options, Detail::Platform::InputMode previousMode) noexcept
         {
             Detail::Platform::InputMode mode = previousMode;
             mode.processControlKeys = options.controlKeyMode == Types::ControlKeyMode::NativeProcessing;
@@ -404,8 +400,7 @@ namespace GameWIP::Terminal
             return result;
         }
 
-        template <typename Options>
-        [[nodiscard]] ReadDecision validateDirectReadOptions(const Options &options)
+        template <typename Options> [[nodiscard]] ReadDecision validateDirectReadOptions(const Options &options)
         {
             ReadDecision decision;
             decision.status = validateTimeout(options.timeout);
@@ -575,8 +570,7 @@ namespace GameWIP::Terminal
                 return IO::successStatus();
             }
 
-            IO::Types::Status status =
-                restoreManagedInput(state_->options.input, state_->ownership, state_.get(), true);
+            IO::Types::Status status = restoreManagedInput(state_->options.input, state_->ownership, state_.get(), true);
             if (!status.ok())
             {
                 return status;
@@ -638,9 +632,7 @@ namespace GameWIP::Terminal
         }
     }
 
-    Types::ByteReadResult Session::readBytes(
-        std::span<std::byte> outputBuffer,
-        const Types::ByteReadOptions &options) noexcept
+    Types::ByteReadResult Session::readBytes(std::span<std::byte> outputBuffer, const Types::ByteReadOptions &options) noexcept
     {
         if (!state_)
         {
@@ -810,8 +802,7 @@ namespace GameWIP::Terminal
                 return failedResult<Types::EventReadResult>(std::move(status));
             }
 
-            const ReadDecision decision =
-                validateReadContract(lease.capabilities(), ReadOperation::Event, options.timeout, options.stopToken);
+            const ReadDecision decision = validateReadContract(lease.capabilities(), ReadOperation::Event, options.timeout, options.stopToken);
             if (!decision.status.ok())
             {
                 status = lease.finish(decision.status);
@@ -842,17 +833,12 @@ namespace GameWIP::Terminal
         }
     }
 
-    Types::ByteReadResult readBytes(
-        std::span<std::byte> outputBuffer,
-        const Types::ByteReadOptions &options) noexcept
+    Types::ByteReadResult readBytes(std::span<std::byte> outputBuffer, const Types::ByteReadOptions &options) noexcept
     {
         return readBytes(Types::InputStream::Stdin, outputBuffer, options);
     }
 
-    Types::ByteReadResult readBytes(
-        Types::InputStream stream,
-        std::span<std::byte> outputBuffer,
-        const Types::ByteReadOptions &options) noexcept
+    Types::ByteReadResult readBytes(Types::InputStream stream, std::span<std::byte> outputBuffer, const Types::ByteReadOptions &options) noexcept
     {
         if (!validInputStream(stream))
         {
@@ -878,8 +864,7 @@ namespace GameWIP::Terminal
                 return failedResult<Types::ByteReadResult>(std::move(status));
             }
 
-            const ReadDecision decision =
-                validateReadContract(lease.capabilities(), ReadOperation::Bytes, options.timeout, options.stopToken);
+            const ReadDecision decision = validateReadContract(lease.capabilities(), ReadOperation::Bytes, options.timeout, options.stopToken);
             if (!decision.status.ok())
             {
                 status = lease.finish(decision.status);
@@ -935,8 +920,7 @@ namespace GameWIP::Terminal
                 return failedResult<Types::TextReadResult>(std::move(status));
             }
 
-            const ReadDecision decision =
-                validateReadContract(lease.capabilities(), ReadOperation::Text, options.timeout, options.stopToken);
+            const ReadDecision decision = validateReadContract(lease.capabilities(), ReadOperation::Text, options.timeout, options.stopToken);
             if (!decision.status.ok())
             {
                 status = lease.finish(decision.status);
@@ -992,8 +976,7 @@ namespace GameWIP::Terminal
                 return failedResult<Types::LineReadResult>(std::move(status));
             }
 
-            const ReadDecision decision =
-                validateReadContract(lease.capabilities(), ReadOperation::Line, options.timeout, options.stopToken);
+            const ReadDecision decision = validateReadContract(lease.capabilities(), ReadOperation::Line, options.timeout, options.stopToken);
             if (!decision.status.ok())
             {
                 status = lease.finish(decision.status);

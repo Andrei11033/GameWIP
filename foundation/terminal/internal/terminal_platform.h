@@ -101,9 +101,7 @@ namespace GameWIP::Terminal::Detail::Platform
     /// @param stream Standard input stream to read.
     /// @param options Event-read deadline and cancellation behavior.
     /// @return Event result or Unsupported until the selected backend implements event delivery.
-    [[nodiscard]] Terminal::Types::EventReadResult readEvent(
-        Terminal::Types::InputStream stream,
-        const Terminal::Types::EventReadOptions &options);
+    [[nodiscard]] Terminal::Types::EventReadResult readEvent(Terminal::Types::InputStream stream, const Terminal::Types::EventReadOptions &options);
 
     /// @brief Reads bytes from a standard input stream.
     /// @param stream Standard input stream to read.

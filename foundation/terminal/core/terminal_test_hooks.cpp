@@ -174,11 +174,7 @@ namespace GameWIP::Terminal::TestHooks
         return Detail::Platform::TestHooks::hasPendingHighSurrogate(stream);
     }
 
-    void setInputModeOverride(
-        Terminal::Types::InputStream stream,
-        bool lineBuffered,
-        bool echoInput,
-        bool processControlKeys)
+    void setInputModeOverride(Terminal::Types::InputStream stream, bool lineBuffered, bool echoInput, bool processControlKeys)
     {
         std::lock_guard lock(terminalTestHookState.mutex);
         InputHookState &state = terminalTestHookState.inputStreams[inputIndex(stream)];
@@ -188,11 +184,7 @@ namespace GameWIP::Terminal::TestHooks
         state.inputModeOverrideEnabled = true;
     }
 
-    bool inputModeOverrideMatches(
-        Terminal::Types::InputStream stream,
-        bool lineBuffered,
-        bool echoInput,
-        bool processControlKeys) noexcept
+    bool inputModeOverrideMatches(Terminal::Types::InputStream stream, bool lineBuffered, bool echoInput, bool processControlKeys) noexcept
     {
         std::lock_guard lock(terminalTestHookState.mutex);
         const InputHookState &state = terminalTestHookState.inputStreams[inputIndex(stream)];

@@ -405,9 +405,7 @@ namespace GameWIP::Unicode
             /// @details DestinationTooSmall still reports the complete required count. InvalidEncoding
             /// clears the cursor and reports a zero required count. Caller storage may contain an
             /// incomplete prefix after either failure.
-            [[nodiscard]] Types::Utf8GraphemeIndexResult reset(
-                std::string_view text,
-                std::span<std::size_t> boundaryStorage) noexcept;
+            [[nodiscard]] Types::Utf8GraphemeIndexResult reset(std::string_view text, std::span<std::size_t> boundaryStorage) noexcept;
 
             /// @brief Clears retained boundary storage and traversal position.
             void clear() noexcept;

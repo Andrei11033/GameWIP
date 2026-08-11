@@ -611,18 +611,10 @@ namespace
         static_cast<void>(context.expectEq("rgbColor blue", std::uint8_t{3}, rgb.blue()));
 
         const Terminal::Types::SessionOptions sessionDefaults;
-        static_cast<void>(context.expectEq(
-            "session defaults to stdin",
-            Terminal::Types::InputStream::Stdin,
-            sessionDefaults.input));
-        static_cast<void>(context.expectEq(
-            "session defaults to stdout",
-            Terminal::Types::OutputStream::Stdout,
-            sessionDefaults.output));
-        static_cast<void>(context.expectEq(
-            "session defaults to event delivery",
-            Terminal::Types::InputDeliveryMode::Events,
-            sessionDefaults.deliveryMode));
+        static_cast<void>(context.expectEq("session defaults to stdin", Terminal::Types::InputStream::Stdin, sessionDefaults.input));
+        static_cast<void>(context.expectEq("session defaults to stdout", Terminal::Types::OutputStream::Stdout, sessionDefaults.output));
+        static_cast<void>(
+            context.expectEq("session defaults to event delivery", Terminal::Types::InputDeliveryMode::Events, sessionDefaults.deliveryMode));
         static_cast<void>(context.expectEq(
             "session defaults to native control processing",
             Terminal::Types::ControlKeyMode::NativeProcessing,
@@ -1617,8 +1609,7 @@ namespace
             Hooks::hasPendingHighSurrogate(Terminal::Types::InputStream::Stdin)));
 
         static_cast<void>(context.expectTrue("detach stdin", SetStdHandle(STD_INPUT_HANDLE, nullptr) != FALSE));
-        static_cast<void>(
-            context.expectEq("detached stdin reports NotOpen after state reset", ErrorCode::NotOpen, Terminal::readText().status.code));
+        static_cast<void>(context.expectEq("detached stdin reports NotOpen after state reset", ErrorCode::NotOpen, Terminal::readText().status.code));
 
         static_cast<void>(SetStdHandle(STD_INPUT_HANDLE, originalInput));
         CloseHandle(replacementRead);
@@ -1651,7 +1642,8 @@ namespace
 
         Terminal::Session competing;
         static_cast<void>(context.expectEq("competing session reports ResourceBusy", ErrorCode::ResourceBusy, competing.open(streamOptions).code));
-        static_cast<void>(context.expectEq("direct read conflicts with session ownership", ErrorCode::ResourceBusy, Terminal::readText().status.code));
+        static_cast<void>(
+            context.expectEq("direct read conflicts with session ownership", ErrorCode::ResourceBusy, Terminal::readText().status.code));
 
         Hooks::setInputBytes(Terminal::Types::InputStream::Stdin, "session");
         const Terminal::Types::TextReadResult sessionText = session.readText();
@@ -1668,10 +1660,8 @@ namespace
         Hooks::setInputBytes(Terminal::Types::InputStream::Stdin, "deadline");
         Terminal::Types::TextReadOptions negativeTimeout;
         negativeTimeout.timeout = std::chrono::milliseconds{-1};
-        static_cast<void>(context.expectEq(
-            "negative read deadline is rejected",
-            ErrorCode::InvalidArgument,
-            session.readText(negativeTimeout).status.code));
+        static_cast<void>(
+            context.expectEq("negative read deadline is rejected", ErrorCode::InvalidArgument, session.readText(negativeTimeout).status.code));
         static_cast<void>(context.expectEq("negative deadline consumes nothing", std::string{"deadline"}, session.readText().text));
 
         Hooks::setInputBytes(Terminal::Types::InputStream::Stdin, "cancelled");
@@ -1687,8 +1677,7 @@ namespace
         Hooks::forceNextInputModeFailure(ErrorCode::NativeFailure);
         static_cast<void>(context.expectEq("session close restoration failure propagates", ErrorCode::NativeFailure, session.close().code));
         static_cast<void>(context.expectTrue("failed close leaves session open", session.isOpen()));
-        static_cast<void>(
-            context.expectEq("failed close retains ownership", ErrorCode::ResourceBusy, competing.open(streamOptions).code));
+        static_cast<void>(context.expectEq("failed close retains ownership", ErrorCode::ResourceBusy, competing.open(streamOptions).code));
         static_cast<void>(context.expectTrue("session close retry succeeds", session.close().ok()));
         static_cast<void>(context.expectFalse("successful close clears open state", session.isOpen()));
         static_cast<void>(context.expectTrue(
@@ -1734,7 +1723,8 @@ namespace
 
         Terminal::Types::SessionOptions invalidOptions = streamOptions;
         invalidOptions.deliveryMode = static_cast<Terminal::Types::InputDeliveryMode>(99);
-        static_cast<void>(context.expectEq("invalid session delivery mode is rejected", ErrorCode::InvalidArgument, competing.open(invalidOptions).code));
+        static_cast<void>(
+            context.expectEq("invalid session delivery mode is rejected", ErrorCode::InvalidArgument, competing.open(invalidOptions).code));
 
         Hooks::reset();
     }
