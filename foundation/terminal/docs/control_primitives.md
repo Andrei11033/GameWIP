@@ -10,7 +10,7 @@ Controls require a supported terminal endpoint. Redirected, detached, and unclas
 
 A zero movement or scroll amount emits no control sequence, but the operation can still honor a requested flush.
 
-`getCursorPosition()` can use an output endpoint for the query and an input endpoint for a protocol response. The current Win32 real-console backend answers directly without consuming stdin; its timeout therefore does not cause a wait.
+`getCursorPosition()` can use an output endpoint for the query and an input endpoint for a protocol response. The current Win32 real-console backend answers directly without consuming stdin; its timeout therefore does not cause a wait. Its public coordinates are relative to the current visible `srWindow`, matching `getTerminalSize()` viewport dimensions. Managed line echo uses a private stable screen-buffer coordinate instead because a viewport scroll must not invalidate an active wrapped line.
 
 `saveCursorPosition()` and `restoreCursorPosition()` expose backend save/restore state. They are not specified as a stack: repeated saves may replace the previously saved position. Do not assume arbitrary nesting.
 
@@ -24,7 +24,7 @@ The active backend validates parameters. The current Win32 VT path limits moveme
 
 `scopedCursorHidden()` returns a `CursorHiddenScope`. Nested active scopes on the same stream emit one hide at the outer transition and one show after the final scope restores.
 
-The factory is `noexcept`. Inspect `status()` and `active()` because setup can fail. `restore()` is idempotent for an inactive scope; failed restoration leaves the scope active for retry. The destructor makes a best-effort non-throwing restore.
+The factory is `noexcept`. Inspect both `status()` and `active()`: failure before the hide sequence is emitted produces an inactive scope, while a requested flush failure after emission reports failure but leaves the scope active with restoration responsibility. `restore()` is idempotent for an inactive scope; failed explicit restoration remains active for retry. The destructor makes one best-effort non-throwing restore and releases its nesting bookkeeping if restoration fails because no scope remains through which to retry.
 
 ## Alternate screen
 
@@ -46,6 +46,6 @@ Do not mix manual visibility or alternate-screen transitions with active scopes 
 
 Controls use `ControlOptions::flushMode`. Invalid values are rejected before normal emission. A requested flush reaches the operating system only where the endpoint supports a meaningful flush.
 
-A failed control write can already have emitted a prefix. Status reports completion, not rollback.
+A failed control write can already have emitted a prefix. Status reports completion, not rollback. For the two state-owning scope factories, successful sequence emission is tracked separately from the following flush so a flush failure cannot lose the required inverse transition. When an inverse sequence is emitted but its flush fails, retry flushes without emitting that inverse sequence again.
 
 See @ref terminal_capabilities_and_redirection and @ref terminal_styling.

@@ -18,6 +18,7 @@ if(GAMEWIP_BUILD_DOCS)
         "${GAMEWIP_DOXYGEN_ROOT}/project_reusable_libraries.md"
         "${GAMEWIP_DOXYGEN_ROOT}/project_manual.md"
         "${GAMEWIP_DOXYGEN_ROOT}/project_contracts.md"
+        "${GAMEWIP_DOXYGEN_ROOT}/project_public_api_contract.md"
         "${GAMEWIP_DOXYGEN_ROOT}/project_quality_workflows.md"
         "${GAMEWIP_DOXYGEN_ROOT}/project_planning.md"
         "${GAMEWIP_DOXYGEN_ROOT}/project_structure.md"

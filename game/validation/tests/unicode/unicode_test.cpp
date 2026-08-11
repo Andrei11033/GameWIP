@@ -735,7 +735,7 @@ namespace
         return {.byteOffset = *(boundary - 1), .outcome = BoundaryOutcome::Found};
     }
 
-    /// @brief Returns a diagnostic when one fixture disagrees with forward or backward traversal.
+    /// @brief Returns a diagnostic when one fixture disagrees with stateless or indexed traversal.
     std::optional<std::string> graphemeFailure(const GraphemeFixture &fixture)
     {
         for (const std::size_t offset : fixture.codePointOffsets)
@@ -766,6 +766,68 @@ namespace
                     actualPrevious.byteOffset);
             }
         }
+
+        std::vector<std::size_t> boundaryStorage(fixture.codePointOffsets.size());
+        Unicode::Utf8::GraphemeCursor cursor;
+        const Unicode::Types::Utf8GraphemeIndexResult indexed = cursor.reset(fixture.text, boundaryStorage);
+        if (indexed.outcome != Unicode::Types::GraphemeIndexOutcome::Indexed || indexed.requiredBoundaryCount != fixture.boundaries.size() ||
+            cursor.boundaryCount() != fixture.boundaries.size())
+        {
+            return std::format(
+                "cursor index expected boundaries={} but got outcome={} required={} retained={}",
+                fixture.boundaries.size(),
+                static_cast<unsigned int>(indexed.outcome),
+                indexed.requiredBoundaryCount,
+                cursor.boundaryCount());
+        }
+
+        for (std::size_t index = 1; index < fixture.boundaries.size(); ++index)
+        {
+            const Unicode::Types::Utf8BoundaryResult actual = cursor.next();
+            if (actual.outcome != BoundaryOutcome::Found || actual.byteOffset != fixture.boundaries[index])
+            {
+                return std::format(
+                    "cursor next index {} expected offset={} but got outcome={} offset={}",
+                    index,
+                    fixture.boundaries[index],
+                    static_cast<unsigned int>(actual.outcome),
+                    actual.byteOffset);
+            }
+        }
+
+        const Unicode::Types::Utf8BoundaryResult atEnd = cursor.next();
+        if (atEnd.outcome != BoundaryOutcome::AtEnd || atEnd.byteOffset != fixture.text.size())
+        {
+            return std::format(
+                "cursor end expected offset={} but got outcome={} offset={}",
+                fixture.text.size(),
+                static_cast<unsigned int>(atEnd.outcome),
+                atEnd.byteOffset);
+        }
+
+        for (std::size_t index = fixture.boundaries.size() - 1; index > 0; --index)
+        {
+            const Unicode::Types::Utf8BoundaryResult actual = cursor.previous();
+            if (actual.outcome != BoundaryOutcome::Found || actual.byteOffset != fixture.boundaries[index - 1])
+            {
+                return std::format(
+                    "cursor previous index {} expected offset={} but got outcome={} offset={}",
+                    index,
+                    fixture.boundaries[index - 1],
+                    static_cast<unsigned int>(actual.outcome),
+                    actual.byteOffset);
+            }
+        }
+
+        const Unicode::Types::Utf8BoundaryResult atBeginning = cursor.previous();
+        if (atBeginning.outcome != BoundaryOutcome::AtBeginning || atBeginning.byteOffset != 0)
+        {
+            return std::format(
+                "cursor beginning expected offset=0 but got outcome={} offset={}",
+                static_cast<unsigned int>(atBeginning.outcome),
+                atBeginning.byteOffset);
+        }
+
         return std::nullopt;
     }
 
@@ -836,6 +898,57 @@ namespace
         const Unicode::Types::Utf8BoundaryResult malformedPrevious = Unicode::Utf8::previousGraphemeBoundary(malformed, malformed.size());
         static_cast<void>(context.expectEq("malformed next grapheme outcome", BoundaryOutcome::InvalidEncoding, malformedNext.outcome));
         static_cast<void>(context.expectEq("malformed previous grapheme outcome", BoundaryOutcome::InvalidEncoding, malformedPrevious.outcome));
+
+        const GraphemeFixture cursorFixture = graphemeFixture({
+            {U'a', static_cast<char32_t>(0x0308)},
+            {static_cast<char32_t>(0x1F469), static_cast<char32_t>(0x200D), static_cast<char32_t>(0x1F4BB)},
+            {static_cast<char32_t>(0x0915), static_cast<char32_t>(0x094D), static_cast<char32_t>(0x0915)},
+            {U'Z'},
+        });
+
+        std::array<std::size_t, 3> shortBoundaryStorage{};
+        Unicode::Utf8::GraphemeCursor cursor;
+        const Unicode::Types::Utf8GraphemeIndexResult tooSmall = cursor.reset(cursorFixture.text, shortBoundaryStorage);
+        static_cast<void>(
+            context.expectEq("grapheme cursor short storage outcome", Unicode::Types::GraphemeIndexOutcome::DestinationTooSmall, tooSmall.outcome));
+        static_cast<void>(
+            context.expectEq("grapheme cursor required boundary count", cursorFixture.boundaries.size(), tooSmall.requiredBoundaryCount));
+        static_cast<void>(context.expectFalse("grapheme cursor short storage remains unready", cursor.isReady()));
+
+        std::array<std::size_t, 8> boundaryStorage{};
+        const Unicode::Types::Utf8GraphemeIndexResult ready = cursor.reset(cursorFixture.text, boundaryStorage);
+        static_cast<void>(context.expectEq("grapheme cursor reset outcome", Unicode::Types::GraphemeIndexOutcome::Indexed, ready.outcome));
+        static_cast<void>(context.expectTrue("grapheme cursor becomes ready", cursor.isReady()));
+        static_cast<void>(context.expectEq("grapheme cursor starts at zero", std::size_t{0}, cursor.byteOffset()));
+        static_cast<void>(context.expectEq("grapheme cursor indexed count", cursorFixture.boundaries.size(), cursor.boundaryCount()));
+
+        const std::size_t insideCombiningCluster = cursorFixture.codePointOffsets[1];
+        static_cast<void>(context.expectEq(
+            "grapheme cursor seek rejects non-boundary code-point offset",
+            BoundaryOutcome::InvalidOffset,
+            cursor.seek(insideCombiningCluster).outcome));
+        static_cast<void>(context.expectEq("failed grapheme cursor seek preserves position", std::size_t{0}, cursor.byteOffset()));
+
+        static_cast<void>(
+            context.expectEq("grapheme cursor seek exact boundary", BoundaryOutcome::Found, cursor.seek(cursorFixture.boundaries[2]).outcome));
+        cursor.discardAfterCurrent();
+        static_cast<void>(context.expectEq("grapheme cursor discard retained count", std::size_t{3}, cursor.boundaryCount()));
+        static_cast<void>(context.expectEq("grapheme cursor discard makes current end", BoundaryOutcome::AtEnd, cursor.next().outcome));
+        static_cast<void>(context.expectEq("grapheme cursor can move backward after discard", BoundaryOutcome::Found, cursor.previous().outcome));
+
+        const Unicode::Types::Utf8GraphemeIndexResult invalidCursor = cursor.reset(malformed, boundaryStorage);
+        static_cast<void>(
+            context.expectEq("grapheme cursor malformed outcome", Unicode::Types::GraphemeIndexOutcome::InvalidEncoding, invalidCursor.outcome));
+        static_cast<void>(context.expectEq("grapheme cursor malformed required count", std::size_t{0}, invalidCursor.requiredBoundaryCount));
+        static_cast<void>(context.expectFalse("grapheme cursor malformed reset clears state", cursor.isReady()));
+
+        std::array<std::size_t, 1> emptyStorage{};
+        const Unicode::Types::Utf8GraphemeIndexResult emptyCursor = cursor.reset({}, emptyStorage);
+        static_cast<void>(context.expectEq("empty grapheme cursor outcome", Unicode::Types::GraphemeIndexOutcome::Indexed, emptyCursor.outcome));
+        static_cast<void>(context.expectEq("empty grapheme cursor required count", std::size_t{1}, emptyCursor.requiredBoundaryCount));
+        static_cast<void>(context.expectEq("empty grapheme cursor boundary count", std::size_t{1}, cursor.boundaryCount()));
+        static_cast<void>(context.expectEq("empty grapheme cursor next outcome", BoundaryOutcome::AtEnd, cursor.next().outcome));
+        static_cast<void>(context.expectEq("empty grapheme cursor previous outcome", BoundaryOutcome::AtBeginning, cursor.previous().outcome));
     }
 
     /// @brief Verifies generated-table invariants and representative algorithmic/property classifications.

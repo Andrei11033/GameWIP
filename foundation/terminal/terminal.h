@@ -9,19 +9,24 @@
 #include <cstdint>
 #include <format>
 #include <iterator>
+#include <memory>
+#include <optional>
 #include <ranges>
 #include <span>
+#include <stop_token>
 #include <string>
 #include <string_view>
 #include <type_traits>
 #include <utility>
+#include <variant>
 
 #include "io/io.h"
 #include "terminal/terminal_export.h"
 
 /// @brief Platform-neutral UTF-8 standard-stream I/O, styling, and terminal control primitives.
-/// @details The shared library owns process-wide stdin/stdout/stderr coordination. Expected terminal and backend failures
-/// use IO statuses/results; selected caller-owned in-memory operations retain normal standard-library exception behavior.
+/// @details The shared library owns process-wide stdin/stdout/stderr coordination. Checked Terminal operations translate
+/// expected owned allocation, formatting, conversion, and backend failures into IO statuses/results. Caller-owned argument
+/// construction that occurs before Terminal receives control remains outside that boundary.
 namespace GameWIP::Terminal
 {
     namespace Types
@@ -79,12 +84,8 @@ namespace GameWIP::Terminal
                  !std::ranges::borrowed_range<Range>)
     [[nodiscard]] Types::WriteSegment byteSegment(Range &&bytes) noexcept = delete;
 
-    /// @brief Sentinel timeout requesting an unbounded wait.
-    /// @note The selected endpoint may still reject blocking or timeout behavior as Unsupported.
-    inline constexpr std::chrono::milliseconds kWaitForever{-1};
-
-    /// @brief Sentinel timeout requesting a non-blocking attempt.
-    /// @note A stream without non-blocking/timed-read support returns Unsupported.
+    /// @brief Read timeout requesting a non-blocking attempt.
+    /// @note A stream without non-blocking-read support returns Unsupported.
     inline constexpr std::chrono::milliseconds kNoWait{0};
 
     /// @brief Default timeout used by best-effort terminal control queries.
@@ -134,6 +135,188 @@ namespace GameWIP::Terminal
             Other
         };
 
+        /// @brief Input representation selected for one managed terminal input owner.
+        enum class InputDeliveryMode : std::uint8_t
+        {
+            /// @brief Deliver normalized logical key, paste, and resize events where supported.
+            Events,
+
+            /// @brief Deliver byte, UTF-8 text, and managed line input.
+            Stream
+        };
+
+        /// @brief Policy for platform terminal control-key processing.
+        enum class ControlKeyMode : std::uint8_t
+        {
+            /// @brief Preserve normal platform processing such as ordinary Ctrl+C interrupt behavior.
+            NativeProcessing,
+
+            /// @brief Request reportable control-key combinations as logical terminal input.
+            ReportAsInput
+        };
+
+        /// @brief Configuration retained by one persistent Terminal input session.
+        struct SessionOptions
+        {
+            /// @brief Standard input stream owned by the session.
+            InputStream input = InputStream::Stdin;
+
+            /// @brief Primary output stream bound to the session for later output operations.
+            OutputStream output = OutputStream::Stdout;
+
+            /// @brief Input representation selected for the complete open session.
+            InputDeliveryMode deliveryMode = InputDeliveryMode::Events;
+
+            /// @brief Native control-key policy applied while the session owns terminal input.
+            ControlKeyMode controlKeyMode = ControlKeyMode::NativeProcessing;
+        };
+
+        /// @brief One valid Unicode scalar reported as a logical terminal key.
+        struct CharacterKey
+        {
+            /// @brief Unicode scalar value. Terminal-produced values are never surrogate code points.
+            char32_t value = U'\0';
+
+            /// @brief Compares Unicode scalar values.
+            friend constexpr bool operator==(CharacterKey, CharacterKey) noexcept = default;
+        };
+
+        /// @brief Portable non-character key reported by terminal input.
+        enum class NamedKey : std::uint8_t
+        {
+            Backspace,   ///< Backspace key.
+            Tab,         ///< Tab key. Shift+Tab is represented by the Shift modifier.
+            Enter,       ///< Enter or Return key.
+            Escape,      ///< Escape key.
+            Insert,      ///< Insert key.
+            Delete,      ///< Delete key.
+            Home,        ///< Home key.
+            End,         ///< End key.
+            PageUp,      ///< Page Up key.
+            PageDown,    ///< Page Down key.
+            ArrowUp,     ///< Up-arrow key.
+            ArrowDown,   ///< Down-arrow key.
+            ArrowLeft,   ///< Left-arrow key.
+            ArrowRight,  ///< Right-arrow key.
+            Begin,       ///< Begin or keypad-center navigation key where reportable.
+            CapsLock,    ///< Caps Lock key transition where reportable.
+            NumLock,     ///< Num Lock key transition where reportable.
+            ScrollLock,  ///< Scroll Lock key transition where reportable.
+            PrintScreen, ///< Print Screen key where reportable.
+            Pause,       ///< Pause/Break key where reportable.
+            Menu         ///< Menu/context key where reportable.
+        };
+
+        /// @brief Numeric function key without an arbitrary public upper bound.
+        struct FunctionKey
+        {
+            /// @brief One-based function-key number. Terminal-produced values are always nonzero.
+            std::uint16_t number = 0;
+
+            /// @brief Compares function-key numbers.
+            friend constexpr bool operator==(FunctionKey, FunctionKey) noexcept = default;
+        };
+
+        /// @brief Standalone logical modifier key where the backend can report modifier transitions.
+        enum class ModifierKey : std::uint8_t
+        {
+            Shift,   ///< Shift modifier key.
+            Control, ///< Control modifier key.
+            Alt,     ///< Alt modifier key.
+            Super,   ///< Super-style modifier key.
+            Hyper,   ///< Hyper modifier key where reportable.
+            Meta     ///< Meta modifier key where reportable.
+        };
+
+        /// @brief Logical media key where the backend can report media-key input.
+        enum class MediaKey : std::uint8_t
+        {
+            Play,          ///< Start playback.
+            Pause,         ///< Pause playback.
+            PlayPause,     ///< Toggle playback/pause.
+            Stop,          ///< Stop playback.
+            NextTrack,     ///< Select the next track/item.
+            PreviousTrack, ///< Select the previous track/item.
+            FastForward,   ///< Fast-forward media.
+            Rewind,        ///< Rewind media.
+            Record,        ///< Start or toggle recording.
+            VolumeUp,      ///< Increase output volume.
+            VolumeDown,    ///< Decrease output volume.
+            Mute           ///< Toggle or request mute.
+        };
+
+        /// @brief Modifier and lock state accompanying a logical key event.
+        enum class KeyModifier : std::uint16_t
+        {
+            None = 0,             ///< No known modifier or lock state.
+            Shift = 1U << 0U,     ///< Shift is active.
+            Control = 1U << 1U,   ///< Control is active.
+            Alt = 1U << 2U,       ///< Alt is active.
+            Super = 1U << 3U,     ///< Super-style modifier is active.
+            Hyper = 1U << 4U,     ///< Hyper is active where reportable.
+            Meta = 1U << 5U,      ///< Meta is active where reportable.
+            CapsLock = 1U << 6U,  ///< Caps Lock state is active where reportable.
+            NumLock = 1U << 7U,   ///< Num Lock state is active where reportable.
+            ScrollLock = 1U << 8U ///< Scroll Lock state is active where reportable.
+        };
+
+        /// @brief Combines modifier-state bits.
+        [[nodiscard]] constexpr KeyModifier operator|(KeyModifier left, KeyModifier right) noexcept
+        {
+            return static_cast<KeyModifier>(static_cast<std::uint16_t>(left) | static_cast<std::uint16_t>(right));
+        }
+
+        /// @brief Intersects modifier-state bits.
+        [[nodiscard]] constexpr KeyModifier operator&(KeyModifier left, KeyModifier right) noexcept
+        {
+            return static_cast<KeyModifier>(static_cast<std::uint16_t>(left) & static_cast<std::uint16_t>(right));
+        }
+
+        /// @brief Adds modifier-state bits to an existing mask.
+        constexpr KeyModifier &operator|=(KeyModifier &left, KeyModifier right) noexcept
+        {
+            left = left | right;
+            return left;
+        }
+
+        /// @brief Returns whether every requested modifier bit is present.
+        [[nodiscard]] constexpr bool hasModifier(KeyModifier modifiers, KeyModifier requested) noexcept
+        {
+            return (modifiers & requested) == requested;
+        }
+
+        /// @brief Logical phase of one reportable key transition.
+        enum class KeyAction : std::uint8_t
+        {
+            Press,  ///< Initial logical key press.
+            Repeat, ///< Auto-repeat occurrence where distinguishable.
+            Release ///< Logical key release where reportable.
+        };
+
+        /// @brief Logical location of a key where the backend can distinguish it.
+        enum class KeyLocation : std::uint8_t
+        {
+            Unknown,  ///< Location information is unavailable.
+            Standard, ///< Ordinary non-side-specific key location.
+            Left,     ///< Left-side modifier location.
+            Right,    ///< Right-side modifier location.
+            Numpad    ///< Numeric-keypad location.
+        };
+
+        /// @brief Portable logical terminal key representation.
+        using Key = std::variant<CharacterKey, NamedKey, FunctionKey, ModifierKey, MediaKey>;
+
+        /// @brief One normalized logical key input event.
+        /// @details For standalone ModifierKey events, modifiers describes other active modifiers and does not duplicate key.
+        struct KeyEvent
+        {
+            Key key;                                     ///< Logical key reported by the terminal.
+            KeyModifier modifiers = KeyModifier::None;   ///< Active modifier/lock state known for this event.
+            KeyAction action = KeyAction::Press;         ///< Press/repeat/release phase.
+            KeyLocation location = KeyLocation::Unknown; ///< Location, or Unknown when unavailable.
+            std::uint32_t repeatCount = 1;               ///< Number of occurrences represented by a Repeat event.
+        };
+
         /// @brief Outcome of a terminal read operation.
         enum class ReadOutcome
         {
@@ -147,7 +330,10 @@ namespace GameWIP::Terminal
             TimedOut,
 
             /// @brief A non-blocking read found no available input.
-            WouldBlock
+            WouldBlock,
+
+            /// @brief The caller-requested stop token cancelled the read.
+            Cancelled
         };
 
         /// @brief Line ending consumed by a line read.
@@ -366,58 +552,56 @@ namespace GameWIP::Terminal
             NormalizeToLf
         };
 
-        /// @brief Common terminal input mode presets.
-        enum class InputModePreset
-        {
-            /// @brief Normal interactive input: line-buffered, echoed, and control keys processed.
-            InteractiveLine,
-
-            /// @brief Raw byte-oriented input where practical.
-            RawBytes
-        };
-
-        /// @brief Portable terminal input mode.
-        struct InputMode
-        {
-            /// @brief Whether input waits for a complete line before reads complete.
-            bool lineBuffered = true;
-
-            /// @brief Whether typed input is echoed by the terminal.
-            bool echoInput = true;
-
-            /// @brief Whether platform terminal control keys are processed.
-            bool processControlKeys = true;
-        };
-
-        /// @brief Capabilities of a standard terminal input stream.
+        /// @brief Capabilities of the managed Terminal input abstraction for one standard input endpoint.
         struct InputCapabilities
         {
             /// @brief Detected stream endpoint kind.
             StreamKind kind = StreamKind::Detached;
 
-            /// @brief True when UTF-8 text input is supported.
+            /// @brief True when valid UTF-8 text input is supported.
             bool supportsUtf8Text = false;
 
-            /// @brief True when byte input is supported.
+            /// @brief True when arbitrary byte input is supported.
             bool supportsByteInput = false;
 
             /// @brief True when line input is supported.
             bool supportsLineInput = false;
 
-            /// @brief True when raw byte input mode is supported.
-            bool supportsRawInput = false;
+            /// @brief True when normalized structured event input is supported.
+            bool supportsEventInput = false;
 
-            /// @brief True when echo can be controlled.
-            bool supportsEchoControl = false;
+            /// @brief True when a zero-duration read can poll without a normal blocking wait.
+            bool supportsNonBlockingReads = false;
 
-            /// @brief True when input mode can be queried or changed.
-            bool supportsInputMode = false;
+            /// @brief True when positive finite read deadlines are supported.
+            bool supportsFiniteTimeouts = false;
 
-            /// @brief True when input availability can be queried without normal blocking.
-            bool supportsInputAvailability = false;
+            /// @brief True when an in-progress blocking read can observe a caller stop request.
+            bool supportsCancellation = false;
 
-            /// @brief True when timed reads are supported.
-            bool supportsReadTimeout = false;
+            /// @brief True when terminal resize changes can be delivered as structured events.
+            bool supportsResizeEvents = false;
+
+            /// @brief True when recognized paste input can be delivered as PasteEvent.
+            bool supportsPasteEvents = false;
+
+            /// @brief True when key repeat events can be distinguished from initial presses.
+            bool supportsKeyRepeatEvents = false;
+
+            /// @brief True when key release events can be reported.
+            bool supportsKeyReleaseEvents = false;
+
+            /// @brief True when standalone modifier-key events can be reported.
+            bool supportsStandaloneModifierEvents = false;
+
+            /// @brief True when media-key events can be reported.
+            bool supportsMediaKeyEvents = false;
+
+            /// @brief True when key location is reported reliably where meaningful.
+            bool supportsKeyLocation = false;
+
+            /// @brief True when accompanying modifier/lock state is reported reliably.
+            bool supportsModifierState = false;
         };
 
         /// @brief Capabilities of a standard terminal output stream.
@@ -497,6 +681,42 @@ namespace GameWIP::Terminal
 
             /// @brief Height in rows.
             std::uint32_t rows = 0;
+        };
+
+        /// @brief Recognized paste input delivered as one bounded owned UTF-8 payload.
+        struct PasteEvent
+        {
+            /// @brief Valid UTF-8 paste payload assembled by the managed input backend.
+            std::string text;
+        };
+
+        /// @brief Terminal-size change delivered through structured event input.
+        struct ResizeEvent
+        {
+            /// @brief Resulting terminal dimensions in character cells.
+            TerminalSize size;
+        };
+
+        /// @brief Tagged payload for one portable Terminal event.
+        using EventData = std::variant<KeyEvent, PasteEvent, ResizeEvent>;
+
+        /// @brief One normalized pull-based Terminal input event.
+        /// @details Key and resize alternatives use only inline value storage. Paste owns bounded UTF-8 text.
+        struct Event
+        {
+            EventData data; ///< Typed event payload.
+
+            /// @brief Returns the payload when it has EventType, otherwise nullptr.
+            template <typename EventType> [[nodiscard]] EventType *getIf() noexcept
+            {
+                return std::get_if<EventType>(&data);
+            }
+
+            /// @brief Returns the payload when it has EventType, otherwise nullptr.
+            template <typename EventType> [[nodiscard]] const EventType *getIf() const noexcept
+            {
+                return std::get_if<EventType>(&data);
+            }
         };
 
         /// @brief Result returned by terminal size queries.
@@ -579,21 +799,27 @@ namespace GameWIP::Terminal
         /// @brief Options used by byte reads.
         struct ByteReadOptions
         {
-            /// @brief Negative waits forever, zero does not wait, positive waits up to that duration.
-            /// @note A finite timeout may return Unsupported when the input capabilities do not advertise timeout support.
-            std::chrono::milliseconds timeout = kWaitForever;
+            /// @brief Total read deadline: nullopt waits indefinitely, zero polls, and positive values bound the complete operation.
+            /// @note Negative values are InvalidArgument. Endpoint support remains authoritative.
+            std::optional<std::chrono::milliseconds> timeout = std::nullopt;
+
+            /// @brief Caller-controlled cancellation request observed where the endpoint supports cancellable blocking reads.
+            std::stop_token stopToken{};
 
             /// @brief Whether a successful read may return fewer bytes than requested.
             bool allowPartial = true;
         };
 
         /// @brief Options used by text reads.
-        /// @details Text reads return one available UTF-8 chunk after input becomes available.
+        /// @details Text reads return one available valid UTF-8 chunk after input becomes available.
         struct TextReadOptions
         {
-            /// @brief Negative waits forever, zero does not wait, positive waits up to that duration.
-            /// @note A finite timeout may return Unsupported when the input capabilities do not advertise timeout support.
-            std::chrono::milliseconds timeout = kWaitForever;
+            /// @brief Total read deadline: nullopt waits indefinitely, zero polls, and positive values bound the complete operation.
+            /// @note Negative values are InvalidArgument. Endpoint support remains authoritative.
+            std::optional<std::chrono::milliseconds> timeout = std::nullopt;
+
+            /// @brief Caller-controlled cancellation request observed where the endpoint supports cancellable blocking reads.
+            std::stop_token stopToken{};
 
             /// @brief Maximum accepted byte count for one available UTF-8 text chunk.
             std::uint64_t maxReturnedBytes = kDefaultMaxReturnedTextBytes;
@@ -603,15 +829,33 @@ namespace GameWIP::Terminal
         /// @details Line reads do not expose allowPartial; they stop at a line ending, terminating outcome, truncation, or failure.
         struct LineReadOptions
         {
-            /// @brief Negative waits forever, zero does not wait, positive waits up to that duration.
-            /// @note A finite timeout may return Unsupported when the input capabilities do not advertise timeout support.
-            std::chrono::milliseconds timeout = kWaitForever;
+            /// @brief Total read deadline: nullopt waits indefinitely, zero polls, and positive values bound the complete operation.
+            /// @note Negative values are InvalidArgument. Endpoint support remains authoritative.
+            std::optional<std::chrono::milliseconds> timeout = std::nullopt;
+
+            /// @brief Caller-controlled cancellation request observed where the endpoint supports cancellable blocking reads.
+            std::stop_token stopToken{};
 
             /// @brief Maximum accepted byte count for the returned line representation.
             std::uint64_t maxReturnedBytes = kDefaultMaxReturnedLineBytes;
 
+            /// @brief Whether an interactive terminal read manages visible echo and editing feedback on the bound output stream.
+            /// @note Redirected input ignores this option because no terminal line discipline is active.
+            bool echo = true;
+
             /// @brief How a consumed line ending is represented.
             ReadLineEndingMode lineEndingMode = ReadLineEndingMode::Strip;
+        };
+
+        /// @brief Options used by structured event reads.
+        struct EventReadOptions
+        {
+            /// @brief Total read deadline: nullopt waits indefinitely, zero polls, and positive values bound the complete operation.
+            /// @note Negative values are InvalidArgument. Endpoint support remains authoritative.
+            std::optional<std::chrono::milliseconds> timeout = std::nullopt;
+
+            /// @brief Caller-controlled cancellation request observed where the endpoint supports cancellable blocking reads.
+            std::stop_token stopToken{};
         };
 
         /// @brief Options used by text output calls.
@@ -685,27 +929,18 @@ namespace GameWIP::Terminal
             IO::Types::FlushMode flushMode = IO::Types::FlushMode::Data;
         };
 
-        /// @brief Result returned by input mode queries.
-        struct InputModeResult
+        /// @brief Result returned by structured event reads.
+        struct EventReadResult
         {
             /// @brief Operation status.
             IO::Types::Status status;
 
-            /// @brief Reported input mode.
-            InputMode mode;
-        };
+            /// @brief Read outcome.
+            ReadOutcome outcome = ReadOutcome::Completed;
 
-        /// @brief Result returned by input availability queries.
-        struct InputAvailabilityResult
-        {
-            /// @brief Operation status.
-            IO::Types::Status status;
-
-            /// @brief True when input can be read without a normal blocking wait.
-            bool available = false;
-
-            /// @brief Best-effort byte estimate. May be zero even when available is true.
-            std::uint64_t estimatedBytes = 0;
+            /// @brief Event produced by a completed event read.
+            /// @details Empty for non-completed outcomes and failures.
+            std::optional<Event> event;
         };
 
         /// @brief Result returned by byte reads.
@@ -740,7 +975,7 @@ namespace GameWIP::Terminal
         };
 
         /// @brief Result returned by line reads.
-        /// @details line can contain an unterminated UTF-8 prefix together with EndOfStream, TimedOut, or WouldBlock.
+        /// @details line can contain an unterminated valid UTF-8 prefix together with EndOfStream, TimedOut, WouldBlock, or Cancelled.
         struct LineReadResult
         {
             /// @brief Operation status.
@@ -823,61 +1058,167 @@ namespace GameWIP::Terminal
     /// @brief Creates a terminal default color.
     [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::Color defaultColor() noexcept;
 
-    /// @brief Creates an input mode from a preset.
-    /// @param preset Preset to convert.
-    /// @return The requested mode. Unknown preset values fall back to InteractiveLine.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::InputMode makeInputMode(Types::InputModePreset preset) noexcept;
-
-    /// @brief Movable, non-copyable RAII helper that restores a complete previous backend terminal input mode.
-    /// @details A failed setup produces an inactive scope carrying the setup status. Failed explicit restoration leaves the
-    /// scope active for retry. Move assignment does not consume its source when restoring the destination's current state fails.
-    class GAMEWIP_TERMINAL_EXPORT InputModeScope final
+    /// @brief Persistent managed Terminal input owner with one bound primary output stream.
+    /// @details A Session is closed by default. open() acquires exclusive Terminal ownership of its input stream,
+    /// configures required native state, and retains that state until close() or best-effort destruction. Input-consuming
+    /// calls are serialized with each other while bound output remains independently serialized by the shared Terminal
+    /// output coordinator. Active-operation leases keep the binding valid without holding a lifecycle mutex across
+    /// backend work or user formatter code. close() waits for active operations and restores Session-owned persistent state.
+    class GAMEWIP_TERMINAL_EXPORT Session final
     {
     public:
-        /// @brief Creates an inactive input mode scope.
-        InputModeScope() noexcept;
+        /// @brief Creates a closed session without allocating or touching terminal state.
+        Session() noexcept;
 
-        /// @brief Input-mode restoration responsibility cannot be copied.
-        InputModeScope(const InputModeScope &) = delete;
-        /// @brief Input-mode restoration responsibility cannot be copy-assigned.
-        InputModeScope &operator=(const InputModeScope &) = delete;
+        /// @brief Session ownership cannot be copied.
+        Session(const Session &) = delete;
+        /// @brief Session ownership cannot be copy-assigned.
+        Session &operator=(const Session &) = delete;
 
-        /// @brief Move-constructs the scope and transfers restoration responsibility.
-        InputModeScope(InputModeScope &&other) noexcept;
+        /// @brief Transfers an existing session, including any open input ownership and output-restoration obligations.
+        Session(Session &&other) noexcept;
 
-        /// @brief Restores any destination-owned mode, then transfers restoration responsibility.
-        /// @note If destination restoration fails, this scope remains active and other is not consumed.
-        InputModeScope &operator=(InputModeScope &&other) noexcept;
+        /// @brief Move assignment is disabled so replacing an open session cannot hide restoration failure.
+        Session &operator=(Session &&other) = delete;
 
-        /// @brief Restores the complete previous backend input mode on a best-effort basis without throwing.
-        ~InputModeScope() noexcept;
+        /// @brief Makes a best-effort non-throwing close and releases any remaining process-wide ownership.
+        ~Session() noexcept;
 
-        /// @brief Returns whether this scope still owns restoration responsibility.
-        [[nodiscard]] bool active() const noexcept;
+        /// @brief Returns whether this object currently owns an open Terminal session.
+        [[nodiscard]] bool isOpen() const noexcept;
 
-        /// @brief Returns the last setup or restoration status tracked by this scope.
-        [[nodiscard]] const IO::Types::Status &status() const noexcept;
+        /// @brief Opens the session and acquires exclusive managed ownership of the selected input stream.
+        /// @param options Input/output binding and delivery/control policy retained until close().
+        /// @return Success, AlreadyOpen, ResourceBusy, Unsupported, or another checked setup failure.
+        [[nodiscard]] IO::Types::Status open(const Types::SessionOptions &options = {}) noexcept;
 
-        /// @brief Restores the complete previous backend input mode and reports restoration failure.
-        [[nodiscard]] IO::Types::Status restore() noexcept;
+        /// @brief Restores Session-owned persistent output state in reverse order, then exact native input state.
+        /// @return Success when closed. ResourceBusy when called reentrantly from the same Session operation. Restoration
+        /// failure leaves the session open and retryable ownership retained.
+        [[nodiscard]] IO::Types::Status close() noexcept;
 
-        /// @brief Releases restoration responsibility without changing input mode.
-        void release() noexcept;
+        /// @brief Returns the input capabilities captured when this Session opened.
+        [[nodiscard]] Types::InputCapabilitiesResult getInputCapabilities() const noexcept;
+
+        /// @brief Observes capabilities for the bound primary output stream.
+        [[nodiscard]] Types::OutputCapabilitiesResult getOutputCapabilities() const noexcept;
+
+        /// @brief Prepares the bound primary output stream and returns resulting capabilities.
+        [[nodiscard]] Types::OutputCapabilitiesResult prepareOutput() noexcept;
+
+        /// @brief Returns terminal dimensions for the bound primary output stream.
+        [[nodiscard]] Types::TerminalSizeResult getTerminalSize() const noexcept;
+
+        /// @brief Reads one structured input event in an Events-delivery session.
+        /// @return Status, stopping outcome, and optional event payload.
+        [[nodiscard]] Types::EventReadResult readEvent(const Types::EventReadOptions &options = {}) noexcept;
+
+        /// @brief Reads bytes into caller storage in a Stream-delivery session.
+        /// @param outputBuffer Caller-owned byte destination.
+        /// @param options Deadline, cancellation, and partial-read behavior.
+        [[nodiscard]] Types::ByteReadResult readBytes(std::span<std::byte> outputBuffer, const Types::ByteReadOptions &options = {}) noexcept;
+
+        /// @brief Reads one valid UTF-8 text chunk in a Stream-delivery session.
+        [[nodiscard]] Types::TextReadResult readText(const Types::TextReadOptions &options = {}) noexcept;
+
+        /// @brief Reads one valid UTF-8 line in a Stream-delivery session.
+        [[nodiscard]] Types::LineReadResult readLine(const Types::LineReadOptions &options = {}) noexcept;
+
+        /// @brief Writes UTF-8 text to the bound primary output stream.
+        [[nodiscard]] IO::Types::Status writeText(std::string_view utf8Text, const Types::TextWriteOptions &options = {}) noexcept;
+
+        /// @brief Writes UTF-8 text followed by a line ending to the bound primary output stream.
+        [[nodiscard]] IO::Types::Status writeLine(std::string_view utf8Text = {}, const Types::LineWriteOptions &options = {}) noexcept;
+
+        /// @brief Writes arbitrary bytes to the bound primary output stream.
+        [[nodiscard]] IO::Types::WriteResult writeBytes(std::span<const std::byte> bytes, const Types::ByteWriteOptions &options = {}) noexcept;
+
+        /// @brief Writes one atomic logical batch of text, styled text, and bytes to the bound output.
+        [[nodiscard]] IO::Types::Status writeSegments(
+            std::span<const Types::WriteSegment> segments,
+            const Types::SegmentWriteOptions &options = {}) noexcept;
+
+        /// @brief Formats UTF-8 text and writes it to the bound output.
+        template <class... Args> [[nodiscard]] IO::Types::Status print(std::format_string<Args...> format, Args &&...args) noexcept;
+
+        /// @brief Formats UTF-8 text with explicit write options and writes it to the bound output.
+        template <class... Args>
+        [[nodiscard]] IO::Types::Status print(const Types::TextWriteOptions &options, std::format_string<Args...> format, Args &&...args) noexcept;
+
+        /// @brief Formats UTF-8 text and writes it followed by a line ending to the bound output.
+        template <class... Args> [[nodiscard]] IO::Types::Status println(std::format_string<Args...> format, Args &&...args) noexcept;
+
+        /// @brief Formats UTF-8 text with explicit line options and writes it to the bound output.
+        template <class... Args>
+        [[nodiscard]] IO::Types::Status println(const Types::LineWriteOptions &options, std::format_string<Args...> format, Args &&...args) noexcept;
+
+        /// @brief Flushes the bound primary output stream.
+        [[nodiscard]] IO::Types::Status flush(IO::Types::FlushMode mode = IO::Types::FlushMode::Data) noexcept;
+
+        /// @brief Resets text style on the bound output.
+        [[nodiscard]] IO::Types::Status resetStyle(const Types::ControlOptions &options = {}) noexcept;
+
+        /// @brief Moves the cursor on the bound output.
+        [[nodiscard]] IO::Types::Status moveCursor(
+            Types::CursorMoveDirection direction,
+            std::uint32_t amount = 1,
+            const Types::ControlOptions &options = {}) noexcept;
+
+        /// @brief Sets the cursor position on the bound output.
+        [[nodiscard]] IO::Types::Status setCursorPosition(Types::CursorPosition position, const Types::ControlOptions &options = {}) noexcept;
+
+        /// @brief Queries cursor position using the Session's bound output and owned input.
+        /// @note The query is an input-consuming operation on backends that require a terminal response.
+        [[nodiscard]] Types::CursorPositionResult getCursorPosition(const Types::CursorPositionQueryOptions &options = {}) noexcept;
+
+        /// @brief Saves cursor position on the bound output.
+        [[nodiscard]] IO::Types::Status saveCursorPosition(const Types::ControlOptions &options = {}) noexcept;
+
+        /// @brief Restores cursor position on the bound output.
+        [[nodiscard]] IO::Types::Status restoreCursorPosition(const Types::ControlOptions &options = {}) noexcept;
+
+        /// @brief Changes cursor visibility and tracks Session-owned hiding for close-time restoration.
+        [[nodiscard]] IO::Types::Status setCursorVisible(bool visible, const Types::ControlOptions &options = {}) noexcept;
+
+        /// @brief Clears a screen or line region on the bound output.
+        [[nodiscard]] IO::Types::Status clear(
+            Types::ClearTarget target = Types::ClearTarget::EntireScreen,
+            const Types::ControlOptions &options = {}) noexcept;
+
+        /// @brief Scrolls the bound output.
+        [[nodiscard]] IO::Types::Status scroll(
+            Types::ScrollDirection direction,
+            std::uint32_t lines = 1,
+            const Types::ControlOptions &options = {}) noexcept;
+
+        /// @brief Enters alternate-screen mode and records a close-time leave obligation.
+        [[nodiscard]] IO::Types::Status enterAlternateScreen(const Types::ControlOptions &options = {}) noexcept;
+
+        /// @brief Leaves Session-owned alternate-screen mode, or performs an explicit leave when not Session-owned.
+        [[nodiscard]] IO::Types::Status leaveAlternateScreen(const Types::ControlOptions &options = {}) noexcept;
+
+        /// @brief Sets the terminal title through the bound output.
+        [[nodiscard]] IO::Types::Status setTitle(std::string_view utf8Title, const Types::ControlOptions &options = {}) noexcept;
+
+        /// @brief Emits the terminal bell through the bound output.
+        [[nodiscard]] IO::Types::Status ringBell(const Types::ControlOptions &options = {}) noexcept;
 
     private:
-        friend GAMEWIP_TERMINAL_EXPORT InputModeScope scopedInputMode(Types::InputStream stream, const Types::InputMode &mode) noexcept;
+        [[nodiscard]] IO::Types::Status restoreOutputState(bool retainOnFailure) noexcept;
+        [[nodiscard]] IO::Types::Status vprint(const Types::TextWriteOptions &options, std::string_view format, std::format_args arguments) noexcept;
+        [[nodiscard]] IO::Types::Status vprintln(
+            const Types::LineWriteOptions &options,
+            std::string_view format,
+            std::format_args arguments) noexcept;
 
-        Types::InputStream stream_ = Types::InputStream::Stdin;
-        Types::InputMode previousMode_{};
-        std::uint64_t previousNativeMode_ = 0;
-        IO::Types::Status status_{};
-        bool hasPreviousNativeMode_ = false;
-        bool active_ = false;
+        struct State;
+        std::unique_ptr<State> state_;
     };
 
     /// @brief Movable, non-copyable RAII helper that leaves alternate screen mode when destroyed.
-    /// @details Setup failure produces an inactive scope. Failed explicit leave remains active for retry. Nesting is coordinated
-    /// per output stream; do not mix manual transitions with active scopes for that stream.
+    /// @details Failure before the enter sequence is emitted produces an inactive scope. A flush failure after emission preserves
+    /// active leave responsibility. Failed explicit leave remains active for retry. Nesting is coordinated per output stream; do
+    /// not mix manual transitions with active scopes for that stream.
     class GAMEWIP_TERMINAL_EXPORT AlternateScreenScope final
     {
     public:
@@ -909,6 +1250,7 @@ namespace GameWIP::Terminal
         [[nodiscard]] IO::Types::Status leave() noexcept;
 
     private:
+        friend class Session;
         friend GAMEWIP_TERMINAL_EXPORT AlternateScreenScope
         scopedAlternateScreen(Types::OutputStream stream, const Types::ControlOptions &options) noexcept;
 
@@ -916,11 +1258,14 @@ namespace GameWIP::Terminal
         Types::ControlOptions options_{};
         IO::Types::Status status_{};
         bool active_ = false;
+        bool restorationEmitted_ = false;
+        bool restoreOnDestruction_ = true;
     };
 
     /// @brief Movable, non-copyable RAII helper that restores cursor visibility when destroyed.
-    /// @details Setup failure produces an inactive scope. Failed explicit restoration remains active for retry. Nesting is
-    /// coordinated per output stream; do not mix manual visibility changes with active scopes for that stream.
+    /// @details Failure before the hide sequence is emitted produces an inactive scope. A flush failure after emission preserves
+    /// active restoration responsibility. Failed explicit restoration remains active for retry. Nesting is coordinated per output
+    /// stream; do not mix manual visibility changes with active scopes for that stream.
     class GAMEWIP_TERMINAL_EXPORT CursorHiddenScope final
     {
     public:
@@ -952,6 +1297,7 @@ namespace GameWIP::Terminal
         [[nodiscard]] IO::Types::Status restore() noexcept;
 
     private:
+        friend class Session;
         friend GAMEWIP_TERMINAL_EXPORT CursorHiddenScope
         scopedCursorHidden(Types::OutputStream stream, const Types::ControlOptions &options) noexcept;
 
@@ -959,21 +1305,30 @@ namespace GameWIP::Terminal
         Types::ControlOptions options_{};
         IO::Types::Status status_{};
         bool active_ = false;
+        bool restorationEmitted_ = false;
+        bool restoreOnDestruction_ = true;
     };
 
-    /// @brief Reusable caller-owned plain-text buffer for batching one Terminal write.
-    /// @details The object owns its string storage and is not internally synchronized. It does not validate UTF-8 while
-    /// appending. Formatting and storage operations retain normal std::string/std::format exception behavior.
+    /// @brief Reusable caller-owned checked plain-text buffer for batching one Terminal write.
+    /// @details The object owns its string storage and is not internally synchronized. Text arguments are valid UTF-8 by
+    /// contract. Allocating mutation and formatting report failures through IO::Types::Status and preserve the previous
+    /// complete buffer contents when an operation fails.
     class GAMEWIP_TERMINAL_EXPORT OutputBuffer final
     {
     public:
-        /// @brief Creates an empty output buffer using a line ending for appendLine() and println().
-        /// @throws std::invalid_argument when lineEnding is not a known Types::LineEnding value.
-        explicit OutputBuffer(Types::LineEnding lineEnding = Types::LineEnding::Native);
+        /// @brief Creates an empty output buffer using the native line ending.
+        OutputBuffer() noexcept = default;
+
+        /// @brief Returns the line ending used by appendLine() and println().
+        [[nodiscard]] Types::LineEnding lineEnding() const noexcept;
+
+        /// @brief Changes the line ending used by future line appends.
+        /// @return InvalidArgument for an unknown enum value; the previous setting is preserved on failure.
+        [[nodiscard]] IO::Types::Status setLineEnding(Types::LineEnding lineEnding) noexcept;
 
         /// @brief Reserves text storage for future appends.
-        /// @throws Any exception propagated by std::string::reserve().
-        void reserve(std::size_t bytes);
+        /// @return OutOfMemory or SizeLimitExceeded instead of propagating allocation/length failures.
+        [[nodiscard]] IO::Types::Status reserve(std::size_t bytes) noexcept;
 
         /// @brief Clears buffered text while retaining capacity.
         void clear() noexcept;
@@ -988,37 +1343,38 @@ namespace GameWIP::Terminal
         /// @warning Mutating, moving, assigning, or destroying this buffer can invalidate the view.
         [[nodiscard]] std::string_view text() const noexcept;
 
-        /// @brief Appends bytes expected to contain UTF-8 text.
-        /// @throws Any exception propagated by std::string::append().
-        void appendText(std::string_view utf8Text);
+        /// @brief Appends valid UTF-8 text.
+        /// @return Checked allocation/size status. Failure preserves the previous buffer.
+        [[nodiscard]] IO::Types::Status appendText(std::string_view utf8Text) noexcept;
 
-        /// @brief Appends bytes expected to contain UTF-8 text followed by the configured line ending.
-        /// @throws Any exception propagated by std::string::append().
-        void appendLine(std::string_view utf8Text = {});
+        /// @brief Appends valid UTF-8 text followed by the configured line ending.
+        /// @return Checked allocation/size status. Failure rolls back the complete line append.
+        [[nodiscard]] IO::Types::Status appendLine(std::string_view utf8Text = {}) noexcept;
 
-        /// @brief Formats text and appends it to the buffer.
-        /// @throws std::format_error or any exception propagated by formatting, custom formatters, or allocation.
-        template <class... Args> void print(std::format_string<Args...> format, Args &&...args);
+        /// @brief Formats text and appends it atomically to the buffer.
+        /// @return InvalidArgument for formatting failure, OutOfMemory/SizeLimitExceeded for storage failure, or Unknown.
+        template <class... Args> [[nodiscard]] IO::Types::Status print(std::format_string<Args...> format, Args &&...args) noexcept;
 
-        /// @brief Formats text and appends it followed by the configured line ending.
-        /// @throws std::format_error or any exception propagated by formatting, custom formatters, or allocation.
-        template <class... Args> void println(std::format_string<Args...> format, Args &&...args);
+        /// @brief Formats text and appends it plus the configured line ending atomically.
+        template <class... Args> [[nodiscard]] IO::Types::Status println(std::format_string<Args...> format, Args &&...args) noexcept;
 
         /// @brief Writes buffered text to stdout without clearing the buffer.
-        [[nodiscard]] IO::Types::Status writeTo(const Types::TextWriteOptions &options = {}) const;
+        [[nodiscard]] IO::Types::Status writeTo(const Types::TextWriteOptions &options = {}) const noexcept;
 
         /// @brief Writes buffered text to an output stream without clearing the buffer.
-        [[nodiscard]] IO::Types::Status writeTo(Types::OutputStream stream, const Types::TextWriteOptions &options = {}) const;
+        [[nodiscard]] IO::Types::Status writeTo(Types::OutputStream stream, const Types::TextWriteOptions &options = {}) const noexcept;
 
         /// @brief Writes buffered text to stdout and clears it only when the write succeeds.
         /// @note The name describes buffer clearing; a backend flush is requested only when options.flushMode is not None.
-        [[nodiscard]] IO::Types::Status flushTo(const Types::TextWriteOptions &options = {});
+        [[nodiscard]] IO::Types::Status flushTo(const Types::TextWriteOptions &options = {}) noexcept;
 
         /// @brief Writes buffered text to an output stream and clears it only when the write succeeds.
         /// @note The name describes buffer clearing; a backend flush is requested only when options.flushMode is not None.
-        [[nodiscard]] IO::Types::Status flushTo(Types::OutputStream stream, const Types::TextWriteOptions &options = {});
+        [[nodiscard]] IO::Types::Status flushTo(Types::OutputStream stream, const Types::TextWriteOptions &options = {}) noexcept;
 
     private:
+        [[nodiscard]] IO::Types::Status vprint(std::string_view format, std::format_args arguments, bool appendLineEnding) noexcept;
+
         std::string text_;
         Types::LineEnding lineEnding_ = Types::LineEnding::Native;
     };
@@ -1051,63 +1407,45 @@ namespace GameWIP::Terminal
     /// @brief Gets terminal size for an output stream.
     [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::TerminalSizeResult getTerminalSize(Types::OutputStream stream);
 
-    /// @brief Checks whether input is available on stdin.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::InputAvailabilityResult getInputAvailability();
+    /// @brief Reads one structured input event from stdin through temporary managed ownership.
+    /// @return Status, stopping outcome, and optional event payload.
+    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::EventReadResult readEvent(const Types::EventReadOptions &options = {}) noexcept;
 
-    /// @brief Checks whether input is available on an input stream.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::InputAvailabilityResult getInputAvailability(Types::InputStream stream);
-
-    /// @brief Gets the current mode for stdin.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::InputModeResult getInputMode();
-
-    /// @brief Gets the current mode for an input stream.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::InputModeResult getInputMode(Types::InputStream stream);
-
-    /// @brief Sets the mode for stdin without discarding Terminal-buffered input.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status setInputMode(const Types::InputMode &mode);
-
-    /// @brief Sets the mode for an input stream without discarding Terminal-buffered input.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status setInputMode(Types::InputStream stream, const Types::InputMode &mode);
-
-    /// @brief Restores the backend/default mode for stdin.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status restoreDefaultInputMode();
-
-    /// @brief Restores the backend/default mode for an input stream.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status restoreDefaultInputMode(Types::InputStream stream);
-
-    /// @brief Temporarily sets stdin mode and returns a restoration scope.
-    /// @return Active scope on success; inactive scope carrying setup failure in status() otherwise.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT InputModeScope scopedInputMode(const Types::InputMode &mode) noexcept;
-
-    /// @brief Temporarily sets an input stream mode and returns a restoration scope.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT InputModeScope scopedInputMode(Types::InputStream stream, const Types::InputMode &mode) noexcept;
+    /// @brief Reads one structured input event from an input stream through temporary managed ownership.
+    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::EventReadResult readEvent(
+        Types::InputStream stream,
+        const Types::EventReadOptions &options = {}) noexcept;
 
     /// @brief Reads one UTF-8 line from stdin.
     /// @return Status, stopping outcome, returned line, consumed ending, and truncation state. Partial line text may accompany
-    /// EndOfStream, TimedOut, WouldBlock, or a later failure.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::LineReadResult readLine(const Types::LineReadOptions &options = {});
+    /// EndOfStream, TimedOut, WouldBlock, Cancelled, or a later failure.
+    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::LineReadResult readLine(const Types::LineReadOptions &options = {}) noexcept;
 
     /// @brief Reads one line from an input stream.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::LineReadResult readLine(Types::InputStream stream, const Types::LineReadOptions &options = {});
+    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::LineReadResult readLine(
+        Types::InputStream stream,
+        const Types::LineReadOptions &options = {}) noexcept;
 
     /// @brief Reads one available complete UTF-8 text chunk from stdin.
     /// @return Status, stopping outcome, text, and truncation state. Size limits never split a valid UTF-8 code point.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::TextReadResult readText(const Types::TextReadOptions &options = {});
+    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::TextReadResult readText(const Types::TextReadOptions &options = {}) noexcept;
 
     /// @brief Reads one available UTF-8 text chunk from an input stream.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::TextReadResult readText(Types::InputStream stream, const Types::TextReadOptions &options = {});
+    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::TextReadResult readText(
+        Types::InputStream stream,
+        const Types::TextReadOptions &options = {}) noexcept;
 
     /// @brief Reads bytes from stdin into caller storage.
     /// @return Status, stopping outcome, and bytes copied. Partial progress may accompany a later failure or terminating outcome.
     [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::ByteReadResult readBytes(
         std::span<std::byte> outputBuffer,
-        const Types::ByteReadOptions &options = {});
+        const Types::ByteReadOptions &options = {}) noexcept;
 
     /// @brief Reads bytes from an input stream into caller storage.
     [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::ByteReadResult readBytes(
         Types::InputStream stream,
         std::span<std::byte> outputBuffer,
-        const Types::ByteReadOptions &options = {});
+        const Types::ByteReadOptions &options = {}) noexcept;
 
     /// @brief Writes UTF-8 text to stdout.
     [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status writeText(std::string_view utf8Text, const Types::TextWriteOptions &options = {});
@@ -1349,7 +1687,7 @@ namespace GameWIP::Terminal
             Types::OutputStream stream,
             const Types::TextWriteOptions &options,
             std::string_view format,
-            std::format_args arguments);
+            std::format_args arguments) noexcept;
 
         /// @brief Exported ABI bridge used by the public println() templates.
         /// @warning Internal support symbol; consumers must call println() instead.
@@ -1357,19 +1695,40 @@ namespace GameWIP::Terminal
             Types::OutputStream stream,
             const Types::LineWriteOptions &options,
             std::string_view format,
-            std::format_args arguments);
+            std::format_args arguments) noexcept;
     } // namespace Detail
     /// @endcond
 
-    template <class... Args> void OutputBuffer::print(std::format_string<Args...> format, Args &&...args)
+    template <class... Args> IO::Types::Status Session::print(std::format_string<Args...> format, Args &&...args) noexcept
     {
-        std::format_to(std::back_inserter(text_), format, std::forward<Args>(args)...);
+        return print(Types::TextWriteOptions{}, format, std::forward<Args>(args)...);
     }
 
-    template <class... Args> void OutputBuffer::println(std::format_string<Args...> format, Args &&...args)
+    template <class... Args>
+    IO::Types::Status Session::print(const Types::TextWriteOptions &options, std::format_string<Args...> format, Args &&...args) noexcept
     {
-        print(format, std::forward<Args>(args)...);
-        appendLine();
+        return vprint(options, format.get(), std::make_format_args(args...));
+    }
+
+    template <class... Args> IO::Types::Status Session::println(std::format_string<Args...> format, Args &&...args) noexcept
+    {
+        return println(Types::LineWriteOptions{}, format, std::forward<Args>(args)...);
+    }
+
+    template <class... Args>
+    IO::Types::Status Session::println(const Types::LineWriteOptions &options, std::format_string<Args...> format, Args &&...args) noexcept
+    {
+        return vprintln(options, format.get(), std::make_format_args(args...));
+    }
+
+    template <class... Args> IO::Types::Status OutputBuffer::print(std::format_string<Args...> format, Args &&...args) noexcept
+    {
+        return vprint(format.get(), std::make_format_args(args...), false);
+    }
+
+    template <class... Args> IO::Types::Status OutputBuffer::println(std::format_string<Args...> format, Args &&...args) noexcept
+    {
+        return vprint(format.get(), std::make_format_args(args...), true);
     }
 
     template <class... Args> IO::Types::Status print(std::format_string<Args...> format, Args &&...args)

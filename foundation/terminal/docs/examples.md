@@ -55,9 +55,11 @@ int main()
         return 3;
     case Types::ReadOutcome::WouldBlock:
         return 4;
+    case Types::ReadOutcome::Cancelled:
+        return 5;
     }
 
-    return 5;
+    return 6;
 }
 ```
 
@@ -75,7 +77,7 @@ int main()
     using namespace GameWIP::Terminal;
 
     const auto capabilities = getInputCapabilities();
-    if (!capabilities.status.ok() || !capabilities.capabilities.supportsReadTimeout)
+    if (!capabilities.status.ok() || !capabilities.capabilities.supportsNonBlockingReads)
     {
         return 0;
     }
@@ -148,10 +150,14 @@ int main()
 {
     using namespace GameWIP::Terminal;
 
-    OutputBuffer buffer(Types::LineEnding::Lf);
-    buffer.reserve(1024);
-    buffer.println("entity {} hp {}", 7, 95);
-    buffer.println("entity {} hp {}", 8, 42);
+    OutputBuffer buffer;
+    if (!buffer.setLineEnding(Types::LineEnding::Lf).ok() ||
+        !buffer.reserve(1024).ok() ||
+        !buffer.println("entity {} hp {}", 7, 95).ok() ||
+        !buffer.println("entity {} hp {}", 8, 42).ok())
+    {
+        return 1;
+    }
 
     const auto status = buffer.flushTo();
     if (!status.ok())
@@ -164,7 +170,7 @@ int main()
 }
 ```
 
-## Temporary input mode with explicit restoration
+## Persistent Stream session with explicit restoration
 
 ```cpp
 #include "terminal/terminal.h"
@@ -173,18 +179,99 @@ int main()
 {
     using namespace GameWIP::Terminal;
 
-    const Types::InputMode raw = makeInputMode(Types::InputModePreset::RawBytes);
-    auto scope = scopedInputMode(raw);
-    if (!scope.status().ok())
+    Session session;
+    Types::SessionOptions options;
+    options.deliveryMode = Types::InputDeliveryMode::Stream;
+
+    const auto openStatus = session.open(options);
+    if (!openStatus.ok())
     {
         return 1;
     }
 
-    // Perform the raw-input workflow here.
+    if (!session.writeText("name: ").ok())
+    {
+        static_cast<void>(session.close());
+        return 2;
+    }
 
-    return scope.restore().ok() ? 0 : 2;
+    const Types::LineReadResult line = session.readLine();
+    if (!line.status.ok() ||
+        !session.println("hello {}", line.line).ok())
+    {
+        static_cast<void>(session.close());
+        return 3;
+    }
+
+    const auto closeStatus = session.close();
+    return line.outcome == Types::ReadOutcome::Completed && closeStatus.ok() ? 0 : 4;
 }
 ```
+
+Explicit `close()` is preferred when native restoration failure matters. A failed close retains session ownership for retry.
+
+## Persistent structured-event session
+
+```cpp
+#include "terminal/terminal.h"
+
+int main()
+{
+    using namespace GameWIP::Terminal;
+
+    Session session; // Events is the default delivery mode.
+    if (!session.open().ok())
+    {
+        return 1;
+    }
+
+    const Types::EventReadResult result = session.readEvent();
+    if (!result.status.ok())
+    {
+        static_cast<void>(session.close());
+        return 2;
+    }
+
+    if (result.outcome == Types::ReadOutcome::Completed && result.event.has_value())
+    {
+        if (const Types::ResizeEvent *resize = result.event->getIf<Types::ResizeEvent>())
+        {
+            // resize->size uses the same viewport semantics as getTerminalSize().
+        }
+    }
+
+    return session.close().ok() ? 0 : 3;
+}
+```
+
+On native Win32 consoles, key/repeat/release/modifier/location and resize events come from `INPUT_RECORD`. Mouse records are ignored until Terminal has a deliberate portable mouse contract.
+
+## Cancel a managed read
+
+```cpp
+#include "terminal/terminal.h"
+
+#include <stop_token>
+
+int main()
+{
+    using namespace GameWIP::Terminal;
+
+    std::stop_source source;
+    source.request_stop();
+
+    Types::TextReadOptions options;
+    options.stopToken = source.get_token();
+
+    const Types::TextReadResult result = readText(options);
+    return result.status.ok() &&
+                   result.outcome == Types::ReadOutcome::Cancelled
+               ? 0
+               : 1;
+}
+```
+
+A pre-requested stop never consumes input. For cancellation of an in-progress blocking read, first check `supportsCancellation`.
 
 ## Cursor-hidden scope
 

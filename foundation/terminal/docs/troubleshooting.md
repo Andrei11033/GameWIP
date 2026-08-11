@@ -22,9 +22,23 @@ Text and line reads require complete valid UTF-8. Use `readBytes()` for arbitrar
 
 The next UTF-8 code point does not fit in `maxReturnedBytes`. Increase the limit; Terminal will not split the encoding.
 
-## A timed read returns no text
+## A timed, polled, or cancelled read returns no text
 
-Inspect both `status` and `outcome`. `TimedOut` and `WouldBlock` are normal outcomes. Real Windows console input currently does not support finite or non-blocking reads and returns `Unsupported` instead.
+Inspect both `status` and `outcome`. `TimedOut`, `WouldBlock`, and `Cancelled` are normal domain outcomes with a successful status.
+
+Read timeouts are optional: `std::nullopt` waits indefinitely, `0ms` polls, positive durations establish one total deadline, and negative durations are `InvalidArgument`. Real Win32 console input and named-pipe input support polling, finite deadlines, and requested cancellation. Regular redirected files still do not promise bounded waiting.
+
+## Interactive `readLine()` returns `Unsupported` before reading
+
+Managed echo requires a terminal output that supports cursor positioning, cursor-position queries, and line clearing. If input is interactive but the bound output cannot render managed echo, set `LineReadOptions::echo = false` and render the application UI yourself.
+
+## A special key does not appear in `readText()`
+
+Stream text/byte reads project only text-producing/control events into stream data. Navigation, function, modifier, resize, and other logical events are intentionally not serialized into arbitrary escape sequences. Use `InputDeliveryMode::Events` when the application needs those keys.
+
+## An `OutputBuffer` mutation returned a failure
+
+`OutputBuffer` no longer throws for reserve, append, line-policy, or formatting failures. Inspect the returned status. Failed append/format operations preserve the previous complete buffer contents; a failed `flushTo()` preserves the buffered text for retry.
 
 ## `flushTo()` did not force an OS flush
 
@@ -38,13 +52,33 @@ Terminal retains no unwritten stream buffer. On Win32, console and pipe flushes 
 
 A requested flush can fail after all bytes were accepted. Inspect both `status` and `bytesWritten`.
 
-## A scope is inactive immediately after creation
+## `Session::open()` returns `AlreadyOpen` or `ResourceBusy`
 
-Setup failed. Inspect `status()`. Scope factories are `noexcept` and return an inactive object rather than throwing.
+`AlreadyOpen` means that same `Session` object is already open. `ResourceBusy` means another persistent session or direct managed input operation owns stdin.
 
-## Move assignment did not consume the source scope
+Close the existing owner explicitly before opening another one. Do not reintroduce availability-check-then-read logic; ownership is intentionally acquired by the operation itself.
 
-The destination already owned active state and failed to restore or leave it. The destination remains active and the source retains its responsibility so state ownership is not silently lost.
+## `Session::close()` failed and `isOpen()` is still true
+
+A Session-owned persistent output restoration or exact native input restoration failed. Explicit close intentionally keeps the session open and retains stdin ownership so cleanup can be retried. Output state is restored in reverse activation order before input restoration; successfully restored obligations are not repeated on retry. Fix or report the backend problem, then call `close()` again.
+
+`ResourceBusy` has one additional deliberate meaning for `close()`: custom formatter code attempted to close the same Session whose formatted operation is active. The nested close cannot wait for its own operation, so it returns immediately and leaves the Session open. Let the outer call finish, then close from a non-reentrant context.
+
+Destruction is different: the destructor makes best-effort output and input restoration attempts and releases process-wide input ownership because the destroyed object cannot be retried.
+
+## A stop token returns `Unsupported`
+
+The token is stoppable and the requested read may block, but the endpoint cannot currently observe cancellation safely. Use an endpoint that advertises `supportsCancellation`, use a `0ms` poll loop owned by the application where appropriate, or omit the stoppable token when indefinite blocking is acceptable.
+
+A token that is already stopped returns `ReadOutcome::Cancelled` before input is consumed.
+
+## An output-state scope is inactive immediately after creation
+
+Cursor-hidden or alternate-screen setup failed before its state-changing sequence was emitted. Inspect `status()`. Those scope factories are `noexcept` and return an inactive object rather than throwing. A requested flush failure after sequence emission differs: `status()` reports the failure, but `active()` remains true because the scope still owns the inverse transition.
+
+## Output-state scope move assignment did not consume the source
+
+The destination already owned active output state and failed to restore or leave it. The destination remains active and the source retains its responsibility so state ownership is not silently lost.
 
 ## Output interleaves with `std::cout` or `printf`
 

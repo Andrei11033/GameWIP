@@ -31,6 +31,27 @@ namespace GameWIP::Terminal::Detail::TestHooks
         return static_cast<IO::Types::ErrorCode>(failure.code.load(std::memory_order_acquire));
     }
 
+    void waitAtBlock(HookBlock &block)
+    {
+        std::unique_lock lock(terminalTestHookState.mutex);
+        if (!block.enabled)
+        {
+            return;
+        }
+
+        block.enabled = false;
+        block.reached = true;
+        block.released = false;
+        block.condition.notify_all();
+        block.condition.wait(
+            lock,
+            [&block]
+            {
+                return block.released;
+            });
+        block.reached = false;
+    }
+
     void resetTerminalTestHooks() noexcept
     {
         std::lock_guard lock(terminalTestHookState.mutex);
@@ -42,9 +63,17 @@ namespace GameWIP::Terminal::Detail::TestHooks
             state.inputBytesOverrideEnabled = false;
             state.endOfStreamWhenInputEmpty = true;
             state.inputBytes.clear();
+            state.inputEventsOverrideEnabled = false;
+            state.endOfStreamWhenEventsEmpty = true;
+            state.inputEvents.clear();
+            state.nextInputEvent = 0;
             state.inputModeOverrideEnabled = false;
-            state.currentInputMode = {};
-            state.defaultInputMode = {};
+            state.lineBuffered = true;
+            state.echoInput = true;
+            state.processControlKeys = true;
+            state.reportResizeEvents = false;
+            state.reportPointerEvents = false;
+            state.exclusiveEventDelivery = false;
         }
 
         for (OutputHookState &state : terminalTestHookState.outputStreams)
@@ -62,12 +91,15 @@ namespace GameWIP::Terminal::Detail::TestHooks
             state.terminalSizeOverride = {};
             state.cursorPositionOverrideEnabled = false;
             state.cursorPositionOverride = {};
+            state.cursorRenderingSimulationEnabled = false;
+            state.cursorRenderingPosition = {};
+            state.cursorRenderingViewportOrigin = {};
+            state.cursorRenderingSetHistory.clear();
         }
 
         terminalTestHookState.nextInputCapabilityFailure.enabled.store(false, std::memory_order_release);
         terminalTestHookState.nextOutputCapabilityFailure.enabled.store(false, std::memory_order_release);
         terminalTestHookState.nextOutputPreparationFailure.enabled.store(false, std::memory_order_release);
-        terminalTestHookState.nextInputAvailabilityFailure.enabled.store(false, std::memory_order_release);
         terminalTestHookState.nextInputModeFailure.enabled.store(false, std::memory_order_release);
         terminalTestHookState.nextReadFailure.enabled.store(false, std::memory_order_release);
         terminalTestHookState.nextTerminalSizeFailure.enabled.store(false, std::memory_order_release);
@@ -75,6 +107,12 @@ namespace GameWIP::Terminal::Detail::TestHooks
         terminalTestHookState.nextTextWriteFailure.enabled.store(false, std::memory_order_release);
         terminalTestHookState.nextByteWriteFailure.enabled.store(false, std::memory_order_release);
         terminalTestHookState.nextFlushFailure.enabled.store(false, std::memory_order_release);
+        terminalTestHookState.nextReadBlock.enabled = false;
+        terminalTestHookState.nextReadBlock.released = true;
+        terminalTestHookState.nextReadBlock.condition.notify_all();
+        terminalTestHookState.nextTextWriteBlock.enabled = false;
+        terminalTestHookState.nextTextWriteBlock.released = true;
+        terminalTestHookState.nextTextWriteBlock.condition.notify_all();
     }
 
     void forceFailure(HookFailure &failure, IO::Types::ErrorCode code) noexcept
@@ -92,7 +130,33 @@ namespace GameWIP::Terminal::TestHooks
     {
         resetTerminalTestHooks();
         Detail::Platform::TestHooks::setPendingHighSurrogate(Terminal::Types::InputStream::Stdin, 0);
+#if defined(_WIN32)
+        Detail::Platform::TestHooks::resetWin32KeyDecoder();
+#endif
     }
+
+#if defined(_WIN32)
+    void resetWin32KeyDecoder() noexcept
+    {
+        Detail::Platform::TestHooks::resetWin32KeyDecoder();
+    }
+
+    Win32KeyDecodeResult decodeWin32KeyRecord(
+        bool keyDown,
+        std::uint16_t virtualKey,
+        char16_t unicodeCharacter,
+        std::uint32_t controlState,
+        std::uint16_t repeatCount,
+        std::uint16_t scanCode) noexcept
+    {
+        return Detail::Platform::TestHooks::decodeWin32KeyRecord(keyDown, virtualKey, unicodeCharacter, controlState, repeatCount, scanCode);
+    }
+
+    std::optional<Terminal::Types::Event> takePendingWin32KeyEvent() noexcept
+    {
+        return Detail::Platform::TestHooks::takePendingWin32KeyEvent();
+    }
+#endif
 
     void setInputCapabilitiesOverride(Terminal::Types::InputStream stream, const Terminal::Types::InputCapabilities &capabilities)
     {
@@ -164,6 +228,26 @@ namespace GameWIP::Terminal::TestHooks
         state.endOfStreamWhenInputEmpty = true;
     }
 
+    void setInputEvents(Terminal::Types::InputStream stream, std::span<const Terminal::Types::Event> events, bool endOfStreamWhenEmpty)
+    {
+        std::lock_guard lock(terminalTestHookState.mutex);
+        InputHookState &state = terminalTestHookState.inputStreams[inputIndex(stream)];
+        state.inputEvents.assign(events.begin(), events.end());
+        state.nextInputEvent = 0;
+        state.endOfStreamWhenEventsEmpty = endOfStreamWhenEmpty;
+        state.inputEventsOverrideEnabled = true;
+    }
+
+    void clearInputEvents(Terminal::Types::InputStream stream) noexcept
+    {
+        std::lock_guard lock(terminalTestHookState.mutex);
+        InputHookState &state = terminalTestHookState.inputStreams[inputIndex(stream)];
+        state.inputEvents.clear();
+        state.nextInputEvent = 0;
+        state.endOfStreamWhenEventsEmpty = true;
+        state.inputEventsOverrideEnabled = false;
+    }
+
     void setPendingHighSurrogate(Terminal::Types::InputStream stream, std::uint16_t surrogate) noexcept
     {
         Detail::Platform::TestHooks::setPendingHighSurrogate(stream, surrogate);
@@ -174,21 +258,46 @@ namespace GameWIP::Terminal::TestHooks
         return Detail::Platform::TestHooks::hasPendingHighSurrogate(stream);
     }
 
-    void setInputModeOverride(Terminal::Types::InputStream stream, const Terminal::Types::InputMode &defaultMode)
+    void setInputModeOverride(Terminal::Types::InputStream stream, bool lineBuffered, bool echoInput, bool processControlKeys)
     {
         std::lock_guard lock(terminalTestHookState.mutex);
         InputHookState &state = terminalTestHookState.inputStreams[inputIndex(stream)];
-        state.defaultInputMode = defaultMode;
-        state.currentInputMode = defaultMode;
+        state.lineBuffered = lineBuffered;
+        state.echoInput = echoInput;
+        state.processControlKeys = processControlKeys;
         state.inputModeOverrideEnabled = true;
+    }
+
+    bool inputModeOverrideMatches(Terminal::Types::InputStream stream, bool lineBuffered, bool echoInput, bool processControlKeys) noexcept
+    {
+        std::lock_guard lock(terminalTestHookState.mutex);
+        const InputHookState &state = terminalTestHookState.inputStreams[inputIndex(stream)];
+        return state.inputModeOverrideEnabled && state.lineBuffered == lineBuffered && state.echoInput == echoInput &&
+               state.processControlKeys == processControlKeys;
+    }
+
+    bool inputManagedEventModeOverrideMatches(
+        Terminal::Types::InputStream stream,
+        bool reportResizeEvents,
+        bool reportPointerEvents,
+        bool exclusiveEventDelivery) noexcept
+    {
+        std::lock_guard lock(terminalTestHookState.mutex);
+        const InputHookState &state = terminalTestHookState.inputStreams[inputIndex(stream)];
+        return state.inputModeOverrideEnabled && state.reportResizeEvents == reportResizeEvents && state.reportPointerEvents == reportPointerEvents &&
+               state.exclusiveEventDelivery == exclusiveEventDelivery;
     }
 
     void clearInputModeOverride(Terminal::Types::InputStream stream) noexcept
     {
         std::lock_guard lock(terminalTestHookState.mutex);
         InputHookState &state = terminalTestHookState.inputStreams[inputIndex(stream)];
-        state.currentInputMode = {};
-        state.defaultInputMode = {};
+        state.lineBuffered = true;
+        state.echoInput = true;
+        state.processControlKeys = true;
+        state.reportResizeEvents = false;
+        state.reportPointerEvents = false;
+        state.exclusiveEventDelivery = false;
         state.inputModeOverrideEnabled = false;
     }
 
@@ -266,6 +375,108 @@ namespace GameWIP::Terminal::TestHooks
         state.cursorPositionOverrideEnabled = false;
     }
 
+    void enableCursorRenderingSimulation(
+        Terminal::Types::OutputStream stream,
+        Terminal::Types::TerminalSize size,
+        Terminal::Types::CursorPosition position,
+        Terminal::Types::CursorPosition viewportOrigin)
+    {
+        std::lock_guard lock(terminalTestHookState.mutex);
+        OutputHookState &state = terminalTestHookState.outputStreams[outputIndex(stream)];
+        state.terminalSizeOverrideEnabled = true;
+        state.terminalSizeOverride = size;
+        state.cursorRenderingSimulationEnabled = true;
+        state.cursorRenderingPosition = position;
+        state.cursorRenderingViewportOrigin = viewportOrigin;
+        state.cursorRenderingSetHistory.clear();
+    }
+
+    Terminal::Types::CursorPosition cursorRenderingViewportOrigin(Terminal::Types::OutputStream stream) noexcept
+    {
+        std::lock_guard lock(terminalTestHookState.mutex);
+        return terminalTestHookState.outputStreams[outputIndex(stream)].cursorRenderingViewportOrigin;
+    }
+
+    std::vector<Terminal::Types::CursorPosition> cursorRenderingSetHistory(Terminal::Types::OutputStream stream)
+    {
+        std::lock_guard lock(terminalTestHookState.mutex);
+        return terminalTestHookState.outputStreams[outputIndex(stream)].cursorRenderingSetHistory;
+    }
+
+    void blockNextRead()
+    {
+        std::lock_guard lock(terminalTestHookState.mutex);
+        HookBlock &block = terminalTestHookState.nextReadBlock;
+        block.enabled = true;
+        block.reached = false;
+        block.released = false;
+    }
+
+    bool waitUntilReadBlocked(std::chrono::milliseconds timeout)
+    {
+        std::unique_lock lock(terminalTestHookState.mutex);
+        HookBlock &block = terminalTestHookState.nextReadBlock;
+        return block.condition.wait_for(
+            lock,
+            timeout,
+            [&block]
+            {
+                return block.reached;
+            });
+    }
+
+    void releaseBlockedRead() noexcept
+    {
+        try
+        {
+            std::lock_guard lock(terminalTestHookState.mutex);
+            terminalTestHookState.nextReadBlock.released = true;
+            terminalTestHookState.nextReadBlock.condition.notify_all();
+        }
+        catch (...)
+        {
+            // Test cleanup is best effort at this noexcept synchronization boundary.
+            return;
+        }
+    }
+
+    void blockNextTextWrite()
+    {
+        std::lock_guard lock(terminalTestHookState.mutex);
+        HookBlock &block = terminalTestHookState.nextTextWriteBlock;
+        block.enabled = true;
+        block.reached = false;
+        block.released = false;
+    }
+
+    bool waitUntilTextWriteBlocked(std::chrono::milliseconds timeout)
+    {
+        std::unique_lock lock(terminalTestHookState.mutex);
+        HookBlock &block = terminalTestHookState.nextTextWriteBlock;
+        return block.condition.wait_for(
+            lock,
+            timeout,
+            [&block]
+            {
+                return block.reached;
+            });
+    }
+
+    void releaseBlockedTextWrite() noexcept
+    {
+        try
+        {
+            std::lock_guard lock(terminalTestHookState.mutex);
+            terminalTestHookState.nextTextWriteBlock.released = true;
+            terminalTestHookState.nextTextWriteBlock.condition.notify_all();
+        }
+        catch (...)
+        {
+            // Test cleanup is best effort at this noexcept synchronization boundary.
+            return;
+        }
+    }
+
     void forceNextInputCapabilityFailure(IO::Types::ErrorCode code) noexcept
     {
         forceFailure(terminalTestHookState.nextInputCapabilityFailure, code);
@@ -279,11 +490,6 @@ namespace GameWIP::Terminal::TestHooks
     void forceNextOutputPreparationFailure(IO::Types::ErrorCode code) noexcept
     {
         forceFailure(terminalTestHookState.nextOutputPreparationFailure, code);
-    }
-
-    void forceNextInputAvailabilityFailure(IO::Types::ErrorCode code) noexcept
-    {
-        forceFailure(terminalTestHookState.nextInputAvailabilityFailure, code);
     }
 
     void forceNextInputModeFailure(IO::Types::ErrorCode code) noexcept

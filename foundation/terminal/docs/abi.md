@@ -25,17 +25,19 @@ Internal platform headers and test hooks are not installed.
 
 ## Binary compatibility
 
-The public interface exposes C++ standard-library types including `std::string`, `std::string_view`, `std::span`, `std::format_string`, `std::chrono::milliseconds`, and standard exceptions. Consumers must follow the project compiler, language-mode, standard-library, runtime-library, architecture, and build-configuration compatibility policy. See @ref project_library_compatibility.
+The public interface exposes C++ standard-library types including `std::string`, `std::string_view`, `std::span`, `std::optional`, `std::stop_token`, `std::format_string`, and `std::chrono::milliseconds`. Checked operations report failures through IO status/result types rather than exposing a Terminal exception hierarchy. `Session` contains a private `std::unique_ptr` to an incomplete implementation state. Consumers must follow the project compiler, language-mode, standard-library, runtime-library, architecture, and build-configuration compatibility policy. See @ref project_library_compatibility.
 
 The exact-version package file prevents CMake from treating a different GameWIP release as package-compatible. It does not make arbitrary compiler or runtime combinations ABI-compatible.
 
 ## Process-wide runtime
 
-All modules in one process must resolve the same Terminal shared library. Its process-wide stdin/stdout/stderr state provides the synchronization and scope-nesting behavior documented by the manual. Statically duplicating or privately embedding separate Terminal runtimes would not provide one shared coordination domain.
+All modules in one process must resolve the same Terminal shared library. Its process-wide stdin ownership coordinator and stdout/stderr state provide the synchronization, Session/direct-read conflict detection, and output scope-nesting behavior documented by the manual. Statically duplicating or privately embedding separate Terminal runtimes would not provide one shared coordination domain.
+
+`Session`'s private state keeps native-mode snapshots and ownership identity, lifecycle/input synchronization, persistent output-restoration obligations, decoder/parser state, and later backend-specific buffers out of the installed header. Process-wide backend state owns the standard endpoint handles. Move construction transfers the same Session state allocation, preserving managed input ownership identity and output cleanup obligations without exposing implementation layout.
 
 ## Exported template bridges
 
-Public `print()` and `println()` templates package arguments into `std::format_args` and call exported `GameWIP::Terminal::Detail::vprint()` and `vprintln()` functions. These `Detail` symbols are ABI support for the public templates, not consumer API. Consumers must call the public templates instead of depending on the bridge signatures directly.
+Public free `print()` and `println()` templates package arguments into `std::format_args` and call exported `GameWIP::Terminal::Detail::vprint()` and `vprintln()` functions. Session formatting and `OutputBuffer` formatting similarly cross non-template exported member bridges before doing allocating work. These bridge symbols are ABI implementation support, not independent formatting APIs. Consumers must call the public templates instead of depending on bridge signatures directly.
 
 ## Dependency direction
 

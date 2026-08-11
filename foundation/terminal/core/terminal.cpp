@@ -2,12 +2,14 @@
 /// @brief Core implementation for the Terminal library.
 
 #include "terminal/terminal.h"
+#include "terminal/internal/terminal_input.h"
 #include "terminal/internal/terminal_platform.h"
 
 #include <algorithm>
 #include <array>
 #include <charconv>
 #include <cstdint>
+#include <exception>
 #include <format>
 #include <iterator>
 #include <limits>
@@ -80,16 +82,24 @@ namespace GameWIP::Terminal
 
             ~FormatScratchLease() noexcept
             {
-                text_.clear();
-                if (text_.capacity() > kRetainedAssemblyLimit)
+                try
                 {
-                    std::string{}.swap(text_);
-                }
+                    text_.clear();
+                    if (text_.capacity() > kRetainedAssemblyLimit)
+                    {
+                        std::string{}.swap(text_);
+                    }
 
-                std::lock_guard lock(state_.mutex);
-                if (text_.capacity() > state_.formatScratch.capacity())
+                    std::lock_guard lock(state_.mutex);
+                    if (text_.capacity() > state_.formatScratch.capacity())
+                    {
+                        text_.swap(state_.formatScratch);
+                    }
+                }
+                catch (...)
                 {
-                    text_.swap(state_.formatScratch);
+                    // Scratch retention is an optimization; destruction must never terminate on cleanup failure.
+                    static_cast<void>(0);
                 }
             }
 
@@ -132,30 +142,86 @@ namespace GameWIP::Terminal
             return false;
         }
 
-        /// @brief Validates line-read ending-mode enum values.
-        [[nodiscard]] bool validReadLineEndingMode(Types::ReadLineEndingMode mode) noexcept
+        /// @brief Builds a diagnostic status without allowing diagnostic allocation to escape a checked boundary.
+        [[nodiscard]] IO::Types::Status statusWithMessage(ErrorCode code, std::string_view message) noexcept
         {
-            switch (mode)
+            if (message.empty())
             {
-            case Types::ReadLineEndingMode::Strip:
-            case Types::ReadLineEndingMode::Keep:
-            case Types::ReadLineEndingMode::NormalizeToLf:
-                return true;
+                return IO::makeStatus(code);
             }
 
-            return false;
+            try
+            {
+                return IO::makeStatus(code, 0, std::string(message));
+            }
+            catch (...)
+            {
+                return IO::makeStatus(code);
+            }
+        }
+
+        /// @brief Copies a stored status without letting optional diagnostic allocation escape a noexcept boundary.
+        [[nodiscard]] IO::Types::Status copyStatus(const IO::Types::Status &status) noexcept
+        {
+            if (status.message.empty())
+            {
+                return IO::makeStatus(status.code, status.nativeCode);
+            }
+
+            try
+            {
+                return IO::makeStatus(status.code, status.nativeCode, status.message);
+            }
+            catch (...)
+            {
+                return IO::makeStatus(status.code, status.nativeCode);
+            }
+        }
+
+        /// @brief Maps an exception raised by Terminal-owned checked work to a portable status.
+        [[nodiscard]] IO::Types::Status exceptionStatus() noexcept
+        {
+            try
+            {
+                throw;
+            }
+            catch (const std::bad_alloc &)
+            {
+                return IO::makeStatus(ErrorCode::OutOfMemory);
+            }
+            catch (const std::length_error &)
+            {
+                return IO::makeStatus(ErrorCode::SizeLimitExceeded);
+            }
+            catch (const std::format_error &)
+            {
+                return IO::makeStatus(ErrorCode::InvalidArgument);
+            }
+            catch (...)
+            {
+                return IO::makeStatus(ErrorCode::Unknown);
+            }
+        }
+
+        /// @brief Restores a string to a previously observed size without allocating or throwing.
+        void rollbackString(std::string &text, std::size_t previousSize) noexcept
+        {
+            while (text.size() > previousSize)
+            {
+                text.pop_back();
+            }
         }
 
         /// @brief Builds an Unsupported status with optional diagnostic text.
-        [[nodiscard]] IO::Types::Status unsupportedStatus(std::string message = {})
+        [[nodiscard]] IO::Types::Status unsupportedStatus(std::string_view message = {}) noexcept
         {
-            return IO::makeStatus(ErrorCode::Unsupported, 0, std::move(message));
+            return statusWithMessage(ErrorCode::Unsupported, message);
         }
 
         /// @brief Builds an InvalidArgument status with optional diagnostic text.
-        [[nodiscard]] IO::Types::Status invalidArgumentStatus(std::string message = {})
+        [[nodiscard]] IO::Types::Status invalidArgumentStatus(std::string_view message = {}) noexcept
         {
-            return IO::makeStatus(ErrorCode::InvalidArgument, 0, std::move(message));
+            return statusWithMessage(ErrorCode::InvalidArgument, message);
         }
 
         /// @brief Returns whether a color requests the terminal default.
@@ -212,15 +278,6 @@ namespace GameWIP::Terminal
             static OutputState stderrState;
 
             return stream == Types::OutputStream::Stderr ? stderrState : stdoutState;
-        }
-
-        /// @brief Returns the shared process-lifetime mutex serializing stdin operations.
-        /// @details stdin has one supported public stream today; retaining the stream parameter keeps this boundary ready
-        /// for future stream expansion without spreading storage decisions through callers.
-        [[nodiscard]] std::mutex &inputMutex([[maybe_unused]] Types::InputStream stream) noexcept
-        {
-            static std::mutex stdinMutex;
-            return stdinMutex;
         }
 
         /// @brief Resolves a validated line-ending policy to emitted bytes.
@@ -832,8 +889,13 @@ namespace GameWIP::Terminal
             std::string_view sequence,
             ControlFeature feature,
             std::string_view unsupportedMessage,
-            IO::Types::FlushMode flushMode)
+            IO::Types::FlushMode flushMode,
+            bool *emitted = nullptr)
         {
+            if (emitted != nullptr)
+            {
+                *emitted = false;
+            }
             if (!IO::isValidFlushMode(flushMode))
             {
                 return invalidArgumentStatus("Unknown IO flush mode.");
@@ -854,7 +916,7 @@ namespace GameWIP::Terminal
                 }
                 if (!controlFeatureSupported(capabilities.capabilities, feature))
                 {
-                    return unsupportedStatus(std::string(unsupportedMessage));
+                    return unsupportedStatus(unsupportedMessage);
                 }
             }
 
@@ -862,6 +924,11 @@ namespace GameWIP::Terminal
             if (!status.ok())
             {
                 return status;
+            }
+
+            if (emitted != nullptr)
+            {
+                *emitted = true;
             }
 
             return flushIfRequested(stream, flushMode);
@@ -881,8 +948,12 @@ namespace GameWIP::Terminal
         }
 
         /// @brief Decrements nested cursor-hide depth and restores visibility at the outer boundary.
-        [[nodiscard]] IO::Types::Status restoreCursorHiddenScope(Types::OutputStream stream, const Types::ControlOptions &options) noexcept
+        [[nodiscard]] IO::Types::Status restoreCursorHiddenScope(
+            Types::OutputStream stream,
+            const Types::ControlOptions &options,
+            bool &restored) noexcept
         {
+            restored = false;
             try
             {
                 OutputState &state = outputState(stream);
@@ -890,66 +961,45 @@ namespace GameWIP::Terminal
 
                 if (state.cursorHiddenScopeDepth == 0)
                 {
+                    restored = true;
                     return IO::successStatus();
                 }
 
                 if (state.cursorHiddenScopeDepth > 1)
                 {
                     --state.cursorHiddenScopeDepth;
+                    restored = true;
                     return IO::successStatus();
                 }
 
+                bool emitted = false;
                 IO::Types::Status status = writeControlSequenceUnlocked(
                     stream,
                     "\x1b[?25h",
                     ControlFeature::CursorVisibility,
                     "Terminal cursor visibility is unsupported for this output stream.",
-                    options.flushMode);
-                if (status.ok())
+                    options.flushMode,
+                    &emitted);
+                if (emitted)
                 {
                     state.cursorHiddenScopeDepth = 0;
+                    restored = true;
                 }
                 return status;
             }
-            catch (const std::bad_alloc &)
-            {
-                return IO::makeStatus(ErrorCode::OutOfMemory);
-            }
             catch (...)
             {
-                return IO::makeStatus(ErrorCode::NativeFailure);
-            }
-        }
-
-        /// @brief Restores the complete input-mode snapshot owned by a scope.
-        [[nodiscard]] IO::Types::Status restoreInputModeScope(
-            Types::InputStream stream,
-            const Types::InputMode &previousMode,
-            std::uint64_t previousNativeMode,
-            bool hasPreviousNativeMode) noexcept
-        {
-            try
-            {
-                std::lock_guard lock(inputMutex(stream));
-                Detail::Platform::InputModeSnapshot snapshot;
-                snapshot.mode = previousMode;
-                snapshot.nativeMode = previousNativeMode;
-                snapshot.hasNativeMode = hasPreviousNativeMode;
-                return Detail::Platform::restoreInputMode(stream, snapshot);
-            }
-            catch (const std::bad_alloc &)
-            {
-                return IO::makeStatus(ErrorCode::OutOfMemory);
-            }
-            catch (...)
-            {
-                return IO::makeStatus(ErrorCode::NativeFailure);
+                return exceptionStatus();
             }
         }
 
         /// @brief Decrements nested alternate-screen depth and leaves at the outer boundary.
-        [[nodiscard]] IO::Types::Status leaveAlternateScreenScope(Types::OutputStream stream, const Types::ControlOptions &options) noexcept
+        [[nodiscard]] IO::Types::Status leaveAlternateScreenScope(
+            Types::OutputStream stream,
+            const Types::ControlOptions &options,
+            bool &restored) noexcept
         {
+            restored = false;
             try
             {
                 OutputState &state = outputState(stream);
@@ -957,34 +1007,73 @@ namespace GameWIP::Terminal
 
                 if (state.alternateScreenScopeDepth == 0)
                 {
+                    restored = true;
                     return IO::successStatus();
                 }
 
                 if (state.alternateScreenScopeDepth > 1)
                 {
                     --state.alternateScreenScopeDepth;
+                    restored = true;
                     return IO::successStatus();
                 }
 
+                bool emitted = false;
                 IO::Types::Status status = writeControlSequenceUnlocked(
                     stream,
                     "\x1b[?1049l",
                     ControlFeature::AlternateScreen,
                     "Terminal alternate screen is unsupported for this output stream.",
-                    options.flushMode);
-                if (status.ok())
+                    options.flushMode,
+                    &emitted);
+                if (emitted)
                 {
                     state.alternateScreenScopeDepth = 0;
+                    restored = true;
                 }
                 return status;
             }
-            catch (const std::bad_alloc &)
+            catch (...)
             {
-                return IO::makeStatus(ErrorCode::OutOfMemory);
+                return exceptionStatus();
+            }
+        }
+
+        /// @brief Releases one cursor-hide nesting obligation after destructor restoration has failed.
+        void abandonCursorHiddenScope(Types::OutputStream stream) noexcept
+        {
+            try
+            {
+                OutputState &state = outputState(stream);
+                std::lock_guard lock(state.mutex);
+                if (state.cursorHiddenScopeDepth > 0)
+                {
+                    --state.cursorHiddenScopeDepth;
+                }
             }
             catch (...)
             {
-                return IO::makeStatus(ErrorCode::NativeFailure);
+                // Destruction-time bookkeeping release is best effort and cannot be reported.
+                return;
+            }
+        }
+
+        /// @brief Releases one alternate-screen nesting obligation after destructor restoration has failed.
+        void abandonAlternateScreenScope(Types::OutputStream stream) noexcept
+        {
+            try
+            {
+                OutputState &state = outputState(stream);
+                std::lock_guard lock(state.mutex);
+                if (state.alternateScreenScopeDepth > 0)
+                {
+                    --state.alternateScreenScopeDepth;
+                }
+            }
+            catch (...)
+            {
+                // Destruction-time bookkeeping release is best effort and cannot be reported.
+                return;
             }
         }
 
@@ -1040,19 +1129,6 @@ namespace GameWIP::Terminal
         return Types::Color(red, green, blue);
     }
 
-    Types::InputMode makeInputMode(Types::InputModePreset preset) noexcept
-    {
-        switch (preset)
-        {
-        case Types::InputModePreset::InteractiveLine:
-            return {.lineBuffered = true, .echoInput = true, .processControlKeys = true};
-        case Types::InputModePreset::RawBytes:
-            return {.lineBuffered = false, .echoInput = false, .processControlKeys = false};
-        }
-
-        return {.lineBuffered = true, .echoInput = true, .processControlKeys = true};
-    }
-
     Types::WriteSegment::WriteSegment(
         Types::WriteSegmentKind kind,
         std::string_view text,
@@ -1080,75 +1156,6 @@ namespace GameWIP::Terminal
         return Types::WriteSegment(Types::WriteSegmentKind::Bytes, {}, bytes, {});
     }
 
-    InputModeScope::InputModeScope() noexcept = default;
-
-    InputModeScope::InputModeScope(InputModeScope &&other) noexcept
-        : stream_(other.stream_)
-        , previousMode_(other.previousMode_)
-        , previousNativeMode_(other.previousNativeMode_)
-        , status_(std::move(other.status_))
-        , hasPreviousNativeMode_(other.hasPreviousNativeMode_)
-        , active_(other.active_)
-    {
-        other.active_ = false;
-    }
-
-    InputModeScope &InputModeScope::operator=(InputModeScope &&other) noexcept
-    {
-        if (this != &other)
-        {
-            if (active_)
-            {
-                // Do not discard restoration responsibility: transfer is allowed only after this scope restores its state.
-                static_cast<void>(restore());
-                if (active_)
-                {
-                    return *this;
-                }
-            }
-            stream_ = other.stream_;
-            previousMode_ = other.previousMode_;
-            previousNativeMode_ = other.previousNativeMode_;
-            status_ = std::move(other.status_);
-            hasPreviousNativeMode_ = other.hasPreviousNativeMode_;
-            active_ = other.active_;
-            other.active_ = false;
-        }
-
-        return *this;
-    }
-
-    InputModeScope::~InputModeScope() noexcept
-    {
-        static_cast<void>(restore());
-    }
-
-    bool InputModeScope::active() const noexcept
-    {
-        return active_;
-    }
-
-    const IO::Types::Status &InputModeScope::status() const noexcept
-    {
-        return status_;
-    }
-
-    IO::Types::Status InputModeScope::restore() noexcept
-    {
-        if (active_)
-        {
-            status_ = restoreInputModeScope(stream_, previousMode_, previousNativeMode_, hasPreviousNativeMode_);
-            active_ = !status_.ok();
-        }
-
-        return status_;
-    }
-
-    void InputModeScope::release() noexcept
-    {
-        active_ = false;
-    }
-
     AlternateScreenScope::AlternateScreenScope() noexcept = default;
 
     AlternateScreenScope::AlternateScreenScope(AlternateScreenScope &&other) noexcept
@@ -1156,8 +1163,12 @@ namespace GameWIP::Terminal
         , options_(other.options_)
         , status_(std::move(other.status_))
         , active_(other.active_)
+        , restorationEmitted_(other.restorationEmitted_)
+        , restoreOnDestruction_(other.restoreOnDestruction_)
     {
         other.active_ = false;
+        other.restorationEmitted_ = false;
+        other.restoreOnDestruction_ = true;
     }
 
     AlternateScreenScope &AlternateScreenScope::operator=(AlternateScreenScope &&other) noexcept
@@ -1177,7 +1188,11 @@ namespace GameWIP::Terminal
             options_ = other.options_;
             status_ = std::move(other.status_);
             active_ = other.active_;
+            restorationEmitted_ = other.restorationEmitted_;
+            restoreOnDestruction_ = other.restoreOnDestruction_;
             other.active_ = false;
+            other.restorationEmitted_ = false;
+            other.restoreOnDestruction_ = true;
         }
 
         return *this;
@@ -1185,7 +1200,16 @@ namespace GameWIP::Terminal
 
     AlternateScreenScope::~AlternateScreenScope() noexcept
     {
-        static_cast<void>(leave());
+        if (restoreOnDestruction_)
+        {
+            static_cast<void>(leave());
+        }
+        if (active_)
+        {
+            abandonAlternateScreenScope(stream_);
+            active_ = false;
+            restorationEmitted_ = false;
+        }
     }
 
     bool AlternateScreenScope::active() const noexcept
@@ -1202,11 +1226,34 @@ namespace GameWIP::Terminal
     {
         if (active_)
         {
-            status_ = leaveAlternateScreenScope(stream_, options_);
-            active_ = !status_.ok();
+            if (restorationEmitted_)
+            {
+                status_ = Terminal::flush(stream_, options_.flushMode);
+                if (status_.ok())
+                {
+                    active_ = false;
+                    restorationEmitted_ = false;
+                }
+            }
+            else
+            {
+                bool restored = false;
+                status_ = leaveAlternateScreenScope(stream_, options_, restored);
+                if (restored)
+                {
+                    if (status_.ok())
+                    {
+                        active_ = false;
+                    }
+                    else
+                    {
+                        restorationEmitted_ = true;
+                    }
+                }
+            }
         }
 
-        return status_;
+        return copyStatus(status_);
     }
 
     CursorHiddenScope::CursorHiddenScope() noexcept = default;
@@ -1216,8 +1263,12 @@ namespace GameWIP::Terminal
         , options_(other.options_)
         , status_(std::move(other.status_))
         , active_(other.active_)
+        , restorationEmitted_(other.restorationEmitted_)
+        , restoreOnDestruction_(other.restoreOnDestruction_)
     {
         other.active_ = false;
+        other.restorationEmitted_ = false;
+        other.restoreOnDestruction_ = true;
     }
 
     CursorHiddenScope &CursorHiddenScope::operator=(CursorHiddenScope &&other) noexcept
@@ -1237,7 +1288,11 @@ namespace GameWIP::Terminal
             options_ = other.options_;
             status_ = std::move(other.status_);
             active_ = other.active_;
+            restorationEmitted_ = other.restorationEmitted_;
+            restoreOnDestruction_ = other.restoreOnDestruction_;
             other.active_ = false;
+            other.restorationEmitted_ = false;
+            other.restoreOnDestruction_ = true;
         }
 
         return *this;
@@ -1245,7 +1300,16 @@ namespace GameWIP::Terminal
 
     CursorHiddenScope::~CursorHiddenScope() noexcept
     {
-        static_cast<void>(restore());
+        if (restoreOnDestruction_)
+        {
+            static_cast<void>(restore());
+        }
+        if (active_)
+        {
+            abandonCursorHiddenScope(stream_);
+            active_ = false;
+            restorationEmitted_ = false;
+        }
     }
 
     bool CursorHiddenScope::active() const noexcept
@@ -1262,25 +1326,63 @@ namespace GameWIP::Terminal
     {
         if (active_)
         {
-            status_ = restoreCursorHiddenScope(stream_, options_);
-            active_ = !status_.ok();
+            if (restorationEmitted_)
+            {
+                status_ = Terminal::flush(stream_, options_.flushMode);
+                if (status_.ok())
+                {
+                    active_ = false;
+                    restorationEmitted_ = false;
+                }
+            }
+            else
+            {
+                bool restored = false;
+                status_ = restoreCursorHiddenScope(stream_, options_, restored);
+                if (restored)
+                {
+                    if (status_.ok())
+                    {
+                        active_ = false;
+                    }
+                    else
+                    {
+                        restorationEmitted_ = true;
+                    }
+                }
+            }
         }
 
-        return status_;
+        return copyStatus(status_);
     }
 
-    OutputBuffer::OutputBuffer(Types::LineEnding lineEnding)
-        : lineEnding_(lineEnding)
+    Types::LineEnding OutputBuffer::lineEnding() const noexcept
+    {
+        return lineEnding_;
+    }
+
+    IO::Types::Status OutputBuffer::setLineEnding(Types::LineEnding lineEnding) noexcept
     {
         if (!validLineEnding(lineEnding))
         {
-            throw std::invalid_argument("Unknown terminal line ending.");
+            return invalidArgumentStatus("Unknown terminal line ending.");
         }
+
+        lineEnding_ = lineEnding;
+        return IO::successStatus();
     }
 
-    void OutputBuffer::reserve(std::size_t bytes)
+    IO::Types::Status OutputBuffer::reserve(std::size_t bytes) noexcept
     {
-        text_.reserve(bytes);
+        try
+        {
+            text_.reserve(bytes);
+            return IO::successStatus();
+        }
+        catch (...)
+        {
+            return exceptionStatus();
+        }
     }
 
     void OutputBuffer::clear() noexcept
@@ -1303,33 +1405,79 @@ namespace GameWIP::Terminal
         return text_;
     }
 
-    void OutputBuffer::appendText(std::string_view utf8Text)
+    IO::Types::Status OutputBuffer::appendText(std::string_view utf8Text) noexcept
     {
-        text_.append(utf8Text);
+        const std::size_t previousSize = text_.size();
+        try
+        {
+            text_.append(utf8Text);
+            return IO::successStatus();
+        }
+        catch (...)
+        {
+            rollbackString(text_, previousSize);
+            return exceptionStatus();
+        }
     }
 
-    void OutputBuffer::appendLine(std::string_view utf8Text)
+    IO::Types::Status OutputBuffer::appendLine(std::string_view utf8Text) noexcept
     {
-        text_.append(utf8Text);
-        text_.append(lineEndingText(lineEnding_));
+        const std::size_t previousSize = text_.size();
+        try
+        {
+            text_.append(utf8Text);
+            text_.append(lineEndingText(lineEnding_));
+            return IO::successStatus();
+        }
+        catch (...)
+        {
+            rollbackString(text_, previousSize);
+            return exceptionStatus();
+        }
     }
 
-    IO::Types::Status OutputBuffer::writeTo(const Types::TextWriteOptions &options) const
+    IO::Types::Status OutputBuffer::vprint(std::string_view format, std::format_args arguments, bool appendLineEnding) noexcept
+    {
+        const std::size_t previousSize = text_.size();
+        try
+        {
+            std::vformat_to(std::back_inserter(text_), format, arguments);
+            if (appendLineEnding)
+            {
+                text_.append(lineEndingText(lineEnding_));
+            }
+            return IO::successStatus();
+        }
+        catch (...)
+        {
+            rollbackString(text_, previousSize);
+            return exceptionStatus();
+        }
+    }
+
+    IO::Types::Status OutputBuffer::writeTo(const Types::TextWriteOptions &options) const noexcept
     {
         return writeTo(Types::OutputStream::Stdout, options);
     }
 
-    IO::Types::Status OutputBuffer::writeTo(Types::OutputStream stream, const Types::TextWriteOptions &options) const
+    IO::Types::Status OutputBuffer::writeTo(Types::OutputStream stream, const Types::TextWriteOptions &options) const noexcept
     {
-        return Terminal::writeText(stream, text_, options);
+        try
+        {
+            return Terminal::writeText(stream, text_, options);
+        }
+        catch (...)
+        {
+            return exceptionStatus();
+        }
     }
 
-    IO::Types::Status OutputBuffer::flushTo(const Types::TextWriteOptions &options)
+    IO::Types::Status OutputBuffer::flushTo(const Types::TextWriteOptions &options) noexcept
     {
         return flushTo(Types::OutputStream::Stdout, options);
     }
 
-    IO::Types::Status OutputBuffer::flushTo(Types::OutputStream stream, const Types::TextWriteOptions &options)
+    IO::Types::Status OutputBuffer::flushTo(Types::OutputStream stream, const Types::TextWriteOptions &options) noexcept
     {
         IO::Types::Status status = writeTo(stream, options);
         if (status.ok())
@@ -1347,13 +1495,20 @@ namespace GameWIP::Terminal
 
     Types::InputCapabilitiesResult getInputCapabilities(Types::InputStream stream)
     {
-        if (!validInputStream(stream))
+        try
         {
-            return {.status = invalidArgumentStatus("Unknown terminal input stream."), .capabilities = {}};
-        }
+            if (!validInputStream(stream))
+            {
+                return {.status = invalidArgumentStatus("Unknown terminal input stream."), .capabilities = {}};
+            }
 
-        std::lock_guard lock(inputMutex(stream));
-        return Detail::Platform::getInputCapabilities(stream);
+            std::lock_guard lock(Detail::inputIoMutex(stream));
+            return Detail::Platform::getInputCapabilities(stream);
+        }
+        catch (...)
+        {
+            return {.status = exceptionStatus(), .capabilities = {}};
+        }
     }
 
     Types::OutputCapabilitiesResult getOutputCapabilities()
@@ -1363,13 +1518,20 @@ namespace GameWIP::Terminal
 
     Types::OutputCapabilitiesResult getOutputCapabilities(Types::OutputStream stream)
     {
-        if (!validOutputStream(stream))
+        try
         {
-            return {.status = invalidArgumentStatus("Unknown terminal output stream."), .capabilities = {}};
-        }
+            if (!validOutputStream(stream))
+            {
+                return {.status = invalidArgumentStatus("Unknown terminal output stream."), .capabilities = {}};
+            }
 
-        std::lock_guard lock(outputState(stream).mutex);
-        return Detail::Platform::getOutputCapabilities(stream);
+            std::lock_guard lock(outputState(stream).mutex);
+            return Detail::Platform::getOutputCapabilities(stream);
+        }
+        catch (...)
+        {
+            return {.status = exceptionStatus(), .capabilities = {}};
+        }
     }
 
     Types::OutputCapabilitiesResult prepareOutput()
@@ -1379,13 +1541,20 @@ namespace GameWIP::Terminal
 
     Types::OutputCapabilitiesResult prepareOutput(Types::OutputStream stream)
     {
-        if (!validOutputStream(stream))
+        try
         {
-            return {.status = invalidArgumentStatus("Unknown terminal output stream."), .capabilities = {}};
-        }
+            if (!validOutputStream(stream))
+            {
+                return {.status = invalidArgumentStatus("Unknown terminal output stream."), .capabilities = {}};
+            }
 
-        std::lock_guard lock(outputState(stream).mutex);
-        return Detail::Platform::prepareOutput(stream);
+            std::lock_guard lock(outputState(stream).mutex);
+            return Detail::Platform::prepareOutput(stream);
+        }
+        catch (...)
+        {
+            return {.status = exceptionStatus(), .capabilities = {}};
+        }
     }
 
     Types::TerminalSizeResult getTerminalSize()
@@ -1395,202 +1564,20 @@ namespace GameWIP::Terminal
 
     Types::TerminalSizeResult getTerminalSize(Types::OutputStream stream)
     {
-        if (!validOutputStream(stream))
-        {
-            return {.status = invalidArgumentStatus("Unknown terminal output stream."), .size = {}};
-        }
-
-        std::lock_guard lock(outputState(stream).mutex);
-        return Detail::Platform::getTerminalSize(stream);
-    }
-
-    Types::InputAvailabilityResult getInputAvailability()
-    {
-        return getInputAvailability(Types::InputStream::Stdin);
-    }
-
-    Types::InputAvailabilityResult getInputAvailability(Types::InputStream stream)
-    {
-        if (!validInputStream(stream))
-        {
-            return {.status = invalidArgumentStatus("Unknown terminal input stream."), .available = false, .estimatedBytes = 0};
-        }
-
-        std::lock_guard lock(inputMutex(stream));
-        return Detail::Platform::getInputAvailability(stream);
-    }
-
-    Types::InputModeResult getInputMode()
-    {
-        return getInputMode(Types::InputStream::Stdin);
-    }
-
-    Types::InputModeResult getInputMode(Types::InputStream stream)
-    {
-        if (!validInputStream(stream))
-        {
-            return {.status = invalidArgumentStatus("Unknown terminal input stream."), .mode = {}};
-        }
-
-        std::lock_guard lock(inputMutex(stream));
-        return Detail::Platform::getInputMode(stream);
-    }
-
-    IO::Types::Status setInputMode(const Types::InputMode &mode)
-    {
-        return setInputMode(Types::InputStream::Stdin, mode);
-    }
-
-    IO::Types::Status setInputMode(Types::InputStream stream, const Types::InputMode &mode)
-    {
-        if (!validInputStream(stream))
-        {
-            return invalidArgumentStatus("Unknown terminal input stream.");
-        }
-
-        std::lock_guard lock(inputMutex(stream));
-        return Detail::Platform::setInputMode(stream, mode);
-    }
-
-    IO::Types::Status restoreDefaultInputMode()
-    {
-        return restoreDefaultInputMode(Types::InputStream::Stdin);
-    }
-
-    IO::Types::Status restoreDefaultInputMode(Types::InputStream stream)
-    {
-        if (!validInputStream(stream))
-        {
-            return invalidArgumentStatus("Unknown terminal input stream.");
-        }
-
-        std::lock_guard lock(inputMutex(stream));
-        return Detail::Platform::restoreDefaultInputMode(stream);
-    }
-
-    InputModeScope scopedInputMode(const Types::InputMode &mode) noexcept
-    {
-        return scopedInputMode(Types::InputStream::Stdin, mode);
-    }
-
-    InputModeScope scopedInputMode(Types::InputStream stream, const Types::InputMode &mode) noexcept
-    {
-        InputModeScope scope;
-        scope.stream_ = stream;
-        if (!validInputStream(stream))
-        {
-            scope.status_ = IO::makeStatus(ErrorCode::InvalidArgument);
-            return scope;
-        }
-
         try
         {
-            std::lock_guard lock(inputMutex(stream));
-            const Detail::Platform::InputModeSnapshotResult previousMode = Detail::Platform::captureInputMode(stream);
-            scope.status_ = previousMode.status;
-            if (!scope.status_.ok())
+            if (!validOutputStream(stream))
             {
-                return scope;
+                return {.status = invalidArgumentStatus("Unknown terminal output stream."), .size = {}};
             }
 
-            scope.previousMode_ = previousMode.snapshot.mode;
-            scope.previousNativeMode_ = previousMode.snapshot.nativeMode;
-            scope.hasPreviousNativeMode_ = previousMode.snapshot.hasNativeMode;
-            scope.status_ = Detail::Platform::setInputMode(stream, mode);
-            scope.active_ = scope.status_.ok();
-        }
-        catch (const std::bad_alloc &)
-        {
-            scope.status_ = IO::makeStatus(ErrorCode::OutOfMemory);
+            std::lock_guard lock(outputState(stream).mutex);
+            return Detail::Platform::getTerminalSize(stream);
         }
         catch (...)
         {
-            scope.status_ = IO::makeStatus(ErrorCode::NativeFailure);
+            return {.status = exceptionStatus(), .size = {}};
         }
-        return scope;
-    }
-
-    Types::LineReadResult readLine(const Types::LineReadOptions &options)
-    {
-        return readLine(Types::InputStream::Stdin, options);
-    }
-
-    Types::LineReadResult readLine(Types::InputStream stream, const Types::LineReadOptions &options)
-    {
-        if (!validInputStream(stream))
-        {
-            return {
-                .status = invalidArgumentStatus("Unknown terminal input stream."),
-                .outcome = Types::ReadOutcome::Completed,
-                .line = {},
-                .consumedLineEnding = Types::ConsumedLineEnding::None,
-                .wasTruncated = false};
-        }
-        if (!validReadLineEndingMode(options.lineEndingMode))
-        {
-            return {
-                .status = invalidArgumentStatus("Unknown terminal line-ending read mode."),
-                .outcome = Types::ReadOutcome::Completed,
-                .line = {},
-                .consumedLineEnding = Types::ConsumedLineEnding::None,
-                .wasTruncated = false};
-        }
-        if (options.maxReturnedBytes == 0)
-        {
-            return {
-                .status = invalidArgumentStatus("Terminal line read maxReturnedBytes must be greater than zero."),
-                .outcome = Types::ReadOutcome::Completed,
-                .line = {},
-                .consumedLineEnding = Types::ConsumedLineEnding::None,
-                .wasTruncated = false};
-        }
-
-        std::lock_guard lock(inputMutex(stream));
-        return Detail::Platform::readLine(stream, options);
-    }
-
-    Types::TextReadResult readText(const Types::TextReadOptions &options)
-    {
-        return readText(Types::InputStream::Stdin, options);
-    }
-
-    Types::TextReadResult readText(Types::InputStream stream, const Types::TextReadOptions &options)
-    {
-        if (!validInputStream(stream))
-        {
-            return {
-                .status = invalidArgumentStatus("Unknown terminal input stream."),
-                .outcome = Types::ReadOutcome::Completed,
-                .text = {},
-                .wasTruncated = false};
-        }
-        if (options.maxReturnedBytes == 0)
-        {
-            return {
-                .status = invalidArgumentStatus("Terminal text read maxReturnedBytes must be greater than zero."),
-                .outcome = Types::ReadOutcome::Completed,
-                .text = {},
-                .wasTruncated = false};
-        }
-
-        std::lock_guard lock(inputMutex(stream));
-        return Detail::Platform::readText(stream, options);
-    }
-
-    Types::ByteReadResult readBytes(std::span<std::byte> outputBuffer, const Types::ByteReadOptions &options)
-    {
-        return readBytes(Types::InputStream::Stdin, outputBuffer, options);
-    }
-
-    Types::ByteReadResult readBytes(Types::InputStream stream, std::span<std::byte> outputBuffer, const Types::ByteReadOptions &options)
-    {
-        if (!validInputStream(stream))
-        {
-            return {.status = invalidArgumentStatus("Unknown terminal input stream."), .outcome = Types::ReadOutcome::Completed, .bytesRead = 0};
-        }
-
-        std::lock_guard lock(inputMutex(stream));
-        return Detail::Platform::readBytes(stream, outputBuffer, options);
     }
 
     IO::Types::Status writeText(std::string_view utf8Text, const Types::TextWriteOptions &options)
@@ -1600,14 +1587,21 @@ namespace GameWIP::Terminal
 
     IO::Types::Status writeText(Types::OutputStream stream, std::string_view utf8Text, const Types::TextWriteOptions &options)
     {
-        if (!validOutputStream(stream))
+        try
         {
-            return invalidArgumentStatus("Unknown terminal output stream.");
-        }
+            if (!validOutputStream(stream))
+            {
+                return invalidArgumentStatus("Unknown terminal output stream.");
+            }
 
-        OutputState &state = outputState(stream);
-        std::lock_guard lock(state.mutex);
-        return writeTextUnlocked(stream, state, utf8Text, options);
+            OutputState &state = outputState(stream);
+            std::lock_guard lock(state.mutex);
+            return writeTextUnlocked(stream, state, utf8Text, options);
+        }
+        catch (...)
+        {
+            return exceptionStatus();
+        }
     }
 
     IO::Types::Status writeLine(std::string_view utf8Text, const Types::LineWriteOptions &options)
@@ -1617,14 +1611,21 @@ namespace GameWIP::Terminal
 
     IO::Types::Status writeLine(Types::OutputStream stream, std::string_view utf8Text, const Types::LineWriteOptions &options)
     {
-        if (!validOutputStream(stream))
+        try
         {
-            return invalidArgumentStatus("Unknown terminal output stream.");
-        }
+            if (!validOutputStream(stream))
+            {
+                return invalidArgumentStatus("Unknown terminal output stream.");
+            }
 
-        OutputState &state = outputState(stream);
-        std::lock_guard lock(state.mutex);
-        return writeLineUnlocked(stream, state, utf8Text, options);
+            OutputState &state = outputState(stream);
+            std::lock_guard lock(state.mutex);
+            return writeLineUnlocked(stream, state, utf8Text, options);
+        }
+        catch (...)
+        {
+            return exceptionStatus();
+        }
     }
 
     IO::Types::WriteResult writeBytes(std::span<const std::byte> bytes, const Types::ByteWriteOptions &options)
@@ -1634,13 +1635,20 @@ namespace GameWIP::Terminal
 
     IO::Types::WriteResult writeBytes(Types::OutputStream stream, std::span<const std::byte> bytes, const Types::ByteWriteOptions &options)
     {
-        if (!validOutputStream(stream))
+        try
         {
-            return {.status = invalidArgumentStatus("Unknown terminal output stream."), .bytesWritten = 0};
-        }
+            if (!validOutputStream(stream))
+            {
+                return {.status = invalidArgumentStatus("Unknown terminal output stream."), .bytesWritten = 0};
+            }
 
-        std::lock_guard lock(outputState(stream).mutex);
-        return writeBytesUnlocked(stream, bytes, options);
+            std::lock_guard lock(outputState(stream).mutex);
+            return writeBytesUnlocked(stream, bytes, options);
+        }
+        catch (...)
+        {
+            return {.status = exceptionStatus(), .bytesWritten = 0};
+        }
     }
 
     IO::Types::Status writeSegments(std::span<const Types::WriteSegment> segments, const Types::SegmentWriteOptions &options)
@@ -1653,14 +1661,21 @@ namespace GameWIP::Terminal
         std::span<const Types::WriteSegment> segments,
         const Types::SegmentWriteOptions &options)
     {
-        if (!validOutputStream(stream))
+        try
         {
-            return invalidArgumentStatus("Unknown terminal output stream.");
-        }
+            if (!validOutputStream(stream))
+            {
+                return invalidArgumentStatus("Unknown terminal output stream.");
+            }
 
-        OutputState &state = outputState(stream);
-        std::lock_guard lock(state.mutex);
-        return writeSegmentsUnlocked(stream, state, segments, options);
+            OutputState &state = outputState(stream);
+            std::lock_guard lock(state.mutex);
+            return writeSegmentsUnlocked(stream, state, segments, options);
+        }
+        catch (...)
+        {
+            return exceptionStatus();
+        }
     }
 
     namespace Detail
@@ -1669,80 +1684,64 @@ namespace GameWIP::Terminal
             Types::OutputStream stream,
             const Types::TextWriteOptions &options,
             std::string_view format,
-            std::format_args arguments)
+            std::format_args arguments) noexcept
         {
-            if (!validOutputStream(stream))
-            {
-                return invalidArgumentStatus("Unknown terminal output stream.");
-            }
-            if (!IO::isValidFlushMode(options.flushMode))
-            {
-                return invalidArgumentStatus("Unknown IO flush mode.");
-            }
-
-            OutputState &state = outputState(stream);
-            FormatScratchLease scratch(state);
             try
             {
+                if (!validOutputStream(stream))
+                {
+                    return invalidArgumentStatus("Unknown terminal output stream.");
+                }
+                if (!IO::isValidFlushMode(options.flushMode))
+                {
+                    return invalidArgumentStatus("Unknown IO flush mode.");
+                }
+
+                OutputState &state = outputState(stream);
+                FormatScratchLease scratch(state);
                 std::vformat_to(std::back_inserter(scratch.text()), format, arguments);
-            }
-            catch (const std::format_error &)
-            {
-                return invalidArgumentStatus("Terminal formatted output failed.");
-            }
-            catch (const std::bad_alloc &)
-            {
-                return IO::makeStatus(ErrorCode::OutOfMemory);
+
+                std::lock_guard lock(state.mutex);
+                return writeTextUnlocked(stream, state, scratch.text(), options);
             }
             catch (...)
             {
-                return IO::makeStatus(ErrorCode::Unknown);
+                return exceptionStatus();
             }
-
-            std::lock_guard lock(state.mutex);
-            return writeTextUnlocked(stream, state, scratch.text(), options);
         }
 
         IO::Types::Status vprintln(
             Types::OutputStream stream,
             const Types::LineWriteOptions &options,
             std::string_view format,
-            std::format_args arguments)
+            std::format_args arguments) noexcept
         {
-            if (!validOutputStream(stream))
-            {
-                return invalidArgumentStatus("Unknown terminal output stream.");
-            }
-            if (!validLineEnding(options.lineEnding))
-            {
-                return invalidArgumentStatus("Unknown terminal line ending.");
-            }
-            if (!IO::isValidFlushMode(options.flushMode))
-            {
-                return invalidArgumentStatus("Unknown IO flush mode.");
-            }
-
-            OutputState &state = outputState(stream);
-            FormatScratchLease scratch(state);
             try
             {
+                if (!validOutputStream(stream))
+                {
+                    return invalidArgumentStatus("Unknown terminal output stream.");
+                }
+                if (!validLineEnding(options.lineEnding))
+                {
+                    return invalidArgumentStatus("Unknown terminal line ending.");
+                }
+                if (!IO::isValidFlushMode(options.flushMode))
+                {
+                    return invalidArgumentStatus("Unknown IO flush mode.");
+                }
+
+                OutputState &state = outputState(stream);
+                FormatScratchLease scratch(state);
                 std::vformat_to(std::back_inserter(scratch.text()), format, arguments);
-            }
-            catch (const std::format_error &)
-            {
-                return invalidArgumentStatus("Terminal formatted output failed.");
-            }
-            catch (const std::bad_alloc &)
-            {
-                return IO::makeStatus(ErrorCode::OutOfMemory);
+
+                std::lock_guard lock(state.mutex);
+                return writeLineUnlocked(stream, state, scratch.text(), options);
             }
             catch (...)
             {
-                return IO::makeStatus(ErrorCode::Unknown);
+                return exceptionStatus();
             }
-
-            std::lock_guard lock(state.mutex);
-            return writeLineUnlocked(stream, state, scratch.text(), options);
         }
     } // namespace Detail
 
@@ -1753,17 +1752,24 @@ namespace GameWIP::Terminal
 
     IO::Types::Status flush(Types::OutputStream stream, IO::Types::FlushMode mode)
     {
-        if (!validOutputStream(stream))
+        try
         {
-            return invalidArgumentStatus("Unknown terminal output stream.");
-        }
-        if (!IO::isValidFlushMode(mode))
-        {
-            return invalidArgumentStatus("Unknown IO flush mode.");
-        }
+            if (!validOutputStream(stream))
+            {
+                return invalidArgumentStatus("Unknown terminal output stream.");
+            }
+            if (!IO::isValidFlushMode(mode))
+            {
+                return invalidArgumentStatus("Unknown IO flush mode.");
+            }
 
-        std::lock_guard lock(outputState(stream).mutex);
-        return Detail::Platform::flush(stream, mode);
+            std::lock_guard lock(outputState(stream).mutex);
+            return Detail::Platform::flush(stream, mode);
+        }
+        catch (...)
+        {
+            return exceptionStatus();
+        }
     }
 
     IO::Types::Status resetStyle(const Types::ControlOptions &options)
@@ -1773,18 +1779,25 @@ namespace GameWIP::Terminal
 
     IO::Types::Status resetStyle(Types::OutputStream stream, const Types::ControlOptions &options)
     {
-        if (!validOutputStream(stream))
+        try
         {
-            return invalidArgumentStatus("Unknown terminal output stream.");
-        }
+            if (!validOutputStream(stream))
+            {
+                return invalidArgumentStatus("Unknown terminal output stream.");
+            }
 
-        std::lock_guard lock(outputState(stream).mutex);
-        return writeControlSequenceUnlocked(
-            stream,
-            "\x1b[0m",
-            ControlFeature::StyleReset,
-            "Terminal style reset is unsupported for this output stream.",
-            options.flushMode);
+            std::lock_guard lock(outputState(stream).mutex);
+            return writeControlSequenceUnlocked(
+                stream,
+                "\x1b[0m",
+                ControlFeature::StyleReset,
+                "Terminal style reset is unsupported for this output stream.",
+                options.flushMode);
+        }
+        catch (...)
+        {
+            return exceptionStatus();
+        }
     }
 
     IO::Types::Status moveCursor(Types::CursorMoveDirection direction, std::uint32_t amount, const Types::ControlOptions &options)
@@ -1798,53 +1811,60 @@ namespace GameWIP::Terminal
         std::uint32_t amount,
         const Types::ControlOptions &options)
     {
-        if (!validOutputStream(stream))
+        try
         {
-            return invalidArgumentStatus("Unknown terminal output stream.");
+            if (!validOutputStream(stream))
+            {
+                return invalidArgumentStatus("Unknown terminal output stream.");
+            }
+
+            OutputState &state = outputState(stream);
+            std::lock_guard lock(state.mutex);
+
+            char command = 'A';
+            switch (direction)
+            {
+            case Types::CursorMoveDirection::Up:
+                command = 'A';
+                break;
+            case Types::CursorMoveDirection::Down:
+                command = 'B';
+                break;
+            case Types::CursorMoveDirection::Left:
+                command = 'D';
+                break;
+            case Types::CursorMoveDirection::Right:
+                command = 'C';
+                break;
+            default:
+                return invalidArgumentStatus("Unknown terminal cursor movement direction.");
+            }
+
+            if (amount == 0)
+            {
+                return flushIfRequested(stream, options.flushMode);
+            }
+            IO::Types::Status validationStatus = Detail::Platform::validateCursorMovement(stream, amount);
+            if (!validationStatus.ok())
+            {
+                return validationStatus;
+            }
+
+            state.assembly.clear();
+            state.assembly.append("\x1b[");
+            appendUnsigned(state.assembly, amount);
+            state.assembly.push_back(command);
+            return writeAssembledControlSequenceUnlocked(
+                stream,
+                state,
+                ControlFeature::CursorMovement,
+                "Terminal cursor movement is unsupported for this output stream.",
+                options.flushMode);
         }
-
-        OutputState &state = outputState(stream);
-        std::lock_guard lock(state.mutex);
-
-        char command = 'A';
-        switch (direction)
+        catch (...)
         {
-        case Types::CursorMoveDirection::Up:
-            command = 'A';
-            break;
-        case Types::CursorMoveDirection::Down:
-            command = 'B';
-            break;
-        case Types::CursorMoveDirection::Left:
-            command = 'D';
-            break;
-        case Types::CursorMoveDirection::Right:
-            command = 'C';
-            break;
-        default:
-            return invalidArgumentStatus("Unknown terminal cursor movement direction.");
+            return exceptionStatus();
         }
-
-        if (amount == 0)
-        {
-            return flushIfRequested(stream, options.flushMode);
-        }
-        IO::Types::Status validationStatus = Detail::Platform::validateCursorMovement(stream, amount);
-        if (!validationStatus.ok())
-        {
-            return validationStatus;
-        }
-
-        state.assembly.clear();
-        state.assembly.append("\x1b[");
-        appendUnsigned(state.assembly, amount);
-        state.assembly.push_back(command);
-        return writeAssembledControlSequenceUnlocked(
-            stream,
-            state,
-            ControlFeature::CursorMovement,
-            "Terminal cursor movement is unsupported for this output stream.",
-            options.flushMode);
     }
 
     IO::Types::Status setCursorPosition(Types::CursorPosition position, const Types::ControlOptions &options)
@@ -1854,31 +1874,38 @@ namespace GameWIP::Terminal
 
     IO::Types::Status setCursorPosition(Types::OutputStream stream, Types::CursorPosition position, const Types::ControlOptions &options)
     {
-        if (!validOutputStream(stream))
+        try
         {
-            return invalidArgumentStatus("Unknown terminal output stream.");
+            if (!validOutputStream(stream))
+            {
+                return invalidArgumentStatus("Unknown terminal output stream.");
+            }
+            IO::Types::Status validationStatus = Detail::Platform::validateCursorPosition(stream, position);
+            if (!validationStatus.ok())
+            {
+                return validationStatus;
+            }
+
+            OutputState &state = outputState(stream);
+            std::lock_guard lock(state.mutex);
+            state.assembly.clear();
+            state.assembly.append("\x1b[");
+            appendUnsigned(state.assembly, static_cast<std::uint64_t>(position.row) + 1);
+            state.assembly.push_back(';');
+            appendUnsigned(state.assembly, static_cast<std::uint64_t>(position.column) + 1);
+            state.assembly.push_back('H');
+
+            return writeAssembledControlSequenceUnlocked(
+                stream,
+                state,
+                ControlFeature::CursorMovement,
+                "Terminal cursor positioning is unsupported for this output stream.",
+                options.flushMode);
         }
-        IO::Types::Status validationStatus = Detail::Platform::validateCursorPosition(stream, position);
-        if (!validationStatus.ok())
+        catch (...)
         {
-            return validationStatus;
+            return exceptionStatus();
         }
-
-        OutputState &state = outputState(stream);
-        std::lock_guard lock(state.mutex);
-        state.assembly.clear();
-        state.assembly.append("\x1b[");
-        appendUnsigned(state.assembly, static_cast<std::uint64_t>(position.row) + 1);
-        state.assembly.push_back(';');
-        appendUnsigned(state.assembly, static_cast<std::uint64_t>(position.column) + 1);
-        state.assembly.push_back('H');
-
-        return writeAssembledControlSequenceUnlocked(
-            stream,
-            state,
-            ControlFeature::CursorMovement,
-            "Terminal cursor positioning is unsupported for this output stream.",
-            options.flushMode);
     }
 
     Types::CursorPositionResult getCursorPosition(const Types::CursorPositionQueryOptions &options)
@@ -1891,20 +1918,63 @@ namespace GameWIP::Terminal
         Types::InputStream responseStream,
         const Types::CursorPositionQueryOptions &options)
     {
-        if (!validOutputStream(outputStream) || !validInputStream(responseStream))
+        try
         {
-            return {.status = invalidArgumentStatus("Unknown terminal stream selected for cursor position query."), .position = {}};
+            if (!validOutputStream(outputStream) || !validInputStream(responseStream))
+            {
+                return {.status = invalidArgumentStatus("Unknown terminal stream selected for cursor position query."), .position = {}};
+            }
+
+            std::scoped_lock lock(outputState(outputStream).mutex, Detail::inputIoMutex(responseStream));
+
+            IO::Types::Status status = flushIfRequested(outputStream, options.flushMode);
+            if (!status.ok())
+            {
+                return {.status = status, .position = {}};
+            }
+
+            return Detail::Platform::getCursorPosition(outputStream, responseStream, options);
         }
-
-        std::scoped_lock lock(outputState(outputStream).mutex, inputMutex(responseStream));
-
-        IO::Types::Status status = flushIfRequested(outputStream, options.flushMode);
-        if (!status.ok())
+        catch (...)
         {
-            return {.status = status, .position = {}};
+            return {.status = exceptionStatus(), .position = {}};
         }
+    }
 
-        return Detail::Platform::getCursorPosition(outputStream, responseStream, options);
+    Types::CursorPositionResult Detail::getLineRenderingCursorPosition(Types::OutputStream outputStream, Types::InputStream inputStream) noexcept
+    {
+        try
+        {
+            if (!validOutputStream(outputStream) || !validInputStream(inputStream))
+            {
+                return {.status = invalidArgumentStatus("Unknown terminal stream selected for line rendering."), .position = {}};
+            }
+
+            std::scoped_lock lock(outputState(outputStream).mutex, Detail::inputIoMutex(inputStream));
+            return Detail::Platform::getLineRenderingCursorPosition(outputStream);
+        }
+        catch (...)
+        {
+            return {.status = exceptionStatus(), .position = {}};
+        }
+    }
+
+    IO::Types::Status Detail::setLineRenderingCursorPosition(Types::OutputStream outputStream, Types::CursorPosition position) noexcept
+    {
+        try
+        {
+            if (!validOutputStream(outputStream))
+            {
+                return invalidArgumentStatus("Unknown terminal output stream selected for line rendering.");
+            }
+
+            std::lock_guard lock(outputState(outputStream).mutex);
+            return Detail::Platform::setLineRenderingCursorPosition(outputStream, position);
+        }
+        catch (...)
+        {
+            return exceptionStatus();
+        }
     }
 
     IO::Types::Status saveCursorPosition(const Types::ControlOptions &options)
@@ -1914,18 +1984,25 @@ namespace GameWIP::Terminal
 
     IO::Types::Status saveCursorPosition(Types::OutputStream stream, const Types::ControlOptions &options)
     {
-        if (!validOutputStream(stream))
+        try
         {
-            return invalidArgumentStatus("Unknown terminal output stream.");
-        }
+            if (!validOutputStream(stream))
+            {
+                return invalidArgumentStatus("Unknown terminal output stream.");
+            }
 
-        std::lock_guard lock(outputState(stream).mutex);
-        return writeControlSequenceUnlocked(
-            stream,
-            "\x1b[s",
-            ControlFeature::CursorSaveRestore,
-            "Terminal cursor save is unsupported for this output stream.",
-            options.flushMode);
+            std::lock_guard lock(outputState(stream).mutex);
+            return writeControlSequenceUnlocked(
+                stream,
+                "\x1b[s",
+                ControlFeature::CursorSaveRestore,
+                "Terminal cursor save is unsupported for this output stream.",
+                options.flushMode);
+        }
+        catch (...)
+        {
+            return exceptionStatus();
+        }
     }
 
     IO::Types::Status restoreCursorPosition(const Types::ControlOptions &options)
@@ -1935,18 +2012,25 @@ namespace GameWIP::Terminal
 
     IO::Types::Status restoreCursorPosition(Types::OutputStream stream, const Types::ControlOptions &options)
     {
-        if (!validOutputStream(stream))
+        try
         {
-            return invalidArgumentStatus("Unknown terminal output stream.");
-        }
+            if (!validOutputStream(stream))
+            {
+                return invalidArgumentStatus("Unknown terminal output stream.");
+            }
 
-        std::lock_guard lock(outputState(stream).mutex);
-        return writeControlSequenceUnlocked(
-            stream,
-            "\x1b[u",
-            ControlFeature::CursorSaveRestore,
-            "Terminal cursor restore is unsupported for this output stream.",
-            options.flushMode);
+            std::lock_guard lock(outputState(stream).mutex);
+            return writeControlSequenceUnlocked(
+                stream,
+                "\x1b[u",
+                ControlFeature::CursorSaveRestore,
+                "Terminal cursor restore is unsupported for this output stream.",
+                options.flushMode);
+        }
+        catch (...)
+        {
+            return exceptionStatus();
+        }
     }
 
     IO::Types::Status setCursorVisible(bool visible, const Types::ControlOptions &options)
@@ -1956,18 +2040,25 @@ namespace GameWIP::Terminal
 
     IO::Types::Status setCursorVisible(Types::OutputStream stream, bool visible, const Types::ControlOptions &options)
     {
-        if (!validOutputStream(stream))
+        try
         {
-            return invalidArgumentStatus("Unknown terminal output stream.");
-        }
+            if (!validOutputStream(stream))
+            {
+                return invalidArgumentStatus("Unknown terminal output stream.");
+            }
 
-        std::lock_guard lock(outputState(stream).mutex);
-        return writeControlSequenceUnlocked(
-            stream,
-            visible ? "\x1b[?25h" : "\x1b[?25l",
-            ControlFeature::CursorVisibility,
-            "Terminal cursor visibility is unsupported for this output stream.",
-            options.flushMode);
+            std::lock_guard lock(outputState(stream).mutex);
+            return writeControlSequenceUnlocked(
+                stream,
+                visible ? "\x1b[?25h" : "\x1b[?25l",
+                ControlFeature::CursorVisibility,
+                "Terminal cursor visibility is unsupported for this output stream.",
+                options.flushMode);
+        }
+        catch (...)
+        {
+            return exceptionStatus();
+        }
     }
 
     CursorHiddenScope scopedCursorHidden(const Types::ControlOptions &options) noexcept
@@ -1985,6 +2076,11 @@ namespace GameWIP::Terminal
             scope.status_ = IO::makeStatus(ErrorCode::InvalidArgument);
             return scope;
         }
+        if (!IO::isValidFlushMode(options.flushMode))
+        {
+            scope.status_ = IO::makeStatus(ErrorCode::InvalidArgument);
+            return scope;
+        }
 
         try
         {
@@ -1998,13 +2094,15 @@ namespace GameWIP::Terminal
 
             if (state.cursorHiddenScopeDepth == 0)
             {
+                bool emitted = false;
                 scope.status_ = writeControlSequenceUnlocked(
                     stream,
                     "\x1b[?25l",
                     ControlFeature::CursorVisibility,
                     "Terminal cursor visibility is unsupported for this output stream.",
-                    options.flushMode);
-                if (!scope.status_.ok())
+                    options.flushMode,
+                    &emitted);
+                if (!emitted)
                 {
                     return scope;
                 }
@@ -2013,13 +2111,9 @@ namespace GameWIP::Terminal
             ++state.cursorHiddenScopeDepth;
             scope.active_ = true;
         }
-        catch (const std::bad_alloc &)
-        {
-            scope.status_ = IO::makeStatus(ErrorCode::OutOfMemory);
-        }
         catch (...)
         {
-            scope.status_ = IO::makeStatus(ErrorCode::NativeFailure);
+            scope.status_ = exceptionStatus();
         }
         return scope;
     }
@@ -2031,47 +2125,54 @@ namespace GameWIP::Terminal
 
     IO::Types::Status clear(Types::OutputStream stream, Types::ClearTarget target, const Types::ControlOptions &options)
     {
-        if (!validOutputStream(stream))
+        try
         {
-            return invalidArgumentStatus("Unknown terminal output stream.");
+            if (!validOutputStream(stream))
+            {
+                return invalidArgumentStatus("Unknown terminal output stream.");
+            }
+
+            std::lock_guard lock(outputState(stream).mutex);
+
+            std::string_view sequence;
+            switch (target)
+            {
+            case Types::ClearTarget::EntireScreen:
+                sequence = "\x1b[2J";
+                break;
+            case Types::ClearTarget::ScreenBeforeCursor:
+                sequence = "\x1b[1J";
+                break;
+            case Types::ClearTarget::ScreenAfterCursor:
+                sequence = "\x1b[0J";
+                break;
+            case Types::ClearTarget::EntireScreenAndScrollback:
+                sequence = "\x1b[3J";
+                break;
+            case Types::ClearTarget::EntireLine:
+                sequence = "\x1b[2K";
+                break;
+            case Types::ClearTarget::LineBeforeCursor:
+                sequence = "\x1b[1K";
+                break;
+            case Types::ClearTarget::LineAfterCursor:
+                sequence = "\x1b[0K";
+                break;
+            default:
+                return invalidArgumentStatus("Unknown terminal clear target.");
+            }
+
+            return writeControlSequenceUnlocked(
+                stream,
+                sequence,
+                ControlFeature::Clear,
+                "Terminal clear controls are unsupported for this output stream.",
+                options.flushMode);
         }
-
-        std::lock_guard lock(outputState(stream).mutex);
-
-        std::string_view sequence;
-        switch (target)
+        catch (...)
         {
-        case Types::ClearTarget::EntireScreen:
-            sequence = "\x1b[2J";
-            break;
-        case Types::ClearTarget::ScreenBeforeCursor:
-            sequence = "\x1b[1J";
-            break;
-        case Types::ClearTarget::ScreenAfterCursor:
-            sequence = "\x1b[0J";
-            break;
-        case Types::ClearTarget::EntireScreenAndScrollback:
-            sequence = "\x1b[3J";
-            break;
-        case Types::ClearTarget::EntireLine:
-            sequence = "\x1b[2K";
-            break;
-        case Types::ClearTarget::LineBeforeCursor:
-            sequence = "\x1b[1K";
-            break;
-        case Types::ClearTarget::LineAfterCursor:
-            sequence = "\x1b[0K";
-            break;
-        default:
-            return invalidArgumentStatus("Unknown terminal clear target.");
+            return exceptionStatus();
         }
-
-        return writeControlSequenceUnlocked(
-            stream,
-            sequence,
-            ControlFeature::Clear,
-            "Terminal clear controls are unsupported for this output stream.",
-            options.flushMode);
     }
 
     IO::Types::Status scroll(Types::ScrollDirection direction, std::uint32_t lines, const Types::ControlOptions &options)
@@ -2081,47 +2182,54 @@ namespace GameWIP::Terminal
 
     IO::Types::Status scroll(Types::OutputStream stream, Types::ScrollDirection direction, std::uint32_t lines, const Types::ControlOptions &options)
     {
-        if (!validOutputStream(stream))
+        try
         {
-            return invalidArgumentStatus("Unknown terminal output stream.");
+            if (!validOutputStream(stream))
+            {
+                return invalidArgumentStatus("Unknown terminal output stream.");
+            }
+
+            OutputState &state = outputState(stream);
+            std::lock_guard lock(state.mutex);
+
+            char command = 'S';
+            switch (direction)
+            {
+            case Types::ScrollDirection::Up:
+                command = 'S';
+                break;
+            case Types::ScrollDirection::Down:
+                command = 'T';
+                break;
+            default:
+                return invalidArgumentStatus("Unknown terminal scroll direction.");
+            }
+
+            if (lines == 0)
+            {
+                return flushIfRequested(stream, options.flushMode);
+            }
+            IO::Types::Status validationStatus = Detail::Platform::validateScroll(stream, lines);
+            if (!validationStatus.ok())
+            {
+                return validationStatus;
+            }
+
+            state.assembly.clear();
+            state.assembly.append("\x1b[");
+            appendUnsigned(state.assembly, lines);
+            state.assembly.push_back(command);
+            return writeAssembledControlSequenceUnlocked(
+                stream,
+                state,
+                ControlFeature::Scroll,
+                "Terminal scrolling is unsupported for this output stream.",
+                options.flushMode);
         }
-
-        OutputState &state = outputState(stream);
-        std::lock_guard lock(state.mutex);
-
-        char command = 'S';
-        switch (direction)
+        catch (...)
         {
-        case Types::ScrollDirection::Up:
-            command = 'S';
-            break;
-        case Types::ScrollDirection::Down:
-            command = 'T';
-            break;
-        default:
-            return invalidArgumentStatus("Unknown terminal scroll direction.");
+            return exceptionStatus();
         }
-
-        if (lines == 0)
-        {
-            return flushIfRequested(stream, options.flushMode);
-        }
-        IO::Types::Status validationStatus = Detail::Platform::validateScroll(stream, lines);
-        if (!validationStatus.ok())
-        {
-            return validationStatus;
-        }
-
-        state.assembly.clear();
-        state.assembly.append("\x1b[");
-        appendUnsigned(state.assembly, lines);
-        state.assembly.push_back(command);
-        return writeAssembledControlSequenceUnlocked(
-            stream,
-            state,
-            ControlFeature::Scroll,
-            "Terminal scrolling is unsupported for this output stream.",
-            options.flushMode);
     }
 
     IO::Types::Status enterAlternateScreen(const Types::ControlOptions &options)
@@ -2131,18 +2239,25 @@ namespace GameWIP::Terminal
 
     IO::Types::Status enterAlternateScreen(Types::OutputStream stream, const Types::ControlOptions &options)
     {
-        if (!validOutputStream(stream))
+        try
         {
-            return invalidArgumentStatus("Unknown terminal output stream.");
-        }
+            if (!validOutputStream(stream))
+            {
+                return invalidArgumentStatus("Unknown terminal output stream.");
+            }
 
-        std::lock_guard lock(outputState(stream).mutex);
-        return writeControlSequenceUnlocked(
-            stream,
-            "\x1b[?1049h",
-            ControlFeature::AlternateScreen,
-            "Terminal alternate screen is unsupported for this output stream.",
-            options.flushMode);
+            std::lock_guard lock(outputState(stream).mutex);
+            return writeControlSequenceUnlocked(
+                stream,
+                "\x1b[?1049h",
+                ControlFeature::AlternateScreen,
+                "Terminal alternate screen is unsupported for this output stream.",
+                options.flushMode);
+        }
+        catch (...)
+        {
+            return exceptionStatus();
+        }
     }
 
     IO::Types::Status leaveAlternateScreen(const Types::ControlOptions &options)
@@ -2152,18 +2267,25 @@ namespace GameWIP::Terminal
 
     IO::Types::Status leaveAlternateScreen(Types::OutputStream stream, const Types::ControlOptions &options)
     {
-        if (!validOutputStream(stream))
+        try
         {
-            return invalidArgumentStatus("Unknown terminal output stream.");
-        }
+            if (!validOutputStream(stream))
+            {
+                return invalidArgumentStatus("Unknown terminal output stream.");
+            }
 
-        std::lock_guard lock(outputState(stream).mutex);
-        return writeControlSequenceUnlocked(
-            stream,
-            "\x1b[?1049l",
-            ControlFeature::AlternateScreen,
-            "Terminal alternate screen is unsupported for this output stream.",
-            options.flushMode);
+            std::lock_guard lock(outputState(stream).mutex);
+            return writeControlSequenceUnlocked(
+                stream,
+                "\x1b[?1049l",
+                ControlFeature::AlternateScreen,
+                "Terminal alternate screen is unsupported for this output stream.",
+                options.flushMode);
+        }
+        catch (...)
+        {
+            return exceptionStatus();
+        }
     }
 
     AlternateScreenScope scopedAlternateScreen(const Types::ControlOptions &options) noexcept
@@ -2181,6 +2303,11 @@ namespace GameWIP::Terminal
             scope.status_ = IO::makeStatus(ErrorCode::InvalidArgument);
             return scope;
         }
+        if (!IO::isValidFlushMode(options.flushMode))
+        {
+            scope.status_ = IO::makeStatus(ErrorCode::InvalidArgument);
+            return scope;
+        }
 
         try
         {
@@ -2194,13 +2321,15 @@ namespace GameWIP::Terminal
 
             if (state.alternateScreenScopeDepth == 0)
             {
+                bool emitted = false;
                 scope.status_ = writeControlSequenceUnlocked(
                     stream,
                     "\x1b[?1049h",
                     ControlFeature::AlternateScreen,
                     "Terminal alternate screen is unsupported for this output stream.",
-                    options.flushMode);
-                if (!scope.status_.ok())
+                    options.flushMode,
+                    &emitted);
+                if (!emitted)
                 {
                     return scope;
                 }
@@ -2209,13 +2338,9 @@ namespace GameWIP::Terminal
             ++state.alternateScreenScopeDepth;
             scope.active_ = true;
         }
-        catch (const std::bad_alloc &)
-        {
-            scope.status_ = IO::makeStatus(ErrorCode::OutOfMemory);
-        }
         catch (...)
         {
-            scope.status_ = IO::makeStatus(ErrorCode::NativeFailure);
+            scope.status_ = exceptionStatus();
         }
         return scope;
     }
@@ -2227,28 +2352,35 @@ namespace GameWIP::Terminal
 
     IO::Types::Status setTitle(Types::OutputStream stream, std::string_view utf8Title, const Types::ControlOptions &options)
     {
-        if (!validOutputStream(stream))
+        try
         {
-            return invalidArgumentStatus("Unknown terminal output stream.");
-        }
-        IO::Types::Status validationStatus = Detail::Platform::validateTitle(stream, utf8Title);
-        if (!validationStatus.ok())
-        {
-            return validationStatus;
-        }
+            if (!validOutputStream(stream))
+            {
+                return invalidArgumentStatus("Unknown terminal output stream.");
+            }
+            IO::Types::Status validationStatus = Detail::Platform::validateTitle(stream, utf8Title);
+            if (!validationStatus.ok())
+            {
+                return validationStatus;
+            }
 
-        OutputState &state = outputState(stream);
-        std::lock_guard lock(state.mutex);
-        state.assembly.clear();
-        state.assembly.append("\x1b]0;");
-        appendSanitizedTitle(state.assembly, utf8Title);
-        state.assembly.push_back('\x07');
-        return writeAssembledControlSequenceUnlocked(
-            stream,
-            state,
-            ControlFeature::Title,
-            "Terminal title controls are unsupported for this output stream.",
-            options.flushMode);
+            OutputState &state = outputState(stream);
+            std::lock_guard lock(state.mutex);
+            state.assembly.clear();
+            state.assembly.append("\x1b]0;");
+            appendSanitizedTitle(state.assembly, utf8Title);
+            state.assembly.push_back('\x07');
+            return writeAssembledControlSequenceUnlocked(
+                stream,
+                state,
+                ControlFeature::Title,
+                "Terminal title controls are unsupported for this output stream.",
+                options.flushMode);
+        }
+        catch (...)
+        {
+            return exceptionStatus();
+        }
     }
 
     IO::Types::Status ringBell(const Types::ControlOptions &options)
@@ -2258,17 +2390,24 @@ namespace GameWIP::Terminal
 
     IO::Types::Status ringBell(Types::OutputStream stream, const Types::ControlOptions &options)
     {
-        if (!validOutputStream(stream))
+        try
         {
-            return invalidArgumentStatus("Unknown terminal output stream.");
-        }
+            if (!validOutputStream(stream))
+            {
+                return invalidArgumentStatus("Unknown terminal output stream.");
+            }
 
-        std::lock_guard lock(outputState(stream).mutex);
-        return writeControlSequenceUnlocked(
-            stream,
-            "\a",
-            ControlFeature::Bell,
-            "Terminal bell output is unsupported for this output stream.",
-            options.flushMode);
+            std::lock_guard lock(outputState(stream).mutex);
+            return writeControlSequenceUnlocked(
+                stream,
+                "\a",
+                ControlFeature::Bell,
+                "Terminal bell output is unsupported for this output stream.",
+                options.flushMode);
+        }
+        catch (...)
+        {
+            return exceptionStatus();
+        }
     }
 } // namespace GameWIP::Terminal

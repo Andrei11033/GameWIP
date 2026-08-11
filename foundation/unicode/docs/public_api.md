@@ -69,6 +69,16 @@ Overlap is rejected before writes. Destination exhaustion stops before the next 
 
 `Utf8BoundaryResult::byteOffset` is the discovered boundary on `Found`. Endpoint outcomes retain the endpoint, and failures retain the original caller-provided offset.
 
+### Grapheme indexing outcome
+
+`GraphemeIndexOutcome` is:
+
+- `Indexed` when complete valid UTF-8 was segmented into caller-owned boundary storage.
+- `DestinationTooSmall` when the supplied boundary span cannot hold the complete index.
+- `InvalidEncoding` when malformed or incomplete UTF-8 prevents complete indexing.
+
+`Utf8GraphemeIndexResult::requiredBoundaryCount` includes offset 0 and the final `text.size()` boundary. It is meaningful on `Indexed` and `DestinationTooSmall`; malformed input reports zero. Empty text therefore requires one boundary entry.
+
 ## Result structures
 
 | Result | Fields |
@@ -84,6 +94,7 @@ Overlap is rejected before writes. Destination exhaustion stops before the next 
 | `Utf8ToUtf16Result` | `sourceBytesConsumed`, `codeUnitsWritten`, `outcome` |
 | `Utf16ToUtf8Result` | `sourceCodeUnitsConsumed`, `bytesWritten`, `outcome` |
 | `Utf8BoundaryResult` | `byteOffset`, `outcome` |
+| `Utf8GraphemeIndexResult` | `requiredBoundaryCount`, `outcome` |
 | `UnicodeVersion` | `major`, `minor`, `patch` |
 
 ## Scalar and version helpers
@@ -135,7 +146,11 @@ The supplied offset must be code-point aligned but does not need to be a graphem
 
 Context-sensitive grapheme rules can require inspection of earlier text to reconstruct segmentation state. Malformed or incomplete UTF-8 encountered in the context required by the traversal is reported as `InvalidEncoding`.
 
-The API does not promise constant-time random access to grapheme boundaries. Sequential traversal is the intended efficient usage pattern.
+For isolated non-ASCII queries, the stateless implementation searches backward for the nearest boundary whose break is provable without earlier grapheme state, then reconstructs state only from that restart point. State-sensitive sequences can still force a scan farther left, so worst-case random access remains O(n).
+
+For repeated traversal, use `Utf8::GraphemeCursor`. `reset()` performs one complete segmentation pass and stores all boundary offsets in caller-provided `std::size_t` storage. After a successful reset, `next()` and `previous()` are O(1), `seek()` is O(log graphemes), and `discardAfterCurrent()` drops later retained offsets in O(1).
+
+The cursor retains only the caller-owned boundary span, not the text. The storage must remain alive and unmodified while indexed. A caller may truncate a text suffix exactly at the current indexed boundary and then call `discardAfterCurrent()`; arbitrary insertion, replacement, normalization, or non-suffix deletion can change surrounding boundaries and requires re-indexing.
 
 ## UTF-16 operations
 
@@ -155,7 +170,7 @@ Views and spans are non-owning. Their storage must remain valid for the duration
 
 Public operations are `noexcept`, perform no implementation-owned dynamic allocation, perform no I/O, and use immutable generated tables rather than mutable global or thread-local state. Independent calls can therefore run concurrently when their caller-owned memory does not race.
 
-UTF-8 scalar decoding and code-point traversal operate on bounded local input. Property lookup is constant-time. Grapheme random access may scan earlier text to reconstruct context; use sequential boundary traversal when processing a complete string.
+UTF-8 scalar decoding and code-point traversal operate on bounded local input. Property lookup is constant-time. Stateless grapheme random access uses a nearest-safe-restart optimization but can still require O(n) lookbehind in state-sensitive cases. `Utf8::GraphemeCursor` makes one full O(n) index pass so a complete repeated forward/backward walk or suffix-deletion traversal remains O(n) overall.
 
 ## Package boundary
 

@@ -24,7 +24,9 @@ The public hook namespace is `GameWIP::Terminal::TestHooks`.
 
 ## Reset rule
 
-Call `TestHooks::reset()` before and after each scenario. It clears capability overrides, prepared state, input bytes, mode overrides, output capture, counters, size/position overrides, and every one-shot forced failure.
+Call `TestHooks::reset()` before and after each scenario. It clears capability overrides, prepared state, input bytes/events, Win32 decoder state, internal native-mode overrides, output capture, counters, size/position overrides, and every one-shot forced failure.
+
+Reset also releases any deterministic read or text-write gate so a failed test cannot strand a worker thread.
 
 Tests sharing a process must not assume hook state is isolated automatically.
 
@@ -36,16 +38,20 @@ Tests sharing a process must not assume hook state is isolated automatically.
 
 Overrides persist until cleared or reset.
 
-## In-memory input and modes
+## In-memory input and internal native-mode state
 
 - `setInputBytes()` replaces the deterministic input bytes and selects EOF-versus-no-data behavior when the buffer becomes empty.
 - `appendInputBytes()` adds bytes to the deterministic input stream.
-- `clearInputBytes()` disables the in-memory input path.
-- `setPendingHighSurrogate()` and `hasPendingHighSurrogate()` expose the Win32 converter's endpoint-owned surrogate state for the stdin-replacement regression.
-- `setInputModeOverride()` provides deterministic current/default mode state.
+- `clearInputBytes()` disables the in-memory byte-input path.
+- `setInputEvents()` and `clearInputEvents()` provide deterministic portable events for managed line-editor tests.
+- `setPendingHighSurrogate()` and `hasPendingHighSurrogate()` expose the Win32 event decoder's endpoint-owned surrogate state for the stdin-replacement regression.
+- `setInputModeOverride()` provides deterministic internal line-buffer, echo, and control-processing flags for Session/direct-read setup and restoration tests.
+- cursor-rendering simulation advances an absolute test cursor through ASCII writes, wraps at the configured width, scrolls a separate viewport origin, reflows on resize events, and records managed redraw positions. This narrowly models the distinction between Win32 screen-buffer and `srWindow`-relative coordinates without becoming production API.
+- `inputModeOverrideMatches()` and `inputManagedEventModeOverrideMatches()` verify the native flags managed by an open session.
+- Win32-only `resetWin32KeyDecoder()`, `decodeWin32KeyRecord()`, and `takePendingWin32KeyEvent()` exercise native key normalization without exporting production decoder symbols.
 - `clearInputModeOverride()` restores normal backend behavior.
 
-The byte strings may intentionally contain invalid or incomplete UTF-8 to validate text-read failures.
+The byte strings may intentionally contain invalid or incomplete UTF-8 to validate redirected text-read failures. Event fixtures are already-portable backend output and therefore obey the normal Event contract. Native-mode/decoder hooks exist only because validation must prove exact managed restoration and Win32 normalization; public consumers configure input through `SessionOptions`.
 
 ## Output capture and counters
 
@@ -57,6 +63,13 @@ The byte strings may intentionally contain invalid or incomplete UTF-8 to valida
 - `textWriteCallCount()` reports backend text-write calls.
 
 Returned vectors and strings are snapshots owned by the caller.
+
+## Deterministic operation gates
+
+- `blockNextRead()` arms a one-shot gate at the next backend read; `waitUntilReadBlocked()` observes arrival and `releaseBlockedRead()` resumes it.
+- `blockNextTextWrite()` provides the equivalent gate for the next backend text write.
+
+The gates coordinate concurrency tests without timing-dependent sleeps. Arm a gate before starting the target operation, require the bounded wait to succeed, and release it before joining the worker. A gate is consumed only by the matching operation.
 
 ## Exception behavior
 
@@ -74,7 +87,6 @@ Each function arms one failure consumed atomically by the next matching operatio
 - `forceNextInputCapabilityFailure()`;
 - `forceNextOutputCapabilityFailure()`;
 - `forceNextOutputPreparationFailure()`;
-- `forceNextInputAvailabilityFailure()`;
 - `forceNextInputModeFailure()`;
 - `forceNextReadFailure()`;
 - `forceNextTerminalSizeFailure()`;

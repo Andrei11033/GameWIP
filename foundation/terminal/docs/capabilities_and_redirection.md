@@ -1,6 +1,6 @@
 @page terminal_capabilities_and_redirection Capabilities, preparation, and redirection
 
-Capabilities describe the current stdin, stdout, or stderr endpoint. They are snapshots, not reservations: redirection, handle replacement, mode changes, or external native calls can make a previous result stale. The status returned by the requested operation remains authoritative.
+Capabilities describe the current stdin, stdout, or stderr endpoint. They are snapshots, not reservations: redirection, handle replacement, session setup, or external native calls can make a previous result stale. The status returned by the requested operation remains authoritative.
 
 ## Stream kinds
 
@@ -15,7 +15,14 @@ A detached capability query can succeed and report `Detached`; an operation that
 
 ## Input capabilities
 
-`InputCapabilities` reports stream kind, UTF-8 text, byte and line input, raw mode, echo control, input-mode operations, availability queries, and finite-timeout support. `InputCapabilitiesResult` pairs that snapshot with an IO status.
+`InputCapabilities` reports only managed abstraction features:
+
+- UTF-8 text, arbitrary bytes, lines, and structured events;
+- non-blocking reads, finite deadlines, and caller cancellation;
+- resize and paste events;
+- repeat/release events, standalone modifiers, media keys, key location, and modifier-state richness.
+
+It does not expose native raw-mode, echo, mode-query/set, or availability-preflight capabilities. `InputCapabilitiesResult` pairs the snapshot with an IO status. Poll by performing a `0ms` read rather than checking availability and racing a later read.
 
 ## Output capabilities
 
@@ -48,10 +55,14 @@ Redirected endpoints are byte-oriented:
 
 Real-console output converts UTF-8 to UTF-16 and uses the native Unicode console path. Redirected output writes bytes. The reported style set is conservative; enabling virtual-terminal processing does not by itself promise RGB, dim, italic, or strikethrough support.
 
-Named-pipe input supports finite read timeouts. Real-console input preserves native cooked input, echo, and line editing and currently supports only `kWaitForever`. Regular redirected files support availability queries from their current position but do not promise bounded timeouts.
+Named-pipe input reports byte/text/line input plus non-blocking reads, finite deadlines, and cooperative cancellation. Regular redirected files report byte/text/line input without bounded-wait guarantees.
+
+Real Win32 consoles report byte/text/line input plus structured events, non-blocking reads, finite deadlines, cancellation, resize notifications, repeat/release events, standalone modifiers, key location, and modifier state. Native paste recognition and guaranteed media-key delivery remain false. The backend reads `INPUT_RECORD` directly; Stream delivery projects logical text events back into stream data and managed `readLine()` owns interactive editing/echo.
 
 ## Failure behavior
 
 `StyleMode::Auto` falls back to plain text when preparation or style support is unavailable. `StyleMode::Required` and terminal controls return the preparation or capability failure without normal emission. Plain text, byte output, size queries, cursor-position queries, and input operations do not implicitly prepare output.
+
+A detached input operation returns `NotOpen`. An unsupported delivery/read/deadline/cancellation combination returns `Unsupported` without consuming input. Managed ownership conflicts return `ResourceBusy`; capability snapshots do not reserve stdin.
 
 See @ref terminal_styling, @ref terminal_read_write, and @ref terminal_control_primitives.

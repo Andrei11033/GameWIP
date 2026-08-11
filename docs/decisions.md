@@ -8,6 +8,7 @@ Use:
 - @ref project_roadmap for milestone completion criteria.
 - GitHub issues for active tasks, bugs, validation work, and follow-up cleanup.
 - @ref project_platform_backend_contract for platform-backend rules.
+- @ref project_public_api_contract for project-wide public naming, text, result, performance, and compatibility rules.
 - @ref project_versioning for version policy.
 - @ref project_contributing for GitHub workflow and merge messages.
 - The owning library manual for library-specific behavior and API contracts.
@@ -39,7 +40,10 @@ visual refinement during foundational development.
 - MSYS2 CLANG64 is used for AddressSanitizer validation.
 - The root setup entry point owns reproducible installation, update, repair, editor integration, and environment verification on Windows 11.
 - The repository is Windows-first, but reusable public APIs remain portable unless a platform concept is itself the contract.
-- Project-owned text and public UTF-8 strings use UTF-8 unless an owning API documents a narrower contract.
+- Public/project text is UTF-8 and continues to use `std::string`/`std::string_view` rather than `std::u8string`.
+- Encoding-agnostic data is called bytes rather than text. Byte-oriented IO remains independent of Unicode.
+- GameWIP does not automatically normalize Unicode, insert or remove a BOM, or silently repair invalid text.
+- Validate text at trust and native boundaries, combining conversion and validation where practical; do not blindly repeat full scans on trusted hot forwarding paths.
 - Win32 backends convert at the operating-system boundary and use wide-character APIs where required.
 
 ## Repository architecture
@@ -63,6 +67,8 @@ Standalone does not mean anonymous ownership. First-party installed targets inte
 
 A reusable library owns its public API, package boundary, docs, tests, platform backend, and compatibility notes. Public headers must expose portable types and must not require consumers to include internal headers, platform headers, validation hooks, or game-runtime types.
 
+Performance is part of reusable API design. Preserve reusable caller storage, avoid success-path diagnostic allocation and redundant scans, keep optional features lazy, and benchmark meaningful hot paths without turning benchmark timings into correctness gates.
+
 ## Build and packaging
 
 - Root presets define supported project workflows.
@@ -71,6 +77,12 @@ A reusable library owns its public API, package boundary, docs, tests, platform 
 - Public dependencies must be declared as public package dependencies.
 - Implementation-only dependencies must remain private.
 - Package compatibility is validated through public-header checks and clean installed-consumer workflows.
+
+Installed packages assume ABI-compatible C++23 toolchains, standard libraries, runtimes, architectures, configurations, and exact GameWIP versions. The project does not promise a universal stable C ABI.
+
+Pre-1.0 public APIs may be corrected directly instead of retaining deprecated aliases unless a specific compatibility requirement justifies a transition layer.
+
+Umbrella public headers may remain supported while focused headers are added. Physical header decomposition does not require namespace or package decomposition and should be justified by measured compile-time or usability value.
 
 Detailed CMake rules are documented in @ref project_cmake_infrastructure. Package rules are documented in @ref project_library_compatibility.
 

@@ -24,6 +24,7 @@ generate_export_header(Terminal
 
 target_sources(Terminal
     PRIVATE
+        core/session.cpp
         core/terminal.cpp
         core/terminal_test_hooks.cpp
     PUBLIC
@@ -53,8 +54,11 @@ target_compile_definitions(Terminal
         $<BUILD_INTERFACE:INTERNAL_TERMINAL_TEST_HOOKS=$<BOOL:${TERMINAL_ENABLE_TEST_HOOKS}>>
 )
 
-target_link_libraries(Terminal PUBLIC
-    IO
+target_link_libraries(Terminal
+    PUBLIC
+        IO
+    PRIVATE
+        Unicode
 )
 
 set_target_properties(Terminal PROPERTIES
