@@ -24,13 +24,18 @@ jobs:
             const areaLabelsByValue = new Map([
               ["Build and tooling", "area:cmake"],
               ["FileSystem", "area:filesystem"],
-              ["Foundation shared systems", "area:foundation"],
               ["IO", "area:io"],
               ["Terminal", "area:terminal"],
+              ["Unicode", "area:unicode"],
+              ["Foundation shared systems", "area:foundation"],
               ["Logger", "area:logger"],
               ["Assert", "area:assert"],
               ["TestSupport", "area:test_support"],
-              ["Engine input/action/window", "area:engine"],
+              ["Input", "area:input"],
+              ["Action", "area:action"],
+              ["Window", "area:window"],
+              ["Window manager", "area:window-manager"],
+              ["Engine shared systems", "area:engine"],
               ["Windows platform backend", "area:platform-win32"],
               ["Tools/developer support", "area:tools"],
               ["Documentation", "area:docs"],
@@ -60,15 +65,38 @@ jobs:
                 .trim();
             }
 
+            const legacyAreas = {
+              "Foundation shared systems": {
+                defaultLabel: "area:foundation",
+                refinements: ["area:unicode"],
+              },
+              "Engine input/action/window": {
+                defaultLabel: "area:engine",
+                refinements: [
+                  "area:input",
+                  "area:action",
+                  "area:window",
+                  "area:window-manager",
+                ],
+              },
+            };
+
             const allAreaLabels = [...new Set(areaLabelsByValue.values())];
             const body = context.payload.issue.body ?? "";
             const selectedArea = readIssueFormField(body, "Area");
-            const targetLabel = areaLabelsByValue.get(selectedArea);
+            let targetLabel = areaLabelsByValue.get(selectedArea);
 
             const owner = context.repo.owner;
             const repo = context.repo.repo;
             const issue_number = context.issue.number;
             const currentLabels = context.payload.issue.labels.map((label) => label.name);
+
+            const legacyArea = legacyAreas[selectedArea];
+            if (legacyArea) {
+              targetLabel = legacyArea.refinements.find(
+                (label) => currentLabels.includes(label)
+              ) ?? legacyArea.defaultLabel;
+            }
 
             for (const label of allAreaLabels) {
               if (label !== targetLabel && currentLabels.includes(label)) {
