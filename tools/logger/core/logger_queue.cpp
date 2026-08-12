@@ -42,6 +42,12 @@ namespace GameWIP::Logger::Detail::Core
             batch.clear();
             ringArena.reset();
             batchArena.reset();
+
+            if (hardLimit > std::numeric_limits<std::size_t>::max() / sizeof(QueueSlot))
+            {
+                return false;
+            }
+
             ring = std::make_unique<QueueSlot[]>(hardLimit);
             ringSize = hardLimit;
             batch.resize(workerBatchSize);
