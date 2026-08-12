@@ -1,16 +1,13 @@
 /// @file logger_benchmark.cpp
 /// @brief Google Benchmark scenarios for Logger producer paths.
-///
-/// Scenarios isolate producer-path costs and report queue/drop state so measured
-/// throughput cannot silently hide discarded asynchronous work.
 
 #include "logger/logger.h"
 #include "test_support/test_support.h"
 
 #include <benchmark/benchmark.h>
 
-#include <chrono>
 #include <array>
+#include <chrono>
 #include <exception>
 #include <format>
 #include <memory>
@@ -27,7 +24,6 @@ namespace
     constexpr std::string_view message = "logger benchmark message";
     constexpr Logger::Types::SourceId registeredSource = 1;
 
-    /// @brief Creates deterministic Logger settings shared by all producer benchmarks.
     Logger::Types::Config baseConfig()
     {
         Logger::Types::Config config;
@@ -48,14 +44,17 @@ namespace
         return config;
     }
 
-    /// @brief Owns Logger lifecycle, temporary file output, and post-run counters outside timed iterations.
+    [[nodiscard]] bool flushCompleted(const Logger::Types::FlushResult &result) noexcept
+    {
+        return result.status.ok() && result.outcome == Logger::Types::FlushOutcome::Completed;
+    }
+
     class LoggerFixture : public benchmark::Fixture
     {
     protected:
-        /// @brief Initializes Logger and optional temporary file output before timed iterations.
         bool initialize(benchmark::State &state, Logger::Types::Config config, std::string_view directoryName = {})
         {
-            Logger::shutdown();
+            static_cast<void>(Logger::shutdown());
             if (!directoryName.empty())
             {
                 try
@@ -81,41 +80,36 @@ namespace
                 }
             }
 
-            const Logger::Types::Result initResult = Logger::init(config);
-            initialized_ = initResult == Logger::Types::Result::Success;
+            const Logger::Types::InitResult initResult = Logger::init(config);
+            initialized_ = initResult.status.ok() && initResult.outcome == Logger::Types::InitOutcome::Started;
             if (!initialized_)
             {
-                const Logger::Types::PlatformError platformError = Logger::getLastPlatformError();
                 const std::string error = std::format(
-                    "Logger initialization failed (result={}, source={}, native={}).",
-                    static_cast<int>(initResult),
-                    static_cast<int>(platformError.source),
-                    platformError.nativeCode);
+                    "Logger initialization failed (status={}, native={}, outputStatus={}, outputNative={}).",
+                    static_cast<int>(initResult.status.code),
+                    initResult.status.nativeCode,
+                    static_cast<int>(initResult.outputSetupStatus.code),
+                    initResult.outputSetupStatus.nativeCode);
                 state.SkipWithError(error);
             }
             return initialized_;
         }
 
-        /// @brief Flushes, publishes counters, shuts down, and removes temporary output after timing.
         void TearDown(benchmark::State &state) override
         {
             if (initialized_)
             {
-                const bool flushed = Logger::flush(std::chrono::seconds{10});
+                const Logger::Types::FlushResult flushResult = Logger::flush(std::chrono::seconds{10});
                 const Logger::Types::Stats stats = Logger::getStats();
-                Logger::shutdown();
+                static_cast<void>(Logger::shutdown());
 
                 state.counters["queued"] = static_cast<double>(stats.queued);
                 state.counters["written"] = static_cast<double>(stats.written);
                 state.counters["queue_drops"] = static_cast<double>(stats.queueDropsSoft + stats.queueDropsHard);
                 state.counters["peak_queue"] = static_cast<double>(stats.peakQueueDepth);
-
-                if (!flushed)
-                {
-                    state.SkipWithError("Logger flush timed out.");
-                }
+                if (!flushCompleted(flushResult))
+                    state.SkipWithError("Logger flush failed or timed out.");
             }
-
             initialized_ = false;
             workspace_.reset();
             directoryText_.clear();
@@ -126,25 +120,28 @@ namespace
         std::string directoryText_;
     };
 
-    /// @brief Configures the producer path with all output disabled.
     class OutputDisabledFixture : public LoggerFixture
     {
     public:
-        /// @brief Starts the disabled-output producer configuration.
         void SetUp(benchmark::State &state) override
         {
             Logger::Types::Config config = baseConfig();
-            config.output = Logger::Types::Output::None;
-            initialize(state, config);
+            config.output = Logger::Types::OutputMode::None;
+            // Disabled output is a successful configuration but intentionally does not start a worker.
+            const auto init = Logger::init(config);
+            if (!init.status.ok() || init.outcome != Logger::Types::InitOutcome::Disabled)
+            {
+                state.SkipWithError("Logger disabled initialization failed.");
+                return;
+            }
+            initialized_ = true;
         }
     };
 
     BENCHMARK_DEFINE_F(OutputDisabledFixture, Producer)(benchmark::State &state)
     {
         if (!initialized_)
-        {
             return;
-        }
         for (auto iteration : state)
         {
             static_cast<void>(iteration);
@@ -153,15 +150,13 @@ namespace
         state.SetItemsProcessed(state.iterations());
     }
 
-    /// @brief Configures a file logger that rejects formatted Info messages by severity.
     class FilteredFormattedFixture : public LoggerFixture
     {
     public:
-        /// @brief Starts the severity-filtered formatted producer configuration.
         void SetUp(benchmark::State &state) override
         {
             Logger::Types::Config config = baseConfig();
-            config.output = Logger::Types::Output::File;
+            config.output = Logger::Types::OutputMode::File;
             config.minLevel = Logger::Types::Level::Fatal;
             initialize(state, config, "filtered");
         }
@@ -170,9 +165,7 @@ namespace
     BENCHMARK_DEFINE_F(FilteredFormattedFixture, Producer)(benchmark::State &state)
     {
         if (!initialized_)
-        {
             return;
-        }
         std::size_t value = 0;
         for (auto iteration : state)
         {
@@ -183,15 +176,13 @@ namespace
         state.SetItemsProcessed(state.iterations());
     }
 
-    /// @brief Configures the accepted asynchronous file-producer path.
     class EnabledFileFixture : public LoggerFixture
     {
     public:
-        /// @brief Starts the accepted asynchronous file producer configuration.
         void SetUp(benchmark::State &state) override
         {
             Logger::Types::Config config = baseConfig();
-            config.output = Logger::Types::Output::File;
+            config.output = Logger::Types::OutputMode::File;
             config.minLevel = Logger::Types::Level::Info;
             initialize(state, config, "enabled_file");
         }
@@ -200,9 +191,7 @@ namespace
     BENCHMARK_DEFINE_F(EnabledFileFixture, Producer)(benchmark::State &state)
     {
         if (!initialized_)
-        {
             return;
-        }
         for (auto iteration : state)
         {
             static_cast<void>(iteration);
@@ -211,16 +200,14 @@ namespace
         state.SetItemsProcessed(state.iterations());
     }
 
-    /// @brief Configures the registered-SourceId producer path with asynchronous file output.
     class RegisteredSourceFixture : public LoggerFixture
     {
     public:
-        /// @brief Starts the registered-source producer configuration.
         void SetUp(benchmark::State &state) override
         {
             const std::array sources{Logger::Types::SourceDefinition{registeredSource, "RegisteredBenchmark"}};
             Logger::Types::Config config = baseConfig();
-            config.output = Logger::Types::Output::File;
+            config.output = Logger::Types::OutputMode::File;
             config.sources = sources;
             initialize(state, config, "registered_source");
         }
@@ -229,9 +216,7 @@ namespace
     BENCHMARK_DEFINE_F(RegisteredSourceFixture, Producer)(benchmark::State &state)
     {
         if (!initialized_)
-        {
             return;
-        }
         for (auto iteration : state)
         {
             static_cast<void>(iteration);
@@ -240,7 +225,6 @@ namespace
         state.SetItemsProcessed(state.iterations());
     }
 
-    /// @brief Shares one Logger lifecycle across a Google Benchmark thread group.
     void multiProducerContention(benchmark::State &state)
     {
         static std::mutex lifecycleMutex;
@@ -253,16 +237,16 @@ namespace
             const std::lock_guard lock{lifecycleMutex};
             if (activeThreads == 0)
             {
-                Logger::shutdown();
+                static_cast<void>(Logger::shutdown());
                 try
                 {
                     workspace = std::make_unique<TestSupport::ScopedTemporaryDirectory>("logger_benchmark_multi_producer");
                     if (!workspace->status().ok())
                     {
-                        const std::string error = std::format(
-                            "Could not create multi-producer workspace: {}.",
-                            TestSupport::formatInfrastructureStatus(workspace->status()));
-                        state.SkipWithError(error);
+                        state.SkipWithError(
+                            std::format(
+                                "Could not create multi-producer workspace: {}.",
+                                TestSupport::formatInfrastructureStatus(workspace->status())));
                         workspace.reset();
                         initialized = false;
                     }
@@ -271,10 +255,11 @@ namespace
                         directoryText = workspace->path().string();
                         const std::array sources{Logger::Types::SourceDefinition{registeredSource, "RegisteredBenchmark"}};
                         Logger::Types::Config config = baseConfig();
-                        config.output = Logger::Types::Output::File;
+                        config.output = Logger::Types::OutputMode::File;
                         config.logDirectory = directoryText;
                         config.sources = sources;
-                        initialized = Logger::init(config) == Logger::Types::Result::Success;
+                        const auto init = Logger::init(config);
+                        initialized = init.status.ok() && init.outcome == Logger::Types::InitOutcome::Started;
                     }
                 }
                 catch (const std::exception &exception)
@@ -287,9 +272,7 @@ namespace
         }
 
         if (!initialized)
-        {
             state.SkipWithError("Logger initialization failed.");
-        }
         else
         {
             for (auto iteration : state)
@@ -305,21 +288,18 @@ namespace
             --activeThreads;
             if (activeThreads == 0)
             {
-                const bool flushed = initialized && Logger::flush(std::chrono::seconds{10});
+                const bool flushed = initialized && flushCompleted(Logger::flush(std::chrono::seconds{10}));
                 const Logger::Types::Stats stats = Logger::getStats();
-                Logger::shutdown();
+                static_cast<void>(Logger::shutdown());
                 workspace.reset();
                 directoryText.clear();
                 initialized = false;
-
                 state.counters["queued"] = static_cast<double>(stats.queued);
                 state.counters["written"] = static_cast<double>(stats.written);
                 state.counters["queue_drops"] = static_cast<double>(stats.queueDropsSoft + stats.queueDropsHard);
                 state.counters["peak_queue"] = static_cast<double>(stats.peakQueueDepth);
                 if (!flushed)
-                {
-                    state.SkipWithError("Logger flush timed out.");
-                }
+                    state.SkipWithError("Logger flush failed or timed out.");
             }
         }
     }

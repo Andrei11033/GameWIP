@@ -7,4 +7,5 @@ gamewip_add_test_module(
         Logger
         Terminal
         TestSupport
+        Unicode
 )

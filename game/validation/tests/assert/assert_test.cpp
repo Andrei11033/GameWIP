@@ -349,12 +349,12 @@ namespace
         const std::string directoryText = pathText(directory);
 
         Logger::Types::Config config;
-        config.output = Logger::Types::Output::File;
+        config.output = Logger::Types::OutputMode::File;
         config.minLevel = Logger::Types::Level::Trace;
         config.logDirectory = directoryText;
         config.enableDebugOutput = false;
         config.enableFatalPopup = false;
-        return Logger::init(config) == Logger::Types::Result::Success;
+        return Logger::init(config).status.ok();
     }
 
     /// @brief Exercises passing macros and statement safety.
@@ -908,13 +908,13 @@ namespace
         SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX);
 #endif
         Logger::Types::Config config;
-        config.output = Logger::Types::Output::None;
+        config.output = Logger::Types::OutputMode::None;
         config.minLevel = Logger::Types::Level::Trace;
         config.enableDebugOutput = false;
         config.enableFatalPopup = false;
         if (const char *childLogDirectory = std::getenv(std::string(childLogDirectoryEnvironmentVariable).c_str()))
         {
-            config.output = Logger::Types::Output::File;
+            config.output = Logger::Types::OutputMode::File;
             config.logDirectory = childLogDirectory;
             config.fallbackToConsoleOnFileFailure = false;
         }
@@ -931,13 +931,13 @@ namespace
         SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX);
 #endif
         Logger::Types::Config config;
-        config.output = Logger::Types::Output::None;
+        config.output = Logger::Types::OutputMode::None;
         config.minLevel = Logger::Types::Level::Trace;
         config.enableDebugOutput = false;
         config.enableFatalPopup = false;
         if (const char *childLogDirectory = std::getenv(std::string(childLogDirectoryEnvironmentVariable).c_str()))
         {
-            config.output = Logger::Types::Output::File;
+            config.output = Logger::Types::OutputMode::File;
             config.logDirectory = childLogDirectory;
             config.fallbackToConsoleOnFileFailure = false;
         }
@@ -954,13 +954,13 @@ namespace
         SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX);
 #endif
         Logger::Types::Config config;
-        config.output = Logger::Types::Output::None;
+        config.output = Logger::Types::OutputMode::None;
         config.minLevel = Logger::Types::Level::Trace;
         config.enableDebugOutput = false;
         config.enableFatalPopup = false;
         if (const char *childLogDirectory = std::getenv(std::string(childLogDirectoryEnvironmentVariable).c_str()))
         {
-            config.output = Logger::Types::Output::File;
+            config.output = Logger::Types::OutputMode::File;
             config.logDirectory = childLogDirectory;
             config.fallbackToConsoleOnFileFailure = false;
         }

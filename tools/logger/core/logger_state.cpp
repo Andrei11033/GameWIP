@@ -1,5 +1,5 @@
 /// @file logger_state.cpp
-/// @brief Process-wide Logger state, configuration sanitization, lifecycle transitions, and diagnostic snapshots.
+/// @brief Process-wide Logger state, configuration, lifecycle transitions, and health.
 
 #include "logger/internal/logger_core.h"
 
@@ -8,7 +8,37 @@ namespace GameWIP::Logger::Detail::Core
     namespace
     {
         constexpr std::string_view kDefaultLogDirectory = "logs";
-    }
+
+        [[nodiscard]] bool validUtf8(std::string_view text) noexcept
+        {
+            return Unicode::Utf8::validate(text).outcome == Unicode::Types::ValidationOutcome::Valid;
+        }
+
+        [[nodiscard]] Types::InitResult failedInitAfterException(const Types::Config &config, ErrorCode code) noexcept
+        {
+            Types::InitResult result;
+            result.status = IO::makeStatus(code);
+            result.requestedOutput = config.output;
+            try
+            {
+                if (GameWIP::Logger::isRunning())
+                {
+                    result.outcome = Types::InitOutcome::Started;
+                    result.effectiveOutput = GameWIP::Logger::getOutput();
+                }
+                else
+                {
+                    static_cast<void>(GameWIP::Logger::shutdown());
+                }
+            }
+            catch (...)
+            {
+                result.outcome = Types::InitOutcome::Disabled;
+                result.effectiveOutput = OutputMode::None;
+            }
+            return result;
+        }
+    } // namespace
 
     LoggerState &loggerState()
     {
@@ -16,70 +46,35 @@ namespace GameWIP::Logger::Detail::Core
         return state;
     }
 
-    //-------------------------------------------------------------------------------------------------
-    // Enum and result helpers
-    //-------------------------------------------------------------------------------------------------
-
-    /// @brief Converts a public level enum into its compact numeric representation.
-    /// @param level Level to convert.
-    /// @return Numeric level value used by atomics and bitmasks.
     std::uint8_t toLevelValue(LogLevel level)
     {
         return static_cast<std::uint8_t>(level);
     }
-
-    /// @brief Converts a public output enum into its compact numeric representation.
-    /// @param mode Output mode to convert.
-    /// @return Numeric output mode value used by atomics.
     std::uint8_t toOutputModeValue(OutputMode mode)
     {
         return static_cast<std::uint8_t>(mode);
     }
 
-    /// @brief Converts a public format policy into compact atomic storage.
     std::uint8_t toFormatPolicyValue(FormatPolicy policy)
     {
-        switch (policy)
-        {
-        case FormatPolicy::StrictBounded:
-            return 0;
-        case FormatPolicy::FastNormal:
-            return 1;
-        }
-
-        return 0;
+        return policy == FormatPolicy::FastNormal ? 1u : 0u;
     }
 
-    /// @brief Converts compact atomic storage back to a public format policy.
     FormatPolicy formatPolicyFromValue(std::uint8_t value)
     {
-        return value == 1 ? FormatPolicy::FastNormal : FormatPolicy::StrictBounded;
+        return value == 1u ? FormatPolicy::FastNormal : FormatPolicy::StrictBounded;
     }
 
-    /// @brief Sanitizes invalid format policy enum values to the compatibility default.
-    FormatPolicy sanitizeFormatPolicy(FormatPolicy policy)
+    bool isValidFormatPolicy(FormatPolicy policy)
     {
-        switch (policy)
-        {
-        case FormatPolicy::StrictBounded:
-        case FormatPolicy::FastNormal:
-            return policy;
-        }
-
-        return FormatPolicy::StrictBounded;
+        return policy == FormatPolicy::StrictBounded || policy == FormatPolicy::FastNormal;
     }
 
-    /// @brief Checks whether a level value is one of the defined Logger::Types::Level values.
-    /// @param level Level to validate.
-    /// @return True when the value is in range.
     bool isValidLevel(LogLevel level)
     {
         return toLevelValue(level) < kLevelCount;
     }
 
-    /// @brief Checks whether an output mode is one of the defined Logger::Types::Output values.
-    /// @param mode Output mode to validate.
-    /// @return True when the value is in range.
     bool isValidOutputMode(OutputMode mode)
     {
         switch (mode)
@@ -90,49 +85,20 @@ namespace GameWIP::Logger::Detail::Core
         case OutputMode::Both:
             return true;
         }
-
         return false;
     }
 
-    /// @brief Converts a valid level into a single-bit mask.
-    /// @param level Level to convert.
-    /// @return Bit for the level, or zero when the level is invalid.
     std::uint8_t levelBit(LogLevel level)
     {
-        if (!isValidLevel(level))
-        {
-            return 0;
-        }
-
-        return static_cast<std::uint8_t>(1u << toLevelValue(level));
+        return isValidLevel(level) ? static_cast<std::uint8_t>(1u << toLevelValue(level)) : 0u;
     }
 
-    /// @brief Converts an atomic output-mode value back to the public enum.
-    /// @param mode Numeric output mode value.
-    /// @return Public Output value, clamped to None if the stored value is invalid.
-    OutputMode outputModeFromValue(std::uint8_t mode)
+    OutputMode outputModeFromValue(std::uint8_t value)
     {
-        switch (static_cast<OutputMode>(mode))
-        {
-        case OutputMode::None:
-            return OutputMode::None;
-        case OutputMode::Console:
-            return OutputMode::Console;
-        case OutputMode::File:
-            return OutputMode::File;
-        case OutputMode::Both:
-            return OutputMode::Both;
-        }
-
-        return OutputMode::None;
+        const auto mode = static_cast<OutputMode>(value);
+        return isValidOutputMode(mode) ? mode : OutputMode::None;
     }
 
-    /// @brief Packs hot-path logger state into one atomic word.
-    /// @param running True when normal producer logs may be accepted.
-    /// @param mode Current output mode.
-    /// @param minLevel Startup minimum severity.
-    /// @param levelMask Runtime enabled-level mask.
-    /// @return Packed runtime-state word.
     std::uint32_t packRuntimeState(bool running, OutputMode mode, LogLevel minLevel, std::uint8_t levelMask)
     {
         std::uint32_t packed = running ? kRuntimeStateRunningBit : 0u;
@@ -142,52 +108,23 @@ namespace GameWIP::Logger::Detail::Core
         return packed;
     }
 
-    /// @brief Extracts output mode from a packed runtime-state word.
-    /// @param packed Packed runtime-state word.
-    /// @return Current output mode.
+    bool runtimeStateRunning(std::uint32_t packed)
+    {
+        return (packed & kRuntimeStateRunningBit) != 0;
+    }
     OutputMode runtimeStateOutput(std::uint32_t packed)
     {
         return outputModeFromValue(static_cast<std::uint8_t>((packed >> kRuntimeStateOutputShift) & kRuntimeStateEnumMask));
     }
-
-    /// @brief Extracts min level from a packed runtime-state word.
-    /// @param packed Packed runtime-state word.
-    /// @return Packed min level converted to public enum.
     LogLevel runtimeStateMinLevel(std::uint32_t packed)
     {
         return static_cast<LogLevel>((packed >> kRuntimeStateMinLevelShift) & kRuntimeStateEnumMask);
     }
-
-    /// @brief Extracts runtime level mask from a packed runtime-state word.
-    /// @param packed Packed runtime-state word.
-    /// @return Runtime enabled-level bitmask.
     std::uint8_t runtimeStateLevelMask(std::uint32_t packed)
     {
         return static_cast<std::uint8_t>((packed >> kRuntimeStateLevelMaskShift) & kRuntimeStateLevelMaskMask);
     }
 
-    /// @brief Checks whether a platform error carries a real failure.
-    /// @param error Platform error to inspect.
-    /// @return True when the error source is not None.
-    bool hasPlatformError(const PlatformError &error)
-    {
-        return error.source != PlatformErrorSource::None;
-    }
-
-    /// @brief Maps an IO/FileSystem status into Logger's existing file error channel.
-    /// @param status Foundation operation status.
-    /// @return No platform error for success, otherwise a file error with native detail when available.
-    PlatformError filePlatformError(const GameWIP::IO::Types::Status &status)
-    {
-        if (status.ok())
-        {
-            return {};
-        }
-
-        return PlatformError{PlatformErrorSource::File, static_cast<std::uint64_t>(status.nativeCode)};
-    }
-
-    /// @brief Issues a cheap processor relax hint while waiting for a ring slot.
     void cpuRelax() noexcept
     {
 #if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
@@ -195,44 +132,27 @@ namespace GameWIP::Logger::Detail::Core
 #endif
     }
 
-    /// @brief Waits for a claimed MPSC ring slot with bounded spinning before yielding.
-    /// @param slot Slot claimed by ticket modulo capacity.
-    /// @param ticket Expected sequence value for this producer.
     void waitForQueueSlot(QueueSlot &slot, std::size_t ticket)
     {
         std::uint32_t spins = 0;
         while (slot.sequence.load(std::memory_order_acquire) != ticket)
         {
-            if (spins < kQueueSlotSpinBeforeYield)
-            {
-                ++spins;
+            if (spins++ < kQueueSlotSpinBeforeYield)
                 cpuRelax();
-            }
             else
-            {
                 std::this_thread::yield();
-            }
         }
     }
 
-    /// @brief Counts one queue-pressure drop in both lifetime and resettable diagnostics.
-    /// @param counter Resettable queue-drop counter to increment.
     void recordQueueDropCounter(std::atomic<std::size_t> &counter)
     {
         loggerState().droppedLogs.fetch_add(1, std::memory_order_relaxed);
         counter.fetch_add(1, std::memory_order_relaxed);
     }
-
-    /// @brief Counts one diagnostic failure without affecting lifetime queue-drop reporting.
-    /// @param counter Resettable diagnostic counter to increment.
     void recordDiagnosticFailureCounter(std::atomic<std::size_t> &counter)
     {
         counter.fetch_add(1, std::memory_order_relaxed);
     }
-
-    /// @brief Updates an atomic maximum value.
-    /// @param target Atomic maximum to update.
-    /// @param value Candidate value.
     void updateAtomicMax(std::atomic<std::size_t> &target, std::size_t value)
     {
         std::size_t current = target.load(std::memory_order_relaxed);
@@ -241,8 +161,6 @@ namespace GameWIP::Logger::Detail::Core
         }
     }
 
-    /// @brief Reads resettable atomic counters into the public Stats type.
-    /// @return Public stats snapshot.
     LoggerStats snapshotStats()
     {
         return LoggerStats{
@@ -258,117 +176,64 @@ namespace GameWIP::Logger::Detail::Core
             loggerState().stats.peakQueueDepth.load(std::memory_order_relaxed)};
     }
 
-    /// @brief Returns retained message arena bytes for the current queue storage.
-    /// @pre loggerState().logMutex is held.
-    /// @return Current ring and worker-batch message arena bytes.
     std::size_t messageArenaBytesUnlocked()
     {
         if (loggerState().inlineMessageCapacity == 0)
-        {
             return 0;
-        }
-
         std::size_t bytes = 0;
         if (loggerState().ringMessageArena)
-        {
             bytes += loggerState().logRingSize * loggerState().inlineMessageCapacity;
-        }
         if (loggerState().batchMessageArena)
-        {
             bytes += loggerState().workerBatch.size() * loggerState().inlineMessageCapacity;
-        }
         return bytes;
     }
 
-    /// @brief Returns retained queue vector storage bytes for ring and worker batch entries.
-    /// @pre loggerState().logMutex is held.
-    /// @return Current queue vector capacity bytes.
     std::size_t queueStorageBytesUnlocked()
     {
-        return (loggerState().logRingSize * sizeof(QueueSlot)) + (loggerState().workerBatch.capacity() * sizeof(QueuedLogEntry));
+        return loggerState().logRingSize * sizeof(QueueSlot) + loggerState().workerBatch.capacity() * sizeof(QueuedLogEntry);
     }
 
-    /// @brief Returns retained source registry storage bytes.
-    /// @param registry Current source registry snapshot, or nullptr.
-    /// @return Best-effort retained registry bytes.
     std::size_t sourceRegistryBytes(const SourceRegistry *registry)
     {
         if (!registry)
-        {
             return 0;
-        }
-
-        std::size_t bytes = sizeof(SourceRegistry);
-        bytes += registry->sources.capacity() * sizeof(RegisteredSource);
-        bytes += registry->directSourceLookup.capacity() * sizeof(std::size_t);
-        static const std::size_t emptyStringCapacity = std::string{}.capacity();
-        for (const RegisteredSource &source : registry->sources)
-        {
-            const std::size_t nameCapacity = source.name.capacity();
-            if (nameCapacity > emptyStringCapacity)
-            {
-                bytes += nameCapacity;
-            }
-        }
+        std::size_t bytes = sizeof(SourceRegistry) + registry->sources.capacity() * sizeof(RegisteredSource) +
+                            registry->directSourceLookup.capacity() * sizeof(std::size_t);
+        const std::size_t emptyCapacity = std::string{}.capacity();
+        for (const auto &source : registry->sources)
+            if (source.name.capacity() > emptyCapacity)
+                bytes += source.name.capacity();
         return bytes;
     }
 
-    /// @brief Returns bytes retained by the currently published shared source registry.
-    /// @return Best-effort retained source registry bytes.
     std::size_t publishedSourceRegistryBytes()
     {
-        const std::shared_ptr<SourceRegistry> registry = loggerState().sourceRegistry.load(std::memory_order_acquire);
+        const auto registry = loggerState().sourceRegistry.load(std::memory_order_acquire);
         return sourceRegistryBytes(registry.get());
     }
-
-    /// @brief Returns retained heap fallback capacity for one queued entry.
-    /// @param entry Queue entry to inspect.
-    /// @return Source and message heap fallback capacities.
     std::size_t entryTextHeapCapacityBytes(const QueuedLogEntry &entry)
     {
         return entry.sourceText.capacityBytes() + entry.message.capacityBytes();
     }
-
-    /// @brief Checks whether queue-entry text capacity can be inspected without racing mutations.
-    /// @pre loggerState().logMutex is held.
-    /// @return True when producers are inactive, the queue is empty, and the worker is idle.
     bool entryTextHeapCapacityAvailableUnlocked()
     {
         return !loggerState().workerBusy && loggerState().queueDepth.load(std::memory_order_acquire) == 0 &&
                loggerState().publishedQueueDepth.load(std::memory_order_acquire) == 0 &&
                loggerState().activeProducers.load(std::memory_order_acquire) == 0;
     }
-
-    /// @brief Returns retained heap fallback capacity in queue entries.
-    /// @pre loggerState().logMutex is held.
-    /// @note Worker batch entries are scanned only while the worker is idle to avoid racing worker mutation.
-    /// @return Best-effort retained entry text heap capacity.
     std::size_t entryTextHeapCapacityBytesUnlocked()
     {
         if (!entryTextHeapCapacityAvailableUnlocked())
-        {
             return 0;
-        }
-
         std::size_t bytes = 0;
-        for (std::size_t index = 0; index < loggerState().logRingSize; ++index)
-        {
-            bytes += entryTextHeapCapacityBytes(loggerState().logRing[index].entry);
-        }
-
+        for (std::size_t i = 0; i < loggerState().logRingSize; ++i)
+            bytes += entryTextHeapCapacityBytes(loggerState().logRing[i].entry);
         if (!loggerState().workerBusy)
-        {
-            for (const QueuedLogEntry &entry : loggerState().workerBatch)
-            {
+            for (const auto &entry : loggerState().workerBatch)
                 bytes += entryTextHeapCapacityBytes(entry);
-            }
-        }
-
         return bytes;
     }
 
-    /// @brief Resets visible atomic stats counters.
-    /// @param peakQueueDepth Peak queue depth to publish after reset.
     void resetAtomicStats(std::size_t peakQueueDepth)
     {
         loggerState().stats.queued.store(0, std::memory_order_relaxed);
@@ -382,84 +247,20 @@ namespace GameWIP::Logger::Detail::Core
         loggerState().stats.truncated.store(0, std::memory_order_relaxed);
         loggerState().stats.peakQueueDepth.store(peakQueueDepth, std::memory_order_relaxed);
     }
-
-    /// @brief Waits until producers that entered before shutdown/thread-start failure have left.
     void waitForActiveProducersToLeave()
     {
         while (loggerState().activeProducers.load(std::memory_order_acquire) != 0)
-        {
             std::this_thread::yield();
-        }
     }
-
-    /// @brief Writes last-result state while logMutex is already held.
-    /// @param result Result to publish.
-    /// @param platformError Optional platform error to publish alongside result.
-    void setResultUnlocked(LoggerResult result, PlatformError platformError)
-    {
-        loggerState().lastResult = result;
-        loggerState().lastPlatformError = platformError;
-    }
-
-    /// @brief Writes last-result state from any thread.
-    /// @param result Result to publish.
-    /// @param platformError Optional platform error to publish alongside result.
-    void recordResult(LoggerResult result, PlatformError platformError)
-    {
-        std::lock_guard<std::mutex> lock(loggerState().logMutex);
-        setResultUnlocked(result, platformError);
-    }
-
-    /// @brief Converts a structured platform failure into last-result state when needed.
-    /// @param platformError Platform error returned by the platform bridge.
-    void recordPlatformErrorIfAny(const PlatformError &platformError)
-    {
-        if (hasPlatformError(platformError))
-        {
-            recordResult(LoggerResult::PlatformCallFailed, platformError);
-        }
-    }
-
-    /// @brief Preserves the first recoverable init warning while later setup keeps running.
-    /// @param inOutResult Current init result.
-    /// @param candidateResult New recoverable result to preserve if this is the first warning.
-    /// @param inOutPlatformError Current platform error paired with inOutResult.
-    /// @param candidatePlatformError Optional platform error paired with candidateResult.
-    void preserveFirstInitResult(
-        LoggerResult &inOutResult,
-        LoggerResult candidateResult,
-        PlatformError &inOutPlatformError,
-        PlatformError candidatePlatformError)
-    {
-        if (inOutResult == LoggerResult::Success)
-        {
-            inOutResult = candidateResult;
-            inOutPlatformError = candidatePlatformError;
-        }
-    }
-
-    /// @brief Counts a file write/flush failure without stopping console/debug sinks.
-    /// @param platformError Native failure details returned by the platform file bridge, when available.
-    void recordFileWriteFailure(PlatformError platformError)
-    {
-        std::lock_guard<std::mutex> lock(loggerState().logMutex);
-        loggerState().stats.fileWriteFailures.fetch_add(1, std::memory_order_relaxed);
-        setResultUnlocked(LoggerResult::FileWriteFailed, platformError);
-    }
-
-    /// @brief Counts an allocation/internal-format failure with relaxed atomic accounting.
     void countAllocationFailure()
     {
         recordDiagnosticFailureCounter(loggerState().stats.allocationFailures);
     }
-
-    /// @brief Counts a runtime format failure with relaxed atomic accounting.
     void countFormatFailure()
     {
         recordDiagnosticFailureCounter(loggerState().stats.formatFailures);
     }
 
-    /// @brief Publishes locked configuration state into atomics used by hot paths.
     void publishRuntimeStateUnlocked()
     {
         loggerState().runtimeStateBits.store(
@@ -472,138 +273,140 @@ namespace GameWIP::Logger::Detail::Core
         loggerState().flushFileEveryBatchAtomic.store(loggerState().flushFileEveryBatch, std::memory_order_release);
     }
 
-    //-------------------------------------------------------------------------------------------------
-    // Output style and sink selection helpers
-    //-------------------------------------------------------------------------------------------------
+    Status firstFailure(Status current, const Status &candidate)
+    {
+        if (current.ok() && !candidate.ok())
+            return candidate;
+        return current;
+    }
 
-    /// @brief Returns output label/color/stream routing for a level.
-    /// @param level Level to style.
-    /// @return Style data for the requested level.
+    void resetHealthUnlocked(Types::HealthState state, OutputMode effectiveOutput)
+    {
+        loggerState().healthState = state;
+        loggerState().mode = effectiveOutput;
+        loggerState().lastFailureSource = Types::FailureSource::None;
+        loggerState().lastHealthError = ErrorCode::Success;
+        loggerState().lastHealthNativeCode = 0;
+        loggerState().healthFailureCount = 0;
+    }
+
+    void markHealthDisabledUnlocked()
+    {
+        loggerState().healthState = Types::HealthState::Disabled;
+    }
+
+    void recordHealthFailure(Types::FailureSource source, const Status &status, bool disableChannel)
+    {
+        if (status.ok())
+            return;
+        std::lock_guard<std::mutex> lock(loggerState().logMutex);
+        loggerState().lastFailureSource = source;
+        loggerState().lastHealthError = status.code;
+        loggerState().lastHealthNativeCode = status.nativeCode;
+        ++loggerState().healthFailureCount;
+
+        if (disableChannel)
+        {
+            switch (source)
+            {
+            case Types::FailureSource::File:
+                loggerState().fileOutputAvailableAtomic.store(false, std::memory_order_release);
+                if (loggerState().mode == OutputMode::Both)
+                    loggerState().mode = OutputMode::Console;
+                else if (loggerState().mode == OutputMode::File)
+                    loggerState().mode = OutputMode::None;
+                break;
+            case Types::FailureSource::Console:
+                if (loggerState().mode == OutputMode::Both)
+                    loggerState().mode = OutputMode::File;
+                else if (loggerState().mode == OutputMode::Console)
+                    loggerState().mode = OutputMode::None;
+                break;
+            case Types::FailureSource::DebugOutput:
+                loggerState().debugOutputEnabled = false;
+                loggerState().debugOutputEnabledAtomic.store(false, std::memory_order_release);
+                break;
+            case Types::FailureSource::FatalPopup:
+                loggerState().fatalPopupEnabled = false;
+                loggerState().fatalPopupEnabledAtomic.store(false, std::memory_order_release);
+                break;
+            case Types::FailureSource::None:
+            case Types::FailureSource::TimeConversion:
+                break;
+            }
+        }
+
+        loggerState().healthState = loggerState().mode == OutputMode::None ? Types::HealthState::Disabled : Types::HealthState::Degraded;
+        publishRuntimeStateUnlocked();
+    }
+
     LogStyle getLogStyle(LogLevel level)
     {
-        const auto coloredStyle = [](const char *text, GameWIP::Terminal::Types::BasicColor color, bool useStderr)
+        const auto colored = [](const char *text, Terminal::Types::BasicColor color, bool stderrStream)
         {
-            GameWIP::Terminal::Types::TextStyle style;
-            style.foreground = GameWIP::Terminal::basicColor(color);
-            return LogStyle{text, style, useStderr};
+            Terminal::Types::TextStyle style;
+            style.foreground = Terminal::basicColor(color);
+            return LogStyle{text, style, stderrStream};
         };
-
         switch (level)
         {
         case LogLevel::Trace:
-            return coloredStyle("TRACE", GameWIP::Terminal::Types::BasicColor::BrightBlack, false);
+            return colored("TRACE", Terminal::Types::BasicColor::BrightBlack, false);
         case LogLevel::Debug:
-            return coloredStyle("DEBUG", GameWIP::Terminal::Types::BasicColor::Cyan, false);
+            return colored("DEBUG", Terminal::Types::BasicColor::Cyan, false);
         case LogLevel::Info:
             return {"INFO", {}, false};
         case LogLevel::Warn:
-            return coloredStyle("WARN", GameWIP::Terminal::Types::BasicColor::Yellow, false);
+            return colored("WARN", Terminal::Types::BasicColor::Yellow, false);
         case LogLevel::Error:
-            return coloredStyle("ERROR", GameWIP::Terminal::Types::BasicColor::Red, true);
+            return colored("ERROR", Terminal::Types::BasicColor::Red, true);
         case LogLevel::Fatal:
-            return coloredStyle("FATAL", GameWIP::Terminal::Types::BasicColor::Red, true);
+            return colored("FATAL", Terminal::Types::BasicColor::Red, true);
         }
-
         return {};
     }
-
-    /// @brief Checks whether a level is allowed to drop at the soft queue limit.
-    /// @param level Level to test.
-    /// @return True for Trace, Debug, Info, and Warn.
     bool isLowPriority(LogLevel level)
     {
         return level <= LogLevel::Warn;
     }
-
-    /// @brief Checks whether an output mode includes console output.
-    /// @param mode Output mode to inspect.
-    /// @return True when stdout/stderr should receive normal logs.
     bool hasConsoleOutput(OutputMode mode)
     {
         return mode == OutputMode::Console || mode == OutputMode::Both;
     }
-
-    /// @brief Checks whether an output mode includes file output.
-    /// @param mode Output mode to inspect.
-    /// @return True when the file sink should receive normal logs.
     bool hasFileOutput(OutputMode mode)
     {
         return mode == OutputMode::File || mode == OutputMode::Both;
     }
 
-    //-------------------------------------------------------------------------------------------------
-    // Init validation and storage helpers
-    //-------------------------------------------------------------------------------------------------
-
-    /// @brief Computes ceil(softQueueSize * multiplier) while avoiding size_t overflow.
-    /// @param softQueueSize Configured soft queue limit.
-    /// @param multiplier Hard queue capacity multiplier.
-    /// @return Hard queue limit.
     std::size_t computeHardQueueLimit(std::size_t softQueueSize, double multiplier)
     {
-        const long double preciseLimit = static_cast<long double>(softQueueSize) * static_cast<long double>(multiplier);
-        const long double maxLimit = static_cast<long double>(std::numeric_limits<std::size_t>::max());
-        if (preciseLimit >= maxLimit)
-        {
+        const long double precise = static_cast<long double>(softQueueSize) * static_cast<long double>(multiplier);
+        const long double maximum = static_cast<long double>(std::numeric_limits<std::size_t>::max());
+        if (precise >= maximum)
             return std::numeric_limits<std::size_t>::max();
-        }
-
-        const std::size_t hardLimit = static_cast<std::size_t>(std::ceil(preciseLimit));
-        return std::max(softQueueSize, hardLimit);
+        return std::max(softQueueSize, static_cast<std::size_t>(std::ceil(precise)));
     }
 
-    /// @brief Sanitizes the hard queue multiplier.
-    /// @param inOutHardQueueMultiplier Configured multiplier, overwritten with the sanitized multiplier.
-    /// @param softQueueSize Sanitized soft queue limit.
-    /// @param inOutResult Receives InvalidQueueSize if the requested multiplier is invalid.
-    /// @return Effective hard queue limit.
-    std::size_t effectiveHardQueueLimit(double &inOutHardQueueMultiplier, std::size_t softQueueSize, LoggerResult &inOutResult)
+    std::size_t effectiveHardQueueLimit(double &multiplier, std::size_t softQueueSize, bool &adjusted)
     {
-        if (!std::isfinite(inOutHardQueueMultiplier) || inOutHardQueueMultiplier < 1.0)
+        adjusted = false;
+        if (!std::isfinite(multiplier) || multiplier < 1.0)
         {
-            if (inOutResult == LoggerResult::Success)
-            {
-                inOutResult = LoggerResult::InvalidQueueSize;
-            }
-            inOutHardQueueMultiplier = 1.0;
+            adjusted = true;
+            multiplier = 1.0;
             return softQueueSize;
         }
-
-        return computeHardQueueLimit(softQueueSize, inOutHardQueueMultiplier);
+        return computeHardQueueLimit(softQueueSize, multiplier);
     }
 
-    /// @brief Sanitizes and clamps worker batch size against the hard queue limit.
-    /// @param requested Configured worker batch size, where zero means default.
-    /// @param hardLimit Effective hard queue limit.
-    /// @return Effective worker batch size in [1, hardLimit].
     std::size_t effectiveWorkerBatchSize(std::size_t requested, std::size_t hardLimit)
     {
         const std::size_t wanted = requested == 0 ? kDefaultWorkerBatchSize : requested;
         return std::clamp(wanted, std::size_t{1}, hardLimit);
     }
 
-    //-------------------------------------------------------------------------------------------------
-    // Init and lifecycle state helpers
-    //-------------------------------------------------------------------------------------------------
-
-    /// @brief Resets init-scoped runtime state while preserving allocated inputs from init().
-    /// @param config Startup configuration.
-    /// @param softQueueSize Sanitized soft queue size.
-    /// @param hardQueueSize Sanitized hard queue size.
-    /// @param hardQueueMultiplier Sanitized hard queue multiplier.
-    /// @param messageLength Sanitized maximum message length.
-    /// @param inlineMessageCapacity Per-slot reserved message bytes.
-    /// @param workerBatchSize Effective worker batch capacity.
-    /// @param levelMask Initial runtime level-filter mask.
-    /// @param sourceRegistry Source registry snapshot to publish.
-    /// @param ring Allocated ring storage.
-    /// @param ringSize Number of slots in ring.
-    /// @param batch Allocated worker batch storage.
-    /// @param ringArena Ring message arena.
-    /// @param batchArena Worker batch message arena.
-    /// @pre loggerState().logMutex is held.
     void resetRuntimeStateUnlocked(
-        const GameWIP::Logger::Types::Config &config,
+        const Types::Config &config,
         std::size_t softQueueSize,
         std::size_t hardQueueSize,
         double hardQueueMultiplier,
@@ -626,7 +429,7 @@ namespace GameWIP::Logger::Detail::Core
         loggerState().hardQueueSize = hardQueueSize;
         loggerState().hardQueueMultiplier = hardQueueMultiplier;
         loggerState().maxMessageLength = messageLength;
-        loggerState().formatPolicy = sanitizeFormatPolicy(config.formatPolicy);
+        loggerState().formatPolicy = config.formatPolicy;
         loggerState().inlineMessageCapacity = inlineMessageCapacity;
         loggerState().workerBatchSize = workerBatchSize;
         loggerState().consoleColorEnabled = config.enableConsoleColor;
@@ -652,84 +455,57 @@ namespace GameWIP::Logger::Detail::Core
         loggerState().queueDepth.store(0, std::memory_order_relaxed);
         loggerState().publishedQueueDepth.store(0, std::memory_order_relaxed);
         loggerState().maxMessageLengthAtomic.store(messageLength, std::memory_order_release);
-        loggerState().formatPolicyAtomic.store(toFormatPolicyValue(loggerState().formatPolicy), std::memory_order_release);
+        loggerState().formatPolicyAtomic.store(toFormatPolicyValue(config.formatPolicy), std::memory_order_release);
         loggerState().releaseMessageMemoryAfterWriteAtomic.store(config.releaseMessageMemoryAfterWrite, std::memory_order_release);
-        publishRuntimeStateUnlocked();
         loggerState().fileOutputAvailableAtomic.store(false, std::memory_order_release);
+        publishRuntimeStateUnlocked();
     }
 
-    /// @brief Changes output mode after file setup fallback.
-    /// @param mode New output mode.
-    /// @note Used during init before worker start; it also updates runtime output atomics.
     void setOutputMode(OutputMode mode)
     {
         std::lock_guard<std::mutex> lock(loggerState().logMutex);
         loggerState().mode = mode;
-        publishRuntimeStateUnlocked();
         if (!hasFileOutput(mode))
-        {
             loggerState().fileOutputAvailableAtomic.store(false, std::memory_order_release);
-        }
+        publishRuntimeStateUnlocked();
     }
 
-    /// @brief Chooses the remaining output mode when the requested file sink cannot be opened.
-    /// @param requested Startup output requested by Config.
-    /// @param fallbackToConsole True to use Console for file-only failures.
-    /// @return Console when explicitly requested or allowed as fallback; otherwise None.
     OutputMode outputModeAfterFileSetupFailure(OutputMode requested, bool fallbackToConsole)
     {
-        if (hasConsoleOutput(requested) || fallbackToConsole)
-        {
-            return OutputMode::Console;
-        }
-
-        return OutputMode::None;
+        return hasConsoleOutput(requested) || fallbackToConsole ? OutputMode::Console : OutputMode::None;
     }
 } // namespace GameWIP::Logger::Detail::Core
 
 using namespace GameWIP::Logger::Detail::Core;
 
-//-------------------------------------------------------------------------------------------------
-// Public query and lifecycle API
-//-------------------------------------------------------------------------------------------------
-
-/// @brief Returns whether the async worker is accepting normal log work.
-/// @return True while the worker-running runtime flag is set.
 bool GameWIP::Logger::isRunning()
 {
-    return (loggerState().runtimeStateBits.load(std::memory_order_acquire) & kRuntimeStateRunningBit) != 0;
+    return runtimeStateRunning(loggerState().runtimeStateBits.load(std::memory_order_acquire));
 }
 
-/// @brief Returns the configured startup severity floor.
-/// @return Minimum level copied during init().
-LogLevel GameWIP::Logger::getMinLevel()
+GameWIP::Logger::Types::Level GameWIP::Logger::getMinLevel()
 {
     std::lock_guard<std::mutex> lock(loggerState().logMutex);
     return loggerState().minLevel;
 }
 
-/// @brief Returns the active output mode.
-/// @return Output mode, including file setup fallback to Console.
-OutputMode GameWIP::Logger::getOutput()
+GameWIP::Logger::Types::OutputMode GameWIP::Logger::getOutput()
 {
     std::lock_guard<std::mutex> lock(loggerState().logMutex);
     return loggerState().mode;
 }
 
-/// @brief Returns the active log file path.
-/// @return Current file path, or empty string when no file sink is active.
 std::string GameWIP::Logger::getLogFilePath()
 {
     std::lock_guard<std::mutex> lock(loggerState().logMutex);
-    return GameWIP::FileSystem::pathToUtf8(loggerState().logFilePath).utf8;
+    const auto result = FileSystem::pathToUtf8(loggerState().logFilePath);
+    return result.status.ok() ? result.utf8 : std::string{};
 }
 
-/// @brief Returns the effective queue and message limits selected during init.
-/// @return Queue and message limit snapshot.
-QueueLimits GameWIP::Logger::getQueueLimits()
+GameWIP::Logger::Types::QueueLimits GameWIP::Logger::getQueueLimits()
 {
     std::lock_guard<std::mutex> lock(loggerState().logMutex);
-    return QueueLimits{
+    return {
         loggerState().softQueueSize,
         loggerState().hardQueueSize,
         loggerState().hardQueueMultiplier,
@@ -738,39 +514,29 @@ QueueLimits GameWIP::Logger::getQueueLimits()
         loggerState().workerBatchSize};
 }
 
-/// @brief Returns lifetime queue-pressure drop count.
-/// @return Queue-drop count preserved for diagnostics.
 std::size_t GameWIP::Logger::getLifetimeDroppedLogCount()
 {
     return loggerState().droppedLogs.load(std::memory_order_relaxed);
 }
 
-/// @brief Returns the last logger result.
-/// @return Last result recorded by init, filters, or sink failure handling.
-LoggerResult GameWIP::Logger::getLastResult()
+GameWIP::Logger::Types::HealthSnapshot GameWIP::Logger::getHealth()
 {
     std::lock_guard<std::mutex> lock(loggerState().logMutex);
-    return loggerState().lastResult;
+    return {
+        loggerState().healthState,
+        loggerState().mode,
+        loggerState().lastFailureSource,
+        loggerState().lastHealthError,
+        loggerState().lastHealthNativeCode,
+        loggerState().healthFailureCount};
 }
 
-/// @brief Returns the last platform error details.
-/// @return Last platform error, or source None when no platform error is recorded.
-GameWIP::Logger::Types::PlatformError GameWIP::Logger::getLastPlatformError()
-{
-    std::lock_guard<std::mutex> lock(loggerState().logMutex);
-    return loggerState().lastPlatformError;
-}
-
-/// @brief Returns a snapshot of resettable stats counters.
-/// @return Relaxed atomic stats snapshot for diagnostics.
-LoggerStats GameWIP::Logger::getStats()
+GameWIP::Logger::Types::Stats GameWIP::Logger::getStats()
 {
     return snapshotStats();
 }
 
-/// @brief Returns a cold memory diagnostic snapshot.
-/// @return Best-effort retained logger memory plus process memory when available.
-LoggerMemoryStats GameWIP::Logger::getMemoryStats()
+GameWIP::Logger::Types::MemoryStats GameWIP::Logger::getMemoryStats()
 {
     LoggerMemoryStats memory;
     {
@@ -783,29 +549,23 @@ LoggerMemoryStats GameWIP::Logger::getMemoryStats()
         memory.loggerRetainedBytes = sizeof(LoggerState) + memory.queueStorageBytes + memory.messageArenaBytes + memory.sourceRegistryBytes +
                                      memory.entryTextHeapCapacityBytes;
     }
-
-    const GameWIP::Logger::Detail::Platform::ProcessMemory processMemory = GameWIP::Logger::Detail::Platform::queryProcessMemory();
-    memory.processWorkingSetBytes = processMemory.workingSetBytes;
-    memory.processPrivateBytes = processMemory.privateBytes;
-    memory.processMemoryAvailable = processMemory.available;
+    const auto process = GameWIP::Logger::Detail::Platform::queryProcessMemory();
+    memory.processWorkingSetBytes = process.workingSetBytes;
+    memory.processPrivateBytes = process.privateBytes;
+    memory.processMemoryAvailable = process.available;
     return memory;
 }
 
-/// @brief Resets visible stats counters while preserving lifetime queue-drop state.
-/// @note Shutdown reporting uses droppedLogs, so resetStats() must not clear the lifetime queue-drop value.
 void GameWIP::Logger::resetStats()
 {
     std::lock_guard<std::mutex> lock(loggerState().logMutex);
     resetAtomicStats(loggerState().queueDepth.load(std::memory_order_acquire));
 }
 
-/// @brief Builds the default startup configuration.
 GameWIP::Logger::Types::Config GameWIP::Logger::defaultConfig()
 {
-    return Types::Config{};
+    return {};
 }
-
-/// @brief Builds a lower-retained-memory startup configuration.
 GameWIP::Logger::Types::Config GameWIP::Logger::lowMemoryConfig()
 {
     Types::Config config;
@@ -818,8 +578,6 @@ GameWIP::Logger::Types::Config GameWIP::Logger::lowMemoryConfig()
     config.releaseStorageOnShutdown = true;
     return config;
 }
-
-/// @brief Builds a higher-throughput startup configuration.
 GameWIP::Logger::Types::Config GameWIP::Logger::throughputConfig()
 {
     Types::Config config;
@@ -833,23 +591,18 @@ GameWIP::Logger::Types::Config GameWIP::Logger::throughputConfig()
     return config;
 }
 
-/// @brief Starts the logger using defaultConfig().
-LoggerResult GameWIP::Logger::initDefault()
+GameWIP::Logger::Types::InitResult GameWIP::Logger::initDefault()
 {
     return init(defaultConfig());
 }
-
-/// @brief Starts a console-only logger.
-LoggerResult GameWIP::Logger::initConsole(Types::Level minLevel)
+GameWIP::Logger::Types::InitResult GameWIP::Logger::initConsole(Types::Level minLevel)
 {
     Types::Config config = defaultConfig();
     config.output = OutputMode::Console;
     config.minLevel = minLevel;
     return init(config);
 }
-
-/// @brief Starts a file-only logger.
-LoggerResult GameWIP::Logger::initFile(std::string_view directory, Types::Level minLevel)
+GameWIP::Logger::Types::InitResult GameWIP::Logger::initFile(std::string_view directory, Types::Level minLevel)
 {
     Types::Config config = defaultConfig();
     config.output = OutputMode::File;
@@ -858,27 +611,22 @@ LoggerResult GameWIP::Logger::initFile(std::string_view directory, Types::Level 
     return init(config);
 }
 
-/// @brief Applies sanitized configuration and starts the asynchronous worker when effective output requires it.
-/// @param config Startup configuration whose referenced views/spans are copied before return.
-/// @return Success or the first validation/setup diagnostic; recoverable sanitization or sink fallback
-/// can return non-success while Logger remains usable.
-LoggerResult GameWIP::Logger::init(const Types::Config &config)
+GameWIP::Logger::Types::InitResult GameWIP::Logger::Detail::Core::initImpl(const Types::Config &config)
 {
-    std::lock_guard<std::mutex> lifecycleLock(loggerState().lifecycleMutex);
+    Types::InitResult result;
+    result.requestedOutput = config.output;
 
-    bool alreadyRunning = false;
+    std::lock_guard<std::mutex> lifecycleLock(loggerState().lifecycleMutex);
     {
         std::lock_guard<std::mutex> lock(loggerState().logMutex);
-        alreadyRunning = loggerState().workerRunning || loggerState().loggingThread.joinable();
-        if (alreadyRunning)
+        if (loggerState().workerRunning || loggerState().loggingThread.joinable())
         {
-            setResultUnlocked(LoggerResult::AlreadyRunning);
+            result.status = IO::makeStatus(ErrorCode::AlreadyOpen);
+            result.outcome = Types::InitOutcome::Started;
+            result.effectiveOutput = loggerState().mode;
+            return result;
         }
-    }
-
-    if (alreadyRunning)
-    {
-        return LoggerResult::AlreadyRunning;
+        resetHealthUnlocked(Types::HealthState::Disabled, OutputMode::None);
     }
 
     if (!loggerState().shutdownRegistered)
@@ -887,96 +635,66 @@ LoggerResult GameWIP::Logger::init(const Types::Config &config)
         loggerState().shutdownRegistered = true;
     }
 
-    LoggerResult initResult = LoggerResult::Success;
-    PlatformError initPlatformError;
-
-    if (!isValidOutputMode(config.output))
+    const auto fail = [&](Status status)
     {
+        result.status = std::move(status);
+        result.outcome = Types::InitOutcome::Disabled;
+        result.effectiveOutput = OutputMode::None;
         std::lock_guard<std::mutex> lock(loggerState().logMutex);
-        loggerState().mode = OutputMode::None;
         loggerState().workerRunning = false;
-        loggerState().sourceRegistry.store(std::shared_ptr<SourceRegistry>{}, std::memory_order_release);
-        publishRuntimeStateUnlocked();
+        loggerState().workerBusy = false;
+        loggerState().mode = OutputMode::None;
         loggerState().fileOutputAvailableAtomic.store(false, std::memory_order_release);
-        setResultUnlocked(LoggerResult::InvalidOutputMode);
-        return LoggerResult::InvalidOutputMode;
-    }
+        loggerState().sourceRegistry.store({}, std::memory_order_release);
+        markHealthDisabledUnlocked();
+        publishRuntimeStateUnlocked();
+        return result;
+    };
+
+    if (!isValidOutputMode(config.output) || !isValidLevel(config.minLevel) || !isValidFormatPolicy(config.formatPolicy))
+        return fail(IO::makeStatus(ErrorCode::InvalidArgument));
+    if (!config.logDirectory.empty() && !validUtf8(config.logDirectory))
+        return fail(IO::makeStatus(ErrorCode::EncodingFailed));
 
     std::size_t softQueueSize = config.maxQueueSize;
     if (softQueueSize == 0)
     {
         softQueueSize = 4;
-        preserveFirstInitResult(initResult, LoggerResult::InvalidQueueSize, initPlatformError);
+        result.adjustments |= Types::InitAdjustment::QueueLimitsAdjusted;
     }
-
     std::size_t maxMessageLength = config.maxMessageLength;
     if (maxMessageLength == 0)
     {
         maxMessageLength = 512;
-        preserveFirstInitResult(initResult, LoggerResult::InvalidMessageLength, initPlatformError);
+        result.adjustments |= Types::InitAdjustment::MessageLengthAdjusted;
     }
+    std::size_t inlineMessageCapacity = std::min(config.inlineMessageCapacity, maxMessageLength);
+    if (inlineMessageCapacity != config.inlineMessageCapacity)
+        result.adjustments |= Types::InitAdjustment::InlineCapacityAdjusted;
 
-    const std::size_t inlineMessageCapacity = std::min(config.inlineMessageCapacity, maxMessageLength);
     double hardQueueMultiplier = config.hardQueueMultiplier;
-    std::size_t hardQueueSize = effectiveHardQueueLimit(hardQueueMultiplier, softQueueSize, initResult);
+    bool hardQueueAdjusted = false;
+    std::size_t hardQueueSize = effectiveHardQueueLimit(hardQueueMultiplier, softQueueSize, hardQueueAdjusted);
+    if (hardQueueAdjusted)
+        result.adjustments |= Types::InitAdjustment::QueueLimitsAdjusted;
     std::size_t workerBatchSize = effectiveWorkerBatchSize(config.workerBatchSize, hardQueueSize);
-
-    if (!isValidLevel(config.minLevel))
-    {
-        std::lock_guard<std::mutex> lock(loggerState().logMutex);
-        loggerState().mode = OutputMode::None;
-        loggerState().workerRunning = false;
-        loggerState().sourceRegistry.store(std::shared_ptr<SourceRegistry>{}, std::memory_order_release);
-        publishRuntimeStateUnlocked();
-        loggerState().fileOutputAvailableAtomic.store(false, std::memory_order_release);
-        setResultUnlocked(LoggerResult::InvalidLevelFilter);
-        return LoggerResult::InvalidLevelFilter;
-    }
+    if (config.workerBatchSize != 0 && workerBatchSize != config.workerBatchSize)
+        result.adjustments |= Types::InitAdjustment::WorkerBatchAdjusted;
 
     std::uint8_t levelMask = kAllLevelMask;
     if (!prepareLevelMask(config.levelFilters, levelMask))
-    {
-        std::lock_guard<std::mutex> lock(loggerState().logMutex);
-        loggerState().mode = OutputMode::None;
-        loggerState().workerRunning = false;
-        loggerState().sourceRegistry.store(std::shared_ptr<SourceRegistry>{}, std::memory_order_release);
-        publishRuntimeStateUnlocked();
-        loggerState().fileOutputAvailableAtomic.store(false, std::memory_order_release);
-        setResultUnlocked(LoggerResult::InvalidLevelFilter);
-        return LoggerResult::InvalidLevelFilter;
-    }
+        return fail(IO::makeStatus(ErrorCode::InvalidArgument));
 
-    LoggerResult sourcePrepareResult = LoggerResult::Success;
+    Status sourceStatus;
     std::shared_ptr<SourceRegistry> sourceRegistry;
-    if (!prepareSources(config.sources, config.sourceFilters, sourceRegistry, sourcePrepareResult))
-    {
-        std::lock_guard<std::mutex> lock(loggerState().logMutex);
-        loggerState().mode = OutputMode::None;
-        loggerState().workerRunning = false;
-        loggerState().sourceRegistry.store(std::shared_ptr<SourceRegistry>{}, std::memory_order_release);
-        publishRuntimeStateUnlocked();
-        loggerState().fileOutputAvailableAtomic.store(false, std::memory_order_release);
-        setResultUnlocked(sourcePrepareResult);
-        return sourcePrepareResult;
-    }
+    if (!prepareSources(config.sources, config.sourceFilters, sourceRegistry, sourceStatus))
+        return fail(sourceStatus);
 
     if (config.output == OutputMode::None)
     {
-        Types::Config disabledConfig = config;
-        disabledConfig.output = OutputMode::None;
-
-        {
-            std::lock_guard<std::mutex> outputLock(loggerState().outputMutex);
-            if (loggerState().logFile.isOpen())
-            {
-                static_cast<void>(loggerState().logFile.close());
-            }
-            loggerState().fileOutputAvailableAtomic.store(false, std::memory_order_release);
-        }
-
         std::lock_guard<std::mutex> lock(loggerState().logMutex);
         resetRuntimeStateUnlocked(
-            disabledConfig,
+            config,
             softQueueSize,
             hardQueueSize,
             hardQueueMultiplier,
@@ -985,22 +703,16 @@ LoggerResult GameWIP::Logger::init(const Types::Config &config)
             workerBatchSize,
             levelMask,
             std::move(sourceRegistry),
-            std::unique_ptr<QueueSlot[]>{},
+            {},
             0,
-            std::vector<QueuedLogEntry>{},
-            std::unique_ptr<char[]>{},
-            std::unique_ptr<char[]>{});
-        setResultUnlocked(initResult, initPlatformError);
-        return initResult;
-    }
-
-    {
-        std::lock_guard<std::mutex> outputLock(loggerState().outputMutex);
-        if (loggerState().logFile.isOpen())
-        {
-            static_cast<void>(loggerState().logFile.close());
-        }
-        loggerState().fileOutputAvailableAtomic.store(false, std::memory_order_release);
+            {},
+            {},
+            {});
+        resetHealthUnlocked(Types::HealthState::Disabled, OutputMode::None);
+        publishRuntimeStateUnlocked();
+        result.outcome = Types::InitOutcome::Disabled;
+        result.effectiveOutput = OutputMode::None;
+        return result;
     }
 
     std::unique_ptr<QueueSlot[]> ring;
@@ -1011,24 +723,22 @@ LoggerResult GameWIP::Logger::init(const Types::Config &config)
     if (!prepareQueueStorage(hardQueueSize, workerBatchSize, inlineMessageCapacity, ring, ringSize, batch, ringArena, batchArena))
     {
         softQueueSize = 4;
-        hardQueueSize = softQueueSize;
+        hardQueueSize = 4;
         hardQueueMultiplier = 1.0;
         workerBatchSize = effectiveWorkerBatchSize(config.workerBatchSize, hardQueueSize);
+        result.adjustments |= Types::InitAdjustment::QueueLimitsAdjusted;
+        result.adjustments |= Types::InitAdjustment::QueueStorageFallback;
+        if (config.workerBatchSize != 0 && workerBatchSize != config.workerBatchSize)
+            result.adjustments |= Types::InitAdjustment::WorkerBatchAdjusted;
         if (!prepareQueueStorage(hardQueueSize, workerBatchSize, inlineMessageCapacity, ring, ringSize, batch, ringArena, batchArena))
-        {
-            std::lock_guard<std::mutex> lock(loggerState().logMutex);
-            loggerState().mode = OutputMode::None;
-            loggerState().workerRunning = false;
-            loggerState().sourceRegistry.store(std::shared_ptr<SourceRegistry>{}, std::memory_order_release);
-            publishRuntimeStateUnlocked();
-            loggerState().fileOutputAvailableAtomic.store(false, std::memory_order_release);
-            setResultUnlocked(LoggerResult::InvalidQueueSize);
-            return LoggerResult::InvalidQueueSize;
-        }
-
-        preserveFirstInitResult(initResult, LoggerResult::InvalidQueueSize, initPlatformError);
+            return fail(IO::makeStatus(ErrorCode::OutOfMemory));
     }
 
+    {
+        std::lock_guard<std::mutex> outputLock(loggerState().outputMutex);
+        if (loggerState().logFile.isOpen())
+            static_cast<void>(loggerState().logFile.close());
+    }
     {
         std::lock_guard<std::mutex> lock(loggerState().logMutex);
         resetRuntimeStateUnlocked(
@@ -1046,140 +756,111 @@ LoggerResult GameWIP::Logger::init(const Types::Config &config)
             std::move(batch),
             std::move(ringArena),
             std::move(batchArena));
-        setResultUnlocked(initResult);
+        resetHealthUnlocked(Types::HealthState::Healthy, config.output);
+        publishRuntimeStateUnlocked();
     }
 
-    const bool wantsFile = hasFileOutput(config.output);
-    bool fileSetupFailed = false;
-
-    if (wantsFile)
+    if (hasFileOutput(config.output))
     {
-        try
+        bool setupFailed = false;
+        FilePath directoryPath;
+        const std::string directoryText = config.logDirectory.empty() ? std::string(kDefaultLogDirectory) : std::string(config.logDirectory);
+        auto directory = FileSystem::pathFromUtf8(directoryText);
+        if (!directory.status.ok())
         {
-            const std::string logDirectoryText = config.logDirectory.empty() ? std::string(kDefaultLogDirectory) : std::string(config.logDirectory);
+            result.outputSetupStatus = directory.status;
+            setupFailed = true;
+        }
+        else
+            directoryPath = std::move(directory.path);
 
-            FilePath logDirectoryPath;
-            if (logDirectoryText.empty())
+        if (!setupFailed)
+        {
+            Status status = FileSystem::createDirectories(
+                directoryPath,
+                FileSystem::Types::CreateDirectoryOptions{
+                    .succeedIfAlreadyExists = true,
+                    .symlinkPolicy = FileSystem::Types::SymlinkPolicy::FollowAll});
+            if (!status.ok())
             {
-                setOutputMode(outputModeAfterFileSetupFailure(config.output, config.fallbackToConsoleOnFileFailure));
-                preserveFirstInitResult(initResult, LoggerResult::InvalidLogDirectory, initPlatformError);
-                fileSetupFailed = true;
+                result.outputSetupStatus = status;
+                setupFailed = true;
             }
-            else
-            {
-                GameWIP::FileSystem::Types::PathResult directoryPathResult = GameWIP::FileSystem::pathFromUtf8(logDirectoryText);
-                const PlatformError pathError = filePlatformError(directoryPathResult.status);
-                if (hasPlatformError(pathError))
-                {
-                    setOutputMode(outputModeAfterFileSetupFailure(config.output, config.fallbackToConsoleOnFileFailure));
-                    preserveFirstInitResult(initResult, LoggerResult::FileSetupFailed, initPlatformError, pathError);
-                    fileSetupFailed = true;
-                }
-                else
-                {
-                    logDirectoryPath = std::move(directoryPathResult.path);
-                }
-            }
+        }
 
-            if (!fileSetupFailed)
+        std::string baseName;
+        if (!setupFailed)
+        {
+            Status timeStatus;
+            baseName = getCurrentTimeText("%Y-%m-%d_%H-%M-%S", timeStatus);
+            if (!timeStatus.ok())
             {
-                const GameWIP::IO::Types::Status directoryStatus = GameWIP::FileSystem::createDirectories(
-                    logDirectoryPath,
-                    GameWIP::FileSystem::Types::CreateDirectoryOptions{
-                        .succeedIfAlreadyExists = true,
-                        .symlinkPolicy = GameWIP::FileSystem::Types::SymlinkPolicy::FollowAll});
-                const PlatformError directoryError = filePlatformError(directoryStatus);
-                if (hasPlatformError(directoryError))
-                {
-                    setOutputMode(outputModeAfterFileSetupFailure(config.output, config.fallbackToConsoleOnFileFailure));
-                    preserveFirstInitResult(initResult, LoggerResult::FileSetupFailed, initPlatformError, directoryError);
-                    fileSetupFailed = true;
-                }
+                result.outputSetupStatus = firstFailure(result.outputSetupStatus, timeStatus);
+                recordHealthFailure(Types::FailureSource::TimeConversion, timeStatus, false);
             }
 
-            if (!fileSetupFailed)
+            constexpr std::size_t kMaxCollisionAttempts = 1024;
+            bool opened = false;
+            Status lastOpenStatus = IO::makeStatus(ErrorCode::OpenFailed);
+            std::lock_guard<std::mutex> outputLock(loggerState().outputMutex);
+            for (std::size_t index = 0; index <= kMaxCollisionAttempts; ++index)
             {
-                PlatformError timeError;
-                const std::string logFileBaseName = getCurrentTimeText("%Y-%m-%d_%H-%M-%S", timeError);
-                if (hasPlatformError(timeError))
+                const std::string fileName = index == 0 ? baseName + ".log" : baseName + "_" + std::to_string(index) + ".log";
+                auto fileNamePath = FileSystem::pathFromUtf8(fileName);
+                if (!fileNamePath.status.ok())
                 {
-                    preserveFirstInitResult(initResult, LoggerResult::PlatformCallFailed, initPlatformError, timeError);
+                    lastOpenStatus = fileNamePath.status;
+                    break;
                 }
-
-                constexpr std::size_t kMaxCollisionAttempts = 1024;
-                bool opened = false;
-                PlatformError lastOpenError;
+                auto candidate = FileSystem::joinPath(directoryPath, fileNamePath.path);
+                if (!candidate.status.ok())
                 {
-                    std::lock_guard<std::mutex> outputLock(loggerState().outputMutex);
-                    for (std::size_t index = 0; index <= kMaxCollisionAttempts; ++index)
+                    lastOpenStatus = candidate.status;
+                    break;
+                }
+                lastOpenStatus = openFileExclusiveForLogger(candidate.path, loggerState().logFile);
+                if (lastOpenStatus.ok())
+                {
                     {
-                        const std::string fileName =
-                            index == 0 ? std::string(logFileBaseName) + ".log" : std::string(logFileBaseName) + "_" + std::to_string(index) + ".log";
-                        GameWIP::FileSystem::Types::PathResult fileNamePath = GameWIP::FileSystem::pathFromUtf8(fileName);
-                        if (!fileNamePath.status.ok())
-                        {
-                            lastOpenError = filePlatformError(fileNamePath.status);
-                            break;
-                        }
-
-                        GameWIP::FileSystem::Types::PathResult candidatePath = GameWIP::FileSystem::joinPath(logDirectoryPath, fileNamePath.path);
-                        if (!candidatePath.status.ok())
-                        {
-                            lastOpenError = filePlatformError(candidatePath.status);
-                            break;
-                        }
-
-                        const PlatformError openError = openFileExclusiveForLogger(candidatePath.path, loggerState().logFile);
-                        lastOpenError = openError;
-                        if (!hasPlatformError(openError))
-                        {
-                            {
-                                std::lock_guard<std::mutex> lock(loggerState().logMutex);
-                                loggerState().logFilePath = std::move(candidatePath.path);
-                            }
-                            loggerState().fileOutputAvailableAtomic.store(true, std::memory_order_release);
-                            opened = true;
-                            break;
-                        }
+                        std::lock_guard<std::mutex> lock(loggerState().logMutex);
+                        loggerState().logFilePath = std::move(candidate.path);
                     }
-                }
-
-                if (!opened)
-                {
-                    setOutputMode(outputModeAfterFileSetupFailure(config.output, config.fallbackToConsoleOnFileFailure));
-                    preserveFirstInitResult(initResult, LoggerResult::FileOpenFailed, initPlatformError, lastOpenError);
-                    fileSetupFailed = true;
+                    loggerState().fileOutputAvailableAtomic.store(true, std::memory_order_release);
+                    opened = true;
+                    break;
                 }
             }
+            if (!opened)
+            {
+                result.outputSetupStatus = firstFailure(result.outputSetupStatus, lastOpenStatus);
+                setupFailed = true;
+            }
         }
-        catch (const std::exception &)
+
+        if (setupFailed)
         {
-            setOutputMode(outputModeAfterFileSetupFailure(config.output, config.fallbackToConsoleOnFileFailure));
-            preserveFirstInitResult(initResult, LoggerResult::FileSetupFailed, initPlatformError);
-            fileSetupFailed = true;
+            const OutputMode fallback = outputModeAfterFileSetupFailure(config.output, config.fallbackToConsoleOnFileFailure);
+            setOutputMode(fallback);
+            recordHealthFailure(Types::FailureSource::File, result.outputSetupStatus, false);
         }
-        catch (...)
-        {
-            setOutputMode(outputModeAfterFileSetupFailure(config.output, config.fallbackToConsoleOnFileFailure));
-            preserveFirstInitResult(initResult, LoggerResult::FileSetupFailed, initPlatformError);
-            fileSetupFailed = true;
-        }
+    }
+
+    result.effectiveOutput = getOutput();
+    if (result.effectiveOutput == OutputMode::None)
+    {
+        result.status = result.outputSetupStatus.ok() ? IO::makeStatus(ErrorCode::OpenFailed) : result.outputSetupStatus;
+        result.outcome = Types::InitOutcome::Disabled;
+        std::lock_guard<std::mutex> lock(loggerState().logMutex);
+        clearQueueUnlocked();
+        if (loggerState().releaseStorageOnShutdown)
+            releaseRuntimeStorageUnlocked();
+        markHealthDisabledUnlocked();
+        publishRuntimeStateUnlocked();
+        return result;
     }
 
     {
         std::lock_guard<std::mutex> lock(loggerState().logMutex);
-        if (loggerState().mode == OutputMode::None)
-        {
-            clearQueueUnlocked();
-            if (loggerState().releaseStorageOnShutdown)
-            {
-                releaseRuntimeStorageUnlocked();
-            }
-            publishRuntimeStateUnlocked();
-            setResultUnlocked(initResult, initPlatformError);
-            return initResult;
-        }
-
         loggerState().workerRunning = true;
         loggerState().workerBusy = false;
         publishRuntimeStateUnlocked();
@@ -1196,109 +877,146 @@ LoggerResult GameWIP::Logger::init(const Types::Config &config)
             loggerState().workerRunning = false;
             loggerState().workerBusy = false;
             loggerState().mode = OutputMode::None;
-            loggerState().sourceRegistry.store(std::shared_ptr<SourceRegistry>{}, std::memory_order_release);
-            publishRuntimeStateUnlocked();
             loggerState().fileOutputAvailableAtomic.store(false, std::memory_order_release);
-            setResultUnlocked(LoggerResult::ThreadStartFailed);
+            markHealthDisabledUnlocked();
+            publishRuntimeStateUnlocked();
         }
         waitForActiveProducersToLeave();
+        {
+            std::lock_guard<std::mutex> outputLock(loggerState().outputMutex);
+            if (loggerState().logFile.isOpen())
+                static_cast<void>(loggerState().logFile.close());
+        }
+        return fail(IO::makeStatus(ErrorCode::NativeFailure));
+    }
 
+    result.outcome = Types::InitOutcome::Started;
+    result.effectiveOutput = getOutput();
+    return result;
+}
+
+GameWIP::Logger::Types::InitResult GameWIP::Logger::init(const Types::Config &config)
+{
+    try
+    {
+        return initImpl(config);
+    }
+    catch (const std::bad_alloc &)
+    {
+        return failedInitAfterException(config, ErrorCode::OutOfMemory);
+    }
+    catch (...)
+    {
+        return failedInitAfterException(config, ErrorCode::Unknown);
+    }
+}
+
+GameWIP::Logger::Types::FlushResult GameWIP::Logger::flush(std::optional<std::chrono::milliseconds> timeout)
+{
+    try
+    {
+        Types::FlushResult invalid;
+        if (timeout && timeout->count() < 0)
+        {
+            invalid.status = IO::makeStatus(ErrorCode::InvalidArgument);
+            return invalid;
+        }
+
+        if (!timeout)
+        {
+            std::lock_guard<std::mutex> lifecycleLock(loggerState().lifecycleMutex);
+            return flushInternal(nullptr);
+        }
+
+        const FlushDeadline deadline = makeFlushDeadline(*timeout);
+        std::unique_lock<std::mutex> lifecycleLock(loggerState().lifecycleMutex, std::defer_lock);
+        if (!lockBefore(lifecycleLock, deadline))
+        {
+            Types::FlushResult result;
+            result.outcome = Types::FlushOutcome::TimedOut;
+            return result;
+        }
+        return flushInternal(&deadline);
+    }
+    catch (const std::bad_alloc &)
+    {
+        Types::FlushResult result;
+        result.status = IO::makeStatus(ErrorCode::OutOfMemory);
+        return result;
+    }
+    catch (...)
+    {
+        Types::FlushResult result;
+        result.status = IO::makeStatus(ErrorCode::Unknown);
+        return result;
+    }
+}
+
+GameWIP::IO::Types::Status GameWIP::Logger::Detail::Core::shutdownImpl()
+{
+    std::lock_guard<std::mutex> lifecycleLock(loggerState().lifecycleMutex);
+    Status status;
+    try
+    {
         {
             std::lock_guard<std::mutex> lock(loggerState().logMutex);
-            clearQueueUnlocked();
-            if (loggerState().releaseStorageOnShutdown)
-            {
-                releaseRuntimeStorageUnlocked();
-            }
+            loggerState().workerRunning = false;
+            publishRuntimeStateUnlocked();
         }
+        loggerState().logCondition.notify_all();
+        if (loggerState().loggingThread.joinable())
+            loggerState().loggingThread.join();
+
+        const Types::FlushResult flushResult = flushInternal(nullptr);
+        status = firstFailure(std::move(status), flushResult.status);
 
         {
             std::lock_guard<std::mutex> outputLock(loggerState().outputMutex);
             if (loggerState().logFile.isOpen())
             {
-                static_cast<void>(loggerState().logFile.close());
+                const Status closeStatus = loggerState().logFile.close();
+                status = firstFailure(std::move(status), closeStatus);
             }
+            loggerState().fileOutputAvailableAtomic.store(false, std::memory_order_release);
         }
-
-        {
-            std::lock_guard<std::mutex> lock(loggerState().logMutex);
-            loggerState().logFilePath.clear();
-        }
-
-        return LoggerResult::ThreadStartFailed;
     }
-
-    recordResult(initResult, initPlatformError);
-
-    return initResult;
-}
-
-//-------------------------------------------------------------------------------------------------
-// Public flush and shutdown API
-//-------------------------------------------------------------------------------------------------
-
-/// @brief Waits until the queue drains, then flushes console and file sinks.
-void GameWIP::Logger::flush()
-{
-    std::lock_guard<std::mutex> lifecycleLock(loggerState().lifecycleMutex);
-    flushInternal();
-}
-
-/// @brief Waits until the queue drains or timeout expires, then flushes console and file sinks.
-/// @param timeout Maximum wait duration.
-/// @return True when queued work drained and sink flushing succeeded before timeout expired.
-bool GameWIP::Logger::flush(std::chrono::milliseconds timeout)
-{
-    const FlushDeadline deadline = makeFlushDeadline(timeout);
-    std::unique_lock<std::mutex> lifecycleLock(loggerState().lifecycleMutex, std::defer_lock);
-    if (!lockBefore(lifecycleLock, deadline))
+    catch (const std::bad_alloc &)
     {
-        return false;
+        status = firstFailure(std::move(status), IO::makeStatus(ErrorCode::OutOfMemory));
     }
-    return flushInternal(deadline);
-}
-
-/// @brief Stops the worker, drains queued logs, and closes the file sink.
-/// @note Safe to call repeatedly and safe before init().
-void GameWIP::Logger::shutdown()
-{
-    std::lock_guard<std::mutex> lifecycleLock(loggerState().lifecycleMutex);
-
+    catch (...)
     {
-        std::lock_guard<std::mutex> lock(loggerState().logMutex);
-        loggerState().workerRunning = false;
-        publishRuntimeStateUnlocked();
-    }
-
-    loggerState().logCondition.notify_all();
-
-    if (loggerState().loggingThread.joinable())
-    {
-        loggerState().loggingThread.join();
-    }
-
-    flushInternal();
-
-    {
-        std::lock_guard<std::mutex> outputLock(loggerState().outputMutex);
-        if (loggerState().logFile.isOpen())
-        {
-            static_cast<void>(loggerState().logFile.close());
-        }
-        loggerState().fileOutputAvailableAtomic.store(false, std::memory_order_release);
+        status = firstFailure(std::move(status), IO::makeStatus(ErrorCode::Unknown));
     }
 
     {
         std::lock_guard<std::mutex> lock(loggerState().logMutex);
         loggerState().logFilePath.clear();
         loggerState().mode = OutputMode::None;
+        loggerState().workerRunning = false;
         loggerState().workerBusy = false;
-        loggerState().sourceRegistry.store(std::shared_ptr<SourceRegistry>{}, std::memory_order_release);
+        loggerState().sourceRegistry.store({}, std::memory_order_release);
         clearQueueUnlocked();
         if (loggerState().releaseStorageOnShutdown)
-        {
             releaseRuntimeStorageUnlocked();
-        }
+        markHealthDisabledUnlocked();
         publishRuntimeStateUnlocked();
+    }
+    return status;
+}
+
+GameWIP::IO::Types::Status GameWIP::Logger::shutdown()
+{
+    try
+    {
+        return shutdownImpl();
+    }
+    catch (const std::bad_alloc &)
+    {
+        return IO::makeStatus(ErrorCode::OutOfMemory);
+    }
+    catch (...)
+    {
+        return IO::makeStatus(ErrorCode::Unknown);
     }
 }
