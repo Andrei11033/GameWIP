@@ -42,6 +42,12 @@ namespace GameWIP::Logger::Detail::Core
             batch.clear();
             ringArena.reset();
             batchArena.reset();
+
+            if (hardLimit > std::numeric_limits<std::size_t>::max() / sizeof(QueueSlot))
+            {
+                return false;
+            }
+
             ring = std::make_unique<QueueSlot[]>(hardLimit);
             ringSize = hardLimit;
             batch.resize(workerBatchSize);
@@ -94,7 +100,6 @@ namespace GameWIP::Logger::Detail::Core
         {
             QueueSlot &slot = loggerState().logRing[index];
             QueuedLogEntry &entry = slot.entry;
-            entry.bypassFilters = false;
             entry.usesRegisteredSource = false;
             entry.sourceId = 0;
             entry.sourceText.clear(releaseHeapCapacity);
@@ -105,7 +110,6 @@ namespace GameWIP::Logger::Detail::Core
 
         for (QueuedLogEntry &entry : loggerState().workerBatch)
         {
-            entry.bypassFilters = false;
             entry.usesRegisteredSource = false;
             entry.sourceId = 0;
             entry.sourceText.clear(releaseHeapCapacity);
@@ -138,7 +142,6 @@ namespace GameWIP::Logger::Detail::Core
     {
         const bool releaseHeapCapacity = loggerState().releaseMessageMemoryAfterWrite;
         entry.level = LogLevel::Info;
-        entry.bypassFilters = false;
         entry.usesRegisteredSource = false;
         entry.sourceId = 0;
         entry.sourceText.clear(releaseHeapCapacity);
@@ -175,7 +178,6 @@ namespace GameWIP::Logger::Detail::Core
     void copyPendingEntryToQueueSlot(QueuedLogEntry &destination, const PendingLogEntry &source, bool &outTruncated)
     {
         destination.level = source.level;
-        destination.bypassFilters = source.bypassFilters;
         destination.usesRegisteredSource = source.usesRegisteredSource;
         destination.sourceId = source.sourceId;
         if (source.usesRegisteredSource)
@@ -201,7 +203,6 @@ namespace GameWIP::Logger::Detail::Core
     void moveQueuedEntry(QueuedLogEntry &destination, QueuedLogEntry &source)
     {
         destination.level = source.level;
-        destination.bypassFilters = source.bypassFilters;
         destination.usesRegisteredSource = source.usesRegisteredSource;
         destination.sourceId = source.sourceId;
         if (source.usesRegisteredSource)
@@ -549,13 +550,11 @@ namespace GameWIP::Logger::Detail::Core
     /// @param level Entry severity.
     /// @param source Source text to copy into the pending entry.
     /// @param message Message view copied into the ring slot before the public call returns.
-    /// @param bypassFilters True for report paths that ignore min-level and runtime filters.
     /// @return Pending producer-side entry.
-    PendingLogEntry makePendingEntry(LogLevel level, std::string_view source, std::string_view message, bool bypassFilters, bool alreadyTruncated)
+    PendingLogEntry makePendingEntry(LogLevel level, std::string_view source, std::string_view message, bool alreadyTruncated)
     {
         PendingLogEntry entry;
         entry.level = level;
-        entry.bypassFilters = bypassFilters;
         entry.usesRegisteredSource = false;
         entry.sourceId = 0;
         entry.sourceText.assign(source);
@@ -568,13 +567,11 @@ namespace GameWIP::Logger::Detail::Core
     /// @param level Entry severity.
     /// @param source Registered SourceId to store.
     /// @param message Message view copied into the ring slot before the public call returns.
-    /// @param bypassFilters True for report paths that ignore min-level and runtime filters.
     /// @return Pending producer-side entry.
-    PendingLogEntry makePendingEntry(LogLevel level, SourceId source, std::string_view message, bool bypassFilters, bool alreadyTruncated)
+    PendingLogEntry makePendingEntry(LogLevel level, SourceId source, std::string_view message, bool alreadyTruncated)
     {
         PendingLogEntry entry;
         entry.level = level;
-        entry.bypassFilters = bypassFilters;
         entry.usesRegisteredSource = true;
         entry.sourceId = source;
         entry.sourceText.clear();

@@ -1,67 +1,124 @@
 /// @file logger_reports.cpp
-/// @brief Normal sink writes, synchronous reports, bounded drains, fatal popup, and platform debugger mirroring.
+/// @brief Sink writes, synchronous emergency reports, flushing, and direct debug output.
 
 #include "logger/internal/logger_core.h"
 
 namespace GameWIP::Logger::Detail::Core
 {
+    namespace
+    {
+        [[nodiscard]] bool deadlineExpired(const FlushDeadline *deadline) noexcept
+        {
+            return deadline != nullptr && std::chrono::steady_clock::now() >= *deadline;
+        }
+
+        [[nodiscard]] Types::ReportDelivery deliveryFrom(std::size_t eligible, std::size_t delivered) noexcept
+        {
+            if (delivered == 0)
+                return Types::ReportDelivery::None;
+            if (delivered >= eligible)
+                return Types::ReportDelivery::Complete;
+            return Types::ReportDelivery::Partial;
+        }
+
+        template <typename Function> [[nodiscard]] Types::ReportResult reportBoundary(Function &&function) noexcept
+        {
+            try
+            {
+                return std::forward<Function>(function)();
+            }
+            catch (const std::bad_alloc &)
+            {
+                return reportFailure(ErrorCode::OutOfMemory);
+            }
+            catch (...)
+            {
+                return reportFailure(ErrorCode::Unknown);
+            }
+        }
+    } // namespace
+
     FlushDeadline makeFlushDeadline(std::chrono::milliseconds timeout) noexcept
     {
         const FlushDeadline now = std::chrono::steady_clock::now();
         if (timeout.count() <= 0)
-        {
             return now;
-        }
         const auto available = FlushDeadline::max() - now;
         if (timeout >= std::chrono::duration_cast<std::chrono::milliseconds>(available))
-        {
             return FlushDeadline::max();
-        }
         return now + timeout;
     }
 
-    bool lockBefore(std::unique_lock<std::mutex> &lock, FlushDeadline deadline) noexcept
+    bool lockBefore(std::unique_lock<std::mutex> &lock, FlushDeadline deadline)
     {
         while (!lock.try_lock())
         {
             if (std::chrono::steady_clock::now() >= deadline)
-            {
                 return false;
-            }
             std::this_thread::yield();
         }
         return true;
     }
 
-    /// @brief Writes one complete Logger console record through the shared Terminal runtime.
-    /// @param style Severity style and stdout/stderr route.
-    /// @param line Complete log line without its line ending.
-    /// @return Terminal write status.
-    GameWIP::IO::Types::Status writeConsoleLine(const LogStyle &style, std::string_view line)
+    static Status writeConsoleLine(const LogStyle &style, std::string_view line)
     {
-        const std::array<GameWIP::Terminal::Types::WriteSegment, 1> segments{GameWIP::Terminal::styledTextSegment(line, style.terminalStyle)};
-
-        GameWIP::Terminal::Types::SegmentWriteOptions options;
-        options.styleMode = loggerState().consoleColorEnabledAtomic.load(std::memory_order_acquire) ? GameWIP::Terminal::Types::StyleMode::Auto
-                                                                                                    : GameWIP::Terminal::Types::StyleMode::Never;
+        const std::array<Terminal::Types::WriteSegment, 1> segments{Terminal::styledTextSegment(line, style.terminalStyle)};
+        Terminal::Types::SegmentWriteOptions options;
+        options.styleMode = loggerState().consoleColorEnabledAtomic.load(std::memory_order_acquire) ? Terminal::Types::StyleMode::Auto
+                                                                                                    : Terminal::Types::StyleMode::Never;
         options.appendLineEnding = true;
-        options.lineEnding = GameWIP::Terminal::Types::LineEnding::Native;
-        options.flushMode = loggerState().flushConsoleEveryWriteAtomic.load(std::memory_order_acquire) ? GameWIP::IO::Types::FlushMode::Data
-                                                                                                       : GameWIP::IO::Types::FlushMode::None;
-
-        const GameWIP::Terminal::Types::OutputStream stream =
-            style.useStderr ? GameWIP::Terminal::Types::OutputStream::Stderr : GameWIP::Terminal::Types::OutputStream::Stdout;
-        return GameWIP::Terminal::writeSegments(stream, segments, options);
+        options.lineEnding = Terminal::Types::LineEnding::Native;
+        options.flushMode =
+            loggerState().flushConsoleEveryWriteAtomic.load(std::memory_order_acquire) ? IO::Types::FlushMode::Data : IO::Types::FlushMode::None;
+        const auto stream = style.useStderr ? Terminal::Types::OutputStream::Stderr : Terminal::Types::OutputStream::Stdout;
+        return Terminal::writeSegments(stream, segments, options);
     }
 
-    /// @brief Writes one report directly to configured sinks without using the async queue.
-    /// @param level Severity for the report line.
-    /// @param source Source text to write.
-    /// @param message Message text to write, truncated to the active message limit if needed.
-    /// @param unknownSource True when source came from an unregistered SourceId.
-    /// @param alreadyTruncated True when the caller already bounded the message and appended the truncation suffix.
-    /// @return True when at least one configured normal sink accepted the line.
-    bool writeReportSynchronously(
+#if INTERNAL_LOGGER_TEST_HOOKS
+    Status forcedFileStatus(ErrorCode code) noexcept
+    {
+        return IO::makeStatus(code, 1);
+    }
+    Status forcedFatalPopupStatus() noexcept
+    {
+        return IO::makeStatus(ErrorCode::NativeFailure, 1);
+    }
+#endif
+
+    Status openFileExclusiveForLogger(const FilePath &path, FileWriter &outWriter)
+    {
+#if INTERNAL_LOGGER_TEST_HOOKS
+        if (consumeTestHook(loggerTestHookState.nextFileOpenFailure))
+            return forcedFileStatus(ErrorCode::OpenFailed);
+#endif
+        const FileSystem::Types::FileWriterOpenOptions options{
+            .mode = FileSystem::Types::FileWriterMode::CreateNew,
+            .share = FileSystem::Types::FileShare::Read,
+            .symlinkPolicy = FileSystem::Types::SymlinkPolicy::FollowAll,
+            .createParentDirectories = false,
+            .flushOnClose = IO::Types::FlushMode::None};
+        return outWriter.open(path, options);
+    }
+
+    Status writeFileForLogger(FileWriter &writer, std::string_view text)
+    {
+#if INTERNAL_LOGGER_TEST_HOOKS
+        if (consumeTestHook(loggerTestHookState.nextFileWriteFailure))
+            return forcedFileStatus(ErrorCode::WriteFailed);
+#endif
+        return IO::writeAllText(writer, text).status;
+    }
+
+    Status flushFileForLogger(FileWriter &writer)
+    {
+#if INTERNAL_LOGGER_TEST_HOOKS
+        if (consumeTestHook(loggerTestHookState.nextFileFlushFailure))
+            return forcedFileStatus(ErrorCode::FlushFailed);
+#endif
+        return writer.flush(IO::Types::FlushMode::Data);
+    }
+
+    ReportSinkProgress writeReportSynchronously(
         LogLevel level,
         std::string_view source,
         std::string_view message,
@@ -69,219 +126,156 @@ namespace GameWIP::Logger::Detail::Core
         bool alreadyTruncated,
         const FlushDeadline *deadline)
     {
+        ReportSinkProgress progress;
+        if (!isValidLevel(level))
+        {
+            progress.status = IO::makeStatus(ErrorCode::InvalidArgument);
+            return progress;
+        }
+        if (deadlineExpired(deadline))
+        {
+            progress.timedOut = true;
+            return progress;
+        }
+
         try
         {
-            const std::uint32_t runtimeState = loggerState().runtimeStateBits.load(std::memory_order_acquire);
-            const OutputMode mode = runtimeStateOutput(runtimeState);
-            if (mode == OutputMode::None || !isValidLevel(level))
-            {
-                return false;
-            }
-
+            const OutputMode mode = runtimeStateOutput(loggerState().runtimeStateBits.load(std::memory_order_acquire));
             const bool consoleOutput = hasConsoleOutput(mode);
-            const bool wantsFileOutput = hasFileOutput(mode);
-            if (!consoleOutput && !wantsFileOutput)
-            {
-                return false;
-            }
+            const bool fileOutput = hasFileOutput(mode);
+            progress.eligible = static_cast<std::size_t>(consoleOutput) + static_cast<std::size_t>(fileOutput);
+            if (progress.eligible == 0)
+                return progress;
 
-            std::string boundedMessageScratch;
+            std::string boundedScratch;
             bool truncatedNow = false;
-            const std::string_view messageText = boundedMessageView(message, alreadyTruncated, boundedMessageScratch, truncatedNow);
+            const std::string_view messageText = boundedMessageView(message, alreadyTruncated, boundedScratch, truncatedNow);
             const bool truncated = alreadyTruncated || truncatedNow;
-
-            TimestampCache timestampCache;
+            TimestampCache timestamp;
             std::string line;
             const LogStyle style = getLogStyle(level);
-            buildLogLine(line, getTimestampText(timestampCache), style.text, source, messageText);
+            buildLogLine(line, getTimestampText(timestamp), style.text, source, messageText);
 
-            bool accepted = false;
-            bool fileWriteFailed = false;
-            PlatformError fileErrorDetail;
+            Status consoleStatus;
+            Status fileStatus;
             {
                 std::unique_lock<std::mutex> outputLock(loggerState().outputMutex, std::defer_lock);
                 if (deadline == nullptr)
-                {
                     outputLock.lock();
-                }
                 else if (!lockBefore(outputLock, *deadline))
                 {
-                    return false;
-                }
-                if (consoleOutput)
-                {
-                    accepted = accepted || writeConsoleLine(style, line).ok();
+                    progress.timedOut = true;
+                    return progress;
                 }
 
-                if (wantsFileOutput)
+                if (consoleOutput)
                 {
-                    if (loggerState().fileOutputAvailableAtomic.load(std::memory_order_acquire) && loggerState().logFile.isOpen())
+                    if (deadlineExpired(deadline))
+                        progress.timedOut = true;
+                    else
+                    {
+                        consoleStatus = writeConsoleLine(style, line);
+                        if (consoleStatus.ok())
+                            ++progress.delivered;
+                        else
+                            progress.status = firstFailure(std::move(progress.status), consoleStatus);
+                    }
+                }
+
+                if (fileOutput && !progress.timedOut)
+                {
+                    if (deadlineExpired(deadline))
+                        progress.timedOut = true;
+                    else if (loggerState().fileOutputAvailableAtomic.load(std::memory_order_acquire) && loggerState().logFile.isOpen())
                     {
                         std::string fileLine(line);
                         fileLine.push_back('\n');
-                        fileErrorDetail = writeFileForLogger(loggerState().logFile, fileLine);
-                        fileWriteFailed = hasPlatformError(fileErrorDetail);
-                        accepted = accepted || !fileWriteFailed;
+                        fileStatus = writeFileForLogger(loggerState().logFile, fileLine);
+                        if (fileStatus.ok())
+                            ++progress.delivered;
+                        else
+                            progress.status = firstFailure(std::move(progress.status), fileStatus);
                     }
                     else
                     {
-                        fileErrorDetail = PlatformError{PlatformErrorSource::File, 0};
-                        fileWriteFailed = true;
+                        fileStatus = IO::makeStatus(ErrorCode::NotOpen);
+                        progress.status = firstFailure(std::move(progress.status), fileStatus);
                     }
                 }
             }
 
-            if (fileWriteFailed)
+            if (!consoleStatus.ok())
+                recordHealthFailure(Types::FailureSource::Console, consoleStatus, true);
+            if (!fileStatus.ok())
             {
-                recordFileWriteFailure(fileErrorDetail);
+                loggerState().stats.fileWriteFailures.fetch_add(1, std::memory_order_relaxed);
+                recordHealthFailure(Types::FailureSource::File, fileStatus, true);
             }
-
-            if (accepted)
+            if (progress.delivered > 0)
             {
                 loggerState().stats.written.fetch_add(1, std::memory_order_relaxed);
                 if (truncated)
-                {
                     loggerState().stats.truncated.fetch_add(1, std::memory_order_relaxed);
-                }
                 if (unknownSource)
-                {
                     recordUnknownSourceUse();
-                }
             }
-
-            return accepted;
+        }
+        catch (const std::bad_alloc &)
+        {
+            progress.status = firstFailure(std::move(progress.status), IO::makeStatus(ErrorCode::OutOfMemory));
         }
         catch (...)
         {
-            return false;
+            progress.status = firstFailure(std::move(progress.status), IO::makeStatus(ErrorCode::Unknown));
         }
+        return progress;
     }
 
-#if INTERNAL_LOGGER_TEST_HOOKS
-    /// @brief Returns a synthetic platform file error used by test hooks.
-    PlatformError forcedFileError() noexcept
+    ReportSinkProgress writeReportSynchronously(
+        LogLevel level,
+        SourceId source,
+        std::string_view message,
+        bool alreadyTruncated,
+        const FlushDeadline *deadline)
     {
-        return PlatformError{PlatformErrorSource::File, 1};
+        const auto registry = loadSourceRegistry();
+        bool unknown = false;
+        return writeReportSynchronously(level, findSourceName(registry.get(), source, unknown), message, unknown, alreadyTruncated, deadline);
     }
 
-    /// @brief Returns a synthetic fatal-popup error used by test hooks.
-    PlatformError forcedFatalPopupError() noexcept
-    {
-        return PlatformError{PlatformErrorSource::FatalPopup, 1};
-    }
-#endif
-
-    /// @brief Opens a file, optionally consuming a test hook that forces failure.
-    PlatformError openFileExclusiveForLogger(const FilePath &path, FileWriter &outWriter)
-    {
-#if INTERNAL_LOGGER_TEST_HOOKS
-        if (consumeTestHook(loggerTestHookState.nextFileOpenFailure))
-        {
-            return forcedFileError();
-        }
-#endif
-        const GameWIP::FileSystem::Types::FileWriterOpenOptions options{
-            .mode = GameWIP::FileSystem::Types::FileWriterMode::CreateNew,
-            .share = GameWIP::FileSystem::Types::FileShare::Read,
-            .symlinkPolicy = GameWIP::FileSystem::Types::SymlinkPolicy::FollowAll,
-            .createParentDirectories = false,
-            .flushOnClose = GameWIP::IO::Types::FlushMode::None};
-        return filePlatformError(outWriter.open(path, options));
-    }
-
-    /// @brief Writes file text, optionally consuming a test hook that forces failure.
-    PlatformError writeFileForLogger(FileWriter &writer, std::string_view text)
-    {
-#if INTERNAL_LOGGER_TEST_HOOKS
-        if (consumeTestHook(loggerTestHookState.nextFileWriteFailure))
-        {
-            return forcedFileError();
-        }
-#endif
-        const GameWIP::IO::Types::WriteResult result = GameWIP::IO::writeAllText(writer, text);
-        return filePlatformError(result.status);
-    }
-
-    /// @brief Flushes a file, optionally consuming a test hook that forces failure.
-    PlatformError flushFileForLogger(FileWriter &writer)
-    {
-#if INTERNAL_LOGGER_TEST_HOOKS
-        if (consumeTestHook(loggerTestHookState.nextFileFlushFailure))
-        {
-            return forcedFileError();
-        }
-#endif
-        return filePlatformError(writer.flush(GameWIP::IO::Types::FlushMode::Data));
-    }
-
-    /// @brief Resolves a SourceId and writes one report directly to configured sinks.
-    /// @param level Severity for the report line.
-    /// @param source SourceId to resolve.
-    /// @param message Message text to write.
-    /// @param alreadyTruncated True when the caller already bounded the message and appended the truncation suffix.
-    /// @return True when at least one configured normal sink accepted the line.
-    bool writeReportSynchronously(LogLevel level, SourceId source, std::string_view message, bool alreadyTruncated, const FlushDeadline *deadline)
-    {
-        const std::shared_ptr<SourceRegistry> registry = loadSourceRegistry();
-        bool unknownSource = false;
-        const std::string_view sourceText = findSourceName(registry.get(), source, unknownSource);
-        return writeReportSynchronously(level, sourceText, message, unknownSource, alreadyTruncated, deadline);
-    }
-
-    /// @brief Writes one entry to console immediately and appends file text to the batch buffer.
-    /// @details Filters are deliberately rechecked on the worker so a concurrent filter update can suppress work accepted earlier.
-    /// @param entry Entry to write.
-    /// @param timestampCache Worker timestamp cache.
-    /// @param lineScratch Reusable line scratch buffer.
-    /// @param fileBatchScratch Reusable file batch buffer.
-    /// @return Sink acceptance details for stats accounting.
-    /// @note Runtime filters are rechecked here so queued entries can still be suppressed after a filter change.
-    SinkWriteResult writeLogEntry(
-        const QueuedLogEntry &entry,
-        TimestampCache &timestampCache,
-        std::string &lineScratch,
-        std::string &fileBatchScratch)
+    SinkWriteResult writeLogEntry(const QueuedLogEntry &entry, TimestampCache &timestamp, std::string &lineScratch, std::string &fileBatchScratch)
     {
         SinkWriteResult result;
-        const std::uint32_t runtimeState = loggerState().runtimeStateBits.load(std::memory_order_acquire);
-        const OutputMode mode = runtimeStateOutput(runtimeState);
+        const std::uint32_t runtime = loggerState().runtimeStateBits.load(std::memory_order_acquire);
+        const OutputMode mode = runtimeStateOutput(runtime);
         if (mode == OutputMode::None || !isValidLevel(entry.level))
-        {
             return result;
-        }
-
-        if (!entry.bypassFilters && toLevelValue(entry.level) < toLevelValue(runtimeStateMinLevel(runtimeState)))
-        {
+        if (toLevelValue(entry.level) < toLevelValue(runtimeStateMinLevel(runtime)))
             return result;
-        }
-
-        const std::shared_ptr<SourceRegistry> registry = entry.usesRegisteredSource ? loadSourceRegistry() : std::shared_ptr<SourceRegistry>{};
-        const std::uint8_t levelMaskBit = levelBit(entry.level);
-        if (!entry.bypassFilters && (levelMaskBit == 0 || (runtimeStateLevelMask(runtimeState) & levelMaskBit) == 0 ||
-                                     (entry.usesRegisteredSource && !sourceEnabledRuntime(registry.get(), entry.sourceId))))
-        {
+        const auto registry = entry.usesRegisteredSource ? loadSourceRegistry() : std::shared_ptr<SourceRegistry>{};
+        const std::uint8_t bit = levelBit(entry.level);
+        if (bit == 0 || (runtimeStateLevelMask(runtime) & bit) == 0 ||
+            (entry.usesRegisteredSource && !sourceEnabledRuntime(registry.get(), entry.sourceId)))
             return result;
-        }
-
-        const bool consoleOutput = hasConsoleOutput(mode);
-        const bool wantsFileOutput = hasFileOutput(mode);
-        if (!consoleOutput && !wantsFileOutput)
-        {
-            return result;
-        }
 
         const LogStyle style = getLogStyle(entry.level);
-        bool unknownSource = false;
-        const std::string_view source = resolveSourceText(entry, registry.get(), unknownSource);
-        buildLogLine(lineScratch, getTimestampText(timestampCache), style.text, source, entry.message.view());
+        bool unknown = false;
+        const std::string_view source = resolveSourceText(entry, registry.get(), unknown);
+        buildLogLine(lineScratch, getTimestampText(timestamp), style.text, source, entry.message.view());
 
-        if (consoleOutput)
+        if (hasConsoleOutput(mode))
         {
-            std::lock_guard<std::mutex> outputLock(loggerState().outputMutex);
-            result.acceptedImmediateSink = writeConsoleLine(style, lineScratch).ok();
+            Status consoleStatus;
+            {
+                std::lock_guard<std::mutex> outputLock(loggerState().outputMutex);
+                consoleStatus = writeConsoleLine(style, lineScratch);
+            }
+            result.acceptedImmediateSink = consoleStatus.ok();
+            if (!consoleStatus.ok())
+                recordHealthFailure(Types::FailureSource::Console, consoleStatus, true);
         }
 
-        if (wantsFileOutput)
+        if (hasFileOutput(mode))
         {
             if (loggerState().fileOutputAvailableAtomic.load(std::memory_order_acquire))
             {
@@ -289,255 +283,280 @@ namespace GameWIP::Logger::Detail::Core
                 fileBatchScratch.push_back('\n');
                 result.queuedFile = true;
             }
-            else
-            {
-                recordFileWriteFailure(PlatformError{PlatformErrorSource::File, 0});
-            }
         }
-
-        if (unknownSource)
-        {
+        if (unknown)
             recordUnknownSourceUse();
-        }
-
         return result;
     }
 
-    /// @brief Writes the worker file batch to disk and optionally flushes it.
-    /// @param fileBatchScratch Batched file text to write; cleared before return.
-    /// @param forceFlush True when shutdown/flush path requires an immediate file flush.
-    /// @return True when the batch was empty or written successfully.
     bool flushFileBatch(std::string &fileBatchScratch, bool forceFlush)
     {
         if (fileBatchScratch.empty())
-        {
             return true;
-        }
-
-        std::lock_guard<std::mutex> outputLock(loggerState().outputMutex);
-        bool success = false;
-        PlatformError fileError = PlatformError{PlatformErrorSource::File, 0};
-        if (loggerState().logFile.isOpen())
-        {
-            fileError = writeFileForLogger(loggerState().logFile, fileBatchScratch);
-            if (forceFlush || loggerState().flushFileEveryBatchAtomic.load(std::memory_order_acquire))
-            {
-                if (!hasPlatformError(fileError))
-                {
-                    fileError = flushFileForLogger(loggerState().logFile);
-                }
-            }
-            success = !hasPlatformError(fileError);
-        }
-
-        fileBatchScratch.clear();
-        if (!success)
-        {
-            recordFileWriteFailure(fileError);
-        }
-
-        return success;
-    }
-
-    /// @brief Shows the fatal popup when enabled.
-    /// @param message Fatal popup message text.
-    /// @note This remains internal; public fatal popup behavior goes through reportFatal().
-    void showFatalPopupIfEnabled(std::string_view message)
-    {
-        if (!loggerState().fatalPopupEnabledAtomic.load(std::memory_order_acquire))
-        {
-            return;
-        }
-
-        try
-        {
-#if INTERNAL_LOGGER_TEST_HOOKS
-            if (consumeTestHook(loggerTestHookState.nextFatalPopupFailure))
-            {
-                recordPlatformErrorIfAny(forcedFatalPopupError());
-                return;
-            }
-#endif
-            recordPlatformErrorIfAny(GameWIP::Logger::Detail::Platform::showFatalPopup(message));
-        }
-        catch (...)
-        {
-            countAllocationFailure();
-        }
-    }
-
-    /// @brief Flushes active sinks without waiting for async queued work.
-    /// @details Caller must serialize lifecycle if sink lifetime may change concurrently.
-    /// @return True when sink flushing did not report a platform file error.
-    bool flushSinksInternal()
-    {
-        bool fileFlushFailed = false;
-        PlatformError fileError;
+        Status status = IO::makeStatus(ErrorCode::NotOpen);
         {
             std::lock_guard<std::mutex> outputLock(loggerState().outputMutex);
-            static_cast<void>(GameWIP::Terminal::flush(GameWIP::Terminal::Types::OutputStream::Stdout, GameWIP::IO::Types::FlushMode::Data));
-            static_cast<void>(GameWIP::Terminal::flush(GameWIP::Terminal::Types::OutputStream::Stderr, GameWIP::IO::Types::FlushMode::Data));
-
             if (loggerState().logFile.isOpen())
             {
-                fileError = flushFileForLogger(loggerState().logFile);
-                fileFlushFailed = hasPlatformError(fileError);
+                status = writeFileForLogger(loggerState().logFile, fileBatchScratch);
+                if (status.ok() && (forceFlush || loggerState().flushFileEveryBatchAtomic.load(std::memory_order_acquire)))
+                    status = flushFileForLogger(loggerState().logFile);
             }
         }
-
-        if (fileFlushFailed)
+        fileBatchScratch.clear();
+        if (!status.ok())
         {
-            recordFileWriteFailure(fileError);
+            loggerState().stats.fileWriteFailures.fetch_add(1, std::memory_order_relaxed);
+            recordHealthFailure(Types::FailureSource::File, status, true);
             return false;
         }
         return true;
     }
 
-    bool flushSinksInternal(FlushDeadline deadline)
+    Types::FlushResult flushSinksInternal(const FlushDeadline *deadline)
     {
-        bool fileFlushFailed = false;
-        PlatformError fileError;
+        Types::FlushResult result;
+        const OutputMode mode = runtimeStateOutput(loggerState().runtimeStateBits.load(std::memory_order_acquire));
+        Status consoleStatus;
+        Status fileStatus;
+
+        std::unique_lock<std::mutex> outputLock(loggerState().outputMutex, std::defer_lock);
+        if (deadline == nullptr)
+            outputLock.lock();
+        else if (!lockBefore(outputLock, *deadline))
         {
-            std::unique_lock<std::mutex> outputLock(loggerState().outputMutex, std::defer_lock);
-            if (!lockBefore(outputLock, deadline))
-            {
-                return false;
-            }
-            if (std::chrono::steady_clock::now() >= deadline)
-            {
-                return false;
-            }
+            result.outcome = Types::FlushOutcome::TimedOut;
+            return result;
+        }
 
-            // Native console and filesystem flushes are synchronous and not reliably cancellable
-            // after entry. The deadline bounds all Logger-owned waits before those calls.
-            static_cast<void>(GameWIP::Terminal::flush(GameWIP::Terminal::Types::OutputStream::Stdout, GameWIP::IO::Types::FlushMode::Data));
-            static_cast<void>(GameWIP::Terminal::flush(GameWIP::Terminal::Types::OutputStream::Stderr, GameWIP::IO::Types::FlushMode::Data));
-
-            if (loggerState().logFile.isOpen())
+        if (hasConsoleOutput(mode))
+        {
+            if (deadlineExpired(deadline))
+                result.outcome = Types::FlushOutcome::TimedOut;
+            else
             {
-                fileError = flushFileForLogger(loggerState().logFile);
-                fileFlushFailed = hasPlatformError(fileError);
+                Status stdoutStatus = Terminal::flush(Terminal::Types::OutputStream::Stdout, IO::Types::FlushMode::Data);
+                Status stderrStatus;
+                if (!deadlineExpired(deadline))
+                    stderrStatus = Terminal::flush(Terminal::Types::OutputStream::Stderr, IO::Types::FlushMode::Data);
+                else
+                    result.outcome = Types::FlushOutcome::TimedOut;
+                consoleStatus = firstFailure(std::move(stdoutStatus), stderrStatus);
+                result.status = firstFailure(std::move(result.status), consoleStatus);
             }
         }
 
-        if (fileFlushFailed)
+        if (hasFileOutput(mode) && result.outcome != Types::FlushOutcome::TimedOut)
         {
-            recordFileWriteFailure(fileError);
-            return false;
+            if (deadlineExpired(deadline))
+                result.outcome = Types::FlushOutcome::TimedOut;
+            else if (loggerState().fileOutputAvailableAtomic.load(std::memory_order_acquire) && loggerState().logFile.isOpen())
+            {
+                fileStatus = flushFileForLogger(loggerState().logFile);
+                result.status = firstFailure(std::move(result.status), fileStatus);
+            }
+            else
+            {
+                fileStatus = IO::makeStatus(ErrorCode::NotOpen);
+                result.status = firstFailure(std::move(result.status), fileStatus);
+            }
         }
-        return std::chrono::steady_clock::now() <= deadline;
+        outputLock.unlock();
+
+        if (!consoleStatus.ok())
+            recordHealthFailure(Types::FailureSource::Console, consoleStatus, true);
+        if (!fileStatus.ok())
+        {
+            loggerState().stats.fileWriteFailures.fetch_add(1, std::memory_order_relaxed);
+            recordHealthFailure(Types::FailureSource::File, fileStatus, true);
+        }
+        return result;
     }
 
-    /// @brief Waits for accepted queued work to drain, then flushes active sinks.
-    /// @details Caller must serialize lifecycle if sink lifetime may change concurrently.
-    void flushInternal()
+    Types::FlushResult flushInternal(const FlushDeadline *deadline)
     {
-        {
-            std::unique_lock<std::mutex> lock(loggerState().logMutex);
-            loggerState().logCondition.wait(
-                lock,
-                []
-                {
-                    return (!loggerState().workerRunning && !loggerState().workerBusy) ||
-                           (loggerState().queueDepth.load(std::memory_order_acquire) == 0 && !loggerState().workerBusy);
-                });
-        }
-
-        (void)flushSinksInternal();
-    }
-
-    /// @brief Waits for accepted queued work to drain until timeout, then flushes active sinks.
-    /// @details Caller must serialize lifecycle if sink lifetime may change concurrently.
-    /// @return True when the queue drained and sink flushing succeeded before timeout expired.
-    bool flushInternal(FlushDeadline deadline)
-    {
+        Types::FlushResult result;
 #if INTERNAL_LOGGER_TEST_HOOKS
-        if (consumeTestHook(loggerTestHookState.nextTimedFlushTimeout))
+        if (deadline && consumeTestHook(loggerTestHookState.nextTimedFlushTimeout))
         {
-            return false;
+            result.outcome = Types::FlushOutcome::TimedOut;
+            return result;
         }
 #endif
-        const bool drained = [&]
         {
             std::unique_lock<std::mutex> lock(loggerState().logMutex, std::defer_lock);
-            if (!lockBefore(lock, deadline))
+            if (deadline == nullptr)
             {
-                return false;
+                lock.lock();
+                loggerState().logCondition.wait(
+                    lock,
+                    []
+                    {
+                        return (!loggerState().workerRunning && !loggerState().workerBusy) ||
+                               (loggerState().queueDepth.load(std::memory_order_acquire) == 0 && !loggerState().workerBusy);
+                    });
             }
-            return loggerState().logCondition.wait_until(
-                lock,
-                deadline,
-                []
+            else
+            {
+                if (!lockBefore(lock, *deadline))
                 {
-                    return (!loggerState().workerRunning && !loggerState().workerBusy) ||
-                           (loggerState().queueDepth.load(std::memory_order_acquire) == 0 && !loggerState().workerBusy);
-                });
-        }();
+                    result.outcome = Types::FlushOutcome::TimedOut;
+                    return result;
+                }
+                if (!loggerState().logCondition.wait_until(
+                        lock,
+                        *deadline,
+                        []
+                        {
+                            return (!loggerState().workerRunning && !loggerState().workerBusy) ||
+                                   (loggerState().queueDepth.load(std::memory_order_acquire) == 0 && !loggerState().workerBusy);
+                        }))
+                {
+                    result.outcome = Types::FlushOutcome::TimedOut;
+                    return result;
+                }
+            }
+        }
+        return flushSinksInternal(deadline);
+    }
 
-        if (!drained)
+    Types::ReportResult reportPreformattedMessageImpl(
+        LogLevel level,
+        std::string_view source,
+        std::string_view message,
+        bool showPopup,
+        bool alreadyTruncated,
+        const std::chrono::milliseconds *timeout,
+        bool unknownSource)
+    {
+        Types::ReportResult result;
+        if (!isValidLevel(level))
         {
-            return false;
+            result.status = IO::makeStatus(ErrorCode::InvalidArgument);
+            return result;
+        }
+        if (timeout && timeout->count() < 0)
+        {
+            result.status = IO::makeStatus(ErrorCode::InvalidArgument);
+            return result;
+        }
+        if (Unicode::Utf8::validate(source).outcome != Unicode::Types::ValidationOutcome::Valid ||
+            Unicode::Utf8::validate(message).outcome != Unicode::Types::ValidationOutcome::Valid)
+        {
+            result.status = IO::makeStatus(ErrorCode::EncodingFailed);
+            return result;
         }
 
-        return flushSinksInternal(deadline);
+        const FlushDeadline deadlineValue = timeout ? makeFlushDeadline(*timeout) : FlushDeadline{};
+        const FlushDeadline *deadline = timeout ? &deadlineValue : nullptr;
+        std::unique_lock<std::mutex> lifecycleLock(loggerState().lifecycleMutex, std::defer_lock);
+        if (deadline == nullptr)
+            lifecycleLock.lock();
+        else if (!lockBefore(lifecycleLock, *deadline))
+        {
+            result.outcome = Types::ReportOutcome::TimedOut;
+            return result;
+        }
+
+        std::string boundedScratch;
+        bool truncatedNow = false;
+        const std::string_view reportMessage = boundedMessageView(message, alreadyTruncated, boundedScratch, truncatedNow);
+        const bool truncated = alreadyTruncated || truncatedNow;
+
+        ReportSinkProgress normal = writeReportSynchronously(level, source, reportMessage, unknownSource, truncated, deadline);
+        result.status = firstFailure(std::move(result.status), normal.status);
+        std::size_t eligible = normal.eligible;
+        std::size_t delivered = normal.delivered;
+        if (normal.timedOut)
+            result.outcome = Types::ReportOutcome::TimedOut;
+
+        const bool debugEligible = loggerState().debugOutputEnabledAtomic.load(std::memory_order_acquire);
+        if (debugEligible)
+        {
+            ++eligible;
+            if (deadlineExpired(deadline))
+                result.outcome = Types::ReportOutcome::TimedOut;
+            else
+            {
+                const Status debugStatus = GameWIP::Logger::writeDebugOutput(level, source, reportMessage);
+                if (debugStatus.ok())
+                    ++delivered;
+                else
+                    result.status = firstFailure(std::move(result.status), debugStatus);
+            }
+        }
+
+#if INTERNAL_LOGGER_TEST_HOOKS
+        if (deadline != nullptr && consumeTestHook(loggerTestHookState.nextTimedFlushTimeout))
+        {
+            result.outcome = Types::ReportOutcome::TimedOut;
+        }
+#endif
+
+        if (result.outcome != Types::ReportOutcome::TimedOut)
+        {
+            const Types::FlushResult flushed = flushSinksInternal(deadline);
+            result.status = firstFailure(std::move(result.status), flushed.status);
+            if (flushed.outcome == Types::FlushOutcome::TimedOut)
+                result.outcome = Types::ReportOutcome::TimedOut;
+        }
+
+        const bool popupEligible = showPopup && loggerState().fatalPopupEnabledAtomic.load(std::memory_order_acquire);
+        if (popupEligible)
+        {
+            ++eligible;
+            if (deadlineExpired(deadline))
+                result.outcome = Types::ReportOutcome::TimedOut;
+            else
+            {
+                Status popupStatus;
+#if INTERNAL_LOGGER_TEST_HOOKS
+                if (consumeTestHook(loggerTestHookState.nextFatalPopupFailure))
+                    popupStatus = forcedFatalPopupStatus();
+                else
+#endif
+                    popupStatus = GameWIP::Logger::Detail::Platform::showFatalPopup(reportMessage);
+                if (popupStatus.ok())
+                    ++delivered;
+                else
+                {
+                    result.status = firstFailure(std::move(result.status), popupStatus);
+                    recordHealthFailure(Types::FailureSource::FatalPopup, popupStatus, true);
+                }
+            }
+        }
+
+        result.delivery = deliveryFrom(eligible, delivered);
+        return result;
     }
 } // namespace GameWIP::Logger::Detail::Core
 
 using namespace GameWIP::Logger::Detail::Core;
 
-//-------------------------------------------------------------------------------------------------
-// Private Logger bridge enqueue helpers used by header-only formatting overloads
-//-------------------------------------------------------------------------------------------------
-
-/// @brief Enqueues a preformatted message after the caller's fast-path filter check.
-/// @param level Entry severity.
-/// @param source Source text to copy.
-/// @param message Formatted message copied before this call returns.
 void GameWIP::Logger::Detail::Core::enqueuePreformattedMessage(LogLevel level, std::string_view source, std::string_view message)
 {
     enqueuePreformattedMessage(level, source, message, false);
 }
-
-/// @brief Enqueues a preformatted message after bounded formatting has already truncated it.
-/// @param level Entry severity.
-/// @param source Source text to copy.
-/// @param message Formatted message copied before this call returns.
-/// @param alreadyTruncated True when message already includes the truncation suffix.
-void GameWIP::Logger::Detail::Core::enqueuePreformattedMessage(
-    LogLevel level,
-    std::string_view source,
-    std::string_view message,
-    bool alreadyTruncated)
+void GameWIP::Logger::Detail::Core::enqueuePreformattedMessage(LogLevel level, std::string_view source, std::string_view message, bool truncated)
 {
     try
     {
-        enqueueAndWakeWorker(makePendingEntry(level, source, message, false, alreadyTruncated));
+        enqueueAndWakeWorker(makePendingEntry(level, source, message, truncated));
     }
     catch (...)
     {
         countAllocationFailure();
     }
 }
-
-/// @brief Enqueues a preformatted message after the caller's fast-path filter check.
-/// @param level Entry severity.
-/// @param source Registered SourceId to store.
-/// @param message Formatted message copied before this call returns.
 void GameWIP::Logger::Detail::Core::enqueuePreformattedMessage(LogLevel level, SourceId source, std::string_view message)
 {
     enqueuePreformattedMessage(level, source, message, false);
 }
-
-/// @brief Enqueues a preformatted message after bounded formatting has already truncated it.
-/// @param level Entry severity.
-/// @param source Registered SourceId to store.
-/// @param message Formatted message copied before this call returns.
-/// @param alreadyTruncated True when message already includes the truncation suffix.
-void GameWIP::Logger::Detail::Core::enqueuePreformattedMessage(LogLevel level, SourceId source, std::string_view message, bool alreadyTruncated)
+void GameWIP::Logger::Detail::Core::enqueuePreformattedMessage(LogLevel level, SourceId source, std::string_view message, bool truncated)
 {
     try
     {
-        enqueueAndWakeWorker(makePendingEntry(level, source, message, false, alreadyTruncated));
+        enqueueAndWakeWorker(makePendingEntry(level, source, message, truncated));
     }
     catch (...)
     {
@@ -545,466 +564,202 @@ void GameWIP::Logger::Detail::Core::enqueuePreformattedMessage(LogLevel level, S
     }
 }
 
-//-------------------------------------------------------------------------------------------------
-// Public logging API
-//-------------------------------------------------------------------------------------------------
-
-/// @brief Logs a preformatted message with a string source.
-/// @param level Entry severity.
-/// @param source Source text to copy.
-/// @param message Message text to copy.
-void GameWIP::Logger::log(LogLevel level, std::string_view source, std::string_view message)
-{
-    if (!shouldLog(level))
-    {
-        return;
-    }
-
-    try
-    {
-        enqueueAndWakeWorker(makePendingEntry(level, source, message));
-    }
-    catch (...)
-    {
-        countAllocationFailure();
-    }
-}
-
-/// @brief Logs a preformatted message with a registered SourceId.
-/// @param level Entry severity.
-/// @param source Registered SourceId to store.
-/// @param message Message text to copy.
-void GameWIP::Logger::log(LogLevel level, Types::SourceId source, std::string_view message)
-{
-    if (!shouldLog(level, source))
-    {
-        return;
-    }
-
-    try
-    {
-        enqueueAndWakeWorker(makePendingEntry(level, source, message));
-    }
-    catch (...)
-    {
-        countAllocationFailure();
-    }
-}
-
-/// @brief Logs a Trace message with a string source.
-/// @param source Source text to copy.
-/// @param message Message text to copy.
-void GameWIP::Logger::trace(std::string_view source, std::string_view message)
-{
-    log(LogLevel::Trace, source, message);
-}
-
-/// @brief Logs a Trace message with a registered SourceId.
-/// @param source Registered SourceId to store.
-/// @param message Message text to copy.
-void GameWIP::Logger::trace(Types::SourceId source, std::string_view message)
-{
-    log(LogLevel::Trace, source, message);
-}
-
-/// @brief Logs a Debug message with a string source.
-/// @param source Source text to copy.
-/// @param message Message text to copy.
-void GameWIP::Logger::debug(std::string_view source, std::string_view message)
-{
-    log(LogLevel::Debug, source, message);
-}
-
-/// @brief Logs a Debug message with a registered SourceId.
-/// @param source Registered SourceId to store.
-/// @param message Message text to copy.
-void GameWIP::Logger::debug(Types::SourceId source, std::string_view message)
-{
-    log(LogLevel::Debug, source, message);
-}
-
-/// @brief Logs an Info message with a string source.
-/// @param source Source text to copy.
-/// @param message Message text to copy.
-void GameWIP::Logger::info(std::string_view source, std::string_view message)
-{
-    log(LogLevel::Info, source, message);
-}
-
-/// @brief Logs an Info message with a registered SourceId.
-/// @param source Registered SourceId to store.
-/// @param message Message text to copy.
-void GameWIP::Logger::info(Types::SourceId source, std::string_view message)
-{
-    log(LogLevel::Info, source, message);
-}
-
-/// @brief Logs a Warn message with a string source.
-/// @param source Source text to copy.
-/// @param message Message text to copy.
-void GameWIP::Logger::warn(std::string_view source, std::string_view message)
-{
-    log(LogLevel::Warn, source, message);
-}
-
-/// @brief Logs a Warn message with a registered SourceId.
-/// @param source Registered SourceId to store.
-/// @param message Message text to copy.
-void GameWIP::Logger::warn(Types::SourceId source, std::string_view message)
-{
-    log(LogLevel::Warn, source, message);
-}
-
-/// @brief Logs an Error message with a string source.
-/// @param source Source text to copy.
-/// @param message Message text to copy.
-void GameWIP::Logger::error(std::string_view source, std::string_view message)
-{
-    log(LogLevel::Error, source, message);
-}
-
-/// @brief Logs an Error message with a registered SourceId.
-/// @param source Registered SourceId to store.
-/// @param message Message text to copy.
-void GameWIP::Logger::error(Types::SourceId source, std::string_view message)
-{
-    log(LogLevel::Error, source, message);
-}
-
-/// @brief Logs a Fatal message with a string source without forcing platform debug output flush or fatal popup.
-/// @param source Source text to copy.
-/// @param message Message text to copy.
-void GameWIP::Logger::fatal(std::string_view source, std::string_view message)
-{
-    log(LogLevel::Fatal, source, message);
-}
-
-/// @brief Logs a Fatal message with a registered SourceId without forcing platform debug output flush or fatal popup.
-/// @param source Registered SourceId to store.
-/// @param message Message text to copy.
-void GameWIP::Logger::fatal(Types::SourceId source, std::string_view message)
-{
-    log(LogLevel::Fatal, source, message);
-}
-
-//-------------------------------------------------------------------------------------------------
-// Reporting and direct platform debug output API
-//-------------------------------------------------------------------------------------------------
-
-/// @brief Reports a preformatted message with a string source.
-/// @param level Severity to log and mirror.
-/// @param source Source text to copy.
-/// @param message Formatted message copied before this call returns.
-/// @param showPopup True to run the fatal popup path after flush.
-void GameWIP::Logger::Detail::Core::reportPreformattedMessage(LogLevel level, std::string_view source, std::string_view message, bool showPopup)
-{
-    reportPreformattedMessage(level, source, message, showPopup, false, nullptr);
-}
-
-/// @brief Reports a preformatted message with a string source, then optionally attempts a bounded queue drain.
-/// @param level Severity to log and mirror.
-/// @param source Source text to copy.
-/// @param message Formatted message copied before this call returns.
-/// @param showPopup True to run the fatal popup path after flush.
-/// @param alreadyTruncated True when message already includes the truncation suffix.
-/// @param timeout Optional bounded flush duration.
-/// @return True when the requested post-report drain and observable sink flush completed; not report-line delivery status.
-bool GameWIP::Logger::Detail::Core::reportPreformattedMessage(
+GameWIP::Logger::Types::ReportResult GameWIP::Logger::Detail::Core::reportPreformattedMessage(
     LogLevel level,
     std::string_view source,
     std::string_view message,
     bool showPopup,
-    bool alreadyTruncated,
-    Types::FlushTimeout *timeout)
+    bool truncated,
+    const std::chrono::milliseconds *timeout)
 {
-    if (!isValidLevel(level))
-    {
-        return false;
-    }
-
-    std::string boundedMessageScratch;
-    bool truncatedNow = false;
-    const std::string_view reportMessage = boundedMessageView(message, alreadyTruncated, boundedMessageScratch, truncatedNow);
-    const bool storedMessageAlreadyTruncated = alreadyTruncated || truncatedNow;
-
-    const FlushDeadline deadline = timeout == nullptr ? FlushDeadline{} : makeFlushDeadline(timeout->value);
-    std::unique_lock<std::mutex> lifecycleLock(loggerState().lifecycleMutex, std::defer_lock);
-    if (timeout == nullptr)
-    {
-        lifecycleLock.lock();
-    }
-    else if (!lockBefore(lifecycleLock, deadline))
-    {
-        return false;
-    }
-
-    (void)writeReportSynchronously(level, source, reportMessage, false, storedMessageAlreadyTruncated, timeout == nullptr ? nullptr : &deadline);
-
-    writeDebugOutput(level, source, reportMessage);
-    bool flushed = true;
-    if (timeout == nullptr)
-    {
-        flushed = flushSinksInternal();
-    }
-    else
-    {
-        const bool initialFlush = flushSinksInternal(deadline);
-        const bool drained = flushInternal(deadline);
-        flushed = initialFlush && drained;
-    }
-
-    if (showPopup)
-    {
-        showFatalPopupIfEnabled(reportMessage);
-    }
-    return flushed;
+    return reportBoundary(
+        [&]
+        {
+            return reportPreformattedMessageImpl(level, source, message, showPopup, truncated, timeout, false);
+        });
 }
 
-/// @brief Reports a preformatted message with a registered SourceId.
-/// @param level Severity to log and mirror.
-/// @param source Registered SourceId to resolve for platform debug output.
-/// @param message Formatted message copied before this call returns.
-/// @param showPopup True to run the fatal popup path after flush.
-void GameWIP::Logger::Detail::Core::reportPreformattedMessage(LogLevel level, SourceId source, std::string_view message, bool showPopup)
-{
-    reportPreformattedMessage(level, source, message, showPopup, false, nullptr);
-}
-
-/// @brief Reports a preformatted message with a registered SourceId, then optionally attempts a bounded queue drain.
-/// @param level Severity to log and mirror.
-/// @param source Registered SourceId to resolve for platform debug output.
-/// @param message Formatted message copied before this call returns.
-/// @param showPopup True to run the fatal popup path after flush.
-/// @param alreadyTruncated True when message already includes the truncation suffix.
-/// @param timeout Optional bounded flush duration.
-/// @return True when the requested post-report drain and observable sink flush completed; not report-line delivery status.
-bool GameWIP::Logger::Detail::Core::reportPreformattedMessage(
+GameWIP::Logger::Types::ReportResult GameWIP::Logger::Detail::Core::reportPreformattedMessage(
     LogLevel level,
     SourceId source,
     std::string_view message,
     bool showPopup,
-    bool alreadyTruncated,
-    Types::FlushTimeout *timeout)
+    bool truncated,
+    const std::chrono::milliseconds *timeout)
 {
-    if (!isValidLevel(level))
-    {
-        return false;
-    }
-
-    std::string boundedMessageScratch;
-    bool truncatedNow = false;
-    const std::string_view reportMessage = boundedMessageView(message, alreadyTruncated, boundedMessageScratch, truncatedNow);
-    const bool storedMessageAlreadyTruncated = alreadyTruncated || truncatedNow;
-
-    const FlushDeadline deadline = timeout == nullptr ? FlushDeadline{} : makeFlushDeadline(timeout->value);
-    std::unique_lock<std::mutex> lifecycleLock(loggerState().lifecycleMutex, std::defer_lock);
-    if (timeout == nullptr)
-    {
-        lifecycleLock.lock();
-    }
-    else if (!lockBefore(lifecycleLock, deadline))
-    {
-        return false;
-    }
-
-    (void)writeReportSynchronously(level, source, reportMessage, storedMessageAlreadyTruncated, timeout == nullptr ? nullptr : &deadline);
-
-    bool unknownSource = false;
-    const std::shared_ptr<SourceRegistry> registry = loadSourceRegistry();
-    const std::string_view sourceText = findSourceName(registry.get(), source, unknownSource);
-    writeDebugOutput(level, sourceText, reportMessage);
-    bool flushed = true;
-    if (timeout == nullptr)
-    {
-        flushed = flushSinksInternal();
-    }
-    else
-    {
-        const bool initialFlush = flushSinksInternal(deadline);
-        const bool drained = flushInternal(deadline);
-        flushed = initialFlush && drained;
-    }
-
-    if (showPopup)
-    {
-        showFatalPopupIfEnabled(reportMessage);
-    }
-    return flushed;
+    return reportBoundary(
+        [&]
+        {
+            const auto registry = loadSourceRegistry();
+            bool unknown = false;
+            const std::string_view sourceText = findSourceName(registry.get(), source, unknown);
+            return reportPreformattedMessageImpl(level, sourceText, message, showPopup, truncated, timeout, unknown);
+        });
 }
 
-/// @brief Synchronously reports a preformatted diagnostic with a string source and no logger-owned popup.
-void GameWIP::Logger::report(LogLevel level, std::string_view source, std::string_view message)
+void GameWIP::Logger::log(LogLevel level, std::string_view source, std::string_view message)
 {
-    reportPreformattedMessage(level, source, message, false);
-}
-
-/// @brief Synchronously reports a preformatted diagnostic with a string source and bounded drain/flush.
-bool GameWIP::Logger::report(LogLevel level, std::string_view source, Types::FlushTimeout timeout, std::string_view message)
-{
-    return reportPreformattedMessage(level, source, message, false, false, &timeout);
-}
-
-/// @brief Synchronously reports a preformatted diagnostic with a SourceId and no logger-owned popup.
-void GameWIP::Logger::report(LogLevel level, SourceId source, std::string_view message)
-{
-    reportPreformattedMessage(level, source, message, false);
-}
-
-/// @brief Synchronously reports a preformatted diagnostic with a SourceId and bounded drain/flush.
-bool GameWIP::Logger::report(LogLevel level, SourceId source, Types::FlushTimeout timeout, std::string_view message)
-{
-    return reportPreformattedMessage(level, source, message, false, false, &timeout);
-}
-
-/// @brief Synchronously reports a preformatted diagnostic with explicit popup behavior.
-void GameWIP::Logger::report(LogLevel level, std::string_view source, Types::ReportPopup popup, std::string_view message)
-{
-    reportPreformattedMessage(level, source, message, popup == Types::ReportPopup::Fatal);
-}
-
-/// @brief Synchronously reports a preformatted diagnostic with explicit popup behavior and bounded drain/flush.
-bool GameWIP::Logger::report(LogLevel level, std::string_view source, Types::FlushTimeout timeout, Types::ReportPopup popup, std::string_view message)
-{
-    return reportPreformattedMessage(level, source, message, popup == Types::ReportPopup::Fatal, false, &timeout);
-}
-
-/// @brief Synchronously reports a preformatted diagnostic with a SourceId and explicit popup behavior.
-void GameWIP::Logger::report(LogLevel level, SourceId source, Types::ReportPopup popup, std::string_view message)
-{
-    reportPreformattedMessage(level, source, message, popup == Types::ReportPopup::Fatal);
-}
-
-/// @brief Synchronously reports a preformatted diagnostic with a SourceId, popup behavior, and bounded drain/flush.
-bool GameWIP::Logger::report(LogLevel level, SourceId source, Types::FlushTimeout timeout, Types::ReportPopup popup, std::string_view message)
-{
-    return reportPreformattedMessage(level, source, message, popup == Types::ReportPopup::Fatal, false, &timeout);
-}
-
-/// @brief Reports an error, mirrors it to platform debug output, and flushes active sinks without draining older queued records.
-/// @param source Source text to copy.
-/// @param message Message text to copy.
-void GameWIP::Logger::reportError(std::string_view source, std::string_view message)
-{
-    report(LogLevel::Error, source, message);
-}
-
-/// @brief Reports an error, mirrors it to platform debug output, then attempts a bounded queue drain and sink flush.
-/// @param source Source text to copy.
-/// @param timeout Maximum flush wait.
-/// @param message Message text to copy.
-/// @return True when the post-report bounded queue drain and observable sink flush completed; not report-line delivery status.
-bool GameWIP::Logger::reportError(std::string_view source, Types::FlushTimeout timeout, std::string_view message)
-{
-    return report(LogLevel::Error, source, timeout, message);
-}
-
-/// @brief Reports an error with a SourceId, mirrors it to platform debug output, and flushes active sinks without draining older queued records.
-/// @param source Registered SourceId to store and resolve.
-/// @param message Message text to copy.
-void GameWIP::Logger::reportError(SourceId source, std::string_view message)
-{
-    report(LogLevel::Error, source, message);
-}
-
-/// @brief Reports an error with a SourceId, mirrors it to platform debug output, then attempts a bounded queue drain and sink flush.
-/// @param source Registered SourceId to store and resolve.
-/// @param timeout Maximum flush wait.
-/// @param message Message text to copy.
-/// @return True when the post-report bounded queue drain and observable sink flush completed; not report-line delivery status.
-bool GameWIP::Logger::reportError(SourceId source, Types::FlushTimeout timeout, std::string_view message)
-{
-    return report(LogLevel::Error, source, timeout, message);
-}
-
-/// @brief Reports fatal, mirrors it to platform debug output, flushes active sinks, and shows the fatal popup when enabled.
-/// @param source Source text to copy.
-/// @param message Message text to copy.
-void GameWIP::Logger::reportFatal(std::string_view source, std::string_view message)
-{
-    report(LogLevel::Fatal, source, Types::ReportPopup::Fatal, message);
-}
-
-/// @brief Reports fatal, mirrors it to platform debug output, attempts a bounded queue drain/sink flush, and shows the popup when enabled.
-/// @param source Source text to copy.
-/// @param timeout Maximum flush wait.
-/// @param message Message text to copy.
-/// @return True when the post-report bounded queue drain and observable sink flush completed; not report-line delivery status.
-bool GameWIP::Logger::reportFatal(std::string_view source, Types::FlushTimeout timeout, std::string_view message)
-{
-    return report(LogLevel::Fatal, source, timeout, Types::ReportPopup::Fatal, message);
-}
-
-/// @brief Reports fatal with a SourceId, mirrors it to platform debug output, flushes active sinks, and shows the popup when enabled.
-/// @param source Registered SourceId to store and resolve.
-/// @param message Message text to copy.
-void GameWIP::Logger::reportFatal(SourceId source, std::string_view message)
-{
-    report(LogLevel::Fatal, source, Types::ReportPopup::Fatal, message);
-}
-
-/// @brief Reports fatal with a SourceId, mirrors it to platform debug output, attempts a bounded queue
-/// drain/sink flush, and shows the popup when enabled.
-/// @param source Registered SourceId to store and resolve.
-/// @param timeout Maximum flush wait.
-/// @param message Message text to copy.
-/// @return True when the post-report bounded queue drain and observable sink flush completed; not report-line delivery status.
-bool GameWIP::Logger::reportFatal(SourceId source, Types::FlushTimeout timeout, std::string_view message)
-{
-    return report(LogLevel::Fatal, source, timeout, Types::ReportPopup::Fatal, message);
-}
-
-/// @brief Performs the untimed fatal report path, then calls std::terminate() without normal stack unwinding.
-[[noreturn]] void GameWIP::Logger::fatalTerminate(std::string_view source, std::string_view message)
-{
-    report(LogLevel::Fatal, source, Types::ReportPopup::Fatal, message);
-    std::terminate();
-}
-
-/// @brief Performs the untimed fatal report path for a SourceId, then calls std::terminate() without normal stack unwinding.
-[[noreturn]] void GameWIP::Logger::fatalTerminate(Types::SourceId source, std::string_view message)
-{
-    report(LogLevel::Fatal, source, Types::ReportPopup::Fatal, message);
-    std::terminate();
-}
-
-/// @brief Performs the timed fatal report path, then calls std::terminate() without normal stack unwinding.
-[[noreturn]] void GameWIP::Logger::fatalTerminate(std::string_view source, Types::FlushTimeout timeout, std::string_view message)
-{
-    report(LogLevel::Fatal, source, timeout, Types::ReportPopup::Fatal, message);
-    std::terminate();
-}
-
-/// @brief Performs the timed fatal report path for a SourceId, then calls std::terminate() without normal stack unwinding.
-[[noreturn]] void GameWIP::Logger::fatalTerminate(Types::SourceId source, Types::FlushTimeout timeout, std::string_view message)
-{
-    report(LogLevel::Fatal, source, timeout, Types::ReportPopup::Fatal, message);
-    std::terminate();
-}
-
-/// @brief Writes a line directly to the platform debug output when enabled.
-/// @param level Severity used for the platform debug output line label.
-/// @param source Source text written into the line.
-/// @param message Message text written into the line.
-void GameWIP::Logger::writeDebugOutput(LogLevel level, std::string_view source, std::string_view message)
-{
-    if (!loggerState().debugOutputEnabledAtomic.load(std::memory_order_acquire))
-    {
+    if (!shouldLog(level))
         return;
-    }
-
     try
     {
-        std::string boundedMessageScratch;
-        bool truncated = false;
-        const std::string_view messageText = boundedMessageView(message, false, boundedMessageScratch, truncated);
-        const LogStyle style = getLogStyle(level);
-        std::string line;
-        buildLogLine(line, getDebugTimestampText(), style.text, source, messageText);
-        line.push_back('\n');
-        recordPlatformErrorIfAny(GameWIP::Logger::Detail::Platform::writeDebugOutput(line));
+        enqueueAndWakeWorker(makePendingEntry(level, source, message));
     }
     catch (...)
     {
         countAllocationFailure();
+    }
+}
+void GameWIP::Logger::log(LogLevel level, SourceId source, std::string_view message)
+{
+    if (!shouldLog(level, source))
+        return;
+    try
+    {
+        enqueueAndWakeWorker(makePendingEntry(level, source, message));
+    }
+    catch (...)
+    {
+        countAllocationFailure();
+    }
+}
+
+#define GAMEWIP_LOGGER_DEFINE_LEVEL(name, levelValue) \
+    void GameWIP::Logger::name(std::string_view source, std::string_view message) \
+    { \
+        log(levelValue, source, message); \
+    } \
+    void GameWIP::Logger::name(SourceId source, std::string_view message) \
+    { \
+        log(levelValue, source, message); \
+    }
+GAMEWIP_LOGGER_DEFINE_LEVEL(trace, LogLevel::Trace)
+GAMEWIP_LOGGER_DEFINE_LEVEL(debug, LogLevel::Debug)
+GAMEWIP_LOGGER_DEFINE_LEVEL(info, LogLevel::Info)
+GAMEWIP_LOGGER_DEFINE_LEVEL(warn, LogLevel::Warn)
+GAMEWIP_LOGGER_DEFINE_LEVEL(error, LogLevel::Error)
+GAMEWIP_LOGGER_DEFINE_LEVEL(fatal, LogLevel::Fatal)
+#undef GAMEWIP_LOGGER_DEFINE_LEVEL
+
+GameWIP::Logger::Types::ReportResult GameWIP::Logger::report(LogLevel level, std::string_view source, std::string_view message)
+{
+    return reportPreformattedMessage(level, source, message, false, false, nullptr);
+}
+GameWIP::Logger::Types::ReportResult GameWIP::Logger::report(
+    LogLevel level,
+    std::string_view source,
+    std::chrono::milliseconds timeout,
+    std::string_view message)
+{
+    return reportPreformattedMessage(level, source, message, false, false, &timeout);
+}
+GameWIP::Logger::Types::ReportResult GameWIP::Logger::report(LogLevel level, SourceId source, std::string_view message)
+{
+    return reportPreformattedMessage(level, source, message, false, false, nullptr);
+}
+GameWIP::Logger::Types::ReportResult GameWIP::Logger::report(
+    LogLevel level,
+    SourceId source,
+    std::chrono::milliseconds timeout,
+    std::string_view message)
+{
+    return reportPreformattedMessage(level, source, message, false, false, &timeout);
+}
+
+GameWIP::Logger::Types::ReportResult GameWIP::Logger::reportError(std::string_view source, std::string_view message)
+{
+    return report(LogLevel::Error, source, message);
+}
+GameWIP::Logger::Types::ReportResult GameWIP::Logger::reportError(
+    std::string_view source,
+    std::chrono::milliseconds timeout,
+    std::string_view message)
+{
+    return report(LogLevel::Error, source, timeout, message);
+}
+GameWIP::Logger::Types::ReportResult GameWIP::Logger::reportError(SourceId source, std::string_view message)
+{
+    return report(LogLevel::Error, source, message);
+}
+GameWIP::Logger::Types::ReportResult GameWIP::Logger::reportError(SourceId source, std::chrono::milliseconds timeout, std::string_view message)
+{
+    return report(LogLevel::Error, source, timeout, message);
+}
+
+GameWIP::Logger::Types::ReportResult GameWIP::Logger::reportFatal(std::string_view source, std::string_view message)
+{
+    return reportPreformattedMessage(LogLevel::Fatal, source, message, true, false, nullptr);
+}
+GameWIP::Logger::Types::ReportResult GameWIP::Logger::reportFatal(
+    std::string_view source,
+    std::chrono::milliseconds timeout,
+    std::string_view message)
+{
+    return reportPreformattedMessage(LogLevel::Fatal, source, message, true, false, &timeout);
+}
+GameWIP::Logger::Types::ReportResult GameWIP::Logger::reportFatal(SourceId source, std::string_view message)
+{
+    return reportPreformattedMessage(LogLevel::Fatal, source, message, true, false, nullptr);
+}
+GameWIP::Logger::Types::ReportResult GameWIP::Logger::reportFatal(SourceId source, std::chrono::milliseconds timeout, std::string_view message)
+{
+    return reportPreformattedMessage(LogLevel::Fatal, source, message, true, false, &timeout);
+}
+
+[[noreturn]] void GameWIP::Logger::fatalTerminate(std::string_view source, std::string_view message)
+{
+    static_cast<void>(reportFatal(source, message));
+    std::terminate();
+}
+[[noreturn]] void GameWIP::Logger::fatalTerminate(SourceId source, std::string_view message)
+{
+    static_cast<void>(reportFatal(source, message));
+    std::terminate();
+}
+[[noreturn]] void GameWIP::Logger::fatalTerminate(std::string_view source, std::chrono::milliseconds timeout, std::string_view message)
+{
+    static_cast<void>(reportFatal(source, timeout, message));
+    std::terminate();
+}
+[[noreturn]] void GameWIP::Logger::fatalTerminate(SourceId source, std::chrono::milliseconds timeout, std::string_view message)
+{
+    static_cast<void>(reportFatal(source, timeout, message));
+    std::terminate();
+}
+
+GameWIP::IO::Types::Status GameWIP::Logger::writeDebugOutput(LogLevel level, std::string_view source, std::string_view message)
+{
+    if (!loggerState().debugOutputEnabledAtomic.load(std::memory_order_acquire))
+        return {};
+    if (!isValidLevel(level))
+        return IO::makeStatus(ErrorCode::InvalidArgument);
+    if (Unicode::Utf8::validate(source).outcome != Unicode::Types::ValidationOutcome::Valid ||
+        Unicode::Utf8::validate(message).outcome != Unicode::Types::ValidationOutcome::Valid)
+        return IO::makeStatus(ErrorCode::EncodingFailed);
+
+    try
+    {
+        std::string boundedScratch;
+        bool truncated = false;
+        const std::string_view messageText = boundedMessageView(message, false, boundedScratch, truncated);
+        Status timeStatus;
+        const std::string timestamp = getDebugTimestampText(&timeStatus);
+        if (!timeStatus.ok())
+            recordHealthFailure(Types::FailureSource::TimeConversion, timeStatus, false);
+        std::string line;
+        buildLogLine(line, timestamp, getLogStyle(level).text, source, messageText);
+        line.push_back('\n');
+        const Status status = GameWIP::Logger::Detail::Platform::writeDebugOutput(line);
+        if (!status.ok())
+            recordHealthFailure(Types::FailureSource::DebugOutput, status, true);
+        return status;
+    }
+    catch (const std::bad_alloc &)
+    {
+        return IO::makeStatus(ErrorCode::OutOfMemory);
+    }
+    catch (...)
+    {
+        return IO::makeStatus(ErrorCode::Unknown);
     }
 }

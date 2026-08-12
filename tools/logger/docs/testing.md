@@ -1,54 +1,24 @@
 @page logger_testing Maintainer validation
 
-@note Logger validation uses source-tree interfaces. Internal hooks and implementation headers are not installed consumer API.
+@note Logger validation uses source-tree hooks and is not installed consumer API.
 
-## Correctness coverage
+## #55 correctness coverage
 
-The Logger validation module covers:
+Validation covers normal/disabled initialization, checked invalid configuration, adjustment flags and effective limits, file setup fallback with directly associated failure status, AlreadyOpen lifecycle rejection, shutdown/reinitialize, and health epoch reset.
 
-- configuration presets, sanitization, effective limits, output modes, file fallback, and repeated lifecycle calls;
-- source registration, string/ID/enum sources, initial and runtime filters, and unknown IDs;
-- preformatted, compile-time, runtime, nested, bounded, and truncating formatting paths;
-- asynchronous acceptance, ordered publication, worker filtering, soft/hard pressure, allocation skip markers, and final drain;
-- console/file routing, UTF-8 paths, collision-safe files, read sharing, redirection, styles, line endings, write and flush failure;
-- synchronous reports, debugger mirroring, bounded drains, popup handling, and termination child paths;
-- every public statistics and memory-diagnostic field;
-- macro compile-out and lazy-evaluation rules.
+It covers direct IO statuses for runtime filters, concurrent filter mutation with producers, UTF-8 configuration/source validation, scalar-safe message truncation, normal file output, and queue-backed producer behavior.
 
-## Concurrency and stress
+Flush validation distinguishes completed, timed-out, invalid-timeout, and sink-failure cases. Report validation checks direct delivery status, sink/popup failure, health degradation, formatting, and the emergency-path invariant that a timed report does not drain an older deliberately blocked async record.
 
-Stress scenarios cover concurrent producers, reports during production, timed flush with active producers, worker wait transitions, shutdown during a final producer departure, queue pressure, and repeated initialization/shutdown.
-
-These scenarios validate safety and progress. Machine-dependent timing and throughput are not correctness thresholds.
-
-Coverage includes concurrent source/level filter togglers with producers, a deterministic filter change after queueing but before worker delivery, and registered-`SourceId` multi-producer contention benchmarks.
+Fatal termination remains isolated in a child process; the real popup path remains manual/opt-in. Failure hooks remain one-shot and resettable.
 
 ## Package and header validation
 
-Project validation also checks:
-
-- public-header self-containment;
-- installed-package consumption through `GameWIP::Logger`;
-- exact dependency/package behavior;
-- exported-symbol allowlists where configured.
-
-See @ref project_testing for module selection and child-process protocol, @ref project_coverage for coverage workflow, and @ref project_benchmarking for performance runs.
-
-## Manual paths
-
-Real fatal popup behavior is a runtime opt-in manual test. Automated validation uses hooks and isolated child processes instead of depending on interactive UI or terminating the parent test process.
+Project validation must continue to check public-header self-containment, installed `GameWIP::Logger` consumption, exact IO/Terminal dependency resolution, exported-symbol allowlists, sanitizer builds, and Logger benchmarks.
 
 ## Performance review
 
-Instrumented validation builds are not final performance baselines. Benchmark/review should separately consider:
-
-- filtered macro cost;
-- producer formatting cost;
-- source representation;
-- queue pressure and batching;
-- file flush policy;
-- `FormatPolicy` peak memory;
-- retained storage choices.
+The hot normal logging/filter path must not gain structured results, UTF-8 whole-message scans, or success-path diagnostic allocation. Benchmarks retain output-disabled, filtered formatted, accepted file, registered-source, and multi-producer scenarios.
 
 ## Related pages
 

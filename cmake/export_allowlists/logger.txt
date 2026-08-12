@@ -16,8 +16,7 @@ GameWIP::Logger::error
 GameWIP::Logger::fatal
 GameWIP::Logger::fatalTerminate
 GameWIP::Logger::flush
-GameWIP::Logger::getLastPlatformError
-GameWIP::Logger::getLastResult
+GameWIP::Logger::getHealth
 GameWIP::Logger::getLifetimeDroppedLogCount
 GameWIP::Logger::getLogFilePath
 GameWIP::Logger::getMemoryStats

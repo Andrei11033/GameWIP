@@ -1,76 +1,13 @@
 @page logger_reports Reports
 
-Reports are the synchronous diagnostic path. Use them when a message must bypass runtime filtering and queue pressure.
+Reports are Logger's synchronous emergency path for assertions, fatal failures, failed initialization, and crash-adjacent diagnostics. They are not async-signal-safe.
 
-## Core behavior
+Each report bypasses normal filters and queue pressure, builds the diagnostic on the caller thread, attempts every eligible normal sink, mirrors to debug output when enabled, flushes active normal sinks, and for `reportFatal()` attempts the fatal popup when enabled. One failed channel never prevents attempts to remaining eligible channels.
 
-Every report:
+Reports intentionally do **not** drain older asynchronous queue entries. Use `flush()` separately when preserving the backlog is desired.
 
-1. bounds/formats the message on the calling thread;
-2. acquires Logger's lifecycle serialization boundary;
-3. writes directly to each active normal sink;
-4. mirrors to platform debugger output when enabled;
-5. flushes active sinks;
-6. optionally shows the logger-owned fatal popup.
+Timed overloads take `std::chrono::milliseconds` before message/format text. `0ms` is no-wait, positive values bound Logger-owned waits, and negative durations return `InvalidArgument`. Native operations already entered cannot be cancelled.
 
-Reports bypass `minLevel`, runtime level filters, source filters, and the asynchronous queue. They can block and should not be used as routine high-frequency logging.
+`ReportResult::delivery` describes enabled emergency channels: `None`, `Partial`, or `Complete`. Delivery and flush completion are separate: a report can be delivered and then encounter a flush failure. A successful flush reports only the guarantee provided by the underlying IO flush mode; it does not claim physical-media durability. `status` carries the first real operation failure while other channels are still attempted. `outcome` independently reports `Completed` or `TimedOut`.
 
-## Untimed versus timed reports
-
-An untimed report writes and flushes the report itself but does not wait for older asynchronous queue entries to drain:
-
-```cpp
-Logger::reportError("Startup", "Configuration is invalid");
-```
-
-A timed report uses one absolute deadline across lifecycle/output locking, the synchronous report attempt, an initial sink flush, the accepted asynchronous-work drain, and the final sink flush:
-
-```cpp
-const bool drained = Logger::reportError(
-    "Startup",
-    Logger::flushTimeout(std::chrono::milliseconds{250}),
-    "Configuration is invalid");
-```
-
-The returned `bool` combines both observable sink flush attempts with the queue drain. Every phase is attempted even when the initial file flush fails, and the individual results are combined afterward. Logger-owned waits and pre-I/O checks share the deadline; native writes or flushes already in progress are synchronous and cannot be cancelled, so they can overrun it. Logger requests console flushes, but console-flush status is not reflected in the boolean. The value is not a delivery receipt for the report line and does not indicate whether a normal sink accepted that line.
-
-## Generic report overloads
-
-`report()` accepts:
-
-- an explicit `Level`;
-- a string source, `SourceId`, or valid source enum;
-- preformatted, compile-time checked, or runtime format text;
-- optional `FlushTimeout`;
-- optional `ReportPopup`.
-
-`ReportPopup::Fatal` requests the popup after flushing, subject to `Config::enableFatalPopup`. It does not require `Level::Fatal`, although pairing it with a fatal diagnostic is the normal use.
-
-## Convenience paths
-
-| API | Behavior |
-| --- | --- |
-| `reportError()` | Reports at `Error` without requesting a popup. |
-| `reportFatal()` | Reports at `Fatal` and requests the fatal popup. |
-| `fatalTerminate()` | Performs the fatal report path, then calls `std::terminate()`. |
-
-`fatalTerminate()` is `[[noreturn]]`. It does not provide normal stack unwinding. The untimed form does not drain older queued entries; the timeout form attempts the queue drain regardless of the initial observable sink-flush result before termination proceeds.
-
-## Ordering and concurrency
-
-The report line is synchronous relative to its caller. Reports do not establish a global ordering barrier with concurrent producers. Other threads can continue to enqueue normal records before or after the report while the runtime accepts them.
-
-Because untimed reports do not drain the asynchronous queue, an older normal record can appear in a sink after the report. Use a timed report or an explicit `flush()` when a best-effort ordering boundary is required.
-
-## Disabled or failed normal sinks
-
-Reports cannot create a missing normal sink. With effective `Output::None`, no console/file report is written. Debugger mirroring and popup attempts remain separate configured channels.
-
-Report APIs generally return no per-sink status. Use statistics and `getLastPlatformError()` for diagnostics. The timed `bool` remains a drain/flush result, not a sink-acceptance result.
-
-## Related pages
-
-- @ref logger_output
-- @ref logger_lifecycle
-- @ref logger_stats
-- @ref logger_troubleshooting
+`reportError()` fixes severity to Error. `reportFatal()` fixes severity to Fatal and owns popup behavior. `fatalTerminate()` performs the fatal report attempt and then calls `std::terminate()` regardless of report result.

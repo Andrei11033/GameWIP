@@ -59,10 +59,13 @@ target_compile_definitions(Logger
         $<BUILD_INTERFACE:INTERNAL_LOGGER_TEST_HOOKS=$<BOOL:${LOGGER_ENABLE_TEST_HOOKS}>>
 )
 
-target_link_libraries(Logger PRIVATE
-    FileSystem
-    Terminal
-    IO
+target_link_libraries(Logger
+    PUBLIC
+        IO
+    PRIVATE
+        FileSystem
+        Terminal
+        Unicode
 )
 
 set_target_properties(Logger PROPERTIES

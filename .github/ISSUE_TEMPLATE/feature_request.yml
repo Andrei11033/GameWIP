@@ -18,13 +18,18 @@ body:
       options:
         - Build and tooling
         - FileSystem
-        - Foundation shared systems
         - IO
         - Terminal
+        - Unicode
+        - Foundation shared systems
         - Logger
         - Assert
         - TestSupport
-        - Engine input/action/window
+        - Input
+        - Action
+        - Window
+        - Window manager
+        - Engine shared systems
         - Windows platform backend
         - Tools/developer support
         - Documentation

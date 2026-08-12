@@ -192,11 +192,6 @@ namespace GameWIP::Logger::Detail::Core
             return {};
         }
 
-        if (entry.bypassFilters)
-        {
-            return {true};
-        }
-
         if (toLevelValue(entry.level) < toLevelValue(runtimeStateMinLevel(runtimeState)))
         {
             return {};
@@ -216,18 +211,14 @@ namespace GameWIP::Logger::Detail::Core
         return {true};
     }
 
-    /// @brief Copies, sorts, validates, and initially filters source definitions.
-    /// @param definitions Source definitions supplied by Config.
-    /// @param filters Initial source filters supplied by Config.
-    /// @param registry Output source registry snapshot.
-    /// @param outResult Receives the specific validation error on failure.
-    /// @return True when all source definitions and filters are valid.
+    /// @brief Copies, validates, sorts, and initially filters source definitions.
     bool prepareSources(
         std::span<const SourceDefinition> definitions,
         std::span<const SourceFilter> filters,
         std::shared_ptr<SourceRegistry> &registry,
-        LoggerResult &outResult)
+        Status &outStatus)
     {
+        outStatus = {};
         try
         {
             registry.reset();
@@ -243,10 +234,15 @@ namespace GameWIP::Logger::Detail::Core
             {
                 if (definition.name.empty())
                 {
-                    outResult = LoggerResult::InvalidSourceDefinition;
+                    outStatus = GameWIP::IO::makeStatus(GameWIP::IO::Types::ErrorCode::InvalidArgument);
                     return false;
                 }
-
+                const auto validation = GameWIP::Unicode::Utf8::validate(definition.name);
+                if (validation.outcome != GameWIP::Unicode::Types::ValidationOutcome::Valid)
+                {
+                    outStatus = GameWIP::IO::makeStatus(GameWIP::IO::Types::ErrorCode::EncodingFailed);
+                    return false;
+                }
                 sources.emplace_back(definition.id, std::string(definition.name), true);
             }
 
@@ -257,7 +253,6 @@ namespace GameWIP::Logger::Detail::Core
                 {
                     return left.id < right.id;
                 });
-
             const auto duplicateSource = std::adjacent_find(
                 sources.begin(),
                 sources.end(),
@@ -267,7 +262,7 @@ namespace GameWIP::Logger::Detail::Core
                 });
             if (duplicateSource != sources.end())
             {
-                outResult = LoggerResult::InvalidSourceDefinition;
+                outStatus = GameWIP::IO::makeStatus(GameWIP::IO::Types::ErrorCode::InvalidArgument);
                 return false;
             }
 
@@ -283,33 +278,36 @@ namespace GameWIP::Logger::Detail::Core
                     {
                         return candidate.id < id;
                     });
-
                 if (sourcePosition == sources.end() || sourcePosition->id != filter.source)
                 {
-                    outResult = LoggerResult::InvalidSourceFilter;
+                    outStatus = GameWIP::IO::makeStatus(GameWIP::IO::Types::ErrorCode::InvalidArgument);
                     return false;
                 }
-
                 filteredSources.push_back(filter.source);
                 sourcePosition->enabled.store(filter.enabled, std::memory_order_relaxed);
             }
 
             std::sort(filteredSources.begin(), filteredSources.end());
-            const auto duplicateFilter = std::adjacent_find(filteredSources.begin(), filteredSources.end());
-            if (duplicateFilter != filteredSources.end())
+            if (std::adjacent_find(filteredSources.begin(), filteredSources.end()) != filteredSources.end())
             {
-                outResult = LoggerResult::InvalidSourceFilter;
+                outStatus = GameWIP::IO::makeStatus(GameWIP::IO::Types::ErrorCode::InvalidArgument);
                 return false;
             }
 
-            ::GameWIP::Logger::Detail::Core::rebuildSourceLookup(*preparedRegistry);
+            rebuildSourceLookup(*preparedRegistry);
             registry = std::move(preparedRegistry);
             return true;
+        }
+        catch (const std::bad_alloc &)
+        {
+            registry.reset();
+            outStatus = GameWIP::IO::makeStatus(GameWIP::IO::Types::ErrorCode::OutOfMemory);
+            return false;
         }
         catch (...)
         {
             registry.reset();
-            outResult = LoggerResult::InvalidSourceDefinition;
+            outStatus = GameWIP::IO::makeStatus(GameWIP::IO::Types::ErrorCode::Unknown);
             return false;
         }
     }
@@ -349,119 +347,113 @@ namespace GameWIP::Logger::Detail::Core
 // Public filter API
 //-------------------------------------------------------------------------------------------------
 
-/// @brief Tests whether a severity-only log would currently be accepted.
-/// @param level Level to test.
-/// @return True when output/running/minLevel/runtime-level filters allow the log.
 bool GameWIP::Logger::shouldLog(Types::Level level)
 {
     return ::GameWIP::Logger::Detail::Core::shouldLogRuntime(level);
 }
 
-/// @brief Tests whether a string source log would currently be accepted.
 bool GameWIP::Logger::shouldLog(Types::Level level, std::string_view)
 {
     return ::GameWIP::Logger::Detail::Core::shouldLogRuntime(level);
 }
 
-/// @brief Tests whether a registered source log would currently be accepted.
-/// @param level Level to test.
-/// @param source SourceId to test.
-/// @return True when shouldLog(level) passes and runtime source filters allow the source.
 bool GameWIP::Logger::shouldLog(Types::Level level, Types::SourceId source)
 {
     return ::GameWIP::Logger::Detail::Core::shouldLogRuntime(level, source);
 }
 
-/// @brief Enables or disables one registered source at runtime.
-/// @param source SourceId to change.
-/// @param enabled True to enable the source, false to filter it out.
-/// @return Success or InvalidSourceFilter for unknown sources.
-GameWIP::Logger::Types::Result GameWIP::Logger::setSourceFilter(Types::SourceId source, bool enabled)
+GameWIP::IO::Types::Status GameWIP::Logger::setSourceFilter(Types::SourceId source, bool enabled)
 {
-    std::lock_guard<std::mutex> lock(::GameWIP::Logger::Detail::Core::loggerState().logMutex);
-    const std::shared_ptr<::GameWIP::Logger::Detail::Core::SourceRegistry> registry = ::GameWIP::Logger::Detail::Core::loadSourceRegistry();
-    const ::GameWIP::Logger::Detail::Core::RegisteredSource *registeredSource =
-        registry ? ::GameWIP::Logger::Detail::Core::findSource(*registry, source) : nullptr;
-    if (registeredSource == nullptr)
+    try
     {
-        ::GameWIP::Logger::Detail::Core::setResultUnlocked(Types::Result::InvalidSourceFilter);
-        return Types::Result::InvalidSourceFilter;
+        std::lock_guard<std::mutex> lock(::GameWIP::Logger::Detail::Core::loggerState().logMutex);
+        const auto registry = ::GameWIP::Logger::Detail::Core::loadSourceRegistry();
+        const auto *registeredSource = registry ? ::GameWIP::Logger::Detail::Core::findSource(*registry, source) : nullptr;
+        if (registeredSource == nullptr)
+        {
+            return GameWIP::IO::makeStatus(GameWIP::IO::Types::ErrorCode::NotFound);
+        }
+        registeredSource->enabled.store(enabled, std::memory_order_release);
+        return {};
     }
-
-    registeredSource->enabled.store(enabled, std::memory_order_release);
-    ::GameWIP::Logger::Detail::Core::setResultUnlocked(Types::Result::Success);
-    return Types::Result::Success;
+    catch (const std::bad_alloc &)
+    {
+        return GameWIP::IO::makeStatus(GameWIP::IO::Types::ErrorCode::OutOfMemory);
+    }
+    catch (...)
+    {
+        return GameWIP::IO::makeStatus(GameWIP::IO::Types::ErrorCode::Unknown);
+    }
 }
 
-/// @brief Clears one source filter by enabling that source.
-/// @param source SourceId to enable.
-/// @return Success or InvalidSourceFilter for unknown sources.
-GameWIP::Logger::Types::Result GameWIP::Logger::clearSourceFilter(Types::SourceId source)
+GameWIP::IO::Types::Status GameWIP::Logger::clearSourceFilter(Types::SourceId source)
 {
     return setSourceFilter(source, true);
 }
 
-/// @brief Clears all source filters by enabling every registered source.
-void GameWIP::Logger::clearSourceFilters()
+GameWIP::IO::Types::Status GameWIP::Logger::clearSourceFilters()
 {
-    std::lock_guard<std::mutex> lock(::GameWIP::Logger::Detail::Core::loggerState().logMutex);
-    const std::shared_ptr<::GameWIP::Logger::Detail::Core::SourceRegistry> registry = ::GameWIP::Logger::Detail::Core::loadSourceRegistry();
-    if (!registry)
+    try
     {
-        ::GameWIP::Logger::Detail::Core::setResultUnlocked(Types::Result::Success);
-        return;
+        std::lock_guard<std::mutex> lock(::GameWIP::Logger::Detail::Core::loggerState().logMutex);
+        const auto registry = ::GameWIP::Logger::Detail::Core::loadSourceRegistry();
+        if (registry)
+        {
+            for (const auto &source : registry->sources)
+            {
+                source.enabled.store(true, std::memory_order_release);
+            }
+        }
+        return {};
     }
-
-    for (const ::GameWIP::Logger::Detail::Core::RegisteredSource &source : registry->sources)
+    catch (const std::bad_alloc &)
     {
-        source.enabled.store(true, std::memory_order_release);
+        return GameWIP::IO::makeStatus(GameWIP::IO::Types::ErrorCode::OutOfMemory);
     }
-    ::GameWIP::Logger::Detail::Core::setResultUnlocked(Types::Result::Success);
+    catch (...)
+    {
+        return GameWIP::IO::makeStatus(GameWIP::IO::Types::ErrorCode::Unknown);
+    }
 }
 
-/// @brief Enables or disables one exact severity level at runtime.
-/// @param level Exact level to change.
-/// @param enabled True to enable the level, false to filter it out.
-/// @return Success or InvalidLevelFilter for invalid enum values.
-GameWIP::Logger::Types::Result GameWIP::Logger::setLevelFilter(Types::Level level, bool enabled)
+GameWIP::IO::Types::Status GameWIP::Logger::setLevelFilter(Types::Level level, bool enabled)
 {
     const std::uint8_t bit = ::GameWIP::Logger::Detail::Core::levelBit(level);
     if (bit == 0)
     {
-        ::GameWIP::Logger::Detail::Core::recordResult(Types::Result::InvalidLevelFilter);
-        return Types::Result::InvalidLevelFilter;
+        return GameWIP::IO::makeStatus(GameWIP::IO::Types::ErrorCode::InvalidArgument);
     }
 
-    std::lock_guard<std::mutex> lock(::GameWIP::Logger::Detail::Core::loggerState().logMutex);
-    if (enabled)
+    try
     {
-        ::GameWIP::Logger::Detail::Core::loggerState().enabledLevelMask =
-            static_cast<std::uint8_t>(::GameWIP::Logger::Detail::Core::loggerState().enabledLevelMask | bit);
+        std::lock_guard<std::mutex> lock(::GameWIP::Logger::Detail::Core::loggerState().logMutex);
+        auto &mask = ::GameWIP::Logger::Detail::Core::loggerState().enabledLevelMask;
+        mask = enabled ? static_cast<std::uint8_t>(mask | bit) : static_cast<std::uint8_t>(mask & static_cast<std::uint8_t>(~bit));
+        ::GameWIP::Logger::Detail::Core::publishRuntimeStateUnlocked();
+        return {};
     }
-    else
+    catch (...)
     {
-        ::GameWIP::Logger::Detail::Core::loggerState().enabledLevelMask =
-            static_cast<std::uint8_t>(::GameWIP::Logger::Detail::Core::loggerState().enabledLevelMask & static_cast<std::uint8_t>(~bit));
+        return GameWIP::IO::makeStatus(GameWIP::IO::Types::ErrorCode::Unknown);
     }
-
-    ::GameWIP::Logger::Detail::Core::publishRuntimeStateUnlocked();
-    ::GameWIP::Logger::Detail::Core::setResultUnlocked(Types::Result::Success);
-    return Types::Result::Success;
 }
 
-/// @brief Clears one level filter by enabling that exact level.
-/// @param level Exact level to enable.
-/// @return Success or InvalidLevelFilter for invalid enum values.
-GameWIP::Logger::Types::Result GameWIP::Logger::clearLevelFilter(Types::Level level)
+GameWIP::IO::Types::Status GameWIP::Logger::clearLevelFilter(Types::Level level)
 {
     return setLevelFilter(level, true);
 }
 
-/// @brief Clears all level filters by enabling every valid level.
-void GameWIP::Logger::clearLevelFilters()
+GameWIP::IO::Types::Status GameWIP::Logger::clearLevelFilters()
 {
-    std::lock_guard<std::mutex> lock(::GameWIP::Logger::Detail::Core::loggerState().logMutex);
-    ::GameWIP::Logger::Detail::Core::loggerState().enabledLevelMask = ::GameWIP::Logger::Detail::Core::kAllLevelMask;
-    ::GameWIP::Logger::Detail::Core::publishRuntimeStateUnlocked();
-    ::GameWIP::Logger::Detail::Core::setResultUnlocked(Types::Result::Success);
+    try
+    {
+        std::lock_guard<std::mutex> lock(::GameWIP::Logger::Detail::Core::loggerState().logMutex);
+        ::GameWIP::Logger::Detail::Core::loggerState().enabledLevelMask = ::GameWIP::Logger::Detail::Core::kAllLevelMask;
+        ::GameWIP::Logger::Detail::Core::publishRuntimeStateUnlocked();
+        return {};
+    }
+    catch (...)
+    {
+        return GameWIP::IO::makeStatus(GameWIP::IO::Types::ErrorCode::Unknown);
+    }
 }
