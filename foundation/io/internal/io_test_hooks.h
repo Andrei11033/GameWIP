@@ -5,11 +5,11 @@
 
 #include <cstdint>
 
-#ifndef INTERNAL_IO_TEST_HOOKS
-#define INTERNAL_IO_TEST_HOOKS 0
+#ifndef IO_INTERNAL_TEST_HOOKS
+#define IO_INTERNAL_TEST_HOOKS 0
 #endif
 
-#if INTERNAL_IO_TEST_HOOKS
+#if IO_INTERNAL_TEST_HOOKS
 namespace GameWIP::IO::TestHooks
 {
     /// @brief Checked IO allocation boundary selected for one-shot failure injection.

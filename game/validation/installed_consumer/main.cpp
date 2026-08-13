@@ -6,7 +6,7 @@
 /// not leak through installed imported targets. It is a package-boundary smoke
 /// test, not a replacement for each library's behavior validation suite.
 
-#if defined(INTERNAL_IO_TEST_HOOKS) || defined(INTERNAL_FILESYSTEM_TEST_HOOKS) || defined(INTERNAL_TERMINAL_TEST_HOOKS) || \
+#if defined(IO_INTERNAL_TEST_HOOKS) || defined(INTERNAL_FILESYSTEM_TEST_HOOKS) || defined(INTERNAL_TERMINAL_TEST_HOOKS) || \
     defined(INTERNAL_LOGGER_TEST_HOOKS) || defined(INTERNAL_ASSERT_TEST_HOOKS) || defined(INTERNAL_TEST_SUPPORT_TEST_HOOKS) || \
     defined(INTERNAL_WINDOW_TEST_HOOKS)
 #error "Installed GameWIP targets must not expose internal test-hook compile definitions."
@@ -33,7 +33,7 @@ int main()
     GameWIP::IO::MemoryWriter writer;
     const GameWIP::IO::Types::Status reserve = writer.reserve(64);
     const GameWIP::IO::Types::WriteResult write = GameWIP::IO::writeAllText(writer, "installed consumer");
-    const GameWIP::IO::Types::TextCopyResult text = writer.copyText();
+    const GameWIP::IO::Types::CopyTextResult text = writer.copyText();
     const GameWIP::FileSystem::Types::PathResult path = GameWIP::FileSystem::pathFromUtf8("installed-consumer.txt");
     const GameWIP::Terminal::Types::OutputCapabilitiesResult capabilities = GameWIP::Terminal::getOutputCapabilities();
 

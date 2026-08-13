@@ -41,7 +41,7 @@ visual refinement during foundational development.
 - The root setup entry point owns reproducible installation, update, repair, editor integration, and environment verification on Windows 11.
 - The repository is Windows-first, but reusable public APIs remain portable unless a platform concept is itself the contract.
 - Public/project text is UTF-8 and continues to use `std::string`/`std::string_view` rather than `std::u8string`.
-- Encoding-agnostic data is called bytes rather than text. Byte-oriented IO remains independent of Unicode.
+- Encoding-agnostic data is called bytes rather than text. IO byte primitives remain encoding-agnostic; text-aware operations may depend on the foundational Unicode library when they enforce the project UTF-8 contract.
 - GameWIP does not automatically normalize Unicode, insert or remove a BOM, or silently repair invalid text.
 - Validate text at trust and native boundaries, combining conversion and validation where practical; do not blindly repeat full scans on trusted hot forwarding paths.
 - Win32 backends convert at the operating-system boundary and use wide-character APIs where required.

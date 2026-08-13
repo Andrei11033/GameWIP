@@ -45,6 +45,20 @@ namespace
         return bytes;
     }
 
+    /// @brief Converts byte-value fixtures into character-backed storage without claiming text validity.
+    [[nodiscard]] std::string makeStringBytes(std::initializer_list<unsigned int> values)
+    {
+        std::string bytes;
+        bytes.reserve(values.size());
+
+        for (const unsigned int value : values)
+        {
+            bytes.push_back(static_cast<char>(value));
+        }
+
+        return bytes;
+    }
+
     /// @brief Copies a byte view into owning storage for result comparisons.
     [[nodiscard]] std::vector<std::byte> copyBytes(std::span<const std::byte> bytes)
     {
@@ -570,6 +584,7 @@ namespace
     static_assert(noexcept(IO::writeAllText(std::declval<IO::Writer &>(), std::declval<std::string_view>())));
     static_assert(noexcept(std::declval<IO::MemoryWriter &>().reserve(0)));
     static_assert(noexcept(std::declval<const IO::MemoryWriter &>().copyText()));
+    static_assert(std::is_same_v<decltype(std::declval<const IO::MemoryWriter &>().copyText()), IO::Types::CopyTextResult>);
     static_assert(std::is_constructible_v<IO::MemoryReader, std::string &>);
     static_assert(!std::is_constructible_v<IO::MemoryReader, std::string &&>);
     static_assert(std::is_constructible_v<IO::MemoryReader, std::vector<std::byte> &>);
@@ -832,19 +847,25 @@ namespace
 
         IO::MemoryWriter textWriter;
         static_cast<void>(IO::writeAllText(textWriter, std::string_view{"a\0b", 3}));
-        const IO::Types::TextCopyResult textCopy = textWriter.copyText();
+        const IO::Types::CopyTextResult textCopy = textWriter.copyText();
         static_cast<void>(context.expectTrue("MemoryWriter text copy succeeds", textCopy.status.ok()));
         static_cast<void>(context.expectEq("MemoryWriter text copy preserves NUL bytes", std::string("a\0b", 3), textCopy.text));
         IO::MemoryWriter movedWriter(std::move(textWriter));
-        const IO::Types::TextCopyResult movedText = movedWriter.copyText();
+        const IO::Types::CopyTextResult movedText = movedWriter.copyText();
         static_cast<void>(context.expectTrue("MemoryWriter moved text copy succeeds", movedText.status.ok()));
         static_cast<void>(context.expectEq("MemoryWriter move preserves bytes", std::string("a\0b", 3), movedText.text));
         static_cast<void>(context.expectTrue("MemoryWriter move preserves open state", movedWriter.isOpen()));
 
         IO::MemoryWriter emptyTextWriter;
-        const IO::Types::TextCopyResult emptyText = emptyTextWriter.copyText();
+        const IO::Types::CopyTextResult emptyText = emptyTextWriter.copyText();
         static_cast<void>(context.expectTrue("MemoryWriter empty text copy succeeds", emptyText.status.ok()));
         static_cast<void>(context.expectTrue("MemoryWriter empty text copy is empty", emptyText.text.empty()));
+
+        IO::MemoryWriter invalidTextWriter;
+        static_cast<void>(invalidTextWriter.write(makeBytes({0x6f, 0x6b, 0xff})));
+        const IO::Types::CopyTextResult invalidText = invalidTextWriter.copyText();
+        static_cast<void>(context.expectEq("MemoryWriter text copy rejects malformed UTF-8", ErrorCode::EncodingFailed, invalidText.status.code));
+        static_cast<void>(context.expectTrue("MemoryWriter malformed text copy returns no text", invalidText.text.empty()));
 
         IO::MemoryWriter aliasWriter;
         static_cast<void>(aliasWriter.reserve(source.size()));
@@ -875,7 +896,7 @@ namespace
         static_cast<void>(context.expectTrue("MemoryWriter repeated close succeeds", writer.close().ok()));
     }
 
-#if INTERNAL_IO_TEST_HOOKS
+#if IO_INTERNAL_TEST_HOOKS
     /// @brief Resets process-wide IO failure injection before and after one validation scenario.
     class ScopedIOFailureHooks final
     {
@@ -963,7 +984,7 @@ namespace
         static_cast<void>(context.expectEq("MemoryWriter reserve rejects impossible capacity", ErrorCode::SizeLimitExceeded, oversizeReserve.code));
 
         IO::TestHooks::forceNextFailure(FailurePoint::MemoryWriterCopyText, FailureKind::OutOfMemory);
-        const IO::Types::TextCopyResult allocationText = writer.copyText();
+        const IO::Types::CopyTextResult allocationText = writer.copyText();
         static_cast<void>(
             context.expectEq("MemoryWriter copyText translates allocation failure", ErrorCode::OutOfMemory, allocationText.status.code));
         static_cast<void>(context.expectTrue("MemoryWriter failed text copy returns no invalid text", allocationText.text.empty()));
@@ -1196,6 +1217,56 @@ namespace
         static_cast<void>(context.expectTrue("readAllText succeeds", result.status.ok()));
         static_cast<void>(context.expectEq("readAllText preserves UTF-8 bytes and NUL", text, result.text));
 
+        const std::string unicodeText = makeStringBytes({0x41, 0xc2, 0xa2, 0xe2, 0x82, 0xac, 0xf0, 0x9f, 0x98, 0x80});
+        IO::MemoryReader unicodeReader(bytesOf(unicodeText));
+        const IO::Types::ReadAllTextResult unicodeResult = IO::readAllText(unicodeReader, IO::kNoByteLimit, 2);
+        static_cast<void>(context.expectTrue("readAllText accepts valid multi-byte UTF-8", unicodeResult.status.ok()));
+        static_cast<void>(context.expectEq("readAllText preserves valid multi-byte UTF-8", unicodeText, unicodeResult.text));
+
+        std::array<std::byte, 2> unicodeScratch{};
+        UnknownSizeChunkReader splitUnicodeReader(bytesOf(unicodeText), 1);
+        const IO::Types::ReadAllTextResult splitUnicodeResult =
+            IO::readAllText(splitUnicodeReader, std::span<std::byte>(unicodeScratch));
+        static_cast<void>(context.expectTrue("readAllText accepts UTF-8 split across reader chunks", splitUnicodeResult.status.ok()));
+        static_cast<void>(context.expectEq("readAllText preserves split UTF-8", unicodeText, splitUnicodeResult.text));
+
+        const std::string malformedText = makeStringBytes({0x6f, 0x6b, 0xff, 0x21});
+        IO::MemoryReader malformedReader(bytesOf(malformedText));
+        const IO::Types::ReadAllTextResult malformedResult = IO::readAllText(malformedReader);
+        static_cast<void>(context.expectEq("readAllText rejects malformed UTF-8", ErrorCode::EncodingFailed, malformedResult.status.code));
+        static_cast<void>(context.expectEq("readAllText malformed input preserves valid prefix", std::string{"ok"}, malformedResult.text));
+
+        const std::string incompleteText = makeStringBytes({0x6f, 0x6b, 0xe2, 0x82});
+        IO::MemoryReader incompleteReader(bytesOf(incompleteText));
+        const IO::Types::ReadAllTextResult incompleteResult = IO::readAllText(incompleteReader);
+        static_cast<void>(context.expectEq("readAllText rejects incomplete UTF-8 at EOF", ErrorCode::EncodingFailed, incompleteResult.status.code));
+        static_cast<void>(context.expectEq("readAllText incomplete input preserves valid prefix", std::string{"ok"}, incompleteResult.text));
+
+        const std::string incompleteFailureSource = makeStringBytes({0x6f, 0x6b, 0xe2, 0x82, 0xac});
+        FailingKnownSizeReader incompleteFailureReader(bytesOf(incompleteFailureSource), 2, ErrorCode::PermissionDenied);
+        const IO::Types::ReadAllTextResult incompleteFailure = IO::readAllText(incompleteFailureReader);
+        static_cast<void>(context.expectEq(
+            "readAllText preserves backend failure for incomplete suffix",
+            ErrorCode::PermissionDenied,
+            incompleteFailure.status.code));
+        static_cast<void>(context.expectEq("readAllText trims incomplete suffix after backend failure", std::string{"ok"}, incompleteFailure.text));
+
+        const std::string malformedFailureSource = makeStringBytes({0x6f, 0x6b, 0xff, 0x21});
+        FailingKnownSizeReader malformedFailureReader(bytesOf(malformedFailureSource), 2, ErrorCode::PermissionDenied);
+        const IO::Types::ReadAllTextResult malformedFailure = IO::readAllText(malformedFailureReader);
+        static_cast<void>(context.expectEq(
+            "readAllText malformed bytes override simultaneous backend failure",
+            ErrorCode::EncodingFailed,
+            malformedFailure.status.code));
+        static_cast<void>(context.expectEq("readAllText malformed failure preserves valid prefix", std::string{"ok"}, malformedFailure.text));
+
+        const std::string incompletePartialSource = makeStringBytes({0x41, 0xe2});
+        ReportedSizeReader incompletePartialReader(bytesOf(incompletePartialSource), 3);
+        const IO::Types::ReadAllTextResult incompletePartial = IO::readAllText(incompletePartialReader);
+        static_cast<void>(
+            context.expectEq("readAllText incomplete early EOF reports EncodingFailed", ErrorCode::EncodingFailed, incompletePartial.status.code));
+        static_cast<void>(context.expectEq("readAllText incomplete early EOF preserves valid prefix", std::string{"A"}, incompletePartial.text));
+
         IO::MemoryReader exactLimitReader(bytesOf(text));
         const IO::Types::ReadAllTextResult exactLimit = IO::readAllText(exactLimitReader, text.size(), 4);
         static_cast<void>(context.expectTrue("readAllText accepts exact byte limit", exactLimit.status.ok()));
@@ -1233,6 +1304,24 @@ namespace
         const IO::Types::ReadAllTextResult exactScratchLimit = IO::readAllText(exactScratchLimitReader, std::span<std::byte>(scratch), text.size());
         static_cast<void>(context.expectTrue("readAllText accepts exact unknown-size limit after EOF probe", exactScratchLimit.status.ok()));
         static_cast<void>(context.expectEq("readAllText exact unknown-size limit preserves text", text, exactScratchLimit.text));
+
+        const std::string splitLimitText = makeStringBytes({0x41, 0xe2, 0x82, 0xac});
+        UnknownSizeChunkReader splitLimitReader(bytesOf(splitLimitText), 2);
+        const IO::Types::ReadAllTextResult splitLimit = IO::readAllText(splitLimitReader, std::span<std::byte>(scratch), 2);
+        static_cast<void>(
+            context.expectEq("readAllText preserves SizeLimitExceeded when limit cuts UTF-8", ErrorCode::SizeLimitExceeded, splitLimit.status.code));
+        static_cast<void>(context.expectEq("readAllText trims UTF-8 suffix cut by limit", std::string{"A"}, splitLimit.text));
+
+        const std::string incompleteAtExactLimit = makeStringBytes({0x41, 0xe2});
+        UnknownSizeChunkReader incompleteAtExactLimitReader(bytesOf(incompleteAtExactLimit), 2, false);
+        const IO::Types::ReadAllTextResult incompleteAtExactLimitResult =
+            IO::readAllText(incompleteAtExactLimitReader, std::span<std::byte>(scratch), incompleteAtExactLimit.size());
+        static_cast<void>(context.expectEq(
+            "readAllText exact-limit EOF rejects incomplete UTF-8",
+            ErrorCode::EncodingFailed,
+            incompleteAtExactLimitResult.status.code));
+        static_cast<void>(
+            context.expectEq("readAllText exact-limit incomplete UTF-8 preserves valid prefix", std::string{"A"}, incompleteAtExactLimitResult.text));
 
         ProbeFailureReader probeFailureReader(bytesOf(text));
         const IO::Types::ReadAllTextResult probeFailure = IO::readAllText(probeFailureReader, std::span<std::byte>(scratch), text.size());
@@ -1359,10 +1448,30 @@ namespace
         static_cast<void>(context.expectEq("writeAllText reports complete progress", text.size(), chunkedResult.bytesWritten));
         static_cast<void>(context.expectEq("writeAllText preserves text bytes", copyBytes(bytesOf(text)), chunkedWriter.bytes()));
 
+        const std::string unicodeText = makeStringBytes({0xe2, 0x82, 0xac, 0xf0, 0x9f, 0x98, 0x80});
+        ChunkedWriter unicodeWriter(1);
+        const IO::Types::WriteResult unicodeResult = IO::writeAllText(unicodeWriter, unicodeText);
+        static_cast<void>(context.expectTrue("writeAllText accepts valid multi-byte UTF-8", unicodeResult.status.ok()));
+        static_cast<void>(context.expectEq("writeAllText preserves valid multi-byte UTF-8", copyBytes(bytesOf(unicodeText)), unicodeWriter.bytes()));
+
         FailingWriter failingWriter(ErrorCode::WriteFailed);
         const IO::Types::WriteResult failureResult = IO::writeAllText(failingWriter, text);
         static_cast<void>(context.expectEq("writeAllText propagates writer failure", ErrorCode::WriteFailed, failureResult.status.code));
         static_cast<void>(context.expectEq("writeAllText immediate failure reports zero", std::size_t{0}, failureResult.bytesWritten));
+
+        const std::string malformedText = makeStringBytes({0x6f, 0x6b, 0xff});
+        ChunkedWriter malformedWriter(2);
+        const IO::Types::WriteResult malformedResult = IO::writeAllText(malformedWriter, malformedText);
+        static_cast<void>(context.expectEq("writeAllText rejects malformed UTF-8", ErrorCode::EncodingFailed, malformedResult.status.code));
+        static_cast<void>(context.expectEq("writeAllText malformed UTF-8 reports zero progress", std::size_t{0}, malformedResult.bytesWritten));
+        static_cast<void>(context.expectTrue("writeAllText validates before calling writer", malformedWriter.bytes().empty()));
+
+        const std::string incompleteText = makeStringBytes({0x6f, 0x6b, 0xe2, 0x82});
+        ChunkedWriter incompleteWriter(2);
+        const IO::Types::WriteResult incompleteResult = IO::writeAllText(incompleteWriter, incompleteText);
+        static_cast<void>(context.expectEq("writeAllText rejects incomplete UTF-8", ErrorCode::EncodingFailed, incompleteResult.status.code));
+        static_cast<void>(context.expectEq("writeAllText incomplete UTF-8 reports zero progress", std::size_t{0}, incompleteResult.bytesWritten));
+        static_cast<void>(context.expectTrue("writeAllText incomplete UTF-8 never reaches writer", incompleteWriter.bytes().empty()));
     }
 } // namespace
 
@@ -1386,7 +1495,7 @@ namespace GameWIP::Test
         runner.runSuite("IO MemoryReader", testMemoryReader);
         runner.runSuite("IO MemoryReader seek", testMemoryReaderSeek);
         runner.runSuite("IO MemoryWriter", testMemoryWriter);
-#if INTERNAL_IO_TEST_HOOKS
+#if IO_INTERNAL_TEST_HOOKS
         runner.runSuite("IO checked failure translation", testCheckedFailureTranslation);
 #endif
         runner.runSuite("IO readAllBytes", testReadAllBytes);

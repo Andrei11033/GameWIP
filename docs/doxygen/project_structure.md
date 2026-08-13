@@ -28,6 +28,8 @@ The reusable dependency flow is:
 
 ```text
 Unicode
+  -> IO
+  -> Terminal
 
 IO
   -> FileSystem
@@ -48,7 +50,7 @@ Reusable libraries + optional validation modules
 
 Arrows mean "is consumed by." Lower-level libraries must not depend on the game executable, runtime facade, validation runner, or benchmark runner.
 
-Unicode is a dependency-free foundation root. It owns platform-neutral scalar, encoding, conversion, and grapheme algorithms without taking filesystem-path, terminal, rendering, or editing policy.
+Unicode is a dependency-free foundation root. It owns platform-neutral scalar, encoding, conversion, and grapheme algorithms without taking filesystem-path, terminal, rendering, or editing policy. IO uses it only for strict text-boundary validation; IO byte primitives remain encoding-agnostic.
 
 TestSupport is a standalone validation library and installed package. Its target must not link to another GameWIP library; validation modules depend on it, not the reverse. This keeps `find_package(TestSupport)` independently usable and prevents its portable result contracts from acquiring unrelated library dependencies.
 

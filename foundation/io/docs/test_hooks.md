@@ -10,7 +10,7 @@ Configure with:
 -DIO_ENABLE_TEST_HOOKS=ON
 ```
 
-The root test workflow enables the option for focused validation. Installed packages do not expose `io/internal/io_test_hooks.h` or the `INTERNAL_IO_TEST_HOOKS` definition.
+The root test workflow enables the option for focused validation. Installed packages do not expose `io/internal/io_test_hooks.h` or the `IO_INTERNAL_TEST_HOOKS` definition.
 
 ## Protocol
 

@@ -3,6 +3,7 @@
 
 #include "io/io.h"
 #include "io/internal/io_test_hooks.h"
+#include "unicode/unicode.h"
 
 #include <algorithm>
 #include <cstring>
@@ -89,6 +90,28 @@ namespace GameWIP::IO::Detail::Core
         return result;
     }
 
+    /// @brief Validates collected text and trims any malformed or incomplete suffix.
+    /// @param result Text-read result whose collected bytes may still be unvalidated.
+    /// @return Result whose text field is always valid UTF-8.
+    [[nodiscard]] Types::ReadAllTextResult finalizeReadAllText(Types::ReadAllTextResult result) noexcept
+    {
+        const Unicode::Types::Utf8ValidationResult validation = Unicode::Utf8::validate(result.text);
+        if (validation.outcome == Unicode::Types::ValidationOutcome::Valid)
+        {
+            return result;
+        }
+
+        result.text.resize(validation.validPrefixBytes);
+
+        const bool reachedDefinitiveEnd = result.status.ok() || result.status.code == Types::ErrorCode::PartialRead;
+        if (validation.outcome == Unicode::Types::ValidationOutcome::InvalidEncoding || reachedDefinitiveEnd)
+        {
+            result.status = makeStatus(Types::ErrorCode::EncodingFailed);
+        }
+
+        return result;
+    }
+
     /// @brief Reads a known number of bytes directly into the final output vector.
     /// @param reader Reader to drain.
     /// @param knownByteCount Known bytes remaining from the current reader position.
@@ -119,7 +142,7 @@ namespace GameWIP::IO::Detail::Core
 
         try
         {
-#if INTERNAL_IO_TEST_HOOKS
+#if IO_INTERNAL_TEST_HOOKS
             ::GameWIP::IO::Detail::TestHooks::throwIfArmed(::GameWIP::IO::TestHooks::FailurePoint::ReadAllBytesStorage);
 #endif
             result.bytes.resize(expectedSize);
@@ -211,7 +234,7 @@ namespace GameWIP::IO::Detail::Core
 
         try
         {
-#if INTERNAL_IO_TEST_HOOKS
+#if IO_INTERNAL_TEST_HOOKS
             ::GameWIP::IO::Detail::TestHooks::throwIfArmed(::GameWIP::IO::TestHooks::FailurePoint::ReadAllTextStorage);
 #endif
             result.text.resize(expectedSize);
@@ -295,7 +318,7 @@ namespace GameWIP::IO::Detail::Core
 
         try
         {
-#if INTERNAL_IO_TEST_HOOKS
+#if IO_INTERNAL_TEST_HOOKS
             if (injectReadAllFailure)
             {
                 ::GameWIP::IO::Detail::TestHooks::throwIfArmed(::GameWIP::IO::TestHooks::FailurePoint::ReadAllBytesStorage);
@@ -339,7 +362,7 @@ namespace GameWIP::IO::Detail::Core
 
         try
         {
-#if INTERNAL_IO_TEST_HOOKS
+#if IO_INTERNAL_TEST_HOOKS
             ::GameWIP::IO::Detail::TestHooks::throwIfArmed(::GameWIP::IO::TestHooks::FailurePoint::ReadAllTextStorage);
 #endif
             destination.append(reinterpret_cast<const char *>(source.data()), source.size());
@@ -740,8 +763,8 @@ namespace GameWIP::IO
     {
     }
 
-    MemoryReader::MemoryReader(std::string_view text) noexcept
-        : MemoryReader(std::as_bytes(std::span<const char>(text.data(), text.size())))
+    MemoryReader::MemoryReader(std::string_view bytes) noexcept
+        : MemoryReader(std::as_bytes(std::span<const char>(bytes.data(), bytes.size())))
     {
     }
 
@@ -893,7 +916,7 @@ namespace GameWIP::IO
 
         try
         {
-#if INTERNAL_IO_TEST_HOOKS
+#if IO_INTERNAL_TEST_HOOKS
             ::GameWIP::IO::Detail::TestHooks::throwIfArmed(::GameWIP::IO::TestHooks::FailurePoint::MemoryWriterWrite);
 #endif
 
@@ -974,7 +997,7 @@ namespace GameWIP::IO
 
         try
         {
-#if INTERNAL_IO_TEST_HOOKS
+#if IO_INTERNAL_TEST_HOOKS
             ::GameWIP::IO::Detail::TestHooks::throwIfArmed(::GameWIP::IO::TestHooks::FailurePoint::MemoryWriterReserve);
 #endif
             bytes_.reserve(capacity);
@@ -999,9 +1022,9 @@ namespace GameWIP::IO
         return std::span<const std::byte>(bytes_.data(), bytes_.size());
     }
 
-    Types::TextCopyResult MemoryWriter::copyText() const noexcept
+    Types::CopyTextResult MemoryWriter::copyText() const noexcept
     {
-        Types::TextCopyResult result;
+        Types::CopyTextResult result;
         const auto view = bytes();
         if (view.empty())
         {
@@ -1014,12 +1037,19 @@ namespace GameWIP::IO
             return result;
         }
 
+        const std::string_view textView(reinterpret_cast<const char *>(view.data()), view.size());
+        if (Unicode::Utf8::validate(textView).outcome != Unicode::Types::ValidationOutcome::Valid)
+        {
+            result.status = makeStatus(Types::ErrorCode::EncodingFailed);
+            return result;
+        }
+
         try
         {
-#if INTERNAL_IO_TEST_HOOKS
+#if IO_INTERNAL_TEST_HOOKS
             ::GameWIP::IO::Detail::TestHooks::throwIfArmed(::GameWIP::IO::TestHooks::FailurePoint::MemoryWriterCopyText);
 #endif
-            result.text.assign(reinterpret_cast<const char *>(view.data()), view.size());
+            result.text.assign(textView.data(), textView.size());
         }
         catch (const std::bad_alloc &)
         {
@@ -1091,7 +1121,7 @@ namespace GameWIP::IO
         // The scratch bytes are immediately overwritten by Reader::read(), so avoid value-initializing them.
         try
         {
-#if INTERNAL_IO_TEST_HOOKS
+#if IO_INTERNAL_TEST_HOOKS
             ::GameWIP::IO::Detail::TestHooks::throwIfArmed(::GameWIP::IO::TestHooks::FailurePoint::ReadAllScratchAllocation);
 #endif
             buffer = std::make_unique_for_overwrite<std::byte[]>(effectiveBufferSize);
@@ -1153,7 +1183,7 @@ namespace GameWIP::IO
 
         if (knownByteCount.known)
         {
-            return readAllTextKnownSize(reader, knownByteCount.byteCount, maxBytes);
+            return finalizeReadAllText(readAllTextKnownSize(reader, knownByteCount.byteCount, maxBytes));
         }
 
         if (maxBytes == 0)
@@ -1167,7 +1197,7 @@ namespace GameWIP::IO
         // The scratch bytes are immediately overwritten by Reader::read(), so avoid value-initializing them.
         try
         {
-#if INTERNAL_IO_TEST_HOOKS
+#if IO_INTERNAL_TEST_HOOKS
             ::GameWIP::IO::Detail::TestHooks::throwIfArmed(::GameWIP::IO::TestHooks::FailurePoint::ReadAllScratchAllocation);
 #endif
             buffer = std::make_unique_for_overwrite<std::byte[]>(effectiveBufferSize);
@@ -1185,7 +1215,7 @@ namespace GameWIP::IO
             return {.status = makeStatus(Types::ErrorCode::Unknown)};
         }
 
-        return readAllTextWithScratch(reader, std::span<std::byte>(buffer.get(), effectiveBufferSize), maxBytes);
+        return finalizeReadAllText(readAllTextWithScratch(reader, std::span<std::byte>(buffer.get(), effectiveBufferSize), maxBytes));
     }
 
     Types::ReadAllTextResult readAllText(Reader &reader, std::span<std::byte> scratchBuffer, std::uint64_t maxBytes) noexcept
@@ -1203,7 +1233,7 @@ namespace GameWIP::IO
 
         if (knownByteCount.known)
         {
-            return readAllTextKnownSize(reader, knownByteCount.byteCount, maxBytes);
+            return finalizeReadAllText(readAllTextKnownSize(reader, knownByteCount.byteCount, maxBytes));
         }
 
         if (maxBytes == 0)
@@ -1211,7 +1241,7 @@ namespace GameWIP::IO
             return {.status = probeForMoreData(reader)};
         }
 
-        return readAllTextWithScratch(reader, scratchBuffer, maxBytes);
+        return finalizeReadAllText(readAllTextWithScratch(reader, scratchBuffer, maxBytes));
     }
 
     Types::WriteResult writeAllBytes(Writer &writer, std::span<const std::byte> bytes) noexcept
@@ -1247,6 +1277,11 @@ namespace GameWIP::IO
 
     Types::WriteResult writeAllText(Writer &writer, std::string_view utf8Text) noexcept
     {
+        if (Unicode::Utf8::validate(utf8Text).outcome != Unicode::Types::ValidationOutcome::Valid)
+        {
+            return {.status = makeStatus(Types::ErrorCode::EncodingFailed), .bytesWritten = 0};
+        }
+
         return writeAllBytes(writer, std::as_bytes(std::span<const char>(utf8Text.data(), utf8Text.size())));
     }
 } // namespace GameWIP::IO

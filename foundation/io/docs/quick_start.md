@@ -41,7 +41,7 @@ int main()
 
     if (!readResult.status.ok())
     {
-        // readResult.text may contain bytes produced before the failure.
+        // readResult.text remains valid UTF-8 and may contain the complete valid prefix.
         return 1;
     }
 
@@ -55,7 +55,7 @@ int main()
         return 1;
     }
 
-    GameWIP::IO::Types::TextCopyResult copy = writer.copyText();
+    GameWIP::IO::Types::CopyTextResult copy = writer.copyText();
     return copy.status.ok() && copy.text == source ? 0 : 1;
 }
 ```
@@ -94,7 +94,9 @@ void inspectFailure(const GameWIP::IO::Types::Status& status)
 
 Treat the portable `ErrorCode` as the primary decision field. Native codes and messages are supplemental diagnostics and are not stable machine-readable interfaces.
 
-Read and write results may contain partial progress when the status is a failure. Preserve or discard that progress according to the calling operation's policy.
+Read and write results may contain partial progress when the status is a failure. For `readAllText()`, any returned `text` is always valid UTF-8 and excludes malformed or incomplete trailing bytes. Preserve or discard that progress according to the calling operation's policy.
+
+`writeAllText()` validates its complete input before calling the writer, and `MemoryWriter::copyText()` rejects collected bytes that are not valid UTF-8.
 
 Use a finite `maxBytes` for externally controlled input. The limit is a hard accepted-size limit, not a truncation request.
 

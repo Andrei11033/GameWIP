@@ -66,11 +66,13 @@ Public-header checks compile every supported consumer entry header in isolation 
 
 Use `PUBLIC` CMake dependencies only when a dependency appears in installed public headers or is required by the imported target's public usage requirements. Use `PRIVATE` dependencies for implementation-only usage.
 
-Installed package configs must call `find_dependency()` for public transitive package dependencies. Bundled GameWIP package dependencies should request the same exact project version.
+Installed package configs must call `find_dependency()` for every first-party package referenced by an installed imported target's link or usage requirements. This includes link-only implementation dependencies that a static library still requires its final consumer to resolve. Bundled GameWIP package dependencies should request the same exact project version.
 
 A standalone installed library may still be first-party and project-owned. Standalone means independently consumable from an installed package; it does not mean the library has no repository-level owner or shared version policy.
 
 Unicode is deliberately standalone: `GameWIP::Unicode` has no link dependency on another GameWIP library, and its package config needs no first-party `find_dependency()` call.
+
+IO uses Unicode privately to enforce strict UTF-8 semantics for its text helpers. Because IO is static, the installed IO package resolves Unicode automatically so a consumer that requests only `IO` still receives a complete link interface; `io/io.h` itself does not expose Unicode types.
 
 TestSupport is also deliberately standalone: `GameWIP::TestSupport` has no link dependency on another GameWIP library, its public status and result types are locally owned, and its package config needs no first-party `find_dependency()` call. Source-tree CMake checks enforce these dependency directions.
 

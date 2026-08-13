@@ -131,7 +131,7 @@ namespace GameWIP::IO
             ErrorCode code = ErrorCode::Success;
             /// @brief Backend-native error code when a concrete backend has one, otherwise zero.
             std::int64_t nativeCode = 0;
-            /// @brief Developer-facing diagnostic text; not stable for machine parsing.
+            /// @brief Developer-facing UTF-8 diagnostic text; not stable for machine parsing.
             std::string message;
 
             /// @brief Returns true when the operation succeeded.
@@ -214,21 +214,22 @@ namespace GameWIP::IO
             std::vector<std::byte> bytes;
         };
 
-        /// @brief Result returned by whole-stream text reads.
+        /// @brief Result returned by whole-stream UTF-8 text reads.
         struct ReadAllTextResult
         {
             /// @brief Operation status.
             Status status;
-            /// @brief Text bytes collected before end-of-stream or failure.
+            /// @brief Valid UTF-8 text collected before end-of-stream or failure.
+            /// @note On encoding failure or an incomplete suffix, this contains only the complete valid UTF-8 prefix.
             std::string text;
         };
 
-        /// @brief Result returned when memory-writer bytes are copied into an owning string.
-        struct TextCopyResult
+        /// @brief Result returned when memory-writer bytes are copied as valid UTF-8 text.
+        struct CopyTextResult
         {
             /// @brief Operation status.
             Status status;
-            /// @brief Owning copy of the writer bytes when status is successful.
+            /// @brief Owning UTF-8 copy when status is successful; empty on EncodingFailed.
             std::string text;
         };
     } // namespace Types
@@ -252,8 +253,9 @@ namespace GameWIP::IO
     /// @brief Creates an IO status with portable, native, and diagnostic details.
     /// @param code Portable status code used for program decisions.
     /// @param nativeCode Backend-native error code, or zero when unavailable.
-    /// @param message Developer-facing diagnostic text; not stable for machine parsing.
+    /// @param message Developer-facing UTF-8 diagnostic text; not stable for machine parsing.
     /// @return Status containing the supplied values.
+    /// @pre message is valid UTF-8 when non-empty.
     /// @note The function is non-throwing, but constructing the by-value message argument occurs
     /// before function entry and may allocate. Code-only calls avoid that allocation.
     [[nodiscard]] Types::Status makeStatus(Types::ErrorCode code, std::int64_t nativeCode = 0, std::string message = {}) noexcept;
@@ -428,16 +430,17 @@ namespace GameWIP::IO
         /// @param bytes Bytes to read. The caller must keep this memory alive while the reader is used.
         explicit MemoryReader(std::span<const std::byte> bytes) noexcept;
 
-        /// @brief Creates a reader over caller-owned UTF-8 text bytes.
-        /// @param text Text bytes to read. The caller must keep this string view storage alive while the reader is used.
-        explicit MemoryReader(std::string_view text) noexcept;
+        /// @brief Creates a byte reader over caller-owned character storage.
+        /// @param bytes Character-backed bytes to read. The caller must keep this string view storage alive while the reader is used.
+        /// @note The constructor does not interpret or validate the byte encoding.
+        explicit MemoryReader(std::string_view bytes) noexcept;
 
         /// @brief Rejects temporary std::string storage that would leave the reader dangling.
         /// @tparam String Exact std::string rvalue type.
-        /// @param text Temporary text storage.
+        /// @param bytes Temporary character-backed byte storage.
         template <typename String>
             requires(std::same_as<std::remove_cvref_t<String>, std::string> && std::is_rvalue_reference_v<String &&>)
-        explicit MemoryReader(String &&text) = delete;
+        explicit MemoryReader(String &&bytes) = delete;
 
         /// @brief Creates a reader over caller-owned vector storage.
         /// @tparam Allocator Vector allocator type.
@@ -558,10 +561,10 @@ namespace GameWIP::IO
         /// destruction, or any operation that may change storage or ownership.
         [[nodiscard]] std::span<const std::byte> bytes() const noexcept;
 
-        /// @brief Copies collected bytes into an owning string without interpreting their encoding.
-        /// @return Copied text and success, SizeLimitExceeded, OutOfMemory, or Unknown.
-        /// @note The operation is available after close() and preserves embedded NUL bytes.
-        [[nodiscard]] Types::TextCopyResult copyText() const noexcept;
+        /// @brief Copies collected bytes into an owning UTF-8 string after strict validation.
+        /// @return Copied text and success, or EncodingFailed, SizeLimitExceeded, OutOfMemory, or Unknown.
+        /// @note EncodingFailed returns empty text. The operation is available after close() and preserves embedded NUL bytes.
+        [[nodiscard]] Types::CopyTextResult copyText() const noexcept;
 
         /// @brief Moves collected bytes out and replaces writer storage with an empty vector.
         /// @return Collected byte vector.
@@ -616,26 +619,26 @@ namespace GameWIP::IO
         std::span<std::byte> scratchBuffer,
         std::uint64_t maxBytes = kNoByteLimit) noexcept;
 
-    /// @brief Reads bytes from the current reader position into an owning string.
+    /// @brief Reads strict UTF-8 text from the current reader position into an owning string.
     /// @param reader Reader to drain.
     /// @param maxBytes Hard maximum accepted output size, or kNoByteLimit for no caller limit.
     /// @param bufferSize Temporary transfer-buffer size for unknown-size readers. Must be nonzero.
-    /// @return Collected text bytes and final status, preserving valid bytes produced before a later failure.
-    /// @note Bytes are copied without UTF-8 validation, normalization, or parsing. Known-size readers
-    /// allocate final output directly. An unknown-size reader at a finite limit may consume one
-    /// additional probe byte.
+    /// @return Valid UTF-8 text and final status, preserving only the complete valid UTF-8 prefix on failure.
+    /// @note Malformed input returns EncodingFailed. An incomplete suffix returns EncodingFailed when the
+    /// input reaches a definitive end; otherwise it is trimmed while an existing I/O or size-limit failure
+    /// remains primary. No normalization, BOM transformation, or parsing is performed.
     [[nodiscard]] Types::ReadAllTextResult readAllText(
         Reader &reader,
         std::uint64_t maxBytes = kNoByteLimit,
         std::size_t bufferSize = kDefaultBufferSize) noexcept;
 
-    /// @brief Reads all text bytes using caller-owned temporary storage for unknown-size readers.
+    /// @brief Reads strict UTF-8 text using caller-owned temporary storage for unknown-size readers.
     /// @param reader Reader to drain from its current position.
     /// @param scratchBuffer Non-empty temporary storage that may be overwritten during the call.
     /// @param maxBytes Hard maximum accepted output size, or kNoByteLimit for no caller limit.
-    /// @return Collected text bytes and final status, preserving valid bytes produced before a later failure.
-    /// @note The scratch buffer is ignored for known-size readers and is never retained. Bytes are not
-    /// validated as UTF-8. A finite-limit probe may consume one additional unstored byte.
+    /// @return Valid UTF-8 text and final status, preserving only the complete valid UTF-8 prefix on failure.
+    /// @note The scratch buffer is ignored for known-size readers and is never retained. A finite-limit
+    /// probe may consume one additional unstored byte. No normalization, BOM transformation, or parsing occurs.
     [[nodiscard]] Types::ReadAllTextResult readAllText(
         Reader &reader,
         std::span<std::byte> scratchBuffer,
@@ -660,10 +663,12 @@ namespace GameWIP::IO
         return writeAllBytes(writer, std::span<const std::byte>(bytes.data(), bytes.size()));
     }
 
-    /// @brief Writes every byte in a string view through writeAllBytes().
-    /// @param writer Writer that receives the bytes.
-    /// @param utf8Text Text byte view; embedded NUL bytes are preserved.
-    /// @return Final status and total accepted bytes, including progress from a final failing write.
-    /// @note No UTF-8 validation, normalization, parsing, flush, or close operation is performed.
+    /// @brief Writes complete strict UTF-8 text through writeAllBytes().
+    /// @param writer Writer that receives the UTF-8 bytes.
+    /// @param utf8Text UTF-8 text view; embedded NUL bytes are preserved.
+    /// @return EncodingFailed with zero bytes written for malformed or incomplete input; otherwise
+    /// the writeAllBytes() status and total accepted-byte progress.
+    /// @note Validation happens before writer.write() is called. No normalization, BOM transformation,
+    /// parsing, flush, or close operation is performed.
     [[nodiscard]] Types::WriteResult writeAllText(Writer &writer, std::string_view utf8Text) noexcept;
 } // namespace GameWIP::IO
