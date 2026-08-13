@@ -50,7 +50,7 @@ namespace GameWIP::Terminal
 
         struct PreparedInputOwnership
         {
-            Types::InputCapabilities capabilities{};
+            Types::Input::Capabilities capabilities{};
             Detail::Platform::InputModeSnapshot previousMode{};
             bool hasPreviousMode = false;
             bool claimed = false;
@@ -62,36 +62,36 @@ namespace GameWIP::Terminal
             bool cancelled = false;
         };
 
-        [[nodiscard]] InputCoordinator &inputCoordinator([[maybe_unused]] Types::InputStream stream) noexcept
+        [[nodiscard]] InputCoordinator &inputCoordinator([[maybe_unused]] Types::Input::Stream stream) noexcept
         {
             static InputCoordinator stdinCoordinator;
             return stdinCoordinator;
         }
 
-        [[nodiscard]] bool validInputStream(Types::InputStream stream) noexcept
+        [[nodiscard]] bool validInputStream(Types::Input::Stream stream) noexcept
         {
-            return stream == Types::InputStream::Stdin;
+            return stream == Types::Input::Stream::Stdin;
         }
 
-        [[nodiscard]] bool validOutputStream(Types::OutputStream stream) noexcept
+        [[nodiscard]] bool validOutputStream(Types::Output::Stream stream) noexcept
         {
-            return stream == Types::OutputStream::Stdout || stream == Types::OutputStream::Stderr;
+            return stream == Types::Output::Stream::Stdout || stream == Types::Output::Stream::Stderr;
         }
 
-        [[nodiscard]] bool validDeliveryMode(Types::InputDeliveryMode mode) noexcept
+        [[nodiscard]] bool validDeliveryMode(Types::Input::DeliveryMode mode) noexcept
         {
-            return mode == Types::InputDeliveryMode::Events || mode == Types::InputDeliveryMode::Stream;
+            return mode == Types::Input::DeliveryMode::Events || mode == Types::Input::DeliveryMode::Stream;
         }
 
-        [[nodiscard]] bool validControlKeyMode(Types::ControlKeyMode mode) noexcept
+        [[nodiscard]] bool validControlKeyMode(Types::Input::ControlKeyMode mode) noexcept
         {
-            return mode == Types::ControlKeyMode::NativeProcessing || mode == Types::ControlKeyMode::ReportAsInput;
+            return mode == Types::Input::ControlKeyMode::NativeProcessing || mode == Types::Input::ControlKeyMode::ReportAsInput;
         }
 
-        [[nodiscard]] bool validReadLineEndingMode(Types::ReadLineEndingMode mode) noexcept
+        [[nodiscard]] bool validReadLineEndingMode(Types::Input::LineEndingMode mode) noexcept
         {
-            return mode == Types::ReadLineEndingMode::Strip || mode == Types::ReadLineEndingMode::Keep ||
-                   mode == Types::ReadLineEndingMode::NormalizeToLf;
+            return mode == Types::Input::LineEndingMode::Strip || mode == Types::Input::LineEndingMode::Keep ||
+                   mode == Types::Input::LineEndingMode::NormalizeToLf;
         }
 
         [[nodiscard]] IO::Types::Status invalidArgumentStatus() noexcept
@@ -133,7 +133,7 @@ namespace GameWIP::Terminal
             }
         }
 
-        [[nodiscard]] bool operationSupported(const Types::InputCapabilities &capabilities, ReadOperation operation) noexcept
+        [[nodiscard]] bool operationSupported(const Types::Input::Capabilities &capabilities, ReadOperation operation) noexcept
         {
             switch (operation)
             {
@@ -150,9 +150,9 @@ namespace GameWIP::Terminal
             return false;
         }
 
-        [[nodiscard]] bool deliverySupported(const Types::InputCapabilities &capabilities, Types::InputDeliveryMode deliveryMode) noexcept
+        [[nodiscard]] bool deliverySupported(const Types::Input::Capabilities &capabilities, Types::Input::DeliveryMode deliveryMode) noexcept
         {
-            if (deliveryMode == Types::InputDeliveryMode::Events)
+            if (deliveryMode == Types::Input::DeliveryMode::Events)
             {
                 return capabilities.supportsEventInput;
             }
@@ -171,7 +171,7 @@ namespace GameWIP::Terminal
         }
 
         [[nodiscard]] ReadDecision validateReadContract(
-            const Types::InputCapabilities &capabilities,
+            const Types::Input::Capabilities &capabilities,
             ReadOperation operation,
             const std::optional<std::chrono::milliseconds> &timeout,
             const std::stop_token &stopToken)
@@ -227,15 +227,15 @@ namespace GameWIP::Terminal
         [[nodiscard]] Detail::Platform::InputMode managedMode(
             const Types::SessionOptions &options,
             Detail::Platform::InputMode previousMode,
-            const Types::InputCapabilities &capabilities) noexcept
+            const Types::Input::Capabilities &capabilities) noexcept
         {
             Detail::Platform::InputMode mode = previousMode;
-            mode.processControlKeys = options.controlKeyMode == Types::ControlKeyMode::NativeProcessing;
+            mode.processControlKeys = options.controlKeyMode == Types::Input::ControlKeyMode::NativeProcessing;
 
             // Event delivery, and Stream delivery on event-capable terminals, use one immediate native engine.
             // A backend without structured-event support keeps its existing Stream line discipline until its
             // own event decoder exists.
-            if (options.deliveryMode == Types::InputDeliveryMode::Events || capabilities.supportsEventInput)
+            if (options.deliveryMode == Types::Input::DeliveryMode::Events || capabilities.supportsEventInput)
             {
                 mode.lineBuffered = false;
                 mode.echoInput = false;
@@ -275,7 +275,7 @@ namespace GameWIP::Terminal
         }
 
         [[nodiscard]] IO::Types::Status restoreManagedInput(
-            Types::InputStream stream,
+            Types::Input::Stream stream,
             PreparedInputOwnership &ownership,
             const void *owner,
             bool retainOwnershipOnFailure) noexcept
@@ -334,7 +334,7 @@ namespace GameWIP::Terminal
             {
                 {
                     std::lock_guard lock(Detail::inputIoMutex(options.input));
-                    Types::InputCapabilitiesResult capabilityResult = Detail::Platform::getInputCapabilities(options.input);
+                    Types::Input::CapabilitiesResult capabilityResult = Detail::Platform::getInputCapabilities(options.input);
                     if (!capabilityResult.status.ok())
                     {
                         status = std::move(capabilityResult.status);
@@ -388,8 +388,8 @@ namespace GameWIP::Terminal
         class DirectInputLease final
         {
         public:
-            explicit DirectInputLease(Types::InputStream stream) noexcept
-                : options_{.input = stream, .output = Types::OutputStream::Stdout}
+            explicit DirectInputLease(Types::Input::Stream stream) noexcept
+                : options_{.input = stream, .output = Types::Output::Stream::Stdout}
             {
             }
 
@@ -402,15 +402,15 @@ namespace GameWIP::Terminal
             }
 
             [[nodiscard]] IO::Types::Status open(
-                Types::InputDeliveryMode deliveryMode,
-                Types::ControlKeyMode controlKeyMode = Types::ControlKeyMode::NativeProcessing) noexcept
+                Types::Input::DeliveryMode deliveryMode,
+                Types::Input::ControlKeyMode controlKeyMode = Types::Input::ControlKeyMode::NativeProcessing) noexcept
             {
                 options_.deliveryMode = deliveryMode;
                 options_.controlKeyMode = controlKeyMode;
                 return acquireManagedInput(options_, this, ownership_);
             }
 
-            [[nodiscard]] const Types::InputCapabilities &capabilities() const noexcept
+            [[nodiscard]] const Types::Input::Capabilities &capabilities() const noexcept
             {
                 return ownership_.capabilities;
             }
@@ -443,7 +443,7 @@ namespace GameWIP::Terminal
         {
             Result result;
             result.status = IO::successStatus();
-            result.outcome = Types::ReadOutcome::Cancelled;
+            result.outcome = Types::Input::ReadOutcome::Cancelled;
             return result;
         }
 
@@ -462,973 +462,16 @@ namespace GameWIP::Terminal
             return decision;
         }
 
-        [[nodiscard]] std::optional<std::chrono::milliseconds> remainingReadTimeout(
-            std::chrono::steady_clock::time_point start,
-            const std::optional<std::chrono::milliseconds> &timeout) noexcept
-        {
-            if (!timeout.has_value() || timeout->count() == 0)
-            {
-                return timeout;
-            }
-
-            const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start);
-            if (elapsed >= *timeout)
-            {
-                return std::chrono::milliseconds{0};
-            }
-            return *timeout - elapsed;
-        }
-
-        [[nodiscard]] bool hasShortcutModifier(Types::KeyModifier modifiers) noexcept
-        {
-            return Types::hasModifier(modifiers, Types::KeyModifier::Control) || Types::hasModifier(modifiers, Types::KeyModifier::Alt) ||
-                   Types::hasModifier(modifiers, Types::KeyModifier::Super) || Types::hasModifier(modifiers, Types::KeyModifier::Hyper) ||
-                   Types::hasModifier(modifiers, Types::KeyModifier::Meta);
-        }
-
-        class GraphemeIndex final
-        {
-        public:
-            explicit GraphemeIndex(std::vector<std::size_t> &storage) noexcept
-                : storage_(storage)
-            {
-            }
-
-            void invalidate() noexcept
-            {
-                ready_ = false;
-                cursor_.clear();
-            }
-
-            [[nodiscard]] IO::Types::Status seek(std::string_view text, std::size_t byteOffset)
-            {
-                IO::Types::Status status = ensure(text);
-                if (!status.ok())
-                {
-                    return status;
-                }
-
-                if (cursor_.seek(byteOffset).outcome != Unicode::Types::Utf8::BoundaryOutcome::Found)
-                {
-                    return IO::makeStatus(ErrorCode::EncodingFailed);
-                }
-                return IO::successStatus();
-            }
-
-            [[nodiscard]] std::optional<std::size_t> previous(std::string_view text, std::size_t byteOffset, IO::Types::Status &status)
-            {
-                status = seek(text, byteOffset);
-                if (!status.ok())
-                {
-                    return std::nullopt;
-                }
-
-                const Unicode::Types::Utf8::BoundaryResult result = cursor_.previous();
-                if (result.outcome == Unicode::Types::Utf8::BoundaryOutcome::AtBeginning)
-                {
-                    return std::nullopt;
-                }
-                if (result.outcome != Unicode::Types::Utf8::BoundaryOutcome::Found)
-                {
-                    status = IO::makeStatus(ErrorCode::EncodingFailed);
-                    return std::nullopt;
-                }
-                return result.byteOffset;
-            }
-
-            [[nodiscard]] std::optional<std::size_t> next(std::string_view text, std::size_t byteOffset, IO::Types::Status &status)
-            {
-                status = seek(text, byteOffset);
-                if (!status.ok())
-                {
-                    return std::nullopt;
-                }
-
-                const Unicode::Types::Utf8::BoundaryResult result = cursor_.next();
-                if (result.outcome == Unicode::Types::Utf8::BoundaryOutcome::AtEnd)
-                {
-                    return std::nullopt;
-                }
-                if (result.outcome != Unicode::Types::Utf8::BoundaryOutcome::Found)
-                {
-                    status = IO::makeStatus(ErrorCode::EncodingFailed);
-                    return std::nullopt;
-                }
-                return result.byteOffset;
-            }
-
-            void retainThroughCurrent() noexcept
-            {
-                if (ready_)
-                {
-                    cursor_.discardAfterCurrent();
-                }
-            }
-
-            [[nodiscard]] IO::Types::Status normalizeCaret(std::string_view text, std::size_t &byteOffset)
-            {
-                IO::Types::Status status = ensure(text);
-                if (!status.ok())
-                {
-                    return status;
-                }
-
-                const Unicode::Types::Utf8::BoundaryResult exact = cursor_.seek(byteOffset);
-                if (exact.outcome == Unicode::Types::Utf8::BoundaryOutcome::Found)
-                {
-                    return IO::successStatus();
-                }
-
-                const Unicode::Types::Utf8::BoundaryResult next = Unicode::Utf8::nextGraphemeBoundary(text, byteOffset);
-                if (next.outcome == Unicode::Types::Utf8::BoundaryOutcome::Found)
-                {
-                    byteOffset = next.byteOffset;
-                    static_cast<void>(cursor_.seek(byteOffset));
-                    return IO::successStatus();
-                }
-                if (next.outcome == Unicode::Types::Utf8::BoundaryOutcome::AtEnd)
-                {
-                    byteOffset = text.size();
-                    static_cast<void>(cursor_.seek(byteOffset));
-                    return IO::successStatus();
-                }
-                return IO::makeStatus(ErrorCode::EncodingFailed);
-            }
-
-        private:
-            [[nodiscard]] IO::Types::Status ensure(std::string_view text)
-            {
-                if (ready_)
-                {
-                    return IO::successStatus();
-                }
-
-                Unicode::Types::Utf8::GraphemeIndexResult indexed = cursor_.reset(text, std::span<std::size_t>(storage_.data(), storage_.size()));
-
-                if (indexed.outcome == Unicode::Types::Utf8::GraphemeIndexOutcome::DestinationTooSmall)
-                {
-                    storage_.resize(indexed.requiredBoundaryCount);
-                    indexed = cursor_.reset(text, std::span<std::size_t>(storage_.data(), storage_.size()));
-                }
-
-                if (indexed.outcome != Unicode::Types::Utf8::GraphemeIndexOutcome::Indexed)
-                {
-                    cursor_.clear();
-                    return IO::makeStatus(ErrorCode::EncodingFailed);
-                }
-
-                ready_ = true;
-                return IO::successStatus();
-            }
-
-            std::vector<std::size_t> &storage_;
-            Unicode::Utf8::GraphemeCursor cursor_;
-            bool ready_ = false;
-        };
-
-        class LineEcho final
-        {
-        public:
-            LineEcho(Types::InputStream input, Types::OutputStream output, bool enabled) noexcept
-                : input_(input)
-                , output_(output)
-                , enabled_(enabled)
-            {
-            }
-
-            [[nodiscard]] IO::Types::Status begin()
-            {
-                if (!enabled_)
-                {
-                    return IO::successStatus();
-                }
-
-                const Types::OutputCapabilitiesResult prepared = prepareOutput(output_);
-                if (!prepared.status.ok())
-                {
-                    return prepared.status;
-                }
-                if (!prepared.capabilities.supportsCursorMovement || !prepared.capabilities.supportsCursorPositionQuery ||
-                    !prepared.capabilities.supportsTerminalSize)
-                {
-                    return unsupportedStatus();
-                }
-
-                const Types::TerminalSizeResult size = getTerminalSize(output_);
-                if (!size.status.ok())
-                {
-                    return size.status;
-                }
-                size_ = size.size;
-
-                const Types::CursorPositionResult position = queryRenderingPosition();
-                if (!position.status.ok())
-                {
-                    return position.status;
-                }
-
-                origin_ = position.position;
-                active_ = true;
-                renderedCells_ = 0;
-                caretCells_ = 0;
-                return IO::successStatus();
-            }
-
-            void updateSize(Types::TerminalSize size) noexcept
-            {
-                if (size.columns > 0 && size.rows > 0)
-                {
-                    size_ = size;
-                }
-            }
-
-            /// @brief Echoes an append-at-end edit without rewriting the existing line.
-            [[nodiscard]] IO::Types::Status append(std::string_view appendedText)
-            {
-                if (!enabled_ || !active_ || appendedText.empty())
-                {
-                    return IO::successStatus();
-                }
-
-                IO::Types::Status status = writeText(output_, appendedText);
-                if (!status.ok())
-                {
-                    return status;
-                }
-
-                const bool simpleAscii = std::all_of(
-                    appendedText.begin(),
-                    appendedText.end(),
-                    [](unsigned char byte)
-                    {
-                        return byte >= 0x20 && byte < 0x7f;
-                    });
-                if (simpleAscii && appendedText.size() <= std::numeric_limits<std::size_t>::max() - renderedCells_)
-                {
-                    // Ordinary append-at-end typing remains query-free. Printable ASCII advances by one cell;
-                    // Unicode and control text take the measured slow path so Terminal does not invent a width policy.
-                    renderedCells_ += appendedText.size();
-                    caretCells_ = renderedCells_;
-                    return IO::successStatus();
-                }
-
-                const Types::CursorPositionResult current = queryRenderingPosition();
-                if (!current.status.ok())
-                {
-                    return current.status;
-                }
-                const std::optional<std::size_t> cells = cellDistance(origin_, current.position);
-                if (!cells.has_value())
-                {
-                    return unsupportedStatus();
-                }
-                renderedCells_ = *cells;
-                caretCells_ = renderedCells_;
-                return IO::successStatus();
-            }
-
-            /// @brief Erases one known single-cell ASCII suffix without rewriting the line.
-            [[nodiscard]] IO::Types::Status eraseTrailingAsciiCell()
-            {
-                if (!enabled_ || !active_)
-                {
-                    return IO::successStatus();
-                }
-                if (size_.columns == 0)
-                {
-                    return unsupportedStatus();
-                }
-
-                const Types::CursorPositionResult current = queryRenderingPosition();
-                if (!current.status.ok())
-                {
-                    return current.status;
-                }
-
-                const std::optional<Types::CursorPosition> currentOrigin = positionBefore(current.position, caretCells_);
-                if (!currentOrigin.has_value())
-                {
-                    return unsupportedStatus();
-                }
-
-                Types::CursorPosition previous = current.position;
-                if (previous.column > 0)
-                {
-                    --previous.column;
-                }
-                else if (previous.row > 0)
-                {
-                    --previous.row;
-                    previous.column = size_.columns - 1;
-                }
-                else
-                {
-                    return unsupportedStatus();
-                }
-
-                IO::Types::Status status = setRenderingPosition(previous);
-                if (!status.ok())
-                {
-                    return status;
-                }
-                status = writeText(output_, " ");
-                if (!status.ok())
-                {
-                    return status;
-                }
-                status = setRenderingPosition(previous);
-                if (status.ok())
-                {
-                    origin_ = *currentOrigin;
-                    --renderedCells_;
-                    --caretCells_;
-                }
-                return status;
-            }
-
-            /// @brief Redraws when navigation or an edit invalidates the displayed suffix.
-            [[nodiscard]] IO::Types::Status redraw(std::string_view line, std::size_t caretByteOffset)
-            {
-                if (!enabled_ || !active_)
-                {
-                    return IO::successStatus();
-                }
-                if (caretByteOffset > line.size() || size_.columns == 0)
-                {
-                    return invalidArgumentStatus();
-                }
-
-                const Types::CursorPositionResult current = queryRenderingPosition();
-                if (!current.status.ok())
-                {
-                    return current.status;
-                }
-                const std::optional<Types::CursorPosition> rebuiltOrigin = positionBefore(current.position, caretCells_);
-                if (!rebuiltOrigin.has_value())
-                {
-                    return unsupportedStatus();
-                }
-                origin_ = *rebuiltOrigin;
-
-                IO::Types::Status status = setRenderingPosition(origin_);
-                if (!status.ok())
-                {
-                    return status;
-                }
-
-                status = writeText(output_, line);
-                if (!status.ok())
-                {
-                    return status;
-                }
-
-                const Types::CursorPositionResult end = queryRenderingPosition();
-                if (!end.status.ok())
-                {
-                    return end.status;
-                }
-
-                const std::optional<std::size_t> newCells = cellDistance(origin_, end.position);
-                if (!newCells.has_value())
-                {
-                    return unsupportedStatus();
-                }
-
-                if (renderedCells_ > *newCells)
-                {
-                    status = writeSpaces(renderedCells_ - *newCells);
-                    if (!status.ok())
-                    {
-                        return status;
-                    }
-                }
-
-                renderedCells_ = *newCells;
-
-                status = setRenderingPosition(origin_);
-                if (!status.ok())
-                {
-                    return status;
-                }
-                if (caretByteOffset > 0)
-                {
-                    status = writeText(output_, line.substr(0, caretByteOffset));
-                    if (!status.ok())
-                    {
-                        return status;
-                    }
-
-                    const Types::CursorPositionResult caretPosition = queryRenderingPosition();
-                    if (!caretPosition.status.ok())
-                    {
-                        return caretPosition.status;
-                    }
-                    const std::optional<std::size_t> cells = cellDistance(origin_, caretPosition.position);
-                    if (!cells.has_value())
-                    {
-                        return unsupportedStatus();
-                    }
-                    caretCells_ = *cells;
-                }
-                else
-                {
-                    caretCells_ = 0;
-                }
-                return IO::successStatus();
-            }
-
-            [[nodiscard]] IO::Types::Status finish(std::string_view line, std::size_t caretByteOffset)
-            {
-                if (!enabled_ || !active_)
-                {
-                    return IO::successStatus();
-                }
-
-                if (caretByteOffset != line.size())
-                {
-                    IO::Types::Status status = redraw(line, line.size());
-                    if (!status.ok())
-                    {
-                        return status;
-                    }
-                }
-                return writeText(output_, "\r\n");
-            }
-
-        private:
-            [[nodiscard]] Types::CursorPositionResult queryRenderingPosition() const
-            {
-                return Detail::getLineRenderingCursorPosition(output_, input_);
-            }
-
-            [[nodiscard]] IO::Types::Status setRenderingPosition(Types::CursorPosition position) const
-            {
-                return Detail::setLineRenderingCursorPosition(output_, position);
-            }
-
-            [[nodiscard]] std::optional<Types::CursorPosition> positionBefore(Types::CursorPosition end, std::size_t cells) const noexcept
-            {
-                if (size_.columns == 0 || end.column >= size_.columns)
-                {
-                    return std::nullopt;
-                }
-
-                const std::uint64_t endLinear = static_cast<std::uint64_t>(end.row) * size_.columns + end.column;
-                if (cells > endLinear)
-                {
-                    return std::nullopt;
-                }
-                const std::uint64_t beginLinear = endLinear - cells;
-                return Types::CursorPosition{
-                    .column = static_cast<std::uint32_t>(beginLinear % size_.columns),
-                    .row = static_cast<std::uint32_t>(beginLinear / size_.columns)};
-            }
-
-            [[nodiscard]] std::optional<std::size_t> cellDistance(Types::CursorPosition begin, Types::CursorPosition end) const noexcept
-            {
-                if (size_.columns == 0 || begin.column >= size_.columns || end.column >= size_.columns || end.row < begin.row)
-                {
-                    return std::nullopt;
-                }
-
-                const std::uint64_t beginLinear = static_cast<std::uint64_t>(begin.row) * size_.columns + begin.column;
-                const std::uint64_t endLinear = static_cast<std::uint64_t>(end.row) * size_.columns + end.column;
-                if (endLinear < beginLinear || endLinear - beginLinear > std::numeric_limits<std::size_t>::max())
-                {
-                    return std::nullopt;
-                }
-                return static_cast<std::size_t>(endLinear - beginLinear);
-            }
-
-            [[nodiscard]] IO::Types::Status writeSpaces(std::size_t count)
-            {
-                static constexpr std::string_view spaces = "                                                                ";
-
-                while (count > 0)
-                {
-                    const std::size_t chunk = std::min(count, spaces.size());
-                    IO::Types::Status status = writeText(output_, spaces.substr(0, chunk));
-                    if (!status.ok())
-                    {
-                        return status;
-                    }
-                    count -= chunk;
-                }
-                return IO::successStatus();
-            }
-
-            Types::InputStream input_;
-            Types::OutputStream output_;
-            Types::TerminalSize size_{};
-            Types::CursorPosition origin_{};
-            std::size_t renderedCells_ = 0;
-            std::size_t caretCells_ = 0;
-            bool enabled_ = false;
-            bool active_ = false;
-        };
-
-        [[nodiscard]] IO::Types::Status insertScalar(
-            std::string &line,
-            std::size_t &caret,
-            char32_t scalar,
-            std::size_t maxBytes,
-            bool &wasTruncated,
-            GraphemeIndex &graphemes)
-        {
-            const Unicode::Types::Utf8::EncodeResult encoded = Unicode::Utf8::encodeScalar(scalar);
-            if (encoded.outcome != Unicode::Types::EncodeOutcome::Encoded)
-            {
-                return IO::makeStatus(ErrorCode::EncodingFailed);
-            }
-
-            const std::size_t bytes = encoded.byteCount;
-            if (bytes > maxBytes - std::min(maxBytes, line.size()))
-            {
-                wasTruncated = true;
-                return IO::successStatus();
-            }
-
-            const bool appendedAtEnd = caret == line.size();
-            line.insert(caret, encoded.bytes.data(), bytes);
-            caret += bytes;
-            graphemes.invalidate();
-            return appendedAtEnd ? IO::successStatus() : graphemes.normalizeCaret(line, caret);
-        }
-
-        [[nodiscard]] IO::Types::Status insertPaste(
-            std::string &line,
-            std::size_t &caret,
-            std::string_view text,
-            std::size_t maxBytes,
-            bool &wasTruncated,
-            GraphemeIndex &graphemes)
-        {
-            const std::size_t remaining = maxBytes - std::min(maxBytes, line.size());
-            std::size_t accepted = 0;
-            while (accepted < text.size())
-            {
-                const Unicode::Types::Utf8::DecodeResult decoded = Unicode::Utf8::decodeScalar(text.substr(accepted));
-                if (decoded.outcome != Unicode::Types::DecodeOutcome::Decoded)
-                {
-                    return IO::makeStatus(ErrorCode::EncodingFailed);
-                }
-                if (decoded.bytesConsumed > remaining - std::min(remaining, accepted))
-                {
-                    break;
-                }
-                accepted += decoded.bytesConsumed;
-            }
-
-            if (accepted < text.size())
-            {
-                wasTruncated = true;
-            }
-            if (accepted > 0)
-            {
-                const bool appendedAtEnd = caret == line.size();
-                line.insert(line.begin() + static_cast<std::ptrdiff_t>(caret), text.begin(), text.begin() + static_cast<std::ptrdiff_t>(accepted));
-                caret += accepted;
-                graphemes.invalidate();
-                if (!appendedAtEnd)
-                {
-                    return graphemes.normalizeCaret(line, caret);
-                }
-            }
-            return IO::successStatus();
-        }
-
-        [[nodiscard]] IO::Types::Status completeManagedLine(Types::LineReadResult &result, std::string line, const Types::LineReadOptions &options)
-        {
-            result.consumedLineEnding = Types::ConsumedLineEnding::CrLf;
-
-            std::string_view ending;
-            switch (options.lineEndingMode)
-            {
-            case Types::ReadLineEndingMode::Strip:
-                ending = {};
-                break;
-            case Types::ReadLineEndingMode::Keep:
-                ending = "\r\n";
-                break;
-            case Types::ReadLineEndingMode::NormalizeToLf:
-                ending = "\n";
-                break;
-            }
-
-            const std::size_t maxBytes = options.maxReturnedBytes > static_cast<std::uint64_t>(std::numeric_limits<std::size_t>::max())
-                                             ? std::numeric_limits<std::size_t>::max()
-                                             : static_cast<std::size_t>(options.maxReturnedBytes);
-
-            if (ending.size() <= maxBytes - std::min(maxBytes, line.size()))
-            {
-                line.append(ending);
-            }
-            else
-            {
-                result.wasTruncated = true;
-            }
-
-            result.line = std::move(line);
-            return IO::successStatus();
-        }
-
-        [[nodiscard]] Types::EventReadResult readManagedEvent(
-            Types::InputStream input,
-            Types::OutputStream output,
-            const Types::EventReadOptions &options)
-        {
-            std::lock_guard lock(Detail::inputIoMutex(input));
-            return Detail::Platform::readEvent(input, output, options);
-        }
-
-        [[nodiscard]] Types::LineReadResult managedTerminalLineRead(
-            Types::InputStream input,
-            Types::OutputStream output,
-            const Types::LineReadOptions &options,
-            std::vector<std::size_t> &graphemeStorage)
-        {
-            Types::LineReadResult result;
-            result.status = IO::successStatus();
-
-            const std::size_t maxBytes = options.maxReturnedBytes > static_cast<std::uint64_t>(std::numeric_limits<std::size_t>::max())
-                                             ? std::numeric_limits<std::size_t>::max()
-                                             : static_cast<std::size_t>(options.maxReturnedBytes);
-
-            std::string line;
-            line.reserve(std::min<std::size_t>(maxBytes, 256));
-            std::size_t caret = 0;
-            GraphemeIndex graphemes(graphemeStorage);
-            LineEcho echo(input, output, options.echo);
-
-            result.status = echo.begin();
-            if (!result.status.ok())
-            {
-                return result;
-            }
-
-            const auto start = std::chrono::steady_clock::now();
-
-            while (true)
-            {
-                if (options.timeout.has_value() && options.timeout->count() > 0 && std::chrono::steady_clock::now() - start >= *options.timeout)
-                {
-                    result.outcome = Types::ReadOutcome::TimedOut;
-                    result.line = std::move(line);
-                    return result;
-                }
-
-                Types::EventReadOptions eventOptions;
-                eventOptions.timeout = remainingReadTimeout(start, options.timeout);
-                eventOptions.stopToken = options.stopToken;
-
-                Types::EventReadResult eventResult = readManagedEvent(input, output, eventOptions);
-                if (!eventResult.status.ok())
-                {
-                    result.status = std::move(eventResult.status);
-                    result.outcome = eventResult.outcome;
-                    result.line = std::move(line);
-                    return result;
-                }
-                if (eventResult.outcome != Types::ReadOutcome::Completed || !eventResult.event.has_value())
-                {
-                    result.outcome = eventResult.outcome;
-                    result.line = std::move(line);
-                    return result;
-                }
-
-                if (const Types::ResizeEvent *resize = eventResult.event->getIf<Types::ResizeEvent>())
-                {
-                    echo.updateSize(resize->size);
-                    result.status = echo.redraw(line, caret);
-                    if (!result.status.ok())
-                    {
-                        result.line = std::move(line);
-                        return result;
-                    }
-                    continue;
-                }
-
-                if (const Types::PasteEvent *paste = eventResult.event->getIf<Types::PasteEvent>())
-                {
-                    const std::size_t oldSize = line.size();
-                    const std::size_t oldCaret = caret;
-                    result.status = insertPaste(line, caret, paste->text, maxBytes, result.wasTruncated, graphemes);
-                    if (!result.status.ok())
-                    {
-                        result.line = std::move(line);
-                        return result;
-                    }
-
-                    result.status = oldCaret == oldSize ? echo.append(std::string_view(line).substr(oldSize)) : echo.redraw(line, caret);
-                    if (!result.status.ok())
-                    {
-                        result.line = std::move(line);
-                        return result;
-                    }
-                    continue;
-                }
-
-                const Types::KeyEvent *keyEvent = eventResult.event->getIf<Types::KeyEvent>();
-                if (keyEvent == nullptr || keyEvent->action == Types::KeyAction::Release)
-                {
-                    continue;
-                }
-
-                const std::uint32_t occurrences = keyEvent->action == Types::KeyAction::Repeat ? std::max(keyEvent->repeatCount, 1U) : 1U;
-
-                if (const auto *character = std::get_if<Types::CharacterKey>(&keyEvent->key))
-                {
-                    if (hasShortcutModifier(keyEvent->modifiers))
-                    {
-                        continue;
-                    }
-
-                    const std::size_t oldSize = line.size();
-                    const std::size_t oldCaret = caret;
-                    for (std::uint32_t occurrence = 0; occurrence < occurrences; ++occurrence)
-                    {
-                        result.status = insertScalar(line, caret, character->value, maxBytes, result.wasTruncated, graphemes);
-                        if (!result.status.ok())
-                        {
-                            result.line = std::move(line);
-                            return result;
-                        }
-                    }
-
-                    result.status = oldCaret == oldSize ? echo.append(std::string_view(line).substr(oldSize)) : echo.redraw(line, caret);
-                    if (!result.status.ok())
-                    {
-                        result.line = std::move(line);
-                        return result;
-                    }
-                    continue;
-                }
-
-                const auto *named = std::get_if<Types::NamedKey>(&keyEvent->key);
-                if (named == nullptr)
-                {
-                    continue;
-                }
-
-                if (*named == Types::NamedKey::Enter)
-                {
-                    result.status = echo.finish(line, caret);
-                    if (!result.status.ok())
-                    {
-                        result.line = std::move(line);
-                        return result;
-                    }
-                    result.status = completeManagedLine(result, std::move(line), options);
-                    return result;
-                }
-
-                if (hasShortcutModifier(keyEvent->modifiers))
-                {
-                    continue;
-                }
-
-                bool redrawRequired = false;
-                for (std::uint32_t occurrence = 0; occurrence < occurrences; ++occurrence)
-                {
-                    IO::Types::Status navigationStatus = IO::successStatus();
-
-                    switch (*named)
-                    {
-                    case Types::NamedKey::Backspace:
-                    {
-                        const std::optional<std::size_t> previous = graphemes.previous(line, caret, navigationStatus);
-                        if (!navigationStatus.ok())
-                        {
-                            result.status = navigationStatus;
-                            result.line = std::move(line);
-                            return result;
-                        }
-                        if (!previous.has_value())
-                        {
-                            break;
-                        }
-
-                        const bool suffixDeletion = caret == line.size();
-                        const bool singleCellAscii = suffixDeletion && caret - *previous == 1 &&
-                                                     static_cast<unsigned char>(line[*previous]) >= 0x20 &&
-                                                     static_cast<unsigned char>(line[*previous]) < 0x7f;
-
-                        if (suffixDeletion)
-                        {
-                            line.resize(*previous);
-                            caret = *previous;
-                            graphemes.retainThroughCurrent();
-
-                            if (singleCellAscii && !redrawRequired)
-                            {
-                                result.status = echo.eraseTrailingAsciiCell();
-                                if (result.status.code == ErrorCode::Unsupported)
-                                {
-                                    result.status = IO::successStatus();
-                                    redrawRequired = true;
-                                }
-                                else if (!result.status.ok())
-                                {
-                                    result.line = std::move(line);
-                                    return result;
-                                }
-                            }
-                            else
-                            {
-                                redrawRequired = true;
-                            }
-                        }
-                        else
-                        {
-                            line.erase(*previous, caret - *previous);
-                            caret = *previous;
-                            graphemes.invalidate();
-                            navigationStatus = graphemes.normalizeCaret(line, caret);
-                            if (!navigationStatus.ok())
-                            {
-                                result.status = navigationStatus;
-                                result.line = std::move(line);
-                                return result;
-                            }
-                            redrawRequired = true;
-                        }
-                        break;
-                    }
-                    case Types::NamedKey::Delete:
-                    {
-                        const std::optional<std::size_t> next = graphemes.next(line, caret, navigationStatus);
-                        if (!navigationStatus.ok())
-                        {
-                            result.status = navigationStatus;
-                            result.line = std::move(line);
-                            return result;
-                        }
-                        if (!next.has_value())
-                        {
-                            break;
-                        }
-
-                        redrawRequired = true;
-                        if (*next == line.size())
-                        {
-                            line.resize(caret);
-                            navigationStatus = graphemes.seek(line, caret);
-                            if (!navigationStatus.ok())
-                            {
-                                graphemes.invalidate();
-                            }
-                            else
-                            {
-                                graphemes.retainThroughCurrent();
-                            }
-                        }
-                        else
-                        {
-                            line.erase(caret, *next - caret);
-                            graphemes.invalidate();
-                            navigationStatus = graphemes.normalizeCaret(line, caret);
-                            if (!navigationStatus.ok())
-                            {
-                                result.status = navigationStatus;
-                                result.line = std::move(line);
-                                return result;
-                            }
-                        }
-                        break;
-                    }
-                    case Types::NamedKey::ArrowLeft:
-                    {
-                        const std::optional<std::size_t> previous = graphemes.previous(line, caret, navigationStatus);
-                        if (!navigationStatus.ok())
-                        {
-                            result.status = navigationStatus;
-                            result.line = std::move(line);
-                            return result;
-                        }
-                        if (previous.has_value())
-                        {
-                            caret = *previous;
-                            redrawRequired = true;
-                        }
-                        break;
-                    }
-                    case Types::NamedKey::ArrowRight:
-                    {
-                        const std::optional<std::size_t> next = graphemes.next(line, caret, navigationStatus);
-                        if (!navigationStatus.ok())
-                        {
-                            result.status = navigationStatus;
-                            result.line = std::move(line);
-                            return result;
-                        }
-                        if (next.has_value())
-                        {
-                            caret = *next;
-                            redrawRequired = true;
-                        }
-                        break;
-                    }
-                    case Types::NamedKey::Home:
-                        redrawRequired = redrawRequired || caret != 0;
-                        caret = 0;
-                        break;
-                    case Types::NamedKey::End:
-                        redrawRequired = redrawRequired || caret != line.size();
-                        caret = line.size();
-                        break;
-                    case Types::NamedKey::Tab:
-                        if (!Types::hasModifier(keyEvent->modifiers, Types::KeyModifier::Shift))
-                        {
-                            const std::size_t oldSize = line.size();
-                            const std::size_t oldCaret = caret;
-                            result.status = insertScalar(line, caret, U'\t', maxBytes, result.wasTruncated, graphemes);
-                            if (!result.status.ok())
-                            {
-                                result.line = std::move(line);
-                                return result;
-                            }
-
-                            if (oldCaret == oldSize && !redrawRequired)
-                            {
-                                result.status = echo.append(std::string_view(line).substr(oldSize));
-                                if (!result.status.ok())
-                                {
-                                    result.line = std::move(line);
-                                    return result;
-                                }
-                            }
-                            else
-                            {
-                                redrawRequired = true;
-                            }
-                        }
-                        break;
-                    default:
-                        break;
-                    }
-                }
-
-                if (redrawRequired)
-                {
-                    result.status = echo.redraw(line, caret);
-                    if (!result.status.ok())
-                    {
-                        result.line = std::move(line);
-                        return result;
-                    }
-                }
-            }
-        }
     } // namespace
 
     namespace Detail
     {
-        std::mutex &inputIoMutex(Types::InputStream stream) noexcept
+        std::mutex &inputIoMutex(Types::Input::Stream stream) noexcept
         {
             return inputCoordinator(stream).ioMutex;
         }
 
-        IO::Types::Status claimInput(Types::InputStream stream, const void *owner) noexcept
+        IO::Types::Status claimInput(Types::Input::Stream stream, const void *owner) noexcept
         {
             if (!validInputStream(stream) || owner == nullptr)
             {
@@ -1453,7 +496,7 @@ namespace GameWIP::Terminal
             }
         }
 
-        void releaseInput(Types::InputStream stream, const void *owner) noexcept
+        void releaseInput(Types::Input::Stream stream, const void *owner) noexcept
         {
             if (!validInputStream(stream) || owner == nullptr)
             {
@@ -1817,11 +860,11 @@ namespace GameWIP::Terminal
         }
     }
 
-    Types::EventReadResult Session::readEvent(const Types::EventReadOptions &options) noexcept
+    Types::Input::EventResult Session::readEvent(const Types::Input::EventOptions &options) noexcept
     {
         if (!state_)
         {
-            return failedResult<Types::EventReadResult>(notOpenStatus());
+            return failedResult<Types::Input::EventResult>(notOpenStatus());
         }
 
         try
@@ -1830,22 +873,22 @@ namespace GameWIP::Terminal
             std::lock_guard inputOperationLock(state_->inputOperationMutex);
             if (!state_->open.load(std::memory_order_acquire))
             {
-                return failedResult<Types::EventReadResult>(notOpenStatus());
+                return failedResult<Types::Input::EventResult>(notOpenStatus());
             }
-            if (state_->options.deliveryMode != Types::InputDeliveryMode::Events)
+            if (state_->options.deliveryMode != Types::Input::DeliveryMode::Events)
             {
-                return failedResult<Types::EventReadResult>(unsupportedStatus());
+                return failedResult<Types::Input::EventResult>(unsupportedStatus());
             }
 
             const ReadDecision decision =
                 validateReadContract(state_->ownership.capabilities, ReadOperation::Event, options.timeout, options.stopToken);
             if (!decision.status.ok())
             {
-                return failedResult<Types::EventReadResult>(decision.status);
+                return failedResult<Types::Input::EventResult>(decision.status);
             }
             if (decision.cancelled)
             {
-                return cancelledResult<Types::EventReadResult>();
+                return cancelledResult<Types::Input::EventResult>();
             }
 
             std::lock_guard inputLock(Detail::inputIoMutex(state_->options.input));
@@ -1853,19 +896,19 @@ namespace GameWIP::Terminal
         }
         catch (const std::bad_alloc &)
         {
-            return failedResult<Types::EventReadResult>(IO::makeStatus(ErrorCode::OutOfMemory));
+            return failedResult<Types::Input::EventResult>(IO::makeStatus(ErrorCode::OutOfMemory));
         }
         catch (...)
         {
-            return failedResult<Types::EventReadResult>(IO::makeStatus(ErrorCode::Unknown));
+            return failedResult<Types::Input::EventResult>(IO::makeStatus(ErrorCode::Unknown));
         }
     }
 
-    Types::ByteReadResult Session::readBytes(std::span<std::byte> outputBuffer, const Types::ByteReadOptions &options) noexcept
+    Types::Input::ByteResult Session::readBytes(std::span<std::byte> outputBuffer, const Types::Input::ByteOptions &options) noexcept
     {
         if (!state_)
         {
-            return failedResult<Types::ByteReadResult>(notOpenStatus());
+            return failedResult<Types::Input::ByteResult>(notOpenStatus());
         }
 
         try
@@ -1874,22 +917,22 @@ namespace GameWIP::Terminal
             std::lock_guard inputOperationLock(state_->inputOperationMutex);
             if (!state_->open.load(std::memory_order_acquire))
             {
-                return failedResult<Types::ByteReadResult>(notOpenStatus());
+                return failedResult<Types::Input::ByteResult>(notOpenStatus());
             }
-            if (state_->options.deliveryMode != Types::InputDeliveryMode::Stream)
+            if (state_->options.deliveryMode != Types::Input::DeliveryMode::Stream)
             {
-                return failedResult<Types::ByteReadResult>(unsupportedStatus());
+                return failedResult<Types::Input::ByteResult>(unsupportedStatus());
             }
 
             const ReadDecision decision =
                 validateReadContract(state_->ownership.capabilities, ReadOperation::Bytes, options.timeout, options.stopToken);
             if (!decision.status.ok())
             {
-                return failedResult<Types::ByteReadResult>(decision.status);
+                return failedResult<Types::Input::ByteResult>(decision.status);
             }
             if (decision.cancelled)
             {
-                return cancelledResult<Types::ByteReadResult>();
+                return cancelledResult<Types::Input::ByteResult>();
             }
 
             std::lock_guard inputLock(Detail::inputIoMutex(state_->options.input));
@@ -1897,24 +940,24 @@ namespace GameWIP::Terminal
         }
         catch (const std::bad_alloc &)
         {
-            return failedResult<Types::ByteReadResult>(IO::makeStatus(ErrorCode::OutOfMemory));
+            return failedResult<Types::Input::ByteResult>(IO::makeStatus(ErrorCode::OutOfMemory));
         }
         catch (...)
         {
-            return failedResult<Types::ByteReadResult>(IO::makeStatus(ErrorCode::Unknown));
+            return failedResult<Types::Input::ByteResult>(IO::makeStatus(ErrorCode::Unknown));
         }
     }
 
-    Types::TextReadResult Session::readText(const Types::TextReadOptions &options) noexcept
+    Types::Input::TextResult Session::readText(const Types::Input::TextOptions &options) noexcept
     {
         if (!state_)
         {
-            return failedResult<Types::TextReadResult>(notOpenStatus());
+            return failedResult<Types::Input::TextResult>(notOpenStatus());
         }
 
         if (options.maxReturnedBytes == 0)
         {
-            return failedResult<Types::TextReadResult>(invalidArgumentStatus());
+            return failedResult<Types::Input::TextResult>(invalidArgumentStatus());
         }
 
         try
@@ -1923,22 +966,22 @@ namespace GameWIP::Terminal
             std::lock_guard inputOperationLock(state_->inputOperationMutex);
             if (!state_->open.load(std::memory_order_acquire))
             {
-                return failedResult<Types::TextReadResult>(notOpenStatus());
+                return failedResult<Types::Input::TextResult>(notOpenStatus());
             }
-            if (state_->options.deliveryMode != Types::InputDeliveryMode::Stream)
+            if (state_->options.deliveryMode != Types::Input::DeliveryMode::Stream)
             {
-                return failedResult<Types::TextReadResult>(unsupportedStatus());
+                return failedResult<Types::Input::TextResult>(unsupportedStatus());
             }
 
             const ReadDecision decision =
                 validateReadContract(state_->ownership.capabilities, ReadOperation::Text, options.timeout, options.stopToken);
             if (!decision.status.ok())
             {
-                return failedResult<Types::TextReadResult>(decision.status);
+                return failedResult<Types::Input::TextResult>(decision.status);
             }
             if (decision.cancelled)
             {
-                return cancelledResult<Types::TextReadResult>();
+                return cancelledResult<Types::Input::TextResult>();
             }
 
             std::lock_guard inputLock(Detail::inputIoMutex(state_->options.input));
@@ -1946,24 +989,24 @@ namespace GameWIP::Terminal
         }
         catch (const std::bad_alloc &)
         {
-            return failedResult<Types::TextReadResult>(IO::makeStatus(ErrorCode::OutOfMemory));
+            return failedResult<Types::Input::TextResult>(IO::makeStatus(ErrorCode::OutOfMemory));
         }
         catch (...)
         {
-            return failedResult<Types::TextReadResult>(IO::makeStatus(ErrorCode::Unknown));
+            return failedResult<Types::Input::TextResult>(IO::makeStatus(ErrorCode::Unknown));
         }
     }
 
-    Types::LineReadResult Session::readLine(const Types::LineReadOptions &options) noexcept
+    Types::Input::LineResult Session::readLine(const Types::Input::LineOptions &options) noexcept
     {
         if (!state_)
         {
-            return failedResult<Types::LineReadResult>(notOpenStatus());
+            return failedResult<Types::Input::LineResult>(notOpenStatus());
         }
 
         if (options.maxReturnedBytes == 0 || !validReadLineEndingMode(options.lineEndingMode))
         {
-            return failedResult<Types::LineReadResult>(invalidArgumentStatus());
+            return failedResult<Types::Input::LineResult>(invalidArgumentStatus());
         }
 
         try
@@ -1972,27 +1015,27 @@ namespace GameWIP::Terminal
             std::lock_guard inputOperationLock(state_->inputOperationMutex);
             if (!state_->open.load(std::memory_order_acquire))
             {
-                return failedResult<Types::LineReadResult>(notOpenStatus());
+                return failedResult<Types::Input::LineResult>(notOpenStatus());
             }
-            if (state_->options.deliveryMode != Types::InputDeliveryMode::Stream)
+            if (state_->options.deliveryMode != Types::Input::DeliveryMode::Stream)
             {
-                return failedResult<Types::LineReadResult>(unsupportedStatus());
+                return failedResult<Types::Input::LineResult>(unsupportedStatus());
             }
 
             const ReadDecision decision =
                 validateReadContract(state_->ownership.capabilities, ReadOperation::Line, options.timeout, options.stopToken);
             if (!decision.status.ok())
             {
-                return failedResult<Types::LineReadResult>(decision.status);
+                return failedResult<Types::Input::LineResult>(decision.status);
             }
             if (decision.cancelled)
             {
-                return cancelledResult<Types::LineReadResult>();
+                return cancelledResult<Types::Input::LineResult>();
             }
 
             if (state_->ownership.capabilities.kind == Types::StreamKind::Terminal && state_->ownership.capabilities.supportsEventInput)
             {
-                return managedTerminalLineRead(state_->options.input, state_->options.output, options, state_->lineBoundaryStorage);
+                return Detail::managedTerminalLineRead(state_->options.input, state_->options.output, options, state_->lineBoundaryStorage);
             }
 
             std::lock_guard inputLock(Detail::inputIoMutex(state_->options.input));
@@ -2000,15 +1043,15 @@ namespace GameWIP::Terminal
         }
         catch (const std::bad_alloc &)
         {
-            return failedResult<Types::LineReadResult>(IO::makeStatus(ErrorCode::OutOfMemory));
+            return failedResult<Types::Input::LineResult>(IO::makeStatus(ErrorCode::OutOfMemory));
         }
         catch (...)
         {
-            return failedResult<Types::LineReadResult>(IO::makeStatus(ErrorCode::Unknown));
+            return failedResult<Types::Input::LineResult>(IO::makeStatus(ErrorCode::Unknown));
         }
     }
 
-    Types::InputCapabilitiesResult Session::getInputCapabilities() const noexcept
+    Types::Input::CapabilitiesResult Session::getInputCapabilities() const noexcept
     {
         if (!state_)
         {
@@ -2030,7 +1073,7 @@ namespace GameWIP::Terminal
         }
     }
 
-    Types::OutputCapabilitiesResult Session::getOutputCapabilities() const noexcept
+    Types::Output::CapabilitiesResult Session::getOutputCapabilities() const noexcept
     {
         if (!state_)
         {
@@ -2052,7 +1095,7 @@ namespace GameWIP::Terminal
         }
     }
 
-    Types::OutputCapabilitiesResult Session::prepareOutput() noexcept
+    Types::Output::CapabilitiesResult Session::prepareOutput() noexcept
     {
         if (!state_)
         {
@@ -2074,7 +1117,7 @@ namespace GameWIP::Terminal
         }
     }
 
-    Types::TerminalSizeResult Session::getTerminalSize() const noexcept
+    Types::SizeResult Session::getTerminalSize() const noexcept
     {
         if (!state_)
         {
@@ -2096,7 +1139,7 @@ namespace GameWIP::Terminal
         }
     }
 
-    IO::Types::Status Session::writeText(std::string_view utf8Text, const Types::TextWriteOptions &options) noexcept
+    IO::Types::Status Session::writeText(std::string_view utf8Text, const Types::Output::TextOptions &options) noexcept
     {
         if (!state_)
         {
@@ -2118,7 +1161,7 @@ namespace GameWIP::Terminal
         }
     }
 
-    IO::Types::Status Session::writeLine(std::string_view utf8Text, const Types::LineWriteOptions &options) noexcept
+    IO::Types::Status Session::writeLine(std::string_view utf8Text, const Types::Output::LineOptions &options) noexcept
     {
         if (!state_)
         {
@@ -2140,7 +1183,7 @@ namespace GameWIP::Terminal
         }
     }
 
-    IO::Types::WriteResult Session::writeBytes(std::span<const std::byte> bytes, const Types::ByteWriteOptions &options) noexcept
+    IO::Types::WriteResult Session::writeBytes(std::span<const std::byte> bytes, const Types::Output::ByteOptions &options) noexcept
     {
         if (!state_)
         {
@@ -2162,7 +1205,7 @@ namespace GameWIP::Terminal
         }
     }
 
-    IO::Types::Status Session::writeSegments(std::span<const Types::WriteSegment> segments, const Types::SegmentWriteOptions &options) noexcept
+    IO::Types::Status Session::writeSegments(std::span<const Types::Output::Segment> segments, const Types::Output::SegmentOptions &options) noexcept
     {
         if (!state_)
         {
@@ -2184,7 +1227,7 @@ namespace GameWIP::Terminal
         }
     }
 
-    IO::Types::Status Session::vprint(const Types::TextWriteOptions &options, std::string_view format, std::format_args arguments) noexcept
+    IO::Types::Status Session::vprint(const Types::Output::TextOptions &options, std::string_view format, std::format_args arguments) noexcept
     {
         if (!state_)
         {
@@ -2206,7 +1249,7 @@ namespace GameWIP::Terminal
         }
     }
 
-    IO::Types::Status Session::vprintln(const Types::LineWriteOptions &options, std::string_view format, std::format_args arguments) noexcept
+    IO::Types::Status Session::vprintln(const Types::Output::LineOptions &options, std::string_view format, std::format_args arguments) noexcept
     {
         if (!state_)
         {
@@ -2250,7 +1293,7 @@ namespace GameWIP::Terminal
         }
     }
 
-    IO::Types::Status Session::resetStyle(const Types::ControlOptions &options) noexcept
+    IO::Types::Status Session::resetStyle(const Types::Output::ControlOptions &options) noexcept
     {
         if (!state_)
         {
@@ -2272,7 +1315,10 @@ namespace GameWIP::Terminal
         }
     }
 
-    IO::Types::Status Session::moveCursor(Types::CursorMoveDirection direction, std::uint32_t amount, const Types::ControlOptions &options) noexcept
+    IO::Types::Status Session::moveCursor(
+        Types::Cursor::MoveDirection direction,
+        std::uint32_t amount,
+        const Types::Output::ControlOptions &options) noexcept
     {
         if (!state_)
         {
@@ -2294,7 +1340,7 @@ namespace GameWIP::Terminal
         }
     }
 
-    IO::Types::Status Session::setCursorPosition(Types::CursorPosition position, const Types::ControlOptions &options) noexcept
+    IO::Types::Status Session::setCursorPosition(Types::Cursor::Position position, const Types::Output::ControlOptions &options) noexcept
     {
         if (!state_)
         {
@@ -2316,7 +1362,7 @@ namespace GameWIP::Terminal
         }
     }
 
-    Types::CursorPositionResult Session::getCursorPosition(const Types::CursorPositionQueryOptions &options) noexcept
+    Types::Cursor::PositionResult Session::getCursorPosition(const Types::Cursor::QueryOptions &options) noexcept
     {
         if (!state_)
         {
@@ -2339,7 +1385,7 @@ namespace GameWIP::Terminal
         }
     }
 
-    IO::Types::Status Session::saveCursorPosition(const Types::ControlOptions &options) noexcept
+    IO::Types::Status Session::saveCursorPosition(const Types::Output::ControlOptions &options) noexcept
     {
         if (!state_)
         {
@@ -2361,7 +1407,7 @@ namespace GameWIP::Terminal
         }
     }
 
-    IO::Types::Status Session::restoreCursorPosition(const Types::ControlOptions &options) noexcept
+    IO::Types::Status Session::restoreCursorPosition(const Types::Output::ControlOptions &options) noexcept
     {
         if (!state_)
         {
@@ -2383,7 +1429,7 @@ namespace GameWIP::Terminal
         }
     }
 
-    IO::Types::Status Session::setCursorVisible(bool visible, const Types::ControlOptions &options) noexcept
+    IO::Types::Status Session::setCursorVisible(bool visible, const Types::Output::ControlOptions &options) noexcept
     {
         if (!state_)
         {
@@ -2453,7 +1499,7 @@ namespace GameWIP::Terminal
         }
     }
 
-    IO::Types::Status Session::clear(Types::ClearTarget target, const Types::ControlOptions &options) noexcept
+    IO::Types::Status Session::clear(Types::Output::ClearTarget target, const Types::Output::ControlOptions &options) noexcept
     {
         if (!state_)
         {
@@ -2475,7 +1521,10 @@ namespace GameWIP::Terminal
         }
     }
 
-    IO::Types::Status Session::scroll(Types::ScrollDirection direction, std::uint32_t lines, const Types::ControlOptions &options) noexcept
+    IO::Types::Status Session::scroll(
+        Types::Output::ScrollDirection direction,
+        std::uint32_t lines,
+        const Types::Output::ControlOptions &options) noexcept
     {
         if (!state_)
         {
@@ -2497,7 +1546,7 @@ namespace GameWIP::Terminal
         }
     }
 
-    IO::Types::Status Session::enterAlternateScreen(const Types::ControlOptions &options) noexcept
+    IO::Types::Status Session::enterAlternateScreen(const Types::Output::ControlOptions &options) noexcept
     {
         if (!state_)
         {
@@ -2538,7 +1587,7 @@ namespace GameWIP::Terminal
         }
     }
 
-    IO::Types::Status Session::leaveAlternateScreen(const Types::ControlOptions &options) noexcept
+    IO::Types::Status Session::leaveAlternateScreen(const Types::Output::ControlOptions &options) noexcept
     {
         if (!state_)
         {
@@ -2590,7 +1639,7 @@ namespace GameWIP::Terminal
         }
     }
 
-    IO::Types::Status Session::setTitle(std::string_view utf8Title, const Types::ControlOptions &options) noexcept
+    IO::Types::Status Session::setTitle(std::string_view utf8Title, const Types::Output::ControlOptions &options) noexcept
     {
         if (!state_)
         {
@@ -2612,7 +1661,7 @@ namespace GameWIP::Terminal
         }
     }
 
-    IO::Types::Status Session::ringBell(const Types::ControlOptions &options) noexcept
+    IO::Types::Status Session::ringBell(const Types::Output::ControlOptions &options) noexcept
     {
         if (!state_)
         {
@@ -2634,107 +1683,110 @@ namespace GameWIP::Terminal
         }
     }
 
-    Types::EventReadResult readEvent(const Types::EventReadOptions &options) noexcept
+    Types::Input::EventResult readEvent(const Types::Input::EventOptions &options) noexcept
     {
-        return readEvent(Types::InputStream::Stdin, options);
+        return readEvent(Types::Input::Stream::Stdin, options);
     }
 
-    Types::EventReadResult readEvent(Types::InputStream stream, const Types::EventReadOptions &options) noexcept
+    Types::Input::EventResult readEvent(Types::Input::Stream stream, const Types::Input::EventOptions &options) noexcept
     {
         if (!validInputStream(stream))
         {
-            return failedResult<Types::EventReadResult>(invalidArgumentStatus());
+            return failedResult<Types::Input::EventResult>(invalidArgumentStatus());
         }
 
         const ReadDecision initial = validateDirectReadOptions(options);
         if (!initial.status.ok())
         {
-            return failedResult<Types::EventReadResult>(initial.status);
+            return failedResult<Types::Input::EventResult>(initial.status);
         }
         if (initial.cancelled)
         {
-            return cancelledResult<Types::EventReadResult>();
+            return cancelledResult<Types::Input::EventResult>();
         }
 
         try
         {
             DirectInputLease lease(stream);
-            IO::Types::Status status = lease.open(Types::InputDeliveryMode::Events);
+            IO::Types::Status status = lease.open(Types::Input::DeliveryMode::Events);
             if (!status.ok())
             {
-                return failedResult<Types::EventReadResult>(std::move(status));
+                return failedResult<Types::Input::EventResult>(std::move(status));
             }
 
             const ReadDecision decision = validateReadContract(lease.capabilities(), ReadOperation::Event, options.timeout, options.stopToken);
             if (!decision.status.ok())
             {
                 status = lease.finish(decision.status);
-                return failedResult<Types::EventReadResult>(std::move(status));
+                return failedResult<Types::Input::EventResult>(std::move(status));
             }
             if (decision.cancelled)
             {
-                Types::EventReadResult result = cancelledResult<Types::EventReadResult>();
+                Types::Input::EventResult result = cancelledResult<Types::Input::EventResult>();
                 result.status = lease.finish(std::move(result.status));
                 return result;
             }
 
-            Types::EventReadResult result;
+            Types::Input::EventResult result;
             {
                 std::lock_guard lock(Detail::inputIoMutex(stream));
-                result = Detail::Platform::readEvent(stream, Types::OutputStream::Stdout, options);
+                result = Detail::Platform::readEvent(stream, Types::Output::Stream::Stdout, options);
             }
             result.status = lease.finish(std::move(result.status));
             return result;
         }
         catch (const std::bad_alloc &)
         {
-            return failedResult<Types::EventReadResult>(IO::makeStatus(ErrorCode::OutOfMemory));
+            return failedResult<Types::Input::EventResult>(IO::makeStatus(ErrorCode::OutOfMemory));
         }
         catch (...)
         {
-            return failedResult<Types::EventReadResult>(IO::makeStatus(ErrorCode::Unknown));
+            return failedResult<Types::Input::EventResult>(IO::makeStatus(ErrorCode::Unknown));
         }
     }
 
-    Types::ByteReadResult readBytes(std::span<std::byte> outputBuffer, const Types::ByteReadOptions &options) noexcept
+    Types::Input::ByteResult readBytes(std::span<std::byte> outputBuffer, const Types::Input::ByteOptions &options) noexcept
     {
-        return readBytes(Types::InputStream::Stdin, outputBuffer, options);
+        return readBytes(Types::Input::Stream::Stdin, outputBuffer, options);
     }
 
-    Types::ByteReadResult readBytes(Types::InputStream stream, std::span<std::byte> outputBuffer, const Types::ByteReadOptions &options) noexcept
+    Types::Input::ByteResult readBytes(
+        Types::Input::Stream stream,
+        std::span<std::byte> outputBuffer,
+        const Types::Input::ByteOptions &options) noexcept
     {
         if (!validInputStream(stream))
         {
-            return failedResult<Types::ByteReadResult>(invalidArgumentStatus());
+            return failedResult<Types::Input::ByteResult>(invalidArgumentStatus());
         }
 
         const ReadDecision initial = validateDirectReadOptions(options);
         if (!initial.status.ok())
         {
-            return failedResult<Types::ByteReadResult>(initial.status);
+            return failedResult<Types::Input::ByteResult>(initial.status);
         }
         if (initial.cancelled)
         {
-            return cancelledResult<Types::ByteReadResult>();
+            return cancelledResult<Types::Input::ByteResult>();
         }
 
         try
         {
             DirectInputLease lease(stream);
-            IO::Types::Status status = lease.open(Types::InputDeliveryMode::Stream);
+            IO::Types::Status status = lease.open(Types::Input::DeliveryMode::Stream);
             if (!status.ok())
             {
-                return failedResult<Types::ByteReadResult>(std::move(status));
+                return failedResult<Types::Input::ByteResult>(std::move(status));
             }
 
             const ReadDecision decision = validateReadContract(lease.capabilities(), ReadOperation::Bytes, options.timeout, options.stopToken);
             if (!decision.status.ok())
             {
                 status = lease.finish(decision.status);
-                return failedResult<Types::ByteReadResult>(std::move(status));
+                return failedResult<Types::Input::ByteResult>(std::move(status));
             }
 
-            Types::ByteReadResult result;
+            Types::Input::ByteResult result;
             {
                 std::lock_guard lock(Detail::inputIoMutex(stream));
                 result = Detail::Platform::readBytes(stream, outputBuffer, options);
@@ -2744,53 +1796,53 @@ namespace GameWIP::Terminal
         }
         catch (const std::bad_alloc &)
         {
-            return failedResult<Types::ByteReadResult>(IO::makeStatus(ErrorCode::OutOfMemory));
+            return failedResult<Types::Input::ByteResult>(IO::makeStatus(ErrorCode::OutOfMemory));
         }
         catch (...)
         {
-            return failedResult<Types::ByteReadResult>(IO::makeStatus(ErrorCode::Unknown));
+            return failedResult<Types::Input::ByteResult>(IO::makeStatus(ErrorCode::Unknown));
         }
     }
 
-    Types::TextReadResult readText(const Types::TextReadOptions &options) noexcept
+    Types::Input::TextResult readText(const Types::Input::TextOptions &options) noexcept
     {
-        return readText(Types::InputStream::Stdin, options);
+        return readText(Types::Input::Stream::Stdin, options);
     }
 
-    Types::TextReadResult readText(Types::InputStream stream, const Types::TextReadOptions &options) noexcept
+    Types::Input::TextResult readText(Types::Input::Stream stream, const Types::Input::TextOptions &options) noexcept
     {
         if (!validInputStream(stream) || options.maxReturnedBytes == 0)
         {
-            return failedResult<Types::TextReadResult>(invalidArgumentStatus());
+            return failedResult<Types::Input::TextResult>(invalidArgumentStatus());
         }
 
         const ReadDecision initial = validateDirectReadOptions(options);
         if (!initial.status.ok())
         {
-            return failedResult<Types::TextReadResult>(initial.status);
+            return failedResult<Types::Input::TextResult>(initial.status);
         }
         if (initial.cancelled)
         {
-            return cancelledResult<Types::TextReadResult>();
+            return cancelledResult<Types::Input::TextResult>();
         }
 
         try
         {
             DirectInputLease lease(stream);
-            IO::Types::Status status = lease.open(Types::InputDeliveryMode::Stream);
+            IO::Types::Status status = lease.open(Types::Input::DeliveryMode::Stream);
             if (!status.ok())
             {
-                return failedResult<Types::TextReadResult>(std::move(status));
+                return failedResult<Types::Input::TextResult>(std::move(status));
             }
 
             const ReadDecision decision = validateReadContract(lease.capabilities(), ReadOperation::Text, options.timeout, options.stopToken);
             if (!decision.status.ok())
             {
                 status = lease.finish(decision.status);
-                return failedResult<Types::TextReadResult>(std::move(status));
+                return failedResult<Types::Input::TextResult>(std::move(status));
             }
 
-            Types::TextReadResult result;
+            Types::Input::TextResult result;
             {
                 std::lock_guard lock(Detail::inputIoMutex(stream));
                 result = Detail::Platform::readText(stream, options);
@@ -2800,57 +1852,57 @@ namespace GameWIP::Terminal
         }
         catch (const std::bad_alloc &)
         {
-            return failedResult<Types::TextReadResult>(IO::makeStatus(ErrorCode::OutOfMemory));
+            return failedResult<Types::Input::TextResult>(IO::makeStatus(ErrorCode::OutOfMemory));
         }
         catch (...)
         {
-            return failedResult<Types::TextReadResult>(IO::makeStatus(ErrorCode::Unknown));
+            return failedResult<Types::Input::TextResult>(IO::makeStatus(ErrorCode::Unknown));
         }
     }
 
-    Types::LineReadResult readLine(const Types::LineReadOptions &options) noexcept
+    Types::Input::LineResult readLine(const Types::Input::LineOptions &options) noexcept
     {
-        return readLine(Types::InputStream::Stdin, options);
+        return readLine(Types::Input::Stream::Stdin, options);
     }
 
-    Types::LineReadResult readLine(Types::InputStream stream, const Types::LineReadOptions &options) noexcept
+    Types::Input::LineResult readLine(Types::Input::Stream stream, const Types::Input::LineOptions &options) noexcept
     {
         if (!validInputStream(stream) || options.maxReturnedBytes == 0 || !validReadLineEndingMode(options.lineEndingMode))
         {
-            return failedResult<Types::LineReadResult>(invalidArgumentStatus());
+            return failedResult<Types::Input::LineResult>(invalidArgumentStatus());
         }
 
         const ReadDecision initial = validateDirectReadOptions(options);
         if (!initial.status.ok())
         {
-            return failedResult<Types::LineReadResult>(initial.status);
+            return failedResult<Types::Input::LineResult>(initial.status);
         }
         if (initial.cancelled)
         {
-            return cancelledResult<Types::LineReadResult>();
+            return cancelledResult<Types::Input::LineResult>();
         }
 
         try
         {
             DirectInputLease lease(stream);
-            IO::Types::Status status = lease.open(Types::InputDeliveryMode::Stream);
+            IO::Types::Status status = lease.open(Types::Input::DeliveryMode::Stream);
             if (!status.ok())
             {
-                return failedResult<Types::LineReadResult>(std::move(status));
+                return failedResult<Types::Input::LineResult>(std::move(status));
             }
 
             const ReadDecision decision = validateReadContract(lease.capabilities(), ReadOperation::Line, options.timeout, options.stopToken);
             if (!decision.status.ok())
             {
                 status = lease.finish(decision.status);
-                return failedResult<Types::LineReadResult>(std::move(status));
+                return failedResult<Types::Input::LineResult>(std::move(status));
             }
 
-            Types::LineReadResult result;
+            Types::Input::LineResult result;
             if (lease.capabilities().kind == Types::StreamKind::Terminal && lease.capabilities().supportsEventInput)
             {
                 std::vector<std::size_t> graphemeStorage;
-                result = managedTerminalLineRead(stream, Types::OutputStream::Stdout, options, graphemeStorage);
+                result = Detail::managedTerminalLineRead(stream, Types::Output::Stream::Stdout, options, graphemeStorage);
             }
             else
             {
@@ -2863,11 +1915,11 @@ namespace GameWIP::Terminal
         }
         catch (const std::bad_alloc &)
         {
-            return failedResult<Types::LineReadResult>(IO::makeStatus(ErrorCode::OutOfMemory));
+            return failedResult<Types::Input::LineResult>(IO::makeStatus(ErrorCode::OutOfMemory));
         }
         catch (...)
         {
-            return failedResult<Types::LineReadResult>(IO::makeStatus(ErrorCode::Unknown));
+            return failedResult<Types::Input::LineResult>(IO::makeStatus(ErrorCode::Unknown));
         }
     }
 } // namespace GameWIP::Terminal

@@ -44,7 +44,7 @@ Do not mix manual visibility or alternate-screen transitions with active scopes 
 
 ## Flush and failure behavior
 
-Controls use `ControlOptions::flushMode`. Invalid values are rejected before normal emission. A requested flush reaches the operating system only where the endpoint supports a meaningful flush.
+Controls use `Types::Output::ControlOptions::flushMode`. Invalid values are rejected before normal emission. A requested flush reaches the operating system only where the endpoint supports a meaningful flush.
 
 A failed control write can already have emitted a prefix. Status reports completion, not rollback. For the two state-owning scope factories, successful sequence emission is tracked separately from the following flush so a flush failure cannot lose the required inverse transition. When an inverse sequence is emitted but its flush fails, retry flushes without emitting that inverse sequence again.
 

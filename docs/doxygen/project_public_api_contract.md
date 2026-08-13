@@ -6,6 +6,7 @@ This page defines the durable project-wide contract for reusable public C++ APIs
 
 - Public types and enum values use `UpperCamelCase`; functions, methods, variables, and fields use `lowerCamelCase`.
 - Boolean predicates describe the property they answer. Add `is...`, `has...`, `supports...`, or similar context when it makes the question clearer; keep a shorter conventional name such as `canSeek()` when it is already unambiguous. Avoid a bare `valid()` when `isValid()` expresses the same contract more clearly.
+- Keep conventional operation names such as `flush()` when the owning type or namespace already supplies the context. Use a differentiated form such as `flushTo(destination)` only when the destination or semantic distinction is real; do not mechanically restate context in the name.
 - Mutating operations use verbs. A name must disclose destructive side effects that are not otherwise obvious; for example, a write-and-clear operation says both actions.
 - Use one property vocabulary across a type. A getter and setter should describe the same property unless the operations intentionally have different semantics.
 - Names must describe actual semantics rather than historical implementation. Event names identify the changed property or observed occurrence, and a plural native-handle view uses a plural name.
@@ -13,6 +14,7 @@ This page defines the durable project-wide contract for reusable public C++ APIs
 ## Text and bytes
 
 Public APIs that call data text use UTF-8. Encoding-agnostic or unvalidated data is called bytes.
+A Text API has the same UTF-8 validity contract regardless of whether the active backend is a console, redirected byte stream, file, pipe, or another native endpoint. Backend selection must not decide whether malformed text is accepted.
 
 UTF-8 text continues to use `std::string`, `std::string_view`, and caller-owned `std::span<char>` storage. GameWIP does not migrate public UTF-8 APIs to `std::u8string` or `std::u8string_view`.
 
@@ -82,13 +84,14 @@ Resource-owning RAII types and stateful services live at the owning library name
 
 ## Configuration macros
 
-Use `GAMEWIP_*` for configuration that genuinely belongs to the project as a whole. Library-specific configuration uses the owning library's prefix, and library-internal compile definitions place the library name first (for example, `IO_INTERNAL_*`). Do not add the project prefix merely because a library lives in the GameWIP repository.
+Use `GAMEWIP_*` for configuration that genuinely belongs to the project as a whole. Library-specific configuration uses the owning library's prefix. Internal implementation and test-hook definitions use `<LIBRARY>_INTERNAL_*` (for example, `IO_INTERNAL_*`, `FILESYSTEM_INTERNAL_*`, or `TERMINAL_INTERNAL_*`). Do not add the project prefix merely because a library lives in the GameWIP repository.
 
 ## Public headers
 
 Public headers expose portable supported declarations and do not leak internal storage, validation hooks, or platform types except through an explicitly platform-scoped interop header.
 
 Umbrella headers may remain supported while focused headers are added. Splitting a physical header does not require splitting its namespace, target, or package. Give an important evolving configuration/state model or optional feature a focused header when that creates a real ownership, discoverability, dependency, or usability boundary; do not create one file per type mechanically. Header decomposition follows conceptual ownership rather than line count and is not automatically a release or feature blocker.
+Public-header boundaries are independent from implementation-source and correctness-test boundaries. One cohesive umbrella header may be backed by several responsibility-focused `.cpp` files, and one test module may use several behavior-focused case files.
 
 Generated lookup tables and other large implementation data remain in private implementation headers or source files. Every supported public entry header is compiled in isolation and exercised through installed-consumer validation.
 

@@ -62,15 +62,15 @@ namespace GameWIP::Logger::Detail::Core
 
     static Status writeConsoleLine(const LogStyle &style, std::string_view line)
     {
-        const std::array<Terminal::Types::WriteSegment, 1> segments{Terminal::styledTextSegment(line, style.terminalStyle)};
-        Terminal::Types::SegmentWriteOptions options;
-        options.styleMode = loggerState().consoleColorEnabledAtomic.load(std::memory_order_acquire) ? Terminal::Types::StyleMode::Auto
-                                                                                                    : Terminal::Types::StyleMode::Never;
+        const std::array<Terminal::Types::Output::Segment, 1> segments{Terminal::styledTextSegment(line, style.terminalStyle)};
+        Terminal::Types::Output::SegmentOptions options;
+        options.styleMode = loggerState().consoleColorEnabledAtomic.load(std::memory_order_acquire) ? Terminal::Types::Style::Mode::Auto
+                                                                                                    : Terminal::Types::Style::Mode::Never;
         options.appendLineEnding = true;
-        options.lineEnding = Terminal::Types::LineEnding::Native;
+        options.lineEnding = Terminal::Types::Output::LineEnding::Native;
         options.flushMode =
             loggerState().flushConsoleEveryWriteAtomic.load(std::memory_order_acquire) ? IO::Types::FlushMode::Data : IO::Types::FlushMode::None;
-        const auto stream = style.useStderr ? Terminal::Types::OutputStream::Stderr : Terminal::Types::OutputStream::Stdout;
+        const auto stream = style.useStderr ? Terminal::Types::Output::Stream::Stderr : Terminal::Types::Output::Stream::Stdout;
         return Terminal::writeSegments(stream, segments, options);
     }
 
@@ -335,10 +335,10 @@ namespace GameWIP::Logger::Detail::Core
                 result.outcome = Types::FlushOutcome::TimedOut;
             else
             {
-                Status stdoutStatus = Terminal::flush(Terminal::Types::OutputStream::Stdout, IO::Types::FlushMode::Data);
+                Status stdoutStatus = Terminal::flush(Terminal::Types::Output::Stream::Stdout, IO::Types::FlushMode::Data);
                 Status stderrStatus;
                 if (!deadlineExpired(deadline))
-                    stderrStatus = Terminal::flush(Terminal::Types::OutputStream::Stderr, IO::Types::FlushMode::Data);
+                    stderrStatus = Terminal::flush(Terminal::Types::Output::Stream::Stderr, IO::Types::FlushMode::Data);
                 else
                     result.outcome = Types::FlushOutcome::TimedOut;
                 consoleStatus = firstFailure(std::move(stdoutStatus), stderrStatus);

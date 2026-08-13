@@ -11,7 +11,7 @@ GameWIP::Terminal::Session session;
 
 GameWIP::Terminal::Types::SessionOptions options;
 options.deliveryMode =
-    GameWIP::Terminal::Types::InputDeliveryMode::Stream;
+    GameWIP::Terminal::Types::Input::DeliveryMode::Stream;
 
 const auto status = session.open(options);
 ```
@@ -28,8 +28,8 @@ The destructor is `noexcept` and makes best-effort output and input restoration 
 
 `SessionOptions::deliveryMode` is fixed for the complete open session:
 
-- `InputDeliveryMode::Events` accepts `readEvent()`;
-- `InputDeliveryMode::Stream` accepts `readBytes()`, `readText()`, and `readLine()`.
+- `Types::Input::DeliveryMode::Events` accepts `readEvent()`;
+- `Types::Input::DeliveryMode::Stream` accepts `readBytes()`, `readText()`, and `readLine()`.
 
 An incompatible read returns `Unsupported` without consuming input.
 
@@ -82,7 +82,7 @@ Every managed read supports the common public model described in @ref terminal_r
 - negative timeout is `InvalidArgument`;
 - `std::stop_token` requests cancellation.
 
-A pre-requested stop returns `ReadOutcome::Cancelled` without consuming input. Blocking cancellation is accepted only when the endpoint advertises `supportsCancellation`.
+A pre-requested stop returns `Types::Input::ReadOutcome::Cancelled` without consuming input. Blocking cancellation is accepted only when the endpoint advertises `supportsCancellation`.
 
 ## Buffered input and handle replacement
 

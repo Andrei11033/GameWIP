@@ -9,7 +9,7 @@ The examples include the complete local setup required for the operation being d
 
 int main()
 {
-    using GameWIP::Terminal::Types::OutputStream;
+    using GameWIP::Terminal::Types::Output::Stream;
 
     const auto first = GameWIP::Terminal::writeLine("starting");
     if (!first.ok())
@@ -31,7 +31,7 @@ int main()
 {
     using namespace GameWIP::Terminal;
 
-    const Types::LineReadResult result = readLine();
+    const Types::Input::LineResult result = readLine();
     if (!result.status.ok())
     {
         return 1;
@@ -47,15 +47,15 @@ int main()
 
     switch (result.outcome)
     {
-    case Types::ReadOutcome::Completed:
+    case Types::Input::ReadOutcome::Completed:
         return 0;
-    case Types::ReadOutcome::EndOfStream:
+    case Types::Input::ReadOutcome::EndOfStream:
         return 2;
-    case Types::ReadOutcome::TimedOut:
+    case Types::Input::ReadOutcome::TimedOut:
         return 3;
-    case Types::ReadOutcome::WouldBlock:
+    case Types::Input::ReadOutcome::WouldBlock:
         return 4;
-    case Types::ReadOutcome::Cancelled:
+    case Types::Input::ReadOutcome::Cancelled:
         return 5;
     }
 
@@ -83,7 +83,7 @@ int main()
     }
 
     std::array<std::byte, 256> storage{};
-    Types::ByteReadOptions options;
+    Types::Input::ByteOptions options;
     options.timeout = kNoWait;
 
     const auto result = readBytes(std::span<std::byte>{storage}, options);
@@ -100,9 +100,9 @@ int main()
 {
     using namespace GameWIP::Terminal;
 
-    Types::LineWriteOptions options;
-    options.styleMode = Types::StyleMode::Auto;
-    options.style.foreground = basicColor(Types::BasicColor::Green);
+    Types::Output::LineOptions options;
+    options.styleMode = Types::Style::Mode::Auto;
+    options.style.foreground = basicColor(Types::Style::BasicColor::Green);
     options.style.bold = true;
 
     return writeLine("ready", options).ok() ? 0 : 1;
@@ -124,15 +124,15 @@ int main()
     const std::string label = "[info] ";
     const std::string message = "loaded";
 
-    Types::TextStyle emphasis;
-    emphasis.foreground = basicColor(Types::BasicColor::Cyan);
+    Types::Style::Request emphasis;
+    emphasis.foreground = basicColor(Types::Style::BasicColor::Cyan);
 
     const std::array segments{
         styledTextSegment(label, emphasis),
         textSegment(message),
     };
 
-    Types::SegmentWriteOptions options;
+    Types::Output::SegmentOptions options;
     options.appendLineEnding = true;
 
     return writeSegments(segments, options).ok() ? 0 : 1;
@@ -151,7 +151,7 @@ int main()
     using namespace GameWIP::Terminal;
 
     OutputBuffer buffer;
-    if (!buffer.setLineEnding(Types::LineEnding::Lf).ok() ||
+    if (!buffer.setLineEnding(Types::Output::LineEnding::Lf).ok() ||
         !buffer.reserve(1024).ok() ||
         !buffer.println("entity {} hp {}", 7, 95).ok() ||
         !buffer.println("entity {} hp {}", 8, 42).ok())
@@ -181,7 +181,7 @@ int main()
 
     Session session;
     Types::SessionOptions options;
-    options.deliveryMode = Types::InputDeliveryMode::Stream;
+    options.deliveryMode = Types::Input::DeliveryMode::Stream;
 
     const auto openStatus = session.open(options);
     if (!openStatus.ok())
@@ -195,7 +195,7 @@ int main()
         return 2;
     }
 
-    const Types::LineReadResult line = session.readLine();
+    const Types::Input::LineResult line = session.readLine();
     if (!line.status.ok() ||
         !session.println("hello {}", line.line).ok())
     {
@@ -204,7 +204,7 @@ int main()
     }
 
     const auto closeStatus = session.close();
-    return line.outcome == Types::ReadOutcome::Completed && closeStatus.ok() ? 0 : 4;
+    return line.outcome == Types::Input::ReadOutcome::Completed && closeStatus.ok() ? 0 : 4;
 }
 ```
 
@@ -225,16 +225,16 @@ int main()
         return 1;
     }
 
-    const Types::EventReadResult result = session.readEvent();
+    const Types::Input::EventResult result = session.readEvent();
     if (!result.status.ok())
     {
         static_cast<void>(session.close());
         return 2;
     }
 
-    if (result.outcome == Types::ReadOutcome::Completed && result.event.has_value())
+    if (result.outcome == Types::Input::ReadOutcome::Completed && result.event.has_value())
     {
-        if (const Types::ResizeEvent *resize = result.event->getIf<Types::ResizeEvent>())
+        if (const Types::Events::Resize *resize = result.event->getIf<Types::Events::Resize>())
         {
             // resize->size uses the same viewport semantics as getTerminalSize().
         }
@@ -260,12 +260,12 @@ int main()
     std::stop_source source;
     source.request_stop();
 
-    Types::TextReadOptions options;
+    Types::Input::TextOptions options;
     options.stopToken = source.get_token();
 
-    const Types::TextReadResult result = readText(options);
+    const Types::Input::TextResult result = readText(options);
     return result.status.ok() &&
-                   result.outcome == Types::ReadOutcome::Cancelled
+                   result.outcome == Types::Input::ReadOutcome::Cancelled
                ? 0
                : 1;
 }

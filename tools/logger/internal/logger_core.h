@@ -548,7 +548,7 @@ namespace GameWIP::Logger::Detail::Core
     struct LogStyle
     {
         const char *text = "UNKNOWN";
-        Terminal::Types::TextStyle terminalStyle{};
+        Terminal::Types::Style::Request terminalStyle{};
         bool useStderr = true;
     };
 

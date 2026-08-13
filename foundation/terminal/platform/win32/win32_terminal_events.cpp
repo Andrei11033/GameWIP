@@ -16,16 +16,16 @@ namespace GameWIP::Terminal::Detail::Platform::Win32Events
 {
     namespace
     {
-        using CharacterKey = Terminal::Types::CharacterKey;
-        using FunctionKey = Terminal::Types::FunctionKey;
-        using Key = Terminal::Types::Key;
-        using KeyAction = Terminal::Types::KeyAction;
-        using KeyEvent = Terminal::Types::KeyEvent;
-        using KeyLocation = Terminal::Types::KeyLocation;
-        using KeyModifier = Terminal::Types::KeyModifier;
-        using MediaKey = Terminal::Types::MediaKey;
-        using ModifierKey = Terminal::Types::ModifierKey;
-        using NamedKey = Terminal::Types::NamedKey;
+        using CharacterKey = Terminal::Types::Events::CharacterKey;
+        using FunctionKey = Terminal::Types::Events::FunctionKey;
+        using Key = Terminal::Types::Events::KeyValue;
+        using KeyAction = Terminal::Types::Events::KeyAction;
+        using KeyEvent = Terminal::Types::Events::Key;
+        using KeyLocation = Terminal::Types::Events::KeyLocation;
+        using KeyModifier = Terminal::Types::Events::KeyModifier;
+        using MediaKey = Terminal::Types::Events::MediaKey;
+        using ModifierKey = Terminal::Types::Events::ModifierKey;
+        using NamedKey = Terminal::Types::Events::NamedKey;
 
         inline constexpr std::size_t kTrackedLocationCount = 5;
 

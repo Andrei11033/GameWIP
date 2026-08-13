@@ -38,6 +38,7 @@ set(expected_gamewip_headers
     logger/logger.h
     logger/logger_export.h
     logger/logger_macros.h
+    terminal/style.h
     terminal/terminal.h
     terminal/terminal_export.h
     test_support/test_support.h

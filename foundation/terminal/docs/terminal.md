@@ -28,11 +28,11 @@ Terminal is a shared runtime library. One process-wide implementation coordinate
 
 Use @ref GameWIP::Terminal for direct operations, `Session`, factories, formatted output, buffers, and output-state RAII scopes. Use @ref GameWIP::Terminal::Types for streams, session policies, events, capabilities, styles, options, segments, and result types.
 
-The generated reference owns exact declarations and overload signatures from `terminal/terminal.h`. The manual explains selection rules, endpoint-dependent behavior, ownership, failure semantics, concurrency, packaging, and caveats.
+The generated reference owns exact declarations and overload signatures from the `terminal/terminal.h` umbrella and focused `terminal/style.h` styling header. The manual explains selection rules, endpoint-dependent behavior, ownership, failure semantics, concurrency, packaging, and caveats.
 
 ## Key behavior
 
-Public text is UTF-8. Real-console output is converted through the native Unicode console API, while redirected text remains UTF-8 bytes. Native Win32 console input is decoded from structured `INPUT_RECORD` data into portable logical events; interactive Stream reads and Unicode line editing are built on that same immediate event engine. Raw byte operations remain byte-oriented.
+Public Text is complete valid UTF-8 independent of endpoint. Real-console output is converted through the native Unicode console API, while redirected text preserves the validated UTF-8 bytes unchanged. Native Win32 console input is decoded from structured `INPUT_RECORD` data into portable logical events; interactive Stream reads and Unicode line editing are built on that same immediate event engine. Raw byte operations remain arbitrary-byte oriented.
 
 Terminal has one process-wide managed stdin ownership domain plus backend input serialization. A persistent `Session` owns stdin until `close()`, binds one primary output, and can track reversible output state it explicitly changes. Each direct read acquires temporary ownership, performs the operation, restores exact native state, and releases ownership. Global and Session output share the same independent stdout/stderr serialization, so output can continue while a Session read blocks. Terminal cannot coordinate with direct C, C++, native-handle, or third-party stream access.
 
@@ -40,6 +40,6 @@ Capabilities depend on the current endpoint. Real terminals, redirected streams,
 
 ## Dependency boundary
 
-The public C++ header is `terminal/terminal.h`. Installed consumers link `GameWIP::Terminal`; source-tree consumers may link `Terminal`.
+The normal public umbrella is `terminal/terminal.h`; `terminal/style.h` is an independently includable focused styling header and is also included by the umbrella. Installed consumers link `GameWIP::Terminal`; source-tree consumers may link `Terminal`.
 
 Terminal publicly depends on IO for statuses, flush modes, and byte-write results and privately reuses Unicode for strict scalar conversion and grapheme traversal. Logger uses Terminal for normal console output, but Terminal does not depend on Logger. Terminal owns managed standard-stream coordination, session/native-state restoration, key/event normalization, interactive line discipline, UTF-8/native conversion, capability discovery, styling, and primitive controls; history, completion, prompts, menus, multi-line widgets, logging policy, and game runtime behavior belong elsewhere.

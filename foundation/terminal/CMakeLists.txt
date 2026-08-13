@@ -24,7 +24,10 @@ generate_export_header(Terminal
 
 target_sources(Terminal
     PRIVATE
+        core/line_input.cpp
+        core/output_buffer.cpp
         core/session.cpp
+        core/style.cpp
         core/terminal.cpp
         core/terminal_test_hooks.cpp
     PUBLIC
@@ -34,6 +37,7 @@ target_sources(Terminal
             "${CMAKE_CURRENT_SOURCE_DIR}/.."
             "${TERMINAL_GENERATED_INCLUDE_DIR}"
         FILES
+            "${CMAKE_CURRENT_SOURCE_DIR}/style.h"
             "${CMAKE_CURRENT_SOURCE_DIR}/terminal.h"
             "${TERMINAL_GENERATED_INCLUDE_DIR}/terminal/terminal_export.h"
 )
@@ -49,9 +53,9 @@ target_include_directories(Terminal PUBLIC
 target_compile_features(Terminal PUBLIC cxx_std_23)
 target_compile_definitions(Terminal
     PRIVATE
-        INTERNAL_TERMINAL_TEST_HOOKS=$<BOOL:${TERMINAL_ENABLE_TEST_HOOKS}>
+        TERMINAL_INTERNAL_TEST_HOOKS=$<BOOL:${TERMINAL_ENABLE_TEST_HOOKS}>
     INTERFACE
-        $<BUILD_INTERFACE:INTERNAL_TERMINAL_TEST_HOOKS=$<BOOL:${TERMINAL_ENABLE_TEST_HOOKS}>>
+        $<BUILD_INTERFACE:TERMINAL_INTERNAL_TEST_HOOKS=$<BOOL:${TERMINAL_ENABLE_TEST_HOOKS}>>
 )
 
 target_link_libraries(Terminal
@@ -76,6 +80,7 @@ if(GAMEWIP_BUILD_DOCS AND COMMAND gamewip_register_doxygen_library)
         NAME Terminal
         PAGE_ID terminal
         PUBLIC_HEADERS
+            "${CMAKE_CURRENT_SOURCE_DIR}/style.h"
             "${CMAKE_CURRENT_SOURCE_DIR}/terminal.h"
         DOCS
             "${CMAKE_CURRENT_SOURCE_DIR}/docs"

@@ -35,7 +35,7 @@ Input spans for icons and regions are call-scoped. Window copies the required da
 
 ## Events
 
-`EventData` is a typed variant, and `Event::getIf<T>()` provides non-throwing typed access. Events report close intent, unexpected native destruction, visibility, geometry, focus, presentation, content scale and DPI, monitor, mode, owner, display configuration, cursor presence, file drops, supported occlusion changes, and redraw requests.
+`Types::Events::Payload` is a typed variant, and `Event::getIf<T>()` provides non-throwing typed access. Events report close intent, unexpected native destruction, visibility, geometry, focus, presentation, content scale and DPI, monitor, mode, owner, display configuration, cursor presence, file drops, supported occlusion changes, and redraw requests.
 
 Explicit `close()` is synchronous and emits no `ClosedEvent` because it intentionally destroys the Window and releases the queue. Observe user/system intent through sticky `closeRequested()` and `CloseRequestedEvent`.
 

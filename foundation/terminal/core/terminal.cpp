@@ -4,6 +4,7 @@
 #include "terminal/terminal.h"
 #include "terminal/internal/terminal_input.h"
 #include "terminal/internal/terminal_platform.h"
+#include "unicode/unicode.h"
 
 #include <algorithm>
 #include <array>
@@ -117,25 +118,25 @@ namespace GameWIP::Terminal
         };
 
         /// @brief Validates the currently supported standard input stream enum.
-        [[nodiscard]] bool validInputStream(Types::InputStream stream) noexcept
+        [[nodiscard]] bool validInputStream(Types::Input::Stream stream) noexcept
         {
-            return stream == Types::InputStream::Stdin;
+            return stream == Types::Input::Stream::Stdin;
         }
 
         /// @brief Validates supported standard output stream enum values.
-        [[nodiscard]] bool validOutputStream(Types::OutputStream stream) noexcept
+        [[nodiscard]] bool validOutputStream(Types::Output::Stream stream) noexcept
         {
-            return stream == Types::OutputStream::Stdout || stream == Types::OutputStream::Stderr;
+            return stream == Types::Output::Stream::Stdout || stream == Types::Output::Stream::Stderr;
         }
 
         /// @brief Validates line-ending enum values crossing the public boundary.
-        [[nodiscard]] bool validLineEnding(Types::LineEnding lineEnding) noexcept
+        [[nodiscard]] bool validLineEnding(Types::Output::LineEnding lineEnding) noexcept
         {
             switch (lineEnding)
             {
-            case Types::LineEnding::Native:
-            case Types::LineEnding::Lf:
-            case Types::LineEnding::CrLf:
+            case Types::Output::LineEnding::Native:
+            case Types::Output::LineEnding::Lf:
+            case Types::Output::LineEnding::CrLf:
                 return true;
             }
 
@@ -203,6 +204,13 @@ namespace GameWIP::Terminal
             }
         }
 
+        /// @brief Validates one public Terminal text payload before any output-side effect.
+        [[nodiscard]] IO::Types::Status validateUtf8Text(std::string_view text) noexcept
+        {
+            return Unicode::Utf8::validate(text).outcome == Unicode::Types::ValidationOutcome::Valid ? IO::successStatus()
+                                                                                                     : IO::makeStatus(ErrorCode::EncodingFailed);
+        }
+
         /// @brief Restores a string to a previously observed size without allocating or throwing.
         void rollbackString(std::string &text, std::size_t previousSize) noexcept
         {
@@ -225,28 +233,28 @@ namespace GameWIP::Terminal
         }
 
         /// @brief Returns whether a color requests the terminal default.
-        [[nodiscard]] bool isDefaultColor(const Types::Color &color) noexcept
+        [[nodiscard]] bool isDefaultColor(const Types::Style::Color &color) noexcept
         {
-            return color.kind() == Types::ColorKind::Default;
+            return color.kind() == Types::Style::ColorKind::Default;
         }
 
         /// @brief Returns whether a style needs no SGR output.
-        [[nodiscard]] bool isDefaultStyle(const Types::TextStyle &style) noexcept
+        [[nodiscard]] bool isDefaultStyle(const Types::Style::Request &style) noexcept
         {
             return isDefaultColor(style.foreground) && isDefaultColor(style.background) && !style.bold && !style.dim && !style.italic &&
                    !style.underline && !style.inverse && !style.strikethrough;
         }
 
         /// @brief Checks one color request against observed stream capabilities.
-        [[nodiscard]] bool colorSupported(const Types::Color &color, const Types::StyleCapabilities &capabilities) noexcept
+        [[nodiscard]] bool colorSupported(const Types::Style::Color &color, const Types::Style::Capabilities &capabilities) noexcept
         {
             switch (color.kind())
             {
-            case Types::ColorKind::Default:
+            case Types::Style::ColorKind::Default:
                 return true;
-            case Types::ColorKind::Basic:
+            case Types::Style::ColorKind::Basic:
                 return capabilities.basicColor;
-            case Types::ColorKind::Rgb:
+            case Types::Style::ColorKind::Rgb:
                 return capabilities.rgbColor;
             }
 
@@ -254,7 +262,7 @@ namespace GameWIP::Terminal
         }
 
         /// @brief Checks every requested style attribute against stream capabilities.
-        [[nodiscard]] bool styleSupported(const Types::TextStyle &style, const Types::StyleCapabilities &capabilities) noexcept
+        [[nodiscard]] bool styleSupported(const Types::Style::Request &style, const Types::Style::Capabilities &capabilities) noexcept
         {
             return colorSupported(style.foreground, capabilities) && colorSupported(style.background, capabilities) &&
                    (!style.bold || capabilities.bold) && (!style.dim || capabilities.dim) && (!style.italic || capabilities.italic) &&
@@ -263,7 +271,7 @@ namespace GameWIP::Terminal
         }
 
         /// @brief Returns whether a stream supports at least one style feature.
-        [[nodiscard]] bool anyStyleSupported(const Types::StyleCapabilities &capabilities) noexcept
+        [[nodiscard]] bool anyStyleSupported(const Types::Style::Capabilities &capabilities) noexcept
         {
             return capabilities.basicColor || capabilities.rgbColor || capabilities.bold || capabilities.dim || capabilities.italic ||
                    capabilities.underline || capabilities.inverse || capabilities.strikethrough;
@@ -272,24 +280,24 @@ namespace GameWIP::Terminal
         /// @brief Returns shared process-lifetime state for stdout or stderr.
         /// @details Function-local statics avoid cross-translation-unit initialization ordering while the shared library
         /// still provides one coordination domain to every module that resolves this Terminal runtime.
-        [[nodiscard]] OutputState &outputState(Types::OutputStream stream) noexcept
+        [[nodiscard]] OutputState &outputState(Types::Output::Stream stream) noexcept
         {
             static OutputState stdoutState;
             static OutputState stderrState;
 
-            return stream == Types::OutputStream::Stderr ? stderrState : stdoutState;
+            return stream == Types::Output::Stream::Stderr ? stderrState : stdoutState;
         }
 
         /// @brief Resolves a validated line-ending policy to emitted bytes.
-        [[nodiscard]] std::string_view lineEndingText(Types::LineEnding lineEnding) noexcept
+        [[nodiscard]] std::string_view lineEndingText(Types::Output::LineEnding lineEnding) noexcept
         {
             switch (lineEnding)
             {
-            case Types::LineEnding::Native:
+            case Types::Output::LineEnding::Native:
                 return Detail::Platform::nativeLineEnding();
-            case Types::LineEnding::Lf:
+            case Types::Output::LineEnding::Lf:
                 return "\n";
-            case Types::LineEnding::CrLf:
+            case Types::Output::LineEnding::CrLf:
                 return "\r\n";
             }
 
@@ -297,39 +305,12 @@ namespace GameWIP::Terminal
         }
 
         /// @brief Converts a basic color to its foreground or background SGR code.
-        [[nodiscard]] int basicColorCode(Types::BasicColor color, bool foreground) noexcept
+        [[nodiscard]] int basicColorCode(Types::Style::BasicColor color, bool foreground) noexcept
         {
             const int value = static_cast<int>(color);
             const bool bright = value >= 8;
             const int colorIndex = bright ? value - 8 : value;
             return (foreground ? (bright ? 90 : 30) : (bright ? 100 : 40)) + colorIndex;
-        }
-
-        /// @brief Validates all supported basic and bright color enum values.
-        [[nodiscard]] bool isKnownBasicColor(Types::BasicColor color) noexcept
-        {
-            switch (color)
-            {
-            case Types::BasicColor::Black:
-            case Types::BasicColor::Red:
-            case Types::BasicColor::Green:
-            case Types::BasicColor::Yellow:
-            case Types::BasicColor::Blue:
-            case Types::BasicColor::Magenta:
-            case Types::BasicColor::Cyan:
-            case Types::BasicColor::White:
-            case Types::BasicColor::BrightBlack:
-            case Types::BasicColor::BrightRed:
-            case Types::BasicColor::BrightGreen:
-            case Types::BasicColor::BrightYellow:
-            case Types::BasicColor::BrightBlue:
-            case Types::BasicColor::BrightMagenta:
-            case Types::BasicColor::BrightCyan:
-            case Types::BasicColor::BrightWhite:
-                return true;
-            }
-
-            return false;
         }
 
         /// @brief Clears assembly text and releases unusually large retained capacity.
@@ -378,16 +359,16 @@ namespace GameWIP::Terminal
         }
 
         /// @brief Appends basic or RGB SGR parameters for one color channel.
-        void appendColorSgr(StyleSequence &sequence, const Types::Color &color, bool foreground, bool &hasParameter) noexcept
+        void appendColorSgr(StyleSequence &sequence, const Types::Style::Color &color, bool foreground, bool &hasParameter) noexcept
         {
             switch (color.kind())
             {
-            case Types::ColorKind::Default:
+            case Types::Style::ColorKind::Default:
                 return;
-            case Types::ColorKind::Basic:
+            case Types::Style::ColorKind::Basic:
                 appendSgrParameter(sequence, static_cast<std::uint32_t>(basicColorCode(color.basic(), foreground)), hasParameter);
                 return;
-            case Types::ColorKind::Rgb:
+            case Types::Style::ColorKind::Rgb:
                 appendSgrParameter(sequence, foreground ? 38U : 48U, hasParameter);
                 appendSgrParameter(sequence, 2, hasParameter);
                 appendSgrParameter(sequence, color.red(), hasParameter);
@@ -398,7 +379,7 @@ namespace GameWIP::Terminal
         }
 
         /// @brief Builds the complete SGR prefix for a previously validated style.
-        [[nodiscard]] StyleSequence makeStyleSequence(const Types::TextStyle &style) noexcept
+        [[nodiscard]] StyleSequence makeStyleSequence(const Types::Style::Request &style) noexcept
         {
             StyleSequence sequence;
             appendSequenceText(sequence, "\x1b[");
@@ -444,16 +425,16 @@ namespace GameWIP::Terminal
 
         /// @brief Resolves style-mode fallback or failure against known capabilities.
         [[nodiscard]] StylePlan stylePlanForCapabilities(
-            Types::StyleMode mode,
-            const Types::TextStyle &style,
-            const Types::StyleCapabilities &capabilities)
+            Types::Style::Mode mode,
+            const Types::Style::Request &style,
+            const Types::Style::Capabilities &capabilities)
         {
             switch (mode)
             {
-            case Types::StyleMode::Never:
+            case Types::Style::Mode::Never:
                 return {};
-            case Types::StyleMode::Auto:
-            case Types::StyleMode::Required:
+            case Types::Style::Mode::Auto:
+            case Types::Style::Mode::Required:
                 break;
             default:
                 return {.status = invalidArgumentStatus("Unknown terminal style mode.")};
@@ -469,7 +450,7 @@ namespace GameWIP::Terminal
                 return {.status = IO::successStatus(), .emitStyle = true};
             }
 
-            if (mode == Types::StyleMode::Required)
+            if (mode == Types::Style::Mode::Required)
             {
                 return {.status = unsupportedStatus("Terminal output stream does not support the requested style.")};
             }
@@ -478,14 +459,14 @@ namespace GameWIP::Terminal
         }
 
         /// @brief Prepares output when needed and resolves the style plan for one stream.
-        [[nodiscard]] StylePlan stylePlan(Types::OutputStream stream, Types::StyleMode mode, const Types::TextStyle &style)
+        [[nodiscard]] StylePlan stylePlan(Types::Output::Stream stream, Types::Style::Mode mode, const Types::Style::Request &style)
         {
             switch (mode)
             {
-            case Types::StyleMode::Never:
+            case Types::Style::Mode::Never:
                 return {};
-            case Types::StyleMode::Auto:
-            case Types::StyleMode::Required:
+            case Types::Style::Mode::Auto:
+            case Types::Style::Mode::Required:
                 break;
             default:
                 return {.status = invalidArgumentStatus("Unknown terminal style mode.")};
@@ -495,12 +476,12 @@ namespace GameWIP::Terminal
             {
                 return {};
             }
-            if (mode == Types::StyleMode::Never)
+            if (mode == Types::Style::Mode::Never)
             {
                 return {};
             }
 
-            Types::OutputCapabilitiesResult capabilities = Detail::Platform::getOutputCapabilities(stream);
+            Types::Output::CapabilitiesResult capabilities = Detail::Platform::getOutputCapabilities(stream);
             if (capabilities.status.ok())
             {
                 StylePlan plan = stylePlanForCapabilities(mode, style, capabilities.capabilities.style);
@@ -524,7 +505,7 @@ namespace GameWIP::Terminal
                 }
             }
 
-            if (mode == Types::StyleMode::Auto)
+            if (mode == Types::Style::Mode::Auto)
             {
                 return {};
             }
@@ -536,7 +517,7 @@ namespace GameWIP::Terminal
         }
 
         /// @brief Applies an optional validated flush after a logical write.
-        [[nodiscard]] IO::Types::Status flushIfRequested(Types::OutputStream stream, IO::Types::FlushMode mode)
+        [[nodiscard]] IO::Types::Status flushIfRequested(Types::Output::Stream stream, IO::Types::FlushMode mode)
         {
             if (!IO::isValidFlushMode(mode))
             {
@@ -552,7 +533,7 @@ namespace GameWIP::Terminal
         }
 
         /// @brief Writes and clears a stream's assembled record, then performs the requested flush.
-        [[nodiscard]] IO::Types::Status writeAssembly(Types::OutputStream stream, OutputState &state, IO::Types::FlushMode flushMode)
+        [[nodiscard]] IO::Types::Status writeAssembly(Types::Output::Stream stream, OutputState &state, IO::Types::FlushMode flushMode)
         {
             IO::Types::Status status = IO::successStatus();
             if (!state.assembly.empty())
@@ -570,14 +551,20 @@ namespace GameWIP::Terminal
 
         /// @brief Implements one serialized styled text write without acquiring the stream mutex.
         [[nodiscard]] IO::Types::Status writeTextUnlocked(
-            Types::OutputStream stream,
+            Types::Output::Stream stream,
             OutputState &state,
             std::string_view utf8Text,
-            const Types::TextWriteOptions &options)
+            const Types::Output::TextOptions &options)
         {
             if (!IO::isValidFlushMode(options.flushMode))
             {
                 return invalidArgumentStatus("Unknown IO flush mode.");
+            }
+
+            IO::Types::Status textStatus = validateUtf8Text(utf8Text);
+            if (!textStatus.ok())
+            {
+                return textStatus;
             }
 
             const StylePlan plan = stylePlan(stream, options.styleMode, options.style);
@@ -602,10 +589,10 @@ namespace GameWIP::Terminal
 
         /// @brief Implements one serialized styled text write followed by the selected line ending.
         [[nodiscard]] IO::Types::Status writeLineUnlocked(
-            Types::OutputStream stream,
+            Types::Output::Stream stream,
             OutputState &state,
             std::string_view utf8Text,
-            const Types::LineWriteOptions &options)
+            const Types::Output::LineOptions &options)
         {
             if (!validLineEnding(options.lineEnding))
             {
@@ -614,6 +601,12 @@ namespace GameWIP::Terminal
             if (!IO::isValidFlushMode(options.flushMode))
             {
                 return invalidArgumentStatus("Unknown IO flush mode.");
+            }
+
+            IO::Types::Status textStatus = validateUtf8Text(utf8Text);
+            if (!textStatus.ok())
+            {
+                return textStatus;
             }
 
             const StylePlan plan = stylePlan(stream, options.styleMode, options.style);
@@ -639,9 +632,9 @@ namespace GameWIP::Terminal
 
         /// @brief Implements one serialized raw-byte write and optional flush.
         [[nodiscard]] IO::Types::WriteResult writeBytesUnlocked(
-            Types::OutputStream stream,
+            Types::Output::Stream stream,
             std::span<const std::byte> bytes,
-            const Types::ByteWriteOptions &options)
+            const Types::Output::ByteOptions &options)
         {
             if (!IO::isValidFlushMode(options.flushMode))
             {
@@ -660,23 +653,23 @@ namespace GameWIP::Terminal
 
         /// @brief Validates segmented-write kinds, styles, and flush options before emission.
         [[nodiscard]] IO::Types::Status validateSegments(
-            std::span<const Types::WriteSegment> segments,
-            Types::StyleMode styleMode,
-            const Types::OutputCapabilities &capabilities)
+            std::span<const Types::Output::Segment> segments,
+            Types::Style::Mode styleMode,
+            const Types::Output::Capabilities &capabilities)
         {
-            for (const Types::WriteSegment &segment : segments)
+            for (const Types::Output::Segment &segment : segments)
             {
                 switch (segment.kind())
                 {
-                case Types::WriteSegmentKind::Text:
+                case Types::Output::SegmentKind::Text:
                     break;
-                case Types::WriteSegmentKind::Bytes:
+                case Types::Output::SegmentKind::Bytes:
                     if (!capabilities.supportsByteOutput)
                     {
                         return unsupportedStatus("Terminal byte output is unsupported for this output stream.");
                     }
                     break;
-                case Types::WriteSegmentKind::StyledText:
+                case Types::Output::SegmentKind::StyledText:
                 {
                     const StylePlan plan = stylePlanForCapabilities(styleMode, segment.style(), capabilities.style);
                     if (!plan.status.ok())
@@ -701,17 +694,18 @@ namespace GameWIP::Terminal
         };
 
         /// @brief Computes preparation and assembly requirements for one segmented record.
-        [[nodiscard]] SegmentRequirements segmentRequirements(std::span<const Types::WriteSegment> segments, Types::StyleMode styleMode) noexcept
+        [[nodiscard]] SegmentRequirements segmentRequirements(std::span<const Types::Output::Segment> segments, Types::Style::Mode styleMode) noexcept
         {
             SegmentRequirements requirements;
-            for (const Types::WriteSegment &segment : segments)
+            for (const Types::Output::Segment &segment : segments)
             {
-                if (segment.kind() == Types::WriteSegmentKind::Bytes)
+                if (segment.kind() == Types::Output::SegmentKind::Bytes)
                 {
                     requirements.hasBytes = true;
                 }
                 else if (
-                    styleMode != Types::StyleMode::Never && segment.kind() == Types::WriteSegmentKind::StyledText && !isDefaultStyle(segment.style()))
+                    styleMode != Types::Style::Mode::Never && segment.kind() == Types::Output::SegmentKind::StyledText &&
+                    !isDefaultStyle(segment.style()))
                 {
                     requirements.needsStyleCapabilities = true;
                 }
@@ -723,10 +717,10 @@ namespace GameWIP::Terminal
         /// @details Validation finishes before intentional emission begins, but the platform write itself is not
         /// transactional and can still emit a prefix before reporting failure.
         [[nodiscard]] IO::Types::Status writeSegmentsUnlocked(
-            Types::OutputStream stream,
+            Types::Output::Stream stream,
             OutputState &state,
-            std::span<const Types::WriteSegment> segments,
-            const Types::SegmentWriteOptions &options)
+            std::span<const Types::Output::Segment> segments,
+            const Types::Output::SegmentOptions &options)
         {
             if (options.appendLineEnding && !validLineEnding(options.lineEnding))
             {
@@ -739,16 +733,28 @@ namespace GameWIP::Terminal
 
             switch (options.styleMode)
             {
-            case Types::StyleMode::Never:
-            case Types::StyleMode::Auto:
-            case Types::StyleMode::Required:
+            case Types::Style::Mode::Never:
+            case Types::Style::Mode::Auto:
+            case Types::Style::Mode::Required:
                 break;
             default:
                 return invalidArgumentStatus("Unknown terminal style mode.");
             }
 
+            for (const Types::Output::Segment &segment : segments)
+            {
+                if ((segment.kind() == Types::Output::SegmentKind::Text || segment.kind() == Types::Output::SegmentKind::StyledText))
+                {
+                    IO::Types::Status textStatus = validateUtf8Text(segment.text());
+                    if (!textStatus.ok())
+                    {
+                        return textStatus;
+                    }
+                }
+            }
+
             const SegmentRequirements requirements = segmentRequirements(segments, options.styleMode);
-            Types::OutputCapabilitiesResult capabilityResult;
+            Types::Output::CapabilitiesResult capabilityResult;
 
             if (requirements.hasBytes || requirements.needsStyleCapabilities)
             {
@@ -760,12 +766,12 @@ namespace GameWIP::Terminal
                         return capabilityResult.status;
                     }
 
-                    Types::OutputCapabilitiesResult prepared = Detail::Platform::prepareOutput(stream);
+                    Types::Output::CapabilitiesResult prepared = Detail::Platform::prepareOutput(stream);
                     if (prepared.status.ok())
                     {
                         capabilityResult = std::move(prepared);
                     }
-                    else if (options.styleMode == Types::StyleMode::Required)
+                    else if (options.styleMode == Types::Style::Mode::Required)
                     {
                         return prepared.status;
                     }
@@ -779,21 +785,21 @@ namespace GameWIP::Terminal
                     const bool allStylesSupported = std::all_of(
                         segments.begin(),
                         segments.end(),
-                        [&capabilityResult](const Types::WriteSegment &segment)
+                        [&capabilityResult](const Types::Output::Segment &segment)
                         {
-                            return segment.kind() != Types::WriteSegmentKind::StyledText || isDefaultStyle(segment.style()) ||
+                            return segment.kind() != Types::Output::SegmentKind::StyledText || isDefaultStyle(segment.style()) ||
                                    styleSupported(segment.style(), capabilityResult.capabilities.style);
                         });
                     if (!allStylesSupported)
                     {
                         if (capabilityResult.capabilities.kind != Types::StreamKind::Redirected)
                         {
-                            Types::OutputCapabilitiesResult prepared = Detail::Platform::prepareOutput(stream);
+                            Types::Output::CapabilitiesResult prepared = Detail::Platform::prepareOutput(stream);
                             if (prepared.status.ok())
                             {
                                 capabilityResult = std::move(prepared);
                             }
-                            else if (options.styleMode == Types::StyleMode::Required)
+                            else if (options.styleMode == Types::Style::Mode::Required)
                             {
                                 return prepared.status;
                             }
@@ -808,7 +814,7 @@ namespace GameWIP::Terminal
                 return status;
             }
 
-            if (segments.size() == 1 && segments.front().kind() == Types::WriteSegmentKind::Text && !segments.front().text().empty() &&
+            if (segments.size() == 1 && segments.front().kind() == Types::Output::SegmentKind::Text && !segments.front().text().empty() &&
                 !options.appendLineEnding)
             {
                 status = Detail::Platform::writeText(stream, segments.front().text());
@@ -816,14 +822,14 @@ namespace GameWIP::Terminal
             }
 
             state.assembly.clear();
-            for (const Types::WriteSegment &segment : segments)
+            for (const Types::Output::Segment &segment : segments)
             {
                 switch (segment.kind())
                 {
-                case Types::WriteSegmentKind::Text:
+                case Types::Output::SegmentKind::Text:
                     state.assembly.append(segment.text());
                     break;
-                case Types::WriteSegmentKind::StyledText:
+                case Types::Output::SegmentKind::StyledText:
                 {
                     const StylePlan plan = stylePlanForCapabilities(options.styleMode, segment.style(), capabilityResult.capabilities.style);
                     if (plan.emitStyle)
@@ -838,7 +844,7 @@ namespace GameWIP::Terminal
                     }
                     break;
                 }
-                case Types::WriteSegmentKind::Bytes:
+                case Types::Output::SegmentKind::Bytes:
                     if (!segment.bytes().empty())
                     {
                         state.assembly.append(reinterpret_cast<const char *>(segment.bytes().data()), segment.bytes().size());
@@ -852,11 +858,28 @@ namespace GameWIP::Terminal
                 state.assembly.append(lineEndingText(options.lineEnding));
             }
 
+            if (requirements.hasBytes)
+            {
+                const auto assembled = std::as_bytes(std::span<const char>(state.assembly.data(), state.assembly.size()));
+                IO::Types::WriteResult result = Detail::Platform::writeBytes(stream, assembled);
+                IO::Types::Status status = std::move(result.status);
+                if (status.ok() && result.bytesWritten != assembled.size())
+                {
+                    status = IO::makeStatus(ErrorCode::PartialWrite);
+                }
+                if (status.ok())
+                {
+                    status = flushIfRequested(stream, options.flushMode);
+                }
+                releaseLargeAssembly(state);
+                return status;
+            }
+
             return writeAssembly(stream, state, options.flushMode);
         }
 
         /// @brief Maps one control operation to its required output capability.
-        [[nodiscard]] bool controlFeatureSupported(const Types::OutputCapabilities &capabilities, ControlFeature feature) noexcept
+        [[nodiscard]] bool controlFeatureSupported(const Types::Output::Capabilities &capabilities, ControlFeature feature) noexcept
         {
             switch (feature)
             {
@@ -885,7 +908,7 @@ namespace GameWIP::Terminal
 
         /// @brief Validates capability and emits one prebuilt control sequence under the stream lock.
         [[nodiscard]] IO::Types::Status writeControlSequenceUnlocked(
-            Types::OutputStream stream,
+            Types::Output::Stream stream,
             std::string_view sequence,
             ControlFeature feature,
             std::string_view unsupportedMessage,
@@ -901,7 +924,7 @@ namespace GameWIP::Terminal
                 return invalidArgumentStatus("Unknown IO flush mode.");
             }
 
-            Types::OutputCapabilitiesResult capabilities = Detail::Platform::getOutputCapabilities(stream);
+            Types::Output::CapabilitiesResult capabilities = Detail::Platform::getOutputCapabilities(stream);
             if (!capabilities.status.ok())
             {
                 return capabilities.status;
@@ -936,7 +959,7 @@ namespace GameWIP::Terminal
 
         /// @brief Emits a control sequence already assembled in reusable stream storage.
         [[nodiscard]] IO::Types::Status writeAssembledControlSequenceUnlocked(
-            Types::OutputStream stream,
+            Types::Output::Stream stream,
             OutputState &state,
             ControlFeature feature,
             std::string_view unsupportedMessage,
@@ -949,8 +972,8 @@ namespace GameWIP::Terminal
 
         /// @brief Decrements nested cursor-hide depth and restores visibility at the outer boundary.
         [[nodiscard]] IO::Types::Status restoreCursorHiddenScope(
-            Types::OutputStream stream,
-            const Types::ControlOptions &options,
+            Types::Output::Stream stream,
+            const Types::Output::ControlOptions &options,
             bool &restored) noexcept
         {
             restored = false;
@@ -995,8 +1018,8 @@ namespace GameWIP::Terminal
 
         /// @brief Decrements nested alternate-screen depth and leaves at the outer boundary.
         [[nodiscard]] IO::Types::Status leaveAlternateScreenScope(
-            Types::OutputStream stream,
-            const Types::ControlOptions &options,
+            Types::Output::Stream stream,
+            const Types::Output::ControlOptions &options,
             bool &restored) noexcept
         {
             restored = false;
@@ -1040,7 +1063,7 @@ namespace GameWIP::Terminal
         }
 
         /// @brief Releases one cursor-hide nesting obligation after destructor restoration has failed.
-        void abandonCursorHiddenScope(Types::OutputStream stream) noexcept
+        void abandonCursorHiddenScope(Types::Output::Stream stream) noexcept
         {
             try
             {
@@ -1059,7 +1082,7 @@ namespace GameWIP::Terminal
         }
 
         /// @brief Releases one alternate-screen nesting obligation after destructor restoration has failed.
-        void abandonAlternateScreenScope(Types::OutputStream stream) noexcept
+        void abandonAlternateScreenScope(Types::Output::Stream stream) noexcept
         {
             try
             {
@@ -1095,45 +1118,11 @@ namespace GameWIP::Terminal
         }
     } // namespace
 
-    Types::Color defaultColor() noexcept
-    {
-        return {};
-    }
-
-    Types::Color::Color(Types::BasicColor color) noexcept
-        : kind_(Types::ColorKind::Basic)
-        , basic_(color)
-    {
-    }
-
-    Types::Color::Color(std::uint8_t red, std::uint8_t green, std::uint8_t blue) noexcept
-        : kind_(Types::ColorKind::Rgb)
-        , red_(red)
-        , green_(green)
-        , blue_(blue)
-    {
-    }
-
-    Types::Color basicColor(Types::BasicColor color) noexcept
-    {
-        if (!isKnownBasicColor(color))
-        {
-            return {};
-        }
-
-        return Types::Color(color);
-    }
-
-    Types::Color rgbColor(std::uint8_t red, std::uint8_t green, std::uint8_t blue) noexcept
-    {
-        return Types::Color(red, green, blue);
-    }
-
-    Types::WriteSegment::WriteSegment(
-        Types::WriteSegmentKind kind,
+    Types::Output::Segment::Segment(
+        Types::Output::SegmentKind kind,
         std::string_view text,
         std::span<const std::byte> bytes,
-        const Types::TextStyle &style) noexcept
+        const Types::Style::Request &style) noexcept
         : kind_(kind)
         , text_(text)
         , bytes_(bytes)
@@ -1141,19 +1130,19 @@ namespace GameWIP::Terminal
     {
     }
 
-    Types::WriteSegment textSegment(std::string_view text) noexcept
+    Types::Output::Segment textSegment(std::string_view text) noexcept
     {
-        return Types::WriteSegment(Types::WriteSegmentKind::Text, text, {}, {});
+        return Types::Output::Segment(Types::Output::SegmentKind::Text, text, {}, {});
     }
 
-    Types::WriteSegment styledTextSegment(std::string_view text, const Types::TextStyle &style) noexcept
+    Types::Output::Segment styledTextSegment(std::string_view text, const Types::Style::Request &style) noexcept
     {
-        return Types::WriteSegment(Types::WriteSegmentKind::StyledText, text, {}, style);
+        return Types::Output::Segment(Types::Output::SegmentKind::StyledText, text, {}, style);
     }
 
-    Types::WriteSegment byteSegment(std::span<const std::byte> bytes) noexcept
+    Types::Output::Segment byteSegment(std::span<const std::byte> bytes) noexcept
     {
-        return Types::WriteSegment(Types::WriteSegmentKind::Bytes, {}, bytes, {});
+        return Types::Output::Segment(Types::Output::SegmentKind::Bytes, {}, bytes, {});
     }
 
     AlternateScreenScope::AlternateScreenScope() noexcept = default;
@@ -1356,144 +1345,12 @@ namespace GameWIP::Terminal
         return copyStatus(status_);
     }
 
-    Types::LineEnding OutputBuffer::lineEnding() const noexcept
+    Types::Input::CapabilitiesResult getInputCapabilities() noexcept
     {
-        return lineEnding_;
+        return getInputCapabilities(Types::Input::Stream::Stdin);
     }
 
-    IO::Types::Status OutputBuffer::setLineEnding(Types::LineEnding lineEnding) noexcept
-    {
-        if (!validLineEnding(lineEnding))
-        {
-            return invalidArgumentStatus("Unknown terminal line ending.");
-        }
-
-        lineEnding_ = lineEnding;
-        return IO::successStatus();
-    }
-
-    IO::Types::Status OutputBuffer::reserve(std::size_t bytes) noexcept
-    {
-        try
-        {
-            text_.reserve(bytes);
-            return IO::successStatus();
-        }
-        catch (...)
-        {
-            return exceptionStatus();
-        }
-    }
-
-    void OutputBuffer::clear() noexcept
-    {
-        text_.clear();
-    }
-
-    bool OutputBuffer::empty() const noexcept
-    {
-        return text_.empty();
-    }
-
-    std::size_t OutputBuffer::size() const noexcept
-    {
-        return text_.size();
-    }
-
-    std::string_view OutputBuffer::text() const noexcept
-    {
-        return text_;
-    }
-
-    IO::Types::Status OutputBuffer::appendText(std::string_view utf8Text) noexcept
-    {
-        const std::size_t previousSize = text_.size();
-        try
-        {
-            text_.append(utf8Text);
-            return IO::successStatus();
-        }
-        catch (...)
-        {
-            rollbackString(text_, previousSize);
-            return exceptionStatus();
-        }
-    }
-
-    IO::Types::Status OutputBuffer::appendLine(std::string_view utf8Text) noexcept
-    {
-        const std::size_t previousSize = text_.size();
-        try
-        {
-            text_.append(utf8Text);
-            text_.append(lineEndingText(lineEnding_));
-            return IO::successStatus();
-        }
-        catch (...)
-        {
-            rollbackString(text_, previousSize);
-            return exceptionStatus();
-        }
-    }
-
-    IO::Types::Status OutputBuffer::vprint(std::string_view format, std::format_args arguments, bool appendLineEnding) noexcept
-    {
-        const std::size_t previousSize = text_.size();
-        try
-        {
-            std::vformat_to(std::back_inserter(text_), format, arguments);
-            if (appendLineEnding)
-            {
-                text_.append(lineEndingText(lineEnding_));
-            }
-            return IO::successStatus();
-        }
-        catch (...)
-        {
-            rollbackString(text_, previousSize);
-            return exceptionStatus();
-        }
-    }
-
-    IO::Types::Status OutputBuffer::writeTo(const Types::TextWriteOptions &options) const noexcept
-    {
-        return writeTo(Types::OutputStream::Stdout, options);
-    }
-
-    IO::Types::Status OutputBuffer::writeTo(Types::OutputStream stream, const Types::TextWriteOptions &options) const noexcept
-    {
-        try
-        {
-            return Terminal::writeText(stream, text_, options);
-        }
-        catch (...)
-        {
-            return exceptionStatus();
-        }
-    }
-
-    IO::Types::Status OutputBuffer::flushTo(const Types::TextWriteOptions &options) noexcept
-    {
-        return flushTo(Types::OutputStream::Stdout, options);
-    }
-
-    IO::Types::Status OutputBuffer::flushTo(Types::OutputStream stream, const Types::TextWriteOptions &options) noexcept
-    {
-        IO::Types::Status status = writeTo(stream, options);
-        if (status.ok())
-        {
-            clear();
-        }
-
-        return status;
-    }
-
-    Types::InputCapabilitiesResult getInputCapabilities()
-    {
-        return getInputCapabilities(Types::InputStream::Stdin);
-    }
-
-    Types::InputCapabilitiesResult getInputCapabilities(Types::InputStream stream)
+    Types::Input::CapabilitiesResult getInputCapabilities(Types::Input::Stream stream) noexcept
     {
         try
         {
@@ -1511,12 +1368,12 @@ namespace GameWIP::Terminal
         }
     }
 
-    Types::OutputCapabilitiesResult getOutputCapabilities()
+    Types::Output::CapabilitiesResult getOutputCapabilities() noexcept
     {
-        return getOutputCapabilities(Types::OutputStream::Stdout);
+        return getOutputCapabilities(Types::Output::Stream::Stdout);
     }
 
-    Types::OutputCapabilitiesResult getOutputCapabilities(Types::OutputStream stream)
+    Types::Output::CapabilitiesResult getOutputCapabilities(Types::Output::Stream stream) noexcept
     {
         try
         {
@@ -1534,12 +1391,12 @@ namespace GameWIP::Terminal
         }
     }
 
-    Types::OutputCapabilitiesResult prepareOutput()
+    Types::Output::CapabilitiesResult prepareOutput() noexcept
     {
-        return prepareOutput(Types::OutputStream::Stdout);
+        return prepareOutput(Types::Output::Stream::Stdout);
     }
 
-    Types::OutputCapabilitiesResult prepareOutput(Types::OutputStream stream)
+    Types::Output::CapabilitiesResult prepareOutput(Types::Output::Stream stream) noexcept
     {
         try
         {
@@ -1557,12 +1414,12 @@ namespace GameWIP::Terminal
         }
     }
 
-    Types::TerminalSizeResult getTerminalSize()
+    Types::SizeResult getTerminalSize() noexcept
     {
-        return getTerminalSize(Types::OutputStream::Stdout);
+        return getTerminalSize(Types::Output::Stream::Stdout);
     }
 
-    Types::TerminalSizeResult getTerminalSize(Types::OutputStream stream)
+    Types::SizeResult getTerminalSize(Types::Output::Stream stream) noexcept
     {
         try
         {
@@ -1580,12 +1437,12 @@ namespace GameWIP::Terminal
         }
     }
 
-    IO::Types::Status writeText(std::string_view utf8Text, const Types::TextWriteOptions &options)
+    IO::Types::Status writeText(std::string_view utf8Text, const Types::Output::TextOptions &options) noexcept
     {
-        return writeText(Types::OutputStream::Stdout, utf8Text, options);
+        return writeText(Types::Output::Stream::Stdout, utf8Text, options);
     }
 
-    IO::Types::Status writeText(Types::OutputStream stream, std::string_view utf8Text, const Types::TextWriteOptions &options)
+    IO::Types::Status writeText(Types::Output::Stream stream, std::string_view utf8Text, const Types::Output::TextOptions &options) noexcept
     {
         try
         {
@@ -1604,12 +1461,12 @@ namespace GameWIP::Terminal
         }
     }
 
-    IO::Types::Status writeLine(std::string_view utf8Text, const Types::LineWriteOptions &options)
+    IO::Types::Status writeLine(std::string_view utf8Text, const Types::Output::LineOptions &options) noexcept
     {
-        return writeLine(Types::OutputStream::Stdout, utf8Text, options);
+        return writeLine(Types::Output::Stream::Stdout, utf8Text, options);
     }
 
-    IO::Types::Status writeLine(Types::OutputStream stream, std::string_view utf8Text, const Types::LineWriteOptions &options)
+    IO::Types::Status writeLine(Types::Output::Stream stream, std::string_view utf8Text, const Types::Output::LineOptions &options) noexcept
     {
         try
         {
@@ -1628,12 +1485,15 @@ namespace GameWIP::Terminal
         }
     }
 
-    IO::Types::WriteResult writeBytes(std::span<const std::byte> bytes, const Types::ByteWriteOptions &options)
+    IO::Types::WriteResult writeBytes(std::span<const std::byte> bytes, const Types::Output::ByteOptions &options) noexcept
     {
-        return writeBytes(Types::OutputStream::Stdout, bytes, options);
+        return writeBytes(Types::Output::Stream::Stdout, bytes, options);
     }
 
-    IO::Types::WriteResult writeBytes(Types::OutputStream stream, std::span<const std::byte> bytes, const Types::ByteWriteOptions &options)
+    IO::Types::WriteResult writeBytes(
+        Types::Output::Stream stream,
+        std::span<const std::byte> bytes,
+        const Types::Output::ByteOptions &options) noexcept
     {
         try
         {
@@ -1651,15 +1511,15 @@ namespace GameWIP::Terminal
         }
     }
 
-    IO::Types::Status writeSegments(std::span<const Types::WriteSegment> segments, const Types::SegmentWriteOptions &options)
+    IO::Types::Status writeSegments(std::span<const Types::Output::Segment> segments, const Types::Output::SegmentOptions &options) noexcept
     {
-        return writeSegments(Types::OutputStream::Stdout, segments, options);
+        return writeSegments(Types::Output::Stream::Stdout, segments, options);
     }
 
     IO::Types::Status writeSegments(
-        Types::OutputStream stream,
-        std::span<const Types::WriteSegment> segments,
-        const Types::SegmentWriteOptions &options)
+        Types::Output::Stream stream,
+        std::span<const Types::Output::Segment> segments,
+        const Types::Output::SegmentOptions &options) noexcept
     {
         try
         {
@@ -1681,8 +1541,8 @@ namespace GameWIP::Terminal
     namespace Detail
     {
         IO::Types::Status vprint(
-            Types::OutputStream stream,
-            const Types::TextWriteOptions &options,
+            Types::Output::Stream stream,
+            const Types::Output::TextOptions &options,
             std::string_view format,
             std::format_args arguments) noexcept
         {
@@ -1711,8 +1571,8 @@ namespace GameWIP::Terminal
         }
 
         IO::Types::Status vprintln(
-            Types::OutputStream stream,
-            const Types::LineWriteOptions &options,
+            Types::Output::Stream stream,
+            const Types::Output::LineOptions &options,
             std::string_view format,
             std::format_args arguments) noexcept
         {
@@ -1745,12 +1605,12 @@ namespace GameWIP::Terminal
         }
     } // namespace Detail
 
-    IO::Types::Status flush(IO::Types::FlushMode mode)
+    IO::Types::Status flush(IO::Types::FlushMode mode) noexcept
     {
-        return flush(Types::OutputStream::Stdout, mode);
+        return flush(Types::Output::Stream::Stdout, mode);
     }
 
-    IO::Types::Status flush(Types::OutputStream stream, IO::Types::FlushMode mode)
+    IO::Types::Status flush(Types::Output::Stream stream, IO::Types::FlushMode mode) noexcept
     {
         try
         {
@@ -1772,12 +1632,12 @@ namespace GameWIP::Terminal
         }
     }
 
-    IO::Types::Status resetStyle(const Types::ControlOptions &options)
+    IO::Types::Status resetStyle(const Types::Output::ControlOptions &options) noexcept
     {
-        return resetStyle(Types::OutputStream::Stdout, options);
+        return resetStyle(Types::Output::Stream::Stdout, options);
     }
 
-    IO::Types::Status resetStyle(Types::OutputStream stream, const Types::ControlOptions &options)
+    IO::Types::Status resetStyle(Types::Output::Stream stream, const Types::Output::ControlOptions &options) noexcept
     {
         try
         {
@@ -1800,16 +1660,16 @@ namespace GameWIP::Terminal
         }
     }
 
-    IO::Types::Status moveCursor(Types::CursorMoveDirection direction, std::uint32_t amount, const Types::ControlOptions &options)
+    IO::Types::Status moveCursor(Types::Cursor::MoveDirection direction, std::uint32_t amount, const Types::Output::ControlOptions &options) noexcept
     {
-        return moveCursor(Types::OutputStream::Stdout, direction, amount, options);
+        return moveCursor(Types::Output::Stream::Stdout, direction, amount, options);
     }
 
     IO::Types::Status moveCursor(
-        Types::OutputStream stream,
-        Types::CursorMoveDirection direction,
+        Types::Output::Stream stream,
+        Types::Cursor::MoveDirection direction,
         std::uint32_t amount,
-        const Types::ControlOptions &options)
+        const Types::Output::ControlOptions &options) noexcept
     {
         try
         {
@@ -1824,16 +1684,16 @@ namespace GameWIP::Terminal
             char command = 'A';
             switch (direction)
             {
-            case Types::CursorMoveDirection::Up:
+            case Types::Cursor::MoveDirection::Up:
                 command = 'A';
                 break;
-            case Types::CursorMoveDirection::Down:
+            case Types::Cursor::MoveDirection::Down:
                 command = 'B';
                 break;
-            case Types::CursorMoveDirection::Left:
+            case Types::Cursor::MoveDirection::Left:
                 command = 'D';
                 break;
-            case Types::CursorMoveDirection::Right:
+            case Types::Cursor::MoveDirection::Right:
                 command = 'C';
                 break;
             default:
@@ -1867,12 +1727,15 @@ namespace GameWIP::Terminal
         }
     }
 
-    IO::Types::Status setCursorPosition(Types::CursorPosition position, const Types::ControlOptions &options)
+    IO::Types::Status setCursorPosition(Types::Cursor::Position position, const Types::Output::ControlOptions &options) noexcept
     {
-        return setCursorPosition(Types::OutputStream::Stdout, position, options);
+        return setCursorPosition(Types::Output::Stream::Stdout, position, options);
     }
 
-    IO::Types::Status setCursorPosition(Types::OutputStream stream, Types::CursorPosition position, const Types::ControlOptions &options)
+    IO::Types::Status setCursorPosition(
+        Types::Output::Stream stream,
+        Types::Cursor::Position position,
+        const Types::Output::ControlOptions &options) noexcept
     {
         try
         {
@@ -1908,15 +1771,15 @@ namespace GameWIP::Terminal
         }
     }
 
-    Types::CursorPositionResult getCursorPosition(const Types::CursorPositionQueryOptions &options)
+    Types::Cursor::PositionResult getCursorPosition(const Types::Cursor::QueryOptions &options) noexcept
     {
-        return getCursorPosition(Types::OutputStream::Stdout, Types::InputStream::Stdin, options);
+        return getCursorPosition(Types::Output::Stream::Stdout, Types::Input::Stream::Stdin, options);
     }
 
-    Types::CursorPositionResult getCursorPosition(
-        Types::OutputStream outputStream,
-        Types::InputStream responseStream,
-        const Types::CursorPositionQueryOptions &options)
+    Types::Cursor::PositionResult getCursorPosition(
+        Types::Output::Stream outputStream,
+        Types::Input::Stream responseStream,
+        const Types::Cursor::QueryOptions &options) noexcept
     {
         try
         {
@@ -1941,7 +1804,9 @@ namespace GameWIP::Terminal
         }
     }
 
-    Types::CursorPositionResult Detail::getLineRenderingCursorPosition(Types::OutputStream outputStream, Types::InputStream inputStream) noexcept
+    Types::Cursor::PositionResult Detail::getLineRenderingCursorPosition(
+        Types::Output::Stream outputStream,
+        Types::Input::Stream inputStream) noexcept
     {
         try
         {
@@ -1959,7 +1824,7 @@ namespace GameWIP::Terminal
         }
     }
 
-    IO::Types::Status Detail::setLineRenderingCursorPosition(Types::OutputStream outputStream, Types::CursorPosition position) noexcept
+    IO::Types::Status Detail::setLineRenderingCursorPosition(Types::Output::Stream outputStream, Types::Cursor::Position position) noexcept
     {
         try
         {
@@ -1977,12 +1842,12 @@ namespace GameWIP::Terminal
         }
     }
 
-    IO::Types::Status saveCursorPosition(const Types::ControlOptions &options)
+    IO::Types::Status saveCursorPosition(const Types::Output::ControlOptions &options) noexcept
     {
-        return saveCursorPosition(Types::OutputStream::Stdout, options);
+        return saveCursorPosition(Types::Output::Stream::Stdout, options);
     }
 
-    IO::Types::Status saveCursorPosition(Types::OutputStream stream, const Types::ControlOptions &options)
+    IO::Types::Status saveCursorPosition(Types::Output::Stream stream, const Types::Output::ControlOptions &options) noexcept
     {
         try
         {
@@ -2005,12 +1870,12 @@ namespace GameWIP::Terminal
         }
     }
 
-    IO::Types::Status restoreCursorPosition(const Types::ControlOptions &options)
+    IO::Types::Status restoreCursorPosition(const Types::Output::ControlOptions &options) noexcept
     {
-        return restoreCursorPosition(Types::OutputStream::Stdout, options);
+        return restoreCursorPosition(Types::Output::Stream::Stdout, options);
     }
 
-    IO::Types::Status restoreCursorPosition(Types::OutputStream stream, const Types::ControlOptions &options)
+    IO::Types::Status restoreCursorPosition(Types::Output::Stream stream, const Types::Output::ControlOptions &options) noexcept
     {
         try
         {
@@ -2033,12 +1898,12 @@ namespace GameWIP::Terminal
         }
     }
 
-    IO::Types::Status setCursorVisible(bool visible, const Types::ControlOptions &options)
+    IO::Types::Status setCursorVisible(bool visible, const Types::Output::ControlOptions &options) noexcept
     {
-        return setCursorVisible(Types::OutputStream::Stdout, visible, options);
+        return setCursorVisible(Types::Output::Stream::Stdout, visible, options);
     }
 
-    IO::Types::Status setCursorVisible(Types::OutputStream stream, bool visible, const Types::ControlOptions &options)
+    IO::Types::Status setCursorVisible(Types::Output::Stream stream, bool visible, const Types::Output::ControlOptions &options) noexcept
     {
         try
         {
@@ -2061,12 +1926,12 @@ namespace GameWIP::Terminal
         }
     }
 
-    CursorHiddenScope scopedCursorHidden(const Types::ControlOptions &options) noexcept
+    CursorHiddenScope scopedCursorHidden(const Types::Output::ControlOptions &options) noexcept
     {
-        return scopedCursorHidden(Types::OutputStream::Stdout, options);
+        return scopedCursorHidden(Types::Output::Stream::Stdout, options);
     }
 
-    CursorHiddenScope scopedCursorHidden(Types::OutputStream stream, const Types::ControlOptions &options) noexcept
+    CursorHiddenScope scopedCursorHidden(Types::Output::Stream stream, const Types::Output::ControlOptions &options) noexcept
     {
         CursorHiddenScope scope;
         scope.stream_ = stream;
@@ -2118,12 +1983,12 @@ namespace GameWIP::Terminal
         return scope;
     }
 
-    IO::Types::Status clear(Types::ClearTarget target, const Types::ControlOptions &options)
+    IO::Types::Status clear(Types::Output::ClearTarget target, const Types::Output::ControlOptions &options) noexcept
     {
-        return clear(Types::OutputStream::Stdout, target, options);
+        return clear(Types::Output::Stream::Stdout, target, options);
     }
 
-    IO::Types::Status clear(Types::OutputStream stream, Types::ClearTarget target, const Types::ControlOptions &options)
+    IO::Types::Status clear(Types::Output::Stream stream, Types::Output::ClearTarget target, const Types::Output::ControlOptions &options) noexcept
     {
         try
         {
@@ -2137,25 +2002,25 @@ namespace GameWIP::Terminal
             std::string_view sequence;
             switch (target)
             {
-            case Types::ClearTarget::EntireScreen:
+            case Types::Output::ClearTarget::EntireScreen:
                 sequence = "\x1b[2J";
                 break;
-            case Types::ClearTarget::ScreenBeforeCursor:
+            case Types::Output::ClearTarget::ScreenBeforeCursor:
                 sequence = "\x1b[1J";
                 break;
-            case Types::ClearTarget::ScreenAfterCursor:
+            case Types::Output::ClearTarget::ScreenAfterCursor:
                 sequence = "\x1b[0J";
                 break;
-            case Types::ClearTarget::EntireScreenAndScrollback:
+            case Types::Output::ClearTarget::EntireScreenAndScrollback:
                 sequence = "\x1b[3J";
                 break;
-            case Types::ClearTarget::EntireLine:
+            case Types::Output::ClearTarget::EntireLine:
                 sequence = "\x1b[2K";
                 break;
-            case Types::ClearTarget::LineBeforeCursor:
+            case Types::Output::ClearTarget::LineBeforeCursor:
                 sequence = "\x1b[1K";
                 break;
-            case Types::ClearTarget::LineAfterCursor:
+            case Types::Output::ClearTarget::LineAfterCursor:
                 sequence = "\x1b[0K";
                 break;
             default:
@@ -2175,12 +2040,16 @@ namespace GameWIP::Terminal
         }
     }
 
-    IO::Types::Status scroll(Types::ScrollDirection direction, std::uint32_t lines, const Types::ControlOptions &options)
+    IO::Types::Status scroll(Types::Output::ScrollDirection direction, std::uint32_t lines, const Types::Output::ControlOptions &options) noexcept
     {
-        return scroll(Types::OutputStream::Stdout, direction, lines, options);
+        return scroll(Types::Output::Stream::Stdout, direction, lines, options);
     }
 
-    IO::Types::Status scroll(Types::OutputStream stream, Types::ScrollDirection direction, std::uint32_t lines, const Types::ControlOptions &options)
+    IO::Types::Status scroll(
+        Types::Output::Stream stream,
+        Types::Output::ScrollDirection direction,
+        std::uint32_t lines,
+        const Types::Output::ControlOptions &options) noexcept
     {
         try
         {
@@ -2195,10 +2064,10 @@ namespace GameWIP::Terminal
             char command = 'S';
             switch (direction)
             {
-            case Types::ScrollDirection::Up:
+            case Types::Output::ScrollDirection::Up:
                 command = 'S';
                 break;
-            case Types::ScrollDirection::Down:
+            case Types::Output::ScrollDirection::Down:
                 command = 'T';
                 break;
             default:
@@ -2232,12 +2101,12 @@ namespace GameWIP::Terminal
         }
     }
 
-    IO::Types::Status enterAlternateScreen(const Types::ControlOptions &options)
+    IO::Types::Status enterAlternateScreen(const Types::Output::ControlOptions &options) noexcept
     {
-        return enterAlternateScreen(Types::OutputStream::Stdout, options);
+        return enterAlternateScreen(Types::Output::Stream::Stdout, options);
     }
 
-    IO::Types::Status enterAlternateScreen(Types::OutputStream stream, const Types::ControlOptions &options)
+    IO::Types::Status enterAlternateScreen(Types::Output::Stream stream, const Types::Output::ControlOptions &options) noexcept
     {
         try
         {
@@ -2260,12 +2129,12 @@ namespace GameWIP::Terminal
         }
     }
 
-    IO::Types::Status leaveAlternateScreen(const Types::ControlOptions &options)
+    IO::Types::Status leaveAlternateScreen(const Types::Output::ControlOptions &options) noexcept
     {
-        return leaveAlternateScreen(Types::OutputStream::Stdout, options);
+        return leaveAlternateScreen(Types::Output::Stream::Stdout, options);
     }
 
-    IO::Types::Status leaveAlternateScreen(Types::OutputStream stream, const Types::ControlOptions &options)
+    IO::Types::Status leaveAlternateScreen(Types::Output::Stream stream, const Types::Output::ControlOptions &options) noexcept
     {
         try
         {
@@ -2288,12 +2157,12 @@ namespace GameWIP::Terminal
         }
     }
 
-    AlternateScreenScope scopedAlternateScreen(const Types::ControlOptions &options) noexcept
+    AlternateScreenScope scopedAlternateScreen(const Types::Output::ControlOptions &options) noexcept
     {
-        return scopedAlternateScreen(Types::OutputStream::Stdout, options);
+        return scopedAlternateScreen(Types::Output::Stream::Stdout, options);
     }
 
-    AlternateScreenScope scopedAlternateScreen(Types::OutputStream stream, const Types::ControlOptions &options) noexcept
+    AlternateScreenScope scopedAlternateScreen(Types::Output::Stream stream, const Types::Output::ControlOptions &options) noexcept
     {
         AlternateScreenScope scope;
         scope.stream_ = stream;
@@ -2345,12 +2214,12 @@ namespace GameWIP::Terminal
         return scope;
     }
 
-    IO::Types::Status setTitle(std::string_view utf8Title, const Types::ControlOptions &options)
+    IO::Types::Status setTitle(std::string_view utf8Title, const Types::Output::ControlOptions &options) noexcept
     {
-        return setTitle(Types::OutputStream::Stdout, utf8Title, options);
+        return setTitle(Types::Output::Stream::Stdout, utf8Title, options);
     }
 
-    IO::Types::Status setTitle(Types::OutputStream stream, std::string_view utf8Title, const Types::ControlOptions &options)
+    IO::Types::Status setTitle(Types::Output::Stream stream, std::string_view utf8Title, const Types::Output::ControlOptions &options) noexcept
     {
         try
         {
@@ -2358,7 +2227,12 @@ namespace GameWIP::Terminal
             {
                 return invalidArgumentStatus("Unknown terminal output stream.");
             }
-            IO::Types::Status validationStatus = Detail::Platform::validateTitle(stream, utf8Title);
+            IO::Types::Status validationStatus = validateUtf8Text(utf8Title);
+            if (!validationStatus.ok())
+            {
+                return validationStatus;
+            }
+            validationStatus = Detail::Platform::validateTitle(stream, utf8Title);
             if (!validationStatus.ok())
             {
                 return validationStatus;
@@ -2383,12 +2257,12 @@ namespace GameWIP::Terminal
         }
     }
 
-    IO::Types::Status ringBell(const Types::ControlOptions &options)
+    IO::Types::Status ringBell(const Types::Output::ControlOptions &options) noexcept
     {
-        return ringBell(Types::OutputStream::Stdout, options);
+        return ringBell(Types::Output::Stream::Stdout, options);
     }
 
-    IO::Types::Status ringBell(Types::OutputStream stream, const Types::ControlOptions &options)
+    IO::Types::Status ringBell(Types::Output::Stream stream, const Types::Output::ControlOptions &options) noexcept
     {
         try
         {

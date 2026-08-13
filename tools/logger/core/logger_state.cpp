@@ -342,26 +342,26 @@ namespace GameWIP::Logger::Detail::Core
 
     LogStyle getLogStyle(LogLevel level)
     {
-        const auto colored = [](const char *text, Terminal::Types::BasicColor color, bool stderrStream)
+        const auto colored = [](const char *text, Terminal::Types::Style::BasicColor color, bool stderrStream)
         {
-            Terminal::Types::TextStyle style;
+            Terminal::Types::Style::Request style;
             style.foreground = Terminal::basicColor(color);
             return LogStyle{text, style, stderrStream};
         };
         switch (level)
         {
         case LogLevel::Trace:
-            return colored("TRACE", Terminal::Types::BasicColor::BrightBlack, false);
+            return colored("TRACE", Terminal::Types::Style::BasicColor::BrightBlack, false);
         case LogLevel::Debug:
-            return colored("DEBUG", Terminal::Types::BasicColor::Cyan, false);
+            return colored("DEBUG", Terminal::Types::Style::BasicColor::Cyan, false);
         case LogLevel::Info:
             return {"INFO", {}, false};
         case LogLevel::Warn:
-            return colored("WARN", Terminal::Types::BasicColor::Yellow, false);
+            return colored("WARN", Terminal::Types::Style::BasicColor::Yellow, false);
         case LogLevel::Error:
-            return colored("ERROR", Terminal::Types::BasicColor::Red, true);
+            return colored("ERROR", Terminal::Types::Style::BasicColor::Red, true);
         case LogLevel::Fatal:
-            return colored("FATAL", Terminal::Types::BasicColor::Red, true);
+            return colored("FATAL", Terminal::Types::Style::BasicColor::Red, true);
         }
         return {};
     }

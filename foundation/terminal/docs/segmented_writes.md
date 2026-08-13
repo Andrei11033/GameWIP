@@ -4,7 +4,7 @@ Segmented writes emit one logical batch containing plain text, styled text, andâ
 
 ## Segment construction
 
-`WriteSegmentKind` contains `Text`, `StyledText`, and `Bytes`. Construct values with `textSegment()`, `styledTextSegment()`, and `byteSegment()`.
+`Types::Output::SegmentKind` contains `Text`, `StyledText`, and `Bytes`. Construct values with `textSegment()`, `styledTextSegment()`, and `byteSegment()`.
 
 A segment is valid by construction. Its payload accessors are interpreted according to `kind()`:
 
@@ -12,13 +12,13 @@ A segment is valid by construction. Its payload accessors are interpreted accord
 - `style()` is meaningful for `StyledText`;
 - `bytes()` is meaningful for `Bytes`.
 
-`TextStyle` is copied into a styled segment. Text and byte payloads are non-owning views. Copying a segment copies those views, not the referenced storage.
+`Types::Style::Request` is copied into a styled segment. Text and byte payloads are non-owning views. Copying a segment copies those views, not the referenced storage.
 
 The source storage must remain alive and unchanged until `writeSegments()` returns. Factory overloads delete common temporary-owning-string and non-borrowed temporary-byte-range cases, but lvalue lifetime remains the caller's responsibility.
 
 ## Batch options
 
-`SegmentWriteOptions` contains:
+`Types::Output::SegmentOptions` contains:
 
 - `styleMode` for styled segments;
 - `appendLineEnding` after the complete batch;
@@ -39,7 +39,7 @@ Plain text-only batches skip unnecessary capability work. Large temporary assemb
 
 ## Empty batches and flushing
 
-An empty batch is valid. It can still append the requested line ending or perform the requested flush according to `SegmentWriteOptions`.
+An empty batch is valid. It can still append the requested line ending or perform the requested flush according to `Types::Output::SegmentOptions`.
 
 A flush failure can occur after the full assembled batch was accepted. `writeSegments()` returns a status rather than a byte count, so applications requiring byte-level progress should use `writeBytes()` for that transfer shape.
 

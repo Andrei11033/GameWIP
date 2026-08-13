@@ -8,7 +8,7 @@ Query `getOutputCapabilities()` for planning, but still handle the operation sta
 
 ## Styled output is plain
 
-`StyleMode::Auto` falls back to plain text when preparation or the complete requested style is unavailable. Use `StyleMode::Required` only when failure is preferable to plain output.
+`Types::Style::Mode::Auto` falls back to plain text when preparation or the complete requested style is unavailable. Use `Types::Style::Mode::Required` only when failure is preferable to plain output.
 
 ## A style sequence appears without its reset
 
@@ -30,11 +30,11 @@ Read timeouts are optional: `std::nullopt` waits indefinitely, `0ms` polls, posi
 
 ## Interactive `readLine()` returns `Unsupported` before reading
 
-Managed echo requires a terminal output that supports cursor positioning, cursor-position queries, and line clearing. If input is interactive but the bound output cannot render managed echo, set `LineReadOptions::echo = false` and render the application UI yourself.
+Managed echo requires a terminal output that supports cursor positioning, cursor-position queries, and line clearing. If input is interactive but the bound output cannot render managed echo, set `Types::Input::LineOptions::echo = false` and render the application UI yourself.
 
 ## A special key does not appear in `readText()`
 
-Stream text/byte reads project only text-producing/control events into stream data. Navigation, function, modifier, resize, and other logical events are intentionally not serialized into arbitrary escape sequences. Use `InputDeliveryMode::Events` when the application needs those keys.
+Stream text/byte reads project only text-producing/control events into stream data. Navigation, function, modifier, resize, and other logical events are intentionally not serialized into arbitrary escape sequences. Use `Types::Input::DeliveryMode::Events` when the application needs those keys.
 
 ## An `OutputBuffer` mutation returned a failure
 
@@ -42,7 +42,7 @@ Stream text/byte reads project only text-producing/control events into stream da
 
 ## `flushTo()` did not force an OS flush
 
-`OutputBuffer::flushTo()` means write and clear on success. Set `TextWriteOptions::flushMode` to request a backend flush.
+`OutputBuffer::flushTo()` means write and clear on success. Set `Types::Output::TextOptions::flushMode` to request a backend flush.
 
 ## Flush succeeds but a pipe consumer sees no change
 
@@ -70,7 +70,7 @@ Destruction is different: the destructor makes best-effort output and input rest
 
 The token is stoppable and the requested read may block, but the endpoint cannot currently observe cancellation safely. Use an endpoint that advertises `supportsCancellation`, use a `0ms` poll loop owned by the application where appropriate, or omit the stoppable token when indefinite blocking is acceptable.
 
-A token that is already stopped returns `ReadOutcome::Cancelled` before input is consumed.
+A token that is already stopped returns `Types::Input::ReadOutcome::Cancelled` before input is consumed.
 
 ## An output-state scope is inactive immediately after creation
 

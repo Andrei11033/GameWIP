@@ -6,7 +6,7 @@
 /// not leak through installed imported targets. It is a package-boundary smoke
 /// test, not a replacement for each library's behavior validation suite.
 
-#if defined(IO_INTERNAL_TEST_HOOKS) || defined(FILESYSTEM_INTERNAL_TEST_HOOKS) || defined(INTERNAL_TERMINAL_TEST_HOOKS) || \
+#if defined(IO_INTERNAL_TEST_HOOKS) || defined(FILESYSTEM_INTERNAL_TEST_HOOKS) || defined(TERMINAL_INTERNAL_TEST_HOOKS) || \
     defined(INTERNAL_LOGGER_TEST_HOOKS) || defined(INTERNAL_ASSERT_TEST_HOOKS) || defined(INTERNAL_TEST_SUPPORT_TEST_HOOKS) || \
     defined(INTERNAL_WINDOW_TEST_HOOKS)
 #error "Installed GameWIP targets must not expose internal test-hook compile definitions."
@@ -36,10 +36,10 @@ int main()
     const GameWIP::IO::Types::CopyTextResult text = writer.copyText();
     const GameWIP::FileSystem::Types::PathResult path = GameWIP::FileSystem::pathFromUtf8("installed-consumer.txt");
     const GameWIP::FileSystem::Types::File::ReadOptions filesystemReadOptions{};
-    const GameWIP::Terminal::Types::OutputCapabilitiesResult capabilities = GameWIP::Terminal::getOutputCapabilities();
+    const GameWIP::Terminal::Types::Output::CapabilitiesResult capabilities = GameWIP::Terminal::getOutputCapabilities();
 
     GameWIP::Terminal::OutputBuffer terminalBuffer;
-    const GameWIP::IO::Types::Status terminalBufferLineEnding = terminalBuffer.setLineEnding(GameWIP::Terminal::Types::LineEnding::Lf);
+    const GameWIP::IO::Types::Status terminalBufferLineEnding = terminalBuffer.setLineEnding(GameWIP::Terminal::Types::Output::LineEnding::Lf);
     const GameWIP::IO::Types::Status terminalBufferReserve = terminalBuffer.reserve(64);
     const GameWIP::IO::Types::Status terminalBufferAppend = terminalBuffer.appendLine("installed terminal buffer");
     const GameWIP::IO::Types::Status terminalBufferPrint = terminalBuffer.print("{} {}", "formatted", 7);
@@ -49,9 +49,10 @@ int main()
     const GameWIP::IO::Types::Status closedSessionWrite = closedTerminalSession.writeText("must-not-write");
     const GameWIP::IO::Types::Status closedSessionPrint = closedTerminalSession.print("must-not-write {}", 1);
     const GameWIP::IO::Types::Status closedSessionPrintln = closedTerminalSession.println("must-not-write {}", 2);
-    const GameWIP::IO::Types::Status invalidDirectPrint = GameWIP::Terminal::print(static_cast<GameWIP::Terminal::Types::OutputStream>(-1), "{}", 1);
+    const GameWIP::IO::Types::Status invalidDirectPrint =
+        GameWIP::Terminal::print(static_cast<GameWIP::Terminal::Types::Output::Stream>(-1), "{}", 1);
     const GameWIP::IO::Types::Status invalidDirectPrintln =
-        GameWIP::Terminal::println(static_cast<GameWIP::Terminal::Types::OutputStream>(-1), "{}", 2);
+        GameWIP::Terminal::println(static_cast<GameWIP::Terminal::Types::Output::Stream>(-1), "{}", 2);
 
     const GameWIP::Logger::Types::Config loggerConfig = GameWIP::Logger::defaultConfig();
     GameWIP::TestSupport::Timer timer;

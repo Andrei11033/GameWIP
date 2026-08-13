@@ -163,7 +163,7 @@ The shared validation runner may replace module-local defaults with `RunOptions`
 
 ## Module standard
 
-Each correctness module owns:
+Each correctness module owns one logical registration. Large suites may organize coherent behavioral case bodies into private included fragments when that keeps fixtures translation-unit-local, or into focused translation units when a real shared private test contract already exists:
 
 ```text
 game/validation/tests/<module>/
@@ -171,12 +171,18 @@ game/validation/tests/<module>/
   module.cpp
   <module>_test.h
   <module>_test.cpp
+  <behavior>_test.inl           # optional TU-local focused case fragment
+  <behavior>_test.cpp           # optional focused translation unit when justified
 ```
 
 - `<module>_test.h` defines the source-tree options and entry point.
-- `<module>_test.cpp` owns suites, fixtures, child behavior, and TestSupport reporting.
+- `<module>_test.cpp` owns the module-level TestSupport runner, shared TU-local fixtures/helpers, and suite registration calls.
+- Focused `<behavior>_test.inl` files may hold large coherent suite bodies included inside the module's private namespace. Prefer this form when separate translation units would require duplicating fixtures or manufacturing a broad private declaration surface.
+- Focused `<behavior>_test.cpp` files are appropriate when the cases already have a clean independently compilable private boundary. Do not split small suites mechanically.
 - `module.cpp` maps shared runner policy and creates one static registration.
-- `CMakeLists.txt` explicitly lists sources and linked libraries.
+- `CMakeLists.txt` explicitly lists compiled sources and linked libraries; private included fragments do not become separate validation modules.
+
+Splitting case files does not create new validation modules, executables, report contracts, or registration names. Promote a fixture to TestSupport only when it is genuinely reusable across modules rather than merely shared by files inside one module.
 
 Example registration:
 
@@ -256,7 +262,7 @@ Manual checks must be opt-in and provide clear instructions, pass/fail/skip inpu
 
 ## Source documentation
 
-Large `_test.cpp` files do not require Doxygen comments on every local helper or test case. File-level documentation, descriptive function names, and focused comments around child protocols, global-state restoration, concurrency coordination, abnormal termination, and platform limitations are the preferred standard.
+Focused correctness case files do not require Doxygen comments on every local helper or test case. File-level documentation, descriptive function names, and focused comments around child protocols, global-state restoration, concurrency coordination, abnormal termination, and platform limitations are the preferred standard.
 
 Module headers and adapters require complete contract comments because they are shared source interfaces between validation components.
 

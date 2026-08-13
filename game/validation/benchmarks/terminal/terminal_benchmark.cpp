@@ -79,7 +79,7 @@ namespace
     void benchmarkOutputBufferLines(benchmark::State &state)
     {
         Terminal::OutputBuffer buffer;
-        if (!buffer.setLineEnding(Terminal::Types::LineEnding::Lf).ok() || !buffer.reserve(4096).ok())
+        if (!buffer.setLineEnding(Terminal::Types::Output::LineEnding::Lf).ok() || !buffer.reserve(4096).ok())
         {
             state.SkipWithError("Terminal OutputBuffer setup failed.");
             return;
