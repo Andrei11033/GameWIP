@@ -7,8 +7,9 @@
 The FileSystem module covers:
 
 - option/result defaults and move-only resource ownership;
-- predicates, metadata, path operations, canonicalization, and UTF-8 conversion;
-- whole-file helpers and explicit handles, including partial progress;
+- predicates, metadata, path operations, canonicalization, and strict UTF-8 path conversion;
+- strict UTF-8 whole-file text helpers, including valid-prefix reads and pre-side-effect write/append/atomic rejection;
+- whole-file byte helpers and explicit handles, including partial progress;
 - create, list, resize, copy, move, remove, and tree-removal limits;
 - open modes, sharing, replacement, append, and flush behavior;
 - atomic replacement, prefix validation, durability requests, and cleanup;

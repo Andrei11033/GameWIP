@@ -11,7 +11,7 @@ The examples are complete translation units intended to show contract handling r
 
 GameWIP::IO::Types::Status loadSmallConfig()
 {
-    GameWIP::FileSystem::Types::ReadFileOptions options{};
+    GameWIP::FileSystem::Types::File::ReadOptions options{};
     options.maxBytes = 1024U * 1024U;
 
     const auto result = GameWIP::FileSystem::readAllText("config.json", options);
@@ -80,10 +80,10 @@ GameWIP::IO::Types::Status addMarker(const GameWIP::FileSystem::Types::Path& pat
     namespace IO = GameWIP::IO;
 
     FileSystem::File file;
-    FileSystem::Types::FileOpenOptions options{};
-    options.access = FileSystem::Types::FileAccess::ReadWrite;
-    options.mode = FileSystem::Types::FileOpenMode::OpenExisting;
-    options.initialPosition = FileSystem::Types::FileInitialPosition::End;
+    FileSystem::Types::File::OpenOptions options{};
+    options.access = FileSystem::Types::File::Access::ReadWrite;
+    options.mode = FileSystem::Types::File::OpenMode::OpenExisting;
+    options.initialPosition = FileSystem::Types::File::InitialPosition::End;
 
     auto status = file.open(path, options);
     if (!status.ok())
@@ -123,7 +123,7 @@ GameWIP::IO::Types::Status writeSessionLog()
         return replace.status;
     }
 
-    FileSystem::Types::AppendFileOptions options{};
+    FileSystem::Types::File::AppendOptions options{};
     options.flushMode = GameWIP::IO::Types::FlushMode::Data;
 
     const auto append = FileSystem::appendText("session.log", "ready\n", options);
@@ -140,7 +140,7 @@ GameWIP::IO::Types::Status writeSessionLog()
 
 GameWIP::IO::Types::Status commitSave(std::string_view json)
 {
-    GameWIP::FileSystem::Types::AtomicWriteOptions options{};
+    GameWIP::FileSystem::Types::File::AtomicWriteOptions options{};
     options.replaceMode = GameWIP::FileSystem::Types::ReplaceMode::ReplaceExisting;
     options.flushMode = GameWIP::IO::Types::FlushMode::Data;
     options.flushParentDirectory = true;
@@ -158,7 +158,7 @@ GameWIP::IO::Types::Status commitSave(std::string_view json)
 
 GameWIP::IO::Types::Status listAssets()
 {
-    GameWIP::FileSystem::Types::ListDirectoryOptions options{};
+    GameWIP::FileSystem::Types::Directory::ListOptions options{};
     options.includeHidden = false;
     options.maxEntries = 1024;
 
@@ -190,9 +190,9 @@ GameWIP::IO::Types::Status rotateDataFile()
         return size.status;
     }
 
-    FileSystem::Types::CopyFileOptions copy{};
+    FileSystem::Types::File::CopyOptions copy{};
     copy.replaceMode = FileSystem::Types::ReplaceMode::ReplaceExisting;
-    copy.metadataMode = FileSystem::Types::CopyMetadataMode::Basic;
+    copy.metadataMode = FileSystem::Types::File::CopyMetadataMode::Basic;
     copy.createParentDirectories = true;
 
     auto status = FileSystem::copyFile("data.bin", "backup/data.bin", copy);
@@ -243,7 +243,7 @@ Because `FileLock` deliberately deletes move assignment, APIs that transfer a lo
 ```cpp
 #include "filesystem/filesystem.h"
 
-GameWIP::FileSystem::Types::LockResult openAndLock(
+GameWIP::FileSystem::Types::Lock::Result openAndLock(
     const GameWIP::FileSystem::Types::Path& path,
     GameWIP::FileSystem::File& owner)
 {

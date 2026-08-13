@@ -56,21 +56,22 @@ namespace
     static_assert(noexcept(FileSystem::resizeFile(std::declval<const Path &>(), 0)));
     static_assert(noexcept(FileSystem::truncateFile(std::declval<const Path &>())));
 
-    constexpr FileSystem::Types::FileShare kReadDelete = FileSystem::Types::FileShare::Read | FileSystem::Types::FileShare::Delete;
-    static_assert((kReadDelete & FileSystem::Types::FileShare::Read) == FileSystem::Types::FileShare::Read);
-    static_assert((kReadDelete & FileSystem::Types::FileShare::Write) == FileSystem::Types::FileShare::None);
+    constexpr FileSystem::Types::File::Share kReadDelete =
+        FileSystem::Types::File::Share::Read | FileSystem::Types::File::Share::Delete;
+    static_assert((kReadDelete & FileSystem::Types::File::Share::Read) == FileSystem::Types::File::Share::Read);
+    static_assert((kReadDelete & FileSystem::Types::File::Share::Write) == FileSystem::Types::File::Share::None);
 
-    static_assert(FileSystem::Types::FileOpenOptions{}.share == FileSystem::Types::FileShare::All);
-    static_assert(FileSystem::Types::FileReaderOpenOptions{}.share == FileSystem::Types::FileShare::All);
-    static_assert(FileSystem::Types::FileWriterOpenOptions{}.share == FileSystem::Types::FileShare::All);
-    static_assert(FileSystem::Types::WriteFileOptions{}.share == FileSystem::Types::FileShare::All);
-    static_assert(FileSystem::Types::AppendFileOptions{}.share == FileSystem::Types::FileShare::All);
+    static_assert(FileSystem::Types::File::OpenOptions{}.share == FileSystem::Types::File::Share::All);
+    static_assert(FileSystem::Types::File::ReaderOpenOptions{}.share == FileSystem::Types::File::Share::All);
+    static_assert(FileSystem::Types::File::WriterOpenOptions{}.share == FileSystem::Types::File::Share::All);
+    static_assert(FileSystem::Types::File::WriteOptions{}.share == FileSystem::Types::File::Share::All);
+    static_assert(FileSystem::Types::File::AppendOptions{}.share == FileSystem::Types::File::Share::All);
 
-    static_assert(FileSystem::Types::FileOpenOptions{}.symlinkPolicy == FileSystem::Types::SymlinkPolicy::DoNotFollow);
-    static_assert(FileSystem::Types::AtomicWriteOptions{}.symlinkPolicy == FileSystem::Types::SymlinkPolicy::DoNotFollow);
-    static_assert(FileSystem::Types::AtomicWriteOptions{}.flushParentDirectory);
-    static_assert(FileSystem::Types::MutationOptions{}.symlinkPolicy == FileSystem::Types::SymlinkPolicy::DoNotFollow);
-    static_assert(FileSystem::Types::QueryOptions{}.symlinkPolicy == FileSystem::Types::SymlinkPolicy::DoNotFollow);
+    static_assert(FileSystem::Types::File::OpenOptions{}.symlinkPolicy == FileSystem::Types::SymlinkPolicy::DoNotFollow);
+    static_assert(FileSystem::Types::File::AtomicWriteOptions{}.symlinkPolicy == FileSystem::Types::SymlinkPolicy::DoNotFollow);
+    static_assert(FileSystem::Types::File::AtomicWriteOptions{}.flushParentDirectory);
+    static_assert(FileSystem::Types::File::ResizeOptions{}.symlinkPolicy == FileSystem::Types::SymlinkPolicy::DoNotFollow);
+    static_assert(FileSystem::Types::EntryOptions{}.symlinkPolicy == FileSystem::Types::SymlinkPolicy::DoNotFollow);
     static_assert(FileSystem::Types::RemoveOptions{}.symlinkPolicy == FileSystem::Types::SymlinkPolicy::DoNotFollow);
 
     static_assert(std::is_move_constructible_v<FileSystem::File>);
@@ -85,15 +86,17 @@ namespace
     static_assert(std::is_move_assignable_v<FileSystem::DirectoryCursor>);
     static_assert(!std::is_copy_constructible_v<FileSystem::DirectoryCursor>);
     static_assert(!std::is_copy_assignable_v<FileSystem::DirectoryCursor>);
-    static_assert(std::is_same_v<decltype(FileSystem::Types::AtomicWriteOptions{}.temporaryNamePrefix), std::string>);
+    static_assert(std::is_same_v<decltype(FileSystem::Types::File::AtomicWriteOptions{}.temporaryNamePrefix), std::string>);
+    static_assert(std::is_same_v<decltype(FileSystem::Types::Directory::ListResult{}.entries), std::vector<FileSystem::Types::Directory::Entry>>);
+    static_assert(std::is_same_v<decltype(FileSystem::Types::Lock::Result{}.outcome), FileSystem::Types::Lock::Outcome>);
 
     namespace TestSupport = GameWIP::TestSupport;
     using ErrorCode = IO::Types::ErrorCode;
 
     /// @brief Creates entry-query options for one explicit symlink policy.
-    FileSystem::Types::QueryOptions queryOptions(FileSystem::Types::SymlinkPolicy policy) noexcept
+    FileSystem::Types::EntryOptions queryOptions(FileSystem::Types::SymlinkPolicy policy) noexcept
     {
-        return FileSystem::Types::QueryOptions{.symlinkPolicy = policy};
+        return FileSystem::Types::EntryOptions{.symlinkPolicy = policy};
     }
 
     /// @brief Exposes fixture text as bytes without copying or conversion.
@@ -367,6 +370,92 @@ namespace
         const auto roundTrip = FileSystem::pathToUtf8(path.filename());
         static_cast<void>(context.expectTrue("pathToUtf8 succeeds for non-ASCII filename", roundTrip.status.ok()));
         static_cast<void>(context.expectEq("UTF-8 path round-trips", utf8Name, roundTrip.utf8));
+
+        std::string malformedPath{"bad_"};
+        malformedPath.push_back(static_cast<char>(0xC0));
+        malformedPath.push_back(static_cast<char>(0xAF));
+        const auto malformedResult = FileSystem::pathFromUtf8(malformedPath);
+        static_cast<void>(
+            context.expectEq("pathFromUtf8 rejects malformed UTF-8", ErrorCode::EncodingFailed, malformedResult.status.code));
+
+#if !defined(_WIN32)
+        const std::filesystem::path invalidNativePath{std::string(1, static_cast<char>(0xFF))};
+        const auto invalidNativeResult = FileSystem::pathToUtf8(invalidNativePath);
+        static_cast<void>(
+            context.expectEq("pathToUtf8 rejects invalid native byte spelling", ErrorCode::EncodingFailed, invalidNativeResult.status.code));
+        static_cast<void>(context.expectTrue("failed pathToUtf8 returns empty text", invalidNativeResult.utf8.empty()));
+#endif
+    }
+
+    /// @brief Verifies strict UTF-8 content helpers and pre-side-effect text validation.
+    void testTextContracts(TestSupport::Context &context, const std::filesystem::path &root)
+    {
+        const std::filesystem::path directory = root / "text-contracts";
+        const std::filesystem::path file = directory / "content.txt";
+        static_cast<void>(context.expectTrue("text contract fixture write succeeds", FileSystem::writeAllText(file, "preserved").status.ok()));
+
+        std::string malformed{"prefix "};
+        malformed.push_back(static_cast<char>(0xE2));
+        malformed.push_back(static_cast<char>(0x28));
+        malformed.push_back(static_cast<char>(0xA1));
+
+        const std::filesystem::path malformedFile = directory / "malformed.bin";
+        const auto rawWrite = FileSystem::writeAllBytes(malformedFile, bytesOf(malformed));
+        static_cast<void>(context.expectTrue("byte helper writes malformed fixture bytes", rawWrite.status.ok()));
+        const auto malformedRead = FileSystem::readAllText(malformedFile);
+        static_cast<void>(context.expectEq("readAllText rejects malformed UTF-8", ErrorCode::EncodingFailed, malformedRead.status.code));
+        static_cast<void>(context.expectEq("readAllText preserves valid prefix", std::string{"prefix "}, malformedRead.text));
+
+        std::string validText{"A\0", 2};
+        validText.append("\xF0\x9F\x98\x80", 4);
+        const auto validWrite = FileSystem::writeAllText(file, validText);
+        static_cast<void>(context.expectTrue("writeAllText accepts embedded NUL and multibyte UTF-8", validWrite.status.ok()));
+        const auto validRead = FileSystem::readAllText(file);
+        static_cast<void>(context.expectTrue("readAllText returns valid multibyte UTF-8", validRead.status.ok()));
+        static_cast<void>(context.expectEq("valid text round-trips exactly", validText, validRead.text));
+
+        static_cast<void>(context.expectTrue("restore preservation fixture", FileSystem::writeAllText(file, "preserved").status.ok()));
+        const auto invalidWrite = FileSystem::writeAllText(file, malformed);
+        static_cast<void>(context.expectEq("writeAllText rejects malformed UTF-8", ErrorCode::EncodingFailed, invalidWrite.status.code));
+        static_cast<void>(context.expectEq("invalid write reports zero progress", std::size_t{0}, invalidWrite.bytesWritten));
+        static_cast<void>(context.expectEq("invalid write preserves existing content", std::string{"preserved"}, FileSystem::readAllText(file).text));
+
+        const std::filesystem::path missingWrite = root / "invalid-write-parent" / "file.txt";
+        const auto missingInvalidWrite = FileSystem::writeAllText(missingWrite, malformed);
+        static_cast<void>(context.expectEq("invalid write to missing path is EncodingFailed", ErrorCode::EncodingFailed, missingInvalidWrite.status.code));
+        static_cast<void>(context.expectFalse("invalid write creates no parent", FileSystem::exists(missingWrite.parent_path()).value));
+
+        const auto invalidAppend = FileSystem::appendText(file, malformed);
+        static_cast<void>(context.expectEq("appendText rejects malformed UTF-8", ErrorCode::EncodingFailed, invalidAppend.status.code));
+        static_cast<void>(context.expectEq("invalid append reports zero progress", std::size_t{0}, invalidAppend.bytesWritten));
+        static_cast<void>(context.expectEq("invalid append preserves content", std::string{"preserved"}, FileSystem::readAllText(file).text));
+
+        const std::filesystem::path missingAppend = root / "invalid-append-parent" / "file.txt";
+        const auto missingInvalidAppend = FileSystem::appendText(missingAppend, malformed);
+        static_cast<void>(context.expectEq("invalid append to missing path is EncodingFailed", ErrorCode::EncodingFailed, missingInvalidAppend.status.code));
+        static_cast<void>(context.expectFalse("invalid append creates no parent", FileSystem::exists(missingAppend.parent_path()).value));
+
+        const auto invalidAtomic = FileSystem::writeAllTextAtomic(file, malformed);
+        static_cast<void>(context.expectEq("writeAllTextAtomic rejects malformed UTF-8", ErrorCode::EncodingFailed, invalidAtomic.code));
+        static_cast<void>(context.expectEq("invalid atomic write preserves destination", std::string{"preserved"}, FileSystem::readAllText(file).text));
+
+        const std::filesystem::path missingAtomic = root / "invalid-atomic-parent" / "file.txt";
+        const auto missingInvalidAtomic = FileSystem::writeAllTextAtomic(missingAtomic, malformed);
+        static_cast<void>(context.expectEq("invalid atomic write to missing path is EncodingFailed", ErrorCode::EncodingFailed, missingInvalidAtomic.code));
+        static_cast<void>(context.expectFalse("invalid atomic write creates no parent", FileSystem::exists(missingAtomic.parent_path()).value));
+
+        FileSystem::Types::File::AtomicWriteOptions unicodePrefixOptions;
+        unicodePrefixOptions.temporaryNamePrefix = "tmp_\xD1\x84_";
+        const auto unicodePrefixWrite = FileSystem::writeAllTextAtomic(file, "unicode-prefix", unicodePrefixOptions);
+        static_cast<void>(context.expectTrue("atomic write accepts UTF-8 temporary prefix", unicodePrefixWrite.ok()));
+
+        FileSystem::Types::File::AtomicWriteOptions malformedPrefixOptions;
+        malformedPrefixOptions.temporaryNamePrefix.assign(1, static_cast<char>(0xFF));
+        const auto malformedPrefixWrite = FileSystem::writeAllTextAtomic(file, "must-not-write", malformedPrefixOptions);
+        static_cast<void>(
+            context.expectEq("atomic write rejects malformed UTF-8 temporary prefix", ErrorCode::EncodingFailed, malformedPrefixWrite.code));
+        static_cast<void>(
+            context.expectEq("invalid temporary prefix preserves destination", std::string{"unicode-prefix"}, FileSystem::readAllText(file).text));
     }
 
     /// @brief Verifies whole-file helpers and reader, writer, and read/write handle contracts.
@@ -480,7 +569,7 @@ namespace
         static_cast<void>(context.expectTrue("move destination existence query succeeds", movedExists.status.ok()));
         static_cast<void>(context.expectTrue("movePath creates destination", movedExists.value));
 
-#if defined(_WIN32) && INTERNAL_FILESYSTEM_TEST_HOOKS
+#if defined(_WIN32) && FILESYSTEM_INTERNAL_TEST_HOOKS
         {
             const std::filesystem::path raceSource = directory / "move-race-source.txt";
             const std::filesystem::path validatedParent = directory / "validated-parent";
@@ -693,7 +782,7 @@ namespace
         static_cast<void>(context.expectTrue("detached competitor unlock succeeds", acquiredAfterDetachedUnlock.lock.unlock().ok()));
         static_cast<void>(context.expectTrue("detached competitor closes", detachedCompetitor.close().ok()));
 
-#if INTERNAL_FILESYSTEM_TEST_HOOKS
+#if FILESYSTEM_INTERNAL_TEST_HOOKS
         const std::filesystem::path failedUnlockFile = root / "atomic-locks" / "failed-unlock.txt";
         static_cast<void>(context.expectTrue("failed-unlock file write succeeds", FileSystem::writeAllText(failedUnlockFile, "lock").status.ok()));
 
@@ -731,7 +820,7 @@ namespace
 #endif
     }
 
-#if INTERNAL_FILESYSTEM_TEST_HOOKS
+#if FILESYSTEM_INTERNAL_TEST_HOOKS
     /// @brief Verifies checked file operations translate exceptions and retain retryable close state.
     void testCheckedFileFailureTranslation(TestSupport::Context &context, const std::filesystem::path &root)
     {
@@ -924,6 +1013,12 @@ namespace GameWIP::Test
                 testUtf8PathConversion(context, runRoot);
             });
         runner.runSuite(
+            "FileSystem UTF-8 text contracts",
+            [&runRoot](TestSupport::Context &context)
+            {
+                testTextContracts(context, runRoot);
+            });
+        runner.runSuite(
             "FileSystem mutation copy move removal",
             [&runRoot](TestSupport::Context &context)
             {
@@ -935,7 +1030,7 @@ namespace GameWIP::Test
             {
                 testAtomicWriteAndLocks(context, runRoot);
             });
-#if INTERNAL_FILESYSTEM_TEST_HOOKS
+#if FILESYSTEM_INTERNAL_TEST_HOOKS
         runner.runSuite(
             "FileSystem checked failure translation",
             [&runRoot](TestSupport::Context &context)

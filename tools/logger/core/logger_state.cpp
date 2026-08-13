@@ -778,7 +778,7 @@ GameWIP::Logger::Types::InitResult GameWIP::Logger::Detail::Core::initImpl(const
         {
             Status status = FileSystem::createDirectories(
                 directoryPath,
-                FileSystem::Types::CreateDirectoryOptions{
+                FileSystem::Types::Directory::CreateOptions{
                     .succeedIfAlreadyExists = true,
                     .symlinkPolicy = FileSystem::Types::SymlinkPolicy::FollowAll});
             if (!status.ok())

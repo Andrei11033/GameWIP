@@ -2,6 +2,7 @@
 /// @brief Win32 backend for the FileSystem library.
 
 #include "filesystem/internal/filesystem_platform.h"
+#include "unicode/unicode.h"
 
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
@@ -47,7 +48,7 @@ namespace GameWIP::FileSystem::Detail::Platform
         /// @brief Tick offset from the Windows 1601 epoch to the Unix 1970 epoch.
         constexpr std::int64_t kUnixEpochAsWindowsFileTime = 116'444'736'000'000'000LL;
 
-#if INTERNAL_FILESYSTEM_TEST_HOOKS
+#if FILESYSTEM_INTERNAL_TEST_HOOKS
         using CheckedFileOperation = TestHooks::CheckedFileOperation;
         using CheckedFailure = TestHooks::CheckedFailure;
 
@@ -427,10 +428,15 @@ namespace GameWIP::FileSystem::Detail::Platform
 
             try
             {
-#if INTERNAL_FILESYSTEM_TEST_HOOKS
+#if FILESYSTEM_INTERNAL_TEST_HOOKS
                 consumeDiagnosticFailure();
 #endif
-                return IO::makeStatus(code, static_cast<std::int64_t>(error), std::system_category().message(static_cast<int>(error)));
+                std::string message = std::system_category().message(static_cast<int>(error));
+                if (Unicode::Utf8::validate(message).outcome == Unicode::Types::ValidationOutcome::Valid)
+                {
+                    return IO::makeStatus(code, static_cast<std::int64_t>(error), std::move(message));
+                }
+                return IO::makeStatus(code, static_cast<std::int64_t>(error));
             }
             catch (...)
             {
@@ -449,6 +455,10 @@ namespace GameWIP::FileSystem::Detail::Platform
         {
             try
             {
+                if (Unicode::Utf8::validate(message).outcome != Unicode::Types::ValidationOutcome::Valid)
+                {
+                    return IO::makeStatus(code, nativeCode);
+                }
                 return IO::makeStatus(code, nativeCode, std::string{message});
             }
             catch (...)
@@ -1606,7 +1616,7 @@ namespace GameWIP::FileSystem::Detail::Platform
                 return IO::successStatus();
             }
 
-#if INTERNAL_FILESYSTEM_TEST_HOOKS
+#if FILESYSTEM_INTERNAL_TEST_HOOKS
             if (forceFileUnlockFailure.load(std::memory_order_acquire))
             {
                 return IO::makeStatus(ErrorCode::UnlockFailed);
@@ -2300,7 +2310,7 @@ namespace GameWIP::FileSystem::Detail::Platform
 
         try
         {
-#if INTERNAL_FILESYSTEM_TEST_HOOKS
+#if FILESYSTEM_INTERNAL_TEST_HOOKS
             CheckedFailureResult injected = consumeCheckedFailure(CheckedFileOperation::Read);
             if (injected.injected)
             {
@@ -2344,7 +2354,7 @@ namespace GameWIP::FileSystem::Detail::Platform
 
         try
         {
-#if INTERNAL_FILESYSTEM_TEST_HOOKS
+#if FILESYSTEM_INTERNAL_TEST_HOOKS
             CheckedFailureResult injected = consumeCheckedFailure(CheckedFileOperation::Write);
             if (injected.injected)
             {
@@ -2380,7 +2390,7 @@ namespace GameWIP::FileSystem::Detail::Platform
     {
         try
         {
-#if INTERNAL_FILESYSTEM_TEST_HOOKS
+#if FILESYSTEM_INTERNAL_TEST_HOOKS
             CheckedFailureResult injected = consumeCheckedFailure(CheckedFileOperation::Flush);
             if (injected.injected)
             {
@@ -2416,7 +2426,7 @@ namespace GameWIP::FileSystem::Detail::Platform
     {
         try
         {
-#if INTERNAL_FILESYSTEM_TEST_HOOKS
+#if FILESYSTEM_INTERNAL_TEST_HOOKS
             CheckedFailureResult injected = consumeCheckedFailure(CheckedFileOperation::Close);
             if (injected.injected)
             {
@@ -2458,7 +2468,7 @@ namespace GameWIP::FileSystem::Detail::Platform
     {
         try
         {
-#if INTERNAL_FILESYSTEM_TEST_HOOKS
+#if FILESYSTEM_INTERNAL_TEST_HOOKS
             CheckedFailureResult injected = consumeCheckedFailure(CheckedFileOperation::Position);
             if (injected.injected)
             {
@@ -2485,7 +2495,7 @@ namespace GameWIP::FileSystem::Detail::Platform
     {
         try
         {
-#if INTERNAL_FILESYSTEM_TEST_HOOKS
+#if FILESYSTEM_INTERNAL_TEST_HOOKS
             CheckedFailureResult injected = consumeCheckedFailure(CheckedFileOperation::Size);
             if (injected.injected)
             {
@@ -2508,7 +2518,7 @@ namespace GameWIP::FileSystem::Detail::Platform
     {
         try
         {
-#if INTERNAL_FILESYSTEM_TEST_HOOKS
+#if FILESYSTEM_INTERNAL_TEST_HOOKS
             CheckedFailureResult injected = consumeCheckedFailure(CheckedFileOperation::Seek);
             if (injected.injected)
             {
@@ -2535,7 +2545,7 @@ namespace GameWIP::FileSystem::Detail::Platform
     {
         try
         {
-#if INTERNAL_FILESYSTEM_TEST_HOOKS
+#if FILESYSTEM_INTERNAL_TEST_HOOKS
             CheckedFailureResult injected = consumeCheckedFailure(CheckedFileOperation::Resize);
             if (injected.injected)
             {
@@ -3058,7 +3068,7 @@ namespace GameWIP::FileSystem::Detail::Platform
                     return std::move(destinationParent.status);
                 }
 
-#if INTERNAL_FILESYSTEM_TEST_HOOKS
+#if FILESYSTEM_INTERNAL_TEST_HOOKS
                 pauseMoveIfArmed(false);
 #endif
 
@@ -3089,7 +3099,7 @@ namespace GameWIP::FileSystem::Detail::Platform
                 {
                     return makeNtStatus(status, ErrorCode::MoveFailed);
                 }
-#if INTERNAL_FILESYSTEM_TEST_HOOKS
+#if FILESYSTEM_INTERNAL_TEST_HOOKS
                 pauseMoveIfArmed(true);
 #endif
                 return IO::successStatus();
@@ -3191,7 +3201,7 @@ namespace GameWIP::FileSystem::Detail::Platform
         }
     }
 
-#if INTERNAL_FILESYSTEM_TEST_HOOKS
+#if FILESYSTEM_INTERNAL_TEST_HOOKS
     namespace TestHooks
     {
         void forceNextCheckedFailure(

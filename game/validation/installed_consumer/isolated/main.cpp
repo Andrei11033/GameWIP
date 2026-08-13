@@ -1,7 +1,7 @@
 /// @file main.cpp
 /// @brief Isolated installed-package dependency-discovery check.
 
-#if defined(IO_INTERNAL_TEST_HOOKS) || defined(INTERNAL_FILESYSTEM_TEST_HOOKS) || defined(INTERNAL_TERMINAL_TEST_HOOKS) || \
+#if defined(IO_INTERNAL_TEST_HOOKS) || defined(FILESYSTEM_INTERNAL_TEST_HOOKS) || defined(INTERNAL_TERMINAL_TEST_HOOKS) || \
     defined(INTERNAL_LOGGER_TEST_HOOKS) || defined(INTERNAL_ASSERT_TEST_HOOKS) || defined(INTERNAL_TEST_SUPPORT_TEST_HOOKS) || \
     defined(INTERNAL_WINDOW_TEST_HOOKS)
 #error "Installed GameWIP targets must not expose internal test-hook compile definitions."
@@ -52,7 +52,8 @@ int main()
     const auto text = writer.copyText();
     return reserve.ok() && write.status.ok() && text.status.ok() && text.text == "isolated" ? 0 : 1;
 #elif defined(GAMEWIP_CONSUMER_FileSystem)
-    return GameWIP::FileSystem::pathFromUtf8("isolated.txt").status.ok() ? 0 : 1;
+    const GameWIP::FileSystem::Types::File::ReadOptions options{};
+    return GameWIP::FileSystem::pathFromUtf8("isolated.txt").status.ok() && options.bufferSize > 0 ? 0 : 1;
 #elif defined(GAMEWIP_CONSUMER_Terminal)
     static_cast<void>(GameWIP::Terminal::getOutputCapabilities());
     return 0;

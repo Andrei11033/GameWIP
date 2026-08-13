@@ -10,9 +10,46 @@
 #include <memory>
 #include <vector>
 
-#ifndef INTERNAL_FILESYSTEM_TEST_HOOKS
-#define INTERNAL_FILESYSTEM_TEST_HOOKS 0
+#ifndef FILESYSTEM_INTERNAL_TEST_HOOKS
+#define FILESYSTEM_INTERNAL_TEST_HOOKS 0
 #endif
+
+// Internal migration aliases keep implementation and platform code readable while the
+// installed public surface uses the organized Types::File/Directory/Lock vocabulary.
+namespace GameWIP::FileSystem::Types
+{
+    using FileAccess = File::Access;
+    using FileShare = File::Share;
+    using FileOpenMode = File::OpenMode;
+    using FileInitialPosition = File::InitialPosition;
+    using FileWriterMode = File::WriterMode;
+    using WriteFileMode = File::WriteMode;
+    using AppendMode = File::AppendMode;
+    using CopyMetadataMode = File::CopyMetadataMode;
+    using FileOpenOptions = File::OpenOptions;
+    using FileReaderOpenOptions = File::ReaderOpenOptions;
+    using FileWriterOpenOptions = File::WriterOpenOptions;
+    using ReadFileOptions = File::ReadOptions;
+    using WriteFileOptions = File::WriteOptions;
+    using AppendFileOptions = File::AppendOptions;
+    using AtomicWriteOptions = File::AtomicWriteOptions;
+    using MutationOptions = File::ResizeOptions;
+    using CopyFileOptions = File::CopyOptions;
+
+    using QueryOptions = EntryOptions;
+
+    using CreateDirectoryOptions = Directory::CreateOptions;
+    using ListDirectoryOptions = Directory::ListOptions;
+    using DirectoryEntry = Directory::Entry;
+    using ListDirectoryResult = Directory::ListResult;
+    using DirectoryCursorNextResult = Directory::CursorNextResult;
+    using RemoveDirectoryTreeOptions = Directory::RemoveTreeOptions;
+    using RemoveDirectoryTreeResult = Directory::RemoveTreeResult;
+
+    using FileLockMode = Lock::Mode;
+    using LockOutcome = Lock::Outcome;
+    using LockResult = Lock::Result;
+} // namespace GameWIP::FileSystem::Types
 
 namespace GameWIP::FileSystem::Detail
 {
@@ -81,7 +118,7 @@ namespace GameWIP::FileSystem::Detail
 
 namespace GameWIP::FileSystem::Detail::Platform
 {
-#if INTERNAL_FILESYSTEM_TEST_HOOKS
+#if FILESYSTEM_INTERNAL_TEST_HOOKS
     namespace TestHooks
     {
         /// Checked file operations that support deterministic one-shot failure injection.

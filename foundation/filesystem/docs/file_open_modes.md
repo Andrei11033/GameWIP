@@ -19,7 +19,7 @@ The same handle object is not internally synchronized. Spans passed to `read()` 
 
 ## Handle roles
 
-`FileReader` is read-only. `FileWriter` is write-only. `File` selects `Read`, `Write`, or `ReadWrite` access through `FileOpenOptions`.
+`FileReader` is read-only. `FileWriter` is write-only. `File` selects `Read`, `Write`, or `ReadWrite` access through `Types::File::OpenOptions`.
 
 Modes that create or truncate require write access. A non-`None` `flushOnClose` also requires write access. Invalid combinations return `InvalidArgument` before a native handle is opened.
 
@@ -37,7 +37,7 @@ An empty read performs no transfer but reports the current end-of-stream state. 
 
 Normal file handles are seekable. Append writer modes are not.
 
-`FileInitialPosition::End` performs one seek after open; subsequent writes occur at the current position and do not have append semantics.
+`Types::File::InitialPosition::End` performs one seek after open; subsequent writes occur at the current position and do not have append semantics.
 
 `File::resize()` requires write access. On success it attempts to restore the previous position when that position still fits. If shrinking places the old position beyond the new end, the position remains at the new end.
 
@@ -45,7 +45,7 @@ Capability queries such as `canSeek()` are advisory state snapshots. The status 
 
 ## Append modes
 
-`FileWriterMode::AppendOrCreate` and `AppendExisting` are true append modes:
+`Types::File::WriterMode::AppendOrCreate` and `AppendExisting` are true append modes:
 
 - each write targets the then-current end of file;
 - another append handle can change the endpoint between calls;
@@ -54,7 +54,7 @@ Capability queries such as `canSeek()` are advisory state snapshots. The status 
 
 ## Sharing
 
-`FileShare` controls which access other opens may request while the handle remains open:
+`Types::File::Share` controls which access other opens may request while the handle remains open:
 
 - `Read` permits read opens;
 - `Write` permits write opens;
@@ -72,7 +72,7 @@ Lock acquisition is non-blocking and covers the complete file:
 - `FileWriter` offers exclusive locking;
 - `File` offers both.
 
-A successful status with `LockOutcome::WouldBlock` means no lock was acquired. Backend failures use a failed status.
+A successful status with `Types::Lock::Outcome::WouldBlock` means no lock was acquired. Backend failures use a failed status.
 
 `FileLock` owns enough native state to remain active after the originating handle object is destroyed. This supports detached lock ownership but has an important lifecycle distinction:
 

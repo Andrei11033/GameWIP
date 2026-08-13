@@ -95,7 +95,7 @@ namespace
         for (auto iteration : state)
         {
             static_cast<void>(iteration);
-            FileSystem::Types::ListDirectoryResult listing = FileSystem::listDirectory(*directory);
+            FileSystem::Types::Directory::ListResult listing = FileSystem::listDirectory(*directory);
             if (!listing.status.ok() || listing.entries.size() != static_cast<std::size_t>(entryCount))
             {
                 const std::string error = std::format(
@@ -145,7 +145,7 @@ namespace
             std::int64_t observedEntries = 0;
             for (;;)
             {
-                FileSystem::Types::DirectoryCursorNextResult next = cursor.next();
+                FileSystem::Types::Directory::CursorNextResult next = cursor.next();
                 if (!next.status.ok())
                 {
                     const std::string error = std::format(

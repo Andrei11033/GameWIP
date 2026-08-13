@@ -31,13 +31,16 @@ target_include_directories(FileSystem PUBLIC
 target_compile_features(FileSystem PUBLIC cxx_std_23)
 target_compile_definitions(FileSystem
     PRIVATE
-        INTERNAL_FILESYSTEM_TEST_HOOKS=$<BOOL:${FILESYSTEM_ENABLE_TEST_HOOKS}>
+        FILESYSTEM_INTERNAL_TEST_HOOKS=$<BOOL:${FILESYSTEM_ENABLE_TEST_HOOKS}>
     INTERFACE
-        $<BUILD_INTERFACE:INTERNAL_FILESYSTEM_TEST_HOOKS=$<BOOL:${FILESYSTEM_ENABLE_TEST_HOOKS}>>
+        $<BUILD_INTERFACE:FILESYSTEM_INTERNAL_TEST_HOOKS=$<BOOL:${FILESYSTEM_ENABLE_TEST_HOOKS}>>
 )
 
-target_link_libraries(FileSystem PUBLIC
-    IO
+target_link_libraries(FileSystem
+    PUBLIC
+        IO
+    PRIVATE
+        Unicode
 )
 
 set_target_properties(FileSystem PROPERTIES

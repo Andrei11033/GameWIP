@@ -10,7 +10,7 @@ Configure with:
 -D FILESYSTEM_ENABLE_TEST_HOOKS=ON
 ```
 
-The short build-tree target exposes `INTERNAL_FILESYSTEM_TEST_HOOKS=1` to source-tree validation consumers. Installed packages do not expose the internal header or definition.
+The short build-tree target exposes `FILESYSTEM_INTERNAL_TEST_HOOKS=1` to source-tree validation consumers. Installed packages do not expose the internal header or definition.
 
 ## Include
 

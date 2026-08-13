@@ -91,9 +91,9 @@ namespace GameWIP::Logger::Detail::Core
         if (consumeTestHook(loggerTestHookState.nextFileOpenFailure))
             return forcedFileStatus(ErrorCode::OpenFailed);
 #endif
-        const FileSystem::Types::FileWriterOpenOptions options{
-            .mode = FileSystem::Types::FileWriterMode::CreateNew,
-            .share = FileSystem::Types::FileShare::Read,
+        const FileSystem::Types::File::WriterOpenOptions options{
+            .mode = FileSystem::Types::File::WriterMode::CreateNew,
+            .share = FileSystem::Types::File::Share::Read,
             .symlinkPolicy = FileSystem::Types::SymlinkPolicy::FollowAll,
             .createParentDirectories = false,
             .flushOnClose = IO::Types::FlushMode::None};

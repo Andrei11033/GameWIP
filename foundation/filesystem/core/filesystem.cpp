@@ -3,6 +3,7 @@
 
 #include "filesystem/filesystem.h"
 #include "filesystem/internal/filesystem_platform.h"
+#include "unicode/unicode.h"
 
 #include <algorithm>
 #include <atomic>
@@ -143,6 +144,12 @@ namespace GameWIP::FileSystem
             return {.status = IO::makeStatus(code), .bytesWritten = bytesWritten};
         }
 
+        /// @brief Returns whether a character range is complete strict UTF-8.
+        [[nodiscard]] bool isValidUtf8(std::string_view text) noexcept
+        {
+            return Unicode::Utf8::validate(text).outcome == Unicode::Types::ValidationOutcome::Valid;
+        }
+
         /// @brief Maps common standard-library filesystem errors to portable IO codes.
         IO::Types::Status statusFromStdError(std::error_code ec, ErrorCode fallback) noexcept
         {
@@ -196,7 +203,12 @@ namespace GameWIP::FileSystem
 
             try
             {
-                return IO::makeStatus(code, ec.value(), ec.message());
+                std::string message = ec.message();
+                if (isValidUtf8(message))
+                {
+                    return IO::makeStatus(code, ec.value(), std::move(message));
+                }
+                return IO::makeStatus(code, ec.value());
             }
             catch (...)
             {
@@ -367,6 +379,10 @@ namespace GameWIP::FileSystem
         /// @brief Validates that an atomic temporary prefix is one safe filename component.
         [[nodiscard]] IO::Types::Status validateAtomicTemporaryPrefix(std::string_view prefix) noexcept
         {
+            if (!isValidUtf8(prefix))
+            {
+                return IO::makeStatus(ErrorCode::EncodingFailed);
+            }
             if (prefix.empty() || prefix == "." || prefix == ".." || hasPathSeparator(prefix))
             {
                 return IO::makeStatus(ErrorCode::InvalidArgument);
@@ -449,6 +465,17 @@ namespace GameWIP::FileSystem
             return Detail::Platform::copyBasicMetadata(from, to, symlinkPolicy);
         }
 
+        /// @brief Constructs a native path from UTF-8 already validated by the owning trust boundary.
+        [[nodiscard]] Types::Path pathFromTrustedUtf8(std::string_view utf8Path)
+        {
+            std::u8string converted(utf8Path.size(), u8'\0');
+            if (!utf8Path.empty())
+            {
+                std::memcpy(converted.data(), utf8Path.data(), utf8Path.size());
+            }
+            return Types::Path{converted};
+        }
+
         /// @brief Creates a process/counter/attempt-qualified same-directory atomic temp path.
         [[nodiscard]] Types::Path uniqueAtomicTemporaryPath(const Types::Path &parent, std::string_view prefix, std::uint64_t attempt)
         {
@@ -466,7 +493,7 @@ namespace GameWIP::FileSystem
             name.append(std::to_string(attempt));
             name.append(".tmp");
 
-            return parent / name;
+            return parent / pathFromTrustedUtf8(name);
         }
 
     } // namespace
@@ -1397,6 +1424,11 @@ namespace GameWIP::FileSystem
 
     IO::Types::WriteResult writeAllText(const Types::Path &path, std::string_view utf8Text, const Types::WriteFileOptions &options) noexcept
     {
+        if (!isValidUtf8(utf8Text))
+        {
+            return writeFailure(ErrorCode::EncodingFailed);
+        }
+
         return writeAllBytes(path, std::as_bytes(std::span<const char>(utf8Text.data(), utf8Text.size())), options);
     }
 
@@ -1469,6 +1501,11 @@ namespace GameWIP::FileSystem
 
     IO::Types::WriteResult appendText(const Types::Path &path, std::string_view utf8Text, const Types::AppendFileOptions &options) noexcept
     {
+        if (!isValidUtf8(utf8Text))
+        {
+            return writeFailure(ErrorCode::EncodingFailed);
+        }
+
         return appendBytes(path, std::as_bytes(std::span<const char>(utf8Text.data(), utf8Text.size())), options);
     }
 
@@ -1595,6 +1632,11 @@ namespace GameWIP::FileSystem
 
     IO::Types::Status writeAllTextAtomic(const Types::Path &path, std::string_view utf8Text, const Types::AtomicWriteOptions &options) noexcept
     {
+        if (!isValidUtf8(utf8Text))
+        {
+            return IO::makeStatus(ErrorCode::EncodingFailed);
+        }
+
         return writeAllBytesAtomic(path, std::as_bytes(std::span<const char>(utf8Text.data(), utf8Text.size())), options);
     }
 
@@ -2365,16 +2407,15 @@ namespace GameWIP::FileSystem
 
     Types::PathResult pathFromUtf8(std::string_view utf8Path) noexcept
     {
+        if (!isValidUtf8(utf8Path))
+        {
+            return pathFailure(ErrorCode::EncodingFailed);
+        }
+
         try
         {
-            std::u8string converted(utf8Path.size(), u8'\0');
-            if (!utf8Path.empty())
-            {
-                std::memcpy(converted.data(), utf8Path.data(), utf8Path.size());
-            }
-            Types::Path result{converted};
-
-            return {.status = IO::successStatus(), .path = result};
+            Types::Path result = pathFromTrustedUtf8(utf8Path);
+            return {.status = IO::successStatus(), .path = std::move(result)};
         }
         catch (const std::bad_alloc &)
         {
@@ -2392,8 +2433,12 @@ namespace GameWIP::FileSystem
         {
             std::u8string u8String = path.u8string();
             std::string utf8{u8String.begin(), u8String.end()};
+            if (!isValidUtf8(utf8))
+            {
+                return utf8Failure(ErrorCode::EncodingFailed);
+            }
 
-            return {.status = IO::successStatus(), .utf8 = utf8};
+            return {.status = IO::successStatus(), .utf8 = std::move(utf8)};
         }
         catch (const std::bad_alloc &)
         {
