@@ -3,21 +3,18 @@
 
 #pragma once
 
-#include "io/io.h"
+#include "logger/config.h"
 #include "logger/logger_export.h"
 
 #include <chrono>
 #include <cstddef>
-#include <cstdint>
 #include <exception>
 #include <format>
 #include <iterator>
 #include <new>
 #include <optional>
-#include <span>
 #include <string>
 #include <string_view>
-#include <type_traits>
 #include <utility>
 
 /// @brief Process-wide asynchronous logging module for runtime diagnostics.
@@ -26,268 +23,10 @@
 /// channel, flush active normal sinks, and do not drain older asynchronous work.
 namespace GameWIP::Logger
 {
-    namespace Types
-    {
-        /// @brief Severity assigned to a log record or report.
-        enum class Level : std::uint8_t
-        {
-            Trace,
-            Debug,
-            Info,
-            Warn,
-            Error,
-            Fatal
-        };
-
-        /// @brief Enabled normal-output sink combination.
-        enum class OutputMode : std::uint8_t
-        {
-            None,
-            Console,
-            File,
-            Both
-        };
-
-        /// @brief Formatting strategy used before a message enters Logger-owned storage.
-        enum class FormatPolicy : std::uint8_t
-        {
-            StrictBounded,
-            FastNormal
-        };
-
-        /// @brief Stable numeric identifier for a registered source.
-        using SourceId = std::uint32_t;
-
-        /// @brief Associates a SourceId with its UTF-8 display name during initialization.
-        struct SourceDefinition
-        {
-            SourceId id = 0;            ///< Source identifier.
-            std::string_view name = {}; ///< Valid non-empty UTF-8 display name.
-        };
-
-        /// @brief Initial enabled state for one registered source.
-        struct SourceFilter
-        {
-            SourceId source = 0; ///< Registered source to configure.
-            bool enabled = true; ///< Whether the source is initially enabled.
-        };
-
-        /// @brief Initial enabled state for one exact severity level.
-        struct LevelFilter
-        {
-            Level level = Level::Trace; ///< Exact level to configure.
-            bool enabled = true;        ///< Whether the level is initially enabled.
-        };
-
-        /// @brief Explicit wrapper for a runtime-provided format string.
-        struct RuntimeFormat
-        {
-            std::string_view text = {}; ///< Runtime format text.
-        };
-
-        /// @brief Complete Logger initialization configuration.
-        struct Config
-        {
-            OutputMode output = OutputMode::Both;                    ///< Requested normal-output sinks.
-            Level minLevel = Level::Info;                            ///< Minimum accepted severity.
-            std::size_t maxQueueSize = 1024;                         ///< Soft queue limit.
-            double hardQueueMultiplier = 1.25;                       ///< Hard-limit multiplier applied to the soft limit.
-            std::size_t maxMessageLength = 4096;                     ///< Maximum retained UTF-8 message bytes.
-            FormatPolicy formatPolicy = FormatPolicy::StrictBounded; ///< Formatting memory policy.
-            std::size_t inlineMessageCapacity = 256;                 ///< Inline bytes reserved per queued message.
-            std::size_t workerBatchSize = 256;                       ///< Maximum records drained per worker batch.
-            std::string_view logDirectory = "logs";                  ///< UTF-8 file-output directory.
-            bool fallbackToConsoleOnFileFailure = true;              ///< Allow File to fall back to Console.
-            std::span<const SourceDefinition> sources = {};          ///< Registered source definitions copied by init().
-            std::span<const SourceFilter> sourceFilters = {};        ///< Initial per-source filters.
-            std::span<const LevelFilter> levelFilters = {};          ///< Initial exact-level filters.
-            bool enableConsoleColor = true;                          ///< Enable supported console styling.
-            bool enableDebugOutput = true;                           ///< Mirror reports to the debugger channel.
-            bool enableFatalPopup = true;                            ///< Enable the fatal-report popup channel.
-            bool flushFileEveryBatch = false;                        ///< Flush File after each worker batch.
-            bool flushConsoleEveryWrite = false;                     ///< Flush Console after each normal write.
-            bool releaseMessageMemoryAfterWrite = false;             ///< Release excess message scratch after writes.
-            bool releaseStorageOnShutdown = true;                    ///< Release queue storage during shutdown.
-        };
-
-        /// @brief Effective queue and message limits selected by initialization.
-        struct QueueLimits
-        {
-            std::size_t softQueueSize = 0;         ///< Low-priority drop threshold.
-            std::size_t hardQueueSize = 0;         ///< Absolute queue limit.
-            double hardQueueMultiplier = 1.0;      ///< Effective hard-limit multiplier.
-            std::size_t maxMessageLength = 0;      ///< Effective retained message byte limit.
-            std::size_t inlineMessageCapacity = 0; ///< Effective inline message bytes per entry.
-            std::size_t workerBatchSize = 0;       ///< Effective worker batch size.
-        };
-
-        /// @brief Resettable relaxed Logger counters.
-        struct Stats
-        {
-            std::size_t queued = 0;             ///< Records accepted into the async queue.
-            std::size_t written = 0;            ///< Records delivered to at least one normal sink.
-            std::size_t queueDropsSoft = 0;     ///< Low-priority records dropped at the soft limit.
-            std::size_t queueDropsHard = 0;     ///< Records dropped at the hard limit.
-            std::size_t allocationFailures = 0; ///< Contained allocation failures.
-            std::size_t fileWriteFailures = 0;  ///< File write or flush failures.
-            std::size_t unknownSourceUses = 0;  ///< Delivered records using an unknown SourceId.
-            std::size_t formatFailures = 0;     ///< Contained formatting failures.
-            std::size_t truncated = 0;          ///< Delivered or queued messages truncated by Logger.
-            std::size_t peakQueueDepth = 0;     ///< Highest observed queue depth since reset.
-        };
-
-        /// @brief Snapshot of memory retained by Logger and the process.
-        struct MemoryStats
-        {
-            std::size_t loggerRetainedBytes = 0;         ///< Estimated total Logger-retained bytes.
-            std::size_t queueStorageBytes = 0;           ///< Ring and worker-batch object storage.
-            std::size_t messageArenaBytes = 0;           ///< Inline message arena storage.
-            std::size_t sourceRegistryBytes = 0;         ///< Registered-source storage.
-            std::size_t entryTextHeapCapacityBytes = 0;  ///< Retained overflow string capacity when observable.
-            bool entryTextHeapCapacityAvailable = false; ///< Whether entry heap capacity was safely observable.
-            std::size_t processWorkingSetBytes = 0;      ///< Process working-set bytes when available.
-            std::size_t processPrivateBytes = 0;         ///< Process private bytes when available.
-            bool processMemoryAvailable = false;         ///< Whether process memory metrics were available.
-        };
-
-        /// @brief Final lifecycle state produced by init().
-        enum class InitOutcome : std::uint8_t
-        {
-            Started,
-            Disabled
-        };
-
-        /// @brief Recoverable configuration or storage adjustments made by init().
-        enum class InitAdjustment : std::uint32_t
-        {
-            None = 0,
-            QueueLimitsAdjusted = 1u << 0u,
-            MessageLengthAdjusted = 1u << 1u,
-            InlineCapacityAdjusted = 1u << 2u,
-            WorkerBatchAdjusted = 1u << 3u,
-            QueueStorageFallback = 1u << 4u
-        };
-
-        /// @brief Combines initialization-adjustment flags.
-        [[nodiscard]] constexpr InitAdjustment operator|(InitAdjustment left, InitAdjustment right) noexcept
-        {
-            return static_cast<InitAdjustment>(static_cast<std::uint32_t>(left) | static_cast<std::uint32_t>(right));
-        }
-
-        /// @brief Adds an initialization-adjustment flag in place.
-        constexpr InitAdjustment &operator|=(InitAdjustment &left, InitAdjustment right) noexcept
-        {
-            left = left | right;
-            return left;
-        }
-
-        /// @brief Tests whether an initialization adjustment contains a flag.
-        [[nodiscard]] constexpr bool hasAdjustment(InitAdjustment value, InitAdjustment flag) noexcept
-        {
-            return (static_cast<std::uint32_t>(value) & static_cast<std::uint32_t>(flag)) != 0;
-        }
-
-        /// @brief Rich initialization result separating operation status from final lifecycle state.
-        struct InitResult
-        {
-            IO::Types::Status status;                          ///< Overall operational status.
-            InitOutcome outcome = InitOutcome::Disabled;       ///< Final lifecycle outcome.
-            InitAdjustment adjustments = InitAdjustment::None; ///< Recoverable changes made by init().
-            OutputMode requestedOutput = OutputMode::None;     ///< Caller-requested output mode.
-            OutputMode effectiveOutput = OutputMode::None;     ///< Output mode actually left active.
-            IO::Types::Status outputSetupStatus;               ///< Direct File/output setup status.
-        };
-
-        /// @brief Completion state for a Logger-owned flush deadline.
-        enum class FlushOutcome : std::uint8_t
-        {
-            Completed,
-            TimedOut
-        };
-
-        /// @brief Result of draining queued logs and flushing active sinks.
-        struct FlushResult
-        {
-            IO::Types::Status status;                       ///< Real IO or operation failure, if any.
-            FlushOutcome outcome = FlushOutcome::Completed; ///< Independent deadline outcome.
-        };
-
-        /// @brief Completion state for a synchronous report deadline.
-        enum class ReportOutcome : std::uint8_t
-        {
-            Completed,
-            TimedOut
-        };
-
-        /// @brief Fraction of eligible emergency channels that accepted a report.
-        enum class ReportDelivery : std::uint8_t
-        {
-            None,
-            Partial,
-            Complete
-        };
-
-        /// @brief Result of a synchronous emergency report attempt.
-        struct ReportResult
-        {
-            IO::Types::Status status;                         ///< First real operation failure, if any.
-            ReportOutcome outcome = ReportOutcome::Completed; ///< Independent deadline outcome.
-            ReportDelivery delivery = ReportDelivery::None;   ///< Delivery across eligible channels.
-        };
-
-        /// @brief Current aggregate Logger health for the active initialization epoch.
-        enum class HealthState : std::uint8_t
-        {
-            Healthy,
-            Degraded,
-            Disabled
-        };
-
-        /// @brief Channel associated with the most recent health failure.
-        enum class FailureSource : std::uint8_t
-        {
-            None,
-            Console,
-            File,
-            DebugOutput,
-            FatalPopup,
-            TimeConversion
-        };
-
-        /// @brief Coherent snapshot of Logger health and failure metadata.
-        struct HealthSnapshot
-        {
-            HealthState state = HealthState::Disabled;                      ///< Aggregate health state.
-            OutputMode effectiveOutput = OutputMode::None;                  ///< Currently usable normal sinks.
-            FailureSource lastFailureSource = FailureSource::None;          ///< Most recent failed channel.
-            IO::Types::ErrorCode lastError = IO::Types::ErrorCode::Success; ///< Most recent portable error.
-            std::int64_t lastNativeCode = 0;                                ///< Associated backend-native error.
-            std::uint64_t failureCount = 0;                                 ///< Failures in the current init epoch.
-        };
-    } // namespace Types
 
     /// @cond INTERNAL
     namespace Detail::Core
     {
-        template <typename Enum>
-        inline constexpr bool isSourceEnum =
-            std::is_enum_v<std::remove_cvref_t<Enum>> && !std::is_same_v<std::remove_cvref_t<Enum>, Types::Level> &&
-            !std::is_same_v<std::remove_cvref_t<Enum>, Types::OutputMode> && !std::is_same_v<std::remove_cvref_t<Enum>, Types::FormatPolicy> &&
-            !std::is_same_v<std::remove_cvref_t<Enum>, Types::InitOutcome> && !std::is_same_v<std::remove_cvref_t<Enum>, Types::InitAdjustment> &&
-            !std::is_same_v<std::remove_cvref_t<Enum>, Types::FlushOutcome> && !std::is_same_v<std::remove_cvref_t<Enum>, Types::ReportOutcome> &&
-            !std::is_same_v<std::remove_cvref_t<Enum>, Types::ReportDelivery> && !std::is_same_v<std::remove_cvref_t<Enum>, Types::HealthState> &&
-            !std::is_same_v<std::remove_cvref_t<Enum>, Types::FailureSource>;
-
-        template <typename Enum>
-            requires(isSourceEnum<Enum>)
-        constexpr Types::SourceId sourceId(Enum value) noexcept
-        {
-            using Underlying = std::underlying_type_t<std::remove_cvref_t<Enum>>;
-            static_assert(std::is_unsigned_v<Underlying>, "Logger source enums must use an unsigned underlying type.");
-            static_assert(sizeof(Underlying) <= sizeof(Types::SourceId), "Logger source enum values must fit in SourceId.");
-            return static_cast<Types::SourceId>(static_cast<Underlying>(value));
-        }
-
         template <typename Source> constexpr decltype(auto) normalizeSource(Source &&source) noexcept
         {
             if constexpr (isSourceEnum<Source>)
@@ -313,14 +52,14 @@ namespace GameWIP::Logger
             std::string_view message,
             bool alreadyTruncated);
 
-        GAMEWIP_LOGGER_EXPORT Types::ReportResult reportPreformattedMessage(
+        GAMEWIP_LOGGER_EXPORT Types::Report::Result reportPreformattedMessage(
             Types::Level level,
             std::string_view source,
             std::string_view message,
             bool showPopup,
             bool alreadyTruncated,
             const std::chrono::milliseconds *timeout);
-        GAMEWIP_LOGGER_EXPORT Types::ReportResult reportPreformattedMessage(
+        GAMEWIP_LOGGER_EXPORT Types::Report::Result reportPreformattedMessage(
             Types::Level level,
             Types::SourceId source,
             std::string_view message,
@@ -523,7 +262,7 @@ namespace GameWIP::Logger
         }
 
         template <typename Source, typename... Args>
-        void formatAndLog(Types::Level level, Source source, std::format_string<Args...> format, Args &&...args)
+        void formatAndLog(Types::Level level, Source source, std::format_string<Args...> format, Args &&...args) noexcept
         {
             try
             {
@@ -543,7 +282,7 @@ namespace GameWIP::Logger
         }
 
         template <typename Source, typename... Args>
-        void runtimeFormatAndLog(Types::Level level, Source source, Types::RuntimeFormat format, Args &...args)
+        void runtimeFormatAndLog(Types::Level level, Source source, Types::RuntimeFormat format, Args &...args) noexcept
         {
             try
             {
@@ -562,21 +301,21 @@ namespace GameWIP::Logger
             }
         }
 
-        [[nodiscard]] inline Types::ReportResult reportFailure(IO::Types::ErrorCode code)
+        [[nodiscard]] inline Types::Report::Result reportFailure(IO::Types::ErrorCode code) noexcept
         {
-            Types::ReportResult result;
+            Types::Report::Result result;
             result.status = IO::makeStatus(code);
             return result;
         }
 
         template <typename Source, typename... Args>
-        Types::ReportResult formatAndReport(
+        Types::Report::Result formatAndReport(
             Types::Level level,
             Source source,
             bool showPopup,
             const std::chrono::milliseconds *timeout,
             std::format_string<Args...> format,
-            Args &&...args)
+            Args &&...args) noexcept
         {
             try
             {
@@ -603,13 +342,13 @@ namespace GameWIP::Logger
         }
 
         template <typename Source, typename... Args>
-        Types::ReportResult runtimeFormatAndReport(
+        Types::Report::Result runtimeFormatAndReport(
             Types::Level level,
             Source source,
             bool showPopup,
             const std::chrono::milliseconds *timeout,
             Types::RuntimeFormat format,
-            Args &...args)
+            Args &...args) noexcept
         {
             try
             {
@@ -637,13 +376,6 @@ namespace GameWIP::Logger
     } // namespace Detail::Core
     /// @endcond
 
-    /// @brief Creates a registered-source definition from an unsigned enum value and UTF-8 name.
-    template <typename Enum>
-        requires(Detail::Core::isSourceEnum<Enum>)
-    constexpr Types::SourceDefinition defineSource(Enum value, std::string_view name) noexcept
-    {
-        return {Detail::Core::sourceId(value), name};
-    }
 
     /// @brief Marks a format string as runtime-provided for Logger formatting overloads.
     constexpr Types::RuntimeFormat runtimeFormat(std::string_view format) noexcept
@@ -652,27 +384,21 @@ namespace GameWIP::Logger
     }
 
     /// @brief Initializes Logger from a complete configuration.
-    GAMEWIP_LOGGER_EXPORT Types::InitResult init(const Types::Config &config);
-    /// @brief Returns the balanced default Logger configuration.
-    GAMEWIP_LOGGER_EXPORT Types::Config defaultConfig();
-    /// @brief Returns a configuration favoring lower retained memory.
-    GAMEWIP_LOGGER_EXPORT Types::Config lowMemoryConfig();
-    /// @brief Returns a configuration favoring logging throughput.
-    GAMEWIP_LOGGER_EXPORT Types::Config throughputConfig();
+    GAMEWIP_LOGGER_EXPORT Types::Init::Result init(const Types::Config &config) noexcept;
     /// @brief Initializes Logger with defaultConfig().
-    GAMEWIP_LOGGER_EXPORT Types::InitResult initDefault();
+    GAMEWIP_LOGGER_EXPORT Types::Init::Result initDefault() noexcept;
     /// @brief Initializes a Console-only Logger at the selected minimum level.
-    GAMEWIP_LOGGER_EXPORT Types::InitResult initConsole(Types::Level minLevel = Types::Level::Info);
+    GAMEWIP_LOGGER_EXPORT Types::Init::Result initConsole(Types::Level minLevel = Types::Level::Info) noexcept;
     /// @brief Initializes a File-only Logger using a UTF-8 directory.
-    GAMEWIP_LOGGER_EXPORT Types::InitResult initFile(std::string_view directory = {}, Types::Level minLevel = Types::Level::Info);
+    GAMEWIP_LOGGER_EXPORT Types::Init::Result initFile(std::string_view directory = {}, Types::Level minLevel = Types::Level::Info) noexcept;
     /// @brief Stops Logger, drains accepted work, flushes and closes active sinks, and returns the first real failure.
-    GAMEWIP_LOGGER_EXPORT IO::Types::Status shutdown();
+    GAMEWIP_LOGGER_EXPORT IO::Types::Status shutdown() noexcept;
     /// @brief Drains accepted async work and flushes active sinks under an optional Logger-owned deadline.
     /// @details nullopt waits indefinitely, zero polls, positive durations are bounded, and negative durations are invalid.
-    GAMEWIP_LOGGER_EXPORT Types::FlushResult flush(std::optional<std::chrono::milliseconds> timeout = std::nullopt);
+    GAMEWIP_LOGGER_EXPORT Types::FlushResult flush(std::optional<std::chrono::milliseconds> timeout = std::nullopt) noexcept;
 
     /// @brief Returns whether the worker currently accepts normal log records.
-    GAMEWIP_LOGGER_EXPORT bool isRunning();
+    GAMEWIP_LOGGER_EXPORT bool isRunning() noexcept;
     /// @brief Returns the configured minimum severity.
     GAMEWIP_LOGGER_EXPORT Types::Level getMinLevel();
     /// @brief Returns the currently effective normal-output mode.
@@ -682,9 +408,9 @@ namespace GameWIP::Logger
     /// @brief Returns effective queue, batching, and message limits.
     GAMEWIP_LOGGER_EXPORT Types::QueueLimits getQueueLimits();
     /// @brief Returns process-lifetime queue drops, unaffected by resetStats().
-    GAMEWIP_LOGGER_EXPORT std::size_t getLifetimeDroppedLogCount();
+    GAMEWIP_LOGGER_EXPORT std::size_t getLifetimeDroppedLogCount() noexcept;
     /// @brief Returns a coherent Logger health snapshot.
-    [[nodiscard]] GAMEWIP_LOGGER_EXPORT Types::HealthSnapshot getHealth();
+    [[nodiscard]] GAMEWIP_LOGGER_EXPORT Types::Health::Snapshot getHealth();
     /// @brief Returns relaxed resettable statistics counters.
     GAMEWIP_LOGGER_EXPORT Types::Stats getStats();
     /// @brief Returns Logger-retained and available process-memory statistics.
@@ -693,58 +419,58 @@ namespace GameWIP::Logger
     GAMEWIP_LOGGER_EXPORT void resetStats();
 
     /// @brief Applies the current severity-only normal-log gate.
-    GAMEWIP_LOGGER_EXPORT bool shouldLog(Types::Level level);
+    GAMEWIP_LOGGER_EXPORT bool shouldLog(Types::Level level) noexcept;
     /// @brief Applies the current severity-only gate for a string source.
-    GAMEWIP_LOGGER_EXPORT bool shouldLog(Types::Level level, std::string_view source);
+    GAMEWIP_LOGGER_EXPORT bool shouldLog(Types::Level level, std::string_view source) noexcept;
     /// @brief Applies current severity and registered-source gates.
-    GAMEWIP_LOGGER_EXPORT bool shouldLog(Types::Level level, Types::SourceId source);
+    GAMEWIP_LOGGER_EXPORT bool shouldLog(Types::Level level, Types::SourceId source) noexcept;
 
     /// @brief Applies current severity and source gates for an enum source.
     template <typename Source>
         requires(Detail::Core::isSourceEnum<Source>)
-    bool shouldLog(Types::Level level, Source source)
+    bool shouldLog(Types::Level level, Source source) noexcept
     {
         return shouldLog(level, Detail::Core::sourceId(source));
     }
 
     /// @brief Sets one registered source filter and returns direct operation status.
-    GAMEWIP_LOGGER_EXPORT IO::Types::Status setSourceFilter(Types::SourceId source, bool enabled);
-    /// @brief Enables one registered source and returns direct operation status.
-    GAMEWIP_LOGGER_EXPORT IO::Types::Status clearSourceFilter(Types::SourceId source);
-    /// @brief Enables every registered source.
-    GAMEWIP_LOGGER_EXPORT IO::Types::Status clearSourceFilters();
+    GAMEWIP_LOGGER_EXPORT IO::Types::Status setSourceFilter(Types::SourceId source, bool enabled) noexcept;
+    /// @brief Resets one registered source filter to the default enabled state.
+    GAMEWIP_LOGGER_EXPORT IO::Types::Status resetSourceFilter(Types::SourceId source) noexcept;
+    /// @brief Resets every registered source filter to the default enabled state.
+    GAMEWIP_LOGGER_EXPORT IO::Types::Status resetSourceFilters() noexcept;
     /// @brief Sets one exact-level filter and returns direct operation status.
-    GAMEWIP_LOGGER_EXPORT IO::Types::Status setLevelFilter(Types::Level level, bool enabled);
-    /// @brief Enables one exact severity level.
-    GAMEWIP_LOGGER_EXPORT IO::Types::Status clearLevelFilter(Types::Level level);
-    /// @brief Enables every exact severity level.
-    GAMEWIP_LOGGER_EXPORT IO::Types::Status clearLevelFilters();
+    GAMEWIP_LOGGER_EXPORT IO::Types::Status setLevelFilter(Types::Level level, bool enabled) noexcept;
+    /// @brief Resets one exact-level filter to the default enabled state.
+    GAMEWIP_LOGGER_EXPORT IO::Types::Status resetLevelFilter(Types::Level level) noexcept;
+    /// @brief Resets every exact-level filter to the default enabled state.
+    GAMEWIP_LOGGER_EXPORT IO::Types::Status resetLevelFilters() noexcept;
 
     /// @brief Sets one enum-source filter and returns direct operation status.
     template <typename Source>
         requires(Detail::Core::isSourceEnum<Source>)
-    IO::Types::Status setSourceFilter(Source source, bool enabled)
+    IO::Types::Status setSourceFilter(Source source, bool enabled) noexcept
     {
         return setSourceFilter(Detail::Core::sourceId(source), enabled);
     }
 
-    /// @brief Enables one enum source and returns direct operation status.
+    /// @brief Resets one enum-source filter to the default enabled state.
     template <typename Source>
         requires(Detail::Core::isSourceEnum<Source>)
-    IO::Types::Status clearSourceFilter(Source source)
+    IO::Types::Status resetSourceFilter(Source source) noexcept
     {
-        return clearSourceFilter(Detail::Core::sourceId(source));
+        return resetSourceFilter(Detail::Core::sourceId(source));
     }
 
     /// @brief Queues a preformatted normal record with a UTF-8 string source.
-    GAMEWIP_LOGGER_EXPORT void log(Types::Level level, std::string_view source, std::string_view message);
+    GAMEWIP_LOGGER_EXPORT void log(Types::Level level, std::string_view source, std::string_view message) noexcept;
     /// @brief Queues a preformatted normal record with a registered source.
-    GAMEWIP_LOGGER_EXPORT void log(Types::Level level, Types::SourceId source, std::string_view message);
+    GAMEWIP_LOGGER_EXPORT void log(Types::Level level, Types::SourceId source, std::string_view message) noexcept;
 
     /// @brief Queues a preformatted normal record with an enum source.
     template <typename Source>
         requires(Detail::Core::isSourceEnum<Source>)
-    void log(Types::Level level, Source source, std::string_view message)
+    void log(Types::Level level, Source source, std::string_view message) noexcept
     {
         log(level, Detail::Core::sourceId(source), message);
     }
@@ -752,7 +478,7 @@ namespace GameWIP::Logger
     /// @brief Formats and queues a normal record with a UTF-8 string source.
     template <typename... Args>
         requires(sizeof...(Args) > 0)
-    void log(Types::Level level, std::string_view source, std::format_string<Args...> format, Args &&...args)
+    void log(Types::Level level, std::string_view source, std::format_string<Args...> format, Args &&...args) noexcept
     {
         if (shouldLog(level))
         {
@@ -763,7 +489,7 @@ namespace GameWIP::Logger
     /// @brief Formats and queues a normal record with a registered source.
     template <typename... Args>
         requires(sizeof...(Args) > 0)
-    void log(Types::Level level, Types::SourceId source, std::format_string<Args...> format, Args &&...args)
+    void log(Types::Level level, Types::SourceId source, std::format_string<Args...> format, Args &&...args) noexcept
     {
         if (shouldLog(level, source))
         {
@@ -774,7 +500,7 @@ namespace GameWIP::Logger
     /// @brief Formats and queues a normal record with an enum source.
     template <typename Source, typename... Args>
         requires(Detail::Core::isSourceEnum<Source> && sizeof...(Args) > 0)
-    void log(Types::Level level, Source source, std::format_string<Args...> format, Args &&...args)
+    void log(Types::Level level, Source source, std::format_string<Args...> format, Args &&...args) noexcept
     {
         log(level, Detail::Core::sourceId(source), format, std::forward<Args>(args)...);
     }
@@ -782,7 +508,7 @@ namespace GameWIP::Logger
     /// @brief Runtime-formats and queues a normal record with a UTF-8 string source.
     template <typename... Args>
         requires(sizeof...(Args) > 0)
-    void log(Types::Level level, std::string_view source, Types::RuntimeFormat format, Args &&...args)
+    void log(Types::Level level, std::string_view source, Types::RuntimeFormat format, Args &&...args) noexcept
     {
         if (shouldLog(level))
         {
@@ -793,7 +519,7 @@ namespace GameWIP::Logger
     /// @brief Runtime-formats and queues a normal record with a registered source.
     template <typename... Args>
         requires(sizeof...(Args) > 0)
-    void log(Types::Level level, Types::SourceId source, Types::RuntimeFormat format, Args &&...args)
+    void log(Types::Level level, Types::SourceId source, Types::RuntimeFormat format, Args &&...args) noexcept
     {
         if (shouldLog(level, source))
         {
@@ -804,30 +530,30 @@ namespace GameWIP::Logger
     /// @brief Runtime-formats and queues a normal record with an enum source.
     template <typename Source, typename... Args>
         requires(Detail::Core::isSourceEnum<Source> && sizeof...(Args) > 0)
-    void log(Types::Level level, Source source, Types::RuntimeFormat format, Args &&...args)
+    void log(Types::Level level, Source source, Types::RuntimeFormat format, Args &&...args) noexcept
     {
         log(level, Detail::Core::sourceId(source), format, std::forward<Args>(args)...);
     }
 
     /// @brief Declares one fixed-severity family of normal logging overloads.
 #define GAMEWIP_LOGGER_DECLARE_LEVEL_API(name, levelValue) \
-    GAMEWIP_LOGGER_EXPORT void name(std::string_view source, std::string_view message); \
-    GAMEWIP_LOGGER_EXPORT void name(Types::SourceId source, std::string_view message); \
+    GAMEWIP_LOGGER_EXPORT void name(std::string_view source, std::string_view message) noexcept; \
+    GAMEWIP_LOGGER_EXPORT void name(Types::SourceId source, std::string_view message) noexcept; \
     template <typename Source> \
         requires(Detail::Core::isSourceEnum<Source>) \
-    void name(Source source, std::string_view message) \
+    void name(Source source, std::string_view message) noexcept \
     { \
         name(Detail::Core::sourceId(source), message); \
     } \
     template <typename Source, typename... Args> \
         requires(sizeof...(Args) > 0) \
-    void name(Source &&source, std::format_string<Args...> format, Args &&...args) \
+    void name(Source &&source, std::format_string<Args...> format, Args &&...args) noexcept \
     { \
         log(levelValue, std::forward<Source>(source), format, std::forward<Args>(args)...); \
     } \
     template <typename Source, typename... Args> \
         requires(sizeof...(Args) > 0) \
-    void name(Source &&source, Types::RuntimeFormat format, Args &&...args) \
+    void name(Source &&source, Types::RuntimeFormat format, Args &&...args) noexcept \
     { \
         log(levelValue, std::forward<Source>(source), format, std::forward<Args>(args)...); \
     }
@@ -841,26 +567,26 @@ namespace GameWIP::Logger
 #undef GAMEWIP_LOGGER_DECLARE_LEVEL_API
 
     /// @brief Synchronously reports a preformatted diagnostic through eligible emergency channels.
-    GAMEWIP_LOGGER_EXPORT Types::ReportResult report(Types::Level level, std::string_view source, std::string_view message);
+    GAMEWIP_LOGGER_EXPORT Types::Report::Result report(Types::Level level, std::string_view source, std::string_view message) noexcept;
     /// @brief Synchronously reports a preformatted diagnostic under a bounded deadline.
-    GAMEWIP_LOGGER_EXPORT Types::ReportResult report(
+    GAMEWIP_LOGGER_EXPORT Types::Report::Result report(
         Types::Level level,
         std::string_view source,
         std::chrono::milliseconds timeout,
-        std::string_view message);
+        std::string_view message) noexcept;
     /// @brief Synchronously reports a preformatted diagnostic with a registered source.
-    GAMEWIP_LOGGER_EXPORT Types::ReportResult report(Types::Level level, Types::SourceId source, std::string_view message);
+    GAMEWIP_LOGGER_EXPORT Types::Report::Result report(Types::Level level, Types::SourceId source, std::string_view message) noexcept;
     /// @brief Synchronously reports a registered-source diagnostic under a bounded deadline.
-    GAMEWIP_LOGGER_EXPORT Types::ReportResult report(
+    GAMEWIP_LOGGER_EXPORT Types::Report::Result report(
         Types::Level level,
         Types::SourceId source,
         std::chrono::milliseconds timeout,
-        std::string_view message);
+        std::string_view message) noexcept;
 
     /// @brief Synchronously reports a preformatted diagnostic with an enum source.
     template <typename Source>
         requires(Detail::Core::isSourceEnum<Source>)
-    Types::ReportResult report(Types::Level level, Source source, std::string_view message)
+    Types::Report::Result report(Types::Level level, Source source, std::string_view message) noexcept
     {
         return report(level, Detail::Core::sourceId(source), message);
     }
@@ -868,7 +594,7 @@ namespace GameWIP::Logger
     /// @brief Synchronously reports an enum-source diagnostic under a bounded deadline.
     template <typename Source>
         requires(Detail::Core::isSourceEnum<Source>)
-    Types::ReportResult report(Types::Level level, Source source, std::chrono::milliseconds timeout, std::string_view message)
+    Types::Report::Result report(Types::Level level, Source source, std::chrono::milliseconds timeout, std::string_view message) noexcept
     {
         return report(level, Detail::Core::sourceId(source), timeout, message);
     }
@@ -876,7 +602,7 @@ namespace GameWIP::Logger
     /// @brief Formats and synchronously reports a diagnostic.
     template <typename Source, typename... Args>
         requires(sizeof...(Args) > 0)
-    Types::ReportResult report(Types::Level level, Source source, std::format_string<Args...> format, Args &&...args)
+    Types::Report::Result report(Types::Level level, Source source, std::format_string<Args...> format, Args &&...args) noexcept
     {
         return Detail::Core::formatAndReport(level, source, false, nullptr, format, std::forward<Args>(args)...);
     }
@@ -884,12 +610,12 @@ namespace GameWIP::Logger
     /// @brief Formats and synchronously reports a diagnostic under a bounded deadline.
     template <typename Source, typename... Args>
         requires(sizeof...(Args) > 0)
-    Types::ReportResult report(
+    Types::Report::Result report(
         Types::Level level,
         Source source,
         std::chrono::milliseconds timeout,
         std::format_string<Args...> format,
-        Args &&...args)
+        Args &&...args) noexcept
     {
         return Detail::Core::formatAndReport(level, source, false, &timeout, format, std::forward<Args>(args)...);
     }
@@ -897,7 +623,7 @@ namespace GameWIP::Logger
     /// @brief Runtime-formats and synchronously reports a diagnostic.
     template <typename Source, typename... Args>
         requires(sizeof...(Args) > 0)
-    Types::ReportResult report(Types::Level level, Source source, Types::RuntimeFormat format, Args &&...args)
+    Types::Report::Result report(Types::Level level, Source source, Types::RuntimeFormat format, Args &&...args) noexcept
     {
         return Detail::Core::runtimeFormatAndReport(level, source, false, nullptr, format, args...);
     }
@@ -905,54 +631,54 @@ namespace GameWIP::Logger
     /// @brief Runtime-formats and synchronously reports a diagnostic under a bounded deadline.
     template <typename Source, typename... Args>
         requires(sizeof...(Args) > 0)
-    Types::ReportResult report(Types::Level level, Source source, std::chrono::milliseconds timeout, Types::RuntimeFormat format, Args &&...args)
+    Types::Report::Result report(Types::Level level, Source source, std::chrono::milliseconds timeout, Types::RuntimeFormat format, Args &&...args) noexcept
     {
         return Detail::Core::runtimeFormatAndReport(level, source, false, &timeout, format, args...);
     }
 
     /// @brief Synchronously reports a preformatted Error with a UTF-8 string source.
-    GAMEWIP_LOGGER_EXPORT Types::ReportResult reportError(std::string_view source, std::string_view message);
+    GAMEWIP_LOGGER_EXPORT Types::Report::Result reportError(std::string_view source, std::string_view message) noexcept;
     /// @brief Synchronously reports a preformatted Error under a bounded deadline.
-    GAMEWIP_LOGGER_EXPORT Types::ReportResult reportError(std::string_view source, std::chrono::milliseconds timeout, std::string_view message);
+    GAMEWIP_LOGGER_EXPORT Types::Report::Result reportError(std::string_view source, std::chrono::milliseconds timeout, std::string_view message) noexcept;
     /// @brief Synchronously reports a preformatted Error with a registered source.
-    GAMEWIP_LOGGER_EXPORT Types::ReportResult reportError(Types::SourceId source, std::string_view message);
+    GAMEWIP_LOGGER_EXPORT Types::Report::Result reportError(Types::SourceId source, std::string_view message) noexcept;
     /// @brief Synchronously reports a registered-source Error under a bounded deadline.
-    GAMEWIP_LOGGER_EXPORT Types::ReportResult reportError(Types::SourceId source, std::chrono::milliseconds timeout, std::string_view message);
+    GAMEWIP_LOGGER_EXPORT Types::Report::Result reportError(Types::SourceId source, std::chrono::milliseconds timeout, std::string_view message) noexcept;
 
     /// @brief Synchronously reports a preformatted Fatal diagnostic and optional popup.
-    GAMEWIP_LOGGER_EXPORT Types::ReportResult reportFatal(std::string_view source, std::string_view message);
+    GAMEWIP_LOGGER_EXPORT Types::Report::Result reportFatal(std::string_view source, std::string_view message) noexcept;
     /// @brief Synchronously reports a preformatted Fatal diagnostic under a bounded deadline.
-    GAMEWIP_LOGGER_EXPORT Types::ReportResult reportFatal(std::string_view source, std::chrono::milliseconds timeout, std::string_view message);
+    GAMEWIP_LOGGER_EXPORT Types::Report::Result reportFatal(std::string_view source, std::chrono::milliseconds timeout, std::string_view message) noexcept;
     /// @brief Synchronously reports a registered-source Fatal diagnostic and optional popup.
-    GAMEWIP_LOGGER_EXPORT Types::ReportResult reportFatal(Types::SourceId source, std::string_view message);
+    GAMEWIP_LOGGER_EXPORT Types::Report::Result reportFatal(Types::SourceId source, std::string_view message) noexcept;
     /// @brief Synchronously reports a registered-source Fatal diagnostic under a bounded deadline.
-    GAMEWIP_LOGGER_EXPORT Types::ReportResult reportFatal(Types::SourceId source, std::chrono::milliseconds timeout, std::string_view message);
+    GAMEWIP_LOGGER_EXPORT Types::Report::Result reportFatal(Types::SourceId source, std::chrono::milliseconds timeout, std::string_view message) noexcept;
 
     /// @brief Synchronously reports a preformatted Error with an enum source.
     template <typename Source>
         requires(Detail::Core::isSourceEnum<Source>)
-    Types::ReportResult reportError(Source source, std::string_view message)
+    Types::Report::Result reportError(Source source, std::string_view message) noexcept
     {
         return reportError(Detail::Core::sourceId(source), message);
     }
     /// @brief Synchronously reports an enum-source Error under a bounded deadline.
     template <typename Source>
         requires(Detail::Core::isSourceEnum<Source>)
-    Types::ReportResult reportError(Source source, std::chrono::milliseconds timeout, std::string_view message)
+    Types::Report::Result reportError(Source source, std::chrono::milliseconds timeout, std::string_view message) noexcept
     {
         return reportError(Detail::Core::sourceId(source), timeout, message);
     }
     /// @brief Synchronously reports a preformatted Fatal diagnostic with an enum source.
     template <typename Source>
         requires(Detail::Core::isSourceEnum<Source>)
-    Types::ReportResult reportFatal(Source source, std::string_view message)
+    Types::Report::Result reportFatal(Source source, std::string_view message) noexcept
     {
         return reportFatal(Detail::Core::sourceId(source), message);
     }
     /// @brief Synchronously reports an enum-source Fatal diagnostic under a bounded deadline.
     template <typename Source>
         requires(Detail::Core::isSourceEnum<Source>)
-    Types::ReportResult reportFatal(Source source, std::chrono::milliseconds timeout, std::string_view message)
+    Types::Report::Result reportFatal(Source source, std::chrono::milliseconds timeout, std::string_view message) noexcept
     {
         return reportFatal(Detail::Core::sourceId(source), timeout, message);
     }
@@ -961,25 +687,25 @@ namespace GameWIP::Logger
 #define GAMEWIP_LOGGER_DECLARE_FORMATTED_REPORT(name, levelValue, popupValue) \
     template <typename Source, typename... Args> \
         requires(sizeof...(Args) > 0) \
-    Types::ReportResult name(Source source, std::format_string<Args...> format, Args &&...args) \
+    Types::Report::Result name(Source source, std::format_string<Args...> format, Args &&...args) noexcept \
     { \
         return Detail::Core::formatAndReport(levelValue, source, popupValue, nullptr, format, std::forward<Args>(args)...); \
     } \
     template <typename Source, typename... Args> \
         requires(sizeof...(Args) > 0) \
-    Types::ReportResult name(Source source, std::chrono::milliseconds timeout, std::format_string<Args...> format, Args &&...args) \
+    Types::Report::Result name(Source source, std::chrono::milliseconds timeout, std::format_string<Args...> format, Args &&...args) noexcept \
     { \
         return Detail::Core::formatAndReport(levelValue, source, popupValue, &timeout, format, std::forward<Args>(args)...); \
     } \
     template <typename Source, typename... Args> \
         requires(sizeof...(Args) > 0) \
-    Types::ReportResult name(Source source, Types::RuntimeFormat format, Args &&...args) \
+    Types::Report::Result name(Source source, Types::RuntimeFormat format, Args &&...args) noexcept \
     { \
         return Detail::Core::runtimeFormatAndReport(levelValue, source, popupValue, nullptr, format, args...); \
     } \
     template <typename Source, typename... Args> \
         requires(sizeof...(Args) > 0) \
-    Types::ReportResult name(Source source, std::chrono::milliseconds timeout, Types::RuntimeFormat format, Args &&...args) \
+    Types::Report::Result name(Source source, std::chrono::milliseconds timeout, Types::RuntimeFormat format, Args &&...args) noexcept \
     { \
         return Detail::Core::runtimeFormatAndReport(levelValue, source, popupValue, &timeout, format, args...); \
     }
@@ -989,25 +715,25 @@ namespace GameWIP::Logger
 #undef GAMEWIP_LOGGER_DECLARE_FORMATTED_REPORT
 
     /// @brief Reports a Fatal diagnostic and then calls std::terminate().
-    [[noreturn]] GAMEWIP_LOGGER_EXPORT void fatalTerminate(std::string_view source, std::string_view message);
+    [[noreturn]] GAMEWIP_LOGGER_EXPORT void fatalTerminate(std::string_view source, std::string_view message) noexcept;
     /// @brief Reports a registered-source Fatal diagnostic and then calls std::terminate().
-    [[noreturn]] GAMEWIP_LOGGER_EXPORT void fatalTerminate(Types::SourceId source, std::string_view message);
+    [[noreturn]] GAMEWIP_LOGGER_EXPORT void fatalTerminate(Types::SourceId source, std::string_view message) noexcept;
     /// @brief Reports a Fatal diagnostic under a bounded deadline and then calls std::terminate().
-    [[noreturn]] GAMEWIP_LOGGER_EXPORT void fatalTerminate(std::string_view source, std::chrono::milliseconds timeout, std::string_view message);
+    [[noreturn]] GAMEWIP_LOGGER_EXPORT void fatalTerminate(std::string_view source, std::chrono::milliseconds timeout, std::string_view message) noexcept;
     /// @brief Reports a registered-source Fatal diagnostic under a bounded deadline and then calls std::terminate().
-    [[noreturn]] GAMEWIP_LOGGER_EXPORT void fatalTerminate(Types::SourceId source, std::chrono::milliseconds timeout, std::string_view message);
+    [[noreturn]] GAMEWIP_LOGGER_EXPORT void fatalTerminate(Types::SourceId source, std::chrono::milliseconds timeout, std::string_view message) noexcept;
 
     /// @brief Reports an enum-source Fatal diagnostic and then calls std::terminate().
     template <typename Source>
         requires(Detail::Core::isSourceEnum<Source>)
-    [[noreturn]] void fatalTerminate(Source source, std::string_view message)
+    [[noreturn]] void fatalTerminate(Source source, std::string_view message) noexcept
     {
         fatalTerminate(Detail::Core::sourceId(source), message);
     }
     /// @brief Reports an enum-source Fatal diagnostic under a deadline and then terminates.
     template <typename Source>
         requires(Detail::Core::isSourceEnum<Source>)
-    [[noreturn]] void fatalTerminate(Source source, std::chrono::milliseconds timeout, std::string_view message)
+    [[noreturn]] void fatalTerminate(Source source, std::chrono::milliseconds timeout, std::string_view message) noexcept
     {
         fatalTerminate(Detail::Core::sourceId(source), timeout, message);
     }
@@ -1015,7 +741,7 @@ namespace GameWIP::Logger
     /// @brief Formats a Fatal diagnostic, reports it, and then calls std::terminate().
     template <typename Source, typename... Args>
         requires(sizeof...(Args) > 0)
-    [[noreturn]] void fatalTerminate(Source source, std::format_string<Args...> format, Args &&...args)
+    [[noreturn]] void fatalTerminate(Source source, std::format_string<Args...> format, Args &&...args) noexcept
     {
         static_cast<void>(Detail::Core::formatAndReport(Types::Level::Fatal, source, true, nullptr, format, std::forward<Args>(args)...));
         std::terminate();
@@ -1023,7 +749,7 @@ namespace GameWIP::Logger
     /// @brief Formats and reports a Fatal diagnostic under a deadline, then terminates.
     template <typename Source, typename... Args>
         requires(sizeof...(Args) > 0)
-    [[noreturn]] void fatalTerminate(Source source, std::chrono::milliseconds timeout, std::format_string<Args...> format, Args &&...args)
+    [[noreturn]] void fatalTerminate(Source source, std::chrono::milliseconds timeout, std::format_string<Args...> format, Args &&...args) noexcept
     {
         static_cast<void>(Detail::Core::formatAndReport(Types::Level::Fatal, source, true, &timeout, format, std::forward<Args>(args)...));
         std::terminate();
@@ -1031,7 +757,7 @@ namespace GameWIP::Logger
     /// @brief Runtime-formats a Fatal diagnostic, reports it, and then terminates.
     template <typename Source, typename... Args>
         requires(sizeof...(Args) > 0)
-    [[noreturn]] void fatalTerminate(Source source, Types::RuntimeFormat format, Args &&...args)
+    [[noreturn]] void fatalTerminate(Source source, Types::RuntimeFormat format, Args &&...args) noexcept
     {
         static_cast<void>(Detail::Core::runtimeFormatAndReport(Types::Level::Fatal, source, true, nullptr, format, args...));
         std::terminate();
@@ -1039,12 +765,12 @@ namespace GameWIP::Logger
     /// @brief Runtime-formats and reports a Fatal diagnostic under a deadline, then terminates.
     template <typename Source, typename... Args>
         requires(sizeof...(Args) > 0)
-    [[noreturn]] void fatalTerminate(Source source, std::chrono::milliseconds timeout, Types::RuntimeFormat format, Args &&...args)
+    [[noreturn]] void fatalTerminate(Source source, std::chrono::milliseconds timeout, Types::RuntimeFormat format, Args &&...args) noexcept
     {
         static_cast<void>(Detail::Core::runtimeFormatAndReport(Types::Level::Fatal, source, true, &timeout, format, args...));
         std::terminate();
     }
 
     /// @brief Writes one validated UTF-8 diagnostic directly to the debugger channel.
-    GAMEWIP_LOGGER_EXPORT IO::Types::Status writeDebugOutput(Types::Level level, std::string_view source, std::string_view message);
+    GAMEWIP_LOGGER_EXPORT IO::Types::Status writeDebugOutput(Types::Level level, std::string_view source, std::string_view message) noexcept;
 } // namespace GameWIP::Logger

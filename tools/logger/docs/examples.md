@@ -30,8 +30,17 @@ if (!status.ok())
 ```cpp
 using namespace std::chrono_literals;
 const auto report = GameWIP::Logger::reportFatal("Renderer", 250ms, "device lost: {}", code);
-if (report.delivery != GameWIP::Logger::Types::ReportDelivery::Complete)
+if (report.delivery != GameWIP::Logger::Types::Report::Delivery::Complete)
 {
     // At least one enabled emergency channel did not receive the report.
 }
 ```
+
+## Reset runtime filters
+
+```cpp
+GameWIP::Logger::resetSourceFilters();
+GameWIP::Logger::resetLevelFilters();
+```
+
+Reset operations restore the affected runtime filters to their default enabled state.

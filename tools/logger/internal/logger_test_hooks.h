@@ -5,15 +5,15 @@
 
 #include "logger/logger.h"
 
-#ifndef INTERNAL_LOGGER_TEST_HOOKS
-#define INTERNAL_LOGGER_TEST_HOOKS 0
+#ifndef LOGGER_INTERNAL_TEST_HOOKS
+#define LOGGER_INTERNAL_TEST_HOOKS 0
 #endif
 
-#if INTERNAL_LOGGER_TEST_HOOKS
+#if LOGGER_INTERNAL_TEST_HOOKS
 namespace GameWIP::Logger::TestHooks
 {
     /// @brief Clears all pending logger test-hook failures and overrides.
-    /// @warning Test-only API. Available only when INTERNAL_LOGGER_TEST_HOOKS is enabled.
+    /// @warning Test-only API. Available only when LOGGER_INTERNAL_TEST_HOOKS is enabled.
     GAMEWIP_LOGGER_EXPORT void reset() noexcept;
 
     /// @brief Forces the next platform file-open attempt made by the logger to fail.

@@ -16,7 +16,7 @@ Source enums use an unsigned underlying type no wider than `SourceId`; `defineSo
 
 ## Message forms
 
-Preformatted text, compile-time checked `std::format_string`, and explicit `runtimeFormat()` forms are supported. Formatting happens on the caller thread. Invalid runtime formatting is contained; normal logging records a format-failure statistic and skips the record, while synchronous report formatting returns a direct failed `ReportResult`.
+Preformatted text, compile-time checked `std::format_string`, and explicit `runtimeFormat()` forms are supported. Formatting happens on the caller thread. Invalid runtime formatting is contained; normal logging records a format-failure statistic and skips the record, while synchronous report formatting returns a direct failed `Types::Report::Result`.
 
 Use `LOGGER_*` or `shouldLog()` around expensive arguments because C++ evaluates direct function arguments before Logger can filter them.
 

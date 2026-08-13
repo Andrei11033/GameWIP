@@ -1,6 +1,7 @@
 @page logger_public_api Public API
 
-Include `logger/logger.h` and link `GameWIP::Logger`. `logger/logger_macros.h` is opt-in.
+Include `logger/logger.h` and link `GameWIP::Logger`. `logger/logger.h` remains the normal umbrella.
+`logger/types.h` and `logger/config.h` are supported focused entry headers; `logger/logger_macros.h` is opt-in.
 
 ## Types
 
@@ -8,17 +9,17 @@ Include `logger/logger.h` and link `GameWIP::Logger`. `logger/logger_macros.h` i
 
 - `Level`: `Trace`, `Debug`, `Info`, `Warn`, `Error`, `Fatal`.
 - `OutputMode`: `None`, `Console`, `File`, `Both`.
-- `InitResult`: operation `status`, final `outcome`, adjustment bitmask, requested/effective output, and directly associated `outputSetupStatus`.
+- `Init::Result`: operation `status`, final `outcome`, adjustment bitmask, requested/effective output, and directly associated `outputSetupStatus`.
 - `FlushResult`: IO `status` plus `Completed`/`TimedOut`.
-- `ReportResult`: IO `status`, `Completed`/`TimedOut`, and `None`/`Partial`/`Complete` delivery.
-- `HealthSnapshot`: coherent current health and compact last-failure metadata.
+- `Report::Result`: IO `status`, `Completed`/`TimedOut`, and `None`/`Partial`/`Complete` delivery.
+- `Health::Snapshot`: coherent current health and compact last-failure metadata.
 - `Config`, `QueueLimits`, `Stats`, and `MemoryStats` retain their existing roles.
 
 `Types::Result`, `Types::PlatformError`, `FlushTimeout`, `ReportPopup`, `getLastResult()`, and `getLastPlatformError()` are removed.
 
 ## Lifecycle
 
-`init()`, `initDefault()`, `initConsole()`, and `initFile()` return `InitResult`. Calling init while an active Logger exists is rejected with `IO::Types::ErrorCode::AlreadyOpen` and leaves the existing runtime untouched.
+`init()`, `initDefault()`, `initConsole()`, and `initFile()` return `Types::Init::Result`. Calling init while an active Logger exists is rejected with `IO::Types::ErrorCode::AlreadyOpen` and leaves the existing runtime untouched.
 
 `flush(std::optional<std::chrono::milliseconds> timeout = std::nullopt)` is the single complete drain/flush operation. `std::nullopt` waits indefinitely, zero is a poll/no-wait deadline, positive values are finite, and negative values return `InvalidArgument`.
 
@@ -26,7 +27,7 @@ Include `logger/logger.h` and link `GameWIP::Logger`. `logger/logger_macros.h` i
 
 ## Runtime filters
 
-`setSourceFilter`, `clearSourceFilter`, `clearSourceFilters`, `setLevelFilter`, `clearLevelFilter`, and `clearLevelFilters` return `IO::Types::Status`. `shouldLog()` stays a lightweight boolean query.
+`setSourceFilter`, `resetSourceFilter`, `resetSourceFilters`, `setLevelFilter`, `resetLevelFilter`, and `resetLevelFilters` return `IO::Types::Status`. `shouldLog()` stays a lightweight boolean query.
 
 ## Normal logging
 

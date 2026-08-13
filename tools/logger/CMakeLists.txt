@@ -35,6 +35,8 @@ target_sources(Logger
             "${PROJECT_SOURCE_DIR}/tools"
             "${LOGGER_GENERATED_INCLUDE_DIR}"
         FILES
+            "${CMAKE_CURRENT_SOURCE_DIR}/types.h"
+            "${CMAKE_CURRENT_SOURCE_DIR}/config.h"
             "${CMAKE_CURRENT_SOURCE_DIR}/logger.h"
             "${CMAKE_CURRENT_SOURCE_DIR}/logger_macros.h"
             "${LOGGER_GENERATED_INCLUDE_DIR}/logger/logger_export.h"
@@ -54,9 +56,9 @@ target_include_directories(Logger PUBLIC
 target_compile_features(Logger PUBLIC cxx_std_23)
 target_compile_definitions(Logger
     PRIVATE
-        INTERNAL_LOGGER_TEST_HOOKS=$<BOOL:${LOGGER_ENABLE_TEST_HOOKS}>
+        LOGGER_INTERNAL_TEST_HOOKS=$<BOOL:${LOGGER_ENABLE_TEST_HOOKS}>
     INTERFACE
-        $<BUILD_INTERFACE:INTERNAL_LOGGER_TEST_HOOKS=$<BOOL:${LOGGER_ENABLE_TEST_HOOKS}>>
+        $<BUILD_INTERFACE:LOGGER_INTERNAL_TEST_HOOKS=$<BOOL:${LOGGER_ENABLE_TEST_HOOKS}>>
 )
 
 target_link_libraries(Logger
@@ -83,6 +85,8 @@ if(GAMEWIP_BUILD_DOCS AND COMMAND gamewip_register_doxygen_library)
         NAME Logger
         PAGE_ID logger
         PUBLIC_HEADERS
+            "${CMAKE_CURRENT_SOURCE_DIR}/types.h"
+            "${CMAKE_CURRENT_SOURCE_DIR}/config.h"
             "${CMAKE_CURRENT_SOURCE_DIR}/logger.h"
             "${CMAKE_CURRENT_SOURCE_DIR}/logger_macros.h"
         DOCS

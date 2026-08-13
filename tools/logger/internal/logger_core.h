@@ -4,6 +4,7 @@
 #pragma once
 
 #include "logger/logger.h"
+#include "logger/internal/logger_api_aliases.h"
 #include "logger/internal/logger_platform.h"
 
 #include "filesystem/filesystem.h"
@@ -11,10 +12,10 @@
 #include "terminal/terminal.h"
 #include "unicode/unicode.h"
 
-#ifndef INTERNAL_LOGGER_TEST_HOOKS
-#define INTERNAL_LOGGER_TEST_HOOKS 0
+#ifndef LOGGER_INTERNAL_TEST_HOOKS
+#define LOGGER_INTERNAL_TEST_HOOKS 0
 #endif
-#if INTERNAL_LOGGER_TEST_HOOKS
+#if LOGGER_INTERNAL_TEST_HOOKS
 #include "logger/internal/logger_test_hooks.h"
 #endif
 

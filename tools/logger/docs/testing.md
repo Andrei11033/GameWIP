@@ -12,9 +12,13 @@ Flush validation distinguishes completed, timed-out, invalid-timeout, and sink-f
 
 Fatal termination remains isolated in a child process; the real popup path remains manual/opt-in. Failure hooks remain one-shot and resettable.
 
+The Logger correctness module stays one logical module while behavior-focused private `.inl` fragments keep configuration,
+output, filters, reports, health, and process/manual cases easier to scan without promoting Logger-specific fixtures to TestSupport.
+
 ## Package and header validation
 
-Project validation must continue to check public-header self-containment, installed `GameWIP::Logger` consumption, exact IO/Terminal dependency resolution, exported-symbol allowlists, sanitizer builds, and Logger benchmarks.
+Project validation must continue to check self-containment of `logger/types.h`, `logger/config.h`,
+`logger/logger.h`, and `logger/logger_macros.h`, plus installed `GameWIP::Logger` consumption, exact IO/Terminal dependency resolution, exported-symbol allowlists, sanitizer builds, and Logger benchmarks.
 
 ## Performance review
 

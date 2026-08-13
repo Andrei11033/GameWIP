@@ -19,3 +19,7 @@ static_cast<void>(GameWIP::Logger::shutdown());
 For file startup, inspect both overall status and `outputSetupStatus` when fallback matters. For emergency diagnostics use `reportError()` or `reportFatal()`; these write synchronously and do not wait for older queued logs.
 
 Installed consumers link `GameWIP::Logger`. Logger's public API exposes `IO::Types::Status`, so the installed Logger package discovers IO transitively.
+
+For focused include use, `logger/types.h` exposes shared passive vocabulary and `logger/config.h`
+exposes the configuration model and presets. Ordinary Logger operations should continue to include
+`logger/logger.h`.

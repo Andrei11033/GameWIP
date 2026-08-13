@@ -478,7 +478,7 @@ namespace GameWIP::Logger::Detail::Core
 
 using namespace GameWIP::Logger::Detail::Core;
 
-bool GameWIP::Logger::isRunning()
+bool GameWIP::Logger::isRunning() noexcept
 {
     return runtimeStateRunning(loggerState().runtimeStateBits.load(std::memory_order_acquire));
 }
@@ -514,12 +514,12 @@ GameWIP::Logger::Types::QueueLimits GameWIP::Logger::getQueueLimits()
         loggerState().workerBatchSize};
 }
 
-std::size_t GameWIP::Logger::getLifetimeDroppedLogCount()
+std::size_t GameWIP::Logger::getLifetimeDroppedLogCount() noexcept
 {
     return loggerState().droppedLogs.load(std::memory_order_relaxed);
 }
 
-GameWIP::Logger::Types::HealthSnapshot GameWIP::Logger::getHealth()
+GameWIP::Logger::Types::Health::Snapshot GameWIP::Logger::getHealth()
 {
     std::lock_guard<std::mutex> lock(loggerState().logMutex);
     return {
@@ -562,11 +562,11 @@ void GameWIP::Logger::resetStats()
     resetAtomicStats(loggerState().queueDepth.load(std::memory_order_acquire));
 }
 
-GameWIP::Logger::Types::Config GameWIP::Logger::defaultConfig()
+GameWIP::Logger::Types::Config GameWIP::Logger::defaultConfig() noexcept
 {
     return {};
 }
-GameWIP::Logger::Types::Config GameWIP::Logger::lowMemoryConfig()
+GameWIP::Logger::Types::Config GameWIP::Logger::lowMemoryConfig() noexcept
 {
     Types::Config config;
     config.maxQueueSize = 256;
@@ -578,7 +578,7 @@ GameWIP::Logger::Types::Config GameWIP::Logger::lowMemoryConfig()
     config.releaseStorageOnShutdown = true;
     return config;
 }
-GameWIP::Logger::Types::Config GameWIP::Logger::throughputConfig()
+GameWIP::Logger::Types::Config GameWIP::Logger::throughputConfig() noexcept
 {
     Types::Config config;
     config.maxQueueSize = 4096;
@@ -591,18 +591,18 @@ GameWIP::Logger::Types::Config GameWIP::Logger::throughputConfig()
     return config;
 }
 
-GameWIP::Logger::Types::InitResult GameWIP::Logger::initDefault()
+GameWIP::Logger::Types::Init::Result GameWIP::Logger::initDefault() noexcept
 {
     return init(defaultConfig());
 }
-GameWIP::Logger::Types::InitResult GameWIP::Logger::initConsole(Types::Level minLevel)
+GameWIP::Logger::Types::Init::Result GameWIP::Logger::initConsole(Types::Level minLevel) noexcept
 {
     Types::Config config = defaultConfig();
     config.output = OutputMode::Console;
     config.minLevel = minLevel;
     return init(config);
 }
-GameWIP::Logger::Types::InitResult GameWIP::Logger::initFile(std::string_view directory, Types::Level minLevel)
+GameWIP::Logger::Types::Init::Result GameWIP::Logger::initFile(std::string_view directory, Types::Level minLevel) noexcept
 {
     Types::Config config = defaultConfig();
     config.output = OutputMode::File;
@@ -895,7 +895,7 @@ GameWIP::Logger::Types::InitResult GameWIP::Logger::Detail::Core::initImpl(const
     return result;
 }
 
-GameWIP::Logger::Types::InitResult GameWIP::Logger::init(const Types::Config &config)
+GameWIP::Logger::Types::Init::Result GameWIP::Logger::init(const Types::Config &config) noexcept
 {
     try
     {
@@ -911,7 +911,7 @@ GameWIP::Logger::Types::InitResult GameWIP::Logger::init(const Types::Config &co
     }
 }
 
-GameWIP::Logger::Types::FlushResult GameWIP::Logger::flush(std::optional<std::chrono::milliseconds> timeout)
+GameWIP::Logger::Types::FlushResult GameWIP::Logger::flush(std::optional<std::chrono::milliseconds> timeout) noexcept
 {
     try
     {
@@ -1005,7 +1005,7 @@ GameWIP::IO::Types::Status GameWIP::Logger::Detail::Core::shutdownImpl()
     return status;
 }
 
-GameWIP::IO::Types::Status GameWIP::Logger::shutdown()
+GameWIP::IO::Types::Status GameWIP::Logger::shutdown() noexcept
 {
     try
     {

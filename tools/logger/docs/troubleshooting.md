@@ -2,7 +2,7 @@
 
 ## Init succeeded but File is unavailable
 
-Inspect `InitResult::requestedOutput`, `effectiveOutput`, and `outputSetupStatus`. Successful Console fallback keeps overall `status` successful while preserving the File/setup failure directly.
+Inspect `Types::Init::Result::requestedOutput`, `effectiveOutput`, and `outputSetupStatus`. Successful Console fallback keeps overall `status` successful while preserving the File/setup failure directly.
 
 ## Logger became degraded
 

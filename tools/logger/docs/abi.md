@@ -9,7 +9,7 @@ find_package(Logger ${GAMEWIP_REQUIRED_VERSION} EXACT CONFIG REQUIRED)
 target_link_libraries(MyTarget PRIVATE GameWIP::Logger)
 ```
 
-The package installs `logger/logger.h`, `logger/logger_macros.h`, the generated export header, and `GameWIP::Logger`.
+The package installs `logger/types.h`, `logger/config.h`, `logger/logger.h`, `logger/logger_macros.h`, the generated export header, and `GameWIP::Logger`.
 
 `logger.h` exposes `IO::Types::Status`, so IO is a public package dependency and `LoggerConfig.cmake` resolves the exact matching IO package. Terminal remains an installed dependency used by Logger's console implementation. FileSystem and Unicode are private implementation dependencies.
 
@@ -17,7 +17,7 @@ The package installs `logger/logger.h`, `logger/logger_macros.h`, the generated 
 
 Public templates in `logger.h` call exported `GameWIP::Logger::Detail::Core` bridges. Those symbols support the public inline/template API but are not source-level consumer APIs.
 
-This #55 change is an intentional pre-1.0 ABI/API break: `Types` is now a namespace, `Output` is `OutputMode`, the old mixed `Result` and mutable last-error APIs are removed, and lifecycle/report functions use structured status/outcome results.
+This standardization pass is an intentional pre-1.0 API/ABI break: initialization, report, and health vocabulary is organized under `Types::Init`, `Types::Report`, and `Types::Health`; runtime filter reset operations use `reset*Filter`; and no compatibility aliases are installed.
 
 ## Compatibility expectations
 

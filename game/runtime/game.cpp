@@ -67,7 +67,7 @@ namespace GameWIP::Game
             Logger::initConsole(Logger::Types::Level::Debug);
         }
 
-        std::string startupReport = "Logger initialized";
+        Logger::info("Startup", "Logger initialized");
         Window::Types::MonitorListResult monitors;
         {
 #if GAMEWIP_TRACY_ENABLED
@@ -76,16 +76,17 @@ namespace GameWIP::Game
             monitors = Window::getMonitors();
             if (monitors.status.ok())
             {
-                std::format_to(std::back_inserter(startupReport), "\nEnumerated {} connected display(s)", monitors.monitors.size());
+                Logger::info("Startup", "Enumerated {} connected display(s)", monitors.monitors.size());
                 for (const Window::Types::MonitorInfo &monitor : monitors.monitors)
                 {
                     const Window::Types::DisplayModeResult activeMode = Window::getCurrentDisplayMode(monitor.id);
                     const Window::Types::DisplayModeListResult supportedModes = Window::getDisplayModes(monitor.id);
                     const Window::Types::DisplayColorInfoResult colorInfo = Window::Renderer::getDisplayColorInfo(monitor.id);
 
+                    std::string displayReport;
                     std::format_to(
-                        std::back_inserter(startupReport),
-                        "\nDisplay '{}'{} at ({}, {}) has {} supported mode(s)",
+                        std::back_inserter(displayReport),
+                        "Display '{}'{} at ({}, {}) has {} supported mode(s)",
                         monitor.name,
                         monitor.primary ? " [primary]" : "",
                         monitor.bounds.position.x,
@@ -94,7 +95,7 @@ namespace GameWIP::Game
                     if (activeMode.status.ok())
                     {
                         std::format_to(
-                            std::back_inserter(startupReport),
+                            std::back_inserter(displayReport),
                             "\n  active: {}x{} @ {}.{:03} Hz, {} bpp{}",
                             activeMode.displayMode.resolution.width,
                             activeMode.displayMode.resolution.height,
@@ -106,7 +107,7 @@ namespace GameWIP::Game
                     if (colorInfo.status.ok())
                     {
                         std::format_to(
-                            std::back_inserter(startupReport),
+                            std::back_inserter(displayReport),
                             "\n  color: {}, HDR supported={}, HDR enabled={}, WCG supported={}, {} bits/channel, "
                             "luminance min/peak/full-frame={:.3f}/{:.1f}/{:.1f} nits, SDR white={:.1f} nits",
                             colorSpaceName(colorInfo.info.activeColorSpace),
@@ -121,12 +122,12 @@ namespace GameWIP::Game
                     }
                     else
                     {
-                        std::format_to(std::back_inserter(startupReport), "\n  HDR/color query failed: {}", colorInfo.status.message);
+                        std::format_to(std::back_inserter(displayReport), "\n  HDR/color query failed: {}", colorInfo.status.message);
                     }
                     for (const Window::Types::DisplayMode &mode : supportedModes.displayModes)
                     {
                         std::format_to(
-                            std::back_inserter(startupReport),
+                            std::back_inserter(displayReport),
                             "\n  mode: {}x{} @ {}.{:03} Hz, {} bpp{}",
                             mode.resolution.width,
                             mode.resolution.height,
@@ -135,6 +136,7 @@ namespace GameWIP::Game
                             mode.bitsPerPixel,
                             mode.interlaced ? ", interlaced" : "");
                     }
+                    Logger::info("Startup", "{}", displayReport);
                 }
             }
         }
@@ -175,8 +177,7 @@ namespace GameWIP::Game
         TracyMessageL("Borderless-fullscreen window opened");
 #endif
 
-        startupReport += "\nBorderless-fullscreen window is active; desktop resolution is unchanged; press Alt+F4 to exit";
-        Logger::info("Startup", "{}", startupReport);
+        Logger::info("Startup", "Borderless-fullscreen window is active; desktop resolution is unchanged; press Alt+F4 to exit");
         while (!window.closeRequested())
         {
 #if GAMEWIP_TRACY_ENABLED

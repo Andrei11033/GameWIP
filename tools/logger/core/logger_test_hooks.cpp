@@ -5,7 +5,7 @@
 
 namespace GameWIP::Logger::Detail::Core
 {
-#if INTERNAL_LOGGER_TEST_HOOKS
+#if LOGGER_INTERNAL_TEST_HOOKS
     LoggerTestHookState loggerTestHookState;
 
     namespace

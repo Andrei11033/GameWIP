@@ -74,7 +74,7 @@ namespace GameWIP::Logger::Detail::Core
         return Terminal::writeSegments(stream, segments, options);
     }
 
-#if INTERNAL_LOGGER_TEST_HOOKS
+#if LOGGER_INTERNAL_TEST_HOOKS
     Status forcedFileStatus(ErrorCode code) noexcept
     {
         return IO::makeStatus(code, 1);
@@ -87,7 +87,7 @@ namespace GameWIP::Logger::Detail::Core
 
     Status openFileExclusiveForLogger(const FilePath &path, FileWriter &outWriter)
     {
-#if INTERNAL_LOGGER_TEST_HOOKS
+#if LOGGER_INTERNAL_TEST_HOOKS
         if (consumeTestHook(loggerTestHookState.nextFileOpenFailure))
             return forcedFileStatus(ErrorCode::OpenFailed);
 #endif
@@ -102,7 +102,7 @@ namespace GameWIP::Logger::Detail::Core
 
     Status writeFileForLogger(FileWriter &writer, std::string_view text)
     {
-#if INTERNAL_LOGGER_TEST_HOOKS
+#if LOGGER_INTERNAL_TEST_HOOKS
         if (consumeTestHook(loggerTestHookState.nextFileWriteFailure))
             return forcedFileStatus(ErrorCode::WriteFailed);
 #endif
@@ -111,7 +111,7 @@ namespace GameWIP::Logger::Detail::Core
 
     Status flushFileForLogger(FileWriter &writer)
     {
-#if INTERNAL_LOGGER_TEST_HOOKS
+#if LOGGER_INTERNAL_TEST_HOOKS
         if (consumeTestHook(loggerTestHookState.nextFileFlushFailure))
             return forcedFileStatus(ErrorCode::FlushFailed);
 #endif
@@ -376,7 +376,7 @@ namespace GameWIP::Logger::Detail::Core
     Types::FlushResult flushInternal(const FlushDeadline *deadline)
     {
         Types::FlushResult result;
-#if INTERNAL_LOGGER_TEST_HOOKS
+#if LOGGER_INTERNAL_TEST_HOOKS
         if (deadline && consumeTestHook(loggerTestHookState.nextTimedFlushTimeout))
         {
             result.outcome = Types::FlushOutcome::TimedOut;
@@ -486,7 +486,7 @@ namespace GameWIP::Logger::Detail::Core
             }
         }
 
-#if INTERNAL_LOGGER_TEST_HOOKS
+#if LOGGER_INTERNAL_TEST_HOOKS
         if (deadline != nullptr && consumeTestHook(loggerTestHookState.nextTimedFlushTimeout))
         {
             result.outcome = Types::ReportOutcome::TimedOut;
@@ -510,7 +510,7 @@ namespace GameWIP::Logger::Detail::Core
             else
             {
                 Status popupStatus;
-#if INTERNAL_LOGGER_TEST_HOOKS
+#if LOGGER_INTERNAL_TEST_HOOKS
                 if (consumeTestHook(loggerTestHookState.nextFatalPopupFailure))
                     popupStatus = forcedFatalPopupStatus();
                 else
@@ -597,7 +597,7 @@ GameWIP::Logger::Types::ReportResult GameWIP::Logger::Detail::Core::reportPrefor
         });
 }
 
-void GameWIP::Logger::log(LogLevel level, std::string_view source, std::string_view message)
+void GameWIP::Logger::log(LogLevel level, std::string_view source, std::string_view message) noexcept
 {
     if (!shouldLog(level))
         return;
@@ -610,7 +610,7 @@ void GameWIP::Logger::log(LogLevel level, std::string_view source, std::string_v
         countAllocationFailure();
     }
 }
-void GameWIP::Logger::log(LogLevel level, SourceId source, std::string_view message)
+void GameWIP::Logger::log(LogLevel level, SourceId source, std::string_view message) noexcept
 {
     if (!shouldLog(level, source))
         return;
@@ -625,11 +625,11 @@ void GameWIP::Logger::log(LogLevel level, SourceId source, std::string_view mess
 }
 
 #define GAMEWIP_LOGGER_DEFINE_LEVEL(name, levelValue) \
-    void GameWIP::Logger::name(std::string_view source, std::string_view message) \
+    void GameWIP::Logger::name(std::string_view source, std::string_view message) noexcept \
     { \
         log(levelValue, source, message); \
     } \
-    void GameWIP::Logger::name(SourceId source, std::string_view message) \
+    void GameWIP::Logger::name(SourceId source, std::string_view message) noexcept \
     { \
         log(levelValue, source, message); \
     }
@@ -641,93 +641,93 @@ GAMEWIP_LOGGER_DEFINE_LEVEL(error, LogLevel::Error)
 GAMEWIP_LOGGER_DEFINE_LEVEL(fatal, LogLevel::Fatal)
 #undef GAMEWIP_LOGGER_DEFINE_LEVEL
 
-GameWIP::Logger::Types::ReportResult GameWIP::Logger::report(LogLevel level, std::string_view source, std::string_view message)
+GameWIP::Logger::Types::Report::Result GameWIP::Logger::report(LogLevel level, std::string_view source, std::string_view message) noexcept
 {
     return reportPreformattedMessage(level, source, message, false, false, nullptr);
 }
-GameWIP::Logger::Types::ReportResult GameWIP::Logger::report(
+GameWIP::Logger::Types::Report::Result GameWIP::Logger::report(
     LogLevel level,
     std::string_view source,
     std::chrono::milliseconds timeout,
-    std::string_view message)
+    std::string_view message) noexcept
 {
     return reportPreformattedMessage(level, source, message, false, false, &timeout);
 }
-GameWIP::Logger::Types::ReportResult GameWIP::Logger::report(LogLevel level, SourceId source, std::string_view message)
+GameWIP::Logger::Types::Report::Result GameWIP::Logger::report(LogLevel level, SourceId source, std::string_view message) noexcept
 {
     return reportPreformattedMessage(level, source, message, false, false, nullptr);
 }
-GameWIP::Logger::Types::ReportResult GameWIP::Logger::report(
+GameWIP::Logger::Types::Report::Result GameWIP::Logger::report(
     LogLevel level,
     SourceId source,
     std::chrono::milliseconds timeout,
-    std::string_view message)
+    std::string_view message) noexcept
 {
     return reportPreformattedMessage(level, source, message, false, false, &timeout);
 }
 
-GameWIP::Logger::Types::ReportResult GameWIP::Logger::reportError(std::string_view source, std::string_view message)
+GameWIP::Logger::Types::Report::Result GameWIP::Logger::reportError(std::string_view source, std::string_view message) noexcept
 {
     return report(LogLevel::Error, source, message);
 }
-GameWIP::Logger::Types::ReportResult GameWIP::Logger::reportError(
+GameWIP::Logger::Types::Report::Result GameWIP::Logger::reportError(
     std::string_view source,
     std::chrono::milliseconds timeout,
-    std::string_view message)
+    std::string_view message) noexcept
 {
     return report(LogLevel::Error, source, timeout, message);
 }
-GameWIP::Logger::Types::ReportResult GameWIP::Logger::reportError(SourceId source, std::string_view message)
+GameWIP::Logger::Types::Report::Result GameWIP::Logger::reportError(SourceId source, std::string_view message) noexcept
 {
     return report(LogLevel::Error, source, message);
 }
-GameWIP::Logger::Types::ReportResult GameWIP::Logger::reportError(SourceId source, std::chrono::milliseconds timeout, std::string_view message)
+GameWIP::Logger::Types::Report::Result GameWIP::Logger::reportError(SourceId source, std::chrono::milliseconds timeout, std::string_view message) noexcept
 {
     return report(LogLevel::Error, source, timeout, message);
 }
 
-GameWIP::Logger::Types::ReportResult GameWIP::Logger::reportFatal(std::string_view source, std::string_view message)
+GameWIP::Logger::Types::Report::Result GameWIP::Logger::reportFatal(std::string_view source, std::string_view message) noexcept
 {
     return reportPreformattedMessage(LogLevel::Fatal, source, message, true, false, nullptr);
 }
-GameWIP::Logger::Types::ReportResult GameWIP::Logger::reportFatal(
+GameWIP::Logger::Types::Report::Result GameWIP::Logger::reportFatal(
     std::string_view source,
     std::chrono::milliseconds timeout,
-    std::string_view message)
+    std::string_view message) noexcept
 {
     return reportPreformattedMessage(LogLevel::Fatal, source, message, true, false, &timeout);
 }
-GameWIP::Logger::Types::ReportResult GameWIP::Logger::reportFatal(SourceId source, std::string_view message)
+GameWIP::Logger::Types::Report::Result GameWIP::Logger::reportFatal(SourceId source, std::string_view message) noexcept
 {
     return reportPreformattedMessage(LogLevel::Fatal, source, message, true, false, nullptr);
 }
-GameWIP::Logger::Types::ReportResult GameWIP::Logger::reportFatal(SourceId source, std::chrono::milliseconds timeout, std::string_view message)
+GameWIP::Logger::Types::Report::Result GameWIP::Logger::reportFatal(SourceId source, std::chrono::milliseconds timeout, std::string_view message) noexcept
 {
     return reportPreformattedMessage(LogLevel::Fatal, source, message, true, false, &timeout);
 }
 
-[[noreturn]] void GameWIP::Logger::fatalTerminate(std::string_view source, std::string_view message)
+[[noreturn]] void GameWIP::Logger::fatalTerminate(std::string_view source, std::string_view message) noexcept
 {
     static_cast<void>(reportFatal(source, message));
     std::terminate();
 }
-[[noreturn]] void GameWIP::Logger::fatalTerminate(SourceId source, std::string_view message)
+[[noreturn]] void GameWIP::Logger::fatalTerminate(SourceId source, std::string_view message) noexcept
 {
     static_cast<void>(reportFatal(source, message));
     std::terminate();
 }
-[[noreturn]] void GameWIP::Logger::fatalTerminate(std::string_view source, std::chrono::milliseconds timeout, std::string_view message)
+[[noreturn]] void GameWIP::Logger::fatalTerminate(std::string_view source, std::chrono::milliseconds timeout, std::string_view message) noexcept
 {
     static_cast<void>(reportFatal(source, timeout, message));
     std::terminate();
 }
-[[noreturn]] void GameWIP::Logger::fatalTerminate(SourceId source, std::chrono::milliseconds timeout, std::string_view message)
+[[noreturn]] void GameWIP::Logger::fatalTerminate(SourceId source, std::chrono::milliseconds timeout, std::string_view message) noexcept
 {
     static_cast<void>(reportFatal(source, timeout, message));
     std::terminate();
 }
 
-GameWIP::IO::Types::Status GameWIP::Logger::writeDebugOutput(LogLevel level, std::string_view source, std::string_view message)
+GameWIP::IO::Types::Status GameWIP::Logger::writeDebugOutput(LogLevel level, std::string_view source, std::string_view message) noexcept
 {
     if (!loggerState().debugOutputEnabledAtomic.load(std::memory_order_acquire))
         return {};
@@ -745,13 +745,13 @@ GameWIP::IO::Types::Status GameWIP::Logger::writeDebugOutput(LogLevel level, std
         Status timeStatus;
         const std::string timestamp = getDebugTimestampText(&timeStatus);
         if (!timeStatus.ok())
-            recordHealthFailure(Types::FailureSource::TimeConversion, timeStatus, false);
+            recordHealthFailure(Types::Health::FailureSource::TimeConversion, timeStatus, false);
         std::string line;
         buildLogLine(line, timestamp, getLogStyle(level).text, source, messageText);
         line.push_back('\n');
         const Status status = GameWIP::Logger::Detail::Platform::writeDebugOutput(line);
         if (!status.ok())
-            recordHealthFailure(Types::FailureSource::DebugOutput, status, true);
+            recordHealthFailure(Types::Health::FailureSource::DebugOutput, status, true);
         return status;
     }
     catch (const std::bad_alloc &)
