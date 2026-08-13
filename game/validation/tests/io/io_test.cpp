@@ -1225,8 +1225,7 @@ namespace
 
         std::array<std::byte, 2> unicodeScratch{};
         UnknownSizeChunkReader splitUnicodeReader(bytesOf(unicodeText), 1);
-        const IO::Types::ReadAllTextResult splitUnicodeResult =
-            IO::readAllText(splitUnicodeReader, std::span<std::byte>(unicodeScratch));
+        const IO::Types::ReadAllTextResult splitUnicodeResult = IO::readAllText(splitUnicodeReader, std::span<std::byte>(unicodeScratch));
         static_cast<void>(context.expectTrue("readAllText accepts UTF-8 split across reader chunks", splitUnicodeResult.status.ok()));
         static_cast<void>(context.expectEq("readAllText preserves split UTF-8", unicodeText, splitUnicodeResult.text));
 
