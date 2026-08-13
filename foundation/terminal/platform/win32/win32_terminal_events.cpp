@@ -409,7 +409,7 @@ namespace GameWIP::Terminal::Detail::Platform::Win32Events
                 state.pendingHighSurrogate = u'\0';
                 state.pendingHighSurrogateRecord = {};
 
-                const Unicode::Types::Utf16DecodeResult decoded = Unicode::Utf16::decodeScalar(pair);
+                const Unicode::Types::Utf16::DecodeResult decoded = Unicode::Utf16::decodeScalar(pair);
                 if (decoded.outcome != Unicode::Types::DecodeOutcome::Decoded)
                 {
                     return {
@@ -447,7 +447,7 @@ namespace GameWIP::Terminal::Detail::Platform::Win32Events
             if (unit != u'\0')
             {
                 const std::array<char16_t, 1> single{unit};
-                const Unicode::Types::Utf16DecodeResult decoded = Unicode::Utf16::decodeScalar(single);
+                const Unicode::Types::Utf16::DecodeResult decoded = Unicode::Utf16::decodeScalar(single);
                 if (decoded.outcome != Unicode::Types::DecodeOutcome::Decoded)
                 {
                     return {

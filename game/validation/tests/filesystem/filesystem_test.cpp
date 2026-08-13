@@ -56,8 +56,7 @@ namespace
     static_assert(noexcept(FileSystem::resizeFile(std::declval<const Path &>(), 0)));
     static_assert(noexcept(FileSystem::truncateFile(std::declval<const Path &>())));
 
-    constexpr FileSystem::Types::File::Share kReadDelete =
-        FileSystem::Types::File::Share::Read | FileSystem::Types::File::Share::Delete;
+    constexpr FileSystem::Types::File::Share kReadDelete = FileSystem::Types::File::Share::Read | FileSystem::Types::File::Share::Delete;
     static_assert((kReadDelete & FileSystem::Types::File::Share::Read) == FileSystem::Types::File::Share::Read);
     static_assert((kReadDelete & FileSystem::Types::File::Share::Write) == FileSystem::Types::File::Share::None);
 
@@ -375,8 +374,7 @@ namespace
         malformedPath.push_back(static_cast<char>(0xC0));
         malformedPath.push_back(static_cast<char>(0xAF));
         const auto malformedResult = FileSystem::pathFromUtf8(malformedPath);
-        static_cast<void>(
-            context.expectEq("pathFromUtf8 rejects malformed UTF-8", ErrorCode::EncodingFailed, malformedResult.status.code));
+        static_cast<void>(context.expectEq("pathFromUtf8 rejects malformed UTF-8", ErrorCode::EncodingFailed, malformedResult.status.code));
 
 #if !defined(_WIN32)
         const std::filesystem::path invalidNativePath{std::string(1, static_cast<char>(0xFF))};
@@ -422,7 +420,8 @@ namespace
 
         const std::filesystem::path missingWrite = root / "invalid-write-parent" / "file.txt";
         const auto missingInvalidWrite = FileSystem::writeAllText(missingWrite, malformed);
-        static_cast<void>(context.expectEq("invalid write to missing path is EncodingFailed", ErrorCode::EncodingFailed, missingInvalidWrite.status.code));
+        static_cast<void>(
+            context.expectEq("invalid write to missing path is EncodingFailed", ErrorCode::EncodingFailed, missingInvalidWrite.status.code));
         static_cast<void>(context.expectFalse("invalid write creates no parent", FileSystem::exists(missingWrite.parent_path()).value));
 
         const auto invalidAppend = FileSystem::appendText(file, malformed);
@@ -432,16 +431,19 @@ namespace
 
         const std::filesystem::path missingAppend = root / "invalid-append-parent" / "file.txt";
         const auto missingInvalidAppend = FileSystem::appendText(missingAppend, malformed);
-        static_cast<void>(context.expectEq("invalid append to missing path is EncodingFailed", ErrorCode::EncodingFailed, missingInvalidAppend.status.code));
+        static_cast<void>(
+            context.expectEq("invalid append to missing path is EncodingFailed", ErrorCode::EncodingFailed, missingInvalidAppend.status.code));
         static_cast<void>(context.expectFalse("invalid append creates no parent", FileSystem::exists(missingAppend.parent_path()).value));
 
         const auto invalidAtomic = FileSystem::writeAllTextAtomic(file, malformed);
         static_cast<void>(context.expectEq("writeAllTextAtomic rejects malformed UTF-8", ErrorCode::EncodingFailed, invalidAtomic.code));
-        static_cast<void>(context.expectEq("invalid atomic write preserves destination", std::string{"preserved"}, FileSystem::readAllText(file).text));
+        static_cast<void>(
+            context.expectEq("invalid atomic write preserves destination", std::string{"preserved"}, FileSystem::readAllText(file).text));
 
         const std::filesystem::path missingAtomic = root / "invalid-atomic-parent" / "file.txt";
         const auto missingInvalidAtomic = FileSystem::writeAllTextAtomic(missingAtomic, malformed);
-        static_cast<void>(context.expectEq("invalid atomic write to missing path is EncodingFailed", ErrorCode::EncodingFailed, missingInvalidAtomic.code));
+        static_cast<void>(
+            context.expectEq("invalid atomic write to missing path is EncodingFailed", ErrorCode::EncodingFailed, missingInvalidAtomic.code));
         static_cast<void>(context.expectFalse("invalid atomic write creates no parent", FileSystem::exists(missingAtomic.parent_path()).value));
 
         FileSystem::Types::File::AtomicWriteOptions unicodePrefixOptions;

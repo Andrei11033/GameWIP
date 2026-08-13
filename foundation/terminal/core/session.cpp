@@ -508,7 +508,7 @@ namespace GameWIP::Terminal
                     return status;
                 }
 
-                if (cursor_.seek(byteOffset).outcome != Unicode::Types::BoundaryOutcome::Found)
+                if (cursor_.seek(byteOffset).outcome != Unicode::Types::Utf8::BoundaryOutcome::Found)
                 {
                     return IO::makeStatus(ErrorCode::EncodingFailed);
                 }
@@ -523,12 +523,12 @@ namespace GameWIP::Terminal
                     return std::nullopt;
                 }
 
-                const Unicode::Types::Utf8BoundaryResult result = cursor_.previous();
-                if (result.outcome == Unicode::Types::BoundaryOutcome::AtBeginning)
+                const Unicode::Types::Utf8::BoundaryResult result = cursor_.previous();
+                if (result.outcome == Unicode::Types::Utf8::BoundaryOutcome::AtBeginning)
                 {
                     return std::nullopt;
                 }
-                if (result.outcome != Unicode::Types::BoundaryOutcome::Found)
+                if (result.outcome != Unicode::Types::Utf8::BoundaryOutcome::Found)
                 {
                     status = IO::makeStatus(ErrorCode::EncodingFailed);
                     return std::nullopt;
@@ -544,12 +544,12 @@ namespace GameWIP::Terminal
                     return std::nullopt;
                 }
 
-                const Unicode::Types::Utf8BoundaryResult result = cursor_.next();
-                if (result.outcome == Unicode::Types::BoundaryOutcome::AtEnd)
+                const Unicode::Types::Utf8::BoundaryResult result = cursor_.next();
+                if (result.outcome == Unicode::Types::Utf8::BoundaryOutcome::AtEnd)
                 {
                     return std::nullopt;
                 }
-                if (result.outcome != Unicode::Types::BoundaryOutcome::Found)
+                if (result.outcome != Unicode::Types::Utf8::BoundaryOutcome::Found)
                 {
                     status = IO::makeStatus(ErrorCode::EncodingFailed);
                     return std::nullopt;
@@ -573,20 +573,20 @@ namespace GameWIP::Terminal
                     return status;
                 }
 
-                const Unicode::Types::Utf8BoundaryResult exact = cursor_.seek(byteOffset);
-                if (exact.outcome == Unicode::Types::BoundaryOutcome::Found)
+                const Unicode::Types::Utf8::BoundaryResult exact = cursor_.seek(byteOffset);
+                if (exact.outcome == Unicode::Types::Utf8::BoundaryOutcome::Found)
                 {
                     return IO::successStatus();
                 }
 
-                const Unicode::Types::Utf8BoundaryResult next = Unicode::Utf8::nextGraphemeBoundary(text, byteOffset);
-                if (next.outcome == Unicode::Types::BoundaryOutcome::Found)
+                const Unicode::Types::Utf8::BoundaryResult next = Unicode::Utf8::nextGraphemeBoundary(text, byteOffset);
+                if (next.outcome == Unicode::Types::Utf8::BoundaryOutcome::Found)
                 {
                     byteOffset = next.byteOffset;
                     static_cast<void>(cursor_.seek(byteOffset));
                     return IO::successStatus();
                 }
-                if (next.outcome == Unicode::Types::BoundaryOutcome::AtEnd)
+                if (next.outcome == Unicode::Types::Utf8::BoundaryOutcome::AtEnd)
                 {
                     byteOffset = text.size();
                     static_cast<void>(cursor_.seek(byteOffset));
@@ -603,15 +603,15 @@ namespace GameWIP::Terminal
                     return IO::successStatus();
                 }
 
-                Unicode::Types::Utf8GraphemeIndexResult indexed = cursor_.reset(text, std::span<std::size_t>(storage_.data(), storage_.size()));
+                Unicode::Types::Utf8::GraphemeIndexResult indexed = cursor_.reset(text, std::span<std::size_t>(storage_.data(), storage_.size()));
 
-                if (indexed.outcome == Unicode::Types::GraphemeIndexOutcome::DestinationTooSmall)
+                if (indexed.outcome == Unicode::Types::Utf8::GraphemeIndexOutcome::DestinationTooSmall)
                 {
                     storage_.resize(indexed.requiredBoundaryCount);
                     indexed = cursor_.reset(text, std::span<std::size_t>(storage_.data(), storage_.size()));
                 }
 
-                if (indexed.outcome != Unicode::Types::GraphemeIndexOutcome::Indexed)
+                if (indexed.outcome != Unicode::Types::Utf8::GraphemeIndexOutcome::Indexed)
                 {
                     cursor_.clear();
                     return IO::makeStatus(ErrorCode::EncodingFailed);
@@ -975,7 +975,7 @@ namespace GameWIP::Terminal
             bool &wasTruncated,
             GraphemeIndex &graphemes)
         {
-            const Unicode::Types::Utf8EncodeResult encoded = Unicode::Utf8::encodeScalar(scalar);
+            const Unicode::Types::Utf8::EncodeResult encoded = Unicode::Utf8::encodeScalar(scalar);
             if (encoded.outcome != Unicode::Types::EncodeOutcome::Encoded)
             {
                 return IO::makeStatus(ErrorCode::EncodingFailed);
@@ -1007,7 +1007,7 @@ namespace GameWIP::Terminal
             std::size_t accepted = 0;
             while (accepted < text.size())
             {
-                const Unicode::Types::Utf8DecodeResult decoded = Unicode::Utf8::decodeScalar(text.substr(accepted));
+                const Unicode::Types::Utf8::DecodeResult decoded = Unicode::Utf8::decodeScalar(text.substr(accepted));
                 if (decoded.outcome != Unicode::Types::DecodeOutcome::Decoded)
                 {
                     return IO::makeStatus(ErrorCode::EncodingFailed);

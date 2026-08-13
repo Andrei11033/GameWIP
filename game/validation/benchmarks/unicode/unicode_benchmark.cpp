@@ -2,6 +2,7 @@
 /// @brief Diagnostic hot-path benchmarks for Unicode encoding and boundary primitives.
 
 #include "unicode/unicode.h"
+#include "unicode/internal/type_aliases.h"
 
 #include <benchmark/benchmark.h>
 

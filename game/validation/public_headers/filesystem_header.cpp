@@ -27,8 +27,7 @@ namespace
     static_assert(noexcept(std::declval<FileSystem::File &>().resize(0)));
 
     static_assert(std::is_same_v<decltype(FileSystem::Types::File::OpenOptions{}.share), FileSystem::Types::File::Share>);
-    static_assert(
-        std::is_same_v<decltype(FileSystem::Types::Directory::ListResult{}.entries), std::vector<FileSystem::Types::Directory::Entry>>);
+    static_assert(std::is_same_v<decltype(FileSystem::Types::Directory::ListResult{}.entries), std::vector<FileSystem::Types::Directory::Entry>>);
     static_assert(std::is_same_v<decltype(FileSystem::Types::Lock::Result{}.outcome), FileSystem::Types::Lock::Outcome>);
     static_assert(std::is_same_v<decltype(FileSystem::Types::EntryOptions{}.symlinkPolicy), FileSystem::Types::SymlinkPolicy>);
 } // namespace

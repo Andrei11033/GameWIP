@@ -95,7 +95,7 @@ namespace GameWIP::IO::Detail::Core
     /// @return Result whose text field is always valid UTF-8.
     [[nodiscard]] Types::ReadAllTextResult finalizeReadAllText(Types::ReadAllTextResult result) noexcept
     {
-        const Unicode::Types::Utf8ValidationResult validation = Unicode::Utf8::validate(result.text);
+        const Unicode::Types::Utf8::ValidationResult validation = Unicode::Utf8::validate(result.text);
         if (validation.outcome == Unicode::Types::ValidationOutcome::Valid)
         {
             return result;

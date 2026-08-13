@@ -5,6 +5,7 @@
 
 #include "test_support/test_support.h"
 #include "unicode/internal/generated/unicode_properties.h"
+#include "unicode/internal/type_aliases.h"
 #include "unicode/internal/unicode_properties.h"
 #include "unicode/unicode.h"
 

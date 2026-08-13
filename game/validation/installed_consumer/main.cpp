@@ -28,8 +28,8 @@
 
 int main()
 {
-    const GameWIP::Unicode::Types::UnicodeVersion unicodeVersion = GameWIP::Unicode::getStandardVersion();
-    const GameWIP::Unicode::Types::Utf8EncodeResult unicodeEncoding = GameWIP::Unicode::Utf8::encodeScalar(static_cast<char32_t>(0x1F600));
+    const GameWIP::Unicode::Types::Version unicodeVersion = GameWIP::Unicode::getStandardVersion();
+    const GameWIP::Unicode::Types::Utf8::EncodeResult unicodeEncoding = GameWIP::Unicode::Utf8::encodeScalar(static_cast<char32_t>(0x1F600));
     GameWIP::IO::MemoryWriter writer;
     const GameWIP::IO::Types::Status reserve = writer.reserve(64);
     const GameWIP::IO::Types::WriteResult write = GameWIP::IO::writeAllText(writer, "installed consumer");

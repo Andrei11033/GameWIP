@@ -1097,7 +1097,7 @@ namespace GameWIP::Terminal::Detail::Platform
                     }
                     else
                     {
-                        const Unicode::Types::Utf8EncodeResult encoded = Unicode::Utf8::encodeScalar(character->value);
+                        const Unicode::Types::Utf8::EncodeResult encoded = Unicode::Utf8::encodeScalar(character->value);
                         if (encoded.outcome != Unicode::Types::EncodeOutcome::Encoded)
                         {
                             chunk.status = IO::makeStatus(ErrorCode::EncodingFailed);
@@ -1283,7 +1283,7 @@ namespace GameWIP::Terminal::Detail::Platform
 
             while (result.bytes < bytes.size())
             {
-                const Unicode::Types::Utf8DecodeResult decoded = Unicode::Utf8::decodeScalar(bytes.substr(result.bytes));
+                const Unicode::Types::Utf8::DecodeResult decoded = Unicode::Utf8::decodeScalar(bytes.substr(result.bytes));
 
                 if (decoded.outcome == Unicode::Types::DecodeOutcome::Incomplete)
                 {

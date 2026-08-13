@@ -995,7 +995,10 @@ namespace GameWIP::FileSystem
     /// @param sizeBytes Requested file size in bytes.
     /// @param options Symlink traversal behavior.
     /// @return Success or a validation, lookup, permission, or resize failure status.
-    [[nodiscard]] IO::Types::Status resizeFile(const Types::Path &path, std::uint64_t sizeBytes, const Types::File::ResizeOptions &options = {}) noexcept;
+    [[nodiscard]] IO::Types::Status resizeFile(
+        const Types::Path &path,
+        std::uint64_t sizeBytes,
+        const Types::File::ResizeOptions &options = {}) noexcept;
 
     /// @brief Truncates an existing regular file to zero bytes.
     /// @param path File path to truncate.

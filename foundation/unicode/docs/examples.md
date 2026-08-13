@@ -66,7 +66,7 @@ std::optional<std::vector<char16_t>> toUtf16(std::string_view source)
 {
     namespace Unicode = GameWIP::Unicode;
 
-    const Unicode::Types::Utf8ToUtf16MeasureResult measured =
+    const Unicode::Types::Utf8::ToUtf16MeasureResult measured =
         Unicode::Utf8::measureToUtf16(source);
     if (measured.outcome != Unicode::Types::MeasureOutcome::Measured)
     {
@@ -74,7 +74,7 @@ std::optional<std::vector<char16_t>> toUtf16(std::string_view source)
     }
 
     std::vector<char16_t> result(measured.requiredCodeUnits);
-    const Unicode::Types::Utf8ToUtf16Result converted =
+    const Unicode::Types::Utf8::ToUtf16Result converted =
         Unicode::Utf8::convertToUtf16(source, result);
     if (converted.outcome != Unicode::Types::ConversionOutcome::Converted)
     {
@@ -103,9 +103,9 @@ std::optional<std::size_t> graphemeCount(std::string_view text) noexcept
     std::size_t offset = 0;
     while (offset < text.size())
     {
-        const Unicode::Types::Utf8BoundaryResult next =
+        const Unicode::Types::Utf8::BoundaryResult next =
             Unicode::Utf8::nextGraphemeBoundary(text, offset);
-        if (next.outcome != Unicode::Types::BoundaryOutcome::Found)
+        if (next.outcome != Unicode::Types::Utf8::BoundaryOutcome::Found)
         {
             return std::nullopt;
         }
@@ -134,16 +134,16 @@ bool eraseSuffixByGrapheme(std::string &text)
 
     std::vector<std::size_t> boundaries(text.size() + 1);
     Unicode::Utf8::GraphemeCursor cursor;
-    if (cursor.reset(text, boundaries).outcome != Unicode::Types::GraphemeIndexOutcome::Indexed ||
-        cursor.seek(text.size()).outcome != Unicode::Types::BoundaryOutcome::Found)
+    if (cursor.reset(text, boundaries).outcome != Unicode::Types::Utf8::GraphemeIndexOutcome::Indexed ||
+        cursor.seek(text.size()).outcome != Unicode::Types::Utf8::BoundaryOutcome::Found)
     {
         return false;
     }
 
     while (!text.empty())
     {
-        const Unicode::Types::Utf8BoundaryResult previous = cursor.previous();
-        if (previous.outcome != Unicode::Types::BoundaryOutcome::Found)
+        const Unicode::Types::Utf8::BoundaryResult previous = cursor.previous();
+        if (previous.outcome != Unicode::Types::Utf8::BoundaryOutcome::Found)
         {
             return false;
         }
@@ -172,14 +172,14 @@ std::optional<std::size_t> previousClusterStart(
 {
     namespace Unicode = GameWIP::Unicode;
 
-    const Unicode::Types::Utf8BoundaryResult previous =
+    const Unicode::Types::Utf8::BoundaryResult previous =
         Unicode::Utf8::previousGraphemeBoundary(text, offset);
 
-    if (previous.outcome == Unicode::Types::BoundaryOutcome::AtBeginning)
+    if (previous.outcome == Unicode::Types::Utf8::BoundaryOutcome::AtBeginning)
     {
         return std::size_t{0};
     }
-    if (previous.outcome != Unicode::Types::BoundaryOutcome::Found)
+    if (previous.outcome != Unicode::Types::Utf8::BoundaryOutcome::Found)
     {
         return std::nullopt;
     }
@@ -208,9 +208,9 @@ bool verifyContainingCluster() noexcept
     const auto previous =
         GameWIP::Unicode::Utf8::previousGraphemeBoundary(text, 1);
 
-    return next.outcome == GameWIP::Unicode::Types::BoundaryOutcome::Found &&
+    return next.outcome == GameWIP::Unicode::Types::Utf8::BoundaryOutcome::Found &&
            next.byteOffset == 3 &&
-           previous.outcome == GameWIP::Unicode::Types::BoundaryOutcome::Found &&
+           previous.outcome == GameWIP::Unicode::Types::Utf8::BoundaryOutcome::Found &&
            previous.byteOffset == 0;
 }
 ```

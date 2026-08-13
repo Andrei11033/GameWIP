@@ -17,7 +17,7 @@ It provides strict UTF-8 and UTF-16 scalar operations, validation and conversion
 
 ## Generated API reference
 
-Use @ref GameWIP::Unicode for scalar and version helpers, @ref GameWIP::Unicode::Utf8 for UTF-8 and text-boundary operations, @ref GameWIP::Unicode::Utf16 for UTF-16 operations, and @ref GameWIP::Unicode::Types for passive outcomes and result values.
+Use @ref GameWIP::Unicode for scalar and version helpers, @ref GameWIP::Unicode::Utf8 for UTF-8 and text-boundary operations, @ref GameWIP::Unicode::Utf16 for UTF-16 operations, and @ref GameWIP::Unicode::Types for shared outcomes plus the organized `Types::Utf8` and `Types::Utf16` result families.
 
 The generated reference documents every public declaration from `unicode/unicode.h`. The manual explains how those declarations compose, which failure and progress guarantees callers can rely on, and which policies intentionally remain outside the library.
 

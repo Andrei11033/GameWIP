@@ -36,7 +36,7 @@ int leadingScalarByteCount(std::string_view input) noexcept
 {
     namespace Unicode = GameWIP::Unicode;
 
-    const Unicode::Types::Utf8DecodeResult decoded = Unicode::Utf8::decodeScalar(input);
+    const Unicode::Types::Utf8::DecodeResult decoded = Unicode::Utf8::decodeScalar(input);
     if (decoded.outcome == Unicode::Types::DecodeOutcome::Decoded)
     {
         return static_cast<int>(decoded.bytesConsumed);
