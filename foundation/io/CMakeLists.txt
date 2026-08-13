@@ -9,7 +9,7 @@ add_library(GameWIP::IO ALIAS IO)
 target_sources(IO
     PRIVATE
         core/io.cpp
-    core/transfer.cpp
+        core/transfer.cpp
         core/io_test_hooks.cpp
     PUBLIC
         FILE_SET public_headers

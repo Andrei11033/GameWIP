@@ -68,15 +68,20 @@ Conformance uses:
 
 The Unicode 17.0.0 data files identify Unicode, Inc. as the copyright holder and refer users to the Unicode terms and license. Unicode Data Files are licensed under Unicode License v3 (SPDX `Unicode-3.0`) unless a file states otherwise. See the [Unicode License v3](https://www.unicode.org/license.txt) and [Unicode Terms of Use](https://www.unicode.org/terms_of_use.html).
 
-`foundation/unicode/tools/generate_unicode_data.py` is the deterministic, Python-standard-library-only generator. The generated `unicode/internal/generated/unicode_properties.h` is checked in, so normal consumers do not require Python, Unicode source files, or network access.
+`foundation/unicode/tools/generate_unicode_data.py` is the deterministic, Python-standard-library-only generator. It evaluates power-of-two block sizes from 32 through 512, including each candidate's required index width, and selects the smallest compiled table. A smaller block wins an exact size tie to retain finer cache locality. The bounded candidate range preserves the same constant-time two-table-read lookup shape; native benchmarks remain the authority for performance. The generated `unicode/internal/generated/unicode_properties.h` is checked in, so normal consumers do not require Python, Unicode source files, or network access.
 
 The current Unicode 17.0.0 generation reports:
 
 ```text
 High start: U+0E1000
-Index entries: 14400 (14400 bytes)
-Unique blocks: 226 (14464 bytes)
-Total table bytes: 28864
+Block size | Index width | Index bytes | Unique blocks | Block bytes | Total bytes
+        32 |           2 |       57600 |           304 |        9728 |       67328
+        64 |           1 |       14400 |           226 |       14464 |       28864
+       128 |           1 |        7200 |           156 |       19968 |       27168 selected
+       256 |           1 |        3600 |           104 |       26624 |       30224
+       512 |           1 |        1800 |            68 |       34816 |       36616
+Selected block size: 128
+Total table bytes: 27168
 ```
 
 These values are review diagnostics for the current data layout, not public ABI promises.
@@ -117,7 +122,7 @@ A Unicode version update is an intentional behavior change rather than a routine
 1. Update the pinned Unicode/UCD and emoji versions in the generator and GameWIP Unicode maintenance configuration.
 2. Update version assertions, conformance-file markers and paths, and manual text that intentionally pins the previous version.
 3. Refresh official data and regenerate the table.
-4. Review Unicode release changes, the generated diff, high-start value, unique-block count, and total table bytes.
+4. Review Unicode release changes, the generated diff, candidate-layout report, selected block size, high-start value, and total table bytes.
 5. Run official grapheme conformance with `GAMEWIP_REQUIRE_UNICODE_CONFORMANCE_TESTS=1`.
 6. Run normal correctness/package validation, AddressSanitizer, static analysis/formatting, documentation checks, and benchmark registration.
 7. Compare representative `BM_Unicode_*` benchmark results when data or segmentation behavior changes materially.
@@ -134,7 +139,7 @@ Build benchmark registration and run the Unicode family:
 .\build\benchmark\GameWIPBenchmarks.exe --benchmark_filter=BM_Unicode
 ```
 
-The Unicode benchmark family covers representative UTF-8 decoding, validation, scalar encoding, code-point traversal, existing stateless grapheme traversal, deep non-ASCII stateless next/previous queries, indexed forward traversal, and repeated grapheme-aware suffix deletion on a long combining/emoji/Indic/regional-indicator fixture. Timings are diagnostic and are never correctness gates; see @ref project_benchmarking.
+The Unicode benchmark family covers representative UTF-8 decoding, validation, scalar encoding, sequential and table-wide scattered property lookup, code-point traversal, existing stateless grapheme traversal, deep non-ASCII stateless next/previous queries, indexed forward traversal, and repeated grapheme-aware suffix deletion on a long combining/emoji/Indic/regional-indicator fixture. The focused property benchmarks make generated-layout regressions visible; the end-to-end grapheme benchmarks show whether they materially affect callers. Timings are diagnostic and are never correctness gates; see @ref project_benchmarking.
 
 For the new traversal benchmarks, compare scaling as fixture size grows. The intended behavior is bounded local work for ordinary stateless queries where a nearby safe restart exists, and linear-overall repeated cursor traversal/edit work after one linear index build.
 

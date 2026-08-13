@@ -14,7 +14,7 @@ add_library(GameWIP::FileSystem ALIAS FileSystem)
 target_sources(FileSystem
     PRIVATE
         core/filesystem.cpp
-    core/path.cpp
+        core/path.cpp
     PUBLIC
         FILE_SET public_headers
         TYPE HEADERS

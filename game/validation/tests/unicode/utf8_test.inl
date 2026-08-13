@@ -474,6 +474,9 @@ void testGeneratedPropertyData(TestSupport::Context &context)
     static_cast<void>(context.expectEq("generated patch version", std::uint8_t{0}, Generated::kUnicodeVersionPatch));
     static_cast<void>(context.expectEq("generated block size", std::size_t{1} << Generated::kBlockShift, Generated::kBlockSize));
     static_cast<void>(context.expectEq("generated block mask", Generated::kBlockSize - 1, Generated::kBlockMask));
+    static_cast<void>(context.expectTrue(
+        "generated block size is within the performance-safe generator search range",
+        Generated::kBlockSize >= 32 && Generated::kBlockSize <= 512));
     static_cast<void>(context.expectEq(
         "generated index coverage",
         static_cast<std::size_t>(Generated::kHighStart) >> Generated::kBlockShift,
