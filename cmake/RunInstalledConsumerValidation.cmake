@@ -35,9 +35,11 @@ set(expected_gamewip_headers
     debug/assert/assert_export.h
     filesystem/filesystem.h
     io/io.h
+    logger/config.h
     logger/logger.h
     logger/logger_export.h
     logger/logger_macros.h
+    logger/types.h
     terminal/style.h
     terminal/terminal.h
     terminal/terminal_export.h

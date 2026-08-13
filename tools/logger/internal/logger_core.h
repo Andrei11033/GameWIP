@@ -4,7 +4,6 @@
 #pragma once
 
 #include "logger/logger.h"
-#include "logger/internal/logger_api_aliases.h"
 #include "logger/internal/logger_platform.h"
 
 #include "filesystem/filesystem.h"
@@ -497,8 +496,8 @@ namespace GameWIP::Logger::Detail::Core
         bool workerBusy = false;
         bool shutdownRegistered = false;
 
-        Types::HealthState healthState = Types::HealthState::Disabled;
-        Types::FailureSource lastFailureSource = Types::FailureSource::None;
+        Types::Health::State healthState = Types::Health::State::Disabled;
+        Types::Health::FailureSource lastFailureSource = Types::Health::FailureSource::None;
         ErrorCode lastHealthError = ErrorCode::Success;
         std::int64_t lastHealthNativeCode = 0;
         std::uint64_t healthFailureCount = 0;
@@ -507,7 +506,7 @@ namespace GameWIP::Logger::Detail::Core
 
     LoggerState &loggerState();
 
-#if INTERNAL_LOGGER_TEST_HOOKS
+#if LOGGER_INTERNAL_TEST_HOOKS
     void pauseFinalProducerLeaveForTest() noexcept;
 #endif
 
@@ -535,7 +534,7 @@ namespace GameWIP::Logger::Detail::Core
             if (!active)
                 return;
             active = false;
-#if INTERNAL_LOGGER_TEST_HOOKS
+#if LOGGER_INTERNAL_TEST_HOOKS
             pauseFinalProducerLeaveForTest();
 #endif
             if (loggerState().activeProducers.fetch_sub(1, std::memory_order_acq_rel) == 1)
@@ -584,7 +583,7 @@ namespace GameWIP::Logger::Detail::Core
         bool timedOut = false;
     };
 
-#if INTERNAL_LOGGER_TEST_HOOKS
+#if LOGGER_INTERNAL_TEST_HOOKS
     struct LoggerTestHookState
     {
         std::atomic_bool nextFileOpenFailure{false};
@@ -649,8 +648,8 @@ namespace GameWIP::Logger::Detail::Core
     void countFormatFailure();
     void publishRuntimeStateUnlocked();
 
-    void resetHealthUnlocked(Types::HealthState state, OutputMode effectiveOutput);
-    void recordHealthFailure(Types::FailureSource source, const Status &status, bool disableChannel);
+    void resetHealthUnlocked(Types::Health::State state, OutputMode effectiveOutput);
+    void recordHealthFailure(Types::Health::FailureSource source, const Status &status, bool disableChannel);
     void markHealthDisabledUnlocked();
     [[nodiscard]] Status firstFailure(Status current, const Status &candidate);
 
@@ -754,7 +753,7 @@ namespace GameWIP::Logger::Detail::Core
         std::vector<QueuedLogEntry> &&batch,
         std::unique_ptr<char[]> &&ringArena,
         std::unique_ptr<char[]> &&batchArena);
-    Types::InitResult initImpl(const Types::Config &config);
+    Types::Init::Result initImpl(const Types::Config &config);
     Status shutdownImpl();
     void setOutputMode(OutputMode mode);
     OutputMode outputModeAfterFileSetupFailure(OutputMode requested, bool fallbackToConsole);
@@ -763,7 +762,7 @@ namespace GameWIP::Logger::Detail::Core
     PendingLogEntry makePendingEntry(LogLevel level, SourceId source, std::string_view message, bool alreadyTruncated = false);
     EnqueueOutcome enqueueAndWakeWorker(const PendingLogEntry &entry, bool countDrops = true);
 
-    Types::ReportResult reportPreformattedMessageImpl(
+    Types::Report::Result reportPreformattedMessageImpl(
         LogLevel level,
         std::string_view source,
         std::string_view message,

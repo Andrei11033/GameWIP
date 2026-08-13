@@ -57,4 +57,3 @@ void testShutdownAndHealthEpoch(TestContext &context)
     context.expectEq("new init resets failure count", reset.failureCount, std::uint64_t{0});
     context.expectEq("new init resets failure source", reset.lastFailureSource, Logger::Types::Health::FailureSource::None);
 }
-

@@ -32,7 +32,7 @@ namespace GameWIP::Logger::Detail::Core
             cache.text = formatTimeOrFallback(currentSecond, "%H:%M:%S", status);
             if (!status.ok())
             {
-                recordHealthFailure(Types::FailureSource::TimeConversion, status, false);
+                recordHealthFailure(Types::Health::FailureSource::TimeConversion, status, false);
             }
             cache.second = currentSecond;
             cache.valid = true;
@@ -142,7 +142,7 @@ namespace GameWIP::Logger::Detail::Core
 
 using namespace GameWIP::Logger::Detail::Core;
 
-void GameWIP::Logger::Detail::Core::recordAllocationFailure()
+void GameWIP::Logger::Detail::Core::recordAllocationFailure() noexcept
 {
     if (runtimeStateRunning(loggerState().runtimeStateBits.load(std::memory_order_acquire)))
     {
@@ -150,7 +150,7 @@ void GameWIP::Logger::Detail::Core::recordAllocationFailure()
     }
 }
 
-void GameWIP::Logger::Detail::Core::recordFormatFailure()
+void GameWIP::Logger::Detail::Core::recordFormatFailure() noexcept
 {
     if (runtimeStateRunning(loggerState().runtimeStateBits.load(std::memory_order_acquire)))
     {

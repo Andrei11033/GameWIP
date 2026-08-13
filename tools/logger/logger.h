@@ -39,18 +39,18 @@ namespace GameWIP::Logger
             }
         }
 
-        GAMEWIP_LOGGER_EXPORT void enqueuePreformattedMessage(Types::Level level, std::string_view source, std::string_view message);
+        GAMEWIP_LOGGER_EXPORT void enqueuePreformattedMessage(Types::Level level, std::string_view source, std::string_view message) noexcept;
         GAMEWIP_LOGGER_EXPORT void enqueuePreformattedMessage(
             Types::Level level,
             std::string_view source,
             std::string_view message,
-            bool alreadyTruncated);
-        GAMEWIP_LOGGER_EXPORT void enqueuePreformattedMessage(Types::Level level, Types::SourceId source, std::string_view message);
+            bool alreadyTruncated) noexcept;
+        GAMEWIP_LOGGER_EXPORT void enqueuePreformattedMessage(Types::Level level, Types::SourceId source, std::string_view message) noexcept;
         GAMEWIP_LOGGER_EXPORT void enqueuePreformattedMessage(
             Types::Level level,
             Types::SourceId source,
             std::string_view message,
-            bool alreadyTruncated);
+            bool alreadyTruncated) noexcept;
 
         GAMEWIP_LOGGER_EXPORT Types::Report::Result reportPreformattedMessage(
             Types::Level level,
@@ -58,17 +58,17 @@ namespace GameWIP::Logger
             std::string_view message,
             bool showPopup,
             bool alreadyTruncated,
-            const std::chrono::milliseconds *timeout);
+            const std::chrono::milliseconds *timeout) noexcept;
         GAMEWIP_LOGGER_EXPORT Types::Report::Result reportPreformattedMessage(
             Types::Level level,
             Types::SourceId source,
             std::string_view message,
             bool showPopup,
             bool alreadyTruncated,
-            const std::chrono::milliseconds *timeout);
+            const std::chrono::milliseconds *timeout) noexcept;
 
-        GAMEWIP_LOGGER_EXPORT void recordAllocationFailure();
-        GAMEWIP_LOGGER_EXPORT void recordFormatFailure();
+        GAMEWIP_LOGGER_EXPORT void recordAllocationFailure() noexcept;
+        GAMEWIP_LOGGER_EXPORT void recordFormatFailure() noexcept;
         GAMEWIP_LOGGER_EXPORT std::string &formatScratch();
         GAMEWIP_LOGGER_EXPORT std::size_t getMaxMessageLengthForFormatting();
         GAMEWIP_LOGGER_EXPORT Types::FormatPolicy getFormatPolicyForFormatting();
@@ -376,7 +376,6 @@ namespace GameWIP::Logger
     } // namespace Detail::Core
     /// @endcond
 
-
     /// @brief Marks a format string as runtime-provided for Logger formatting overloads.
     constexpr Types::RuntimeFormat runtimeFormat(std::string_view format) noexcept
     {
@@ -631,7 +630,12 @@ namespace GameWIP::Logger
     /// @brief Runtime-formats and synchronously reports a diagnostic under a bounded deadline.
     template <typename Source, typename... Args>
         requires(sizeof...(Args) > 0)
-    Types::Report::Result report(Types::Level level, Source source, std::chrono::milliseconds timeout, Types::RuntimeFormat format, Args &&...args) noexcept
+    Types::Report::Result report(
+        Types::Level level,
+        Source source,
+        std::chrono::milliseconds timeout,
+        Types::RuntimeFormat format,
+        Args &&...args) noexcept
     {
         return Detail::Core::runtimeFormatAndReport(level, source, false, &timeout, format, args...);
     }
@@ -639,20 +643,32 @@ namespace GameWIP::Logger
     /// @brief Synchronously reports a preformatted Error with a UTF-8 string source.
     GAMEWIP_LOGGER_EXPORT Types::Report::Result reportError(std::string_view source, std::string_view message) noexcept;
     /// @brief Synchronously reports a preformatted Error under a bounded deadline.
-    GAMEWIP_LOGGER_EXPORT Types::Report::Result reportError(std::string_view source, std::chrono::milliseconds timeout, std::string_view message) noexcept;
+    GAMEWIP_LOGGER_EXPORT Types::Report::Result reportError(
+        std::string_view source,
+        std::chrono::milliseconds timeout,
+        std::string_view message) noexcept;
     /// @brief Synchronously reports a preformatted Error with a registered source.
     GAMEWIP_LOGGER_EXPORT Types::Report::Result reportError(Types::SourceId source, std::string_view message) noexcept;
     /// @brief Synchronously reports a registered-source Error under a bounded deadline.
-    GAMEWIP_LOGGER_EXPORT Types::Report::Result reportError(Types::SourceId source, std::chrono::milliseconds timeout, std::string_view message) noexcept;
+    GAMEWIP_LOGGER_EXPORT Types::Report::Result reportError(
+        Types::SourceId source,
+        std::chrono::milliseconds timeout,
+        std::string_view message) noexcept;
 
     /// @brief Synchronously reports a preformatted Fatal diagnostic and optional popup.
     GAMEWIP_LOGGER_EXPORT Types::Report::Result reportFatal(std::string_view source, std::string_view message) noexcept;
     /// @brief Synchronously reports a preformatted Fatal diagnostic under a bounded deadline.
-    GAMEWIP_LOGGER_EXPORT Types::Report::Result reportFatal(std::string_view source, std::chrono::milliseconds timeout, std::string_view message) noexcept;
+    GAMEWIP_LOGGER_EXPORT Types::Report::Result reportFatal(
+        std::string_view source,
+        std::chrono::milliseconds timeout,
+        std::string_view message) noexcept;
     /// @brief Synchronously reports a registered-source Fatal diagnostic and optional popup.
     GAMEWIP_LOGGER_EXPORT Types::Report::Result reportFatal(Types::SourceId source, std::string_view message) noexcept;
     /// @brief Synchronously reports a registered-source Fatal diagnostic under a bounded deadline.
-    GAMEWIP_LOGGER_EXPORT Types::Report::Result reportFatal(Types::SourceId source, std::chrono::milliseconds timeout, std::string_view message) noexcept;
+    GAMEWIP_LOGGER_EXPORT Types::Report::Result reportFatal(
+        Types::SourceId source,
+        std::chrono::milliseconds timeout,
+        std::string_view message) noexcept;
 
     /// @brief Synchronously reports a preformatted Error with an enum source.
     template <typename Source>
@@ -719,9 +735,15 @@ namespace GameWIP::Logger
     /// @brief Reports a registered-source Fatal diagnostic and then calls std::terminate().
     [[noreturn]] GAMEWIP_LOGGER_EXPORT void fatalTerminate(Types::SourceId source, std::string_view message) noexcept;
     /// @brief Reports a Fatal diagnostic under a bounded deadline and then calls std::terminate().
-    [[noreturn]] GAMEWIP_LOGGER_EXPORT void fatalTerminate(std::string_view source, std::chrono::milliseconds timeout, std::string_view message) noexcept;
+    [[noreturn]] GAMEWIP_LOGGER_EXPORT void fatalTerminate(
+        std::string_view source,
+        std::chrono::milliseconds timeout,
+        std::string_view message) noexcept;
     /// @brief Reports a registered-source Fatal diagnostic under a bounded deadline and then calls std::terminate().
-    [[noreturn]] GAMEWIP_LOGGER_EXPORT void fatalTerminate(Types::SourceId source, std::chrono::milliseconds timeout, std::string_view message) noexcept;
+    [[noreturn]] GAMEWIP_LOGGER_EXPORT void fatalTerminate(
+        Types::SourceId source,
+        std::chrono::milliseconds timeout,
+        std::string_view message) noexcept;
 
     /// @brief Reports an enum-source Fatal diagnostic and then calls std::terminate().
     template <typename Source>

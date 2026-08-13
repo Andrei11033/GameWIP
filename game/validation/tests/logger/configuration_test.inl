@@ -121,4 +121,3 @@ void testFileFallbackAndSetupStatus(TestContext &context)
     context.expectEq("fallback effective output console", recovered.effectiveOutput, Logger::Types::OutputMode::Console);
     context.expectEq("fallback health degraded", Logger::getHealth().state, Logger::Types::Health::State::Degraded);
 }
-

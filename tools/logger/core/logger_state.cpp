@@ -14,16 +14,16 @@ namespace GameWIP::Logger::Detail::Core
             return Unicode::Utf8::validate(text).outcome == Unicode::Types::ValidationOutcome::Valid;
         }
 
-        [[nodiscard]] Types::InitResult failedInitAfterException(const Types::Config &config, ErrorCode code) noexcept
+        [[nodiscard]] Types::Init::Result failedInitAfterException(const Types::Config &config, ErrorCode code) noexcept
         {
-            Types::InitResult result;
+            Types::Init::Result result;
             result.status = IO::makeStatus(code);
             result.requestedOutput = config.output;
             try
             {
                 if (GameWIP::Logger::isRunning())
                 {
-                    result.outcome = Types::InitOutcome::Started;
+                    result.outcome = Types::Init::Outcome::Started;
                     result.effectiveOutput = GameWIP::Logger::getOutput();
                 }
                 else
@@ -33,7 +33,7 @@ namespace GameWIP::Logger::Detail::Core
             }
             catch (...)
             {
-                result.outcome = Types::InitOutcome::Disabled;
+                result.outcome = Types::Init::Outcome::Disabled;
                 result.effectiveOutput = OutputMode::None;
             }
             return result;
@@ -280,11 +280,11 @@ namespace GameWIP::Logger::Detail::Core
         return current;
     }
 
-    void resetHealthUnlocked(Types::HealthState state, OutputMode effectiveOutput)
+    void resetHealthUnlocked(Types::Health::State state, OutputMode effectiveOutput)
     {
         loggerState().healthState = state;
         loggerState().mode = effectiveOutput;
-        loggerState().lastFailureSource = Types::FailureSource::None;
+        loggerState().lastFailureSource = Types::Health::FailureSource::None;
         loggerState().lastHealthError = ErrorCode::Success;
         loggerState().lastHealthNativeCode = 0;
         loggerState().healthFailureCount = 0;
@@ -292,10 +292,10 @@ namespace GameWIP::Logger::Detail::Core
 
     void markHealthDisabledUnlocked()
     {
-        loggerState().healthState = Types::HealthState::Disabled;
+        loggerState().healthState = Types::Health::State::Disabled;
     }
 
-    void recordHealthFailure(Types::FailureSource source, const Status &status, bool disableChannel)
+    void recordHealthFailure(Types::Health::FailureSource source, const Status &status, bool disableChannel)
     {
         if (status.ok())
             return;
@@ -309,34 +309,34 @@ namespace GameWIP::Logger::Detail::Core
         {
             switch (source)
             {
-            case Types::FailureSource::File:
+            case Types::Health::FailureSource::File:
                 loggerState().fileOutputAvailableAtomic.store(false, std::memory_order_release);
                 if (loggerState().mode == OutputMode::Both)
                     loggerState().mode = OutputMode::Console;
                 else if (loggerState().mode == OutputMode::File)
                     loggerState().mode = OutputMode::None;
                 break;
-            case Types::FailureSource::Console:
+            case Types::Health::FailureSource::Console:
                 if (loggerState().mode == OutputMode::Both)
                     loggerState().mode = OutputMode::File;
                 else if (loggerState().mode == OutputMode::Console)
                     loggerState().mode = OutputMode::None;
                 break;
-            case Types::FailureSource::DebugOutput:
+            case Types::Health::FailureSource::DebugOutput:
                 loggerState().debugOutputEnabled = false;
                 loggerState().debugOutputEnabledAtomic.store(false, std::memory_order_release);
                 break;
-            case Types::FailureSource::FatalPopup:
+            case Types::Health::FailureSource::FatalPopup:
                 loggerState().fatalPopupEnabled = false;
                 loggerState().fatalPopupEnabledAtomic.store(false, std::memory_order_release);
                 break;
-            case Types::FailureSource::None:
-            case Types::FailureSource::TimeConversion:
+            case Types::Health::FailureSource::None:
+            case Types::Health::FailureSource::TimeConversion:
                 break;
             }
         }
 
-        loggerState().healthState = loggerState().mode == OutputMode::None ? Types::HealthState::Disabled : Types::HealthState::Degraded;
+        loggerState().healthState = loggerState().mode == OutputMode::None ? Types::Health::State::Disabled : Types::Health::State::Degraded;
         publishRuntimeStateUnlocked();
     }
 
@@ -611,9 +611,9 @@ GameWIP::Logger::Types::Init::Result GameWIP::Logger::initFile(std::string_view 
     return init(config);
 }
 
-GameWIP::Logger::Types::InitResult GameWIP::Logger::Detail::Core::initImpl(const Types::Config &config)
+GameWIP::Logger::Types::Init::Result GameWIP::Logger::Detail::Core::initImpl(const Types::Config &config)
 {
-    Types::InitResult result;
+    Types::Init::Result result;
     result.requestedOutput = config.output;
 
     std::lock_guard<std::mutex> lifecycleLock(loggerState().lifecycleMutex);
@@ -622,11 +622,11 @@ GameWIP::Logger::Types::InitResult GameWIP::Logger::Detail::Core::initImpl(const
         if (loggerState().workerRunning || loggerState().loggingThread.joinable())
         {
             result.status = IO::makeStatus(ErrorCode::AlreadyOpen);
-            result.outcome = Types::InitOutcome::Started;
+            result.outcome = Types::Init::Outcome::Started;
             result.effectiveOutput = loggerState().mode;
             return result;
         }
-        resetHealthUnlocked(Types::HealthState::Disabled, OutputMode::None);
+        resetHealthUnlocked(Types::Health::State::Disabled, OutputMode::None);
     }
 
     if (!loggerState().shutdownRegistered)
@@ -638,7 +638,7 @@ GameWIP::Logger::Types::InitResult GameWIP::Logger::Detail::Core::initImpl(const
     const auto fail = [&](Status status)
     {
         result.status = std::move(status);
-        result.outcome = Types::InitOutcome::Disabled;
+        result.outcome = Types::Init::Outcome::Disabled;
         result.effectiveOutput = OutputMode::None;
         std::lock_guard<std::mutex> lock(loggerState().logMutex);
         loggerState().workerRunning = false;
@@ -660,26 +660,26 @@ GameWIP::Logger::Types::InitResult GameWIP::Logger::Detail::Core::initImpl(const
     if (softQueueSize == 0)
     {
         softQueueSize = 4;
-        result.adjustments |= Types::InitAdjustment::QueueLimitsAdjusted;
+        result.adjustments |= Types::Init::Adjustment::QueueLimitsAdjusted;
     }
     std::size_t maxMessageLength = config.maxMessageLength;
     if (maxMessageLength == 0)
     {
         maxMessageLength = 512;
-        result.adjustments |= Types::InitAdjustment::MessageLengthAdjusted;
+        result.adjustments |= Types::Init::Adjustment::MessageLengthAdjusted;
     }
     std::size_t inlineMessageCapacity = std::min(config.inlineMessageCapacity, maxMessageLength);
     if (inlineMessageCapacity != config.inlineMessageCapacity)
-        result.adjustments |= Types::InitAdjustment::InlineCapacityAdjusted;
+        result.adjustments |= Types::Init::Adjustment::InlineCapacityAdjusted;
 
     double hardQueueMultiplier = config.hardQueueMultiplier;
     bool hardQueueAdjusted = false;
     std::size_t hardQueueSize = effectiveHardQueueLimit(hardQueueMultiplier, softQueueSize, hardQueueAdjusted);
     if (hardQueueAdjusted)
-        result.adjustments |= Types::InitAdjustment::QueueLimitsAdjusted;
+        result.adjustments |= Types::Init::Adjustment::QueueLimitsAdjusted;
     std::size_t workerBatchSize = effectiveWorkerBatchSize(config.workerBatchSize, hardQueueSize);
     if (config.workerBatchSize != 0 && workerBatchSize != config.workerBatchSize)
-        result.adjustments |= Types::InitAdjustment::WorkerBatchAdjusted;
+        result.adjustments |= Types::Init::Adjustment::WorkerBatchAdjusted;
 
     std::uint8_t levelMask = kAllLevelMask;
     if (!prepareLevelMask(config.levelFilters, levelMask))
@@ -708,9 +708,9 @@ GameWIP::Logger::Types::InitResult GameWIP::Logger::Detail::Core::initImpl(const
             {},
             {},
             {});
-        resetHealthUnlocked(Types::HealthState::Disabled, OutputMode::None);
+        resetHealthUnlocked(Types::Health::State::Disabled, OutputMode::None);
         publishRuntimeStateUnlocked();
-        result.outcome = Types::InitOutcome::Disabled;
+        result.outcome = Types::Init::Outcome::Disabled;
         result.effectiveOutput = OutputMode::None;
         return result;
     }
@@ -726,10 +726,10 @@ GameWIP::Logger::Types::InitResult GameWIP::Logger::Detail::Core::initImpl(const
         hardQueueSize = 4;
         hardQueueMultiplier = 1.0;
         workerBatchSize = effectiveWorkerBatchSize(config.workerBatchSize, hardQueueSize);
-        result.adjustments |= Types::InitAdjustment::QueueLimitsAdjusted;
-        result.adjustments |= Types::InitAdjustment::QueueStorageFallback;
+        result.adjustments |= Types::Init::Adjustment::QueueLimitsAdjusted;
+        result.adjustments |= Types::Init::Adjustment::QueueStorageFallback;
         if (config.workerBatchSize != 0 && workerBatchSize != config.workerBatchSize)
-            result.adjustments |= Types::InitAdjustment::WorkerBatchAdjusted;
+            result.adjustments |= Types::Init::Adjustment::WorkerBatchAdjusted;
         if (!prepareQueueStorage(hardQueueSize, workerBatchSize, inlineMessageCapacity, ring, ringSize, batch, ringArena, batchArena))
             return fail(IO::makeStatus(ErrorCode::OutOfMemory));
     }
@@ -756,7 +756,7 @@ GameWIP::Logger::Types::InitResult GameWIP::Logger::Detail::Core::initImpl(const
             std::move(batch),
             std::move(ringArena),
             std::move(batchArena));
-        resetHealthUnlocked(Types::HealthState::Healthy, config.output);
+        resetHealthUnlocked(Types::Health::State::Healthy, config.output);
         publishRuntimeStateUnlocked();
     }
 
@@ -796,7 +796,7 @@ GameWIP::Logger::Types::InitResult GameWIP::Logger::Detail::Core::initImpl(const
             if (!timeStatus.ok())
             {
                 result.outputSetupStatus = firstFailure(result.outputSetupStatus, timeStatus);
-                recordHealthFailure(Types::FailureSource::TimeConversion, timeStatus, false);
+                recordHealthFailure(Types::Health::FailureSource::TimeConversion, timeStatus, false);
             }
 
             constexpr std::size_t kMaxCollisionAttempts = 1024;
@@ -841,7 +841,7 @@ GameWIP::Logger::Types::InitResult GameWIP::Logger::Detail::Core::initImpl(const
         {
             const OutputMode fallback = outputModeAfterFileSetupFailure(config.output, config.fallbackToConsoleOnFileFailure);
             setOutputMode(fallback);
-            recordHealthFailure(Types::FailureSource::File, result.outputSetupStatus, false);
+            recordHealthFailure(Types::Health::FailureSource::File, result.outputSetupStatus, false);
         }
     }
 
@@ -849,7 +849,7 @@ GameWIP::Logger::Types::InitResult GameWIP::Logger::Detail::Core::initImpl(const
     if (result.effectiveOutput == OutputMode::None)
     {
         result.status = result.outputSetupStatus.ok() ? IO::makeStatus(ErrorCode::OpenFailed) : result.outputSetupStatus;
-        result.outcome = Types::InitOutcome::Disabled;
+        result.outcome = Types::Init::Outcome::Disabled;
         std::lock_guard<std::mutex> lock(loggerState().logMutex);
         clearQueueUnlocked();
         if (loggerState().releaseStorageOnShutdown)
@@ -890,7 +890,7 @@ GameWIP::Logger::Types::InitResult GameWIP::Logger::Detail::Core::initImpl(const
         return fail(IO::makeStatus(ErrorCode::NativeFailure));
     }
 
-    result.outcome = Types::InitOutcome::Started;
+    result.outcome = Types::Init::Outcome::Started;
     result.effectiveOutput = getOutput();
     return result;
 }

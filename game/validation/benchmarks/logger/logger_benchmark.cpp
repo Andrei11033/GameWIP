@@ -80,8 +80,8 @@ namespace
                 }
             }
 
-            const Logger::Types::InitResult initResult = Logger::init(config);
-            initialized_ = initResult.status.ok() && initResult.outcome == Logger::Types::InitOutcome::Started;
+            const Logger::Types::Init::Result initResult = Logger::init(config);
+            initialized_ = initResult.status.ok() && initResult.outcome == Logger::Types::Init::Outcome::Started;
             if (!initialized_)
             {
                 const std::string error = std::format(
@@ -129,7 +129,7 @@ namespace
             config.output = Logger::Types::OutputMode::None;
             // Disabled output is a successful configuration but intentionally does not start a worker.
             const auto init = Logger::init(config);
-            if (!init.status.ok() || init.outcome != Logger::Types::InitOutcome::Disabled)
+            if (!init.status.ok() || init.outcome != Logger::Types::Init::Outcome::Disabled)
             {
                 state.SkipWithError("Logger disabled initialization failed.");
                 return;
@@ -259,7 +259,7 @@ namespace
                         config.logDirectory = directoryText;
                         config.sources = sources;
                         const auto init = Logger::init(config);
-                        initialized = init.status.ok() && init.outcome == Logger::Types::InitOutcome::Started;
+                        initialized = init.status.ok() && init.outcome == Logger::Types::Init::Outcome::Started;
                     }
                 }
                 catch (const std::exception &exception)

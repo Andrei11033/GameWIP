@@ -12,6 +12,8 @@ gamewip_add_public_header_check(TerminalStyle terminal_style_header.cpp GameWIP:
 gamewip_add_public_header_check(Window window_header.cpp GameWIP::Window)
 gamewip_add_public_header_check(WindowRenderer window_renderer_header.cpp GameWIP::Window)
 gamewip_add_public_header_check(WindowNativeWin32 window_native_win32_header.cpp GameWIP::Window)
+gamewip_add_public_header_check(LoggerTypes logger_types_header.cpp GameWIP::Logger)
+gamewip_add_public_header_check(LoggerConfig logger_config_header.cpp GameWIP::Logger)
 gamewip_add_public_header_check(Logger logger_header.cpp GameWIP::Logger)
 gamewip_add_public_header_check(LoggerMacros logger_macros_header.cpp GameWIP::Logger)
 gamewip_add_public_header_check(Assert assert_header.cpp AssertCompileInterface)

@@ -27,4 +27,3 @@ void testFileLoggingAndUtf8Truncation(TestContext &context)
         GameWIP::Unicode::Utf8::validate(contents).outcome,
         GameWIP::Unicode::Types::ValidationOutcome::Valid);
 }
-

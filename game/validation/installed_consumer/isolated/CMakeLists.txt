@@ -18,6 +18,12 @@ endif()
 find_package(${GAMEWIP_CONSUMER_PACKAGE} ${GAMEWIP_PACKAGE_VERSION} EXACT CONFIG REQUIRED)
 
 add_executable(GameWIPIsolatedConsumer main.cpp)
+if(GAMEWIP_CONSUMER_PACKAGE STREQUAL "Logger")
+    target_sources(GameWIPIsolatedConsumer PRIVATE
+        logger_config.cpp
+        logger_types.cpp
+    )
+endif()
 target_compile_features(GameWIPIsolatedConsumer PRIVATE cxx_std_23)
 target_compile_definitions(GameWIPIsolatedConsumer PRIVATE
     "GAMEWIP_CONSUMER_${GAMEWIP_CONSUMER_PACKAGE}=1"

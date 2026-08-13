@@ -76,12 +76,9 @@ namespace GameWIP::Logger
         inline constexpr bool isSourceEnum =
             std::is_enum_v<std::remove_cvref_t<Enum>> && !std::is_same_v<std::remove_cvref_t<Enum>, Types::Level> &&
             !std::is_same_v<std::remove_cvref_t<Enum>, Types::OutputMode> && !std::is_same_v<std::remove_cvref_t<Enum>, Types::FormatPolicy> &&
-            !std::is_same_v<std::remove_cvref_t<Enum>, Types::Init::Outcome> &&
-            !std::is_same_v<std::remove_cvref_t<Enum>, Types::Init::Adjustment> &&
-            !std::is_same_v<std::remove_cvref_t<Enum>, Types::FlushOutcome> &&
-            !std::is_same_v<std::remove_cvref_t<Enum>, Types::Report::Outcome> &&
-            !std::is_same_v<std::remove_cvref_t<Enum>, Types::Report::Delivery> &&
-            !std::is_same_v<std::remove_cvref_t<Enum>, Types::Health::State> &&
+            !std::is_same_v<std::remove_cvref_t<Enum>, Types::Init::Outcome> && !std::is_same_v<std::remove_cvref_t<Enum>, Types::Init::Adjustment> &&
+            !std::is_same_v<std::remove_cvref_t<Enum>, Types::FlushOutcome> && !std::is_same_v<std::remove_cvref_t<Enum>, Types::Report::Outcome> &&
+            !std::is_same_v<std::remove_cvref_t<Enum>, Types::Report::Delivery> && !std::is_same_v<std::remove_cvref_t<Enum>, Types::Health::State> &&
             !std::is_same_v<std::remove_cvref_t<Enum>, Types::Health::FailureSource>;
 
         template <typename Enum>

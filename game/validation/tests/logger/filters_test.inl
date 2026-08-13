@@ -59,4 +59,3 @@ void testFilterStatusesAndConcurrency(TestContext &context, const LoggerTestOpti
     static_cast<void>(Logger::setSourceFilter(static_cast<Logger::Types::SourceId>(TestSource::Core), true));
     context.expectTrue("concurrent filter final flush", flushCompleted(Logger::flush(5s)));
 }
-

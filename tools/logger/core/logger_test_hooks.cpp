@@ -92,7 +92,7 @@ namespace GameWIP::Logger::Detail::Core
 
 using namespace GameWIP::Logger::Detail::Core;
 
-#if INTERNAL_LOGGER_TEST_HOOKS
+#if LOGGER_INTERNAL_TEST_HOOKS
 namespace GameWIP::Logger::TestHooks
 {
     void reset() noexcept

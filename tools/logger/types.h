@@ -122,12 +122,12 @@ namespace GameWIP::Logger::Types
         /// @brief Rich initialization result separating operation status from final lifecycle state.
         struct Result
         {
-            IO::Types::Status status;                        ///< Overall operational status.
-            Outcome outcome = Outcome::Disabled;             ///< Final lifecycle outcome.
-            Adjustment adjustments = Adjustment::None;       ///< Recoverable changes made by init().
-            OutputMode requestedOutput = OutputMode::None;   ///< Caller-requested output mode.
-            OutputMode effectiveOutput = OutputMode::None;   ///< Output mode actually left active.
-            IO::Types::Status outputSetupStatus;             ///< Direct File/output setup status.
+            IO::Types::Status status;                      ///< Overall operational status.
+            Outcome outcome = Outcome::Disabled;           ///< Final lifecycle outcome.
+            Adjustment adjustments = Adjustment::None;     ///< Recoverable changes made by init().
+            OutputMode requestedOutput = OutputMode::None; ///< Caller-requested output mode.
+            OutputMode effectiveOutput = OutputMode::None; ///< Output mode actually left active.
+            IO::Types::Status outputSetupStatus;           ///< Direct File/output setup status.
         };
     } // namespace Init
 
@@ -165,9 +165,9 @@ namespace GameWIP::Logger::Types
         /// @brief Result of a synchronous emergency report attempt.
         struct Result
         {
-            IO::Types::Status status;                  ///< First real operation failure, if any.
-            Outcome outcome = Outcome::Completed;      ///< Independent deadline outcome.
-            Delivery delivery = Delivery::None;        ///< Delivery across eligible channels.
+            IO::Types::Status status;             ///< First real operation failure, if any.
+            Outcome outcome = Outcome::Completed; ///< Independent deadline outcome.
+            Delivery delivery = Delivery::None;   ///< Delivery across eligible channels.
         };
     } // namespace Report
 
@@ -195,12 +195,12 @@ namespace GameWIP::Logger::Types
         /// @brief Coherent snapshot of Logger health and failure metadata.
         struct Snapshot
         {
-            State state = State::Disabled;                                     ///< Aggregate health state.
-            OutputMode effectiveOutput = OutputMode::None;                     ///< Currently usable normal sinks.
-            FailureSource lastFailureSource = FailureSource::None;             ///< Most recent failed channel.
-            IO::Types::ErrorCode lastError = IO::Types::ErrorCode::Success;    ///< Most recent portable error.
-            std::int64_t lastNativeCode = 0;                                   ///< Associated backend-native error.
-            std::uint64_t failureCount = 0;                                    ///< Failures in the current init epoch.
+            State state = State::Disabled;                                  ///< Aggregate health state.
+            OutputMode effectiveOutput = OutputMode::None;                  ///< Currently usable normal sinks.
+            FailureSource lastFailureSource = FailureSource::None;          ///< Most recent failed channel.
+            IO::Types::ErrorCode lastError = IO::Types::ErrorCode::Success; ///< Most recent portable error.
+            std::int64_t lastNativeCode = 0;                                ///< Associated backend-native error.
+            std::uint64_t failureCount = 0;                                 ///< Failures in the current init epoch.
         };
     } // namespace Health
 } // namespace GameWIP::Logger::Types

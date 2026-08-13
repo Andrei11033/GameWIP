@@ -126,4 +126,3 @@ void testFatalPopupFailure(TestContext &context)
     context.pass("fatal popup failure hook test skipped because LOGGER_INTERNAL_TEST_HOOKS=0");
 #endif
 }
-

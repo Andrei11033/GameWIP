@@ -21,7 +21,7 @@ namespace
 
             const std::string_view argument(argv[index]);
             if (argument == "--logger-test-child=fatal-terminate"
-#if INTERNAL_LOGGER_TEST_HOOKS
+#if LOGGER_INTERNAL_TEST_HOOKS
                 || argument == "--logger-test-child=enqueue-wakeup" || argument == "--logger-test-child=shutdown-wakeup"
 #endif
             )
