@@ -107,7 +107,7 @@ namespace GameWIP::Window::Detail::Platform
             windowRegistry.erase(state.id.value);
             state.id = {};
             state.owner = {};
-            if (!removed.valid())
+            if (!removed.isValid())
                 return;
             for (const auto &[id, candidate] : windowRegistry)
             {
@@ -158,7 +158,7 @@ namespace GameWIP::Window::Detail::Platform
 
         [[nodiscard]] DWORD extendedStyleFor(const WindowState &state) noexcept
         {
-            DWORD style = state.owner.valid() ? 0 : WS_EX_APPWINDOW;
+            DWORD style = state.owner.isValid() ? 0 : WS_EX_APPWINDOW;
             if (!state.focusable)
                 style |= WS_EX_NOACTIVATE;
             if (state.alwaysOnTop)
@@ -377,7 +377,7 @@ namespace GameWIP::Window::Detail::Platform
 
     WindowState *resolveWindowId(Types::WindowId id) noexcept
     {
-        if (!id.valid())
+        if (!id.isValid())
             return nullptr;
         std::scoped_lock lock(windowRegistryMutex);
         const auto found = windowRegistry.find(id.value);
@@ -453,62 +453,6 @@ namespace GameWIP::Window::Detail::Platform
         {
             return IO::makeStatus(code, nativeCode);
         }
-    }
-
-    bool utf8ToUtf16(std::string_view text, std::wstring &output, DWORD &nativeCode)
-    {
-        output.clear();
-        nativeCode = ERROR_SUCCESS;
-        if (text.empty())
-            return true;
-        if (text.size() > static_cast<std::size_t>(std::numeric_limits<int>::max()))
-        {
-            nativeCode = ERROR_INVALID_PARAMETER;
-            return false;
-        }
-        const int length = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, text.data(), static_cast<int>(text.size()), nullptr, 0);
-        if (length <= 0)
-        {
-            nativeCode = GetLastError();
-            return false;
-        }
-        output.resize(static_cast<std::size_t>(length));
-        if (MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, text.data(), static_cast<int>(text.size()), output.data(), length) != length)
-        {
-            nativeCode = GetLastError();
-            output.clear();
-            return false;
-        }
-        return true;
-    }
-
-    bool utf16ToUtf8(std::wstring_view text, std::string &output, DWORD &nativeCode)
-    {
-        output.clear();
-        nativeCode = ERROR_SUCCESS;
-        if (text.empty())
-            return true;
-        if (text.size() > static_cast<std::size_t>(std::numeric_limits<int>::max()))
-        {
-            nativeCode = ERROR_INVALID_PARAMETER;
-            return false;
-        }
-        const int length =
-            WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, text.data(), static_cast<int>(text.size()), nullptr, 0, nullptr, nullptr);
-        if (length <= 0)
-        {
-            nativeCode = GetLastError();
-            return false;
-        }
-        output.resize(static_cast<std::size_t>(length));
-        if (WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, text.data(), static_cast<int>(text.size()), output.data(), length, nullptr, nullptr) !=
-            length)
-        {
-            nativeCode = GetLastError();
-            output.clear();
-            return false;
-        }
-        return true;
     }
 
     UINT dpiForWindow(HWND window) noexcept
@@ -1202,8 +1146,8 @@ namespace GameWIP::Window::Detail::Platform
             data->classReferenceHeld = true;
             state.platform = std::move(data);
 
-            if ((description.placement.monitor.valid() && nativeMonitor(description.placement.monitor) == nullptr) ||
-                (description.mode.monitor.valid() && nativeMonitor(description.mode.monitor) == nullptr))
+            if ((description.placement.monitor.isValid() && nativeMonitor(description.placement.monitor) == nullptr) ||
+                (description.mode.monitor.isValid() && nativeMonitor(description.mode.monitor) == nullptr))
             {
                 return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
             }
@@ -1220,10 +1164,10 @@ namespace GameWIP::Window::Detail::Platform
             if (Detail::consumeFailure(TestHooks::FailurePoint::TitleConversion))
                 return IO::makeStatus(IO::Types::ErrorCode::EncodingFailed);
             if (!utf8ToUtf16(description.title, state.platform->utf16Scratch, nativeCode))
-                return statusFromWin32(IO::Types::ErrorCode::EncodingFailed, nativeCode, "convert window title to UTF-16");
+                return statusFromWin32(IO::Types::ErrorCode::InvalidArgument, nativeCode, "convert window title to UTF-16");
 
             HWND ownerHandle = nullptr;
-            if (description.owner.valid())
+            if (description.owner.isValid())
             {
                 std::scoped_lock lock(windowRegistryMutex);
                 const auto owner = windowRegistry.find(description.owner.value);
@@ -1280,7 +1224,7 @@ namespace GameWIP::Window::Detail::Platform
             }
             else if (description.placement.kind == Types::PlacementKind::Centered)
             {
-                HMONITOR monitor = description.placement.monitor.valid() ? nativeMonitor(description.placement.monitor)
+                HMONITOR monitor = description.placement.monitor.isValid() ? nativeMonitor(description.placement.monitor)
                                                                          : MonitorFromPoint(POINT{0, 0}, MONITOR_DEFAULTTOPRIMARY);
                 MONITORINFO info{};
                 info.cbSize = sizeof(info);
@@ -1333,7 +1277,7 @@ namespace GameWIP::Window::Detail::Platform
                     return IO::makeStatus(IO::Types::ErrorCode::Unsupported, result);
             }
 
-            status = setFileDropEnabled(state, description.acceptsFileDrops);
+            status = setFileDropEnabled(state, description.fileDropEnabled);
             if (!status.ok())
                 return status;
             status = setOpacity(state, description.opacity);
@@ -1539,7 +1483,7 @@ namespace GameWIP::Window::Detail::Platform
         if (wait)
         {
             DWORD milliseconds = INFINITE;
-            if (timeout != kWaitForever)
+            if (timeout != Events::kWaitForever)
             {
                 const auto maximum = static_cast<std::int64_t>(INFINITE - 1);
                 milliseconds = static_cast<DWORD>(std::min<std::int64_t>(timeout.count(), maximum));
@@ -1623,15 +1567,15 @@ namespace GameWIP::Window::Native::Win32
     }
 } // namespace GameWIP::Window::Native::Win32
 
-#if INTERNAL_WINDOW_TEST_HOOKS
+#if WINDOW_INTERNAL_TEST_HOOKS
 namespace GameWIP::Window::TestHooks
 {
-    Types::EventPumpResult pumpReentrantly() noexcept
+    Types::Events::PumpResult pumpReentrantly() noexcept
     {
         Detail::Platform::Dispatcher &current = Detail::Platform::dispatcher();
         const bool previous = current.pumping;
         current.pumping = true;
-        Types::EventPumpResult result = Detail::Platform::pumpEvents(std::chrono::milliseconds{0}, false);
+        Types::Events::PumpResult result = Detail::Platform::pumpEvents(std::chrono::milliseconds{0}, false);
         current.pumping = previous;
         return result;
     }
@@ -1655,7 +1599,7 @@ namespace GameWIP::Window::TestHooks
             return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
         if (!Detail::Platform::isOwnedByCurrentThread(*state))
             return IO::makeStatus(IO::Types::ErrorCode::ResourceBusy);
-        if (state->mode == Types::WindowMode::Windowed)
+        if (state->mode == Types::Mode::Windowed)
             return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
         return Detail::Platform::recoverAfterDisplayChange(*state, true);
     }

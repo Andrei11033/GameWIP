@@ -1,48 +1,33 @@
-@page window_package_abi Package and ABI boundary
+@page window_package_abi Package and ABI contract
 
-## Installed package
+Window is intentionally built as a **shared C++23 library**. The Win32 implementation owns process-local Window IDs, the native-window registry, class-registration state, and per-thread dispatcher registry. A shared module gives those facilities one coherent runtime instance across executable/DLL boundaries. Static Window linkage is not advertised; supporting it would first require a runtime design that cannot duplicate process identity/state per consuming module.
 
-Installed consumers use the exact-version `Window` config package and link `GameWIP::Window`:
+The exported `Window` object keeps a pImpl boundary. Public C++ types remain part of the exact-version package contract and are not a stable cross-version C ABI.
 
-```cmake
-find_package(Window ${GAMEWIP_REQUIRED_VERSION} EXACT CONFIG REQUIRED)
-target_link_libraries(MyTarget PRIVATE GameWIP::Window)
-```
+## Installed headers
 
-The package resolves its public IO and FileSystem dependencies. The generated `window/window_export.h` file supplies shared-library visibility and is exercised through supported entry headers rather than documented as an independent API.
+The supported public headers are:
 
-## Public headers
+- `window/types.h`
+- `window/description.h`
+- `window/events.h`
+- `window/display.h`
+- `window/display_info.h`
+- `window/window.h`
+- `window/renderer_bridge.h`
+- `window/native/win32.h` on Win32
+- generated `window/window_export.h`
 
-- `window/window.h` is the canonical portable entry point.
-- `window/renderer_bridge.h` is the optional portable renderer bridge and display-color query entry point.
-- `window/native/win32.h` is installed and documented only for Win32 packages and deliberately includes `windows.h`.
+Internal headers and test hooks are source-tree-only. Every supported entry header is compiled in isolation by repository validation.
 
-Internal backend headers, `window/internal/window_test_hooks.h`, source-tree compile definitions, and platform implementation files are not installed consumer interfaces.
+`window/window.h` intentionally includes the normal shared vocabulary, description, fundamental display-mode surface, and events. Rich display inspection, renderer integration, and native interop remain explicit opt-in includes.
 
-## Host DPI requirement
+## Dependencies
 
-On Windows, linking `GameWIP::Window` propagates Window's application resource to executable consumers in both build-tree and installed-package use. The manifest declares Common Controls v6, Per-Monitor-V2 `dpiAwareness`, and the compatible legacy `dpiAware` setting.
+`IO` and `FileSystem` are public package dependencies because installed public types expose their contracts. Unicode is a private implementation dependency used by the shared Window library for strict native text conversion; no Unicode type leaks through Window public headers.
 
-Window therefore does not depend on Assert for DPI policy. `open()` validates the effective thread context and returns `Unsupported` when the host is incompatible; it never changes process DPI awareness at runtime.
+The package remains exact-version matched. On Win32 the installed package also propagates the Window application manifest resource required for Per-Monitor-V2 awareness.
 
-A minimal manifest fragment is:
+## Internal definitions
 
-```xml
-<application xmlns="urn:schemas-microsoft-com:asm.v3">
-  <windowsSettings>
-    <dpiAwareness xmlns="http://schemas.microsoft.com/SMI/2016/WindowsSettings">PerMonitorV2</dpiAwareness>
-  </windowsSettings>
-</application>
-```
-
-The package compiles this as the executable's single `CREATEPROCESS_MANIFEST_RESOURCE_ID RT_MANIFEST` resource. Assert's standalone Common Controls helper is explicit, so ordinary Window + Assert linking does not add a competing resource.
-
-## Compatibility
-
-`Window` is a shared C++23 library with a pImpl object boundary. Consumers follow the compiler, standard-library, runtime, architecture, and exact-version policy in @ref project_library_compatibility. The reviewed shared-library symbol roots are maintained in `cmake/export_allowlists/window.txt`.
-
-## Related pages
-
-- @ref window_quick_start
-- @ref window_native_interop
-- @ref window_testing
+Source-tree validation may enable `WINDOW_INTERNAL_TEST_HOOKS`. Installed imported targets must not expose that definition. Window-specific build variables likewise use the `WINDOW_INTERNAL_*` prefix rather than project-wide `GAMEWIP_*` names.

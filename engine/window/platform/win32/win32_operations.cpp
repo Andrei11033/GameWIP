@@ -141,19 +141,19 @@ namespace GameWIP::Window::Detail::Platform
 
     IO::Types::Status setOwner(WindowState &state, Types::WindowId owner) noexcept
     {
-        WindowState *ownerState = owner.valid() ? resolveWindowId(owner) : nullptr;
-        if (owner.valid() && (ownerState == nullptr || !ownerState->platform || ownerState->platform->ownerThreadId != state.platform->ownerThreadId))
+        WindowState *ownerState = owner.isValid() ? resolveWindowId(owner) : nullptr;
+        if (owner.isValid() && (ownerState == nullptr || !ownerState->platform || ownerState->platform->ownerThreadId != state.platform->ownerThreadId))
         {
             return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
         }
-        for (WindowState *ancestor = ownerState; ancestor != nullptr && ancestor->owner.valid();)
+        for (WindowState *ancestor = ownerState; ancestor != nullptr && ancestor->owner.isValid();)
         {
             if (ancestor->owner == state.id)
                 return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
             ancestor = resolveWindowId(ancestor->owner);
         }
         const Types::WindowId previous = state.owner;
-        WindowState *previousOwnerState = previous.valid() ? resolveWindowId(previous) : nullptr;
+        WindowState *previousOwnerState = previous.isValid() ? resolveWindowId(previous) : nullptr;
         HWND previousOwnerHandle = previousOwnerState != nullptr && previousOwnerState->platform ? previousOwnerState->platform->handle : nullptr;
         IO::Types::Status status = setNativeParent(state.platform->handle, ownerState != nullptr ? ownerState->platform->handle : nullptr);
         if (!status.ok())
@@ -181,7 +181,7 @@ namespace GameWIP::Window::Detail::Platform
             std::wstring title;
             DWORD nativeCode = ERROR_SUCCESS;
             if (!utf8ToUtf16(utf8Title, title, nativeCode))
-                return statusFromWin32(IO::Types::ErrorCode::EncodingFailed, nativeCode, "convert window title");
+                return statusFromWin32(IO::Types::ErrorCode::InvalidArgument, nativeCode, "convert window title");
             std::string cachedTitle(utf8Title);
             if (SetWindowTextW(state.platform->handle, title.c_str()) == FALSE)
                 return statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "SetWindowTextW");
@@ -257,7 +257,7 @@ namespace GameWIP::Window::Detail::Platform
 
     IO::Types::Status centerOn(WindowState &state, Types::MonitorId monitor) noexcept
     {
-        HMONITOR native = monitor.valid() ? nativeMonitor(monitor) : MonitorFromWindow(state.platform->handle, MONITOR_DEFAULTTONEAREST);
+        HMONITOR native = monitor.isValid() ? nativeMonitor(monitor) : MonitorFromWindow(state.platform->handle, MONITOR_DEFAULTTONEAREST);
         MONITORINFO info{};
         info.cbSize = sizeof(info);
         if (native == nullptr || GetMonitorInfoW(native, &info) == FALSE)

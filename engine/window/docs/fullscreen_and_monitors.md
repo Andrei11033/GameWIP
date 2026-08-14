@@ -1,47 +1,38 @@
-@page window_fullscreen_and_monitors Fullscreen, monitors, and DPI
+@page window_fullscreen_monitors Fullscreen and displays
 
-## Monitor snapshots
+## Display types
 
-`getMonitors()` materializes current monitor snapshots. Each snapshot contains a process-local ID, UTF-8 display name, physical virtual-screen bounds and work area, content scale and effective DPI, physical dimensions where available, and primary status. Bounds may have negative origins.
+Monitor identity and physical modes are grouped under `Window::Types::Display`:
 
-Monitor IDs persist for a known native display device within the process but are not serialization IDs. Display reconfiguration may invalidate an ID. Resolve it through `getMonitor()` before reuse; `NotFound` means the monitor is no longer current.
+- `MonitorId` is a process-local currently-known monitor identity and uses `isValid()`.
+- `Mode` describes physical resolution, millihertz refresh, color depth, and interlace state.
+- `ModesResult` and `ModeResult` are checked mode-query results.
 
-## Display modes
+Rich monitor snapshots and OS color state are opt-in through `window/display_info.h`:
 
-Display-mode resolution is physical pixels. Refresh rates are integer millihertz, color depth is bits per pixel, and interlacing is explicit. Enumeration removes exact duplicates and sorts deterministically.
+- `Info`, `MonitorsResult`, and `InfoResult` describe monitor geometry, work area, DPI/scale, physical size, name, and primary state.
+- `ColorSpace`, `ColorInfo`, and `ColorInfoResult` report OS HDR/WCG/color information.
 
-The Win32 current-mode query augments `EnumDisplaySettingsExW` with the active DisplayConfig path's rational target refresh and scan-line order. Rational rates are rounded safely to the nearest millihertz; zero/unknown denominators remain zero and overflow saturates. The preferred query resolves the active GDI source through `QueryDisplayConfig()` and asks `DisplayConfigGetDeviceInfo(DISPLAYCONFIG_DEVICE_INFO_GET_TARGET_PREFERRED_MODE)` for the connected target's actual preferred/native mode. It does not treat the registry-stored desktop mode as preferred.
+## Display operations
 
-## Display color
+`Window::Display` owns display discovery and inspection. Mode-only code can include `window/display.h` and call `getModes()`, `getCurrentMode()`, or `getPreferredMode()`.
 
-Display color is a dynamic, opt-in monitor query rather than part of the lightweight `MonitorInfo` snapshot or global capability flags. Include `<window/renderer_bridge.h>` and call `Renderer::getDisplayColorInfo()` for a connected monitor, or use the owner-thread `Renderer::getWindowDisplayColorInfo()` for an open Window's current monitor. The result reports independent WCG/HDR support, current HDR enablement, portable active color classification, channel precision, panel luminance, and SDR white level where the operating system can report them reliably. Optional numeric facts remain zero when unavailable.
+Code that needs monitor enumeration or color inspection includes `window/display_info.h` and uses `getMonitors()`, `getPrimaryMonitor()`, `getMonitor()`, and `getColorInfo()`.
 
-Renderer integrations should re-query after `MonitorChangedEvent` or `DisplayConfigurationChangedEvent`, Window reopen, and display reconnect. Monitor hot unplug invalidates the old identity safely.
+`getColorInfo(const Window&)` is a checked convenience query for the display currently relevant to a Window. It exists because selecting the relevant native display is platform behavior; equivalent overloads are not added to unrelated operations merely for symmetry.
 
-## Mode transitions
+## Window modes
 
-Windowed mode uses the configured decorations, controls, resizability, and saved placement. Borderless fullscreen applies a popup frame at the selected monitor bounds without changing its display mode. Exclusive fullscreen selects an exact requested native mode when supplied; without one it uses the current mode.
+Top-level Window mode is `Types::Mode`:
 
-Transitions snapshot windowed placement and native styles. A failed transition restores prior styles, placement, and display mode where possible and returns the native failure. Leaving exclusive mode and explicit close restore the saved desktop mode. Exclusive mode suspends on focus loss and resumes on focus acquisition; `FullscreenInfo::suspended` exposes this cached state.
+- `Windowed` keeps ordinary desktop placement.
+- `BorderlessFullscreen` fills the selected monitor without changing its physical display mode.
+- `ExclusiveFullscreen` may switch to an exact requested `Types::Display::Mode`.
 
-An invalid target monitor is rejected. An exclusive mode not present in the monitor's enumerated native modes is rejected as `InvalidArgument`.
+`Types::ModeRequest` combines the top-level mode, target monitor, and optional exact exclusive mode. An invalid monitor ID means the documented current/primary fallback; an unknown nonzero ID is rejected.
 
-## Geometry and DPI
-
-Client-local positions, client sizes, custom chrome, and pointer regions use logical units. Desktop placement, complete frame rectangles, monitor bounds, and work areas use physical virtual-screen coordinates. `framebufferSize()` and display-mode resolutions use physical pixels. See @ref window_coordinates_and_dpi.
-
-The host executable establishes Per-Monitor-V2 awareness through its manifest. Window validates that context and returns `Unsupported` when it is incompatible; it does not mutate process DPI policy.
+`Types::FullscreenInfo` caches the active monitor, optional exclusive mode, exact-mode state, and suspension state. Windowed geometry mutations remain invalid while a fullscreen mode is active.
 
 ## Display changes
 
-A native display change refreshes monitor resolution. Applications holding monitor snapshots should enumerate again. After display-color information has been queried on an owner thread, an HDR/advanced-color transition also produces `DisplayConfigurationChangedEvent` through lazy native change observation.
-
-If a borderless or exclusive fullscreen target disappeared, Window first attempts exclusive-mode restoration, clears all stale fullscreen ownership, changes to `Windowed`, applies windowed styles, and centers a clamped saved windowed frame in the surviving primary monitor's work area. Cached mode, fullscreen data, geometry, framebuffer, DPI, scale, and monitor are updated before notifications. Recovery never leaves `FullscreenInfo` referring to the removed target.
-
-Recovery notification order is `DisplayConfigurationChangedEvent`, `ModeChangedEvent`, optional `MonitorChangedEvent`, optional movement/client/framebuffer events, then optional `ContentScaleChangedEvent`. A failed display restore or placement is returned through the active pump result after portable state has been made non-stale.
-
-## Related pages
-
-- @ref window_coordinates_and_dpi
-- @ref window_manual_validation
-- @ref window_troubleshooting
+The Win32 backend recovers fullscreen state when display topology changes and queues `Types::Events::DisplayConfigurationChanged` / `MonitorChanged` / `ModeChanged` as appropriate. Color configuration changes are also surfaced through display-configuration events; callers re-query `Display::getColorInfo()` for current facts.

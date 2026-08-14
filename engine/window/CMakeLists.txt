@@ -9,16 +9,19 @@ if(NOT COMMAND gamewip_target_platform_sources)
     gamewip_resolve_platform_id(GAMEWIP_PLATFORM_ID)
 endif()
 
+# Window intentionally remains shared-only. Its process-local identities, native-class
+# registration, Window registry, and per-thread dispatcher registry must have one coherent
+# runtime instance when the library is consumed across executable/DLL boundaries.
 add_library(Window SHARED)
 add_library(GameWIP::Window ALIAS Window)
 
 if(WIN32)
     enable_language(RC)
-    set(INTERNAL_WINDOW_APPLICATION_MANIFEST "${CMAKE_CURRENT_SOURCE_DIR}/cmake/window_application.manifest")
-    set(INTERNAL_WINDOW_APPLICATION_RC "${CMAKE_CURRENT_BINARY_DIR}/window_application.rc")
-    configure_file("${CMAKE_CURRENT_SOURCE_DIR}/cmake/window_application.rc.in" "${INTERNAL_WINDOW_APPLICATION_RC}" @ONLY)
+    set(WINDOW_INTERNAL_APPLICATION_MANIFEST "${CMAKE_CURRENT_SOURCE_DIR}/cmake/window_application.manifest")
+    set(WINDOW_INTERNAL_APPLICATION_RC "${CMAKE_CURRENT_BINARY_DIR}/window_application.rc")
+    configure_file("${CMAKE_CURRENT_SOURCE_DIR}/cmake/window_application.rc.in" "${WINDOW_INTERNAL_APPLICATION_RC}" @ONLY)
     target_sources(Window INTERFACE
-        "$<BUILD_INTERFACE:${INTERNAL_WINDOW_APPLICATION_RC}>"
+        "$<BUILD_INTERFACE:${WINDOW_INTERNAL_APPLICATION_RC}>"
     )
 endif()
 
@@ -34,6 +37,9 @@ generate_export_header(Window
 
 target_sources(Window
     PRIVATE
+        core/display.cpp
+        core/display_info.cpp
+        core/events.cpp
         core/renderer_bridge.cpp
         core/window.cpp
         core/window_test_hooks.cpp
@@ -44,7 +50,12 @@ target_sources(Window
             "${CMAKE_CURRENT_SOURCE_DIR}/.."
             "${WINDOW_GENERATED_INCLUDE_DIR}"
         FILES
+            "${CMAKE_CURRENT_SOURCE_DIR}/description.h"
+            "${CMAKE_CURRENT_SOURCE_DIR}/display.h"
+            "${CMAKE_CURRENT_SOURCE_DIR}/display_info.h"
+            "${CMAKE_CURRENT_SOURCE_DIR}/events.h"
             "${CMAKE_CURRENT_SOURCE_DIR}/renderer_bridge.h"
+            "${CMAKE_CURRENT_SOURCE_DIR}/types.h"
             "${CMAKE_CURRENT_SOURCE_DIR}/window.h"
             "${WINDOW_GENERATED_INCLUDE_DIR}/window/window_export.h"
 )
@@ -69,19 +80,20 @@ target_include_directories(Window PUBLIC
 target_compile_features(Window PUBLIC cxx_std_23)
 target_compile_definitions(Window
     PRIVATE
-        INTERNAL_WINDOW_TEST_HOOKS=$<BOOL:${WINDOW_ENABLE_TEST_HOOKS}>
+        WINDOW_INTERNAL_TEST_HOOKS=$<BOOL:${WINDOW_ENABLE_TEST_HOOKS}>
     INTERFACE
-        $<BUILD_INTERFACE:INTERNAL_WINDOW_TEST_HOOKS=$<BOOL:${WINDOW_ENABLE_TEST_HOOKS}>>
+        $<BUILD_INTERFACE:WINDOW_INTERNAL_TEST_HOOKS=$<BOOL:${WINDOW_ENABLE_TEST_HOOKS}>>
 )
 
-target_link_libraries(Window PUBLIC
-    IO
-    FileSystem
+target_link_libraries(Window
+    PUBLIC
+        IO
+        FileSystem
+    PRIVATE
+        Unicode
 )
 
 if(MINGW)
-    # MinGW otherwise auto-exports every cross-translation-unit backend helper. Public and
-    # validation-hook ABI entries carry explicit dllexport annotations.
     target_link_options(Window PRIVATE "-Wl,--exclude-all-symbols")
 endif()
 
@@ -98,7 +110,12 @@ if(GAMEWIP_BUILD_DOCS AND COMMAND gamewip_register_doxygen_library)
         NAME Window
         PAGE_ID window_library
         PUBLIC_HEADERS
+            "${CMAKE_CURRENT_SOURCE_DIR}/description.h"
+            "${CMAKE_CURRENT_SOURCE_DIR}/display.h"
+            "${CMAKE_CURRENT_SOURCE_DIR}/display_info.h"
+            "${CMAKE_CURRENT_SOURCE_DIR}/events.h"
             "${CMAKE_CURRENT_SOURCE_DIR}/renderer_bridge.h"
+            "${CMAKE_CURRENT_SOURCE_DIR}/types.h"
             "${CMAKE_CURRENT_SOURCE_DIR}/window.h"
         DOCS
             "${CMAKE_CURRENT_SOURCE_DIR}/docs"

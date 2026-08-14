@@ -23,7 +23,7 @@ Conversion rejects a closed Window with `NotOpen` and wrong-thread native access
 
 ## Framebuffer and scale
 
-`clientSize()` is logical. `framebufferSize()` is the actual physical drawable extent. `contentScale()` reports physical pixels per baseline logical unit and `effectiveDpi()` reports the effective DPI snapshot. Applications should resize renderer-owned attachments from `FramebufferSizeChangedEvent` or the cached framebuffer getter.
+`clientSize()` is logical. `framebufferSize()` is the actual physical drawable extent. `contentScale()` reports physical pixels per baseline logical unit and `effectiveDpi()` reports the effective DPI snapshot. Applications should resize renderer-owned attachments from `Types::Events::FramebufferSizeChanged` or the cached framebuffer getter.
 
 ## DPI resize policy
 

@@ -73,7 +73,7 @@ namespace GameWIP::Window::Detail::Platform
         {
             ComReference<IDXGIFactory1> factory;
             bool queried = false;
-#if INTERNAL_WINDOW_TEST_HOOKS
+#if WINDOW_INTERNAL_TEST_HOOKS
             bool forceConfigurationChange = false;
             bool forceMetadataUnavailable = false;
 #endif
@@ -307,7 +307,7 @@ namespace GameWIP::Window::Detail::Platform
 
         [[nodiscard]] Types::DisplayModeResult queryDisplayMode(Types::MonitorId monitor, DWORD selector) noexcept
         {
-            if (!monitor.valid())
+            if (!monitor.isValid())
                 return {.status = IO::makeStatus(IO::Types::ErrorCode::InvalidArgument)};
             try
             {
@@ -436,7 +436,8 @@ namespace GameWIP::Window::Detail::Platform
                               capabilityBit(C::WindowIcon) | capabilityBit(C::AspectRatioConstraint) | capabilityBit(C::RuntimeInteractionControl) |
                               capabilityBit(C::AlwaysOnTop) | capabilityBit(C::Opacity) | capabilityBit(C::PointerClickThrough) |
                               capabilityBit(C::CursorConfinement) | capabilityBit(C::RelativeCursor) | capabilityBit(C::CursorWarping) |
-                              capabilityBit(C::FileDrop) | capabilityBit(C::ExclusiveFullscreen);
+                              capabilityBit(C::FileDrop) | capabilityBit(C::ExclusiveFullscreen) |
+                              capabilityBit(C::OcclusionReporting);
         if (supportsSystemBackdrop())
             flags |= capabilityBit(C::SystemBackdrop);
         if (supportsTransparentFramebuffer())
@@ -568,7 +569,7 @@ namespace GameWIP::Window::Detail::Platform
 
     Types::MonitorInfoResult getMonitor(Types::MonitorId monitor) noexcept
     {
-        if (!monitor.valid())
+        if (!monitor.isValid())
             return {.status = IO::makeStatus(IO::Types::ErrorCode::InvalidArgument)};
         const HMONITOR native = nativeMonitor(monitor);
         if (native == nullptr)
@@ -578,7 +579,7 @@ namespace GameWIP::Window::Detail::Platform
 
     HMONITOR nativeMonitor(Types::MonitorId id) noexcept
     {
-        if (!id.valid())
+        if (!id.isValid())
             return nullptr;
         const std::wstring expected = monitorDeviceName(id);
         if (expected.empty())
@@ -604,7 +605,7 @@ namespace GameWIP::Window::Detail::Platform
 
     Types::DisplayModeListResult getDisplayModes(Types::MonitorId monitor) noexcept
     {
-        if (!monitor.valid())
+        if (!monitor.isValid())
             return {.status = IO::makeStatus(IO::Types::ErrorCode::InvalidArgument)};
         if (Detail::consumeFailure(TestHooks::FailurePoint::DisplayEnumeration))
             return {.status = IO::makeStatus(IO::Types::ErrorCode::StatFailed)};
@@ -667,7 +668,7 @@ namespace GameWIP::Window::Detail::Platform
 
     Types::DisplayModeResult getPreferredDisplayMode(Types::MonitorId monitor) noexcept
     {
-        if (!monitor.valid())
+        if (!monitor.isValid())
             return {.status = IO::makeStatus(IO::Types::ErrorCode::InvalidArgument)};
         try
         {
@@ -718,7 +719,7 @@ namespace GameWIP::Window::Detail::Platform
 
     Types::DisplayColorInfoResult getDisplayColorInfo(Types::MonitorId monitor) noexcept
     {
-        if (!monitor.valid())
+        if (!monitor.isValid())
             return {.status = IO::makeStatus(IO::Types::ErrorCode::InvalidArgument)};
         if (Detail::consumeFailure(TestHooks::FailurePoint::DisplayColorQuery))
             return {.status = IO::makeStatus(IO::Types::ErrorCode::StatFailed)};
@@ -738,7 +739,7 @@ namespace GameWIP::Window::Detail::Platform
 
             displayColorFactory.queried = true;
             DisplayColorSnapshot snapshot;
-#if INTERNAL_WINDOW_TEST_HOOKS
+#if WINDOW_INTERNAL_TEST_HOOKS
             if (displayColorFactory.forceMetadataUnavailable)
             {
                 displayColorFactory.forceMetadataUnavailable = false;
@@ -761,7 +762,7 @@ namespace GameWIP::Window::Detail::Platform
 
     bool consumeDisplayColorConfigurationChange() noexcept
     {
-#if INTERNAL_WINDOW_TEST_HOOKS
+#if WINDOW_INTERNAL_TEST_HOOKS
         if (displayColorFactory.forceConfigurationChange)
         {
             displayColorFactory.forceConfigurationChange = false;
@@ -776,7 +777,7 @@ namespace GameWIP::Window::Detail::Platform
     }
 } // namespace GameWIP::Window::Detail::Platform
 
-#if INTERNAL_WINDOW_TEST_HOOKS
+#if WINDOW_INTERNAL_TEST_HOOKS
 namespace GameWIP::Window::TestHooks
 {
     std::uint32_t refreshRateMillihertz(std::uint32_t numerator, std::uint32_t denominator) noexcept

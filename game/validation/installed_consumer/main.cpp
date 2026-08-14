@@ -1,14 +1,9 @@
 /// @file main.cpp
 /// @brief Clean installed-package consumer boundary check.
-///
-/// This executable is built from the installed package surface. It verifies that
-/// public headers are usable together and that internal test-hook definitions do
-/// not leak through installed imported targets. It is a package-boundary smoke
-/// test, not a replacement for each library's behavior validation suite.
 
 #if defined(IO_INTERNAL_TEST_HOOKS) || defined(FILESYSTEM_INTERNAL_TEST_HOOKS) || defined(TERMINAL_INTERNAL_TEST_HOOKS) || \
     defined(LOGGER_INTERNAL_TEST_HOOKS) || defined(ASSERT_INTERNAL_TEST_HOOKS) || defined(TEST_SUPPORT_INTERNAL_TEST_HOOKS) || \
-    defined(INTERNAL_WINDOW_TEST_HOOKS)
+    defined(WINDOW_INTERNAL_TEST_HOOKS)
 #error "Installed GameWIP targets must not expose internal test-hook compile definitions."
 #endif
 
@@ -20,6 +15,7 @@
 #include "terminal/terminal.h"
 #include "test_support/test_support.h"
 #include "unicode/unicode.h"
+#include "window/display_info.h"
 #include "window/renderer_bridge.h"
 #include "window/window.h"
 
@@ -64,10 +60,9 @@ int main()
     const GameWIP::Window::Types::LogicalSize windowSize{640, 360};
     GameWIP::Window::Window closedWindow;
     const GameWIP::IO::Types::Status rendererFeedbackStatus = GameWIP::Window::Renderer::attachOcclusionProvider(closedWindow);
-    const GameWIP::Window::Types::DisplayColorInfoResult displayColor = GameWIP::Window::Renderer::getWindowDisplayColorInfo(closedWindow);
+    const bool rendererProvider = GameWIP::Window::Renderer::hasOcclusionProvider(closedWindow);
+    const GameWIP::Window::Types::Display::ColorInfoResult displayColor = GameWIP::Window::Display::getColorInfo(closedWindow);
 
-    // Exercise the installed Assert macro surface through a normal consumer
-    // target. The detailed behavior is covered by the source-tree Assert tests.
     CHECK(write.status.ok());
     CHECK(text.status.ok());
     CHECK(path.status.ok());
@@ -88,7 +83,7 @@ int main()
                    invalidDirectPrintln.code == GameWIP::IO::Types::ErrorCode::InvalidArgument && infrastructureStatus.ok() &&
                    infrastructureText == "None" && childResult.status.ok() &&
                    childResult.outcome == GameWIP::TestSupport::Types::Process::Outcome::NotStarted && childResult.outputBytes.empty() &&
-                   reportingOptions.writeConsole && rendererFeedbackStatus.code == GameWIP::IO::Types::ErrorCode::NotOpen &&
+                   reportingOptions.writeConsole && rendererFeedbackStatus.code == GameWIP::IO::Types::ErrorCode::NotOpen && !rendererProvider &&
                    displayColor.status.code == GameWIP::IO::Types::ErrorCode::NotOpen && windowSize.width == 640 &&
                    loggerConfig.logDirectory == std::string_view{"logs"}
                ? 0

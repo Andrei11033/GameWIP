@@ -1,85 +1,42 @@
 @page window_quick_start Quick start
 
-## Include
-
-```cpp
-#include "window/window.h"
-```
-
-The portable header does not require `windows.h`.
-
-## Installed CMake
-
-Set `GAMEWIP_REQUIRED_VERSION` from the consumer dependency lock; see @ref project_library_compatibility.
-
-```cmake
-find_package(Window ${GAMEWIP_REQUIRED_VERSION} EXACT CONFIG REQUIRED)
-target_link_libraries(MyTarget PRIVATE GameWIP::Window)
-```
-
-The package resolves exact-version IO and FileSystem dependencies.
-
-## Source-tree CMake
-
-```cmake
-target_link_libraries(MyTarget PRIVATE Window)
-```
-
-## Minimal event loop
+Include the normal Window surface and create a closed object:
 
 ```cpp
 #include "window/window.h"
 
-int main()
+GameWIP::Window::Types::Description description;
+description.title = "GameWIP";
+description.visible = true;
+
+auto window = std::make_unique<GameWIP::Window::Window>();
+const auto openStatus = window->open(description);
+```
+
+`Window` is non-copyable and non-movable, so use stable storage when indirect ownership is required.
+
+A simple owner-thread loop uses the event service namespace and sticky close request:
+
+```cpp
+while (!window->hasCloseRequest())
 {
-    namespace Window = GameWIP::Window;
+    const auto pump = GameWIP::Window::Events::wait(std::chrono::milliseconds{16});
+    if (!pump.status.ok())
+        break;
 
-    Window::Types::Description description;
-    description.title = "GameWIP example";
-    description.clientSize = {1280, 720};
-    description.visible = true;
-    description.requestFocus = true;
-
-    Window::Window window;
-    if (const auto status = window.open(description); !status.ok())
-        return 1;
-
-    while (!window.closeRequested())
+    GameWIP::Window::Types::Event event;
+    while (window->popEvent(event))
     {
-        const auto pump = Window::waitEvents();
-        if (!pump.status.ok())
+        if (const auto *resized = event.getIf<GameWIP::Window::Types::Events::ClientSizeChanged>())
         {
-            static_cast<void>(window.close());
-            return 2;
-        }
-
-        Window::Types::Event event;
-        while (window.popEvent(event))
-        {
-            if (const auto *size = event.getIf<Window::Types::FramebufferSizeChangedEvent>())
-            {
-                // Resize renderer-owned attachments to size->size.
-            }
+            // resize renderer resources from resized->size
         }
     }
-
-    return window.close().ok() ? 0 : 3;
 }
+
+static_cast<void>(window->close());
 ```
 
-## Failure handling
+For display enumeration/HDR inspection, explicitly include `window/display_info.h` and use `GameWIP::Window::Display`. For renderer feedback include `window/renderer_bridge.h`. For HWND access include `window/native/win32.h`.
 
-Expected validation, unsupported-operation, ownership, creation, conversion, and native failures are reported through IO status and result types. Failed creation leaves the object closed. A recoverable `close()` failure leaves it open so the owner thread can retry. A late cleanup diagnostic may accompany a completed close; in that case, `isOpen()` is false.
-
-Use explicit `close()` when cleanup errors matter. The destructor is `noexcept`; call `close()` on the owner thread during normal control flow. Destruction on another thread transfers state to the owner dispatcher for cleanup, including during dispatcher or thread shutdown.
-
-## Where to go next
-
-- @ref window_public_api maps the complete surface.
-- @ref window_package_abi documents installed headers and the required Windows manifest.
-- @ref window_coordinates_and_dpi defines logical, screen, and pixel units.
-- @ref window_lifecycle_and_events explains thread affinity, fixed storage, coalescing, and close intent.
-- @ref window_chrome_and_pointer_input covers declarative native hit testing.
-- @ref window_fullscreen_and_monitors covers monitor identities and mode restoration.
-- @ref window_native_interop and @ref window_renderer_integration define the two narrow Renderer integration seams.
-- @ref window_examples contains focused integration examples.
+Public text is UTF-8. File-drop paths use `FileSystem::Types::Path` and are not flattened into text.

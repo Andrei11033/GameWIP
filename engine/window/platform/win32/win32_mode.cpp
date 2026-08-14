@@ -12,7 +12,7 @@ namespace GameWIP::Window::Detail::Platform
     {
         [[nodiscard]] HMONITOR targetMonitor(WindowState &state, Types::MonitorId requested) noexcept
         {
-            if (requested.valid())
+            if (requested.isValid())
                 return nativeMonitor(requested);
             if (state.platform && state.platform->handle)
                 return MonitorFromWindow(state.platform->handle, MONITOR_DEFAULTTONEAREST);

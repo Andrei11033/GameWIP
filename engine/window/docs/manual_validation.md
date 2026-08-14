@@ -25,7 +25,7 @@ To repeat one section, add `--window-manual-suite=<name>`. The accepted names ar
 3. Open an owned tool Window, activate and close it, change/remove its owner at runtime, and verify z-order/minimization behavior remains native and stable.
 4. Show a hidden Window while another application is focused and verify `show()` does not activate it; then call `requestFocus()` and record the OS-policy result.
 5. Where safely reproducible, destroy an open Window object from a non-owner thread, pump the owner dispatcher, and verify that native resources, IDs, icons, cursor state, and exclusive display state are released exactly once.
-6. Trigger unexpected native destruction through the approved test scenario. Verify `isOpen()==false`, `lifetimeState()==NativeDestroyedPendingFinalize`, one typed `ClosedEvent`, `NotOpen` from native mutations, `AlreadyOpen` before finalization, successful owner-thread `close()`, and reopen afterward.
+6. Trigger unexpected native destruction through the approved test scenario. Verify `isOpen()==false`, `lifetimeState()==NativeDestroyedPendingFinalize`, one typed `Types::Events::NativeDestroyed`, `NotOpen` from native mutations, `AlreadyOpen` before finalization, successful owner-thread `close()`, and reopen afterward.
 7. Let a Window-owning thread exit while the portable object remains alive elsewhere. Verify the dispatcher restores exclusive state and destroys the HWND before the surviving object is released, with no duplicate cleanup or stale ID.
 
 ## Custom chrome
@@ -80,10 +80,10 @@ To repeat one section, add `--window-manual-suite=<name>`. The accepted names ar
 
 1. On an SDR-only display, query both the monitor and Window forms. Verify the monitor identity matches, HDR is unsupported and disabled, active color is SDR or unknown only when the driver cannot classify it, and unavailable optional metadata remains zero.
 2. On an HDR-capable display with HDR disabled, verify support remains true while `hdrEnabled` is false and the active mode is not reported as HDR merely because channel precision exceeds eight bits.
-3. Enable HDR while the Window remains on that monitor. Pump events, verify `DisplayConfigurationChangedEvent` is delivered, re-query, and confirm HDR enablement and `Hdr10Pq` where the driver reports PQ output. Disable HDR and repeat.
-4. Move a Window between SDR and HDR monitors. Verify `MonitorChangedEvent`, re-query through the Window form, and confirm the returned monitor and state follow the destination.
+3. Enable HDR while the Window remains on that monitor. Pump events, verify `Types::Events::DisplayConfigurationChanged` is delivered, re-query, and confirm HDR enablement and `Hdr10Pq` where the driver reports PQ output. Disable HDR and repeat.
+4. Move a Window between SDR and HDR monitors. Verify `Types::Events::MonitorChanged`, re-query through the Window form, and confirm the returned monitor and state follow the destination.
 5. Where supported, compare minimum, peak, and full-frame luminance against the display/driver report. Verify SDR white level is expressed in nits; at the native value 2500 the public value is 200 nits.
-6. Disconnect and reconnect the queried display. Verify the stale `MonitorId` fails safely, enumerate again, and confirm a new query succeeds without stale metadata.
+6. Disconnect and reconnect the queried display. Verify the stale `Types::Display::MonitorId` fails safely, enumerate again, and confirm a new query succeeds without stale metadata.
 7. When a Windows 10 compatibility environment is available, repeat without the Windows 11 advanced-color query. This is optional compatibility coverage outside the supported Windows 11 development host. Verify the documented legacy query remains functional and unavailable WCG-specific metadata stays unknown rather than fabricated.
 
 ## Modern Windows capabilities

@@ -12,11 +12,11 @@
 #include <shlobj.h>
 #include <shobjidl.h>
 
-#ifndef INTERNAL_WINDOW_TEST_HOOKS
-#define INTERNAL_WINDOW_TEST_HOOKS 0
+#ifndef WINDOW_INTERNAL_TEST_HOOKS
+#define WINDOW_INTERNAL_TEST_HOOKS 0
 #endif
 
-#if INTERNAL_WINDOW_TEST_HOOKS
+#if WINDOW_INTERNAL_TEST_HOOKS
 #include "window/internal/window_test_hooks.h"
 #endif
 
@@ -34,6 +34,8 @@
 #include <type_traits>
 #include <utility>
 #include <vector>
+
+#include "validation/tests/window/window_api_migration.h"
 
 namespace
 {
@@ -1077,7 +1079,7 @@ namespace
 
         const Window::Types::Capabilities capabilities = Window::getCapabilities().capabilities;
         Window::Types::Description description;
-        description.acceptsFileDrops = capabilities.supports(Window::Types::Capability::FileDrop);
+        description.fileDropEnabled = capabilities.supports(Window::Types::Capability::FileDrop);
         Window::Window window;
         if (!openManualWindow(context, window, "GameWIP file and shell validation", description))
             return;
@@ -2250,7 +2252,7 @@ namespace
         description.title = "Window native event validation";
         description.clientSize = {260, 170};
         description.visible = false;
-        description.acceptsFileDrops = true;
+        description.fileDropEnabled = true;
 
         Window::Window window;
         static_cast<void>(context.expectTrue("native event fixture opens", window.open(description, 64).ok()));
@@ -2417,11 +2419,12 @@ namespace
         if (!window.isOpen())
             return;
 
-        static_cast<void>(context.expectFalse("global occlusion support needs a provider", Window::supports(Capability::OcclusionReporting)));
-        static_cast<void>(context.expectFalse("Window initially lacks occlusion provider", window.supports(Capability::OcclusionReporting)));
+        static_cast<void>(context.expectTrue("global occlusion reporting is supported", Window::supports(Capability::OcclusionReporting)));
+        static_cast<void>(context.expectTrue("Window reports backend occlusion capability", window.supports(Capability::OcclusionReporting)));
+        static_cast<void>(context.expectFalse("Window initially lacks occlusion provider", Feedback::hasOcclusionProvider(window)));
         static_cast<void>(context.expectEq("report before provider is rejected", ErrorCode::NotOpen, Feedback::reportOcclusion(window, true).code));
         static_cast<void>(context.expectTrue("occlusion provider attaches", Feedback::attachOcclusionProvider(window).ok()));
-        static_cast<void>(context.expectTrue("attached Window advertises occlusion reporting", window.supports(Capability::OcclusionReporting)));
+        static_cast<void>(context.expectTrue("attached Window reports its provider", Feedback::hasOcclusionProvider(window)));
         static_cast<void>(context.expectEq("second provider is rejected", ErrorCode::AlreadyOpen, Feedback::attachOcclusionProvider(window).code));
 
         window.clearEvents();
@@ -2449,7 +2452,8 @@ namespace
 
         window.clearEvents();
         static_cast<void>(context.expectTrue("provider detaches", Feedback::detachOcclusionProvider(window).ok()));
-        static_cast<void>(context.expectFalse("detach disables per-window capability", window.supports(Capability::OcclusionReporting)));
+        static_cast<void>(context.expectTrue("detach preserves backend capability", window.supports(Capability::OcclusionReporting)));
+        static_cast<void>(context.expectFalse("detach clears provider state", Feedback::hasOcclusionProvider(window)));
         static_cast<void>(context.expectFalse("detach resets occlusion cache", window.isOccluded()));
         static_cast<void>(context.expectTrue("detach queues final false transition", window.popEvent(event)));
         const auto *visibleEvent = event.getIf<Window::Types::OcclusionChangedEvent>();

@@ -3,11 +3,13 @@
 
 #include "window/internal/window_test_hooks.h"
 
-#if INTERNAL_WINDOW_TEST_HOOKS
+#if WINDOW_INTERNAL_TEST_HOOKS
 #include "window/internal/window_platform.h"
 #include "window/internal/window_state.h"
 
 #include <new>
+#include <thread>
+#include <utility>
 
 namespace
 {
@@ -73,7 +75,7 @@ namespace GameWIP::Window::TestHooks
             state->ownerThread = std::this_thread::get_id();
             state->id = {1};
             state->eventStorage = storage;
-            state->eventStorageKind = Types::EventStorageKind::External;
+            state->eventStorageKind = Types::Events::StorageKind::External;
             Detail::WindowAccess::stateOwner(window) = std::move(state);
             return IO::successStatus();
         }
@@ -87,7 +89,7 @@ namespace GameWIP::Window::TestHooks
         }
     }
 
-    IO::Types::Status enqueue(Window &window, Types::EventData data) noexcept
+    IO::Types::Status enqueue(Window &window, Types::Events::Payload data) noexcept
     {
         Detail::WindowState *state = Detail::WindowAccess::state(window);
         if (state == nullptr)
@@ -96,7 +98,7 @@ namespace GameWIP::Window::TestHooks
         return IO::successStatus();
     }
 
-    IO::Types::Status requestClose(Window &window, Types::CloseRequestSource source) noexcept
+    IO::Types::Status requestClose(Window &window, Types::Events::CloseRequestSource source) noexcept
     {
         Detail::WindowState *state = Detail::WindowAccess::state(window);
         if (state == nullptr)
@@ -117,10 +119,10 @@ namespace GameWIP::Window::TestHooks
         return state != nullptr ? state->pointerHitMask.size() : 0;
     }
 
-    Renderer::PointerHitMaskWord pointerHitMaskWord(const Window &window, std::size_t index) noexcept
+    Types::Renderer::PointerHitMaskWord pointerHitMaskWord(const Window &window, std::size_t index) noexcept
     {
         const Detail::WindowState *state = Detail::WindowAccess::state(window);
-        return state != nullptr && index < state->pointerHitMask.size() ? state->pointerHitMask[index] : Renderer::PointerHitMaskWord{0};
+        return state != nullptr && index < state->pointerHitMask.size() ? state->pointerHitMask[index] : Types::Renderer::PointerHitMaskWord{0};
     }
 
     const void *pointerHitMaskStorage(const Window &window) noexcept
@@ -129,7 +131,7 @@ namespace GameWIP::Window::TestHooks
         return state != nullptr && !state->pointerHitMask.empty() ? state->pointerHitMask.data() : nullptr;
     }
 
-    Types::DisplayColorInfo makeDisplayColorInfo(Types::MonitorId monitor, const DisplayColorSnapshot &snapshot) noexcept
+    Types::Display::ColorInfo makeDisplayColorInfo(Types::Display::MonitorId monitor, const DisplayColorSnapshot &snapshot) noexcept
     {
         return Detail::Platform::makeDisplayColorInfo(
             monitor,

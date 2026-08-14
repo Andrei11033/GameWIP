@@ -146,7 +146,7 @@ namespace GameWIP::Window::Detail::Platform
             });
     }
 
-    IO::Types::Status setWindowControls(WindowState &state, const Types::WindowControls &controls) noexcept
+    IO::Types::Status setControls(WindowState &state, const Types::Controls &controls) noexcept
     {
         return updateStyleValue(
             state,

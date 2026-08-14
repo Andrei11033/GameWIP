@@ -3,7 +3,7 @@
 
 #if defined(IO_INTERNAL_TEST_HOOKS) || defined(FILESYSTEM_INTERNAL_TEST_HOOKS) || defined(TERMINAL_INTERNAL_TEST_HOOKS) || \
     defined(LOGGER_INTERNAL_TEST_HOOKS) || defined(ASSERT_INTERNAL_TEST_HOOKS) || defined(TEST_SUPPORT_INTERNAL_TEST_HOOKS) || \
-    defined(INTERNAL_WINDOW_TEST_HOOKS)
+    defined(WINDOW_INTERNAL_TEST_HOOKS)
 #error "Installed GameWIP targets must not expose internal test-hook compile definitions."
 #endif
 
@@ -16,6 +16,7 @@
 #elif defined(GAMEWIP_CONSUMER_Terminal)
 #include "terminal/terminal.h"
 #elif defined(GAMEWIP_CONSUMER_Window)
+#include "window/display_info.h"
 #include "window/renderer_bridge.h"
 #include "window/window.h"
 #elif defined(GAMEWIP_CONSUMER_Logger)
@@ -25,8 +26,7 @@
 #elif defined(GAMEWIP_CONSUMER_TestSupport)
 #include "test_support/test_support.h"
 #elif defined(__INTELLISENSE__)
-// CMake compiles this source once per selected package. The standalone editor parse has no
-// selection, so give IntelliSense a representative branch without weakening the real-build guard.
+#include "window/display_info.h"
 #include "window/renderer_bridge.h"
 #include "window/window.h"
 #else
@@ -59,9 +59,9 @@ int main()
 #elif defined(GAMEWIP_CONSUMER_Window)
     GameWIP::Window::Window window;
     const auto feedback = GameWIP::Window::Renderer::attachOcclusionProvider(window);
-    const auto displayColor = GameWIP::Window::Renderer::getWindowDisplayColorInfo(window);
-    return GameWIP::Window::getCapabilities().status.ok() && feedback.code == GameWIP::IO::Types::ErrorCode::NotOpen &&
-                   displayColor.status.code == GameWIP::IO::Types::ErrorCode::NotOpen
+    const auto displayColor = GameWIP::Window::Display::getColorInfo(window);
+    return GameWIP::Window::getCapabilities().status.ok() && !GameWIP::Window::Renderer::hasOcclusionProvider(window) &&
+                   feedback.code == GameWIP::IO::Types::ErrorCode::NotOpen && displayColor.status.code == GameWIP::IO::Types::ErrorCode::NotOpen
                ? 0
                : 1;
 #elif defined(GAMEWIP_CONSUMER_Logger)
@@ -82,7 +82,7 @@ int main()
 #elif defined(__INTELLISENSE__)
     GameWIP::Window::Window window;
     return GameWIP::Window::Renderer::attachOcclusionProvider(window).code == GameWIP::IO::Types::ErrorCode::NotOpen &&
-                   GameWIP::Window::Renderer::getWindowDisplayColorInfo(window).status.code == GameWIP::IO::Types::ErrorCode::NotOpen
+                   GameWIP::Window::Display::getColorInfo(window).status.code == GameWIP::IO::Types::ErrorCode::NotOpen
                ? 0
                : 1;
 #endif

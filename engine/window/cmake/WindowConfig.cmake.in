@@ -14,7 +14,7 @@ if(WIN32)
         message(FATAL_ERROR "Window application-manifest package resources are missing.")
     endif()
     enable_language(RC)
-    set(INTERNAL_WINDOW_APPLICATION_MANIFEST "${Window_APPLICATION_MANIFEST}")
+    set(WINDOW_INTERNAL_APPLICATION_MANIFEST "${Window_APPLICATION_MANIFEST}")
     set(Window_APPLICATION_RC "${CMAKE_CURRENT_BINARY_DIR}/window_application.rc")
     configure_file("${Window_APPLICATION_RC_TEMPLATE}" "${Window_APPLICATION_RC}" @ONLY)
     set_property(TARGET GameWIP::Window APPEND PROPERTY

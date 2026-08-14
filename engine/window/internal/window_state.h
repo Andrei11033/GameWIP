@@ -5,9 +5,11 @@
 
 #include "window/renderer_bridge.h"
 
-#include <memory>
 #include <limits>
+#include <memory>
+#include <optional>
 #include <span>
+#include <string>
 #include <thread>
 #include <vector>
 
@@ -15,7 +17,6 @@ namespace GameWIP::Window::Detail::Platform
 {
     struct WindowData;
 
-    /// @brief Deletes backend-owned state without exposing its definition to portable core code.
     struct WindowDataDeleter
     {
         void operator()(WindowData *data) const noexcept;
@@ -24,27 +25,20 @@ namespace GameWIP::Window::Detail::Platform
 
 namespace GameWIP::Window::Detail
 {
-    /// @brief Result of routing one event into fixed storage.
     enum class EnqueueResult
     {
-        Queued,    ///< Stored in a previously unused queue slot.
-        Coalesced, ///< Replaced a compatible retained event.
-        Dropped    ///< Could not be retained at fixed capacity.
+        Queued,
+        Coalesced,
+        Dropped
     };
 
-    /// @brief Stable state addressed by native callbacks for one open lifetime.
-    /// @details Portable core code owns this object. The backend borrows its stable address from
-    /// successful open through unregister or deferred cleanup. Except for deferredCleanupNext and
-    /// the generation pointers explicitly used during ownership transfer, state is owner-thread-only.
     struct WindowState
     {
-        /// @brief Destroys retained non-trivial event payloads before storage is released.
         ~WindowState() noexcept
         {
             clearRetainedEvents();
         }
 
-        /// @brief Clears retained payloads and releases the borrowed or internal queue view.
         void clearRetainedEvents() noexcept
         {
             if (!eventStorage.empty())
@@ -57,30 +51,20 @@ namespace GameWIP::Window::Detail
             eventStorage = {};
         }
 
-        /// @name Native ownership and identity
-        /// @{
-        std::unique_ptr<Platform::WindowData, Platform::WindowDataDeleter> platform; ///< Backend state and native resources.
-        WindowState *deferredCleanupNext = nullptr;                                  ///< Intrusive owner-dispatcher cleanup link.
-        std::thread::id ownerThread;                                                 ///< Portable opening-thread identity.
-        Types::WindowId id;                                                          ///< Identity for this open lifetime.
-        Types::WindowId owner;                                                       ///< Current same-thread owner relationship.
-        /// @}
+        std::unique_ptr<Platform::WindowData, Platform::WindowDataDeleter> platform;
+        WindowState *deferredCleanupNext = nullptr;
+        std::thread::id ownerThread;
+        Types::WindowId id;
+        Types::WindowId owner;
 
-        /// @name Fixed-capacity event queue
-        /// Internal storage owns slots; external storage is borrowed exclusively until close.
-        /// @{
         std::vector<Types::Event> internalEvents;
         std::span<Types::Event> eventStorage;
-        Types::EventStorageKind eventStorageKind = Types::EventStorageKind::Internal;
+        Types::Events::StorageKind eventStorageKind = Types::Events::StorageKind::Internal;
         std::size_t eventHead = 0;
         std::size_t eventCount = 0;
         std::uint64_t nextSequence = 1;
         std::uint64_t droppedEvents = 0;
-        /// @}
 
-        /// @name Authoritative cached public state
-        /// Updated before event routing so dropped notifications never make getters stale.
-        /// @{
         std::string title;
         Types::LogicalSize clientSize;
         Types::PixelSize framebufferSize;
@@ -90,12 +74,12 @@ namespace GameWIP::Window::Detail
         Types::ContentScale contentScale;
         Types::Dpi dpi;
         Types::DpiResizePolicy dpiResizePolicy = Types::DpiResizePolicy::PreserveLogicalClientSize;
-        Types::MonitorId monitor;
-        Types::WindowMode mode = Types::WindowMode::Windowed;
+        Types::Display::MonitorId monitor;
+        Types::Mode mode = Types::Mode::Windowed;
         Types::FullscreenInfo fullscreen;
         Types::PresentationState presentation = Types::PresentationState::Normal;
         Types::DecorationMode decoration = Types::DecorationMode::System;
-        Types::WindowControls controls;
+        Types::Controls controls;
         Types::SizeLimits sizeLimits;
         std::optional<Types::AspectRatio> aspectRatio;
         Types::CursorMode cursorMode = Types::CursorMode::Normal;
@@ -114,13 +98,8 @@ namespace GameWIP::Window::Detail
         bool focused = false;
         bool occluded = false;
         bool occlusionProviderAttached = false;
-        /// @}
 
-        /// @name Renderer-published pointer mask
-        /// Active storage remains valid until explicit invalidation. Generation pointers refer to
-        /// the stable public Window owner and prevent stale asynchronous publication across reopen.
-        /// @{
-        std::vector<Renderer::PointerHitMaskWord> pointerHitMask;
+        std::vector<Types::Renderer::PointerHitMaskWord> pointerHitMask;
         Types::PixelSize pointerHitMaskSize;
         std::uint64_t pointerHitMaskActiveGeneration = 0;
         std::uint64_t pointerHitMaskTargetGeneration = 0;
@@ -129,10 +108,7 @@ namespace GameWIP::Window::Detail
         std::uint64_t *pointerHitMaskGeneration = nullptr;
         bool *pointerHitMaskGenerationExhausted = nullptr;
         bool pointerHitMaskBackendSupportedForTesting = false;
-        /// @}
 
-        /// @name Remaining native policy and lifecycle flags
-        /// @{
         bool cursorInside = false;
         bool resizable = true;
         bool focusable = true;
@@ -142,17 +118,12 @@ namespace GameWIP::Window::Detail
         bool transparentFramebuffer = false;
         bool suppressEvents = false;
         bool nativeDestroyedPendingFinalize = false;
-        /// @}
     };
 
-    /// @brief Returns whether an event payload participates in compatible coalescing.
-    [[nodiscard]] bool isCoalescible(const Types::EventData &data) noexcept;
-    /// @brief Routes an event after authoritative state has been updated.
-    [[nodiscard]] EnqueueResult enqueueEvent(WindowState &state, Types::EventData data) noexcept;
-    /// @brief Sets sticky close intent and queues the first corresponding event.
-    [[nodiscard]] EnqueueResult requestClose(WindowState &state, Types::CloseRequestSource source) noexcept;
+    [[nodiscard]] bool isCoalescible(const Types::Events::Payload &data) noexcept;
+    [[nodiscard]] EnqueueResult enqueueEvent(WindowState &state, Types::Events::Payload data) noexcept;
+    [[nodiscard]] EnqueueResult requestClose(WindowState &state, Types::Events::CloseRequestSource source) noexcept;
 
-    /// @brief Invalidates active and outstanding mask state while retaining allocation capacity.
     inline void invalidatePointerHitMask(WindowState &state) noexcept
     {
         state.pointerHitMask.clear();
@@ -170,7 +141,6 @@ namespace GameWIP::Window::Detail
         }
     }
 
-    /// @brief Samples a logical client position with interactive fallback on every invalid condition.
     [[nodiscard]] inline bool pointerHitMaskAccepts(const WindowState &state, Types::LogicalPosition position) noexcept
     {
         if (state.pointerHitMask.empty() || state.pointerHitMaskActiveGeneration == 0 || state.pointerHitMaskSize != state.framebufferSize ||
@@ -183,36 +153,34 @@ namespace GameWIP::Window::Detail
         if (x >= state.framebufferSize.width || y >= state.framebufferSize.height)
             return true;
 
-        constexpr std::uint64_t bitsPerWord = std::numeric_limits<Renderer::PointerHitMaskWord>::digits;
+        constexpr std::uint64_t bitsPerWord = std::numeric_limits<Types::Renderer::PointerHitMaskWord>::digits;
         const std::uint64_t width = state.framebufferSize.width;
         const std::uint64_t wordsPerRow = width / bitsPerWord + (width % bitsPerWord != 0 ? 1U : 0U);
         const std::uint64_t word = y * wordsPerRow + x / bitsPerWord;
         if (word >= state.pointerHitMask.size())
             return true;
-        const Renderer::PointerHitMaskWord stableWord = state.pointerHitMask[static_cast<std::size_t>(word)];
+        const Types::Renderer::PointerHitMaskWord stableWord = state.pointerHitMask[static_cast<std::size_t>(word)];
         return (stableWord &
-                (Renderer::PointerHitMaskWord{1} << static_cast<unsigned int>(x % bitsPerWord))) != 0;
+                (Types::Renderer::PointerHitMaskWord{1} << static_cast<unsigned int>(x % bitsPerWord))) != 0;
     }
 
-    /// @brief Controlled private-state access for native adapters and approved test hooks.
     struct WindowAccess
     {
-        /// @brief Returns mutable internal state without transferring ownership.
         [[nodiscard]] static WindowState *state(Window &window) noexcept
         {
             return window.state_.get();
         }
-        /// @brief Returns immutable internal state without transferring ownership.
+
         [[nodiscard]] static const WindowState *state(const Window &window) noexcept
         {
             return window.state_.get();
         }
-        /// @brief Returns the owning pointer for controlled deferred-cleanup transfer.
+
         [[nodiscard]] static std::unique_ptr<WindowState> &stateOwner(Window &window) noexcept
         {
             return window.state_;
         }
-        /// @brief Binds mask generations to members whose lifetime spans Window reopen.
+
         static void bindPointerHitMaskLifetime(Window &window, WindowState &state) noexcept
         {
             state.pointerHitMaskGeneration = &window.pointerHitMaskGeneration_;

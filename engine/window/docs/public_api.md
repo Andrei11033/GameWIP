@@ -1,57 +1,74 @@
 @page window_public_api Public API
 
-## Library operations
+## Header ownership
 
-Library-level operations provide four groups of behavior:
+Window exposes one public `GameWIP::Window::Types` tree and focused headers by conceptual ownership:
 
-- `getCapabilities()` and `supports()` report backend features and region limits.
-- `pollEvents()` and `waitEvents()` pump every Window owned by the calling thread.
-- Monitor functions enumerate current snapshots and resolve process-local monitor IDs.
-- Display-mode functions report physical monitor modes.
+- `window/types.h` contains shared primitive/value vocabulary such as `WindowId`, geometry, DPI, limits, and `PresentationState`.
+- `window/description.h` contains creation/configuration policy and `Types::Description`.
+- `window/events.h` contains `Types::Events`, queued `Types::Event`, and calling-thread `Window::Events` pump operations.
+- `window/display.h` contains fundamental `Types::Display::MonitorId`, display `Mode`, and mode queries.
+- `window/display_info.h` is the opt-in rich monitor/color inspection surface.
+- `window/window.h` assembles the normal Window object API and includes the fundamental headers above, but not rich display inspection, renderer integration, or native interop.
+- `window/renderer_bridge.h` is the opt-in renderer feedback bridge.
+- `window/native/win32.h` is explicit Win32 interoperability.
 
-`pollEvents()` never blocks. `waitEvents()` accepts zero, a finite non-negative timeout, or `kWaitForever`. Pumping with no open Window on the calling thread is a successful no-op. Recursive pumping returns `ResourceBusy`.
+Passive data stays under `Types`; stateless domain operations live in the matching service namespace.
 
-## Window ownership
+## Library and Window capabilities
 
-`Window` is default-constructible, non-copyable, and non-movable. Use stable `std::unique_ptr<Window>` storage when a container needs indirection. `open()` either allocates one internal queue or borrows a caller-provided non-empty `span<Event>` until close.
+`getCapabilities()` and `supports()` report backend/environment capability. `Window::supports()` has the same capability semantics; it does not report whether a renderer provider is currently attached. Renderer attachment state is queried with `Renderer::hasOcclusionProvider()`.
 
-Placement monitor IDs are meaningful only for centered placement, and mode monitor IDs are meaningful only for fullscreen requests. Focus or non-normal presentation requires an initially visible Window; a focus request also requires `focusable`. Contradictory combinations are rejected instead of being silently ignored.
+## Window ownership and state
 
-`id()`, `ownerId()`, `setOwner()`, and `isOwnedByCurrentThread()` expose process-local identity and same-thread native ownership. An invalid owner ID removes ownership. Unknown, self, cross-thread, and cyclic owner relationships are rejected.
+`Window` is default-constructible, non-copyable, and non-movable. `open()` establishes one owner thread and one process-local `Types::WindowId`. `WindowId::isValid()` reports whether an ID is nonzero. Except `wakeEventWait()`, open-object operations require the owner thread.
 
-## Cached state
+Cached getters do not issue native queries. Expected failures are returned as `IO::Types::Status` or typed result structs. Explicit `close()` is synchronous and observable through its return status.
 
-Geometry, DPI, content scale, monitor, mode, presentation, decorations, controls, limits, cursor, pointer policy, opacity, visibility, focus, occlusion, and option getters return cached values. They do not synchronize or issue native queries.
+`hasCloseRequest()` reports sticky close intent. `requestClose()` queues one `Types::Events::CloseRequested` transition and `clearCloseRequest()` clears the sticky flag.
 
-The title view is invalidated by title replacement, close, or destruction. Closed-object getters return documented neutral values. Operations requiring native state report `NotOpen`. Queue consumers return false or zero. Repeated close succeeds.
+## Configuration vocabulary
 
-## Mutation
+`Types::Mode` is the top-level Window mode. `Types::Controls` describes standard close/minimize/maximize availability. `Types::Description::fileDropEnabled` configures initial file-drop delivery; runtime state is queried by `Window::isFileDropEnabled()` and changed by `setFileDropEnabled()`.
 
-Checked mutations cover title and icons; logical client size, physical screen placement, conversion, and DPI policy; visibility, focus, attention, and presentation; modes; controls; opacity and backdrop; custom chrome and pointer policy; and cursor behavior.
-
-Windowed geometry and constraint setters return `ResourceBusy` in either fullscreen mode. `maximizable == true` requires `resizable == true`; invalid descriptions and runtime transitions fail instead of silently changing another property.
-
-Input spans for icons and regions are call-scoped. Window copies the required data before returning. Region count is bounded by the advertised capabilities. Icon candidates are tightly packed RGBA8 and require exactly `width * height * 4` bytes after overflow-safe validation.
+Configuration/request types live with `description.h`; shared primitive values remain in `types.h`; live Window state and call-scoped layouts remain in `window.h`.
 
 ## Events
 
-`Types::Events::Payload` is a typed variant, and `Event::getIf<T>()` provides non-throwing typed access. Events report close intent, unexpected native destruction, visibility, geometry, focus, presentation, content scale and DPI, monitor, mode, owner, display configuration, cursor presence, file drops, supported occlusion changes, and redraw requests.
+Event payloads live under `Types::Events` and do not repeat the `Event` suffix. Examples are `CloseRequested`, `ClientPositionChanged`, `FilesDropped`, and `NativeDestroyed`.
 
-Explicit `close()` is synchronous and emits no `ClosedEvent` because it intentionally destroys the Window and releases the queue. Observe user/system intent through sticky `closeRequested()` and `CloseRequestedEvent`.
+`Types::Events::Payload` is the payload variant. `Types::Event` remains the queued envelope and carries a monotonic sequence plus typed `getIf<T>()` access. Queue metadata lives in `Types::Events::StorageKind` and `QueueInfo`; pump results use `Types::Events::PumpResult`.
 
-Unexpected native destruction sets `lifetimeState()` to `NativeDestroyedPendingFinalize` and makes `isOpen()` false. Cached state and the event queue remain available, and a typed `ClosedEvent` is retained even when a full queue has no coalescible entry. Native mutations then report `NotOpen`; another `open()` reports `AlreadyOpen` until owner-thread `close()` completes controlled finalization. The object may reopen afterward.
+Calling-thread pumping is grouped under `Window::Events`:
+
+- `Events::poll()` is non-blocking.
+- `Events::wait(timeout)` accepts zero, a finite non-negative timeout, or `Events::kWaitForever`.
+- `Events::kDefaultQueueCapacity` is used by the default `Window::open()` overload.
+
+Explicit `close()` emits no destruction event. Unexpected native destruction queues `Types::Events::NativeDestroyed`, changes `lifetimeState()` to `NativeDestroyedPendingFinalize`, and keeps cached state and queued events available until controlled finalization.
+
+## Displays
+
+Fundamental display mode operations are under `Window::Display`:
+
+- `getModes()`
+- `getCurrentMode()`
+- `getPreferredMode()`
+
+Rich inspection from `window/display_info.h` adds:
+
+- `getMonitors()`
+- `getPrimaryMonitor()`
+- `getMonitor()`
+- `getColorInfo(Types::Display::MonitorId)`
+- `getColorInfo(const Window&)`
+
+OS HDR/WCG/color facts belong to Window display inspection, not to the renderer bridge.
+
+## Text contract
+
+Public Window text is UTF-8. Window uses the Unicode foundation library for strict UTF-8/UTF-16 conversion at native boundaries rather than maintaining a second UTF-8 decoder. Native title operations additionally reject embedded U+0000 because the Win32 APIs consume NUL-terminated strings.
 
 ## Renderer bridge
 
-The optional `window/renderer_bridge.h` bridge accepts renderer occlusion feedback and packed pointer masks and exposes opt-in per-monitor display-color facts without making Renderer a Window dependency. Display color remains a dynamic query because support and active HDR/WCG state can differ by monitor and change while the process runs. See @ref window_renderer_integration.
-
-## Status authority
-
-Capability flags describe availability, but the status returned by the requested operation remains authoritative. Native errors retain a portable category plus useful native code and diagnostic text when available. Failed setters preserve the previous valid state where the backend can roll back atomically.
-
-## Related pages
-
-- @ref window_coordinates_and_dpi
-- @ref window_lifecycle_and_events
-- @ref window_package_abi
-- @ref window_renderer_integration
+`Window::Renderer` contains renderer-to-Window integration behavior only: occlusion-provider attachment/reporting and pointer hit-mask publication. Passive bridge values live under `Window::Types::Renderer`.
