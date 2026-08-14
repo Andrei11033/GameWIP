@@ -1,18 +1,18 @@
 /// @file assert_test.cpp
 /// @brief Executable self-tests for the Assert library.
 ///
-/// The suite combines public macro checks with isolated child processes, approved
-/// test hooks, deterministic stress scenarios, and opt-in real UI validation.
+/// The suite keeps shared fixtures and child routing in one translation unit while behavior-focused
+/// private fragments cover macros, diagnostics, hooks, interactive actions, stress, process paths, and manual UI.
 
 #include "validation/tests/assert/assert_test.h"
 
 #include "debug/assert/assert.h"
 
-#ifndef INTERNAL_ASSERT_TEST_HOOKS
-#define INTERNAL_ASSERT_TEST_HOOKS 0
+#ifndef ASSERT_INTERNAL_TEST_HOOKS
+#define ASSERT_INTERNAL_TEST_HOOKS 0
 #endif
 
-#if INTERNAL_ASSERT_TEST_HOOKS
+#if ASSERT_INTERNAL_TEST_HOOKS
 #include "debug/assert/internal/assert_test_hooks.h"
 #endif
 #include "logger/logger.h"
@@ -24,11 +24,10 @@
 #include <chrono>
 #include <cstddef>
 #include <cstdlib>
+#include <exception>
 #include <filesystem>
 #include <format>
-#include <fstream>
 #include <iostream>
-#include <sstream>
 #include <string>
 #include <string_view>
 #include <thread>
@@ -50,7 +49,6 @@ namespace
     namespace Logger = GameWIP::Logger;
     namespace TestSupport = GameWIP::TestSupport;
     using AssertTestOptions = GameWIP::Test::AssertTestOptions;
-    using Clock = std::chrono::steady_clock;
     using namespace std::chrono_literals;
 
     constexpr std::string_view assertFailureChildArgument = "--assert-test-child=assert-failure";
@@ -63,10 +61,9 @@ namespace
     constexpr std::string_view childLogDirectoryEnvironmentVariable = "INTERNAL_ASSERT_TEST_CHILD_LOG_DIR";
     constexpr std::string_view assertFailureChildMessage = "assert child logger message";
 
-    /// @brief Mutable test state and TestSupport-backed reporting for the assert suite.
+    /// @brief Mutable test state and TestSupport-backed reporting for the Assert suite.
     struct TestContext
     {
-        /// @brief Binds this adapter to one TestSupport suite context.
         explicit TestContext(TestSupport::Context &testContext) noexcept
             : testContext(testContext)
         {
@@ -75,19 +72,17 @@ namespace
         TestSupport::Context &testContext;
         std::filesystem::path logRoot;
         std::string executablePath;
-        /// @brief Returns the current TestSupport summary snapshot.
+
         [[nodiscard]] TestSupport::Types::Reporting::Summary result() const noexcept
         {
             return testContext.result();
         }
 
-        /// @brief Returns whether no failure has been recorded.
         [[nodiscard]] bool ok() const noexcept
         {
             return testContext.ok();
         }
 
-        /// @brief Routes a legacy categorized line through structured TestSupport output.
         void emit(std::string_view line)
         {
             std::string text(line);
@@ -122,25 +117,16 @@ namespace
             testContext.info(text);
         }
 
-        /// @brief Records a passed assertion-test scenario.
-        /// @param name Scenario name.
         void pass(std::string_view name)
         {
             testContext.pass(name);
         }
 
-        /// @brief Records a failed assertion-test scenario.
-        /// @param name Scenario name.
-        /// @param details Failure details.
         void fail(std::string_view name, std::string_view details)
         {
             testContext.fail(name, details);
         }
 
-        /// @brief Expects a boolean value to be true.
-        /// @param name Scenario name.
-        /// @param value Value to inspect.
-        /// @param details Failure details.
         void expectTrue(std::string_view name, bool value, std::string_view details = "expected true")
         {
             if (value)
@@ -151,10 +137,6 @@ namespace
             testContext.fail(name, details);
         }
 
-        /// @brief Expects a boolean value to be false.
-        /// @param name Scenario name.
-        /// @param value Value to inspect.
-        /// @param details Failure details.
         void expectFalse(std::string_view name, bool value, std::string_view details = "expected false")
         {
             if (!value)
@@ -165,29 +147,22 @@ namespace
             testContext.fail(name, details);
         }
 
-        /// @brief Expects two values to compare equal.
-        /// @param name Scenario name.
-        /// @param actual Actual value.
-        /// @param expected Expected value.
         template <typename Left, typename Right> void expectEq(std::string_view name, const Left &actual, const Right &expected)
         {
             static_cast<void>(testContext.expectEq(name, expected, actual));
         }
 
-        /// @brief Records whether text contains the required substring.
         void expectContains(std::string_view name, std::string_view text, std::string_view expectedSubstring)
         {
             static_cast<void>(testContext.expectContains(name, text, expectedSubstring));
         }
 
-        /// @brief Records whether one fixture file contains the required substring.
         void expectFileContains(std::string_view name, const std::filesystem::path &path, std::string_view expectedSubstring)
         {
             static_cast<void>(testContext.expectFileContains(name, path, expectedSubstring));
         }
     };
 
-    /// @brief Runs one scenario with timing and converts uncaught exceptions into test failures.
     template <typename Function> void runCase(TestContext &context, std::string_view name, Function &&function)
     {
         TestSupport::Section section(context.testContext, name);
@@ -210,7 +185,6 @@ namespace
     using ScopedEnvironmentVariable = TestSupport::ScopedEnvironmentVariable;
     using ScopedClearedEnvironmentVariable = TestSupport::ScopedUnsetEnvironmentVariable;
 
-    /// @brief Records one TestSupport infrastructure failure without changing successful scenario counts.
     bool requireInfrastructure(TestContext &context, std::string_view operation, const TestSupport::Types::InfrastructureStatus &status)
     {
         if (status.ok())
@@ -222,7 +196,6 @@ namespace
         return false;
     }
 
-    /// @brief Stops the logger when a test scope exits.
     struct ScopedLoggerShutdown
     {
         ~ScopedLoggerShutdown()
@@ -231,16 +204,11 @@ namespace
         }
     };
 
-    /// @brief Returns true when the process was launched with an exact argument.
-    /// @param argc Process argument count.
-    /// @param argv Process argument values.
-    /// @param argument Argument to search for.
-    /// @return True when the argument is present.
     bool hasArgument(int argc, char **argv, std::string_view argument)
     {
         for (int index = 1; index < argc; ++index)
         {
-            if (argv[index] == argument)
+            if (argv[index] != nullptr && std::string_view(argv[index]) == argument)
             {
                 return true;
             }
@@ -248,10 +216,6 @@ namespace
         return false;
     }
 
-    /// @brief Runs a child process through TestSupport.
-    /// @param executablePath Executable to launch.
-    /// @param argument Single child-mode argument to pass.
-    /// @return Child process result with exit, timeout, and captured output state.
     TestSupport::Types::Process::Result runChildProcessResult(
         std::string_view executablePath,
         std::string_view argument,
@@ -265,17 +229,11 @@ namespace
         return TestSupport::runChildProcess(child);
     }
 
-    /// @brief Converts a path to the narrow text form expected by Logger::Config.
-    /// @param path Filesystem path to convert.
-    /// @return Narrow path text.
     std::string pathText(const std::filesystem::path &path)
     {
         return path.generic_string();
     }
 
-    /// @brief Reads an entire text file.
-    /// @param path File path to read.
-    /// @return File contents, or empty text when the file cannot be opened.
     std::string readFile(TestContext &context, const std::filesystem::path &path)
     {
         TestSupport::Types::TextResult result = TestSupport::readTextFile(path);
@@ -286,9 +244,6 @@ namespace
         return std::move(result.text);
     }
 
-    /// @brief Reads and concatenates every regular file in a directory.
-    /// @param directory Directory to scan.
-    /// @return Concatenated file contents.
     std::string readDirectoryFiles(TestContext &context, const std::filesystem::path &directory)
     {
         std::string contents;
@@ -307,7 +262,6 @@ namespace
         return contents;
     }
 
-    /// @brief Counts non-overlapping occurrences in captured diagnostic text.
     std::size_t countOccurrences(std::string_view text, std::string_view needle)
     {
         if (needle.empty())
@@ -325,19 +279,12 @@ namespace
         return count;
     }
 
-    /// @brief Returns a message string and records that it was evaluated.
-    /// @param evaluations Evaluation counter to increment.
-    /// @return Diagnostic message text.
     std::string makeDiagnosticMessage(int &evaluations)
     {
         ++evaluations;
         return "evaluated diagnostic message";
     }
 
-    /// @brief Starts a file-only logger for assert tests that inspect flushed CHECK output.
-    /// @param context Test context with the log root.
-    /// @param name Per-scenario log subdirectory name.
-    /// @return True when logger initialization succeeded.
     bool initFileLogger(TestContext &context, std::string_view name)
     {
         Logger::shutdown();
@@ -357,929 +304,14 @@ namespace
         return Logger::init(config).status.ok();
     }
 
-    /// @brief Exercises passing macros and statement safety.
-    /// @param context Test context.
-    void testPassingMacros(TestContext &context)
-    {
-        int value = 0;
+#include "validation/tests/assert/macro_behavior_test.inl"
+#include "validation/tests/assert/diagnostics_test.inl"
+#include "validation/tests/assert/test_hooks_test.inl"
+#include "validation/tests/assert/interactive_test.inl"
+#include "validation/tests/assert/stress_test.inl"
+#include "validation/tests/assert/process_test.inl"
+#include "validation/tests/assert/manual_test.inl"
 
-        if (true) // NOLINT(readability-simplify-boolean-expr) -- Verifies macro statement safety in a conditional.
-            ASSERT(true);
-        else
-            ++value;
-
-        ASSERT_MSG(value == 0, "passing assert message");
-        CHECK(true);
-        CHECK_MSG(value == 0, "passing check message");
-        CHECK_ONCE(true);
-        CHECK_ONCE_MSG(true, "passing check once message");
-
-        context.expectEq("passing macros keep value", value, 0);
-    }
-
-    /// @brief Verifies disabled reporting macros do not evaluate expressions with side effects.
-    /// @param context Test context.
-    void testDisabledMacroEvaluation(TestContext &context)
-    {
-        int assertEvaluations = 0;
-        ASSERT(++assertEvaluations == 1);
-        ASSERT_MSG(++assertEvaluations == 2, "disabled assert message");
-
-#if ASSERT_ENABLED
-        context.expectEq("ASSERT macros evaluate when enabled", assertEvaluations, 2);
-#else
-        context.expectEq("ASSERT macros skip expressions when disabled", assertEvaluations, 0);
-#endif
-
-        int checkEvaluations = 0;
-        CHECK(++checkEvaluations == 1);
-        CHECK_MSG(++checkEvaluations == 2, "disabled check message");
-        CHECK_ONCE(++checkEvaluations == 3);
-        CHECK_ONCE_MSG(++checkEvaluations == 4, "disabled check once message");
-
-#if ASSERT_CHECKS_ENABLED
-        context.expectEq("CHECK macros evaluate when enabled", checkEvaluations, 4);
-#else
-        context.expectEq("CHECK macros skip expressions when disabled", checkEvaluations, 0);
-#endif
-    }
-
-    /// @brief Verifies that VERIFY evaluates its expression even when assertion reporting is disabled.
-    /// @param context Test context.
-    void testVerifyEvaluation(TestContext &context)
-    {
-        int evaluations = 0;
-        VERIFY(++evaluations == 1);
-        VERIFY_MSG(++evaluations == 2, "verify message");
-        context.expectEq("VERIFY evaluates expressions", evaluations, 2);
-    }
-
-    /// @brief Verifies that ENSURE evaluates once and returns the condition result.
-    /// @param context Test context.
-    void testEnsureBehavior(TestContext &context)
-    {
-        ScopedLoggerShutdown loggerShutdown;
-        initFileLogger(context, "ensure");
-
-        int evaluations = 0;
-        const bool first = ENSURE(++evaluations == 1);
-        const bool second = ENSURE_MSG(++evaluations == 3, "ensure false message");
-
-        context.expectTrue("ENSURE true result", first);
-        context.expectTrue("ENSURE false result", !second, "expected false");
-        context.expectEq("ENSURE evaluates once per call", evaluations, 2);
-
-#if ASSERT_CHECKS_ENABLED
-        const std::string contents = readFile(context, Logger::getLogFilePath());
-#if ASSERT_DIAGNOSTICS
-        context.expectTrue(
-            "ENSURE diagnostics include caller function",
-            contents.find("testEnsureBehavior") != std::string::npos,
-            "caller function missing");
-        context.expectTrue(
-            "ENSURE diagnostics avoid lambda function",
-            contents.find("operator()") == std::string::npos,
-            "lambda function leaked into diagnostics");
-#else
-        context.expectTrue(
-            "ENSURE diagnostics stripped message",
-            contents.find("ensure false message") == std::string::npos,
-            "diagnostic message was embedded");
-#endif
-#endif
-    }
-
-    /// @brief Verifies that CHECK_ONCE reports only one flushed log entry per call site.
-    /// @param context Test context.
-    void testCheckOnceLogging(TestContext &context)
-    {
-#if ASSERT_CHECKS_ENABLED
-        ScopedLoggerShutdown loggerShutdown;
-        if (!initFileLogger(context, "check_once"))
-        {
-            context.fail("CHECK_ONCE logger init", "Logger::init failed");
-            return;
-        }
-
-        Logger::resetStats();
-        for (int index = 0; index < 3; ++index)
-        {
-            CHECK_ONCE(false);
-        }
-        Logger::flush(2s);
-        const Logger::Types::Stats stats = Logger::getStats();
-        const std::string contents = readFile(context, Logger::getLogFilePath());
-        context.expectEq("CHECK_ONCE reports without queueing", stats.queued, std::size_t{0});
-        context.expectEq("CHECK_ONCE writes one failure synchronously", stats.written, std::size_t{1});
-        context.expectTrue(
-            "CHECK_ONCE log contains error failure",
-            contents.find("[ERROR][Check]: Check failed") != std::string::npos,
-            "check failure missing from log");
-#else
-        context.pass("CHECK_ONCE logger test skipped because ASSERT_CHECKS_ENABLED=0");
-#endif
-    }
-
-    /// @brief Verifies diagnostic text is present or intentionally stripped according to ASSERT_DIAGNOSTICS.
-    /// @param context Test context.
-    void testDiagnosticConfiguration(TestContext &context)
-    {
-#if ASSERT_CHECKS_ENABLED
-        ScopedLoggerShutdown loggerShutdown;
-        if (!initFileLogger(context, "diagnostics"))
-        {
-            context.fail("diagnostics logger init", "Logger::init failed");
-            return;
-        }
-
-        CHECK_MSG(false, "assert diagnostic message");
-        Logger::flush(2s);
-        const std::string contents = readFile(context, Logger::getLogFilePath());
-
-#if ASSERT_DIAGNOSTICS
-        context.expectTrue("diagnostics include condition", contents.find("false") != std::string::npos, "condition text missing");
-        context.expectTrue("diagnostics include message", contents.find("assert diagnostic message") != std::string::npos, "custom message missing");
-        context.expectTrue("diagnostics include location", contents.find("assert_test.cpp") != std::string::npos, "file text missing");
-        context.expectTrue(
-            "diagnostics include caller function",
-            contents.find("testDiagnosticConfiguration") != std::string::npos,
-            "function text missing");
-#else
-        context.expectTrue("diagnostics stripped condition", contents.find("false") == std::string::npos, "condition text was embedded");
-        context.expectTrue(
-            "diagnostics stripped message",
-            contents.find("assert diagnostic message") == std::string::npos,
-            "diagnostic message was embedded");
-        context.expectTrue("diagnostics stripped location", contents.find("assert_test.cpp") == std::string::npos, "location text was embedded");
-#endif
-#else
-        context.pass("diagnostic logger test skipped because ASSERT_CHECKS_ENABLED=0");
-#endif
-    }
-
-    /// @brief Verifies diagnostic messages are only evaluated when diagnostics are compiled in.
-    /// @param context Test context.
-    void testDiagnosticMessageEvaluation(TestContext &context)
-    {
-#if ASSERT_CHECKS_ENABLED
-        ScopedLoggerShutdown loggerShutdown;
-        if (!initFileLogger(context, "diagnostic_message_evaluation"))
-        {
-            context.fail("diagnostic message evaluation logger init", "Logger::init failed");
-            return;
-        }
-
-        int evaluations = 0;
-        CHECK_MSG(false, makeDiagnosticMessage(evaluations));
-        const std::string contents = readFile(context, Logger::getLogFilePath());
-
-#if ASSERT_DIAGNOSTICS
-        context.expectEq("diagnostic message evaluated when enabled", evaluations, 1);
-        context.expectTrue(
-            "diagnostic evaluated message logged",
-            contents.find("evaluated diagnostic message") != std::string::npos,
-            "evaluated message missing");
-#else
-        context.expectEq("diagnostic message skipped when stripped", evaluations, 0);
-        context.expectTrue(
-            "diagnostic evaluated message stripped",
-            contents.find("evaluated diagnostic message") == std::string::npos,
-            "diagnostic message was embedded");
-#endif
-#else
-        context.pass("diagnostic message evaluation skipped because ASSERT_CHECKS_ENABLED=0");
-#endif
-    }
-
-    /// @brief Verifies message expressions are skipped when macro families are compiled out.
-    /// @param context Test context.
-    void testCompiledOutMessageEvaluation(TestContext &context)
-    {
-#if !ASSERT_ENABLED
-        int evaluations = 0;
-
-        ASSERT_MSG(false, makeDiagnosticMessage(evaluations));
-        ASSERT_INTERACTIVE_MSG(false, makeDiagnosticMessage(evaluations));
-        VERIFY_MSG(false, makeDiagnosticMessage(evaluations));
-        VERIFY_INTERACTIVE_MSG(false, makeDiagnosticMessage(evaluations));
-        context.expectEq("compiled-out assert messages skipped", evaluations, 0);
-#else
-        context.pass("compiled-out assert message test skipped because ASSERT_ENABLED=1");
-#endif
-
-#if !ASSERT_CHECKS_ENABLED
-        CHECK_MSG(false, makeDiagnosticMessage(evaluations));
-        CHECK_ONCE_MSG(false, makeDiagnosticMessage(evaluations));
-        (void)ENSURE_MSG(false, makeDiagnosticMessage(evaluations));
-        context.expectEq("compiled-out check messages skipped", evaluations, 0);
-#else
-        context.pass("compiled-out check message test skipped because ASSERT_CHECKS_ENABLED=1");
-#endif
-    }
-
-    /// @brief Provides one stable macro call site for automated Always Ignore behavior.
-    void interactiveAlwaysIgnoreSite()
-    {
-        ASSERT_INTERACTIVE_MSG(false, "interactive always ignore test");
-    }
-
-    /// @brief Provides one stable macro call site for automated Ignore Once behavior.
-    void interactiveIgnoreOnceSite()
-    {
-        ASSERT_INTERACTIVE_MSG(false, "interactive ignore once repeat test");
-    }
-
-    /// @brief Provides a stable VERIFY_INTERACTIVE site while tracking expression evaluation.
-    void verifyInteractiveAlwaysIgnoreSite(int &evaluations)
-    {
-        VERIFY_INTERACTIVE_MSG(++evaluations < 0, "verify interactive always ignore test");
-    }
-
-    /// @brief Provides one CHECK_ONCE call site shared by all stress-test threads.
-    void threadedCheckOnceSite()
-    {
-        CHECK_ONCE_MSG(false, "threaded check once stress");
-    }
-
-    /// @brief Verifies dialog, debugger, and popup-suppression test hooks and reset behavior.
-    void testAssertTestHooks(TestContext &context)
-    {
-#if INTERNAL_ASSERT_TEST_HOOKS
-        using GameWIP::Debug::Assert::FailureAction;
-        namespace AssertHooks = GameWIP::Debug::Assert::TestHooks;
-        namespace AssertHookDetail = GameWIP::Debug::Assert::Detail::TestHooks;
-
-        AssertHooks::reset();
-        AssertHooks::setDebuggerAttachedOverride(true);
-        context.expectTrue("hook debugger attached override true", AssertHooks::debuggerAttachedForTest());
-        AssertHooks::setDebuggerAttachedOverride(false);
-        context.expectTrue("hook debugger attached override false", !AssertHooks::debuggerAttachedForTest());
-        AssertHooks::clearDebuggerAttachedOverride();
-
-        AssertHooks::forceNextActionDialogFailure();
-        AssertHooks::forceNextFallbackActionDialogFailure();
-        const FailureAction fallbackAction = AssertHooks::showFailureActionDialogForTest(
-            "Assert hook test",
-            "Primary and fallback action dialogs are forced to fail; default action should be returned.",
-            FailureAction::IgnoreOnce);
-        context.expectTrue("hook action dialog failure consumed", !AssertHookDetail::consumeNextActionDialogFailure());
-        context.expectTrue("hook fallback action dialog failure consumed", !AssertHookDetail::consumeNextFallbackActionDialogFailure());
-        context.expectTrue("hook action dialog default fallback", fallbackAction == FailureAction::IgnoreOnce);
-
-        AssertHooks::setPopupSuppressedOverride(true);
-        AssertHooks::showErrorPopupForTest("Assert hook popup suppression", "This popup should be suppressed by the test hook.");
-        context.pass("hook popup suppression override returned without UI");
-        AssertHooks::reset();
-#else
-        context.pass("assert test hooks skipped because INTERNAL_ASSERT_TEST_HOOKS=0");
-#endif
-    }
-
-    /// @brief Verifies Ignore Once reports each invocation without suppressing the call site.
-    void testInteractiveIgnoreOnce(TestContext &context)
-    {
-#if ASSERT_ENABLED
-        ScopedLoggerShutdown loggerShutdown;
-        if (!initFileLogger(context, "interactive_ignore_once"))
-        {
-            context.fail("interactive ignore once logger init", "Logger::init failed");
-            return;
-        }
-
-        const ScopedEnvironmentVariable testAction(testActionEnvironmentVariable, "ignore_once");
-        if (!requireInfrastructure(context, "set interactive ignore-once action", testAction.status()))
-        {
-            return;
-        }
-        ASSERT_INTERACTIVE_MSG(false, "interactive ignore once test");
-
-        Logger::flush(2s);
-        const Logger::Types::Stats stats = Logger::getStats();
-        const std::string contents = readFile(context, Logger::getLogFilePath());
-        context.expectEq("ASSERT_INTERACTIVE ignore_once not queued", stats.queued, std::size_t{0});
-        context.expectEq("ASSERT_INTERACTIVE ignore_once writes one fatal", stats.written, std::size_t{1});
-        context.expectTrue(
-            "ASSERT_INTERACTIVE ignore_once logs fatal",
-            contents.find("[FATAL][Assert]: Assert failed") != std::string::npos,
-            "interactive fatal missing");
-#if ASSERT_DIAGNOSTICS
-        context.expectTrue(
-            "ASSERT_INTERACTIVE ignore_once logs message",
-            contents.find("interactive ignore once test") != std::string::npos,
-            "interactive message missing");
-#else
-        context.expectTrue(
-            "ASSERT_INTERACTIVE ignore_once strips message",
-            contents.find("interactive ignore once test") == std::string::npos,
-            "interactive message was embedded");
-#endif
-#else
-        context.pass("ASSERT_INTERACTIVE ignore_once skipped because ASSERT_ENABLED=0");
-#endif
-    }
-
-    /// @brief Verifies Always Ignore suppresses later failures only at the same macro call site.
-    void testInteractiveAlwaysIgnore(TestContext &context)
-    {
-#if ASSERT_ENABLED
-        ScopedLoggerShutdown loggerShutdown;
-        if (!initFileLogger(context, "interactive_always_ignore"))
-        {
-            context.fail("interactive always ignore logger init", "Logger::init failed");
-            return;
-        }
-
-        const ScopedEnvironmentVariable testAction(testActionEnvironmentVariable, "always_ignore");
-        if (!requireInfrastructure(context, "set interactive always-ignore action", testAction.status()))
-        {
-            return;
-        }
-        interactiveAlwaysIgnoreSite();
-        interactiveAlwaysIgnoreSite();
-
-        Logger::flush(2s);
-        const Logger::Types::Stats stats = Logger::getStats();
-        const std::string contents = readFile(context, Logger::getLogFilePath());
-        context.expectEq("ASSERT_INTERACTIVE always_ignore not queued", stats.queued, std::size_t{0});
-        context.expectEq("ASSERT_INTERACTIVE always_ignore writes once", stats.written, std::size_t{1});
-#if ASSERT_DIAGNOSTICS
-        context.expectEq(
-            "ASSERT_INTERACTIVE always_ignore one message",
-            countOccurrences(contents, "interactive always ignore test"),
-            std::size_t{1});
-#else
-        context.expectEq(
-            "ASSERT_INTERACTIVE always_ignore strips message",
-            countOccurrences(contents, "interactive always ignore test"),
-            std::size_t{0});
-#endif
-#else
-        context.pass("ASSERT_INTERACTIVE always_ignore skipped because ASSERT_ENABLED=0");
-#endif
-    }
-
-    /// @brief Verifies interactive VERIFY evaluates its expression exactly once per invocation.
-    void testVerifyInteractiveEvaluation(TestContext &context)
-    {
-        ScopedLoggerShutdown loggerShutdown;
-        if (!initFileLogger(context, "verify_interactive"))
-        {
-            context.fail("verify interactive logger init", "Logger::init failed");
-            return;
-        }
-
-        int passingEvaluations = 0;
-        VERIFY_INTERACTIVE(++passingEvaluations == 1);
-        context.expectEq("VERIFY_INTERACTIVE passing evaluates once", passingEvaluations, 1);
-
-        int failingEvaluations = 0;
-        const ScopedEnvironmentVariable testAction(testActionEnvironmentVariable, "ignore_once");
-        if (!requireInfrastructure(context, "set VERIFY_INTERACTIVE action", testAction.status()))
-        {
-            return;
-        }
-        VERIFY_INTERACTIVE_MSG(++failingEvaluations < 0, "verify interactive ignore once test");
-        context.expectEq("VERIFY_INTERACTIVE failing evaluates once", failingEvaluations, 1);
-
-#if ASSERT_ENABLED
-        Logger::flush(2s);
-        const std::string contents = readFile(context, Logger::getLogFilePath());
-#if ASSERT_DIAGNOSTICS
-        context.expectTrue(
-            "VERIFY_INTERACTIVE failure logs when enabled",
-            contents.find("verify interactive ignore once test") != std::string::npos,
-            "verify interactive message missing");
-#else
-        context.expectTrue(
-            "VERIFY_INTERACTIVE failure strips message",
-            contents.find("verify interactive ignore once test") == std::string::npos,
-            "verify interactive message was embedded");
-#endif
-#else
-        Logger::flush(2s);
-        const Logger::Types::Stats stats = Logger::getStats();
-        context.expectEq("VERIFY_INTERACTIVE disabled does not report", stats.written, std::size_t{0});
-#endif
-    }
-
-    /// @brief Verifies Always Ignore suppresses diagnostics without suppressing VERIFY evaluation.
-    void testVerifyInteractiveAlwaysIgnoreStillEvaluates(TestContext &context)
-    {
-#if ASSERT_ENABLED
-        ScopedLoggerShutdown loggerShutdown;
-        if (!initFileLogger(context, "verify_interactive_always_ignore"))
-        {
-            context.fail("verify interactive always ignore logger init", "Logger::init failed");
-            return;
-        }
-
-        int evaluations = 0;
-        const ScopedEnvironmentVariable testAction(testActionEnvironmentVariable, "always_ignore");
-        if (!requireInfrastructure(context, "set VERIFY_INTERACTIVE always-ignore action", testAction.status()))
-        {
-            return;
-        }
-        verifyInteractiveAlwaysIgnoreSite(evaluations);
-        verifyInteractiveAlwaysIgnoreSite(evaluations);
-
-        Logger::flush(2s);
-        const std::string contents = readFile(context, Logger::getLogFilePath());
-        context.expectEq("VERIFY_INTERACTIVE Always Ignore still evaluates", evaluations, 2);
-#if ASSERT_DIAGNOSTICS
-        context.expectEq(
-            "VERIFY_INTERACTIVE Always Ignore logs once",
-            countOccurrences(contents, "verify interactive always ignore test"),
-            std::size_t{1});
-#else
-        context.expectEq(
-            "VERIFY_INTERACTIVE Always Ignore strips message",
-            countOccurrences(contents, "verify interactive always ignore test"),
-            std::size_t{0});
-#endif
-#else
-        context.pass("VERIFY_INTERACTIVE Always Ignore test skipped because ASSERT_ENABLED=0");
-#endif
-    }
-
-    /// @brief Verifies one CHECK_ONCE site reports at most once under concurrent contention.
-    void testCheckOnceThreadStress(TestContext &context, const AssertTestOptions &options)
-    {
-#if ASSERT_CHECKS_ENABLED
-        if (!options.enableStressTests)
-        {
-            context.pass("CHECK_ONCE thread stress skipped by AssertTestOptions");
-            return;
-        }
-
-        ScopedLoggerShutdown loggerShutdown;
-        if (!initFileLogger(context, "check_once_thread_stress"))
-        {
-            context.fail("CHECK_ONCE thread stress logger init", "Logger::init failed");
-            return;
-        }
-
-        const int threadCount = static_cast<int>(std::max<std::size_t>(2, options.stressThreadCount));
-        std::atomic<bool> start{false};
-        std::vector<std::thread> workers;
-        workers.reserve(static_cast<std::size_t>(threadCount));
-
-        for (int index = 0; index < threadCount; ++index)
-        {
-            workers.emplace_back(
-                [&start]
-                {
-                    while (!start.load(std::memory_order_acquire))
-                    {
-                        std::this_thread::yield();
-                    }
-                    threadedCheckOnceSite();
-                });
-        }
-
-        start.store(true, std::memory_order_release);
-        for (std::thread &worker : workers)
-        {
-            worker.join();
-        }
-
-        Logger::flush(2s);
-        const std::string contents = readFile(context, Logger::getLogFilePath());
-#if ASSERT_DIAGNOSTICS
-        context.expectEq("CHECK_ONCE thread stress logs once", countOccurrences(contents, "threaded check once stress"), std::size_t{1});
-#else
-        context.expectEq("CHECK_ONCE thread stress logs generic once", countOccurrences(contents, "[ERROR][Check]: Check failed"), std::size_t{1});
-#endif
-#else
-        context.pass("CHECK_ONCE thread stress skipped because ASSERT_CHECKS_ENABLED=0");
-#endif
-    }
-
-    /// @brief Verifies repeated automated interactive actions retain call-site state correctly.
-    void testInteractiveStressLoops(TestContext &context, const AssertTestOptions &options)
-    {
-#if ASSERT_ENABLED
-        if (!options.enableStressTests)
-        {
-            context.pass("interactive assert stress loops skipped by AssertTestOptions");
-            return;
-        }
-
-        ScopedLoggerShutdown loggerShutdown;
-        if (!initFileLogger(context, "interactive_stress_loops"))
-        {
-            context.fail("interactive stress logger init", "Logger::init failed");
-            return;
-        }
-
-        const int iterations = static_cast<int>(std::max<std::size_t>(1, options.stressIterations));
-        const ScopedEnvironmentVariable testAction(testActionEnvironmentVariable, "ignore_once");
-        if (!requireInfrastructure(context, "set interactive stress action", testAction.status()))
-        {
-            return;
-        }
-        for (int index = 0; index < iterations; ++index)
-        {
-            interactiveIgnoreOnceSite();
-        }
-
-        Logger::flush(5s);
-        const std::string contents = readFile(context, Logger::getLogFilePath());
-#if ASSERT_DIAGNOSTICS
-        context.expectEq(
-            "ASSERT_INTERACTIVE ignore_once stress logs every failure",
-            countOccurrences(contents, "interactive ignore once repeat test"),
-            static_cast<std::size_t>(iterations));
-#else
-        context.expectEq(
-            "ASSERT_INTERACTIVE ignore_once stress logs generic failures",
-            countOccurrences(contents, "[FATAL][Assert]: Assert failed"),
-            static_cast<std::size_t>(iterations));
-#endif
-#else
-        context.pass("interactive assert stress loops skipped because ASSERT_ENABLED=0");
-#endif
-    }
-
-    /// @brief Child-process body that intentionally triggers a failed ASSERT.
-    /// @return Zero only if the assertion was compiled out or execution continued after the break.
-    int runAssertFailureChild()
-    {
-#if defined(_WIN32)
-        SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX);
-#endif
-        Logger::Types::Config config;
-        config.output = Logger::Types::OutputMode::None;
-        config.minLevel = Logger::Types::Level::Trace;
-        config.enableDebugOutput = false;
-        config.enableFatalPopup = false;
-        if (const char *childLogDirectory = std::getenv(std::string(childLogDirectoryEnvironmentVariable).c_str()))
-        {
-            config.output = Logger::Types::OutputMode::File;
-            config.logDirectory = childLogDirectory;
-            config.fallbackToConsoleOnFileFailure = false;
-        }
-        Logger::init(config);
-        ASSERT_MSG(false, assertFailureChildMessage);
-        Logger::shutdown();
-        return 0;
-    }
-
-    /// @brief Executes the interactive Abort child protocol; correct behavior terminates the process.
-    int runInteractiveAbortChild()
-    {
-#if defined(_WIN32)
-        SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX);
-#endif
-        Logger::Types::Config config;
-        config.output = Logger::Types::OutputMode::None;
-        config.minLevel = Logger::Types::Level::Trace;
-        config.enableDebugOutput = false;
-        config.enableFatalPopup = false;
-        if (const char *childLogDirectory = std::getenv(std::string(childLogDirectoryEnvironmentVariable).c_str()))
-        {
-            config.output = Logger::Types::OutputMode::File;
-            config.logDirectory = childLogDirectory;
-            config.fallbackToConsoleOnFileFailure = false;
-        }
-        Logger::init(config);
-        ASSERT_INTERACTIVE_MSG(false, "interactive abort child");
-        Logger::shutdown();
-        return 0;
-    }
-
-    /// @brief Executes the interactive Break child protocol under deterministic debugger hooks.
-    int runInteractiveBreakChild()
-    {
-#if defined(_WIN32)
-        SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX);
-#endif
-        Logger::Types::Config config;
-        config.output = Logger::Types::OutputMode::None;
-        config.minLevel = Logger::Types::Level::Trace;
-        config.enableDebugOutput = false;
-        config.enableFatalPopup = false;
-        if (const char *childLogDirectory = std::getenv(std::string(childLogDirectoryEnvironmentVariable).c_str()))
-        {
-            config.output = Logger::Types::OutputMode::File;
-            config.logDirectory = childLogDirectory;
-            config.fallbackToConsoleOnFileFailure = false;
-        }
-        Logger::init(config);
-        ASSERT_INTERACTIVE_MSG(false, "interactive break child");
-        Logger::shutdown();
-        return 0;
-    }
-
-    /// @brief Child-process body that intentionally triggers DEBUG_BREAK.
-    /// @return Zero only if execution continues after the break.
-    int runDebugBreakChild()
-    {
-#if defined(_WIN32)
-        SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX);
-#endif
-        DEBUG_BREAK();
-        return 0;
-    }
-
-    /// @brief Child-process body that intentionally triggers UNREACHABLE when assertions are enabled.
-    /// @return Zero only if UNREACHABLE is compiled out or execution continues after the break.
-    int runUnreachableChild()
-    {
-#if defined(_WIN32)
-        SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX);
-#endif
-        UNREACHABLE();
-        return 0;
-    }
-
-    /// @brief Runs a child process and expects it to exit abnormally.
-    /// @param context Test context.
-    /// @param argument Child-process argument.
-    /// @param testName Test name.
-    void expectAbnormalChildExit(TestContext &context, std::string_view argument, std::string_view testName)
-    {
-        std::cout.flush();
-        std::cerr.flush();
-        const TestSupport::Types::Process::Result result = runChildProcessResult(context.executablePath, argument);
-        context.expectTrue(
-            testName,
-            result.status.ok() && result.outcome == TestSupport::Types::Process::Outcome::Exited && result.exitCode != 0,
-            "child process did not produce a normal nonzero exit");
-    }
-
-    /// @brief Verifies a failed ASSERT triggers an abnormal child-process exit when assertions are enabled.
-    /// @param context Test context.
-    /// @param options Assert test options.
-    void testAssertFailureChild(TestContext &context, const AssertTestOptions &options)
-    {
-#if ASSERT_ENABLED
-        if (!options.enableChildCrashTests)
-        {
-            context.pass("ASSERT failure child test disabled by AssertTestOptions");
-            return;
-        }
-
-        const std::filesystem::path childLogDirectory = context.logRoot / "assert_child";
-        if (!requireInfrastructure(context, "create ASSERT child log directory", TestSupport::createDirectories(childLogDirectory)))
-        {
-            return;
-        }
-        const ScopedEnvironmentVariable childLogDirectoryOverride(childLogDirectoryEnvironmentVariable, pathText(childLogDirectory));
-        const ScopedEnvironmentVariable suppressPopupOverride(suppressPopupEnvironmentVariable, "1");
-        if (!requireInfrastructure(context, "set ASSERT child log directory", childLogDirectoryOverride.status()) ||
-            !requireInfrastructure(context, "suppress ASSERT child popup", suppressPopupOverride.status()))
-        {
-            return;
-        }
-
-        expectAbnormalChildExit(context, assertFailureChildArgument, "ASSERT failure child exits abnormally with popup suppressed");
-
-        const std::string childLogContents = readDirectoryFiles(context, childLogDirectory);
-        context.expectTrue(
-            "ASSERT failure child logs fatal through Logger",
-            childLogContents.find("[FATAL][Assert]: Assert failed") != std::string::npos,
-            "assert failure missing from child log");
-#if ASSERT_DIAGNOSTICS
-        context.expectTrue(
-            "ASSERT failure child logs diagnostic message",
-            childLogContents.find(assertFailureChildMessage) != std::string::npos,
-            "child assert message missing from log");
-#else
-        context.expectTrue(
-            "ASSERT failure child strips diagnostic message",
-            childLogContents.find(assertFailureChildMessage) == std::string::npos,
-            "child assert message was embedded");
-#endif
-#else
-        context.pass("ASSERT failure child test skipped because ASSERT_ENABLED=0");
-#endif
-    }
-
-    /// @brief Verifies interactive Abort reports before terminating its child process.
-    void testInteractiveAbortChild(TestContext &context, const AssertTestOptions &options)
-    {
-#if ASSERT_ENABLED
-        if (!options.enableChildCrashTests)
-        {
-            context.pass("ASSERT_INTERACTIVE abort child test disabled by AssertTestOptions");
-            return;
-        }
-
-        const std::filesystem::path childLogDirectory = context.logRoot / "interactive_abort_child";
-        if (!requireInfrastructure(context, "create interactive Abort child log directory", TestSupport::createDirectories(childLogDirectory)))
-        {
-            return;
-        }
-        const ScopedEnvironmentVariable childLogDirectoryOverride(childLogDirectoryEnvironmentVariable, pathText(childLogDirectory));
-        const ScopedEnvironmentVariable testAction(testActionEnvironmentVariable, "abort");
-        if (!requireInfrastructure(context, "set interactive Abort child log directory", childLogDirectoryOverride.status()) ||
-            !requireInfrastructure(context, "set interactive Abort action", testAction.status()))
-        {
-            return;
-        }
-
-        expectAbnormalChildExit(context, interactiveAbortChildArgument, "ASSERT_INTERACTIVE abort child exits abnormally");
-
-        const std::string childLogContents = readDirectoryFiles(context, childLogDirectory);
-        context.expectTrue(
-            "ASSERT_INTERACTIVE abort child logs fatal",
-            childLogContents.find("[FATAL][Assert]: Assert failed") != std::string::npos,
-            "interactive abort child fatal missing");
-#if ASSERT_DIAGNOSTICS
-        context.expectTrue(
-            "ASSERT_INTERACTIVE abort child logs message",
-            childLogContents.find("interactive abort child") != std::string::npos,
-            "interactive abort child message missing");
-#else
-        context.expectTrue(
-            "ASSERT_INTERACTIVE abort child strips message",
-            childLogContents.find("interactive abort child") == std::string::npos,
-            "interactive abort child message was embedded");
-#endif
-#else
-        context.pass("ASSERT_INTERACTIVE abort child skipped because ASSERT_ENABLED=0");
-#endif
-    }
-
-    /// @brief Verifies interactive Break child handling without requiring a real debugger.
-    void testInteractiveBreakChild(TestContext &context, const AssertTestOptions &options)
-    {
-#if ASSERT_ENABLED
-        if (!options.enableChildCrashTests)
-        {
-            context.pass("ASSERT_INTERACTIVE break child test disabled by AssertTestOptions");
-            return;
-        }
-
-        const std::filesystem::path childLogDirectory = context.logRoot / "interactive_break_child";
-        if (!requireInfrastructure(context, "create interactive Break child log directory", TestSupport::createDirectories(childLogDirectory)))
-        {
-            return;
-        }
-        const ScopedEnvironmentVariable childLogDirectoryOverride(childLogDirectoryEnvironmentVariable, pathText(childLogDirectory));
-        const ScopedEnvironmentVariable testAction(testActionEnvironmentVariable, "break");
-        if (!requireInfrastructure(context, "set interactive Break child log directory", childLogDirectoryOverride.status()) ||
-            !requireInfrastructure(context, "set interactive Break action", testAction.status()))
-        {
-            return;
-        }
-
-        expectAbnormalChildExit(context, interactiveBreakChildArgument, "ASSERT_INTERACTIVE break child exits abnormally without debugger");
-
-        const std::string childLogContents = readDirectoryFiles(context, childLogDirectory);
-        context.expectTrue(
-            "ASSERT_INTERACTIVE break child logs fatal",
-            childLogContents.find("[FATAL][Assert]: Assert failed") != std::string::npos,
-            "interactive break child fatal missing");
-#if ASSERT_DIAGNOSTICS
-        context.expectTrue(
-            "ASSERT_INTERACTIVE break child logs message",
-            childLogContents.find("interactive break child") != std::string::npos,
-            "interactive break child message missing");
-#else
-        context.expectTrue(
-            "ASSERT_INTERACTIVE break child strips message",
-            childLogContents.find("interactive break child") == std::string::npos,
-            "interactive break child message was embedded");
-#endif
-#else
-        context.pass("ASSERT_INTERACTIVE break child skipped because ASSERT_ENABLED=0");
-#endif
-    }
-
-    /// @brief Verifies DEBUG_BREAK exits abnormally in an isolated child process.
-    /// @param context Test context.
-    void testDebugBreakChild(TestContext &context)
-    {
-        expectAbnormalChildExit(context, debugBreakChildArgument, "DEBUG_BREAK child exits abnormally");
-    }
-
-    /// @brief Verifies UNREACHABLE exits abnormally unless disabled unreachable is configured as an optimizer assumption.
-    /// @param context Test context.
-    void testUnreachableChild(TestContext &context)
-    {
-#if ASSERT_ENABLED || !ASSERT_UNREACHABLE_ASSUME
-        const ScopedEnvironmentVariable suppressPopupOverride(suppressPopupEnvironmentVariable, "1");
-        if (!requireInfrastructure(context, "suppress UNREACHABLE child popup", suppressPopupOverride.status()))
-        {
-            return;
-        }
-        expectAbnormalChildExit(context, unreachableChildArgument, "UNREACHABLE child exits abnormally with popup suppressed");
-#else
-        context.pass("UNREACHABLE child test skipped because ASSERT_UNREACHABLE_ASSUME=1");
-#endif
-    }
-
-    /// @brief Provides the stable call site used by the human Ignore Once dialog check.
-    void manualInteractiveIgnoreOnceSite()
-    {
-        ASSERT_INTERACTIVE_MSG(false, "manual assert UI Ignore Once test - click Ignore Once to continue");
-    }
-
-    /// @brief Provides the stable call site used by the human Always Ignore dialog check.
-    void manualInteractiveAlwaysIgnoreSite()
-    {
-        ASSERT_INTERACTIVE_MSG(false, "manual assert UI Always Ignore test - click Always Ignore to suppress the second call");
-    }
-
-    /// @brief Provides the stable call site used by the human debugger Break check.
-    void manualInteractiveBreakSite()
-    {
-        ASSERT_INTERACTIVE_MSG(false, "manual assert UI Break test - click Break while a debugger is attached, then continue execution");
-    }
-
-    /// @brief Runs opt-in human checks for real action dialogs, fallback UI, and debugger breaks.
-    void testManualAssertUi(TestContext &context, const AssertTestOptions &options)
-    {
-        if (!options.enableManualTests)
-        {
-            context.pass("manual assert UI tests skipped by AssertTestOptions");
-            return;
-        }
-
-#if ASSERT_ENABLED
-        ScopedLoggerShutdown loggerShutdown;
-        if (!initFileLogger(context, "manual_assert_ui"))
-        {
-            context.fail("manual assert UI logger init", "Logger::init failed");
-            return;
-        }
-
-        const ScopedClearedEnvironmentVariable clearTestAction(testActionEnvironmentVariable);
-        const ScopedClearedEnvironmentVariable clearSuppressPopup(suppressPopupEnvironmentVariable);
-        if (!requireInfrastructure(context, "clear manual test action", clearTestAction.status()) ||
-            !requireInfrastructure(context, "clear manual popup suppression", clearSuppressPopup.status()))
-        {
-            return;
-        }
-
-        context.emit("[MANUAL] Assert UI Ignore Once: click Ignore Once. The test should continue.\n");
-        manualInteractiveIgnoreOnceSite();
-        context.pass("manual assert UI Ignore Once continued");
-
-        context.emit("[MANUAL] Assert UI Always Ignore: click Always Ignore. The second call should not show a dialog.\n");
-        manualInteractiveAlwaysIgnoreSite();
-        manualInteractiveAlwaysIgnoreSite();
-        context.pass("manual assert UI Always Ignore suppressed second call");
-
-#if defined(_WIN32)
-        if (IsDebuggerPresent() != FALSE)
-        {
-            context.emit("[MANUAL] Assert UI Break: click Break, let the debugger stop, then continue execution.\n");
-            manualInteractiveBreakSite();
-            context.pass("manual assert UI Break continued after debugger resume");
-        }
-        else
-        {
-            context.pass("manual assert UI Break skipped because no debugger is attached");
-        }
-#else
-        context.pass("manual assert UI Break skipped because this manual check is Windows-only");
-#endif
-
-        if (options.enableChildCrashTests)
-        {
-            const std::filesystem::path childLogDirectory = context.logRoot / "manual_interactive_abort_child";
-            if (!requireInfrastructure(context, "create manual Abort child log directory", TestSupport::createDirectories(childLogDirectory)))
-            {
-                return;
-            }
-            const ScopedEnvironmentVariable childLogDirectoryOverride(childLogDirectoryEnvironmentVariable, pathText(childLogDirectory));
-            const ScopedClearedEnvironmentVariable clearChildTestAction(testActionEnvironmentVariable);
-            const ScopedClearedEnvironmentVariable clearChildSuppressPopup(suppressPopupEnvironmentVariable);
-            if (!requireInfrastructure(context, "set manual Abort child log directory", childLogDirectoryOverride.status()) ||
-                !requireInfrastructure(context, "clear manual Abort child action", clearChildTestAction.status()) ||
-                !requireInfrastructure(context, "clear manual Abort child popup suppression", clearChildSuppressPopup.status()))
-            {
-                return;
-            }
-
-            context.emit("[MANUAL] Assert UI Abort: a child process dialog should appear. Click Abort; the parent should detect abnormal exit.\n");
-            expectAbnormalChildExit(context, interactiveAbortChildArgument, "manual assert UI Abort child exits abnormally");
-
-            const std::string childLogContents = readDirectoryFiles(context, childLogDirectory);
-            context.expectTrue(
-                "manual assert UI Abort child logs fatal",
-                childLogContents.find("[FATAL][Assert]: Assert failed") != std::string::npos,
-                "manual abort child fatal missing");
-            context.expectTrue(
-                "manual assert UI Abort child logs message",
-                childLogContents.find("interactive abort child") != std::string::npos,
-                "manual abort child message missing");
-        }
-        else
-        {
-            context.pass("manual assert UI Abort child skipped because child crash tests are disabled");
-        }
-
-        Logger::flush(2s);
-#else
-        context.pass("manual assert UI tests skipped because ASSERT_ENABLED=0");
-#endif
-    }
-
-    /// @brief Prints the assert test summary.
-    /// @param context Test context.
     void printSummary(TestContext &context)
     {
         context.emit(
@@ -1345,7 +377,7 @@ namespace GameWIP::Test
                 context.emit(
                     std::format(
                         "[INFO] Assert config: runtime={} enabled={} checks={} diagnostics={} popupAssert={} popupCheck={}\n",
-                        INTERNAL_ASSERT_RUNTIME,
+                        ASSERT_INTERNAL_RUNTIME,
                         ASSERT_ENABLED,
                         ASSERT_CHECKS_ENABLED,
                         ASSERT_DIAGNOSTICS,
@@ -1418,6 +450,13 @@ namespace GameWIP::Test
                     [&]
                     {
                         testCompiledOutMessageEvaluation(context);
+                    });
+                runCase(
+                    context,
+                    "UTF-8 diagnostic truncation",
+                    [&]
+                    {
+                        testUtf8DiagnosticTruncation(context);
                     });
                 runCase(
                     context,
@@ -1495,5 +534,4 @@ namespace GameWIP::Test
         Logger::shutdown();
         return runner.exitCode();
     }
-
 } // namespace GameWIP::Test

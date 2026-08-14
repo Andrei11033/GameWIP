@@ -10,7 +10,7 @@ Enable hooks with:
 -DASSERT_ENABLE_TEST_HOOKS=ON
 ```
 
-Approved source-tree test targets then receive `INTERNAL_ASSERT_TEST_HOOKS=1`. The repository validation preset enables this path for Assert validation.
+Approved source-tree test targets then receive `ASSERT_INTERNAL_TEST_HOOKS=1`. The repository validation preset enables this path for Assert validation.
 
 ## Include
 

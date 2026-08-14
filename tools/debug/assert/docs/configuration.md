@@ -27,12 +27,12 @@ The Assert target propagates the compile definitions that the public header cons
 
 | Definition | Owner | Purpose |
 | --- | --- | --- |
-| `INTERNAL_ASSERT_RUNTIME` | Assert CMake target | Indicates whether the runtime bridge symbols are available. Consumers should not set it manually. |
+| `ASSERT_INTERNAL_RUNTIME` | Assert CMake target | Indicates whether the runtime bridge symbols are available. Consumers should not set it manually. |
 | `ASSERT_ENABLED` | `ASSERT_ENABLED` CMake option | Selects fatal assertion macro behavior. |
 | `ASSERT_CHECKS_ENABLED` | `ASSERT_CHECKS_ENABLED` CMake option | Selects recoverable check macro behavior. |
 | `ASSERT_DIAGNOSTICS` | `ASSERT_DIAGNOSTICS` CMake option | Selects diagnostic payload collection and message-expression evaluation. |
 | `ASSERT_UNREACHABLE_ASSUME` | `ASSERT_UNREACHABLE_ASSUME` CMake option | Selects the disabled `UNREACHABLE()` backend. |
-| `INTERNAL_ASSERT_TEST_HOOKS` | source-tree validation build | Exposes internal hook declarations only to approved test targets. |
+| `ASSERT_INTERNAL_TEST_HOOKS` | source-tree validation build | Exposes internal hook declarations only to approved test targets. |
 
 `ASSERT_POPUP_ON_ASSERT` and `ASSERT_POPUP_ON_CHECK` are compile-time runtime
 controls declared by the public header. The Assert CMake target does not expose

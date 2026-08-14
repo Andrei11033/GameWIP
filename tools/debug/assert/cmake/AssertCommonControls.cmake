@@ -15,7 +15,7 @@ function(assert_enable_common_controls_v6 target_name)
 
     get_property(
         common_controls_rc
-        GLOBAL PROPERTY INTERNAL_ASSERT_COMMON_CONTROLS_RC
+        GLOBAL PROPERTY ASSERT_INTERNAL_COMMON_CONTROLS_RC
     )
 
     if(NOT common_controls_rc)

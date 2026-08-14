@@ -4,9 +4,9 @@
 
 ## Macro coverage
 
-The Assert suite covers enabled and disabled builds, expression evaluation count, message laziness, fatal versus recoverable families, `CHECK_ONCE`, `ENSURE` return values, diagnostics controls, source location, Logger report integration, and package-facing compile definitions.
+The Assert suite covers enabled and disabled builds, expression evaluation count, message laziness, fatal versus recoverable families, `CHECK_ONCE`, `ENSURE` return values, diagnostics controls, source location, Logger report integration, UTF-8-safe bounded diagnostic truncation, and package-facing compile definitions.
 
-Passing-path benchmarks verify that enabled successful macros avoid failure formatting and reporting work. Disabled-build tests verify that each macro family preserves its documented evaluation contract.
+The suite remains one logical Assert module while private behavior cases are grouped into focused `.inl` fragments for macro behavior, diagnostics, hooks, interactive handling, stress, process/crash handling, and manual UI validation. Passing-path benchmarks verify that enabled successful macros avoid failure formatting and reporting work. Disabled-build tests verify that each macro family preserves its documented evaluation contract.
 
 ## Child and interactive coverage
 
@@ -16,7 +16,7 @@ Real Win32 UI is manual and runtime opt-in. It covers Ignore Once, Always Ignore
 
 ## Hook coverage
 
-With `INTERNAL_ASSERT_TEST_HOOKS=1`, tests can force primary action-dialog fallback, fallback behavior, debugger-attached results, and popup suppression. State must be reset after every scenario.
+With `ASSERT_INTERNAL_TEST_HOOKS=1`, tests can force primary action-dialog fallback, fallback behavior, debugger-attached results, and popup suppression. State must be reset after every scenario.
 
 GameWIP owns module registration, child routing, UI selection, benchmarks, reports, and coverage. See @ref project_testing, @ref project_benchmarking, and @ref project_coverage.
 

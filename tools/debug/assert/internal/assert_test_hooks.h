@@ -1,7 +1,7 @@
 /// @file assert_test_hooks.h
 /// @brief Source-tree-only test hooks for deterministic Assert validation.
 /// @details This header is excluded from installed public file sets. Hooks are enabled only when
-/// `INTERNAL_ASSERT_TEST_HOOKS` is `1`.
+/// `ASSERT_INTERNAL_TEST_HOOKS` is `1`.
 
 #pragma once
 
@@ -9,15 +9,15 @@
 
 #include <string_view>
 
-#ifndef INTERNAL_ASSERT_TEST_HOOKS
-#define INTERNAL_ASSERT_TEST_HOOKS 0
+#ifndef ASSERT_INTERNAL_TEST_HOOKS
+#define ASSERT_INTERNAL_TEST_HOOKS 0
 #endif
 
-#if INTERNAL_ASSERT_TEST_HOOKS
+#if ASSERT_INTERNAL_TEST_HOOKS
 namespace GameWIP::Debug::Assert::TestHooks
 {
     /// @brief Clears all pending one-shot failures and persistent overrides.
-    /// @warning Test-only API. Available only when INTERNAL_ASSERT_TEST_HOOKS is enabled.
+    /// @warning Test-only API. Available only when ASSERT_INTERNAL_TEST_HOOKS is enabled.
     GAMEWIP_ASSERT_EXPORT void reset() noexcept;
 
     /// @brief Forces the next primary platform action-dialog attempt to use the fallback path.
@@ -48,7 +48,7 @@ namespace GameWIP::Debug::Assert::TestHooks
 
     /// @brief Queries the platform debugger-attached state through the assert backend.
     /// @return True when the backend reports a debugger as attached, including any active test override.
-    /// @warning Test-only API. Available only when INTERNAL_ASSERT_TEST_HOOKS is enabled.
+    /// @warning Test-only API. Available only when ASSERT_INTERNAL_TEST_HOOKS is enabled.
     GAMEWIP_ASSERT_EXPORT bool debuggerAttachedForTest() noexcept;
 
     /// @brief Exercises the platform interactive failure dialog path through the assert backend.
@@ -56,14 +56,14 @@ namespace GameWIP::Debug::Assert::TestHooks
     /// @param message Dialog body text.
     /// @param defaultAction Action returned when the backend cannot show a dialog.
     /// @return Selected or fallback action.
-    /// @warning Test-only API. Available only when INTERNAL_ASSERT_TEST_HOOKS is enabled.
+    /// @warning Test-only API. Available only when ASSERT_INTERNAL_TEST_HOOKS is enabled.
     GAMEWIP_ASSERT_EXPORT FailureAction
     showFailureActionDialogForTest(std::string_view title, std::string_view message, FailureAction defaultAction) noexcept;
 
     /// @brief Exercises the platform error-popup path through the assert backend.
     /// @param title Popup title text.
     /// @param message Popup body text.
-    /// @warning Test-only API. Available only when INTERNAL_ASSERT_TEST_HOOKS is enabled.
+    /// @warning Test-only API. Available only when ASSERT_INTERNAL_TEST_HOOKS is enabled.
     GAMEWIP_ASSERT_EXPORT void showErrorPopupForTest(std::string_view title, std::string_view message) noexcept;
 
 } // namespace GameWIP::Debug::Assert::TestHooks

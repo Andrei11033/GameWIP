@@ -6,11 +6,11 @@
 #include "debug/assert/assert.h"
 #include "debug/assert/internal/assert_platform.h"
 
-#ifndef INTERNAL_ASSERT_TEST_HOOKS
-#define INTERNAL_ASSERT_TEST_HOOKS 0
+#ifndef ASSERT_INTERNAL_TEST_HOOKS
+#define ASSERT_INTERNAL_TEST_HOOKS 0
 #endif
 
-#if INTERNAL_ASSERT_TEST_HOOKS
+#if ASSERT_INTERNAL_TEST_HOOKS
 #include "debug/assert/internal/assert_test_hooks.h"
 #endif
 
@@ -36,31 +36,58 @@ namespace
     using FailureAction = GameWIP::Debug::Assert::FailureAction;
 
 #if ASSERT_DIAGNOSTICS
+    /// @brief Returns whether one byte is a UTF-8 continuation byte.
+    constexpr bool isUtf8ContinuationByte(char value) noexcept
+    {
+        return (static_cast<unsigned char>(value) & 0xC0u) == 0x80u;
+    }
+
+    /// @brief Returns the largest prefix at or before maxBytes that does not split a UTF-8 scalar.
+    /// @details Assert diagnostic inputs follow the public UTF-8 precondition; this helper only
+    /// adjusts a bounded-copy cut point and intentionally does not rescan the whole fragment.
+    std::size_t utf8PrefixBoundary(std::string_view text, std::size_t maxBytes) noexcept
+    {
+        if (maxBytes >= text.size())
+        {
+            return text.size();
+        }
+
+        std::size_t boundary = maxBytes;
+        while (boundary > 0 && isUtf8ContinuationByte(text[boundary]))
+        {
+            --boundary;
+        }
+        return boundary;
+    }
+
     /// @brief Fixed-size stack message builder used to keep failure formatting allocation-free.
     class FixedFailureMessage
     {
     public:
-        /// @brief Appends text, truncating when the fixed storage fills.
-        /// @param text Text fragment to append.
+        /// @brief Appends UTF-8 text, truncating only at a scalar boundary when fixed storage fills.
+        /// @param text UTF-8 text fragment to append.
         void append(std::string_view text) noexcept
         {
-            const std::size_t remaining = storage.size() - size;
-            if (text.size() > remaining)
+            if (truncated || text.empty())
             {
-                if (remaining > 0)
-                {
-                    std::memcpy(storage.data() + size, text.data(), remaining);
-                    size = storage.size();
-                }
-                truncated = true;
                 return;
             }
 
-            if (!text.empty())
+            const std::size_t remaining = storage.size() - size;
+            if (text.size() <= remaining)
             {
                 std::memcpy(storage.data() + size, text.data(), text.size());
                 size += text.size();
+                return;
             }
+
+            const std::size_t prefixBytes = utf8PrefixBoundary(text, remaining);
+            if (prefixBytes > 0)
+            {
+                std::memcpy(storage.data() + size, text.data(), prefixBytes);
+                size += prefixBytes;
+            }
+            truncated = true;
         }
 
         /// @brief Appends a signed integer without allocating.
@@ -77,7 +104,7 @@ namespace
             append("?");
         }
 
-        /// @brief Applies a visible truncation suffix when previous appends overflowed storage.
+        /// @brief Applies a visible ASCII truncation suffix without cutting the retained UTF-8 prefix.
         void finish() noexcept
         {
             if (!truncated)
@@ -86,14 +113,14 @@ namespace
             }
 
             constexpr std::string_view suffix = "... [truncated]";
-            if (storage.size() > suffix.size())
-            {
-                size = storage.size();
-                std::memcpy(storage.data() + storage.size() - suffix.size(), suffix.data(), suffix.size());
-            }
+            static_assert(suffix.size() < 1024);
+            const std::size_t prefixLimit = storage.size() - suffix.size();
+            size = utf8PrefixBoundary(std::string_view(storage.data(), size), prefixLimit);
+            std::memcpy(storage.data() + size, suffix.data(), suffix.size());
+            size += suffix.size();
         }
 
-        /// @brief Returns the active text view.
+        /// @brief Returns the active UTF-8 text view.
         /// @return Failure message text.
         std::string_view view() const noexcept
         {
@@ -102,7 +129,7 @@ namespace
 
     private:
         /// @brief Fixed stack storage for bounded diagnostics.
-        std::array<char, 1024> storage;
+        std::array<char, 1024> storage{};
         /// @brief Active byte count in storage.
         std::size_t size = 0;
         /// @brief True when an append exceeded fixed capacity.
@@ -269,7 +296,7 @@ namespace
     /// @return True when a hook forces suppression or `INTERNAL_ASSERT_SUPPRESS_POPUP` is exactly `1`.
     bool popupsSuppressedByEnvironment() noexcept
     {
-#if INTERNAL_ASSERT_TEST_HOOKS
+#if ASSERT_INTERNAL_TEST_HOOKS
         bool overrideValue = false;
         if (GameWIP::Debug::Assert::Detail::TestHooks::popupSuppressedOverride(overrideValue))
         {
@@ -284,7 +311,7 @@ namespace
     /// @return Break when a debugger is attached, otherwise Abort.
     FailureAction defaultInteractiveAction() noexcept
     {
-#if INTERNAL_ASSERT_TEST_HOOKS
+#if ASSERT_INTERNAL_TEST_HOOKS
         bool attachedOverride = false;
         if (GameWIP::Debug::Assert::Detail::TestHooks::debuggerAttachedOverride(attachedOverride))
         {
@@ -440,7 +467,7 @@ namespace GameWIP::Debug::Assert::Detail
         std::string_view function) noexcept
     {
         reportAssertFailure(conditionText, message, file, line, function);
-#if INTERNAL_ASSERT_TEST_HOOKS
+#if ASSERT_INTERNAL_TEST_HOOKS
         bool attachedOverride = false;
         const bool debuggerAttached =
             TestHooks::debuggerAttachedOverride(attachedOverride) ? attachedOverride : Detail::Platform::isDebuggerAttached();
