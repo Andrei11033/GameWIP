@@ -31,7 +31,7 @@ build diagnostics separate from the running game's output.
 | `Alt+F5` | Configure, build, and run `dev-no-tools`. |
 | `F6` | Configure, build, run embedded correctness tests, and start `dev` when they pass. |
 | `F7` | Configure, build, and run correctness tests. |
-| `Alt+F7` | Configure, build, and run benchmarks. |
+| `Alt+F7` | Run the standard benchmark profile and retain its tool-run results. |
 | `F8` | Build, verify, and open the generated manual. |
 | `Alt+F8` | Configure and run repository C++ analysis. |
 | `F9` | Build the profile game, start Tracy, and run the game. |

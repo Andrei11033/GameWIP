@@ -100,12 +100,18 @@ cmake --build --preset asan
 ctest --preset asan
 ```
 
-Run a benchmark registration dry run:
+Build and run optimized benchmarks through the project helper:
 
 ```powershell
-cmake --preset benchmark
-cmake --build --preset benchmark
-.\build\benchmark\GameWIPBenchmarks.exe --benchmark_dry_run
+.\gamewip.bat benchmark
+```
+
+The helper retains JSON results, logs, and run metadata under
+`build/tool-runs/<timestamp>_benchmark-run/`. Validate registration without
+collecting timings with:
+
+```powershell
+.\gamewip.bat benchmark -BenchmarkAction dry-run
 ```
 
 The generated project manual documents the full validation, testing, static-analysis, coverage, profiling, and benchmarking workflows.

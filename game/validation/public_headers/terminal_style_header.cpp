@@ -1,3 +1,6 @@
+/// @file
+/// @brief Verifies that the Terminal style public header is self-contained and preserves its noexcept type contracts.
+
 #include "terminal/style.h"
 
 #include <type_traits>

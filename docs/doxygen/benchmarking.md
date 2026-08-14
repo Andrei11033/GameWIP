@@ -12,21 +12,25 @@ Correctness behavior must be covered through @ref project_testing before perform
 
 ## Common workflow
 
-Build and run optimized benchmarks:
+Build and run the standard optimized benchmark profile:
 
 ```powershell
-cmake --preset benchmark
-cmake --build --preset benchmark
-.\build\benchmark\GameWIPBenchmarks.exe
+.\gamewip.bat benchmark
 ```
 
 Validate registration without collecting meaningful timings:
 
 ```powershell
-.\build\benchmark\GameWIPBenchmarks.exe --benchmark_dry_run
+.\gamewip.bat benchmark -BenchmarkAction dry-run
 ```
 
-CI performs registration dry runs only. Machine-dependent timings are not merge gates.
+List registered scenarios without measuring them:
+
+```powershell
+.\gamewip.bat benchmark -BenchmarkAction list
+```
+
+CI performs registration dry runs only. Machine-dependent timings are not merge gates. Direct executable invocation remains supported when diagnosing Google Benchmark itself, but the helper is the normal local workflow because it standardizes optimized builds, arguments, retained results, and run metadata.
 
 ## Runner source API
 
@@ -71,27 +75,65 @@ The standalone benchmark executable returns failure only when `ok()` is false. S
 
 ## Commands
 
-Run a focused family:
+Run a focused family with the standard profile:
 
 ```powershell
-.\build\benchmark\GameWIPBenchmarks.exe --benchmark_filter=BM_Logger
+.\gamewip.bat benchmark -Filter BM_Logger
 ```
 
-Run repetitions and save JSON:
+Request explicit repetitions and minimum measurement time:
 
 ```powershell
-.\build\benchmark\GameWIPBenchmarks.exe `
-  --benchmark_filter=BM_Logger `
-  --benchmark_repetitions=5 `
-  --benchmark_out=build/benchmark/logger_results.json `
-  --benchmark_out_format=json
+.\gamewip.bat benchmark `
+  -Filter BM_Logger `
+  -Repetitions 10 `
+  -MinTime 1s
 ```
 
-Dry-run registration:
+Use a named profile:
 
 ```powershell
-.\build\benchmark\GameWIPBenchmarks.exe --benchmark_dry_run
+.\gamewip.bat benchmark -BenchmarkProfile quick
+.\gamewip.bat benchmark -BenchmarkProfile standard
+.\gamewip.bat benchmark -BenchmarkProfile stable
 ```
+
+Save results to an explicit path:
+
+```powershell
+.\gamewip.bat benchmark -Filter BM_Logger -Output D:\Results\logger.json
+```
+
+Compare two retained JSON results descriptively:
+
+```powershell
+.\gamewip.bat benchmark `
+  -BenchmarkAction compare `
+  -Baseline build\tool-runs\<before>\artifacts\benchmark-results.json `
+  -Candidate build\tool-runs\<after>\artifacts\benchmark-results.json
+```
+
+The comparison matches benchmark run names, normalizes time units, prefers Google Benchmark's mean aggregate when present, and reports CPU and real-time percentage changes. It is descriptive evidence, not a statistical significance test or performance gate.
+
+### Helper options
+
+| Option | Behavior |
+| --- | --- |
+| `-BenchmarkAction run` | Configure, build, measure, and retain results. This is the default. |
+| `-BenchmarkAction dry-run` | Validate selected registrations without useful timings. |
+| `-BenchmarkAction list` | Print selected registered benchmark names. |
+| `-BenchmarkAction compare` | Compare two retained JSON files supplied with `-Baseline` and `-Candidate`. |
+| `-BenchmarkProfile quick` | One short development measurement per scenario. |
+| `-BenchmarkProfile standard` | Five repetitions with aggregate reporting; this is the default profile. |
+| `-BenchmarkProfile stable` | Ten longer, randomly interleaved repetitions for careful local comparison. |
+| `-Filter <regex>` | Forward a Google Benchmark name filter. |
+| `-Repetitions <count>` | Override the selected profile's repetition count. |
+| `-MinTime <time>` | Override minimum measurement time, such as `0.5s`, `2s`, or `100x`. |
+| `-AggregatesOnly` | Retain and display aggregate rows only. |
+| `-Output <path>` | Override the default retained result or comparison path. |
+| `-OutputFormat json\|csv` | Select retained measurement format; JSON is the default and is required for helper comparison. |
+| `-NoBuild` | Use an existing benchmark executable and fail clearly when it is missing. |
+| `-ExtraArgs <arguments>` | Forward advanced Google Benchmark arguments not owned by a dedicated helper option. |
 
 ## Module standard
 
@@ -141,6 +183,7 @@ Benchmarks must:
 | `BM_Logger_*` | Disabled output, filtered formatting, enabled asynchronous output, registered-`SourceId`, and 2/4/8-thread producer contention paths. |
 | `BM_FileSystem_*` | Materialized and streaming directory enumeration at 1K/10K entries and path depths 1/8/32. |
 | `BM_IO_*` | Fixed-size memory reads, pre-reserved memory writes, and known-size whole-read allocation at 4 KiB and 1 MiB. |
+| `BM_Terminal_*` | Output-buffer formatting, segmented writes, and terminal-facing hot paths without interactive correctness policy. |
 | `BM_Unicode_*` | Strict UTF-8 decode, validation, scalar encoding, code-point traversal, and extended grapheme traversal on representative ASCII and non-ASCII text. |
 
 Logger scenarios report queue, drop, flush, or error counters where necessary so a fast producer result cannot hide lost work.
@@ -149,9 +192,21 @@ FileSystem fixtures are created below the operating-system temporary directory a
 
 ## Outputs and artifacts
 
-Console output is suitable for local inspection. Use JSON for retained evidence, comparison, or issue attachments.
+Each helper invocation creates one action-named directory:
 
-Benchmark output must not be written into source directories. Store retained data in an explicit analysis path or build artifact.
+```text
+build/tool-runs/<timestamp>_benchmark-run/
+  summary.txt
+  summary.json
+  manifest.json
+  logs/
+  artifacts/
+    benchmark-results.json
+```
+
+Console output is streamed live and retained in the step log. The manifest records the selected profile, effective options, commands, timings, exit codes, and output paths. JSON is the default measurement artifact because it supports later comparison and issue attachments.
+
+An explicit `-Output` may point outside the checkout. Inside the checkout it must remain under `build/`; benchmark output must not be written into source directories.
 
 ## Failure behavior
 

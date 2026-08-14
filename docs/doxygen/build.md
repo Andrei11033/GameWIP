@@ -152,6 +152,7 @@ Preset cache values may intentionally override source defaults. For example, the
 | Doxygen warning log | `build/docs/docs/doxygen/doxygen_warnings.log` | Docs preset |
 | Coverage HTML | `build/coverage/coverage/index.html` | Coverage target |
 | Coverage XML | `build/coverage/coverage/coverage.xml` | Coverage target |
+| Helper logs, manifests, and retained results | `build/tool-runs/<timestamp>_<action>/` | `gamewip.bat` and `setup.bat` |
 
 Runtime dependency copying places matching MSYS2 runtime DLLs beside project executables. The helper derives the runtime search directory from the active compiler so UCRT64 and CLANG64 runtime files are not mixed accidentally.
 

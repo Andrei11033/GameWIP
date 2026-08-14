@@ -89,7 +89,7 @@ The interactive `Q` menu groups quality and maintenance actions. The `U` menu ow
 
 The tool discovers CMake presets from `CMakePresets.json` and reads project command definitions from `scripts/config/gamewip-commands.psd1`. Add new project actions by updating that catalog instead of accepting arbitrary shell commands.
 
-Every command run prints the exact native command, streams output live, and stores logs under `build/tool-runs/<timestamp>/`. Interactive selections use one-key input with Enter for defaults. Configure and build flows offer the next useful action, such as building after configure, running CTest after a test build, generating coverage after a coverage test run, or running benchmark registration after a benchmark build. Failures print the failed action and focused next steps instead of only returning a native exit code.
+Every command run prints the exact native command, streams output live, and stores evidence under `build/tool-runs/<timestamp>_<action>/`. Each run contains `logs/`, `artifacts/`, human and JSON summaries, and a manifest with commands, durations, exit codes, and retained output paths. Interactive selections use one-key input with Enter for defaults. Configure and build flows offer the next useful action, such as building after configure, running CTest after a test build, generating coverage after a coverage test run, or collecting optimized benchmark measurements after a benchmark build. Failures print the failed action and focused next steps instead of only returning a native exit code.
 
 Validation and stress actions default `TEMP` and `TMP` to `build/gamewip-temp` so local Windows temp-folder permissions cannot make FileSystem and Logger checks fail spuriously.
 
@@ -117,8 +117,10 @@ Common non-interactive usage:
 .\gamewip.bat wizard
 .\gamewip.bat module -Module terminal -BuildIfMissing
 .\gamewip.bat stress -Module logger -Count 100 -Parallel 16 -BuildIfMissing
-.\gamewip.bat run -ProjectCommand benchmark-dry-run -BuildIfMissing
+.\gamewip.bat run -ProjectCommand test-all -ExtraArgs @('--test-module=logger') -BuildIfMissing
 .\gamewip.bat bundle -Bundle quick
+.\gamewip.bat benchmark
+.\gamewip.bat benchmark -BenchmarkAction dry-run
 ```
 
 `doctor` checks repository metadata and the exact UCRT64/CLANG64 tools used by project commands, including the Python and clang-format executables required by maintenance workflows. Build and test actions automatically configure a missing build tree. All normal presets explicitly use `C:\MSYS2\ucrt64\bin`; ASan uses `C:\MSYS2\clang64\bin`, so an unrelated CMake or compiler earlier on the user's global `PATH` cannot silently change the build.
@@ -147,6 +149,44 @@ approval. Finalization requires the complete 40-character master commit SHA.
 Arbitrary workflow names, refs, and input flags are intentionally unsupported.
 
 Running `gamewip.bat` without arguments opens the interactive menu. The helper is intentionally project-scoped: stress and project-command actions are selected from known GameWIP validation, benchmark, and executable checks instead of accepting arbitrary shell commands.
+
+Project commands, benchmark profiles, guarded workflows, and bundles live in `scripts/config/gamewip-commands.psd1`. Catalog validation rejects duplicate IDs, unknown presets or references, missing workflow files, stale correctness-module lists, invalid schemas, and bundle cycles before execution. Project commands may opt into `-ExtraArgs`; bundles may compose configure, build, build-target, CTest, project-command, benchmark, and nested-bundle steps. Adding an ordinary command or bundle therefore updates one catalog rather than separate menu, list, and execution tables.
+
+### Extending commands and bundles
+
+Add an executable-backed project command with:
+
+```powershell
+@{
+    Id = 'example-check'
+    Name = 'Run the example check'
+    BuildPreset = 'test'
+    Executable = 'build\test\ExampleCheck.exe'
+    Arguments = @('--concise')
+    UseWorkspaceTemp = $true
+    AcceptsExtraArgs = $true
+}
+```
+
+`AlternateExecutable` may name one supported secondary output path. Keep executable paths repository-relative and select an existing build preset. `AcceptsExtraArgs` must be intentional: when false, `gamewip run` rejects additional arguments rather than silently forwarding them.
+
+Add a bundle by composing supported steps:
+
+```powershell
+@{
+    Id = 'example'
+    Name = 'Example validation sequence'
+    Steps = @(
+        @{ Kind = 'Configure'; Preset = 'test' }
+        @{ Kind = 'Build'; Preset = 'test' }
+        @{ Kind = 'ProjectCommand'; Command = 'example-check'; BuildIfMissing = $true }
+        @{ Kind = 'Benchmark'; Profile = 'quick'; Filter = 'BM_Example' }
+        @{ Kind = 'Bundle'; Bundle = 'quick' }
+    )
+}
+```
+
+Supported step kinds are `Configure`, `Build`, `BuildTarget`, `CTest`, `ProjectCommand`, `Benchmark`, and `Bundle`. The catalog drives `gamewip list`, interactive command and bundle choices, and execution; no separate menu edit is required for an ordinary command or bundle.
 
 ## Test-module source API
 

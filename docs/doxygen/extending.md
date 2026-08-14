@@ -156,9 +156,7 @@ Benchmark modules must use Google Benchmark naming, keep setup outside measured 
 Verify registration before collecting results:
 
 ```powershell
-cmake --preset benchmark
-cmake --build --preset benchmark
-.\build\benchmark\GameWIPBenchmarks.exe --benchmark_dry_run
+.\gamewip.bat benchmark -BenchmarkAction dry-run
 ```
 
 Benchmark authoring rules are documented in @ref project_benchmarking.
@@ -255,9 +253,7 @@ cmake --build --preset docs
 ```
 
 ```powershell
-cmake --preset benchmark
-cmake --build --preset benchmark
-.\build\benchmark\GameWIPBenchmarks.exe --benchmark_dry_run
+.\gamewip.bat benchmark -BenchmarkAction dry-run
 ```
 
 A generic statement such as `tested` is not sufficient verification evidence.
