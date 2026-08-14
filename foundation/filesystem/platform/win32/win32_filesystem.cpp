@@ -468,9 +468,9 @@ namespace GameWIP::FileSystem::Detail::Platform
         }
 
         /// @brief Rejects file-sharing bits outside the supported mask.
-        [[nodiscard]] bool isValidFileShare(Types::FileShare share) noexcept
+        [[nodiscard]] bool isValidFileShare(Types::File::Share share) noexcept
         {
-            return (static_cast<std::uint8_t>(share) & ~static_cast<std::uint8_t>(Types::FileShare::All)) == 0;
+            return (static_cast<std::uint8_t>(share) & ~static_cast<std::uint8_t>(Types::File::Share::All)) == 0;
         }
 
         /// @brief Validates symlink-policy values before backend traversal.
@@ -488,18 +488,18 @@ namespace GameWIP::FileSystem::Detail::Platform
         }
 
         /// @brief Converts portable sharing flags to CreateFile/NtCreateFile flags.
-        [[nodiscard]] DWORD nativeShareMode(Types::FileShare share) noexcept
+        [[nodiscard]] DWORD nativeShareMode(Types::File::Share share) noexcept
         {
             DWORD result = 0;
-            if ((share & Types::FileShare::Read) == Types::FileShare::Read)
+            if ((share & Types::File::Share::Read) == Types::File::Share::Read)
             {
                 result |= FILE_SHARE_READ;
             }
-            if ((share & Types::FileShare::Write) == Types::FileShare::Write)
+            if ((share & Types::File::Share::Write) == Types::File::Share::Write)
             {
                 result |= FILE_SHARE_WRITE;
             }
-            if ((share & Types::FileShare::Delete) == Types::FileShare::Delete)
+            if ((share & Types::File::Share::Delete) == Types::File::Share::Delete)
             {
                 result |= FILE_SHARE_DELETE;
             }
@@ -1301,9 +1301,9 @@ namespace GameWIP::FileSystem::Detail::Platform
             DWORD desiredAccess = 0;
             DWORD creationDisposition = OPEN_EXISTING;
             DWORD flagsAndAttributes = FILE_ATTRIBUTE_NORMAL;
-            Types::FileAccess access = Types::FileAccess::ReadWrite;
+            Types::File::Access access = Types::File::Access::ReadWrite;
             IO::Types::FlushMode flushOnClose = IO::Types::FlushMode::None;
-            Types::FileShare share = Types::FileShare::All;
+            Types::File::Share share = Types::File::Share::All;
             Types::SymlinkPolicy symlinkPolicy = Types::SymlinkPolicy::FollowAll;
             ExistingEntryRule existingEntryRule = ExistingEntryRule::MustExistRegularFile;
             bool readable = false;
@@ -1734,7 +1734,7 @@ namespace GameWIP::FileSystem::Detail::Platform
         }
 
         /// @brief Creates one final directory through a stable parent handle.
-        [[nodiscard]] IO::Types::Status createDirectoryStrict(const Types::Path &path, const Types::CreateDirectoryOptions &options)
+        [[nodiscard]] IO::Types::Status createDirectoryStrict(const Types::Path &path, const Types::Directory::CreateOptions &options)
         {
             WidePathResult absolutePath = absoluteNativePath(path);
             if (!absolutePath.status.ok())
@@ -1785,7 +1785,7 @@ namespace GameWIP::FileSystem::Detail::Platform
         }
 
         /// @brief Creates missing components one at a time while retaining strict traversal handles.
-        [[nodiscard]] IO::Types::Status createDirectoriesStrict(const Types::Path &path, const Types::CreateDirectoryOptions &options)
+        [[nodiscard]] IO::Types::Status createDirectoriesStrict(const Types::Path &path, const Types::Directory::CreateOptions &options)
         {
             WidePathResult absolutePath = absoluteNativePath(path);
             if (!absolutePath.status.ok())
@@ -1859,7 +1859,7 @@ namespace GameWIP::FileSystem::Detail::Platform
         }
 
         /// @brief Applies public directory-list kind filters to one queried entry.
-        [[nodiscard]] bool includeEntryKind(Types::EntryKind kind, const Types::ListDirectoryOptions &options) noexcept
+        [[nodiscard]] bool includeEntryKind(Types::EntryKind kind, const Types::Directory::ListOptions &options) noexcept
         {
             switch (kind)
             {
@@ -1901,7 +1901,7 @@ namespace GameWIP::FileSystem::Detail::Platform
 
             return {
                 .status = IO::successStatus(),
-                .entry = Types::DirectoryEntry{.path = childPath, .info = child.info},
+                .entry = Types::Directory::Entry{.path = childPath, .info = child.info},
                 .hidden = (findData.dwFileAttributes & FILE_ATTRIBUTE_HIDDEN) != 0,
                 .hasEntry = true};
         }
@@ -2055,7 +2055,7 @@ namespace GameWIP::FileSystem::Detail::Platform
         }
 
         /// Enumerates direct children and applies public filtering and count policy.
-        [[nodiscard]] Types::ListDirectoryResult listDirectoryImpl(const Types::Path &path, const Types::ListDirectoryOptions &options)
+        [[nodiscard]] Types::Directory::ListResult listDirectoryImpl(const Types::Path &path, const Types::Directory::ListOptions &options)
         {
             DirectoryCursorOpenResult opened = openDirectoryCursorImpl(path, options.symlinkPolicy);
             if (!opened.status.ok())
@@ -2063,7 +2063,7 @@ namespace GameWIP::FileSystem::Detail::Platform
                 return {.status = std::move(opened.status)};
             }
 
-            Types::ListDirectoryResult result{.status = IO::successStatus()};
+            Types::Directory::ListResult result{.status = IO::successStatus()};
             while (true)
             {
                 DirectoryCursorNextResult next = readDirectoryCursorImpl(*opened.state);
@@ -2109,7 +2109,7 @@ namespace GameWIP::FileSystem::Detail::Platform
     IO::Types::Status openReader(
         std::unique_ptr<Detail::FileState> &state,
         const Types::Path &path,
-        const Types::FileReaderOpenOptions &options) noexcept
+        const Types::File::ReaderOpenOptions &options) noexcept
     {
         try
         {
@@ -2117,7 +2117,7 @@ namespace GameWIP::FileSystem::Detail::Platform
                 .desiredAccess = FILE_GENERIC_READ,
                 .creationDisposition = OPEN_EXISTING,
                 .flagsAndAttributes = FILE_ATTRIBUTE_NORMAL,
-                .access = Types::FileAccess::Read,
+                .access = Types::File::Access::Read,
                 .flushOnClose = IO::Types::FlushMode::None,
                 .share = options.share,
                 .symlinkPolicy = options.symlinkPolicy,
@@ -2140,7 +2140,7 @@ namespace GameWIP::FileSystem::Detail::Platform
     IO::Types::Status openWriter(
         std::unique_ptr<Detail::FileState> &state,
         const Types::Path &path,
-        const Types::FileWriterOpenOptions &options) noexcept
+        const Types::File::WriterOpenOptions &options) noexcept
     {
         try
         {
@@ -2150,24 +2150,24 @@ namespace GameWIP::FileSystem::Detail::Platform
 
             switch (options.mode)
             {
-            case Types::FileWriterMode::CreateNew:
+            case Types::File::WriterMode::CreateNew:
                 creationDisposition = CREATE_NEW;
                 break;
-            case Types::FileWriterMode::CreateOrTruncate:
+            case Types::File::WriterMode::CreateOrTruncate:
                 creationDisposition = CREATE_ALWAYS;
                 break;
-            case Types::FileWriterMode::TruncateExisting:
+            case Types::File::WriterMode::TruncateExisting:
                 creationDisposition = TRUNCATE_EXISTING;
                 existingRule = ExistingEntryRule::MustExistRegularFile;
                 break;
-            case Types::FileWriterMode::OpenOrCreate:
+            case Types::File::WriterMode::OpenOrCreate:
                 creationDisposition = OPEN_ALWAYS;
                 break;
-            case Types::FileWriterMode::AppendOrCreate:
+            case Types::File::WriterMode::AppendOrCreate:
                 creationDisposition = OPEN_ALWAYS;
                 appendMode = true;
                 break;
-            case Types::FileWriterMode::AppendExisting:
+            case Types::File::WriterMode::AppendExisting:
                 creationDisposition = OPEN_EXISTING;
                 existingRule = ExistingEntryRule::MustExistRegularFile;
                 appendMode = true;
@@ -2181,7 +2181,7 @@ namespace GameWIP::FileSystem::Detail::Platform
                                             : static_cast<DWORD>(FILE_GENERIC_WRITE | FILE_READ_ATTRIBUTES),
                 .creationDisposition = creationDisposition,
                 .flagsAndAttributes = FILE_ATTRIBUTE_NORMAL,
-                .access = Types::FileAccess::Write,
+                .access = Types::File::Access::Write,
                 .flushOnClose = options.flushOnClose,
                 .share = options.share,
                 .symlinkPolicy = options.symlinkPolicy,
@@ -2201,7 +2201,7 @@ namespace GameWIP::FileSystem::Detail::Platform
         }
     }
 
-    IO::Types::Status openFile(std::unique_ptr<Detail::FileState> &state, const Types::Path &path, const Types::FileOpenOptions &options) noexcept
+    IO::Types::Status openFile(std::unique_ptr<Detail::FileState> &state, const Types::Path &path, const Types::File::OpenOptions &options) noexcept
     {
         try
         {
@@ -2210,21 +2210,21 @@ namespace GameWIP::FileSystem::Detail::Platform
 
             switch (options.mode)
             {
-            case Types::FileOpenMode::OpenExisting:
+            case Types::File::OpenMode::OpenExisting:
                 creationDisposition = OPEN_EXISTING;
                 break;
-            case Types::FileOpenMode::CreateNew:
+            case Types::File::OpenMode::CreateNew:
                 creationDisposition = CREATE_NEW;
                 existingRule = ExistingEntryRule::MayCreateRegularFile;
                 break;
-            case Types::FileOpenMode::OpenOrCreate:
+            case Types::File::OpenMode::OpenOrCreate:
                 creationDisposition = OPEN_ALWAYS;
                 existingRule = ExistingEntryRule::MayCreateRegularFile;
                 break;
-            case Types::FileOpenMode::TruncateExisting:
+            case Types::File::OpenMode::TruncateExisting:
                 creationDisposition = TRUNCATE_EXISTING;
                 break;
-            case Types::FileOpenMode::CreateOrTruncate:
+            case Types::File::OpenMode::CreateOrTruncate:
                 creationDisposition = CREATE_ALWAYS;
                 existingRule = ExistingEntryRule::MayCreateRegularFile;
                 break;
@@ -2237,15 +2237,15 @@ namespace GameWIP::FileSystem::Detail::Platform
             bool writable = false;
             switch (options.access)
             {
-            case Types::FileAccess::Read:
+            case Types::File::Access::Read:
                 desiredAccess = FILE_GENERIC_READ;
                 readable = true;
                 break;
-            case Types::FileAccess::Write:
+            case Types::File::Access::Write:
                 desiredAccess = FILE_GENERIC_WRITE | FILE_READ_ATTRIBUTES;
                 writable = true;
                 break;
-            case Types::FileAccess::ReadWrite:
+            case Types::File::Access::ReadWrite:
                 desiredAccess = FILE_GENERIC_READ | FILE_GENERIC_WRITE | FILE_READ_ATTRIBUTES;
                 readable = true;
                 writable = true;
@@ -2272,7 +2272,7 @@ namespace GameWIP::FileSystem::Detail::Platform
                 return openStatus;
             }
 
-            if (options.initialPosition == Types::FileInitialPosition::End)
+            if (options.initialPosition == Types::File::InitialPosition::End)
             {
                 IO::Types::Status seekStatus = seekFile(*state, 0, IO::Types::SeekOrigin::End);
                 if (!seekStatus.ok())
@@ -2282,7 +2282,7 @@ namespace GameWIP::FileSystem::Detail::Platform
                     return seekStatus;
                 }
             }
-            else if (options.initialPosition != Types::FileInitialPosition::Beginning)
+            else if (options.initialPosition != Types::File::InitialPosition::Beginning)
             {
                 static_cast<void>(closeFile(*state));
                 state.reset();
@@ -2593,16 +2593,16 @@ namespace GameWIP::FileSystem::Detail::Platform
         }
     }
 
-    NativeLockResult tryLockFile(Detail::FileState &state, Types::FileLockMode mode) noexcept
+    NativeLockResult tryLockFile(Detail::FileState &state, Types::Lock::Mode mode) noexcept
     {
         try
         {
             DWORD flags = LOCKFILE_FAIL_IMMEDIATELY;
             switch (mode)
             {
-            case Types::FileLockMode::Shared:
+            case Types::Lock::Mode::Shared:
                 break;
-            case Types::FileLockMode::Exclusive:
+            case Types::Lock::Mode::Exclusive:
                 flags |= LOCKFILE_EXCLUSIVE_LOCK;
                 break;
             default:
@@ -2621,7 +2621,7 @@ namespace GameWIP::FileSystem::Detail::Platform
                 const DWORD error = GetLastError();
                 if (error == ERROR_LOCK_VIOLATION || error == ERROR_SHARING_VIOLATION)
                 {
-                    return {.status = IO::successStatus(), .outcome = Types::LockOutcome::WouldBlock};
+                    return {.status = IO::successStatus(), .outcome = Types::Lock::Outcome::WouldBlock};
                 }
                 return {.status = makeWin32Status(error, ErrorCode::LockFailed)};
             }
@@ -2647,10 +2647,10 @@ namespace GameWIP::FileSystem::Detail::Platform
             lockState->nativeHandle = duplicatedHandle.release();
             lockState->activeLocks = state.activeLocks;
             lockState->active = true;
-            lockState->exclusive = mode == Types::FileLockMode::Exclusive;
+            lockState->exclusive = mode == Types::Lock::Mode::Exclusive;
             ++(*lockState->activeLocks);
 
-            return {.status = IO::successStatus(), .outcome = Types::LockOutcome::Acquired, .state = std::move(lockState)};
+            return {.status = IO::successStatus(), .outcome = Types::Lock::Outcome::Acquired, .state = std::move(lockState)};
         }
         catch (const std::bad_alloc &)
         {
@@ -2667,7 +2667,7 @@ namespace GameWIP::FileSystem::Detail::Platform
         return unlockNativeFile(state);
     }
 
-    IO::Types::Status createDirectory(const Types::Path &path, const Types::CreateDirectoryOptions &options) noexcept
+    IO::Types::Status createDirectory(const Types::Path &path, const Types::Directory::CreateOptions &options) noexcept
     {
         try
         {
@@ -2716,7 +2716,7 @@ namespace GameWIP::FileSystem::Detail::Platform
         }
     }
 
-    IO::Types::Status createDirectories(const Types::Path &path, const Types::CreateDirectoryOptions &options) noexcept
+    IO::Types::Status createDirectories(const Types::Path &path, const Types::Directory::CreateOptions &options) noexcept
     {
         try
         {
@@ -2788,7 +2788,7 @@ namespace GameWIP::FileSystem::Detail::Platform
         }
     }
 
-    Types::ListDirectoryResult listDirectory(const Types::Path &path, const Types::ListDirectoryOptions &options) noexcept
+    Types::Directory::ListResult listDirectory(const Types::Path &path, const Types::Directory::ListOptions &options) noexcept
     {
         try
         {

@@ -14,42 +14,6 @@
 #define FILESYSTEM_INTERNAL_TEST_HOOKS 0
 #endif
 
-// Internal migration aliases keep implementation and platform code readable while the
-// installed public surface uses the organized Types::File/Directory/Lock vocabulary.
-namespace GameWIP::FileSystem::Types
-{
-    using FileAccess = File::Access;
-    using FileShare = File::Share;
-    using FileOpenMode = File::OpenMode;
-    using FileInitialPosition = File::InitialPosition;
-    using FileWriterMode = File::WriterMode;
-    using WriteFileMode = File::WriteMode;
-    using AppendMode = File::AppendMode;
-    using CopyMetadataMode = File::CopyMetadataMode;
-    using FileOpenOptions = File::OpenOptions;
-    using FileReaderOpenOptions = File::ReaderOpenOptions;
-    using FileWriterOpenOptions = File::WriterOpenOptions;
-    using ReadFileOptions = File::ReadOptions;
-    using WriteFileOptions = File::WriteOptions;
-    using AppendFileOptions = File::AppendOptions;
-    using AtomicWriteOptions = File::AtomicWriteOptions;
-    using MutationOptions = File::ResizeOptions;
-    using CopyFileOptions = File::CopyOptions;
-
-    using QueryOptions = EntryOptions;
-
-    using CreateDirectoryOptions = Directory::CreateOptions;
-    using ListDirectoryOptions = Directory::ListOptions;
-    using DirectoryEntry = Directory::Entry;
-    using ListDirectoryResult = Directory::ListResult;
-    using DirectoryCursorNextResult = Directory::CursorNextResult;
-    using RemoveDirectoryTreeOptions = Directory::RemoveTreeOptions;
-    using RemoveDirectoryTreeResult = Directory::RemoveTreeResult;
-
-    using FileLockMode = Lock::Mode;
-    using LockOutcome = Lock::Outcome;
-    using LockResult = Lock::Result;
-} // namespace GameWIP::FileSystem::Types
 
 namespace GameWIP::FileSystem::Detail
 {
@@ -66,7 +30,7 @@ namespace GameWIP::FileSystem::Detail
         /// Backend-native file handle owned by this state.
         void *nativeHandle = nullptr;
         /// Public access selected at open time; meaningful while nativeHandle is active.
-        Types::FileAccess access = Types::FileAccess::ReadWrite;
+        Types::File::Access access = Types::File::Access::ReadWrite;
         /// Flush strength attempted before explicit close releases a writable handle.
         IO::Types::FlushMode flushOnClose = IO::Types::FlushMode::None;
         /// Shared active-lock count retained by the handle and every detached lock owner.
@@ -105,7 +69,7 @@ namespace GameWIP::FileSystem::Detail
         ~DirectoryCursorState() noexcept;
 
         Types::Path directoryPath;
-        Types::DirectoryEntry bufferedEntry;
+        Types::Directory::Entry bufferedEntry;
         /// Native handles retained to prevent strict-policy path components from being replaced during enumeration.
         std::vector<void *> stableHandles;
         void *nativeFindHandle = nullptr;
@@ -180,7 +144,7 @@ namespace GameWIP::FileSystem::Detail::Platform
         /// @brief Operation status. WouldBlock is represented by outcome, not an error.
         IO::Types::Status status;
         /// @brief Whether the native lock was acquired.
-        Types::LockOutcome outcome = Types::LockOutcome::WouldBlock;
+        Types::Lock::Outcome outcome = Types::Lock::Outcome::WouldBlock;
         /// @brief Native lock state when outcome is Acquired.
         std::unique_ptr<Detail::FileLockState> state;
     };
@@ -196,7 +160,7 @@ namespace GameWIP::FileSystem::Detail::Platform
     struct DirectoryCursorNextResult
     {
         IO::Types::Status status;
-        Types::DirectoryEntry entry;
+        Types::Directory::Entry entry;
         bool hidden = false;
         bool hasEntry = false;
     };
@@ -217,7 +181,7 @@ namespace GameWIP::FileSystem::Detail::Platform
     [[nodiscard]] IO::Types::Status openReader(
         std::unique_ptr<Detail::FileState> &state,
         const Types::Path &path,
-        const Types::FileReaderOpenOptions &options) noexcept;
+        const Types::File::ReaderOpenOptions &options) noexcept;
 
     /// @brief Opens a write-only file handle.
     /// @param state Receives newly opened native state on success. Failure leaves it unchanged.
@@ -227,7 +191,7 @@ namespace GameWIP::FileSystem::Detail::Platform
     [[nodiscard]] IO::Types::Status openWriter(
         std::unique_ptr<Detail::FileState> &state,
         const Types::Path &path,
-        const Types::FileWriterOpenOptions &options) noexcept;
+        const Types::File::WriterOpenOptions &options) noexcept;
 
     /// @brief Opens a read/write, read-only, or write-only file handle.
     /// @param state Receives newly opened native state on success. Failure leaves it unchanged.
@@ -237,7 +201,7 @@ namespace GameWIP::FileSystem::Detail::Platform
     [[nodiscard]] IO::Types::Status openFile(
         std::unique_ptr<Detail::FileState> &state,
         const Types::Path &path,
-        const Types::FileOpenOptions &options) noexcept;
+        const Types::File::OpenOptions &options) noexcept;
 
     /// @brief Reads from an open native file handle.
     [[nodiscard]] IO::Types::ReadResult readFile(Detail::FileState &state, std::span<std::byte> destination) noexcept;
@@ -264,7 +228,7 @@ namespace GameWIP::FileSystem::Detail::Platform
     [[nodiscard]] IO::Types::Status resizeFile(Detail::FileState &state, std::uint64_t sizeBytes) noexcept;
 
     /// @brief Attempts to acquire a non-blocking whole-file lock from an open native handle.
-    [[nodiscard]] NativeLockResult tryLockFile(Detail::FileState &state, Types::FileLockMode mode) noexcept;
+    [[nodiscard]] NativeLockResult tryLockFile(Detail::FileState &state, Types::Lock::Mode mode) noexcept;
 
     /// @brief Unlocks a whole-file lock. Failure leaves the lock active.
     [[nodiscard]] IO::Types::Status unlockFile(Detail::FileLockState &state) noexcept;
@@ -277,13 +241,13 @@ namespace GameWIP::FileSystem::Detail::Platform
         Types::SymlinkPolicy symlinkPolicy) noexcept;
 
     /// @brief Creates one directory level using backend-native path traversal.
-    [[nodiscard]] IO::Types::Status createDirectory(const Types::Path &path, const Types::CreateDirectoryOptions &options) noexcept;
+    [[nodiscard]] IO::Types::Status createDirectory(const Types::Path &path, const Types::Directory::CreateOptions &options) noexcept;
 
     /// @brief Creates a directory and any missing parents using backend-native path traversal.
-    [[nodiscard]] IO::Types::Status createDirectories(const Types::Path &path, const Types::CreateDirectoryOptions &options) noexcept;
+    [[nodiscard]] IO::Types::Status createDirectories(const Types::Path &path, const Types::Directory::CreateOptions &options) noexcept;
 
     /// @brief Lists direct directory children using backend-native path traversal.
-    [[nodiscard]] Types::ListDirectoryResult listDirectory(const Types::Path &path, const Types::ListDirectoryOptions &options) noexcept;
+    [[nodiscard]] Types::Directory::ListResult listDirectory(const Types::Path &path, const Types::Directory::ListOptions &options) noexcept;
 
     /// Opens a streaming cursor over direct children while stabilizing strict-policy path components.
     [[nodiscard]] DirectoryCursorOpenResult openDirectoryCursor(const Types::Path &path, Types::SymlinkPolicy symlinkPolicy) noexcept;

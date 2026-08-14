@@ -8,7 +8,7 @@ Whole-file helpers are for one complete operation whose open, transfer, optional
 
 `Types::File::ReadOptions` controls:
 
-- the underlying `FileReaderOpenOptions`;
+- the underlying `Types::File::ReaderOpenOptions`;
 - `maxBytes`, a hard retained-data limit;
 - `bufferSize`, the transfer-buffer size, which must be greater than zero.
 

@@ -39,7 +39,7 @@ A successful timestamp is a snapshot. It can become stale immediately under conc
 
 ## Size mutation
 
-`resizeFile()` resizes one existing regular file; `truncateFile()` is the zero-size convenience operation. Both apply `MutationOptions::symlinkPolicy`.
+`resizeFile()` resizes one existing regular file; `truncateFile()` is the zero-size convenience operation. Both apply `Types::File::ResizeOptions::symlinkPolicy`.
 
 `File::resize()` performs the same operation through an open writable handle and follows the position rule described by @ref filesystem_file_open_modes.
 
@@ -47,7 +47,7 @@ Growing a file does not promise a particular physical allocation policy beyond t
 
 ## Metadata copy
 
-`CopyMetadataMode::Basic` requests last-write time and read-only state after content copying. Metadata failure is returned even when destination content was copied completely. See @ref filesystem_directory_operations.
+`Types::File::CopyMetadataMode::Basic` requests last-write time and read-only state after content copying. Metadata failure is returned even when destination content was copied completely. See @ref filesystem_directory_operations.
 
 ## Related pages
 

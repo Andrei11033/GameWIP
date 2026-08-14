@@ -74,19 +74,19 @@ namespace GameWIP::FileSystem
         }
 
         /// @brief Builds a failed directory-list result with no entries.
-        Types::ListDirectoryResult listDirectoryFailure(IO::Types::Status status) noexcept
+        Types::Directory::ListResult listDirectoryFailure(IO::Types::Status status) noexcept
         {
             return {.status = std::move(status), .entries = {}};
         }
 
         /// @brief Builds a failed directory-list result from one portable error code.
-        Types::ListDirectoryResult listDirectoryFailure(ErrorCode code) noexcept
+        Types::Directory::ListResult listDirectoryFailure(ErrorCode code) noexcept
         {
             return {.status = IO::makeStatus(code), .entries = {}};
         }
 
         /// @brief Applies directory-list kind filters to one queried entry.
-        bool includeDirectoryEntryKind(Types::EntryKind kind, const Types::ListDirectoryOptions &options) noexcept
+        bool includeDirectoryEntryKind(Types::EntryKind kind, const Types::Directory::ListOptions &options) noexcept
         {
             switch (kind)
             {
@@ -103,13 +103,13 @@ namespace GameWIP::FileSystem
         }
 
         /// @brief Builds a failed tree-removal result while preserving completed removal progress.
-        Types::RemoveDirectoryTreeResult removeTreeFailure(IO::Types::Status status, std::uint64_t removedEntries = 0) noexcept
+        Types::Directory::RemoveTreeResult removeTreeFailure(IO::Types::Status status, std::uint64_t removedEntries = 0) noexcept
         {
             return {.status = std::move(status), .removedEntries = removedEntries};
         }
 
         /// @brief Builds a failed tree-removal result from a code and completed progress.
-        Types::RemoveDirectoryTreeResult removeTreeFailure(ErrorCode code, std::uint64_t removedEntries = 0) noexcept
+        Types::Directory::RemoveTreeResult removeTreeFailure(ErrorCode code, std::uint64_t removedEntries = 0) noexcept
         {
             return {.status = IO::makeStatus(code), .removedEntries = removedEntries};
         }
@@ -171,9 +171,9 @@ namespace GameWIP::FileSystem
         }
 
         /// @brief Rejects file-share bits outside the supported mask.
-        [[nodiscard]] bool isValidFileShare(Types::FileShare share) noexcept
+        [[nodiscard]] bool isValidFileShare(Types::File::Share share) noexcept
         {
-            return (static_cast<std::uint8_t>(share) & ~static_cast<std::uint8_t>(Types::FileShare::All)) == 0;
+            return (static_cast<std::uint8_t>(share) & ~static_cast<std::uint8_t>(Types::File::Share::All)) == 0;
         }
 
         /// @brief Validates symlink-policy enum values crossing the public boundary.
@@ -191,13 +191,13 @@ namespace GameWIP::FileSystem
         }
 
         /// @brief Validates file-access enum values crossing the public boundary.
-        [[nodiscard]] bool isValidFileAccess(Types::FileAccess access) noexcept
+        [[nodiscard]] bool isValidFileAccess(Types::File::Access access) noexcept
         {
             switch (access)
             {
-            case Types::FileAccess::Read:
-            case Types::FileAccess::Write:
-            case Types::FileAccess::ReadWrite:
+            case Types::File::Access::Read:
+            case Types::File::Access::Write:
+            case Types::File::Access::ReadWrite:
                 return true;
             }
 
@@ -205,15 +205,15 @@ namespace GameWIP::FileSystem
         }
 
         /// @brief Validates read/write file-open mode values.
-        [[nodiscard]] bool isValidFileOpenMode(Types::FileOpenMode mode) noexcept
+        [[nodiscard]] bool isValidFileOpenMode(Types::File::OpenMode mode) noexcept
         {
             switch (mode)
             {
-            case Types::FileOpenMode::OpenExisting:
-            case Types::FileOpenMode::CreateNew:
-            case Types::FileOpenMode::OpenOrCreate:
-            case Types::FileOpenMode::TruncateExisting:
-            case Types::FileOpenMode::CreateOrTruncate:
+            case Types::File::OpenMode::OpenExisting:
+            case Types::File::OpenMode::CreateNew:
+            case Types::File::OpenMode::OpenOrCreate:
+            case Types::File::OpenMode::TruncateExisting:
+            case Types::File::OpenMode::CreateOrTruncate:
                 return true;
             }
 
@@ -221,16 +221,16 @@ namespace GameWIP::FileSystem
         }
 
         /// @brief Validates write-only file-open mode values.
-        [[nodiscard]] bool isValidFileWriterMode(Types::FileWriterMode mode) noexcept
+        [[nodiscard]] bool isValidFileWriterMode(Types::File::WriterMode mode) noexcept
         {
             switch (mode)
             {
-            case Types::FileWriterMode::CreateNew:
-            case Types::FileWriterMode::CreateOrTruncate:
-            case Types::FileWriterMode::TruncateExisting:
-            case Types::FileWriterMode::OpenOrCreate:
-            case Types::FileWriterMode::AppendOrCreate:
-            case Types::FileWriterMode::AppendExisting:
+            case Types::File::WriterMode::CreateNew:
+            case Types::File::WriterMode::CreateOrTruncate:
+            case Types::File::WriterMode::TruncateExisting:
+            case Types::File::WriterMode::OpenOrCreate:
+            case Types::File::WriterMode::AppendOrCreate:
+            case Types::File::WriterMode::AppendExisting:
                 return true;
             }
 
@@ -238,12 +238,12 @@ namespace GameWIP::FileSystem
         }
 
         /// @brief Validates initial-position enum values.
-        [[nodiscard]] bool isValidInitialPosition(Types::FileInitialPosition position) noexcept
+        [[nodiscard]] bool isValidInitialPosition(Types::File::InitialPosition position) noexcept
         {
             switch (position)
             {
-            case Types::FileInitialPosition::Beginning:
-            case Types::FileInitialPosition::End:
+            case Types::File::InitialPosition::Beginning:
+            case Types::File::InitialPosition::End:
                 return true;
             }
 
@@ -251,12 +251,12 @@ namespace GameWIP::FileSystem
         }
 
         /// @brief Validates metadata-copy policy values.
-        [[nodiscard]] bool isValidCopyMetadataMode(Types::CopyMetadataMode mode) noexcept
+        [[nodiscard]] bool isValidCopyMetadataMode(Types::File::CopyMetadataMode mode) noexcept
         {
             switch (mode)
             {
-            case Types::CopyMetadataMode::None:
-            case Types::CopyMetadataMode::Basic:
+            case Types::File::CopyMetadataMode::None:
+            case Types::File::CopyMetadataMode::Basic:
                 return true;
             }
 
@@ -264,22 +264,22 @@ namespace GameWIP::FileSystem
         }
 
         /// @brief Returns whether an access mode requests native write permission.
-        [[nodiscard]] bool opensForWrite(Types::FileAccess access) noexcept
+        [[nodiscard]] bool opensForWrite(Types::File::Access access) noexcept
         {
-            return access == Types::FileAccess::Write || access == Types::FileAccess::ReadWrite;
+            return access == Types::File::Access::Write || access == Types::File::Access::ReadWrite;
         }
 
         /// @brief Returns whether an open mode can create or mutate file contents.
-        [[nodiscard]] bool modeRequiresWrite(Types::FileOpenMode mode) noexcept
+        [[nodiscard]] bool modeRequiresWrite(Types::File::OpenMode mode) noexcept
         {
             switch (mode)
             {
-            case Types::FileOpenMode::OpenExisting:
+            case Types::File::OpenMode::OpenExisting:
                 return false;
-            case Types::FileOpenMode::CreateNew:
-            case Types::FileOpenMode::OpenOrCreate:
-            case Types::FileOpenMode::TruncateExisting:
-            case Types::FileOpenMode::CreateOrTruncate:
+            case Types::File::OpenMode::CreateNew:
+            case Types::File::OpenMode::OpenOrCreate:
+            case Types::File::OpenMode::TruncateExisting:
+            case Types::File::OpenMode::CreateOrTruncate:
                 return true;
             default:
                 return false;
@@ -339,7 +339,7 @@ namespace GameWIP::FileSystem
 
                 if (createMissing)
                 {
-                    return createDirectories(parent, Types::CreateDirectoryOptions{.succeedIfAlreadyExists = true, .symlinkPolicy = symlinkPolicy});
+                    return createDirectories(parent, Types::Directory::CreateOptions{.succeedIfAlreadyExists = true, .symlinkPolicy = symlinkPolicy});
                 }
 
                 return validateDirectoryExists(parent, symlinkPolicy);
@@ -422,7 +422,7 @@ namespace GameWIP::FileSystem
 
     DirectoryCursor::~DirectoryCursor() noexcept = default;
 
-    IO::Types::Status DirectoryCursor::open(const Types::Path &path, const Types::ListDirectoryOptions &options) noexcept
+    IO::Types::Status DirectoryCursor::open(const Types::Path &path, const Types::Directory::ListOptions &options) noexcept
     {
         try
         {
@@ -462,7 +462,7 @@ namespace GameWIP::FileSystem
         return state_ != nullptr;
     }
 
-    Types::DirectoryCursorNextResult DirectoryCursor::next() noexcept
+    Types::Directory::CursorNextResult DirectoryCursor::next() noexcept
     {
         try
         {
@@ -531,19 +531,19 @@ namespace GameWIP::FileSystem
         static_cast<void>(unlock());
     }
 
-    bool FileLock::active() const noexcept
+    bool FileLock::isActive() const noexcept
     {
         return state_ != nullptr && state_->active;
     }
 
-    Types::FileLockMode FileLock::mode() const noexcept
+    Types::Lock::Mode FileLock::mode() const noexcept
     {
         return mode_;
     }
 
     IO::Types::Status FileLock::unlock() noexcept
     {
-        if (!active())
+        if (!isActive())
         {
             state_.reset();
             return IO::successStatus();
@@ -557,7 +557,7 @@ namespace GameWIP::FileSystem
         return status;
     }
 
-    FileLock::FileLock(std::unique_ptr<Detail::FileLockState> state, Types::FileLockMode mode) noexcept
+    FileLock::FileLock(std::unique_ptr<Detail::FileLockState> state, Types::Lock::Mode mode) noexcept
         : state_(std::move(state))
         , mode_(mode)
     {
@@ -575,7 +575,7 @@ namespace GameWIP::FileSystem
         static_cast<void>(close());
     }
 
-    IO::Types::Status FileReader::open(const Types::Path &path, const Types::FileReaderOpenOptions &options) noexcept
+    IO::Types::Status FileReader::open(const Types::Path &path, const Types::File::ReaderOpenOptions &options) noexcept
     {
         if (isOpen())
         {
@@ -661,23 +661,23 @@ namespace GameWIP::FileSystem
         return Detail::Platform::seekFile(*state_, offset, origin);
     }
 
-    Types::LockResult FileReader::tryLockShared() noexcept
+    Types::Lock::Result FileReader::tryLockShared() noexcept
     {
         if (!isOpen())
         {
             return {.status = IO::makeStatus(ErrorCode::NotOpen)};
         }
 
-        Detail::Platform::NativeLockResult result = Detail::Platform::tryLockFile(*state_, Types::FileLockMode::Shared);
-        if (!result.status.ok() || result.outcome == Types::LockOutcome::WouldBlock)
+        Detail::Platform::NativeLockResult result = Detail::Platform::tryLockFile(*state_, Types::Lock::Mode::Shared);
+        if (!result.status.ok() || result.outcome == Types::Lock::Outcome::WouldBlock)
         {
             return {.status = std::move(result.status), .outcome = result.outcome};
         }
 
         return {
             .status = IO::successStatus(),
-            .outcome = Types::LockOutcome::Acquired,
-            .lock = FileLock(std::move(result.state), Types::FileLockMode::Shared)};
+            .outcome = Types::Lock::Outcome::Acquired,
+            .lock = FileLock(std::move(result.state), Types::Lock::Mode::Shared)};
     }
 
     FileWriter::FileWriter() noexcept = default;
@@ -692,7 +692,7 @@ namespace GameWIP::FileSystem
         static_cast<void>(close());
     }
 
-    IO::Types::Status FileWriter::open(const Types::Path &path, const Types::FileWriterOpenOptions &options) noexcept
+    IO::Types::Status FileWriter::open(const Types::Path &path, const Types::File::WriterOpenOptions &options) noexcept
     {
         if (isOpen())
         {
@@ -795,23 +795,23 @@ namespace GameWIP::FileSystem
         return Detail::Platform::seekFile(*state_, offset, origin);
     }
 
-    Types::LockResult FileWriter::tryLockExclusive() noexcept
+    Types::Lock::Result FileWriter::tryLockExclusive() noexcept
     {
         if (!isOpen())
         {
             return {.status = IO::makeStatus(ErrorCode::NotOpen)};
         }
 
-        Detail::Platform::NativeLockResult result = Detail::Platform::tryLockFile(*state_, Types::FileLockMode::Exclusive);
-        if (!result.status.ok() || result.outcome == Types::LockOutcome::WouldBlock)
+        Detail::Platform::NativeLockResult result = Detail::Platform::tryLockFile(*state_, Types::Lock::Mode::Exclusive);
+        if (!result.status.ok() || result.outcome == Types::Lock::Outcome::WouldBlock)
         {
             return {.status = std::move(result.status), .outcome = result.outcome};
         }
 
         return {
             .status = IO::successStatus(),
-            .outcome = Types::LockOutcome::Acquired,
-            .lock = FileLock(std::move(result.state), Types::FileLockMode::Exclusive)};
+            .outcome = Types::Lock::Outcome::Acquired,
+            .lock = FileLock(std::move(result.state), Types::Lock::Mode::Exclusive)};
     }
 
     File::File() noexcept = default;
@@ -828,7 +828,7 @@ namespace GameWIP::FileSystem
         static_cast<void>(close());
     }
 
-    IO::Types::Status File::open(const Types::Path &path, const Types::FileOpenOptions &options) noexcept
+    IO::Types::Status File::open(const Types::Path &path, const Types::File::OpenOptions &options) noexcept
     {
         if (isOpen())
         {
@@ -873,9 +873,9 @@ namespace GameWIP::FileSystem
         return isOpen();
     }
 
-    Types::FileAccess File::access() const noexcept
+    Types::File::Access File::access() const noexcept
     {
-        return isOpen() ? state_->access : Types::FileAccess::ReadWrite;
+        return isOpen() ? state_->access : Types::File::Access::ReadWrite;
     }
 
     IO::Types::ReadResult File::read(std::span<std::byte> destination) noexcept
@@ -964,45 +964,45 @@ namespace GameWIP::FileSystem
         return Detail::Platform::resizeFile(*state_, sizeBytes);
     }
 
-    Types::LockResult File::tryLockShared() noexcept
+    Types::Lock::Result File::tryLockShared() noexcept
     {
         if (!isOpen())
         {
             return {.status = IO::makeStatus(ErrorCode::NotOpen)};
         }
 
-        Detail::Platform::NativeLockResult result = Detail::Platform::tryLockFile(*state_, Types::FileLockMode::Shared);
-        if (!result.status.ok() || result.outcome == Types::LockOutcome::WouldBlock)
+        Detail::Platform::NativeLockResult result = Detail::Platform::tryLockFile(*state_, Types::Lock::Mode::Shared);
+        if (!result.status.ok() || result.outcome == Types::Lock::Outcome::WouldBlock)
         {
             return {.status = std::move(result.status), .outcome = result.outcome};
         }
 
         return {
             .status = IO::successStatus(),
-            .outcome = Types::LockOutcome::Acquired,
-            .lock = FileLock(std::move(result.state), Types::FileLockMode::Shared)};
+            .outcome = Types::Lock::Outcome::Acquired,
+            .lock = FileLock(std::move(result.state), Types::Lock::Mode::Shared)};
     }
 
-    Types::LockResult File::tryLockExclusive() noexcept
+    Types::Lock::Result File::tryLockExclusive() noexcept
     {
         if (!isOpen())
         {
             return {.status = IO::makeStatus(ErrorCode::NotOpen)};
         }
 
-        Detail::Platform::NativeLockResult result = Detail::Platform::tryLockFile(*state_, Types::FileLockMode::Exclusive);
-        if (!result.status.ok() || result.outcome == Types::LockOutcome::WouldBlock)
+        Detail::Platform::NativeLockResult result = Detail::Platform::tryLockFile(*state_, Types::Lock::Mode::Exclusive);
+        if (!result.status.ok() || result.outcome == Types::Lock::Outcome::WouldBlock)
         {
             return {.status = std::move(result.status), .outcome = result.outcome};
         }
 
         return {
             .status = IO::successStatus(),
-            .outcome = Types::LockOutcome::Acquired,
-            .lock = FileLock(std::move(result.state), Types::FileLockMode::Exclusive)};
+            .outcome = Types::Lock::Outcome::Acquired,
+            .lock = FileLock(std::move(result.state), Types::Lock::Mode::Exclusive)};
     }
 
-    Types::BoolResult exists(const Types::Path &path, const Types::QueryOptions &options) noexcept
+    Types::BoolResult exists(const Types::Path &path, const Types::EntryOptions &options) noexcept
     {
         try
         {
@@ -1029,7 +1029,7 @@ namespace GameWIP::FileSystem
         }
     }
 
-    Types::EntryInfoResult getEntryInfo(const Types::Path &path, const Types::QueryOptions &options) noexcept
+    Types::EntryInfoResult getEntryInfo(const Types::Path &path, const Types::EntryOptions &options) noexcept
     {
         try
         {
@@ -1051,7 +1051,7 @@ namespace GameWIP::FileSystem
         }
     }
 
-    Types::BoolResult isRegularFile(const Types::Path &path, const Types::QueryOptions &options) noexcept
+    Types::BoolResult isRegularFile(const Types::Path &path, const Types::EntryOptions &options) noexcept
     {
         try
         {
@@ -1076,7 +1076,7 @@ namespace GameWIP::FileSystem
         }
     }
 
-    Types::BoolResult isDirectory(const Types::Path &path, const Types::QueryOptions &options) noexcept
+    Types::BoolResult isDirectory(const Types::Path &path, const Types::EntryOptions &options) noexcept
     {
         try
         {
@@ -1101,7 +1101,7 @@ namespace GameWIP::FileSystem
         }
     }
 
-    Types::BoolResult isSymlink(const Types::Path &path, const Types::QueryOptions &options) noexcept
+    Types::BoolResult isSymlink(const Types::Path &path, const Types::EntryOptions &options) noexcept
     {
         try
         {
@@ -1126,7 +1126,7 @@ namespace GameWIP::FileSystem
         }
     }
 
-    IO::Types::SizeResult getFileSize(const Types::Path &path, const Types::QueryOptions &options) noexcept
+    IO::Types::SizeResult getFileSize(const Types::Path &path, const Types::EntryOptions &options) noexcept
     {
         try
         {
@@ -1152,7 +1152,7 @@ namespace GameWIP::FileSystem
         }
     }
 
-    Types::LastWriteTimeResult getLastWriteTime(const Types::Path &path, const Types::QueryOptions &options) noexcept
+    Types::LastWriteTimeResult getLastWriteTime(const Types::Path &path, const Types::EntryOptions &options) noexcept
     {
         try
         {
@@ -1178,7 +1178,7 @@ namespace GameWIP::FileSystem
         }
     }
 
-    Types::BoolResult isReadOnly(const Types::Path &path, const Types::QueryOptions &options) noexcept
+    Types::BoolResult isReadOnly(const Types::Path &path, const Types::EntryOptions &options) noexcept
     {
         try
         {
@@ -1200,7 +1200,7 @@ namespace GameWIP::FileSystem
         }
     }
 
-    IO::Types::ReadAllBytesResult readAllBytes(const Types::Path &path, const Types::ReadFileOptions &options) noexcept
+    IO::Types::ReadAllBytesResult readAllBytes(const Types::Path &path, const Types::File::ReadOptions &options) noexcept
     {
         try
         {
@@ -1234,7 +1234,7 @@ namespace GameWIP::FileSystem
         }
     }
 
-    IO::Types::ReadAllTextResult readAllText(const Types::Path &path, const Types::ReadFileOptions &options) noexcept
+    IO::Types::ReadAllTextResult readAllText(const Types::Path &path, const Types::File::ReadOptions &options) noexcept
     {
         try
         {
@@ -1268,7 +1268,7 @@ namespace GameWIP::FileSystem
         }
     }
 
-    IO::Types::WriteResult writeAllBytes(const Types::Path &path, std::span<const std::byte> bytes, const Types::WriteFileOptions &options) noexcept
+    IO::Types::WriteResult writeAllBytes(const Types::Path &path, std::span<const std::byte> bytes, const Types::File::WriteOptions &options) noexcept
     {
         try
         {
@@ -1277,17 +1277,17 @@ namespace GameWIP::FileSystem
                 return writeFailure(ErrorCode::InvalidArgument);
             }
 
-            Types::FileWriterMode writerMode = Types::FileWriterMode::CreateOrTruncate;
+            Types::File::WriterMode writerMode = Types::File::WriterMode::CreateOrTruncate;
             switch (options.mode)
             {
-            case Types::WriteFileMode::CreateNew:
-                writerMode = Types::FileWriterMode::CreateNew;
+            case Types::File::WriteMode::CreateNew:
+                writerMode = Types::File::WriterMode::CreateNew;
                 break;
-            case Types::WriteFileMode::CreateOrTruncate:
-                writerMode = Types::FileWriterMode::CreateOrTruncate;
+            case Types::File::WriteMode::CreateOrTruncate:
+                writerMode = Types::File::WriterMode::CreateOrTruncate;
                 break;
-            case Types::WriteFileMode::TruncateExisting:
-                writerMode = Types::FileWriterMode::TruncateExisting;
+            case Types::File::WriteMode::TruncateExisting:
+                writerMode = Types::File::WriterMode::TruncateExisting;
                 break;
             default:
                 return writeFailure(ErrorCode::InvalidArgument);
@@ -1296,7 +1296,7 @@ namespace GameWIP::FileSystem
             FileWriter writer;
             IO::Types::Status openStatus = writer.open(
                 path,
-                Types::FileWriterOpenOptions{
+                Types::File::WriterOpenOptions{
                     .mode = writerMode,
                     .share = options.share,
                     .symlinkPolicy = options.symlinkPolicy,
@@ -1338,7 +1338,7 @@ namespace GameWIP::FileSystem
         }
     }
 
-    IO::Types::WriteResult writeAllText(const Types::Path &path, std::string_view utf8Text, const Types::WriteFileOptions &options) noexcept
+    IO::Types::WriteResult writeAllText(const Types::Path &path, std::string_view utf8Text, const Types::File::WriteOptions &options) noexcept
     {
         if (!isValidUtf8(utf8Text))
         {
@@ -1348,7 +1348,7 @@ namespace GameWIP::FileSystem
         return writeAllBytes(path, std::as_bytes(std::span<const char>(utf8Text.data(), utf8Text.size())), options);
     }
 
-    IO::Types::WriteResult appendBytes(const Types::Path &path, std::span<const std::byte> bytes, const Types::AppendFileOptions &options) noexcept
+    IO::Types::WriteResult appendBytes(const Types::Path &path, std::span<const std::byte> bytes, const Types::File::AppendOptions &options) noexcept
     {
         try
         {
@@ -1357,14 +1357,14 @@ namespace GameWIP::FileSystem
                 return writeFailure(ErrorCode::InvalidArgument);
             }
 
-            Types::FileWriterMode writerMode = Types::FileWriterMode::AppendOrCreate;
+            Types::File::WriterMode writerMode = Types::File::WriterMode::AppendOrCreate;
             switch (options.mode)
             {
-            case Types::AppendMode::AppendOrCreate:
-                writerMode = Types::FileWriterMode::AppendOrCreate;
+            case Types::File::AppendMode::AppendOrCreate:
+                writerMode = Types::File::WriterMode::AppendOrCreate;
                 break;
-            case Types::AppendMode::AppendExisting:
-                writerMode = Types::FileWriterMode::AppendExisting;
+            case Types::File::AppendMode::AppendExisting:
+                writerMode = Types::File::WriterMode::AppendExisting;
                 break;
             default:
                 return writeFailure(ErrorCode::InvalidArgument);
@@ -1373,7 +1373,7 @@ namespace GameWIP::FileSystem
             FileWriter writer;
             IO::Types::Status openStatus = writer.open(
                 path,
-                Types::FileWriterOpenOptions{
+                Types::File::WriterOpenOptions{
                     .mode = writerMode,
                     .share = options.share,
                     .symlinkPolicy = options.symlinkPolicy,
@@ -1415,7 +1415,7 @@ namespace GameWIP::FileSystem
         }
     }
 
-    IO::Types::WriteResult appendText(const Types::Path &path, std::string_view utf8Text, const Types::AppendFileOptions &options) noexcept
+    IO::Types::WriteResult appendText(const Types::Path &path, std::string_view utf8Text, const Types::File::AppendOptions &options) noexcept
     {
         if (!isValidUtf8(utf8Text))
         {
@@ -1428,7 +1428,7 @@ namespace GameWIP::FileSystem
     IO::Types::Status writeAllBytesAtomic(
         const Types::Path &path,
         std::span<const std::byte> bytes,
-        const Types::AtomicWriteOptions &options) noexcept
+        const Types::File::AtomicWriteOptions &options) noexcept
     {
         try
         {
@@ -1452,7 +1452,7 @@ namespace GameWIP::FileSystem
 
             IO::Types::Status parentStatus =
                 options.createParentDirectories
-                    ? createDirectories(parent, Types::CreateDirectoryOptions{.succeedIfAlreadyExists = true, .symlinkPolicy = options.symlinkPolicy})
+                    ? createDirectories(parent, Types::Directory::CreateOptions{.succeedIfAlreadyExists = true, .symlinkPolicy = options.symlinkPolicy})
                     : validateDirectoryExists(parent, options.symlinkPolicy);
             if (!parentStatus.ok())
             {
@@ -1482,9 +1482,9 @@ namespace GameWIP::FileSystem
                 temporaryPath = uniqueAtomicTemporaryPath(parent, options.temporaryNamePrefix, attempt);
                 openStatus = writer.open(
                     temporaryPath,
-                    Types::FileWriterOpenOptions{
-                        .mode = Types::FileWriterMode::CreateNew,
-                        .share = Types::FileShare::None,
+                    Types::File::WriterOpenOptions{
+                        .mode = Types::File::WriterMode::CreateNew,
+                        .share = Types::File::Share::None,
                         .symlinkPolicy = options.symlinkPolicy,
                         .createParentDirectories = false,
                         .flushOnClose = IO::Types::FlushMode::None});
@@ -1546,7 +1546,7 @@ namespace GameWIP::FileSystem
         }
     }
 
-    IO::Types::Status writeAllTextAtomic(const Types::Path &path, std::string_view utf8Text, const Types::AtomicWriteOptions &options) noexcept
+    IO::Types::Status writeAllTextAtomic(const Types::Path &path, std::string_view utf8Text, const Types::File::AtomicWriteOptions &options) noexcept
     {
         if (!isValidUtf8(utf8Text))
         {
@@ -1556,7 +1556,7 @@ namespace GameWIP::FileSystem
         return writeAllBytesAtomic(path, std::as_bytes(std::span<const char>(utf8Text.data(), utf8Text.size())), options);
     }
 
-    IO::Types::Status createDirectory(const Types::Path &path, const Types::CreateDirectoryOptions &options) noexcept
+    IO::Types::Status createDirectory(const Types::Path &path, const Types::Directory::CreateOptions &options) noexcept
     {
         try
         {
@@ -1572,7 +1572,7 @@ namespace GameWIP::FileSystem
         }
     }
 
-    IO::Types::Status createDirectories(const Types::Path &path, const Types::CreateDirectoryOptions &options) noexcept
+    IO::Types::Status createDirectories(const Types::Path &path, const Types::Directory::CreateOptions &options) noexcept
     {
         try
         {
@@ -1588,16 +1588,16 @@ namespace GameWIP::FileSystem
         }
     }
 
-    IO::Types::Status resizeFile(const Types::Path &path, std::uint64_t sizeBytes, const Types::MutationOptions &options) noexcept
+    IO::Types::Status resizeFile(const Types::Path &path, std::uint64_t sizeBytes, const Types::File::ResizeOptions &options) noexcept
     {
         try
         {
             File file;
             IO::Types::Status openStatus = file.open(
                 path,
-                Types::FileOpenOptions{
-                    .access = Types::FileAccess::Write,
-                    .mode = Types::FileOpenMode::OpenExisting,
+                Types::File::OpenOptions{
+                    .access = Types::File::Access::Write,
+                    .mode = Types::File::OpenMode::OpenExisting,
                     .symlinkPolicy = options.symlinkPolicy});
             if (!openStatus.ok())
             {
@@ -1622,12 +1622,12 @@ namespace GameWIP::FileSystem
         }
     }
 
-    IO::Types::Status truncateFile(const Types::Path &path, const Types::MutationOptions &options) noexcept
+    IO::Types::Status truncateFile(const Types::Path &path, const Types::File::ResizeOptions &options) noexcept
     {
         return resizeFile(path, 0, options);
     }
 
-    Types::ListDirectoryResult listDirectory(const Types::Path &path, const Types::ListDirectoryOptions &options) noexcept
+    Types::Directory::ListResult listDirectory(const Types::Path &path, const Types::Directory::ListOptions &options) noexcept
     {
         try
         {
@@ -1638,10 +1638,10 @@ namespace GameWIP::FileSystem
                 return listDirectoryFailure(std::move(openStatus));
             }
 
-            Types::ListDirectoryResult result{.status = IO::successStatus()};
+            Types::Directory::ListResult result{.status = IO::successStatus()};
             while (true)
             {
-                Types::DirectoryCursorNextResult next = cursor.next();
+                Types::Directory::CursorNextResult next = cursor.next();
                 if (!next.status.ok())
                 {
                     result.status = std::move(next.status);
@@ -1664,7 +1664,7 @@ namespace GameWIP::FileSystem
         }
     }
 
-    IO::Types::Status setReadOnly(const Types::Path &path, bool readOnly, const Types::QueryOptions &options) noexcept
+    IO::Types::Status setReadOnly(const Types::Path &path, bool readOnly, const Types::EntryOptions &options) noexcept
     {
         try
         {
@@ -1680,7 +1680,7 @@ namespace GameWIP::FileSystem
         }
     }
 
-    IO::Types::Status copyFile(const Types::Path &from, const Types::Path &to, const Types::CopyFileOptions &options) noexcept
+    IO::Types::Status copyFile(const Types::Path &from, const Types::Path &to, const Types::File::CopyOptions &options) noexcept
     {
         try
         {
@@ -1690,7 +1690,7 @@ namespace GameWIP::FileSystem
                 return IO::makeStatus(ErrorCode::InvalidArgument);
             }
 
-            Types::EntryInfoResult source = getEntryInfo(from, Types::QueryOptions{.symlinkPolicy = options.symlinkPolicy});
+            Types::EntryInfoResult source = getEntryInfo(from, Types::EntryOptions{.symlinkPolicy = options.symlinkPolicy});
             if (!source.status.ok())
             {
                 return std::move(source.status);
@@ -1722,21 +1722,21 @@ namespace GameWIP::FileSystem
 
             FileReader reader;
             IO::Types::Status readerOpenStatus =
-                reader.open(from, Types::FileReaderOpenOptions{.share = Types::FileShare::All, .symlinkPolicy = options.symlinkPolicy});
+                reader.open(from, Types::File::ReaderOpenOptions{.share = Types::File::Share::All, .symlinkPolicy = options.symlinkPolicy});
             if (!readerOpenStatus.ok())
             {
                 return readerOpenStatus;
             }
 
-            const Types::FileWriterMode writerMode = options.replaceMode == Types::ReplaceMode::ReplaceExisting
-                                                         ? Types::FileWriterMode::CreateOrTruncate
-                                                         : Types::FileWriterMode::CreateNew;
+            const Types::File::WriterMode writerMode = options.replaceMode == Types::ReplaceMode::ReplaceExisting
+                                                         ? Types::File::WriterMode::CreateOrTruncate
+                                                         : Types::File::WriterMode::CreateNew;
             FileWriter writer;
             IO::Types::Status writerOpenStatus = writer.open(
                 to,
-                Types::FileWriterOpenOptions{
+                Types::File::WriterOpenOptions{
                     .mode = writerMode,
-                    .share = Types::FileShare::None,
+                    .share = Types::File::Share::None,
                     .symlinkPolicy = options.symlinkPolicy,
                     .createParentDirectories = false});
             if (!writerOpenStatus.ok())
@@ -1799,7 +1799,7 @@ namespace GameWIP::FileSystem
                 return readerCloseStatus;
             }
 
-            if (options.metadataMode == Types::CopyMetadataMode::Basic)
+            if (options.metadataMode == Types::File::CopyMetadataMode::Basic)
             {
                 return copyBasicMetadata(from, to, options.symlinkPolicy);
             }
@@ -1829,7 +1829,7 @@ namespace GameWIP::FileSystem
                 return IO::makeStatus(ErrorCode::Unsupported);
             }
 
-            Types::EntryInfoResult source = getEntryInfo(from, Types::QueryOptions{.symlinkPolicy = options.symlinkPolicy});
+            Types::EntryInfoResult source = getEntryInfo(from, Types::EntryOptions{.symlinkPolicy = options.symlinkPolicy});
             if (!source.status.ok())
             {
                 return std::move(source.status);
@@ -1925,7 +1925,7 @@ namespace GameWIP::FileSystem
         }
     }
 
-    Types::RemoveDirectoryTreeResult removeDirectoryTree(const Types::Path &path, const Types::RemoveDirectoryTreeOptions &options) noexcept
+    Types::Directory::RemoveTreeResult removeDirectoryTree(const Types::Path &path, const Types::Directory::RemoveTreeOptions &options) noexcept
     {
         try
         {

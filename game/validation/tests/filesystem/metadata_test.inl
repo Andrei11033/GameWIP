@@ -76,7 +76,7 @@ void testMetadataDirectoriesAndListing(TestSupport::Context &context, const std:
         static_cast<void>(context.expectEq("listDirectory entry is file", FileSystem::Types::EntryKind::RegularFile, listing.entries[0].info.kind));
     }
 
-    const auto limitedListing = FileSystem::listDirectory(directory, FileSystem::Types::ListDirectoryOptions{.maxEntries = 0});
+    const auto limitedListing = FileSystem::listDirectory(directory, FileSystem::Types::Directory::ListOptions{.maxEntries = 0});
     static_cast<void>(
         context.expectEq("listDirectory maxEntries returns SizeLimitExceeded", ErrorCode::SizeLimitExceeded, limitedListing.status.code));
 
@@ -95,7 +95,7 @@ void testMetadataDirectoriesAndListing(TestSupport::Context &context, const std:
     FileSystem::DirectoryCursor limitedCursor;
     static_cast<void>(context.expectTrue(
         "limited directory cursor opens",
-        limitedCursor.open(directory, FileSystem::Types::ListDirectoryOptions{.maxEntries = 0}).ok()));
+        limitedCursor.open(directory, FileSystem::Types::Directory::ListOptions{.maxEntries = 0}).ok()));
     static_cast<void>(context.expectEq("directory cursor enforces maxEntries", ErrorCode::SizeLimitExceeded, limitedCursor.next().status.code));
     static_cast<void>(
         context.expectEq("directory cursor keeps the terminal limit status", ErrorCode::SizeLimitExceeded, limitedCursor.next().status.code));

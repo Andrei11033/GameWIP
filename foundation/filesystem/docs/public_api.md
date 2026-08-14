@@ -83,7 +83,7 @@ A failed status can coexist with meaningful progress for listing and tree remova
 
 ### `DirectoryCursor`
 
-Move-only, bounded-memory direct-child enumeration with `open()`, `isOpen()`, `next()`, and `close()`. Move assignment closes the destination cursor's previous enumeration. It applies `ListDirectoryOptions` without retaining accepted siblings.
+Move-only, bounded-memory direct-child enumeration with `open()`, `isOpen()`, `next()`, and `close()`. Move assignment closes the destination cursor's previous enumeration. It applies `Types::Directory::ListOptions` without retaining accepted siblings.
 
 ### `FileReader`
 
@@ -99,7 +99,7 @@ Read/write `IO::Reader` and `IO::Writer` with the common stream operations plus 
 
 ### `FileLock`
 
-Move-only unlock owner with `active()`, `mode()`, and retryable `unlock()`. A lock owns independent native state and can remain active after the object from which it was acquired is destroyed.
+Move-only unlock owner with `isActive()`, `mode()`, and retryable `unlock()`. A lock owns independent native state and can remain active after the object from which it was acquired is destroyed.
 
 The file and lock owners are move-constructible, non-copyable, and deliberately not move-assignable. `DirectoryCursor` is move-constructible and move-assignable because replacing an enumeration cannot hide a flush, unlock, or close error. See @ref filesystem_file_open_modes.
 

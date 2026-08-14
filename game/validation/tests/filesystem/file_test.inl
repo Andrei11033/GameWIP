@@ -33,12 +33,12 @@ void testSymlinkPolicies(TestSupport::Context &context, const std::filesystem::p
         FileSystem::FileReader strictReader;
         const IO::Types::Status strictReaderOpen = strictReader.open(
             finalFileLink,
-            FileSystem::Types::FileReaderOpenOptions{.symlinkPolicy = FileSystem::Types::SymlinkPolicy::DoNotFollow});
+            FileSystem::Types::File::ReaderOpenOptions{.symlinkPolicy = FileSystem::Types::SymlinkPolicy::DoNotFollow});
         static_cast<void>(context.expectEq("DoNotFollow file open rejects final symlink", ErrorCode::InvalidArgument, strictReaderOpen.code));
 
         FileSystem::FileReader finalReader;
         const IO::Types::Status finalReaderOpen =
-            finalReader.open(finalFileLink, FileSystem::Types::FileReaderOpenOptions{.symlinkPolicy = FileSystem::Types::SymlinkPolicy::FollowFinal});
+            finalReader.open(finalFileLink, FileSystem::Types::File::ReaderOpenOptions{.symlinkPolicy = FileSystem::Types::SymlinkPolicy::FollowFinal});
         static_cast<void>(context.expectTrue("FollowFinal file open reaches final symlink target", finalReaderOpen.ok()));
         static_cast<void>(context.expectTrue("FollowFinal final symlink reader closes", finalReader.close().ok()));
 
@@ -76,12 +76,12 @@ void testSymlinkPolicies(TestSupport::Context &context, const std::filesystem::p
         const IO::Types::WriteResult strictWrite = FileSystem::writeAllText(
             pathThroughIntermediate,
             "blocked",
-            FileSystem::Types::WriteFileOptions{.symlinkPolicy = FileSystem::Types::SymlinkPolicy::DoNotFollow});
+            FileSystem::Types::File::WriteOptions{.symlinkPolicy = FileSystem::Types::SymlinkPolicy::DoNotFollow});
         static_cast<void>(context.expectEq("DoNotFollow write rejects intermediate symlink", ErrorCode::PermissionDenied, strictWrite.status.code));
 
         const auto strictListing = FileSystem::listDirectory(
             intermediateDirectoryLink,
-            FileSystem::Types::ListDirectoryOptions{.symlinkPolicy = FileSystem::Types::SymlinkPolicy::DoNotFollow});
+            FileSystem::Types::Directory::ListOptions{.symlinkPolicy = FileSystem::Types::SymlinkPolicy::DoNotFollow});
         static_cast<void>(context.expectEq("DoNotFollow listDirectory rejects symlink root", ErrorCode::NotDirectory, strictListing.status.code));
     }
 }
@@ -180,15 +180,15 @@ void testWholeFileHelpersAndHandles(TestSupport::Context &context, const std::fi
     FileSystem::File fileHandle;
     const IO::Types::Status openStatus = fileHandle.open(
         file,
-        FileSystem::Types::FileOpenOptions{
-            .access = FileSystem::Types::FileAccess::ReadWrite,
-            .mode = FileSystem::Types::FileOpenMode::OpenExisting,
-            .initialPosition = FileSystem::Types::FileInitialPosition::End});
+        FileSystem::Types::File::OpenOptions{
+            .access = FileSystem::Types::File::Access::ReadWrite,
+            .mode = FileSystem::Types::File::OpenMode::OpenExisting,
+            .initialPosition = FileSystem::Types::File::InitialPosition::End});
     static_cast<void>(context.expectTrue("File open succeeds", openStatus.ok()));
 
     const IO::Types::PositionResult endPosition = fileHandle.position();
     static_cast<void>(context.expectTrue("File position succeeds", endPosition.status.ok()));
-    static_cast<void>(context.expectEq("FileInitialPosition::End seeks to EOF", std::uint64_t{6}, endPosition.position));
+    static_cast<void>(context.expectEq("File::InitialPosition::End seeks to EOF", std::uint64_t{6}, endPosition.position));
 
     const IO::Types::WriteResult handleWrite = fileHandle.write(bytesOf("g"));
     static_cast<void>(context.expectTrue("File write succeeds", handleWrite.status.ok()));
@@ -201,7 +201,7 @@ void testWholeFileHelpersAndHandles(TestSupport::Context &context, const std::fi
 
     FileSystem::FileWriter appendWriter;
     const IO::Types::Status appendOpen =
-        appendWriter.open(file, FileSystem::Types::FileWriterOpenOptions{.mode = FileSystem::Types::FileWriterMode::AppendExisting});
+        appendWriter.open(file, FileSystem::Types::File::WriterOpenOptions{.mode = FileSystem::Types::File::WriterMode::AppendExisting});
     static_cast<void>(context.expectTrue("append writer opens", appendOpen.ok()));
     static_cast<void>(context.expectFalse("append writer is not seekable", appendWriter.canSeek()));
     static_cast<void>(context.expectEq("append writer position is NotSeekable", ErrorCode::NotSeekable, appendWriter.position().status.code));
@@ -240,8 +240,8 @@ void testMutationCopyMoveAndRemoval(TestSupport::Context &context, const std::fi
     static_cast<void>(context.expectEq("copyFile preserves content", std::string{"abc"}, copied.text));
 
     static_cast<void>(context.expectTrue("source read-only setup succeeds", FileSystem::setReadOnly(source, true).ok()));
-    FileSystem::Types::CopyFileOptions copyOptions;
-    copyOptions.metadataMode = FileSystem::Types::CopyMetadataMode::Basic;
+    FileSystem::Types::File::CopyOptions copyOptions;
+    copyOptions.metadataMode = FileSystem::Types::File::CopyMetadataMode::Basic;
     static_cast<void>(context.expectTrue("copyFile basic metadata succeeds", FileSystem::copyFile(source, metadataCopy, copyOptions).ok()));
     const IO::Types::ReadAllTextResult metadataCopied = FileSystem::readAllText(metadataCopy);
     static_cast<void>(context.expectTrue("read metadata copy succeeds", metadataCopied.status.ok()));
@@ -368,7 +368,7 @@ void testMutationCopyMoveAndRemoval(TestSupport::Context &context, const std::fi
     static_cast<void>(context.expectTrue("create zero-limit tree succeeds", FileSystem::createDirectories(zeroLimitTree).ok()));
     static_cast<void>(
         context.expectTrue("write zero-limit tree file succeeds", FileSystem::writeAllText(zeroLimitTree / "file.txt", "x").status.ok()));
-    const auto zeroLimitRemoval = FileSystem::removeDirectoryTree(zeroLimitTree, FileSystem::Types::RemoveDirectoryTreeOptions{.maxEntries = 0});
+    const auto zeroLimitRemoval = FileSystem::removeDirectoryTree(zeroLimitTree, FileSystem::Types::Directory::RemoveTreeOptions{.maxEntries = 0});
     static_cast<void>(context.expectEq("zero remove limit reports SizeLimitExceeded", ErrorCode::SizeLimitExceeded, zeroLimitRemoval.status.code));
     static_cast<void>(context.expectEq("zero remove limit removes nothing", std::uint64_t{0}, zeroLimitRemoval.removedEntries));
     static_cast<void>(context.expectTrue("zero remove limit preserves root", FileSystem::isDirectory(zeroLimitTree).value));
@@ -378,7 +378,7 @@ void testMutationCopyMoveAndRemoval(TestSupport::Context &context, const std::fi
     static_cast<void>(context.expectTrue("create exact-limit tree succeeds", FileSystem::createDirectories(exactLimitTree / "child").ok()));
     static_cast<void>(
         context.expectTrue("write exact-limit tree file succeeds", FileSystem::writeAllText(exactLimitTree / "child" / "file.txt", "x").status.ok()));
-    const auto exactLimitRemoval = FileSystem::removeDirectoryTree(exactLimitTree, FileSystem::Types::RemoveDirectoryTreeOptions{.maxEntries = 3});
+    const auto exactLimitRemoval = FileSystem::removeDirectoryTree(exactLimitTree, FileSystem::Types::Directory::RemoveTreeOptions{.maxEntries = 3});
     static_cast<void>(context.expectTrue("exact remove limit completes tree", exactLimitRemoval.status.ok()));
     static_cast<void>(context.expectEq("exact remove limit counts every entry", std::uint64_t{3}, exactLimitRemoval.removedEntries));
 
@@ -394,7 +394,7 @@ void testMutationCopyMoveAndRemoval(TestSupport::Context &context, const std::fi
     static_cast<void>(context.expectTrue("write wide tree files succeeds", wideWritesSucceeded));
     constexpr std::uint64_t kPartialRemovalLimit = 5;
     const auto partialRemoval =
-        FileSystem::removeDirectoryTree(wideTree, FileSystem::Types::RemoveDirectoryTreeOptions{.maxEntries = kPartialRemovalLimit});
+        FileSystem::removeDirectoryTree(wideTree, FileSystem::Types::Directory::RemoveTreeOptions{.maxEntries = kPartialRemovalLimit});
     static_cast<void>(context.expectEq("partial tree removal reports SizeLimitExceeded", ErrorCode::SizeLimitExceeded, partialRemoval.status.code));
     static_cast<void>(context.expectEq("partial tree removal honors exact limit", kPartialRemovalLimit, partialRemoval.removedEntries));
     static_cast<void>(context.expectTrue("partial tree removal preserves root", FileSystem::isDirectory(wideTree).value));
@@ -417,32 +417,32 @@ void testAtomicWriteAndLocks(TestSupport::Context &context, const std::filesyste
     const IO::Types::Status atomicFailIfExists = FileSystem::writeAllTextAtomic(
         file,
         "bad",
-        FileSystem::Types::AtomicWriteOptions{.replaceMode = FileSystem::Types::ReplaceMode::FailIfExists});
+        FileSystem::Types::File::AtomicWriteOptions{.replaceMode = FileSystem::Types::ReplaceMode::FailIfExists});
     static_cast<void>(context.expectEq("atomic fail-if-exists reports AlreadyExists", ErrorCode::AlreadyExists, atomicFailIfExists.code));
     static_cast<void>(context.expectEq("atomic fail-if-exists preserves content", std::string{"new"}, FileSystem::readAllText(file).text));
 
     FileSystem::File lockFile;
     const IO::Types::Status openStatus = lockFile.open(
         file,
-        FileSystem::Types::FileOpenOptions{
-            .access = FileSystem::Types::FileAccess::ReadWrite,
-            .mode = FileSystem::Types::FileOpenMode::OpenExisting});
+        FileSystem::Types::File::OpenOptions{
+            .access = FileSystem::Types::File::Access::ReadWrite,
+            .mode = FileSystem::Types::File::OpenMode::OpenExisting});
     static_cast<void>(context.expectTrue("lock file opens", openStatus.ok()));
 
     auto lock = lockFile.tryLockExclusive();
     static_cast<void>(context.expectTrue("exclusive lock call succeeds", lock.status.ok()));
-    static_cast<void>(context.expectEq("exclusive lock acquired", FileSystem::Types::LockOutcome::Acquired, lock.outcome));
+    static_cast<void>(context.expectEq("exclusive lock acquired", FileSystem::Types::Lock::Outcome::Acquired, lock.outcome));
 
     FileSystem::File competingLockFile;
     const IO::Types::Status competingOpenStatus = competingLockFile.open(
         file,
-        FileSystem::Types::FileOpenOptions{
-            .access = FileSystem::Types::FileAccess::ReadWrite,
-            .mode = FileSystem::Types::FileOpenMode::OpenExisting});
+        FileSystem::Types::File::OpenOptions{
+            .access = FileSystem::Types::File::Access::ReadWrite,
+            .mode = FileSystem::Types::File::OpenMode::OpenExisting});
     static_cast<void>(context.expectTrue("competing lock file opens", competingOpenStatus.ok()));
     auto competingLock = competingLockFile.tryLockExclusive();
     static_cast<void>(context.expectTrue("competing exclusive lock call succeeds", competingLock.status.ok()));
-    static_cast<void>(context.expectEq("competing exclusive lock would block", FileSystem::Types::LockOutcome::WouldBlock, competingLock.outcome));
+    static_cast<void>(context.expectEq("competing exclusive lock would block", FileSystem::Types::Lock::Outcome::WouldBlock, competingLock.outcome));
     static_cast<void>(context.expectTrue("competing lock file closes", competingLockFile.close().ok()));
 
     static_cast<void>(context.expectEq("close while locked reports ResourceBusy", ErrorCode::ResourceBusy, lockFile.close().code));
@@ -456,7 +456,7 @@ void testAtomicWriteAndLocks(TestSupport::Context &context, const std::filesyste
         FileSystem::File owner;
         static_cast<void>(context.expectTrue("detached lock owner opens", owner.open(detachedOwnerFile).ok()));
         auto result = owner.tryLockExclusive();
-        static_cast<void>(context.expectEq("detached owner acquires lock", FileSystem::Types::LockOutcome::Acquired, result.outcome));
+        static_cast<void>(context.expectEq("detached owner acquires lock", FileSystem::Types::Lock::Outcome::Acquired, result.outcome));
         return std::move(result.lock);
     }();
 
@@ -465,13 +465,13 @@ void testAtomicWriteAndLocks(TestSupport::Context &context, const std::filesyste
     auto blockedByDetachedOwner = detachedCompetitor.tryLockExclusive();
     static_cast<void>(context.expectEq(
         "lock remains active after source handle destruction",
-        FileSystem::Types::LockOutcome::WouldBlock,
+        FileSystem::Types::Lock::Outcome::WouldBlock,
         blockedByDetachedOwner.outcome));
     static_cast<void>(context.expectTrue("detached owner unlock succeeds", detachedOwnerLock.unlock().ok()));
     auto acquiredAfterDetachedUnlock = detachedCompetitor.tryLockExclusive();
     static_cast<void>(context.expectEq(
         "competitor acquires after detached owner unlock",
-        FileSystem::Types::LockOutcome::Acquired,
+        FileSystem::Types::Lock::Outcome::Acquired,
         acquiredAfterDetachedUnlock.outcome));
     static_cast<void>(context.expectTrue("detached competitor unlock succeeds", acquiredAfterDetachedUnlock.lock.unlock().ok()));
     static_cast<void>(context.expectTrue("detached competitor closes", detachedCompetitor.close().ok()));
@@ -487,15 +487,15 @@ void testAtomicWriteAndLocks(TestSupport::Context &context, const std::filesyste
 
     {
         auto failedUnlockLock = failedUnlockOwner.tryLockExclusive();
-        static_cast<void>(context.expectEq("failed-unlock owner acquires lock", FileSystem::Types::LockOutcome::Acquired, failedUnlockLock.outcome));
+        static_cast<void>(context.expectEq("failed-unlock owner acquires lock", FileSystem::Types::Lock::Outcome::Acquired, failedUnlockLock.outcome));
 
         auto blockedBeforeCleanup = failedUnlockCompetitor.tryLockExclusive();
         static_cast<void>(
-            context.expectEq("failed-unlock competitor initially blocks", FileSystem::Types::LockOutcome::WouldBlock, blockedBeforeCleanup.outcome));
+            context.expectEq("failed-unlock competitor initially blocks", FileSystem::Types::Lock::Outcome::WouldBlock, blockedBeforeCleanup.outcome));
 
         FileSystem::Detail::Platform::TestHooks::setFileUnlockFailure(true);
         FileSystem::FileLock lockDestroyedDuringFailure = std::move(failedUnlockLock.lock);
-        static_cast<void>(context.expectTrue("failed-unlock injected lock remains active", lockDestroyedDuringFailure.active()));
+        static_cast<void>(context.expectTrue("failed-unlock injected lock remains active", lockDestroyedDuringFailure.isActive()));
     }
     FileSystem::Detail::Platform::TestHooks::reset();
 
@@ -503,7 +503,7 @@ void testAtomicWriteAndLocks(TestSupport::Context &context, const std::filesyste
     auto acquiredAfterFailedUnlockCleanup = failedUnlockCompetitor.tryLockExclusive();
     static_cast<void>(context.expectEq(
         "closing owner releases native lock after failed lock cleanup",
-        FileSystem::Types::LockOutcome::Acquired,
+        FileSystem::Types::Lock::Outcome::Acquired,
         acquiredAfterFailedUnlockCleanup.outcome));
     static_cast<void>(context.expectTrue("failed-unlock competitor releases recovered lock", acquiredAfterFailedUnlockCleanup.lock.unlock().ok()));
     static_cast<void>(context.expectTrue("failed-unlock competitor closes", failedUnlockCompetitor.close().ok()));
@@ -524,9 +524,9 @@ void testCheckedFileFailureTranslation(TestSupport::Context &context, const std:
     FileSystem::File file;
     const IO::Types::Status openStatus = file.open(
         filePath,
-        FileSystem::Types::FileOpenOptions{
-            .access = FileSystem::Types::FileAccess::ReadWrite,
-            .mode = FileSystem::Types::FileOpenMode::OpenExisting,
+        FileSystem::Types::File::OpenOptions{
+            .access = FileSystem::Types::File::Access::ReadWrite,
+            .mode = FileSystem::Types::File::OpenMode::OpenExisting,
             .flushOnClose = IO::Types::FlushMode::None});
     static_cast<void>(context.expectTrue("checked failure fixture opens", openStatus.ok()));
 
@@ -615,9 +615,9 @@ void testCheckedFileFailureTranslation(TestSupport::Context &context, const std:
     FileSystem::File flushOnCloseFile;
     const IO::Types::Status flushOnCloseOpenStatus = flushOnCloseFile.open(
         filePath,
-        FileSystem::Types::FileOpenOptions{
-            .access = FileSystem::Types::FileAccess::ReadWrite,
-            .mode = FileSystem::Types::FileOpenMode::OpenExisting,
+        FileSystem::Types::File::OpenOptions{
+            .access = FileSystem::Types::File::Access::ReadWrite,
+            .mode = FileSystem::Types::File::OpenMode::OpenExisting,
             .flushOnClose = IO::Types::FlushMode::Data});
     static_cast<void>(context.expectTrue("flush-on-close fixture opens", flushOnCloseOpenStatus.ok()));
 
