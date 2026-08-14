@@ -1,5 +1,5 @@
-/// @file renderer.h
-/// @brief Optional display-color queries and renderer-to-Window integration.
+/// @file renderer_bridge.h
+/// @brief Optional display-color queries and the renderer-to-Window bridge.
 
 #pragma once
 
@@ -39,15 +39,17 @@ namespace GameWIP::Window::Types
     };
 } // namespace GameWIP::Window::Types
 
-/// @brief Renderer-owned presentation feedback accepted by Window.
+/// @brief Window-side bridge for renderer-owned presentation state and integration data.
 namespace GameWIP::Window::Renderer
 {
+    /// @brief Word used by the canonical dense pointer-hit-mask representation.
+    using PointerHitMaskWord = std::uint32_t;
     /// @brief Window-owned target for one asynchronous packed-mask update.
     struct PointerHitMaskTarget
     {
         std::uint64_t generation = 0;      ///< Nonzero generation created by Window.
         Types::PixelSize framebufferSize;  ///< Coherent physical framebuffer snapshot.
-        std::size_t requiredWordCount = 0; ///< Exact number of packed 64-bit words.
+        std::size_t requiredWordCount = 0; ///< Exact number of packed PointerHitMaskWord values.
     };
 
     /// @brief Status and target returned when beginning a packed-mask update.
@@ -64,22 +66,23 @@ namespace GameWIP::Window::Renderer
     /// @brief Detaches the occlusion provider and resets occlusion to false.
     [[nodiscard]] GAMEWIP_WINDOW_EXPORT IO::Types::Status detachOcclusionProvider(Window &window) noexcept;
 
-    /// @brief Returns ceil(width * height / 64), or zero for an empty/overflowing extent.
+    /// @brief Returns ceil(width / 32) * height, or zero for an empty/overflowing extent.
     [[nodiscard]] GAMEWIP_WINDOW_EXPORT std::size_t requiredPointerHitMaskWords(Types::PixelSize framebufferSize) noexcept;
 
     /// @brief Begins the newest packed physical-framebuffer pointer-mask update.
     [[nodiscard]] GAMEWIP_WINDOW_EXPORT PointerHitMaskTargetResult beginPointerHitMaskUpdate(Window &window) noexcept;
 
     /// @brief Publishes a completed packed physical-framebuffer pointer mask.
-    /// @details There is one row-major bit per pixel, least-significant bit first within each
-    /// 64-bit word. Zero passes input through and one accepts input. Publication is owner-thread
-    /// only. Only the newest Window-created generation is accepted; stale work returns Interrupted.
-    /// Unused trailing bits must be zero. Same-size updates reuse active storage, and the previous
-    /// mask remains active on every failure.
+    /// @details Rows are independently packed left to right with one physical-framebuffer pixel
+    /// per bit, least-significant bit first within each PointerHitMaskWord. Zero passes input through
+    /// and one accepts input. Unused bits in the final word of every row must be zero. Publication is
+    /// owner-thread only. Only the newest Window-created generation is accepted; stale work returns
+    /// Interrupted. Same-size updates reuse active storage, and the previous mask remains active on
+    /// every failure.
     [[nodiscard]] GAMEWIP_WINDOW_EXPORT IO::Types::Status publishPointerHitMask(
         Window &window,
         std::uint64_t generation,
-        std::span<const std::uint64_t> words) noexcept;
+        std::span<const PointerHitMaskWord> words) noexcept;
 
     /// @brief Clears the persistent active mask on the owner thread.
     [[nodiscard]] GAMEWIP_WINDOW_EXPORT IO::Types::Status clearPointerHitMask(Window &window) noexcept;

@@ -8,7 +8,7 @@
 #include "runtime/game.h"
 
 #include "logger/logger.h"
-#include "window/renderer.h"
+#include "window/renderer_bridge.h"
 #include "window/window.h"
 
 #if GAMEWIP_TRACY_ENABLED

@@ -41,9 +41,9 @@ Explicit `close()` is synchronous and emits no `ClosedEvent` because it intentio
 
 Unexpected native destruction sets `lifetimeState()` to `NativeDestroyedPendingFinalize` and makes `isOpen()` false. Cached state and the event queue remain available, and a typed `ClosedEvent` is retained even when a full queue has no coalescible entry. Native mutations then report `NotOpen`; another `open()` reports `AlreadyOpen` until owner-thread `close()` completes controlled finalization. The object may reopen afterward.
 
-## Renderer feedback
+## Renderer bridge
 
-The optional `window/renderer.h` adapter accepts renderer occlusion feedback and packed pointer masks and exposes opt-in per-monitor display-color facts without making Renderer a Window dependency. Display color remains a dynamic query because support and active HDR/WCG state can differ by monitor and change while the process runs. See @ref window_renderer_integration.
+The optional `window/renderer_bridge.h` bridge accepts renderer occlusion feedback and packed pointer masks and exposes opt-in per-monitor display-color facts without making Renderer a Window dependency. Display color remains a dynamic query because support and active HDR/WCG state can differ by monitor and change while the process runs. See @ref window_renderer_integration.
 
 ## Status authority
 

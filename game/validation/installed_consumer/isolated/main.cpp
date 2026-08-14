@@ -16,7 +16,7 @@
 #elif defined(GAMEWIP_CONSUMER_Terminal)
 #include "terminal/terminal.h"
 #elif defined(GAMEWIP_CONSUMER_Window)
-#include "window/renderer.h"
+#include "window/renderer_bridge.h"
 #include "window/window.h"
 #elif defined(GAMEWIP_CONSUMER_Logger)
 #include "logger/logger.h"
@@ -27,7 +27,7 @@
 #elif defined(__INTELLISENSE__)
 // CMake compiles this source once per selected package. The standalone editor parse has no
 // selection, so give IntelliSense a representative branch without weakening the real-build guard.
-#include "window/renderer.h"
+#include "window/renderer_bridge.h"
 #include "window/window.h"
 #else
 #error "An isolated consumer package must be selected."

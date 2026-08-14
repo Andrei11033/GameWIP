@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "window/renderer.h"
+#include "window/renderer_bridge.h"
 
 #ifndef INTERNAL_WINDOW_TEST_HOOKS
 /// @brief Build-interface switch enabling source-tree Window validation hooks.
@@ -97,7 +97,7 @@ namespace GameWIP::Window::TestHooks
     /// @brief Returns the active packed pointer-mask word count.
     [[nodiscard]] GAMEWIP_WINDOW_EXPORT std::size_t pointerHitMaskWordCount(const Window &window) noexcept;
     /// @brief Returns one active packed pointer-mask word, or zero outside the active range.
-    [[nodiscard]] GAMEWIP_WINDOW_EXPORT std::uint64_t pointerHitMaskWord(const Window &window, std::size_t index) noexcept;
+    [[nodiscard]] GAMEWIP_WINDOW_EXPORT Renderer::PointerHitMaskWord pointerHitMaskWord(const Window &window, std::size_t index) noexcept;
     /// @brief Returns the active vector storage address for reuse validation.
     [[nodiscard]] GAMEWIP_WINDOW_EXPORT const void *pointerHitMaskStorage(const Window &window) noexcept;
 

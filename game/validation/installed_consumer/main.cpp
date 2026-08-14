@@ -20,7 +20,7 @@
 #include "terminal/terminal.h"
 #include "test_support/test_support.h"
 #include "unicode/unicode.h"
-#include "window/renderer.h"
+#include "window/renderer_bridge.h"
 #include "window/window.h"
 
 #include <string>

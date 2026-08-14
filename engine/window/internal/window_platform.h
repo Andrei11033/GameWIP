@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "window/renderer.h"
+#include "window/renderer_bridge.h"
 #include "window/internal/window_state.h"
 
 #include <chrono>

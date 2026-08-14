@@ -14,7 +14,7 @@ The Win32 current-mode query augments `EnumDisplaySettingsExW` with the active D
 
 ## Display color
 
-Display color is a dynamic, opt-in monitor query rather than part of the lightweight `MonitorInfo` snapshot or global capability flags. Include `<window/renderer.h>` and call `Renderer::getDisplayColorInfo()` for a connected monitor, or use the owner-thread `Renderer::getWindowDisplayColorInfo()` for an open Window's current monitor. The result reports independent WCG/HDR support, current HDR enablement, portable active color classification, channel precision, panel luminance, and SDR white level where the operating system can report them reliably. Optional numeric facts remain zero when unavailable.
+Display color is a dynamic, opt-in monitor query rather than part of the lightweight `MonitorInfo` snapshot or global capability flags. Include `<window/renderer_bridge.h>` and call `Renderer::getDisplayColorInfo()` for a connected monitor, or use the owner-thread `Renderer::getWindowDisplayColorInfo()` for an open Window's current monitor. The result reports independent WCG/HDR support, current HDR enablement, portable active color classification, channel precision, panel luminance, and SDR white level where the operating system can report them reliably. Optional numeric facts remain zero when unavailable.
 
 Renderer integrations should re-query after `MonitorChangedEvent` or `DisplayConfigurationChangedEvent`, Window reopen, and display reconnect. Monitor hot unplug invalidates the old identity safely.
 

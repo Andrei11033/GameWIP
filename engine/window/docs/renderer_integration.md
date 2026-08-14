@@ -1,9 +1,9 @@
 @page window_renderer_integration Renderer integration
 
-Window owns native display facts and cached Window state. Renderer owns presentation policy and is the only component that can reliably determine whether a particular surface is occluded during presentation. The installed adapter makes those ownership boundaries explicit:
+Window owns native display facts and cached Window state. Renderer owns presentation policy and is the only component that can reliably determine whether a particular surface is occluded during presentation. The installed bridge makes those ownership boundaries explicit:
 
 ```cpp
-#include <window/renderer.h>
+#include <window/renderer_bridge.h>
 ```
 
 ## Provider lifecycle
@@ -68,7 +68,9 @@ Renderer surface or swapchain creation remains a Renderer responsibility. Obtain
 
 `beginPointerHitMaskUpdate()` returns a Window-generated nonzero generation, a coherent physical framebuffer size, and the exact required word count. Renderer performs GPU work and asynchronous readback outside Window, then passes that generation and the completed words to `publishPointerHitMask()`. Beginning a newer update supersedes older unfinished work; clear, framebuffer changes, native destruction, close, finalization, and reopen invalidate it.
 
-The packed format is row-major with a top-left origin and one physical-framebuffer pixel per bit. Bits are stored least-significant first within each 64-bit word. A zero bit passes input through; a one bit accepts input. Unused trailing bits must be zero. Publication is owner-thread-only and copies the data before committing it. Failures preserve the previous active mask, same-size updates reuse its allocation, clearing may retain capacity, movement preserves the mask, and framebuffer changes invalidate it. A missing or invalid mask defaults to interactive input.
+The canonical format is a dense one-bit-per-physical-pixel mask with a top-left origin. Rows are independently packed left to right into 32-bit `PointerHitMaskWord` values, least-significant bit first. Every framebuffer row begins on a fresh word boundary, so the required count is `ceil(width / 32) * height`. A zero bit passes input through; a one bit accepts input. Unused bits in the final word of every row must be zero. Publication is owner-thread-only and copies the data before committing it. Failures preserve the previous active mask, same-size updates reuse its allocation, clearing may retain capacity, movement preserves the mask, and framebuffer changes invalidate it. A missing or invalid mask defaults to interactive input.
+
+Window always accepts a complete dense mask snapshot. Renderer may optimize GPU-to-CPU transport internally with changed-word deltas, tiles, or another readback representation, but it reconstructs the complete dense CPU mask before publication. Window does not track partial-mask ordering or renderer compression state.
 
 The Win32 backend does not advertise `PointerHitMask`: documented Win32 hit testing does not provide stable selected-pixel pass-through to arbitrary underlying applications without visual holes or synthetic input. Selecting `HitMask` and beginning an update therefore return `Unsupported` in production while the deterministic Window-owned bridge remains testable.
 

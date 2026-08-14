@@ -1,7 +1,7 @@
-/// @file renderer_feedback.cpp
-/// @brief Owner-thread renderer feedback state transitions.
+/// @file renderer_bridge.cpp
+/// @brief Owner-thread renderer bridge state transitions.
 
-#include "window/renderer.h"
+#include "window/renderer_bridge.h"
 
 #include "window/internal/window_platform.h"
 #include "window/internal/window_test_hooks.h"
@@ -100,15 +100,15 @@ namespace GameWIP::Window::Renderer
 
     std::size_t requiredPointerHitMaskWords(Types::PixelSize size) noexcept
     {
-        constexpr std::size_t bitsPerWord = 64;
+        constexpr std::size_t bitsPerWord = std::numeric_limits<PointerHitMaskWord>::digits;
         const std::size_t width = size.width;
         const std::size_t height = size.height;
-        if (width == 0 || height == 0 || height > std::numeric_limits<std::size_t>::max() / width)
+        if (width == 0 || height == 0)
             return 0;
-        const std::size_t pixels = width * height;
-        if (pixels > std::numeric_limits<std::size_t>::max() - (bitsPerWord - 1))
+        const std::size_t wordsPerRow = width / bitsPerWord + (width % bitsPerWord != 0 ? 1U : 0U);
+        if (height > std::numeric_limits<std::size_t>::max() / wordsPerRow)
             return 0;
-        return (pixels + bitsPerWord - 1) / bitsPerWord;
+        return wordsPerRow * height;
     }
 
     PointerHitMaskTargetResult beginPointerHitMaskUpdate(Window &window) noexcept
@@ -143,7 +143,10 @@ namespace GameWIP::Window::Renderer
             .target = {.generation = generation, .framebufferSize = state->framebufferSize, .requiredWordCount = required}};
     }
 
-    IO::Types::Status publishPointerHitMask(Window &window, std::uint64_t generation, std::span<const std::uint64_t> words) noexcept
+    IO::Types::Status publishPointerHitMask(
+        Window &window,
+        std::uint64_t generation,
+        std::span<const PointerHitMaskWord> words) noexcept
     {
         Detail::WindowState *state = nullptr;
         IO::Types::Status status = requireOwner(window, state);
@@ -155,13 +158,21 @@ namespace GameWIP::Window::Renderer
         const std::size_t required = state->pointerHitMaskTargetWordCount;
         if (required == 0 || required != words.size() || size != state->framebufferSize)
             return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
-        const std::size_t pixelCount = static_cast<std::size_t>(size.width) * size.height;
-        const unsigned int trailingBitCount = static_cast<unsigned int>(pixelCount % 64U);
-        if (trailingBitCount != 0)
+
+        constexpr std::size_t bitsPerWord = std::numeric_limits<PointerHitMaskWord>::digits;
+        const std::size_t wordsPerRow =
+            static_cast<std::size_t>(size.width) / bitsPerWord + (size.width % bitsPerWord != 0 ? 1U : 0U);
+        const unsigned int validBitsInLastWord = static_cast<unsigned int>(size.width % bitsPerWord);
+        if (validBitsInLastWord != 0)
         {
-            const std::uint64_t validBits = (std::uint64_t{1} << trailingBitCount) - 1U;
-            if ((words.back() & ~validBits) != 0)
-                return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
+            const PointerHitMaskWord validBits =
+                (PointerHitMaskWord{1} << validBitsInLastWord) - PointerHitMaskWord{1};
+            for (std::size_t row = 0; row < size.height; ++row)
+            {
+                const std::size_t finalWord = row * wordsPerRow + wordsPerRow - 1U;
+                if ((words[finalWord] & ~validBits) != 0)
+                    return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
+            }
         }
         if (state->pointerHitMask.size() == required)
         {
@@ -177,7 +188,7 @@ namespace GameWIP::Window::Renderer
         {
             if (Detail::consumeFailure(TestHooks::FailurePoint::Allocation))
                 return IO::makeStatus(IO::Types::ErrorCode::OutOfMemory);
-            std::vector<std::uint64_t> replacement(words.begin(), words.end());
+            std::vector<PointerHitMaskWord> replacement(words.begin(), words.end());
             state->pointerHitMask.swap(replacement);
             state->pointerHitMaskActiveGeneration = generation;
             state->pointerHitMaskSize = size;

@@ -67,7 +67,7 @@ The scenario definitions and required environment record remain authoritative in
 
 ## Public-header checks
 
-`window/window.h` compiles first in isolation. `window/native/win32.h` has a Win32-only check. `window/renderer.h` compiles independently and preserves the portable boundary.
+`window/window.h` compiles first in isolation. `window/native/win32.h` has a Win32-only check. `window/renderer_bridge.h` compiles independently and preserves the portable boundary.
 
 ## Export boundary
 

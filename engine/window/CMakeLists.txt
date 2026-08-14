@@ -34,7 +34,7 @@ generate_export_header(Window
 
 target_sources(Window
     PRIVATE
-        core/renderer_feedback.cpp
+        core/renderer_bridge.cpp
         core/window.cpp
         core/window_test_hooks.cpp
     PUBLIC
@@ -44,7 +44,7 @@ target_sources(Window
             "${CMAKE_CURRENT_SOURCE_DIR}/.."
             "${WINDOW_GENERATED_INCLUDE_DIR}"
         FILES
-            "${CMAKE_CURRENT_SOURCE_DIR}/renderer.h"
+            "${CMAKE_CURRENT_SOURCE_DIR}/renderer_bridge.h"
             "${CMAKE_CURRENT_SOURCE_DIR}/window.h"
             "${WINDOW_GENERATED_INCLUDE_DIR}/window/window_export.h"
 )
@@ -98,7 +98,7 @@ if(GAMEWIP_BUILD_DOCS AND COMMAND gamewip_register_doxygen_library)
         NAME Window
         PAGE_ID window_library
         PUBLIC_HEADERS
-            "${CMAKE_CURRENT_SOURCE_DIR}/renderer.h"
+            "${CMAKE_CURRENT_SOURCE_DIR}/renderer_bridge.h"
             "${CMAKE_CURRENT_SOURCE_DIR}/window.h"
         DOCS
             "${CMAKE_CURRENT_SOURCE_DIR}/docs"

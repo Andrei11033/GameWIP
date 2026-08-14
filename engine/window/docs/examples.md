@@ -144,7 +144,7 @@ if (result.status.ok())
 ## Renderer occlusion feedback
 
 ```cpp
-#include <window/renderer.h>
+#include <window/renderer_bridge.h>
 
 namespace Feedback = GameWIP::Window::Renderer;
 
@@ -170,18 +170,20 @@ The Renderer bridge defines how `presentWasOccluded` reaches the owner thread. R
 ## Packed pointer mask publication
 
 ```cpp
-#include <window/renderer.h>
+#include <window/renderer_bridge.h>
 
-const auto target = GameWIP::Window::Renderer::beginPointerHitMaskUpdate(window);
+namespace RendererBridge = GameWIP::Window::Renderer;
+
+const auto target = RendererBridge::beginPointerHitMaskUpdate(window);
 if (!target.status.ok()) return 1;
-std::vector<std::uint64_t> words(
+std::vector<RendererBridge::PointerHitMaskWord> words(
     target.target.requiredWordCount, 0);
 
 // Example: accept the first physical framebuffer pixel.
-if (!words.empty()) words[0] |= 1ULL;
+if (!words.empty()) words[0] |= RendererBridge::PointerHitMaskWord{1};
 
 const auto status =
-    GameWIP::Window::Renderer::publishPointerHitMask(window, target.target.generation, words);
+    RendererBridge::publishPointerHitMask(window, target.target.generation, words);
 if (!status.ok()) return 1;
 ```
 
@@ -207,7 +209,7 @@ for (const auto &monitor : monitors.monitors)
 ## Display color information
 
 ```cpp
-#include <window/renderer.h>
+#include <window/renderer_bridge.h>
 
 const auto color =
     GameWIP::Window::Renderer::getWindowDisplayColorInfo(window);

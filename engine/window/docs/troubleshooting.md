@@ -40,13 +40,13 @@ Include `window/native/win32.h` only in a Win32 translation unit and query after
 
 ## Occlusion reporting is unavailable
 
-Global `supports(Types::Capability::OcclusionReporting)` is false by design: the native Window backend does not know whether a renderer-owned surface can present. Include `window/renderer.h` and attach one provider after surface creation.
+Global `supports(Types::Capability::OcclusionReporting)` is false by design: the native Window backend does not know whether a renderer-owned surface can present. Include `window/renderer_bridge.h` and attach one provider after surface creation.
 
 Attachment, reporting, and detachment must run on the Window owner thread. `reportOcclusion()` returns `NotOpen` before attachment and after detachment. Forward only an authoritative Renderer presentation result; minimization, visibility, or focus alone are not equivalent to renderer occlusion.
 
 ## Display color is unknown or stale
 
-Include `window/renderer.h` and perform the first color query on the Window owner thread if that thread should receive advanced-color transition signals. Keep pumping events and re-query after `MonitorChangedEvent` or `DisplayConfigurationChangedEvent`. Optional numeric fields legitimately remain zero when the operating system, display driver, or output interface does not expose reliable metadata; do not replace them with assumed panel defaults.
+Include `window/renderer_bridge.h` and perform the first color query on the Window owner thread if that thread should receive advanced-color transition signals. Keep pumping events and re-query after `MonitorChangedEvent` or `DisplayConfigurationChangedEvent`. Optional numeric fields legitimately remain zero when the operating system, display driver, or output interface does not expose reliable metadata; do not replace them with assumed panel defaults.
 
 ## Close reports failure
 

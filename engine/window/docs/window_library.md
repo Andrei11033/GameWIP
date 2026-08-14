@@ -43,6 +43,6 @@ Public text is UTF-8 and rejects invalid sequences and embedded NUL. Client-loca
 
 ## Dependency boundary
 
-The portable installed header is `window/window.h`; it does not include native platform headers. Installed consumers link `GameWIP::Window`. The Win32-only `window/native/win32.h` adapter is opt-in. The portable `window/renderer.h` adapter is also opt-in and adds no Renderer dependency.
+The portable installed header is `window/window.h`; it does not include native platform headers. Installed consumers link `GameWIP::Window`. The Win32-only `window/native/win32.h` adapter is opt-in. The portable `window/renderer_bridge.h` bridge is also opt-in and adds no Renderer dependency.
 
-Window owns top-level native state, cached geometry, event translation, queried native display-color facts, and the persistent packed pointer mask published through `window/renderer.h`. Input state, action mapping, renderer surfaces, swapchains, HDR metadata, tone mapping, GPU readback, UI layout, application loops, and multi-window coordination remain outside this library.
+Window owns top-level native state, cached geometry, event translation, queried native display-color facts, and the persistent packed pointer mask published through `window/renderer_bridge.h`. Input state, action mapping, renderer surfaces, swapchains, HDR metadata, tone mapping, GPU readback, UI layout, application loops, and multi-window coordination remain outside this library.

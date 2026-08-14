@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "window/window.h"
+#include "window/renderer_bridge.h"
 
 #include <memory>
 #include <limits>
@@ -120,7 +120,7 @@ namespace GameWIP::Window::Detail
         /// Active storage remains valid until explicit invalidation. Generation pointers refer to
         /// the stable public Window owner and prevent stale asynchronous publication across reopen.
         /// @{
-        std::vector<std::uint64_t> pointerHitMask;
+        std::vector<Renderer::PointerHitMaskWord> pointerHitMask;
         Types::PixelSize pointerHitMaskSize;
         std::uint64_t pointerHitMaskActiveGeneration = 0;
         std::uint64_t pointerHitMaskTargetGeneration = 0;
@@ -180,15 +180,18 @@ namespace GameWIP::Window::Detail
 
         const std::uint64_t x = static_cast<std::uint64_t>(position.x) * state.framebufferSize.width / state.clientSize.width;
         const std::uint64_t y = static_cast<std::uint64_t>(position.y) * state.framebufferSize.height / state.clientSize.height;
-        if (x >= state.framebufferSize.width || y >= state.framebufferSize.height ||
-            y > (std::numeric_limits<std::size_t>::max() - x) / state.framebufferSize.width)
+        if (x >= state.framebufferSize.width || y >= state.framebufferSize.height)
             return true;
-        const std::size_t index = static_cast<std::size_t>(y * state.framebufferSize.width + x);
-        const std::size_t word = index / 64U;
+
+        constexpr std::uint64_t bitsPerWord = std::numeric_limits<Renderer::PointerHitMaskWord>::digits;
+        const std::uint64_t width = state.framebufferSize.width;
+        const std::uint64_t wordsPerRow = width / bitsPerWord + (width % bitsPerWord != 0 ? 1U : 0U);
+        const std::uint64_t word = y * wordsPerRow + x / bitsPerWord;
         if (word >= state.pointerHitMask.size())
             return true;
-        const std::uint64_t stableWord = state.pointerHitMask[word];
-        return (stableWord & (std::uint64_t{1} << (index % 64U))) != 0;
+        const Renderer::PointerHitMaskWord stableWord = state.pointerHitMask[static_cast<std::size_t>(word)];
+        return (stableWord &
+                (Renderer::PointerHitMaskWord{1} << static_cast<unsigned int>(x % bitsPerWord))) != 0;
     }
 
     /// @brief Controlled private-state access for native adapters and approved test hooks.

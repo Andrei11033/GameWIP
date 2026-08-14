@@ -4,7 +4,7 @@
 #include "validation/tests/window/window_test.h"
 
 #include "test_support/test_support.h"
-#include "window/renderer.h"
+#include "window/renderer_bridge.h"
 #include "window/native/win32.h"
 #include "window/window.h"
 
@@ -1657,8 +1657,10 @@ namespace
         static_cast<void>(context.expectTrue(
             "geometry values compare structurally",
             Window::Types::LogicalRect{{-4, 8}, {10, 12}} == Window::Types::LogicalRect{{-4, 8}, {10, 12}}));
-        static_cast<void>(
-            context.expectEq("hit-mask words round up one bit per pixel", std::size_t{2}, Window::Renderer::requiredPointerHitMaskWords({9, 8})));
+        static_cast<void>(context.expectEq(
+            "hit-mask words round each row independently",
+            std::size_t{4},
+            Window::Renderer::requiredPointerHitMaskWords({33, 2})));
         static_cast<void>(
             context.expectEq("empty hit-mask extent is invalid", std::size_t{0}, Window::Renderer::requiredPointerHitMaskWords({0, 8})));
 #if INTERNAL_WINDOW_TEST_HOOKS
@@ -2085,6 +2087,9 @@ namespace
     void testPointerHitMask(TestSupport::Context &context)
     {
         namespace Feedback = Window::Renderer;
+        using MaskWord = Feedback::PointerHitMaskWord;
+        constexpr std::size_t bitsPerWord = std::numeric_limits<MaskWord>::digits;
+
         Window::Types::Description description;
         description.title = "Window pointer-mask validation";
         description.clientSize = {241, 161};
@@ -2102,16 +2107,27 @@ namespace
         Window::TestHooks::enablePointerHitMaskBridge(window);
 
         Window::Types::PixelSize size = window.framebufferSize();
-        if ((static_cast<std::size_t>(size.width) * size.height) % 64U == 0)
+        if (size.width % bitsPerWord == 0)
         {
             static_cast<void>(window.setClientSize({description.clientSize.width + 1, description.clientSize.height}));
             size = window.framebufferSize();
         }
+        const std::size_t wordsPerRow =
+            static_cast<std::size_t>(size.width) / bitsPerWord + (size.width % bitsPerWord != 0 ? 1U : 0U);
         const std::size_t wordCount = Feedback::requiredPointerHitMaskWords(size);
-        std::vector<std::uint64_t> words(wordCount);
-        words.front() = 1;
-        const std::size_t lastPixel = static_cast<std::size_t>(size.width) * size.height - 1U;
-        words[lastPixel / 64U] |= std::uint64_t{1} << (lastPixel % 64U);
+        std::vector<MaskWord> words(wordCount);
+        words.front() = MaskWord{1};
+
+        const std::size_t lastX = static_cast<std::size_t>(size.width) - 1U;
+        const std::size_t lastWord =
+            (static_cast<std::size_t>(size.height) - 1U) * wordsPerRow + lastX / bitsPerWord;
+        const unsigned int lastBit = static_cast<unsigned int>(lastX % bitsPerWord);
+        words[lastWord] |= MaskWord{1} << lastBit;
+
+        const Window::Types::LogicalPosition rowSample{0, static_cast<std::int32_t>(window.clientSize().height / 2U)};
+        const std::uint64_t sampledY =
+            static_cast<std::uint64_t>(rowSample.y) * size.height / window.clientSize().height;
+        words[static_cast<std::size_t>(sampledY) * wordsPerRow] |= MaskWord{1};
 
         const Feedback::PointerHitMaskTargetResult first = Feedback::beginPointerHitMaskUpdate(window);
         static_cast<void>(context.expectTrue("Window creates a nonzero mask generation", first.status.ok() && first.target.generation != 0));
@@ -2129,19 +2145,24 @@ namespace
             context.expectTrue("first mask publication succeeds", Feedback::publishPointerHitMask(window, first.target.generation, words).ok()));
         static_cast<void>(context.expectTrue("active mask is reported", Feedback::hasPointerHitMask(window)));
         static_cast<void>(context.expectEq("mask stores exact word count", wordCount, Window::TestHooks::pointerHitMaskWordCount(window)));
-        static_cast<void>(
-            context.expectEq("mask stores first physical pixel", std::uint64_t{1}, Window::TestHooks::pointerHitMaskWord(window, 0) & 1U));
+        static_cast<void>(context.expectEq(
+            "mask stores first physical pixel",
+            MaskWord{1},
+            Window::TestHooks::pointerHitMaskWord(window, 0) & MaskWord{1}));
         static_cast<void>(context.expectTrue(
             "mask stores last physical pixel",
-            (Window::TestHooks::pointerHitMaskWord(window, lastPixel / 64U) & (std::uint64_t{1} << (lastPixel % 64U))) != 0));
+            (Window::TestHooks::pointerHitMaskWord(window, lastWord) & (MaskWord{1} << lastBit)) != 0));
         static_cast<void>(context.expectTrue(
             "first logical position samples the first interactive pixel",
             Window::TestHooks::pointerHitMaskAccepts(window, {0, 0})));
+        static_cast<void>(context.expectTrue(
+            "row-local mask lookup samples an independently padded row",
+            Window::TestHooks::pointerHitMaskAccepts(window, rowSample)));
         static_cast<void>(
             context.expectTrue("out-of-range sampling uses interactive fallback", Window::TestHooks::pointerHitMaskAccepts(window, {-1, -1})));
 
         const void *storage = Window::TestHooks::pointerHitMaskStorage(window);
-        words.front() = 2;
+        words.front() = MaskWord{2};
         const Feedback::PointerHitMaskTargetResult stale = Feedback::beginPointerHitMaskUpdate(window);
         const Feedback::PointerHitMaskTargetResult newer = Feedback::beginPointerHitMaskUpdate(window);
         static_cast<void>(context.expectTrue(
@@ -2160,20 +2181,23 @@ namespace
             "stale publication is rejected",
             ErrorCode::Interrupted,
             Feedback::publishPointerHitMask(window, newer.target.generation, words).code));
-        static_cast<void>(
-            context.expectEq("stale publication preserves active data", std::uint64_t{2}, Window::TestHooks::pointerHitMaskWord(window, 0)));
+        static_cast<void>(context.expectEq(
+            "stale publication preserves active data",
+            MaskWord{2},
+            Window::TestHooks::pointerHitMaskWord(window, 0)));
 
-        if (lastPixel % 64U != 63U)
+        const unsigned int validBitsInLastWord = static_cast<unsigned int>(size.width % bitsPerWord);
+        if (validBitsInLastWord != 0)
         {
-            std::vector<std::uint64_t> invalidTrailing = words;
-            invalidTrailing.back() |= std::uint64_t{1} << 63U;
-            const Feedback::PointerHitMaskTargetResult trailing = Feedback::beginPointerHitMaskUpdate(window);
+            std::vector<MaskWord> invalidPadding = words;
+            invalidPadding[wordsPerRow - 1U] |= MaskWord{1} << validBitsInLastWord;
+            const Feedback::PointerHitMaskTargetResult padding = Feedback::beginPointerHitMaskUpdate(window);
             static_cast<void>(context.expectEq(
-                "set trailing bits are rejected",
+                "set row-padding bits are rejected",
                 ErrorCode::InvalidArgument,
-                Feedback::publishPointerHitMask(window, trailing.target.generation, invalidTrailing).code));
+                Feedback::publishPointerHitMask(window, padding.target.generation, invalidPadding).code));
             static_cast<void>(context.expectEq(
-                "invalid trailing bits preserve revision",
+                "invalid row-padding bits preserve revision",
                 newer.target.generation,
                 Window::TestHooks::pointerHitMaskGeneration(window)));
         }

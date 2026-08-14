@@ -16,7 +16,7 @@ A future UI system owns the semantic accessibility tree. Window may expose a foc
 
 ## Native pointer-mask routing
 
-The packed Renderer-to-Window mask bridge exists in `window/renderer.h`. Genuine cross-application rectangular and per-pixel routing remains backend work and stays `Unsupported` until a documented stable native API can satisfy the contract.
+The packed Renderer-to-Window mask bridge exists in `window/renderer_bridge.h`. Genuine cross-application rectangular and per-pixel routing remains backend work and stays `Unsupported` until a documented stable native API can satisfy the contract.
 
 ## Cursor, clipboard, data transfer, and dialogs
 

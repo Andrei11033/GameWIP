@@ -117,10 +117,10 @@ namespace GameWIP::Window::TestHooks
         return state != nullptr ? state->pointerHitMask.size() : 0;
     }
 
-    std::uint64_t pointerHitMaskWord(const Window &window, std::size_t index) noexcept
+    Renderer::PointerHitMaskWord pointerHitMaskWord(const Window &window, std::size_t index) noexcept
     {
         const Detail::WindowState *state = Detail::WindowAccess::state(window);
-        return state != nullptr && index < state->pointerHitMask.size() ? state->pointerHitMask[index] : 0;
+        return state != nullptr && index < state->pointerHitMask.size() ? state->pointerHitMask[index] : Renderer::PointerHitMaskWord{0};
     }
 
     const void *pointerHitMaskStorage(const Window &window) noexcept
