@@ -25,6 +25,8 @@
 #elif defined(GAMEWIP_CONSUMER_TestSupport)
 #include "test_support/test_support.h"
 #elif defined(__INTELLISENSE__)
+// CMake compiles this source once per selected package. The standalone editor parse has no
+// selection, so give IntelliSense a representative branch without weakening the real-build guard.
 #include "window/renderer.h"
 #include "window/window.h"
 #else

@@ -34,7 +34,7 @@ Check `captureOutput`. stdout and stderr share one retained byte stream. A zero 
 
 ## Child reports failed infrastructure status
 
-Inspect `status.error`, `status.nativeCode`, and `outcome` together. A failed status may still preserve partial output or an exact exit code when `outcome == ChildProcessOutcome::Exited`. `TimedOut` with successful status means timeout policy was enforced normally.
+Inspect `status.error`, `status.nativeCode`, and `outcome` together. A failed status may still preserve partial `outputBytes` or an exact exit code when `outcome == Types::Process::Outcome::Exited`. `Types::Process::Outcome::TimedOut` with successful status means timeout policy was enforced normally.
 
 ## Child call exceeded the configured timeout
 

@@ -160,6 +160,8 @@ foreach(package_name IN ITEMS Unicode IO FileSystem Terminal Window Logger Asser
     )
 endforeach()
 
+# Assert must retain its own resource prefix while Logger and its dependencies
+# are discovered from a separate installation root on every supported CMake.
 set(assert_prefix "${CONSUMER_BUILD_DIR}/assert-prefix")
 file(REMOVE_RECURSE "${assert_prefix}")
 file(MAKE_DIRECTORY

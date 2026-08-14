@@ -74,7 +74,7 @@ Unicode is deliberately standalone: `GameWIP::Unicode` has no link dependency on
 
 IO uses Unicode privately to enforce strict UTF-8 semantics for its text helpers. Because IO is static, the installed IO package resolves Unicode automatically so a consumer that requests only `IO` still receives a complete link interface; `io/io.h` itself does not expose Unicode types.
 
-TestSupport is also deliberately standalone: `GameWIP::TestSupport` has no link dependency on another GameWIP library, its public status and result types are locally owned, and its package config needs no first-party `find_dependency()` call. Source-tree CMake checks enforce these dependency directions.
+TestSupport keeps its public status and result model locally owned, but uses Unicode privately to enforce strict UTF-8 semantics for text fixtures. Because TestSupport is static, its installed package resolves the exact matching Unicode package automatically so a consumer that requests only TestSupport receives a complete link interface. TestSupport public headers do not expose Unicode types, and source-tree CMake checks prohibit higher-level or unrelated GameWIP dependencies.
 
 ## Shared-library export policy
 

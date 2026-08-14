@@ -53,6 +53,75 @@ else if (result.outcome == TS::Types::Process::Outcome::Exited)
 
 `result.outputBytes` is arbitrary combined stdout/stderr bytes. A caller may decode it only when the child protocol itself guarantees an encoding.
 
+## Standalone context and append mode
+
+```cpp
+TS::Types::Reporting::Options options;
+options.reportPath = "logs/tests/shared_report.txt";
+options.appendReport = true;
+
+TS::Context context("Standalone", options);
+context.info("standalone validation started");
+context.pass("setup complete");
+```
+
+## Temporary files and current-directory scope
+
+```cpp
+TS::ScopedTemporaryDirectory workspace("fixture");
+if (!workspace.status().ok())
+    return;
+
+const auto path = workspace.path() / "sample.txt";
+if (!TS::writeTextFile(path, "alpha beta alpha").ok())
+    return;
+
+const TS::Types::BoolResult exists = TS::fileExists(path);
+static_cast<void>(context.expectTrue("sample exists", exists.status.ok() && exists.value));
+static_cast<void>(context.expectFileOccurrenceCount("alpha count", path, "alpha", 2));
+
+{
+    TS::ScopedCurrentPath currentPath(workspace.path());
+    if (currentPath.status().ok())
+        static_cast<void>(TS::writeTextFile("relative.txt", "fixture"));
+}
+```
+
+The current directory is process-global; use `ScopedCurrentPath` only while the test owns relative-path resolution.
+
+## Environment guards
+
+```cpp
+{
+    TS::ScopedEnvironmentVariable value("GAMEWIP_TEST_MODE", "enabled");
+    if (!value.status().ok())
+        return;
+}
+
+{
+    TS::ScopedUnsetEnvironmentVariable unset("GAMEWIP_TEST_MODE");
+    if (!unset.status().ok())
+        return;
+}
+```
+
+Environment state is process-global. Overlapping guard lifetimes require caller coordination.
+
+## Manual checks and section timing
+
+```cpp
+const TS::Types::Reporting::ManualAnswer answer =
+    TS::promptManualCheck("Did the expected UI appear?");
+if (answer == TS::Types::Reporting::ManualAnswer::No)
+    context.fail("manual UI", "expected UI was not observed");
+
+{
+    TS::Section section(context, "startup");
+    TS::Timer timer;
+    context.metric("startupMs=" + std::to_string(timer.elapsedMilliseconds()));
+}
+```
+
 ## Stress coordination
 
 ```cpp
@@ -66,6 +135,25 @@ TS::runWorkers(
         while (!stop.stopRequested())
             std::this_thread::yield();
     });
+```
+
+`runWorkers()` gives every worker its own callable copy, joins every successfully started thread, and rethrows one captured worker exception only after all workers have joined. Shared references captured by those callable copies still require their own synchronization.
+
+```cpp
+try
+{
+    TS::runWorkers(
+        2,
+        [](std::size_t workerIndex)
+        {
+            if (workerIndex == 1)
+                throw std::runtime_error("worker failed");
+        });
+}
+catch (const std::runtime_error&)
+{
+    // Expected worker failure was propagated after join.
+}
 ```
 
 @ref test_support_public_api

@@ -66,6 +66,8 @@ int main()
     const GameWIP::IO::Types::Status rendererFeedbackStatus = GameWIP::Window::Renderer::attachOcclusionProvider(closedWindow);
     const GameWIP::Window::Types::DisplayColorInfoResult displayColor = GameWIP::Window::Renderer::getWindowDisplayColorInfo(closedWindow);
 
+    // Exercise the installed Assert macro surface through a normal consumer
+    // target. The detailed behavior is covered by the source-tree Assert tests.
     CHECK(write.status.ok());
     CHECK(text.status.ok());
     CHECK(path.status.ok());

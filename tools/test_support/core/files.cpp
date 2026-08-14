@@ -260,8 +260,12 @@ namespace GameWIP::TestSupport
                 return result;
             }
 
-            file.read(result.text.data(), static_cast<std::streamsize>(result.text.size()));
-            result.text.resize(static_cast<std::size_t>(file.gcount()));
+            const std::size_t expectedSize = result.text.size();
+            file.read(result.text.data(), static_cast<std::streamsize>(expectedSize));
+            const std::size_t bytesRead = static_cast<std::size_t>(file.gcount());
+            const bool backendFailure = file.bad();
+            const bool knownSizeShortRead = bytesRead != expectedSize;
+            result.text.resize(bytesRead);
 
             const Unicode::Types::Utf8::ValidationResult validation = Unicode::Utf8::validate(result.text);
             if (validation.outcome != Unicode::Types::ValidationOutcome::Valid)
@@ -269,14 +273,34 @@ namespace GameWIP::TestSupport
                 result.text.resize(validation.validPrefixBytes);
             }
 
-            if (file.bad())
-            {
-                result.status = failureStatus(Types::InfrastructureError::FileOperationFailed, static_cast<std::uint64_t>(errno));
-                return result;
-            }
-            if (validation.outcome != Unicode::Types::ValidationOutcome::Valid)
+            // Malformed input is definitive regardless of a simultaneous backend failure.
+            if (validation.outcome == Unicode::Types::ValidationOutcome::InvalidEncoding)
             {
                 result.status = failureStatus(Types::InfrastructureError::EncodingFailed);
+                return result;
+            }
+
+            // An incomplete suffix is an encoding failure only at a definitive end. A real
+            // backend failure remains authoritative because more bytes may have existed.
+            if (validation.outcome == Unicode::Types::ValidationOutcome::Incomplete)
+            {
+                if (backendFailure)
+                {
+                    result.status = failureStatus(Types::InfrastructureError::FileOperationFailed, static_cast<std::uint64_t>(errno));
+                }
+                else
+                {
+                    result.status = failureStatus(Types::InfrastructureError::EncodingFailed);
+                }
+                return result;
+            }
+
+            // The size measured before the read is authoritative for this whole-file helper.
+            // A valid but shorter read therefore reports an operational failure instead of
+            // silently returning a successful prefix.
+            if (backendFailure || knownSizeShortRead)
+            {
+                result.status = failureStatus(Types::InfrastructureError::FileOperationFailed, static_cast<std::uint64_t>(errno));
             }
             return result;
         }
