@@ -23,6 +23,14 @@ if(GAMEWIP_CONSUMER_PACKAGE STREQUAL "Logger")
         logger_config.cpp
         logger_types.cpp
     )
+elseif(GAMEWIP_CONSUMER_PACKAGE STREQUAL "TestSupport")
+    target_sources(GameWIPIsolatedConsumer PRIVATE
+        test_support_types.cpp
+        test_support_reporting.cpp
+        test_support_files.cpp
+        test_support_process.cpp
+        test_support_stress.cpp
+    )
 endif()
 target_compile_features(GameWIPIsolatedConsumer PRIVATE cxx_std_23)
 target_compile_definitions(GameWIPIsolatedConsumer PRIVATE

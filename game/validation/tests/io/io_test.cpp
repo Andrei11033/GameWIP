@@ -682,10 +682,10 @@ namespace GameWIP::Test
 {
     int runIOTests([[maybe_unused]] int argc, [[maybe_unused]] char **argv, const IOTestOptions &options)
     {
-        TestSupport::Types::ReportOptions reportOptions;
+        TestSupport::Types::Reporting::Options reportOptions;
         reportOptions.writeConsole = true;
         reportOptions.consoleVerbosity =
-            options.verboseConsole ? TestSupport::Types::ConsoleVerbosity::Full : TestSupport::Types::ConsoleVerbosity::Minimal;
+            options.verboseConsole ? TestSupport::Types::Reporting::ConsoleVerbosity::Full : TestSupport::Types::Reporting::ConsoleVerbosity::Minimal;
         reportOptions.writeReport = options.writeReport;
         reportOptions.appendReport = options.appendReport;
         reportOptions.reportPath = options.reportPath;
@@ -706,7 +706,7 @@ namespace GameWIP::Test
         runner.runSuite("IO writeAllBytes", testWriteAllBytes);
         runner.runSuite("IO writeAllText", testWriteAllText);
 
-        const TestSupport::Types::Summary result = runner.result();
+        const TestSupport::Types::Reporting::Summary result = runner.result();
         runner.summary(std::format("IO library self-tests passed={} failed={} skipped={}", result.passed, result.failed, result.skipped));
         return runner.exitCode();
     }

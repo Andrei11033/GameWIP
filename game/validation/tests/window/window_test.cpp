@@ -437,24 +437,24 @@ namespace
     }
 
     /// @brief Records a manual response as a test pass, failure, or skip.
-    void recordManualAnswer(TestSupport::Context &context, std::string_view name, TestSupport::Types::ManualAnswer answer)
+    void recordManualAnswer(TestSupport::Context &context, std::string_view name, TestSupport::Types::Reporting::ManualAnswer answer)
     {
         switch (answer)
         {
-        case TestSupport::Types::ManualAnswer::Yes:
+        case TestSupport::Types::Reporting::ManualAnswer::Yes:
             context.pass(name);
             return;
-        case TestSupport::Types::ManualAnswer::No:
+        case TestSupport::Types::Reporting::ManualAnswer::No:
             context.fail(name, "manual check rejected by user");
             return;
-        case TestSupport::Types::ManualAnswer::Skipped:
+        case TestSupport::Types::Reporting::ManualAnswer::Skipped:
             context.skip(name, "manual check skipped by user");
             return;
         }
     }
 
     /// @brief Prompts on a worker while the owner thread keeps native Window messages flowing.
-    TestSupport::Types::ManualAnswer recordManualCheck(
+    TestSupport::Types::Reporting::ManualAnswer recordManualCheck(
         TestSupport::Context &context,
         Window::Window &window,
         std::string_view name,
@@ -471,7 +471,7 @@ namespace
             manualStatusWindow->refresh(window);
         }
         std::atomic<bool> answered = false;
-        TestSupport::Types::ManualAnswer answer = TestSupport::Types::ManualAnswer::Skipped;
+        TestSupport::Types::Reporting::ManualAnswer answer = TestSupport::Types::Reporting::ManualAnswer::Skipped;
         std::jthread promptThread(
             [&]
             {
@@ -504,7 +504,7 @@ namespace
         if (!pumpFailure.ok())
         {
             context.fail(name, pumpFailure.message);
-            return TestSupport::Types::ManualAnswer::No;
+            return TestSupport::Types::Reporting::ManualAnswer::No;
         }
         recordManualAnswer(context, name, answer);
         return answer;
@@ -1121,8 +1121,8 @@ namespace
                 static_cast<void>(window.setTitle("Waiting for file drop..."));
                 if (manualStatusWindow != nullptr)
                     manualStatusWindow->setObservation("Waiting for FilesDroppedEvent.");
-                const TestSupport::Types::ManualAnswer answer = recordManualCheck(context, window, name, instruction, observeDrops);
-                if (answer != TestSupport::Types::ManualAnswer::Yes)
+                const TestSupport::Types::Reporting::ManualAnswer answer = recordManualCheck(context, window, name, instruction, observeDrops);
+                if (answer != TestSupport::Types::Reporting::ManualAnswer::Yes)
                     return;
                 static_cast<void>(context.expectEq("file drop produces one grouped event", std::size_t{1}, groupedEvents));
                 static_cast<void>(context.expectTrue("file drop retains expected paths", pathCount >= minimumPaths));
@@ -1135,9 +1135,9 @@ namespace
 
             static_cast<void>(context.expectTrue("file drops disable", window.setFileDropEnabled(false).ok()));
             window.clearEvents();
-            const TestSupport::Types::ManualAnswer disabledAnswer =
+            const TestSupport::Types::Reporting::ManualAnswer disabledAnswer =
                 recordManualCheck(context, window, "disabled file drops", "Try dropping a file. Was it rejected with no observable drop behavior?");
-            if (disabledAnswer == TestSupport::Types::ManualAnswer::Yes)
+            if (disabledAnswer == TestSupport::Types::Reporting::ManualAnswer::Yes)
                 static_cast<void>(
                     context.expectFalse("disabled file drops queue no event", consumeEventOfType<Window::Types::FilesDroppedEvent>(window)));
         }
@@ -1422,13 +1422,13 @@ namespace
                 const IO::Types::Status recoveryEnter = window.setMode(exclusive);
                 if (recoveryEnter.ok())
                 {
-                    const TestSupport::Types::ManualAnswer recovery = recordManualCheck(
+                    const TestSupport::Types::Reporting::ManualAnswer recovery = recordManualCheck(
                         context,
                         window,
                         "active exclusive target disconnect",
                         "Only if safe, disconnect/disable this exclusive-fullscreen monitor. Is desktop mode restored and the Window recovered "
                         "visibly on the surviving primary? Otherwise skip.");
-                    if (recovery == TestSupport::Types::ManualAnswer::Yes)
+                    if (recovery == TestSupport::Types::Reporting::ManualAnswer::Yes)
                     {
                         static_cast<void>(
                             context.expectEq("exclusive disconnect recovers windowed mode", Window::Types::WindowMode::Windowed, window.mode()));
@@ -1471,13 +1471,13 @@ namespace
         activeBorderless.monitor = window.currentMonitor();
         if (window.setMode(activeBorderless).ok())
         {
-            const TestSupport::Types::ManualAnswer recovery = recordManualCheck(
+            const TestSupport::Types::Reporting::ManualAnswer recovery = recordManualCheck(
                 context,
                 window,
                 "active borderless target disconnect",
                 "Only if safe, disconnect/disable this fullscreen monitor. Does the Window recover visibly in windowed mode on the surviving "
                 "primary? Otherwise skip.");
-            if (recovery == TestSupport::Types::ManualAnswer::Yes)
+            if (recovery == TestSupport::Types::Reporting::ManualAnswer::Yes)
             {
                 static_cast<void>(
                     context.expectEq("borderless disconnect recovers windowed mode", Window::Types::WindowMode::Windowed, window.mode()));
@@ -1548,12 +1548,12 @@ namespace
             static_cast<void>(
                 context.expectEq("Window display-color monitor matches current monitor", window.currentMonitor(), windowInfo.info.monitor));
 
-        const TestSupport::Types::ManualAnswer toggle = recordManualCheck(
+        const TestSupport::Types::Reporting::ManualAnswer toggle = recordManualCheck(
             context,
             window,
             "HDR toggle in place",
             "If this display supports HDR, toggle HDR in Windows, return here, and verify the Window remains stable. Skip on SDR-only hardware.");
-        if (toggle == TestSupport::Types::ManualAnswer::Yes)
+        if (toggle == TestSupport::Types::Reporting::ManualAnswer::Yes)
         {
             static_cast<void>(context.expectTrue("HDR toggle remains queryable", Window::Renderer::getWindowDisplayColorInfo(window).status.ok()));
             static_cast<void>(context.expectTrue(
@@ -2854,10 +2854,10 @@ namespace GameWIP::Test
             std::string_view{"hdr"},
             std::string_view{"modern"}};
 
-        TestSupport::Types::ReportOptions reportOptions;
+        TestSupport::Types::Reporting::Options reportOptions;
         reportOptions.writeConsole = true;
         reportOptions.consoleVerbosity =
-            options.verboseConsole ? TestSupport::Types::ConsoleVerbosity::Full : TestSupport::Types::ConsoleVerbosity::Minimal;
+            options.verboseConsole ? TestSupport::Types::Reporting::ConsoleVerbosity::Full : TestSupport::Types::Reporting::ConsoleVerbosity::Minimal;
         reportOptions.writeReport = options.writeReport;
         reportOptions.appendReport = options.appendReport;
         reportOptions.reportPath = options.reportPath;
@@ -2928,7 +2928,7 @@ namespace GameWIP::Test
         runManualSuite("Window manual HDR and advanced color", "hdr", testManualHdrAndAdvancedColor);
         runManualSuite("Window manual modern Windows capabilities", "modern", testManualModernWindowsCapabilities);
 
-        const TestSupport::Types::Summary result = runner.result();
+        const TestSupport::Types::Reporting::Summary result = runner.result();
         runner.summary(std::format("Window library self-tests passed={} failed={} skipped={}", result.passed, result.failed, result.skipped));
         manualStatusWindow = nullptr;
         return runner.exitCode();

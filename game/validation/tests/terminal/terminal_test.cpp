@@ -265,19 +265,19 @@ namespace
     }
 
     /// @brief Records a human response as a test pass, failure, or skip.
-    void recordManualAnswer(TestSupport::Context &context, std::string_view name, TestSupport::Types::ManualAnswer answer)
+    void recordManualAnswer(TestSupport::Context &context, std::string_view name, TestSupport::Types::Reporting::ManualAnswer answer)
     {
         switch (answer)
         {
-        case TestSupport::Types::ManualAnswer::Yes:
+        case TestSupport::Types::Reporting::ManualAnswer::Yes:
             context.pass(name);
             return;
 
-        case TestSupport::Types::ManualAnswer::No:
+        case TestSupport::Types::Reporting::ManualAnswer::No:
             context.fail(name, "manual check rejected by user");
             return;
 
-        case TestSupport::Types::ManualAnswer::Skipped:
+        case TestSupport::Types::Reporting::ManualAnswer::Skipped:
             context.skip(name, "manual check skipped by user");
             return;
         }
@@ -520,10 +520,10 @@ namespace GameWIP::Test
             return runSessionReentrantFormatChild();
         }
 
-        TestSupport::Types::ReportOptions reportOptions;
+        TestSupport::Types::Reporting::Options reportOptions;
         reportOptions.writeConsole = true;
         reportOptions.consoleVerbosity =
-            options.verboseConsole ? TestSupport::Types::ConsoleVerbosity::Full : TestSupport::Types::ConsoleVerbosity::Minimal;
+            options.verboseConsole ? TestSupport::Types::Reporting::ConsoleVerbosity::Full : TestSupport::Types::Reporting::ConsoleVerbosity::Minimal;
         reportOptions.writeReport = options.writeReport;
         reportOptions.appendReport = options.appendReport;
         reportOptions.reportPath = options.reportPath;
@@ -566,7 +566,7 @@ namespace GameWIP::Test
         runner.runSuite("Terminal hook-dependent suites", testHookDependentSuitesSkipped);
 #endif
 
-        const TestSupport::Types::Summary result = runner.result();
+        const TestSupport::Types::Reporting::Summary result = runner.result();
         runner.summary(std::format("Terminal library self-tests passed={} failed={} skipped={}", result.passed, result.failed, result.skipped));
         return runner.exitCode();
     }

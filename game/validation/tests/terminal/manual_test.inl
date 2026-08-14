@@ -214,7 +214,7 @@ void testManualAlternateScreen(TestSupport::Context &context, const Terminal::Ty
         return;
     }
 
-    TestSupport::Types::ManualAnswer answer = TestSupport::Types::ManualAnswer::Skipped;
+    TestSupport::Types::Reporting::ManualAnswer answer = TestSupport::Types::Reporting::ManualAnswer::Skipped;
     const bool contentReady = requireManualOperation(context, "manual alternate screen", "clear alternate screen", Terminal::clear()) &&
                               requireManualOperation(
                                   context,
@@ -452,7 +452,7 @@ void testManualStateRestoration(
         return;
     }
 
-    const TestSupport::Types::ManualAnswer hiddenAnswer = TestSupport::promptManualCheck("Is the terminal cursor currently hidden?");
+    const TestSupport::Types::Reporting::ManualAnswer hiddenAnswer = TestSupport::promptManualCheck("Is the terminal cursor currently hidden?");
     if (!requireManualOperation(context, "manual cursor-visibility restoration", "restore cursor visibility", hiddenCursor.restore()))
     {
         return;

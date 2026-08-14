@@ -8,11 +8,11 @@
 
 #include "test_support/test_support.h"
 
-#ifndef INTERNAL_TEST_SUPPORT_TEST_HOOKS
-#define INTERNAL_TEST_SUPPORT_TEST_HOOKS 0
+#ifndef TEST_SUPPORT_INTERNAL_TEST_HOOKS
+#define TEST_SUPPORT_INTERNAL_TEST_HOOKS 0
 #endif
 
-#if INTERNAL_TEST_SUPPORT_TEST_HOOKS
+#if TEST_SUPPORT_INTERNAL_TEST_HOOKS
 #include "test_support/internal/test_support_test_hooks.h"
 #endif
 
@@ -23,6 +23,7 @@
 #include <cstdlib>
 #include <filesystem>
 #include <format>
+#include <fstream>
 #include <functional>
 #include <iostream>
 #include <memory>
@@ -84,9 +85,9 @@ namespace
     }
 
     /// @brief Creates file-only report options for tests that inspect emitted text.
-    TestSupport::Types::ReportOptions quietReport(const std::filesystem::path &path)
+    TestSupport::Types::Reporting::Options quietReport(const std::filesystem::path &path)
     {
-        TestSupport::Types::ReportOptions options;
+        TestSupport::Types::Reporting::Options options;
         options.writeConsole = false;
         options.writeReport = true;
         options.appendReport = false;
@@ -122,7 +123,7 @@ namespace
     };
 
     /// @brief Runs one manual prompt against deterministic captured input.
-    TestSupport::Types::ManualAnswer promptWithInput(std::string_view input)
+    TestSupport::Types::Reporting::ManualAnswer promptWithInput(std::string_view input)
     {
         ScopedPromptStreams streams(input);
         return TestSupport::promptManualCheck("automated prompt check");
@@ -206,17 +207,19 @@ namespace
     /// @brief Verifies summary arithmetic, result predicates, defaults, and timer units.
     void testSummaryAndTimer(TestSupport::Context &context)
     {
-        const TestSupport::Types::ReportOptions defaultOptions;
+        const TestSupport::Types::Reporting::Options defaultOptions;
         static_cast<void>(context.expectTrue("ReportOptions default console", defaultOptions.writeConsole));
         static_cast<void>(context.expectTrue("ReportOptions default report", defaultOptions.writeReport));
         static_cast<void>(context.expectFalse("ReportOptions default append", defaultOptions.appendReport));
         static_cast<void>(context.expectFalse("ReportOptions default per-line flush", defaultOptions.flushReportEachLine));
-        static_cast<void>(
-            context.expectEq("ReportOptions default console verbosity", TestSupport::Types::ConsoleVerbosity::Full, defaultOptions.consoleVerbosity));
+        static_cast<void>(context.expectEq(
+            "ReportOptions default console verbosity",
+            TestSupport::Types::Reporting::ConsoleVerbosity::Full,
+            defaultOptions.consoleVerbosity));
         static_cast<void>(
             context.expectEq("ReportOptions default path", std::filesystem::path("logs/tests/latest_test_report.txt"), defaultOptions.reportPath));
 
-        TestSupport::Types::Summary summary;
+        TestSupport::Types::Reporting::Summary summary;
         summary.passed = 2;
         summary.failed = 0;
         summary.skipped = 1;
@@ -226,7 +229,7 @@ namespace
         summary.failed = 1;
         static_cast<void>(context.expectFalse("Summary not ok with failures", summary.ok()));
 
-        TestSupport::Types::SuiteResult suiteResult;
+        TestSupport::Types::Reporting::SuiteResult suiteResult;
         suiteResult.summary.failed = 0;
         static_cast<void>(context.expectTrue("SuiteResult ok mirrors summary", suiteResult.ok()));
         suiteResult.summary.failed = 1;
@@ -333,7 +336,7 @@ namespace
         }
         static_cast<void>(context.expectEq("ScopedCurrentPath restores the process path", originalCurrentPath, std::filesystem::current_path()));
 
-#if INTERNAL_TEST_SUPPORT_TEST_HOOKS
+#if TEST_SUPPORT_INTERNAL_TEST_HOOKS
         {
             using FailurePoint = TestSupport::TestHooks::FileFailurePoint;
             constexpr std::uint64_t nativeCode = 0x2001u;
@@ -428,7 +431,7 @@ namespace
         static_cast<void>(nested.expectFileContains("expect file contains pass", filePath, "two"));
         static_cast<void>(nested.expectFileOccurrenceCount("expect file occurrences pass", filePath, "one", 2));
 
-        const TestSupport::Types::Summary nestedSummary = nested.result();
+        const TestSupport::Types::Reporting::Summary nestedSummary = nested.result();
         static_cast<void>(context.expectEq("Context pass count", std::size_t{10}, nestedSummary.passed));
         static_cast<void>(context.expectEq("Context skip count", std::size_t{1}, nestedSummary.skipped));
         static_cast<void>(context.expectEq("Context fail count", std::size_t{0}, nestedSummary.failed));
@@ -449,7 +452,7 @@ namespace
         static_cast<void>(failing.expectNear("intentional negative tolerance", 1.0, 1.0, -1.0));
         static_cast<void>(failing.expectNear("intentional outside tolerance", 1.0, 2.0, 0.1));
         static_cast<void>(failing.expectFileContains("intentional missing file", root / "missing.txt", "needle"));
-        const TestSupport::Types::Summary failingSummary = failing.result();
+        const TestSupport::Types::Reporting::Summary failingSummary = failing.result();
         static_cast<void>(context.expectEq("Context records failures without throwing", std::size_t{4}, failingSummary.failed));
         static_cast<void>(context.expectFalse("Failing context not ok", failing.ok()));
         context.pass("Context continued after nested failures");
@@ -459,7 +462,7 @@ namespace
     void testReportModes(TestSupport::Context &context, const std::filesystem::path &root)
     {
         const std::filesystem::path noReportPath = root / "no_report.txt";
-        TestSupport::Types::ReportOptions noReportOptions;
+        TestSupport::Types::Reporting::Options noReportOptions;
         noReportOptions.writeConsole = false;
         noReportOptions.writeReport = false;
         noReportOptions.reportPath = noReportPath;
@@ -470,7 +473,7 @@ namespace
         static_cast<void>(context.expectFalse("Report disabled writes no file", noReportExists.value));
 
         const std::filesystem::path consoleOnlyPath = root / "console_only_report.txt";
-        TestSupport::Types::ReportOptions consoleOnlyOptions;
+        TestSupport::Types::Reporting::Options consoleOnlyOptions;
         consoleOnlyOptions.writeConsole = true;
         consoleOnlyOptions.writeReport = false;
         consoleOnlyOptions.reportPath = consoleOnlyPath;
@@ -487,12 +490,12 @@ namespace
         static_cast<void>(context.expectFalse("Console-only report writes no file", consoleOnlyExists.value));
 
         const std::filesystem::path appendPath = root / "append_report.txt";
-        TestSupport::Types::ReportOptions firstOptions = quietReport(appendPath);
+        TestSupport::Types::Reporting::Options firstOptions = quietReport(appendPath);
         firstOptions.appendReport = false;
         TestSupport::Context first("AppendReport", firstOptions);
         first.pass("first line");
 
-        TestSupport::Types::ReportOptions secondOptions = quietReport(appendPath);
+        TestSupport::Types::Reporting::Options secondOptions = quietReport(appendPath);
         secondOptions.appendReport = true;
         TestSupport::Context second("AppendReport", secondOptions);
         second.pass("second line");
@@ -503,7 +506,7 @@ namespace
         static_cast<void>(context.expectContains("Report append preserves first line", appended, "first line"));
         static_cast<void>(context.expectContains("Report append writes second line", appended, "second line"));
 
-        TestSupport::Types::ReportOptions truncateOptions = quietReport(appendPath);
+        TestSupport::Types::Reporting::Options truncateOptions = quietReport(appendPath);
         truncateOptions.appendReport = false;
         TestSupport::Context truncated("AppendReport", truncateOptions);
         truncated.pass("third line");
@@ -516,7 +519,7 @@ namespace
 
         const std::filesystem::path destructionFlushPath = root / "destruction_flush_report.txt";
         {
-            TestSupport::Types::ReportOptions bufferedOptions;
+            TestSupport::Types::Reporting::Options bufferedOptions;
             bufferedOptions.writeConsole = false;
             bufferedOptions.writeReport = true;
             bufferedOptions.flushReportEachLine = false;
@@ -532,9 +535,9 @@ namespace
         std::string conciseOutput;
         {
             ScopedPromptStreams captured("");
-            TestSupport::Types::ReportOptions conciseOptions;
+            TestSupport::Types::Reporting::Options conciseOptions;
             conciseOptions.writeReport = false;
-            conciseOptions.consoleVerbosity = TestSupport::Types::ConsoleVerbosity::Concise;
+            conciseOptions.consoleVerbosity = TestSupport::Types::Reporting::ConsoleVerbosity::Concise;
             TestSupport::Context concise("Concise", conciseOptions);
             concise.info("hidden info");
             concise.pass("hidden pass");
@@ -552,9 +555,9 @@ namespace
         std::string minimalOutput;
         {
             ScopedPromptStreams captured("");
-            TestSupport::Types::ReportOptions minimalOptions;
+            TestSupport::Types::Reporting::Options minimalOptions;
             minimalOptions.writeReport = false;
-            minimalOptions.consoleVerbosity = TestSupport::Types::ConsoleVerbosity::Minimal;
+            minimalOptions.consoleVerbosity = TestSupport::Types::Reporting::ConsoleVerbosity::Minimal;
             TestSupport::Context minimal("Minimal", minimalOptions);
             minimal.info("hidden minimal info");
             minimal.pass("hidden minimal pass");
@@ -575,17 +578,25 @@ namespace
     /// @brief Verifies accepted manual-answer spellings, retries, and EOF behavior.
     void testPromptManualCheck(TestSupport::Context &context)
     {
-        static_cast<void>(context.expectTrue("promptManualCheck accepts yes", promptWithInput("yes\n") == TestSupport::Types::ManualAnswer::Yes));
-        static_cast<void>(context.expectTrue("promptManualCheck accepts y", promptWithInput("y\n") == TestSupport::Types::ManualAnswer::Yes));
-        static_cast<void>(context.expectTrue("promptManualCheck accepts no", promptWithInput("no\n") == TestSupport::Types::ManualAnswer::No));
-        static_cast<void>(context.expectTrue("promptManualCheck accepts n", promptWithInput("n\n") == TestSupport::Types::ManualAnswer::No));
         static_cast<void>(
-            context.expectTrue("promptManualCheck accepts skipped", promptWithInput("skip\n") == TestSupport::Types::ManualAnswer::Skipped));
-        static_cast<void>(context.expectTrue("promptManualCheck accepts s", promptWithInput("s\n") == TestSupport::Types::ManualAnswer::Skipped));
+            context.expectTrue("promptManualCheck accepts yes", promptWithInput("yes\n") == TestSupport::Types::Reporting::ManualAnswer::Yes));
         static_cast<void>(
-            context.expectTrue("promptManualCheck retries invalid input", promptWithInput("maybe\nYes\n") == TestSupport::Types::ManualAnswer::Yes));
+            context.expectTrue("promptManualCheck accepts y", promptWithInput("y\n") == TestSupport::Types::Reporting::ManualAnswer::Yes));
         static_cast<void>(
-            context.expectTrue("promptManualCheck returns skipped on EOF", promptWithInput("") == TestSupport::Types::ManualAnswer::Skipped));
+            context.expectTrue("promptManualCheck accepts no", promptWithInput("no\n") == TestSupport::Types::Reporting::ManualAnswer::No));
+        static_cast<void>(
+            context.expectTrue("promptManualCheck accepts n", promptWithInput("n\n") == TestSupport::Types::Reporting::ManualAnswer::No));
+        static_cast<void>(context.expectTrue(
+            "promptManualCheck accepts skipped",
+            promptWithInput("skip\n") == TestSupport::Types::Reporting::ManualAnswer::Skipped));
+        static_cast<void>(
+            context.expectTrue("promptManualCheck accepts s", promptWithInput("s\n") == TestSupport::Types::Reporting::ManualAnswer::Skipped));
+        static_cast<void>(context.expectTrue(
+            "promptManualCheck retries invalid input",
+            promptWithInput("maybe\nYes\n") == TestSupport::Types::Reporting::ManualAnswer::Yes));
+        static_cast<void>(context.expectTrue(
+            "promptManualCheck returns skipped on EOF",
+            promptWithInput("") == TestSupport::Types::Reporting::ManualAnswer::Skipped));
     }
 
     /// @brief Converts one expected manual response into a pass, skip, or failure.
@@ -593,16 +604,16 @@ namespace
         TestSupport::Context &context,
         std::string_view name,
         std::string_view question,
-        TestSupport::Types::ManualAnswer expectedAnswer)
+        TestSupport::Types::Reporting::ManualAnswer expectedAnswer)
     {
-        const TestSupport::Types::ManualAnswer answer = TestSupport::promptManualCheck(question);
+        const TestSupport::Types::Reporting::ManualAnswer answer = TestSupport::promptManualCheck(question);
         if (answer == expectedAnswer)
         {
             context.pass(name);
             return;
         }
 
-        if (answer == TestSupport::Types::ManualAnswer::Skipped)
+        if (answer == TestSupport::Types::Reporting::ManualAnswer::Skipped)
         {
             context.skip(name, "manual check skipped by user");
             return;
@@ -624,26 +635,26 @@ namespace
             context,
             "manual prompt accepts yes",
             "TestSupport manual check: type yes to validate ManualAnswer::Yes.",
-            TestSupport::Types::ManualAnswer::Yes);
+            TestSupport::Types::Reporting::ManualAnswer::Yes);
         recordExpectedManualAnswer(
             context,
             "manual prompt accepts no",
             "TestSupport manual check: type no to validate ManualAnswer::No.",
-            TestSupport::Types::ManualAnswer::No);
+            TestSupport::Types::Reporting::ManualAnswer::No);
         recordExpectedManualAnswer(
             context,
             "manual prompt accepts skipped",
             "TestSupport manual check: type skip to validate ManualAnswer::Skipped.",
-            TestSupport::Types::ManualAnswer::Skipped);
+            TestSupport::Types::Reporting::ManualAnswer::Skipped);
     }
 
     /// @brief Verifies Runner aggregation, exception capture, and Section diagnostics.
     void testRunnerAndSection(TestSupport::Context &context, const std::filesystem::path &root)
     {
-        TestSupport::Types::ReportOptions runnerOptions = quietReport(root / "runner_report.txt");
+        TestSupport::Types::Reporting::Options runnerOptions = quietReport(root / "runner_report.txt");
         runnerOptions.flushReportEachLine = false;
         TestSupport::Runner runner(runnerOptions);
-        const TestSupport::Types::SuiteResult first = runner.runSuite(
+        const TestSupport::Types::Reporting::SuiteResult first = runner.runSuite(
             "FirstSuite",
             [](TestSupport::Context &suite)
             {
@@ -652,12 +663,12 @@ namespace
                 suite.skip("suite skip", "not applicable");
             });
 
-        const TestSupport::Types::SuiteResult second = runner.runSuite("SecondSuite", [] {});
+        const TestSupport::Types::Reporting::SuiteResult second = runner.runSuite("SecondSuite", [] {});
 
         static_cast<void>(context.expectTrue("Runner first suite ok", first.ok()));
         static_cast<void>(context.expectTrue("Runner second suite ok", second.ok()));
 
-        const TestSupport::Types::Summary runnerSummary = runner.result();
+        const TestSupport::Types::Reporting::Summary runnerSummary = runner.result();
         static_cast<void>(context.expectEq("Runner aggregate passed", std::size_t{1}, runnerSummary.passed));
         static_cast<void>(context.expectEq("Runner aggregate skipped", std::size_t{1}, runnerSummary.skipped));
         static_cast<void>(context.expectEq("Runner aggregate failed", std::size_t{0}, runnerSummary.failed));
@@ -672,20 +683,20 @@ namespace
         static_cast<void>(context.expectContains("Section reports metric", reportResult.text, "section small section elapsedMs="));
 
         TestSupport::Runner throwingRunner(quietReport(root / "throwing_runner_report.txt"));
-        const TestSupport::Types::SuiteResult throwing = throwingRunner.runSuite(
+        const TestSupport::Types::Reporting::SuiteResult throwing = throwingRunner.runSuite(
             "ThrowingSuite",
             []
             {
                 throw std::runtime_error("boom");
             });
-        const TestSupport::Types::SuiteResult later = throwingRunner.runSuite(
+        const TestSupport::Types::Reporting::SuiteResult later = throwingRunner.runSuite(
             "LaterSuite",
             [](TestSupport::Context &suite)
             {
                 suite.pass("later pass");
             });
 
-        const TestSupport::Types::Summary throwingSummary = throwingRunner.result();
+        const TestSupport::Types::Reporting::Summary throwingSummary = throwingRunner.result();
         static_cast<void>(context.expectFalse("Throwing suite fails", throwing.ok()));
         static_cast<void>(context.expectTrue("Later suite still runs", later.ok()));
         static_cast<void>(context.expectEq("Throwing runner records failure", std::size_t{1}, throwingSummary.failed));
@@ -761,7 +772,7 @@ namespace
                 afterUnset != nullptr && std::string_view(afterUnset) == "old"));
         }
 
-#if INTERNAL_TEST_SUPPORT_TEST_HOOKS
+#if TEST_SUPPORT_INTERNAL_TEST_HOOKS
         {
             using FailurePoint = TestSupport::TestHooks::EnvironmentFailurePoint;
             constexpr std::uint64_t nativeCode = 0x3001u;
@@ -793,18 +804,18 @@ namespace
             return;
         }
 
-        const auto expectInvalidOptions = [&](std::string_view name, const TestSupport::Types::ChildProcessOptions &childOptions)
+        const auto expectInvalidOptions = [&](std::string_view name, const TestSupport::Types::Process::Options &childOptions)
         {
-            const TestSupport::Types::ChildProcessResult result = TestSupport::runChildProcess(childOptions);
+            const TestSupport::Types::Process::Result result = TestSupport::runChildProcess(childOptions);
             static_cast<void>(context.expectEq(name, TestSupport::Types::InfrastructureError::InvalidArgument, result.status.error));
             static_cast<void>(context.expectEq(
                 std::string(name) + " leaves the child unstarted",
-                TestSupport::Types::ChildProcessOutcome::NotStarted,
+                TestSupport::Types::Process::Outcome::NotStarted,
                 result.outcome));
         };
 
         {
-            TestSupport::Types::ChildProcessOptions childOptions;
+            TestSupport::Types::Process::Options childOptions;
             childOptions.executablePath = std::filesystem::path(executablePath);
             childOptions.arguments = {std::string("invalid-\0-argument", 18)};
             expectInvalidOptions("Child process rejects embedded-null arguments", childOptions);
@@ -813,10 +824,10 @@ namespace
             expectInvalidOptions("Child process rejects invalid UTF-8 arguments", childOptions);
 
             childOptions.arguments.clear();
-            childOptions.environment = {{"INVALID=NAME", "value"}};
+            childOptions.environmentOverrides = {{"INVALID=NAME", "value"}};
             expectInvalidOptions("Child process rejects invalid environment names", childOptions);
 
-            childOptions.environment = {{"VALID_NAME", std::string("invalid-\0-value", 15)}};
+            childOptions.environmentOverrides = {{"VALID_NAME", std::string("invalid-\0-value", 15)}};
             expectInvalidOptions("Child process rejects embedded-null environment values", childOptions);
         }
 
@@ -824,34 +835,34 @@ namespace
             TestSupport::ScopedEnvironmentVariable parentUnset(kChildUnsetVariable, "parent-value");
             static_cast<void>(context.expectTrue("Child environment parent fixture succeeds", parentUnset.status().ok()));
 
-            TestSupport::Types::ChildProcessOptions childOptions;
+            TestSupport::Types::Process::Options childOptions;
             childOptions.executablePath = std::filesystem::path(executablePath);
             childOptions.arguments = {std::string(kEnvironmentChildArgument)};
-            childOptions.environment = {
-                TestSupport::Types::EnvironmentVariable{std::string(kChildSetVariable), std::string("child-value")},
-                TestSupport::Types::EnvironmentVariable{std::string(kChildUnsetVariable), std::nullopt}};
+            childOptions.environmentOverrides = {
+                TestSupport::Types::Process::EnvironmentOverride{std::string(kChildSetVariable), std::string("child-value")},
+                TestSupport::Types::Process::EnvironmentOverride{std::string(kChildUnsetVariable), std::nullopt}};
             childOptions.timeout = 5s;
 
-            const TestSupport::Types::ChildProcessResult result = TestSupport::runChildProcess(childOptions);
+            const TestSupport::Types::Process::Result result = TestSupport::runChildProcess(childOptions);
             static_cast<void>(context.expectTrue(
                 "Child process environment exits successfully",
-                result.status.ok() && result.outcome == TestSupport::Types::ChildProcessOutcome::Exited && result.exitCode == 0));
-            static_cast<void>(context.expectContains("Child process captures stdout", result.output, "child-set=child-value"));
-            static_cast<void>(context.expectContains("Child process unsets environment", result.output, "child-unset=<unset>"));
+                result.status.ok() && result.outcome == TestSupport::Types::Process::Outcome::Exited && result.exitCode == 0));
+            static_cast<void>(context.expectContains("Child process captures stdout", result.outputBytes, "child-set=child-value"));
+            static_cast<void>(context.expectContains("Child process unsets environment", result.outputBytes, "child-unset=<unset>"));
         }
 
         {
-            TestSupport::Types::ChildProcessOptions childOptions;
+            TestSupport::Types::Process::Options childOptions;
             childOptions.executablePath = std::filesystem::path(executablePath);
             childOptions.arguments = {std::string(kExitCodeChildArgument), "0"};
             childOptions.captureOutput = false;
             childOptions.timeout = 5s;
 
-            const TestSupport::Types::ChildProcessResult result = TestSupport::runChildProcess(childOptions);
+            const TestSupport::Types::Process::Result result = TestSupport::runChildProcess(childOptions);
             static_cast<void>(context.expectTrue(
                 "Child process capture can be disabled",
-                result.status.ok() && result.outcome == TestSupport::Types::ChildProcessOutcome::Exited && result.exitCode == 0));
-            static_cast<void>(context.expectEq("Disabled capture leaves output empty", std::string(), result.output));
+                result.status.ok() && result.outcome == TestSupport::Types::Process::Outcome::Exited && result.exitCode == 0));
+            static_cast<void>(context.expectEq("Disabled capture leaves output empty", std::string(), result.outputBytes));
         }
 
 #if defined(_WIN32)
@@ -865,17 +876,17 @@ namespace
                 unrelatedEvent != nullptr && unrelatedEvent != INVALID_HANDLE_VALUE));
             if (unrelatedEvent != nullptr && unrelatedEvent != INVALID_HANDLE_VALUE)
             {
-                TestSupport::Types::ChildProcessOptions childOptions;
+                TestSupport::Types::Process::Options childOptions;
                 childOptions.executablePath = std::filesystem::path(executablePath);
                 childOptions.arguments = {
                     std::string(kHandleInheritanceChildArgument),
                     std::to_string(reinterpret_cast<std::uintptr_t>(unrelatedEvent))};
                 childOptions.timeout = 5s;
 
-                const TestSupport::Types::ChildProcessResult result = TestSupport::runChildProcess(childOptions);
+                const TestSupport::Types::Process::Result result = TestSupport::runChildProcess(childOptions);
                 static_cast<void>(context.expectTrue(
                     "Handle inheritance probe child succeeds",
-                    result.status.ok() && result.outcome == TestSupport::Types::ChildProcessOutcome::Exited && result.exitCode == 0));
+                    result.status.ok() && result.outcome == TestSupport::Types::Process::Outcome::Exited && result.exitCode == 0));
                 static_cast<void>(context.expectEq(
                     "Child does not inherit unrelated parent handles",
                     static_cast<DWORD>(WAIT_TIMEOUT),
@@ -886,31 +897,30 @@ namespace
 #endif
 
         {
-            TestSupport::Types::ChildProcessOptions childOptions;
+            TestSupport::Types::Process::Options childOptions;
             childOptions.executablePath = std::filesystem::path(executablePath);
             childOptions.arguments = {std::string(kEnvironmentChildArgument)};
-            childOptions.environment = {
-                TestSupport::Types::EnvironmentVariable{std::string(kChildSetVariable), std::string("child-value")},
-                TestSupport::Types::EnvironmentVariable{std::string(kChildUnsetVariable), std::nullopt}};
+            childOptions.environmentOverrides = {
+                TestSupport::Types::Process::EnvironmentOverride{std::string(kChildSetVariable), std::string("child-value")},
+                TestSupport::Types::Process::EnvironmentOverride{std::string(kChildUnsetVariable), std::nullopt}};
             childOptions.inheritParentEnvironment = false;
             childOptions.timeout = 5s;
 
-            const TestSupport::Types::ChildProcessResult result = TestSupport::runChildProcess(childOptions);
+            const TestSupport::Types::Process::Result result = TestSupport::runChildProcess(childOptions);
             static_cast<void>(context.expectTrue(
                 "Child process can disable parent environment inheritance",
-                result.status.ok() && result.outcome == TestSupport::Types::ChildProcessOutcome::Exited && result.exitCode == 0));
+                result.status.ok() && result.outcome == TestSupport::Types::Process::Outcome::Exited && result.exitCode == 0));
         }
 
         {
-            TestSupport::Types::ChildProcessOptions childOptions;
+            TestSupport::Types::Process::Options childOptions;
             childOptions.executablePath = std::filesystem::path(executablePath);
             childOptions.arguments = {std::string(kExitCodeChildArgument), "7"};
             childOptions.timeout = 5s;
 
-            const TestSupport::Types::ChildProcessResult result = TestSupport::runChildProcess(childOptions);
+            const TestSupport::Types::Process::Result result = TestSupport::runChildProcess(childOptions);
             static_cast<void>(context.expectTrue("Normal child exit has successful infrastructure", result.status.ok()));
-            static_cast<void>(
-                context.expectEq("Nonzero child reports exited outcome", TestSupport::Types::ChildProcessOutcome::Exited, result.outcome));
+            static_cast<void>(context.expectEq("Nonzero child reports exited outcome", TestSupport::Types::Process::Outcome::Exited, result.outcome));
             static_cast<void>(context.expectEq("Child process reports nonzero exit", std::uint32_t{7}, result.exitCode));
         }
 
@@ -928,48 +938,47 @@ namespace
             };
             for (const ExitBoundary &boundary : boundaries)
             {
-                TestSupport::Types::ChildProcessOptions childOptions;
+                TestSupport::Types::Process::Options childOptions;
                 childOptions.executablePath = std::filesystem::path(executablePath);
                 childOptions.arguments = {std::string(kExitCodeChildArgument), std::string(boundary.argument)};
                 childOptions.timeout = 5s;
 
-                const TestSupport::Types::ChildProcessResult result = TestSupport::runChildProcess(childOptions);
+                const TestSupport::Types::Process::Result result = TestSupport::runChildProcess(childOptions);
                 static_cast<void>(context.expectTrue("Boundary child exit has successful infrastructure", result.status.ok()));
                 static_cast<void>(
-                    context.expectEq("Boundary child reports exited outcome", TestSupport::Types::ChildProcessOutcome::Exited, result.outcome));
+                    context.expectEq("Boundary child reports exited outcome", TestSupport::Types::Process::Outcome::Exited, result.outcome));
                 static_cast<void>(context.expectEq("Boundary child exit preserves all native bits", boundary.expected, result.exitCode));
             }
         }
 #endif
 
         {
-            TestSupport::Types::ChildProcessOptions childOptions;
+            TestSupport::Types::Process::Options childOptions;
             childOptions.executablePath = std::filesystem::path(executablePath).parent_path() / "missing-gamewip-child.exe";
             childOptions.timeout = 5s;
-            const TestSupport::Types::ChildProcessResult result = TestSupport::runChildProcess(childOptions);
+            const TestSupport::Types::Process::Result result = TestSupport::runChildProcess(childOptions);
             static_cast<void>(context.expectEq(
                 "Missing child reports launch failure",
                 TestSupport::Types::InfrastructureError::ProcessLaunchFailed,
                 result.status.error));
-            static_cast<void>(context.expectEq("Missing child was not started", TestSupport::Types::ChildProcessOutcome::NotStarted, result.outcome));
+            static_cast<void>(context.expectEq("Missing child was not started", TestSupport::Types::Process::Outcome::NotStarted, result.outcome));
             static_cast<void>(context.expectTrue("Missing child preserves a native diagnostic", result.status.nativeCode != 0));
         }
 
         {
-            TestSupport::Types::ChildProcessOptions childOptions;
+            TestSupport::Types::Process::Options childOptions;
             childOptions.executablePath = std::filesystem::path(executablePath);
             childOptions.arguments = {std::string(kSleepChildArgument)};
             childOptions.timeout = 50ms;
 
-            const TestSupport::Types::ChildProcessResult result = TestSupport::runChildProcess(childOptions);
+            const TestSupport::Types::Process::Result result = TestSupport::runChildProcess(childOptions);
             static_cast<void>(context.expectTrue("Child process timeout has successful infrastructure", result.status.ok()));
-            static_cast<void>(
-                context.expectEq("Child process timeout is reported", TestSupport::Types::ChildProcessOutcome::TimedOut, result.outcome));
+            static_cast<void>(context.expectEq("Child process timeout is reported", TestSupport::Types::Process::Outcome::TimedOut, result.outcome));
         }
 
         const auto runOutputChild = [&](std::size_t outputBytes, std::size_t captureLimit)
         {
-            TestSupport::Types::ChildProcessOptions childOptions;
+            TestSupport::Types::Process::Options childOptions;
             childOptions.executablePath = std::filesystem::path(executablePath);
             childOptions.arguments = {std::string(kOutputChildArgument), std::to_string(outputBytes)};
             childOptions.maxCapturedOutputBytes = captureLimit;
@@ -978,120 +987,120 @@ namespace
         };
 
         {
-            const TestSupport::Types::ChildProcessResult result = runOutputChild(4, 8);
+            const TestSupport::Types::Process::Result result = runOutputChild(4, 8);
             static_cast<void>(context.expectTrue(
                 "Capture below limit succeeds",
-                result.status.ok() && result.outcome == TestSupport::Types::ChildProcessOutcome::Exited && result.exitCode == 0));
-            static_cast<void>(context.expectEq("Capture below limit retains all bytes", std::size_t{4}, result.output.size()));
+                result.status.ok() && result.outcome == TestSupport::Types::Process::Outcome::Exited && result.exitCode == 0));
+            static_cast<void>(context.expectEq("Capture below limit retains all bytes", std::size_t{4}, result.outputBytes.size()));
             static_cast<void>(context.expectFalse("Capture below limit is not truncated", result.outputTruncated));
         }
 
         {
-            const TestSupport::Types::ChildProcessResult result = runOutputChild(8, 8);
-            static_cast<void>(context.expectEq("Capture at limit retains all bytes", std::size_t{8}, result.output.size()));
+            const TestSupport::Types::Process::Result result = runOutputChild(8, 8);
+            static_cast<void>(context.expectEq("Capture at limit retains all bytes", std::size_t{8}, result.outputBytes.size()));
             static_cast<void>(context.expectFalse("Capture at limit is not truncated", result.outputTruncated));
         }
 
         {
-            const TestSupport::Types::ChildProcessResult result = runOutputChild(12, 8);
+            const TestSupport::Types::Process::Result result = runOutputChild(12, 8);
             static_cast<void>(context.expectTrue(
                 "Capture above limit still succeeds",
-                result.status.ok() && result.outcome == TestSupport::Types::ChildProcessOutcome::Exited && result.exitCode == 0));
-            static_cast<void>(context.expectEq("Capture above limit retains prefix", std::string(8, 'x'), result.output));
+                result.status.ok() && result.outcome == TestSupport::Types::Process::Outcome::Exited && result.exitCode == 0));
+            static_cast<void>(context.expectEq("Capture above limit retains prefix", std::string(8, 'x'), result.outputBytes));
             static_cast<void>(context.expectTrue("Capture above limit reports truncation", result.outputTruncated));
         }
 
         {
-            const TestSupport::Types::ChildProcessResult result = runOutputChild(12, 0);
+            const TestSupport::Types::Process::Result result = runOutputChild(12, 0);
             static_cast<void>(context.expectTrue(
                 "Zero capture limit still drains child",
-                result.status.ok() && result.outcome == TestSupport::Types::ChildProcessOutcome::Exited && result.exitCode == 0));
-            static_cast<void>(context.expectTrue("Zero capture limit retains no bytes", result.output.empty()));
+                result.status.ok() && result.outcome == TestSupport::Types::Process::Outcome::Exited && result.exitCode == 0));
+            static_cast<void>(context.expectTrue("Zero capture limit retains no bytes", result.outputBytes.empty()));
             static_cast<void>(context.expectTrue("Zero capture limit reports truncation", result.outputTruncated));
         }
 
         {
-            TestSupport::Types::ChildProcessOptions childOptions;
+            TestSupport::Types::Process::Options childOptions;
             childOptions.executablePath = std::filesystem::path(executablePath);
             childOptions.arguments = {std::string(kDescendantChildArgument)};
             childOptions.timeout = 50ms;
-            const TestSupport::Types::ChildProcessResult result = TestSupport::runChildProcess(childOptions);
+            const TestSupport::Types::Process::Result result = TestSupport::runChildProcess(childOptions);
             static_cast<void>(context.expectTrue("Descendant process timeout has successful infrastructure", result.status.ok()));
             static_cast<void>(
-                context.expectEq("Descendant process timeout is reported", TestSupport::Types::ChildProcessOutcome::TimedOut, result.outcome));
+                context.expectEq("Descendant process timeout is reported", TestSupport::Types::Process::Outcome::TimedOut, result.outcome));
         }
 
-#if INTERNAL_TEST_SUPPORT_TEST_HOOKS
+#if TEST_SUPPORT_INTERNAL_TEST_HOOKS
         {
             using FailurePoint = TestSupport::TestHooks::ChildProcessFailurePoint;
             struct FailureCase
             {
                 FailurePoint point;
                 TestSupport::Types::InfrastructureError error;
-                TestSupport::Types::ChildProcessOutcome outcome;
+                TestSupport::Types::Process::Outcome outcome;
             };
 
             constexpr std::array failureCases{
                 FailureCase{
                     FailurePoint::Allocation,
                     TestSupport::Types::InfrastructureError::OutOfMemory,
-                    TestSupport::Types::ChildProcessOutcome::NotStarted},
+                    TestSupport::Types::Process::Outcome::NotStarted},
                 FailureCase{
                     FailurePoint::Unsupported,
                     TestSupport::Types::InfrastructureError::Unsupported,
-                    TestSupport::Types::ChildProcessOutcome::NotStarted},
+                    TestSupport::Types::Process::Outcome::NotStarted},
                 FailureCase{
                     FailurePoint::Platform,
                     TestSupport::Types::InfrastructureError::PlatformFailure,
-                    TestSupport::Types::ChildProcessOutcome::NotStarted},
+                    TestSupport::Types::Process::Outcome::NotStarted},
                 FailureCase{
                     FailurePoint::ProcessSetup,
                     TestSupport::Types::InfrastructureError::ProcessSetupFailed,
-                    TestSupport::Types::ChildProcessOutcome::NotStarted},
+                    TestSupport::Types::Process::Outcome::NotStarted},
                 FailureCase{
                     FailurePoint::HandleSetup,
                     TestSupport::Types::InfrastructureError::ProcessSetupFailed,
-                    TestSupport::Types::ChildProcessOutcome::NotStarted},
+                    TestSupport::Types::Process::Outcome::NotStarted},
                 FailureCase{
                     FailurePoint::PipeCreation,
                     TestSupport::Types::InfrastructureError::PipeCreationFailed,
-                    TestSupport::Types::ChildProcessOutcome::NotStarted},
+                    TestSupport::Types::Process::Outcome::NotStarted},
                 FailureCase{
                     FailurePoint::ProcessLaunch,
                     TestSupport::Types::InfrastructureError::ProcessLaunchFailed,
-                    TestSupport::Types::ChildProcessOutcome::NotStarted},
+                    TestSupport::Types::Process::Outcome::NotStarted},
                 FailureCase{
                     FailurePoint::JobAssignment,
                     TestSupport::Types::InfrastructureError::ProcessSetupFailed,
-                    TestSupport::Types::ChildProcessOutcome::TerminatedDuringCleanup},
+                    TestSupport::Types::Process::Outcome::TerminatedDuringCleanup},
                 FailureCase{
                     FailurePoint::CaptureSetup,
                     TestSupport::Types::InfrastructureError::CaptureFailed,
-                    TestSupport::Types::ChildProcessOutcome::TerminatedDuringCleanup},
+                    TestSupport::Types::Process::Outcome::TerminatedDuringCleanup},
                 FailureCase{
                     FailurePoint::ThreadCreation,
                     TestSupport::Types::InfrastructureError::CaptureFailed,
-                    TestSupport::Types::ChildProcessOutcome::TerminatedDuringCleanup},
+                    TestSupport::Types::Process::Outcome::TerminatedDuringCleanup},
                 FailureCase{
                     FailurePoint::ThreadResume,
                     TestSupport::Types::InfrastructureError::ProcessSetupFailed,
-                    TestSupport::Types::ChildProcessOutcome::TerminatedDuringCleanup},
+                    TestSupport::Types::Process::Outcome::TerminatedDuringCleanup},
                 FailureCase{
                     FailurePoint::CaptureRead,
                     TestSupport::Types::InfrastructureError::CaptureFailed,
-                    TestSupport::Types::ChildProcessOutcome::Exited},
+                    TestSupport::Types::Process::Outcome::Exited},
                 FailureCase{
                     FailurePoint::Wait,
                     TestSupport::Types::InfrastructureError::WaitFailed,
-                    TestSupport::Types::ChildProcessOutcome::TerminatedDuringCleanup},
+                    TestSupport::Types::Process::Outcome::TerminatedDuringCleanup},
                 FailureCase{
                     FailurePoint::ProcessInspection,
                     TestSupport::Types::InfrastructureError::ProcessInspectionFailed,
-                    TestSupport::Types::ChildProcessOutcome::OutcomeUnavailable},
+                    TestSupport::Types::Process::Outcome::OutcomeUnavailable},
                 FailureCase{
                     FailurePoint::ProcessCleanup,
                     TestSupport::Types::InfrastructureError::ProcessCleanupFailed,
-                    TestSupport::Types::ChildProcessOutcome::Exited},
+                    TestSupport::Types::Process::Outcome::Exited},
             };
 
             TestSupport::TestHooks::reset();
@@ -1101,11 +1110,11 @@ namespace
                 const std::uint64_t nativeCode = 0x1000u + index;
                 TestSupport::TestHooks::forceNextChildProcessFailure(failureCase.point, nativeCode);
 
-                TestSupport::Types::ChildProcessOptions childOptions;
+                TestSupport::Types::Process::Options childOptions;
                 childOptions.executablePath = std::filesystem::path(executablePath);
                 childOptions.arguments = {std::string(kExitCodeChildArgument), "0"};
                 childOptions.timeout = 5s;
-                const TestSupport::Types::ChildProcessResult result = TestSupport::runChildProcess(childOptions);
+                const TestSupport::Types::Process::Result result = TestSupport::runChildProcess(childOptions);
 
                 static_cast<void>(context.expectEq("Injected child failure reports its category", failureCase.error, result.status.error));
                 static_cast<void>(context.expectEq("Injected child failure preserves native code", nativeCode, result.status.nativeCode));
@@ -1114,7 +1123,7 @@ namespace
             TestSupport::TestHooks::reset();
         }
 #else
-        context.pass("TestSupport child-process hooks skipped because INTERNAL_TEST_SUPPORT_TEST_HOOKS=0");
+        context.pass("TestSupport child-process hooks skipped because TEST_SUPPORT_INTERNAL_TEST_HOOKS=0");
 #endif
     }
 
@@ -1236,6 +1245,8 @@ namespace
             std::size_t{3},
             completedFailureWorkers.load(std::memory_order_relaxed)));
     }
+
+#include "validation/tests/test_support/utf8_files_test.inl"
 } // namespace
 
 namespace GameWIP::Test
@@ -1258,10 +1269,10 @@ namespace GameWIP::Test
         }
         const std::filesystem::path &runRoot = workspace.path();
 
-        TestSupport::Types::ReportOptions reportOptions;
+        TestSupport::Types::Reporting::Options reportOptions;
         reportOptions.writeConsole = true;
         reportOptions.consoleVerbosity =
-            options.verboseConsole ? TestSupport::Types::ConsoleVerbosity::Full : TestSupport::Types::ConsoleVerbosity::Minimal;
+            options.verboseConsole ? TestSupport::Types::Reporting::ConsoleVerbosity::Full : TestSupport::Types::Reporting::ConsoleVerbosity::Minimal;
         reportOptions.writeReport = options.writeReport;
         reportOptions.appendReport = options.appendReport;
         reportOptions.reportPath = options.reportPath;
@@ -1283,6 +1294,12 @@ namespace GameWIP::Test
             [&runRoot](TestSupport::Context &context)
             {
                 testFileHelpers(context, runRoot);
+            });
+        runner.runSuite(
+            "TestSupport UTF-8 text files",
+            [&runRoot](TestSupport::Context &context)
+            {
+                testUtf8TextFileContracts(context, runRoot);
             });
         runner.runSuite(
             "TestSupport context",
@@ -1323,7 +1340,7 @@ namespace GameWIP::Test
                 testStressHelpers(context, options);
             });
 
-        const TestSupport::Types::Summary result = runner.result();
+        const TestSupport::Types::Reporting::Summary result = runner.result();
         runner.summary(std::format("TestSupport library self-tests passed={} failed={} skipped={}", result.passed, result.failed, result.skipped));
 
         return runner.exitCode();

@@ -1,87 +1,69 @@
 @page test_support_quick_start Quick start
 
-## Include
+The normal include remains:
 
 ```cpp
 #include "test_support/test_support.h"
 ```
 
-## Installed CMake
+Focused entry headers are available for narrower consumers:
 
-Set `GAMEWIP_REQUIRED_VERSION` from the consuming project's dependency lock; see @ref project_library_compatibility.
+```cpp
+#include "test_support/types.h"
+#include "test_support/reporting.h"
+#include "test_support/files.h"
+#include "test_support/process.h"
+#include "test_support/stress.h"
+```
+
+Installed CMake:
 
 ```cmake
 find_package(TestSupport ${GAMEWIP_REQUIRED_VERSION} EXACT CONFIG REQUIRED)
 target_link_libraries(MyTests PRIVATE GameWIP::TestSupport)
 ```
 
-## Source-tree CMake
+The package resolves the exact matching foundational Unicode dependency automatically.
 
-```cmake
-target_link_libraries(MyTests PRIVATE TestSupport)
-```
-
-TestSupport has no dependency on another project library.
-
-## Minimal usage
+## Minimal reporting example
 
 ```cpp
-#include "test_support/test_support.h"
+namespace TS = GameWIP::TestSupport;
 
-int main()
-{
-    namespace TS = GameWIP::TestSupport;
+TS::Types::Reporting::Options options;
+options.reportPath = "logs/tests/latest_test_report.txt";
 
-    TS::Types::ReportOptions options;
-    options.reportPath = "logs/tests/latest_test_report.txt";
-
-    TS::Runner runner(options);
-    runner.runSuite(
-        "Math",
-        [](TS::Context& context)
-        {
-            static_cast<void>(context.expectEq("one plus one", 2, 1 + 1));
-            static_cast<void>(
-                context.expectNear("one half", 0.5, 1.0 / 2.0, 0.0001));
-        });
-
-    return runner.exitCode();
-}
-```
-
-A failed expectation records a failure and returns `false`; it does not stop the suite. Use the returned value when later work depends on the check:
-
-```cpp
-#include "test_support/test_support.h"
-
-void validateFixture(
-    GameWIP::TestSupport::Context& context,
-    bool fixtureLoaded)
-{
-    if (!context.expectTrue("fixture loaded", fixtureLoaded))
+TS::Runner runner(options);
+runner.runSuite(
+    "Math",
+    [](TS::Context& context)
     {
-        return;
-    }
+        static_cast<void>(context.expectEq("one plus one", 2, 1 + 1));
+    });
 
-    context.info("fixture-dependent checks can now run");
-}
+return runner.exitCode();
 ```
 
-## Failure handling
+## Child process example
 
-- `Runner::runSuite()` catches exceptions thrown by the suite callable and records one failed check named `uncaught exception`.
-- Reporting and report-file operations do not determine the test result. A report-file open, write, or flush failure disables that sink and emits at most one stderr diagnostic.
-- File, environment, guard-construction, and child-process helpers convert expected implementation failures into `Types::InfrastructureStatus`.
-- `runChildProcess()` reports infrastructure through `status` and child behavior through `outcome`. Interpret `exitCode` only for `ChildProcessOutcome::Exited`; nonzero exit and enforced timeout are not infrastructure failures.
-- Caller-side construction of allocating strings, paths, vectors, and options remains governed by their standard-library types.
-- `runner.exitCode()` reflects recorded failures only. A skipped-only or empty run returns zero.
+```cpp
+TS::Types::Process::Options child;
+child.executablePath = "helper.exe";
+child.arguments = {"--probe"};
 
-## Where to go next
+const TS::Types::Process::Result result = TS::runChildProcess(child);
+if (!result.status.ok())
+    return 1;
+if (result.outcome == TS::Types::Process::Outcome::Exited)
+    return result.exitCode == 0 ? 0 : 1;
+```
 
-- @ref test_support_public_api maps every public type and operation family.
-- @ref test_support_expectations explains runners, contexts, expectations, and sections.
-- @ref test_support_reports explains console and report-file behavior.
-- @ref test_support_files_environment explains fixture helpers and process-global guards.
-- @ref test_support_child_processes explains launch, capture, timeout, and result interpretation.
-- @ref test_support_timing_stress explains timers and worker coordination.
-- @ref test_support_examples provides complete integration examples.
+`outputBytes` is arbitrary captured stdout/stderr data. Do not treat it as UTF-8 unless the child protocol separately guarantees that.
+
+## Text files
+
+`readTextFile()` and `writeTextFile()` are strict UTF-8 helpers. Use them for test reports and textual fixtures. Malformed input returns `InfrastructureError::EncodingFailed`; malformed writes are rejected before destructive filesystem effects.
+
+@ref test_support_public_api
+@ref test_support_files_environment
+@ref test_support_child_processes

@@ -20,7 +20,6 @@
 
 namespace
 {
-    /// @brief Creates a failed environment status without allocating.
     [[nodiscard]] GameWIP::TestSupport::Types::InfrastructureStatus environmentFailure(
         GameWIP::TestSupport::Types::InfrastructureError error,
         std::uint64_t nativeCode = 0) noexcept
@@ -28,7 +27,6 @@ namespace
         return {.error = error, .nativeCode = nativeCode};
     }
 
-    /// @brief Converts public UTF-8 environment text to UTF-16 without lossy substitution.
     [[nodiscard]] std::wstring utf8ToWide(std::string_view text)
     {
         if (text.empty())
@@ -59,7 +57,6 @@ namespace
         return output;
     }
 
-    /// @brief Converts Win32 UTF-16 environment text to UTF-8.
     [[nodiscard]] std::string wideToUtf8(std::wstring_view text)
     {
         if (text.empty())
@@ -86,8 +83,6 @@ namespace
         return output;
     }
 
-    /// @brief Enforces the shared key syntax before either Win32 or CRT environment access.
-    /// @note Windows compares environment names case-insensitively; no normalization is needed for the native calls.
     void validateEnvironmentName(std::string_view name)
     {
         if (name.empty() || name.find('=') != std::string_view::npos)
@@ -102,7 +97,7 @@ namespace GameWIP::TestSupport::Detail::Platform
     EnvironmentReadResult readEnvironmentVariable(std::string_view name) noexcept
     {
         EnvironmentReadResult result;
-#if INTERNAL_TEST_SUPPORT_TEST_HOOKS
+#if TEST_SUPPORT_INTERNAL_TEST_HOOKS
         if (const auto injected = ::GameWIP::TestSupport::Detail::TestHooks::consumeEnvironmentFailure(
                 ::GameWIP::TestSupport::TestHooks::EnvironmentFailurePoint::Read))
         {
@@ -128,7 +123,6 @@ namespace GameWIP::TestSupport::Detail::Platform
                     result.value = std::string{};
                     return result;
                 }
-
                 result.status = environmentFailure(Types::InfrastructureError::EnvironmentFailed, readError);
                 return result;
             }
@@ -170,7 +164,7 @@ namespace GameWIP::TestSupport::Detail::Platform
 
     Types::InfrastructureStatus setEnvironmentVariableValue(std::string_view name, std::string_view value) noexcept
     {
-#if INTERNAL_TEST_SUPPORT_TEST_HOOKS
+#if TEST_SUPPORT_INTERNAL_TEST_HOOKS
         if (const auto injected =
                 ::GameWIP::TestSupport::Detail::TestHooks::consumeEnvironmentFailure(::GameWIP::TestSupport::TestHooks::EnvironmentFailurePoint::Set))
         {
@@ -179,8 +173,6 @@ namespace GameWIP::TestSupport::Detail::Platform
 #endif
         try
         {
-            // `_wputenv_s(name, L"")` removes the entry. The public guard documentation exposes this
-            // Win32/CRT limitation instead of pretending an empty and missing process value are distinct.
             validateEnvironmentName(name);
             const std::wstring nameWide = utf8ToWide(name);
             const std::wstring valueWide = utf8ToWide(value);
@@ -208,7 +200,7 @@ namespace GameWIP::TestSupport::Detail::Platform
 
     Types::InfrastructureStatus unsetEnvironmentVariableValue(std::string_view name) noexcept
     {
-#if INTERNAL_TEST_SUPPORT_TEST_HOOKS
+#if TEST_SUPPORT_INTERNAL_TEST_HOOKS
         if (const auto injected = ::GameWIP::TestSupport::Detail::TestHooks::consumeEnvironmentFailure(
                 ::GameWIP::TestSupport::TestHooks::EnvironmentFailurePoint::Unset))
         {

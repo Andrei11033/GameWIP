@@ -14,12 +14,22 @@ add_library(GameWIP::TestSupport ALIAS TestSupport)
 target_sources(TestSupport
     PRIVATE
         core/test_support.cpp
+        core/reporting.cpp
+        core/files.cpp
+        core/process_state.cpp
+        core/stress.cpp
         core/test_support_test_hooks.cpp
     PUBLIC
         FILE_SET public_headers
         TYPE HEADERS
         BASE_DIRS "${PROJECT_SOURCE_DIR}/tools"
-        FILES "${CMAKE_CURRENT_SOURCE_DIR}/test_support.h"
+        FILES
+            "${CMAKE_CURRENT_SOURCE_DIR}/types.h"
+            "${CMAKE_CURRENT_SOURCE_DIR}/reporting.h"
+            "${CMAKE_CURRENT_SOURCE_DIR}/files.h"
+            "${CMAKE_CURRENT_SOURCE_DIR}/process.h"
+            "${CMAKE_CURRENT_SOURCE_DIR}/stress.h"
+            "${CMAKE_CURRENT_SOURCE_DIR}/test_support.h"
 )
 
 gamewip_target_platform_sources(TestSupport TestSupport "${CMAKE_CURRENT_SOURCE_DIR}/platform")
@@ -32,12 +42,17 @@ target_include_directories(TestSupport PUBLIC
 target_compile_features(TestSupport PUBLIC cxx_std_23)
 target_compile_definitions(TestSupport
     PRIVATE
-        INTERNAL_TEST_SUPPORT_TEST_HOOKS=$<BOOL:${TEST_SUPPORT_ENABLE_TEST_HOOKS}>
+        TEST_SUPPORT_INTERNAL_TEST_HOOKS=$<BOOL:${TEST_SUPPORT_ENABLE_TEST_HOOKS}>
     INTERFACE
-        $<BUILD_INTERFACE:INTERNAL_TEST_SUPPORT_TEST_HOOKS=$<BOOL:${TEST_SUPPORT_ENABLE_TEST_HOOKS}>>
+        $<BUILD_INTERFACE:TEST_SUPPORT_INTERNAL_TEST_HOOKS=$<BOOL:${TEST_SUPPORT_ENABLE_TEST_HOOKS}>>
 )
 
-# TestSupport is the validation leaf and must not acquire another GameWIP library dependency.
+target_link_libraries(TestSupport PRIVATE
+    Unicode
+)
+
+# TestSupport may use foundational Unicode for real text semantics, but must not
+# acquire IO, FileSystem, Logger, Assert, engine, or other higher-level GameWIP dependencies.
 set(test_support_forbidden_gamewip_targets
     IO FileSystem Terminal Window Logger Assert
     GameWIP::IO GameWIP::FileSystem GameWIP::Terminal GameWIP::Window GameWIP::Logger GameWIP::Assert
@@ -46,8 +61,11 @@ foreach(property_name LINK_LIBRARIES INTERFACE_LINK_LIBRARIES)
     get_target_property(property_value TestSupport ${property_name})
     if(property_value)
         foreach(link_item IN LISTS property_value)
-            if(link_item IN_LIST test_support_forbidden_gamewip_targets OR link_item MATCHES "^GameWIP::")
-                message(FATAL_ERROR "TestSupport must not depend on another GameWIP library, but ${property_name} contains '${link_item}'.")
+            if(link_item IN_LIST test_support_forbidden_gamewip_targets)
+                message(FATAL_ERROR "TestSupport must not depend on '${link_item}'.")
+            endif()
+            if(link_item MATCHES "^GameWIP::" AND NOT link_item STREQUAL "GameWIP::Unicode")
+                message(FATAL_ERROR "TestSupport may depend only on foundational Unicode, but ${property_name} contains '${link_item}'.")
             endif()
         endforeach()
     endif()
@@ -58,12 +76,15 @@ set_target_properties(TestSupport PROPERTIES
 )
 
 if(GAMEWIP_BUILD_DOCS AND COMMAND gamewip_register_doxygen_library)
-    # TestSupport owns its public API docs and Markdown manual pages. The root docs
-    # target merges this into the unified library Doxygen site.
     gamewip_register_doxygen_library(
         NAME TestSupport
         PAGE_ID test_support
         PUBLIC_HEADERS
+            "${CMAKE_CURRENT_SOURCE_DIR}/types.h"
+            "${CMAKE_CURRENT_SOURCE_DIR}/reporting.h"
+            "${CMAKE_CURRENT_SOURCE_DIR}/files.h"
+            "${CMAKE_CURRENT_SOURCE_DIR}/process.h"
+            "${CMAKE_CURRENT_SOURCE_DIR}/stress.h"
             "${CMAKE_CURRENT_SOURCE_DIR}/test_support.h"
         DOCS
             "${CMAKE_CURRENT_SOURCE_DIR}/docs"

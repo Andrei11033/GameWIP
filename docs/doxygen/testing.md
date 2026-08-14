@@ -244,7 +244,7 @@ Stress tests may remain correctness tests when they verify invariants rather tha
 
 `game/validation/installed_consumer/` configures and builds against the installed package surface only. It verifies installed header usability, representative cross-library integration, the current imported targets after all packages are found, and the absence of source-tree test-hook definitions.
 
-The combined consumer verifies cross-library integration. Separate isolated consumers call only one `find_package()` for each package, proving that higher-level configs discover every imported dependency in their exported interface. The combined and isolated TestSupport cases compile and run representative status, formatting, and child-result contracts while explicitly rejecting `INTERNAL_TEST_SUPPORT_TEST_HOOKS`. Additional cases cover split-prefix runtime Assert and disabled/interface-only Assert.
+The combined consumer verifies cross-library integration. Separate isolated consumers call only one `find_package()` for each package, proving that higher-level configs discover every imported dependency in their exported interface. The combined and isolated TestSupport cases compile and run representative status, formatting, and process-result contracts while explicitly rejecting `TEST_SUPPORT_INTERNAL_TEST_HOOKS`. Focused installed consumers also compile `test_support/types.h`, `reporting.h`, `files.h`, `process.h`, and `stress.h` independently. Additional cases cover split-prefix runtime Assert and disabled/interface-only Assert.
 
 The dedicated `Packages (CMake)` job owns ordinary package compatibility across
 Ninja and Ninja Multi-Config, so `Build and Test` excludes package-labeled CTest

@@ -1,40 +1,23 @@
-@page test_support_testing Maintainer validation
+@page test_support_testing Testing TestSupport
 
-@note This page describes proof coverage and environment requirements, not installed consumer API.
+TestSupport correctness validation covers reporting, expectations, strict UTF-8 files, process-global guards, child-process outcomes/capture, manual prompts, deterministic failure hooks, and stress primitives.
 
-## Focused validation
+The public-header validation compiles each supported entry header independently:
 
-The `test_support` module covers:
+```text
+test_support/types.h
+test_support/reporting.h
+test_support/files.h
+test_support/process.h
+test_support/stress.h
+test_support/test_support.h
+```
 
-- `Runner`, `Context`, summaries, sections, exception conversion, and continuation;
-- every expectation family and value-formatting fallback;
-- report buffering, suite-boundary and immediate flushing, verbosity, append/truncate, and one-time sink-failure diagnostics;
-- temporary-directory uniqueness, inert construction failure, nested cleanup, current-path restoration, and explicit file-helper status/value cases;
-- environment set/unset/restoration, inert construction failure, and invalid UTF-8/name input;
-- child zero/nonzero exit, launch failure, timeout, capture limits, continued draining, environment blocks, descendant cleanup, exact native codes, and every approved injected failure category;
-- manual-check EOF/skip behavior;
-- timer, one-shot gate, stop flag, worker indexing, exceptions, and partial-startup cleanup.
+Installed-consumer validation exercises the same focused headers through the installed package and proves that the package discovers its exact Unicode dependency without exposing source-tree test-hook definitions.
 
-Run it through the project workflow documented by @ref project_testing and @ref project_validation.
+Text-file tests include malformed and incomplete UTF-8, valid-prefix preservation, and validation-before-destructive-write behavior. Child capture tests continue treating stdout/stderr as arbitrary bytes, including truncation and zero-retention cases.
 
-## Other validation boundaries
+Test hooks are enabled through `TEST_SUPPORT_ENABLE_TEST_HOOKS` and the source-tree-only `TEST_SUPPORT_INTERNAL_TEST_HOOKS` definition.
 
-Project validation also checks:
-
-- `test_support/test_support.h` as a self-contained C++23 public header;
-- clean exact-version installed-package consumption through `GameWIP::TestSupport`;
-- game validation child routes that use TestSupport process isolation;
-- report modes and process-global state restoration;
-- Doxygen warnings and local page references.
-
-TestSupport must remain independent of IO, FileSystem, Terminal, Logger, Assert, engine, and game runtime code. CMake rejects accidental GameWIP target dependencies. Approved deterministic hooks are documented by @ref test_support_test_hooks and remain source-tree-only.
-
-## Platform scope
-
-The current environment and process backend is Win32. Portable tests should assert public result fields and state restoration rather than private native handles or implementation ordering.
-
-## Documentation validation
-
-The Doxygen warning log must be empty. Manual examples should compile against the installed public header and target. Maintainer comments explain backend safety and cleanup invariants without promoting internal mechanics to public guarantees.
-
-See @ref project_documentation and @ref project_testing.
+@ref project_testing
+@ref test_support_test_hooks

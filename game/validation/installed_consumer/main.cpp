@@ -7,7 +7,7 @@
 /// test, not a replacement for each library's behavior validation suite.
 
 #if defined(IO_INTERNAL_TEST_HOOKS) || defined(FILESYSTEM_INTERNAL_TEST_HOOKS) || defined(TERMINAL_INTERNAL_TEST_HOOKS) || \
-    defined(LOGGER_INTERNAL_TEST_HOOKS) || defined(INTERNAL_ASSERT_TEST_HOOKS) || defined(INTERNAL_TEST_SUPPORT_TEST_HOOKS) || \
+    defined(LOGGER_INTERNAL_TEST_HOOKS) || defined(INTERNAL_ASSERT_TEST_HOOKS) || defined(TEST_SUPPORT_INTERNAL_TEST_HOOKS) || \
     defined(INTERNAL_WINDOW_TEST_HOOKS)
 #error "Installed GameWIP targets must not expose internal test-hook compile definitions."
 #endif
@@ -57,7 +57,8 @@ int main()
     const GameWIP::Logger::Types::Config loggerConfig = GameWIP::Logger::defaultConfig();
     GameWIP::TestSupport::Timer timer;
     const GameWIP::TestSupport::Types::InfrastructureStatus infrastructureStatus;
-    const GameWIP::TestSupport::Types::ChildProcessResult childResult;
+    const GameWIP::TestSupport::Types::Process::Result childResult;
+    const GameWIP::TestSupport::Types::Reporting::Options reportingOptions;
     const std::string infrastructureText = GameWIP::TestSupport::formatInfrastructureStatus(infrastructureStatus);
     const GameWIP::Window::Types::CapabilitiesResult windowCapabilities = GameWIP::Window::getCapabilities();
     const GameWIP::Window::Types::LogicalSize windowSize{640, 360};
@@ -65,8 +66,6 @@ int main()
     const GameWIP::IO::Types::Status rendererFeedbackStatus = GameWIP::Window::Renderer::attachOcclusionProvider(closedWindow);
     const GameWIP::Window::Types::DisplayColorInfoResult displayColor = GameWIP::Window::Renderer::getWindowDisplayColorInfo(closedWindow);
 
-    // Exercise the installed Assert macro surface through a normal consumer
-    // target. The detailed behavior is covered by the source-tree Assert tests.
     CHECK(write.status.ok());
     CHECK(text.status.ok());
     CHECK(path.status.ok());
@@ -86,8 +85,8 @@ int main()
                    invalidDirectPrint.code == GameWIP::IO::Types::ErrorCode::InvalidArgument &&
                    invalidDirectPrintln.code == GameWIP::IO::Types::ErrorCode::InvalidArgument && infrastructureStatus.ok() &&
                    infrastructureText == "None" && childResult.status.ok() &&
-                   childResult.outcome == GameWIP::TestSupport::Types::ChildProcessOutcome::NotStarted &&
-                   rendererFeedbackStatus.code == GameWIP::IO::Types::ErrorCode::NotOpen &&
+                   childResult.outcome == GameWIP::TestSupport::Types::Process::Outcome::NotStarted && childResult.outputBytes.empty() &&
+                   reportingOptions.writeConsole && rendererFeedbackStatus.code == GameWIP::IO::Types::ErrorCode::NotOpen &&
                    displayColor.status.code == GameWIP::IO::Types::ErrorCode::NotOpen && windowSize.width == 640 &&
                    loggerConfig.logDirectory == std::string_view{"logs"}
                ? 0

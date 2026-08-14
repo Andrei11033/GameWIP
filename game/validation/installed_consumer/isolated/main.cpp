@@ -2,7 +2,7 @@
 /// @brief Isolated installed-package dependency-discovery check.
 
 #if defined(IO_INTERNAL_TEST_HOOKS) || defined(FILESYSTEM_INTERNAL_TEST_HOOKS) || defined(TERMINAL_INTERNAL_TEST_HOOKS) || \
-    defined(LOGGER_INTERNAL_TEST_HOOKS) || defined(INTERNAL_ASSERT_TEST_HOOKS) || defined(INTERNAL_TEST_SUPPORT_TEST_HOOKS) || \
+    defined(LOGGER_INTERNAL_TEST_HOOKS) || defined(INTERNAL_ASSERT_TEST_HOOKS) || defined(TEST_SUPPORT_INTERNAL_TEST_HOOKS) || \
     defined(INTERNAL_WINDOW_TEST_HOOKS)
 #error "Installed GameWIP targets must not expose internal test-hook compile definitions."
 #endif
@@ -25,8 +25,6 @@
 #elif defined(GAMEWIP_CONSUMER_TestSupport)
 #include "test_support/test_support.h"
 #elif defined(__INTELLISENSE__)
-// CMake compiles this source once per selected package. The standalone editor parse has no
-// selection, so give IntelliSense a representative branch without weakening the real-build guard.
 #include "window/renderer.h"
 #include "window/window.h"
 #else
@@ -40,7 +38,6 @@ int main()
 #if defined(GAMEWIP_CONSUMER_Unicode)
     const GameWIP::Unicode::Types::Version version = GameWIP::Unicode::getStandardVersion();
     const GameWIP::Unicode::Types::Utf8::EncodeResult encoded = GameWIP::Unicode::Utf8::encodeScalar(static_cast<char32_t>(0x1F600));
-
     return version.major == 17 && version.minor == 0 && version.patch == 0 && encoded.outcome == GameWIP::Unicode::Types::EncodeOutcome::Encoded &&
                    encoded.byteCount == 4
                ? 0
@@ -74,10 +71,11 @@ int main()
 #elif defined(GAMEWIP_CONSUMER_TestSupport)
     GameWIP::TestSupport::Timer timer;
     const GameWIP::TestSupport::Types::InfrastructureStatus status;
-    const GameWIP::TestSupport::Types::ChildProcessResult childResult;
+    const GameWIP::TestSupport::Types::Process::Result childResult;
     const std::string statusText = GameWIP::TestSupport::formatInfrastructureStatus(status);
     const bool defaultsAreUsable = status.ok() && statusText == "None" && childResult.status.ok() &&
-                                   childResult.outcome == GameWIP::TestSupport::Types::ChildProcessOutcome::NotStarted;
+                                   childResult.outcome == GameWIP::TestSupport::Types::Process::Outcome::NotStarted &&
+                                   childResult.outputBytes.empty();
     return timer.elapsedMilliseconds() >= 0.0 && defaultsAreUsable ? 0 : 1;
 #elif defined(__INTELLISENSE__)
     GameWIP::Window::Window window;

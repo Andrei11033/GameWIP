@@ -1,12 +1,12 @@
 /// @file process_test.inl
 /// @brief Logger child-process and manual diagnostic correctness suites.
 
-[[nodiscard]] TestSupport::Types::ChildProcessResult runChild(
+[[nodiscard]] TestSupport::Types::Process::Result runChild(
     std::string_view executable,
     std::string_view argument,
     std::chrono::milliseconds timeout = 5s)
 {
-    TestSupport::Types::ChildProcessOptions options;
+    TestSupport::Types::Process::Options options;
     options.executablePath = std::filesystem::path(std::string(executable));
     options.arguments = {std::string(argument)};
     options.timeout = timeout;
@@ -60,10 +60,10 @@ void testFatalTerminateChild(TestContext &context, const LoggerTestOptions &opti
         return;
     }
 
-    const TestSupport::Types::ChildProcessResult child = runChild(context.executablePath, fatalTerminateChildArgument);
+    const TestSupport::Types::Process::Result child = runChild(context.executablePath, fatalTerminateChildArgument);
     context.expectTrue(
         "fatalTerminate child exits nonzero",
-        child.status.ok() && child.outcome == TestSupport::Types::ChildProcessOutcome::Exited && child.exitCode != 0);
+        child.status.ok() && child.outcome == TestSupport::Types::Process::Outcome::Exited && child.exitCode != 0);
 
     std::string contents;
     for (const auto &entry : std::filesystem::directory_iterator(directory))

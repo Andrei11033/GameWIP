@@ -1,56 +1,14 @@
 @page test_support_manual_tests Manual checks
 
-Manual checks cover behavior that automated code cannot reliably verify, such as visual UI, audible/terminal effects, or debugger interaction. They should be runtime-gated and normally run after automated scenarios.
+`promptManualCheck()` is declared in `test_support/reporting.h` and returns `Types::Reporting::ManualAnswer`:
 
-`promptManualCheck()` writes:
+- `Yes`
+- `No`
+- `Skipped`
 
-```text
-[MANUAL] <question> [y/n/s]:
-```
+The prompt retries unrecognized input, returns `Skipped` on end-of-input, does not trim whitespace, and may propagate standard-stream exceptions when the caller configures those streams to throw.
 
-It reads complete lines from stdin and repeats until it recognizes one of these exact variants:
+Manual tests remain opt-in validation behavior. Callers normally translate the answer into `Context::pass()`, `fail()`, or `skip()`.
 
-- yes: `y`, `Y`, `yes`, `Yes`;
-- no: `n`, `N`, `no`, `No`;
-- skip: `s`, `S`, `skip`, `Skip`.
-
-Surrounding whitespace is not trimmed. End-of-input returns `Types::ManualAnswer::Skipped`. The function does not clear or repair stream state after EOF/failure, can block indefinitely, and can propagate standard-stream exceptions when they are enabled.
-
-```cpp
-#include "test_support/test_support.h"
-
-int main()
-{
-    namespace TS = GameWIP::TestSupport;
-
-    TS::Types::ReportOptions options;
-    options.writeReport = false;
-    TS::Context context("Manual UI", options);
-
-    switch (TS::promptManualCheck("Did the popup show the expected buttons?"))
-    {
-    case TS::Types::ManualAnswer::Yes:
-        context.pass("popup buttons visible");
-        break;
-    case TS::Types::ManualAnswer::No:
-        context.fail("popup buttons visible", "user reported incorrect UI");
-        break;
-    case TS::Types::ManualAnswer::Skipped:
-        context.skip("popup buttons visible", "manual check skipped");
-        break;
-    }
-
-    return context.ok() ? 0 : 1;
-}
-```
-
-Automated validation must not depend on a person interacting with dialogs or stdin. The application owns how manual mode is selected and whether a skipped manual check is acceptable.
-
-## Scope boundary
-
-TestSupport owns the reusable prompt syntax, answer parsing, and pass/fail/skip recording shown above. Scenario-specific diagnostics, windows, artwork, event pumping, and native interaction remain in the validation module that owns the system under test. This keeps TestSupport independent from engine libraries and lets each module present the exact state required by its manual scenarios.
-
-## Related pages
-
-- @ref test_support_expectations
-- @ref test_support_reports
+@ref test_support_public_api
+@ref test_support_testing

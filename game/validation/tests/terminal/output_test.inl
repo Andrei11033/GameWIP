@@ -4,29 +4,29 @@
 /// @brief Verifies formatter reentry without allowing a deadlock to hang the parent suite.
 void testReentrantFormatting(TestSupport::Context &context, std::string_view executablePath)
 {
-    TestSupport::Types::ChildProcessOptions child;
+    TestSupport::Types::Process::Options child;
     child.executablePath = std::filesystem::path(executablePath);
     child.arguments = {std::string(kReentrantFormatChildArgument)};
     child.timeout = std::chrono::milliseconds{5000};
     child.captureOutput = true;
 
-    const TestSupport::Types::ChildProcessResult result = TestSupport::runChildProcess(child);
+    const TestSupport::Types::Process::Result result = TestSupport::runChildProcess(child);
     static_cast<void>(context.expectTrue("reentrant formatter child infrastructure succeeds", result.status.ok()));
-    static_cast<void>(context.expectEq("reentrant formatter child exits", TestSupport::Types::ChildProcessOutcome::Exited, result.outcome));
+    static_cast<void>(context.expectEq("reentrant formatter child exits", TestSupport::Types::Process::Outcome::Exited, result.outcome));
     static_cast<void>(context.expectEq("reentrant formatter child returns zero", std::uint32_t{0}, result.exitCode));
     static_cast<void>(
-        context.expectEq("reentrant formatter preserves nested and outer output", std::string{"innerouterinnerouter\n"}, result.output));
+        context.expectEq("reentrant formatter preserves nested and outer output", std::string{"innerouterinnerouter\n"}, result.outputBytes));
 
     child.arguments = {std::string(kSessionReentrantFormatChildArgument)};
-    const TestSupport::Types::ChildProcessResult sessionResult = TestSupport::runChildProcess(child);
+    const TestSupport::Types::Process::Result sessionResult = TestSupport::runChildProcess(child);
     static_cast<void>(context.expectTrue("Session reentrant formatter child infrastructure succeeds", sessionResult.status.ok()));
     static_cast<void>(
-        context.expectEq("Session reentrant formatter child exits", TestSupport::Types::ChildProcessOutcome::Exited, sessionResult.outcome));
+        context.expectEq("Session reentrant formatter child exits", TestSupport::Types::Process::Outcome::Exited, sessionResult.outcome));
     static_cast<void>(context.expectEq("Session reentrant formatter child returns zero", std::uint32_t{0}, sessionResult.exitCode));
     static_cast<void>(context.expectEq(
         "Session formatter supports nested Session/global output and checked close",
         std::string{"innerouterinnerouter\nglobalouterouter"},
-        sessionResult.output));
+        sessionResult.outputBytes));
 }
 
 #if TERMINAL_INTERNAL_TEST_HOOKS

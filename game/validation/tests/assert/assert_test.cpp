@@ -76,7 +76,7 @@ namespace
         std::filesystem::path logRoot;
         std::string executablePath;
         /// @brief Returns the current TestSupport summary snapshot.
-        [[nodiscard]] TestSupport::Types::Summary result() const noexcept
+        [[nodiscard]] TestSupport::Types::Reporting::Summary result() const noexcept
         {
             return testContext.result();
         }
@@ -252,12 +252,12 @@ namespace
     /// @param executablePath Executable to launch.
     /// @param argument Single child-mode argument to pass.
     /// @return Child process result with exit, timeout, and captured output state.
-    TestSupport::Types::ChildProcessResult runChildProcessResult(
+    TestSupport::Types::Process::Result runChildProcessResult(
         std::string_view executablePath,
         std::string_view argument,
         std::chrono::milliseconds timeout = 5000ms)
     {
-        TestSupport::Types::ChildProcessOptions child;
+        TestSupport::Types::Process::Options child;
         child.executablePath = std::filesystem::path(std::string(executablePath));
         child.arguments = {std::string(argument)};
         child.timeout = timeout;
@@ -1000,10 +1000,10 @@ namespace
     {
         std::cout.flush();
         std::cerr.flush();
-        const TestSupport::Types::ChildProcessResult result = runChildProcessResult(context.executablePath, argument);
+        const TestSupport::Types::Process::Result result = runChildProcessResult(context.executablePath, argument);
         context.expectTrue(
             testName,
-            result.status.ok() && result.outcome == TestSupport::Types::ChildProcessOutcome::Exited && result.exitCode != 0,
+            result.status.ok() && result.outcome == TestSupport::Types::Process::Outcome::Exited && result.exitCode != 0,
             "child process did not produce a normal nonzero exit");
     }
 
@@ -1316,10 +1316,10 @@ namespace GameWIP::Test
             return runUnreachableChild();
         }
 
-        TestSupport::Types::ReportOptions reportOptions;
+        TestSupport::Types::Reporting::Options reportOptions;
         reportOptions.writeConsole = true;
         reportOptions.consoleVerbosity =
-            options.verboseConsole ? TestSupport::Types::ConsoleVerbosity::Full : TestSupport::Types::ConsoleVerbosity::Minimal;
+            options.verboseConsole ? TestSupport::Types::Reporting::ConsoleVerbosity::Full : TestSupport::Types::Reporting::ConsoleVerbosity::Minimal;
         reportOptions.writeReport = options.writeReport;
         reportOptions.appendReport = options.appendReport;
         reportOptions.reportPath = options.reportPath;
@@ -1327,7 +1327,7 @@ namespace GameWIP::Test
         TestSupport::Runner runner(reportOptions);
         runner.info(std::format("Assert test report: {}", options.writeReport ? options.reportPath.string() : std::string{"disabled"}));
 
-        const TestSupport::Types::SuiteResult suite = runner.runSuite(
+        const TestSupport::Types::Reporting::SuiteResult suite = runner.runSuite(
             "Assert",
             [&](TestSupport::Context &suiteContext)
             {
