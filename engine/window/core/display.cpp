@@ -9,16 +9,16 @@ namespace GameWIP::Window::Display
 {
     Types::Display::ModesResult getModes(Types::Display::MonitorId monitor) noexcept
     {
-        return Detail::Platform::getDisplayModes(monitor);
+        return Detail::Platform::getModes(monitor);
     }
 
     Types::Display::ModeResult getCurrentMode(Types::Display::MonitorId monitor) noexcept
     {
-        return Detail::Platform::getCurrentDisplayMode(monitor);
+        return Detail::Platform::getCurrentMode(monitor);
     }
 
     Types::Display::ModeResult getPreferredMode(Types::Display::MonitorId monitor) noexcept
     {
-        return Detail::Platform::getPreferredDisplayMode(monitor);
+        return Detail::Platform::getPreferredMode(monitor);
     }
 } // namespace GameWIP::Window::Display

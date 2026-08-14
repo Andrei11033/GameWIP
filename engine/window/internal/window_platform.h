@@ -45,13 +45,11 @@ namespace GameWIP::Window::Detail::Platform
     [[nodiscard]] Types::Display::MonitorsResult getMonitors() noexcept;
     [[nodiscard]] Types::Display::InfoResult getPrimaryMonitor() noexcept;
     [[nodiscard]] Types::Display::InfoResult getMonitor(Types::Display::MonitorId monitor) noexcept;
-    [[nodiscard]] Types::Display::ModesResult getDisplayModes(Types::Display::MonitorId monitor) noexcept;
-    [[nodiscard]] Types::Display::ModeResult getCurrentDisplayMode(Types::Display::MonitorId monitor) noexcept;
-    [[nodiscard]] Types::Display::ModeResult getPreferredDisplayMode(Types::Display::MonitorId monitor) noexcept;
-    [[nodiscard]] Types::Display::ColorInfoResult getDisplayColorInfo(Types::Display::MonitorId monitor) noexcept;
-    [[nodiscard]] Types::Display::ColorInfo makeDisplayColorInfo(
-        Types::Display::MonitorId monitor,
-        const DisplayColorSnapshot &snapshot) noexcept;
+    [[nodiscard]] Types::Display::ModesResult getModes(Types::Display::MonitorId monitor) noexcept;
+    [[nodiscard]] Types::Display::ModeResult getCurrentMode(Types::Display::MonitorId monitor) noexcept;
+    [[nodiscard]] Types::Display::ModeResult getPreferredMode(Types::Display::MonitorId monitor) noexcept;
+    [[nodiscard]] Types::Display::ColorInfoResult getColorInfo(Types::Display::MonitorId monitor) noexcept;
+    [[nodiscard]] Types::Display::ColorInfo makeDisplayColorInfo(Types::Display::MonitorId monitor, const DisplayColorSnapshot &snapshot) noexcept;
     [[nodiscard]] bool consumeDisplayColorConfigurationChange() noexcept;
 
     [[nodiscard]] IO::Types::Status open(WindowState &state, const Types::Description &description) noexcept;

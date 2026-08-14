@@ -50,8 +50,13 @@ set(expected_gamewip_headers
     test_support/test_support.h
     test_support/types.h
     unicode/unicode.h
-    window/renderer_bridge.h
+    window/description.h
+    window/display.h
+    window/display_info.h
+    window/events.h
     window/native/win32.h
+    window/renderer_bridge.h
+    window/types.h
     window/window.h
     window/window_export.h
 )

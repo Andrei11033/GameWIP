@@ -14,7 +14,6 @@
 #define FILESYSTEM_INTERNAL_TEST_HOOKS 0
 #endif
 
-
 namespace GameWIP::FileSystem::Detail
 {
     /// @brief Platform-owned native file handle state used by File, FileReader, and FileWriter.

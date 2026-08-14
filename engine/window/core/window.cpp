@@ -134,17 +134,17 @@ namespace GameWIP::Window
             // U+0000 is valid Unicode, but native Window title APIs are NUL-terminated and cannot
             // represent an embedded NUL. UTF-8 validity itself is checked by the strict conversion
             // performed at the native boundary.
-            if (description.title.find('\0') != std::string::npos || !validSize(description.clientSize) ||
-                !validEnum(description.placement.kind) ||
+            if (description.title.find('\0') != std::string::npos || !validSize(description.clientSize) || !validEnum(description.placement.kind) ||
                 (description.placement.kind != Types::PlacementKind::Centered && description.placement.monitor.isValid()) ||
                 !validModeRequest(description.mode) || !validEnum(description.presentation) || !validEnum(description.decoration) ||
                 !validLimits(description.sizeLimits) || !sizeWithin(description.clientSize, description.sizeLimits) ||
                 !validRatio(description.aspectRatio) || !validEnum(description.cursorMode) || !validEnum(description.cursorShape) ||
                 !validEnum(description.pointerInputMode) || description.pointerInputMode == Types::PointerInputMode::AcceptRegions ||
-                description.pointerInputMode == Types::PointerInputMode::IgnoreRegions || description.pointerInputMode == Types::PointerInputMode::HitMask ||
-                !validEnum(description.backdropEffect) || !validEnum(description.dpiResizePolicy) ||
-                (!description.resizable && description.controls.maximizable) || !std::isfinite(description.opacity) || description.opacity < 0.0F ||
-                description.opacity > 1.0F || (!description.visible && (description.requestFocus || description.presentation != Types::PresentationState::Normal)) ||
+                description.pointerInputMode == Types::PointerInputMode::IgnoreRegions ||
+                description.pointerInputMode == Types::PointerInputMode::HitMask || !validEnum(description.backdropEffect) ||
+                !validEnum(description.dpiResizePolicy) || (!description.resizable && description.controls.maximizable) ||
+                !std::isfinite(description.opacity) || description.opacity < 0.0F || description.opacity > 1.0F ||
+                (!description.visible && (description.requestFocus || description.presentation != Types::PresentationState::Normal)) ||
                 (!description.focusable && description.requestFocus))
             {
                 return error(ErrorCode::InvalidArgument);
@@ -218,8 +218,9 @@ namespace GameWIP::Window
         if (state_)
         {
             Detail::invalidatePointerHitMask(*state_);
-            state_->pointerHitMaskGeneration = nullptr;
-            state_->pointerHitMaskGenerationExhausted = nullptr;
+            if (rendererIntegration_)
+                rendererIntegration_->finishWindowLifetime();
+            state_->rendererIntegration = nullptr;
             if (!Detail::Platform::isOwnedByCurrentThread(*state_) && Detail::Platform::deferCleanupToOwner(state_))
                 return;
             Detail::Platform::closeBestEffort(*state_);
@@ -248,7 +249,7 @@ namespace GameWIP::Window
         try
         {
             auto candidate = std::make_unique<Detail::WindowState>();
-            Detail::WindowAccess::bindPointerHitMaskLifetime(*this, *candidate);
+            Detail::WindowAccess::bindRendererIntegration(*this, *candidate);
             initializeCachedState(*candidate, description);
             if (eventQueueCapacity > candidate->internalEvents.max_size())
                 return error(ErrorCode::InvalidArgument);
@@ -292,7 +293,7 @@ namespace GameWIP::Window
         try
         {
             auto candidate = std::make_unique<Detail::WindowState>();
-            Detail::WindowAccess::bindPointerHitMaskLifetime(*this, *candidate);
+            Detail::WindowAccess::bindRendererIntegration(*this, *candidate);
             initializeCachedState(*candidate, description);
             candidate->eventStorage = eventStorage;
             candidate->eventStorageKind = Types::Events::StorageKind::External;
@@ -336,6 +337,8 @@ namespace GameWIP::Window
         {
             if (state_)
                 releaseEventStorage(*state_);
+            if (rendererIntegration_)
+                rendererIntegration_->finishWindowLifetime();
             state_.reset();
             return IO::successStatus();
         }
@@ -347,6 +350,8 @@ namespace GameWIP::Window
         if (result.resourceClosed)
         {
             releaseEventStorage(*state_);
+            if (rendererIntegration_)
+                rendererIntegration_->finishWindowLifetime();
             state_.reset();
         }
         return result.status;
@@ -569,7 +574,8 @@ namespace GameWIP::Window
     }
     bool Window::isOccluded() const noexcept
     {
-        return state_ && state_->occluded;
+        const Detail::RendererIntegrationState *renderer = Detail::WindowAccess::rendererIntegration(*this);
+        return state_ && renderer != nullptr && renderer->occluded;
     }
     bool Window::isCursorInside() const noexcept
     {

@@ -41,19 +41,30 @@ namespace GameWIP::Window::TestHooks
 
     void enablePointerHitMaskBridge(Window &window) noexcept
     {
-        Detail::WindowState *state = Detail::WindowAccess::state(window);
-        if (state != nullptr)
-            state->pointerHitMaskBackendSupportedForTesting = true;
+        try
+        {
+            if (Detail::WindowAccess::state(window) != nullptr)
+                Detail::WindowAccess::ensureRendererIntegration(window)->pointerHitMaskBackendSupportedForTesting = true;
+        }
+        catch (const std::bad_alloc &)
+        {
+            return;
+        }
+    }
+
+    bool hasRendererIntegrationState(const Window &window) noexcept
+    {
+        return Detail::WindowAccess::rendererIntegration(window) != nullptr;
     }
 
     void setPointerHitMaskGeneration(Window &window, std::uint64_t generation) noexcept
     {
-        Detail::WindowState *state = Detail::WindowAccess::state(window);
-        if (state != nullptr && state->pointerHitMaskGeneration != nullptr)
+        Detail::RendererIntegrationState *renderer = Detail::WindowAccess::rendererIntegration(window);
+        if (renderer != nullptr)
         {
-            *state->pointerHitMaskGeneration = generation;
-            *state->pointerHitMaskGenerationExhausted = false;
-            state->pointerHitMaskTargetGeneration = 0;
+            renderer->pointerHitMaskGeneration = generation;
+            renderer->pointerHitMaskGenerationExhausted = false;
+            renderer->pointerHitMaskTargetGeneration = 0;
         }
     }
 
@@ -76,6 +87,7 @@ namespace GameWIP::Window::TestHooks
             state->id = {1};
             state->eventStorage = storage;
             state->eventStorageKind = Types::Events::StorageKind::External;
+            Detail::WindowAccess::bindRendererIntegration(window, *state);
             Detail::WindowAccess::stateOwner(window) = std::move(state);
             return IO::successStatus();
         }
@@ -109,26 +121,27 @@ namespace GameWIP::Window::TestHooks
 
     std::uint64_t pointerHitMaskGeneration(const Window &window) noexcept
     {
-        const Detail::WindowState *state = Detail::WindowAccess::state(window);
-        return state != nullptr ? state->pointerHitMaskActiveGeneration : 0;
+        const Detail::RendererIntegrationState *renderer = Detail::WindowAccess::rendererIntegration(window);
+        return renderer != nullptr ? renderer->pointerHitMaskActiveGeneration : 0;
     }
 
     std::size_t pointerHitMaskWordCount(const Window &window) noexcept
     {
-        const Detail::WindowState *state = Detail::WindowAccess::state(window);
-        return state != nullptr ? state->pointerHitMask.size() : 0;
+        const Detail::RendererIntegrationState *renderer = Detail::WindowAccess::rendererIntegration(window);
+        return renderer != nullptr ? renderer->pointerHitMask.size() : 0;
     }
 
     Types::Renderer::PointerHitMaskWord pointerHitMaskWord(const Window &window, std::size_t index) noexcept
     {
-        const Detail::WindowState *state = Detail::WindowAccess::state(window);
-        return state != nullptr && index < state->pointerHitMask.size() ? state->pointerHitMask[index] : Types::Renderer::PointerHitMaskWord{0};
+        const Detail::RendererIntegrationState *renderer = Detail::WindowAccess::rendererIntegration(window);
+        return renderer != nullptr && index < renderer->pointerHitMask.size() ? renderer->pointerHitMask[index]
+                                                                              : Types::Renderer::PointerHitMaskWord{0};
     }
 
     const void *pointerHitMaskStorage(const Window &window) noexcept
     {
-        const Detail::WindowState *state = Detail::WindowAccess::state(window);
-        return state != nullptr && !state->pointerHitMask.empty() ? state->pointerHitMask.data() : nullptr;
+        const Detail::RendererIntegrationState *renderer = Detail::WindowAccess::rendererIntegration(window);
+        return renderer != nullptr && !renderer->pointerHitMask.empty() ? renderer->pointerHitMask.data() : nullptr;
     }
 
     Types::Display::ColorInfo makeDisplayColorInfo(Types::Display::MonitorId monitor, const DisplayColorSnapshot &snapshot) noexcept

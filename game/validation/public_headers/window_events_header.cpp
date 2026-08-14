@@ -1,3 +1,6 @@
+/// @file window_events_header.cpp
+/// @brief Verifies the source-tree focused Window events header.
+
 #include "window/events.h"
 
 #include <type_traits>

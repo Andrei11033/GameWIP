@@ -15,45 +15,51 @@ namespace GameWIP::Window::Types::Display
     /// @brief Process-local identity of a currently known desktop monitor.
     struct MonitorId
     {
-        std::uint64_t value = 0;
+        std::uint64_t value = 0; ///< Opaque identity, or zero when invalid.
 
+        /// @brief Returns whether this identity is nonzero.
         [[nodiscard]] constexpr bool isValid() const noexcept
         {
             return value != 0;
         }
 
+        /// @brief Compares opaque identity values.
         friend constexpr bool operator==(MonitorId, MonitorId) noexcept = default;
     };
 
     /// @brief Physical monitor display mode.
     struct Mode
     {
-        PixelSize resolution;
-        std::uint32_t refreshRateMillihertz = 0;
-        std::uint16_t bitsPerPixel = 0;
-        bool interlaced = false;
+        PixelSize resolution;                    ///< Physical pixel extent.
+        std::uint32_t refreshRateMillihertz = 0; ///< Refresh rate in thousandths of a hertz.
+        std::uint16_t bitsPerPixel = 0;          ///< Total color depth.
+        bool interlaced = false;                 ///< Whether scanout is interlaced.
+        /// @brief Compares every display-mode property.
         friend constexpr bool operator==(Mode, Mode) noexcept = default;
     };
 
     /// @brief Materialized display-mode enumeration result.
     struct ModesResult
     {
-        IO::Types::Status status;
-        std::vector<Mode> displayModes;
+        IO::Types::Status status; ///< Query status.
+        std::vector<Mode> modes;  ///< Materialized modes on success.
     };
 
     /// @brief Single display-mode query result.
     struct ModeResult
     {
-        IO::Types::Status status;
-        Mode displayMode;
+        IO::Types::Status status; ///< Query status.
+        Mode mode;                ///< Selected mode on success.
     };
 } // namespace GameWIP::Window::Types::Display
 
 /// @brief Stateless desktop-display operations.
 namespace GameWIP::Window::Display
 {
+    /// @brief Enumerates materialized physical modes for a currently known monitor.
     [[nodiscard]] GAMEWIP_WINDOW_EXPORT Types::Display::ModesResult getModes(Types::Display::MonitorId monitor) noexcept;
+    /// @brief Returns the monitor's active physical mode.
     [[nodiscard]] GAMEWIP_WINDOW_EXPORT Types::Display::ModeResult getCurrentMode(Types::Display::MonitorId monitor) noexcept;
+    /// @brief Returns the operating system's preferred physical mode for the monitor.
     [[nodiscard]] GAMEWIP_WINDOW_EXPORT Types::Display::ModeResult getPreferredMode(Types::Display::MonitorId monitor) noexcept;
 } // namespace GameWIP::Window::Display

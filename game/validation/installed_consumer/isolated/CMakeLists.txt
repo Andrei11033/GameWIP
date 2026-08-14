@@ -21,8 +21,26 @@ add_executable(GameWIPIsolatedConsumer main.cpp)
 if(GAMEWIP_CONSUMER_PACKAGE STREQUAL "Logger")
     target_sources(GameWIPIsolatedConsumer PRIVATE
         logger_config.cpp
+        logger_macros.cpp
         logger_types.cpp
     )
+elseif(GAMEWIP_CONSUMER_PACKAGE STREQUAL "Terminal")
+    target_sources(GameWIPIsolatedConsumer PRIVATE
+        terminal_style.cpp
+    )
+elseif(GAMEWIP_CONSUMER_PACKAGE STREQUAL "Window")
+    target_sources(GameWIPIsolatedConsumer PRIVATE
+        window_types.cpp
+        window_description.cpp
+        window_events.cpp
+        window_display.cpp
+        window_display_info.cpp
+        window_window.cpp
+        window_renderer_bridge.cpp
+    )
+    if(WIN32)
+        target_sources(GameWIPIsolatedConsumer PRIVATE window_native_win32.cpp)
+    endif()
 elseif(GAMEWIP_CONSUMER_PACKAGE STREQUAL "TestSupport")
     target_sources(GameWIPIsolatedConsumer PRIVATE
         test_support_types.cpp

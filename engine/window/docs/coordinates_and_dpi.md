@@ -39,6 +39,6 @@ Native geometry and DPI callbacks update cached position, logical client size, f
 
 ## Related pages
 
-- @ref window_fullscreen_and_monitors
+- @ref window_fullscreen_monitors
 - @ref window_renderer_integration
 - @ref window_manual_validation

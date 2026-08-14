@@ -142,7 +142,8 @@ namespace GameWIP::Window::Detail::Platform
     IO::Types::Status setOwner(WindowState &state, Types::WindowId owner) noexcept
     {
         WindowState *ownerState = owner.isValid() ? resolveWindowId(owner) : nullptr;
-        if (owner.isValid() && (ownerState == nullptr || !ownerState->platform || ownerState->platform->ownerThreadId != state.platform->ownerThreadId))
+        if (owner.isValid() &&
+            (ownerState == nullptr || !ownerState->platform || ownerState->platform->ownerThreadId != state.platform->ownerThreadId))
         {
             return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
         }
@@ -168,7 +169,7 @@ namespace GameWIP::Window::Detail::Platform
             return status;
         }
         if (state.owner != previous)
-            routeEvent(state, Types::OwnerChangedEvent{previous, state.owner});
+            routeEvent(state, Types::Events::OwnerChanged{previous, state.owner});
         return IO::successStatus();
     }
 
@@ -255,7 +256,7 @@ namespace GameWIP::Window::Detail::Platform
         return setOuterRect(state, position, size);
     }
 
-    IO::Types::Status centerOn(WindowState &state, Types::MonitorId monitor) noexcept
+    IO::Types::Status centerOn(WindowState &state, Types::Display::MonitorId monitor) noexcept
     {
         HMONITOR native = monitor.isValid() ? nativeMonitor(monitor) : MonitorFromWindow(state.platform->handle, MONITOR_DEFAULTTONEAREST);
         MONITORINFO info{};

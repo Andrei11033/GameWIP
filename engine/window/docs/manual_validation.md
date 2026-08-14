@@ -94,10 +94,10 @@ To repeat one section, add `--window-manual-suite=<name>`. The accepted names ar
 
 ## Failure observations
 
-For every failed checked operation, record the portable error code, native code, diagnostic text, `isOpen()`, and relevant cached properties. Verify the Window remains either unchanged and retryable or completely closed according to @ref window_lifecycle_and_events.
+For every failed checked operation, record the portable error code, native code, diagnostic text, `isOpen()`, and relevant cached properties. Verify the Window remains either unchanged and retryable or completely closed according to @ref window_lifecycle_events.
 
 ## Related pages
 
 - @ref window_coordinates_and_dpi
-- @ref window_fullscreen_and_monitors
+- @ref window_fullscreen_monitors
 - @ref window_testing

@@ -11,14 +11,6 @@
 
 namespace GameWIP::Window::Types
 {
-    /// @brief Top-level Window mode.
-    enum class Mode
-    {
-        Windowed,
-        BorderlessFullscreen,
-        ExclusiveFullscreen
-    };
-
     /// @brief Non-client decoration policy.
     enum class DecorationMode
     {
@@ -38,25 +30,26 @@ namespace GameWIP::Window::Types
     /// @brief Initial placement request.
     struct Placement
     {
-        PlacementKind kind = PlacementKind::PlatformDefault;
-        Display::MonitorId monitor;
-        ScreenPosition position;
+        PlacementKind kind = PlacementKind::PlatformDefault; ///< Placement strategy.
+        Display::MonitorId monitor;                          ///< Target monitor when applicable.
+        ScreenPosition position;                             ///< Explicit position when requested.
     };
 
     /// @brief Requested top-level mode and optional exclusive display mode.
     struct ModeRequest
     {
-        Mode mode = Mode::Windowed;
-        Display::MonitorId monitor;
-        std::optional<Display::Mode> displayMode;
+        Mode mode = Mode::Windowed;               ///< Requested top-level mode.
+        Display::MonitorId monitor;               ///< Target fullscreen monitor.
+        std::optional<Display::Mode> displayMode; ///< Optional exclusive physical mode.
     };
 
     /// @brief Availability of standard system Window controls.
     struct Controls
     {
-        bool closable = true;
-        bool minimizable = true;
-        bool maximizable = true;
+        bool closable = true;    ///< Whether the close control is enabled.
+        bool minimizable = true; ///< Whether the minimize control is enabled.
+        bool maximizable = true; ///< Whether the maximize control is enabled.
+        /// @brief Compares every control flag.
         friend constexpr bool operator==(Controls, Controls) noexcept = default;
     };
 
@@ -119,29 +112,29 @@ namespace GameWIP::Window::Types
     /// @brief Complete initial top-level Window description.
     struct Description
     {
-        std::string title = "GameWIP"; ///< UTF-8; embedded U+0000 is rejected by native title operations.
-        LogicalSize clientSize{1280, 720};
-        DpiResizePolicy dpiResizePolicy = DpiResizePolicy::PreserveLogicalClientSize;
-        Placement placement;
-        ModeRequest mode;
-        PresentationState presentation = PresentationState::Normal;
-        DecorationMode decoration = DecorationMode::System;
-        Controls controls;
-        SizeLimits sizeLimits;
-        std::optional<AspectRatio> aspectRatio;
-        WindowId owner;
-        CursorMode cursorMode = CursorMode::Normal;
-        CursorShape cursorShape = CursorShape::Arrow;
-        PointerInputMode pointerInputMode = PointerInputMode::Normal;
-        BackdropEffect backdropEffect = BackdropEffect::None;
-        float opacity = 1.0F;
-        bool visible = false;
-        bool requestFocus = false;
-        bool resizable = true;
-        bool focusable = true;
-        bool userInteractionEnabled = true;
-        bool alwaysOnTop = false;
-        bool fileDropEnabled = false;
-        bool transparentFramebuffer = false;
+        std::string title = "GameWIP";     ///< UTF-8; embedded U+0000 is rejected by native title operations.
+        LogicalSize clientSize{1280, 720}; ///< Initial logical client extent.
+        DpiResizePolicy dpiResizePolicy = DpiResizePolicy::PreserveLogicalClientSize; ///< DPI resize behavior.
+        Placement placement;                                                          ///< Initial desktop placement.
+        ModeRequest mode;                                                             ///< Initial top-level mode.
+        PresentationState presentation = PresentationState::Normal;                   ///< Initial presentation state.
+        DecorationMode decoration = DecorationMode::System;                           ///< Initial decoration policy.
+        Controls controls;                                                            ///< Initial standard-control availability.
+        SizeLimits sizeLimits;                                                        ///< Initial logical size limits.
+        std::optional<AspectRatio> aspectRatio;                                       ///< Optional client aspect-ratio constraint.
+        WindowId owner;                                                               ///< Optional owner Window identity.
+        CursorMode cursorMode = CursorMode::Normal;                                   ///< Initial cursor mode.
+        CursorShape cursorShape = CursorShape::Arrow;                                 ///< Initial cursor shape.
+        PointerInputMode pointerInputMode = PointerInputMode::Normal;                 ///< Initial pointer hit-test policy.
+        BackdropEffect backdropEffect = BackdropEffect::None;                         ///< Initial backdrop treatment.
+        float opacity = 1.0F;                                                         ///< Initial opacity in the inclusive range [0, 1].
+        bool visible = false;                                                         ///< Whether to show after opening.
+        bool requestFocus = false;                                                    ///< Whether to request activation after opening.
+        bool resizable = true;                                                        ///< Whether user resizing is enabled.
+        bool focusable = true;                                                        ///< Whether the Window can receive focus.
+        bool userInteractionEnabled = true;                                           ///< Whether user interaction is enabled.
+        bool alwaysOnTop = false;                                                     ///< Whether topmost ordering is requested.
+        bool fileDropEnabled = false;                                                 ///< Whether portable file-drop events are enabled.
+        bool transparentFramebuffer = false;                                          ///< Whether framebuffer alpha reaches the desktop.
     };
 } // namespace GameWIP::Window::Types

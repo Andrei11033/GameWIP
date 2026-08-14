@@ -91,18 +91,18 @@ namespace GameWIP::Game
                         monitor.primary ? " [primary]" : "",
                         monitor.bounds.position.x,
                         monitor.bounds.position.y,
-                        supportedModes.displayModes.size());
+                        supportedModes.modes.size());
                     if (activeMode.status.ok())
                     {
                         std::format_to(
                             std::back_inserter(displayReport),
                             "\n  active: {}x{} @ {}.{:03} Hz, {} bpp{}",
-                            activeMode.displayMode.resolution.width,
-                            activeMode.displayMode.resolution.height,
-                            activeMode.displayMode.refreshRateMillihertz / 1000,
-                            activeMode.displayMode.refreshRateMillihertz % 1000,
-                            activeMode.displayMode.bitsPerPixel,
-                            activeMode.displayMode.interlaced ? ", interlaced" : "");
+                            activeMode.mode.resolution.width,
+                            activeMode.mode.resolution.height,
+                            activeMode.mode.refreshRateMillihertz / 1000,
+                            activeMode.mode.refreshRateMillihertz % 1000,
+                            activeMode.mode.bitsPerPixel,
+                            activeMode.mode.interlaced ? ", interlaced" : "");
                     }
                     if (colorInfo.status.ok())
                     {
@@ -124,7 +124,7 @@ namespace GameWIP::Game
                     {
                         std::format_to(std::back_inserter(displayReport), "\n  HDR/color query failed: {}", colorInfo.status.message);
                     }
-                    for (const Window::Types::Display::Mode &mode : supportedModes.displayModes)
+                    for (const Window::Types::Display::Mode &mode : supportedModes.modes)
                     {
                         std::format_to(
                             std::back_inserter(displayReport),

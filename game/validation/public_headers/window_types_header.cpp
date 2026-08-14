@@ -1,3 +1,6 @@
+/// @file window_types_header.cpp
+/// @brief Verifies the source-tree focused Window types header.
+
 #include "window/types.h"
 
 static_assert(!GameWIP::Window::Types::WindowId{}.isValid());

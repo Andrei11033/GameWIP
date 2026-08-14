@@ -5,6 +5,8 @@
 #pragma once
 
 #include "window/display_info.h"
+#include "window/description.h"
+#include "window/events.h"
 #include "window/renderer_bridge.h"
 
 #ifndef WINDOW_INTERNAL_TEST_HOOKS
@@ -61,6 +63,7 @@ namespace GameWIP::Window::TestHooks
     [[nodiscard]] GAMEWIP_WINDOW_EXPORT IO::Types::Status requestClose(Window &window, Types::Events::CloseRequestSource source) noexcept;
     [[nodiscard]] GAMEWIP_WINDOW_EXPORT IO::Types::Status destroyNativeWindow(Window &window) noexcept;
     GAMEWIP_WINDOW_EXPORT void enablePointerHitMaskBridge(Window &window) noexcept;
+    [[nodiscard]] GAMEWIP_WINDOW_EXPORT bool hasRendererIntegrationState(const Window &window) noexcept;
     GAMEWIP_WINDOW_EXPORT void setPointerHitMaskGeneration(Window &window, std::uint64_t generation) noexcept;
     [[nodiscard]] GAMEWIP_WINDOW_EXPORT bool pointerHitMaskAccepts(const Window &window, Types::LogicalPosition position) noexcept;
     [[nodiscard]] GAMEWIP_WINDOW_EXPORT IO::Types::Status simulateFullscreenMonitorRemoval(Window &window) noexcept;

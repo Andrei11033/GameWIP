@@ -3,9 +3,15 @@
 
 #pragma once
 
-#include "window/window.h"
+#include "io/io.h"
+#include "window/window_export.h"
 
 #include <windows.h>
+
+namespace GameWIP::Window
+{
+    class Window;
+}
 
 /// @brief Deliberate Win32 interoperability for the portable Window owner.
 namespace GameWIP::Window::Native::Win32

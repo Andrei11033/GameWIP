@@ -1,3 +1,6 @@
+/// @file window_renderer_header.cpp
+/// @brief Verifies the source-tree focused Window renderer bridge header.
+
 #include "window/renderer_bridge.h"
 
 #include <type_traits>

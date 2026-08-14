@@ -10,9 +10,9 @@ Window is usable without Input, Action, WindowManager, Renderer, UI, or the game
 - @subpage window_public_api
 - @subpage window_package_abi
 - @subpage window_coordinates_and_dpi
-- @subpage window_lifecycle_and_events
+- @subpage window_lifecycle_events
 - @subpage window_chrome_and_pointer_input
-- @subpage window_fullscreen_and_monitors
+- @subpage window_fullscreen_monitors
 - @subpage window_native_interop
 - @subpage window_renderer_integration
 - @subpage window_examples

@@ -37,8 +37,9 @@ void testSymlinkPolicies(TestSupport::Context &context, const std::filesystem::p
         static_cast<void>(context.expectEq("DoNotFollow file open rejects final symlink", ErrorCode::InvalidArgument, strictReaderOpen.code));
 
         FileSystem::FileReader finalReader;
-        const IO::Types::Status finalReaderOpen =
-            finalReader.open(finalFileLink, FileSystem::Types::File::ReaderOpenOptions{.symlinkPolicy = FileSystem::Types::SymlinkPolicy::FollowFinal});
+        const IO::Types::Status finalReaderOpen = finalReader.open(
+            finalFileLink,
+            FileSystem::Types::File::ReaderOpenOptions{.symlinkPolicy = FileSystem::Types::SymlinkPolicy::FollowFinal});
         static_cast<void>(context.expectTrue("FollowFinal file open reaches final symlink target", finalReaderOpen.ok()));
         static_cast<void>(context.expectTrue("FollowFinal final symlink reader closes", finalReader.close().ok()));
 
@@ -487,11 +488,14 @@ void testAtomicWriteAndLocks(TestSupport::Context &context, const std::filesyste
 
     {
         auto failedUnlockLock = failedUnlockOwner.tryLockExclusive();
-        static_cast<void>(context.expectEq("failed-unlock owner acquires lock", FileSystem::Types::Lock::Outcome::Acquired, failedUnlockLock.outcome));
+        static_cast<void>(
+            context.expectEq("failed-unlock owner acquires lock", FileSystem::Types::Lock::Outcome::Acquired, failedUnlockLock.outcome));
 
         auto blockedBeforeCleanup = failedUnlockCompetitor.tryLockExclusive();
-        static_cast<void>(
-            context.expectEq("failed-unlock competitor initially blocks", FileSystem::Types::Lock::Outcome::WouldBlock, blockedBeforeCleanup.outcome));
+        static_cast<void>(context.expectEq(
+            "failed-unlock competitor initially blocks",
+            FileSystem::Types::Lock::Outcome::WouldBlock,
+            blockedBeforeCleanup.outcome));
 
         FileSystem::Detail::Platform::TestHooks::setFileUnlockFailure(true);
         FileSystem::FileLock lockDestroyedDuringFailure = std::move(failedUnlockLock.lock);

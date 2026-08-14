@@ -53,7 +53,7 @@ namespace GameWIP::Window::Display
 
     Types::Display::ColorInfoResult getColorInfo(Types::Display::MonitorId monitor) noexcept
     {
-        return Detail::Platform::getDisplayColorInfo(monitor);
+        return Detail::Platform::getColorInfo(monitor);
     }
 
     Types::Display::ColorInfoResult getColorInfo(const Window &window) noexcept
@@ -63,6 +63,6 @@ namespace GameWIP::Window::Display
             return {.status = IO::makeStatus(IO::Types::ErrorCode::NotOpen)};
         if (!window.isOwnedByCurrentThread())
             return {.status = IO::makeStatus(IO::Types::ErrorCode::ResourceBusy)};
-        return Detail::Platform::getDisplayColorInfo(state->monitor);
+        return Detail::Platform::getColorInfo(state->monitor);
     }
 } // namespace GameWIP::Window::Display

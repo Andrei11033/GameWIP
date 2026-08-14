@@ -9,7 +9,7 @@ This page defines the durable project-wide contract for reusable public C++ APIs
 - Keep conventional operation names such as `flush()` when the owning type or namespace already supplies the context. Use a differentiated form such as `flushTo(destination)` only when the destination or semantic distinction is real; do not mechanically restate context in the name.
 - Mutating operations use verbs. A name must disclose destructive side effects that are not otherwise obvious; for example, a write-and-clear operation says both actions.
 - Use one property vocabulary across a type. A getter and setter should describe the same property unless the operations intentionally have different semantics.
-- Names must describe actual semantics rather than historical implementation. Event names identify the changed property or observed occurrence, and a plural native-handle view uses a plural name.
+- Names must describe actual semantics rather than historical implementation. Event names identify the changed property or observed occurrence. The accepted Win32 adapter is the deliberate singular exception to the general plural-collection rule: `Window::Native::Win32::HandleView`, `HandleResult`, and `getHandle(...)` describe one coherent native-handle view/result even though the view contains both `HINSTANCE` and `HWND`.
 
 ## Text and bytes
 

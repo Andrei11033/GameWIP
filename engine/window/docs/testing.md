@@ -29,7 +29,7 @@ Installed-consumer validation additionally proves exact-version package discover
 
 ## Source-tree validation migration
 
-The exhaustive historical Window test file is intentionally kept as one scenario suite. A source-tree-only `window_api_migration.h` maps its legacy type/service spellings to the standardized API while preserving scenario content and behavior coverage. The adapter is never installed and introduces no public compatibility surface. Semantic API changes are tested directly rather than hidden by the adapter.
+The exhaustive Window validation remains one scenario suite, with responsibility-focused implementation includes for manual scenarios, lifecycle/state, events, renderer integration, and display behavior. Tests use the standardized public API directly; no migration adapter or compatibility vocabulary is involved.
 
 ## Manual tests
 

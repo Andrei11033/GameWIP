@@ -165,7 +165,6 @@ namespace
         return createSymlink(context, target, link, true);
     }
 
-
     // Focused suite declarations keep cross-suite calls independent of fragment include order.
     void testBasicEntryQueries(TestSupport::Context &context, const std::filesystem::path &root);
     void testSymlinkPolicies(TestSupport::Context &context, const std::filesystem::path &root);

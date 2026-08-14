@@ -1,3 +1,6 @@
+/// @file window_header.cpp
+/// @brief Verifies the source-tree Window aggregate header.
+
 #include "window/window.h"
 
 #include <type_traits>
