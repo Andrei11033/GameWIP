@@ -45,7 +45,6 @@ namespace
 #endif
         wchar_t value[2]{};
         const DWORD size = GetEnvironmentVariableW(L"INTERNAL_ASSERT_SUPPRESS_POPUP", value, static_cast<DWORD>(sizeof(value) / sizeof(value[0])));
-        text.resize(prefixSize + suffix.size());
         return size == 1 && value[0] == L'1';
     }
 
@@ -178,6 +177,7 @@ namespace
         {
             text[prefixSize + index] = suffix[index];
         }
+        text.resize(prefixSize + suffix.size());
     }
 
     /// @brief Maps an Assert failure action to a stable TaskDialog custom-button id.
