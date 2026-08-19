@@ -16,6 +16,7 @@ if(GAMEWIP_BUILD_TESTS)
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
     )
     gamewip_copy_runtime_dependencies(GameWIPTests)
+    gamewip_add_runtime_dependencies_validation(GameWIPTests)
 
     add_test(NAME validation.packages.installed_consumer
         COMMAND ${CMAKE_COMMAND}

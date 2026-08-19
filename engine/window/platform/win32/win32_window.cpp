@@ -630,7 +630,7 @@ namespace GameWIP::Window::Detail::Platform
 
     IO::Types::Status suspendExclusive(WindowState &state) noexcept
     {
-        if (!state.platform || !state.platform->hasSavedDisplayMode || state.platform->exclusiveSuspended)
+        if (!state.platform || state.platform->modeTransitionDepth != 0 || !state.platform->hasSavedDisplayMode || state.platform->exclusiveSuspended)
             return IO::successStatus();
         const LONG result = ChangeDisplaySettingsExW(state.platform->exclusiveDevice.c_str(), &state.platform->savedDisplayMode, nullptr, 0, nullptr);
         if (result != DISP_CHANGE_SUCCESSFUL)
@@ -642,8 +642,13 @@ namespace GameWIP::Window::Detail::Platform
 
     IO::Types::Status resumeExclusive(WindowState &state) noexcept
     {
-        if (!state.platform || !state.platform->hasSavedDisplayMode || !state.platform->exclusiveSuspended)
+        if (!state.platform || state.platform->modeTransitionDepth != 0 || !state.platform->hasSavedDisplayMode ||
+            !state.platform->exclusiveSuspended)
             return IO::successStatus();
+        const LONG validationResult =
+            ChangeDisplaySettingsExW(state.platform->exclusiveDevice.c_str(), &state.platform->activeNativeDisplayMode, nullptr, CDS_TEST, nullptr);
+        if (validationResult != DISP_CHANGE_SUCCESSFUL)
+            return statusFromDisplayChange(validationResult, "validate resumed exclusive fullscreen display mode");
         const LONG result = ChangeDisplaySettingsExW(
             state.platform->exclusiveDevice.c_str(),
             &state.platform->activeNativeDisplayMode,

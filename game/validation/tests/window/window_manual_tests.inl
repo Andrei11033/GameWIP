@@ -29,6 +29,14 @@ struct ManualNativeWindowState
     bool taskbarEligible = false;
 };
 
+/// @brief Selects independently repeatable parts of fullscreen and topology validation.
+struct ManualFullscreenSections
+{
+    bool borderless = true;
+    bool exclusive = true;
+    bool topology = true;
+};
+
 /// @brief Captures actual HWND state so cached-state bugs remain visible to manual validation.
 [[nodiscard]] ManualNativeWindowState manualNativeWindowState(const Window::Window &window)
 {
@@ -68,6 +76,94 @@ struct ManualNativeWindowState
                              IsWindowVisible(native.handle.window) != FALSE && GetWindow(native.handle.window, GW_OWNER) == nullptr;
     result.valid = true;
     return result;
+}
+
+/// @brief Persists a before/after fullscreen transition breadcrumb with cached and native geometry.
+void recordManualModeTransition(
+    TestSupport::Context &context,
+    const Window::Window &window,
+    std::string_view phase,
+    const Window::Types::ModeRequest &request,
+    const IO::Types::Status *status = nullptr)
+{
+    const Window::Types::LogicalSize logical = window.clientSize();
+    const Window::Types::PixelSize framebuffer = window.framebufferSize();
+    const Window::Types::ScreenPosition position = window.clientPosition();
+    const Window::Types::ContentScale scale = window.contentScale();
+    const Window::Types::Dpi dpi = window.effectiveDpi();
+    const Window::Types::FullscreenInfo fullscreen = window.fullscreenInfo();
+    const ManualNativeWindowState native = manualNativeWindowState(window);
+    const std::string requestedDisplayMode = request.displayMode ? std::format(
+                                                                       "{}x{}@{}mHz/{}bpp/interlaced={}",
+                                                                       request.displayMode->resolution.width,
+                                                                       request.displayMode->resolution.height,
+                                                                       request.displayMode->refreshRateMillihertz,
+                                                                       request.displayMode->bitsPerPixel,
+                                                                       request.displayMode->interlaced)
+                                                                 : std::string{"desktop"};
+    const std::string result = status == nullptr ? std::string{"pending"}
+                                                 : std::format(
+                                                       "portableCode={} nativeCode={} message={}",
+                                                       static_cast<int>(status->code),
+                                                       status->nativeCode,
+                                                       status->message.empty() ? "<none>" : status->message);
+
+    context.info(
+        std::format(
+            "mode-transition phase={} tickMs={} requestMode={} requestMonitorId={} requestDisplay={} result={} "
+            "cachedMode={} currentMonitorId={} fullscreenMonitorId={} suspended={} focused={} position=({}, {}) logical={}x{} framebuffer={}x{} "
+            "scale=({:.2f}, {:.2f}) dpi=({:.1f}, {:.1f}) nativeValid={} nativeDpi={} frame=({}, {}) {}x{} client=({}, {}) {}x{} "
+            "monitor=({}, {}) {}x{} popupStyle={} fullscreenBounds={}",
+            phase,
+            GetTickCount64(),
+            static_cast<int>(request.mode),
+            request.monitor.value,
+            requestedDisplayMode,
+            result,
+            static_cast<int>(window.mode()),
+            window.currentMonitor().value,
+            fullscreen.monitor.value,
+            fullscreen.suspended,
+            window.isFocused(),
+            position.x,
+            position.y,
+            logical.width,
+            logical.height,
+            framebuffer.width,
+            framebuffer.height,
+            scale.x,
+            scale.y,
+            dpi.x,
+            dpi.y,
+            native.valid,
+            native.dpi,
+            native.frame.left,
+            native.frame.top,
+            native.frame.right - native.frame.left,
+            native.frame.bottom - native.frame.top,
+            native.client.left,
+            native.client.top,
+            native.client.right - native.client.left,
+            native.client.bottom - native.client.top,
+            native.monitor.left,
+            native.monitor.top,
+            native.monitor.right - native.monitor.left,
+            native.monitor.bottom - native.monitor.top,
+            native.popupStyle,
+            native.fullscreenBounds));
+}
+
+/// @brief Applies a mode request while retaining crash-resilient transition evidence.
+[[nodiscard]] IO::Types::Status setManualModeWithDiagnostics(
+    TestSupport::Context &context,
+    Window::Window &window,
+    std::string_view label,
+    const Window::Types::ModeRequest &request)
+{
+    recordManualModeTransition(context, window, std::format("{}:before", label), request);
+    IO::Types::Status status = window.setMode(request);
+    recordManualModeTransition(context, window, std::format("{}:after", label), request, &status);
+    return status;
 }
 
 /// @brief Read-only native companion Window that exposes live state during manual scenarios.
@@ -1198,8 +1294,11 @@ void testManualFilesAndShell(TestSupport::Context &context, const GameWIP::Test:
     static_cast<void>(window.close());
 }
 
-/// @brief Exercises fullscreen transitions, monitor movement, and live topology recovery.
-void testManualFullscreenAndTopology(TestSupport::Context &context, const GameWIP::Test::WindowTestOptions &options)
+/// @brief Exercises selected fullscreen transitions, monitor movement, and live topology recovery.
+void testManualFullscreenAndTopology(
+    TestSupport::Context &context,
+    const GameWIP::Test::WindowTestOptions &options,
+    ManualFullscreenSections sections)
 {
     if (!beginManualSuite(context, options, "Window fullscreen and display topology"))
         return;
@@ -1217,205 +1316,278 @@ void testManualFullscreenAndTopology(TestSupport::Context &context, const GameWI
         return;
     const Window::Types::ScreenPosition savedPosition = window.clientPosition();
     const Window::Types::LogicalSize savedSize = window.clientSize();
-
-    for (std::size_t index = 0; index < monitors.monitors.size(); ++index)
+    const auto disconnectableMonitor = []() -> std::optional<Window::Types::Display::MonitorId>
     {
-        const Window::Types::Display::Info &monitor = monitors.monitors[index];
-        Window::Types::ModeRequest borderless;
-        borderless.mode = Window::Types::Mode::BorderlessFullscreen;
-        borderless.monitor = monitor.id;
-        if (requireManualStatus(context, "borderless fullscreen enters", window.setMode(borderless)))
-        {
-            const ManualNativeWindowState native = manualNativeWindowState(window);
-            static_cast<void>(context.expectTrue("borderless native HWND query succeeds", native.valid));
-            static_cast<void>(context.expectTrue("borderless native popup style applies", native.popupStyle));
-            static_cast<void>(context.expectTrue("borderless native bounds match monitor", native.fullscreenBounds));
-            static_cast<void>(context.expectTrue("borderless Window remains taskbar eligible", native.taskbarEligible));
-            recordManualCheck(
-                context,
-                window,
-                "borderless fullscreen monitor",
-                std::format(
-                    "The blue validation surface and cyan inset border must touch every display edge behind the diagnostics. The native section "
-                    "must show popupStyle=true and "
-                    "fullscreenBounds=true. Press the Windows key: a separate GameWIP taskbar button must be present, or use Alt+Tab to verify "
-                    "the Window is listed. On monitor {}/{} ({}), does it exactly cover the display and remain switchable without changing its "
-                    "display mode?",
-                    index + 1,
-                    monitors.monitors.size(),
-                    monitor.name));
-            static_cast<void>(requireManualStatus(context, "borderless fullscreen leaves", window.setMode({})));
-        }
-        else
-        {
-            context.skip("borderless fullscreen monitor", "borderless-mode setup failed; see preceding status");
-        }
-    }
-    static_cast<void>(context.expectEq("windowed size restores after borderless", savedSize, window.clientSize()));
-    recordManualCheck(
-        context,
-        window,
-        "windowed placement restoration",
-        std::format("After fullscreen transitions, did the Window restore its saved placement near ({}, {})?", savedPosition.x, savedPosition.y));
-
-    if (capabilities.supports(Window::Types::Capability::ExclusiveFullscreen))
-    {
-        const Window::Types::Display::MonitorId monitor = window.currentMonitor();
-        const Window::Types::Display::ModeResult currentMode = Window::Display::getCurrentMode(monitor);
-        const Window::Types::Display::ModesResult availableModes = Window::Display::getModes(monitor);
-        if (currentMode.status.ok() && availableModes.status.ok() && !availableModes.modes.empty())
-        {
-            const auto selected = std::ranges::min_element(
-                availableModes.modes,
-                {},
-                [&](const Window::Types::Display::Mode &mode)
-                {
-                    const std::uint64_t resolutionPenalty = mode.resolution == currentMode.mode.resolution ? 0 : std::uint64_t{1} << 48;
-                    const std::uint64_t depthPenalty = mode.bitsPerPixel == currentMode.mode.bitsPerPixel ? 0 : std::uint64_t{1} << 40;
-                    const std::uint64_t refreshDifference = mode.refreshRateMillihertz > currentMode.mode.refreshRateMillihertz
-                                                                ? mode.refreshRateMillihertz - currentMode.mode.refreshRateMillihertz
-                                                                : currentMode.mode.refreshRateMillihertz - mode.refreshRateMillihertz;
-                    return resolutionPenalty + depthPenalty + refreshDifference;
-                });
-            Window::Types::ModeRequest exclusive;
-            exclusive.mode = Window::Types::Mode::ExclusiveFullscreen;
-            exclusive.monitor = monitor;
-            exclusive.displayMode = *selected;
-            if (manualStatusWindow != nullptr)
+        const Window::Types::Display::MonitorsResult connected = Window::Display::getMonitors();
+        if (!connected.status.ok())
+            return std::nullopt;
+        const auto secondary = std::ranges::find_if(
+            connected.monitors,
+            [](const Window::Types::Display::Info &monitor)
             {
-                manualStatusWindow->setObservation(
-                    std::format(
-                        "Requesting enumerated exact mode {}x{} @ {:.3f} Hz, {} bpp, interlaced={}.",
-                        selected->resolution.width,
-                        selected->resolution.height,
-                        static_cast<double>(selected->refreshRateMillihertz) / 1000.0,
-                        selected->bitsPerPixel,
-                        selected->interlaced));
-            }
-            const IO::Types::Status enterStatus = window.setMode(exclusive);
-            if (requireManualStatus(context, "exclusive fullscreen enters", enterStatus))
+                return !monitor.primary;
+            });
+        return secondary == connected.monitors.end() ? std::nullopt : std::optional{secondary->id};
+    };
+
+    if (sections.borderless)
+    {
+        for (std::size_t index = 0; index < monitors.monitors.size(); ++index)
+        {
+            const Window::Types::Display::Info &monitor = monitors.monitors[index];
+            Window::Types::ModeRequest borderless;
+            borderless.mode = Window::Types::Mode::BorderlessFullscreen;
+            borderless.monitor = monitor.id;
+            const IO::Types::Status enterStatus = setManualModeWithDiagnostics(context, window, "borderless-enter", borderless);
+            if (requireManualStatus(context, "borderless fullscreen enters", enterStatus))
             {
                 const ManualNativeWindowState native = manualNativeWindowState(window);
-                static_cast<void>(context.expectTrue("exclusive native HWND query succeeds", native.valid));
-                static_cast<void>(context.expectTrue("exclusive native popup style applies", native.popupStyle));
-                static_cast<void>(context.expectTrue("exclusive native bounds match active monitor", native.fullscreenBounds));
-                static_cast<void>(context.expectTrue("exclusive Window remains taskbar eligible", native.taskbarEligible));
-                bool sawExclusiveActive = window.isFocused() && !window.fullscreenInfo().suspended;
-                bool sawExclusiveSuspended = window.fullscreenInfo().suspended;
+                static_cast<void>(context.expectTrue("borderless native HWND query succeeds", native.valid));
+                static_cast<void>(context.expectTrue("borderless native popup style applies", native.popupStyle));
+                static_cast<void>(context.expectTrue("borderless native bounds match monitor", native.fullscreenBounds));
+                static_cast<void>(context.expectTrue("borderless Window remains taskbar eligible", native.taskbarEligible));
                 recordManualCheck(
                     context,
                     window,
-                    "exclusive fullscreen activation cycle",
-                    "Alt+Tab to the blue validation surface, back to the terminal, to the validation Window once more, and finally back to the "
-                    "terminal to answer. While focused it must cover the display; while back at the terminal, suspended=true and a "
-                    "windowed-sized "
-                    "surface are expected. The test records both states automatically. Does that activation cycle behave correctly?",
-                    [&]
+                    "borderless fullscreen monitor",
+                    std::format(
+                        "The blue validation surface and cyan inset border must touch every display edge behind the diagnostics. The native section "
+                        "must show popupStyle=true and fullscreenBounds=true. Press the Windows key: a separate GameWIP taskbar button must be "
+                        "present, or use Alt+Tab to verify the Window is listed. On monitor {}/{} ({}), does it exactly cover the display and "
+                        "remain switchable without changing its display mode?",
+                        index + 1,
+                        monitors.monitors.size(),
+                        monitor.name));
+                const IO::Types::Status leaveStatus = setManualModeWithDiagnostics(context, window, "borderless-leave", {});
+                static_cast<void>(requireManualStatus(context, "borderless fullscreen leaves", leaveStatus));
+            }
+            else
+            {
+                context.skip("borderless fullscreen monitor", "borderless-mode setup failed; see preceding status");
+            }
+        }
+        const Window::Types::LogicalSize restoredSize = window.clientSize();
+        if (savedSize == restoredSize)
+        {
+            context.pass("windowed size restores after borderless");
+        }
+        else
+        {
+            context.fail(
+                "windowed size restores after borderless",
+                std::format("expected {}x{}, got {}x{}", savedSize.width, savedSize.height, restoredSize.width, restoredSize.height));
+        }
+        recordManualCheck(
+            context,
+            window,
+            "windowed placement restoration",
+            std::format("After fullscreen transitions, did the Window restore its saved placement near ({}, {})?", savedPosition.x, savedPosition.y));
+    }
+
+    if (sections.exclusive || sections.topology)
+    {
+        if (capabilities.supports(Window::Types::Capability::ExclusiveFullscreen))
+        {
+            const std::optional<Window::Types::Display::MonitorId> topologyMonitor = sections.topology ? disconnectableMonitor() : std::nullopt;
+            const Window::Types::Display::MonitorId monitor = topologyMonitor.value_or(window.currentMonitor());
+            const Window::Types::Display::ModeResult currentMode = Window::Display::getCurrentMode(monitor);
+            const Window::Types::Display::ModesResult availableModes = Window::Display::getModes(monitor);
+            if (currentMode.status.ok() && availableModes.status.ok() && !availableModes.modes.empty())
+            {
+                const auto selected = std::ranges::min_element(
+                    availableModes.modes,
+                    {},
+                    [&](const Window::Types::Display::Mode &mode)
                     {
-                        const Window::Types::FullscreenInfo liveFullscreen = window.fullscreenInfo();
-                        sawExclusiveActive = sawExclusiveActive || (window.isFocused() && !liveFullscreen.suspended);
-                        sawExclusiveSuspended = sawExclusiveSuspended || liveFullscreen.suspended;
-                        if (manualStatusWindow != nullptr)
-                        {
-                            manualStatusWindow->setObservation(
-                                std::format(
-                                    "Activation evidence: activeSeen={} suspendedSeen={} (finish in the terminal to answer).",
-                                    sawExclusiveActive,
-                                    sawExclusiveSuspended));
-                        }
+                        const std::uint64_t resolutionPenalty = mode.resolution == currentMode.mode.resolution ? 0 : std::uint64_t{1} << 48;
+                        const std::uint64_t depthPenalty = mode.bitsPerPixel == currentMode.mode.bitsPerPixel ? 0 : std::uint64_t{1} << 40;
+                        const std::uint64_t interlacePenalty = mode.interlaced == currentMode.mode.interlaced ? 0 : std::uint64_t{1} << 39;
+                        const std::uint64_t refreshDifference = mode.refreshRateMillihertz > currentMode.mode.refreshRateMillihertz
+                                                                    ? mode.refreshRateMillihertz - currentMode.mode.refreshRateMillihertz
+                                                                    : currentMode.mode.refreshRateMillihertz - mode.refreshRateMillihertz;
+                        return resolutionPenalty + depthPenalty + interlacePenalty + refreshDifference;
                     });
-                static_cast<void>(context.expectTrue("exclusive activation state is observed", sawExclusiveActive));
-                static_cast<void>(context.expectTrue("exclusive suspension state is observed", sawExclusiveSuspended));
-                const IO::Types::Status leaveStatus = window.setMode({});
-                if (requireManualStatus(context, "exclusive fullscreen leaves", leaveStatus))
+                Window::Types::ModeRequest exclusive;
+                exclusive.mode = Window::Types::Mode::ExclusiveFullscreen;
+                exclusive.monitor = monitor;
+                exclusive.displayMode = *selected;
+                if (manualStatusWindow != nullptr)
                 {
-                    recordManualCheck(
-                        context,
-                        window,
-                        "exclusive display restoration",
-                        "The diagnostics must show mode=0 and the original geometry. Was the original desktop display mode restored exactly?");
+                    manualStatusWindow->setObservation(
+                        std::format(
+                            "Requesting enumerated exact mode {}x{} @ {:.3f} Hz, {} bpp, interlaced={}.",
+                            selected->resolution.width,
+                            selected->resolution.height,
+                            static_cast<double>(selected->refreshRateMillihertz) / 1000.0,
+                            selected->bitsPerPixel,
+                            selected->interlaced));
+                }
+
+                if (sections.exclusive)
+                {
+                    const IO::Types::Status enterStatus = setManualModeWithDiagnostics(context, window, "exclusive-enter", exclusive);
+                    if (requireManualStatus(context, "exclusive fullscreen enters", enterStatus))
+                    {
+                        const ManualNativeWindowState native = manualNativeWindowState(window);
+                        static_cast<void>(context.expectTrue("exclusive native HWND query succeeds", native.valid));
+                        static_cast<void>(context.expectTrue("exclusive native popup style applies", native.popupStyle));
+                        static_cast<void>(context.expectTrue("exclusive native bounds match active monitor", native.fullscreenBounds));
+                        static_cast<void>(context.expectTrue("exclusive Window remains taskbar eligible", native.taskbarEligible));
+                        bool sawExclusiveActive = window.isFocused() && !window.fullscreenInfo().suspended;
+                        bool sawExclusiveSuspended = window.fullscreenInfo().suspended;
+                        recordManualCheck(
+                            context,
+                            window,
+                            "exclusive fullscreen activation cycle",
+                            "Alt+Tab to the blue validation surface, back to the terminal, to the validation Window once more, and finally back "
+                            "to the terminal to answer. While focused it must cover the display; while back at the terminal, suspended=true and "
+                            "a windowed-sized surface are expected. The test records both states automatically. Does that activation cycle "
+                            "behave correctly?",
+                            [&]
+                            {
+                                const Window::Types::FullscreenInfo liveFullscreen = window.fullscreenInfo();
+                                sawExclusiveActive = sawExclusiveActive || (window.isFocused() && !liveFullscreen.suspended);
+                                sawExclusiveSuspended = sawExclusiveSuspended || liveFullscreen.suspended;
+                                if (manualStatusWindow != nullptr)
+                                {
+                                    manualStatusWindow->setObservation(
+                                        std::format(
+                                            "Activation evidence: activeSeen={} suspendedSeen={} (finish in the terminal to answer).",
+                                            sawExclusiveActive,
+                                            sawExclusiveSuspended));
+                                }
+                            });
+                        static_cast<void>(context.expectTrue("exclusive activation state is observed", sawExclusiveActive));
+                        static_cast<void>(context.expectTrue("exclusive suspension state is observed", sawExclusiveSuspended));
+                        const IO::Types::Status leaveStatus = setManualModeWithDiagnostics(context, window, "exclusive-leave", {});
+                        if (requireManualStatus(context, "exclusive fullscreen leaves", leaveStatus))
+                        {
+                            recordManualCheck(
+                                context,
+                                window,
+                                "exclusive display restoration",
+                                "The diagnostics must show mode=0 and the original geometry. Was the original desktop display mode restored "
+                                "exactly?");
+                        }
+                    }
+                    else
+                    {
+                        context.skip("exclusive fullscreen activation cycle", "exclusive-mode setup failed; see preceding status");
+                        context.skip("exclusive display restoration", "exclusive-mode setup failed; no display transition occurred");
+                    }
+
+                    Window::Types::ModeRequest unsupported = exclusive;
+                    unsupported.displayMode->resolution = {1, 1};
+                    const Window::Types::Mode previousMode = window.mode();
+                    const IO::Types::Status unsupportedStatus = setManualModeWithDiagnostics(context, window, "exclusive-unsupported", unsupported);
+                    static_cast<void>(context.expectTrue("unsupported exact mode is rejected", !unsupportedStatus.ok()));
+                    static_cast<void>(context.expectEq("unsupported exact mode preserves Window mode", previousMode, window.mode()));
+                }
+
+                if (sections.topology)
+                {
+                    if (!topologyMonitor)
+                    {
+                        context.skip("active exclusive target disconnect", "no connected non-primary monitor can be physically disconnected");
+                    }
+                    else
+                    {
+                        const IO::Types::Status recoveryEnter =
+                            setManualModeWithDiagnostics(context, window, "exclusive-disconnect-enter", exclusive);
+                        if (recoveryEnter.ok())
+                        {
+                            const TestSupport::Types::Reporting::ManualAnswer recovery = recordManualCheck(
+                                context,
+                                window,
+                                "active exclusive target disconnect",
+                                "Disconnect/disable this non-primary exclusive-fullscreen monitor. Confirm the desktop mode restores and the "
+                                "Window recovers visibly on the surviving primary, then reconnect it before answering. Otherwise skip.");
+                            if (recovery == TestSupport::Types::Reporting::ManualAnswer::Yes)
+                            {
+                                static_cast<void>(
+                                    context.expectEq("exclusive disconnect recovers windowed mode", Window::Types::Mode::Windowed, window.mode()));
+                                static_cast<void>(
+                                    context.expectFalse("exclusive disconnect clears fullscreen monitor", window.fullscreenInfo().monitor.isValid()));
+                            }
+                            if (window.mode() != Window::Types::Mode::Windowed)
+                            {
+                                static_cast<void>(
+                                    setManualModeWithDiagnostics(context, window, "exclusive-disconnect-cleanup", Window::Types::ModeRequest{}));
+                            }
+                        }
+                        else
+                        {
+                            context.skip("active exclusive target disconnect", "exclusive-mode setup failed; no active target to disconnect");
+                        }
+                    }
                 }
             }
             else
             {
-                context.skip("exclusive fullscreen activation cycle", "exclusive-mode setup failed; see preceding status");
-                context.skip("exclusive display restoration", "exclusive-mode setup failed; no display transition occurred");
+                if (sections.exclusive)
+                    context.skip("exclusive fullscreen", "no enumerated exact display mode is available for the current monitor");
+                if (sections.topology)
+                    context.skip("active exclusive target disconnect", "no enumerated exact display mode is available for the current monitor");
             }
+        }
+        else
+        {
+            if (sections.exclusive)
+                context.skip("exclusive fullscreen", "backend does not advertise ExclusiveFullscreen");
+            if (sections.topology)
+                context.skip("active exclusive target disconnect", "backend does not advertise ExclusiveFullscreen");
+        }
+    }
 
-            Window::Types::ModeRequest unsupported = exclusive;
-            unsupported.displayMode->resolution = {1, 1};
-            const Window::Types::Mode previousMode = window.mode();
-            const IO::Types::Status unsupportedStatus = window.setMode(unsupported);
-            static_cast<void>(context.expectTrue("unsupported exact mode is rejected", !unsupportedStatus.ok()));
-            static_cast<void>(context.expectEq("unsupported exact mode preserves Window mode", previousMode, window.mode()));
+    if (sections.topology)
+    {
+        recordManualCheck(
+            context,
+            window,
+            "mixed-monitor fullscreen geometry",
+            "Move the Window between monitors with different DPI when available. Do logical geometry, framebuffer extent, DPI/scale, and "
+            "current-monitor state follow the destination?");
+        recordManualCheck(
+            context,
+            window,
+            "monitor connect and disconnect",
+            "If practical, connect/disconnect or enable/disable a non-active monitor. Does re-enumeration succeed and does the stale MonitorId "
+            "fail safely? Reconnect it before answering. Skip if impractical.");
 
-            const IO::Types::Status recoveryEnter = window.setMode(exclusive);
-            if (recoveryEnter.ok())
+        const std::optional<Window::Types::Display::MonitorId> topologyMonitor = disconnectableMonitor();
+        if (!topologyMonitor)
+        {
+            context.skip("active borderless target disconnect", "no connected non-primary monitor can be physically disconnected");
+        }
+        else
+        {
+            Window::Types::ModeRequest activeBorderless;
+            activeBorderless.mode = Window::Types::Mode::BorderlessFullscreen;
+            activeBorderless.monitor = *topologyMonitor;
+            const IO::Types::Status borderlessEnter = setManualModeWithDiagnostics(context, window, "borderless-disconnect-enter", activeBorderless);
+            if (borderlessEnter.ok())
             {
                 const TestSupport::Types::Reporting::ManualAnswer recovery = recordManualCheck(
                     context,
                     window,
-                    "active exclusive target disconnect",
-                    "Only if safe, disconnect/disable this exclusive-fullscreen monitor. Is desktop mode restored and the Window recovered "
-                    "visibly on the surviving primary? Otherwise skip.");
+                    "active borderless target disconnect",
+                    "Disconnect/disable this non-primary fullscreen monitor. Confirm the Window recovers visibly in windowed mode on the "
+                    "surviving primary, then reconnect it before answering. Otherwise skip.");
                 if (recovery == TestSupport::Types::Reporting::ManualAnswer::Yes)
                 {
-                    static_cast<void>(context.expectEq("exclusive disconnect recovers windowed mode", Window::Types::Mode::Windowed, window.mode()));
+                    static_cast<void>(context.expectEq("borderless disconnect recovers windowed mode", Window::Types::Mode::Windowed, window.mode()));
                     static_cast<void>(
-                        context.expectFalse("exclusive disconnect clears fullscreen monitor", window.fullscreenInfo().monitor.isValid()));
+                        context.expectFalse("borderless disconnect clears fullscreen monitor", window.fullscreenInfo().monitor.isValid()));
                 }
                 if (window.mode() != Window::Types::Mode::Windowed)
-                    static_cast<void>(window.setMode({}));
-            }
-            else
-            {
-                context.skip("active exclusive target disconnect", "exclusive-mode setup failed; no active target to disconnect");
+                {
+                    static_cast<void>(setManualModeWithDiagnostics(context, window, "borderless-disconnect-cleanup", Window::Types::ModeRequest{}));
+                }
             }
         }
-        else
-        {
-            context.skip("exclusive fullscreen", "no enumerated exact display mode is available for the current monitor");
-        }
-    }
-    else
-    {
-        context.skip("exclusive fullscreen", "backend does not advertise ExclusiveFullscreen");
-    }
 
-    recordManualCheck(
-        context,
-        window,
-        "mixed-monitor fullscreen geometry",
-        "Move the Window between monitors with different DPI when available. Do logical geometry, framebuffer extent, DPI/scale, and "
-        "current-monitor state follow the destination?");
-    recordManualCheck(
-        context,
-        window,
-        "monitor connect and disconnect",
-        "If practical, connect/disconnect or enable/disable a non-active monitor. Does re-enumeration succeed and does the stale MonitorId fail "
-        "safely? Skip if impractical.");
-
-    Window::Types::ModeRequest activeBorderless;
-    activeBorderless.mode = Window::Types::Mode::BorderlessFullscreen;
-    activeBorderless.monitor = window.currentMonitor();
-    if (window.setMode(activeBorderless).ok())
-    {
-        const TestSupport::Types::Reporting::ManualAnswer recovery = recordManualCheck(
-            context,
-            window,
-            "active borderless target disconnect",
-            "Only if safe, disconnect/disable this fullscreen monitor. Does the Window recover visibly in windowed mode on the surviving "
-            "primary? Otherwise skip.");
-        if (recovery == TestSupport::Types::Reporting::ManualAnswer::Yes)
-        {
-            static_cast<void>(context.expectEq("borderless disconnect recovers windowed mode", Window::Types::Mode::Windowed, window.mode()));
-            static_cast<void>(context.expectFalse("borderless disconnect clears fullscreen monitor", window.fullscreenInfo().monitor.isValid()));
-        }
-        if (window.mode() != Window::Types::Mode::Windowed)
-            static_cast<void>(window.setMode({}));
+        context.pass("fullscreen recovery event ordering and failure-state cleanup are covered deterministically");
     }
-
-    context.pass("fullscreen recovery event ordering and failure-state cleanup are covered deterministically");
     static_cast<void>(window.close());
 }
 

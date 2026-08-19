@@ -196,7 +196,7 @@ namespace GameWIP::Window::Detail::Platform
             // window itself starts windowed, so make that transition origin explicit.
             state.mode = Types::Mode::Windowed;
             state.fullscreen = {};
-            status = applyMode(state, description.mode);
+            status = setMode(state, description.mode);
             if (!status.ok())
                 return status;
             status = applyCursorState(state);

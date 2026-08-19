@@ -16,7 +16,7 @@ The validation executable paints a renderer-free blue/cyan GDI surface while eac
 
 Hardware or topology that is unavailable must be recorded as skipped rather than passed. Renderer-dependent transparency and framebuffer-alpha observations require a renderer-backed host and therefore skip in `GameWIPTests`. Deterministic automated suites own unsafe internal lifecycle, failure-injection, event-ordering, and pointer-mask generation cases identified below.
 
-To repeat one section, add `--window-manual-suite=<name>`. The accepted names are documented in @ref window_testing.
+To repeat one section, add `--window-manual-suite=<name>`. The accepted names are documented in @ref window_testing. Use `borderless`, `exclusive`, or `topology` to isolate the corresponding part of the complete `fullscreen` workflow. Manual report output is flushed per line and includes timestamped before/after cached and native mode geometry for every display-changing request.
 
 ## Lifecycle and multiple windows
 

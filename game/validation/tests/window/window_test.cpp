@@ -84,6 +84,9 @@ namespace GameWIP::Test
             std::string_view{"cursor"},
             std::string_view{"files-shell"},
             std::string_view{"fullscreen"},
+            std::string_view{"borderless"},
+            std::string_view{"exclusive"},
+            std::string_view{"topology"},
             std::string_view{"hdr"},
             std::string_view{"modern"}};
 
@@ -93,6 +96,7 @@ namespace GameWIP::Test
             options.verboseConsole ? TestSupport::Types::Reporting::ConsoleVerbosity::Full : TestSupport::Types::Reporting::ConsoleVerbosity::Minimal;
         reportOptions.writeReport = options.writeReport;
         reportOptions.appendReport = options.appendReport;
+        reportOptions.flushReportEachLine = options.enableManualTests;
         reportOptions.reportPath = options.reportPath;
 
         TestSupport::Runner runner(reportOptions);
@@ -150,6 +154,17 @@ namespace GameWIP::Test
                     suite(context, options);
                 });
         };
+        const auto runSelectedManualSuite = [&](std::string_view displayName, std::string_view selector, auto suite)
+        {
+            if (!validManualSelection || !selectedManualSuite || *selectedManualSuite != selector)
+                return;
+            runner.runSuite(
+                displayName,
+                [&](TestSupport::Context &context)
+                {
+                    suite(context, options);
+                });
+        };
         runManualSuite("Window manual visible lifecycle", "lifecycle", testManualVisibleLifecycle);
         runManualSuite("Window manual multiple windows", "multiple-windows", testManualMultipleWindows);
         runManualSuite("Window manual custom chrome", "custom-chrome", testManualCustomChrome);
@@ -157,7 +172,43 @@ namespace GameWIP::Test
         runManualSuite("Window manual DPI and coordinates", "dpi", testManualDpiAndCoordinates);
         runManualSuite("Window manual cursor behavior", "cursor", testManualCursor);
         runManualSuite("Window manual files and shell behavior", "files-shell", testManualFilesAndShell);
-        runManualSuite("Window manual fullscreen and topology", "fullscreen", testManualFullscreenAndTopology);
+        runManualSuite(
+            "Window manual fullscreen and topology",
+            "fullscreen",
+            [](TestSupport::Context &context, const WindowTestOptions &manualOptions)
+            {
+                testManualFullscreenAndTopology(context, manualOptions, ManualFullscreenSections{});
+            });
+        runSelectedManualSuite(
+            "Window manual borderless fullscreen",
+            "borderless",
+            [](TestSupport::Context &context, const WindowTestOptions &manualOptions)
+            {
+                testManualFullscreenAndTopology(
+                    context,
+                    manualOptions,
+                    ManualFullscreenSections{.borderless = true, .exclusive = false, .topology = false});
+            });
+        runSelectedManualSuite(
+            "Window manual exclusive fullscreen",
+            "exclusive",
+            [](TestSupport::Context &context, const WindowTestOptions &manualOptions)
+            {
+                testManualFullscreenAndTopology(
+                    context,
+                    manualOptions,
+                    ManualFullscreenSections{.borderless = false, .exclusive = true, .topology = false});
+            });
+        runSelectedManualSuite(
+            "Window manual display topology",
+            "topology",
+            [](TestSupport::Context &context, const WindowTestOptions &manualOptions)
+            {
+                testManualFullscreenAndTopology(
+                    context,
+                    manualOptions,
+                    ManualFullscreenSections{.borderless = false, .exclusive = false, .topology = true});
+            });
         runManualSuite("Window manual HDR and advanced color", "hdr", testManualHdrAndAdvancedColor);
         runManualSuite("Window manual modern Windows capabilities", "modern", testManualModernWindowsCapabilities);
 

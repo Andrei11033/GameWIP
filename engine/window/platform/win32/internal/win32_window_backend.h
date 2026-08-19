@@ -59,6 +59,7 @@ namespace GameWIP::Window::Detail::Platform
         bool hasSavedDisplayMode = false;
         bool exclusiveSuspended = false;
         bool exactDisplayMode = false;
+        std::uint32_t modeTransitionDepth = 0; ///< Guards synchronous native messages while one mode transition owns geometry.
 
         std::wstring utf16Scratch;
     };
@@ -124,6 +125,7 @@ namespace GameWIP::Window::Detail::Platform
     void updateCurrentMonitor(WindowState &state) noexcept;
     [[nodiscard]] IO::Types::Status applyCursorState(WindowState &state) noexcept;
     [[nodiscard]] IO::Types::Status applyStyle(WindowState &state) noexcept;
+    [[nodiscard]] IO::Types::Status placeFullscreenOnMonitor(WindowState &state, HMONITOR monitor, bool preserveZOrder = false) noexcept;
     [[nodiscard]] IO::Types::Status leaveExclusive(WindowState &state) noexcept;
     [[nodiscard]] IO::Types::Status suspendExclusive(WindowState &state) noexcept;
     [[nodiscard]] IO::Types::Status resumeExclusive(WindowState &state) noexcept;

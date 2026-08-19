@@ -16,6 +16,41 @@ function Invoke-Msys2
     Invoke-SetupNative -FilePath $bash -ArgumentList @('-lc', $Command) | Out-Null
 }
 
+function Invoke-Msys2PacmanWithRetry
+{
+    param(
+        [Parameter(Mandatory = $true)][string]$MsysRoot,
+        [Parameter(Mandatory = $true)][string]$Command,
+        [ValidateRange(1, 10)][int]$MaxAttempts = 3,
+        [ValidateRange(0, 60)][int]$RetryDelaySeconds = 2
+    )
+
+    for ($attempt = 1; $attempt -le $MaxAttempts; ++$attempt)
+    {
+        Write-Host "  pacman attempt $attempt of $MaxAttempts..." -ForegroundColor DarkGray
+        try
+        {
+            Invoke-Msys2 -MsysRoot $MsysRoot -Command $Command
+            return
+        }
+        catch
+        {
+            if ($attempt -ge $MaxAttempts)
+            {
+                Write-Warning "pacman failed after $MaxAttempts attempts."
+                throw
+            }
+
+            Write-Warning "pacman attempt $attempt of $MaxAttempts failed: $($_.Exception.Message)"
+            Write-Host "  Retrying pacman in $RetryDelaySeconds second(s)..." -ForegroundColor Yellow
+            if ($RetryDelaySeconds -gt 0)
+            {
+                Start-Sleep -Seconds $RetryDelaySeconds
+            }
+        }
+    }
+}
+
 function Test-Msys2Packages
 {
     param(
@@ -59,13 +94,13 @@ function Install-GameWipMsys2Packages
     if ($Update)
     {
         Write-Host 'Updating the complete MSYS2 package database and system...'
-        Invoke-Msys2 -MsysRoot $MsysRoot -Command 'pacman -Syu --noconfirm'
-        Invoke-Msys2 -MsysRoot $MsysRoot -Command 'pacman -Syu --noconfirm'
+        Invoke-Msys2PacmanWithRetry -MsysRoot $MsysRoot -Command 'pacman -Syu --noconfirm'
+        Invoke-Msys2PacmanWithRetry -MsysRoot $MsysRoot -Command 'pacman -Syu --noconfirm'
     }
 
     $packages = @($PackageConfig.Common) + @($PackageConfig.Ucrt64) + @($PackageConfig.Clang64)
     $packageArguments = $packages -join ' '
-    Invoke-Msys2 -MsysRoot $MsysRoot -Command "pacman --needed --noconfirm -S $packageArguments"
+    Invoke-Msys2PacmanWithRetry -MsysRoot $MsysRoot -Command "pacman --needed --noconfirm -S $packageArguments"
 
     if (-not (Test-Msys2Packages -MsysRoot $MsysRoot -Packages $packages))
     {

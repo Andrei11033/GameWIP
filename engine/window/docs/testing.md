@@ -34,3 +34,5 @@ The exhaustive Window validation remains one scenario suite, with responsibility
 ## Manual tests
 
 Manual Window validation remains opt-in from an interactive Windows desktop and continues to cover native presentation, custom chrome, pointer policies, cursor behavior, file drops, taskbar/ownership behavior, DPI/fullscreen transitions, and shell-visible state. See `manual_validation.md` for the operator checklist.
+
+`--window-manual-suite=<name>` accepts `lifecycle`, `multiple-windows`, `custom-chrome`, `layered-pointer`, `dpi`, `cursor`, `files-shell`, `fullscreen`, `borderless`, `exclusive`, `topology`, `hdr`, and `modern`. `fullscreen` retains the complete workflow; `borderless`, `exclusive`, and `topology` isolate the display-changing portions for safer reproduction. Manual runs flush every report line and record before/after mode-transition geometry so evidence survives a driver reset or process interruption.

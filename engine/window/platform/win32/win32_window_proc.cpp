@@ -164,9 +164,16 @@ namespace GameWIP::Window::Detail::Platform
             }
             break;
         }
-        case WM_SETFOCUS:
-            if (const IO::Types::Status fullscreenStatus = resumeExclusive(*state); !fullscreenStatus.ok())
+        case WM_ACTIVATEAPP:
+        {
+            // Focus can move among this process's windows without surrendering the exclusive
+            // display mode. Only application activation crosses that ownership boundary.
+            const IO::Types::Status fullscreenStatus = wParam != FALSE ? resumeExclusive(*state) : suspendExclusive(*state);
+            if (!fullscreenStatus.ok())
                 recordPumpFailure(fullscreenStatus);
+            return 0;
+        }
+        case WM_SETFOCUS:
             if (!state->focused)
             {
                 state->focused = true;
@@ -185,8 +192,6 @@ namespace GameWIP::Window::Detail::Platform
                 if (!cursorStatus.ok())
                     recordPumpFailure(cursorStatus);
             }
-            if (const IO::Types::Status fullscreenStatus = suspendExclusive(*state); !fullscreenStatus.ok())
-                recordPumpFailure(fullscreenStatus);
             return 0;
         case WM_SIZE:
         {
@@ -234,42 +239,56 @@ namespace GameWIP::Window::Detail::Platform
             const Types::PixelSize previousFramebuffer = state->framebufferSize;
             const RECT *suggested = reinterpret_cast<const RECT *>(lParam);
             const UINT newDpi = LOWORD(wParam);
-            Types::PixelSize desiredClient = previousFramebuffer;
-            if (state->dpiResizePolicy == Types::DpiResizePolicy::PreserveLogicalClientSize)
-                desiredClient = logicalToPhysicalSize(previousClient, newDpi);
-            if (desiredClient.width == 0 || desiredClient.height == 0 ||
-                desiredClient.width > static_cast<std::uint32_t>(std::numeric_limits<LONG>::max()) ||
-                desiredClient.height > static_cast<std::uint32_t>(std::numeric_limits<LONG>::max()))
+            const bool transitionActive = state->platform->modeTransitionDepth != 0;
+            // A synchronous WM_DPICHANGED can arrive inside SetWindowPos. While a mode
+            // transition is active, its outer placement remains the sole geometry owner.
+            if (!transitionActive && state->mode == Types::Mode::Windowed)
             {
-                recordPumpFailure(
-                    IO::makeStatus(
-                        IO::Types::ErrorCode::InvalidArgument,
-                        ERROR_ARITHMETIC_OVERFLOW,
-                        "WM_DPICHANGED client size exceeds Win32 range"));
-                return 0;
+                Types::PixelSize desiredClient = previousFramebuffer;
+                if (state->dpiResizePolicy == Types::DpiResizePolicy::PreserveLogicalClientSize)
+                    desiredClient = logicalToPhysicalSize(previousClient, newDpi);
+                if (desiredClient.width == 0 || desiredClient.height == 0 ||
+                    desiredClient.width > static_cast<std::uint32_t>(std::numeric_limits<LONG>::max()) ||
+                    desiredClient.height > static_cast<std::uint32_t>(std::numeric_limits<LONG>::max()))
+                {
+                    recordPumpFailure(
+                        IO::makeStatus(
+                            IO::Types::ErrorCode::InvalidArgument,
+                            ERROR_ARITHMETIC_OVERFLOW,
+                            "WM_DPICHANGED client size exceeds Win32 range"));
+                    return 0;
+                }
+                RECT desiredOuter{0, 0, static_cast<LONG>(desiredClient.width), static_cast<LONG>(desiredClient.height)};
+                const DWORD style = static_cast<DWORD>(GetWindowLongPtrW(window, GWL_STYLE));
+                const DWORD extendedStyle = static_cast<DWORD>(GetWindowLongPtrW(window, GWL_EXSTYLE));
+                const BOOL adjusted = AdjustWindowRectExForDpi(&desiredOuter, style, FALSE, extendedStyle, newDpi);
+                if (suggested == nullptr || adjusted == FALSE)
+                {
+                    recordPumpFailure(statusFromWin32(
+                        IO::Types::ErrorCode::NativeFailure,
+                        adjusted == FALSE ? GetLastError() : ERROR_INVALID_PARAMETER,
+                        "calculate WM_DPICHANGED bounds"));
+                    return 0;
+                }
+                if (SetWindowPos(
+                        window,
+                        nullptr,
+                        suggested->left,
+                        suggested->top,
+                        desiredOuter.right - desiredOuter.left,
+                        desiredOuter.bottom - desiredOuter.top,
+                        SWP_NOZORDER | SWP_NOACTIVATE) == FALSE)
+                {
+                    recordPumpFailure(statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "apply WM_DPICHANGED bounds"));
+                }
             }
-            RECT desiredOuter{0, 0, static_cast<LONG>(desiredClient.width), static_cast<LONG>(desiredClient.height)};
-            const DWORD style = static_cast<DWORD>(GetWindowLongPtrW(window, GWL_STYLE));
-            const DWORD extendedStyle = static_cast<DWORD>(GetWindowLongPtrW(window, GWL_EXSTYLE));
-            const BOOL adjusted = AdjustWindowRectExForDpi(&desiredOuter, style, FALSE, extendedStyle, newDpi);
-            if (suggested == nullptr || adjusted == FALSE)
+            else if (!transitionActive && !state->fullscreen.suspended)
             {
-                recordPumpFailure(statusFromWin32(
-                    IO::Types::ErrorCode::NativeFailure,
-                    adjusted == FALSE ? GetLastError() : ERROR_INVALID_PARAMETER,
-                    "calculate WM_DPICHANGED bounds"));
-                return 0;
-            }
-            if (SetWindowPos(
-                    window,
-                    nullptr,
-                    suggested->left,
-                    suggested->top,
-                    desiredOuter.right - desiredOuter.left,
-                    desiredOuter.bottom - desiredOuter.top,
-                    SWP_NOZORDER | SWP_NOACTIVATE) == FALSE)
-            {
-                recordPumpFailure(statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "apply WM_DPICHANGED bounds"));
+                HMONITOR monitor = nativeMonitor(state->fullscreen.monitor);
+                if (monitor == nullptr)
+                    monitor = MonitorFromWindow(window, MONITOR_DEFAULTTONEAREST);
+                if (IO::Types::Status placement = placeFullscreenOnMonitor(*state, monitor, true); !placement.ok())
+                    recordPumpFailure(std::move(placement));
             }
             const IO::Types::Status geometry = refreshCachedGeometry(*state);
             if (!geometry.ok())

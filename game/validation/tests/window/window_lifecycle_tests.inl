@@ -412,6 +412,52 @@ void testHiddenNativeWindow(TestSupport::Context &context)
         "borderless fullscreen transition succeeds",
         owner.setMode({.mode = Window::Types::Mode::BorderlessFullscreen, .monitor = owner.currentMonitor()}).ok()));
     static_cast<void>(context.expectEq("borderless mode is cached", Window::Types::Mode::BorderlessFullscreen, owner.mode()));
+    HMONITOR fullscreenMonitor = MonitorFromWindow(handle.handle.window, MONITOR_DEFAULTTONEAREST);
+    MONITORINFO fullscreenMonitorInfo{};
+    fullscreenMonitorInfo.cbSize = sizeof(fullscreenMonitorInfo);
+    const bool fullscreenMonitorResolved = fullscreenMonitor != nullptr && GetMonitorInfoW(fullscreenMonitor, &fullscreenMonitorInfo) != FALSE;
+    static_cast<void>(context.expectTrue("borderless native monitor resolves", fullscreenMonitorResolved));
+    if (fullscreenMonitorResolved)
+    {
+        RECT ignoredWindowedSuggestion{17, 23, 657, 503};
+        const UINT currentDpi = GetDpiForWindow(handle.handle.window);
+        static_cast<void>(SendMessageW(
+            handle.handle.window,
+            WM_DPICHANGED,
+            MAKEWPARAM(currentDpi, currentDpi),
+            reinterpret_cast<LPARAM>(&ignoredWindowedSuggestion)));
+        RECT fullscreenRect{};
+        const bool fullscreenRectResolved = GetWindowRect(handle.handle.window, &fullscreenRect) != FALSE;
+        static_cast<void>(context.expectTrue("borderless bounds remain queryable after DPI notification", fullscreenRectResolved));
+        if (fullscreenRectResolved)
+        {
+            static_cast<void>(context.expectTrue(
+                "fullscreen DPI notification preserves exact monitor bounds",
+                EqualRect(&fullscreenRect, &fullscreenMonitorInfo.rcMonitor) != FALSE));
+        }
+
+        static_cast<void>(context.expectTrue(
+            "borderless repair fixture perturbs native bounds",
+            SetWindowPos(
+                handle.handle.window,
+                nullptr,
+                fullscreenMonitorInfo.rcMonitor.left + 31,
+                fullscreenMonitorInfo.rcMonitor.top + 23,
+                640,
+                480,
+                SWP_NOZORDER | SWP_NOACTIVATE) != FALSE));
+        static_cast<void>(context.expectTrue(
+            "repeated borderless request succeeds",
+            owner.setMode({.mode = Window::Types::Mode::BorderlessFullscreen, .monitor = owner.currentMonitor()}).ok()));
+        const bool repairedRectResolved = GetWindowRect(handle.handle.window, &fullscreenRect) != FALSE;
+        static_cast<void>(context.expectTrue("repaired borderless bounds remain queryable", repairedRectResolved));
+        if (repairedRectResolved)
+        {
+            static_cast<void>(context.expectTrue(
+                "repeated borderless request repairs exact monitor bounds",
+                EqualRect(&fullscreenRect, &fullscreenMonitorInfo.rcMonitor) != FALSE));
+        }
+    }
     static_cast<void>(context.expectTrue("windowed placement restores", owner.setMode({}).ok()));
     static_cast<void>(context.expectEq("windowed mode is cached", Window::Types::Mode::Windowed, owner.mode()));
 

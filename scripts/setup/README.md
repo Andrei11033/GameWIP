@@ -38,6 +38,9 @@ action-scoped run structure as the project helper under
 and a manifest. Stages print source and destination paths,
 selected options, reasons for skips, and verification results. Do not hide
 installer, pacman, Git, compiler, or documentation diagnostics in new code.
+Pacman update and install commands make up to three visibly logged attempts,
+waiting two seconds between failures, and propagate the final command error if
+all attempts fail.
 
 Full setup installs missing state and refreshes MSYS2 before installing its declared packages.
 Repair reapplies missing state without requesting ordinary upgrades. Update fetches and fast-forwards
