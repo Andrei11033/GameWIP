@@ -45,6 +45,13 @@ The target includes:
 | `clang-tidy` | C and C++ translation units under maintained roots such as `foundation/`, `tools/`, `engine/`, and `game/`. Headers in those roots are checked when included by a translation unit. |
 | `clang-format-check` | `.cpp`, `.h`, `.hpp`, and `.inl` files under the same maintained roots. |
 
+The VS Code workspace disables the C/C++ extension's integrated clang-tidy
+runner. Workspace IntelliSense uses the GCC-backed `dev` compilation database,
+while supported static analysis uses the Clang-backed `analyze` database.
+Mixing the GCC database with the extension's Clang frontend can produce false
+diagnostics in GCC standard-library and intrinsic headers. Run the
+`GameWIP: Analyze` task for editor-integrated static analysis output.
+
 Run one C++ check target when investigating a focused failure:
 
 ```bash
