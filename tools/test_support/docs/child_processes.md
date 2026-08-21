@@ -4,7 +4,7 @@ Child execution is configured through `Types::Process::Options`, returns `Types:
 
 ## Launch model
 
-The executable is launched directly; no shell is involved. Shell expansion, pipelines, shell quoting, and redirection operators are not interpreted. TestSupport builds the Win32 command line from the argument vector using Windows quoting rules. `executablePath` uses native `std::filesystem::path` representation. Narrow arguments and child environment names/values use UTF-8 at the Win32 conversion boundary. Embedded nulls and otherwise invalid process text remain rejected through the existing #54 infrastructure contract.
+The executable is launched directly; no shell is involved. Shell expansion, pipelines, shell quoting, and redirection operators are not interpreted. TestSupport builds the Win32 command line from the argument vector using Windows quoting rules. `executablePath` uses native `std::filesystem::path` representation. Narrow arguments and child environment names/values use UTF-8 at the Win32 conversion boundary. Embedded nulls and otherwise invalid process text are rejected by the process infrastructure contract.
 
 When `inheritParentEnvironment` is true, the parent environment block is copied before overrides; otherwise the child begins with an otherwise empty block. `environmentOverrides` contains `Types::Process::EnvironmentOverride` values. An engaged value sets the child variable, including an explicitly empty value; `std::nullopt` removes it. Overrides are applied in vector order, later duplicate names win, and Win32 name matching is case-insensitive.
 
@@ -31,7 +31,7 @@ Interpret infrastructure status and process outcome independently:
 
 `runChildProcess()` remains `noexcept`; expected implementation allocation, setup, launch, capture, wait, inspection, and cleanup failures are returned through `status`. Timeout continues to be a successful domain outcome when enforcement succeeds. A negative timeout waits indefinitely, zero performs an immediate wait, and durations above the largest finite Win32 wait are clamped. Timeout determines when termination begins; job cleanup and capture-reader shutdown may extend total call duration.
 
-The child is assigned to a Win32 job before it is resumed. Failure recovery and timeout enforcement terminate the job, and descendants are cleaned up so they cannot keep capture handles alive indefinitely. The Win32 backend still owns the job/pipe/handle implementation and preserves the #54 bounded-capture and descendant-cleanup behavior. `nativeCode` retains the Win32 or standard-library diagnostic when available.
+The child is assigned to a Win32 job before it is resumed. Failure recovery and timeout enforcement terminate the job, and descendants are cleaned up so they cannot keep capture handles alive indefinitely. The Win32 backend owns the job, pipe, and handle implementation and preserves bounded capture and descendant cleanup. `nativeCode` retains the Win32 or standard-library diagnostic when available.
 
 @ref test_support_public_api
 @ref test_support_examples

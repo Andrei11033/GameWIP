@@ -185,7 +185,7 @@ function Invoke-SetupAction
 function Show-SetupActionCatalog
 {
     Write-SetupSection 'Setup actions'
-    foreach ($actionInfo in @($SetupActionConfig.Actions | Where-Object { $_.Id -ne 'menu' }))
+    foreach ($actionInfo in @($SetupActionConfig.Actions))
     {
         Write-Host ("  {0,-16} {1}" -f $actionInfo.Id, $actionInfo.Description)
     }
@@ -195,6 +195,7 @@ function Show-SetupHelp
 {
     Write-Host 'Usage:'
     Write-Host '  setup.bat [action] [-Branch <name>] [-NonInteractive] [-SkipDocs]'
+    Write-Host '  setup.bat help | --help | -h | -?'
     Write-Host ''
     Show-SetupActionCatalog
     Write-Host ''

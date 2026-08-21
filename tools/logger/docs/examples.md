@@ -1,5 +1,8 @@
 @page logger_examples Examples
 
+These examples build on the lifecycle from @ref logger_quick_start and focus on
+configuration, structured sources, reports, and health inspection.
+
 ## File logger with fallback visibility
 
 ```cpp

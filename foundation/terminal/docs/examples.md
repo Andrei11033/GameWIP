@@ -17,7 +17,7 @@ int main()
         return 1;
     }
 
-    const auto second = GameWIP::Terminal::writeLine(OutputStream::Stderr, "diagnostic");
+    const auto second = GameWIP::Terminal::writeLine(Stream::Stderr, "diagnostic");
     return second.ok() ? 0 : 1;
 }
 ```

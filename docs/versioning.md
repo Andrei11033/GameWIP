@@ -1,10 +1,12 @@
 @page project_versioning Versioning policy
 
-This page defines GameWIP-specific version sources, pre-1.0 milestone mapping, build identity, release rules, and package-version behavior.
+GameWIP has two related identities: a release version that communicates
+compatibility, and a generated build identity that identifies the exact source
+being run. This page explains where each value comes from and when it changes.
 
 [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html) is the normative version-format and precedence definition. This page records how GameWIP applies it.
 
-## Authoritative project version
+## Release version: the compatibility promise
 
 The root `project(GameWIP VERSION ...)` declaration in `CMakeLists.txt` is the only editable numeric project-version source.
 
@@ -37,7 +39,7 @@ Before `1.0.0`, a breaking public API or package change requires the next milest
 
 Version `1.0.0` means that the V1 public API, package, save-data, and compatibility promises have been explicitly defined and validated. It does not mean GameWIP development is finished.
 
-## Development and build identity
+## Build identity: the exact source revision
 
 Every commit merged into `master` receives generated build identity without editing `CMakeLists.txt` or committing a build counter.
 
@@ -64,7 +66,7 @@ Timestamps are not version identities because they prevent reproducible builds.
 
 The numeric `PROJECT_VERSION` does not change for every merge. Only the generated build identity changes.
 
-## Release rules
+## Turning a version into a release
 
 1. Set the root project version to the milestone target when development for that version begins.
 2. Keep untagged builds marked as development snapshots.

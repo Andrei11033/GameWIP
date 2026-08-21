@@ -16,6 +16,10 @@ FENCED_CODE_PATTERN = re.compile(
     rf"^{FENCE_PATTERN}[^\n]*\n.*?^{FENCE_PATTERN}\s*$",
     re.MULTILINE | re.DOTALL,
 )
+HELPER_ACTION_PATTERN = re.compile(
+    r"\[ValidateSet\((?P<values>[^\]]+)\)\]\s*\[string\]\$Action",
+    re.MULTILINE,
+)
 
 LIBRARY_DOCS = (
     (Path("foundation/unicode/docs"), "Unicode", "unicode.md"),
@@ -26,6 +30,42 @@ LIBRARY_DOCS = (
     (Path("tools/logger/docs"), "Logger", "logger.md"),
     (Path("tools/debug/assert/docs"), "Assert", "assert.md"),
     (Path("tools/test_support/docs"), "TestSupport", "test_support.md"),
+)
+
+REQUIRED_LIBRARY_DOCS = (
+    "quick_start.md",
+    "public_api.md",
+    "examples.md",
+    "testing.md",
+    "troubleshooting.md",
+)
+
+REQUIRED_LANDING_HEADINGS = (
+    "Consumer manual",
+    "Maintainer validation",
+    "Generated API reference",
+    "Key behavior",
+    "Dependency boundary",
+)
+
+REQUIRED_QUICK_START_HEADINGS = (
+    "Include",
+    "Installed CMake",
+    "Source-tree CMake",
+    "Failure handling",
+    "Where to go next",
+)
+
+DOCUMENTED_SOURCE_ROOTS = (
+    Path("foundation/unicode"),
+    Path("foundation/io"),
+    Path("foundation/filesystem"),
+    Path("foundation/terminal"),
+    Path("engine/window"),
+    Path("tools/logger"),
+    Path("tools/debug/assert"),
+    Path("tools/test_support"),
+    Path("game"),
 )
 
 TOP_LEVEL_SIDEBAR = (
@@ -41,6 +81,7 @@ PROJECT_MANUAL_SIDEBAR = (
     "project_environment_setup",
     "project_structure",
     "project_build",
+    "project_command_line_tools",
     "project_game_executable",
     "project_validation",
     "project_testing",
@@ -169,14 +210,93 @@ def check_library_child_titles(errors: list[str]) -> None:
                 )
 
 
-def check_game_file_headers(errors: list[str]) -> None:
-    source_suffixes = (".h", ".cpp", ".inl", ".h.in")
-    for path in sorted((ROOT / "game").rglob("*")):
-        if not path.is_file() or not path.name.endswith(source_suffixes):
-            continue
-        header = "\n".join(path.read_text(encoding="utf-8").splitlines()[:12])
-        if "@file" not in header or "@brief" not in header:
-            errors.append(f"game source lacks leading @file/@brief ownership: {relative(path)}")
+def check_required_library_docs(errors: list[str]) -> None:
+    for root, _library_name, landing_name in LIBRARY_DOCS:
+        required_files = (landing_name, *REQUIRED_LIBRARY_DOCS)
+        for filename in required_files:
+            path = ROOT / root / filename
+            if not path.is_file():
+                errors.append(f"required library manual file is missing: {relative(path)}")
+
+        landing_path = ROOT / root / landing_name
+        if landing_path.is_file():
+            headings = set(
+                re.findall(r"^##\s+(.+?)\s*$", manual_markup(landing_path), re.MULTILINE)
+            )
+            for heading in REQUIRED_LANDING_HEADINGS:
+                if heading not in headings:
+                    errors.append(
+                        f"library landing page lacks required `{heading}` section: "
+                        f"{relative(landing_path)}"
+                    )
+
+        quick_start_path = ROOT / root / "quick_start.md"
+        if quick_start_path.is_file():
+            headings = set(
+                re.findall(r"^##\s+(.+?)\s*$", manual_markup(quick_start_path), re.MULTILINE)
+            )
+            for heading in REQUIRED_QUICK_START_HEADINGS:
+                if heading not in headings:
+                    errors.append(
+                        f"library quick start lacks required `{heading}` section: "
+                        f"{relative(quick_start_path)}"
+                    )
+            if not any(heading.startswith("Minimal") for heading in headings):
+                errors.append(
+                    f"library quick start lacks a minimal-usage section: {relative(quick_start_path)}"
+                )
+
+
+def check_source_file_headers(errors: list[str]) -> None:
+    for source_root in DOCUMENTED_SOURCE_ROOTS:
+        for path in sorted((ROOT / source_root).rglob("*")):
+            if not path.is_file() or not path.name.endswith((".h", ".h.in", ".cpp", ".inl")):
+                continue
+            header = "\n".join(path.read_text(encoding="utf-8").splitlines()[:12])
+            if "@file" not in header or "@brief" not in header:
+                errors.append(
+                    f"documented source lacks leading @file/@brief ownership: {relative(path)}"
+                )
+
+
+def check_command_catalog_documentation(errors: list[str]) -> None:
+    helper_path = ROOT / "scripts/GameWIP.ps1"
+    helper_text = helper_path.read_text(encoding="utf-8")
+    action_match = HELPER_ACTION_PATTERN.search(helper_text)
+    if action_match is None:
+        errors.append(f"could not read the project-helper action catalog: {relative(helper_path)}")
+    else:
+        command_page = (ROOT / "docs/doxygen/command_line_tools.md").read_text(
+            encoding="utf-8"
+        )
+        for action in re.findall(r"'([^']+)'", action_match.group("values")):
+            if f"| `{action}` |" not in command_page:
+                errors.append(
+                    f"project-helper action `{action}` is absent from the command reference"
+                )
+        parameter_block = helper_text.split(")\n\nSet-StrictMode", maxsplit=1)[0]
+        parameter_names = re.findall(
+            r"^\s*\[(?:string|int|string\[\]|switch)\]\$(\w+)",
+            parameter_block,
+            re.MULTILINE,
+        )
+        for parameter in parameter_names:
+            if parameter == "Action":
+                continue
+            if f"-{parameter}" not in command_page:
+                errors.append(
+                    f"project-helper option `-{parameter}` is absent from the command reference"
+                )
+
+    setup_config_path = ROOT / "scripts/setup/config/actions.psd1"
+    setup_config = setup_config_path.read_text(encoding="utf-8")
+    setup_manual = (ROOT / "docs/doxygen/environment_setup.md").read_text(
+        encoding="utf-8"
+    )
+    for action in re.findall(r"\bId\s*=\s*'([^']+)'", setup_config):
+        marker = "`setup.bat` or `setup.bat menu`" if action == "menu" else f"`setup.bat {action}`"
+        if marker not in setup_manual:
+            errors.append(f"setup action `{action}` is absent from the environment manual")
 
 
 def main() -> int:
@@ -186,7 +306,9 @@ def main() -> int:
     check_sidebar_order(errors)
     check_project_registration(errors)
     check_library_child_titles(errors)
-    check_game_file_headers(errors)
+    check_required_library_docs(errors)
+    check_source_file_headers(errors)
+    check_command_catalog_documentation(errors)
 
     if errors:
         print("Documentation standards failed:")
@@ -196,7 +318,8 @@ def main() -> int:
 
     print(
         "Documentation standards are valid: unique pages, one-parent sidebar, "
-        "registered project docs, concise library titles, and owned game sources."
+        "registered project docs, complete library manuals, concise library titles, "
+        "and owned documented sources."
     )
     return 0
 

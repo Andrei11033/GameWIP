@@ -6,7 +6,7 @@
 
 The Assert suite covers enabled and disabled builds, expression evaluation count, message laziness, fatal versus recoverable families, `CHECK_ONCE`, `ENSURE` return values, diagnostics controls, source location, Logger report integration, UTF-8-safe bounded diagnostic truncation, and package-facing compile definitions.
 
-The suite remains one logical Assert module while private behavior cases are grouped into focused `.inl` fragments for macro behavior, diagnostics, hooks, interactive handling, stress, process/crash handling, and manual UI validation. Passing-path benchmarks verify that enabled successful macros avoid failure formatting and reporting work. Disabled-build tests verify that each macro family preserves its documented evaluation contract.
+The suite is one logical Assert module. Private behavior cases are grouped into focused `.inl` fragments for macro behavior, diagnostics, hooks, interactive handling, stress, process/crash handling, and manual UI validation. Passing-path benchmarks verify that enabled successful macros avoid failure formatting and reporting work. Disabled-build tests verify that each macro family preserves its documented evaluation contract.
 
 ## Child and interactive coverage
 

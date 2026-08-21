@@ -1,5 +1,9 @@
 @page filesystem_quick_start Quick start
 
+The first workflow writes and reads a complete UTF-8 file with checked results.
+It also shows the package dependencies and status handling every FileSystem
+consumer needs.
+
 ## Include
 
 ```cpp

@@ -2,11 +2,11 @@
 
 GameWIP reusable libraries are packaged as CMake config packages with canonical imported targets under the `GameWIP::` CMake namespace. The installed package boundary is the consumer contract for headers, targets, dependencies, version files, and shared-library exports.
 
-## Scope
+This page explains what an installed consumer can rely on: package names,
+imported targets, exact-version matching, installed headers, transitive
+dependencies, generated export headers, and shared-library symbol policy.
 
-This page documents installed package names, imported targets, version matching, public-header boundaries, dependency rules, and shared-library export policy.
-
-It does not document individual library APIs. Public APIs are documented in the owning library manual and generated reference pages.
+Individual APIs stay in their library manuals and generated reference pages.
 
 ## Packages and targets
 

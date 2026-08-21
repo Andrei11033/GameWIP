@@ -2,9 +2,9 @@
 
 GameWIP applies format, static-analysis, documentation, and repository-consistency checks to maintained project files. Third-party code under `external/` and generated files under `build/` are not project-owned and are excluded.
 
-## Scope
-
-This page owns C++ static-analysis checks, local formatting commands, non-C++ repository checks, CI behavior, and suppression policy.
+The checks below cover C++ static analysis, formatting, documentation and
+repository rules, local commands, CI behavior, and the narrow cases where a
+suppression is acceptable.
 
 Build presets, compiler selection, and output locations are documented in @ref project_build. Correctness tests are documented in @ref project_validation and @ref project_testing.
 
@@ -97,13 +97,21 @@ The `Validation / Repository Checks` GitHub job runs checks that do not belong t
   and required non-empty public repository files.
 - Issue-form area choices aligned with automatic area-label routing.
 - Documentation ownership, page registration, sidebar structure/order, concise
-  library child titles, and `game/` file-purpose validation.
+  library child titles, required library/quick-start sections, complete command
+  catalogs, and supported-source file-purpose validation.
 - Local relative Markdown link validation for maintained root, project, GitHub,
-  game, setup/helper, and library documentation.
+  game, setup/helper, engine, and library documentation.
 
 Run the script and documentation checks locally from the repository root:
 
-```bash
+```powershell
+.\gamewip.bat links
+```
+
+The helper form uses the project Python toolchain and retains the run log. When
+developing the checkers themselves, run their direct interfaces:
+
+```powershell
 python -m py_compile .github/scripts/*.py
 python .github/scripts/check-documentation-standards.py
 python .github/scripts/check-repository-standards.py
@@ -138,8 +146,10 @@ The regular validation workflow builds Doxygen and rejects Doxygen warnings. Mar
 
 The documentation-standards checker validates exactly one unique page ID per
 manual file, exactly one sidebar parent per page, intentional sidebar order,
-explicit project-page registration, concise library child titles, and leading
-`@file`/`@brief` ownership for `game/` sources.
+explicit project-page registration, concise library child titles, the required
+library file and section sets, complete setup/project-helper command catalogs,
+and leading `@file`/`@brief` ownership across every supported documented source
+root.
 
 The repository-standards checker keeps GitHub Actions dependencies immutable,
 requires explicit permissions and job timeouts, fails closed on empty CTest
@@ -147,7 +157,7 @@ selection, preserves trusted `pull_request_target` checkout boundaries, and
 verifies that public repository files exist and are non-empty.
 
 The repository link checker validates local relative links in maintained root,
-project, GitHub, game, setup/helper, and library Markdown. It ignores external
+project, GitHub, game, setup/helper, engine, and library Markdown. It ignores external
 URLs and `#anchor` fragments; Doxygen-owned anchors and API cross-references are
 validated by the documentation build.
 

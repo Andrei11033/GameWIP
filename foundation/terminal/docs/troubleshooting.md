@@ -1,5 +1,10 @@
 @page terminal_troubleshooting Troubleshooting
 
+Terminal behavior depends on the endpoint currently attached to a standard
+stream. Check the operation status and a fresh capability snapshot, then use
+the matching case below to distinguish redirection, ownership, encoding, and
+native-state failures.
+
 ## A control returns `Unsupported`
 
 The selected endpoint does not currently advertise the required terminal feature. Redirected, detached, and `Other` endpoints commonly cannot run cursor, clear, alternate-screen, title, or bell controls.

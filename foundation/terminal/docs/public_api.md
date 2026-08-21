@@ -62,9 +62,23 @@ See @ref terminal_styling.
 
 ## Capabilities and geometry
 
-`Types::Input::Capabilities` describes the managed abstraction through `kind`, `supportsUtf8Text`, `supportsByteInput`, `supportsLineInput`, `supportsEventInput`, `supportsNonBlockingReads`, `supportsFiniteTimeouts`, `supportsCancellation`, `supportsResizeEvents`, `supportsPasteEvents`, `supportsKeyRepeatEvents`, `supportsKeyReleaseEvents`, `supportsStandaloneModifierEvents`, `supportsMediaKeyEvents`, `supportsKeyLocation`, and `supportsModifierState`.
+`Types::Input::Capabilities` describes the current managed input abstraction:
 
-`Types::Output::Capabilities` contains `kind`, `supportsUtf8Text`, `supportsByteOutput`, `supportsFlush`, `style`, `supportsTerminalSize`, `supportsCursorMovement`, `supportsCursorPositionQuery`, `supportsCursorSaveRestore`, `supportsCursorVisibility`, `supportsClear`, `supportsScroll`, `supportsAlternateScreen`, `supportsTitle`, and `supportsBell`.
+- Endpoint kind and UTF-8, byte, line, or structured-event input.
+- Non-blocking reads, finite deadlines, and cancellation.
+- Resize and paste events.
+- Key repeat/release, standalone modifiers, media keys, key location, and
+  modifier-state detail.
+
+`Types::Output::Capabilities` describes:
+
+- Endpoint kind and UTF-8 or byte output.
+- Flush and portable style support.
+- Terminal geometry and cursor movement, query, save/restore, and visibility.
+- Clear, scroll, alternate-screen, title, and bell controls.
+
+The generated `Capabilities` field reference gives the exact `supports...`
+member associated with each item.
 
 Capability query results pair a status with the reported capability structure. `Types::Size` contains `columns` and `rows`; `Types::Cursor::Position` contains zero-based `column` and `row`. Their result types pair the value with an IO status.
 
@@ -114,7 +128,18 @@ On an interactive terminal, both delivery modes use the same immediate native ev
 
 Opening an already-open object returns `AlreadyOpen`. Another session or direct read competing for the same input returns `ResourceBusy`. Explicit close restoration failure leaves the session open and ownership retained so the caller can retry; destruction makes a best-effort non-throwing restoration attempt and cannot surface cleanup failure.
 
-`Session::readEvent()` requires `Types::Input::DeliveryMode::Events`. `Session::readBytes()`, `readText()`, and `readLine()` require `Types::Input::DeliveryMode::Stream`. Incompatible operations return `Unsupported` without consuming unrelated input. Input-consuming Session operations serialize with each other. Every call holds a private active-operation lease instead of retaining the lifecycle mutex; output continues to use the process-wide per-output coordinator, so a Session can emit output while another thread is blocked in its input read. `close()` stops unrelated operation admission and waits until active operations complete before restoration. Formatting may reenter global Terminal output or the same Session. Same-Session `close()` from inside an active formatter returns `ResourceBusy` rather than waiting on itself.
+`Session::readEvent()` requires `Types::Input::DeliveryMode::Events`.
+`readBytes()`, `readText()`, and `readLine()` require `DeliveryMode::Stream`.
+An incompatible operation returns `Unsupported` without consuming input.
+
+Input-consuming Session calls serialize with each other. Output continues to
+use the process-wide coordinator for its bound stream, so another thread may
+write while a Session read blocks. `close()` stops new unrelated operations and
+waits for active calls before restoring state.
+
+Formatting may reenter global Terminal output or the same Session. Calling
+`close()` on that Session from inside its active formatter returns
+`ResourceBusy` instead of waiting on itself.
 
 The bound output surface mirrors direct output through `Session::getOutputCapabilities()`, `prepareOutput()`, size/cursor queries, text/line/byte/segment writes, formatting, flush, styling, cursor controls, clear/scroll, alternate screen, title, and bell. Those methods delegate to the same global output implementation rather than duplicating backend logic. Session-owned cursor hiding and alternate-screen entry are tracked for reverse-order cleanup; opening a Session does not change either state automatically.
 

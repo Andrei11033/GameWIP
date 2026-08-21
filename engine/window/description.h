@@ -14,17 +14,17 @@ namespace GameWIP::Window::Types
     /// @brief Non-client decoration policy.
     enum class DecorationMode
     {
-        System,
-        Borderless,
-        Custom
+        System,     ///< Platform supplies the frame, caption, and standard hit testing.
+        Borderless, ///< No non-client frame or built-in custom hit regions.
+        Custom      ///< Client supplies declarative drag and caption-control regions.
     };
 
     /// @brief Initial desktop placement policy.
     enum class PlacementKind
     {
-        PlatformDefault,
-        Centered,
-        Explicit
+        PlatformDefault, ///< Let the platform choose the initial desktop position.
+        Centered,        ///< Center the Window on the requested or primary monitor.
+        Explicit         ///< Use Placement::position as a physical virtual-screen client origin.
     };
 
     /// @brief Initial placement request.
@@ -56,57 +56,57 @@ namespace GameWIP::Window::Types
     /// @brief Behavior applied when the effective monitor DPI changes.
     enum class DpiResizePolicy
     {
-        PreserveLogicalClientSize,
-        PreservePhysicalClientSize
+        PreserveLogicalClientSize, ///< Keep the logical client extent and resize the framebuffer.
+        PreservePhysicalClientSize ///< Keep the physical client pixels and change the logical extent.
     };
 
     /// @brief Window-owned cursor policy.
     enum class CursorMode
     {
-        Normal,
-        Hidden,
-        Confined,
-        HiddenConfined,
-        Relative
+        Normal,         ///< Visible, unconstrained system cursor.
+        Hidden,         ///< Hidden cursor without confinement.
+        Confined,       ///< Visible cursor confined to the client area.
+        HiddenConfined, ///< Hidden cursor confined to the client area.
+        Relative        ///< Hidden, confined cursor producing relative-style motion around a stable anchor.
     };
 
     /// @brief Standard system cursor shape.
     enum class CursorShape
     {
-        Arrow,
-        Text,
-        Crosshair,
-        Hand,
-        Help,
-        Wait,
-        Progress,
-        Move,
-        ResizeAll,
-        ResizeHorizontal,
-        ResizeVertical,
-        ResizeDiagonalNorthWestSouthEast,
-        ResizeDiagonalNorthEastSouthWest,
-        NotAllowed
+        Arrow,                            ///< Normal arrow pointer.
+        Text,                             ///< Text-selection I-beam.
+        Crosshair,                        ///< Precision crosshair.
+        Hand,                             ///< Link or pointing hand.
+        Help,                             ///< Help-selection pointer.
+        Wait,                             ///< Busy pointer that does not imply interaction remains available.
+        Progress,                         ///< Background-progress pointer.
+        Move,                             ///< Four-way move pointer.
+        ResizeAll,                        ///< Four-way resize pointer.
+        ResizeHorizontal,                 ///< Left/right resize pointer.
+        ResizeVertical,                   ///< Up/down resize pointer.
+        ResizeDiagonalNorthWestSouthEast, ///< Northwest/southeast diagonal resize pointer.
+        ResizeDiagonalNorthEastSouthWest, ///< Northeast/southwest diagonal resize pointer.
+        NotAllowed                        ///< Operation-not-allowed pointer.
     };
 
     /// @brief Pointer hit-test policy.
     enum class PointerInputMode
     {
-        Normal,
-        ClickThrough,
-        AcceptRegions,
-        IgnoreRegions,
-        HitMask
+        Normal,        ///< Accept pointer input across the complete client area.
+        ClickThrough,  ///< Ignore pointer input across the complete client area.
+        AcceptRegions, ///< Accept only points inside one of the copied logical regions.
+        IgnoreRegions, ///< Ignore points inside copied regions and accept the remainder.
+        HitMask        ///< Use the renderer-published framebuffer-pixel mask.
     };
 
     /// @brief Optional platform backdrop treatment.
     enum class BackdropEffect
     {
-        None,
-        Automatic,
-        MainWindow,
-        TransientWindow,
-        TabbedWindow
+        None,            ///< Disable optional system backdrop treatment.
+        Automatic,       ///< Let the platform choose a suitable backdrop.
+        MainWindow,      ///< Request the platform treatment intended for a long-lived main Window.
+        TransientWindow, ///< Request the platform treatment intended for transient surfaces.
+        TabbedWindow     ///< Request the platform treatment intended for a tabbed title area.
     };
 
     /// @brief Complete initial top-level Window description.

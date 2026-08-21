@@ -1,5 +1,8 @@
 @page filesystem_file_open_modes Handles, sharing, and locks
 
+This page explains the state owned by an open handle and the choices that
+control creation, truncation, sharing, seeking, flushing, and whole-file locks.
+
 ## Lifecycle and ownership
 
 `FileReader`, `FileWriter`, and `File` start closed.

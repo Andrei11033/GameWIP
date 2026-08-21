@@ -1,5 +1,9 @@
 @page test_support_troubleshooting Troubleshooting
 
+TestSupport keeps test failures separate from failures in reporting, fixtures,
+or child-process infrastructure. Identify which result type failed, then use
+the matching case below.
+
 ## Report file is missing or empty
 
 Check `writeReport`, `reportPath`, and `appendReport`. An empty path disables file opening. Ordinary directory/open/write/flush failure emits one `[TEST REPORT]` diagnostic and disables that sink without affecting the test result.

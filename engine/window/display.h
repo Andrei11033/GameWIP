@@ -18,6 +18,7 @@ namespace GameWIP::Window::Types::Display
         std::uint64_t value = 0; ///< Opaque identity, or zero when invalid.
 
         /// @brief Returns whether this identity is nonzero.
+        /// @return true for a usable process-local monitor identity.
         [[nodiscard]] constexpr bool isValid() const noexcept
         {
             return value != 0;
@@ -57,9 +58,15 @@ namespace GameWIP::Window::Types::Display
 namespace GameWIP::Window::Display
 {
     /// @brief Enumerates materialized physical modes for a currently known monitor.
+    /// @param monitor Monitor identity returned by the current Window runtime.
+    /// @return Query status and the monitor's available physical modes on success.
     [[nodiscard]] GAMEWIP_WINDOW_EXPORT Types::Display::ModesResult getModes(Types::Display::MonitorId monitor) noexcept;
     /// @brief Returns the monitor's active physical mode.
+    /// @param monitor Monitor identity returned by the current Window runtime.
+    /// @return Query status and active physical mode on success.
     [[nodiscard]] GAMEWIP_WINDOW_EXPORT Types::Display::ModeResult getCurrentMode(Types::Display::MonitorId monitor) noexcept;
     /// @brief Returns the operating system's preferred physical mode for the monitor.
+    /// @param monitor Monitor identity returned by the current Window runtime.
+    /// @return Query status and preferred physical mode on success.
     [[nodiscard]] GAMEWIP_WINDOW_EXPORT Types::Display::ModeResult getPreferredMode(Types::Display::MonitorId monitor) noexcept;
 } // namespace GameWIP::Window::Display

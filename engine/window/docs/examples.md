@@ -1,5 +1,9 @@
 @page window_examples Examples
 
+These focused examples build on the owner-thread lifecycle from
+@ref window_quick_start and demonstrate displays, renderer feedback, and native
+interop without hiding status handling.
+
 ## Open a normal Window
 
 ```cpp

@@ -9,6 +9,36 @@ $helperPath = Join-Path $repositoryRoot 'scripts\GameWIP.ps1'
 
 . $helperPath -Action help *> $null
 
+$helpOutput = (& powershell.exe -NoProfile -ExecutionPolicy Bypass -File $helperPath -Action help 2>&1 | Out-String)
+foreach ($requiredHelpText in @('.\gamewip.bat [action] [options]', 'links', 'coverage', '-NoWorkspaceTemp', '-WorkflowKind'))
+{
+    if ($helpOutput -notmatch [regex]::Escape($requiredHelpText)) { throw "Project helper help omits '$requiredHelpText'." }
+}
+
+$actionValidateSet = @(
+    (Get-Command -Name $helperPath).Parameters['Action'].Attributes |
+        Where-Object { $_ -is [System.Management.Automation.ValidateSetAttribute] } |
+        ForEach-Object { $_.ValidValues }
+)
+foreach ($action in $actionValidateSet)
+{
+    if ($helpOutput -notmatch "(?m)(^|[^A-Za-z0-9_-])$([regex]::Escape($action))([^A-Za-z0-9_-]|$)")
+    {
+        throw "Project helper help omits action '$action'."
+    }
+}
+foreach ($parameter in (Get-Command -Name $helperPath).Parameters.Keys)
+{
+    if ($parameter -eq 'Action' -or $parameter -in [System.Management.Automation.PSCmdlet]::CommonParameters)
+    {
+        continue
+    }
+    if ($helpOutput -notmatch [regex]::Escape("-$parameter"))
+    {
+        throw "Project helper help omits option '-$parameter'."
+    }
+}
+
 Assert-GameWipCommandConfig
 
 $profileIds = @($CommandConfig.BenchmarkProfiles | ForEach-Object { $_.Id })

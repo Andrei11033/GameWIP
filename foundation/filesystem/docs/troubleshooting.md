@@ -1,5 +1,9 @@
 @page filesystem_troubleshooting Troubleshooting
 
+FileSystem reports the boundary it could not preserve rather than silently
+falling back to a weaker operation. Use the symptom and status together to
+identify policy, path, sharing, or platform limitations.
+
 ## A policy-bearing operation returns `Unsupported`
 
 The backend could not enforce the selected `SymlinkPolicy` or restrictive sharing request without weakening it. Final-link move, removal, or atomic replacement with follow semantics are common examples. Review @ref filesystem_symlink_policies rather than replacing the operation with a check-then-open sequence.

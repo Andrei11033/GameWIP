@@ -1,6 +1,9 @@
 @page project_release_automation Release automation
 
-GameWIP release automation prepares any milestone release without deriving versions from issue counts, bypassing branch protection, or pushing release changes directly to `master`.
+GameWIP turns a verified milestone into a release in two guarded stages:
+preparation creates a reviewable release pull request, and finalization tags the
+exact validated merge commit. Neither stage derives versions from issue counts,
+bypasses branch protection, or writes release changes directly to `master`.
 
 ## Required configuration
 

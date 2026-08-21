@@ -1,5 +1,9 @@
 @page io_quick_start Quick start
 
+This example introduces IO through its smallest complete workflow: read bytes
+from caller-owned memory, validate them as UTF-8 text, and write a result to a
+memory-backed destination.
+
 ## Include
 
 ```cpp

@@ -1,6 +1,8 @@
 @page project_getting_started Getting started with the project
 
-This page provides the shortest complete path from a fresh checkout to a built, runnable, and validated GameWIP source tree. The linked pages define the complete build, validation, structure, and contribution contracts.
+Follow this page to turn a fresh checkout into a built, runnable, and validated
+GameWIP source tree. It gives the commands and the context needed for a first
+pass; the linked pages explain each subsystem in depth.
 
 ## First checkout setup
 
@@ -44,6 +46,8 @@ then opens a borderless-fullscreen window at the desktop resolution. Press
 sequence and failure behavior.
 
 The development preset builds the game with tools and compiles embedded tests for explicit `--startup-tests` execution. The `dev-no-tools` preset proves the game does not depend on optional tooling. Release builds intentionally exclude validation, benchmarks, assertions, Tracy, and development tools.
+
+Use @ref project_command_line_tools to discover every supported helper and executable command, including safe help invocations that do not start the runtime or test suite.
 
 ## Run validation
 
@@ -98,6 +102,7 @@ After the first build and validation run:
 
 - Read @ref project_structure to understand ownership and dependency direction.
 - Read @ref project_build before changing presets, options, runtime dependency copying, or build outputs.
+- Read @ref project_command_line_tools to find complete helper and executable syntax.
 - Read @ref project_validation and @ref project_testing before changing tests or startup validation.
 - Read @ref project_reusable_libraries before using or changing a first-party library.
 - Read @ref project_extending before adding APIs, libraries, backends, benchmarks, packages, or manual pages.

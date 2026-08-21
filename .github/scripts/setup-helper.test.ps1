@@ -23,9 +23,20 @@ foreach ($requiredAction in @('menu', 'full', 'check', 'update', 'repair', 'unin
 
 $output = @(& powershell.exe -NoProfile -ExecutionPolicy Bypass -File $setupScript list 2>&1)
 if ($LASTEXITCODE -ne 0) { throw "setup list failed: $($output -join [Environment]::NewLine)" }
-foreach ($action in @($actions | Where-Object { $_.Id -notin @('menu') }))
+foreach ($action in $actions)
 {
     if (($output -join "`n") -notmatch [regex]::Escape([string]$action.Id)) { throw "setup list omitted '$($action.Id)'." }
+}
+
+$setupLauncher = Join-Path $repositoryRoot 'setup.bat'
+foreach ($helpAlias in @('help', '--help', '-h', '-?'))
+{
+    $helpOutput = @(& $setupLauncher $helpAlias 2>&1)
+    if ($LASTEXITCODE -ne 0) { throw "setup '$helpAlias' failed: $($helpOutput -join [Environment]::NewLine)" }
+    if (($helpOutput -join "`n") -notmatch [regex]::Escape('setup.bat [action]'))
+    {
+        throw "setup '$helpAlias' did not print command-line help."
+    }
 }
 
 . (Join-Path $repositoryRoot 'scripts\setup\lib\Msys2.ps1')

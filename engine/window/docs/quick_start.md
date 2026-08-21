@@ -1,42 +1,101 @@
 @page window_quick_start Quick start
 
-Include the normal Window surface and create a closed object:
+This path opens one native top-level Window, processes its events on the owner
+thread, and closes it explicitly. It establishes the lifecycle and threading
+model used by every more advanced Window feature.
+
+## Include
+
+The normal Window surface is:
+
+```cpp
+#include "window/window.h"
+```
+
+Include `window/display_info.h`, `window/renderer_bridge.h`, or
+`window/native/win32.h` only when using rich display inspection, renderer
+feedback, or Win32 native interoperability.
+
+## Installed CMake
+
+Set `GAMEWIP_REQUIRED_VERSION` from the consuming project's dependency lock;
+see @ref project_library_compatibility.
+
+```cmake
+find_package(Window ${GAMEWIP_REQUIRED_VERSION} EXACT CONFIG REQUIRED)
+target_link_libraries(MyTarget PRIVATE GameWIP::Window)
+```
+
+## Source-tree CMake
+
+```cmake
+target_link_libraries(MyTarget PRIVATE Window)
+```
+
+## Minimal usage
+
+This complete owner-thread example opens a window, pumps events until a sticky
+close request is observed, and closes the native resource:
 
 ```cpp
 #include "window/window.h"
 
-GameWIP::Window::Types::Description description;
-description.title = "GameWIP";
-description.visible = true;
+#include <chrono>
 
-auto window = std::make_unique<GameWIP::Window::Window>();
-const auto openStatus = window->open(description);
-```
-
-`Window` is non-copyable and non-movable, so use stable storage when indirect ownership is required.
-
-A simple owner-thread loop uses the event service namespace and sticky close request:
-
-```cpp
-while (!window->hasCloseRequest())
+int main()
 {
-    const auto pump = GameWIP::Window::Events::wait(std::chrono::milliseconds{16});
-    if (!pump.status.ok())
-        break;
+    GameWIP::Window::Types::Description description;
+    description.title = "GameWIP";
+    description.visible = true;
 
-    GameWIP::Window::Types::Event event;
-    while (window->popEvent(event))
+    GameWIP::Window::Window window;
+    if (!window.open(description).ok())
     {
-        if (const auto *resized = event.getIf<GameWIP::Window::Types::Events::ClientSizeChanged>())
+        return 1;
+    }
+
+    while (!window.hasCloseRequest())
+    {
+        const auto pump =
+            GameWIP::Window::Events::wait(std::chrono::milliseconds{16});
+        if (!pump.status.ok())
         {
-            // resize renderer resources from resized->size
+            static_cast<void>(window.close());
+            return 2;
+        }
+
+        GameWIP::Window::Types::Event event;
+        while (window.popEvent(event))
+        {
+            // React to the event payload needed by the application.
         }
     }
-}
 
-static_cast<void>(window->close());
+    return window.close().ok() ? 0 : 3;
+}
 ```
 
-For display enumeration/HDR inspection, explicitly include `window/display_info.h` and use `GameWIP::Window::Display`. For renderer feedback include `window/renderer_bridge.h`. For HWND access include `window/native/win32.h`.
+`Window` is non-copyable and non-movable. Keep it in stable storage for its
+entire open lifetime, and perform lifecycle/event operations on its owner
+thread. Public text is UTF-8. File-drop paths use `FileSystem::Types::Path` and
+are not flattened into text.
 
-Public text is UTF-8. File-drop paths use `FileSystem::Types::Path` and are not flattened into text.
+## Failure handling
+
+Window operations return direct `IO::Types::Status` values or result structures
+containing a `status`. Inspect the status before consuming the associated
+payload. A failed event wait or pump does not close an open window
+automatically. Call `close()` and handle its status; destruction performs only
+best-effort cleanup.
+
+The close request is sticky even if the corresponding queue event is coalesced
+or dropped. Use `hasCloseRequest()` for lifecycle policy and `popEvent()` for
+individual event payloads.
+
+## Where to go next
+
+- @ref window_public_api inventories headers, namespaces, types, and operations.
+- @ref window_lifecycle_events defines ownership, queues, waiting, and close behavior.
+- @ref window_coordinates_and_dpi explains logical and pixel coordinate contracts.
+- @ref window_examples provides focused display, renderer, and native examples.
+- @ref window_troubleshooting maps common failures to their owning contract.

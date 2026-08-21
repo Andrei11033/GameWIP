@@ -1,5 +1,9 @@
 @page window_fullscreen_monitors Fullscreen and displays
 
+Window distinguishes monitor identity, physical display modes, and the policy
+used to place a Window on a display. That distinction is essential when moving
+between windowed, borderless, and exclusive fullscreen states.
+
 ## Display types
 
 Monitor identity and physical modes are grouped under `Window::Types::Display`:

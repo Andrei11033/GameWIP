@@ -2,9 +2,9 @@
 
 Coverage is an opt-in validation workflow that reports which correctness-test paths executed.
 
-## Scope
-
-This page documents the coverage preset, generated artifacts, inclusion policy, and common failures.
+The sections below explain the coverage preset, exactly which code contributes
+to the report, where the HTML and machine-readable artifacts go, and how to
+diagnose an incomplete or failed run.
 
 ## Common workflow
 
@@ -34,7 +34,12 @@ build/coverage/coverage/index.html
 build/coverage/coverage/coverage.xml
 ```
 
-The report includes maintained foundation libraries, tool libraries, TestSupport, and modular correctness-test sources. Third-party sources under `external/` are excluded.
+The report currently includes implementation sources for IO, FileSystem,
+Terminal, Logger, Assert, and TestSupport, plus the modular correctness-test
+sources under `game/validation/tests`. Unicode and Window tests execute in the
+coverage workflow, but their library implementation sources are not currently
+included in the report filters. Third-party sources under `external/`, generated
+build output, and other project code are excluded.
 
 GCC profile updates are atomic so parallel test processes cannot overwrite one another's counters. Corrupt or negative profile data is a report failure. The workflow must not suppress parser errors.
 
@@ -61,6 +66,7 @@ When changing coverage behavior:
 
 - Keep coverage separate from normal validation.
 - Keep third-party and generated sources excluded.
+- Update the documented inclusion list and report filters together when coverage scope changes.
 - Do not replace focused tests with a percentage target.
 - Preserve report failure visibility.
 - Update CI artifact paths if output locations change.

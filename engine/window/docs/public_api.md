@@ -1,5 +1,9 @@
 @page window_public_api Public API
 
+Window splits its installed headers by concept while keeping one library and
+one passive `Types` tree. Use this map to find the declaration that owns a
+lifecycle, event, display, renderer, or native-interop operation.
+
 ## Header ownership
 
 Window exposes one public `GameWIP::Window::Types` tree and focused headers by conceptual ownership:

@@ -1,6 +1,8 @@
 @page io_runtime_performance Runtime and performance
 
-This page owns allocation, buffering, and data-movement characteristics. Transfer correctness and backend obligations are documented in @ref io_reader_writer_contract.
+This page explains where IO allocates, when it can use a known stream size, how
+scratch storage is reused, and where data is copied or moved. The correctness
+rules for each transfer remain in @ref io_reader_writer_contract.
 
 ## Known-size reads
 

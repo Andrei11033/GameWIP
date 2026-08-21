@@ -2,7 +2,7 @@
 
 @note Logger validation uses source-tree hooks and is not installed consumer API.
 
-## #55 correctness coverage
+## Correctness coverage
 
 Validation covers normal/disabled initialization, checked invalid configuration, adjustment flags and effective limits, file setup fallback with directly associated failure status, AlreadyOpen lifecycle rejection, shutdown/reinitialize, and health epoch reset.
 
@@ -17,7 +17,7 @@ output, filters, reports, health, and process/manual cases easier to scan withou
 
 ## Package and header validation
 
-Project validation must continue to check self-containment of `logger/types.h`, `logger/config.h`,
+Project validation must check self-containment of `logger/types.h`, `logger/config.h`,
 `logger/logger.h`, and `logger/logger_macros.h`, plus installed `GameWIP::Logger` consumption, exact IO/Terminal dependency resolution, exported-symbol allowlists, sanitizer builds, and Logger benchmarks.
 
 ## Performance review

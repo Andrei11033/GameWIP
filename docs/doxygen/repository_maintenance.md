@@ -1,10 +1,10 @@
 @page project_repository_maintenance Repository maintenance policy
 
-This page is the maintainer source of truth for GitHub presentation, protected
-checks, merge policy, Actions configuration, manual workflows, and periodic
-repository audits. Contributor behavior remains in @ref project_contributing;
-automation-specific behavior remains in @ref project_repository_automation and
-@ref project_release_automation.
+This is the working guide for the GitHub settings around GameWIP: repository
+presentation, protected checks, merge policy, Actions configuration, manual
+workflows, and periodic audits. Contributor behavior stays in @ref
+project_contributing; automation details stay in @ref
+project_repository_automation and @ref project_release_automation.
 
 ## Public landing page
 

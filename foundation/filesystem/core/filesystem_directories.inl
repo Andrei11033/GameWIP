@@ -1,3 +1,6 @@
+/// @file filesystem_directories.inl
+/// @brief FileSystem directory creation, listing, and removal operations.
+
 IO::Types::Status createDirectory(const Types::Path &path, const Types::Directory::CreateOptions &options) noexcept
 {
     try

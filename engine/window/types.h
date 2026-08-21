@@ -18,6 +18,7 @@ namespace GameWIP::Window
             std::uint64_t value = 0; ///< Opaque identity, or zero when invalid.
 
             /// @brief Returns whether this identity is nonzero.
+            /// @return true for a usable open-lifetime identity.
             [[nodiscard]] constexpr bool isValid() const noexcept
             {
                 return value != 0;
@@ -30,9 +31,9 @@ namespace GameWIP::Window
         /// @brief Top-level Window mode.
         enum class Mode
         {
-            Windowed,
-            BorderlessFullscreen,
-            ExclusiveFullscreen
+            Windowed,             ///< Positioned desktop Window with normal windowed behavior.
+            BorderlessFullscreen, ///< Borderless Window covering one monitor without changing its display mode.
+            ExclusiveFullscreen   ///< Fullscreen Window that may switch the monitor's physical display mode.
         };
 
         /// @brief Position in a Window's logical client coordinate space.
@@ -139,9 +140,9 @@ namespace GameWIP::Window
         /// @brief Native presentation state independent from top-level Window mode.
         enum class PresentationState
         {
-            Normal,
-            Minimized,
-            Maximized
+            Normal,    ///< Neither minimized nor maximized.
+            Minimized, ///< Hidden or reduced to the platform's minimized representation.
+            Maximized  ///< Expanded to the platform's maximized work area.
         };
     } // namespace Types
 } // namespace GameWIP::Window

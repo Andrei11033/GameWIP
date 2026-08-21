@@ -18,6 +18,12 @@ if(GAMEWIP_BUILD_TESTS)
     gamewip_copy_runtime_dependencies(GameWIPTests)
     gamewip_add_runtime_dependencies_validation(GameWIPTests)
 
+    add_test(NAME validation.tests.help COMMAND "$<TARGET_FILE:GameWIPTests>" --help)
+    set_tests_properties(validation.tests.help PROPERTIES
+        PASS_REGULAR_EXPRESSION "Usage:;--test-module=<name>;Registered modules:"
+        TIMEOUT 60
+    )
+
     add_test(NAME validation.packages.installed_consumer
         COMMAND ${CMAKE_COMMAND}
             "-DPROJECT_BUILD_DIR=${CMAKE_BINARY_DIR}"

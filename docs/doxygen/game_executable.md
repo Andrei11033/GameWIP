@@ -1,8 +1,14 @@
 @page project_game_executable Game executable
 
-The `game/` tree owns the GameWIP executable boundary. It connects generated build identity, optional startup validation, benchmark startup, and the runtime facade into one process.
+The `game/` tree is the small composition layer that turns the reusable
+libraries into runnable programs. It connects generated build identity,
+optional startup validation, benchmark startup, and the game runtime in one
+process without moving reusable behavior into the executable.
 
-This page owns process startup and executable integration. Correctness-runner behavior is documented in @ref project_validation, test-module authoring in @ref project_testing, and benchmark behavior in @ref project_benchmarking.
+This page follows command-line parsing, startup, runtime initialization,
+shutdown, and exit-code selection. Correctness-runner behavior is in @ref
+project_validation, test authoring in @ref project_testing, and benchmark
+behavior in @ref project_benchmarking.
 
 ## Scope
 
@@ -29,14 +35,38 @@ Use this page when changing:
 | `game/validation/public_headers/` | Compile-only public-header self-containment checks. |
 | `game/validation/installed_consumer/` | Clean installed-package consumer check. |
 
+## Command-line interface
+
+Use the utility forms to inspect the executable without initializing validation,
+Logger, Window, or runtime services:
+
+```powershell
+.\build\dev\GameWIP.exe --help
+.\build\dev\GameWIP.exe --version
+```
+
+| Argument | Availability | Behavior |
+| --- | --- | --- |
+| No arguments | Every game build | Enters the runtime and opens the game window. |
+| `--help`, `-h`, or `-?` | Every game build, as the only argument | Prints usage and build-dependent startup-validation availability, then exits successfully. |
+| `--version` | Every game build, as the only argument | Prints `GameWIP::Version::productDisplay`, then exits successfully. |
+| `--startup-tests` | `dev`, `dev-no-tools`, `profile`, or a custom startup-test build | Runs embedded correctness validation before runtime. Public `GameWIPTests.exe` options may accompany it. |
+| `--benchmark_*` or `--v=<level>` | A custom build with startup benchmarks | Forwards Google Benchmark options to the embedded benchmark runner. |
+
+Validation options without `--startup-tests` do not request an ordinary embedded
+test run. The runtime facade does not interpret remaining arguments. A custom
+startup-benchmark build may reject arguments forwarded to Google Benchmark.
+Use `GameWIPTests.exe --help` and `GameWIPBenchmarks.exe --help` for their
+complete current option sets, or start at @ref project_command_line_tools.
+
 ## Runtime sequence
 
 `main.cpp` follows one process-level sequence:
 
 1. In Tracy-enabled builds, name the main thread and open the process zone.
-2. When the only user argument is `--version`, print
-   `GameWIP::Version::productDisplay` and exit successfully.
-3. Run startup correctness validation when it was compiled into the executable.
+2. Handle an exact utility-only help or version request and exit successfully.
+3. Run startup correctness validation when it was compiled into the executable
+   and the arguments request it.
 4. Return the validation child-route exit code immediately when
    `handledChildInvocation` is true.
 5. Stop startup when correctness validation fails.
@@ -46,7 +76,7 @@ Use this page when changing:
    game window, and runs the event loop.
 9. Return the runtime facade's exit code.
 
-Utility-only version queries intentionally bypass validation and runtime startup. A `--version` token combined with other arguments is not treated as the utility-only form.
+Utility-only help and version queries intentionally bypass validation and runtime startup. A help or `--version` token combined with other arguments is not treated as the utility-only form.
 
 Tracy-enabled builds emit frame marks before startup validation, startup
 benchmarks, and runtime execution. The enclosing named zones identify those
@@ -168,6 +198,7 @@ When changing executable integration:
 
 - Keep `main.cpp` small and sequencing-focused.
 - Preserve utility-only version behavior.
+- Preserve utility-only help behavior and keep its build-availability text current.
 - Keep disabled validation paths dependency-free.
 - Return child-route results before benchmarks and runtime code.
 - Keep expected runtime failures representable as process exit codes.
@@ -181,6 +212,7 @@ When changing executable integration:
 
 - @ref project_structure
 - @ref project_build
+- @ref project_command_line_tools
 - @ref project_validation
 - @ref project_testing
 - @ref project_benchmarking

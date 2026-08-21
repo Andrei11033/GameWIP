@@ -33,6 +33,8 @@ namespace GameWIP::Window::Native::Win32
     };
 
     /// @brief Returns non-owning Win32 handles for an open Window on its owner thread.
+    /// @param window Window whose native handles are requested.
+    /// @return Query status and non-owning handles on success.
     /// @warning Native use must not race Window close.
     [[nodiscard]] GAMEWIP_WINDOW_EXPORT HandleResult getHandle(const GameWIP::Window::Window &window) noexcept;
 } // namespace GameWIP::Window::Native::Win32

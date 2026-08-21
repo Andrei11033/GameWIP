@@ -14,12 +14,12 @@ SCANNED_MARKDOWN_DIRS = (
     Path("docs"),
     Path(".github"),
     Path("foundation"),
+    Path("engine"),
     Path("tools"),
     Path("game"),
     Path("scripts"),
 )
 EXCLUDED_ROOTS = (
-    Path("engine"),
     Path("external"),
     Path("build"),
 )

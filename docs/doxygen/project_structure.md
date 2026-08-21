@@ -2,9 +2,9 @@
 
 GameWIP is a product repository built around reusable C++ libraries, project-level build infrastructure, validation tooling, generated documentation, and a small executable shell. Project code owns composition and runtime policy. Reusable libraries own their public contracts, implementations, platform backends, package boundaries, validation coverage, and manuals.
 
-## Purpose
-
-This page defines where code belongs and which direction dependencies may flow. It is the repository map, not a replacement for library manuals, workflow pages, or the platform backend contract.
+Use this map to decide where code belongs and which dependency directions are
+valid. It shows the system-level relationships; library manuals and workflow
+pages provide the behavior inside each box.
 
 ## Repository map
 
@@ -12,7 +12,7 @@ This page defines where code belongs and which direction dependencies may flow. 
 | --- | --- |
 | `foundation/` | Low-level reusable libraries such as Unicode, IO, FileSystem, and Terminal. |
 | `tools/` | Diagnostics, assertions, logging, validation support, and development tooling libraries. |
-| `engine/` | Engine systems developed and reviewed separately from the reusable foundation and tool libraries. |
+| `engine/` | The documented Window library plus provisional Input and Action code. Preserved WindowManager code is currently outside the build. |
 | `game/` | Executable entry point, runtime facade, startup validation wiring, validation runners, and game-facing integration. |
 | `cmake/` | Repository-wide build, platform, validation, coverage, documentation, packaging, and analysis helpers. |
 | `docs/doxygen/` | Generated project manual pages. |
@@ -31,9 +31,15 @@ Unicode
   -> IO
   -> Terminal
 
+Unicode
+  -> TestSupport
+
 IO
   -> FileSystem
   -> Terminal
+
+IO + FileSystem
+  -> Window
 
 IO + FileSystem + Terminal
   -> Logger
@@ -52,7 +58,25 @@ Arrows mean "is consumed by." Lower-level libraries must not depend on the game 
 
 Unicode is a dependency-free foundation root. It owns platform-neutral scalar, encoding, conversion, and grapheme algorithms without taking filesystem-path, terminal, rendering, or editing policy. IO uses it only for strict text-boundary validation; IO byte primitives remain encoding-agnostic.
 
-TestSupport is a standalone validation library and installed package. Its target must not link to another GameWIP library; validation modules depend on it, not the reverse. This keeps `find_package(TestSupport)` independently usable and prevents its portable result contracts from acquiring unrelated library dependencies.
+TestSupport is a standalone validation library and installed package. It may use
+Unicode privately for its documented UTF-8 boundary contracts, but it must not
+acquire IO, FileSystem, Terminal, Window, Logger, Assert, engine, or other
+higher-level GameWIP dependencies. Validation modules depend on TestSupport, not
+the reverse. This keeps `find_package(TestSupport)` independently usable without
+giving its portable result contracts unrelated higher-level dependencies.
+
+## Engine-system status
+
+Window is the supported, documented engine library and participates in package,
+public-header, correctness, benchmark, and manual validation. Input and Action
+are compiled source-tree prototypes whose public contracts and package
+boundaries are not yet stable; they are intentionally absent from the reusable
+library manual. WindowManager targets a retired Window surface and is preserved
+for a later coordination-layer migration, but it is not currently compiled.
+
+Do not treat a header under `engine/input`, `engine/action`, or
+`engine/window_manager` as a supported installed API. Their completion gates are
+tracked in the project roadmap.
 
 Validation code may use libraries and approved internal hooks. Installed consumers must not see internal headers, test-hook headers, source-tree-only helper targets, or validation-only internal compile definitions.
 

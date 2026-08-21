@@ -18,8 +18,8 @@ namespace GameWIP::Logger
         /// @brief Formatting strategy used before a message enters Logger-owned storage.
         enum class FormatPolicy : std::uint8_t
         {
-            StrictBounded,
-            FastNormal
+            StrictBounded, ///< Bound formatting work to configured retained-message storage.
+            FastNormal     ///< Favor the normal formatting path and contain allocation failure if it occurs.
         };
 
         /// @brief Associates a SourceId with its UTF-8 display name during initialization.

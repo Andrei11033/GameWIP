@@ -1,6 +1,9 @@
 @page assert_macros Macros
 
-This page explains when to use each macro family. The authoritative side-effect matrix is @ref assert_macro_behavior.
+Choose a macro by answering two questions: may the program continue after the
+failure, and must the expression still execute when checks are compiled out?
+The families below cover those choices. For exact evaluation and side-effect
+behavior in every build mode, see @ref assert_macro_behavior.
 
 ## Fatal assertions
 

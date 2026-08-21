@@ -1,3 +1,6 @@
+/// @file filesystem_mutations.inl
+/// @brief FileSystem resize, copy, move, and mutation operations.
+
 IO::Types::Status resizeFile(const Types::Path &path, std::uint64_t sizeBytes, const Types::File::ResizeOptions &options) noexcept
 {
     try

@@ -1,3 +1,6 @@
+/// @file filesystem_whole_file.inl
+/// @brief FileSystem checked whole-file byte and UTF-8 text operations.
+
 IO::Types::ReadAllBytesResult readAllBytes(const Types::Path &path, const Types::File::ReadOptions &options) noexcept
 {
     try

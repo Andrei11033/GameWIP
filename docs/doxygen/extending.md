@@ -1,8 +1,13 @@
 @page project_extending Extending the project
 
-This page defines the maintainer checklist for adding or changing repository systems. Use it to confirm that code, tests, documentation, packaging, and workflow ownership are updated together.
+Use this checklist when a change adds a new project concept or expands an
+existing public boundary. It keeps implementation, tests, documentation,
+packaging, and automation moving together instead of leaving follow-up work
+hidden in another part of the repository.
 
-Library manuals teach library-specific APIs. Workflow pages teach how to run build, validation, quality, and automation tools. This page only defines what must be updated when those areas change.
+Library manuals still explain their own APIs, and workflow pages still explain
+how to run their tools. This checklist connects those areas and points to the
+details that need review for each kind of change.
 
 ## Scope
 

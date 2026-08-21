@@ -1,9 +1,10 @@
 # GameWIP workflow keybindings
 
-This declarative VS Code extension contributes repository-scoped shortcuts for
-the complete workflows in `.vscode/tasks.json`. The shortcuts are active only
-when `gamewip.keybindings.enabled` is true, as it is in
-`GameWIP.code-workspace`.
+This small VS Code extension turns the repository workflows in
+`.vscode/tasks.json` into convenient function-key shortcuts. The bindings are
+active only when `gamewip.keybindings.enabled` is true, as it is in
+`GameWIP.code-workspace`, so they do not take over the same keys in unrelated
+workspaces.
 
 The Windows setup script installs this unpacked extension into the current
 user's VS Code extension directory. It also generates a managed block at the

@@ -1,3 +1,6 @@
+/// @file filesystem_handles.inl
+/// @brief FileSystem cursor, file-handle, reader, writer, and lock operations.
+
 DirectoryCursor::DirectoryCursor() noexcept = default;
 
 DirectoryCursor::DirectoryCursor(DirectoryCursor &&other) noexcept = default;

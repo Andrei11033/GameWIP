@@ -1,5 +1,9 @@
 @page window_coordinates_and_dpi Coordinate spaces and DPI
 
+Window keeps logical layout coordinates separate from physical framebuffer
+pixels and reports the scale connecting them. Use the named types rather than
+assuming that one integer space can represent both.
+
 ## Coordinate types
 
 Window keeps incompatible spaces distinct:

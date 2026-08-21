@@ -4,9 +4,9 @@ GameWIP uses Google Benchmark for performance measurement. Google Benchmark owns
 
 Benchmarks are not correctness tests and do not define merge-gating performance thresholds.
 
-## Scope
-
-This page owns benchmark-runner integration, module structure, measurement rules, result interpretation, current scenarios, and retained output policy.
+This guide covers benchmark registration, runner integration, measurement
+rules, result interpretation, the current scenarios, and retained output. It
+also marks the boundary between a repeatable measurement and a correctness test.
 
 Correctness behavior must be covered through @ref project_testing before performance coverage is added. Startup ordering is documented in @ref project_game_executable.
 
@@ -31,6 +31,16 @@ List registered scenarios without measuring them:
 ```
 
 CI performs registration dry runs only. Machine-dependent timings are not merge gates. Direct executable invocation remains supported when diagnosing Google Benchmark itself, but the helper is the normal local workflow because it standardizes optimized builds, arguments, retained results, and run metadata.
+
+Print the complete option set for the pinned Google Benchmark executable without
+running a measurement:
+
+```powershell
+.\build\benchmark\GameWIPBenchmarks.exe --help
+```
+
+That generated help is authoritative for direct third-party runner flags. This
+page owns GameWIP's wrapper behavior and supported measurement workflow.
 
 ## Runner source API
 

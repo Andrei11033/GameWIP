@@ -1,5 +1,9 @@
 @page filesystem_metadata Metadata and predicates
 
+Use metadata operations when the caller needs facts about an existing entry;
+use predicates when a yes/no answer is enough. Both follow the selected symlink
+policy and report lookup failures explicitly.
+
 ## `EntryInfo`
 
 `getEntryInfo()` returns portable metadata for one existing entry:

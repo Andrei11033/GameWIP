@@ -125,6 +125,7 @@ For a repeated walk, build one caller-backed index rather than making a stateles
 ```cpp
 #include "unicode/unicode.h"
 
+#include <string>
 #include <string_view>
 #include <vector>
 

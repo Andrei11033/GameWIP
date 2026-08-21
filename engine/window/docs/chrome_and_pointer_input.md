@@ -1,5 +1,9 @@
 @page window_chrome_and_pointer_input Custom chrome and pointer input
 
+Custom chrome lets an application draw its own frame while preserving native
+resize, drag, menu, and caption-button behavior. Pointer policy then decides
+which parts of that custom surface accept input.
+
 ## Declarative custom chrome
 
 `DecorationMode::Custom` removes the visible system frame while retaining native hit-test roles for resizing, dragging, the system menu, and caption buttons. `setCustomChromeLayout()` copies `LogicalRect` values; caller spans may expire when the call returns.

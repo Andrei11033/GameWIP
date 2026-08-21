@@ -4,7 +4,7 @@ set(ASSERT_CHECKS_ENABLED "AUTO" CACHE STRING "Force recoverable checks on, off,
 set_property(CACHE ASSERT_CHECKS_ENABLED PROPERTY STRINGS AUTO ON OFF)
 option(ASSERT_DIAGNOSTICS "Embed assertion condition/file/function/message diagnostics" ON)
 option(ASSERT_UNREACHABLE_ASSUME "Use compiler unreachable assumptions instead of a trap when UNREACHABLE is compiled without assertions" OFF)
-option(ASSERT_ENABLE_COMMON_CONTROLS_MANIFEST "Propagate a Common Controls v6 manifest resource to Windows executables using Assert" ON)
+option(ASSERT_ENABLE_COMMON_CONTROLS_MANIFEST "Prepare the explicit Common Controls v6 resource helper for Assert consumers" ON)
 option(ASSERT_ENABLE_TEST_HOOKS "Enable Assert internal test hooks" OFF)
 
 include(GenerateExportHeader)

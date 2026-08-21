@@ -80,6 +80,9 @@ is useful for repeat runs and automation:
 | `setup.bat list` | List every supported setup action from the setup action catalog. |
 | `setup.bat help` | Print the command-line usage summary. |
 
+`setup.bat --help`, `setup.bat -h`, and `setup.bat -?` are aliases for the help
+action and make no environment changes.
+
 Named actions return a nonzero exit code when they fail. Add `-NonInteractive`
 to approve automatic installation and use the saved or default editor choice.
 Add `-SkipDocs` to `full`, `update`, or `repair` when documentation is not
@@ -128,6 +131,9 @@ for ordinary build, validation, benchmark, documentation, and stress workflows:
 .\gamewip.bat workflow -WorkflowAction list
 .\gamewip.bat workflow -WorkflowAction run -Workflow release-check -Preview
 ```
+
+The complete action, option, default, catalog, output, and failure reference is
+owned by @ref project_command_line_tools.
 
 `setup.bat` owns environment installation and repair. `gamewip.bat` owns
 repository-local project commands, streams native output live, helps assemble

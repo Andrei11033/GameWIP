@@ -1,5 +1,9 @@
 @page io_troubleshooting Troubleshooting
 
+Most IO failures describe either a violated reader/writer contract or a limit
+that protected the caller from incomplete or unbounded data. Match the status
+to the cases below before retrying the operation.
+
 ## A whole-stream read returns `SizeLimitExceeded`
 
 `maxBytes` is a hard accepted-size limit. It does not request truncation.

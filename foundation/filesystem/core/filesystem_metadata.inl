@@ -1,3 +1,6 @@
+/// @file filesystem_metadata.inl
+/// @brief FileSystem entry predicates and metadata queries.
+
 Types::BoolResult exists(const Types::Path &path, const Types::EntryOptions &options) noexcept
 {
     try

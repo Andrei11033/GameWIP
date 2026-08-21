@@ -1,6 +1,6 @@
 @page test_support_public_api Public API
 
-`test_support/test_support.h` remains the normal umbrella. Focused consumers may include:
+`test_support/test_support.h` is the normal umbrella. Focused consumers may include:
 
 ```text
 test_support/types.h
@@ -32,7 +32,7 @@ Reporting vocabulary lives under `Types::Reporting`:
 - `SuiteResult`: suite name, summary, and elapsed milliseconds.
 - `ManualAnswer`: `Yes`, `No`, or `Skipped`.
 
-`Context`, `Runner`, `Section`, `Timer`, and `promptManualCheck()` remain active helpers directly under `GameWIP::TestSupport`.
+`Context`, `Runner`, `Section`, `Timer`, and `promptManualCheck()` are active helpers directly under `GameWIP::TestSupport`.
 
 A failed expectation records a failure and returns `false`; it does not abort the suite. `Runner::runSuite()` converts an exception escaping the suite callable into one recorded failure and continues normal result aggregation.
 
@@ -57,9 +57,9 @@ Child-process vocabulary lives under `Types::Process`:
 - `Outcome`: `NotStarted`, `Exited`, `TimedOut`, `TerminatedDuringCleanup`, or `OutcomeUnavailable`;
 - `Result`: infrastructure status, exact exit code when available, outcome, `outputTruncated`, and retained raw `outputBytes`.
 
-`runChildProcess()` remains the active operation. Child stdout/stderr capture is arbitrary bytes, not UTF-8 text. External processes may emit malformed data and TestSupport must preserve that data unchanged within the configured retention limit.
+`runChildProcess()` is the active operation. Child stdout/stderr capture is arbitrary bytes, not UTF-8 text. External processes may emit malformed data and TestSupport must preserve that data unchanged within the configured retention limit.
 
-`ScopedEnvironmentVariable` and `ScopedUnsetEnvironmentVariable` also live in `test_support/process.h`. Their names and values are text at the platform boundary; existing #54 status/outcome semantics remain unchanged.
+`ScopedEnvironmentVariable` and `ScopedUnsetEnvironmentVariable` also live in `test_support/process.h`. Their names and values are text at the platform boundary and use the same explicit status/outcome semantics as the other process helpers.
 
 ## Stress helpers
 
@@ -73,18 +73,9 @@ The installed package resolves the exact matching Unicode package automatically.
 
 ## Compatibility
 
-This standardization is an intentional pre-1.0 source/API migration. There are no compatibility aliases for the old flat reporting/process names.
-
-Examples:
-
-```cpp
-TestSupport::Types::Reporting::Options
-TestSupport::Types::Reporting::Summary
-TestSupport::Types::Process::Options
-TestSupport::Types::Process::Result
-```
-
-replace the former `ReportOptions`, `Summary`, `ChildProcessOptions`, and `ChildProcessResult` forms.
+The installed package exposes the current nested reporting and process
+vocabulary under `TestSupport::Types::Reporting` and
+`TestSupport::Types::Process`. It provides no flat compatibility aliases.
 
 @ref test_support_reports
 @ref test_support_files_environment

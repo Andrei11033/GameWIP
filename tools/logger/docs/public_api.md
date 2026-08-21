@@ -13,9 +13,7 @@ Include `logger/logger.h` and link `GameWIP::Logger`. `logger/logger.h` remains 
 - `FlushResult`: IO `status` plus `Completed`/`TimedOut`.
 - `Report::Result`: IO `status`, `Completed`/`TimedOut`, and `None`/`Partial`/`Complete` delivery.
 - `Health::Snapshot`: coherent current health and compact last-failure metadata.
-- `Config`, `QueueLimits`, `Stats`, and `MemoryStats` retain their existing roles.
-
-`Types::Result`, `Types::PlatformError`, `FlushTimeout`, `ReportPopup`, `getLastResult()`, and `getLastPlatformError()` are removed.
+- `Config`, `QueueLimits`, `Stats`, and `MemoryStats`: configuration and runtime observation values.
 
 ## Lifecycle
 
@@ -27,11 +25,11 @@ Include `logger/logger.h` and link `GameWIP::Logger`. `logger/logger.h` remains 
 
 ## Runtime filters
 
-`setSourceFilter`, `resetSourceFilter`, `resetSourceFilters`, `setLevelFilter`, `resetLevelFilter`, and `resetLevelFilters` return `IO::Types::Status`. `shouldLog()` stays a lightweight boolean query.
+`setSourceFilter`, `resetSourceFilter`, `resetSourceFilters`, `setLevelFilter`, `resetLevelFilter`, and `resetLevelFilters` return `IO::Types::Status`. `shouldLog()` is a lightweight boolean query.
 
 ## Normal logging
 
-`log`, `trace`, `debug`, `info`, `warn`, `error`, and `fatal` remain filterable asynchronous queue-backed calls. Formatted overloads retain compile-time and explicit runtime-format forms. Accepted hot-path message text is valid UTF-8 by contract and is not rescanned unconditionally.
+`log`, `trace`, `debug`, `info`, `warn`, `error`, and `fatal` are filterable asynchronous queue-backed calls. Formatted overloads provide compile-time and explicit runtime-format forms. Accepted hot-path message text is valid UTF-8 by contract and is not rescanned unconditionally.
 
 ## Reports
 

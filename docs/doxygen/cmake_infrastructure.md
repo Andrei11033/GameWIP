@@ -2,11 +2,14 @@
 
 GameWIP CMake infrastructure is the maintainer-facing build layer used to compose first-party libraries, validation executables, documentation, reports, packages, and platform backends. It is documented for contributors who extend the project, not for players.
 
-This page explains which project CMake helpers are intended to be used, where they live, and when they should be changed. It does not document every local variable or implementation branch inside the CMake scripts.
+The sections below explain which shared helpers exist, what contract each one
+provides, and when a local CMake file should use or extend them. Private local
+variables and incidental implementation branches stay in the source instead of
+being repeated here.
 
 ## Scope
 
-Use this page when adding or changing:
+Consult this page when adding or changing:
 
 - A CMake preset or project option.
 - A reusable library target.
@@ -31,7 +34,9 @@ Use @ref project_build for normal configure and build commands. Use @ref project
 | `cmake/LibraryDoxygen.cmake` | Doxygen input registration and generated documentation target creation. |
 | `cmake/GameWIPDocumentation.cmake` | Project-level Doxygen page registration. |
 | `cmake/GameWIPValidationModules.cmake` | Validation and benchmark module registration helpers. |
-| `cmake/GameWIPRuntimeDependencies.cmake` | Runtime dependency copy hook for executable targets. |
+| `cmake/GameWIPRuntimeDependencies.cmake` | Runtime dependency staging and validation registration for executable targets. |
+| `cmake/copy_runtime_dependencies.cmake` | Clean-shadow runtime dependency discovery and app-local DLL staging. |
+| `cmake/ValidateRuntimeDependencies.cmake` | Windows/MSYS2 regression contract for compiler-runtime replacement and executable launch. |
 | `cmake/GameWIPCoverage.cmake` | Coverage instrumentation and report target. |
 | `cmake/GameWIPStaticAnalysis.cmake` | clang-tidy and clang-format validation targets. |
 | `cmake/GameWIPSanitizers.cmake` | AddressSanitizer availability and flags. |
@@ -156,6 +161,20 @@ Platform backend behavior is governed by @ref project_platform_backend_contract.
 Use `gamewip_copy_runtime_dependencies(<target>)` for executable targets that must run directly from the build tree on the supported Windows/MSYS2 environment.
 
 The helper adds a post-build step that resolves runtime DLLs and copies them beside the target executable. It exists so validation executables and the game executable can run without requiring users to manually copy compiler runtime dependencies.
+
+On Windows, discovery scans a clean shadow copy so a stale compiler DLL already
+beside the executable cannot override the active toolchain runtime. Project DLLs
+remain available to the scan, compiler-owned DLLs are resolved from the active
+compiler directory, and the temporary shadow directory is removed afterward.
+Unresolved dependencies are warnings by default and become errors when the
+caller sets `GAMEWIP_FAIL_ON_UNRESOLVED_DEPENDENCIES`.
+
+Use `gamewip_add_runtime_dependencies_validation(<target>)` to register the
+`validation.cmake.runtime_dependencies` CTest contract for the supported
+Windows/MSYS2 GNU configuration. The test stages an intentionally stale
+`libstdc++-6.dll`, reruns dependency copying with strict unresolved-dependency
+handling, verifies that the active compiler runtime replaced it, and launches a
+focused runner module from the staged directory.
 
 ## Coverage, static analysis, and sanitizers
 

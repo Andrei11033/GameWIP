@@ -21,9 +21,9 @@ namespace GameWIP::Window::Types::Events
     /// @brief Origin of a close request.
     enum class CloseRequestSource
     {
-        User,
-        Programmatic,
-        System
+        User,         ///< User invoked a native close affordance.
+        Programmatic, ///< Window::requestClose() created the request.
+        System        ///< Operating system requested process or session shutdown.
     };
 
     /// @brief Signals that closing was requested without destroying the native Window.
@@ -140,8 +140,8 @@ namespace GameWIP::Window::Types::Events
     /// @brief Ownership model for a Window event queue's storage.
     enum class StorageKind
     {
-        Internal,
-        External
+        Internal, ///< Window allocated and owns the event slots.
+        External  ///< Window borrows caller-owned slots until close.
     };
 
     /// @brief Snapshot of event-queue storage and counters.
@@ -172,12 +172,16 @@ namespace GameWIP::Window::Types
         Events::Payload data;       ///< Tagged event payload.
 
         /// @brief Returns the mutable payload when it has the requested type.
+        /// @tparam PayloadType One alternative in Events::Payload.
+        /// @return Pointer to the stored payload, or nullptr when the type does not match.
         template <typename PayloadType> [[nodiscard]] PayloadType *getIf() noexcept
         {
             return std::get_if<PayloadType>(&data);
         }
 
         /// @brief Returns the immutable payload when it has the requested type.
+        /// @tparam PayloadType One alternative in Events::Payload.
+        /// @return Pointer to the stored payload, or nullptr when the type does not match.
         template <typename PayloadType> [[nodiscard]] const PayloadType *getIf() const noexcept
         {
             return std::get_if<PayloadType>(&data);
@@ -193,7 +197,10 @@ namespace GameWIP::Window::Events
     inline constexpr std::chrono::milliseconds kWaitForever{-1}; ///< Unbounded wait sentinel.
 
     /// @brief Pumps currently pending native events for the calling thread without waiting.
+    /// @return Pump status and the numbers of events queued and dropped by this call.
     [[nodiscard]] GAMEWIP_WINDOW_EXPORT Types::Events::PumpResult poll() noexcept;
     /// @brief Waits for native work, then pumps events for the calling thread.
+    /// @param timeout Zero to poll, a positive duration for a bounded wait, or kWaitForever.
+    /// @return Pump status, timeout state, and the numbers of events queued and dropped by this call.
     [[nodiscard]] GAMEWIP_WINDOW_EXPORT Types::Events::PumpResult wait(std::chrono::milliseconds timeout = kWaitForever) noexcept;
 } // namespace GameWIP::Window::Events

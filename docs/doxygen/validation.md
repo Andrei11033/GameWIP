@@ -4,9 +4,10 @@ GameWIP validation is modular. The same correctness-test and benchmark code can 
 
 Validation is development infrastructure and is not linked into release builds.
 
-## Scope
-
-This page owns correctness-runner composition, source API, command-line policy, module registration, child-process routing, report ownership, result semantics, and runner lifecycle.
+This page follows the correctness runner from module registration through
+selection, child-process routing, execution, reporting, and final exit status.
+It also documents the small source-tree interfaces shared by the standalone and
+embedded runners.
 
 Test authoring is documented in @ref project_testing. Benchmark measurement policy is documented in @ref project_benchmarking. Executable startup integration is documented in @ref project_game_executable.
 
@@ -36,7 +37,7 @@ These are source-tree integration interfaces. They are not installed package API
 | `exitCode` | `0` or `1` for normal aggregate runs; the owning module's exact code for a routed child invocation. |
 | `handledChildInvocation` | The caller must return immediately because the command line was classified as a child protocol, including an ambiguous child-route failure. |
 
-`ok()` is true only when `modulesFailed == 0` and `exitCode == 0`. An empty explicit module set therefore produces a successful empty result.
+`ok()` is true only when `modulesFailed == 0` and `exitCode == 0`. An invocation whose selection leaves zero modules is a runner failure with exit code `1`.
 
 ### `RunOptions`
 
@@ -92,6 +93,11 @@ Current correctness modules are `runner`, `io`, `unicode`, `filesystem`, `termin
 A module adapter should only translate shared policy into its library-specific test options and invoke the suite. Reusable test behavior belongs in the module's `_test.cpp` file or TestSupport, not in the adapter.
 
 ## Command-line interface
+
+The standalone executable recognizes an exact `--help`, `-h`, or `-?`
+invocation before entering the runner. It prints public options and the current
+registered-module list, exits successfully, creates no report, and invokes no
+module.
 
 The runner recognizes these project-level arguments:
 

@@ -4,26 +4,49 @@
 
 Window is usable without Input, Action, WindowManager, Renderer, UI, or the game executable. It creates no event thread and calls no user callback from a native window procedure.
 
+## How the library is organized
+
+A `Window` owns one native top-level window, its cached portable state, and a
+fixed-capacity event queue. The thread that opens it also mutates it, pumps its
+events, and consumes that queue. Native callbacks first update cached state and
+then publish typed events, allowing getters to remain current even if the queue
+overflows. Display APIs describe monitors and modes independently of a Window;
+opt-in headers expose renderer feedback and deliberate native interoperation.
+
 ## Consumer manual
 
-- @subpage window_quick_start
-- @subpage window_public_api
-- @subpage window_package_abi
-- @subpage window_coordinates_and_dpi
-- @subpage window_lifecycle_events
-- @subpage window_chrome_and_pointer_input
-- @subpage window_fullscreen_monitors
-- @subpage window_native_interop
-- @subpage window_renderer_integration
-- @subpage window_examples
-- @subpage window_troubleshooting
-- @subpage window_future_extensions
+- @subpage window_quick_start — Include, link, open, pump, inspect events, and
+  close a Window.
+- @subpage window_public_api — Find headers, namespaces, owners, passive types,
+  capability groups, and results.
+- @subpage window_package_abi — Understand why Window is shared and how its
+  package, exports, manifest, and runtime identity work.
+- @subpage window_coordinates_and_dpi — Relate logical client units, physical
+  pixels, desktop coordinates, framebuffers, scale, and DPI policy.
+- @subpage window_lifecycle_events — Understand thread ownership, dispatch,
+  queue overflow, close requests, waits, and native destruction.
+- @subpage window_chrome_and_pointer_input — Configure system/custom chrome,
+  drag regions, caption controls, cursor modes, and pointer capture.
+- @subpage window_fullscreen_monitors — Choose windowed, borderless, and
+  exclusive modes and handle monitor or topology changes.
+- @subpage window_native_interop — Access a native handle without taking
+  ownership or bypassing portable lifetime rules.
+- @subpage window_renderer_integration — Attach renderer feedback and consume
+  the packed pointer snapshot.
+- @subpage window_examples — See lifecycle, events, displays, fullscreen,
+  custom chrome, and renderer integration in context.
+- @subpage window_troubleshooting — Diagnose ownership, capabilities, queue
+  pressure, display transitions, native destruction, and renderer feedback.
+- @subpage window_future_extensions — Understand where proposed child surfaces,
+  accessibility, clipboard, drag/drop, dialogs, and related features belong.
 
 ## Maintainer validation
 
-- @subpage window_testing
-- @subpage window_test_hooks
-- @subpage window_manual_validation
+- @subpage window_testing — See automated, package, ABI, and platform coverage.
+- @subpage window_test_hooks — Understand source-tree-only fault and state
+  inspection seams.
+- @subpage window_manual_validation — Run and interpret the visual behaviors
+  that automation cannot prove.
 
 ## Generated API reference
 
@@ -39,7 +62,16 @@ The opening thread owns native mutation, queue consumption, and event pumping. `
 
 Destruction on another thread transfers complete state ownership to that dispatcher without allocation. Dispatcher or thread shutdown closes remaining native windows and restores exclusive-mode, cursor, class, and identity resources. Unexpected native destruction retains portable state and a typed `Types::Events::NativeDestroyed` payload until controlled owner-thread finalization. Explicit `close()` does not emit that payload.
 
-Public text is valid UTF-8. Window uses the foundational Unicode library for strict native-boundary conversion instead of maintaining a duplicate decoder. Embedded U+0000 remains invalid for native Window titles because the Win32 title APIs are NUL-terminated. Client-local values use logical units; desktop placement and monitor rectangles use physical virtual-screen coordinates; framebuffer and display-mode extents use physical pixels. Screen coordinates may be negative. A per-Window DPI resize policy controls whether a monitor transition preserves logical client size or physical client pixels.
+Public text is valid UTF-8. Window uses the foundational Unicode library for
+strict native-boundary conversion instead of maintaining another decoder.
+Embedded U+0000 is invalid in a native Window title because the Win32 title APIs
+are NUL-terminated.
+
+Client-local positions and sizes use logical units. Desktop placement and
+monitor rectangles use physical virtual-screen coordinates, where positions may
+be negative. Framebuffer and display-mode extents use physical pixels. Each
+Window chooses whether a DPI transition preserves its logical client size or
+its physical client pixels.
 
 ## Public header boundary
 
@@ -49,4 +81,14 @@ Installed consumers link `GameWIP::Window`. Window is intentionally built as a s
 
 ## Dependency boundary
 
-Window owns top-level native state, cached geometry, event translation, queried native display/color facts, and the persistent packed pointer mask published through `window/renderer_bridge.h`. Input state, action mapping, renderer surfaces, swapchains, renderer HDR metadata, tone mapping, GPU readback, UI layout, application loops, and multi-window coordination remain outside this library.
+Window is installed as the shared target `GameWIP::Window`. IO and FileSystem
+are public package dependencies because Window headers expose their contracts;
+Unicode is a private native-text conversion dependency.
+
+Window owns top-level native state, cached geometry, event translation, queried
+display/color facts, and the persistent packed pointer mask published through
+`window/renderer_bridge.h`.
+
+It does not own input state, action mapping, renderer surfaces or swapchains,
+renderer HDR metadata, tone mapping, GPU readback, UI layout, application loops,
+or coordination policy across several Windows.

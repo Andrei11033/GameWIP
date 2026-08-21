@@ -33,10 +33,10 @@ namespace GameWIP::Window::Types::Display
     /// @brief Current operating-system display-color classification.
     enum class ColorSpace
     {
-        Unknown,
-        Srgb,
-        WideColorGamut,
-        Hdr10Pq
+        Unknown,        ///< The operating system did not provide a recognized classification.
+        Srgb,           ///< Standard dynamic range in an sRGB-like space.
+        WideColorGamut, ///< Wide-gamut output without active HDR10 PQ classification.
+        Hdr10Pq         ///< HDR10-style perceptual-quantizer output is active.
     };
 
     /// @brief Current native color capabilities and state for one monitor.
@@ -79,13 +79,21 @@ namespace GameWIP::Window::Types::Display
 namespace GameWIP::Window::Display
 {
     /// @brief Enumerates snapshots for all currently known desktop monitors.
+    /// @return Query status and materialized monitor snapshots on success.
     [[nodiscard]] GAMEWIP_WINDOW_EXPORT Types::Display::MonitorsResult getMonitors() noexcept;
     /// @brief Returns a snapshot for the current primary monitor.
+    /// @return Query status and primary-monitor snapshot on success.
     [[nodiscard]] GAMEWIP_WINDOW_EXPORT Types::Display::InfoResult getPrimaryMonitor() noexcept;
     /// @brief Returns a snapshot for a currently known monitor identity.
+    /// @param monitor Monitor identity returned by the current Window runtime.
+    /// @return Query status and matching monitor snapshot on success.
     [[nodiscard]] GAMEWIP_WINDOW_EXPORT Types::Display::InfoResult getMonitor(Types::Display::MonitorId monitor) noexcept;
     /// @brief Returns current color information for a currently known monitor.
+    /// @param monitor Monitor identity returned by the current Window runtime.
+    /// @return Query status and current operating-system color facts on success.
     [[nodiscard]] GAMEWIP_WINDOW_EXPORT Types::Display::ColorInfoResult getColorInfo(Types::Display::MonitorId monitor) noexcept;
     /// @brief Returns current color information for an open Window's monitor.
+    /// @param window Open Window whose cached current monitor is queried.
+    /// @return Query status and current operating-system color facts on success.
     [[nodiscard]] GAMEWIP_WINDOW_EXPORT Types::Display::ColorInfoResult getColorInfo(const Window &window) noexcept;
 } // namespace GameWIP::Window::Display

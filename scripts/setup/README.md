@@ -1,9 +1,11 @@
 # Setup implementation
 
-The root `setup.bat` is the supported Windows 11 entry point. This directory
-owns its PowerShell orchestration, declarative requirements, editor assets, and
-maintainer documentation. Contributor usage belongs in the generated
-[environment setup manual](../../docs/doxygen/environment_setup.md).
+This directory implements the Windows setup experience behind the root
+`setup.bat` entry point. Contributors looking to install or repair their
+environment should use the generated
+[environment setup manual](../../docs/doxygen/environment_setup.md). The
+details below are for maintainers changing what setup installs or how it
+verifies the machine.
 
 ## Layout
 
@@ -25,7 +27,7 @@ maintainer documentation. Contributor usage belongs in the generated
 Per-checkout editor selection is stored in ignored `.gamewip-setup.json`.
 Noninteractive first use selects the configured default.
 
-## Operational contracts
+## Behavior that setup must preserve
 
 Machine-changing interactive actions require Automatic, Manual, or Cancel
 consent. Named actions preserve nonzero exit codes. The menu catches an action
@@ -84,7 +86,7 @@ WinGet applications recorded as newly installed by setup. It preserves software
 that existed beforehand, the checkout, user files, and an MSYS2 tree that may
 contain later user data.
 
-## Extension rules
+## Adding or changing setup behavior
 
 Prefer data over orchestration branches:
 

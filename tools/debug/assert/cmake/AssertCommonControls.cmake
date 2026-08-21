@@ -1,8 +1,7 @@
 # AssertCommonControls.cmake
 #
 # Library-local helper for explicit Common Controls v6 attachment in source-tree
-# builds. Normal build-tree and installed consumers receive the resource through
-# the Assert target; this function remains available for unusual target layouts.
+# builds. Linking the Assert target alone does not attach this resource.
 
 function(assert_enable_common_controls_v6 target_name)
     if(NOT WIN32)

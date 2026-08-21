@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [ValidateSet('menu', 'doctor', 'git', 'workflow', 'unicode', 'format', 'configure', 'build', 'test', 'module', 'wizard', 'stress', 'run', 'bundle', 'docs', 'analysis', 'analyze', 'coverage', 'asan', 'benchmark', 'list', 'help')]
+    [ValidateSet('menu', 'doctor', 'git', 'workflow', 'unicode', 'format', 'links', 'configure', 'build', 'test', 'module', 'wizard', 'stress', 'run', 'bundle', 'docs', 'analysis', 'analyze', 'coverage', 'asan', 'benchmark', 'list', 'help')]
     [string]$Action = 'menu',
     [string]$Preset,
     [string]$Module,
@@ -821,6 +821,23 @@ function Invoke-GameWipFormat
         Write-Host "    $relativePath"
     }
     Write-NextStepHint 'review formatting changes with: git diff --check && git diff'
+}
+
+function Invoke-GameWipMarkdownLinks
+{
+    $checker = Join-Path $RepositoryRoot '.github\scripts\check-markdown-links.py'
+    if (-not (Test-Path -LiteralPath $checker))
+    {
+        throw "Markdown-link checker is missing: $checker"
+    }
+
+    $python = Resolve-GameWipPython
+    Write-GameWipSection 'Markdown links'
+    Write-Host "  Python: $($python.Version) via $($python.Source)"
+    Invoke-GameWipNative `
+        -Name 'markdown-links' `
+        -FilePath $python.Path `
+        -Arguments @($checker, '--root', $RepositoryRoot)
 }
 
 function Invoke-GameWipUnicodeFormatter
@@ -2323,6 +2340,11 @@ function Invoke-Bundle
 
 function Show-ProjectCatalog
 {
+    Write-GameWipSection 'Project helper actions'
+    Write-Host '  menu, doctor, git, workflow, unicode, format, links'
+    Write-Host '  configure, build, test, wizard, module, stress, run, bundle'
+    Write-Host '  docs, analysis, analyze, coverage, asan, benchmark, list, help'
+
     Write-GameWipSection 'Configure presets'
     Get-VisiblePresetNames -Kind 'configure' | ForEach-Object { Write-Host "  $_" }
 
@@ -2991,41 +3013,45 @@ function Show-GameWipMenu
 function Show-Help
 {
     Write-Host 'Usage:'
-    Write-Host '  gamewip'
-    Write-Host '  gamewip doctor'
-    Write-Host '  gamewip git'
-    Write-Host '  gamewip git -GitAction status'
-    Write-Host '  gamewip git -GitAction switch -GitBranch <name>'
-    Write-Host '  gamewip workflow'
-    Write-Host '  gamewip workflow -WorkflowAction list'
-    Write-Host '  gamewip workflow -WorkflowAction run -Workflow release-check -Preview'
-    Write-Host '  gamewip workflow -WorkflowAction run -Workflow project-dry-run -WorkflowKind issue -WorkflowNumber <number>'
-    Write-Host '  gamewip workflow -WorkflowAction run -Workflow release-finalize-dry-run -ReleaseCommit <sha>'
-    Write-Host '  gamewip unicode'
-    Write-Host '  gamewip unicode -UnicodeAction status'
-    Write-Host '  gamewip unicode -UnicodeAction verify [-RefreshUnicodeData] [-PythonPath <path>] [-ClangFormatPath <path>] [-UnicodeDataRoot <path>]'
-    Write-Host '  gamewip unicode -UnicodeAction regenerate [-RefreshUnicodeData] [-PythonPath <path>] [-ClangFormatPath <path>]'
-    Write-Host '  gamewip format'
-    Write-Host '  gamewip format -FormatAction check'
-    Write-Host '  gamewip format -FormatAction apply'
-    Write-Host '  gamewip analyze    # alias for gamewip analysis'
-    Write-Host '  gamewip list'
-    Write-Host '  gamewip configure -Preset test'
-    Write-Host '  gamewip build -Preset test'
-    Write-Host '  gamewip test -Preset test'
-    Write-Host '  gamewip wizard'
-    Write-Host '  gamewip module -Module logger -BuildIfMissing'
-    Write-Host '  gamewip stress -Module logger -Count 100 -Parallel 16 -BuildIfMissing'
-    Write-Host '  gamewip run -ProjectCommand test-all -ExtraArgs @(''--test-module=logger'') -BuildIfMissing'
-    Write-Host '  gamewip bundle -Bundle quick'
-    Write-Host '  gamewip benchmark'
-    Write-Host '  gamewip benchmark -BenchmarkAction run -BenchmarkProfile stable -Filter BM_Unicode -Repetitions 10 -MinTime 1s'
-    Write-Host '  gamewip benchmark -BenchmarkAction dry-run'
-    Write-Host '  gamewip benchmark -BenchmarkAction list [-Filter BM_Logger]'
-    Write-Host '  gamewip benchmark -BenchmarkAction compare -Baseline <before.json> -Candidate <after.json> [-Output <comparison.json>]'
+    Write-Host '  .\gamewip.bat [action] [options]'
+    Write-Host '  .\gamewip.bat help | --help | -h | -?'
     Write-Host ''
-    Write-Host 'Known commands, modules, presets, and bundles are listed by:'
-    Write-Host '  gamewip list'
+    Write-Host 'Interactive and discovery actions:'
+    Write-Host '  menu                         Open the interactive project menu (default).'
+    Write-Host '  doctor                       Check repository metadata and required tools.'
+    Write-Host '  list                         List presets, modules, commands, bundles, and workflows.'
+    Write-Host '  help                         Print this reference.'
+    Write-Host ''
+    Write-Host 'Workspace and maintenance actions:'
+    Write-Host '  git [-GitAction <menu|status|fetch|switch|update|cleanup|create|push|log>] [-GitBranch <name>]'
+    Write-Host '  workflow [-WorkflowAction <menu|list|status|run>] [-Workflow <id>] [-WorkflowKind <all|issue|pull_request>]'
+    Write-Host '           [-WorkflowNumber <number>] [-ReleaseCommit <sha>] [-Preview]'
+    Write-Host '  unicode [-UnicodeAction <menu|status|verify|regenerate>] [-RefreshUnicodeData]'
+    Write-Host '          [-UnicodeDataRoot <path>] [-PythonPath <path>] [-ClangFormatPath <path>]'
+    Write-Host '  format [-FormatAction <check|apply>] [-ClangFormatPath <path>]'
+    Write-Host '  links [-PythonPath <path>]    Validate maintained local Markdown links.'
+    Write-Host ''
+    Write-Host 'Build and validation actions:'
+    Write-Host '  configure [-Preset <name>]    Configure a CMake preset (default: test).'
+    Write-Host '  build [-Preset <name>]        Configure if needed, then build (default: test).'
+    Write-Host '  test [-Preset <name>]         Configure/build if needed, then run CTest (default: test).'
+    Write-Host '  wizard                        Build an interactive GameWIPTests.exe command.'
+    Write-Host '  module [-Module <name>] [-ExtraArgs <args>] [-BuildIfMissing]'
+    Write-Host '  stress [-Module <name>] [-Count <1..100000>] [-Parallel <1..256>] [-ExtraArgs <args>] [-BuildIfMissing]'
+    Write-Host '  run [-ProjectCommand <id>] [-ExtraArgs <args>] [-BuildIfMissing]'
+    Write-Host '  bundle [-Bundle <id>]'
+    Write-Host ''
+    Write-Host 'Quality actions:'
+    Write-Host '  docs | analysis | analyze | coverage | asan'
+    Write-Host '  benchmark [-BenchmarkAction <run|dry-run|list|compare>] [-BenchmarkProfile <quick|standard|stable>]'
+    Write-Host '            [-Filter <regex>] [-Repetitions <count>] [-MinTime <time>] [-AggregatesOnly]'
+    Write-Host '            [-Output <path>] [-OutputFormat <json|csv>] [-NoBuild] [-ExtraArgs <args>]'
+    Write-Host '            [-Baseline <before.json>] [-Candidate <after.json>]'
+    Write-Host ''
+    Write-Host 'Global execution option:'
+    Write-Host '  -NoWorkspaceTemp              Preserve the caller TEMP and TMP values.'
+    Write-Host ''
+    Write-Host 'Use .\gamewip.bat list for valid IDs and the generated command-line tools manual for complete behavior.'
 }
 
 try
@@ -3039,6 +3065,7 @@ try
         'workflow' { Invoke-GameWipWorkflowAction -Name $WorkflowAction -WorkflowId $Workflow }
         'unicode' { Invoke-GameWipUnicodeAction -Name $UnicodeAction }
         'format' { Invoke-GameWipFormat -Mode $FormatAction }
+        'links' { Invoke-GameWipMarkdownLinks }
         'configure' {
             if ([string]::IsNullOrWhiteSpace($Preset)) { $Preset = $CommandConfig.DefaultConfigurePreset }
             Invoke-ConfigurePreset -Name $Preset

@@ -34,6 +34,40 @@ namespace
     {
         return argc == 2 && argv != nullptr && argv[1] != nullptr && std::string_view(argv[1]) == "--version";
     }
+
+    /// @brief Returns whether the process was invoked only to print command-line help.
+    bool requestsHelp(int argc, char **argv) noexcept
+    {
+        if (argc != 2 || argv == nullptr || argv[1] == nullptr)
+        {
+            return false;
+        }
+        const std::string_view argument(argv[1]);
+        return argument == "--help" || argument == "-h" || argument == "-?";
+    }
+
+    /// @brief Prints the supported GameWIP executable command line without starting runtime services.
+    void printHelp() noexcept
+    {
+        std::puts("Usage:");
+        std::puts("  GameWIP.exe");
+        std::puts("  GameWIP.exe --version");
+        std::puts("  GameWIP.exe --help | -h | -?");
+#if GAMEWIP_STARTUP_TESTS_ENABLED
+        std::puts("  GameWIP.exe --startup-tests [GameWIPTests options]");
+        std::puts("");
+        std::puts("This build includes opt-in startup correctness tests.");
+#else
+        std::puts("");
+        std::puts("This build does not include startup correctness tests.");
+#endif
+#if GAMEWIP_STARTUP_BENCHMARKS_ENABLED
+        std::puts("This build runs embedded benchmarks and accepts --benchmark_* and --v=<level> options.");
+#else
+        std::puts("This build does not include startup benchmarks.");
+#endif
+        std::puts("Use GameWIPTests.exe --help and GameWIPBenchmarks.exe --help for validation options.");
+    }
 } // namespace
 
 int main(int argc, char **argv)
@@ -48,6 +82,11 @@ int main(int argc, char **argv)
     if (requestsVersion(argc, argv))
     {
         std::puts(GameWIP::Version::productDisplay);
+        return EXIT_SUCCESS;
+    }
+    if (requestsHelp(argc, argv))
+    {
+        printHelp();
         return EXIT_SUCCESS;
     }
 

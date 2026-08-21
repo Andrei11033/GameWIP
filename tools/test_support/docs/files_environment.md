@@ -24,7 +24,7 @@ These helpers provide compact infrastructure contracts for validation fixtures. 
 
 ## Queries and cleanup
 
-`fileExists()`, `fileContains()`, `countFileOccurrences()`, `createDirectories()`, and `removeIfExists()` retain their #54 operational-status semantics. `fileContains()` and `countFileOccurrences()` operate on text returned by `readTextFile()`, so they never search malformed returned text.
+`fileExists()`, `fileContains()`, `countFileOccurrences()`, `createDirectories()`, and `removeIfExists()` report their operational status explicitly. `fileContains()` and `countFileOccurrences()` operate on text returned by `readTextFile()`, so they never search malformed returned text.
 
 - `fileExists()` returns successful false for absence, successful true for existence, and failed status for an inspection error.
 - `fileContains()` requires a successful strict-text read; an empty substring succeeds only when that read succeeds.

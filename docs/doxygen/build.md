@@ -2,11 +2,14 @@
 
 GameWIP uses CMake presets to keep development, testing, benchmarking, profiling, coverage, analysis, documentation, and release builds separate. Presets write build trees under `build/<preset>` and set the project composition options required by each workflow.
 
-## Scope
+This guide explains the project-level presets and options, what each build
+contains, where its artifacts go, how runtime dependencies are staged, and how
+build identity reaches the executables.
 
-This page documents project-level CMake presets, project options, runtime dependency copying, version display behavior, and common build failures.
-
-Library-local options remain documented in the owning library manual when they are consumer-facing. Validation command-line behavior is documented in @ref project_validation and @ref project_testing.
+Consumer-facing library options stay with the relevant library manual. For test
+selection and runner behavior, see @ref project_validation and @ref
+project_testing. For helper and executable syntax, see @ref
+project_command_line_tools.
 
 ## Requirements
 
@@ -188,6 +191,7 @@ When adding a preset or project option:
 
 ## Related pages
 
+- @ref project_command_line_tools
 - @ref project_validation
 - @ref project_testing
 - @ref project_benchmarking

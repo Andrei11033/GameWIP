@@ -1,5 +1,8 @@
 @page test_support_examples Examples
 
+These examples show the common building blocks in isolation: reports, guarded
+process state, child execution, manual observations, and concurrent stress.
+
 ## Reporting
 
 ```cpp

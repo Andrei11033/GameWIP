@@ -2,9 +2,9 @@
 
 Correctness tests answer whether behavior is correct. They must not contain benchmark loops, machine-dependent timing thresholds, or performance-regression policy.
 
-## Scope
-
-This page owns test-module structure, source interfaces, authoring rules, reports, artifacts, manual checks, and validation coverage expectations.
+This guide explains how correctness tests are divided into modules and suites,
+how they use shared source interfaces, what a useful test must prove, and how
+reports, artifacts, child scenarios, and manual checks fit together.
 
 Runner architecture and command-line ownership are documented in @ref project_validation. Performance measurements are documented in @ref project_benchmarking. Library-specific test coverage and approved hooks remain documented in each library manual.
 
@@ -19,8 +19,11 @@ ctest --preset test
 ```
 
 The same validation composition checks shared-library exports, public-header
-self-containment, generated version output, and clean installed-package
-consumption.
+self-containment, generated version output, runtime dependency staging, and
+clean installed-package consumption. On the supported Windows/MSYS2 GNU
+configuration, `validation.cmake.runtime_dependencies` proves that the active
+compiler runtime replaces a stale app-local DLL and that the staged executable
+launches.
 
 ## Commands
 
@@ -83,110 +86,14 @@ The complete runner argument contract is owned by @ref project_validation.
 
 ## Project command helper
 
-The root `gamewip.bat` launcher opens `scripts/GameWIP.ps1`, a project-scoped command menu for configure, build, test, formatting, Unicode data maintenance, benchmarks, documentation, static analysis, coverage, AddressSanitizer, validation command-building, and validation stress workflows.
+The root `gamewip.bat` helper provides interactive and noninteractive validation
+commands, a command builder, focused modules, and bounded parallel stress runs.
+Its complete syntax, defaults, catalog, retained-output behavior, failure model,
+and extension rules are owned by @ref project_command_line_tools.
 
-The interactive `Q` menu groups quality and maintenance actions. The `U` menu owns Unicode data status, verification, and regeneration. Non-interactive `format`, `analyze`, `asan`, `coverage`, `benchmark`, and `docs` actions expose the same project-owned workflows directly.
-
-The tool discovers CMake presets from `CMakePresets.json` and reads project command definitions from `scripts/config/gamewip-commands.psd1`. Add new project actions by updating that catalog instead of accepting arbitrary shell commands.
-
-Every command run prints the exact native command, streams output live, and stores evidence under `build/tool-runs/<timestamp>_<action>/`. Each run contains `logs/`, `artifacts/`, human and JSON summaries, and a manifest with commands, durations, exit codes, and retained output paths. Interactive selections use one-key input with Enter for defaults. Configure and build flows offer the next useful action, such as building after configure, running CTest after a test build, generating coverage after a coverage test run, or collecting optimized benchmark measurements after a benchmark build. Failures print the failed action and focused next steps instead of only returning a native exit code.
-
-Validation and stress actions default `TEMP` and `TMP` to `build/gamewip-temp` so local Windows temp-folder permissions cannot make FileSystem and Logger checks fail spuriously.
-
-The validation command builder helps assemble `GameWIPTests.exe` arguments from the supported runner flags, including `--test-module=<name>`, `--skip-test-module=<name>`, report behavior, verbose output, manual tests, and TestSupport child-process checks. Stress runs report launched, active, completed, and failed worker counts while they run.
-
-Common non-interactive usage:
-
-```powershell
-.\gamewip.bat doctor
-.\gamewip.bat unicode -UnicodeAction status
-.\gamewip.bat unicode -UnicodeAction verify
-.\gamewip.bat format -FormatAction check
-.\gamewip.bat format -FormatAction apply
-.\gamewip.bat analyze
-.\gamewip.bat asan
-.\gamewip.bat git
-.\gamewip.bat git -GitAction status
-.\gamewip.bat git -GitAction switch -GitBranch feature/example
-.\gamewip.bat workflow -WorkflowAction list
-.\gamewip.bat workflow -WorkflowAction run -Workflow validation -Preview
-.\gamewip.bat workflow -WorkflowAction status
-.\gamewip.bat list
-.\gamewip.bat build -Preset test
-.\gamewip.bat test -Preset test
-.\gamewip.bat wizard
-.\gamewip.bat module -Module terminal -BuildIfMissing
-.\gamewip.bat stress -Module logger -Count 100 -Parallel 16 -BuildIfMissing
-.\gamewip.bat run -ProjectCommand test-all -ExtraArgs @('--test-module=logger') -BuildIfMissing
-.\gamewip.bat bundle -Bundle quick
-.\gamewip.bat benchmark
-.\gamewip.bat benchmark -BenchmarkAction dry-run
-```
-
-`doctor` checks repository metadata and the exact UCRT64/CLANG64 tools used by project commands, including the Python and clang-format executables required by maintenance workflows. Build and test actions automatically configure a missing build tree. All normal presets explicitly use `C:\MSYS2\ucrt64\bin`; ASan uses `C:\MSYS2\clang64\bin`, so an unrelated CMake or compiler earlier on the user's global `PATH` cannot silently change the build.
-
-`gamewip.bat git` opens the guarded Git workspace menu. It shows concise status,
-fetches and prunes remote references, switches between local or fetched remote
-branches, creates branches, shows recent history, fast-forwards the current
-tracked branch, and pushes or publishes it with an upstream. Its cleanup flow
-offers safe deletion for ancestry-merged local branches. A branch whose upstream
-is gone after a squash merge is never assumed safe: force deletion requires a
-separate explicit confirmation, and the current/default/common integration
-branches are protected.
-
-`gamewip.bat workflow` opens a separate GitHub workflow menu backed by the
-declarative `ManualWorkflows` catalog. The helper supports validation, project
-reconciliation dry-run/write modes, release check/prepare/finalize modes, and
-Doxygen Pages deployment. It always dispatches from `master`, prints the exact
-`gh workflow run`, `gh run watch`, and verification commands, discovers the
-queued run, and can watch it through completion.
-
-Use `-Preview` to validate constructed commands without GitHub authentication
-or network access. Checks and dry runs use a yes/no confirmation. Writes,
-deployments, and finalization use an operation-specific typed phrase; manually
-dispatched project and release writes also wait for GitHub protected-environment
-approval. Finalization requires the complete 40-character master commit SHA.
-Arbitrary workflow names, refs, and input flags are intentionally unsupported.
-
-Running `gamewip.bat` without arguments opens the interactive menu. The helper is intentionally project-scoped: stress and project-command actions are selected from known GameWIP validation, benchmark, and executable checks instead of accepting arbitrary shell commands.
-
-Project commands, benchmark profiles, guarded workflows, and bundles live in `scripts/config/gamewip-commands.psd1`. Catalog validation rejects duplicate IDs, unknown presets or references, missing workflow files, stale correctness-module lists, invalid schemas, and bundle cycles before execution. Project commands may opt into `-ExtraArgs`; bundles may compose configure, build, build-target, CTest, project-command, benchmark, and nested-bundle steps. Adding an ordinary command or bundle therefore updates one catalog rather than separate menu, list, and execution tables.
-
-### Extending commands and bundles
-
-Add an executable-backed project command with:
-
-```powershell
-@{
-    Id = 'example-check'
-    Name = 'Run the example check'
-    BuildPreset = 'test'
-    Executable = 'build\test\ExampleCheck.exe'
-    Arguments = @('--concise')
-    UseWorkspaceTemp = $true
-    AcceptsExtraArgs = $true
-}
-```
-
-`AlternateExecutable` may name one supported secondary output path. Keep executable paths repository-relative and select an existing build preset. `AcceptsExtraArgs` must be intentional: when false, `gamewip run` rejects additional arguments rather than silently forwarding them.
-
-Add a bundle by composing supported steps:
-
-```powershell
-@{
-    Id = 'example'
-    Name = 'Example validation sequence'
-    Steps = @(
-        @{ Kind = 'Configure'; Preset = 'test' }
-        @{ Kind = 'Build'; Preset = 'test' }
-        @{ Kind = 'ProjectCommand'; Command = 'example-check'; BuildIfMissing = $true }
-        @{ Kind = 'Benchmark'; Profile = 'quick'; Filter = 'BM_Example' }
-        @{ Kind = 'Bundle'; Bundle = 'quick' }
-    )
-}
-```
-
-Supported step kinds are `Configure`, `Build`, `BuildTarget`, `CTest`, `ProjectCommand`, `Benchmark`, and `Bundle`. The catalog drives `gamewip list`, interactive command and bundle choices, and execution; no separate menu edit is required for an ordinary command or bundle.
+Use `GameWIPTests.exe --help` to print current public runner options and module
+names without executing validation. The complete runner argument contract
+remains owned by @ref project_validation.
 
 ## Test-module source API
 

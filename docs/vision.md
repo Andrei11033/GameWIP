@@ -1,63 +1,88 @@
 @page project_vision Vision
 
-GameWIP is a realistic sandbox building game focused on player-made vehicles, weapons, missiles, buildings, and technical systems.
+GameWIP is a sandbox about designing things that work. Players build vehicles,
+weapons, missiles, structures, and control systems, then see how those creations
+behave under motion, load, and damage.
 
-The goal is to combine fast, approachable construction with optional engineering depth. A new player should be able to build something quickly. An advanced player should be able to tune important systems in more detail.
+The project aims for an unusual balance: construction should be approachable on
+the first attempt, while the systems underneath it should reward players who
+want to understand and tune them. A useful creation should not require an
+engineering course. A carefully engineered creation should still perform
+better for understandable reasons.
 
-## Core identity
+## What the game should feel like
 
-GameWIP is built around five ideas:
+Building starts quickly. Components are useful with sensible defaults, common
+operations take few steps, and the game communicates why something does or does
+not work. More detailed controls appear when they are useful rather than being
+required up front.
 
-- **Simple base building.** Building should feel approachable and fast, similar in spirit to Stormworks and Starbase.
-- **Optional engineering depth.** Advanced configuration should exist for important systems, but it should not be required for basic building.
-- **Destructible structures and worlds.** Vehicles, buildings, and world structures should be damageable in meaningful ways.
-- **Granular damage and component behavior.** Destruction should affect both shape and function. Parts should be able to degrade, detach, fail, expose internal systems, or change connected behavior.
-- **High-rate control where it matters.** Stabilizers, missiles, servos, guidance, sensors, and weapons may need higher-frequency logic than ordinary gameplay systems.
+Creations are physical systems, not static collections of blocks. Structure,
+mass, connectivity, power, control, and damage should influence one another.
+When a part is hit, the result may be deformation, lost strength, detachment, an
+exposed internal system, or a functional failure—not merely a missing visual
+piece.
 
-## Design goals
+Realism serves this feedback loop. It is valuable when it creates a decision a
+player can understand, test, and improve. When it only creates repetitive setup
+or hidden failure, usability takes priority.
 
-- Building must be easy to start with.
-- Complexity must be optional, not forced.
-- Realism matters when it creates understandable engineering choices.
-- Usability matters more when realism only adds friction.
-- Damage must affect both structure and function.
-- Components should be fast to place, useful by default, and rich to configure when needed.
-- Vehicles and buildings should share the same structural foundation where practical.
-- The simulation should support believable physics, destruction, and control systems.
+## The experience GameWIP is building toward
 
-## Game focus
+- Build vehicles and structures from a shared structural foundation.
+- Add mechanical, electrical, sensing, control, and weapon systems.
+- Test a creation, inspect what happened, and revise the design.
+- Use simple defaults for ordinary builds and deeper configuration for advanced
+  systems such as stabilizers, servos, guidance, sensors, and missiles.
+- Damage creations in ways that change both their shape and their behavior.
+- Learn through clear feedback, debug views, and observable system state.
 
-GameWIP focuses on:
+GameWIP should reward engineering thought without becoming professional CAD
+software. The point is an expressive sandbox, not paperwork disguised as
+simulation.
 
-- Player-made creations.
-- Military and technical vehicles.
-- Programmable and controllable systems.
-- Weapons, missiles, turrets, sensors, and guidance systems.
-- Realistic engineering decisions without making the game frustrating to build in.
+## Principles that guide development
 
-The game should reward engineering thinking while remaining a sandbox game, not a professional CAD tool.
+### Make the simple case work first
 
-## Development principles
+Every major system needs a small, useful version before it gains advanced
+configuration. Depth should grow from a working foundation rather than delay
+it.
 
-1. **Simulation first, visuals second.** Early rendering should support development, debugging, and validation before presentation polish.
-2. **Simple first, deep later.** Every major system should have a simple usable version before advanced configuration is added.
-3. **Shared structural backbone.** Vehicles, buildings, and destructible structures should use the same core structural model where possible.
-4. **Damage should matter.** Destruction should affect strength, mass, connectivity, components, and behavior, not only remove visible blocks.
-5. **High-frequency simulation is selective.** Reserve high-frequency logic for systems that need it, such as control loops, guidance, stabilization, sensors, and weapons.
-6. **Debuggability is part of the foundation.** Early rendering, overlays, logs, assertions, tests, and benchmarks exist to make systems observable.
+### Keep simulation independent from presentation
 
-## How to extend this page
+Rendering makes the simulation visible; it does not define the simulation.
+Timing, physics, damage, and control behavior must remain testable and stable
+without depending on render frame rate.
 
-When updating the vision:
+### Share foundations where the concepts are shared
 
-- Keep it high-level.
-- Avoid implementation details unless they affect the identity of the game.
-- Move technical decisions to @ref project_decisions.
-- Move milestone criteria to @ref project_roadmap.
-- Move active tasks to GitHub issues.
+Vehicles, buildings, and other destructible creations should use the same
+structural model where practical. A common foundation makes interactions more
+consistent and avoids parallel systems that disagree about the world.
 
-## Related pages
+### Spend update time where it changes the result
 
-- @ref project_roadmap
-- @ref project_decisions
-- @ref project_planning
+Guidance, stabilization, sensors, and other control loops may need higher-rate
+updates. Ordinary gameplay systems should not inherit that cost automatically.
+
+### Make systems observable
+
+Logs, assertions, tests, benchmarks, overlays, and early debug rendering are
+part of the engine foundation. A complex simulation can only be improved when
+developers and players can see why it behaved as it did.
+
+## Where the details live
+
+This page describes the intended experience and the principles behind it. It
+does not track tasks or freeze implementation details.
+
+- @ref project_roadmap defines what each milestone must deliver.
+- @ref project_decisions records durable project-wide technical and workflow
+  choices.
+- @ref project_planning collects planning and contribution references.
+- GitHub issues track active implementation, bugs, and follow-up work.
+
+When the direction changes, update this page in terms of the experience being
+built. Put technical consequences in the decisions page and concrete work in
+the roadmap or an issue.

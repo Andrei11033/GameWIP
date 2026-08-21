@@ -1,5 +1,9 @@
 @page window_lifecycle_events Lifecycle and events
 
+A Window lifetime begins with a checked `open()`, stays bound to its opening
+thread, and ends with observable cleanup. Events report changes during that
+lifetime without transferring ownership or invoking application callbacks.
+
 ## Open lifetime
 
 A default-constructed `Window` is closed and inert. `open()` validates the complete request and event storage before committing a successful native lifetime. The opening thread becomes the owner thread and a successful lifetime receives a process-local `Types::WindowId`.

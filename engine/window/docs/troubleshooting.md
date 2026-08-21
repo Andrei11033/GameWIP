@@ -1,5 +1,9 @@
 @page window_troubleshooting Troubleshooting
 
+Most Window failures identify a lifecycle, owner-thread, capability, or native
+state boundary. Start with the returned status and `lifetimeState()`, then use
+the matching case below.
+
 ## `InvalidArgument` during open
 
 Check for a zero client dimension, invalid UTF-8 or embedded NUL in the title, inverted size limits, a zero aspect-ratio component, opacity outside `[0, 1]`, an unknown enum value, an exclusive display mode attached to a non-exclusive request, an unknown owner/monitor, or region pointer modes without a runtime layout. External event storage must be non-empty.

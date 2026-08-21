@@ -4,16 +4,30 @@
 
 It provides strict UTF-8 and UTF-16 scalar operations, validation and conversion, UTF-8 code-point traversal, Unicode 17.0.0 default extended grapheme-cluster traversal, and caller-backed indexed grapheme traversal for repeated movement. GameWIP uses UTF-8 as its canonical public text representation; UTF-16 exists as an explicit bridge for boundaries that require it.
 
+## How the library is organized
+
+Unicode separates encoding from text boundaries. `Utf8` and `Utf16` validate,
+decode, encode, and convert Unicode scalar values. The grapheme APIs operate on
+already valid UTF-8 when code points must be grouped into user-perceived text
+elements. Result values report both the outcome and completed progress, so a
+caller can distinguish malformed input from a valid truncated prefix without
+guessing how much data was consumed.
+
 ## Consumer manual
 
-- @subpage unicode_quick_start
-- @subpage unicode_public_api
-- @subpage unicode_examples
-- @subpage unicode_troubleshooting
+- @subpage unicode_quick_start — Include, link, validate, convert, and traverse
+  text in a minimal program.
+- @subpage unicode_public_api — Find each type and operation by capability and
+  understand the shared result model.
+- @subpage unicode_examples — See validation, conversion, scalar iteration, and
+  grapheme traversal in context.
+- @subpage unicode_troubleshooting — Diagnose malformed input, insufficient
+  output space, overlap, and grapheme-boundary surprises.
 
 ## Maintainer validation
 
-- @subpage unicode_testing
+- @subpage unicode_testing — Understand conformance data, automated coverage,
+  generator verification, and performance checks.
 
 ## Generated API reference
 

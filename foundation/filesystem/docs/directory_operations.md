@@ -1,5 +1,10 @@
 @page filesystem_directory_operations Directories, copy, move, and removal
 
+Directory operations range from creating one path component to moving or
+removing a complete tree. The sections below call out where an operation
+follows links, preserves partial progress, or can commit before reporting a
+later cleanup failure.
+
 ## Directory creation
 
 `createDirectory()` creates one level. `createDirectories()` creates missing parents.

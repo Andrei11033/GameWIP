@@ -1,5 +1,9 @@
 @page assert_troubleshooting Troubleshooting
 
+Assert behavior is determined by the chosen macro family, build-time options,
+and whether an interactive handler is available. Use the symptom below to find
+which part of that contract is active.
+
 ## The expression is not evaluated
 
 The macro family is probably disabled. `ASSERT`, `CHECK`, `CHECK_ONCE`, and `ASSERT_INTERACTIVE` may skip the condition. Use `VERIFY`, `VERIFY_INTERACTIVE`, or `ENSURE` if the expression must always run.

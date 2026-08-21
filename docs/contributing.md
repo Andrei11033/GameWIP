@@ -1,10 +1,28 @@
 @page project_contributing Contributor workflow
 
-This page defines the GitHub workflow used for GameWIP issues, branches, pull requests, validation notes, automation, and merge messages.
+This is the day-to-day path for contributing a change: choose or create an
+issue, work on a focused branch, show what you validated, and merge through a
+reviewed pull request. The surrounding automation exists to keep that path
+predictable, not to replace human judgment.
 
-Use this page for day-to-day repository process. Use @ref project_extending for add/change checklists, @ref project_decisions for stable project decisions, and @ref project_versioning for version policy.
+For implementation checklists, use @ref project_extending. Durable technical
+choices belong in @ref project_decisions, and release-number rules belong in
+@ref project_versioning.
 
-## Default branch
+## The contribution path
+
+Most changes follow this sequence:
+
+1. Find or open an issue that explains the outcome.
+2. Assign it when work begins and create a short-lived branch.
+3. Make the focused change and run the checks appropriate to it.
+4. Open a pull request that explains the result and records concrete evidence.
+5. Resolve review comments and required checks.
+6. Squash-merge the finished work, then remove the branch.
+
+The sections below define each step and the exceptions.
+
+## Protect the default branch
 
 The default branch is:
 
@@ -14,7 +32,7 @@ master
 
 Keep `master` readable and releasable. Normal feature work should happen on a short-lived branch and merge through a pull request.
 
-## Issues
+## Describe the work with an issue
 
 Create an issue for work that is not a tiny local cleanup.
 
@@ -50,7 +68,7 @@ Assign an issue when work starts. Project automation then moves it to `In Progre
 
 Use GitHub's **Blocked by** relationship for real dependencies. Do not use the Blocked status as a general priority or waiting label.
 
-## Branches
+## Keep the branch focused
 
 Branch names should describe the work without encoding implementation history.
 
@@ -86,7 +104,7 @@ assets into the project merely because they are publicly visible. Contributors
 retain copyright in their work; contribution does not transfer ownership of
 the official repository, project settings, releases, or branding.
 
-## Pull requests
+## Explain the result in a pull request
 
 Open a pull request before merging into `master`. `CODEOWNERS` routes review to
 the maintainer, while required checks and resolved conversations enforce the
@@ -125,7 +143,7 @@ Draft pull requests may be incomplete while work is still moving.
 
 Dependabot pull requests are exempt from the human metadata check, but they still run the normal validation workflow.
 
-## Validation notes
+## Record what the change actually proved
 
 Validation notes should be concrete enough that a future maintainer understands what was actually proven.
 
@@ -148,7 +166,7 @@ Weak examples:
 
 If validation is not run, say so directly and explain why.
 
-## Automated validation
+## Understand the automated checks
 
 The `Validation` workflow runs on pull requests into `master`, pushes to `master`, and manual dispatch.
 
@@ -195,7 +213,7 @@ Use a closing keyword such as `Closes #6` in the pull request body. The project 
 
 Issue status is derived from closure, **Blocked by** relationships, linked pull requests, assignees, active milestone, and required labels. The complete rule order, repository variables, token requirement, and dry-run command are documented in @ref project_repository_automation.
 
-## Merge style
+## Finish with a readable merge
 
 Prefer `Squash and merge` for feature branches so `master` keeps one clean changelog-style commit per completed piece of work.
 

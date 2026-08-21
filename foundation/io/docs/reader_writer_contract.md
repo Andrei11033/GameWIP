@@ -1,6 +1,9 @@
 @page io_reader_writer_contract Reader and writer contract
 
-`Reader` and `Writer` are extension interfaces for resource-owning libraries. This page owns the transfer, capability, lifetime, exception, and concurrency rules that implementations and generic callers must preserve.
+`Reader` and `Writer` let resource-owning libraries participate in the same
+generic byte-transfer algorithms. The rules below define what one read or write
+means, how partial progress is reported, which capabilities are optional, and
+what both implementations and generic callers must preserve.
 
 ## Interface model
 

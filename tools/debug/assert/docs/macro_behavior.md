@@ -1,6 +1,8 @@
 @page assert_macro_behavior Macro behavior
 
-Use this page when an Assert expression or message could have side effects.
+Read this matrix whenever an Assert expression or message can change state. It
+shows exactly what is evaluated, how often it is evaluated, and what remains in
+a build where the corresponding family is disabled.
 
 ## Evaluation matrix
 

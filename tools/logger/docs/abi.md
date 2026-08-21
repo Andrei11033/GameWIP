@@ -17,7 +17,9 @@ The package installs `logger/types.h`, `logger/config.h`, `logger/logger.h`, `lo
 
 Public templates in `logger.h` call exported `GameWIP::Logger::Detail::Core` bridges. Those symbols support the public inline/template API but are not source-level consumer APIs.
 
-This standardization pass is an intentional pre-1.0 API/ABI break: initialization, report, and health vocabulary is organized under `Types::Init`, `Types::Report`, and `Types::Health`; runtime filter reset operations use `reset*Filter`; and no compatibility aliases are installed.
+Initialization, report, and health vocabulary is organized under `Types::Init`,
+`Types::Report`, and `Types::Health`. Runtime filter reset operations use the
+`reset*Filter` names. The installed package exposes only the current API.
 
 ## Compatibility expectations
 

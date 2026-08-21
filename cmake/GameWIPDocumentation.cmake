@@ -22,6 +22,7 @@ if(GAMEWIP_BUILD_DOCS)
         "${GAMEWIP_DOXYGEN_ROOT}/project_quality_workflows.md"
         "${GAMEWIP_DOXYGEN_ROOT}/project_planning.md"
         "${GAMEWIP_DOXYGEN_ROOT}/project_structure.md"
+        "${GAMEWIP_DOXYGEN_ROOT}/command_line_tools.md"
         "${GAMEWIP_DOXYGEN_ROOT}/game_executable.md"
         "${GAMEWIP_DOXYGEN_ROOT}/build.md"
         "${GAMEWIP_DOXYGEN_ROOT}/library_compatibility.md"
