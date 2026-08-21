@@ -6,10 +6,11 @@ $ErrorActionPreference = 'Stop'
 
 $repositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $helperPath = Join-Path $repositoryRoot 'scripts\GameWIP.ps1'
+$powerShellPath = (Get-Process -Id $PID).Path
 
 . $helperPath -Action help *> $null
 
-$helpOutput = (& powershell.exe -NoProfile -ExecutionPolicy Bypass -File $helperPath -Action help 2>&1 | Out-String)
+$helpOutput = (& $powerShellPath -NoProfile -ExecutionPolicy Bypass -File $helperPath -Action help 2>&1 | Out-String)
 foreach ($requiredHelpText in @('.\gamewip.bat [action] [options]', 'links', 'coverage', '-NoWorkspaceTemp', '-WorkflowKind'))
 {
     if ($helpOutput -notmatch [regex]::Escape($requiredHelpText)) { throw "Project helper help omits '$requiredHelpText'." }

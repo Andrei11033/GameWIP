@@ -6,6 +6,7 @@ $ErrorActionPreference = 'Stop'
 
 $repositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $setupScript = Join-Path $repositoryRoot 'scripts\setup\windows.ps1'
+$powerShellPath = (Get-Process -Id $PID).Path
 $actionConfig = Import-PowerShellDataFile (Join-Path $repositoryRoot 'scripts\setup\config\actions.psd1')
 $actions = @($actionConfig.Actions)
 
@@ -21,7 +22,7 @@ foreach ($requiredAction in @('menu', 'full', 'check', 'update', 'repair', 'unin
     if (@($actions | ForEach-Object { $_.Id }) -notcontains $requiredAction) { throw "Missing setup action '$requiredAction'." }
 }
 
-$output = @(& powershell.exe -NoProfile -ExecutionPolicy Bypass -File $setupScript list 2>&1)
+$output = @(& $powerShellPath -NoProfile -ExecutionPolicy Bypass -File $setupScript list 2>&1)
 if ($LASTEXITCODE -ne 0) { throw "setup list failed: $($output -join [Environment]::NewLine)" }
 foreach ($action in $actions)
 {
