@@ -1,27 +1,36 @@
 @page test_support_quick_start Quick start
 
+This path creates a runner, records expectations in a suite, and emits the
+result. It is the smallest complete validation program built on TestSupport.
+
 ## Include
+
+The normal umbrella is:
 
 ```cpp
 #include "test_support/test_support.h"
 ```
 
+Focused entry headers are `test_support/types.h`, `reporting.h`, `files.h`,
+`process.h`, and `stress.h`.
+
 ## Installed CMake
 
-Set `GAMEWIP_REQUIRED_VERSION` from the consuming project's dependency lock; see @ref project_library_compatibility.
+Set `GAMEWIP_REQUIRED_VERSION` from the consuming project's dependency lock;
+see @ref project_library_compatibility.
 
 ```cmake
 find_package(TestSupport ${GAMEWIP_REQUIRED_VERSION} EXACT CONFIG REQUIRED)
 target_link_libraries(MyTests PRIVATE GameWIP::TestSupport)
 ```
 
+The package resolves its exact matching Unicode implementation dependency.
+
 ## Source-tree CMake
 
 ```cmake
 target_link_libraries(MyTests PRIVATE TestSupport)
 ```
-
-TestSupport has no dependency on another project library.
 
 ## Minimal usage
 
@@ -32,56 +41,43 @@ int main()
 {
     namespace TS = GameWIP::TestSupport;
 
-    TS::Types::ReportOptions options;
+    TS::Types::Reporting::Options options;
     options.reportPath = "logs/tests/latest_test_report.txt";
 
     TS::Runner runner(options);
     runner.runSuite(
         "Math",
-        [](TS::Context& context)
+        [](TS::Context &context)
         {
             static_cast<void>(context.expectEq("one plus one", 2, 1 + 1));
-            static_cast<void>(
-                context.expectNear("one half", 0.5, 1.0 / 2.0, 0.0001));
         });
 
     return runner.exitCode();
 }
 ```
 
-A failed expectation records a failure and returns `false`; it does not stop the suite. Use the returned value when later work depends on the check:
-
-```cpp
-#include "test_support/test_support.h"
-
-void validateFixture(
-    GameWIP::TestSupport::Context& context,
-    bool fixtureLoaded)
-{
-    if (!context.expectTrue("fixture loaded", fixtureLoaded))
-    {
-        return;
-    }
-
-    context.info("fixture-dependent checks can now run");
-}
-```
+An expectation records one result and returns a boolean; it does not abort the
+suite. `Runner` converts an exception escaping a suite callback into a failed
+check and keeps later suites runnable.
 
 ## Failure handling
 
-- `Runner::runSuite()` catches exceptions thrown by the suite callable and records one failed check named `uncaught exception`.
-- Reporting and report-file operations do not determine the test result. A report-file open, write, or flush failure disables that sink and emits at most one stderr diagnostic.
-- File, environment, guard-construction, and child-process helpers convert expected implementation failures into `Types::InfrastructureStatus`.
-- `runChildProcess()` reports infrastructure through `status` and child behavior through `outcome`. Interpret `exitCode` only for `ChildProcessOutcome::Exited`; nonzero exit and enforced timeout are not infrastructure failures.
-- Caller-side construction of allocating strings, paths, vectors, and options remains governed by their standard-library types.
-- `runner.exitCode()` reflects recorded failures only. A skipped-only or empty run returns zero.
+TestSupport separates infrastructure status from domain outcomes. Inspect a
+returned `status` before reading its text, boolean, count, path, or child-process
+payload. A successfully launched child may still exit nonzero or time out; that
+domain outcome is not an infrastructure launch failure.
+
+Text-file helpers accept and return strict UTF-8. Child `outputBytes` remains
+arbitrary captured data unless the child protocol independently guarantees an
+encoding. Filesystem, current-directory, and environment guards restore state
+on a best-effort basis and require caller coordination around process-global
+state.
 
 ## Where to go next
 
-- @ref test_support_public_api maps every public type and operation family.
-- @ref test_support_expectations explains runners, contexts, expectations, and sections.
-- @ref test_support_reports explains console and report-file behavior.
-- @ref test_support_files_environment explains fixture helpers and process-global guards.
-- @ref test_support_child_processes explains launch, capture, timeout, and result interpretation.
-- @ref test_support_timing_stress explains timers and worker coordination.
-- @ref test_support_examples provides complete integration examples.
+- @ref test_support_public_api inventories the public surface and result model.
+- @ref test_support_expectations explains contexts, runners, and expectations.
+- @ref test_support_files_environment defines strict text and process-global guards.
+- @ref test_support_child_processes defines launch, capture, timeout, and cleanup.
+- @ref test_support_examples provides focused fixtures, manual checks, and stress examples.
+- @ref test_support_troubleshooting maps common failures to their owning contract.

@@ -8,11 +8,11 @@
 | --- | --- |
 | `code` | Portable category used for program decisions. |
 | `nativeCode` | Backend-native error value when one exists, otherwise zero. |
-| `message` | Optional developer-facing diagnostic text. It is not stable for parsing. |
+| `message` | Optional developer-facing UTF-8 diagnostic text. It is not stable for parsing. |
 
 `Status::ok()` returns true only when `code == ErrorCode::Success`.
 
-A successful status should normally use `nativeCode == 0` and an empty message. Backends may attach diagnostic detail to failures when the additional allocation and text are useful.
+A successful status should normally use `nativeCode == 0` and an empty message. Backends may attach diagnostic detail to failures when the additional allocation and text are useful. A non-empty message supplied by a caller must already be valid UTF-8; `makeStatus()` does not rescan trusted diagnostic text.
 
 ## Error-code categories
 
@@ -68,7 +68,7 @@ Use `DirectoryNotEmpty` when removal fails specifically because a directory stil
 
 | Code | Use when |
 | --- | --- |
-| `EncodingFailed` | Text encoding or conversion failed. IO text helpers themselves do not validate UTF-8. |
+| `EncodingFailed` | Strict text validation or encoding conversion failed, including malformed or incomplete UTF-8 observed by IO text helpers. |
 | `NativeFailure` | A backend-native failure has no useful portable category. |
 | `Unknown` | The failure category cannot be determined. Prefer a more specific code whenever possible. |
 
@@ -90,8 +90,11 @@ Transfer count and status are independent:
 
 - A reader or writer may report nonzero progress with a failure status.
 - Whole-stream helpers preserve valid progress produced by the final failing call.
+- `ReadAllTextResult::text` always contains valid UTF-8; malformed or incomplete suffix bytes are removed before return.
 - Callers decide whether partial output is useful, retryable, or must be discarded.
 - A backend must never report a byte count larger than the supplied span.
+
+For text reads, definitively malformed bytes produce `EncodingFailed` even when the same read also reports a backend failure. An incomplete suffix produces `EncodingFailed` only when IO has reached a definitive end of input; if a separate backend/limit failure stopped the stream first, IO preserves that failure after trimming the incomplete suffix.
 
 A successful short write is not itself a failure. `writeAllBytes()` retries it. A successful zero-byte write while input remains is invalid progress and becomes `WriteFailed`.
 
@@ -107,7 +110,7 @@ For known-size reads, early end-of-stream becomes `PartialRead`. For unknown-siz
 
 ## Status helpers and allocation
 
-`makeStatus()` accepts a portable code, optional native code, and optional owning message. The function is `noexcept`; however, construction of the message argument happens before function entry and may allocate.
+`makeStatus()` accepts a portable code, optional native code, and optional owning UTF-8 message. The function is `noexcept`; however, construction of the message argument happens before function entry and may allocate. Callers that supply a non-empty message are responsible for providing valid UTF-8.
 
 `successStatus()` creates a default successful status. Code-only statuses avoid diagnostic-string allocation.
 

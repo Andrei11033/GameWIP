@@ -22,6 +22,7 @@
 
 #include "io/io.h"
 #include "terminal/terminal_export.h"
+#include "terminal/style.h"
 
 /// @brief Platform-neutral UTF-8 standard-stream I/O, styling, and terminal control primitives.
 /// @details The shared library owns process-wide stdin/stdout/stderr coordination. Checked Terminal operations translate
@@ -29,60 +30,47 @@
 /// construction that occurs before Terminal receives control remains outside that boundary.
 namespace GameWIP::Terminal
 {
-    namespace Types
+    namespace Types::Output
     {
-        enum class BasicColor;
-        struct Color;
-        struct TextStyle;
-        struct WriteSegment;
-    } // namespace Types
-
-    /// @brief Creates a basic terminal color.
-    /// @param color Portable basic color to request.
-    /// @return The requested color, or the terminal default color when color is not a known BasicColor value.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::Color basicColor(Types::BasicColor color) noexcept;
-
-    /// @brief Creates an RGB terminal color.
-    /// @param red Red channel in the range [0, 255].
-    /// @param green Green channel in the range [0, 255].
-    /// @param blue Blue channel in the range [0, 255].
-    /// @return The requested RGB color.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::Color rgbColor(std::uint8_t red, std::uint8_t green, std::uint8_t blue) noexcept;
+        struct Segment;
+    } // namespace Types::Output
 
     /// @brief Creates a plain text write segment.
     /// @param text Caller-owned UTF-8 text.
     /// @return A non-owning segment that refers to text.
     /// @warning The referenced text must remain alive until the segment's writeSegments() call returns.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::WriteSegment textSegment(std::string_view text) noexcept;
+    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::Output::Segment textSegment(std::string_view text) noexcept;
 
     /// @brief Rejects temporary string storage that would leave the segment dangling.
     template <typename String>
         requires(std::same_as<std::remove_cvref_t<String>, std::string> && std::is_rvalue_reference_v<String &&>)
-    [[nodiscard]] Types::WriteSegment textSegment(String &&text) noexcept = delete;
+    [[nodiscard]] Types::Output::Segment textSegment(String &&text) noexcept = delete;
 
     /// @brief Creates a styled text write segment.
     /// @param text Caller-owned UTF-8 text.
     /// @param style Style copied into the segment.
     /// @return A non-owning segment that refers to text and owns a copy of style.
     /// @warning The referenced text must remain alive until the segment's writeSegments() call returns.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::WriteSegment styledTextSegment(std::string_view text, const Types::TextStyle &style) noexcept;
+    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::Output::Segment styledTextSegment(
+        std::string_view text,
+        const Types::Style::Request &style) noexcept;
 
     /// @brief Rejects temporary string storage that would leave the segment dangling.
     template <typename String>
         requires(std::same_as<std::remove_cvref_t<String>, std::string> && std::is_rvalue_reference_v<String &&>)
-    [[nodiscard]] Types::WriteSegment styledTextSegment(String &&text, const Types::TextStyle &style) noexcept = delete;
+    [[nodiscard]] Types::Output::Segment styledTextSegment(String &&text, const Types::Style::Request &style) noexcept = delete;
 
     /// @brief Creates a byte write segment.
     /// @param bytes Caller-owned bytes.
     /// @return A non-owning segment that refers to bytes.
     /// @warning The referenced bytes must remain alive until the segment's writeSegments() call returns.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::WriteSegment byteSegment(std::span<const std::byte> bytes) noexcept;
+    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::Output::Segment byteSegment(std::span<const std::byte> bytes) noexcept;
 
     /// @brief Rejects temporary contiguous storage that would leave the segment dangling.
     template <std::ranges::contiguous_range Range>
         requires(std::same_as<std::remove_cv_t<std::ranges::range_value_t<Range>>, std::byte> && std::is_rvalue_reference_v<Range &&> &&
                  !std::ranges::borrowed_range<Range>)
-    [[nodiscard]] Types::WriteSegment byteSegment(Range &&bytes) noexcept = delete;
+    [[nodiscard]] Types::Output::Segment byteSegment(Range &&bytes) noexcept = delete;
 
     /// @brief Read timeout requesting a non-blocking attempt.
     /// @note A stream without non-blocking-read support returns Unsupported.
@@ -102,23 +90,6 @@ namespace GameWIP::Terminal
     /// @brief Terminal stream, styling, input, and result types.
     namespace Types
     {
-        /// @brief Standard terminal input streams.
-        enum class InputStream
-        {
-            /// @brief Process standard input.
-            Stdin
-        };
-
-        /// @brief Standard terminal output streams.
-        enum class OutputStream
-        {
-            /// @brief Process standard output.
-            Stdout,
-
-            /// @brief Process standard error.
-            Stderr
-        };
-
         /// @brief What kind of native stream endpoint the terminal backend detected.
         enum class StreamKind
         {
@@ -135,546 +106,8 @@ namespace GameWIP::Terminal
             Other
         };
 
-        /// @brief Input representation selected for one managed terminal input owner.
-        enum class InputDeliveryMode : std::uint8_t
-        {
-            /// @brief Deliver normalized logical key, paste, and resize events where supported.
-            Events,
-
-            /// @brief Deliver byte, UTF-8 text, and managed line input.
-            Stream
-        };
-
-        /// @brief Policy for platform terminal control-key processing.
-        enum class ControlKeyMode : std::uint8_t
-        {
-            /// @brief Preserve normal platform processing such as ordinary Ctrl+C interrupt behavior.
-            NativeProcessing,
-
-            /// @brief Request reportable control-key combinations as logical terminal input.
-            ReportAsInput
-        };
-
-        /// @brief Configuration retained by one persistent Terminal input session.
-        struct SessionOptions
-        {
-            /// @brief Standard input stream owned by the session.
-            InputStream input = InputStream::Stdin;
-
-            /// @brief Primary output stream bound to the session for later output operations.
-            OutputStream output = OutputStream::Stdout;
-
-            /// @brief Input representation selected for the complete open session.
-            InputDeliveryMode deliveryMode = InputDeliveryMode::Events;
-
-            /// @brief Native control-key policy applied while the session owns terminal input.
-            ControlKeyMode controlKeyMode = ControlKeyMode::NativeProcessing;
-        };
-
-        /// @brief One valid Unicode scalar reported as a logical terminal key.
-        struct CharacterKey
-        {
-            /// @brief Unicode scalar value. Terminal-produced values are never surrogate code points.
-            char32_t value = U'\0';
-
-            /// @brief Compares Unicode scalar values.
-            friend constexpr bool operator==(CharacterKey, CharacterKey) noexcept = default;
-        };
-
-        /// @brief Portable non-character key reported by terminal input.
-        enum class NamedKey : std::uint8_t
-        {
-            Backspace,   ///< Backspace key.
-            Tab,         ///< Tab key. Shift+Tab is represented by the Shift modifier.
-            Enter,       ///< Enter or Return key.
-            Escape,      ///< Escape key.
-            Insert,      ///< Insert key.
-            Delete,      ///< Delete key.
-            Home,        ///< Home key.
-            End,         ///< End key.
-            PageUp,      ///< Page Up key.
-            PageDown,    ///< Page Down key.
-            ArrowUp,     ///< Up-arrow key.
-            ArrowDown,   ///< Down-arrow key.
-            ArrowLeft,   ///< Left-arrow key.
-            ArrowRight,  ///< Right-arrow key.
-            Begin,       ///< Begin or keypad-center navigation key where reportable.
-            CapsLock,    ///< Caps Lock key transition where reportable.
-            NumLock,     ///< Num Lock key transition where reportable.
-            ScrollLock,  ///< Scroll Lock key transition where reportable.
-            PrintScreen, ///< Print Screen key where reportable.
-            Pause,       ///< Pause/Break key where reportable.
-            Menu         ///< Menu/context key where reportable.
-        };
-
-        /// @brief Numeric function key without an arbitrary public upper bound.
-        struct FunctionKey
-        {
-            /// @brief One-based function-key number. Terminal-produced values are always nonzero.
-            std::uint16_t number = 0;
-
-            /// @brief Compares function-key numbers.
-            friend constexpr bool operator==(FunctionKey, FunctionKey) noexcept = default;
-        };
-
-        /// @brief Standalone logical modifier key where the backend can report modifier transitions.
-        enum class ModifierKey : std::uint8_t
-        {
-            Shift,   ///< Shift modifier key.
-            Control, ///< Control modifier key.
-            Alt,     ///< Alt modifier key.
-            Super,   ///< Super-style modifier key.
-            Hyper,   ///< Hyper modifier key where reportable.
-            Meta     ///< Meta modifier key where reportable.
-        };
-
-        /// @brief Logical media key where the backend can report media-key input.
-        enum class MediaKey : std::uint8_t
-        {
-            Play,          ///< Start playback.
-            Pause,         ///< Pause playback.
-            PlayPause,     ///< Toggle playback/pause.
-            Stop,          ///< Stop playback.
-            NextTrack,     ///< Select the next track/item.
-            PreviousTrack, ///< Select the previous track/item.
-            FastForward,   ///< Fast-forward media.
-            Rewind,        ///< Rewind media.
-            Record,        ///< Start or toggle recording.
-            VolumeUp,      ///< Increase output volume.
-            VolumeDown,    ///< Decrease output volume.
-            Mute           ///< Toggle or request mute.
-        };
-
-        /// @brief Modifier and lock state accompanying a logical key event.
-        enum class KeyModifier : std::uint16_t
-        {
-            None = 0,             ///< No known modifier or lock state.
-            Shift = 1U << 0U,     ///< Shift is active.
-            Control = 1U << 1U,   ///< Control is active.
-            Alt = 1U << 2U,       ///< Alt is active.
-            Super = 1U << 3U,     ///< Super-style modifier is active.
-            Hyper = 1U << 4U,     ///< Hyper is active where reportable.
-            Meta = 1U << 5U,      ///< Meta is active where reportable.
-            CapsLock = 1U << 6U,  ///< Caps Lock state is active where reportable.
-            NumLock = 1U << 7U,   ///< Num Lock state is active where reportable.
-            ScrollLock = 1U << 8U ///< Scroll Lock state is active where reportable.
-        };
-
-        /// @brief Combines modifier-state bits.
-        [[nodiscard]] constexpr KeyModifier operator|(KeyModifier left, KeyModifier right) noexcept
-        {
-            return static_cast<KeyModifier>(static_cast<std::uint16_t>(left) | static_cast<std::uint16_t>(right));
-        }
-
-        /// @brief Intersects modifier-state bits.
-        [[nodiscard]] constexpr KeyModifier operator&(KeyModifier left, KeyModifier right) noexcept
-        {
-            return static_cast<KeyModifier>(static_cast<std::uint16_t>(left) & static_cast<std::uint16_t>(right));
-        }
-
-        /// @brief Adds modifier-state bits to an existing mask.
-        constexpr KeyModifier &operator|=(KeyModifier &left, KeyModifier right) noexcept
-        {
-            left = left | right;
-            return left;
-        }
-
-        /// @brief Returns whether every requested modifier bit is present.
-        [[nodiscard]] constexpr bool hasModifier(KeyModifier modifiers, KeyModifier requested) noexcept
-        {
-            return (modifiers & requested) == requested;
-        }
-
-        /// @brief Logical phase of one reportable key transition.
-        enum class KeyAction : std::uint8_t
-        {
-            Press,  ///< Initial logical key press.
-            Repeat, ///< Auto-repeat occurrence where distinguishable.
-            Release ///< Logical key release where reportable.
-        };
-
-        /// @brief Logical location of a key where the backend can distinguish it.
-        enum class KeyLocation : std::uint8_t
-        {
-            Unknown,  ///< Location information is unavailable.
-            Standard, ///< Ordinary non-side-specific key location.
-            Left,     ///< Left-side modifier location.
-            Right,    ///< Right-side modifier location.
-            Numpad    ///< Numeric-keypad location.
-        };
-
-        /// @brief Portable logical terminal key representation.
-        using Key = std::variant<CharacterKey, NamedKey, FunctionKey, ModifierKey, MediaKey>;
-
-        /// @brief One normalized logical key input event.
-        /// @details For standalone ModifierKey events, modifiers describes other active modifiers and does not duplicate key.
-        struct KeyEvent
-        {
-            Key key;                                     ///< Logical key reported by the terminal.
-            KeyModifier modifiers = KeyModifier::None;   ///< Active modifier/lock state known for this event.
-            KeyAction action = KeyAction::Press;         ///< Press/repeat/release phase.
-            KeyLocation location = KeyLocation::Unknown; ///< Location, or Unknown when unavailable.
-            std::uint32_t repeatCount = 1;               ///< Number of occurrences represented by a Repeat event.
-        };
-
-        /// @brief Outcome of a terminal read operation.
-        enum class ReadOutcome
-        {
-            /// @brief Data was read normally.
-            Completed,
-
-            /// @brief The input stream reached end-of-stream.
-            EndOfStream,
-
-            /// @brief The read timed out before completing.
-            TimedOut,
-
-            /// @brief A non-blocking read found no available input.
-            WouldBlock,
-
-            /// @brief The caller-requested stop token cancelled the read.
-            Cancelled
-        };
-
-        /// @brief Line ending consumed by a line read.
-        enum class ConsumedLineEnding
-        {
-            /// @brief No line ending was consumed.
-            None,
-
-            /// @brief A line feed ending was consumed.
-            Lf,
-
-            /// @brief A carriage-return plus line-feed ending was consumed.
-            CrLf,
-
-            /// @brief A carriage-return ending was consumed.
-            Cr
-        };
-
-        /// @brief Styling behavior requested by text output calls.
-        enum class StyleMode
-        {
-            /// @brief Never emit styling; write plain text.
-            Never,
-
-            /// @brief Emit styling only when supported.
-            Auto,
-
-            /// @brief Require the requested styling and fail with Unsupported when it is unavailable.
-            Required
-        };
-
-        /// @brief Kind of terminal color stored in Color.
-        enum class ColorKind
-        {
-            /// @brief Use the terminal default color.
-            Default,
-
-            /// @brief Use one of the portable basic terminal colors.
-            Basic,
-
-            /// @brief Use RGB color when supported.
-            Rgb
-        };
-
-        /// @brief Portable basic terminal colors.
-        enum class BasicColor
-        {
-            /// @brief Normal black.
-            Black,
-            /// @brief Normal red.
-            Red,
-            /// @brief Normal green.
-            Green,
-            /// @brief Normal yellow.
-            Yellow,
-            /// @brief Normal blue.
-            Blue,
-            /// @brief Normal magenta.
-            Magenta,
-            /// @brief Normal cyan.
-            Cyan,
-            /// @brief Normal white.
-            White,
-
-            /// @brief Bright black, commonly rendered as gray.
-            BrightBlack,
-            /// @brief Bright red.
-            BrightRed,
-            /// @brief Bright green.
-            BrightGreen,
-            /// @brief Bright yellow.
-            BrightYellow,
-            /// @brief Bright blue.
-            BrightBlue,
-            /// @brief Bright magenta.
-            BrightMagenta,
-            /// @brief Bright cyan.
-            BrightCyan,
-            /// @brief Bright white.
-            BrightWhite
-        };
-
-        /// @brief Portable terminal color request.
-        struct Color
-        {
-            /// @brief Creates the terminal default color.
-            Color() noexcept = default;
-
-            /// @brief Returns the stored color representation.
-            [[nodiscard]] ColorKind kind() const noexcept
-            {
-                return kind_;
-            }
-
-            /// @brief Returns the stored basic color.
-            /// @note Meaningful only when kind() is ColorKind::Basic.
-            [[nodiscard]] BasicColor basic() const noexcept
-            {
-                return basic_;
-            }
-
-            /// @brief Returns the stored red channel.
-            /// @note Meaningful only when kind() is ColorKind::Rgb.
-            [[nodiscard]] std::uint8_t red() const noexcept
-            {
-                return red_;
-            }
-
-            /// @brief Returns the stored green channel.
-            /// @note Meaningful only when kind() is ColorKind::Rgb.
-            [[nodiscard]] std::uint8_t green() const noexcept
-            {
-                return green_;
-            }
-
-            /// @brief Returns the stored blue channel.
-            /// @note Meaningful only when kind() is ColorKind::Rgb.
-            [[nodiscard]] std::uint8_t blue() const noexcept
-            {
-                return blue_;
-            }
-
-        private:
-            friend GAMEWIP_TERMINAL_EXPORT Color GameWIP::Terminal::basicColor(Types::BasicColor color) noexcept;
-            friend GAMEWIP_TERMINAL_EXPORT Color GameWIP::Terminal::rgbColor(std::uint8_t red, std::uint8_t green, std::uint8_t blue) noexcept;
-
-            explicit Color(BasicColor color) noexcept;
-            Color(std::uint8_t red, std::uint8_t green, std::uint8_t blue) noexcept;
-
-            ColorKind kind_ = ColorKind::Default;
-            BasicColor basic_ = BasicColor::White;
-            std::uint8_t red_ = 0;
-            std::uint8_t green_ = 0;
-            std::uint8_t blue_ = 0;
-        };
-
-        /// @brief Portable terminal text style request.
-        struct TextStyle
-        {
-            /// @brief Requested foreground color.
-            Color foreground{};
-
-            /// @brief Requested background color.
-            Color background{};
-
-            /// @brief Request bold/intense text when supported.
-            bool bold = false;
-
-            /// @brief Request dim text when supported.
-            bool dim = false;
-
-            /// @brief Request italic text when supported.
-            bool italic = false;
-
-            /// @brief Request underlined text when supported.
-            bool underline = false;
-
-            /// @brief Request inverse foreground/background text when supported.
-            bool inverse = false;
-
-            /// @brief Request strikethrough text when supported.
-            bool strikethrough = false;
-        };
-
-        /// @brief Styling features supported by an output stream.
-        struct StyleCapabilities
-        {
-            /// @brief True when the portable 16-color set is supported.
-            bool basicColor = false;
-
-            /// @brief True when RGB color output is supported.
-            bool rgbColor = false;
-
-            /// @brief True when bold/intense text is supported.
-            bool bold = false;
-
-            /// @brief True when dim text is supported.
-            bool dim = false;
-
-            /// @brief True when italic text is supported.
-            bool italic = false;
-
-            /// @brief True when underline is supported.
-            bool underline = false;
-
-            /// @brief True when inverse foreground/background text is supported.
-            bool inverse = false;
-
-            /// @brief True when strikethrough is supported.
-            bool strikethrough = false;
-        };
-
-        /// @brief Line ending appended by line output helpers.
-        enum class LineEnding
-        {
-            /// @brief Platform-native line ending.
-            Native,
-
-            /// @brief Line feed.
-            Lf,
-
-            /// @brief Carriage return followed by line feed.
-            CrLf
-        };
-
-        /// @brief How readLine() reports consumed line endings for line reads.
-        enum class ReadLineEndingMode
-        {
-            /// @brief Do not include the consumed line ending in the returned line.
-            Strip,
-
-            /// @brief Preserve the consumed line ending when practical.
-            Keep,
-
-            /// @brief Return a trailing '\n' for any consumed line ending.
-            NormalizeToLf
-        };
-
-        /// @brief Capabilities of the managed Terminal input abstraction for one standard input endpoint.
-        struct InputCapabilities
-        {
-            /// @brief Detected stream endpoint kind.
-            StreamKind kind = StreamKind::Detached;
-
-            /// @brief True when valid UTF-8 text input is supported.
-            bool supportsUtf8Text = false;
-
-            /// @brief True when arbitrary byte input is supported.
-            bool supportsByteInput = false;
-
-            /// @brief True when line input is supported.
-            bool supportsLineInput = false;
-
-            /// @brief True when normalized structured event input is supported.
-            bool supportsEventInput = false;
-
-            /// @brief True when a zero-duration read can poll without a normal blocking wait.
-            bool supportsNonBlockingReads = false;
-
-            /// @brief True when positive finite read deadlines are supported.
-            bool supportsFiniteTimeouts = false;
-
-            /// @brief True when an in-progress blocking read can observe a caller stop request.
-            bool supportsCancellation = false;
-
-            /// @brief True when terminal resize changes can be delivered as structured events.
-            bool supportsResizeEvents = false;
-
-            /// @brief True when recognized paste input can be delivered as PasteEvent.
-            bool supportsPasteEvents = false;
-
-            /// @brief True when key repeat events can be distinguished from initial presses.
-            bool supportsKeyRepeatEvents = false;
-
-            /// @brief True when key release events can be reported.
-            bool supportsKeyReleaseEvents = false;
-
-            /// @brief True when standalone modifier-key events can be reported.
-            bool supportsStandaloneModifierEvents = false;
-
-            /// @brief True when media-key events can be reported.
-            bool supportsMediaKeyEvents = false;
-
-            /// @brief True when key location is reported reliably where meaningful.
-            bool supportsKeyLocation = false;
-
-            /// @brief True when accompanying modifier/lock state is reported reliably.
-            bool supportsModifierState = false;
-        };
-
-        /// @brief Capabilities of a standard terminal output stream.
-        struct OutputCapabilities
-        {
-            /// @brief Detected stream endpoint kind.
-            StreamKind kind = StreamKind::Detached;
-
-            /// @brief True when UTF-8 text output is supported.
-            bool supportsUtf8Text = false;
-
-            /// @brief True when byte output is supported.
-            bool supportsByteOutput = false;
-
-            /// @brief True when flushing is supported or meaningful.
-            bool supportsFlush = false;
-
-            /// @brief Supported style features.
-            StyleCapabilities style{};
-
-            /// @brief True when terminal size can be queried.
-            bool supportsTerminalSize = false;
-
-            /// @brief True when relative or absolute cursor movement is supported.
-            bool supportsCursorMovement = false;
-
-            /// @brief True when cursor position querying is supported.
-            bool supportsCursorPositionQuery = false;
-
-            /// @brief True when saving and restoring cursor position is supported.
-            bool supportsCursorSaveRestore = false;
-
-            /// @brief True when cursor visibility can be changed.
-            bool supportsCursorVisibility = false;
-
-            /// @brief True when screen or line clearing is supported.
-            bool supportsClear = false;
-
-            /// @brief True when terminal scrolling is supported.
-            bool supportsScroll = false;
-
-            /// @brief True when alternate screen mode is supported.
-            bool supportsAlternateScreen = false;
-
-            /// @brief True when terminal title changes are supported.
-            bool supportsTitle = false;
-
-            /// @brief True when terminal bell output is supported.
-            bool supportsBell = false;
-        };
-
-        /// @brief Result returned by input capability queries.
-        struct InputCapabilitiesResult
-        {
-            /// @brief Operation status.
-            IO::Types::Status status;
-
-            /// @brief Reported input capabilities.
-            InputCapabilities capabilities;
-        };
-
-        /// @brief Result returned by output capability queries.
-        struct OutputCapabilitiesResult
-        {
-            /// @brief Operation status.
-            IO::Types::Status status;
-
-            /// @brief Reported output capabilities.
-            OutputCapabilities capabilities;
-        };
-
         /// @brief Terminal size in character cells.
-        struct TerminalSize
+        struct Size
         {
             /// @brief Width in columns.
             std::uint32_t columns = 0;
@@ -683,28 +116,695 @@ namespace GameWIP::Terminal
             std::uint32_t rows = 0;
         };
 
-        /// @brief Recognized paste input delivered as one bounded owned UTF-8 payload.
-        struct PasteEvent
+        namespace Input
         {
-            /// @brief Valid UTF-8 paste payload assembled by the managed input backend.
-            std::string text;
+            /// @brief Standard terminal input streams.
+            enum class Stream
+            {
+                /// @brief Process standard input.
+                Stdin
+            };
+
+            /// @brief Input representation selected for one managed terminal input owner.
+            enum class DeliveryMode : std::uint8_t
+            {
+                /// @brief Deliver normalized logical key, paste, and resize events where supported.
+                Events,
+
+                /// @brief Deliver byte, UTF-8 text, and managed line input.
+                Stream
+            };
+
+            /// @brief Policy for platform terminal control-key processing.
+            enum class ControlKeyMode : std::uint8_t
+            {
+                /// @brief Preserve normal platform processing such as ordinary Ctrl+C interrupt behavior.
+                NativeProcessing,
+
+                /// @brief Request reportable control-key combinations as logical terminal input.
+                ReportAsInput
+            };
+
+            /// @brief Outcome of a terminal read operation.
+            enum class ReadOutcome
+            {
+                /// @brief Data was read normally.
+                Completed,
+
+                /// @brief The input stream reached end-of-stream.
+                EndOfStream,
+
+                /// @brief The read timed out before completing.
+                TimedOut,
+
+                /// @brief A non-blocking read found no available input.
+                WouldBlock,
+
+                /// @brief The caller-requested stop token cancelled the read.
+                Cancelled
+            };
+
+            /// @brief Line ending consumed by a line read.
+            enum class ConsumedLineEnding
+            {
+                /// @brief No line ending was consumed.
+                None,
+
+                /// @brief A line feed ending was consumed.
+                Lf,
+
+                /// @brief A carriage-return plus line-feed ending was consumed.
+                CrLf,
+
+                /// @brief A carriage-return ending was consumed.
+                Cr
+            };
+
+            /// @brief How readLine() reports consumed line endings for line reads.
+            enum class LineEndingMode
+            {
+                /// @brief Do not include the consumed line ending in the returned line.
+                Strip,
+
+                /// @brief Preserve the consumed line ending when practical.
+                Keep,
+
+                /// @brief Return a trailing '\n' for any consumed line ending.
+                NormalizeToLf
+            };
+
+            /// @brief Capabilities of the managed Terminal input abstraction for one standard input endpoint.
+            struct Capabilities
+            {
+                /// @brief Detected stream endpoint kind.
+                StreamKind kind = StreamKind::Detached;
+
+                /// @brief True when valid UTF-8 text input is supported.
+                bool supportsUtf8Text = false;
+
+                /// @brief True when arbitrary byte input is supported.
+                bool supportsByteInput = false;
+
+                /// @brief True when line input is supported.
+                bool supportsLineInput = false;
+
+                /// @brief True when normalized structured event input is supported.
+                bool supportsEventInput = false;
+
+                /// @brief True when a zero-duration read can poll without a normal blocking wait.
+                bool supportsNonBlockingReads = false;
+
+                /// @brief True when positive finite read deadlines are supported.
+                bool supportsFiniteTimeouts = false;
+
+                /// @brief True when an in-progress blocking read can observe a caller stop request.
+                bool supportsCancellation = false;
+
+                /// @brief True when terminal resize changes can be delivered as structured events.
+                bool supportsResizeEvents = false;
+
+                /// @brief True when recognized paste input can be delivered as Types::Events::Paste.
+                bool supportsPasteEvents = false;
+
+                /// @brief True when key repeat events can be distinguished from initial presses.
+                bool supportsKeyRepeatEvents = false;
+
+                /// @brief True when key release events can be reported.
+                bool supportsKeyReleaseEvents = false;
+
+                /// @brief True when standalone modifier-key events can be reported.
+                bool supportsStandaloneModifierEvents = false;
+
+                /// @brief True when media-key events can be reported.
+                bool supportsMediaKeyEvents = false;
+
+                /// @brief True when key location is reported reliably where meaningful.
+                bool supportsKeyLocation = false;
+
+                /// @brief True when accompanying modifier/lock state is reported reliably.
+                bool supportsModifierState = false;
+            };
+
+            /// @brief Result returned by input capability queries.
+            struct CapabilitiesResult
+            {
+                /// @brief Operation status.
+                IO::Types::Status status;
+
+                /// @brief Reported input capabilities.
+                Types::Input::Capabilities capabilities;
+            };
+
+            /// @brief Options used by byte reads.
+            struct ByteOptions
+            {
+                /// @brief Total read deadline: nullopt waits indefinitely, zero polls, and positive values bound the complete operation.
+                /// @note Negative values are InvalidArgument. Endpoint support remains authoritative.
+                std::optional<std::chrono::milliseconds> timeout = std::nullopt;
+
+                /// @brief Caller-controlled cancellation request observed where the endpoint supports cancellable blocking reads.
+                std::stop_token stopToken{};
+
+                /// @brief Whether a successful read may return fewer bytes than requested.
+                bool allowPartial = true;
+            };
+
+            /// @brief Options used by text reads.
+            /// @details Text reads return one available valid UTF-8 chunk after input becomes available.
+            struct TextOptions
+            {
+                /// @brief Total read deadline: nullopt waits indefinitely, zero polls, and positive values bound the complete operation.
+                /// @note Negative values are InvalidArgument. Endpoint support remains authoritative.
+                std::optional<std::chrono::milliseconds> timeout = std::nullopt;
+
+                /// @brief Caller-controlled cancellation request observed where the endpoint supports cancellable blocking reads.
+                std::stop_token stopToken{};
+
+                /// @brief Maximum accepted byte count for one available UTF-8 text chunk.
+                std::uint64_t maxReturnedBytes = kDefaultMaxReturnedTextBytes;
+            };
+
+            /// @brief Options used by line reads.
+            /// @details Line reads do not expose allowPartial; they stop at a line ending, terminating outcome, truncation, or failure.
+            struct LineOptions
+            {
+                /// @brief Total read deadline: nullopt waits indefinitely, zero polls, and positive values bound the complete operation.
+                /// @note Negative values are InvalidArgument. Endpoint support remains authoritative.
+                std::optional<std::chrono::milliseconds> timeout = std::nullopt;
+
+                /// @brief Caller-controlled cancellation request observed where the endpoint supports cancellable blocking reads.
+                std::stop_token stopToken{};
+
+                /// @brief Maximum accepted byte count for the returned line representation.
+                std::uint64_t maxReturnedBytes = kDefaultMaxReturnedLineBytes;
+
+                /// @brief Whether an interactive terminal read manages visible echo and editing feedback on the bound output stream.
+                /// @note Redirected input ignores this option because no terminal line discipline is active.
+                bool echo = true;
+
+                /// @brief How a consumed line ending is represented.
+                Types::Input::LineEndingMode lineEndingMode = Types::Input::LineEndingMode::Strip;
+            };
+
+            /// @brief Options used by structured event reads.
+            struct EventOptions
+            {
+                /// @brief Total read deadline: nullopt waits indefinitely, zero polls, and positive values bound the complete operation.
+                /// @note Negative values are InvalidArgument. Endpoint support remains authoritative.
+                std::optional<std::chrono::milliseconds> timeout = std::nullopt;
+
+                /// @brief Caller-controlled cancellation request observed where the endpoint supports cancellable blocking reads.
+                std::stop_token stopToken{};
+            };
+
+            /// @brief Result returned by byte reads.
+            /// @details bytesRead can preserve partial progress together with a terminating outcome or later failure.
+            struct ByteResult
+            {
+                /// @brief Operation status.
+                IO::Types::Status status;
+
+                /// @brief Read outcome.
+                Types::Input::ReadOutcome outcome = Types::Input::ReadOutcome::Completed;
+
+                /// @brief Number of bytes copied into the caller buffer.
+                std::size_t bytesRead = 0;
+            };
+
+            /// @brief Result returned by text reads.
+            /// @details A non-empty text payload represents one completed UTF-8 chunk. Other outcomes describe why no chunk completed.
+            struct TextResult
+            {
+                /// @brief Operation status.
+                IO::Types::Status status;
+
+                /// @brief Read outcome.
+                Types::Input::ReadOutcome outcome = Types::Input::ReadOutcome::Completed;
+
+                /// @brief UTF-8 text bytes read.
+                std::string text;
+
+                /// @brief True when maxReturnedBytes limited the returned text.
+                bool wasTruncated = false;
+            };
+
+            /// @brief Result returned by line reads.
+            /// @details line can contain an unterminated valid UTF-8 prefix together with EndOfStream, TimedOut, WouldBlock, or Cancelled.
+            struct LineResult
+            {
+                /// @brief Operation status.
+                IO::Types::Status status;
+
+                /// @brief Read outcome.
+                Types::Input::ReadOutcome outcome = Types::Input::ReadOutcome::Completed;
+
+                /// @brief UTF-8 line text.
+                std::string line;
+
+                /// @brief Consumed line ending.
+                Types::Input::ConsumedLineEnding consumedLineEnding = Types::Input::ConsumedLineEnding::None;
+
+                /// @brief True when maxReturnedBytes limited the returned line.
+                bool wasTruncated = false;
+            };
+
+        } // namespace Input
+
+        namespace Output
+        {
+            /// @brief Standard terminal output streams.
+            enum class Stream
+            {
+                /// @brief Process standard output.
+                Stdout,
+
+                /// @brief Process standard error.
+                Stderr
+            };
+
+            /// @brief Line ending appended by line output helpers.
+            enum class LineEnding
+            {
+                /// @brief Platform-native line ending.
+                Native,
+
+                /// @brief Line feed.
+                Lf,
+
+                /// @brief Carriage return followed by line feed.
+                CrLf
+            };
+
+            /// @brief Capabilities of a standard terminal output stream.
+            struct Capabilities
+            {
+                /// @brief Detected stream endpoint kind.
+                StreamKind kind = StreamKind::Detached;
+
+                /// @brief True when UTF-8 text output is supported.
+                bool supportsUtf8Text = false;
+
+                /// @brief True when byte output is supported.
+                bool supportsByteOutput = false;
+
+                /// @brief True when flushing is supported or meaningful.
+                bool supportsFlush = false;
+
+                /// @brief Supported style features.
+                Types::Style::Capabilities style{};
+
+                /// @brief True when terminal size can be queried.
+                bool supportsTerminalSize = false;
+
+                /// @brief True when relative or absolute cursor movement is supported.
+                bool supportsCursorMovement = false;
+
+                /// @brief True when cursor position querying is supported.
+                bool supportsCursorPositionQuery = false;
+
+                /// @brief True when saving and restoring cursor position is supported.
+                bool supportsCursorSaveRestore = false;
+
+                /// @brief True when cursor visibility can be changed.
+                bool supportsCursorVisibility = false;
+
+                /// @brief True when screen or line clearing is supported.
+                bool supportsClear = false;
+
+                /// @brief True when terminal scrolling is supported.
+                bool supportsScroll = false;
+
+                /// @brief True when alternate screen mode is supported.
+                bool supportsAlternateScreen = false;
+
+                /// @brief True when terminal title changes are supported.
+                bool supportsTitle = false;
+
+                /// @brief True when terminal bell output is supported.
+                bool supportsBell = false;
+            };
+
+            /// @brief Result returned by output capability queries.
+            struct CapabilitiesResult
+            {
+                /// @brief Operation status.
+                IO::Types::Status status;
+
+                /// @brief Reported output capabilities.
+                Types::Output::Capabilities capabilities;
+            };
+
+            /// @brief Screen or line region targeted by clear().
+            enum class ClearTarget
+            {
+                /// @brief Clear the visible terminal screen.
+                EntireScreen,
+
+                /// @brief Clear from the cursor to the beginning of the screen.
+                ScreenBeforeCursor,
+
+                /// @brief Clear from the cursor to the end of the screen.
+                ScreenAfterCursor,
+
+                /// @brief Clear the visible terminal screen and scrollback when supported.
+                EntireScreenAndScrollback,
+
+                /// @brief Clear the current terminal line.
+                EntireLine,
+
+                /// @brief Clear from the cursor to the beginning of the current line.
+                LineBeforeCursor,
+
+                /// @brief Clear from the cursor to the end of the current line.
+                LineAfterCursor
+            };
+
+            /// @brief Terminal scroll direction.
+            enum class ScrollDirection
+            {
+                /// @brief Scroll terminal contents upward.
+                Up,
+                /// @brief Scroll terminal contents downward.
+                Down
+            };
+
+            /// @brief Options used by text output calls.
+            struct TextOptions
+            {
+                /// @brief Styling behavior.
+                Types::Style::Mode styleMode = Types::Style::Mode::Auto;
+
+                /// @brief Style to apply to this text write.
+                Types::Style::Request style{};
+
+                /// @brief Flush requested after the write.
+                IO::Types::FlushMode flushMode = IO::Types::FlushMode::None;
+            };
+
+            /// @brief Options used by line output calls.
+            struct LineOptions
+            {
+                /// @brief Styling behavior.
+                Types::Style::Mode styleMode = Types::Style::Mode::Auto;
+
+                /// @brief Style to apply to this line write.
+                Types::Style::Request style{};
+
+                /// @brief Line ending appended after the text.
+                Types::Output::LineEnding lineEnding = Types::Output::LineEnding::Native;
+
+                /// @brief Flush requested after the write.
+                IO::Types::FlushMode flushMode = IO::Types::FlushMode::None;
+            };
+
+            /// @brief Options used by byte output calls.
+            struct ByteOptions
+            {
+                /// @brief Flush requested after the write.
+                IO::Types::FlushMode flushMode = IO::Types::FlushMode::None;
+            };
+
+            /// @brief Options used by segmented output calls.
+            struct SegmentOptions
+            {
+                /// @brief Styling behavior for styled segments.
+                Types::Style::Mode styleMode = Types::Style::Mode::Auto;
+
+                /// @brief Whether to append one line ending after all segments.
+                bool appendLineEnding = false;
+
+                /// @brief Line ending used when appendLineEnding is true.
+                Types::Output::LineEnding lineEnding = Types::Output::LineEnding::Native;
+
+                /// @brief Flush requested after the full segment batch.
+                IO::Types::FlushMode flushMode = IO::Types::FlushMode::None;
+            };
+
+            /// @brief Options used by terminal control calls.
+            struct ControlOptions
+            {
+                /// @brief Flush requested after the control operation.
+                IO::Types::FlushMode flushMode = IO::Types::FlushMode::None;
+            };
+
+            /// @brief Kind of write segment.
+            enum class SegmentKind
+            {
+                /// @brief Plain UTF-8 text.
+                Text,
+
+                /// @brief UTF-8 text with style.
+                StyledText,
+
+                /// @brief Raw bytes.
+                Bytes
+            };
+
+            /// @brief One piece of optimized batched terminal output.
+            /// @details Text and byte payloads are non-owning views. Copying a segment copies those views rather than the
+            /// referenced storage. Caller-owned payload storage must remain valid and unchanged until writeSegments() returns.
+            /// Types::Style::Request is copied into styled segments.
+            struct Segment
+            {
+                /// @brief Returns the segment kind.
+                [[nodiscard]] Types::Output::SegmentKind kind() const noexcept
+                {
+                    return kind_;
+                }
+
+                /// @brief Returns text stored by Text and StyledText segments.
+                /// @note Meaningful only when kind() is Text or StyledText. The returned view has the payload's caller-owned lifetime.
+                [[nodiscard]] std::string_view text() const noexcept
+                {
+                    return text_;
+                }
+
+                /// @brief Returns bytes stored by Bytes segments.
+                /// @note Meaningful only when kind() is Bytes. The returned span has the payload's caller-owned lifetime.
+                [[nodiscard]] std::span<const std::byte> bytes() const noexcept
+                {
+                    return bytes_;
+                }
+
+                /// @brief Returns the style stored by StyledText segments.
+                /// @note Meaningful only when kind() is StyledText. The returned reference remains valid for this segment's lifetime.
+                [[nodiscard]] const Types::Style::Request &style() const noexcept
+                {
+                    return style_;
+                }
+
+            private:
+                friend GAMEWIP_TERMINAL_EXPORT Segment GameWIP::Terminal::textSegment(std::string_view text) noexcept;
+                friend GAMEWIP_TERMINAL_EXPORT Segment
+                GameWIP::Terminal::styledTextSegment(std::string_view text, const Types::Style::Request &style) noexcept;
+                friend GAMEWIP_TERMINAL_EXPORT Segment GameWIP::Terminal::byteSegment(std::span<const std::byte> bytes) noexcept;
+
+                Segment(
+                    Types::Output::SegmentKind kind,
+                    std::string_view text,
+                    std::span<const std::byte> bytes,
+                    const Types::Style::Request &style) noexcept;
+
+                Types::Output::SegmentKind kind_ = Types::Output::SegmentKind::Text;
+                std::string_view text_;
+                std::span<const std::byte> bytes_;
+                Types::Style::Request style_{};
+            };
+        } // namespace Output
+
+        /// @brief Configuration retained by one persistent Terminal input session.
+        struct SessionOptions
+        {
+            /// @brief Standard input stream owned by the session.
+            Types::Input::Stream input = Types::Input::Stream::Stdin;
+
+            /// @brief Primary output stream bound to the session for later output operations.
+            Types::Output::Stream output = Types::Output::Stream::Stdout;
+
+            /// @brief Input representation selected for the complete open session.
+            Types::Input::DeliveryMode deliveryMode = Types::Input::DeliveryMode::Events;
+
+            /// @brief Native control-key policy applied while the session owns terminal input.
+            Types::Input::ControlKeyMode controlKeyMode = Types::Input::ControlKeyMode::NativeProcessing;
         };
 
-        /// @brief Terminal-size change delivered through structured event input.
-        struct ResizeEvent
+        namespace Events
         {
-            /// @brief Resulting terminal dimensions in character cells.
-            TerminalSize size;
-        };
+            /// @brief One valid Unicode scalar reported as a logical terminal key.
+            struct CharacterKey
+            {
+                /// @brief Unicode scalar value. Terminal-produced values are never surrogate code points.
+                char32_t value = U'\0';
 
-        /// @brief Tagged payload for one portable Terminal event.
-        using EventData = std::variant<KeyEvent, PasteEvent, ResizeEvent>;
+                /// @brief Compares Unicode scalar values.
+                friend constexpr bool operator==(CharacterKey, CharacterKey) noexcept = default;
+            };
+
+            /// @brief Portable non-character key reported by terminal input.
+            enum class NamedKey : std::uint8_t
+            {
+                Backspace,   ///< Backspace key.
+                Tab,         ///< Tab key. Shift+Tab is represented by the Shift modifier.
+                Enter,       ///< Enter or Return key.
+                Escape,      ///< Escape key.
+                Insert,      ///< Insert key.
+                Delete,      ///< Delete key.
+                Home,        ///< Home key.
+                End,         ///< End key.
+                PageUp,      ///< Page Up key.
+                PageDown,    ///< Page Down key.
+                ArrowUp,     ///< Up-arrow key.
+                ArrowDown,   ///< Down-arrow key.
+                ArrowLeft,   ///< Left-arrow key.
+                ArrowRight,  ///< Right-arrow key.
+                Begin,       ///< Begin or keypad-center navigation key where reportable.
+                CapsLock,    ///< Caps Lock key transition where reportable.
+                NumLock,     ///< Num Lock key transition where reportable.
+                ScrollLock,  ///< Scroll Lock key transition where reportable.
+                PrintScreen, ///< Print Screen key where reportable.
+                Pause,       ///< Pause/Break key where reportable.
+                Menu         ///< Menu/context key where reportable.
+            };
+
+            /// @brief Numeric function key without an arbitrary public upper bound.
+            struct FunctionKey
+            {
+                /// @brief One-based function-key number. Terminal-produced values are always nonzero.
+                std::uint16_t number = 0;
+
+                /// @brief Compares function-key numbers.
+                friend constexpr bool operator==(FunctionKey, FunctionKey) noexcept = default;
+            };
+
+            /// @brief Standalone logical modifier key where the backend can report modifier transitions.
+            enum class ModifierKey : std::uint8_t
+            {
+                Shift,   ///< Shift modifier key.
+                Control, ///< Control modifier key.
+                Alt,     ///< Alt modifier key.
+                Super,   ///< Super-style modifier key.
+                Hyper,   ///< Hyper modifier key where reportable.
+                Meta     ///< Meta modifier key where reportable.
+            };
+
+            /// @brief Logical media key where the backend can report media-key input.
+            enum class MediaKey : std::uint8_t
+            {
+                Play,          ///< Start playback.
+                Pause,         ///< Pause playback.
+                PlayPause,     ///< Toggle playback/pause.
+                Stop,          ///< Stop playback.
+                NextTrack,     ///< Select the next track/item.
+                PreviousTrack, ///< Select the previous track/item.
+                FastForward,   ///< Fast-forward media.
+                Rewind,        ///< Rewind media.
+                Record,        ///< Start or toggle recording.
+                VolumeUp,      ///< Increase output volume.
+                VolumeDown,    ///< Decrease output volume.
+                Mute           ///< Toggle or request mute.
+            };
+
+            /// @brief Modifier and lock state accompanying a logical key event.
+            enum class KeyModifier : std::uint16_t
+            {
+                None = 0,             ///< No known modifier or lock state.
+                Shift = 1U << 0U,     ///< Shift is active.
+                Control = 1U << 1U,   ///< Control is active.
+                Alt = 1U << 2U,       ///< Alt is active.
+                Super = 1U << 3U,     ///< Super-style modifier is active.
+                Hyper = 1U << 4U,     ///< Hyper is active where reportable.
+                Meta = 1U << 5U,      ///< Meta is active where reportable.
+                CapsLock = 1U << 6U,  ///< Caps Lock state is active where reportable.
+                NumLock = 1U << 7U,   ///< Num Lock state is active where reportable.
+                ScrollLock = 1U << 8U ///< Scroll Lock state is active where reportable.
+            };
+
+            /// @brief Combines modifier-state bits.
+            [[nodiscard]] constexpr KeyModifier operator|(KeyModifier left, KeyModifier right) noexcept
+            {
+                return static_cast<KeyModifier>(static_cast<std::uint16_t>(left) | static_cast<std::uint16_t>(right));
+            }
+
+            /// @brief Intersects modifier-state bits.
+            [[nodiscard]] constexpr KeyModifier operator&(KeyModifier left, KeyModifier right) noexcept
+            {
+                return static_cast<KeyModifier>(static_cast<std::uint16_t>(left) & static_cast<std::uint16_t>(right));
+            }
+
+            /// @brief Adds modifier-state bits to an existing mask.
+            constexpr KeyModifier &operator|=(KeyModifier &left, KeyModifier right) noexcept
+            {
+                left = left | right;
+                return left;
+            }
+
+            /// @brief Returns whether every requested modifier bit is present.
+            [[nodiscard]] constexpr bool hasModifier(KeyModifier modifiers, KeyModifier requested) noexcept
+            {
+                return (modifiers & requested) == requested;
+            }
+
+            /// @brief Logical phase of one reportable key transition.
+            enum class KeyAction : std::uint8_t
+            {
+                Press,  ///< Initial logical key press.
+                Repeat, ///< Auto-repeat occurrence where distinguishable.
+                Release ///< Logical key release where reportable.
+            };
+
+            /// @brief Logical location of a key where the backend can distinguish it.
+            enum class KeyLocation : std::uint8_t
+            {
+                Unknown,  ///< Location information is unavailable.
+                Standard, ///< Ordinary non-side-specific key location.
+                Left,     ///< Left-side modifier location.
+                Right,    ///< Right-side modifier location.
+                Numpad    ///< Numeric-keypad location.
+            };
+
+            /// @brief Portable logical terminal key representation.
+            using KeyValue = std::variant<
+                Types::Events::CharacterKey,
+                Types::Events::NamedKey,
+                Types::Events::FunctionKey,
+                Types::Events::ModifierKey,
+                Types::Events::MediaKey>;
+
+            /// @brief One normalized logical key input event.
+            /// @details For standalone Types::Events::ModifierKey events, modifiers describes other active modifiers and does not duplicate key.
+            struct Key
+            {
+                Types::Events::KeyValue key;                                               ///< Logical key reported by the terminal.
+                Types::Events::KeyModifier modifiers = Types::Events::KeyModifier::None;   ///< Active modifier/lock state known for this event.
+                Types::Events::KeyAction action = Types::Events::KeyAction::Press;         ///< Press/repeat/release phase.
+                Types::Events::KeyLocation location = Types::Events::KeyLocation::Unknown; ///< Location, or Unknown when unavailable.
+                std::uint32_t repeatCount = 1;                                             ///< Number of occurrences represented by a Repeat event.
+            };
+
+            /// @brief Recognized paste input delivered as one bounded owned UTF-8 payload.
+            struct Paste
+            {
+                /// @brief Valid UTF-8 paste payload assembled by the managed input backend.
+                std::string text;
+            };
+
+            /// @brief Terminal-size change delivered through structured event input.
+            struct Resize
+            {
+                /// @brief Resulting terminal dimensions in character cells.
+                Types::Size size;
+            };
+
+            /// @brief Tagged payload for one portable Terminal event.
+            using Payload = std::variant<Types::Events::Key, Types::Events::Paste, Types::Events::Resize>;
+
+        } // namespace Events
 
         /// @brief One normalized pull-based Terminal input event.
-        /// @details Key and resize alternatives use only inline value storage. Paste owns bounded UTF-8 text.
+        /// @details Types::Events::KeyValue and resize alternatives use only inline value storage. Paste owns bounded UTF-8 text.
         struct Event
         {
-            EventData data; ///< Typed event payload.
+            Types::Events::Payload data; ///< Typed event payload.
 
             /// @brief Returns the payload when it has EventType, otherwise nullptr.
             template <typename EventType> [[nodiscard]] EventType *getIf() noexcept
@@ -720,343 +820,82 @@ namespace GameWIP::Terminal
         };
 
         /// @brief Result returned by terminal size queries.
-        struct TerminalSizeResult
+        struct SizeResult
         {
             /// @brief Operation status.
             IO::Types::Status status;
 
             /// @brief Reported terminal size.
-            TerminalSize size;
+            Types::Size size;
         };
 
-        /// @brief Zero-based cursor position.
-        struct CursorPosition
+        namespace Input
         {
-            /// @brief Zero-based column.
-            std::uint32_t column = 0;
-
-            /// @brief Zero-based row.
-            std::uint32_t row = 0;
-        };
-
-        /// @brief Result returned by cursor position queries.
-        struct CursorPositionResult
-        {
-            /// @brief Operation status.
-            IO::Types::Status status;
-
-            /// @brief Reported cursor position.
-            CursorPosition position;
-        };
-
-        /// @brief Relative cursor movement direction.
-        enum class CursorMoveDirection
-        {
-            /// @brief Move toward smaller row coordinates.
-            Up,
-            /// @brief Move toward larger row coordinates.
-            Down,
-            /// @brief Move toward smaller column coordinates.
-            Left,
-            /// @brief Move toward larger column coordinates.
-            Right
-        };
-
-        /// @brief Screen or line region targeted by clear().
-        enum class ClearTarget
-        {
-            /// @brief Clear the visible terminal screen.
-            EntireScreen,
-
-            /// @brief Clear from the cursor to the beginning of the screen.
-            ScreenBeforeCursor,
-
-            /// @brief Clear from the cursor to the end of the screen.
-            ScreenAfterCursor,
-
-            /// @brief Clear the visible terminal screen and scrollback when supported.
-            EntireScreenAndScrollback,
-
-            /// @brief Clear the current terminal line.
-            EntireLine,
-
-            /// @brief Clear from the cursor to the beginning of the current line.
-            LineBeforeCursor,
-
-            /// @brief Clear from the cursor to the end of the current line.
-            LineAfterCursor
-        };
-
-        /// @brief Terminal scroll direction.
-        enum class ScrollDirection
-        {
-            /// @brief Scroll terminal contents upward.
-            Up,
-            /// @brief Scroll terminal contents downward.
-            Down
-        };
-
-        /// @brief Options used by byte reads.
-        struct ByteReadOptions
-        {
-            /// @brief Total read deadline: nullopt waits indefinitely, zero polls, and positive values bound the complete operation.
-            /// @note Negative values are InvalidArgument. Endpoint support remains authoritative.
-            std::optional<std::chrono::milliseconds> timeout = std::nullopt;
-
-            /// @brief Caller-controlled cancellation request observed where the endpoint supports cancellable blocking reads.
-            std::stop_token stopToken{};
-
-            /// @brief Whether a successful read may return fewer bytes than requested.
-            bool allowPartial = true;
-        };
-
-        /// @brief Options used by text reads.
-        /// @details Text reads return one available valid UTF-8 chunk after input becomes available.
-        struct TextReadOptions
-        {
-            /// @brief Total read deadline: nullopt waits indefinitely, zero polls, and positive values bound the complete operation.
-            /// @note Negative values are InvalidArgument. Endpoint support remains authoritative.
-            std::optional<std::chrono::milliseconds> timeout = std::nullopt;
-
-            /// @brief Caller-controlled cancellation request observed where the endpoint supports cancellable blocking reads.
-            std::stop_token stopToken{};
-
-            /// @brief Maximum accepted byte count for one available UTF-8 text chunk.
-            std::uint64_t maxReturnedBytes = kDefaultMaxReturnedTextBytes;
-        };
-
-        /// @brief Options used by line reads.
-        /// @details Line reads do not expose allowPartial; they stop at a line ending, terminating outcome, truncation, or failure.
-        struct LineReadOptions
-        {
-            /// @brief Total read deadline: nullopt waits indefinitely, zero polls, and positive values bound the complete operation.
-            /// @note Negative values are InvalidArgument. Endpoint support remains authoritative.
-            std::optional<std::chrono::milliseconds> timeout = std::nullopt;
-
-            /// @brief Caller-controlled cancellation request observed where the endpoint supports cancellable blocking reads.
-            std::stop_token stopToken{};
-
-            /// @brief Maximum accepted byte count for the returned line representation.
-            std::uint64_t maxReturnedBytes = kDefaultMaxReturnedLineBytes;
-
-            /// @brief Whether an interactive terminal read manages visible echo and editing feedback on the bound output stream.
-            /// @note Redirected input ignores this option because no terminal line discipline is active.
-            bool echo = true;
-
-            /// @brief How a consumed line ending is represented.
-            ReadLineEndingMode lineEndingMode = ReadLineEndingMode::Strip;
-        };
-
-        /// @brief Options used by structured event reads.
-        struct EventReadOptions
-        {
-            /// @brief Total read deadline: nullopt waits indefinitely, zero polls, and positive values bound the complete operation.
-            /// @note Negative values are InvalidArgument. Endpoint support remains authoritative.
-            std::optional<std::chrono::milliseconds> timeout = std::nullopt;
-
-            /// @brief Caller-controlled cancellation request observed where the endpoint supports cancellable blocking reads.
-            std::stop_token stopToken{};
-        };
-
-        /// @brief Options used by text output calls.
-        struct TextWriteOptions
-        {
-            /// @brief Styling behavior.
-            StyleMode styleMode = StyleMode::Auto;
-
-            /// @brief Style to apply to this text write.
-            TextStyle style{};
-
-            /// @brief Flush requested after the write.
-            IO::Types::FlushMode flushMode = IO::Types::FlushMode::None;
-        };
-
-        /// @brief Options used by line output calls.
-        struct LineWriteOptions
-        {
-            /// @brief Styling behavior.
-            StyleMode styleMode = StyleMode::Auto;
-
-            /// @brief Style to apply to this line write.
-            TextStyle style{};
-
-            /// @brief Line ending appended after the text.
-            LineEnding lineEnding = LineEnding::Native;
-
-            /// @brief Flush requested after the write.
-            IO::Types::FlushMode flushMode = IO::Types::FlushMode::None;
-        };
-
-        /// @brief Options used by byte output calls.
-        struct ByteWriteOptions
-        {
-            /// @brief Flush requested after the write.
-            IO::Types::FlushMode flushMode = IO::Types::FlushMode::None;
-        };
-
-        /// @brief Options used by segmented output calls.
-        struct SegmentWriteOptions
-        {
-            /// @brief Styling behavior for styled segments.
-            StyleMode styleMode = StyleMode::Auto;
-
-            /// @brief Whether to append one line ending after all segments.
-            bool appendLineEnding = false;
-
-            /// @brief Line ending used when appendLineEnding is true.
-            LineEnding lineEnding = LineEnding::Native;
-
-            /// @brief Flush requested after the full segment batch.
-            IO::Types::FlushMode flushMode = IO::Types::FlushMode::None;
-        };
-
-        /// @brief Options used by terminal control calls.
-        struct ControlOptions
-        {
-            /// @brief Flush requested after the control operation.
-            IO::Types::FlushMode flushMode = IO::Types::FlushMode::None;
-        };
-
-        /// @brief Options used by cursor position queries.
-        struct CursorPositionQueryOptions
-        {
-            /// @brief Maximum time to wait for a terminal cursor-position response.
-            /// @note A backend may answer directly without waiting for an input-stream response.
-            std::chrono::milliseconds timeout = kDefaultQueryTimeout;
-
-            /// @brief Flush requested after sending the cursor-position query.
-            /// @note Cursor position queries may consume a terminal response from the corresponding input stream.
-            IO::Types::FlushMode flushMode = IO::Types::FlushMode::Data;
-        };
-
-        /// @brief Result returned by structured event reads.
-        struct EventReadResult
-        {
-            /// @brief Operation status.
-            IO::Types::Status status;
-
-            /// @brief Read outcome.
-            ReadOutcome outcome = ReadOutcome::Completed;
-
-            /// @brief Event produced by a completed event read.
-            /// @details Empty for non-completed outcomes and failures.
-            std::optional<Event> event;
-        };
-
-        /// @brief Result returned by byte reads.
-        /// @details bytesRead can preserve partial progress together with a terminating outcome or later failure.
-        struct ByteReadResult
-        {
-            /// @brief Operation status.
-            IO::Types::Status status;
-
-            /// @brief Read outcome.
-            ReadOutcome outcome = ReadOutcome::Completed;
-
-            /// @brief Number of bytes copied into the caller buffer.
-            std::size_t bytesRead = 0;
-        };
-
-        /// @brief Result returned by text reads.
-        /// @details A non-empty text payload represents one completed UTF-8 chunk. Other outcomes describe why no chunk completed.
-        struct TextReadResult
-        {
-            /// @brief Operation status.
-            IO::Types::Status status;
-
-            /// @brief Read outcome.
-            ReadOutcome outcome = ReadOutcome::Completed;
-
-            /// @brief UTF-8 text bytes read.
-            std::string text;
-
-            /// @brief True when maxReturnedBytes limited the returned text.
-            bool wasTruncated = false;
-        };
-
-        /// @brief Result returned by line reads.
-        /// @details line can contain an unterminated valid UTF-8 prefix together with EndOfStream, TimedOut, WouldBlock, or Cancelled.
-        struct LineReadResult
-        {
-            /// @brief Operation status.
-            IO::Types::Status status;
-
-            /// @brief Read outcome.
-            ReadOutcome outcome = ReadOutcome::Completed;
-
-            /// @brief UTF-8 line text.
-            std::string line;
-
-            /// @brief Consumed line ending.
-            ConsumedLineEnding consumedLineEnding = ConsumedLineEnding::None;
-
-            /// @brief True when maxReturnedBytes limited the returned line.
-            bool wasTruncated = false;
-        };
-
-        /// @brief Kind of write segment.
-        enum class WriteSegmentKind
-        {
-            /// @brief Plain UTF-8 text.
-            Text,
-
-            /// @brief UTF-8 text with style.
-            StyledText,
-
-            /// @brief Raw bytes.
-            Bytes
-        };
-
-        /// @brief One piece of optimized batched terminal output.
-        /// @details Text and byte payloads are non-owning views. Copying a segment copies those views rather than the
-        /// referenced storage. Caller-owned payload storage must remain valid and unchanged until writeSegments() returns.
-        /// TextStyle is copied into styled segments.
-        struct WriteSegment
-        {
-            /// @brief Returns the segment kind.
-            [[nodiscard]] WriteSegmentKind kind() const noexcept
+            /// @brief Result returned by structured event reads.
+            struct EventResult
             {
-                return kind_;
-            }
+                /// @brief Operation status.
+                IO::Types::Status status;
 
-            /// @brief Returns text stored by Text and StyledText segments.
-            /// @note Meaningful only when kind() is Text or StyledText. The returned view has the payload's caller-owned lifetime.
-            [[nodiscard]] std::string_view text() const noexcept
+                /// @brief Read outcome.
+                Types::Input::ReadOutcome outcome = Types::Input::ReadOutcome::Completed;
+
+                /// @brief Event produced by a completed event read.
+                /// @details Empty for non-completed outcomes and failures.
+                std::optional<Event> event;
+            };
+
+        } // namespace Input
+
+        namespace Cursor
+        {
+            /// @brief Zero-based cursor position.
+            struct Position
             {
-                return text_;
-            }
+                /// @brief Zero-based column.
+                std::uint32_t column = 0;
 
-            /// @brief Returns bytes stored by Bytes segments.
-            /// @note Meaningful only when kind() is Bytes. The returned span has the payload's caller-owned lifetime.
-            [[nodiscard]] std::span<const std::byte> bytes() const noexcept
+                /// @brief Zero-based row.
+                std::uint32_t row = 0;
+            };
+
+            /// @brief Result returned by cursor position queries.
+            struct PositionResult
             {
-                return bytes_;
-            }
+                /// @brief Operation status.
+                IO::Types::Status status;
 
-            /// @brief Returns the style stored by StyledText segments.
-            /// @note Meaningful only when kind() is StyledText. The returned reference remains valid for this segment's lifetime.
-            [[nodiscard]] const TextStyle &style() const noexcept
+                /// @brief Reported cursor position.
+                Types::Cursor::Position position;
+            };
+
+            /// @brief Relative cursor movement direction.
+            enum class MoveDirection
             {
-                return style_;
-            }
+                /// @brief Move toward smaller row coordinates.
+                Up,
+                /// @brief Move toward larger row coordinates.
+                Down,
+                /// @brief Move toward smaller column coordinates.
+                Left,
+                /// @brief Move toward larger column coordinates.
+                Right
+            };
 
-        private:
-            friend GAMEWIP_TERMINAL_EXPORT WriteSegment GameWIP::Terminal::textSegment(std::string_view text) noexcept;
-            friend GAMEWIP_TERMINAL_EXPORT WriteSegment
-            GameWIP::Terminal::styledTextSegment(std::string_view text, const Types::TextStyle &style) noexcept;
-            friend GAMEWIP_TERMINAL_EXPORT WriteSegment GameWIP::Terminal::byteSegment(std::span<const std::byte> bytes) noexcept;
+            /// @brief Options used by cursor position queries.
+            struct QueryOptions
+            {
+                /// @brief Maximum time to wait for a terminal cursor-position response.
+                /// @note A backend may answer directly without waiting for an input-stream response.
+                std::chrono::milliseconds timeout = kDefaultQueryTimeout;
 
-            WriteSegment(WriteSegmentKind kind, std::string_view text, std::span<const std::byte> bytes, const TextStyle &style) noexcept;
+                /// @brief Flush requested after sending the cursor-position query.
+                /// @note Cursor position queries may consume a terminal response from the corresponding input stream.
+                IO::Types::FlushMode flushMode = IO::Types::FlushMode::Data;
+            };
 
-            WriteSegmentKind kind_ = WriteSegmentKind::Text;
-            std::string_view text_;
-            std::span<const std::byte> bytes_;
-            TextStyle style_{};
-        };
+        } // namespace Cursor
     } // namespace Types
-
-    /// @brief Creates a terminal default color.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::Color defaultColor() noexcept;
 
     /// @brief Persistent managed Terminal input owner with one bound primary output stream.
     /// @details A Session is closed by default. open() acquires exclusive Terminal ownership of its input stream,
@@ -1098,116 +937,124 @@ namespace GameWIP::Terminal
         [[nodiscard]] IO::Types::Status close() noexcept;
 
         /// @brief Returns the input capabilities captured when this Session opened.
-        [[nodiscard]] Types::InputCapabilitiesResult getInputCapabilities() const noexcept;
+        [[nodiscard]] Types::Input::CapabilitiesResult getInputCapabilities() const noexcept;
 
         /// @brief Observes capabilities for the bound primary output stream.
-        [[nodiscard]] Types::OutputCapabilitiesResult getOutputCapabilities() const noexcept;
+        [[nodiscard]] Types::Output::CapabilitiesResult getOutputCapabilities() const noexcept;
 
         /// @brief Prepares the bound primary output stream and returns resulting capabilities.
-        [[nodiscard]] Types::OutputCapabilitiesResult prepareOutput() noexcept;
+        [[nodiscard]] Types::Output::CapabilitiesResult prepareOutput() noexcept;
 
         /// @brief Returns terminal dimensions for the bound primary output stream.
-        [[nodiscard]] Types::TerminalSizeResult getTerminalSize() const noexcept;
+        [[nodiscard]] Types::SizeResult getTerminalSize() const noexcept;
 
         /// @brief Reads one structured input event in an Events-delivery session.
         /// @return Status, stopping outcome, and optional event payload.
-        [[nodiscard]] Types::EventReadResult readEvent(const Types::EventReadOptions &options = {}) noexcept;
+        [[nodiscard]] Types::Input::EventResult readEvent(const Types::Input::EventOptions &options = {}) noexcept;
 
         /// @brief Reads bytes into caller storage in a Stream-delivery session.
         /// @param outputBuffer Caller-owned byte destination.
         /// @param options Deadline, cancellation, and partial-read behavior.
-        [[nodiscard]] Types::ByteReadResult readBytes(std::span<std::byte> outputBuffer, const Types::ByteReadOptions &options = {}) noexcept;
+        [[nodiscard]] Types::Input::ByteResult readBytes(std::span<std::byte> outputBuffer, const Types::Input::ByteOptions &options = {}) noexcept;
 
         /// @brief Reads one valid UTF-8 text chunk in a Stream-delivery session.
-        [[nodiscard]] Types::TextReadResult readText(const Types::TextReadOptions &options = {}) noexcept;
+        [[nodiscard]] Types::Input::TextResult readText(const Types::Input::TextOptions &options = {}) noexcept;
 
         /// @brief Reads one valid UTF-8 line in a Stream-delivery session.
-        [[nodiscard]] Types::LineReadResult readLine(const Types::LineReadOptions &options = {}) noexcept;
+        [[nodiscard]] Types::Input::LineResult readLine(const Types::Input::LineOptions &options = {}) noexcept;
 
         /// @brief Writes UTF-8 text to the bound primary output stream.
-        [[nodiscard]] IO::Types::Status writeText(std::string_view utf8Text, const Types::TextWriteOptions &options = {}) noexcept;
+        [[nodiscard]] IO::Types::Status writeText(std::string_view utf8Text, const Types::Output::TextOptions &options = {}) noexcept;
 
         /// @brief Writes UTF-8 text followed by a line ending to the bound primary output stream.
-        [[nodiscard]] IO::Types::Status writeLine(std::string_view utf8Text = {}, const Types::LineWriteOptions &options = {}) noexcept;
+        [[nodiscard]] IO::Types::Status writeLine(std::string_view utf8Text = {}, const Types::Output::LineOptions &options = {}) noexcept;
 
         /// @brief Writes arbitrary bytes to the bound primary output stream.
-        [[nodiscard]] IO::Types::WriteResult writeBytes(std::span<const std::byte> bytes, const Types::ByteWriteOptions &options = {}) noexcept;
+        [[nodiscard]] IO::Types::WriteResult writeBytes(std::span<const std::byte> bytes, const Types::Output::ByteOptions &options = {}) noexcept;
 
         /// @brief Writes one atomic logical batch of text, styled text, and bytes to the bound output.
         [[nodiscard]] IO::Types::Status writeSegments(
-            std::span<const Types::WriteSegment> segments,
-            const Types::SegmentWriteOptions &options = {}) noexcept;
+            std::span<const Types::Output::Segment> segments,
+            const Types::Output::SegmentOptions &options = {}) noexcept;
 
         /// @brief Formats UTF-8 text and writes it to the bound output.
         template <class... Args> [[nodiscard]] IO::Types::Status print(std::format_string<Args...> format, Args &&...args) noexcept;
 
         /// @brief Formats UTF-8 text with explicit write options and writes it to the bound output.
         template <class... Args>
-        [[nodiscard]] IO::Types::Status print(const Types::TextWriteOptions &options, std::format_string<Args...> format, Args &&...args) noexcept;
+        [[nodiscard]] IO::Types::Status print(const Types::Output::TextOptions &options, std::format_string<Args...> format, Args &&...args) noexcept;
 
         /// @brief Formats UTF-8 text and writes it followed by a line ending to the bound output.
         template <class... Args> [[nodiscard]] IO::Types::Status println(std::format_string<Args...> format, Args &&...args) noexcept;
 
         /// @brief Formats UTF-8 text with explicit line options and writes it to the bound output.
         template <class... Args>
-        [[nodiscard]] IO::Types::Status println(const Types::LineWriteOptions &options, std::format_string<Args...> format, Args &&...args) noexcept;
+        [[nodiscard]] IO::Types::Status println(
+            const Types::Output::LineOptions &options,
+            std::format_string<Args...> format,
+            Args &&...args) noexcept;
 
         /// @brief Flushes the bound primary output stream.
         [[nodiscard]] IO::Types::Status flush(IO::Types::FlushMode mode = IO::Types::FlushMode::Data) noexcept;
 
         /// @brief Resets text style on the bound output.
-        [[nodiscard]] IO::Types::Status resetStyle(const Types::ControlOptions &options = {}) noexcept;
+        [[nodiscard]] IO::Types::Status resetStyle(const Types::Output::ControlOptions &options = {}) noexcept;
 
         /// @brief Moves the cursor on the bound output.
         [[nodiscard]] IO::Types::Status moveCursor(
-            Types::CursorMoveDirection direction,
+            Types::Cursor::MoveDirection direction,
             std::uint32_t amount = 1,
-            const Types::ControlOptions &options = {}) noexcept;
+            const Types::Output::ControlOptions &options = {}) noexcept;
 
         /// @brief Sets the cursor position on the bound output.
-        [[nodiscard]] IO::Types::Status setCursorPosition(Types::CursorPosition position, const Types::ControlOptions &options = {}) noexcept;
+        [[nodiscard]] IO::Types::Status setCursorPosition(
+            Types::Cursor::Position position,
+            const Types::Output::ControlOptions &options = {}) noexcept;
 
         /// @brief Queries cursor position using the Session's bound output and owned input.
         /// @note The query is an input-consuming operation on backends that require a terminal response.
-        [[nodiscard]] Types::CursorPositionResult getCursorPosition(const Types::CursorPositionQueryOptions &options = {}) noexcept;
+        [[nodiscard]] Types::Cursor::PositionResult getCursorPosition(const Types::Cursor::QueryOptions &options = {}) noexcept;
 
         /// @brief Saves cursor position on the bound output.
-        [[nodiscard]] IO::Types::Status saveCursorPosition(const Types::ControlOptions &options = {}) noexcept;
+        [[nodiscard]] IO::Types::Status saveCursorPosition(const Types::Output::ControlOptions &options = {}) noexcept;
 
         /// @brief Restores cursor position on the bound output.
-        [[nodiscard]] IO::Types::Status restoreCursorPosition(const Types::ControlOptions &options = {}) noexcept;
+        [[nodiscard]] IO::Types::Status restoreCursorPosition(const Types::Output::ControlOptions &options = {}) noexcept;
 
         /// @brief Changes cursor visibility and tracks Session-owned hiding for close-time restoration.
-        [[nodiscard]] IO::Types::Status setCursorVisible(bool visible, const Types::ControlOptions &options = {}) noexcept;
+        [[nodiscard]] IO::Types::Status setCursorVisible(bool visible, const Types::Output::ControlOptions &options = {}) noexcept;
 
         /// @brief Clears a screen or line region on the bound output.
         [[nodiscard]] IO::Types::Status clear(
-            Types::ClearTarget target = Types::ClearTarget::EntireScreen,
-            const Types::ControlOptions &options = {}) noexcept;
+            Types::Output::ClearTarget target = Types::Output::ClearTarget::EntireScreen,
+            const Types::Output::ControlOptions &options = {}) noexcept;
 
         /// @brief Scrolls the bound output.
         [[nodiscard]] IO::Types::Status scroll(
-            Types::ScrollDirection direction,
+            Types::Output::ScrollDirection direction,
             std::uint32_t lines = 1,
-            const Types::ControlOptions &options = {}) noexcept;
+            const Types::Output::ControlOptions &options = {}) noexcept;
 
         /// @brief Enters alternate-screen mode and records a close-time leave obligation.
-        [[nodiscard]] IO::Types::Status enterAlternateScreen(const Types::ControlOptions &options = {}) noexcept;
+        [[nodiscard]] IO::Types::Status enterAlternateScreen(const Types::Output::ControlOptions &options = {}) noexcept;
 
         /// @brief Leaves Session-owned alternate-screen mode, or performs an explicit leave when not Session-owned.
-        [[nodiscard]] IO::Types::Status leaveAlternateScreen(const Types::ControlOptions &options = {}) noexcept;
+        [[nodiscard]] IO::Types::Status leaveAlternateScreen(const Types::Output::ControlOptions &options = {}) noexcept;
 
         /// @brief Sets the terminal title through the bound output.
-        [[nodiscard]] IO::Types::Status setTitle(std::string_view utf8Title, const Types::ControlOptions &options = {}) noexcept;
+        [[nodiscard]] IO::Types::Status setTitle(std::string_view utf8Title, const Types::Output::ControlOptions &options = {}) noexcept;
 
         /// @brief Emits the terminal bell through the bound output.
-        [[nodiscard]] IO::Types::Status ringBell(const Types::ControlOptions &options = {}) noexcept;
+        [[nodiscard]] IO::Types::Status ringBell(const Types::Output::ControlOptions &options = {}) noexcept;
 
     private:
         [[nodiscard]] IO::Types::Status restoreOutputState(bool retainOnFailure) noexcept;
-        [[nodiscard]] IO::Types::Status vprint(const Types::TextWriteOptions &options, std::string_view format, std::format_args arguments) noexcept;
+        [[nodiscard]] IO::Types::Status vprint(
+            const Types::Output::TextOptions &options,
+            std::string_view format,
+            std::format_args arguments) noexcept;
         [[nodiscard]] IO::Types::Status vprintln(
-            const Types::LineWriteOptions &options,
+            const Types::Output::LineOptions &options,
             std::string_view format,
             std::format_args arguments) noexcept;
 
@@ -1252,10 +1099,10 @@ namespace GameWIP::Terminal
     private:
         friend class Session;
         friend GAMEWIP_TERMINAL_EXPORT AlternateScreenScope
-        scopedAlternateScreen(Types::OutputStream stream, const Types::ControlOptions &options) noexcept;
+        scopedAlternateScreen(Types::Output::Stream stream, const Types::Output::ControlOptions &options) noexcept;
 
-        Types::OutputStream stream_ = Types::OutputStream::Stdout;
-        Types::ControlOptions options_{};
+        Types::Output::Stream stream_ = Types::Output::Stream::Stdout;
+        Types::Output::ControlOptions options_{};
         IO::Types::Status status_{};
         bool active_ = false;
         bool restorationEmitted_ = false;
@@ -1299,10 +1146,10 @@ namespace GameWIP::Terminal
     private:
         friend class Session;
         friend GAMEWIP_TERMINAL_EXPORT CursorHiddenScope
-        scopedCursorHidden(Types::OutputStream stream, const Types::ControlOptions &options) noexcept;
+        scopedCursorHidden(Types::Output::Stream stream, const Types::Output::ControlOptions &options) noexcept;
 
-        Types::OutputStream stream_ = Types::OutputStream::Stdout;
-        Types::ControlOptions options_{};
+        Types::Output::Stream stream_ = Types::Output::Stream::Stdout;
+        Types::Output::ControlOptions options_{};
         IO::Types::Status status_{};
         bool active_ = false;
         bool restorationEmitted_ = false;
@@ -1320,11 +1167,11 @@ namespace GameWIP::Terminal
         OutputBuffer() noexcept = default;
 
         /// @brief Returns the line ending used by appendLine() and println().
-        [[nodiscard]] Types::LineEnding lineEnding() const noexcept;
+        [[nodiscard]] Types::Output::LineEnding lineEnding() const noexcept;
 
         /// @brief Changes the line ending used by future line appends.
         /// @return InvalidArgument for an unknown enum value; the previous setting is preserved on failure.
-        [[nodiscard]] IO::Types::Status setLineEnding(Types::LineEnding lineEnding) noexcept;
+        [[nodiscard]] IO::Types::Status setLineEnding(Types::Output::LineEnding lineEnding) noexcept;
 
         /// @brief Reserves text storage for future appends.
         /// @return OutOfMemory or SizeLimitExceeded instead of propagating allocation/length failures.
@@ -1359,324 +1206,342 @@ namespace GameWIP::Terminal
         template <class... Args> [[nodiscard]] IO::Types::Status println(std::format_string<Args...> format, Args &&...args) noexcept;
 
         /// @brief Writes buffered text to stdout without clearing the buffer.
-        [[nodiscard]] IO::Types::Status writeTo(const Types::TextWriteOptions &options = {}) const noexcept;
+        [[nodiscard]] IO::Types::Status writeTo(const Types::Output::TextOptions &options = {}) const noexcept;
 
         /// @brief Writes buffered text to an output stream without clearing the buffer.
-        [[nodiscard]] IO::Types::Status writeTo(Types::OutputStream stream, const Types::TextWriteOptions &options = {}) const noexcept;
+        [[nodiscard]] IO::Types::Status writeTo(Types::Output::Stream stream, const Types::Output::TextOptions &options = {}) const noexcept;
 
         /// @brief Writes buffered text to stdout and clears it only when the write succeeds.
         /// @note The name describes buffer clearing; a backend flush is requested only when options.flushMode is not None.
-        [[nodiscard]] IO::Types::Status flushTo(const Types::TextWriteOptions &options = {}) noexcept;
+        [[nodiscard]] IO::Types::Status flushTo(const Types::Output::TextOptions &options = {}) noexcept;
 
         /// @brief Writes buffered text to an output stream and clears it only when the write succeeds.
         /// @note The name describes buffer clearing; a backend flush is requested only when options.flushMode is not None.
-        [[nodiscard]] IO::Types::Status flushTo(Types::OutputStream stream, const Types::TextWriteOptions &options = {}) noexcept;
+        [[nodiscard]] IO::Types::Status flushTo(Types::Output::Stream stream, const Types::Output::TextOptions &options = {}) noexcept;
 
     private:
         [[nodiscard]] IO::Types::Status vprint(std::string_view format, std::format_args arguments, bool appendLineEnding) noexcept;
 
         std::string text_;
-        Types::LineEnding lineEnding_ = Types::LineEnding::Native;
+        Types::Output::LineEnding lineEnding_ = Types::Output::LineEnding::Native;
     };
 
     /// @brief Gets a snapshot of capabilities for stdin.
     /// @return Status and capabilities observed for the current stdin endpoint. A successful Detached result is possible.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::InputCapabilitiesResult getInputCapabilities();
+    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::Input::CapabilitiesResult getInputCapabilities() noexcept;
 
     /// @brief Gets capabilities for an input stream.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::InputCapabilitiesResult getInputCapabilities(Types::InputStream stream);
+    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::Input::CapabilitiesResult getInputCapabilities(Types::Input::Stream stream) noexcept;
 
     /// @brief Observes a snapshot of currently active stdout capabilities without preparing the stream.
     /// @return Status and capabilities observed for the current stdout endpoint. Later endpoint changes can stale the snapshot.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::OutputCapabilitiesResult getOutputCapabilities();
+    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::Output::CapabilitiesResult getOutputCapabilities() noexcept;
 
     /// @brief Observes currently active capabilities without preparing the stream.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::OutputCapabilitiesResult getOutputCapabilities(Types::OutputStream stream);
+    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::Output::CapabilitiesResult getOutputCapabilities(Types::Output::Stream stream) noexcept;
 
     /// @brief Enables stdout support required by styling and terminal controls.
     /// @details Preparation is idempotent. Redirected streams need no setup, detached streams report NotOpen,
     /// and styled writes or controls prepare lazily when needed.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::OutputCapabilitiesResult prepareOutput();
+    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::Output::CapabilitiesResult prepareOutput() noexcept;
 
     /// @brief Enables stream support required by styling and terminal controls.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::OutputCapabilitiesResult prepareOutput(Types::OutputStream stream);
+    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::Output::CapabilitiesResult prepareOutput(Types::Output::Stream stream) noexcept;
 
     /// @brief Gets terminal size for stdout.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::TerminalSizeResult getTerminalSize();
+    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::SizeResult getTerminalSize() noexcept;
 
     /// @brief Gets terminal size for an output stream.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::TerminalSizeResult getTerminalSize(Types::OutputStream stream);
+    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::SizeResult getTerminalSize(Types::Output::Stream stream) noexcept;
 
     /// @brief Reads one structured input event from stdin through temporary managed ownership.
     /// @return Status, stopping outcome, and optional event payload.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::EventReadResult readEvent(const Types::EventReadOptions &options = {}) noexcept;
+    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::Input::EventResult readEvent(const Types::Input::EventOptions &options = {}) noexcept;
 
     /// @brief Reads one structured input event from an input stream through temporary managed ownership.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::EventReadResult readEvent(
-        Types::InputStream stream,
-        const Types::EventReadOptions &options = {}) noexcept;
+    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::Input::EventResult readEvent(
+        Types::Input::Stream stream,
+        const Types::Input::EventOptions &options = {}) noexcept;
 
     /// @brief Reads one UTF-8 line from stdin.
     /// @return Status, stopping outcome, returned line, consumed ending, and truncation state. Partial line text may accompany
     /// EndOfStream, TimedOut, WouldBlock, Cancelled, or a later failure.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::LineReadResult readLine(const Types::LineReadOptions &options = {}) noexcept;
+    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::Input::LineResult readLine(const Types::Input::LineOptions &options = {}) noexcept;
 
     /// @brief Reads one line from an input stream.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::LineReadResult readLine(
-        Types::InputStream stream,
-        const Types::LineReadOptions &options = {}) noexcept;
+    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::Input::LineResult readLine(
+        Types::Input::Stream stream,
+        const Types::Input::LineOptions &options = {}) noexcept;
 
     /// @brief Reads one available complete UTF-8 text chunk from stdin.
     /// @return Status, stopping outcome, text, and truncation state. Size limits never split a valid UTF-8 code point.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::TextReadResult readText(const Types::TextReadOptions &options = {}) noexcept;
+    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::Input::TextResult readText(const Types::Input::TextOptions &options = {}) noexcept;
 
     /// @brief Reads one available UTF-8 text chunk from an input stream.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::TextReadResult readText(
-        Types::InputStream stream,
-        const Types::TextReadOptions &options = {}) noexcept;
+    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::Input::TextResult readText(
+        Types::Input::Stream stream,
+        const Types::Input::TextOptions &options = {}) noexcept;
 
     /// @brief Reads bytes from stdin into caller storage.
     /// @return Status, stopping outcome, and bytes copied. Partial progress may accompany a later failure or terminating outcome.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::ByteReadResult readBytes(
+    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::Input::ByteResult readBytes(
         std::span<std::byte> outputBuffer,
-        const Types::ByteReadOptions &options = {}) noexcept;
+        const Types::Input::ByteOptions &options = {}) noexcept;
 
     /// @brief Reads bytes from an input stream into caller storage.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::ByteReadResult readBytes(
-        Types::InputStream stream,
+    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::Input::ByteResult readBytes(
+        Types::Input::Stream stream,
         std::span<std::byte> outputBuffer,
-        const Types::ByteReadOptions &options = {}) noexcept;
+        const Types::Input::ByteOptions &options = {}) noexcept;
 
     /// @brief Writes UTF-8 text to stdout.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status writeText(std::string_view utf8Text, const Types::TextWriteOptions &options = {});
+    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status writeText(
+        std::string_view utf8Text,
+        const Types::Output::TextOptions &options = {}) noexcept;
 
     /// @brief Writes UTF-8 text to an output stream.
     [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status writeText(
-        Types::OutputStream stream,
+        Types::Output::Stream stream,
         std::string_view utf8Text,
-        const Types::TextWriteOptions &options = {});
+        const Types::Output::TextOptions &options = {}) noexcept;
 
     /// @brief Writes UTF-8 text followed by a line ending to stdout.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status writeLine(std::string_view utf8Text = {}, const Types::LineWriteOptions &options = {});
+    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status writeLine(
+        std::string_view utf8Text = {},
+        const Types::Output::LineOptions &options = {}) noexcept;
 
     /// @brief Writes UTF-8 text followed by a line ending to an output stream.
     [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status writeLine(
-        Types::OutputStream stream,
+        Types::Output::Stream stream,
         std::string_view utf8Text = {},
-        const Types::LineWriteOptions &options = {});
+        const Types::Output::LineOptions &options = {}) noexcept;
 
     /// @brief Writes bytes to stdout where the endpoint supports raw byte output.
     /// @return Accepted-byte count and status. A requested flush can fail after the full byte count was accepted.
     [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::WriteResult writeBytes(
         std::span<const std::byte> bytes,
-        const Types::ByteWriteOptions &options = {});
+        const Types::Output::ByteOptions &options = {}) noexcept;
 
     /// @brief Writes bytes to an output stream.
     [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::WriteResult writeBytes(
-        Types::OutputStream stream,
+        Types::Output::Stream stream,
         std::span<const std::byte> bytes,
-        const Types::ByteWriteOptions &options = {});
+        const Types::Output::ByteOptions &options = {}) noexcept;
 
     /// @brief Writes text, styled text, and byte segments to stdout.
     [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status writeSegments(
-        std::span<const Types::WriteSegment> segments,
-        const Types::SegmentWriteOptions &options = {});
+        std::span<const Types::Output::Segment> segments,
+        const Types::Output::SegmentOptions &options = {}) noexcept;
 
     /// @brief Writes text, styled text, and byte segments to an output stream.
     [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status writeSegments(
-        Types::OutputStream stream,
-        std::span<const Types::WriteSegment> segments,
-        const Types::SegmentWriteOptions &options = {});
+        Types::Output::Stream stream,
+        std::span<const Types::Output::Segment> segments,
+        const Types::Output::SegmentOptions &options = {}) noexcept;
 
     /// @brief Formats text and writes it to stdout.
     /// @details Formatting occurs before final stdout serialization. Formatting-stage failures are converted to IO statuses.
-    template <class... Args> [[nodiscard]] IO::Types::Status print(std::format_string<Args...> format, Args &&...args);
+    template <class... Args> [[nodiscard]] IO::Types::Status print(std::format_string<Args...> format, Args &&...args) noexcept;
 
     /// @brief Formats text and writes it to an output stream.
-    template <class... Args> [[nodiscard]] IO::Types::Status print(Types::OutputStream stream, std::format_string<Args...> format, Args &&...args);
+    template <class... Args>
+    [[nodiscard]] IO::Types::Status print(Types::Output::Stream stream, std::format_string<Args...> format, Args &&...args) noexcept;
 
     /// @brief Formats text and writes it to stdout.
     template <class... Args>
-    [[nodiscard]] IO::Types::Status print(const Types::TextWriteOptions &options, std::format_string<Args...> format, Args &&...args);
+    [[nodiscard]] IO::Types::Status print(const Types::Output::TextOptions &options, std::format_string<Args...> format, Args &&...args) noexcept;
 
     /// @brief Formats text and writes it to an output stream.
     template <class... Args>
     [[nodiscard]] IO::Types::Status print(
-        Types::OutputStream stream,
-        const Types::TextWriteOptions &options,
+        Types::Output::Stream stream,
+        const Types::Output::TextOptions &options,
         std::format_string<Args...> format,
-        Args &&...args);
+        Args &&...args) noexcept;
 
     /// @brief Formats text and writes it followed by a line ending to stdout.
     /// @details Formatting occurs before final stdout serialization. Formatting-stage failures are converted to IO statuses.
-    template <class... Args> [[nodiscard]] IO::Types::Status println(std::format_string<Args...> format, Args &&...args);
+    template <class... Args> [[nodiscard]] IO::Types::Status println(std::format_string<Args...> format, Args &&...args) noexcept;
 
     /// @brief Formats text and writes it followed by a line ending to an output stream.
-    template <class... Args> [[nodiscard]] IO::Types::Status println(Types::OutputStream stream, std::format_string<Args...> format, Args &&...args);
+    template <class... Args>
+    [[nodiscard]] IO::Types::Status println(Types::Output::Stream stream, std::format_string<Args...> format, Args &&...args) noexcept;
 
     /// @brief Formats text and writes it followed by a line ending to stdout.
     template <class... Args>
-    [[nodiscard]] IO::Types::Status println(const Types::LineWriteOptions &options, std::format_string<Args...> format, Args &&...args);
+    [[nodiscard]] IO::Types::Status println(const Types::Output::LineOptions &options, std::format_string<Args...> format, Args &&...args) noexcept;
 
     /// @brief Formats text and writes it followed by a line ending to an output stream.
     template <class... Args>
     [[nodiscard]] IO::Types::Status println(
-        Types::OutputStream stream,
-        const Types::LineWriteOptions &options,
+        Types::Output::Stream stream,
+        const Types::Output::LineOptions &options,
         std::format_string<Args...> format,
-        Args &&...args);
+        Args &&...args) noexcept;
 
     /// @brief Flushes stdout.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status flush(IO::Types::FlushMode mode = IO::Types::FlushMode::Data);
+    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status flush(IO::Types::FlushMode mode = IO::Types::FlushMode::Data) noexcept;
 
     /// @brief Flushes an output stream.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status flush(Types::OutputStream stream, IO::Types::FlushMode mode = IO::Types::FlushMode::Data);
+    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status flush(
+        Types::Output::Stream stream,
+        IO::Types::FlushMode mode = IO::Types::FlushMode::Data) noexcept;
 
     /// @brief Resets style on stdout.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status resetStyle(const Types::ControlOptions &options = {});
+    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status resetStyle(const Types::Output::ControlOptions &options = {}) noexcept;
 
     /// @brief Resets style on an output stream.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status resetStyle(Types::OutputStream stream, const Types::ControlOptions &options = {});
+    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status resetStyle(
+        Types::Output::Stream stream,
+        const Types::Output::ControlOptions &options = {}) noexcept;
 
     /// @brief Moves the cursor on stdout.
     /// @note A zero amount emits no control sequence but can still honor options.flushMode.
     [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status moveCursor(
-        Types::CursorMoveDirection direction,
+        Types::Cursor::MoveDirection direction,
         std::uint32_t amount = 1,
-        const Types::ControlOptions &options = {});
+        const Types::Output::ControlOptions &options = {}) noexcept;
 
     /// @brief Moves the cursor on an output stream.
     [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status moveCursor(
-        Types::OutputStream stream,
-        Types::CursorMoveDirection direction,
+        Types::Output::Stream stream,
+        Types::Cursor::MoveDirection direction,
         std::uint32_t amount = 1,
-        const Types::ControlOptions &options = {});
+        const Types::Output::ControlOptions &options = {}) noexcept;
 
     /// @brief Sets cursor position on stdout.
     [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status setCursorPosition(
-        Types::CursorPosition position,
-        const Types::ControlOptions &options = {});
+        Types::Cursor::Position position,
+        const Types::Output::ControlOptions &options = {}) noexcept;
 
     /// @brief Sets cursor position on an output stream.
     [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status setCursorPosition(
-        Types::OutputStream stream,
-        Types::CursorPosition position,
-        const Types::ControlOptions &options = {});
+        Types::Output::Stream stream,
+        Types::Cursor::Position position,
+        const Types::Output::ControlOptions &options = {}) noexcept;
 
     /// @brief Queries cursor position on stdout.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::CursorPositionResult getCursorPosition(const Types::CursorPositionQueryOptions &options = {});
+    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::Cursor::PositionResult getCursorPosition(const Types::Cursor::QueryOptions &options = {}) noexcept;
 
     /// @brief Queries cursor position through an output stream and reads protocol responses from an input stream.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::CursorPositionResult getCursorPosition(
-        Types::OutputStream outputStream,
-        Types::InputStream responseStream,
-        const Types::CursorPositionQueryOptions &options = {});
+    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::Cursor::PositionResult getCursorPosition(
+        Types::Output::Stream outputStream,
+        Types::Input::Stream responseStream,
+        const Types::Cursor::QueryOptions &options = {}) noexcept;
 
     /// @brief Saves cursor position on stdout.
     /// @note Saved position is backend state, not a guaranteed stack; a later save can replace it.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status saveCursorPosition(const Types::ControlOptions &options = {});
+    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status saveCursorPosition(const Types::Output::ControlOptions &options = {}) noexcept;
 
     /// @brief Saves cursor position on an output stream.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status saveCursorPosition(Types::OutputStream stream, const Types::ControlOptions &options = {});
+    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status saveCursorPosition(
+        Types::Output::Stream stream,
+        const Types::Output::ControlOptions &options = {}) noexcept;
 
     /// @brief Restores cursor position on stdout.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status restoreCursorPosition(const Types::ControlOptions &options = {});
+    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status restoreCursorPosition(const Types::Output::ControlOptions &options = {}) noexcept;
 
     /// @brief Restores cursor position on an output stream.
     [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status restoreCursorPosition(
-        Types::OutputStream stream,
-        const Types::ControlOptions &options = {});
+        Types::Output::Stream stream,
+        const Types::Output::ControlOptions &options = {}) noexcept;
 
     /// @brief Sets cursor visibility on stdout.
     /// @warning Do not mix manual visibility changes with active CursorHiddenScope objects for stdout.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status setCursorVisible(bool visible, const Types::ControlOptions &options = {});
+    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status setCursorVisible(
+        bool visible,
+        const Types::Output::ControlOptions &options = {}) noexcept;
 
     /// @brief Sets cursor visibility on an output stream.
     /// @warning Do not mix manual visibility changes with active CursorHiddenScope objects for the same stream.
     [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status setCursorVisible(
-        Types::OutputStream stream,
+        Types::Output::Stream stream,
         bool visible,
-        const Types::ControlOptions &options = {});
+        const Types::Output::ControlOptions &options = {}) noexcept;
 
     /// @brief Hides the cursor on stdout until the returned scope restores it.
     /// @warning Do not use manual visibility changes while the returned scope is active.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT CursorHiddenScope scopedCursorHidden(const Types::ControlOptions &options = {}) noexcept;
+    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT CursorHiddenScope scopedCursorHidden(const Types::Output::ControlOptions &options = {}) noexcept;
 
     /// @brief Hides the cursor on an output stream until the returned scope restores it.
     /// @warning Do not use manual visibility changes for the same stream while the returned scope is active.
     [[nodiscard]] GAMEWIP_TERMINAL_EXPORT CursorHiddenScope
-    scopedCursorHidden(Types::OutputStream stream, const Types::ControlOptions &options = {}) noexcept;
+    scopedCursorHidden(Types::Output::Stream stream, const Types::Output::ControlOptions &options = {}) noexcept;
 
     /// @brief Clears a screen or line region on stdout.
     [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status clear(
-        Types::ClearTarget target = Types::ClearTarget::EntireScreen,
-        const Types::ControlOptions &options = {});
+        Types::Output::ClearTarget target = Types::Output::ClearTarget::EntireScreen,
+        const Types::Output::ControlOptions &options = {}) noexcept;
 
     /// @brief Clears a screen or line region on an output stream.
     [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status clear(
-        Types::OutputStream stream,
-        Types::ClearTarget target = Types::ClearTarget::EntireScreen,
-        const Types::ControlOptions &options = {});
+        Types::Output::Stream stream,
+        Types::Output::ClearTarget target = Types::Output::ClearTarget::EntireScreen,
+        const Types::Output::ControlOptions &options = {}) noexcept;
 
     /// @brief Scrolls stdout.
     /// @note A zero line count emits no control sequence but can still honor options.flushMode.
     [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status scroll(
-        Types::ScrollDirection direction,
+        Types::Output::ScrollDirection direction,
         std::uint32_t lines = 1,
-        const Types::ControlOptions &options = {});
+        const Types::Output::ControlOptions &options = {}) noexcept;
 
     /// @brief Scrolls an output stream.
     [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status scroll(
-        Types::OutputStream stream,
-        Types::ScrollDirection direction,
+        Types::Output::Stream stream,
+        Types::Output::ScrollDirection direction,
         std::uint32_t lines = 1,
-        const Types::ControlOptions &options = {});
+        const Types::Output::ControlOptions &options = {}) noexcept;
 
     /// @brief Enters alternate screen mode on stdout.
     /// @warning Do not mix manual transitions with active AlternateScreenScope objects for stdout.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status enterAlternateScreen(const Types::ControlOptions &options = {});
+    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status enterAlternateScreen(const Types::Output::ControlOptions &options = {}) noexcept;
 
     /// @brief Enters alternate screen mode on an output stream.
     /// @warning Do not mix manual transitions with active AlternateScreenScope objects for the same stream.
     [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status enterAlternateScreen(
-        Types::OutputStream stream,
-        const Types::ControlOptions &options = {});
+        Types::Output::Stream stream,
+        const Types::Output::ControlOptions &options = {}) noexcept;
 
     /// @brief Leaves alternate screen mode on stdout.
     /// @warning Do not mix manual transitions with active AlternateScreenScope objects for stdout.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status leaveAlternateScreen(const Types::ControlOptions &options = {});
+    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status leaveAlternateScreen(const Types::Output::ControlOptions &options = {}) noexcept;
 
     /// @brief Leaves alternate screen mode on an output stream.
     /// @warning Do not mix manual transitions with active AlternateScreenScope objects for the same stream.
     [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status leaveAlternateScreen(
-        Types::OutputStream stream,
-        const Types::ControlOptions &options = {});
+        Types::Output::Stream stream,
+        const Types::Output::ControlOptions &options = {}) noexcept;
 
     /// @brief Enters alternate screen mode on stdout until the returned scope leaves it.
     /// @warning Do not use manual alternate-screen transitions while the returned scope is active.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT AlternateScreenScope scopedAlternateScreen(const Types::ControlOptions &options = {}) noexcept;
+    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT AlternateScreenScope scopedAlternateScreen(const Types::Output::ControlOptions &options = {}) noexcept;
 
     /// @brief Enters alternate screen mode on an output stream until the returned scope leaves it.
     /// @warning Do not use manual alternate-screen transitions for the same stream while the returned scope is active.
     [[nodiscard]] GAMEWIP_TERMINAL_EXPORT AlternateScreenScope
-    scopedAlternateScreen(Types::OutputStream stream, const Types::ControlOptions &options = {}) noexcept;
+    scopedAlternateScreen(Types::Output::Stream stream, const Types::Output::ControlOptions &options = {}) noexcept;
 
     /// @brief Sets the terminal title through stdout.
     /// @details Backend limits and sanitization apply; the current Win32 backend replaces C0 controls and DEL with spaces.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status setTitle(std::string_view utf8Title, const Types::ControlOptions &options = {});
+    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status setTitle(
+        std::string_view utf8Title,
+        const Types::Output::ControlOptions &options = {}) noexcept;
 
     /// @brief Sets the terminal title through an output stream.
     [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status setTitle(
-        Types::OutputStream stream,
+        Types::Output::Stream stream,
         std::string_view utf8Title,
-        const Types::ControlOptions &options = {});
+        const Types::Output::ControlOptions &options = {}) noexcept;
 
     /// @brief Emits the terminal bell control through stdout.
     /// @note Terminal or user settings decide whether the control produces an audible sound.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status ringBell(const Types::ControlOptions &options = {});
+    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status ringBell(const Types::Output::ControlOptions &options = {}) noexcept;
 
     /// @brief Rings the terminal bell through an output stream.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status ringBell(Types::OutputStream stream, const Types::ControlOptions &options = {});
+    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status ringBell(
+        Types::Output::Stream stream,
+        const Types::Output::ControlOptions &options = {}) noexcept;
 
     /// @cond INTERNAL_TERMINAL_DETAIL
     namespace Detail
@@ -1684,16 +1549,16 @@ namespace GameWIP::Terminal
         /// @brief Exported ABI bridge used by the public print() templates.
         /// @warning Internal support symbol; consumers must call print() instead.
         [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status vprint(
-            Types::OutputStream stream,
-            const Types::TextWriteOptions &options,
+            Types::Output::Stream stream,
+            const Types::Output::TextOptions &options,
             std::string_view format,
             std::format_args arguments) noexcept;
 
         /// @brief Exported ABI bridge used by the public println() templates.
         /// @warning Internal support symbol; consumers must call println() instead.
         [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status vprintln(
-            Types::OutputStream stream,
-            const Types::LineWriteOptions &options,
+            Types::Output::Stream stream,
+            const Types::Output::LineOptions &options,
             std::string_view format,
             std::format_args arguments) noexcept;
     } // namespace Detail
@@ -1701,22 +1566,22 @@ namespace GameWIP::Terminal
 
     template <class... Args> IO::Types::Status Session::print(std::format_string<Args...> format, Args &&...args) noexcept
     {
-        return print(Types::TextWriteOptions{}, format, std::forward<Args>(args)...);
+        return print(Types::Output::TextOptions{}, format, std::forward<Args>(args)...);
     }
 
     template <class... Args>
-    IO::Types::Status Session::print(const Types::TextWriteOptions &options, std::format_string<Args...> format, Args &&...args) noexcept
+    IO::Types::Status Session::print(const Types::Output::TextOptions &options, std::format_string<Args...> format, Args &&...args) noexcept
     {
         return vprint(options, format.get(), std::make_format_args(args...));
     }
 
     template <class... Args> IO::Types::Status Session::println(std::format_string<Args...> format, Args &&...args) noexcept
     {
-        return println(Types::LineWriteOptions{}, format, std::forward<Args>(args)...);
+        return println(Types::Output::LineOptions{}, format, std::forward<Args>(args)...);
     }
 
     template <class... Args>
-    IO::Types::Status Session::println(const Types::LineWriteOptions &options, std::format_string<Args...> format, Args &&...args) noexcept
+    IO::Types::Status Session::println(const Types::Output::LineOptions &options, std::format_string<Args...> format, Args &&...args) noexcept
     {
         return vprintln(options, format.get(), std::make_format_args(args...));
     }
@@ -1731,44 +1596,54 @@ namespace GameWIP::Terminal
         return vprint(format.get(), std::make_format_args(args...), true);
     }
 
-    template <class... Args> IO::Types::Status print(std::format_string<Args...> format, Args &&...args)
+    template <class... Args> IO::Types::Status print(std::format_string<Args...> format, Args &&...args) noexcept
     {
-        return print(Types::OutputStream::Stdout, format, std::forward<Args>(args)...);
+        return print(Types::Output::Stream::Stdout, format, std::forward<Args>(args)...);
     }
 
-    template <class... Args> IO::Types::Status print(Types::OutputStream stream, std::format_string<Args...> format, Args &&...args)
+    template <class... Args> IO::Types::Status print(Types::Output::Stream stream, std::format_string<Args...> format, Args &&...args) noexcept
     {
-        return print(stream, Types::TextWriteOptions{}, format, std::forward<Args>(args)...);
-    }
-
-    template <class... Args> IO::Types::Status print(const Types::TextWriteOptions &options, std::format_string<Args...> format, Args &&...args)
-    {
-        return print(Types::OutputStream::Stdout, options, format, std::forward<Args>(args)...);
+        return print(stream, Types::Output::TextOptions{}, format, std::forward<Args>(args)...);
     }
 
     template <class... Args>
-    IO::Types::Status print(Types::OutputStream stream, const Types::TextWriteOptions &options, std::format_string<Args...> format, Args &&...args)
+    IO::Types::Status print(const Types::Output::TextOptions &options, std::format_string<Args...> format, Args &&...args) noexcept
+    {
+        return print(Types::Output::Stream::Stdout, options, format, std::forward<Args>(args)...);
+    }
+
+    template <class... Args>
+    IO::Types::Status print(
+        Types::Output::Stream stream,
+        const Types::Output::TextOptions &options,
+        std::format_string<Args...> format,
+        Args &&...args) noexcept
     {
         return Detail::vprint(stream, options, format.get(), std::make_format_args(args...));
     }
 
-    template <class... Args> IO::Types::Status println(std::format_string<Args...> format, Args &&...args)
+    template <class... Args> IO::Types::Status println(std::format_string<Args...> format, Args &&...args) noexcept
     {
-        return println(Types::OutputStream::Stdout, format, std::forward<Args>(args)...);
+        return println(Types::Output::Stream::Stdout, format, std::forward<Args>(args)...);
     }
 
-    template <class... Args> IO::Types::Status println(Types::OutputStream stream, std::format_string<Args...> format, Args &&...args)
+    template <class... Args> IO::Types::Status println(Types::Output::Stream stream, std::format_string<Args...> format, Args &&...args) noexcept
     {
-        return println(stream, Types::LineWriteOptions{}, format, std::forward<Args>(args)...);
-    }
-
-    template <class... Args> IO::Types::Status println(const Types::LineWriteOptions &options, std::format_string<Args...> format, Args &&...args)
-    {
-        return println(Types::OutputStream::Stdout, options, format, std::forward<Args>(args)...);
+        return println(stream, Types::Output::LineOptions{}, format, std::forward<Args>(args)...);
     }
 
     template <class... Args>
-    IO::Types::Status println(Types::OutputStream stream, const Types::LineWriteOptions &options, std::format_string<Args...> format, Args &&...args)
+    IO::Types::Status println(const Types::Output::LineOptions &options, std::format_string<Args...> format, Args &&...args) noexcept
+    {
+        return println(Types::Output::Stream::Stdout, options, format, std::forward<Args>(args)...);
+    }
+
+    template <class... Args>
+    IO::Types::Status println(
+        Types::Output::Stream stream,
+        const Types::Output::LineOptions &options,
+        std::format_string<Args...> format,
+        Args &&...args) noexcept
     {
         return Detail::vprintln(stream, options, format.get(), std::make_format_args(args...));
     }

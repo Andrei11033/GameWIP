@@ -8,4 +8,4 @@ add_subdirectory(window)
 
 # WindowManager still targets the retired Window namespace/class surface. Its source is
 # intentionally preserved for the later coordination-layer migration, but it is not compiled
-# while Window establishes the standalone public boundary from issue #26.
+# while Window establishes the standalone public boundary.

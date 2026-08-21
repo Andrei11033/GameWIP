@@ -10,7 +10,7 @@ The GameWIP validation preset enables `TERMINAL_ENABLE_TEST_HOOKS`. A focused bu
 set(TERMINAL_ENABLE_TEST_HOOKS ON CACHE BOOL "" FORCE)
 ```
 
-Approved build-tree consumers receive `INTERNAL_TERMINAL_TEST_HOOKS=1`. Production code must not define that macro manually or depend on hook symbols.
+Approved build-tree consumers receive `TERMINAL_INTERNAL_TEST_HOOKS=1`. Production code must not define that macro manually or depend on hook symbols.
 
 ## Include and link
 
@@ -110,11 +110,11 @@ int main()
     namespace Hooks = GameWIP::Terminal::TestHooks;
 
     Hooks::reset();
-    Hooks::setOutputCapture(Terminal::Types::OutputStream::Stdout, true);
+    Hooks::setOutputCapture(Terminal::Types::Output::Stream::Stdout, true);
 
     const auto status = Terminal::writeLine("captured");
     const std::string output = Hooks::capturedOutputText(
-        Terminal::Types::OutputStream::Stdout);
+        Terminal::Types::Output::Stream::Stdout);
 
     Hooks::reset();
     return status.ok() && !output.empty() ? 0 : 1;

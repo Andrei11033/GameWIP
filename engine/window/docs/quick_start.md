@@ -1,23 +1,30 @@
 @page window_quick_start Quick start
 
+This path opens one native top-level Window, processes its events on the owner
+thread, and closes it explicitly. It establishes the lifecycle and threading
+model used by every more advanced Window feature.
+
 ## Include
+
+The normal Window surface is:
 
 ```cpp
 #include "window/window.h"
 ```
 
-The portable header does not require `windows.h`.
+Include `window/display_info.h`, `window/renderer_bridge.h`, or
+`window/native/win32.h` only when using rich display inspection, renderer
+feedback, or Win32 native interoperability.
 
 ## Installed CMake
 
-Set `GAMEWIP_REQUIRED_VERSION` from the consumer dependency lock; see @ref project_library_compatibility.
+Set `GAMEWIP_REQUIRED_VERSION` from the consuming project's dependency lock;
+see @ref project_library_compatibility.
 
 ```cmake
 find_package(Window ${GAMEWIP_REQUIRED_VERSION} EXACT CONFIG REQUIRED)
 target_link_libraries(MyTarget PRIVATE GameWIP::Window)
 ```
-
-The package resolves exact-version IO and FileSystem dependencies.
 
 ## Source-tree CMake
 
@@ -25,41 +32,42 @@ The package resolves exact-version IO and FileSystem dependencies.
 target_link_libraries(MyTarget PRIVATE Window)
 ```
 
-## Minimal event loop
+## Minimal usage
+
+This complete owner-thread example opens a window, pumps events until a sticky
+close request is observed, and closes the native resource:
 
 ```cpp
 #include "window/window.h"
 
+#include <chrono>
+
 int main()
 {
-    namespace Window = GameWIP::Window;
-
-    Window::Types::Description description;
-    description.title = "GameWIP example";
-    description.clientSize = {1280, 720};
+    GameWIP::Window::Types::Description description;
+    description.title = "GameWIP";
     description.visible = true;
-    description.requestFocus = true;
 
-    Window::Window window;
-    if (const auto status = window.open(description); !status.ok())
-        return 1;
-
-    while (!window.closeRequested())
+    GameWIP::Window::Window window;
+    if (!window.open(description).ok())
     {
-        const auto pump = Window::waitEvents();
+        return 1;
+    }
+
+    while (!window.hasCloseRequest())
+    {
+        const auto pump =
+            GameWIP::Window::Events::wait(std::chrono::milliseconds{16});
         if (!pump.status.ok())
         {
             static_cast<void>(window.close());
             return 2;
         }
 
-        Window::Types::Event event;
+        GameWIP::Window::Types::Event event;
         while (window.popEvent(event))
         {
-            if (const auto *size = event.getIf<Window::Types::FramebufferSizeChangedEvent>())
-            {
-                // Resize renderer-owned attachments to size->size.
-            }
+            // React to the event payload needed by the application.
         }
     }
 
@@ -67,19 +75,27 @@ int main()
 }
 ```
 
+`Window` is non-copyable and non-movable. Keep it in stable storage for its
+entire open lifetime, and perform lifecycle/event operations on its owner
+thread. Public text is UTF-8. File-drop paths use `FileSystem::Types::Path` and
+are not flattened into text.
+
 ## Failure handling
 
-Expected validation, unsupported-operation, ownership, creation, conversion, and native failures are reported through IO status and result types. Failed creation leaves the object closed. A recoverable `close()` failure leaves it open so the owner thread can retry. A late cleanup diagnostic may accompany a completed close; in that case, `isOpen()` is false.
+Window operations return direct `IO::Types::Status` values or result structures
+containing a `status`. Inspect the status before consuming the associated
+payload. A failed event wait or pump does not close an open window
+automatically. Call `close()` and handle its status; destruction performs only
+best-effort cleanup.
 
-Use explicit `close()` when cleanup errors matter. The destructor is `noexcept`; call `close()` on the owner thread during normal control flow. Destruction on another thread transfers state to the owner dispatcher for cleanup, including during dispatcher or thread shutdown.
+The close request is sticky even if the corresponding queue event is coalesced
+or dropped. Use `hasCloseRequest()` for lifecycle policy and `popEvent()` for
+individual event payloads.
 
 ## Where to go next
 
-- @ref window_public_api maps the complete surface.
-- @ref window_package_abi documents installed headers and the required Windows manifest.
-- @ref window_coordinates_and_dpi defines logical, screen, and pixel units.
-- @ref window_lifecycle_and_events explains thread affinity, fixed storage, coalescing, and close intent.
-- @ref window_chrome_and_pointer_input covers declarative native hit testing.
-- @ref window_fullscreen_and_monitors covers monitor identities and mode restoration.
-- @ref window_native_interop and @ref window_renderer_integration define the two narrow Renderer integration seams.
-- @ref window_examples contains focused integration examples.
+- @ref window_public_api inventories headers, namespaces, types, and operations.
+- @ref window_lifecycle_events defines ownership, queues, waiting, and close behavior.
+- @ref window_coordinates_and_dpi explains logical and pixel coordinate contracts.
+- @ref window_examples provides focused display, renderer, and native examples.
+- @ref window_troubleshooting maps common failures to their owning contract.

@@ -18,7 +18,7 @@ namespace GameWIP::Test
         bool enableChildCrashTests = true;
         /// @brief Enables deterministic stress tests that exercise concurrent and repeated failure paths.
         bool enableStressTests = true;
-        /// @brief Enables automated interactive assert tests that use INTERNAL_ASSERT_TEST_ACTION instead of real UI.
+        /// @brief Enables automated interactive assert tests that use the Assert test-action environment override instead of real UI.
         bool enableAutomatedInteractiveTests = true;
         /// @brief Enables manual tests that require the user to click real Windows dialogs.
         bool enableManualTests = false;

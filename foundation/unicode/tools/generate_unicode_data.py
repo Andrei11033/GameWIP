@@ -16,9 +16,8 @@ UNICODE_VERSION = "17.0.0"
 EMOJI_VERSION = "17.0"
 MAX_CODE_POINT = 0x10FFFF
 CODE_POINT_COUNT = MAX_CODE_POINT + 1
-BLOCK_SHIFT = 6
-BLOCK_SIZE = 1 << BLOCK_SHIFT
-BLOCK_MASK = BLOCK_SIZE - 1
+MIN_BLOCK_SHIFT = 5
+MAX_BLOCK_SHIFT = 9
 
 GCB_VALUES = {
     "Other": 0,
@@ -58,6 +57,7 @@ class SourcePaths:
 
 @dataclass(frozen=True)
 class GeneratedTrie:
+    block_shift: int
     high_start: int
     indexes: tuple[int, ...]
     blocks: tuple[bytes, ...]
@@ -171,16 +171,18 @@ def remove_algorithmic_ranges(data: bytearray) -> None:
     data[0xAC00:0xD7A4] = bytes(0xD7A4 - 0xAC00)
 
 
-def build_trie(data: bytearray) -> GeneratedTrie:
+def build_trie(data: bytearray, block_shift: int) -> GeneratedTrie:
+    block_size = 1 << block_shift
+    block_mask = block_size - 1
     last_non_default = max(index for index, value in enumerate(data) if value != 0)
-    high_start = (last_non_default + BLOCK_SIZE) & ~BLOCK_MASK
+    high_start = (last_non_default + block_size) & ~block_mask
 
     unique_blocks: list[bytes] = []
     block_ids: dict[bytes, int] = {}
     indexes: list[int] = []
 
-    for block_start in range(0, high_start, BLOCK_SIZE):
-        block = bytes(data[block_start : block_start + BLOCK_SIZE])
+    for block_start in range(0, high_start, block_size):
+        block = bytes(data[block_start : block_start + block_size])
         block_id = block_ids.get(block)
         if block_id is None:
             block_id = len(unique_blocks)
@@ -196,11 +198,27 @@ def build_trie(data: bytearray) -> GeneratedTrie:
         index_type = "std::uint32_t"
 
     return GeneratedTrie(
+        block_shift=block_shift,
         high_start=high_start,
         indexes=tuple(indexes),
         blocks=tuple(unique_blocks),
         index_type=index_type,
     )
+
+
+def index_width(trie: GeneratedTrie) -> int:
+    return {"std::uint8_t": 1, "std::uint16_t": 2, "std::uint32_t": 4}[trie.index_type]
+
+
+def table_size(trie: GeneratedTrie) -> int:
+    block_size = 1 << trie.block_shift
+    return len(trie.indexes) * index_width(trie) + len(trie.blocks) * block_size
+
+
+def select_trie(data: bytearray) -> tuple[GeneratedTrie, tuple[GeneratedTrie, ...]]:
+    candidates = tuple(build_trie(data, shift) for shift in range(MIN_BLOCK_SHIFT, MAX_BLOCK_SHIFT + 1))
+    # Prefer the smaller block when table sizes tie because it has finer cache locality.
+    return min(candidates, key=lambda trie: (table_size(trie), trie.block_shift)), candidates
 
 
 def formatted_values(values: Iterable[int], per_line: int, hexadecimal: bool = False) -> str:
@@ -212,6 +230,8 @@ def formatted_values(values: Iterable[int], per_line: int, hexadecimal: bool = F
 
 
 def render_header(trie: GeneratedTrie) -> str:
+    block_size = 1 << trie.block_shift
+    block_mask = block_size - 1
     flattened_blocks = tuple(value for block in trie.blocks for value in block)
     return f'''/// @file unicode_properties.h
 /// @brief Generated Unicode {UNICODE_VERSION} grapheme-property trie. Do not edit manually.
@@ -230,9 +250,9 @@ namespace GameWIP::Unicode::Internal::Generated
     inline constexpr std::uint8_t kUnicodeVersionMinor = 0;
     inline constexpr std::uint8_t kUnicodeVersionPatch = 0;
 
-    inline constexpr std::size_t kBlockShift = {BLOCK_SHIFT};
-    inline constexpr std::size_t kBlockSize = {BLOCK_SIZE};
-    inline constexpr std::size_t kBlockMask = {BLOCK_MASK};
+    inline constexpr std::size_t kBlockShift = {trie.block_shift};
+    inline constexpr std::size_t kBlockSize = {block_size};
+    inline constexpr std::size_t kBlockMask = {block_mask};
     inline constexpr char32_t kHighStart = static_cast<char32_t>(0x{trie.high_start:X});
 
     using BlockIndex = {trie.index_type};
@@ -248,7 +268,7 @@ namespace GameWIP::Unicode::Internal::Generated
 '''
 
 
-def generate(paths: SourcePaths, output: Path) -> GeneratedTrie:
+def generate(paths: SourcePaths, output: Path) -> tuple[GeneratedTrie, tuple[GeneratedTrie, ...]]:
     require_source(paths.grapheme_break, (UNICODE_VERSION,))
     require_source(paths.derived_core, (UNICODE_VERSION,))
     require_source(paths.emoji_data, (UNICODE_VERSION, f"Version: {EMOJI_VERSION}"))
@@ -259,26 +279,31 @@ def generate(paths: SourcePaths, output: Path) -> GeneratedTrie:
     apply_extended_pictographic(data, paths.emoji_data)
     remove_algorithmic_ranges(data)
 
-    trie = build_trie(data)
+    trie, candidates = select_trie(data)
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(render_header(trie), encoding="utf-8", newline="\n")
-    return trie
+    return trie, candidates
 
 
 def main() -> None:
     arguments = parse_arguments()
     paths = source_paths(arguments.ucd_dir.resolve())
-    trie = generate(paths, arguments.output.resolve())
-
-    index_width = {"std::uint8_t": 1, "std::uint16_t": 2, "std::uint32_t": 4}[trie.index_type]
-    index_bytes = len(trie.indexes) * index_width
-    property_bytes = len(trie.blocks) * BLOCK_SIZE
+    trie, candidates = generate(paths, arguments.output.resolve())
 
     print(f"Unicode version: {UNICODE_VERSION}")
     print(f"High start: U+{trie.high_start:06X}")
-    print(f"Index entries: {len(trie.indexes)} ({index_bytes} bytes)")
-    print(f"Unique blocks: {len(trie.blocks)} ({property_bytes} bytes)")
-    print(f"Total table bytes: {index_bytes + property_bytes}")
+    print("Block size | Index width | Index bytes | Unique blocks | Block bytes | Total bytes")
+    for candidate in candidates:
+        block_size = 1 << candidate.block_shift
+        candidate_index_bytes = len(candidate.indexes) * index_width(candidate)
+        property_bytes = len(candidate.blocks) * block_size
+        selected = " selected" if candidate is trie else ""
+        print(
+            f"{block_size:10} | {index_width(candidate):11} | {candidate_index_bytes:11} | "
+            f"{len(candidate.blocks):13} | {property_bytes:11} | {table_size(candidate):11}{selected}"
+        )
+    print(f"Selected block size: {1 << trie.block_shift}")
+    print(f"Total table bytes: {table_size(trie)}")
     print(f"Wrote: {arguments.output.resolve()}")
 
 

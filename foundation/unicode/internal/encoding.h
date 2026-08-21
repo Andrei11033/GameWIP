@@ -4,6 +4,7 @@
 #pragma once
 
 #include "unicode/unicode.h"
+#include "unicode/internal/type_aliases.h"
 
 #include <cstddef>
 #include <cstdint>

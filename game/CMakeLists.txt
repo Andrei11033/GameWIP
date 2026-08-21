@@ -73,6 +73,11 @@ if(GAMEWIP_BUILD_GAME)
                 "-DPROJECT_VERSION_VALUE=${PROJECT_VERSION}"
                 -P "${PROJECT_SOURCE_DIR}/cmake/ValidateGameWIPVersionOutput.cmake"
         )
+        add_test(NAME validation.game.help COMMAND "$<TARGET_FILE:GameWIP>" --help)
+        set_tests_properties(validation.game.help PROPERTIES
+            PASS_REGULAR_EXPRESSION "Usage:;GameWIP.exe --version"
+            TIMEOUT 60
+        )
         set_tests_properties(validation.game.version PROPERTIES TIMEOUT 60)
     endif()
 endif()

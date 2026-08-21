@@ -1,5 +1,9 @@
 @page test_support_expectations Expectations and runners
 
+Contexts record individual checks, while runners collect completed suites.
+This separation lets tests report useful failures and continue through later
+suites without hiding infrastructure errors.
+
 ## Runner and suite completion
 
 `Runner` owns a shared sink and aggregates a suite only when `runSuite()` completes. Concurrent suite completion order is therefore not deterministic.

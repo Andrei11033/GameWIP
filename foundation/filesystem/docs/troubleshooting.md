@@ -1,5 +1,9 @@
 @page filesystem_troubleshooting Troubleshooting
 
+FileSystem reports the boundary it could not preserve rather than silently
+falling back to a weaker operation. Use the symptom and status together to
+identify policy, path, sharing, or platform limitations.
+
 ## A policy-bearing operation returns `Unsupported`
 
 The backend could not enforce the selected `SymlinkPolicy` or restrictive sharing request without weakening it. Final-link move, removal, or atomic replacement with follow semantics are common examples. Review @ref filesystem_symlink_policies rather than replacing the operation with a check-then-open sequence.
@@ -18,11 +22,19 @@ Common causes include:
 - an unknown enum value or unsupported flag bits;
 - a create/truncate mode without write access;
 - `flushOnClose` on a read-only `File`;
-- `ReadFileOptions::bufferSize == 0`;
+- `Types::File::ReadOptions::bufferSize == 0`;
 - equivalent source and destination supplied to `copyFile()`;
 - an invalid atomic temporary prefix.
 
 Lexical path helpers accept empty paths; path-accessing operations generally do not.
+
+## A text operation returns `EncodingFailed`
+
+`readAllText()` encountered malformed or incomplete UTF-8; any returned `text` is the complete valid prefix. `writeAllText()`, `appendText()`, and `writeAllTextAtomic()` reject malformed input before creating parents, opening/truncating a file, appending, or creating an atomic temporary file.
+
+`pathFromUtf8()` and `pathToUtf8()` use the same strict UTF-8 contract at path-text boundaries. An atomic `temporaryNamePrefix` must also be valid UTF-8 filename text.
+
+Use the corresponding byte operation when the payload is intentionally encoding agnostic.
 
 ## A handle returns `AlreadyOpen`, `NotOpen`, or `PermissionDenied`
 
@@ -50,7 +62,7 @@ Public operations contain failures that occur after function entry. Constructing
 
 ## Append mode cannot seek
 
-Append modes target the then-current end for each write and return `NotSeekable` from `seek()` and `position()`. Use `FileInitialPosition::End` only when one initial end position is sufficient; it does not protect later writes from concurrent endpoint changes.
+Append modes target the then-current end for each write and return `NotSeekable` from `seek()` and `position()`. Use `Types::File::InitialPosition::End` only when one initial end position is sufficient; it does not protect later writes from concurrent endpoint changes.
 
 ## A whole-file read returns `SizeLimitExceeded`
 
@@ -80,7 +92,7 @@ Relative resolution depends on the process current directory. Another thread or 
 
 ## Sharing or locking differs across tools
 
-`FileShare` constrains compatible native opens. `FileLock` coordinates compatible lock users and can be advisory relative to uncooperative software. Choose the mechanism for the actual coordination boundary and do not assume unrelated tools honor advisory locks.
+`Types::File::Share` constrains compatible native opens. `FileLock` coordinates compatible lock users and can be advisory relative to uncooperative software. Choose the mechanism for the actual coordination boundary and do not assume unrelated tools honor advisory locks.
 
 ## Related pages
 

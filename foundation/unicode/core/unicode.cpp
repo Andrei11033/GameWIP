@@ -6,7 +6,7 @@
 
 namespace GameWIP::Unicode
 {
-    Types::UnicodeVersion getStandardVersion() noexcept
+    Types::Version getStandardVersion() noexcept
     {
         return {
             .major = Internal::Generated::kUnicodeVersionMajor,

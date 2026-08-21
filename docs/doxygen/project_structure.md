@@ -2,9 +2,9 @@
 
 GameWIP is a product repository built around reusable C++ libraries, project-level build infrastructure, validation tooling, generated documentation, and a small executable shell. Project code owns composition and runtime policy. Reusable libraries own their public contracts, implementations, platform backends, package boundaries, validation coverage, and manuals.
 
-## Purpose
-
-This page defines where code belongs and which direction dependencies may flow. It is the repository map, not a replacement for library manuals, workflow pages, or the platform backend contract.
+Use this map to decide where code belongs and which dependency directions are
+valid. It shows the system-level relationships; library manuals and workflow
+pages provide the behavior inside each box.
 
 ## Repository map
 
@@ -12,7 +12,7 @@ This page defines where code belongs and which direction dependencies may flow. 
 | --- | --- |
 | `foundation/` | Low-level reusable libraries such as Unicode, IO, FileSystem, and Terminal. |
 | `tools/` | Diagnostics, assertions, logging, validation support, and development tooling libraries. |
-| `engine/` | Engine systems developed and reviewed separately from the reusable foundation and tool libraries. |
+| `engine/` | The documented Window library plus provisional Input and Action code. Preserved WindowManager code is currently outside the build. |
 | `game/` | Executable entry point, runtime facade, startup validation wiring, validation runners, and game-facing integration. |
 | `cmake/` | Repository-wide build, platform, validation, coverage, documentation, packaging, and analysis helpers. |
 | `docs/doxygen/` | Generated project manual pages. |
@@ -28,10 +28,18 @@ The reusable dependency flow is:
 
 ```text
 Unicode
+  -> IO
+  -> Terminal
+
+Unicode
+  -> TestSupport
 
 IO
   -> FileSystem
   -> Terminal
+
+IO + FileSystem
+  -> Window
 
 IO + FileSystem + Terminal
   -> Logger
@@ -48,11 +56,29 @@ Reusable libraries + optional validation modules
 
 Arrows mean "is consumed by." Lower-level libraries must not depend on the game executable, runtime facade, validation runner, or benchmark runner.
 
-Unicode is a dependency-free foundation root. It owns platform-neutral scalar, encoding, conversion, and grapheme algorithms without taking filesystem-path, terminal, rendering, or editing policy.
+Unicode is a dependency-free foundation root. It owns platform-neutral scalar, encoding, conversion, and grapheme algorithms without taking filesystem-path, terminal, rendering, or editing policy. IO uses it only for strict text-boundary validation; IO byte primitives remain encoding-agnostic.
 
-TestSupport is a standalone validation library and installed package. Its target must not link to another GameWIP library; validation modules depend on it, not the reverse. This keeps `find_package(TestSupport)` independently usable and prevents its portable result contracts from acquiring unrelated library dependencies.
+TestSupport is a standalone validation library and installed package. It may use
+Unicode privately for its documented UTF-8 boundary contracts, but it must not
+acquire IO, FileSystem, Terminal, Window, Logger, Assert, engine, or other
+higher-level GameWIP dependencies. Validation modules depend on TestSupport, not
+the reverse. This keeps `find_package(TestSupport)` independently usable without
+giving its portable result contracts unrelated higher-level dependencies.
 
-Validation code may use libraries and approved internal hooks. Installed consumers must not see internal headers, test-hook headers, source-tree-only helper targets, or validation-only compile definitions such as `INTERNAL_TEST_SUPPORT_TEST_HOOKS`.
+## Engine-system status
+
+Window is the supported, documented engine library and participates in package,
+public-header, correctness, benchmark, and manual validation. Input and Action
+are compiled source-tree prototypes whose public contracts and package
+boundaries are not yet stable; they are intentionally absent from the reusable
+library manual. WindowManager targets a retired Window surface and is preserved
+for a later coordination-layer migration, but it is not currently compiled.
+
+Do not treat a header under `engine/input`, `engine/action`, or
+`engine/window_manager` as a supported installed API. Their completion gates are
+tracked in the project roadmap.
+
+Validation code may use libraries and approved internal hooks. Installed consumers must not see internal headers, test-hook headers, source-tree-only helper targets, or validation-only internal compile definitions.
 
 ## Library ownership
 
@@ -66,6 +92,20 @@ Each reusable library owns:
 - Library manual, public API guide, examples, testing guide, troubleshooting notes, and approved test-hook docs when applicable.
 
 A reusable library must not require the game executable to compile, test, install, or be consumed from a clean external CMake project.
+
+## Source organization
+
+File organization follows responsibility, but public, implementation, internal, and validation boundaries solve different problems and are not required to mirror one another.
+
+- `Library::Types` organizes what public concepts are. Real conceptual families may live under `Types::<Domain>` while shared/core types remain directly under `Types`.
+- Public headers organize what consumers need to include and which public concepts have independent ownership. Do not split a header only because it became long.
+- `.cpp` files organize implementation responsibility. Split a translation unit when a coherent subsystem can be owned, maintained, and built independently without manufacturing a broad private API merely to move lines around.
+- Internal headers own private contracts only when multiple implementation files genuinely share them or when a private subsystem becomes materially clearer. Do not create internal headers solely to make source files smaller.
+- Correctness-test sources organize behavioral domains inside one logical module. A module may use focused private case fragments or compile several focused case translation units while retaining one registration, one options interface, and one reporting contract. Choose the form that avoids duplicated fixtures and artificial private interfaces.
+
+There is no line-count or file-size quota. Size is a signal that ownership may have become unclear, not an automatic split trigger. Prefer a small number of coherent responsibility files over mechanical one-type/one-function decomposition. A useful review question is whether a maintainer can identify where behavior belongs without searching a monolithic translation unit.
+
+A library target's `STATIC` or `SHARED` form follows runtime ownership, ABI, and process-coordination requirements rather than repository symmetry. Use one shared runtime when the contract requires process-wide coordination to be unique across consuming modules; do not convert otherwise independent libraries to shared form merely so neighboring targets look alike.
 
 ## Public and internal boundaries
 

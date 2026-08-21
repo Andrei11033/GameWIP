@@ -20,7 +20,7 @@
 namespace GameWIP::FileSystem
 {
     /// @brief Default prefix used for same-directory temporary files created by atomic writes.
-    /// @note Callers may replace the prefix through Types::AtomicWriteOptions; it is a filename prefix, not a path.
+    /// @note Callers may replace the prefix through Types::File::AtomicWriteOptions; it is UTF-8 filename text, not a path.
     inline constexpr std::string_view kAtomicTemporaryNamePrefix = ".gamewip_tmp_";
 
     /// @brief Sentinel entry limit meaning no caller-imposed listing or tree-removal limit.
@@ -65,132 +65,136 @@ namespace GameWIP::FileSystem
             Other
         };
 
-        /// @brief Access requested for a read/write File handle.
-        enum class FileAccess
+        /// @brief File-handle and whole-file policies.
+        namespace File
         {
-            /// @brief Open for reading only.
-            Read,
-            /// @brief Open for writing only.
-            Write,
-            /// @brief Open for both reading and writing.
-            ReadWrite
-        };
+            /// @brief Access requested for a read/write File handle.
+            enum class Access
+            {
+                /// @brief Open for reading only.
+                Read,
+                /// @brief Open for writing only.
+                Write,
+                /// @brief Open for both reading and writing.
+                ReadWrite
+            };
 
-        /// @brief Bitmask controlling access allowed to other opens while a handle remains open.
-        enum class FileShare : std::uint8_t
-        {
-            /// @brief Allow no other read, write, or delete opens where the backend can enforce it.
-            None = 0,
-            /// @brief Allow other handles to request read access.
-            Read = 1U << 0U,
-            /// @brief Allow other handles to request write access.
-            Write = 1U << 1U,
-            /// @brief Allow rename, removal, or replacement while this handle remains open.
-            Delete = 1U << 2U,
-            /// @brief Allow other read and write opens.
-            ReadWrite = 0x03U,
-            /// @brief Allow other read, write, and delete opens.
-            All = 0x07U
-        };
+            /// @brief Bitmask controlling access allowed to other opens while a handle remains open.
+            enum class Share : std::uint8_t
+            {
+                /// @brief Allow no other read, write, or delete opens where the backend can enforce it.
+                None = 0,
+                /// @brief Allow other handles to request read access.
+                Read = 1U << 0U,
+                /// @brief Allow other handles to request write access.
+                Write = 1U << 1U,
+                /// @brief Allow rename, removal, or replacement while this handle remains open.
+                Delete = 1U << 2U,
+                /// @brief Allow other read and write opens.
+                ReadWrite = 0x03U,
+                /// @brief Allow other read, write, and delete opens.
+                All = 0x07U
+            };
 
-        /// @brief Combines two file-sharing flags.
-        /// @param left First sharing mask.
-        /// @param right Second sharing mask.
-        /// @return Bitwise union of left and right.
-        [[nodiscard]] constexpr FileShare operator|(FileShare left, FileShare right) noexcept
-        {
-            return static_cast<FileShare>(static_cast<std::uint8_t>(left) | static_cast<std::uint8_t>(right));
-        }
+            /// @brief Combines two file-sharing flags.
+            /// @param left First sharing mask.
+            /// @param right Second sharing mask.
+            /// @return Bitwise union of left and right.
+            [[nodiscard]] constexpr Share operator|(Share left, Share right) noexcept
+            {
+                return static_cast<Share>(static_cast<std::uint8_t>(left) | static_cast<std::uint8_t>(right));
+            }
 
-        /// @brief Intersects two file-sharing flags.
-        /// @param left First sharing mask.
-        /// @param right Second sharing mask.
-        /// @return Bitwise intersection of left and right.
-        [[nodiscard]] constexpr FileShare operator&(FileShare left, FileShare right) noexcept
-        {
-            return static_cast<FileShare>(static_cast<std::uint8_t>(left) & static_cast<std::uint8_t>(right));
-        }
+            /// @brief Intersects two file-sharing flags.
+            /// @param left First sharing mask.
+            /// @param right Second sharing mask.
+            /// @return Bitwise intersection of left and right.
+            [[nodiscard]] constexpr Share operator&(Share left, Share right) noexcept
+            {
+                return static_cast<Share>(static_cast<std::uint8_t>(left) & static_cast<std::uint8_t>(right));
+            }
 
-        /// @brief Adds sharing flags to an existing mask.
-        /// @param left Sharing mask to update.
-        /// @param right Sharing flags to add.
-        /// @return Reference to the updated left mask.
-        constexpr FileShare &operator|=(FileShare &left, FileShare right) noexcept
-        {
-            left = left | right;
-            return left;
-        }
+            /// @brief Adds sharing flags to an existing mask.
+            /// @param left Sharing mask to update.
+            /// @param right Sharing flags to add.
+            /// @return Reference to the updated left mask.
+            constexpr Share &operator|=(Share &left, Share right) noexcept
+            {
+                left = left | right;
+                return left;
+            }
 
-        /// @brief Retains only sharing flags present in both masks.
-        /// @param left Sharing mask to update.
-        /// @param right Sharing flags to retain.
-        /// @return Reference to the updated left mask.
-        constexpr FileShare &operator&=(FileShare &left, FileShare right) noexcept
-        {
-            left = left & right;
-            return left;
-        }
+            /// @brief Retains only sharing flags present in both masks.
+            /// @param left Sharing mask to update.
+            /// @param right Sharing flags to retain.
+            /// @return Reference to the updated left mask.
+            constexpr Share &operator&=(Share &left, Share right) noexcept
+            {
+                left = left & right;
+                return left;
+            }
 
-        /// @brief Creation and truncation behavior for File::open().
-        enum class FileOpenMode
-        {
-            /// @brief Open only when the file already exists.
-            OpenExisting,
-            /// @brief Create only when the file does not already exist.
-            CreateNew,
-            /// @brief Open an existing file or create a missing file without truncating.
-            OpenOrCreate,
-            /// @brief Open an existing file and truncate it to zero bytes.
-            TruncateExisting,
-            /// @brief Create a missing file or truncate an existing file.
-            CreateOrTruncate
-        };
+            /// @brief Creation and truncation behavior for File::open().
+            enum class OpenMode
+            {
+                /// @brief Open only when the file already exists.
+                OpenExisting,
+                /// @brief Create only when the file does not already exist.
+                CreateNew,
+                /// @brief Open an existing file or create a missing file without truncating.
+                OpenOrCreate,
+                /// @brief Open an existing file and truncate it to zero bytes.
+                TruncateExisting,
+                /// @brief Create a missing file or truncate an existing file.
+                CreateOrTruncate
+            };
 
-        /// @brief Initial position requested after opening a non-append file.
-        enum class FileInitialPosition
-        {
-            /// @brief Position the handle at byte zero.
-            Beginning,
-            /// @brief Position the handle at the current end of the file.
-            End
-        };
+            /// @brief Initial position requested after opening a non-append file.
+            enum class InitialPosition
+            {
+                /// @brief Position the handle at byte zero.
+                Beginning,
+                /// @brief Position the handle at the current end of the file.
+                End
+            };
 
-        /// @brief Creation, truncation, and append behavior for FileWriter::open().
-        enum class FileWriterMode
-        {
-            /// @brief Create only when the file does not already exist.
-            CreateNew,
-            /// @brief Create a missing file or truncate an existing file.
-            CreateOrTruncate,
-            /// @brief Open an existing file and truncate it to zero bytes.
-            TruncateExisting,
-            /// @brief Open an existing file or create a missing file without truncating.
-            OpenOrCreate,
-            /// @brief Append to an existing file or create a missing file.
-            AppendOrCreate,
-            /// @brief Append only when the file already exists.
-            AppendExisting
-        };
+            /// @brief Creation, truncation, and append behavior for FileWriter::open().
+            enum class WriterMode
+            {
+                /// @brief Create only when the file does not already exist.
+                CreateNew,
+                /// @brief Create a missing file or truncate an existing file.
+                CreateOrTruncate,
+                /// @brief Open an existing file and truncate it to zero bytes.
+                TruncateExisting,
+                /// @brief Open an existing file or create a missing file without truncating.
+                OpenOrCreate,
+                /// @brief Append to an existing file or create a missing file.
+                AppendOrCreate,
+                /// @brief Append only when the file already exists.
+                AppendExisting
+            };
 
-        /// @brief Creation and replacement behavior for exact-content whole-file writes.
-        enum class WriteFileMode
-        {
-            /// @brief Create only when the file does not already exist.
-            CreateNew,
-            /// @brief Create a missing file or replace existing contents.
-            CreateOrTruncate,
-            /// @brief Replace contents only when the file already exists.
-            TruncateExisting
-        };
+            /// @brief Creation and replacement behavior for exact-content whole-file writes.
+            enum class WriteMode
+            {
+                /// @brief Create only when the file does not already exist.
+                CreateNew,
+                /// @brief Create a missing file or replace existing contents.
+                CreateOrTruncate,
+                /// @brief Replace contents only when the file already exists.
+                TruncateExisting
+            };
 
-        /// @brief Creation behavior for append helpers.
-        enum class AppendMode
-        {
-            /// @brief Append to an existing file or create a missing file.
-            AppendOrCreate,
-            /// @brief Append only when the file already exists.
-            AppendExisting
-        };
+            /// @brief Creation behavior for append helpers.
+            enum class AppendMode
+            {
+                /// @brief Append to an existing file or create a missing file.
+                AppendOrCreate,
+                /// @brief Append only when the file already exists.
+                AppendExisting
+            };
+        } // namespace File
 
         /// @brief Destination replacement policy.
         enum class ReplaceMode
@@ -212,150 +216,162 @@ namespace GameWIP::FileSystem
             FollowAll
         };
 
-        /// @brief Active whole-file lock mode.
-        enum class FileLockMode
+        /// @brief Whole-file lock policies and results.
+        namespace Lock
         {
-            /// @brief Shared lock intended to coexist with other shared locks.
-            Shared,
-            /// @brief Exclusive lock intended to exclude other compatible locks.
-            Exclusive
-        };
+            /// @brief Active whole-file lock mode.
+            enum class Mode
+            {
+                /// @brief Shared lock intended to coexist with other shared locks.
+                Shared,
+                /// @brief Exclusive lock intended to exclude other compatible locks.
+                Exclusive
+            };
 
-        /// @brief Outcome of a non-blocking lock attempt.
-        enum class LockOutcome
+            /// @brief Outcome of a non-blocking lock attempt.
+            enum class Outcome
+            {
+                /// @brief The requested lock was acquired.
+                Acquired,
+                /// @brief Another lock prevented immediate acquisition.
+                WouldBlock
+            };
+
+            struct Result;
+        } // namespace Lock
+
+        namespace File
         {
-            /// @brief The requested lock was acquired.
-            Acquired,
-            /// @brief Another lock prevented immediate acquisition.
-            WouldBlock
-        };
+            /// @brief Metadata copied with file contents.
+            enum class CopyMetadataMode
+            {
+                /// @brief Copy file contents only.
+                None,
+                /// @brief Copy portable basic metadata such as last-write time and read-only state where supported.
+                Basic
+            };
 
-        /// @brief Metadata copied with file contents.
-        enum class CopyMetadataMode
-        {
-            /// @brief Copy file contents only.
-            None,
-            /// @brief Copy portable basic metadata such as last-write time and read-only state where supported.
-            Basic
-        };
+            /// @brief Options used by File::open().
+            struct OpenOptions
+            {
+                /// @brief Requested read/write access.
+                Access access = Access::ReadWrite;
+                /// @brief Creation and truncation behavior.
+                OpenMode mode = OpenMode::OpenExisting;
+                /// @brief Initial handle position after a successful open.
+                InitialPosition initialPosition = InitialPosition::Beginning;
+                /// @brief Access allowed to other opens while this handle remains open.
+                Share share = Share::All;
+                /// @brief Symlink traversal policy used while resolving the path.
+                SymlinkPolicy symlinkPolicy = SymlinkPolicy::DoNotFollow;
+                /// @brief Create missing parent directories before opening.
+                bool createParentDirectories = false;
+                /// @brief Flush requested by explicit close() before releasing the handle.
+                IO::Types::FlushMode flushOnClose = IO::Types::FlushMode::None;
+            };
 
-        /// @brief Options used by File::open().
-        struct FileOpenOptions
-        {
-            /// @brief Requested read/write access.
-            FileAccess access = FileAccess::ReadWrite;
-            /// @brief Creation and truncation behavior.
-            FileOpenMode mode = FileOpenMode::OpenExisting;
-            /// @brief Initial handle position after a successful open.
-            FileInitialPosition initialPosition = FileInitialPosition::Beginning;
-            /// @brief Access allowed to other opens while this handle remains open.
-            FileShare share = FileShare::All;
-            /// @brief Symlink traversal policy used while resolving the path.
-            SymlinkPolicy symlinkPolicy = SymlinkPolicy::DoNotFollow;
-            /// @brief Create missing parent directories before opening.
-            bool createParentDirectories = false;
-            /// @brief Flush requested by explicit close() before releasing the handle.
-            IO::Types::FlushMode flushOnClose = IO::Types::FlushMode::None;
-        };
+            /// @brief Options used by FileReader::open().
+            struct ReaderOpenOptions
+            {
+                /// @brief Access allowed to other opens while this reader remains open.
+                Share share = Share::All;
+                /// @brief Symlink traversal policy used while resolving the path.
+                SymlinkPolicy symlinkPolicy = SymlinkPolicy::DoNotFollow;
+            };
 
-        /// @brief Options used by FileReader::open().
-        struct FileReaderOpenOptions
-        {
-            /// @brief Access allowed to other opens while this reader remains open.
-            FileShare share = FileShare::All;
-            /// @brief Symlink traversal policy used while resolving the path.
-            SymlinkPolicy symlinkPolicy = SymlinkPolicy::DoNotFollow;
-        };
+            /// @brief Options used by FileWriter::open().
+            struct WriterOpenOptions
+            {
+                /// @brief Creation, truncation, or append behavior.
+                WriterMode mode = WriterMode::CreateOrTruncate;
+                /// @brief Access allowed to other opens while this writer remains open.
+                Share share = Share::All;
+                /// @brief Symlink traversal policy used while resolving the path.
+                SymlinkPolicy symlinkPolicy = SymlinkPolicy::DoNotFollow;
+                /// @brief Create missing parent directories before opening.
+                bool createParentDirectories = false;
+                /// @brief Flush requested by explicit close() before releasing the handle.
+                IO::Types::FlushMode flushOnClose = IO::Types::FlushMode::None;
+            };
 
-        /// @brief Options used by FileWriter::open().
-        struct FileWriterOpenOptions
-        {
-            /// @brief Creation, truncation, or append behavior.
-            FileWriterMode mode = FileWriterMode::CreateOrTruncate;
-            /// @brief Access allowed to other opens while this writer remains open.
-            FileShare share = FileShare::All;
-            /// @brief Symlink traversal policy used while resolving the path.
-            SymlinkPolicy symlinkPolicy = SymlinkPolicy::DoNotFollow;
-            /// @brief Create missing parent directories before opening.
-            bool createParentDirectories = false;
-            /// @brief Flush requested by explicit close() before releasing the handle.
-            IO::Types::FlushMode flushOnClose = IO::Types::FlushMode::None;
-        };
+            /// @brief Options used by whole-file read helpers.
+            struct ReadOptions
+            {
+                /// @brief Options used to open the underlying reader.
+                ReaderOpenOptions open{};
+                /// @brief Maximum accepted file size, or IO::kNoByteLimit for no caller limit.
+                /// @note This is a hard limit, not a successful truncation request.
+                std::uint64_t maxBytes = IO::kNoByteLimit;
+                /// @brief Temporary transfer buffer size. Must be greater than zero.
+                /// @note The buffer is internal to the call and does not limit the final result size.
+                std::size_t bufferSize = IO::kDefaultBufferSize;
+            };
 
-        /// @brief Options used by whole-file read helpers.
-        struct ReadFileOptions
-        {
-            /// @brief Options used to open the underlying reader.
-            FileReaderOpenOptions open{};
-            /// @brief Maximum accepted file size, or IO::kNoByteLimit for no caller limit.
-            /// @note This is a hard limit, not a successful truncation request.
-            std::uint64_t maxBytes = IO::kNoByteLimit;
-            /// @brief Temporary transfer buffer size. Must be greater than zero.
-            /// @note The buffer is internal to the call and does not limit the final result size.
-            std::size_t bufferSize = IO::kDefaultBufferSize;
-        };
+            /// @brief Options used by exact-content whole-file write helpers.
+            struct WriteOptions
+            {
+                /// @brief Creation and replacement behavior.
+                WriteMode mode = WriteMode::CreateOrTruncate;
+                /// @brief Access allowed to other opens while the target is open.
+                Share share = Share::All;
+                /// @brief Symlink traversal policy used while resolving the path.
+                SymlinkPolicy symlinkPolicy = SymlinkPolicy::DoNotFollow;
+                /// @brief Create missing parent directories before opening.
+                bool createParentDirectories = true;
+                /// @brief Flush requested after payload writing and before close.
+                IO::Types::FlushMode flushMode = IO::Types::FlushMode::None;
+            };
 
-        /// @brief Options used by exact-content whole-file write helpers.
-        struct WriteFileOptions
-        {
-            /// @brief Creation and replacement behavior.
-            WriteFileMode mode = WriteFileMode::CreateOrTruncate;
-            /// @brief Access allowed to other opens while the target is open.
-            FileShare share = FileShare::All;
-            /// @brief Symlink traversal policy used while resolving the path.
-            SymlinkPolicy symlinkPolicy = SymlinkPolicy::DoNotFollow;
-            /// @brief Create missing parent directories before opening.
-            bool createParentDirectories = true;
-            /// @brief Flush requested after payload writing and before close.
-            IO::Types::FlushMode flushMode = IO::Types::FlushMode::None;
-        };
+            /// @brief Options used by append helpers.
+            struct AppendOptions
+            {
+                /// @brief Whether a missing target is created or reported as NotFound.
+                AppendMode mode = AppendMode::AppendOrCreate;
+                /// @brief Access allowed to other opens while the target is open.
+                Share share = Share::All;
+                /// @brief Symlink traversal policy used while resolving the path.
+                SymlinkPolicy symlinkPolicy = SymlinkPolicy::DoNotFollow;
+                /// @brief Create missing parent directories before opening.
+                bool createParentDirectories = true;
+                /// @brief Flush requested after payload writing and before close.
+                IO::Types::FlushMode flushMode = IO::Types::FlushMode::None;
+            };
 
-        /// @brief Options used by append helpers.
-        struct AppendFileOptions
-        {
-            /// @brief Whether a missing target is created or reported as NotFound.
-            AppendMode mode = AppendMode::AppendOrCreate;
-            /// @brief Access allowed to other opens while the target is open.
-            FileShare share = FileShare::All;
-            /// @brief Symlink traversal policy used while resolving the path.
-            SymlinkPolicy symlinkPolicy = SymlinkPolicy::DoNotFollow;
-            /// @brief Create missing parent directories before opening.
-            bool createParentDirectories = true;
-            /// @brief Flush requested after payload writing and before close.
-            IO::Types::FlushMode flushMode = IO::Types::FlushMode::None;
-        };
+            /// @brief Options used by atomic whole-file replacement.
+            struct AtomicWriteOptions
+            {
+                /// @brief Create missing parent directories before creating the temporary file.
+                bool createParentDirectories = true;
+                /// @brief Destination replacement behavior at commit.
+                ReplaceMode replaceMode = ReplaceMode::ReplaceExisting;
+                /// @brief Symlink traversal policy used to resolve the destination.
+                SymlinkPolicy symlinkPolicy = SymlinkPolicy::DoNotFollow;
+                /// @brief Flush requested for the temporary file before commit.
+                IO::Types::FlushMode flushMode = IO::Types::FlushMode::Data;
+                /// @brief Flush the parent directory after replacement.
+                bool flushParentDirectory = true;
+                /// @brief UTF-8 filename prefix used for a generated temporary file in the destination directory.
+                /// @note Must be valid UTF-8, non-empty, contain no path separator or embedded U+0000, and not be "." or "..".
+                std::string temporaryNamePrefix{kAtomicTemporaryNamePrefix};
+            };
+        } // namespace File
 
-        /// @brief Options used by atomic whole-file replacement.
-        struct AtomicWriteOptions
-        {
-            /// @brief Create missing parent directories before creating the temporary file.
-            bool createParentDirectories = true;
-            /// @brief Destination replacement behavior at commit.
-            ReplaceMode replaceMode = ReplaceMode::ReplaceExisting;
-            /// @brief Symlink traversal policy used to resolve the destination.
-            SymlinkPolicy symlinkPolicy = SymlinkPolicy::DoNotFollow;
-            /// @brief Flush requested for the temporary file before commit.
-            IO::Types::FlushMode flushMode = IO::Types::FlushMode::Data;
-            /// @brief Flush the parent directory after replacement.
-            bool flushParentDirectory = true;
-            /// @brief Filename prefix used for a generated temporary file in the destination directory.
-            /// @note Must be non-empty and contain no path separator, embedded NUL, or complete "." or ".." name.
-            std::string temporaryNamePrefix{kAtomicTemporaryNamePrefix};
-        };
-
-        /// @brief Options shared by metadata queries and simple metadata mutation.
-        struct QueryOptions
+        /// @brief Options shared by entry queries and simple metadata mutation.
+        struct EntryOptions
         {
             /// @brief Symlink traversal policy used by the operation.
             SymlinkPolicy symlinkPolicy = SymlinkPolicy::DoNotFollow;
         };
 
-        /// @brief Options used by path-based file resizing and truncation.
-        struct MutationOptions
+        namespace File
         {
-            /// @brief Symlink traversal policy used to resolve the file to mutate.
-            SymlinkPolicy symlinkPolicy = SymlinkPolicy::DoNotFollow;
-        };
+            /// @brief Options used by path-based file resizing and truncation.
+            struct ResizeOptions
+            {
+                /// @brief Symlink traversal policy used to resolve the file to mutate.
+                SymlinkPolicy symlinkPolicy = SymlinkPolicy::DoNotFollow;
+            };
+        } // namespace File
 
         /// @brief Portable metadata for an existing filesystem entry.
         struct EntryInfo
@@ -420,66 +436,70 @@ namespace GameWIP::FileSystem
             std::string utf8;
         };
 
-        /// @brief Options used by createDirectory() and createDirectories().
-        struct CreateDirectoryOptions
+        /// @brief Directory creation, enumeration, and tree-removal values.
+        namespace Directory
         {
-            /// @brief Treat an already-existing directory as success.
-            bool succeedIfAlreadyExists = true;
-            /// @brief Symlink traversal policy used while resolving the path.
-            SymlinkPolicy symlinkPolicy = SymlinkPolicy::DoNotFollow;
-        };
+            /// @brief Options used by createDirectory() and createDirectories().
+            struct CreateOptions
+            {
+                /// @brief Treat an already-existing directory as success.
+                bool succeedIfAlreadyExists = true;
+                /// @brief Symlink traversal policy used while resolving the path.
+                SymlinkPolicy symlinkPolicy = SymlinkPolicy::DoNotFollow;
+            };
 
-        /// @brief Options used by listDirectory().
-        struct ListDirectoryOptions
-        {
-            /// @brief Include regular files.
-            bool includeFiles = true;
-            /// @brief Include directories.
-            bool includeDirectories = true;
-            /// @brief Include symbolic links or equivalent link-like entries.
-            bool includeSymlinks = true;
-            /// @brief Include existing entries without another portable kind.
-            bool includeOther = true;
-            /// @brief Include entries considered hidden by the backend.
-            bool includeHidden = true;
-            /// @brief Symlink policy used when obtaining child metadata.
-            SymlinkPolicy symlinkPolicy = SymlinkPolicy::DoNotFollow;
-            /// @brief Maximum number of returned entries, or kNoEntryLimit for no caller limit.
-            std::uint64_t maxEntries = kNoEntryLimit;
-        };
+            /// @brief Options used by listDirectory().
+            struct ListOptions
+            {
+                /// @brief Include regular files.
+                bool includeFiles = true;
+                /// @brief Include directories.
+                bool includeDirectories = true;
+                /// @brief Include symbolic links or equivalent link-like entries.
+                bool includeSymlinks = true;
+                /// @brief Include existing entries without another portable kind.
+                bool includeOther = true;
+                /// @brief Include entries considered hidden by the backend.
+                bool includeHidden = true;
+                /// @brief Symlink policy used when obtaining child metadata.
+                SymlinkPolicy symlinkPolicy = SymlinkPolicy::DoNotFollow;
+                /// @brief Maximum number of returned entries, or kNoEntryLimit for no caller limit.
+                std::uint64_t maxEntries = kNoEntryLimit;
+            };
 
-        /// @brief One direct child returned by listDirectory().
-        struct DirectoryEntry
-        {
-            /// @brief Supplied parent path joined with the child name.
-            /// @note A relative parent produces a relative child path; this field is not necessarily absolute.
-            Path path;
-            /// @brief Portable metadata for the child.
-            EntryInfo info{};
-        };
+            /// @brief One direct child returned by listDirectory().
+            struct Entry
+            {
+                /// @brief Supplied parent path joined with the child name.
+                /// @note A relative parent produces a relative child path; this field is not necessarily absolute.
+                Path path;
+                /// @brief Portable metadata for the child.
+                EntryInfo info{};
+            };
 
-        /// @brief Result returned by listDirectory().
-        /// @details SizeLimitExceeded may return entries collected before the limit was reached. The result owns all
-        /// accepted entries, so retained storage is proportional to their count and path sizes.
-        struct ListDirectoryResult
-        {
-            /// @brief Operation status.
-            IO::Types::Status status;
-            /// @brief Direct children collected before completion or failure.
-            std::vector<DirectoryEntry> entries;
-        };
+            /// @brief Result returned by listDirectory().
+            /// @details SizeLimitExceeded may return entries collected before the limit was reached. The result owns all
+            /// accepted entries, so retained storage is proportional to their count and path sizes.
+            struct ListResult
+            {
+                /// @brief Operation status.
+                IO::Types::Status status;
+                /// @brief Direct children collected before completion or failure.
+                std::vector<Entry> entries;
+            };
 
-        /// @brief Result returned by one DirectoryCursor step.
-        /// @details Successful exhaustion is represented by hasEntry=false. A failed result does not contain an entry.
-        struct DirectoryCursorNextResult
-        {
-            /// @brief Operation status.
-            IO::Types::Status status;
-            /// @brief Direct child returned when hasEntry is true.
-            DirectoryEntry entry;
-            /// @brief Whether this step returned one accepted child.
-            bool hasEntry = false;
-        };
+            /// @brief Result returned by one DirectoryCursor step.
+            /// @details Successful exhaustion is represented by hasEntry=false. A failed result does not contain an entry.
+            struct CursorNextResult
+            {
+                /// @brief Operation status.
+                IO::Types::Status status;
+                /// @brief Direct child returned when hasEntry is true.
+                Entry entry;
+                /// @brief Whether this step returned one accepted child.
+                bool hasEntry = false;
+            };
+        } // namespace Directory
 
         /// @brief Options used by removeFile() and removeEmptyDirectory().
         struct RemoveOptions
@@ -490,26 +510,29 @@ namespace GameWIP::FileSystem
             SymlinkPolicy symlinkPolicy = SymlinkPolicy::DoNotFollow;
         };
 
-        /// @brief Options used by removeDirectoryTree().
-        struct RemoveDirectoryTreeOptions
+        namespace Directory
         {
-            /// @brief Treat a missing target as success.
-            bool succeedIfMissing = false;
-            /// @brief Symlink traversal policy used only for the initial path.
-            SymlinkPolicy symlinkPolicy = SymlinkPolicy::DoNotFollow;
-            /// @brief Maximum number of removed entries, or kNoEntryLimit for no caller limit.
-            std::uint64_t maxEntries = kNoEntryLimit;
-        };
+            /// @brief Options used by removeDirectoryTree().
+            struct RemoveTreeOptions
+            {
+                /// @brief Treat a missing target as success.
+                bool succeedIfMissing = false;
+                /// @brief Symlink traversal policy used only for the initial path.
+                SymlinkPolicy symlinkPolicy = SymlinkPolicy::DoNotFollow;
+                /// @brief Maximum number of removed entries, or kNoEntryLimit for no caller limit.
+                std::uint64_t maxEntries = kNoEntryLimit;
+            };
 
-        /// @brief Result returned by removeDirectoryTree().
-        /// @details SizeLimitExceeded or another failure may report entries removed before the failure.
-        struct RemoveDirectoryTreeResult
-        {
-            /// @brief Operation status.
-            IO::Types::Status status;
-            /// @brief Number of entries removed before completion or failure.
-            std::uint64_t removedEntries = 0;
-        };
+            /// @brief Result returned by removeDirectoryTree().
+            /// @details SizeLimitExceeded or another failure may report entries removed before the failure.
+            struct RemoveTreeResult
+            {
+                /// @brief Operation status.
+                IO::Types::Status status;
+                /// @brief Number of entries removed before completion or failure.
+                std::uint64_t removedEntries = 0;
+            };
+        } // namespace Directory
 
         /// @brief Options used by movePath().
         struct MoveOptions
@@ -522,22 +545,23 @@ namespace GameWIP::FileSystem
             bool createParentDirectories = false;
         };
 
-        /// @brief Options used by copyFile().
-        struct CopyFileOptions
+        namespace File
         {
-            /// @brief Destination replacement behavior.
-            ReplaceMode replaceMode = ReplaceMode::FailIfExists;
-            /// @brief Symlink traversal policy used for source resolution and destination path traversal.
-            SymlinkPolicy symlinkPolicy = SymlinkPolicy::DoNotFollow;
-            /// @brief Create missing destination parent directories before copying.
-            bool createParentDirectories = false;
-            /// @brief Additional metadata to copy after file contents.
-            CopyMetadataMode metadataMode = CopyMetadataMode::None;
-            /// @brief Flush requested for the destination after copying.
-            IO::Types::FlushMode flushMode = IO::Types::FlushMode::None;
-        };
-
-        struct LockResult;
+            /// @brief Options used by copyFile().
+            struct CopyOptions
+            {
+                /// @brief Destination replacement behavior.
+                ReplaceMode replaceMode = ReplaceMode::FailIfExists;
+                /// @brief Symlink traversal policy used for source resolution and destination path traversal.
+                SymlinkPolicy symlinkPolicy = SymlinkPolicy::DoNotFollow;
+                /// @brief Create missing destination parent directories before copying.
+                bool createParentDirectories = false;
+                /// @brief Additional metadata to copy after file contents.
+                CopyMetadataMode metadataMode = CopyMetadataMode::None;
+                /// @brief Flush requested for the destination after copying.
+                IO::Types::FlushMode flushMode = IO::Types::FlushMode::None;
+            };
+        } // namespace File
     } // namespace Types
 
     /// @brief Move-only, bounded-memory cursor over direct directory children.
@@ -564,18 +588,18 @@ namespace GameWIP::FileSystem
         /// @param path Directory path to enumerate.
         /// @param options Filtering, symlink, hidden-entry, and entry-limit behavior.
         /// @return Success, AlreadyOpen, or a validation/open failure status.
-        [[nodiscard]] IO::Types::Status open(const Types::Path &path, const Types::ListDirectoryOptions &options = {}) noexcept;
+        [[nodiscard]] IO::Types::Status open(const Types::Path &path, const Types::Directory::ListOptions &options = {}) noexcept;
         /// @brief Returns whether this object owns an active enumeration.
         [[nodiscard]] bool isOpen() const noexcept;
         /// @brief Returns the next accepted child or successful exhaustion.
         /// @return One entry, successful exhaustion, NotOpen, SizeLimitExceeded, or an enumeration failure.
-        [[nodiscard]] Types::DirectoryCursorNextResult next() noexcept;
+        [[nodiscard]] Types::Directory::CursorNextResult next() noexcept;
         /// @brief Closes the enumeration. Repeated close calls succeed.
         [[nodiscard]] IO::Types::Status close() noexcept;
 
     private:
         std::unique_ptr<Detail::DirectoryCursorState> state_;
-        Types::ListDirectoryOptions options_{};
+        Types::Directory::ListOptions options_{};
         std::uint64_t emittedEntries_ = 0;
         bool limitReached_ = false;
     };
@@ -603,11 +627,11 @@ namespace GameWIP::FileSystem
 
         /// @brief Returns whether this object owns an active lock.
         /// @return True until the lock is moved from or successfully unlocked.
-        [[nodiscard]] bool active() const noexcept;
+        [[nodiscard]] bool isActive() const noexcept;
         /// @brief Returns the active lock mode.
         /// @return Shared or exclusive mode selected during acquisition.
-        /// @note Meaningful only while active() is true.
-        [[nodiscard]] Types::FileLockMode mode() const noexcept;
+        /// @note Meaningful only while isActive() is true.
+        [[nodiscard]] Types::Lock::Mode mode() const noexcept;
         /// @brief Releases the lock. A failed unlock remains active and may be retried.
         /// @return Success, UnlockFailed, or a more specific backend status.
         [[nodiscard]] IO::Types::Status unlock() noexcept;
@@ -617,10 +641,10 @@ namespace GameWIP::FileSystem
         friend class FileReader;
         friend class FileWriter;
 
-        explicit FileLock(std::unique_ptr<Detail::FileLockState> state, Types::FileLockMode mode) noexcept;
+        explicit FileLock(std::unique_ptr<Detail::FileLockState> state, Types::Lock::Mode mode) noexcept;
 
         std::unique_ptr<Detail::FileLockState> state_;
-        Types::FileLockMode mode_ = Types::FileLockMode::Shared;
+        Types::Lock::Mode mode_ = Types::Lock::Mode::Shared;
     };
 
     /// @brief Read-only file-backed IO reader.
@@ -646,7 +670,7 @@ namespace GameWIP::FileSystem
         /// @param path File path to open.
         /// @param options Sharing and symlink-resolution behavior.
         /// @return Success, AlreadyOpen when already open, or an open failure status.
-        [[nodiscard]] IO::Types::Status open(const Types::Path &path, const Types::FileReaderOpenOptions &options = {}) noexcept;
+        [[nodiscard]] IO::Types::Status open(const Types::Path &path, const Types::File::ReaderOpenOptions &options = {}) noexcept;
         /// @brief Returns whether a file is currently open.
         /// @return True after a successful open() and before close().
         [[nodiscard]] bool isOpen() const noexcept override;
@@ -675,7 +699,7 @@ namespace GameWIP::FileSystem
         [[nodiscard]] IO::Types::Status seek(std::int64_t offset, IO::Types::SeekOrigin origin) noexcept override;
         /// @brief Attempts to acquire a non-blocking shared whole-file lock.
         /// @return Lock status, acquisition outcome, and active lock owner when acquired.
-        [[nodiscard]] Types::LockResult tryLockShared() noexcept;
+        [[nodiscard]] Types::Lock::Result tryLockShared() noexcept;
 
     private:
         std::unique_ptr<Detail::FileState> state_;
@@ -705,7 +729,7 @@ namespace GameWIP::FileSystem
         /// @param options Creation, sharing, symlink, parent, and close-flush behavior.
         /// @return Success, AlreadyOpen when already open, or an open failure status.
         /// @note Append modes are non-seekable and each write targets the then-current end of file.
-        [[nodiscard]] IO::Types::Status open(const Types::Path &path, const Types::FileWriterOpenOptions &options = {}) noexcept;
+        [[nodiscard]] IO::Types::Status open(const Types::Path &path, const Types::File::WriterOpenOptions &options = {}) noexcept;
         /// @brief Returns whether a file is currently open.
         /// @return True after a successful open() and before close().
         [[nodiscard]] bool isOpen() const noexcept override;
@@ -738,7 +762,7 @@ namespace GameWIP::FileSystem
         [[nodiscard]] IO::Types::Status seek(std::int64_t offset, IO::Types::SeekOrigin origin) noexcept override;
         /// @brief Attempts to acquire a non-blocking exclusive whole-file lock.
         /// @return Lock status, acquisition outcome, and active lock owner when acquired.
-        [[nodiscard]] Types::LockResult tryLockExclusive() noexcept;
+        [[nodiscard]] Types::Lock::Result tryLockExclusive() noexcept;
 
     private:
         std::unique_ptr<Detail::FileState> state_;
@@ -767,10 +791,10 @@ namespace GameWIP::FileSystem
         /// @param path File path to open.
         /// @param options Access, creation, sharing, position, symlink, parent, and close-flush behavior.
         /// @return Success, AlreadyOpen when already open, or an open failure status.
-        /// @note FileInitialPosition::End sets one initial position; it does not provide append semantics.
+        /// @note Types::File::InitialPosition::End sets one initial position; it does not provide append semantics.
         /// @note Modes that create or truncate require Write or ReadWrite access.
         /// @note A non-None flushOnClose requires Write or ReadWrite access.
-        [[nodiscard]] IO::Types::Status open(const Types::Path &path, const Types::FileOpenOptions &options = {}) noexcept;
+        [[nodiscard]] IO::Types::Status open(const Types::Path &path, const Types::File::OpenOptions &options = {}) noexcept;
         /// @brief Returns whether a file is currently open.
         /// @return True after a successful open() and before close().
         [[nodiscard]] bool isOpen() const noexcept override;
@@ -780,7 +804,7 @@ namespace GameWIP::FileSystem
         /// @brief Returns access selected by the successful open call.
         /// @return Access mode selected by open().
         /// @note Meaningful only while isOpen() is true.
-        [[nodiscard]] Types::FileAccess access() const noexcept;
+        [[nodiscard]] Types::File::Access access() const noexcept;
         /// @brief Reads bytes from the current file position.
         /// @param destination Caller-owned call-scoped memory; the reader does not retain it.
         /// @return Read status, copied byte count, and end-of-stream state. A successful final read may contain bytes and set endOfStream.
@@ -816,42 +840,42 @@ namespace GameWIP::FileSystem
         [[nodiscard]] IO::Types::Status resize(std::uint64_t sizeBytes) noexcept;
         /// @brief Attempts to acquire a non-blocking shared whole-file lock.
         /// @return Lock status, acquisition outcome, and active lock owner when acquired.
-        [[nodiscard]] Types::LockResult tryLockShared() noexcept;
+        [[nodiscard]] Types::Lock::Result tryLockShared() noexcept;
         /// @brief Attempts to acquire a non-blocking exclusive whole-file lock.
         /// @return Lock status, acquisition outcome, and active lock owner when acquired.
-        [[nodiscard]] Types::LockResult tryLockExclusive() noexcept;
+        [[nodiscard]] Types::Lock::Result tryLockExclusive() noexcept;
 
     private:
         std::unique_ptr<Detail::FileState> state_;
     };
 
-    namespace Types
+    namespace Types::Lock
     {
         /// @brief Result returned by a non-blocking whole-file lock attempt.
         /// @details WouldBlock is a successful expected outcome with an inactive lock.
-        struct LockResult
+        struct Result
         {
             /// @brief Operation status. WouldBlock is reported through outcome, not as an error.
             IO::Types::Status status;
             /// @brief Whether the lock was acquired or could not be acquired immediately.
-            LockOutcome outcome = LockOutcome::WouldBlock;
+            Outcome outcome = Outcome::WouldBlock;
             /// @brief Active lock owner when outcome is Acquired; inactive otherwise.
             FileLock lock;
         };
-    } // namespace Types
+    } // namespace Types::Lock
 
     /// @brief Reads an entire file as bytes.
     /// @param path File path to read.
     /// @param options Open behavior, hard byte limit, and transfer buffer size.
     /// @return Collected bytes and final status. Partial data may be present after transfer or close failure.
     /// @note SizeLimitExceeded is a failed hard-limit result, not successful truncation.
-    [[nodiscard]] IO::Types::ReadAllBytesResult readAllBytes(const Types::Path &path, const Types::ReadFileOptions &options = {}) noexcept;
+    [[nodiscard]] IO::Types::ReadAllBytesResult readAllBytes(const Types::Path &path, const Types::File::ReadOptions &options = {}) noexcept;
 
-    /// @brief Reads an entire file as text bytes without validation, BOM handling, or encoding conversion.
+    /// @brief Reads an entire file as strict UTF-8 text without BOM or line-ending transformation.
     /// @param path File path to read.
     /// @param options Open behavior, hard byte limit, and transfer buffer size.
-    /// @return Collected text bytes and final status. Partial text may be present after transfer or close failure.
-    [[nodiscard]] IO::Types::ReadAllTextResult readAllText(const Types::Path &path, const Types::ReadFileOptions &options = {}) noexcept;
+    /// @return Valid UTF-8 text and final status. A failed read may preserve the complete valid UTF-8 prefix.
+    [[nodiscard]] IO::Types::ReadAllTextResult readAllText(const Types::Path &path, const Types::File::ReadOptions &options = {}) noexcept;
 
     /// @brief Writes exact file contents through a non-atomic writer and reports accepted payload bytes.
     /// @details Empty input still performs the requested create/truncate, flush, and close sequence. A flush or close failure preserves the payload
@@ -863,7 +887,7 @@ namespace GameWIP::FileSystem
     [[nodiscard]] IO::Types::WriteResult writeAllBytes(
         const Types::Path &path,
         std::span<const std::byte> bytes,
-        const Types::WriteFileOptions &options = {}) noexcept;
+        const Types::File::WriteOptions &options = {}) noexcept;
 
     /// @brief Writes exact vector contents and reports accepted payload bytes.
     /// @tparam Allocator Byte-vector allocator type.
@@ -875,22 +899,22 @@ namespace GameWIP::FileSystem
     [[nodiscard]] IO::Types::WriteResult writeAllBytes(
         const Types::Path &path,
         const std::vector<std::byte, Allocator> &bytes,
-        const Types::WriteFileOptions &options = {}) noexcept
+        const Types::File::WriteOptions &options = {}) noexcept
     {
         return writeAllBytes(path, std::span<const std::byte>(bytes.data(), bytes.size()), options);
     }
 
-    /// @brief Writes exact text bytes without validation, BOM handling, or encoding conversion.
-    /// @details Empty input still performs the requested create/truncate, flush, and close sequence. A flush or close failure preserves the payload
-    /// byte count accepted before that failure.
+    /// @brief Writes exact strict UTF-8 text without BOM or line-ending transformation.
+    /// @details UTF-8 is validated before parent creation, file creation, or truncation. Empty valid text still performs
+    /// the requested create/truncate, flush, and close sequence.
     /// @param path Destination file path.
-    /// @param utf8Text Exact text bytes.
+    /// @param utf8Text Exact UTF-8 text.
     /// @param options Creation, sharing, symlink, parent, and flush behavior.
-    /// @return Final status and total payload bytes accepted.
+    /// @return EncodingFailed with zero payload progress for malformed text, otherwise final status and accepted bytes.
     [[nodiscard]] IO::Types::WriteResult writeAllText(
         const Types::Path &path,
         std::string_view utf8Text,
-        const Types::WriteFileOptions &options = {}) noexcept;
+        const Types::File::WriteOptions &options = {}) noexcept;
 
     /// @brief Appends bytes through an append-mode handle and reports accepted payload bytes.
     /// @details A flush or close failure preserves the payload byte count accepted before that failure.
@@ -901,7 +925,7 @@ namespace GameWIP::FileSystem
     [[nodiscard]] IO::Types::WriteResult appendBytes(
         const Types::Path &path,
         std::span<const std::byte> bytes,
-        const Types::AppendFileOptions &options = {}) noexcept;
+        const Types::File::AppendOptions &options = {}) noexcept;
 
     /// @brief Appends vector contents and reports accepted payload bytes.
     /// @tparam Allocator Byte-vector allocator type.
@@ -913,21 +937,21 @@ namespace GameWIP::FileSystem
     [[nodiscard]] IO::Types::WriteResult appendBytes(
         const Types::Path &path,
         const std::vector<std::byte, Allocator> &bytes,
-        const Types::AppendFileOptions &options = {}) noexcept
+        const Types::File::AppendOptions &options = {}) noexcept
     {
         return appendBytes(path, std::span<const std::byte>(bytes.data(), bytes.size()), options);
     }
 
-    /// @brief Appends UTF-8 bytes without adding a line ending and reports accepted payload bytes.
-    /// @details A flush or close failure preserves the payload byte count accepted before that failure.
+    /// @brief Appends strict UTF-8 text without adding a line ending.
+    /// @details UTF-8 is validated before parent or file creation. A flush or close failure preserves accepted payload progress.
     /// @param path Destination file path.
-    /// @param utf8Text Text bytes to append.
+    /// @param utf8Text UTF-8 text to append.
     /// @param options Creation, sharing, symlink, parent, and flush behavior.
-    /// @return Final status and total payload bytes accepted.
+    /// @return EncodingFailed with zero payload progress for malformed text, otherwise final status and accepted bytes.
     [[nodiscard]] IO::Types::WriteResult appendText(
         const Types::Path &path,
         std::string_view utf8Text,
-        const Types::AppendFileOptions &options = {}) noexcept;
+        const Types::File::AppendOptions &options = {}) noexcept;
 
     /// @brief Atomically replaces exact file contents through a same-directory temporary file.
     /// @details No non-atomic fallback is used. Before commit, failure leaves an existing destination unchanged.
@@ -939,7 +963,7 @@ namespace GameWIP::FileSystem
     [[nodiscard]] IO::Types::Status writeAllBytesAtomic(
         const Types::Path &path,
         std::span<const std::byte> bytes,
-        const Types::AtomicWriteOptions &options = {}) noexcept;
+        const Types::File::AtomicWriteOptions &options = {}) noexcept;
 
     /// @brief Atomically replaces exact file contents from vector storage.
     /// @tparam Allocator Byte-vector allocator type.
@@ -951,113 +975,116 @@ namespace GameWIP::FileSystem
     [[nodiscard]] IO::Types::Status writeAllBytesAtomic(
         const Types::Path &path,
         const std::vector<std::byte, Allocator> &bytes,
-        const Types::AtomicWriteOptions &options = {}) noexcept
+        const Types::File::AtomicWriteOptions &options = {}) noexcept
     {
         return writeAllBytesAtomic(path, std::span<const std::byte>(bytes.data(), bytes.size()), options);
     }
 
-    /// @brief Atomically replaces exact UTF-8 byte contents.
+    /// @brief Atomically replaces exact strict UTF-8 contents.
     /// @param path Destination file path.
-    /// @param utf8Text Exact replacement text bytes.
+    /// @param utf8Text Exact replacement UTF-8 text.
     /// @param options Parent creation, replacement, symlink, flush, and temporary-name behavior.
-    /// @return Success or the validation, temporary-file, write, flush, or replacement failure.
+    /// @return EncodingFailed before filesystem side effects for malformed text, otherwise the atomic-write status.
     [[nodiscard]] IO::Types::Status writeAllTextAtomic(
         const Types::Path &path,
         std::string_view utf8Text,
-        const Types::AtomicWriteOptions &options = {}) noexcept;
+        const Types::File::AtomicWriteOptions &options = {}) noexcept;
 
     /// @brief Resizes an existing regular file.
     /// @param path File path to resize.
     /// @param sizeBytes Requested file size in bytes.
     /// @param options Symlink traversal behavior.
     /// @return Success or a validation, lookup, permission, or resize failure status.
-    [[nodiscard]] IO::Types::Status resizeFile(const Types::Path &path, std::uint64_t sizeBytes, const Types::MutationOptions &options = {}) noexcept;
+    [[nodiscard]] IO::Types::Status resizeFile(
+        const Types::Path &path,
+        std::uint64_t sizeBytes,
+        const Types::File::ResizeOptions &options = {}) noexcept;
 
     /// @brief Truncates an existing regular file to zero bytes.
     /// @param path File path to truncate.
     /// @param options Symlink traversal behavior.
     /// @return Success or a validation, lookup, permission, or resize failure status.
-    [[nodiscard]] IO::Types::Status truncateFile(const Types::Path &path, const Types::MutationOptions &options = {}) noexcept;
+    [[nodiscard]] IO::Types::Status truncateFile(const Types::Path &path, const Types::File::ResizeOptions &options = {}) noexcept;
 
     /// @brief Creates one directory level.
     /// @param path Directory path to create.
     /// @param options Existing-directory and symlink traversal behavior.
     /// @return Success or a validation, conflict, permission, or directory-creation failure status.
-    [[nodiscard]] IO::Types::Status createDirectory(const Types::Path &path, const Types::CreateDirectoryOptions &options = {}) noexcept;
+    [[nodiscard]] IO::Types::Status createDirectory(const Types::Path &path, const Types::Directory::CreateOptions &options = {}) noexcept;
 
     /// @brief Creates a directory and any missing parent directories.
     /// @param path Directory path to create.
     /// @param options Existing-directory and symlink traversal behavior.
     /// @return Success or a validation, conflict, permission, or directory-creation failure status.
-    [[nodiscard]] IO::Types::Status createDirectories(const Types::Path &path, const Types::CreateDirectoryOptions &options = {}) noexcept;
+    [[nodiscard]] IO::Types::Status createDirectories(const Types::Path &path, const Types::Directory::CreateOptions &options = {}) noexcept;
 
     /// @brief Lists direct children of a directory in backend/native order.
     /// @param path Directory path to enumerate.
     /// @param options Filtering, symlink, hidden-entry, and entry-limit behavior.
     /// @return Collected child entries and final status.
-    [[nodiscard]] Types::ListDirectoryResult listDirectory(const Types::Path &path, const Types::ListDirectoryOptions &options = {}) noexcept;
+    [[nodiscard]] Types::Directory::ListResult listDirectory(const Types::Path &path, const Types::Directory::ListOptions &options = {}) noexcept;
 
     /// @brief Tests whether a filesystem entry exists.
     /// @param path Path to query.
     /// @param options Symlink traversal behavior.
     /// @return Successful true or false; missing entries produce successful false.
-    [[nodiscard]] Types::BoolResult exists(const Types::Path &path, const Types::QueryOptions &options = {}) noexcept;
+    [[nodiscard]] Types::BoolResult exists(const Types::Path &path, const Types::EntryOptions &options = {}) noexcept;
 
     /// @brief Returns portable metadata for an existing filesystem entry.
     /// @param path Path to query.
     /// @param options Symlink traversal behavior.
     /// @return Entry metadata, or NotFound when the entry is missing.
-    [[nodiscard]] Types::EntryInfoResult getEntryInfo(const Types::Path &path, const Types::QueryOptions &options = {}) noexcept;
+    [[nodiscard]] Types::EntryInfoResult getEntryInfo(const Types::Path &path, const Types::EntryOptions &options = {}) noexcept;
 
     /// @brief Tests whether a path exists and is a regular file.
     /// @param path Path to query.
     /// @param options Symlink traversal behavior.
     /// @return Successful true or false; missing entries produce successful false.
-    [[nodiscard]] Types::BoolResult isRegularFile(const Types::Path &path, const Types::QueryOptions &options = {}) noexcept;
+    [[nodiscard]] Types::BoolResult isRegularFile(const Types::Path &path, const Types::EntryOptions &options = {}) noexcept;
 
     /// @brief Tests whether a path exists and is a directory.
     /// @param path Path to query.
     /// @param options Symlink traversal behavior.
     /// @return Successful true or false; missing entries produce successful false.
-    [[nodiscard]] Types::BoolResult isDirectory(const Types::Path &path, const Types::QueryOptions &options = {}) noexcept;
+    [[nodiscard]] Types::BoolResult isDirectory(const Types::Path &path, const Types::EntryOptions &options = {}) noexcept;
 
     /// @brief Tests whether a path exists and is a symbolic link or equivalent link-like entry.
     /// @param path Path to query.
     /// @param options Symlink traversal behavior.
     /// @return Successful true or false; missing entries produce successful false.
-    [[nodiscard]] Types::BoolResult isSymlink(const Types::Path &path, const Types::QueryOptions &options = {}) noexcept;
+    [[nodiscard]] Types::BoolResult isSymlink(const Types::Path &path, const Types::EntryOptions &options = {}) noexcept;
 
     /// @brief Returns the size of an existing regular file.
     /// @param path File path to query.
     /// @param options Symlink traversal behavior.
     /// @return File size, NotFound when missing, or InvalidArgument when the resolved entry is not a regular file with portable size.
-    [[nodiscard]] IO::Types::SizeResult getFileSize(const Types::Path &path, const Types::QueryOptions &options = {}) noexcept;
+    [[nodiscard]] IO::Types::SizeResult getFileSize(const Types::Path &path, const Types::EntryOptions &options = {}) noexcept;
 
     /// @brief Returns the last-write time of an existing filesystem entry.
     /// @param path Path to query.
     /// @param options Symlink traversal behavior.
     /// @return Last-write time, or NotFound when the entry is missing.
-    [[nodiscard]] Types::LastWriteTimeResult getLastWriteTime(const Types::Path &path, const Types::QueryOptions &options = {}) noexcept;
+    [[nodiscard]] Types::LastWriteTimeResult getLastWriteTime(const Types::Path &path, const Types::EntryOptions &options = {}) noexcept;
 
     /// @brief Returns the portable basic read-only state of an existing entry.
     /// @param path Path to query.
     /// @param options Symlink traversal behavior.
     /// @return Successful true or false, or NotFound when the entry is missing.
-    [[nodiscard]] Types::BoolResult isReadOnly(const Types::Path &path, const Types::QueryOptions &options = {}) noexcept;
+    [[nodiscard]] Types::BoolResult isReadOnly(const Types::Path &path, const Types::EntryOptions &options = {}) noexcept;
 
     /// @brief Changes the portable read-only state of an existing entry.
     /// @param path Path to update.
     /// @param readOnly True to request read-only state; false to request writable state.
     /// @param options Symlink traversal behavior.
     /// @return Success or a validation, lookup, permission, or metadata failure status.
-    [[nodiscard]] IO::Types::Status setReadOnly(const Types::Path &path, bool readOnly, const Types::QueryOptions &options = {}) noexcept;
+    [[nodiscard]] IO::Types::Status setReadOnly(const Types::Path &path, bool readOnly, const Types::EntryOptions &options = {}) noexcept;
 
     /// @brief Copies one regular file.
     /// @param from Source file path.
     /// @param to Destination file path.
     /// @param options Replacement, symlink, parent, metadata, and flush behavior.
     /// @return Success or a validation, lookup, permission, copy, metadata, or flush failure status.
-    [[nodiscard]] IO::Types::Status copyFile(const Types::Path &from, const Types::Path &to, const Types::CopyFileOptions &options = {}) noexcept;
+    [[nodiscard]] IO::Types::Status copyFile(const Types::Path &from, const Types::Path &to, const Types::File::CopyOptions &options = {}) noexcept;
 
     /// @brief Moves or renames one filesystem entry.
     /// @param from Source path.
@@ -1084,9 +1111,9 @@ namespace GameWIP::FileSystem
     /// @param path Root directory path to remove.
     /// @param options Missing-target, initial symlink, and entry-limit behavior.
     /// @return Final status and number of entries removed before completion or failure.
-    [[nodiscard]] Types::RemoveDirectoryTreeResult removeDirectoryTree(
+    [[nodiscard]] Types::Directory::RemoveTreeResult removeDirectoryTree(
         const Types::Path &path,
-        const Types::RemoveDirectoryTreeOptions &options = {}) noexcept;
+        const Types::Directory::RemoveTreeOptions &options = {}) noexcept;
 
     /// @brief Returns the process current working directory.
     /// @return Current working directory path or a query failure status.

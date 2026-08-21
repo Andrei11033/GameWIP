@@ -1,6 +1,5 @@
 [CmdletBinding()]
 param(
-    [ValidateSet('menu', 'full', 'check', 'update', 'repair', 'uninstall', 'tools', 'visual-studio', 'msys2', 'repository', 'profiler', 'editor', 'docs', 'help')]
     [string]$Action = 'menu',
     [string]$Branch,
     [switch]$NonInteractive,
@@ -11,36 +10,51 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 $RepositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
+. (Join-Path $PSScriptRoot '..\common\ToolRuns.ps1')
 $script:SetupStatePath = Join-Path $RepositoryRoot '.gamewip-install-state.json'
+$script:SetupRun = $null
 $ToolConfig = Import-PowerShellDataFile (Join-Path $PSScriptRoot 'config\tools.psd1')
 $MsysPackageConfig = Import-PowerShellDataFile (Join-Path $PSScriptRoot 'config\msys2-packages.psd1')
 $EditorConfig = Import-PowerShellDataFile (Join-Path $PSScriptRoot 'config\editors.psd1')
+$SetupActionConfig = Import-PowerShellDataFile (Join-Path $PSScriptRoot 'config\actions.psd1')
 
 Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot 'lib') -Filter '*.ps1' | Sort-Object Name | ForEach-Object { . $_.FullName }
+
+function Initialize-SetupRun
+{
+    param([Parameter(Mandatory = $true)][string]$SelectedAction)
+
+    $script:SetupRun = New-GameWipToolRun `
+        -RepositoryRoot $RepositoryRoot `
+        -RunLogRoot 'build\tool-runs' `
+        -Tool 'setup' `
+        -Action "setup-$SelectedAction"
+    Write-Host "Tool run: $($script:SetupRun.Root)"
+}
+
+function Complete-SetupRun
+{
+    param([Parameter(Mandatory = $true)][ValidateSet('passed', 'failed', 'cancelled')][string]$Status)
+
+    if ($null -eq $script:SetupRun) { return }
+    $summary = Save-GameWipToolRun -Run $script:SetupRun -Status $Status
+    Write-Host "Summary: $summary"
+    $script:SetupRun = $null
+}
 
 function Show-SetupMenu
 {
     Write-Host ''
     Write-Host 'GameWIP Development Environment'
     Write-Host '==============================='
-    Write-Host '1. Complete setup (recommended)'
-    Write-Host '2. Check environment (read only)'
-    Write-Host '3. Update environment'
-    Write-Host '4. Repair environment'
-    Write-Host '5. Choose and configure editors/IDEs'
-    Write-Host '6. Configure MSYS2'
-    Write-Host '7. Prepare repository'
-    Write-Host '8. Install common machine tools'
-    Write-Host '9. Build documentation'
-    Write-Host '0. Install matching Tracy profiler tools'
-    Write-Host 'U. Uninstall everything installed by GameWIP'
+    foreach ($actionInfo in @($SetupActionConfig.Actions | Where-Object { $_.ContainsKey('Key') }))
+    {
+        Write-Host "$($actionInfo.Key). $($actionInfo.Name)"
+    }
     Write-Host 'Esc. Exit'
 
-    $mapping = @{
-        '1' = 'full'; '2' = 'check'; '3' = 'update'; '4' = 'repair'
-        '5' = 'editor'; '6' = 'msys2'; '7' = 'repository'
-        '8' = 'tools'; '9' = 'docs'; '0' = 'profiler'; 'U' = 'uninstall'
-    }
+    $mapping = @{}
+    foreach ($actionInfo in @($SetupActionConfig.Actions | Where-Object { $_.ContainsKey('Key') })) { $mapping[$actionInfo.Key] = $actionInfo.Id }
 
     while ($true)
     {
@@ -162,10 +176,44 @@ function Invoke-SetupAction
         'profiler' { Invoke-TracyStep }
         'editor' { Invoke-EditorStep -Choose:(-not $NonInteractive) }
         'docs' { Invoke-DocumentationStep -Open:(-not $NonInteractive) }
-        'help' {
-            Write-Host 'Usage: setup.bat [full|check|update|repair|uninstall|tools|visual-studio|msys2|repository|profiler|editor|docs] [-Branch <name>] [-NonInteractive] [-SkipDocs]'
-        }
+        'list' { Show-SetupActionCatalog }
+        'help' { Show-SetupHelp }
+        default { throw "Setup action '$SelectedAction' is registered but has no implementation." }
     }
+}
+
+function Show-SetupActionCatalog
+{
+    Write-SetupSection 'Setup actions'
+    foreach ($actionInfo in @($SetupActionConfig.Actions))
+    {
+        Write-Host ("  {0,-16} {1}" -f $actionInfo.Id, $actionInfo.Description)
+    }
+}
+
+function Show-SetupHelp
+{
+    Write-Host 'Usage:'
+    Write-Host '  setup.bat [action] [-Branch <name>] [-NonInteractive] [-SkipDocs]'
+    Write-Host '  setup.bat help | --help | -h | -?'
+    Write-Host ''
+    Show-SetupActionCatalog
+    Write-Host ''
+    Write-Host 'Options:'
+    Write-Host '  -Branch <name>    Select a fetched branch for repository preparation.'
+    Write-Host '  -NonInteractive   Approve automatic installation and use saved/default choices.'
+    Write-Host '  -SkipDocs         Skip documentation during full, update, or repair.'
+}
+
+function Assert-SetupActionCatalog
+{
+    $actions = @($SetupActionConfig.Actions)
+    $duplicateIds = @($actions | ForEach-Object { [string]$_.Id } | Group-Object | Where-Object { $_.Count -gt 1 })
+    if ($duplicateIds.Count -ne 0) { throw "Duplicate setup action IDs: $($duplicateIds.Name -join ', ')." }
+    $menuActions = @($actions | Where-Object { $_.ContainsKey('Key') })
+    $duplicateKeys = @($menuActions | ForEach-Object { [string]$_.Key } | Group-Object | Where-Object { $_.Count -gt 1 })
+    if ($duplicateKeys.Count -ne 0) { throw "Duplicate setup menu keys: $($duplicateKeys.Name -join ', ')." }
+    if (@($actions.Id) -notcontains $Action) { throw "Unknown setup action '$Action'. Run 'setup.bat list' to see supported actions." }
 }
 
 function Invoke-ToolStep
@@ -391,13 +439,14 @@ function Invoke-CompleteSetup
 
 Test-SetupWindows
 Test-SetupRepository -RepositoryRoot $RepositoryRoot
+Assert-SetupActionCatalog
 
 if ($Action -eq 'menu' -and $NonInteractive)
 {
     $Action = 'full'
 }
 
-$machineChangeActions = @('full', 'repair', 'update', 'uninstall', 'tools', 'visual-studio', 'msys2', 'repository', 'profiler', 'editor')
+$machineChangeActions = @($SetupActionConfig.Actions | Where-Object { [bool]$_.MachineChanges } | ForEach-Object { $_.Id })
 
 if ($Action -eq 'menu')
 {
@@ -420,15 +469,18 @@ if ($Action -eq 'menu')
 
         try
         {
+            Initialize-SetupRun -SelectedAction $selectedAction
             Invoke-SetupAction -SelectedAction $selectedAction
             Write-Host ''
             Write-Host "GameWIP '$selectedAction' completed successfully." -ForegroundColor Green
+            Complete-SetupRun -Status 'passed'
         }
         catch
         {
             Write-Host ''
             Write-Host "GameWIP '$selectedAction' failed: $($_.Exception.Message)" -ForegroundColor Red
             Write-Host 'Returning to the main menu.' -ForegroundColor Yellow
+            Complete-SetupRun -Status 'failed'
         }
     }
 }
@@ -444,14 +496,17 @@ if ($machineChangeActions -contains $Action)
 
 try
 {
+    if ($Action -notin @('help', 'list')) { Initialize-SetupRun -SelectedAction $Action }
     Invoke-SetupAction -SelectedAction $Action
 
     Write-Host ''
     Write-Host "GameWIP '$Action' completed successfully." -ForegroundColor Green
+    Complete-SetupRun -Status 'passed'
 }
 catch
 {
     Write-Host ''
     Write-Error "GameWIP '$Action' failed: $($_.Exception.Message)"
+    Complete-SetupRun -Status 'failed'
     exit 1
 }

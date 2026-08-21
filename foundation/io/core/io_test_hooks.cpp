@@ -3,7 +3,7 @@
 
 #include "io/internal/io_test_hooks.h"
 
-#if INTERNAL_IO_TEST_HOOKS
+#if IO_INTERNAL_TEST_HOOKS
 
 #include <atomic>
 #include <new>

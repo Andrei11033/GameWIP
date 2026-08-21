@@ -5,11 +5,11 @@
 
 #include "debug/assert/internal/assert_platform.h"
 
-#ifndef INTERNAL_ASSERT_TEST_HOOKS
-#define INTERNAL_ASSERT_TEST_HOOKS 0
+#ifndef ASSERT_INTERNAL_TEST_HOOKS
+#define ASSERT_INTERNAL_TEST_HOOKS 0
 #endif
 
-#if INTERNAL_ASSERT_TEST_HOOKS
+#if ASSERT_INTERNAL_TEST_HOOKS
 #include "debug/assert/internal/assert_test_hooks.h"
 #endif
 
@@ -36,7 +36,7 @@ namespace
     /// @brief Returns whether real Assert UI is suppressed by test override or environment state.
     bool popupsSuppressed() noexcept
     {
-#if INTERNAL_ASSERT_TEST_HOOKS
+#if ASSERT_INTERNAL_TEST_HOOKS
         bool overrideValue = false;
         if (GameWIP::Debug::Assert::Detail::TestHooks::popupSuppressedOverride(overrideValue))
         {
@@ -50,7 +50,7 @@ namespace
 
     using FailureAction = GameWIP::Debug::Assert::FailureAction;
 
-#if INTERNAL_ASSERT_TEST_HOOKS
+#if ASSERT_INTERNAL_TEST_HOOKS
     /// @brief Process-wide one-shot failures and persistent Assert backend overrides.
     struct AssertTestHookState
     {
@@ -130,27 +130,54 @@ namespace
         }
     }
 
-    /// @brief Bounds popup text after UTF-16 conversion while preserving a visible suffix.
-    void truncateWideForPopup(std::wstring &text, std::size_t maxCharacters) noexcept
+    /// @brief Returns whether one UTF-16 code unit is a high surrogate.
+    constexpr bool isHighSurrogate(wchar_t value) noexcept
     {
-        if (text.size() <= maxCharacters)
+        return value >= static_cast<wchar_t>(0xD800) && value <= static_cast<wchar_t>(0xDBFF);
+    }
+
+    /// @brief Returns whether one UTF-16 code unit is a low surrogate.
+    constexpr bool isLowSurrogate(wchar_t value) noexcept
+    {
+        return value >= static_cast<wchar_t>(0xDC00) && value <= static_cast<wchar_t>(0xDFFF);
+    }
+
+    /// @brief Returns a UTF-16 prefix boundary that never separates a surrogate pair.
+    std::size_t utf16PrefixBoundary(std::wstring_view text, std::size_t maxCodeUnits) noexcept
+    {
+        if (maxCodeUnits >= text.size())
+        {
+            return text.size();
+        }
+        if (maxCodeUnits > 0 && isHighSurrogate(text[maxCodeUnits - 1]) && isLowSurrogate(text[maxCodeUnits]))
+        {
+            return maxCodeUnits - 1;
+        }
+        return maxCodeUnits;
+    }
+
+    /// @brief Bounds popup text after strict UTF-8 conversion without splitting a UTF-16 scalar.
+    void truncateWideForPopup(std::wstring &text, std::size_t maxCodeUnits) noexcept
+    {
+        if (text.size() <= maxCodeUnits)
         {
             return;
         }
 
         constexpr std::wstring_view suffix = L"... [truncated]";
-        if (maxCharacters <= suffix.size())
+        if (maxCodeUnits <= suffix.size())
         {
-            text.resize(maxCharacters);
+            text.resize(utf16PrefixBoundary(text, maxCodeUnits));
             return;
         }
 
-        text.resize(maxCharacters);
-        const std::size_t suffixOffset = maxCharacters - suffix.size();
+        const std::size_t prefixLimit = maxCodeUnits - suffix.size();
+        const std::size_t prefixSize = utf16PrefixBoundary(text, prefixLimit);
         for (std::size_t index = 0; index < suffix.size(); ++index)
         {
-            text[suffixOffset + index] = suffix[index];
+            text[prefixSize + index] = suffix[index];
         }
+        text.resize(prefixSize + suffix.size());
     }
 
     /// @brief Maps an Assert failure action to a stable TaskDialog custom-button id.
@@ -213,7 +240,7 @@ namespace
     /// @details MessageBoxW cannot represent the full Always Ignore action set.
     FailureAction fallbackMessageBoxAction(const wchar_t *title, const wchar_t *message, FailureAction defaultAction) noexcept
     {
-#if INTERNAL_ASSERT_TEST_HOOKS
+#if ASSERT_INTERNAL_TEST_HOOKS
         if (consumeTestHook(assertTestHookState.nextFallbackActionDialogFailure))
         {
             return defaultAction;
@@ -234,7 +261,7 @@ namespace
     }
 } // namespace
 
-#if INTERNAL_ASSERT_TEST_HOOKS
+#if ASSERT_INTERNAL_TEST_HOOKS
 namespace GameWIP::Debug::Assert::TestHooks
 {
     void reset() noexcept
@@ -377,7 +404,7 @@ namespace GameWIP::Debug::Assert::Detail::Platform
         config.nDefaultButton = buttonIdForAction(defaultAction);
 
         int selectedButton = buttonIdForAction(defaultAction);
-#if INTERNAL_ASSERT_TEST_HOOKS
+#if ASSERT_INTERNAL_TEST_HOOKS
         const bool forceTaskDialogFailure = consumeTestHook(assertTestHookState.nextActionDialogFailure);
 #else
         const bool forceTaskDialogFailure = false;
@@ -399,7 +426,7 @@ namespace GameWIP::Debug::Assert::Detail::Platform
 
     bool isDebuggerAttached() noexcept
     {
-#if INTERNAL_ASSERT_TEST_HOOKS
+#if ASSERT_INTERNAL_TEST_HOOKS
         bool overrideValue = false;
         if (GameWIP::Debug::Assert::Detail::TestHooks::debuggerAttachedOverride(overrideValue))
         {

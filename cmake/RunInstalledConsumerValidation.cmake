@@ -35,15 +35,28 @@ set(expected_gamewip_headers
     debug/assert/assert_export.h
     filesystem/filesystem.h
     io/io.h
+    logger/config.h
     logger/logger.h
     logger/logger_export.h
     logger/logger_macros.h
+    logger/types.h
+    terminal/style.h
     terminal/terminal.h
     terminal/terminal_export.h
+    test_support/files.h
+    test_support/process.h
+    test_support/reporting.h
+    test_support/stress.h
     test_support/test_support.h
+    test_support/types.h
     unicode/unicode.h
-    window/renderer.h
+    window/description.h
+    window/display.h
+    window/display_info.h
+    window/events.h
     window/native/win32.h
+    window/renderer_bridge.h
+    window/types.h
     window/window.h
     window/window_export.h
 )

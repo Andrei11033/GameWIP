@@ -3,9 +3,15 @@
 
 #pragma once
 
-#include "window/window.h"
+#include "io/io.h"
+#include "window/window_export.h"
 
 #include <windows.h>
+
+namespace GameWIP::Window
+{
+    class Window;
+}
 
 /// @brief Deliberate Win32 interoperability for the portable Window owner.
 namespace GameWIP::Window::Native::Win32
@@ -27,6 +33,8 @@ namespace GameWIP::Window::Native::Win32
     };
 
     /// @brief Returns non-owning Win32 handles for an open Window on its owner thread.
+    /// @param window Window whose native handles are requested.
+    /// @return Query status and non-owning handles on success.
     /// @warning Native use must not race Window close.
     [[nodiscard]] GAMEWIP_WINDOW_EXPORT HandleResult getHandle(const GameWIP::Window::Window &window) noexcept;
 } // namespace GameWIP::Window::Native::Win32

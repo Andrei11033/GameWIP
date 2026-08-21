@@ -6,10 +6,14 @@ Correctness validation is documented separately in @ref project_validation and @
 
 ## Analysis and measurement workflows
 
-- @subpage project_static_analysis
-- @subpage project_coverage
-- @subpage project_profiling
-- @subpage project_benchmarking
+- @subpage project_static_analysis — Run clang-tidy, formatting,
+  documentation, link, workflow, and repository-consistency checks.
+- @subpage project_coverage — Generate and interpret correctness-test coverage
+  for the currently instrumented source set.
+- @subpage project_profiling — Capture an instrumented runtime session with
+  Tracy and interpret project-owned zones.
+- @subpage project_benchmarking — Register, validate, measure, retain, and
+  compare Google Benchmark scenarios.
 
 ## Related pages
 

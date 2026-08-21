@@ -11,28 +11,30 @@ Include `filesystem/filesystem.h`. Installed consumers link `GameWIP::FileSystem
 | `Types::Path` | Alias for `std::filesystem::path`; it is not a portable path-grammar abstraction. |
 | `Types::FileTime` | Alias for `std::chrono::system_clock::time_point`; native precision may be reduced. |
 
+`Types` keeps shared entry/path values at its root and groups the larger passive domains under `Types::File`, `Types::Directory`, and `Types::Lock`. The nested namespace supplies the domain context, so repeated `File`, `Directory`, and `Lock` words are omitted from member type names.
+
 ## Enum types
 
 ### Entry, access, and open policy
 
 - `EntryKind`: `RegularFile`, `Directory`, `Symlink`, `Other`.
-- `FileAccess`: `Read`, `Write`, `ReadWrite`.
-- `FileOpenMode`: `OpenExisting`, `CreateNew`, `OpenOrCreate`, `TruncateExisting`, `CreateOrTruncate`.
-- `FileInitialPosition`: `Beginning`, `End`.
-- `FileWriterMode`: `CreateNew`, `CreateOrTruncate`, `TruncateExisting`, `OpenOrCreate`, `AppendOrCreate`, `AppendExisting`.
-- `WriteFileMode`: `CreateNew`, `CreateOrTruncate`, `TruncateExisting`.
-- `AppendMode`: `AppendOrCreate`, `AppendExisting`.
+- `Types::File::Access`: `Read`, `Write`, `ReadWrite`.
+- `Types::File::OpenMode`: `OpenExisting`, `CreateNew`, `OpenOrCreate`, `TruncateExisting`, `CreateOrTruncate`.
+- `Types::File::InitialPosition`: `Beginning`, `End`.
+- `Types::File::WriterMode`: `CreateNew`, `CreateOrTruncate`, `TruncateExisting`, `OpenOrCreate`, `AppendOrCreate`, `AppendExisting`.
+- `Types::File::WriteMode`: `CreateNew`, `CreateOrTruncate`, `TruncateExisting`.
+- `Types::File::AppendMode`: `AppendOrCreate`, `AppendExisting`.
 - `ReplaceMode`: `FailIfExists`, `ReplaceExisting`.
 
-`FileInitialPosition::End` is one initial seek. It does not provide append semantics.
+`Types::File::InitialPosition::End` is one initial seek. It does not provide append semantics.
 
 ### Sharing, links, locks, and metadata
 
-- `FileShare`: `None`, `Read`, `Write`, `Delete`, `ReadWrite`, `All`. The `operator|`, `operator&`, `operator|=`, and `operator&=` overloads combine and test masks.
+- `Types::File::Share`: `None`, `Read`, `Write`, `Delete`, `ReadWrite`, `All`. Its bitwise operators combine and test masks.
 - `SymlinkPolicy`: `DoNotFollow`, `FollowFinal`, `FollowAll`.
-- `FileLockMode`: `Shared`, `Exclusive`.
-- `LockOutcome`: `Acquired`, `WouldBlock`.
-- `CopyMetadataMode`: `None`, `Basic`.
+- `Types::Lock::Mode`: `Shared`, `Exclusive`.
+- `Types::Lock::Outcome`: `Acquired`, `WouldBlock`.
+- `Types::File::CopyMetadataMode`: `None`, `Basic`.
 
 See @ref filesystem_file_open_modes and @ref filesystem_symlink_policies for operational meaning.
 
@@ -40,24 +42,24 @@ See @ref filesystem_file_open_modes and @ref filesystem_symlink_policies for ope
 
 ### Handle and whole-file I/O
 
-- `FileOpenOptions`: `access`, `mode`, `initialPosition`, `share`, `symlinkPolicy`, `createParentDirectories`, `flushOnClose`.
-- `FileReaderOpenOptions`: `share`, `symlinkPolicy`.
-- `FileWriterOpenOptions`: `mode`, `share`, `symlinkPolicy`, `createParentDirectories`, `flushOnClose`.
-- `ReadFileOptions`: nested reader `open`, hard `maxBytes`, and transfer `bufferSize`.
-- `WriteFileOptions`: `mode`, `share`, `symlinkPolicy`, `createParentDirectories`, `flushMode`.
-- `AppendFileOptions`: `mode`, `share`, `symlinkPolicy`, `createParentDirectories`, `flushMode`.
-- `AtomicWriteOptions`: `createParentDirectories`, `replaceMode`, `symlinkPolicy`, `flushMode`, `flushParentDirectory`, owning `temporaryNamePrefix`.
+- `Types::File::OpenOptions`: `access`, `mode`, `initialPosition`, `share`, `symlinkPolicy`, `createParentDirectories`, `flushOnClose`.
+- `Types::File::ReaderOpenOptions`: `share`, `symlinkPolicy`.
+- `Types::File::WriterOpenOptions`: `mode`, `share`, `symlinkPolicy`, `createParentDirectories`, `flushOnClose`.
+- `Types::File::ReadOptions`: nested reader `open`, hard `maxBytes`, and transfer `bufferSize`.
+- `Types::File::WriteOptions`: `mode`, `share`, `symlinkPolicy`, `createParentDirectories`, `flushMode`.
+- `Types::File::AppendOptions`: `mode`, `share`, `symlinkPolicy`, `createParentDirectories`, `flushMode`.
+- `Types::File::AtomicWriteOptions`: `createParentDirectories`, `replaceMode`, `symlinkPolicy`, `flushMode`, `flushParentDirectory`, owning UTF-8 `temporaryNamePrefix`.
 
 ### Queries, directories, copy, move, and removal
 
-- `QueryOptions`: query `symlinkPolicy`.
-- `MutationOptions`: resize/truncate `symlinkPolicy`.
-- `CreateDirectoryOptions`: `succeedIfAlreadyExists`, `symlinkPolicy`.
-- `ListDirectoryOptions`: `includeFiles`, `includeDirectories`, `includeSymlinks`, `includeOther`, `includeHidden`, child-metadata `symlinkPolicy`, and `maxEntries`.
+- `EntryOptions`: entry query/metadata `symlinkPolicy`.
+- `Types::File::ResizeOptions`: resize/truncate `symlinkPolicy`.
+- `Types::Directory::CreateOptions`: `succeedIfAlreadyExists`, `symlinkPolicy`.
+- `Types::Directory::ListOptions`: `includeFiles`, `includeDirectories`, `includeSymlinks`, `includeOther`, `includeHidden`, child-metadata `symlinkPolicy`, and `maxEntries`.
 - `RemoveOptions`: `succeedIfMissing`, `symlinkPolicy`.
-- `RemoveDirectoryTreeOptions`: `succeedIfMissing`, initial-path `symlinkPolicy`, `maxEntries`.
+- `Types::Directory::RemoveTreeOptions`: `succeedIfMissing`, initial-path `symlinkPolicy`, `maxEntries`.
 - `MoveOptions`: `replaceMode`, source `symlinkPolicy`, `createParentDirectories`.
-- `CopyFileOptions`: `replaceMode`, source `symlinkPolicy`, `createParentDirectories`, `metadataMode`, `flushMode`.
+- `Types::File::CopyOptions`: `replaceMode`, source `symlinkPolicy`, `createParentDirectories`, `metadataMode`, `flushMode`.
 
 Unknown enum values and invalid option combinations return `InvalidArgument`.
 
@@ -69,11 +71,11 @@ Unknown enum values and invalid option combinations return `InvalidArgument`.
 - `LastWriteTimeResult`: `status`, `time`.
 - `PathResult`: `status`, `path`.
 - `Utf8PathResult`: `status`, `utf8`.
-- `DirectoryEntry`: child `path` and `info`. The path is the supplied parent path joined with the child name; it is not necessarily absolute.
-- `DirectoryCursorNextResult`: `status`, one `entry`, and `hasEntry`; successful exhaustion has `hasEntry == false`.
-- `ListDirectoryResult`: `status`, collected `entries`.
-- `RemoveDirectoryTreeResult`: `status`, completed `removedEntries`.
-- `LockResult`: `status`, `outcome`, and active `lock` only when acquired.
+- `Types::Directory::Entry`: child `path` and `info`. The path is the supplied parent path joined with the child name; it is not necessarily absolute.
+- `Types::Directory::CursorNextResult`: `status`, one `entry`, and `hasEntry`; successful exhaustion has `hasEntry == false`.
+- `Types::Directory::ListResult`: `status`, collected `entries`.
+- `Types::Directory::RemoveTreeResult`: `status`, completed `removedEntries`.
+- `Types::Lock::Result`: `status`, `outcome`, and active `lock` only when acquired.
 
 A failed status can coexist with meaningful progress for listing and tree removal. Payload values in ordinary query results are meaningful only when their status is successful.
 
@@ -81,7 +83,7 @@ A failed status can coexist with meaningful progress for listing and tree remova
 
 ### `DirectoryCursor`
 
-Move-only, bounded-memory direct-child enumeration with `open()`, `isOpen()`, `next()`, and `close()`. Move assignment closes the destination cursor's previous enumeration. It applies `ListDirectoryOptions` without retaining accepted siblings.
+Move-only, bounded-memory direct-child enumeration with `open()`, `isOpen()`, `next()`, and `close()`. Move assignment closes the destination cursor's previous enumeration. It applies `Types::Directory::ListOptions` without retaining accepted siblings.
 
 ### `FileReader`
 
@@ -97,7 +99,7 @@ Read/write `IO::Reader` and `IO::Writer` with the common stream operations plus 
 
 ### `FileLock`
 
-Move-only unlock owner with `active()`, `mode()`, and retryable `unlock()`. A lock owns independent native state and can remain active after the object from which it was acquired is destroyed.
+Move-only unlock owner with `isActive()`, `mode()`, and retryable `unlock()`. A lock owns independent native state and can remain active after the object from which it was acquired is destroyed.
 
 The file and lock owners are move-constructible, non-copyable, and deliberately not move-assignable. `DirectoryCursor` is move-constructible and move-assignable because replacing an enumeration cannot hide a flush, unlock, or close error. See @ref filesystem_file_open_modes.
 
@@ -148,6 +150,6 @@ Operations may block on storage, sharing, locks, metadata, traversal, or flush w
 
 ## Package and binary boundary
 
-FileSystem is a static library. Its installed package exports `GameWIP::FileSystem`, installs `filesystem/filesystem.h`, requires the exact matching IO package, and has no generated export header.
+FileSystem is a static library. Its installed package exports `GameWIP::FileSystem`, installs `filesystem/filesystem.h`, and resolves the exact matching IO and Unicode packages. IO remains the public API dependency; Unicode is used internally for FileSystem-owned text/native trust boundaries. FileSystem has no generated export header.
 
 Public inheritance from IO interfaces and exposure of standard-library types require compatible compiler, standard-library, runtime, and build settings. Internal declarations under `filesystem/internal` and platform code are not installed API.

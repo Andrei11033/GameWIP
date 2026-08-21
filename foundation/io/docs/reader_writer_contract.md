@@ -1,6 +1,9 @@
 @page io_reader_writer_contract Reader and writer contract
 
-`Reader` and `Writer` are extension interfaces for resource-owning libraries. This page owns the transfer, capability, lifetime, exception, and concurrency rules that implementations and generic callers must preserve.
+`Reader` and `Writer` let resource-owning libraries participate in the same
+generic byte-transfer algorithms. The rules below define what one read or write
+means, how partial progress is reported, which capabilities are optional, and
+what both implementations and generic callers must preserve.
 
 ## Interface model
 
@@ -75,7 +78,7 @@ A backend should use `NotSeekable` for stream-position capabilities and `Unsuppo
 
 ## Whole-stream reads
 
-`readAllBytes()` and `readAllText()` start at the reader's current position.
+`readAllBytes()` and `readAllText()` start at the reader's current position. `readAllBytes()` is encoding-agnostic. `readAllText()` validates the collected range as strict UTF-8 before returning it.
 
 ### Known-size path
 
@@ -104,6 +107,17 @@ They:
 
 The scratch buffer is ignored when the reader qualifies for the known-size path.
 
+### UTF-8 text finalization
+
+`readAllText()` never exposes malformed bytes through its `text` field.
+
+- Completely valid input preserves the ordinary read status and full text.
+- Malformed UTF-8 returns `EncodingFailed` and preserves only the complete valid prefix.
+- An incomplete suffix at a definitive stream end returns `EncodingFailed` and preserves only the complete valid prefix.
+- An incomplete suffix accompanying an existing non-EOF I/O or size-limit failure is trimmed while that existing failure remains primary, because additional continuation bytes may have existed beyond the failed boundary.
+- If a known-size reader reaches end-of-stream early and the produced prefix ends with an incomplete sequence, `EncodingFailed` takes precedence over `PartialRead`.
+- Validation performs no normalization, BOM transformation, replacement, or repair.
+
 ### Hard byte limits
 
 `maxBytes` is the maximum accepted output size, not a truncation request.
@@ -129,13 +143,14 @@ It:
 - Returns `WriteFailed` if a writer reports an impossible count or successful zero progress.
 - Does not flush or close the writer.
 
-`writeAllText()` applies the same contract to the exact bytes in a string view, including embedded NUL bytes. It does not validate UTF-8.
+`writeAllText()` first validates the complete string view as strict UTF-8. Malformed or incomplete input returns `EncodingFailed` with `bytesWritten == 0` and does not call `Writer::write()`. Valid text then follows the same retry/progress contract as `writeAllBytes()`, including preservation of embedded NUL bytes. It performs no normalization, BOM transformation, flush, or close.
 
 ## MemoryReader
 
 `MemoryReader` is a non-owning view over contiguous bytes.
 
 - The source must remain alive and at a stable address while the reader is used.
+- The `std::string_view` constructor treats character storage only as bytes; it performs no encoding interpretation or validation.
 - Direct temporary `std::string` and byte-vector construction is deleted.
 - Caller-created dangling spans and string views remain the caller's responsibility.
 - Reads use overlap-safe copying, so the destination may overlap the source.
@@ -158,7 +173,7 @@ It:
 
 `bytes()` returns a non-owning view into writer-owned storage. Do not retain it across operations that can modify storage or ownership. A write or reserve may reallocate; clear, take, move assignment, destruction, and ownership transfer invalidate the prior logical view.
 
-`copyText()` returns a `TextCopyResult` containing an independent copy and preserves embedded NUL bytes. It performs no UTF-8 validation. `reserve()` and `copyText()` report allocation, representation-limit, and unexpected failures through status.
+`copyText()` returns a `CopyTextResult` containing an independent strict UTF-8 copy and preserves embedded NUL bytes. Malformed or incomplete collected bytes return `EncodingFailed` with empty text. `reserve()` and `copyText()` report allocation, representation-limit, and unexpected failures through status.
 
 ## Exceptions
 

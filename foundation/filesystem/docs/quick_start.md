@@ -1,5 +1,9 @@
 @page filesystem_quick_start Quick start
 
+The first workflow writes and reads a complete UTF-8 file with checked results.
+It also shows the package dependencies and status handling every FileSystem
+consumer needs.
+
 ## Include
 
 ```cpp
@@ -15,7 +19,7 @@ find_package(FileSystem ${GAMEWIP_REQUIRED_VERSION} EXACT CONFIG REQUIRED)
 target_link_libraries(MyTarget PRIVATE GameWIP::FileSystem)
 ```
 
-The package resolves the exact-version IO dependency.
+The package resolves the exact-version IO and Unicode dependencies. IO is FileSystem's public API dependency; Unicode supports FileSystem-owned text boundaries.
 
 ## Source-tree CMake
 
@@ -48,7 +52,7 @@ GameWIP::IO::Types::Status saveAndLoadSettings()
 }
 ```
 
-Text helpers preserve bytes. They do not validate UTF-8, add or remove a BOM, or translate line endings.
+Text helpers enforce strict UTF-8. They do not normalize text, add or remove a BOM, or translate line endings. Use the byte helpers for arbitrary content.
 
 ## Explicit handle
 
@@ -94,7 +98,7 @@ Close explicitly when close or configured flush-on-close failure must be observe
 
 GameWIP::IO::Types::Status replaceSave(std::string_view json)
 {
-    GameWIP::FileSystem::Types::AtomicWriteOptions options{};
+    GameWIP::FileSystem::Types::File::AtomicWriteOptions options{};
     options.flushMode = GameWIP::IO::Types::FlushMode::Data;
     options.flushParentDirectory = true;
 
@@ -114,7 +118,7 @@ Always inspect the status before consuming a result as complete. Some failures i
 - tree removal may report entries already removed before failure;
 - a failed `close()` or `unlock()` leaves the resource active so the operation can be retried.
 
-`LockOutcome::WouldBlock` is a successful non-acquisition result, not a failed status.
+`Types::Lock::Outcome::WouldBlock` is a successful non-acquisition result, not a failed status.
 
 ## Where to go next
 

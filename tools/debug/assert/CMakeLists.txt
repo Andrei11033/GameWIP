@@ -4,7 +4,7 @@ set(ASSERT_CHECKS_ENABLED "AUTO" CACHE STRING "Force recoverable checks on, off,
 set_property(CACHE ASSERT_CHECKS_ENABLED PROPERTY STRINGS AUTO ON OFF)
 option(ASSERT_DIAGNOSTICS "Embed assertion condition/file/function/message diagnostics" ON)
 option(ASSERT_UNREACHABLE_ASSUME "Use compiler unreachable assumptions instead of a trap when UNREACHABLE is compiled without assertions" OFF)
-option(ASSERT_ENABLE_COMMON_CONTROLS_MANIFEST "Propagate a Common Controls v6 manifest resource to Windows executables using Assert" ON)
+option(ASSERT_ENABLE_COMMON_CONTROLS_MANIFEST "Prepare the explicit Common Controls v6 resource helper for Assert consumers" ON)
 option(ASSERT_ENABLE_TEST_HOOKS "Enable Assert internal test hooks" OFF)
 
 include(GenerateExportHeader)
@@ -143,17 +143,17 @@ if(ASSERT_RUNTIME_TARGET_ENABLED)
     target_compile_features(Assert PUBLIC cxx_std_23)
     target_compile_definitions(Assert
         PRIVATE
-            INTERNAL_ASSERT_RUNTIME=1
+            ASSERT_INTERNAL_RUNTIME=1
             ASSERT_ENABLED=1
             ASSERT_CHECKS_ENABLED=1
             ASSERT_DIAGNOSTICS=${ASSERT_DIAGNOSTICS_VALUE}
             ASSERT_UNREACHABLE_ASSUME=${ASSERT_UNREACHABLE_ASSUME_VALUE}
-            INTERNAL_ASSERT_TEST_HOOKS=$<BOOL:${ASSERT_ENABLE_TEST_HOOKS}>
+            ASSERT_INTERNAL_TEST_HOOKS=$<BOOL:${ASSERT_ENABLE_TEST_HOOKS}>
         INTERFACE
-            INTERNAL_ASSERT_RUNTIME=${ASSERT_RUNTIME_PUBLIC}
+            ASSERT_INTERNAL_RUNTIME=${ASSERT_RUNTIME_PUBLIC}
             ASSERT_ENABLED=${ASSERT_ENABLED_PUBLIC}
             ASSERT_CHECKS_ENABLED=${ASSERT_CHECKS_ENABLED_PUBLIC}
-            $<BUILD_INTERFACE:INTERNAL_ASSERT_TEST_HOOKS=$<BOOL:${ASSERT_ENABLE_TEST_HOOKS}>>
+            $<BUILD_INTERFACE:ASSERT_INTERNAL_TEST_HOOKS=$<BOOL:${ASSERT_ENABLE_TEST_HOOKS}>>
     )
 else()
     target_include_directories(Assert INTERFACE
@@ -163,10 +163,10 @@ else()
     )
     target_compile_features(Assert INTERFACE cxx_std_23)
     target_compile_definitions(Assert INTERFACE
-        INTERNAL_ASSERT_RUNTIME=0
+        ASSERT_INTERNAL_RUNTIME=0
         ASSERT_ENABLED=0
         ASSERT_CHECKS_ENABLED=0
-        $<BUILD_INTERFACE:INTERNAL_ASSERT_TEST_HOOKS=0>
+        $<BUILD_INTERFACE:ASSERT_INTERNAL_TEST_HOOKS=0>
     )
 endif()
 
@@ -184,12 +184,12 @@ target_include_directories(AssertCompileInterface INTERFACE
 )
 target_compile_features(AssertCompileInterface INTERFACE cxx_std_23)
 target_compile_definitions(AssertCompileInterface INTERFACE
-    INTERNAL_ASSERT_RUNTIME=${ASSERT_RUNTIME_PUBLIC}
+    ASSERT_INTERNAL_RUNTIME=${ASSERT_RUNTIME_PUBLIC}
     ASSERT_ENABLED=${ASSERT_ENABLED_PUBLIC}
     ASSERT_CHECKS_ENABLED=${ASSERT_CHECKS_ENABLED_PUBLIC}
     ASSERT_DIAGNOSTICS=${ASSERT_DIAGNOSTICS_VALUE}
     ASSERT_UNREACHABLE_ASSUME=${ASSERT_UNREACHABLE_ASSUME_VALUE}
-    INTERNAL_ASSERT_TEST_HOOKS=$<BOOL:${ASSERT_ENABLE_TEST_HOOKS}>
+    ASSERT_INTERNAL_TEST_HOOKS=$<BOOL:${ASSERT_ENABLE_TEST_HOOKS}>
 )
 
 if(ASSERT_RUNTIME_TARGET_ENABLED)

@@ -73,18 +73,40 @@ function Invoke-SetupNative
     $displayArguments = @($ArgumentList | ForEach-Object {
         if ($_ -match '\s') { '"' + $_ + '"' } else { $_ }
     })
-    Write-Host "  > $FilePath $($displayArguments -join ' ')" -ForegroundColor DarkGray
+    $commandLine = "$FilePath $($displayArguments -join ' ')".Trim()
+    $step = $null
+    if ($null -ne $script:SetupRun)
+    {
+        $step = New-GameWipToolRunStep -Run $script:SetupRun -Name ([IO.Path]::GetFileNameWithoutExtension($FilePath)) -CommandLine $commandLine
+    }
+    Write-Host "  > $commandLine" -ForegroundColor DarkGray
+    if ($null -ne $step) { Write-Host "    log: $($step.LogPath)" -ForegroundColor DarkGray }
     $previousErrorActionPreference = $ErrorActionPreference
+    $exitCode = 0
     try
     {
         $ErrorActionPreference = 'Continue'
-        & $FilePath @ArgumentList 2>&1 | ForEach-Object { Write-Host "    $_" }
-        $exitCode = $LASTEXITCODE
+        if ($null -ne $step)
+        {
+            & $FilePath @ArgumentList 2>&1 | ForEach-Object { [string]$_ } | Tee-Object -FilePath $step.LogPath | ForEach-Object { Write-Host "    $_" }
+        }
+        else
+        {
+            & $FilePath @ArgumentList 2>&1 | ForEach-Object { Write-Host "    $_" }
+        }
+        $exitCode = if ($null -ne $LASTEXITCODE) { [int]$LASTEXITCODE } else { 0 }
+    }
+    catch
+    {
+        $exitCode = 1
+        if ($null -ne $step) { Complete-GameWipToolRunStep -Run $script:SetupRun -Step $step -ExitCode $exitCode }
+        throw
     }
     finally
     {
         $ErrorActionPreference = $previousErrorActionPreference
     }
+    if ($null -ne $step) { Complete-GameWipToolRunStep -Run $script:SetupRun -Step $step -ExitCode $exitCode }
     if ($AllowedExitCodes -notcontains $exitCode)
     {
         throw "Command failed with exit code ${exitCode}: $FilePath $($ArgumentList -join ' ')"

@@ -194,7 +194,10 @@ jobs:
 
       - name: Check PowerShell workflow helper
         shell: pwsh
-        run: ./.github/scripts/workflow-helper.test.ps1
+        run: |
+          ./.github/scripts/workflow-helper.test.ps1
+          ./.github/scripts/project-helper.test.ps1
+          ./.github/scripts/setup-helper.test.ps1
 
       - name: Check JSON
         shell: bash

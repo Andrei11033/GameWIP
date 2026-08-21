@@ -2,6 +2,8 @@
 /// @brief Diagnostic hot-path benchmarks for Unicode encoding and boundary primitives.
 
 #include "unicode/unicode.h"
+#include "unicode/internal/type_aliases.h"
+#include "unicode/internal/unicode_properties.h"
 
 #include <benchmark/benchmark.h>
 
@@ -64,6 +66,58 @@ namespace
         static_cast<char32_t>(0x1F600),
         static_cast<char32_t>(0x10FFFF),
     };
+
+    constexpr std::size_t kPropertyLookupBatchSize = 4096;
+
+    /// @brief Builds repeatable non-ASCII scalars spread across the generated property-table range.
+    [[nodiscard]] constexpr std::array<char32_t, kPropertyLookupBatchSize> scatteredPropertyScalars()
+    {
+        std::array<char32_t, kPropertyLookupBatchSize> scalars{};
+        std::uint32_t state = 0xC0FFEEU;
+        for (char32_t &scalar : scalars)
+        {
+            state ^= state << 13U;
+            state ^= state >> 17U;
+            state ^= state << 5U;
+            constexpr std::uint32_t generatedHighStart = static_cast<std::uint32_t>(Unicode::Internal::Generated::kHighStart);
+            scalar = static_cast<char32_t>(0x80U + (state % (generatedHighStart - 0x80U)));
+        }
+        return scalars;
+    }
+
+    constexpr auto kScatteredPropertyScalars = scatteredPropertyScalars();
+
+    /// @brief Measures generated-property lookup with a cache-friendly sequential access pattern.
+    void BM_Unicode_PropertyLookupSequential(benchmark::State &state)
+    {
+        for (auto iteration : state)
+        {
+            static_cast<void>(iteration);
+            for (std::uint32_t codePoint = 0x10000U; codePoint < 0x10000U + kPropertyLookupBatchSize; ++codePoint)
+            {
+                auto properties = Unicode::Internal::unicodeProperties(static_cast<char32_t>(codePoint));
+                benchmark::DoNotOptimize(properties);
+            }
+        }
+
+        state.SetItemsProcessed(state.iterations() * static_cast<std::int64_t>(kPropertyLookupBatchSize));
+    }
+
+    /// @brief Measures generated-property lookup with repeatable table-wide scattered access.
+    void BM_Unicode_PropertyLookupScattered(benchmark::State &state)
+    {
+        for (auto iteration : state)
+        {
+            static_cast<void>(iteration);
+            for (const char32_t scalar : kScatteredPropertyScalars)
+            {
+                auto properties = Unicode::Internal::unicodeProperties(scalar);
+                benchmark::DoNotOptimize(properties);
+            }
+        }
+
+        state.SetItemsProcessed(state.iterations() * static_cast<std::int64_t>(kScatteredPropertyScalars.size()));
+    }
 
     /// @brief Measures repeated strict scalar decoding across one complete UTF-8 fixture.
     void benchmarkDecode(benchmark::State &state, std::string_view text)
@@ -399,6 +453,8 @@ namespace
     BENCHMARK(BM_Unicode_Utf8ValidateAscii);
     BENCHMARK(BM_Unicode_Utf8ValidateMixed);
     BENCHMARK(BM_Unicode_Utf8EncodeScalars);
+    BENCHMARK(BM_Unicode_PropertyLookupSequential);
+    BENCHMARK(BM_Unicode_PropertyLookupScattered);
     BENCHMARK(BM_Unicode_NextCodePointBoundaryMixed);
     BENCHMARK(BM_Unicode_PreviousCodePointBoundaryMixed);
     BENCHMARK(BM_Unicode_NextGraphemeBoundaryAscii);

@@ -19,6 +19,7 @@ the [R01 milestone](https://github.com/Andrei11033/GameWIP/milestone/176) and th
 ## Project links
 
 - [Developer manual](https://andrei11033.github.io/GameWIP/)
+- [Command-line tools](docs/doxygen/command_line_tools.md)
 - [Contributing](CONTRIBUTING.md)
 - [Code of conduct](CODE_OF_CONDUCT.md)
 - [Roadmap](docs/roadmap.md)
@@ -52,6 +53,9 @@ After setup, open `GameWIP.code-workspace`. The repository-scoped shortcuts
 installed by setup cover development builds, tests, benchmarks, analysis,
 documentation, profiling, coverage, AddressSanitizer, and release runs; all are
 also available as `GameWIP: ...` entries under **Terminal > Run Task**.
+
+Use the [command-line tools reference](docs/doxygen/command_line_tools.md) for
+every supported setup, project-helper, game, test, and benchmark command.
 
 ## Quick start
 
@@ -100,12 +104,18 @@ cmake --build --preset asan
 ctest --preset asan
 ```
 
-Run a benchmark registration dry run:
+Build and run optimized benchmarks through the project helper:
 
 ```powershell
-cmake --preset benchmark
-cmake --build --preset benchmark
-.\build\benchmark\GameWIPBenchmarks.exe --benchmark_dry_run
+.\gamewip.bat benchmark
+```
+
+The helper retains JSON results, logs, and run metadata under
+`build/tool-runs/<timestamp>_benchmark-run/`. Validate registration without
+collecting timings with:
+
+```powershell
+.\gamewip.bat benchmark -BenchmarkAction dry-run
 ```
 
 The generated project manual documents the full validation, testing, static-analysis, coverage, profiling, and benchmarking workflows.
@@ -148,6 +158,13 @@ cmake --build --preset release
 
 Generated API documentation and the developer manual are published at the [GameWIP documentation site](https://andrei11033.github.io/GameWIP/).
 
+The documentation is layered so the same information is useful at different
+depths. Public-header comments provide concise IntelliSense and generated symbol
+reference while coding. Library guides explain how related APIs fit together,
+including behavior, ownership, failures, threading, limitations, and examples.
+Project-manual pages cover repository architecture, commands, workflows, and
+engineering decisions.
+
 Build it locally:
 
 ```powershell
@@ -165,6 +182,7 @@ Generated HTML starts at `build/docs/docs/doxygen/html/index.html`.
 Start with these pages when reading the source tree:
 
 - [Project structure](docs/doxygen/project_structure.md)
+- [Command-line tools](docs/doxygen/command_line_tools.md)
 - [CMake infrastructure](docs/doxygen/cmake_infrastructure.md)
 - [Development environment setup](docs/doxygen/environment_setup.md)
 - [Extending the project](docs/doxygen/extending.md)
@@ -182,7 +200,7 @@ Start with these pages when reading the source tree:
 
 ```text
 foundation/   Reusable Unicode, IO, FileSystem, and Terminal libraries.
-engine/       Input, action, window, and window-management systems.
+engine/       Supported Window library, provisional Input/Action code, and preserved retired WindowManager code.
 tools/        Logger, Assert, and TestSupport libraries.
 game/         Stable game entry point, runtime facade, modular validation, and its local orientation guide.
 external/     Pinned third-party dependencies.

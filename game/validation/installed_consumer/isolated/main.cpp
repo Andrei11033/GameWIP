@@ -1,9 +1,9 @@
 /// @file main.cpp
 /// @brief Isolated installed-package dependency-discovery check.
 
-#if defined(INTERNAL_IO_TEST_HOOKS) || defined(INTERNAL_FILESYSTEM_TEST_HOOKS) || defined(INTERNAL_TERMINAL_TEST_HOOKS) || \
-    defined(INTERNAL_LOGGER_TEST_HOOKS) || defined(INTERNAL_ASSERT_TEST_HOOKS) || defined(INTERNAL_TEST_SUPPORT_TEST_HOOKS) || \
-    defined(INTERNAL_WINDOW_TEST_HOOKS)
+#if defined(IO_INTERNAL_TEST_HOOKS) || defined(FILESYSTEM_INTERNAL_TEST_HOOKS) || defined(TERMINAL_INTERNAL_TEST_HOOKS) || \
+    defined(LOGGER_INTERNAL_TEST_HOOKS) || defined(ASSERT_INTERNAL_TEST_HOOKS) || defined(TEST_SUPPORT_INTERNAL_TEST_HOOKS) || \
+    defined(WINDOW_INTERNAL_TEST_HOOKS)
 #error "Installed GameWIP targets must not expose internal test-hook compile definitions."
 #endif
 
@@ -16,7 +16,8 @@
 #elif defined(GAMEWIP_CONSUMER_Terminal)
 #include "terminal/terminal.h"
 #elif defined(GAMEWIP_CONSUMER_Window)
-#include "window/renderer.h"
+#include "window/display_info.h"
+#include "window/renderer_bridge.h"
 #include "window/window.h"
 #elif defined(GAMEWIP_CONSUMER_Logger)
 #include "logger/logger.h"
@@ -25,9 +26,8 @@
 #elif defined(GAMEWIP_CONSUMER_TestSupport)
 #include "test_support/test_support.h"
 #elif defined(__INTELLISENSE__)
-// CMake compiles this source once per selected package. The standalone editor parse has no
-// selection, so give IntelliSense a representative branch without weakening the real-build guard.
-#include "window/renderer.h"
+#include "window/display_info.h"
+#include "window/renderer_bridge.h"
 #include "window/window.h"
 #else
 #error "An isolated consumer package must be selected."
@@ -38,9 +38,8 @@
 int main()
 {
 #if defined(GAMEWIP_CONSUMER_Unicode)
-    const GameWIP::Unicode::Types::UnicodeVersion version = GameWIP::Unicode::getStandardVersion();
-    const GameWIP::Unicode::Types::Utf8EncodeResult encoded = GameWIP::Unicode::Utf8::encodeScalar(static_cast<char32_t>(0x1F600));
-
+    const GameWIP::Unicode::Types::Version version = GameWIP::Unicode::getStandardVersion();
+    const GameWIP::Unicode::Types::Utf8::EncodeResult encoded = GameWIP::Unicode::Utf8::encodeScalar(static_cast<char32_t>(0x1F600));
     return version.major == 17 && version.minor == 0 && version.patch == 0 && encoded.outcome == GameWIP::Unicode::Types::EncodeOutcome::Encoded &&
                    encoded.byteCount == 4
                ? 0
@@ -52,16 +51,17 @@ int main()
     const auto text = writer.copyText();
     return reserve.ok() && write.status.ok() && text.status.ok() && text.text == "isolated" ? 0 : 1;
 #elif defined(GAMEWIP_CONSUMER_FileSystem)
-    return GameWIP::FileSystem::pathFromUtf8("isolated.txt").status.ok() ? 0 : 1;
+    const GameWIP::FileSystem::Types::File::ReadOptions options{};
+    return GameWIP::FileSystem::pathFromUtf8("isolated.txt").status.ok() && options.bufferSize > 0 ? 0 : 1;
 #elif defined(GAMEWIP_CONSUMER_Terminal)
     static_cast<void>(GameWIP::Terminal::getOutputCapabilities());
     return 0;
 #elif defined(GAMEWIP_CONSUMER_Window)
     GameWIP::Window::Window window;
     const auto feedback = GameWIP::Window::Renderer::attachOcclusionProvider(window);
-    const auto displayColor = GameWIP::Window::Renderer::getWindowDisplayColorInfo(window);
-    return GameWIP::Window::getCapabilities().status.ok() && feedback.code == GameWIP::IO::Types::ErrorCode::NotOpen &&
-                   displayColor.status.code == GameWIP::IO::Types::ErrorCode::NotOpen
+    const auto displayColor = GameWIP::Window::Display::getColorInfo(window);
+    return GameWIP::Window::getCapabilities().status.ok() && !GameWIP::Window::Renderer::hasOcclusionProvider(window) &&
+                   feedback.code == GameWIP::IO::Types::ErrorCode::NotOpen && displayColor.status.code == GameWIP::IO::Types::ErrorCode::NotOpen
                ? 0
                : 1;
 #elif defined(GAMEWIP_CONSUMER_Logger)
@@ -73,15 +73,16 @@ int main()
 #elif defined(GAMEWIP_CONSUMER_TestSupport)
     GameWIP::TestSupport::Timer timer;
     const GameWIP::TestSupport::Types::InfrastructureStatus status;
-    const GameWIP::TestSupport::Types::ChildProcessResult childResult;
+    const GameWIP::TestSupport::Types::Process::Result childResult;
     const std::string statusText = GameWIP::TestSupport::formatInfrastructureStatus(status);
     const bool defaultsAreUsable = status.ok() && statusText == "None" && childResult.status.ok() &&
-                                   childResult.outcome == GameWIP::TestSupport::Types::ChildProcessOutcome::NotStarted;
+                                   childResult.outcome == GameWIP::TestSupport::Types::Process::Outcome::NotStarted &&
+                                   childResult.outputBytes.empty();
     return timer.elapsedMilliseconds() >= 0.0 && defaultsAreUsable ? 0 : 1;
 #elif defined(__INTELLISENSE__)
     GameWIP::Window::Window window;
     return GameWIP::Window::Renderer::attachOcclusionProvider(window).code == GameWIP::IO::Types::ErrorCode::NotOpen &&
-                   GameWIP::Window::Renderer::getWindowDisplayColorInfo(window).status.code == GameWIP::IO::Types::ErrorCode::NotOpen
+                   GameWIP::Window::Display::getColorInfo(window).status.code == GameWIP::IO::Types::ErrorCode::NotOpen
                ? 0
                : 1;
 #endif

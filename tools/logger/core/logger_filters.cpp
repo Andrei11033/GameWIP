@@ -347,22 +347,22 @@ namespace GameWIP::Logger::Detail::Core
 // Public filter API
 //-------------------------------------------------------------------------------------------------
 
-bool GameWIP::Logger::shouldLog(Types::Level level)
+bool GameWIP::Logger::shouldLog(Types::Level level) noexcept
 {
     return ::GameWIP::Logger::Detail::Core::shouldLogRuntime(level);
 }
 
-bool GameWIP::Logger::shouldLog(Types::Level level, std::string_view)
+bool GameWIP::Logger::shouldLog(Types::Level level, std::string_view) noexcept
 {
     return ::GameWIP::Logger::Detail::Core::shouldLogRuntime(level);
 }
 
-bool GameWIP::Logger::shouldLog(Types::Level level, Types::SourceId source)
+bool GameWIP::Logger::shouldLog(Types::Level level, Types::SourceId source) noexcept
 {
     return ::GameWIP::Logger::Detail::Core::shouldLogRuntime(level, source);
 }
 
-GameWIP::IO::Types::Status GameWIP::Logger::setSourceFilter(Types::SourceId source, bool enabled)
+GameWIP::IO::Types::Status GameWIP::Logger::setSourceFilter(Types::SourceId source, bool enabled) noexcept
 {
     try
     {
@@ -386,12 +386,12 @@ GameWIP::IO::Types::Status GameWIP::Logger::setSourceFilter(Types::SourceId sour
     }
 }
 
-GameWIP::IO::Types::Status GameWIP::Logger::clearSourceFilter(Types::SourceId source)
+GameWIP::IO::Types::Status GameWIP::Logger::resetSourceFilter(Types::SourceId source) noexcept
 {
     return setSourceFilter(source, true);
 }
 
-GameWIP::IO::Types::Status GameWIP::Logger::clearSourceFilters()
+GameWIP::IO::Types::Status GameWIP::Logger::resetSourceFilters() noexcept
 {
     try
     {
@@ -416,7 +416,7 @@ GameWIP::IO::Types::Status GameWIP::Logger::clearSourceFilters()
     }
 }
 
-GameWIP::IO::Types::Status GameWIP::Logger::setLevelFilter(Types::Level level, bool enabled)
+GameWIP::IO::Types::Status GameWIP::Logger::setLevelFilter(Types::Level level, bool enabled) noexcept
 {
     const std::uint8_t bit = ::GameWIP::Logger::Detail::Core::levelBit(level);
     if (bit == 0)
@@ -438,12 +438,12 @@ GameWIP::IO::Types::Status GameWIP::Logger::setLevelFilter(Types::Level level, b
     }
 }
 
-GameWIP::IO::Types::Status GameWIP::Logger::clearLevelFilter(Types::Level level)
+GameWIP::IO::Types::Status GameWIP::Logger::resetLevelFilter(Types::Level level) noexcept
 {
     return setLevelFilter(level, true);
 }
 
-GameWIP::IO::Types::Status GameWIP::Logger::clearLevelFilters()
+GameWIP::IO::Types::Status GameWIP::Logger::resetLevelFilters() noexcept
 {
     try
     {

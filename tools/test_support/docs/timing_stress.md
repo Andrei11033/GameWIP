@@ -1,5 +1,9 @@
 @page test_support_timing_stress Timing and stress helpers
 
+These utilities coordinate repeatable validation work; they are not a
+benchmarking framework. Use them to start workers together, gather failures,
+and report elapsed time without turning timing into a correctness threshold.
+
 ## `Timer`
 
 `Timer` uses `std::chrono::steady_clock`, starts at construction, and can be restarted with `reset()`. It is suitable for suite diagnostics and section metrics, not calibrated benchmark assertions. Concurrent reset/read of the same object is not synchronized.

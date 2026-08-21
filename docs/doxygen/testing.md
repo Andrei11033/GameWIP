@@ -2,9 +2,9 @@
 
 Correctness tests answer whether behavior is correct. They must not contain benchmark loops, machine-dependent timing thresholds, or performance-regression policy.
 
-## Scope
-
-This page owns test-module structure, source interfaces, authoring rules, reports, artifacts, manual checks, and validation coverage expectations.
+This guide explains how correctness tests are divided into modules and suites,
+how they use shared source interfaces, what a useful test must prove, and how
+reports, artifacts, child scenarios, and manual checks fit together.
 
 Runner architecture and command-line ownership are documented in @ref project_validation. Performance measurements are documented in @ref project_benchmarking. Library-specific test coverage and approved hooks remain documented in each library manual.
 
@@ -19,8 +19,11 @@ ctest --preset test
 ```
 
 The same validation composition checks shared-library exports, public-header
-self-containment, generated version output, and clean installed-package
-consumption.
+self-containment, generated version output, runtime dependency staging, and
+clean installed-package consumption. On the supported Windows/MSYS2 GNU
+configuration, `validation.cmake.runtime_dependencies` proves that the active
+compiler runtime replaces a stale app-local DLL and that the staged executable
+launches.
 
 ## Commands
 
@@ -83,70 +86,14 @@ The complete runner argument contract is owned by @ref project_validation.
 
 ## Project command helper
 
-The root `gamewip.bat` launcher opens `scripts/GameWIP.ps1`, a project-scoped command menu for configure, build, test, formatting, Unicode data maintenance, benchmarks, documentation, static analysis, coverage, AddressSanitizer, validation command-building, and validation stress workflows.
+The root `gamewip.bat` helper provides interactive and noninteractive validation
+commands, a command builder, focused modules, and bounded parallel stress runs.
+Its complete syntax, defaults, catalog, retained-output behavior, failure model,
+and extension rules are owned by @ref project_command_line_tools.
 
-The interactive `Q` menu groups quality and maintenance actions. The `U` menu owns Unicode data status, verification, and regeneration. Non-interactive `format`, `analyze`, `asan`, `coverage`, `benchmark`, and `docs` actions expose the same project-owned workflows directly.
-
-The tool discovers CMake presets from `CMakePresets.json` and reads project command definitions from `scripts/config/gamewip-commands.psd1`. Add new project actions by updating that catalog instead of accepting arbitrary shell commands.
-
-Every command run prints the exact native command, streams output live, and stores logs under `build/tool-runs/<timestamp>/`. Interactive selections use one-key input with Enter for defaults. Configure and build flows offer the next useful action, such as building after configure, running CTest after a test build, generating coverage after a coverage test run, or running benchmark registration after a benchmark build. Failures print the failed action and focused next steps instead of only returning a native exit code.
-
-Validation and stress actions default `TEMP` and `TMP` to `build/gamewip-temp` so local Windows temp-folder permissions cannot make FileSystem and Logger checks fail spuriously.
-
-The validation command builder helps assemble `GameWIPTests.exe` arguments from the supported runner flags, including `--test-module=<name>`, `--skip-test-module=<name>`, report behavior, verbose output, manual tests, and TestSupport child-process checks. Stress runs report launched, active, completed, and failed worker counts while they run.
-
-Common non-interactive usage:
-
-```powershell
-.\gamewip.bat doctor
-.\gamewip.bat unicode -UnicodeAction status
-.\gamewip.bat unicode -UnicodeAction verify
-.\gamewip.bat format -FormatAction check
-.\gamewip.bat format -FormatAction apply
-.\gamewip.bat analyze
-.\gamewip.bat asan
-.\gamewip.bat git
-.\gamewip.bat git -GitAction status
-.\gamewip.bat git -GitAction switch -GitBranch feature/example
-.\gamewip.bat workflow -WorkflowAction list
-.\gamewip.bat workflow -WorkflowAction run -Workflow validation -Preview
-.\gamewip.bat workflow -WorkflowAction status
-.\gamewip.bat list
-.\gamewip.bat build -Preset test
-.\gamewip.bat test -Preset test
-.\gamewip.bat wizard
-.\gamewip.bat module -Module terminal -BuildIfMissing
-.\gamewip.bat stress -Module logger -Count 100 -Parallel 16 -BuildIfMissing
-.\gamewip.bat run -ProjectCommand benchmark-dry-run -BuildIfMissing
-.\gamewip.bat bundle -Bundle quick
-```
-
-`doctor` checks repository metadata and the exact UCRT64/CLANG64 tools used by project commands, including the Python and clang-format executables required by maintenance workflows. Build and test actions automatically configure a missing build tree. All normal presets explicitly use `C:\MSYS2\ucrt64\bin`; ASan uses `C:\MSYS2\clang64\bin`, so an unrelated CMake or compiler earlier on the user's global `PATH` cannot silently change the build.
-
-`gamewip.bat git` opens the guarded Git workspace menu. It shows concise status,
-fetches and prunes remote references, switches between local or fetched remote
-branches, creates branches, shows recent history, fast-forwards the current
-tracked branch, and pushes or publishes it with an upstream. Its cleanup flow
-offers safe deletion for ancestry-merged local branches. A branch whose upstream
-is gone after a squash merge is never assumed safe: force deletion requires a
-separate explicit confirmation, and the current/default/common integration
-branches are protected.
-
-`gamewip.bat workflow` opens a separate GitHub workflow menu backed by the
-declarative `ManualWorkflows` catalog. The helper supports validation, project
-reconciliation dry-run/write modes, release check/prepare/finalize modes, and
-Doxygen Pages deployment. It always dispatches from `master`, prints the exact
-`gh workflow run`, `gh run watch`, and verification commands, discovers the
-queued run, and can watch it through completion.
-
-Use `-Preview` to validate constructed commands without GitHub authentication
-or network access. Checks and dry runs use a yes/no confirmation. Writes,
-deployments, and finalization use an operation-specific typed phrase; manually
-dispatched project and release writes also wait for GitHub protected-environment
-approval. Finalization requires the complete 40-character master commit SHA.
-Arbitrary workflow names, refs, and input flags are intentionally unsupported.
-
-Running `gamewip.bat` without arguments opens the interactive menu. The helper is intentionally project-scoped: stress and project-command actions are selected from known GameWIP validation, benchmark, and executable checks instead of accepting arbitrary shell commands.
+Use `GameWIPTests.exe --help` to print current public runner options and module
+names without executing validation. The complete runner argument contract
+remains owned by @ref project_validation.
 
 ## Test-module source API
 
@@ -163,7 +110,7 @@ The shared validation runner may replace module-local defaults with `RunOptions`
 
 ## Module standard
 
-Each correctness module owns:
+Each correctness module owns one logical registration. Large suites may organize coherent behavioral case bodies into private included fragments when that keeps fixtures translation-unit-local, or into focused translation units when a real shared private test contract already exists:
 
 ```text
 game/validation/tests/<module>/
@@ -171,12 +118,18 @@ game/validation/tests/<module>/
   module.cpp
   <module>_test.h
   <module>_test.cpp
+  <behavior>_test.inl           # optional TU-local focused case fragment
+  <behavior>_test.cpp           # optional focused translation unit when justified
 ```
 
 - `<module>_test.h` defines the source-tree options and entry point.
-- `<module>_test.cpp` owns suites, fixtures, child behavior, and TestSupport reporting.
+- `<module>_test.cpp` owns the module-level TestSupport runner, shared TU-local fixtures/helpers, and suite registration calls.
+- Focused `<behavior>_test.inl` files may hold large coherent suite bodies included inside the module's private namespace. Prefer this form when separate translation units would require duplicating fixtures or manufacturing a broad private declaration surface.
+- Focused `<behavior>_test.cpp` files are appropriate when the cases already have a clean independently compilable private boundary. Do not split small suites mechanically.
 - `module.cpp` maps shared runner policy and creates one static registration.
-- `CMakeLists.txt` explicitly lists sources and linked libraries.
+- `CMakeLists.txt` explicitly lists compiled sources and linked libraries; private included fragments do not become separate validation modules.
+
+Splitting case files does not create new validation modules, executables, report contracts, or registration names. Promote a fixture to TestSupport only when it is genuinely reusable across modules rather than merely shared by files inside one module.
 
 Example registration:
 
@@ -238,7 +191,7 @@ Stress tests may remain correctness tests when they verify invariants rather tha
 
 `game/validation/installed_consumer/` configures and builds against the installed package surface only. It verifies installed header usability, representative cross-library integration, the current imported targets after all packages are found, and the absence of source-tree test-hook definitions.
 
-The combined consumer verifies cross-library integration. Separate isolated consumers call only one `find_package()` for each package, proving that higher-level configs discover every imported dependency in their exported interface. The combined and isolated TestSupport cases compile and run representative status, formatting, and child-result contracts while explicitly rejecting `INTERNAL_TEST_SUPPORT_TEST_HOOKS`. Additional cases cover split-prefix runtime Assert and disabled/interface-only Assert.
+The combined consumer verifies cross-library integration. Separate isolated consumers call only one `find_package()` for each package, proving that higher-level configs discover every imported dependency in their exported interface. The combined and isolated TestSupport cases compile and run representative status, formatting, and process-result contracts while explicitly rejecting `TEST_SUPPORT_INTERNAL_TEST_HOOKS`. Focused installed consumers also compile `test_support/types.h`, `reporting.h`, `files.h`, `process.h`, and `stress.h` independently. Additional cases cover split-prefix runtime Assert and disabled/interface-only Assert.
 
 The dedicated `Packages (CMake)` job owns ordinary package compatibility across
 Ninja and Ninja Multi-Config, so `Build and Test` excludes package-labeled CTest
@@ -256,7 +209,7 @@ Manual checks must be opt-in and provide clear instructions, pass/fail/skip inpu
 
 ## Source documentation
 
-Large `_test.cpp` files do not require Doxygen comments on every local helper or test case. File-level documentation, descriptive function names, and focused comments around child protocols, global-state restoration, concurrency coordination, abnormal termination, and platform limitations are the preferred standard.
+Focused correctness case files do not require Doxygen comments on every local helper or test case. File-level documentation, descriptive function names, and focused comments around child protocols, global-state restoration, concurrency coordination, abnormal termination, and platform limitations are the preferred standard.
 
 Module headers and adapters require complete contract comments because they are shared source interfaces between validation components.
 

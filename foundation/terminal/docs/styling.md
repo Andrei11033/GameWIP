@@ -4,13 +4,13 @@ Terminal accepts portable style requests and emits them only when the selected e
 
 ## Color and style values
 
-Create colors with `defaultColor()`, `basicColor()`, or `rgbColor()`. `BasicColor` provides the normal and bright variants of black, red, green, yellow, blue, magenta, cyan, and white.
+Create colors with `defaultColor()`, `basicColor()`, or `rgbColor()`. `Types::Style::BasicColor` provides the normal and bright variants of black, red, green, yellow, blue, magenta, cyan, and white.
 
-`TextStyle` contains foreground/background color plus bold, dim, italic, underline, inverse, and strikethrough requests. The corresponding `StyleCapabilities` fields describe what the current endpoint can honor.
+`Types::Style::Request` contains foreground/background color plus bold, dim, italic, underline, inverse, and strikethrough requests. The corresponding `Types::Style::Capabilities` fields describe what the current endpoint can honor.
 
 ## Per-operation options
 
-`TextWriteOptions` contains `styleMode`, `style`, and `flushMode`. `LineWriteOptions` adds `lineEnding`. Per-segment style is stored in each `WriteSegment`; `SegmentWriteOptions::styleMode` controls how styled segments handle unavailable features.
+`Types::Output::TextOptions` contains `styleMode`, `style`, and `flushMode`. `Types::Output::LineOptions` adds `lineEnding`. Per-segment style is stored in each `Types::Output::Segment`; `Types::Output::SegmentOptions::styleMode` controls how styled segments handle unavailable features.
 
 ## Style modes
 

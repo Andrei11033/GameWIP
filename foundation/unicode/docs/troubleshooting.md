@@ -1,5 +1,9 @@
 @page unicode_troubleshooting Troubleshooting
 
+Unicode rejects malformed text instead of guessing how to repair it. Start
+with the reported outcome below, then decide whether the caller needs more
+input, a corrected boundary, or a different operation.
+
 ## UTF-8 decoding reports `Incomplete`
 
 The supplied bytes form a valid prefix of a longer UTF-8 scalar, such as a valid lead byte without all required continuation bytes.

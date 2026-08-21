@@ -1,5 +1,9 @@
 @page io_troubleshooting Troubleshooting
 
+Most IO failures describe either a violated reader/writer contract or a limit
+that protected the caller from incomplete or unbounded data. Match the status
+to the cases below before retrying the operation.
+
 ## A whole-stream read returns `SizeLimitExceeded`
 
 `maxBytes` is a hard accepted-size limit. It does not request truncation.
@@ -60,9 +64,15 @@ Whole-stream helpers translate their own allocation and length failures. This do
 
 For repeated unknown-size reads, reuse a scratch buffer. For repeated writes, reserve an expected capacity and call `clear()` between operations. Use `takeBytes()` when the caller should own the vector and accept that writer capacity may be discarded.
 
-## Text helpers accept invalid UTF-8
+## A text helper returns `EncodingFailed`
 
-IO treats text as bytes. It preserves embedded NUL and invalid byte sequences. Validation, normalization, decoding, and parsing belong to a higher-level library.
+IO text helpers use strict UTF-8. `readAllText()` trims malformed or incomplete suffix bytes so `ReadAllTextResult::text` remains valid UTF-8; when useful progress exists, that field contains the complete valid prefix.
+
+`writeAllText()` validates the complete input before calling the writer, so malformed or incomplete input returns `EncodingFailed` with `bytesWritten == 0`.
+
+`MemoryWriter::copyText()` returns `EncodingFailed` and an empty text result when the collected bytes are not valid UTF-8. Use `bytes()` or `takeBytes()` when arbitrary binary data is intended.
+
+IO does not normalize text, insert or remove a BOM, or silently repair malformed input.
 
 ## Related pages
 

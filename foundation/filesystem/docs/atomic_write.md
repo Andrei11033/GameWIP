@@ -6,15 +6,16 @@
 
 The operation:
 
-1. validates `temporaryNamePrefix` as a filename prefix, not a path;
-2. resolves the destination according to `symlinkPolicy`;
-3. optionally creates missing parent directories;
-4. creates a unique same-directory temporary file with restrictive access;
-5. writes the complete payload, including a valid empty payload;
-6. flushes the temporary file according to `flushMode`;
-7. commits using one native rename or replacement according to `replaceMode`;
-8. optionally flushes the parent directory;
-9. attempts best-effort temporary cleanup after failure.
+1. validates text payloads as UTF-8 before any filesystem side effect;
+2. validates `temporaryNamePrefix` as UTF-8 filename text and as one safe filename prefix;
+3. resolves the destination according to `symlinkPolicy`;
+4. optionally creates missing parent directories;
+5. creates a unique same-directory temporary file with restrictive access;
+6. writes the complete payload, including a valid empty payload;
+7. flushes the temporary file according to `flushMode`;
+8. commits using one native rename or replacement according to `replaceMode`;
+9. optionally flushes the parent directory;
+10. attempts best-effort temporary cleanup after failure.
 
 There is no non-atomic fallback. Before commit, failure leaves an existing destination unchanged. At the destination path, concurrent observers see either the previous file or the complete replacement rather than an in-place partial rewrite.
 
@@ -54,7 +55,11 @@ Destination resolution follows `symlinkPolicy`. Following a destination that is 
 
 ## Text
 
-Text is treated as bytes. No BOM handling, validation, encoding conversion, or line-ending translation occurs.
+`writeAllTextAtomic()` validates the complete payload as strict UTF-8 before parent creation, destination inspection, temporary-file creation, or replacement. Malformed or incomplete text returns `EncodingFailed` without changing the filesystem. The validated payload is then forwarded through the existing atomic byte-write machinery without a redundant UTF-8 scan.
+
+`temporaryNamePrefix` is UTF-8 filename text. Malformed UTF-8 returns `EncodingFailed`; an empty prefix, `.`, `..`, path separators, or embedded U+0000 remain `InvalidArgument`.
+
+No BOM handling, normalization, encoding conversion, or line-ending translation occurs.
 
 ## Related pages
 

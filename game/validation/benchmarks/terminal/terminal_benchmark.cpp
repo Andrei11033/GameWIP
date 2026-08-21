@@ -16,7 +16,7 @@ namespace
     constexpr std::string_view kChunk = "GameWIP Terminal checked buffer payload ";
 
     /// @brief Measures the checked plain append hot path while reusing retained capacity.
-    void benchmarkOutputBufferAppend(benchmark::State &state)
+    void BM_Terminal_OutputBufferAppend(benchmark::State &state)
     {
         Terminal::OutputBuffer buffer;
         if (!buffer.reserve(kChunk.size() * 64).ok())
@@ -47,7 +47,7 @@ namespace
     }
 
     /// @brief Measures rollback-capable formatting into retained OutputBuffer storage.
-    void benchmarkOutputBufferFormat(benchmark::State &state)
+    void BM_Terminal_OutputBufferFormat(benchmark::State &state)
     {
         Terminal::OutputBuffer buffer;
         if (!buffer.reserve(4096).ok())
@@ -76,10 +76,10 @@ namespace
     }
 
     /// @brief Measures checked line batching without releasing caller-owned capacity between records.
-    void benchmarkOutputBufferLines(benchmark::State &state)
+    void BM_Terminal_OutputBufferLines(benchmark::State &state)
     {
         Terminal::OutputBuffer buffer;
-        if (!buffer.setLineEnding(Terminal::Types::LineEnding::Lf).ok() || !buffer.reserve(4096).ok())
+        if (!buffer.setLineEnding(Terminal::Types::Output::LineEnding::Lf).ok() || !buffer.reserve(4096).ok())
         {
             state.SkipWithError("Terminal OutputBuffer setup failed.");
             return;
@@ -107,6 +107,6 @@ namespace
     }
 } // namespace
 
-BENCHMARK(benchmarkOutputBufferAppend);
-BENCHMARK(benchmarkOutputBufferFormat);
-BENCHMARK(benchmarkOutputBufferLines);
+BENCHMARK(BM_Terminal_OutputBufferAppend);
+BENCHMARK(BM_Terminal_OutputBufferFormat);
+BENCHMARK(BM_Terminal_OutputBufferLines);

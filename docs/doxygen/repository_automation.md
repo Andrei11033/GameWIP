@@ -2,9 +2,10 @@
 
 GameWIP uses event-driven GitHub automation for repeatable metadata and project status updates. Automation is deliberately limited to deterministic state. Priority, scope, security disclosure, milestone intent, and product decisions remain human responsibilities.
 
-## Scope
-
-This page documents GitHub project status rules, linked pull-request metadata, event handling, required repository configuration, token requirements, dry-run behavior, and maintainer review points.
+The automation described here reconciles GitHub project status, linked
+pull-request metadata, and repository events. The guide also explains required
+configuration and tokens, dry-run behavior, and the points that still require a
+maintainer's judgment.
 
 Contributor-facing GitHub workflow rules are documented in `docs/contributing.md`.
 

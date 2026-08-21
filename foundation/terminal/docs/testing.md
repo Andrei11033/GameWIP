@@ -4,6 +4,8 @@
 
 ## Automated coverage
 
+The automated suite also locks the backend-independent Text contract: malformed/incomplete redirected text is rejected before emission, `OutputBuffer` preserves valid UTF-8 across failed mutations, invalid text segments fail before output, and byte segments continue to carry arbitrary binary data.
+
 The Terminal validation module covers:
 
 - public constants, value types, factories, deleted dangling-storage overloads, and header self-containment;
@@ -12,7 +14,7 @@ The Terminal validation module covers:
 - same-stream formatter reentry for global and Session `print()` / `println()`, nested global output from Session formatting, and checked same-operation Session close;
 - complete-operation serialization, independent stdout/stderr state, and reusable scratch storage;
 - capability observation, preparation, idempotence, and failure propagation;
-- `StyleMode::Never`, `Auto`, and `Required`;
+- `Types::Style::Mode::Never`, `Auto`, and `Required`;
 - redirected output, native line endings, UTF-8 conversion, and invalid-option rejection before normal emission;
 - Win32 `INPUT_RECORD` key normalization including Unicode surrogate pairs, Ctrl/AltGr behavior, named/function/modifier keys, location, repeat splitting, and releases;
 - stdin event/line/text/byte read contracts, code-point-safe limits, deadlines, polling, cancellation, EOF, resize dispatch, and incompatible-delivery rejection;

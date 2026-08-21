@@ -41,7 +41,7 @@ Select stderr explicitly:
 
 ```cpp
 const auto status = GameWIP::Terminal::writeLine(
-    GameWIP::Terminal::Types::OutputStream::Stderr,
+    GameWIP::Terminal::Types::Output::Stream::Stderr,
     "configuration failed");
 ```
 
@@ -57,24 +57,24 @@ else
 {
     switch (result.outcome)
     {
-    case GameWIP::Terminal::Types::ReadOutcome::Completed:
+    case GameWIP::Terminal::Types::Input::ReadOutcome::Completed:
         // result.line contains a completed line.
         break;
-    case GameWIP::Terminal::Types::ReadOutcome::EndOfStream:
+    case GameWIP::Terminal::Types::Input::ReadOutcome::EndOfStream:
         // result.line may still contain a final unterminated line.
         break;
-    case GameWIP::Terminal::Types::ReadOutcome::TimedOut:
-    case GameWIP::Terminal::Types::ReadOutcome::WouldBlock:
+    case GameWIP::Terminal::Types::Input::ReadOutcome::TimedOut:
+    case GameWIP::Terminal::Types::Input::ReadOutcome::WouldBlock:
         // No normal backend failure occurred. Partial text may still be present.
         break;
-    case GameWIP::Terminal::Types::ReadOutcome::Cancelled:
+    case GameWIP::Terminal::Types::Input::ReadOutcome::Cancelled:
         // The caller's stop token requested cancellation.
         break;
     }
 }
 ```
 
-Always inspect `status`, `outcome`, and the payload together. A successful status does not imply `ReadOutcome::Completed`, and a terminating outcome can accompany partial data.
+Always inspect `status`, `outcome`, and the payload together. A successful status does not imply `Types::Input::ReadOutcome::Completed`, and a terminating outcome can accompany partial data.
 
 Read deadlines use `std::optional<std::chrono::milliseconds>`: `std::nullopt` waits indefinitely, `0ms` polls, positive values bound the complete operation, and negative values are `InvalidArgument`. A `std::stop_token` requests cancellation where the endpoint supports cancellable blocking reads.
 
@@ -85,7 +85,7 @@ using namespace GameWIP::Terminal;
 
 Session session;
 Types::SessionOptions options;
-options.deliveryMode = Types::InputDeliveryMode::Stream;
+options.deliveryMode = Types::Input::DeliveryMode::Stream;
 
 if (!session.open(options).ok())
 {
@@ -98,10 +98,10 @@ if (!session.writeText("command: ").ok())
     return 2;
 }
 
-Types::LineReadOptions lineOptions;
+Types::Input::LineOptions lineOptions;
 lineOptions.echo = true;
-const Types::LineReadResult line = session.readLine(lineOptions);
-if (line.status.ok() && line.outcome == Types::ReadOutcome::Completed)
+const Types::Input::LineResult line = session.readLine(lineOptions);
+if (line.status.ok() && line.outcome == Types::Input::ReadOutcome::Completed)
 {
     static_cast<void>(session.println("received {}", line.line));
 }
@@ -124,10 +124,10 @@ if (!session.open().ok()) // Events is the explicit-session default.
     return 1;
 }
 
-const Types::EventReadResult event = session.readEvent();
-if (event.status.ok() && event.outcome == Types::ReadOutcome::Completed)
+const Types::Input::EventResult event = session.readEvent();
+if (event.status.ok() && event.outcome == Types::Input::ReadOutcome::Completed)
 {
-    if (const Types::KeyEvent *key = event.event->getIf<Types::KeyEvent>())
+    if (const Types::Events::Key *key = event.event->getIf<Types::Events::Key>())
     {
         // Portable logical key; no Win32 virtual-key code escapes the backend.
     }
@@ -143,15 +143,15 @@ Real Win32 consoles deliver key and resize events through native `INPUT_RECORD`.
 ```cpp
 using namespace GameWIP::Terminal;
 
-Types::LineWriteOptions options;
-options.styleMode = Types::StyleMode::Auto;
-options.style.foreground = basicColor(Types::BasicColor::Green);
+Types::Output::LineOptions options;
+options.styleMode = Types::Style::Mode::Auto;
+options.style.foreground = basicColor(Types::Style::BasicColor::Green);
 options.style.bold = true;
 
 const auto status = writeLine("ready", options);
 ```
 
-`StyleMode::Auto` falls back to plain text. Use `StyleMode::Required` only when lack of the requested style must fail the operation.
+`Types::Style::Mode::Auto` falls back to plain text. Use `Types::Style::Mode::Required` only when lack of the requested style must fail the operation.
 
 ## Failure handling
 

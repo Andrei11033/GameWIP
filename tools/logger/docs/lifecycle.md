@@ -4,7 +4,7 @@ Logger lifecycle operations are serialized.
 
 ## Initialization
 
-A successful enabled init returns `status.ok() == true` and `InitOutcome::Started`. `OutputMode::None` returns success plus `Disabled`. Recoverable numeric/storage adjustments remain successful and are described by the adjustment bitmask.
+A successful enabled init returns `status.ok() == true` and `Types::Init::Outcome::Started`. `OutputMode::None` returns success plus `Disabled`. Recoverable numeric/storage adjustments remain successful and are described by the adjustment bitmask.
 
 If File setup fails and Console remains available, overall initialization succeeds, `effectiveOutput` reflects Console, and `outputSetupStatus` contains the original File/setup failure. If no normal sink remains, init fails and returns `Disabled`.
 

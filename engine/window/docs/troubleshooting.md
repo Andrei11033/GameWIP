@@ -1,5 +1,9 @@
 @page window_troubleshooting Troubleshooting
 
+Most Window failures identify a lifecycle, owner-thread, capability, or native
+state boundary. Start with the returned status and `lifetimeState()`, then use
+the matching case below.
+
 ## `InvalidArgument` during open
 
 Check for a zero client dimension, invalid UTF-8 or embedded NUL in the title, inverted size limits, a zero aspect-ratio component, opacity outside `[0, 1]`, an unknown enum value, an exclusive display mode attached to a non-exclusive request, an unknown owner/monitor, or region pointer modes without a runtime layout. External event storage must be non-empty.
@@ -14,9 +18,9 @@ Foreground activation is subject to operating-system policy. A hidden or non-foc
 
 ## Events appear missing
 
-Inspect `eventQueueInfo().droppedEvents`. Geometry and DPI events can coalesce. When full, the queue prefers evicting an older coalescible event; if it contains only noncoalescible events, a new event other than `ClosedEvent` is dropped. `ClosedEvent` evicts the oldest entry so unexpected native destruction remains observable. Cached getters remain current even when another notification was dropped.
+Inspect `eventQueueInfo().droppedEvents`. Geometry and DPI events can coalesce. When full, the queue prefers evicting an older coalescible event; if it contains only noncoalescible events, a new event other than `Types::Events::NativeDestroyed` is dropped. `NativeDestroyed` evicts the oldest entry so unexpected native destruction remains observable. Cached getters remain current even when another notification was dropped.
 
-`closeRequested()` is independent of the queue. Handle it even if no `CloseRequestedEvent` was retained.
+`hasCloseRequest()` is independent of the queue. Handle it even if no `Types::Events::CloseRequested` payload was retained.
 
 ## Fullscreen transition fails
 
@@ -32,7 +36,7 @@ Rectangular and per-pixel routing must reach arbitrary underlying desktop window
 
 ## Native destruction was unexpected
 
-`isOpen()` becomes false while `lifetimeState()` reports `NativeDestroyedPendingFinalize`. Consume the retained `ClosedEvent`, stop native/renderer use, then call `close()` on the owner thread. Reopening is intentionally rejected until that controlled finalization releases IDs, event storage, and backend bookkeeping.
+`isOpen()` becomes false while `lifetimeState()` reports `NativeDestroyedPendingFinalize`. Consume the retained `Types::Events::NativeDestroyed` payload, stop native/renderer use, then call `close()` on the owner thread. Reopening is intentionally rejected until that controlled finalization releases IDs, event storage, and backend bookkeeping.
 
 ## Native handle is unavailable
 
@@ -40,13 +44,13 @@ Include `window/native/win32.h` only in a Win32 translation unit and query after
 
 ## Occlusion reporting is unavailable
 
-Global `supports(Types::Capability::OcclusionReporting)` is false by design: the native Window backend does not know whether a renderer-owned surface can present. Include `window/renderer.h` and attach one provider after surface creation.
+`supports(Types::Capability::OcclusionReporting)` describes the stable backend capability; it does not report whether a renderer provider is currently attached. Include `window/renderer_bridge.h`, check `Renderer::hasOcclusionProvider(window)` for attachment state, and call `Renderer::attachOcclusionProvider(window)` after the renderer has an authoritative presentation source.
 
 Attachment, reporting, and detachment must run on the Window owner thread. `reportOcclusion()` returns `NotOpen` before attachment and after detachment. Forward only an authoritative Renderer presentation result; minimization, visibility, or focus alone are not equivalent to renderer occlusion.
 
 ## Display color is unknown or stale
 
-Include `window/renderer.h` and perform the first color query on the Window owner thread if that thread should receive advanced-color transition signals. Keep pumping events and re-query after `MonitorChangedEvent` or `DisplayConfigurationChangedEvent`. Optional numeric fields legitimately remain zero when the operating system, display driver, or output interface does not expose reliable metadata; do not replace them with assumed panel defaults.
+Include `window/display_info.h` and perform the first `Display::getColorInfo(...)` query on the Window owner thread if that thread should receive advanced-color transition signals. Keep pumping events and re-query after `Types::Events::MonitorChanged` or `Types::Events::DisplayConfigurationChanged`. Optional numeric fields legitimately remain zero when the operating system, display driver, or output interface does not expose reliable metadata; do not replace them with assumed panel defaults.
 
 ## Close reports failure
 

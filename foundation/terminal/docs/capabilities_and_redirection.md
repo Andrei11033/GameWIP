@@ -15,18 +15,18 @@ A detached capability query can succeed and report `Detached`; an operation that
 
 ## Input capabilities
 
-`InputCapabilities` reports only managed abstraction features:
+`Types::Input::Capabilities` reports only managed abstraction features:
 
 - UTF-8 text, arbitrary bytes, lines, and structured events;
 - non-blocking reads, finite deadlines, and caller cancellation;
 - resize and paste events;
 - repeat/release events, standalone modifiers, media keys, key location, and modifier-state richness.
 
-It does not expose native raw-mode, echo, mode-query/set, or availability-preflight capabilities. `InputCapabilitiesResult` pairs the snapshot with an IO status. Poll by performing a `0ms` read rather than checking availability and racing a later read.
+It does not expose native raw-mode, echo, mode-query/set, or availability-preflight capabilities. `Types::Input::CapabilitiesResult` pairs the snapshot with an IO status. Poll by performing a `0ms` read rather than checking availability and racing a later read.
 
 ## Output capabilities
 
-`OutputCapabilities` reports stream kind, UTF-8 text, byte output, flush support, portable styles, terminal size, cursor operations, clear/scroll, alternate screen, title, and bell support. `OutputCapabilitiesResult` pairs the snapshot with an IO status.
+`Types::Output::Capabilities` reports stream kind, UTF-8 text, byte output, flush support, portable styles, terminal size, cursor operations, clear/scroll, alternate screen, title, and bell support. `Types::Output::CapabilitiesResult` pairs the snapshot with an IO status.
 
 `supportsFlush` means Terminal accepts a flush request for the endpoint. It does not promise storage durability for every endpoint. On Win32, only standard handles redirected to regular disk files receive an operating-system flush; console and pipe requests are successful no-ops.
 
@@ -44,16 +44,16 @@ Styled writes and controls prepare lazily when their requested feature is not ac
 
 Redirected endpoints are byte-oriented:
 
-- text output preserves supplied UTF-8 bytes;
+- text output accepts only complete valid UTF-8 and preserves those UTF-8 bytes;
 - byte output preserves arbitrary bytes where supported;
 - text and line input interpret redirected bytes as UTF-8;
 - byte input performs no text interpretation.
 
-`StyleMode::Auto` omits style sequences on redirected output that does not advertise the requested style. `StyleMode::Required` returns `Unsupported` without normal text emission when the style cannot be honored.
+`Types::Style::Mode::Auto` omits style sequences on redirected output that does not advertise the requested style. `Types::Style::Mode::Required` returns `Unsupported` without normal text emission when the style cannot be honored.
 
 ## Current Win32 behavior
 
-Real-console output converts UTF-8 to UTF-16 and uses the native Unicode console path. Redirected output writes bytes. The reported style set is conservative; enabling virtual-terminal processing does not by itself promise RGB, dim, italic, or strikethrough support.
+Real-console output converts already-validated UTF-8 to UTF-16 and uses the native Unicode console path. Redirected text output writes the already-validated UTF-8 bytes unchanged; byte output remains arbitrary binary. The reported style set is conservative; enabling virtual-terminal processing does not by itself promise RGB, dim, italic, or strikethrough support.
 
 Named-pipe input reports byte/text/line input plus non-blocking reads, finite deadlines, and cooperative cancellation. Regular redirected files report byte/text/line input without bounded-wait guarantees.
 
@@ -61,7 +61,7 @@ Real Win32 consoles report byte/text/line input plus structured events, non-bloc
 
 ## Failure behavior
 
-`StyleMode::Auto` falls back to plain text when preparation or style support is unavailable. `StyleMode::Required` and terminal controls return the preparation or capability failure without normal emission. Plain text, byte output, size queries, cursor-position queries, and input operations do not implicitly prepare output.
+`Types::Style::Mode::Auto` falls back to plain text when preparation or style support is unavailable. `Types::Style::Mode::Required` and terminal controls return the preparation or capability failure without normal emission. Plain text, byte output, size queries, cursor-position queries, and input operations do not implicitly prepare output.
 
 A detached input operation returns `NotOpen`. An unsupported delivery/read/deadline/cancellation combination returns `Unsupported` without consuming input. Managed ownership conflicts return `ResourceBusy`; capability snapshots do not reserve stdin.
 

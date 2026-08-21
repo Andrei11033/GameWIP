@@ -1,10 +1,15 @@
 @page filesystem_directory_operations Directories, copy, move, and removal
 
+Directory operations range from creating one path component to moving or
+removing a complete tree. The sections below call out where an operation
+follows links, preserves partial progress, or can commit before reporting a
+later cleanup failure.
+
 ## Directory creation
 
 `createDirectory()` creates one level. `createDirectories()` creates missing parents.
 
-`CreateDirectoryOptions::succeedIfAlreadyExists` treats an existing directory as success. An existing non-directory remains a conflict. Existing path components are resolved according to the selected symlink policy.
+`Types::Directory::CreateOptions::succeedIfAlreadyExists` treats an existing directory as success. An existing non-directory remains a conflict. Existing path components are resolved according to the selected symlink policy.
 
 ## Direct-child listing
 
@@ -14,9 +19,9 @@ Filters for entry kind and hidden state are applied before `maxEntries`. Filtere
 
 When another matching child exists beyond the accepted limit, the operation returns `SizeLimitExceeded` and preserves collected entries. `kNoEntryLimit` removes only the caller limit.
 
-`DirectoryEntry::path` is the supplied parent path joined with the child name. A relative parent produces relative child paths.
+`Types::Directory::Entry::path` is the supplied parent path joined with the child name. A relative parent produces relative child paths.
 
-`ListDirectoryResult` owns every accepted entry, so peak result storage is proportional to the number and path length of returned children. `DirectoryCursor` provides the same filters, ordering, symlink policy, and entry limit without retaining siblings. On Win32, child metadata is queried relative to the retained directory handle, avoiding a complete ancestry traversal for every entry.
+`Types::Directory::ListResult` owns every accepted entry, so peak result storage is proportional to the number and path length of returned children. `DirectoryCursor` provides the same filters, ordering, symlink policy, and entry limit without retaining siblings. On Win32, child metadata is queried relative to the retained directory handle, avoiding a complete ancestry traversal for every entry.
 
 ```cpp
 GameWIP::FileSystem::DirectoryCursor cursor;
@@ -48,7 +53,7 @@ The API intentionally exposes no public recursive iterator. Recursive traversal 
 - Equivalent source and destination paths return `InvalidArgument`.
 - `ReplaceMode` controls destination conflict behavior.
 - `createParentDirectories` optionally creates missing destination parents.
-- `CopyMetadataMode::Basic` copies portable last-write time and read-only state after contents.
+- `Types::File::CopyMetadataMode::Basic` copies portable last-write time and read-only state after contents.
 - `flushMode` requests destination durability before close.
 
 Copying is not atomic and is not a source snapshot. Concurrent source changes can produce `CopyFailed`. Once the destination is created or truncated, a later read, write, flush, close, size-consistency, or metadata failure can leave partial or complete destination content.
@@ -73,7 +78,7 @@ Native rename success is the move's linearization point. Concurrent recreation o
 
 `removeFile()` removes one regular-file or accepted link-like entry. `removeEmptyDirectory()` removes one empty directory and reports `DirectoryNotEmpty` when that condition is distinguishable.
 
-Open handles can prevent rename, replacement, or removal unless their sharing policy includes `FileShare::Delete`.
+Open handles can prevent rename, replacement, or removal unless their sharing policy includes `Types::File::Share::Delete`.
 
 ## Tree removal
 

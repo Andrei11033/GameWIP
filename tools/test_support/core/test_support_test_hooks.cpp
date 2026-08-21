@@ -3,7 +3,7 @@
 
 #include "test_support/internal/test_support_test_hooks.h"
 
-#if INTERNAL_TEST_SUPPORT_TEST_HOOKS
+#if TEST_SUPPORT_INTERNAL_TEST_HOOKS
 #include <atomic>
 #include <cstdint>
 
@@ -63,7 +63,6 @@ namespace GameWIP::TestSupport::Detail::TestHooks
         {
             return std::nullopt;
         }
-
         return childProcessNativeCode.exchange(0, std::memory_order_relaxed);
     }
 
@@ -78,7 +77,6 @@ namespace GameWIP::TestSupport::Detail::TestHooks
         {
             return std::nullopt;
         }
-
         return fileNativeCode.exchange(0, std::memory_order_relaxed);
     }
 
@@ -93,7 +91,6 @@ namespace GameWIP::TestSupport::Detail::TestHooks
         {
             return std::nullopt;
         }
-
         return environmentNativeCode.exchange(0, std::memory_order_relaxed);
     }
 } // namespace GameWIP::TestSupport::Detail::TestHooks

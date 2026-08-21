@@ -1,8 +1,12 @@
 @page logger_troubleshooting Troubleshooting
 
+Logger preserves effective output, health, counters, and the original failure
+status so a caller can distinguish a fallback from a complete logging outage.
+Inspect those values first, then use the matching case below.
+
 ## Init succeeded but File is unavailable
 
-Inspect `InitResult::requestedOutput`, `effectiveOutput`, and `outputSetupStatus`. Successful Console fallback keeps overall `status` successful while preserving the File/setup failure directly.
+Inspect `Types::Init::Result::requestedOutput`, `effectiveOutput`, and `outputSetupStatus`. Successful Console fallback keeps overall `status` successful while preserving the File/setup failure directly.
 
 ## Logger became degraded
 

@@ -12,7 +12,7 @@ Include `unicode/unicode.h`. Installed consumers link `GameWIP::Unicode`; source
 
 ## Outcome and result types
 
-The `GameWIP::Unicode::Types` namespace contains passive outcomes and result values.
+The `GameWIP::Unicode::Types` namespace contains shared outcomes and `Version`. Encoding-specific passive values live under `Types::Utf8` and `Types::Utf16`; the installed public header provides no flat compatibility aliases.
 
 ### Decode and encode outcomes
 
@@ -34,7 +34,7 @@ Decode failure returns scalar `U+0000` and consumes zero bytes or code units.
 - `Incomplete` when the complete valid prefix is followed by a truncated final sequence.
 - `InvalidEncoding` when the complete valid prefix is followed by malformed input.
 
-`Utf8ValidationResult::validPrefixBytes` and `Utf16ValidationResult::validPrefixCodeUnits` count only complete valid input before the failing sequence.
+`Types::Utf8::ValidationResult::validPrefixBytes` and `Types::Utf16::ValidationResult::validPrefixCodeUnits` count only complete valid input before the failing sequence.
 
 ### Measurement outcome
 
@@ -59,7 +59,7 @@ Overlap is rejected before writes. Destination exhaustion stops before the next 
 
 ### Boundary outcome
 
-`BoundaryOutcome` is:
+`Types::Utf8::BoundaryOutcome` is:
 
 - `Found` when the requested next or previous boundary was found.
 - `AtBeginning` when backward traversal starts at byte offset 0.
@@ -67,35 +67,35 @@ Overlap is rejected before writes. Destination exhaustion stops before the next 
 - `InvalidOffset` when the offset is outside the range or is not UTF-8 code-point aligned.
 - `InvalidEncoding` when malformed or incomplete UTF-8 prevents the requested traversal.
 
-`Utf8BoundaryResult::byteOffset` is the discovered boundary on `Found`. Endpoint outcomes retain the endpoint, and failures retain the original caller-provided offset.
+`Types::Utf8::BoundaryResult::byteOffset` is the discovered boundary on `Found`. Endpoint outcomes retain the endpoint, and failures retain the original caller-provided offset.
 
 ### Grapheme indexing outcome
 
-`GraphemeIndexOutcome` is:
+`Types::Utf8::GraphemeIndexOutcome` is:
 
 - `Indexed` when complete valid UTF-8 was segmented into caller-owned boundary storage.
 - `DestinationTooSmall` when the supplied boundary span cannot hold the complete index.
 - `InvalidEncoding` when malformed or incomplete UTF-8 prevents complete indexing.
 
-`Utf8GraphemeIndexResult::requiredBoundaryCount` includes offset 0 and the final `text.size()` boundary. It is meaningful on `Indexed` and `DestinationTooSmall`; malformed input reports zero. Empty text therefore requires one boundary entry.
+`Types::Utf8::GraphemeIndexResult::requiredBoundaryCount` includes offset 0 and the final `text.size()` boundary. It is meaningful on `Indexed` and `DestinationTooSmall`; malformed input reports zero. Empty text therefore requires one boundary entry.
 
 ## Result structures
 
 | Result | Fields |
 | --- | --- |
-| `Utf8DecodeResult` | `scalar`, `bytesConsumed`, `outcome` |
-| `Utf8EncodeResult` | fixed `bytes`, `byteCount`, `outcome` |
-| `Utf8ValidationResult` | `validPrefixBytes`, `outcome` |
-| `Utf16DecodeResult` | `scalar`, `codeUnitsConsumed`, `outcome` |
-| `Utf16EncodeResult` | fixed `codeUnits`, `codeUnitCount`, `outcome` |
-| `Utf16ValidationResult` | `validPrefixCodeUnits`, `outcome` |
-| `Utf8ToUtf16MeasureResult` | `sourceBytesProcessed`, `requiredCodeUnits`, `outcome` |
-| `Utf16ToUtf8MeasureResult` | `sourceCodeUnitsProcessed`, `requiredBytes`, `outcome` |
-| `Utf8ToUtf16Result` | `sourceBytesConsumed`, `codeUnitsWritten`, `outcome` |
-| `Utf16ToUtf8Result` | `sourceCodeUnitsConsumed`, `bytesWritten`, `outcome` |
-| `Utf8BoundaryResult` | `byteOffset`, `outcome` |
-| `Utf8GraphemeIndexResult` | `requiredBoundaryCount`, `outcome` |
-| `UnicodeVersion` | `major`, `minor`, `patch` |
+| `Types::Utf8::DecodeResult` | `scalar`, `bytesConsumed`, `outcome` |
+| `Types::Utf8::EncodeResult` | fixed `bytes`, `byteCount`, `outcome` |
+| `Types::Utf8::ValidationResult` | `validPrefixBytes`, `outcome` |
+| `Types::Utf8::ToUtf16MeasureResult` | `sourceBytesProcessed`, `requiredCodeUnits`, `outcome` |
+| `Types::Utf8::ToUtf16Result` | `sourceBytesConsumed`, `codeUnitsWritten`, `outcome` |
+| `Types::Utf8::BoundaryResult` | `byteOffset`, `outcome` |
+| `Types::Utf8::GraphemeIndexResult` | `requiredBoundaryCount`, `outcome` |
+| `Types::Utf16::DecodeResult` | `scalar`, `codeUnitsConsumed`, `outcome` |
+| `Types::Utf16::EncodeResult` | fixed `codeUnits`, `codeUnitCount`, `outcome` |
+| `Types::Utf16::ValidationResult` | `validPrefixCodeUnits`, `outcome` |
+| `Types::Utf16::ToUtf8MeasureResult` | `sourceCodeUnitsProcessed`, `requiredBytes`, `outcome` |
+| `Types::Utf16::ToUtf8Result` | `sourceCodeUnitsConsumed`, `bytesWritten`, `outcome` |
+| `Types::Version` | `major`, `minor`, `patch` |
 
 ## Scalar and version helpers
 

@@ -1,8 +1,13 @@
 @page project_roadmap Roadmap
 
-The roadmap defines the completion gates for each GameWIP milestone. GitHub issues track implementation, validation, bugs, and follow-up work; the roadmap does not duplicate those tasks.
+The roadmap answers one question: what must be true before GameWIP can call a
+milestone complete? It describes outcomes and validation gates, while GitHub
+issues track the individual implementation tasks, bugs, and follow-up work.
 
-Early milestones have explicit checklists. Later milestones retain `TBD` entries until their design boundaries are known.
+The active and near-term milestones have concrete checklists. Later milestones
+remain deliberately broad until earlier work establishes the design constraints
+they depend on. A `[TBD]` item is an acknowledged decision still to be made, not
+an invisible promise that the design is already settled.
 
 ## Status legend
 

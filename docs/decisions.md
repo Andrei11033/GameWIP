@@ -1,154 +1,179 @@
 @page project_decisions Project decisions
 
-This page records stable project-wide decisions. It is not a changelog, implementation tracker, test catalog, library manual, or roadmap.
+This page records the choices that shape more than one part of GameWIP. It
+explains what the project has decided, why that choice matters, and what it
+requires from future work.
 
-Use:
+It is not a changelog or task list. Library-specific behavior belongs in that
+library's manual, milestone gates belong in @ref project_roadmap, and active
+work belongs in GitHub issues.
 
-- @ref project_vision for product identity.
-- @ref project_roadmap for milestone completion criteria.
-- GitHub issues for active tasks, bugs, validation work, and follow-up cleanup.
-- @ref project_platform_backend_contract for platform-backend rules.
-- @ref project_public_api_contract for project-wide public naming, text, result, performance, and compatibility rules.
-- @ref project_versioning for version policy.
-- @ref project_contributing for GitHub workflow and merge messages.
-- The owning library manual for library-specific behavior and API contracts.
+## Product and simulation
 
-## Product direction
+### Building is approachable; depth is optional
 
-GameWIP is a sandbox building game centered on player-made vehicles, weapons, missiles, buildings, technical systems, and meaningful destruction.
+Components should work with useful defaults, so a player can build quickly.
+Advanced configuration is added where it creates meaningful engineering
+choices, not as a prerequisite for basic use.
 
-Building should be quick to start and useful with defaults. Engineering depth should be optional and added through configuration rather than required setup.
+This keeps the first experience understandable without placing a low ceiling
+on complex vehicles, weapons, guidance, sensors, and control systems. The full
+product direction is described in @ref project_vision.
 
-Damage must affect both structure and function. Parts may weaken, detach, fail, expose internals, or change connected system behavior. Realism is valuable when it creates understandable engineering choices; usability takes priority when realism only adds friction.
+### Damage changes structure and function
 
-## Simulation and presentation
+Damage is part of the simulation rather than a visual effect. It may change
+strength, mass, connectivity, component state, or the behavior of connected
+systems. New structural and component designs must account for those
+consequences instead of treating destruction as block removal alone.
 
-Simulation uses a fixed timestep and remains separate from rendering. Behavior must not depend on render frame rate.
+### Simulation timing does not depend on rendering
 
-Only systems with a demonstrated need use higher-frequency updates. Ordinary gameplay does not inherit the highest simulation rate by default.
+Simulation uses a fixed timestep and remains separate from presentation. Only
+systems with a demonstrated need receive higher-frequency updates; ordinary
+gameplay does not run at the most expensive rate by default.
 
-Rendering supports development, debugging, and validation before presentation
-polish. Foundational simulation, visibility, and correctness take priority over
-visual refinement during foundational development.
+Rendering is developed early enough to expose and debug the simulation, but
+foundational correctness and observability come before presentation polish.
 
-## Toolchain and platform
+## Language, toolchain, and platform
 
-- The project language standard is C++23 without compiler extensions.
-- CMake and Ninja own configuration and builds.
-- Visual Studio Code is the recommended editor and owns repository-scoped workflow integration. Visual Studio Community is an optional selected IDE, not a compiler prerequisite.
-- Windows with MSYS2 UCRT64 GCC is the normal development environment.
-- MSYS2 CLANG64 is used for AddressSanitizer validation.
-- The root setup entry point owns reproducible installation, update, repair, editor integration, and environment verification on Windows 11.
-- The repository is Windows-first, but reusable public APIs remain portable unless a platform concept is itself the contract.
-- Public/project text is UTF-8 and continues to use `std::string`/`std::string_view` rather than `std::u8string`.
-- Encoding-agnostic data is called bytes rather than text. Byte-oriented IO remains independent of Unicode.
-- GameWIP does not automatically normalize Unicode, insert or remove a BOM, or silently repair invalid text.
-- Validate text at trust and native boundaries, combining conversion and validation where practical; do not blindly repeat full scans on trusted hot forwarding paths.
-- Win32 backends convert at the operating-system boundary and use wide-character APIs where required.
+### C++23, CMake, and Ninja define the build baseline
 
-## Repository architecture
+First-party C++ uses C++23 without compiler extensions. CMake owns
+configuration and build composition, and Ninja is the supported generator for
+normal repository workflows.
 
-- `foundation/` owns low-level reusable runtime libraries.
-- `tools/` owns reusable diagnostics, assertions, logging, validation support, and development tooling.
-- `engine/` owns engine systems reviewed separately from the reusable foundation and tool libraries.
-- `game/` owns the process entry point, runtime facade, and validation executable wiring.
-- `cmake/` owns project-wide build orchestration and shared CMake helpers.
-- `docs/doxygen/` owns generated project-manual pages.
-- `docs/` owns product direction, roadmap, decisions, versioning, and contributor workflow records.
-- `external/` owns pinned third-party dependencies and should not be rewritten by project formatting or documentation passes.
+Windows 11 with MSYS2 UCRT64 GCC is the primary development environment.
+MSYS2 CLANG64 provides AddressSanitizer validation. Visual Studio Code is the
+recommended editor and owns repository-scoped workflow integration; Visual
+Studio Community is optional and is not a compiler prerequisite.
 
-Dependency direction is documented in @ref project_structure.
+The root setup entry point owns installation, update, repair, editor
+integration, and environment verification. The exact supported workflow is in
+@ref project_environment_setup.
 
-## Reusable library standard
+### Windows is the first backend, not a public-API shortcut
 
-Reusable libraries must be independently buildable, testable, installable, and consumable from a clean external CMake project through their installed package boundary.
+The repository is Windows-first, but reusable public APIs stay portable unless
+the platform concept is itself the API. Operating-system types and headers
+belong behind internal backends or in explicitly native interop APIs. See
+@ref project_platform_backend_contract for the boundary rules.
 
-Standalone does not mean anonymous ownership. First-party installed targets intentionally use the `GameWIP::` namespace.
+### Project text is UTF-8
 
-A reusable library owns its public API, package boundary, docs, tests, platform backend, and compatibility notes. Public headers must expose portable types and must not require consumers to include internal headers, platform headers, validation hooks, or game-runtime types.
+Public text uses UTF-8 stored in `std::string` and `std::string_view`.
+Encoding-agnostic data is described as bytes. IO primitives do not guess an
+encoding; text-aware operations may depend on Unicode when they enforce the
+UTF-8 contract.
 
-Performance is part of reusable API design. Preserve reusable caller storage, avoid success-path diagnostic allocation and redundant scans, keep optional features lazy, and benchmark meaningful hot paths without turning benchmark timings into correctness gates.
+GameWIP does not silently normalize Unicode, add or remove a byte-order mark,
+or repair invalid input. Validation belongs at trust and native boundaries,
+preferably combined with conversion so trusted hot paths do not repeat full
+scans. Win32 backends use wide-character APIs where required and convert at the
+operating-system boundary.
 
-## Build and packaging
+## Repository and dependency structure
 
-- Root presets define supported project workflows.
-- Library CMake files own their public target, sources, package config, install rules, and documentation registration.
-- Project CMake helpers define common policy and integration patterns.
-- Public dependencies must be declared as public package dependencies.
-- Implementation-only dependencies must remain private.
-- Package compatibility is validated through public-header checks and clean installed-consumer workflows.
+Each top-level area has a distinct job:
 
-Installed packages assume ABI-compatible C++23 toolchains, standard libraries, runtimes, architectures, configurations, and exact GameWIP versions. The project does not promise a universal stable C ABI.
+- `foundation/` contains low-level reusable runtime libraries.
+- `tools/` contains reusable diagnostics, assertions, logging, validation
+  support, and development tools.
+- `engine/` contains engine systems, reviewed separately from foundation and
+  tool libraries.
+- `game/` composes those systems at the process and runtime boundary.
+- `cmake/` contains project-wide build orchestration and shared helpers.
+- `docs/` and library `docs/` directories contain maintained manuals and
+  project records.
+- `external/` contains pinned third-party code and is excluded from first-party
+  formatting and documentation rewrites.
 
-Pre-1.0 public APIs may be corrected directly instead of retaining deprecated aliases unless a specific compatibility requirement justifies a transition layer.
+Dependencies should point toward lower-level concepts, never toward a more
+specific consumer merely for convenience. @ref project_structure contains the
+actual dependency map and allowed exceptions.
 
-Umbrella public headers may remain supported while focused headers are added. Physical header decomposition does not require namespace or package decomposition and should be justified by measured compile-time or usability value.
+## Reusable libraries and public APIs
 
-Detailed CMake rules are documented in @ref project_cmake_infrastructure. Package rules are documented in @ref project_library_compatibility.
+### A supported library is consumable on its own
 
-## Validation policy
+Each supported reusable library owns its public API, tests, package boundary,
+manual, platform backend, and compatibility notes. It must build and install as
+part of GameWIP and remain usable from a clean external CMake consumer through
+an installed `GameWIP::` target.
 
-Correctness tests must validate behavior, not timing. Benchmarks measure performance and registration health, not correctness thresholds.
+Public headers expose portable types and must not require internal headers,
+test hooks, game-runtime types, or accidental platform dependencies.
 
-Validation modules use stable lowercase names and register through the shared validation runner. Source-tree-only hooks may be used only when public APIs cannot make a scenario deterministic.
+### Performance is part of API design
 
-Manual checks are opt-in. CI should remain unattended unless a workflow explicitly documents a human-gated step.
+Reusable APIs preserve caller-owned storage where practical, avoid
+success-path diagnostic allocation and redundant scans, and keep optional work
+lazy. Benchmarks measure meaningful hot paths, but timing thresholds are not
+correctness tests.
 
-## Documentation ownership
+### Compatibility is explicit, not assumed
 
-Doxygen is the generated developer manual for contributors, maintainers, and reusable-library consumers. It is not player-facing game documentation.
+Installed packages require ABI-compatible C++23 toolchains, standard libraries,
+runtimes, architectures, configurations, and matching GameWIP versions. The
+project does not promise a universal stable C ABI.
 
-Project workflow and contract pages live under `docs/doxygen/`. Product direction, roadmap, decisions, versioning, and contributor workflow records live under `docs/`. Library manuals live under each library's `docs/` directory.
+Before 1.0, an incorrect public API may be fixed directly instead of retaining
+a deprecated alias unless a real migration requirement justifies one. Umbrella
+headers may remain supported while focused headers are introduced; splitting a
+file does not by itself require a new namespace or package.
 
-Documentation rules are documented in @ref project_documentation.
+The detailed contracts live in @ref project_public_api_contract and
+@ref project_library_compatibility.
 
-## Repository workflow
+## Validation and documentation
 
-Feature work normally uses an issue, short-lived branch, pull request, required validation evidence, and squash merge.
+Correctness tests prove behavior, not elapsed time. Benchmarks measure
+performance and registration health. Test modules use stable lowercase names
+and join the shared runner; source-tree-only hooks are reserved for behavior
+that cannot be made deterministic through the public API.
 
-The seven protected `master` checks are the authoritative pre-merge CI gate.
-Manual validation dispatches rerun that gate for diagnostics or post-merge
-verification; they do not create a second required path. Expensive local quality
-workflows remain change-driven, while release preparation uses the documented
-release-readiness bundle.
+Manual checks remain opt-in so ordinary CI can run unattended. A workflow that
+requires a person must say so explicitly.
 
-Commit and pull-request titles use:
+Documentation is part of the supported surface. Header comments provide the
+point-of-use contract, generated API pages expose declaration details, library
+manuals explain concepts and composition, and the project manual explains
+architecture, workflows, standards, and decisions. @ref project_documentation
+defines what each layer must contain.
+
+## Repository workflow and releases
+
+Feature work normally moves from an issue to a short-lived branch, a pull
+request with concrete validation evidence, and a squash merge. Titles use:
 
 ```text
 area: imperative summary
 ```
 
-The full GitHub workflow, required metadata, automation behavior, and squash message format are documented in @ref project_contributing.
-Repository settings, check ownership, manual dispatch policy, and public-release
-audits are documented in @ref project_repository_maintenance.
+The protected `master` checks are the pre-merge gate. Manual workflow runs are
+for diagnostics and post-merge verification, not an alternate path around that
+gate. @ref project_contributing explains day-to-day contribution flow, and
+@ref project_repository_maintenance owns repository settings and check policy.
 
-## Licensing and public history
+First-party source and documentation use the Apache License 2.0. Dependencies
+and future non-code assets retain any separate licenses and notices that apply
+to them. Contributions intentionally submitted for inclusion use Apache-2.0
+unless the contributor and maintainer explicitly agree otherwise in writing.
 
-GameWIP first-party source code and documentation use the
-[Apache License 2.0](https://github.com/Andrei11033/GameWIP/blob/master/LICENSE).
-The root
-[NOTICE](https://github.com/Andrei11033/GameWIP/blob/master/NOTICE) records
-project attribution. Pinned dependencies under `external/` retain their own
-licenses and notices; a future non-code asset may declare a separate license
-when its distribution requirements differ from the source repository.
+The reviewed Git history is accepted for public visibility as project history,
+but a newly discovered credential or sensitive artifact still requires
+immediate rotation and, when necessary, history cleanup before further public
+exposure.
 
-Unless explicitly stated otherwise in writing and accepted by the maintainer,
-contributions intentionally submitted for inclusion use Apache-2.0 under the
-license's contribution terms. The license permits reuse of published versions;
-it does not transfer control of the official repository, releases, settings,
-or project identity.
+## Updating these decisions
 
-The reachable Git history was reviewed before public activation. Known author
-metadata and the historical source-snapshot archive are accepted for public
-visibility, so no history rewrite is required. This acceptance does not excuse
-a newly discovered credential or sensitive artifact: rotate affected secrets
-and sanitize history before public exposure when a real disclosure is found.
+Add or change an entry only when the choice is durable and project-wide. State
+the reason and the practical consequence, then update every manual or workflow
+whose instructions changed. Use an issue for the implementation work rather
+than embedding a checklist here.
 
-## Changing a decision
-
-Update this page only for durable project-wide decisions. Keep the decision concise, update affected workflow or contract pages in the same change, and put implementation work in GitHub issues rather than turning this page into a task list.
-
-## Related pages
+Related detail is available in:
 
 - @ref project_vision
 - @ref project_roadmap

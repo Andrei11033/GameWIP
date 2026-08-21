@@ -1,6 +1,10 @@
 /// @file window_header.cpp
-/// @brief Portable Window public-header self-containment compile check.
+/// @brief Verifies the source-tree Window aggregate header.
 
 #include "window/window.h"
 
-static_assert(GameWIP::Window::kDefaultEventQueueCapacity > 0);
+#include <type_traits>
+
+static_assert(!std::is_copy_constructible_v<GameWIP::Window::Window>);
+static_assert(!std::is_move_constructible_v<GameWIP::Window::Window>);
+static_assert(noexcept(std::declval<GameWIP::Window::Window &>().close()));

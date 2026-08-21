@@ -1,9 +1,10 @@
 # GameWIP workflow keybindings
 
-This declarative VS Code extension contributes repository-scoped shortcuts for
-the complete workflows in `.vscode/tasks.json`. The shortcuts are active only
-when `gamewip.keybindings.enabled` is true, as it is in
-`GameWIP.code-workspace`.
+This small VS Code extension turns the repository workflows in
+`.vscode/tasks.json` into convenient function-key shortcuts. The bindings are
+active only when `gamewip.keybindings.enabled` is true, as it is in
+`GameWIP.code-workspace`, so they do not take over the same keys in unrelated
+workspaces.
 
 The Windows setup script installs this unpacked extension into the current
 user's VS Code extension directory. It also generates a managed block at the
@@ -31,7 +32,7 @@ build diagnostics separate from the running game's output.
 | `Alt+F5` | Configure, build, and run `dev-no-tools`. |
 | `F6` | Configure, build, run embedded correctness tests, and start `dev` when they pass. |
 | `F7` | Configure, build, and run correctness tests. |
-| `Alt+F7` | Configure, build, and run benchmarks. |
+| `Alt+F7` | Run the standard benchmark profile and retain its tool-run results. |
 | `F8` | Build, verify, and open the generated manual. |
 | `Alt+F8` | Configure and run repository C++ analysis. |
 | `F9` | Build the profile game, start Tracy, and run the game. |

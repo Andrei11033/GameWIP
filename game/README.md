@@ -1,8 +1,9 @@
 # Game executable and validation
 
-This directory owns the GameWIP process boundary. It composes engine and
-reusable-library code; reusable behavior itself belongs in `engine/`,
-`foundation/`, or `tools/`.
+This directory is where the reusable pieces become runnable programs. It owns
+process startup, the game runtime facade, and the validation executables. The
+behavior being composed still belongs in its engine, foundation, or tool
+library rather than accumulating here.
 
 ## Layout
 
@@ -13,16 +14,19 @@ reusable-library code; reusable behavior itself belongs in `engine/`,
 - `validation/public_headers/` proves supported consumer headers compile independently.
 - `validation/installed_consumer/` validates installed CMake package boundaries.
 
-## Where to start
+## Find the right documentation
 
 Read the [game executable manual](../docs/doxygen/game_executable.md) for startup,
 composition, versioning, and source-interface rules. Use the
+[command-line tools reference](../docs/doxygen/command_line_tools.md) for all
+helper and executable commands. Use the
 [validation architecture](../docs/doxygen/validation.md) and
 [testing guide](../docs/doxygen/testing.md) before changing validation code.
 
-New gameplay or engine behavior should not accumulate in `main.cpp`. Add it to
-the owning engine/game runtime boundary, keep platform-specific behavior behind
-an internal backend, and add focused correctness coverage where practical.
+Keep `main.cpp` small: it should establish process-level behavior and delegate.
+Put new gameplay or engine behavior at the boundary that owns the concept, keep
+platform-specific details behind an internal backend, and cover deterministic
+behavior with focused correctness tests.
 
 ## Common checks
 

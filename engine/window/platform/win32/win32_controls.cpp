@@ -16,7 +16,7 @@ namespace GameWIP::Window::Detail::Platform
             if (visible != state.visible)
             {
                 state.visible = visible;
-                routeEvent(state, Types::VisibilityChangedEvent{visible});
+                routeEvent(state, Types::Events::VisibilityChanged{visible});
             }
         }
 
@@ -28,7 +28,7 @@ namespace GameWIP::Window::Detail::Platform
             if (value != state.presentation)
             {
                 state.presentation = value;
-                routeEvent(state, Types::PresentationStateChangedEvent{value});
+                routeEvent(state, Types::Events::PresentationStateChanged{value});
             }
         }
 
@@ -146,7 +146,7 @@ namespace GameWIP::Window::Detail::Platform
             });
     }
 
-    IO::Types::Status setWindowControls(WindowState &state, const Types::WindowControls &controls) noexcept
+    IO::Types::Status setControls(WindowState &state, const Types::Controls &controls) noexcept
     {
         return updateStyleValue(
             state,

@@ -25,7 +25,9 @@ FileSystem intentionally does not add narrow-string overloads to every operation
 
 ## File contents
 
-`readAllText()`, `writeAllText()`, `appendText()`, and `writeAllTextAtomic()` treat contents as bytes. They do not validate UTF-8, add or remove a BOM, or convert line endings or encodings.
+`readAllText()`, `writeAllText()`, `appendText()`, and `writeAllTextAtomic()` are strict UTF-8 content operations. Malformed or incomplete text returns `EncodingFailed`. Text writes and appends validate before filesystem mutation; byte overloads remain available for arbitrary content.
+
+Content helpers do not normalize text, add or remove a BOM, or convert line endings or encodings.
 
 ## Related pages
 

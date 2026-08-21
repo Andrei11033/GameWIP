@@ -2,7 +2,7 @@
 
 @note Logger validation uses source-tree hooks and is not installed consumer API.
 
-## #55 correctness coverage
+## Correctness coverage
 
 Validation covers normal/disabled initialization, checked invalid configuration, adjustment flags and effective limits, file setup fallback with directly associated failure status, AlreadyOpen lifecycle rejection, shutdown/reinitialize, and health epoch reset.
 
@@ -12,9 +12,13 @@ Flush validation distinguishes completed, timed-out, invalid-timeout, and sink-f
 
 Fatal termination remains isolated in a child process; the real popup path remains manual/opt-in. Failure hooks remain one-shot and resettable.
 
+The Logger correctness module stays one logical module while behavior-focused private `.inl` fragments keep configuration,
+output, filters, reports, health, and process/manual cases easier to scan without promoting Logger-specific fixtures to TestSupport.
+
 ## Package and header validation
 
-Project validation must continue to check public-header self-containment, installed `GameWIP::Logger` consumption, exact IO/Terminal dependency resolution, exported-symbol allowlists, sanitizer builds, and Logger benchmarks.
+Project validation must check self-containment of `logger/types.h`, `logger/config.h`,
+`logger/logger.h`, and `logger/logger_macros.h`, plus installed `GameWIP::Logger` consumption, exact IO/Terminal dependency resolution, exported-symbol allowlists, sanitizer builds, and Logger benchmarks.
 
 ## Performance review
 

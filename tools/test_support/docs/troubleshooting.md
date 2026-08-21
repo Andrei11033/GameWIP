@@ -1,5 +1,9 @@
 @page test_support_troubleshooting Troubleshooting
 
+TestSupport keeps test failures separate from failures in reporting, fixtures,
+or child-process infrastructure. Identify which result type failed, then use
+the matching case below.
+
 ## Report file is missing or empty
 
 Check `writeReport`, `reportPath`, and `appendReport`. An empty path disables file opening. Ordinary directory/open/write/flush failure emits one `[TEST REPORT]` diagnostic and disables that sink without affecting the test result.
@@ -34,7 +38,7 @@ Check `captureOutput`. stdout and stderr share one retained byte stream. A zero 
 
 ## Child reports failed infrastructure status
 
-Inspect `status.error`, `status.nativeCode`, and `outcome` together. A failed status may still preserve partial output or an exact exit code when `outcome == ChildProcessOutcome::Exited`. `TimedOut` with successful status means timeout policy was enforced normally.
+Inspect `status.error`, `status.nativeCode`, and `outcome` together. A failed status may still preserve partial `outputBytes` or an exact exit code when `outcome == Types::Process::Outcome::Exited`. `Types::Process::Outcome::TimedOut` with successful status means timeout policy was enforced normally.
 
 ## Child call exceeded the configured timeout
 

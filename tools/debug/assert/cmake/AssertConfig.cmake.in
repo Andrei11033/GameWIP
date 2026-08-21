@@ -26,7 +26,7 @@ function(_internal_assert_configure_common_controls_v6 output_variable)
         message(FATAL_ERROR "Assert Common Controls v6 resource template was not found: ${Assert_COMMON_CONTROLS_RC_TEMPLATE}")
     endif()
 
-    set(INTERNAL_ASSERT_COMMON_CONTROLS_MANIFEST "${Assert_COMMON_CONTROLS_MANIFEST}")
+    set(ASSERT_INTERNAL_COMMON_CONTROLS_MANIFEST "${Assert_COMMON_CONTROLS_MANIFEST}")
     set(Assert_COMMON_CONTROLS_RC "${CMAKE_CURRENT_BINARY_DIR}/assert_common_controls_v6.rc")
     configure_file(
         "${Assert_COMMON_CONTROLS_RC_TEMPLATE}"
@@ -52,7 +52,7 @@ function(assert_enable_common_controls_v6 target_name)
     get_property(
         Assert_COMMON_CONTROLS_ATTACHED
         TARGET "${target_name}"
-        PROPERTY INTERNAL_ASSERT_COMMON_CONTROLS_ATTACHED
+        PROPERTY ASSERT_INTERNAL_COMMON_CONTROLS_ATTACHED
     )
     if(Assert_COMMON_CONTROLS_ATTACHED)
         return()
@@ -62,6 +62,6 @@ function(assert_enable_common_controls_v6 target_name)
         "${Assert_COMMON_CONTROLS_RC}"
     )
     set_property(TARGET "${target_name}" PROPERTY
-        INTERNAL_ASSERT_COMMON_CONTROLS_ATTACHED TRUE
+        ASSERT_INTERNAL_COMMON_CONTROLS_ATTACHED TRUE
     )
 endfunction()

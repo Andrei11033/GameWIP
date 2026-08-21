@@ -29,5 +29,6 @@ static_assert(noexcept(GameWIP::IO::writeAllBytes(std::declval<GameWIP::IO::Writ
 static_assert(noexcept(GameWIP::IO::writeAllText(std::declval<GameWIP::IO::Writer &>(), std::declval<std::string_view>())));
 static_assert(noexcept(std::declval<GameWIP::IO::MemoryWriter &>().reserve(0)));
 static_assert(noexcept(std::declval<const GameWIP::IO::MemoryWriter &>().copyText()));
+static_assert(std::is_same_v<decltype(std::declval<const GameWIP::IO::MemoryWriter &>().copyText()), GameWIP::IO::Types::CopyTextResult>);
 static_assert(std::is_nothrow_move_constructible_v<GameWIP::IO::Types::Status>);
 static_assert(std::is_nothrow_move_assignable_v<GameWIP::IO::Types::Status>);

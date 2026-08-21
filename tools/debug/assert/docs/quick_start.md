@@ -1,5 +1,9 @@
 @page assert_quick_start Quick start
 
+Start by choosing whether a failed condition is fatal, recoverable, or must
+still be evaluated in disabled-check builds. The example below wires the
+library and demonstrates one fatal invariant.
+
 ## Include
 
 Include the public header:

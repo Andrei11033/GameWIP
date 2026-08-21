@@ -55,10 +55,11 @@ namespace GameWIP::Window::Detail::Platform
         std::wstring exclusiveDevice;
         DEVMODEW savedDisplayMode{};
         DEVMODEW activeNativeDisplayMode{};
-        Types::DisplayMode activeDisplayMode;
+        Types::Display::Mode activeDisplayMode;
         bool hasSavedDisplayMode = false;
         bool exclusiveSuspended = false;
         bool exactDisplayMode = false;
+        std::uint32_t modeTransitionDepth = 0; ///< Guards synchronous native messages while one mode transition owns geometry.
 
         std::wstring utf16Scratch;
     };
@@ -74,12 +75,12 @@ namespace GameWIP::Window::Detail::Platform
         Dispatcher(const Dispatcher &) = delete;
         Dispatcher &operator=(const Dispatcher &) = delete;
 
-        DWORD threadId = 0;                               ///< Native identity of the owning thread.
-        std::vector<WindowState *> windows;               ///< Non-owning registered states on this thread.
-        std::mutex deferredMutex;                         ///< Synchronizes cross-thread cleanup transfer.
-        std::unique_ptr<WindowState> deferredCleanupHead; ///< Intrusive chain awaiting owner-thread cleanup.
-        bool pumping = false;                             ///< Reentrancy guard for the native message pump.
-        Types::EventPumpResult *activeResult = nullptr;   ///< Call-scoped accumulator during a pump.
+        DWORD threadId = 0;                                ///< Native identity of the owning thread.
+        std::vector<WindowState *> windows;                ///< Non-owning registered states on this thread.
+        std::mutex deferredMutex;                          ///< Synchronizes cross-thread cleanup transfer.
+        std::unique_ptr<WindowState> deferredCleanupHead;  ///< Intrusive chain awaiting owner-thread cleanup.
+        bool pumping = false;                              ///< Reentrancy guard for the native message pump.
+        Types::Events::PumpResult *activeResult = nullptr; ///< Call-scoped accumulator during a pump.
     };
 
     /// @name Dispatcher and routing helpers
@@ -87,11 +88,18 @@ namespace GameWIP::Window::Detail::Platform
     /// remain valid until explicit unregister or deferred owner-thread cleanup.
     /// @{
     [[nodiscard]] Dispatcher &dispatcher() noexcept;
+    [[nodiscard]] IO::Types::Status acquireWindowClass(HINSTANCE instance) noexcept;
+    [[nodiscard]] IO::Types::Status releaseWindowClass() noexcept;
+    void registerWindowId(WindowState &state);
+    void unregisterWindowId(WindowState &state) noexcept;
+    [[nodiscard]] DWORD styleFor(const WindowState &state) noexcept;
+    [[nodiscard]] DWORD extendedStyleFor(const WindowState &state) noexcept;
     [[nodiscard]] UINT wakeMessage() noexcept;
-    void routeEvent(WindowState &state, Types::EventData data) noexcept;
+    void routeEvent(WindowState &state, Types::Events::Payload data) noexcept;
     void recordPumpFailure(IO::Types::Status status) noexcept;
     void registerOpenState(WindowState &state);
     void unregisterOpenState(WindowState &state) noexcept;
+    void pruneAbandonedStates(Dispatcher &current) noexcept;
     [[nodiscard]] WindowState *resolveWindowId(Types::WindowId id) noexcept;
     /// @}
 
@@ -117,15 +125,16 @@ namespace GameWIP::Window::Detail::Platform
     void updateCurrentMonitor(WindowState &state) noexcept;
     [[nodiscard]] IO::Types::Status applyCursorState(WindowState &state) noexcept;
     [[nodiscard]] IO::Types::Status applyStyle(WindowState &state) noexcept;
+    [[nodiscard]] IO::Types::Status placeFullscreenOnMonitor(WindowState &state, HMONITOR monitor, bool preserveZOrder = false) noexcept;
     [[nodiscard]] IO::Types::Status leaveExclusive(WindowState &state) noexcept;
     [[nodiscard]] IO::Types::Status suspendExclusive(WindowState &state) noexcept;
     [[nodiscard]] IO::Types::Status resumeExclusive(WindowState &state) noexcept;
     [[nodiscard]] IO::Types::Status applyMode(WindowState &state, const Types::ModeRequest &request) noexcept;
     [[nodiscard]] IO::Types::Status recoverAfterDisplayChange(WindowState &state, bool forceRemovedMonitor = false) noexcept;
 
-    [[nodiscard]] Types::MonitorInfoResult monitorFromNative(HMONITOR monitor) noexcept;
-    [[nodiscard]] HMONITOR nativeMonitor(Types::MonitorId id) noexcept;
-    [[nodiscard]] std::wstring monitorDeviceName(Types::MonitorId id) noexcept;
+    [[nodiscard]] Types::Display::InfoResult monitorFromNative(HMONITOR monitor) noexcept;
+    [[nodiscard]] HMONITOR nativeMonitor(Types::Display::MonitorId id) noexcept;
+    [[nodiscard]] std::wstring monitorDeviceName(Types::Display::MonitorId id) noexcept;
     [[nodiscard]] std::uint32_t runtimeWindowsBuild() noexcept;
     [[nodiscard]] bool supportsSystemBackdrop() noexcept;
     [[nodiscard]] bool supportsTransparentFramebuffer() noexcept;

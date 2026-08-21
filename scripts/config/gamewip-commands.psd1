@@ -36,6 +36,31 @@
         )
     }
 
+    BenchmarkProfiles = @(
+        @{
+            Id = 'quick'
+            Name = 'Quick development measurement'
+            Repetitions = 1
+            MinTime = '0.05s'
+            AggregatesOnly = $false
+        }
+        @{
+            Id = 'standard'
+            Name = 'Repeatable local measurement'
+            Repetitions = 5
+            MinTime = '0.2s'
+            AggregatesOnly = $true
+        }
+        @{
+            Id = 'stable'
+            Name = 'Longer comparison-quality measurement'
+            Repetitions = 10
+            MinTime = '1s'
+            AggregatesOnly = $true
+            RandomInterleaving = $true
+        }
+    )
+
     ManualWorkflows = @(
         @{
             Id = 'validation'
@@ -107,6 +132,7 @@
             Executable = 'build\test\GameWIPTests.exe'
             Arguments = @('--no-test-report')
             UseWorkspaceTemp = $true
+            AcceptsExtraArgs = $true
         }
         @{
             Id = 'benchmark-dry-run'
@@ -115,6 +141,7 @@
             Executable = 'build\benchmark\GameWIPBenchmarks.exe'
             Arguments = @('--benchmark_dry_run')
             UseWorkspaceTemp = $true
+            AcceptsExtraArgs = $true
         }
         @{
             Id = 'dev-version'
@@ -123,6 +150,7 @@
             Executable = 'build\dev\GameWIP.exe'
             Arguments = @('--version')
             UseWorkspaceTemp = $false
+            AcceptsExtraArgs = $false
         }
         @{
             Id = 'release-version'
@@ -132,6 +160,7 @@
             AlternateExecutable = 'build\release\GameWIP.exe'
             Arguments = @('--version')
             UseWorkspaceTemp = $false
+            AcceptsExtraArgs = $false
         }
     )
 

@@ -1,5 +1,9 @@
 @page unicode_quick_start Quick start
 
+This path installs Unicode, validates one UTF-8 string, and performs a checked
+UTF-8/UTF-16 conversion. It is enough to confirm that the package and the
+library's strict error model are wired correctly.
+
 ## Include
 
 ```cpp
@@ -36,7 +40,7 @@ int leadingScalarByteCount(std::string_view input) noexcept
 {
     namespace Unicode = GameWIP::Unicode;
 
-    const Unicode::Types::Utf8DecodeResult decoded = Unicode::Utf8::decodeScalar(input);
+    const Unicode::Types::Utf8::DecodeResult decoded = Unicode::Utf8::decodeScalar(input);
     if (decoded.outcome == Unicode::Types::DecodeOutcome::Decoded)
     {
         return static_cast<int>(decoded.bytesConsumed);

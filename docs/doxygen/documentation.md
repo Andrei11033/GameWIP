@@ -4,7 +4,8 @@ GameWIP uses Doxygen for its generated developer manual and Markdown for long-fo
 
 The manual contains project workflows, library manuals, and public API reference material. Files under `docs/` record product direction, milestone criteria, stable decisions, versioning, and contributor policy. GitHub issues track active work.
 
-This page defines the documentation standard used across the repository.
+The rules below keep those sources working as one documentation system instead
+of a collection of unrelated files.
 
 ## Scope
 
@@ -12,6 +13,8 @@ Use this page when writing or reviewing:
 
 - Generated project manual pages under `docs/doxygen/`.
 - Library manuals under `<library>/docs/`.
+- Project-owned Markdown and local orientation READMEs under first-party source,
+  script, and GitHub workflow directories.
 - Public and ABI-facing header comments.
 - Explicitly documented executable and validation source interfaces.
 - Approved internal test-hook documentation.
@@ -30,6 +33,52 @@ Use @ref project_planning to decide whether product planning or policy material 
 - Keep examples copy-pasteable when the page is teaching a workflow or public API.
 - Keep generated documentation warning-free.
 
+## Information layers
+
+Do not make one page serve every reading depth. Place information where a reader
+will naturally look for it, and link between layers:
+
+| Layer | What it must answer |
+| --- | --- |
+| Repository entry points | What the project is, what is supported, and where a new reader should go next. |
+| Project manual | How the repository works, how components relate, how workflows behave, and why project-wide constraints exist. |
+| Library landing page | What the library owns, its mental model, its most important guarantees, and which focused guide answers each deeper question. |
+| Focused library guide | A complete explanation of one coherent behavior, including composition, edge cases, examples, and failure handling. |
+| Generated API reference and IntelliSense | The exact contract of every supported declaration at the point of use. |
+| Maintainer and test-hook pages | Internal validation seams, backend constraints, and implementation-facing procedures that consumers should not depend on. |
+
+Task-oriented links help readers enter the documentation, but they do not
+replace conceptual explanation. A reader who does not yet know the right API
+must be able to learn the model from the manual; a reader already holding a
+symbol must be able to learn its complete local contract from the generated
+reference or IntelliSense.
+
+## Write for the reader's question
+
+Before writing a page or section, decide which need it serves. GameWIP follows
+the widely used distinction between tutorials, how-to guidance, reference, and
+explanation:
+
+| Reader's question | Documentation form | GameWIP examples |
+| --- | --- | --- |
+| “Can you teach me the first working path?” | Tutorial | Getting started and each library quick start. |
+| “How do I accomplish this particular task?” | How-to guide | Examples, setup procedures, validation commands, and troubleshooting. |
+| “What exactly does this accept or guarantee?” | Reference | Public API pages, generated declarations, command tables, and configuration tables. |
+| “Why does the system work this way?” | Explanation | Library concept pages, architecture, decisions, compatibility, and backend contracts. |
+
+A reader may enter through any of these forms. Do not force someone through a
+tutorial to reach a reference table, and do not make a reference page carry a
+long design essay. Link the forms together when a task depends on a concept or
+a concept has a concrete procedure.
+
+This organization is informed by the
+[Diátaxis documentation framework](https://diataxis.fr/) and the way mature
+language documentation, such as the
+[Python documentation](https://docs.python.org/3/), separates tutorials,
+how-to material, and technical reference. GameWIP keeps its existing project
+and library hierarchy while applying those reader-focused distinctions inside
+it.
+
 ## Documentation ownership
 
 | Area | Owner |
@@ -39,11 +88,12 @@ Use @ref project_planning to decide whether product planning or policy material 
 | `docs/doxygen/` | Generated project manual pages. |
 | `docs/` | Vision, roadmap, decisions, versioning, and contributor workflow records. |
 | `<library>/docs/` | Library manual pages. |
+| Other first-party Markdown | Local orientation, templates, or component entry points that follow the editorial/link rules and delegate detailed contracts to their authoritative manual owner. |
 | Public headers | Detailed generated API and ABI reference plus IntelliSense documentation. |
 | Documented `game/` headers | Generated reference for executable-owned and validation source interfaces; these are not installed consumer APIs. |
 | Internal headers and source files | File purpose, internal helper contracts, and maintainer comments for implementation details. |
 
-Project manual pages own repository workflows and contracts. They also own executable and validation source interfaces under `game/`. Library manuals own library-specific API usage, examples, troubleshooting, validation coverage, and approved test hooks.
+Project manual pages own repository workflows and contracts. They also own executable and validation source interfaces under `game/`. Library manuals own library-specific API usage, examples, troubleshooting, validation coverage, and approved test hooks. Every project-owned Markdown file is subject to the editorial and local-link rules; only pages deliberately registered in the generated manual use Doxygen page/navigation markup.
 
 ## Page IDs and file names
 
@@ -112,7 +162,8 @@ For example, a library with many build options may add a configuration page, a l
 A library landing page must contain:
 
 - A short library summary.
-- Consumer manual links.
+- A plain-language explanation of the library's role and mental model.
+- Consumer manual links that say what question or concept each page explains.
 - Maintainer validation links.
 - Generated API reference links.
 - Key behavior.
@@ -147,6 +198,13 @@ Document these properties when relevant:
 - Required initialization or shutdown.
 - Relationship to other APIs.
 - Example usage.
+
+Write the first sentence so it is useful in an IntelliSense popup: state what
+the symbol represents or does without requiring the reader to open another
+page. Put qualifications after that sentence. Do not rely on a manual page to
+supply a function's parameters, return behavior, ownership, failure behavior,
+or thread-safety contract. Conversely, do not turn every symbol comment into a
+long tutorial when a focused manual page can explain the shared model once.
 
 Related overloads may share one manual entry when they have the same behavior, but every overload must still be named or clearly accounted for.
 
@@ -261,7 +319,10 @@ Register supported consumer entry headers as generated-reference owners. Generat
 
 ## Source comments
 
-Every `.h` and `.cpp` file must start with a Doxygen `@file` and `@brief` that describe the file purpose.
+Every maintained `.h`, `.h.in`, `.cpp`, and `.inl` file must start with a
+Doxygen `@file` and `@brief` that describe the file purpose. Provisional or
+preserved source outside the supported documented surface must gain the same
+ownership block before that surface is promoted.
 
 Public headers must document public API and ABI contracts in enough detail for generated reference pages, IntelliSense, maintainers, and readers. Internal headers and implementation files must document internal helpers, ownership, locking, state transitions, platform behavior, fallback behavior, units, and performance constraints. Internal helper comments may be shorter than public API comments, but they must still explain what the helper does and why it exists when that is not obvious from the surrounding code.
 
@@ -299,7 +360,11 @@ if ($warningLog.Length -ne 0) {
 
 The generated Doxyfile must keep explicit inputs, write HTML output under the build tree, and write warnings to `build/docs/docs/doxygen/doxygen_warnings.log`. Local and CI validation must reject a non-empty warning log; a successful Doxygen process exit alone is insufficient.
 
-The documentation build must be warning-free.
+The documentation build must be warning-free. Doxygen checks undocumented
+declarations, individual enum values, and incomplete tagged parameter or return
+documentation. A concise summary may fully document an obvious accessor, but a
+non-trivial operation must not rely on a manual page or on parameter names to
+explain its local contract.
 
 ## GitHub Pages deployment
 

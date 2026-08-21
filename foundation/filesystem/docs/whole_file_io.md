@@ -6,9 +6,9 @@ Whole-file helpers are for one complete operation whose open, transfer, optional
 
 `readAllBytes()` and `readAllText()` open a `FileReader`, drain it through the IO whole-stream helper, and close it.
 
-`ReadFileOptions` controls:
+`Types::File::ReadOptions` controls:
 
-- the underlying `FileReaderOpenOptions`;
+- the underlying `Types::File::ReaderOpenOptions`;
 - `maxBytes`, a hard retained-data limit;
 - `bufferSize`, the transfer-buffer size, which must be greater than zero.
 
@@ -20,7 +20,7 @@ A failure can return collected bytes or text. This includes failures after parti
 
 ## Exact-content writes
 
-`writeAllBytes()` and `writeAllText()` open a normal writer according to `WriteFileOptions`, write the complete payload through `IO::writeAllBytes()`, optionally flush, and close.
+`writeAllBytes()` and `writeAllText()` open a normal writer according to `Types::File::WriteOptions`, write the complete payload through `IO::writeAllBytes()`, optionally flush, and close.
 
 Modes are deliberately limited to exact-content behavior:
 
@@ -45,7 +45,11 @@ The helpers preserve accepted payload progress exactly like non-atomic exact-con
 
 ## Text and byte overloads
 
-Text helpers reinterpret `std::string_view` as bytes. They do not validate encoding, add or remove a BOM, or translate line endings.
+Text helpers are strict UTF-8 operations. `readAllText()` delegates transfer and incremental validation to `IO::readAllText()`, so malformed or incomplete input returns `EncodingFailed` and any returned `text` contains only the complete valid UTF-8 prefix.
+
+`writeAllText()` and `appendText()` validate the complete caller string before opening, creating, truncating, or appending to a file. Invalid text therefore reports `EncodingFailed` with zero payload progress and performs no filesystem side effect. After validation, FileSystem forwards the trusted bytes through IO's byte-transfer helper rather than rescanning the text.
+
+Text helpers do not normalize text, add or remove a BOM, or translate line endings. Byte helpers remain encoding agnostic.
 
 Vector byte overloads forward to the span overloads. FileSystem does not retain caller spans, string views, or vector storage after a call returns.
 

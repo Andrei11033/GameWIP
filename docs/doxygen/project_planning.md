@@ -4,8 +4,10 @@ Stable documentation defines project direction and milestone gates. GitHub issue
 
 ## Product direction
 
-- @subpage project_vision
-- @subpage project_roadmap
+- @subpage project_vision — Product direction, intended experience, technical
+  values, and the long-term boundary of the project.
+- @subpage project_roadmap — Milestone order, current gates, completion
+  criteria, and explicitly deferred work.
 
 ## Active task tracking
 

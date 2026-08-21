@@ -109,7 +109,7 @@
     {
       "label": "GameWIP: Benchmark",
       "type": "shell",
-      "command": "cmake --preset benchmark; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; cmake --build --preset benchmark --parallel; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; & '${workspaceFolder}\\build\\benchmark\\GameWIPBenchmarks.exe'",
+      "command": "& '${workspaceFolder}\\gamewip.bat' benchmark",
       "options": { "cwd": "${workspaceFolder}", "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" }, "shell": { "executable": "powershell.exe", "args": ["-NoProfile", "-Command"] } },
       "problemMatcher": ["$gcc"]
     },

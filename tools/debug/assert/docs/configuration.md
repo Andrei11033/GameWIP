@@ -27,12 +27,12 @@ The Assert target propagates the compile definitions that the public header cons
 
 | Definition | Owner | Purpose |
 | --- | --- | --- |
-| `INTERNAL_ASSERT_RUNTIME` | Assert CMake target | Indicates whether the runtime bridge symbols are available. Consumers should not set it manually. |
+| `ASSERT_INTERNAL_RUNTIME` | Assert CMake target | Indicates whether the runtime bridge symbols are available. Consumers should not set it manually. |
 | `ASSERT_ENABLED` | `ASSERT_ENABLED` CMake option | Selects fatal assertion macro behavior. |
 | `ASSERT_CHECKS_ENABLED` | `ASSERT_CHECKS_ENABLED` CMake option | Selects recoverable check macro behavior. |
 | `ASSERT_DIAGNOSTICS` | `ASSERT_DIAGNOSTICS` CMake option | Selects diagnostic payload collection and message-expression evaluation. |
 | `ASSERT_UNREACHABLE_ASSUME` | `ASSERT_UNREACHABLE_ASSUME` CMake option | Selects the disabled `UNREACHABLE()` backend. |
-| `INTERNAL_ASSERT_TEST_HOOKS` | source-tree validation build | Exposes internal hook declarations only to approved test targets. |
+| `ASSERT_INTERNAL_TEST_HOOKS` | source-tree validation build | Exposes internal hook declarations only to approved test targets. |
 
 `ASSERT_POPUP_ON_ASSERT` and `ASSERT_POPUP_ON_CHECK` are compile-time runtime
 controls declared by the public header. The Assert CMake target does not expose
@@ -48,9 +48,7 @@ See @ref assert_diagnostics and @ref assert_macro_behavior for the diagnostic an
 
 ## Windows Common Controls manifest
 
-Assert-only applications may call `assert_enable_common_controls_v6(target)` explicitly. Applications linking Window receive Window's combined Common Controls v6 and Per-Monitor-V2 manifest automatically and must not attach Assert's standalone helper as well.
-
-Installed Windows consumers that link `GameWIP::Assert` receive the Common Controls v6 resource automatically when `ASSERT_ENABLE_COMMON_CONTROLS_MANIFEST=ON`. This enables the preferred Task Dialog path for interactive assertions.
+Assert-only applications may call `assert_enable_common_controls_v6(target)` explicitly. Linking `GameWIP::Assert` alone does not attach the resource. Applications linking Window receive Window's combined Common Controls v6 and Per-Monitor-V2 manifest automatically and must not attach Assert's standalone helper as well.
 
 The installed package also provides:
 
@@ -58,7 +56,7 @@ The installed package also provides:
 assert_enable_common_controls_v6(<target>)
 ```
 
-Use this helper only for unusual targets that need the resource but do not link `GameWIP::Assert` directly. It is a CMake package helper, not a C++ API.
+Call this helper for a Windows executable that uses Assert's preferred Task Dialog path without Window. The target must already exist, `ASSERT_ENABLE_COMMON_CONTROLS_MANIFEST` must be `ON`, and Assert must have prepared the resource. The helper is available from both the source tree and the installed package; it is a CMake integration API, not a C++ API.
 
 ## Test hooks
 

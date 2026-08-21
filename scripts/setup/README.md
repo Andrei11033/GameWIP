@@ -1,15 +1,21 @@
 # Setup implementation
 
-The root `setup.bat` is the supported Windows 11 entry point. This directory
-owns its PowerShell orchestration, declarative requirements, editor assets, and
-maintainer documentation. Contributor usage belongs in the generated
-[environment setup manual](../../docs/doxygen/environment_setup.md).
+This directory implements the Windows setup experience behind the root
+`setup.bat` entry point. Contributors looking to install or repair their
+environment should use the generated
+[environment setup manual](../../docs/doxygen/environment_setup.md). The
+details below are for maintainers changing what setup installs or how it
+verifies the machine.
 
 ## Layout
 
 - `windows.bat` forwards batch arguments without owning setup behavior.
 - `windows.ps1` owns actions, consent, the persistent menu, execution plans,
   and final verification.
+- `../common/ToolRuns.ps1` owns the run-directory, step, output, summary, and
+  manifest format shared with the project helper.
+- `config/actions.psd1` owns action names, menu keys, descriptions, and
+  machine-change classification used by menus, listing, help, and consent.
 - `config/tools.psd1` lists ordinary WinGet-managed tools.
 - `config/msys2-packages.psd1` lists only packages required by documented
   project workflows; pacman owns their dependencies.
@@ -21,16 +27,22 @@ maintainer documentation. Contributor usage belongs in the generated
 Per-checkout editor selection is stored in ignored `.gamewip-setup.json`.
 Noninteractive first use selects the configured default.
 
-## Operational contracts
+## Behavior that setup must preserve
 
 Machine-changing interactive actions require Automatic, Manual, or Cancel
 consent. Named actions preserve nonzero exit codes. The menu catches an action
 failure, prints its concise cause, and returns to the full action list.
 
 `Invoke-SetupNative` prints each external command, streams its native output,
-and reports successful exit codes. Stages print source and destination paths,
+and reports successful exit codes. Named setup actions retain the same
+action-scoped run structure as the project helper under
+`build/tool-runs/<timestamp>_setup-<action>/`, including step logs, summaries,
+and a manifest. Stages print source and destination paths,
 selected options, reasons for skips, and verification results. Do not hide
 installer, pacman, Git, compiler, or documentation diagnostics in new code.
+Pacman update and install commands make up to three visibly logged attempts,
+waiting two seconds between failures, and propagate the final command error if
+all attempts fail.
 
 Full setup installs missing state and refreshes MSYS2 before installing its declared packages.
 Repair reapplies missing state without requesting ordinary upgrades. Update fetches and fast-forwards
@@ -74,7 +86,7 @@ WinGet applications recorded as newly installed by setup. It preserves software
 that existed beforehand, the checkout, user files, and an MSYS2 tree that may
 contain later user data.
 
-## Extension rules
+## Adding or changing setup behavior
 
 Prefer data over orchestration branches:
 
@@ -82,8 +94,8 @@ Prefer data over orchestration branches:
 - Add a justified package to the owning MSYS2 group.
 - Add an editor entry with a unique key and handler name; implement a handler
   only when existing behavior cannot support it.
-- Add new stages as one library operation plus explicit registration in
-  `windows.ps1`.
+- Add new stages as one library operation, one `actions.psd1` entry, and an
+  explicit registration in `windows.ps1`.
 
 Every stage must be rerunnable, scoped to the checkout or selected machine
 requirements, explicit about changes, and followed by verification.

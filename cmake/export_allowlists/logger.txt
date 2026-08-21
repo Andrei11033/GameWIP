@@ -1,7 +1,7 @@
-GameWIP::Logger::clearLevelFilter
-GameWIP::Logger::clearLevelFilters
-GameWIP::Logger::clearSourceFilter
-GameWIP::Logger::clearSourceFilters
+GameWIP::Logger::resetLevelFilter
+GameWIP::Logger::resetLevelFilters
+GameWIP::Logger::resetSourceFilter
+GameWIP::Logger::resetSourceFilters
 GameWIP::Logger::debug
 GameWIP::Logger::defaultConfig
 GameWIP::Logger::Detail::Core::enqueuePreformattedMessage

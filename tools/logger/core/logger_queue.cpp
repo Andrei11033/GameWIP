@@ -251,7 +251,7 @@ namespace GameWIP::Logger::Detail::Core
         slot.sequence.store(ticket + 1, std::memory_order_release);
         const bool firstPublishedSlot = loggerState().publishedQueueDepth.fetch_add(1, std::memory_order_acq_rel) == 0;
         outNotifyWorker = firstPublishedSlot || ticket == loggerState().dequeueTicket.load(std::memory_order_acquire);
-#if INTERNAL_LOGGER_TEST_HOOKS
+#if LOGGER_INTERNAL_TEST_HOOKS
         recordQueuePublicationForTest();
 #endif
     }
@@ -277,7 +277,7 @@ namespace GameWIP::Logger::Detail::Core
 
         try
         {
-#if INTERNAL_LOGGER_TEST_HOOKS
+#if LOGGER_INTERNAL_TEST_HOOKS
             if (consumeTestHook(loggerTestHookState.nextQueueAllocationFailure))
             {
                 throw std::bad_alloc{};
@@ -372,7 +372,7 @@ namespace GameWIP::Logger::Detail::Core
                         const bool ready = queueHeadIsPublished() ||
                                            (!loggerState().workerRunning && loggerState().activeProducers.load(std::memory_order_acquire) == 0 &&
                                             loggerState().queueDepth.load(std::memory_order_acquire) == 0);
-#if INTERNAL_LOGGER_TEST_HOOKS
+#if LOGGER_INTERNAL_TEST_HOOKS
                         if (!ready)
                         {
                             pauseWorkerBeforeWaitForTest();
@@ -401,7 +401,7 @@ namespace GameWIP::Logger::Detail::Core
                 continue;
             }
 
-#if INTERNAL_LOGGER_TEST_HOOKS
+#if LOGGER_INTERNAL_TEST_HOOKS
             pauseWorkerBeforeDeliveryForTest();
 #endif
 

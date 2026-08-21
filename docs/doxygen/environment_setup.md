@@ -77,7 +77,11 @@ is useful for repeat runs and automation:
 | `setup.bat repository` | Initialize pinned submodules and configure the `dev` build tree. |
 | `setup.bat profiler` | Rebuild the matching Tracy tools from the pinned source revision. |
 | `setup.bat docs` | Build, verify, and open the generated manual. |
+| `setup.bat list` | List every supported setup action from the setup action catalog. |
 | `setup.bat help` | Print the command-line usage summary. |
+
+`setup.bat --help`, `setup.bat -h`, and `setup.bat -?` are aliases for the help
+action and make no environment changes.
 
 Named actions return a nonzero exit code when they fail. Add `-NonInteractive`
 to approve automatic installation and use the saved or default editor choice.
@@ -123,19 +127,33 @@ for ordinary build, validation, benchmark, documentation, and stress workflows:
 .\gamewip.bat build -Preset test
 .\gamewip.bat wizard
 .\gamewip.bat stress -Module logger -Count 100 -Parallel 16 -BuildIfMissing
+.\gamewip.bat benchmark -BenchmarkProfile standard
 .\gamewip.bat workflow -WorkflowAction list
 .\gamewip.bat workflow -WorkflowAction run -Workflow release-check -Preview
 ```
+
+The complete action, option, default, catalog, output, and failure reference is
+owned by @ref project_command_line_tools.
 
 `setup.bat` owns environment installation and repair. `gamewip.bat` owns
 repository-local project commands, streams native output live, helps assemble
 validation executable arguments, reports stress-run progress, offers follow-up
 actions after configure and build steps, and stores run logs under
-`build/tool-runs/`. Its interactive selections use one keypress with Enter for
+`build/tool-runs/<timestamp>_<action>/`. Setup actions use the same run layout.
+Each run has dedicated `logs/` and `artifacts/` directories plus human-readable,
+JSON, and manifest summaries. Its interactive selections use one keypress with Enter for
 defaults, matching the setup menu style. When a project command fails, the tool
 prints the failed action, retained log location, and focused next-step guidance.
 The command catalog lives in `scripts/config/gamewip-commands.psd1` so project
 commands and bundles can be extended without turning the helper into a generic
+shell launcher.
+
+The project helper validates that catalog against visible CMake presets,
+discovered correctness modules, guarded workflow files, benchmark profiles,
+project-command schemas, and bundle references before executing an action.
+Bundles may compose supported build/test operations, project commands,
+benchmarks, and other acyclic bundles. Project commands explicitly opt into
+additional arguments, keeping extension flexible without becoming an arbitrary
 shell launcher.
 
 `gamewip.bat workflow` opens the guarded GitHub workflow menu. Supported
@@ -232,7 +250,7 @@ and the following reference:
 | `Alt+F5` | Configure, build, and run `dev-no-tools`. |
 | `F6` | Configure, build, run embedded correctness tests, and start `dev` when they pass. |
 | `F7` | Configure, build, and run correctness tests. |
-| `Alt+F7` | Configure, build, and run benchmarks. |
+| `Alt+F7` | Run the standard optimized benchmark profile and retain its tool-run results. |
 | `F8` | Build, verify, and open the generated manual. |
 | `Alt+F8` | Configure and run repository C++ analysis. |
 | `F9` | Build the profile game, start Tracy, and run the game. |
@@ -283,12 +301,14 @@ setup, repair, and update build the same manual without opening a browser.
 
 Declarative requirements live under `scripts/setup/config/`:
 
+- `actions.psd1` owns action names, menu keys, descriptions, and machine-change classification.
 - `tools.psd1` owns ordinary machine tools.
 - `msys2-packages.psd1` owns project-required pacman packages.
 - `editors.psd1` owns selectable editors, display keys, packages, and handlers.
 
-Add reusable operations under `scripts/setup/lib/` and register a focused
-stage in `scripts/setup/windows.ps1`. A new editor normally requires one config
+Add reusable operations under `scripts/setup/lib/`, declare their user-facing
+action metadata in `actions.psd1`, and register a focused stage in
+`scripts/setup/windows.ps1`. A new editor normally requires one config
 entry and one handler. Keep stages rerunnable, explicit about external changes,
 and verification-driven.
 

@@ -28,7 +28,7 @@ bool loadSmallConfig(std::string& output)
 }
 ```
 
-The source string outlives the reader. The limit rejects oversized input rather than truncating it.
+The source string outlives the reader. `readAllText()` requires strict UTF-8 and returns only a complete valid UTF-8 prefix on failure. The limit rejects oversized input rather than truncating it.
 
 ## Seek and read one byte
 
@@ -109,7 +109,7 @@ bool encodeTwice(GameWIP::IO::MemoryWriter& writer)
         return false;
     }
 
-    GameWIP::IO::Types::TextCopyResult firstCopy = writer.copyText();
+    GameWIP::IO::Types::CopyTextResult firstCopy = writer.copyText();
     if (!firstCopy.status.ok())
     {
         return false;
@@ -121,12 +121,12 @@ bool encodeTwice(GameWIP::IO::MemoryWriter& writer)
         return false;
     }
 
-    GameWIP::IO::Types::TextCopyResult secondCopy = writer.copyText();
+    GameWIP::IO::Types::CopyTextResult secondCopy = writer.copyText();
     return secondCopy.status.ok() && firstCopy.text == "first" && secondCopy.text == "second";
 }
 ```
 
-`clear()` preserves capacity. A view returned by `bytes()` must not be retained across either clear or a later write.
+`clear()` preserves capacity. `writeAllText()` validates before writing and `copyText()` validates the collected bytes before copying. A view returned by `bytes()` must not be retained across either clear or a later write.
 
 ## Transfer ownership from MemoryWriter
 

@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [ValidateSet('menu', 'doctor', 'git', 'workflow', 'unicode', 'format', 'configure', 'build', 'test', 'module', 'wizard', 'stress', 'run', 'bundle', 'docs', 'analysis', 'analyze', 'coverage', 'asan', 'benchmark', 'list', 'help')]
+    [ValidateSet('menu', 'doctor', 'git', 'workflow', 'unicode', 'format', 'links', 'configure', 'build', 'test', 'module', 'wizard', 'stress', 'run', 'bundle', 'docs', 'analysis', 'analyze', 'coverage', 'asan', 'benchmark', 'list', 'help')]
     [string]$Action = 'menu',
     [string]$Preset,
     [string]$Module,
@@ -17,6 +17,20 @@ param(
     [string]$ClangFormatPath,
     [ValidateSet('check', 'apply')]
     [string]$FormatAction = 'check',
+    [ValidateSet('run', 'dry-run', 'list', 'compare')]
+    [string]$BenchmarkAction = 'run',
+    [string]$BenchmarkProfile = 'standard',
+    [string]$Filter,
+    [ValidateRange(0, 100000)]
+    [int]$Repetitions = 0,
+    [string]$MinTime,
+    [string]$Output,
+    [ValidateSet('json', 'csv')]
+    [string]$OutputFormat = 'json',
+    [switch]$AggregatesOnly,
+    [switch]$NoBuild,
+    [string]$Baseline,
+    [string]$Candidate,
     [string]$UnicodeDataRoot,
     [switch]$RefreshUnicodeData,
     [string]$Workflow,
@@ -42,10 +56,12 @@ $CommandConfigPath = Join-Path $PSScriptRoot 'config\gamewip-commands.psd1'
 $CommandConfig = Import-PowerShellDataFile $CommandConfigPath
 $PresetsPath = Join-Path $RepositoryRoot 'CMakePresets.json'
 $PresetData = Get-Content -Raw -LiteralPath $PresetsPath | ConvertFrom-Json
+. (Join-Path $PSScriptRoot 'common\ToolRuns.ps1')
 
 $Script:RunRoot = $null
-$Script:StepIndex = 0
-$Script:StepResults = New-Object System.Collections.Generic.List[object]
+$Script:RunContext = $null
+$Script:RunLabel = $Action
+$Script:RunFailed = $false
 
 function Write-GameWipSection
 {
@@ -115,6 +131,144 @@ function Get-ProjectBundle
         throw "Unknown bundle '$Id'. Run 'gamewip list' to see available bundles."
     }
     $bundleInfo[0]
+}
+
+function Assert-GameWipUniqueIds
+{
+    param(
+        [Parameter(Mandatory = $true)][string]$Label,
+        [Parameter(Mandatory = $true)][object[]]$Items
+    )
+
+    $duplicates = @(
+        $Items |
+            ForEach-Object { [string]$_.Id } |
+            Group-Object |
+            Where-Object { $_.Count -gt 1 } |
+            ForEach-Object { $_.Name }
+    )
+    if ($duplicates.Count -ne 0)
+    {
+        throw "Duplicate $Label IDs: $($duplicates -join ', ')."
+    }
+}
+
+function Assert-GameWipBundleAcyclic
+{
+    param(
+        [Parameter(Mandatory = $true)][string]$Id,
+        [Parameter(Mandatory = $true)]$Lookup,
+        [Parameter(Mandatory = $true)][AllowEmptyCollection()][System.Collections.Generic.HashSet[string]]$Visiting,
+        [Parameter(Mandatory = $true)][AllowEmptyCollection()][System.Collections.Generic.HashSet[string]]$Visited
+    )
+
+    if ($Visited.Contains($Id)) { return }
+    if (-not $Visiting.Add($Id)) { throw "Bundle cycle detected at '$Id'." }
+    foreach ($step in @($Lookup[$Id].Steps | Where-Object { $_.Kind -eq 'Bundle' }))
+    {
+        Assert-GameWipBundleAcyclic -Id ([string]$step.Bundle) -Lookup $Lookup -Visiting $Visiting -Visited $Visited
+    }
+    $Visiting.Remove($Id) | Out-Null
+    $Visited.Add($Id) | Out-Null
+}
+
+function Assert-GameWipCommandConfig
+{
+    $configurePresets = @(Get-VisiblePresetNames -Kind 'configure')
+    $buildPresets = @(Get-VisiblePresetNames -Kind 'build')
+    $testPresets = @(Get-VisiblePresetNames -Kind 'test')
+    $commands = @($CommandConfig.ProjectCommands)
+    $bundles = @($CommandConfig.Bundles)
+    $workflows = @($CommandConfig.ManualWorkflows)
+    $profiles = @($CommandConfig.BenchmarkProfiles)
+
+    Assert-GameWipUniqueIds -Label 'project command' -Items $commands
+    Assert-GameWipUniqueIds -Label 'bundle' -Items $bundles
+    Assert-GameWipUniqueIds -Label 'manual workflow' -Items $workflows
+    Assert-GameWipUniqueIds -Label 'benchmark profile' -Items $profiles
+
+    foreach ($default in @(
+        @{ Label = 'configure'; Value = $CommandConfig.DefaultConfigurePreset; Values = $configurePresets },
+        @{ Label = 'build'; Value = $CommandConfig.DefaultBuildPreset; Values = $buildPresets },
+        @{ Label = 'test'; Value = $CommandConfig.DefaultTestPreset; Values = $testPresets }
+    ))
+    {
+        if ($default.Values -notcontains $default.Value)
+        {
+            throw "Unknown default $($default.Label) preset '$($default.Value)' in the project command catalog."
+        }
+    }
+
+    $moduleRoot = Join-Path $RepositoryRoot 'game\validation\tests'
+    $discoveredModules = @(
+        Get-ChildItem -LiteralPath $moduleRoot -Directory |
+            Where-Object { Test-Path -LiteralPath (Join-Path $_.FullName 'CMakeLists.txt') } |
+            ForEach-Object { $_.Name } |
+            Sort-Object
+    )
+    $configuredModules = @($CommandConfig.Modules | Sort-Object)
+    if (($discoveredModules -join "`n") -ne ($configuredModules -join "`n"))
+    {
+        throw "Validation module catalog drift. Configured: $($configuredModules -join ', '); discovered: $($discoveredModules -join ', ')."
+    }
+    if ($configuredModules -notcontains $CommandConfig.DefaultModule -and $CommandConfig.DefaultModule -ne 'all')
+    {
+        throw "Unknown default validation module '$($CommandConfig.DefaultModule)'."
+    }
+
+    foreach ($command in $commands)
+    {
+        foreach ($field in @('Id', 'Name', 'BuildPreset', 'Executable', 'Arguments', 'UseWorkspaceTemp', 'AcceptsExtraArgs'))
+        {
+            if (-not $command.ContainsKey($field)) { throw "Project command '$($command.Id)' is missing '$field'." }
+        }
+        if ($buildPresets -notcontains $command.BuildPreset)
+        {
+            throw "Project command '$($command.Id)' references unknown build preset '$($command.BuildPreset)'."
+        }
+    }
+
+    $commandIds = @($commands | ForEach-Object { $_.Id })
+    $bundleIds = @($bundles | ForEach-Object { $_.Id })
+    $validBundleKinds = @('Configure', 'Build', 'BuildTarget', 'CTest', 'ProjectCommand', 'Benchmark', 'Bundle')
+    foreach ($bundle in $bundles)
+    {
+        if (-not $bundle.ContainsKey('Steps') -or @($bundle.Steps).Count -eq 0)
+        {
+            throw "Bundle '$($bundle.Id)' must contain at least one step."
+        }
+        foreach ($step in $bundle.Steps)
+        {
+            if ($validBundleKinds -notcontains $step.Kind) { throw "Unknown bundle step kind '$($step.Kind)' in bundle '$($bundle.Id)'." }
+            if ($step.Kind -eq 'Configure' -and $configurePresets -notcontains $step.Preset) { throw "Bundle '$($bundle.Id)' references unknown configure preset '$($step.Preset)'." }
+            if ($step.Kind -in @('Build', 'BuildTarget') -and $buildPresets -notcontains $step.Preset) { throw "Bundle '$($bundle.Id)' references unknown build preset '$($step.Preset)'." }
+            if ($step.Kind -eq 'CTest' -and $testPresets -notcontains $step.Preset) { throw "Bundle '$($bundle.Id)' references unknown test preset '$($step.Preset)'." }
+            if ($step.Kind -eq 'ProjectCommand' -and $commandIds -notcontains $step.Command) { throw "Bundle '$($bundle.Id)' references unknown project command '$($step.Command)'." }
+            if ($step.Kind -eq 'Benchmark' -and $step.ContainsKey('Profile') -and @($profiles | ForEach-Object { $_.Id }) -notcontains $step.Profile) { throw "Bundle '$($bundle.Id)' references unknown benchmark profile '$($step.Profile)'." }
+            if ($step.Kind -eq 'Bundle' -and $bundleIds -notcontains $step.Bundle) { throw "Bundle '$($bundle.Id)' references unknown bundle '$($step.Bundle)'." }
+        }
+    }
+    $bundleLookup = @{}
+    foreach ($bundle in $bundles) { $bundleLookup[$bundle.Id] = $bundle }
+    $visiting = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    $visited = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    foreach ($bundleId in $bundleIds) { Assert-GameWipBundleAcyclic -Id $bundleId -Lookup $bundleLookup -Visiting $visiting -Visited $visited }
+
+    foreach ($profile in $profiles)
+    {
+        foreach ($field in @('Id', 'Name', 'Repetitions', 'MinTime', 'AggregatesOnly'))
+        {
+            if (-not $profile.ContainsKey($field)) { throw "Benchmark profile '$($profile.Id)' is missing '$field'." }
+        }
+        if ([int]$profile.Repetitions -lt 1) { throw "Benchmark profile '$($profile.Id)' must use at least one repetition." }
+        if ([string]$profile.MinTime -notmatch '^(?:[0-9]+x|[0-9]+(?:\.[0-9]+)?s)$') { throw "Benchmark profile '$($profile.Id)' has invalid MinTime '$($profile.MinTime)'." }
+    }
+
+    foreach ($workflow in $workflows)
+    {
+        $workflowPath = Join-Path $RepositoryRoot (Join-Path '.github\workflows' $workflow.File)
+        if (-not (Test-Path -LiteralPath $workflowPath)) { throw "Manual workflow '$($workflow.Id)' references missing file '$($workflow.File)'." }
+    }
 }
 
 function ConvertTo-SafeName
@@ -196,25 +350,13 @@ function Initialize-RunLog
         return
     }
 
-    $timestamp = Get-Date -Format 'yyyy-MM-dd_HHmmss_fff'
-    $Script:RunRoot = Join-Path $RepositoryRoot (Join-Path $CommandConfig.RunLogRoot $timestamp)
-    New-Item -ItemType Directory -Force -Path $Script:RunRoot | Out-Null
-    Write-Host "Run logs: $Script:RunRoot"
-}
-
-function Add-StepResult
-{
-    param(
-        [Parameter(Mandatory = $true)][string]$Name,
-        [Parameter(Mandatory = $true)][int]$ExitCode,
-        [Parameter(Mandatory = $true)][string]$LogPath
-    )
-
-    $Script:StepResults.Add([pscustomobject]@{
-        Name = $Name
-        ExitCode = $ExitCode
-        LogPath = $LogPath
-    }) | Out-Null
+    $Script:RunContext = New-GameWipToolRun `
+        -RepositoryRoot $RepositoryRoot `
+        -RunLogRoot $CommandConfig.RunLogRoot `
+        -Tool 'project-tool' `
+        -Action $Script:RunLabel
+    $Script:RunRoot = $Script:RunContext.Root
+    Write-Host "Tool run: $Script:RunRoot"
 }
 
 function Save-RunSummary
@@ -224,24 +366,8 @@ function Save-RunSummary
         return
     }
 
-    $summaryPath = Join-Path $Script:RunRoot 'summary.txt'
-    $jsonPath = Join-Path $Script:RunRoot 'summary.json'
-    $failed = @($Script:StepResults | Where-Object { $_.ExitCode -ne 0 })
-
-    $lines = New-Object System.Collections.Generic.List[string]
-    $lines.Add("GameWIP project tool summary") | Out-Null
-    $lines.Add("Generated: $(Get-Date -Format o)") | Out-Null
-    $lines.Add("Repository: $RepositoryRoot") | Out-Null
-    $lines.Add("Failed steps: $($failed.Count)") | Out-Null
-    $lines.Add('') | Out-Null
-    foreach ($result in $Script:StepResults)
-    {
-        $status = if ($result.ExitCode -eq 0) { 'PASS' } else { 'FAIL' }
-        $lines.Add(('{0} {1} exit={2} log={3}' -f $status, $result.Name, $result.ExitCode, $result.LogPath)) | Out-Null
-    }
-
-    $lines | Set-Content -LiteralPath $summaryPath -Encoding UTF8
-    $Script:StepResults | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $jsonPath -Encoding UTF8
+    $status = if ($Script:RunFailed) { 'failed' } else { 'passed' }
+    $summaryPath = Save-GameWipToolRun -Run $Script:RunContext -Status $status
     Write-Host "Summary: $summaryPath"
 }
 
@@ -256,10 +382,9 @@ function Invoke-GameWipNative
     )
 
     Initialize-RunLog
-    ++$Script:StepIndex
-    $safeName = ConvertTo-SafeName $Name
-    $logPath = Join-Path $Script:RunRoot ('step_{0:D3}_{1}.log' -f $Script:StepIndex, $safeName)
     $commandLine = ConvertTo-NativeCommandLine -FilePath $FilePath -Arguments $Arguments
+    $step = New-GameWipToolRunStep -Run $Script:RunContext -Name $Name -CommandLine $commandLine
+    $logPath = $step.LogPath
 
     Write-Host ''
     Write-Host "Starting: $Name" -ForegroundColor Cyan
@@ -291,7 +416,7 @@ function Invoke-GameWipNative
             Write-Host "  PATH prefix: $PathPrefix"
         }
 
-        & $FilePath @Arguments 2>&1 | Tee-Object -FilePath $logPath
+        & $FilePath @Arguments 2>&1 | ForEach-Object { [string]$_ } | Tee-Object -FilePath $logPath
         $exitCode = if ($null -ne $LASTEXITCODE) { [int]$LASTEXITCODE } else { 0 }
     }
     finally
@@ -303,9 +428,10 @@ function Invoke-GameWipNative
         Set-Location $previousLocation
     }
 
-    Add-StepResult -Name $Name -ExitCode $exitCode -LogPath $logPath
+    Complete-GameWipToolRunStep -Run $Script:RunContext -Step $step -ExitCode $exitCode
     if ($exitCode -ne 0)
     {
+        $Script:RunFailed = $true
         throw "$Name failed with exit code $exitCode. See $logPath"
     }
     Write-Host "Finished: $Name" -ForegroundColor Green
@@ -695,6 +821,23 @@ function Invoke-GameWipFormat
         Write-Host "    $relativePath"
     }
     Write-NextStepHint 'review formatting changes with: git diff --check && git diff'
+}
+
+function Invoke-GameWipMarkdownLinks
+{
+    $checker = Join-Path $RepositoryRoot '.github\scripts\check-markdown-links.py'
+    if (-not (Test-Path -LiteralPath $checker))
+    {
+        throw "Markdown-link checker is missing: $checker"
+    }
+
+    $python = Resolve-GameWipPython
+    Write-GameWipSection 'Markdown links'
+    Write-Host "  Python: $($python.Version) via $($python.Source)"
+    Invoke-GameWipNative `
+        -Name 'markdown-links' `
+        -FilePath $python.Path `
+        -Arguments @($checker, '--root', $RepositoryRoot)
 }
 
 function Invoke-GameWipUnicodeFormatter
@@ -1738,14 +1881,267 @@ function Invoke-ProjectCommand
 {
     param(
         [Parameter(Mandatory = $true)][string]$Id,
+        [string[]]$Arguments = @(),
         [switch]$ForceBuild
     )
 
     $command = Get-ProjectCommand -Id $Id
+    if ($Arguments.Count -ne 0 -and -not [bool]$command.AcceptsExtraArgs)
+    {
+        throw "Project command '$Id' does not accept extra arguments."
+    }
     Ensure-ProjectCommandBuilt -Command $command -ForceBuild:$ForceBuild
     $executable = Resolve-ProjectExecutable -Command $command
-    $arguments = @($command.Arguments)
-    Invoke-GameWipNative -Name "project-$Id" -FilePath $executable -Arguments $arguments -UseWorkspaceTemp:([bool]$command.UseWorkspaceTemp)
+    $commandArguments = @($command.Arguments) + @($Arguments)
+    Invoke-GameWipNative -Name "project-$Id" -FilePath $executable -Arguments $commandArguments -UseWorkspaceTemp:([bool]$command.UseWorkspaceTemp)
+}
+
+function Resolve-BenchmarkOutputPath
+{
+    param(
+        [string]$RequestedPath,
+        [Parameter(Mandatory = $true)][ValidateSet('json', 'csv')][string]$Format
+    )
+
+    Initialize-RunLog
+    if ([string]::IsNullOrWhiteSpace($RequestedPath))
+    {
+        return Join-Path $Script:RunContext.Artifacts "benchmark-results.$Format"
+    }
+
+    $resolved = Resolve-GameWipRepositoryPath -Path $RequestedPath
+    if ([string]::IsNullOrWhiteSpace([IO.Path]::GetExtension($resolved)))
+    {
+        $resolved = "$resolved.$Format"
+    }
+    $repositoryPrefix = $RepositoryRoot.TrimEnd('\') + '\'
+    $buildPrefix = (Join-Path $RepositoryRoot 'build').TrimEnd('\') + '\'
+    if ($resolved.StartsWith($repositoryPrefix, [StringComparison]::OrdinalIgnoreCase) -and
+        -not $resolved.StartsWith($buildPrefix, [StringComparison]::OrdinalIgnoreCase))
+    {
+        throw "Benchmark output inside the checkout must be under 'build'. Requested: $resolved"
+    }
+    $parent = Split-Path -Parent $resolved
+    if (-not [string]::IsNullOrWhiteSpace($parent)) { New-Item -ItemType Directory -Force -Path $parent | Out-Null }
+    return $resolved
+}
+
+function Assert-BenchmarkExtraArguments
+{
+    param([string[]]$Arguments)
+
+    $managedPrefixes = @(
+        '--benchmark_filter',
+        '--benchmark_repetitions',
+        '--benchmark_min_time',
+        '--benchmark_report_aggregates_only',
+        '--benchmark_display_aggregates_only',
+        '--benchmark_out',
+        '--benchmark_out_format',
+        '--benchmark_dry_run',
+        '--benchmark_list_tests'
+    )
+    foreach ($argument in $Arguments)
+    {
+        if (@($managedPrefixes | Where-Object { $argument.StartsWith($_, [StringComparison]::Ordinal) }).Count -ne 0)
+        {
+            throw "Benchmark argument '$argument' is managed by a dedicated gamewip option."
+        }
+    }
+}
+
+function Invoke-GameWipBenchmark
+{
+    param(
+        [Parameter(Mandatory = $true)][ValidateSet('run', 'dry-run', 'list')][string]$Mode,
+        [Parameter(Mandatory = $true)][string]$ProfileId,
+        [string]$NameFilter,
+        [int]$RepeatCount,
+        [string]$MinimumTime,
+        [string]$RequestedOutput,
+        [Parameter(Mandatory = $true)][ValidateSet('json', 'csv')][string]$Format,
+        [switch]$OnlyAggregates,
+        [string[]]$Arguments = @(),
+        [switch]$SkipBuild
+    )
+
+    $Script:RunLabel = "benchmark-$Mode"
+    Initialize-RunLog
+    Assert-BenchmarkExtraArguments -Arguments $Arguments
+    if (-not [string]::IsNullOrWhiteSpace($MinimumTime) -and $MinimumTime -notmatch '^(?:[0-9]+x|[0-9]+(?:\.[0-9]+)?s)$')
+    {
+        throw "Invalid benchmark minimum time '$MinimumTime'. Use a value such as '2s', '0.5s', or '100x'."
+    }
+
+    $profile = @($CommandConfig.BenchmarkProfiles | Where-Object { $_.Id -eq $ProfileId } | Select-Object -First 1)
+    if ($profile.Count -eq 0) { throw "Unknown benchmark profile '$ProfileId'." }
+    $command = Get-ProjectCommand -Id 'benchmark-dry-run'
+    if ($SkipBuild)
+    {
+        Ensure-ProjectCommandBuilt -Command $command
+    }
+    else
+    {
+        Invoke-ConfigurePreset -Name 'benchmark'
+        Invoke-BuildPreset -Name 'benchmark'
+    }
+    $executable = Resolve-ProjectExecutable -Command $command
+    $benchmarkArguments = [System.Collections.Generic.List[string]]::new()
+
+    if (-not [string]::IsNullOrWhiteSpace($NameFilter)) { $benchmarkArguments.Add("--benchmark_filter=$NameFilter") | Out-Null }
+    $resultPath = $null
+    switch ($Mode)
+    {
+        'dry-run' { $benchmarkArguments.Add('--benchmark_dry_run=true') | Out-Null }
+        'list' { $benchmarkArguments.Add('--benchmark_list_tests=true') | Out-Null }
+        'run' {
+            $effectiveRepetitions = if ($RepeatCount -gt 0) { $RepeatCount } else { [int]$profile[0].Repetitions }
+            $effectiveMinTime = if (-not [string]::IsNullOrWhiteSpace($MinimumTime)) { $MinimumTime } else { [string]$profile[0].MinTime }
+            $effectiveAggregates = $OnlyAggregates -or [bool]$profile[0].AggregatesOnly
+            $benchmarkArguments.Add("--benchmark_repetitions=$effectiveRepetitions") | Out-Null
+            $benchmarkArguments.Add("--benchmark_min_time=$effectiveMinTime") | Out-Null
+            $benchmarkArguments.Add("--benchmark_report_aggregates_only=$($effectiveAggregates.ToString().ToLowerInvariant())") | Out-Null
+            $benchmarkArguments.Add("--benchmark_display_aggregates_only=$($effectiveAggregates.ToString().ToLowerInvariant())") | Out-Null
+            if ($profile[0].ContainsKey('RandomInterleaving') -and [bool]$profile[0].RandomInterleaving)
+            {
+                $benchmarkArguments.Add('--benchmark_enable_random_interleaving=true') | Out-Null
+            }
+            $resultPath = Resolve-BenchmarkOutputPath -RequestedPath $RequestedOutput -Format $Format
+            $benchmarkArguments.Add("--benchmark_out=$resultPath") | Out-Null
+            $benchmarkArguments.Add("--benchmark_out_format=$Format") | Out-Null
+            $benchmarkArguments.Add("--benchmark_context=gamewip_profile=$ProfileId") | Out-Null
+            $Script:RunContext.Details['benchmark'] = [ordered]@{
+                mode = $Mode
+                profile = $ProfileId
+                filter = $NameFilter
+                repetitions = $effectiveRepetitions
+                minTime = $effectiveMinTime
+                aggregatesOnly = $effectiveAggregates
+                format = $Format
+            }
+        }
+    }
+    foreach ($argument in $Arguments) { $benchmarkArguments.Add($argument) | Out-Null }
+
+    Invoke-GameWipNative -Name "benchmark-$Mode" -FilePath $executable -Arguments $benchmarkArguments.ToArray() -UseWorkspaceTemp
+    if ($null -ne $resultPath)
+    {
+        Add-GameWipToolRunOutput -Run $Script:RunContext -Kind 'benchmark-results' -Path $resultPath
+        Write-Host "Benchmark results: $resultPath" -ForegroundColor Green
+    }
+}
+
+function Convert-BenchmarkTimeToNanoseconds
+{
+    param(
+        [Parameter(Mandatory = $true)][double]$Value,
+        [Parameter(Mandatory = $true)][string]$Unit
+    )
+
+    switch ($Unit)
+    {
+        'ns' { return $Value }
+        'us' { return $Value * 1000.0 }
+        'ms' { return $Value * 1000000.0 }
+        's' { return $Value * 1000000000.0 }
+        default { throw "Unsupported benchmark time unit '$Unit'." }
+    }
+}
+
+function Get-BenchmarkComparisonRows
+{
+    param([Parameter(Mandatory = $true)][string]$Path)
+
+    if (-not (Test-Path -LiteralPath $Path)) { throw "Benchmark result does not exist: $Path" }
+    $document = Get-Content -Raw -LiteralPath $Path | ConvertFrom-Json
+    if (-not $document.PSObject.Properties['benchmarks']) { throw "Benchmark result has no 'benchmarks' array: $Path" }
+    $groups = @($document.benchmarks | Group-Object { if ($_.PSObject.Properties['run_name']) { $_.run_name } else { $_.name } })
+    $rows = [ordered]@{}
+    foreach ($group in $groups)
+    {
+        $mean = @($group.Group | Where-Object { $_.run_type -eq 'aggregate' -and $_.aggregate_name -eq 'mean' } | Select-Object -First 1)
+        if ($mean.Count -ne 0)
+        {
+            $samples = @($mean)
+        }
+        else
+        {
+            $samples = @($group.Group | Where-Object { -not $_.PSObject.Properties['run_type'] -or $_.run_type -eq 'iteration' })
+        }
+        if ($samples.Count -eq 0) { continue }
+        $cpuValues = @($samples | ForEach-Object { Convert-BenchmarkTimeToNanoseconds -Value ([double]$_.cpu_time) -Unit ([string]$_.time_unit) })
+        $realValues = @($samples | ForEach-Object { Convert-BenchmarkTimeToNanoseconds -Value ([double]$_.real_time) -Unit ([string]$_.time_unit) })
+        $rows[$group.Name] = [pscustomobject]@{
+            Name = $group.Name
+            CpuNanoseconds = ($cpuValues | Measure-Object -Average).Average
+            RealNanoseconds = ($realValues | Measure-Object -Average).Average
+        }
+    }
+    return $rows
+}
+
+function Invoke-GameWipBenchmarkComparison
+{
+    param(
+        [Parameter(Mandatory = $true)][string]$BaselinePath,
+        [Parameter(Mandatory = $true)][string]$CandidatePath,
+        [string]$RequestedOutput
+    )
+
+    $Script:RunLabel = 'benchmark-compare'
+    Initialize-RunLog
+    $baselineResolved = Resolve-GameWipRepositoryPath -Path $BaselinePath
+    $candidateResolved = Resolve-GameWipRepositoryPath -Path $CandidatePath
+    $commandLine = "compare benchmark results '$baselineResolved' '$candidateResolved'"
+    $step = New-GameWipToolRunStep -Run $Script:RunContext -Name 'benchmark-compare' -CommandLine $commandLine
+    try
+    {
+        $baselineRows = Get-BenchmarkComparisonRows -Path $baselineResolved
+        $candidateRows = Get-BenchmarkComparisonRows -Path $candidateResolved
+        $comparisons = [System.Collections.Generic.List[object]]::new()
+        foreach ($name in @($baselineRows.Keys | Where-Object { $candidateRows.Contains($_) } | Sort-Object))
+        {
+            $before = $baselineRows[$name]
+            $after = $candidateRows[$name]
+            $cpuDelta = if ($before.CpuNanoseconds -eq 0) { $null } else { (($after.CpuNanoseconds / $before.CpuNanoseconds) - 1.0) * 100.0 }
+            $realDelta = if ($before.RealNanoseconds -eq 0) { $null } else { (($after.RealNanoseconds / $before.RealNanoseconds) - 1.0) * 100.0 }
+            $comparisons.Add([pscustomobject]@{
+                name = $name
+                baselineCpuNanoseconds = $before.CpuNanoseconds
+                candidateCpuNanoseconds = $after.CpuNanoseconds
+                cpuChangePercent = $cpuDelta
+                baselineRealNanoseconds = $before.RealNanoseconds
+                candidateRealNanoseconds = $after.RealNanoseconds
+                realChangePercent = $realDelta
+            }) | Out-Null
+        }
+        if ($comparisons.Count -eq 0) { throw 'The benchmark result files have no matching benchmark names.' }
+
+        $outputPath = if ([string]::IsNullOrWhiteSpace($RequestedOutput))
+        {
+            Join-Path $Script:RunContext.Artifacts 'benchmark-comparison.json'
+        }
+        else
+        {
+            Resolve-BenchmarkOutputPath -RequestedPath $RequestedOutput -Format 'json'
+        }
+        [ordered]@{
+            schemaVersion = 1
+            baseline = $baselineResolved
+            candidate = $candidateResolved
+            comparisons = @($comparisons)
+        } | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $outputPath -Encoding UTF8
+        $comparisons | Format-Table name, cpuChangePercent, realChangePercent -AutoSize
+        Add-GameWipToolRunOutput -Run $Script:RunContext -Kind 'benchmark-comparison' -Path $outputPath
+        Complete-GameWipToolRunStep -Run $Script:RunContext -Step $step -ExitCode 0
+        Write-Host "Benchmark comparison: $outputPath" -ForegroundColor Green
+    }
+    catch
+    {
+        Complete-GameWipToolRunStep -Run $Script:RunContext -Step $step -ExitCode 1
+        $Script:RunFailed = $true
+        throw
+    }
 }
 
 function Invoke-ValidationModule
@@ -1813,7 +2209,7 @@ function Invoke-StressModule
     Write-Host "Parallel workers: $MaxParallel"
     Write-Host "Executable: $executable"
     Write-Host ("> {0}" -f (ConvertTo-NativeCommandLine -FilePath $executable -Arguments $baseArguments.ToArray()))
-    Write-Host "Worker logs: $Script:RunRoot\stress_####.out.log and stress_####.err.log"
+    Write-Host "Worker logs: $($Script:RunContext.Logs)\stress-####.log and stress-####.err.log"
 
     $previousTemp = $env:TEMP
     $previousTmp = $env:TMP
@@ -1837,10 +2233,12 @@ function Invoke-StressModule
         {
             while ($nextRun -le $RunCount -and $active.Count -lt $MaxParallel)
             {
-                $runName = 'stress_{0:D4}' -f $nextRun
-                $stdout = Join-Path $Script:RunRoot "$runName.out.log"
-                $stderr = Join-Path $Script:RunRoot "$runName.err.log"
-                $exitPath = Join-Path $Script:RunRoot "$runName.exit"
+                $runName = 'stress-{0:D4}' -f $nextRun
+                $commandLine = ConvertTo-NativeCommandLine -FilePath $executable -Arguments $baseArguments.ToArray()
+                $step = New-GameWipToolRunStep -Run $Script:RunContext -Name $runName -CommandLine $commandLine
+                $stdout = $step.LogPath
+                $stderr = Join-Path $Script:RunContext.Logs "$runName.err.log"
+                $exitPath = Join-Path $Script:RunContext.Logs "$runName.exit"
 
                 $process = Start-Process -FilePath $executable `
                     -ArgumentList $baseArguments.ToArray() `
@@ -1856,6 +2254,7 @@ function Invoke-StressModule
                     Stdout = $stdout
                     Stderr = $stderr
                     ExitPath = $exitPath
+                    Step = $step
                 }) | Out-Null
                 ++$nextRun
             }
@@ -1887,7 +2286,7 @@ function Invoke-StressModule
                     ++$failed
                     Write-Host ("Run {0}: FAIL exit={1} ({2}/{3} complete) stdout={4} stderr={5}" -f $entry.Run, $code, $completed, $RunCount, $entry.Stdout, $entry.Stderr) -ForegroundColor Red
                 }
-                Add-StepResult -Name ("stress-{0:D4}" -f $entry.Run) -ExitCode $code -LogPath $entry.Stdout
+                Complete-GameWipToolRunStep -Run $Script:RunContext -Step $entry.Step -ExitCode $code
                 $active.RemoveAt($index)
             }
 
@@ -1924,7 +2323,16 @@ function Invoke-Bundle
             'Build' { Invoke-BuildPreset -Name $step.Preset }
             'BuildTarget' { Invoke-BuildTarget -Name $step.Preset -Target $step.Target }
             'CTest' { Invoke-TestPreset -Name $step.Preset -UseWorkspaceTemp:([bool]$step.UseWorkspaceTemp) }
-            'ProjectCommand' { Invoke-ProjectCommand -Id $step.Command -ForceBuild:([bool]$step.BuildIfMissing) }
+            'ProjectCommand' {
+                $stepArguments = if ($step.ContainsKey('Arguments')) { @($step.Arguments) } else { @() }
+                Invoke-ProjectCommand -Id $step.Command -Arguments $stepArguments -ForceBuild:([bool]$step.BuildIfMissing)
+            }
+            'Benchmark' {
+                $stepProfile = if ($step.ContainsKey('Profile')) { [string]$step.Profile } else { 'standard' }
+                $stepFilter = if ($step.ContainsKey('Filter')) { [string]$step.Filter } else { '' }
+                Invoke-GameWipBenchmark -Mode 'run' -ProfileId $stepProfile -NameFilter $stepFilter -RepeatCount 0 -MinimumTime '' -RequestedOutput '' -Format 'json'
+            }
+            'Bundle' { Invoke-Bundle -Id $step.Bundle }
             default { throw "Unknown bundle step kind '$($step.Kind)' in bundle '$Id'." }
         }
     }
@@ -1932,6 +2340,11 @@ function Invoke-Bundle
 
 function Show-ProjectCatalog
 {
+    Write-GameWipSection 'Project helper actions'
+    Write-Host '  menu, doctor, git, workflow, unicode, format, links'
+    Write-Host '  configure, build, test, wizard, module, stress, run, bundle'
+    Write-Host '  docs, analysis, analyze, coverage, asan, benchmark, list, help'
+
     Write-GameWipSection 'Configure presets'
     Get-VisiblePresetNames -Kind 'configure' | ForEach-Object { Write-Host "  $_" }
 
@@ -1952,6 +2365,12 @@ function Show-ProjectCatalog
     foreach ($command in $CommandConfig.ProjectCommands)
     {
         Write-Host ("  {0} - {1}" -f $command.Id, $command.Name)
+    }
+
+    Write-GameWipSection 'Benchmark profiles'
+    foreach ($profile in $CommandConfig.BenchmarkProfiles)
+    {
+        Write-Host ("  {0} - {1} ({2} repetitions, min {3})" -f $profile.Id, $profile.Name, $profile.Repetitions, $profile.MinTime)
     }
 
     Write-GameWipSection 'Bundles'
@@ -2209,7 +2628,12 @@ function Show-ActionFailure
     }
     if ($message -match 'stress runs failed')
     {
-        $suggestions.Add('Inspect the stress_####.out.log and stress_####.err.log files in the printed run-log folder.') | Out-Null
+        $suggestions.Add('Inspect the stress-####.log and stress-####.err.log files under the printed run logs folder.') | Out-Null
+    }
+    if ($message -match 'Benchmark|benchmark')
+    {
+        $suggestions.Add('List registered scenarios with .\gamewip.bat benchmark -BenchmarkAction list -NoBuild.') | Out-Null
+        $suggestions.Add('Use the quick profile and a filter for a small diagnostic run.') | Out-Null
     }
     if ($message -match 'Logger|logger')
     {
@@ -2258,13 +2682,13 @@ function Invoke-InteractivePostBuildFlow
     switch ($Name)
     {
         'benchmark' {
-            if (Read-YesNo -Prompt 'Run the benchmark dry-run registration check now?' -Default $true)
+            if (Read-YesNo -Prompt 'Run the standard benchmark profile now?' -Default $true)
             {
-                Invoke-ProjectCommand -Id 'benchmark-dry-run' -ForceBuild
+                Invoke-GameWipBenchmark -Mode 'run' -ProfileId 'standard' -RepeatCount 0 -MinimumTime '' -RequestedOutput '' -Format 'json' -SkipBuild
             }
             else
             {
-                Write-NextStepHint 'run benchmark registration with: .\gamewip.bat run -ProjectCommand benchmark-dry-run'
+                Write-NextStepHint 'run it later with: .\gamewip.bat benchmark; use -BenchmarkAction dry-run for registration only.'
             }
         }
         'dev' {
@@ -2339,7 +2763,7 @@ function Show-GameWipQualityMenu
         Write-Host '4. Run AddressSanitizer validation'
         Write-Host '5. Run coverage validation'
         Write-Host '6. Build documentation'
-        Write-Host '7. Run benchmark validation'
+        Write-Host '7. Run performance benchmarks'
         Write-Host '8. Run full local release-readiness bundle'
         Write-Host 'ESC. Back'
         Write-Host 'Choose an action: ' -NoNewline
@@ -2371,9 +2795,7 @@ function Show-GameWipQualityMenu
                 Invoke-BuildPreset -Name 'docs'
             }
             '7' {
-                Invoke-ConfigurePreset -Name 'benchmark'
-                Invoke-BuildPreset -Name 'benchmark'
-                Invoke-ProjectCommand -Id 'benchmark-dry-run' -ForceBuild
+                Invoke-GameWipBenchmark -Mode 'run' -ProfileId 'standard' -RepeatCount 0 -MinimumTime '' -RequestedOutput '' -Format 'json'
             }
             '8' { Invoke-Bundle -Id 'local-release-check' }
             default { Write-Host 'Press 1-8 or ESC.' -ForegroundColor Yellow }
@@ -2578,6 +3000,7 @@ function Show-GameWipMenu
         }
         catch
         {
+            $Script:RunFailed = $true
             Show-ActionFailure -ErrorRecord $_
         }
         finally
@@ -2590,40 +3013,50 @@ function Show-GameWipMenu
 function Show-Help
 {
     Write-Host 'Usage:'
-    Write-Host '  gamewip'
-    Write-Host '  gamewip doctor'
-    Write-Host '  gamewip git'
-    Write-Host '  gamewip git -GitAction status'
-    Write-Host '  gamewip git -GitAction switch -GitBranch <name>'
-    Write-Host '  gamewip workflow'
-    Write-Host '  gamewip workflow -WorkflowAction list'
-    Write-Host '  gamewip workflow -WorkflowAction run -Workflow release-check -Preview'
-    Write-Host '  gamewip workflow -WorkflowAction run -Workflow project-dry-run -WorkflowKind issue -WorkflowNumber <number>'
-    Write-Host '  gamewip workflow -WorkflowAction run -Workflow release-finalize-dry-run -ReleaseCommit <sha>'
-    Write-Host '  gamewip unicode'
-    Write-Host '  gamewip unicode -UnicodeAction status'
-    Write-Host '  gamewip unicode -UnicodeAction verify [-RefreshUnicodeData] [-PythonPath <path>] [-ClangFormatPath <path>] [-UnicodeDataRoot <path>]'
-    Write-Host '  gamewip unicode -UnicodeAction regenerate [-RefreshUnicodeData] [-PythonPath <path>] [-ClangFormatPath <path>]'
-    Write-Host '  gamewip format'
-    Write-Host '  gamewip format -FormatAction check'
-    Write-Host '  gamewip format -FormatAction apply'
-    Write-Host '  gamewip analyze    # alias for gamewip analysis'
-    Write-Host '  gamewip list'
-    Write-Host '  gamewip configure -Preset test'
-    Write-Host '  gamewip build -Preset test'
-    Write-Host '  gamewip test -Preset test'
-    Write-Host '  gamewip wizard'
-    Write-Host '  gamewip module -Module logger -BuildIfMissing'
-    Write-Host '  gamewip stress -Module logger -Count 100 -Parallel 16 -BuildIfMissing'
-    Write-Host '  gamewip run -ProjectCommand benchmark-dry-run -BuildIfMissing'
-    Write-Host '  gamewip bundle -Bundle quick'
+    Write-Host '  .\gamewip.bat [action] [options]'
+    Write-Host '  .\gamewip.bat help | --help | -h | -?'
     Write-Host ''
-    Write-Host 'Known commands, modules, presets, and bundles are listed by:'
-    Write-Host '  gamewip list'
+    Write-Host 'Interactive and discovery actions:'
+    Write-Host '  menu                         Open the interactive project menu (default).'
+    Write-Host '  doctor                       Check repository metadata and required tools.'
+    Write-Host '  list                         List presets, modules, commands, bundles, and workflows.'
+    Write-Host '  help                         Print this reference.'
+    Write-Host ''
+    Write-Host 'Workspace and maintenance actions:'
+    Write-Host '  git [-GitAction <menu|status|fetch|switch|update|cleanup|create|push|log>] [-GitBranch <name>]'
+    Write-Host '  workflow [-WorkflowAction <menu|list|status|run>] [-Workflow <id>] [-WorkflowKind <all|issue|pull_request>]'
+    Write-Host '           [-WorkflowNumber <number>] [-ReleaseCommit <sha>] [-Preview]'
+    Write-Host '  unicode [-UnicodeAction <menu|status|verify|regenerate>] [-RefreshUnicodeData]'
+    Write-Host '          [-UnicodeDataRoot <path>] [-PythonPath <path>] [-ClangFormatPath <path>]'
+    Write-Host '  format [-FormatAction <check|apply>] [-ClangFormatPath <path>]'
+    Write-Host '  links [-PythonPath <path>]    Validate maintained local Markdown links.'
+    Write-Host ''
+    Write-Host 'Build and validation actions:'
+    Write-Host '  configure [-Preset <name>]    Configure a CMake preset (default: test).'
+    Write-Host '  build [-Preset <name>]        Configure if needed, then build (default: test).'
+    Write-Host '  test [-Preset <name>]         Configure/build if needed, then run CTest (default: test).'
+    Write-Host '  wizard                        Build an interactive GameWIPTests.exe command.'
+    Write-Host '  module [-Module <name>] [-ExtraArgs <args>] [-BuildIfMissing]'
+    Write-Host '  stress [-Module <name>] [-Count <1..100000>] [-Parallel <1..256>] [-ExtraArgs <args>] [-BuildIfMissing]'
+    Write-Host '  run [-ProjectCommand <id>] [-ExtraArgs <args>] [-BuildIfMissing]'
+    Write-Host '  bundle [-Bundle <id>]'
+    Write-Host ''
+    Write-Host 'Quality actions:'
+    Write-Host '  docs | analysis | analyze | coverage | asan'
+    Write-Host '  benchmark [-BenchmarkAction <run|dry-run|list|compare>] [-BenchmarkProfile <quick|standard|stable>]'
+    Write-Host '            [-Filter <regex>] [-Repetitions <count>] [-MinTime <time>] [-AggregatesOnly]'
+    Write-Host '            [-Output <path>] [-OutputFormat <json|csv>] [-NoBuild] [-ExtraArgs <args>]'
+    Write-Host '            [-Baseline <before.json>] [-Candidate <after.json>]'
+    Write-Host ''
+    Write-Host 'Global execution option:'
+    Write-Host '  -NoWorkspaceTemp              Preserve the caller TEMP and TMP values.'
+    Write-Host ''
+    Write-Host 'Use .\gamewip.bat list for valid IDs and the generated command-line tools manual for complete behavior.'
 }
 
 try
 {
+    Assert-GameWipCommandConfig
     switch ($Action)
     {
         'menu' { Show-GameWipMenu }
@@ -2632,6 +3065,7 @@ try
         'workflow' { Invoke-GameWipWorkflowAction -Name $WorkflowAction -WorkflowId $Workflow }
         'unicode' { Invoke-GameWipUnicodeAction -Name $UnicodeAction }
         'format' { Invoke-GameWipFormat -Mode $FormatAction }
+        'links' { Invoke-GameWipMarkdownLinks }
         'configure' {
             if ([string]::IsNullOrWhiteSpace($Preset)) { $Preset = $CommandConfig.DefaultConfigurePreset }
             Invoke-ConfigurePreset -Name $Preset
@@ -2646,7 +3080,7 @@ try
             }
             elseif ($Preset -eq 'benchmark')
             {
-                Write-NextStepHint 'run benchmark registration with: .\gamewip.bat run -ProjectCommand benchmark-dry-run'
+                Write-NextStepHint 'run performance measurements with: .\gamewip.bat benchmark; use -BenchmarkAction dry-run for registration only.'
             }
         }
         'test' {
@@ -2670,10 +3104,12 @@ try
         }
         'run' {
             if ([string]::IsNullOrWhiteSpace($ProjectCommand)) { $ProjectCommand = 'benchmark-dry-run' }
-            Invoke-ProjectCommand -Id $ProjectCommand -ForceBuild:$BuildIfMissing
+            $Script:RunLabel = "command-$ProjectCommand"
+            Invoke-ProjectCommand -Id $ProjectCommand -Arguments $ExtraArgs -ForceBuild:$BuildIfMissing
         }
         'bundle' {
             if ([string]::IsNullOrWhiteSpace($Bundle)) { $Bundle = 'quick' }
+            $Script:RunLabel = "bundle-$Bundle"
             Invoke-Bundle -Id $Bundle
         }
         'docs' {
@@ -2700,9 +3136,28 @@ try
             Invoke-TestPreset -Name 'asan' -UseWorkspaceTemp
         }
         'benchmark' {
-            Invoke-ConfigurePreset -Name 'benchmark'
-            Invoke-BuildPreset -Name 'benchmark'
-            Invoke-ProjectCommand -Id 'benchmark-dry-run' -ForceBuild
+            if ($BenchmarkAction -eq 'compare')
+            {
+                if ([string]::IsNullOrWhiteSpace($Baseline) -or [string]::IsNullOrWhiteSpace($Candidate))
+                {
+                    throw 'Benchmark comparison requires both -Baseline and -Candidate result paths.'
+                }
+                Invoke-GameWipBenchmarkComparison -BaselinePath $Baseline -CandidatePath $Candidate -RequestedOutput $Output
+            }
+            else
+            {
+                Invoke-GameWipBenchmark `
+                    -Mode $BenchmarkAction `
+                    -ProfileId $BenchmarkProfile `
+                    -NameFilter $Filter `
+                    -RepeatCount $Repetitions `
+                    -MinimumTime $MinTime `
+                    -RequestedOutput $Output `
+                    -Format $OutputFormat `
+                    -OnlyAggregates:$AggregatesOnly `
+                    -Arguments $ExtraArgs `
+                    -SkipBuild:$NoBuild
+            }
         }
         'list' { Show-ProjectCatalog }
         'help' { Show-Help }
@@ -2710,6 +3165,7 @@ try
 }
 catch
 {
+    $Script:RunFailed = $true
     Show-ActionFailure -ErrorRecord $_
     exit 1
 }

@@ -1,18 +1,27 @@
 @page project_public_api_contract Public API contract
 
-This page defines the durable project-wide contract for reusable public C++ APIs. Owning library manuals may narrow a rule when their domain requires it, but they must state the narrower contract explicitly and must not silently contradict this page.
+Use these rules when designing or reviewing a reusable public C++ API. They
+give GameWIP libraries a common vocabulary for names, text, failures,
+ownership, threading, performance, and compatibility, so a caller does not
+have to relearn those fundamentals for every package.
+
+A library manual may strengthen or narrow a rule when its domain requires it.
+That local contract must be stated explicitly and remain compatible with the
+project-wide rule; silence is not an exception.
 
 ## Naming
 
 - Public types and enum values use `UpperCamelCase`; functions, methods, variables, and fields use `lowerCamelCase`.
-- Boolean predicates describe the property they answer. Prefer `is...` for state, `has...` for possession or a pending condition, and `supports...` for capability. Avoid a bare `valid()` when `isValid()` expresses the same contract more clearly.
+- Boolean predicates describe the property they answer. Add `is...`, `has...`, `supports...`, or similar context when it makes the question clearer; keep a shorter conventional name such as `canSeek()` when it is already unambiguous. Avoid a bare `valid()` when `isValid()` expresses the same contract more clearly.
+- Keep conventional operation names such as `flush()` when the owning type or namespace already supplies the context. Use a differentiated form such as `flushTo(destination)` only when the destination or semantic distinction is real; do not mechanically restate context in the name.
 - Mutating operations use verbs. A name must disclose destructive side effects that are not otherwise obvious; for example, a write-and-clear operation says both actions.
 - Use one property vocabulary across a type. A getter and setter should describe the same property unless the operations intentionally have different semantics.
-- Names must describe actual semantics rather than historical implementation. Event names identify the changed property or observed occurrence, and a plural native-handle view uses a plural name.
+- Names must describe actual semantics rather than historical implementation. Event names identify the changed property or observed occurrence. The accepted Win32 adapter is the deliberate singular exception to the general plural-collection rule: `Window::Native::Win32::HandleView`, `HandleResult`, and `getHandle(...)` describe one coherent native-handle view/result even though the view contains both `HINSTANCE` and `HWND`.
 
 ## Text and bytes
 
 Public APIs that call data text use UTF-8. Encoding-agnostic or unvalidated data is called bytes.
+A Text API has the same UTF-8 validity contract regardless of whether the active backend is a console, redirected byte stream, file, pipe, or another native endpoint. Backend selection must not decide whether malformed text is accepted.
 
 UTF-8 text continues to use `std::string`, `std::string_view`, and caller-owned `std::span<char>` storage. GameWIP does not migrate public UTF-8 APIs to `std::u8string` or `std::u8string_view`.
 
@@ -24,7 +33,7 @@ UTF-8 text continues to use `std::string`, `std::string_view`, and caller-owned 
 - Validate and convert in one pass where practical. Trusted internal forwarding does not repeatedly rescan text already established as valid.
 - An API whose contract accepts valid UTF-8 may rely on that precondition on a measured hot path when no new trust or native boundary is crossed.
 
-IO remains byte-oriented and does not depend on Unicode merely to offer generic transfer primitives. Higher-level libraries own the distinction between byte operations and strict UTF-8 text operations.
+IO `Reader`, `Writer`, and byte helpers remain encoding-agnostic byte primitives. IO text helpers enforce the project UTF-8 contract and may use the foundational Unicode library to do so; that dependency must not add Unicode work to byte-only paths.
 
 ## Predicates, units, and offsets
 
@@ -74,15 +83,22 @@ Use an explicit enum underlying type when representation is relevant to public A
 
 ## Passive types and ownership
 
-Passive descriptions, options, IDs, enums, flags, events, views, statuses, and result values live in the owning library's `Types` namespace when that library uses the project pattern. `Types` is a namespace, not a struct used as a namespace substitute.
+Passive descriptions, options, IDs, enums, flags, events, views, statuses, and result values live in the owning library's single `Types` namespace when that library uses the project pattern. `Types` is a namespace, not a struct used as a namespace substitute.
+
+When a large `Types` surface contains a real, independently understandable domain, organize it beneath `Types::<Domain>`. Do not create nesting merely for symmetry or for one or two trivial results. Keep broadly shared/core passive values directly under `Types`, and omit redundant domain words from type names when the nested namespace already supplies that context.
 
 Resource-owning RAII types and stateful services live at the owning library namespace level. Focused stateless operations may use a descriptive service namespace. Public ownership, borrowing, lifetime, threading, and invalidation rules must be explicit.
+
+## Configuration macros
+
+Use `GAMEWIP_*` for configuration that genuinely belongs to the project as a whole. Library-specific configuration uses the owning library's prefix. Internal implementation and test-hook definitions use `<LIBRARY>_INTERNAL_*` (for example, `IO_INTERNAL_*`, `FILESYSTEM_INTERNAL_*`, or `TERMINAL_INTERNAL_*`). Do not add the project prefix merely because a library lives in the GameWIP repository.
 
 ## Public headers
 
 Public headers expose portable supported declarations and do not leak internal storage, validation hooks, or platform types except through an explicitly platform-scoped interop header.
 
-Umbrella headers may remain supported while focused headers are added. Splitting a physical header does not require splitting its namespace, target, or package. Header decomposition is justified by measured build or usability value and is not automatically a release or feature blocker.
+Umbrella headers may remain supported while focused headers are added. Splitting a physical header does not require splitting its namespace, target, or package. Give an important evolving configuration/state model or optional feature a focused header when that creates a real ownership, discoverability, dependency, or usability boundary; do not create one file per type mechanically. Header decomposition follows conceptual ownership rather than line count and is not automatically a release or feature blocker.
+Public-header boundaries are independent from implementation-source and correctness-test boundaries. One cohesive umbrella header may be backed by several responsibility-focused `.cpp` files, and one test module may use several behavior-focused case files.
 
 Generated lookup tables and other large implementation data remain in private implementation headers or source files. Every supported public entry header is compiled in isolation and exercised through installed-consumer validation.
 

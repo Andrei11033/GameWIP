@@ -1,3 +1,6 @@
+/// @file assert_export_static.h.in
+/// @brief Generated no-op Assert visibility macros for interface-only builds.
+
 #ifndef GAMEWIP_ASSERT_EXPORT_H
 #define GAMEWIP_ASSERT_EXPORT_H
 

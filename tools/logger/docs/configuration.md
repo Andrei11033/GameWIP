@@ -18,11 +18,11 @@
 - a first queue allocation failure retries with the small fallback queue.
 - `workerBatchSize == 0` means use the default and is not itself an adjustment.
 
-These recoveries are successful initialization adjustments reported in `InitResult::adjustments`; they are not IO failures.
+These recoveries are successful initialization adjustments reported in `Types::Init::Result::adjustments`; they are not IO failures.
 
 Undefined `OutputMode`, `Level`, or `FormatPolicy` enum values and invalid initial filters are rejected with `InvalidArgument`. Invalid `FormatPolicy` is not silently replaced.
 
-## InitResult
+## `Types::Init::Result`
 
 `status` answers whether initialization itself succeeded. `outcome` tells whether the resulting Logger is Started or Disabled. `requestedOutput` and `effectiveOutput` expose fallback directly. `outputSetupStatus` preserves a failed/degraded requested output setup even when overall init succeeds via fallback.
 

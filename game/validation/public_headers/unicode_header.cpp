@@ -48,6 +48,6 @@ static_assert(noexcept(Unicode::Utf16::validate(std::declval<std::span<const cha
 static_assert(noexcept(Unicode::Utf16::measureToUtf8(std::declval<std::span<const char16_t>>())));
 static_assert(noexcept(Unicode::Utf16::convertToUtf8(std::declval<std::span<const char16_t>>(), std::declval<std::span<char>>())));
 
-static_assert(std::is_same_v<decltype(Unicode::getStandardVersion()), Unicode::Types::UnicodeVersion>);
-static_assert(std::is_same_v<decltype(Unicode::Utf8::decodeScalar({})), Unicode::Types::Utf8DecodeResult>);
-static_assert(std::is_same_v<decltype(Unicode::Utf16::decodeScalar({})), Unicode::Types::Utf16DecodeResult>);
+static_assert(std::is_same_v<decltype(Unicode::getStandardVersion()), Unicode::Types::Version>);
+static_assert(std::is_same_v<decltype(Unicode::Utf8::decodeScalar({})), Unicode::Types::Utf8::DecodeResult>);
+static_assert(std::is_same_v<decltype(Unicode::Utf16::decodeScalar({})), Unicode::Types::Utf16::DecodeResult>);
