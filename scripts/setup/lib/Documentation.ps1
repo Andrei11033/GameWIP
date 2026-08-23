@@ -1,6 +1,6 @@
 Set-StrictMode -Version Latest
 
-function Build-GameWipDocumentation
+function Invoke-GameWipDocumentationBuild
 {
     param(
         [Parameter(Mandatory = $true)][string]$RepositoryRoot,
@@ -12,8 +12,8 @@ function Build-GameWipDocumentation
     try
     {
         $env:Path = "C:\MSYS2\ucrt64\bin;$oldPath"
-        Invoke-SetupNative -FilePath 'cmake' -ArgumentList @('--preset', 'docs') | Out-Null
-        Invoke-SetupNative -FilePath 'cmake' -ArgumentList @('--build', '--preset', 'docs', '--parallel') | Out-Null
+        Invoke-GameWipSetupNative -FilePath 'cmake' -ArgumentList @('--preset', 'docs') | Out-Null
+        Invoke-GameWipSetupNative -FilePath 'cmake' -ArgumentList @('--build', '--preset', 'docs', '--parallel') | Out-Null
 
         $warningLog = Join-Path $RepositoryRoot 'build\docs\docs\doxygen\doxygen_warnings.log'
         if (-not (Test-Path -LiteralPath $warningLog))

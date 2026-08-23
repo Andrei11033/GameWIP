@@ -8,9 +8,9 @@ runs as part of an ordinary configure, build, test, package, or consumer flow.
 from __future__ import annotations
 
 import argparse
+from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, Iterator
 
 UNICODE_VERSION = "17.0.0"
 EMOJI_VERSION = "17.0"
@@ -233,7 +233,7 @@ def render_header(trie: GeneratedTrie) -> str:
     block_size = 1 << trie.block_shift
     block_mask = block_size - 1
     flattened_blocks = tuple(value for block in trie.blocks for value in block)
-    return f'''/// @file unicode_properties.h
+    return f"""/// @file unicode_properties.h
 /// @brief Generated Unicode {UNICODE_VERSION} grapheme-property trie. Do not edit manually.
 /// @details Derived from pinned Unicode {UNICODE_VERSION} data files.
 /// Unicode data license: Unicode License v3 (SPDX Unicode-3.0), https://www.unicode.org/license.txt
@@ -265,7 +265,7 @@ namespace GameWIP::Unicode::Internal::Generated
 {formatted_values(flattened_blocks, 16, hexadecimal=True)}
     }};
 }} // namespace GameWIP::Unicode::Internal::Generated
-'''
+"""
 
 
 def generate(paths: SourcePaths, output: Path) -> tuple[GeneratedTrie, tuple[GeneratedTrie, ...]]:

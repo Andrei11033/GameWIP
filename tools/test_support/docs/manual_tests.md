@@ -6,7 +6,8 @@
 - `No`
 - `Skipped`
 
-The prompt retries unrecognized input, returns `Skipped` on end-of-input, does not trim whitespace, and may propagate standard-stream exceptions when the caller configures those streams to throw.
+The prompt retries unrecognized input, returns `Skipped` on end-of-input, does not trim whitespace, and may propagate standard-stream exceptions when
+the caller configures those streams to throw.
 
 Manual tests remain opt-in validation behavior. Callers normally translate the answer into `Context::pass()`, `fail()`, or `skip()`.
 

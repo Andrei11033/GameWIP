@@ -1,8 +1,11 @@
 @page test_support TestSupport
 
-`GameWIP::TestSupport` provides reusable infrastructure for executable validation programs: reporting, expectations, strict UTF-8 text fixtures, isolated filesystem and environment state, child processes, manual checks, timing, and small concurrency helpers.
+`GameWIP::TestSupport` provides reusable infrastructure for executable validation programs: reporting, expectations, strict UTF-8 text fixtures,
+isolated filesystem and environment state, child processes, manual checks, timing, and small concurrency helpers.
 
-The normal umbrella is `test_support/test_support.h`. Focused public entry headers are `types.h`, `reporting.h`, `files.h`, `process.h`, and `stress.h` under the `test_support/` include directory. Passive values live in the single `GameWIP::TestSupport::Types` tree; active runners, contexts, guards, process helpers, and stress helpers live directly in `GameWIP::TestSupport`.
+The normal umbrella is `test_support/test_support.h`. Focused public entry headers are `types.h`, `reporting.h`, `files.h`, `process.h`, and
+`stress.h` under the `test_support/` include directory. Passive values live in the single `GameWIP::TestSupport::Types` tree; active runners,
+contexts, guards, process helpers, and stress helpers live directly in `GameWIP::TestSupport`.
 
 ## How the library is organized
 
@@ -56,7 +59,8 @@ class and namespace indexes contain every active helper and passive type.
 - `Runner` converts an uncaught suite exception into one failed check, records the completed suite, and permits later suites to run.
 - Report-file failure disables only that file sink and does not rewrite pass/fail/skip counts.
 - Text-file helpers expose only valid UTF-8; child stdout/stderr capture remains arbitrary bytes in `Types::Process::Result::outputBytes`.
-- Filesystem, current-directory, environment, and child-process helpers use TestSupport-owned infrastructure status. Process-global state still requires caller coordination.
+- Filesystem, current-directory, environment, and child-process helpers use TestSupport-owned infrastructure status. Process-global state still
+  requires caller coordination.
 - Child-process and manual-input helpers can block. Child timeouts begin termination but are not strict upper bounds on total cleanup time.
 - RAII cleanup/restoration performed by destructors is best effort and non-throwing.
 
@@ -72,6 +76,7 @@ Unicode types.
 The Win32 environment and child-process backends use GameWIP Unicode for strict UTF-8 to UTF-16 conversion. TestSupport continues to own argument
 validation, process policy, infrastructure failures, and result construction; production code never depends on TestSupport.
 
-TestSupport is intended for test and validation executables. It does not replace production error handling, FileSystem's richer policy/status surface, Logger, Assert, a benchmark framework, or a general process-management library.
+TestSupport is intended for test and validation executables. It does not replace production error handling, FileSystem's richer policy/status surface,
+Logger, Assert, a benchmark framework, or a general process-management library.
 
 See @ref test_support_public_api and @ref test_support_quick_start.

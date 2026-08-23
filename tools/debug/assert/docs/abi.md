@@ -1,6 +1,7 @@
 @page assert_abi ABI and package boundary
 
-Assert is consumed as the `GameWIP::Assert` CMake target. Its installed public header surface is `debug/assert/assert.h` plus the generated `debug/assert/assert_export.h` export header.
+Assert is consumed as the `GameWIP::Assert` CMake target. Its installed public header surface is `debug/assert/assert.h` plus the generated
+`debug/assert/assert_export.h` export header.
 
 ## Package boundary
 
@@ -13,7 +14,8 @@ find_package(Assert ${GAMEWIP_REQUIRED_VERSION} EXACT CONFIG REQUIRED)
 target_link_libraries(MyTarget PRIVATE GameWIP::Assert)
 ```
 
-The source-tree target name `Assert`, internal headers, platform backend headers, validation hooks, and `AssertCompileInterface` are not installed consumer interfaces.
+The source-tree target name `Assert`, internal headers, platform backend headers, validation hooks, and `AssertCompileInterface` are not installed
+consumer interfaces.
 
 ## Runtime and interface modes
 
@@ -24,9 +26,12 @@ Assert has two package forms:
 | Runtime enabled | shared library | Public macros can call exported runtime handlers for failure reporting, popups, debug breaks, and process termination. |
 | Runtime disabled | interface-only target | Public macros use header-only disabled behavior. Fatal and recoverable reporting are off. |
 
-The runtime-enabled package has an implementation dependency on Logger. The installed package resolves that dependency through `find_dependency(Logger ... CONFIG)`.
+The runtime-enabled package has an implementation dependency on Logger. The installed package resolves that dependency through `find_dependency(Logger
+... CONFIG)`.
 
-Assert resolves its installed Common Controls resource paths before dependency discovery and uses `configure_package_config_file(PATH_VARS ...)`. Split Assert/Logger prefixes are therefore supported across the minimum CMake range, and relative or absolute `CMAKE_INSTALL_DATADIR` values remain valid.
+Assert resolves its installed Common Controls resource paths before dependency discovery and uses `configure_package_config_file(PATH_VARS ...)`.
+Split Assert/Logger prefixes are therefore supported across the minimum CMake range, and relative or absolute `CMAKE_INSTALL_DATADIR` values remain
+valid.
 
 ## Exported symbols
 
@@ -39,13 +44,16 @@ GameWIP::Debug::Assert::Detail::handleCheckFailure
 GameWIP::Debug::Assert::Detail::handleInteractiveAssertFailure
 ```
 
-`debugBreak()` is public runtime API. The `Detail::handle*` symbols are exported ABI support for the public macros; consumers must not call them directly or depend on their signatures beyond using the supported macros.
+`debugBreak()` is public runtime API. The `Detail::handle*` symbols are exported ABI support for the public macros; consumers must not call them
+directly or depend on their signatures beyond using the supported macros.
 
 ## Binary compatibility
 
-Assert follows the project package policy: packages are pre-1.0, exact-version matched, and not binary-compatible across package versions, compiler families, standard-library implementations, or MSYS2 environments.
+Assert follows the project package policy: packages are pre-1.0, exact-version matched, and not binary-compatible across package versions, compiler
+families, standard-library implementations, or MSYS2 environments.
 
-Changing exported symbols, public macros, public compile definitions, installed headers, package helpers, or the Logger dependency changes the package boundary and requires documentation and validation updates.
+Changing exported symbols, public macros, public compile definitions, installed headers, package helpers, or the Logger dependency changes the package
+boundary and requires documentation and validation updates.
 
 ## Related pages
 

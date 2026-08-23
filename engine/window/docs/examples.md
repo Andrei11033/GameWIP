@@ -67,7 +67,8 @@ description.mode.mode = GameWIP::Window::Types::Mode::BorderlessFullscreen;
 description.visible = true;
 ```
 
-For exclusive fullscreen, set `description.mode.mode` to `Types::Mode::ExclusiveFullscreen`, choose a `Types::Display::MonitorId`, and optionally provide an exact `Types::Display::Mode`.
+For exclusive fullscreen, set `description.mode.mode` to `Types::Mode::ExclusiveFullscreen`, choose a `Types::Display::MonitorId`, and optionally
+provide an exact `Types::Display::Mode`.
 
 ## Renderer feedback
 

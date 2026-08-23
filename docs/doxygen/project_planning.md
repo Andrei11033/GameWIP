@@ -1,6 +1,7 @@
 @page project_planning Project planning
 
-Stable documentation defines project direction and milestone gates. GitHub issues track active implementation, validation, bugs, and follow-up work within those milestones.
+Stable documentation defines project direction and milestone gates. GitHub issues track active implementation, validation, bugs, and follow-up work
+within those milestones.
 
 ## Product direction
 
@@ -24,9 +25,11 @@ The roadmap remains the milestone checklist. It defines what must be true before
 
 ## Historical checklists
 
-Do not maintain separate source-tree implementation or testing checklists. GitHub issues track active work, while @ref project_roadmap defines milestone completion criteria.
+Do not maintain separate source-tree implementation or testing checklists. GitHub issues track active work, while @ref project_roadmap defines
+milestone completion criteria.
 
-Do not recreate broad checklist ledgers unless the project deliberately changes planning policy. Focus new planning work in GitHub issues and update the roadmap only when milestone gates change.
+Do not recreate broad checklist ledgers unless the project deliberately changes planning policy. Focus new planning work in GitHub issues and update
+the roadmap only when milestone gates change.
 
 ## Related pages
 

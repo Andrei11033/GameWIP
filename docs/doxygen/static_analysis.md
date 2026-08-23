@@ -1,25 +1,31 @@
 @page project_static_analysis Static analysis and repository checks
 
-GameWIP applies format, static-analysis, documentation, and repository-consistency checks to maintained project files. Third-party code under `external/` and generated files under `build/` are not project-owned and are excluded.
+GameWIP applies format, static-analysis, documentation, and repository-consistency checks to maintained project files. Third-party code under
+`external/` and generated files under `build/` are not project-owned and are excluded.
 
 The checks below cover C++ static analysis, formatting, documentation and
 repository rules, local commands, CI behavior, and the narrow cases where a
 suppression is acceptable.
 
-Build presets, compiler selection, and output locations are documented in @ref project_build. Correctness tests are documented in @ref project_validation and @ref project_testing.
+Build presets, compiler selection, and output locations are documented in @ref project_build. Correctness tests are documented in @ref
+project_validation and @ref project_testing.
 
 ## Environment
 
-The GameWIP helper is the preferred Windows entry point because it selects project-owned tool paths, records native command logs, and reports failures consistently:
+The GameWIP helper is the preferred Windows entry point because it selects project-owned tool paths, records native command logs, and reports failures
+consistently:
 
 ```powershell
 .\gamewip.bat format -FormatAction check
 .\gamewip.bat analyze
 ```
 
-The `analyze` preset selects `clang++` and requires the UCRT64 packages for CMake, Ninja, Clang, clang-tools-extra, GCC runtime support, Git, and Python. AddressSanitizer is the exception: it uses the MSYS2 CLANG64 environment and is documented in @ref project_build.
+The `analyze` preset selects `clang++` and requires the UCRT64 packages for CMake, Ninja, Clang, clang-tools-extra, GCC runtime support, Git, and
+Python. AddressSanitizer is the exception: it uses the MSYS2 CLANG64 environment and is documented in @ref project_build.
 
-When invoking CMake or clang tools directly instead of through `gamewip.bat`, run them from the MSYS2 UCRT64 environment or put that toolchain first on `PATH`. Do not mix the analyze configure with an unrelated Visual Studio, standalone LLVM, or different MSYS2 environment. The toolchain that configures the preset should also provide `clang-tidy`, `run-clang-tidy`, and `clang-format`.
+When invoking CMake or clang tools directly instead of through `gamewip.bat`, run them from the MSYS2 UCRT64 environment or put that toolchain first
+on `PATH`. Do not mix the analyze configure with an unrelated Visual Studio, standalone LLVM, or different MSYS2 environment. The toolchain that
+configures the preset should also provide `clang-tidy`, `run-clang-tidy`, and `clang-format`.
 
 ## C++ static analysis
 
@@ -59,11 +65,16 @@ cmake --build --preset analyze --target clang-tidy
 cmake --build --preset analyze --target clang-format-check
 ```
 
-`clang-tidy` reads the root `.clang-tidy` file, uses the analyze compilation database, and filters diagnostics to GameWIP-owned source and header roots. Diagnostics selected by `.clang-tidy` are errors. Suppress a diagnostic only at the narrowest justified location and include a short reason in the `NOLINT` comment.
+`clang-tidy` reads the root `.clang-tidy` file, uses the analyze compilation database, and filters diagnostics to GameWIP-owned source and header
+roots. Diagnostics selected by `.clang-tidy` are errors. Suppress a diagnostic only at the narrowest justified location and include a short reason in
+the `NOLINT` comment.
 
-Headers are analyzed when they are included by a compiled translation unit. Public headers should also have matching validation translation units under `game/validation/public_headers/` so the header can be checked as an include boundary instead of only through incidental implementation includes.
+Headers are analyzed when they are included by a compiled translation unit. Public headers should also have matching validation translation units
+under `game/validation/public_headers/` so the header can be checked as an include boundary instead of only through incidental implementation
+includes.
 
-Win32 resource scripts are compiled by the Windows resource compiler and are intentionally not passed to clang-tidy. The root manifest and generated CMake inputs are validated by the normal configure and build path.
+Win32 resource scripts are compiled by the Windows resource compiler and are intentionally not passed to clang-tidy. The root manifest and generated
+CMake inputs are validated by the normal configure and build path.
 
 ## Formatting fixes
 
@@ -74,7 +85,8 @@ The static-analysis target checks formatting but does not rewrite files. Check o
 .\gamewip.bat format -FormatAction apply
 ```
 
-Both actions use the repository `.clang-format` and the GameWIP-owned `.cpp`, `.h`, `.hpp`, and `.inl` files under `foundation/`, `tools/`, `engine/`, and `game/`. `check` is non-mutating; `apply` reports the maintained files whose content changed.
+Both actions use the repository `.clang-format` and the GameWIP-owned `.cpp`, `.h`, `.hpp`, and `.inl` files under `foundation/`, `tools/`, `engine/`,
+and `game/`. `check` is non-mutating; `apply` reports the maintained files whose content changed.
 
 Review formatter output before committing:
 
@@ -83,7 +95,9 @@ git diff --check
 git diff -- foundation tools engine game
 ```
 
-Do not run project formatting over `external/`, generated build trees, generated documentation output, or other third-party artifacts. The checked-in Unicode property header is a deliberate maintained-source exception: its regeneration workflow applies the repository formatter before reproducibility comparison.
+Do not run project formatting over `external/`, generated build trees, generated documentation output, or other third-party artifacts. The checked-in
+Unicode property header is a deliberate maintained-source exception: its regeneration workflow applies the repository formatter before reproducibility
+comparison.
 
 ## Repository checks
 
@@ -113,9 +127,9 @@ developing the checkers themselves, run their direct interfaces:
 
 ```powershell
 python -m py_compile .github/scripts/*.py
-python .github/scripts/check-documentation-standards.py
-python .github/scripts/check-repository-standards.py
-python .github/scripts/check-markdown-links.py
+python .github/scripts/check_documentation_standards.py
+python .github/scripts/check_repository_standards.py
+python .github/scripts/check_markdown_links.py
 git diff --check
 ```
 
@@ -142,7 +156,8 @@ actionlint
 
 ## Documentation checks
 
-The regular validation workflow builds Doxygen and rejects Doxygen warnings. Markdown registered with Doxygen is therefore parsed and cross-reference checked as part of documentation validation.
+The regular validation workflow builds Doxygen and rejects Doxygen warnings. Markdown registered with Doxygen is therefore parsed and cross-reference
+checked as part of documentation validation.
 
 The documentation-standards checker validates exactly one unique page ID per
 manual file, exactly one sidebar parent per page, intentional sidebar order,
@@ -168,9 +183,11 @@ cmake --preset docs
 cmake --build --preset docs
 ```
 
-Then perform the warning-log check in @ref project_documentation. A successful Doxygen process exit alone does not prove that the generated manual is warning-free.
+Then perform the warning-log check in @ref project_documentation. A successful Doxygen process exit alone does not prove that the generated manual is
+warning-free.
 
-Doxygen validates syntax and links, but it does not judge prose consistency. First-party Markdown must also be reviewed against the heading, voice, terminology, list, example, and ownership rules in @ref project_documentation.
+Doxygen validates syntax and links, but it does not judge prose consistency. First-party Markdown must also be reviewed against the heading, voice,
+terminology, list, example, and ownership rules in @ref project_documentation.
 
 ## Local pre-commit checklist
 

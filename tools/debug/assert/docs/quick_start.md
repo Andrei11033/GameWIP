@@ -65,9 +65,12 @@ if (!ENSURE_MSG(socket.isOpen(), "Socket should be open"))
 
 ## Failure handling
 
-Fatal failures report through Logger, may show Assert-owned UI, break only when the path requires a debugger break, and then either abort or follow the selected interactive action. Recoverable checks report through Logger and continue. Disabled macro behavior is documented in @ref assert_macro_behavior.
+Fatal failures report through Logger, may show Assert-owned UI, break only when the path requires a debugger break, and then either abort or follow
+the selected interactive action. Recoverable checks report through Logger and continue. Disabled macro behavior is documented in @ref
+assert_macro_behavior.
 
-Automated tests must not depend on real dialog interaction. Deterministic validation paths are documented in @ref assert_testing and @ref assert_test_hooks.
+Automated tests must not depend on real dialog interaction. Deterministic validation paths are documented in @ref assert_testing and @ref
+assert_test_hooks.
 
 ## Where to go next
 

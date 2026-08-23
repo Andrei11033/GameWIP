@@ -157,8 +157,8 @@ jobs:
       - name: Test runtime and project contracts
         shell: msys2 {0}
         env:
-          GAMEWIP_REQUIRE_SYMLINK_TESTS: "1"
-          GAMEWIP_REQUIRE_UNICODE_CONFORMANCE_TESTS: "1"
+          GAMEWIP_REQUIRE_SYMLINK_TESTS: '1'
+          GAMEWIP_REQUIRE_UNICODE_CONFORMANCE_TESTS: '1'
         run: ctest --test-dir build/validation --output-on-failure --no-tests=error -LE packages
 
       - name: Benchmark smoke test
@@ -174,7 +174,7 @@ jobs:
   repository-checks:
     name: Repository Checks
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
 
     steps:
       - name: Checkout
@@ -184,6 +184,37 @@ jobs:
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
+
+      - name: Install registry-pinned quality tools
+        shell: bash
+        run: |
+          registry=scripts/config/project-tools.json
+          version() { jq -r --arg id "$1" '.tools[] | select(.id == $id) | .requiredVersion' "$registry"; }
+          eslint_js_version="$(jq -r \
+            '.tools[] | select(.id == "eslint") | .provider.dependencies[] | select(.package == "@eslint/js") | .version' \
+            "$registry")"
+          python3 -m pip install --user "ruff==$(version ruff)" "yamllint==$(version yamllint)"
+          npm install --global \
+            "eslint@$(version eslint)" \
+            "@eslint/js@$eslint_js_version" \
+            "prettier@$(version prettier)" \
+            "markdownlint-cli2@$(version markdownlint-cli2)"
+          gersemi_version="$(version gersemi)"
+          gersemi_archive="$(jq -r '.tools[] | select(.id == "gersemi") | .provider.assets["linux-amd64"].archive' "$registry")"
+          gersemi_sha="$(jq -r '.tools[] | select(.id == "gersemi") | .provider.assets["linux-amd64"].sha256' "$registry")"
+          curl --fail --silent --show-error --location \
+            --output "$RUNNER_TEMP/$gersemi_archive" \
+            "https://github.com/BlankSpruce/gersemi/releases/download/v${gersemi_version}/${gersemi_archive}"
+          echo "$gersemi_sha  $RUNNER_TEMP/$gersemi_archive" | sha256sum --check
+          install -m 0755 "$RUNNER_TEMP/$gersemi_archive" "$RUNNER_TEMP/gersemi"
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+
+      - name: Install registry-pinned PowerShell analyzer
+        shell: pwsh
+        run: |
+          $registry = Get-Content scripts/config/project-tools.json -Raw | ConvertFrom-Json
+          $version = ($registry.tools | Where-Object id -EQ psscriptanalyzer).requiredVersion
+          Install-Module PSScriptAnalyzer -RequiredVersion $version -Scope CurrentUser -Force
 
       - name: Check JavaScript
         shell: bash
@@ -196,9 +227,9 @@ jobs:
       - name: Check PowerShell workflow helper
         shell: pwsh
         run: |
-          ./.github/scripts/workflow-helper.test.ps1
-          ./.github/scripts/project-helper.test.ps1
-          ./.github/scripts/setup-helper.test.ps1
+          ./.github/scripts/WorkflowHelper.Tests.ps1
+          ./.github/scripts/ProjectHelper.Tests.ps1
+          ./.github/scripts/SetupHelper.Tests.ps1
 
       - name: Check JSON
         shell: bash
@@ -216,26 +247,26 @@ jobs:
 
       - name: Check documentation standards
         shell: bash
-        run: python3 .github/scripts/check-documentation-standards.py
+        run: python3 .github/scripts/check_documentation_standards.py
 
       - name: Check repository standards
         shell: bash
-        run: python3 .github/scripts/check-repository-standards.py
+        run: python3 .github/scripts/check_repository_standards.py
 
       - name: Check Markdown links
         shell: bash
-        run: python3 .github/scripts/check-markdown-links.py
+        run: python3 .github/scripts/check_markdown_links.py
 
       - name: Install actionlint
         shell: bash
-        env:
-          ACTIONLINT_VERSION: 1.7.12
-          ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
         run: |
-          archive="actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
-          url="https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/${archive}"
+          registry="scripts/config/project-tools.json"
+          version="$(jq -r '.tools[] | select(.id == "actionlint") | .requiredVersion' "$registry")"
+          archive="$(jq -r '.tools[] | select(.id == "actionlint") | .provider.assets["linux-amd64"].archive' "$registry")"
+          sha256="$(jq -r '.tools[] | select(.id == "actionlint") | .provider.assets["linux-amd64"].sha256' "$registry")"
+          url="https://github.com/rhysd/actionlint/releases/download/v${version}/${archive}"
           curl --fail --silent --show-error --location --output "$archive" "$url"
-          echo "${ACTIONLINT_SHA256}  ${archive}" | sha256sum --check
+          echo "${sha256}  ${archive}" | sha256sum --check
           tar --extract --gzip --file "$archive" actionlint
           install -m 0755 actionlint "$RUNNER_TEMP/actionlint"
 
@@ -243,6 +274,10 @@ jobs:
         shell: bash
         run: |
           "$RUNNER_TEMP/actionlint" -color
+
+      - name: Run complete repository quality policy
+        shell: pwsh
+        run: ./scripts/GameWIP.ps1 quality -QualityAction check
 
   coverage:
     name: Coverage

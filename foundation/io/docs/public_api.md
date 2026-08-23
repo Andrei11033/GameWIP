@@ -27,7 +27,8 @@ The `GameWIP::IO::Types` namespace contains passive value types:
 | `ReadAllTextResult` | Fields `status` and valid UTF-8 `text`; failures preserve only a complete valid prefix. |
 | `CopyTextResult` | Fields `status` and an owning validated UTF-8 `text` copy. |
 
-A nonzero transfer count may accompany a failure status. `ReadResult::endOfStream` is independent of `bytesRead` and may be true on the final non-empty read.
+A nonzero transfer count may accompany a failure status. `ReadResult::endOfStream` is independent of `bytesRead` and may be true on the final
+non-empty read.
 
 ## Status helpers
 
@@ -48,9 +49,12 @@ A nonzero transfer count may accompany a failure status. `ReadResult::endOfStrea
 virtual Types::ReadResult read(std::span<std::byte> destination) noexcept = 0;
 ```
 
-The base class supplies defaults for `isOpen()`, `canSeek()`, `close()`, `position()`, `size()`, and `seek()`. This lets a stateless streaming adapter implement only `read()` while resource-owning readers override the capabilities they support.
+The base class supplies defaults for `isOpen()`, `canSeek()`, `close()`, `position()`, `size()`, and `seek()`. This lets a stateless streaming adapter
+implement only `read()` while resource-owning readers override the capabilities they support.
 
-`MemoryReader` is the provided concrete reader. It accepts a byte span, character-backed string view, or lvalue byte vector; rejects direct temporary string/vector construction; supports bounded seeking while open; and never owns or modifies its source. The string-view constructor is still byte-oriented and performs no encoding interpretation.
+`MemoryReader` is the provided concrete reader. It accepts a byte span, character-backed string view, or lvalue byte vector; rejects direct temporary
+string/vector construction; supports bounded seeking while open; and never owns or modifies its source. The string-view constructor is still
+byte-oriented and performs no encoding interpretation.
 
 ## Writer interface
 
@@ -73,7 +77,8 @@ The base class supplies defaults for `isOpen()`, `canSeek()`, `flush()`, `close(
 
 Collected output remains available after `close()`, but writing, flushing, and position queries require open state.
 
-Every checked Reader, Writer, MemoryReader, MemoryWriter, and whole-stream operation is `noexcept`. Extension implementations must translate expected failures into statuses and must not let exceptions escape an override.
+Every checked Reader, Writer, MemoryReader, MemoryWriter, and whole-stream operation is `noexcept`. Extension implementations must translate expected
+failures into statuses and must not let exceptions escape an override.
 
 ## Whole-stream helpers
 
@@ -84,15 +89,19 @@ Every checked Reader, Writer, MemoryReader, MemoryWriter, and whole-stream opera
 | `writeAllBytes()` | Span or byte vector. | Retries successful short writes until complete or failed. |
 | `writeAllText()` | String view. | Validates the complete UTF-8 input before the first write, then writes all bytes including embedded NUL. |
 
-The scratch buffer is used only for unknown-size readers. When both size and position are available, read-all helpers allocate the final output directly and do not use the scratch storage.
+The scratch buffer is used only for unknown-size readers. When both size and position are available, read-all helpers allocate the final output
+directly and do not use the scratch storage.
 
 @ref io_reader_writer_contract owns exact transfer and failure behavior. @ref io_runtime_performance owns allocation and limit details.
 
 ## Package and binary boundary
 
-IO is installed as a static `GameWIP::IO` target with the public header `io/io.h`. It has no shared-library export surface. Its implementation depends on `GameWIP::Unicode`; the installed IO package resolves that dependency automatically, so consumers still request and link only `GameWIP::IO`.
+IO is installed as a static `GameWIP::IO` target with the public header `io/io.h`. It has no shared-library export surface. Its implementation depends
+on `GameWIP::Unicode`; the installed IO package resolves that dependency automatically, so consumers still request and link only `GameWIP::IO`.
 
-Its public boundary includes C++ standard-library containers, spans, strings, and virtual interfaces. Consumers therefore follow the project compiler, standard-library, and exact-version compatibility policy documented in @ref project_library_compatibility. Public type layout, virtual function order, declarations, and inline/template behavior are compatibility-relevant even though IO is static.
+Its public boundary includes C++ standard-library containers, spans, strings, and virtual interfaces. Consumers therefore follow the project compiler,
+standard-library, and exact-version compatibility policy documented in @ref project_library_compatibility. Public type layout, virtual function order,
+declarations, and inline/template behavior are compatibility-relevant even though IO is static.
 
 The source-tree target name, implementation source, validation code, and internal implementation namespaces are not installed interfaces.
 

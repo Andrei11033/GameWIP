@@ -17,7 +17,5 @@ if(WIN32)
     set(WINDOW_INTERNAL_APPLICATION_MANIFEST "${Window_APPLICATION_MANIFEST}")
     set(Window_APPLICATION_RC "${CMAKE_CURRENT_BINARY_DIR}/window_application.rc")
     configure_file("${Window_APPLICATION_RC_TEMPLATE}" "${Window_APPLICATION_RC}" @ONLY)
-    set_property(TARGET GameWIP::Window APPEND PROPERTY
-        INTERFACE_SOURCES "${Window_APPLICATION_RC}"
-    )
+    set_property(TARGET GameWIP::Window APPEND PROPERTY INTERFACE_SOURCES "${Window_APPLICATION_RC}")
 endif()

@@ -1,5 +1,1 @@
-gamewip_add_benchmark_module(
-    NAME terminal
-    SOURCES terminal_benchmark.cpp
-    LINK_LIBRARIES Terminal
-)
+gamewip_add_benchmark_module(NAME terminal SOURCES terminal_benchmark.cpp LINK_LIBRARIES Terminal)

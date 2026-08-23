@@ -1,6 +1,7 @@
 @page terminal_quick_start Quick start
 
-Terminal exposes checked direct operations for stdin, stdout, stderr, styling, and primitive controls. Persistent interactive applications use an explicit move-only `Session` that owns input and binds one primary output; direct reads acquire and restore managed input ownership automatically.
+Terminal exposes checked direct operations for stdin, stdout, stderr, styling, and primitive controls. Persistent interactive applications use an
+explicit move-only `Session` that owns input and binds one primary output; direct reads acquire and restore managed input ownership automatically.
 
 ## Include
 
@@ -74,9 +75,12 @@ else
 }
 ```
 
-Always inspect `status`, `outcome`, and the payload together. A successful status does not imply `Types::Input::ReadOutcome::Completed`, and a terminating outcome can accompany partial data.
+Always inspect `status`, `outcome`, and the payload together. A successful status does not imply `Types::Input::ReadOutcome::Completed`, and a
+terminating outcome can accompany partial data.
 
-Read deadlines use `std::optional<std::chrono::milliseconds>`: `std::nullopt` waits indefinitely, `0ms` polls, positive values bound the complete operation, and negative values are `InvalidArgument`. A `std::stop_token` requests cancellation where the endpoint supports cancellable blocking reads.
+Read deadlines use `std::optional<std::chrono::milliseconds>`: `std::nullopt` waits indefinitely, `0ms` polls, positive values bound the complete
+operation, and negative values are `InvalidArgument`. A `std::stop_token` requests cancellation where the endpoint supports cancellable blocking
+reads.
 
 ## Persistent managed session
 
@@ -109,9 +113,13 @@ if (line.status.ok() && line.outcome == Types::Input::ReadOutcome::Completed)
 const auto closeStatus = session.close();
 ```
 
-Interactive `readLine()` owns Unicode editing and echo rather than delegating to native cooked input. Set `lineOptions.echo = false` for password-like or application-rendered input.
+Interactive `readLine()` owns Unicode editing and echo rather than delegating to native cooked input. Set `lineOptions.echo = false` for password-like
+or application-rendered input.
 
-Only one managed owner may consume stdin at a time. Re-opening the same object returns `AlreadyOpen`; a competing session or direct read returns `ResourceBusy`. Explicit `close()` reports restoration failures and retains ownership when restoration can be retried. It also waits for active Session calls; if formatter code tries to close its own Session operation, that nested `close()` returns `ResourceBusy` without changing the open state.
+Only one managed owner may consume stdin at a time. Re-opening the same object returns `AlreadyOpen`; a competing session or direct read returns
+`ResourceBusy`. Explicit `close()` reports restoration failures and retains ownership when restoration can be retried. It also waits for active
+Session calls; if formatter code tries to close its own Session operation, that nested `close()` returns `ResourceBusy` without changing the open
+state.
 
 ## Structured event input
 
@@ -136,7 +144,8 @@ if (event.status.ok() && event.outcome == Types::Input::ReadOutcome::Completed)
 const auto closeStatus = session.close();
 ```
 
-Real Win32 consoles deliver key and resize events through native `INPUT_RECORD`. Mouse records are intentionally ignored today, but the backend dispatcher keeps a separate mouse branch so a future portable mouse contract can be added without redesigning the reader.
+Real Win32 consoles deliver key and resize events through native `INPUT_RECORD`. Mouse records are intentionally ignored today, but the backend
+dispatcher keeps a separate mouse branch so a future portable mouse contract can be added without redesigning the reader.
 
 ## Capability-aware styling
 
@@ -155,9 +164,12 @@ const auto status = writeLine("ready", options);
 
 ## Failure handling
 
-Expected validation, detached-stream, unsupported-operation, encoding, timeout, and backend failures use IO status/result types. Check the status before relying on payload fields.
+Expected validation, detached-stream, unsupported-operation, encoding, timeout, and backend failures use IO status/result types. Check the status
+before relying on payload fields.
 
-Checked Terminal operations contain failures from Terminal-owned allocation, formatting, conversion, and backend work. `OutputBuffer` allocating mutations/formatting and the complete Session lifecycle/input/output/control surface use status-returning non-throwing contracts. Caller-owned argument construction that occurs before Terminal receives control remains ordinary C++ behavior.
+Checked Terminal operations contain failures from Terminal-owned allocation, formatting, conversion, and backend work. `OutputBuffer` allocating
+mutations/formatting and the complete Session lifecycle/input/output/control surface use status-returning non-throwing contracts. Caller-owned
+argument construction that occurs before Terminal receives control remains ordinary C++ behavior.
 
 ## Where to go next
 
@@ -165,5 +177,6 @@ Checked Terminal operations contain failures from Terminal-owned allocation, for
 - @ref terminal_read_write owns read, write, buffering, exception, and concurrency contracts.
 - @ref terminal_capabilities_and_redirection explains endpoint-dependent behavior.
 - @ref terminal_styling and @ref terminal_segmented_writes cover styled and batched output.
-- @ref terminal_input_modes covers persistent managed input ownership and session restoration; @ref terminal_control_primitives covers output control state.
+- @ref terminal_input_modes covers persistent managed input ownership and session restoration; @ref terminal_control_primitives covers output control
+  state.
 - @ref terminal_examples contains complete integration examples.

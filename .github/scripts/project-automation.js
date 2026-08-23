@@ -29,9 +29,7 @@ function deriveIssueStatus(issue, activeMilestone) {
     }
 
     const openPullRequests = issue.linkedPullRequests.filter((pullRequest) => pullRequest.state === 'OPEN');
-    const reviewablePullRequest = openPullRequests.some(
-        (pullRequest) => !pullRequest.isDraft && pullRequest.reviewDecision !== 'CHANGES_REQUESTED',
-    );
+    const reviewablePullRequest = openPullRequests.some((pullRequest) => !pullRequest.isDraft && pullRequest.reviewDecision !== 'CHANGES_REQUESTED');
     if (reviewablePullRequest) {
         return STATUS.REVIEW;
     }
@@ -76,9 +74,7 @@ function mergeLinkedIssueMetadata(linkedIssues, author) {
         }
     }
 
-    const selectedPriority = [...priorities].sort(
-        (left, right) => (PRIORITY_ORDER[right] ?? 0) - (PRIORITY_ORDER[left] ?? 0),
-    )[0];
+    const selectedPriority = [...priorities].sort((left, right) => (PRIORITY_ORDER[right] ?? 0) - (PRIORITY_ORDER[left] ?? 0))[0];
     if (selectedPriority !== undefined) {
         labels.add(selectedPriority);
     }
@@ -99,11 +95,11 @@ function splitRepository(nameWithOwner) {
     if (!owner || !repository) {
         throw new Error(`Invalid repository name: ${nameWithOwner}`);
     }
-    return {owner, repository};
+    return { owner, repository };
 }
 
 class ProjectAutomation {
-    constructor({github, core, config}) {
+    constructor({ github, core, config }) {
         this.github = github;
         this.core = core;
         this.config = config;
@@ -130,7 +126,7 @@ class ProjectAutomation {
                     }
                 }
             }`,
-            {owner: this.config.projectOwner, number: this.config.projectNumber},
+            { owner: this.config.projectOwner, number: this.config.projectNumber },
         );
 
         const project = result.user?.projectV2;
@@ -167,7 +163,7 @@ class ProjectAutomation {
                     item { id }
                 }
             }`,
-            {project: this.project.id, content: contentId},
+            { project: this.project.id, content: contentId },
         );
         return result.addProjectV2ItemById.item.id;
     }
@@ -194,7 +190,7 @@ class ProjectAutomation {
                 },
             );
         }
-        this.records.push({item: displayName, status, reason});
+        this.records.push({ item: displayName, status, reason });
         this.core.info(`${displayName} -> ${status}: ${reason}`);
     }
 
@@ -215,7 +211,7 @@ class ProjectAutomation {
                     }
                 }
             }`,
-            {owner, repository, number},
+            { owner, repository, number },
         );
         const issue = result.repository?.issue;
         if (!issue) {
@@ -259,7 +255,7 @@ class ProjectAutomation {
                     }
                 }
             }`,
-            {owner, repository, number},
+            { owner, repository, number },
         );
         const pullRequest = result.repository?.pullRequest;
         if (!pullRequest) {
@@ -287,16 +283,13 @@ class ProjectAutomation {
     }
 
     async getIssueDependencies(owner, repository, number, relationship) {
-        const response = await this.github.request(
-            `GET /repos/{owner}/{repo}/issues/{issue_number}/dependencies/${relationship}`,
-            {
-                owner,
-                repo: repository,
-                issue_number: number,
-                per_page: 100,
-                headers: {'X-GitHub-Api-Version': '2026-03-10'},
-            },
-        );
+        const response = await this.github.request(`GET /repos/{owner}/{repo}/issues/{issue_number}/dependencies/${relationship}`, {
+            owner,
+            repo: repository,
+            issue_number: number,
+            per_page: 100,
+            headers: { 'X-GitHub-Api-Version': '2026-03-10' },
+        });
         return response.data;
     }
 
@@ -335,55 +328,58 @@ class ProjectAutomation {
         }
 
         if (inherited.milestoneConflict.length > 0) {
-            this.core.warning(
-                `PR #${pullRequest.number} links issues with conflicting milestones: ${inherited.milestoneConflict.join(', ')}.`,
-            );
-        } else if (
-            inherited.milestone !== null &&
-            pullRequest.milestone !== null &&
-            inherited.milestone.number !== pullRequest.milestone.number
-        ) {
+            this.core.warning(`PR #${pullRequest.number} links issues with conflicting milestones: ${inherited.milestoneConflict.join(', ')}.`);
+        } else if (inherited.milestone !== null && pullRequest.milestone !== null && inherited.milestone.number !== pullRequest.milestone.number) {
             this.core.warning(
                 `PR #${pullRequest.number} keeps its existing milestone '${pullRequest.milestone.title}' instead of replacing it with '${inherited.milestone.title}'.`,
             );
         }
     }
 
-    async reconcileIssue(owner, repository, number, {synchronizePullRequests = true} = {}) {
+    async reconcileIssue(owner, repository, number, { synchronizePullRequests = true } = {}) {
         const issue = await this.getIssue(owner, repository, number);
         const blockers = await this.getIssueDependencies(owner, repository, number, 'blocked_by');
         const openBlockers = blockers.filter((blocker) => blocker.state === 'open');
-        const status = deriveIssueStatus({...issue, openBlockerCount: openBlockers.length}, this.config.activeMilestone);
+        const status = deriveIssueStatus({ ...issue, openBlockerCount: openBlockers.length }, this.config.activeMilestone);
 
         let reason = 'not yet ready for the active milestone';
-        if (status === STATUS.DONE) reason = 'issue is closed';
-        else if (status === STATUS.BLOCKED) reason = `${openBlockers.length} blocking issue(s) remain open`;
-        else if (status === STATUS.REVIEW) reason = 'a linked pull request is ready for review';
-        else if (status === STATUS.IN_PROGRESS) reason = 'the issue is assigned or has an active draft pull request';
-        else if (status === STATUS.READY) reason = 'active milestone metadata is complete and no blockers remain';
+        if (status === STATUS.DONE) {
+            reason = 'issue is closed';
+        } else if (status === STATUS.BLOCKED) {
+            reason = `${openBlockers.length} blocking issue(s) remain open`;
+        } else if (status === STATUS.REVIEW) {
+            reason = 'a linked pull request is ready for review';
+        } else if (status === STATUS.IN_PROGRESS) {
+            reason = 'the issue is assigned or has an active draft pull request';
+        } else if (status === STATUS.READY) {
+            reason = 'active milestone metadata is complete and no blockers remain';
+        }
 
         await this.setStatus(issue.id, `Issue #${number}`, status, reason);
 
         if (synchronizePullRequests) {
             for (const pullRequest of issue.linkedPullRequests.filter((candidate) => candidate.state === 'OPEN')) {
-                await this.reconcilePullRequest(owner, repository, pullRequest.number, {synchronizeIssues: false});
+                await this.reconcilePullRequest(owner, repository, pullRequest.number, { synchronizeIssues: false });
             }
         }
     }
 
-    async reconcilePullRequest(owner, repository, number, {synchronizeIssues = true} = {}) {
+    async reconcilePullRequest(owner, repository, number, { synchronizeIssues = true } = {}) {
         const pullRequest = await this.getPullRequest(owner, repository, number);
         await this.synchronizePullRequestMetadata(owner, repository, pullRequest);
 
         const status = derivePullRequestStatus(pullRequest);
         let reason = 'pull request is ready for review';
-        if (status === STATUS.DONE) reason = 'pull request is closed or merged';
-        else if (status === STATUS.IN_PROGRESS) reason = 'pull request is draft or has requested changes';
+        if (status === STATUS.DONE) {
+            reason = 'pull request is closed or merged';
+        } else if (status === STATUS.IN_PROGRESS) {
+            reason = 'pull request is draft or has requested changes';
+        }
         await this.setStatus(pullRequest.id, `PR #${number}`, status, reason);
 
         if (synchronizeIssues) {
             for (const issue of pullRequest.linkedIssues) {
-                await this.reconcileIssue(owner, repository, issue.number, {synchronizePullRequests: false});
+                await this.reconcileIssue(owner, repository, issue.number, { synchronizePullRequests: false });
             }
         }
     }
@@ -416,7 +412,7 @@ class ProjectAutomation {
                         }
                     }
                 }`,
-                {project: this.project.id, cursor},
+                { project: this.project.id, cursor },
             );
             const page = result.node.items;
             items.push(...page.nodes.map((node) => node.content).filter(Boolean));
@@ -431,11 +427,11 @@ class ProjectAutomation {
             if (item.repository.nameWithOwner !== this.config.repository) {
                 continue;
             }
-            const {owner, repository} = splitRepository(item.repository.nameWithOwner);
+            const { owner, repository } = splitRepository(item.repository.nameWithOwner);
             if (item.__typename === 'Issue') {
-                await this.reconcileIssue(owner, repository, item.number, {synchronizePullRequests: false});
+                await this.reconcileIssue(owner, repository, item.number, { synchronizePullRequests: false });
             } else if (item.__typename === 'PullRequest') {
-                await this.reconcilePullRequest(owner, repository, item.number, {synchronizeIssues: false});
+                await this.reconcilePullRequest(owner, repository, item.number, { synchronizeIssues: false });
             }
         }
     }
@@ -474,12 +470,12 @@ function isPullRequestIssueEvent(context) {
     return context.eventName === 'issues' && Boolean(context.payload.issue?.pull_request);
 }
 
-async function run({github, context, core, environment = process.env}) {
+async function run({ github, context, core, environment = process.env }) {
     const config = readConfig(context, environment);
-    const automation = new ProjectAutomation({github, core, config});
+    const automation = new ProjectAutomation({ github, core, config });
     await automation.initialize();
 
-    const {owner, repository} = splitRepository(config.repository);
+    const { owner, repository } = splitRepository(config.repository);
     if (context.eventName === 'issues') {
         const number = context.payload.issue.number;
         if (isPullRequestIssueEvent(context)) {

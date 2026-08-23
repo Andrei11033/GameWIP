@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "GameWIP project tool registry",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "tools"],
+  "properties": {
+    "schemaVersion": { "const": 1, "description": "Registry schema version." },
+    "tools": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/tool" } }
+  },
+  "$defs": {
+    "tool": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "category", "provider", "versionPolicy", "detection", "capabilities", "references"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+        "name": { "type": "string", "minLength": 1 },
+        "category": { "type": "string", "minLength": 1 },
+        "provider": { "$ref": "#/$defs/provider" },
+        "versionPolicy": { "enum": ["exact", "minimum", "managed", "informational"] },
+        "requiredVersion": { "type": "string", "minLength": 1 },
+        "detection": { "$ref": "#/$defs/detection" },
+        "capabilities": { "$ref": "#/$defs/capabilities" },
+        "references": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true }
+      },
+      "allOf": [{ "if": { "properties": { "versionPolicy": { "enum": ["exact", "minimum"] } } }, "then": { "required": ["requiredVersion"] } }]
+    },
+    "provider": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind"],
+      "properties": {
+        "kind": { "enum": ["msys2", "npm", "python", "powershellGallery", "githubRelease", "winget", "gitSubmodule", "external"] },
+        "package": { "type": "string", "minLength": 1 },
+        "repository": { "type": "string", "minLength": 1 },
+        "path": { "type": "string", "minLength": 1 },
+        "homepage": { "type": "string", "format": "uri" },
+        "archiveName": { "type": "string", "minLength": 1 },
+        "dependencies": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/providerPackage" },
+          "uniqueItems": true
+        },
+        "assets": { "type": "object", "additionalProperties": { "$ref": "#/$defs/asset" } }
+      }
+    },
+    "providerPackage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["package", "version"],
+      "properties": {
+        "package": { "type": "string", "minLength": 1 },
+        "version": { "type": "string", "minLength": 1 }
+      }
+    },
+    "asset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["archive", "sha256"],
+      "properties": {
+        "archive": { "type": "string", "minLength": 1 },
+        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "format": { "enum": ["archive", "executable"] }
+      }
+    },
+    "detection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["command", "versionArguments", "versionPattern"],
+      "properties": {
+        "command": { "type": "string", "minLength": 1 },
+        "versionArguments": { "type": "array", "items": { "type": "string" } },
+        "versionPattern": { "type": "string", "minLength": 1 }
+      }
+    },
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["detectInstalled", "checkLatest", "update"],
+      "properties": { "detectInstalled": { "type": "boolean" }, "checkLatest": { "type": "boolean" }, "update": { "type": "boolean" } }
+    }
+  }
+}

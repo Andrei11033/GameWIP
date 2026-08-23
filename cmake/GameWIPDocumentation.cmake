@@ -1,9 +1,7 @@
 if(GAMEWIP_BUILD_DOCS)
     find_package(Doxygen QUIET)
     if(NOT DOXYGEN_FOUND)
-        message(FATAL_ERROR
-            "GAMEWIP_BUILD_DOCS is ON, but Doxygen was not found. Install Doxygen or disable documentation."
-        )
+        message(FATAL_ERROR "GAMEWIP_BUILD_DOCS is ON, but Doxygen was not found. Install Doxygen or disable documentation.")
     endif()
 
     include(LibraryDoxygen)
@@ -23,6 +21,7 @@ if(GAMEWIP_BUILD_DOCS)
         "${GAMEWIP_DOXYGEN_ROOT}/project_planning.md"
         "${GAMEWIP_DOXYGEN_ROOT}/project_structure.md"
         "${GAMEWIP_DOXYGEN_ROOT}/command_line_tools.md"
+        "${GAMEWIP_DOXYGEN_ROOT}/project_tools.md"
         "${GAMEWIP_DOXYGEN_ROOT}/game_executable.md"
         "${GAMEWIP_DOXYGEN_ROOT}/build.md"
         "${GAMEWIP_DOXYGEN_ROOT}/library_compatibility.md"
@@ -45,7 +44,6 @@ if(GAMEWIP_BUILD_DOCS)
         "${PROJECT_SOURCE_DIR}/docs/roadmap.md"
         "${PROJECT_SOURCE_DIR}/docs/versioning.md"
         "${PROJECT_SOURCE_DIR}/docs/vision.md"
-
         # Executable-owned source interfaces are documented for contributors and
         # maintainers. They are not installed consumer APIs.
         "${PROJECT_SOURCE_DIR}/game/runtime/game.h"

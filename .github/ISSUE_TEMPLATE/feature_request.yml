@@ -1,9 +1,9 @@
 name: Feature request
 description: Propose a new capability, workflow, or design improvement.
-title: "feature: "
+title: 'feature: '
 labels:
-  - "type:feature"
-  - "priority:normal"
+  - 'type:feature'
+  - 'priority:normal'
 body:
   - type: markdown
     attributes:

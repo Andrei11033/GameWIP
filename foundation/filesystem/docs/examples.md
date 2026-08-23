@@ -238,7 +238,8 @@ GameWIP::IO::Types::Status buildSavePath()
 
 ## Whole-file lock ownership
 
-Because `FileLock` deliberately deletes move assignment, APIs that transfer a lock should return it or construct the destination directly. A practical ownership pattern is:
+Because `FileLock` deliberately deletes move assignment, APIs that transfer a lock should return it or construct the destination directly. A practical
+ownership pattern is:
 
 ```cpp
 #include "filesystem/filesystem.h"

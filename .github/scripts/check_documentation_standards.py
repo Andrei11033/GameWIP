@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 import sys
 from collections import defaultdict
@@ -82,6 +83,7 @@ PROJECT_MANUAL_SIDEBAR = (
     "project_structure",
     "project_build",
     "project_command_line_tools",
+    "project_tools",
     "project_game_executable",
     "project_validation",
     "project_testing",
@@ -100,11 +102,7 @@ def relative(path: Path) -> str:
 def maintained_manual_files() -> list[Path]:
     files: list[Path] = []
     for root in (ROOT / "docs", ROOT / "foundation", ROOT / "engine", ROOT / "tools"):
-        files.extend(
-            path
-            for path in root.rglob("*.md")
-            if "releases" not in path.relative_to(ROOT).parts
-        )
+        files.extend(path for path in root.rglob("*.md") if "releases" not in path.relative_to(ROOT).parts)
     return sorted(files)
 
 
@@ -127,10 +125,7 @@ def check_page_graph(files: list[Path], errors: list[str]) -> None:
         page_declarations = list(PAGE_PATTERN.finditer(text))
         expected_page_count = 0 if path == mainpage_path else 1
         if len(page_declarations) != expected_page_count:
-            errors.append(
-                f"manual file must declare exactly {expected_page_count} @page entries; "
-                f"found {len(page_declarations)} ({relative(path)})"
-            )
+            errors.append(f"manual file must declare exactly {expected_page_count} @page entries; found {len(page_declarations)} ({relative(path)})")
         if path == mainpage_path and not re.search(r"^#\s+\S", text):
             errors.append(f"developer manual main page must start with one Markdown title ({relative(path)})")
 
@@ -138,9 +133,7 @@ def check_page_graph(files: list[Path], errors: list[str]) -> None:
             page_id, title = match.groups()
             previous = page_owners.get(page_id)
             if previous:
-                errors.append(
-                    f"duplicate Doxygen page ID `{page_id}` in {relative(previous)} and {relative(path)}"
-                )
+                errors.append(f"duplicate Doxygen page ID `{page_id}` in {relative(previous)} and {relative(path)}")
             else:
                 page_owners[page_id] = path
             if not title[0].isupper():
@@ -159,25 +152,17 @@ def check_page_graph(files: list[Path], errors: list[str]) -> None:
     for page_id, path in sorted(page_owners.items()):
         owner_count = len(parents.get(page_id, set()))
         if owner_count != 1:
-            errors.append(
-                f"manual page `{page_id}` must have exactly one sidebar parent; found {owner_count} ({relative(path)})"
-            )
+            errors.append(f"manual page `{page_id}` must have exactly one sidebar parent; found {owner_count} ({relative(path)})")
 
 
 def check_sidebar_order(errors: list[str]) -> None:
     index_children = declared_subpages(ROOT / "docs/doxygen/index.md")
     if index_children != TOP_LEVEL_SIDEBAR:
-        errors.append(
-            "developer-manual top-level sidebar order changed; expected "
-            + ", ".join(TOP_LEVEL_SIDEBAR)
-        )
+        errors.append("developer-manual top-level sidebar order changed; expected " + ", ".join(TOP_LEVEL_SIDEBAR))
 
     manual_children = declared_subpages(ROOT / "docs/doxygen/project_manual.md")
     if manual_children != PROJECT_MANUAL_SIDEBAR:
-        errors.append(
-            "project-manual sidebar order changed; expected "
-            + ", ".join(PROJECT_MANUAL_SIDEBAR)
-        )
+        errors.append("project-manual sidebar order changed; expected " + ", ".join(PROJECT_MANUAL_SIDEBAR))
 
 
 def check_project_registration(errors: list[str]) -> None:
@@ -205,9 +190,7 @@ def check_library_child_titles(errors: list[str]) -> None:
                 continue
             title = match.group(2)
             if title.startswith(f"{library_name} "):
-                errors.append(
-                    f"library child title repeats its sidebar parent in {relative(path)}: `{title}`"
-                )
+                errors.append(f"library child title repeats its sidebar parent in {relative(path)}: `{title}`")
 
 
 def check_required_library_docs(errors: list[str]) -> None:
@@ -220,31 +203,19 @@ def check_required_library_docs(errors: list[str]) -> None:
 
         landing_path = ROOT / root / landing_name
         if landing_path.is_file():
-            headings = set(
-                re.findall(r"^##\s+(.+?)\s*$", manual_markup(landing_path), re.MULTILINE)
-            )
+            headings = set(re.findall(r"^##\s+(.+?)\s*$", manual_markup(landing_path), re.MULTILINE))
             for heading in REQUIRED_LANDING_HEADINGS:
                 if heading not in headings:
-                    errors.append(
-                        f"library landing page lacks required `{heading}` section: "
-                        f"{relative(landing_path)}"
-                    )
+                    errors.append(f"library landing page lacks required `{heading}` section: {relative(landing_path)}")
 
         quick_start_path = ROOT / root / "quick_start.md"
         if quick_start_path.is_file():
-            headings = set(
-                re.findall(r"^##\s+(.+?)\s*$", manual_markup(quick_start_path), re.MULTILINE)
-            )
+            headings = set(re.findall(r"^##\s+(.+?)\s*$", manual_markup(quick_start_path), re.MULTILINE))
             for heading in REQUIRED_QUICK_START_HEADINGS:
                 if heading not in headings:
-                    errors.append(
-                        f"library quick start lacks required `{heading}` section: "
-                        f"{relative(quick_start_path)}"
-                    )
+                    errors.append(f"library quick start lacks required `{heading}` section: {relative(quick_start_path)}")
             if not any(heading.startswith("Minimal") for heading in headings):
-                errors.append(
-                    f"library quick start lacks a minimal-usage section: {relative(quick_start_path)}"
-                )
+                errors.append(f"library quick start lacks a minimal-usage section: {relative(quick_start_path)}")
 
 
 def check_source_file_headers(errors: list[str]) -> None:
@@ -254,9 +225,7 @@ def check_source_file_headers(errors: list[str]) -> None:
                 continue
             header = "\n".join(path.read_text(encoding="utf-8").splitlines()[:12])
             if "@file" not in header or "@brief" not in header:
-                errors.append(
-                    f"documented source lacks leading @file/@brief ownership: {relative(path)}"
-                )
+                errors.append(f"documented source lacks leading @file/@brief ownership: {relative(path)}")
 
 
 def check_command_catalog_documentation(errors: list[str]) -> None:
@@ -266,14 +235,10 @@ def check_command_catalog_documentation(errors: list[str]) -> None:
     if action_match is None:
         errors.append(f"could not read the project-helper action catalog: {relative(helper_path)}")
     else:
-        command_page = (ROOT / "docs/doxygen/command_line_tools.md").read_text(
-            encoding="utf-8"
-        )
+        command_page = (ROOT / "docs/doxygen/command_line_tools.md").read_text(encoding="utf-8")
         for action in re.findall(r"'([^']+)'", action_match.group("values")):
             if f"| `{action}` |" not in command_page:
-                errors.append(
-                    f"project-helper action `{action}` is absent from the command reference"
-                )
+                errors.append(f"project-helper action `{action}` is absent from the command reference")
         parameter_block = helper_text.split(")\n\nSet-StrictMode", maxsplit=1)[0]
         parameter_names = re.findall(
             r"^\s*\[(?:string|int|string\[\]|switch)\]\$(\w+)",
@@ -284,16 +249,12 @@ def check_command_catalog_documentation(errors: list[str]) -> None:
             if parameter == "Action":
                 continue
             if f"-{parameter}" not in command_page:
-                errors.append(
-                    f"project-helper option `-{parameter}` is absent from the command reference"
-                )
+                errors.append(f"project-helper option `-{parameter}` is absent from the command reference")
 
-    setup_config_path = ROOT / "scripts/setup/config/actions.psd1"
-    setup_config = setup_config_path.read_text(encoding="utf-8")
-    setup_manual = (ROOT / "docs/doxygen/environment_setup.md").read_text(
-        encoding="utf-8"
-    )
-    for action in re.findall(r"\bId\s*=\s*'([^']+)'", setup_config):
+    setup_config_path = ROOT / "scripts/setup/config/setup.json"
+    setup_config = json.loads(setup_config_path.read_text(encoding="utf-8"))
+    setup_manual = (ROOT / "docs/doxygen/environment_setup.md").read_text(encoding="utf-8")
+    for action in (entry["id"] for entry in setup_config["actions"]):
         marker = "`setup.bat` or `setup.bat menu`" if action == "menu" else f"`setup.bat {action}`"
         if marker not in setup_manual:
             errors.append(f"setup action `{action}` is absent from the environment manual")

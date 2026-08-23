@@ -23,7 +23,7 @@ From the repository root:
 
 Visual Studio Code is the default and recommended editor. Visual Studio is an
 optional additional IDE; it is neither installed nor required unless selected.
-The per-checkout choice is stored in ignored `.gamewip-setup.json`. Delete that
+The per-checkout choice is stored in ignored `build/gamewip/state/editor-selection.json`. Delete that
 file or run the editor action to choose again.
 
 The reproducible compiler environment is MSYS2: UCRT64 GCC drives normal
@@ -46,7 +46,7 @@ Menu and consent choices take effect on one keypress; Enter is not required.
 | `7` | Initialize pinned submodules and configure `dev`. |
 | `8` | Install common machine tools. |
 | `9` | Build the manual, reject warnings, and open it in the default browser. |
-| `0` | Rebuild the pinned Tracy tools under `.tracy`. |
+| `0` | Rebuild the pinned Tracy tools under `C:\MSYS2\GameWIPTools\tools\tracy`. |
 | `U` | Remove GameWIP-owned integrations and software installed by setup. |
 | `Esc` | Exit. |
 
@@ -139,12 +139,12 @@ owned by @ref project_command_line_tools.
 repository-local project commands, streams native output live, helps assemble
 validation executable arguments, reports stress-run progress, offers follow-up
 actions after configure and build steps, and stores run logs under
-`build/tool-runs/<timestamp>_<action>/`. Setup actions use the same run layout.
+`build/gamewip/runs/<timestamp>_<action>/`. Setup actions use the same run layout.
 Each run has dedicated `logs/` and `artifacts/` directories plus human-readable,
 JSON, and manifest summaries. Its interactive selections use one keypress with Enter for
 defaults, matching the setup menu style. When a project command fails, the tool
 prints the failed action, retained log location, and focused next-step guidance.
-The command catalog lives in `scripts/config/gamewip-commands.psd1` so project
+The command catalog lives in schema-validated `scripts/config/commands.json` so project
 commands and bundles can be extended without turning the helper into a generic
 shell launcher.
 
@@ -200,7 +200,7 @@ Complete setup prepares these project requirements:
 - The selected editors: VS Code integration by default, optional Visual Studio
   Community through `.vsconfig`, or both.
 - The configured `dev` tree and warning-free generated manual.
-- The six Tracy tools and required UCRT runtime DLLs under `.tracy`.
+- The six Tracy tools and required UCRT runtime DLLs under `C:\MSYS2\GameWIPTools\tools\tracy`.
 
 Every external command is printed before execution, its native output remains
 visible, and successful exit codes are reported. Complete actions print their
@@ -286,9 +286,9 @@ manually.
 ## Tracy and documentation outputs
 
 Tracy builds use the pinned source under `external/tracy`, UCRT64 GCC/Ninja,
-and clean generated trees under `build/setup/tracy/ucrt64`. All six executables
+and clean generated trees under `build/gamewip/cache/tracy/ucrt64`. All six executables
 and discovered UCRT DLL dependencies are collected under
-`build/setup/tracy/stage`. Only a complete verified set replaces `.tracy`, so a
+`build/gamewip/temp/<operation-id>/tracy-stage`. Only a complete verified set replaces `C:\MSYS2\GameWIPTools\tools\tracy`, so a
 failed rebuild leaves the previous tools intact. See @ref project_profiling for
 the capture workflow and executable list.
 
@@ -300,13 +300,12 @@ setup, repair, and update build the same manual without opening a browser.
 
 Declarative requirements live under `scripts/setup/config/`:
 
-- `actions.psd1` owns action names, menu keys, descriptions, and machine-change classification.
-- `tools.psd1` owns ordinary machine tools.
-- `msys2-packages.psd1` owns project-required pacman packages.
-- `editors.psd1` owns selectable editors, display keys, packages, and handlers.
+- `setup.json` owns action names, menu keys, descriptions, machine-change classification, and project-required package groups.
+- `editors.json` owns selectable editors, display keys, packages, and handlers.
+- `scripts/config/project-tools.json` owns project-tool providers and version policy shared with the project helper.
 
 Add reusable operations under `scripts/setup/lib/`, declare their user-facing
-action metadata in `actions.psd1`, and register a focused stage in
+action metadata in `setup.json`, and register a focused stage in
 `scripts/setup/windows.ps1`. A new editor normally requires one config
 entry and one handler. Keep stages rerunnable, explicit about external changes,
 and verification-driven.

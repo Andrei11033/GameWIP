@@ -13,7 +13,8 @@ Window exposes one public `GameWIP::Window::Types` tree and focused headers by c
 - `window/events.h` contains `Types::Events`, queued `Types::Event`, and calling-thread `Window::Events` pump operations.
 - `window/display.h` contains fundamental `Types::Display::MonitorId`, display `Mode`, and mode queries.
 - `window/display_info.h` is the opt-in rich monitor/color inspection surface.
-- `window/window.h` assembles the normal Window object API and includes the fundamental headers above, but not rich display inspection, renderer integration, or native interop.
+- `window/window.h` assembles the normal Window object API and includes the fundamental headers above, but not rich display inspection, renderer
+  integration, or native interop.
 - `window/renderer_bridge.h` is the opt-in renderer feedback bridge.
 - `window/native/win32.h` is explicit Win32 interoperability.
 
@@ -21,27 +22,36 @@ Passive data stays under `Types`; stateless domain operations live in the matchi
 
 ## Library and Window capabilities
 
-`getCapabilities()` and `supports()` report backend/environment capability. `Window::supports()` has the same capability semantics; it does not report whether a renderer provider is currently attached. Renderer attachment state is queried with `Renderer::hasOcclusionProvider()`.
+`getCapabilities()` and `supports()` report backend/environment capability. `Window::supports()` has the same capability semantics; it does not report
+whether a renderer provider is currently attached. Renderer attachment state is queried with `Renderer::hasOcclusionProvider()`.
 
 ## Window ownership and state
 
-`Window` is default-constructible, non-copyable, and non-movable. `open()` establishes one owner thread and one process-local `Types::WindowId`. `WindowId::isValid()` reports whether an ID is nonzero. Except `wakeEventWait()`, open-object operations require the owner thread.
+`Window` is default-constructible, non-copyable, and non-movable. `open()` establishes one owner thread and one process-local `Types::WindowId`.
+`WindowId::isValid()` reports whether an ID is nonzero. Except `wakeEventWait()`, open-object operations require the owner thread.
 
-Cached getters do not issue native queries. Expected failures are returned as `IO::Types::Status` or typed result structs. Explicit `close()` is synchronous and observable through its return status.
+Cached getters do not issue native queries. Expected failures are returned as `IO::Types::Status` or typed result structs. Explicit `close()` is
+synchronous and observable through its return status.
 
-`hasCloseRequest()` reports sticky close intent. `requestClose()` queues one `Types::Events::CloseRequested` transition and `clearCloseRequest()` clears the sticky flag.
+`hasCloseRequest()` reports sticky close intent. `requestClose()` queues one `Types::Events::CloseRequested` transition and `clearCloseRequest()`
+clears the sticky flag.
 
 ## Configuration vocabulary
 
-`Types::Mode` is the top-level Window mode. `Types::Controls` describes standard close/minimize/maximize availability. `Types::Description::fileDropEnabled` configures initial file-drop delivery; runtime state is queried by `Window::isFileDropEnabled()` and changed by `setFileDropEnabled()`.
+`Types::Mode` is the top-level Window mode. `Types::Controls` describes standard close/minimize/maximize availability.
+`Types::Description::fileDropEnabled` configures initial file-drop delivery; runtime state is queried by `Window::isFileDropEnabled()` and changed by
+`setFileDropEnabled()`.
 
-Configuration/request types live with `description.h`; shared primitive values remain in `types.h`; live Window state and call-scoped layouts remain in `window.h`.
+Configuration/request types live with `description.h`; shared primitive values remain in `types.h`; live Window state and call-scoped layouts remain
+in `window.h`.
 
 ## Events
 
-Event payloads live under `Types::Events` and do not repeat the `Event` suffix. Examples are `CloseRequested`, `ClientPositionChanged`, `FilesDropped`, and `NativeDestroyed`.
+Event payloads live under `Types::Events` and do not repeat the `Event` suffix. Examples are `CloseRequested`, `ClientPositionChanged`,
+`FilesDropped`, and `NativeDestroyed`.
 
-`Types::Events::Payload` is the payload variant. `Types::Event` remains the queued envelope and carries a monotonic sequence plus typed `getIf<T>()` access. Queue metadata lives in `Types::Events::StorageKind` and `QueueInfo`; pump results use `Types::Events::PumpResult`.
+`Types::Events::Payload` is the payload variant. `Types::Event` remains the queued envelope and carries a monotonic sequence plus typed `getIf<T>()`
+access. Queue metadata lives in `Types::Events::StorageKind` and `QueueInfo`; pump results use `Types::Events::PumpResult`.
 
 Calling-thread pumping is grouped under `Window::Events`:
 
@@ -49,7 +59,8 @@ Calling-thread pumping is grouped under `Window::Events`:
 - `Events::wait(timeout)` accepts zero, a finite non-negative timeout, or `Events::kWaitForever`.
 - `Events::kDefaultQueueCapacity` is used by the default `Window::open()` overload.
 
-Explicit `close()` emits no destruction event. Unexpected native destruction queues `Types::Events::NativeDestroyed`, changes `lifetimeState()` to `NativeDestroyedPendingFinalize`, and keeps cached state and queued events available until controlled finalization.
+Explicit `close()` emits no destruction event. Unexpected native destruction queues `Types::Events::NativeDestroyed`, changes `lifetimeState()` to
+`NativeDestroyedPendingFinalize`, and keeps cached state and queued events available until controlled finalization.
 
 ## Displays
 
@@ -71,8 +82,10 @@ OS HDR/WCG/color facts belong to Window display inspection, not to the renderer 
 
 ## Text contract
 
-Public Window text is UTF-8. Window uses the Unicode foundation library for strict UTF-8/UTF-16 conversion at native boundaries rather than maintaining a second UTF-8 decoder. Native title operations additionally reject embedded U+0000 because the Win32 APIs consume NUL-terminated strings.
+Public Window text is UTF-8. Window uses the Unicode foundation library for strict UTF-8/UTF-16 conversion at native boundaries rather than
+maintaining a second UTF-8 decoder. Native title operations additionally reject embedded U+0000 because the Win32 APIs consume NUL-terminated strings.
 
 ## Renderer bridge
 
-`Window::Renderer` contains renderer-to-Window integration behavior only: occlusion-provider attachment/reporting and pointer hit-mask publication. Passive bridge values live under `Window::Types::Renderer`.
+`Window::Renderer` contains renderer-to-Window integration behavior only: occlusion-provider attachment/reporting and pointer hit-mask publication.
+Passive bridge values live under `Window::Types::Renderer`.

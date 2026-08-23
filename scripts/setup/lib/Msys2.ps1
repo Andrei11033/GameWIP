@@ -1,6 +1,6 @@
 Set-StrictMode -Version Latest
 
-function Invoke-Msys2
+function Invoke-GameWipMsys2
 {
     param(
         [Parameter(Mandatory = $true)][string]$MsysRoot,
@@ -13,10 +13,10 @@ function Invoke-Msys2
         throw "MSYS2 bash was not found at $bash."
     }
     $env:CHERE_INVOKING = '1'
-    Invoke-SetupNative -FilePath $bash -ArgumentList @('-lc', $Command) | Out-Null
+    Invoke-GameWipSetupNative -FilePath $bash -ArgumentList @('-lc', $Command) | Out-Null
 }
 
-function Invoke-Msys2PacmanWithRetry
+function Invoke-GameWipMsys2PacmanWithRetry
 {
     param(
         [Parameter(Mandatory = $true)][string]$MsysRoot,
@@ -30,7 +30,7 @@ function Invoke-Msys2PacmanWithRetry
         Write-Host "  pacman attempt $attempt of $MaxAttempts..." -ForegroundColor DarkGray
         try
         {
-            Invoke-Msys2 -MsysRoot $MsysRoot -Command $Command
+            Invoke-GameWipMsys2 -MsysRoot $MsysRoot -Command $Command
             return
         }
         catch
@@ -51,17 +51,17 @@ function Invoke-Msys2PacmanWithRetry
     }
 }
 
-function Test-Msys2Packages
+function Test-GameWipMsys2PackageSet
 {
     param(
         [Parameter(Mandatory = $true)][string]$MsysRoot,
         [Parameter(Mandatory = $true)][string[]]$Packages
     )
 
-    return @(Get-MissingMsys2Packages -MsysRoot $MsysRoot -Packages $Packages).Count -eq 0
+    return @(Get-GameWipMissingMsys2Package -MsysRoot $MsysRoot -Packages $Packages).Count -eq 0
 }
 
-function Get-MissingMsys2Packages
+function Get-GameWipMissingMsys2Package
 {
     param(
         [Parameter(Mandatory = $true)][string]$MsysRoot,
@@ -83,7 +83,7 @@ function Get-MissingMsys2Packages
     return @($Packages | Where-Object { -not $installed.Contains($_) })
 }
 
-function Install-GameWipMsys2Packages
+function Install-GameWipMsys2PackageSet
 {
     param(
         [Parameter(Mandatory = $true)][string]$MsysRoot,
@@ -94,21 +94,21 @@ function Install-GameWipMsys2Packages
     if ($Update)
     {
         Write-Host 'Updating the complete MSYS2 package database and system...'
-        Invoke-Msys2PacmanWithRetry -MsysRoot $MsysRoot -Command 'pacman -Syu --noconfirm'
-        Invoke-Msys2PacmanWithRetry -MsysRoot $MsysRoot -Command 'pacman -Syu --noconfirm'
+        Invoke-GameWipMsys2PacmanWithRetry -MsysRoot $MsysRoot -Command 'pacman -Syu --noconfirm'
+        Invoke-GameWipMsys2PacmanWithRetry -MsysRoot $MsysRoot -Command 'pacman -Syu --noconfirm'
     }
 
     $packages = @($PackageConfig.Common) + @($PackageConfig.Ucrt64) + @($PackageConfig.Clang64)
     $packageArguments = $packages -join ' '
-    Invoke-Msys2PacmanWithRetry -MsysRoot $MsysRoot -Command "pacman --needed --noconfirm -S $packageArguments"
+    Invoke-GameWipMsys2PacmanWithRetry -MsysRoot $MsysRoot -Command "pacman --needed --noconfirm -S $packageArguments"
 
-    if (-not (Test-Msys2Packages -MsysRoot $MsysRoot -Packages $packages))
+    if (-not (Test-GameWipMsys2PackageSet -MsysRoot $MsysRoot -Packages $packages))
     {
         throw 'One or more required MSYS2 packages failed verification.'
     }
 }
 
-function Test-GameWipMsys2Tools
+function Test-GameWipMsys2Toolchain
 {
     param(
         [Parameter(Mandatory = $true)][string]$MsysRoot,

@@ -1,6 +1,7 @@
 @page logger Logger
 
-Logger is the process-wide runtime diagnostics library. Normal logging is asynchronous and filterable; reports are a synchronous emergency path that bypasses queue pressure and runtime filtering.
+Logger is the process-wide runtime diagnostics library. Normal logging is asynchronous and filterable; reports are a synchronous emergency path that
+bypasses queue pressure and runtime filtering.
 
 ## How the library is organized
 
@@ -53,10 +54,14 @@ health types are listed under that namespace in the generated class index.
 
 ## Key behavior
 
-Normal log calls copy retained source/message text before return and place accepted records in the bounded worker queue. Reports synchronously attempt the requested diagnostic through every enabled emergency channel and flush active normal sinks. Reports never drain older asynchronous records; callers that need backlog completion use `flush()` explicitly.
+Normal log calls copy retained source/message text before return and place accepted records in the bounded worker queue. Reports synchronously attempt
+the requested diagnostic through every enabled emergency channel and flush active normal sinks. Reports never drain older asynchronous records;
+callers that need backlog completion use `flush()` explicitly.
 
-Lifecycle and synchronous operations return direct `IO::Types::Status` or a Logger result containing status plus a distinct domain outcome. Asynchronous sink failures are exposed by `getHealth()` rather than mutable process-wide last-operation state.
+Lifecycle and synchronous operations return direct `IO::Types::Status` or a Logger result containing status plus a distinct domain outcome.
+Asynchronous sink failures are exposed by `getHealth()` rather than mutable process-wide last-operation state.
 
 ## Dependency boundary
 
-Installed consumers link `GameWIP::Logger`. IO is public because Logger's public result surface contains IO status types. Terminal is an installed dependency used for console output; FileSystem and Unicode remain private implementation dependencies.
+Installed consumers link `GameWIP::Logger`. IO is public because Logger's public result surface contains IO status types. Terminal is an installed
+dependency used for console output; FileSystem and Unicode remain private implementation dependencies.

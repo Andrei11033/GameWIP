@@ -25,7 +25,9 @@ function(gamewip_register_doxygen_inputs)
             # Register documentation files explicitly instead of passing folders
             # to Doxygen. This avoids accidental recursive crawls through build
             # output, generated HTML, private notes, or future helper folders.
-            file(GLOB doxygen_directory_inputs CONFIGURE_DEPENDS
+            file(
+                GLOB doxygen_directory_inputs
+                CONFIGURE_DEPENDS
                 "${doxygen_input_absolute}/*.h"
                 "${doxygen_input_absolute}/*.hpp"
                 "${doxygen_input_absolute}/*.md"
@@ -37,10 +39,13 @@ function(gamewip_register_doxygen_inputs)
         else()
             get_filename_component(doxygen_input_extension "${doxygen_input_absolute}" EXT)
             string(TOLOWER "${doxygen_input_extension}" doxygen_input_extension_lower)
-            if(NOT doxygen_input_extension_lower STREQUAL ".h"
+            if(
+                NOT doxygen_input_extension_lower STREQUAL ".h"
                 AND NOT doxygen_input_extension_lower STREQUAL ".hpp"
-                AND NOT doxygen_input_extension_lower STREQUAL ".md")
-                message(FATAL_ERROR
+                AND NOT doxygen_input_extension_lower STREQUAL ".md"
+            )
+                message(
+                    FATAL_ERROR
                     "Unsupported Doxygen input '${doxygen_input_absolute}'. "
                     "Register only documented headers and Markdown manual pages."
                 )
@@ -54,18 +59,10 @@ function(gamewip_register_doxygen_library)
     set(options)
     set(one_value_args NAME PAGE_ID)
     set(multi_value_args PUBLIC_HEADERS DOCS)
-    cmake_parse_arguments(LIBRARY_DOXYGEN_LIBRARY
-        "${options}"
-        "${one_value_args}"
-        "${multi_value_args}"
-        ${ARGN}
-    )
+    cmake_parse_arguments(LIBRARY_DOXYGEN_LIBRARY "${options}" "${one_value_args}" "${multi_value_args}" ${ARGN})
 
     if(LIBRARY_DOXYGEN_LIBRARY_UNPARSED_ARGUMENTS)
-        message(FATAL_ERROR
-            "gamewip_register_doxygen_library received unknown arguments: "
-            "${LIBRARY_DOXYGEN_LIBRARY_UNPARSED_ARGUMENTS}"
-        )
+        message(FATAL_ERROR "gamewip_register_doxygen_library received unknown arguments: " "${LIBRARY_DOXYGEN_LIBRARY_UNPARSED_ARGUMENTS}")
     endif()
 
     if(NOT LIBRARY_DOXYGEN_LIBRARY_NAME)
@@ -77,14 +74,16 @@ function(gamewip_register_doxygen_library)
     endif()
 
     if(NOT LIBRARY_DOXYGEN_LIBRARY_DOCS)
-        message(FATAL_ERROR
+        message(
+            FATAL_ERROR
             "gamewip_register_doxygen_library(${LIBRARY_DOXYGEN_LIBRARY_NAME}) "
             "requires DOCS containing ${LIBRARY_DOXYGEN_LIBRARY_PAGE_ID}.md."
         )
     endif()
 
     if(NOT LIBRARY_DOXYGEN_LIBRARY_PUBLIC_HEADERS AND NOT LIBRARY_DOXYGEN_LIBRARY_DOCS)
-        message(FATAL_ERROR
+        message(
+            FATAL_ERROR
             "gamewip_register_doxygen_library(${LIBRARY_DOXYGEN_LIBRARY_NAME}) "
             "must register at least one public header or docs folder."
         )
@@ -106,32 +105,23 @@ function(gamewip_register_doxygen_library)
     endforeach()
 
     if(NOT LIBRARY_DOXYGEN_LIBRARY_LANDING_PAGE_FOUND)
-        message(FATAL_ERROR
+        message(
+            FATAL_ERROR
             "gamewip_register_doxygen_library(${LIBRARY_DOXYGEN_LIBRARY_NAME}) "
             "requires a ${LIBRARY_DOXYGEN_LIBRARY_PAGE_ID}.md landing page."
         )
     endif()
 
-    set_property(GLOBAL APPEND PROPERTY LIBRARY_DOXYGEN_LIBRARIES
-        "${LIBRARY_DOXYGEN_LIBRARY_NAME}:${LIBRARY_DOXYGEN_LIBRARY_PAGE_ID}"
-    )
+    set_property(GLOBAL APPEND PROPERTY LIBRARY_DOXYGEN_LIBRARIES "${LIBRARY_DOXYGEN_LIBRARY_NAME}:${LIBRARY_DOXYGEN_LIBRARY_PAGE_ID}")
 
-    gamewip_register_doxygen_inputs(
-        ${LIBRARY_DOXYGEN_LIBRARY_PUBLIC_HEADERS}
-        ${LIBRARY_DOXYGEN_LIBRARY_DOCS}
-    )
+    gamewip_register_doxygen_inputs(${LIBRARY_DOXYGEN_LIBRARY_PUBLIC_HEADERS} ${LIBRARY_DOXYGEN_LIBRARY_DOCS})
 endfunction()
 
 function(gamewip_create_doxygen_target)
     set(options)
     set(one_value_args MAINPAGE)
     set(multi_value_args)
-    cmake_parse_arguments(LIBRARY_DOXYGEN
-        "${options}"
-        "${one_value_args}"
-        "${multi_value_args}"
-        ${ARGN}
-    )
+    cmake_parse_arguments(LIBRARY_DOXYGEN "${options}" "${one_value_args}" "${multi_value_args}" ${ARGN})
 
     if(NOT LIBRARY_DOXYGEN_MAINPAGE)
         message(FATAL_ERROR "gamewip_create_doxygen_target requires MAINPAGE.")
@@ -161,27 +151,19 @@ function(gamewip_create_doxygen_target)
     set(LIBRARY_DOXYGEN_WARNING_LOG "${LIBRARY_DOXYGEN_OUTPUT_DIR}/doxygen_warnings.log")
     set(LIBRARY_DOXYGEN_VERSION_FILE "${CMAKE_CURRENT_BINARY_DIR}/DoxyfileVersion")
 
-    configure_file(
-        "${CMAKE_CURRENT_SOURCE_DIR}/docs/doxygen/Doxyfile.in"
-        "${CMAKE_CURRENT_BINARY_DIR}/Doxyfile"
-        @ONLY
-    )
+    configure_file("${CMAKE_CURRENT_SOURCE_DIR}/docs/doxygen/Doxyfile.in" "${CMAKE_CURRENT_BINARY_DIR}/Doxyfile" @ONLY)
 
-    add_custom_target(docs
+    add_custom_target(
+        docs
         COMMAND "${CMAKE_COMMAND}" -E make_directory "${LIBRARY_DOXYGEN_OUTPUT_DIR}"
         COMMAND "${CMAKE_COMMAND}" -E rm -rf "${LIBRARY_DOXYGEN_OUTPUT_DIR}/html"
-        COMMAND "${CMAKE_COMMAND}"
-            "-DSOURCE_DIR=${PROJECT_SOURCE_DIR}"
-            "-DBINARY_DIR=${PROJECT_BINARY_DIR}"
-            "-DPROJECT_VERSION=${PROJECT_VERSION}"
-            "-DOUTPUT_FILE=${LIBRARY_DOXYGEN_VERSION_FILE}"
-            -P "${PROJECT_SOURCE_DIR}/cmake/RefreshDoxygenVersion.cmake"
+        COMMAND
+            "${CMAKE_COMMAND}" "-DSOURCE_DIR=${PROJECT_SOURCE_DIR}" "-DBINARY_DIR=${PROJECT_BINARY_DIR}" "-DPROJECT_VERSION=${PROJECT_VERSION}"
+            "-DOUTPUT_FILE=${LIBRARY_DOXYGEN_VERSION_FILE}" -P "${PROJECT_SOURCE_DIR}/cmake/RefreshDoxygenVersion.cmake"
         COMMAND "${CMAKE_COMMAND}" -E echo "Doxygen input is explicit documented headers + Markdown manual pages only."
         COMMAND "${CMAKE_COMMAND}" -E echo "Generating Doxygen HTML into: ${LIBRARY_DOXYGEN_OUTPUT_DIR}/html"
         COMMAND Doxygen::doxygen "${CMAKE_CURRENT_BINARY_DIR}/Doxyfile"
-        COMMAND "${CMAKE_COMMAND}"
-            "-DWARNING_LOG=${LIBRARY_DOXYGEN_WARNING_LOG}"
-            -P "${PROJECT_SOURCE_DIR}/cmake/RejectDoxygenWarnings.cmake"
+        COMMAND "${CMAKE_COMMAND}" "-DWARNING_LOG=${LIBRARY_DOXYGEN_WARNING_LOG}" -P "${PROJECT_SOURCE_DIR}/cmake/RejectDoxygenWarnings.cmake"
         COMMAND "${CMAKE_COMMAND}" -E echo "Generated Doxygen HTML: ${LIBRARY_DOXYGEN_HTML_INDEX}"
         COMMAND "${CMAKE_COMMAND}" -E echo "Doxygen warnings: ${LIBRARY_DOXYGEN_WARNING_LOG}"
         WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
@@ -190,9 +172,6 @@ function(gamewip_create_doxygen_target)
     )
 
     if(GAMEWIP_INSTALL_DOCS)
-        install(DIRECTORY "${LIBRARY_DOXYGEN_OUTPUT_DIR}/html"
-            DESTINATION "share/doc/Libraries/doxygen"
-            OPTIONAL
-        )
+        install(DIRECTORY "${LIBRARY_DOXYGEN_OUTPUT_DIR}/html" DESTINATION "share/doc/Libraries/doxygen" OPTIONAL)
     endif()
 endfunction()

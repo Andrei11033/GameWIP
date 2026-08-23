@@ -1,6 +1,7 @@
 @page assert_test_hooks Test hooks
 
-@warning Assert test hooks are supported source-tree maintainer interfaces. They are not installed, not consumer API, and not public compatibility promises.
+@warning Assert test hooks are supported source-tree maintainer interfaces. They are not installed, not consumer API, and not public compatibility
+promises.
 
 ## Availability
 
@@ -10,7 +11,8 @@ Enable hooks with:
 -DASSERT_ENABLE_TEST_HOOKS=ON
 ```
 
-Approved source-tree test targets then receive `ASSERT_INTERNAL_TEST_HOOKS=1`. The repository validation preset enables this path for Assert validation.
+Approved source-tree test targets then receive `ASSERT_INTERNAL_TEST_HOOKS=1`. The repository validation preset enables this path for Assert
+validation.
 
 ## Include
 
@@ -24,7 +26,8 @@ The header is under `tools/debug/assert/internal/` and is excluded from installe
 
 ## Reset rule
 
-Call `GameWIP::Debug::Assert::TestHooks::reset()` after every forced scenario. Reset clears one-shot dialog failures and persistent debugger/popup overrides.
+Call `GameWIP::Debug::Assert::TestHooks::reset()` after every forced scenario. Reset clears one-shot dialog failures and persistent debugger/popup
+overrides.
 
 ## Hook groups
 
@@ -62,7 +65,8 @@ TestHooks::reset();
 
 ## Restrictions
 
-Installed consumers and production code must not include internal hook headers or call hook functions. Hook symbols may exist in validation builds only to make rare platform and process-control paths deterministic.
+Installed consumers and production code must not include internal hook headers or call hook functions. Hook symbols may exist in validation builds
+only to make rare platform and process-control paths deterministic.
 
 ## Related pages
 

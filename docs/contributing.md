@@ -36,7 +36,8 @@ Keep `master` readable and releasable. Normal feature work should happen on a sh
 
 Create an issue for work that is not a tiny local cleanup.
 
-GitHub issues are the active task tracker for implementation work, validation work, bugs, and follow-up cleanup. The roadmap defines milestone completion criteria; issues define the work items used to satisfy those criteria.
+GitHub issues are the active task tracker for implementation work, validation work, bugs, and follow-up cleanup. The roadmap defines milestone
+completion criteria; issues define the work items used to satisfy those criteria.
 
 Issue titles use the same compact style as commit and pull-request titles:
 
@@ -64,7 +65,8 @@ priority:*   The scheduling priority.
 
 Prefer one main `area:*` label and one main `type:*` label. Add extra labels only when they clarify ownership or review.
 
-Assign an issue when work starts. Project automation then moves it to `In Progress`; future ideas remain in Backlog, while fully triaged work in the active milestone becomes Ready.
+Assign an issue when work starts. Project automation then moves it to `In Progress`; future ideas remain in Backlog, while fully triaged work in the
+active milestone becomes Ready.
 
 Use GitHub's **Blocked by** relationship for real dependencies. Do not use the Blocked status as a general priority or waiting label.
 
@@ -209,9 +211,11 @@ checklist are documented in @ref project_repository_maintenance.
 
 ## Project automation
 
-Use a closing keyword such as `Closes #6` in the pull request body. The project workflow uses that relationship to copy issue labels, assignees, and a non-conflicting milestone to the pull request, then moves both items through In Progress, Review, and Done.
+Use a closing keyword such as `Closes #6` in the pull request body. The project workflow uses that relationship to copy issue labels, assignees, and a
+non-conflicting milestone to the pull request, then moves both items through In Progress, Review, and Done.
 
-Issue status is derived from closure, **Blocked by** relationships, linked pull requests, assignees, active milestone, and required labels. The complete rule order, repository variables, token requirement, and dry-run command are documented in @ref project_repository_automation.
+Issue status is derived from closure, **Blocked by** relationships, linked pull requests, assignees, active milestone, and required labels. The
+complete rule order, repository variables, token requirement, and dry-run command are documented in @ref project_repository_automation.
 
 ## Finish with a readable merge
 
@@ -225,7 +229,8 @@ After a pull request is merged, delete the feature branch unless more work will 
 
 ## Squash commit messages
 
-This file is the authoritative workflow for squash commit messages. The durable `area: imperative summary` decision is summarized in @ref project_decisions.
+This file is the authoritative workflow for squash commit messages. The durable `area: imperative summary` decision is summarized in @ref
+project_decisions.
 
 Commit title format:
 
@@ -255,7 +260,8 @@ Documentation:
 - Added or changed docs, examples, public API notes, or developer guidance.
 ```
 
-Do not keep GitHub's default `(#123)` suffix if the project history should read like a standalone changelog. Mention the pull request or issue in the body instead when it matters.
+Do not keep GitHub's default `(#123)` suffix if the project history should read like a standalone changelog. Mention the pull request or issue in the
+body instead when it matters.
 
 ## Local sync after merge
 

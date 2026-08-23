@@ -9,9 +9,7 @@
       "args": [],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}\\build\\dev",
-      "environment": [
-        { "name": "PATH", "value": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" }
-      ],
+      "environment": [{ "name": "PATH", "value": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" }],
       "externalConsole": false,
       "MIMode": "gdb",
       "miDebuggerPath": "C:\\MSYS2\\ucrt64\\bin\\gdb.exe",

@@ -1,6 +1,7 @@
 @page unicode_examples Examples
 
-These examples use only the supported public header. Application-specific buffering, replacement, editing, rendering, and platform policy remain with the caller.
+These examples use only the supported public header. Application-specific buffering, replacement, editing, rendering, and platform policy remain with
+the caller.
 
 ## Classify an incremental UTF-8 prefix
 
@@ -33,7 +34,8 @@ PrefixState classifyPrefix(std::string_view bytes) noexcept
 }
 ```
 
-Unicode classifies the encoded prefix. It does not decide whether the stream buffers more bytes, inserts `U+FFFD`, drops input, logs a diagnostic, or closes a connection.
+Unicode classifies the encoded prefix. It does not decide whether the stream buffers more bytes, inserts `U+FFFD`, drops input, logs a diagnostic, or
+closes a connection.
 
 ## Validate complete UTF-8
 
@@ -85,7 +87,8 @@ std::optional<std::vector<char16_t>> toUtf16(std::string_view source)
 }
 ```
 
-No terminating `U+0000` code unit is appended. If a platform or C API requires a terminator, that boundary owns the additional storage and terminator policy.
+No terminating `U+0000` code unit is appended. If a platform or C API requires a terminator, that boundary owns the additional storage and terminator
+policy.
 
 ## Count extended grapheme clusters
 
@@ -157,7 +160,8 @@ bool eraseSuffixByGrapheme(std::string &text)
 }
 ```
 
-The cursor does not retain the text. A suffix truncation exactly at its current indexed boundary can therefore discard later stale offsets in O(1). Arbitrary insertion, replacement, or non-suffix deletion can change grapheme boundaries and requires re-indexing.
+The cursor does not retain the text. A suffix truncation exactly at its current indexed boundary can therefore discard later stale offsets in O(1).
+Arbitrary insertion, replacement, or non-suffix deletion can change grapheme boundaries and requires re-indexing.
 
 ## Traverse backward
 
@@ -189,11 +193,13 @@ std::optional<std::size_t> previousClusterStart(
 }
 ```
 
-The offset may be `text.size()` or any code-point boundary inside a cluster. This stateless form is intended for isolated queries; use `GraphemeCursor` for repeated stepping through the same segmentation.
+The offset may be `text.size()` or any code-point boundary inside a cluster. This stateless form is intended for isolated queries; use
+`GraphemeCursor` for repeated stepping through the same segmentation.
 
 ## Query from inside a cluster
 
-For UTF-8 text containing `a`, `U+0308 COMBINING DIAERESIS`, and `b`, byte offset 1 begins the combining mark. It is a code-point boundary but not a grapheme boundary:
+For UTF-8 text containing `a`, `U+0308 COMBINING DIAERESIS`, and `b`, byte offset 1 begins the combining mark. It is a code-point boundary but not a
+grapheme boundary:
 
 ```cpp
 #include "unicode/unicode.h"
@@ -216,4 +222,5 @@ bool verifyContainingCluster() noexcept
 }
 ```
 
-Callers do not need to precompute grapheme boundaries before an isolated query at a known code-point-aligned caret or selection offset. Repeated forward/backward movement should use `GraphemeCursor`.
+Callers do not need to precompute grapheme boundaries before an isolated query at a known code-point-aligned caret or selection offset. Repeated
+forward/backward movement should use `GraphemeCursor`.

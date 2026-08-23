@@ -16,9 +16,7 @@ option(GAMEWIP_INSTALL_DOCS "Install generated Doxygen HTML documentation" OFF)
 set(GAMEWIP_CLANG_TIDY_JOBS "4" CACHE STRING "Parallel clang-tidy process count")
 
 if(NOT GAMEWIP_BUILD_GAME AND (GAMEWIP_ENABLE_STARTUP_TESTS OR GAMEWIP_RUN_BENCHMARKS_AT_STARTUP))
-    message(FATAL_ERROR
-        "Startup validation requires GAMEWIP_BUILD_GAME=ON. Disable the startup option or build the game executable."
-    )
+    message(FATAL_ERROR "Startup validation requires GAMEWIP_BUILD_GAME=ON. Disable the startup option or build the game executable.")
 endif()
 
 if(GAMEWIP_INSTALL_DOCS AND NOT GAMEWIP_BUILD_DOCS)

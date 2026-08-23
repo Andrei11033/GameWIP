@@ -1,6 +1,7 @@
 @page unicode_public_api Public API
 
-Include `unicode/unicode.h`. Installed consumers link `GameWIP::Unicode`; source-tree consumers link `Unicode`. See @ref unicode_quick_start for complete CMake usage.
+Include `unicode/unicode.h`. Installed consumers link `GameWIP::Unicode`; source-tree consumers link `Unicode`. See @ref unicode_quick_start for
+complete CMake usage.
 
 ## Constants
 
@@ -12,7 +13,8 @@ Include `unicode/unicode.h`. Installed consumers link `GameWIP::Unicode`; source
 
 ## Outcome and result types
 
-The `GameWIP::Unicode::Types` namespace contains shared outcomes and `Version`. Encoding-specific passive values live under `Types::Utf8` and `Types::Utf16`; the installed public header provides no flat compatibility aliases.
+The `GameWIP::Unicode::Types` namespace contains shared outcomes and `Version`. Encoding-specific passive values live under `Types::Utf8` and
+`Types::Utf16`; the installed public header provides no flat compatibility aliases.
 
 ### Decode and encode outcomes
 
@@ -24,7 +26,8 @@ The `GameWIP::Unicode::Types` namespace contains shared outcomes and `Version`. 
 
 Decode failure returns scalar `U+0000` and consumes zero bytes or code units.
 
-`EncodeOutcome` is `Encoded` for a valid scalar or `InvalidScalar` for a surrogate code point or a value above `U+10FFFF`. Invalid scalar encoding reports a zero encoded length.
+`EncodeOutcome` is `Encoded` for a valid scalar or `InvalidScalar` for a surrogate code point or a value above `U+10FFFF`. Invalid scalar encoding
+reports a zero encoded length.
 
 ### Validation outcome
 
@@ -34,7 +37,8 @@ Decode failure returns scalar `U+0000` and consumes zero bytes or code units.
 - `Incomplete` when the complete valid prefix is followed by a truncated final sequence.
 - `InvalidEncoding` when the complete valid prefix is followed by malformed input.
 
-`Types::Utf8::ValidationResult::validPrefixBytes` and `Types::Utf16::ValidationResult::validPrefixCodeUnits` count only complete valid input before the failing sequence.
+`Types::Utf8::ValidationResult::validPrefixBytes` and `Types::Utf16::ValidationResult::validPrefixCodeUnits` count only complete valid input before
+the failing sequence.
 
 ### Measurement outcome
 
@@ -55,7 +59,8 @@ Measurement results retain both the processed source extent and the required des
 - `DestinationTooSmall` when the destination cannot hold the next complete encoded scalar.
 - `OverlappingRanges` when source and destination memory overlap.
 
-Overlap is rejected before writes. Destination exhaustion stops before the next scalar, surrogate pair, or UTF-8 sequence; no partial encoding is written.
+Overlap is rejected before writes. Destination exhaustion stops before the next scalar, surrogate pair, or UTF-8 sequence; no partial encoding is
+written.
 
 ### Boundary outcome
 
@@ -67,7 +72,8 @@ Overlap is rejected before writes. Destination exhaustion stops before the next 
 - `InvalidOffset` when the offset is outside the range or is not UTF-8 code-point aligned.
 - `InvalidEncoding` when malformed or incomplete UTF-8 prevents the requested traversal.
 
-`Types::Utf8::BoundaryResult::byteOffset` is the discovered boundary on `Found`. Endpoint outcomes retain the endpoint, and failures retain the original caller-provided offset.
+`Types::Utf8::BoundaryResult::byteOffset` is the discovered boundary on `Found`. Endpoint outcomes retain the endpoint, and failures retain the
+original caller-provided offset.
 
 ### Grapheme indexing outcome
 
@@ -77,7 +83,8 @@ Overlap is rejected before writes. Destination exhaustion stops before the next 
 - `DestinationTooSmall` when the supplied boundary span cannot hold the complete index.
 - `InvalidEncoding` when malformed or incomplete UTF-8 prevents complete indexing.
 
-`Types::Utf8::GraphemeIndexResult::requiredBoundaryCount` includes offset 0 and the final `text.size()` boundary. It is meaningful on `Indexed` and `DestinationTooSmall`; malformed input reports zero. Empty text therefore requires one boundary entry.
+`Types::Utf8::GraphemeIndexResult::requiredBoundaryCount` includes offset 0 and the final `text.size()` boundary. It is meaningful on `Indexed` and
+`DestinationTooSmall`; malformed input reports zero. Empty text therefore requires one boundary entry.
 
 ## Result structures
 
@@ -107,7 +114,8 @@ Overlap is rejected before writes. Destination exhaustion stops before the next 
 
 ### `decodeScalar()`
 
-`Utf8::decodeScalar()` decodes only the leading scalar in the supplied view. Bytes after that scalar are not inspected. This makes the function suitable for incremental owners that retain their own stream state.
+`Utf8::decodeScalar()` decodes only the leading scalar in the supplied view. Bytes after that scalar are not inspected. This makes the function
+suitable for incremental owners that retain their own stream state.
 
 ### `encodeScalar()`
 
@@ -115,13 +123,15 @@ Overlap is rejected before writes. Destination exhaustion stops before the next 
 
 ### `validate()`
 
-`Utf8::validate()` validates the complete byte range and reports the complete valid prefix before a truncated or malformed sequence. Empty input and embedded `U+0000` are valid.
+`Utf8::validate()` validates the complete byte range and reports the complete valid prefix before a truncated or malformed sequence. Empty input and
+embedded `U+0000` are valid.
 
 ### `measureToUtf16()` and `convertToUtf16()`
 
 Measurement computes the UTF-16 storage required by the complete valid source prefix.
 
-Conversion writes directly to caller-provided storage. It appends no terminator, never writes a partial surrogate pair, leaves elements after `codeUnitsWritten` untouched, and preserves completed source/output progress when a later scalar fails or does not fit.
+Conversion writes directly to caller-provided storage. It appends no terminator, never writes a partial surrogate pair, leaves elements after
+`codeUnitsWritten` untouched, and preserves completed source/output progress when a later scalar fails or does not fit.
 
 Source and destination memory must not overlap. Overlap is reported as `OverlappingRanges` with zero progress and no writes.
 
@@ -129,11 +139,13 @@ Source and destination memory must not overlap. Overlap is reported as `Overlapp
 
 `nextCodePointBoundary()` and `previousCodePointBoundary()` require a code-point-aligned byte offset no greater than `text.size()`.
 
-Forward traversal validates the scalar beginning at the offset and, when needed to establish alignment, the scalar ending at the offset. Backward traversal validates the scalar ending at the offset. Malformed or incomplete UTF-8 required by the operation is reported as `InvalidEncoding`.
+Forward traversal validates the scalar beginning at the offset and, when needed to establish alignment, the scalar ending at the offset. Backward
+traversal validates the scalar ending at the offset. Malformed or incomplete UTF-8 required by the operation is reported as `InvalidEncoding`.
 
 ### Grapheme boundaries
 
-`nextGraphemeBoundary()` and `previousGraphemeBoundary()` implement Unicode 17.0.0 default extended grapheme-cluster traversal using the library's pinned generated properties.
+`nextGraphemeBoundary()` and `previousGraphemeBoundary()` implement Unicode 17.0.0 default extended grapheme-cluster traversal using the library's
+pinned generated properties.
 
 The implementation is the Unicode default algorithm; it does not apply CLDR or locale-specific grapheme tailoring.
 
@@ -144,42 +156,57 @@ The supplied offset must be code-point aligned but does not need to be a graphem
 - Forward traversal at the end reports `AtEnd`.
 - Backward traversal at the beginning reports `AtBeginning`.
 
-Context-sensitive grapheme rules can require inspection of earlier text to reconstruct segmentation state. Malformed or incomplete UTF-8 encountered in the context required by the traversal is reported as `InvalidEncoding`.
+Context-sensitive grapheme rules can require inspection of earlier text to reconstruct segmentation state. Malformed or incomplete UTF-8 encountered
+in the context required by the traversal is reported as `InvalidEncoding`.
 
-For isolated non-ASCII queries, the stateless implementation searches backward for the nearest boundary whose break is provable without earlier grapheme state, then reconstructs state only from that restart point. State-sensitive sequences can still force a scan farther left, so worst-case random access remains O(n).
+For isolated non-ASCII queries, the stateless implementation searches backward for the nearest boundary whose break is provable without earlier
+grapheme state, then reconstructs state only from that restart point. State-sensitive sequences can still force a scan farther left, so worst-case
+random access remains O(n).
 
-For repeated traversal, use `Utf8::GraphemeCursor`. `reset()` performs one complete segmentation pass and stores all boundary offsets in caller-provided `std::size_t` storage. After a successful reset, `next()` and `previous()` are O(1), `seek()` is O(log graphemes), and `discardAfterCurrent()` drops later retained offsets in O(1).
+For repeated traversal, use `Utf8::GraphemeCursor`. `reset()` performs one complete segmentation pass and stores all boundary offsets in
+caller-provided `std::size_t` storage. After a successful reset, `next()` and `previous()` are O(1), `seek()` is O(log graphemes), and
+`discardAfterCurrent()` drops later retained offsets in O(1).
 
-The cursor retains only the caller-owned boundary span, not the text. The storage must remain alive and unmodified while indexed. A caller may truncate a text suffix exactly at the current indexed boundary and then call `discardAfterCurrent()`; arbitrary insertion, replacement, normalization, or non-suffix deletion can change surrounding boundaries and requires re-indexing.
+The cursor retains only the caller-owned boundary span, not the text. The storage must remain alive and unmodified while indexed. A caller may
+truncate a text suffix exactly at the current indexed boundary and then call `discardAfterCurrent()`; arbitrary insertion, replacement, normalization,
+or non-suffix deletion can change surrounding boundaries and requires re-indexing.
 
 ## UTF-16 operations
 
 `isHighSurrogate()`, `isLowSurrogate()`, and `isSurrogate()` classify UTF-16 code units without allocation.
 
-`Utf16::decodeScalar()` accepts one BMP non-surrogate or one valid high/low surrogate pair. A trailing high surrogate is `Incomplete`; an isolated low surrogate or a high surrogate followed by a non-low surrogate is `InvalidEncoding`.
+`Utf16::decodeScalar()` accepts one BMP non-surrogate or one valid high/low surrogate pair. A trailing high surrogate is `Incomplete`; an isolated low
+surrogate or a high surrogate followed by a non-low surrogate is `InvalidEncoding`.
 
 `Utf16::encodeScalar()` writes one BMP code unit or one supplementary surrogate pair to its fixed result.
 
 `Utf16::validate()` reports the complete valid code-unit prefix before malformed or incomplete input.
 
-`measureToUtf8()` and `convertToUtf8()` mirror the UTF-8-to-UTF-16 contracts: prefix measurement, completed progress, no partial UTF-8 sequence, no terminator, untouched destination tail, and overlap rejection before writes.
+`measureToUtf8()` and `convertToUtf8()` mirror the UTF-8-to-UTF-16 contracts: prefix measurement, completed progress, no partial UTF-8 sequence, no
+terminator, untouched destination tail, and overlap rejection before writes.
 
 ## Ownership, threading, and performance
 
-Views and spans are non-owning. Their storage must remain valid for the duration of the call, and callers must not create data races on mutable destination storage.
+Views and spans are non-owning. Their storage must remain valid for the duration of the call, and callers must not create data races on mutable
+destination storage.
 
-Public operations are `noexcept`, perform no implementation-owned dynamic allocation, perform no I/O, and use immutable generated tables rather than mutable global or thread-local state. Independent calls can therefore run concurrently when their caller-owned memory does not race.
+Public operations are `noexcept`, perform no implementation-owned dynamic allocation, perform no I/O, and use immutable generated tables rather than
+mutable global or thread-local state. Independent calls can therefore run concurrently when their caller-owned memory does not race.
 
-UTF-8 scalar decoding and code-point traversal operate on bounded local input. Property lookup is constant-time. Stateless grapheme random access uses a nearest-safe-restart optimization but can still require O(n) lookbehind in state-sensitive cases. `Utf8::GraphemeCursor` makes one full O(n) index pass so a complete repeated forward/backward walk or suffix-deletion traversal remains O(n) overall.
+UTF-8 scalar decoding and code-point traversal operate on bounded local input. Property lookup is constant-time. Stateless grapheme random access uses
+a nearest-safe-restart optimization but can still require O(n) lookbehind in state-sensitive cases. `Utf8::GraphemeCursor` makes one full O(n) index
+pass so a complete repeated forward/backward walk or suffix-deletion traversal remains O(n) overall.
 
 ## Package boundary
 
 Unicode is installed as a static `GameWIP::Unicode` target with the public header `unicode/unicode.h` and no reusable/public GameWIP library
 dependency. Source-tree implementation code may consume narrow internal Base mechanisms, but installed target metadata must not expose Base.
 
-The public boundary exposes C++ standard-library fixed arrays, spans, string views, integer types, and `char32_t`. Consumers therefore follow the project compiler, standard-library, runtime, and exact-version compatibility policy documented in @ref project_library_compatibility.
+The public boundary exposes C++ standard-library fixed arrays, spans, string views, integer types, and `char32_t`. Consumers therefore follow the
+project compiler, standard-library, runtime, and exact-version compatibility policy documented in @ref project_library_compatibility.
 
-Headers under `unicode/internal`, the generated table representation, generator implementation, validation sources, and benchmark sources are not installed interfaces. The Unicode Standard version is a data/behavior version and is independent of the GameWIP CMake package version.
+Headers under `unicode/internal`, the generated table representation, generator implementation, validation sources, and benchmark sources are not
+installed interfaces. The Unicode Standard version is a data/behavior version and is independent of the GameWIP CMake package version.
 
 ## Related pages
 

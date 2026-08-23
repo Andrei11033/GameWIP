@@ -34,7 +34,8 @@ if (read.status.ok())
     context.expectContains("fixture", read.text, "λ");
 ```
 
-Malformed UTF-8 returns `Types::InfrastructureError::EncodingFailed`. `writeTextFile()` performs that validation before creating parents or truncating the destination.
+Malformed UTF-8 returns `Types::InfrastructureError::EncodingFailed`. `writeTextFile()` performs that validation before creating parents or truncating
+the destination.
 
 ## Child process
 
@@ -140,7 +141,8 @@ TS::runWorkers(
     });
 ```
 
-`runWorkers()` gives every worker its own callable copy, joins every successfully started thread, and rethrows one captured worker exception only after all workers have joined. Shared references captured by those callable copies still require their own synchronization.
+`runWorkers()` gives every worker its own callable copy, joins every successfully started thread, and rethrows one captured worker exception only
+after all workers have joined. Shared references captured by those callable copies still require their own synchronization.
 
 ```cpp
 try

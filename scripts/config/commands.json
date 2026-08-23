@@ -1,0 +1,242 @@
+{
+  "schemaVersion": 1,
+  "formatting": {
+    "sourceRoots": ["foundation", "tools", "engine", "game"],
+    "configPath": ".clang-format"
+  },
+  "defaultStressCount": 32,
+  "modules": ["assert", "base", "filesystem", "io", "logger", "runner", "terminal", "test_support", "unicode", "window"],
+  "defaultBuildPreset": "test",
+  "unicode": {
+    "version": "17.0.0",
+    "generatedHeader": "foundation\\unicode\\internal\\generated\\unicode_properties.h",
+    "ucdUrlTemplate": "https://www.unicode.org/Public/{0}/ucd/UCD.zip",
+    "requiredFiles": [
+      "auxiliary\\GraphemeBreakProperty.txt",
+      "DerivedCoreProperties.txt",
+      "emoji\\emoji-data.txt",
+      "auxiliary\\GraphemeBreakTest.txt"
+    ],
+    "generator": "foundation\\unicode\\tools\\generate_unicode_data.py"
+  },
+  "projectCommands": [
+    {
+      "id": "test-all",
+      "executable": "build\\test\\GameWIPTests.exe",
+      "useWorkspaceTemp": true,
+      "buildPreset": "test",
+      "name": "Run all correctness modules",
+      "arguments": ["--no-test-report"],
+      "acceptsExtraArgs": true
+    },
+    {
+      "id": "benchmark-dry-run",
+      "executable": "build\\benchmark\\GameWIPBenchmarks.exe",
+      "useWorkspaceTemp": true,
+      "buildPreset": "benchmark",
+      "name": "Run benchmark registration dry run",
+      "arguments": ["--benchmark_dry_run"],
+      "acceptsExtraArgs": true
+    },
+    {
+      "id": "dev-version",
+      "executable": "build\\dev\\GameWIP.exe",
+      "useWorkspaceTemp": false,
+      "buildPreset": "dev",
+      "name": "Print development executable version",
+      "arguments": ["--version"],
+      "acceptsExtraArgs": false
+    },
+    {
+      "id": "release-version",
+      "executable": "build\\release\\game\\GameWIP.exe",
+      "alternateExecutable": "build\\release\\GameWIP.exe",
+      "useWorkspaceTemp": false,
+      "buildPreset": "release",
+      "name": "Print release executable version",
+      "arguments": ["--version"],
+      "acceptsExtraArgs": false
+    }
+  ],
+  "defaultConfigurePreset": "test",
+  "defaultStressParallel": 8,
+  "benchmarkProfiles": [
+    {
+      "aggregatesOnly": false,
+      "minTime": "0.05s",
+      "name": "Quick development measurement",
+      "id": "quick",
+      "repetitions": 1
+    },
+    {
+      "aggregatesOnly": true,
+      "minTime": "0.2s",
+      "name": "Repeatable local measurement",
+      "id": "standard",
+      "repetitions": 5
+    },
+    {
+      "repetitions": 10,
+      "id": "stable",
+      "randomInterleaving": true,
+      "aggregatesOnly": true,
+      "name": "Longer comparison-quality measurement",
+      "minTime": "1s"
+    }
+  ],
+  "bundles": [
+    {
+      "name": "Quick correctness validation",
+      "id": "quick",
+      "steps": [
+        {
+          "kind": "Configure",
+          "preset": "test"
+        },
+        {
+          "kind": "Build",
+          "preset": "test"
+        },
+        {
+          "useWorkspaceTemp": true,
+          "preset": "test",
+          "kind": "CTest"
+        }
+      ]
+    },
+    {
+      "name": "Local release-readiness check",
+      "id": "local-release-check",
+      "steps": [
+        {
+          "kind": "Configure",
+          "preset": "test"
+        },
+        {
+          "kind": "Build",
+          "preset": "test"
+        },
+        {
+          "useWorkspaceTemp": true,
+          "preset": "test",
+          "kind": "CTest"
+        },
+        {
+          "kind": "Configure",
+          "preset": "coverage"
+        },
+        {
+          "kind": "Build",
+          "preset": "coverage"
+        },
+        {
+          "useWorkspaceTemp": true,
+          "preset": "coverage",
+          "kind": "CTest"
+        },
+        {
+          "preset": "coverage",
+          "target": "coverage",
+          "kind": "BuildTarget"
+        },
+        {
+          "kind": "Configure",
+          "preset": "analyze"
+        },
+        {
+          "kind": "Build",
+          "preset": "analyze"
+        },
+        {
+          "kind": "Configure",
+          "preset": "docs"
+        },
+        {
+          "kind": "Build",
+          "preset": "docs"
+        },
+        {
+          "buildIfMissing": true,
+          "command": "benchmark-dry-run",
+          "kind": "ProjectCommand"
+        },
+        {
+          "buildIfMissing": true,
+          "command": "release-version",
+          "kind": "ProjectCommand"
+        }
+      ]
+    },
+    {
+      "name": "CLANG64 AddressSanitizer validation",
+      "id": "sanitizer",
+      "steps": [
+        {
+          "kind": "Configure",
+          "preset": "asan"
+        },
+        {
+          "kind": "Build",
+          "preset": "asan"
+        },
+        {
+          "useWorkspaceTemp": true,
+          "preset": "asan",
+          "kind": "CTest"
+        }
+      ]
+    }
+  ],
+  "manualWorkflows": [
+    {
+      "name": "Run repository validation",
+      "id": "validation",
+      "safety": "check",
+      "file": "validation.yml"
+    },
+    {
+      "name": "Preview project reconciliation",
+      "id": "project-dry-run",
+      "safety": "dry-run",
+      "file": "project-automation.yml"
+    },
+    {
+      "name": "Apply project reconciliation",
+      "id": "project-write",
+      "safety": "write",
+      "file": "project-automation.yml"
+    },
+    {
+      "name": "Check release readiness",
+      "id": "release-check",
+      "safety": "dry-run",
+      "file": "release-preparation.yml"
+    },
+    {
+      "name": "Create or update the release-preparation pull request",
+      "id": "release-prepare",
+      "safety": "write",
+      "file": "release-preparation.yml"
+    },
+    {
+      "name": "Preview release finalization",
+      "id": "release-finalize-dry-run",
+      "safety": "dry-run",
+      "file": "release-preparation.yml"
+    },
+    {
+      "name": "Create the immutable tag and GitHub release",
+      "id": "release-finalize",
+      "safety": "finalize",
+      "file": "release-preparation.yml"
+    },
+    {
+      "name": "Build and deploy Doxygen GitHub Pages",
+      "id": "docs-deploy",
+      "safety": "deploy",
+      "file": "docs.yml"
+    }
+  ],
+  "defaultModule": "all",
+  "defaultTestPreset": "test"
+}

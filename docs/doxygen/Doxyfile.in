@@ -10,8 +10,8 @@ INPUT                  = @LIBRARY_DOXYGEN_INPUTS@
 
 RECURSIVE              = NO
 FILE_PATTERNS          = *.h *.hpp *.md
-EXCLUDE                = "@CMAKE_CURRENT_SOURCE_DIR@/external" "@CMAKE_CURRENT_SOURCE_DIR@/.git" "@CMAKE_CURRENT_SOURCE_DIR@/.tracy" "@CMAKE_CURRENT_SOURCE_DIR@/.vscode" "@CMAKE_CURRENT_SOURCE_DIR@/logs" "@CMAKE_CURRENT_SOURCE_DIR@/tools/logger/platform" "@CMAKE_CURRENT_SOURCE_DIR@/tools/debug/assert/platform"
-EXCLUDE_PATTERNS       = */external/* */.git/* */.tracy/* */.vscode/* */logs/* */cmake/* */internal/*_test_hooks.h */docs/doxygen/html/*
+EXCLUDE                = "@CMAKE_CURRENT_SOURCE_DIR@/external" "@CMAKE_CURRENT_SOURCE_DIR@/.git" "@CMAKE_CURRENT_SOURCE_DIR@/.vscode" "@CMAKE_CURRENT_SOURCE_DIR@/logs" "@CMAKE_CURRENT_SOURCE_DIR@/tools/logger/platform" "@CMAKE_CURRENT_SOURCE_DIR@/tools/debug/assert/platform"
+EXCLUDE_PATTERNS       = */external/* */.git/* */.vscode/* */logs/* */cmake/* */internal/*_test_hooks.h */docs/doxygen/html/*
 
 USE_MDFILE_AS_MAINPAGE = "@LIBRARY_DOXYGEN_MAINPAGE@"
 WARN_LOGFILE           = "@LIBRARY_DOXYGEN_WARNING_LOG@"

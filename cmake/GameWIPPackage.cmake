@@ -49,4 +49,3 @@ function(gamewip_install_package)
     install(EXPORT "${gamewip_package_TARGET}Targets" DESTINATION "${gamewip_package_directory}" NAMESPACE GameWIP::)
     install(FILES "${gamewip_package_config}" "${gamewip_package_version}" DESTINATION "${gamewip_package_directory}")
 endfunction()
-

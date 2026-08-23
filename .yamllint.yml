@@ -1,0 +1,21 @@
+---
+extends: default
+
+ignore: |
+  build/
+  external/
+
+rules:
+  braces:
+    max-spaces-inside: 1
+  brackets:
+    max-spaces-inside: 1
+  comments:
+    min-spaces-from-content: 1
+  document-start: disable
+  line-length:
+    level: warning
+    max: 150
+  truthy:
+    allowed-values: ['true', 'false']
+    check-keys: false

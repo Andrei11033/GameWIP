@@ -1,6 +1,7 @@
 @page terminal_examples Examples
 
-The examples include the complete local setup required for the operation being demonstrated. Production code should propagate or report richer status detail according to its own error policy.
+The examples include the complete local setup required for the operation being demonstrated. Production code should propagate or report richer status
+detail according to its own error policy.
 
 ## Checked stdout and stderr
 
@@ -244,7 +245,8 @@ int main()
 }
 ```
 
-On native Win32 consoles, key/repeat/release/modifier/location and resize events come from `INPUT_RECORD`. Mouse records are ignored until Terminal has a deliberate portable mouse contract.
+On native Win32 consoles, key/repeat/release/modifier/location and resize events come from `INPUT_RECORD`. Mouse records are ignored until Terminal
+has a deliberate portable mouse contract.
 
 ## Cancel a managed read
 

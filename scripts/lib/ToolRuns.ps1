@@ -1,3 +1,5 @@
+# GameWIP ToolRuns helper behavior. Dot-sourced by scripts/GameWIP.ps1.
+
 Set-StrictMode -Version Latest
 
 function ConvertTo-GameWipToolSafeName
@@ -6,11 +8,14 @@ function ConvertTo-GameWipToolSafeName
 
     $safe = $Text -replace '[^A-Za-z0-9_.-]+', '-'
     $safe = $safe.Trim('-')
-    if ([string]::IsNullOrWhiteSpace($safe)) { return 'run' }
+    if ([string]::IsNullOrWhiteSpace($safe))
+    {
+        return 'run'
+    }
     return $safe.ToLowerInvariant()
 }
 
-function New-GameWipToolRun
+function Initialize-GameWipToolRun
 {
     param(
         [Parameter(Mandatory = $true)][string]$RepositoryRoot,
@@ -43,7 +48,7 @@ function New-GameWipToolRun
     }
 }
 
-function New-GameWipToolRunStep
+function Initialize-GameWipToolRunStep
 {
     param(
         [Parameter(Mandatory = $true)]$Run,
@@ -73,15 +78,15 @@ function Complete-GameWipToolRunStep
 
     $Step.Stopwatch.Stop()
     $Run.Steps.Add([pscustomobject]@{
-        Index = $Step.Index
-        Name = $Step.Name
-        CommandLine = $Step.CommandLine
-        StartedAt = $Step.StartedAt
-        FinishedAt = (Get-Date).ToUniversalTime().ToString('o')
-        DurationSeconds = [Math]::Round($Step.Stopwatch.Elapsed.TotalSeconds, 3)
-        ExitCode = $ExitCode
-        LogPath = $Step.LogPath
-    }) | Out-Null
+            Index = $Step.Index
+            Name = $Step.Name
+            CommandLine = $Step.CommandLine
+            StartedAt = $Step.StartedAt
+            FinishedAt = (Get-Date).ToUniversalTime().ToString('o')
+            DurationSeconds = [Math]::Round($Step.Stopwatch.Elapsed.TotalSeconds, 3)
+            ExitCode = $ExitCode
+            LogPath = $Step.LogPath
+        }) | Out-Null
 }
 
 function Add-GameWipToolRunOutput
@@ -93,9 +98,9 @@ function Add-GameWipToolRunOutput
     )
 
     $Run.Outputs.Add([pscustomobject]@{
-        Kind = $Kind
-        Path = [IO.Path]::GetFullPath($Path)
-    }) | Out-Null
+            Kind = $Kind
+            Path = [IO.Path]::GetFullPath($Path)
+        }) | Out-Null
 }
 
 function Save-GameWipToolRun
@@ -124,7 +129,14 @@ function Save-GameWipToolRun
     $lines.Add('') | Out-Null
     foreach ($step in $Run.Steps)
     {
-        $stepStatus = if ($step.ExitCode -eq 0) { 'PASS' } else { 'FAIL' }
+        $stepStatus = if ($step.ExitCode -eq 0)
+        {
+            'PASS'
+        }
+        else
+        {
+            'FAIL'
+        }
         $lines.Add(('{0} {1} exit={2} duration={3:N3}s log={4}' -f $stepStatus, $step.Name, $step.ExitCode, $step.DurationSeconds, $step.LogPath)) | Out-Null
     }
     if ($Run.Outputs.Count -ne 0)
@@ -153,4 +165,51 @@ function Save-GameWipToolRun
     } | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $manifestPath -Encoding UTF8
 
     return $summaryPath
+}
+
+function ConvertTo-GameWipSafeName
+{
+    param([Parameter(Mandatory = $true)][string]$Text)
+
+    $safe = $Text -replace '[^A-Za-z0-9_.-]+', '_'
+    if ([string]::IsNullOrWhiteSpace($safe))
+    {
+        return 'step'
+    }
+    $safe.Trim('_')
+}
+
+function Initialize-GameWipRunLog
+{
+    if ($null -ne $Script:RunRoot)
+    {
+        return
+    }
+
+    $Script:RunContext = Initialize-GameWipToolRun `
+        -RepositoryRoot $RepositoryRoot `
+        -RunLogRoot $ProjectConfig.storage.runs `
+        -Tool 'project-tool' `
+        -Action $Script:RunLabel
+    $Script:RunRoot = $Script:RunContext.Root
+    Write-Host "Tool run: $Script:RunRoot"
+}
+
+function Save-GameWipRunSummary
+{
+    if ($null -eq $Script:RunRoot)
+    {
+        return
+    }
+
+    $status = if ($Script:RunFailed)
+    {
+        'failed'
+    }
+    else
+    {
+        'passed'
+    }
+    $summaryPath = Save-GameWipToolRun -Run $Script:RunContext -Status $status
+    Write-Host "Summary: $summaryPath"
 }

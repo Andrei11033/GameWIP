@@ -23,7 +23,7 @@ function Get-GameWipTracyVersion
     return $parts -join '.'
 }
 
-function Get-GameWipTracyExecutables
+function Get-GameWipTracyExecutableSet
 {
     return @(
         'tracy-profiler.exe'
@@ -35,19 +35,24 @@ function Get-GameWipTracyExecutables
     )
 }
 
-function Test-GameWipTracyTools
+function Get-GameWipTracyToolRoot
+{
+    return (Join-Path ([string]$ProjectConfig.managedEnvironment.gameWipToolsRoot) 'tools\tracy')
+}
+
+function Test-GameWipTracyToolSet
 {
     param([Parameter(Mandatory = $true)][string]$RepositoryRoot)
 
-    foreach ($executable in Get-GameWipTracyExecutables)
+    foreach ($executable in Get-GameWipTracyExecutableSet)
     {
-        if (-not (Test-Path -LiteralPath (Join-Path $RepositoryRoot ".tracy\$executable")))
+        if (-not (Test-Path -LiteralPath (Join-Path (Get-GameWipTracyToolRoot) $executable)))
         {
             return $false
         }
     }
 
-    $versionFile = Join-Path $RepositoryRoot '.tracy\version.txt'
+    $versionFile = Join-Path (Get-GameWipTracyToolRoot) 'version.txt'
     if (-not (Test-Path -LiteralPath $versionFile))
     {
         # Executable presence alone cannot prove that the tools match the
@@ -58,7 +63,7 @@ function Test-GameWipTracyTools
     return (Get-Content -LiteralPath $versionFile -Raw).Trim() -eq $expected
 }
 
-function Copy-GameWipTracyRuntimeDependencies
+function Copy-GameWipTracyRuntimeDependency
 {
     param(
         [Parameter(Mandatory = $true)][string]$Executable,
@@ -104,7 +109,7 @@ function Copy-GameWipTracyRuntimeDependencies
     }
 }
 
-function New-GameWipTracyCompilerCompatibilityHeader
+function Write-GameWipTracyCompilerCompatibilityHeader
 {
     param([Parameter(Mandatory = $true)][string]$SetupRoot)
 
@@ -137,7 +142,7 @@ inline void* memmem(const void* haystack, std::size_t haystackSize, const char* 
     return $header
 }
 
-function Build-GameWipTracyTools
+function Invoke-GameWipTracyToolBuild
 {
     param(
         [Parameter(Mandatory = $true)][string]$RepositoryRoot,
@@ -145,7 +150,7 @@ function Build-GameWipTracyTools
     )
 
     $version = Get-GameWipTracyVersion -RepositoryRoot $RepositoryRoot
-    if (Test-GameWipTracyTools -RepositoryRoot $RepositoryRoot)
+    if (Test-GameWipTracyToolSet -RepositoryRoot $RepositoryRoot)
     {
         Write-Host "  Ready: complete Tracy tool set for pinned client $version"
         return
@@ -172,22 +177,22 @@ function Build-GameWipTracyTools
         }
     }
     $tracyRoot = Join-Path $RepositoryRoot 'external\tracy'
-    $setupRoot = Join-Path $RepositoryRoot 'build\setup\tracy'
+    $setupRoot = Join-Path $RepositoryRoot (Join-Path $ProjectConfig.storage.cache 'tracy')
     $buildRoot = Join-Path $setupRoot 'ucrt64'
-    $stageRoot = Join-Path $setupRoot 'stage'
+    $stageRoot = Join-Path $Script:OperationTemp 'tracy-stage'
     $cacheRoot = Join-Path $setupRoot 'cpm-cache'
-    $destination = Join-Path $RepositoryRoot '.tracy'
+    $destination = Get-GameWipTracyToolRoot
     Write-Host "  Source: $tracyRoot"
     Write-Host "  Build trees: $buildRoot"
     Write-Host "  Staging: $stageRoot"
     Write-Host "  Verified destination: $destination"
     if (Test-Path -LiteralPath $stageRoot)
     {
-        Remove-Item -LiteralPath $stageRoot -Recurse -Force
+        Invoke-GameWipOwnedTreeRemoval -Path $stageRoot -OwnedRoot $Script:OperationTemp
     }
     New-Item -ItemType Directory -Path $stageRoot -Force | Out-Null
     New-Item -ItemType Directory -Path $cacheRoot -Force | Out-Null
-    $compilerCompatibilityHeader = New-GameWipTracyCompilerCompatibilityHeader -SetupRoot $setupRoot
+    $compilerCompatibilityHeader = Write-GameWipTracyCompilerCompatibilityHeader -SetupRoot $setupRoot
 
     $projects = @(
         @{ Name = 'profiler'; Source = 'profiler'; Outputs = @('tracy-profiler.exe') }
@@ -218,9 +223,9 @@ function Build-GameWipTracyTools
             $build = Join-Path $buildRoot $project.Name
             if (Test-Path -LiteralPath $build)
             {
-                Remove-Item -LiteralPath $build -Recurse -Force
+                Invoke-GameWipOwnedTreeRemoval -Path $build -OwnedRoot $buildRoot
             }
-            Invoke-SetupNative -FilePath $cmake -ArgumentList @(
+            Invoke-GameWipSetupNative -FilePath $cmake -ArgumentList @(
                 '-S', $source, '-B', $build,
                 '-G', 'Ninja',
                 '-DCMAKE_BUILD_TYPE=Release',
@@ -251,7 +256,7 @@ function Build-GameWipTracyTools
                     )
                 }
             }
-            Invoke-SetupNative -FilePath $cmake -ArgumentList @(
+            Invoke-GameWipSetupNative -FilePath $cmake -ArgumentList @(
                 '--build', $build, '--parallel', '--clean-first'
             ) | Out-Null
 
@@ -264,7 +269,7 @@ function Build-GameWipTracyTools
                     throw "Tracy $($project.Name) build did not produce $output."
                 }
                 Copy-Item -LiteralPath $built.FullName -Destination (Join-Path $stageRoot $output) -Force
-                Copy-GameWipTracyRuntimeDependencies `
+                Copy-GameWipTracyRuntimeDependency `
                     -Executable $built.FullName `
                     -UcrtBin $ucrtBin `
                     -StageRoot $stageRoot
@@ -280,11 +285,11 @@ function Build-GameWipTracyTools
         $env:GIT_CONFIG_VALUE_0 = $previousGitConfigValue
     }
 
-    foreach ($executable in Get-GameWipTracyExecutables)
+    foreach ($executable in Get-GameWipTracyExecutableSet)
     {
         if (-not (Test-Path -LiteralPath (Join-Path $stageRoot $executable)))
         {
-            throw "The staged Tracy rebuild is incomplete; missing $executable. Existing .tracy tools were not replaced."
+            throw "The staged Tracy rebuild is incomplete; missing $executable. Existing managed tools were not replaced."
         }
     }
 
@@ -296,7 +301,7 @@ function Build-GameWipTracyTools
     }
     Set-Content -LiteralPath (Join-Path $destination 'version.txt') -Value "source-$version" -Encoding Ascii
 
-    if (-not (Test-GameWipTracyTools -RepositoryRoot $RepositoryRoot))
+    if (-not (Test-GameWipTracyToolSet -RepositoryRoot $RepositoryRoot))
     {
         throw 'The rebuilt Tracy tool set failed final verification.'
     }

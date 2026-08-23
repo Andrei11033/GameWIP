@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "GameWIP setup registry",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "actions", "wingetPackages", "msys2Packages", "cmakeVersionPattern"],
+  "properties": {
+    "schemaVersion": { "const": 1, "description": "Registry schema version." },
+    "actions": { "type": "array", "items": { "$ref": "#/$defs/action" }, "minItems": 1 },
+    "wingetPackages": { "type": "array", "items": { "$ref": "#/$defs/wingetPackage" } },
+    "msys2Packages": { "$ref": "#/$defs/msys2Packages" },
+    "cmakeVersionPattern": { "type": "string", "minLength": 1 }
+  },
+  "$defs": {
+    "action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "description", "machineChanges"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+        "key": { "type": "string", "minLength": 1, "maxLength": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "description": { "type": "string", "minLength": 1 },
+        "machineChanges": { "type": "boolean" }
+      }
+    },
+    "wingetPackage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "id", "command"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "id": { "type": "string", "minLength": 1 },
+        "command": { "type": "string", "minLength": 1 }
+      }
+    },
+    "msys2Packages": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["common", "ucrt64", "clang64"],
+      "properties": {
+        "common": { "$ref": "#/$defs/packageNames" },
+        "ucrt64": { "$ref": "#/$defs/packageNames" },
+        "clang64": { "$ref": "#/$defs/packageNames" }
+      }
+    },
+    "packageNames": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true }
+  }
+}

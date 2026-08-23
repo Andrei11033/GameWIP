@@ -50,7 +50,8 @@ Completion checklist:
 - [x] `foundation/terminal` exists with console IO and Win32 backend coverage.
 - [x] `tools/logger` exists with async logging, sinks, filters, reports, macros, and validation hooks.
 - [x] `tools/debug/assert` exists with assertion macros integrated with Logger.
-- [x] `tools/test_support` exists with validation suites, reports, explicit infrastructure status/value results, non-throwing state guards, and child-process outcomes.
+- [x] `tools/test_support` exists with validation suites, reports, explicit infrastructure status/value results, non-throwing state guards, and
+  child-process outcomes.
 - [x] Modular correctness validation exists under `game/validation/tests`.
 - [x] Benchmark registration exists under `game/validation/benchmarks`.
 - [x] Static analysis, formatting, Doxygen, coverage, profiling, and repository-check workflows exist.
@@ -82,8 +83,10 @@ Completion checklist:
 - [ ] Logger and Assert integration exists for engine startup failures.
 - [ ] Correctness tests cover action mapping, input-state transitions that can be tested deterministically, and lifecycle edge cases.
 - [x] Manual validation exists for behavior that requires a real window.
-- [ ] Every new engine library has public API documentation, a quick start, examples, validation guidance, troubleshooting guidance, and backend notes. Window meets this gate; the remaining R01 libraries do not yet.
-- [ ] Package and installed-consumer validation cover every installable new engine library. Window meets this gate; the remaining R01 libraries do not yet.
+- [ ] Every new engine library has public API documentation, a quick start, examples, validation guidance, troubleshooting guidance, and backend
+  notes. Window meets this gate; the remaining R01 libraries do not yet.
+- [ ] Package and installed-consumer validation cover every installable new engine library. Window meets this gate; the remaining R01 libraries do not
+  yet.
 - [TBD] WindowManager multi-window policy and Input controller support.
 
 ### R02 — Math foundation
@@ -215,7 +218,8 @@ Completion checklist:
 
 ## Later phases
 
-Later milestones remain placeholders until earlier systems establish the required architecture. Create detailed GitHub issues when a milestone becomes active, then update this roadmap with concrete completion criteria.
+Later milestones remain placeholders until earlier systems establish the required architecture. Create detailed GitHub issues when a milestone becomes
+active, then update this roadmap with concrete completion criteria.
 
 | Milestone | Focus | Known completion gate |
 | --- | --- | --- |

@@ -13,9 +13,11 @@ Configure these Actions variables:
 ACTIVE_MILESTONE=R01 - Window, Input, and Action Foundation
 ```
 
-Change `ACTIVE_MILESTONE` to the next milestone only after the previous milestone's tag, GitHub release, closure issue, and handoff are complete. The same workflow applies to R00, R01, later roadmap milestones, and compatible PATCH releases.
+Change `ACTIVE_MILESTONE` to the next milestone only after the previous milestone's tag, GitHub release, closure issue, and handoff are complete. The
+same workflow applies to R00, R01, later roadmap milestones, and compatible PATCH releases.
 
-Configure `PROJECT_TOKEN` as an Actions secret. The token must be a dedicated GitHub App token or dedicated maintainer token with the minimum permissions needed to:
+Configure `PROJECT_TOKEN` as an Actions secret. The token must be a dedicated GitHub App token or dedicated maintainer token with the minimum
+permissions needed to:
 
 - Read repository contents, issues, milestones, pull requests, workflow runs, tags, and releases.
 - Create release-preparation branches.
@@ -68,7 +70,8 @@ The release issue can be resolved in either of these ways:
 Release issue: `#N`
 ```
 
-The release issue must stay open during readiness checks and release-preparation pull-request creation. It closes only after finalization has created the immutable tag and GitHub release and the milestone handoff is complete.
+The release issue must stay open during readiness checks and release-preparation pull-request creation. It closes only after finalization has created
+the immutable tag and GitHub release and the milestone handoff is complete.
 
 ## Readiness check
 
@@ -118,9 +121,11 @@ The workflow creates or reuses:
 - `release: prepare vX.Y.Z`
 - `docs/releases/vX.Y.Z.md`
 
-The generated pull request references the release issue but does not close it. The release issue remains open until the tag, GitHub release, and milestone handoff exist.
+The generated pull request references the release issue but does not close it. The release issue remains open until the tag, GitHub release, and
+milestone handoff exist.
 
-A maintainer must fill in the final validation evidence, review the release-preparation pull request, and merge it manually. The workflow must not write directly to `master`.
+A maintainer must fill in the final validation evidence, review the release-preparation pull request, and merge it manually. The workflow must not
+write directly to `master`.
 
 Finalization rejects release notes that still contain the generated validation-evidence placeholder or unchecked release checklist items.
 
@@ -149,7 +154,8 @@ gh workflow run release-preparation.yml -f command=finalize -f dry_run=false -f 
 The write requires a typed phrase containing the exact commit SHA and approval
 through the `release-production` environment.
 
-Finalization creates an annotated `vX.Y.Z` tag and a matching GitHub release. Existing matching artifacts are reused. Conflicting tags, releases, branches, or pull requests cause a safe failure.
+Finalization creates an annotated `vX.Y.Z` tag and a matching GitHub release. Existing matching artifacts are reused. Conflicting tags, releases,
+branches, or pull requests cause a safe failure.
 
 ## Recovery behavior
 

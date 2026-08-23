@@ -6,38 +6,20 @@ if(ASSERT_RUNTIME_TARGET_ENABLED)
 endif()
 
 if(ASSERT_ENABLE_COMMON_CONTROLS_MANIFEST)
-    set(
-        ASSERT_INTERNAL_COMMON_CONTROLS_MANIFEST
-        "${CMAKE_CURRENT_LIST_DIR}/../../cmake/common_controls_v6.manifest"
-    )
+    set(ASSERT_INTERNAL_COMMON_CONTROLS_MANIFEST "${CMAKE_CURRENT_LIST_DIR}/../../cmake/common_controls_v6.manifest")
 
-    set(
-        ASSERT_INTERNAL_COMMON_CONTROLS_RC
-        "${CMAKE_CURRENT_BINARY_DIR}/common_controls_v6.rc"
-    )
+    set(ASSERT_INTERNAL_COMMON_CONTROLS_RC "${CMAKE_CURRENT_BINARY_DIR}/common_controls_v6.rc")
 
-    configure_file(
-        "${CMAKE_CURRENT_LIST_DIR}/../../cmake/common_controls_v6.rc.in"
-        "${ASSERT_INTERNAL_COMMON_CONTROLS_RC}"
-        @ONLY
-    )
+    configure_file("${CMAKE_CURRENT_LIST_DIR}/../../cmake/common_controls_v6.rc.in" "${ASSERT_INTERNAL_COMMON_CONTROLS_RC}" @ONLY)
 
-    set_property(
-        GLOBAL PROPERTY
-        ASSERT_INTERNAL_COMMON_CONTROLS_RC
-        "${ASSERT_INTERNAL_COMMON_CONTROLS_RC}"
-    )
-
+    set_property(GLOBAL PROPERTY ASSERT_INTERNAL_COMMON_CONTROLS_RC "${ASSERT_INTERNAL_COMMON_CONTROLS_RC}")
 endif()
 
 if(ASSERT_RUNTIME_TARGET_ENABLED)
-    target_link_libraries(Assert PRIVATE
-        comctl32
-    )
+    target_link_libraries(Assert PRIVATE comctl32)
 endif()
 
-install(FILES
-    "${CMAKE_CURRENT_LIST_DIR}/../../cmake/common_controls_v6.manifest"
-    "${CMAKE_CURRENT_LIST_DIR}/../../cmake/common_controls_v6.rc.in"
+install(
+    FILES "${CMAKE_CURRENT_LIST_DIR}/../../cmake/common_controls_v6.manifest" "${CMAKE_CURRENT_LIST_DIR}/../../cmake/common_controls_v6.rc.in"
     DESTINATION ${CMAKE_INSTALL_DATADIR}/Assert
 )

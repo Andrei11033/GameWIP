@@ -13,17 +13,22 @@ $script:WorkflowRunResponses = @()
 
 function Start-Sleep
 {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidOverwritingBuiltInCmdlets', '', Justification = 'The test replaces sleeping with a deterministic no-op.')]
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'The no-op test double never changes state.')]
     param([int]$Seconds)
+
+    $null = $Seconds
 }
 
 function Invoke-GameWipGhJson
 {
     param([Parameter(Mandatory = $true)][string[]]$Arguments)
 
+    $null = $Arguments
     @($script:WorkflowRunResponses)
 }
 
-function Assert-RunId
+function Assert-GameWipRunId
 {
     param(
         [Parameter(Mandatory = $true)]$Run,
@@ -46,7 +51,7 @@ $script:WorkflowRunResponses = @(
     }
 )
 $firstRun = Wait-GameWipWorkflowRun -WorkflowFile 'project-automation.yml' -PreviousIds @()
-Assert-RunId -Run $firstRun -ExpectedId '9001'
+Assert-GameWipRunId -Run $firstRun -ExpectedId '9001'
 
 $script:WorkflowRunResponses = @(
     [pscustomobject]@{
@@ -63,7 +68,7 @@ $script:WorkflowRunResponses = @(
     }
 )
 $newRun = Wait-GameWipWorkflowRun -WorkflowFile 'project-automation.yml' -PreviousIds @('9002')
-Assert-RunId -Run $newRun -ExpectedId '9001'
+Assert-GameWipRunId -Run $newRun -ExpectedId '9001'
 
 $script:WorkflowRunResponses = @()
 $missingRun = Wait-GameWipWorkflowRun -WorkflowFile 'project-automation.yml' -PreviousIds @()

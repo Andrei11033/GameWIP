@@ -55,7 +55,7 @@ With no action, the helper opens its interactive menu. These forms print help wi
 ```
 
 `gamewip.bat list` prints the current IDs from `CMakePresets.json` and
-`scripts/config/gamewip-commands.psd1`. Use it rather than guessing a preset,
+`scripts/config/commands.json`. Use it rather than guessing a preset,
 module, project command, bundle, benchmark profile, or guarded workflow name.
 
 ## Helper actions
@@ -68,6 +68,8 @@ module, project command, bundle, benchmark profile, or guarded workflow name.
 | `workflow` | `-WorkflowAction menu` | Lists, previews, dispatches, and watches approved GitHub workflows. |
 | `unicode` | `-UnicodeAction menu` | Shows, verifies, or regenerates the pinned Unicode data table. |
 | `format` | `-FormatAction check` | Checks or applies `.clang-format` to maintained C/C++ source roots. |
+| `quality` | `-QualityAction check` | Checks every maintained first-party format and language policy; `fix` applies deterministic formatters only. |
+| `tools` | `-ToolsAction list` | Lists project tools, reports offline status, checks upstream versions, or performs a guarded update. |
 | `links` | None | Runs the maintained local Markdown-link checker with the project Python toolchain. |
 | `configure` | `-Preset test` | Configures one visible CMake preset. |
 | `build` | `-Preset test` | Configures a missing tree and builds one preset. |
@@ -93,7 +95,9 @@ module, project command, bundle, benchmark profile, or guarded workflow name.
   [-GitBranch <name>]
 ```
 
-`switch` and `create` accept `-GitBranch`. The interactive menu can fetch and prune references, switch or create branches, fast-forward the current branch, publish or push it, show recent history, and delete eligible local branches. Protected integration branches cannot be deleted. A branch whose upstream disappeared after a squash merge requires separate force-delete confirmation rather than being assumed safe.
+`switch` and `create` accept `-GitBranch`. The interactive menu can fetch and prune references, switch or create branches, fast-forward the current
+branch, publish or push it, show recent history, and delete eligible local branches. Protected integration branches cannot be deleted. A branch whose
+upstream disappeared after a squash merge requires separate force-delete confirmation rather than being assumed safe.
 
 ### Guarded workflow actions
 
@@ -106,7 +110,10 @@ module, project command, bundle, benchmark profile, or guarded workflow name.
   [-Preview]
 ```
 
-`run` requires a cataloged `-Workflow`. `-WorkflowKind` and `-WorkflowNumber` narrow project reconciliation. Release finalization uses `-ReleaseCommit`. `-Preview` validates and prints the dispatch, watch, and verification commands without contacting GitHub. Mutating operations retain their typed local confirmation and protected-environment approval requirements. Workflow-specific contracts remain on @ref project_repository_automation, @ref project_release_automation, and @ref project_documentation.
+`run` requires a cataloged `-Workflow`. `-WorkflowKind` and `-WorkflowNumber` narrow project reconciliation. Release finalization uses
+`-ReleaseCommit`. `-Preview` validates and prints the dispatch, watch, and verification commands without contacting GitHub. Mutating operations retain
+their typed local confirmation and protected-environment approval requirements. Workflow-specific contracts remain on @ref
+project_repository_automation, @ref project_release_automation, and @ref project_documentation.
 
 ### Unicode actions
 
@@ -118,7 +125,10 @@ module, project command, bundle, benchmark profile, or guarded workflow name.
   [-ClangFormatPath <path>]
 ```
 
-`verify` reproduces the checked-in table from the pinned Unicode release and compares it byte-for-byte. `regenerate` replaces the tracked table only when generated output differs. `-RefreshUnicodeData` downloads and extracts a fresh archive. `-UnicodeDataRoot`, environment variable `GAMEWIP_UNICODE_DATA_ROOT`, and the configured cache path select the source-data root in that precedence order. Explicit Python and clang-format paths override environment/configured tool resolution for the action.
+`verify` reproduces the checked-in table from the pinned Unicode release and compares it byte-for-byte. `regenerate` replaces the tracked table only
+when generated output differs. `-RefreshUnicodeData` downloads and extracts a fresh archive. `-UnicodeDataRoot`, environment variable
+`GAMEWIP_UNICODE_DATA_ROOT`, and the configured cache path select the source-data root in that precedence order. Explicit Python and clang-format
+paths override environment/configured tool resolution for the action.
 
 ### Formatting and Markdown links
 
@@ -127,7 +137,20 @@ module, project command, bundle, benchmark profile, or guarded workflow name.
 .\gamewip.bat links [-PythonPath <path>]
 ```
 
-Formatting covers maintained C/C++ files under `foundation/`, `tools/`, `engine/`, and `game/`. Check mode is the default and does not rewrite files. Link validation checks maintained relative Markdown targets and returns nonzero when a target is missing. Repository and documentation standards beyond links remain documented on @ref project_static_analysis.
+Formatting covers maintained C/C++ files under `foundation/`, `tools/`, `engine/`, and `game/`. Check mode is the default and does not rewrite files.
+Link validation checks maintained relative Markdown targets and returns nonzero when a target is missing. Repository and documentation standards
+beyond links remain documented on @ref project_static_analysis.
+
+### Repository quality
+
+```powershell
+.\gamewip.bat quality -QualityAction <check|fix>
+```
+
+`check` runs the configured first-party formatters, linters, schema validation,
+repository checks, documentation checks, and link validation without changing
+tracked files. `fix` applies only deterministic formatter output; it does not
+rewrite prose or automatically repair semantic lint findings.
 
 ### Configure, build, and CTest
 
@@ -137,7 +160,8 @@ Formatting covers maintained C/C++ files under `foundation/`, `tools/`, `engine/
 .\gamewip.bat test -Preset <name>
 ```
 
-The default is `test`. Configure and build accept every visible configure/build preset. Test accepts `test`, `coverage`, and `asan`. Build and test create a missing configure tree automatically. Preset composition and artifacts are owned by @ref project_build.
+The default is `test`. Configure and build accept every visible configure/build preset. Test accepts `test`, `coverage`, and `asan`. Build and test
+create a missing configure tree automatically. Preset composition and artifacts are owned by @ref project_build.
 
 ### Modules and stress runs
 
@@ -147,7 +171,9 @@ The default is `test`. Configure and build accept every visible configure/build 
   [-ExtraArgs <arguments>] [-BuildIfMissing]
 ```
 
-The default module is `all`. `module` forwards `--no-test-report` plus `-ExtraArgs`. `stress` defaults to 32 runs and 8 workers, retains one stdout/stderr log pair per run, and reports launched, active, completed, and failed counts. `-BuildIfMissing` configures/builds the test executable when necessary. Public runner options are listed under @ref project_validation; internal child protocol selectors are not user-facing commands.
+The default module is `all`. `module` forwards `--no-test-report` plus `-ExtraArgs`. `stress` defaults to 32 runs and 8 workers, retains one
+stdout/stderr log pair per run, and reports launched, active, completed, and failed counts. `-BuildIfMissing` configures/builds the test executable
+when necessary. Public runner options are listed under @ref project_validation; internal child protocol selectors are not user-facing commands.
 
 ### Project commands
 
@@ -176,7 +202,8 @@ The default project command is `benchmark-dry-run`. `-BuildIfMissing` configures
 | `sanitizer` | Configure, build, and run CTest for `asan`. |
 | `local-release-check` | Test; coverage build, tests, and report; analysis; documentation; benchmark registration dry run; release-version check. |
 
-The default bundle is `quick`. Bundle definitions may compose configure, build, build-target, CTest, project-command, benchmark, and acyclic nested-bundle steps.
+The default bundle is `quick`. Bundle definitions may compose configure, build, build-target, CTest, project-command, benchmark, and acyclic
+nested-bundle steps.
 
 ### Benchmarks
 
@@ -196,13 +223,16 @@ The default bundle is `quick`. Bundle definitions may compose configure, build, 
   [-Candidate <after.json>]
 ```
 
-`compare` requires both baseline and candidate JSON files. `-ExtraArgs` is for Google Benchmark options not already managed by the helper; it rejects helper-owned output, format, filter, repetitions, minimum-time, aggregate, random-interleaving, and dry-run prefixes so one invocation cannot provide conflicting values. Profile definitions, measurement rules, retained results, and comparison behavior are owned by @ref project_benchmarking.
+`compare` requires both baseline and candidate JSON files. `-ExtraArgs` is for Google Benchmark options not already managed by the helper; it rejects
+helper-owned output, format, filter, repetitions, minimum-time, aggregate, random-interleaving, and dry-run prefixes so one invocation cannot provide
+conflicting values. Profile definitions, measurement rules, retained results, and comparison behavior are owned by @ref project_benchmarking.
 
 ## Catalog values
 
 ### Presets
 
-Configure/build presets are `dev`, `test`, `benchmark`, `profile`, `release`, `coverage`, `asan`, `analyze`, and `docs`. CTest presets are `test`, `coverage`, and `asan`.
+Configure/build presets are `dev`, `test`, `benchmark`, `profile`, `release`, `coverage`, `asan`, `analyze`, and `docs`. CTest presets are `test`,
+`coverage`, and `asan`.
 
 ### Validation modules
 
@@ -220,16 +250,19 @@ helper module/stress actions to select the complete set. Runtime execution uses 
 
 ### Manual workflows
 
-Cataloged workflow IDs are `validation`, `project-dry-run`, `project-write`, `release-check`, `release-prepare`, `release-finalize-dry-run`, `release-finalize`, and `docs-deploy`. `gamewip.bat workflow -WorkflowAction list` prints their current safety class.
+Cataloged workflow IDs are `validation`, `project-dry-run`, `project-write`, `release-check`, `release-prepare`, `release-finalize-dry-run`,
+`release-finalize`, and `docs-deploy`. `gamewip.bat workflow -WorkflowAction list` prints their current safety class.
 
 ## Global execution behavior
 
-`-NoWorkspaceTemp` prevents actions from replacing `TEMP` and `TMP` with `build/gamewip-temp`. By default, validation-oriented helper actions use that workspace-owned temporary root so local OS-temp permissions do not make FileSystem, Logger, or process tests fail spuriously.
+`-NoWorkspaceTemp` prevents actions from replacing `TEMP` and `TMP` with an operation directory under `build/gamewip/temp`. By default,
+validation-oriented helper actions use operation-scoped workspace temporary storage so local OS-temp permissions do not make FileSystem, Logger,
+or process tests fail spuriously.
 
 Every native step prints its exact command, streams output, and records a run under:
 
 ```text
-build/tool-runs/<timestamp>_<action>/
+build/gamewip/runs/<timestamp>_<action>/
   logs/
   artifacts/
   manifest.json
@@ -237,7 +270,9 @@ build/tool-runs/<timestamp>_<action>/
   summary.txt
 ```
 
-The manifest retains individual native exit codes, command lines, durations, logs, and outputs. A noninteractive helper failure prints focused recovery hints and exits `1`; successful actions exit `0`. Interactive menu actions catch and display a failed selection so the menu can continue. Cancelled interactive choices do not run the selected operation.
+The manifest retains individual native exit codes, command lines, durations, logs, and outputs. A noninteractive helper failure prints focused
+recovery hints and exits `1`; successful actions exit `0`. Interactive menu actions catch and display a failed selection so the menu can continue.
+Cancelled interactive choices do not run the selected operation.
 
 ## Executable commands
 
@@ -250,7 +285,8 @@ The manifest retains individual native exit codes, command lines, durations, log
 .\build\dev\GameWIP.exe --startup-tests [GameWIPTests options]
 ```
 
-`--help`, `-h`, and `-?` print help without initializing validation, logging, Window, or runtime services. `--version` is also utility-only. Startup validation is build-dependent and opt-in. See @ref project_game_executable.
+`--help`, `-h`, and `-?` print help without initializing validation, logging, Window, or runtime services. `--version` is also utility-only. Startup
+validation is build-dependent and opt-in. See @ref project_game_executable.
 
 ### Correctness runner
 
@@ -260,7 +296,8 @@ The manifest retains individual native exit codes, command lines, durations, log
 .\build\test\GameWIPTests.exe --test-module=filesystem --no-test-report
 ```
 
-Help exits successfully without running a module or creating a report. No options runs every registered module and writes the default report. See @ref project_validation for all public flags and exact selection, reporting, child-routing, and exit behavior.
+Help exits successfully without running a module or creating a report. No options runs every registered module and writes the default report. See @ref
+project_validation for all public flags and exact selection, reporting, child-routing, and exit behavior.
 
 ### Benchmark runner
 
@@ -270,11 +307,30 @@ Help exits successfully without running a module or creating a report. No option
 .\build\benchmark\GameWIPBenchmarks.exe --benchmark_filter=BM_Unicode
 ```
 
-The standalone executable exposes the pinned Google Benchmark command line. Prefer `gamewip.bat benchmark` for repeatable local measurements and retained metadata. See @ref project_benchmarking.
+The standalone executable exposes the pinned Google Benchmark command line. Prefer `gamewip.bat benchmark` for repeatable local measurements and
+retained metadata. See @ref project_benchmarking.
 
 ## Maintainer rules
 
-`scripts/GameWIP.ps1` owns helper parsing and execution. `scripts/config/gamewip-commands.psd1` owns project commands, bundles, benchmark profiles, modules, and guarded workflows. Keep `gamewip.bat` as a small Windows launcher and help-alias adapter.
+`scripts/GameWIP.ps1` owns parameter parsing and dispatch. Focused behavior lives in `scripts/lib/`, while schema-validated
+`scripts/config/commands.json` owns project commands, bundles, benchmark profiles, modules, and guarded workflows. Keep `gamewip.bat` as a small
+Windows launcher and help-alias adapter.
+
+### Tool inventory and updates
+
+```powershell
+.\gamewip.bat tools -ToolsAction list
+.\gamewip.bat tools -ToolsAction status
+.\gamewip.bat tools -ToolsAction check-updates
+.\gamewip.bat tools -ToolsAction update -Tool ruff -Preview
+.\gamewip.bat tools -ToolsAction update -Tool all
+```
+
+`list` and `status` never use the network. `check-updates` is online but
+read-only. Update preview builds a complete online plan without modifying the
+checkout or installed tools. A real update requires a clean tracked tree and
+never commits or pushes its resulting inspectable changes. See
+@ref project_contracts for version and provider ownership.
 
 When changing a public command:
 

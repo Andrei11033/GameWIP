@@ -1,0 +1,115 @@
+{
+  "schemaVersion": 1,
+  "actions": [
+    {
+      "id": "full",
+      "key": "1",
+      "name": "Complete setup (recommended)",
+      "description": "Install or repair every required component and verify the checkout.",
+      "machineChanges": true
+    },
+    {
+      "id": "check",
+      "key": "2",
+      "name": "Check environment (read only)",
+      "description": "Verify required tools and project state without changing them.",
+      "machineChanges": false
+    },
+    {
+      "id": "update",
+      "key": "3",
+      "name": "Update environment",
+      "description": "Update compatible tools, integrations, and the checkout, then verify.",
+      "machineChanges": true
+    },
+    {
+      "id": "repair",
+      "key": "4",
+      "name": "Repair environment",
+      "description": "Reapply required state without ordinary upgrades.",
+      "machineChanges": true
+    },
+    {
+      "id": "editor",
+      "key": "5",
+      "name": "Choose and configure editors/IDEs",
+      "description": "Choose editors and install their GameWIP integrations.",
+      "machineChanges": true
+    },
+    {
+      "id": "msys2",
+      "key": "6",
+      "name": "Configure MSYS2",
+      "description": "Install or repair declared UCRT64 and CLANG64 packages.",
+      "machineChanges": true
+    },
+    {
+      "id": "repository",
+      "key": "7",
+      "name": "Prepare repository",
+      "description": "Initialize pinned submodules and configure the development tree.",
+      "machineChanges": true
+    },
+    {
+      "id": "tools",
+      "key": "8",
+      "name": "Install project tools",
+      "description": "Install declared project tools using their configured providers.",
+      "machineChanges": true
+    },
+    {
+      "id": "docs",
+      "key": "9",
+      "name": "Build documentation",
+      "description": "Build, verify, and optionally open the generated manual.",
+      "machineChanges": false
+    },
+    {
+      "id": "profiler",
+      "key": "0",
+      "name": "Install matching Tracy profiler tools",
+      "description": "Build and install tools matching the pinned Tracy client.",
+      "machineChanges": true
+    },
+    {
+      "id": "uninstall",
+      "key": "U",
+      "name": "Uninstall everything installed by GameWIP",
+      "description": "Remove setup-owned software, integrations, and generated setup artifacts.",
+      "machineChanges": true
+    },
+    {
+      "id": "visual-studio",
+      "name": "Install or repair Visual Studio Community",
+      "description": "Apply the repository Visual Studio configuration.",
+      "machineChanges": true
+    },
+    { "id": "list", "name": "List setup actions", "description": "List supported setup actions and their behavior.", "machineChanges": false },
+    { "id": "help", "name": "Show setup help", "description": "Print command-line usage and common options.", "machineChanges": false },
+    { "id": "menu", "name": "Open the interactive setup menu", "description": "Open the persistent one-key setup menu.", "machineChanges": false }
+  ],
+  "wingetPackages": [{ "name": "Git", "id": "Git.Git", "command": "git" }],
+  "msys2Packages": {
+    "common": ["git"],
+    "ucrt64": [
+      "mingw-w64-ucrt-x86_64-cmake",
+      "mingw-w64-ucrt-x86_64-ninja",
+      "mingw-w64-ucrt-x86_64-gcc",
+      "mingw-w64-ucrt-x86_64-gdb",
+      "mingw-w64-ucrt-x86_64-clang-tools-extra",
+      "mingw-w64-ucrt-x86_64-doxygen",
+      "mingw-w64-ucrt-x86_64-graphviz",
+      "mingw-w64-ucrt-x86_64-gcovr",
+      "mingw-w64-ucrt-x86_64-nodejs",
+      "mingw-w64-ucrt-x86_64-python"
+    ],
+    "clang64": [
+      "mingw-w64-clang-x86_64-cmake",
+      "mingw-w64-clang-x86_64-ninja",
+      "mingw-w64-clang-x86_64-clang",
+      "mingw-w64-clang-x86_64-compiler-rt",
+      "mingw-w64-clang-x86_64-lld"
+    ]
+  },
+  "cmakeVersionPattern": "^cmake version 4\\.4\\.(?:[2-9]|[1-9][0-9]+)(?:\\.|$)"
+}

@@ -3,46 +3,63 @@ param(
     [string]$Action = 'menu',
     [string]$Branch,
     [switch]$NonInteractive,
-    [switch]$SkipDocs
+    [switch]$SkipDocs,
+    [switch]$Preview
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
+# Focused setup libraries consume these public script parameters after they are
+# dot-sourced below.
+$null = $Branch, $SkipDocs
+
 $RepositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
-. (Join-Path $PSScriptRoot '..\common\ToolRuns.ps1')
-$script:SetupStatePath = Join-Path $RepositoryRoot '.gamewip-install-state.json'
+. (Join-Path $PSScriptRoot '..\lib\Config.ps1')
+. (Join-Path $PSScriptRoot '..\lib\Storage.ps1')
+. (Join-Path $PSScriptRoot '..\lib\ToolRuns.ps1')
+. (Join-Path $PSScriptRoot '..\lib\Tools.ps1')
+$ProjectConfig = Read-GameWipJsonConfig -Path (Join-Path $PSScriptRoot '..\config\project.json') -Name 'project' -SchemaPath (Join-Path $PSScriptRoot '..\schemas\project.schema.json')
+$ProjectTools = Read-GameWipJsonConfig -Path (Join-Path $PSScriptRoot '..\config\project-tools.json') -Name 'project tools' -SchemaPath (Join-Path $PSScriptRoot '..\schemas\project-tools.schema.json')
+$SetupActionConfig = Read-GameWipJsonConfig -Path (Join-Path $PSScriptRoot 'config\setup.json') -Name 'setup' -SchemaPath (Join-Path $PSScriptRoot '..\schemas\setup.schema.json')
+$EditorConfig = Read-GameWipJsonConfig -Path (Join-Path $PSScriptRoot 'config\editors.json') -Name 'editors' -SchemaPath (Join-Path $PSScriptRoot '..\schemas\editors.schema.json')
+$script:SetupStatePath = Join-Path $RepositoryRoot (Join-Path $ProjectConfig.storage.state 'setup.json')
 $script:SetupRun = $null
-$ToolConfig = Import-PowerShellDataFile (Join-Path $PSScriptRoot 'config\tools.psd1')
-$MsysPackageConfig = Import-PowerShellDataFile (Join-Path $PSScriptRoot 'config\msys2-packages.psd1')
-$EditorConfig = Import-PowerShellDataFile (Join-Path $PSScriptRoot 'config\editors.psd1')
-$SetupActionConfig = Import-PowerShellDataFile (Join-Path $PSScriptRoot 'config\actions.psd1')
+$Script:OperationTemp = $null
+$ToolConfig = @{ MsysRoot = $ProjectConfig.managedEnvironment.msys2Root; CMakeVersionPattern = $SetupActionConfig.cmakeVersionPattern; WingetPackages = $SetupActionConfig.wingetPackages }
+$MsysPackageConfig = @{ Common = $SetupActionConfig.msys2Packages.common; Ucrt64 = $SetupActionConfig.msys2Packages.ucrt64; Clang64 = $SetupActionConfig.msys2Packages.clang64 }
+Initialize-GameWipStorage
+Assert-GameWipProjectToolConfig
 
 Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot 'lib') -Filter '*.ps1' | Sort-Object Name | ForEach-Object { . $_.FullName }
 
-function Initialize-SetupRun
+function Initialize-GameWipSetupRun
 {
     param([Parameter(Mandatory = $true)][string]$SelectedAction)
 
-    $script:SetupRun = New-GameWipToolRun `
+    $script:SetupRun = Initialize-GameWipToolRun `
         -RepositoryRoot $RepositoryRoot `
-        -RunLogRoot 'build\tool-runs' `
+        -RunLogRoot $ProjectConfig.storage.runs `
         -Tool 'setup' `
         -Action "setup-$SelectedAction"
     Write-Host "Tool run: $($script:SetupRun.Root)"
+    $Script:OperationTemp = Initialize-GameWipOperationTemp
 }
 
-function Complete-SetupRun
+function Complete-GameWipSetupRun
 {
     param([Parameter(Mandatory = $true)][ValidateSet('passed', 'failed', 'cancelled')][string]$Status)
 
-    if ($null -eq $script:SetupRun) { return }
-    $summary = Save-GameWipToolRun -Run $script:SetupRun -Status $Status
-    Write-Host "Summary: $summary"
-    $script:SetupRun = $null
+    if ($null -ne $script:SetupRun)
+    {
+        $summary = Save-GameWipToolRun -Run $script:SetupRun -Status $Status
+        Write-Host "Summary: $summary"
+        $script:SetupRun = $null
+    }
+    Complete-GameWipOperationTemp
 }
 
-function Show-SetupMenu
+function Show-GameWipSetupMenu
 {
     Write-Host ''
     Write-Host 'GameWIP Development Environment'
@@ -54,7 +71,10 @@ function Show-SetupMenu
     Write-Host 'Esc. Exit'
 
     $mapping = @{}
-    foreach ($actionInfo in @($SetupActionConfig.Actions | Where-Object { $_.ContainsKey('Key') })) { $mapping[$actionInfo.Key] = $actionInfo.Id }
+    foreach ($actionInfo in @($SetupActionConfig.Actions | Where-Object { $_.ContainsKey('Key') }))
+    {
+        $mapping[$actionInfo.Key] = $actionInfo.Id
+    }
 
     while ($true)
     {
@@ -77,13 +97,13 @@ function Show-SetupMenu
     }
 }
 
-function Show-ManualInstallInstructions
+function Show-GameWipManualInstallInstruction
 {
-    Write-SetupSection 'Manual installation'
+    Write-GameWipSetupSection 'Manual installation'
     Write-Host 'Install the following WinGet packages, then rerun setup.bat check:'
     Write-Host '  winget install --id Git.Git --exact'
     Write-Host '  winget install --id MSYS2.MSYS2 --exact --override "install --confirm-command --root C:\MSYS2"'
-    $selectedEditors = @(Get-GameWipSelectedEditors -RepositoryRoot $RepositoryRoot -EditorConfig $EditorConfig)
+    $selectedEditors = @(Get-GameWipEditorSelection -RepositoryRoot $RepositoryRoot -EditorConfig $EditorConfig)
     foreach ($id in $selectedEditors)
     {
         $editor = $EditorConfig.Options | Where-Object { $_.Id -eq $id } | Select-Object -First 1
@@ -98,17 +118,20 @@ function Show-ManualInstallInstructions
     }
     Write-Host ''
     Write-Host 'In MSYS2, perform a complete pacman -Syu update and install the packages declared in:'
-    Write-Host "  $PSScriptRoot\config\msys2-packages.psd1"
+    Write-Host "  $PSScriptRoot\config\setup.json"
     Write-Host 'Then run setup.bat profiler to install the matching official Tracy Windows tools.'
     Write-Host ''
     Write-Host 'The setup script can finish repository, editor, and documentation preparation after those tools are present.'
 }
 
-function Confirm-SetupMachineChanges
+function Confirm-GameWipSetupMachineChange
 {
     param([Parameter(Mandatory = $true)][string]$SelectedAction)
 
-    if ($SelectedAction -in @('full', 'repair', 'update')) { Show-SetupSizeEstimate }
+    if ($SelectedAction -in @('full', 'repair', 'update'))
+    {
+        Show-GameWipSetupSizeEstimate
+    }
 
     if ($NonInteractive)
     {
@@ -140,17 +163,29 @@ function Confirm-SetupMachineChanges
         Write-Host $choice
         switch ($choice)
         {
-            'A' { return $true }
-            'M' { Show-ManualInstallInstructions; return $false }
-            'C' { return $false }
-            default { Write-Host 'Press A, M, C, or Esc.' -ForegroundColor Yellow }
+            'A'
+            {
+                return $true
+            }
+            'M'
+            {
+                Show-GameWipManualInstallInstruction; return $false
+            }
+            'C'
+            {
+                return $false
+            }
+            default
+            {
+                Write-Host 'Press A, M, C, or Esc.' -ForegroundColor Yellow
+            }
         }
     }
 }
 
-function Show-SetupSizeEstimate
+function Show-GameWipSetupSizeEstimate
 {
-    Write-SetupSection 'Estimated resource use'
+    Write-GameWipSetupSection 'Estimated resource use'
     Write-Host '  Download: approximately 1-4 GB (depends on selected editor and existing packages)'
     Write-Host '  Installed disk space: approximately 4-15 GB'
     Write-Host '  Temporary build space: up to approximately 6 GB (mainly Tracy and documentation)'
@@ -158,98 +193,175 @@ function Show-SetupSizeEstimate
     Write-Host '  These are conservative estimates; WinGet and pacman determine exact dependency sizes.'
 }
 
-function Invoke-SetupAction
+function Invoke-GameWipSetupAction
 {
     param([Parameter(Mandatory = $true)][string]$SelectedAction)
 
     switch ($SelectedAction)
     {
-        'full' { Invoke-CompleteSetup -RefreshMsys2 }
-        'repair' { Invoke-CompleteSetup }
-        'update' { Invoke-CompleteSetup -Update -RefreshMsys2 }
-        'uninstall' { Invoke-GameWipUninstall -RepositoryRoot $RepositoryRoot }
-        'check' { Invoke-EnvironmentCheck }
-        'tools' { Invoke-ToolStep }
-        'visual-studio' { Invoke-VisualStudioStep }
-        'msys2' { Invoke-Msys2Step }
-        'repository' { Invoke-RepositoryStep }
-        'profiler' { Invoke-TracyStep }
-        'editor' { Invoke-EditorStep -Choose:(-not $NonInteractive) }
-        'docs' { Invoke-DocumentationStep -Open:(-not $NonInteractive) }
-        'list' { Show-SetupActionCatalog }
-        'help' { Show-SetupHelp }
-        default { throw "Setup action '$SelectedAction' is registered but has no implementation." }
+        'full'
+        {
+            Invoke-GameWipCompleteSetup -RefreshMsys2
+        }
+        'repair'
+        {
+            Invoke-GameWipCompleteSetup
+        }
+        'update'
+        {
+            Invoke-GameWipCompleteSetup -Update -RefreshMsys2
+        }
+        'uninstall'
+        {
+            Invoke-GameWipUninstall -RepositoryRoot $RepositoryRoot -SetupConfig $SetupActionConfig -ProjectTools $ProjectTools -Preview:$Preview
+        }
+        'check'
+        {
+            Invoke-GameWipEnvironmentCheck
+        }
+        'tools'
+        {
+            Invoke-GameWipToolStep
+        }
+        'visual-studio'
+        {
+            Invoke-GameWipVisualStudioStep
+        }
+        'msys2'
+        {
+            Invoke-GameWipMsys2Step
+        }
+        'repository'
+        {
+            Invoke-GameWipRepositoryStep
+        }
+        'profiler'
+        {
+            Invoke-GameWipTracyStep
+        }
+        'editor'
+        {
+            Invoke-GameWipEditorStep -Choose:(-not $NonInteractive)
+        }
+        'docs'
+        {
+            Invoke-GameWipDocumentationStep -Open:(-not $NonInteractive)
+        }
+        'list'
+        {
+            Show-GameWipSetupActionCatalog
+        }
+        'help'
+        {
+            Show-GameWipSetupHelp
+        }
+        default
+        {
+            throw "Setup action '$SelectedAction' is registered but has no implementation."
+        }
     }
 }
 
-function Show-SetupActionCatalog
+function Show-GameWipSetupActionCatalog
 {
-    Write-SetupSection 'Setup actions'
+    Write-GameWipSetupSection 'Setup actions'
     foreach ($actionInfo in @($SetupActionConfig.Actions))
     {
         Write-Host ("  {0,-16} {1}" -f $actionInfo.Id, $actionInfo.Description)
     }
 }
 
-function Show-SetupHelp
+function Show-GameWipSetupHelp
 {
     Write-Host 'Usage:'
-    Write-Host '  setup.bat [action] [-Branch <name>] [-NonInteractive] [-SkipDocs]'
+    Write-Host '  setup.bat [action] [-Branch <name>] [-NonInteractive] [-SkipDocs] [-Preview]'
     Write-Host '  setup.bat help | --help | -h | -?'
     Write-Host ''
-    Show-SetupActionCatalog
+    Show-GameWipSetupActionCatalog
     Write-Host ''
     Write-Host 'Options:'
     Write-Host '  -Branch <name>    Select a fetched branch for repository preparation.'
     Write-Host '  -NonInteractive   Approve automatic installation and use saved/default choices.'
     Write-Host '  -SkipDocs         Skip documentation during full, update, or repair.'
+    Write-Host '  -Preview          Discover and report uninstall actions without mutation.'
 }
 
-function Assert-SetupActionCatalog
+function Assert-GameWipSetupActionCatalog
 {
     $actions = @($SetupActionConfig.Actions)
     $duplicateIds = @($actions | ForEach-Object { [string]$_.Id } | Group-Object | Where-Object { $_.Count -gt 1 })
-    if ($duplicateIds.Count -ne 0) { throw "Duplicate setup action IDs: $($duplicateIds.Name -join ', ')." }
+    if ($duplicateIds.Count -ne 0)
+    {
+        throw "Duplicate setup action IDs: $($duplicateIds.Name -join ', ')."
+    }
     $menuActions = @($actions | Where-Object { $_.ContainsKey('Key') })
     $duplicateKeys = @($menuActions | ForEach-Object { [string]$_.Key } | Group-Object | Where-Object { $_.Count -gt 1 })
-    if ($duplicateKeys.Count -ne 0) { throw "Duplicate setup menu keys: $($duplicateKeys.Name -join ', ')." }
-    if (@($actions.Id) -notcontains $Action) { throw "Unknown setup action '$Action'. Run 'setup.bat list' to see supported actions." }
+    if ($duplicateKeys.Count -ne 0)
+    {
+        throw "Duplicate setup menu keys: $($duplicateKeys.Name -join ', ')."
+    }
+    if (@($actions.Id) -notcontains $Action)
+    {
+        throw "Unknown setup action '$Action'. Run 'setup.bat list' to see supported actions."
+    }
 }
 
-function Invoke-ToolStep
+function Invoke-GameWipToolStep
 {
     param([switch]$Update)
-    Write-SetupSection 'Machine tools'
-    Install-ConfiguredWingetTools -Packages $ToolConfig.WingetPackages -Update:$Update
+    Write-GameWipSetupSection 'Project tools'
+    Initialize-GameWipManagedToolRoot
+    foreach ($toolInfo in @($ProjectTools.tools | Where-Object { $_.capabilities.update -and $_.provider.kind -notin @('gitSubmodule', 'external') }))
+    {
+        $detected = Get-GameWipDetectedTool -Tool $toolInfo
+        $compatibility = Get-GameWipToolCompatibility -Tool $toolInfo -Detected $detected
+        if (-not $Update -and $compatibility -eq 'compatible')
+        {
+            Write-Host "  Ready: $($toolInfo.name)"
+            continue
+        }
+        $version = if ($toolInfo.Contains('requiredVersion'))
+        {
+            [string]$toolInfo.requiredVersion
+        }
+        else
+        {
+            $null
+        }
+        $functionName = Get-GameWipProviderFunction -Tool $toolInfo -Operation Install
+        & $functionName -Tool $toolInfo -Version $version
+    }
 }
 
-function Invoke-VisualStudioStep
+function Invoke-GameWipVisualStudioStep
 {
     param([switch]$Update)
-    Write-SetupSection 'Visual Studio'
+    Write-GameWipSetupSection 'Visual Studio'
     $visualStudio = $EditorConfig.Options | Where-Object { $_.Handler -eq 'visual-studio' } | Select-Object -First 1
     Install-GameWipVisualStudio -PackageId $visualStudio.Package -VsConfigPath (Join-Path $RepositoryRoot '.vsconfig') -Update:$Update
 }
 
-function Invoke-Msys2Step
+function Invoke-GameWipMsys2Step
 {
     param([switch]$Update)
-    Write-SetupSection 'MSYS2 UCRT64 and CLANG64'
+    Write-GameWipSetupSection 'MSYS2 UCRT64 and CLANG64'
     if (-not (Test-Path -LiteralPath (Join-Path $ToolConfig.MsysRoot 'usr\bin\bash.exe')))
     {
-        Install-WingetPackage -Id 'MSYS2.MSYS2' -Override "install --confirm-command --root $($ToolConfig.MsysRoot)"
+        Install-GameWipWingetPackage -Id 'MSYS2.MSYS2' -Override "install --confirm-command --root $($ToolConfig.MsysRoot)"
         $state = Get-GameWipSetupState
         $state.msys2InstalledBySetup = $true
         Save-GameWipSetupState -State $state
+        [ordered]@{ schemaVersion = 1; owner = 'GameWIP'; resource = 'msys2'; installedBySetup = $true } |
+            ConvertTo-Json | Set-Content -LiteralPath (Join-Path $ToolConfig.MsysRoot '.gamewip-managed.json') -Encoding UTF8
     }
-    Install-GameWipMsys2Packages -MsysRoot $ToolConfig.MsysRoot -PackageConfig $MsysPackageConfig -Update:$Update
-    Test-GameWipMsys2Tools -MsysRoot $ToolConfig.MsysRoot -CMakeVersionPattern $ToolConfig.CMakeVersionPattern
+    Install-GameWipMsys2PackageSet -MsysRoot $ToolConfig.MsysRoot -PackageConfig $MsysPackageConfig -Update:$Update
+    Test-GameWipMsys2Toolchain -MsysRoot $ToolConfig.MsysRoot -CMakeVersionPattern $ToolConfig.CMakeVersionPattern
 }
 
-function Invoke-RepositoryStep
+function Invoke-GameWipRepositoryStep
 {
     param([switch]$Update)
-    Write-SetupSection 'Repository'
+    Write-GameWipSetupSection 'Repository'
     $wasZip = -not (Test-Path -LiteralPath (Join-Path $RepositoryRoot '.git'))
     $alreadyFetched = $false
     if ($wasZip)
@@ -261,10 +373,13 @@ function Invoke-RepositoryStep
     }
     else
     {
-        Set-GameWipRepositoryBranch -RepositoryRoot $RepositoryRoot -Branch $Branch -ChooseBranch:(-not $NonInteractive)
+        Switch-GameWipRepositoryBranch -RepositoryRoot $RepositoryRoot -Branch $Branch -ChooseBranch:(-not $NonInteractive)
         $alreadyFetched = -not $NonInteractive -or -not [string]::IsNullOrWhiteSpace($Branch)
     }
-    if ($Update) { Update-GameWipRepository -RepositoryRoot $RepositoryRoot -SkipFetch:$alreadyFetched }
+    if ($Update)
+    {
+        Invoke-GameWipRepositoryUpdate -RepositoryRoot $RepositoryRoot -SkipFetch:$alreadyFetched
+    }
     if (-not $wasZip -or $Update)
     {
         Initialize-GameWipRepository -RepositoryRoot $RepositoryRoot
@@ -273,18 +388,18 @@ function Invoke-RepositoryStep
     Write-Host '  Ready: submodules and development configuration'
 }
 
-function Invoke-EditorStep
+function Invoke-GameWipEditorStep
 {
     param(
         [switch]$Choose,
         [switch]$Update
     )
 
-    Write-SetupSection 'Editor integration'
+    Write-GameWipSetupSection 'Editor integration'
     $preferencePath = Get-GameWipEditorPreferencePath -RepositoryRoot $RepositoryRoot
     if ($Choose -or (-not (Test-Path -LiteralPath $preferencePath) -and -not $NonInteractive))
     {
-        if (-not (Select-GameWipEditors -RepositoryRoot $RepositoryRoot -EditorConfig $EditorConfig))
+        if (-not (Select-GameWipEditor -RepositoryRoot $RepositoryRoot -EditorConfig $EditorConfig))
         {
             Write-Host '  Editor selection was not changed.'
             return
@@ -292,11 +407,11 @@ function Invoke-EditorStep
     }
     elseif (-not (Test-Path -LiteralPath $preferencePath))
     {
-        Set-GameWipSelectedEditors -RepositoryRoot $RepositoryRoot -Editors @($EditorConfig.Default)
+        Save-GameWipEditorSelection -RepositoryRoot $RepositoryRoot -Editors @($EditorConfig.Default)
     }
 
-    $selectedEditors = @(Get-GameWipSelectedEditors -RepositoryRoot $RepositoryRoot -EditorConfig $EditorConfig)
-    Install-GameWipSelectedEditors -RepositoryRoot $RepositoryRoot -EditorConfig $EditorConfig -SelectedEditors $selectedEditors -Update:$Update
+    $selectedEditors = @(Get-GameWipEditorSelection -RepositoryRoot $RepositoryRoot -EditorConfig $EditorConfig)
+    Install-GameWipEditorSelection -RepositoryRoot $RepositoryRoot -EditorConfig $EditorConfig -SelectedEditors $selectedEditors -Update:$Update
     $selectedNames = @(
         $EditorConfig.Options |
             Where-Object { $selectedEditors -contains $_.Id } |
@@ -305,26 +420,26 @@ function Invoke-EditorStep
     Write-Host "  Ready: $($selectedNames -join ', ')"
 }
 
-function Invoke-TracyStep
+function Invoke-GameWipTracyStep
 {
-    Write-SetupSection 'Tracy profiler tools'
-    Build-GameWipTracyTools -RepositoryRoot $RepositoryRoot -MsysRoot $ToolConfig.MsysRoot
+    Write-GameWipSetupSection 'Tracy profiler tools'
+    Invoke-GameWipTracyToolBuild -RepositoryRoot $RepositoryRoot -MsysRoot $ToolConfig.MsysRoot
 }
 
-function Invoke-DocumentationStep
+function Invoke-GameWipDocumentationStep
 {
     param([switch]$Open)
-    Write-SetupSection 'Documentation'
-    Build-GameWipDocumentation -RepositoryRoot $RepositoryRoot -Open:$Open
+    Write-GameWipSetupSection 'Documentation'
+    Invoke-GameWipDocumentationBuild -RepositoryRoot $RepositoryRoot -Open:$Open
 }
 
-function Invoke-EnvironmentCheck
+function Invoke-GameWipEnvironmentCheck
 {
-    Write-SetupSection 'Environment check'
+    Write-GameWipSetupSection 'Environment check'
     $failures = [System.Collections.Generic.List[string]]::new()
     foreach ($package in $ToolConfig.WingetPackages)
     {
-        if ($package.ContainsKey('Command') -and -not (Test-SetupCommand -Name $package.Command))
+        if ($package.ContainsKey('Command') -and -not (Test-GameWipSetupCommand -Name $package.Command))
         {
             $failures.Add("Missing required command: $($package.Command)")
         }
@@ -334,20 +449,20 @@ function Invoke-EnvironmentCheck
         }
     }
     $allMsysPackages = @($MsysPackageConfig.Common) + @($MsysPackageConfig.Ucrt64) + @($MsysPackageConfig.Clang64)
-    $missingMsysPackages = @(Get-MissingMsys2Packages -MsysRoot $ToolConfig.MsysRoot -Packages $allMsysPackages)
+    $missingMsysPackages = @(Get-GameWipMissingMsys2Package -MsysRoot $ToolConfig.MsysRoot -Packages $allMsysPackages)
     foreach ($missingPackage in $missingMsysPackages)
     {
         $failures.Add("Missing required MSYS2 package: $missingPackage")
     }
     try
     {
-        Test-GameWipMsys2Tools -MsysRoot $ToolConfig.MsysRoot -CMakeVersionPattern $ToolConfig.CMakeVersionPattern
+        Test-GameWipMsys2Toolchain -MsysRoot $ToolConfig.MsysRoot -CMakeVersionPattern $ToolConfig.CMakeVersionPattern
     }
     catch
     {
         $failures.Add($_.Exception.Message)
     }
-    if (-not (Test-GameWipTracyTools -RepositoryRoot $RepositoryRoot))
+    if (-not (Test-GameWipTracyToolSet -RepositoryRoot $RepositoryRoot))
     {
         $failures.Add('Matching Tracy Windows profiler tools are not installed.')
     }
@@ -360,8 +475,8 @@ function Invoke-EnvironmentCheck
         $failures.Add($_.Exception.Message)
     }
 
-    $selectedEditors = @(Get-GameWipSelectedEditors -RepositoryRoot $RepositoryRoot -EditorConfig $EditorConfig)
-    $editorFailures = @(Get-GameWipEditorFailures -RepositoryRoot $RepositoryRoot -EditorConfig $EditorConfig -SelectedEditors $selectedEditors)
+    $selectedEditors = @(Get-GameWipEditorSelection -RepositoryRoot $RepositoryRoot -EditorConfig $EditorConfig)
+    $editorFailures = @(Get-GameWipEditorFailure -RepositoryRoot $RepositoryRoot -EditorConfig $EditorConfig -SelectedEditors $selectedEditors)
     foreach ($editorFailure in $editorFailures)
     {
         $failures.Add($editorFailure)
@@ -385,7 +500,7 @@ function Invoke-EnvironmentCheck
     Write-Host '  Ready: all required environment checks passed'
 }
 
-function Invoke-CompleteSetup
+function Invoke-GameWipCompleteSetup
 {
     param(
         [switch]$Update,
@@ -397,21 +512,21 @@ function Invoke-CompleteSetup
     {
         if ($NonInteractive)
         {
-            Set-GameWipSelectedEditors -RepositoryRoot $RepositoryRoot -Editors @($EditorConfig.Default)
+            Save-GameWipEditorSelection -RepositoryRoot $RepositoryRoot -Editors @($EditorConfig.Default)
         }
-        elseif (-not (Select-GameWipEditors -RepositoryRoot $RepositoryRoot -EditorConfig $EditorConfig))
+        elseif (-not (Select-GameWipEditor -RepositoryRoot $RepositoryRoot -EditorConfig $EditorConfig))
         {
             throw 'Complete setup was cancelled before an editor or IDE was selected.'
         }
     }
-    $selectedEditors = @(Get-GameWipSelectedEditors -RepositoryRoot $RepositoryRoot -EditorConfig $EditorConfig)
+    $selectedEditors = @(Get-GameWipEditorSelection -RepositoryRoot $RepositoryRoot -EditorConfig $EditorConfig)
     $selectedNames = @(
         $EditorConfig.Options |
             Where-Object { $selectedEditors -contains $_.Id } |
             ForEach-Object { $_.Name }
     )
 
-    Write-SetupSection 'Execution plan'
+    Write-GameWipSetupSection 'Execution plan'
     Write-Host "  Mode: $(if ($Update) { 'update' } else { 'install/repair' })"
     Write-Host "  Editors/IDEs: $($selectedNames -join ', ')"
     Write-Host '  1. Install or verify common machine tools'
@@ -425,21 +540,21 @@ function Invoke-CompleteSetup
     }
     Write-Host '  Final. Verify the complete selected environment'
 
-    Invoke-ToolStep -Update:$Update
-    Invoke-Msys2Step -Update:$RefreshMsys2
-    Invoke-RepositoryStep -Update:$Update
-    Invoke-EditorStep -Update:$Update
-    Invoke-TracyStep
+    Invoke-GameWipToolStep -Update:$Update
+    Invoke-GameWipMsys2Step -Update:$RefreshMsys2
+    Invoke-GameWipRepositoryStep -Update:$Update
+    Invoke-GameWipEditorStep -Update:$Update
+    Invoke-GameWipTracyStep
     if (-not $SkipDocs)
     {
-        Invoke-DocumentationStep
+        Invoke-GameWipDocumentationStep
     }
-    Invoke-EnvironmentCheck
+    Invoke-GameWipEnvironmentCheck
 }
 
-Test-SetupWindows
-Test-SetupRepository -RepositoryRoot $RepositoryRoot
-Assert-SetupActionCatalog
+Assert-GameWipSetupWindows
+Assert-GameWipSetupRepository -RepositoryRoot $RepositoryRoot
+Assert-GameWipSetupActionCatalog
 
 if ($Action -eq 'menu' -and $NonInteractive)
 {
@@ -452,15 +567,15 @@ if ($Action -eq 'menu')
 {
     while ($true)
     {
-        $selectedAction = Show-SetupMenu
+        $selectedAction = Show-GameWipSetupMenu
         if ($selectedAction -eq 'exit')
         {
             exit 0
         }
 
-        if ($machineChangeActions -contains $selectedAction)
+        if ($machineChangeActions -contains $selectedAction -and -not ($selectedAction -eq 'uninstall' -and $Preview))
         {
-            if (-not (Confirm-SetupMachineChanges -SelectedAction $selectedAction))
+            if (-not (Confirm-GameWipSetupMachineChange -SelectedAction $selectedAction))
             {
                 Write-Host 'No automatic installation changes were made.'
                 continue
@@ -469,25 +584,25 @@ if ($Action -eq 'menu')
 
         try
         {
-            Initialize-SetupRun -SelectedAction $selectedAction
-            Invoke-SetupAction -SelectedAction $selectedAction
+            Initialize-GameWipSetupRun -SelectedAction $selectedAction
+            Invoke-GameWipSetupAction -SelectedAction $selectedAction
             Write-Host ''
             Write-Host "GameWIP '$selectedAction' completed successfully." -ForegroundColor Green
-            Complete-SetupRun -Status 'passed'
+            Complete-GameWipSetupRun -Status 'passed'
         }
         catch
         {
             Write-Host ''
             Write-Host "GameWIP '$selectedAction' failed: $($_.Exception.Message)" -ForegroundColor Red
             Write-Host 'Returning to the main menu.' -ForegroundColor Yellow
-            Complete-SetupRun -Status 'failed'
+            Complete-GameWipSetupRun -Status 'failed'
         }
     }
 }
 
-if ($machineChangeActions -contains $Action)
+if ($machineChangeActions -contains $Action -and -not ($Action -eq 'uninstall' -and $Preview))
 {
-    if (-not (Confirm-SetupMachineChanges -SelectedAction $Action))
+    if (-not (Confirm-GameWipSetupMachineChange -SelectedAction $Action))
     {
         Write-Host 'No automatic installation changes were made.'
         exit 0
@@ -496,17 +611,20 @@ if ($machineChangeActions -contains $Action)
 
 try
 {
-    if ($Action -notin @('help', 'list')) { Initialize-SetupRun -SelectedAction $Action }
-    Invoke-SetupAction -SelectedAction $Action
+    if ($Action -notin @('help', 'list'))
+    {
+        Initialize-GameWipSetupRun -SelectedAction $Action
+    }
+    Invoke-GameWipSetupAction -SelectedAction $Action
 
     Write-Host ''
     Write-Host "GameWIP '$Action' completed successfully." -ForegroundColor Green
-    Complete-SetupRun -Status 'passed'
+    Complete-GameWipSetupRun -Status 'passed'
 }
 catch
 {
     Write-Host ''
     Write-Error "GameWIP '$Action' failed: $($_.Exception.Message)"
-    Complete-SetupRun -Status 'failed'
+    Complete-GameWipSetupRun -Status 'failed'
     exit 1
 }

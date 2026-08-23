@@ -30,9 +30,7 @@ const masterSha = '1111111111111111111111111111111111111111';
 const requiredChecks = ['Validation / Build and Test', 'Validation / AddressSanitizer'];
 
 function successfulChecks(sha = masterSha) {
-    return Object.fromEntries(
-        requiredChecks.map((name) => [name, {status: 'completed', conclusion: 'success', headSha: sha}]),
-    );
+    return Object.fromEntries(requiredChecks.map((name) => [name, { status: 'completed', conclusion: 'success', headSha: sha }]));
 }
 
 function releaseMilestone(overrides = {}) {
@@ -46,8 +44,8 @@ function releaseMilestone(overrides = {}) {
 
 function milestoneIssues(overrides = []) {
     return [
-        {number: 11, state: 'open', title: 'Complete R00 release'},
-        {number: 10, state: 'closed', title: 'Completed implementation'},
+        { number: 11, state: 'open', title: 'Complete R00 release' },
+        { number: 10, state: 'closed', title: 'Completed implementation' },
         ...overrides,
     ];
 }
@@ -83,12 +81,7 @@ test('rejects non-release and malformed versions', () => {
 });
 
 test('parses R00 milestone release metadata', () => {
-    const description = [
-        'Roadmap status: `[-]`',
-        '',
-        'Release version: `0.0.1`',
-        'Release issue: `#11`',
-    ].join('\n');
+    const description = ['Roadmap status: `[-]`', '', 'Release version: `0.0.1`', 'Release issue: `#11`'].join('\n');
 
     assert.deepEqual(parseMilestoneReleaseMetadata(description), {
         version: {
@@ -102,10 +95,7 @@ test('parses R00 milestone release metadata', () => {
 });
 
 test('parses milestone metadata without an explicit release issue', () => {
-    const description = [
-        'Release version: `0.1.0`',
-        'Completion goal:',
-    ].join('\r\n');
+    const description = ['Release version: `0.1.0`', 'Completion goal:'].join('\r\n');
 
     assert.deepEqual(parseMilestoneReleaseMetadata(description), {
         version: {
@@ -119,71 +109,35 @@ test('parses milestone metadata without an explicit release issue', () => {
 });
 
 test('requires exactly one valid release version line', () => {
-    assert.throws(
-        () => parseMilestoneReleaseMetadata(null),
-        /Milestone description must be a string/,
-    );
+    assert.throws(() => parseMilestoneReleaseMetadata(null), /Milestone description must be a string/);
+
+    assert.throws(() => parseMilestoneReleaseMetadata('Completion goal only'), /Expected exactly one Release version line, found 0/);
 
     assert.throws(
-        () => parseMilestoneReleaseMetadata('Completion goal only'),
-        /Expected exactly one Release version line, found 0/,
-    );
-
-    assert.throws(
-        () =>
-            parseMilestoneReleaseMetadata(
-                [
-                    'Release version: `0.0.1`',
-                    'Release version: `0.1.0`',
-                ].join('\n'),
-            ),
+        () => parseMilestoneReleaseMetadata(['Release version: `0.0.1`', 'Release version: `0.1.0`'].join('\n')),
         /Expected exactly one Release version line, found 2/,
     );
 
-    assert.throws(
-        () => parseMilestoneReleaseMetadata('Release version: 0.0.1'),
-        /Invalid Release version line/,
-    );
+    assert.throws(() => parseMilestoneReleaseMetadata('Release version: 0.0.1'), /Invalid Release version line/);
 
-    assert.throws(
-        () => parseMilestoneReleaseMetadata('Release version: `01.0.0`'),
-        /Invalid release version/,
-    );
+    assert.throws(() => parseMilestoneReleaseMetadata('Release version: `01.0.0`'), /Invalid release version/);
 });
 
 test('rejects duplicate and malformed release issues', () => {
     const versionLine = 'Release version: `0.0.1`';
 
     assert.throws(
-        () =>
-            parseMilestoneReleaseMetadata(
-                [
-                    versionLine,
-                    'Release issue: `#11`',
-                    'Release issue: `#12`',
-                ].join('\n'),
-            ),
+        () => parseMilestoneReleaseMetadata([versionLine, 'Release issue: `#11`', 'Release issue: `#12`'].join('\n')),
         /Expected at most one Release issue line, found 2/,
     );
 
-    for (const issueLine of [
-        'Release issue: `#0`',
-        'Release issue: `11`',
-        'Release issue: `#abc`',
-    ]) {
-        assert.throws(
-            () => parseMilestoneReleaseMetadata([versionLine, issueLine].join('\n')),
-            /Invalid Release issue line/,
-        );
+    for (const issueLine of ['Release issue: `#0`', 'Release issue: `11`', 'Release issue: `#abc`']) {
+        assert.throws(() => parseMilestoneReleaseMetadata([versionLine, issueLine].join('\n')), /Invalid Release issue line/);
     }
 });
 
 test('compares release versions numerically', () => {
-    const compare = (left, right) =>
-        compareReleaseVersions(
-            parseReleaseVersion(left),
-            parseReleaseVersion(right),
-        );
+    const compare = (left, right) => compareReleaseVersions(parseReleaseVersion(left), parseReleaseVersion(right));
 
     assert.equal(compare('0.0.1', '0.0.2'), -1);
     assert.equal(compare('0.9.0', '0.10.0'), -1);
@@ -193,30 +147,17 @@ test('compares release versions numerically', () => {
 });
 
 test('parses the authoritative root CMake version', () => {
-    const cmake = [
-        '# project(GameWIP VERSION 9.9.9)',
-        'project(',
-        '    GameWIP',
-        '    VERSION 0.0.1',
-        '    LANGUAGES CXX',
-        ')',
-    ].join('\n');
+    const cmake = ['# project(GameWIP VERSION 9.9.9)', 'project(', '    GameWIP', '    VERSION 0.0.1', '    LANGUAGES CXX', ')'].join('\n');
 
     assert.deepEqual(parseProjectVersion(cmake), parseReleaseVersion('0.0.1'));
     assert.throws(() => parseProjectVersion('project(Other VERSION 1.0.0)'), /found 0/);
-    assert.throws(
-        () => parseProjectVersion('project(GameWIP VERSION 0.0.1)\nproject(GameWIP VERSION 0.1.0)'),
-        /found 2/,
-    );
+    assert.throws(() => parseProjectVersion('project(GameWIP VERSION 0.0.1)\nproject(GameWIP VERSION 0.1.0)'), /found 2/);
     assert.throws(() => parseProjectVersion('project(GameWIP VERSION 0.1)'), /Invalid release version/);
 });
 
 test('parses release tags and selects the latest numeric release', () => {
     assert.deepEqual(parseReleaseTag('v0.10.0'), parseReleaseVersion('0.10.0'));
-    assert.deepEqual(
-        findLatestReleaseVersion(['documentation-preview', 'v0.9.0', 'v0.10.0', 'v0.2.5']),
-        parseReleaseVersion('0.10.0'),
-    );
+    assert.deepEqual(findLatestReleaseVersion(['documentation-preview', 'v0.9.0', 'v0.10.0', 'v0.2.5']), parseReleaseVersion('0.10.0'));
     assert.equal(findLatestReleaseVersion(['documentation-preview']), null);
     assert.throws(() => parseReleaseTag('0.1.0'), /Invalid release tag/);
     assert.throws(() => findLatestReleaseVersion(['v0.1.0-dev']), /Invalid release version/);
@@ -275,7 +216,7 @@ test('accepts only a ready active milestone with one open release issue', () => 
             validateMilestoneReadiness({
                 activeMilestone: 'R00 - Bootstrap',
                 milestone: releaseMilestone(),
-                issues: milestoneIssues([{number: 12, state: 'open', title: 'Unfinished work'}]),
+                issues: milestoneIssues([{ number: 12, state: 'open', title: 'Unfinished work' }]),
             }),
         /open implementation issues: 12/,
     );
@@ -285,8 +226,8 @@ test('accepts only a ready active milestone with one open release issue', () => 
                 activeMilestone: 'R00 - Bootstrap',
                 milestone: releaseMilestone(),
                 issues: [
-                    {number: 11, state: 'closed', title: 'Complete R00 release'},
-                    {number: 10, state: 'closed', title: 'Completed implementation'},
+                    { number: 11, state: 'closed', title: 'Complete R00 release' },
+                    { number: 10, state: 'closed', title: 'Completed implementation' },
                 ],
             }),
         /Release issue #11 must remain open/,
@@ -298,8 +239,8 @@ test('discovers a future milestone release issue without hard-coded metadata', (
         activeMilestone: 'R07 - Combat Foundation',
         milestone: automaticReleaseMilestone(),
         issues: [
-            {number: 70, state: 'closed', title: 'combat: implementation work'},
-            {number: 71, state: 'open', title: 'task: complete R07 release', labels: ['type:release']},
+            { number: 70, state: 'closed', title: 'combat: implementation work' },
+            { number: 71, state: 'open', title: 'task: complete R07 release', labels: ['type:release'] },
         ],
     });
     assert.equal(byLabel.version.text, '0.7.0');
@@ -309,8 +250,8 @@ test('discovers a future milestone release issue without hard-coded metadata', (
         activeMilestone: 'R07 - Combat Foundation',
         milestone: automaticReleaseMilestone(),
         issues: [
-            {number: 70, state: 'closed', title: 'combat: implementation work'},
-            {number: 71, state: 'open', title: 'release: complete R07 release'},
+            { number: 70, state: 'closed', title: 'combat: implementation work' },
+            { number: 71, state: 'open', title: 'release: complete R07 release' },
         ],
     });
     assert.equal(byTitle.releaseIssue.number, 71);
@@ -322,7 +263,7 @@ test('rejects missing, duplicate, and closed automatically discovered release is
             validateMilestoneReadiness({
                 activeMilestone: 'R07 - Combat Foundation',
                 milestone: automaticReleaseMilestone(),
-                issues: [{number: 70, state: 'closed', title: 'combat: implementation work'}],
+                issues: [{ number: 70, state: 'closed', title: 'combat: implementation work' }],
             }),
         /exactly one release issue.*none were found/,
     );
@@ -333,8 +274,8 @@ test('rejects missing, duplicate, and closed automatically discovered release is
                 activeMilestone: 'R07 - Combat Foundation',
                 milestone: automaticReleaseMilestone(),
                 issues: [
-                    {number: 71, state: 'open', title: 'release: complete R07 release'},
-                    {number: 72, state: 'open', title: 'task: publish R07', labels: ['type:release']},
+                    { number: 71, state: 'open', title: 'release: complete R07 release' },
+                    { number: 72, state: 'open', title: 'task: publish R07', labels: ['type:release'] },
                 ],
             }),
         /found #71, #72/,
@@ -345,7 +286,7 @@ test('rejects missing, duplicate, and closed automatically discovered release is
             validateMilestoneReadiness({
                 activeMilestone: 'R07 - Combat Foundation',
                 milestone: automaticReleaseMilestone(),
-                issues: [{number: 71, state: 'closed', title: 'release: complete R07 release'}],
+                issues: [{ number: 71, state: 'closed', title: 'release: complete R07 release' }],
             }),
         /Release issue #71 must remain open/,
     );
@@ -379,7 +320,7 @@ test('requires successful checks for the exact latest master commit', () => {
                 requiredChecks,
                 checks: {
                     ...successfulChecks(),
-                    [requiredChecks[1]]: {status: 'completed', conclusion: 'failure', headSha: masterSha},
+                    [requiredChecks[1]]: { status: 'completed', conclusion: 'failure', headSha: masterSha },
                 },
             }),
         /has not completed successfully/,
@@ -388,20 +329,17 @@ test('requires successful checks for the exact latest master commit', () => {
 
 test('selects the next roadmap milestone by title number', () => {
     const milestones = [
-        {title: 'R02 - Math Foundation'},
-        {title: 'R00 - Bootstrap'},
-        {title: 'PV1 - Multiplayer Foundation'},
-        {title: 'R01 - Window, Input, and Action Foundation'},
+        { title: 'R02 - Math Foundation' },
+        { title: 'R00 - Bootstrap' },
+        { title: 'PV1 - Multiplayer Foundation' },
+        { title: 'R01 - Window, Input, and Action Foundation' },
     ];
     assert.equal(selectNextMilestone(milestones, 'R00 - Bootstrap').title, 'R01 - Window, Input, and Action Foundation');
     assert.equal(
-        selectNextMilestone(
-            [{title: 'R08 - AI Foundation'}, {title: 'R07 - Combat Foundation'}],
-            'R07 - Combat Foundation',
-        ).title,
+        selectNextMilestone([{ title: 'R08 - AI Foundation' }, { title: 'R07 - Combat Foundation' }], 'R07 - Combat Foundation').title,
         'R08 - AI Foundation',
     );
-    assert.equal(selectNextMilestone([{title: 'R52 - V1'}], 'R52 - V1'), null);
+    assert.equal(selectNextMilestone([{ title: 'R52 - V1' }], 'R52 - V1'), null);
     assert.throws(() => selectNextMilestone(milestones, 'R03 - Missing successor'), /found 0/);
 });
 
@@ -409,12 +347,12 @@ test('plans preparation idempotently and rejects conflicting retries', () => {
     const version = parseReleaseVersion('0.0.1');
     const names = releaseNames(version);
     const releaseHeadSha = '3333333333333333333333333333333333333333';
-    assert.deepEqual(planPreparationArtifacts({version, masterSha}).createBranch, true);
+    assert.deepEqual(planPreparationArtifacts({ version, masterSha }).createBranch, true);
 
     const reusable = planPreparationArtifacts({
         version,
         masterSha,
-        branches: [{name: names.branchName, sha: releaseHeadSha}],
+        branches: [{ name: names.branchName, sha: releaseHeadSha }],
         pullRequests: [
             {
                 headRefName: names.branchName,
@@ -434,7 +372,7 @@ test('plans preparation idempotently and rejects conflicting retries', () => {
             planPreparationArtifacts({
                 version,
                 masterSha,
-                branches: [{name: names.branchName, sha: '2222222222222222222222222222222222222222'}],
+                branches: [{ name: names.branchName, sha: '2222222222222222222222222222222222222222' }],
             }),
         /not .*masterSha|not 111111/,
     );
@@ -443,7 +381,7 @@ test('plans preparation idempotently and rejects conflicting retries', () => {
             planPreparationArtifacts({
                 version,
                 masterSha,
-                branches: [{name: names.branchName, sha: masterSha}],
+                branches: [{ name: names.branchName, sha: masterSha }],
                 pullRequests: [
                     {
                         headRefName: names.branchName,
@@ -468,15 +406,15 @@ test('plans preparation idempotently and rejects conflicting retries', () => {
 test('plans finalization idempotently and preserves immutable tags', () => {
     const version = parseReleaseVersion('0.0.1');
     const names = releaseNames(version);
-    const fresh = planFinalizationArtifacts({version, releaseCommitSha: masterSha});
+    const fresh = planFinalizationArtifacts({ version, releaseCommitSha: masterSha });
     assert.equal(fresh.createTag, true);
     assert.equal(fresh.createRelease, true);
 
     const reusable = planFinalizationArtifacts({
         version,
         releaseCommitSha: masterSha,
-        tags: [{name: names.tagName, annotated: true, targetSha: masterSha}],
-        releases: [{tagName: names.tagName, draft: false}],
+        tags: [{ name: names.tagName, annotated: true, targetSha: masterSha }],
+        releases: [{ tagName: names.tagName, draft: false }],
     });
     assert.equal(reusable.reuseTag, true);
     assert.equal(reusable.reuseRelease, true);
@@ -486,7 +424,7 @@ test('plans finalization idempotently and preserves immutable tags', () => {
             planFinalizationArtifacts({
                 version,
                 releaseCommitSha: masterSha,
-                tags: [{name: names.tagName, annotated: true, targetSha: '2222222222222222222222222222222222222222'}],
+                tags: [{ name: names.tagName, annotated: true, targetSha: '2222222222222222222222222222222222222222' }],
             }),
         /not the expected immutable annotated release tag/,
     );
@@ -503,7 +441,7 @@ test('builds a complete read-only preparation plan', () => {
         evaluatedSha: masterSha,
         requiredChecks,
         checks: successfulChecks(),
-        milestones: [releaseMilestone(), {title: 'R01 - Window, Input, and Action Foundation'}],
+        milestones: [releaseMilestone(), { title: 'R01 - Window, Input, and Action Foundation' }],
         branches: [],
         pullRequests: [],
     };
@@ -521,7 +459,7 @@ test('generates release notes without closing the release issue', () => {
     const notes = releaseNotesTemplate({
         version,
         milestoneTitle: 'R00 - Bootstrap',
-        releaseIssue: {number: 11},
+        releaseIssue: { number: 11 },
         nextMilestoneTitle: 'R01 - Window, Input, and Action Foundation',
     });
 
@@ -541,8 +479,7 @@ test('generates release notes without closing the release issue', () => {
     );
     assert.throws(() => validateReleaseNotesReady(notesWithEvidence), /unchecked release checklist/);
 
-    const completedNotes = notesWithEvidence
-        .replaceAll('- [ ]', '- [x]');
+    const completedNotes = notesWithEvidence.replaceAll('- [ ]', '- [x]');
     assert.equal(validateReleaseNotesReady(completedNotes), true);
 });
 
@@ -557,7 +494,7 @@ test('generates release pull request body for human merge', () => {
         evaluatedSha: masterSha,
         requiredChecks,
         checks: successfulChecks(),
-        milestones: [releaseMilestone(), {title: 'R01 - Window, Input, and Action Foundation'}],
+        milestones: [releaseMilestone(), { title: 'R01 - Window, Input, and Action Foundation' }],
         branches: [],
         pullRequests: [],
     };
@@ -589,12 +526,12 @@ test('finalization requires the merged release pull request commit', () => {
             },
         ],
     });
-    assert.equal(validateMergedReleasePullRequest({artifacts: merged}, masterSha), true);
+    assert.equal(validateMergedReleasePullRequest({ artifacts: merged }, masterSha), true);
 
     const open = planPreparationArtifacts({
         version,
         masterSha,
-        branches: [{name: releaseNames(version).branchName, sha: masterSha}],
+        branches: [{ name: releaseNames(version).branchName, sha: masterSha }],
         pullRequests: [
             {
                 number: 42,
@@ -607,9 +544,9 @@ test('finalization requires the merged release pull request commit', () => {
             },
         ],
     });
-    assert.throws(() => validateMergedReleasePullRequest({artifacts: open}, masterSha), /must be merged/);
+    assert.throws(() => validateMergedReleasePullRequest({ artifacts: open }, masterSha), /must be merged/);
     assert.throws(
-        () => validateMergedReleasePullRequest({artifacts: {...merged, pullRequestMergeCommitSha: masterSha}}, '2222'),
+        () => validateMergedReleasePullRequest({ artifacts: { ...merged, pullRequestMergeCommitSha: masterSha } }, '2222'),
         /is not release commit/,
     );
 });

@@ -1,6 +1,7 @@
 @page project_cmake_infrastructure CMake infrastructure
 
-GameWIP CMake infrastructure is the maintainer-facing build layer used to compose first-party libraries, validation executables, documentation, reports, packages, and platform backends. It is documented for contributors who extend the project, not for players.
+GameWIP CMake infrastructure is the maintainer-facing build layer used to compose first-party libraries, validation executables, documentation,
+reports, packages, and platform backends. It is documented for contributors who extend the project, not for players.
 
 The sections below explain which shared helpers exist, what contract each one
 provides, and when a local CMake file should use or extend them. Private local
@@ -47,13 +48,15 @@ Use @ref project_build for normal configure and build commands. Use @ref project
 | `cmake/ValidateExportedSymbols.cmake` | Shared-library exported-symbol allowlist validation. |
 | `cmake/export_allowlists/` | Expected public exported-symbol roots for shared-library checks. |
 
-Library-local CMake helpers belong under the owning library's `cmake/` directory. Do not put library-specific policy in the root `cmake/` folder unless it is genuinely shared by multiple libraries.
+Library-local CMake helpers belong under the owning library's `cmake/` directory. Do not put library-specific policy in the root `cmake/` folder
+unless it is genuinely shared by multiple libraries.
 
 ## Presets and project options
 
 Supported developer workflows start from `CMakePresets.json`. Presets set intentional combinations of options from `cmake/GameWIPOptions.cmake`.
 
-Project options use the `GAMEWIP_` prefix. They control repository composition, instrumentation, validation, documentation, and tool workflows. Library-local options use the owning library prefix when they are meaningful outside the root project.
+Project options use the `GAMEWIP_` prefix. They control repository composition, instrumentation, validation, documentation, and tool workflows.
+Library-local options use the owning library prefix when they are meaningful outside the root project.
 
 When adding or changing an option:
 
@@ -82,7 +85,10 @@ Reusable libraries own their own `CMakeLists.txt` files. A library CMake file mu
 
 Avoid global include directories, global compile definitions, and recursive source discovery for maintained library sources.
 
-TestSupport remains a validation-oriented leaf relative to higher-level reusable libraries. It may link foundational Unicode when actual UTF-8 text semantics require it, but it must not acquire IO, FileSystem, Terminal, Window, Logger, Assert, engine, or other higher-level GameWIP dependencies for convenience. `TEST_SUPPORT_ENABLE_TEST_HOOKS` may enable deterministic failure injection only for source-tree validation composition; neither the option's internal compile definition nor its hook header belongs to the installed target.
+TestSupport remains a validation-oriented leaf relative to higher-level reusable libraries. It may link foundational Unicode when actual UTF-8 text
+semantics require it, but it must not acquire IO, FileSystem, Terminal, Window, Logger, Assert, engine, or other higher-level GameWIP dependencies for
+convenience. `TEST_SUPPORT_ENABLE_TEST_HOOKS` may enable deterministic failure injection only for source-tree validation composition; neither the
+option's internal compile definition nor its hook header belongs to the installed target.
 
 ## Documentation helpers
 
@@ -122,7 +128,8 @@ gamewip_add_test_module(
 )
 ```
 
-The CMake helper registers sources and dependencies. Runtime module name, order, and adapter behavior remain in the module's `module.cpp` registration.
+The CMake helper registers sources and dependencies. Runtime module name, order, and adapter behavior remain in the module's `module.cpp`
+registration.
 
 Use `gamewip_add_validation_module_directories()` only from validation parent directories that discover module subdirectories.
 
@@ -140,13 +147,15 @@ gamewip_add_benchmark_module(
 )
 ```
 
-Benchmark modules must remain separate from correctness tests. CMake registration proves that a benchmark is available; benchmark pages explain how to collect meaningful measurements.
+Benchmark modules must remain separate from correctness tests. CMake registration proves that a benchmark is available; benchmark pages explain how to
+collect meaningful measurements.
 
 ## Platform backends
 
 Use `gamewip_resolve_platform_id()` once at root configuration time to determine the project platform ID.
 
-Use `gamewip_target_platform_backend(TARGET <target> ROOT <platform-root>)` from every platform-aware target. The helper includes exactly the active backend's required `platform.cmake`; that file owns backend sources, system libraries, resources, private includes, and compile definitions.
+Use `gamewip_target_platform_backend(TARGET <target> ROOT <platform-root>)` from every platform-aware target. The helper includes exactly the active
+backend's required `platform.cmake`; that file owns backend sources, system libraries, resources, private includes, and compile definitions.
 
 The normal backend shape is:
 
@@ -160,9 +169,11 @@ Platform backend behavior is governed by @ref project_platform_backend_contract.
 
 ## Runtime dependencies
 
-Use `gamewip_copy_runtime_dependencies(<target>)` for executable targets that must run directly from the build tree on the supported Windows/MSYS2 environment.
+Use `gamewip_copy_runtime_dependencies(<target>)` for executable targets that must run directly from the build tree on the supported Windows/MSYS2
+environment.
 
-The helper adds a post-build step that resolves runtime DLLs and copies them beside the target executable. It exists so validation executables and the game executable can run without requiring users to manually copy compiler runtime dependencies.
+The helper adds a post-build step that resolves runtime DLLs and copies them beside the target executable. It exists so validation executables and the
+game executable can run without requiring users to manually copy compiler runtime dependencies.
 
 On Windows, discovery scans a clean shadow copy so a stale compiler DLL already
 beside the executable cannot override the active toolchain runtime. Project DLLs
@@ -186,15 +197,20 @@ Use the project-level targets created by:
 - `gamewip_create_static_analysis_targets()`
 - `cmake/GameWIPSanitizers.cmake`
 
-These helpers are controlled by presets and `GAMEWIP_` options. Do not enable coverage, static analysis, or sanitizer behavior from individual library CMake files unless a library-local option has an explicitly documented reason.
+These helpers are controlled by presets and `GAMEWIP_` options. Do not enable coverage, static analysis, or sanitizer behavior from individual library
+CMake files unless a library-local option has an explicitly documented reason.
 
 ## Version and package validation
 
-`gamewip_configure_version()` generates the build identity used by runtime diagnostics and documentation. Version policy is documented in @ref project_versioning.
+`gamewip_configure_version()` generates the build identity used by runtime diagnostics and documentation. Version policy is documented in @ref
+project_versioning.
 
-Package-boundary validation is part of the validation workflow. Changes to install rules, exported targets, package config files, exact version files, or public dependency visibility must preserve clean installed-consumer validation. Combined and isolated consumers must also reject every source-tree-only test-hook definition, including TestSupport's.
+Package-boundary validation is part of the validation workflow. Changes to install rules, exported targets, package config files, exact version files,
+or public dependency visibility must preserve clean installed-consumer validation. Combined and isolated consumers must also reject every
+source-tree-only test-hook definition, including TestSupport's.
 
-Shared-library exported-symbol checks use allowlists under `cmake/export_allowlists/`. Update an allowlist only when the public exported surface intentionally changes.
+Shared-library exported-symbol checks use allowlists under `cmake/export_allowlists/`. Update an allowlist only when the public exported surface
+intentionally changes.
 
 ## Maintainer rules
 

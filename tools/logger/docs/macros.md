@@ -14,7 +14,8 @@
 | `LOGGER_FATAL` | Asynchronous `Fatal`; does not terminate | Always present. |
 | `LOGGER_FATAL_TERMINATE` | Synchronous fatal report then `std::terminate()` | Always present; not a normal lazy log. |
 
-Each normal macro accepts the same message forms as its corresponding namespace function: preformatted text, compile-time checked formats, and explicit runtime formats.
+Each normal macro accepts the same message forms as its corresponding namespace function: preformatted text, compile-time checked formats, and
+explicit runtime formats.
 
 ## Evaluation rules
 
@@ -33,7 +34,8 @@ The second check is intentional because filters can change concurrently.
 
 For a compiled-out `LOGGER_TRACE` or `LOGGER_DEBUG`, neither source nor message arguments are evaluated.
 
-`LOGGER_FATAL_TERMINATE` does not use `shouldLog()`. Its arguments are evaluated and it enters the synchronous fatal-termination path regardless of normal runtime filters.
+`LOGGER_FATAL_TERMINATE` does not use `shouldLog()`. Its arguments are evaluated and it enters the synchronous fatal-termination path regardless of
+normal runtime filters.
 
 ## Choosing macros or direct calls
 
@@ -58,15 +60,19 @@ if (Logger::shouldLog(Logger::Types::Level::Debug, LogSource::Physics))
 }
 ```
 
-Do not pass an already formatted `std::format(...)` result merely to obtain laziness; use the Logger format overload so formatting occurs only inside the guarded branch.
+Do not pass an already formatted `std::format(...)` result merely to obtain laziness; use the Logger format overload so formatting occurs only inside
+the guarded branch.
 
 ## Translation-unit consistency
 
-`NDEBUG`, `LOGGER_ENABLE_TRACE_LOGS`, and `LOGGER_ENABLE_DEBUG_LOGS` are evaluated while each translation unit includes the macro header. Define them consistently through target compile definitions. Inconsistent settings can make the same macro call exist in one translation unit and disappear in another.
+`NDEBUG`, `LOGGER_ENABLE_TRACE_LOGS`, and `LOGGER_ENABLE_DEBUG_LOGS` are evaluated while each translation unit includes the macro header. Define them
+consistently through target compile definitions. Inconsistent settings can make the same macro call exist in one translation unit and disappear in
+another.
 
 ## Macro hygiene
 
-The normal macros use a `do { ... } while (false)` statement wrapper and capture the source with `auto&&`. They should be used as statements and followed by a semicolon.
+The normal macros use a `do { ... } while (false)` statement wrapper and capture the source with `auto&&`. They should be used as statements and
+followed by a semicolon.
 
 ## Related pages
 

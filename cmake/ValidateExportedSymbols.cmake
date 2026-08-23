@@ -4,12 +4,7 @@ foreach(required_variable IN ITEMS NM LIBRARY_FILE ALLOWLIST_FILE)
     endif()
 endforeach()
 
-execute_process(
-    COMMAND "${NM}" -gC --defined-only "${LIBRARY_FILE}"
-    RESULT_VARIABLE nm_result
-    OUTPUT_VARIABLE nm_output
-    ERROR_VARIABLE nm_error
-)
+execute_process(COMMAND "${NM}" -gC --defined-only "${LIBRARY_FILE}" RESULT_VARIABLE nm_result OUTPUT_VARIABLE nm_output ERROR_VARIABLE nm_error)
 if(NOT nm_result EQUAL 0)
     message(FATAL_ERROR "Could not inspect ${LIBRARY_FILE}.\n${nm_error}")
 endif()
@@ -49,9 +44,5 @@ list(REMOVE_ITEM missing_symbols ${actual_symbols})
 if(unexpected_symbols OR missing_symbols)
     string(JOIN "\n  " unexpected_text ${unexpected_symbols})
     string(JOIN "\n  " missing_text ${missing_symbols})
-    message(FATAL_ERROR
-        "Exported symbol roots differ from ${ALLOWLIST_FILE}.\n"
-        "Unexpected:\n  ${unexpected_text}\n"
-        "Missing:\n  ${missing_text}"
-    )
+    message(FATAL_ERROR "Exported symbol roots differ from ${ALLOWLIST_FILE}.\n" "Unexpected:\n  ${unexpected_text}\n" "Missing:\n  ${missing_text}")
 endif()

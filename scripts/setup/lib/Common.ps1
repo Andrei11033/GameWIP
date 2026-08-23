@@ -7,9 +7,30 @@ function Get-GameWipSetupState
         return [ordered]@{ schemaVersion = 1; wingetPackages = @(); vscodeExtensions = @(); msys2InstalledBySetup = $false }
     }
     $state = Get-Content -LiteralPath $script:SetupStatePath -Raw | ConvertFrom-Json
-    [object[]]$wingetPackages = if ($state.PSObject.Properties['wingetPackages']) { @($state.wingetPackages) } else { @() }
-    [object[]]$vscodeExtensions = if ($state.PSObject.Properties['vscodeExtensions']) { @($state.vscodeExtensions) } else { @() }
-    $ownsMsys2 = if ($state.PSObject.Properties['msys2InstalledBySetup']) { [bool]$state.msys2InstalledBySetup } else { $false }
+    [object[]]$wingetPackages = if ($state.PSObject.Properties['wingetPackages'])
+    {
+        @($state.wingetPackages)
+    }
+    else
+    {
+        @()
+    }
+    [object[]]$vscodeExtensions = if ($state.PSObject.Properties['vscodeExtensions'])
+    {
+        @($state.vscodeExtensions)
+    }
+    else
+    {
+        @()
+    }
+    $ownsMsys2 = if ($state.PSObject.Properties['msys2InstalledBySetup'])
+    {
+        [bool]$state.msys2InstalledBySetup
+    }
+    else
+    {
+        $false
+    }
     return [ordered]@{
         schemaVersion = 1
         wingetPackages = $wingetPackages
@@ -29,6 +50,7 @@ function Add-GameWipOwnedVsCodeExtension
 function Save-GameWipSetupState
 {
     param([Parameter(Mandatory = $true)]$State)
+    New-Item -ItemType Directory -Force -Path (Split-Path -Parent $script:SetupStatePath) | Out-Null
     $State | ConvertTo-Json | Set-Content -LiteralPath $script:SetupStatePath -Encoding UTF8
 }
 
@@ -40,7 +62,7 @@ function Add-GameWipOwnedWingetPackage
     Save-GameWipSetupState -State $state
 }
 
-function Write-SetupSection
+function Write-GameWipSetupSection
 {
     param([Parameter(Mandatory = $true)][string]$Title)
 
@@ -48,21 +70,21 @@ function Write-SetupSection
     Write-Host "=== $Title ===" -ForegroundColor Cyan
 }
 
-function Update-SetupProcessPath
+function Initialize-GameWipSetupProcessPath
 {
     $machinePath = [Environment]::GetEnvironmentVariable('Path', 'Machine')
     $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
     $env:Path = "$machinePath;$userPath"
 }
 
-function Test-SetupCommand
+function Test-GameWipSetupCommand
 {
     param([Parameter(Mandatory = $true)][string]$Name)
 
     return $null -ne (Get-Command $Name -ErrorAction SilentlyContinue)
 }
 
-function Invoke-SetupNative
+function Invoke-GameWipSetupNative
 {
     param(
         [Parameter(Mandatory = $true)][string]$FilePath,
@@ -71,16 +93,26 @@ function Invoke-SetupNative
     )
 
     $displayArguments = @($ArgumentList | ForEach-Object {
-        if ($_ -match '\s') { '"' + $_ + '"' } else { $_ }
-    })
+            if ($_ -match '\s')
+            {
+                '"' + $_ + '"'
+            }
+            else
+            {
+                $_
+            }
+        })
     $commandLine = "$FilePath $($displayArguments -join ' ')".Trim()
     $step = $null
     if ($null -ne $script:SetupRun)
     {
-        $step = New-GameWipToolRunStep -Run $script:SetupRun -Name ([IO.Path]::GetFileNameWithoutExtension($FilePath)) -CommandLine $commandLine
+        $step = Initialize-GameWipToolRunStep -Run $script:SetupRun -Name ([IO.Path]::GetFileNameWithoutExtension($FilePath)) -CommandLine $commandLine
     }
     Write-Host "  > $commandLine" -ForegroundColor DarkGray
-    if ($null -ne $step) { Write-Host "    log: $($step.LogPath)" -ForegroundColor DarkGray }
+    if ($null -ne $step)
+    {
+        Write-Host "    log: $($step.LogPath)" -ForegroundColor DarkGray
+    }
     $previousErrorActionPreference = $ErrorActionPreference
     $exitCode = 0
     try
@@ -94,19 +126,32 @@ function Invoke-SetupNative
         {
             & $FilePath @ArgumentList 2>&1 | ForEach-Object { Write-Host "    $_" }
         }
-        $exitCode = if ($null -ne $LASTEXITCODE) { [int]$LASTEXITCODE } else { 0 }
+        $exitCode = if ($null -ne $LASTEXITCODE)
+        {
+            [int]$LASTEXITCODE
+        }
+        else
+        {
+            0
+        }
     }
     catch
     {
         $exitCode = 1
-        if ($null -ne $step) { Complete-GameWipToolRunStep -Run $script:SetupRun -Step $step -ExitCode $exitCode }
+        if ($null -ne $step)
+        {
+            Complete-GameWipToolRunStep -Run $script:SetupRun -Step $step -ExitCode $exitCode
+        }
         throw
     }
     finally
     {
         $ErrorActionPreference = $previousErrorActionPreference
     }
-    if ($null -ne $step) { Complete-GameWipToolRunStep -Run $script:SetupRun -Step $step -ExitCode $exitCode }
+    if ($null -ne $step)
+    {
+        Complete-GameWipToolRunStep -Run $script:SetupRun -Step $step -ExitCode $exitCode
+    }
     if ($AllowedExitCodes -notcontains $exitCode)
     {
         throw "Command failed with exit code ${exitCode}: $FilePath $($ArgumentList -join ' ')"
@@ -115,7 +160,7 @@ function Invoke-SetupNative
     return $exitCode
 }
 
-function Test-SetupWindows
+function Assert-GameWipSetupWindows
 {
     if ($env:OS -ne 'Windows_NT')
     {
@@ -129,7 +174,7 @@ function Test-SetupWindows
     }
 }
 
-function Test-SetupRepository
+function Assert-GameWipSetupRepository
 {
     param([Parameter(Mandatory = $true)][string]$RepositoryRoot)
 

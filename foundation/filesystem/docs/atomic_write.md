@@ -17,21 +17,27 @@ The operation:
 9. optionally flushes the parent directory;
 10. attempts best-effort temporary cleanup after failure.
 
-There is no non-atomic fallback. Before commit, failure leaves an existing destination unchanged. At the destination path, concurrent observers see either the previous file or the complete replacement rather than an in-place partial rewrite.
+There is no non-atomic fallback. Before commit, failure leaves an existing destination unchanged. At the destination path, concurrent observers see
+either the previous file or the complete replacement rather than an in-place partial rewrite.
 
 ## Replacement and races
 
-`FailIfExists` checks destination policy before commit, but concurrent filesystem activity can still determine the final native result. `ReplaceExisting` permits replacement where the backend can satisfy the selected sharing, access, and symlink contract.
+`FailIfExists` checks destination policy before commit, but concurrent filesystem activity can still determine the final native result.
+`ReplaceExisting` permits replacement where the backend can satisfy the selected sharing, access, and symlink contract.
 
-On Win32, strict commits retain the validated destination-parent handle and rename only the final relative component. Replacing an ancestor path after validation therefore cannot redirect the commit. Native rename success is the linearization point; later source recreation or destination removal does not turn the completed replacement into a reported failure.
+On Win32, strict commits retain the validated destination-parent handle and rename only the final relative component. Replacing an ancestor path after
+validation therefore cannot redirect the commit. Native rename success is the linearization point; later source recreation or destination removal does
+not turn the completed replacement into a reported failure.
 
 Atomicity applies to replacement of one path. It does not create a transaction across multiple files, directories, or metadata operations.
 
 ## Temporary files
 
-`temporaryNamePrefix` is an owning `std::string`. It must be non-empty, contain no path separator or embedded NUL, and not be the complete name `.` or `..`.
+`temporaryNamePrefix` is an owning `std::string`. It must be non-empty, contain no path separator or embedded NUL, and not be the complete name `.` or
+`..`.
 
-Temporary-name collision retries are bounded. Exhaustion returns the final creation failure. Cleanup after failure is best effort, so an orphan temporary file can remain after unusual cleanup or process failures.
+Temporary-name collision retries are bounded. Exhaustion returns the final creation failure. Cleanup after failure is best effort, so an orphan
+temporary file can remain after unusual cleanup or process failures.
 
 ## Metadata, identity, and access
 
@@ -39,25 +45,31 @@ Atomic replacement changes the object named by the path. Existing handles and ha
 
 Temporary files use restrictive access. The backend must not silently broaden security-relevant access because metadata preservation failed.
 
-Successful replacement does not promise preservation of timestamps, ownership, complete ACLs, extended attributes, named streams, compression, encryption, file identifiers, or hard-link identity. Callers requiring a specific metadata contract must apply and verify it separately.
+Successful replacement does not promise preservation of timestamps, ownership, complete ACLs, extended attributes, named streams, compression,
+encryption, file identifiers, or hard-link identity. Callers requiring a specific metadata contract must apply and verify it separately.
 
 ## Durability
 
 A successful file flush and rename do not by themselves promise directory-entry durability.
 
-When `flushParentDirectory` is true, inability to flush the parent directory is returned rather than silently weakening the request. That failure occurs after commit, so the replacement may already be visible and must not be retried as though the old destination were necessarily intact.
+When `flushParentDirectory` is true, inability to flush the parent directory is returned rather than silently weakening the request. That failure
+occurs after commit, so the replacement may already be visible and must not be retried as though the old destination were necessarily intact.
 
 Atomic write is not a database durability or crash-consistency protocol beyond the explicitly requested file and parent-directory flushes.
 
 ## Symlinks
 
-Destination resolution follows `symlinkPolicy`. Following a destination that is itself a symlink may return `Unsupported` when replacement of the resolved target cannot be implemented without weakening the selected race-safety contract.
+Destination resolution follows `symlinkPolicy`. Following a destination that is itself a symlink may return `Unsupported` when replacement of the
+resolved target cannot be implemented without weakening the selected race-safety contract.
 
 ## Text
 
-`writeAllTextAtomic()` validates the complete payload as strict UTF-8 before parent creation, destination inspection, temporary-file creation, or replacement. Malformed or incomplete text returns `EncodingFailed` without changing the filesystem. The validated payload is then forwarded through the existing atomic byte-write machinery without a redundant UTF-8 scan.
+`writeAllTextAtomic()` validates the complete payload as strict UTF-8 before parent creation, destination inspection, temporary-file creation, or
+replacement. Malformed or incomplete text returns `EncodingFailed` without changing the filesystem. The validated payload is then forwarded through
+the existing atomic byte-write machinery without a redundant UTF-8 scan.
 
-`temporaryNamePrefix` is UTF-8 filename text. Malformed UTF-8 returns `EncodingFailed`; an empty prefix, `.`, `..`, path separators, or embedded U+0000 remain `InvalidArgument`.
+`temporaryNamePrefix` is UTF-8 filename text. Malformed UTF-8 returns `EncodingFailed`; an empty prefix, `.`, `..`, path separators, or embedded
+U+0000 remain `InvalidArgument`.
 
 No BOM handling, normalization, encoding conversion, or line-ending translation occurs.
 

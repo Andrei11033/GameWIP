@@ -1,6 +1,7 @@
 @page unicode_testing Testing
 
-Unicode validation covers public contracts, generated property data, official grapheme conformance, package boundaries, sanitizers, static analysis, and diagnostic performance benchmarks.
+Unicode validation covers public contracts, generated property data, official grapheme conformance, package boundaries, sanitizers, static analysis,
+and diagnostic performance benchmarks.
 
 ## Common workflow
 
@@ -26,13 +27,17 @@ The Unicode module covers:
 - Invalid lead and continuation bytes, overlong sequences, encoded surrogates, and values above `U+10FFFF`.
 - Every proper split point of every valid multi-byte UTF-8 scalar, with deterministic zero-progress `Incomplete` results.
 - Strict UTF-16 BMP, surrogate-pair, dangling-high-surrogate, isolated-low-surrogate, and malformed-pair behavior.
-- UTF-8/UTF-16 measurement and conversion, exact and insufficient destinations, completed progress, untouched destination tails, empty input, embedded `U+0000`, and overlapping ranges.
+- UTF-8/UTF-16 measurement and conversion, exact and insufficient destinations, completed progress, untouched destination tails, empty input, embedded
+  `U+0000`, and overlapping ranges.
 - Exhaustive UTF-8/UTF-16 encode/decode/conversion round trips for all 1,112,064 Unicode scalar values.
 - Previous and next UTF-8 code-point boundaries at empty, beginning, middle, end, malformed, incomplete, and misaligned offsets.
-- Targeted extended grapheme cases for CR/LF, combining marks, Hangul, Prepend, SpacingMark, Indic conjuncts, emoji ZWJ sequences, regional indicators, and emoji modifiers.
-- Caller-backed `Utf8::GraphemeCursor` sizing, indexing, exact seek, forward/backward stepping, endpoint behavior, malformed input, empty input, and suffix-index discard.
+- Targeted extended grapheme cases for CR/LF, combining marks, Hangul, Prepend, SpacingMark, Indic conjuncts, emoji ZWJ sequences, regional
+  indicators, and emoji modifiers.
+- Caller-backed `Utf8::GraphemeCursor` sizing, indexing, exact seek, forward/backward stepping, endpoint behavior, malformed input, empty input, and
+  suffix-index discard.
 - Generated-table shape, packed-value invariants, and representative property lookups.
-- Every case in the official Unicode 17.0.0 `GraphemeBreakTest.txt`, checked through both stateless traversal directions and the indexed cursor boundary sequence.
+- Every case in the official Unicode 17.0.0 `GraphemeBreakTest.txt`, checked through both stateless traversal directions and the indexed cursor
+  boundary sequence.
 
 ## Official conformance data
 
@@ -40,7 +45,7 @@ The correctness test searches for `GraphemeBreakTest.txt` in this order:
 
 1. `GAMEWIP_UNICODE_GRAPHEME_BREAK_TEST`, when set to an explicit file.
 2. `GAMEWIP_UNICODE_DATA_ROOT/17.0.0/ucd/auxiliary/GraphemeBreakTest.txt`.
-3. The normal GameWIP cache at `build/unicode-data/17.0.0/ucd/auxiliary/GraphemeBreakTest.txt`.
+3. The normal GameWIP cache at `build/gamewip/cache/unicode/17.0.0/ucd/auxiliary/GraphemeBreakTest.txt`.
 
 When the file is absent, an ordinary local test run skips only the official conformance suite. Require the fixture and fail closed with:
 
@@ -50,7 +55,8 @@ $env:GAMEWIP_REQUIRE_UNICODE_CONFORMANCE_TESTS = "1"
 Remove-Item Env:GAMEWIP_REQUIRE_UNICODE_CONFORMANCE_TESTS
 ```
 
-The primary CI correctness job prepares the pinned data before CTest and requires official Unicode conformance. Ordinary configure, build, test, package, and installed-consumer flows do not perform a Unicode data download.
+The primary CI correctness job prepares the pinned data before CTest and requires official Unicode conformance. Ordinary configure, build, test,
+package, and installed-consumer flows do not perform a Unicode data download.
 
 ## Unicode data and version policy
 
@@ -66,9 +72,15 @@ Conformance uses:
 
 - `ucd/auxiliary/GraphemeBreakTest.txt`.
 
-The Unicode 17.0.0 data files identify Unicode, Inc. as the copyright holder and refer users to the Unicode terms and license. Unicode Data Files are licensed under Unicode License v3 (SPDX `Unicode-3.0`) unless a file states otherwise. See the [Unicode License v3](https://www.unicode.org/license.txt) and [Unicode Terms of Use](https://www.unicode.org/terms_of_use.html).
+The Unicode 17.0.0 data files identify Unicode, Inc. as the copyright holder and refer users to the Unicode terms and license. Unicode Data Files are
+licensed under Unicode License v3 (SPDX `Unicode-3.0`) unless a file states otherwise. See the [Unicode License
+v3](https://www.unicode.org/license.txt) and [Unicode Terms of Use](https://www.unicode.org/terms_of_use.html).
 
-`foundation/unicode/tools/generate_unicode_data.py` is the deterministic, Python-standard-library-only generator. It evaluates power-of-two block sizes from 32 through 512, including each candidate's required index width, and selects the smallest compiled table. A smaller block wins an exact size tie to retain finer cache locality. The bounded candidate range preserves the same constant-time two-table-read lookup shape; native benchmarks remain the authority for performance. The generated `unicode/internal/generated/unicode_properties.h` is checked in, so normal consumers do not require Python, Unicode source files, or network access.
+`foundation/unicode/tools/generate_unicode_data.py` is the deterministic, Python-standard-library-only generator. It evaluates power-of-two block
+sizes from 32 through 512, including each candidate's required index width, and selects the smallest compiled table. A smaller block wins an exact
+size tie to retain finer cache locality. The bounded candidate range preserves the same constant-time two-table-read lookup shape; native benchmarks
+remain the authority for performance. The generated `unicode/internal/generated/unicode_properties.h` is checked in, so normal consumers do not
+require Python, Unicode source files, or network access.
 
 The current Unicode 17.0.0 generation reports:
 
@@ -113,7 +125,8 @@ Regenerate intentionally:
 git diff -- foundation/unicode/internal/generated/unicode_properties.h
 ```
 
-`verify` does not modify the tracked table. `regenerate` creates and formats a candidate first, then replaces the tracked header only when its content differs.
+`verify` does not modify the tracked table. `regenerate` creates and formats a candidate first, then replaces the tracked header only when its content
+differs.
 
 ## Updating the Unicode version
 
@@ -139,9 +152,14 @@ Build benchmark registration and run the Unicode family:
 .\build\benchmark\GameWIPBenchmarks.exe --benchmark_filter=BM_Unicode
 ```
 
-The Unicode benchmark family covers representative UTF-8 decoding, validation, scalar encoding, sequential and table-wide scattered property lookup, code-point traversal, existing stateless grapheme traversal, deep non-ASCII stateless next/previous queries, indexed forward traversal, and repeated grapheme-aware suffix deletion on a long combining/emoji/Indic/regional-indicator fixture. The focused property benchmarks make generated-layout regressions visible; the end-to-end grapheme benchmarks show whether they materially affect callers. Timings are diagnostic and are never correctness gates; see @ref project_benchmarking.
+The Unicode benchmark family covers representative UTF-8 decoding, validation, scalar encoding, sequential and table-wide scattered property lookup,
+code-point traversal, existing stateless grapheme traversal, deep non-ASCII stateless next/previous queries, indexed forward traversal, and repeated
+grapheme-aware suffix deletion on a long combining/emoji/Indic/regional-indicator fixture. The focused property benchmarks make generated-layout
+regressions visible; the end-to-end grapheme benchmarks show whether they materially affect callers. Timings are diagnostic and are never correctness
+gates; see @ref project_benchmarking.
 
-For the new traversal benchmarks, compare scaling as fixture size grows. The intended behavior is bounded local work for ordinary stateless queries where a nearby safe restart exists, and linear-overall repeated cursor traversal/edit work after one linear index build.
+For the new traversal benchmarks, compare scaling as fixture size grows. The intended behavior is bounded local work for ordinary stateless queries
+where a nearby safe restart exists, and linear-overall repeated cursor traversal/edit work after one linear index build.
 
 ## Final validation
 
@@ -157,4 +175,5 @@ For an implementation, generated-data, test, or manual change, run:
 .\gamewip.bat docs
 ```
 
-Documentation standards, Markdown links, and repository checks remain part of the normal validation workflow. See @ref project_static_analysis and @ref project_documentation.
+Documentation standards, Markdown links, and repository checks remain part of the normal validation workflow. See @ref project_static_analysis and
+@ref project_documentation.

@@ -5,9 +5,4 @@ foreach(required_variable IN ITEMS SOURCE_DIR BINARY_DIR PROJECT_VERSION_VALUE)
 endforeach()
 
 include("${SOURCE_DIR}/cmake/GameWIPVersion.cmake")
-gamewip_write_version_header(
-    generated
-    SOURCE_DIR "${SOURCE_DIR}"
-    BINARY_DIR "${BINARY_DIR}"
-    PROJECT_VERSION "${PROJECT_VERSION_VALUE}"
-)
+gamewip_write_version_header(generated SOURCE_DIR "${SOURCE_DIR}" BINARY_DIR "${BINARY_DIR}" PROJECT_VERSION "${PROJECT_VERSION_VALUE}")

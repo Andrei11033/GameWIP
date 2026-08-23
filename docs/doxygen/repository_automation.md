@@ -1,6 +1,7 @@
 @page project_repository_automation Repository and project automation
 
-GameWIP uses event-driven GitHub automation for repeatable metadata and project status updates. Automation is deliberately limited to deterministic state. Priority, scope, security disclosure, milestone intent, and product decisions remain human responsibilities.
+GameWIP uses event-driven GitHub automation for repeatable metadata and project status updates. Automation is deliberately limited to deterministic
+state. Priority, scope, security disclosure, milestone intent, and product decisions remain human responsibilities.
 
 The automation described here reconciles GitHub project status, linked
 pull-request metadata, and repository events. The guide also explains required
@@ -22,9 +23,11 @@ Issue status uses the first matching rule in this order:
 | The issue belongs to the active milestone and has `area:*`, `type:*`, and `priority:*` labels. | Ready |
 | None of the preceding rules apply. | Backlog |
 
-An unassigned issue is not automatically Backlog. A fully triaged issue in the active milestone is Ready before someone claims it. Blocked takes precedence over active work and review.
+An unassigned issue is not automatically Backlog. A fully triaged issue in the active milestone is Ready before someone claims it. Blocked takes
+precedence over active work and review.
 
-Open pull requests are Review unless they are drafts or have requested changes, in which case they are In Progress. Closed and merged pull requests are Done.
+Open pull requests are Review unless they are drafts or have requested changes, in which case they are In Progress. Closed and merged pull requests
+are Done.
 
 ## Linked pull request metadata
 
@@ -37,15 +40,18 @@ For linked issues, automation:
 - Adds linked issue assignees, or the pull request author when no linked issue is assigned.
 - Copies the milestone when every linked milestone agrees.
 
-These updates are additive. Existing manually selected labels and assignees are preserved. Milestone conflicts are reported in the workflow summary and left for a maintainer to resolve.
+These updates are additive. Existing manually selected labels and assignees are preserved. Milestone conflicts are reported in the workflow summary
+and left for a maintainer to resolve.
 
 ## Events and reconciliation
 
-`.github/workflows/project-automation.yml` reacts to issue and pull request changes. It also reconciles the complete project every six hours so dependency, review, or project-side changes that do not emit a usable repository event are repaired.
+`.github/workflows/project-automation.yml` reacts to issue and pull request changes. It also reconciles the complete project every six hours so
+dependency, review, or project-side changes that do not emit a usable repository event are repaired.
 
 Manual dispatch supports all items or one issue or pull request, with an optional dry run.
 
-The pull request trigger uses `pull_request_target` and checks out automation from the default branch. Pull request code is never executed with the project token.
+The pull request trigger uses `pull_request_target` and checks out automation from the default branch. Pull request code is never executed with the
+project token.
 
 ## Required repository configuration
 
@@ -109,9 +115,11 @@ node --test .github/scripts/project-automation.test.js
 
 ## Maintainer notes
 
-Automation may reconcile deterministic metadata and status. It must not decide product priority, accept security disclosure responsibility, override human scope decisions, or execute untrusted pull-request code with privileged credentials.
+Automation may reconcile deterministic metadata and status. It must not decide product priority, accept security disclosure responsibility, override
+human scope decisions, or execute untrusted pull-request code with privileged credentials.
 
-Native GitHub project workflows may still auto-add repository items or perform simple close transitions. This repository workflow is the authority that reconciles final metadata and status.
+Native GitHub project workflows may still auto-add repository items or perform simple close transitions. This repository workflow is the authority
+that reconciles final metadata and status.
 
 When changing automation:
 

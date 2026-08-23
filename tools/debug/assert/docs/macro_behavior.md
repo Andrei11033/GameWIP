@@ -25,7 +25,8 @@ a build where the corresponding family is disabled.
 | `UNREACHABLE()` | n/a | n/a | n/a | n/a | does not return by contract |
 | `DEBUG_BREAK()` | n/a | n/a | n/a | n/a | none |
 
-For this table, disabled means the relevant family is disabled: `ASSERT_ENABLED=0` for fatal assertion families and `ASSERT_CHECKS_ENABLED=0` for recoverable check families.
+For this table, disabled means the relevant family is disabled: `ASSERT_ENABLED=0` for fatal assertion families and `ASSERT_CHECKS_ENABLED=0` for
+recoverable check families.
 
 ## Failure behavior matrix
 

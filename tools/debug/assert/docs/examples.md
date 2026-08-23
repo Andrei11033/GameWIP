@@ -1,6 +1,7 @@
 @page assert_examples Examples
 
-These focused fragments assume `debug/assert/assert.h` is included and that the referenced application values and functions are defined by the surrounding program.
+These focused fragments assume `debug/assert/assert.h` is included and that the referenced application values and functions are defined by the
+surrounding program.
 
 ## Fatal invariant
 

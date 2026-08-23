@@ -29,9 +29,7 @@ REFERENCE_DEFINITION_PATTERN = re.compile(r"^\s{0,3}\[[^\]]+\]:\s*(\S+)", re.MUL
 
 
 def parse_arguments() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Validate local relative Markdown links in maintained documentation."
-    )
+    parser = argparse.ArgumentParser(description="Validate local relative Markdown links in maintained documentation.")
     parser.add_argument(
         "--root",
         type=Path,
@@ -107,10 +105,7 @@ def is_local_relative_target(target: str) -> bool:
         return False
 
     split_target = urlsplit(target)
-    if split_target.scheme or split_target.netloc:
-        return False
-
-    return True
+    return not (split_target.scheme or split_target.netloc)
 
 
 def resolve_target(markdown_file: Path, target: str, root: Path) -> Path | None:
@@ -123,10 +118,7 @@ def resolve_target(markdown_file: Path, target: str, root: Path) -> Path | None:
     if not target_path:
         return None
 
-    if Path(target_path).is_absolute():
-        resolved_path = root / target_path.lstrip("/")
-    else:
-        resolved_path = markdown_file.parent / target_path
+    resolved_path = root / target_path.lstrip("/") if Path(target_path).is_absolute() else markdown_file.parent / target_path
 
     relative_resolved_path = normalized_relative_path(resolved_path, root)
     if relative_resolved_path is None:

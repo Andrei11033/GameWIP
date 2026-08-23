@@ -9,7 +9,11 @@ function(internal_assert_resolve_auto_option output_variable option_value)
         set(${output_variable} 1 PARENT_SCOPE)
     elseif(option_value STREQUAL "OFF")
         set(${output_variable} 0 PARENT_SCOPE)
-    elseif(ASSERT_BUILD_TYPE_VALUE STREQUAL "RELEASE" OR ASSERT_BUILD_TYPE_VALUE STREQUAL "RELWITHDEBINFO" OR ASSERT_BUILD_TYPE_VALUE STREQUAL "MINSIZEREL")
+    elseif(
+        ASSERT_BUILD_TYPE_VALUE STREQUAL "RELEASE"
+        OR ASSERT_BUILD_TYPE_VALUE STREQUAL "RELWITHDEBINFO"
+        OR ASSERT_BUILD_TYPE_VALUE STREQUAL "MINSIZEREL"
+    )
         set(${output_variable} 0 PARENT_SCOPE)
     else()
         set(${output_variable} 1 PARENT_SCOPE)

@@ -53,7 +53,9 @@ jobs:
     steps:
       - name: Validate environment protection
         env:
-          PROTECTION_CONFIGURED: ${{ inputs.command == 'finalize' && secrets.RELEASE_PRODUCTION_PROTECTION_CONFIGURED || secrets.MANUAL_WRITE_PROTECTION_CONFIGURED }}
+          PROTECTION_CONFIGURED: >-
+            ${{ inputs.command == 'finalize' && secrets.RELEASE_PRODUCTION_PROTECTION_CONFIGURED ||
+            secrets.MANUAL_WRITE_PROTECTION_CONFIGURED }}
         run: |
           if [ "$PROTECTION_CONFIGURED" != "required-reviewer" ]; then
             echo "The selected release environment must have a required reviewer before writes are enabled." >&2
@@ -91,7 +93,8 @@ jobs:
           RELEASE_TOKEN: ${{ secrets.PROJECT_TOKEN }}
         run: |
           if [ -z "$RELEASE_TOKEN" ]; then
-            echo "PROJECT_TOKEN must contain a token that can read repo state and create release-preparation branches, pull requests, tags, and releases." >&2
+            echo "PROJECT_TOKEN must contain a token that can read repo state and create release-preparation branches," \
+              "pull requests, tags, and releases." >&2
             exit 1
           fi
 

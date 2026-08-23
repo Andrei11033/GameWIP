@@ -79,56 +79,104 @@
       "label": "GameWIP: Benchmark",
       "type": "shell",
       "command": "& '${workspaceFolder}\\gamewip.bat' benchmark",
-      "options": { "cwd": "${workspaceFolder}", "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" }, "shell": { "executable": "powershell.exe", "args": ["-NoProfile", "-Command"] } },
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" },
+        "shell": { "executable": "powershell.exe", "args": ["-NoProfile", "-Command"] }
+      },
       "problemMatcher": ["$gcc"]
     },
     {
       "label": "GameWIP: Profile",
       "type": "shell",
-      "command": "cmake --preset profile; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; cmake --build --preset profile --parallel; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; $profiler = '${workspaceFolder}\\.tracy\\tracy-profiler.exe'; if (!(Test-Path -LiteralPath $profiler)) { throw 'Matching Tracy profiler tools are missing; run setup.bat profiler.' }; if ($null -eq (Get-Process -Name tracy-profiler -ErrorAction SilentlyContinue)) { Start-Process -FilePath $profiler -WorkingDirectory (Split-Path $profiler) }; & '${workspaceFolder}\\build\\profile\\GameWIP.exe'",
-      "options": { "cwd": "${workspaceFolder}", "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" }, "shell": { "executable": "powershell.exe", "args": ["-NoProfile", "-Command"] } },
+      "command": "cmake --preset profile; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; cmake --build --preset profile --parallel; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; $profiler = 'C:\\MSYS2\\GameWIPTools\\tools\\tracy\\tracy-profiler.exe'; if (!(Test-Path -LiteralPath $profiler)) { throw 'Matching Tracy profiler tools are missing; run setup.bat profiler.' }; if ($null -eq (Get-Process -Name tracy-profiler -ErrorAction SilentlyContinue)) { Start-Process -FilePath $profiler -WorkingDirectory (Split-Path $profiler) }; & '${workspaceFolder}\\build\\profile\\GameWIP.exe'",
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" },
+        "shell": { "executable": "powershell.exe", "args": ["-NoProfile", "-Command"] }
+      },
       "problemMatcher": ["$gcc"]
     },
     {
       "label": "GameWIP: Profile Startup Tests",
       "type": "shell",
-      "command": "cmake --preset profile; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; cmake --build --preset profile --parallel; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; $profiler = '${workspaceFolder}\\.tracy\\tracy-profiler.exe'; if (!(Test-Path -LiteralPath $profiler)) { throw 'Matching Tracy profiler tools are missing; run setup.bat profiler.' }; if ($null -eq (Get-Process -Name tracy-profiler -ErrorAction SilentlyContinue)) { Start-Process -FilePath $profiler -WorkingDirectory (Split-Path $profiler) }; & '${workspaceFolder}\\build\\profile\\GameWIP.exe' --startup-tests",
-      "options": { "cwd": "${workspaceFolder}", "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" }, "shell": { "executable": "powershell.exe", "args": ["-NoProfile", "-Command"] } },
+      "command": "cmake --preset profile; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; cmake --build --preset profile --parallel; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; $profiler = 'C:\\MSYS2\\GameWIPTools\\tools\\tracy\\tracy-profiler.exe'; if (!(Test-Path -LiteralPath $profiler)) { throw 'Matching Tracy profiler tools are missing; run setup.bat profiler.' }; if ($null -eq (Get-Process -Name tracy-profiler -ErrorAction SilentlyContinue)) { Start-Process -FilePath $profiler -WorkingDirectory (Split-Path $profiler) }; & '${workspaceFolder}\\build\\profile\\GameWIP.exe' --startup-tests",
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" },
+        "shell": { "executable": "powershell.exe", "args": ["-NoProfile", "-Command"] }
+      },
       "problemMatcher": ["$gcc"]
     },
     {
       "label": "GameWIP: Coverage",
       "type": "shell",
       "command": "cmake --preset coverage; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; cmake --build --preset coverage --parallel; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; ctest --preset coverage; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; cmake --build build/coverage --target coverage; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; $report = '${workspaceFolder}\\build\\coverage\\coverage\\index.html'; if (!(Test-Path -LiteralPath $report)) { throw 'Coverage HTML report was not generated.' }; Start-Process -FilePath $report",
-      "options": { "cwd": "${workspaceFolder}", "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" }, "shell": { "executable": "powershell.exe", "args": ["-NoProfile", "-Command"] } },
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" },
+        "shell": { "executable": "powershell.exe", "args": ["-NoProfile", "-Command"] }
+      },
       "problemMatcher": ["$gcc"]
     },
     {
       "label": "GameWIP: Address Sanitizer",
       "type": "shell",
       "command": "cmake --preset asan; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; cmake --build --preset asan --parallel; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; ctest --preset asan",
-      "options": { "cwd": "${workspaceFolder}", "env": { "PATH": "C:\\MSYS2\\clang64\\bin;${env:PATH}" }, "shell": { "executable": "powershell.exe", "args": ["-NoProfile", "-Command"] } },
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": { "PATH": "C:\\MSYS2\\clang64\\bin;${env:PATH}" },
+        "shell": { "executable": "powershell.exe", "args": ["-NoProfile", "-Command"] }
+      },
       "problemMatcher": ["$gcc"]
     },
     {
       "label": "GameWIP: Analyze",
       "type": "shell",
       "command": "cmake --preset analyze; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; cmake --build --preset analyze --parallel",
-      "options": { "cwd": "${workspaceFolder}", "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" }, "shell": { "executable": "powershell.exe", "args": ["-NoProfile", "-Command"] } },
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" },
+        "shell": { "executable": "powershell.exe", "args": ["-NoProfile", "-Command"] }
+      },
       "problemMatcher": ["$gcc"]
+    },
+    {
+      "label": "GameWIP: Quality Check",
+      "type": "process",
+      "command": "${workspaceFolder}\\gamewip.bat",
+      "args": ["quality", "-QualityAction", "check"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": []
+    },
+    {
+      "label": "GameWIP: Tools Status",
+      "type": "process",
+      "command": "${workspaceFolder}\\gamewip.bat",
+      "args": ["tools", "-ToolsAction", "status"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": []
     },
     {
       "label": "GameWIP: Documentation",
       "type": "shell",
       "command": "cmake --preset docs; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; cmake --build --preset docs --parallel; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; $warnings = '${workspaceFolder}\\build\\docs\\docs\\doxygen\\doxygen_warnings.log'; if (!(Test-Path -LiteralPath $warnings)) { throw 'Doxygen warning log was not generated.' }; if ((Get-Item -LiteralPath $warnings).Length -ne 0) { Get-Content -LiteralPath $warnings; throw 'Doxygen emitted warnings.' }; $index = '${workspaceFolder}\\build\\docs\\docs\\doxygen\\html\\index.html'; if (!(Test-Path -LiteralPath $index)) { throw 'Doxygen HTML index was not generated.' }; Start-Process -FilePath $index",
-      "options": { "cwd": "${workspaceFolder}", "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" }, "shell": { "executable": "powershell.exe", "args": ["-NoProfile", "-Command"] } },
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" },
+        "shell": { "executable": "powershell.exe", "args": ["-NoProfile", "-Command"] }
+      },
       "problemMatcher": []
     },
     {
       "label": "GameWIP: Run Release",
       "type": "shell",
       "command": "cmake --preset release; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; cmake --build --preset release --parallel; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; & '${workspaceFolder}\\build\\release\\GameWIP.exe'",
-      "options": { "cwd": "${workspaceFolder}", "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" }, "shell": { "executable": "powershell.exe", "args": ["-NoProfile", "-Command"] } },
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" },
+        "shell": { "executable": "powershell.exe", "args": ["-NoProfile", "-Command"] }
+      },
       "problemMatcher": ["$gcc"]
     }
   ]

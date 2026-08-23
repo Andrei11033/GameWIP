@@ -74,7 +74,8 @@ Required integration:
 - Add the required library documentation set.
 - Register public headers and docs with `gamewip_register_doxygen_library()`.
 
-Use `PUBLIC` dependencies only when the dependency appears in installed public headers. Use `PRIVATE` dependencies when the dependency is implementation-only.
+Use `PUBLIC` dependencies only when the dependency appears in installed public headers. Use `PRIVATE` dependencies when the dependency is
+implementation-only.
 
 ## Add a public API
 
@@ -123,7 +124,9 @@ A hook interface must define:
 
 Libraries with approved hooks should provide `docs/test_hooks.md` using the structure in @ref project_documentation.
 
-Failure-injection hooks must be deterministic, resettable, and narrow enough to identify the intended failure boundary. Tests must verify the same public status, native diagnostic, payload, and cleanup invariants that a real failure promises. Installed-consumer checks must reject the enabling compile definition so hooks cannot become accidental package API.
+Failure-injection hooks must be deterministic, resettable, and narrow enough to identify the intended failure boundary. Tests must verify the same
+public status, native diagnostic, payload, and cleanup invariants that a real failure promises. Installed-consumer checks must reject the enabling
+compile definition so hooks cannot become accidental package API.
 
 ## Add a correctness-test module
 
@@ -133,9 +136,13 @@ Create modules under:
 game/validation/tests/<module>/
 ```
 
-A module must have a stable lowercase name, deterministic order, explicit sources, and a `module.cpp` registration. The registration name must match the CMake module name.
+A module must have a stable lowercase name, deterministic order, explicit sources, and a `module.cpp` registration. The registration name must match
+the CMake module name.
 
-Tests must be deterministic, isolated, and behavior-focused. Use TestSupport scopes for temporary filesystem state and inspect each scope's construction status before using it. Inspect infrastructure result status before consuming its payload. Use child-process execution only for scenarios that require process isolation, and evaluate its infrastructure status separately from its process outcome and exit code. Use approved hooks only when public APIs cannot validate the scenario.
+Tests must be deterministic, isolated, and behavior-focused. Use TestSupport scopes for temporary filesystem state and inspect each scope's
+construction status before using it. Inspect infrastructure result status before consuming its payload. Use child-process execution only for scenarios
+that require process isolation, and evaluate its infrastructure status separately from its process outcome and exit code. Use approved hooks only when
+public APIs cannot validate the scenario.
 
 Run focused and aggregate validation before merge:
 
@@ -156,7 +163,8 @@ Create modules under:
 game/validation/benchmarks/<module>/
 ```
 
-Benchmark modules must use Google Benchmark naming, keep setup outside measured loops where practical, report relevant drop or error counters, and avoid correctness assertions based on timing.
+Benchmark modules must use Google Benchmark naming, keep setup outside measured loops where practical, report relevant drop or error counters, and
+avoid correctness assertions based on timing.
 
 Verify registration before collecting results:
 
@@ -178,7 +186,8 @@ Choose the owner before writing the page.
 | Public API reference | Installed public headers |
 | Private implementation notes | Internal headers and source files |
 
-Generated Doxygen pages must be registered explicitly. Library pages are registered by the owning library target. Project pages are registered in `cmake/GameWIPDocumentation.cmake`.
+Generated Doxygen pages must be registered explicitly. Library pages are registered by the owning library target. Project pages are registered in
+`cmake/GameWIPDocumentation.cmake`.
 
 Documentation changes must follow @ref project_documentation.
 
@@ -213,7 +222,8 @@ When adding a backend:
 
 ## Add or change a CMake option
 
-Project composition options use the `GAMEWIP_` prefix and are defined in `cmake/GameWIPOptions.cmake`. Maintainer-facing CMake helper conventions are documented in @ref project_cmake_infrastructure.
+Project composition options use the `GAMEWIP_` prefix and are defined in `cmake/GameWIPOptions.cmake`. Maintainer-facing CMake helper conventions are
+documented in @ref project_cmake_infrastructure.
 
 When adding or changing an option:
 

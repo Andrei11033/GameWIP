@@ -1,0 +1,124 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Andrei11033/GameWIP/schemas/commands.schema.json",
+  "title": "GameWIP command registry",
+  "description": "Static presets, modules, commands, bundles, workflows, benchmark profiles, and Unicode metadata used by the helper.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "defaultConfigurePreset",
+    "defaultBuildPreset",
+    "defaultTestPreset",
+    "defaultModule",
+    "defaultStressCount",
+    "defaultStressParallel",
+    "formatting",
+    "unicode",
+    "benchmarkProfiles",
+    "manualWorkflows",
+    "modules",
+    "projectCommands",
+    "bundles"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1, "description": "Configuration contract version." },
+    "defaultConfigurePreset": { "type": "string", "minLength": 1 },
+    "defaultBuildPreset": { "type": "string", "minLength": 1 },
+    "defaultTestPreset": { "type": "string", "minLength": 1 },
+    "defaultModule": { "type": "string", "minLength": 1 },
+    "defaultStressCount": { "type": "integer", "minimum": 1 },
+    "defaultStressParallel": { "type": "integer", "minimum": 1 },
+    "formatting": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["configPath", "sourceRoots"],
+      "properties": {
+        "configPath": { "type": "string", "minLength": 1 },
+        "sourceRoots": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "minLength": 1 } }
+      }
+    },
+    "unicode": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "generator", "generatedHeader", "ucdUrlTemplate", "requiredFiles"],
+      "properties": {
+        "version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
+        "generator": { "type": "string", "minLength": 1 },
+        "generatedHeader": { "type": "string", "minLength": 1 },
+        "ucdUrlTemplate": { "type": "string", "minLength": 1 },
+        "requiredFiles": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "minLength": 1 } }
+      }
+    },
+    "benchmarkProfiles": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/benchmarkProfile" } },
+    "manualWorkflows": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/manualWorkflow" } },
+    "modules": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" } },
+    "projectCommands": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/projectCommand" } },
+    "bundles": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/bundle" } }
+  },
+  "$defs": {
+    "benchmarkProfile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "repetitions", "minTime", "aggregatesOnly"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+        "name": { "type": "string", "minLength": 1 },
+        "repetitions": { "type": "integer", "minimum": 1 },
+        "minTime": { "type": "string", "pattern": "^(?:[0-9]+x|[0-9]+(?:\\.[0-9]+)?s)$" },
+        "aggregatesOnly": { "type": "boolean" },
+        "randomInterleaving": { "type": "boolean" }
+      }
+    },
+    "manualWorkflow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "file", "safety"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+        "name": { "type": "string", "minLength": 1 },
+        "file": { "type": "string", "pattern": "^[a-z][a-z0-9-]*\\.yml$" },
+        "safety": { "enum": ["check", "dry-run", "write", "finalize", "deploy"] }
+      }
+    },
+    "projectCommand": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "buildPreset", "executable", "arguments", "useWorkspaceTemp", "acceptsExtraArgs"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+        "name": { "type": "string", "minLength": 1 },
+        "buildPreset": { "type": "string", "minLength": 1 },
+        "executable": { "type": "string", "minLength": 1 },
+        "alternateExecutable": { "type": "string", "minLength": 1 },
+        "arguments": { "type": "array", "items": { "type": "string" } },
+        "useWorkspaceTemp": { "type": "boolean" },
+        "acceptsExtraArgs": { "type": "boolean" }
+      }
+    },
+    "bundle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "steps"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+        "name": { "type": "string", "minLength": 1 },
+        "steps": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/bundleStep" } }
+      }
+    },
+    "bundleStep": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind"],
+      "properties": {
+        "kind": { "enum": ["Configure", "Build", "BuildTarget", "CTest", "ProjectCommand", "Bundle"] },
+        "preset": { "type": "string", "minLength": 1 },
+        "target": { "type": "string", "minLength": 1 },
+        "command": { "type": "string", "minLength": 1 },
+        "bundle": { "type": "string", "minLength": 1 },
+        "useWorkspaceTemp": { "type": "boolean" },
+        "buildIfMissing": { "type": "boolean" }
+      }
+    }
+  }
+}

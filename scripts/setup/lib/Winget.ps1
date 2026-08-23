@@ -1,6 +1,6 @@
 Set-StrictMode -Version Latest
 
-function Test-WingetPackage
+function Test-GameWipWingetPackage
 {
     param([Parameter(Mandatory = $true)][string]$Id)
 
@@ -8,7 +8,7 @@ function Test-WingetPackage
     return $LASTEXITCODE -eq 0
 }
 
-function Install-WingetPackage
+function Install-GameWipWingetPackage
 {
     param(
         [Parameter(Mandatory = $true)][string]$Id,
@@ -23,36 +23,39 @@ function Install-WingetPackage
     {
         $arguments += @('--override', $Override)
     }
-    $wasInstalled = Test-WingetPackage -Id $Id
-    Invoke-SetupNative -FilePath 'winget' -ArgumentList $arguments | Out-Null
-    if (-not $wasInstalled) { Add-GameWipOwnedWingetPackage -Id $Id }
-    Update-SetupProcessPath
+    $wasInstalled = Test-GameWipWingetPackage -Id $Id
+    Invoke-GameWipSetupNative -FilePath 'winget' -ArgumentList $arguments | Out-Null
+    if (-not $wasInstalled)
+    {
+        Add-GameWipOwnedWingetPackage -Id $Id
+    }
+    Initialize-GameWipSetupProcessPath
 }
 
-function Uninstall-WingetPackage
+function Uninstall-GameWipWingetPackage
 {
     param([Parameter(Mandatory = $true)][string]$Id)
-    if (-not (Test-WingetPackage -Id $Id))
+    if (-not (Test-GameWipWingetPackage -Id $Id))
     {
         Write-Host "  Already absent: $Id"
         return
     }
-    Invoke-SetupNative -FilePath 'winget' -ArgumentList @(
+    Invoke-GameWipSetupNative -FilePath 'winget' -ArgumentList @(
         'uninstall', '--id', $Id, '--exact', '--source', 'winget',
         '--accept-source-agreements', '--silent'
     ) | Out-Null
 }
 
-function Update-WingetPackage
+function Invoke-GameWipWingetPackageUpdate
 {
     param(
         [Parameter(Mandatory = $true)][string]$Id,
         [string]$Override
     )
 
-    if (-not (Test-WingetPackage -Id $Id))
+    if (-not (Test-GameWipWingetPackage -Id $Id))
     {
-        Install-WingetPackage -Id $Id -Override $Override
+        Install-GameWipWingetPackage -Id $Id -Override $Override
         return
     }
 
@@ -70,10 +73,10 @@ function Update-WingetPackage
     {
         Write-Warning "winget did not apply an update for $Id. The installed package will still be verified."
     }
-    Update-SetupProcessPath
+    Initialize-GameWipSetupProcessPath
 }
 
-function Install-ConfiguredWingetTools
+function Install-GameWipConfiguredWingetToolSet
 {
     param(
         [Parameter(Mandatory = $true)][array]$Packages,
@@ -86,16 +89,16 @@ function Install-ConfiguredWingetTools
         $present = $false
         if ($package.ContainsKey('Command'))
         {
-            $present = Test-SetupCommand -Name $package.Command
+            $present = Test-GameWipSetupCommand -Name $package.Command
         }
         elseif ($package.ContainsKey('Path'))
         {
             $present = Test-Path -LiteralPath $package.Path
         }
 
-        if ($Update -and (Test-WingetPackage -Id $package.Id))
+        if ($Update -and (Test-GameWipWingetPackage -Id $package.Id))
         {
-            Update-WingetPackage -Id $package.Id
+            Invoke-GameWipWingetPackageUpdate -Id $package.Id
         }
         elseif ($Update -and $present)
         {
@@ -103,7 +106,7 @@ function Install-ConfiguredWingetTools
         }
         elseif (-not $present)
         {
-            Install-WingetPackage -Id $package.Id
+            Install-GameWipWingetPackage -Id $package.Id
         }
         else
         {

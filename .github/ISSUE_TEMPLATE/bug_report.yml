@@ -1,9 +1,9 @@
 name: Bug report
 description: Report incorrect behavior, crashes, regressions, or broken workflows.
-title: "bug: "
+title: 'bug: '
 labels:
-  - "type:bug"
-  - "priority:normal"
+  - 'type:bug'
+  - 'priority:normal'
 body:
   - type: markdown
     attributes:

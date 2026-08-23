@@ -1,9 +1,9 @@
 name: Task
 description: Track planned implementation, cleanup, validation, or repository work.
-title: "task: "
+title: 'task: '
 labels:
-  - "type:task"
-  - "priority:normal"
+  - 'type:task'
+  - 'priority:normal'
 body:
   - type: markdown
     attributes:

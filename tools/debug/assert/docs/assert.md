@@ -2,7 +2,8 @@
 
 The Assert library provides fatal assertions, recoverable checks, explicit debug breaks, and optional interactive developer failure actions.
 
-Assert reports through Logger. Fatal paths use Logger's synchronous report path so diagnostics are written before debugger, popup, or termination handling continues.
+Assert reports through Logger. Fatal paths use Logger's synchronous report path so diagnostics are written before debugger, popup, or termination
+handling continues.
 
 ## How the library is organized
 
@@ -53,7 +54,9 @@ and understanding exactly when its expressions run, read @ref assert_macros and
 
 ## Key behavior
 
-`ASSERT` is for fatal invariants whose expression may disappear in disabled builds. `VERIFY` is for fatal checks whose expression must always run. `CHECK` and `CHECK_ONCE` report recoverable failures. `ENSURE` evaluates once, reports false results when checks are enabled, and returns the boolean result. Interactive assertions add Break, Abort, Ignore Once, and Always Ignore choices for developer workflows.
+`ASSERT` is for fatal invariants whose expression may disappear in disabled builds. `VERIFY` is for fatal checks whose expression must always run.
+`CHECK` and `CHECK_ONCE` report recoverable failures. `ENSURE` evaluates once, reports false results when checks are enabled, and returns the boolean
+result. Interactive assertions add Break, Abort, Ignore Once, and Always Ignore choices for developer workflows.
 
 ## Dependency boundary
 
@@ -63,4 +66,6 @@ When failure-reporting families can be enabled, Assert builds a shared runtime
 and uses Logger privately for diagnostic delivery. With both families forced
 off, it becomes an interface-only target and has no runtime dependency.
 
-Assert owns assertion policy and platform failure presentation. Logger owns log formatting, sinks, queueing, and report delivery. Engine runtime policy, game recovery decisions, validation runner orchestration, and platform backend implementation details belong outside the Assert public manual unless they affect the supported package or macro contract.
+Assert owns assertion policy and platform failure presentation. Logger owns log formatting, sinks, queueing, and report delivery. Engine runtime
+policy, game recovery decisions, validation runner orchestration, and platform backend implementation details belong outside the Assert public manual
+unless they affect the supported package or macro contract.

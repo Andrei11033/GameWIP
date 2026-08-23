@@ -1,6 +1,6 @@
 Set-StrictMode -Version Latest
 
-function Get-VisualStudioInstance
+function Get-GameWipVisualStudioInstance
 {
     $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
     if (-not (Test-Path -LiteralPath $vswhere))
@@ -25,11 +25,11 @@ function Install-GameWipVisualStudio
     )
 
     $override = "--passive --wait --norestart --config `"$VsConfigPath`" --includeRecommended"
-    $instance = Get-VisualStudioInstance
+    $instance = Get-GameWipVisualStudioInstance
     if (-not $instance)
     {
-        Install-WingetPackage -Id $PackageId -Override $override
-        $instance = Get-VisualStudioInstance
+        Install-GameWipWingetPackage -Id $PackageId -Override $override
+        $instance = Get-GameWipVisualStudioInstance
     }
 
     if (-not $instance)
@@ -42,11 +42,11 @@ function Install-GameWipVisualStudio
     {
         if ($Update)
         {
-            Invoke-SetupNative -FilePath $installer -ArgumentList @(
+            Invoke-GameWipSetupNative -FilePath $installer -ArgumentList @(
                 'update', '--installPath', $instance, '--passive', '--norestart'
             ) -AllowedExitCodes @(0, 3010) | Out-Null
         }
-        Invoke-SetupNative -FilePath $installer -ArgumentList @(
+        Invoke-GameWipSetupNative -FilePath $installer -ArgumentList @(
             'modify', '--installPath', $instance, '--config', $VsConfigPath,
             '--includeRecommended', '--passive', '--norestart'
         ) -AllowedExitCodes @(0, 3010) | Out-Null

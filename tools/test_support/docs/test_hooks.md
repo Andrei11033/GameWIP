@@ -16,7 +16,8 @@ Include:
 #include "test_support/internal/test_support_test_hooks.h"
 ```
 
-The existing one-shot child-process, file, filesystem-guard, and environment failure points remain unchanged. Call `GameWIP::TestSupport::TestHooks::reset()` before and after each deterministic failure-injection scenario.
+The existing one-shot child-process, file, filesystem-guard, and environment failure points remain unchanged. Call
+`GameWIP::TestSupport::TestHooks::reset()` before and after each deterministic failure-injection scenario.
 
 Installed-consumer validation explicitly verifies that `TEST_SUPPORT_INTERNAL_TEST_HOOKS` does not leak through `GameWIP::TestSupport`.
 

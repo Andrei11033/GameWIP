@@ -1,6 +1,8 @@
 @page project_structure Project structure and runtime flow
 
-GameWIP is a product repository built around reusable C++ libraries, project-level build infrastructure, validation tooling, generated documentation, and a small executable shell. Project code owns composition and runtime policy. Reusable libraries own their public contracts, implementations, platform backends, package boundaries, validation coverage, and manuals.
+GameWIP is a product repository built around reusable C++ libraries, project-level build infrastructure, validation tooling, generated documentation,
+and a small executable shell. Project code owns composition and runtime policy. Reusable libraries own their public contracts, implementations,
+platform backends, package boundaries, validation coverage, and manuals.
 
 Use this map to decide where code belongs and which dependency directions are
 valid. It shows the system-level relationships; library manuals and workflow
@@ -90,7 +92,8 @@ Do not treat a header under `engine/input`, `engine/action`, or
 `engine/window_manager` as a supported installed API. Their completion gates are
 tracked in the project roadmap.
 
-Validation code may use libraries and approved internal hooks. Installed consumers must not see internal headers, test-hook headers, source-tree-only helper targets, or validation-only internal compile definitions.
+Validation code may use libraries and approved internal hooks. Installed consumers must not see internal headers, test-hook headers, source-tree-only
+helper targets, or validation-only internal compile definitions.
 
 ## Library ownership
 
@@ -107,17 +110,28 @@ A reusable library must not require the game executable to compile, test, instal
 
 ## Source organization
 
-File organization follows responsibility, but public, implementation, internal, and validation boundaries solve different problems and are not required to mirror one another.
+File organization follows responsibility, but public, implementation, internal, and validation boundaries solve different problems and are not
+required to mirror one another.
 
-- `Library::Types` organizes what public concepts are. Real conceptual families may live under `Types::<Domain>` while shared/core types remain directly under `Types`.
-- Public headers organize what consumers need to include and which public concepts have independent ownership. Do not split a header only because it became long.
-- `.cpp` files organize implementation responsibility. Split a translation unit when a coherent subsystem can be owned, maintained, and built independently without manufacturing a broad private API merely to move lines around.
-- Internal headers own private contracts only when multiple implementation files genuinely share them or when a private subsystem becomes materially clearer. Do not create internal headers solely to make source files smaller.
-- Correctness-test sources organize behavioral domains inside one logical module. A module may use focused private case fragments or compile several focused case translation units while retaining one registration, one options interface, and one reporting contract. Choose the form that avoids duplicated fixtures and artificial private interfaces.
+- `Library::Types` organizes what public concepts are. Real conceptual families may live under `Types::<Domain>` while shared/core types remain
+  directly under `Types`.
+- Public headers organize what consumers need to include and which public concepts have independent ownership. Do not split a header only because it
+  became long.
+- `.cpp` files organize implementation responsibility. Split a translation unit when a coherent subsystem can be owned, maintained, and built
+  independently without manufacturing a broad private API merely to move lines around.
+- Internal headers own private contracts only when multiple implementation files genuinely share them or when a private subsystem becomes materially
+  clearer. Do not create internal headers solely to make source files smaller.
+- Correctness-test sources organize behavioral domains inside one logical module. A module may use focused private case fragments or compile several
+  focused case translation units while retaining one registration, one options interface, and one reporting contract. Choose the form that avoids
+  duplicated fixtures and artificial private interfaces.
 
-There is no line-count or file-size quota. Size is a signal that ownership may have become unclear, not an automatic split trigger. Prefer a small number of coherent responsibility files over mechanical one-type/one-function decomposition. A useful review question is whether a maintainer can identify where behavior belongs without searching a monolithic translation unit.
+There is no line-count or file-size quota. Size is a signal that ownership may have become unclear, not an automatic split trigger. Prefer a small
+number of coherent responsibility files over mechanical one-type/one-function decomposition. A useful review question is whether a maintainer can
+identify where behavior belongs without searching a monolithic translation unit.
 
-A library target's `STATIC` or `SHARED` form follows runtime ownership, ABI, and process-coordination requirements rather than repository symmetry. Use one shared runtime when the contract requires process-wide coordination to be unique across consuming modules; do not convert otherwise independent libraries to shared form merely so neighboring targets look alike.
+A library target's `STATIC` or `SHARED` form follows runtime ownership, ABI, and process-coordination requirements rather than repository symmetry.
+Use one shared runtime when the contract requires process-wide coordination to be unique across consuming modules; do not convert otherwise
+independent libraries to shared form merely so neighboring targets look alike.
 
 ## Public and internal boundaries
 
@@ -133,13 +147,16 @@ These are not consumer API:
 - Backend-native handles and platform-specific types.
 - Source-tree-only CMake helpers.
 
-Public manuals must not require readers to understand `Detail` namespaces. Maintainer documentation may mention them when explaining implementation boundaries, validation hooks, or backend contracts.
+Public manuals must not require readers to understand `Detail` namespaces. Maintainer documentation may mention them when explaining implementation
+boundaries, validation hooks, or backend contracts.
 
 ## Installed-package boundary
 
-A library is standalone at the installed-package boundary when a clean external CMake project can use it through `find_package()` and the canonical imported target without source-tree paths or game executable dependencies.
+A library is standalone at the installed-package boundary when a clean external CMake project can use it through `find_package()` and the canonical
+imported target without source-tree paths or game executable dependencies.
 
-In the pre-1.0 repository, standalone libraries may still share repository CMake helpers, the root project version, platform-selection logic, validation infrastructure, and documentation infrastructure.
+In the pre-1.0 repository, standalone libraries may still share repository CMake helpers, the root project version, platform-selection logic,
+validation infrastructure, and documentation infrastructure.
 
 `GameWIP::` imported targets are project ownership markers. They do not imply game-runtime coupling.
 
@@ -147,7 +164,8 @@ Package rules are documented in @ref project_library_compatibility.
 
 ## Platform backend boundary
 
-Platform-specific implementation belongs behind the owning library's internal backend contract. Backend file layout, native error translation, Unicode/path behavior, cleanup rules, and test-hook restrictions are documented in @ref project_platform_backend_contract.
+Platform-specific implementation belongs behind the owning library's internal backend contract. Backend file layout, native error translation,
+Unicode/path behavior, cleanup rules, and test-hook restrictions are documented in @ref project_platform_backend_contract.
 
 ## Validation ownership
 
@@ -165,19 +183,23 @@ Benchmarks live under:
 game/validation/benchmarks/<module>/
 ```
 
-The validation runner owns command-line behavior, module selection, report generation, manual checks, child-process scenarios, and aggregate exit-code policy. Individual modules own their test cases and module-specific options.
+The validation runner owns command-line behavior, module selection, report generation, manual checks, child-process scenarios, and aggregate exit-code
+policy. Individual modules own their test cases and module-specific options.
 
 See @ref project_validation, @ref project_testing, and @ref project_benchmarking.
 
 ## Executable integration
 
-The `game/` tree owns executable composition, startup validation wiring, standalone validation runners, and the runtime facade. `main.cpp` must remain a small process entry point that delegates runtime work behind `GameWIP::Game::run()`.
+The `game/` tree owns executable composition, startup validation wiring, standalone validation runners, and the runtime facade. `main.cpp` must remain
+a small process entry point that delegates runtime work behind `GameWIP::Game::run()`.
 
-Executable layout, startup sequencing, generated version metadata, and source-comment expectations for `game/` files are documented in @ref project_game_executable.
+Executable layout, startup sequencing, generated version metadata, and source-comment expectations for `game/` files are documented in @ref
+project_game_executable.
 
 ## Documentation ownership
 
-Generated workflow and contract pages are owned by `docs/doxygen/`. Product planning and policy records are owned by `docs/`. Library manuals are owned by each library's `docs/` directory.
+Generated workflow and contract pages are owned by `docs/doxygen/`. Product planning and policy records are owned by `docs/`. Library manuals are
+owned by each library's `docs/` directory.
 
 See @ref project_documentation and @ref project_planning.
 

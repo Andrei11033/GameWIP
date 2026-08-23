@@ -12,7 +12,9 @@
 
 `Status::ok()` returns true only when `code == ErrorCode::Success`.
 
-A successful status should normally use `nativeCode == 0` and an empty message. Backends may attach diagnostic detail to failures when the additional allocation and text are useful. A non-empty message supplied by a caller must already be valid UTF-8; `makeStatus()` does not rescan trusted diagnostic text.
+A successful status should normally use `nativeCode == 0` and an empty message. Backends may attach diagnostic detail to failures when the additional
+allocation and text are useful. A non-empty message supplied by a caller must already be valid UTF-8; `makeStatus()` does not rescan trusted
+diagnostic text.
 
 ## Error-code categories
 
@@ -42,7 +44,9 @@ The generated API reference documents each enumerator. Use the following categor
 
 ### Generic operation failures
 
-Use `OpenFailed`, `ReadFailed`, `WriteFailed`, `FlushFailed`, `CloseFailed`, `SeekFailed`, `StatFailed`, `RemoveFailed`, `ReplaceFailed`, `CopyFailed`, `MoveFailed`, `ResizeFailed`, `LockFailed`, `UnlockFailed`, `DirectoryCreateFailed`, or `DirectoryListFailed` when the named operation failed and no more specific portable category applies.
+Use `OpenFailed`, `ReadFailed`, `WriteFailed`, `FlushFailed`, `CloseFailed`, `SeekFailed`, `StatFailed`, `RemoveFailed`, `ReplaceFailed`,
+`CopyFailed`, `MoveFailed`, `ResizeFailed`, `LockFailed`, `UnlockFailed`, `DirectoryCreateFailed`, or `DirectoryListFailed` when the named operation
+failed and no more specific portable category applies.
 
 Use `DirectoryNotEmpty` when removal fails specifically because a directory still contains entries.
 
@@ -74,7 +78,8 @@ Use `DirectoryNotEmpty` when removal fails specifically because a directory stil
 
 ## Selecting the primary code
 
-Return the most specific portable category that describes the failure. Use generic operation codes only when no better category is available. For example, a file open denied by access control should normally use `PermissionDenied`, not `OpenFailed`.
+Return the most specific portable category that describes the failure. Use generic operation codes only when no better category is available. For
+example, a file open denied by access control should normally use `PermissionDenied`, not `OpenFailed`.
 
 The native code and message supplement the portable category; they must not replace it.
 
@@ -82,7 +87,8 @@ The native code and message supplement the portable category; they must not repl
 
 `errorCodeName()` returns stable symbolic names for diagnostics, logs, and tests. Unknown enumerator values map to `"Unknown"`.
 
-`ErrorCode` numeric values are not serialization identifiers or protocol values. Do not persist enum ordinals or expose them as a cross-version wire contract. Persist an application-owned representation when storage or protocol stability is required.
+`ErrorCode` numeric values are not serialization identifiers or protocol values. Do not persist enum ordinals or expose them as a cross-version wire
+contract. Persist an application-owned representation when storage or protocol stability is required.
 
 ## Partial progress
 
@@ -94,11 +100,15 @@ Transfer count and status are independent:
 - Callers decide whether partial output is useful, retryable, or must be discarded.
 - A backend must never report a byte count larger than the supplied span.
 
-For text reads, definitively malformed bytes produce `EncodingFailed` even when the same read also reports a backend failure. An incomplete suffix produces `EncodingFailed` only when IO has reached a definitive end of input; if a separate backend/limit failure stopped the stream first, IO preserves that failure after trimming the incomplete suffix.
+For text reads, definitively malformed bytes produce `EncodingFailed` even when the same read also reports a backend failure. An incomplete suffix
+produces `EncodingFailed` only when IO has reached a definitive end of input; if a separate backend/limit failure stopped the stream first, IO
+preserves that failure after trimming the incomplete suffix.
 
-A successful short write is not itself a failure. `writeAllBytes()` retries it. A successful zero-byte write while input remains is invalid progress and becomes `WriteFailed`.
+A successful short write is not itself a failure. `writeAllBytes()` retries it. A successful zero-byte write while input remains is invalid progress
+and becomes `WriteFailed`.
 
-For known-size reads, early end-of-stream becomes `PartialRead`. For unknown-size reads, a successful zero-byte read without end-of-stream becomes `ReadFailed` because the helper cannot make progress.
+For known-size reads, early end-of-stream becomes `PartialRead`. For unknown-size reads, a successful zero-byte read without end-of-stream becomes
+`ReadFailed` because the helper cannot make progress.
 
 ## End-of-stream
 
@@ -110,13 +120,18 @@ For known-size reads, early end-of-stream becomes `PartialRead`. For unknown-siz
 
 ## Status helpers and allocation
 
-`makeStatus()` accepts a portable code, optional native code, and optional owning UTF-8 message. The function is `noexcept`; however, construction of the message argument happens before function entry and may allocate. Callers that supply a non-empty message are responsible for providing valid UTF-8.
+`makeStatus()` accepts a portable code, optional native code, and optional owning UTF-8 message. The function is `noexcept`; however, construction of
+the message argument happens before function entry and may allocate. Callers that supply a non-empty message are responsible for providing valid
+UTF-8.
 
 `successStatus()` creates a default successful status. Code-only statuses avoid diagnostic-string allocation.
 
-Whole-stream and memory-writer operations convert allocations they perform internally to `OutOfMemory`, representation or container-length failures to `SizeLimitExceeded`, and unexpected internal exceptions to `Unknown`. `MemoryWriter::reserve()` and `MemoryWriter::copyText()` provide status-bearing allocation boundaries.
+Whole-stream and memory-writer operations convert allocations they perform internally to `OutOfMemory`, representation or container-length failures to
+`SizeLimitExceeded`, and unexpected internal exceptions to `Unknown`. `MemoryWriter::reserve()` and `MemoryWriter::copyText()` provide status-bearing
+allocation boundaries.
 
-Reader and Writer checked virtual functions are `noexcept`. A custom implementation must perform the same containment for its own expected failures; throwing from an override is a contract violation and invokes `std::terminate`.
+Reader and Writer checked virtual functions are `noexcept`. A custom implementation must perform the same containment for its own expected failures;
+throwing from an override is a contract violation and invokes `std::terminate`.
 
 ## Related pages
 

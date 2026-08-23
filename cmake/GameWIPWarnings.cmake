@@ -34,4 +34,3 @@ function(gamewip_enable_project_warnings)
         add_compile_options("$<$<COMPILE_LANGUAGE:CXX>:${gamewip_warning}>")
     endforeach()
 endfunction()
-
