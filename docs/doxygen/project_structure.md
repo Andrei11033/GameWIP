@@ -17,6 +17,7 @@ pages provide the behavior inside each box.
 | `engine/` | The documented Window library plus provisional Input and Action code. Preserved WindowManager code is currently outside the build. |
 | `game/` | Executable entry point, runtime facade, startup validation wiring, validation runners, and game-facing integration. |
 | `cmake/` | Repository-wide build, platform, validation, coverage, documentation, packaging, and analysis helpers. |
+| `config/quality/` | Explicit formatter and linter policy consumed by the project quality helper. |
 | `docs/doxygen/` | Generated project manual pages. |
 | `docs/` | Vision, roadmap, decisions, versioning, and contributor workflow records. |
 | `.github/` | Pull-request policy, CI, documentation publishing, and repository automation. |

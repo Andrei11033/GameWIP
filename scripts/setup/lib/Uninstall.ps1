@@ -38,64 +38,111 @@ function Invoke-GameWipUninstall
 {
     param(
         [Parameter(Mandatory = $true)][string]$RepositoryRoot,
-        [Parameter(Mandatory = $true)][hashtable]$SetupConfig,
         [Parameter(Mandatory = $true)][hashtable]$ProjectTools,
         [switch]$Preview
     )
+
     Write-GameWipSetupSection "Uninstall GameWIP development environment$(if ($Preview) { ' (preview)' })"
     $stateExists = Test-Path -LiteralPath $script:SetupStatePath -PathType Leaf
     $state = Get-GameWipSetupState
-    if (-not $stateExists)
+    $stateStatus = if (-not [string]::IsNullOrWhiteSpace([string]$script:SetupStateReadStatus))
     {
-        Write-Host 'Disposable setup state is missing; discovery is using attached resource evidence and conservative inference.' -ForegroundColor Yellow
+        [string]$script:SetupStateReadStatus
+    }
+    elseif ($stateExists)
+    {
+        'unknown'
+    }
+    else
+    {
+        'missing'
+    }
+    if ($stateStatus -eq 'missing')
+    {
+        Write-Host 'Disposable setup state is missing; discovery uses persistent evidence and conservative preservation.' -ForegroundColor Yellow
+    }
+    elseif ($stateStatus -eq 'corrupt')
+    {
+        Write-Host 'Disposable setup state is corrupt; it is ignored as ownership evidence.' -ForegroundColor Yellow
     }
 
-    $managedMarker = Join-Path ([string]$ProjectConfig.managedEnvironment.msys2Root) '.gamewip-managed.json'
-    $markerProvesOwnership = $false
-    if (Test-Path -LiteralPath $managedMarker -PathType Leaf)
+    $msysRoot = [string]$ProjectConfig.managedEnvironment.msys2Root
+    $msysMarker = Join-Path $msysRoot '.gamewip-managed.json'
+    $msysOwnership = $false
+    if (Test-Path -LiteralPath $msysMarker -PathType Leaf)
     {
         try
         {
-            $marker = Get-Content -Raw -LiteralPath $managedMarker | ConvertFrom-Json
-            $markerProvesOwnership = $marker.schemaVersion -eq 1 -and $marker.owner -eq 'GameWIP' -and $marker.resource -eq 'msys2' -and $marker.installedBySetup -eq $true
+            $marker = Get-Content -Raw -LiteralPath $msysMarker | ConvertFrom-Json
+            $msysOwnership = $marker.schemaVersion -eq 1 -and
+                             $marker.owner -eq 'GameWIP' -and
+                             $marker.resource -eq 'msys2' -and
+                             $marker.installedBySetup -eq $true
         }
         catch
         {
-            $markerProvesOwnership = $false
+            $msysOwnership = $false
         }
     }
 
+    $managedToolsRoot = [string]$ProjectConfig.managedEnvironment.gameWipToolsRoot
+    $toolsExist = Test-Path -LiteralPath $managedToolsRoot
+    $toolsOwnership = $toolsExist -and (Test-GameWipManagedToolRootOwnership -Root $managedToolsRoot)
+
     $proven = @('GameWIP VS Code workflow integration and managed keybinding block')
-    if (Test-Path -LiteralPath ([string]$ProjectConfig.managedEnvironment.gameWipToolsRoot))
+    if ($toolsOwnership)
     {
-        $proven += 'C:\MSYS2\GameWIPTools persistent managed tool tree'
+        $proven += "$managedToolsRoot persistent managed tool tree"
     }
-    if ($markerProvesOwnership)
+    if ($msysOwnership)
     {
-        $proven += 'C:\MSYS2 installation (persistent ownership marker)'
-    }
-    $recorded = @($state.wingetPackages | ForEach-Object { "WinGet package $_" }) + @($state.vscodeExtensions | ForEach-Object { "VS Code extension $_" })
-    if ($state.msys2InstalledBySetup -and -not $markerProvesOwnership)
-    {
-        $recorded += 'C:\MSYS2 installation (disposable setup state)'
-    }
-    $stronglyInferred = @()
-    $unknown = @()
-    if ((Test-Path -LiteralPath ([string]$ProjectConfig.managedEnvironment.msys2Root)) -and -not $markerProvesOwnership -and -not $state.msys2InstalledBySetup)
-    {
-        $stronglyInferred += 'C:\MSYS2 resembles the GameWIP setup root but has no surviving ownership proof'
-    }
-    if ((Test-Path -LiteralPath $managedMarker) -and -not $markerProvesOwnership)
-    {
-        $unknown += 'Invalid or unrecognized C:\MSYS2 ownership marker'
+        $proven += "$msysRoot installation (persistent ownership marker)"
     }
 
-    $canInstall = @($SetupConfig.wingetPackages | ForEach-Object { "WinGet: $($_.id)" })
-    $canInstall += @($ProjectTools.tools | ForEach-Object { "$($_.id) via $($_.provider.kind)" })
+    $recorded = @($state.wingetPackages | ForEach-Object { "WinGet package $_" }) +
+                @($state.vscodeExtensions | ForEach-Object { "VS Code extension $_" })
+    if ($state.msys2InstalledBySetup -and -not $msysOwnership)
+    {
+        $recorded += "$msysRoot installation (disposable setup state only)"
+    }
+
+    $stronglyInferred = @()
+    $unknown = @()
+    if ((Test-Path -LiteralPath $msysRoot) -and -not $msysOwnership -and -not $state.msys2InstalledBySetup)
+    {
+        $stronglyInferred += "$msysRoot resembles the GameWIP setup root but has no surviving ownership proof"
+    }
+    if ((Test-Path -LiteralPath $msysMarker) -and -not $msysOwnership)
+    {
+        $unknown += "Invalid or unrecognized $msysRoot ownership marker"
+    }
+    if ($toolsExist -and -not $toolsOwnership)
+    {
+        $unknown += "$managedToolsRoot exists without valid GameWIP project-tools ownership proof"
+    }
+    if ($stateStatus -eq 'corrupt')
+    {
+        $unknown += 'Disposable setup state is corrupt and was not used as ownership proof'
+    }
+
+    $canInstall = @($ProjectTools.tools | ForEach-Object { "$($_.id) via $($_.provider.kind)" })
     $planned = @('GameWIP VS Code workflow integration and keybindings') + $recorded
-    $planned += @('C:\MSYS2\GameWIPTools', 'build/gamewip/cache/tracy', 'disposable setup/editor state')
-    $preserved = @('Repository and user-created files', 'Pre-existing or ownership-unknown applications', 'C:\MSYS2 (may contain user-added packages/files)')
-    $manual = @('Review C:\MSYS2 and remove it manually only if its remaining contents are no longer needed.')
+    if ($toolsOwnership)
+    {
+        $planned += $managedToolsRoot
+    }
+    $planned += @('build/gamewip/cache/tracy', 'disposable setup/editor state')
+
+    $preserved = @(
+        'Repository and user-created files',
+        'Pre-existing or ownership-unknown applications',
+        "$msysRoot (may contain user-added packages/files)"
+    )
+    if ($toolsExist -and -not $toolsOwnership)
+    {
+        $preserved += "$managedToolsRoot (ownership unknown)"
+    }
+    $manual = @("Review $msysRoot and remove it manually only if its remaining contents are no longer needed.")
 
     Write-GameWipUninstallSection -Title 'Proven GameWIP-owned' -Items $proven
     Write-GameWipUninstallSection -Title 'Recorded GameWIP-owned' -Items $recorded
@@ -107,7 +154,9 @@ function Invoke-GameWipUninstall
     Write-GameWipUninstallSection -Title 'Manual follow-up' -Items $manual
     if ($Preview)
     {
-        Write-Host ''; Write-Host 'Preview complete; no resources were changed.'; return
+        Write-Host ''
+        Write-Host 'Preview complete; no resources were changed.'
+        return
     }
 
     Invoke-GameWipEditorIntegrationRemoval
@@ -118,16 +167,22 @@ function Invoke-GameWipUninstall
             Invoke-GameWipSetupNative -FilePath 'code' -ArgumentList @('--uninstall-extension', $extensionId) -AllowedExitCodes @(0, 1) | Out-Null
         }
     }
-    $managedToolsRoot = [string]$ProjectConfig.managedEnvironment.gameWipToolsRoot
-    if (Test-Path -LiteralPath $managedToolsRoot)
+
+    if ($toolsOwnership)
     {
-        Invoke-GameWipOwnedTreeRemoval -Path $managedToolsRoot -OwnedRoot ([string]$ProjectConfig.managedEnvironment.msys2Root)
+        Invoke-GameWipOwnedTreeRemoval `
+            -Path $managedToolsRoot `
+            -OwnedRoot $msysRoot `
+            -RequireMarker `
+            -MarkerName '.gamewip-managed.json'
     }
+
     $tracyCache = Join-Path $RepositoryRoot (Join-Path $ProjectConfig.storage.cache 'tracy')
     if (Test-Path -LiteralPath $tracyCache)
     {
         Invoke-GameWipOwnedTreeRemoval -Path $tracyCache -OwnedRoot (Join-Path $RepositoryRoot $ProjectConfig.storage.cache)
     }
+
     if (@($state.wingetPackages).Count -eq 0)
     {
         Write-Host '  No setup-owned WinGet packages were recorded; pre-existing applications are unchanged.'
@@ -136,10 +191,12 @@ function Invoke-GameWipUninstall
     {
         Uninstall-GameWipWingetPackage -Id $id
     }
-    if (($markerProvesOwnership -or $state.msys2InstalledBySetup) -and (Test-Path -LiteralPath 'C:\MSYS2'))
+
+    if (($msysOwnership -or $state.msys2InstalledBySetup) -and (Test-Path -LiteralPath $msysRoot))
     {
-        Write-Warning 'MSYS2 was installed by GameWIP, but its directory may now contain user data. Remove C:\MSYS2 manually after reviewing it.'
+        Write-Warning "MSYS2 was installed by GameWIP, but its directory may now contain user data. Remove $msysRoot manually after reviewing it."
     }
+
     Remove-Item -LiteralPath $script:SetupStatePath -Force -ErrorAction SilentlyContinue
     Remove-Item -LiteralPath (Get-GameWipEditorPreferencePath -RepositoryRoot $RepositoryRoot) -Force -ErrorAction SilentlyContinue
     Write-Host '  Uninstall complete. Pre-existing software and the repository were preserved.'

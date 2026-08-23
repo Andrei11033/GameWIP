@@ -26,8 +26,7 @@ $EditorConfig = Read-GameWipJsonConfig -Path (Join-Path $PSScriptRoot 'config\ed
 $script:SetupStatePath = Join-Path $RepositoryRoot (Join-Path $ProjectConfig.storage.state 'setup.json')
 $script:SetupRun = $null
 $Script:OperationTemp = $null
-$ToolConfig = @{ MsysRoot = $ProjectConfig.managedEnvironment.msys2Root; CMakeVersionPattern = $SetupActionConfig.cmakeVersionPattern; WingetPackages = $SetupActionConfig.wingetPackages }
-$MsysPackageConfig = @{ Common = $SetupActionConfig.msys2Packages.common; Ucrt64 = $SetupActionConfig.msys2Packages.ucrt64; Clang64 = $SetupActionConfig.msys2Packages.clang64 }
+$ToolConfig = @{ MsysRoot = $ProjectConfig.managedEnvironment.msys2Root }
 Initialize-GameWipStorage
 Assert-GameWipProjectToolConfig
 
@@ -101,8 +100,10 @@ function Show-GameWipManualInstallInstruction
 {
     Write-GameWipSetupSection 'Manual installation'
     Write-Host 'Install the following WinGet packages, then rerun setup.bat check:'
-    Write-Host '  winget install --id Git.Git --exact'
-    Write-Host '  winget install --id MSYS2.MSYS2 --exact --override "install --confirm-command --root C:\MSYS2"'
+    $gitTool = Get-GameWipProjectTool -Id 'git'
+    $msys2Tool = Get-GameWipProjectTool -Id 'msys2'
+    Write-Host "  winget install --id $($gitTool.provider.package) --exact"
+    Write-Host "  winget install --id $($msys2Tool.provider.package) --exact --override `"install --confirm-command --root $($ProjectConfig.managedEnvironment.msys2Root)`""
     $selectedEditors = @(Get-GameWipEditorSelection -RepositoryRoot $RepositoryRoot -EditorConfig $EditorConfig)
     foreach ($id in $selectedEditors)
     {
@@ -117,8 +118,8 @@ function Show-GameWipManualInstallInstruction
         }
     }
     Write-Host ''
-    Write-Host 'In MSYS2, perform a complete pacman -Syu update and install the packages declared in:'
-    Write-Host "  $PSScriptRoot\config\setup.json"
+    Write-Host 'In MSYS2, perform a complete pacman -Syu update and install the provider packages declared in:'
+    Write-Host "  $PSScriptRoot\..\config\project-tools.json"
     Write-Host 'Then run setup.bat profiler to install the matching official Tracy Windows tools.'
     Write-Host ''
     Write-Host 'The setup script can finish repository, editor, and documentation preparation after those tools are present.'
@@ -213,7 +214,7 @@ function Invoke-GameWipSetupAction
         }
         'uninstall'
         {
-            Invoke-GameWipUninstall -RepositoryRoot $RepositoryRoot -SetupConfig $SetupActionConfig -ProjectTools $ProjectTools -Preview:$Preview
+            Invoke-GameWipUninstall -RepositoryRoot $RepositoryRoot -ProjectTools $ProjectTools -Preview:$Preview
         }
         'check'
         {
@@ -300,6 +301,13 @@ function Assert-GameWipSetupActionCatalog
     {
         throw "Duplicate setup menu keys: $($duplicateKeys.Name -join ', ')."
     }
+    foreach ($toolId in @($SetupActionConfig.bootstrapToolIds))
+    {
+        if (@($ProjectTools.tools.id) -notcontains $toolId)
+        {
+            throw "Setup bootstrap tool '$toolId' is not registered in project-tools.json."
+        }
+    }
     if (@($actions.Id) -notcontains $Action)
     {
         throw "Unknown setup action '$Action'. Run 'setup.bat list' to see supported actions."
@@ -311,25 +319,19 @@ function Invoke-GameWipToolStep
     param([switch]$Update)
     Write-GameWipSetupSection 'Project tools'
     Initialize-GameWipManagedToolRoot
-    foreach ($toolInfo in @($ProjectTools.tools | Where-Object { $_.capabilities.update -and $_.provider.kind -notin @('gitSubmodule', 'external') }))
+    foreach ($toolInfo in @($ProjectTools.tools | Where-Object { $_.capabilities.update -and $_.provider.kind -notin @('msys2', 'gitSubmodule', 'external') }))
     {
         $detected = Get-GameWipDetectedTool -Tool $toolInfo
         $compatibility = Get-GameWipToolCompatibility -Tool $toolInfo -Detected $detected
-        if (-not $Update -and $compatibility -eq 'compatible')
-        {
-            Write-Host "  Ready: $($toolInfo.name)"
-            continue
-        }
-        $version = if ($toolInfo.Contains('requiredVersion'))
-        {
-            [string]$toolInfo.requiredVersion
-        }
-        else
-        {
-            $null
-        }
+        if (-not $Update -and $compatibility -eq 'compatible') { Write-Host "  Ready: $($toolInfo.name)"; continue }
+        $wasInstalled = [bool]$detected.Installed
+        $version = if ($toolInfo.Contains('requiredVersion')) { [string]$toolInfo.requiredVersion } else { $null }
         $functionName = Get-GameWipProviderFunction -Tool $toolInfo -Operation Install
         & $functionName -Tool $toolInfo -Version $version
+        if (-not $wasInstalled -and $toolInfo.provider.kind -eq 'winget')
+        {
+            Add-GameWipOwnedWingetPackage -Id ([string]$toolInfo.provider.package)
+        }
     }
 }
 
@@ -345,17 +347,21 @@ function Invoke-GameWipMsys2Step
 {
     param([switch]$Update)
     Write-GameWipSetupSection 'MSYS2 UCRT64 and CLANG64'
-    if (-not (Test-Path -LiteralPath (Join-Path $ToolConfig.MsysRoot 'usr\bin\bash.exe')))
+    $msys2Tool = Get-GameWipProjectTool -Id 'msys2'
+    $bash = Join-Path $ToolConfig.MsysRoot 'usr\bin\bash.exe'
+    if (-not (Test-Path -LiteralPath $bash))
     {
-        Install-GameWipWingetPackage -Id 'MSYS2.MSYS2' -Override "install --confirm-command --root $($ToolConfig.MsysRoot)"
+        Install-GameWipWingetTool -Tool $msys2Tool -Version $null
+        Add-GameWipOwnedWingetPackage -Id ([string]$msys2Tool.provider.package)
         $state = Get-GameWipSetupState
         $state.msys2InstalledBySetup = $true
         Save-GameWipSetupState -State $state
         [ordered]@{ schemaVersion = 1; owner = 'GameWIP'; resource = 'msys2'; installedBySetup = $true } |
             ConvertTo-Json | Set-Content -LiteralPath (Join-Path $ToolConfig.MsysRoot '.gamewip-managed.json') -Encoding UTF8
     }
-    Install-GameWipMsys2PackageSet -MsysRoot $ToolConfig.MsysRoot -PackageConfig $MsysPackageConfig -Update:$Update
-    Test-GameWipMsys2Toolchain -MsysRoot $ToolConfig.MsysRoot -CMakeVersionPattern $ToolConfig.CMakeVersionPattern
+    $packageConfig = Get-GameWipMsys2PackageConfig -ProjectTools $ProjectTools
+    Install-GameWipMsys2PackageSet -MsysRoot $ToolConfig.MsysRoot -PackageConfig $packageConfig -Update:$Update
+    Test-GameWipMsys2Toolchain -ProjectTools $ProjectTools
 }
 
 function Invoke-GameWipRepositoryStep
@@ -437,30 +443,21 @@ function Invoke-GameWipEnvironmentCheck
 {
     Write-GameWipSetupSection 'Environment check'
     $failures = [System.Collections.Generic.List[string]]::new()
-    foreach ($package in $ToolConfig.WingetPackages)
-    {
-        if ($package.ContainsKey('Command') -and -not (Test-GameWipSetupCommand -Name $package.Command))
-        {
-            $failures.Add("Missing required command: $($package.Command)")
-        }
-        if ($package.ContainsKey('Path') -and -not (Test-Path -LiteralPath $package.Path))
-        {
-            $failures.Add("Missing required path: $($package.Path)")
-        }
-    }
-    $allMsysPackages = @($MsysPackageConfig.Common) + @($MsysPackageConfig.Ucrt64) + @($MsysPackageConfig.Clang64)
-    $missingMsysPackages = @(Get-GameWipMissingMsys2Package -MsysRoot $ToolConfig.MsysRoot -Packages $allMsysPackages)
-    foreach ($missingPackage in $missingMsysPackages)
+    $packageConfig = Get-GameWipMsys2PackageConfig -ProjectTools $ProjectTools
+    $allMsysPackages = @($packageConfig.Common) + @($packageConfig.Ucrt64) + @($packageConfig.Clang64)
+    foreach ($missingPackage in @(Get-GameWipMissingMsys2Package -MsysRoot $ToolConfig.MsysRoot -Packages $allMsysPackages))
     {
         $failures.Add("Missing required MSYS2 package: $missingPackage")
     }
-    try
+
+    foreach ($toolInfo in @($ProjectTools.tools | Where-Object { $_.capabilities.detectInstalled -and $_.versionPolicy -ne 'informational' }))
     {
-        Test-GameWipMsys2Toolchain -MsysRoot $ToolConfig.MsysRoot -CMakeVersionPattern $ToolConfig.CMakeVersionPattern
-    }
-    catch
-    {
-        $failures.Add($_.Exception.Message)
+        $detected = Get-GameWipDetectedTool -Tool $toolInfo
+        $compatibility = Get-GameWipToolCompatibility -Tool $toolInfo -Detected $detected
+        if ($compatibility -ne 'compatible')
+        {
+            $failures.Add("Project tool '$($toolInfo.id)' is $compatibility.")
+        }
     }
     if (-not (Test-GameWipTracyToolSet -RepositoryRoot $RepositoryRoot))
     {
@@ -529,8 +526,8 @@ function Invoke-GameWipCompleteSetup
     Write-GameWipSetupSection 'Execution plan'
     Write-Host "  Mode: $(if ($Update) { 'update' } else { 'install/repair' })"
     Write-Host "  Editors/IDEs: $($selectedNames -join ', ')"
-    Write-Host '  1. Install or verify common machine tools'
-    Write-Host '  2. Install or verify MSYS2 packages and toolchains'
+    Write-Host '  1. Install or verify MSYS2 packages and toolchains'
+    Write-Host '  2. Install or verify non-MSYS2 project tools'
     Write-Host '  3. Connect an extracted ZIP to Git if needed, initialize pinned submodules, and configure dev'
     Write-Host '  4. Install or update the selected editor integrations'
     Write-Host '  5. Build and verify the pinned Tracy tool set'
@@ -540,8 +537,8 @@ function Invoke-GameWipCompleteSetup
     }
     Write-Host '  Final. Verify the complete selected environment'
 
-    Invoke-GameWipToolStep -Update:$Update
     Invoke-GameWipMsys2Step -Update:$RefreshMsys2
+    Invoke-GameWipToolStep -Update:$Update
     Invoke-GameWipRepositoryStep -Update:$Update
     Invoke-GameWipEditorStep -Update:$Update
     Invoke-GameWipTracyStep

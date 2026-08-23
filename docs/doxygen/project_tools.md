@@ -1,78 +1,147 @@
 @page project_tools Project development tools
 
-GameWIP declares development-tool policy in
-`scripts/config/project-tools.json`. Its schema fixes the supported provider
-kinds, version policies, detection commands, capabilities, download metadata,
-and live version references. Provider behavior lives in
-`scripts/lib/Providers/`; adding a tool that uses an existing provider requires
-registry data, not a tool-specific branch.
+GameWIP has one tracked authority for project development tools:
+`scripts/config/project-tools.json`. It owns provider selection, version policy,
+provider package metadata, detection, update capabilities, and precise live
+version references. Setup consumes that registry; it does not keep a second
+package or version catalog.
 
-## Versions and providers
+## Provider and version policy
 
 The supported providers are MSYS2, npm, Python, PowerShell Gallery, verified
-GitHub releases, winget, Git submodules, and external/manual tools. Prefer a
-suitable pacman package, then the tool's native ecosystem, then a checksum-
-verified GitHub release, and finally an explicit external dependency.
+GitHub releases, WinGet, Git submodules, and external/manual state. Provider
+selection follows this order when the tool is available and compatible:
 
-`exact` pins version-sensitive quality tools. `minimum` accepts that version or
-newer. `managed` delegates version selection to the environment's package
-manager. `informational` reports externally owned state without taking over its
-updates. Unicode data, GitHub Actions, Tracy, the editor extension, and the
-runtime version retain their specialized authorities.
+1. An official MSYS2/pacman package.
+2. The tool's native ecosystem under the persistent GameWIP tool root.
+3. A checksum-verified standalone release.
+4. Explicit external/manual ownership.
 
-Non-pacman tools persist under `C:\MSYS2\GameWIPTools`, using its `bin`,
-`tools`, `npm`, `python`, and `powershell` children. Standalone releases use
-`tools/<tool>/<version>` and stable shims in `bin`. This tree is marked as
-GameWIP-managed but remains distinct from the MSYS2 installation ownership
-marker. Setup and uninstall require both ownership evidence and a safe resolved
-path before deleting anything.
+`exact` pins version-sensitive tools. `minimum` accepts the declared version or
+newer. `managed` lets the owning package manager select a compatible version.
+`informational` reports externally owned state without taking over its update.
 
-## Commands
+CMake is a `minimum` tool and its registry version must equal the root
+`cmake_minimum_required()` value. Newer CMake release lines are accepted.
 
-`gamewip tools -ToolsAction list` and `status` are offline. `list` describes
-registry policy and capabilities; `status` also detects installed versions,
-compatibility, and locations. Tools that cannot check or update still appear.
+MSYS2 package requirements are derived from provider metadata in
+`project-tools.json`, including UCRT64/CLANG64 companion packages and package-only
+dependencies. `scripts/setup/config/setup.json` owns only setup action metadata
+and the IDs needed to bootstrap a provider host.
 
-`gamewip tools -ToolsAction check-updates` explicitly uses the network and only
-reports current, installed, and latest versions. It changes neither the checkout
-nor installed tools.
+## Persistent tool ownership
 
-`gamewip tools -ToolsAction update -Tool <id|all>` first builds a complete
-online plan. `-Preview` never mutates the repository or machine. A real update
-requires a clean working tree, updates the central pin and integrity/provider
-metadata, installs the managed version, synchronizes unambiguous live
-references, and runs affected validation plus `quality check`. It never commits,
-pushes, or destructively rolls back a failed sequence.
+MSYS2 lives at `C:\MSYS2`. Pacman-owned files remain in the standard `usr`,
+`ucrt64`, and `clang64` trees. GameWIP never copies unmanaged binaries into
+those package-manager directories.
 
-`setup.bat update` has different ownership: it updates package-manager software
-and restores compliance with the current checkout. It never advances exact
-project pins. Historical files under `docs/releases/` are not rewritten during
-tool updates; every current reference must agree with the registry.
+Tools managed directly by GameWIP persist under:
 
-## Disposable repository storage
+```text
+C:\MSYS2\GameWIPTools\
+  bin\
+  tools\
+  npm\
+  python\
+  powershell\
+```
 
-All helper-owned mutable repository data lives below `build/gamewip/`:
+The directory is separate from repository build output and survives deleting
+`build/`. When GameWIP creates or owns this tree it writes
+`.gamewip-managed.json` inside it. An existing non-empty tree without valid
+ownership proof is never silently adopted or recursively removed.
 
-- `cache/` contains reproducible, self-validating downloads and query data.
-- `state/` contains advisory convenience state, never sole ownership evidence.
-- `temp/<operation-id>/` isolates marked operation data and is removed in
-  `finally`; stale cleanup only removes verified GameWIP-owned directories.
-- `runs/<run-id>/artifacts/` retains manifests, logs, summaries, and diagnostics.
+`C:\MSYS2\.gamewip-managed.json` is a different marker. It records proven
+GameWIP ownership of the MSYS2 installation itself when setup created it.
+Ownership evidence never bypasses recursive-deletion path safety, and setup
+still preserves the MSYS2 root for manual review because users can add files or
+packages after installation.
 
-Deleting `build/`, any individual storage child, or corrupt cache metadata is a
-supported recovery operation. Setup checks, doctor, tool status, and quality
-recreate needed directories without reinstalling persistent tools or inferring
-unsafe ownership from missing advisory state.
+## Tool commands
+
+`gamewip tools -ToolsAction list` and `status` are offline. `list` reports
+registry policy. `status` reports the selected executable/module, required and
+installed versions, compatibility, provider, and additional discovered copies.
+Selection is deterministic: the declared managed provider location wins on the
+Windows development environment, then other GameWIP-managed locations, then
+PATH. A repository-owned executable participates only when the registry
+explicitly declares its repository path.
+
+`gamewip tools -ToolsAction check-updates` is online and read-only. It resolves
+all requested latest versions, including versioned provider dependencies,
+without changing tracked files or installed software.
+
+`gamewip tools -ToolsAction update -Tool <id|all>` resolves the complete online
+plan before the first mutation. `-Preview` prints that plan only. A real update
+requires a clean tracked tree, updates structured registry fields and precise
+declared live references, updates integrity/tag metadata when applicable,
+installs the managed version, and runs `quality check`. Ambiguous or missing
+live references fail closed. Historical files under `docs/releases/` are never
+rewritten. The command never commits, pushes, or destructively rolls back a
+failed sequence.
+
+`setup.bat update` has different semantics: it updates package-manager software
+and restores compliance with versions already declared by the checkout. It does
+not advance exact project pins.
+
+## Repository-local mutable storage
+
+All helper-owned mutable repository data is disposable and lives under:
+
+```text
+build/gamewip/
+  cache/
+  state/
+  temp/
+  runs/
+```
+
+`cache/` contains reproducible data. `state/` is advisory and never sole
+ownership evidence. `temp/<operation-id>/` is operation-owned and marked with
+the owning process identity. Stale cleanup removes an old directory only when
+GameWIP ownership is valid and the recorded owner is confirmed inactive;
+active, malformed, or ambiguous ownership is preserved. `runs/` retains logs,
+manifests, summaries, and artifacts.
+
+Deleting `build/` or any storage child is a supported recovery operation.
+Doctor, status, quality, and setup recreate the directories they need without
+reinstalling persistent tools.
+
+## Quality configuration
+
+Explicit formatter and linter policy is grouped under `config/quality/`:
+
+- `ruff.toml`
+- `config/quality/eslint.config.js`
+- `prettier.json` and `prettier.ignore`
+- `gersemi.yml`
+- `yamllint.yml`
+- `markdownlint-cli2.jsonc`
+- `psscriptanalyzer.psd1`
+
+The project helper passes these paths explicitly, so their location is not a
+hidden discovery dependency. `.clang-format`, `.clang-tidy`, and
+`.editorconfig` intentionally remain at repository root because editor and tool
+upward discovery is useful for C++ and basic text settings.
+
+`gamewip quality -QualityAction check` performs deterministic format checks,
+language linters, schema/semantic validation, workflow validation,
+documentation checks, and link validation. `fix` runs deterministic formatters
+only and then executes the same check. It does not auto-rewrite prose, workflow
+behavior, or semantic CMake policy.
 
 ## Troubleshooting
 
-Run `gamewip tools -ToolsAction status` to compare the checkout with the local
-machine, and `gamewip doctor` to test whether the complete development
-environment is usable. Run `setup.bat repair` for missing prerequisites, broken
-managed installations, or incompatible exact pins. Use update preview before a
-pin change, and resolve a dirty working tree or ambiguous live reference before
-retrying a real update.
+Use `gamewip tools -ToolsAction status` to inspect tool selection and competing
+copies. Use `gamewip doctor` to verify the complete declared development
+environment. Use `setup.bat repair` when provider-owned software is missing or
+incompatible.
 
-Do not place unmanaged binaries in pacman-owned directories, create repository-
-local default virtual environments, or treat `build/gamewip/state` as durable
+If advisory setup state is missing or corrupt, setup reports that condition and
+reconstructs what it safely can from persistent evidence. Unknown resources are
+preserved. If an existing `GameWIPTools` tree has no ownership marker, review it
+manually instead of forcing uninstall.
+
+Do not put persistent tools under `build/`, place unmanaged files in
+pacman-owned `bin` directories, or treat `build/gamewip/state` as durable
 machine ownership evidence.

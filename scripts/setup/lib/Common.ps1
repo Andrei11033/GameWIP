@@ -2,41 +2,28 @@ Set-StrictMode -Version Latest
 
 function Get-GameWipSetupState
 {
-    if (-not (Test-Path -LiteralPath $script:SetupStatePath))
+    $defaultState = [ordered]@{ schemaVersion = 1; wingetPackages = @(); vscodeExtensions = @(); msys2InstalledBySetup = $false }
+    if (-not (Test-Path -LiteralPath $script:SetupStatePath -PathType Leaf))
     {
-        return [ordered]@{ schemaVersion = 1; wingetPackages = @(); vscodeExtensions = @(); msys2InstalledBySetup = $false }
+        $script:SetupStateReadStatus = 'missing'
+        return $defaultState
     }
-    $state = Get-Content -LiteralPath $script:SetupStatePath -Raw | ConvertFrom-Json
-    [object[]]$wingetPackages = if ($state.PSObject.Properties['wingetPackages'])
+    try
     {
-        @($state.wingetPackages)
+        $state = Get-Content -LiteralPath $script:SetupStatePath -Raw | ConvertFrom-Json
+        if ($state.schemaVersion -ne 1) { throw "Unsupported setup state schemaVersion '$($state.schemaVersion)'." }
     }
-    else
+    catch
     {
-        @()
+        $script:SetupStateReadStatus = 'corrupt'
+        Write-Warning "Disposable setup state is corrupt and will be ignored: $($_.Exception.Message)"
+        return $defaultState
     }
-    [object[]]$vscodeExtensions = if ($state.PSObject.Properties['vscodeExtensions'])
-    {
-        @($state.vscodeExtensions)
-    }
-    else
-    {
-        @()
-    }
-    $ownsMsys2 = if ($state.PSObject.Properties['msys2InstalledBySetup'])
-    {
-        [bool]$state.msys2InstalledBySetup
-    }
-    else
-    {
-        $false
-    }
-    return [ordered]@{
-        schemaVersion = 1
-        wingetPackages = $wingetPackages
-        vscodeExtensions = $vscodeExtensions
-        msys2InstalledBySetup = $ownsMsys2
-    }
+    $script:SetupStateReadStatus = 'valid'
+    [object[]]$wingetPackages = if ($state.PSObject.Properties['wingetPackages']) { @($state.wingetPackages) } else { @() }
+    [object[]]$vscodeExtensions = if ($state.PSObject.Properties['vscodeExtensions']) { @($state.vscodeExtensions) } else { @() }
+    $ownsMsys2 = if ($state.PSObject.Properties['msys2InstalledBySetup']) { [bool]$state.msys2InstalledBySetup } else { $false }
+    return [ordered]@{ schemaVersion = 1; wingetPackages = $wingetPackages; vscodeExtensions = $vscodeExtensions; msys2InstalledBySetup = $ownsMsys2 }
 }
 
 function Add-GameWipOwnedVsCodeExtension
@@ -52,6 +39,7 @@ function Save-GameWipSetupState
     param([Parameter(Mandatory = $true)]$State)
     New-Item -ItemType Directory -Force -Path (Split-Path -Parent $script:SetupStatePath) | Out-Null
     $State | ConvertTo-Json | Set-Content -LiteralPath $script:SetupStatePath -Encoding UTF8
+    $script:SetupStateReadStatus = 'valid'
 }
 
 function Add-GameWipOwnedWingetPackage
@@ -72,9 +60,11 @@ function Write-GameWipSetupSection
 
 function Initialize-GameWipSetupProcessPath
 {
-    $machinePath = [Environment]::GetEnvironmentVariable('Path', 'Machine')
-    $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
-    $env:Path = "$machinePath;$userPath"
+    $parts = @(
+        [Environment]::GetEnvironmentVariable('Path', 'Machine'),
+        [Environment]::GetEnvironmentVariable('Path', 'User')
+    ) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+    $env:Path = $parts -join [IO.Path]::PathSeparator
 }
 
 function Test-GameWipSetupCommand

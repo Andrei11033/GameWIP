@@ -192,14 +192,15 @@ def maintained_files() -> list[Path]:
 
 
 def check_registry_relationships(failures: list[str]) -> None:
-    """Validate registry consumers and their discoverable repository surfaces."""
+    """Validate cross-file authorities and repository-facing relationships."""
     commands = read_json("scripts/config/commands.json", failures)
     project = read_json("scripts/config/project.json", failures)
     tools = read_json("scripts/config/project-tools.json", failures)
     setup = read_json("scripts/setup/config/setup.json", failures)
     helper = (ROOT / "scripts/GameWIP.ps1").read_text(encoding="utf-8")
     build_docs = "\n".join(
-        (ROOT / relative).read_text(encoding="utf-8") for relative in ("docs/doxygen/build.md", "docs/doxygen/command_line_tools.md")
+        (ROOT / relative).read_text(encoding="utf-8")
+        for relative in ("docs/doxygen/build.md", "docs/doxygen/command_line_tools.md")
     )
 
     option_text = (ROOT / "cmake/GameWIPOptions.cmake").read_text(encoding="utf-8")
@@ -211,7 +212,10 @@ def check_registry_relationships(failures: list[str]) -> None:
 
     presets = read_json("CMakePresets.json", failures)
     visible = {
-        preset["name"] for kind in ("configurePresets", "buildPresets", "testPresets") for preset in presets.get(kind, []) if not preset.get("hidden")
+        preset["name"]
+        for kind in ("configurePresets", "buildPresets", "testPresets")
+        for preset in presets.get(kind, [])
+        if not preset.get("hidden")
     }
     for preset in sorted(visible):
         if f"`{preset}`" not in build_docs:
@@ -237,27 +241,109 @@ def check_registry_relationships(failures: list[str]) -> None:
     workflow_files = {path.name for path in WORKFLOW_ROOT.glob("*.yml")}
     for entry in commands.get("manualWorkflows", []):
         if entry.get("file") not in workflow_files:
-            failures.append(f"scripts/config/commands.json: workflow '{entry.get('id')}' names missing file '{entry.get('file')}'")
+            failures.append(
+                f"scripts/config/commands.json: workflow '{entry.get('id')}' names missing file '{entry.get('file')}'"
+            )
+
+    for forbidden in ("wingetPackages", "msys2Packages", "cmakeVersionPattern"):
+        if forbidden in setup:
+            failures.append(f"scripts/setup/config/setup.json: duplicate tool authority '{forbidden}' is forbidden")
 
     tool_entries = tools.get("tools", [])
+    tool_by_id = {entry.get("id"): entry for entry in tool_entries}
+    if len(tool_by_id) != len(tool_entries):
+        failures.append("scripts/config/project-tools.json: duplicate tool IDs")
+    for tool_id in setup.get("bootstrapToolIds", []):
+        if tool_id not in tool_by_id:
+            failures.append(f"scripts/setup/config/setup.json: bootstrap tool '{tool_id}' is not registered")
+
+    root_cmake = (ROOT / "CMakeLists.txt").read_text(encoding="utf-8")
+    cmake_match = re.search(r"(?m)^cmake_minimum_required\(VERSION\s+([0-9.]+)\)", root_cmake)
+    cmake_tool = tool_by_id.get("cmake", {})
+    if cmake_match is None:
+        failures.append("CMakeLists.txt: cmake_minimum_required version was not found")
+    elif cmake_tool.get("requiredVersion") != cmake_match.group(1):
+        failures.append(
+            "scripts/config/project-tools.json: CMake minimum must equal root cmake_minimum_required "
+            f"({cmake_tool.get('requiredVersion')!r} != {cmake_match.group(1)!r})"
+        )
+    if "gamewip_cmake_version_pattern" in root_cmake or "newer on its release line" in root_cmake:
+        failures.append("CMakeLists.txt: obsolete same-release-line CMake policy remains")
+
     provider_files = {path.stem.lower() for path in (ROOT / "scripts/lib/Providers").glob("*.ps1")}
-    setup_packages = set(setup.get("msys2Packages", {}).get("ucrt64", [])) | set(setup.get("msys2Packages", {}).get("clang64", []))
     validation_text = (WORKFLOW_ROOT / "validation.yml").read_text(encoding="utf-8")
     tool_docs = (ROOT / "docs/doxygen/project_contracts.md").read_text(encoding="utf-8")
-    for tool in tool_entries:
-        provider = tool.get("provider", {}).get("kind")
+    for entry in tool_entries:
+        tool_id = entry.get("id")
+        provider_info = entry.get("provider", {})
+        provider = provider_info.get("kind")
         if provider not in SUPPORTED_PROVIDERS:
-            failures.append(f"scripts/config/project-tools.json: tool '{tool.get('id')}' uses unsupported provider '{provider}'")
+            failures.append(f"scripts/config/project-tools.json: tool '{tool_id}' uses unsupported provider '{provider}'")
         elif provider.lower() not in provider_files:
             failures.append(f"scripts/lib/Providers: provider implementation '{provider}' is missing")
-        if provider == "msys2" and tool.get("provider", {}).get("package") not in setup_packages:
-            failures.append(f"scripts/setup/config/setup.json: cannot provision MSYS2 tool '{tool.get('id')}'")
-        if tool.get("versionPolicy") == "exact":
-            version = tool.get("requiredVersion", "")
-            if tool.get("id") not in validation_text:
-                failures.append(f".github/workflows/validation.yml: exact tool '{tool.get('id')}' is not installed from registry metadata")
+
+        if provider == "msys2":
+            if provider_info.get("environment") not in {"common", "ucrt64", "clang64"}:
+                failures.append(f"scripts/config/project-tools.json: MSYS2 tool '{tool_id}' lacks a valid environment")
+            if not provider_info.get("package"):
+                failures.append(f"scripts/config/project-tools.json: MSYS2 tool '{tool_id}' lacks a package")
+            for dependency in provider_info.get("dependencies", []):
+                if dependency.get("environment") not in {"common", "ucrt64", "clang64"}:
+                    failures.append(
+                        f"scripts/config/project-tools.json: MSYS2 dependency '{dependency.get('package')}' "
+                        f"for '{tool_id}' lacks a valid environment"
+                    )
+
+        if provider == "npm":
+            for dependency in provider_info.get("dependencies", []):
+                if not dependency.get("version"):
+                    failures.append(
+                        f"scripts/config/project-tools.json: npm dependency '{dependency.get('package')}' "
+                        f"for '{tool_id}' is not versioned"
+                    )
+
+        if provider == "githubRelease" and not provider_info.get("releaseTag"):
+            failures.append(
+                f"scripts/config/project-tools.json: GitHub release tool '{tool_id}' does not retain its actual upstream release tag"
+            )
+
+        version = entry.get("requiredVersion", "")
+        for reference in entry.get("references", []):
+            if not isinstance(reference, dict):
+                failures.append(f"scripts/config/project-tools.json: tool '{tool_id}' has a non-object live reference")
+                continue
+            relative = reference.get("path", "")
+            path = ROOT / relative
+            if not path.is_file():
+                failures.append(f"scripts/config/project-tools.json: tool '{tool_id}' references missing path '{relative}'")
+                continue
+            kind = reference.get("kind")
+            if kind == "text":
+                pattern = reference.get("pattern", "")
+                if "{version}" not in pattern:
+                    failures.append(
+                        f"scripts/config/project-tools.json: text reference '{relative}' for '{tool_id}' lacks {{version}}"
+                    )
+                    continue
+                expected = int(reference.get("expectedCount", 1))
+                concrete = pattern.replace("{version}", version)
+                count = path.read_text(encoding="utf-8").count(concrete)
+                if count != expected:
+                    failures.append(
+                        f"{relative}: live version reference for '{tool_id}' expected {expected} exact match(es), found {count}"
+                    )
+            elif kind == "cmakeMinimum" and cmake_match is not None and version != cmake_match.group(1):
+                failures.append(f"{relative}: CMake minimum reference for '{tool_id}' is stale")
+            elif kind not in {"path", "text", "cmakeMinimum"}:
+                failures.append(f"scripts/config/project-tools.json: tool '{tool_id}' uses unknown reference kind '{kind}'")
+
+        if entry.get("versionPolicy") == "exact":
             if version not in tool_docs:
-                failures.append(f"docs/doxygen/project_contracts.md: exact tool '{tool.get('id')}' version '{version}' is stale")
+                failures.append(f"docs/doxygen/project_contracts.md: exact tool '{tool_id}' version '{version}' is stale")
+            if tool_id not in validation_text:
+                failures.append(
+                    f".github/workflows/validation.yml: exact tool '{tool_id}' is not provisioned from registry metadata"
+                )
 
     expected_storage = {
         "root": "build/gamewip",
@@ -267,7 +353,7 @@ def check_registry_relationships(failures: list[str]) -> None:
         "runs": "build/gamewip/runs",
     }
     if project.get("storage") != expected_storage:
-        failures.append("scripts/config/project.json: repository-local storage paths must use build/gamewip/{cache,state,temp,runs}")
+        failures.append("scripts/config/project.json: repository-local storage must use build/gamewip/{cache,state,temp,runs}")
 
     registry_schemas = {
         "scripts/config/project.json": "scripts/schemas/project.schema.json",
@@ -279,7 +365,6 @@ def check_registry_relationships(failures: list[str]) -> None:
     for registry, schema in registry_schemas.items():
         if not (ROOT / registry).is_file() or not (ROOT / schema).is_file():
             failures.append(f"{registry}: required schema pairing '{schema}' is missing")
-
 
 def check_live_paths_and_editor(failures: list[str]) -> None:
     """Reject migrated live names and invalid editor helper invocations."""
@@ -402,6 +487,12 @@ def check_workflow(path: Path, safe_ctest_presets: set[str]) -> list[str]:
                 failures.append(f"{relative}: pull_request_target checkout must use the default branch")
             if "persist-credentials: false" not in text:
                 failures.append(f"{relative}: pull_request_target checkout must not persist credentials")
+
+    if relative == "pr-standards.yml":
+        if "ref: ${{ github.event.pull_request.base.sha }}" not in text:
+            failures.append(f"{relative}: PR policy code must be checked out from github.event.pull_request.base.sha")
+        if "persist-credentials: false" not in text:
+            failures.append(f"{relative}: trusted PR policy checkout must not persist credentials")
 
     jobs = workflow_jobs(lines)
     if not jobs:

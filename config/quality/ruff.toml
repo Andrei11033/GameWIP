@@ -1,14 +1,13 @@
-[tool.ruff]
 line-length = 150
 indent-width = 4
 target-version = "py310"
 exclude = ["build", "external"]
 
-[tool.ruff.lint]
+[lint]
 select = ["E", "F", "B", "I", "UP", "SIM", "C4", "RUF"]
 ignore = ["E501"]
 
-[tool.ruff.format]
+[format]
 quote-style = "double"
 indent-style = "space"
 line-ending = "lf"

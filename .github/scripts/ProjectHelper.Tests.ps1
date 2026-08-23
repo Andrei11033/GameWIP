@@ -186,29 +186,56 @@ foreach ($storagePath in @($ProjectConfig.storage.cache, $ProjectConfig.storage.
 }
 
 $tempRoot = Resolve-GameWipStoragePath -RelativePath $ProjectConfig.storage.temp
-$staleMarked = Join-Path $tempRoot ('stale-marked-' + [guid]::NewGuid().ToString('N'))
+$deadMarked = Join-Path $tempRoot ('stale-dead-' + [guid]::NewGuid().ToString('N'))
+$activeMarked = Join-Path $tempRoot ('stale-active-' + [guid]::NewGuid().ToString('N'))
+$malformedMarked = Join-Path $tempRoot ('stale-malformed-' + [guid]::NewGuid().ToString('N'))
 $staleUnmarked = Join-Path $tempRoot ('stale-unmarked-' + [guid]::NewGuid().ToString('N'))
-New-Item -ItemType Directory -Path $staleMarked, $staleUnmarked | Out-Null
-'{"schemaVersion":1,"owner":"GameWIP","resource":"operation-temp"}' | Set-Content -LiteralPath (Join-Path $staleMarked '.gamewip-owned.json') -Encoding UTF8
-(Get-Item -LiteralPath $staleMarked).LastWriteTimeUtc = (Get-Date).ToUniversalTime().AddDays(-2)
-(Get-Item -LiteralPath $staleUnmarked).LastWriteTimeUtc = (Get-Date).ToUniversalTime().AddDays(-2)
+New-Item -ItemType Directory -Path $deadMarked, $activeMarked, $malformedMarked, $staleUnmarked | Out-Null
+
+$activeStart = (Get-Process -Id $PID).StartTime.ToUniversalTime().ToString('o')
+@{
+    schemaVersion = 1
+    owner = 'GameWIP'
+    resource = 'operation-temp'
+    processId = 2147483647
+    processStartTime = '2000-01-01T00:00:00.0000000Z'
+} | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $deadMarked '.gamewip-owned.json') -Encoding UTF8
+@{
+    schemaVersion = 1
+    owner = 'GameWIP'
+    resource = 'operation-temp'
+    processId = $PID
+    processStartTime = $activeStart
+} | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $activeMarked '.gamewip-owned.json') -Encoding UTF8
+'not-json' | Set-Content -LiteralPath (Join-Path $malformedMarked '.gamewip-owned.json') -Encoding UTF8
+
+foreach ($directory in @($deadMarked, $activeMarked, $malformedMarked, $staleUnmarked))
+{
+    (Get-Item -LiteralPath $directory).LastWriteTimeUtc = (Get-Date).ToUniversalTime().AddDays(-2)
+}
 try
 {
     Invoke-GameWipStaleOperationTempCleanup
-    if (Test-Path -LiteralPath $staleMarked)
+    if (Test-Path -LiteralPath $deadMarked)
     {
-        throw 'Stale marked operation temp was not removed.'
+        throw 'Stale operation temp owned by a dead process was not removed.'
     }
-    if (-not (Test-Path -LiteralPath $staleUnmarked))
+    foreach ($preserved in @($activeMarked, $malformedMarked, $staleUnmarked))
     {
-        throw 'Stale unmarked operation temp was removed.'
+        if (-not (Test-Path -LiteralPath $preserved))
+        {
+            throw "Operation-temp cleanup removed a protected path: $preserved"
+        }
     }
 }
 finally
 {
-    if (Test-Path -LiteralPath $staleUnmarked)
+    foreach ($directory in @($activeMarked, $malformedMarked, $staleUnmarked))
     {
-        Remove-Item -LiteralPath $staleUnmarked -Recurse -Force
+        if (Test-Path -LiteralPath $directory)
+        {
+            Remove-Item -LiteralPath $directory -Recurse -Force
+        }
     }
 }
 
@@ -234,6 +261,70 @@ catch
 if (-not $cleanTreeProtected)
 {
     throw 'A real tool update did not enforce clean tracked-tree protection before planning.'
+}
+
+# Version-reference updates must be precise and fail closed.
+$originalRepositoryRoot = $RepositoryRoot
+$versionReferenceRoot = Join-Path $testRoot 'version-reference-tests'
+New-Item -ItemType Directory -Force -Path $versionReferenceRoot | Out-Null
+try
+{
+    $RepositoryRoot = $versionReferenceRoot
+    $referencePath = Join-Path $versionReferenceRoot 'reference.txt'
+    'tool-version=1.2.3; unrelated=1.2.3' | Set-Content -LiteralPath $referencePath -Encoding UTF8
+    $reference = @{ path = 'reference.txt'; kind = 'text'; pattern = 'tool-version={version}'; expectedCount = 1 }
+    Set-GameWipPreciseTextVersionReference -Reference $reference -OldVersion '1.2.3' -NewVersion '1.2.4'
+    $updatedReference = Get-Content -Raw -LiteralPath $referencePath
+    if ($updatedReference -notmatch 'tool-version=1\.2\.4' -or $updatedReference -notmatch 'unrelated=1\.2\.3')
+    {
+        throw 'Precise version-reference update changed an unrelated identical version string.'
+    }
+
+    'no-version-here' | Set-Content -LiteralPath $referencePath -Encoding UTF8
+    $missingFailed = $false
+    try
+    {
+        Set-GameWipPreciseTextVersionReference -Reference $reference -OldVersion '1.2.3' -NewVersion '1.2.4'
+    }
+    catch
+    {
+        $missingFailed = $true
+    }
+    if (-not $missingFailed)
+    {
+        throw 'Missing version reference did not fail closed.'
+    }
+
+    'tool-version=1.2.3; tool-version=1.2.3' | Set-Content -LiteralPath $referencePath -Encoding UTF8
+    $duplicateFailed = $false
+    try
+    {
+        Set-GameWipPreciseTextVersionReference -Reference $reference -OldVersion '1.2.3' -NewVersion '1.2.4'
+    }
+    catch
+    {
+        $duplicateFailed = $true
+    }
+    if (-not $duplicateFailed)
+    {
+        throw 'Ambiguous duplicate version reference did not fail closed.'
+    }
+}
+finally
+{
+    $RepositoryRoot = $originalRepositoryRoot
+}
+
+# GitHub-release providers must retain the actual upstream release tag rather
+# than synthesizing a v-prefix from a normalized version.
+$githubReleaseProviderSource = Get-Content -Raw -LiteralPath (Join-Path $repositoryRoot 'scripts\lib\Providers\GitHubRelease.ps1')
+if ($githubReleaseProviderSource -notmatch 'provider\.releaseTag')
+{
+    throw 'GitHub-release provider does not consume the registry-owned upstream release tag.'
+}
+if ($githubReleaseProviderSource -match 'releases/download/v\$Version')
+{
+    throw 'GitHub-release provider still synthesizes a v-prefixed release tag.'
 }
 
 Write-Host 'Project helper regression tests passed.'

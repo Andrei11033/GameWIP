@@ -84,32 +84,26 @@
       "description": "Apply the repository Visual Studio configuration.",
       "machineChanges": true
     },
-    { "id": "list", "name": "List setup actions", "description": "List supported setup actions and their behavior.", "machineChanges": false },
-    { "id": "help", "name": "Show setup help", "description": "Print command-line usage and common options.", "machineChanges": false },
-    { "id": "menu", "name": "Open the interactive setup menu", "description": "Open the persistent one-key setup menu.", "machineChanges": false }
+    {
+      "id": "list",
+      "name": "List setup actions",
+      "description": "List supported setup actions and their behavior.",
+      "machineChanges": false
+    },
+    {
+      "id": "help",
+      "name": "Show setup help",
+      "description": "Print command-line usage and common options.",
+      "machineChanges": false
+    },
+    {
+      "id": "menu",
+      "name": "Open the interactive setup menu",
+      "description": "Open the persistent one-key setup menu.",
+      "machineChanges": false
+    }
   ],
-  "wingetPackages": [{ "name": "Git", "id": "Git.Git", "command": "git" }],
-  "msys2Packages": {
-    "common": ["git"],
-    "ucrt64": [
-      "mingw-w64-ucrt-x86_64-cmake",
-      "mingw-w64-ucrt-x86_64-ninja",
-      "mingw-w64-ucrt-x86_64-gcc",
-      "mingw-w64-ucrt-x86_64-gdb",
-      "mingw-w64-ucrt-x86_64-clang-tools-extra",
-      "mingw-w64-ucrt-x86_64-doxygen",
-      "mingw-w64-ucrt-x86_64-graphviz",
-      "mingw-w64-ucrt-x86_64-gcovr",
-      "mingw-w64-ucrt-x86_64-nodejs",
-      "mingw-w64-ucrt-x86_64-python"
-    ],
-    "clang64": [
-      "mingw-w64-clang-x86_64-cmake",
-      "mingw-w64-clang-x86_64-ninja",
-      "mingw-w64-clang-x86_64-clang",
-      "mingw-w64-clang-x86_64-compiler-rt",
-      "mingw-w64-clang-x86_64-lld"
-    ]
-  },
-  "cmakeVersionPattern": "^cmake version 4\\.4\\.(?:[2-9]|[1-9][0-9]+)(?:\\.|$)"
+  "bootstrapToolIds": [
+    "msys2"
+  ]
 }

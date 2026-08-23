@@ -28,7 +28,7 @@ file or run the editor action to choose again.
 
 The reproducible compiler environment is MSYS2: UCRT64 GCC drives normal
 development, and CLANG64 drives AddressSanitizer validation. CMake remains on
-the project-required `4.4.2` or newer 4.4 release line. Pacman installs only packages required by a
+the project-required `4.4.2` or newer. Pacman installs only packages required by a
 documented GameWIP workflow plus their dependencies.
 
 ## Interactive menu
@@ -71,7 +71,7 @@ is useful for repeat runs and automation:
 | `setup.bat repair` | Reapply the complete required state without requesting ordinary upgrades. |
 | `setup.bat uninstall` | Remove setup-owned software, integrations, Tracy, and setup-generated `dev`/documentation build trees while preserving pre-existing software and the checkout. |
 | `setup.bat editor` | Choose editors interactively and install their GameWIP integration. |
-| `setup.bat tools` | Install the common WinGet-managed command-line tools. |
+| `setup.bat tools` | Install or repair non-MSYS2 project tools from the canonical provider registry. |
 | `setup.bat visual-studio` | Install or repair Visual Studio Community from `.vsconfig`. |
 | `setup.bat msys2` | Install or repair the declared UCRT64 and CLANG64 packages. |
 | `setup.bat repository` | Initialize pinned submodules and configure the `dev` build tree. |
@@ -220,7 +220,7 @@ selected branch; advancing a submodule pin remains a reviewed source change.
 selected editor integration, reuses Tracy executables when their complete set
 and recorded pinned source version match, rebuilds them otherwise, rebuilds
 documentation, and verifies the environment. CMake remains on
-`4.4.2` or newer on the 4.4 release line, and submodules return to their committed revisions.
+`4.4.2` or newer, and submodules return to their committed revisions.
 
 An existing `C:\MSYS2` root is updated in place with complete `pacman -Syu`
 passes. WinGet is used for MSYS2 only when that root is absent, preventing a
@@ -300,9 +300,9 @@ setup, repair, and update build the same manual without opening a browser.
 
 Declarative requirements live under `scripts/setup/config/`:
 
-- `setup.json` owns action names, menu keys, descriptions, machine-change classification, and project-required package groups.
+- `setup.json` owns action names, menu keys, descriptions, machine-change classification, and bootstrap tool IDs.
 - `editors.json` owns selectable editors, display keys, packages, and handlers.
-- `scripts/config/project-tools.json` owns project-tool providers and version policy shared with the project helper.
+- `scripts/config/project-tools.json` owns project-tool providers, MSYS2 package requirements, detection, and version policy shared by setup and the project helper.
 
 Add reusable operations under `scripts/setup/lib/`, declare their user-facing
 action metadata in `setup.json`, and register a focused stage in

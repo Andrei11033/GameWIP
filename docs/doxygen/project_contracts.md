@@ -44,10 +44,10 @@ Exact version-sensitive quality-tool pins are centrally declared as follows:
 
 | Tool | Exact version | Provider |
 | --- | --- | --- |
-| Ruff | 0.16.4 | verified GitHub release |
+| Ruff | 0.16.4 | Python |
 | ESLint | 10.9.0 | npm |
 | Prettier | 3.9.6 | npm |
-| Gersemi | 0.28.1 | verified GitHub release |
+| Gersemi | 0.28.0 | Python |
 | markdownlint-cli2 | 0.23.2 | npm |
 | yamllint | 1.38.0 | Python |
 | PSScriptAnalyzer | 1.25.0 | PowerShell Gallery |
@@ -59,6 +59,8 @@ update -Tool <id|all>` requires a clean tracked tree, plans all requested
 updates first, updates the authoritative pin and live references, installs the
 managed version, and validates the result without committing or pushing.
 Historical release notes are excluded from version rewrites.
+
+Explicit formatter/linter configuration lives under `config/quality/` and is passed to each owning tool explicitly. `.clang-format`, `.clang-tidy`, and `.editorconfig` remain at repository root because their upward-discovery behavior is useful to editors and C++ tools.
 
 `setup.bat update` brings the machine into compliance with the versions already
 declared by the checkout; it does not advance exact project pins. Non-pacman

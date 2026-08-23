@@ -173,4 +173,65 @@ if (@(Compare-Object -ReferenceObject $expectedPacmanCommands -DifferenceObject 
     throw "MSYS2 package installation did not route every pacman mutation through the retry wrapper: $($script:capturedPacmanCommands -join '; ')"
 }
 
+foreach ($forbiddenProperty in @('wingetPackages', 'msys2Packages', 'cmakeVersionPattern'))
+{
+    if ($null -ne $actionConfig.PSObject.Properties[$forbiddenProperty])
+    {
+        throw "Setup registry still duplicates project-tool authority '$forbiddenProperty'."
+    }
+}
+
+$windowsSource = Get-Content -Raw -LiteralPath $setupScript
+$completeSetupMatch = [regex]::Match($windowsSource, '(?ms)function Invoke-GameWipCompleteSetup.*?^}')
+if (-not $completeSetupMatch.Success)
+{
+    throw 'Could not inspect complete setup stage order.'
+}
+$completeSetup = $completeSetupMatch.Value
+if ($completeSetup.IndexOf('Invoke-GameWipMsys2Step') -gt $completeSetup.IndexOf('Invoke-GameWipToolStep'))
+{
+    throw 'Complete setup must bootstrap/configure MSYS2 before project-tool installation.'
+}
+
+$fakeTools = @{
+    tools = @(
+        @{
+            id = 'one'
+            provider = @{
+                kind = 'msys2'
+                environment = 'ucrt64'
+                package = 'ucrt-one'
+                dependencies = @(@{ environment = 'clang64'; package = 'clang-one' })
+            }
+        },
+        @{
+            id = 'two'
+            provider = @{
+                kind = 'msys2'
+                environment = 'common'
+                package = 'common-two'
+                dependencies = @()
+            }
+        }
+    )
+}
+$derivedPackages = Get-GameWipMsys2PackageConfig -ProjectTools $fakeTools
+if (@($derivedPackages.Common) -notcontains 'common-two' -or
+    @($derivedPackages.Ucrt64) -notcontains 'ucrt-one' -or
+    @($derivedPackages.Clang64) -notcontains 'clang-one')
+{
+    throw 'MSYS2 setup package derivation did not consume canonical provider metadata.'
+}
+
+. (Join-Path $repositoryRoot 'scripts\lib\Providers\Python.ps1')
+$venvInterpreter = Get-GameWipPythonEnvironmentInterpreterPath -Root 'X:\GameWIPTools\python'
+if ($isWindowsHost -and $venvInterpreter -notmatch '[\\/]Scripts[\\/]python\.exe$')
+{
+    throw "Windows Python provider resolved the wrong venv interpreter: $venvInterpreter"
+}
+if (-not $isWindowsHost -and $venvInterpreter -notmatch '[\\/]bin[\\/]python$')
+{
+    throw "Non-Windows Python provider resolved the wrong venv interpreter: $venvInterpreter"
+}
+
 Write-Host 'Setup helper regression tests passed.'

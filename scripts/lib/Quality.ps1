@@ -60,7 +60,7 @@ function Invoke-GameWipPowerShellQuality
     param([switch]$Fix)
     $moduleRoot = Get-GameWipQualityTool -Id 'psscriptanalyzer'
     Import-Module (Join-Path $moduleRoot 'PSScriptAnalyzer.psd1') -Force
-    $settings = Join-Path $RepositoryRoot 'PSScriptAnalyzerSettings.psd1'
+    $settings = Join-Path $RepositoryRoot 'config\quality\psscriptanalyzer.psd1'
     $failures = [System.Collections.Generic.List[object]]::new()
     foreach ($file in Get-GameWipPowerShellFile)
     {
@@ -98,7 +98,17 @@ function Invoke-GameWipQualityCheck
     $markdownlint = Get-GameWipQualityTool -Id 'markdownlint-cli2'
     $actionlint = Get-GameWipQualityTool -Id 'actionlint'
     $python = (Resolve-GameWipPython).Path
-    if ($env:OS -eq 'Windows_NT')
+
+    $qualityConfig = Join-Path $RepositoryRoot 'config\quality'
+    $ruffConfig = Join-Path $qualityConfig 'ruff.toml'
+    $eslintConfig = Join-Path $qualityConfig 'eslint.config.js'
+    $prettierConfig = Join-Path $qualityConfig 'prettier.json'
+    $prettierIgnore = Join-Path $qualityConfig 'prettier.ignore'
+    $gersemiConfig = Join-Path $qualityConfig 'gersemi.yml'
+    $yamllintConfig = Join-Path $qualityConfig 'yamllint.yml'
+    $markdownlintConfig = Join-Path $qualityConfig 'markdownlint-cli2.jsonc'
+
+    if (Test-GameWipWindowsHost)
     {
         $nodePath = Join-Path ([string]$ProjectConfig.managedEnvironment.gameWipToolsRoot) 'npm\lib\node_modules'
     }
@@ -112,15 +122,15 @@ function Invoke-GameWipQualityCheck
     }
 
     Invoke-GameWipFormat -Mode check
-    Invoke-GameWipQualityNative -Name 'ruff-check' -FilePath $ruff -Arguments @('check', '.github/scripts', 'foundation/unicode/tools')
-    Invoke-GameWipQualityNative -Name 'ruff-format-check' -FilePath $ruff -Arguments @('format', '--check', '.github/scripts', 'foundation/unicode/tools')
+    Invoke-GameWipQualityNative -Name 'ruff-check' -FilePath $ruff -Arguments @('check', '--config', $ruffConfig, '.github/scripts', 'foundation/unicode/tools')
+    Invoke-GameWipQualityNative -Name 'ruff-format-check' -FilePath $ruff -Arguments @('format', '--check', '--config', $ruffConfig, '.github/scripts', 'foundation/unicode/tools')
     Invoke-GameWipPowerShellQuality
-    Invoke-GameWipQualityNative -Name 'eslint' -FilePath $eslint -Arguments @('eslint.config.js', '.github/scripts') -Environment @{ NODE_PATH = $nodePath }
-    Invoke-GameWipQualityNative -Name 'prettier-check' -FilePath $prettier -Arguments @('--check', '**/*.{js,json,jsonc,yml,yaml,css}')
-    Invoke-GameWipQualityNative -Name 'gersemi-check' -FilePath $gersemi -Arguments (@('--check') + @(Get-GameWipCMakeFile))
-    Invoke-GameWipQualityNative -Name 'yamllint' -FilePath $yamllint -Arguments @('.')
+    Invoke-GameWipQualityNative -Name 'eslint' -FilePath $eslint -Arguments @('--config', $eslintConfig, '.github/scripts') -Environment @{ NODE_PATH = $nodePath }
+    Invoke-GameWipQualityNative -Name 'prettier-check' -FilePath $prettier -Arguments @('--config', $prettierConfig, '--ignore-path', $prettierIgnore, '--check', '**/*.{js,json,jsonc,yml,yaml,css}')
+    Invoke-GameWipQualityNative -Name 'gersemi-check' -FilePath $gersemi -Arguments (@('--config', $gersemiConfig, '--check') + @(Get-GameWipCMakeFile))
+    Invoke-GameWipQualityNative -Name 'yamllint' -FilePath $yamllint -Arguments @('-c', $yamllintConfig, '.')
     Invoke-GameWipQualityNative -Name 'actionlint' -FilePath $actionlint -Arguments @('-color')
-    Invoke-GameWipQualityNative -Name 'markdownlint' -FilePath $markdownlint
+    Invoke-GameWipQualityNative -Name 'markdownlint' -FilePath $markdownlint -Arguments @('--config', $markdownlintConfig)
     Invoke-GameWipQualityNative -Name 'schema-validation' -FilePath $python -Arguments @('.github/scripts/validate_config_schemas.py')
     Invoke-GameWipQualityNative -Name 'repository-standards' -FilePath $python -Arguments @('.github/scripts/check_repository_standards.py')
     Invoke-GameWipQualityNative -Name 'documentation-standards' -FilePath $python -Arguments @('.github/scripts/check_documentation_standards.py')
@@ -129,14 +139,23 @@ function Invoke-GameWipQualityCheck
 
 function Invoke-GameWipQualityFix
 {
+    $qualityConfig = Join-Path $RepositoryRoot 'config\quality'
+    $ruffConfig = Join-Path $qualityConfig 'ruff.toml'
+    $prettierConfig = Join-Path $qualityConfig 'prettier.json'
+    $prettierIgnore = Join-Path $qualityConfig 'prettier.ignore'
+    $gersemiConfig = Join-Path $qualityConfig 'gersemi.yml'
+
     Invoke-GameWipFormat -Mode apply
-    Invoke-GameWipQualityNative -Name 'ruff-format' -FilePath (Get-GameWipQualityTool -Id 'ruff') -Arguments @('format', '.github/scripts', 'foundation/unicode/tools')
+    Invoke-GameWipQualityNative -Name 'ruff-format' -FilePath (Get-GameWipQualityTool -Id 'ruff') -Arguments @('format', '--config', $ruffConfig, '.github/scripts', 'foundation/unicode/tools')
     Invoke-GameWipPowerShellQuality -Fix
-    Invoke-GameWipQualityNative -Name 'prettier-write' -FilePath (Get-GameWipQualityTool -Id 'prettier') -Arguments @('--write', '**/*.{js,json,jsonc,yml,yaml,css}')
+    Invoke-GameWipQualityNative `
+        -Name 'prettier-write' `
+        -FilePath (Get-GameWipQualityTool -Id 'prettier') `
+        -Arguments @('--config', $prettierConfig, '--ignore-path', $prettierIgnore, '--write', '**/*.{js,json,jsonc,yml,yaml,css}')
     Invoke-GameWipQualityNative `
         -Name 'gersemi-format' `
         -FilePath (Get-GameWipQualityTool -Id 'gersemi') `
-        -Arguments (@('--in-place') + @(Get-GameWipCMakeFile))
+        -Arguments (@('--config', $gersemiConfig, '--in-place') + @(Get-GameWipCMakeFile))
     Invoke-GameWipQualityCheck
 }
 

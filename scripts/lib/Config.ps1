@@ -299,24 +299,37 @@ function Assert-GameWipProjectToolConfig
     $providerKinds = @('msys2', 'npm', 'python', 'powershellGallery', 'githubRelease', 'winget', 'gitSubmodule', 'external')
     foreach ($toolInfo in @($ProjectTools.tools))
     {
-        if ($providerKinds -notcontains $toolInfo.provider.kind)
+        if ($providerKinds -notcontains $toolInfo.provider.kind) { throw "Tool '$($toolInfo.id)' uses unsupported provider '$($toolInfo.provider.kind)'." }
+        if ($toolInfo.versionPolicy -in @('exact', 'minimum') -and -not $toolInfo.Contains('requiredVersion')) { throw "Tool '$($toolInfo.id)' requires a declared version." }
+        if ($toolInfo.capabilities.update -and -not $toolInfo.capabilities.detectInstalled) { throw "Updatable tool '$($toolInfo.id)' must support installed-version detection." }
+
+        $providerDependencies = if ($toolInfo.provider.Contains('dependencies')) { @($toolInfo.provider.dependencies) } else { @() }
+        if ($toolInfo.provider.kind -eq 'msys2')
         {
-            throw "Tool '$($toolInfo.id)' uses unsupported provider '$($toolInfo.provider.kind)'."
+            if (-not $toolInfo.provider.Contains('environment') -or [string]$toolInfo.provider.environment -notin @('common', 'ucrt64', 'clang64')) { throw "MSYS2 tool '$($toolInfo.id)' must declare its managed environment." }
+            if (-not $toolInfo.provider.Contains('package')) { throw "MSYS2 tool '$($toolInfo.id)' must declare its pacman package." }
+            foreach ($dependency in $providerDependencies)
+            {
+                if (-not $dependency.Contains('environment')) { throw "MSYS2 dependency '$($dependency.package)' for '$($toolInfo.id)' must declare its environment." }
+            }
         }
-        if ($toolInfo.versionPolicy -in @('exact', 'minimum') -and -not $toolInfo.Contains('requiredVersion'))
+        elseif ($toolInfo.provider.kind -eq 'npm')
         {
-            throw "Tool '$($toolInfo.id)' requires a declared version."
+            foreach ($dependency in $providerDependencies)
+            {
+                if (-not $dependency.Contains('version')) { throw "npm dependency '$($dependency.package)' for '$($toolInfo.id)' must be versioned." }
+            }
         }
-        if ($toolInfo.capabilities.update -and -not $toolInfo.capabilities.detectInstalled)
+        elseif ($toolInfo.provider.kind -eq 'githubRelease' -and -not $toolInfo.provider.Contains('releaseTag'))
         {
-            throw "Updatable tool '$($toolInfo.id)' must support installed-version detection."
+            throw "GitHub release tool '$($toolInfo.id)' must retain its actual upstream release tag."
         }
+
         foreach ($reference in @($toolInfo.references))
         {
-            if (-not (Test-Path -LiteralPath (Join-Path $RepositoryRoot $reference)))
-            {
-                throw "Tool '$($toolInfo.id)' references missing live path '$reference'."
-            }
+            if ($reference -isnot [hashtable] -or -not $reference.Contains('path') -or -not $reference.Contains('kind')) { throw "Tool '$($toolInfo.id)' has malformed live-reference metadata." }
+            if (-not (Test-Path -LiteralPath (Join-Path $RepositoryRoot ([string]$reference.path)))) { throw "Tool '$($toolInfo.id)' references missing live path '$($reference.path)'." }
+            if ($reference.kind -eq 'text' -and (-not $reference.Contains('pattern') -or -not ([string]$reference.pattern).Contains('{version}'))) { throw "Tool '$($toolInfo.id)' text reference '$($reference.path)' must contain {version}." }
         }
     }
 }

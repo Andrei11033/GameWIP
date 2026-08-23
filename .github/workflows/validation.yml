@@ -190,24 +190,26 @@ jobs:
         run: |
           registry=scripts/config/project-tools.json
           version() { jq -r --arg id "$1" '.tools[] | select(.id == $id) | .requiredVersion' "$registry"; }
+
+          sudo apt-get update
+          sudo apt-get install --yes clang-format
+
+          python3 -m venv "$RUNNER_TEMP/gamewip-quality-python"
+          "$RUNNER_TEMP/gamewip-quality-python/bin/python" -m pip install --upgrade pip
+          "$RUNNER_TEMP/gamewip-quality-python/bin/pip" install \
+            "ruff==$(version ruff)" \
+            "gersemi==$(version gersemi)" \
+            "yamllint==$(version yamllint)"
+          echo "$RUNNER_TEMP/gamewip-quality-python/bin" >> "$GITHUB_PATH"
+
           eslint_js_version="$(jq -r \
             '.tools[] | select(.id == "eslint") | .provider.dependencies[] | select(.package == "@eslint/js") | .version' \
             "$registry")"
-          python3 -m pip install --user "ruff==$(version ruff)" "yamllint==$(version yamllint)"
           npm install --global \
             "eslint@$(version eslint)" \
             "@eslint/js@$eslint_js_version" \
             "prettier@$(version prettier)" \
             "markdownlint-cli2@$(version markdownlint-cli2)"
-          gersemi_version="$(version gersemi)"
-          gersemi_archive="$(jq -r '.tools[] | select(.id == "gersemi") | .provider.assets["linux-amd64"].archive' "$registry")"
-          gersemi_sha="$(jq -r '.tools[] | select(.id == "gersemi") | .provider.assets["linux-amd64"].sha256' "$registry")"
-          curl --fail --silent --show-error --location \
-            --output "$RUNNER_TEMP/$gersemi_archive" \
-            "https://github.com/BlankSpruce/gersemi/releases/download/v${gersemi_version}/${gersemi_archive}"
-          echo "$gersemi_sha  $RUNNER_TEMP/$gersemi_archive" | sha256sum --check
-          install -m 0755 "$RUNNER_TEMP/$gersemi_archive" "$RUNNER_TEMP/gersemi"
-          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
 
       - name: Install registry-pinned PowerShell analyzer
         shell: pwsh
@@ -261,14 +263,15 @@ jobs:
         shell: bash
         run: |
           registry="scripts/config/project-tools.json"
-          version="$(jq -r '.tools[] | select(.id == "actionlint") | .requiredVersion' "$registry")"
+          tag="$(jq -r '.tools[] | select(.id == "actionlint") | .provider.releaseTag' "$registry")"
           archive="$(jq -r '.tools[] | select(.id == "actionlint") | .provider.assets["linux-amd64"].archive' "$registry")"
           sha256="$(jq -r '.tools[] | select(.id == "actionlint") | .provider.assets["linux-amd64"].sha256' "$registry")"
-          url="https://github.com/rhysd/actionlint/releases/download/v${version}/${archive}"
+          url="https://github.com/rhysd/actionlint/releases/download/${tag}/${archive}"
           curl --fail --silent --show-error --location --output "$archive" "$url"
           echo "${sha256}  ${archive}" | sha256sum --check
           tar --extract --gzip --file "$archive" actionlint
           install -m 0755 actionlint "$RUNNER_TEMP/actionlint"
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
 
       - name: Check GitHub Actions workflows
         shell: bash
