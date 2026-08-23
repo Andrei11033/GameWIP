@@ -22,7 +22,6 @@
     "keybindings": [
       { "key": "f5", "command": "workbench.action.tasks.runTask", "args": "GameWIP: Run Development", "when": "config.gamewip.keybindings.enabled" },
       { "key": "ctrl+f5", "command": "workbench.action.tasks.runTask", "args": "GameWIP: Build Development", "when": "config.gamewip.keybindings.enabled" },
-      { "key": "alt+f5", "command": "workbench.action.tasks.runTask", "args": "GameWIP: Run Development Without Tools", "when": "config.gamewip.keybindings.enabled" },
       { "key": "f6", "command": "workbench.action.tasks.runTask", "args": "GameWIP: Run Development With Startup Tests", "when": "config.gamewip.keybindings.enabled" },
       { "key": "f7", "command": "workbench.action.tasks.runTask", "args": "GameWIP: Test", "when": "config.gamewip.keybindings.enabled" },
       { "key": "alt+f7", "command": "workbench.action.tasks.runTask", "args": "GameWIP: Benchmark", "when": "config.gamewip.keybindings.enabled" },

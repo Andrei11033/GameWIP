@@ -68,7 +68,7 @@ cmake --build --preset dev
 .\build\dev\GameWIP.exe
 ```
 
-Use `dev-no-tools` to verify that the runtime does not depend on optional development tooling. Both development presets compile embedded tests but run them only when explicitly requested with `GameWIP.exe --startup-tests`.
+The development preset compiles embedded tests but runs them only when explicitly requested with `GameWIP.exe --startup-tests`.
 
 ## Validation
 

@@ -202,7 +202,7 @@ The default bundle is `quick`. Bundle definitions may compose configure, build, 
 
 ### Presets
 
-Configure/build presets are `dev`, `dev-no-tools`, `test`, `benchmark`, `profile`, `release`, `coverage`, `asan`, `analyze`, and `docs`. CTest presets are `test`, `coverage`, and `asan`.
+Configure/build presets are `dev`, `test`, `benchmark`, `profile`, `release`, `coverage`, `asan`, `analyze`, and `docs`. CTest presets are `test`, `coverage`, and `asan`.
 
 ### Validation modules
 

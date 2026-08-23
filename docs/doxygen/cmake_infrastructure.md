@@ -30,7 +30,9 @@ Use @ref project_build for normal configure and build commands. Use @ref project
 | `CMakeLists.txt` | Root project composition and top-level target creation. |
 | `CMakePresets.json` | Supported configure, build, and test presets. |
 | `cmake/GameWIPOptions.cmake` | Project composition options and option compatibility checks. |
-| `cmake/LibraryPlatform.cmake` | Platform ID resolution and platform backend source registration. |
+| `cmake/GameWIPPlatform.cmake` | Normalized platform resolution and required backend-file inclusion. |
+| `cmake/GameWIPPackage.cmake` | Repeated package config, version, and export installation ceremony. |
+| `cmake/GameWIPWarnings.cmake` | First-party C++ warning policy, including opt-in warnings as errors. |
 | `cmake/LibraryDoxygen.cmake` | Doxygen input registration and generated documentation target creation. |
 | `cmake/GameWIPDocumentation.cmake` | Project-level Doxygen page registration. |
 | `cmake/GameWIPValidationModules.cmake` | Validation and benchmark module registration helpers. |
@@ -144,7 +146,7 @@ Benchmark modules must remain separate from correctness tests. CMake registratio
 
 Use `gamewip_resolve_platform_id()` once at root configuration time to determine the project platform ID.
 
-Use `gamewip_target_platform_sources()` from a library target to add sources from the active backend directory. The backend directory owns its optional `platform.cmake` file and any backend-local system libraries, resources, or compile definitions.
+Use `gamewip_target_platform_backend(TARGET <target> ROOT <platform-root>)` from every platform-aware target. The helper includes exactly the active backend's required `platform.cmake`; that file owns backend sources, system libraries, resources, private includes, and compile definitions.
 
 The normal backend shape is:
 
@@ -200,7 +202,7 @@ Shared-library exported-symbol checks use allowlists under `cmake/export_allowli
 - Register maintained sources explicitly.
 - Keep project composition options in root project infrastructure.
 - Keep library-local behavior in the owning library.
-- Keep platform backend wiring behind `LibraryPlatform.cmake` and backend `platform.cmake` files.
+- Keep platform selection behind `GameWIPPlatform.cmake` and all target wiring in backend `platform.cmake` files.
 - Keep Doxygen inputs explicit.
 - Keep validation and benchmark registration through the project helpers.
 - Keep installed public headers free of internal and test-hook paths.

@@ -13,8 +13,6 @@
         "GAMEWIP_ENABLE_STARTUP_TESTS": "OFF",
         "GAMEWIP_RUN_BENCHMARKS_AT_STARTUP": "OFF",
         "GAMEWIP_ENABLE_TRACY": "OFF",
-        "GAMEWIP_ENABLE_TOOLS": "OFF",
-        "GAMEWIP_OPEN_TOOLS_AT_STARTUP": "OFF",
         "GAMEWIP_ENABLE_COVERAGE": "OFF",
         "GAMEWIP_ENABLE_ADDRESS_SANITIZER": "OFF",
         "GAMEWIP_ENABLE_STATIC_ANALYSIS": "OFF",
@@ -24,26 +22,14 @@
     },
     {
       "name": "dev",
-      "displayName": "Development game with tools",
-      "description": "Daily development build with symbols, assertions, optional startup tests, and game tooling.",
+      "displayName": "Development game",
+      "description": "Daily development build with symbols, assertions, and optional startup tests.",
       "inherits": "base",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "RelWithDebInfo",
         "GAMEWIP_BUILD_GAME": "ON",
         "GAMEWIP_ENABLE_STARTUP_TESTS": "ON",
-        "GAMEWIP_ENABLE_TOOLS": "ON",
-        "GAMEWIP_OPEN_TOOLS_AT_STARTUP": "ON",
         "GAMEWIP_ENABLE_ASSERTS": "ON"
-      }
-    },
-    {
-      "name": "dev-no-tools",
-      "displayName": "Development game without tools",
-      "description": "Development-equivalent runtime build that proves the game does not depend on optional tooling.",
-      "inherits": "dev",
-      "cacheVariables": {
-        "GAMEWIP_ENABLE_TOOLS": "OFF",
-        "GAMEWIP_OPEN_TOOLS_AT_STARTUP": "OFF"
       }
     },
     {
@@ -139,7 +125,6 @@
   ],
   "buildPresets": [
     { "name": "dev", "configurePreset": "dev", "targets": ["GameWIP"] },
-    { "name": "dev-no-tools", "configurePreset": "dev-no-tools", "targets": ["GameWIP"] },
     { "name": "test", "configurePreset": "test", "targets": ["GameWIPTests"] },
     { "name": "benchmark", "configurePreset": "benchmark", "targets": ["GameWIPBenchmarks"] },
     { "name": "profile", "configurePreset": "profile", "targets": ["GameWIP"] },

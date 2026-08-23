@@ -1,3 +1,4 @@
+add_subdirectory(base)
 add_subdirectory(unicode)
 
 set(IO_ENABLE_TEST_HOOKS ${GAMEWIP_TESTS_REQUIRED}

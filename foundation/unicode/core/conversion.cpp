@@ -2,11 +2,11 @@
 /// @brief Non-allocating strict UTF-8 and UTF-16 measurement and conversion.
 
 #include "unicode/unicode.h"
+#include "base/checked_arithmetic.h"
 #include "unicode/internal/encoding.h"
 
 #include <cstddef>
 #include <functional>
-#include <limits>
 #include <span>
 #include <string_view>
 
@@ -64,7 +64,7 @@ namespace GameWIP::Unicode
                 }
 
                 const std::size_t scalarCodeUnits = Internal::utf16EncodedLength(decoded.scalar);
-                if (scalarCodeUnits > std::numeric_limits<std::size_t>::max() - requiredCodeUnits)
+                if (GameWIP::Base::wouldAddOverflow(requiredCodeUnits, scalarCodeUnits))
                 {
                     return {
                         .sourceBytesProcessed = sourceBytesProcessed,
@@ -149,7 +149,7 @@ namespace GameWIP::Unicode
                 }
 
                 const std::size_t scalarBytes = Internal::utf8EncodedLength(decoded.scalar);
-                if (scalarBytes > std::numeric_limits<std::size_t>::max() - requiredBytes)
+                if (GameWIP::Base::wouldAddOverflow(requiredBytes, scalarBytes))
                 {
                     return {
                         .sourceCodeUnitsProcessed = sourceCodeUnitsProcessed,

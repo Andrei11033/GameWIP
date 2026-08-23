@@ -7,10 +7,14 @@ option(ASSERT_UNREACHABLE_ASSUME "Use compiler unreachable assumptions instead o
 option(ASSERT_ENABLE_COMMON_CONTROLS_MANIFEST "Prepare the explicit Common Controls v6 resource helper for Assert consumers" ON)
 option(ASSERT_ENABLE_TEST_HOOKS "Enable Assert internal test hooks" OFF)
 
+if(NOT COMMAND gamewip_install_package)
+    include("${PROJECT_SOURCE_DIR}/cmake/GameWIPPackage.cmake")
+endif()
+
 include(GenerateExportHeader)
 
-if(NOT COMMAND gamewip_target_platform_sources)
-    include("${PROJECT_SOURCE_DIR}/cmake/LibraryPlatform.cmake")
+if(NOT COMMAND gamewip_target_platform_backend)
+    include("${PROJECT_SOURCE_DIR}/cmake/GameWIPPlatform.cmake")
     gamewip_resolve_platform_id(GAMEWIP_PLATFORM_ID)
 endif()
 
@@ -126,13 +130,10 @@ if(ASSERT_RUNTIME_TARGET_ENABLED)
         core/assert.cpp
     )
 
-    gamewip_target_platform_sources(Assert Assert "${CMAKE_CURRENT_SOURCE_DIR}/platform")
-else()
-    gamewip_include_platform_cmake_if_present("${CMAKE_CURRENT_SOURCE_DIR}/platform")
 endif()
+gamewip_target_platform_backend(TARGET Assert ROOT "${CMAKE_CURRENT_SOURCE_DIR}/platform")
 
 include(GNUInstallDirs)
-include(CMakePackageConfigHelpers)
 
 if(ASSERT_RUNTIME_TARGET_ENABLED)
     target_include_directories(Assert PUBLIC
@@ -195,6 +196,7 @@ target_compile_definitions(AssertCompileInterface INTERFACE
 if(ASSERT_RUNTIME_TARGET_ENABLED)
     target_link_libraries(Assert PRIVATE
         Logger
+        $<BUILD_INTERFACE:GameWIPBase>
     )
 endif()
 
@@ -244,26 +246,8 @@ if(GAMEWIP_PLATFORM_ID STREQUAL "win32")
     )
 endif()
 
-configure_package_config_file(
-    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/AssertConfig.cmake.in"
-    "${CMAKE_CURRENT_BINARY_DIR}/AssertConfig.cmake"
-    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/Assert
+gamewip_install_package(
+    TARGET Assert
+    CONFIG_TEMPLATE "${CMAKE_CURRENT_SOURCE_DIR}/cmake/AssertConfig.cmake.in"
     PATH_VARS CMAKE_INSTALL_DATADIR
-)
-
-write_basic_package_version_file(
-    "${CMAKE_CURRENT_BINARY_DIR}/AssertConfigVersion.cmake"
-    VERSION ${PROJECT_VERSION}
-    COMPATIBILITY ExactVersion
-)
-
-install(EXPORT AssertTargets
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/Assert
-    NAMESPACE GameWIP::
-)
-
-install(FILES
-    "${CMAKE_CURRENT_BINARY_DIR}/AssertConfig.cmake"
-    "${CMAKE_CURRENT_BINARY_DIR}/AssertConfigVersion.cmake"
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/Assert
 )

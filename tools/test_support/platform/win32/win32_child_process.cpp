@@ -3,6 +3,7 @@
 
 #include "test_support/process.h"
 #include "test_support/internal/test_support_test_hooks.h"
+#include "unicode/unicode.h"
 
 #if defined(_WIN32)
 #ifndef WIN32_LEAN_AND_MEAN
@@ -197,22 +198,27 @@ namespace GameWIP::TestSupport
             {
                 return {};
             }
-            if (text.size() > static_cast<std::size_t>((std::numeric_limits<int>::max)()))
+            const auto measurement = GameWIP::Unicode::Utf8::measureToUtf16(text);
+            if (measurement.outcome == GameWIP::Unicode::Types::MeasureOutcome::SizeLimitExceeded)
             {
-                throw std::length_error("Child-process text exceeds the Win32 conversion limit");
+                throw std::length_error("Child-process text exceeds the Unicode conversion limit");
             }
-
-            const int inputSize = static_cast<int>(text.size());
-            const int wideSize = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, text.data(), inputSize, nullptr, 0);
-            if (wideSize <= 0)
+            if (measurement.outcome != GameWIP::Unicode::Types::MeasureOutcome::Measured)
             {
                 throw std::invalid_argument("Child-process text is not valid UTF-8");
             }
 
-            std::wstring output(static_cast<std::size_t>(wideSize), L'\0');
-            if (MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, text.data(), inputSize, output.data(), wideSize) != wideSize)
+            std::vector<char16_t> converted(measurement.requiredCodeUnits);
+            const auto conversion = GameWIP::Unicode::Utf8::convertToUtf16(text, converted);
+            if (conversion.outcome != GameWIP::Unicode::Types::ConversionOutcome::Converted)
             {
-                throw std::runtime_error("Win32 child-process text conversion failed");
+                throw std::runtime_error("Unicode child-process text conversion failed");
+            }
+
+            std::wstring output(conversion.codeUnitsWritten, L'\0');
+            for (std::size_t index = 0; index < conversion.codeUnitsWritten; ++index)
+            {
+                output[index] = static_cast<wchar_t>(converted[index]);
             }
             return output;
         }

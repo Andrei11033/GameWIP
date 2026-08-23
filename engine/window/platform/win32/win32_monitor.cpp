@@ -2,6 +2,7 @@
 /// @brief Win32 monitor, display-mode, and capability implementation for Window.
 
 #include "window/platform/win32/internal/win32_window_backend.h"
+#include "base/platform/win32/dynamic_library.h"
 
 #include "window/platform/win32/internal/win32_compat.h"
 
@@ -406,7 +407,7 @@ namespace GameWIP::Window::Detail::Platform
             const HMODULE ntdll = GetModuleHandleW(L"ntdll.dll");
             if (ntdll == nullptr)
                 return std::uint32_t{0};
-            const auto getVersion = reinterpret_cast<RtlGetVersionFunction>(GetProcAddress(ntdll, "RtlGetVersion"));
+            const auto getVersion = GameWIP::Base::Win32::loadProcedure<RtlGetVersionFunction>(ntdll, "RtlGetVersion");
             if (getVersion == nullptr)
                 return std::uint32_t{0};
             OSVERSIONINFOW version{};

@@ -1,11 +1,14 @@
 include(GNUInstallDirs)
-include(CMakePackageConfigHelpers)
 include(GenerateExportHeader)
+
+if(NOT COMMAND gamewip_install_package)
+    include("${PROJECT_SOURCE_DIR}/cmake/GameWIPPackage.cmake")
+endif()
 
 option(TERMINAL_ENABLE_TEST_HOOKS "Enable Terminal internal test hooks" OFF)
 
-if(NOT COMMAND gamewip_target_platform_sources)
-    include("${PROJECT_SOURCE_DIR}/cmake/LibraryPlatform.cmake")
+if(NOT COMMAND gamewip_target_platform_backend)
+    include("${PROJECT_SOURCE_DIR}/cmake/GameWIPPlatform.cmake")
     gamewip_resolve_platform_id(GAMEWIP_PLATFORM_ID)
 endif()
 
@@ -42,7 +45,7 @@ target_sources(Terminal
             "${TERMINAL_GENERATED_INCLUDE_DIR}/terminal/terminal_export.h"
 )
 
-gamewip_target_platform_sources(Terminal Terminal "${CMAKE_CURRENT_SOURCE_DIR}/platform")
+gamewip_target_platform_backend(TARGET Terminal ROOT "${CMAKE_CURRENT_SOURCE_DIR}/platform")
 
 target_include_directories(Terminal PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/..>
@@ -63,6 +66,7 @@ target_link_libraries(Terminal
         IO
     PRIVATE
         Unicode
+        $<BUILD_INTERFACE:GameWIPBase>
 )
 
 set_target_properties(Terminal PROPERTIES
@@ -95,25 +99,4 @@ install(TARGETS Terminal
     FILE_SET public_headers DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
 )
 
-configure_package_config_file(
-    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/TerminalConfig.cmake.in"
-    "${CMAKE_CURRENT_BINARY_DIR}/TerminalConfig.cmake"
-    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/Terminal
-)
-
-write_basic_package_version_file(
-    "${CMAKE_CURRENT_BINARY_DIR}/TerminalConfigVersion.cmake"
-    VERSION ${PROJECT_VERSION}
-    COMPATIBILITY ExactVersion
-)
-
-install(EXPORT TerminalTargets
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/Terminal
-    NAMESPACE GameWIP::
-)
-
-install(FILES
-    "${CMAKE_CURRENT_BINARY_DIR}/TerminalConfig.cmake"
-    "${CMAKE_CURRENT_BINARY_DIR}/TerminalConfigVersion.cmake"
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/Terminal
-)
+gamewip_install_package(TARGET Terminal CONFIG_TEMPLATE "${CMAKE_CURRENT_SOURCE_DIR}/cmake/TerminalConfig.cmake.in")

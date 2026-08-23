@@ -2,6 +2,7 @@
 /// @brief Win32 backend for the Terminal library.
 
 #include "terminal/internal/terminal_platform.h"
+#include "base/platform/win32/dynamic_library.h"
 #include "terminal/internal/terminal_test_hooks.h"
 #include "terminal/platform/win32/win32_terminal_events.h"
 #include "unicode/unicode.h"
@@ -243,7 +244,7 @@ namespace GameWIP::Terminal::Detail::Platform
                 {
                     module = GetModuleHandleW(L"kernel32.dll");
                 }
-                return module == nullptr ? nullptr : reinterpret_cast<Function>(GetProcAddress(module, "CompareObjectHandles"));
+                return GameWIP::Base::Win32::loadProcedure<Function>(module, "CompareObjectHandles");
             }();
             return function;
         }

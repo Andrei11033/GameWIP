@@ -2,6 +2,7 @@
 /// @brief Bounded MPSC queue storage, ordered publication, producer admission, and asynchronous worker draining.
 
 #include "logger/internal/logger_core.h"
+#include "base/checked_arithmetic.h"
 
 namespace GameWIP::Logger::Detail::Core
 {
@@ -14,7 +15,7 @@ namespace GameWIP::Logger::Detail::Core
             return true;
         }
 
-        if (entryCount > std::numeric_limits<std::size_t>::max() / inlineMessageCapacity)
+        if (GameWIP::Base::wouldMultiplyOverflow(entryCount, inlineMessageCapacity))
         {
             return false;
         }
@@ -43,7 +44,7 @@ namespace GameWIP::Logger::Detail::Core
             ringArena.reset();
             batchArena.reset();
 
-            if (hardLimit > std::numeric_limits<std::size_t>::max() / sizeof(QueueSlot))
+            if (GameWIP::Base::wouldMultiplyOverflow(hardLimit, sizeof(QueueSlot)))
             {
                 return false;
             }

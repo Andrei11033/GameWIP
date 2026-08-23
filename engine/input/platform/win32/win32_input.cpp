@@ -1,4 +1,5 @@
 #include "win32_input.h"
+#include "base/platform/win32/dynamic_library.h"
 #include "input/internal/input_state_access.h"
 
 #include <windows.h>
@@ -1255,10 +1256,10 @@ namespace
                 continue;
             }
 
-            FARPROC function = GetProcAddress(library, "XInputGetState");
+            const XInputGetStateFn function = GameWIP::Base::Win32::loadProcedure<XInputGetStateFn>(library, "XInputGetState");
             if (function != nullptr)
             {
-                cachedXInputGetState = reinterpret_cast<XInputGetStateFn>(function);
+                cachedXInputGetState = function;
                 return cachedXInputGetState;
             }
 

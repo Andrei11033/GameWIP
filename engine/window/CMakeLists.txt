@@ -1,11 +1,14 @@
 include(GNUInstallDirs)
-include(CMakePackageConfigHelpers)
 include(GenerateExportHeader)
+
+if(NOT COMMAND gamewip_install_package)
+    include("${PROJECT_SOURCE_DIR}/cmake/GameWIPPackage.cmake")
+endif()
 
 option(WINDOW_ENABLE_TEST_HOOKS "Enable Window internal test hooks" OFF)
 
-if(NOT COMMAND gamewip_target_platform_sources)
-    include("${PROJECT_SOURCE_DIR}/cmake/LibraryPlatform.cmake")
+if(NOT COMMAND gamewip_target_platform_backend)
+    include("${PROJECT_SOURCE_DIR}/cmake/GameWIPPlatform.cmake")
     gamewip_resolve_platform_id(GAMEWIP_PLATFORM_ID)
 endif()
 
@@ -69,7 +72,7 @@ if(WIN32)
     )
 endif()
 
-gamewip_target_platform_sources(Window Window "${CMAKE_CURRENT_SOURCE_DIR}/platform")
+gamewip_target_platform_backend(TARGET Window ROOT "${CMAKE_CURRENT_SOURCE_DIR}/platform")
 
 target_include_directories(Window PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/..>
@@ -91,6 +94,7 @@ target_link_libraries(Window
         FileSystem
     PRIVATE
         Unicode
+        $<BUILD_INTERFACE:GameWIPBase>
 )
 
 if(MINGW)
@@ -141,26 +145,8 @@ if(WIN32)
     )
 endif()
 
-configure_package_config_file(
-    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/WindowConfig.cmake.in"
-    "${CMAKE_CURRENT_BINARY_DIR}/WindowConfig.cmake"
-    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/Window
+gamewip_install_package(
+    TARGET Window
+    CONFIG_TEMPLATE "${CMAKE_CURRENT_SOURCE_DIR}/cmake/WindowConfig.cmake.in"
     PATH_VARS CMAKE_INSTALL_DATADIR
-)
-
-write_basic_package_version_file(
-    "${CMAKE_CURRENT_BINARY_DIR}/WindowConfigVersion.cmake"
-    VERSION ${PROJECT_VERSION}
-    COMPATIBILITY ExactVersion
-)
-
-install(EXPORT WindowTargets
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/Window
-    NAMESPACE GameWIP::
-)
-
-install(FILES
-    "${CMAKE_CURRENT_BINARY_DIR}/WindowConfig.cmake"
-    "${CMAKE_CURRENT_BINARY_DIR}/WindowConfigVersion.cmake"
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/Window
 )

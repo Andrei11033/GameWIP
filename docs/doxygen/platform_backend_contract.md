@@ -23,7 +23,7 @@ This contract applies to first-party platform backends under reusable libraries.
 
 ## Platform selection
 
-Repository platform mapping is centralized in `cmake/LibraryPlatform.cmake`. A library must use the shared mapping before adding library-local platform selection logic.
+Repository platform mapping is centralized in `cmake/GameWIPPlatform.cmake`: Windows maps to `win32`, Linux to `linux`, and Darwin to `macos`. Every platform-aware target calls `gamewip_target_platform_backend(TARGET <target> ROOT <platform-root>)`; configuration fails when the selected backend file is absent.
 
 Add a new platform ID only when CMake cannot already map the target environment. Platform IDs must be stable, lowercase, and suitable for directory names.
 
@@ -39,7 +39,7 @@ A backend must use this structure:
 
 Single-file backends may use the library name as the feature. Split backends must use names that describe the native area they implement.
 
-`platform.cmake` must be the only place that adds backend-local files, libraries, resources, or compile definitions to the target.
+`platform.cmake` must be the only place that adds backend-local files, libraries, resources, private include paths, options, requirements, or compile definitions to the target. Adding an implementation for an existing OS family therefore requires only the backend directory, its `platform.cmake`, and its implementation files.
 
 ## Public API boundary
 

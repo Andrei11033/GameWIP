@@ -211,15 +211,6 @@ namespace GameWIP::Terminal
                                                                                                      : IO::makeStatus(ErrorCode::EncodingFailed);
         }
 
-        /// @brief Restores a string to a previously observed size without allocating or throwing.
-        void rollbackString(std::string &text, std::size_t previousSize) noexcept
-        {
-            while (text.size() > previousSize)
-            {
-                text.pop_back();
-            }
-        }
-
         /// @brief Builds an Unsupported status with optional diagnostic text.
         [[nodiscard]] IO::Types::Status unsupportedStatus(std::string_view message = {}) noexcept
         {

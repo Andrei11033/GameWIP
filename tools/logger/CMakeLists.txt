@@ -1,9 +1,13 @@
 option(LOGGER_ENABLE_TEST_HOOKS "Enable Logger internal test hooks" OFF)
 
+if(NOT COMMAND gamewip_install_package)
+    include("${PROJECT_SOURCE_DIR}/cmake/GameWIPPackage.cmake")
+endif()
+
 include(GenerateExportHeader)
 
-if(NOT COMMAND gamewip_target_platform_sources)
-    include("${PROJECT_SOURCE_DIR}/cmake/LibraryPlatform.cmake")
+if(NOT COMMAND gamewip_target_platform_backend)
+    include("${PROJECT_SOURCE_DIR}/cmake/GameWIPPlatform.cmake")
     gamewip_resolve_platform_id(GAMEWIP_PLATFORM_ID)
 endif()
 
@@ -42,10 +46,9 @@ target_sources(Logger
             "${LOGGER_GENERATED_INCLUDE_DIR}/logger/logger_export.h"
 )
 
-gamewip_target_platform_sources(Logger Logger "${CMAKE_CURRENT_SOURCE_DIR}/platform")
+gamewip_target_platform_backend(TARGET Logger ROOT "${CMAKE_CURRENT_SOURCE_DIR}/platform")
 
 include(GNUInstallDirs)
-include(CMakePackageConfigHelpers)
 
 target_include_directories(Logger PUBLIC
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/tools>
@@ -68,6 +71,7 @@ target_link_libraries(Logger
         FileSystem
         Terminal
         Unicode
+        $<BUILD_INTERFACE:GameWIPBase>
 )
 
 set_target_properties(Logger PROPERTIES
@@ -103,25 +107,4 @@ install(TARGETS Logger
     FILE_SET public_headers DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
 )
 
-configure_package_config_file(
-    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/LoggerConfig.cmake.in"
-    "${CMAKE_CURRENT_BINARY_DIR}/LoggerConfig.cmake"
-    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/Logger
-)
-
-write_basic_package_version_file(
-    "${CMAKE_CURRENT_BINARY_DIR}/LoggerConfigVersion.cmake"
-    VERSION ${PROJECT_VERSION}
-    COMPATIBILITY ExactVersion
-)
-
-install(EXPORT LoggerTargets
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/Logger
-    NAMESPACE GameWIP::
-)
-
-install(FILES
-    "${CMAKE_CURRENT_BINARY_DIR}/LoggerConfig.cmake"
-    "${CMAKE_CURRENT_BINARY_DIR}/LoggerConfigVersion.cmake"
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/Logger
-)
+gamewip_install_package(TARGET Logger CONFIG_TEMPLATE "${CMAKE_CURRENT_SOURCE_DIR}/cmake/LoggerConfig.cmake.in")

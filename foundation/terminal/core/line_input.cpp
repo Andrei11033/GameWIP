@@ -3,6 +3,7 @@
 
 #include "terminal/terminal.h"
 #include "terminal/internal/terminal_input.h"
+#include "base/checked_arithmetic.h"
 #include "terminal/internal/terminal_platform.h"
 #include "unicode/unicode.h"
 
@@ -278,7 +279,7 @@ namespace GameWIP::Terminal
                     {
                         return byte >= 0x20 && byte < 0x7f;
                     });
-                if (simpleAscii && appendedText.size() <= std::numeric_limits<std::size_t>::max() - renderedCells_)
+                if (simpleAscii && !GameWIP::Base::wouldAddOverflow(renderedCells_, appendedText.size()))
                 {
                     // Ordinary append-at-end typing remains query-free. Printable ASCII advances by one cell;
                     // Unicode and control text take the measured slow path so Terminal does not invent a width policy.

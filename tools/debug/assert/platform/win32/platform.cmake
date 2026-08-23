@@ -1,5 +1,9 @@
 include("${CMAKE_CURRENT_LIST_DIR}/../../cmake/AssertCommonControls.cmake")
 
+if(ASSERT_RUNTIME_TARGET_ENABLED)
+    target_sources(Assert PRIVATE "${CMAKE_CURRENT_LIST_DIR}/win32_assert.cpp")
+endif()
+
 if(ASSERT_ENABLE_COMMON_CONTROLS_MANIFEST)
     enable_language(RC)
 

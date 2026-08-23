@@ -10,7 +10,7 @@ pages provide the behavior inside each box.
 
 | Path | Ownership |
 | --- | --- |
-| `foundation/` | Low-level reusable libraries such as Unicode, IO, FileSystem, and Terminal. |
+| `foundation/` | Internal Base mechanisms and low-level reusable libraries such as Unicode, IO, FileSystem, and Terminal. |
 | `tools/` | Diagnostics, assertions, logging, validation support, and development tooling libraries. |
 | `engine/` | The documented Window library plus provisional Input and Action code. Preserved WindowManager code is currently outside the build. |
 | `game/` | Executable entry point, runtime facade, startup validation wiring, validation runners, and game-facing integration. |
@@ -27,6 +27,9 @@ Build output belongs under build directories selected by CMake presets.
 The reusable dependency flow is:
 
 ```text
+Base (internal mechanisms only)
+  -> selected library implementations
+
 Unicode
   -> IO
   -> Terminal
@@ -57,6 +60,12 @@ Reusable libraries + optional validation modules
 Arrows mean "is consumed by." Lower-level libraries must not depend on the game executable, runtime facade, validation runner, or benchmark runner.
 
 Unicode is a dependency-free foundation root. It owns platform-neutral scalar, encoding, conversion, and grapheme algorithms without taking filesystem-path, terminal, rendering, or editing policy. IO uses it only for strict text-boundary validation; IO byte primitives remain encoding-agnostic.
+
+## Internal foundation infrastructure
+
+@ref internal_base documents the source-tree-only `GameWIP::Base` target. Base shares checked arithmetic and typed Win32 procedure lookup without
+owning Unicode, logging, errors, filesystem, window, cursor, DPI, time, or simulation policy. It is neither installed nor listed as a supported
+consumer library, and an installed target that exposes Base is invalid.
 
 TestSupport is a standalone validation library and installed package. It may use
 Unicode privately for its documented UTF-8 boundary contracts, but it must not

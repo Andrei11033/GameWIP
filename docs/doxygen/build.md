@@ -56,7 +56,6 @@ cmake --build --preset docs
 | Preset | Build type | Main output | Purpose |
 | --- | --- | --- | --- |
 | `dev` | `RelWithDebInfo` | `GameWIP` | Daily game build with tools, assertions, and opt-in embedded tests. |
-| `dev-no-tools` | `RelWithDebInfo` | `GameWIP` | Development-equivalent game without optional tooling. |
 | `test` | `RelWithDebInfo` | `GameWIPTests` | Standalone correctness and package validation. |
 | `benchmark` | `Release` | `GameWIPBenchmarks` | Optimized benchmark executable without the game. |
 | `profile` | `RelWithDebInfo` | `GameWIP` | Tracy game build; `--startup-tests` profiles embedded validation. |
@@ -123,8 +122,6 @@ Project composition options use the `GAMEWIP_` prefix and are defined in `cmake/
 | `GAMEWIP_ENABLE_STARTUP_TESTS` | `OFF` | Compiles correctness tests into `GameWIP` for explicit `--startup-tests` execution. |
 | `GAMEWIP_RUN_BENCHMARKS_AT_STARTUP` | `OFF` | Compiles benchmark entry points into `GameWIP` and runs them after startup tests. |
 | `GAMEWIP_ENABLE_TRACY` | `ON` | Enables Tracy profiler integration when selected by a preset. |
-| `GAMEWIP_ENABLE_TOOLS` | `OFF` | Enables editor and tool-window support in the game executable. |
-| `GAMEWIP_OPEN_TOOLS_AT_STARTUP` | `OFF` | Opens tool windows automatically when tool support is enabled. |
 | `GAMEWIP_ENABLE_ASSERTS` | `ON` | Enables assertions and recoverable checks. |
 | `GAMEWIP_ENABLE_COVERAGE` | `OFF` | Adds coverage instrumentation and the `coverage` target. |
 | `GAMEWIP_ENABLE_ADDRESS_SANITIZER` | `OFF` | Adds AddressSanitizer instrumentation. |

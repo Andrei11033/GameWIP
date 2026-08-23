@@ -420,28 +420,6 @@ namespace
         Hooks::setInputBytes(Terminal::Types::Input::Stream::Stdin, bytes, endOfStreamWhenEmpty);
     }
 
-#if defined(_WIN32)
-    /// @brief Builds one deterministic Win32 key record for native event-decoder validation.
-    [[nodiscard]] KEY_EVENT_RECORD makeWin32KeyRecord(
-        bool keyDown,
-        WORD virtualKey,
-        wchar_t unicodeCharacter = L'\0',
-        DWORD controlState = 0,
-        WORD repeatCount = 1,
-        WORD scanCode = 0) noexcept
-    {
-        KEY_EVENT_RECORD record{};
-        record.bKeyDown = keyDown ? TRUE : FALSE;
-        record.wRepeatCount = repeatCount;
-        record.wVirtualKeyCode = virtualKey;
-        record.wVirtualScanCode = scanCode;
-        record.uChar.UnicodeChar = unicodeCharacter;
-        record.dwControlKeyState = controlState;
-        return record;
-    }
-
-#endif
-
 #endif
 
     // Focused suite declarations keep cross-suite calls independent of fragment include order.
@@ -496,7 +474,9 @@ namespace
 #if TERMINAL_INTERNAL_TEST_HOOKS
     void testSessions(TestSupport::Context &context);
 #endif
+#if !TERMINAL_INTERNAL_TEST_HOOKS
     void testHookDependentSuitesSkipped(TestSupport::Context &context);
+#endif
 
 #include "validation/tests/terminal/contracts_test.inl"
 #include "validation/tests/terminal/controls_test.inl"

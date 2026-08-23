@@ -50,7 +50,7 @@ Logger, Window, or runtime services:
 | No arguments | Every game build | Enters the runtime and opens the game window. |
 | `--help`, `-h`, or `-?` | Every game build, as the only argument | Prints usage and build-dependent startup-validation availability, then exits successfully. |
 | `--version` | Every game build, as the only argument | Prints `GameWIP::Version::productDisplay`, then exits successfully. |
-| `--startup-tests` | `dev`, `dev-no-tools`, `profile`, or a custom startup-test build | Runs embedded correctness validation before runtime. Public `GameWIPTests.exe` options may accompany it. |
+| `--startup-tests` | `dev`, `profile`, or a custom startup-test build | Runs embedded correctness validation before runtime. Public `GameWIPTests.exe` options may accompany it. |
 | `--benchmark_*` or `--v=<level>` | A custom build with startup benchmarks | Forwards Google Benchmark options to the embedded benchmark runner. |
 
 Validation options without `--startup-tests` do not request an ordinary embedded

@@ -2,6 +2,7 @@
 /// @brief Win32 backend for the FileSystem library.
 
 #include "filesystem/internal/filesystem_platform.h"
+#include "base/platform/win32/dynamic_library.h"
 #include "unicode/unicode.h"
 
 #ifndef WIN32_LEAN_AND_MEAN
@@ -566,9 +567,11 @@ namespace GameWIP::FileSystem::Detail::Platform
                 }
                 if (module != nullptr)
                 {
-                    result.createFile = reinterpret_cast<NtCreateFileFunction>(GetProcAddress(module, "NtCreateFile"));
-                    result.setInformationFile = reinterpret_cast<NtSetInformationFileFunction>(GetProcAddress(module, "NtSetInformationFile"));
-                    result.ntStatusToDosError = reinterpret_cast<RtlNtStatusToDosErrorFunction>(GetProcAddress(module, "RtlNtStatusToDosError"));
+                    result.createFile = GameWIP::Base::Win32::loadProcedure<NtCreateFileFunction>(module, "NtCreateFile");
+                    result.setInformationFile =
+                        GameWIP::Base::Win32::loadProcedure<NtSetInformationFileFunction>(module, "NtSetInformationFile");
+                    result.ntStatusToDosError =
+                        GameWIP::Base::Win32::loadProcedure<RtlNtStatusToDosErrorFunction>(module, "RtlNtStatusToDosError");
                 }
                 return result;
             }();
@@ -886,15 +889,20 @@ namespace GameWIP::FileSystem::Detail::Platform
         /// @brief Converts Windows 100-nanosecond ticks to system_clock with overflow checks.
         [[nodiscard]] TimeResult fileTimeToSystemTimePoint(LARGE_INTEGER fileTime)
         {
-            const __int128 ticksSinceUnixEpoch = static_cast<__int128>(fileTime.QuadPart) - static_cast<__int128>(kUnixEpochAsWindowsFileTime);
-            const __int128 nanoseconds = ticksSinceUnixEpoch * 100;
-            if (nanoseconds > std::numeric_limits<std::int64_t>::max() || nanoseconds < std::numeric_limits<std::int64_t>::min())
+            constexpr std::int64_t nanosecondsPerTick = 100;
+            constexpr std::int64_t minimumTickDelta = std::numeric_limits<std::int64_t>::min() / nanosecondsPerTick;
+            constexpr std::int64_t maximumTickDelta = std::numeric_limits<std::int64_t>::max() / nanosecondsPerTick;
+            constexpr std::int64_t minimumConvertibleFileTime = kUnixEpochAsWindowsFileTime + minimumTickDelta;
+            constexpr std::int64_t maximumConvertibleFileTime = kUnixEpochAsWindowsFileTime + maximumTickDelta;
+
+            if (fileTime.QuadPart < minimumConvertibleFileTime || fileTime.QuadPart > maximumConvertibleFileTime)
             {
                 return {.status = IO::makeStatus(ErrorCode::SizeLimitExceeded)};
             }
 
-            const auto duration =
-                std::chrono::duration_cast<Types::FileTime::duration>(std::chrono::nanoseconds{static_cast<std::int64_t>(nanoseconds)});
+            const std::int64_t ticksSinceUnixEpoch = fileTime.QuadPart - kUnixEpochAsWindowsFileTime;
+            const std::int64_t nanoseconds = ticksSinceUnixEpoch * nanosecondsPerTick;
+            const auto duration = std::chrono::duration_cast<Types::FileTime::duration>(std::chrono::nanoseconds{nanoseconds});
             return {.status = IO::successStatus(), .time = Types::FileTime{duration}};
         }
 

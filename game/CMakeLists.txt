@@ -55,13 +55,6 @@ if(GAMEWIP_BUILD_GAME)
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
     )
 
-    if(GAMEWIP_ENABLE_TOOLS)
-        target_compile_definitions(GameWIP PRIVATE GAMEWIP_ENABLE_TOOLS=1)
-        if(GAMEWIP_OPEN_TOOLS_AT_STARTUP)
-            target_compile_definitions(GameWIP PRIVATE GAMEWIP_OPEN_TOOLS_AT_STARTUP=1)
-        endif()
-    endif()
-
     gamewip_copy_runtime_dependencies(GameWIP)
 
     if(GAMEWIP_BUILD_TESTS)

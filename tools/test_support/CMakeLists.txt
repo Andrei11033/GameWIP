@@ -1,10 +1,13 @@
 include(GNUInstallDirs)
-include(CMakePackageConfigHelpers)
+
+if(NOT COMMAND gamewip_install_package)
+    include("${PROJECT_SOURCE_DIR}/cmake/GameWIPPackage.cmake")
+endif()
 
 option(TEST_SUPPORT_ENABLE_TEST_HOOKS "Enable TestSupport internal test hooks" OFF)
 
-if(NOT COMMAND gamewip_target_platform_sources)
-    include("${PROJECT_SOURCE_DIR}/cmake/LibraryPlatform.cmake")
+if(NOT COMMAND gamewip_target_platform_backend)
+    include("${PROJECT_SOURCE_DIR}/cmake/GameWIPPlatform.cmake")
     gamewip_resolve_platform_id(GAMEWIP_PLATFORM_ID)
 endif()
 
@@ -32,7 +35,7 @@ target_sources(TestSupport
             "${CMAKE_CURRENT_SOURCE_DIR}/test_support.h"
 )
 
-gamewip_target_platform_sources(TestSupport TestSupport "${CMAKE_CURRENT_SOURCE_DIR}/platform")
+gamewip_target_platform_backend(TARGET TestSupport ROOT "${CMAKE_CURRENT_SOURCE_DIR}/platform")
 
 target_include_directories(TestSupport PUBLIC
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/tools>
@@ -97,25 +100,4 @@ install(TARGETS TestSupport
     FILE_SET public_headers DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
 )
 
-configure_package_config_file(
-    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/TestSupportConfig.cmake.in"
-    "${CMAKE_CURRENT_BINARY_DIR}/TestSupportConfig.cmake"
-    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/TestSupport
-)
-
-write_basic_package_version_file(
-    "${CMAKE_CURRENT_BINARY_DIR}/TestSupportConfigVersion.cmake"
-    VERSION ${PROJECT_VERSION}
-    COMPATIBILITY ExactVersion
-)
-
-install(EXPORT TestSupportTargets
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/TestSupport
-    NAMESPACE GameWIP::
-)
-
-install(FILES
-    "${CMAKE_CURRENT_BINARY_DIR}/TestSupportConfig.cmake"
-    "${CMAKE_CURRENT_BINARY_DIR}/TestSupportConfigVersion.cmake"
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/TestSupport
-)
+gamewip_install_package(TARGET TestSupport CONFIG_TEMPLATE "${CMAKE_CURRENT_SOURCE_DIR}/cmake/TestSupportConfig.cmake.in")

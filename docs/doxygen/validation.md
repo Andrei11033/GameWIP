@@ -172,7 +172,6 @@ Its declaration lives in `game/validation/tests/internal/runner_test_hooks.h`. I
 | Preset | Validation behavior |
 | --- | --- |
 | `dev` | Embedded correctness tests compiled for opt-in `--startup-tests` execution. |
-| `dev-no-tools` | Same embedded-test behavior as `dev`, without optional tooling. |
 | `test` | Standalone correctness and package validation. |
 | `benchmark` | Optimized standalone benchmarks. |
 | `profile` | Embedded correctness tests available for profiled `--startup-tests` execution. |

@@ -2,10 +2,10 @@
 /// @brief Strict Unicode conversion bridge for Win32 Window APIs.
 
 #include "window/platform/win32/internal/win32_window_backend.h"
+#include "base/checked_arithmetic.h"
 
 #include "unicode/unicode.h"
 
-#include <limits>
 #include <vector>
 
 namespace GameWIP::Window::Detail::Platform
@@ -60,7 +60,7 @@ namespace GameWIP::Window::Detail::Platform
 
         // One UTF-16 code unit needs at most three UTF-8 bytes. A surrogate pair uses four bytes
         // for two code units, so 3 * source length is a sufficient caller-owned destination.
-        if (text.size() > std::numeric_limits<std::size_t>::max() / 3U)
+        if (GameWIP::Base::wouldMultiplyOverflow(text.size(), std::size_t{3}))
         {
             nativeCode = ERROR_ARITHMETIC_OVERFLOW;
             return false;

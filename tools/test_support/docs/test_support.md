@@ -69,6 +69,9 @@ Terminal, engine systems, or other higher-level GameWIP libraries. Its public
 status/result model is locally owned, and its public headers do not expose
 Unicode types.
 
+The Win32 environment and child-process backends use GameWIP Unicode for strict UTF-8 to UTF-16 conversion. TestSupport continues to own argument
+validation, process policy, infrastructure failures, and result construction; production code never depends on TestSupport.
+
 TestSupport is intended for test and validation executables. It does not replace production error handling, FileSystem's richer policy/status surface, Logger, Assert, a benchmark framework, or a general process-management library.
 
 See @ref test_support_public_api and @ref test_support_quick_start.

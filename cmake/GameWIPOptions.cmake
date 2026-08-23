@@ -1,12 +1,11 @@
 option(GAMEWIP_BUILD_GAME "Build the GameWIP runtime executable" ON)
 option(GAMEWIP_BUILD_TESTS "Build the standalone GameWIPTests executable" ON)
 option(GAMEWIP_BUILD_BENCHMARKS "Build the standalone GameWIPBenchmarks executable" OFF)
+option(GAMEWIP_WARNINGS_AS_ERRORS "Treat GameWIP compiler warnings as build errors" OFF)
 option(GAMEWIP_ENABLE_STARTUP_TESTS "Compile correctness tests into the game for opt-in --startup-tests execution" OFF)
 option(GAMEWIP_RUN_BENCHMARKS_AT_STARTUP "Compile and run benchmarks before game startup" OFF)
 
 option(GAMEWIP_ENABLE_TRACY "Enable Tracy profiler instrumentation" ON)
-option(GAMEWIP_ENABLE_TOOLS "Enable editor and tool-window support in the game executable" OFF)
-option(GAMEWIP_OPEN_TOOLS_AT_STARTUP "Open tool windows when tool support is enabled" OFF)
 option(GAMEWIP_ENABLE_ASSERTS "Enable assertions and recoverable checks" ON)
 option(GAMEWIP_ENABLE_COVERAGE "Enable coverage instrumentation for validation builds" OFF)
 option(GAMEWIP_ENABLE_ADDRESS_SANITIZER "Enable AddressSanitizer instrumentation" OFF)

@@ -22,11 +22,13 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 include(GameWIPVersion)
 include(GameWIPOptions)
-include(LibraryPlatform)
+include(GameWIPPlatform)
+include(GameWIPPackage)
 include(GameWIPRuntimeDependencies)
 include(GameWIPValidationModules)
 include(GameWIPCoverage)
 include(GameWIPSanitizers)
+include(GameWIPWarnings)
 include(GameWIPDocumentation)
 include(GameWIPStaticAnalysis)
 
@@ -57,6 +59,9 @@ if(GAMEWIP_BUILD_TESTS)
 endif()
 
 add_subdirectory(external)
+
+gamewip_enable_project_warnings()
+
 add_subdirectory(foundation)
 add_subdirectory(tools)
 add_subdirectory(engine)

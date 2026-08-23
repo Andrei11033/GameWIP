@@ -1,5 +1,8 @@
 include(GNUInstallDirs)
-include(CMakePackageConfigHelpers)
+
+if(NOT COMMAND gamewip_install_package)
+    include("${PROJECT_SOURCE_DIR}/cmake/GameWIPPackage.cmake")
+endif()
 
 add_library(Unicode STATIC)
 add_library(GameWIP::Unicode ALIAS Unicode)
@@ -24,6 +27,7 @@ target_include_directories(Unicode PUBLIC
 )
 
 target_compile_features(Unicode PUBLIC cxx_std_23)
+target_link_libraries(Unicode PRIVATE $<BUILD_INTERFACE:GameWIPBase>)
 
 set_target_properties(Unicode PROPERTIES
     POSITION_INDEPENDENT_CODE ON
@@ -47,25 +51,4 @@ install(TARGETS Unicode
     FILE_SET public_headers DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
 )
 
-configure_package_config_file(
-    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/UnicodeConfig.cmake.in"
-    "${CMAKE_CURRENT_BINARY_DIR}/UnicodeConfig.cmake"
-    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/Unicode
-)
-
-write_basic_package_version_file(
-    "${CMAKE_CURRENT_BINARY_DIR}/UnicodeConfigVersion.cmake"
-    VERSION ${PROJECT_VERSION}
-    COMPATIBILITY ExactVersion
-)
-
-install(EXPORT UnicodeTargets
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/Unicode
-    NAMESPACE GameWIP::
-)
-
-install(FILES
-    "${CMAKE_CURRENT_BINARY_DIR}/UnicodeConfig.cmake"
-    "${CMAKE_CURRENT_BINARY_DIR}/UnicodeConfigVersion.cmake"
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/Unicode
-)
+gamewip_install_package(TARGET Unicode CONFIG_TEMPLATE "${CMAKE_CURRENT_SOURCE_DIR}/cmake/UnicodeConfig.cmake.in")

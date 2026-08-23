@@ -44,37 +44,6 @@
       "presentation": { "reveal": "always", "panel": "dedicated" }
     },
     {
-      "label": "GameWIP: Configure Development Without Tools",
-      "type": "process",
-      "command": "cmake",
-      "args": ["--preset", "dev-no-tools"],
-      "options": { "cwd": "${workspaceFolder}", "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" } },
-      "problemMatcher": [],
-      "presentation": { "reveal": "silent" },
-      "hide": true
-    },
-    {
-      "label": "GameWIP: Build Development Without Tools",
-      "type": "process",
-      "command": "cmake",
-      "args": ["--build", "--preset", "dev-no-tools", "--parallel"],
-      "options": { "cwd": "${workspaceFolder}", "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" } },
-      "problemMatcher": ["$gcc"],
-      "dependsOn": "GameWIP: Configure Development Without Tools",
-      "dependsOrder": "sequence",
-      "hide": true
-    },
-    {
-      "label": "GameWIP: Run Development Without Tools",
-      "type": "process",
-      "command": "${workspaceFolder}\\build\\dev-no-tools\\GameWIP.exe",
-      "options": { "cwd": "${workspaceFolder}\\build\\dev-no-tools", "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" } },
-      "problemMatcher": [],
-      "dependsOn": "GameWIP: Build Development Without Tools",
-      "dependsOrder": "sequence",
-      "presentation": { "reveal": "always", "panel": "dedicated" }
-    },
-    {
       "label": "GameWIP: Configure Tests",
       "type": "process",
       "command": "cmake",

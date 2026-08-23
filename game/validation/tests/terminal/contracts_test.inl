@@ -223,8 +223,10 @@ void testCapabilitiesAndQueries(TestSupport::Context &context)
 }
 #endif
 
+#if !TERMINAL_INTERNAL_TEST_HOOKS
 /// @brief Records a clear skip when Terminal test hooks were not compiled.
 void testHookDependentSuitesSkipped(TestSupport::Context &context)
 {
     context.skip("Terminal hook-dependent suites", "TERMINAL_INTERNAL_TEST_HOOKS=0");
 }
+#endif

@@ -21,6 +21,10 @@ Use these pages when reviewing whether a change belongs in the project, how it s
 - @subpage project_decisions — Stable architectural, licensing, repository,
   dependency, platform, and release-policy decisions.
 
+## Internal foundation infrastructure
+
+- @subpage internal_base - Admission, dependency, testing, and extension rules for narrow source-tree-only mechanisms.
+
 ## Related pages
 
 - @ref project_manual

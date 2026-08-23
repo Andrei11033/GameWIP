@@ -21,12 +21,15 @@ function(gamewip_create_coverage_target)
     if(GAMEWIP_GCOVR_EXECUTABLE)
         set(gamewip_coverage_common_args
             --root "${PROJECT_SOURCE_DIR}"
+            --filter "${PROJECT_SOURCE_DIR}/foundation/base"
+            --filter "${PROJECT_SOURCE_DIR}/foundation/unicode"
             --filter "${PROJECT_SOURCE_DIR}/foundation/io"
             --filter "${PROJECT_SOURCE_DIR}/foundation/terminal"
             --filter "${PROJECT_SOURCE_DIR}/foundation/filesystem"
             --filter "${PROJECT_SOURCE_DIR}/tools/logger"
             --filter "${PROJECT_SOURCE_DIR}/tools/debug/assert"
             --filter "${PROJECT_SOURCE_DIR}/tools/test_support"
+            --filter "${PROJECT_SOURCE_DIR}/engine/window"
             --filter "${PROJECT_SOURCE_DIR}/game/validation/tests"
             --exclude "${PROJECT_SOURCE_DIR}/external"
         )

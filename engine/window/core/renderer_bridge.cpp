@@ -2,6 +2,7 @@
 /// @brief Owner-thread renderer bridge state transitions.
 
 #include "window/renderer_bridge.h"
+#include "base/checked_arithmetic.h"
 
 #include "window/internal/window_platform.h"
 #include "window/internal/window_test_hooks.h"
@@ -109,7 +110,7 @@ namespace GameWIP::Window::Renderer
         if (width == 0 || height == 0)
             return 0;
         const std::size_t wordsPerRow = width / bitsPerWord + (width % bitsPerWord != 0 ? 1U : 0U);
-        if (height > std::numeric_limits<std::size_t>::max() / wordsPerRow)
+        if (GameWIP::Base::wouldMultiplyOverflow(height, wordsPerRow))
             return 0;
         return wordsPerRow * height;
     }

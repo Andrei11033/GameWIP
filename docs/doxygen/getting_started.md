@@ -45,7 +45,7 @@ then opens a borderless-fullscreen window at the desktop resolution. Press
 `Alt+F4` to close it. See @ref project_game_executable for the complete runtime
 sequence and failure behavior.
 
-The development preset builds the game with tools and compiles embedded tests for explicit `--startup-tests` execution. The `dev-no-tools` preset proves the game does not depend on optional tooling. Release builds intentionally exclude validation, benchmarks, assertions, Tracy, and development tools.
+The development preset builds the game and compiles embedded tests for explicit `--startup-tests` execution. Release builds intentionally exclude validation, benchmarks, assertions, and Tracy.
 
 Use @ref project_command_line_tools to discover every supported helper and executable command, including safe help invocations that do not start the runtime or test suite.
 

@@ -1,5 +1,8 @@
 include(GNUInstallDirs)
-include(CMakePackageConfigHelpers)
+
+if(NOT COMMAND gamewip_install_package)
+    include("${PROJECT_SOURCE_DIR}/cmake/GameWIPPackage.cmake")
+endif()
 
 option(IO_ENABLE_TEST_HOOKS "Enable IO internal test hooks" OFF)
 
@@ -59,25 +62,4 @@ install(TARGETS IO
     FILE_SET public_headers DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
 )
 
-configure_package_config_file(
-    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/IOConfig.cmake.in"
-    "${CMAKE_CURRENT_BINARY_DIR}/IOConfig.cmake"
-    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/IO
-)
-
-write_basic_package_version_file(
-    "${CMAKE_CURRENT_BINARY_DIR}/IOConfigVersion.cmake"
-    VERSION ${PROJECT_VERSION}
-    COMPATIBILITY ExactVersion
-)
-
-install(EXPORT IOTargets
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/IO
-    NAMESPACE GameWIP::
-)
-
-install(FILES
-    "${CMAKE_CURRENT_BINARY_DIR}/IOConfig.cmake"
-    "${CMAKE_CURRENT_BINARY_DIR}/IOConfigVersion.cmake"
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/IO
-)
+gamewip_install_package(TARGET IO CONFIG_TEMPLATE "${CMAKE_CURRENT_SOURCE_DIR}/cmake/IOConfig.cmake.in")
