@@ -14,4 +14,3 @@ namespace
 
     const GameWIP::Validation::Tests::Registration registration({.name = "base", .order = 5, .run = run});
 } // namespace
-

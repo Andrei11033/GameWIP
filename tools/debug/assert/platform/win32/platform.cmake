@@ -1,3 +1,4 @@
+# Own Assert's Win32 runtime, Common Controls resource, library, and installed resource templates.
 include("${CMAKE_CURRENT_LIST_DIR}/../../cmake/AssertCommonControls.cmake")
 
 if(ASSERT_RUNTIME_TARGET_ENABLED)
@@ -5,8 +6,6 @@ if(ASSERT_RUNTIME_TARGET_ENABLED)
 endif()
 
 if(ASSERT_ENABLE_COMMON_CONTROLS_MANIFEST)
-    enable_language(RC)
-
     set(
         ASSERT_INTERNAL_COMMON_CONTROLS_MANIFEST
         "${CMAKE_CURRENT_LIST_DIR}/../../cmake/common_controls_v6.manifest"
@@ -36,3 +35,9 @@ if(ASSERT_RUNTIME_TARGET_ENABLED)
         comctl32
     )
 endif()
+
+install(FILES
+    "${CMAKE_CURRENT_LIST_DIR}/../../cmake/common_controls_v6.manifest"
+    "${CMAKE_CURRENT_LIST_DIR}/../../cmake/common_controls_v6.rc.in"
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/Assert
+)

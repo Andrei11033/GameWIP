@@ -206,7 +206,9 @@ Configure/build presets are `dev`, `test`, `benchmark`, `profile`, `release`, `c
 
 ### Validation modules
 
-Current modules are `assert`, `filesystem`, `io`, `logger`, `runner`, `terminal`, `test_support`, `unicode`, and `window`. Use `all` with helper module/stress actions to select the complete set.
+Current modules are `assert`, `base`, `filesystem`, `io`, `logger`, `runner`, `terminal`, `test_support`, `unicode`, and `window`. Use `all` with
+helper module/stress actions to select the complete set. Runtime execution uses the stable order `base`, `runner`, `io`, `unicode`, `filesystem`,
+`terminal`, `window`, `test_support`, `logger`, and `assert`.
 
 ### Benchmark profiles
 

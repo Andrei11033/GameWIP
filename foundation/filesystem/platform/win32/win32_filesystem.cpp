@@ -568,10 +568,8 @@ namespace GameWIP::FileSystem::Detail::Platform
                 if (module != nullptr)
                 {
                     result.createFile = GameWIP::Base::Win32::loadProcedure<NtCreateFileFunction>(module, "NtCreateFile");
-                    result.setInformationFile =
-                        GameWIP::Base::Win32::loadProcedure<NtSetInformationFileFunction>(module, "NtSetInformationFile");
-                    result.ntStatusToDosError =
-                        GameWIP::Base::Win32::loadProcedure<RtlNtStatusToDosErrorFunction>(module, "RtlNtStatusToDosError");
+                    result.setInformationFile = GameWIP::Base::Win32::loadProcedure<NtSetInformationFileFunction>(module, "NtSetInformationFile");
+                    result.ntStatusToDosError = GameWIP::Base::Win32::loadProcedure<RtlNtStatusToDosErrorFunction>(module, "RtlNtStatusToDosError");
                 }
                 return result;
             }();

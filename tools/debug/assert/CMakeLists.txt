@@ -12,6 +12,7 @@ if(NOT COMMAND gamewip_install_package)
 endif()
 
 include(GenerateExportHeader)
+include(GNUInstallDirs)
 
 if(NOT COMMAND gamewip_target_platform_backend)
     include("${PROJECT_SOURCE_DIR}/cmake/GameWIPPlatform.cmake")
@@ -133,8 +134,6 @@ if(ASSERT_RUNTIME_TARGET_ENABLED)
 endif()
 gamewip_target_platform_backend(TARGET Assert ROOT "${CMAKE_CURRENT_SOURCE_DIR}/platform")
 
-include(GNUInstallDirs)
-
 if(ASSERT_RUNTIME_TARGET_ENABLED)
     target_include_directories(Assert PUBLIC
         $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/tools>
@@ -235,14 +234,6 @@ else()
     install(TARGETS Assert
         EXPORT AssertTargets
         FILE_SET public_headers DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-    )
-endif()
-
-if(GAMEWIP_PLATFORM_ID STREQUAL "win32")
-    install(FILES
-        "${CMAKE_CURRENT_SOURCE_DIR}/cmake/common_controls_v6.manifest"
-        "${CMAKE_CURRENT_SOURCE_DIR}/cmake/common_controls_v6.rc.in"
-        DESTINATION ${CMAKE_INSTALL_DATADIR}/Assert
     )
 endif()
 

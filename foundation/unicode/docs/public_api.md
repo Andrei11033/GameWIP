@@ -174,7 +174,8 @@ UTF-8 scalar decoding and code-point traversal operate on bounded local input. P
 
 ## Package boundary
 
-Unicode is installed as a dependency-free static `GameWIP::Unicode` target with the public header `unicode/unicode.h`.
+Unicode is installed as a static `GameWIP::Unicode` target with the public header `unicode/unicode.h` and no reusable/public GameWIP library
+dependency. Source-tree implementation code may consume narrow internal Base mechanisms, but installed target metadata must not expose Base.
 
 The public boundary exposes C++ standard-library fixed arrays, spans, string views, integer types, and `char32_t`. Consumers therefore follow the project compiler, standard-library, runtime, and exact-version compatibility policy documented in @ref project_library_compatibility.
 

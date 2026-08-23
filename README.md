@@ -59,7 +59,7 @@ every supported setup, project-helper, game, test, and benchmark command.
 
 ## Quick start
 
-Configure, build, and run the development preset with tools:
+Configure, build, and run the development preset:
 
 ```powershell
 cmake --preset dev

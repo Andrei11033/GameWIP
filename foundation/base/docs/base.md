@@ -49,7 +49,6 @@ belongs in its owning library instead.
 
 # Related pages
 
-- @ref cmake_infrastructure
-- @ref platform_backend_contract
+- @ref project_cmake_infrastructure
+- @ref project_platform_backend_contract
 - @ref project_structure
-

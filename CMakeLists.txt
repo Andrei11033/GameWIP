@@ -12,6 +12,12 @@ unset(gamewip_cmake_version_pattern)
 
 project(GameWIP VERSION 0.1.0 LANGUAGES CXX)
 
+# RC is enabled once at the highest common directory for Windows targets that
+# attach backend-owned manifests and resources.
+if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    enable_language(RC)
+endif()
+
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)

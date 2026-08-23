@@ -59,7 +59,10 @@ Reusable libraries + optional validation modules
 
 Arrows mean "is consumed by." Lower-level libraries must not depend on the game executable, runtime facade, validation runner, or benchmark runner.
 
-Unicode is a dependency-free foundation root. It owns platform-neutral scalar, encoding, conversion, and grapheme algorithms without taking filesystem-path, terminal, rendering, or editing policy. IO uses it only for strict text-boundary validation; IO byte primitives remain encoding-agnostic.
+Unicode has no reusable/public GameWIP library dependency. It owns platform-neutral scalar, encoding, conversion, and grapheme algorithms without
+taking filesystem-path, terminal, rendering, or editing policy. Its implementation may consume narrow internal Base mechanisms such as checked
+arithmetic without exposing Base through the installed package. IO uses Unicode only for strict text-boundary validation; IO byte primitives remain
+encoding-agnostic.
 
 ## Internal foundation infrastructure
 

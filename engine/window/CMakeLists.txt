@@ -18,16 +18,6 @@ endif()
 add_library(Window SHARED)
 add_library(GameWIP::Window ALIAS Window)
 
-if(WIN32)
-    enable_language(RC)
-    set(WINDOW_INTERNAL_APPLICATION_MANIFEST "${CMAKE_CURRENT_SOURCE_DIR}/cmake/window_application.manifest")
-    set(WINDOW_INTERNAL_APPLICATION_RC "${CMAKE_CURRENT_BINARY_DIR}/window_application.rc")
-    configure_file("${CMAKE_CURRENT_SOURCE_DIR}/cmake/window_application.rc.in" "${WINDOW_INTERNAL_APPLICATION_RC}" @ONLY)
-    target_sources(Window INTERFACE
-        "$<BUILD_INTERFACE:${WINDOW_INTERNAL_APPLICATION_RC}>"
-    )
-endif()
-
 set(WINDOW_GENERATED_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
 file(MAKE_DIRECTORY "${WINDOW_GENERATED_INCLUDE_DIR}/window")
 generate_export_header(Window
@@ -63,15 +53,6 @@ target_sources(Window
             "${WINDOW_GENERATED_INCLUDE_DIR}/window/window_export.h"
 )
 
-if(WIN32)
-    target_sources(Window PUBLIC
-        FILE_SET public_headers
-        TYPE HEADERS
-        BASE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/.."
-        FILES "${CMAKE_CURRENT_SOURCE_DIR}/native/win32.h"
-    )
-endif()
-
 gamewip_target_platform_backend(TARGET Window ROOT "${CMAKE_CURRENT_SOURCE_DIR}/platform")
 
 target_include_directories(Window PUBLIC
@@ -97,10 +78,6 @@ target_link_libraries(Window
         $<BUILD_INTERFACE:GameWIPBase>
 )
 
-if(MINGW)
-    target_link_options(Window PRIVATE "-Wl,--exclude-all-symbols")
-endif()
-
 set_target_properties(Window PROPERTIES
     CXX_VISIBILITY_PRESET hidden
     VISIBILITY_INLINES_HIDDEN YES
@@ -124,9 +101,6 @@ if(GAMEWIP_BUILD_DOCS AND COMMAND gamewip_register_doxygen_library)
         DOCS
             "${CMAKE_CURRENT_SOURCE_DIR}/docs"
     )
-    if(WIN32)
-        gamewip_register_doxygen_inputs("${CMAKE_CURRENT_SOURCE_DIR}/native/win32.h")
-    endif()
 endif()
 
 install(TARGETS Window
@@ -136,14 +110,6 @@ install(TARGETS Window
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
     FILE_SET public_headers DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
 )
-
-if(WIN32)
-    install(FILES
-        "${CMAKE_CURRENT_SOURCE_DIR}/cmake/window_application.manifest"
-        "${CMAKE_CURRENT_SOURCE_DIR}/cmake/window_application.rc.in"
-        DESTINATION ${CMAKE_INSTALL_DATADIR}/Window
-    )
-endif()
 
 gamewip_install_package(
     TARGET Window

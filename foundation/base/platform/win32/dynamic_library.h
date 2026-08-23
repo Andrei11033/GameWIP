@@ -17,7 +17,7 @@ namespace GameWIP::Base::Win32
 {
     /// @brief Resolves a Win32 procedure while preserving its exact function-pointer type.
     /// @return The typed procedure, or null when the module, name, or lookup result is null.
-    template<typename FunctionType>
+    template <typename FunctionType>
         requires std::is_pointer_v<FunctionType> && std::is_function_v<std::remove_pointer_t<FunctionType>>
     [[nodiscard]] FunctionType loadProcedure(HMODULE module, const char *name) noexcept
     {
@@ -37,4 +37,3 @@ namespace GameWIP::Base::Win32
         return function;
     }
 } // namespace GameWIP::Base::Win32
-

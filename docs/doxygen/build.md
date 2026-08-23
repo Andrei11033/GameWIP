@@ -55,11 +55,11 @@ cmake --build --preset docs
 
 | Preset | Build type | Main output | Purpose |
 | --- | --- | --- | --- |
-| `dev` | `RelWithDebInfo` | `GameWIP` | Daily game build with tools, assertions, and opt-in embedded tests. |
+| `dev` | `RelWithDebInfo` | `GameWIP` | Daily game build with assertions and opt-in embedded tests. |
 | `test` | `RelWithDebInfo` | `GameWIPTests` | Standalone correctness and package validation. |
 | `benchmark` | `Release` | `GameWIPBenchmarks` | Optimized benchmark executable without the game. |
 | `profile` | `RelWithDebInfo` | `GameWIP` | Tracy game build; `--startup-tests` profiles embedded validation. |
-| `release` | `Release` with interprocedural optimization | `GameWIP` | Distributable game without validation, profiling, assertions, or tools. |
+| `release` | `Release` with interprocedural optimization | `GameWIP` | Distributable game without validation, profiling, or assertions. |
 | `coverage` | `Debug` | `GameWIPTests`, coverage target | Correctness tests with coverage instrumentation. |
 | `asan` | `Debug` | `GameWIPTests` | CLANG64 AddressSanitizer validation build. |
 | `analyze` | `RelWithDebInfo` | `static-analysis` target | clang-tidy and clang-format checks for maintained C++ sources. |
@@ -119,6 +119,7 @@ Project composition options use the `GAMEWIP_` prefix and are defined in `cmake/
 | `GAMEWIP_BUILD_GAME` | `ON` | Builds the `GameWIP` runtime executable. |
 | `GAMEWIP_BUILD_TESTS` | `ON` | Builds the standalone `GameWIPTests` executable and CTest entries. |
 | `GAMEWIP_BUILD_BENCHMARKS` | `OFF` | Builds the standalone `GameWIPBenchmarks` executable. |
+| `GAMEWIP_WARNINGS_AS_ERRORS` | `OFF` | Promotes maintained first-party compiler warnings to errors. |
 | `GAMEWIP_ENABLE_STARTUP_TESTS` | `OFF` | Compiles correctness tests into `GameWIP` for explicit `--startup-tests` execution. |
 | `GAMEWIP_RUN_BENCHMARKS_AT_STARTUP` | `OFF` | Compiles benchmark entry points into `GameWIP` and runs them after startup tests. |
 | `GAMEWIP_ENABLE_TRACY` | `ON` | Enables Tracy profiler integration when selected by a preset. |
@@ -131,6 +132,9 @@ Project composition options use the `GAMEWIP_` prefix and are defined in `cmake/
 | `GAMEWIP_CLANG_TIDY_JOBS` | `4` | Controls parallel clang-tidy process count. |
 
 Preset cache values may intentionally override source defaults. For example, the base preset disables Tracy and documentation by default, while the `profile` and `docs` presets enable those workflows explicitly.
+
+`GAMEWIP_WARNINGS_AS_ERRORS` remains `OFF` for ordinary local work so developers can inspect the warning baseline without a forced Werror policy.
+Maintained first-party CI validation sets it to `ON`; external dependency targets retain their own warning policy.
 
 ## Option constraints
 

@@ -51,6 +51,8 @@ The generated reference documents every public declaration from `unicode/unicode
 
 ## Dependency boundary
 
-Unicode is a dependency-free static library installed as `GameWIP::Unicode`. The installed consumer entry point is `unicode/unicode.h`; generated property tables, internal codec helpers, and the generator are source-tree implementation details.
+Unicode is installed as the static `GameWIP::Unicode` library with no reusable/public GameWIP library dependency. Its implementation may consume
+narrow source-tree-only `GameWIP::Base` mechanisms such as checked arithmetic; Base is not exposed by the installed package. The installed consumer
+entry point is `unicode/unicode.h`; generated property tables, internal codec helpers, and the generator are source-tree implementation details.
 
 Unicode owns only reusable text algorithms. Platform API calls, filesystem path semantics, terminal sessions and editing, cursor/redraw behavior, status translation, and terminal-cell-width policy remain with their owning components.

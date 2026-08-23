@@ -8,4 +8,3 @@ namespace GameWIP::Test
     /// @brief Runs internal Base mechanism tests.
     int runBaseTests();
 } // namespace GameWIP::Test
-

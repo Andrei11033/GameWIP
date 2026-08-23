@@ -114,6 +114,7 @@
 
     Modules = @(
         'assert'
+        'base'
         'filesystem'
         'io'
         'logger'
