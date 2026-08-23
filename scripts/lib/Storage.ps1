@@ -75,7 +75,9 @@ function Initialize-GameWipOperationTemp
     Initialize-GameWipStorage
     Invoke-GameWipStaleOperationTempCleanup
     $tempRoot = Resolve-GameWipStoragePath -RelativePath $ProjectConfig.storage.temp
-    $operationId = '{0}_{1}_{2}' -f (Get-Date -Format 'yyyyMMddTHHmmssfff'), $PID, ([guid]::NewGuid().ToString('N'))
+    # Keep this unique segment short enough to leave Win32 path budget for
+    # deep validation fixtures while retaining process and random identity.
+    $operationId = '{0}-{1}' -f $PID, ([guid]::NewGuid().ToString('N').Substring(0, 12))
     $operationPath = Join-Path $tempRoot $operationId
     New-Item -ItemType Directory -Path $operationPath | Out-Null
     [ordered]@{ schemaVersion = 1; owner = 'GameWIP'; resource = 'operation-temp'; processId = $PID; createdAt = (Get-Date).ToUniversalTime().ToString('o') } |

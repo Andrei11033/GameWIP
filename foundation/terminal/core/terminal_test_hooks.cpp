@@ -419,9 +419,9 @@ namespace GameWIP::Terminal::TestHooks
         return block.condition.wait_for(
             lock,
             timeout,
-            [&block]
+            []
             {
-                return block.reached;
+                return terminalTestHookState.nextReadBlock.reached;
             });
     }
 
@@ -456,9 +456,9 @@ namespace GameWIP::Terminal::TestHooks
         return block.condition.wait_for(
             lock,
             timeout,
-            [&block]
+            []
             {
-                return block.reached;
+                return terminalTestHookState.nextTextWriteBlock.reached;
             });
     }
 

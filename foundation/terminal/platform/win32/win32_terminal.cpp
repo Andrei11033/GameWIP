@@ -614,7 +614,7 @@ namespace GameWIP::Terminal::Detail::Platform
             {
                 outText.resize_and_overwrite(
                     text.size(),
-                    [&text, sourceLength, flags, &wideLength, &conversionError](wchar_t *destination, std::size_t) noexcept
+                    [&text, sourceLength, &wideLength, &conversionError](wchar_t *destination, std::size_t) noexcept
                     {
                         wideLength = MultiByteToWideChar(CP_UTF8, flags, text.data(), sourceLength, destination, sourceLength);
                         if (wideLength <= 0)

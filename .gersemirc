@@ -4,7 +4,9 @@ definitions:
   - game/validation/benchmarks/CMakeLists.txt
   - game/validation/public_headers/CMakeLists.txt
   - game/validation/tests/CMakeLists.txt
-  - tools/debug/assert
+  - tools/debug/assert/CMakeLists.txt
+  - tools/debug/assert/cmake/AssertConfig.cmake.in
+  - tools/debug/assert/cmake/AssertOptions.cmake
 disable_formatting: false
 extensions: []
 indent: 4
