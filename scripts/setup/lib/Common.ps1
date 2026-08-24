@@ -1,3 +1,5 @@
+# GameWIP setup-common state, native invocation, platform checks, and shared diagnostics.
+
 Set-StrictMode -Version Latest
 
 function Get-GameWipSetupState

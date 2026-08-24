@@ -1,3 +1,5 @@
+# GameWIP repository initialization, branch selection, update, submodule, and dev-configuration behavior.
+
 Set-StrictMode -Version Latest
 
 function Select-GameWipZipBranch
@@ -232,7 +234,8 @@ function Initialize-GameWipRepository
         $oldPath = $env:Path
         try
         {
-            $env:Path = "C:\MSYS2\ucrt64\bin;$oldPath"
+            $ucrtBin = Join-Path ([string]$ProjectConfig.managedEnvironment.msys2Root) 'ucrt64\bin'
+            $env:Path = @($ucrtBin, $oldPath) -join [IO.Path]::PathSeparator
             Invoke-GameWipSetupNative -FilePath 'cmake' -ArgumentList @('--preset', 'dev') | Out-Null
         }
         finally

@@ -108,24 +108,17 @@ function Invoke-GameWipQualityCheck
     $yamllintConfig = Join-Path $qualityConfig 'yamllint.yml'
     $markdownlintConfig = Join-Path $qualityConfig 'markdownlint-cli2.jsonc'
 
-    if (Test-GameWipWindowsHost)
-    {
-        $nodePath = Join-Path ([string]$ProjectConfig.managedEnvironment.gameWipToolsRoot) 'npm\lib\node_modules'
-    }
-    else
-    {
-        $nodePath = (& npm root --global).Trim()
-        if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($nodePath))
-        {
-            throw 'Unable to resolve the global npm module root for ESLint.'
-        }
-    }
+    $nodePath = Get-GameWipNpmGlobalModuleRoot
 
     Invoke-GameWipFormat -Mode check
     Invoke-GameWipQualityNative -Name 'ruff-check' -FilePath $ruff -Arguments @('check', '--config', $ruffConfig, '.github/scripts', 'foundation/unicode/tools')
     Invoke-GameWipQualityNative -Name 'ruff-format-check' -FilePath $ruff -Arguments @('format', '--check', '--config', $ruffConfig, '.github/scripts', 'foundation/unicode/tools')
     Invoke-GameWipPowerShellQuality
-    Invoke-GameWipQualityNative -Name 'eslint' -FilePath $eslint -Arguments @('--config', $eslintConfig, '.github/scripts') -Environment @{ NODE_PATH = $nodePath }
+    Invoke-GameWipQualityNative `
+        -Name 'eslint' `
+        -FilePath $eslint `
+        -Arguments @('--config', $eslintConfig, '.github/scripts', 'config/quality/eslint.config.js') `
+        -Environment @{ NODE_PATH = $nodePath }
     Invoke-GameWipQualityNative -Name 'prettier-check' -FilePath $prettier -Arguments @('--config', $prettierConfig, '--ignore-path', $prettierIgnore, '--check', '**/*.{js,json,jsonc,yml,yaml,css}')
     Invoke-GameWipQualityNative -Name 'gersemi-check' -FilePath $gersemi -Arguments (@('--config', $gersemiConfig, '--check') + @(Get-GameWipCMakeFile))
     Invoke-GameWipQualityNative -Name 'yamllint' -FilePath $yamllint -Arguments @('-c', $yamllintConfig, '.')

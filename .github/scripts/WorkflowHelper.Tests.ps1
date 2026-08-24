@@ -1,3 +1,5 @@
+# Regression tests for guarded GameWIP GitHub workflow discovery and dispatch contracts.
+
 [CmdletBinding()]
 param()
 

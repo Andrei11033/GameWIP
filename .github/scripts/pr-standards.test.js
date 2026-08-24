@@ -1,3 +1,5 @@
+// Regression tests for the repository-owned pull-request metadata policy.
+
 'use strict';
 
 const assert = require('node:assert/strict');

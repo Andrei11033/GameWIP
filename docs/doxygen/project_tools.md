@@ -26,8 +26,12 @@ CMake is a `minimum` tool and its registry version must equal the root
 
 MSYS2 package requirements are derived from provider metadata in
 `project-tools.json`, including UCRT64/CLANG64 companion packages and package-only
-dependencies. `scripts/setup/config/setup.json` owns only setup action metadata
-and the IDs needed to bootstrap a provider host.
+dependencies. Gersemi uses the upstream verified standalone release assets
+rather than the MSYS2 Python environment because native Python-extension ABI
+compatibility can otherwise force source builds on Windows. The exact upstream
+release tag, platform asset names, and SHA-256 digests are owned by
+`project-tools.json`. `scripts/setup/config/setup.json` owns only setup action
+metadata and the IDs needed to bootstrap a provider host.
 
 ## Persistent tool ownership
 
@@ -47,9 +51,13 @@ C:\MSYS2\GameWIPTools\
 ```
 
 The directory is separate from repository build output and survives deleting
-`build/`. When GameWIP creates or owns this tree it writes
-`.gamewip-managed.json` inside it. An existing non-empty tree without valid
-ownership proof is never silently adopted or recursively removed.
+`build/`. When GameWIP creates this tree it writes `.gamewip-managed.json`
+inside it. An existing non-empty tree without valid ownership proof is never
+silently adopted or recursively removed. Interactive setup may display the
+top-level contents and ask, defaulting to No, whether the user explicitly wants
+to adopt that root. Adopted ownership is recorded distinctly from
+setup-created ownership. Noninteractive setup remains fail-closed, and
+`setup.bat check` only diagnoses missing ownership proof without mutating it.
 
 `C:\MSYS2\.gamewip-managed.json` is a different marker. It records proven
 GameWIP ownership of the MSYS2 installation itself when setup created it.
@@ -80,9 +88,12 @@ live references fail closed. Historical files under `docs/releases/` are never
 rewritten. The command never commits, pushes, or destructively rolls back a
 failed sequence.
 
-`setup.bat update` has different semantics: it updates package-manager software
-and restores compliance with versions already declared by the checkout. It does
-not advance exact project pins.
+`setup.bat update` has different semantics: it performs the complete MSYS2
+`pacman -Syu` environment update, updates other compatible package-manager
+software/integrations, and restores compliance with versions already declared
+by the checkout. It does not advance exact project pins. Use the interactive
+GameWIP `T` menu for project-tool status/check/update workflows and the `Q` menu
+for the complete quality/formatting workflows.
 
 ## Repository-local mutable storage
 
@@ -97,11 +108,13 @@ build/gamewip/
 ```
 
 `cache/` contains reproducible data. `state/` is advisory and never sole
-ownership evidence. `temp/<operation-id>/` is operation-owned and marked with
-the owning process identity. Stale cleanup removes an old directory only when
-GameWIP ownership is valid and the recorded owner is confirmed inactive;
-active, malformed, or ambiguous ownership is preserved. `runs/` retains logs,
-manifests, summaries, and artifacts.
+ownership evidence. Missing or corrupt advisory editor/setup state is reported
+and safely reconstructed from configured defaults or persistent evidence rather
+than making the helper unusable. `temp/<operation-id>/` is operation-owned and
+marked with the owning process identity. Stale cleanup removes an old directory
+only when GameWIP ownership is valid and the recorded owner is confirmed
+inactive; active, malformed, or ambiguous ownership is preserved. `runs/`
+retains logs, manifests, summaries, and artifacts.
 
 Deleting `build/` or any storage child is a supported recovery operation.
 Doctor, status, quality, and setup recreate the directories they need without
@@ -112,7 +125,7 @@ reinstalling persistent tools.
 Explicit formatter and linter policy is grouped under `config/quality/`:
 
 - `ruff.toml`
-- `config/quality/eslint.config.js`
+- `eslint.config.js`
 - `prettier.json` and `prettier.ignore`
 - `gersemi.yml`
 - `yamllint.yml`

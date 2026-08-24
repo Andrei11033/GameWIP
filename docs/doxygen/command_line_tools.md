@@ -152,6 +152,31 @@ repository checks, documentation checks, and link validation without changing
 tracked files. `fix` applies only deterministic formatter output; it does not
 rewrite prose or automatically repair semantic lint findings.
 
+The interactive `Q` menu exposes the full quality check/fix workflows first,
+followed by focused C/C++ formatting, analysis, sanitizer, coverage,
+documentation, benchmark, and release-readiness actions.
+
+### Project tools and versions
+
+```powershell
+.\gamewip.bat tools -ToolsAction list
+.\gamewip.bat tools -ToolsAction status
+.\gamewip.bat tools -ToolsAction check-updates
+.\gamewip.bat tools -ToolsAction update -Tool <id|all> -Preview
+.\gamewip.bat tools -ToolsAction update -Tool <id|all>
+```
+
+`list` and `status` are offline. `check-updates` and update planning are online.
+`-Preview` resolves and prints the complete plan without mutation. A real update
+requires a clean tracked tree, consumes the frozen plan, advances only declared
+project tool/version policy, normalizes structured registry formatting, and
+runs the complete quality check. The interactive `T` menu exposes the same
+operations and asks for default-No confirmation before a mutating update.
+
+Environment and package-manager updates are separate. Use `setup.bat update` to
+perform complete MSYS2 `pacman -Syu` updates and refresh compatible environment
+software without advancing exact project pins.
+
 ### Configure, build, and CTest
 
 ```powershell

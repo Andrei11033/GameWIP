@@ -18,8 +18,8 @@
     {
       "id": "update",
       "key": "3",
-      "name": "Update environment",
-      "description": "Update compatible tools, integrations, and the checkout, then verify.",
+      "name": "Update environment (includes MSYS2)",
+      "description": "Run the complete MSYS2 system update, update compatible tools/integrations and the checkout, then verify.",
       "machineChanges": true
     },
     {

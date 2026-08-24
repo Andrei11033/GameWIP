@@ -14,28 +14,61 @@ function Initialize-GameWipStorage
     }
 }
 
+function Get-GameWipCanonicalPath
+{
+    param([Parameter(Mandatory = $true)][string]$Path)
+
+    $canonical = [IO.Path]::GetFullPath($Path)
+    $root = [IO.Path]::GetPathRoot($canonical)
+    if ($canonical -eq $root)
+    {
+        return $canonical
+    }
+
+    [char[]]$trimCharacters = @(
+        [IO.Path]::DirectorySeparatorChar
+        [IO.Path]::AltDirectorySeparatorChar
+    ) | Select-Object -Unique
+    return $canonical.TrimEnd($trimCharacters)
+}
+
 function Assert-GameWipSafeChildPath
 {
     param([Parameter(Mandatory = $true)][string]$Path, [Parameter(Mandatory = $true)][string]$OwnedRoot)
 
-    $canonicalPath = [IO.Path]::GetFullPath($Path).TrimEnd('\\', '/')
-    $canonicalRoot = [IO.Path]::GetFullPath($OwnedRoot).TrimEnd('\\', '/')
-    $driveRoot = [IO.Path]::GetPathRoot($canonicalPath).TrimEnd('\\', '/')
-    $canonicalRepositoryRoot = [IO.Path]::GetFullPath($RepositoryRoot).TrimEnd('\\', '/')
+    $comparison = if (Test-GameWipWindowsHost)
+    {
+        [StringComparison]::OrdinalIgnoreCase
+    }
+    else
+    {
+        [StringComparison]::Ordinal
+    }
+
+    $canonicalPath = Get-GameWipCanonicalPath -Path $Path
+    $canonicalRoot = Get-GameWipCanonicalPath -Path $OwnedRoot
+    $driveRoot = Get-GameWipCanonicalPath -Path ([IO.Path]::GetPathRoot($canonicalPath))
+    $canonicalRepositoryRoot = Get-GameWipCanonicalPath -Path $RepositoryRoot
     $profileRoot = if (-not [string]::IsNullOrWhiteSpace([string]$env:USERPROFILE))
     {
-        [IO.Path]::GetFullPath($env:USERPROFILE).TrimEnd('\\', '/')
+        Get-GameWipCanonicalPath -Path $env:USERPROFILE
     }
     else
     {
         $null
     }
 
-    if ($canonicalPath -eq $canonicalRoot -or
-        $canonicalPath -eq $driveRoot -or
-        $canonicalPath -eq $canonicalRepositoryRoot -or
-        ($profileRoot -and $canonicalPath -eq $profileRoot) -or
-        -not $canonicalPath.StartsWith($canonicalRoot + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase))
+    $isOwnedRoot = $canonicalPath.Equals($canonicalRoot, $comparison)
+    $isDriveRoot = $canonicalPath.Equals($driveRoot, $comparison)
+    $isRepositoryRoot = $canonicalPath.Equals($canonicalRepositoryRoot, $comparison)
+    $isProfileRoot = $profileRoot -and $canonicalPath.Equals($profileRoot, $comparison)
+    $ownedPrefix = $canonicalRoot + [IO.Path]::DirectorySeparatorChar
+
+    if ($isOwnedRoot -or
+        $isDriveRoot -or
+        $isRepositoryRoot -or
+        $isProfileRoot -or
+        -not $canonicalPath.StartsWith($ownedPrefix, $comparison))
     {
         throw "Refusing unsafe recursive deletion target '$canonicalPath' outside owned root '$canonicalRoot'."
     }

@@ -1,4 +1,11 @@
 # GameWIP GitHubRelease tool-provider behavior. Dot-sourced by scripts/lib/Tools.ps1.
+
+function ConvertFrom-GameWipGitHubReleaseTag
+{
+    param([Parameter(Mandatory = $true)][string]$Tag)
+    return $Tag -replace '^v(?=[0-9])', ''
+}
+
 function Get-GameWipGitHubReleaseToolLatestVersion
 {
     param([hashtable]$Tool)
@@ -11,7 +18,7 @@ function Get-GameWipGitHubReleaseMetadata
     param([hashtable]$Tool)
     $release = Invoke-RestMethod -Uri "https://api.github.com/repos/$($Tool.provider.repository)/releases/latest" -Headers @{ Accept = 'application/vnd.github+json'; 'X-GitHub-Api-Version' = '2026-03-10' }
     $tag = [string]$release.tag_name
-    $version = $tag -replace '^v(?=[0-9])', ''
+    $version = ConvertFrom-GameWipGitHubReleaseTag -Tag $tag
     $assets = @{}
     foreach ($key in @($Tool.provider.assets.Keys))
     {

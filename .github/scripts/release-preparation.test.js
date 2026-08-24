@@ -1,3 +1,5 @@
+// Regression tests for repository-owned release preparation/finalization policy.
+
 'use strict';
 
 const assert = require('node:assert/strict');

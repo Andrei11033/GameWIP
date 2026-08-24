@@ -1,3 +1,5 @@
+# GameWIP Visual Studio discovery, installation, update, and workload verification.
+
 Set-StrictMode -Version Latest
 
 function Get-GameWipVisualStudioInstance

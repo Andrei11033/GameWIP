@@ -1,3 +1,6 @@
+# Provides post-build runtime dependency discovery/copying for binaries that need toolchain DLLs beside the target.
+# The helper uses the active compiler/toolchain search directory and fails through the generated dependency script when resolution is unsafe.
+
 function(gamewip_copy_runtime_dependencies target_name)
     get_filename_component(gamewip_runtime_search_dir "${CMAKE_CXX_COMPILER}" DIRECTORY)
 

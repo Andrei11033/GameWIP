@@ -1,3 +1,6 @@
+# Configures informational first-party coverage instrumentation and the gcovr report target.
+# The module has no effect unless GAMEWIP_ENABLE_COVERAGE is enabled; unsupported compilers warn rather than fabricate coverage.
+
 if(GAMEWIP_ENABLE_COVERAGE)
     if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
         add_compile_options(--coverage -O0 -g)

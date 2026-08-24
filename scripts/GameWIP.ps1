@@ -1,3 +1,5 @@
+# GameWIP project-helper entry point and public command-line dispatch surface.
+
 [CmdletBinding()]
 param(
     [ValidateSet('menu', 'doctor', 'git', 'workflow', 'unicode', 'format', 'quality', 'tools', 'links', 'configure', 'build', 'test', 'module', 'wizard', 'stress', 'run', 'bundle', 'docs', 'analysis', 'analyze', 'coverage', 'asan', 'benchmark', 'list', 'help')]
@@ -87,6 +89,9 @@ $Script:RunContext = $null
 $Script:RunLabel = $Action
 $Script:RunFailed = $false
 $Script:OperationTemp = $null
+$scriptExitCode = 0
+$primaryError = $null
+$finalizationError = $null
 try
 {
     Assert-GameWipProjectConfig
@@ -278,11 +283,60 @@ try
 catch
 {
     $Script:RunFailed = $true
+    $scriptExitCode = 1
+    $primaryError = $_
     Show-GameWipActionFailure -ErrorRecord $_
-    exit 1
 }
 finally
 {
-    Save-GameWipRunSummary
-    Complete-GameWipOperationTemp
+    try
+    {
+        Complete-GameWipOperationTemp
+    }
+    catch
+    {
+        if ($null -ne $primaryError)
+        {
+            Write-Warning "Operation-temp cleanup also failed: $($_.Exception.Message)"
+        }
+        elseif ($null -eq $finalizationError)
+        {
+            $Script:RunFailed = $true
+            $finalizationError = $_
+        }
+        else
+        {
+            Write-Warning "Operation-temp cleanup also failed: $($_.Exception.Message)"
+        }
+    }
+
+    try
+    {
+        Save-GameWipRunSummary
+    }
+    catch
+    {
+        if ($null -ne $primaryError)
+        {
+            Write-Warning "Run-summary finalization also failed: $($_.Exception.Message)"
+        }
+        elseif ($null -eq $finalizationError)
+        {
+            $finalizationError = $_
+        }
+        else
+        {
+            Write-Warning "Run-summary finalization also failed: $($_.Exception.Message)"
+        }
+    }
+}
+
+if ($null -ne $finalizationError)
+{
+    Write-Error "GameWIP finalization failed: $($finalizationError.Exception.Message)"
+    exit 1
+}
+if ($scriptExitCode -ne 0)
+{
+    exit $scriptExitCode
 }

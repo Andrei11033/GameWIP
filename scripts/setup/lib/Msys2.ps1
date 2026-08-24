@@ -1,3 +1,5 @@
+# GameWIP MSYS2 package derivation, full-system update, retry, and toolchain verification.
+
 Set-StrictMode -Version Latest
 
 function Invoke-GameWipMsys2
@@ -25,6 +27,7 @@ function Invoke-GameWipMsys2PacmanWithRetry
         {
             if ($attempt -ge $MaxAttempts) { Write-Warning "pacman failed after $MaxAttempts attempts."; throw }
             Write-Warning "pacman attempt $attempt of $MaxAttempts failed: $($_.Exception.Message)"
+            Write-Host "  Retrying pacman in $RetryDelaySeconds second(s)..." -ForegroundColor DarkGray
             if ($RetryDelaySeconds -gt 0) { Start-Sleep -Seconds $RetryDelaySeconds }
         }
     }

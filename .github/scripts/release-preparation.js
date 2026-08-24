@@ -1,3 +1,5 @@
+// Repository-owned guarded release check, preparation, and finalization policy.
+
 'use strict';
 
 const fs = require('node:fs');

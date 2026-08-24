@@ -1,3 +1,5 @@
+# GameWIP editor selection, installation, workflow-extension packaging, and advisory state.
+
 Set-StrictMode -Version Latest
 
 function Get-GameWipEditorPreferencePath
@@ -20,19 +22,31 @@ function Get-GameWipEditorSelection
         return @($EditorConfig.Default)
     }
 
-    $preference = Get-Content -LiteralPath $preferencePath -Raw | ConvertFrom-Json
-    $selected = @($preference.editors)
-    $known = [System.Collections.Generic.HashSet[string]]::new(
-        [string[]]@($EditorConfig.Options | ForEach-Object { $_.Id })
-    )
-    foreach ($id in $selected)
+    try
     {
-        if (-not $known.Contains($id))
+        $preference = Get-Content -LiteralPath $preferencePath -Raw | ConvertFrom-Json
+        $selected = @($preference.editors)
+        if ($selected.Count -eq 0)
         {
-            throw "Unknown editor '$id' in $preferencePath. Rerun the editor setup action to update the selection."
+            throw 'The advisory editor selection contains no editors.'
         }
+        $known = [System.Collections.Generic.HashSet[string]]::new(
+            [string[]]@($EditorConfig.Options | ForEach-Object { $_.Id })
+        )
+        foreach ($id in $selected)
+        {
+            if (-not $known.Contains($id))
+            {
+                throw "Unknown editor '$id'."
+            }
+        }
+        return $selected
     }
-    return $selected
+    catch
+    {
+        Write-Warning "Ignoring corrupt advisory editor state '$preferencePath': $($_.Exception.Message)"
+        return @($EditorConfig.Default)
+    }
 }
 
 function Save-GameWipEditorSelection
@@ -455,7 +469,11 @@ function Install-GameWipEditorIntegration
 
     $source = Join-Path $RepositoryRoot 'scripts\setup\editor\gamewip-workflows'
     $package = Get-Content -LiteralPath (Join-Path $source 'package.json') -Raw | ConvertFrom-Json
-    $vsixPath = Join-Path $RepositoryRoot 'build\setup\editor\gamewip-workflows.vsix'
+    if ([string]::IsNullOrWhiteSpace([string]$Script:OperationTemp))
+    {
+        throw 'Editor integration requires an initialized GameWIP operation-temp directory.'
+    }
+    $vsixPath = Join-Path $Script:OperationTemp 'gamewip-workflows.vsix'
     Invoke-GameWipVsCodeExtensionPackaging -ExtensionSource $source -Destination $vsixPath
     $extensionId = "$($package.publisher).$($package.name)"
     Write-Host "  Installing Visual Studio Code extension package: $vsixPath"

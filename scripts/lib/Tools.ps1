@@ -1,4 +1,4 @@
-# GameWIP Tools helper behavior. Dot-sourced by scripts/GameWIP.ps1.
+# Shared GameWIP project-tool registry, detection, provider, ownership, and update behavior.
 
 foreach ($providerFile in @('Msys2.ps1', 'Npm.ps1', 'Python.ps1', 'PowerShellGallery.ps1', 'GitHubRelease.ps1', 'Winget.ps1', 'GitSubmodule.ps1', 'External.ps1'))
 {
@@ -30,57 +30,121 @@ function Get-GameWipManagedToolPath
     }
 
     $root = [string]$ProjectConfig.managedEnvironment.gameWipToolsRoot
+    if ((Test-Path -LiteralPath $root) -and -not (Test-GameWipManagedToolRootOwnership -Root $root))
+    {
+        # Unknown persistent content must not be preferred as a managed tool
+        # source before setup has established or explicitly adopted ownership.
+        return @()
+    }
     return @(
         (Join-Path $root 'bin'),
         (Join-Path $root 'npm'),
         (Join-Path $root 'npm\bin'),
+        (Join-Path $root 'python\bin'),
         (Join-Path $root 'python\Scripts'),
         (Join-Path $root 'powershell')
     )
 }
 
-function Test-GameWipManagedToolRootOwnership
+function Get-GameWipProviderManagedToolPath
+{
+    param([Parameter(Mandatory = $true)][hashtable]$Tool)
+
+    if (-not (Test-GameWipWindowsHost))
+    {
+        return @()
+    }
+
+    $root = [string]$ProjectConfig.managedEnvironment.gameWipToolsRoot
+    if ((Test-Path -LiteralPath $root) -and -not (Test-GameWipManagedToolRootOwnership -Root $root))
+    {
+        return @()
+    }
+
+    switch ([string]$Tool.provider.kind)
+    {
+        'python'
+        {
+            return @(
+                (Join-Path $root 'python\bin'),
+                (Join-Path $root 'python\Scripts')
+            )
+        }
+        'npm'
+        {
+            return @(
+                (Join-Path $root 'npm'),
+                (Join-Path $root 'npm\bin')
+            )
+        }
+        'githubRelease' { return @((Join-Path $root 'bin')) }
+        default { return @() }
+    }
+}
+
+function Get-GameWipManagedToolRootOwnership
 {
     param([Parameter(Mandatory = $true)][string]$Root)
 
     $markerPath = Join-Path $Root '.gamewip-managed.json'
     if (-not (Test-Path -LiteralPath $markerPath -PathType Leaf))
     {
-        return $false
+        return $null
     }
     try
     {
         $marker = Get-Content -Raw -LiteralPath $markerPath | ConvertFrom-Json
-        return $marker.schemaVersion -eq 1 -and
-               $marker.owner -eq 'GameWIP' -and
-               $marker.resource -eq 'project-tools' -and
-               $marker.installedBySetup -eq $true
+        $installedBySetup = $marker.PSObject.Properties['installedBySetup'] -and [bool]$marker.installedBySetup
+        $adoptedByUser = $marker.PSObject.Properties['adoptedByUser'] -and [bool]$marker.adoptedByUser
+        if ($marker.schemaVersion -ne 1 -or
+            $marker.owner -ne 'GameWIP' -or
+            $marker.resource -ne 'project-tools' -or
+            (-not $installedBySetup -and -not $adoptedByUser))
+        {
+            return $null
+        }
+        return $marker
     }
     catch
     {
-        return $false
+        return $null
     }
+}
+
+function Test-GameWipManagedToolRootOwnership
+{
+    param([Parameter(Mandatory = $true)][string]$Root)
+    return $null -ne (Get-GameWipManagedToolRootOwnership -Root $Root)
 }
 
 function Initialize-GameWipManagedToolRoot
 {
+    param([switch]$AdoptExisting)
+
     if (-not (Test-GameWipWindowsHost))
     {
         return
     }
 
     $root = [string]$ProjectConfig.managedEnvironment.gameWipToolsRoot
+    $created = $false
+    $adopted = $false
     if (Test-Path -LiteralPath $root)
     {
         $entries = @(Get-ChildItem -LiteralPath $root -Force -ErrorAction SilentlyContinue)
         if (-not (Test-GameWipManagedToolRootOwnership -Root $root) -and $entries.Count -ne 0)
         {
-            throw "Refusing to adopt non-empty GameWIPTools root without persistent ownership proof: '$root'."
+            if (-not $AdoptExisting)
+            {
+                throw "Refusing to adopt non-empty GameWIPTools root without persistent ownership proof: '$root'."
+            }
+            $adopted = $true
         }
     }
     else
     {
         New-Item -ItemType Directory -Force -Path $root | Out-Null
+        $created = $true
     }
 
     if (-not (Test-GameWipManagedToolRootOwnership -Root $root))
@@ -89,7 +153,9 @@ function Initialize-GameWipManagedToolRoot
             schemaVersion = 1
             owner = 'GameWIP'
             resource = 'project-tools'
-            installedBySetup = $true
+            installedBySetup = $created -or -not $adopted
+            adoptedByUser = $adopted
+            recordedAt = (Get-Date).ToUniversalTime().ToString('o')
         } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $root '.gamewip-managed.json') -Encoding UTF8
     }
 
@@ -130,8 +196,8 @@ function Get-GameWipExecutableNames
 function Add-GameWipToolCandidate
 {
     param(
-        [Parameter(Mandatory = $true)][System.Collections.Generic.List[object]]$Candidates,
-        [Parameter(Mandatory = $true)][System.Collections.Generic.HashSet[string]]$Seen,
+        [Parameter(Mandatory = $true)][AllowEmptyCollection()][System.Collections.Generic.List[object]]$Candidates,
+        [Parameter(Mandatory = $true)][AllowEmptyCollection()][System.Collections.Generic.HashSet[string]]$Seen,
         [Parameter(Mandatory = $true)][string]$Path,
         [Parameter(Mandatory = $true)][string]$Source
     )
@@ -190,6 +256,20 @@ function Get-GameWipToolCandidates
                 -Seen $seen `
                 -Path (Join-Path ([string]$ProjectConfig.managedEnvironment.msys2Root) ([string]$Tool.provider.managedPath)) `
                 -Source 'managed environment'
+        }
+
+        # Prefer the location owned by the tool's declared provider. Other
+        # GameWIP-managed copies are still discovered below and reported as
+        # additional candidates, but they cannot override the provider copy.
+        foreach ($managedRoot in @(Get-GameWipProviderManagedToolPath -Tool $Tool))
+        {
+            foreach ($command in $commands)
+            {
+                foreach ($name in @(Get-GameWipExecutableNames -Command $command))
+                {
+                    Add-GameWipToolCandidate -Candidates $candidates -Seen $seen -Path (Join-Path $managedRoot $name) -Source "GameWIPTools $($Tool.provider.kind)"
+                }
+            }
         }
 
         foreach ($managedRoot in @(Get-GameWipManagedToolPath))
@@ -402,6 +482,27 @@ function Get-GameWipToolCompatibility
     }
 }
 
+function Test-GameWipDetectedToolFromDeclaredProvider
+{
+    param(
+        [Parameter(Mandatory = $true)][hashtable]$Tool,
+        [Parameter(Mandatory = $true)]$Detected
+    )
+
+    if (-not (Test-GameWipWindowsHost))
+    {
+        return $true
+    }
+
+    switch ([string]$Tool.provider.kind)
+    {
+        'python' { return [string]$Detected.Source -eq 'GameWIPTools python' }
+        'npm' { return [string]$Detected.Source -eq 'GameWIPTools npm' }
+        'githubRelease' { return [string]$Detected.Source -eq 'GameWIPTools githubRelease' }
+        default { return $true }
+    }
+}
+
 function Get-GameWipProviderFunction
 {
     param([hashtable]$Tool, [ValidateSet('Latest', 'Install')][string]$Operation)
@@ -504,11 +605,28 @@ function Get-GameWipToolUpdatePlan
     {
         $detected = Get-GameWipDetectedTool -Tool $toolInfo
         $latest = $null
+        $releaseMetadata = $null
         if ($toolInfo.capabilities.checkLatest)
         {
-            $functionName = Get-GameWipProviderFunction -Tool $toolInfo -Operation Latest
-            $latest = & $functionName -Tool $toolInfo
+            if ($toolInfo.provider.kind -eq 'githubRelease')
+            {
+                try
+                {
+                    $releaseMetadata = Get-GameWipGitHubReleaseMetadata -Tool $toolInfo
+                    $latest = $releaseMetadata.Version
+                }
+                catch
+                {
+                    Write-Warning "Could not resolve latest GitHub release metadata for '$($toolInfo.id)': $($_.Exception.Message)"
+                }
+            }
+            else
+            {
+                $functionName = Get-GameWipProviderFunction -Tool $toolInfo -Operation Latest
+                $latest = & $functionName -Tool $toolInfo
+            }
         }
+
         $latestDependencies = @{}
         if ($toolInfo.provider.kind -eq 'npm' -and $toolInfo.provider.Contains('dependencies'))
         {
@@ -521,7 +639,13 @@ function Get-GameWipToolUpdatePlan
                 }
             }
         }
-        $plan += [pscustomobject]@{ Tool = $toolInfo; Installed = $detected.Version; Latest = $latest; LatestDependencies = $latestDependencies }
+        $plan += [pscustomobject]@{
+            Tool = $toolInfo
+            Installed = $detected.Version
+            Latest = $latest
+            LatestDependencies = $latestDependencies
+            ReleaseMetadata = $releaseMetadata
+        }
     }
     return $plan
 }
@@ -548,20 +672,57 @@ function Show-GameWipToolUpdatePlan
     }
 }
 
+function Format-GameWipProjectToolRegistry
+{
+    $prettierTool = Get-GameWipProjectTool -Id 'prettier'
+    $detected = Get-GameWipDetectedTool -Tool $prettierTool
+    if ((Get-GameWipToolCompatibility -Tool $prettierTool -Detected $detected) -ne 'compatible')
+    {
+        throw 'Prettier is unavailable after the tool update; cannot normalize project-tools.json.'
+    }
+    $config = Join-Path $RepositoryRoot 'config\quality\prettier.json'
+    Invoke-GameWipNative `
+        -Name 'prettier-project-tools' `
+        -FilePath $detected.Location `
+        -Arguments @('--config', $config, '--write', $ProjectToolsPath)
+}
+
 function Invoke-GameWipToolUpdate
 {
-    param([string]$ToolId, [switch]$PreviewOnly)
+    param(
+        [string]$ToolId,
+        [switch]$PreviewOnly,
+        [switch]$Confirm
+    )
 
     if ([string]::IsNullOrWhiteSpace($ToolId)) { throw "tools update requires -Tool <id|all>." }
-    if (-not $PreviewOnly) { Assert-GameWipCleanTrackedTree }
 
-    # Resolve the complete online plan before the first mutation.
+    # Resolve and retain the complete online plan before the first mutation.
     $plan = @(Get-GameWipToolUpdatePlan -ToolId $ToolId)
     Write-GameWipSection "Tool update plan$(if ($PreviewOnly) { ' (preview)' })"
     Show-GameWipToolUpdatePlan -Plan $plan
-    if ($PreviewOnly) { return }
 
+    $unresolved = @(
+        $plan | Where-Object {
+            $_.Tool.capabilities.update -and
+            $_.Tool.capabilities.checkLatest -and
+            [string]::IsNullOrWhiteSpace([string]$_.Latest)
+        }
+    )
+    if ($unresolved.Count -ne 0)
+    {
+        throw "Unable to resolve the complete update plan for: $($unresolved.Tool.id -join ', '). No tracked files were changed."
+    }
+    if ($PreviewOnly) { return }
+    if ($Confirm -and -not (Read-GameWipYesNo -Prompt 'Apply this project-tool update plan?' -Default $false))
+    {
+        Write-Host 'Project-tool update cancelled; no tracked files were changed.'
+        return
+    }
+
+    Assert-GameWipCleanTrackedTree
     Initialize-GameWipManagedToolRoot
+    $registryMayHaveChanged = $false
     foreach ($item in $plan)
     {
         if (-not $item.Tool.capabilities.update)
@@ -572,11 +733,16 @@ function Invoke-GameWipToolUpdate
 
         if ($item.Tool.versionPolicy -eq 'exact' -and $item.Latest -and $item.Latest -ne $item.Tool.requiredVersion)
         {
-            Sync-GameWipToolVersionReference -Tool $item.Tool -NewVersion $item.Latest
+            Sync-GameWipToolVersionReference `
+                -Tool $item.Tool `
+                -NewVersion $item.Latest `
+                -ReleaseMetadata $item.ReleaseMetadata
+            $registryMayHaveChanged = $true
         }
         if ($item.LatestDependencies.Count -ne 0)
         {
             Sync-GameWipToolDependencyVersions -Tool $item.Tool -LatestDependencies $item.LatestDependencies
+            $registryMayHaveChanged = $true
         }
 
         $version = if ($item.Tool.Contains('requiredVersion')) { [string]$item.Tool.requiredVersion } else { $null }
@@ -584,6 +750,10 @@ function Invoke-GameWipToolUpdate
         & $functionName -Tool $item.Tool -Version $version
     }
 
+    if ($registryMayHaveChanged)
+    {
+        Format-GameWipProjectToolRegistry
+    }
     Invoke-GameWipQuality -Mode check
     & git -C $RepositoryRoot status --short
 }
@@ -647,10 +817,25 @@ function Sync-GameWipToolDependencyVersions
 
 function Sync-GameWipToolVersionReference
 {
-    param([hashtable]$Tool, [Parameter(Mandatory = $true)][string]$NewVersion)
+    param(
+        [hashtable]$Tool,
+        [Parameter(Mandatory = $true)][string]$NewVersion,
+        [AllowNull()]$ReleaseMetadata
+    )
+
+    if ($Tool.provider.kind -eq 'githubRelease')
+    {
+        if ($null -eq $ReleaseMetadata -or
+            $ReleaseMetadata.Version -ne $NewVersion -or
+            $ReleaseMetadata.Assets.Count -lt 2)
+        {
+            throw "Incomplete planned release metadata for '$($Tool.id)' $NewVersion. No tracked files were changed."
+        }
+    }
 
     $oldVersion = [string]$Tool.requiredVersion
-    foreach ($reference in @($Tool.references))
+    $references = if ($Tool.Contains('references')) { @($Tool.references) } else { @() }
+    foreach ($reference in $references)
     {
         if ([string]$reference.path -like 'docs/releases/*') { continue }
         Set-GameWipPreciseTextVersionReference -Reference $reference -OldVersion $oldVersion -NewVersion $NewVersion
@@ -663,19 +848,19 @@ function Sync-GameWipToolVersionReference
 
     if ($Tool.provider.kind -eq 'githubRelease')
     {
-        $metadata = Get-GameWipGitHubReleaseMetadata -Tool $Tool
-        if ($metadata.Version -ne $NewVersion -or $metadata.Assets.Count -lt 2)
-        {
-            throw "Incomplete verified release metadata for '$($Tool.id)' $NewVersion."
-        }
-        $registryTool.provider.releaseTag = $metadata.Tag
-        $Tool.provider.releaseTag = $metadata.Tag
+        $registryTool.provider.releaseTag = $ReleaseMetadata.Tag
+        $Tool.provider.releaseTag = $ReleaseMetadata.Tag
         foreach ($key in @('linux-amd64', 'windows-amd64'))
         {
-            $registryTool.provider.assets.$key.archive = $metadata.Assets[$key].archive
-            $registryTool.provider.assets.$key.sha256 = $metadata.Assets[$key].sha256
-            $Tool.provider.assets[$key].archive = $metadata.Assets[$key].archive
-            $Tool.provider.assets[$key].sha256 = $metadata.Assets[$key].sha256
+            $plannedAsset = $ReleaseMetadata.Assets[$key]
+            if ($null -eq $plannedAsset)
+            {
+                throw "Planned release metadata for '$($Tool.id)' is missing '$key'."
+            }
+            $registryTool.provider.assets.$key.archive = $plannedAsset.archive
+            $registryTool.provider.assets.$key.sha256 = $plannedAsset.sha256
+            $Tool.provider.assets[$key].archive = $plannedAsset.archive
+            $Tool.provider.assets[$key].sha256 = $plannedAsset.sha256
         }
     }
 
@@ -770,15 +955,16 @@ function Resolve-GameWipPython
 {
     $candidate = $null
     $source = $null
-    if (-not [string]::IsNullOrWhiteSpace($PythonPath))
+    $pythonOverride = Get-Variable -Name PythonPath -ValueOnly -ErrorAction SilentlyContinue
+    if (-not [string]::IsNullOrWhiteSpace([string]$pythonOverride))
     {
-        $candidate = Resolve-GameWipRepositoryPath -Path $PythonPath
+        $candidate = Resolve-GameWipRepositoryPath -Path ([string]$pythonOverride)
         $source = '-PythonPath override'
         if (-not (Test-Path -LiteralPath $candidate)) { throw "Python override does not exist: $candidate" }
     }
     elseif (-not [string]::IsNullOrWhiteSpace($env:GAMEWIP_PYTHON))
     {
-        $candidate = Resolve-GameWipRepositoryPath -Path $env:GAMEWIP_PYTHON
+        $candidate = Resolve-GameWipRepositoryPath -Path ([string]$env:GAMEWIP_PYTHON)
         $source = 'GAMEWIP_PYTHON override'
         if (-not (Test-Path -LiteralPath $candidate)) { throw "GAMEWIP_PYTHON does not exist: $candidate" }
     }
@@ -803,19 +989,85 @@ function Resolve-GameWipPython
     return [pscustomobject]@{ Path = $candidate; Source = $source; Version = (($versionOutput | Out-String).Trim()) }
 }
 
+function Resolve-GameWipPythonProviderHost
+{
+    $candidate = $null
+    $source = $null
+    if (Test-GameWipWindowsHost)
+    {
+        $pythonOverride = Get-Variable -Name PythonProviderHostPath -ValueOnly -ErrorAction SilentlyContinue
+        if (-not [string]::IsNullOrWhiteSpace([string]$pythonOverride))
+        {
+            $candidate = Resolve-GameWipRepositoryPath -Path ([string]$pythonOverride)
+            $source = '-PythonProviderHostPath override'
+            if (-not (Test-Path -LiteralPath $candidate)) { throw "Python provider host override does not exist: $candidate" }
+        }
+        else
+        {
+            try
+            {
+                $pyLauncher = & where.exe py.exe 2>$null | Select-Object -First 1
+                if ($null -ne $pyLauncher)
+                {
+                    $versionOutput = @(& $pyLauncher -3.14 --version 2>&1)
+                    if ($LASTEXITCODE -eq 0)
+                    {
+                        $candidate = $pyLauncher
+                        $source = 'Windows Python launcher (py.exe) for 3.14'
+                    }
+                }
+            }
+            catch { }
+        }
+    }
+    else
+    {
+        $pythonOverride = Get-Variable -Name PythonProviderHostPath -ValueOnly -ErrorAction SilentlyContinue
+        if (-not [string]::IsNullOrWhiteSpace([string]$pythonOverride))
+        {
+            $candidate = Resolve-GameWipRepositoryPath -Path ([string]$pythonOverride)
+            $source = '-PythonProviderHostPath override'
+            if (-not (Test-Path -LiteralPath $candidate)) { throw "Python provider host override does not exist: $candidate" }
+        }
+        else
+        {
+            foreach ($name in @('python3', 'python', 'python.exe'))
+            {
+                $command = Get-Command $name -ErrorAction SilentlyContinue | Select-Object -First 1
+                if ($null -ne $command) { $candidate = $command.Source; $source = 'PATH fallback'; break }
+            }
+        }
+    }
+
+    if ($null -eq $candidate) { throw 'Python provider host is unavailable. Run setup.bat tools on Windows or provision Python on the CI runner.' }
+
+    $versionOutput = @(& $candidate -c "import sys; print(sys.executable)" 2>&1)
+    if ($LASTEXITCODE -ne 0) { throw "Python provider host failed to start from '$candidate' with exit code $LASTEXITCODE." }
+    $pythonExecutable = ($versionOutput | Out-String).Trim()
+    if ([Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([Runtime.InteropServices.OSPlatform]::Windows))
+    {
+        if ($pythonExecutable -ilike '*\msys*' -or $pythonExecutable -ilike '*\ucrt64\*')
+        {
+            throw "Python provider host must not be MSYS2/UCRT64 Python; found: $pythonExecutable"
+        }
+    }
+    return [pscustomobject]@{ Path = $pythonExecutable; Source = $source; Version = "Python 3.14 (provider host)" }
+}
+
 function Resolve-GameWipClangFormat
 {
     $candidate = $null
     $source = $null
-    if (-not [string]::IsNullOrWhiteSpace($ClangFormatPath))
+    $clangFormatOverride = Get-Variable -Name ClangFormatPath -ValueOnly -ErrorAction SilentlyContinue
+    if (-not [string]::IsNullOrWhiteSpace([string]$clangFormatOverride))
     {
-        $candidate = Resolve-GameWipRepositoryPath -Path $ClangFormatPath
+        $candidate = Resolve-GameWipRepositoryPath -Path ([string]$clangFormatOverride)
         $source = '-ClangFormatPath override'
         if (-not (Test-Path -LiteralPath $candidate)) { throw "clang-format override does not exist: $candidate" }
     }
     elseif (-not [string]::IsNullOrWhiteSpace($env:GAMEWIP_CLANG_FORMAT))
     {
-        $candidate = Resolve-GameWipRepositoryPath -Path $env:GAMEWIP_CLANG_FORMAT
+        $candidate = Resolve-GameWipRepositoryPath -Path ([string]$env:GAMEWIP_CLANG_FORMAT)
         $source = 'GAMEWIP_CLANG_FORMAT override'
         if (-not (Test-Path -LiteralPath $candidate)) { throw "GAMEWIP_CLANG_FORMAT does not exist: $candidate" }
     }

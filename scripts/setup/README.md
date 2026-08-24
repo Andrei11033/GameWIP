@@ -10,15 +10,17 @@ verifies the machine.
 ## Layout
 
 - `windows.bat` forwards batch arguments without owning setup behavior.
-- `windows.ps1` owns actions, consent, the persistent menu, execution plans,
+- `Windows.ps1` owns actions, consent, the persistent menu, execution plans,
   and final verification.
 - `../lib/ToolRuns.ps1` owns the run-directory, step, output, summary, and
   manifest format shared with the project helper.
-- `config/setup.json` owns action metadata and machine-package requirements.
+- `config/setup.json` owns setup action metadata and provider-host bootstrap IDs
+  only; it does not duplicate machine packages or tool versions.
 - `config/editors.json` declares selectable editors and their handlers. VS Code
   is the default; Visual Studio is optional.
-- `../config/project-tools.json` is the single project-tool and version-policy
-  authority consumed by setup and the project helper.
+- `../config/project-tools.json` is the single project-tool, provider-package,
+  dependency, detection, capability, and version-policy authority consumed by
+  setup and the project helper.
 - `lib/` contains focused reusable operations.
 - `editor/gamewip-workflows/` is the declarative VS Code workflow extension.
 
@@ -43,14 +45,19 @@ Pacman update and install commands make up to three visibly logged attempts,
 waiting two seconds between failures, and propagate the final command error if
 all attempts fail.
 
-Full setup installs missing state and refreshes MSYS2 before installing its declared packages.
-Repair reapplies missing state without requesting ordinary upgrades. Update fetches and fast-forwards
-the current branch from its configured upstream and applies newest compatible
-WinGet/pacman releases while retaining CMake `4.4.2` or newer on the 4.4 release line and the submodule revisions
-recorded by the updated checkout. It refuses dirty trees, missing upstreams, and
-non-fast-forward merges. Existing `C:\MSYS2` installations update through
-complete `pacman -Syu` passes; WinGet is used only for the first installation at
-that explicit root.
+Full setup installs missing state and refreshes MSYS2 before installing its
+declared packages. Repair reapplies missing state without requesting ordinary
+upgrades. Update fetches and fast-forwards the current branch from its configured
+upstream, performs complete `pacman -Syu` passes, and applies the newest
+compatible environment/provider releases while keeping CMake at the declared
+minimum `4.4.2` or newer and retaining submodule revisions recorded by the
+updated checkout. It refuses dirty trees, missing upstreams, and
+non-fast-forward merges. WinGet is used for MSYS2 only for the first installation
+at the explicit `C:\MSYS2` root.
+
+`setup.bat update` owns environment and package-manager updates. The separate
+`gamewip tools -ToolsAction update` workflow advances reviewed project
+tool/version policy and exact pins; setup does not silently advance those pins.
 
 The editor stage installs only selected editors. VS Code integration installs
 Microsoft C++/CMake extensions and packages the local workflow extension as a
@@ -64,11 +71,13 @@ extension defaults.
 Tracy checks the complete installed executable set and its recorded pinned
 source version before doing build work. When they match, setup reuses the
 installed tools; otherwise it rebuilds five upstream CMake projects from the
-pinned submodule using UCRT64 GCC/Ninja. Generated compatibility adjustments
-provide the POSIX `memmem` operation missing from UCRT64 and remove incompatible
-COFF LTO flags without modifying the submodule. The required Windows security
-library is linked explicitly. All six EXEs and recursively discovered UCRT DLLs stage under
-`build/gamewip/cache/tracy`; `C:\MSYS2\GameWIPTools\tools\tracy` changes only after complete verification.
+pinned submodule using UCRT64 GCC/Ninja. Reproducible CMake/CPM build state lives
+under `build/gamewip/cache/tracy`, while the candidate executable/DLL set stages
+only under the current `build/gamewip/temp/<operation-id>/tracy-stage`. Generated
+compatibility adjustments provide the POSIX `memmem` operation missing from
+UCRT64 and remove incompatible COFF LTO flags without modifying the submodule.
+The required Windows security library is linked explicitly.
+`C:\MSYS2\GameWIPTools\tools\tracy` changes only after complete verification.
 
 Focused `docs` builds, verifies, and opens the generated manual. Complete
 setup/update/repair builds the same manual without launching a browser.
@@ -80,22 +89,32 @@ interactive checkouts also offer a branch choice; `-Branch` supplies it for
 automation. Branch switches refuse tracked local changes. Extracted files remain
 untouched while pinned submodules become available.
 
-Uninstall removes repository-owned integrations and artifacts plus only the
-WinGet applications recorded as newly installed by setup. It preserves software
-that existed beforehand, the checkout, user files, and an MSYS2 tree that may
+Persistent directly managed tools live under
+`C:\MSYS2\GameWIPTools`. A non-empty root without valid ownership proof is never
+silently adopted. Interactive machine-changing setup may show its top-level
+contents and ask, defaulting to No, whether the user explicitly adopts that
+root. Noninteractive setup remains fail-closed. The read-only check reports the
+condition without writing ownership state.
+
+Uninstall removes the repository-owned VS Code workflow extension/keybinding
+block, proven GameWIPTools state, recorded setup-owned applications/extensions,
+the Tracy cache, and setup-generated `build/dev` and `build/docs` trees. It
+preserves software that existed beforehand, the checkout, other build trees,
+user files, ownership-unknown GameWIPTools content, and an MSYS2 tree that may
 contain later user data.
 
 ## Adding or changing setup behavior
 
 Prefer data over orchestration branches:
 
-- Add an ordinary project tool to `../config/project-tools.json` using an
-  existing provider.
-- Add a justified package to the owning MSYS2 group in `config/setup.json`.
+- Add an ordinary project tool or justified MSYS2 package/dependency to
+  `../config/project-tools.json` using the owning provider metadata.
+- Add only action/bootstrap metadata to `config/setup.json`; do not recreate a
+  second package or version catalog there.
 - Add an editor entry with a unique key and handler name; implement a handler
   only when existing behavior cannot support it.
 - Add new stages as one library operation, one `config/setup.json` entry, and an
-  explicit registration in `windows.ps1`.
+  explicit registration in `Windows.ps1`.
 
 Every stage must be rerunnable, scoped to the checkout or selected machine
 requirements, explicit about changes, and followed by verification.

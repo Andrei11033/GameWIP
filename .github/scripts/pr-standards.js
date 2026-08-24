@@ -1,3 +1,5 @@
+// Repository-owned pull-request metadata policy executed from trusted base-branch content.
+
 'use strict';
 
 const TITLE_PATTERN = /^[a-z][a-z0-9_-]*: [a-z0-9][^\r\n]*$/;

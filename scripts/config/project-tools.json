@@ -202,6 +202,30 @@
       "references": []
     },
     {
+      "id": "python-native",
+      "name": "Python (Native Windows)",
+      "category": "runtime",
+      "provider": {
+        "kind": "winget",
+        "package": "Python.Python.3.14"
+      },
+      "versionPolicy": "managed",
+      "detection": {
+        "command": "py",
+        "versionArguments": [
+          "-3.14",
+          "--version"
+        ],
+        "versionPattern": "Python ([0-9.]+)"
+      },
+      "capabilities": {
+        "detectInstalled": true,
+        "checkLatest": true,
+        "update": true
+      },
+      "references": []
+    },
+    {
       "id": "node",
       "name": "Node.js",
       "category": "runtime",
@@ -415,8 +439,21 @@
       "name": "Gersemi",
       "category": "quality",
       "provider": {
-        "kind": "python",
-        "package": "gersemi"
+        "kind": "githubRelease",
+        "repository": "BlankSpruce/gersemi",
+        "releaseTag": "0.28.0",
+        "assets": {
+          "linux-amd64": {
+            "archive": "gersemi-linux",
+            "sha256": "d7c72d367884ef2d496fa949a3c38f7512f2b53781174e2d415cb3d2589c6a83",
+            "format": "executable"
+          },
+          "windows-amd64": {
+            "archive": "gersemi-windows.exe",
+            "sha256": "29890c5000937d000e81b20b5a3f157e02686de3b6ec2e2f1324f71afbc8c4f0",
+            "format": "executable"
+          }
+        }
       },
       "versionPolicy": "exact",
       "requiredVersion": "0.28.0",
@@ -436,7 +473,7 @@
         {
           "path": "docs/doxygen/project_contracts.md",
           "kind": "text",
-          "pattern": "| Gersemi | {version} | Python |",
+          "pattern": "| Gersemi | {version} | verified GitHub release |",
           "expectedCount": 1
         },
         {

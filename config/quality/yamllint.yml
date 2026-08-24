@@ -14,7 +14,7 @@ rules:
     min-spaces-from-content: 1
   document-start: disable
   line-length:
-    level: warning
+    level: error
     max: 150
   truthy:
     allowed-values: ['true', 'false']

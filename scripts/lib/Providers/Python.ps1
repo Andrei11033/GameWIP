@@ -9,8 +9,42 @@ function Get-GameWipPythonToolLatestVersion
 function Get-GameWipPythonEnvironmentInterpreterPath
 {
     param([Parameter(Mandatory = $true)][string]$Root)
-    if ([Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([Runtime.InteropServices.OSPlatform]::Windows)) { return Join-Path $Root 'Scripts\python.exe' }
-    return Join-Path $Root 'bin/python'
+    $windowsPath = if ($Root.EndsWith('\')) { "$($Root)Scripts\python.exe" } else { "$Root\Scripts\python.exe" }
+    if (Test-Path -LiteralPath $windowsPath) { return $windowsPath }
+    $msysPath = if ($Root.EndsWith('\')) { "$($Root)bin\python.exe" } else { "$Root\bin\python.exe" }
+    if (Test-Path -LiteralPath $msysPath) { return $msysPath }
+    if ([Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([Runtime.InteropServices.OSPlatform]::Windows)) { return $windowsPath }
+    return if ($Root.EndsWith('/')) { "$($Root)bin/python" } else { "$Root/bin/python" }
+}
+
+function Test-GameWipPythonEnvironmentIsMsys
+{
+    param([Parameter(Mandatory = $true)][string]$PythonPath)
+    if (-not (Test-Path -LiteralPath $PythonPath)) { return $false }
+    $output = @(& $PythonPath -c "import sys; print(sys.prefix)" 2>&1)
+    if ($LASTEXITCODE -ne 0) { return $false }
+    $prefix = ($output | Out-String).Trim()
+    return $prefix -ilike '*\msys*' -or $prefix -ilike '*\ucrt64*'
+}
+
+function New-GameWipPythonToolEnvironment
+{
+    param(
+        [Parameter(Mandatory = $true)][string]$SystemPython,
+        [Parameter(Mandatory = $true)][string]$Root
+    )
+    & $SystemPython -m venv $Root
+    if ($LASTEXITCODE -ne 0) { throw 'Could not create the persistent GameWIP Python environment.' }
+}
+
+function Install-GameWipPythonPackageSpecification
+{
+    param(
+        [Parameter(Mandatory = $true)][string]$Python,
+        [Parameter(Mandatory = $true)][string]$Specification
+    )
+    & $Python -m pip install --upgrade $Specification
+    if ($LASTEXITCODE -ne 0) { throw "pip failed to install '$Specification'." }
 }
 
 function Install-GameWipPythonTool
@@ -22,14 +56,27 @@ function Install-GameWipPythonTool
     }
     Initialize-GameWipManagedToolRoot
     $root = Join-Path ([string]$ProjectConfig.managedEnvironment.gameWipToolsRoot) 'python'
-    $pythonPath = Get-GameWipPythonEnvironmentInterpreterPath -Root $root
-    if (-not (Test-Path -LiteralPath $pythonPath))
+    $environmentPythonPath = Get-GameWipPythonEnvironmentInterpreterPath -Root $root
+
+    if (Test-Path -LiteralPath $root)
     {
-        $systemPython = Resolve-GameWipPython
-        & $systemPython.Path -m venv $root
-        if ($LASTEXITCODE -ne 0) { throw 'Could not create the persistent GameWIP Python environment.' }
+        if (Test-Path -LiteralPath $environmentPythonPath)
+        {
+            if (Test-GameWipPythonEnvironmentIsMsys -PythonPath $environmentPythonPath)
+            {
+                Write-Host "Migrating legacy MSYS2 Python provider environment to native Windows CPython..."
+                Remove-Item -LiteralPath $root -Recurse -Force
+            }
+        }
+    }
+
+    $environmentPythonPath = Get-GameWipPythonEnvironmentInterpreterPath -Root $root
+    if (-not (Test-Path -LiteralPath $environmentPythonPath))
+    {
+        $systemPython = Resolve-GameWipPythonProviderHost
+        New-GameWipPythonToolEnvironment -SystemPython $systemPython.Path -Root $root
+        $environmentPythonPath = Get-GameWipPythonEnvironmentInterpreterPath -Root $root
     }
     $specification = if ($Version) { "$($Tool.provider.package)==$Version" } else { [string]$Tool.provider.package }
-    & $pythonPath -m pip install --upgrade $specification
-    if ($LASTEXITCODE -ne 0) { throw "pip failed to install '$($Tool.id)'." }
+    Install-GameWipPythonPackageSpecification -Python $environmentPythonPath -Specification $specification
 }

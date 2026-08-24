@@ -341,10 +341,35 @@ Doxygen `@file` and `@brief` that describe the file purpose. Provisional or
 preserved source outside the supported documented surface must gain the same
 ownership block before that surface is promoted.
 
-Public headers must document public API and ABI contracts in enough detail for generated reference pages, IntelliSense, maintainers, and readers.
-Internal headers and implementation files must document internal helpers, ownership, locking, state transitions, platform behavior, fallback behavior,
-units, and performance constraints. Internal helper comments may be shorter than public API comments, but they must still explain what the helper does
-and why it exists when that is not obvious from the surrounding code.
+Public headers must document public API and ABI contracts in enough detail for
+generated reference pages, IntelliSense, maintainers, and readers. Internal
+headers and implementation files must document internal helpers, ownership,
+locking, state transitions, platform behavior, fallback behavior, units, and
+performance constraints. Internal helper comments may be shorter than public API
+comments, but they must still explain what the helper does and why it exists
+when that is not obvious from the surrounding code.
+
+Other maintained first-party languages use their own native documentation
+conventions rather than mechanically copying C++ comments:
+
+- Python files start with a concise module docstring that identifies purpose and
+  ownership.
+- JavaScript files start with a concise file-purpose/ownership comment when the
+  role is not already represented by generated/vendor ownership.
+- PowerShell entry points and libraries identify the file purpose and document
+  non-obvious command contracts, side effects, or failure behavior near the
+  owning function.
+- Shared CMake modules identify purpose and document helper inputs, side effects,
+  and failure conditions when those are not obvious from the function name.
+- YAML comments explain only non-obvious policy or security constraints.
+- JSON uses its schema and owning documentation; do not invent comment-like
+  fields merely to carry prose.
+- Generated and vendored sources follow the generator/upstream contract rather
+  than first-party hand-formatting or comment rules.
+
+These expectations are review/documentation standards. Do not add a generic CI
+rule merely to require boilerplate header comments; automate drift when it
+protects a meaningful contract.
 
 Do not comment obvious assignments, getters, or local variables.
 

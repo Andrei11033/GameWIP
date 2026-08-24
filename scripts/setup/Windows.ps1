@@ -1,3 +1,5 @@
+# GameWIP Windows setup orchestration: action ownership, consent, lifecycle, and verification.
+
 [CmdletBinding()]
 param(
     [string]$Action = 'menu',
@@ -49,13 +51,44 @@ function Complete-GameWipSetupRun
 {
     param([Parameter(Mandatory = $true)][ValidateSet('passed', 'failed', 'cancelled')][string]$Status)
 
+    $finalStatus = $Status
+    $cleanupError = $null
+    try
+    {
+        Complete-GameWipOperationTemp
+    }
+    catch
+    {
+        $finalStatus = 'failed'
+        $cleanupError = $_
+    }
+
+    $summaryError = $null
     if ($null -ne $script:SetupRun)
     {
-        $summary = Save-GameWipToolRun -Run $script:SetupRun -Status $Status
-        Write-Host "Summary: $summary"
-        $script:SetupRun = $null
+        try
+        {
+            $summary = Save-GameWipToolRun -Run $script:SetupRun -Status $finalStatus
+            Write-Host "Summary: $summary"
+        }
+        catch
+        {
+            $summaryError = $_
+        }
+        finally
+        {
+            $script:SetupRun = $null
+        }
     }
-    Complete-GameWipOperationTemp
+
+    if ($null -ne $cleanupError)
+    {
+        throw $cleanupError
+    }
+    if ($null -ne $summaryError)
+    {
+        throw $summaryError
+    }
 }
 
 function Show-GameWipSetupMenu
@@ -314,16 +347,73 @@ function Assert-GameWipSetupActionCatalog
     }
 }
 
+function Initialize-GameWipSetupManagedToolRoot
+{
+    if (-not (Test-GameWipWindowsHost))
+    {
+        return
+    }
+
+    $msysRoot = [string]$ProjectConfig.managedEnvironment.msys2Root
+    $root = [string]$ProjectConfig.managedEnvironment.gameWipToolsRoot
+    if (-not (Test-Path -LiteralPath $root) -and -not (Test-Path -LiteralPath $msysRoot))
+    {
+        throw "MSYS2 must be configured before persistent GameWIPTools can be created. Run setup.bat msys2 or setup.bat full first."
+    }
+
+    if (Test-Path -LiteralPath $root)
+    {
+        $entries = @(Get-ChildItem -LiteralPath $root -Force -ErrorAction SilentlyContinue)
+        if (-not (Test-GameWipManagedToolRootOwnership -Root $root) -and $entries.Count -ne 0)
+        {
+            if ($NonInteractive)
+            {
+                throw "GameWIPTools exists without valid ownership proof and cannot be adopted noninteractively: '$root'."
+            }
+
+            Write-GameWipSetupSection 'Existing GameWIPTools directory'
+            Write-Host "GameWIP found a non-empty managed-tool root without valid persistent ownership proof:"
+            Write-Host "  $root"
+            Write-Host ''
+            Write-Host 'GameWIP cannot determine whether these files came from an older GameWIP setup or another source.'
+            Write-Host 'If adopted, this root becomes GameWIP-managed and a later GameWIP uninstall may remove it.'
+            Write-Host ''
+            Write-Host 'Top-level contents:'
+            foreach ($entry in @($entries | Select-Object -First 12))
+            {
+                Write-Host "  - $($entry.Name)"
+            }
+            if ($entries.Count -gt 12)
+            {
+                Write-Host "  - ... and $($entries.Count - 12) more"
+            }
+
+            $answer = Read-Host 'Adopt this existing GameWIPTools directory? [y/N]'
+            if ($answer -notmatch '^(?i:y|yes)$')
+            {
+                throw "GameWIPTools was left unchanged. Resolve ownership, then rerun setup: '$root'."
+            }
+            Initialize-GameWipManagedToolRoot -AdoptExisting
+            Write-Host '  Recorded explicit user-confirmed GameWIPTools adoption.'
+            return
+        }
+    }
+
+    Initialize-GameWipManagedToolRoot
+}
+
 function Invoke-GameWipToolStep
 {
     param([switch]$Update)
     Write-GameWipSetupSection 'Project tools'
-    Initialize-GameWipManagedToolRoot
+    Initialize-GameWipSetupManagedToolRoot
     foreach ($toolInfo in @($ProjectTools.tools | Where-Object { $_.capabilities.update -and $_.provider.kind -notin @('msys2', 'gitSubmodule', 'external') }))
     {
         $detected = Get-GameWipDetectedTool -Tool $toolInfo
         $compatibility = Get-GameWipToolCompatibility -Tool $toolInfo -Detected $detected
-        if (-not $Update -and $compatibility -eq 'compatible') { Write-Host "  Ready: $($toolInfo.name)"; continue }
+        $fromDeclaredProvider = Test-GameWipDetectedToolFromDeclaredProvider -Tool $toolInfo -Detected $detected
+        if (-not $Update -and $compatibility -eq 'compatible' -and $fromDeclaredProvider) { Write-Host "  Ready: $($toolInfo.name)"; continue }
+        if ($compatibility -eq 'compatible') { Write-Host "  Replacing non-canonical copy: $($toolInfo.name) ($($detected.Location))" }
         $wasInstalled = [bool]$detected.Installed
         $version = if ($toolInfo.Contains('requiredVersion')) { [string]$toolInfo.requiredVersion } else { $null }
         $functionName = Get-GameWipProviderFunction -Tool $toolInfo -Operation Install
@@ -332,6 +422,18 @@ function Invoke-GameWipToolStep
         {
             Add-GameWipOwnedWingetPackage -Id ([string]$toolInfo.provider.package)
         }
+
+        $verified = Get-GameWipDetectedTool -Tool $toolInfo
+        $verifiedCompatibility = Get-GameWipToolCompatibility -Tool $toolInfo -Detected $verified
+        $verifiedProvider = Test-GameWipDetectedToolFromDeclaredProvider -Tool $toolInfo -Detected $verified
+        if ($verifiedCompatibility -ne 'compatible' -or -not $verifiedProvider)
+        {
+            $detectedVersion = if ([string]::IsNullOrWhiteSpace([string]$verified.Version)) { '<unknown>' } else { [string]$verified.Version }
+            $detectedLocation = if ([string]::IsNullOrWhiteSpace([string]$verified.Location)) { '<none>' } else { [string]$verified.Location }
+            throw "Project tool '$($toolInfo.id)' is not compatible after installation " +
+                  "(state: $verifiedCompatibility, detected: $detectedVersion, location: $detectedLocation)."
+        }
+        Write-Host "  Ready: $($toolInfo.name)"
     }
 }
 
@@ -429,6 +531,7 @@ function Invoke-GameWipEditorStep
 function Invoke-GameWipTracyStep
 {
     Write-GameWipSetupSection 'Tracy profiler tools'
+    Initialize-GameWipSetupManagedToolRoot
     Invoke-GameWipTracyToolBuild -RepositoryRoot $RepositoryRoot -MsysRoot $ToolConfig.MsysRoot
 }
 
@@ -448,6 +551,19 @@ function Invoke-GameWipEnvironmentCheck
     foreach ($missingPackage in @(Get-GameWipMissingMsys2Package -MsysRoot $ToolConfig.MsysRoot -Packages $allMsysPackages))
     {
         $failures.Add("Missing required MSYS2 package: $missingPackage")
+    }
+
+    $managedToolsRoot = [string]$ProjectConfig.managedEnvironment.gameWipToolsRoot
+    if (Test-Path -LiteralPath $managedToolsRoot)
+    {
+        $managedEntries = @(Get-ChildItem -LiteralPath $managedToolsRoot -Force -ErrorAction SilentlyContinue)
+        if ($managedEntries.Count -ne 0 -and -not (Test-GameWipManagedToolRootOwnership -Root $managedToolsRoot))
+        {
+            $failures.Add(
+                "GameWIPTools is non-empty but has no valid persistent ownership proof: $managedToolsRoot. " +
+                'Run setup.bat repair or setup.bat tools interactively to review/adopt it.'
+            )
+        }
     }
 
     foreach ($toolInfo in @($ProjectTools.tools | Where-Object { $_.capabilities.detectInstalled -and $_.versionPolicy -ne 'informational' }))
@@ -526,7 +642,14 @@ function Invoke-GameWipCompleteSetup
     Write-GameWipSetupSection 'Execution plan'
     Write-Host "  Mode: $(if ($Update) { 'update' } else { 'install/repair' })"
     Write-Host "  Editors/IDEs: $($selectedNames -join ', ')"
-    Write-Host '  1. Install or verify MSYS2 packages and toolchains'
+    if ($RefreshMsys2)
+    {
+        Write-Host '  1. Update the complete MSYS2 system with pacman -Syu, then verify declared packages/toolchains'
+    }
+    else
+    {
+        Write-Host '  1. Install or verify declared MSYS2 packages and toolchains'
+    }
     Write-Host '  2. Install or verify non-MSYS2 project tools'
     Write-Host '  3. Connect an extracted ZIP to Git if needed, initialize pinned submodules, and configure dev'
     Write-Host '  4. Install or update the selected editor integrations'
@@ -536,6 +659,15 @@ function Invoke-GameWipCompleteSetup
         Write-Host '  6. Build and verify the generated manual'
     }
     Write-Host '  Final. Verify the complete selected environment'
+
+    # Resolve an existing tool root before environment mutation so an
+    # interactive refusal cannot leave a partially updated setup run. On a
+    # fresh machine, defer creation until after MSYS2 owns C:\MSYS2.
+    $managedToolsRoot = [string]$ProjectConfig.managedEnvironment.gameWipToolsRoot
+    if (Test-Path -LiteralPath $managedToolsRoot)
+    {
+        Initialize-GameWipSetupManagedToolRoot
+    }
 
     Invoke-GameWipMsys2Step -Update:$RefreshMsys2
     Invoke-GameWipToolStep -Update:$Update
@@ -583,16 +715,24 @@ if ($Action -eq 'menu')
         {
             Initialize-GameWipSetupRun -SelectedAction $selectedAction
             Invoke-GameWipSetupAction -SelectedAction $selectedAction
+            Complete-GameWipSetupRun -Status 'passed'
             Write-Host ''
             Write-Host "GameWIP '$selectedAction' completed successfully." -ForegroundColor Green
-            Complete-GameWipSetupRun -Status 'passed'
         }
         catch
         {
+            $actionError = $_
+            try
+            {
+                Complete-GameWipSetupRun -Status 'failed'
+            }
+            catch
+            {
+                Write-Warning "Setup finalization also failed: $($_.Exception.Message)"
+            }
             Write-Host ''
-            Write-Host "GameWIP '$selectedAction' failed: $($_.Exception.Message)" -ForegroundColor Red
+            Write-Host "GameWIP '$selectedAction' failed: $($actionError.Exception.Message)" -ForegroundColor Red
             Write-Host 'Returning to the main menu.' -ForegroundColor Yellow
-            Complete-GameWipSetupRun -Status 'failed'
         }
     }
 }
@@ -613,15 +753,23 @@ try
         Initialize-GameWipSetupRun -SelectedAction $Action
     }
     Invoke-GameWipSetupAction -SelectedAction $Action
+    Complete-GameWipSetupRun -Status 'passed'
 
     Write-Host ''
     Write-Host "GameWIP '$Action' completed successfully." -ForegroundColor Green
-    Complete-GameWipSetupRun -Status 'passed'
 }
 catch
 {
+    $actionError = $_
+    try
+    {
+        Complete-GameWipSetupRun -Status 'failed'
+    }
+    catch
+    {
+        Write-Warning "Setup finalization also failed: $($_.Exception.Message)"
+    }
     Write-Host ''
-    Write-Error "GameWIP '$Action' failed: $($_.Exception.Message)"
-    Complete-GameWipSetupRun -Status 'failed'
+    Write-Error "GameWIP '$Action' failed: $($actionError.Exception.Message)"
     exit 1
 }

@@ -39,7 +39,7 @@ Menu and consent choices take effect on one keypress; Enter is not required.
 | --- | --- |
 | `1` | Install missing requirements and prepare the complete checkout. |
 | `2` | Check the selected environment without changing it. |
-| `3` | Update applicable tools, rebuild project-owned integrations, and verify. |
+| `3` | Update the complete MSYS2 environment plus compatible tools/integrations and verify. |
 | `4` | Reapply required state and install anything reported missing. |
 | `5` | Change and configure the editor/IDE selection. |
 | `6` | Install or repair the declared MSYS2 packages. |
@@ -67,7 +67,7 @@ is useful for repeat runs and automation:
 | `setup.bat` or `setup.bat menu` | Open the persistent interactive menu. |
 | `setup.bat full` | Install or repair every required component, refresh MSYS2, and verify the checkout. |
 | `setup.bat check` | Verify required tools and project state without changing the machine. |
-| `setup.bat update` | Update compatible tools and rebuild repository-owned integrations. |
+| `setup.bat update` | Fully update MSYS2, compatible environment tools/integrations, the checkout, then verify. |
 | `setup.bat repair` | Reapply the complete required state without requesting ordinary upgrades. |
 | `setup.bat uninstall` | Remove setup-owned software, integrations, Tracy, and setup-generated `dev`/documentation build trees while preserving pre-existing software and the checkout. |
 | `setup.bat editor` | Choose editors interactively and install their GameWIP integration. |
@@ -128,6 +128,11 @@ for ordinary build, validation, benchmark, documentation, and stress workflows:
 .\gamewip.bat wizard
 .\gamewip.bat stress -Module logger -Count 100 -Parallel 16 -BuildIfMissing
 .\gamewip.bat benchmark -BenchmarkProfile standard
+.\gamewip.bat quality -QualityAction check
+.\gamewip.bat quality -QualityAction fix
+.\gamewip.bat tools -ToolsAction status
+.\gamewip.bat tools -ToolsAction check-updates
+.\gamewip.bat tools -ToolsAction update -Tool all -Preview
 .\gamewip.bat workflow -WorkflowAction list
 .\gamewip.bat workflow -WorkflowAction run -Workflow release-check -Preview
 ```
@@ -135,8 +140,11 @@ for ordinary build, validation, benchmark, documentation, and stress workflows:
 The complete action, option, default, catalog, output, and failure reference is
 owned by @ref project_command_line_tools.
 
-`setup.bat` owns environment installation and repair. `gamewip.bat` owns
-repository-local project commands, streams native output live, helps assemble
+`setup.bat` owns environment installation, repair, and package-manager updates,
+including complete MSYS2 system updates. `gamewip.bat tools` owns project
+tool/version status and reviewed pin advancement; it does not silently perform a
+whole-system MSYS2 update. `gamewip.bat` also owns repository-local project
+commands, streams native output live, helps assemble
 validation executable arguments, reports stress-run progress, offers follow-up
 actions after configure and build steps, and stores run logs under
 `build/gamewip/runs/<timestamp>_<action>/`. Setup actions use the same run layout.
@@ -202,6 +210,13 @@ Complete setup prepares these project requirements:
 - The configured `dev` tree and warning-free generated manual.
 - The six Tracy tools and required UCRT runtime DLLs under `C:\MSYS2\GameWIPTools\tools\tracy`.
 
+Persistent directly managed tools use `C:\MSYS2\GameWIPTools`. Setup writes a
+separate ownership marker there. If that root is already non-empty without
+valid proof, interactive setup shows a concise contents summary and asks with a
+default-No prompt whether to adopt it; noninteractive setup refuses, and
+read-only check only reports the condition. Explicit adoption is recorded
+separately from setup-created ownership so uninstall can report the provenance.
+
 Every external command is printed before execution, its native output remains
 visible, and successful exit codes are reported. Complete actions print their
 ordered execution plan, selected editors, source/build/staging destinations,
@@ -216,11 +231,13 @@ selected branch; advancing a submodule pin remains a reviewed source change.
 
 ## Update and repair rules
 
-`update` applies the newest compatible WinGet and pacman releases, refreshes
-selected editor integration, reuses Tracy executables when their complete set
-and recorded pinned source version match, rebuilds them otherwise, rebuilds
-documentation, and verifies the environment. CMake remains on
-`4.4.2` or newer, and submodules return to their committed revisions.
+`update` performs complete MSYS2 `pacman -Syu` passes, applies the newest
+compatible WinGet/provider releases, refreshes selected editor integration,
+reuses Tracy executables when their complete set and recorded pinned source
+version match, rebuilds them otherwise, rebuilds documentation, and verifies the
+environment. CMake remains at the declared minimum `4.4.2` or newer, and
+submodules return to their committed revisions. Advancing exact project pins is
+a separate `gamewip tools -ToolsAction update` workflow.
 
 An existing `C:\MSYS2` root is updated in place with complete `pacman -Syu`
 passes. WinGet is used for MSYS2 only when that root is absent, preventing a
@@ -306,7 +323,7 @@ Declarative requirements live under `scripts/setup/config/`:
 
 Add reusable operations under `scripts/setup/lib/`, declare their user-facing
 action metadata in `setup.json`, and register a focused stage in
-`scripts/setup/windows.ps1`. A new editor normally requires one config
+`scripts/setup/Windows.ps1`. A new editor normally requires one config
 entry and one handler. Keep stages rerunnable, explicit about external changes,
 and verification-driven.
 

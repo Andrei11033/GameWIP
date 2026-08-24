@@ -1,3 +1,5 @@
+// Repository-owned issue-area label policy executed by the trusted GitHub workflow.
+
 'use strict';
 
 const AREA_LABELS_BY_VALUE = new Map([

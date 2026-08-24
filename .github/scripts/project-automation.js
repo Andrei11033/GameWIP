@@ -1,3 +1,5 @@
+// Repository-owned GitHub project state/reconciliation policy and dependency handling.
+
 'use strict';
 
 const STATUS = Object.freeze({

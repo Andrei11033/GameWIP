@@ -198,9 +198,23 @@ jobs:
           "$RUNNER_TEMP/gamewip-quality-python/bin/python" -m pip install --upgrade pip
           "$RUNNER_TEMP/gamewip-quality-python/bin/pip" install \
             "ruff==$(version ruff)" \
-            "gersemi==$(version gersemi)" \
             "yamllint==$(version yamllint)"
           echo "$RUNNER_TEMP/gamewip-quality-python/bin" >> "$GITHUB_PATH"
+
+          gersemi_repository="$(jq -r '.tools[] | select(.id == "gersemi") | .provider.repository' "$registry")"
+          gersemi_tag="$(jq -r '.tools[] | select(.id == "gersemi") | .provider.releaseTag' "$registry")"
+          gersemi_asset="$(jq -r '.tools[] | select(.id == "gersemi") | .provider.assets["linux-amd64"].archive' "$registry")"
+          gersemi_sha256="$(jq -r '.tools[] | select(.id == "gersemi") | .provider.assets["linux-amd64"].sha256' "$registry")"
+          gersemi_download="$RUNNER_TEMP/$gersemi_asset"
+          gersemi_bin="$RUNNER_TEMP/gamewip-quality-bin"
+          mkdir -p "$gersemi_bin"
+          curl --fail --location --silent --show-error \
+            --output "$gersemi_download" \
+            "https://github.com/$gersemi_repository/releases/download/$gersemi_tag/$gersemi_asset"
+          printf '%s  %s\n' "$gersemi_sha256" "$gersemi_download" | sha256sum --check -
+          install -m 0755 "$gersemi_download" "$gersemi_bin/gersemi"
+          "$gersemi_bin/gersemi" --version
+          echo "$gersemi_bin" >> "$GITHUB_PATH"
 
           eslint_js_version="$(jq -r \
             '.tools[] | select(.id == "eslint") | .provider.dependencies[] | select(.package == "@eslint/js") | .version' \

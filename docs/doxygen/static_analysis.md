@@ -16,9 +16,14 @@ The GameWIP helper is the preferred Windows entry point because it selects proje
 consistently:
 
 ```powershell
-.\gamewip.bat format -FormatAction check
+.\gamewip.bat quality -QualityAction check
+.\gamewip.bat quality -QualityAction fix
 .\gamewip.bat analyze
 ```
+
+`quality check` is the complete non-mutating repository quality gate.
+`quality fix` applies only deterministic formatters and then runs the same
+complete check. The interactive GameWIP `Q` menu exposes both workflows directly.
 
 The `analyze` preset selects `clang++` and requires the UCRT64 packages for CMake, Ninja, Clang, clang-tools-extra, GCC runtime support, Git, and
 Python. AddressSanitizer is the exception: it uses the MSYS2 CLANG64 environment and is documented in @ref project_build.
@@ -101,28 +106,43 @@ comparison.
 
 ## Repository checks
 
-The `Validation / Repository Checks` GitHub job runs checks that do not belong to clang:
+The `Validation / Repository Checks` GitHub job runs the complete maintained
+repository quality policy rather than only language-agnostic spot checks:
 
-- Node.js syntax checks and unit tests for repository automation JavaScript.
-- Python syntax validation for repository maintenance scripts.
-- JSON parsing for maintained JSON files.
+- clang-format for maintained C/C++ formatting.
+- Ruff lint/format checks for maintained Python.
+- PSScriptAnalyzer formatting and warning/error analysis for maintained PowerShell.
+- ESLint plus Prettier for maintained JavaScript and structured text.
+- Gersemi for maintained CMake files.
+- yamllint with the shared 150-column rule enforced as an error.
+- markdownlint-cli2 and local relative Markdown link validation.
 - actionlint validation for GitHub Actions workflows.
+- JSON Schema plus semantic relationship checks for tracked authorities.
+- JavaScript policy/unit tests and PowerShell helper regression tests.
 - Immutable action pins, explicit workflow permissions, bounded job timeouts,
-  and required non-empty public repository files.
+  trusted `pull_request_target` boundaries, and required non-empty public files.
 - Issue-form area choices aligned with automatic area-label routing.
 - Documentation ownership, page registration, sidebar structure/order, concise
   library child titles, required library/quick-start sections, complete command
-  catalogs, and supported-source file-purpose validation.
-- Local relative Markdown link validation for maintained root, project, GitHub,
-  game, setup/helper, engine, and library documentation.
+  catalogs, and supported-source documentation validation.
 
-Run the script and documentation checks locally from the repository root:
+Third-party `external/` content and generated `build/` output remain outside the
+maintained quality scope.
+
+Run the complete repository quality gate locally from the repository root:
 
 ```powershell
-.\gamewip.bat links
+.\gamewip.bat quality -QualityAction check
 ```
 
-The helper form uses the project Python toolchain and retains the run log. When
+To apply deterministic formatter changes first:
+
+```powershell
+.\gamewip.bat quality -QualityAction fix
+```
+
+`.\gamewip.bat links` remains available as a focused Markdown-link diagnostic.
+The helper forms use project-owned tool resolution and retain run logs. When
 developing the checkers themselves, run their direct interfaces:
 
 ```powershell

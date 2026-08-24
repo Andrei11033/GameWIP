@@ -1,3 +1,5 @@
+# GameWIP setup documentation build and warning-log verification.
+
 Set-StrictMode -Version Latest
 
 function Invoke-GameWipDocumentationBuild
@@ -11,7 +13,8 @@ function Invoke-GameWipDocumentationBuild
     Push-Location $RepositoryRoot
     try
     {
-        $env:Path = "C:\MSYS2\ucrt64\bin;$oldPath"
+        $ucrtBin = Join-Path ([string]$ProjectConfig.managedEnvironment.msys2Root) 'ucrt64\bin'
+        $env:Path = @($ucrtBin, $oldPath) -join [IO.Path]::PathSeparator
         Invoke-GameWipSetupNative -FilePath 'cmake' -ArgumentList @('--preset', 'docs') | Out-Null
         Invoke-GameWipSetupNative -FilePath 'cmake' -ArgumentList @('--build', '--preset', 'docs', '--parallel') | Out-Null
 

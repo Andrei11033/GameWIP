@@ -1,4 +1,15 @@
-# GameWIP Config helper behavior. Dot-sourced by scripts/GameWIP.ps1.
+# Shared GameWIP configuration/schema and repository-path helpers used by the project helper and setup.
+
+function Resolve-GameWipRepositoryPath
+{
+    param([Parameter(Mandatory = $true)][string]$Path)
+
+    if ([IO.Path]::IsPathRooted($Path))
+    {
+        return [IO.Path]::GetFullPath($Path)
+    }
+    return [IO.Path]::GetFullPath((Join-Path $RepositoryRoot $Path))
+}
 
 function ConvertTo-GameWipHashtable
 {

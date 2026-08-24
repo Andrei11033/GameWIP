@@ -69,6 +69,7 @@ OBSOLETE_LIVE_REFERENCES = (
     "build/tool-runs",
     "build/gamewip-temp",
     "build/unicode-data",
+    "build/setup",
     ".gamewip-install-state.json",
     ".gamewip-setup.json",
     "GAMEWIP_ENABLE_TOOLS",
@@ -78,6 +79,10 @@ OBSOLETE_LIVE_REFERENCES = (
     "check-repository-standards.py",
     "C:\\MSYS2\\gamewip",
     "C:/MSYS2/gamewip",
+    "scripts/setup/windows.ps1",
+    "scripts\\setup\\windows.ps1",
+    "newer on its release line",
+    "same 4.4 release line",
 )
 
 APACHE_LICENSE_MARKERS = (
@@ -504,6 +509,31 @@ def check_workflow(path: Path, safe_ctest_presets: set[str]) -> list[str]:
     return failures
 
 
+def check_quality_contract(failures: list[str]) -> None:
+    """Protect quality semantics that would otherwise degrade silently."""
+
+    quality_path = ROOT / "scripts" / "lib" / "Quality.ps1"
+    if quality_path.is_file():
+        quality = quality_path.read_text(encoding="utf-8")
+        if "config/quality/eslint.config.js" not in quality:
+            failures.append(
+                "scripts/lib/Quality.ps1: maintained ESLint configuration must itself be inside the ESLint scope"
+            )
+        if "npm\\lib\\node_modules" in quality:
+            failures.append(
+                "scripts/lib/Quality.ps1: Windows npm global modules must not use the Unix-only lib/node_modules layout"
+            )
+
+    yamllint_path = ROOT / "config" / "quality" / "yamllint.yml"
+    if yamllint_path.is_file():
+        yamllint = yamllint_path.read_text(encoding="utf-8")
+        line_length = re.search(r"(?ms)^  line-length:\s*$\n(.*?)(?=^  [A-Za-z_-]+:|\Z)", yamllint)
+        if line_length is None or "max: 150" not in line_length.group(1) or "level: error" not in line_length.group(1):
+            failures.append(
+                "config/quality/yamllint.yml: the shared 150-column YAML limit must remain an error"
+            )
+
+
 def main() -> int:
     failures: list[str] = []
 
@@ -517,6 +547,7 @@ def main() -> int:
     check_issue_area_mapping(failures)
     check_registry_relationships(failures)
     check_live_paths_and_editor(failures)
+    check_quality_contract(failures)
     check_extracted_workflow_logic(failures)
     safe_ctest_presets = fail_closed_ctest_presets(failures)
     workflows = sorted((*WORKFLOW_ROOT.glob("*.yml"), *WORKFLOW_ROOT.glob("*.yaml")))

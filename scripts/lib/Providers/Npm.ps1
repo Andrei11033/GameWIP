@@ -15,6 +15,26 @@ function Get-GameWipNpmToolLatestVersion
     return Get-GameWipNpmPackageLatestVersion -Package ([string]$Tool.provider.package)
 }
 
+function Get-GameWipNpmGlobalModuleRoot
+{
+    if (Test-GameWipWindowsHost)
+    {
+        return Join-Path ([string]$ProjectConfig.managedEnvironment.gameWipToolsRoot) 'npm\node_modules'
+    }
+
+    $npm = Resolve-GameWipToolCommand -Command 'npm'
+    if ($null -eq $npm)
+    {
+        throw 'npm is unavailable; cannot resolve the global module root.'
+    }
+    $output = (& $npm root --global 2>&1 | Out-String).Trim()
+    if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($output))
+    {
+        throw 'Unable to resolve the global npm module root.'
+    }
+    return $output
+}
+
 function Install-GameWipNpmTool
 {
     param([hashtable]$Tool, [AllowNull()][string]$Version)

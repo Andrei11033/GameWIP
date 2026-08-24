@@ -1,3 +1,6 @@
+# Owns repository-wide first-party CMake options and their ordinary local defaults.
+# CI/presets may override these values; this file does not own external dependency options.
+
 option(GAMEWIP_BUILD_GAME "Build the GameWIP runtime executable" ON)
 option(GAMEWIP_BUILD_TESTS "Build the standalone GameWIPTests executable" ON)
 option(GAMEWIP_BUILD_BENCHMARKS "Build the standalone GameWIPBenchmarks executable" OFF)

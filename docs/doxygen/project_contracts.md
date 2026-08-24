@@ -47,7 +47,7 @@ Exact version-sensitive quality-tool pins are centrally declared as follows:
 | Ruff | 0.16.4 | Python |
 | ESLint | 10.9.0 | npm |
 | Prettier | 3.9.6 | npm |
-| Gersemi | 0.28.0 | Python |
+| Gersemi | 0.28.0 | verified GitHub release |
 | markdownlint-cli2 | 0.23.2 | npm |
 | yamllint | 1.38.0 | Python |
 | PSScriptAnalyzer | 1.25.0 | PowerShell Gallery |

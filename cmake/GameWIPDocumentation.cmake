@@ -1,3 +1,6 @@
+# Configures the explicitly registered Doxygen manual and fails when requested documentation prerequisites are unavailable.
+# GAMEWIP_BUILD_DOCS keeps documentation opt-in for ordinary builds.
+
 if(GAMEWIP_BUILD_DOCS)
     find_package(Doxygen QUIET)
     if(NOT DOXYGEN_FOUND)

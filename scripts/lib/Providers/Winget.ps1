@@ -1,4 +1,13 @@
 # GameWIP WinGet tool-provider behavior. Dot-sourced by scripts/lib/Tools.ps1.
+
+function Test-GameWipWingetNoUpdateExitCode
+{
+    param([Parameter(Mandatory = $true)][int]$ExitCode)
+
+    # APPINSTALLER_CLI_ERROR_UPDATE_NOT_APPLICABLE.
+    return $ExitCode -eq -1978335189
+}
+
 function Get-GameWipWingetToolLatestVersion
 {
     param([hashtable]$Tool)
@@ -24,7 +33,15 @@ function Install-GameWipWingetTool
         }
     }
     & winget @arguments
-    if ($LASTEXITCODE -ne 0) { throw "WinGet failed to install/update '$($Tool.id)'." }
+    $exitCode = [int]$LASTEXITCODE
+    if ($verb -eq 'upgrade' -and (Test-GameWipWingetNoUpdateExitCode -ExitCode $exitCode))
+    {
+        Write-Host "  Already current: $($Tool.name)"
+    }
+    elseif ($exitCode -ne 0)
+    {
+        throw "WinGet failed to install/update '$($Tool.id)' with exit code $exitCode."
+    }
 
     # WinGet updates persistent environment state, not necessarily this process.
     # Refresh PATH so later setup stages can use a newly installed provider.

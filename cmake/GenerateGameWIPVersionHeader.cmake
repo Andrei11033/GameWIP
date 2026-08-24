@@ -1,3 +1,6 @@
+# Build-time driver for the generated GameWIP version header.
+# SOURCE_DIR, BINARY_DIR, and PROJECT_VERSION_VALUE are required inputs; missing inputs fail immediately.
+
 foreach(required_variable IN ITEMS SOURCE_DIR BINARY_DIR PROJECT_VERSION_VALUE)
     if(NOT DEFINED ${required_variable})
         message(FATAL_ERROR "${required_variable} is required.")

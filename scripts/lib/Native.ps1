@@ -99,7 +99,7 @@ function Invoke-GameWipNative
         }
         if (-not [string]::IsNullOrWhiteSpace($PathPrefix))
         {
-            $env:PATH = "$PathPrefix;$env:PATH"
+            $env:PATH = @($PathPrefix, $env:PATH) -join [IO.Path]::PathSeparator
             Write-Host "  PATH prefix: $PathPrefix"
         }
 

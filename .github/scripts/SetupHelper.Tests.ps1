@@ -1,3 +1,5 @@
+# Regression tests for Windows setup catalogs, providers, ownership, and lifecycle contracts.
+
 [CmdletBinding()]
 param()
 
@@ -5,7 +7,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 $repositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
-$setupScript = Join-Path $repositoryRoot 'scripts\setup\windows.ps1'
+$setupScript = Join-Path $repositoryRoot 'scripts\setup\Windows.ps1'
 $powerShellPath = (Get-Process -Id $PID).Path
 $isWindowsHost = [Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT
 $actionConfig = Get-Content -Raw -LiteralPath (Join-Path $repositoryRoot 'scripts\setup\config\setup.json') | ConvertFrom-Json
@@ -166,7 +168,7 @@ Install-GameWipMsys2PackageSet -MsysRoot 'C:\TestMsys2' -PackageConfig $testPack
 $expectedPacmanCommands = @(
     'pacman -Syu --noconfirm',
     'pacman -Syu --noconfirm',
-    'pacman --needed --noconfirm -S common-package ucrt-package clang-package'
+    'pacman --needed --noconfirm -S clang-package common-package ucrt-package'
 )
 if (@(Compare-Object -ReferenceObject $expectedPacmanCommands -DifferenceObject $script:capturedPacmanCommands -SyncWindow 0).Count -ne 0)
 {
@@ -223,7 +225,18 @@ if (@($derivedPackages.Common) -notcontains 'common-two' -or
     throw 'MSYS2 setup package derivation did not consume canonical provider metadata.'
 }
 
-. (Join-Path $repositoryRoot 'scripts\lib\Providers\Python.ps1')
+$projectConfigJson = Get-Content -Raw -LiteralPath (Join-Path $repositoryRoot 'scripts\config\project.json') | ConvertFrom-Json
+$ProjectConfig = @{
+    managedEnvironment = @{
+        msys2Root = [string]$projectConfigJson.managedEnvironment.msys2Root
+        gameWipToolsRoot = [string]$projectConfigJson.managedEnvironment.gameWipToolsRoot
+    }
+    storage = @{
+        state = [string]$projectConfigJson.storage.state
+        temp = [string]$projectConfigJson.storage.temp
+    }
+}
+. (Join-Path $repositoryRoot 'scripts\lib\Tools.ps1')
 $venvInterpreter = Get-GameWipPythonEnvironmentInterpreterPath -Root 'X:\GameWIPTools\python'
 if ($isWindowsHost -and $venvInterpreter -notmatch '[\\/]Scripts[\\/]python\.exe$')
 {
@@ -232,6 +245,226 @@ if ($isWindowsHost -and $venvInterpreter -notmatch '[\\/]Scripts[\\/]python\.exe
 if (-not $isWindowsHost -and $venvInterpreter -notmatch '[\\/]bin[\\/]python$')
 {
     throw "Non-Windows Python provider resolved the wrong venv interpreter: $venvInterpreter"
+}
+
+if (-not (Test-GameWipWingetNoUpdateExitCode -ExitCode -1978335189) -or
+    (Test-GameWipWingetNoUpdateExitCode -ExitCode 1))
+{
+    throw 'WinGet no-applicable-update classification is not narrow enough.'
+}
+
+if ($isWindowsHost)
+{
+    $providerTestRoot = Join-Path $repositoryRoot (
+        'build\gamewip\temp\setup-helper-python-' + [guid]::NewGuid().ToString('N')
+    )
+    $originalProjectConfig = $ProjectConfig
+    try
+    {
+        $ProjectConfig = @{
+            managedEnvironment = @{
+                msys2Root = 'C:\TestMsys2'
+                gameWipToolsRoot = Join-Path $providerTestRoot 'GameWIPTools'
+            }
+        }
+        function Resolve-GameWipPython
+        {
+            return [pscustomobject]@{ Path = 'mock-system-python.exe' }
+        }
+        function New-GameWipPythonToolEnvironment
+        {
+            param([string]$SystemPython, [string]$Root)
+            $null = $SystemPython
+            $scripts = Join-Path $Root 'Scripts'
+            New-Item -ItemType Directory -Force -Path $scripts | Out-Null
+            New-Item -ItemType File -Force -Path (Join-Path $scripts 'python.exe') | Out-Null
+        }
+        function Install-GameWipPythonPackageSpecification
+        {
+            param([string]$Python, [string]$Specification)
+            $null = $Python
+            if ($Specification -ne 'ruff==0.16.4')
+            {
+                throw "Unexpected mocked Python package specification '$Specification'."
+            }
+            $scripts = Split-Path -Parent $Python
+            @'
+@echo off
+echo ruff 0.16.4
+'@ | Set-Content -LiteralPath (Join-Path $scripts 'ruff.cmd') -Encoding Ascii
+        }
+        function Resolve-GameWipPythonProviderHost
+        {
+            return [pscustomobject]@{ Path = 'mock-system-python.exe'; Source = 'test mock' }
+        }
+        function Test-GameWipPythonEnvironmentIsMsys
+        {
+            param([string]$PythonPath)
+            return $false
+        }
+
+        $ruffTool = @{
+            id = 'ruff'
+            versionPolicy = 'exact'
+            requiredVersion = '0.16.4'
+            capabilities = @{ detectInstalled = $true }
+            detection = @{
+                command = 'ruff'
+                versionArguments = @('--version')
+                versionPattern = 'ruff\s+([0-9]+\.[0-9]+\.[0-9]+)'
+            }
+            provider = @{ kind = 'python'; package = 'ruff' }
+        }
+        Install-GameWipPythonTool -Tool $ruffTool -Version '0.16.4'
+        $detectedRuff = Get-GameWipDetectedTool -Tool $ruffTool
+        if (-not $detectedRuff.Installed -or $detectedRuff.Version -ne '0.16.4')
+        {
+            throw 'Mocked Python provider create/install/detect lifecycle failed.'
+        }
+    }
+    finally
+    {
+        $ProjectConfig = $originalProjectConfig
+        if (Test-Path -LiteralPath $providerTestRoot)
+        {
+            Remove-Item -LiteralPath $providerTestRoot -Recurse -Force
+        }
+    }
+}
+
+# Advisory editor selection must recover from corrupt disposable state.
+$editorTestRoot = Join-Path $repositoryRoot (
+    'build\gamewip\temp\setup-helper-editor-' + [guid]::NewGuid().ToString('N')
+)
+$originalProjectConfigForEditor = $ProjectConfig
+try
+{
+    $ProjectConfig = @{ storage = @{ state = 'build/gamewip/state' } }
+    . (Join-Path $repositoryRoot 'scripts\setup\lib\Editor.ps1')
+    $editorConfig = @{
+        Default = @('vscode')
+        Options = @(@{ Id = 'vscode' })
+    }
+    $statePath = Get-GameWipEditorPreferencePath -RepositoryRoot $editorTestRoot
+    New-Item -ItemType Directory -Force -Path (Split-Path -Parent $statePath) | Out-Null
+    'not-json' | Set-Content -LiteralPath $statePath -Encoding UTF8
+    $selection = @(Get-GameWipEditorSelection -RepositoryRoot $editorTestRoot -EditorConfig $editorConfig)
+    if ($selection.Count -ne 1 -or $selection[0] -ne 'vscode')
+    {
+        throw 'Corrupt advisory editor state did not fall back to the configured default.'
+    }
+}
+finally
+{
+    $ProjectConfig = $originalProjectConfigForEditor
+    if (Test-Path -LiteralPath $editorTestRoot)
+    {
+        Remove-Item -LiteralPath $editorTestRoot -Recurse -Force
+    }
+}
+
+# Uninstall preview must classify/report without mutating ownership-unknown roots.
+$uninstallTestRoot = Join-Path $repositoryRoot (
+    'build\gamewip\temp\setup-helper-uninstall-' + [guid]::NewGuid().ToString('N')
+)
+$originalProjectConfigForUninstall = $ProjectConfig
+try
+{
+    $testMsysRoot = Join-Path $uninstallTestRoot 'MSYS2'
+    $testToolsRoot = Join-Path $testMsysRoot 'GameWIPTools'
+    New-Item -ItemType Directory -Force -Path $testToolsRoot | Out-Null
+    'unknown' | Set-Content -LiteralPath (Join-Path $testToolsRoot 'existing.txt') -Encoding UTF8
+    $ProjectConfig = @{
+        managedEnvironment = @{
+            msys2Root = $testMsysRoot
+            gameWipToolsRoot = $testToolsRoot
+        }
+        storage = @{
+            cache = 'build/gamewip/cache'
+            state = 'build/gamewip/state'
+        }
+    }
+    $ProjectTools = @{ tools = @() }
+    $script:SetupStatePath = Join-Path $uninstallTestRoot 'state\setup.json'
+    $script:SetupRun = $null
+    . (Join-Path $repositoryRoot 'scripts\setup\lib\Common.ps1')
+    . (Join-Path $repositoryRoot 'scripts\setup\lib\Uninstall.ps1')
+    $previewOutput = @(
+        Invoke-GameWipUninstall -RepositoryRoot $repositoryRoot -ProjectTools $ProjectTools -Preview *>&1
+    )
+    if (($previewOutput -join "`n") -notmatch 'Preview complete; no resources were changed')
+    {
+        throw 'Uninstall preview did not report its non-mutating completion contract.'
+    }
+    if (-not (Test-Path -LiteralPath (Join-Path $testToolsRoot 'existing.txt')))
+    {
+        throw 'Uninstall preview mutated an ownership-unknown GameWIPTools root.'
+    }
+}
+finally
+{
+    $ProjectConfig = $originalProjectConfigForUninstall
+    if (Test-Path -LiteralPath $uninstallTestRoot)
+    {
+        Remove-Item -LiteralPath $uninstallTestRoot -Recurse -Force
+    }
+}
+
+$editorSource = Get-Content -Raw -LiteralPath (Join-Path $repositoryRoot 'scripts\setup\lib\Editor.ps1')
+if ($editorSource -match 'build[\\/]setup')
+{
+    throw 'Editor integration still stages mutable helper data under retired build/setup.'
+}
+$uninstallSource = Get-Content -Raw -LiteralPath (Join-Path $repositoryRoot 'scripts\setup\lib\Uninstall.ps1')
+if ($uninstallSource -notmatch '--uninstall-extension')
+{
+    throw 'Uninstall does not remove the repository-owned VS Code workflow extension through the VS Code CLI.'
+}
+if ($windowsSource -notmatch 'Initialize-GameWipSetupManagedToolRoot' -or
+    $windowsSource -notmatch 'Adopt this existing GameWIPTools directory')
+{
+    throw 'Interactive setup does not expose explicit GameWIPTools ownership adoption.'
+}
+if ($windowsSource -notmatch 'cannot be adopted noninteractively')
+{
+    throw 'Noninteractive setup no longer fails closed for an unowned non-empty GameWIPTools root.'
+}
+if ($windowsSource -notmatch 'MSYS2 must be configured before persistent GameWIPTools can be created')
+{
+    throw 'Focused setup can create GameWIPTools before the MSYS2 provider root exists.'
+}
+$environmentCheckMatch = [regex]::Match(
+    $windowsSource,
+    '(?ms)function Invoke-GameWipEnvironmentCheck.*?(?=^function |\z)'
+)
+if (-not $environmentCheckMatch.Success -or
+    $environmentCheckMatch.Value -notmatch 'no valid persistent ownership proof')
+{
+    throw 'Read-only environment check does not diagnose unknown GameWIPTools ownership.'
+}
+$tracyStepMatch = [regex]::Match(
+    $windowsSource,
+    '(?ms)function Invoke-GameWipTracyStep.*?(?=^function |\z)'
+)
+if (-not $tracyStepMatch.Success -or
+    $tracyStepMatch.Value -notmatch 'Initialize-GameWipSetupManagedToolRoot')
+{
+    throw 'Focused Tracy setup does not establish or resolve GameWIPTools ownership first.'
+}
+if ($windowsSource -notmatch "(?s)Complete-GameWipSetupRun -Status 'passed'.*completed successfully")
+{
+    throw 'Setup reports success before run cleanup/finalization completes.'
+}
+foreach ($pathOwner in @(
+    'scripts\setup\lib\Repository.ps1',
+    'scripts\setup\lib\Documentation.ps1'
+))
+{
+    $source = Get-Content -Raw -LiteralPath (Join-Path $repositoryRoot $pathOwner)
+    if ($source -match [regex]::Escape('C:\MSYS2\ucrt64\bin'))
+    {
+        throw "$pathOwner still duplicates the configured MSYS2 root."
+    }
 }
 
 Write-Host 'Setup helper regression tests passed.'

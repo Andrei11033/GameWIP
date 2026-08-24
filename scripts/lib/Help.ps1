@@ -487,16 +487,18 @@ function Show-GameWipQualityMenu
     while ($true)
     {
         Write-Host ''
-        Write-Host 'Quality and Maintenance'
-        Write-Host '======================='
-        Write-Host '1. Check C/C++ formatting'
-        Write-Host '2. Apply C/C++ formatting'
-        Write-Host '3. Run static analysis'
-        Write-Host '4. Run AddressSanitizer validation'
-        Write-Host '5. Run coverage validation'
-        Write-Host '6. Build documentation'
-        Write-Host '7. Run performance benchmarks'
-        Write-Host '8. Run full local release-readiness bundle'
+        Write-Host 'Quality and Formatting'
+        Write-Host '======================'
+        Write-Host '1. Run full quality check'
+        Write-Host '2. Apply all deterministic formatters and recheck'
+        Write-Host '3. Check C/C++ formatting only'
+        Write-Host '4. Apply C/C++ formatting only'
+        Write-Host '5. Run C++ static analysis'
+        Write-Host '6. Run AddressSanitizer validation'
+        Write-Host '7. Run coverage validation'
+        Write-Host '8. Build documentation'
+        Write-Host '9. Run performance benchmarks'
+        Write-Host '0. Run full local release-readiness bundle'
         Write-Host 'ESC. Back'
         Write-Host 'Choose an action: ' -NoNewline
         $key = [Console]::ReadKey($true)
@@ -510,47 +512,118 @@ function Show-GameWipQualityMenu
         {
             '1'
             {
-                Invoke-GameWipFormat -Mode 'check'
+                Invoke-GameWipQuality -Mode 'check'
             }
             '2'
             {
-                Invoke-GameWipFormat -Mode 'apply'
+                Invoke-GameWipQuality -Mode 'fix'
             }
             '3'
+            {
+                Invoke-GameWipFormat -Mode 'check'
+            }
+            '4'
+            {
+                Invoke-GameWipFormat -Mode 'apply'
+            }
+            '5'
             {
                 Invoke-GameWipConfigurePreset -Name 'analyze'
                 Invoke-GameWipBuildPreset -Name 'analyze'
             }
-            '4'
+            '6'
             {
                 Invoke-GameWipConfigurePreset -Name 'asan'
                 Invoke-GameWipBuildPreset -Name 'asan'
                 Invoke-GameWipTestPreset -Name 'asan' -UseWorkspaceTemp
             }
-            '5'
+            '7'
             {
                 Invoke-GameWipConfigurePreset -Name 'coverage'
                 Invoke-GameWipBuildPreset -Name 'coverage'
                 Invoke-GameWipTestPreset -Name 'coverage' -UseWorkspaceTemp
                 Invoke-GameWipBuildTarget -Name 'coverage' -Target 'coverage'
             }
-            '6'
+            '8'
             {
                 Invoke-GameWipConfigurePreset -Name 'docs'
                 Invoke-GameWipBuildPreset -Name 'docs'
             }
-            '7'
+            '9'
             {
                 Invoke-GameWipBenchmark -Mode 'run' -ProfileId 'standard' -RepeatCount 0 -MinimumTime '' -RequestedOutput '' -Format 'json'
             }
-            '8'
+            '0'
             {
                 Invoke-GameWipBundle -Id 'local-release-check'
             }
             default
             {
-                Write-Host 'Press 1-8 or ESC.' -ForegroundColor Yellow
+                Write-Host 'Press 0-9 or ESC.' -ForegroundColor Yellow
             }
+        }
+    }
+}
+
+function Read-GameWipUpdatableToolId
+{
+    $toolIds = @(
+        $ProjectTools.tools |
+            Where-Object { $_.capabilities.update } |
+            ForEach-Object { [string]$_.id }
+    )
+    return Read-GameWipIndexedChoice -Prompt 'Choose a project tool' -Choices $toolIds
+}
+
+function Show-GameWipToolMenu
+{
+    while ($true)
+    {
+        Write-Host ''
+        Write-Host 'Project Tools and Versions'
+        Write-Host '=========================='
+        Write-Host '1. List registered project tools'
+        Write-Host '2. Show installed tool status (offline)'
+        Write-Host '3. Check upstream versions (online, read only)'
+        Write-Host '4. Preview update for one tool'
+        Write-Host '5. Preview update for all tools'
+        Write-Host '6. Update one tool/version'
+        Write-Host '7. Update all eligible tool versions'
+        Write-Host 'ESC. Back'
+        Write-Host ''
+        Write-Host 'Full environment refreshes, including complete MSYS2 pacman -Syu updates,'
+        Write-Host 'are owned by setup.bat update.'
+        Write-Host 'Choose an action: ' -NoNewline
+
+        $key = [Console]::ReadKey($true)
+        if ($key.Key -eq [ConsoleKey]::ESCape)
+        {
+            Write-Host 'ESC'; return
+        }
+        Write-Host $key.KeyChar
+
+        switch ($key.KeyChar)
+        {
+            '1' { Show-GameWipToolList }
+            '2' { Show-GameWipToolStatus }
+            '3'
+            {
+                Write-GameWipSection 'Project tool updates (online)'
+                Show-GameWipToolUpdatePlan -Plan @(Get-GameWipToolUpdatePlan -ToolId 'all')
+            }
+            '4'
+            {
+                $toolId = Read-GameWipUpdatableToolId
+                if ($null -ne $toolId) { Invoke-GameWipToolUpdate -ToolId $toolId -PreviewOnly }
+            }
+            '5' { Invoke-GameWipToolUpdate -ToolId 'all' -PreviewOnly }
+            '6'
+            {
+                $toolId = Read-GameWipUpdatableToolId
+                if ($null -ne $toolId) { Invoke-GameWipToolUpdate -ToolId $toolId -Confirm }
+            }
+            '7' { Invoke-GameWipToolUpdate -ToolId 'all' -Confirm }
+            default { Write-Host 'Press 1-7 or ESC.' -ForegroundColor Yellow }
         }
     }
 }
@@ -574,7 +647,8 @@ function Show-GameWipMenu
         Write-Host '0. Check project readiness'
         Write-Host 'G. Git branches and workspace cleanup'
         Write-Host 'W. Guarded GitHub workflows'
-        Write-Host 'Q. Quality and maintenance'
+        Write-Host 'Q. Quality and formatting'
+        Write-Host 'T. Project tools and versions'
         Write-Host 'U. Unicode data maintenance'
         Write-Host 'ESC. Exit'
         Write-Host 'Choose an action: ' -NoNewline
@@ -678,6 +752,10 @@ function Show-GameWipMenu
                 {
                     Show-GameWipQualityMenu
                 }
+                { $_ -eq 't' -or $_ -eq 'T' }
+                {
+                    Show-GameWipToolMenu
+                }
                 { $_ -eq 'u' -or $_ -eq 'U' }
                 {
                     Show-GameWipUnicodeMenu
@@ -720,7 +798,9 @@ function Show-GameWipHelp
     Write-Host '          [-UnicodeDataRoot <path>] [-PythonPath <path>] [-ClangFormatPath <path>]'
     Write-Host '  format [-FormatAction <check|apply>] [-ClangFormatPath <path>]'
     Write-Host '  quality [-QualityAction <check|fix>]'
+    Write-Host '      check runs the complete standardized quality gate; fix applies deterministic formatters, then rechecks.'
     Write-Host '  tools [-ToolsAction <list|status|check-updates|update>] [-Tool <id|all>] [-Preview]'
+    Write-Host '      tools update advances selected project tools/version policy; setup.bat update owns full environment refreshes, including MSYS2 pacman -Syu.'
     Write-Host '  links [-PythonPath <path>]    Validate maintained local Markdown links.'
     Write-Host ''
     Write-Host 'Build and validation actions:'

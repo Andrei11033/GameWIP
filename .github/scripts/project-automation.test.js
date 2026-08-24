@@ -1,3 +1,5 @@
+// Regression tests for repository-owned GitHub project automation policy.
+
 'use strict';
 
 const assert = require('node:assert/strict');

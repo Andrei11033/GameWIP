@@ -1,13 +1,24 @@
+# GameWIP uninstall discovery, ownership classification, preview, and safe removal.
+
 Set-StrictMode -Version Latest
 
 function Invoke-GameWipEditorIntegrationRemoval
 {
-    $extensionRoot = Join-Path $env:USERPROFILE '.vscode\extensions'
-    $extension = Join-Path $extensionRoot 'gamewip.gamewip-workflows'
-    if (Test-Path -LiteralPath $extension)
+    $extensionSource = Join-Path $RepositoryRoot 'scripts\setup\editor\gamewip-workflows'
+    $package = Get-Content -Raw -LiteralPath (Join-Path $extensionSource 'package.json') | ConvertFrom-Json
+    $workflowExtensionId = "$($package.publisher).$($package.name)"
+    if (Test-GameWipSetupCommand -Name 'code')
     {
-        Invoke-GameWipOwnedTreeRemoval -Path $extension -OwnedRoot $extensionRoot
+        Invoke-GameWipSetupNative `
+            -FilePath 'code' `
+            -ArgumentList @('--uninstall-extension', $workflowExtensionId) `
+            -AllowedExitCodes @(0, 1) | Out-Null
     }
+    else
+    {
+        Write-Warning "Visual Studio Code is unavailable; could not remove the GameWIP workflow extension '$workflowExtensionId'."
+    }
+
     $keybindings = Join-Path $env:APPDATA 'Code\User\keybindings.json'
     if (Test-Path -LiteralPath $keybindings)
     {
@@ -87,12 +98,22 @@ function Invoke-GameWipUninstall
 
     $managedToolsRoot = [string]$ProjectConfig.managedEnvironment.gameWipToolsRoot
     $toolsExist = Test-Path -LiteralPath $managedToolsRoot
-    $toolsOwnership = $toolsExist -and (Test-GameWipManagedToolRootOwnership -Root $managedToolsRoot)
+    $toolsMarker = if ($toolsExist) { Get-GameWipManagedToolRootOwnership -Root $managedToolsRoot } else { $null }
+    $toolsOwnership = $null -ne $toolsMarker
 
     $proven = @('GameWIP VS Code workflow integration and managed keybinding block')
     if ($toolsOwnership)
     {
-        $proven += "$managedToolsRoot persistent managed tool tree"
+        $wasAdopted = $toolsMarker.PSObject.Properties['adoptedByUser'] -and [bool]$toolsMarker.adoptedByUser
+        $ownershipDescription = if ($wasAdopted)
+        {
+            'explicitly user-adopted persistent managed tool tree'
+        }
+        else
+        {
+            'setup-created persistent managed tool tree'
+        }
+        $proven += "$managedToolsRoot $ownershipDescription"
     }
     if ($msysOwnership)
     {
@@ -131,7 +152,12 @@ function Invoke-GameWipUninstall
     {
         $planned += $managedToolsRoot
     }
-    $planned += @('build/gamewip/cache/tracy', 'disposable setup/editor state')
+    $planned += @(
+        'build/gamewip/cache/tracy',
+        'build/dev',
+        'build/docs',
+        'disposable setup/editor state'
+    )
 
     $preserved = @(
         'Repository and user-created files',
@@ -181,6 +207,16 @@ function Invoke-GameWipUninstall
     if (Test-Path -LiteralPath $tracyCache)
     {
         Invoke-GameWipOwnedTreeRemoval -Path $tracyCache -OwnedRoot (Join-Path $RepositoryRoot $ProjectConfig.storage.cache)
+    }
+
+    $buildRoot = Join-Path $RepositoryRoot 'build'
+    foreach ($relativeBuildTree in @('dev', 'docs'))
+    {
+        $buildTree = Join-Path $buildRoot $relativeBuildTree
+        if (Test-Path -LiteralPath $buildTree)
+        {
+            Invoke-GameWipOwnedTreeRemoval -Path $buildTree -OwnedRoot $buildRoot
+        }
     }
 
     if (@($state.wingetPackages).Count -eq 0)

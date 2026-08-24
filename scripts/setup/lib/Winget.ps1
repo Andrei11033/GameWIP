@@ -1,3 +1,5 @@
+# GameWIP setup WinGet package installation, update, ownership recording, and uninstall behavior.
+
 Set-StrictMode -Version Latest
 
 function Test-GameWipWingetPackage
@@ -69,9 +71,14 @@ function Invoke-GameWipWingetPackageUpdate
     }
 
     & winget @arguments
-    if ($LASTEXITCODE -ne 0)
+    $exitCode = [int]$LASTEXITCODE
+    if (Test-GameWipWingetNoUpdateExitCode -ExitCode $exitCode)
     {
-        Write-Warning "winget did not apply an update for $Id. The installed package will still be verified."
+        Write-Host "  Already current: $Id"
+    }
+    elseif ($exitCode -ne 0)
+    {
+        throw "WinGet failed to update '$Id' with exit code $exitCode."
     }
     Initialize-GameWipSetupProcessPath
 }

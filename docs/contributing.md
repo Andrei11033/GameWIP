@@ -176,15 +176,17 @@ It performs:
 
 - MSYS2 UCRT64 configure, build, non-package CTest contracts, and modular correctness tests with internal test hooks enabled.
 - MSYS2 CLANG64 AddressSanitizer configure, build, and test, including instrumented package consumers.
-- Ordinary installed-package validation with the single supported CMake line across Ninja and Ninja Multi-Config consumers.
+- Ordinary installed-package validation with CMake `4.4.2` or newer across Ninja and Ninja Multi-Config consumers.
 - GCC coverage configure, test, instrumented package-consumer validation, and report generation.
 - Google Benchmark registration dry run without performance thresholds.
-- Doxygen documentation build with `GAMEWIP_BUILD_DOCS=ON`.
-- Doxygen warning-log check.
-- clang-tidy and clang-format checks for maintained C++ code.
-- JavaScript syntax and unit tests, Python maintenance-script syntax checks,
-  JSON parsing, local Markdown link validation, immutable Action pins, workflow
-  timeouts and permissions, public repository files, and actionlint validation.
+- Doxygen documentation build with `GAMEWIP_BUILD_DOCS=ON` and an empty warning log.
+- The complete repository quality gate: clang-format/clang-tidy, Ruff,
+    PSScriptAnalyzer, ESLint, Prettier, Gersemi, yamllint, markdownlint-cli2,
+    actionlint, JSON Schema/semantic checks, repository standards, documentation
+    standards, and local Markdown links over maintained first-party files.
+- JavaScript policy/unit tests and PowerShell helper regression tests.
+- Immutable Action pins, workflow timeouts/permissions, trusted
+    `pull_request_target` policy boundaries, and required public repository files.
 
 The `Doxygen Docs` workflow publishes the retained documentation artifact only
 after the complete `Validation` workflow succeeds on a `master` push. This

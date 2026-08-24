@@ -1,3 +1,5 @@
+# GameWIP Tracy version matching, reproducible build cache, staging, and persistent tool installation.
+
 Set-StrictMode -Version Latest
 
 function Get-GameWipTracyVersion
@@ -210,7 +212,7 @@ function Invoke-GameWipTracyToolBuild
     try
     {
         $env:CPM_SOURCE_CACHE = $cacheRoot
-        $env:Path = "$ucrtBin;$previousPath"
+        $env:Path = @($ucrtBin, $previousPath) -join [IO.Path]::PathSeparator
         $env:GIT_CONFIG_COUNT = '1'
         $env:GIT_CONFIG_KEY_0 = 'safe.directory'
         $env:GIT_CONFIG_VALUE_0 = $tracyRoot.Replace('\', '/')
