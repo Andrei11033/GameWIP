@@ -14,6 +14,7 @@
 #include <format>
 #include <iterator>
 #include <limits>
+#include <memory>
 #include <mutex>
 #include <new>
 #include <stdexcept>
@@ -318,7 +319,7 @@ namespace GameWIP::Terminal
         void appendUnsigned(std::string &text, std::uint64_t value)
         {
             std::array<char, 32> buffer{};
-            const auto result = std::to_chars(buffer.data(), buffer.data() + buffer.size(), value);
+            const auto result = std::to_chars(buffer.data(), std::to_address(buffer.end()), value);
             text.append(buffer.data(), result.ptr);
         }
 
@@ -334,8 +335,9 @@ namespace GameWIP::Terminal
         /// @brief Appends one bounded decimal parameter to a style sequence.
         void appendSequenceNumber(StyleSequence &sequence, std::uint32_t value) noexcept
         {
-            const auto result = std::to_chars(sequence.bytes.data() + sequence.size, sequence.bytes.data() + sequence.bytes.size(), value);
-            sequence.size = static_cast<std::size_t>(result.ptr - sequence.bytes.data());
+            const std::span available = std::span{sequence.bytes}.subspan(sequence.size);
+            const auto result = std::to_chars(available.data(), std::to_address(available.end()), value);
+            sequence.size += static_cast<std::size_t>(std::distance(available.data(), result.ptr));
         }
 
         /// @brief Appends one semicolon-delimited SGR parameter.
@@ -851,7 +853,7 @@ namespace GameWIP::Terminal
 
             if (requirements.hasBytes)
             {
-                const auto assembled = std::as_bytes(std::span<const char>(state.assembly.data(), state.assembly.size()));
+                const auto assembled = std::as_bytes(std::span{state.assembly});
                 IO::Types::WriteResult result = Detail::Platform::writeBytes(stream, assembled);
                 IO::Types::Status writeStatus = std::move(result.status);
                 if (writeStatus.ok() && result.bytesWritten != assembled.size())

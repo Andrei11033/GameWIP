@@ -15,7 +15,6 @@
         "GAMEWIP_ENABLE_TRACY": "OFF",
         "GAMEWIP_ENABLE_COVERAGE": "OFF",
         "GAMEWIP_ENABLE_ADDRESS_SANITIZER": "OFF",
-        "GAMEWIP_ENABLE_UNSAFE_BUFFER_WARNINGS": "OFF",
         "GAMEWIP_ENABLE_STATIC_ANALYSIS": "OFF",
         "GAMEWIP_BUILD_DOCS": "OFF",
         "GAMEWIP_INSTALL_DOCS": "OFF"
@@ -115,21 +114,6 @@
       }
     },
     {
-      "name": "buffer-safety",
-      "displayName": "Clang unsafe-buffer migration audit",
-      "description": "Compile representative project surfaces and report Clang unsafe-buffer migration candidates without promoting them to errors.",
-      "inherits": "base",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
-        "CMAKE_CXX_COMPILER": "clang++",
-        "GAMEWIP_BUILD_GAME": "ON",
-        "GAMEWIP_BUILD_TESTS": "ON",
-        "GAMEWIP_BUILD_BENCHMARKS": "ON",
-        "GAMEWIP_ENABLE_ASSERTS": "ON",
-        "GAMEWIP_ENABLE_UNSAFE_BUFFER_WARNINGS": "ON"
-      }
-    },
-    {
       "name": "docs",
       "displayName": "Doxygen documentation",
       "inherits": "base",
@@ -148,7 +132,6 @@
     { "name": "coverage", "configurePreset": "coverage", "targets": ["GameWIPTests"] },
     { "name": "asan", "configurePreset": "asan", "targets": ["GameWIPTests"] },
     { "name": "analyze", "configurePreset": "analyze", "targets": ["static-analysis"] },
-    { "name": "buffer-safety", "configurePreset": "buffer-safety" },
     { "name": "docs", "configurePreset": "docs", "targets": ["docs"] }
   ],
   "testPresets": [

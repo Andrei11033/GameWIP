@@ -114,7 +114,7 @@ namespace
 
             const std::size_t remaining = bytes_.size() - position_;
             const std::size_t count = std::min(destination.size(), std::min(maxChunkSize_, remaining));
-            std::copy_n(bytes_.data() + position_, count, destination.data());
+            std::ranges::copy(bytes_.subspan(position_, count), destination.begin());
             position_ += count;
 
             return {.status = {}, .bytesRead = count, .endOfStream = reportEndWithLastRead_ && position_ == bytes_.size()};
@@ -146,7 +146,7 @@ namespace
             }
 
             const std::size_t count = std::min(destination.size(), bytes_.size() - position_);
-            std::copy_n(bytes_.data() + position_, count, destination.data());
+            std::ranges::copy(bytes_.subspan(position_, count), destination.begin());
             position_ += count;
             return {.status = {}, .bytesRead = count, .endOfStream = position_ == bytes_.size()};
         }
@@ -181,7 +181,7 @@ namespace
             }
 
             const std::size_t count = std::min(destination.size(), bytes_.size() - position_);
-            std::copy_n(bytes_.data() + position_, count, destination.data());
+            std::ranges::copy(bytes_.subspan(position_, count), destination.begin());
             position_ += count;
             return {.status = {}, .bytesRead = count, .endOfStream = position_ == bytes_.size()};
         }
@@ -339,7 +339,7 @@ namespace
             }
 
             const std::size_t count = std::min(destination.size(), bytes_.size() - position_);
-            std::copy_n(bytes_.data() + position_, count, destination.data());
+            std::ranges::copy(bytes_.subspan(position_, count), destination.begin());
             position_ += count;
             return {.status = {}, .bytesRead = count, .endOfStream = position_ == bytes_.size()};
         }
@@ -374,7 +374,7 @@ namespace
             }
 
             const std::size_t count = std::min(destination.size(), bytes_.size() - position_);
-            std::copy_n(bytes_.data() + position_, count, destination.data());
+            std::ranges::copy(bytes_.subspan(position_, count), destination.begin());
             position_ += count;
             return {.status = {}, .bytesRead = count, .endOfStream = false};
         }
@@ -422,14 +422,14 @@ namespace
             if (position_ >= failAfterBytes_)
             {
                 const std::size_t count = std::min<std::size_t>(destination.size(), 1);
-                std::copy_n(bytes_.data() + position_, count, destination.data());
+                std::ranges::copy(bytes_.subspan(position_, count), destination.begin());
                 position_ += count;
                 return {.status = IO::makeStatus(failureCode_), .bytesRead = count, .endOfStream = false};
             }
 
             const std::size_t remainingBeforeFailure = failAfterBytes_ - position_;
             const std::size_t count = std::min(destination.size(), remainingBeforeFailure);
-            std::copy_n(bytes_.data() + position_, count, destination.data());
+            std::ranges::copy(bytes_.subspan(position_, count), destination.begin());
             position_ += count;
             return {.status = {}, .bytesRead = count, .endOfStream = position_ == bytes_.size()};
         }
@@ -642,7 +642,7 @@ namespace
             }
 
             const std::size_t count = std::min<std::size_t>(1, bytes_.size() - position_);
-            std::copy_n(bytes_.data() + position_, count, destination.data());
+            std::ranges::copy(bytes_.subspan(position_, count), destination.begin());
             position_ += count;
             ++readCount_;
 

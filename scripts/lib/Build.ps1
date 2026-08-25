@@ -13,9 +13,40 @@ function Invoke-GameWipConfigurePreset
     if ((Test-GameWipWindowsHost) -and (Test-Path -LiteralPath $cache))
     {
         $compilerEntry = Get-Content -LiteralPath $cache | Where-Object { $_ -match '^CMAKE_CXX_COMPILER:(?:FILEPATH|STRING)=' } | Select-Object -First 1
-        if ($null -ne $compilerEntry)
+        $configuredCompiler = if ($null -ne $compilerEntry)
         {
-            $configuredCompiler = ($compilerEntry -split '=', 2)[1].Replace('/', '\')
+            ($compilerEntry -split '=', 2)[1]
+        }
+        else
+        {
+            ''
+        }
+
+        # Presets assign CMAKE_CXX_COMPILER as an untyped value, so the cache can retain only
+        # "clang++" while CMake records the resolved executable in its generated compiler state.
+        # Read that state before deciding whether --fresh is required; otherwise a toolchain
+        # switch makes CMake reset the cache mid-configure and silently drops the preset options.
+        if ([string]::IsNullOrWhiteSpace($configuredCompiler) -or -not [IO.Path]::IsPathRooted($configuredCompiler))
+        {
+            $compilerState = Get-ChildItem -LiteralPath (Join-Path $RepositoryRoot "build\$Name\CMakeFiles") `
+                -Filter 'CMakeCXXCompiler.cmake' -File -Recurse -ErrorAction SilentlyContinue |
+                Sort-Object LastWriteTimeUtc -Descending |
+                Select-Object -First 1
+            if ($null -ne $compilerState)
+            {
+                $resolvedEntry = Get-Content -LiteralPath $compilerState.FullName |
+                    Where-Object { $_ -match '^set\(CMAKE_CXX_COMPILER "(?<path>[^"]+)"\)' } |
+                    Select-Object -First 1
+                if ($null -ne $resolvedEntry -and $resolvedEntry -match '^set\(CMAKE_CXX_COMPILER "(?<path>[^"]+)"\)')
+                {
+                    $configuredCompiler = $Matches.path
+                }
+            }
+        }
+
+        if (-not [string]::IsNullOrWhiteSpace($configuredCompiler) -and [IO.Path]::IsPathRooted($configuredCompiler))
+        {
+            $configuredCompiler = $configuredCompiler.Replace('/', '\')
             $expectedRoot = ([IO.Path]::GetFullPath($pathPrefix)).TrimEnd('\') + '\'
             if (-not $configuredCompiler.StartsWith($expectedRoot, [StringComparison]::OrdinalIgnoreCase))
             {

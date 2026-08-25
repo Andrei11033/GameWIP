@@ -195,10 +195,17 @@ void testNativeEventTranslation(TestSupport::Context &context)
             drop->pt = {4, 6};
             drop->fNC = FALSE;
             drop->fWide = TRUE;
+            // GlobalAlloc owns dropBytes and the payload intentionally models DROPFILES' variable trailing array.
+#if defined(__clang__)
+#pragma clang unsafe_buffer_usage begin
+#endif
             auto *path = reinterpret_cast<wchar_t *>(reinterpret_cast<std::byte *>(drop) + sizeof(DROPFILES));
             std::copy(droppedPath.begin(), droppedPath.end(), path);
             path[droppedPath.size()] = wchar_t{};
             path[droppedPath.size() + 1] = wchar_t{};
+#if defined(__clang__)
+#pragma clang unsafe_buffer_usage end
+#endif
             static_cast<void>(GlobalUnlock(dropMemory));
             static_cast<void>(SendMessageW(handle.handle.window, WM_DROPFILES, reinterpret_cast<WPARAM>(dropMemory), 0));
             dropMemory = nullptr;

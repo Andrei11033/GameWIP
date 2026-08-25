@@ -3,6 +3,7 @@
 
 #include "validation/tests/runner.h"
 
+#include "validation/process_arguments.h"
 #include "validation/tests/internal/runner_test_hooks.h"
 #include "validation/tests/registry.h"
 
@@ -41,11 +42,11 @@ namespace GameWIP::Validation::Tests
         }
 
         /// @brief Returns whether the process arguments contain one exact option.
-        [[nodiscard]] bool hasArgument(int argc, char **argv, std::string_view argument)
+        [[nodiscard]] bool hasArgument(ProcessArguments arguments, std::string_view argument)
         {
-            for (int index = 1; index < argc; ++index)
+            for (char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
             {
-                if (argv[index] != nullptr && std::string_view(argv[index]) == argument)
+                if (value != nullptr && std::string_view(value) == argument)
                 {
                     return true;
                 }
@@ -54,16 +55,16 @@ namespace GameWIP::Validation::Tests
         }
 
         /// @brief Returns the value following a matched argument prefix.
-        [[nodiscard]] std::optional<std::string> argumentValue(int argc, char **argv, std::string_view prefix)
+        [[nodiscard]] std::optional<std::string> argumentValue(ProcessArguments arguments, std::string_view prefix)
         {
-            for (int index = 1; index < argc; ++index)
+            for (char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
             {
-                if (argv[index] == nullptr)
+                if (value == nullptr)
                 {
                     continue;
                 }
 
-                const std::string_view argument(argv[index]);
+                const std::string_view argument(value);
                 if (argument.starts_with(prefix))
                 {
                     return std::string(argument.substr(prefix.size()));
@@ -73,17 +74,17 @@ namespace GameWIP::Validation::Tests
         }
 
         /// @brief Applies supported command-line overrides and returns the requested module selection.
-        Selection applyArguments(int argc, char **argv, RunOptions &options)
+        Selection applyArguments(ProcessArguments arguments, RunOptions &options)
         {
             Selection selection;
-            for (int index = 1; index < argc; ++index)
+            for (char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
             {
-                if (argv[index] == nullptr)
+                if (value == nullptr)
                 {
                     continue;
                 }
 
-                const std::string_view argument(argv[index]);
+                const std::string_view argument(value);
                 constexpr std::string_view modulePrefix = "--test-module=";
                 if (argument.starts_with(modulePrefix))
                 {
@@ -98,23 +99,23 @@ namespace GameWIP::Validation::Tests
                 }
             }
 
-            if (const auto reportPath = argumentValue(argc, argv, "--test-report="))
+            if (const auto reportPath = argumentValue(arguments, "--test-report="))
             {
                 options.reportPath = *reportPath;
             }
-            if (hasArgument(argc, argv, "--no-test-report"))
+            if (hasArgument(arguments, "--no-test-report"))
             {
                 options.writeReport = false;
             }
-            if (hasArgument(argc, argv, "--verbose-tests"))
+            if (hasArgument(arguments, "--verbose-tests"))
             {
                 options.verboseConsole = true;
             }
-            if (hasArgument(argc, argv, "--manual-tests"))
+            if (hasArgument(arguments, "--manual-tests"))
             {
                 options.enableManualTests = true;
             }
-            if (hasArgument(argc, argv, "--no-test-support-child-process"))
+            if (hasArgument(arguments, "--no-test-support-child-process"))
             {
                 options.enableTestSupportChildProcessTests = false;
             }
@@ -228,6 +229,7 @@ namespace GameWIP::Validation::Tests
 
     TestResult Detail::runWithModules(int argc, char **argv, RunOptions options, std::span<const Module> registrations)
     {
+        const ProcessArguments arguments = processArguments(argc, argv);
         const std::vector<Module> modules = sortedModules(registrations);
         if (!validModules(modules))
         {
@@ -239,9 +241,9 @@ namespace GameWIP::Validation::Tests
         // selection so a child process cannot recursively run the full suite.
         const Module *childOwner = nullptr;
         std::size_t reservedChildArguments = 0;
-        for (int index = 1; index < argc; ++index)
+        for (char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
         {
-            if (argv[index] != nullptr && isReservedChildArgument(argv[index]))
+            if (value != nullptr && isReservedChildArgument(value))
             {
                 ++reservedChildArguments;
             }
@@ -304,7 +306,7 @@ namespace GameWIP::Validation::Tests
             };
         }
 
-        const Selection selection = applyArguments(argc, argv, options);
+        const Selection selection = applyArguments(arguments, options);
         if (selection.conflictingModules)
         {
             std::cerr << "Conflicting validation module selectors were provided.\n";
@@ -385,13 +387,14 @@ namespace GameWIP::Validation::Tests
 
     bool requestsRun(int argc, char **argv) noexcept
     {
-        for (int index = 1; index < argc; ++index)
+        const ProcessArguments arguments = processArguments(argc, argv);
+        for (char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
         {
-            if (argv[index] == nullptr)
+            if (value == nullptr)
             {
                 continue;
             }
-            const std::string_view argument(argv[index]);
+            const std::string_view argument(value);
             if (argument == "--startup-tests" || isReservedChildArgument(argument))
             {
                 return true;

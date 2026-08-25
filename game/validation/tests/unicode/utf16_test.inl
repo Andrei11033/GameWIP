@@ -48,7 +48,7 @@ void testUtf16CodecAndValidation(TestSupport::Context &context)
         static_cast<void>(context.expectEq("UTF-16 encode code-unit count", testCase.count, encoded.codeUnitCount));
         static_cast<void>(context.expectTrue(
             "UTF-16 encode code units",
-            std::equal(testCase.expected.begin(), testCase.expected.begin() + testCase.count, encoded.codeUnits.begin())));
+            std::ranges::equal(std::span{testCase.expected}.first(testCase.count), std::span{encoded.codeUnits}.first(testCase.count))));
     }
     for (const char32_t invalidScalar : {
              static_cast<char32_t>(0xD800),

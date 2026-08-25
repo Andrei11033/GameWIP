@@ -350,10 +350,17 @@ namespace GameWIP::TestSupport
 
             try
             {
+                // GetEnvironmentStringsW owns a documented double-NUL-terminated block with no separate length API.
+#if defined(__clang__)
+#pragma clang unsafe_buffer_usage begin
+#endif
                 for (LPWCH current = environmentStrings; *current != L'\0'; current += std::wcslen(current) + 1)
                 {
                     entries.emplace_back(current);
                 }
+#if defined(__clang__)
+#pragma clang unsafe_buffer_usage end
+#endif
             }
             catch (...)
             {

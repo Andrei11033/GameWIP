@@ -318,9 +318,16 @@ void testConversions(TestSupport::Context &context)
     static_cast<void>(context.expectEq("UTF-8 to UTF-16 overlap writes nothing", std::size_t{0}, overlapToUtf16.codeUnitsWritten));
 
     std::array<char16_t, 4> reverseOverlapStorage{u'A', u'B', u'C', u'D'};
+    // This test deliberately aliases differently typed storage to validate reverse-overlap handling.
+#if defined(__clang__)
+#pragma clang unsafe_buffer_usage begin
+#endif
     std::span<char> overlappingUtf8Destination(
         reinterpret_cast<char *>(reverseOverlapStorage.data()),
         reverseOverlapStorage.size() * sizeof(char16_t));
+#if defined(__clang__)
+#pragma clang unsafe_buffer_usage end
+#endif
     const Unicode::Types::Utf16ToUtf8Result overlapToUtf8 = Unicode::Utf16::convertToUtf8(reverseOverlapStorage, overlappingUtf8Destination);
     static_cast<void>(context.expectEq("UTF-16 to UTF-8 overlap outcome", ConversionOutcome::OverlappingRanges, overlapToUtf8.outcome));
     static_cast<void>(context.expectEq("UTF-16 to UTF-8 overlap consumes nothing", std::size_t{0}, overlapToUtf8.sourceCodeUnitsConsumed));
@@ -381,7 +388,7 @@ void testExhaustiveScalarRoundTrips(TestSupport::Context &context)
         const Unicode::Types::Utf8ToUtf16Result toUtf16 = Unicode::Utf8::convertToUtf16(encodedBytes(utf8), convertedUtf16);
         if (toUtf16.outcome != ConversionOutcome::Converted || toUtf16.sourceBytesConsumed != utf8.byteCount ||
             toUtf16.codeUnitsWritten != utf16.codeUnitCount ||
-            !std::equal(utf16.codeUnits.begin(), utf16.codeUnits.begin() + utf16.codeUnitCount, convertedUtf16.begin()))
+            !std::ranges::equal(std::span{utf16.codeUnits}.first(utf16.codeUnitCount), std::span{convertedUtf16}.first(utf16.codeUnitCount)))
         {
             context.fail("exhaustive UTF-8 to UTF-16 conversion", std::format("U+{:06X} did not convert exactly", value));
             return;
@@ -390,7 +397,8 @@ void testExhaustiveScalarRoundTrips(TestSupport::Context &context)
         std::array<char, Unicode::Utf8::kMaximumScalarBytes> convertedUtf8{};
         const Unicode::Types::Utf16ToUtf8Result toUtf8 = Unicode::Utf16::convertToUtf8(encodedCodeUnits(utf16), convertedUtf8);
         if (toUtf8.outcome != ConversionOutcome::Converted || toUtf8.sourceCodeUnitsConsumed != utf16.codeUnitCount ||
-            toUtf8.bytesWritten != utf8.byteCount || !std::equal(utf8.bytes.begin(), utf8.bytes.begin() + utf8.byteCount, convertedUtf8.begin()))
+            toUtf8.bytesWritten != utf8.byteCount ||
+            !std::ranges::equal(std::span{utf8.bytes}.first(utf8.byteCount), std::span{convertedUtf8}.first(utf8.byteCount)))
         {
             context.fail("exhaustive UTF-16 to UTF-8 conversion", std::format("U+{:06X} did not convert exactly", value));
             return;

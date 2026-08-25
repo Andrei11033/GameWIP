@@ -19,6 +19,7 @@
 #include <format>
 #include <fstream>
 #include <initializer_list>
+#include <memory>
 #include <optional>
 #include <span>
 #include <sstream>
@@ -86,7 +87,7 @@ namespace
     /// @brief Returns the valid UTF-16 prefix stored in one scalar-encode result.
     std::span<const char16_t> encodedCodeUnits(const Unicode::Types::Utf16EncodeResult &result) noexcept
     {
-        return {result.codeUnits.data(), result.codeUnitCount};
+        return std::span{result.codeUnits}.first(result.codeUnitCount);
     }
 
     /// @brief Verifies one UTF-8 decode attempt and all deterministic failure fields.
@@ -351,7 +352,7 @@ namespace
         {
             std::uint32_t scalarValue = 0;
             const char *begin = scalarText.data();
-            const char *end = scalarText.data() + scalarText.size();
+            const char *end = std::to_address(scalarText.cend());
             const auto parsed = std::from_chars(begin, end, scalarValue, 16);
             if (parsed.ec != std::errc{} || parsed.ptr != end || scalarValue > 0x10FFFFU)
             {

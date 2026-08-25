@@ -452,7 +452,7 @@ namespace GameWIP::Unicode::Utf8
             };
         }
 
-        boundaries_ = std::span<const std::size_t>(boundaryStorage.data(), requiredBoundaryCount);
+        boundaries_ = boundaryStorage.first(requiredBoundaryCount);
         currentBoundaryIndex_ = 0;
         return {
             .requiredBoundaryCount = requiredBoundaryCount,

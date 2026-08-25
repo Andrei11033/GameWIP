@@ -376,7 +376,7 @@ namespace GameWIP::Window::Detail::Platform
 
         struct NativeMonitorContext
         {
-            const wchar_t *device = nullptr;
+            std::wstring_view device;
             HMONITOR monitor = nullptr;
         };
 
@@ -385,7 +385,7 @@ namespace GameWIP::Window::Detail::Platform
             auto &context = *reinterpret_cast<NativeMonitorContext *>(userData);
             MONITORINFOEXW info{};
             info.cbSize = sizeof(info);
-            if (GetMonitorInfoW(monitor, &info) != FALSE && std::wcscmp(info.szDevice, context.device) == 0)
+            if (GetMonitorInfoW(monitor, &info) != FALSE && std::wstring_view(info.szDevice) == context.device)
             {
                 context.monitor = monitor;
                 return FALSE;
@@ -585,7 +585,7 @@ namespace GameWIP::Window::Detail::Platform
         const std::wstring expected = monitorDeviceName(id);
         if (expected.empty())
             return nullptr;
-        NativeMonitorContext context{expected.c_str(), nullptr};
+        NativeMonitorContext context{expected, nullptr};
         static_cast<void>(EnumDisplayMonitors(nullptr, nullptr, findNativeMonitor, reinterpret_cast<LPARAM>(&context)));
         return context.monitor;
     }

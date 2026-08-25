@@ -5,6 +5,7 @@
 /// reentrant child execution, state restoration, and opt-in manual tests.
 
 #include "validation/tests/terminal/terminal_test.h"
+#include "validation/process_arguments.h"
 
 #include "terminal/terminal.h"
 #include "test_support/test_support.h"
@@ -17,6 +18,7 @@
 #include "terminal/internal/terminal_test_hooks.h"
 #endif
 
+#include <algorithm>
 #include <array>
 #include <atomic>
 #include <chrono>
@@ -205,9 +207,10 @@ namespace
     /// @brief Returns true when the process arguments contain one exact value.
     [[nodiscard]] bool hasArgument(int argc, char **argv, std::string_view expected)
     {
-        for (int index = 1; index < argc; ++index)
+        const auto arguments = GameWIP::Validation::processArguments(argc, argv);
+        for (char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
         {
-            if (argv[index] != nullptr && std::string_view(argv[index]) == expected)
+            if (value != nullptr && std::string_view(value) == expected)
             {
                 return true;
             }

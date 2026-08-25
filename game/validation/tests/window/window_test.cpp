@@ -2,6 +2,7 @@
 /// @brief Deterministic Window checks and opt-in visible manual validation.
 
 #include "validation/tests/window/window_test.h"
+#include "validation/process_arguments.h"
 
 #include "test_support/test_support.h"
 #include "window/renderer_bridge.h"
@@ -70,10 +71,11 @@ namespace GameWIP::Test
             options.enableManualTests ? SetCurrentProcessExplicitAppUserModelID(kManualTestAppUserModelId) : S_OK;
         std::optional<std::string_view> selectedManualSuite;
         constexpr std::string_view manualSuitePrefix = "--window-manual-suite=";
-        for (int index = 1; index < argc; ++index)
+        const auto arguments = GameWIP::Validation::processArguments(argc, argv);
+        for (char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
         {
-            if (argv[index] != nullptr && std::string_view(argv[index]).starts_with(manualSuitePrefix))
-                selectedManualSuite = std::string_view(argv[index]).substr(manualSuitePrefix.size());
+            if (value != nullptr && std::string_view(value).starts_with(manualSuitePrefix))
+                selectedManualSuite = std::string_view(value).substr(manualSuitePrefix.size());
         }
         constexpr std::array manualSuiteNames{
             std::string_view{"lifecycle"},

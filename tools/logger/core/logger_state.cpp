@@ -227,7 +227,7 @@ namespace GameWIP::Logger::Detail::Core
             return 0;
         std::size_t bytes = 0;
         for (std::size_t i = 0; i < loggerState().logRingSize; ++i)
-            bytes += entryTextHeapCapacityBytes(loggerState().logRing[i].entry);
+            bytes += entryTextHeapCapacityBytes(loggerState().logRingView[i].entry);
         if (!loggerState().workerBusy)
             for (const auto &entry : loggerState().workerBatch)
                 bytes += entryTextHeapCapacityBytes(entry);
@@ -445,6 +445,14 @@ namespace GameWIP::Logger::Detail::Core
         loggerState().batchMessageArena = std::move(batchArena);
         loggerState().logRing = std::move(ring);
         loggerState().logRingSize = ringSize;
+        // logRingSize is the allocation-time element count retained beside the owning array.
+#if defined(__clang__)
+#pragma clang unsafe_buffer_usage begin
+#endif
+        loggerState().logRingView = {loggerState().logRing.get(), loggerState().logRingSize};
+#if defined(__clang__)
+#pragma clang unsafe_buffer_usage end
+#endif
         loggerState().workerBatch = std::move(batch);
         loggerState().droppedLogs.store(0, std::memory_order_relaxed);
         resetAtomicStats();

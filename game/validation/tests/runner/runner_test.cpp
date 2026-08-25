@@ -7,8 +7,10 @@
 #include "validation/tests/runner/runner_test.h"
 
 #include "test_support/test_support.h"
+#include "validation/process_arguments.h"
 #include "validation/tests/internal/runner_test_hooks.h"
 
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <format>
@@ -118,9 +120,10 @@ namespace
 
     [[nodiscard]] bool hasProbeArgument(int argc, char **argv, std::string_view expected) noexcept
     {
-        for (int index = 1; index < argc; ++index)
+        const auto arguments = GameWIP::Validation::processArguments(argc, argv);
+        for (char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
         {
-            if (argv != nullptr && argv[index] != nullptr && std::string_view(argv[index]) == expected)
+            if (value != nullptr && std::string_view(value) == expected)
             {
                 return true;
             }

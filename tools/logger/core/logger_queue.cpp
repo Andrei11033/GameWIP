@@ -6,6 +6,23 @@
 
 namespace GameWIP::Logger::Detail::Core
 {
+    namespace
+    {
+        /// Converts an owning array and its allocation-time element count into a bounded view.
+        /// The caller owns both values and keeps the allocation alive for the returned view.
+#if defined(__clang__)
+#pragma clang unsafe_buffer_usage begin
+#endif
+        template <typename Element>
+        [[nodiscard]] std::span<Element> ownedArrayView(const std::unique_ptr<Element[]> &storage, std::size_t count) noexcept
+        {
+            return {storage.get(), count};
+        }
+#if defined(__clang__)
+#pragma clang unsafe_buffer_usage end
+#endif
+    } // namespace
+
     /// Allocates overflow-checked contiguous inline message storage for queue entries.
     bool allocateMessageArena(std::size_t entryCount, std::size_t inlineMessageCapacity, std::unique_ptr<char[]> &arena)
     {
@@ -63,17 +80,23 @@ namespace GameWIP::Logger::Detail::Core
                 return false;
             }
 
+            std::span<QueueSlot> ringView = ownedArrayView(ring, ringSize);
+            const std::size_t ringArenaSize = ringSize * inlineMessageCapacity;
+            const std::size_t batchArenaSize = batch.size() * inlineMessageCapacity;
+            std::span<char> ringArenaView = ownedArrayView(ringArena, ringArenaSize);
+            std::span<char> batchArenaView = ownedArrayView(batchArena, batchArenaSize);
+
             for (std::size_t index = 0; index < ringSize; ++index)
             {
-                char *storage = inlineMessageCapacity == 0 ? nullptr : ringArena.get() + (index * inlineMessageCapacity);
-                ring[index].entry.message.configureInlineStorage(storage, inlineMessageCapacity);
-                ring[index].sequence.store(index, std::memory_order_relaxed);
-                ring[index].skip = false;
+                const std::size_t storageOffset = index * inlineMessageCapacity;
+                ringView[index].entry.message.configureInlineStorage(ringArenaView.subspan(storageOffset, inlineMessageCapacity));
+                ringView[index].sequence.store(index, std::memory_order_relaxed);
+                ringView[index].skip = false;
             }
             for (std::size_t index = 0; index < batch.size(); ++index)
             {
-                char *storage = inlineMessageCapacity == 0 ? nullptr : batchArena.get() + (index * inlineMessageCapacity);
-                batch[index].message.configureInlineStorage(storage, inlineMessageCapacity);
+                const std::size_t storageOffset = index * inlineMessageCapacity;
+                batch[index].message.configureInlineStorage(batchArenaView.subspan(storageOffset, inlineMessageCapacity));
             }
             return true;
         }
@@ -99,7 +122,7 @@ namespace GameWIP::Logger::Detail::Core
         const bool releaseHeapCapacity = loggerState().releaseMessageMemoryAfterWrite;
         for (std::size_t index = 0; index < loggerState().logRingSize; ++index)
         {
-            QueueSlot &slot = loggerState().logRing[index];
+            QueueSlot &slot = loggerState().logRingView[index];
             QueuedLogEntry &entry = slot.entry;
             entry.usesRegisteredSource = false;
             entry.sourceId = 0;
@@ -129,6 +152,7 @@ namespace GameWIP::Logger::Detail::Core
         loggerState().sourceRegistry.store(std::shared_ptr<SourceRegistry>{}, std::memory_order_release);
         loggerState().ringMessageArena.reset();
         loggerState().batchMessageArena.reset();
+        loggerState().logRingView = {};
         loggerState().logRing.reset();
         loggerState().logRingSize = 0;
         std::vector<QueuedLogEntry>{}.swap(loggerState().workerBatch);
@@ -273,7 +297,7 @@ namespace GameWIP::Logger::Detail::Core
         }
 
         const std::size_t ticket = loggerState().enqueueTicket.fetch_add(1, std::memory_order_acq_rel);
-        QueueSlot &slot = loggerState().logRing[ticket % capacity];
+        QueueSlot &slot = loggerState().logRingView[ticket % capacity];
         waitForQueueSlot(slot, ticket);
 
         try
@@ -314,7 +338,7 @@ namespace GameWIP::Logger::Detail::Core
         while (batchCount < batchLimit)
         {
             const std::size_t ticket = loggerState().dequeueTicket.load(std::memory_order_relaxed);
-            QueueSlot &slot = loggerState().logRing[ticket % capacity];
+            QueueSlot &slot = loggerState().logRingView[ticket % capacity];
             if (slot.sequence.load(std::memory_order_acquire) != ticket + 1)
             {
                 break;
@@ -353,7 +377,7 @@ namespace GameWIP::Logger::Detail::Core
             }
 
             const std::size_t ticket = loggerState().dequeueTicket.load(std::memory_order_acquire);
-            return loggerState().logRing[ticket % capacity].sequence.load(std::memory_order_acquire) == ticket + 1;
+            return loggerState().logRingView[ticket % capacity].sequence.load(std::memory_order_acquire) == ticket + 1;
         }
     } // namespace
 

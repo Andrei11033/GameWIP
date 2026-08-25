@@ -5,7 +5,8 @@
 #include "terminal/internal/terminal_platform.h"
 
 #if TERMINAL_INTERNAL_TEST_HOOKS
-#include <cstring>
+#include <algorithm>
+#include <cstddef>
 
 namespace GameWIP::Terminal::Detail::TestHooks
 {
@@ -323,7 +324,13 @@ namespace GameWIP::Terminal::TestHooks
         std::string text(bytes.size(), '\0');
         if (!bytes.empty())
         {
-            std::memcpy(text.data(), bytes.data(), bytes.size());
+            std::ranges::transform(
+                bytes,
+                text.begin(),
+                [](std::byte byte)
+                {
+                    return std::to_integer<char>(byte);
+                });
         }
         return text;
     }

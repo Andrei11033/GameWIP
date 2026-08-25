@@ -163,8 +163,8 @@ namespace GameWIP::Unicode::Internal
         return 4;
     }
 
-    /// @brief Encodes one known-valid scalar into at least four writable UTF-8 bytes.
-    inline void encodeUtf8Unchecked(char32_t scalar, char *destination) noexcept
+    /// @brief Encodes one known-valid scalar into a destination large enough for that scalar.
+    inline void encodeUtf8Unchecked(char32_t scalar, std::span<char> destination) noexcept
     {
         const std::uint32_t value = static_cast<std::uint32_t>(scalar);
 
@@ -245,8 +245,8 @@ namespace GameWIP::Unicode::Internal
         return scalar <= static_cast<char32_t>(0xFFFF) ? 1 : 2;
     }
 
-    /// @brief Encodes one known-valid scalar into at least two writable UTF-16 code units.
-    inline void encodeUtf16Unchecked(char32_t scalar, char16_t *destination) noexcept
+    /// @brief Encodes one known-valid scalar into a destination large enough for that scalar.
+    inline void encodeUtf16Unchecked(char32_t scalar, std::span<char16_t> destination) noexcept
     {
         const std::uint32_t value = static_cast<std::uint32_t>(scalar);
         if (value <= 0xFFFFU)

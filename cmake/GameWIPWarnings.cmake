@@ -7,7 +7,6 @@ include_guard(GLOBAL)
 #
 # Inputs:
 # - GAMEWIP_WARNINGS_AS_ERRORS controls whether supported compilers treat warnings as errors.
-# - GAMEWIP_ENABLE_UNSAFE_BUFFER_WARNINGS enables Clang's broad buffer-migration diagnostics.
 #
 # Side effects:
 # - Adds directory-scoped options guarded to C++ compilation only.
@@ -62,10 +61,14 @@ function(gamewip_enable_project_warnings)
                 -Wsuggest-override
             )
         elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang|AppleClang")
-            list(APPEND gamewip_warning_options -Wthread-safety -Wcomma -Wconditional-uninitialized -Wshorten-64-to-32)
-            if(GAMEWIP_ENABLE_UNSAFE_BUFFER_WARNINGS)
-                list(APPEND gamewip_warning_options -Wunsafe-buffer-usage)
-            endif()
+            list(
+                APPEND gamewip_warning_options
+                -Wthread-safety
+                -Wcomma
+                -Wconditional-uninitialized
+                -Wshorten-64-to-32
+                -Wunsafe-buffer-usage
+            )
         endif()
         if(GAMEWIP_WARNINGS_AS_ERRORS)
             list(APPEND gamewip_warning_options -Werror)

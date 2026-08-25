@@ -10,7 +10,6 @@
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
-#include <cstring>
 #include <filesystem>
 #include <limits>
 #include <span>
@@ -387,7 +386,13 @@ namespace GameWIP::FileSystem
             std::u8string converted(utf8Path.size(), u8'\0');
             if (!utf8Path.empty())
             {
-                std::memcpy(converted.data(), utf8Path.data(), utf8Path.size());
+                std::ranges::transform(
+                    utf8Path,
+                    converted.begin(),
+                    [](char byte)
+                    {
+                        return static_cast<char8_t>(byte);
+                    });
             }
             return Types::Path{converted};
         }

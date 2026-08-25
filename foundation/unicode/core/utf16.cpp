@@ -25,7 +25,7 @@ namespace GameWIP::Unicode::Utf16
             .codeUnitCount = Internal::utf16EncodedLength(scalar),
             .outcome = Types::EncodeOutcome::Encoded,
         };
-        Internal::encodeUtf16Unchecked(scalar, result.codeUnits.data());
+        Internal::encodeUtf16Unchecked(scalar, result.codeUnits);
         return result;
     }
 

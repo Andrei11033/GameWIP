@@ -7,6 +7,7 @@
 
 #include <cstddef>
 #include <functional>
+#include <memory>
 #include <span>
 #include <string_view>
 
@@ -15,17 +16,17 @@ namespace GameWIP::Unicode
     namespace
     {
         /// @brief Returns whether two non-owning byte ranges overlap in the process address order.
-        bool memoryRangesOverlap(const void *firstData, std::size_t firstSizeBytes, const void *secondData, std::size_t secondSizeBytes) noexcept
+        bool memoryRangesOverlap(std::span<const std::byte> first, std::span<const std::byte> second) noexcept
         {
-            if (firstSizeBytes == 0 || secondSizeBytes == 0)
+            if (first.empty() || second.empty())
             {
                 return false;
             }
 
-            const auto *firstBegin = static_cast<const std::byte *>(firstData);
-            const auto *secondBegin = static_cast<const std::byte *>(secondData);
-            const auto *firstEnd = firstBegin + firstSizeBytes;
-            const auto *secondEnd = secondBegin + secondSizeBytes;
+            const auto *firstBegin = first.data();
+            const auto *secondBegin = second.data();
+            const auto *firstEnd = std::to_address(first.end());
+            const auto *secondEnd = std::to_address(second.end());
             const std::less<const void *> less{};
 
             return less(firstBegin, secondEnd) && less(secondBegin, firstEnd);
@@ -86,7 +87,7 @@ namespace GameWIP::Unicode
 
         Types::Utf8ToUtf16Result convertToUtf16(std::string_view source, std::span<char16_t> destination) noexcept
         {
-            if (memoryRangesOverlap(source.data(), source.size(), destination.data(), destination.size_bytes()))
+            if (memoryRangesOverlap(std::as_bytes(std::span{source}), std::as_bytes(destination)))
             {
                 return {.outcome = Types::ConversionOutcome::OverlappingRanges};
             }
@@ -116,7 +117,7 @@ namespace GameWIP::Unicode
                     };
                 }
 
-                Internal::encodeUtf16Unchecked(decoded.scalar, destination.data() + codeUnitsWritten);
+                Internal::encodeUtf16Unchecked(decoded.scalar, destination.subspan(codeUnitsWritten));
                 sourceBytesConsumed += decoded.bytesConsumed;
                 codeUnitsWritten += scalarCodeUnits;
             }
@@ -171,7 +172,7 @@ namespace GameWIP::Unicode
 
         Types::Utf16ToUtf8Result convertToUtf8(std::span<const char16_t> source, std::span<char> destination) noexcept
         {
-            if (memoryRangesOverlap(source.data(), source.size_bytes(), destination.data(), destination.size()))
+            if (memoryRangesOverlap(std::as_bytes(source), std::as_bytes(std::span{destination})))
             {
                 return {.outcome = Types::ConversionOutcome::OverlappingRanges};
             }
@@ -201,7 +202,7 @@ namespace GameWIP::Unicode
                     };
                 }
 
-                Internal::encodeUtf8Unchecked(decoded.scalar, destination.data() + bytesWritten);
+                Internal::encodeUtf8Unchecked(decoded.scalar, destination.subspan(bytesWritten));
                 sourceCodeUnitsConsumed += decoded.codeUnitsConsumed;
                 bytesWritten += scalarBytes;
             }

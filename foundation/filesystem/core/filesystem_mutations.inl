@@ -125,7 +125,7 @@ IO::Types::Status copyFile(const Types::Path &from, const Types::Path &to, const
         std::uint64_t copiedBytes = 0;
         while (true)
         {
-            IO::Types::ReadResult readResult = reader.read(std::span<std::byte>(buffer.data(), buffer.size()));
+            IO::Types::ReadResult readResult = reader.read(buffer);
             if (!readResult.status.ok())
             {
                 static_cast<void>(writer.close());
@@ -135,7 +135,7 @@ IO::Types::Status copyFile(const Types::Path &from, const Types::Path &to, const
 
             if (readResult.bytesRead > 0)
             {
-                IO::Types::WriteResult writeResult = IO::writeAllBytes(writer, std::span<const std::byte>(buffer.data(), readResult.bytesRead));
+                IO::Types::WriteResult writeResult = IO::writeAllBytes(writer, std::span{buffer}.first(readResult.bytesRead));
                 if (!writeResult.status.ok())
                 {
                     static_cast<void>(writer.close());

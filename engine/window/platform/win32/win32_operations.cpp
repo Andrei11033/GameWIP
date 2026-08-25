@@ -7,6 +7,7 @@
 #include <cmath>
 #include <limits>
 #include <new>
+#include <span>
 
 namespace GameWIP::Window::Detail::Platform
 {
@@ -112,7 +113,14 @@ namespace GameWIP::Window::Detail::Platform
                 return nullptr;
             }
 
-            auto *destination = static_cast<std::byte *>(pixels);
+            // CreateDIBSection owns pixels and guarantees image.rgba8.size() writable bytes for this 32-bit DIB.
+#if defined(__clang__)
+#pragma clang unsafe_buffer_usage begin
+#endif
+            std::span<std::byte> destination(static_cast<std::byte *>(pixels), image.rgba8.size());
+#if defined(__clang__)
+#pragma clang unsafe_buffer_usage end
+#endif
             for (std::size_t offset = 0; offset < image.rgba8.size(); offset += 4)
             {
                 const std::uint8_t red = std::to_integer<std::uint8_t>(image.rgba8[offset]);

@@ -9,7 +9,7 @@
 #include <windows.h>
 #include <psapi.h>
 
-#include <cstring>
+#include <algorithm>
 #include <deque>
 #include <limits>
 #include <new>
@@ -227,7 +227,7 @@ namespace GameWIP::Logger::Detail::Platform
         char formatBuffer[64]{};
         if (!timeFormat.empty())
         {
-            std::memcpy(formatBuffer, timeFormat.data(), timeFormat.size());
+            std::ranges::copy(timeFormat, formatBuffer);
         }
         char timeBuffer[64]{};
 #if defined(__clang__)

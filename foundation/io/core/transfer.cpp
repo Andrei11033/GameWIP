@@ -169,7 +169,7 @@ namespace GameWIP::IO::Detail::Core
 
             while (totalRead < expectedSize)
             {
-                const std::span<std::byte> destination(result.bytes.data() + totalRead, expectedSize - totalRead);
+                const std::span<std::byte> destination = std::span{result.bytes}.subspan(totalRead);
                 Types::ReadResult readResult = reader.read(destination);
 
                 if (readResult.bytesRead > destination.size())
@@ -261,7 +261,7 @@ namespace GameWIP::IO::Detail::Core
 
             while (totalRead < expectedSize)
             {
-                const std::span<char> textDestination(result.text.data() + totalRead, expectedSize - totalRead);
+                const std::span<char> textDestination = std::span{result.text}.subspan(totalRead);
                 const std::span<std::byte> destination = std::as_writable_bytes(textDestination);
                 Types::ReadResult readResult = reader.read(destination);
 
@@ -597,7 +597,15 @@ namespace GameWIP::IO
             return {.status = makeStatus(Types::ErrorCode::Unknown)};
         }
 
-        return readAllBytesWithScratch(reader, std::span<std::byte>(buffer.get(), effectiveBufferSize), maxBytes);
+        // effectiveBufferSize is the exact allocation count used for this operation-owned scratch array.
+#if defined(__clang__)
+#pragma clang unsafe_buffer_usage begin
+#endif
+        const std::span<std::byte> scratch(buffer.get(), effectiveBufferSize);
+#if defined(__clang__)
+#pragma clang unsafe_buffer_usage end
+#endif
+        return readAllBytesWithScratch(reader, scratch, maxBytes);
     }
 
     Types::ReadAllBytesResult readAllBytes(Reader &reader, std::span<std::byte> scratchBuffer, std::uint64_t maxBytes) noexcept
@@ -673,7 +681,15 @@ namespace GameWIP::IO
             return {.status = makeStatus(Types::ErrorCode::Unknown)};
         }
 
-        return finalizeReadAllText(readAllTextWithScratch(reader, std::span<std::byte>(buffer.get(), effectiveBufferSize), maxBytes));
+        // effectiveBufferSize is the exact allocation count used for this operation-owned scratch array.
+#if defined(__clang__)
+#pragma clang unsafe_buffer_usage begin
+#endif
+        const std::span<std::byte> scratch(buffer.get(), effectiveBufferSize);
+#if defined(__clang__)
+#pragma clang unsafe_buffer_usage end
+#endif
+        return finalizeReadAllText(readAllTextWithScratch(reader, scratch, maxBytes));
     }
 
     Types::ReadAllTextResult readAllText(Reader &reader, std::span<std::byte> scratchBuffer, std::uint64_t maxBytes) noexcept

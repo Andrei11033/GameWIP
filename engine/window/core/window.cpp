@@ -255,7 +255,7 @@ namespace GameWIP::Window
             if (eventQueueCapacity > candidate->internalEvents.max_size())
                 return error(ErrorCode::InvalidArgument);
             candidate->internalEvents.resize(eventQueueCapacity);
-            candidate->eventStorage = std::span<Types::Event>{candidate->internalEvents.data(), candidate->internalEvents.size()};
+            candidate->eventStorage = candidate->internalEvents;
             candidate->eventStorageKind = Types::Events::StorageKind::Internal;
 
             IO::Types::Status status = Detail::Platform::open(*candidate, description);

@@ -5,6 +5,7 @@
 
 #include "validation/tests/runner.h"
 
+#include "validation/process_arguments.h"
 #include "validation/tests/registry.h"
 
 #include <algorithm>
@@ -16,13 +17,13 @@
 namespace
 {
     /// @brief Returns whether the standalone runner was invoked only for help.
-    [[nodiscard]] bool requestsHelp(int argc, char **argv) noexcept
+    [[nodiscard]] bool requestsHelp(GameWIP::Validation::ProcessArguments arguments) noexcept
     {
-        if (argc != 2 || argv == nullptr || argv[1] == nullptr)
+        if (arguments.size() != 2 || arguments[1] == nullptr)
         {
             return false;
         }
-        const std::string_view argument(argv[1]);
+        const std::string_view argument(arguments[1]);
         return argument == "--help" || argument == "-h" || argument == "-?";
     }
 
@@ -60,7 +61,7 @@ namespace
 
 int main(int argc, char **argv)
 {
-    if (requestsHelp(argc, argv))
+    if (requestsHelp(GameWIP::Validation::processArguments(argc, argv)))
     {
         printHelp();
         return EXIT_SUCCESS;

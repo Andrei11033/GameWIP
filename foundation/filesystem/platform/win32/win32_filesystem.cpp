@@ -3084,7 +3084,14 @@ namespace GameWIP::FileSystem::Detail::Platform
                 const std::wstring &fileName = parsedTo.components.back();
                 const DWORD fileNameBytes = static_cast<DWORD>(fileName.size() * sizeof(wchar_t));
                 std::vector<std::byte> renameBuffer(sizeof(FILE_RENAME_INFO) + fileNameBytes + sizeof(wchar_t));
+                // renameBuffer owns the complete fixed header, variable file name, and terminator passed to NtSetInformationFile.
+#if defined(__clang__)
+#pragma clang unsafe_buffer_usage begin
+#endif
                 auto *renameInfo = reinterpret_cast<FILE_RENAME_INFO *>(renameBuffer.data());
+#if defined(__clang__)
+#pragma clang unsafe_buffer_usage end
+#endif
                 renameInfo->ReplaceIfExists = replaceMode == Types::ReplaceMode::ReplaceExisting;
                 renameInfo->RootDirectory = destinationParent.handle.get();
                 renameInfo->FileNameLength = fileNameBytes;

@@ -5,6 +5,7 @@
 /// manual prompts, temporary resources, and deterministic stress primitives.
 
 #include "validation/tests/test_support/test_support_test.h"
+#include "validation/process_arguments.h"
 
 #include "test_support/test_support.h"
 
@@ -16,6 +17,7 @@
 #include "test_support/internal/test_support_test_hooks.h"
 #endif
 
+#include <algorithm>
 #include <array>
 #include <atomic>
 #include <chrono>
@@ -61,9 +63,10 @@ namespace
     /// @brief Returns whether one exact child-mode argument is present.
     bool hasArgument(int argc, char **argv, std::string_view argument)
     {
-        for (int index = 1; index < argc; ++index)
+        const auto arguments = GameWIP::Validation::processArguments(argc, argv);
+        for (char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
         {
-            if (argv[index] != nullptr && std::string_view(argv[index]) == argument)
+            if (value != nullptr && std::string_view(value) == argument)
             {
                 return true;
             }
@@ -74,11 +77,12 @@ namespace
     /// @brief Returns the argument immediately following a named option.
     std::string argumentAfter(int argc, char **argv, std::string_view argument)
     {
-        for (int index = 1; index + 1 < argc; ++index)
+        const auto arguments = GameWIP::Validation::processArguments(argc, argv);
+        for (std::size_t index = 1; index + 1 < arguments.size(); ++index)
         {
-            if (argv[index] != nullptr && std::string_view(argv[index]) == argument && argv[index + 1] != nullptr)
+            if (arguments[index] != nullptr && std::string_view(arguments[index]) == argument && arguments[index + 1] != nullptr)
             {
-                return argv[index + 1];
+                return arguments[index + 1];
             }
         }
         return {};
