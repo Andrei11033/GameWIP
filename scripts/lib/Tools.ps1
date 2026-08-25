@@ -502,10 +502,10 @@ function Resolve-GameWipClangFormat
     }
     if ($null -eq $candidate)
     {
-        $command = Get-Command clang-format -ErrorAction SilentlyContinue | Select-Object -First 1
-        if ($null -ne $command)
+        $detected = Get-GameWipDetectedTool -Tool (Get-GameWipProjectTool -Id 'clang-format')
+        if ($detected.Installed)
         {
-            $candidate = $command.Source; $source = 'PATH fallback'
+            $candidate = $detected.Location; $source = $detected.Source
         }
     }
     if ($null -eq $candidate)

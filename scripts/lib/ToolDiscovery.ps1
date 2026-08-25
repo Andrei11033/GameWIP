@@ -86,24 +86,25 @@ function Get-GameWipToolCandidates
             Add-GameWipToolCandidate -Candidates $candidates -Seen $seen -Path (Join-Path ([string]$ProjectConfig.managedEnvironment.msys2Root) ([string]$Tool.provider.managedPath)) -Source 'managed environment' -Priority 20 -SelectionReason 'declared provider location'
         }
 
-        foreach ($managedRoot in @(Get-GameWipProviderManagedToolPath -Tool $Tool))
+    }
+
+    foreach ($managedRoot in @(Get-GameWipProviderManagedToolPath -Tool $Tool))
+    {
+        foreach ($command in $commands)
         {
-            foreach ($command in $commands)
+            foreach ($name in @(Get-GameWipExecutableNames -Command $command))
             {
-                foreach ($name in @(Get-GameWipExecutableNames -Command $command))
-                {
-                    Add-GameWipToolCandidate -Candidates $candidates -Seen $seen -Path (Join-Path $managedRoot $name) -Source "GameWIPTools $($Tool.provider.kind)" -Priority 20 -SelectionReason 'declared provider-managed location'
-                }
+                Add-GameWipToolCandidate -Candidates $candidates -Seen $seen -Path (Join-Path $managedRoot $name) -Source "GameWIPTools $($Tool.provider.kind)" -Priority 20 -SelectionReason 'declared provider-managed location'
             }
         }
-        foreach ($managedRoot in @(Get-GameWipManagedToolPath))
+    }
+    foreach ($managedRoot in @(Get-GameWipManagedToolPath))
+    {
+        foreach ($command in $commands)
         {
-            foreach ($command in $commands)
+            foreach ($name in @(Get-GameWipExecutableNames -Command $command))
             {
-                foreach ($name in @(Get-GameWipExecutableNames -Command $command))
-                {
-                    Add-GameWipToolCandidate -Candidates $candidates -Seen $seen -Path (Join-Path $managedRoot $name) -Source 'GameWIPTools' -Priority 50 -SelectionReason 'other GameWIP-managed location'
-                }
+                Add-GameWipToolCandidate -Candidates $candidates -Seen $seen -Path (Join-Path $managedRoot $name) -Source 'GameWIPTools' -Priority 50 -SelectionReason 'other GameWIP-managed location'
             }
         }
     }

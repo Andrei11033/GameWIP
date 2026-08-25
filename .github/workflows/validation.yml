@@ -191,16 +191,15 @@ jobs:
           registry=scripts/config/project-tools.json
           version() { jq -r --arg id "$1" '.tools[] | select(.id == $id) | .requiredVersion' "$registry"; }
 
-          sudo apt-get update
-          sudo apt-get install --yes clang-format
-
-          python3 -m venv "$RUNNER_TEMP/gamewip-quality-python"
-          "$RUNNER_TEMP/gamewip-quality-python/bin/python" -m pip install --upgrade pip
-          "$RUNNER_TEMP/gamewip-quality-python/bin/pip" install \
+          quality_python="$GITHUB_WORKSPACE/build/gamewip/tools/python"
+          python3 -m venv "$quality_python"
+          "$quality_python/bin/python" -m pip install --upgrade pip
+          "$quality_python/bin/pip" install \
+            "clang-format==22.1.8" \
             "ruff==$(version ruff)" \
             "yamllint==$(version yamllint)" \
             "jsonschema==$(version jsonschema)"
-          echo "$RUNNER_TEMP/gamewip-quality-python/bin" >> "$GITHUB_PATH"
+          echo "$quality_python/bin" >> "$GITHUB_PATH"
 
           gersemi_repository="$(jq -r '.tools[] | select(.id == "gersemi") | .provider.repository' "$registry")"
           gersemi_tag="$(jq -r '.tools[] | select(.id == "gersemi") | .provider.releaseTag' "$registry")"
@@ -244,6 +243,8 @@ jobs:
       - name: Check PowerShell workflow helper
         shell: pwsh
         run: |
+          $qualityPython = Join-Path $env:GITHUB_WORKSPACE 'build/gamewip/tools/python/bin'
+          $env:PATH = "$qualityPython$([IO.Path]::PathSeparator)$env:PATH"
           ./.github/scripts/WorkflowHelper.Tests.ps1
           ./.github/scripts/ProjectHelper.Tests.ps1
           ./.github/scripts/SetupHelper.Tests.ps1
@@ -270,15 +271,19 @@ jobs:
           archive="$(jq -r '.tools[] | select(.id == "actionlint") | .provider.assets["linux-amd64"].archive' "$registry")"
           sha256="$(jq -r '.tools[] | select(.id == "actionlint") | .provider.assets["linux-amd64"].sha256' "$registry")"
           url="https://github.com/rhysd/actionlint/releases/download/${tag}/${archive}"
-          curl --fail --silent --show-error --location --output "$archive" "$url"
-          echo "${sha256}  ${archive}" | sha256sum --check
-          tar --extract --gzip --file "$archive" actionlint
-          install -m 0755 actionlint "$RUNNER_TEMP/actionlint"
+          archive_path="$RUNNER_TEMP/$archive"
+          curl --fail --silent --show-error --location --output "$archive_path" "$url"
+          echo "${sha256}  ${archive_path}" | sha256sum --check
+          tar --extract --gzip --directory "$RUNNER_TEMP" --file "$archive_path" actionlint
+          chmod 0755 "$RUNNER_TEMP/actionlint"
           echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
 
       - name: Run complete repository quality policy
         shell: pwsh
-        run: ./scripts/GameWIP.ps1 quality check
+        run: |
+          $qualityPython = Join-Path $env:GITHUB_WORKSPACE 'build/gamewip/tools/python/bin'
+          $env:PATH = "$qualityPython$([IO.Path]::PathSeparator)$env:PATH"
+          ./scripts/GameWIP.ps1 quality check
 
   coverage:
     name: Coverage

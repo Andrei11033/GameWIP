@@ -68,6 +68,9 @@ function Invoke-GameWipFormat
     Write-Host "  Style:      $formatConfig"
     Write-Host "  Files:      $($formatFiles.Count)"
 
+    $help = Invoke-GameWipProcess -FilePath $formatter.Path -Arguments @('--help') -OutputMode LogOnly -TimeoutSeconds 20
+    $supportsIncompleteFormatFailure = $help.ExitCode -eq 0 -and ((@($help.Stdout) + @($help.Stderr)) -join "`n") -match '(?m)^\s*--fail-on-incomplete-format\b'
+
     $beforeHashes = @{}
     if ($Mode -eq 'apply')
     {
@@ -86,7 +89,10 @@ function Invoke-GameWipFormat
         $arguments = [System.Collections.Generic.List[string]]::new()
         $arguments.Add("--style=file:$formatConfig") | Out-Null
         $arguments.Add('--Werror') | Out-Null
-        $arguments.Add('--fail-on-incomplete-format') | Out-Null
+        if ($supportsIncompleteFormatFailure)
+        {
+            $arguments.Add('--fail-on-incomplete-format') | Out-Null
+        }
         $arguments.Add($(if ($Mode -eq 'check')
                 {
                     '--dry-run'
