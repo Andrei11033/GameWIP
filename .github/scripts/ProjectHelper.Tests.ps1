@@ -13,7 +13,7 @@ $powerShellPath = (Get-Process -Id $PID).Path
 . (Join-Path $repositoryRoot 'scripts\lib\Bootstrap.ps1') -RepositoryRoot $repositoryRoot
 
 $helpOutput = (& $powerShellPath -NoProfile -ExecutionPolicy Bypass -File $helperPath help 2>&1 | Out-String)
-foreach ($requiredHelpText in @('gamewip.bat <action> [command] [target]', 'quality', 'tools', 'runs', '-Preview', '-NonInteractive', '-Yes', '-NoBuild', '-Json'))
+foreach ($requiredHelpText in @('gamewip.bat <action> [command] [target]', 'Available commands', 'quality', 'tools', 'runs', '-Preview', '-NonInteractive', '-Yes', '-NoBuild', '-Json'))
 {
     if ($helpOutput -notmatch [regex]::Escape($requiredHelpText))
     {
@@ -45,6 +45,26 @@ finally
 if ((Test-GameWipWindowsHost) -and (Get-GameWipExecutableNames -Command sample) -contains 'sample')
 {
     throw 'Windows tool discovery included an extensionless shell entry point.'
+}
+$syntheticPythonRoot = if (Test-GameWipWindowsHost)
+{
+    'C:\gamewip-python-path-test'
+}
+else
+{
+    '/tmp/gamewip-python-path-test'
+}
+$expectedPythonPath = if (Test-GameWipWindowsHost)
+{
+    'C:\gamewip-python-path-test\Scripts\python.exe'
+}
+else
+{
+    '/tmp/gamewip-python-path-test/bin/python'
+}
+if ((Get-GameWipPythonEnvironmentInterpreterPath -Root $syntheticPythonRoot) -ne $expectedPythonPath)
+{
+    throw 'Python provider interpreter-path resolution is not platform-correct.'
 }
 
 $actionIds = @($CommandConfig.Actions | ForEach-Object { [string]$_.Id })

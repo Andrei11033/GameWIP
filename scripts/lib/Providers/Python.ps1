@@ -42,7 +42,11 @@ function Get-GameWipPythonEnvironmentInterpreterPath
     {
         return $windowsPath
     }
-    return if ($Root.EndsWith('/')) { "$($Root)bin/python" } else { "$Root/bin/python" }
+    if ($Root.EndsWith('/'))
+    {
+        return "$($Root)bin/python"
+    }
+    return "$Root/bin/python"
 }
 
 function Test-GameWipPythonEnvironmentIsMsys
