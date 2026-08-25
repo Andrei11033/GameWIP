@@ -337,11 +337,20 @@ if (-not (Test-GameWipWindowsHost))
 {
     $ownedProcess = $null
     $descendantIds = @()
+    $unixCancellationRoot = Join-Path $repositoryRoot ('build/gamewip/temp/unix-cancellation-test-' + [guid]::NewGuid().ToString('N'))
     try
     {
-        $ownedProcess = Start-GameWipOwnedProcess -FilePath '/bin/sh' -Arguments @('-c', 'sleep 60 & wait')
-        Start-Sleep -Milliseconds 250
-        $descendantIds = @(Get-GameWipUnixDescendantProcessId -ParentProcessId $ownedProcess.Id)
+        New-Item -ItemType Directory -Path $unixCancellationRoot -Force | Out-Null
+        $parentScript = Join-Path $unixCancellationRoot 'parent.sh'
+        [IO.File]::WriteAllText($parentScript, "#!/bin/sh`nsleep 60 &`nwait`n", [Text.UTF8Encoding]::new($false))
+        $ownedProcess = Start-GameWipOwnedProcess -FilePath '/bin/sh' -Arguments @($parentScript)
+        $discoveryDeadline = [DateTime]::UtcNow.AddSeconds(5)
+        do
+        {
+            Start-Sleep -Milliseconds 100
+            $descendantIds = @(Get-GameWipUnixDescendantProcessId -ParentProcessId $ownedProcess.Id)
+        }
+        while ($descendantIds.Count -eq 0 -and -not $ownedProcess.HasExited -and [DateTime]::UtcNow -lt $discoveryDeadline)
         if ($descendantIds.Count -eq 0)
         {
             throw 'Unix cancellation regression could not observe the owned child process.'
@@ -367,6 +376,7 @@ if (-not (Test-GameWipWindowsHost))
         {
             Stop-Process -Id $descendantId -Force -ErrorAction SilentlyContinue
         }
+        Remove-Item -LiteralPath $unixCancellationRoot -Recurse -Force -ErrorAction SilentlyContinue
     }
 }
 
