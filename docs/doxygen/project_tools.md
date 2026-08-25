@@ -33,6 +33,9 @@ release tag, platform asset names, and SHA-256 digests are owned by
 `project-tools.json`. `scripts/setup/config/setup.json` owns only setup action
 metadata and the IDs needed to bootstrap a provider host.
 
+The GitHub CLI is a managed WinGet tool because the workflow status and dispatch
+commands depend on it. Its sign-in state is intentionally not managed by setup.
+
 ## Persistent tool ownership
 
 MSYS2 lives at `C:\MSYS2`. Pacman-owned files remain in the standard `usr`,
@@ -67,7 +70,7 @@ packages after installation.
 
 ## Tool commands
 
-`gamewip tools -ToolsAction list` and `status` are offline. `list` reports
+`gamewip tools list` and `gamewip tools status` are offline. `list` reports
 registry policy. `status` reports the selected executable/module, required and
 installed versions, compatibility, provider, and additional discovered copies.
 Selection is deterministic: the declared managed provider location wins on the
@@ -75,12 +78,13 @@ Windows development environment, then other GameWIP-managed locations, then
 PATH. A repository-owned executable participates only when the registry
 explicitly declares its repository path.
 
-`gamewip tools -ToolsAction check-updates` is online and read-only. It resolves
+`gamewip tools check-updates` is online and read-only. It resolves
 all requested latest versions, including versioned provider dependencies,
 without changing tracked files or installed software.
 
-`gamewip tools -ToolsAction update -Tool <id|all>` resolves the complete online
-plan before the first mutation. `-Preview` prints that plan only. A real update
+`gamewip tools update <id|all>` resolves the complete online
+plan before the first mutation. `-Preview` performs that read-only resolution
+and prints the plan without changing tracked or machine state. A real update
 requires a clean tracked tree, updates structured registry fields and precise
 declared live references, updates integrity/tag metadata when applicable,
 installs the managed version, and runs `quality check`. Ambiguous or missing
@@ -91,9 +95,9 @@ failed sequence.
 `setup.bat update` has different semantics: it performs the complete MSYS2
 `pacman -Syu` environment update, updates other compatible package-manager
 software/integrations, and restores compliance with versions already declared
-by the checkout. It does not advance exact project pins. Use the interactive
-GameWIP `T` menu for project-tool status/check/update workflows and the `Q` menu
-for the complete quality/formatting workflows.
+by the checkout. It does not advance exact project pins. Use **Tools and
+environment** in the interactive project menu for tool status/check/update
+workflows, and **Quality** for the complete quality/formatting workflows.
 
 ## Repository-local mutable storage
 
@@ -131,13 +135,19 @@ Explicit formatter and linter policy is grouped under `config/quality/`:
 - `yamllint.yml`
 - `markdownlint-cli2.jsonc`
 - `psscriptanalyzer.psd1`
+- `file-ownership.json`
 
 The project helper passes these paths explicitly, so their location is not a
 hidden discovery dependency. `.clang-format`, `.clang-tidy`, and
 `.editorconfig` intentionally remain at repository root because editor and tool
 upward discovery is useful for C++ and basic text settings.
 
-`gamewip quality -QualityAction check` performs deterministic format checks,
+The ownership registry gives every maintained worktree file one quality policy. Language and structured-data sources use their declared formatter
+and parser or linter. Tool-owned metadata such as `CODEOWNERS` and `prettier.ignore` is intentionally not reformatted but remains subject to its
+owning tool, repository checks, and generic text rules. Windows manifests are parsed as XML and validated again by resource compilation. Generated,
+third-party, historical, and binary artifacts stay outside maintained formatting only through explicit policy boundaries.
+
+`gamewip quality check` performs deterministic format checks,
 language linters, schema/semantic validation, workflow validation,
 documentation checks, and link validation. `fix` runs deterministic formatters
 only and then executes the same check. It does not auto-rewrite prose, workflow
@@ -145,7 +155,7 @@ behavior, or semantic CMake policy.
 
 ## Troubleshooting
 
-Use `gamewip tools -ToolsAction status` to inspect tool selection and competing
+Use `gamewip tools status` to inspect tool selection and competing
 copies. Use `gamewip doctor` to verify the complete declared development
 environment. Use `setup.bat repair` when provider-owned software is missing or
 incompatible.

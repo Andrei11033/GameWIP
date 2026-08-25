@@ -12,8 +12,9 @@ verifies the machine.
 - `windows.bat` forwards batch arguments without owning setup behavior.
 - `Windows.ps1` owns actions, consent, the persistent menu, execution plans,
   and final verification.
-- `../lib/ToolRuns.ps1` owns the run-directory, step, output, summary, and
-  manifest format shared with the project helper.
+- `../lib/Operation.ps1`, `../lib/Process.ps1`, and `../lib/Runs.ps1` own the
+  operation lifecycle, native execution, retained output, receipts, and run
+  layout shared with the project helper.
 - `config/setup.json` owns setup action metadata and provider-host bootstrap IDs
   only; it does not duplicate machine packages or tool versions.
 - `config/editors.json` declares selectable editors and their handlers. VS Code
@@ -56,8 +57,8 @@ non-fast-forward merges. WinGet is used for MSYS2 only for the first installatio
 at the explicit `C:\MSYS2` root.
 
 `setup.bat update` owns environment and package-manager updates. The separate
-`gamewip tools -ToolsAction update` workflow advances reviewed project
-tool/version policy and exact pins; setup does not silently advance those pins.
+`gamewip tools update` workflow advances reviewed project tool/version policy
+and exact pins; setup does not silently advance those pins.
 
 The editor stage installs only selected editors. VS Code integration installs
 Microsoft C++/CMake extensions and packages the local workflow extension as a

@@ -1,0 +1,135 @@
+{
+  "schemaVersion": 1,
+  "excludePrefixes": ["external/", "build/", "install/"],
+  "historicalPrefixes": ["docs/releases/"],
+  "binaryExtensions": [
+    ".ico",
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".gif",
+    ".webp",
+    ".pdf",
+    ".zip",
+    ".7z",
+    ".dll",
+    ".exe",
+    ".lib",
+    ".a",
+    ".so",
+    ".woff",
+    ".woff2",
+    ".ttf"
+  ],
+  "policies": [
+    {
+      "id": "cpp",
+      "extensions": [".c", ".cc", ".cpp", ".cxx", ".h", ".hh", ".hpp", ".hxx", ".inl"],
+      "formatter": "clang-format",
+      "checks": ["clang-format", "compiler/static-analysis/repository checks"],
+      "allowTrailingWhitespace": false
+    },
+    {
+      "id": "cmake",
+      "exactNames": ["CMakeLists.txt"],
+      "suffixes": [".cmake", ".cmake.in"],
+      "formatter": "gersemi",
+      "checks": ["gersemi", "CMake/repository checks"],
+      "allowTrailingWhitespace": false
+    },
+    {
+      "id": "powershell",
+      "extensions": [".ps1", ".psd1", ".psm1"],
+      "formatter": "PSScriptAnalyzer formatter",
+      "checks": ["PowerShell parser", "PSScriptAnalyzer"],
+      "allowTrailingWhitespace": false
+    },
+    {
+      "id": "python",
+      "extensions": [".py"],
+      "formatter": "ruff format",
+      "checks": ["Python compile", "Ruff"],
+      "allowTrailingWhitespace": false
+    },
+    {
+      "id": "javascript",
+      "extensions": [".js", ".mjs", ".cjs"],
+      "formatter": "Prettier",
+      "checks": ["node --check/test", "ESLint", "Prettier"],
+      "allowTrailingWhitespace": false
+    },
+    {
+      "id": "json",
+      "extensions": [".json", ".jsonc"],
+      "formatter": "Prettier",
+      "checks": ["Prettier", "JSON/schema/owner validation"],
+      "allowTrailingWhitespace": false
+    },
+    {
+      "id": "special-json",
+      "exactNames": [".vsconfig", "GameWIP.code-workspace"],
+      "formatter": "Prettier with the JSON parser",
+      "checks": ["Prettier", "JSON parsing", "owning-tool validation"],
+      "allowTrailingWhitespace": false
+    },
+    {
+      "id": "yaml",
+      "extensions": [".yml", ".yaml"],
+      "formatter": "Prettier",
+      "checks": ["Prettier", "yamllint", "actionlint for workflows"],
+      "allowTrailingWhitespace": false
+    },
+    {
+      "id": "css",
+      "extensions": [".css"],
+      "formatter": "Prettier",
+      "checks": ["Prettier"],
+      "allowTrailingWhitespace": false
+    },
+    {
+      "id": "markdown",
+      "extensions": [".md"],
+      "formatter": null,
+      "noFormatterReason": "Repository prose is intentionally human-authored; automatic prose reflow is not authoritative.",
+      "checks": ["markdownlint", "documentation standards", "Markdown links"],
+      "allowTrailingWhitespace": true
+    },
+    {
+      "id": "toml",
+      "extensions": [".toml"],
+      "formatter": null,
+      "noFormatterReason": "The owning tool parses this configuration; no additional safe repository formatter is required.",
+      "checks": ["owning-tool parse/use", "generic text policy"],
+      "allowTrailingWhitespace": false
+    },
+    {
+      "id": "text-config",
+      "extensions": [".txt", ".bat", ".xml", ".rc", ".in", ".template", ".svg"],
+      "exactNames": [
+        "LICENSE",
+        "NOTICE",
+        ".editorconfig",
+        ".gitattributes",
+        ".gitignore",
+        ".gitmodules",
+        ".clang-format",
+        ".clang-tidy",
+        ".markdownlintignore",
+        "CODEOWNERS",
+        "prettier.ignore"
+      ],
+      "formatter": null,
+      "noFormatterReason": "These formats are either declarative owner-specific inputs or simple text where generic normalization is safer than a repository-wide formatter.",
+      "checks": ["owning-tool/repository validation", "generic text policy"],
+      "allowTrailingWhitespace": false
+    },
+    {
+      "id": "xml-manifest",
+      "extensions": [".manifest"],
+      "formatter": null,
+      "noFormatterReason": "Windows application manifests are compact, hand-reviewed platform inputs; XML reflow is not required for correctness.",
+      "checks": ["XML parsing", "CMake/resource compilation", "generic text policy"],
+      "allowTrailingWhitespace": false
+    }
+  ]
+}

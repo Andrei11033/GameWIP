@@ -3,6 +3,16 @@
     ExcludeRules = @(
         'PSAvoidUsingWriteHost'
         'PSUseBOMForUnicodeEncodedFile'
+        # GameWIP helper functions are private implementation functions. Collection-returning
+        # names and cleanup/constructor verbs are clearer here than public-cmdlet conventions.
+        'PSUseShouldProcessForStateChangingFunctions'
+        'PSUseSingularNouns'
+        # Entrypoint parameters and bootstrap globals are consumed by dot-sourced helper files,
+        # which PSScriptAnalyzer cannot resolve across script boundaries.
+        'PSReviewUnusedParameter'
+        'PSUseDeclaredVarsMoreThanAssignments'
+        # The helper regression suite intentionally replaces Read-Host to exercise menus.
+        'PSAvoidOverwritingBuiltInCmdlets'
     )
     Rules = @{
         PSPlaceOpenBrace = @{

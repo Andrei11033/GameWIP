@@ -35,6 +35,10 @@ constants live in `scripts/config/project.json`, command metadata lives in
 registries under `scripts/setup/config/`. Unsupported schema versions and
 schema or semantic violations fail before the requested action runs.
 
+Repository-backed informational tools may read their displayed version from a
+named `commands.json` value. This avoids recursively launching the project
+helper while another helper operation owns the operation lock.
+
 Reusable PowerShell functions use `Verb-GameWipNoun` with approved PowerShell
 verbs and PascalCase parameters. `Assert-GameWip...` is the intentional naming
 exception for validation helpers whose contract is to throw on failure; a
@@ -50,6 +54,7 @@ Exact version-sensitive quality-tool pins are centrally declared as follows:
 | Gersemi | 0.28.0 | verified GitHub release |
 | markdownlint-cli2 | 0.23.2 | npm |
 | yamllint | 1.38.0 | Python |
+| jsonschema | 4.26.0 | Python |
 | PSScriptAnalyzer | 1.25.0 | PowerShell Gallery |
 | actionlint | 1.7.12 | verified GitHub release |
 
@@ -60,7 +65,9 @@ updates first, updates the authoritative pin and live references, installs the
 managed version, and validates the result without committing or pushing.
 Historical release notes are excluded from version rewrites.
 
-Explicit formatter/linter configuration lives under `config/quality/` and is passed to each owning tool explicitly. `.clang-format`, `.clang-tidy`, and `.editorconfig` remain at repository root because their upward-discovery behavior is useful to editors and C++ tools.
+Explicit formatter/linter configuration lives under `config/quality/` and is passed to each owning tool explicitly.
+`.clang-format`, `.clang-tidy`, and `.editorconfig` remain at repository root because their upward-discovery behavior is useful
+to editors and C++ tools.
 
 `setup.bat update` brings the machine into compliance with the versions already
 declared by the checkout; it does not advance exact project pins. Non-pacman

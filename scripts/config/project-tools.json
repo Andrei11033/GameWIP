@@ -9,17 +9,12 @@
         "kind": "winget",
         "package": "MSYS2.MSYS2",
         "managedPath": "usr/bin/bash.exe",
-        "installArguments": [
-          "--override",
-          "install --confirm-command --root {msys2Root}"
-        ]
+        "installArguments": ["--override", "install --confirm-command --root {msys2Root}"]
       },
       "versionPolicy": "managed",
       "detection": {
         "command": "bash",
-        "versionArguments": [
-          "--version"
-        ],
+        "versionArguments": ["--version"],
         "versionPattern": "version ([0-9.]+)"
       },
       "capabilities": {
@@ -41,9 +36,7 @@
       "versionPolicy": "managed",
       "detection": {
         "command": "git",
-        "versionArguments": [
-          "--version"
-        ],
+        "versionArguments": ["--version"],
         "versionPattern": "git version ([0-9.]+)"
       },
       "capabilities": {
@@ -72,9 +65,7 @@
       "requiredVersion": "4.4.2",
       "detection": {
         "command": "cmake",
-        "versionArguments": [
-          "--version"
-        ],
+        "versionArguments": ["--version"],
         "versionPattern": "cmake version ([0-9.]+)"
       },
       "capabilities": {
@@ -101,9 +92,7 @@
       "versionPolicy": "managed",
       "detection": {
         "command": "g++",
-        "versionArguments": [
-          "--version"
-        ],
+        "versionArguments": ["--version"],
         "versionPattern": "([0-9]+(?:\\.[0-9]+)+)"
       },
       "capabilities": {
@@ -135,9 +124,7 @@
       "versionPolicy": "managed",
       "detection": {
         "command": "clang++",
-        "versionArguments": [
-          "--version"
-        ],
+        "versionArguments": ["--version"],
         "versionPattern": "clang version ([0-9.]+)"
       },
       "capabilities": {
@@ -165,9 +152,7 @@
       "versionPolicy": "managed",
       "detection": {
         "command": "ninja",
-        "versionArguments": [
-          "--version"
-        ],
+        "versionArguments": ["--version"],
         "versionPattern": "([0-9.]+)"
       },
       "capabilities": {
@@ -189,9 +174,7 @@
       "versionPolicy": "managed",
       "detection": {
         "command": "python",
-        "versionArguments": [
-          "--version"
-        ],
+        "versionArguments": ["--version"],
         "versionPattern": "Python ([0-9.]+)"
       },
       "capabilities": {
@@ -212,10 +195,7 @@
       "versionPolicy": "managed",
       "detection": {
         "command": "py",
-        "versionArguments": [
-          "-3.14",
-          "--version"
-        ],
+        "versionArguments": ["-3.14", "--version"],
         "versionPattern": "Python ([0-9.]+)"
       },
       "capabilities": {
@@ -237,9 +217,7 @@
       "versionPolicy": "managed",
       "detection": {
         "command": "node",
-        "versionArguments": [
-          "--version"
-        ],
+        "versionArguments": ["--version"],
         "versionPattern": "v([0-9.]+)"
       },
       "capabilities": {
@@ -261,9 +239,7 @@
       "versionPolicy": "managed",
       "detection": {
         "command": "doxygen",
-        "versionArguments": [
-          "--version"
-        ],
+        "versionArguments": ["--version"],
         "versionPattern": "([0-9.]+)"
       },
       "capabilities": {
@@ -285,9 +261,7 @@
       "versionPolicy": "managed",
       "detection": {
         "command": "dot",
-        "versionArguments": [
-          "-V"
-        ],
+        "versionArguments": ["-V"],
         "versionPattern": "version ([0-9.]+)"
       },
       "capabilities": {
@@ -309,9 +283,7 @@
       "versionPolicy": "managed",
       "detection": {
         "command": "gcovr",
-        "versionArguments": [
-          "--version"
-        ],
+        "versionArguments": ["--version"],
         "versionPattern": "gcovr ([0-9.]+)"
       },
       "capabilities": {
@@ -333,9 +305,7 @@
       "versionPolicy": "managed",
       "detection": {
         "command": "gdb",
-        "versionArguments": [
-          "--version"
-        ],
+        "versionArguments": ["--version"],
         "versionPattern": "GNU gdb.*?([0-9]+(?:\\.[0-9]+)+)"
       },
       "capabilities": {
@@ -357,9 +327,7 @@
       "versionPolicy": "managed",
       "detection": {
         "command": "clang-format",
-        "versionArguments": [
-          "--version"
-        ],
+        "versionArguments": ["--version"],
         "versionPattern": "version ([0-9.]+)"
       },
       "capabilities": {
@@ -386,9 +354,7 @@
       "versionPolicy": "managed",
       "detection": {
         "command": "clang-tidy",
-        "versionArguments": [
-          "--version"
-        ],
+        "versionArguments": ["--version"],
         "versionPattern": "version ([0-9.]+)"
       },
       "capabilities": {
@@ -415,9 +381,7 @@
       "requiredVersion": "0.16.4",
       "detection": {
         "command": "ruff",
-        "versionArguments": [
-          "--version"
-        ],
+        "versionArguments": ["--version"],
         "versionPattern": "ruff ([0-9.]+)"
       },
       "capabilities": {
@@ -459,9 +423,7 @@
       "requiredVersion": "0.28.0",
       "detection": {
         "command": "gersemi",
-        "versionArguments": [
-          "--version"
-        ],
+        "versionArguments": ["--version"],
         "versionPattern": "gersemi ([0-9.]+)"
       },
       "capabilities": {
@@ -496,9 +458,7 @@
       "requiredVersion": "1.38.0",
       "detection": {
         "command": "yamllint",
-        "versionArguments": [
-          "--version"
-        ],
+        "versionArguments": ["--version"],
         "versionPattern": "yamllint ([0-9.]+)"
       },
       "capabilities": {
@@ -511,6 +471,35 @@
           "path": "docs/doxygen/project_contracts.md",
           "kind": "text",
           "pattern": "| yamllint | {version} | Python |",
+          "expectedCount": 1
+        }
+      ]
+    },
+    {
+      "id": "jsonschema",
+      "name": "jsonschema",
+      "category": "quality",
+      "provider": {
+        "kind": "python",
+        "package": "jsonschema"
+      },
+      "versionPolicy": "exact",
+      "requiredVersion": "4.26.0",
+      "detection": {
+        "command": "python",
+        "versionArguments": ["-c", "from importlib.metadata import version; print(version('jsonschema'))"],
+        "versionPattern": "([0-9.]+)"
+      },
+      "capabilities": {
+        "detectInstalled": true,
+        "checkLatest": true,
+        "update": true
+      },
+      "references": [
+        {
+          "path": "docs/doxygen/project_contracts.md",
+          "kind": "text",
+          "pattern": "| jsonschema | {version} | Python |",
           "expectedCount": 1
         }
       ]
@@ -533,9 +522,7 @@
       "requiredVersion": "10.9.0",
       "detection": {
         "command": "eslint",
-        "versionArguments": [
-          "--version"
-        ],
+        "versionArguments": ["--version"],
         "versionPattern": "v?([0-9.]+)"
       },
       "capabilities": {
@@ -564,9 +551,7 @@
       "requiredVersion": "3.9.6",
       "detection": {
         "command": "prettier",
-        "versionArguments": [
-          "--version"
-        ],
+        "versionArguments": ["--version"],
         "versionPattern": "([0-9.]+)"
       },
       "capabilities": {
@@ -595,9 +580,7 @@
       "requiredVersion": "0.23.2",
       "detection": {
         "command": "markdownlint-cli2",
-        "versionArguments": [
-          "--help"
-        ],
+        "versionArguments": ["--version"],
         "versionPattern": "markdownlint-cli2 v?([0-9.]+)"
       },
       "capabilities": {
@@ -667,9 +650,7 @@
       "requiredVersion": "1.7.12",
       "detection": {
         "command": "actionlint",
-        "versionArguments": [
-          "-version"
-        ],
+        "versionArguments": ["-version"],
         "versionPattern": "([0-9.]+)"
       },
       "capabilities": {
@@ -687,6 +668,27 @@
       ]
     },
     {
+      "id": "gh",
+      "name": "GitHub CLI",
+      "category": "source-control",
+      "provider": {
+        "kind": "winget",
+        "package": "GitHub.cli"
+      },
+      "versionPolicy": "managed",
+      "detection": {
+        "command": "gh",
+        "versionArguments": ["--version"],
+        "versionPattern": "gh version ([0-9.]+)"
+      },
+      "capabilities": {
+        "detectInstalled": true,
+        "checkLatest": true,
+        "update": true
+      },
+      "references": []
+    },
+    {
       "id": "git",
       "name": "Git",
       "category": "source-control",
@@ -697,9 +699,7 @@
       "versionPolicy": "managed",
       "detection": {
         "command": "git",
-        "versionArguments": [
-          "--version"
-        ],
+        "versionArguments": ["--version"],
         "versionPattern": "git version ([0-9.]+)"
       },
       "capabilities": {
@@ -720,12 +720,7 @@
       "versionPolicy": "informational",
       "detection": {
         "command": "git",
-        "versionArguments": [
-          "-C",
-          "external/tracy",
-          "rev-parse",
-          "HEAD"
-        ],
+        "versionArguments": ["-C", "external/tracy", "rev-parse", "HEAD"],
         "versionPattern": "([0-9a-f]{40})"
       },
       "capabilities": {
@@ -751,13 +746,10 @@
       "versionPolicy": "informational",
       "detection": {
         "command": "gamewip",
-        "versionArguments": [
-          "unicode",
-          "-UnicodeAction",
-          "status"
-        ],
+        "versionArguments": ["unicode", "status"],
         "versionPattern": "Unicode ([0-9.]+)",
-        "repositoryPath": "gamewip.bat"
+        "repositoryPath": "gamewip.bat",
+        "commandConfigVersionPath": "unicode.version"
       },
       "capabilities": {
         "detectInstalled": true,

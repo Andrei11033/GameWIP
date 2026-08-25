@@ -8,10 +8,12 @@ $repositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $helperPath = Join-Path $repositoryRoot 'scripts\GameWIP.ps1'
 $powerShellPath = (Get-Process -Id $PID).Path
 
-. $helperPath -Action help *> $null
+# Tests consume the supported non-executable bootstrap boundary. The executable
+# entrypoint is exercised only as a child process.
+. (Join-Path $repositoryRoot 'scripts\lib\Bootstrap.ps1') -RepositoryRoot $repositoryRoot
 
-$helpOutput = (& $powerShellPath -NoProfile -ExecutionPolicy Bypass -File $helperPath -Action help 2>&1 | Out-String)
-foreach ($requiredHelpText in @('.\gamewip.bat [action] [options]', 'links', 'coverage', 'quality', 'tools', '-NoWorkspaceTemp', '-WorkflowKind'))
+$helpOutput = (& $powerShellPath -NoProfile -ExecutionPolicy Bypass -File $helperPath help 2>&1 | Out-String)
+foreach ($requiredHelpText in @('gamewip.bat <action> [command] [target]', 'quality', 'tools', 'runs', '-Preview', '-NonInteractive', '-Yes', '-NoBuild', '-Json'))
 {
     if ($helpOutput -notmatch [regex]::Escape($requiredHelpText))
     {
@@ -19,312 +21,292 @@ foreach ($requiredHelpText in @('.\gamewip.bat [action] [options]', 'links', 'co
     }
 }
 
-$actionValidateSet = @(
-    (Get-Command -Name $helperPath).Parameters['Action'].Attributes |
-        Where-Object { $_ -is [System.Management.Automation.ValidateSetAttribute] } |
-        ForEach-Object { $_.ValidValues }
-)
-foreach ($action in $actionValidateSet)
-{
-    if ($helpOutput -notmatch "(?m)(^|[^A-Za-z0-9_-])$([regex]::Escape($action))([^A-Za-z0-9_-]|$)")
-    {
-        throw "Project helper help omits action '$action'."
-    }
-}
-foreach ($parameter in (Get-Command -Name $helperPath).Parameters.Keys)
-{
-    if ($parameter -eq 'Action' -or $parameter -in [System.Management.Automation.PSCmdlet]::CommonParameters)
-    {
-        continue
-    }
-    if ($helpOutput -notmatch [regex]::Escape("-$parameter"))
-    {
-        throw "Project helper help omits option '-$parameter'."
-    }
-}
-
 Assert-GameWipCommandConfig
-
-$profileIds = @($CommandConfig.BenchmarkProfiles | ForEach-Object { $_.Id })
-foreach ($requiredProfile in @('quick', 'standard', 'stable'))
-{
-    if ($profileIds -notcontains $requiredProfile)
-    {
-        throw "Missing benchmark profile '$requiredProfile'."
-    }
-}
-
-$testCommand = Get-GameWipProjectCommand -Id 'test-all'
-if (-not [bool]$testCommand.AcceptsExtraArgs)
-{
-    throw 'The test-all project command must accept focused runner arguments.'
-}
-
-$argumentRejected = $false
-try
-{
-    Assert-GameWipBenchmarkExtraArgument -Arguments @('--benchmark_out=unexpected.json')
-}
-catch
-{
-    $argumentRejected = $true
-}
-if (-not $argumentRejected)
-{
-    throw 'Expected managed benchmark output arguments to be rejected.'
-}
-
-$testRoot = Join-Path $repositoryRoot (Join-Path 'build\gamewip\temp\project-helper-tests' ([guid]::NewGuid().ToString('N')))
-New-Item -ItemType Directory -Force -Path $testRoot | Out-Null
-try
-{
-    $baselinePath = Join-Path $testRoot 'baseline.json'
-    $candidatePath = Join-Path $testRoot 'candidate.json'
-    @{
-        benchmarks = @(
-            @{ name = 'BM_Example'; run_name = 'BM_Example'; run_type = 'iteration'; cpu_time = 100; real_time = 200; time_unit = 'ns' }
-        )
-    } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $baselinePath -Encoding UTF8
-    @{
-        benchmarks = @(
-            @{ name = 'BM_Example'; run_name = 'BM_Example'; run_type = 'iteration'; cpu_time = 120; real_time = 180; time_unit = 'ns' }
-        )
-    } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $candidatePath -Encoding UTF8
-
-    $baselineRows = Get-GameWipBenchmarkComparisonRow -Path $baselinePath
-    $candidateRows = Get-GameWipBenchmarkComparisonRow -Path $candidatePath
-    if ([double]$baselineRows['BM_Example'].CpuNanoseconds -ne 100.0)
-    {
-        throw 'Baseline benchmark parsing failed.'
-    }
-    if ([double]$candidateRows['BM_Example'].RealNanoseconds -ne 180.0)
-    {
-        throw 'Candidate benchmark parsing failed.'
-    }
-
-    $run = Initialize-GameWipToolRun -RepositoryRoot $testRoot -RunLogRoot 'runs' -Tool 'test' -Action 'sample action'
-    $step = Initialize-GameWipToolRunStep -Run $run -Name 'sample-step' -CommandLine 'sample.exe --flag'
-    'sample output' | Set-Content -LiteralPath $step.LogPath -Encoding UTF8
-    Complete-GameWipToolRunStep -Run $run -Step $step -ExitCode 0
-    $artifact = Join-Path $run.Artifacts 'result.json'
-    '{}' | Set-Content -LiteralPath $artifact -Encoding UTF8
-    Add-GameWipToolRunOutput -Run $run -Kind 'test-result' -Path $artifact
-    $summary = Save-GameWipToolRun -Run $run -Status 'passed'
-    foreach ($requiredFile in @($summary, (Join-Path $run.Root 'summary.json'), (Join-Path $run.Root 'manifest.json')))
-    {
-        if (-not (Test-Path -LiteralPath $requiredFile))
-        {
-            throw "Tool-run output was not created: $requiredFile"
-        }
-    }
-    $manifest = Get-Content -Raw -LiteralPath (Join-Path $run.Root 'manifest.json') | ConvertFrom-Json
-    if ($manifest.status -ne 'passed' -or @($manifest.steps).Count -ne 1 -or @($manifest.outputs).Count -ne 1)
-    {
-        throw 'Tool-run manifest does not describe the completed run.'
-    }
-}
-finally
-{
-    $resolvedTestRoot = [IO.Path]::GetFullPath($testRoot)
-    $expectedParent = [IO.Path]::GetFullPath((Join-Path $repositoryRoot 'build\gamewip\temp\project-helper-tests')).TrimEnd('\') + '\'
-    if ($resolvedTestRoot.StartsWith($expectedParent, [StringComparison]::OrdinalIgnoreCase) -and (Test-Path -LiteralPath $resolvedTestRoot))
-    {
-        Remove-Item -LiteralPath $resolvedTestRoot -Recurse -Force
-    }
-}
-
 Assert-GameWipProjectToolConfig
-$firstRegisteredTool = $ProjectTools['tools'][0]
-if ($firstRegisteredTool -isnot [hashtable])
+if ((New-GameWipOperationContext -Label output-default).OutputMode -ne 'Stream')
 {
-    throw "Project tool registry changed type before provider tests: '$($firstRegisteredTool.GetType().FullName)' '$firstRegisteredTool'."
+    throw 'Project helper operations do not stream native output by default.'
 }
-$testedProviders = @{}
-for ($toolIndex = 0; $toolIndex -lt $ProjectTools['tools'].Count; ++$toolIndex)
-{
-    $registeredToolInfo = $ProjectTools['tools'][$toolIndex]
-    if ($registeredToolInfo -isnot [hashtable])
-    {
-        throw "Tool registry yielded unexpected type '$($registeredToolInfo.GetType().FullName)'."
-    }
-    $providerKind = [string]$registeredToolInfo['provider']['kind']
-    if ($testedProviders.ContainsKey($providerKind))
-    {
-        continue
-    }
-    $testedProviders[$providerKind] = $true
-    foreach ($operation in @('Latest', 'Install'))
-    {
-        $providerFunction = Get-GameWipProviderFunction -Tool $registeredToolInfo -Operation $operation
-        if ($null -eq (Get-Command $providerFunction -ErrorAction SilentlyContinue))
-        {
-            throw "Provider '$providerKind' does not implement '$operation'."
-        }
-    }
-}
-
-$exactTool = @{ versionPolicy = 'exact'; requiredVersion = '2.0.0' }
-if ((Get-GameWipToolCompatibility -Tool $exactTool -Detected @{ Installed = $true; Version = '2.0.0' }) -ne 'compatible' -or
-    (Get-GameWipToolCompatibility -Tool $exactTool -Detected @{ Installed = $true; Version = '2.0.1' }) -ne 'mismatch')
-{
-    throw 'Exact tool compatibility policy is incorrect.'
-}
-$minimumTool = @{ versionPolicy = 'minimum'; requiredVersion = '2.0.0' }
-if ((Get-GameWipToolCompatibility -Tool $minimumTool -Detected @{ Installed = $true; Version = '2.1.0' }) -ne 'compatible' -or
-    (Get-GameWipToolCompatibility -Tool $minimumTool -Detected @{ Installed = $true; Version = '1.9.0' }) -ne 'outdated')
-{
-    throw 'Minimum tool compatibility policy is incorrect.'
-}
-
-Initialize-GameWipStorage
-foreach ($storagePath in @($ProjectConfig.storage.cache, $ProjectConfig.storage.state, $ProjectConfig.storage.temp, $ProjectConfig.storage.runs))
-{
-    if (-not (Test-Path -LiteralPath (Resolve-GameWipStoragePath -RelativePath $storagePath) -PathType Container))
-    {
-        throw "Storage initialization omitted '$storagePath'."
-    }
-}
-
-$tempRoot = Resolve-GameWipStoragePath -RelativePath $ProjectConfig.storage.temp
-$deadMarked = Join-Path $tempRoot ('stale-dead-' + [guid]::NewGuid().ToString('N'))
-$activeMarked = Join-Path $tempRoot ('stale-active-' + [guid]::NewGuid().ToString('N'))
-$malformedMarked = Join-Path $tempRoot ('stale-malformed-' + [guid]::NewGuid().ToString('N'))
-$staleUnmarked = Join-Path $tempRoot ('stale-unmarked-' + [guid]::NewGuid().ToString('N'))
-New-Item -ItemType Directory -Path $deadMarked, $activeMarked, $malformedMarked, $staleUnmarked | Out-Null
-
-$activeStart = (Get-Process -Id $PID).StartTime.ToUniversalTime().ToString('o')
-@{
-    schemaVersion = 1
-    owner = 'GameWIP'
-    resource = 'operation-temp'
-    processId = 2147483647
-    processStartTime = '2000-01-01T00:00:00.0000000Z'
-} | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $deadMarked '.gamewip-owned.json') -Encoding UTF8
-@{
-    schemaVersion = 1
-    owner = 'GameWIP'
-    resource = 'operation-temp'
-    processId = $PID
-    processStartTime = $activeStart
-} | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $activeMarked '.gamewip-owned.json') -Encoding UTF8
-'not-json' | Set-Content -LiteralPath (Join-Path $malformedMarked '.gamewip-owned.json') -Encoding UTF8
-
-foreach ($directory in @($deadMarked, $activeMarked, $malformedMarked, $staleUnmarked))
-{
-    (Get-Item -LiteralPath $directory).LastWriteTimeUtc = (Get-Date).ToUniversalTime().AddDays(-2)
-}
+$schemaTestRoot = Join-Path $repositoryRoot ('build\gamewip\temp\schema-test-' + [guid]::NewGuid().ToString('N'))
 try
 {
-    Invoke-GameWipStaleOperationTempCleanup
-    if (Test-Path -LiteralPath $deadMarked)
+    if ((Initialize-GameWipToolRun -RepositoryRoot $schemaTestRoot -RunLogRoot runs -Tool test -Action schema-check).SchemaVersion -ne 1)
     {
-        throw 'Stale operation temp owned by a dead process was not removed.'
-    }
-    foreach ($preserved in @($activeMarked, $malformedMarked, $staleUnmarked))
-    {
-        if (-not (Test-Path -LiteralPath $preserved))
-        {
-            throw "Operation-temp cleanup removed a protected path: $preserved"
-        }
+        throw 'Retained run receipts must remain at schema version 1.'
     }
 }
 finally
 {
-    foreach ($directory in @($activeMarked, $malformedMarked, $staleUnmarked))
+    if (Test-Path -LiteralPath $schemaTestRoot)
     {
-        if (Test-Path -LiteralPath $directory)
-        {
-            Remove-Item -LiteralPath $directory -Recurse -Force
-        }
+        Remove-Item -LiteralPath $schemaTestRoot -Recurse -Force
     }
 }
-
-$informationalPlan = @(Get-GameWipToolUpdatePlan -ToolId 'unicode')
-if ($informationalPlan.Count -ne 1 -or $informationalPlan[0].Tool.id -ne 'unicode' -or $null -ne $informationalPlan[0].Latest)
+if ((Test-GameWipWindowsHost) -and (Get-GameWipExecutableNames -Command sample) -contains 'sample')
 {
-    throw 'Informational tool update planning must remain read-only and report no latest version.'
+    throw 'Windows tool discovery included an extensionless shell entry point.'
 }
 
-function Assert-GameWipCleanTrackedTree
+$actionIds = @($CommandConfig.Actions | ForEach-Object { [string]$_.Id })
+if ($actionIds -contains 'analysis')
 {
-    throw 'simulated dirty tracked tree'
+    throw "Retired 'analysis' alias is still public."
 }
-$cleanTreeProtected = $false
+foreach ($requiredAction in @('menu', 'doctor', 'quality', 'tools', 'runs', 'analyze', 'help'))
+{
+    if ($actionIds -notcontains $requiredAction)
+    {
+        throw "Missing action metadata '$requiredAction'."
+    }
+}
+$duplicateActions = @($actionIds | Group-Object | Where-Object Count -gt 1)
+if ($duplicateActions.Count -ne 0)
+{
+    throw "Duplicate action IDs: $($duplicateActions.Name -join ', ')."
+}
+
+# Non-interactive mode suppresses prompts; it never grants mutation consent.
+$Script:OperationContext = New-GameWipOperationContext -Label 'consent-test' -NonInteractive
+$consentRejected = $false
 try
 {
-    Invoke-GameWipToolUpdate -ToolId 'unicode'
+    Confirm-GameWipMutation -Summary 'test mutation' -Risk machine -Plan @('test') | Out-Null
 }
 catch
 {
-    $cleanTreeProtected = $_.Exception.Message -eq 'simulated dirty tracked tree'
+    $consentRejected = $_.Exception.Data['GameWipCode'] -eq 'consent-required'
 }
-if (-not $cleanTreeProtected)
+if (-not $consentRejected)
 {
-    throw 'A real tool update did not enforce clean tracked-tree protection before planning.'
+    throw '-NonInteractive implicitly authorized a machine mutation.'
 }
 
-# Version-reference updates must be precise and fail closed.
-$originalRepositoryRoot = $RepositoryRoot
-$versionReferenceRoot = Join-Path $testRoot 'version-reference-tests'
-New-Item -ItemType Directory -Force -Path $versionReferenceRoot | Out-Null
+$Script:OperationContext = New-GameWipOperationContext -Label 'preview-test' -Preview
+if (Confirm-GameWipMutation -Summary 'preview mutation' -Risk tracked -Plan @('test'))
+{
+    throw '-Preview authorized a tracked mutation.'
+}
+$Script:OperationContext = New-GameWipOperationContext -Label 'yes-test' -NonInteractive -Yes
+if (-not (Confirm-GameWipMutation -Summary 'approved mutation' -Risk machine -Plan @('test')))
+{
+    throw '-Yes did not provide explicit non-interactive consent.'
+}
+$Script:OperationContext = $null
+
+# Internal console assertions must never trigger PowerShell parameter binding
+# prompts when a caller omits descriptive metadata.
+$interactiveConsoleImplementation = (Get-Command Test-GameWipInteractiveConsole).ScriptBlock
+function Test-GameWipInteractiveConsole
+{
+    return $false
+}
+$interactiveRejected = $false
 try
 {
-    $RepositoryRoot = $versionReferenceRoot
-    $referencePath = Join-Path $versionReferenceRoot 'reference.txt'
-    'tool-version=1.2.3; unrelated=1.2.3' | Set-Content -LiteralPath $referencePath -Encoding UTF8
-    $reference = @{ path = 'reference.txt'; kind = 'text'; pattern = 'tool-version={version}'; expectedCount = 1 }
-    Set-GameWipPreciseTextVersionReference -Reference $reference -OldVersion '1.2.3' -NewVersion '1.2.4'
-    $updatedReference = Get-Content -Raw -LiteralPath $referencePath
-    if ($updatedReference -notmatch 'tool-version=1\.2\.4' -or $updatedReference -notmatch 'unrelated=1\.2\.3')
-    {
-        throw 'Precise version-reference update changed an unrelated identical version string.'
-    }
-
-    'no-version-here' | Set-Content -LiteralPath $referencePath -Encoding UTF8
-    $missingFailed = $false
     try
     {
-        Set-GameWipPreciseTextVersionReference -Reference $reference -OldVersion '1.2.3' -NewVersion '1.2.4'
+        Assert-GameWipInteractiveConsole
     }
     catch
     {
-        $missingFailed = $true
-    }
-    if (-not $missingFailed)
-    {
-        throw 'Missing version reference did not fail closed.'
-    }
-
-    'tool-version=1.2.3; tool-version=1.2.3' | Set-Content -LiteralPath $referencePath -Encoding UTF8
-    $duplicateFailed = $false
-    try
-    {
-        Set-GameWipPreciseTextVersionReference -Reference $reference -OldVersion '1.2.3' -NewVersion '1.2.4'
-    }
-    catch
-    {
-        $duplicateFailed = $true
-    }
-    if (-not $duplicateFailed)
-    {
-        throw 'Ambiguous duplicate version reference did not fail closed.'
+        $interactiveRejected = $_.Exception.Data['GameWipCode'] -eq 'interactive-console-required'
     }
 }
 finally
 {
-    $RepositoryRoot = $originalRepositoryRoot
+    Set-Item -Path function:Test-GameWipInteractiveConsole -Value $interactiveConsoleImplementation
+}
+if (-not $interactiveRejected)
+{
+    throw 'A non-interactive console assertion did not fail with the supported diagnostic.'
 }
 
-# GitHub-release providers must retain the actual upstream release tag rather
-# than synthesizing a v-prefix from a normalized version.
-$githubReleaseProviderSource = Get-Content -Raw -LiteralPath (Join-Path $repositoryRoot 'scripts\lib\Providers\GitHubRelease.ps1')
-if ($githubReleaseProviderSource -notmatch 'provider\.releaseTag')
+# Incidental operation-body output must not turn the final result into an
+# array or hide its Status property.
+$originalRunRoot = [string]$ProjectConfig.storage.runs
+$resultShapeRoot = 'build/gamewip/temp/result-shape-test-' + [guid]::NewGuid().ToString('N')
+try
 {
-    throw 'GitHub-release provider does not consume the registry-owned upstream release tag.'
+    $ProjectConfig.storage.runs = "$resultShapeRoot/runs"
+    $operationResult = Invoke-GameWipOperation -Label 'result-shape-test' -SuppressReceipt -ScriptBlock {
+        [pscustomobject]@{ Incidental = $true }
+        throw 'expected result-shape failure'
+    }
 }
-if ($githubReleaseProviderSource -match 'releases/download/v\$Version')
+finally
 {
-    throw 'GitHub-release provider still synthesizes a v-prefixed release tag.'
+    $ProjectConfig.storage.runs = $originalRunRoot
+    $resultShapePath = Join-Path $repositoryRoot $resultShapeRoot
+    if (Test-Path -LiteralPath $resultShapePath)
+    {
+        Remove-Item -LiteralPath $resultShapePath -Recurse -Force
+    }
+}
+if ($operationResult -is [array] -or $operationResult.Status -ne 'failed')
+{
+    throw 'Operation failure did not return exactly one structured result.'
+}
+
+# Catalogs larger than the single-key alphabet fall back to numbered input.
+$interactiveConsoleImplementation = (Get-Command Test-GameWipInteractiveConsole).ScriptBlock
+function Test-GameWipInteractiveConsole
+{
+    return $true
+}
+function Read-Host
+{
+    return '25'
+}
+try
+{
+    $largeChoices = @(1..25 | ForEach-Object { "choice-$_" })
+    $largeChoice = Read-GameWipMenuChoiceResult -Prompt 'Large catalog' -Choices $largeChoices -Default 'choice-1'
+    if ($largeChoice.Status -ne 'Selected' -or $largeChoice.Value -ne 'choice-25')
+    {
+        throw 'A large menu catalog did not accept numbered input.'
+    }
+}
+finally
+{
+    Remove-Item -Path function:Read-Host
+    Set-Item -Path function:Test-GameWipInteractiveConsole -Value $interactiveConsoleImplementation
+}
+
+# Atomic persistence can replace an existing file without failing while
+# PowerShell resolves the typed fallback catches.
+$atomicRoot = Join-Path $repositoryRoot ('build\gamewip\temp\atomic-test-' + [guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory -Force -Path $atomicRoot | Out-Null
+try
+{
+    $atomicPath = Join-Path $atomicRoot 'state.txt'
+    Write-GameWipTextAtomic -Path $atomicPath -Content 'first'
+    Write-GameWipTextAtomic -Path $atomicPath -Content 'second'
+    if ((Get-Content -Raw -LiteralPath $atomicPath) -ne 'second')
+    {
+        throw 'Atomic persistence did not replace an existing file.'
+    }
+}
+finally
+{
+    if (Test-Path -LiteralPath $atomicRoot)
+    {
+        Remove-Item -LiteralPath $atomicRoot -Recurse -Force
+    }
+}
+
+# A single suggested action remains a collection under strict mode.
+$diagnostic = New-GameWipDiagnosticException -Code test-diagnostic -Summary 'expected failure' -SuggestedActions @('single recovery action')
+$failureOutput = @(& { Show-GameWipActionFailure -ErrorRecord ([System.Management.Automation.ErrorRecord]::new($diagnostic, 'test', 'NotSpecified', $null)) } *>&1) -join "`n"
+if ($failureOutput -notmatch 'single recovery action')
+{
+    throw 'Failure rendering lost a scalar suggested action.'
+}
+
+# Operation identity must be fresh for each action selection.
+$first = New-GameWipOperationContext -Label 'first'
+$second = New-GameWipOperationContext -Label 'second'
+if ($first.Id -eq $second.Id)
+{
+    throw 'Operation contexts reused an identity.'
+}
+if ($first.MutationState -ne 'none' -or $second.MutationState -ne 'none')
+{
+    throw 'A fresh operation inherited mutation state.'
+}
+
+# Candidate ranking is explicit rather than dependent on filesystem enumeration.
+$candidates = [System.Collections.Generic.List[object]]::new()
+$seen = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+$candidateRoot = Join-Path $repositoryRoot ('build\gamewip\temp\candidate-test-' + [guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory -Force -Path $candidateRoot | Out-Null
+try
+{
+    $preferred = Join-Path $candidateRoot 'preferred.exe'
+    $fallback = Join-Path $candidateRoot 'fallback.exe'
+    New-Item -ItemType File -Path $preferred, $fallback | Out-Null
+    Add-GameWipToolCandidate -Candidates $candidates -Seen $seen -Path $fallback -Source PATH -Priority 100 -SelectionReason 'PATH fallback'
+    Add-GameWipToolCandidate -Candidates $candidates -Seen $seen -Path $preferred -Source managed -Priority 20 -SelectionReason 'declared provider location'
+    $ordered = @($candidates | Sort-Object Priority, Path)
+    if ($ordered[0].Path -ne [IO.Path]::GetFullPath($preferred) -or $ordered[0].SelectionReason -ne 'declared provider location')
+    {
+        throw 'Tool-candidate ranking is not deterministic.'
+    }
+}
+finally
+{
+    if (Test-Path -LiteralPath $candidateRoot)
+    {
+        Remove-Item -LiteralPath $candidateRoot -Recurse -Force
+    }
+}
+
+# Windows command shims are valid managed-tool entry points and must be launched
+# through the command interpreter rather than passed directly to Start-Process.
+$shimRoot = Join-Path $repositoryRoot ('build\gamewip\temp\process-shim-test-' + [guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory -Force -Path $shimRoot | Out-Null
+try
+{
+    $shim = Join-Path $shimRoot 'sample.cmd'
+    [IO.File]::WriteAllText($shim, "@echo off`r`necho shim-ok`r`n")
+    $shimResult = Invoke-GameWipProcess -FilePath $shim -OutputMode LogOnly -TimeoutSeconds 10
+    if ($shimResult.ExitCode -ne 0 -or (@($shimResult.Stdout) -join "`n") -notmatch 'shim-ok')
+    {
+        throw 'Windows command shim execution failed.'
+    }
+    $failedShim = Join-Path $shimRoot 'failure.cmd'
+    [IO.File]::WriteAllText($failedShim, "@echo off`r`nexit /b 7`r`n")
+    $failedShimResult = Invoke-GameWipProcess -FilePath $failedShim -OutputMode LogOnly -TimeoutSeconds 10
+    if ($failedShimResult.ExitCode -ne 7)
+    {
+        throw "Windows command shim exit code was reported as $($failedShimResult.ExitCode), not 7."
+    }
+}
+finally
+{
+    if (Test-Path -LiteralPath $shimRoot)
+    {
+        Remove-Item -LiteralPath $shimRoot -Recurse -Force
+    }
+}
+
+# The retained run document is a structured operation receipt.
+$runRoot = Join-Path $repositoryRoot ('build\gamewip\temp\run-test-' + [guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory -Force -Path $runRoot | Out-Null
+try
+{
+    $run = Initialize-GameWipToolRun -RepositoryRoot $runRoot -RunLogRoot 'runs' -Tool 'test' -Action 'sample'
+    $run.MutationState = 'complete'
+    $run.Changes = @('changed sample')
+    $summary = Save-GameWipToolRun -Run $run -Status passed
+    $document = Get-Content -Raw -LiteralPath (Join-Path $run.Root 'summary.json') | ConvertFrom-Json
+    if ($document.status -ne 'passed' -or $document.mutationState -ne 'complete' -or @($document.changes).Count -ne 1)
+    {
+        throw 'Structured run receipt lost operation result fields.'
+    }
+    if (-not (Test-Path -LiteralPath $summary))
+    {
+        throw 'Human-readable run summary was not created.'
+    }
+}
+finally
+{
+    if (Test-Path -LiteralPath $runRoot)
+    {
+        Remove-Item -LiteralPath $runRoot -Recurse -Force
+    }
+}
+
+$informational = Get-GameWipProjectTool -Id unicode
+if ([bool]$informational.capabilities.update)
+{
+    throw 'Informational Unicode resource unexpectedly became installable.'
+}
+
+$standardizationScript = Join-Path $repositoryRoot '.github\scripts\check_helper_standardization.py'
+$qualityOwnershipScript = Join-Path $repositoryRoot '.github\scripts\check_quality_ownership.py'
+if (-not (Test-Path -LiteralPath $standardizationScript) -or -not (Test-Path -LiteralPath $qualityOwnershipScript))
+{
+    throw 'Repository standardization self-checkers are missing.'
 }
 
 Write-Host 'Project helper regression tests passed.'

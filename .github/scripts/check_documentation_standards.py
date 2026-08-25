@@ -17,11 +17,6 @@ FENCED_CODE_PATTERN = re.compile(
     rf"^{FENCE_PATTERN}[^\n]*\n.*?^{FENCE_PATTERN}\s*$",
     re.MULTILINE | re.DOTALL,
 )
-HELPER_ACTION_PATTERN = re.compile(
-    r"\[ValidateSet\((?P<values>[^\]]+)\)\]\s*\[string\]\$Action",
-    re.MULTILINE,
-)
-
 LIBRARY_DOCS = (
     (Path("foundation/unicode/docs"), "Unicode", "unicode.md"),
     (Path("foundation/io/docs"), "IO", "io.md"),
@@ -231,25 +226,22 @@ def check_source_file_headers(errors: list[str]) -> None:
 def check_command_catalog_documentation(errors: list[str]) -> None:
     helper_path = ROOT / "scripts/GameWIP.ps1"
     helper_text = helper_path.read_text(encoding="utf-8")
-    action_match = HELPER_ACTION_PATTERN.search(helper_text)
-    if action_match is None:
-        errors.append(f"could not read the project-helper action catalog: {relative(helper_path)}")
-    else:
-        command_page = (ROOT / "docs/doxygen/command_line_tools.md").read_text(encoding="utf-8")
-        for action in re.findall(r"'([^']+)'", action_match.group("values")):
-            if f"| `{action}` |" not in command_page:
-                errors.append(f"project-helper action `{action}` is absent from the command reference")
-        parameter_block = helper_text.split(")\n\nSet-StrictMode", maxsplit=1)[0]
-        parameter_names = re.findall(
-            r"^\s*\[(?:string|int|string\[\]|switch)\]\$(\w+)",
-            parameter_block,
-            re.MULTILINE,
-        )
-        for parameter in parameter_names:
-            if parameter == "Action":
-                continue
-            if f"-{parameter}" not in command_page:
-                errors.append(f"project-helper option `-{parameter}` is absent from the command reference")
+    command_config = json.loads((ROOT / "scripts/config/commands.json").read_text(encoding="utf-8"))
+    command_page = (ROOT / "docs/doxygen/command_line_tools.md").read_text(encoding="utf-8")
+    for action in (entry["id"] for entry in command_config["actions"]):
+        if f"| `{action}` |" not in command_page:
+            errors.append(f"project-helper action `{action}` is absent from the command reference")
+    parameter_block = helper_text.split(")\n\nSet-StrictMode", maxsplit=1)[0]
+    parameter_names = re.findall(
+        r"^\s*\[(?:string|int|string\[\]|switch)\]\$(\w+)",
+        parameter_block,
+        re.MULTILINE,
+    )
+    for parameter in parameter_names:
+        if parameter == "Action":
+            continue
+        if f"-{parameter}" not in command_page:
+            errors.append(f"project-helper option `-{parameter}` is absent from the command reference")
 
     setup_config_path = ROOT / "scripts/setup/config/setup.json"
     setup_config = json.loads(setup_config_path.read_text(encoding="utf-8"))

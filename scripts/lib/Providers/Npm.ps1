@@ -1,12 +1,14 @@
-# GameWIP Npm tool-provider behavior. Dot-sourced by scripts/lib/Tools.ps1.
+# GameWIP npm tool provider.
+
 function Get-GameWipNpmPackageLatestVersion
 {
     param([Parameter(Mandatory = $true)][string]$Package)
-    $npm = Resolve-GameWipToolCommand -Command 'npm'
-    if ($null -eq $npm) { return $null }
-    $output = (& $npm view $Package version 2>&1 | Out-String).Trim()
-    if ($LASTEXITCODE -ne 0) { return $null }
-    return $output
+    $query = Get-GameWipNpmPackageLatestQuery -Package $Package
+    if ($query.State -eq 'resolved')
+    {
+        return [string]$query.Version
+    }
+    return $null
 }
 
 function Get-GameWipNpmToolLatestVersion
@@ -19,16 +21,16 @@ function Get-GameWipNpmGlobalModuleRoot
 {
     if (Test-GameWipWindowsHost)
     {
-        return Join-Path ([string]$ProjectConfig.managedEnvironment.gameWipToolsRoot) 'npm\node_modules'
+        return Join-Path ((Get-GameWipManagedToolRoot)) 'npm\lib\node_modules'
     }
-
-    $npm = Resolve-GameWipToolCommand -Command 'npm'
+    $npm = Resolve-GameWipToolCommand -Command npm
     if ($null -eq $npm)
     {
         throw 'npm is unavailable; cannot resolve the global module root.'
     }
-    $output = (& $npm root --global 2>&1 | Out-String).Trim()
-    if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($output))
+    $result = Invoke-GameWipProcess -FilePath $npm -Arguments @('root', '--global') -OutputMode LogOnly -TimeoutSeconds 20
+    $output = ($result.Stdout -join "`n").Trim()
+    if ($result.ExitCode -ne 0 -or [string]::IsNullOrWhiteSpace($output))
     {
         throw 'Unable to resolve the global npm module root.'
     }
@@ -39,13 +41,31 @@ function Install-GameWipNpmTool
 {
     param([hashtable]$Tool, [AllowNull()][string]$Version)
     Initialize-GameWipManagedToolRoot
-    $root = Join-Path ([string]$ProjectConfig.managedEnvironment.gameWipToolsRoot) 'npm'
-    $specification = if ($Version) { "$($Tool.provider.package)@$Version" } else { [string]$Tool.provider.package }
+    $root = Join-Path ((Get-GameWipManagedToolRoot)) 'npm'
+    $specification = if ($Version)
+    {
+        "$($Tool.provider.package)@$Version"
+    }
+    else
+    {
+        [string]$Tool.provider.package
+    }
     $specifications = @($specification)
-    $providerDependencies = if ($Tool.provider.Contains('dependencies')) { @($Tool.provider.dependencies) } else { @() }
-    foreach ($dependency in $providerDependencies) { $specifications += "$($dependency.package)@$($dependency.version)" }
-    $npm = Resolve-GameWipToolCommand -Command 'npm'
-    if ($null -eq $npm) { throw "npm is unavailable for '$($Tool.id)'. Run setup.bat repair." }
-    & $npm install --global --prefix $root --no-audit --no-fund @specifications
-    if ($LASTEXITCODE -ne 0) { throw "npm failed to install '$($Tool.id)'." }
+    foreach ($dependency in $(if ($Tool.provider.Contains('dependencies'))
+            {
+                @($Tool.provider.dependencies)
+            }
+            else
+            {
+                @()
+            }))
+    {
+        $specifications += "$($dependency.package)@$($dependency.version)"
+    }
+    $npm = Resolve-GameWipToolCommand -Command npm
+    if ($null -eq $npm)
+    {
+        throw "npm is unavailable for '$($Tool.id)'. Run setup.bat repair."
+    }
+    Invoke-GameWipProviderNative -Name "npm-install-$($Tool.id)" -FilePath $npm -Arguments (@('install', '--global', '--prefix', $root, '--no-audit', '--no-fund') + $specifications) | Out-Null
 }

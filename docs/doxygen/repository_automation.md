@@ -90,7 +90,7 @@ After the workflow reaches `master`, verify configuration without writes:
 
 ```powershell
 gh workflow run project-automation.yml -f kind=all -f dry_run=true
-.\gamewip.bat workflow -WorkflowAction run -Workflow project-dry-run
+.\gamewip.bat workflow run project-dry-run
 ```
 
 Inspect the workflow summary. If the dry run is correct, run one normal reconciliation.

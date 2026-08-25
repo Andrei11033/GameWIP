@@ -1,5 +1,259 @@
 {
   "schemaVersion": 1,
+  "actions": [
+    {
+      "id": "menu",
+      "title": "Interactive menu",
+      "description": "Open the hierarchical project UI.",
+      "group": "navigation",
+      "visible": true,
+      "network": false,
+      "mutation": "none",
+      "risk": "read-only"
+    },
+    {
+      "id": "doctor",
+      "title": "Project readiness",
+      "description": "Verify repository and declared tool readiness.",
+      "group": "maintenance",
+      "key": "D",
+      "visible": true,
+      "network": false,
+      "mutation": "none",
+      "risk": "read-only"
+    },
+    {
+      "id": "git",
+      "title": "Git workspace",
+      "description": "Guarded local Git workspace operations.",
+      "group": "repository",
+      "visible": true,
+      "network": true,
+      "mutation": "conditional",
+      "risk": "tracked"
+    },
+    {
+      "id": "workflow",
+      "title": "GitHub workflows",
+      "description": "List, inspect, and dispatch cataloged workflows.",
+      "group": "repository",
+      "visible": true,
+      "network": true,
+      "mutation": "conditional",
+      "risk": "remote"
+    },
+    {
+      "id": "unicode",
+      "title": "Unicode data",
+      "description": "Inspect, verify, or regenerate pinned Unicode data.",
+      "group": "maintenance",
+      "visible": true,
+      "network": true,
+      "mutation": "conditional",
+      "risk": "tracked"
+    },
+    {
+      "id": "format",
+      "title": "C/C++ formatting",
+      "description": "Check or apply repository C/C++ formatting.",
+      "group": "quality",
+      "visible": true,
+      "network": false,
+      "mutation": "conditional",
+      "risk": "tracked"
+    },
+    {
+      "id": "quality",
+      "title": "Repository quality",
+      "description": "Run, fix, or inspect repository quality coverage.",
+      "group": "quality",
+      "visible": true,
+      "network": false,
+      "mutation": "conditional",
+      "risk": "tracked"
+    },
+    {
+      "id": "tools",
+      "title": "Project tools",
+      "description": "Inspect, ensure, or update declared project tools.",
+      "group": "tools",
+      "visible": true,
+      "network": true,
+      "mutation": "conditional",
+      "risk": "machine"
+    },
+    {
+      "id": "links",
+      "title": "Markdown links",
+      "description": "Validate maintained Markdown links.",
+      "group": "quality",
+      "visible": true,
+      "network": false,
+      "mutation": "none",
+      "risk": "read-only"
+    },
+    {
+      "id": "configure",
+      "title": "Configure",
+      "description": "Configure a CMake preset.",
+      "group": "development",
+      "visible": true,
+      "network": false,
+      "mutation": "local",
+      "risk": "local"
+    },
+    {
+      "id": "build",
+      "title": "Build",
+      "description": "Build a CMake preset and required configure state.",
+      "group": "development",
+      "visible": true,
+      "network": false,
+      "mutation": "local",
+      "risk": "local"
+    },
+    {
+      "id": "test",
+      "title": "CTest",
+      "description": "Ensure prerequisites and run a CTest preset.",
+      "group": "validation",
+      "visible": true,
+      "network": false,
+      "mutation": "local",
+      "risk": "local"
+    },
+    {
+      "id": "module",
+      "title": "Validation module",
+      "description": "Run one correctness module or all modules.",
+      "group": "validation",
+      "visible": true,
+      "network": false,
+      "mutation": "local",
+      "risk": "local"
+    },
+    {
+      "id": "wizard",
+      "title": "Validation wizard",
+      "description": "Interactively compose a correctness command.",
+      "group": "validation",
+      "visible": true,
+      "network": false,
+      "mutation": "local",
+      "risk": "local"
+    },
+    {
+      "id": "stress",
+      "title": "Stress validation",
+      "description": "Repeat correctness validation with bounded workers.",
+      "group": "validation",
+      "visible": true,
+      "network": false,
+      "mutation": "local",
+      "risk": "local"
+    },
+    {
+      "id": "run",
+      "title": "Project command",
+      "description": "Run a cataloged executable-backed project command.",
+      "group": "development",
+      "visible": true,
+      "network": false,
+      "mutation": "local",
+      "risk": "local"
+    },
+    {
+      "id": "bundle",
+      "title": "Validation bundle",
+      "description": "Run a cataloged multi-step local validation bundle.",
+      "group": "validation",
+      "visible": true,
+      "network": false,
+      "mutation": "local",
+      "risk": "local"
+    },
+    {
+      "id": "docs",
+      "title": "Documentation",
+      "description": "Build and verify generated documentation.",
+      "group": "development",
+      "visible": true,
+      "network": false,
+      "mutation": "local",
+      "risk": "local"
+    },
+    {
+      "id": "analyze",
+      "title": "Static analysis",
+      "description": "Run the analyze preset.",
+      "group": "quality",
+      "visible": true,
+      "network": false,
+      "mutation": "local",
+      "risk": "local"
+    },
+    {
+      "id": "coverage",
+      "title": "Coverage",
+      "description": "Run coverage build/tests/report.",
+      "group": "quality",
+      "visible": true,
+      "network": false,
+      "mutation": "local",
+      "risk": "local"
+    },
+    {
+      "id": "asan",
+      "title": "AddressSanitizer",
+      "description": "Run CLANG64 AddressSanitizer validation.",
+      "group": "quality",
+      "visible": true,
+      "network": false,
+      "mutation": "local",
+      "risk": "local"
+    },
+    {
+      "id": "benchmark",
+      "title": "Benchmarks",
+      "description": "Run, list, dry-run, or compare benchmarks.",
+      "group": "validation",
+      "visible": true,
+      "network": false,
+      "mutation": "local",
+      "risk": "local"
+    },
+    {
+      "id": "runs",
+      "title": "Run history",
+      "description": "List, show, or clean retained operation receipts.",
+      "group": "maintenance",
+      "visible": true,
+      "network": false,
+      "mutation": "conditional",
+      "risk": "destructive"
+    },
+    {
+      "id": "list",
+      "title": "Catalog",
+      "description": "Print current project IDs and command catalog.",
+      "group": "navigation",
+      "visible": false,
+      "network": false,
+      "mutation": "none",
+      "risk": "read-only"
+    },
+    {
+      "id": "help",
+      "title": "Help",
+      "description": "Print canonical command syntax.",
+      "group": "navigation",
+      "key": "H",
+      "visible": false,
+      "network": false,
+      "mutation": "none",
+      "risk": "read-only"
+    }
+  ],
   "formatting": {
     "sourceRoots": ["foundation", "tools", "engine", "game"],
     "configPath": ".clang-format"

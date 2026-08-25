@@ -1,136 +1,255 @@
-# GameWIP project-helper entry point and public command-line dispatch surface.
+# GameWIP project-helper executable entry point. Library/bootstrap code lives under scripts/lib/.
 
 [CmdletBinding()]
 param(
-    [ValidateSet('menu', 'doctor', 'git', 'workflow', 'unicode', 'format', 'quality', 'tools', 'links', 'configure', 'build', 'test', 'module', 'wizard', 'stress', 'run', 'bundle', 'docs', 'analysis', 'analyze', 'coverage', 'asan', 'benchmark', 'list', 'help')]
+    [Parameter(Position = 0)]
     [string]$Action = 'menu',
-    [string]$Preset,
-    [string]$Module,
-    [string]$ProjectCommand,
-    [string]$Bundle,
-    [ValidateSet('menu', 'status', 'fetch', 'switch', 'update', 'cleanup', 'create', 'push', 'log')]
-    [string]$GitAction = 'menu',
-    [string]$GitBranch,
-    [ValidateSet('menu', 'list', 'status', 'run')]
-    [string]$WorkflowAction = 'menu',
-    [ValidateSet('menu', 'status', 'verify', 'regenerate')]
-    [string]$UnicodeAction = 'menu',
+    [Parameter(Position = 1)][string]$Command,
+    [Parameter(Position = 2)][string]$Target,
     [string]$PythonPath,
+    [string]$PythonProviderHostPath,
     [string]$ClangFormatPath,
-    [ValidateSet('check', 'apply')]
-    [string]$FormatAction = 'check',
-    [ValidateSet('check', 'fix')]
-    [string]$QualityAction = 'check',
-    [ValidateSet('list', 'status', 'check-updates', 'update')]
-    [string]$ToolsAction = 'list',
-    [string]$Tool,
-    [ValidateSet('run', 'dry-run', 'list', 'compare')]
-    [string]$BenchmarkAction = 'run',
-    [string]$BenchmarkProfile = 'standard',
-    [string]$Filter,
-    [ValidateRange(0, 100000)]
-    [int]$Repetitions = 0,
-    [string]$MinTime,
-    [string]$Output,
-    [ValidateSet('json', 'csv')]
-    [string]$OutputFormat = 'json',
-    [switch]$AggregatesOnly,
-    [switch]$NoBuild,
-    [string]$Baseline,
-    [string]$Candidate,
     [string]$UnicodeDataRoot,
     [switch]$RefreshUnicodeData,
-    [string]$Workflow,
-    [ValidateSet('all', 'issue', 'pull_request')]
-    [string]$WorkflowKind = 'all',
+    [ValidateSet('all', 'issue', 'pull_request')][string]$WorkflowKind = 'all',
     [int]$WorkflowNumber = 0,
     [string]$ReleaseCommit,
-    [ValidateRange(1, 100000)]
-    [int]$Count = 0,
-    [ValidateRange(1, 256)]
-    [int]$Parallel = 0,
+    [string]$BenchmarkProfile = 'standard',
+    [string]$Filter,
+    [ValidateRange(0, 100000)][int]$Repetitions = 0,
+    [string]$MinTime,
+    [string]$Output,
+    [ValidateSet('json', 'csv')][string]$OutputFormat = 'json',
+    [switch]$AggregatesOnly,
+    [string]$Baseline,
+    [string]$Candidate,
+    [ValidateRange(1, 100000)][int]$Count = 0,
+    [ValidateRange(1, 256)][int]$Parallel = 0,
     [string[]]$ExtraArgs = @(),
-    [switch]$BuildIfMissing,
+    [switch]$NoBuild,
+    [switch]$StopOnFailure,
+    [switch]$FailFast,
+    [switch]$Changed,
+    [switch]$Json,
     [switch]$NoWorkspaceTemp,
-    [switch]$Preview
+    [switch]$Preview,
+    [switch]$NonInteractive,
+    [switch]$Yes,
+    [switch]$Quiet,
+    [switch]$NoColor,
+    [ValidateSet('Summary', 'Stream', 'LogOnly')][string]$OutputMode = 'Stream'
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
-
-$RepositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
-$ProjectConfigPath = Join-Path $PSScriptRoot 'config\project.json'
-$CommandConfigPath = Join-Path $PSScriptRoot 'config\commands.json'
-$ProjectToolsPath = Join-Path $PSScriptRoot 'config\project-tools.json'
-$PresetsPath = Join-Path $RepositoryRoot 'CMakePresets.json'
-
-$libraryFiles = @(
-    'Config.ps1', 'Storage.ps1', 'Native.ps1', 'ToolRuns.ps1', 'Git.ps1', 'Workflows.ps1', 'Unicode.ps1', 'Formatting.ps1',
-    'Quality.ps1', 'Tools.ps1', 'Build.ps1', 'Testing.ps1', 'Benchmarks.ps1', 'Documentation.ps1', 'Analysis.ps1', 'Bundles.ps1', 'Help.ps1'
-)
-foreach ($libraryFile in $libraryFiles)
+if ($Quiet)
 {
-    . (Join-Path $PSScriptRoot (Join-Path 'lib' $libraryFile))
+    $OutputMode = 'LogOnly'
+}
+$RepositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
+. (Join-Path $PSScriptRoot 'lib\Bootstrap.ps1') -RepositoryRoot $RepositoryRoot
+
+if ($Action -in @('--help', '-h', '-?'))
+{
+    $Action = 'help'
+}
+$validActions = @('menu', 'doctor', 'git', 'workflow', 'unicode', 'format', 'quality', 'tools', 'links', 'configure', 'build', 'test', 'module', 'wizard', 'stress', 'run', 'bundle', 'docs', 'analyze', 'coverage', 'asan', 'benchmark', 'runs', 'list', 'help')
+if ($Action -notin $validActions)
+{
+    Write-GameWipHost "Unknown project action '$Action'." -ForegroundColor Red
+    Write-Host 'Run .\gamewip.bat list to see available actions.'
+    exit 2
 }
 
-$ProjectConfig = Read-GameWipJsonConfig -Path $ProjectConfigPath -Name 'project' -SchemaPath (Join-Path $PSScriptRoot 'schemas\project.schema.json')
-$CommandConfig = Read-GameWipJsonConfig -Path $CommandConfigPath -Name 'commands' -SchemaPath (Join-Path $PSScriptRoot 'schemas\commands.schema.json')
-$ProjectTools = Read-GameWipJsonConfig -Path $ProjectToolsPath -Name 'project tools' -SchemaPath (Join-Path $PSScriptRoot 'schemas\project-tools.schema.json')
-$PresetData = Get-Content -Raw -LiteralPath $PresetsPath | ConvertFrom-Json
-
-# These public parameters and shared values are consumed by dot-sourced action
-# implementations; explicit references keep per-file static analysis accurate.
-$null = $PythonPath, $ClangFormatPath, $UnicodeDataRoot, $RefreshUnicodeData
-$null = $WorkflowKind, $WorkflowNumber, $ReleaseCommit, $NoWorkspaceTemp
-$null = $ProjectConfig, $ProjectTools, $PresetData
-
-$Script:RunRoot = $null
-$Script:RunContext = $null
-$Script:RunLabel = $Action
-$Script:RunFailed = $false
-$Script:OperationTemp = $null
-$scriptExitCode = 0
-$primaryError = $null
-$finalizationError = $null
-try
+# Keep common PowerShell -Verbose semantics without inventing a parallel flag.
+if ($PSBoundParameters.ContainsKey('Verbose') -and [bool]$PSBoundParameters.Verbose)
 {
-    Assert-GameWipProjectConfig
-    Assert-GameWipCommandConfig
-    Assert-GameWipProjectToolConfig
-    $Script:OperationTemp = Initialize-GameWipOperationTemp
+    $VerbosePreference = 'Continue'
+}
+
+if ($Action -eq 'help')
+{
+    Show-GameWipHelp; exit 0
+}
+if ($Action -eq 'list')
+{
+    Show-GameWipProjectCatalog; exit 0
+}
+if ($Action -eq 'menu')
+{
+    if ($NonInteractive)
+    {
+        Write-GameWipHost 'The interactive menu cannot run with -NonInteractive. Choose an explicit action.' -ForegroundColor Red
+        exit 2
+    }
+    Show-GameWipMenu
+    exit 0
+}
+
+$label = @(@($Action, $Command, $Target) | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) }) -join '-'
+$result = Invoke-GameWipOperation `
+    -Label $label `
+    -NonInteractive:$NonInteractive `
+    -Yes:$Yes `
+    -Preview:$Preview `
+    -OutputMode $OutputMode `
+    -NoColor:$NoColor `
+    -SuppressReceipt:$Quiet `
+    -ScriptBlock {
     switch ($Action)
     {
-        'menu'
-        {
-            Show-GameWipMenu
-        }
         'doctor'
         {
             Test-GameWipProjectReadiness -ThrowOnFailure | Out-Null
         }
         'git'
         {
-            Invoke-GameWipGitAction -Name $GitAction -BranchName $GitBranch
+            $verb = if ([string]::IsNullOrWhiteSpace($Command))
+            {
+                'status'
+            }
+            else
+            {
+                $Command
+            }
+            if ($verb -notin @('status', 'fetch', 'switch', 'update', 'cleanup', 'create', 'push', 'log'))
+            {
+                throw "Unknown git command '$verb'."
+            }
+            Invoke-GameWipGitAction -Name $verb -BranchName $Target
         }
         'workflow'
         {
-            Invoke-GameWipWorkflowAction -Name $WorkflowAction -WorkflowId $Workflow
+            $verb = if ([string]::IsNullOrWhiteSpace($Command))
+            {
+                'list'
+            }
+            else
+            {
+                $Command
+            }
+            if ($verb -notin @('list', 'status', 'run'))
+            {
+                throw "Unknown workflow command '$verb'."
+            }
+            Invoke-GameWipWorkflowAction -Name $verb -WorkflowId $Target
         }
         'unicode'
         {
-            Invoke-GameWipUnicodeAction -Name $UnicodeAction
+            $verb = if ([string]::IsNullOrWhiteSpace($Command))
+            {
+                'status'
+            }
+            else
+            {
+                $Command
+            }
+            if ($verb -notin @('status', 'verify', 'regenerate'))
+            {
+                throw "Unknown unicode command '$verb'."
+            }
+            if ($verb -eq 'regenerate')
+            {
+                Invoke-GameWipMutation -Summary 'Regenerate the tracked Unicode property table.' -Risk tracked -Plan @('Verify/download pinned Unicode input.', 'Generate and format a candidate.', 'Replace the tracked table only if content changes.') -Body { Invoke-GameWipUnicodeAction -Name regenerate } | Out-Null
+            }
+            else
+            {
+                Invoke-GameWipUnicodeAction -Name $verb
+            }
         }
         'format'
         {
-            Invoke-GameWipFormat -Mode $FormatAction
+            $verb = if ([string]::IsNullOrWhiteSpace($Command))
+            {
+                'check'
+            }
+            else
+            {
+                $Command
+            }
+            if ($verb -notin @('check', 'apply'))
+            {
+                throw "Unknown format command '$verb'."
+            }
+            if ($verb -eq 'apply')
+            {
+                Invoke-GameWipMutation -Summary 'Apply repository C/C++ formatting.' -Risk tracked -Plan @('Rewrite maintained C/C++ files with the repository clang-format policy.') -Body { Invoke-GameWipFormat -Mode apply } | Out-Null
+            }
+            else
+            {
+                Invoke-GameWipFormat -Mode check
+            }
         }
         'quality'
         {
-            Invoke-GameWipQuality -Mode $QualityAction
+            $verb = if ([string]::IsNullOrWhiteSpace($Command))
+            {
+                'check'
+            }
+            else
+            {
+                $Command
+            }
+            if ($verb -notin @('check', 'fix', 'status'))
+            {
+                throw "Unknown quality command '$verb'."
+            }
+            if ($verb -eq 'fix')
+            {
+                Invoke-GameWipMutation -Summary 'Apply deterministic formatters, then run the quality gate.' -Risk tracked -Plan @('Apply deterministic formatter changes.', 'Run all independent quality checks and aggregate failures.') -Body { Invoke-GameWipQuality -Mode fix -FailFast:$FailFast -Changed:$Changed } | Out-Null
+            }
+            elseif ($verb -eq 'status')
+            {
+                Show-GameWipQualityCoverageStatus
+            }
+            else
+            {
+                Invoke-GameWipQuality -Mode check -FailFast:$FailFast -Changed:$Changed
+            }
         }
         'tools'
         {
-            Invoke-GameWipToolAction -Name $ToolsAction -ToolId $Tool -PreviewOnly:$Preview
+            $verb = if ([string]::IsNullOrWhiteSpace($Command))
+            {
+                'list'
+            }
+            else
+            {
+                $Command
+            }
+            if ($verb -notin @('list', 'status', 'check-updates', 'ensure', 'update'))
+            {
+                throw "Unknown tools command '$verb'."
+            }
+            $toolId = if ([string]::IsNullOrWhiteSpace($Target))
+            {
+                'all'
+            }
+            else
+            {
+                $Target
+            }
+            if ($verb -eq 'list')
+            {
+                Show-GameWipToolList
+            }
+            elseif ($verb -eq 'status')
+            {
+                Show-GameWipToolStatus
+            }
+            elseif ($verb -eq 'check-updates')
+            {
+                Write-GameWipSection 'Upstream tool versions'
+                Show-GameWipToolUpdatePlan -Plan @(Get-GameWipToolUpdatePlan -ToolId $toolId)
+            }
+            elseif ($verb -eq 'ensure')
+            {
+                Invoke-GameWipToolEnsure -Selector $toolId
+            }
+            else
+            {
+                Invoke-GameWipToolUpdate -ToolId $toolId -PreviewOnly:$Preview
+            }
         }
         'links'
         {
@@ -138,37 +257,39 @@ try
         }
         'configure'
         {
-            if ([string]::IsNullOrWhiteSpace($Preset))
+            $preset = if ([string]::IsNullOrWhiteSpace($Command))
             {
-                $Preset = $CommandConfig.DefaultConfigurePreset
+                [string]$CommandConfig.DefaultConfigurePreset
             }
-            Invoke-GameWipConfigurePreset -Name $Preset
-            Write-GameWipNextStepHint "build it with: .\gamewip.bat build -Preset $Preset"
+            else
+            {
+                $Command
+            }
+            Invoke-GameWipMutation -Summary "Configure preset '$preset'." -Risk local -Plan @("cmake --preset $preset") -Body { Invoke-GameWipConfigurePreset -Name $preset } | Out-Null
         }
         'build'
         {
-            if ([string]::IsNullOrWhiteSpace($Preset))
+            $preset = if ([string]::IsNullOrWhiteSpace($Command))
             {
-                $Preset = $CommandConfig.DefaultBuildPreset
+                [string]$CommandConfig.DefaultBuildPreset
             }
-            Invoke-GameWipBuildPreset -Name $Preset
-            if ((Get-GameWipVisiblePresetName -Kind 'test') -contains $Preset)
+            else
             {
-                Write-GameWipNextStepHint "run tests with: .\gamewip.bat test -Preset $Preset"
+                $Command
             }
-            elseif ($Preset -eq 'benchmark')
-            {
-                Write-GameWipNextStepHint 'run performance measurements with: .\gamewip.bat benchmark; use -BenchmarkAction dry-run for registration only.'
-            }
+            Invoke-GameWipMutation -Summary "Build preset '$preset'." -Risk local -Plan @('Ensure configure prerequisite if absent.', "cmake --build --preset $preset") -Body { Invoke-GameWipBuildPreset -Name $preset } | Out-Null
         }
         'test'
         {
-            if ([string]::IsNullOrWhiteSpace($Preset))
+            $preset = if ([string]::IsNullOrWhiteSpace($Command))
             {
-                $Preset = $CommandConfig.DefaultTestPreset
+                [string]$CommandConfig.DefaultTestPreset
             }
-            Invoke-GameWipTestPreset -Name $Preset -UseWorkspaceTemp
-            Write-GameWipNextStepHint 'run a focused command with: .\gamewip.bat wizard'
+            else
+            {
+                $Command
+            }
+            Invoke-GameWipTestPreset -Name $preset -UseWorkspaceTemp -NoBuild:$NoBuild
         }
         'wizard'
         {
@@ -176,167 +297,165 @@ try
         }
         'module'
         {
-            if ([string]::IsNullOrWhiteSpace($Module))
+            $module = if ([string]::IsNullOrWhiteSpace($Command))
             {
-                $Module = $CommandConfig.DefaultModule
+                [string]$CommandConfig.DefaultModule
             }
-            Invoke-GameWipValidationModule -Name $Module -Arguments $ExtraArgs -ForceBuild:$BuildIfMissing
-            Write-GameWipNextStepHint "stress this module with: .\gamewip.bat stress -Module $Module -Count 100 -Parallel 16"
+            else
+            {
+                $Command
+            }
+            Invoke-GameWipValidationModule -Name $module -Arguments $ExtraArgs -NoBuild:$NoBuild
         }
         'stress'
         {
-            if ([string]::IsNullOrWhiteSpace($Module))
+            $module = if ([string]::IsNullOrWhiteSpace($Command))
             {
-                $Module = $CommandConfig.DefaultModule
+                [string]$CommandConfig.DefaultModule
             }
-            if ($Count -le 0)
+            else
             {
-                $Count = [int]$CommandConfig.DefaultStressCount
+                $Command
             }
-            if ($Parallel -le 0)
+            $runs = if ($Count -gt 0)
             {
-                $Parallel = [int]$CommandConfig.DefaultStressParallel
+                $Count
             }
-            Invoke-GameWipStressModule -Name $Module -RunCount $Count -MaxParallel $Parallel -Arguments $ExtraArgs -ForceBuild:$BuildIfMissing
+            else
+            {
+                [int]$CommandConfig.DefaultStressCount
+            }
+            $workers = if ($Parallel -gt 0)
+            {
+                $Parallel
+            }
+            else
+            {
+                [int]$CommandConfig.DefaultStressParallel
+            }
+            Invoke-GameWipStressModule -Name $module -RunCount $runs -MaxParallel $workers -Arguments $ExtraArgs -NoBuild:$NoBuild -StopOnFailure:$StopOnFailure
         }
         'run'
         {
-            if ([string]::IsNullOrWhiteSpace($ProjectCommand))
+            $id = if ([string]::IsNullOrWhiteSpace($Command))
             {
-                $ProjectCommand = 'benchmark-dry-run'
+                'benchmark-dry-run'
             }
-            $Script:RunLabel = "command-$ProjectCommand"
-            Invoke-GameWipProjectCommand -Id $ProjectCommand -Arguments $ExtraArgs -ForceBuild:$BuildIfMissing
+            else
+            {
+                $Command
+            }
+            Invoke-GameWipProjectCommand -Id $id -Arguments $ExtraArgs -NoBuild:$NoBuild
         }
         'bundle'
         {
-            if ([string]::IsNullOrWhiteSpace($Bundle))
+            $id = if ([string]::IsNullOrWhiteSpace($Command))
             {
-                $Bundle = 'quick'
+                'quick'
             }
-            $Script:RunLabel = "bundle-$Bundle"
-            Invoke-GameWipBundle -Id $Bundle
+            else
+            {
+                $Command
+            }
+            Invoke-GameWipMutation -Summary "Run bundle '$id'." -Risk local -Plan @('Execute its declarative steps in order.') -Body { Invoke-GameWipBundle -Id $id } | Out-Null
         }
         'docs'
         {
-            Invoke-GameWipConfigurePreset -Name 'docs'
-            Invoke-GameWipBuildPreset -Name 'docs'
-        }
-        'analysis'
-        {
-            Invoke-GameWipConfigurePreset -Name 'analyze'
-            Invoke-GameWipBuildPreset -Name 'analyze'
+            Invoke-GameWipMutation -Summary 'Build generated documentation.' -Risk local -Plan @('Configure docs preset.', 'Build docs preset.') -Body { Invoke-GameWipConfigurePreset -Name docs; Invoke-GameWipBuildPreset -Name docs } | Out-Null
         }
         'analyze'
         {
-            Invoke-GameWipConfigurePreset -Name 'analyze'
-            Invoke-GameWipBuildPreset -Name 'analyze'
+            Invoke-GameWipMutation -Summary 'Run C++ static analysis.' -Risk local -Plan @('Configure analyze preset.', 'Build analyze preset.') -Body { Invoke-GameWipConfigurePreset -Name analyze; Invoke-GameWipBuildPreset -Name analyze } | Out-Null
         }
         'coverage'
         {
-            Invoke-GameWipConfigurePreset -Name 'coverage'
-            Invoke-GameWipBuildPreset -Name 'coverage'
-            Invoke-GameWipTestPreset -Name 'coverage' -UseWorkspaceTemp
-            Invoke-GameWipBuildTarget -Name 'coverage' -Target 'coverage'
+            Invoke-GameWipMutation -Summary 'Run coverage validation.' -Risk local -Plan @('Configure/build coverage.', 'Run CTest.', 'Generate coverage target.') -Body { Invoke-GameWipConfigurePreset -Name coverage; Invoke-GameWipBuildPreset -Name coverage; Invoke-GameWipTestPreset -Name coverage -UseWorkspaceTemp -NoBuild; Invoke-GameWipBuildTarget -Name coverage -Target coverage } | Out-Null
         }
         'asan'
         {
-            Invoke-GameWipConfigurePreset -Name 'asan'
-            Invoke-GameWipBuildPreset -Name 'asan'
-            Invoke-GameWipTestPreset -Name 'asan' -UseWorkspaceTemp
+            Invoke-GameWipMutation -Summary 'Run AddressSanitizer validation.' -Risk local -Plan @('Configure/build asan.', 'Run CTest.') -Body { Invoke-GameWipConfigurePreset -Name asan; Invoke-GameWipBuildPreset -Name asan; Invoke-GameWipTestPreset -Name asan -UseWorkspaceTemp -NoBuild } | Out-Null
         }
         'benchmark'
         {
-            if ($BenchmarkAction -eq 'compare')
+            $verb = if ([string]::IsNullOrWhiteSpace($Command))
+            {
+                'run'
+            }
+            else
+            {
+                $Command
+            }
+            if ($verb -notin @('run', 'dry-run', 'list', 'compare'))
+            {
+                throw "Unknown benchmark command '$verb'."
+            }
+            if ($verb -eq 'compare')
             {
                 if ([string]::IsNullOrWhiteSpace($Baseline) -or [string]::IsNullOrWhiteSpace($Candidate))
                 {
-                    throw 'Benchmark comparison requires both -Baseline and -Candidate result paths.'
+                    throw 'benchmark compare requires -Baseline and -Candidate.'
                 }
                 Invoke-GameWipBenchmarkComparison -BaselinePath $Baseline -CandidatePath $Candidate -RequestedOutput $Output
             }
             else
             {
-                Invoke-GameWipBenchmark `
-                    -Mode $BenchmarkAction `
-                    -ProfileId $BenchmarkProfile `
-                    -NameFilter $Filter `
-                    -RepeatCount $Repetitions `
-                    -MinimumTime $MinTime `
-                    -RequestedOutput $Output `
-                    -Format $OutputFormat `
-                    -OnlyAggregates:$AggregatesOnly `
-                    -Arguments $ExtraArgs `
-                    -SkipBuild:$NoBuild
+                Invoke-GameWipBenchmark -Mode $verb -ProfileId $BenchmarkProfile -NameFilter $Filter -RepeatCount $Repetitions -MinimumTime $MinTime -RequestedOutput $Output -Format $OutputFormat -OnlyAggregates:$AggregatesOnly -Arguments $ExtraArgs -SkipBuild:$NoBuild
             }
         }
-        'list'
+        'runs'
         {
-            Show-GameWipProjectCatalog
-        }
-        'help'
-        {
-            Show-GameWipHelp
-        }
-    }
-}
-catch
-{
-    $Script:RunFailed = $true
-    $scriptExitCode = 1
-    $primaryError = $_
-    Show-GameWipActionFailure -ErrorRecord $_
-}
-finally
-{
-    try
-    {
-        Complete-GameWipOperationTemp
-    }
-    catch
-    {
-        if ($null -ne $primaryError)
-        {
-            Write-Warning "Operation-temp cleanup also failed: $($_.Exception.Message)"
-        }
-        elseif ($null -eq $finalizationError)
-        {
-            $Script:RunFailed = $true
-            $finalizationError = $_
-        }
-        else
-        {
-            Write-Warning "Operation-temp cleanup also failed: $($_.Exception.Message)"
-        }
-    }
-
-    try
-    {
-        Save-GameWipRunSummary
-    }
-    catch
-    {
-        if ($null -ne $primaryError)
-        {
-            Write-Warning "Run-summary finalization also failed: $($_.Exception.Message)"
-        }
-        elseif ($null -eq $finalizationError)
-        {
-            $finalizationError = $_
-        }
-        else
-        {
-            Write-Warning "Run-summary finalization also failed: $($_.Exception.Message)"
+            $verb = if ([string]::IsNullOrWhiteSpace($Command))
+            {
+                'list'
+            }
+            else
+            {
+                $Command
+            }
+            if ($verb -notin @('list', 'show', 'clean'))
+            {
+                throw "Unknown runs command '$verb'."
+            }
+            if ($verb -eq 'list')
+            {
+                Show-GameWipRunList -All:($Target -eq 'all')
+            }
+            elseif ($verb -eq 'show')
+            {
+                Show-GameWipRun -Selector $(if ([string]::IsNullOrWhiteSpace($Target))
+                    {
+                        'latest'
+                    }
+                    else
+                    {
+                        $Target
+                    })
+            }
+            else
+            {
+                Invoke-GameWipRunCleanup -Selector $(if ([string]::IsNullOrWhiteSpace($Target))
+                    {
+                        'all'
+                    }
+                    else
+                    {
+                        $Target
+                    })
+            }
         }
     }
 }
 
-if ($null -ne $finalizationError)
+if ($Json)
 {
-    Write-Error "GameWIP finalization failed: $($finalizationError.Exception.Message)"
+    $result | ConvertTo-Json -Depth 12 | Write-Output
+}
+if ($result.Status -eq 'cancelled')
+{
+    exit 130
+}
+if ($result.Status -ne 'passed')
+{
     exit 1
 }
-if ($scriptExitCode -ne 0)
-{
-    exit $scriptExitCode
-}
+exit 0

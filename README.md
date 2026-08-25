@@ -117,7 +117,7 @@ The helper retains JSON results, logs, and run metadata under
 collecting timings with:
 
 ```powershell
-.\gamewip.bat benchmark -BenchmarkAction dry-run
+.\gamewip.bat benchmark dry-run
 ```
 
 The generated project manual documents the full validation, testing, static-analysis, coverage, profiling, and benchmarking workflows.

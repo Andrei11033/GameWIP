@@ -1,19 +1,18 @@
-# GameWIP WinGet tool-provider behavior. Dot-sourced by scripts/lib/Tools.ps1.
+# GameWIP WinGet tool provider.
 
 function Test-GameWipWingetNoUpdateExitCode
 {
-    param([Parameter(Mandatory = $true)][int]$ExitCode)
-
-    # APPINSTALLER_CLI_ERROR_UPDATE_NOT_APPLICABLE.
-    return $ExitCode -eq -1978335189
+    param([Parameter(Mandatory = $true)][int]$ExitCode); return $ExitCode -eq -1978335189
 }
 
 function Get-GameWipWingetToolLatestVersion
 {
     param([hashtable]$Tool)
-    $output = & winget show --id $Tool.provider.package --exact --accept-source-agreements 2>&1 | Out-String
-    $match = [regex]::Match($output, '(?m)^Version:\s*(\S+)')
-    if ($match.Success) { return $match.Groups[1].Value }
+    $query = Get-GameWipToolLatestQuery -Tool $Tool
+    if ($query.State -eq 'resolved')
+    {
+        return [string]$query.Version
+    }
     return $null
 }
 
@@ -21,9 +20,16 @@ function Install-GameWipWingetTool
 {
     param([hashtable]$Tool, [AllowNull()][string]$Version)
     $null = $Version
-    $listed = & winget list --id $Tool.provider.package --exact --accept-source-agreements 2>&1 | Out-String
-    $installed = $LASTEXITCODE -eq 0 -and $listed -match [regex]::Escape([string]$Tool.provider.package)
-    $verb = if ($installed) { 'upgrade' } else { 'install' }
+    $listed = Invoke-GameWipProcess -FilePath winget -Arguments @('list', '--id', [string]$Tool.provider.package, '--exact', '--accept-source-agreements') -OutputMode LogOnly -TimeoutSeconds 60
+    $installed = $listed.ExitCode -eq 0 -and (($listed.Stdout -join "`n") -match [regex]::Escape([string]$Tool.provider.package))
+    $verb = if ($installed)
+    {
+        'upgrade'
+    }
+    else
+    {
+        'install'
+    }
     $arguments = @($verb, '--id', [string]$Tool.provider.package, '--exact', '--silent', '--accept-package-agreements', '--accept-source-agreements')
     if (-not $installed -and $Tool.provider.Contains('installArguments'))
     {
@@ -32,22 +38,16 @@ function Install-GameWipWingetTool
             $arguments += ([string]$argument).Replace('{msys2Root}', [string]$ProjectConfig.managedEnvironment.msys2Root)
         }
     }
-    & winget @arguments
-    $exitCode = [int]$LASTEXITCODE
-    if ($verb -eq 'upgrade' -and (Test-GameWipWingetNoUpdateExitCode -ExitCode $exitCode))
+    $allowed = @(0)
+    if ($verb -eq 'upgrade')
+    {
+        $allowed += -1978335189
+    }
+    $exitCode = Invoke-GameWipProviderNative -Name "winget-$verb-$($Tool.id)" -FilePath winget -Arguments $arguments -AllowedExitCodes $allowed
+    if (Test-GameWipWingetNoUpdateExitCode -ExitCode $exitCode)
     {
         Write-Host "  Already current: $($Tool.name)"
     }
-    elseif ($exitCode -ne 0)
-    {
-        throw "WinGet failed to install/update '$($Tool.id)' with exit code $exitCode."
-    }
-
-    # WinGet updates persistent environment state, not necessarily this process.
-    # Refresh PATH so later setup stages can use a newly installed provider.
-    $pathParts = @(
-        [Environment]::GetEnvironmentVariable('Path', 'Machine'),
-        [Environment]::GetEnvironmentVariable('Path', 'User')
-    ) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
-    $env:Path = $pathParts -join [IO.Path]::PathSeparator
+    $parts = @([Environment]::GetEnvironmentVariable('Path', 'Machine'), [Environment]::GetEnvironmentVariable('Path', 'User')) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+    $env:Path = $parts -join [IO.Path]::PathSeparator
 }

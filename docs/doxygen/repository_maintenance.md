@@ -86,7 +86,7 @@ do not treat an earlier ordinary pull-request run as finalization evidence.
 
 ## Manual workflow map
 
-Use `gamewip.bat workflow -WorkflowAction list` to discover supported
+Use `gamewip.bat workflow list` to discover supported
 dispatches. The helper fixes the ref to `master`, shows the exact command, and
 uses typed confirmation for writes and deployments.
 

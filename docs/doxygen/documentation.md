@@ -426,8 +426,8 @@ the manual before deployment. Maintainers can preview and dispatch the
 repository-owned command with:
 
 ```powershell
-.\gamewip.bat workflow -WorkflowAction run -Workflow docs-deploy -Preview
-.\gamewip.bat workflow -WorkflowAction run -Workflow docs-deploy
+.\gamewip.bat workflow run docs-deploy -Preview
+.\gamewip.bat workflow run docs-deploy
 ```
 
 There is no remote dry-run mode for Pages deployment, so the helper classifies

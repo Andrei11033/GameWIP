@@ -70,24 +70,42 @@ function Copy-GameWipTracyRuntimeDependency
     param(
         [Parameter(Mandatory = $true)][string]$Executable,
         [Parameter(Mandatory = $true)][string]$UcrtBin,
-        [Parameter(Mandatory = $true)][string]$StageRoot
+        [Parameter(Mandatory = $true)][string]$StageRoot,
+        [AllowNull()][System.Collections.Generic.HashSet[string]]$Visited = $null
     )
 
     $objdump = Join-Path $UcrtBin 'objdump.exe'
     $pending = [System.Collections.Generic.Queue[string]]::new()
-    $visited = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    if ($null -eq $Visited)
+    {
+        $Visited = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    }
+    $inspectionClock = [Diagnostics.Stopwatch]::StartNew()
+    $inspected = 0
+    Write-Host "  Inspecting runtime dependency closure: $([IO.Path]::GetFileName($Executable))"
     $pending.Enqueue($Executable)
     while ($pending.Count -ne 0)
     {
         $binary = $pending.Dequeue()
-        foreach ($line in & $objdump -p $binary)
+        $inspection = Invoke-GameWipProcess -FilePath $objdump -Arguments @('-p', $binary) -OutputMode LogOnly -TimeoutSeconds 30
+        ++$inspected
+        if ($inspectionClock.Elapsed.TotalSeconds -ge 15)
+        {
+            Write-GameWipHost "  Runtime dependency inspection is still running ($inspected inspected, $($pending.Count) queued)..." -ForegroundColor DarkGray
+            $inspectionClock.Restart()
+        }
+        if ($inspection.ExitCode -ne 0)
+        {
+            throw "Could not inspect runtime dependencies for $binary (exit $($inspection.ExitCode))."
+        }
+        foreach ($line in @($inspection.Stdout))
         {
             if ($line -notmatch '^\s*DLL Name:\s*(.+?)\s*$')
             {
                 continue
             }
             $dllName = $Matches[1]
-            if (-not $visited.Add($dllName))
+            if (-not $Visited.Add($dllName))
             {
                 continue
             }
@@ -103,10 +121,6 @@ function Copy-GameWipTracyRuntimeDependency
                 Write-Host "  Staged runtime dependency: $dllName"
             }
             $pending.Enqueue($ucrtDll)
-        }
-        if ($LASTEXITCODE -ne 0)
-        {
-            throw "Could not inspect runtime dependencies for $binary."
         }
     }
 }
@@ -181,7 +195,7 @@ function Invoke-GameWipTracyToolBuild
     $tracyRoot = Join-Path $RepositoryRoot 'external\tracy'
     $setupRoot = Join-Path $RepositoryRoot (Join-Path $ProjectConfig.storage.cache 'tracy')
     $buildRoot = Join-Path $setupRoot 'ucrt64'
-    $stageRoot = Join-Path $Script:OperationTemp 'tracy-stage'
+    $stageRoot = Join-Path $Script:OperationContext.Temp 'tracy-stage'
     $cacheRoot = Join-Path $setupRoot 'cpm-cache'
     $destination = Get-GameWipTracyToolRoot
     Write-Host "  Source: $tracyRoot"
@@ -190,11 +204,12 @@ function Invoke-GameWipTracyToolBuild
     Write-Host "  Verified destination: $destination"
     if (Test-Path -LiteralPath $stageRoot)
     {
-        Invoke-GameWipOwnedTreeRemoval -Path $stageRoot -OwnedRoot $Script:OperationTemp
+        Invoke-GameWipOwnedTreeRemoval -Path $stageRoot -OwnedRoot $Script:OperationContext.Temp
     }
     New-Item -ItemType Directory -Path $stageRoot -Force | Out-Null
     New-Item -ItemType Directory -Path $cacheRoot -Force | Out-Null
     $compilerCompatibilityHeader = Write-GameWipTracyCompilerCompatibilityHeader -SetupRoot $setupRoot
+    $runtimeDependenciesVisited = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
 
     $projects = @(
         @{ Name = 'profiler'; Source = 'profiler'; Outputs = @('tracy-profiler.exe') }
@@ -274,7 +289,8 @@ function Invoke-GameWipTracyToolBuild
                 Copy-GameWipTracyRuntimeDependency `
                     -Executable $built.FullName `
                     -UcrtBin $ucrtBin `
-                    -StageRoot $stageRoot
+                    -StageRoot $stageRoot `
+                    -Visited $runtimeDependenciesVisited
             }
         }
     }

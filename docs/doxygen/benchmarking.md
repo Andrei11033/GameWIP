@@ -23,13 +23,13 @@ Build and run the standard optimized benchmark profile:
 Validate registration without collecting meaningful timings:
 
 ```powershell
-.\gamewip.bat benchmark -BenchmarkAction dry-run
+.\gamewip.bat benchmark dry-run
 ```
 
 List registered scenarios without measuring them:
 
 ```powershell
-.\gamewip.bat benchmark -BenchmarkAction list
+.\gamewip.bat benchmark list
 ```
 
 CI performs registration dry runs only. Machine-dependent timings are not merge gates. Direct executable invocation remains supported when diagnosing
@@ -127,8 +127,7 @@ Save results to an explicit path:
 Compare two retained JSON results descriptively:
 
 ```powershell
-.\gamewip.bat benchmark `
-  -BenchmarkAction compare `
+.\gamewip.bat benchmark compare `
   -Baseline build\gamewip\runs\<before>\artifacts\benchmark-results.json `
   -Candidate build\gamewip\runs\<after>\artifacts\benchmark-results.json
 ```
@@ -140,10 +139,10 @@ real-time percentage changes. It is descriptive evidence, not a statistical sign
 
 | Option | Behavior |
 | --- | --- |
-| `-BenchmarkAction run` | Configure, build, measure, and retain results. This is the default. |
-| `-BenchmarkAction dry-run` | Validate selected registrations without useful timings. |
-| `-BenchmarkAction list` | Print selected registered benchmark names. |
-| `-BenchmarkAction compare` | Compare two retained JSON files supplied with `-Baseline` and `-Candidate`. |
+| `benchmark run` | Configure, build, measure, and retain results. This is the default. |
+| `benchmark dry-run` | Validate selected registrations without useful timings. |
+| `benchmark list` | Print selected registered benchmark names. |
+| `benchmark compare` | Compare two retained JSON files supplied with `-Baseline` and `-Candidate`. |
 | `-BenchmarkProfile quick` | One short development measurement per scenario. |
 | `-BenchmarkProfile standard` | Five repetitions with aggregate reporting; this is the default profile. |
 | `-BenchmarkProfile stable` | Ten longer, randomly interleaved repetitions for careful local comparison. |

@@ -1,6 +1,5 @@
 cmake_minimum_required(VERSION 4.4.2)
 
-
 project(GameWIP VERSION 0.1.0 LANGUAGES CXX)
 
 # RC is enabled once at the highest common directory for Windows targets that

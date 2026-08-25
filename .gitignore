@@ -8,6 +8,8 @@
 *.log
 *.tmp
 *.cache
+# Ruff Cache
+.ruff_cache/
 
 # CMake
 CMakeCache.txt

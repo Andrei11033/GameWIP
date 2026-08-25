@@ -1,10 +1,24 @@
-# GameWIP Formatting helper behavior. Dot-sourced by scripts/GameWIP.ps1.
+# GameWIP C/C++ formatting policy and focused changed-file support.
+
+Set-StrictMode -Version Latest
 
 function Get-GameWipFormatFile
 {
-    $extensions = @('.cpp', '.h', '.hpp', '.inl')
-    $files = New-Object System.Collections.Generic.List[string]
+    param([string[]]$Files = @())
 
+    $extensions = @('.c', '.cc', '.cpp', '.cxx', '.h', '.hh', '.hpp', '.hxx', '.inl')
+    if ($null -ne $Files -and @($Files).Count -ne 0)
+    {
+        return @(
+            $Files |
+                ForEach-Object { Resolve-GameWipRepositoryPath -Path $_ } |
+                Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } |
+                Where-Object { $extensions -contains [IO.Path]::GetExtension($_).ToLowerInvariant() } |
+                Sort-Object -Unique
+        )
+    }
+
+    $result = [System.Collections.Generic.List[string]]::new()
     foreach ($relativeRoot in @($CommandConfig.Formatting.SourceRoots))
     {
         $root = Resolve-GameWipRepositoryPath -Path ([string]$relativeRoot)
@@ -12,22 +26,23 @@ function Get-GameWipFormatFile
         {
             continue
         }
-
         foreach ($file in Get-ChildItem -LiteralPath $root -Recurse -File)
         {
             if ($extensions -contains $file.Extension.ToLowerInvariant())
             {
-                $files.Add($file.FullName) | Out-Null
+                $result.Add($file.FullName) | Out-Null
             }
         }
     }
-
-    @($files | Sort-Object -Unique)
+    return @($result | Sort-Object -Unique)
 }
 
 function Invoke-GameWipFormat
 {
-    param([Parameter(Mandatory = $true)][ValidateSet('check', 'apply')][string]$Mode)
+    param(
+        [Parameter(Mandatory = $true)][ValidateSet('check', 'apply')][string]$Mode,
+        [string[]]$Files = @()
+    )
 
     $formatter = Resolve-GameWipClangFormat
     $formatConfig = Resolve-GameWipRepositoryPath -Path ([string]$CommandConfig.Formatting.ConfigPath)
@@ -36,97 +51,70 @@ function Invoke-GameWipFormat
         throw "Repository clang-format configuration is missing: $formatConfig"
     }
 
-    $files = @(Get-GameWipFormatFile)
-    if ($files.Count -eq 0)
+    $formatFiles = @(Get-GameWipFormatFile -Files $Files)
+    if ($formatFiles.Count -eq 0)
     {
-        throw 'No GameWIP-owned C/C++ files were found to format.'
+        if ($null -ne $Files -and @($Files).Count -ne 0)
+        {
+            Write-Host 'No changed C/C++ files require formatting checks.'; return
+        }
+        Write-Host '  [SKIP] No C/C++ files are in the selected scope.'; return
     }
 
-    Write-GameWipSection 'C++ formatting'
+    Write-GameWipSection 'C/C++ formatting'
     Write-Host "  Mode:       $Mode"
     Write-Host "  Formatter:  $($formatter.Version)"
     Write-Host "  Source:     $($formatter.Source)"
     Write-Host "  Style:      $formatConfig"
-    Write-Host "  Files:      $($files.Count)"
+    Write-Host "  Files:      $($formatFiles.Count)"
 
     $beforeHashes = @{}
     if ($Mode -eq 'apply')
     {
-        foreach ($file in $files)
+        foreach ($file in $formatFiles)
         {
             $beforeHashes[$file] = (Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash
         }
     }
 
-    # Keep native command lines comfortably below Windows command-line limits as the repository grows.
     $batchSize = 40
-    $batchCount = [int][Math]::Ceiling($files.Count / [double]$batchSize)
-    for ($offset = 0; $offset -lt $files.Count; $offset += $batchSize)
+    $batchCount = [int][Math]::Ceiling($formatFiles.Count / [double]$batchSize)
+    for ($offset = 0; $offset -lt $formatFiles.Count; $offset += $batchSize)
     {
-        $last = [Math]::Min($offset + $batchSize - 1, $files.Count - 1)
-        $batch = @($files[$offset..$last])
-        $arguments = New-Object System.Collections.Generic.List[string]
+        $last = [Math]::Min($offset + $batchSize - 1, $formatFiles.Count - 1)
+        $batch = @($formatFiles[$offset..$last])
+        $arguments = [System.Collections.Generic.List[string]]::new()
         $arguments.Add("--style=file:$formatConfig") | Out-Null
         $arguments.Add('--Werror') | Out-Null
         $arguments.Add('--fail-on-incomplete-format') | Out-Null
-        if ($Mode -eq 'check')
-        {
-            $arguments.Add('--dry-run') | Out-Null
-        }
-        else
-        {
-            $arguments.Add('-i') | Out-Null
-        }
+        $arguments.Add($(if ($Mode -eq 'check')
+                {
+                    '--dry-run'
+                }
+                else
+                {
+                    '-i'
+                })) | Out-Null
         foreach ($file in $batch)
         {
             $arguments.Add($file) | Out-Null
         }
-
         $batchNumber = [int]($offset / $batchSize) + 1
-        Invoke-GameWipNative `
-            -Name "clang-format-$Mode-$batchNumber-of-$batchCount" `
-            -FilePath $formatter.Path `
-            -Arguments $arguments.ToArray()
+        Invoke-GameWipNative -Name "clang-format-$Mode-$batchNumber-of-$batchCount" -FilePath $formatter.Path -Arguments $arguments.ToArray() | Out-Null
     }
 
     if ($Mode -eq 'check')
     {
-        Write-Host "  [pass] All $($files.Count) GameWIP-owned C/C++ files match the repository format." -ForegroundColor Green
+        Write-GameWipHost "  [pass] All $($formatFiles.Count) selected C/C++ files match the repository format." -ForegroundColor Green
         return
     }
 
-    $repositoryPrefix = [IO.Path]::GetFullPath($RepositoryRoot)
-    if (-not $repositoryPrefix.EndsWith([IO.Path]::DirectorySeparatorChar.ToString()))
-    {
-        $repositoryPrefix += [IO.Path]::DirectorySeparatorChar
-    }
-
-    $changed = New-Object System.Collections.Generic.List[string]
-    foreach ($file in $files)
+    foreach ($file in $formatFiles)
     {
         $afterHash = (Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash
         if ($beforeHashes[$file] -ne $afterHash)
         {
-            $fullPath = [IO.Path]::GetFullPath($file)
-            $relativePath = $fullPath
-            if ($fullPath.StartsWith($repositoryPrefix, [StringComparison]::OrdinalIgnoreCase))
-            {
-                $relativePath = $fullPath.Substring($repositoryPrefix.Length)
-            }
-            $changed.Add($relativePath) | Out-Null
+            Add-GameWipOperationChange -Message "Formatted $(Get-GameWipRepositoryRelativePath -Path $file)"
         }
     }
-
-    if ($changed.Count -eq 0)
-    {
-        Write-Host "  [unchanged] All $($files.Count) files were already formatted." -ForegroundColor Green
-        return
-    }
-
-    Write-Host "  [updated] $($changed.Count) file(s) formatted." -ForegroundColor Yellow
-    foreach ($relativePath in $changed)
-    {
-        Write-Host "    $relativePath"
-    }
-    Write-GameWipNextStepHint 'review formatting changes with: git diff --check && git diff'
 }

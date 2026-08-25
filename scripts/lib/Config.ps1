@@ -1,9 +1,11 @@
-# Shared GameWIP configuration/schema and repository-path helpers used by the project helper and setup.
+# Shared GameWIP configuration and repository-path helpers.
+# Bootstrap validation is intentionally narrower than JSON Schema validation.
+
+Set-StrictMode -Version Latest
 
 function Resolve-GameWipRepositoryPath
 {
     param([Parameter(Mandatory = $true)][string]$Path)
-
     if ([IO.Path]::IsPathRooted($Path))
     {
         return [IO.Path]::GetFullPath($Path)
@@ -14,7 +16,6 @@ function Resolve-GameWipRepositoryPath
 function ConvertTo-GameWipHashtable
 {
     param([AllowNull()]$Value)
-
     if ($null -eq $Value -or $Value -is [string] -or $Value.GetType().IsValueType)
     {
         return $Value
@@ -33,7 +34,6 @@ function ConvertTo-GameWipHashtable
         $items = @($Value | ForEach-Object { ConvertTo-GameWipHashtable -Value $_ })
         return , $items
     }
-
     $result = @{}
     foreach ($property in $Value.PSObject.Properties)
     {
@@ -54,7 +54,6 @@ function Read-GameWipJsonConfig
     {
         throw "Required $Name configuration is missing: $Path"
     }
-
     try
     {
         $parsed = Get-Content -Raw -LiteralPath $Path | ConvertFrom-Json
@@ -71,207 +70,31 @@ function Read-GameWipJsonConfig
     }
     if ([int]$config.schemaVersion -ne 1)
     {
-        throw "Unsupported $name configuration schemaVersion '$($config.schemaVersion)'; expected 1."
+        throw "Unsupported $Name configuration schemaVersion '$($config.schemaVersion)'; expected 1."
     }
+
+    # Bootstrap validation deliberately does not implement JSON Schema. The
+    # conforming Draft 2020-12 validator is .github/scripts/validate_config_schemas.py.
     if (-not [string]::IsNullOrWhiteSpace($SchemaPath))
     {
         if (-not (Test-Path -LiteralPath $SchemaPath -PathType Leaf))
         {
             throw "Required $Name schema is missing: $SchemaPath"
         }
-        $schema = ConvertTo-GameWipHashtable -Value (Get-Content -Raw -LiteralPath $SchemaPath | ConvertFrom-Json)
-        Assert-GameWipJsonSchemaValue -Value $config -Schema $schema -RootSchema $schema -JsonPath '$'
+        try
+        {
+            $schemaHeader = Get-Content -Raw -LiteralPath $SchemaPath | ConvertFrom-Json
+        }
+        catch
+        {
+            throw "Malformed $Name schema '$SchemaPath': $($_.Exception.Message)"
+        }
+        if ([string]$schemaHeader.'$schema' -ne 'https://json-schema.org/draft/2020-12/schema')
+        {
+            throw "$Name schema '$SchemaPath' must declare JSON Schema draft 2020-12."
+        }
     }
     return $config
-}
-
-function Resolve-GameWipJsonSchemaReference
-{
-    param(
-        [Parameter(Mandatory = $true)][hashtable]$RootSchema,
-        [Parameter(Mandatory = $true)][string]$Reference
-    )
-
-    if (-not $Reference.StartsWith('#/'))
-    {
-        throw "Unsupported JSON Schema reference '$Reference'."
-    }
-    $value = $RootSchema
-    foreach ($segment in $Reference.Substring(2).Split('/'))
-    {
-        $key = $segment.Replace('~1', '/').Replace('~0', '~')
-        if (-not $value.Contains($key))
-        {
-            throw "Unresolved JSON Schema reference '$Reference'."
-        }
-        $value = $value[$key]
-    }
-    return $value
-}
-
-function Test-GameWipJsonSchemaCondition
-{
-    param($Value, [hashtable]$Schema, [hashtable]$RootSchema)
-    try
-    {
-        Assert-GameWipJsonSchemaValue -Value $Value -Schema $Schema -RootSchema $RootSchema -JsonPath '$condition'
-        return $true
-    }
-    catch
-    {
-        return $false
-    }
-}
-
-function Assert-GameWipJsonSchemaValue
-{
-    param(
-        [AllowNull()]$Value,
-        [Parameter(Mandatory = $true)][hashtable]$Schema,
-        [Parameter(Mandatory = $true)][hashtable]$RootSchema,
-        [Parameter(Mandatory = $true)][string]$JsonPath
-    )
-
-    if ($Schema.Contains('$ref'))
-    {
-        $resolved = Resolve-GameWipJsonSchemaReference -RootSchema $RootSchema -Reference ([string]$Schema['$ref'])
-        Assert-GameWipJsonSchemaValue -Value $Value -Schema $resolved -RootSchema $RootSchema -JsonPath $JsonPath
-        return
-    }
-    if ($Schema.Contains('allOf'))
-    {
-        foreach ($part in @($Schema.allOf))
-        {
-            if ($part.Contains('if'))
-            {
-                if (Test-GameWipJsonSchemaCondition -Value $Value -Schema $part.if -RootSchema $RootSchema)
-                {
-                    Assert-GameWipJsonSchemaValue -Value $Value -Schema $part.then -RootSchema $RootSchema -JsonPath $JsonPath
-                }
-            }
-            else
-            {
-                Assert-GameWipJsonSchemaValue -Value $Value -Schema $part -RootSchema $RootSchema -JsonPath $JsonPath
-            }
-        }
-    }
-    if ($Schema.Contains('const') -and $Value -ne $Schema.const)
-    {
-        throw "$JsonPath must equal '$($Schema.const)'."
-    }
-    if ($Schema.Contains('enum') -and @($Schema.enum) -notcontains $Value)
-    {
-        throw "$JsonPath has unsupported value '$Value'."
-    }
-    if ($Schema.Contains('type'))
-    {
-        $schemaMatches = switch ([string]$Schema.type)
-        {
-            'object'
-            {
-                $Value -is [System.Collections.IDictionary]
-            }
-            'array'
-            {
-                $Value -is [array]
-            }
-            'string'
-            {
-                $Value -is [string]
-            }
-            'boolean'
-            {
-                $Value -is [bool]
-            }
-            'integer'
-            {
-                $Value -is [int] -or $Value -is [long]
-            }
-            default
-            {
-                $true
-            }
-        }
-        if (-not $schemaMatches)
-        {
-            throw "$JsonPath must be of JSON type '$($Schema.type)'."
-        }
-    }
-    if ($Value -is [System.Collections.IDictionary])
-    {
-        $requiredProperties = if ($Schema.Contains('required'))
-        {
-            @($Schema.required)
-        }
-        else
-        {
-            @()
-        }
-        foreach ($required in $requiredProperties)
-        {
-            if (-not $Value.Contains($required))
-            {
-                throw "$JsonPath is missing required property '$required'."
-            }
-        }
-        if ($Schema.Contains('additionalProperties') -and $Schema.additionalProperties -eq $false)
-        {
-            foreach ($key in $Value.Keys)
-            {
-                if (-not $Schema.properties.Contains($key))
-                {
-                    throw "$JsonPath contains unknown property '$key'."
-                }
-            }
-        }
-        if ($Schema.Contains('properties'))
-        {
-            foreach ($key in $Value.Keys)
-            {
-                if ($Schema.properties.Contains($key))
-                {
-                    Assert-GameWipJsonSchemaValue -Value $Value[$key] -Schema $Schema.properties[$key] -RootSchema $RootSchema -JsonPath "$JsonPath.$key"
-                }
-            }
-        }
-    }
-    if ($Value -is [array])
-    {
-        if ($Schema.Contains('minItems') -and $Value.Count -lt [int]$Schema.minItems)
-        {
-            throw "$JsonPath has too few items."
-        }
-        if ($Schema.Contains('uniqueItems') -and $Schema.uniqueItems -eq $true -and @($Value | ForEach-Object { $_ | ConvertTo-Json -Compress -Depth 20 } | Select-Object -Unique).Count -ne $Value.Count)
-        {
-            throw "$JsonPath contains duplicate items."
-        }
-        if ($Schema.Contains('items'))
-        {
-            for ($index = 0; $index -lt $Value.Count; ++$index)
-            {
-                Assert-GameWipJsonSchemaValue -Value $Value[$index] -Schema $Schema.items -RootSchema $RootSchema -JsonPath "$JsonPath[$index]"
-            }
-        }
-    }
-    if ($Value -is [string])
-    {
-        if ($Schema.Contains('minLength') -and $Value.Length -lt [int]$Schema.minLength)
-        {
-            throw "$JsonPath is too short."
-        }
-        if ($Schema.Contains('maxLength') -and $Value.Length -gt [int]$Schema.maxLength)
-        {
-            throw "$JsonPath is too long."
-        }
-        if ($Schema.Contains('pattern') -and $Value -notmatch [string]$Schema.pattern)
-        {
-            throw "$JsonPath does not match its required pattern."
-        }
-    }
-    if ($Schema.Contains('minimum') -and $Value -lt $Schema.minimum)
-    {
-        throw "$JsonPath is below its minimum."
-    }
 }
 
 function Assert-GameWipProjectConfig
@@ -297,11 +120,25 @@ function Assert-GameWipProjectConfig
             throw "Project storage '$($entry.Key)' must be '$($entry.Value)'."
         }
     }
-    if ([string]$ProjectConfig.managedEnvironment.msys2Root -ne 'C:\MSYS2' -or
-        [string]$ProjectConfig.managedEnvironment.gameWipToolsRoot -ne 'C:\MSYS2\GameWIPTools')
+    if ([string]$ProjectConfig.managedEnvironment.msys2Root -ne 'C:\MSYS2' -or [string]$ProjectConfig.managedEnvironment.gameWipToolsRoot -ne 'C:\MSYS2\GameWIPTools')
     {
         throw 'Project managed-environment roots do not match the repository contract.'
     }
+}
+
+function Resolve-GameWipCommandConfigValue
+{
+    param([Parameter(Mandatory = $true)][string]$Path)
+    $value = $CommandConfig
+    foreach ($segment in ($Path -split '\.'))
+    {
+        if ($value -isnot [System.Collections.IDictionary] -or -not $value.Contains($segment))
+        {
+            throw "Command configuration value '$Path' does not exist."
+        }
+        $value = $value[$segment]
+    }
+    return $value
 }
 
 function Assert-GameWipProjectToolConfig
@@ -310,37 +147,116 @@ function Assert-GameWipProjectToolConfig
     $providerKinds = @('msys2', 'npm', 'python', 'powershellGallery', 'githubRelease', 'winget', 'gitSubmodule', 'external')
     foreach ($toolInfo in @($ProjectTools.tools))
     {
-        if ($providerKinds -notcontains $toolInfo.provider.kind) { throw "Tool '$($toolInfo.id)' uses unsupported provider '$($toolInfo.provider.kind)'." }
-        if ($toolInfo.versionPolicy -in @('exact', 'minimum') -and -not $toolInfo.Contains('requiredVersion')) { throw "Tool '$($toolInfo.id)' requires a declared version." }
-        if ($toolInfo.capabilities.update -and -not $toolInfo.capabilities.detectInstalled) { throw "Updatable tool '$($toolInfo.id)' must support installed-version detection." }
+        if ($providerKinds -notcontains $toolInfo.provider.kind)
+        {
+            throw "Tool '$($toolInfo.id)' uses unsupported provider '$($toolInfo.provider.kind)'."
+        }
+        if ($toolInfo.versionPolicy -in @('exact', 'minimum') -and -not $toolInfo.Contains('requiredVersion'))
+        {
+            throw "Tool '$($toolInfo.id)' requires a declared version."
+        }
+        if ($toolInfo.capabilities.update -and -not $toolInfo.capabilities.detectInstalled)
+        {
+            throw "Updatable tool '$($toolInfo.id)' must support installed-version detection."
+        }
+        if ($toolInfo.detection.Contains('commandConfigVersionPath'))
+        {
+            $configVersion = [string](Resolve-GameWipCommandConfigValue -Path ([string]$toolInfo.detection.commandConfigVersionPath))
+            if ([string]::IsNullOrWhiteSpace($configVersion))
+            {
+                throw "Tool '$($toolInfo.id)' references an empty command configuration version."
+            }
+        }
 
-        $providerDependencies = if ($toolInfo.provider.Contains('dependencies')) { @($toolInfo.provider.dependencies) } else { @() }
-        if ($toolInfo.provider.kind -eq 'msys2')
+        $providerDependencies = if ($toolInfo.provider.Contains('dependencies'))
         {
-            if (-not $toolInfo.provider.Contains('environment') -or [string]$toolInfo.provider.environment -notin @('common', 'ucrt64', 'clang64')) { throw "MSYS2 tool '$($toolInfo.id)' must declare its managed environment." }
-            if (-not $toolInfo.provider.Contains('package')) { throw "MSYS2 tool '$($toolInfo.id)' must declare its pacman package." }
-            foreach ($dependency in $providerDependencies)
-            {
-                if (-not $dependency.Contains('environment')) { throw "MSYS2 dependency '$($dependency.package)' for '$($toolInfo.id)' must declare its environment." }
-            }
+            @($toolInfo.provider.dependencies)
         }
-        elseif ($toolInfo.provider.kind -eq 'npm')
+        else
         {
-            foreach ($dependency in $providerDependencies)
-            {
-                if (-not $dependency.Contains('version')) { throw "npm dependency '$($dependency.package)' for '$($toolInfo.id)' must be versioned." }
-            }
+            @()
         }
-        elseif ($toolInfo.provider.kind -eq 'githubRelease' -and -not $toolInfo.provider.Contains('releaseTag'))
+        switch ([string]$toolInfo.provider.kind)
         {
-            throw "GitHub release tool '$($toolInfo.id)' must retain its actual upstream release tag."
+            'msys2'
+            {
+                if (-not $toolInfo.provider.Contains('environment') -or [string]$toolInfo.provider.environment -notin @('common', 'ucrt64', 'clang64'))
+                {
+                    throw "MSYS2 tool '$($toolInfo.id)' must declare its managed environment."
+                }
+                if (-not $toolInfo.provider.Contains('package'))
+                {
+                    throw "MSYS2 tool '$($toolInfo.id)' must declare its pacman package."
+                }
+                foreach ($dependency in $providerDependencies)
+                {
+                    if (-not $dependency.Contains('environment'))
+                    {
+                        throw "MSYS2 dependency '$($dependency.package)' for '$($toolInfo.id)' must declare its environment."
+                    }
+                }
+            }
+            'npm'
+            {
+                if (-not $toolInfo.provider.Contains('package'))
+                {
+                    throw "npm tool '$($toolInfo.id)' must declare its package."
+                }
+                foreach ($dependency in $providerDependencies)
+                {
+                    if (-not $dependency.Contains('version'))
+                    {
+                        throw "npm dependency '$($dependency.package)' for '$($toolInfo.id)' must be versioned."
+                    }
+                }
+            }
+            'python'
+            {
+                if (-not $toolInfo.provider.Contains('package'))
+                {
+                    throw "Python tool '$($toolInfo.id)' must declare its package."
+                }
+            }
+            'powershellGallery'
+            {
+                if (-not $toolInfo.provider.Contains('package'))
+                {
+                    throw "PowerShell Gallery tool '$($toolInfo.id)' must declare its package."
+                }
+            }
+            'githubRelease'
+            {
+                foreach ($field in @('repository', 'releaseTag', 'assets'))
+                {
+                    if (-not $toolInfo.provider.Contains($field))
+                    {
+                        throw "GitHub release tool '$($toolInfo.id)' must declare '$field'."
+                    }
+                }
+            }
+            'winget'
+            {
+                if (-not $toolInfo.provider.Contains('package'))
+                {
+                    throw "WinGet tool '$($toolInfo.id)' must declare its package."
+                }
+            }
         }
 
         foreach ($reference in @($toolInfo.references))
         {
-            if ($reference -isnot [hashtable] -or -not $reference.Contains('path') -or -not $reference.Contains('kind')) { throw "Tool '$($toolInfo.id)' has malformed live-reference metadata." }
-            if (-not (Test-Path -LiteralPath (Join-Path $RepositoryRoot ([string]$reference.path)))) { throw "Tool '$($toolInfo.id)' references missing live path '$($reference.path)'." }
-            if ($reference.kind -eq 'text' -and (-not $reference.Contains('pattern') -or -not ([string]$reference.pattern).Contains('{version}'))) { throw "Tool '$($toolInfo.id)' text reference '$($reference.path)' must contain {version}." }
+            if ($reference -isnot [hashtable] -or -not $reference.Contains('path') -or -not $reference.Contains('kind'))
+            {
+                throw "Tool '$($toolInfo.id)' has malformed live-reference metadata."
+            }
+            if (-not (Test-Path -LiteralPath (Join-Path $RepositoryRoot ([string]$reference.path))))
+            {
+                throw "Tool '$($toolInfo.id)' references missing live path '$($reference.path)'."
+            }
+            if ($reference.kind -eq 'text' -and (-not $reference.Contains('pattern') -or -not ([string]$reference.pattern).Contains('{version}')))
+            {
+                throw "Tool '$($toolInfo.id)' text reference '$($reference.path)' must contain {version}."
+            }
         }
     }
 }
@@ -348,33 +264,28 @@ function Assert-GameWipProjectToolConfig
 function Get-GameWipVisiblePresetName
 {
     param([Parameter(Mandatory = $true)][string]$Kind)
-
     $property = switch ($Kind)
     {
         'configure'
         {
             'configurePresets'
-        }
-        'build'
+        } 'build'
         {
             'buildPresets'
-        }
-        'test'
+        } 'test'
         {
             'testPresets'
+        } default
+        {
+            throw "Unknown preset kind '$Kind'."
         }
     }
-
-    @($PresetData.$property | Where-Object { -not ($_.PSObject.Properties.Name -contains 'hidden' -and $_.hidden) } | ForEach-Object { $_.name })
+    return @($PresetData.$property | Where-Object { -not ($_.PSObject.Properties.Name -contains 'hidden' -and $_.hidden) } | ForEach-Object { $_.name })
 }
 
 function Assert-GameWipValidPreset
 {
-    param(
-        [Parameter(Mandatory = $true)][string]$Kind,
-        [Parameter(Mandatory = $true)][string]$Name
-    )
-
+    param([Parameter(Mandatory = $true)][string]$Kind, [Parameter(Mandatory = $true)][string]$Name)
     if ((Get-GameWipVisiblePresetName -Kind $Kind) -notcontains $Name)
     {
         throw "Unknown $Kind preset '$Name'. Run 'gamewip list' to see available presets."
@@ -384,7 +295,6 @@ function Assert-GameWipValidPreset
 function Assert-GameWipValidModule
 {
     param([Parameter(Mandatory = $true)][string]$Name)
-
     if ($Name -ne 'all' -and @($CommandConfig.Modules) -notcontains $Name)
     {
         throw "Unknown validation module '$Name'. Run 'gamewip list' to see available modules."
@@ -394,41 +304,29 @@ function Assert-GameWipValidModule
 function Get-GameWipProjectCommand
 {
     param([Parameter(Mandatory = $true)][string]$Id)
-
     $command = @($CommandConfig.ProjectCommands | Where-Object { $_.Id -eq $Id } | Select-Object -First 1)
     if ($command.Count -eq 0)
     {
         throw "Unknown project command '$Id'. Run 'gamewip list' to see available commands."
     }
-    $command[0]
+    return $command[0]
 }
 
 function Get-GameWipProjectBundle
 {
     param([Parameter(Mandatory = $true)][string]$Id)
-
     $bundleInfo = @($CommandConfig.Bundles | Where-Object { $_.Id -eq $Id } | Select-Object -First 1)
     if ($bundleInfo.Count -eq 0)
     {
         throw "Unknown bundle '$Id'. Run 'gamewip list' to see available bundles."
     }
-    $bundleInfo[0]
+    return $bundleInfo[0]
 }
 
 function Assert-GameWipUniqueId
 {
-    param(
-        [Parameter(Mandatory = $true)][string]$Label,
-        [Parameter(Mandatory = $true)][object[]]$Items
-    )
-
-    $duplicates = @(
-        $Items |
-            ForEach-Object { [string]$_.Id } |
-            Group-Object |
-            Where-Object { $_.Count -gt 1 } |
-            ForEach-Object { $_.Name }
-    )
+    param([Parameter(Mandatory = $true)][string]$Label, [Parameter(Mandatory = $true)][object[]]$Items)
+    $duplicates = @($Items | ForEach-Object { [string]$_.Id } | Group-Object | Where-Object { $_.Count -gt 1 } | ForEach-Object { $_.Name })
     if ($duplicates.Count -ne 0)
     {
         throw "Duplicate $Label IDs: $($duplicates -join ', ')."
@@ -443,7 +341,6 @@ function Assert-GameWipBundleAcyclic
         [Parameter(Mandatory = $true)][AllowEmptyCollection()][System.Collections.Generic.HashSet[string]]$Visiting,
         [Parameter(Mandatory = $true)][AllowEmptyCollection()][System.Collections.Generic.HashSet[string]]$Visited
     )
-
     if ($Visited.Contains($Id))
     {
         return
@@ -465,12 +362,24 @@ function Assert-GameWipCommandConfig
     $configurePresets = @(Get-GameWipVisiblePresetName -Kind 'configure')
     $buildPresets = @(Get-GameWipVisiblePresetName -Kind 'build')
     $testPresets = @(Get-GameWipVisiblePresetName -Kind 'test')
+    $actions = @($CommandConfig.Actions)
     $commands = @($CommandConfig.ProjectCommands)
     $bundles = @($CommandConfig.Bundles)
     $workflows = @($CommandConfig.ManualWorkflows)
     $benchmarkProfiles = @($CommandConfig.BenchmarkProfiles)
 
+    Assert-GameWipUniqueId -Label 'action' -Items $actions
     Assert-GameWipUniqueId -Label 'project command' -Items $commands
+    $requiredActions = @('menu', 'doctor', 'git', 'workflow', 'unicode', 'format', 'quality', 'tools', 'links', 'configure', 'build', 'test', 'module', 'wizard', 'stress', 'run', 'bundle', 'docs', 'analyze', 'coverage', 'asan', 'benchmark', 'runs', 'list', 'help')
+    $actionIds = @($actions | ForEach-Object { [string]$_.Id })
+    if ((($requiredActions | Sort-Object) -join "`n") -cne (($actionIds | Sort-Object) -join "`n"))
+    {
+        throw "Project action catalog drift. Required: $($requiredActions -join ', '); configured: $($actionIds -join ', ')."
+    }
+    if ($actionIds -contains 'analysis')
+    {
+        throw "Retired action alias 'analysis' must not be registered."
+    }
     Assert-GameWipUniqueId -Label 'bundle' -Items $bundles
     Assert-GameWipUniqueId -Label 'manual workflow' -Items $workflows
     Assert-GameWipUniqueId -Label 'benchmark profile' -Items $benchmarkProfiles
@@ -488,12 +397,7 @@ function Assert-GameWipCommandConfig
     }
 
     $moduleRoot = Join-Path $RepositoryRoot 'game\validation\tests'
-    $discoveredModules = @(
-        Get-ChildItem -LiteralPath $moduleRoot -Directory |
-            Where-Object { Test-Path -LiteralPath (Join-Path $_.FullName 'CMakeLists.txt') } |
-            ForEach-Object { $_.Name } |
-            Sort-Object
-    )
+    $discoveredModules = @(Get-ChildItem -LiteralPath $moduleRoot -Directory | Where-Object { Test-Path -LiteralPath (Join-Path $_.FullName 'CMakeLists.txt') } | ForEach-Object { $_.Name } | Sort-Object)
     $configuredModules = @($CommandConfig.Modules | Sort-Object)
     if (($discoveredModules -join "`n") -ne ($configuredModules -join "`n"))
     {

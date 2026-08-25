@@ -78,7 +78,7 @@ the immutable tag and GitHub release and the milestone handoff is complete.
 Run the read-only readiness check first:
 
 ```powershell
-.\gamewip.bat workflow -WorkflowAction run -Workflow release-check
+.\gamewip.bat workflow run release-check
 gh workflow run release-preparation.yml -f command=check -f dry_run=true
 ```
 
@@ -108,7 +108,7 @@ Automatic issue and milestone events run the same readiness logic without mutati
 After the dry run is correct, prepare the release pull request:
 
 ```powershell
-.\gamewip.bat workflow -WorkflowAction run -Workflow release-prepare
+.\gamewip.bat workflow run release-prepare
 gh workflow run release-preparation.yml -f command=prepare -f dry_run=false
 ```
 
@@ -140,14 +140,14 @@ $releaseCommit = gh api repos/Andrei11033/GameWIP/branches/master --jq .commit.s
 Run a finalization dry run:
 
 ```powershell
-.\gamewip.bat workflow -WorkflowAction run -Workflow release-finalize-dry-run -ReleaseCommit $releaseCommit
+.\gamewip.bat workflow run release-finalize-dry-run -ReleaseCommit $releaseCommit
 gh workflow run release-preparation.yml -f command=finalize -f dry_run=true -f release_commit=$releaseCommit
 ```
 
 If the dry run verifies the exact commit, publish the tag and release:
 
 ```powershell
-.\gamewip.bat workflow -WorkflowAction run -Workflow release-finalize -ReleaseCommit $releaseCommit
+.\gamewip.bat workflow run release-finalize -ReleaseCommit $releaseCommit
 gh workflow run release-preparation.yml -f command=finalize -f dry_run=false -f release_commit=$releaseCommit
 ```
 

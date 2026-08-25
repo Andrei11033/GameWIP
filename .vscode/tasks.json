@@ -4,9 +4,9 @@
     {
       "label": "GameWIP: Configure Development",
       "type": "process",
-      "command": "cmake",
-      "args": ["--preset", "dev"],
-      "options": { "cwd": "${workspaceFolder}", "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" } },
+      "command": "${workspaceFolder}\\gamewip.bat",
+      "args": ["configure", "dev"],
+      "options": { "cwd": "${workspaceFolder}" },
       "problemMatcher": [],
       "presentation": { "reveal": "silent" },
       "hide": true
@@ -14,9 +14,9 @@
     {
       "label": "GameWIP: Build Development",
       "type": "process",
-      "command": "cmake",
-      "args": ["--build", "--preset", "dev", "--parallel"],
-      "options": { "cwd": "${workspaceFolder}", "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" } },
+      "command": "${workspaceFolder}\\gamewip.bat",
+      "args": ["build", "dev"],
+      "options": { "cwd": "${workspaceFolder}" },
       "problemMatcher": ["$gcc"],
       "dependsOn": "GameWIP: Configure Development",
       "dependsOrder": "sequence",
@@ -46,9 +46,9 @@
     {
       "label": "GameWIP: Configure Tests",
       "type": "process",
-      "command": "cmake",
-      "args": ["--preset", "test"],
-      "options": { "cwd": "${workspaceFolder}", "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" } },
+      "command": "${workspaceFolder}\\gamewip.bat",
+      "args": ["configure", "test"],
+      "options": { "cwd": "${workspaceFolder}" },
       "problemMatcher": [],
       "presentation": { "reveal": "silent" },
       "hide": true
@@ -56,9 +56,9 @@
     {
       "label": "GameWIP: Build Tests",
       "type": "process",
-      "command": "cmake",
-      "args": ["--build", "--preset", "test", "--parallel"],
-      "options": { "cwd": "${workspaceFolder}", "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" } },
+      "command": "${workspaceFolder}\\gamewip.bat",
+      "args": ["build", "test"],
+      "options": { "cwd": "${workspaceFolder}" },
       "problemMatcher": ["$gcc"],
       "dependsOn": "GameWIP: Configure Tests",
       "dependsOrder": "sequence",
@@ -67,9 +67,9 @@
     {
       "label": "GameWIP: Test",
       "type": "process",
-      "command": "ctest",
-      "args": ["--preset", "test"],
-      "options": { "cwd": "${workspaceFolder}", "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" } },
+      "command": "${workspaceFolder}\\gamewip.bat",
+      "args": ["test", "test", "-NoBuild"],
+      "options": { "cwd": "${workspaceFolder}" },
       "problemMatcher": [],
       "dependsOn": "GameWIP: Build Tests",
       "dependsOrder": "sequence",
@@ -77,13 +77,10 @@
     },
     {
       "label": "GameWIP: Benchmark",
-      "type": "shell",
-      "command": "& '${workspaceFolder}\\gamewip.bat' benchmark",
-      "options": {
-        "cwd": "${workspaceFolder}",
-        "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" },
-        "shell": { "executable": "powershell.exe", "args": ["-NoProfile", "-Command"] }
-      },
+      "type": "process",
+      "command": "${workspaceFolder}\\gamewip.bat",
+      "args": ["benchmark", "run"],
+      "options": { "cwd": "${workspaceFolder}" },
       "problemMatcher": ["$gcc"]
     },
     {
@@ -110,42 +107,33 @@
     },
     {
       "label": "GameWIP: Coverage",
-      "type": "shell",
-      "command": "cmake --preset coverage; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; cmake --build --preset coverage --parallel; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; ctest --preset coverage; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; cmake --build build/coverage --target coverage; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; $report = '${workspaceFolder}\\build\\coverage\\coverage\\index.html'; if (!(Test-Path -LiteralPath $report)) { throw 'Coverage HTML report was not generated.' }; Start-Process -FilePath $report",
-      "options": {
-        "cwd": "${workspaceFolder}",
-        "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" },
-        "shell": { "executable": "powershell.exe", "args": ["-NoProfile", "-Command"] }
-      },
+      "type": "process",
+      "command": "${workspaceFolder}\\gamewip.bat",
+      "args": ["coverage"],
+      "options": { "cwd": "${workspaceFolder}" },
       "problemMatcher": ["$gcc"]
     },
     {
       "label": "GameWIP: Address Sanitizer",
-      "type": "shell",
-      "command": "cmake --preset asan; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; cmake --build --preset asan --parallel; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; ctest --preset asan",
-      "options": {
-        "cwd": "${workspaceFolder}",
-        "env": { "PATH": "C:\\MSYS2\\clang64\\bin;${env:PATH}" },
-        "shell": { "executable": "powershell.exe", "args": ["-NoProfile", "-Command"] }
-      },
+      "type": "process",
+      "command": "${workspaceFolder}\\gamewip.bat",
+      "args": ["asan"],
+      "options": { "cwd": "${workspaceFolder}", "env": { "PATH": "C:\\MSYS2\\clang64\\bin;${env:PATH}" } },
       "problemMatcher": ["$gcc"]
     },
     {
       "label": "GameWIP: Analyze",
-      "type": "shell",
-      "command": "cmake --preset analyze; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; cmake --build --preset analyze --parallel",
-      "options": {
-        "cwd": "${workspaceFolder}",
-        "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" },
-        "shell": { "executable": "powershell.exe", "args": ["-NoProfile", "-Command"] }
-      },
+      "type": "process",
+      "command": "${workspaceFolder}\\gamewip.bat",
+      "args": ["analyze"],
+      "options": { "cwd": "${workspaceFolder}" },
       "problemMatcher": ["$gcc"]
     },
     {
       "label": "GameWIP: Quality Check",
       "type": "process",
       "command": "${workspaceFolder}\\gamewip.bat",
-      "args": ["quality", "-QualityAction", "check"],
+      "args": ["quality", "check"],
       "options": { "cwd": "${workspaceFolder}" },
       "problemMatcher": []
     },
@@ -153,25 +141,22 @@
       "label": "GameWIP: Tools Status",
       "type": "process",
       "command": "${workspaceFolder}\\gamewip.bat",
-      "args": ["tools", "-ToolsAction", "status"],
+      "args": ["tools", "status"],
       "options": { "cwd": "${workspaceFolder}" },
       "problemMatcher": []
     },
     {
       "label": "GameWIP: Documentation",
-      "type": "shell",
-      "command": "cmake --preset docs; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; cmake --build --preset docs --parallel; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; $warnings = '${workspaceFolder}\\build\\docs\\docs\\doxygen\\doxygen_warnings.log'; if (!(Test-Path -LiteralPath $warnings)) { throw 'Doxygen warning log was not generated.' }; if ((Get-Item -LiteralPath $warnings).Length -ne 0) { Get-Content -LiteralPath $warnings; throw 'Doxygen emitted warnings.' }; $index = '${workspaceFolder}\\build\\docs\\docs\\doxygen\\html\\index.html'; if (!(Test-Path -LiteralPath $index)) { throw 'Doxygen HTML index was not generated.' }; Start-Process -FilePath $index",
-      "options": {
-        "cwd": "${workspaceFolder}",
-        "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" },
-        "shell": { "executable": "powershell.exe", "args": ["-NoProfile", "-Command"] }
-      },
+      "type": "process",
+      "command": "${workspaceFolder}\\gamewip.bat",
+      "args": ["docs"],
+      "options": { "cwd": "${workspaceFolder}" },
       "problemMatcher": []
     },
     {
       "label": "GameWIP: Run Release",
       "type": "shell",
-      "command": "cmake --preset release; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; cmake --build --preset release --parallel; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; & '${workspaceFolder}\\build\\release\\GameWIP.exe'",
+      "command": "& '${workspaceFolder}\\gamewip.bat' build release; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; & '${workspaceFolder}\\build\\release\\GameWIP.exe'",
       "options": {
         "cwd": "${workspaceFolder}",
         "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" },

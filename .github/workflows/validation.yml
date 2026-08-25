@@ -150,7 +150,7 @@ jobs:
           clang_format_path="$(cygpath -w "$(command -v clang-format)")"
           helper_path="$(cygpath -w "$PWD/scripts/GameWIP.ps1")"
           powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$helper_path" \
-            unicode -UnicodeAction verify \
+            unicode verify \
             -PythonPath "$python_path" \
             -ClangFormatPath "$clang_format_path"
 
@@ -198,7 +198,8 @@ jobs:
           "$RUNNER_TEMP/gamewip-quality-python/bin/python" -m pip install --upgrade pip
           "$RUNNER_TEMP/gamewip-quality-python/bin/pip" install \
             "ruff==$(version ruff)" \
-            "yamllint==$(version yamllint)"
+            "yamllint==$(version yamllint)" \
+            "jsonschema==$(version jsonschema)"
           echo "$RUNNER_TEMP/gamewip-quality-python/bin" >> "$GITHUB_PATH"
 
           gersemi_repository="$(jq -r '.tools[] | select(.id == "gersemi") | .provider.repository' "$registry")"
@@ -294,7 +295,7 @@ jobs:
 
       - name: Run complete repository quality policy
         shell: pwsh
-        run: ./scripts/GameWIP.ps1 quality -QualityAction check
+        run: ./scripts/GameWIP.ps1 quality check
 
   coverage:
     name: Coverage

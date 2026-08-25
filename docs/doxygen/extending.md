@@ -169,7 +169,7 @@ avoid correctness assertions based on timing.
 Verify registration before collecting results:
 
 ```powershell
-.\gamewip.bat benchmark -BenchmarkAction dry-run
+.\gamewip.bat benchmark dry-run
 ```
 
 Benchmark authoring rules are documented in @ref project_benchmarking.
@@ -268,7 +268,7 @@ cmake --build --preset docs
 ```
 
 ```powershell
-.\gamewip.bat benchmark -BenchmarkAction dry-run
+.\gamewip.bat benchmark dry-run
 ```
 
 A generic statement such as `tested` is not sufficient verification evidence.

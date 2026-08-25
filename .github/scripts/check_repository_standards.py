@@ -64,7 +64,16 @@ CTEST_COMMAND = re.compile(r"^(?:run:\s*)?ctest(?:\s|$)")
 CTEST_PRESET = re.compile(r"(?:^|\s)--preset(?:=|\s+)([A-Za-z0-9_.-]+)")
 ISSUE_AREA_OPTIONS = re.compile(r"(?ms)^    id: area\s*$.*?^      options:\s*$\n((?:^        - [^\n]+\n?)+)")
 ISSUE_AREA_MAPPING = re.compile(r"\[['\"]([^'\"]+)['\"],\s*['\"](area:[^'\"]+)['\"]\]")
-SUPPORTED_PROVIDERS = {"msys2", "npm", "python", "powershellGallery", "githubRelease", "winget", "gitSubmodule", "external"}
+SUPPORTED_PROVIDERS = {
+    "msys2",
+    "npm",
+    "python",
+    "powershellGallery",
+    "githubRelease",
+    "winget",
+    "gitSubmodule",
+    "external",
+}
 OBSOLETE_LIVE_REFERENCES = (
     "build/tool-runs",
     "build/gamewip-temp",
@@ -204,8 +213,7 @@ def check_registry_relationships(failures: list[str]) -> None:
     setup = read_json("scripts/setup/config/setup.json", failures)
     helper = (ROOT / "scripts/GameWIP.ps1").read_text(encoding="utf-8")
     build_docs = "\n".join(
-        (ROOT / relative).read_text(encoding="utf-8")
-        for relative in ("docs/doxygen/build.md", "docs/doxygen/command_line_tools.md")
+        (ROOT / relative).read_text(encoding="utf-8") for relative in ("docs/doxygen/build.md", "docs/doxygen/command_line_tools.md")
     )
 
     option_text = (ROOT / "cmake/GameWIPOptions.cmake").read_text(encoding="utf-8")
@@ -217,10 +225,7 @@ def check_registry_relationships(failures: list[str]) -> None:
 
     presets = read_json("CMakePresets.json", failures)
     visible = {
-        preset["name"]
-        for kind in ("configurePresets", "buildPresets", "testPresets")
-        for preset in presets.get(kind, [])
-        if not preset.get("hidden")
+        preset["name"] for kind in ("configurePresets", "buildPresets", "testPresets") for preset in presets.get(kind, []) if not preset.get("hidden")
     }
     for preset in sorted(visible):
         if f"`{preset}`" not in build_docs:
@@ -231,7 +236,14 @@ def check_registry_relationships(failures: list[str]) -> None:
     for variable in sorted(workflow_defines - options):
         failures.append(f".github/workflows: CMake -D variable '{variable}' is not a current option")
 
-    for required_action in ("quality", "tools", "list", "doctor", "unicode", "workflow"):
+    for required_action in (
+        "quality",
+        "tools",
+        "list",
+        "doctor",
+        "unicode",
+        "workflow",
+    ):
         if f"'{required_action}'" not in helper:
             failures.append(f"scripts/GameWIP.ps1: helper action '{required_action}' is not dispatched")
 
@@ -246,9 +258,7 @@ def check_registry_relationships(failures: list[str]) -> None:
     workflow_files = {path.name for path in WORKFLOW_ROOT.glob("*.yml")}
     for entry in commands.get("manualWorkflows", []):
         if entry.get("file") not in workflow_files:
-            failures.append(
-                f"scripts/config/commands.json: workflow '{entry.get('id')}' names missing file '{entry.get('file')}'"
-            )
+            failures.append(f"scripts/config/commands.json: workflow '{entry.get('id')}' names missing file '{entry.get('file')}'")
 
     for forbidden in ("wingetPackages", "msys2Packages", "cmakeVersionPattern"):
         if forbidden in setup:
@@ -295,22 +305,18 @@ def check_registry_relationships(failures: list[str]) -> None:
             for dependency in provider_info.get("dependencies", []):
                 if dependency.get("environment") not in {"common", "ucrt64", "clang64"}:
                     failures.append(
-                        f"scripts/config/project-tools.json: MSYS2 dependency '{dependency.get('package')}' "
-                        f"for '{tool_id}' lacks a valid environment"
+                        f"scripts/config/project-tools.json: MSYS2 dependency '{dependency.get('package')}' for '{tool_id}' lacks a valid environment"
                     )
 
         if provider == "npm":
             for dependency in provider_info.get("dependencies", []):
                 if not dependency.get("version"):
                     failures.append(
-                        f"scripts/config/project-tools.json: npm dependency '{dependency.get('package')}' "
-                        f"for '{tool_id}' is not versioned"
+                        f"scripts/config/project-tools.json: npm dependency '{dependency.get('package')}' for '{tool_id}' is not versioned"
                     )
 
         if provider == "githubRelease" and not provider_info.get("releaseTag"):
-            failures.append(
-                f"scripts/config/project-tools.json: GitHub release tool '{tool_id}' does not retain its actual upstream release tag"
-            )
+            failures.append(f"scripts/config/project-tools.json: GitHub release tool '{tool_id}' does not retain its actual upstream release tag")
 
         version = entry.get("requiredVersion", "")
         for reference in entry.get("references", []):
@@ -326,17 +332,13 @@ def check_registry_relationships(failures: list[str]) -> None:
             if kind == "text":
                 pattern = reference.get("pattern", "")
                 if "{version}" not in pattern:
-                    failures.append(
-                        f"scripts/config/project-tools.json: text reference '{relative}' for '{tool_id}' lacks {{version}}"
-                    )
+                    failures.append(f"scripts/config/project-tools.json: text reference '{relative}' for '{tool_id}' lacks {{version}}")
                     continue
                 expected = int(reference.get("expectedCount", 1))
                 concrete = pattern.replace("{version}", version)
                 count = path.read_text(encoding="utf-8").count(concrete)
                 if count != expected:
-                    failures.append(
-                        f"{relative}: live version reference for '{tool_id}' expected {expected} exact match(es), found {count}"
-                    )
+                    failures.append(f"{relative}: live version reference for '{tool_id}' expected {expected} exact match(es), found {count}")
             elif kind == "cmakeMinimum" and cmake_match is not None and version != cmake_match.group(1):
                 failures.append(f"{relative}: CMake minimum reference for '{tool_id}' is stale")
             elif kind not in {"path", "text", "cmakeMinimum"}:
@@ -346,9 +348,7 @@ def check_registry_relationships(failures: list[str]) -> None:
             if version not in tool_docs:
                 failures.append(f"docs/doxygen/project_contracts.md: exact tool '{tool_id}' version '{version}' is stale")
             if tool_id not in validation_text:
-                failures.append(
-                    f".github/workflows/validation.yml: exact tool '{tool_id}' is not provisioned from registry metadata"
-                )
+                failures.append(f".github/workflows/validation.yml: exact tool '{tool_id}' is not provisioned from registry metadata")
 
     expected_storage = {
         "root": "build/gamewip",
@@ -371,6 +371,7 @@ def check_registry_relationships(failures: list[str]) -> None:
         if not (ROOT / registry).is_file() or not (ROOT / schema).is_file():
             failures.append(f"{registry}: required schema pairing '{schema}' is missing")
 
+
 def check_live_paths_and_editor(failures: list[str]) -> None:
     """Reject migrated live names and invalid editor helper invocations."""
     for path in maintained_files():
@@ -379,7 +380,18 @@ def check_live_paths_and_editor(failures: list[str]) -> None:
             continue
         if len(relative.parts) > 1 and relative.parts[:2] == ("docs", "releases"):
             continue
-        if path.suffix.lower() not in {".md", ".ps1", ".py", ".js", ".json", ".yml", ".yaml", ".bat", ".cmake", ".txt"}:
+        if path.suffix.lower() not in {
+            ".md",
+            ".ps1",
+            ".py",
+            ".js",
+            ".json",
+            ".yml",
+            ".yaml",
+            ".bat",
+            ".cmake",
+            ".txt",
+        }:
             continue
         text = path.read_text(encoding="utf-8", errors="replace")
         for stale in OBSOLETE_LIVE_REFERENCES:
@@ -392,8 +404,7 @@ def check_live_paths_and_editor(failures: list[str]) -> None:
         if label not in labels:
             failures.append(f".vscode/tasks.json: required helper task '{label}' is missing")
 
-    validate_set = re.findall(r"\[ValidateSet\(([^\]]+)\)\]", (ROOT / "scripts/GameWIP.ps1").read_text(encoding="utf-8"))[0]
-    helper_actions = set(validate_set.replace("'", "").replace(" ", "").split(","))
+    helper_actions = {entry.get("id") for entry in read_json("scripts/config/commands.json", failures).get("actions", [])}
     for task in tasks.get("tasks", []):
         command = str(task.get("command", ""))
         args = task.get("args", [])
@@ -516,22 +527,20 @@ def check_quality_contract(failures: list[str]) -> None:
     if quality_path.is_file():
         quality = quality_path.read_text(encoding="utf-8")
         if "config/quality/eslint.config.js" not in quality:
-            failures.append(
-                "scripts/lib/Quality.ps1: maintained ESLint configuration must itself be inside the ESLint scope"
-            )
-        if "npm\\lib\\node_modules" in quality:
-            failures.append(
-                "scripts/lib/Quality.ps1: Windows npm global modules must not use the Unix-only lib/node_modules layout"
-            )
+            failures.append("scripts/lib/Quality.ps1: maintained ESLint configuration must itself be inside the ESLint scope")
+
+    npm_provider_path = ROOT / "scripts" / "lib" / "Providers" / "Npm.ps1"
+    if npm_provider_path.is_file():
+        npm_provider = npm_provider_path.read_text(encoding="utf-8")
+        if r"npm\lib\node_modules" not in npm_provider:
+            failures.append("scripts/lib/Providers/Npm.ps1: the managed MSYS2 npm prefix must resolve modules through lib/node_modules")
 
     yamllint_path = ROOT / "config" / "quality" / "yamllint.yml"
     if yamllint_path.is_file():
         yamllint = yamllint_path.read_text(encoding="utf-8")
         line_length = re.search(r"(?ms)^  line-length:\s*$\n(.*?)(?=^  [A-Za-z_-]+:|\Z)", yamllint)
         if line_length is None or "max: 150" not in line_length.group(1) or "level: error" not in line_length.group(1):
-            failures.append(
-                "config/quality/yamllint.yml: the shared 150-column YAML limit must remain an error"
-            )
+            failures.append("config/quality/yamllint.yml: the shared 150-column YAML limit must remain an error")
 
 
 def main() -> int:

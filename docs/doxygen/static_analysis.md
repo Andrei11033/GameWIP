@@ -16,8 +16,8 @@ The GameWIP helper is the preferred Windows entry point because it selects proje
 consistently:
 
 ```powershell
-.\gamewip.bat quality -QualityAction check
-.\gamewip.bat quality -QualityAction fix
+.\gamewip.bat quality check
+.\gamewip.bat quality fix
 .\gamewip.bat analyze
 ```
 
@@ -86,8 +86,8 @@ CMake inputs are validated by the normal configure and build path.
 The static-analysis target checks formatting but does not rewrite files. Check or apply the same maintained-source scope through the project helper:
 
 ```powershell
-.\gamewip.bat format -FormatAction check
-.\gamewip.bat format -FormatAction apply
+.\gamewip.bat format check
+.\gamewip.bat format apply
 ```
 
 Both actions use the repository `.clang-format` and the GameWIP-owned `.cpp`, `.h`, `.hpp`, and `.inl` files under `foundation/`, `tools/`, `engine/`,
@@ -118,6 +118,7 @@ repository quality policy rather than only language-agnostic spot checks:
 - markdownlint-cli2 and local relative Markdown link validation.
 - actionlint validation for GitHub Actions workflows.
 - JSON Schema plus semantic relationship checks for tracked authorities.
+- Complete maintained-worktree ownership, JSON parsing for special editor/tool files, and XML parsing for Windows manifests.
 - JavaScript policy/unit tests and PowerShell helper regression tests.
 - Immutable action pins, explicit workflow permissions, bounded job timeouts,
   trusted `pull_request_target` boundaries, and required non-empty public files.
@@ -132,13 +133,13 @@ maintained quality scope.
 Run the complete repository quality gate locally from the repository root:
 
 ```powershell
-.\gamewip.bat quality -QualityAction check
+.\gamewip.bat quality check
 ```
 
 To apply deterministic formatter changes first:
 
 ```powershell
-.\gamewip.bat quality -QualityAction fix
+.\gamewip.bat quality fix
 ```
 
 `.\gamewip.bat links` remains available as a focused Markdown-link diagnostic.

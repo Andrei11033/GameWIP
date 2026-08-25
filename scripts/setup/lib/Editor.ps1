@@ -102,22 +102,19 @@ function Select-GameWipEditor
         }
         Write-Host 'S. Save selection'
         Write-Host 'Esc. Cancel'
-        Write-Host 'Choose: ' -NoNewline
-
-        $key = [Console]::ReadKey($true)
-        if ($key.Key -eq [ConsoleKey]::Escape -or [int]$key.KeyChar -eq 27)
+        $allowedKeys = @($EditorConfig.Options | ForEach-Object { [string]$_.Key }) + @('S', 's')
+        $choiceResult = Read-GameWipActionKey -Prompt 'Choose:' -AllowedKeys $allowedKeys -AllowEscape
+        if ($choiceResult.Status -eq 'Cancelled')
         {
-            Write-Host 'Esc'
             return $false
         }
 
-        $choice = $key.KeyChar.ToString()
-        Write-Host $choice
+        $choice = [string]$choiceResult.Value
         if ($choice.ToUpperInvariant() -eq 'S')
         {
             if ($selected.Count -eq 0)
             {
-                Write-Host 'Select at least one editor or IDE.' -ForegroundColor Yellow
+                Write-GameWipHost 'Select at least one editor or IDE.' -ForegroundColor Yellow
                 continue
             }
             $orderedSelection = @(
@@ -133,7 +130,7 @@ function Select-GameWipEditor
         $option = $EditorConfig.Options | Where-Object { $_.Key -eq $choice } | Select-Object -First 1
         if (-not $option)
         {
-            Write-Host 'Press a listed number, S, or Esc.' -ForegroundColor Yellow
+            Write-GameWipHost 'Press a listed number, S, or Esc.' -ForegroundColor Yellow
             continue
         }
         if (-not $selected.Add($option.Id))
@@ -215,7 +212,13 @@ function Get-GameWipEditorFailure
                 }
                 $workflowPackage = Get-Content -LiteralPath (Join-Path $RepositoryRoot 'scripts\setup\editor\gamewip-workflows\package.json') -Raw | ConvertFrom-Json
                 $expectedWorkflowExtension = "$($workflowPackage.publisher).$($workflowPackage.name)@$($workflowPackage.version)"
-                $installedExtensions = @(& code --list-extensions --show-versions)
+                $extensionQuery = Invoke-GameWipProcess -FilePath 'code' -Arguments @('--list-extensions', '--show-versions') -OutputMode LogOnly -TimeoutSeconds 30
+                if ($extensionQuery.ExitCode -ne 0)
+                {
+                    $failures.Add("Visual Studio Code extension discovery failed with exit code $($extensionQuery.ExitCode).")
+                    continue
+                }
+                $installedExtensions = @($extensionQuery.Stdout)
                 if ($installedExtensions -notcontains $expectedWorkflowExtension)
                 {
                     $failures.Add("The required GameWIP VS Code workflow extension is missing: $expectedWorkflowExtension")
@@ -363,7 +366,7 @@ function Invoke-GameWipVsCodeExtensionPackaging
     )
 
     $package = Get-Content -LiteralPath (Join-Path $ExtensionSource 'package.json') -Raw | ConvertFrom-Json
-    $stagingRoot = Join-Path $Script:OperationTemp "gamewip-vsix-$([Guid]::NewGuid().ToString('N'))"
+    $stagingRoot = Join-Path $Script:OperationContext.Temp "gamewip-vsix-$([Guid]::NewGuid().ToString('N'))"
     $extensionRoot = Join-Path $stagingRoot 'extension'
     try
     {
@@ -439,7 +442,7 @@ function Invoke-GameWipVsCodeExtensionPackaging
     {
         if (Test-Path -LiteralPath $stagingRoot)
         {
-            Invoke-GameWipOwnedTreeRemoval -Path $stagingRoot -OwnedRoot $Script:OperationTemp
+            Invoke-GameWipOwnedTreeRemoval -Path $stagingRoot -OwnedRoot $Script:OperationContext.Temp
         }
     }
 }
@@ -459,7 +462,12 @@ function Install-GameWipEditorIntegration
     foreach ($extension in $Extensions)
     {
         Write-Host "  Checking Visual Studio Code extension: $extension"
-        $installedBefore = @(& code --list-extensions) -contains $extension
+        $extensionQuery = Invoke-GameWipProcess -FilePath 'code' -Arguments @('--list-extensions') -OutputMode LogOnly -TimeoutSeconds 30
+        if ($extensionQuery.ExitCode -ne 0)
+        {
+            throw "Visual Studio Code extension discovery failed with exit code $($extensionQuery.ExitCode)."
+        }
+        $installedBefore = @($extensionQuery.Stdout) -contains $extension
         Invoke-GameWipSetupNative -FilePath 'code' -ArgumentList @('--install-extension', $extension, '--force') | Out-Null
         if (-not $installedBefore)
         {
@@ -469,16 +477,21 @@ function Install-GameWipEditorIntegration
 
     $source = Join-Path $RepositoryRoot 'scripts\setup\editor\gamewip-workflows'
     $package = Get-Content -LiteralPath (Join-Path $source 'package.json') -Raw | ConvertFrom-Json
-    if ([string]::IsNullOrWhiteSpace([string]$Script:OperationTemp))
+    if ([string]::IsNullOrWhiteSpace([string]$Script:OperationContext.Temp))
     {
         throw 'Editor integration requires an initialized GameWIP operation-temp directory.'
     }
-    $vsixPath = Join-Path $Script:OperationTemp 'gamewip-workflows.vsix'
+    $vsixPath = Join-Path $Script:OperationContext.Temp 'gamewip-workflows.vsix'
     Invoke-GameWipVsCodeExtensionPackaging -ExtensionSource $source -Destination $vsixPath
     $extensionId = "$($package.publisher).$($package.name)"
     Write-Host "  Installing Visual Studio Code extension package: $vsixPath"
     Invoke-GameWipSetupNative -FilePath 'code' -ArgumentList @('--install-extension', $vsixPath, '--force') | Out-Null
-    $installedExtensions = @(& code --list-extensions --show-versions)
+    $extensionQuery = Invoke-GameWipProcess -FilePath 'code' -Arguments @('--list-extensions', '--show-versions') -OutputMode LogOnly -TimeoutSeconds 30
+    if ($extensionQuery.ExitCode -ne 0)
+    {
+        throw "Visual Studio Code extension verification failed with exit code $($extensionQuery.ExitCode)."
+    }
+    $installedExtensions = @($extensionQuery.Stdout)
     if (-not ($installedExtensions | Where-Object { $_ -eq "$extensionId@$($package.version)" }))
     {
         throw "Visual Studio Code did not report the expected extension after installation: $extensionId@$($package.version)"
