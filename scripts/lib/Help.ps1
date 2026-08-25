@@ -107,7 +107,7 @@ function Show-GameWipHelp
     Write-Host '  .\gamewip.bat <action> [command] [target] [options]'
     Write-Host '  .\gamewip.bat                         Open the interactive UI.'
     Write-Host ''
-    Write-Host 'Canonical command grammar:'
+    Write-Host 'Available commands:'
     Write-Host '  doctor'
     Write-Host '  git <status|fetch|switch|update|cleanup|create|push|log> [branch]'
     Write-Host '  workflow <list|status|run> [workflow-id]'
