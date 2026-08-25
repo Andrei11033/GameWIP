@@ -131,7 +131,7 @@ function Show-GameWipUnicodeStatus
     }
     if (Test-Path -LiteralPath $paths.CheckedInHeader)
     {
-        Write-GameWipUnicodeState -State ready -Label 'Checked-in property table' -Detail "sha256=$((Get-FileHash -LiteralPath $paths.CheckedInHeader -Algorithm SHA256).Hash.ToLowerInvariant())"
+        Write-GameWipUnicodeState -State ready -Label 'Checked-in property table' -Detail "sha256=$(Get-GameWipFileSha256 -Path $paths.CheckedInHeader)"
     }
     else
     {
@@ -219,8 +219,8 @@ function Invoke-GameWipUnicodeVerify
         throw "Checked-in Unicode property table is missing: $($paths.CheckedInHeader)"
     }
     Invoke-GameWipUnicodeGenerator -Paths $paths -OutputPath $paths.TemporaryHeader
-    $checkedHash = (Get-FileHash -LiteralPath $paths.CheckedInHeader -Algorithm SHA256).Hash.ToLowerInvariant()
-    $generatedHash = (Get-FileHash -LiteralPath $paths.TemporaryHeader -Algorithm SHA256).Hash.ToLowerInvariant()
+    $checkedHash = Get-GameWipFileSha256 -Path $paths.CheckedInHeader
+    $generatedHash = Get-GameWipFileSha256 -Path $paths.TemporaryHeader
     Write-Host "Checked-in SHA-256: $checkedHash"
     Write-Host "Generated  SHA-256: $generatedHash"
     if (-not (Test-GameWipFilesEqual -First $paths.CheckedInHeader -Second $paths.TemporaryHeader))
@@ -238,13 +238,13 @@ function Invoke-GameWipUnicodeRegenerate
     Invoke-GameWipUnicodeGenerator -Paths $paths -OutputPath $paths.TemporaryHeader
     $beforeHash = if (Test-Path -LiteralPath $paths.CheckedInHeader)
     {
-        (Get-FileHash -LiteralPath $paths.CheckedInHeader -Algorithm SHA256).Hash.ToLowerInvariant()
+        Get-GameWipFileSha256 -Path $paths.CheckedInHeader
     }
     else
     {
         '<missing>'
     }
-    $afterHash = (Get-FileHash -LiteralPath $paths.TemporaryHeader -Algorithm SHA256).Hash.ToLowerInvariant()
+    $afterHash = Get-GameWipFileSha256 -Path $paths.TemporaryHeader
     if ((Test-Path -LiteralPath $paths.CheckedInHeader) -and (Test-GameWipFilesEqual -First $paths.CheckedInHeader -Second $paths.TemporaryHeader))
     {
         Write-GameWipUnicodeState -State unchanged -Label 'Property table' -Detail "sha256=$afterHash"; return

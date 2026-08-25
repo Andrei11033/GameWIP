@@ -2,6 +2,86 @@
 
 Set-StrictMode -Version Latest
 
+function Get-GameWipFileSha256
+{
+    param([Parameter(Mandatory = $true)][string]$Path)
+
+    $fullPath = [IO.Path]::GetFullPath($Path)
+    if (-not (Test-Path -LiteralPath $fullPath -PathType Leaf))
+    {
+        throw "Cannot hash missing file '$fullPath'."
+    }
+
+    $stream = [IO.File]::OpenRead($fullPath)
+    try
+    {
+        $sha256 = [System.Security.Cryptography.SHA256]::Create()
+        try
+        {
+            return ([BitConverter]::ToString($sha256.ComputeHash($stream))).Replace('-', '').ToLowerInvariant()
+        }
+        finally
+        {
+            $sha256.Dispose()
+        }
+    }
+    finally
+    {
+        $stream.Dispose()
+    }
+}
+
+function Update-GameWipProcessPath
+{
+    if (-not [Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([Runtime.InteropServices.OSPlatform]::Windows))
+    {
+        return
+    }
+
+    $entries = [System.Collections.Generic.List[string]]::new()
+    $seen = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    foreach ($pathValue in @(
+            $env:Path,
+            [Environment]::GetEnvironmentVariable('Path', 'Machine'),
+            [Environment]::GetEnvironmentVariable('Path', 'User')
+        ))
+    {
+        foreach ($entry in @([string]$pathValue -split [IO.Path]::PathSeparator))
+        {
+            $trimmed = $entry.Trim().Trim('"')
+            if (-not [string]::IsNullOrWhiteSpace($trimmed) -and $seen.Add($trimmed))
+            {
+                $entries.Add($trimmed) | Out-Null
+            }
+        }
+    }
+    $env:Path = $entries -join [IO.Path]::PathSeparator
+}
+
+function Test-GameWipPathWithinRoot
+{
+    param(
+        [Parameter(Mandatory = $true)][string]$Path,
+        [Parameter(Mandatory = $true)][string]$Root
+    )
+
+    $canonicalPath = Get-GameWipCanonicalPath -Path $Path
+    $canonicalRoot = Get-GameWipCanonicalPath -Path $Root
+    $comparison = if ([Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([Runtime.InteropServices.OSPlatform]::Windows))
+    {
+        [StringComparison]::OrdinalIgnoreCase
+    }
+    else
+    {
+        [StringComparison]::Ordinal
+    }
+    if ($canonicalPath.Equals($canonicalRoot, $comparison))
+    {
+        return $true
+    }
+    return $canonicalPath.StartsWith($canonicalRoot + [IO.Path]::DirectorySeparatorChar, $comparison)
+}
+
 function Resolve-GameWipStoragePath
 {
     param([Parameter(Mandatory = $true)][string]$RelativePath)

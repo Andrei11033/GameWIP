@@ -152,7 +152,7 @@ real-time percentage changes. It is descriptive evidence, not a statistical sign
 | `-AggregatesOnly` | Retain and display aggregate rows only. |
 | `-Output <path>` | Override the default retained result or comparison path. |
 | `-OutputFormat json\|csv` | Select retained measurement format; JSON is the default and is required for helper comparison. |
-| `-NoBuild` | Use an existing benchmark executable and fail clearly when it is missing. |
+| `-NoBuild` | Use existing benchmark build state only. Never configure or build automatically; fail clearly when the executable is missing. |
 | `-ExtraArgs <arguments>` | Forward advanced Google Benchmark arguments not owned by a dedicated helper option. |
 
 ## Module standard
@@ -229,8 +229,9 @@ build/gamewip/runs/<timestamp>_benchmark-run/
 Console output is streamed live and retained in the step log. The manifest records the selected profile, effective options, commands, timings, exit
 codes, and output paths. JSON is the default measurement artifact because it supports later comparison and issue attachments.
 
-An explicit `-Output` may point outside the checkout. Inside the checkout it must remain under `build/`; benchmark output must not be written into
-source directories.
+An explicit `-Output` may point outside the checkout. Inside the checkout it
+must remain canonically under `build/` on every supported host; benchmark output
+must not be written into source directories.
 
 ## Failure behavior
 

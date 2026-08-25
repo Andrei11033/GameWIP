@@ -315,12 +315,13 @@ function Invoke-GameWipProviderNative
         [int[]]$AllowedExitCodes = @(0),
         [int]$TimeoutSeconds = 600
     )
-    $result = Invoke-GameWipProcess -FilePath $FilePath -Arguments $Arguments -OutputMode Stream -TimeoutSeconds $TimeoutSeconds
-    if ($AllowedExitCodes -notcontains $result.ExitCode)
-    {
-        throw (New-GameWipDiagnosticException -Code 'provider-command-failed' -Summary "$Name failed with exit code $($result.ExitCode)." -LogPath $result.LogPath)
-    }
-    return $result.ExitCode
+    $result = Invoke-GameWipNative `
+        -Name $Name `
+        -FilePath $FilePath `
+        -Arguments $Arguments `
+        -AllowedExitCodes $AllowedExitCodes `
+        -TimeoutSeconds $TimeoutSeconds
+    return [int]$result.ExitCode
 }
 
 function Show-GameWipToolList

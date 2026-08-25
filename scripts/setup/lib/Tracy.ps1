@@ -44,17 +44,20 @@ function Get-GameWipTracyToolRoot
 
 function Test-GameWipTracyToolSet
 {
-    param([Parameter(Mandatory = $true)][string]$RepositoryRoot)
+    param(
+        [Parameter(Mandatory = $true)][string]$RepositoryRoot,
+        [string]$ToolRoot = (Get-GameWipTracyToolRoot)
+    )
 
     foreach ($executable in Get-GameWipTracyExecutableSet)
     {
-        if (-not (Test-Path -LiteralPath (Join-Path (Get-GameWipTracyToolRoot) $executable)))
+        if (-not (Test-Path -LiteralPath (Join-Path $ToolRoot $executable)))
         {
             return $false
         }
     }
 
-    $versionFile = Join-Path (Get-GameWipTracyToolRoot) 'version.txt'
+    $versionFile = Join-Path $ToolRoot 'version.txt'
     if (-not (Test-Path -LiteralPath $versionFile))
     {
         # Executable presence alone cannot prove that the tools match the
@@ -311,17 +314,84 @@ function Invoke-GameWipTracyToolBuild
         }
     }
 
-    New-Item -ItemType Directory -Path $destination -Force | Out-Null
-    foreach ($file in Get-ChildItem -LiteralPath $stageRoot -File)
+    $destinationParent = Split-Path -Parent $destination
+    New-Item -ItemType Directory -Path $destinationParent -Force | Out-Null
+    $incoming = Join-Path $destinationParent ('.tracy.{0}.incoming' -f [guid]::NewGuid().ToString('N'))
+    $backup = $null
+    try
     {
-        Copy-Item -LiteralPath $file.FullName -Destination $destination -Force
-        Write-Host "  Installed: $(Join-Path $destination $file.Name)"
+        New-Item -ItemType Directory -Path $incoming | Out-Null
+        foreach ($file in Get-ChildItem -LiteralPath $stageRoot -File)
+        {
+            Copy-Item -LiteralPath $file.FullName -Destination $incoming -Force
+        }
+        Write-GameWipTextAtomic -Path (Join-Path $incoming 'version.txt') -Content "source-$version`n"
+        if (-not (Test-GameWipTracyToolSet -RepositoryRoot $RepositoryRoot -ToolRoot $incoming))
+        {
+            throw 'The staged Tracy tool set failed final verification. Existing managed tools were not replaced.'
+        }
+        if (Test-Path -LiteralPath $destination)
+        {
+            $backup = Join-Path $destinationParent ('.tracy.{0}.backup' -f [guid]::NewGuid().ToString('N'))
+            Set-GameWipMutationStarted
+            Move-Item -LiteralPath $destination -Destination $backup
+        }
+        else
+        {
+            Set-GameWipMutationStarted
+        }
+        try
+        {
+            Move-Item -LiteralPath $incoming -Destination $destination
+            $incoming = $null
+        }
+        catch
+        {
+            if ($null -ne $backup -and (Test-Path -LiteralPath $backup) -and -not (Test-Path -LiteralPath $destination))
+            {
+                Move-Item -LiteralPath $backup -Destination $destination
+                $backup = $null
+            }
+            throw
+        }
+        Add-GameWipOperationChange -Message "Installed verified Tracy tools for pinned client $version."
     }
-    Set-Content -LiteralPath (Join-Path $destination 'version.txt') -Value "source-$version" -Encoding Ascii
+    finally
+    {
+        if ($null -ne $incoming -and (Test-Path -LiteralPath $incoming))
+        {
+            Invoke-GameWipOwnedTreeRemoval -Path $incoming -OwnedRoot $destinationParent
+        }
+    }
 
     if (-not (Test-GameWipTracyToolSet -RepositoryRoot $RepositoryRoot))
     {
-        throw 'The rebuilt Tracy tool set failed final verification.'
+        if ($null -ne $backup -and (Test-Path -LiteralPath $backup))
+        {
+            if (Test-Path -LiteralPath $destination)
+            {
+                Invoke-GameWipOwnedTreeRemoval `
+                    -Path $destination `
+                    -OwnedRoot $destinationParent
+            }
+
+            Move-Item -LiteralPath $backup -Destination $destination
+            $backup = $null
+
+            throw 'The installed Tracy tool set failed post-swap verification; the previous verified tool set was restored.'
+        }
+
+        throw 'The installed Tracy tool set failed post-swap verification.'
+    }
+
+    if ($null -ne $backup -and (Test-Path -LiteralPath $backup))
+    {
+        Invoke-GameWipOwnedTreeRemoval -Path $backup -OwnedRoot $destinationParent
+        $backup = $null
+    }
+    foreach ($file in Get-ChildItem -LiteralPath $destination -File)
+    {
+        Write-Host "  Installed: $($file.FullName)"
     }
     Write-Host "  Ready: rebuilt Tracy Windows tools with UCRT64 from pinned client $version"
 }

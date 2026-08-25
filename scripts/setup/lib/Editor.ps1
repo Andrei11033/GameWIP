@@ -343,7 +343,7 @@ function Install-GameWipVsCodeKeybinding
         '// GameWIP managed keybindings end'
     ) -join "`r`n"
     $updatedContent = "$prefix$separator`r`n$managedBlock`r`n$suffix"
-    [IO.File]::WriteAllText($keybindingsPath, $updatedContent, [Text.UTF8Encoding]::new($false))
+    Write-GameWipTextAtomic -Path $keybindingsPath -Content $updatedContent
 
     $verification = Get-Content -LiteralPath $keybindingsPath -Raw
     foreach ($rule in $rules)

@@ -144,7 +144,7 @@ function Save-GameWipToolRun
 
     $Run.Status = $Status
     $Run.FinishedAt = (Get-Date).ToUniversalTime().ToString('o')
-    $failed = @($Run.Steps | Where-Object { $_.Status -in @('failed', 'timed-out') -or $_.ExitCode -ne 0 })
+    $failed = @($Run.Steps | Where-Object { $_.Status -in @('failed', 'timed-out') })
     $summaryPath = Join-Path $Run.Root 'summary.txt'
     $jsonPath = Join-Path $Run.Root 'summary.json'
     $manifestPath = Join-Path $Run.Root 'manifest.json'
@@ -161,7 +161,7 @@ function Save-GameWipToolRun
     $lines.Add('') | Out-Null
     foreach ($step in $Run.Steps)
     {
-        $marker = if ($step.Status -eq 'passed' -and $step.ExitCode -eq 0)
+        $marker = if ($step.Status -eq 'passed')
         {
             'PASS'
         }

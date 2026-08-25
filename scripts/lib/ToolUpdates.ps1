@@ -408,7 +408,7 @@ function Invoke-GameWipToolUpdate
 
     Write-GameWipOperationEvent -Phase verify -Severity info -Message 'Running the complete quality gate after the update...'
     Invoke-GameWipQuality -Mode check
-    Invoke-GameWipNative -Name 'git-status-after-tool-update' -FilePath 'git' -Arguments @('-C', $RepositoryRoot, 'status', '--short') -OutputMode Stream
+    Invoke-GameWipNative -Name 'git-status-after-tool-update' -FilePath 'git' -Arguments @('-C', $RepositoryRoot, 'status', '--short')
     Set-GameWipMutationState -State complete
 }
 

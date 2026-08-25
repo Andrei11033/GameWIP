@@ -6,16 +6,15 @@ function Initialize-GameWipTestPresetBuild
 {
     param([Parameter(Mandatory = $true)][string]$Name, [switch]$NoBuild)
     $testFile = Join-Path $RepositoryRoot "build\$Name\CTestTestfile.cmake"
-    if (Test-Path -LiteralPath $testFile)
-    {
-        return
-    }
     if ($NoBuild)
     {
-        throw (New-GameWipDiagnosticException -Code 'prerequisite-build-disabled' -Summary "CTest preset '$Name' has not been built." -SuggestedActions @("Run '.\gamewip.bat build $Name'.", 'Rerun without -NoBuild.'))
+        if (-not (Test-Path -LiteralPath $testFile))
+        {
+            throw (New-GameWipDiagnosticException -Code 'prerequisite-build-disabled' -Summary "CTest preset '$Name' has no configured test tree." -SuggestedActions @("Run '.\gamewip.bat build $Name'.", 'Rerun without -NoBuild.'))
+        }
+        return
     }
-    Write-GameWipOperationEvent -Phase plan -Step "test-$Name" -Severity info -Message "CTest preset '$Name' is missing; GameWIP will configure and build it first."
-    Invoke-GameWipConfigurePreset -Name $Name
+
     Invoke-GameWipBuildPreset -Name $Name
 }
 
@@ -107,7 +106,16 @@ function Invoke-GameWipStressModule
                 $step = Initialize-GameWipToolRunStep -Run $Script:OperationContext.Run -Name $runName -CommandLine $commandLine
                 $stdout = $step.LogPath
                 $stderr = Join-Path $Script:OperationContext.Run.Logs "$runName.err.log"
-                $process = Start-GameWipOwnedProcess -FilePath $executable -Arguments $baseArguments.ToArray() -WorkingDirectory $RepositoryRoot -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+                try
+                {
+                    $process = Start-GameWipOwnedProcess -FilePath $executable -Arguments $baseArguments.ToArray() -WorkingDirectory $RepositoryRoot -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+                }
+                catch
+                {
+                    Complete-GameWipToolRunStep -Run $Script:OperationContext.Run -Step $step -ExitCode -1 -Status failed
+                    throw
+                }
+                Set-GameWipMutationStarted
                 $entry = [pscustomobject]@{ Run = $nextRun; Process = $process; Stdout = $stdout; Stderr = $stderr; Step = $step }
                 $active.Add($entry) | Out-Null
                 ++$nextRun
@@ -165,6 +173,16 @@ function Invoke-GameWipStressModule
         foreach ($entry in @($active))
         {
             Stop-GameWipOwnedProcess -Process $entry.Process
+            $status = if (Test-GameWipCancellationRequested)
+            {
+                'cancelled'
+            }
+            else
+            {
+                'failed'
+            }
+            Complete-GameWipToolRunStep -Run $Script:OperationContext.Run -Step $entry.Step -ExitCode -1 -Status $status
+            Remove-GameWipOwnedProcessRegistration -Process $entry.Process
         }
     }
     if ($failed -ne 0)
@@ -187,6 +205,7 @@ function Split-GameWipExtraArgument
 
 function Invoke-GameWipValidationCommandWizard
 {
+    param([switch]$NoBuild)
     Write-GameWipSection 'Validation command builder'
     $moduleResult = Read-GameWipMenuChoiceResult -Prompt 'Module selection' -Choices (@('all') + @($CommandConfig.Modules)) -Default 'all'
     if ($moduleResult.Status -eq 'Cancelled')
@@ -254,12 +273,19 @@ function Invoke-GameWipValidationCommandWizard
     }
 
     $command = Get-GameWipProjectCommand -Id 'test-all'
-    Initialize-GameWipProjectCommandBuild -Command $command
     $executable = Resolve-GameWipProjectExecutable -Command $command
     Write-GameWipSection 'Built command'
     Write-Host (ConvertTo-GameWipNativeCommandLine -FilePath $executable -Arguments $arguments.ToArray())
+    if ($null -ne $Script:OperationContext -and $Script:OperationContext.Preview)
+    {
+        Write-GameWipHost 'Preview: validation command will not be built or executed.' -ForegroundColor Cyan
+        return
+    }
     if (Read-GameWipYesNo -Prompt 'Run this command now?' -Default $true)
     {
-        Invoke-GameWipNative -Name 'validation-wizard' -FilePath $executable -Arguments $arguments.ToArray() -UseWorkspaceTemp
+        Invoke-GameWipMutation -Summary 'Run the composed validation command.' -Risk local -Plan @('Ensure the validation executable unless -NoBuild is used.', 'Execute the composed correctness command.') -Body {
+            Initialize-GameWipProjectCommandBuild -Command $command -NoBuild:$NoBuild
+            Invoke-GameWipNative -Name 'validation-wizard' -FilePath $executable -Arguments $arguments.ToArray() -UseWorkspaceTemp
+        } | Out-Null
     }
 }

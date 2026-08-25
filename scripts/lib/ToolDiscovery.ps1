@@ -131,7 +131,24 @@ function Get-GameWipPowerShellGalleryCandidates
         $managedRoot = Join-Path ((Get-GameWipManagedToolRoot)) "powershell\$($Tool.provider.package)"
         foreach ($directory in @(Get-ChildItem -LiteralPath $managedRoot -Directory -ErrorAction SilentlyContinue))
         {
-            $items.Add([pscustomobject]@{ Version = $directory.Name; Location = $directory.FullName; Source = 'GameWIPTools powershellGallery'; Priority = 20; SelectionReason = 'declared provider-managed location' }) | Out-Null
+            if ($directory.Name.StartsWith('.', [StringComparison]::Ordinal))
+            {
+                continue
+            }
+
+            $manifest = Join-Path $directory.FullName "$($Tool.provider.package).psd1"
+            if (-not (Test-Path -LiteralPath $manifest -PathType Leaf))
+            {
+                continue
+            }
+
+            $items.Add([pscustomobject]@{
+                    Version = $directory.Name
+                    Location = $directory.FullName
+                    Source = 'GameWIPTools powershellGallery'
+                    Priority = 20
+                    SelectionReason = 'declared provider-managed location'
+                }) | Out-Null
         }
     }
     foreach ($module in @(Get-Module -ListAvailable -Name ([string]$Tool.provider.package)))

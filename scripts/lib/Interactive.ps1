@@ -116,7 +116,7 @@ function Show-GameWipDevelopmentMenu
                 $id = Read-GameWipNamedChoice -Prompt 'Project command' -Choices @($CommandConfig.ProjectCommands | ForEach-Object { $_.Id }) -Default 'dev-version'
                 if ($null -ne $id)
                 {
-                    Invoke-GameWipInteractiveOperation -Label "run-$id" -Body { Invoke-GameWipProjectCommand -Id $id } | Out-Null
+                    Invoke-GameWipInteractiveOperation -Label "run-$id" -Body { Invoke-GameWipMutation -Summary "Run project command '$id'." -Risk local -Plan @('Ensure its executable if missing.', 'Execute the cataloged project command.') -Body { Invoke-GameWipProjectCommand -Id $id } | Out-Null } | Out-Null
                 }
             }
             '4'
@@ -162,7 +162,7 @@ function Show-GameWipValidationMenu
                 $module = Read-GameWipNamedChoice -Prompt 'Validation module' -Choices (@('all') + @($CommandConfig.Modules)) -Default $CommandConfig.DefaultModule
                 if ($null -ne $module)
                 {
-                    Invoke-GameWipInteractiveOperation -Label "module-$module" -Body { Invoke-GameWipValidationModule -Name $module } | Out-Null
+                    Invoke-GameWipInteractiveOperation -Label "module-$module" -Body { Invoke-GameWipMutation -Summary "Run validation module '$module'." -Risk local -Plan @('Ensure the validation executable if missing.', 'Execute the selected correctness module.') -Body { Invoke-GameWipValidationModule -Name $module } | Out-Null } | Out-Null
                 }
             }
             '3'
@@ -172,7 +172,7 @@ function Show-GameWipValidationMenu
                 {
                     $runs = Read-GameWipIntegerValue -Prompt 'Run count' -Default ([int]$CommandConfig.DefaultStressCount)
                     $workers = Read-GameWipIntegerValue -Prompt 'Parallel workers' -Default ([int]$CommandConfig.DefaultStressParallel)
-                    Invoke-GameWipInteractiveOperation -Label "stress-$module" -Body { Invoke-GameWipStressModule -Name $module -RunCount $runs -MaxParallel $workers -StopOnFailure } | Out-Null
+                    Invoke-GameWipInteractiveOperation -Label "stress-$module" -Body { Invoke-GameWipMutation -Summary "Stress validation module '$module'." -Risk local -Plan @('Ensure the validation executable if missing.', "Run up to $runs validation processes with at most $workers workers.") -Body { Invoke-GameWipStressModule -Name $module -RunCount $runs -MaxParallel $workers } | Out-Null } | Out-Null
                 }
             }
             '4'
@@ -329,11 +329,7 @@ function Show-GameWipRepositoryMenu
             }
             '3'
             {
-                $branch = Read-GameWipTextValue -Prompt 'Branch name' -Default ''
-                if (-not [string]::IsNullOrWhiteSpace($branch))
-                {
-                    Invoke-GameWipInteractiveOperation -Label "git-switch-$branch" -Body { Invoke-GameWipGitAction -Name switch -BranchName $branch } | Out-Null
-                }
+                Invoke-GameWipInteractiveOperation -Label 'git-switch' -Body { Invoke-GameWipGitAction -Name switch } | Out-Null
             }
             '4'
             {
@@ -389,7 +385,7 @@ function Show-GameWipMaintenanceMenu
             }
             '2'
             {
-                Invoke-GameWipInteractiveOperation -Label 'unicode-verify' -Body { Invoke-GameWipUnicodeVerify } | Out-Null
+                Invoke-GameWipInteractiveOperation -Label 'unicode-verify' -Body { Invoke-GameWipMutation -Summary 'Verify reproducible Unicode generated data.' -Risk local -Plan @('Verify/download pinned Unicode input in the owned cache.', 'Generate and format an operation-owned candidate.', 'Compare the candidate with the checked-in table.') -Body { Invoke-GameWipUnicodeVerify } | Out-Null } | Out-Null
             }
             '3'
             {

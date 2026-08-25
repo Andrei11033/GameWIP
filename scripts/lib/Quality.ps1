@@ -29,51 +29,91 @@ function Select-GameWipQualityFile
 }
 
 
-function Get-GameWipMaintainedTrackedFile
+function Get-GameWipMaintainedWorktreeFile
 {
     param([string[]]$Extensions = @(), [string[]]$ExactNames = @())
-    $result = Invoke-GameWipProcess -FilePath git -Arguments @('-C', $RepositoryRoot, 'ls-files') -OutputMode LogOnly -TimeoutSeconds 30
+    $result = Invoke-GameWipProcess -FilePath git -Arguments @('-C', $RepositoryRoot, 'ls-files', '--cached', '--others', '--exclude-standard') -OutputMode LogOnly -TimeoutSeconds 30
     if ($result.ExitCode -ne 0)
     {
-        throw 'Could not enumerate tracked files for repository quality.'
+        throw 'Could not enumerate maintained worktree files for repository quality.'
     }
     return @($result.Stdout |
             ForEach-Object { ([string]$_).Replace('\', '/') } |
             Where-Object { $_ -and $_ -notmatch '^(?:external|build|install|docs/releases)/' } |
+            Where-Object { Test-Path -LiteralPath (Join-Path $RepositoryRoot $_) -PathType Leaf } |
             Where-Object {
                 $leaf = [IO.Path]::GetFileName($_)
                 $extension = [IO.Path]::GetExtension($_).ToLowerInvariant()
                 $ExactNames -contains $leaf -or $Extensions -contains $extension
-            })
+            } |
+            Sort-Object -Unique)
+}
+
+function Test-GameWipQualityPolicyChange
+{
+    param([string[]]$Files)
+    foreach ($file in @($Files))
+    {
+        $path = ([string]$file).Replace('\', '/')
+        if ($path -in @('.clang-format', '.clang-tidy', '.editorconfig', 'scripts/config/commands.json', 'scripts/config/project-tools.json') -or
+            $path.StartsWith('config/quality/', [StringComparison]::OrdinalIgnoreCase))
+        {
+            return $true
+        }
+    }
+    return $false
+}
+
+function Get-GameWipQualityScope
+{
+    param([switch]$Changed)
+    if (-not $Changed)
+    {
+        return [pscustomobject]@{ Requested = $false; UseChanged = $false; Expanded = $false; Files = @() }
+    }
+    $files = @(Get-GameWipChangedRepositoryFile)
+    $expanded = Test-GameWipQualityPolicyChange -Files $files
+    return [pscustomobject]@{
+        Requested = $true
+        UseChanged = -not $expanded
+        Expanded = $expanded
+        Files = @($files)
+    }
 }
 
 function Get-GameWipPowerShellFile
 {
     param([string[]]$Files)
     $extensions = @('.ps1', '.psd1', '.psm1')
-    if ($null -ne $Files -and $Files.Count -ne 0)
+    $selected = if ($null -ne $Files -and $Files.Count -ne 0)
     {
-        return @($Files |
-                ForEach-Object { Resolve-GameWipRepositoryPath -Path $_ } |
-                Where-Object { (Test-Path -LiteralPath $_ -PathType Leaf) -and $extensions -contains [IO.Path]::GetExtension($_).ToLowerInvariant() } |
-                ForEach-Object { Get-Item -LiteralPath $_ })
+        @($Files)
     }
-    return @(Get-ChildItem -LiteralPath $RepositoryRoot -Recurse -File |
-            Where-Object { $_.FullName -notmatch '[\\/](?:build|external|install)[\\/]' -and $extensions -contains $_.Extension.ToLowerInvariant() })
+    else
+    {
+        @(Get-GameWipMaintainedWorktreeFile -Extensions $extensions)
+    }
+    return @($selected |
+            ForEach-Object { Resolve-GameWipRepositoryPath -Path $_ } |
+            Where-Object { (Test-Path -LiteralPath $_ -PathType Leaf) -and $extensions -contains [IO.Path]::GetExtension($_).ToLowerInvariant() } |
+            ForEach-Object { Get-Item -LiteralPath $_ })
 }
 
 function Get-GameWipCMakeFile
 {
     param([string[]]$Files)
-    if ($null -ne $Files -and $Files.Count -ne 0)
+    $selected = if ($null -ne $Files -and $Files.Count -ne 0)
     {
-        return @($Files |
-                ForEach-Object { Resolve-GameWipRepositoryPath -Path $_ } |
-                Where-Object { (Test-Path -LiteralPath $_ -PathType Leaf) -and ((Split-Path -Leaf $_) -eq 'CMakeLists.txt' -or $_ -match '\.cmake(?:\.in)?$') })
+        @($Files)
     }
-    return @(Get-ChildItem -LiteralPath $RepositoryRoot -Recurse -File |
-            Where-Object { $_.FullName -notmatch '[\\/](?:build|external|install)[\\/]' -and ($_.Name -eq 'CMakeLists.txt' -or $_.Name -match '\.cmake(?:\.in)?$') } |
-            ForEach-Object { $_.FullName })
+    else
+    {
+        @(Get-GameWipMaintainedWorktreeFile -ExactNames @('CMakeLists.txt') -Extensions @('.cmake', '.in'))
+    }
+    return @($selected |
+            ForEach-Object { Resolve-GameWipRepositoryPath -Path $_ } |
+            Where-Object { (Test-Path -LiteralPath $_ -PathType Leaf) -and ((Split-Path -Leaf $_) -eq 'CMakeLists.txt' -or $_ -match '\.cmake(?:\.in)?$') } |
+            Sort-Object -Unique)
 }
 
 function Invoke-GameWipQualityNative
@@ -84,7 +124,7 @@ function Invoke-GameWipQualityNative
         [string[]]$Arguments = @(),
         [hashtable]$Environment = @{}
     )
-    Invoke-GameWipNative -Name $Name -FilePath $FilePath -Arguments $Arguments -Environment $Environment -OutputMode Stream | Out-Null
+    Invoke-GameWipNative -Name $Name -FilePath $FilePath -Arguments $Arguments -Environment $Environment | Out-Null
 }
 
 function Invoke-GameWipPowerShellQuality
@@ -110,7 +150,7 @@ function Invoke-GameWipPowerShellQuality
         {
             if ($current.Replace("`r`n", "`n") -cne $expected)
             {
-                [IO.File]::WriteAllText($file.FullName, $expected, [Text.UTF8Encoding]::new($false))
+                Write-GameWipTextAtomic -Path $file.FullName -Content $expected
                 Add-GameWipOperationChange -Message "Formatted $(Get-GameWipRepositoryRelativePath -Path $file.FullName)"
             }
         }
@@ -163,71 +203,77 @@ function Get-GameWipChangedRepositoryFile
 function Show-GameWipQualityCoverageStatus
 {
     $python = (Resolve-GameWipPython).Path
-    Invoke-GameWipNative -Name quality-ownership-status -FilePath $python -Arguments @('.github/scripts/check_quality_ownership.py', '--status') -OutputMode Stream
+    Invoke-GameWipNative -Name quality-ownership-status -FilePath $python -Arguments @('.github/scripts/check_quality_ownership.py', '--status')
 }
 
 function Invoke-GameWipQualityCheck
 {
-    param([switch]$FailFast, [switch]$Changed)
+    param([switch]$FailFast, [switch]$Changed, [AllowNull()]$ScopeInfo = $null)
 
     $qualityConfig = Join-Path $RepositoryRoot 'config\quality'
-    $scope = @(if ($Changed)
-        {
-            Get-GameWipChangedRepositoryFile
-        })
-    if ($Changed -and $scope.Count -eq 0)
+    if ($null -eq $ScopeInfo)
+    {
+        $ScopeInfo = Get-GameWipQualityScope -Changed:$Changed
+    }
+    $scope = @($ScopeInfo.Files)
+    $useChangedScope = [bool]$ScopeInfo.UseChanged
+    if ($ScopeInfo.Requested -and $scope.Count -eq 0)
     {
         Write-GameWipSection 'Quality summary'
         Write-Host '  [PASS] No changed maintained files.'
         return
     }
+    if ($ScopeInfo.Expanded)
+    {
+        Write-GameWipOperationEvent -Phase plan -Severity info -Message 'A quality policy/configuration file changed; expanding quality scope to the complete maintained worktree.'
+    }
 
-    $cppFiles = @(if ($Changed)
+    $cppFiles = @(if ($useChangedScope)
         {
             Select-GameWipQualityFile -Files $scope -Extensions @('.c', '.cc', '.cpp', '.cxx', '.h', '.hh', '.hpp', '.hxx', '.inl')
         })
-    $pythonFiles = @(if ($Changed)
+    $pythonFiles = @(if ($useChangedScope)
         {
             Select-GameWipQualityFile -Files $scope -Extensions @('.py')
         }
         else
         {
-            Get-GameWipMaintainedTrackedFile -Extensions @('.py')
+            Get-GameWipMaintainedWorktreeFile -Extensions @('.py')
         })
-    $powerShellFiles = @(if ($Changed)
+    $powerShellFiles = @(if ($useChangedScope)
         {
             Select-GameWipQualityFile -Files $scope -Extensions @('.ps1', '.psd1', '.psm1')
         })
-    $jsFiles = @(if ($Changed)
+    $jsFiles = @(if ($useChangedScope)
         {
             Select-GameWipQualityFile -Files $scope -Extensions @('.js', '.mjs', '.cjs')
         }
         else
         {
-            Get-GameWipMaintainedTrackedFile -Extensions @('.js', '.mjs', '.cjs')
+            Get-GameWipMaintainedWorktreeFile -Extensions @('.js', '.mjs', '.cjs')
         })
     $eslintConfigFile = 'config/quality/eslint.config.js'
     if ($jsFiles.Count -ne 0 -and $jsFiles -notcontains $eslintConfigFile)
     {
         $jsFiles = @($eslintConfigFile) + $jsFiles
     }
-    $prettierFiles = @(if ($Changed)
+    $prettierFiles = @(if ($useChangedScope)
         {
             Select-GameWipQualityFile -Files $scope -Extensions @('.js', '.mjs', '.cjs', '.json', '.jsonc', '.yml', '.yaml', '.css')
         }
         else
         {
-            Get-GameWipMaintainedTrackedFile -Extensions @('.js', '.mjs', '.cjs', '.json', '.jsonc', '.yml', '.yaml', '.css')
+            Get-GameWipMaintainedWorktreeFile -Extensions @('.js', '.mjs', '.cjs', '.json', '.jsonc', '.yml', '.yaml', '.css')
         })
-    $specialJsonFiles = @(if ($Changed)
+    $specialJsonFiles = @(if ($useChangedScope)
         {
             Select-GameWipQualityFile -Files $scope -ExactNames @('.vsconfig', 'GameWIP.code-workspace')
         }
         else
         {
-            Get-GameWipMaintainedTrackedFile -ExactNames @('.vsconfig', 'GameWIP.code-workspace')
+            Get-GameWipMaintainedWorktreeFile -ExactNames @('.vsconfig', 'GameWIP.code-workspace')
         })
-    $cmakeFiles = @(if ($Changed)
+    $cmakeFiles = @(if ($useChangedScope)
         {
             Get-GameWipCMakeFile -Files $scope
         }
@@ -235,21 +281,21 @@ function Invoke-GameWipQualityCheck
         {
             Get-GameWipCMakeFile
         })
-    $yamlFiles = @(if ($Changed)
+    $yamlFiles = @(if ($useChangedScope)
         {
             Select-GameWipQualityFile -Files $scope -Extensions @('.yml', '.yaml')
         }
         else
         {
-            Get-GameWipMaintainedTrackedFile -Extensions @('.yml', '.yaml')
+            Get-GameWipMaintainedWorktreeFile -Extensions @('.yml', '.yaml')
         })
-    $markdownFiles = @(if ($Changed)
+    $markdownFiles = @(if ($useChangedScope)
         {
             Select-GameWipQualityFile -Files $scope -Extensions @('.md')
         }
         else
         {
-            Get-GameWipMaintainedTrackedFile -Extensions @('.md')
+            Get-GameWipMaintainedWorktreeFile -Extensions @('.md')
         })
 
     $nodePath = Get-GameWipNpmGlobalModuleRoot
@@ -285,53 +331,53 @@ function Invoke-GameWipQualityCheck
     }
 
     $checks = @(
-        @{ Name = 'clang-format'; Body = { if (-not $Changed -or $cppFiles.Count -ne 0)
+        @{ Name = 'clang-format'; Body = { if (-not $useChangedScope -or $cppFiles.Count -ne 0)
                 {
                     Invoke-GameWipFormat -Mode check -Files $cppFiles
                 } }
         },
-        @{ Name = 'ruff lint'; Body = { if (-not $Changed -or $pythonFiles.Count -ne 0)
+        @{ Name = 'ruff lint'; Body = { if (-not $useChangedScope -or $pythonFiles.Count -ne 0)
                 {
                     Invoke-GameWipQualityNative -Name ruff-check -FilePath $tools.ruff -Arguments (@('check', '--config', (Join-Path $qualityConfig 'ruff.toml')) + $pythonFiles)
                 } }
         },
-        @{ Name = 'ruff format'; Body = { if (-not $Changed -or $pythonFiles.Count -ne 0)
+        @{ Name = 'ruff format'; Body = { if (-not $useChangedScope -or $pythonFiles.Count -ne 0)
                 {
                     Invoke-GameWipQualityNative -Name ruff-format-check -FilePath $tools.ruff -Arguments (@('format', '--check', '--config', (Join-Path $qualityConfig 'ruff.toml')) + $pythonFiles)
                 } }
         },
-        @{ Name = 'PowerShell'; Body = { if (-not $Changed -or $powerShellFiles.Count -ne 0)
+        @{ Name = 'PowerShell'; Body = { if (-not $useChangedScope -or $powerShellFiles.Count -ne 0)
                 {
                     Invoke-GameWipPowerShellQuality -Files $powerShellFiles
                 } }
         },
-        @{ Name = 'ESLint'; Body = { if (-not $Changed -or $jsFiles.Count -ne 0)
+        @{ Name = 'ESLint'; Body = { if (-not $useChangedScope -or $jsFiles.Count -ne 0)
                 {
                     Invoke-GameWipQualityNative -Name eslint -FilePath $tools.eslint -Arguments (@('--config', (Join-Path $qualityConfig 'eslint.config.js')) + $jsFiles) -Environment @{ NODE_PATH = $nodePath }
                 } }
         },
-        @{ Name = 'Prettier'; Body = { if (-not $Changed -or $prettierFiles.Count -ne 0)
+        @{ Name = 'Prettier'; Body = { if (-not $useChangedScope -or $prettierFiles.Count -ne 0)
                 {
                     Invoke-GameWipQualityNative -Name prettier-check -FilePath $tools.prettier -Arguments (@('--config', (Join-Path $qualityConfig 'prettier.json'), '--ignore-path', (Join-Path $qualityConfig 'prettier.ignore'), '--check') + $prettierFiles)
                 } }
         },
-        @{ Name = 'Prettier special JSON'; Body = { if (-not $Changed -or $specialJsonFiles.Count -ne 0)
+        @{ Name = 'Prettier special JSON'; Body = { if (-not $useChangedScope -or $specialJsonFiles.Count -ne 0)
                 {
                     Invoke-GameWipQualityNative -Name prettier-special-json-check -FilePath $tools.prettier -Arguments (@('--config', (Join-Path $qualityConfig 'prettier.json'), '--parser', 'json', '--check') + $specialJsonFiles)
                 } }
         },
-        @{ Name = 'Gersemi'; Body = { if (-not $Changed -or $cmakeFiles.Count -ne 0)
+        @{ Name = 'Gersemi'; Body = { if (-not $useChangedScope -or $cmakeFiles.Count -ne 0)
                 {
                     Invoke-GameWipQualityNative -Name gersemi-check -FilePath $tools.gersemi -Arguments (@('--config', (Join-Path $qualityConfig 'gersemi.yml'), '--check') + $cmakeFiles)
                 } }
         },
-        @{ Name = 'yamllint'; Body = { if (-not $Changed -or $yamlFiles.Count -ne 0)
+        @{ Name = 'yamllint'; Body = { if (-not $useChangedScope -or $yamlFiles.Count -ne 0)
                 {
                     Invoke-GameWipQualityNative -Name yamllint -FilePath $tools.yamllint -Arguments (@('-c', (Join-Path $qualityConfig 'yamllint.yml')) + $yamlFiles)
                 } }
         },
         @{ Name = 'actionlint'; Body = { Invoke-GameWipQualityNative -Name actionlint -FilePath $tools.actionlint -Arguments @('-color') } },
-        @{ Name = 'markdownlint'; Body = { if (-not $Changed -or $markdownFiles.Count -ne 0)
+        @{ Name = 'markdownlint'; Body = { if (-not $useChangedScope -or $markdownFiles.Count -ne 0)
                 {
                     Invoke-GameWipQualityNative -Name markdownlint -FilePath $tools.'markdownlint-cli2' -Arguments (@('--config', (Join-Path $qualityConfig 'markdownlint-cli2.jsonc')) + $markdownFiles)
                 } }
@@ -391,16 +437,87 @@ function Invoke-GameWipQualityCheck
 
 function Invoke-GameWipQualityFix
 {
+    param([Parameter(Mandatory = $true)]$ScopeInfo)
+
     $qualityConfig = Join-Path $RepositoryRoot 'config\quality'
-    $pythonFiles = @(Get-GameWipMaintainedTrackedFile -Extensions @('.py'))
+    $scope = @($ScopeInfo.Files)
+    $useChangedScope = [bool]$ScopeInfo.UseChanged
+    if ($ScopeInfo.Requested -and $scope.Count -eq 0)
+    {
+        return
+    }
+
+    $cppFiles = @(if ($useChangedScope)
+        {
+            Select-GameWipQualityFile -Files $scope -Extensions @('.c', '.cc', '.cpp', '.cxx', '.h', '.hh', '.hpp', '.hxx', '.inl')
+        })
+    $pythonFiles = @(if ($useChangedScope)
+        {
+            Select-GameWipQualityFile -Files $scope -Extensions @('.py')
+        }
+        else
+        {
+            Get-GameWipMaintainedWorktreeFile -Extensions @('.py')
+        })
+    $powerShellFiles = @(if ($useChangedScope)
+        {
+            Select-GameWipQualityFile -Files $scope -Extensions @('.ps1', '.psd1', '.psm1')
+        })
+    $prettierFiles = @(if ($useChangedScope)
+        {
+            Select-GameWipQualityFile -Files $scope -Extensions @('.js', '.mjs', '.cjs', '.json', '.jsonc', '.yml', '.yaml', '.css')
+        }
+        else
+        {
+            Get-GameWipMaintainedWorktreeFile -Extensions @('.js', '.mjs', '.cjs', '.json', '.jsonc', '.yml', '.yaml', '.css')
+        })
+    $specialJsonFiles = @(if ($useChangedScope)
+        {
+            Select-GameWipQualityFile -Files $scope -ExactNames @('.vsconfig', 'GameWIP.code-workspace')
+        }
+        else
+        {
+            Get-GameWipMaintainedWorktreeFile -ExactNames @('.vsconfig', 'GameWIP.code-workspace')
+        })
+    $cmakeFiles = @(if ($useChangedScope)
+        {
+            Get-GameWipCMakeFile -Files $scope
+        }
+        else
+        {
+            Get-GameWipCMakeFile
+        })
+
     $ruff = Get-GameWipQualityTool -Id ruff
-    Invoke-GameWipFormat -Mode apply
-    Invoke-GameWipQualityNative -Name ruff-fix -FilePath $ruff -Arguments (@('check', '--fix', '--config', (Join-Path $qualityConfig 'ruff.toml')) + $pythonFiles)
-    Invoke-GameWipQualityNative -Name ruff-format -FilePath $ruff -Arguments (@('format', '--config', (Join-Path $qualityConfig 'ruff.toml')) + $pythonFiles)
-    Invoke-GameWipPowerShellQuality -Fix
-    Invoke-GameWipQualityNative -Name prettier-write -FilePath (Get-GameWipQualityTool -Id prettier) -Arguments @('--config', (Join-Path $qualityConfig 'prettier.json'), '--ignore-path', (Join-Path $qualityConfig 'prettier.ignore'), '--write', '**/*.{js,json,jsonc,yml,yaml,css}')
-    Invoke-GameWipQualityNative -Name prettier-special-json-write -FilePath (Get-GameWipQualityTool -Id prettier) -Arguments (@('--config', (Join-Path $qualityConfig 'prettier.json'), '--parser', 'json', '--write') + @(Get-GameWipMaintainedTrackedFile -ExactNames @('.vsconfig', 'GameWIP.code-workspace')))
-    Invoke-GameWipQualityNative -Name gersemi-format -FilePath (Get-GameWipQualityTool -Id gersemi) -Arguments (@('--config', (Join-Path $qualityConfig 'gersemi.yml'), '--in-place') + @(Get-GameWipCMakeFile))
+    if (-not $useChangedScope)
+    {
+        Invoke-GameWipFormat -Mode apply
+    }
+    elseif ($cppFiles.Count -ne 0)
+    {
+        Invoke-GameWipFormat -Mode apply -Files $cppFiles
+    }
+    if ($pythonFiles.Count -ne 0)
+    {
+        Invoke-GameWipQualityNative -Name ruff-fix -FilePath $ruff -Arguments (@('check', '--fix', '--config', (Join-Path $qualityConfig 'ruff.toml')) + $pythonFiles)
+        Invoke-GameWipQualityNative -Name ruff-format -FilePath $ruff -Arguments (@('format', '--config', (Join-Path $qualityConfig 'ruff.toml')) + $pythonFiles)
+    }
+    if (-not $useChangedScope -or $powerShellFiles.Count -ne 0)
+    {
+        Invoke-GameWipPowerShellQuality -Fix -Files $powerShellFiles
+    }
+    if ($prettierFiles.Count -ne 0)
+    {
+        Invoke-GameWipQualityNative -Name prettier-write -FilePath (Get-GameWipQualityTool -Id prettier) -Arguments (@('--config', (Join-Path $qualityConfig 'prettier.json'), '--ignore-path', (Join-Path $qualityConfig 'prettier.ignore'), '--write') + $prettierFiles)
+    }
+    if ($specialJsonFiles.Count -ne 0)
+    {
+        Invoke-GameWipQualityNative -Name prettier-special-json-write -FilePath (Get-GameWipQualityTool -Id prettier) -Arguments (@('--config', (Join-Path $qualityConfig 'prettier.json'), '--parser', 'json', '--write') + $specialJsonFiles)
+    }
+    if ($cmakeFiles.Count -ne 0)
+    {
+        Invoke-GameWipQualityNative -Name gersemi-format -FilePath (Get-GameWipQualityTool -Id gersemi) -Arguments (@('--config', (Join-Path $qualityConfig 'gersemi.yml'), '--in-place') + $cmakeFiles)
+    }
 }
 
 function Invoke-GameWipQuality
@@ -411,9 +528,10 @@ function Invoke-GameWipQuality
         [switch]$Changed
     )
     Initialize-GameWipStorage
+    $scopeInfo = Get-GameWipQualityScope -Changed:$Changed
     if ($Mode -eq 'fix')
     {
-        Invoke-GameWipQualityFix
+        Invoke-GameWipQualityFix -ScopeInfo $scopeInfo
     }
-    Invoke-GameWipQualityCheck -FailFast:$FailFast -Changed:$Changed
+    Invoke-GameWipQualityCheck -FailFast:$FailFast -Changed:$Changed -ScopeInfo $scopeInfo
 }

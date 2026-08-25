@@ -50,6 +50,11 @@ dependency, review, or project-side changes that do not emit a usable repository
 
 Manual dispatch supports all items or one issue or pull request, with an optional dry run.
 
+Guarded helper dispatch records the pre-dispatch run set and dispatch time, then
+correlates the visible run to the current GitHub CLI user, workflow, branch, and
+dispatch window. If more than one new run still satisfies that correlation, the
+helper fails closed rather than attaching to an arbitrary workflow run.
+
 The pull request trigger uses `pull_request_target` and checks out automation from the default branch. Pull request code is never executed with the
 project token.
 

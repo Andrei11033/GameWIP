@@ -16,7 +16,7 @@ function Invoke-GameWipSetupGitQuery
 function Select-GameWipZipBranch
 {
     param([Parameter(Mandatory = $true)][string[]]$Candidates, [Parameter(Mandatory = $true)][string]$Recommended)
-    $result = Read-GameWipMenuChoiceResult -Prompt 'Repository branch' -Choices $Candidates -Default $Recommended
+    $result = Read-GameWipRepositoryBranchChoice -Candidates $Candidates -Recommended $Recommended
     if ($result.Status -eq 'Cancelled')
     {
         throw 'Repository branch selection was cancelled.'

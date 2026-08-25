@@ -325,6 +325,70 @@ finally
     }
 }
 
+$hashRoot = Join-Path $repositoryRoot ('build\gamewip\temp\hash-test-' + [guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory -Force -Path $hashRoot | Out-Null
+try
+{
+    $hashPath = Join-Path $hashRoot 'sample.txt'
+    [IO.File]::WriteAllText($hashPath, 'first', [Text.UTF8Encoding]::new($false))
+    $firstHash = Get-GameWipFileSha256 -Path $hashPath
+    if ($firstHash -notmatch '^[0-9a-f]{64}$' -or $firstHash -ne (Get-GameWipFileSha256 -Path $hashPath))
+    {
+        throw 'Repository-owned SHA-256 hashing is not stable.'
+    }
+    [IO.File]::WriteAllText($hashPath, 'second', [Text.UTF8Encoding]::new($false))
+    if ($firstHash -eq (Get-GameWipFileSha256 -Path $hashPath))
+    {
+        throw 'Repository-owned SHA-256 hashing did not detect a content change.'
+    }
+}
+finally
+{
+    Remove-Item -LiteralPath $hashRoot -Recurse -Force -ErrorAction SilentlyContinue
+}
+
+$Script:OperationContext = New-GameWipOperationContext -Label 'mutation-state-before-write'
+try
+{
+    try
+    {
+        Invoke-GameWipMutation -Summary 'fail before mutation' -Risk local -Plan @('fail first') -Body { throw 'expected pre-mutation failure' } | Out-Null
+    }
+    catch
+    {
+        $null = $_.Exception
+    }
+    if ($Script:OperationContext.MutationState -ne 'none')
+    {
+        throw 'A failure before the first mutating step was incorrectly reported as partial mutation.'
+    }
+}
+finally
+{
+    $Script:OperationContext = $null
+}
+
+if (-not (Test-GameWipQualityPolicyChange -Files @('.clang-format')) -or
+    -not (Test-GameWipQualityPolicyChange -Files @('config/quality/ruff.toml')) -or
+    (Test-GameWipQualityPolicyChange -Files @('game/main.cpp')))
+{
+    throw 'Changed-quality policy invalidation does not distinguish policy changes from ordinary source changes.'
+}
+$untrackedRelative = 'scripts/gamewip_quality_untracked_' + [guid]::NewGuid().ToString('N') + '.py'
+$untrackedPath = Join-Path $repositoryRoot $untrackedRelative
+try
+{
+    [IO.File]::WriteAllText($untrackedPath, 'print("quality scope")', [Text.UTF8Encoding]::new($false))
+    if (@(Get-GameWipMaintainedWorktreeFile -Extensions @('.py')) -notcontains $untrackedRelative.Replace('\', '/'))
+    {
+        throw 'Full quality discovery skipped a first-party untracked Python file.'
+    }
+}
+finally
+{
+    Remove-Item -LiteralPath $untrackedPath -Force -ErrorAction SilentlyContinue
+}
+
 $informational = Get-GameWipProjectTool -Id unicode
 if ([bool]$informational.capabilities.update)
 {

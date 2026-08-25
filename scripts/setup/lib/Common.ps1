@@ -83,9 +83,7 @@ function Add-GameWipOwnedWingetPackage
 
 function Initialize-GameWipSetupProcessPath
 {
-    $parts = @([Environment]::GetEnvironmentVariable('Path', 'Machine'), [Environment]::GetEnvironmentVariable('Path', 'User')) |
-        Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
-    $env:Path = $parts -join [IO.Path]::PathSeparator
+    Update-GameWipProcessPath
 }
 
 function Test-GameWipSetupCommand
@@ -105,8 +103,7 @@ function Invoke-GameWipSetupNative
         -Name ([IO.Path]::GetFileNameWithoutExtension($FilePath)) `
         -FilePath $FilePath `
         -Arguments $ArgumentList `
-        -AllowedExitCodes $AllowedExitCodes `
-        -OutputMode Stream
+        -AllowedExitCodes $AllowedExitCodes
     return [int]$result.ExitCode
 }
 

@@ -48,6 +48,5 @@ function Install-GameWipWingetTool
     {
         Write-Host "  Already current: $($Tool.name)"
     }
-    $parts = @([Environment]::GetEnvironmentVariable('Path', 'Machine'), [Environment]::GetEnvironmentVariable('Path', 'User')) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
-    $env:Path = $parts -join [IO.Path]::PathSeparator
+    Update-GameWipProcessPath
 }

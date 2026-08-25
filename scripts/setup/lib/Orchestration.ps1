@@ -167,8 +167,14 @@ function Invoke-GameWipSetupRepositoryStep
     }
     else
     {
-        Switch-GameWipRepositoryBranch -RepositoryRoot $RepositoryRoot -Branch $Branch -ChooseBranch:(-not $NonInteractive -and -not [string]::IsNullOrWhiteSpace($Branch))
-        $alreadyFetched = -not [string]::IsNullOrWhiteSpace($Branch)
+        $chooseBranch = -not $NonInteractive -and [string]::IsNullOrWhiteSpace($Branch)
+
+        Switch-GameWipRepositoryBranch `
+            -RepositoryRoot $RepositoryRoot `
+            -Branch $Branch `
+            -ChooseBranch:$chooseBranch
+
+        $alreadyFetched = -not [string]::IsNullOrWhiteSpace($Branch) -or $chooseBranch
     }
     if ($Update)
     {
@@ -316,6 +322,14 @@ function Get-GameWipSetupPlan
         {
             return @('Build/install Tracy tools matching the pinned submodule.')
         }
+        'docs'
+        {
+            return @(
+                'Configure and build the documentation preset.',
+                'Verify generated documentation.',
+                'Open the manual only after a real interactive build.'
+            )
+        }
         default
         {
             return @()
@@ -430,8 +444,17 @@ function Invoke-GameWipSetupOperation
     Assert-GameWipSetupActionCatalog
     $actionInfo = Get-GameWipSetupAction -Id $SelectedAction
 
-    return Invoke-GameWipOperation -Label "setup-$SelectedAction" -NonInteractive:$NonInteractive -Yes:$Yes -Preview:$Preview -OutputMode $OutputMode -NoColor:$NoColor -SuppressReceipt:$Quiet -ScriptBlock {
-        if ($SelectedAction -in @('help', 'list', 'check', 'docs'))
+    return Invoke-GameWipOperation `
+        -Label "setup-$SelectedAction" `
+        -NonInteractive:$NonInteractive `
+        -Yes:$Yes `
+        -Preview:$Preview `
+        -OutputMode $OutputMode `
+        -NoColor:$NoColor `
+        -SuppressReceipt:$Quiet `
+        -SuppressOutput:$Quiet `
+        -ScriptBlock {
+        if ($SelectedAction -in @('help', 'list', 'check'))
         {
             Invoke-GameWipSetupActionBody -SelectedAction $SelectedAction
             return

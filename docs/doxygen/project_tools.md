@@ -87,7 +87,10 @@ plan before the first mutation. `-Preview` performs that read-only resolution
 and prints the plan without changing tracked or machine state. A real update
 requires a clean tracked tree, updates structured registry fields and precise
 declared live references, updates integrity/tag metadata when applicable,
-installs the managed version, and runs `quality check`. Ambiguous or missing
+installs the managed version, and runs `quality check`. Verified downloads are
+completed through temporary files before replacing cache destinations, and
+archive-backed managed tools stage and verify candidates before the live
+version directory changes. Ambiguous or missing
 live references fail closed. Historical files under `docs/releases/` are never
 rewritten. The command never commits, pushes, or destructively rolls back a
 failed sequence.
@@ -142,7 +145,10 @@ hidden discovery dependency. `.clang-format`, `.clang-tidy`, and
 `.editorconfig` intentionally remain at repository root because editor and tool
 upward discovery is useful for C++ and basic text settings.
 
-The ownership registry gives every maintained worktree file one quality policy. Language and structured-data sources use their declared formatter
+The ownership registry gives every maintained worktree file one quality policy.
+Full quality includes tracked files and non-ignored untracked first-party files,
+so new project files are checkable and formattable before they are staged.
+Language and structured-data sources use their declared formatter
 and parser or linter. Tool-owned metadata such as `CODEOWNERS` and `prettier.ignore` is intentionally not reformatted but remains subject to its
 owning tool, repository checks, and generic text rules. Windows manifests are parsed as XML and validated again by resource compilation. Generated,
 third-party, historical, and binary artifacts stay outside maintained formatting only through explicit policy boundaries.

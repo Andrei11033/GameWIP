@@ -95,6 +95,7 @@ $result = Invoke-GameWipOperation `
     -OutputMode $OutputMode `
     -NoColor:$NoColor `
     -SuppressReceipt:$Quiet `
+    -SuppressOutput:$Quiet `
     -ScriptBlock {
     switch ($Action)
     {
@@ -151,6 +152,10 @@ $result = Invoke-GameWipOperation `
             if ($verb -eq 'regenerate')
             {
                 Invoke-GameWipMutation -Summary 'Regenerate the tracked Unicode property table.' -Risk tracked -Plan @('Verify/download pinned Unicode input.', 'Generate and format a candidate.', 'Replace the tracked table only if content changes.') -Body { Invoke-GameWipUnicodeAction -Name regenerate } | Out-Null
+            }
+            elseif ($verb -eq 'verify')
+            {
+                Invoke-GameWipMutation -Summary 'Verify reproducible Unicode generated data.' -Risk local -Plan @('Verify/download pinned Unicode input in the owned cache.', 'Generate and format an operation-owned candidate.', 'Compare the candidate with the checked-in table.') -Body { Invoke-GameWipUnicodeAction -Name verify } | Out-Null
             }
             else
             {
@@ -289,11 +294,11 @@ $result = Invoke-GameWipOperation `
             {
                 $Command
             }
-            Invoke-GameWipTestPreset -Name $preset -UseWorkspaceTemp -NoBuild:$NoBuild
+            Invoke-GameWipMutation -Summary "Run CTest preset '$preset'." -Risk local -Plan @('Ensure the preset build is current unless -NoBuild is used.', "ctest --preset $preset --output-on-failure") -Body { Invoke-GameWipTestPreset -Name $preset -UseWorkspaceTemp -NoBuild:$NoBuild } | Out-Null
         }
         'wizard'
         {
-            Invoke-GameWipValidationCommandWizard
+            Invoke-GameWipValidationCommandWizard -NoBuild:$NoBuild
         }
         'module'
         {
@@ -305,7 +310,7 @@ $result = Invoke-GameWipOperation `
             {
                 $Command
             }
-            Invoke-GameWipValidationModule -Name $module -Arguments $ExtraArgs -NoBuild:$NoBuild
+            Invoke-GameWipMutation -Summary "Run validation module '$module'." -Risk local -Plan @('Ensure the validation executable unless -NoBuild is used.', 'Execute the selected correctness module.') -Body { Invoke-GameWipValidationModule -Name $module -Arguments $ExtraArgs -NoBuild:$NoBuild } | Out-Null
         }
         'stress'
         {
@@ -333,7 +338,7 @@ $result = Invoke-GameWipOperation `
             {
                 [int]$CommandConfig.DefaultStressParallel
             }
-            Invoke-GameWipStressModule -Name $module -RunCount $runs -MaxParallel $workers -Arguments $ExtraArgs -NoBuild:$NoBuild -StopOnFailure:$StopOnFailure
+            Invoke-GameWipMutation -Summary "Stress validation module '$module'." -Risk local -Plan @('Ensure the validation executable unless -NoBuild is used.', "Run up to $runs validation processes with at most $workers workers.") -Body { Invoke-GameWipStressModule -Name $module -RunCount $runs -MaxParallel $workers -Arguments $ExtraArgs -NoBuild:$NoBuild -StopOnFailure:$StopOnFailure } | Out-Null
         }
         'run'
         {
@@ -345,7 +350,7 @@ $result = Invoke-GameWipOperation `
             {
                 $Command
             }
-            Invoke-GameWipProjectCommand -Id $id -Arguments $ExtraArgs -NoBuild:$NoBuild
+            Invoke-GameWipMutation -Summary "Run project command '$id'." -Risk local -Plan @('Ensure its executable unless -NoBuild is used.', 'Execute the cataloged project command.') -Body { Invoke-GameWipProjectCommand -Id $id -Arguments $ExtraArgs -NoBuild:$NoBuild } | Out-Null
         }
         'bundle'
         {
@@ -357,7 +362,7 @@ $result = Invoke-GameWipOperation `
             {
                 $Command
             }
-            Invoke-GameWipMutation -Summary "Run bundle '$id'." -Risk local -Plan @('Execute its declarative steps in order.') -Body { Invoke-GameWipBundle -Id $id } | Out-Null
+            Invoke-GameWipMutation -Summary "Run bundle '$id'." -Risk local -Plan @('Execute its declarative steps in order.') -Body { Invoke-GameWipBundle -Id $id -NoBuild:$NoBuild } | Out-Null
         }
         'docs'
         {
@@ -389,18 +394,28 @@ $result = Invoke-GameWipOperation `
             {
                 throw "Unknown benchmark command '$verb'."
             }
-            if ($verb -eq 'compare')
+            if ($verb -eq 'compare' -and ([string]::IsNullOrWhiteSpace($Baseline) -or [string]::IsNullOrWhiteSpace($Candidate)))
             {
-                if ([string]::IsNullOrWhiteSpace($Baseline) -or [string]::IsNullOrWhiteSpace($Candidate))
-                {
-                    throw 'benchmark compare requires -Baseline and -Candidate.'
-                }
-                Invoke-GameWipBenchmarkComparison -BaselinePath $Baseline -CandidatePath $Candidate -RequestedOutput $Output
+                throw 'benchmark compare requires -Baseline and -Candidate.'
+            }
+            $benchmarkPlan = if ($verb -eq 'compare')
+            {
+                @('Read the baseline and candidate JSON results.', 'Write the retained or explicitly requested comparison result.')
             }
             else
             {
-                Invoke-GameWipBenchmark -Mode $verb -ProfileId $BenchmarkProfile -NameFilter $Filter -RepeatCount $Repetitions -MinimumTime $MinTime -RequestedOutput $Output -Format $OutputFormat -OnlyAggregates:$AggregatesOnly -Arguments $ExtraArgs -SkipBuild:$NoBuild
+                @('Ensure the benchmark executable unless -NoBuild is used.', "Execute benchmark action '$verb'.", 'Retain measurement output when the action produces it.')
             }
+            Invoke-GameWipMutation -Summary "Run benchmark action '$verb'." -Risk local -Plan $benchmarkPlan -Body {
+                if ($verb -eq 'compare')
+                {
+                    Invoke-GameWipBenchmarkComparison -BaselinePath $Baseline -CandidatePath $Candidate -RequestedOutput $Output
+                }
+                else
+                {
+                    Invoke-GameWipBenchmark -Mode $verb -ProfileId $BenchmarkProfile -NameFilter $Filter -RepeatCount $Repetitions -MinimumTime $MinTime -RequestedOutput $Output -Format $OutputFormat -OnlyAggregates:$AggregatesOnly -Arguments $ExtraArgs -SkipBuild:$NoBuild
+                }
+            } | Out-Null
         }
         'runs'
         {

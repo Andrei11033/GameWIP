@@ -267,7 +267,7 @@ namespace GameWIP::Terminal
                 }
                 primary.message.push_back('.');
             }
-            // NOLINTNEXTLINE(bugprone-empty-catch)
+            // NOLINTNEXTLINE(bugprone-empty-catch) -- Diagnostic enrichment must not replace the primary failure.
             catch (...)
             {
                 // The primary failure remains authoritative when diagnostic enrichment cannot allocate.

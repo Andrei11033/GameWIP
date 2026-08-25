@@ -64,9 +64,21 @@ function Invoke-GameWipGitFetch
 function Get-GameWipBranchNames
 {
     $local = @(Invoke-GameWipGitQuery -Arguments @('for-each-ref', '--format=%(refname:short)', 'refs/heads'))
-    $remote = @(Invoke-GameWipGitQuery -Arguments @('for-each-ref', '--format=%(refname:short)', 'refs/remotes/origin')) |
-        Where-Object { $_ -like 'origin/*' -and $_ -ne 'origin/HEAD' } | ForEach-Object { $_.Substring('origin/'.Length) }
+    $remote = @(
+        Invoke-GameWipGitQuery -Arguments @('for-each-ref', '--format=%(refname:short)', 'refs/remotes/origin') |
+            Where-Object { $_ -like 'origin/*' -and $_ -ne 'origin/HEAD' } |
+            ForEach-Object { $_.Substring('origin/'.Length) }
+    )
     return [pscustomobject]@{ Local = @($local); All = @($local + $remote | Sort-Object -Unique) }
+}
+
+function Read-GameWipRepositoryBranchChoice
+{
+    param(
+        [Parameter(Mandatory = $true)][string[]]$Candidates,
+        [Parameter(Mandatory = $true)][string]$Recommended
+    )
+    return Read-GameWipMenuChoiceResult -Prompt 'Repository branch' -Choices $Candidates -Default $Recommended
 }
 
 function Invoke-GameWipBranchSwitch
@@ -74,6 +86,7 @@ function Invoke-GameWipBranchSwitch
     param([string]$TargetBranch)
     Assert-GameWipCleanTrackedTree
     $branches = Get-GameWipBranchNames
+    $current = Get-GameWipCurrentBranch
     $selected = $TargetBranch -replace '^origin/', ''
     if ([string]::IsNullOrWhiteSpace($selected))
     {
@@ -81,17 +94,18 @@ function Invoke-GameWipBranchSwitch
         {
             throw 'git switch requires a branch in non-interactive mode.'
         }
-        $selected = Read-GameWipIndexedChoice -Prompt 'Switch to branch' -Choices $branches.All
-    }
-    if ([string]::IsNullOrWhiteSpace([string]$selected))
-    {
-        return
+        $choice = Read-GameWipRepositoryBranchChoice -Candidates $branches.All -Recommended $current
+        if ($choice.Status -eq 'Cancelled')
+        {
+            return
+        }
+        $selected = [string]$choice.Value
     }
     if ($branches.All -notcontains $selected)
     {
         throw "Unknown local or origin branch '$selected'. Run 'gamewip git fetch' first if needed."
     }
-    if ($selected -eq (Get-GameWipCurrentBranch))
+    if ($selected -eq $current)
     {
         Write-Host "Already on '$selected'."; return
     }
@@ -184,9 +198,16 @@ function Invoke-GameWipBranchCleanup
     $current = Get-GameWipCurrentBranch
     $defaultName = [string]$ProjectConfig.defaultBranch
     $protected = [Collections.Generic.HashSet[string]]::new([string[]]@($current, $defaultName, 'main', 'master', 'develop'), [StringComparer]::OrdinalIgnoreCase)
-    $merged = @(Invoke-GameWipGitQuery -Arguments @('for-each-ref', "--merged=origin/$defaultName", '--format=%(refname:short)', 'refs/heads')) | Where-Object { -not $protected.Contains($_) }
-    $gone = @(Invoke-GameWipGitQuery -Arguments @('for-each-ref', '--format=%(refname:short)|%(upstream:track)', 'refs/heads')) |
-        Where-Object { $_ -match '\|\[gone\]$' } | ForEach-Object { ($_ -split '\|', 2)[0] } | Where-Object { -not $protected.Contains($_) -and $merged -notcontains $_ }
+    $merged = @(
+        Invoke-GameWipGitQuery -Arguments @('for-each-ref', "--merged=origin/$defaultName", '--format=%(refname:short)', 'refs/heads') |
+            Where-Object { -not $protected.Contains($_) }
+    )
+    $gone = @(
+        Invoke-GameWipGitQuery -Arguments @('for-each-ref', '--format=%(refname:short)|%(upstream:track)', 'refs/heads') |
+            Where-Object { $_ -match '\|\[gone\]$' } |
+            ForEach-Object { ($_ -split '\|', 2)[0] } |
+            Where-Object { -not $protected.Contains($_) -and $merged -notcontains $_ }
+    )
     if ($merged.Count -eq 0 -and $gone.Count -eq 0)
     {
         Write-Host 'No cleanup candidates.'; return

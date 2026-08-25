@@ -18,10 +18,9 @@ function Resolve-GameWipBenchmarkOutputPath
     {
         $resolved = "$resolved.$Format"
     }
-    $repositoryPrefix = $RepositoryRoot.TrimEnd('\') + '\'
-    $buildPrefix = (Join-Path $RepositoryRoot 'build').TrimEnd('\') + '\'
-    if ($resolved.StartsWith($repositoryPrefix, [StringComparison]::OrdinalIgnoreCase) -and
-        -not $resolved.StartsWith($buildPrefix, [StringComparison]::OrdinalIgnoreCase))
+    $buildRoot = Join-Path $RepositoryRoot 'build'
+    if ((Test-GameWipPathWithinRoot -Path $resolved -Root $RepositoryRoot) -and
+        -not (Test-GameWipPathWithinRoot -Path $resolved -Root $buildRoot))
     {
         throw "Benchmark output inside the checkout must be under 'build'. Requested: $resolved"
     }
@@ -88,7 +87,7 @@ function Invoke-GameWipBenchmark
     $command = Get-GameWipProjectCommand -Id 'benchmark-dry-run'
     if ($SkipBuild)
     {
-        Initialize-GameWipProjectCommandBuild -Command $command
+        Initialize-GameWipProjectCommandBuild -Command $command -NoBuild
     }
     else
     {
@@ -310,12 +309,13 @@ function Invoke-GameWipBenchmarkComparison
         {
             Resolve-GameWipBenchmarkOutputPath -RequestedPath $RequestedOutput -Format 'json'
         }
-        [ordered]@{
+        $comparisonDocument = [ordered]@{
             schemaVersion = 1
             baseline = $baselineResolved
             candidate = $candidateResolved
             comparisons = @($comparisons)
-        } | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $outputPath -Encoding UTF8
+        }
+        Write-GameWipJsonAtomic -Path $outputPath -Value $comparisonDocument -Depth 6
         $comparisons | Format-Table name, cpuChangePercent, realChangePercent -AutoSize
         Add-GameWipToolRunOutput -Run $Script:RunContext -Kind 'benchmark-comparison' -Path $outputPath
         Complete-GameWipToolRunStep -Run $Script:RunContext -Step $step -ExitCode 0

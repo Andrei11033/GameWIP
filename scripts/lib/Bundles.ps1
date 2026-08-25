@@ -2,7 +2,10 @@
 
 function Invoke-GameWipBundle
 {
-    param([Parameter(Mandatory = $true)][string]$Id)
+    param(
+        [Parameter(Mandatory = $true)][string]$Id,
+        [switch]$NoBuild
+    )
 
     $bundleInfo = Get-GameWipProjectBundle -Id $Id
     Write-GameWipSection $bundleInfo.Name
@@ -24,7 +27,10 @@ function Invoke-GameWipBundle
             }
             'CTest'
             {
-                Invoke-GameWipTestPreset -Name $step.Preset -UseWorkspaceTemp:([bool]$step.UseWorkspaceTemp)
+                Invoke-GameWipTestPreset `
+                    -Name $step.Preset `
+                    -UseWorkspaceTemp:([bool]$step.UseWorkspaceTemp) `
+                    -NoBuild:$NoBuild
             }
             'ProjectCommand'
             {
@@ -36,7 +42,20 @@ function Invoke-GameWipBundle
                 {
                     @()
                 }
-                Invoke-GameWipProjectCommand -Id $step.Command -Arguments $stepArguments -ForceBuild:([bool]$step.BuildIfMissing)
+
+                $buildIfMissing = if ($step.ContainsKey('BuildIfMissing'))
+                {
+                    [bool]$step.BuildIfMissing
+                }
+                else
+                {
+                    $true
+                }
+
+                Invoke-GameWipProjectCommand `
+                    -Id $step.Command `
+                    -Arguments $stepArguments `
+                    -NoBuild:($NoBuild -or -not $buildIfMissing)
             }
             'Benchmark'
             {
@@ -56,11 +75,19 @@ function Invoke-GameWipBundle
                 {
                     ''
                 }
-                Invoke-GameWipBenchmark -Mode 'run' -ProfileId $stepProfile -NameFilter $stepFilter -RepeatCount 0 -MinimumTime '' -RequestedOutput '' -Format 'json'
+                Invoke-GameWipBenchmark `
+                    -Mode 'run' `
+                    -ProfileId $stepProfile `
+                    -NameFilter $stepFilter `
+                    -RepeatCount 0 `
+                    -MinimumTime '' `
+                    -RequestedOutput '' `
+                    -Format 'json' `
+                    -SkipBuild:$NoBuild
             }
             'Bundle'
             {
-                Invoke-GameWipBundle -Id $step.Bundle
+                Invoke-GameWipBundle -Id $step.Bundle -NoBuild:$NoBuild
             }
             default
             {

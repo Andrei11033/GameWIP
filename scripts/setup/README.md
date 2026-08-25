@@ -35,7 +35,7 @@ Machine-changing interactive actions require Automatic, Manual, or Cancel
 consent. Named actions preserve nonzero exit codes. The menu catches an action
 failure, prints its concise cause, and returns to the full action list.
 
-`Invoke-GameWipSetupNative` prints each external command, streams its native output,
+`Invoke-GameWipSetupNative` uses the shared native-process runner, inherits the selected `Stream`, `Summary`, or `LogOnly` output policy,
 and reports successful exit codes. Named setup actions retain the same
 action-scoped run structure as the project helper under
 `build/gamewip/runs/<timestamp>_setup-<action>/`, including step logs, summaries,
@@ -78,9 +78,14 @@ only under the current `build/gamewip/temp/<operation-id>/tracy-stage`. Generate
 compatibility adjustments provide the POSIX `memmem` operation missing from
 UCRT64 and remove incompatible COFF LTO flags without modifying the submodule.
 The required Windows security library is linked explicitly.
-`C:\MSYS2\GameWIPTools\tools\tracy` changes only after complete verification.
+`C:\MSYS2\GameWIPTools\tools\tracy` changes only after the complete candidate
+is verified, using a same-volume directory swap so a failed replacement can
+preserve or restore the previous verified set instead of mixing old and new
+files.
 
-Focused `docs` builds, verifies, and opens the generated manual. Complete
+Focused `docs` builds, verifies, and opens the generated manual after normal
+local-mutation consent. `-Preview` prints that plan without configuring,
+building, or opening anything. Complete
 setup/update/repair builds the same manual without launching a browser.
 
 An extracted GitHub ZIP is supported. After Git is available, repository setup

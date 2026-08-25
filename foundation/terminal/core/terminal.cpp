@@ -98,7 +98,7 @@ namespace GameWIP::Terminal
                         text_.swap(state_.formatScratch);
                     }
                 }
-                // NOLINTNEXTLINE(bugprone-empty-catch)
+                // NOLINTNEXTLINE(bugprone-empty-catch) -- Scratch retention is best-effort at a noexcept cleanup boundary.
                 catch (...)
                 {
                     // Scratch retention is an optimization; destruction must never terminate on cleanup failure.

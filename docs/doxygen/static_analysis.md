@@ -91,7 +91,9 @@ The static-analysis target checks formatting but does not rewrite files. Check o
 ```
 
 Both actions use the repository `.clang-format` and the GameWIP-owned `.cpp`, `.h`, `.hpp`, and `.inl` files under `foundation/`, `tools/`, `engine/`,
-and `game/`. `check` is non-mutating; `apply` reports the maintained files whose content changed.
+and `game/`, whether or not a first-party file has been added to Git yet.
+`check` is non-mutating; `apply` reports the maintained files whose content
+changed.
 
 Review formatter output before committing:
 
@@ -135,7 +137,12 @@ repository quality policy rather than only language-agnostic spot checks:
   catalogs, and supported-source documentation validation.
 
 Third-party `external/` content and generated `build/` output remain outside the
-maintained quality scope.
+maintained quality scope. Full quality enumerates maintained tracked files plus
+non-ignored untracked first-party worktree files so new source, script,
+configuration file, or manual page cannot escape validation merely because it
+has not been staged yet. `-Changed` remains an optimization for ordinary edits;
+changing quality policy conservatively expands validation to the complete
+maintained scope it can affect.
 
 Run the complete repository quality gate locally from the repository root:
 

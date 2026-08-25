@@ -51,6 +51,7 @@ foreach ($file in @('Common.ps1', 'Msys2.ps1', 'Uninstall.ps1'))
 {
     . (Join-Path $SetupRoot (Join-Path 'lib' $file))
 }
+. (Join-Path $SetupRoot 'lib\Orchestration.ps1')
 
 # Setup is required to keep prompting policy separate from execution mode.
 $windowsSource = Get-Content -Raw -LiteralPath $setupScript
@@ -79,6 +80,111 @@ if ($orchestrationSource -notmatch 'Invoke-GameWipToolEnsure')
 if ($orchestrationSource -notmatch 'Uninstall owns its confirmation so inventory is always printed first')
 {
     throw 'Uninstall inventory/consent ordering is not explicit.'
+}
+
+$originalNative = (Get-Command Invoke-GameWipNative).ScriptBlock
+$script:setupNativeForcedOutputMode = $false
+function Invoke-GameWipNative
+{
+    param([string]$Name, [string]$FilePath, [string[]]$Arguments = @(), [int[]]$AllowedExitCodes = @(0), [string]$OutputMode)
+    $null = $Name, $FilePath, $Arguments, $AllowedExitCodes
+    $script:setupNativeForcedOutputMode = $PSBoundParameters.ContainsKey('OutputMode')
+    return [pscustomobject]@{ ExitCode = 0 }
+}
+try
+{
+    Invoke-GameWipSetupNative -FilePath 'sample.exe' | Out-Null
+    if ($script:setupNativeForcedOutputMode)
+    {
+        throw 'Setup native execution forced an output mode instead of inheriting the operation policy.'
+    }
+}
+finally
+{
+    Set-Item -Path function:Invoke-GameWipNative -Value $originalNative
+    Remove-Variable -Name setupNativeForcedOutputMode -Scope Script -ErrorAction SilentlyContinue
+}
+
+$originalSwitchRepositoryBranch = (Get-Command Switch-GameWipRepositoryBranch).ScriptBlock
+$originalInitializeRepository = (Get-Command Initialize-GameWipRepository).ScriptBlock
+$originalTestRepositoryState = (Get-Command Test-GameWipRepositoryState).ScriptBlock
+$script:setupChooseBranch = $null
+function Switch-GameWipRepositoryBranch
+{
+    param([string]$RepositoryRoot, [string]$Branch, [switch]$ChooseBranch)
+    $null = $RepositoryRoot, $Branch
+    $script:setupChooseBranch = [bool]$ChooseBranch
+}
+function Initialize-GameWipRepository
+{
+    param([string]$RepositoryRoot); $null = $RepositoryRoot
+}
+function Test-GameWipRepositoryState
+{
+    param([string]$RepositoryRoot); $null = $RepositoryRoot
+}
+$NonInteractive = $false
+$Branch = ''
+try
+{
+    Invoke-GameWipSetupRepositoryStep
+    if ($script:setupChooseBranch -ne $true)
+    {
+        throw 'Existing interactive setup did not request repository branch selection when -Branch was omitted.'
+    }
+}
+finally
+{
+    Set-Item -Path function:Switch-GameWipRepositoryBranch -Value $originalSwitchRepositoryBranch
+    Set-Item -Path function:Initialize-GameWipRepository -Value $originalInitializeRepository
+    Set-Item -Path function:Test-GameWipRepositoryState -Value $originalTestRepositoryState
+    Remove-Variable -Name setupChooseBranch -Scope Script -ErrorAction SilentlyContinue
+}
+
+$originalSetupRunRoot = [string]$ProjectConfig.storage.runs
+$setupPreviewRoot = 'build/gamewip/temp/setup-preview-test-' + [guid]::NewGuid().ToString('N')
+
+$originalSetupActionBody = (Get-Command Invoke-GameWipSetupActionBody).ScriptBlock
+$script:setupDocsBodyRan = $false
+function Invoke-GameWipSetupActionBody
+{
+    param([string]$SelectedAction)
+    if ($SelectedAction -eq 'docs')
+    {
+        $script:setupDocsBodyRan = $true
+    }
+}
+
+$Preview = $true
+$NonInteractive = $false
+$Yes = $false
+$OutputMode = 'LogOnly'
+$NoColor = $true
+$Quiet = $true
+
+try
+{
+    $ProjectConfig.storage.runs = "$setupPreviewRoot/runs"
+
+    $docsPreview = Invoke-GameWipSetupOperation -SelectedAction docs
+    if ($docsPreview.Status -ne 'passed' -or $script:setupDocsBodyRan)
+    {
+        throw 'setup docs -Preview executed the mutating documentation body.'
+    }
+}
+finally
+{
+    $ProjectConfig.storage.runs = $originalSetupRunRoot
+
+    $setupPreviewPath = Join-Path $repositoryRoot $setupPreviewRoot
+    if (Test-Path -LiteralPath $setupPreviewPath)
+    {
+        Remove-Item -LiteralPath $setupPreviewPath -Recurse -Force
+    }
+
+    Set-Item -Path function:Invoke-GameWipSetupActionBody -Value $originalSetupActionBody
+    Remove-Variable -Name setupDocsBodyRan -Scope Script -ErrorAction SilentlyContinue
+    $Preview = $false
 }
 
 # Common ownership markers use the shared envelope and fail conservatively.

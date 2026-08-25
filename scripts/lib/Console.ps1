@@ -236,7 +236,7 @@ function Read-GameWipYesNo
         if ($key.Key -eq [ConsoleKey]::Escape)
         {
             Write-Host 'cancel'
-            return $false
+            throw [System.OperationCanceledException]::new("$Prompt was cancelled.")
         }
         if ($key.Key -eq [ConsoleKey]::Enter)
         {

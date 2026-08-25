@@ -110,22 +110,45 @@ function Resolve-GameWipWorkflowArgument
 function Get-GameWipWorkflowRunId
 {
     param([Parameter(Mandatory = $true)][string]$WorkflowFile)
-    $runs = Invoke-GameWipGhJson -Arguments @('run', 'list', '--repo', $ProjectConfig.repository, '--workflow', $WorkflowFile, '--event', 'workflow_dispatch', '--branch', $ProjectConfig.defaultBranch, '--limit', '10', '--json', 'databaseId')
+    $runs = Invoke-GameWipGhJson -Arguments @('run', 'list', '--repo', $ProjectConfig.repository, '--workflow', $WorkflowFile, '--event', 'workflow_dispatch', '--branch', $ProjectConfig.defaultBranch, '--user', '@me', '--limit', '10', '--json', 'databaseId')
     return @($runs | ForEach-Object { [string]$_.databaseId })
 }
 
 function Wait-GameWipWorkflowRun
 {
-    param([Parameter(Mandatory = $true)][string]$WorkflowFile, [Parameter(Mandatory = $true)][AllowEmptyCollection()][string[]]$PreviousIds)
+    param(
+        [Parameter(Mandatory = $true)][string]$WorkflowFile,
+        [Parameter(Mandatory = $true)][AllowEmptyCollection()][string[]]$PreviousIds,
+        [Parameter(Mandatory = $true)][datetime]$DispatchedAfter
+    )
+    $threshold = $DispatchedAfter.ToUniversalTime().AddSeconds(-2)
     for ($attempt = 1; $attempt -le 15; ++$attempt)
     {
         Assert-GameWipNotCancelled
         Start-Sleep -Seconds 2
-        $runs = Invoke-GameWipGhJson -Arguments @('run', 'list', '--repo', $ProjectConfig.repository, '--workflow', $WorkflowFile, '--event', 'workflow_dispatch', '--branch', $ProjectConfig.defaultBranch, '--limit', '10', '--json', 'databaseId,url,status,createdAt')
-        $run = @($runs | Where-Object { $PreviousIds -notcontains [string]$_.databaseId } | Select-Object -First 1)
-        if ($run.Count -ne 0)
+        $runs = Invoke-GameWipGhJson -Arguments @('run', 'list', '--repo', $ProjectConfig.repository, '--workflow', $WorkflowFile, '--event', 'workflow_dispatch', '--branch', $ProjectConfig.defaultBranch, '--user', '@me', '--limit', '10', '--json', 'databaseId,url,status,createdAt')
+        $candidates = @(
+            $runs |
+                Where-Object {
+                    $PreviousIds -notcontains [string]$_.databaseId -and
+                    [DateTimeOffset]::Parse([string]$_.createdAt).UtcDateTime -ge $threshold
+                } |
+                Sort-Object {
+                    [DateTimeOffset]::Parse([string]$_.createdAt).UtcDateTime
+                }
+        )
+
+        if ($candidates.Count -eq 1)
         {
-            return $run[0]
+            return $candidates[0]
+        }
+
+        if ($candidates.Count -gt 1)
+        {
+            throw (
+                "Workflow dispatch correlation is ambiguous: {0} matching runs appeared " +
+                "for '{1}' after dispatch. Refusing to attach to an arbitrary run."
+            ) -f $candidates.Count, $WorkflowFile
         }
         Write-Verbose "Waiting for dispatched workflow to appear ($attempt/15)."
     }
@@ -165,10 +188,11 @@ function Invoke-GameWipManualWorkflow
             $phrase = "$phrase $($resolved.ReleaseCommit)"
         }
     }
-    $dispatchState = @{ PreviousIds = @() }
+    $dispatchState = @{ PreviousIds = @(); DispatchedAfter = $null }
     $applied = Invoke-GameWipMutation -Summary "Dispatch '$WorkflowId' on $($ProjectConfig.defaultBranch)." -Risk remote -Plan @($dispatchCommand, 'The dispatched run is a shared GitHub resource.') -TypedPhrase $phrase -Body {
         Assert-GameWipGitHubCli
         $dispatchState.PreviousIds = @(Get-GameWipWorkflowRunId -WorkflowFile $workflowInfo.File)
+        $dispatchState.DispatchedAfter = (Get-Date).ToUniversalTime()
         Invoke-GameWipNative -Name "workflow-dispatch-$WorkflowId" -FilePath gh -Arguments $resolved.Arguments
     }
     if (-not $applied)
@@ -176,7 +200,7 @@ function Invoke-GameWipManualWorkflow
         return
     }
 
-    $run = Wait-GameWipWorkflowRun -WorkflowFile $workflowInfo.File -PreviousIds $dispatchState.PreviousIds
+    $run = Wait-GameWipWorkflowRun -WorkflowFile $workflowInfo.File -PreviousIds $dispatchState.PreviousIds -DispatchedAfter $dispatchState.DispatchedAfter
     if ($null -eq $run)
     {
         Add-GameWipOperationWarning -Message 'Dispatch succeeded, but the new run was not visible within 30 seconds.'; return

@@ -116,14 +116,14 @@ Use `gamewip.bat list` for current presets, modules, project commands, bundles, 
 | `-Count <count>` | Select stress-run count. |
 | `-Parallel <count>` | Select stress worker count. |
 | `-ExtraArgs <arguments>` | Forward arguments only where the selected declarative command permits them. |
-| `-NoBuild` | Do not auto-build a missing prerequisite; fail instead. |
+| `-NoBuild` | Do not build prerequisites automatically; require existing usable build state and fail when it is absent. |
 | `-StopOnFailure` | Stop launching new stress work after the first failure. |
 | `-FailFast` | Stop the quality gate at the first failed check instead of aggregating independent failures. |
-| `-Changed` | Restrict supported quality checks to changed maintained files. Full quality remains the authoritative gate. |
+| `-Changed` | Restrict supported quality work to ordinary changed maintained files. A changed quality policy expands to the complete maintained scope it can affect. |
 | `-Json` | Emit the final structured operation result as JSON. |
 | `-NoWorkspaceTemp` | Keep the caller's TEMP/TMP instead of using operation-owned workspace temp. |
-| `-Preview` | Print the planned scope and perform only action-specific read-only discovery or preflight. Never mutate tracked, machine, or remote state. |
-| `-NonInteractive` | Disable prompts. This never grants mutation consent. |
+| `-Preview` | Print the planned scope and perform only action-specific read-only discovery or preflight. Never mutate local, tracked, machine, or remote state. |
+| `-NonInteractive` | Disable prompts. This never grants mutation consent at any risk class. |
 | `-Yes` | Approve the printed mutation plan for non-interactive execution. |
 | `-Quiet` | Suppress ordinary console presentation while retaining result/log data. |
 | `-NoColor` | Disable color-only presentation. Status text remains explicit. |
@@ -147,12 +147,15 @@ Only one setup or project-helper operation may run at a time. A second command
 fails immediately with an explicit `operation-in-progress` diagnostic instead
 of reading or changing partially updated tools, build trees, or retained state.
 
-`-NonInteractive` changes prompting only. A mutating non-interactive command still requires `-Yes` unless a higher-level
+`-NonInteractive` changes prompting only. Every mutating non-interactive command, including `local` build-tree work, still requires `-Yes` unless a higher-level
 caller has already granted consent. `-Preview` never performs the mutation.
 
 ## Quality and tool policy
 
-`gamewip quality check` is the authoritative local repository quality gate. Independent checks aggregate by default; use
+`gamewip quality check` is the authoritative local repository quality gate.
+Full quality covers maintained tracked files and non-ignored untracked
+first-party files, while preserving the documented generated, historical, and
+third-party exclusions. Independent checks aggregate by default; use
 `-FailFast` only for focused diagnosis. `gamewip quality fix` applies deterministic formatters and then runs the same gate.
 `gamewip quality status` reports maintained-file quality ownership.
 

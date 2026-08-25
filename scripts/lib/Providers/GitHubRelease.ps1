@@ -59,7 +59,7 @@ function Install-GameWipGitHubReleaseTool
     {
         throw "Download failed for '$($Tool.id)': $($downloadResult.Reason)"
     }
-    $actualHash = (Get-FileHash -LiteralPath $download -Algorithm SHA256).Hash.ToLowerInvariant()
+    $actualHash = Get-GameWipFileSha256 -Path $download
     if ($actualHash -ne $asset.sha256)
     {
         throw "SHA256 mismatch for '$($asset.archive)'."

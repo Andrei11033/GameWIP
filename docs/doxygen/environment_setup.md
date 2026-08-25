@@ -50,8 +50,8 @@ The default action opens the persistent menu. The same actions can be run direct
 ```
 
 - `-Preview` prints the planned scope and performs only the action's read-only
-  discovery or preflight. It never mutates tracked or machine state.
-- `-NonInteractive` suppresses prompts; it does not approve mutation.
+  discovery or preflight. It never mutates local, tracked, or machine state; focused `docs` therefore does not configure, build, or open the manual.
+- `-NonInteractive` suppresses prompts; it does not approve mutation at any risk class.
 - `-Yes` grants the printed setup mutation plan for non-interactive use.
 - `-Branch <name>` selects an explicit fetched branch where the action supports repository preparation.
 - `-SkipDocs` skips documentation during complete/update/repair runs.
@@ -76,7 +76,9 @@ Setup uses the same operation model as `gamewip.bat`:
 6. Verify resulting state.
 7. Emit a receipt describing status, changes, preserved resources, and next actions.
 
-A failure after some machine mutation is reported as a failed operation with a truthful partial mutation state. Setup does not
+A failure after mutation actually begins is reported as a failed operation with
+a truthful partial mutation state; a failure before the first mutation remains
+`none`. Setup does not
 claim a generic rollback; rerunnable `setup.bat repair` restores declared desired state.
 
 ## Environment ownership

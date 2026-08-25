@@ -135,16 +135,58 @@ function Invoke-GameWipHttpRead
     )
 
     $lastError = $null
+    $attemptsUsed = 0
     for ($attempt = 1; $attempt -le $MaxAttempts; ++$attempt)
     {
+        $attemptsUsed = $attempt
         Assert-GameWipNotCancelled
         try
         {
             Write-Verbose "HTTP read attempt $attempt/${MaxAttempts}: $Uri"
             if (-not [string]::IsNullOrWhiteSpace($OutFile))
             {
-                Invoke-GameWipHttpDownloadAttempt -Uri $Uri -OutFile $OutFile -Headers $Headers -TimeoutSeconds $TimeoutSeconds -Label $Label
-                return [pscustomobject]@{ State = 'resolved'; Value = $OutFile; Attempts = $attempt; Reason = '' }
+                $fullOutFile = [IO.Path]::GetFullPath($OutFile)
+                $parent = Split-Path -Parent $fullOutFile
+
+                if (-not (Test-Path -LiteralPath $parent -PathType Container))
+                {
+                    Set-GameWipMutationStarted
+                    New-Item -ItemType Directory -Force -Path $parent | Out-Null
+                }
+
+                $temporaryOutFile = Join-Path $parent (
+                    '.{0}.{1}.download' -f
+                    [IO.Path]::GetFileName($fullOutFile),
+                    [guid]::NewGuid().ToString('N')
+                )
+
+                try
+                {
+                    Invoke-GameWipHttpDownloadAttempt `
+                        -Uri $Uri `
+                        -OutFile $temporaryOutFile `
+                        -Headers $Headers `
+                        -TimeoutSeconds $TimeoutSeconds `
+                        -Label $Label
+
+                    Set-GameWipMutationStarted
+                    Move-Item -LiteralPath $temporaryOutFile -Destination $fullOutFile -Force
+                    $temporaryOutFile = $null
+
+                    return [pscustomobject]@{
+                        State = 'resolved'
+                        Value = $fullOutFile
+                        Attempts = $attempt
+                        Reason = ''
+                    }
+                }
+                finally
+                {
+                    if (-not [string]::IsNullOrWhiteSpace([string]$temporaryOutFile))
+                    {
+                        Remove-Item -LiteralPath $temporaryOutFile -Force -ErrorAction SilentlyContinue
+                    }
+                }
             }
             if ($Json)
             {
@@ -178,7 +220,7 @@ function Invoke-GameWipHttpRead
     {
         'request did not complete'
     }
-    return [pscustomobject]@{ State = 'unavailable'; Value = $null; Attempts = $MaxAttempts; Reason = $reason }
+    return [pscustomobject]@{ State = 'unavailable'; Value = $null; Attempts = $attemptsUsed; Reason = $reason }
 }
 
 function Invoke-GameWipHttpJson

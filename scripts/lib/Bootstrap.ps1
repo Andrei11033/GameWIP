@@ -14,23 +14,8 @@ $PresetsPath = Join-Path $RepositoryRoot 'CMakePresets.json'
 
 # Long-lived terminals do not inherit PATH changes made by WinGet installers.
 # Refresh this helper process while preserving its existing path precedence.
-if ([Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT)
-{
-    $pathEntries = [System.Collections.Generic.List[string]]::new()
-    $seenPathEntries = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
-    foreach ($pathValue in @($env:Path, [Environment]::GetEnvironmentVariable('Path', 'Machine'), [Environment]::GetEnvironmentVariable('Path', 'User')))
-    {
-        foreach ($pathEntry in @([string]$pathValue -split [IO.Path]::PathSeparator))
-        {
-            $trimmedPathEntry = $pathEntry.Trim().Trim('"')
-            if (-not [string]::IsNullOrWhiteSpace($trimmedPathEntry) -and $seenPathEntries.Add($trimmedPathEntry))
-            {
-                $pathEntries.Add($trimmedPathEntry) | Out-Null
-            }
-        }
-    }
-    $env:Path = $pathEntries -join [IO.Path]::PathSeparator
-}
+. (Join-Path $ScriptsRoot 'lib\Storage.ps1')
+Update-GameWipProcessPath
 
 foreach ($defaultVariable in @{
         PythonPath = ''
@@ -54,7 +39,6 @@ foreach ($defaultVariable in @{
 
 $libraryFiles = @(
     'Config.ps1',
-    'Storage.ps1',
     'Persistence.ps1',
     'Operation.ps1',
     'Runs.ps1',

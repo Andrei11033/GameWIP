@@ -76,7 +76,7 @@ function Invoke-GameWipFormat
     {
         foreach ($file in $formatFiles)
         {
-            $beforeHashes[$file] = (Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash
+            $beforeHashes[$file] = Get-GameWipFileSha256 -Path $file
         }
     }
 
@@ -117,7 +117,7 @@ function Invoke-GameWipFormat
 
     foreach ($file in $formatFiles)
     {
-        $afterHash = (Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash
+        $afterHash = Get-GameWipFileSha256 -Path $file
         if ($beforeHashes[$file] -ne $afterHash)
         {
             Add-GameWipOperationChange -Message "Formatted $(Get-GameWipRepositoryRelativePath -Path $file)"

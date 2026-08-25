@@ -185,6 +185,7 @@ function Invoke-GameWipProcess
         [hashtable]$Environment = @{},
         [ValidateSet('Summary', 'Stream', 'LogOnly')][string]$OutputMode,
         [ValidateRange(0, 86400)][int]$TimeoutSeconds = 0,
+        [int[]]$SuccessfulExitCodes = @(0),
         [string]$LogPath
     )
 
@@ -401,7 +402,7 @@ function Invoke-GameWipProcess
                 ''
             }))
 
-    if ($OutputMode -eq 'Summary' -and ($exitCode -ne 0 -or $cancelled -or $timedOut))
+    if ($OutputMode -eq 'Summary' -and ($SuccessfulExitCodes -notcontains $exitCode -or $cancelled -or $timedOut))
     {
         foreach ($line in @($combined | Select-Object -Last 40))
         {
@@ -452,11 +453,29 @@ function Invoke-GameWipNative
     }
     $commandLine = ConvertTo-GameWipNativeCommandLine -FilePath $FilePath -Arguments $DisplayArguments
     $step = Initialize-GameWipToolRunStep -Run $Script:OperationContext.Run -Name $Name -CommandLine $commandLine
+    $effectiveOutputMode = if ([string]::IsNullOrWhiteSpace([string]$OutputMode))
+    {
+        if ($null -ne $Script:OperationContext)
+        {
+            [string]$Script:OperationContext.OutputMode
+        }
+        else
+        {
+            'Stream'
+        }
+    }
+    else
+    {
+        $OutputMode
+    }
 
-    Write-Host ''
-    Write-GameWipHost "Starting: $Name" -ForegroundColor Cyan
-    Write-Host "> $commandLine"
-    Write-Host "  log: $($step.LogPath)"
+    if ($effectiveOutputMode -ne 'LogOnly')
+    {
+        Write-Host ''
+        Write-GameWipHost "Starting: $Name" -ForegroundColor Cyan
+        Write-Host "> $commandLine"
+        Write-Host "  log: $($step.LogPath)"
+    }
 
     $effectiveEnvironment = @{}
     foreach ($entry in $Environment.GetEnumerator())
@@ -475,30 +494,30 @@ function Invoke-GameWipNative
         Write-Verbose "PATH prefix: $PathPrefix"
     }
 
-    $effectiveOutputMode = if ([string]::IsNullOrWhiteSpace([string]$OutputMode))
+    try
     {
-        if ($null -ne $Script:OperationContext)
-        {
-            [string]$Script:OperationContext.OutputMode
-        }
-        else
-        {
-            'Stream'
-        }
+        $result = Invoke-GameWipProcess `
+            -FilePath $FilePath `
+            -Arguments $Arguments `
+            -DisplayArguments $DisplayArguments `
+            -Environment $effectiveEnvironment `
+            -TimeoutSeconds $TimeoutSeconds `
+            -OutputMode $effectiveOutputMode `
+            -SuccessfulExitCodes $AllowedExitCodes `
+            -LogPath $step.LogPath
     }
-    else
+    catch [System.OperationCanceledException]
     {
-        $OutputMode
+        Complete-GameWipToolRunStep -Run $Script:OperationContext.Run -Step $step -ExitCode -1 -Status cancelled
+        throw
     }
-    $result = Invoke-GameWipProcess `
-        -FilePath $FilePath `
-        -Arguments $Arguments `
-        -DisplayArguments $DisplayArguments `
-        -Environment $effectiveEnvironment `
-        -TimeoutSeconds $TimeoutSeconds `
-        -OutputMode $effectiveOutputMode `
-        -LogPath $step.LogPath
+    catch
+    {
+        Complete-GameWipToolRunStep -Run $Script:OperationContext.Run -Step $step -ExitCode -1 -Status failed
+        throw
+    }
 
+    Set-GameWipMutationStarted
     $stepStatus = if ($result.Cancelled)
     {
         'cancelled'
@@ -507,7 +526,7 @@ function Invoke-GameWipNative
     {
         'timed-out'
     }
-    elseif ($result.ExitCode -eq 0)
+    elseif ($AllowedExitCodes -contains $result.ExitCode)
     {
         'passed'
     }
@@ -537,6 +556,9 @@ function Invoke-GameWipNative
                 -SuggestedActions @('Inspect the retained step log.', 'Rerun the smallest focused GameWIP command that reproduces the failure.') `
                 -LogPath $step.LogPath)
     }
-    Write-GameWipHost "Finished: $Name" -ForegroundColor Green
+    if ($effectiveOutputMode -ne 'LogOnly')
+    {
+        Write-GameWipHost "Finished: $Name" -ForegroundColor Green
+    }
     return $result
 }

@@ -45,6 +45,7 @@ function New-GameWipOperationContext
         NoColor = [bool]$NoColor
         CancellationRequested = $false
         MutationState = 'none'
+        MutationIntent = $false
         ActiveProcesses = [System.Collections.Generic.List[object]]::new()
         Events = [System.Collections.Generic.List[object]]::new()
         Changes = [System.Collections.Generic.List[string]]::new()
@@ -154,6 +155,7 @@ function Add-GameWipOperationChange
     {
         return
     }
+    Set-GameWipMutationStarted
     $Script:OperationContext.Changes.Add($Message) | Out-Null
 }
 
@@ -195,6 +197,18 @@ function Set-GameWipMutationState
         return
     }
     $Script:OperationContext.MutationState = $State
+}
+
+function Set-GameWipMutationStarted
+{
+    if ($null -eq $Script:OperationContext -or -not $Script:OperationContext.MutationIntent)
+    {
+        return
+    }
+    if ($Script:OperationContext.MutationState -eq 'none')
+    {
+        $Script:OperationContext.MutationState = 'partial'
+    }
 }
 
 function Test-GameWipCancellationRequested
@@ -257,11 +271,6 @@ function Confirm-GameWipMutation
         return $false
     }
 
-    if ($Risk -eq 'local')
-    {
-        return $true
-    }
-
     if ($null -ne $Script:OperationContext -and $Script:OperationContext.Yes)
     {
         return $true
@@ -274,6 +283,11 @@ function Confirm-GameWipMutation
                 -Summary 'This non-interactive operation requires explicit consent.' `
                 -Details "Risk class: $Risk" `
                 -SuggestedActions @('Rerun with -Yes after reviewing the printed plan.', 'Use -Preview to inspect the plan without mutation.'))
+    }
+
+    if ($Risk -eq 'local')
+    {
+        return $true
     }
 
     if (-not [string]::IsNullOrWhiteSpace($TypedPhrase))
@@ -392,7 +406,8 @@ function Invoke-GameWipOperation
         [switch]$Preview,
         [ValidateSet('Summary', 'Stream', 'LogOnly')][string]$OutputMode = 'Stream',
         [switch]$NoColor,
-        [switch]$SuppressReceipt
+        [switch]$SuppressReceipt,
+        [switch]$SuppressOutput
     )
 
     if ($null -ne $Script:OperationContext)
@@ -426,7 +441,14 @@ function Invoke-GameWipOperation
         # Operation bodies communicate through the shared context and terminal
         # presentation. Suppress incidental return values so callers always
         # receive exactly one operation-result object.
-        $null = & $ScriptBlock
+        if ($SuppressOutput)
+        {
+            $null = & $ScriptBlock 6>$null
+        }
+        else
+        {
+            $null = & $ScriptBlock
+        }
         if ($context.MutationState -eq 'partial')
         {
             # A mutation body returned normally after recording a partial state.
@@ -547,8 +569,20 @@ function Invoke-GameWipMutation
         Add-GameWipOperationPreserved -Message 'No mutation was applied.'
         return $false
     }
-    Set-GameWipMutationState -State partial
-    & $Body
-    Set-GameWipMutationState -State complete
+
+    $previousIntent = [bool]$Script:OperationContext.MutationIntent
+    $Script:OperationContext.MutationIntent = $true
+    try
+    {
+        & $Body
+        if ($Script:OperationContext.MutationState -eq 'partial')
+        {
+            Set-GameWipMutationState -State complete
+        }
+    }
+    finally
+    {
+        $Script:OperationContext.MutationIntent = $previousIntent
+    }
     return $true
 }

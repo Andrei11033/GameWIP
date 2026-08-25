@@ -20,6 +20,7 @@ function Write-GameWipTextAtomic
         {
             try
             {
+                Set-GameWipMutationStarted
                 [IO.File]::Replace($temporaryPath, $fullPath, $null, $true)
                 $temporaryPath = $null
                 return
@@ -37,6 +38,7 @@ function Write-GameWipTextAtomic
                 $null = $_.Exception
             }
         }
+        Set-GameWipMutationStarted
         Move-Item -LiteralPath $temporaryPath -Destination $fullPath -Force
         $temporaryPath = $null
     }
