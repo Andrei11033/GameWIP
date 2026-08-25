@@ -303,55 +303,63 @@ function Stop-GameWipOwnedProcess
 {
     param([Parameter(Mandatory = $true)]$Process)
 
-    $ownsProcessGroup = $null -ne $Process.PSObject.Properties['GameWipOwnProcessGroup'] -and [bool]$Process.GameWipOwnProcessGroup
+    $previousLastExitCode = $global:LASTEXITCODE
     try
     {
-        if ($Process.HasExited -and -not $ownsProcessGroup)
+        $ownsProcessGroup = $null -ne $Process.PSObject.Properties['GameWipOwnProcessGroup'] -and [bool]$Process.GameWipOwnProcessGroup
+        try
+        {
+            if ($Process.HasExited -and -not $ownsProcessGroup)
+            {
+                return
+            }
+        }
+        catch
         {
             return
         }
-    }
-    catch
-    {
-        return
-    }
 
-    try
-    {
-        if (Test-GameWipWindowsHost)
+        try
         {
-            & taskkill.exe /PID $Process.Id /T /F *> $null
-        }
-        else
-        {
-            if ($ownsProcessGroup)
+            if (Test-GameWipWindowsHost)
             {
-                $killCommand = Get-Command -Name kill -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
-                if ($null -ne $killCommand)
+                & taskkill.exe /PID $Process.Id /T /F *> $null
+            }
+            else
+            {
+                if ($ownsProcessGroup)
                 {
-                    & $killCommand.Source -KILL -- ("-$($Process.Id)") 2>$null
-                    if ($LASTEXITCODE -eq 0)
+                    $killCommand = Get-Command -Name kill -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+                    if ($null -ne $killCommand)
+                    {
+                        & $killCommand.Source -KILL -- ("-$($Process.Id)") 2>$null
+                        if ($LASTEXITCODE -eq 0)
+                        {
+                            return
+                        }
+                    }
+                    if ($Process.HasExited)
                     {
                         return
                     }
                 }
-                if ($Process.HasExited)
+                $descendantIds = @(Get-GameWipUnixDescendantProcessId -ParentProcessId $Process.Id)
+                Stop-Process -Id $Process.Id -Force -ErrorAction SilentlyContinue
+                [array]::Reverse($descendantIds)
+                foreach ($descendantId in $descendantIds)
                 {
-                    return
+                    Stop-Process -Id $descendantId -Force -ErrorAction SilentlyContinue
                 }
             }
-            $descendantIds = @(Get-GameWipUnixDescendantProcessId -ParentProcessId $Process.Id)
-            Stop-Process -Id $Process.Id -Force -ErrorAction SilentlyContinue
-            [array]::Reverse($descendantIds)
-            foreach ($descendantId in $descendantIds)
-            {
-                Stop-Process -Id $descendantId -Force -ErrorAction SilentlyContinue
-            }
+        }
+        catch
+        {
+            Write-Warning "Could not terminate owned process $($Process.Id): $($_.Exception.Message)"
         }
     }
-    catch
+    finally
     {
-        Write-Warning "Could not terminate owned process $($Process.Id): $($_.Exception.Message)"
+        $global:LASTEXITCODE = $previousLastExitCode
     }
 }
 

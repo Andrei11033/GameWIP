@@ -383,6 +383,20 @@ if (-not (Test-GameWipWindowsHost))
                 throw "Unix cancellation left descendant process $descendantId running."
             }
         }
+        $previousLastExitCode = $global:LASTEXITCODE
+        try
+        {
+            $global:LASTEXITCODE = 73
+            Stop-GameWipOwnedProcess -Process $ownedProcess
+            if ($global:LASTEXITCODE -ne 73)
+            {
+                throw 'Owned-process cleanup leaked a native process exit code.'
+            }
+        }
+        finally
+        {
+            $global:LASTEXITCODE = $previousLastExitCode
+        }
     }
     finally
     {
