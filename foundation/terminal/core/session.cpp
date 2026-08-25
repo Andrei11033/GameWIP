@@ -267,6 +267,7 @@ namespace GameWIP::Terminal
                 }
                 primary.message.push_back('.');
             }
+            // NOLINTNEXTLINE(bugprone-empty-catch)
             catch (...)
             {
                 // The primary failure remains authoritative when diagnostic enrichment cannot allocate.

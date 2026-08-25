@@ -98,6 +98,7 @@ namespace GameWIP::Terminal
                         text_.swap(state_.formatScratch);
                     }
                 }
+                // NOLINTNEXTLINE(bugprone-empty-catch)
                 catch (...)
                 {
                     // Scratch retention is an optimization; destruction must never terminate on cleanup failure.
