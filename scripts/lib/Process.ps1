@@ -80,6 +80,28 @@ function Resolve-GameWipProcessLaunch
     }
 }
 
+function Resolve-GameWipOwnedProcessLaunch
+{
+    param([Parameter(Mandatory = $true)][string]$FilePath, [string[]]$Arguments = @())
+
+    $launch = Resolve-GameWipProcessLaunch -FilePath $FilePath -Arguments $Arguments
+    if (Test-GameWipWindowsHost)
+    {
+        return [pscustomobject]@{ FilePath = $launch.FilePath; ArgumentLine = $launch.ArgumentLine; OwnProcessGroup = $false }
+    }
+    $setsid = Get-Command -Name setsid -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($null -eq $setsid)
+    {
+        return [pscustomobject]@{ FilePath = $launch.FilePath; ArgumentLine = $launch.ArgumentLine; OwnProcessGroup = $false }
+    }
+    $argumentLine = ConvertTo-GameWipNativeArgument -Argument $launch.FilePath
+    if (-not [string]::IsNullOrWhiteSpace([string]$launch.ArgumentLine))
+    {
+        $argumentLine += " $($launch.ArgumentLine)"
+    }
+    return [pscustomobject]@{ FilePath = $setsid.Source; ArgumentLine = $argumentLine; OwnProcessGroup = $true }
+}
+
 function Write-GameWipProcessNewOutput
 {
     param(
@@ -126,7 +148,7 @@ function Start-GameWipOwnedProcess
         [string]$RedirectStandardError
     )
     Assert-GameWipNotCancelled
-    $launch = Resolve-GameWipProcessLaunch -FilePath $FilePath -Arguments $Arguments
+    $launch = Resolve-GameWipOwnedProcessLaunch -FilePath $FilePath -Arguments $Arguments
     $start = @{
         FilePath = $launch.FilePath
         WorkingDirectory = $WorkingDirectory
@@ -149,6 +171,7 @@ function Start-GameWipOwnedProcess
     # Acquire the native handle before a short-lived child can exit. Without
     # this, Windows PowerShell can report ExitCode = 0 for a failed process.
     $null = $process.Handle
+    $process | Add-Member -NotePropertyName GameWipOwnProcessGroup -NotePropertyValue ([bool]$launch.OwnProcessGroup)
     if ($null -ne $Script:OperationContext)
     {
         $Script:OperationContext.ActiveProcesses.Add([pscustomobject]@{
@@ -232,7 +255,7 @@ function Invoke-GameWipProcess
     }
 
     $displayCommandLine = ConvertTo-GameWipNativeCommandLine -FilePath $FilePath -Arguments $DisplayArguments
-    $launch = Resolve-GameWipProcessLaunch -FilePath $FilePath -Arguments $Arguments
+    $launch = Resolve-GameWipOwnedProcessLaunch -FilePath $FilePath -Arguments $Arguments
     $previousEnvironment = @{}
     foreach ($entry in $Environment.GetEnumerator())
     {
@@ -266,6 +289,7 @@ function Invoke-GameWipProcess
         # Acquire the native handle before a short-lived child can exit. Without
         # this, Windows PowerShell can report ExitCode = 0 for a failed process.
         $null = $process.Handle
+        $process | Add-Member -NotePropertyName GameWipOwnProcessGroup -NotePropertyValue ([bool]$launch.OwnProcessGroup)
         if ($null -ne $Script:OperationContext)
         {
             $Script:OperationContext.ActiveProcesses.Add([pscustomobject]@{ Process = $process; Command = $displayCommandLine }) | Out-Null

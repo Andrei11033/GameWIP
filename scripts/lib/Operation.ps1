@@ -303,9 +303,10 @@ function Stop-GameWipOwnedProcess
 {
     param([Parameter(Mandatory = $true)]$Process)
 
+    $ownsProcessGroup = $null -ne $Process.PSObject.Properties['GameWipOwnProcessGroup'] -and [bool]$Process.GameWipOwnProcessGroup
     try
     {
-        if ($Process.HasExited)
+        if ($Process.HasExited -and -not $ownsProcessGroup)
         {
             return
         }
@@ -323,6 +324,22 @@ function Stop-GameWipOwnedProcess
         }
         else
         {
+            if ($ownsProcessGroup)
+            {
+                $killCommand = Get-Command -Name kill -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+                if ($null -ne $killCommand)
+                {
+                    & $killCommand.Source -KILL -- ("-$($Process.Id)") 2>$null
+                    if ($LASTEXITCODE -eq 0)
+                    {
+                        return
+                    }
+                }
+                if ($Process.HasExited)
+                {
+                    return
+                }
+            }
             $descendantIds = @(Get-GameWipUnixDescendantProcessId -ParentProcessId $Process.Id)
             Stop-Process -Id $Process.Id -Force -ErrorAction SilentlyContinue
             [array]::Reverse($descendantIds)

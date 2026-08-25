@@ -342,13 +342,27 @@ if (-not (Test-GameWipWindowsHost))
     {
         New-Item -ItemType Directory -Path $unixCancellationRoot -Force | Out-Null
         $parentScript = Join-Path $unixCancellationRoot 'parent.sh'
-        [IO.File]::WriteAllText($parentScript, "#!/bin/sh`nsleep 60 &`nwait`n", [Text.UTF8Encoding]::new($false))
-        $ownedProcess = Start-GameWipOwnedProcess -FilePath '/bin/sh' -Arguments @($parentScript)
+        $childProcessIdPath = Join-Path $unixCancellationRoot 'child.pid'
+        $parentScriptContent = @('#!/bin/sh', 'child_pid_file=$1', 'sleep 60 &', 'echo $! > "$child_pid_file"', 'wait', '') -join "`n"
+        [IO.File]::WriteAllText($parentScript, $parentScriptContent, [Text.UTF8Encoding]::new($false))
+        $ownedProcess = Start-GameWipOwnedProcess -FilePath '/bin/sh' -Arguments @($parentScript, $childProcessIdPath)
+        if (-not [bool]$ownedProcess.GameWipOwnProcessGroup)
+        {
+            throw 'Unix owned-process launch did not establish an isolated process group.'
+        }
         $discoveryDeadline = [DateTime]::UtcNow.AddSeconds(5)
         do
         {
             Start-Sleep -Milliseconds 100
-            $descendantIds = @(Get-GameWipUnixDescendantProcessId -ParentProcessId $ownedProcess.Id)
+            if (Test-Path -LiteralPath $childProcessIdPath -PathType Leaf)
+            {
+                $childProcessId = 0
+                $childProcessIdText = Get-Content -Raw -LiteralPath $childProcessIdPath
+                if ([int]::TryParse($childProcessIdText.Trim(), [ref]$childProcessId) -and $childProcessId -gt 0)
+                {
+                    $descendantIds = @($childProcessId)
+                }
+            }
         }
         while ($descendantIds.Count -eq 0 -and -not $ownedProcess.HasExited -and [DateTime]::UtcNow -lt $discoveryDeadline)
         if ($descendantIds.Count -eq 0)
@@ -357,9 +371,13 @@ if (-not (Test-GameWipWindowsHost))
         }
         Stop-GameWipOwnedProcess -Process $ownedProcess
         $null = $ownedProcess.WaitForExit(5000)
-        Start-Sleep -Milliseconds 100
         foreach ($descendantId in $descendantIds)
         {
+            $terminationDeadline = [DateTime]::UtcNow.AddSeconds(5)
+            while ($null -ne (Get-Process -Id $descendantId -ErrorAction SilentlyContinue) -and [DateTime]::UtcNow -lt $terminationDeadline)
+            {
+                Start-Sleep -Milliseconds 100
+            }
             if ($null -ne (Get-Process -Id $descendantId -ErrorAction SilentlyContinue))
             {
                 throw "Unix cancellation left descendant process $descendantId running."
