@@ -207,7 +207,7 @@ function Invoke-GameWipTracyToolBuild
     Write-Host "  Verified destination: $destination"
     if (Test-Path -LiteralPath $stageRoot)
     {
-        Invoke-GameWipOwnedTreeRemoval -Path $stageRoot -OwnedRoot $Script:OperationContext.Temp
+        Invoke-GameWipOwnedTreeRemoval -Path $stageRoot -OwnedRoot $Script:OperationContext.Temp -SuppressMutationTracking
     }
     New-Item -ItemType Directory -Path $stageRoot -Force | Out-Null
     New-Item -ItemType Directory -Path $cacheRoot -Force | Out-Null
@@ -360,7 +360,7 @@ function Invoke-GameWipTracyToolBuild
     {
         if ($null -ne $incoming -and (Test-Path -LiteralPath $incoming))
         {
-            Invoke-GameWipOwnedTreeRemoval -Path $incoming -OwnedRoot $destinationParent
+            Invoke-GameWipOwnedTreeRemoval -Path $incoming -OwnedRoot $destinationParent -SuppressMutationTracking
         }
     }
 

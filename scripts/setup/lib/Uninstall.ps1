@@ -122,47 +122,52 @@ function Invoke-GameWipUninstall
         Add-GameWipOperationPreserved -Message 'Uninstall was cancelled; no resources were removed.'
         return
     }
-    Set-GameWipMutationState -State partial
-
-    Invoke-GameWipEditorIntegrationRemoval
-    if (Test-GameWipSetupCommand -Name code)
-    {
-        foreach ($id in @($state.vscodeExtensions | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) }))
+    Invoke-GameWipMutationBody -Body {
+        Invoke-GameWipEditorIntegrationRemoval
+        if (Test-GameWipSetupCommand -Name code)
         {
-            Invoke-GameWipSetupNative -FilePath code -ArgumentList @('--uninstall-extension', $id) -AllowedExitCodes @(0, 1) | Out-Null
+            foreach ($id in @($state.vscodeExtensions | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) }))
+            {
+                Invoke-GameWipSetupNative -FilePath code -ArgumentList @('--uninstall-extension', $id) -AllowedExitCodes @(0, 1) | Out-Null
+            }
         }
-    }
-    if ($null -ne $toolMarker)
-    {
-        Invoke-GameWipOwnedTreeRemoval -Path $toolRoot -OwnedRoot $msysRoot -RequireMarker -MarkerName '.gamewip-managed.json'
-        Add-GameWipOperationChange -Message "Removed managed tool root: $toolRoot"
-    }
-    $cacheRoot = Join-Path $RepositoryRoot $ProjectConfig.storage.cache
-    $tracy = Join-Path $cacheRoot 'tracy'
-    if (Test-Path -LiteralPath $tracy)
-    {
-        Invoke-GameWipOwnedTreeRemoval -Path $tracy -OwnedRoot $cacheRoot
-    }
-    $buildRoot = Join-Path $RepositoryRoot 'build'
-    foreach ($tree in @('dev', 'docs'))
-    {
-        $path = Join-Path $buildRoot $tree
-        if (Test-Path -LiteralPath $path)
+        if ($null -ne $toolMarker)
         {
-            Invoke-GameWipOwnedTreeRemoval -Path $path -OwnedRoot $buildRoot
+            Invoke-GameWipOwnedTreeRemoval -Path $toolRoot -OwnedRoot $msysRoot -RequireMarker -MarkerName '.gamewip-managed.json'
+            Add-GameWipOperationChange -Message "Removed managed tool root: $toolRoot"
         }
+        $cacheRoot = Join-Path $RepositoryRoot $ProjectConfig.storage.cache
+        $tracy = Join-Path $cacheRoot 'tracy'
+        if (Test-Path -LiteralPath $tracy)
+        {
+            Invoke-GameWipOwnedTreeRemoval -Path $tracy -OwnedRoot $cacheRoot
+        }
+        $buildRoot = Join-Path $RepositoryRoot 'build'
+        foreach ($tree in @('dev', 'docs'))
+        {
+            $path = Join-Path $buildRoot $tree
+            if (Test-Path -LiteralPath $path)
+            {
+                Invoke-GameWipOwnedTreeRemoval -Path $path -OwnedRoot $buildRoot
+            }
+        }
+        foreach ($id in @($state.wingetPackages | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) }))
+        {
+            Uninstall-GameWipWingetPackage -Id $id
+        }
+        if ($msysState.Status -eq 'valid' -and $msysState.Marker.payload.installedBySetup -eq $true -and (Test-Path -LiteralPath $msysRoot))
+        {
+            Add-GameWipOperationWarning -Message "MSYS2 was installed by GameWIP but may now contain user data. Review '$msysRoot' manually before removing it."
+        }
+        foreach ($path in @($script:SetupStatePath, (Get-GameWipEditorPreferencePath -RepositoryRoot $RepositoryRoot)))
+        {
+            if (Test-Path -LiteralPath $path -PathType Leaf)
+            {
+                Set-GameWipMutationStarted
+                Remove-Item -LiteralPath $path -Force
+            }
+        }
+        Add-GameWipOperationChange -Message 'Removed setup-owned integrations, packages, and disposable setup state.'
+        Add-GameWipOperationPreserved -Message 'Repository, unknown resources, and MSYS2 user data were preserved.'
     }
-    foreach ($id in @($state.wingetPackages | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) }))
-    {
-        Uninstall-GameWipWingetPackage -Id $id
-    }
-    if ($msysState.Status -eq 'valid' -and $msysState.Marker.payload.installedBySetup -eq $true -and (Test-Path -LiteralPath $msysRoot))
-    {
-        Add-GameWipOperationWarning -Message "MSYS2 was installed by GameWIP but may now contain user data. Review '$msysRoot' manually before removing it."
-    }
-    Remove-Item -LiteralPath $script:SetupStatePath -Force -ErrorAction SilentlyContinue
-    Remove-Item -LiteralPath (Get-GameWipEditorPreferencePath -RepositoryRoot $RepositoryRoot) -Force -ErrorAction SilentlyContinue
-    Add-GameWipOperationChange -Message 'Removed setup-owned integrations, packages, and disposable setup state.'
-    Add-GameWipOperationPreserved -Message 'Repository, unknown resources, and MSYS2 user data were preserved.'
-    Set-GameWipMutationState -State complete
 }

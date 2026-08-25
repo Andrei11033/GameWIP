@@ -65,12 +65,12 @@ function Install-GameWipGitHubReleaseTool
         throw "SHA256 mismatch for '$($asset.archive)'."
     }
 
-    Initialize-GameWipManagedToolRoot
-    $toolRoot = Join-Path ((Get-GameWipManagedToolRoot)) "tools\$($Tool.id)\$Version"
-    New-Item -ItemType Directory -Force -Path $toolRoot | Out-Null
+    $candidateRoot = Join-Path $Script:OperationContext.Temp "candidate-$($Tool.id)"
+    New-Item -ItemType Directory -Path $candidateRoot | Out-Null
+    $executableName = $null
     if ($asset.Contains('format') -and $asset.format -eq 'executable')
     {
-        $destinationName = if ($platformKey -eq 'windows-amd64')
+        $executableName = if ($platformKey -eq 'windows-amd64')
         {
             "$($Tool.id).exe"
         }
@@ -78,25 +78,141 @@ function Install-GameWipGitHubReleaseTool
         {
             [string]$Tool.id
         }
-        Copy-Item -LiteralPath $download -Destination (Join-Path $toolRoot $destinationName) -Force
-        Write-GameWipManagedToolShim -ToolId $Tool.id -Version $Version -ExecutableName $destinationName
-        return
-    }
-    $extractRoot = Join-Path $Script:OperationContext.Temp "extract-$($Tool.id)"
-    New-Item -ItemType Directory -Force -Path $extractRoot | Out-Null
-    if ($asset.archive.EndsWith('.zip'))
-    {
-        Expand-Archive -LiteralPath $download -DestinationPath $extractRoot -Force
+        Copy-Item -LiteralPath $download -Destination (Join-Path $candidateRoot $executableName)
     }
     else
     {
-        Invoke-GameWipProviderNative -Name "extract-$($Tool.id)" -FilePath tar -Arguments @('-xzf', $download, '-C', $extractRoot) | Out-Null
+        $extractRoot = Join-Path $Script:OperationContext.Temp "extract-$($Tool.id)"
+        New-Item -ItemType Directory -Path $extractRoot | Out-Null
+        if ($asset.archive.EndsWith('.zip'))
+        {
+            Expand-Archive -LiteralPath $download -DestinationPath $extractRoot
+        }
+        else
+        {
+            Invoke-GameWipProviderNative -Name "extract-$($Tool.id)" -FilePath tar -Arguments @('-xzf', $download, '-C', $extractRoot) | Out-Null
+        }
+        $binary = Get-ChildItem -LiteralPath $extractRoot -Recurse -File | Where-Object { $_.Name -in @($Tool.id, "$($Tool.id).exe") } | Select-Object -First 1
+        if ($null -eq $binary)
+        {
+            throw "Release archive did not contain '$($Tool.id)'."
+        }
+        $executableName = $binary.Name
+        Copy-Item -LiteralPath $binary.FullName -Destination (Join-Path $candidateRoot $executableName)
     }
-    $binary = Get-ChildItem -LiteralPath $extractRoot -Recurse -File | Where-Object { $_.Name -in @($Tool.id, "$($Tool.id).exe") } | Select-Object -First 1
-    if ($null -eq $binary)
+
+    $candidate = Join-Path $candidateRoot $executableName
+    if (-not (Test-GameWipWindowsHost))
     {
-        throw "Release archive did not contain '$($Tool.id)'."
+        Invoke-GameWipProcess -FilePath chmod -Arguments @('+x', $candidate) -OutputMode LogOnly -TimeoutSeconds 10 | Out-Null
     }
-    Copy-Item -LiteralPath $binary.FullName -Destination (Join-Path $toolRoot $binary.Name) -Force
-    Write-GameWipManagedToolShim -ToolId $Tool.id -Version $Version -ExecutableName $binary.Name
+    $candidateVersion = Get-GameWipToolCandidateVersion -Tool $Tool -Path $candidate
+    if ([string]$candidateVersion -ne $Version)
+    {
+        throw "Staged '$($Tool.id)' reported version '$candidateVersion'; expected '$Version'."
+    }
+
+    Initialize-GameWipManagedToolRoot
+    $managedRoot = Get-GameWipManagedToolRoot
+    $toolsRoot = Join-Path $managedRoot 'tools'
+    $familyRoot = Join-Path $toolsRoot $Tool.id
+    $toolRoot = Join-Path $familyRoot $Version
+    $incoming = Join-Path $toolsRoot ('.{0}.{1}.{2}.incoming' -f $Tool.id, $Version, [guid]::NewGuid().ToString('N'))
+    $shimPath = Join-Path (Join-Path $managedRoot 'bin') $(if (Test-GameWipWindowsHost)
+        {
+            "$($Tool.id).cmd"
+        }
+        else
+        {
+            [string]$Tool.id
+        })
+    $shimBackup = $null
+    $backup = $null
+    $familyCreated = $false
+    $shimReplacementAttempted = $false
+    try
+    {
+        New-Item -ItemType Directory -Path $incoming | Out-Null
+        Copy-Item -LiteralPath $candidate -Destination (Join-Path $incoming $executableName)
+        if (-not (Test-Path -LiteralPath $familyRoot -PathType Container))
+        {
+            Set-GameWipMutationStarted
+            New-Item -ItemType Directory -Path $familyRoot | Out-Null
+            $familyCreated = $true
+        }
+        if (Test-Path -LiteralPath $toolRoot)
+        {
+            $backup = Join-Path $familyRoot ('.{0}.{1}.backup' -f $Version, [guid]::NewGuid().ToString('N'))
+            Set-GameWipMutationStarted
+            Move-Item -LiteralPath $toolRoot -Destination $backup
+        }
+        else
+        {
+            Set-GameWipMutationStarted
+        }
+        try
+        {
+            Move-Item -LiteralPath $incoming -Destination $toolRoot
+            $incoming = $null
+            if (Test-Path -LiteralPath $shimPath -PathType Leaf)
+            {
+                $shimBackup = Join-Path (Split-Path -Parent $shimPath) ('.{0}.{1}.backup' -f $Tool.id, [guid]::NewGuid().ToString('N'))
+                Copy-Item -LiteralPath $shimPath -Destination $shimBackup
+            }
+            $shimReplacementAttempted = $true
+            Write-GameWipManagedToolShim -ToolId $Tool.id -Version $Version -ExecutableName $executableName
+            $installedVersion = Get-GameWipToolCandidateVersion -Tool $Tool -Path $shimPath
+            if ([string]$installedVersion -ne $Version)
+            {
+                throw "Installed '$($Tool.id)' reported version '$installedVersion'; expected '$Version'."
+            }
+        }
+        catch
+        {
+            if ($shimReplacementAttempted -and $null -ne $shimBackup -and (Test-Path -LiteralPath $shimBackup))
+            {
+                [IO.File]::Move($shimBackup, $shimPath, $true)
+                $shimBackup = $null
+            }
+            elseif ($shimReplacementAttempted -and (Test-Path -LiteralPath $shimPath))
+            {
+                Remove-Item -LiteralPath $shimPath -Force
+            }
+            if (Test-Path -LiteralPath $toolRoot)
+            {
+                Invoke-GameWipOwnedTreeRemoval -Path $toolRoot -OwnedRoot $familyRoot -SuppressMutationTracking
+            }
+            if ($null -ne $backup -and (Test-Path -LiteralPath $backup))
+            {
+                Move-Item -LiteralPath $backup -Destination $toolRoot
+                $backup = $null
+            }
+            if ($familyCreated -and (Test-Path -LiteralPath $familyRoot) -and @(Get-ChildItem -LiteralPath $familyRoot -Force).Count -eq 0)
+            {
+                Remove-Item -LiteralPath $familyRoot -Force
+            }
+            throw
+        }
+        if ($null -ne $shimBackup -and (Test-Path -LiteralPath $shimBackup))
+        {
+            Remove-Item -LiteralPath $shimBackup -Force
+            $shimBackup = $null
+        }
+        if ($null -ne $backup -and (Test-Path -LiteralPath $backup))
+        {
+            Invoke-GameWipOwnedTreeRemoval -Path $backup -OwnedRoot $familyRoot -SuppressMutationTracking
+            $backup = $null
+        }
+    }
+    finally
+    {
+        if ($null -ne $incoming -and (Test-Path -LiteralPath $incoming))
+        {
+            Invoke-GameWipOwnedTreeRemoval -Path $incoming -OwnedRoot $toolsRoot -SuppressMutationTracking
+        }
+        if ($null -ne $shimBackup -and (Test-Path -LiteralPath $shimBackup))
+        {
+            Remove-Item -LiteralPath $shimBackup -Force -ErrorAction SilentlyContinue
+        }
+    }
 }

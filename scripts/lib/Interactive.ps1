@@ -116,7 +116,7 @@ function Show-GameWipDevelopmentMenu
                 $id = Read-GameWipNamedChoice -Prompt 'Project command' -Choices @($CommandConfig.ProjectCommands | ForEach-Object { $_.Id }) -Default 'dev-version'
                 if ($null -ne $id)
                 {
-                    Invoke-GameWipInteractiveOperation -Label "run-$id" -Body { Invoke-GameWipMutation -Summary "Run project command '$id'." -Risk local -Plan @('Ensure its executable if missing.', 'Execute the cataloged project command.') -Body { Invoke-GameWipProjectCommand -Id $id } | Out-Null } | Out-Null
+                    Invoke-GameWipInteractiveOperation -Label "run-$id" -Body { Invoke-GameWipMutation -Summary "Run project command '$id'." -Risk local -Plan @('Ensure its executable unless -NoBuild is used.', 'Execute the cataloged project command.') -Body { Invoke-GameWipProjectCommand -Id $id -NoBuild:$NoBuild } | Out-Null } | Out-Null
                 }
             }
             '4'
@@ -154,7 +154,7 @@ function Show-GameWipValidationMenu
                 $preset = Read-GameWipNamedChoice -Prompt 'CTest preset' -Choices (Get-GameWipVisiblePresetName -Kind test) -Default $CommandConfig.DefaultTestPreset
                 if ($null -ne $preset)
                 {
-                    Invoke-GameWipInteractiveOperation -Label "test-$preset" -Body { Invoke-GameWipMutation -Summary "Ensure and run CTest preset '$preset'." -Risk local -Plan @('Build missing prerequisites unless -NoBuild is used.', "ctest --preset $preset") -Body { Invoke-GameWipTestPreset -Name $preset -UseWorkspaceTemp } | Out-Null } | Out-Null
+                    Invoke-GameWipInteractiveOperation -Label "test-$preset" -Body { Invoke-GameWipMutation -Summary "Ensure and run CTest preset '$preset'." -Risk local -Plan @('Build missing prerequisites unless -NoBuild is used.', "ctest --preset $preset") -Body { Invoke-GameWipTestPreset -Name $preset -UseWorkspaceTemp -NoBuild:$NoBuild } | Out-Null } | Out-Null
                 }
             }
             '2'
@@ -162,7 +162,7 @@ function Show-GameWipValidationMenu
                 $module = Read-GameWipNamedChoice -Prompt 'Validation module' -Choices (@('all') + @($CommandConfig.Modules)) -Default $CommandConfig.DefaultModule
                 if ($null -ne $module)
                 {
-                    Invoke-GameWipInteractiveOperation -Label "module-$module" -Body { Invoke-GameWipMutation -Summary "Run validation module '$module'." -Risk local -Plan @('Ensure the validation executable if missing.', 'Execute the selected correctness module.') -Body { Invoke-GameWipValidationModule -Name $module } | Out-Null } | Out-Null
+                    Invoke-GameWipInteractiveOperation -Label "module-$module" -Body { Invoke-GameWipMutation -Summary "Run validation module '$module'." -Risk local -Plan @('Ensure the validation executable unless -NoBuild is used.', 'Execute the selected correctness module.') -Body { Invoke-GameWipValidationModule -Name $module -NoBuild:$NoBuild } | Out-Null } | Out-Null
                 }
             }
             '3'
@@ -172,16 +172,16 @@ function Show-GameWipValidationMenu
                 {
                     $runs = Read-GameWipIntegerValue -Prompt 'Run count' -Default ([int]$CommandConfig.DefaultStressCount)
                     $workers = Read-GameWipIntegerValue -Prompt 'Parallel workers' -Default ([int]$CommandConfig.DefaultStressParallel)
-                    Invoke-GameWipInteractiveOperation -Label "stress-$module" -Body { Invoke-GameWipMutation -Summary "Stress validation module '$module'." -Risk local -Plan @('Ensure the validation executable if missing.', "Run up to $runs validation processes with at most $workers workers.") -Body { Invoke-GameWipStressModule -Name $module -RunCount $runs -MaxParallel $workers } | Out-Null } | Out-Null
+                    Invoke-GameWipInteractiveOperation -Label "stress-$module" -Body { Invoke-GameWipMutation -Summary "Stress validation module '$module'." -Risk local -Plan @('Ensure the validation executable unless -NoBuild is used.', "Run up to $runs validation processes with at most $workers workers.") -Body { Invoke-GameWipStressModule -Name $module -RunCount $runs -MaxParallel $workers -NoBuild:$NoBuild } | Out-Null } | Out-Null
                 }
             }
             '4'
             {
-                Invoke-GameWipInteractiveOperation -Label 'validation-wizard' -Body { Invoke-GameWipValidationCommandWizard } | Out-Null
+                Invoke-GameWipInteractiveOperation -Label 'validation-wizard' -Body { Invoke-GameWipValidationCommandWizard -NoBuild:$NoBuild } | Out-Null
             }
             '5'
             {
-                Invoke-GameWipInteractiveOperation -Label 'benchmark-standard' -Body { Invoke-GameWipMutation -Summary 'Build/run standard benchmark profile.' -Risk local -Plan @('Ensure benchmark executable.', 'Collect retained benchmark result.') -Body { Invoke-GameWipBenchmark -Mode run -ProfileId standard -RepeatCount 0 -MinimumTime '' -RequestedOutput '' -Format json } | Out-Null } | Out-Null
+                Invoke-GameWipInteractiveOperation -Label 'benchmark-standard' -Body { Invoke-GameWipMutation -Summary 'Build/run standard benchmark profile.' -Risk local -Plan @('Ensure benchmark executable unless -NoBuild is used.', 'Collect retained benchmark result.') -Body { Invoke-GameWipBenchmark -Mode run -ProfileId standard -RepeatCount 0 -MinimumTime '' -RequestedOutput '' -Format json -SkipBuild:$NoBuild } | Out-Null } | Out-Null
             }
             '6'
             {
@@ -396,7 +396,7 @@ function Show-GameWipMaintenanceMenu
                 $bundle = Read-GameWipNamedChoice -Prompt 'Bundle' -Choices @($CommandConfig.Bundles | ForEach-Object { $_.Id }) -Default quick
                 if ($null -ne $bundle)
                 {
-                    Invoke-GameWipInteractiveOperation -Label "bundle-$bundle" -Body { Invoke-GameWipMutation -Summary "Run bundle '$bundle'." -Risk local -Plan @('Execute the declared bundle steps in order.') -Body { Invoke-GameWipBundle -Id $bundle } | Out-Null } | Out-Null
+                    Invoke-GameWipInteractiveOperation -Label "bundle-$bundle" -Body { Invoke-GameWipMutation -Summary "Run bundle '$bundle'." -Risk local -Plan @('Execute the declared bundle steps in order.') -Body { Invoke-GameWipBundle -Id $bundle -NoBuild:$NoBuild } | Out-Null } | Out-Null
                 }
             }
             '5'

@@ -361,55 +361,55 @@ function Invoke-GameWipToolUpdate
         return
     }
 
-    Initialize-GameWipManagedToolRoot
-    Set-GameWipMutationState -State partial
+    Invoke-GameWipMutationBody -Body {
+        Initialize-GameWipManagedToolRoot
 
-    foreach ($item in $plan)
-    {
-        Assert-GameWipNotCancelled
-        if (-not $item.Tool.capabilities.update)
+        foreach ($item in $plan)
         {
-            Write-Host "  [skip] $($item.Tool.id): provider does not support updates"
-            continue
+            Assert-GameWipNotCancelled
+            if (-not $item.Tool.capabilities.update)
+            {
+                Write-Host "  [skip] $($item.Tool.id): provider does not support updates"
+                continue
+            }
+            $installTool = Get-GameWipPlannedInstallTool -PlanItem $item -TrackedPlan $trackedPlan
+            $version = if ($installTool.Contains('requiredVersion'))
+            {
+                [string]$installTool.requiredVersion
+            }
+            else
+            {
+                $null
+            }
+            Write-GameWipOperationEvent -Phase execute -Step $item.Tool.id -Severity progress -Message "Installing/verifying $($item.Tool.name) $(if ($version) { $version } else { '' })..."
+            $functionName = Get-GameWipProviderFunction -Tool $installTool -Operation Install
+            & $functionName -Tool $installTool -Version $version
+            $verified = Get-GameWipDetectedTool -Tool $installTool
+            $compatibility = Get-GameWipToolCompatibility -Tool $installTool -Detected $verified
+            if ($compatibility -ne 'compatible' -or -not (Test-GameWipDetectedToolFromDeclaredProvider -Tool $installTool -Detected $verified))
+            {
+                throw "Tool '$($installTool.id)' failed post-install verification (state=$compatibility, location=$($verified.Location))."
+            }
+            Add-GameWipOperationChange -Message "Installed/verified $($installTool.id) at $($verified.Location)"
         }
-        $installTool = Get-GameWipPlannedInstallTool -PlanItem $item -TrackedPlan $trackedPlan
-        $version = if ($installTool.Contains('requiredVersion'))
+
+        foreach ($entry in $trackedPlan.Files.GetEnumerator())
         {
-            [string]$installTool.requiredVersion
+            Assert-GameWipNotCancelled
+            Write-GameWipTextAtomic -Path ([string]$entry.Key) -Content ([string]$entry.Value)
+            Add-GameWipOperationChange -Message "Updated tracked file $(Get-GameWipRepositoryRelativePath -Path ([string]$entry.Key))"
         }
-        else
+
+        if ($trackedPlan.RegistryChanged)
         {
-            $null
+            $script:ProjectTools = Read-GameWipJsonConfig -Path $ProjectToolsPath -Name 'project tools' -SchemaPath (Join-Path $ScriptsRoot 'schemas\project-tools.schema.json')
+            Assert-GameWipProjectToolConfig
         }
-        Write-GameWipOperationEvent -Phase execute -Step $item.Tool.id -Severity progress -Message "Installing/verifying $($item.Tool.name) $(if ($version) { $version } else { '' })..."
-        $functionName = Get-GameWipProviderFunction -Tool $installTool -Operation Install
-        & $functionName -Tool $installTool -Version $version
-        $verified = Get-GameWipDetectedTool -Tool $installTool
-        $compatibility = Get-GameWipToolCompatibility -Tool $installTool -Detected $verified
-        if ($compatibility -ne 'compatible' -or -not (Test-GameWipDetectedToolFromDeclaredProvider -Tool $installTool -Detected $verified))
-        {
-            throw "Tool '$($installTool.id)' failed post-install verification (state=$compatibility, location=$($verified.Location))."
-        }
-        Add-GameWipOperationChange -Message "Installed/verified $($installTool.id) at $($verified.Location)"
+
+        Write-GameWipOperationEvent -Phase verify -Severity info -Message 'Running the complete quality gate after the update...'
+        Invoke-GameWipQuality -Mode check
+        Invoke-GameWipNative -Name 'git-status-after-tool-update' -FilePath 'git' -Arguments @('-C', $RepositoryRoot, 'status', '--short')
     }
-
-    foreach ($entry in $trackedPlan.Files.GetEnumerator())
-    {
-        Assert-GameWipNotCancelled
-        Write-GameWipTextAtomic -Path ([string]$entry.Key) -Content ([string]$entry.Value)
-        Add-GameWipOperationChange -Message "Updated tracked file $(Get-GameWipRepositoryRelativePath -Path ([string]$entry.Key))"
-    }
-
-    if ($trackedPlan.RegistryChanged)
-    {
-        $script:ProjectTools = Read-GameWipJsonConfig -Path $ProjectToolsPath -Name 'project tools' -SchemaPath (Join-Path $ScriptsRoot 'schemas\project-tools.schema.json')
-        Assert-GameWipProjectToolConfig
-    }
-
-    Write-GameWipOperationEvent -Phase verify -Severity info -Message 'Running the complete quality gate after the update...'
-    Invoke-GameWipQuality -Mode check
-    Invoke-GameWipNative -Name 'git-status-after-tool-update' -FilePath 'git' -Arguments @('-C', $RepositoryRoot, 'status', '--short')
-    Set-GameWipMutationState -State complete
 }
 
 function Assert-GameWipPinnedToolAvailable
@@ -555,33 +555,33 @@ function Invoke-GameWipToolEnsure
     {
         return
     }
-    Initialize-GameWipManagedToolRoot
-    Set-GameWipMutationState -State partial
-    foreach ($item in $needed)
-    {
-        Assert-GameWipNotCancelled
-        $tool = $item.Tool
-        if (-not (Test-GameWipWindowsHost) -and $tool.provider.kind -in @('msys2', 'winget'))
+    Invoke-GameWipMutationBody -Body {
+        Initialize-GameWipManagedToolRoot
+        foreach ($item in $needed)
         {
-            throw "Tool '$($tool.id)' uses Windows provider '$($tool.provider.kind)' and must be provisioned by the runner image/package manager."
+            Assert-GameWipNotCancelled
+            $tool = $item.Tool
+            if (-not (Test-GameWipWindowsHost) -and $tool.provider.kind -in @('msys2', 'winget'))
+            {
+                throw "Tool '$($tool.id)' uses Windows provider '$($tool.provider.kind)' and must be provisioned by the runner image/package manager."
+            }
+            $version = if ($tool.Contains('requiredVersion'))
+            {
+                [string]$tool.requiredVersion
+            }
+            else
+            {
+                $null
+            }
+            $functionName = Get-GameWipProviderFunction -Tool $tool -Operation Install
+            & $functionName -Tool $tool -Version $version
+            $verified = Get-GameWipDetectedTool -Tool $tool
+            $state = Get-GameWipToolCompatibility -Tool $tool -Detected $verified
+            if ($state -ne 'compatible')
+            {
+                throw "Tool '$($tool.id)' is '$state' after ensure."
+            }
+            Add-GameWipOperationChange -Message "Ensured $($tool.id) at $($verified.Location)"
         }
-        $version = if ($tool.Contains('requiredVersion'))
-        {
-            [string]$tool.requiredVersion
-        }
-        else
-        {
-            $null
-        }
-        $functionName = Get-GameWipProviderFunction -Tool $tool -Operation Install
-        & $functionName -Tool $tool -Version $version
-        $verified = Get-GameWipDetectedTool -Tool $tool
-        $state = Get-GameWipToolCompatibility -Tool $tool -Detected $verified
-        if ($state -ne 'compatible')
-        {
-            throw "Tool '$($tool.id)' is '$state' after ensure."
-        }
-        Add-GameWipOperationChange -Message "Ensured $($tool.id) at $($verified.Location)"
     }
-    Set-GameWipMutationState -State complete
 }

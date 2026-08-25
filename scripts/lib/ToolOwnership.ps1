@@ -49,10 +49,12 @@ function Initialize-GameWipManagedToolRoot
     $root = (Get-GameWipManagedToolRoot)
     $created = $false
     $origin = 'created'
+    $ownership = $null
     if (Test-Path -LiteralPath $root)
     {
+        $ownership = Get-GameWipManagedToolRootOwnership -Root $root
         $entries = @(Get-ChildItem -LiteralPath $root -Force -ErrorAction SilentlyContinue | Where-Object { $_.Name -ne '.gamewip-managed.json' })
-        if ((Test-GameWipWindowsHost) -and -not (Test-GameWipManagedToolRootOwnership -Root $root) -and $entries.Count -ne 0)
+        if ((Test-GameWipWindowsHost) -and $null -eq $ownership -and $entries.Count -ne 0)
         {
             if (-not $AdoptExisting)
             {
@@ -60,25 +62,34 @@ function Initialize-GameWipManagedToolRoot
             }
             $origin = 'adopted'
         }
-        elseif (-not (Test-GameWipManagedToolRootOwnership -Root $root))
+        elseif ($null -eq $ownership)
         {
             $origin = 'claimedEmpty'
         }
     }
     else
     {
+        Set-GameWipMutationStarted
         New-Item -ItemType Directory -Force -Path $root | Out-Null
         $created = $true
         $origin = 'created'
     }
 
-    $marker = New-GameWipOwnershipMarker -Resource 'project-tools' -Origin $origin -Payload ([ordered]@{
-            installedBySetup = $created -or $origin -ne 'adopted'
-            adoptedByUser = $origin -eq 'adopted'
-        })
-    Write-GameWipJsonAtomic -Path (Join-Path $root '.gamewip-managed.json') -Value $marker
+    if ($null -eq $ownership)
+    {
+        $marker = New-GameWipOwnershipMarker -Resource 'project-tools' -Origin $origin -Payload ([ordered]@{
+                installedBySetup = $created -or $origin -ne 'adopted'
+                adoptedByUser = $origin -eq 'adopted'
+            })
+        Write-GameWipJsonAtomic -Path (Join-Path $root '.gamewip-managed.json') -Value $marker
+    }
     foreach ($name in @('bin', 'tools', 'npm', 'python', 'powershell'))
     {
-        New-Item -ItemType Directory -Force -Path (Join-Path $root $name) | Out-Null
+        $directory = Join-Path $root $name
+        if (-not (Test-Path -LiteralPath $directory -PathType Container))
+        {
+            Set-GameWipMutationStarted
+            New-Item -ItemType Directory -Path $directory | Out-Null
+        }
     }
 }

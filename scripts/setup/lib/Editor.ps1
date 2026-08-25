@@ -57,11 +57,11 @@ function Save-GameWipEditorSelection
     )
 
     $preferencePath = Get-GameWipEditorPreferencePath -RepositoryRoot $RepositoryRoot
-    New-Item -ItemType Directory -Force -Path (Split-Path -Parent $preferencePath) | Out-Null
-    [ordered]@{
+    $preference = [ordered]@{
         schemaVersion = 1
         editors = @($Editors)
-    } | ConvertTo-Json | Set-Content -LiteralPath $preferencePath -Encoding UTF8
+    }
+    Write-GameWipJsonAtomic -Path $preferencePath -Value $preference -Depth 4
 }
 
 function Select-GameWipEditor
@@ -442,7 +442,7 @@ function Invoke-GameWipVsCodeExtensionPackaging
     {
         if (Test-Path -LiteralPath $stagingRoot)
         {
-            Invoke-GameWipOwnedTreeRemoval -Path $stagingRoot -OwnedRoot $Script:OperationContext.Temp
+            Invoke-GameWipOwnedTreeRemoval -Path $stagingRoot -OwnedRoot $Script:OperationContext.Temp -SuppressMutationTracking
         }
     }
 }

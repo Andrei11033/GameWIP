@@ -120,25 +120,27 @@ function Write-GameWipManagedToolShim
         return
     }
     $destination = Join-Path $binRoot $ToolId
-    if (Test-Path -LiteralPath $destination)
-    {
-        Remove-Item -LiteralPath $destination -Force
-    }
+    $temporary = Join-Path $binRoot ('.{0}.{1}.incoming' -f $ToolId, [guid]::NewGuid().ToString('N'))
     try
     {
-        New-Item -ItemType SymbolicLink -Path $destination -Target $source | Out-Null
+        try
+        {
+            New-Item -ItemType SymbolicLink -Path $temporary -Target $source | Out-Null
+        }
+        catch
+        {
+            Copy-Item -LiteralPath $source -Destination $temporary
+        }
+        Invoke-GameWipProcess -FilePath chmod -Arguments @('+x', $temporary) -OutputMode LogOnly -TimeoutSeconds 10 | Out-Null
+        Set-GameWipMutationStarted
+        [IO.File]::Move($temporary, $destination, $true)
     }
-    catch
+    finally
     {
-        Copy-Item -LiteralPath $source -Destination $destination -Force
-    }
-    try
-    {
-        Invoke-GameWipProcess -FilePath chmod -Arguments @('+x', $destination) -OutputMode LogOnly -TimeoutSeconds 10 | Out-Null
-    }
-    catch
-    {
-        $null = $_.Exception
+        if (Test-Path -LiteralPath $temporary)
+        {
+            Remove-Item -LiteralPath $temporary -Force -ErrorAction SilentlyContinue
+        }
     }
 }
 

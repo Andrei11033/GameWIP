@@ -47,11 +47,30 @@ $SetupActionConfig = Read-GameWipJsonConfig -Path (Join-Path $SetupRoot 'config\
 $EditorConfig = Read-GameWipJsonConfig -Path (Join-Path $SetupRoot 'config\editors.json') -Name editors -SchemaPath (Join-Path $repositoryRoot 'scripts\schemas\editors.schema.json')
 $script:SetupStatePath = Join-Path $repositoryRoot (Join-Path $ProjectConfig.storage.state 'setup.json')
 $ToolConfig = @{ MsysRoot = [string]$ProjectConfig.managedEnvironment.msys2Root }
-foreach ($file in @('Common.ps1', 'Msys2.ps1', 'Uninstall.ps1'))
+foreach ($file in @('Common.ps1', 'Msys2.ps1', 'Editor.ps1', 'Uninstall.ps1'))
 {
     . (Join-Path $SetupRoot (Join-Path 'lib' $file))
 }
 . (Join-Path $SetupRoot 'lib\Orchestration.ps1')
+
+$originalSetupStateRoot = [string]$ProjectConfig.storage.state
+$editorStateRoot = 'build/gamewip/temp/editor-state-test-' + [guid]::NewGuid().ToString('N')
+try
+{
+    $ProjectConfig.storage.state = $editorStateRoot
+    Save-GameWipEditorSelection -RepositoryRoot $repositoryRoot -Editors @('vscode')
+    Save-GameWipEditorSelection -RepositoryRoot $repositoryRoot -Editors @('vscode', 'visual-studio')
+    $savedPreference = Get-Content -Raw -LiteralPath (Get-GameWipEditorPreferencePath -RepositoryRoot $repositoryRoot) | ConvertFrom-Json
+    if ($savedPreference.schemaVersion -ne 1 -or @($savedPreference.editors).Count -ne 2)
+    {
+        throw 'Atomic editor preference persistence lost the supported state document.'
+    }
+}
+finally
+{
+    $ProjectConfig.storage.state = $originalSetupStateRoot
+    Remove-Item -LiteralPath (Join-Path $repositoryRoot $editorStateRoot) -Recurse -Force -ErrorAction SilentlyContinue
+}
 
 # Setup is required to keep prompting policy separate from execution mode.
 $windowsSource = Get-Content -Raw -LiteralPath $setupScript
@@ -145,7 +164,13 @@ $originalSetupRunRoot = [string]$ProjectConfig.storage.runs
 $setupPreviewRoot = 'build/gamewip/temp/setup-preview-test-' + [guid]::NewGuid().ToString('N')
 
 $originalSetupActionBody = (Get-Command Invoke-GameWipSetupActionBody).ScriptBlock
+$originalSetupWindowsAssertion = (Get-Command Assert-GameWipSetupWindows).ScriptBlock
 $script:setupDocsBodyRan = $false
+function Assert-GameWipSetupWindows
+{
+    # The preview contract is platform-neutral even though the setup entrypoint
+    # itself is intentionally Windows-only.
+}
 function Invoke-GameWipSetupActionBody
 {
     param([string]$SelectedAction)
@@ -183,6 +208,7 @@ finally
     }
 
     Set-Item -Path function:Invoke-GameWipSetupActionBody -Value $originalSetupActionBody
+    Set-Item -Path function:Assert-GameWipSetupWindows -Value $originalSetupWindowsAssertion
     Remove-Variable -Name setupDocsBodyRan -Scope Script -ErrorAction SilentlyContinue
     $Preview = $false
 }

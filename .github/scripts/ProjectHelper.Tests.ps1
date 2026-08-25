@@ -304,6 +304,14 @@ New-Item -ItemType Directory -Force -Path $runRoot | Out-Null
 try
 {
     $run = Initialize-GameWipToolRun -RepositoryRoot $runRoot -RunLogRoot 'runs' -Tool 'test' -Action 'sample'
+    $firstStep = Initialize-GameWipToolRunStep -Run $run -Name first -CommandLine 'first command'
+    $secondStep = Initialize-GameWipToolRunStep -Run $run -Name second -CommandLine 'second command'
+    if ($firstStep.Index -ne 1 -or $secondStep.Index -ne 2 -or $firstStep.LogPath -eq $secondStep.LogPath)
+    {
+        throw 'Overlapping retained steps did not reserve unique indices and log paths.'
+    }
+    Complete-GameWipToolRunStep -Run $run -Step $secondStep -ExitCode 0
+    Complete-GameWipToolRunStep -Run $run -Step $firstStep -ExitCode 0
     $run.MutationState = 'complete'
     $run.Changes = @('changed sample')
     $summary = Save-GameWipToolRun -Run $run -Status passed
@@ -322,6 +330,43 @@ finally
     if (Test-Path -LiteralPath $runRoot)
     {
         Remove-Item -LiteralPath $runRoot -Recurse -Force
+    }
+}
+
+if (-not (Test-GameWipWindowsHost))
+{
+    $ownedProcess = $null
+    $descendantIds = @()
+    try
+    {
+        $ownedProcess = Start-GameWipOwnedProcess -FilePath '/bin/sh' -Arguments @('-c', 'sleep 60 & wait')
+        Start-Sleep -Milliseconds 250
+        $descendantIds = @(Get-GameWipUnixDescendantProcessId -ParentProcessId $ownedProcess.Id)
+        if ($descendantIds.Count -eq 0)
+        {
+            throw 'Unix cancellation regression could not observe the owned child process.'
+        }
+        Stop-GameWipOwnedProcess -Process $ownedProcess
+        $null = $ownedProcess.WaitForExit(5000)
+        Start-Sleep -Milliseconds 100
+        foreach ($descendantId in $descendantIds)
+        {
+            if ($null -ne (Get-Process -Id $descendantId -ErrorAction SilentlyContinue))
+            {
+                throw "Unix cancellation left descendant process $descendantId running."
+            }
+        }
+    }
+    finally
+    {
+        if ($null -ne $ownedProcess)
+        {
+            Stop-GameWipOwnedProcess -Process $ownedProcess
+        }
+        foreach ($descendantId in $descendantIds)
+        {
+            Stop-Process -Id $descendantId -Force -ErrorAction SilentlyContinue
+        }
     }
 }
 
@@ -366,6 +411,143 @@ try
 finally
 {
     $Script:OperationContext = $null
+}
+
+$managedRootImplementation = (Get-Command Get-GameWipManagedToolRoot).ScriptBlock
+$managedRootTest = Join-Path $repositoryRoot ('build\gamewip\temp\managed-root-test-' + [guid]::NewGuid().ToString('N'))
+function Get-GameWipManagedToolRoot
+{
+    return $managedRootTest
+}
+$Script:OperationContext = New-GameWipOperationContext -Label 'managed-root-idempotence'
+$Script:OperationContext.MutationIntent = $true
+try
+{
+    Initialize-GameWipManagedToolRoot
+    if ($Script:OperationContext.MutationState -ne 'partial')
+    {
+        throw 'Creating the managed tool root did not mark action mutation.'
+    }
+    $markerPath = Join-Path $managedRootTest '.gamewip-managed.json'
+    $markerBefore = Get-Content -Raw -LiteralPath $markerPath
+    $Script:OperationContext.MutationState = 'none'
+    Initialize-GameWipManagedToolRoot
+    if ($Script:OperationContext.MutationState -ne 'none' -or (Get-Content -Raw -LiteralPath $markerPath) -ne $markerBefore)
+    {
+        throw 'Reinitializing a complete managed tool root rewrote persistent state.'
+    }
+}
+finally
+{
+    $Script:OperationContext = $null
+    Set-Item -Path function:Get-GameWipManagedToolRoot -Value $managedRootImplementation
+    Remove-Item -LiteralPath $managedRootTest -Recurse -Force -ErrorAction SilentlyContinue
+}
+
+$managedRootImplementation = (Get-Command Get-GameWipManagedToolRoot).ScriptBlock
+$downloadImplementation = (Get-Command Invoke-GameWipDownload).ScriptBlock
+$hashImplementation = (Get-Command Get-GameWipFileSha256).ScriptBlock
+$candidateVersionImplementation = (Get-Command Get-GameWipToolCandidateVersion).ScriptBlock
+$shimImplementation = (Get-Command Write-GameWipManagedToolShim).ScriptBlock
+$releaseRollbackRoot = Join-Path $repositoryRoot ('build\gamewip\temp\release-rollback-test-' + [guid]::NewGuid().ToString('N'))
+$releaseManagedRoot = Join-Path $releaseRollbackRoot 'managed'
+$releaseOperationTemp = Join-Path $releaseRollbackRoot 'operation'
+function Get-GameWipManagedToolRoot
+{
+    return $releaseManagedRoot
+}
+function Invoke-GameWipDownload
+{
+    param([string]$Uri, [string]$OutFile, [string]$Label)
+    $null = $Uri, $Label
+    [IO.File]::WriteAllText($OutFile, 'candidate', [Text.UTF8Encoding]::new($false))
+    return [pscustomobject]@{ State = 'resolved'; Reason = '' }
+}
+function Get-GameWipFileSha256
+{
+    param([string]$Path)
+    $null = $Path
+    return 'expected-hash'
+}
+function Get-GameWipToolCandidateVersion
+{
+    param([hashtable]$Tool, [string]$Path)
+    $null = $Tool, $Path
+    return '1.0.0'
+}
+function Write-GameWipManagedToolShim
+{
+    param([string]$ToolId, [string]$Version, [string]$ExecutableName)
+    $null = $Version, $ExecutableName
+    $shimName = if (Test-GameWipWindowsHost)
+    {
+        "$ToolId.cmd"
+    }
+    else
+    {
+        $ToolId
+    }
+    Write-GameWipTextAtomic -Path (Join-Path (Join-Path $releaseManagedRoot 'bin') $shimName) -Content 'new shim'
+    throw 'expected shim replacement failure'
+}
+$Script:OperationContext = New-GameWipOperationContext -Label 'release-rollback'
+$Script:OperationContext.MutationIntent = $true
+$Script:OperationContext.Temp = $releaseOperationTemp
+try
+{
+    New-Item -ItemType Directory -Path $releaseOperationTemp -Force | Out-Null
+    Initialize-GameWipManagedToolRoot
+    $oldToolRoot = Join-Path $releaseManagedRoot 'tools/release-test/1.0.0'
+    New-Item -ItemType Directory -Path $oldToolRoot -Force | Out-Null
+    [IO.File]::WriteAllText((Join-Path $oldToolRoot 'old.txt'), 'old tool', [Text.UTF8Encoding]::new($false))
+    $shimName = if (Test-GameWipWindowsHost)
+    {
+        'release-test.cmd'
+    }
+    else
+    {
+        'release-test'
+    }
+    $oldShim = Join-Path (Join-Path $releaseManagedRoot 'bin') $shimName
+    [IO.File]::WriteAllText($oldShim, 'old shim', [Text.UTF8Encoding]::new($false))
+    $releaseTool = @{
+        id = 'release-test'
+        detection = @{ versionArguments = @('--version'); versionPattern = '([0-9.]+)' }
+        provider = @{
+            repository = 'example/example'
+            releaseTag = 'v1.0.0'
+            assets = @{
+                'windows-amd64' = @{ archive = 'release-test.exe'; format = 'executable'; sha256 = 'expected-hash' }
+                'linux-amd64' = @{ archive = 'release-test'; format = 'executable'; sha256 = 'expected-hash' }
+            }
+        }
+    }
+    $replacementFailed = $false
+    try
+    {
+        Install-GameWipGitHubReleaseTool -Tool $releaseTool -Version '1.0.0'
+    }
+    catch
+    {
+        $replacementFailed = $_.Exception.Message -eq 'expected shim replacement failure'
+    }
+    if (-not $replacementFailed -or
+        (Get-Content -Raw -LiteralPath (Join-Path $oldToolRoot 'old.txt')) -ne 'old tool' -or
+        (Get-Content -Raw -LiteralPath $oldShim) -ne 'old shim' -or
+        @(Get-ChildItem -LiteralPath (Join-Path $releaseManagedRoot 'tools') -Force -Recurse | Where-Object Name -match '\.(?:incoming|backup)$').Count -ne 0)
+    {
+        throw 'A failed GitHub-release replacement did not restore the prior tool and shim exactly.'
+    }
+}
+finally
+{
+    $Script:OperationContext = $null
+    Set-Item -Path function:Get-GameWipManagedToolRoot -Value $managedRootImplementation
+    Set-Item -Path function:Invoke-GameWipDownload -Value $downloadImplementation
+    Set-Item -Path function:Get-GameWipFileSha256 -Value $hashImplementation
+    Set-Item -Path function:Get-GameWipToolCandidateVersion -Value $candidateVersionImplementation
+    Set-Item -Path function:Write-GameWipManagedToolShim -Value $shimImplementation
+    Remove-Item -LiteralPath $releaseRollbackRoot -Recurse -Force -ErrorAction SilentlyContinue
 }
 
 $processLogRoot = Join-Path $repositoryRoot ('build\gamewip\temp\process-log-mutation-test-' + [guid]::NewGuid().ToString('N'))

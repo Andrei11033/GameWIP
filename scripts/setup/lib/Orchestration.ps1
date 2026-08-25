@@ -61,7 +61,7 @@ function Show-GameWipSetupHelp
     Write-Host '  setup.bat <action> [-Branch <name>] [-Preview] [-NonInteractive] [-Yes] [-SkipDocs]'
     Write-Host ''
     Write-Host 'Controls:'
-    Write-Host '  -Preview          Print the plan and run only action-specific read-only preflight; never mutate.'
+    Write-Host '  -Preview          Do not apply the requested action; retain only diagnostic run evidence.'
     Write-Host '  -NonInteractive   Disable prompts; it never grants mutation consent.'
     Write-Host '  -Yes              Approve the printed mutation plan in non-interactive use.'
     Write-Host '  -SkipDocs         Skip generated documentation during full/update/repair.'

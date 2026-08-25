@@ -204,7 +204,7 @@ function Invoke-GameWipStaleOperationTempCleanup
         {
             continue
         }
-        Invoke-GameWipOwnedTreeRemoval -Path $directory.FullName -OwnedRoot $tempRoot -RequireMarker
+        Invoke-GameWipOwnedTreeRemoval -Path $directory.FullName -OwnedRoot $tempRoot -RequireMarker -SuppressMutationTracking
     }
 }
 

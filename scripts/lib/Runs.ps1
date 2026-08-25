@@ -41,6 +41,7 @@ function Initialize-GameWipToolRun
         FinishedAt = $null
         Status = 'running'
         MutationState = 'none'
+        NextStepIndex = 1
         Steps = [System.Collections.Generic.List[object]]::new()
         Outputs = [System.Collections.Generic.List[object]]::new()
         Details = [ordered]@{}
@@ -60,7 +61,8 @@ function Initialize-GameWipToolRunStep
         [Parameter(Mandatory = $true)][string]$CommandLine
     )
 
-    $index = $Run.Steps.Count + 1
+    $index = [int]$Run.NextStepIndex
+    $Run.NextStepIndex = $index + 1
     $safeName = ConvertTo-GameWipToolSafeName -Text $Name
     [pscustomobject]@{
         Index = $index

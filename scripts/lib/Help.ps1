@@ -129,7 +129,7 @@ function Show-GameWipHelp
     Write-Host '  list | help'
     Write-Host ''
     Write-Host 'Common control options:'
-    Write-Host '  -Preview          Print the plan and run only action-specific read-only preflight; never mutate.'
+    Write-Host '  -Preview          Do not apply the requested action; retain only diagnostic run evidence.'
     Write-Host '  -NonInteractive   Never prompt. This does not grant consent for any mutation risk.'
     Write-Host '  -Yes              Grant consent after the operation plan is known.'
     Write-Host '  -NoBuild          Do not build prerequisites automatically; require existing usable build state.'

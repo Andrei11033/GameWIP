@@ -50,7 +50,9 @@ The default action opens the persistent menu. The same actions can be run direct
 ```
 
 - `-Preview` prints the planned scope and performs only the action's read-only
-  discovery or preflight. It never mutates local, tracked, or machine state; focused `docs` therefore does not configure, build, or open the manual.
+  discovery or preflight. It does not apply the requested local, tracked, or
+  machine mutation; diagnostic run logs and receipts are still retained.
+  Focused `docs` therefore does not configure, build, or open the manual.
 - `-NonInteractive` suppresses prompts; it does not approve mutation at any risk class.
 - `-Yes` grants the printed setup mutation plan for non-interactive use.
 - `-Branch <name>` selects an explicit fetched branch where the action supports repository preparation.

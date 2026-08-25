@@ -167,7 +167,8 @@ function Invoke-GameWipOwnedTreeRemoval
         [Parameter(Mandatory = $true)][string]$Path,
         [Parameter(Mandatory = $true)][string]$OwnedRoot,
         [switch]$RequireMarker,
-        [string]$MarkerName = '.gamewip-owned.json'
+        [string]$MarkerName = '.gamewip-owned.json',
+        [switch]$SuppressMutationTracking
     )
     if (-not (Test-Path -LiteralPath $Path))
     {
@@ -179,6 +180,10 @@ function Invoke-GameWipOwnedTreeRemoval
         throw "Refusing to delete unmarked GameWIP tree '$canonicalPath'."
     }
     Assert-GameWipNoReparsePointInOwnedTree -Path $canonicalPath
+    if (-not $SuppressMutationTracking)
+    {
+        Set-GameWipMutationStarted
+    }
     Remove-Item -LiteralPath $canonicalPath -Recurse -Force
 }
 
@@ -189,6 +194,6 @@ function Complete-GameWipOperationTemp
         return
     }
     $tempRoot = Resolve-GameWipStoragePath -RelativePath $ProjectConfig.storage.temp
-    Invoke-GameWipOwnedTreeRemoval -Path $Script:OperationContext.Temp -OwnedRoot $tempRoot -RequireMarker
+    Invoke-GameWipOwnedTreeRemoval -Path $Script:OperationContext.Temp -OwnedRoot $tempRoot -RequireMarker -SuppressMutationTracking
     $Script:OperationContext.Temp = $null
 }
