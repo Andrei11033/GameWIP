@@ -2,8 +2,8 @@
 
 Use these rules when designing or reviewing a reusable public C++ API. They
 give GameWIP libraries a common vocabulary for names, text, failures,
-ownership, threading, performance, and compatibility, so a caller does not
-have to relearn those fundamentals for every package.
+ownership, threading, performance, and compatibility. Callers should not need
+to relearn those fundamentals for every package.
 
 A library manual may strengthen or narrow a rule when its domain requires it.
 That local contract must be stated explicitly and remain compatible with the

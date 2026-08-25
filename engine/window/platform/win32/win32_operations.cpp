@@ -113,7 +113,7 @@ namespace GameWIP::Window::Detail::Platform
                 return nullptr;
             }
 
-            // CreateDIBSection owns pixels and guarantees image.rgba8.size() writable bytes for this 32-bit DIB.
+            // The returned bitmap owns pixel storage with image.rgba8.size() writable bytes for this 32-bit DIB.
 #if defined(__clang__)
 #pragma clang unsafe_buffer_usage begin
 #endif

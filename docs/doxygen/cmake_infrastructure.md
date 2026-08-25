@@ -32,7 +32,7 @@ Use @ref project_build for normal configure and build commands. Use @ref project
 | `CMakePresets.json` | Supported configure, build, and test presets. |
 | `cmake/GameWIPOptions.cmake` | Project composition options and option compatibility checks. |
 | `cmake/GameWIPPlatform.cmake` | Normalized platform resolution and required backend-file inclusion. |
-| `cmake/GameWIPPackage.cmake` | Repeated package config, version, and export installation ceremony. |
+| `cmake/GameWIPPackage.cmake` | Shared package configuration, version, and export installation. |
 | `cmake/GameWIPWarnings.cmake` | First-party C++ warning policy, including opt-in warnings as errors. |
 | `cmake/LibraryDoxygen.cmake` | Doxygen input registration and generated documentation target creation. |
 | `cmake/GameWIPDocumentation.cmake` | Project-level Doxygen page registration. |

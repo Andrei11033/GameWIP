@@ -145,9 +145,9 @@ Draft pull requests may be incomplete while work is still moving.
 
 Dependabot pull requests are exempt from the human metadata check, but they still run the normal validation workflow.
 
-## Record what the change actually proved
+## Record concrete validation evidence
 
-Validation notes should be concrete enough that a future maintainer understands what was actually proven.
+Validation notes should be concrete enough that a future maintainer understands which behavior was verified.
 
 Good examples:
 

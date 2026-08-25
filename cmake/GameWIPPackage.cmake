@@ -1,6 +1,6 @@
 include_guard(GLOBAL)
 
-# Provides the repeated mechanical package-config/export installation ceremony.
+# Centralizes repeated package configuration and export installation.
 #
 # Public helper:
 # - gamewip_install_package(TARGET <target> CONFIG_TEMPLATE <file> [PATH_VARS <variables>...])

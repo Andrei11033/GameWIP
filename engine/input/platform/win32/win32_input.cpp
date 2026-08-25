@@ -1226,7 +1226,7 @@ namespace
         if (reportOffsetInInput > rawInputSize || reportBytes > rawInputSize - reportOffsetInInput)
             return false;
 
-        // GetRawInputData owns the surrounding allocation and reports rawInputSize; the checks above bound the flexible-array member.
+        // The caller-owned buffer contains rawInputSize bytes; the checks above bound the flexible-array member.
 #if defined(__clang__)
 #pragma clang unsafe_buffer_usage begin
 #endif

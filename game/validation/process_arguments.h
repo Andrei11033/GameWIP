@@ -11,7 +11,7 @@ namespace GameWIP::Validation
     using ProcessArguments = std::span<char *const>;
 
     /// @brief Converts the C++ entry-point argument pair into a borrowed bounded view.
-    /// @note The language runtime owns argv and guarantees argc accessible entries for the process lifetime.
+    /// @note The language runtime owns @p argv and provides @p argc accessible argument pointers for the process lifetime.
     [[nodiscard]] inline ProcessArguments processArguments(int argc, char **argv) noexcept
     {
         if (argc <= 0 || argv == nullptr)
