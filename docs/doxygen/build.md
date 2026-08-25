@@ -124,6 +124,7 @@ Project composition options use the `GAMEWIP_` prefix and are defined in `cmake/
 | `GAMEWIP_BUILD_TESTS` | `ON` | Builds the standalone `GameWIPTests` executable and CTest entries. |
 | `GAMEWIP_BUILD_BENCHMARKS` | `OFF` | Builds the standalone `GameWIPBenchmarks` executable. |
 | `GAMEWIP_WARNINGS_AS_ERRORS` | `OFF` | Promotes maintained first-party compiler warnings to errors. |
+| `GAMEWIP_ENABLE_UNSAFE_BUFFER_WARNINGS` | `OFF` | Enables Clang's experimental unsafe-buffer migration diagnostics. |
 | `GAMEWIP_ENABLE_STARTUP_TESTS` | `OFF` | Compiles correctness tests into `GameWIP` for explicit `--startup-tests` execution. |
 | `GAMEWIP_RUN_BENCHMARKS_AT_STARTUP` | `OFF` | Compiles benchmark entry points into `GameWIP` and runs them after startup tests. |
 | `GAMEWIP_ENABLE_TRACY` | `ON` | Enables Tracy profiler integration when selected by a preset. |
@@ -140,6 +141,16 @@ Preset cache values may intentionally override source defaults. For example, the
 
 `GAMEWIP_WARNINGS_AS_ERRORS` remains `OFF` for ordinary local work so developers can inspect the warning baseline without a forced Werror policy.
 Maintained first-party CI validation sets it to `ON`; external dependency targets retain their own warning policy.
+
+The maintained GNU and Clang warning profiles reject conversion, lifetime, format, virtual-dispatch, switch, and declaration mistakes. The Clang-only
+`buffer-safety` preset additionally reports raw pointer arithmetic, unchecked buffer indexing, and C-style buffer operations. That diagnostic is a
+migration inventory rather than a defect oracle, so the preset leaves warnings visible without promoting them to errors:
+
+```powershell
+$env:PATH = "C:\MSYS2\clang64\bin;$env:PATH"
+cmake --preset buffer-safety
+cmake --build --preset buffer-safety
+```
 
 ## Option constraints
 

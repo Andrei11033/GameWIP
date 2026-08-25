@@ -341,18 +341,21 @@ namespace GameWIP::Logger::Detail::Core
     // Worker helpers
     //-------------------------------------------------------------------------------------------------
 
-    /// @brief Returns whether the exact next ordered ring slot is ready for the worker.
-    [[nodiscard]] bool queueHeadIsPublished() noexcept
+    namespace
     {
-        const std::size_t capacity = loggerState().logRingSize;
-        if (capacity == 0)
+        /// @brief Returns whether the exact next ordered ring slot is ready for the worker.
+        [[nodiscard]] bool queueHeadIsPublished() noexcept
         {
-            return false;
-        }
+            const std::size_t capacity = loggerState().logRingSize;
+            if (capacity == 0)
+            {
+                return false;
+            }
 
-        const std::size_t ticket = loggerState().dequeueTicket.load(std::memory_order_acquire);
-        return loggerState().logRing[ticket % capacity].sequence.load(std::memory_order_acquire) == ticket + 1;
-    }
+            const std::size_t ticket = loggerState().dequeueTicket.load(std::memory_order_acquire);
+            return loggerState().logRing[ticket % capacity].sequence.load(std::memory_order_acquire) == ticket + 1;
+        }
+    } // namespace
 
     /// @brief Worker thread entry point that drains queued entries and writes output sinks.
     void loggerWorker()

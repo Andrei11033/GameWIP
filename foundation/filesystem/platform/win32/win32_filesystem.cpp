@@ -40,6 +40,8 @@ namespace GameWIP::FileSystem::Detail::Platform
 
         /// @brief Native sharing used for metadata traversal that must not block ordinary owners.
         constexpr DWORD kShareAll = FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE;
+        constexpr DWORD kShareWithoutDelete = kShareAll & ~static_cast<DWORD>(FILE_SHARE_DELETE);
+        constexpr DWORD kAttributesWithoutReadOnly = ~static_cast<DWORD>(FILE_ATTRIBUTE_READONLY);
         /// @brief Minimum native access required for stable metadata queries.
         constexpr ACCESS_MASK kQueryAccess = FILE_READ_ATTRIBUTES | SYNCHRONIZE;
         /// @brief Native access required while traversing directory components by handle.
@@ -1228,8 +1230,7 @@ namespace GameWIP::FileSystem::Detail::Platform
 
             if (symlinkPolicy == Types::SymlinkPolicy::FollowAll)
             {
-                OpenPathResult opened =
-                    openExistingPath(path, symlinkPolicy, kQueryAccess, kShareAll & ~FILE_SHARE_DELETE, true, ErrorCode::StatFailed);
+                OpenPathResult opened = openExistingPath(path, symlinkPolicy, kQueryAccess, kShareWithoutDelete, true, ErrorCode::StatFailed);
                 if (!opened.status.ok())
                 {
                     return {.status = std::move(opened.status)};
@@ -1251,7 +1252,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             }
 
             std::vector<UniqueHandle> handles;
-            const DWORD stableShare = kShareAll & ~FILE_SHARE_DELETE;
+            const DWORD stableShare = kShareWithoutDelete;
             if (parsedPath.components.empty())
             {
                 HandleResult root = openRootDirectory(parsedPath.root, stableShare);
@@ -1689,7 +1690,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             }
             else
             {
-                basicInfo.FileAttributes &= ~FILE_ATTRIBUTE_READONLY;
+                basicInfo.FileAttributes &= kAttributesWithoutReadOnly;
                 if (basicInfo.FileAttributes == 0)
                 {
                     basicInfo.FileAttributes = FILE_ATTRIBUTE_NORMAL;
@@ -1725,7 +1726,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             }
             else
             {
-                destinationInfo.FileAttributes &= ~FILE_ATTRIBUTE_READONLY;
+                destinationInfo.FileAttributes &= kAttributesWithoutReadOnly;
                 if (destinationInfo.FileAttributes == 0)
                 {
                     destinationInfo.FileAttributes = FILE_ATTRIBUTE_NORMAL;
@@ -2011,7 +2012,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             }
 
             const HANDLE parentHandle = static_cast<HANDLE>(parent.stableHandles.back());
-            HandleResult childHandle = openChild(parentHandle, childName, true, true, kShareAll & ~FILE_SHARE_DELETE);
+            HandleResult childHandle = openChild(parentHandle, childName, true, true, kShareWithoutDelete);
             if (!childHandle.status.ok())
             {
                 return {.status = std::move(childHandle.status)};

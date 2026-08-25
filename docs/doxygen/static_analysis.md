@@ -100,6 +100,23 @@ git diff --check
 git diff -- foundation tools engine game
 ```
 
+## Unsafe-buffer migration audit
+
+Clang's `-Wunsafe-buffer-usage` diagnostic is available through the `buffer-safety` configure and build presets. It deliberately remains outside the
+warnings-as-errors baseline because it reports migration candidates at raw operating-system interfaces, bounded encoding routines, test entry-point
+arguments, and custom storage implementations even when the surrounding code has already established the bound.
+
+Run the audit from a CLANG64 environment and review every emitted diagnostic in context:
+
+```powershell
+$env:PATH = "C:\MSYS2\clang64\bin;$env:PATH"
+cmake --preset buffer-safety
+cmake --build --preset buffer-safety
+```
+
+Prefer bounded containers and spans when they improve the owning interface. Keep ABI-required pointer use local, and do not silence the warning across
+an entire target merely to make the migration inventory empty.
+
 Do not run project formatting over `external/`, generated build trees, generated documentation output, or other third-party artifacts. The checked-in
 Unicode property header is a deliberate maintained-source exception: its regeneration workflow applies the repository formatter before reproducibility
 comparison.

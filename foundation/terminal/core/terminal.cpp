@@ -853,17 +853,17 @@ namespace GameWIP::Terminal
             {
                 const auto assembled = std::as_bytes(std::span<const char>(state.assembly.data(), state.assembly.size()));
                 IO::Types::WriteResult result = Detail::Platform::writeBytes(stream, assembled);
-                IO::Types::Status status = std::move(result.status);
-                if (status.ok() && result.bytesWritten != assembled.size())
+                IO::Types::Status writeStatus = std::move(result.status);
+                if (writeStatus.ok() && result.bytesWritten != assembled.size())
                 {
-                    status = IO::makeStatus(ErrorCode::PartialWrite);
+                    writeStatus = IO::makeStatus(ErrorCode::PartialWrite);
                 }
-                if (status.ok())
+                if (writeStatus.ok())
                 {
-                    status = flushIfRequested(stream, options.flushMode);
+                    writeStatus = flushIfRequested(stream, options.flushMode);
                 }
                 releaseLargeAssembly(state);
-                return status;
+                return writeStatus;
             }
 
             return writeAssembly(stream, state, options.flushMode);

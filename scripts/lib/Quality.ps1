@@ -392,8 +392,11 @@ function Invoke-GameWipQualityCheck
 function Invoke-GameWipQualityFix
 {
     $qualityConfig = Join-Path $RepositoryRoot 'config\quality'
+    $pythonFiles = @(Get-GameWipMaintainedTrackedFile -Extensions @('.py'))
+    $ruff = Get-GameWipQualityTool -Id ruff
     Invoke-GameWipFormat -Mode apply
-    Invoke-GameWipQualityNative -Name ruff-format -FilePath (Get-GameWipQualityTool -Id ruff) -Arguments (@('format', '--config', (Join-Path $qualityConfig 'ruff.toml')) + @(Get-GameWipMaintainedTrackedFile -Extensions @('.py')))
+    Invoke-GameWipQualityNative -Name ruff-fix -FilePath $ruff -Arguments (@('check', '--fix', '--config', (Join-Path $qualityConfig 'ruff.toml')) + $pythonFiles)
+    Invoke-GameWipQualityNative -Name ruff-format -FilePath $ruff -Arguments (@('format', '--config', (Join-Path $qualityConfig 'ruff.toml')) + $pythonFiles)
     Invoke-GameWipPowerShellQuality -Fix
     Invoke-GameWipQualityNative -Name prettier-write -FilePath (Get-GameWipQualityTool -Id prettier) -Arguments @('--config', (Join-Path $qualityConfig 'prettier.json'), '--ignore-path', (Join-Path $qualityConfig 'prettier.ignore'), '--write', '**/*.{js,json,jsonc,yml,yaml,css}')
     Invoke-GameWipQualityNative -Name prettier-special-json-write -FilePath (Get-GameWipQualityTool -Id prettier) -Arguments (@('--config', (Join-Path $qualityConfig 'prettier.json'), '--parser', 'json', '--write') + @(Get-GameWipMaintainedTrackedFile -ExactNames @('.vsconfig', 'GameWIP.code-workspace')))

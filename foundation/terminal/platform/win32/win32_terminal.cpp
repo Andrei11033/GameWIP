@@ -370,8 +370,9 @@ namespace GameWIP::Terminal::Detail::Platform
                 }
             };
 
-            for (const unsigned char byte : text)
+            for (const char character : text)
             {
+                const auto byte = static_cast<unsigned char>(character);
                 if (byte == '\r')
                 {
                     state.cursorRenderingPosition.column = 0;
@@ -1007,9 +1008,26 @@ namespace GameWIP::Terminal::Detail::Platform
                 return "\r\n";
             case Terminal::Types::Events::NamedKey::Escape:
                 return "\x1b";
-            default:
+            case Terminal::Types::Events::NamedKey::Insert:
+            case Terminal::Types::Events::NamedKey::Delete:
+            case Terminal::Types::Events::NamedKey::Home:
+            case Terminal::Types::Events::NamedKey::End:
+            case Terminal::Types::Events::NamedKey::PageUp:
+            case Terminal::Types::Events::NamedKey::PageDown:
+            case Terminal::Types::Events::NamedKey::ArrowUp:
+            case Terminal::Types::Events::NamedKey::ArrowDown:
+            case Terminal::Types::Events::NamedKey::ArrowLeft:
+            case Terminal::Types::Events::NamedKey::ArrowRight:
+            case Terminal::Types::Events::NamedKey::Begin:
+            case Terminal::Types::Events::NamedKey::CapsLock:
+            case Terminal::Types::Events::NamedKey::NumLock:
+            case Terminal::Types::Events::NamedKey::ScrollLock:
+            case Terminal::Types::Events::NamedKey::PrintScreen:
+            case Terminal::Types::Events::NamedKey::Pause:
+            case Terminal::Types::Events::NamedKey::Menu:
                 return {};
             }
+            return {};
         }
 
         [[nodiscard]] IO::Types::Status appendRepeated(std::string &destination, std::string_view bytes, std::uint32_t count)

@@ -35,10 +35,7 @@ def classify(path: Path, policies: list[dict[str, object]]) -> dict[str, object]
     if exact:
         return exact[0] if len(exact) == 1 else None
     special = [
-        (len(candidate), policy)
-        for policy in policies
-        for candidate in policy.get("suffixes", [])
-        if suffix.lower().endswith(str(candidate).lower())
+        (len(candidate), policy) for policy in policies for candidate in policy.get("suffixes", []) if suffix.lower().endswith(str(candidate).lower())
     ]
     if special:
         special.sort(key=lambda item: item[0], reverse=True)

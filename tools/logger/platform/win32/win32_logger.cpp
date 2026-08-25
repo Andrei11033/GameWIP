@@ -230,7 +230,21 @@ namespace GameWIP::Logger::Detail::Platform
             std::memcpy(formatBuffer, timeFormat.data(), timeFormat.size());
         }
         char timeBuffer[64]{};
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wformat-nonliteral"
+#elif defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wformat-nonliteral"
+#endif
+        // Runtime strftime formats are intentional here. The format is length-bounded,
+        // null-terminated, and has no variadic arguments whose types could mismatch it.
         const std::size_t written = std::strftime(timeBuffer, sizeof(timeBuffer), formatBuffer, &timeInfo);
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#elif defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
         if (written == 0)
         {
             return IO::makeStatus(IO::Types::ErrorCode::NativeFailure, ERROR_INVALID_DATA);

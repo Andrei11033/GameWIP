@@ -25,12 +25,13 @@ function(gamewip_create_static_analysis_targets)
     add_custom_target(
         clang-tidy
         COMMAND
-            "${Python3_EXECUTABLE}" "${GAMEWIP_RUN_CLANG_TIDY_EXECUTABLE}" -p "${CMAKE_BINARY_DIR}" -clang-tidy-binary
+            "${Python3_EXECUTABLE}" -u "${GAMEWIP_RUN_CLANG_TIDY_EXECUTABLE}" -p "${CMAKE_BINARY_DIR}" -clang-tidy-binary
             "${GAMEWIP_CLANG_TIDY_EXECUTABLE}" -config-file "${PROJECT_SOURCE_DIR}/.clang-tidy" -source-filter "${gamewip_owned_source_regex}"
             -header-filter "${gamewip_owned_header_regex}" -exclude-header-filter "${gamewip_excluded_header_regex}" -j "${GAMEWIP_CLANG_TIDY_JOBS}"
             -quiet
         WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
         COMMENT "Running clang-tidy on GameWIP-owned C++ sources"
+        USES_TERMINAL
         VERBATIM
     )
 
@@ -61,6 +62,7 @@ function(gamewip_create_static_analysis_targets)
         COMMAND "${GAMEWIP_CLANG_FORMAT_EXECUTABLE}" --dry-run --Werror ${gamewip_format_files}
         WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
         COMMENT "Checking clang-format for GameWIP-owned C++ sources"
+        USES_TERMINAL
         VERBATIM
     )
 

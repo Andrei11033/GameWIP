@@ -3,9 +3,9 @@
 
 from __future__ import annotations
 
+import json
 import re
 import subprocess
-import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -37,7 +37,10 @@ RETIRED_SELECTORS = (
 )
 LEGACY_SELECTION = ("-Preset", "-Module", "-ProjectCommand", "-Bundle")
 RETIRED_OPERATION_GLOBALS = ("$Script:OperationTemp", "$Script:OperationRun")
-EXTERNAL_LITERAL = re.compile(r"&\s+(git|gh|python3?|npm|winget|cmake|ctest|clang-format|ruff|prettier|eslint|actionlint|yamllint|gersemi|markdownlint-cli2|objdump|pacman|where\.exe|chmod)\b", re.I)
+EXTERNAL_LITERAL = re.compile(
+    r"&\s+(git|gh|python3?|npm|winget|cmake|ctest|clang-format|ruff|prettier|eslint|actionlint|yamllint|gersemi|markdownlint-cli2|objdump|pacman|where\.exe|chmod)\b",
+    re.I,
+)
 
 
 def maintained_worktree_paths() -> list[str]:
@@ -47,11 +50,7 @@ def maintained_worktree_paths() -> list[str]:
         check=True,
         capture_output=True,
     )
-    return [
-        item.decode("utf-8")
-        for item in result.stdout.split(b"\0")
-        if item and (ROOT / item.decode("utf-8")).is_file()
-    ]
+    return [item.decode("utf-8") for item in result.stdout.split(b"\0") if item and (ROOT / item.decode("utf-8")).is_file()]
 
 
 def main() -> int:
@@ -75,16 +74,12 @@ def main() -> int:
             continue
         if normalized == ".github/scripts/check_helper_standardization.py":
             continue
-        cli_contract_surface = (
-            normalized.startswith(("scripts/", ".github/", ".vscode/", "docs/"))
-            or normalized
-            in {
-                "README.md",
-                "docs/doxygen/command_line_tools.md",
-                "docs/doxygen/environment_setup.md",
-                "scripts/setup/README.md",
-            }
-        )
+        cli_contract_surface = normalized.startswith(("scripts/", ".github/", ".vscode/", "docs/")) or normalized in {
+            "README.md",
+            "docs/doxygen/command_line_tools.md",
+            "docs/doxygen/environment_setup.md",
+            "scripts/setup/README.md",
+        }
         if cli_contract_surface:
             for selector in RETIRED_SELECTORS:
                 if selector in text:

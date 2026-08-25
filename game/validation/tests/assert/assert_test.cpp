@@ -64,8 +64,8 @@ namespace
     /// @brief Mutable test state and TestSupport-backed reporting for the Assert suite.
     struct TestContext
     {
-        explicit TestContext(TestSupport::Context &testContext) noexcept
-            : testContext(testContext)
+        explicit TestContext(TestSupport::Context &context) noexcept
+            : testContext(context)
         {
         }
 

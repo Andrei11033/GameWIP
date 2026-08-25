@@ -7,7 +7,24 @@ function Invoke-GameWipConfigurePreset
     param([Parameter(Mandatory = $true)][string]$Name)
     Assert-GameWipValidPreset -Kind 'configure' -Name $Name
     Confirm-GameWipToolchain -PresetName $Name
-    Invoke-GameWipNative -Name "configure-$Name" -FilePath 'cmake' -Arguments @('--preset', $Name) -PathPrefix (Get-GameWipToolchainPathPrefix $Name)
+    $pathPrefix = Get-GameWipToolchainPathPrefix $Name
+    $arguments = @('--preset', $Name)
+    $cache = Join-Path $RepositoryRoot "build\$Name\CMakeCache.txt"
+    if ((Test-GameWipWindowsHost) -and (Test-Path -LiteralPath $cache))
+    {
+        $compilerEntry = Get-Content -LiteralPath $cache | Where-Object { $_ -match '^CMAKE_CXX_COMPILER:(?:FILEPATH|STRING)=' } | Select-Object -First 1
+        if ($null -ne $compilerEntry)
+        {
+            $configuredCompiler = ($compilerEntry -split '=', 2)[1].Replace('/', '\')
+            $expectedRoot = ([IO.Path]::GetFullPath($pathPrefix)).TrimEnd('\') + '\'
+            if (-not $configuredCompiler.StartsWith($expectedRoot, [StringComparison]::OrdinalIgnoreCase))
+            {
+                Write-GameWipOperationEvent -Phase plan -Step "configure-$Name" -Severity info -Message "The cached compiler belongs to a different toolchain; CMake will recreate this preset cache."
+                $arguments += '--fresh'
+            }
+        }
+    }
+    Invoke-GameWipNative -Name "configure-$Name" -FilePath 'cmake' -Arguments $arguments -PathPrefix $pathPrefix
 }
 
 function Invoke-GameWipBuildPreset

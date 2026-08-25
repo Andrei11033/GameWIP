@@ -983,7 +983,20 @@ namespace GameWIP::Terminal
                         }
                     }
                     break;
-                default:
+                case Types::Events::NamedKey::Enter:
+                case Types::Events::NamedKey::Escape:
+                case Types::Events::NamedKey::Insert:
+                case Types::Events::NamedKey::PageUp:
+                case Types::Events::NamedKey::PageDown:
+                case Types::Events::NamedKey::ArrowUp:
+                case Types::Events::NamedKey::ArrowDown:
+                case Types::Events::NamedKey::Begin:
+                case Types::Events::NamedKey::CapsLock:
+                case Types::Events::NamedKey::NumLock:
+                case Types::Events::NamedKey::ScrollLock:
+                case Types::Events::NamedKey::PrintScreen:
+                case Types::Events::NamedKey::Pause:
+                case Types::Events::NamedKey::Menu:
                     break;
                 }
             }

@@ -783,9 +783,9 @@ namespace GameWIP::TestSupport
             else
             {
 #if TEST_SUPPORT_INTERNAL_TEST_HOOKS
-                if (const auto injected = Detail::TestHooks::consumeChildProcessFailure(TestHooks::ChildProcessFailurePoint::Wait))
+                if (const auto waitFailure = Detail::TestHooks::consumeChildProcessFailure(TestHooks::ChildProcessFailurePoint::Wait))
                 {
-                    setFailure(Types::InfrastructureError::WaitFailed, *injected);
+                    setFailure(Types::InfrastructureError::WaitFailed, *waitFailure);
                     result.outcome = Types::Process::Outcome::TerminatedDuringCleanup;
                     static_cast<void>(TerminateJobObject(jobHandle.get(), kTestTerminationCode));
                     static_cast<void>(WaitForSingleObject(processHandle.get(), INFINITE));
@@ -798,9 +798,10 @@ namespace GameWIP::TestSupport
                     {
                         result.outcome = Types::Process::Outcome::TimedOut;
 #if TEST_SUPPORT_INTERNAL_TEST_HOOKS
-                        if (const auto injected = Detail::TestHooks::consumeChildProcessFailure(TestHooks::ChildProcessFailurePoint::ProcessCleanup))
+                        if (const auto cleanupFailure =
+                                Detail::TestHooks::consumeChildProcessFailure(TestHooks::ChildProcessFailurePoint::ProcessCleanup))
                         {
-                            setFailure(Types::InfrastructureError::ProcessCleanupFailed, *injected);
+                            setFailure(Types::InfrastructureError::ProcessCleanupFailed, *cleanupFailure);
                         }
 #endif
                         if (TerminateJobObject(jobHandle.get(), kTestTerminationCode) == FALSE)
@@ -826,11 +827,11 @@ namespace GameWIP::TestSupport
                         bool inspectionFailed = false;
                         std::uint64_t inspectionNativeCode = 0;
 #if TEST_SUPPORT_INTERNAL_TEST_HOOKS
-                        if (const auto injected =
+                        if (const auto inspectionFailure =
                                 Detail::TestHooks::consumeChildProcessFailure(TestHooks::ChildProcessFailurePoint::ProcessInspection))
                         {
                             inspectionFailed = true;
-                            inspectionNativeCode = *injected;
+                            inspectionNativeCode = *inspectionFailure;
                         }
 #endif
                         if (!inspectionFailed && GetExitCodeProcess(processHandle.get(), &exitCode) == FALSE)
@@ -851,9 +852,10 @@ namespace GameWIP::TestSupport
                         }
 
 #if TEST_SUPPORT_INTERNAL_TEST_HOOKS
-                        if (const auto injected = Detail::TestHooks::consumeChildProcessFailure(TestHooks::ChildProcessFailurePoint::ProcessCleanup))
+                        if (const auto cleanupFailure =
+                                Detail::TestHooks::consumeChildProcessFailure(TestHooks::ChildProcessFailurePoint::ProcessCleanup))
                         {
-                            setFailureIfSuccessful(Types::InfrastructureError::ProcessCleanupFailed, *injected);
+                            setFailureIfSuccessful(Types::InfrastructureError::ProcessCleanupFailed, *cleanupFailure);
                         }
 #endif
                         if (TerminateJobObject(jobHandle.get(), kTestTerminationCode) == FALSE)

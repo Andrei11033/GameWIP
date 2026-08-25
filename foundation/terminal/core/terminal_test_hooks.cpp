@@ -115,11 +115,14 @@ namespace GameWIP::Terminal::Detail::TestHooks
         terminalTestHookState.nextTextWriteBlock.condition.notify_all();
     }
 
-    void forceFailure(HookFailure &failure, IO::Types::ErrorCode code) noexcept
+    namespace
     {
-        failure.code.store(static_cast<int>(code), std::memory_order_release);
-        failure.enabled.store(true, std::memory_order_release);
-    }
+        void forceFailure(HookFailure &failure, IO::Types::ErrorCode code) noexcept
+        {
+            failure.code.store(static_cast<int>(code), std::memory_order_release);
+            failure.enabled.store(true, std::memory_order_release);
+        }
+    } // namespace
 } // namespace GameWIP::Terminal::Detail::TestHooks
 
 namespace GameWIP::Terminal::TestHooks

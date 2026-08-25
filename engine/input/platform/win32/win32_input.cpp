@@ -862,8 +862,8 @@ namespace
         if (!runtime.usable)
         {
             InputInternal::InputDeviceRegistryAccess::setDeviceBackendConnected(devices, runtime.device, InputDeviceBackend::RawInputHID, false);
-            const InputDeviceInfo *deviceInfo = devices.findDevice(runtime.device);
-            if (deviceInfo == nullptr || !deviceInfo->connected)
+            const InputDeviceInfo *registeredDevice = devices.findDevice(runtime.device);
+            if (registeredDevice == nullptr || !registeredDevice->connected)
             {
                 InputInternal::InputDeviceRegistryAccess::setDeviceCanonical(devices, runtime.device, false);
             }

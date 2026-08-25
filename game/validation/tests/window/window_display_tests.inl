@@ -81,7 +81,7 @@ void testDisplayColorInformation(TestSupport::Context &context)
     static_cast<void>(
         context.expectEq("unavailable color metadata remains unknown", Window::Types::Display::ColorSpace::Unknown, unavailable.activeColorSpace));
     static_cast<void>(context.expectEq("unavailable color precision remains zero", std::uint16_t{0}, unavailable.bitsPerColorChannel));
-    static_cast<void>(context.expectNear("unavailable SDR white remains zero", 0.0, unavailable.sdrWhiteLevelNits, 0.001));
+    static_cast<void>(context.expectNear("unavailable SDR white remains zero", 0.0, static_cast<double>(unavailable.sdrWhiteLevelNits), 0.001));
 
     const Window::Types::Display::ColorInfo hdrDisabled = Window::TestHooks::makeDisplayColorInfo(
         fixtureMonitor,
@@ -98,11 +98,16 @@ void testDisplayColorInformation(TestSupport::Context &context)
     static_cast<void>(context.expectFalse("HDR-capable disabled fixture remains disabled", hdrDisabled.hdrEnabled));
     static_cast<void>(context.expectEq("HDR-disabled fixture remains SDR", Window::Types::Display::ColorSpace::Srgb, hdrDisabled.activeColorSpace));
     static_cast<void>(context.expectEq("color precision converts to public width", std::uint16_t{10}, hdrDisabled.bitsPerColorChannel));
-    static_cast<void>(context.expectNear("negative luminance becomes unavailable", 0.0, hdrDisabled.minimumLuminanceNits, 0.001));
-    static_cast<void>(context.expectNear("peak luminance keeps nit units", 1000.0, hdrDisabled.maximumLuminanceNits, 0.001));
     static_cast<void>(
-        context.expectNear("non-finite full-frame luminance becomes unavailable", 0.0, hdrDisabled.maximumFullFrameLuminanceNits, 0.001));
-    static_cast<void>(context.expectNear("SDR white converts from 80-nit thousandths", 200.0, hdrDisabled.sdrWhiteLevelNits, 0.001));
+        context.expectNear("negative luminance becomes unavailable", 0.0, static_cast<double>(hdrDisabled.minimumLuminanceNits), 0.001));
+    static_cast<void>(context.expectNear("peak luminance keeps nit units", 1000.0, static_cast<double>(hdrDisabled.maximumLuminanceNits), 0.001));
+    static_cast<void>(context.expectNear(
+        "non-finite full-frame luminance becomes unavailable",
+        0.0,
+        static_cast<double>(hdrDisabled.maximumFullFrameLuminanceNits),
+        0.001));
+    static_cast<void>(
+        context.expectNear("SDR white converts from 80-nit thousandths", 200.0, static_cast<double>(hdrDisabled.sdrWhiteLevelNits), 0.001));
 
     const Window::Types::Display::ColorInfo hdrEnabled = Window::TestHooks::makeDisplayColorInfo(
         fixtureMonitor,

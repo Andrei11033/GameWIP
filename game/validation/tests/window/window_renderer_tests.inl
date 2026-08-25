@@ -41,6 +41,9 @@ void testPointerHitMask(TestSupport::Context &context)
     const std::size_t wordsPerRow = static_cast<std::size_t>(size.width) / bitsPerWord + (size.width % bitsPerWord != 0 ? 1U : 0U);
     const std::size_t wordCount = Feedback::requiredPointerHitMaskWords(size);
     std::vector<MaskWord> words(wordCount);
+    static_cast<void>(context.expectFalse("pointer-mask fixture has nonempty storage", words.empty()));
+    if (words.empty())
+        return;
     words.front() = MaskWord{1};
 
     const std::size_t lastX = static_cast<std::size_t>(size.width) - 1U;

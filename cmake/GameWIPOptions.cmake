@@ -5,6 +5,7 @@ option(GAMEWIP_BUILD_GAME "Build the GameWIP runtime executable" ON)
 option(GAMEWIP_BUILD_TESTS "Build the standalone GameWIPTests executable" ON)
 option(GAMEWIP_BUILD_BENCHMARKS "Build the standalone GameWIPBenchmarks executable" OFF)
 option(GAMEWIP_WARNINGS_AS_ERRORS "Treat GameWIP compiler warnings as build errors" OFF)
+option(GAMEWIP_ENABLE_UNSAFE_BUFFER_WARNINGS "Enable Clang's experimental unsafe-buffer migration diagnostics" OFF)
 option(GAMEWIP_ENABLE_STARTUP_TESTS "Compile correctness tests into the game for opt-in --startup-tests execution" OFF)
 option(GAMEWIP_RUN_BENCHMARKS_AT_STARTUP "Compile and run benchmarks before game startup" OFF)
 

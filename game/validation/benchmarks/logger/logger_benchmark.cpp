@@ -51,6 +51,10 @@ namespace
 
     class LoggerFixture : public benchmark::Fixture
     {
+    public:
+        using benchmark::Fixture::SetUp;
+        using benchmark::Fixture::TearDown;
+
     protected:
         bool initialize(benchmark::State &state, Logger::Types::Config config, std::string_view directoryName = {})
         {
@@ -123,6 +127,8 @@ namespace
     class OutputDisabledFixture : public LoggerFixture
     {
     public:
+        using LoggerFixture::SetUp;
+
         void SetUp(benchmark::State &state) override
         {
             Logger::Types::Config config = baseConfig();
@@ -153,6 +159,8 @@ namespace
     class FilteredFormattedFixture : public LoggerFixture
     {
     public:
+        using LoggerFixture::SetUp;
+
         void SetUp(benchmark::State &state) override
         {
             Logger::Types::Config config = baseConfig();
@@ -179,6 +187,8 @@ namespace
     class EnabledFileFixture : public LoggerFixture
     {
     public:
+        using LoggerFixture::SetUp;
+
         void SetUp(benchmark::State &state) override
         {
             Logger::Types::Config config = baseConfig();
@@ -203,6 +213,8 @@ namespace
     class RegisteredSourceFixture : public LoggerFixture
     {
     public:
+        using LoggerFixture::SetUp;
+
         void SetUp(benchmark::State &state) override
         {
             const std::array sources{Logger::Types::SourceDefinition{registeredSource, "RegisteredBenchmark"}};

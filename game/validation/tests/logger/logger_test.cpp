@@ -65,8 +65,8 @@ namespace
 
     struct TestContext
     {
-        explicit TestContext(TestSupport::Context &testContext) noexcept
-            : testContext(testContext)
+        explicit TestContext(TestSupport::Context &context) noexcept
+            : testContext(context)
         {
         }
 
