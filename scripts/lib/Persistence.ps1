@@ -6,13 +6,33 @@ function Write-GameWipTextAtomic
 {
     param(
         [Parameter(Mandatory = $true)][string]$Path,
-        [Parameter(Mandatory = $true)][AllowEmptyString()][string]$Content
+        [Parameter(Mandatory = $true)][AllowEmptyString()][string]$Content,
+        [switch]$SuppressMutationTracking
     )
 
     $fullPath = [IO.Path]::GetFullPath($Path)
     $directory = Split-Path -Parent $fullPath
-    New-Item -ItemType Directory -Force -Path $directory | Out-Null
-    $temporaryPath = Join-Path $directory ('.{0}.{1}.tmp' -f ([IO.Path]::GetFileName($fullPath)), [guid]::NewGuid().ToString('N'))
+
+    if (-not (Test-Path -LiteralPath $directory -PathType Container))
+    {
+        if (Test-Path -LiteralPath $directory)
+        {
+            throw "Atomic write parent path is not a directory: '$directory'."
+        }
+
+        if (-not $SuppressMutationTracking)
+        {
+            Set-GameWipMutationStarted
+        }
+
+        New-Item -ItemType Directory -Path $directory | Out-Null
+    }
+
+    $temporaryPath = Join-Path $directory (
+        '.{0}.{1}.tmp' -f
+        [IO.Path]::GetFileName($fullPath),
+        [guid]::NewGuid().ToString('N')
+    )
     try
     {
         [IO.File]::WriteAllText($temporaryPath, $Content, [Text.UTF8Encoding]::new($false))
@@ -20,7 +40,10 @@ function Write-GameWipTextAtomic
         {
             try
             {
-                Set-GameWipMutationStarted
+                if (-not $SuppressMutationTracking)
+                {
+                    Set-GameWipMutationStarted
+                }
                 [IO.File]::Replace($temporaryPath, $fullPath, $null, $true)
                 $temporaryPath = $null
                 return
@@ -38,7 +61,10 @@ function Write-GameWipTextAtomic
                 $null = $_.Exception
             }
         }
-        Set-GameWipMutationStarted
+        if (-not $SuppressMutationTracking)
+        {
+            Set-GameWipMutationStarted
+        }
         Move-Item -LiteralPath $temporaryPath -Destination $fullPath -Force
         $temporaryPath = $null
     }

@@ -44,15 +44,20 @@ function Assert-GameWipRunId
     }
 }
 
+$dispatchTime = [datetime]'2026-07-19T00:00:30Z'
+
 $script:WorkflowRunResponses = @(
     [pscustomobject]@{
         databaseId = 9001
         url = 'https://example.invalid/actions/runs/9001'
         status = 'queued'
-        createdAt = '2026-07-19T00:00:00Z'
+        createdAt = '2026-07-19T00:00:31Z'
     }
 )
-$firstRun = Wait-GameWipWorkflowRun -WorkflowFile 'project-automation.yml' -PreviousIds @()
+$firstRun = Wait-GameWipWorkflowRun `
+    -WorkflowFile 'project-automation.yml' `
+    -PreviousIds @() `
+    -DispatchedAfter $dispatchTime
 Assert-GameWipRunId -Run $firstRun -ExpectedId '9001'
 
 $script:WorkflowRunResponses = @(
@@ -66,14 +71,74 @@ $script:WorkflowRunResponses = @(
         databaseId = 9001
         url = 'https://example.invalid/actions/runs/9001'
         status = 'completed'
-        createdAt = '2026-07-19T00:00:00Z'
+        createdAt = '2026-07-19T00:00:31Z'
     }
 )
-$newRun = Wait-GameWipWorkflowRun -WorkflowFile 'project-automation.yml' -PreviousIds @('9002')
-Assert-GameWipRunId -Run $newRun -ExpectedId '9001'
+$newRun = Wait-GameWipWorkflowRun `
+    -WorkflowFile 'project-automation.yml' `
+    -PreviousIds @('9001') `
+    -DispatchedAfter $dispatchTime
+Assert-GameWipRunId -Run $newRun -ExpectedId '9002'
+
+$script:WorkflowRunResponses = @(
+    [pscustomobject]@{
+        databaseId = 9003
+        url = 'https://example.invalid/actions/runs/9003'
+        status = 'queued'
+        createdAt = '2026-07-19T00:00:20Z'
+    }
+)
+$staleRun = Wait-GameWipWorkflowRun `
+    -WorkflowFile 'project-automation.yml' `
+    -PreviousIds @() `
+    -DispatchedAfter $dispatchTime
+if ($null -ne $staleRun)
+{
+    throw 'A workflow run older than the dispatch window was incorrectly correlated.'
+}
+
+$script:WorkflowRunResponses = @(
+    [pscustomobject]@{
+        databaseId = 9004
+        url = 'https://example.invalid/actions/runs/9004'
+        status = 'queued'
+        createdAt = '2026-07-19T00:01:00Z'
+    },
+    [pscustomobject]@{
+        databaseId = 9005
+        url = 'https://example.invalid/actions/runs/9005'
+        status = 'queued'
+        createdAt = '2026-07-19T00:01:01Z'
+    }
+)
+
+$ambiguityRejected = $false
+try
+{
+    $null = Wait-GameWipWorkflowRun `
+        -WorkflowFile 'project-automation.yml' `
+        -PreviousIds @() `
+        -DispatchedAfter $dispatchTime
+}
+catch
+{
+    if ($_.Exception.Message -notmatch 'correlation is ambiguous')
+    {
+        throw
+    }
+    $ambiguityRejected = $true
+}
+
+if (-not $ambiguityRejected)
+{
+    throw 'Ambiguous workflow-run correlation did not fail closed.'
+}
 
 $script:WorkflowRunResponses = @()
-$missingRun = Wait-GameWipWorkflowRun -WorkflowFile 'project-automation.yml' -PreviousIds @()
+$missingRun = Wait-GameWipWorkflowRun `
+    -WorkflowFile 'project-automation.yml' `
+    -PreviousIds @() `
+    -DispatchedAfter $dispatchTime
 if ($null -ne $missingRun)
 {
     throw 'Expected a null result when no workflow run becomes visible.'

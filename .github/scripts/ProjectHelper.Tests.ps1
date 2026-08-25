@@ -368,6 +368,62 @@ finally
     $Script:OperationContext = $null
 }
 
+$processLogRoot = Join-Path $repositoryRoot ('build\gamewip\temp\process-log-mutation-test-' + [guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory -Force -Path $processLogRoot | Out-Null
+
+$Script:OperationContext = New-GameWipOperationContext -Label 'process-log-does-not-count-as-mutation'
+$Script:OperationContext.MutationIntent = $true
+$Script:OperationContext.Temp = $processLogRoot
+
+try
+{
+    $processResult = Invoke-GameWipProcess `
+        -FilePath 'git' `
+        -Arguments @('--version') `
+        -OutputMode LogOnly `
+        -LogPath (Join-Path $processLogRoot 'git-version.log')
+
+    if ($processResult.ExitCode -ne 0)
+    {
+        throw 'Read-only native query failed during mutation-state regression coverage.'
+    }
+
+    if ($Script:OperationContext.MutationState -ne 'none')
+    {
+        throw 'Retained native-process logging was incorrectly counted as action mutation.'
+    }
+}
+finally
+{
+    $Script:OperationContext = $null
+    Remove-Item -LiteralPath $processLogRoot -Recurse -Force -ErrorAction SilentlyContinue
+}
+
+$atomicRoot = Join-Path $repositoryRoot (
+    'build\gamewip\temp\atomic-parent-mutation-test-' +
+    [guid]::NewGuid().ToString('N')
+)
+
+$Script:OperationContext = New-GameWipOperationContext -Label 'atomic-parent-counts-as-mutation'
+$Script:OperationContext.MutationIntent = $true
+
+try
+{
+    Write-GameWipTextAtomic `
+        -Path (Join-Path $atomicRoot 'nested\result.txt') `
+        -Content 'test'
+
+    if ($Script:OperationContext.MutationState -ne 'partial')
+    {
+        throw 'Creating persistent atomic-write state did not mark action mutation.'
+    }
+}
+finally
+{
+    $Script:OperationContext = $null
+    Remove-Item -LiteralPath $atomicRoot -Recurse -Force -ErrorAction SilentlyContinue
+}
+
 if (-not (Test-GameWipQualityPolicyChange -Files @('.clang-format')) -or
     -not (Test-GameWipQualityPolicyChange -Files @('config/quality/ruff.toml')) -or
     (Test-GameWipQualityPolicyChange -Files @('game/main.cpp')))

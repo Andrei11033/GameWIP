@@ -393,14 +393,17 @@ function Invoke-GameWipProcess
             $combined.Add([string]$line) | Out-Null
         }
     }
-    Write-GameWipTextAtomic -Path $LogPath -Content (($combined -join "`n") + $(if ($combined.Count -ne 0)
+    Write-GameWipTextAtomic `
+        -Path $LogPath `
+        -Content (($combined -join "`n") + $(if ($combined.Count -ne 0)
             {
                 "`n"
             }
             else
             {
                 ''
-            }))
+            })) `
+        -SuppressMutationTracking
 
     if ($OutputMode -eq 'Summary' -and ($SuccessfulExitCodes -notcontains $exitCode -or $cancelled -or $timedOut))
     {
