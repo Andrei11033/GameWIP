@@ -112,7 +112,7 @@ void testOfficialGraphemeConformance(TestSupport::Context &context)
     const std::optional<std::filesystem::path> conformancePath = findGraphemeBreakTestFile();
     if (!conformancePath.has_value())
     {
-        constexpr std::string_view reason = "Unicode 17.0.0 GraphemeBreakTest.txt is not cached. Run '.\\gamewip.bat unicode -UnicodeAction verify' "
+        constexpr std::string_view reason = "Unicode 17.0.0 GraphemeBreakTest.txt is not cached. Run '.\\gamewip.bat unicode verify' "
                                             "or set GAMEWIP_UNICODE_GRAPHEME_BREAK_TEST.";
         if (std::getenv("GAMEWIP_REQUIRE_UNICODE_CONFORMANCE_TESTS") != nullptr)
         {

@@ -182,17 +182,6 @@ function Read-GameWipMenuChoiceResult
     }
 }
 
-function Read-GameWipMenuChoice
-{
-    param([string]$Prompt, [string[]]$Choices, [string]$Default)
-    $result = Read-GameWipMenuChoiceResult -Prompt $Prompt -Choices $Choices -Default $Default
-    if ($result.Status -eq 'Cancelled')
-    {
-        return $null
-    }
-    return $result.Value
-}
-
 function Read-GameWipTextValue
 {
     param([Parameter(Mandatory = $true)][string]$Prompt, [string]$Default = '')
@@ -327,15 +316,4 @@ function Read-GameWipMultiChoiceResult
         }
         Write-GameWipHost 'Invalid selection.' -ForegroundColor Yellow
     }
-}
-
-function Read-GameWipMultiChoice
-{
-    param([string]$Prompt, [string[]]$Choices)
-    $result = Read-GameWipMultiChoiceResult -Prompt $Prompt -Choices $Choices
-    if ($result.Status -eq 'Cancelled')
-    {
-        return $null
-    }
-    return @($result.Value)
 }

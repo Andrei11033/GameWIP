@@ -311,7 +311,7 @@ namespace
 
         for (std::size_t depth = 0; depth < 8; ++depth)
         {
-            const std::filesystem::path path = searchRoot / "build" / "unicode-data" / relativePath;
+            const std::filesystem::path path = searchRoot / "build" / "gamewip" / "cache" / "unicode" / relativePath;
             if (std::filesystem::is_regular_file(path))
             {
                 return path;

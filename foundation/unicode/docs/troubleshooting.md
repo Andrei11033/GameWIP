@@ -69,7 +69,7 @@ boundaries and requires re-indexing.
 Prepare the pinned data:
 
 ```powershell
-.\gamewip.bat unicode -UnicodeAction verify
+.\gamewip.bat unicode verify
 ```
 
 Then rerun the Unicode module. For CI/release-style validation, set `GAMEWIP_REQUIRE_UNICODE_CONFORMANCE_TESTS=1` so missing conformance data is a

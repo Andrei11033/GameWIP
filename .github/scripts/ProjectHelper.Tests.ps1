@@ -242,30 +242,33 @@ finally
 
 # Windows command shims are valid managed-tool entry points and must be launched
 # through the command interpreter rather than passed directly to Start-Process.
-$shimRoot = Join-Path $repositoryRoot ('build\gamewip\temp\process-shim-test-' + [guid]::NewGuid().ToString('N'))
-New-Item -ItemType Directory -Force -Path $shimRoot | Out-Null
-try
+if (Test-GameWipWindowsHost)
 {
-    $shim = Join-Path $shimRoot 'sample.cmd'
-    [IO.File]::WriteAllText($shim, "@echo off`r`necho shim-ok`r`n")
-    $shimResult = Invoke-GameWipProcess -FilePath $shim -OutputMode LogOnly -TimeoutSeconds 10
-    if ($shimResult.ExitCode -ne 0 -or (@($shimResult.Stdout) -join "`n") -notmatch 'shim-ok')
+    $shimRoot = Join-Path $repositoryRoot ('build\gamewip\temp\process-shim-test-' + [guid]::NewGuid().ToString('N'))
+    New-Item -ItemType Directory -Force -Path $shimRoot | Out-Null
+    try
     {
-        throw 'Windows command shim execution failed.'
+        $shim = Join-Path $shimRoot 'sample.cmd'
+        [IO.File]::WriteAllText($shim, "@echo off`r`necho shim-ok`r`n")
+        $shimResult = Invoke-GameWipProcess -FilePath $shim -OutputMode LogOnly -TimeoutSeconds 10
+        if ($shimResult.ExitCode -ne 0 -or (@($shimResult.Stdout) -join "`n") -notmatch 'shim-ok')
+        {
+            throw 'Windows command shim execution failed.'
+        }
+        $failedShim = Join-Path $shimRoot 'failure.cmd'
+        [IO.File]::WriteAllText($failedShim, "@echo off`r`nexit /b 7`r`n")
+        $failedShimResult = Invoke-GameWipProcess -FilePath $failedShim -OutputMode LogOnly -TimeoutSeconds 10
+        if ($failedShimResult.ExitCode -ne 7)
+        {
+            throw "Windows command shim exit code was reported as $($failedShimResult.ExitCode), not 7."
+        }
     }
-    $failedShim = Join-Path $shimRoot 'failure.cmd'
-    [IO.File]::WriteAllText($failedShim, "@echo off`r`nexit /b 7`r`n")
-    $failedShimResult = Invoke-GameWipProcess -FilePath $failedShim -OutputMode LogOnly -TimeoutSeconds 10
-    if ($failedShimResult.ExitCode -ne 7)
+    finally
     {
-        throw "Windows command shim exit code was reported as $($failedShimResult.ExitCode), not 7."
-    }
-}
-finally
-{
-    if (Test-Path -LiteralPath $shimRoot)
-    {
-        Remove-Item -LiteralPath $shimRoot -Recurse -Force
+        if (Test-Path -LiteralPath $shimRoot)
+        {
+            Remove-Item -LiteralPath $shimRoot -Recurse -Force
+        }
     }
 }
 

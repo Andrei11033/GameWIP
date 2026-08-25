@@ -81,12 +81,6 @@ function Add-GameWipOwnedWingetPackage
     Save-GameWipSetupState -State $state
 }
 
-function Write-GameWipSetupSection
-{
-    param([Parameter(Mandatory = $true)][string]$Title)
-    Write-GameWipSection $Title
-}
-
 function Initialize-GameWipSetupProcessPath
 {
     $parts = @([Environment]::GetEnvironmentVariable('Path', 'Machine'), [Environment]::GetEnvironmentVariable('Path', 'User')) |

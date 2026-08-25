@@ -270,7 +270,6 @@ namespace GameWIP::Terminal
             catch (...)
             {
                 // The primary failure remains authoritative when diagnostic enrichment cannot allocate.
-                static_cast<void>(0);
             }
         }
 

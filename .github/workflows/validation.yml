@@ -262,18 +262,6 @@ jobs:
         shell: bash
         run: python3 -m py_compile .github/scripts/*.py
 
-      - name: Check documentation standards
-        shell: bash
-        run: python3 .github/scripts/check_documentation_standards.py
-
-      - name: Check repository standards
-        shell: bash
-        run: python3 .github/scripts/check_repository_standards.py
-
-      - name: Check Markdown links
-        shell: bash
-        run: python3 .github/scripts/check_markdown_links.py
-
       - name: Install actionlint
         shell: bash
         run: |
@@ -287,11 +275,6 @@ jobs:
           tar --extract --gzip --file "$archive" actionlint
           install -m 0755 actionlint "$RUNNER_TEMP/actionlint"
           echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
-
-      - name: Check GitHub Actions workflows
-        shell: bash
-        run: |
-          "$RUNNER_TEMP/actionlint" -color
 
       - name: Run complete repository quality policy
         shell: pwsh

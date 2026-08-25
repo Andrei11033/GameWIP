@@ -53,10 +53,8 @@ function Invoke-GameWipUninstall
 {
     param(
         [Parameter(Mandatory = $true)][string]$RepositoryRoot,
-        [Parameter(Mandatory = $true)][hashtable]$ProjectTools,
         [switch]$Preview
     )
-    $null = $ProjectTools # Kept in the setup action contract for forward-compatible uninstall providers.
 
     Write-GameWipSection "Uninstall GameWIP development environment$(if ($Preview) { ' (preview)' })"
     $state = Get-GameWipSetupState

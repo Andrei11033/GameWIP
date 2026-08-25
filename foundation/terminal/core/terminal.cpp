@@ -101,7 +101,6 @@ namespace GameWIP::Terminal
                 catch (...)
                 {
                     // Scratch retention is an optimization; destruction must never terminate on cleanup failure.
-                    static_cast<void>(0);
                 }
             }
 

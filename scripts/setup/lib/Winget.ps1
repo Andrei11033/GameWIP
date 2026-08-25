@@ -51,39 +51,3 @@ function Invoke-GameWipWingetPackageUpdate
     Invoke-GameWipSetupNative -FilePath winget -ArgumentList $arguments -AllowedExitCodes @(0, -1978335189) | Out-Null
     Initialize-GameWipSetupProcessPath
 }
-
-function Install-GameWipConfiguredWingetToolSet
-{
-    param([Parameter(Mandatory = $true)][array]$Packages, [switch]$Update)
-    foreach ($package in $Packages)
-    {
-        $present = if ($package.ContainsKey('Command'))
-        {
-            Test-GameWipSetupCommand -Name $package.Command
-        }
-        elseif ($package.ContainsKey('Path'))
-        {
-            Test-Path -LiteralPath $package.Path
-        }
-        else
-        {
-            $false
-        }
-        if ($Update -and (Test-GameWipWingetPackage -Id $package.Id))
-        {
-            Invoke-GameWipWingetPackageUpdate -Id $package.Id
-        }
-        elseif ($Update -and $present)
-        {
-            Add-GameWipOperationWarning -Message "$($package.Name) exists outside WinGet; preserving it to avoid duplicate installation."
-        }
-        elseif (-not $present)
-        {
-            Install-GameWipWingetPackage -Id $package.Id
-        }
-        else
-        {
-            Write-Host "  Ready: $($package.Name)"
-        }
-    }
-}

@@ -8,14 +8,14 @@ and diagnostic performance benchmarks.
 Prepare or verify the pinned Unicode data, then run the focused correctness module:
 
 ```powershell
-.\gamewip.bat unicode -UnicodeAction verify
-.\gamewip.bat module -Module unicode -BuildIfMissing
+.\gamewip.bat unicode verify
+.\gamewip.bat module unicode
 ```
 
 Run the complete correctness and package suite with:
 
 ```powershell
-.\gamewip.bat test -Preset test
+.\gamewip.bat test test
 ```
 
 ## Correctness coverage
@@ -51,7 +51,7 @@ When the file is absent, an ordinary local test run skips only the official conf
 
 ```powershell
 $env:GAMEWIP_REQUIRE_UNICODE_CONFORMANCE_TESTS = "1"
-.\gamewip.bat module -Module unicode -BuildIfMissing
+.\gamewip.bat module unicode
 Remove-Item Env:GAMEWIP_REQUIRE_UNICODE_CONFORMANCE_TESTS
 ```
 
@@ -103,25 +103,25 @@ These values are review diagnostics for the current data layout, not public ABI 
 Inspect the configured version, tools, cache, and tracked generated header:
 
 ```powershell
-.\gamewip.bat unicode -UnicodeAction status
+.\gamewip.bat unicode status
 ```
 
 Verify that official pinned inputs reproduce the checked-in table byte-for-byte after repository formatting:
 
 ```powershell
-.\gamewip.bat unicode -UnicodeAction verify
+.\gamewip.bat unicode verify
 ```
 
 Force a fresh official download before verification:
 
 ```powershell
-.\gamewip.bat unicode -UnicodeAction verify -RefreshUnicodeData
+.\gamewip.bat unicode verify -RefreshUnicodeData
 ```
 
 Regenerate intentionally:
 
 ```powershell
-.\gamewip.bat unicode -UnicodeAction regenerate
+.\gamewip.bat unicode regenerate
 git diff -- foundation/unicode/internal/generated/unicode_properties.h
 ```
 
@@ -166,9 +166,9 @@ where a nearby safe restart exists, and linear-overall repeated cursor traversal
 For an implementation, generated-data, test, or manual change, run:
 
 ```powershell
-.\gamewip.bat format -FormatAction check
-.\gamewip.bat unicode -UnicodeAction verify
-.\gamewip.bat test -Preset test
+.\gamewip.bat format check
+.\gamewip.bat unicode verify
+.\gamewip.bat test test
 .\gamewip.bat asan
 .\gamewip.bat analyze
 .\gamewip.bat benchmark

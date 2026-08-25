@@ -79,13 +79,6 @@ function Invoke-GameWipBuildTarget
     Invoke-GameWipNative -Name "build-$Name-$Target" -FilePath 'cmake' -Arguments @('--build', '--preset', $Name, '--target', $Target) -PathPrefix (Get-GameWipToolchainPathPrefix $Name)
 }
 
-function Write-GameWipNextStepHint
-{
-    param([Parameter(Mandatory = $true)][string]$Message)
-    Add-GameWipOperationNextAction -Message $Message
-    Write-GameWipHost "Next: $Message" -ForegroundColor Cyan
-}
-
 function Resolve-GameWipProjectExecutable
 {
     param([Parameter(Mandatory = $true)]$Command)

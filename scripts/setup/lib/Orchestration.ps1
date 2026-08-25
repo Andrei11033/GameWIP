@@ -80,16 +80,6 @@ function Show-GameWipSetupSizeEstimate
     Write-Host '  Temporary build space: up to approximately 6 GB, primarily Tracy and documentation.'
 }
 
-function Show-GameWipManualInstallInstruction
-{
-    Write-GameWipSection 'Manual installation'
-    $gitTool = Get-GameWipProjectTool -Id git
-    $msys2Tool = Get-GameWipProjectTool -Id msys2
-    Write-Host "  winget install --id $($gitTool.provider.package) --exact"
-    Write-Host "  winget install --id $($msys2Tool.provider.package) --exact --override `"install --confirm-command --root $($ProjectConfig.managedEnvironment.msys2Root)`""
-    Write-Host "  Then run: .\setup.bat repair"
-}
-
 function Initialize-GameWipSetupManagedToolRoot
 {
     if (-not (Test-GameWipWindowsHost))
@@ -415,7 +405,7 @@ function Invoke-GameWipSetupActionBody
         }
         'uninstall'
         {
-            Invoke-GameWipUninstall -RepositoryRoot $RepositoryRoot -ProjectTools $ProjectTools -Preview:$Preview
+            Invoke-GameWipUninstall -RepositoryRoot $RepositoryRoot -Preview:$Preview
         }
         'list'
         {

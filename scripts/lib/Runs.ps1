@@ -214,17 +214,6 @@ function Save-GameWipToolRun
     return $summaryPath
 }
 
-function ConvertTo-GameWipSafeName
-{
-    param([Parameter(Mandatory = $true)][string]$Text)
-    $safe = $Text -replace '[^A-Za-z0-9_.-]+', '_'
-    if ([string]::IsNullOrWhiteSpace($safe))
-    {
-        return 'step'
-    }
-    return $safe.Trim('_')
-}
-
 function Initialize-GameWipRunLog
 {
     if ($null -eq $Script:OperationContext)
