@@ -219,10 +219,27 @@ function Get-GameWipDetectedTool
     }
     $selected = $candidates[0]
     $version = Get-GameWipToolCandidateVersion -Tool $Tool -Path $selected.Path
-    if ($null -eq $version -and $Tool.provider.kind -in @('python', 'npm') -and [string]$Tool.detection.command -ne [string]$Tool.provider.package)
+    $usesPackageQueryHost = $Tool.provider.kind -in @('python', 'npm') -and [string]$Tool.detection.command -ne [string]$Tool.provider.package
+    if ($usesPackageQueryHost -and $null -eq $version)
     {
-        # The detected executable is only a package-query host (for example,
-        # Python used to query jsonschema), not evidence that the package exists.
+        # A package-query host may exist more than once on PATH. Select the
+        # first host that contains the package instead of treating an earlier
+        # interpreter without it as authoritative.
+        foreach ($candidate in @($candidates | Select-Object -Skip 1))
+        {
+            $candidateVersion = Get-GameWipToolCandidateVersion -Tool $Tool -Path $candidate.Path
+            if ($null -ne $candidateVersion)
+            {
+                $selected = $candidate
+                $version = $candidateVersion
+                break
+            }
+        }
+    }
+    if ($usesPackageQueryHost -and $null -eq $version)
+    {
+        # The executables are only package-query hosts (for example, Python
+        # used to query jsonschema), not evidence that the package exists.
         return [pscustomobject]@{ Installed = $false; Version = $null; Location = $null; Source = $null; SelectionReason = $null; Candidates = $candidates }
     }
     return [pscustomobject]@{

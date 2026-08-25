@@ -66,6 +66,12 @@ if ((Get-GameWipPythonEnvironmentInterpreterPath -Root $syntheticPythonRoot) -ne
 {
     throw 'Python provider interpreter-path resolution is not platform-correct.'
 }
+$jsonSchemaTool = Get-GameWipProjectTool -Id 'jsonschema'
+$detectedJsonSchema = Get-GameWipDetectedTool -Tool $jsonSchemaTool
+if ((Get-GameWipToolCompatibility -Tool $jsonSchemaTool -Detected $detectedJsonSchema) -ne 'compatible')
+{
+    throw 'Python package discovery did not select an interpreter containing jsonschema.'
+}
 
 $actionIds = @($CommandConfig.Actions | ForEach-Object { [string]$_.Id })
 if ($actionIds -contains 'analysis')
