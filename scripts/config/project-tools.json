@@ -405,22 +405,22 @@
       "provider": {
         "kind": "githubRelease",
         "repository": "BlankSpruce/gersemi",
-        "releaseTag": "0.28.0",
+        "releaseTag": "0.28.1",
         "assets": {
           "linux-amd64": {
             "archive": "gersemi-linux",
-            "sha256": "d7c72d367884ef2d496fa949a3c38f7512f2b53781174e2d415cb3d2589c6a83",
+            "sha256": "df733517a99c8a29239ba01d974c54aa38c968786bc57f3791094b54d5fd07ea",
             "format": "executable"
           },
           "windows-amd64": {
             "archive": "gersemi-windows.exe",
-            "sha256": "29890c5000937d000e81b20b5a3f157e02686de3b6ec2e2f1324f71afbc8c4f0",
+            "sha256": "a5b766b77f45fdc27325345c2f9587ff94db2e0e1ac15ab86dfa50f9a03f093e",
             "format": "executable"
           }
         }
       },
       "versionPolicy": "exact",
-      "requiredVersion": "0.28.0",
+      "requiredVersion": "0.28.1",
       "detection": {
         "command": "gersemi",
         "versionArguments": ["--version"],
