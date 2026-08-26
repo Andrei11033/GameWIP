@@ -229,6 +229,18 @@ request with concrete validation evidence, and a squash merge. Titles use:
 area: imperative summary
 ```
 
+The title above is the primary-area convention for pull requests and intended
+squash commits. Issue titles instead use their work type: `bug:`, `feature:`,
+`task:`, `decision:`, or `release:`.
+
+Normal issues and human pull requests have exactly one work type, primary area,
+and scheduling priority label. `compat:breaking` is the only optional
+compatibility label. Concrete release targets use GitHub milestones, workflow
+state uses the Project Status field, hard blockers use GitHub dependency
+relationships, and roadmap phases and capability slices remain in the roadmap.
+This keeps each piece of planning information under one owner and prevents
+label taxonomy from duplicating native GitHub concepts.
+
 The protected `master` checks are the pre-merge gate. Manual workflow runs are
 for diagnostics and post-merge verification, not an alternate path around that
 gate. @ref project_contributing explains day-to-day contribution flow, and

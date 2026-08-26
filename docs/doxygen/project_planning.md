@@ -32,13 +32,20 @@ each concrete milestone is complete without duplicating individual issues.
 
 ## Historical checklists
 
-Do not maintain separate source-tree implementation or testing checklists. GitHub issues track active work, while @ref project_roadmap defines
-milestone completion criteria.
+Do not maintain separate source-tree task ledgers. GitHub issues track active
+work, while @ref project_roadmap defines milestone completion criteria.
 
 Do not pre-create hundreds of speculative issues for future capability slices.
 Only active, concrete milestone work receives detailed implementation issues.
 Update the roadmap when capability direction or promoted milestone gates
 change.
+
+A GitHub milestone means concrete work is targeted to that release. A
+capability slice does not automatically receive a milestone, and a useful
+future issue may remain in Backlog without one until scheduling makes its
+release target concrete. Hard dependencies use GitHub's **Blocked by** and
+blocking relationships; preferred sequencing that is not a hard blocker stays
+in the issue or roadmap.
 
 ## Related pages
 

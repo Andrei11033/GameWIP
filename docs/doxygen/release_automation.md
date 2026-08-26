@@ -81,7 +81,7 @@ milestones.
 
 The release issue can be resolved in either of these ways:
 
-- Preferred for new milestones: exactly one issue in the milestone is labeled `type:release` or has a title beginning with `release:`.
+- Preferred for new milestones: exactly one issue in the milestone uses `type:release` as its only type or has a title beginning with `release:`.
 - Explicit compatibility form: the milestone description contains:
 
 ```text

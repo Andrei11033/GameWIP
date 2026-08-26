@@ -1,0 +1,99 @@
+name: Decision
+description: Resolve a design or policy choice and record the accepted result in durable documentation.
+title: 'decision: '
+labels:
+  - 'type:decision'
+  - 'priority:normal'
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template to resolve a design or policy question. The issue
+        supports discussion; accepted durable decisions belong in the owning
+        documentation, especially `docs/decisions.md` for project-wide choices.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Pick the closest affected area.
+      options:
+        - CMake / build system
+        - FileSystem
+        - IO
+        - Terminal
+        - Unicode
+        - Foundation shared systems
+        - Logger
+        - Assert
+        - TestSupport
+        - Input
+        - Action
+        - Window
+        - Window manager
+        - Engine shared systems
+        - Windows platform backend
+        - Math
+        - Rendering
+        - Simulation
+        - Audio
+        - Tools / developer support
+        - Documentation
+        - GitHub / repository setup
+        - Roadmap / planning
+        - Gameplay
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: What situation makes a decision necessary?
+    validations:
+      required: true
+
+  - type: textarea
+    id: decision
+    attributes:
+      label: What decision is needed?
+      description: State the question and the boundary of the decision.
+    validations:
+      required: true
+
+  - type: textarea
+    id: constraints
+    attributes:
+      label: Constraints / requirements
+      description: List the requirements and existing contracts the decision must respect.
+    validations:
+      required: true
+
+  - type: textarea
+    id: options
+    attributes:
+      label: Options considered
+      description: Describe the credible alternatives and their consequences.
+    validations:
+      required: true
+
+  - type: textarea
+    id: preferred
+    attributes:
+      label: Preferred direction
+      description: Record a preferred direction if one already exists, including the reason.
+
+  - type: textarea
+    id: validation
+    attributes:
+      label: Validation / evidence needed
+      description: What evidence, prototype, measurement, or review should inform acceptance?
+
+  - type: textarea
+    id: documentation
+    attributes:
+      label: Durable documentation to update
+      description: Name the owning documentation that must record the accepted decision.
+      placeholder: Use docs/decisions.md for a durable project-wide choice.
+    validations:
+      required: true

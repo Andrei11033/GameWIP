@@ -33,6 +33,8 @@ REQUIRED_REPOSITORY_FILES = (
     ROOT / ".github" / "ISSUE_TEMPLATE" / "bug_report.yml",
     ROOT / ".github" / "ISSUE_TEMPLATE" / "feature_request.yml",
     ROOT / ".github" / "ISSUE_TEMPLATE" / "task.yml",
+    ROOT / ".github" / "ISSUE_TEMPLATE" / "decision.yml",
+    ROOT / ".github" / "ISSUE_TEMPLATE" / "release.yml",
     ROOT / ".github" / "workflows" / "docs.yml",
     ROOT / ".github" / "workflows" / "issue-area-labels.yml",
     ROOT / ".github" / "workflows" / "pr-standards.yml",
@@ -64,6 +66,39 @@ CTEST_COMMAND = re.compile(r"^(?:run:\s*)?ctest(?:\s|$)")
 CTEST_PRESET = re.compile(r"(?:^|\s)--preset(?:=|\s+)([A-Za-z0-9_.-]+)")
 ISSUE_AREA_OPTIONS = re.compile(r"(?ms)^    id: area\s*$.*?^      options:\s*$\n((?:^        - [^\n]+\n?)+)")
 ISSUE_AREA_MAPPING = re.compile(r"\[['\"]([^'\"]+)['\"],\s*['\"](area:[^'\"]+)['\"]\]")
+CURRENT_AREA_MAPPING_BLOCK = re.compile(r"const AREA_LABELS_BY_VALUE = new Map\(\[(.*?)\]\);", re.DOTALL)
+CANONICAL_AREA_MAPPINGS = {
+    "CMake / build system": "area:cmake",
+    "FileSystem": "area:filesystem",
+    "IO": "area:io",
+    "Terminal": "area:terminal",
+    "Unicode": "area:unicode",
+    "Foundation shared systems": "area:foundation",
+    "Logger": "area:logger",
+    "Assert": "area:assert",
+    "TestSupport": "area:test-support",
+    "Input": "area:input",
+    "Action": "area:action",
+    "Window": "area:window",
+    "Window manager": "area:window-manager",
+    "Engine shared systems": "area:engine",
+    "Windows platform backend": "area:platform-win32",
+    "Math": "area:math",
+    "Rendering": "area:rendering",
+    "Simulation": "area:simulation",
+    "Audio": "area:audio",
+    "Tools / developer support": "area:tools",
+    "Documentation": "area:docs",
+    "GitHub / repository setup": "area:github",
+    "Roadmap / planning": "area:roadmap",
+    "Gameplay": "area:gameplay",
+}
+GENERAL_ISSUE_FORMS = {
+    "bug_report.yml": ("bug: ", "type:bug", "priority:normal"),
+    "feature_request.yml": ("feature: ", "type:feature", "priority:normal"),
+    "task.yml": ("task: ", "type:task", "priority:normal"),
+    "decision.yml": ("decision: ", "type:decision", "priority:normal"),
+}
 SUPPORTED_PROVIDERS = {
     "msys2",
     "npm",
@@ -163,7 +198,7 @@ def workflow_jobs(lines: list[str]) -> list[tuple[str, list[str]]]:
 
 
 def check_issue_area_mapping(failures: list[str]) -> None:
-    """Require every non-manual issue-form area to map to one area label."""
+    """Require issue forms, area automation, and generated labels to share one taxonomy."""
     workflow_path = WORKFLOW_ROOT / "issue-area-labels.yml"
     if not workflow_path.is_file():
         return
@@ -171,23 +206,82 @@ def check_issue_area_mapping(failures: list[str]) -> None:
     if not policy_path.is_file():
         failures.append(".github/scripts/issue-area-labels.js: extracted area policy is missing")
         return
-    mappings = dict(ISSUE_AREA_MAPPING.findall(policy_path.read_text(encoding="utf-8")))
-    offered: set[str] = set()
+    policy_text = policy_path.read_text(encoding="utf-8")
+    mapping_block = CURRENT_AREA_MAPPING_BLOCK.search(policy_text)
+    mappings = dict(ISSUE_AREA_MAPPING.findall(mapping_block.group(1))) if mapping_block else {}
+    if mappings != CANONICAL_AREA_MAPPINGS:
+        failures.append(".github/scripts/issue-area-labels.js: current area mapping does not match the canonical taxonomy")
 
-    for path in REQUIRED_REPOSITORY_FILES:
-        if path.parent.name != "ISSUE_TEMPLATE" or path.name == "config.yml":
-            continue
-        match = ISSUE_AREA_OPTIONS.search(path.read_text(encoding="utf-8"))
+    expected_options = list(CANONICAL_AREA_MAPPINGS)
+    for name, (title, type_label, priority_label) in GENERAL_ISSUE_FORMS.items():
+        path = ROOT / ".github" / "ISSUE_TEMPLATE" / name
+        text = path.read_text(encoding="utf-8")
+        match = ISSUE_AREA_OPTIONS.search(text)
         if match is None:
             failures.append(f"{path.relative_to(ROOT).as_posix()}: area dropdown was not found")
             continue
-        options = {line.removeprefix("        - ").strip() for line in match.group(1).splitlines()}
-        offered.update(options)
-        for option in sorted(options - mappings.keys() - {"Other"}):
-            failures.append(f"{path.relative_to(ROOT).as_posix()}: area option '{option}' has no label mapping")
+        options = [line.removeprefix("        - ").strip() for line in match.group(1).splitlines()]
+        if options != expected_options:
+            failures.append(f"{path.relative_to(ROOT).as_posix()}: area dropdown does not match the canonical ordered taxonomy")
+        for required in (f"title: '{title}'", f"  - '{type_label}'", f"  - '{priority_label}'"):
+            if required not in text:
+                failures.append(f"{path.relative_to(ROOT).as_posix()}: required issue-form metadata is missing: {required}")
 
-    for option in sorted(mappings.keys() - offered):
-        failures.append(f".github/scripts/issue-area-labels.js: unused area mapping '{option}'")
+    release_path = ROOT / ".github" / "ISSUE_TEMPLATE" / "release.yml"
+    release_text = release_path.read_text(encoding="utf-8")
+    if ISSUE_AREA_OPTIONS.search(release_text) is not None:
+        failures.append(".github/ISSUE_TEMPLATE/release.yml: release form must not expose the general Area dropdown")
+    for required in ("title: 'release: '", "  - 'type:release'", "  - 'area:github'", "  - 'priority:high'"):
+        if required not in release_text:
+            failures.append(f".github/ISSUE_TEMPLATE/release.yml: required release metadata is missing: {required}")
+
+    dependabot = (ROOT / ".github" / "dependabot.yml").read_text(encoding="utf-8")
+    for label in ("area:github", "type:task", "priority:normal"):
+        if dependabot.count(f"      - '{label}'") != 2:
+            failures.append(f".github/dependabot.yml: both ecosystems must create '{label}'")
+    for forbidden in ("type:tooling", "area:test_support"):
+        if forbidden in dependabot or any(
+            forbidden in (ROOT / ".github/ISSUE_TEMPLATE" / name).read_text(encoding="utf-8") for name in GENERAL_ISSUE_FORMS
+        ):
+            failures.append(f".github issue forms and Dependabot must not create retired label '{forbidden}'")
+
+    for alias in ("Build and tooling", "Gameplay roadmap", "Engine input/action/window"):
+        if alias not in policy_text:
+            failures.append(f".github/scripts/issue-area-labels.js: historical Area alias is missing: {alias}")
+
+
+def check_github_metadata_policy(failures: list[str]) -> None:
+    """Prevent current metadata cardinality and ownership rules from drifting."""
+    contributing = (ROOT / "docs" / "contributing.md").read_text(encoding="utf-8")
+    automation = (ROOT / "docs" / "doxygen" / "repository_automation.md").read_text(encoding="utf-8")
+    maintenance = (ROOT / "docs" / "doxygen" / "repository_maintenance.md").read_text(encoding="utf-8")
+    current_docs = "\n".join((contributing, automation, maintenance))
+
+    for forbidden in (
+        "Prefer one main `area:*`",
+        "At least one `area:*`",
+        "at least one `area:*`",
+        "type:tooling",
+        "area:test_support",
+    ):
+        if forbidden in current_docs:
+            failures.append(f"current GitHub metadata documentation contains retired policy: {forbidden}")
+
+    if re.search(r"exactly one `type:\*`, one `area:\*`, and one\s+`priority:\*`", contributing) is None:
+        failures.append("docs/contributing.md: exact primary metadata cardinality guidance is missing")
+
+    for required in (
+        "`compat:breaking`",
+        "<area>/<issue-number>-<short-summary>",
+        "A GitHub milestone means",
+    ):
+        if required not in contributing:
+            failures.append(f"docs/contributing.md: required GitHub metadata guidance is missing: {required}")
+
+    pr_standards = (ROOT / ".github" / "scripts" / "pr-standards.js").read_text(encoding="utf-8")
+    for required in ("type:bug", "type:feature", "type:task", "type:decision", "type:release", "compat:breaking"):
+        if required not in pr_standards:
+            failures.append(f".github/scripts/pr-standards.js: canonical metadata value is missing: {required}")
 
 
 def read_json(relative: str, failures: list[str]) -> dict:
@@ -554,6 +648,7 @@ def main() -> int:
 
     check_license_metadata(failures)
     check_issue_area_mapping(failures)
+    check_github_metadata_policy(failures)
     check_registry_relationships(failures)
     check_live_paths_and_editor(failures)
     check_quality_contract(failures)

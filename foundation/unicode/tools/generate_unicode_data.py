@@ -293,9 +293,7 @@ def main() -> None:
     print(f"{'Unicode version:':<17}{UNICODE_VERSION}")
     print(f"{'High start:':<17}U+{trie.high_start:06X}")
     print()
-    print(
-        "Block size | Index width | Index bytes | Unique blocks | Block bytes | Total bytes | Selection"
-    )
+    print("Block size | Index width | Index bytes | Unique blocks | Block bytes | Total bytes | Selection")
     for candidate in candidates:
         block_size = 1 << candidate.block_shift
         candidate_index_bytes = len(candidate.indexes) * index_width(candidate)

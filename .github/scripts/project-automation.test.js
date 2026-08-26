@@ -12,6 +12,7 @@ const {
     hasRequiredLabels,
     isPullRequestIssueEvent,
     mergeLinkedIssueMetadata,
+    planPullRequestLabelAdditions,
     readConfig,
     splitRepository,
 } = require('./project-automation');
@@ -52,10 +53,19 @@ test('issue status priority is done, blocked, review, in progress, ready, backlo
     assert.equal(deriveIssueStatus(issue({ milestone: 'R01 - Core Engine' }), activeMilestone), STATUS.BACKLOG);
 });
 
-test('ready issues require area, type, and priority labels', () => {
+test('ready issues require exactly one canonical area, type, and priority label', () => {
     assert.equal(hasRequiredLabels(['area:github', 'type:task', 'priority:normal']), true);
     assert.equal(hasRequiredLabels(['area:github', 'type:task']), false);
+    assert.equal(hasRequiredLabels(['area:github', 'type:feature', 'type:task', 'priority:normal']), false);
+    assert.equal(hasRequiredLabels(['area:tools', 'area:github', 'type:task', 'priority:normal']), false);
+    assert.equal(hasRequiredLabels(['area:github', 'type:task', 'priority:high', 'priority:normal']), false);
+    assert.equal(hasRequiredLabels(['area:test_support', 'type:task', 'priority:normal']), false);
+    assert.equal(hasRequiredLabels(['area:github', 'type:tooling', 'priority:normal']), false);
     assert.equal(deriveIssueStatus(issue({ labels: ['area:github', 'type:task'] }), activeMilestone), STATUS.BACKLOG);
+    assert.equal(
+        deriveIssueStatus(issue({ labels: ['area:github', 'type:feature', 'type:task', 'priority:normal'] }), activeMilestone),
+        STATUS.BACKLOG,
+    );
 });
 
 test('pull request status follows closure, draft state, and review decision', () => {
@@ -66,16 +76,16 @@ test('pull request status follows closure, draft state, and review decision', ()
     assert.equal(derivePullRequestStatus({ state: 'OPEN', isDraft: false, reviewDecision: 'APPROVED' }), STATUS.REVIEW);
 });
 
-test('linked issue metadata is additive and chooses the highest priority', () => {
+test('linked issue metadata inherits agreed primary values, highest priority, and compatibility', () => {
     const metadata = mergeLinkedIssueMetadata(
         [
             {
-                labels: ['area:github', 'type:task', 'priority:normal'],
+                labels: ['area:github', 'type:task', 'priority:normal', 'compat:breaking'],
                 assignees: ['Andrei11033'],
                 milestone: { number: 122, title: activeMilestone },
             },
             {
-                labels: ['area:cmake', 'type:tooling', 'priority:high'],
+                labels: ['area:github', 'type:task', 'priority:high'],
                 assignees: [],
                 milestone: { number: 122, title: activeMilestone },
             },
@@ -83,10 +93,56 @@ test('linked issue metadata is additive and chooses the highest priority', () =>
         'author',
     );
 
-    assert.deepEqual(metadata.labels, ['area:cmake', 'area:github', 'priority:high', 'type:task', 'type:tooling']);
+    assert.deepEqual(metadata.labels, ['area:github', 'compat:breaking', 'priority:high', 'type:task']);
     assert.deepEqual(metadata.assignees, ['Andrei11033']);
+    assert.deepEqual(metadata.areaConflict, []);
+    assert.deepEqual(metadata.typeConflict, []);
     assert.deepEqual(metadata.milestone, { number: 122, title: activeMilestone });
     assert.deepEqual(metadata.milestoneConflict, []);
+});
+
+test('conflicting linked primary metadata is reported and not inherited', () => {
+    const metadata = mergeLinkedIssueMetadata(
+        [
+            { labels: ['area:github', 'type:task', 'priority:low'], assignees: [], milestone: null },
+            { labels: ['area:tools', 'type:feature', 'priority:normal'], assignees: [], milestone: null },
+        ],
+        'author',
+    );
+
+    assert.deepEqual(metadata.labels, ['priority:normal']);
+    assert.deepEqual(metadata.areaConflict, ['area:github', 'area:tools']);
+    assert.deepEqual(metadata.typeConflict, ['type:feature', 'type:task']);
+});
+
+test('existing valid PR metadata wins without creating duplicate dimensions', () => {
+    const plan = planPullRequestLabelAdditions(
+        ['area:tools', 'type:task', 'priority:high'],
+        ['area:github', 'type:feature', 'priority:normal', 'compat:breaking'],
+    );
+
+    assert.deepEqual(plan.labelsToAdd, ['compat:breaking']);
+    assert.deepEqual(plan.duplicateDimensions, []);
+    assert.deepEqual(plan.differingDimensions, [
+        { prefix: 'area:', existing: 'area:tools', inherited: 'area:github' },
+        { prefix: 'type:', existing: 'type:task', inherited: 'type:feature' },
+        { prefix: 'priority:', existing: 'priority:high', inherited: 'priority:normal' },
+    ]);
+});
+
+test('missing PR dimensions inherit unambiguous metadata and duplicates require manual correction', () => {
+    assert.deepEqual(planPullRequestLabelAdditions([], ['area:github', 'type:task', 'priority:normal']).labelsToAdd, [
+        'area:github',
+        'priority:normal',
+        'type:task',
+    ]);
+
+    const duplicate = planPullRequestLabelAdditions(
+        ['area:github', 'area:tools', 'type:task', 'priority:normal'],
+        ['area:github', 'type:task', 'priority:normal'],
+    );
+    assert.deepEqual(duplicate.labelsToAdd, []);
+    assert.deepEqual(duplicate.duplicateDimensions, [{ prefix: 'area:', labels: ['area:github', 'area:tools'] }]);
 });
 
 test('metadata falls back to the PR author and reports milestone conflicts', () => {
@@ -99,6 +155,8 @@ test('metadata falls back to the PR author and reports milestone conflicts', () 
     );
 
     assert.deepEqual(metadata.assignees, ['author']);
+    assert.deepEqual(metadata.areaConflict, []);
+    assert.deepEqual(metadata.typeConflict, []);
     assert.equal(metadata.milestone, null);
     assert.deepEqual(metadata.milestoneConflict, ['R00', 'R01']);
 });

@@ -5,9 +5,9 @@ issue, work on a focused branch, show what you validated, and merge through a
 reviewed pull request. The surrounding automation exists to keep that path
 predictable, not to replace human judgment.
 
-For implementation checklists, use @ref project_extending. Durable technical
-choices belong in @ref project_decisions, and release-number rules belong in
-@ref project_versioning.
+For library extension requirements, use @ref project_extending. Durable
+technical choices belong in @ref project_decisions, and release-number rules
+belong in @ref project_versioning.
 
 ## The contribution path
 
@@ -39,10 +39,14 @@ Create an issue for work that is not a tiny local cleanup.
 GitHub issues are the active task tracker for implementation work, validation work, bugs, and follow-up cleanup. The roadmap defines milestone
 completion criteria; issues define the work items used to satisfy those criteria.
 
-Issue titles use the same compact style as commit and pull-request titles:
+Issue titles use a work-type prefix:
 
 ```text
-type: imperative summary
+bug: ...
+feature: ...
+task: ...
+decision: ...
+release: ...
 ```
 
 Examples:
@@ -51,45 +55,63 @@ Examples:
 feature: add filesystem directory watcher
 bug: fix metadata copy on read-only files
 task: document GitHub merge workflow
-docs: add FileSystem troubleshooting example
-build: add default-branch validation workflow
+decision: choose the R02 scalar policy
+release: publish R01
 ```
 
 Use labels consistently:
 
 ```text
-area:*       The main affected system.
-type:*       The kind of work.
+type:*       The work kind.
+area:*       The primary affected area.
 priority:*   The scheduling priority.
+compat:breaking   An optional intentional compatibility-contract change.
 ```
 
-Prefer one main `area:*` label and one main `type:*` label. Add extra labels only when they clarify ownership or review.
+Every normal issue has exactly one `type:*`, one `area:*`, and one
+`priority:*` label. `compat:breaking` is optional when the work intentionally
+changes a public API, package, save, network, configuration, content, or other
+compatibility contract. Do not add another metadata dimension for status,
+phase, release, blockers, platform, size, or risk.
+
+A GitHub milestone means the issue is deliberately targeted to that concrete
+release. A capability slice does not automatically receive a milestone, and a
+useful future issue may remain in Backlog without one.
 
 Assign an issue when work starts. Project automation then moves it to `In Progress`; future ideas remain in Backlog, while fully triaged work in the
 active milestone becomes Ready.
 
-Use GitHub's **Blocked by** relationship for real dependencies. Do not use the Blocked status as a general priority or waiting label.
+Use GitHub's **Blocked by** relationship for hard dependencies. Describe
+preferred sequencing that is not a hard blocker in the issue or roadmap. Do
+not use a label to represent blocker state.
 
 ## Keep the branch focused
 
-Branch names should describe the work without encoding implementation history.
+Issue-backed branch names should connect the focused work to its tracking
+issue.
 
 Preferred format:
 
 ```text
-area/short-summary
+<area>/<issue-number>-<short-summary>
 ```
 
 Examples:
 
 ```text
-filesystem/directory-watcher
-github/workflow-standards
-docs/filesystem-troubleshooting
-build/main-validation
+tools/72-wsl-linux-validation
+roadmap/73-capability-slice-planning
+filesystem/123-directory-watcher
+github/124-project-metadata
 ```
 
-Keep branches focused. If the branch starts solving unrelated problems, split the extra work into a new issue and branch.
+The existing `refactor/repository-standardization` branch is grandfathered.
+Tiny work that repository policy permits without an issue may use
+`<area>/<short-summary>`. This is a preferred convention, not a branch-name CI
+gate.
+
+Keep branches focused. If a branch starts solving unrelated problems, split
+the extra work into a new issue and branch.
 
 ## Contribution licensing
 
@@ -118,6 +140,9 @@ The pull request title should normally be the squash commit title:
 area: imperative summary
 ```
 
+This is a primary-area prefix, unlike an issue title's work-type prefix. The
+standalone squash subject omits GitHub's generated `(#123)` suffix.
+
 The pull request body should include:
 
 - What changed.
@@ -139,7 +164,8 @@ The workflow enforces:
 - Non-empty summary and validation notes.
 - A linked issue such as `Closes #123`, or an explicit `No linked issue: reason`.
 - A concrete merge-message title.
-- At least one `area:*`, one `type:*`, and one `priority:*` label.
+- Exactly one `area:*`, one canonical `type:*`, and one canonical `priority:*` label.
+- No unsupported `compat:*` label; optional `compat:breaking` is allowed.
 
 Draft pull requests may be incomplete while work is still moving.
 
@@ -213,8 +239,12 @@ checklist are documented in @ref project_repository_maintenance.
 
 ## Project automation
 
-Use a closing keyword such as `Closes #6` in the pull request body. The project workflow uses that relationship to copy issue labels, assignees, and a
-non-conflicting milestone to the pull request, then moves both items through In Progress, Review, and Done.
+Use a closing keyword such as `Closes #6` in the pull request body. When a PR
+lacks a primary dimension, project automation inherits one agreed area or type
+from linked issues and selects their highest priority. Existing valid PR
+primary metadata wins. Conflicting linked areas, types, or milestones are
+reported instead of creating duplicate primary metadata. Assignees and
+optional `compat:breaking` are also synchronized.
 
 Issue status is derived from closure, **Blocked by** relationships, linked pull requests, assignees, active milestone, and required labels. The
 complete rule order, repository variables, token requirement, and dry-run command are documented in @ref project_repository_automation.

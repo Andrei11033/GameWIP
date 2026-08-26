@@ -267,7 +267,7 @@ test('discovers a future milestone release issue without hard-coded metadata', (
         milestone: automaticReleaseMilestone(),
         issues: [
             { number: 70, state: 'closed', title: 'combat: implementation work' },
-            { number: 71, state: 'open', title: 'task: complete R07 release', labels: ['type:release'] },
+            { number: 71, state: 'open', title: 'release: complete R07', labels: ['type:release'] },
         ],
     });
     assert.equal(byLabel.version.text, '0.7.0');
@@ -302,7 +302,7 @@ test('rejects missing, duplicate, and closed automatically discovered release is
                 milestone: automaticReleaseMilestone(),
                 issues: [
                     { number: 71, state: 'open', title: 'release: complete R07 release' },
-                    { number: 72, state: 'open', title: 'task: publish R07', labels: ['type:release'] },
+                    { number: 72, state: 'open', title: 'release: publish R07', labels: ['type:release'] },
                 ],
             }),
         /found #71, #72/,

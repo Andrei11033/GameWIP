@@ -4,6 +4,9 @@
 
 const TITLE_PATTERN = /^[a-z][a-z0-9_-]*: [a-z0-9][^\r\n]*$/;
 const REQUIRED_SECTIONS = ['Summary', 'Linked Issues', 'Validation', 'Merge Message', 'Checklist'];
+const ALLOWED_TYPE_LABELS = new Set(['type:bug', 'type:feature', 'type:task', 'type:decision', 'type:release']);
+const ALLOWED_PRIORITY_LABELS = new Set(['priority:high', 'priority:normal', 'priority:low']);
+const ALLOWED_COMPATIBILITY_LABELS = new Set(['compat:breaking']);
 
 function sectionText(body, name) {
     const match = new RegExp(`^##\\s+${name}\\s*$`, 'im').exec(body);
@@ -60,12 +63,30 @@ function validatePullRequest(pr) {
         }
     }
     const labels = (pr.labels || []).map((label) => label.name);
-    for (const prefix of ['area:', 'type:', 'priority:']) {
-        if (!labels.some((label) => label.startsWith(prefix))) {
-            errors.push(`PR must have a \`${prefix}*\` label.`);
+    const areaLabels = labels.filter((label) => label.startsWith('area:'));
+    const typeLabels = labels.filter((label) => label.startsWith('type:'));
+    const priorityLabels = labels.filter((label) => label.startsWith('priority:'));
+    if (areaLabels.length !== 1) {
+        errors.push(`PR must have exactly one \`area:*\` label; found ${areaLabels.length}.`);
+    } else if (!/^area:[a-z0-9]+(?:-[a-z0-9]+)*$/.test(areaLabels[0])) {
+        errors.push(`PR area label is not canonical: \`${areaLabels[0]}\`.`);
+    }
+    if (typeLabels.length !== 1) {
+        errors.push(`PR must have exactly one \`type:*\` label; found ${typeLabels.length}.`);
+    } else if (!ALLOWED_TYPE_LABELS.has(typeLabels[0])) {
+        errors.push(`PR type label is not supported: \`${typeLabels[0]}\`.`);
+    }
+    if (priorityLabels.length !== 1) {
+        errors.push(`PR must have exactly one \`priority:*\` label; found ${priorityLabels.length}.`);
+    } else if (!ALLOWED_PRIORITY_LABELS.has(priorityLabels[0])) {
+        errors.push(`PR priority label is not supported: \`${priorityLabels[0]}\`.`);
+    }
+    for (const label of labels.filter((candidate) => candidate.startsWith('compat:'))) {
+        if (!ALLOWED_COMPATIBILITY_LABELS.has(label)) {
+            errors.push(`PR compatibility label is not supported: \`${label}\`.`);
         }
     }
     return errors;
 }
 
-module.exports = { hasMeaningfulContent, sectionText, validatePullRequest };
+module.exports = { ALLOWED_PRIORITY_LABELS, ALLOWED_TYPE_LABELS, hasMeaningfulContent, sectionText, validatePullRequest };

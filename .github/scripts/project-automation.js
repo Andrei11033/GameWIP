@@ -11,7 +11,8 @@ const STATUS = Object.freeze({
     DONE: 'Done',
 });
 
-const REQUIRED_LABEL_PREFIXES = Object.freeze(['area:', 'type:', 'priority:']);
+const PRIMARY_LABEL_PREFIXES = Object.freeze(['area:', 'type:', 'priority:']);
+const CANONICAL_TYPE_LABELS = new Set(['type:bug', 'type:feature', 'type:task', 'type:decision', 'type:release']);
 const PRIORITY_ORDER = Object.freeze({
     'priority:high': 3,
     'priority:normal': 2,
@@ -19,7 +20,13 @@ const PRIORITY_ORDER = Object.freeze({
 });
 
 function hasRequiredLabels(labels) {
-    return REQUIRED_LABEL_PREFIXES.every((prefix) => labels.some((label) => label.startsWith(prefix)));
+    const labelsByPrefix = Object.fromEntries(PRIMARY_LABEL_PREFIXES.map((prefix) => [prefix, labels.filter((label) => label.startsWith(prefix))]));
+    return (
+        PRIMARY_LABEL_PREFIXES.every((prefix) => labelsByPrefix[prefix].length === 1) &&
+        /^area:[a-z0-9]+(?:-[a-z0-9]+)*$/.test(labelsByPrefix['area:'][0]) &&
+        CANONICAL_TYPE_LABELS.has(labelsByPrefix['type:'][0]) &&
+        Object.hasOwn(PRIORITY_ORDER, labelsByPrefix['priority:'][0])
+    );
 }
 
 function deriveIssueStatus(issue, activeMilestone) {
@@ -55,17 +62,25 @@ function derivePullRequestStatus(pullRequest) {
 }
 
 function mergeLinkedIssueMetadata(linkedIssues, author) {
-    const labels = new Set();
+    const areas = new Set();
+    const types = new Set();
     const priorities = new Set();
+    let compatibilityBreaking = false;
     const assignees = new Set();
     const milestones = new Map();
 
     for (const issue of linkedIssues) {
         for (const label of issue.labels) {
             if (label.startsWith('priority:')) {
-                priorities.add(label);
-            } else if (label.startsWith('area:') || label.startsWith('type:')) {
-                labels.add(label);
+                if (Object.hasOwn(PRIORITY_ORDER, label)) {
+                    priorities.add(label);
+                }
+            } else if (label.startsWith('area:')) {
+                areas.add(label);
+            } else if (CANONICAL_TYPE_LABELS.has(label)) {
+                types.add(label);
+            } else if (label === 'compat:breaking') {
+                compatibilityBreaking = true;
             }
         }
         for (const assignee of issue.assignees) {
@@ -76,20 +91,56 @@ function mergeLinkedIssueMetadata(linkedIssues, author) {
         }
     }
 
-    const selectedPriority = [...priorities].sort((left, right) => (PRIORITY_ORDER[right] ?? 0) - (PRIORITY_ORDER[left] ?? 0))[0];
+    const labels = [];
+    if (areas.size === 1) {
+        labels.push([...areas][0]);
+    }
+    if (types.size === 1) {
+        labels.push([...types][0]);
+    }
+    const selectedPriority = [...priorities].sort((left, right) => PRIORITY_ORDER[right] - PRIORITY_ORDER[left])[0];
     if (selectedPriority !== undefined) {
-        labels.add(selectedPriority);
+        labels.push(selectedPriority);
+    }
+    if (compatibilityBreaking) {
+        labels.push('compat:breaking');
     }
     if (assignees.size === 0 && author) {
         assignees.add(author);
     }
 
     return {
-        labels: [...labels].sort(),
+        labels: labels.sort(),
         assignees: [...assignees].sort(),
+        areaConflict: areas.size > 1 ? [...areas].sort() : [],
+        typeConflict: types.size > 1 ? [...types].sort() : [],
         milestone: milestones.size === 1 ? [...milestones.values()][0] : null,
         milestoneConflict: milestones.size > 1 ? [...milestones.values()].map((milestone) => milestone.title).sort() : [],
     };
+}
+
+function planPullRequestLabelAdditions(existingLabels, inheritedLabels) {
+    const labelsToAdd = [];
+    const duplicateDimensions = [];
+    const differingDimensions = [];
+
+    for (const prefix of PRIMARY_LABEL_PREFIXES) {
+        const existing = existingLabels.filter((label) => label.startsWith(prefix));
+        const inherited = inheritedLabels.filter((label) => label.startsWith(prefix));
+        if (existing.length > 1) {
+            duplicateDimensions.push({ prefix, labels: existing.sort() });
+        } else if (existing.length === 0 && inherited.length === 1) {
+            labelsToAdd.push(inherited[0]);
+        } else if (existing.length === 1 && inherited.length === 1 && existing[0] !== inherited[0]) {
+            differingDimensions.push({ prefix, existing: existing[0], inherited: inherited[0] });
+        }
+    }
+
+    if (inheritedLabels.includes('compat:breaking') && !existingLabels.includes('compat:breaking')) {
+        labelsToAdd.push('compat:breaking');
+    }
+
+    return { labelsToAdd: labelsToAdd.sort(), duplicateDimensions, differingDimensions };
 }
 
 function splitRepository(nameWithOwner) {
@@ -297,16 +348,32 @@ class ProjectAutomation {
 
     async synchronizePullRequestMetadata(owner, repository, pullRequest) {
         const inherited = mergeLinkedIssueMetadata(pullRequest.linkedIssues, pullRequest.author);
-        const existingLabels = new Set(pullRequest.labels);
-        const labelsToAdd = inherited.labels.filter((label) => !existingLabels.has(label));
+        const labelPlan = planPullRequestLabelAdditions(pullRequest.labels, inherited.labels);
 
-        if (labelsToAdd.length > 0 && !this.config.dryRun) {
+        if (labelPlan.labelsToAdd.length > 0 && !this.config.dryRun) {
             await this.github.rest.issues.addLabels({
                 owner,
                 repo: repository,
                 issue_number: pullRequest.number,
-                labels: labelsToAdd,
+                labels: labelPlan.labelsToAdd,
             });
+        }
+
+        for (const conflict of [
+            ['areas', inherited.areaConflict],
+            ['types', inherited.typeConflict],
+        ]) {
+            if (conflict[1].length > 0) {
+                this.core.warning(`PR #${pullRequest.number} links issues with conflicting ${conflict[0]}: ${conflict[1].join(', ')}.`);
+            }
+        }
+        for (const duplicate of labelPlan.duplicateDimensions) {
+            this.core.warning(`PR #${pullRequest.number} has duplicate ${duplicate.prefix} metadata: ${duplicate.labels.join(', ')}.`);
+        }
+        for (const differing of labelPlan.differingDimensions) {
+            this.core.warning(
+                `PR #${pullRequest.number} keeps '${differing.existing}' instead of inheriting '${differing.inherited}' for ${differing.prefix} metadata.`,
+            );
         }
 
         const existingAssignees = new Set(pullRequest.assignees);
@@ -513,6 +580,7 @@ module.exports = {
     hasRequiredLabels,
     isPullRequestIssueEvent,
     mergeLinkedIssueMetadata,
+    planPullRequestLabelAdditions,
     readConfig,
     run,
     splitRepository,

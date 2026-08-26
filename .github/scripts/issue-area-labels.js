@@ -3,7 +3,7 @@
 'use strict';
 
 const AREA_LABELS_BY_VALUE = new Map([
-    ['Build and tooling', 'area:cmake'],
+    ['CMake / build system', 'area:cmake'],
     ['FileSystem', 'area:filesystem'],
     ['IO', 'area:io'],
     ['Terminal', 'area:terminal'],
@@ -11,17 +11,29 @@ const AREA_LABELS_BY_VALUE = new Map([
     ['Foundation shared systems', 'area:foundation'],
     ['Logger', 'area:logger'],
     ['Assert', 'area:assert'],
-    ['TestSupport', 'area:test_support'],
+    ['TestSupport', 'area:test-support'],
     ['Input', 'area:input'],
     ['Action', 'area:action'],
     ['Window', 'area:window'],
     ['Window manager', 'area:window-manager'],
     ['Engine shared systems', 'area:engine'],
     ['Windows platform backend', 'area:platform-win32'],
-    ['Tools/developer support', 'area:tools'],
+    ['Math', 'area:math'],
+    ['Rendering', 'area:rendering'],
+    ['Simulation', 'area:simulation'],
+    ['Audio', 'area:audio'],
+    ['Tools / developer support', 'area:tools'],
     ['Documentation', 'area:docs'],
+    ['GitHub / repository setup', 'area:github'],
+    ['Roadmap / planning', 'area:roadmap'],
+    ['Gameplay', 'area:gameplay'],
+]);
+
+const HISTORICAL_AREA_LABELS_BY_VALUE = new Map([
+    ['Build and tooling', 'area:cmake'],
+    ['Tools/developer support', 'area:tools'],
     ['GitHub/repository setup', 'area:github'],
-    ['Gameplay roadmap', 'area:gameplay'],
+    ['Gameplay roadmap', 'area:roadmap'],
 ]);
 
 function readIssueFormField(body, heading) {
@@ -45,17 +57,19 @@ function readIssueFormField(body, heading) {
 
 function targetAreaLabel(body, currentLabels) {
     const selected = readIssueFormField(body, 'Area');
-    const legacy = {
-        'Foundation shared systems': ['area:foundation', ['area:unicode']],
-        'Engine input/action/window': ['area:engine', ['area:input', 'area:action', 'area:window', 'area:window-manager']],
-    }[selected];
-    return legacy ? legacy[1].find((label) => currentLabels.includes(label)) || legacy[0] : AREA_LABELS_BY_VALUE.get(selected);
+    if (selected === 'Engine input/action/window') {
+        return ['area:input', 'area:action', 'area:window', 'area:window-manager'].find((label) => currentLabels.includes(label)) || 'area:engine';
+    }
+    return AREA_LABELS_BY_VALUE.get(selected) ?? HISTORICAL_AREA_LABELS_BY_VALUE.get(selected);
 }
 
 async function applyIssueAreaLabel({ github, context }) {
     const issue = context.payload.issue;
     const current = issue.labels.map((label) => label.name);
     const target = targetAreaLabel(issue.body ?? '', current);
+    if (target === undefined) {
+        return;
+    }
     const request = { owner: context.repo.owner, repo: context.repo.repo, issue_number: context.issue.number };
     for (const label of new Set(AREA_LABELS_BY_VALUE.values())) {
         if (label !== target && current.includes(label)) {
@@ -67,4 +81,4 @@ async function applyIssueAreaLabel({ github, context }) {
     }
 }
 
-module.exports = { AREA_LABELS_BY_VALUE, applyIssueAreaLabel, readIssueFormField, targetAreaLabel };
+module.exports = { AREA_LABELS_BY_VALUE, HISTORICAL_AREA_LABELS_BY_VALUE, applyIssueAreaLabel, readIssueFormField, targetAreaLabel };

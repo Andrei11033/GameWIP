@@ -16,7 +16,7 @@ body:
       label: Area
       description: Pick the closest affected area.
       options:
-        - Build and tooling
+        - CMake / build system
         - FileSystem
         - IO
         - Terminal
@@ -31,10 +31,15 @@ body:
         - Window manager
         - Engine shared systems
         - Windows platform backend
-        - Tools/developer support
+        - Math
+        - Rendering
+        - Simulation
+        - Audio
+        - Tools / developer support
         - Documentation
-        - GitHub/repository setup
-        - Other
+        - GitHub / repository setup
+        - Roadmap / planning
+        - Gameplay
     validations:
       required: true
 
@@ -70,12 +75,12 @@ body:
     id: validation
     attributes:
       label: Validation plan
-      description: What tests, manual checks, docs, or inspections should prove this is done?
+      description: What tests, manual checks, documentation, or inspections should prove this is done?
 
   - type: checkboxes
     id: checks
     attributes:
       label: Pre-submit checks
       options:
-        - label: I checked existing issues and docs for duplicate or already-completed work.
+        - label: I checked existing issues and documentation for duplicate or already-completed work.
           required: true
