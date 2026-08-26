@@ -31,12 +31,13 @@ generate_export_header(
 
 target_sources(
     Window
-    PRIVATE core/display.cpp core/display_info.cpp core/events.cpp core/renderer_bridge.cpp core/window.cpp core/window_test_hooks.cpp
+    PRIVATE core/cursor.cpp core/display.cpp core/display_info.cpp core/events.cpp core/renderer_bridge.cpp core/window.cpp core/window_test_hooks.cpp
     PUBLIC
         FILE_SET public_headers
             TYPE HEADERS
             BASE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/.." "${WINDOW_GENERATED_INCLUDE_DIR}"
             FILES
+                "${CMAKE_CURRENT_SOURCE_DIR}/cursor.h"
                 "${CMAKE_CURRENT_SOURCE_DIR}/description.h"
                 "${CMAKE_CURRENT_SOURCE_DIR}/display.h"
                 "${CMAKE_CURRENT_SOURCE_DIR}/display_info.h"
