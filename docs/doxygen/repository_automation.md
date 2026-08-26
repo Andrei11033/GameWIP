@@ -1,14 +1,44 @@
 @page project_repository_automation Repository and project automation
 
-GameWIP uses event-driven GitHub automation for repeatable metadata and project status updates. Automation is deliberately limited to deterministic
-state. Priority, scope, security disclosure, milestone intent, and product decisions remain human responsibilities.
+GameWIP uses declarative local automation and event-driven GitHub automation
+for repeatable tool, metadata, and project-status updates. Automation is
+deliberately limited to deterministic state. Priority, scope, security
+disclosure, milestone intent, and product decisions remain human
+responsibilities.
 
-The automation described here reconciles GitHub project status, linked
-pull-request metadata, and repository events. The guide also explains required
-configuration and tokens, dry-run behavior, and the points that still require a
-maintainer's judgment.
+The automation described here stages project-tool declarations, reconciles
+GitHub project status and linked pull-request metadata, and responds to
+repository events. The guide also explains required configuration and tokens,
+preview and dry-run behavior, and the points that still require a maintainer's
+judgment.
 
 Contributor-facing GitHub workflow rules are documented in `docs/contributing.md`.
+
+## Project-tool update automation
+
+Project-tool updates are data-driven from
+`scripts/config/project-tools.json`. Provider adapters own upstream queries,
+installation, verification, and rollback of provider-managed machine state.
+The shared tool engine owns discovery, complete planning, tracked staging,
+staged validation, preview and consent, application, post-update verification,
+and the final quality gate. Adding a normal tool for an existing provider or a
+new declared reference does not require tool-specific updater code.
+
+Tracked mutation is closed-world. The updater may change only planned registry
+string fields and declared live references. Registry changes are
+source-preserving compare-and-set operations with an expected old value and a
+planned new value; unrelated JSON source remains byte-for-byte stable. Text
+reference `pattern` values are literal templates with exactly one `{version}`
+token, not regular expressions. `text` and `cmakeMinimum` references are live,
+while `path` references are informational and never rewritten.
+
+Repository text reads use strict UTF-8 and reject malformed input. Writes use
+UTF-8 without a byte-order mark. `tools update ... -Preview` completes
+discovery, planning, staging, and validation before stopping without persistent
+tracked or machine mutation. A current plan stages nothing and does not
+reinstall an identical tool. A provider that begins changing managed machine
+state owns rollback until its operation succeeds; the shared engine does not
+attempt a universal machine transaction.
 
 ## Project status rules
 
@@ -138,6 +168,9 @@ When changing automation:
 - Run a dry-run reconciliation before a write reconciliation.
 - Keep token use out of logs.
 - Update `docs/contributing.md` when contributor-facing workflow changes.
+- Keep project-tool facts and reference declarations in
+  `scripts/config/project-tools.json`; add provider code only for a new provider
+  contract.
 
 ## Related pages
 

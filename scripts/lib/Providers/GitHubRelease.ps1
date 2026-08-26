@@ -171,7 +171,8 @@ function Install-GameWipGitHubReleaseTool
         {
             if ($shimReplacementAttempted -and $null -ne $shimBackup -and (Test-Path -LiteralPath $shimBackup))
             {
-                [IO.File]::Move($shimBackup, $shimPath, $true)
+                Copy-Item -LiteralPath $shimBackup -Destination $shimPath -Force
+                Remove-Item -LiteralPath $shimBackup -Force
                 $shimBackup = $null
             }
             elseif ($shimReplacementAttempted -and (Test-Path -LiteralPath $shimPath))
@@ -210,7 +211,7 @@ function Install-GameWipGitHubReleaseTool
         {
             Invoke-GameWipOwnedTreeRemoval -Path $incoming -OwnedRoot $toolsRoot -SuppressMutationTracking
         }
-        if ($null -ne $shimBackup -and (Test-Path -LiteralPath $shimBackup))
+        if (-not $shimReplacementAttempted -and $null -ne $shimBackup -and (Test-Path -LiteralPath $shimBackup))
         {
             Remove-Item -LiteralPath $shimBackup -Force -ErrorAction SilentlyContinue
         }

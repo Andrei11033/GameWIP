@@ -1,10 +1,12 @@
 @page project_tools Project development tools
 
 GameWIP has one tracked authority for project development tools:
-`scripts/config/project-tools.json`. It owns provider selection, version policy,
-provider package metadata, detection, update capabilities, and precise live
-version references. Setup consumes that registry; it does not keep a second
-package or version catalog.
+`scripts/config/project-tools.json`. It declares provider selection, version
+policy, provider package metadata, detection, update capabilities, and
+repository references. Setup and the project helper consume that registry;
+they do not keep a second package or version catalog. Adding another tool that
+uses an existing provider, or another supported reference, is therefore a
+registry change rather than a tool-specific orchestration change.
 
 ## Provider and version policy
 
@@ -82,18 +84,41 @@ explicitly declares its repository path.
 all requested latest versions, including versioned provider dependencies,
 without changing tracked files or installed software.
 
-`gamewip tools update <id|all>` resolves the complete online
-plan before the first mutation. `-Preview` performs that read-only resolution
-and prints the plan without changing tracked or machine state. A real update
-requires a clean tracked tree, updates structured registry fields and precise
-declared live references, updates integrity/tag metadata when applicable,
-installs the managed version, and runs `quality check`. Verified downloads are
-completed through temporary files before replacing cache destinations, and
-archive-backed managed tools stage and verify candidates before the live
-version directory changes. Ambiguous or missing
-live references fail closed. Historical files under `docs/releases/` are never
-rewritten. The command never commits, pushes, or destructively rolls back a
-failed sequence.
+`gamewip tools update <id|all>` discovers upstream state and builds the complete
+plan before persistent mutation. `-Preview` runs discovery, planning, tracked
+staging, and staged validation, then prints exact registry fields and declared
+references without applying tracked or machine changes. A real update requires
+a clean tracked tree, requests consent for that validated plan, applies it,
+verifies the planned new declaration, and runs `quality check`.
+
+Reference behavior comes entirely from each declaration:
+
+- `path` records an informational association and is never rewritten.
+- `text` is a live exact-text reference. Its `pattern` is a literal template,
+  not a regular expression, and contains exactly one `{version}` token.
+- `cmakeMinimum` is a live semantic CMake minimum-version reference.
+
+Live references default to one expected occurrence and fail closed when the
+declared count does not match. When several updates target one file, they
+compose in staged content and the file is written once. Historical documents
+remain unchanged by declaring them as informational `path` references; no
+directory name has special behavior.
+
+Registry updates use compare-and-set mutations: each exact JSON string target
+includes its expected old value and planned new value. The source-preserving
+mutator replaces only those scalar tokens, so property order, tool and
+dependency order, whitespace, escapes, and unrelated Unicode remain unchanged.
+Repository-owned configuration and reference text is read as strict UTF-8;
+malformed input fails, and writes remain UTF-8 without a byte-order mark.
+
+Provider adapters own provider-specific queries, installation, and rollback;
+the shared engine owns discovery, planning, staging, validation, preview,
+consent, application, verification, and quality. Verified GitHub-release
+providers download and checksum a candidate, verify it before replacement,
+and restore the previous managed tool and shim if replacement fails. If every
+selected declaration and installation is current, the update is a true no-op:
+it neither stages tracked files nor reinstalls an identical tool. The command
+never commits or pushes.
 
 `setup.bat update` has different semantics: it performs the complete MSYS2
 `pacman -Syu` environment update, updates other compatible package-manager

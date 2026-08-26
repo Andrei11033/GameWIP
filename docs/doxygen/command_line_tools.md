@@ -159,8 +159,13 @@ third-party exclusions. Independent checks aggregate by default; use
 `-FailFast` only for focused diagnosis. `gamewip quality fix` applies deterministic formatters and then runs the same gate.
 `gamewip quality status` reports maintained-file quality ownership.
 
-`gamewip tools ensure <id|category|all>` installs or repairs exactly the versions already declared by the checkout and does
-not advance pins. `gamewip tools update <id|all>` is the reviewed pin-advancement workflow and requires a clean tracked tree.
+`gamewip tools ensure <id|category|all>` installs or repairs exactly the
+versions already declared by the checkout and does not advance pins. `gamewip
+tools update <id|all>` is the reviewed pin-advancement workflow and requires a
+clean tracked tree. Its preview performs complete discovery, source-preserving
+tracked staging, and staged validation, then reports exact registry fields and
+declared live references without applying them. A current selection is a true
+no-op. See @ref project_tools for the registry and provider contracts.
 
 ## Run history
 

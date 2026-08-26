@@ -20,8 +20,9 @@ verifies the machine.
 - `config/editors.json` declares selectable editors and their handlers. VS Code
   is the default; Visual Studio is optional.
 - `../config/project-tools.json` is the single project-tool, provider-package,
-  dependency, detection, capability, and version-policy authority consumed by
-  setup and the project helper.
+  dependency, detection, capability, version-policy, and repository-reference
+  authority consumed by setup and the project helper. Existing-provider tools
+  and references are added as data, without tool-specific update branches.
 - `lib/` contains focused reusable operations.
 - `editor/gamewip-workflows/` is the declarative VS Code workflow extension.
 
@@ -58,7 +59,8 @@ at the explicit `C:\MSYS2` root.
 
 `setup.bat update` owns environment and package-manager updates. The separate
 `gamewip tools update` workflow advances reviewed project tool/version policy
-and exact pins; setup does not silently advance those pins.
+and exact pins through a staged, source-preserving compare-and-set plan; setup
+does not silently advance those pins.
 
 The editor stage installs only selected editors. VS Code integration installs
 Microsoft C++/CMake extensions and packages the local workflow extension as a

@@ -168,15 +168,43 @@
       }
     },
     "reference": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["path", "kind"],
-      "properties": {
-        "path": { "type": "string", "minLength": 1 },
-        "kind": { "enum": ["path", "text", "cmakeMinimum"] },
-        "pattern": { "type": "string", "minLength": 1 },
-        "expectedCount": { "type": "integer", "minimum": 1 }
-      }
+      "description": "A repository association. Text patterns are literal templates with exactly one {version} token, not regular expressions.",
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["path", "kind"],
+          "properties": {
+            "path": { "type": "string", "minLength": 1 },
+            "kind": { "const": "path" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["path", "kind", "pattern"],
+          "properties": {
+            "path": { "type": "string", "minLength": 1 },
+            "kind": { "const": "text" },
+            "pattern": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Literal version template containing exactly one {version} token; not a regular expression."
+            },
+            "expectedCount": { "type": "integer", "minimum": 1 }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["path", "kind"],
+          "properties": {
+            "path": { "type": "string", "minLength": 1 },
+            "kind": { "const": "cmakeMinimum" },
+            "expectedCount": { "type": "integer", "minimum": 1 }
+          }
+        }
+      ]
     }
   }
 }

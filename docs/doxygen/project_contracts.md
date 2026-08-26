@@ -49,9 +49,9 @@ Exact version-sensitive quality-tool pins are centrally declared as follows:
 | Tool | Exact version | Provider |
 | --- | --- | --- |
 | Ruff | 0.16.4 | Python |
-| ESLint | 10.9.0 | npm |
+| ESLint | 10.9.1 | npm |
 | Prettier | 3.9.6 | npm |
-| Gersemi | 0.28.0 | verified GitHub release |
+| Gersemi | 0.28.1 | verified GitHub release |
 | markdownlint-cli2 | 0.23.2 | npm |
 | yamllint | 1.38.0 | Python |
 | jsonschema | 4.26.0 | Python |
@@ -60,10 +60,13 @@ Exact version-sensitive quality-tool pins are centrally declared as follows:
 
 `gamewip tools status` is offline. `gamewip tools check-updates` performs an
 explicit online query without changing files or installations. `gamewip tools
-update -Tool <id|all>` requires a clean tracked tree, plans all requested
-updates first, updates the authoritative pin and live references, installs the
-managed version, and validates the result without committing or pushing.
-Historical release notes are excluded from version rewrites.
+update <id|all>` builds and validates a complete staged plan before consent.
+It applies source-preserving compare-and-set registry mutations and declared
+live references, verifies the planned provider state, and runs the repository
+quality gate without committing or pushing. Informational `path` references,
+including historical release notes, are never rewritten. See @ref project_tools
+for the reference kinds, strict UTF-8 contract, preview behavior, no-op rules,
+and provider rollback boundary.
 
 Explicit formatter/linter configuration lives under `config/quality/` and is passed to each owning tool explicitly.
 `.clang-format`, `.clang-tidy`, and `.editorconfig` remain at repository root because their upward-discovery behavior is useful

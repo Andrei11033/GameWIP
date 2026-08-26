@@ -257,18 +257,64 @@ finally
     Set-Item -Path function:Test-GameWipInteractiveConsole -Value $interactiveConsoleImplementation
 }
 
-# Atomic persistence can replace an existing file without failing while
-# PowerShell resolves the typed fallback catches.
+# Repository text persistence is strict UTF-8 without BOM and can atomically
+# replace an existing file without losing non-ASCII content.
 $atomicRoot = Join-Path $repositoryRoot ('build\gamewip\temp\atomic-test-' + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Force -Path $atomicRoot | Out-Null
 try
 {
     $atomicPath = Join-Path $atomicRoot 'state.txt'
+    $unicodeText = (
+        'GameWIP ' +
+        [char]0x2014 +
+        ' UTF-8: ' +
+        [char]0x0103 +
+        [char]0x00EE +
+        [char]0x0219 +
+        [char]0x021B +
+        ' ' +
+        [char]0x20AC
+    )
+
     Write-GameWipTextAtomic -Path $atomicPath -Content 'first'
-    Write-GameWipTextAtomic -Path $atomicPath -Content 'second'
-    if ((Get-Content -Raw -LiteralPath $atomicPath) -ne 'second')
+    Write-GameWipTextAtomic -Path $atomicPath -Content $unicodeText
+
+    $readBack = Read-GameWipUtf8Text -Path $atomicPath
+    if ($readBack -cne $unicodeText)
     {
-        throw 'Atomic persistence did not replace an existing file.'
+        throw 'UTF-8 persistence did not preserve repository text exactly.'
+    }
+
+    $bytes = [IO.File]::ReadAllBytes($atomicPath)
+    if (
+        $bytes.Length -ge 3 -and
+        $bytes[0] -eq 0xEF -and
+        $bytes[1] -eq 0xBB -and
+        $bytes[2] -eq 0xBF
+    )
+    {
+        throw 'Repository text persistence introduced a UTF-8 BOM.'
+    }
+
+    $invalidUtf8Path = Join-Path $atomicRoot 'invalid-utf8.txt'
+    [IO.File]::WriteAllBytes(
+        $invalidUtf8Path,
+        [byte[]](0xC3, 0x28)
+    )
+
+    $invalidUtf8Rejected = $false
+    try
+    {
+        $null = Read-GameWipUtf8Text -Path $invalidUtf8Path
+    }
+    catch [System.Text.DecoderFallbackException]
+    {
+        $invalidUtf8Rejected = $true
+    }
+
+    if (-not $invalidUtf8Rejected)
+    {
+        throw 'Repository UTF-8 reads silently accepted malformed UTF-8.'
     }
 }
 finally
@@ -682,6 +728,23 @@ finally
     Remove-Item -LiteralPath $processLogRoot -Recurse -Force -ErrorAction SilentlyContinue
 }
 
+$savedLastExitCode = Get-Variable -Name LASTEXITCODE -Scope Global -ErrorAction SilentlyContinue
+$exitedProcess = Start-Process -FilePath $powerShellPath -ArgumentList @('-NoProfile', '-Command', 'exit 0') -PassThru
+$exitedProcess.WaitForExit()
+$exitedProcess | Add-Member -NotePropertyName GameWipOwnProcessGroup -NotePropertyValue $false
+try
+{
+    Remove-Variable -Name LASTEXITCODE -Scope Global -ErrorAction SilentlyContinue
+    Stop-GameWipOwnedProcess -Process $exitedProcess
+}
+finally
+{
+    if ($null -ne $savedLastExitCode)
+    {
+        $global:LASTEXITCODE = $savedLastExitCode.Value
+    }
+}
+
 $atomicRoot = Join-Path $repositoryRoot (
     'build\gamewip\temp\atomic-parent-mutation-test-' +
     [guid]::NewGuid().ToString('N')
@@ -705,6 +768,177 @@ finally
 {
     $Script:OperationContext = $null
     Remove-Item -LiteralPath $atomicRoot -Recurse -Force -ErrorAction SilentlyContinue
+}
+
+# Tracked tool planning is declarative, composes same-file references, and
+# stages source-preserving compare-and-set mutations without provider/network calls.
+$trackedPlanRoot = Join-Path $repositoryRoot ('build\gamewip\temp\tracked-plan-test-' + [guid]::NewGuid().ToString('N'))
+$savedRepositoryRoot = $Script:RepositoryRoot
+$savedProjectToolsPath = $Script:ProjectToolsPath
+$savedProjectTools = $Script:ProjectTools
+$savedOperationContext = $Script:OperationContext
+try
+{
+    New-Item -ItemType Directory -Path $trackedPlanRoot -Force | Out-Null
+    $sharedReferencePath = Join-Path $trackedPlanRoot 'shared.md'
+    $historicalReferencePath = Join-Path $trackedPlanRoot 'historical.md'
+    $emDash = [char]0x2014
+    $romanianText = [string]([char]0x0103) + [char]0x00EE + [char]0x0219 + [char]0x021B
+    $sharedSource = "alpha=1.0.0`nbeta=2.0.0`nunrelated=$emDash $romanianText`n"
+    [IO.File]::WriteAllText($sharedReferencePath, $sharedSource, [Text.UTF8Encoding]::new($false))
+    [IO.File]::WriteAllText($historicalReferencePath, 'historical=3.0.0', [Text.UTF8Encoding]::new($false))
+
+    $commonDetection = @{ command = 'test'; versionArguments = @('--version'); versionPattern = '([0-9.]+)' }
+    $commonCapabilities = @{ detectInstalled = $true; checkLatest = $true; update = $true }
+    $testRegistry = @{
+        schemaVersion = 1
+        tools = @(
+            @{
+                id = 'alpha'; name = 'Alpha'; category = 'quality'; versionPolicy = 'exact'; requiredVersion = '1.0.0'
+                provider = @{ kind = 'npm'; package = 'alpha'; dependencies = @(@{ package = 'alpha-dependency'; version = '4.0.0' }) }
+                detection = Copy-GameWipValue -Value $commonDetection
+                capabilities = Copy-GameWipValue -Value $commonCapabilities
+                references = @(@{ path = 'shared.md'; kind = 'text'; pattern = 'alpha={version}'; expectedCount = 1 })
+            },
+            @{
+                id = 'beta'; name = 'Beta'; category = 'quality'; versionPolicy = 'exact'; requiredVersion = '2.0.0'
+                provider = @{ kind = 'npm'; package = 'beta' }
+                detection = Copy-GameWipValue -Value $commonDetection
+                capabilities = Copy-GameWipValue -Value $commonCapabilities
+                references = @(@{ path = 'shared.md'; kind = 'text'; pattern = 'beta={version}'; expectedCount = 1 })
+            },
+            @{
+                id = 'historical'; name = 'Historical'; category = 'quality'; versionPolicy = 'exact'; requiredVersion = '3.0.0'
+                provider = @{ kind = 'npm'; package = 'historical' }
+                detection = Copy-GameWipValue -Value $commonDetection
+                capabilities = Copy-GameWipValue -Value $commonCapabilities
+                references = @(@{ path = 'historical.md'; kind = 'path' })
+            },
+            @{
+                id = 'release'; name = 'Release'; category = 'quality'; versionPolicy = 'exact'; requiredVersion = '5.0.0'
+                provider = @{
+                    kind = 'githubRelease'; repository = 'example/release'; releaseTag = 'v5.0.0'
+                    assets = @{
+                        'windows-amd64' = @{ archive = 'release_5.0.0_windows.zip'; sha256 = ('a' * 64) }
+                        'linux-amd64' = @{ archive = 'release_5.0.0_linux.tar.gz'; sha256 = ('b' * 64) }
+                    }
+                }
+                detection = Copy-GameWipValue -Value $commonDetection
+                capabilities = Copy-GameWipValue -Value $commonCapabilities
+                references = @()
+            }
+        )
+    }
+    $testRegistryPath = Join-Path $trackedPlanRoot 'project-tools.json'
+    [IO.File]::WriteAllText($testRegistryPath, (($testRegistry | ConvertTo-Json -Depth 20) + "`n"), [Text.UTF8Encoding]::new($false))
+    $Script:RepositoryRoot = $trackedPlanRoot
+    $Script:ProjectToolsPath = $testRegistryPath
+    $Script:ProjectTools = $testRegistry
+    $Script:OperationContext = New-GameWipOperationContext -Label 'tracked-plan-test'
+    $Script:OperationContext.Temp = $trackedPlanRoot
+
+    $plan = @(
+        [pscustomobject]@{
+            Tool = $testRegistry.tools[0]; Latest = '1.1.0'; LatestDependencies = @{ 'alpha-dependency' = '4.1.0' }
+            Query = [pscustomobject]@{ State = 'resolved'; Reason = '' }; ReleaseMetadata = $null
+        },
+        [pscustomobject]@{
+            Tool = $testRegistry.tools[1]; Latest = '2.1.0'; LatestDependencies = @{}
+            Query = [pscustomobject]@{ State = 'resolved'; Reason = '' }; ReleaseMetadata = $null
+        },
+        [pscustomobject]@{
+            Tool = $testRegistry.tools[2]; Latest = '3.1.0'; LatestDependencies = @{}
+            Query = [pscustomobject]@{ State = 'resolved'; Reason = '' }; ReleaseMetadata = $null
+        },
+        [pscustomobject]@{
+            Tool = $testRegistry.tools[3]; Latest = '5.1.0'; LatestDependencies = @{}
+            Query = [pscustomobject]@{ State = 'resolved'; Reason = '' }
+            ReleaseMetadata = @{
+                Tag = 'v5.1.0'
+                Assets = @{
+                    'windows-amd64' = @{ archive = 'release_5.1.0_windows.zip'; sha256 = ('c' * 64) }
+                    'linux-amd64' = @{ archive = 'release_5.1.0_linux.tar.gz'; sha256 = ('d' * 64) }
+                }
+            }
+        }
+    )
+    $trackedPlan = Get-GameWipTrackedToolMutationPlan -Plan $plan
+    $sharedStaged = [string]$trackedPlan.Files[$sharedReferencePath]
+    if ($sharedStaged -cne "alpha=1.1.0`nbeta=2.1.0`nunrelated=$emDash $romanianText`n")
+    {
+        throw 'Multiple live reference mutations did not compose while preserving unrelated UTF-8 text.'
+    }
+    if ($trackedPlan.Files.ContainsKey($historicalReferencePath))
+    {
+        throw 'An informational path reference was automatically mutated.'
+    }
+    $mutationTargets = @($trackedPlan.RegistryMutations | ForEach-Object {
+            [string]$_.toolId + ':' + (@($_.path | ForEach-Object {
+                        if ($_ -is [hashtable])
+                        {
+                            '[alpha-dependency]'
+                        }
+                        else
+                        {
+                            [string]$_
+                        }
+                    }) -join '.')
+        })
+    foreach ($expectedTarget in @(
+            'alpha:requiredVersion',
+            'alpha:provider.dependencies.[alpha-dependency].version',
+            'release:requiredVersion',
+            'release:provider.releaseTag',
+            'release:provider.assets.windows-amd64.archive',
+            'release:provider.assets.windows-amd64.sha256'
+        ))
+    {
+        if ($mutationTargets -notcontains $expectedTarget)
+        {
+            throw "Tracked mutation planning omitted '$expectedTarget'."
+        }
+    }
+    $stagedRegistrySource = [string]$trackedPlan.Files[$testRegistryPath]
+    if ($stagedRegistrySource -notmatch '"requiredVersion":\s+"1\.1\.0"' -or $stagedRegistrySource -notmatch '"version":\s+"4\.1\.0"')
+    {
+        throw 'Structured registry mutations did not stage planned exact/dependency versions.'
+    }
+
+    $badReferenceTool = Copy-GameWipValue -Value $testRegistry.tools[0]
+    $badReferenceTool.references[0].expectedCount = 2
+    $countRejected = $false
+    try
+    {
+        Get-GameWipTrackedToolMutationPlan -Plan @([pscustomobject]@{
+                Tool = $badReferenceTool; Latest = '1.1.0'; LatestDependencies = @{}
+                Query = [pscustomobject]@{ State = 'resolved'; Reason = '' }; ReleaseMetadata = $null
+            }) | Out-Null
+    }
+    catch
+    {
+        $countRejected = $_.Exception.Message -like '*expected 2 exact match(es), found 1*'
+    }
+    if (-not $countRejected)
+    {
+        throw 'Live reference expectedCount mismatch was not rejected.'
+    }
+
+    $noOpPlan = Get-GameWipTrackedToolMutationPlan -Plan @([pscustomobject]@{
+            Tool = $testRegistry.tools[1]; Latest = '2.0.0'; LatestDependencies = @{}
+            Query = [pscustomobject]@{ State = 'resolved'; Reason = '' }; ReleaseMetadata = $null
+        })
+    if ($noOpPlan.RegistryMutations.Count -ne 0 -or $noOpPlan.Files.Count -ne 0)
+    {
+        throw 'No-op tracked planning staged repository changes.'
+    }
+}
+finally
+{
+    $Script:RepositoryRoot = $savedRepositoryRoot
+    $Script:ProjectToolsPath = $savedProjectToolsPath
+    $Script:ProjectTools = $savedProjectTools
+    $Script:OperationContext = $savedOperationContext
+    Remove-Item -LiteralPath $trackedPlanRoot -Recurse -Force -ErrorAction SilentlyContinue
 }
 
 if (-not (Test-GameWipQualityPolicyChange -Files @('.clang-format')) -or

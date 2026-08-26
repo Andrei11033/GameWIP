@@ -59,6 +59,8 @@ REQUIRED_CHECK_NAMES = {
 }
 
 ACTION_REFERENCE = re.compile(r"^\s*uses:\s*([^\s#]+)")
+ACTION_VERSION_ANNOTATION = re.compile(r"^\s*uses:\s*([^\s#]+)(?:\s+#\s*(\S(?:.*\S)?))?\s*$")
+ACTION_VERSION = re.compile(r"^v[0-9]+(?:\.[0-9]+){0,2}$")
 FULL_COMMIT_PIN = re.compile(r"^[^\s@]+@[0-9a-f]{40}$")
 JOB_START = re.compile(r"^  ([A-Za-z0-9_-]+):\s*$")
 JOB_TIMEOUT = re.compile(r"^    timeout-minutes:\s*[1-9][0-9]*\s*$")
@@ -223,7 +225,11 @@ def check_issue_area_mapping(failures: list[str]) -> None:
         options = [line.removeprefix("        - ").strip() for line in match.group(1).splitlines()]
         if options != expected_options:
             failures.append(f"{path.relative_to(ROOT).as_posix()}: area dropdown does not match the canonical ordered taxonomy")
-        for required in (f"title: '{title}'", f"  - '{type_label}'", f"  - '{priority_label}'"):
+        for required in (
+            f"title: '{title}'",
+            f"  - '{type_label}'",
+            f"  - '{priority_label}'",
+        ):
             if required not in text:
                 failures.append(f"{path.relative_to(ROOT).as_posix()}: required issue-form metadata is missing: {required}")
 
@@ -231,7 +237,12 @@ def check_issue_area_mapping(failures: list[str]) -> None:
     release_text = release_path.read_text(encoding="utf-8")
     if ISSUE_AREA_OPTIONS.search(release_text) is not None:
         failures.append(".github/ISSUE_TEMPLATE/release.yml: release form must not expose the general Area dropdown")
-    for required in ("title: 'release: '", "  - 'type:release'", "  - 'area:github'", "  - 'priority:high'"):
+    for required in (
+        "title: 'release: '",
+        "  - 'type:release'",
+        "  - 'area:github'",
+        "  - 'priority:high'",
+    ):
         if required not in release_text:
             failures.append(f".github/ISSUE_TEMPLATE/release.yml: required release metadata is missing: {required}")
 
@@ -245,7 +256,11 @@ def check_issue_area_mapping(failures: list[str]) -> None:
         ):
             failures.append(f".github issue forms and Dependabot must not create retired label '{forbidden}'")
 
-    for alias in ("Build and tooling", "Gameplay roadmap", "Engine input/action/window"):
+    for alias in (
+        "Build and tooling",
+        "Gameplay roadmap",
+        "Engine input/action/window",
+    ):
         if alias not in policy_text:
             failures.append(f".github/scripts/issue-area-labels.js: historical Area alias is missing: {alias}")
 
@@ -267,7 +282,13 @@ def check_github_metadata_policy(failures: list[str]) -> None:
         if forbidden in current_docs:
             failures.append(f"current GitHub metadata documentation contains retired policy: {forbidden}")
 
-    if re.search(r"exactly one `type:\*`, one `area:\*`, and one\s+`priority:\*`", contributing) is None:
+    if (
+        re.search(
+            r"exactly one `type:\*`, one `area:\*`, and one\s+`priority:\*`",
+            contributing,
+        )
+        is None
+    ):
         failures.append("docs/contributing.md: exact primary metadata cardinality guidance is missing")
 
     for required in (
@@ -279,7 +300,14 @@ def check_github_metadata_policy(failures: list[str]) -> None:
             failures.append(f"docs/contributing.md: required GitHub metadata guidance is missing: {required}")
 
     pr_standards = (ROOT / ".github" / "scripts" / "pr-standards.js").read_text(encoding="utf-8")
-    for required in ("type:bug", "type:feature", "type:task", "type:decision", "type:release", "compat:breaking"):
+    for required in (
+        "type:bug",
+        "type:feature",
+        "type:task",
+        "type:decision",
+        "type:release",
+        "compat:breaking",
+    ):
         if required not in pr_standards:
             failures.append(f".github/scripts/pr-standards.js: canonical metadata value is missing: {required}")
 
@@ -382,6 +410,8 @@ def check_registry_relationships(failures: list[str]) -> None:
     provider_files = {path.stem.lower() for path in (ROOT / "scripts/lib/Providers").glob("*.ps1")}
     validation_text = (WORKFLOW_ROOT / "validation.yml").read_text(encoding="utf-8")
     tool_docs = (ROOT / "docs/doxygen/project_contracts.md").read_text(encoding="utf-8")
+    live_references = set()
+    repository_root = ROOT.resolve()
     for entry in tool_entries:
         tool_id = entry.get("id")
         provider_info = entry.get("provider", {})
@@ -415,28 +445,57 @@ def check_registry_relationships(failures: list[str]) -> None:
         version = entry.get("requiredVersion", "")
         for reference in entry.get("references", []):
             if not isinstance(reference, dict):
-                failures.append(f"scripts/config/project-tools.json: tool '{tool_id}' has a non-object live reference")
+                failures.append(f"scripts/config/project-tools.json: tool '{tool_id}' has a non-object reference")
                 continue
             relative = reference.get("path", "")
-            path = ROOT / relative
+            path = (ROOT / relative).resolve()
+            if repository_root not in path.parents:
+                failures.append(f"scripts/config/project-tools.json: tool '{tool_id}' reference '{relative}' resolves outside the repository")
+                continue
             if not path.is_file():
                 failures.append(f"scripts/config/project-tools.json: tool '{tool_id}' references missing path '{relative}'")
                 continue
             kind = reference.get("kind")
             if kind == "text":
                 pattern = reference.get("pattern", "")
-                if "{version}" not in pattern:
-                    failures.append(f"scripts/config/project-tools.json: text reference '{relative}' for '{tool_id}' lacks {{version}}")
+                if pattern.count("{version}") != 1:
+                    failures.append(
+                        f"scripts/config/project-tools.json: text reference '{relative}' for '{tool_id}' must contain exactly one literal {{version}} token"
+                    )
                     continue
                 expected = int(reference.get("expectedCount", 1))
                 concrete = pattern.replace("{version}", version)
                 count = path.read_text(encoding="utf-8").count(concrete)
                 if count != expected:
                     failures.append(f"{relative}: live version reference for '{tool_id}' expected {expected} exact match(es), found {count}")
-            elif kind == "cmakeMinimum" and cmake_match is not None and version != cmake_match.group(1):
-                failures.append(f"{relative}: CMake minimum reference for '{tool_id}' is stale")
+            elif kind == "cmakeMinimum":
+                expected = int(reference.get("expectedCount", 1))
+                concrete = f"cmake_minimum_required(VERSION {version})"
+                count = path.read_text(encoding="utf-8").count(concrete)
+                if count != expected:
+                    failures.append(f"{relative}: CMake minimum reference for '{tool_id}' expected {expected} exact match(es), found {count}")
+                if "pattern" in reference:
+                    failures.append(
+                        f"scripts/config/project-tools.json: CMake minimum reference '{relative}' for '{tool_id}' must not declare pattern"
+                    )
+            elif kind == "path":
+                if "pattern" in reference or "expectedCount" in reference:
+                    failures.append(
+                        f"scripts/config/project-tools.json: informational path reference '{relative}' for '{tool_id}' must not declare pattern or expectedCount"
+                    )
             elif kind not in {"path", "text", "cmakeMinimum"}:
                 failures.append(f"scripts/config/project-tools.json: tool '{tool_id}' uses unknown reference kind '{kind}'")
+
+            if kind in {"text", "cmakeMinimum"}:
+                live_key = (
+                    kind,
+                    str(path),
+                    reference.get("pattern", ""),
+                    int(reference.get("expectedCount", 1)),
+                )
+                if live_key in live_references:
+                    failures.append(f"scripts/config/project-tools.json: duplicate live reference '{relative}' for '{tool_id}'")
+                live_references.add(live_key)
 
         if entry.get("versionPolicy") == "exact":
             if version not in tool_docs:
@@ -614,6 +673,35 @@ def check_workflow(path: Path, safe_ctest_presets: set[str]) -> list[str]:
     return failures
 
 
+def check_action_reference_consistency(workflows: list[Path], failures: list[str]) -> None:
+    """Require one pinned reference and readable version annotation per external action."""
+
+    references: dict[str, tuple[str, str, str, int]] = {}
+    for path in workflows:
+        relative = path.relative_to(ROOT).as_posix()
+        for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+            match = ACTION_VERSION_ANNOTATION.match(line)
+            if match is None:
+                continue
+
+            reference, annotation = match.groups()
+            if reference.startswith("./"):
+                continue
+            if annotation is None or ACTION_VERSION.fullmatch(annotation) is None:
+                failures.append(f"{relative}:{line_number}: annotate pinned action '{reference}' with a release version such as '# v4.2.0'")
+                continue
+
+            action = reference.rpartition("@")[0]
+            previous = references.get(action)
+            if previous is not None and (previous[0] != reference or previous[1] != annotation):
+                failures.append(
+                    f"{relative}:{line_number}: action '{action}' uses '{reference} # {annotation}' but "
+                    f"{previous[2]}:{previous[3]} uses '{previous[0]} # {previous[1]}'"
+                )
+                continue
+            references[action] = (reference, annotation, relative, line_number)
+
+
 def check_quality_contract(failures: list[str]) -> None:
     """Protect quality semantics that would otherwise degrade silently."""
 
@@ -657,6 +745,7 @@ def main() -> int:
     workflows = sorted((*WORKFLOW_ROOT.glob("*.yml"), *WORKFLOW_ROOT.glob("*.yaml")))
     if not workflows:
         failures.append(".github/workflows: no workflow files found")
+    check_action_reference_consistency(workflows, failures)
     for workflow in workflows:
         failures.extend(check_workflow(workflow, safe_ctest_presets))
 

@@ -63,6 +63,11 @@ must always check out trusted default-branch automation with persisted checkout
 credentials disabled, and must never fetch, build, import, or execute pull
 request head content. The repository checker enforces this boundary.
 
+`PR Standards` checks out the pull request's base commit separately and loads
+its policy module only from that trusted checkout. It has no pull-request-head
+or bootstrap fallback, so contributor code cannot replace the policy being
+executed.
+
 Event-driven automation is the normal path. The project schedule is an
 intentional repair pass for dependency, review, or project-side changes that do
 not emit a complete repository event; maintainers should not manually repeat
@@ -126,9 +131,10 @@ window and the new context has completed successfully.
 Use one protected-branch policy owner. Do not duplicate the same `master` rules
 in a second ruleset or Actions policy unless performing a documented migration;
 overlapping rules create two settings that must be kept in sync. Actions
-dependency policy is separate: workflow references are pinned to immutable
-commits, and the repository-level full-SHA requirement should be enabled after
-the pinned workflow baseline reaches `master`. Keep **Allow all actions and
+dependency policy is separate: each action uses one immutable commit pin and
+consistent human-readable release-version annotation across workflows. The
+repository-level full-SHA requirement should be enabled after the pinned workflow
+baseline reaches `master`. Keep **Allow all actions and
 reusable workflows** unless the trust model changes; a selected-actions allowlist
 would duplicate the reviewed pins and create a second dependency list to maintain.
 
