@@ -4,7 +4,7 @@
 
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const { validatePullRequest } = require('./pr-standards.js');
+const { hasMeaningfulContent, validatePullRequest } = require('./pr-standards.js');
 
 const valid = {
     title: 'github: standardize repository policy',
@@ -68,4 +68,10 @@ test('rejects retired or unsupported metadata values', () => {
 test('rejects placeholders while preserving normal body validation', () => {
     const body = valid.body.replace('github: standardize repository policy', 'area: imperative summary');
     assert.ok(validatePullRequest({ ...valid, body }).some((error) => error.includes('concrete')));
+});
+
+test('does not let removed HTML comments reform comment openers', () => {
+    assert.equal(hasMeaningfulContent('<<!-- ignored -->!--'), false);
+    assert.equal(hasMeaningfulContent('<!-- unterminated'), false);
+    assert.equal(hasMeaningfulContent('meaningful<!-- ignored -->'), true);
 });
