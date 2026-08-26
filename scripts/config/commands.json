@@ -254,6 +254,107 @@
       "risk": "read-only"
     }
   ],
+  "menus": [
+    {
+      "id": "root",
+      "title": "GameWIP",
+      "prompt": "Choose an area:",
+      "exitLabel": "Exit",
+      "items": [
+        { "key": "1", "label": "Development", "handler": "menu-development" },
+        { "key": "2", "label": "Validation", "handler": "menu-validation" },
+        { "key": "3", "label": "Quality", "handler": "menu-quality" },
+        { "key": "4", "label": "Tools and environment", "handler": "menu-tools" },
+        { "key": "5", "label": "Repository and GitHub", "handler": "menu-repository" },
+        { "key": "6", "label": "Maintenance", "handler": "menu-maintenance" },
+        { "key": "D", "label": "Project readiness", "handler": "doctor" },
+        { "key": "H", "label": "Help/catalog", "handler": "help" }
+      ]
+    },
+    {
+      "id": "development",
+      "title": "Development",
+      "prompt": "Choose an action:",
+      "exitLabel": "Back",
+      "items": [
+        { "key": "1", "label": "Configure preset", "handler": "configure" },
+        { "key": "2", "label": "Build preset", "handler": "build" },
+        { "key": "3", "label": "Run project command", "handler": "run" },
+        { "key": "4", "label": "Build documentation", "handler": "docs" }
+      ]
+    },
+    {
+      "id": "validation",
+      "title": "Validation",
+      "prompt": "Choose an action:",
+      "exitLabel": "Back",
+      "items": [
+        { "key": "1", "label": "Run CTest preset", "handler": "test" },
+        { "key": "2", "label": "Run validation module", "handler": "module" },
+        { "key": "3", "label": "Stress validation module", "handler": "stress" },
+        { "key": "4", "label": "Validation command builder", "handler": "wizard" },
+        { "key": "5", "label": "Benchmarks", "handler": "benchmark" },
+        { "key": "6", "label": "Coverage", "handler": "coverage" },
+        { "key": "7", "label": "AddressSanitizer", "handler": "asan" }
+      ]
+    },
+    {
+      "id": "quality",
+      "title": "Quality",
+      "prompt": "Choose an action:",
+      "exitLabel": "Back",
+      "items": [
+        { "key": "1", "label": "Full quality check", "handler": "quality-check" },
+        { "key": "2", "label": "Apply deterministic formatters, then check", "handler": "quality-fix" },
+        { "key": "3", "label": "C/C++ formatting check", "handler": "format-check" },
+        { "key": "4", "label": "Apply C/C++ formatting", "handler": "format-apply" },
+        { "key": "5", "label": "C++ static analysis", "handler": "analyze" }
+      ]
+    },
+    {
+      "id": "tools",
+      "title": "Tools and environment",
+      "prompt": "Choose an action:",
+      "exitLabel": "Back",
+      "items": [
+        { "key": "1", "label": "Project readiness", "handler": "doctor" },
+        { "key": "2", "label": "Tool status (offline)", "handler": "tools-status" },
+        { "key": "3", "label": "Check upstream versions", "handler": "tools-check-updates" },
+        { "key": "4", "label": "Preview tool update", "handler": "tools-preview" },
+        { "key": "5", "label": "Apply tool update", "handler": "tools-update" },
+        { "key": "6", "label": "Setup guidance", "handler": "setup-guidance" }
+      ]
+    },
+    {
+      "id": "repository",
+      "title": "Repository and GitHub",
+      "prompt": "Choose an action:",
+      "exitLabel": "Back",
+      "items": [
+        { "key": "1", "label": "Git status", "handler": "git-status" },
+        { "key": "2", "label": "Fetch remotes", "handler": "git-fetch" },
+        { "key": "3", "label": "Switch branch", "handler": "git-switch" },
+        { "key": "4", "label": "Update current branch", "handler": "git-update" },
+        { "key": "5", "label": "Workspace cleanup", "handler": "git-cleanup" },
+        { "key": "6", "label": "Git log", "handler": "git-log" },
+        { "key": "7", "label": "List guarded workflows", "handler": "workflow-list" },
+        { "key": "8", "label": "Run guarded workflow", "handler": "workflow-run" }
+      ]
+    },
+    {
+      "id": "maintenance",
+      "title": "Maintenance",
+      "prompt": "Choose an action:",
+      "exitLabel": "Back",
+      "items": [
+        { "key": "1", "label": "Unicode status", "handler": "unicode-status" },
+        { "key": "2", "label": "Verify Unicode generated data", "handler": "unicode-verify" },
+        { "key": "3", "label": "Regenerate Unicode tracked table", "handler": "unicode-regenerate" },
+        { "key": "4", "label": "Run command bundle", "handler": "bundle" },
+        { "key": "5", "label": "Validate Markdown links", "handler": "links" }
+      ]
+    }
+  ],
   "formatting": {
     "sourceRoots": ["foundation", "tools", "engine", "game"],
     "configPath": ".clang-format"

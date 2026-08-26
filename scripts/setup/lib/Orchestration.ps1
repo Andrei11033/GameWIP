@@ -16,6 +16,12 @@ foreach ($file in @('Common.ps1', 'Winget.ps1', 'Msys2.ps1', 'Repository.ps1', '
 function Assert-GameWipSetupActionCatalog
 {
     $actions = @($SetupActionConfig.Actions)
+    $requiredActionIds = @('menu', 'full', 'check', 'update', 'repair', 'uninstall', 'tools', 'visual-studio', 'msys2', 'repository', 'profiler', 'editor', 'docs', 'list', 'help')
+    $actionIds = @($actions | ForEach-Object { [string]$_.Id })
+    if ((($requiredActionIds | Sort-Object) -join "`n") -cne (($actionIds | Sort-Object) -join "`n"))
+    {
+        throw "Setup action catalog drift. Required: $($requiredActionIds -join ', '); configured: $($actionIds -join ', ')."
+    }
     $duplicateIds = @($actions | ForEach-Object { [string]$_.Id } | Group-Object | Where-Object Count -gt 1)
     if ($duplicateIds.Count -ne 0)
     {
@@ -60,14 +66,9 @@ function Show-GameWipSetupHelp
     Write-Host 'Usage:'
     Write-Host '  setup.bat <action> [-Branch <name>] [-Preview] [-NonInteractive] [-Yes] [-SkipDocs]'
     Write-Host ''
-    Write-Host 'Controls:'
-    Write-Host '  -Preview          Do not apply the requested action; retain only diagnostic run evidence.'
-    Write-Host '  -NonInteractive   Disable prompts; it never grants mutation consent.'
-    Write-Host '  -Yes              Approve the printed mutation plan in non-interactive use.'
-    Write-Host '  -SkipDocs         Skip generated documentation during full/update/repair.'
-    Write-Host '  -OutputMode       Select Stream (default), Summary, or LogOnly process output.'
-    Write-Host '  -Quiet            Suppress ordinary output while retaining logs and receipt data.'
-    Write-Host '  -Json             Emit the final structured operation result.'
+    Show-GameWipCommonControlHelp -AdditionalOptions @(
+        '  -SkipDocs         Skip generated documentation during full/update/repair.'
+    )
     Write-Host ''
     Show-GameWipSetupActionCatalog
 }
@@ -246,21 +247,7 @@ function Invoke-GameWipSetupEnvironmentCheck
         $tool = $checkedTools[$toolIndex]
         $detected = Get-GameWipDetectedTool -Tool $tool
         $compatibility = Get-GameWipToolCompatibility -Tool $tool -Detected $detected
-        $semantic = switch ($compatibility)
-        {
-            'compatible'
-            {
-                'Success'
-            }
-            'missing'
-            {
-                'Failure'
-            }
-            default
-            {
-                'Warning'
-            }
-        }
+        $semantic = Get-GameWipToolCompatibilitySemantic -Compatibility $compatibility
         Write-GameWipStatusLine `
             -Status "$($toolIndex + 1)/$($checkedTools.Count)" `
             -Text ([string]$tool.id) `
@@ -503,23 +490,23 @@ function Show-GameWipSetupMenu
     Assert-GameWipSetupActionCatalog
     while ($true)
     {
-        Write-GameWipSection 'GameWIP Development Environment'
         $menuActions = @($SetupActionConfig.Actions | Where-Object { $_.ContainsKey('Key') })
-        foreach ($actionInfo in $menuActions)
-        {
-            Write-Host "$($actionInfo.Key). $($actionInfo.Name)"
-        }
-        Write-Host 'ESC. Exit'
-        $keys = @($menuActions | ForEach-Object { [string]$_.Key })
-        $choice = Read-GameWipActionKey -Prompt 'Choose an action:' -AllowedKeys $keys -AllowEscape
+        $menuItems = @($menuActions | ForEach-Object {
+                [pscustomobject]@{
+                    Key = [string]$_.Key
+                    Label = [string]$_.Name
+                    Handler = [string]$_.Id
+                }
+            })
+        $choice = Read-GameWipActionMenuItem `
+            -Title 'GameWIP Development Environment' `
+            -Prompt 'Choose an action:' `
+            -Items $menuItems `
+            -ExitLabel Exit
         if ($choice.Status -eq 'Cancelled')
         {
             return
         }
-        $selected = $menuActions | Where-Object { [string]$_.Key -ieq [string]$choice.Value } | Select-Object -First 1
-        if ($null -ne $selected)
-        {
-            Invoke-GameWipSetupOperation -SelectedAction ([string]$selected.Id) | Out-Null
-        }
+        Invoke-GameWipSetupOperation -SelectedAction ([string]$choice.Value) | Out-Null
     }
 }
