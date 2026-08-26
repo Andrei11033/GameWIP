@@ -1,6 +1,7 @@
 @page project_library_compatibility Library packaging and compatibility
 
-GameWIP reusable libraries are packaged as CMake config packages with canonical imported targets under the `GameWIP::` CMake namespace. The installed package boundary is the consumer contract for headers, targets, dependencies, version files, and shared-library exports.
+GameWIP reusable libraries are packaged as CMake config packages with canonical imported targets under the `GameWIP::` CMake namespace. The installed
+package boundary is the consumer contract for headers, targets, dependencies, version files, and shared-library exports.
 
 This page explains what an installed consumer can rely on: package names,
 imported targets, exact-version matching, installed headers, transitive
@@ -24,7 +25,8 @@ The `GameWIP::` prefix belongs to CMake target names. It does not add another le
 
 ## Consumer workflow
 
-A clean external CMake project should consume an installed library through `find_package()` and the canonical imported target. The consuming project's dependency lock owns `GAMEWIP_REQUIRED_VERSION`; supply it as a numeric cache or preset value instead of copying a version from this repository:
+A clean external CMake project should consume an installed library through `find_package()` and the canonical imported target. The consuming project's
+dependency lock owns `GAMEWIP_REQUIRED_VERSION`; supply it as a numeric cache or preset value instead of copying a version from this repository:
 
 ```cmake
 if(NOT DEFINED GAMEWIP_REQUIRED_VERSION OR GAMEWIP_REQUIRED_VERSION STREQUAL "")
@@ -38,17 +40,22 @@ Consumers must not use source-tree include paths, build-tree short target names,
 
 ## Version and ABI policy
 
-GameWIP packages are pre-1.0 and use exact version matching. Installed config packages request their transitive GameWIP dependencies at the same exact project version.
+GameWIP packages are pre-1.0 and use exact version matching. Installed config packages request their transitive GameWIP dependencies at the same exact
+project version.
 
-A consumer must use a compatible compiler, C++ standard library, and runtime ABI. No binary compatibility is promised across package versions, compiler families, standard-library implementations, or MSYS2 environments.
+A consumer must use a compatible compiler, C++ standard library, and runtime ABI. No binary compatibility is promised across package versions,
+compiler families, standard-library implementations, or MSYS2 environments.
 
-The root `PROJECT_VERSION` is the package version source of truth. Doxygen and runtime diagnostics may display a generated development identity, but package compatibility uses the numeric project version.
+The root `PROJECT_VERSION` is the package version source of truth. Doxygen and runtime diagnostics may display a generated development identity, but
+package compatibility uses the numeric project version.
 
 See `docs/versioning.md` for the project versioning policy.
 
 ## Public-header boundary
 
-Only headers in each target's public CMake file set are installed. Generated shared-library export headers are part of the installed surface when required by a target, but they are visibility scaffolding included by the owning consumer entry header rather than independent entry points. Their installed names and ABI role are documented by the owning library's ABI page.
+Only headers in each target's public CMake file set are installed. Generated shared-library export headers are part of the installed surface when
+required by a target, but they are visibility scaffolding included by the owning consumer entry header rather than independent entry points. Their
+installed names and ABI role are documented by the owning library's ABI page.
 
 The following must not be installed or exposed through imported target interfaces:
 
@@ -60,27 +67,39 @@ The following must not be installed or exposed through imported target interface
 - Source-tree-only helper headers.
 - Native platform handles or backend storage layouts unless an explicitly platform-scoped adapter is documented.
 
-Public-header checks compile every supported consumer entry header in isolation and therefore exercise required export scaffolding transitively. The installed-consumer validation checks the complete installed header allowlist and configures outside the source tree using only package config files and installed headers.
+Public-header checks compile every supported consumer entry header in isolation and therefore exercise required export scaffolding transitively. The
+installed-consumer validation checks the complete installed header allowlist and configures outside the source tree using only package config files
+and installed headers.
 
 ## Dependency rules
 
-Use `PUBLIC` CMake dependencies only when a dependency appears in installed public headers or is required by the imported target's public usage requirements. Use `PRIVATE` dependencies for implementation-only usage.
+Use `PUBLIC` CMake dependencies only when a dependency appears in installed public headers or is required by the imported target's public usage
+requirements. Use `PRIVATE` dependencies for implementation-only usage.
 
-Installed package configs must call `find_dependency()` for every first-party package referenced by an installed imported target's link or usage requirements. This includes link-only implementation dependencies that a static library still requires its final consumer to resolve. Bundled GameWIP package dependencies should request the same exact project version.
+Installed package configs must call `find_dependency()` for every first-party package referenced by an installed imported target's link or usage
+requirements. This includes link-only implementation dependencies that a static library still requires its final consumer to resolve. Bundled GameWIP
+package dependencies should request the same exact project version.
 
-A standalone installed library may still be first-party and project-owned. Standalone means independently consumable from an installed package; it does not mean the library has no repository-level owner or shared version policy.
+A standalone installed library may still be first-party and project-owned. Standalone means independently consumable from an installed package; it
+does not mean the library has no repository-level owner or shared version policy.
 
-Unicode is deliberately standalone: `GameWIP::Unicode` has no link dependency on another GameWIP library, and its package config needs no first-party `find_dependency()` call.
+Unicode is deliberately standalone: `GameWIP::Unicode` has no link dependency on another GameWIP library, and its package config needs no first-party
+`find_dependency()` call.
 
-IO uses Unicode privately to enforce strict UTF-8 semantics for its text helpers. Because IO is static, the installed IO package resolves Unicode automatically so a consumer that requests only `IO` still receives a complete link interface; `io/io.h` itself does not expose Unicode types.
+IO uses Unicode privately to enforce strict UTF-8 semantics for its text helpers. Because IO is static, the installed IO package resolves Unicode
+automatically so a consumer that requests only `IO` still receives a complete link interface; `io/io.h` itself does not expose Unicode types.
 
-TestSupport keeps its public status and result model locally owned, but uses Unicode privately to enforce strict UTF-8 semantics for text fixtures. Because TestSupport is static, its installed package resolves the exact matching Unicode package automatically so a consumer that requests only TestSupport receives a complete link interface. TestSupport public headers do not expose Unicode types, and source-tree CMake checks prohibit higher-level or unrelated GameWIP dependencies.
+TestSupport keeps its public status and result model locally owned, but uses Unicode privately to enforce strict UTF-8 semantics for text fixtures.
+Because TestSupport is static, its installed package resolves the exact matching Unicode package automatically so a consumer that requests only
+TestSupport receives a complete link interface. TestSupport public headers do not expose Unicode types, and source-tree CMake checks prohibit
+higher-level or unrelated GameWIP dependencies.
 
 ## Shared-library export policy
 
 Shared-library exports are declaration-driven and checked against reviewed symbol-root allowlists.
 
-`Detail` symbols may be exported only when public templates, macros, or ABI-safe bridges require an out-of-line implementation symbol. They remain implementation support, are hidden from generated API documentation when practical, and carry no independent compatibility guarantee.
+`Detail` symbols may be exported only when public templates, macros, or ABI-safe bridges require an out-of-line implementation symbol. They remain
+implementation support, are hidden from generated API documentation when practical, and carry no independent compatibility guarantee.
 
 Test-hook symbols may exist in validation builds, but their headers are not installed and they are not production API.
 
@@ -104,7 +123,9 @@ cmake --build --preset test
 ctest --preset test
 ```
 
-Installed-package validation includes the combined surface plus isolated per-package consumers. Each isolated case requests only the package under test, so a missing transitive `find_dependency()` call cannot be masked by an earlier dependency lookup. TestSupport consumers exercise its public status/result surface and verify that its internal hook definition is absent from installed usage requirements.
+Installed-package validation includes the combined surface plus isolated per-package consumers. Each isolated case requests only the package under
+test, so a missing transitive `find_dependency()` call cannot be masked by an earlier dependency lookup. TestSupport consumers exercise its public
+status/result surface and verify that its internal hook definition is absent from installed usage requirements.
 
 ## Failure behavior
 

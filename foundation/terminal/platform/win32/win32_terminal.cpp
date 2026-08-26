@@ -2,6 +2,7 @@
 /// @brief Win32 backend for the Terminal library.
 
 #include "terminal/internal/terminal_platform.h"
+#include "base/platform/win32/dynamic_library.h"
 #include "terminal/internal/terminal_test_hooks.h"
 #include "terminal/platform/win32/win32_terminal_events.h"
 #include "unicode/unicode.h"
@@ -69,13 +70,13 @@ namespace GameWIP::Terminal::Detail::Platform
             /// @brief Returns the first unread byte pointer.
             [[nodiscard]] const char *data() const noexcept
             {
-                return storage_.data() + offset_;
+                return view().data();
             }
 
             /// @brief Returns a view over all unread bytes.
             [[nodiscard]] std::string_view view() const noexcept
             {
-                return {data(), size()};
+                return std::string_view{storage_}.substr(offset_);
             }
 
             /// @brief Appends bytes, compacting first when retained prefix waste is significant.
@@ -243,7 +244,7 @@ namespace GameWIP::Terminal::Detail::Platform
                 {
                     module = GetModuleHandleW(L"kernel32.dll");
                 }
-                return module == nullptr ? nullptr : reinterpret_cast<Function>(GetProcAddress(module, "CompareObjectHandles"));
+                return GameWIP::Base::Win32::loadProcedure<Function>(module, "CompareObjectHandles");
             }();
             return function;
         }
@@ -369,8 +370,9 @@ namespace GameWIP::Terminal::Detail::Platform
                 }
             };
 
-            for (const unsigned char byte : text)
+            for (const char character : text)
             {
+                const auto byte = static_cast<unsigned char>(character);
                 if (byte == '\r')
                 {
                     state.cursorRenderingPosition.column = 0;
@@ -613,7 +615,7 @@ namespace GameWIP::Terminal::Detail::Platform
             {
                 outText.resize_and_overwrite(
                     text.size(),
-                    [&text, sourceLength, flags, &wideLength, &conversionError](wchar_t *destination, std::size_t) noexcept
+                    [&text, sourceLength, &wideLength, &conversionError](wchar_t *destination, std::size_t) noexcept
                     {
                         wideLength = MultiByteToWideChar(CP_UTF8, flags, text.data(), sourceLength, destination, sourceLength);
                         if (wideLength <= 0)
@@ -645,14 +647,14 @@ namespace GameWIP::Terminal::Detail::Platform
         /// @brief Writes a complete UTF-16 payload to a real console, retrying partial writes.
         [[nodiscard]] IO::Types::Status writeConsoleWide(HANDLE handle, std::wstring_view text)
         {
-            const wchar_t *cursor = text.data();
-            std::size_t remaining = text.size();
+            std::size_t totalWritten = 0;
 
-            while (remaining > 0)
+            while (totalWritten < text.size())
             {
-                const auto chunkCharacters = static_cast<DWORD>(std::min<std::size_t>(remaining, std::numeric_limits<DWORD>::max()));
+                const std::wstring_view remaining = text.substr(totalWritten);
+                const auto chunkCharacters = static_cast<DWORD>(std::min<std::size_t>(remaining.size(), std::numeric_limits<DWORD>::max()));
                 DWORD written = 0;
-                if (WriteConsoleW(handle, cursor, chunkCharacters, &written, nullptr) == FALSE)
+                if (WriteConsoleW(handle, remaining.data(), chunkCharacters, &written, nullptr) == FALSE)
                 {
                     const DWORD error = GetLastError();
                     return statusFromWin32(writeErrorCode(error), error, "WriteConsoleW failed for terminal output.");
@@ -663,8 +665,7 @@ namespace GameWIP::Terminal::Detail::Platform
                     return IO::makeStatus(ErrorCode::WriteFailed, 0, "WriteConsoleW accepted no characters before completing terminal output.");
                 }
 
-                cursor += written;
-                remaining -= written;
+                totalWritten += written;
             }
 
             return IO::successStatus();
@@ -673,15 +674,14 @@ namespace GameWIP::Terminal::Detail::Platform
         /// @brief Writes bytes to a redirected handle while preserving partial progress.
         [[nodiscard]] IO::Types::WriteResult writeFileBytes(HANDLE handle, std::span<const std::byte> bytes)
         {
-            const std::byte *cursor = bytes.data();
-            std::size_t remaining = bytes.size();
             std::size_t totalWritten = 0;
 
-            while (remaining > 0)
+            while (totalWritten < bytes.size())
             {
-                const auto chunkBytes = static_cast<DWORD>(std::min<std::size_t>(remaining, std::numeric_limits<DWORD>::max()));
+                const std::span remaining = bytes.subspan(totalWritten);
+                const auto chunkBytes = static_cast<DWORD>(std::min<std::size_t>(remaining.size(), std::numeric_limits<DWORD>::max()));
                 DWORD written = 0;
-                if (WriteFile(handle, cursor, chunkBytes, &written, nullptr) == FALSE)
+                if (WriteFile(handle, remaining.data(), chunkBytes, &written, nullptr) == FALSE)
                 {
                     const DWORD error = GetLastError();
                     return {
@@ -696,8 +696,6 @@ namespace GameWIP::Terminal::Detail::Platform
                         .bytesWritten = totalWritten};
                 }
 
-                cursor += written;
-                remaining -= written;
                 totalWritten += written;
             }
 
@@ -1006,9 +1004,26 @@ namespace GameWIP::Terminal::Detail::Platform
                 return "\r\n";
             case Terminal::Types::Events::NamedKey::Escape:
                 return "\x1b";
-            default:
+            case Terminal::Types::Events::NamedKey::Insert:
+            case Terminal::Types::Events::NamedKey::Delete:
+            case Terminal::Types::Events::NamedKey::Home:
+            case Terminal::Types::Events::NamedKey::End:
+            case Terminal::Types::Events::NamedKey::PageUp:
+            case Terminal::Types::Events::NamedKey::PageDown:
+            case Terminal::Types::Events::NamedKey::ArrowUp:
+            case Terminal::Types::Events::NamedKey::ArrowDown:
+            case Terminal::Types::Events::NamedKey::ArrowLeft:
+            case Terminal::Types::Events::NamedKey::ArrowRight:
+            case Terminal::Types::Events::NamedKey::Begin:
+            case Terminal::Types::Events::NamedKey::CapsLock:
+            case Terminal::Types::Events::NamedKey::NumLock:
+            case Terminal::Types::Events::NamedKey::ScrollLock:
+            case Terminal::Types::Events::NamedKey::PrintScreen:
+            case Terminal::Types::Events::NamedKey::Pause:
+            case Terminal::Types::Events::NamedKey::Menu:
                 return {};
             }
+            return {};
         }
 
         [[nodiscard]] IO::Types::Status appendRepeated(std::string &destination, std::string_view bytes, std::uint32_t count)
@@ -1430,7 +1445,7 @@ namespace GameWIP::Terminal::Detail::Platform
             case Terminal::Types::Input::LineEndingMode::Strip:
                 break;
             case Terminal::Types::Input::LineEndingMode::Keep:
-                line.append(pendingBytes.data() + ending.offset, ending.length);
+                line.append(pendingBytes.view().substr(ending.offset, ending.length));
                 break;
             case Terminal::Types::Input::LineEndingMode::NormalizeToLf:
                 line.push_back('\n');
@@ -2187,7 +2202,13 @@ namespace GameWIP::Terminal::Detail::Platform
             if (!state.pendingBytes.empty())
             {
                 const std::size_t copied = std::min(outputBuffer.size() - result.bytesRead, state.pendingBytes.size());
-                std::memcpy(outputBuffer.data() + result.bytesRead, state.pendingBytes.data(), copied);
+                std::ranges::transform(
+                    state.pendingBytes.view().substr(0, copied),
+                    outputBuffer.subspan(result.bytesRead, copied).begin(),
+                    [](char byte)
+                    {
+                        return static_cast<std::byte>(static_cast<unsigned char>(byte));
+                    });
                 state.pendingBytes.consume(copied);
                 result.bytesRead += copied;
 

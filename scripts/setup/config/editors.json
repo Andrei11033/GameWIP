@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "default": ["vscode"],
+  "options": [
+    {
+      "key": "1",
+      "id": "vscode",
+      "name": "Visual Studio Code",
+      "recommended": true,
+      "handler": "vscode",
+      "package": "Microsoft.VisualStudioCode",
+      "command": "code",
+      "extensions": ["ms-vscode.cpptools", "ms-vscode.cmake-tools"]
+    },
+    {
+      "key": "2",
+      "id": "visual-studio",
+      "name": "Visual Studio Community",
+      "recommended": false,
+      "handler": "visual-studio",
+      "package": "Microsoft.VisualStudio.Community"
+    }
+  ]
+}

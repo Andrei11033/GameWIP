@@ -18,8 +18,10 @@ The focused suite covers:
 
 - Every `ErrorCode` symbolic name, status defaults, and public status helpers.
 - Reader and Writer construction, move-only behavior, default capabilities, flush validation, close, position, size, and seek behavior.
-- MemoryReader source forms, temporary-source rejection, reads, overlapping destinations, end-of-stream, seeks, position, size, move state, and close state.
-- MemoryWriter writes, self-aliasing input, flush and close state, checked capacity reservation and reuse, byte inspection, strict UTF-8 `copyText()` validation, ownership transfer, and move state.
+- MemoryReader source forms, temporary-source rejection, reads, overlapping destinations, end-of-stream, seeks, position, size, move state, and close
+  state.
+- MemoryWriter writes, self-aliasing input, flush and close state, checked capacity reservation and reuse, byte inspection, strict UTF-8 `copyText()`
+  validation, ownership transfer, and move state.
 - Known-size and unknown-size whole-stream reads.
 - Current-position reads, empty streams, zero limits, exact limits, over-limit probes, custom scratch buffers, and invalid buffer arguments.
 - Strict UTF-8 text reads across scalar/chunk boundaries, malformed and incomplete suffixes, valid-prefix preservation, and failure precedence.
@@ -33,10 +35,12 @@ The focused suite covers:
 The repository validation also checks:
 
 - Public-header self-containment for `io/io.h`.
-- A clean installed consumer using `find_package(IO ... EXACT CONFIG REQUIRED)` and `GameWIP::IO` without source-tree include paths; the IO package resolves its Unicode implementation dependency automatically.
+- A clean installed consumer using `find_package(IO ... EXACT CONFIG REQUIRED)` and `GameWIP::IO` without source-tree include paths; the IO package
+  resolves its Unicode implementation dependency automatically.
 - Project-wide compiler, sanitizer, coverage, and static-analysis workflows where enabled.
 
-IO is static, so it has no shared-library export allowlist test. Package and compatibility policy are documented in @ref project_library_compatibility.
+IO is static, so it has no shared-library export allowlist test. Package and compatibility policy are documented in @ref
+project_library_compatibility.
 
 Use @ref io_test_hooks for the source-tree-only deterministic failure API and reset protocol.
 

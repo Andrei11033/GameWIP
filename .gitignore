@@ -4,15 +4,12 @@
 /logs/
 /install/
 /install-*/
-# Local tools
-/.tracy/
-/.gamewip-setup.json
-/.gamewip-install-state.json
-
 # MSYS / temp
 *.log
 *.tmp
 *.cache
+# Ruff Cache
+.ruff_cache/
 
 # CMake
 CMakeCache.txt

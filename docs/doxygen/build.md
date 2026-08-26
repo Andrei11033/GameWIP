@@ -1,6 +1,7 @@
 @page project_build Build configurations
 
-GameWIP uses CMake presets to keep development, testing, benchmarking, profiling, coverage, analysis, documentation, and release builds separate. Presets write build trees under `build/<preset>` and set the project composition options required by each workflow.
+GameWIP uses CMake presets to keep development, testing, benchmarking, profiling, coverage, analysis, documentation, and release builds separate.
+Presets write build trees under `build/<preset>` and set the project composition options required by each workflow.
 
 This guide explains the project-level presets and options, what each build
 contains, where its artifacts go, how runtime dependencies are staged, and how
@@ -13,7 +14,9 @@ project_command_line_tools.
 
 ## Requirements
 
-The supported Windows development environment is MSYS2 UCRT64 with CMake 4.4.2 or newer on the 4.4 release line, Ninja, GCC or Clang as selected by the preset, and C++23 support. The root `cmake_minimum_required()` declaration is the authoritative CMake version; standalone validation entry points receive that value from the root configuration.
+The supported Windows development environment is MSYS2 UCRT64 with CMake 4.4.2 or newer, Ninja, GCC or Clang as selected by
+the preset, and C++23 support. The root `cmake_minimum_required()` declaration is the authoritative CMake version; standalone validation entry points
+receive that value from the root configuration.
 
 GameWIP does not use C++ modules. Module dependency scanning is therefore
 disabled globally, which keeps Ninja compilation databases directly consumable
@@ -25,7 +28,8 @@ Before configuring a fresh checkout, initialize submodules:
 git submodule update --init --recursive
 ```
 
-The `asan` preset uses the MSYS2 CLANG64 environment because the Windows AddressSanitizer runtime is provided there. Keep CLANG64 builds in their own build directory and place CLANG64 tools first on `PATH` before configuring that preset.
+The `asan` preset uses the MSYS2 CLANG64 environment because the Windows AddressSanitizer runtime is provided there. Keep CLANG64 builds in their own
+build directory and place CLANG64 tools first on `PATH` before configuring that preset.
 
 ## Common workflow
 
@@ -55,12 +59,11 @@ cmake --build --preset docs
 
 | Preset | Build type | Main output | Purpose |
 | --- | --- | --- | --- |
-| `dev` | `RelWithDebInfo` | `GameWIP` | Daily game build with tools, assertions, and opt-in embedded tests. |
-| `dev-no-tools` | `RelWithDebInfo` | `GameWIP` | Development-equivalent game without optional tooling. |
+| `dev` | `RelWithDebInfo` | `GameWIP` | Daily game build with assertions and opt-in embedded tests. |
 | `test` | `RelWithDebInfo` | `GameWIPTests` | Standalone correctness and package validation. |
 | `benchmark` | `Release` | `GameWIPBenchmarks` | Optimized benchmark executable without the game. |
 | `profile` | `RelWithDebInfo` | `GameWIP` | Tracy game build; `--startup-tests` profiles embedded validation. |
-| `release` | `Release` with interprocedural optimization | `GameWIP` | Distributable game without validation, profiling, assertions, or tools. |
+| `release` | `Release` with interprocedural optimization | `GameWIP` | Distributable game without validation, profiling, or assertions. |
 | `coverage` | `Debug` | `GameWIPTests`, coverage target | Correctness tests with coverage instrumentation. |
 | `asan` | `Debug` | `GameWIPTests` | CLANG64 AddressSanitizer validation build. |
 | `analyze` | `RelWithDebInfo` | `static-analysis` target | clang-tidy and clang-format checks for maintained C++ sources. |
@@ -120,11 +123,10 @@ Project composition options use the `GAMEWIP_` prefix and are defined in `cmake/
 | `GAMEWIP_BUILD_GAME` | `ON` | Builds the `GameWIP` runtime executable. |
 | `GAMEWIP_BUILD_TESTS` | `ON` | Builds the standalone `GameWIPTests` executable and CTest entries. |
 | `GAMEWIP_BUILD_BENCHMARKS` | `OFF` | Builds the standalone `GameWIPBenchmarks` executable. |
+| `GAMEWIP_WARNINGS_AS_ERRORS` | `OFF` | Promotes maintained first-party compiler warnings to errors. |
 | `GAMEWIP_ENABLE_STARTUP_TESTS` | `OFF` | Compiles correctness tests into `GameWIP` for explicit `--startup-tests` execution. |
 | `GAMEWIP_RUN_BENCHMARKS_AT_STARTUP` | `OFF` | Compiles benchmark entry points into `GameWIP` and runs them after startup tests. |
 | `GAMEWIP_ENABLE_TRACY` | `ON` | Enables Tracy profiler integration when selected by a preset. |
-| `GAMEWIP_ENABLE_TOOLS` | `OFF` | Enables editor and tool-window support in the game executable. |
-| `GAMEWIP_OPEN_TOOLS_AT_STARTUP` | `OFF` | Opens tool windows automatically when tool support is enabled. |
 | `GAMEWIP_ENABLE_ASSERTS` | `ON` | Enables assertions and recoverable checks. |
 | `GAMEWIP_ENABLE_COVERAGE` | `OFF` | Adds coverage instrumentation and the `coverage` target. |
 | `GAMEWIP_ENABLE_ADDRESS_SANITIZER` | `OFF` | Adds AddressSanitizer instrumentation. |
@@ -133,7 +135,16 @@ Project composition options use the `GAMEWIP_` prefix and are defined in `cmake/
 | `GAMEWIP_INSTALL_DOCS` | `OFF` | Installs generated Doxygen HTML documentation. |
 | `GAMEWIP_CLANG_TIDY_JOBS` | `4` | Controls parallel clang-tidy process count. |
 
-Preset cache values may intentionally override source defaults. For example, the base preset disables Tracy and documentation by default, while the `profile` and `docs` presets enable those workflows explicitly.
+Preset cache values may intentionally override source defaults. For example, the base preset disables Tracy and documentation by default, while the
+`profile` and `docs` presets enable those workflows explicitly.
+
+`GAMEWIP_WARNINGS_AS_ERRORS` remains `OFF` for ordinary local work so developers can inspect the warning baseline without a forced Werror policy.
+Maintained first-party CI validation sets it to `ON`; external dependency targets retain their own warning policy.
+
+The maintained GNU and Clang warning profiles reject conversion, lifetime, format, virtual-dispatch, switch, and declaration mistakes. Clang builds
+also reject unreviewed raw pointer arithmetic, unchecked buffer indexing, and C-style buffer operations through `-Wunsafe-buffer-usage`. Code at a
+native or language-runtime boundary must validate the available size, convert once to a bounded view, and keep any diagnostic annotation limited to
+that documented conversion.
 
 ## Option constraints
 
@@ -155,17 +166,21 @@ Preset cache values may intentionally override source defaults. For example, the
 | Doxygen warning log | `build/docs/docs/doxygen/doxygen_warnings.log` | Docs preset |
 | Coverage HTML | `build/coverage/coverage/index.html` | Coverage target |
 | Coverage XML | `build/coverage/coverage/coverage.xml` | Coverage target |
-| Helper logs, manifests, and retained results | `build/tool-runs/<timestamp>_<action>/` | `gamewip.bat` and `setup.bat` |
+| Helper logs, manifests, and retained results | `build/gamewip/runs/<timestamp>_<action>/` | `gamewip.bat` and `setup.bat` |
 
-Runtime dependency copying places matching MSYS2 runtime DLLs beside project executables. The helper derives the runtime search directory from the active compiler so UCRT64 and CLANG64 runtime files are not mixed accidentally.
+Runtime dependency copying places matching MSYS2 runtime DLLs beside project executables. The helper derives the runtime search directory from the
+active compiler so UCRT64 and CLANG64 runtime files are not mixed accidentally.
 
 ## Version display
 
-Every configure reports the generated GameWIP display version. The root numeric `PROJECT_VERSION` identifies the milestone or published correction. Untagged builds add the first-parent build count, abbreviated Git commit, and dirty state.
+Every configure reports the generated GameWIP display version. The root numeric `PROJECT_VERSION` identifies the milestone or published correction.
+Untagged builds add the first-parent build count, abbreviated Git commit, and dirty state.
 
-Doxygen uses the generated display version as its project number. Runtime diagnostics use the same identity. See `docs/versioning.md` for source-version, build-identity, and release-tag policy.
+Doxygen uses the generated display version as its project number. Runtime diagnostics use the same identity. See `docs/versioning.md` for
+source-version, build-identity, and release-tag policy.
 
-The game and docs targets refresh generated identity during every build. After switching commits or creating a commit, rebuilding either target updates its generated version header; the docs target also refreshes the Doxygen project number before generation.
+The game and docs targets refresh generated identity during every build. After switching commits or creating a commit, rebuilding either target
+updates its generated version header; the docs target also refreshes the Doxygen project number before generation.
 
 ## Failure behavior
 

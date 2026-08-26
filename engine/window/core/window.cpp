@@ -2,6 +2,7 @@
 /// @brief Portable Window validation, lifecycle, cached state, and backend forwarding.
 
 #include "window/window.h"
+#include "base/checked_arithmetic.h"
 
 #include "window/internal/window_platform.h"
 #include "window/internal/window_test_hooks.h"
@@ -254,7 +255,7 @@ namespace GameWIP::Window
             if (eventQueueCapacity > candidate->internalEvents.max_size())
                 return error(ErrorCode::InvalidArgument);
             candidate->internalEvents.resize(eventQueueCapacity);
-            candidate->eventStorage = std::span<Types::Event>{candidate->internalEvents.data(), candidate->internalEvents.size()};
+            candidate->eventStorage = candidate->internalEvents;
             candidate->eventStorageKind = Types::Events::StorageKind::Internal;
 
             IO::Types::Status status = Detail::Platform::open(*candidate, description);
@@ -631,10 +632,10 @@ namespace GameWIP::Window
             constexpr std::size_t channels = 4;
             const std::size_t width = static_cast<std::size_t>(image.size.width);
             const std::size_t height = static_cast<std::size_t>(image.size.height);
-            if (width != image.size.width || height != image.size.height || height > std::numeric_limits<std::size_t>::max() / width)
+            if (width != image.size.width || height != image.size.height || GameWIP::Base::wouldMultiplyOverflow(width, height))
                 return error(ErrorCode::InvalidArgument);
             const std::size_t pixels = width * height;
-            if (pixels > std::numeric_limits<std::size_t>::max() / channels)
+            if (GameWIP::Base::wouldMultiplyOverflow(pixels, channels))
                 return error(ErrorCode::InvalidArgument);
             if (image.rgba8.size() != pixels * channels)
                 return error(ErrorCode::InvalidArgument);

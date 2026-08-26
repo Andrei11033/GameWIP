@@ -8,13 +8,16 @@ suites without hiding infrastructure errors.
 
 `Runner` owns a shared sink and aggregates a suite only when `runSuite()` completes. Concurrent suite completion order is therefore not deterministic.
 
-A suite callable may accept `Context&` or no arguments. If it throws, TestSupport records one failed check named `uncaught exception`, returns a normal `SuiteResult`, and allows later suites to run.
+A suite callable may accept `Context&` or no arguments. If it throws, TestSupport records one failed check named `uncaught exception`, returns a
+normal `SuiteResult`, and allows later suites to run.
 
-`Runner::result()` is the aggregate of completed suites. `Runner::exitCode()` returns one when at least one failure was recorded and zero otherwise, including skipped-only and empty runs.
+`Runner::result()` is the aggregate of completed suites. `Runner::exitCode()` returns one when at least one failure was recorded and zero otherwise,
+including skipped-only and empty runs.
 
 ## Context and counted outcomes
 
-`Context::pass()`, `fail()`, and `skip()` each increment exactly one counter and write one categorized line. Informational methods do not alter counts.
+`Context::pass()`, `fail()`, and `skip()` each increment exactly one counter and write one categorized line. Informational methods do not alter
+counts.
 
 `Summary::ok()` checks only the failure count. A skip is not a failure.
 
@@ -33,23 +36,28 @@ Every expectation is an ordinary function call. Arguments are evaluated before T
 | `expectFileContains()` | `fileContains()` returns successful status and true | A failed file operation records a failed expectation with status details. |
 | `expectFileOccurrenceCount()` | successful status and observed non-overlapping count equals expected count | Successful zero distinguishes no matches from read failure. |
 
-Each method records one pass or failure and returns the same outcome. Use the return value for dependent control flow; do not expect the helper to abort.
+Each method records one pass or failure and returns the same outcome. Use the return value for dependent control flow; do not expect the helper to
+abort.
 
 ## Value formatting
 
 `expectEq()` and `expectNe()` use stream insertion when the value type supports it. A non-streamable value is displayed as `<unprintable>`.
 
-Comparison, `operator<<`, `std::ostringstream`, allocation, or report formatting can throw before a failure is fully recorded. Use a domain-specific check and explicit reason when formatting a value has side effects or requires a stronger diagnostic.
+Comparison, `operator<<`, `std::ostringstream`, allocation, or report formatting can throw before a failure is fully recorded. Use a domain-specific
+check and explicit reason when formatting a value has side effects or requires a stronger diagnostic.
 
 ## File-expectation status
 
-File expectations require successful infrastructure status before considering the domain value. `expectFileContains(path, "")` passes for any successfully read file, including an empty file, but fails for missing or unreadable input. A zero occurrence expectation likewise requires a successful read.
+File expectations require successful infrastructure status before considering the domain value. `expectFileContains(path, "")` passes for any
+successfully read file, including an empty file, but fails for missing or unreadable input. A zero occurrence expectation likewise requires a
+successful read.
 
 ## Sections
 
 `Section` copies its name but stores a reference to the context. The context must outlive the section.
 
-Construction writes `begin section: <name>`. Destruction attempts to write one elapsed-time metric. Since the destructor is `noexcept`, formatting or reporting failures are suppressed; a lost section metric does not alter counts.
+Construction writes `begin section: <name>`. Destruction attempts to write one elapsed-time metric. Since the destructor is `noexcept`, formatting or
+reporting failures are suppressed; a lost section metric does not alter counts.
 
 ## Related pages
 

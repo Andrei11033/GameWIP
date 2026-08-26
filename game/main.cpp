@@ -6,6 +6,7 @@
 /// delegates runtime execution to GameWIP::Game::run().
 
 #include "runtime/game.h"
+#include "validation/process_arguments.h"
 #include "validation/validation.h"
 
 #include <gamewip/version.h>
@@ -16,6 +17,7 @@
 
 #include <cstdlib>
 #include <cstdio>
+#include <iostream>
 #include <string_view>
 
 namespace
@@ -30,19 +32,19 @@ namespace
 #endif
 
     /// @brief Returns whether the process was invoked only to print version metadata.
-    bool requestsVersion(int argc, char **argv) noexcept
+    bool requestsVersion(GameWIP::Validation::ProcessArguments arguments) noexcept
     {
-        return argc == 2 && argv != nullptr && argv[1] != nullptr && std::string_view(argv[1]) == "--version";
+        return arguments.size() == 2 && arguments[1] != nullptr && std::string_view(arguments[1]) == "--version";
     }
 
     /// @brief Returns whether the process was invoked only to print command-line help.
-    bool requestsHelp(int argc, char **argv) noexcept
+    bool requestsHelp(GameWIP::Validation::ProcessArguments arguments) noexcept
     {
-        if (argc != 2 || argv == nullptr || argv[1] == nullptr)
+        if (arguments.size() != 2 || arguments[1] == nullptr)
         {
             return false;
         }
-        const std::string_view argument(argv[1]);
+        const std::string_view argument(arguments[1]);
         return argument == "--help" || argument == "-h" || argument == "-?";
     }
 
@@ -79,12 +81,13 @@ int main(int argc, char **argv)
 
     // Keep utility-only invocations independent from validation so packaging and
     // smoke-test scripts can query metadata from any build configuration.
-    if (requestsVersion(argc, argv))
+    const GameWIP::Validation::ProcessArguments arguments = GameWIP::Validation::processArguments(argc, argv);
+    if (requestsVersion(arguments))
     {
-        std::puts(GameWIP::Version::productDisplay);
+        std::cout << GameWIP::Version::productDisplay << '\n';
         return EXIT_SUCCESS;
     }
-    if (requestsHelp(argc, argv))
+    if (requestsHelp(arguments))
     {
         printHelp();
         return EXIT_SUCCESS;

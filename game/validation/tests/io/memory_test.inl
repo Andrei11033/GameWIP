@@ -33,7 +33,7 @@ void testMemoryReader(TestSupport::Context &context)
     static_cast<void>(context.expectEq(
         "MemoryReader preserves final binary chunk",
         makeBytes({0x42, 0xff}),
-        copyBytes(std::span<const std::byte>(finalChunk.data(), finalRead.bytesRead))));
+        copyBytes(std::span{finalChunk}.first(finalRead.bytesRead))));
 
     const IO::Types::ReadResult eosRead = reader.read(finalChunk);
     static_cast<void>(context.expectTrue("MemoryReader EOS read succeeds", eosRead.status.ok()));

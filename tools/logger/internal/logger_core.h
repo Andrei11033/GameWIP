@@ -123,7 +123,7 @@ namespace GameWIP::Logger::Detail::Core
                 inlineSize_ = text.size();
                 heapActive_ = false;
                 if (!text.empty())
-                    std::memcpy(inlineText_.data(), text.data(), text.size());
+                    std::ranges::copy(text, inlineText_.begin());
                 return;
             }
             heapText_.assign(text);
@@ -152,9 +152,9 @@ namespace GameWIP::Logger::Detail::Core
                 inlineSize_ = total;
                 heapActive_ = false;
                 if (!first.empty())
-                    std::memcpy(inlineText_.data(), first.data(), first.size());
+                    std::ranges::copy(first, inlineText_.begin());
                 if (!second.empty())
-                    std::memcpy(inlineText_.data() + first.size(), second.data(), second.size());
+                    std::ranges::copy(second, std::span{inlineText_}.subspan(first.size(), second.size()).begin());
                 return;
             }
             heapText_.clear();
@@ -210,22 +210,21 @@ namespace GameWIP::Logger::Detail::Core
     class DynamicLogText
     {
     public:
-        void configureInlineStorage(char *storage, std::size_t capacity)
+        void configureInlineStorage(std::span<char> storage)
         {
             inlineText_ = storage;
-            inlineCapacity_ = capacity;
             inlineSize_ = 0;
             clear();
         }
         void assign(std::string_view text)
         {
-            if (text.size() <= inlineCapacity_)
+            if (text.size() <= inlineText_.size())
             {
                 if (heapActive_)
                     heapText_.clear();
                 inlineSize_ = text.size();
                 if (!text.empty())
-                    std::memcpy(inlineText_, text.data(), text.size());
+                    std::ranges::copy(text, inlineText_.begin());
                 heapActive_ = false;
                 return;
             }
@@ -235,7 +234,7 @@ namespace GameWIP::Logger::Detail::Core
         }
         void assign(std::string &&text)
         {
-            if (text.size() <= inlineCapacity_)
+            if (text.size() <= inlineText_.size())
             {
                 assign(std::string_view(text));
                 return;
@@ -248,15 +247,15 @@ namespace GameWIP::Logger::Detail::Core
         {
             first = first.substr(0, completeUtf8TailBoundary(first));
             const std::size_t total = first.size() + second.size();
-            if (total <= inlineCapacity_)
+            if (total <= inlineText_.size())
             {
                 if (heapActive_)
                     heapText_.clear();
                 inlineSize_ = total;
                 if (!first.empty())
-                    std::memcpy(inlineText_, first.data(), first.size());
+                    std::ranges::copy(first, inlineText_.begin());
                 if (!second.empty())
-                    std::memcpy(inlineText_ + first.size(), second.data(), second.size());
+                    std::ranges::copy(second, inlineText_.subspan(first.size()).begin());
                 heapActive_ = false;
                 return;
             }
@@ -297,7 +296,7 @@ namespace GameWIP::Logger::Detail::Core
         {
             if (heapActive_)
                 return heapText_;
-            return inlineSize_ == 0 ? std::string_view{} : std::string_view(inlineText_, inlineSize_);
+            return inlineSize_ == 0 ? std::string_view{} : std::string_view(inlineText_.data(), inlineSize_);
         }
         [[nodiscard]] std::size_t capacityBytes() const
         {
@@ -306,8 +305,7 @@ namespace GameWIP::Logger::Detail::Core
         }
 
     private:
-        char *inlineText_ = nullptr;
-        std::size_t inlineCapacity_ = 0;
+        std::span<char> inlineText_;
         std::size_t inlineSize_ = 0;
         bool heapActive_ = false;
         std::string heapText_;
@@ -473,6 +471,7 @@ namespace GameWIP::Logger::Detail::Core
         std::unique_ptr<char[]> ringMessageArena;
         std::unique_ptr<char[]> batchMessageArena;
         std::unique_ptr<QueueSlot[]> logRing;
+        std::span<QueueSlot> logRingView;
         std::size_t logRingSize = 0;
         std::vector<QueuedLogEntry> workerBatch;
         std::atomic<std::size_t> enqueueTicket{0};

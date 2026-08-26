@@ -13,30 +13,42 @@ endfunction()
 
 expect_version(
     "0.1.0"
-    PROJECT_VERSION "0.1.0"
-    BUILD_NUMBER "247"
-    GIT_COMMIT "2238b22"
+    PROJECT_VERSION
+    "0.1.0"
+    BUILD_NUMBER
+    "247"
+    GIT_COMMIT
+    "2238b22"
     RELEASE
 )
 expect_version(
     "0.1.0-dev.247+g2238b22"
-    PROJECT_VERSION "0.1.0"
-    BUILD_NUMBER "247"
-    GIT_COMMIT "2238b22"
+    PROJECT_VERSION
+    "0.1.0"
+    BUILD_NUMBER
+    "247"
+    GIT_COMMIT
+    "2238b22"
 )
 expect_version(
     "0.1.0-dev.247+g2238b22.dirty"
-    PROJECT_VERSION "0.1.0"
-    BUILD_NUMBER "247"
-    GIT_COMMIT "2238b22"
+    PROJECT_VERSION
+    "0.1.0"
+    BUILD_NUMBER
+    "247"
+    GIT_COMMIT
+    "2238b22"
     RELEASE
     DIRTY
 )
 expect_version(
     "0.1.0-dev+gunknown"
-    PROJECT_VERSION "0.1.0"
-    BUILD_NUMBER "unknown"
-    GIT_COMMIT "unknown"
+    PROJECT_VERSION
+    "0.1.0"
+    BUILD_NUMBER
+    "unknown"
+    GIT_COMMIT
+    "unknown"
 )
 
 function(expect_value label actual expected)
@@ -58,11 +70,7 @@ function(run_test_git)
         OUTPUT_STRIP_TRAILING_WHITESPACE
     )
     if(NOT git_result EQUAL 0)
-        message(FATAL_ERROR
-            "Test Git command failed: ${ARGN}\n"
-            "stdout:\n${git_output}\n"
-            "stderr:\n${git_error}"
-        )
+        message(FATAL_ERROR "Test Git command failed: ${ARGN}\n" "stdout:\n${git_output}\n" "stderr:\n${git_error}")
     endif()
 endfunction()
 
@@ -79,20 +87,12 @@ gamewip_detect_version(clean_development SOURCE_DIR "${test_repository}" PROJECT
 expect_value("clean development build number" "${clean_development_BUILD_NUMBER}" "1")
 expect_value("clean development dirty state" "${clean_development_DIRTY}" "FALSE")
 expect_value("clean development release state" "${clean_development_RELEASE}" "FALSE")
-expect_value(
-    "clean development display"
-    "${clean_development_DISPLAY}"
-    "0.1.0-dev.1+g${clean_development_GIT_COMMIT}"
-)
+expect_value("clean development display" "${clean_development_DISPLAY}" "0.1.0-dev.1+g${clean_development_GIT_COMMIT}")
 
 file(APPEND "${test_repository}/tracked.txt" "dirty\n")
 gamewip_detect_version(dirty_development SOURCE_DIR "${test_repository}" PROJECT_VERSION "0.1.0")
 expect_value("dirty development dirty state" "${dirty_development_DIRTY}" "TRUE")
-expect_value(
-    "dirty development display"
-    "${dirty_development_DISPLAY}"
-    "0.1.0-dev.1+g${dirty_development_GIT_COMMIT}.dirty"
-)
+expect_value("dirty development display" "${dirty_development_DISPLAY}" "0.1.0-dev.1+g${dirty_development_GIT_COMMIT}.dirty")
 run_test_git(restore tracked.txt)
 
 run_test_git(tag v0.1.0)
@@ -100,17 +100,18 @@ gamewip_detect_version(lightweight_tag SOURCE_DIR "${test_repository}" PROJECT_V
 expect_value("lightweight tag release state" "${lightweight_tag_RELEASE}" "FALSE")
 run_test_git(tag --delete v0.1.0)
 
-run_test_git(tag --annotate v0.1.0 --message "release")
+run_test_git(
+    tag
+    --annotate
+    v0.1.0
+    --message
+    "release"
+)
 gamewip_detect_version(annotated_tag SOURCE_DIR "${test_repository}" PROJECT_VERSION "0.1.0")
 expect_value("annotated tag release state" "${annotated_tag_RELEASE}" "TRUE")
 expect_value("annotated tag display" "${annotated_tag_DISPLAY}" "0.1.0")
 
-gamewip_detect_version(
-    unavailable_git
-    SOURCE_DIR "${test_repository}"
-    PROJECT_VERSION "0.1.0"
-    DISABLE_GIT
-)
+gamewip_detect_version(unavailable_git SOURCE_DIR "${test_repository}" PROJECT_VERSION "0.1.0" DISABLE_GIT)
 expect_value("unavailable Git build number" "${unavailable_git_BUILD_NUMBER}" "unknown")
 expect_value("unavailable Git commit" "${unavailable_git_GIT_COMMIT}" "unknown")
 expect_value("unavailable Git display" "${unavailable_git_DISPLAY}" "0.1.0-dev+gunknown")

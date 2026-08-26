@@ -1,16 +1,12 @@
 cmake_minimum_required(VERSION 4.4.2)
 
-string(REGEX MATCH "^([0-9]+)\\.([0-9]+)" _ "${CMAKE_MINIMUM_REQUIRED_VERSION}")
-set(gamewip_cmake_version_pattern "${CMAKE_MATCH_1}\\.${CMAKE_MATCH_2}")
-if(NOT CMAKE_VERSION MATCHES "^${gamewip_cmake_version_pattern}(\\.|$)")
-    message(FATAL_ERROR
-        "GameWIP requires CMake ${CMAKE_MINIMUM_REQUIRED_VERSION} or newer on its release line; "
-        "found ${CMAKE_VERSION}."
-    )
-endif()
-unset(gamewip_cmake_version_pattern)
-
 project(GameWIP VERSION 0.1.0 LANGUAGES CXX)
+
+# RC is enabled once at the highest common directory for Windows targets that
+# attach backend-owned manifests and resources.
+if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    enable_language(RC)
+endif()
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_STANDARD 23)
@@ -22,11 +18,13 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 include(GameWIPVersion)
 include(GameWIPOptions)
-include(LibraryPlatform)
+include(GameWIPPlatform)
+include(GameWIPPackage)
 include(GameWIPRuntimeDependencies)
 include(GameWIPValidationModules)
 include(GameWIPCoverage)
 include(GameWIPSanitizers)
+include(GameWIPWarnings)
 include(GameWIPDocumentation)
 include(GameWIPStaticAnalysis)
 
@@ -38,25 +36,23 @@ if(GAMEWIP_BUILD_TESTS)
     enable_testing()
     add_test(
         NAME validation.version.composition
-        COMMAND "${CMAKE_COMMAND}"
-            "-DGAMEWIP_CMAKE_MINIMUM_VERSION=${CMAKE_MINIMUM_REQUIRED_VERSION}"
-            -P "${PROJECT_SOURCE_DIR}/cmake/TestGameWIPVersion.cmake"
+        COMMAND
+            "${CMAKE_COMMAND}" "-DGAMEWIP_CMAKE_MINIMUM_VERSION=${CMAKE_MINIMUM_REQUIRED_VERSION}" -P
+            "${PROJECT_SOURCE_DIR}/cmake/TestGameWIPVersion.cmake"
     )
     add_test(
         NAME validation.cmake.requirement_propagation
-        COMMAND "${CMAKE_COMMAND}"
-            "-DPROJECT_SOURCE_DIR=${PROJECT_SOURCE_DIR}"
-            "-DGAMEWIP_CMAKE_MINIMUM_VERSION=${CMAKE_MINIMUM_REQUIRED_VERSION}"
-            -P "${PROJECT_SOURCE_DIR}/cmake/ValidateCMakeRequirements.cmake"
+        COMMAND
+            "${CMAKE_COMMAND}" "-DPROJECT_SOURCE_DIR=${PROJECT_SOURCE_DIR}" "-DGAMEWIP_CMAKE_MINIMUM_VERSION=${CMAKE_MINIMUM_REQUIRED_VERSION}" -P
+            "${PROJECT_SOURCE_DIR}/cmake/ValidateCMakeRequirements.cmake"
     )
-    set_tests_properties(
-        validation.version.composition
-        validation.cmake.requirement_propagation
-        PROPERTIES TIMEOUT 120
-    )
+    set_tests_properties(validation.version.composition validation.cmake.requirement_propagation PROPERTIES TIMEOUT 120)
 endif()
 
 add_subdirectory(external)
+
+gamewip_enable_project_warnings()
+
 add_subdirectory(foundation)
 add_subdirectory(tools)
 add_subdirectory(engine)

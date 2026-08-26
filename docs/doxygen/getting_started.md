@@ -45,9 +45,11 @@ then opens a borderless-fullscreen window at the desktop resolution. Press
 `Alt+F4` to close it. See @ref project_game_executable for the complete runtime
 sequence and failure behavior.
 
-The development preset builds the game with tools and compiles embedded tests for explicit `--startup-tests` execution. The `dev-no-tools` preset proves the game does not depend on optional tooling. Release builds intentionally exclude validation, benchmarks, assertions, Tracy, and development tools.
+The development preset builds the game and compiles embedded tests for explicit `--startup-tests` execution. Release builds intentionally exclude
+validation, benchmarks, assertions, and Tracy.
 
-Use @ref project_command_line_tools to discover every supported helper and executable command, including safe help invocations that do not start the runtime or test suite.
+Use @ref project_command_line_tools to discover every supported helper and executable command, including safe help invocations that do not start the
+runtime or test suite.
 
 ## Run validation
 
@@ -65,7 +67,8 @@ Run one module directly when investigating a focused area:
 .\build\test\GameWIPTests.exe --test-module=filesystem
 ```
 
-The validation architecture, module registration, child-process routing, report paths, and startup behavior are documented in @ref project_validation. Test authoring rules are documented in @ref project_testing.
+The validation architecture, module registration, child-process routing, report paths, and startup behavior are documented in @ref project_validation.
+Test authoring rules are documented in @ref project_testing.
 
 ## Read the source tree
 
@@ -108,10 +111,13 @@ After the first build and validation run:
 - Read @ref project_extending before adding APIs, libraries, backends, benchmarks, packages, or manual pages.
 - Read @ref project_documentation before writing public API comments or manual pages.
 
-Coverage, profiling, benchmarking, and static analysis are documented under @ref project_quality_workflows. Repository and release automation are documented under @ref project_contracts.
+Coverage, profiling, benchmarking, and static analysis are documented under @ref project_quality_workflows. Repository and release automation are
+documented under @ref project_contracts.
 
 ## Change workflow
 
-Normal project work uses a short-lived branch, a pull request, concrete validation notes, and a squash merge. Use @ref project_contributing for issue, branch, pull-request, label, automation, and merge-message rules.
+Normal project work uses a short-lived branch, a pull request, concrete validation notes, and a squash merge. Use @ref project_contributing for issue,
+branch, pull-request, label, automation, and merge-message rules.
 
-When a change modifies behavior, update the owning manual page and run the preset that proves the change. A vague statement such as `tested` is not useful validation evidence; record the exact commands or inspections performed.
+When a change modifies behavior, update the owning manual page and run the preset that proves the change. A vague statement such as `tested` is not
+useful validation evidence; record the exact commands or inspections performed.

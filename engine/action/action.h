@@ -295,7 +295,7 @@ namespace GameWIP::Action
     template <typename ActionEnum> class ActionBindingBuilder
     {
     public:
-        ActionBindingBuilder(ActionMap<ActionEnum> &actionMap, ActionEnum action);
+        ActionBindingBuilder(ActionMap<ActionEnum> &map, ActionEnum action);
 
         ActionBindingBuilder &on(Input::InputControl primaryControl);
         ActionBindingBuilder &withModifier(Input::InputControl modifier);

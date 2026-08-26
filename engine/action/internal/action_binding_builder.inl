@@ -3,8 +3,8 @@
 namespace GameWIP::Action
 {
     template <typename ActionEnum>
-    ActionBindingBuilder<ActionEnum>::ActionBindingBuilder(ActionMap<ActionEnum> &actionMap, ActionEnum action)
-        : actionMap(actionMap)
+    ActionBindingBuilder<ActionEnum>::ActionBindingBuilder(ActionMap<ActionEnum> &map, ActionEnum action)
+        : actionMap(map)
     {
         binding.action = action;
     }

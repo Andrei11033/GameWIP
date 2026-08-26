@@ -3,6 +3,7 @@
 
 #include "terminal/terminal.h"
 #include "terminal/internal/terminal_input.h"
+#include "base/checked_arithmetic.h"
 #include "terminal/internal/terminal_platform.h"
 #include "unicode/unicode.h"
 
@@ -178,12 +179,12 @@ namespace GameWIP::Terminal
                     return IO::successStatus();
                 }
 
-                Unicode::Types::Utf8::GraphemeIndexResult indexed = cursor_.reset(text, std::span<std::size_t>(storage_.data(), storage_.size()));
+                Unicode::Types::Utf8::GraphemeIndexResult indexed = cursor_.reset(text, storage_);
 
                 if (indexed.outcome == Unicode::Types::Utf8::GraphemeIndexOutcome::DestinationTooSmall)
                 {
                     storage_.resize(indexed.requiredBoundaryCount);
-                    indexed = cursor_.reset(text, std::span<std::size_t>(storage_.data(), storage_.size()));
+                    indexed = cursor_.reset(text, storage_);
                 }
 
                 if (indexed.outcome != Unicode::Types::Utf8::GraphemeIndexOutcome::Indexed)
@@ -278,7 +279,7 @@ namespace GameWIP::Terminal
                     {
                         return byte >= 0x20 && byte < 0x7f;
                     });
-                if (simpleAscii && appendedText.size() <= std::numeric_limits<std::size_t>::max() - renderedCells_)
+                if (simpleAscii && !GameWIP::Base::wouldAddOverflow(renderedCells_, appendedText.size()))
                 {
                     // Ordinary append-at-end typing remains query-free. Printable ASCII advances by one cell;
                     // Unicode and control text take the measured slow path so Terminal does not invent a width policy.
@@ -601,7 +602,7 @@ namespace GameWIP::Terminal
             if (accepted > 0)
             {
                 const bool appendedAtEnd = caret == line.size();
-                line.insert(line.begin() + static_cast<std::ptrdiff_t>(caret), text.begin(), text.begin() + static_cast<std::ptrdiff_t>(accepted));
+                line.insert(caret, text.substr(0, accepted));
                 caret += accepted;
                 graphemes.invalidate();
                 if (!appendedAtEnd)
@@ -982,7 +983,20 @@ namespace GameWIP::Terminal
                         }
                     }
                     break;
-                default:
+                case Types::Events::NamedKey::Enter:
+                case Types::Events::NamedKey::Escape:
+                case Types::Events::NamedKey::Insert:
+                case Types::Events::NamedKey::PageUp:
+                case Types::Events::NamedKey::PageDown:
+                case Types::Events::NamedKey::ArrowUp:
+                case Types::Events::NamedKey::ArrowDown:
+                case Types::Events::NamedKey::Begin:
+                case Types::Events::NamedKey::CapsLock:
+                case Types::Events::NamedKey::NumLock:
+                case Types::Events::NamedKey::ScrollLock:
+                case Types::Events::NamedKey::PrintScreen:
+                case Types::Events::NamedKey::Pause:
+                case Types::Events::NamedKey::Menu:
                     break;
                 }
             }

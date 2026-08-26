@@ -1,113 +1,53 @@
+# GameWIP setup WinGet package operations. All native calls use the shared process layer.
+
 Set-StrictMode -Version Latest
 
-function Test-WingetPackage
+function Test-GameWipWingetPackage
 {
     param([Parameter(Mandatory = $true)][string]$Id)
-
-    & winget list --id $Id --exact --source winget --accept-source-agreements | Out-Null
-    return $LASTEXITCODE -eq 0
+    $result = Invoke-GameWipProcess -FilePath winget -Arguments @('list', '--id', $Id, '--exact', '--source', 'winget', '--accept-source-agreements') -OutputMode LogOnly -TimeoutSeconds 60
+    return $result.ExitCode -eq 0 -and (($result.Stdout -join "`n") -match [regex]::Escape($Id))
 }
 
-function Install-WingetPackage
+function Install-GameWipWingetPackage
 {
-    param(
-        [Parameter(Mandatory = $true)][string]$Id,
-        [string]$Override
-    )
-
-    $arguments = @(
-        'install', '--id', $Id, '--exact', '--source', 'winget',
-        '--accept-package-agreements', '--accept-source-agreements', '--silent'
-    )
+    param([Parameter(Mandatory = $true)][string]$Id, [string]$Override)
+    $arguments = @('install', '--id', $Id, '--exact', '--source', 'winget', '--accept-package-agreements', '--accept-source-agreements', '--silent')
     if ($Override)
     {
         $arguments += @('--override', $Override)
     }
-    $wasInstalled = Test-WingetPackage -Id $Id
-    Invoke-SetupNative -FilePath 'winget' -ArgumentList $arguments | Out-Null
-    if (-not $wasInstalled) { Add-GameWipOwnedWingetPackage -Id $Id }
-    Update-SetupProcessPath
+    $wasInstalled = Test-GameWipWingetPackage -Id $Id
+    Invoke-GameWipSetupNative -FilePath winget -ArgumentList $arguments | Out-Null
+    if (-not $wasInstalled)
+    {
+        Add-GameWipOwnedWingetPackage -Id $Id
+    }
+    Initialize-GameWipSetupProcessPath
 }
 
-function Uninstall-WingetPackage
+function Uninstall-GameWipWingetPackage
 {
     param([Parameter(Mandatory = $true)][string]$Id)
-    if (-not (Test-WingetPackage -Id $Id))
+    if (-not (Test-GameWipWingetPackage -Id $Id))
     {
-        Write-Host "  Already absent: $Id"
-        return
+        Write-Host "  Already absent: $Id"; return
     }
-    Invoke-SetupNative -FilePath 'winget' -ArgumentList @(
-        'uninstall', '--id', $Id, '--exact', '--source', 'winget',
-        '--accept-source-agreements', '--silent'
-    ) | Out-Null
+    Invoke-GameWipSetupNative -FilePath winget -ArgumentList @('uninstall', '--id', $Id, '--exact', '--source', 'winget', '--accept-source-agreements', '--silent') | Out-Null
 }
 
-function Update-WingetPackage
+function Invoke-GameWipWingetPackageUpdate
 {
-    param(
-        [Parameter(Mandatory = $true)][string]$Id,
-        [string]$Override
-    )
-
-    if (-not (Test-WingetPackage -Id $Id))
+    param([Parameter(Mandatory = $true)][string]$Id, [string]$Override)
+    if (-not (Test-GameWipWingetPackage -Id $Id))
     {
-        Install-WingetPackage -Id $Id -Override $Override
-        return
+        Install-GameWipWingetPackage -Id $Id -Override $Override; return
     }
-
-    $arguments = @(
-        'upgrade', '--id', $Id, '--exact', '--source', 'winget',
-        '--accept-package-agreements', '--accept-source-agreements', '--silent'
-    )
+    $arguments = @('upgrade', '--id', $Id, '--exact', '--source', 'winget', '--accept-package-agreements', '--accept-source-agreements', '--silent')
     if ($Override)
     {
         $arguments += @('--override', $Override)
     }
-
-    & winget @arguments
-    if ($LASTEXITCODE -ne 0)
-    {
-        Write-Warning "winget did not apply an update for $Id. The installed package will still be verified."
-    }
-    Update-SetupProcessPath
-}
-
-function Install-ConfiguredWingetTools
-{
-    param(
-        [Parameter(Mandatory = $true)][array]$Packages,
-        [switch]$Update
-    )
-
-    foreach ($package in $Packages)
-    {
-        Write-Host "Checking $($package.Name)..."
-        $present = $false
-        if ($package.ContainsKey('Command'))
-        {
-            $present = Test-SetupCommand -Name $package.Command
-        }
-        elseif ($package.ContainsKey('Path'))
-        {
-            $present = Test-Path -LiteralPath $package.Path
-        }
-
-        if ($Update -and (Test-WingetPackage -Id $package.Id))
-        {
-            Update-WingetPackage -Id $package.Id
-        }
-        elseif ($Update -and $present)
-        {
-            Write-Warning "$($package.Name) exists but is not registered with WinGet; skipping automatic replacement to avoid a duplicate installation."
-        }
-        elseif (-not $present)
-        {
-            Install-WingetPackage -Id $package.Id
-        }
-        else
-        {
-            Write-Host "  Ready: $($package.Name)"
-        }
-    }
+    Invoke-GameWipSetupNative -FilePath winget -ArgumentList $arguments -AllowedExitCodes @(0, -1978335189) | Out-Null
+    Initialize-GameWipSetupProcessPath
 }

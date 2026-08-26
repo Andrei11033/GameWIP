@@ -2,9 +2,11 @@
 /// @brief Embedded and standalone Google Benchmark runner implementation.
 
 #include "validation/benchmarks/runner.h"
+#include "validation/process_arguments.h"
 
 #include <benchmark/benchmark.h>
 
+#include <algorithm>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -24,13 +26,15 @@ namespace GameWIP::Validation::Benchmarks
     {
         // Embedded startup runs share GameWIP's command line, so only Google
         // Benchmark-owned switches are forwarded to benchmark::Initialize().
+        const ProcessArguments processArgumentValues = processArguments(argc, argv);
         std::vector<std::string> arguments;
-        arguments.emplace_back(argc > 0 && argv[0] != nullptr ? argv[0] : "GameWIPBenchmarks");
-        for (int index = 1; index < argc; ++index)
+        arguments.emplace_back(
+            !processArgumentValues.empty() && processArgumentValues.front() != nullptr ? processArgumentValues.front() : "GameWIPBenchmarks");
+        for (char *value : processArgumentValues.subspan(std::min<std::size_t>(1, processArgumentValues.size())))
         {
-            if (argv[index] != nullptr && (!embedded || isEmbeddedBenchmarkArgument(argv[index])))
+            if (value != nullptr && (!embedded || isEmbeddedBenchmarkArgument(value)))
             {
-                arguments.emplace_back(argv[index]);
+                arguments.emplace_back(value);
             }
         }
 

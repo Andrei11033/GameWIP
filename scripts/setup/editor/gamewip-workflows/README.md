@@ -29,7 +29,6 @@ build diagnostics separate from the running game's output.
 | --- | --- |
 | `F5` | Configure, build, and run `dev`. |
 | `Ctrl+F5` | Configure and build `dev` without launching it. |
-| `Alt+F5` | Configure, build, and run `dev-no-tools`. |
 | `F6` | Configure, build, run embedded correctness tests, and start `dev` when they pass. |
 | `F7` | Configure, build, and run correctness tests. |
 | `Alt+F7` | Run the standard benchmark profile and retain its tool-run results. |

@@ -17,15 +17,9 @@ find_package(TestSupport ${GAMEWIP_PACKAGE_VERSION} EXACT CONFIG REQUIRED)
 
 add_executable(GameWIPInstalledConsumer main.cpp)
 target_compile_features(GameWIPInstalledConsumer PRIVATE cxx_std_23)
-target_link_libraries(GameWIPInstalledConsumer PRIVATE
-    GameWIP::Unicode
-    GameWIP::IO
-    GameWIP::FileSystem
-    GameWIP::Terminal
-    GameWIP::Window
-    GameWIP::Logger
-    GameWIP::Assert
-    GameWIP::TestSupport
+target_link_libraries(
+    GameWIPInstalledConsumer
+    PRIVATE GameWIP::Unicode GameWIP::IO GameWIP::FileSystem GameWIP::Terminal GameWIP::Window GameWIP::Logger GameWIP::Assert GameWIP::TestSupport
 )
 
 if(GAMEWIP_CONSUMER_LINK_COVERAGE)
@@ -33,11 +27,6 @@ if(GAMEWIP_CONSUMER_LINK_COVERAGE)
 endif()
 
 if(GAMEWIP_CONSUMER_ENABLE_ADDRESS_SANITIZER)
-    target_compile_options(GameWIPInstalledConsumer PRIVATE
-        -fsanitize=address
-        -fno-omit-frame-pointer
-    )
-    target_link_options(GameWIPInstalledConsumer PRIVATE
-        -fsanitize=address
-    )
+    target_compile_options(GameWIPInstalledConsumer PRIVATE -fsanitize=address -fno-omit-frame-pointer)
+    target_link_options(GameWIPInstalledConsumer PRIVATE -fsanitize=address)
 endif()

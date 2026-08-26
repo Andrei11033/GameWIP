@@ -12,6 +12,30 @@ indent_size = 4
 tab_width = 4
 trim_trailing_whitespace = true
 
+[*.py]
+indent_style = space
+indent_size = 4
+tab_width = 4
+trim_trailing_whitespace = true
+
+[*.ps1]
+indent_style = space
+indent_size = 4
+tab_width = 4
+trim_trailing_whitespace = true
+
+[*.{js,css}]
+indent_style = space
+indent_size = 4
+tab_width = 4
+trim_trailing_whitespace = true
+
+[*.{json,jsonc,yml,yaml}]
+indent_style = space
+indent_size = 2
+tab_width = 2
+trim_trailing_whitespace = true
+
 [{CMakeLists.txt,*.cmake}]
 indent_style = space
 indent_size = 4
@@ -19,6 +43,12 @@ tab_width = 4
 trim_trailing_whitespace = true
 
 [*.{txt,md}]
+indent_style = space
+indent_size = 4
+tab_width = 4
+trim_trailing_whitespace = false
+
+[*.{bat,xml,rc,in,template}]
 indent_style = space
 indent_size = 4
 tab_width = 4

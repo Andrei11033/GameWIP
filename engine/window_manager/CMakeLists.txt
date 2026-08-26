@@ -1,24 +1,15 @@
 add_library(WindowManager STATIC)
 
-target_sources(WindowManager PRIVATE
-    core/window_manager.cpp
-)
-
-if(WIN32)
-    target_sources(WindowManager PRIVATE
-        platform/win32/win32_window_manager.cpp
-    )
-else()
-    message(FATAL_ERROR "WindowManager has no platform backend for this operating system yet.")
+if(NOT COMMAND gamewip_target_platform_backend)
+    include("${PROJECT_SOURCE_DIR}/cmake/GameWIPPlatform.cmake")
 endif()
 
-target_include_directories(WindowManager PUBLIC
-    "${PROJECT_SOURCE_DIR}/engine"
-)
+target_sources(WindowManager PRIVATE core/window_manager.cpp)
+
+gamewip_target_platform_backend(TARGET WindowManager ROOT "${CMAKE_CURRENT_SOURCE_DIR}/platform")
+
+target_include_directories(WindowManager PUBLIC "${PROJECT_SOURCE_DIR}/engine")
 
 target_compile_features(WindowManager PUBLIC cxx_std_23)
 
-target_link_libraries(WindowManager PUBLIC
-    Input
-    Window
-)
+target_link_libraries(WindowManager PUBLIC Input Window)

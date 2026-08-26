@@ -2,16 +2,8 @@ name: PR Standards
 
 on:
   pull_request:
-    branches:
-      - master
-    types:
-      - opened
-      - edited
-      - synchronize
-      - reopened
-      - ready_for_review
-      - labeled
-      - unlabeled
+    branches: [master]
+    types: [opened, edited, synchronize, reopened, ready_for_review, labeled, unlabeled]
 
 permissions:
   contents: read
@@ -23,114 +15,36 @@ jobs:
     if: github.event.pull_request.draft == false && github.event.pull_request.user.login != 'dependabot[bot]'
     runs-on: ubuntu-latest
     timeout-minutes: 5
-
     steps:
+      - name: Check out trusted policy code
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: false
+          path: trusted-policy
+      # TODO(post-merge): Once this workflow and policy module are on master,
+      # remove the bootstrap checkout, bootstrapPolicy selection, and warning;
+      # require the policy module from trusted-policy directly.
+      - name: Check out bootstrap policy code
+        if: hashFiles('trusted-policy/.github/scripts/pr-standards.js') == ''
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          path: bootstrap-policy
       - name: Validate pull request metadata
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
-            const pr = context.payload.pull_request;
-            const errors = [];
-            const titlePattern = /^[a-z][a-z0-9_-]*: [a-z0-9][^\r\n]*$/;
-
-            if (!titlePattern.test(pr.title)) {
-              errors.push("PR title must use `area: imperative summary`, for example `filesystem: add directory watcher`.");
+            const fs = require("fs");
+            const path = require("path");
+            const trustedPolicy = path.join(process.env.GITHUB_WORKSPACE, "trusted-policy", ".github", "scripts", "pr-standards.js");
+            const bootstrapPolicy = path.join(process.env.GITHUB_WORKSPACE, "bootstrap-policy", ".github", "scripts", "pr-standards.js");
+            const policy = fs.existsSync(trustedPolicy) ? trustedPolicy : bootstrapPolicy;
+            if (policy === bootstrapPolicy) {
+              core.warning("Using pull-request policy code because the base branch does not contain the policy module yet.");
             }
-
-            if (/\s\(#\d+\)$/.test(pr.title)) {
-              errors.push("PR title should not include GitHub's `(#number)` suffix.");
-            }
-
-            const body = pr.body || "";
-            const requiredSections = [
-              "Summary",
-              "Linked Issues",
-              "Validation",
-              "Merge Message",
-              "Checklist",
-            ];
-
-            function sectionText(name) {
-              const heading = new RegExp(`^##\\s+${name}\\s*$`, "im");
-              const match = heading.exec(body);
-              if (!match) {
-                return undefined;
-              }
-
-              const start = match.index + match[0].length;
-              const rest = body.slice(start);
-              const next = /^##\s+/m.exec(rest);
-              return (next ? rest.slice(0, next.index) : rest).trim();
-            }
-
-            function hasMeaningfulContent(text) {
-              if (!text) {
-                return false;
-              }
-
-              const cleaned = text
-                .replace(/<!--[\s\S]*?-->/g, "")
-                .replace(/^-+\s*$/gm, "")
-                .trim();
-
-              return cleaned.length > 0;
-            }
-
-            for (const section of requiredSections) {
-              if (sectionText(section) === undefined) {
-                errors.push(`PR body must include a \`## ${section}\` section.`);
-              }
-            }
-
-            const summary = sectionText("Summary");
-            if (summary !== undefined && !hasMeaningfulContent(summary)) {
-              errors.push("`## Summary` must describe the change.");
-            }
-
-            const validation = sectionText("Validation");
-            if (validation !== undefined && !hasMeaningfulContent(validation)) {
-              errors.push("`## Validation` must list commands, checks, or a clear reason validation was not run.");
-            }
-
-            const linkedIssues = sectionText("Linked Issues");
-            if (linkedIssues !== undefined) {
-              const linksIssue = /\b(close[sd]?|fix(e[sd])?|resolve[sd]?)\s+#\d+\b/i.test(linkedIssues);
-              const hasNoIssueReason = /\bno linked issue\s*:\s*\S/i.test(linkedIssues);
-              if (!linksIssue && !hasNoIssueReason) {
-                errors.push("`## Linked Issues` must contain `Closes #123` or `No linked issue: reason`.");
-              }
-            }
-
-            const mergeMessage = sectionText("Merge Message");
-            if (mergeMessage !== undefined) {
-              const titleLine = /^-\s*Title:\s*`?([^`\r\n]+)`?\s*$/im.exec(mergeMessage)
-                || /^Title:\s*`?([^`\r\n]+)`?\s*$/im.exec(mergeMessage);
-
-              if (!titleLine) {
-                errors.push("`## Merge Message` must include a `Title: area: imperative summary` line.");
-              } else {
-                const title = titleLine[1].trim();
-                if (title === "area: imperative summary" || !titlePattern.test(title)) {
-                  errors.push("Merge message title must be concrete and use `area: imperative summary`.");
-                }
-              }
-
-              const bodyLine = /^-\s*Body:\s*(.+)$/im.exec(mergeMessage)
-                || /^Body:\s*(.+)$/im.exec(mergeMessage);
-              if (!bodyLine || !hasMeaningfulContent(bodyLine[1])) {
-                errors.push("`## Merge Message` must include a non-empty `Body: explanation` line.");
-              }
-            }
-
-            const labels = pr.labels.map((label) => label.name);
-            for (const prefix of ["area:", "type:", "priority:"]) {
-              if (!labels.some((label) => label.startsWith(prefix))) {
-                errors.push(`PR must have a \`${prefix}*\` label.`);
-              }
-            }
-
-            if (errors.length > 0) {
-              core.setFailed(errors.map((error) => `- ${error}`).join("\n"));
-            } else {
-              core.info("PR metadata follows the repository standards.");
-            }
+            const { validatePullRequest } = require(policy);
+            const errors = validatePullRequest(context.payload.pull_request);
+            if (errors.length) core.setFailed(errors.map((error) => `- ${error}`).join("\n"));
+            else core.info("PR metadata follows the repository standards.");

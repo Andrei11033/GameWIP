@@ -28,11 +28,7 @@ function(_internal_assert_configure_common_controls_v6 output_variable)
 
     set(ASSERT_INTERNAL_COMMON_CONTROLS_MANIFEST "${Assert_COMMON_CONTROLS_MANIFEST}")
     set(Assert_COMMON_CONTROLS_RC "${CMAKE_CURRENT_BINARY_DIR}/assert_common_controls_v6.rc")
-    configure_file(
-        "${Assert_COMMON_CONTROLS_RC_TEMPLATE}"
-        "${Assert_COMMON_CONTROLS_RC}"
-        @ONLY
-    )
+    configure_file("${Assert_COMMON_CONTROLS_RC_TEMPLATE}" "${Assert_COMMON_CONTROLS_RC}" @ONLY)
 
     set(${output_variable} "${Assert_COMMON_CONTROLS_RC}" PARENT_SCOPE)
 endfunction()
@@ -49,19 +45,11 @@ function(assert_enable_common_controls_v6 target_name)
     endif()
 
     _internal_assert_configure_common_controls_v6(Assert_COMMON_CONTROLS_RC)
-    get_property(
-        Assert_COMMON_CONTROLS_ATTACHED
-        TARGET "${target_name}"
-        PROPERTY ASSERT_INTERNAL_COMMON_CONTROLS_ATTACHED
-    )
+    get_property(Assert_COMMON_CONTROLS_ATTACHED TARGET "${target_name}" PROPERTY ASSERT_INTERNAL_COMMON_CONTROLS_ATTACHED)
     if(Assert_COMMON_CONTROLS_ATTACHED)
         return()
     endif()
 
-    target_sources("${target_name}" PRIVATE
-        "${Assert_COMMON_CONTROLS_RC}"
-    )
-    set_property(TARGET "${target_name}" PROPERTY
-        ASSERT_INTERNAL_COMMON_CONTROLS_ATTACHED TRUE
-    )
+    target_sources("${target_name}" PRIVATE "${Assert_COMMON_CONTROLS_RC}")
+    set_property(TARGET "${target_name}" PROPERTY ASSERT_INTERNAL_COMMON_CONTROLS_ATTACHED TRUE)
 endfunction()

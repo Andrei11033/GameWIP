@@ -27,4 +27,5 @@ Include:
 - Relevant logs, crash details, screenshots, or generated reports.
 - Any known workaround.
 
-Response timing is best effort while the project is pre-release. Confirmed security issues are fixed on the active development branch before any public release is considered.
+Response timing is best effort while the project is pre-release. Confirmed security issues are fixed on the active development branch before any
+public release is considered.

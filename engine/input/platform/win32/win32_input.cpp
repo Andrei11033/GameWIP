@@ -1,4 +1,5 @@
 #include "win32_input.h"
+#include "base/platform/win32/dynamic_library.h"
 #include "input/internal/input_state_access.h"
 
 #include <windows.h>
@@ -12,10 +13,12 @@
 #include <algorithm>
 #include <array>
 #include <chrono>
+#include <cstddef>
 #include <cwchar>
 #include <cwctype>
 #include <cstdint>
 #include <limits>
+#include <span>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -346,9 +349,15 @@ namespace
         }
 
         std::vector<std::string> hardwareIds;
-        for (const wchar_t *entry = buffer.data(); entry != nullptr && *entry != L'\0'; entry += std::wcslen(entry) + 1)
+        std::span<const wchar_t> entries = buffer;
+        while (!entries.empty() && entries.front() != L'\0')
         {
-            hardwareIds.push_back(wideToUtf8(entry));
+            const auto terminator = std::ranges::find(entries, L'\0');
+            const std::size_t length = static_cast<std::size_t>(std::ranges::distance(entries.begin(), terminator));
+            hardwareIds.push_back(wideToUtf8(std::wstring_view(entries.data(), length)));
+            if (terminator == entries.end())
+                break;
+            entries = entries.subspan(length + 1);
         }
 
         return hardwareIds;
@@ -396,8 +405,16 @@ namespace
                 continue;
             }
 
-            std::vector<unsigned char> detailBuffer(requiredSize);
-            auto detailData = reinterpret_cast<SP_DEVICE_INTERFACE_DETAIL_DATA_W *>(detailBuffer.data());
+            const std::size_t detailUnits = (requiredSize + sizeof(std::max_align_t) - 1) / sizeof(std::max_align_t);
+            std::vector<std::max_align_t> detailStorage(detailUnits);
+            // SetupAPI supplies the required byte count; max_align_t storage satisfies the native structure alignment.
+#if defined(__clang__)
+#pragma clang unsafe_buffer_usage begin
+#endif
+            auto detailData = reinterpret_cast<SP_DEVICE_INTERFACE_DETAIL_DATA_W *>(detailStorage.data());
+#if defined(__clang__)
+#pragma clang unsafe_buffer_usage end
+#endif
             detailData->cbSize = sizeof(SP_DEVICE_INTERFACE_DETAIL_DATA_W);
 
             SP_DEVINFO_DATA deviceInfoData{};
@@ -861,8 +878,8 @@ namespace
         if (!runtime.usable)
         {
             InputInternal::InputDeviceRegistryAccess::setDeviceBackendConnected(devices, runtime.device, InputDeviceBackend::RawInputHID, false);
-            const InputDeviceInfo *deviceInfo = devices.findDevice(runtime.device);
-            if (deviceInfo == nullptr || !deviceInfo->connected)
+            const InputDeviceInfo *registeredDevice = devices.findDevice(runtime.device);
+            if (registeredDevice == nullptr || !registeredDevice->connected)
             {
                 InputInternal::InputDeviceRegistryAccess::setDeviceCanonical(devices, runtime.device, false);
             }
@@ -1110,10 +1127,10 @@ namespace
         feedDualSenseButton(inputState, device, GamepadButton::DpadLeft, !centered && (direction == 5 || direction == 6 || direction == 7));
     }
 
-    bool tryFeedDualSenseReport(InputState &inputState, HidDeviceRuntime &runtime, const unsigned char *report, ULONG reportSize)
+    bool tryFeedDualSenseReport(InputState &inputState, HidDeviceRuntime &runtime, std::span<const unsigned char> report)
     {
         if (runtime.deviceType != InputDeviceType::Gamepad || runtime.vendorId != 0x054C ||
-            (runtime.productId != 0x0CE6 && runtime.productId != 0x0DF2) || report == nullptr || reportSize < 12)
+            (runtime.productId != 0x0CE6 && runtime.productId != 0x0DF2) || report.size() < 12)
         {
             return false;
         }
@@ -1123,7 +1140,7 @@ namespace
         {
             commonOffset = 1;
         }
-        else if (report[0] == 0x31 && reportSize >= 13)
+        else if (report[0] == 0x31 && report.size() >= 13)
         {
             commonOffset = 2;
         }
@@ -1132,7 +1149,7 @@ namespace
             return false;
         }
 
-        if (commonOffset + 10 > reportSize)
+        if (commonOffset + 10 > report.size())
         {
             return false;
         }
@@ -1182,7 +1199,7 @@ namespace
         return true;
     }
 
-    bool handleRawHidInput(const RAWINPUT &rawInput, InputState &inputState, InputDeviceRegistry &devices)
+    bool handleRawHidInput(const RAWINPUT &rawInput, std::size_t rawInputSize, InputState &inputState, InputDeviceRegistry &devices)
     {
         HidDeviceRuntime *runtime = findHidDevice(rawInput.header.hDevice);
         if (runtime == nullptr)
@@ -1200,25 +1217,42 @@ namespace
         InputInternal::InputStateAccess::setDeviceConnected(inputState, runtime->device.deviceType, runtime->device.deviceIndex, true);
 
         const RAWHID &rawHid = rawInput.data.hid;
-        const unsigned char *reportData = rawHid.bRawData;
+        const std::size_t reportSize = rawHid.dwSizeHid;
+        const std::size_t reportCount = rawHid.dwCount;
+        if (reportSize != 0 && reportCount > std::numeric_limits<std::size_t>::max() / reportSize)
+            return false;
+        const std::size_t reportBytes = reportSize * reportCount;
+        const std::size_t reportOffsetInInput = offsetof(RAWINPUT, data) + offsetof(RAWHID, bRawData);
+        if (reportOffsetInInput > rawInputSize || reportBytes > rawInputSize - reportOffsetInInput)
+            return false;
+
+        // The caller-owned buffer contains rawInputSize bytes; the checks above bound the flexible-array member.
+#if defined(__clang__)
+#pragma clang unsafe_buffer_usage begin
+#endif
+        const std::span<const unsigned char> reportData(rawHid.bRawData, reportBytes);
+#if defined(__clang__)
+#pragma clang unsafe_buffer_usage end
+#endif
         for (DWORD reportIndex = 0; reportIndex < rawHid.dwCount; ++reportIndex)
         {
             const std::size_t reportOffset = static_cast<std::size_t>(reportIndex) * rawHid.dwSizeHid;
-            const char *report = reinterpret_cast<const char *>(reportData + reportOffset);
-            const ULONG reportSize = rawHid.dwSizeHid;
-            if (tryFeedDualSenseReport(inputState, *runtime, reinterpret_cast<const unsigned char *>(report), reportSize))
+            const std::span<const unsigned char> report = reportData.subspan(reportOffset, reportSize);
+            if (tryFeedDualSenseReport(inputState, *runtime, report))
             {
                 continue;
             }
 
+            const char *reportBytesView = reinterpret_cast<const char *>(report.data());
+
             for (const HidButtonRuntime &buttonRuntime : runtime->buttons)
             {
-                feedHidButtons(inputState, *runtime, buttonRuntime, report, reportSize);
+                feedHidButtons(inputState, *runtime, buttonRuntime, reportBytesView, static_cast<ULONG>(reportSize));
             }
 
             for (HidValueRuntime &valueRuntime : runtime->values)
             {
-                feedHidValues(inputState, *runtime, valueRuntime, report, reportSize);
+                feedHidValues(inputState, *runtime, valueRuntime, reportBytesView, static_cast<ULONG>(reportSize));
             }
         }
 
@@ -1255,10 +1289,10 @@ namespace
                 continue;
             }
 
-            FARPROC function = GetProcAddress(library, "XInputGetState");
+            const XInputGetStateFn function = GameWIP::Base::Win32::loadProcedure<XInputGetStateFn>(library, "XInputGetState");
             if (function != nullptr)
             {
-                cachedXInputGetState = reinterpret_cast<XInputGetStateFn>(function);
+                cachedXInputGetState = function;
                 return cachedXInputGetState;
             }
 
@@ -1956,8 +1990,9 @@ namespace
             return false;
         }
 
-        thread_local std::vector<unsigned char> buffer;
-        buffer.resize(bufferSize);
+        thread_local std::vector<RAWINPUT> buffer;
+        const std::size_t elementCount = (bufferSize + sizeof(RAWINPUT) - 1) / sizeof(RAWINPUT);
+        buffer.resize(elementCount);
         UINT expectedBufferSize = bufferSize;
         UINT result = GetRawInputData(rawInputHandle, RID_INPUT, buffer.data(), &bufferSize, sizeof(RAWINPUTHEADER));
         if (result == static_cast<UINT>(-1) || result != expectedBufferSize)
@@ -1965,11 +2000,11 @@ namespace
             return false;
         }
 
-        RAWINPUT *rawInput = reinterpret_cast<RAWINPUT *>(buffer.data());
+        RAWINPUT &rawInput = buffer.front();
 
-        if (rawInput->header.dwType == RIM_TYPEKEYBOARD)
+        if (rawInput.header.dwType == RIM_TYPEKEYBOARD)
         {
-            RAWKEYBOARD &rawKeyboard = rawInput->data.keyboard;
+            RAWKEYBOARD &rawKeyboard = rawInput.data.keyboard;
             ControlCode controlCode = getKeyboardControlCode(rawKeyboard);
             if (controlCode != 0)
             {
@@ -1979,14 +2014,14 @@ namespace
             }
         }
 
-        if (rawInput->header.dwType == RIM_TYPEMOUSE)
+        if (rawInput.header.dwType == RIM_TYPEMOUSE)
         {
-            return handleRawMouseInput(rawInput->data.mouse, inputState);
+            return handleRawMouseInput(rawInput.data.mouse, inputState);
         }
 
-        if (rawInput->header.dwType == RIM_TYPEHID)
+        if (rawInput.header.dwType == RIM_TYPEHID)
         {
-            return handleRawHidInput(*rawInput, inputState, devices);
+            return handleRawHidInput(rawInput, result, inputState, devices);
         }
 
         return false;

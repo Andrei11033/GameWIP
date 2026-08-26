@@ -170,11 +170,7 @@ function(gamewip_write_version_header output_prefix)
         endif()
     endforeach()
 
-    gamewip_detect_version(
-        detected
-        SOURCE_DIR "${VERSION_SOURCE_DIR}"
-        PROJECT_VERSION "${VERSION_PROJECT_VERSION}"
-    )
+    gamewip_detect_version(detected SOURCE_DIR "${VERSION_SOURCE_DIR}" PROJECT_VERSION "${VERSION_PROJECT_VERSION}")
 
     if(detected_DIRTY)
         set(version_dirty_cpp true)
@@ -194,13 +190,13 @@ function(gamewip_write_version_header output_prefix)
     set(GAMEWIP_VERSION_DIRTY_CPP "${version_dirty_cpp}")
     set(GAMEWIP_VERSION_RELEASE_CPP "${version_release_cpp}")
     file(MAKE_DIRECTORY "${VERSION_BINARY_DIR}/generated/gamewip")
-    configure_file(
-        "${VERSION_SOURCE_DIR}/game/runtime/version.h.in"
-        "${VERSION_BINARY_DIR}/generated/gamewip/version.h"
-        @ONLY
-    )
+    configure_file("${VERSION_SOURCE_DIR}/game/runtime/version.h.in" "${VERSION_BINARY_DIR}/generated/gamewip/version.h" @ONLY)
 
-    foreach(component IN ITEMS NUMBER DISPLAY BUILD_NUMBER GIT_COMMIT DIRTY RELEASE)
+    foreach(
+        component
+        IN
+        ITEMS NUMBER DISPLAY BUILD_NUMBER GIT_COMMIT DIRTY RELEASE
+    )
         set(${output_prefix}_${component} "${detected_${component}}" PARENT_SCOPE)
     endforeach()
 endfunction()
@@ -213,7 +209,11 @@ function(gamewip_configure_version)
         PROJECT_VERSION "${PROJECT_VERSION}"
     )
 
-    foreach(component IN ITEMS NUMBER DISPLAY BUILD_NUMBER GIT_COMMIT DIRTY RELEASE)
+    foreach(
+        component
+        IN
+        ITEMS NUMBER DISPLAY BUILD_NUMBER GIT_COMMIT DIRTY RELEASE
+    )
         set(GAMEWIP_VERSION_${component} "${configured_${component}}" PARENT_SCOPE)
     endforeach()
 

@@ -2,7 +2,8 @@
 
 `GameWIP::IO` is the platform-neutral byte-transfer contract shared by low-level GameWIP libraries.
 
-It defines status and result types, abstract reader and writer interfaces, memory-backed implementations, and helpers that complete whole-stream byte transfers and strict UTF-8 text transfers. IO does not open operating-system resources and has no platform backend.
+It defines status and result types, abstract reader and writer interfaces, memory-backed implementations, and helpers that complete whole-stream byte
+transfers and strict UTF-8 text transfers. IO does not open operating-system resources and has no platform backend.
 
 ## How the library is organized
 
@@ -38,9 +39,11 @@ validation without changing the underlying byte-transfer model.
 
 ## Generated API reference
 
-Use @ref GameWIP::IO for active interfaces, implementations, constants, and helpers. Use @ref GameWIP::IO::Types for passive status, option, and result types.
+Use @ref GameWIP::IO for active interfaces, implementations, constants, and helpers. Use @ref GameWIP::IO::Types for passive status, option, and
+result types.
 
-The generated reference documents every public declaration from `io/io.h`. The manual explains how those declarations work together, which contracts backend implementations must preserve, and which caveats affect callers.
+The generated reference documents every public declaration from `io/io.h`. The manual explains how those declarations work together, which contracts
+backend implementations must preserve, and which caveats affect callers.
 
 ## Key behavior
 
@@ -63,4 +66,5 @@ encoding-agnostic and perform no Unicode work.
 
 FileSystem and Terminal consume IO contracts; IO must not depend on either of them.
 
-IO intentionally has no `open()` API. Resource-owning libraries create their own concrete readers and writers, while memory-backed IO is constructed directly.
+IO intentionally has no `open()` API. Resource-owning libraries create their own concrete readers and writers, while memory-backed IO is constructed
+directly.

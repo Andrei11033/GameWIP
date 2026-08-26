@@ -140,7 +140,7 @@ void testCheckedFailureTranslation(TestSupport::Context &context)
     IO::TestHooks::forceNextFailure(FailurePoint::MemoryWriterCopyText, FailureKind::Unexpected);
     static_cast<void>(context.expectEq("MemoryWriter copyText translates unexpected failure", ErrorCode::Unknown, writer.copyText().status.code));
 
-    for (const auto [kind, expected] :
+    for (const auto &[kind, expected] :
          {std::pair{FailureKind::OutOfMemory, ErrorCode::OutOfMemory},
           std::pair{FailureKind::LengthError, ErrorCode::SizeLimitExceeded},
           std::pair{FailureKind::Unexpected, ErrorCode::Unknown}})
@@ -152,7 +152,7 @@ void testCheckedFailureTranslation(TestSupport::Context &context)
         static_cast<void>(context.expectEq("MemoryWriter failed write preserves bytes", original, copyBytes(writer.bytes())));
     }
 
-    for (const auto [kind, expected] :
+    for (const auto &[kind, expected] :
          {std::pair{FailureKind::OutOfMemory, ErrorCode::OutOfMemory},
           std::pair{FailureKind::LengthError, ErrorCode::SizeLimitExceeded},
           std::pair{FailureKind::Unexpected, ErrorCode::Unknown}})
@@ -171,7 +171,7 @@ void testCheckedFailureTranslation(TestSupport::Context &context)
     }
 
     std::array<std::byte, 2> textScratch{};
-    for (const auto [kind, expected] :
+    for (const auto &[kind, expected] :
          {std::pair{FailureKind::OutOfMemory, ErrorCode::OutOfMemory},
           std::pair{FailureKind::LengthError, ErrorCode::SizeLimitExceeded},
           std::pair{FailureKind::Unexpected, ErrorCode::Unknown}})
@@ -182,7 +182,7 @@ void testCheckedFailureTranslation(TestSupport::Context &context)
         static_cast<void>(context.expectEq("readAllText unknown-size append failure preserves prior text", std::string{"A"}, textAppendFailure.text));
     }
 
-    for (const auto [kind, expected] :
+    for (const auto &[kind, expected] :
          {std::pair{FailureKind::OutOfMemory, ErrorCode::OutOfMemory},
           std::pair{FailureKind::LengthError, ErrorCode::SizeLimitExceeded},
           std::pair{FailureKind::Unexpected, ErrorCode::Unknown}})

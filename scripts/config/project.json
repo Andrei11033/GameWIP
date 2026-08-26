@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "repository": "Andrei11033/GameWIP",
+  "defaultBranch": "master",
+  "storage": {
+    "root": "build/gamewip",
+    "cache": "build/gamewip/cache",
+    "state": "build/gamewip/state",
+    "temp": "build/gamewip/temp",
+    "runs": "build/gamewip/runs"
+  },
+  "managedEnvironment": {
+    "msys2Root": "C:\\MSYS2",
+    "gameWipToolsRoot": "C:\\MSYS2\\GameWIPTools"
+  }
+}

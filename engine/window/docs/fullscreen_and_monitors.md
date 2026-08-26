@@ -19,11 +19,14 @@ Rich monitor snapshots and OS color state are opt-in through `window/display_inf
 
 ## Display operations
 
-`Window::Display` owns display discovery and inspection. Mode-only code can include `window/display.h` and call `getModes()`, `getCurrentMode()`, or `getPreferredMode()`.
+`Window::Display` owns display discovery and inspection. Mode-only code can include `window/display.h` and call `getModes()`, `getCurrentMode()`, or
+`getPreferredMode()`.
 
-Code that needs monitor enumeration or color inspection includes `window/display_info.h` and uses `getMonitors()`, `getPrimaryMonitor()`, `getMonitor()`, and `getColorInfo()`.
+Code that needs monitor enumeration or color inspection includes `window/display_info.h` and uses `getMonitors()`, `getPrimaryMonitor()`,
+`getMonitor()`, and `getColorInfo()`.
 
-`getColorInfo(const Window&)` is a checked convenience query for the display currently relevant to a Window. It exists because selecting the relevant native display is platform behavior; equivalent overloads are not added to unrelated operations merely for symmetry.
+`getColorInfo(const Window&)` is a checked convenience query for the display currently relevant to a Window. It exists because selecting the relevant
+native display is platform behavior; equivalent overloads are not added to unrelated operations merely for symmetry.
 
 ## Window modes
 
@@ -33,10 +36,14 @@ Top-level Window mode is `Types::Mode`:
 - `BorderlessFullscreen` fills the selected monitor without changing its physical display mode.
 - `ExclusiveFullscreen` may switch to an exact requested `Types::Display::Mode`.
 
-`Types::ModeRequest` combines the top-level mode, target monitor, and optional exact exclusive mode. An invalid monitor ID means the documented current/primary fallback; an unknown nonzero ID is rejected.
+`Types::ModeRequest` combines the top-level mode, target monitor, and optional exact exclusive mode. An invalid monitor ID means the documented
+current/primary fallback; an unknown nonzero ID is rejected.
 
-`Types::FullscreenInfo` caches the active monitor, optional exclusive mode, exact-mode state, and suspension state. Windowed geometry mutations remain invalid while a fullscreen mode is active.
+`Types::FullscreenInfo` caches the active monitor, optional exclusive mode, exact-mode state, and suspension state. Windowed geometry mutations remain
+invalid while a fullscreen mode is active.
 
 ## Display changes
 
-The Win32 backend recovers fullscreen state when display topology changes and queues `Types::Events::DisplayConfigurationChanged` / `MonitorChanged` / `ModeChanged` as appropriate. Color configuration changes are also surfaced through display-configuration events; callers re-query `Display::getColorInfo()` for current facts.
+The Win32 backend recovers fullscreen state when display topology changes and queues `Types::Events::DisplayConfigurationChanged` / `MonitorChanged` /
+`ModeChanged` as appropriate. Color configuration changes are also surfaced through display-configuration events; callers re-query
+`Display::getColorInfo()` for current facts.

@@ -1,6 +1,6 @@
 ## Summary
 
-- 
+-
 
 ## Linked Issues
 
@@ -19,6 +19,9 @@
 
 ## Checklist
 
+- [ ] Updated every owning helper, setup, CI, test, documentation, and
+  version/reference surface when behavior, commands, tools, versions,
+  workflows, options, or registries changed.
 - [ ] Updated the owning implementation, workflow, or library documentation when behavior, automation, or validation changed.
 - [ ] Verified generated documentation when public API comments, Doxygen pages, or library docs changed.
 - [ ] Verified local Markdown links for maintained documentation when adding or changing links.

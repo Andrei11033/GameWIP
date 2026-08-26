@@ -8,9 +8,9 @@ runs as part of an ordinary configure, build, test, package, or consumer flow.
 from __future__ import annotations
 
 import argparse
+from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, Iterator
 
 UNICODE_VERSION = "17.0.0"
 EMOJI_VERSION = "17.0"
@@ -233,7 +233,7 @@ def render_header(trie: GeneratedTrie) -> str:
     block_size = 1 << trie.block_shift
     block_mask = block_size - 1
     flattened_blocks = tuple(value for block in trie.blocks for value in block)
-    return f'''/// @file unicode_properties.h
+    return f"""/// @file unicode_properties.h
 /// @brief Generated Unicode {UNICODE_VERSION} grapheme-property trie. Do not edit manually.
 /// @details Derived from pinned Unicode {UNICODE_VERSION} data files.
 /// Unicode data license: Unicode License v3 (SPDX Unicode-3.0), https://www.unicode.org/license.txt
@@ -265,7 +265,7 @@ namespace GameWIP::Unicode::Internal::Generated
 {formatted_values(flattened_blocks, 16, hexadecimal=True)}
     }};
 }} // namespace GameWIP::Unicode::Internal::Generated
-'''
+"""
 
 
 def generate(paths: SourcePaths, output: Path) -> tuple[GeneratedTrie, tuple[GeneratedTrie, ...]]:
@@ -290,21 +290,23 @@ def main() -> None:
     paths = source_paths(arguments.ucd_dir.resolve())
     trie, candidates = generate(paths, arguments.output.resolve())
 
-    print(f"Unicode version: {UNICODE_VERSION}")
-    print(f"High start: U+{trie.high_start:06X}")
-    print("Block size | Index width | Index bytes | Unique blocks | Block bytes | Total bytes")
+    print(f"{'Unicode version:':<17}{UNICODE_VERSION}")
+    print(f"{'High start:':<17}U+{trie.high_start:06X}")
+    print()
+    print("Block size | Index width | Index bytes | Unique blocks | Block bytes | Total bytes | Selection")
     for candidate in candidates:
         block_size = 1 << candidate.block_shift
         candidate_index_bytes = len(candidate.indexes) * index_width(candidate)
         property_bytes = len(candidate.blocks) * block_size
-        selected = " selected" if candidate is trie else ""
+        selection = "selected" if candidate is trie else ""
         print(
             f"{block_size:10} | {index_width(candidate):11} | {candidate_index_bytes:11} | "
-            f"{len(candidate.blocks):13} | {property_bytes:11} | {table_size(candidate):11}{selected}"
+            f"{len(candidate.blocks):13} | {property_bytes:11} | {table_size(candidate):11} | {selection}"
         )
-    print(f"Selected block size: {1 << trie.block_shift}")
-    print(f"Total table bytes: {table_size(trie)}")
-    print(f"Wrote: {arguments.output.resolve()}")
+    print()
+    print(f"{'Selected block size:':<21}{1 << trie.block_shift}")
+    print(f"{'Total table bytes:':<21}{table_size(trie)}")
+    print(f"{'Wrote:':<21}{arguments.output.resolve()}")
 
 
 if __name__ == "__main__":

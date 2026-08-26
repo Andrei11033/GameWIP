@@ -172,13 +172,16 @@ namespace GameWIP::Window::Detail::Platform
         return style;
     }
 
-    bool setLong(HWND window, int index, LONG_PTR value, DWORD &nativeCode) noexcept
+    namespace
     {
-        SetLastError(ERROR_SUCCESS);
-        const LONG_PTR previous = SetWindowLongPtrW(window, index, value);
-        nativeCode = GetLastError();
-        return previous != 0 || nativeCode == ERROR_SUCCESS;
-    }
+        bool setLong(HWND window, int index, LONG_PTR value, DWORD &nativeCode) noexcept
+        {
+            SetLastError(ERROR_SUCCESS);
+            const LONG_PTR previous = SetWindowLongPtrW(window, index, value);
+            nativeCode = GetLastError();
+            return previous != 0 || nativeCode == ERROR_SUCCESS;
+        }
+    } // namespace
 
     Dispatcher &dispatcher() noexcept
     {

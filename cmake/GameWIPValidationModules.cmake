@@ -14,9 +14,7 @@ include(CMakeParseArguments)
 # - Keep benchmark modules separate from correctness-test thresholds.
 
 function(gamewip_add_validation_module_directories root_directory)
-    file(GLOB gamewip_module_cmake_files CONFIGURE_DEPENDS
-        "${root_directory}/*/CMakeLists.txt"
-    )
+    file(GLOB gamewip_module_cmake_files CONFIGURE_DEPENDS "${root_directory}/*/CMakeLists.txt")
     list(SORT gamewip_module_cmake_files)
 
     foreach(gamewip_module_cmake_file IN LISTS gamewip_module_cmake_files)
@@ -36,15 +34,13 @@ function(gamewip_add_test_module)
     target_link_libraries(GameWIPTestModules PRIVATE ${MODULE_LINK_LIBRARIES})
 
     if(GAMEWIP_BUILD_TESTS)
-        add_test(NAME "validation.tests.${MODULE_NAME}"
-            COMMAND $<TARGET_FILE:GameWIPTests>
-                "--test-module=${MODULE_NAME}"
-                "--test-report=logs/tests/${MODULE_NAME}_test_report.txt"
+        add_test(
+            NAME "validation.tests.${MODULE_NAME}"
+            COMMAND $<TARGET_FILE:GameWIPTests> "--test-module=${MODULE_NAME}" "--test-report=logs/tests/${MODULE_NAME}_test_report.txt"
         )
-        set_tests_properties("validation.tests.${MODULE_NAME}" PROPERTIES
-            LABELS "validation;${MODULE_NAME}"
-            TIMEOUT 300
-            WORKING_DIRECTORY "$<TARGET_FILE_DIR:GameWIPTests>"
+        set_tests_properties(
+            "validation.tests.${MODULE_NAME}"
+            PROPERTIES LABELS "validation;${MODULE_NAME}" TIMEOUT 300 WORKING_DIRECTORY "$<TARGET_FILE_DIR:GameWIPTests>"
         )
     endif()
 endfunction()

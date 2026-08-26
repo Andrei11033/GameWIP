@@ -13,9 +13,12 @@ Configure these Actions variables:
 ACTIVE_MILESTONE=R01 - Window, Input, and Action Foundation
 ```
 
-Change `ACTIVE_MILESTONE` to the next milestone only after the previous milestone's tag, GitHub release, closure issue, and handoff are complete. The same workflow applies to R00, R01, later roadmap milestones, and compatible PATCH releases.
+Change `ACTIVE_MILESTONE` to the next milestone only after the previous milestone's tag, GitHub release, closure issue, and handoff are complete. The
+same workflow applies to R00, R01, later promoted release milestones, and compatible PATCH releases. `ACTIVE_MILESTONE` names only the currently
+active release milestone.
 
-Configure `PROJECT_TOKEN` as an Actions secret. The token must be a dedicated GitHub App token or dedicated maintainer token with the minimum permissions needed to:
+Configure `PROJECT_TOKEN` as an Actions secret. The token must be a dedicated GitHub App token or dedicated maintainer token with the minimum
+permissions needed to:
 
 - Read repository contents, issues, milestones, pull requests, workflow runs, tags, and releases.
 - Create release-preparation branches.
@@ -51,31 +54,49 @@ protection rule for private repositories.
 
 ## Milestone release metadata
 
-Every releasable milestone needs exactly one target version and exactly one release issue.
+Every releasable milestone needs exactly one target version, exactly one
+explicit handoff, and exactly one release issue.
 
 The milestone description must contain:
 
 ```text
 Release version: `X.Y.Z`
+Next milestone: `Rxx - Exact Title`
 ```
+
+For a truly terminal handoff, use:
+
+```text
+Next milestone: `none`
+```
+
+The successor is explicit metadata. Automation never infers it by incrementing
+the current R number and has no V1 or R52 terminal special case. `none` is valid
+for any truly terminal handoff. A supplied successor title must differ from the
+current milestone and match exactly one open GitHub milestone.
+
+The successor only needs to exist by the time the current milestone is ready
+for release and handoff. Do not pre-create the capability roadmap as GitHub
+milestones.
 
 The release issue can be resolved in either of these ways:
 
-- Preferred for new milestones: exactly one issue in the milestone is labeled `type:release` or has a title beginning with `release:`.
+- Preferred for new milestones: exactly one issue in the milestone uses `type:release` as its only type or has a title beginning with `release:`.
 - Explicit compatibility form: the milestone description contains:
 
 ```text
 Release issue: `#N`
 ```
 
-The release issue must stay open during readiness checks and release-preparation pull-request creation. It closes only after finalization has created the immutable tag and GitHub release and the milestone handoff is complete.
+The release issue must stay open during readiness checks and release-preparation pull-request creation. It closes only after finalization has created
+the immutable tag and GitHub release and the milestone handoff is complete.
 
 ## Readiness check
 
 Run the read-only readiness check first:
 
 ```powershell
-.\gamewip.bat workflow -WorkflowAction run -Workflow release-check
+.\gamewip.bat workflow run release-check
 gh workflow run release-preparation.yml -f command=check -f dry_run=true
 ```
 
@@ -91,6 +112,7 @@ The check verifies that:
 
 - The selected milestone matches `ACTIVE_MILESTONE`.
 - The milestone has explicit `Release version:` metadata.
+- The milestone has exactly one valid `Next milestone:` value, and any named successor resolves to exactly one different open milestone.
 - The milestone has exactly one release issue, resolved from a `type:release` label, a `release:` title, or explicit milestone metadata.
 - The root CMake project version matches the milestone release version.
 - The milestone has no open implementation issues except its release issue.
@@ -105,7 +127,7 @@ Automatic issue and milestone events run the same readiness logic without mutati
 After the dry run is correct, prepare the release pull request:
 
 ```powershell
-.\gamewip.bat workflow -WorkflowAction run -Workflow release-prepare
+.\gamewip.bat workflow run release-prepare
 gh workflow run release-preparation.yml -f command=prepare -f dry_run=false
 ```
 
@@ -118,9 +140,11 @@ The workflow creates or reuses:
 - `release: prepare vX.Y.Z`
 - `docs/releases/vX.Y.Z.md`
 
-The generated pull request references the release issue but does not close it. The release issue remains open until the tag, GitHub release, and milestone handoff exist.
+The generated pull request references the release issue but does not close it. The release issue remains open until the tag, GitHub release, and
+milestone handoff exist.
 
-A maintainer must fill in the final validation evidence, review the release-preparation pull request, and merge it manually. The workflow must not write directly to `master`.
+A maintainer must fill in the final validation evidence, review the release-preparation pull request, and merge it manually. The workflow must not
+write directly to `master`.
 
 Finalization rejects release notes that still contain the generated validation-evidence placeholder or unchecked release checklist items.
 
@@ -135,21 +159,22 @@ $releaseCommit = gh api repos/Andrei11033/GameWIP/branches/master --jq .commit.s
 Run a finalization dry run:
 
 ```powershell
-.\gamewip.bat workflow -WorkflowAction run -Workflow release-finalize-dry-run -ReleaseCommit $releaseCommit
+.\gamewip.bat workflow run release-finalize-dry-run -ReleaseCommit $releaseCommit
 gh workflow run release-preparation.yml -f command=finalize -f dry_run=true -f release_commit=$releaseCommit
 ```
 
 If the dry run verifies the exact commit, publish the tag and release:
 
 ```powershell
-.\gamewip.bat workflow -WorkflowAction run -Workflow release-finalize -ReleaseCommit $releaseCommit
+.\gamewip.bat workflow run release-finalize -ReleaseCommit $releaseCommit
 gh workflow run release-preparation.yml -f command=finalize -f dry_run=false -f release_commit=$releaseCommit
 ```
 
 The write requires a typed phrase containing the exact commit SHA and approval
 through the `release-production` environment.
 
-Finalization creates an annotated `vX.Y.Z` tag and a matching GitHub release. Existing matching artifacts are reused. Conflicting tags, releases, branches, or pull requests cause a safe failure.
+Finalization creates an annotated `vX.Y.Z` tag and a matching GitHub release. Existing matching artifacts are reused. Conflicting tags, releases,
+branches, or pull requests cause a safe failure.
 
 ## Recovery behavior
 
@@ -168,6 +193,7 @@ Finalization creates an annotated `vX.Y.Z` tag and a matching GitHub release. Ex
 ## Maintainer rules
 
 - Release automation must never derive the version by counting issues.
+- Release automation must never infer a successor from the current milestone number.
 - Release automation must never push version commits directly to `master`.
 - Release automation must never create, move, or overwrite a published tag.
 - Human review and merge are required before finalization.

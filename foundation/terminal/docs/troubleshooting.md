@@ -7,17 +7,20 @@ native-state failures.
 
 ## A control returns `Unsupported`
 
-The selected endpoint does not currently advertise the required terminal feature. Redirected, detached, and `Other` endpoints commonly cannot run cursor, clear, alternate-screen, title, or bell controls.
+The selected endpoint does not currently advertise the required terminal feature. Redirected, detached, and `Other` endpoints commonly cannot run
+cursor, clear, alternate-screen, title, or bell controls.
 
 Query `getOutputCapabilities()` for planning, but still handle the operation status because capabilities can change.
 
 ## Styled output is plain
 
-`Types::Style::Mode::Auto` falls back to plain text when preparation or the complete requested style is unavailable. Use `Types::Style::Mode::Required` only when failure is preferable to plain output.
+`Types::Style::Mode::Auto` falls back to plain text when preparation or the complete requested style is unavailable. Use
+`Types::Style::Mode::Required` only when failure is preferable to plain output.
 
 ## A style sequence appears without its reset
 
-Terminal assembles a logical styled record, but platform writes are not transactional. A failing endpoint can emit a prefix. Recover with `resetStyle()` when the endpoint still supports terminal controls.
+Terminal assembles a logical styled record, but platform writes are not transactional. A failing endpoint can emit a prefix. Recover with
+`resetStyle()` when the endpoint still supports terminal controls.
 
 ## Text reads fail with `EncodingFailed`
 
@@ -31,19 +34,24 @@ The next UTF-8 code point does not fit in `maxReturnedBytes`. Increase the limit
 
 Inspect both `status` and `outcome`. `TimedOut`, `WouldBlock`, and `Cancelled` are normal domain outcomes with a successful status.
 
-Read timeouts are optional: `std::nullopt` waits indefinitely, `0ms` polls, positive durations establish one total deadline, and negative durations are `InvalidArgument`. Real Win32 console input and named-pipe input support polling, finite deadlines, and requested cancellation. Regular redirected files still do not promise bounded waiting.
+Read timeouts are optional: `std::nullopt` waits indefinitely, `0ms` polls, positive durations establish one total deadline, and negative durations
+are `InvalidArgument`. Real Win32 console input and named-pipe input support polling, finite deadlines, and requested cancellation. Regular redirected
+files still do not promise bounded waiting.
 
 ## Interactive `readLine()` returns `Unsupported` before reading
 
-Managed echo requires a terminal output that supports cursor positioning, cursor-position queries, and line clearing. If input is interactive but the bound output cannot render managed echo, set `Types::Input::LineOptions::echo = false` and render the application UI yourself.
+Managed echo requires a terminal output that supports cursor positioning, cursor-position queries, and line clearing. If input is interactive but the
+bound output cannot render managed echo, set `Types::Input::LineOptions::echo = false` and render the application UI yourself.
 
 ## A special key does not appear in `readText()`
 
-Stream text/byte reads project only text-producing/control events into stream data. Navigation, function, modifier, resize, and other logical events are intentionally not serialized into arbitrary escape sequences. Use `Types::Input::DeliveryMode::Events` when the application needs those keys.
+Stream text/byte reads project only text-producing/control events into stream data. Navigation, function, modifier, resize, and other logical events
+are intentionally not serialized into arbitrary escape sequences. Use `Types::Input::DeliveryMode::Events` when the application needs those keys.
 
 ## An `OutputBuffer` mutation returned a failure
 
-`OutputBuffer` no longer throws for reserve, append, line-policy, or formatting failures. Inspect the returned status. Failed append/format operations preserve the previous complete buffer contents; a failed `flushTo()` preserves the buffered text for retry.
+`OutputBuffer` no longer throws for reserve, append, line-policy, or formatting failures. Inspect the returned status. Failed append/format operations
+preserve the previous complete buffer contents; a failed `flushTo()` preserves the buffered text for retry.
 
 ## `flushTo()` did not force an OS flush
 
@@ -51,7 +59,8 @@ Stream text/byte reads project only text-producing/control events into stream da
 
 ## Flush succeeds but a pipe consumer sees no change
 
-Terminal retains no unwritten stream buffer. On Win32, console and pipe flushes are successful no-ops; only a standard handle redirected to a regular disk file receives an operating-system flush. Flush any C/C++ stream buffer through the API that owns it.
+Terminal retains no unwritten stream buffer. On Win32, console and pipe flushes are successful no-ops; only a standard handle redirected to a regular
+disk file receives an operating-system flush. Flush any C/C++ stream buffer through the API that owns it.
 
 ## `writeBytes()` failed after reporting full progress
 
@@ -59,40 +68,55 @@ A requested flush can fail after all bytes were accepted. Inspect both `status` 
 
 ## `Session::open()` returns `AlreadyOpen` or `ResourceBusy`
 
-`AlreadyOpen` means that same `Session` object is already open. `ResourceBusy` means another persistent session or direct managed input operation owns stdin.
+`AlreadyOpen` means that same `Session` object is already open. `ResourceBusy` means another persistent session or direct managed input operation owns
+stdin.
 
-Close the existing owner explicitly before opening another one. Do not reintroduce availability-check-then-read logic; ownership is intentionally acquired by the operation itself.
+Close the existing owner explicitly before opening another one. Do not reintroduce availability-check-then-read logic; ownership is intentionally
+acquired by the operation itself.
 
 ## `Session::close()` failed and `isOpen()` is still true
 
-A Session-owned persistent output restoration or exact native input restoration failed. Explicit close intentionally keeps the session open and retains stdin ownership so cleanup can be retried. Output state is restored in reverse activation order before input restoration; successfully restored obligations are not repeated on retry. Fix or report the backend problem, then call `close()` again.
+A Session-owned persistent output restoration or exact native input restoration failed. Explicit close intentionally keeps the session open and
+retains stdin ownership so cleanup can be retried. Output state is restored in reverse activation order before input restoration; successfully
+restored obligations are not repeated on retry. Fix or report the backend problem, then call `close()` again.
 
-`ResourceBusy` has one additional deliberate meaning for `close()`: custom formatter code attempted to close the same Session whose formatted operation is active. The nested close cannot wait for its own operation, so it returns immediately and leaves the Session open. Let the outer call finish, then close from a non-reentrant context.
+`ResourceBusy` has one additional deliberate meaning for `close()`: custom formatter code attempted to close the same Session whose formatted
+operation is active. The nested close cannot wait for its own operation, so it returns immediately and leaves the Session open. Let the outer call
+finish, then close from a non-reentrant context.
 
-Destruction is different: the destructor makes best-effort output and input restoration attempts and releases process-wide input ownership because the destroyed object cannot be retried.
+Destruction is different: the destructor makes best-effort output and input restoration attempts and releases process-wide input ownership because the
+destroyed object cannot be retried.
 
 ## A stop token returns `Unsupported`
 
-The token is stoppable and the requested read may block, but the endpoint cannot currently observe cancellation safely. Use an endpoint that advertises `supportsCancellation`, use a `0ms` poll loop owned by the application where appropriate, or omit the stoppable token when indefinite blocking is acceptable.
+The token is stoppable and the requested read may block, but the endpoint cannot currently observe cancellation safely. Use an endpoint that
+advertises `supportsCancellation`, use a `0ms` poll loop owned by the application where appropriate, or omit the stoppable token when indefinite
+blocking is acceptable.
 
 A token that is already stopped returns `Types::Input::ReadOutcome::Cancelled` before input is consumed.
 
 ## An output-state scope is inactive immediately after creation
 
-Cursor-hidden or alternate-screen setup failed before its state-changing sequence was emitted. Inspect `status()`. Those scope factories are `noexcept` and return an inactive object rather than throwing. A requested flush failure after sequence emission differs: `status()` reports the failure, but `active()` remains true because the scope still owns the inverse transition.
+Cursor-hidden or alternate-screen setup failed before its state-changing sequence was emitted. Inspect `status()`. Those scope factories are
+`noexcept` and return an inactive object rather than throwing. A requested flush failure after sequence emission differs: `status()` reports the
+failure, but `active()` remains true because the scope still owns the inverse transition.
 
 ## Output-state scope move assignment did not consume the source
 
-The destination already owned active output state and failed to restore or leave it. The destination remains active and the source retains its responsibility so state ownership is not silently lost.
+The destination already owned active output state and failed to restore or leave it. The destination remains active and the source retains its
+responsibility so state ownership is not silently lost.
 
 ## Output interleaves with `std::cout` or `printf`
 
-Terminal serializes only calls made through Terminal. Use one output abstraction for records that must not interleave, and flush foreign buffers through their owning APIs before switching.
+Terminal serializes only calls made through Terminal. Use one output abstraction for records that must not interleave, and flush foreign buffers
+through their owning APIs before switching.
 
 ## Redirected text accepted invalid UTF-8
 
-Redirected output is byte-oriented and may preserve supplied bytes without validation. Real-console conversion is stricter. Validate independently when endpoint-invariant UTF-8 rejection is required.
+Redirected output is byte-oriented and may preserve supplied bytes without validation. Real-console conversion is stricter. Validate independently
+when endpoint-invariant UTF-8 rejection is required.
 
 ## A capability result no longer matches behavior
 
-The process replaced or redirected a standard handle, changed native mode externally, or otherwise modified endpoint state. Query again and treat the operation status as authoritative.
+The process replaced or redirected a standard handle, changed native mode externally, or otherwise modified endpoint state. Query again and treat the
+operation status as authoritative.

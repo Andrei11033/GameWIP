@@ -50,7 +50,7 @@ Logger, Window, or runtime services:
 | No arguments | Every game build | Enters the runtime and opens the game window. |
 | `--help`, `-h`, or `-?` | Every game build, as the only argument | Prints usage and build-dependent startup-validation availability, then exits successfully. |
 | `--version` | Every game build, as the only argument | Prints `GameWIP::Version::productDisplay`, then exits successfully. |
-| `--startup-tests` | `dev`, `dev-no-tools`, `profile`, or a custom startup-test build | Runs embedded correctness validation before runtime. Public `GameWIPTests.exe` options may accompany it. |
+| `--startup-tests` | `dev`, `profile`, or a custom startup-test build | Runs embedded correctness validation before runtime. Public `GameWIPTests.exe` options may accompany it. |
 | `--benchmark_*` or `--v=<level>` | A custom build with startup benchmarks | Forwards Google Benchmark options to the embedded benchmark runner. |
 
 Validation options without `--startup-tests` do not request an ordinary embedded
@@ -76,7 +76,8 @@ complete current option sets, or start at @ref project_command_line_tools.
    game window, and runs the event loop.
 9. Return the runtime facade's exit code.
 
-Utility-only help and version queries intentionally bypass validation and runtime startup. A help or `--version` token combined with other arguments is not treated as the utility-only form.
+Utility-only help and version queries intentionally bypass validation and runtime startup. A help or `--version` token combined with other arguments
+is not treated as the utility-only form.
 
 Tracy-enabled builds emit frame marks before startup validation, startup
 benchmarks, and runtime execution. The enclosing named zones identify those
@@ -84,7 +85,10 @@ process phases in a capture. Zone colors distinguish process/runtime work,
 initialization, frames, waits, validation, benchmarks, and cleanup or failure
 paths.
 
-There is no process-wide exception boundary around startup validation, benchmark execution, or `GameWIP::Game::run()`. The correctness runner converts exceptions escaping module callbacks, but its outer setup/allocation work and the benchmark runner may still propagate. Runtime code should express expected startup or shutdown failures through its returned exit code. Any exception that reaches `main()` follows the language runtime's uncaught-exception behavior.
+There is no process-wide exception boundary around startup validation, benchmark execution, or `GameWIP::Game::run()`. The correctness runner converts
+exceptions escaping module callbacks, but its outer setup/allocation work and the benchmark runner may still propagate. Runtime code should express
+expected startup or shutdown failures through its returned exit code. Any exception that reaches `main()` follows the language runtime's
+uncaught-exception behavior.
 
 ## Runtime facade
 
@@ -123,7 +127,8 @@ Use @ref GameWIP::Game for the generated source API reference.
 
 ## Version metadata
 
-CMake configures `game/runtime/version.h.in` into `gamewip/version.h` during project configuration and refreshes it before building the game executable.
+CMake configures `game/runtime/version.h.in` into `gamewip/version.h` during project configuration and refreshes it before building the game
+executable.
 
 @ref GameWIP::Version exposes:
 
@@ -137,7 +142,8 @@ CMake configures `game/runtime/version.h.in` into `gamewip/version.h` during pro
 | `dirty` | Whether tracked source changes were detected when identity was generated. |
 | `release` | Whether generation observed the expected clean annotated release tag. |
 
-Configuration creates the initial values, and the game version-header target refreshes them whenever the executable is built. A long-lived build tree therefore observes newer repository state on rebuild without requiring reconfiguration. Release interpretation is owned by @ref project_versioning.
+Configuration creates the initial values, and the game version-header target refreshes them whenever the executable is built. A long-lived build tree
+therefore observes newer repository state on rebuild without requiring reconfiguration. Release interpretation is owned by @ref project_versioning.
 
 ## Startup validation facade
 
@@ -148,11 +154,13 @@ Configuration creates the initial values, and the game version-header target ref
 - Each macro defaults to `0` when the including target does not define it.
 - Disabled functions return successful empty results and do not retain runner dependencies.
 
-These definitions are target-private composition controls, not installed configuration API. Use @ref GameWIP::Validation for the generated result and facade reference.
+These definitions are target-private composition controls, not installed configuration API. Use @ref GameWIP::Validation for the generated result and
+facade reference.
 
 ## Source API boundary
 
-The generated manual includes the explicitly registered headers that connect `game/` components. They are documented source-tree interfaces for contributors and validation modules; they are not installed package APIs or long-term binary compatibility promises.
+The generated manual includes the explicitly registered headers that connect `game/` components. They are documented source-tree interfaces for
+contributors and validation modules; they are not installed package APIs or long-term binary compatibility promises.
 
 The documented namespaces are:
 
@@ -163,7 +171,8 @@ The documented namespaces are:
 - @ref GameWIP::Validation::Benchmarks for benchmark-runner integration.
 - @ref GameWIP::Test for source-tree library self-test entry points and option types.
 
-Private helpers, module-local functions, and approved internal test seams remain implementation or maintainer interfaces and are not presented as installed consumer API.
+Private helpers, module-local functions, and approved internal test seams remain implementation or maintainer interfaces and are not presented as
+installed consumer API.
 
 ## Dependency boundary
 
@@ -174,7 +183,8 @@ to an existing library. The runtime consumes Window's public display,
 renderer/color, window-lifetime, and event-pump interfaces; platform-specific
 display and window mechanics remain owned by Window.
 
-Move code into a reusable library when it becomes general-purpose, independently testable, and useful outside the executable. Long-term engine systems belong under `engine/` when that layer owns them.
+Move code into a reusable library when it becomes general-purpose, independently testable, and useful outside the executable. Long-term engine systems
+belong under `engine/` when that layer owns them.
 
 ## Source comments
 

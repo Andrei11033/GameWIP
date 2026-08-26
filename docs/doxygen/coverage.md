@@ -21,7 +21,8 @@ The coverage workflow requires standalone tests.
 
 ## Build controls
 
-`GAMEWIP_ENABLE_COVERAGE=ON` adds GCC/Clang coverage instrumentation and creates the `coverage` target. The `coverage` preset enables this option and disables the game executable.
+`GAMEWIP_ENABLE_COVERAGE=ON` adds GCC/Clang coverage instrumentation and creates the `coverage` target. The `coverage` preset enables this option and
+disables the game executable.
 
 The project rejects `GAMEWIP_ENABLE_COVERAGE=ON` when `GAMEWIP_BUILD_TESTS=OFF`.
 
@@ -34,14 +35,12 @@ build/coverage/coverage/index.html
 build/coverage/coverage/coverage.xml
 ```
 
-The report currently includes implementation sources for IO, FileSystem,
-Terminal, Logger, Assert, and TestSupport, plus the modular correctness-test
-sources under `game/validation/tests`. Unicode and Window tests execute in the
-coverage workflow, but their library implementation sources are not currently
-included in the report filters. Third-party sources under `external/`, generated
-build output, and other project code are excluded.
+The report includes maintained implementation sources for Base, Unicode, IO, FileSystem, Terminal, Logger, Assert, TestSupport, and Window, plus the
+modular correctness-test sources under `game/validation/tests`. Header-only Base code contributes where instantiated by tests and consumers.
+Third-party sources under `external/`, generated build output, and intentionally provisional engine code are excluded.
 
-GCC profile updates are atomic so parallel test processes cannot overwrite one another's counters. Corrupt or negative profile data is a report failure. The workflow must not suppress parser errors.
+GCC profile updates are atomic so parallel test processes cannot overwrite one another's counters. Corrupt or negative profile data is a report
+failure. The workflow must not suppress parser errors.
 
 ## CI behavior
 

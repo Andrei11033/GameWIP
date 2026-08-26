@@ -3,8 +3,10 @@
 
 #include "validation/tests/logger/logger_test.h"
 
+#include "validation/process_arguments.h"
 #include "validation/tests/registry.h"
 
+#include <algorithm>
 #include <string_view>
 
 namespace
@@ -12,14 +14,15 @@ namespace
     /// @brief Detects fatal-termination child invocations owned by Logger tests.
     bool handlesChildArguments(int argc, char **argv)
     {
-        for (int index = 1; index < argc; ++index)
+        const auto arguments = GameWIP::Validation::processArguments(argc, argv);
+        for (char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
         {
-            if (argv[index] == nullptr)
+            if (value == nullptr)
             {
                 continue;
             }
 
-            const std::string_view argument(argv[index]);
+            const std::string_view argument(value);
             if (argument == "--logger-test-child=fatal-terminate"
 #if LOGGER_INTERNAL_TEST_HOOKS
                 || argument == "--logger-test-child=enqueue-wakeup" || argument == "--logger-test-child=shutdown-wakeup"

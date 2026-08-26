@@ -21,9 +21,11 @@ Run the FileSystem-focused module through the project validation workflow docume
 
 ## Symlink and backend coverage
 
-Scenarios validate `DoNotFollow`, `FollowFinal`, and `FollowAll` for final and intermediate links. A host without symbolic-link creation capability records skips rather than failing unrelated coverage. Complete Windows proof therefore requires Developer Mode or create-symbolic-link privilege.
+Scenarios validate `DoNotFollow`, `FollowFinal`, and `FollowAll` for final and intermediate links. A host without symbolic-link creation capability
+records skips rather than failing unrelated coverage. Complete Windows proof therefore requires Developer Mode or create-symbolic-link privilege.
 
-Backend tests cover native path conversion, strict traversal, sharing, read-only metadata, directory cursors, lock ownership, directory flushing, and native error mapping.
+Backend tests cover native path conversion, strict traversal, sharing, read-only metadata, directory cursors, lock ownership, directory flushing, and
+native error mapping.
 
 ## Other validation boundaries
 
@@ -40,6 +42,7 @@ Use @ref filesystem_test_hooks for source-tree-only checked-operation, diagnosti
 
 ## Documentation validation
 
-The Doxygen warning log must be empty. Manual pages document portable observable behavior; backend-specific mechanics belong in internal source comments unless they define a consumer-visible constraint.
+The Doxygen warning log must be empty. Manual pages document portable observable behavior; backend-specific mechanics belong in internal source
+comments unless they define a consumer-visible constraint.
 
 See @ref project_documentation and @ref project_testing.

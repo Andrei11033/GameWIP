@@ -57,6 +57,7 @@ jobs:
           -DGAMEWIP_RUN_BENCHMARKS_AT_STARTUP=OFF
           -DGAMEWIP_ENABLE_TRACY=OFF
           -DGAMEWIP_ENABLE_ASSERTS=ON
+          -DGAMEWIP_WARNINGS_AS_ERRORS=ON
 
       - name: Build package validation
         shell: msys2 {0}
@@ -78,6 +79,7 @@ jobs:
           -DGAMEWIP_RUN_BENCHMARKS_AT_STARTUP=OFF
           -DGAMEWIP_ENABLE_TRACY=OFF
           -DGAMEWIP_ENABLE_ASSERTS=ON
+          -DGAMEWIP_WARNINGS_AS_ERRORS=ON
 
       - name: Test multi-config installed packages
         shell: msys2 {0}
@@ -127,9 +129,8 @@ jobs:
           -DGAMEWIP_ENABLE_STARTUP_TESTS=OFF
           -DGAMEWIP_RUN_BENCHMARKS_AT_STARTUP=OFF
           -DGAMEWIP_ENABLE_TRACY=OFF
-          -DGAMEWIP_ENABLE_TOOLS=OFF
-          -DGAMEWIP_OPEN_TOOLS_AT_STARTUP=OFF
           -DGAMEWIP_ENABLE_ASSERTS=ON
+          -DGAMEWIP_WARNINGS_AS_ERRORS=ON
 
       - name: Build
         shell: msys2 {0}
@@ -149,15 +150,15 @@ jobs:
           clang_format_path="$(cygpath -w "$(command -v clang-format)")"
           helper_path="$(cygpath -w "$PWD/scripts/GameWIP.ps1")"
           powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$helper_path" \
-            unicode -UnicodeAction verify \
+            unicode verify \
             -PythonPath "$python_path" \
             -ClangFormatPath "$clang_format_path"
 
       - name: Test runtime and project contracts
         shell: msys2 {0}
         env:
-          GAMEWIP_REQUIRE_SYMLINK_TESTS: "1"
-          GAMEWIP_REQUIRE_UNICODE_CONFORMANCE_TESTS: "1"
+          GAMEWIP_REQUIRE_SYMLINK_TESTS: '1'
+          GAMEWIP_REQUIRE_UNICODE_CONFORMANCE_TESTS: '1'
         run: ctest --test-dir build/validation --output-on-failure --no-tests=error -LE packages
 
       - name: Benchmark smoke test
@@ -167,13 +168,13 @@ jobs:
       - name: Static analysis
         shell: msys2 {0}
         run: |
-          cmake --preset analyze
+          cmake --preset analyze -DGAMEWIP_WARNINGS_AS_ERRORS=ON
           cmake --build --preset analyze
 
   repository-checks:
     name: Repository Checks
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
 
     steps:
       - name: Checkout
@@ -183,6 +184,53 @@ jobs:
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
+
+      - name: Install registry-pinned quality tools
+        shell: bash
+        run: |
+          registry=scripts/config/project-tools.json
+          version() { jq -r --arg id "$1" '.tools[] | select(.id == $id) | .requiredVersion' "$registry"; }
+
+          quality_python="$GITHUB_WORKSPACE/build/gamewip/tools/python"
+          python3 -m venv "$quality_python"
+          "$quality_python/bin/python" -m pip install --upgrade pip
+          "$quality_python/bin/pip" install \
+            "clang-format==22.1.8" \
+            "ruff==$(version ruff)" \
+            "yamllint==$(version yamllint)" \
+            "jsonschema==$(version jsonschema)"
+          echo "$quality_python/bin" >> "$GITHUB_PATH"
+
+          gersemi_repository="$(jq -r '.tools[] | select(.id == "gersemi") | .provider.repository' "$registry")"
+          gersemi_tag="$(jq -r '.tools[] | select(.id == "gersemi") | .provider.releaseTag' "$registry")"
+          gersemi_asset="$(jq -r '.tools[] | select(.id == "gersemi") | .provider.assets["linux-amd64"].archive' "$registry")"
+          gersemi_sha256="$(jq -r '.tools[] | select(.id == "gersemi") | .provider.assets["linux-amd64"].sha256' "$registry")"
+          gersemi_download="$RUNNER_TEMP/$gersemi_asset"
+          gersemi_bin="$RUNNER_TEMP/gamewip-quality-bin"
+          mkdir -p "$gersemi_bin"
+          curl --fail --location --silent --show-error \
+            --output "$gersemi_download" \
+            "https://github.com/$gersemi_repository/releases/download/$gersemi_tag/$gersemi_asset"
+          printf '%s  %s\n' "$gersemi_sha256" "$gersemi_download" | sha256sum --check -
+          install -m 0755 "$gersemi_download" "$gersemi_bin/gersemi"
+          "$gersemi_bin/gersemi" --version
+          echo "$gersemi_bin" >> "$GITHUB_PATH"
+
+          eslint_js_version="$(jq -r \
+            '.tools[] | select(.id == "eslint") | .provider.dependencies[] | select(.package == "@eslint/js") | .version' \
+            "$registry")"
+          npm install --global \
+            "eslint@$(version eslint)" \
+            "@eslint/js@$eslint_js_version" \
+            "prettier@$(version prettier)" \
+            "markdownlint-cli2@$(version markdownlint-cli2)"
+
+      - name: Install registry-pinned PowerShell analyzer
+        shell: pwsh
+        run: |
+          $registry = Get-Content scripts/config/project-tools.json -Raw | ConvertFrom-Json
+          $version = ($registry.tools | Where-Object id -EQ psscriptanalyzer).requiredVersion
+          Install-Module PSScriptAnalyzer -RequiredVersion $version -Scope CurrentUser -Force
 
       - name: Check JavaScript
         shell: bash
@@ -195,9 +243,11 @@ jobs:
       - name: Check PowerShell workflow helper
         shell: pwsh
         run: |
-          ./.github/scripts/workflow-helper.test.ps1
-          ./.github/scripts/project-helper.test.ps1
-          ./.github/scripts/setup-helper.test.ps1
+          $qualityPython = Join-Path $env:GITHUB_WORKSPACE 'build/gamewip/tools/python/bin'
+          $env:PATH = "$qualityPython$([IO.Path]::PathSeparator)$env:PATH"
+          ./.github/scripts/WorkflowHelper.Tests.ps1
+          ./.github/scripts/ProjectHelper.Tests.ps1
+          ./.github/scripts/SetupHelper.Tests.ps1
 
       - name: Check JSON
         shell: bash
@@ -213,35 +263,27 @@ jobs:
         shell: bash
         run: python3 -m py_compile .github/scripts/*.py
 
-      - name: Check documentation standards
-        shell: bash
-        run: python3 .github/scripts/check-documentation-standards.py
-
-      - name: Check repository standards
-        shell: bash
-        run: python3 .github/scripts/check-repository-standards.py
-
-      - name: Check Markdown links
-        shell: bash
-        run: python3 .github/scripts/check-markdown-links.py
-
       - name: Install actionlint
         shell: bash
-        env:
-          ACTIONLINT_VERSION: 1.7.12
-          ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
         run: |
-          archive="actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
-          url="https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/${archive}"
-          curl --fail --silent --show-error --location --output "$archive" "$url"
-          echo "${ACTIONLINT_SHA256}  ${archive}" | sha256sum --check
-          tar --extract --gzip --file "$archive" actionlint
-          install -m 0755 actionlint "$RUNNER_TEMP/actionlint"
+          registry="scripts/config/project-tools.json"
+          tag="$(jq -r '.tools[] | select(.id == "actionlint") | .provider.releaseTag' "$registry")"
+          archive="$(jq -r '.tools[] | select(.id == "actionlint") | .provider.assets["linux-amd64"].archive' "$registry")"
+          sha256="$(jq -r '.tools[] | select(.id == "actionlint") | .provider.assets["linux-amd64"].sha256' "$registry")"
+          url="https://github.com/rhysd/actionlint/releases/download/${tag}/${archive}"
+          archive_path="$RUNNER_TEMP/$archive"
+          curl --fail --silent --show-error --location --output "$archive_path" "$url"
+          echo "${sha256}  ${archive_path}" | sha256sum --check
+          tar --extract --gzip --directory "$RUNNER_TEMP" --file "$archive_path" actionlint
+          chmod 0755 "$RUNNER_TEMP/actionlint"
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
 
-      - name: Check GitHub Actions workflows
-        shell: bash
+      - name: Run complete repository quality policy
+        shell: pwsh
         run: |
-          "$RUNNER_TEMP/actionlint" -color
+          $qualityPython = Join-Path $env:GITHUB_WORKSPACE 'build/gamewip/tools/python/bin'
+          $env:PATH = "$qualityPython$([IO.Path]::PathSeparator)$env:PATH"
+          ./scripts/GameWIP.ps1 quality check
 
   coverage:
     name: Coverage
@@ -273,7 +315,7 @@ jobs:
 
       - name: Configure
         shell: msys2 {0}
-        run: cmake --preset coverage
+        run: cmake --preset coverage -DGAMEWIP_WARNINGS_AS_ERRORS=ON
 
       - name: Build
         shell: msys2 {0}
@@ -324,7 +366,7 @@ jobs:
 
       - name: Configure
         shell: msys2 {0}
-        run: cmake --preset asan
+        run: cmake --preset asan -DGAMEWIP_WARNINGS_AS_ERRORS=ON
 
       - name: Build
         shell: msys2 {0}
@@ -375,6 +417,7 @@ jobs:
           -DGAMEWIP_RUN_BENCHMARKS_AT_STARTUP=OFF
           -DGAMEWIP_BUILD_DOCS=ON
           -DGAMEWIP_ENABLE_TRACY=OFF
+          -DGAMEWIP_WARNINGS_AS_ERRORS=ON
 
       - name: Build documentation
         shell: msys2 {0}

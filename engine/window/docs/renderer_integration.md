@@ -1,12 +1,17 @@
 @page window_renderer_integration Renderer integration
 
-`window/renderer_bridge.h` is an optional integration surface. It contains only renderer-to-Window feedback and renderer-published pointer data; operating-system display/HDR inspection lives in `window/display_info.h`.
+`window/renderer_bridge.h` is an optional integration surface. It contains only renderer-to-Window feedback and renderer-published pointer data;
+operating-system display/HDR inspection lives in `window/display_info.h`.
 
 ## Occlusion provider
 
-A renderer that can determine presentation occlusion attaches explicitly with `Renderer::attachOcclusionProvider(window)`. `Renderer::hasOcclusionProvider(window)` reports current attachment state. This state is deliberately separate from `window.supports(Capability::OcclusionReporting)`, which always answers the stable backend capability question.
+A renderer that can determine presentation occlusion attaches explicitly with `Renderer::attachOcclusionProvider(window)`.
+`Renderer::hasOcclusionProvider(window)` reports current attachment state. This state is deliberately separate from
+`window.supports(Capability::OcclusionReporting)`, which always answers the stable backend capability question.
 
-After attachment, `Renderer::reportOcclusion(window, value)` updates the cached `Window::isOccluded()` state and queues `Types::Events::OcclusionChanged` only when the value changes. `Renderer::detachOcclusionProvider()` clears the provider and restores non-occluded cached state, queueing the final transition when needed.
+After attachment, `Renderer::reportOcclusion(window, value)` updates the cached `Window::isOccluded()` state and queues
+`Types::Events::OcclusionChanged` only when the value changes. `Renderer::detachOcclusionProvider()` clears the provider and restores non-occluded
+cached state, queueing the final transition when needed.
 
 Attachment/report/detach obey Window owner-thread rules. A report without an attached provider is rejected.
 
@@ -18,9 +23,12 @@ Passive mask values are grouped under `Window::Types::Renderer`:
 - `PointerHitMaskTarget`
 - `PointerHitMaskResult`
 
-`Renderer::requiredPointerHitMaskWords()` computes the packed storage requirement for a framebuffer extent. `beginPointerHitMaskUpdate()` returns the current generation/extent target. The renderer publishes a complete packed mask with `publishPointerHitMask()`; stale generation or incorrect storage is rejected. `clearPointerHitMask()` removes a published mask and `hasPointerHitMask()` reports publication state.
+`Renderer::requiredPointerHitMaskWords()` computes the packed storage requirement for a framebuffer extent. `beginPointerHitMaskUpdate()` returns the
+current generation/extent target. The renderer publishes a complete packed mask with `publishPointerHitMask()`; stale generation or incorrect storage
+is rejected. `clearPointerHitMask()` removes a published mask and `hasPointerHitMask()` reports publication state.
 
-The bridge retains no renderer object and does not make Renderer depend on Window. It only accepts explicit feedback at the point where the renderer already has the information.
+The bridge retains no renderer object and does not make Renderer depend on Window. It only accepts explicit feedback at the point where the renderer
+already has the information.
 
 ## Display color
 

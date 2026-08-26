@@ -1,6 +1,7 @@
 @page terminal_test_hooks Source-tree test hooks
 
-@warning These hooks are source-tree maintainer interfaces. They are not installed, not consumer API, and not covered by package compatibility guarantees.
+@warning These hooks are source-tree maintainer interfaces. They are not installed, not consumer API, and not covered by package compatibility
+guarantees.
 
 ## Availability
 
@@ -24,7 +25,8 @@ The public hook namespace is `GameWIP::Terminal::TestHooks`.
 
 ## Reset rule
 
-Call `TestHooks::reset()` before and after each scenario. It clears capability overrides, prepared state, input bytes/events, Win32 decoder state, internal native-mode overrides, output capture, counters, size/position overrides, and every one-shot forced failure.
+Call `TestHooks::reset()` before and after each scenario. It clears capability overrides, prepared state, input bytes/events, Win32 decoder state,
+internal native-mode overrides, output capture, counters, size/position overrides, and every one-shot forced failure.
 
 Reset also releases any deterministic read or text-write gate so a failed test cannot strand a worker thread.
 
@@ -34,7 +36,8 @@ Tests sharing a process must not assume hook state is isolated automatically.
 
 - `setInputCapabilitiesOverride()` and `clearInputCapabilitiesOverride()` control one input stream's observed capabilities.
 - `setOutputCapabilitiesOverride()` and `clearOutputCapabilitiesOverride()` control active output capabilities.
-- `setPreparedOutputCapabilitiesOverride()` controls capabilities returned after a preparation attempt. Clearing the normal output override or calling `reset()` removes the prepared override.
+- `setPreparedOutputCapabilitiesOverride()` controls capabilities returned after a preparation attempt. Clearing the normal output override or calling
+  `reset()` removes the prepared override.
 
 Overrides persist until cleared or reset.
 
@@ -44,14 +47,21 @@ Overrides persist until cleared or reset.
 - `appendInputBytes()` adds bytes to the deterministic input stream.
 - `clearInputBytes()` disables the in-memory byte-input path.
 - `setInputEvents()` and `clearInputEvents()` provide deterministic portable events for managed line-editor tests.
-- `setPendingHighSurrogate()` and `hasPendingHighSurrogate()` expose the Win32 event decoder's endpoint-owned surrogate state for the stdin-replacement regression.
-- `setInputModeOverride()` provides deterministic internal line-buffer, echo, and control-processing flags for Session/direct-read setup and restoration tests.
-- cursor-rendering simulation advances an absolute test cursor through ASCII writes, wraps at the configured width, scrolls a separate viewport origin, reflows on resize events, and records managed redraw positions. This narrowly models the distinction between Win32 screen-buffer and `srWindow`-relative coordinates without becoming production API.
+- `setPendingHighSurrogate()` and `hasPendingHighSurrogate()` expose the Win32 event decoder's endpoint-owned surrogate state for the
+  stdin-replacement regression.
+- `setInputModeOverride()` provides deterministic internal line-buffer, echo, and control-processing flags for Session/direct-read setup and
+  restoration tests.
+- cursor-rendering simulation advances an absolute test cursor through ASCII writes, wraps at the configured width, scrolls a separate viewport
+  origin, reflows on resize events, and records managed redraw positions. This narrowly models the distinction between Win32 screen-buffer and
+  `srWindow`-relative coordinates without becoming production API.
 - `inputModeOverrideMatches()` and `inputManagedEventModeOverrideMatches()` verify the native flags managed by an open session.
-- Win32-only `resetWin32KeyDecoder()`, `decodeWin32KeyRecord()`, and `takePendingWin32KeyEvent()` exercise native key normalization without exporting production decoder symbols.
+- Win32-only `resetWin32KeyDecoder()`, `decodeWin32KeyRecord()`, and `takePendingWin32KeyEvent()` exercise native key normalization without exporting
+  production decoder symbols.
 - `clearInputModeOverride()` restores normal backend behavior.
 
-The byte strings may intentionally contain invalid or incomplete UTF-8 to validate redirected text-read failures. Event fixtures are already-portable backend output and therefore obey the normal Event contract. Native-mode/decoder hooks exist only because validation must prove exact managed restoration and Win32 normalization; public consumers configure input through `SessionOptions`.
+The byte strings may intentionally contain invalid or incomplete UTF-8 to validate redirected text-read failures. Event fixtures are already-portable
+backend output and therefore obey the normal Event contract. Native-mode/decoder hooks exist only because validation must prove exact managed
+restoration and Win32 normalization; public consumers configure input through `SessionOptions`.
 
 ## Output capture and counters
 
@@ -69,11 +79,15 @@ Returned vectors and strings are snapshots owned by the caller.
 - `blockNextRead()` arms a one-shot gate at the next backend read; `waitUntilReadBlocked()` observes arrival and `releaseBlockedRead()` resumes it.
 - `blockNextTextWrite()` provides the equivalent gate for the next backend text write.
 
-The gates coordinate concurrency tests without timing-dependent sleeps. Arm a gate before starting the target operation, require the bounded wait to succeed, and release it before joining the worker. A gate is consumed only by the matching operation.
+The gates coordinate concurrency tests without timing-dependent sleeps. Arm a gate before starting the target operation, require the bounded wait to
+succeed, and release it before joining the worker. A gate is consumed only by the matching operation.
 
 ## Exception behavior
 
-Hook functions marked `noexcept` do not propagate failures. Other hook functions retain normal standard-library exception behavior: replacing or appending input can throw while allocating owned string storage, and `capturedOutput()` or `capturedOutputText()` can throw while allocating the returned snapshot. These source-tree hooks do not provide a status-based allocation-failure channel; reset the scenario before reuse after an unexpected exception.
+Hook functions marked `noexcept` do not propagate failures. Other hook functions retain normal standard-library exception behavior: replacing or
+appending input can throw while allocating owned string storage, and `capturedOutput()` or `capturedOutputText()` can throw while allocating the
+returned snapshot. These source-tree hooks do not provide a status-based allocation-failure channel; reset the scenario before reuse after an
+unexpected exception.
 
 ## Geometry overrides
 
@@ -95,7 +109,8 @@ Each function arms one failure consumed atomically by the next matching operatio
 - `forceNextByteWriteFailure()`;
 - `forceNextFlushFailure()`.
 
-The optional argument selects the portable IO error code. One-shot failures are intended for one deterministic assertion; arm them immediately before the target operation.
+The optional argument selects the portable IO error code. One-shot failures are intended for one deterministic assertion; arm them immediately before
+the target operation.
 
 ## Example
 

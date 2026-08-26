@@ -1162,31 +1162,30 @@ namespace GameWIP::Input
 
     void InputState::clearDeviceInternal(InputDeviceRef device)
     {
-        for (std::size_t controlIndex = 0; controlIndex < currentButtons.size();)
+        for (auto control = currentButtons.begin(); control != currentButtons.end();)
         {
-            InputControl control = currentButtons[controlIndex];
-            if (control.deviceType == device.deviceType && control.deviceIndex == device.deviceIndex)
+            if (control->deviceType == device.deviceType && control->deviceIndex == device.deviceIndex)
             {
-                addUniqueControl(releasedButtons, control);
-                activations.push_back(InputActivation{control, InputActivationType::ButtonReleased, 0.0f, 1.0f});
-                currentButtons.erase(currentButtons.begin() + controlIndex);
+                addUniqueControl(releasedButtons, *control);
+                activations.push_back(InputActivation{*control, InputActivationType::ButtonReleased, 0.0f, 1.0f});
+                control = currentButtons.erase(control);
             }
             else
             {
-                ++controlIndex;
+                ++control;
             }
         }
 
-        for (std::size_t valueIndex = 0; valueIndex < axisValues.size();)
+        for (auto value = axisValues.begin(); value != axisValues.end();)
         {
-            const InputControl control = axisValues[valueIndex].first;
+            const InputControl control = value->first;
             if (control.deviceType == device.deviceType && control.deviceIndex == device.deviceIndex)
             {
-                axisValues.erase(axisValues.begin() + valueIndex);
+                value = axisValues.erase(value);
             }
             else
             {
-                ++valueIndex;
+                ++value;
             }
         }
     }

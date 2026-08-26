@@ -2,6 +2,7 @@
 /// @brief Executable self-tests for the Logger library.
 
 #include "validation/tests/logger/logger_test.h"
+#include "validation/process_arguments.h"
 
 #include "logger/logger.h"
 #include "logger/logger_macros.h"
@@ -65,8 +66,8 @@ namespace
 
     struct TestContext
     {
-        explicit TestContext(TestSupport::Context &testContext) noexcept
-            : testContext(testContext)
+        explicit TestContext(TestSupport::Context &context) noexcept
+            : testContext(context)
         {
         }
 
@@ -157,8 +158,15 @@ namespace
 
     [[nodiscard]] std::filesystem::path pathFromText(std::string_view text)
     {
-        const auto *begin = reinterpret_cast<const char8_t *>(text.data());
-        return std::filesystem::path(std::u8string(begin, begin + text.size()));
+        std::u8string converted(text.size(), u8'\0');
+        std::ranges::transform(
+            text,
+            converted.begin(),
+            [](char byte)
+            {
+                return static_cast<char8_t>(byte);
+            });
+        return std::filesystem::path(converted);
     }
 
     [[nodiscard]] std::string readWholeFile(TestContext &context, const std::filesystem::path &path)

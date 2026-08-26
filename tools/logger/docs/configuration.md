@@ -4,9 +4,11 @@
 
 ## Output
 
-`output` defaults to `OutputMode::Both`. `OutputMode::None` is a successful disabled configuration. File-only startup may fall back to Console when `fallbackToConsoleOnFileFailure` is true; `OutputMode::Both` keeps Console when File setup fails.
+`output` defaults to `OutputMode::Both`. `OutputMode::None` is a successful disabled configuration. File-only startup may fall back to Console when
+`fallbackToConsoleOnFileFailure` is true; `OutputMode::Both` keeps Console when File setup fails.
 
-`logDirectory` and registered source names are UTF-8 and are validated at initialization. Invalid UTF-8 is rejected rather than repaired or normalized.
+`logDirectory` and registered source names are UTF-8 and are validated at initialization. Invalid UTF-8 is rejected rather than repaired or
+normalized.
 
 ## Queue and formatting
 
@@ -20,10 +22,13 @@
 
 These recoveries are successful initialization adjustments reported in `Types::Init::Result::adjustments`; they are not IO failures.
 
-Undefined `OutputMode`, `Level`, or `FormatPolicy` enum values and invalid initial filters are rejected with `InvalidArgument`. Invalid `FormatPolicy` is not silently replaced.
+Undefined `OutputMode`, `Level`, or `FormatPolicy` enum values and invalid initial filters are rejected with `InvalidArgument`. Invalid `FormatPolicy`
+is not silently replaced.
 
 ## `Types::Init::Result`
 
-`status` answers whether initialization itself succeeded. `outcome` tells whether the resulting Logger is Started or Disabled. `requestedOutput` and `effectiveOutput` expose fallback directly. `outputSetupStatus` preserves a failed/degraded requested output setup even when overall init succeeds via fallback.
+`status` answers whether initialization itself succeeded. `outcome` tells whether the resulting Logger is Started or Disabled. `requestedOutput` and
+`effectiveOutput` expose fallback directly. `outputSetupStatus` preserves a failed/degraded requested output setup even when overall init succeeds via
+fallback.
 
 Use `getQueueLimits()` for authoritative effective queue/message values.

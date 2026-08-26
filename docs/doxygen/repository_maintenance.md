@@ -86,7 +86,7 @@ do not treat an earlier ordinary pull-request run as finalization evidence.
 
 ## Manual workflow map
 
-Use `gamewip.bat workflow -WorkflowAction list` to discover supported
+Use `gamewip.bat workflow list` to discover supported
 dispatches. The helper fixes the ref to `master`, shows the exact command, and
 uses typed confirmation for writes and deployments.
 
@@ -103,7 +103,7 @@ uses typed confirmation for writes and deployments.
 
 Routine pull requests should not manually dispatch `validation`; the pull
 request event already runs it. Routine pushes to `master` should not manually
-dispatch `docs-deploy`; the push event already publishes the manual.
+dispatch `docs-deploy`; the push event already publishes the documentation.
 
 ## Protected `master` baseline
 
@@ -151,14 +151,23 @@ write markers unset until the matching required-reviewer rule really exists.
 
 ## Milestones, labels, and templates
 
-Only the active milestone should carry ordinary implementation work. Future
-milestones may exist as roadmap containers but should not be presented as
-active. Close a completed milestone after its release and handoff are complete.
+Only concrete release-targeted work receives a GitHub milestone. Capability
+slices and useful Backlog issues do not automatically receive one, and the
+repository must not pre-create a speculative future milestone ladder. Close a
+completed milestone after its release and handoff are complete.
 
-Every normal issue and ready pull request needs one primary `area:*`, `type:*`,
-and `priority:*` label. Add a new label only when it represents durable routing
-or triage information that existing labels cannot express. Keep issue forms,
-the pull-request template, label descriptions, and automation mappings aligned.
+Every normal issue and human ready-for-review pull request needs exactly one
+primary `area:*`, `type:*`, and `priority:*` label. The only optional
+compatibility label is `compat:breaking`. Workflow state belongs to the Project
+Status field, blockers belong to GitHub dependency relationships, release
+targets belong to milestones, and phases and capability slices belong to the
+roadmap.
+
+Audit issue forms, Dependabot, area reconciliation, project automation, PR
+Standards, label descriptions, colors, and live metadata together. Canonical
+labels are lowercase, use a colon between dimension and value, and use
+kebab-case rather than underscores. Add a new area only when concrete promoted
+work needs it; do not pre-create speculative subsystem areas.
 
 ## Public-repository baseline
 

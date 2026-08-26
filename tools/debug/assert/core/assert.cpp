@@ -19,9 +19,10 @@
 #if ASSERT_DIAGNOSTICS
 #include <array>
 #include <charconv>
+#include <iterator>
+#include <memory>
 #endif
 #include <cstdlib>
-#include <cstring>
 #include <string_view>
 
 namespace
@@ -76,7 +77,7 @@ namespace
             const std::size_t remaining = storage.size() - size;
             if (text.size() <= remaining)
             {
-                std::memcpy(storage.data() + size, text.data(), text.size());
+                std::ranges::copy(text, std::span{storage}.subspan(size, text.size()).begin());
                 size += text.size();
                 return;
             }
@@ -84,7 +85,7 @@ namespace
             const std::size_t prefixBytes = utf8PrefixBoundary(text, remaining);
             if (prefixBytes > 0)
             {
-                std::memcpy(storage.data() + size, text.data(), prefixBytes);
+                std::ranges::copy(text.substr(0, prefixBytes), std::span{storage}.subspan(size, prefixBytes).begin());
                 size += prefixBytes;
             }
             truncated = true;
@@ -95,10 +96,10 @@ namespace
         void appendInt(int value) noexcept
         {
             std::array<char, 32> number;
-            const auto result = std::to_chars(number.data(), number.data() + number.size(), value);
+            const auto result = std::to_chars(number.data(), std::to_address(number.end()), value);
             if (result.ec == std::errc{})
             {
-                append(std::string_view(number.data(), static_cast<std::size_t>(result.ptr - number.data())));
+                append(std::string_view(number).substr(0, static_cast<std::size_t>(std::distance(number.data(), result.ptr))));
                 return;
             }
             append("?");
@@ -116,7 +117,7 @@ namespace
             static_assert(suffix.size() < 1024);
             const std::size_t prefixLimit = storage.size() - suffix.size();
             size = utf8PrefixBoundary(std::string_view(storage.data(), size), prefixLimit);
-            std::memcpy(storage.data() + size, suffix.data(), suffix.size());
+            std::ranges::copy(suffix, std::span{storage}.subspan(size, suffix.size()).begin());
             size += suffix.size();
         }
 
@@ -304,7 +305,7 @@ namespace
         }
 #endif
         const char *value = std::getenv("INTERNAL_ASSERT_SUPPRESS_POPUP");
-        return value != nullptr && std::strcmp(value, "1") == 0;
+        return value != nullptr && std::string_view(value) == "1";
     }
 
     /// @brief Returns the safest default action for the current debugger state.

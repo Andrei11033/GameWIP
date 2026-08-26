@@ -4,6 +4,7 @@
 /// converts UTF-8 diagnostics to UTF-16, and bounds popup text before showing UI.
 
 #include "debug/assert/internal/assert_platform.h"
+#include "base/platform/win32/dynamic_library.h"
 
 #ifndef ASSERT_INTERNAL_TEST_HOOKS
 #define ASSERT_INTERNAL_TEST_HOOKS 0
@@ -233,7 +234,7 @@ namespace
             return nullptr;
         }
 
-        return reinterpret_cast<TaskDialogIndirectFn>(GetProcAddress(commonControls, "TaskDialogIndirect"));
+        return GameWIP::Base::Win32::loadProcedure<TaskDialogIndirectFn>(commonControls, "TaskDialogIndirect");
     }
 
     /// @brief Presents the reduced Abort/Break/Ignore fallback through MessageBoxW.

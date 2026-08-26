@@ -24,9 +24,11 @@ The same handle object is not internally synchronized. Spans passed to `read()` 
 
 `FileReader` is read-only. `FileWriter` is write-only. `File` selects `Read`, `Write`, or `ReadWrite` access through `Types::File::OpenOptions`.
 
-Modes that create or truncate require write access. A non-`None` `flushOnClose` also requires write access. Invalid combinations return `InvalidArgument` before a native handle is opened.
+Modes that create or truncate require write access. A non-`None` `flushOnClose` also requires write access. Invalid combinations return
+`InvalidArgument` before a native handle is opened.
 
-A `File` opened without the required access returns `PermissionDenied` from the disallowed read or write operation. `File::access()` is meaningful only while open.
+A `File` opened without the required access returns `PermissionDenied` from the disallowed read or write operation. `File::access()` is meaningful
+only while open.
 
 ## Transfer behavior
 
@@ -42,7 +44,8 @@ Normal file handles are seekable. Append writer modes are not.
 
 `Types::File::InitialPosition::End` performs one seek after open; subsequent writes occur at the current position and do not have append semantics.
 
-`File::resize()` requires write access. On success it attempts to restore the previous position when that position still fits. If shrinking places the old position beyond the new end, the position remains at the new end.
+`File::resize()` requires write access. On success it attempts to restore the previous position when that position still fits. If shrinking places the
+old position beyond the new end, the position remains at the new end.
 
 Capability queries such as `canSeek()` are advisory state snapshots. The status returned by the requested operation remains authoritative.
 
@@ -65,7 +68,8 @@ Capability queries such as `canSeek()` are advisory state snapshots. The status 
 - `ReadWrite` and `All` are convenience masks;
 - `None` requests exclusive open-time access.
 
-Options default to `All`, which interoperates with external tools and atomic replacement. Restrictive sharing is a native open contract, not a substitute for cooperative locking. A backend that cannot enforce an explicit restrictive policy returns `Unsupported` rather than weakening it.
+Options default to `All`, which interoperates with external tools and atomic replacement. Restrictive sharing is a native open contract, not a
+substitute for cooperative locking. A backend that cannot enforce an explicit restrictive policy returns `Unsupported` rather than weakening it.
 
 ## Whole-file locks
 
@@ -77,7 +81,8 @@ Lock acquisition is non-blocking and covers the complete file:
 
 A successful status with `Types::Lock::Outcome::WouldBlock` means no lock was acquired. Backend failures use a failed status.
 
-`FileLock` owns enough native state to remain active after the originating handle object is destroyed. This supports detached lock ownership but has an important lifecycle distinction:
+`FileLock` owns enough native state to remain active after the originating handle object is destroyed. This supports detached lock ownership but has
+an important lifecycle distinction:
 
 - explicit handle `close()` returns `ResourceBusy` while locks acquired from that handle remain active;
 - a handle destructor cannot report that condition and performs best-effort native cleanup;
@@ -85,7 +90,8 @@ A successful status with `Types::Lock::Outcome::WouldBlock` means no lock was ac
 
 A failed explicit `unlock()` leaves the lock active and can be retried. `mode()` is meaningful only while `isActive()` is true.
 
-Locks are process-visible coordination primitives, but native locks may be advisory with respect to uncooperative tools. Use sharing to constrain opens and locks to coordinate cooperating code.
+Locks are process-visible coordination primitives, but native locks may be advisory with respect to uncooperative tools. Use sharing to constrain
+opens and locks to coordinate cooperating code.
 
 ## Related pages
 

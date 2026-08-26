@@ -2,10 +2,7 @@ name: Issue Area Labels
 
 on:
   issues:
-    types:
-      - opened
-      - edited
-      - reopened
+    types: [opened, edited, reopened]
 
 permissions:
   contents: read
@@ -15,105 +12,14 @@ jobs:
   label-area:
     runs-on: ubuntu-latest
     timeout-minutes: 5
-
     steps:
+      - name: Check out trusted policy code
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
       - name: Apply area label
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
-            const areaLabelsByValue = new Map([
-              ["Build and tooling", "area:cmake"],
-              ["FileSystem", "area:filesystem"],
-              ["IO", "area:io"],
-              ["Terminal", "area:terminal"],
-              ["Unicode", "area:unicode"],
-              ["Foundation shared systems", "area:foundation"],
-              ["Logger", "area:logger"],
-              ["Assert", "area:assert"],
-              ["TestSupport", "area:test_support"],
-              ["Input", "area:input"],
-              ["Action", "area:action"],
-              ["Window", "area:window"],
-              ["Window manager", "area:window-manager"],
-              ["Engine shared systems", "area:engine"],
-              ["Windows platform backend", "area:platform-win32"],
-              ["Tools/developer support", "area:tools"],
-              ["Documentation", "area:docs"],
-              ["GitHub/repository setup", "area:github"],
-              ["Gameplay roadmap", "area:gameplay"],
-            ]);
-
-            function readIssueFormField(body, heading) {
-              const lines = body.split(/\r?\n/);
-              const headingLine = `### ${heading}`;
-              const start = lines.findIndex((line) => line.trim() === headingLine);
-              if (start < 0) {
-                return undefined;
-              }
-
-              const valueLines = [];
-              for (const line of lines.slice(start + 1)) {
-                if (line.startsWith("### ")) {
-                  break;
-                }
-                valueLines.push(line);
-              }
-
-              return valueLines
-                .join("\n")
-                .replace(/<!--[\s\S]*?-->/g, "")
-                .trim();
-            }
-
-            const legacyAreas = {
-              "Foundation shared systems": {
-                defaultLabel: "area:foundation",
-                refinements: ["area:unicode"],
-              },
-              "Engine input/action/window": {
-                defaultLabel: "area:engine",
-                refinements: [
-                  "area:input",
-                  "area:action",
-                  "area:window",
-                  "area:window-manager",
-                ],
-              },
-            };
-
-            const allAreaLabels = [...new Set(areaLabelsByValue.values())];
-            const body = context.payload.issue.body ?? "";
-            const selectedArea = readIssueFormField(body, "Area");
-            let targetLabel = areaLabelsByValue.get(selectedArea);
-
-            const owner = context.repo.owner;
-            const repo = context.repo.repo;
-            const issue_number = context.issue.number;
-            const currentLabels = context.payload.issue.labels.map((label) => label.name);
-
-            const legacyArea = legacyAreas[selectedArea];
-            if (legacyArea) {
-              targetLabel = legacyArea.refinements.find(
-                (label) => currentLabels.includes(label)
-              ) ?? legacyArea.defaultLabel;
-            }
-
-            for (const label of allAreaLabels) {
-              if (label !== targetLabel && currentLabels.includes(label)) {
-                await github.rest.issues.removeLabel({
-                  owner,
-                  repo,
-                  issue_number,
-                  name: label,
-                });
-              }
-            }
-
-            if (targetLabel && !currentLabels.includes(targetLabel)) {
-              await github.rest.issues.addLabels({
-                owner,
-                repo,
-                issue_number,
-                labels: [targetLabel],
-              });
-            }
+            const { applyIssueAreaLabel } = require("./.github/scripts/issue-area-labels.js");
+            await applyIssueAreaLabel({ github, context });

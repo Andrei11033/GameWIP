@@ -7,10 +7,15 @@ option(ASSERT_UNREACHABLE_ASSUME "Use compiler unreachable assumptions instead o
 option(ASSERT_ENABLE_COMMON_CONTROLS_MANIFEST "Prepare the explicit Common Controls v6 resource helper for Assert consumers" ON)
 option(ASSERT_ENABLE_TEST_HOOKS "Enable Assert internal test hooks" OFF)
 
-include(GenerateExportHeader)
+if(NOT COMMAND gamewip_install_package)
+    include("${PROJECT_SOURCE_DIR}/cmake/GameWIPPackage.cmake")
+endif()
 
-if(NOT COMMAND gamewip_target_platform_sources)
-    include("${PROJECT_SOURCE_DIR}/cmake/LibraryPlatform.cmake")
+include(GenerateExportHeader)
+include(GNUInstallDirs)
+
+if(NOT COMMAND gamewip_target_platform_backend)
+    include("${PROJECT_SOURCE_DIR}/cmake/GameWIPPlatform.cmake")
     gamewip_resolve_platform_id(GAMEWIP_PLATFORM_ID)
 endif()
 
@@ -22,7 +27,11 @@ if(NOT ASSERT_ENABLED_VALUE STREQUAL "AUTO" AND NOT ASSERT_ENABLED_VALUE STREQUA
     message(FATAL_ERROR "ASSERT_ENABLED must be AUTO, ON, or OFF.")
 endif()
 
-if(NOT ASSERT_CHECKS_ENABLED_VALUE STREQUAL "AUTO" AND NOT ASSERT_CHECKS_ENABLED_VALUE STREQUAL "ON" AND NOT ASSERT_CHECKS_ENABLED_VALUE STREQUAL "OFF")
+if(
+    NOT ASSERT_CHECKS_ENABLED_VALUE STREQUAL "AUTO"
+    AND NOT ASSERT_CHECKS_ENABLED_VALUE STREQUAL "ON"
+    AND NOT ASSERT_CHECKS_ENABLED_VALUE STREQUAL "OFF"
+)
     message(FATAL_ERROR "ASSERT_CHECKS_ENABLED must be AUTO, ON, or OFF.")
 endif()
 
@@ -84,64 +93,50 @@ add_library(GameWIP::Assert ALIAS Assert)
 set(ASSERT_GENERATED_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
 file(MAKE_DIRECTORY "${ASSERT_GENERATED_INCLUDE_DIR}/debug/assert")
 if(ASSERT_RUNTIME_TARGET_ENABLED)
-    generate_export_header(Assert
+    generate_export_header(
+        Assert
         BASE_NAME GAMEWIP_ASSERT
         EXPORT_FILE_NAME "${ASSERT_GENERATED_INCLUDE_DIR}/debug/assert/assert_export.h"
         EXPORT_MACRO_NAME GAMEWIP_ASSERT_EXPORT
         NO_EXPORT_MACRO_NAME GAMEWIP_ASSERT_NO_EXPORT
         STATIC_DEFINE GAMEWIP_ASSERT_STATIC_DEFINE
     )
-    target_sources(Assert
+    target_sources(
+        Assert
         PUBLIC
             FILE_SET public_headers
-            TYPE HEADERS
-            BASE_DIRS
-                "${PROJECT_SOURCE_DIR}/tools"
-                "${ASSERT_GENERATED_INCLUDE_DIR}"
-            FILES
-                "${CMAKE_CURRENT_SOURCE_DIR}/assert.h"
-                "${ASSERT_GENERATED_INCLUDE_DIR}/debug/assert/assert_export.h"
+                TYPE HEADERS
+                BASE_DIRS "${PROJECT_SOURCE_DIR}/tools" "${ASSERT_GENERATED_INCLUDE_DIR}"
+                FILES "${CMAKE_CURRENT_SOURCE_DIR}/assert.h" "${ASSERT_GENERATED_INCLUDE_DIR}/debug/assert/assert_export.h"
     )
 else()
-    configure_file(
-        "${CMAKE_CURRENT_SOURCE_DIR}/cmake/assert_export_static.h.in"
-        "${ASSERT_GENERATED_INCLUDE_DIR}/debug/assert/assert_export.h"
-        @ONLY
-    )
-    target_sources(Assert
+    configure_file("${CMAKE_CURRENT_SOURCE_DIR}/cmake/assert_export_static.h.in" "${ASSERT_GENERATED_INCLUDE_DIR}/debug/assert/assert_export.h" @ONLY)
+    target_sources(
+        Assert
         INTERFACE
             FILE_SET public_headers
-            TYPE HEADERS
-            BASE_DIRS
-                "${PROJECT_SOURCE_DIR}/tools"
-                "${ASSERT_GENERATED_INCLUDE_DIR}"
-            FILES
-                "${CMAKE_CURRENT_SOURCE_DIR}/assert.h"
-                "${ASSERT_GENERATED_INCLUDE_DIR}/debug/assert/assert_export.h"
+                TYPE HEADERS
+                BASE_DIRS "${PROJECT_SOURCE_DIR}/tools" "${ASSERT_GENERATED_INCLUDE_DIR}"
+                FILES "${CMAKE_CURRENT_SOURCE_DIR}/assert.h" "${ASSERT_GENERATED_INCLUDE_DIR}/debug/assert/assert_export.h"
     )
 endif()
 
 if(ASSERT_RUNTIME_TARGET_ENABLED)
-    target_sources(Assert PRIVATE
-        core/assert.cpp
-    )
-
-    gamewip_target_platform_sources(Assert Assert "${CMAKE_CURRENT_SOURCE_DIR}/platform")
-else()
-    gamewip_include_platform_cmake_if_present("${CMAKE_CURRENT_SOURCE_DIR}/platform")
+    target_sources(Assert PRIVATE core/assert.cpp)
 endif()
-
-include(GNUInstallDirs)
-include(CMakePackageConfigHelpers)
+gamewip_target_platform_backend(TARGET Assert ROOT "${CMAKE_CURRENT_SOURCE_DIR}/platform")
 
 if(ASSERT_RUNTIME_TARGET_ENABLED)
-    target_include_directories(Assert PUBLIC
-        $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/tools>
-        $<BUILD_INTERFACE:${ASSERT_GENERATED_INCLUDE_DIR}>
-        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+    target_include_directories(
+        Assert
+        PUBLIC
+            $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/tools>
+            $<BUILD_INTERFACE:${ASSERT_GENERATED_INCLUDE_DIR}>
+            $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
     )
     target_compile_features(Assert PUBLIC cxx_std_23)
-    target_compile_definitions(Assert
+    target_compile_definitions(
+        Assert
         PRIVATE
             ASSERT_INTERNAL_RUNTIME=1
             ASSERT_ENABLED=1
@@ -156,55 +151,57 @@ if(ASSERT_RUNTIME_TARGET_ENABLED)
             $<BUILD_INTERFACE:ASSERT_INTERNAL_TEST_HOOKS=$<BOOL:${ASSERT_ENABLE_TEST_HOOKS}>>
     )
 else()
-    target_include_directories(Assert INTERFACE
-        $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/tools>
-        $<BUILD_INTERFACE:${ASSERT_GENERATED_INCLUDE_DIR}>
-        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+    target_include_directories(
+        Assert
+        INTERFACE
+            $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/tools>
+            $<BUILD_INTERFACE:${ASSERT_GENERATED_INCLUDE_DIR}>
+            $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
     )
     target_compile_features(Assert INTERFACE cxx_std_23)
-    target_compile_definitions(Assert INTERFACE
-        ASSERT_INTERNAL_RUNTIME=0
-        ASSERT_ENABLED=0
-        ASSERT_CHECKS_ENABLED=0
-        $<BUILD_INTERFACE:ASSERT_INTERNAL_TEST_HOOKS=0>
+    target_compile_definitions(
+        Assert
+        INTERFACE ASSERT_INTERNAL_RUNTIME=0 ASSERT_ENABLED=0 ASSERT_CHECKS_ENABLED=0 $<BUILD_INTERFACE:ASSERT_INTERNAL_TEST_HOOKS=0>
     )
 endif()
 
-target_compile_definitions(Assert INTERFACE
-    ASSERT_DIAGNOSTICS=${ASSERT_DIAGNOSTICS_VALUE}
-    ASSERT_UNREACHABLE_ASSUME=${ASSERT_UNREACHABLE_ASSUME_VALUE}
+target_compile_definitions(
+    Assert
+    INTERFACE ASSERT_DIAGNOSTICS=${ASSERT_DIAGNOSTICS_VALUE} ASSERT_UNREACHABLE_ASSUME=${ASSERT_UNREACHABLE_ASSUME_VALUE}
 )
 
 # Validation object libraries need Assert's compile contract without inheriting
 # executable resources such as the Common Controls manifest.
 add_library(AssertCompileInterface INTERFACE)
-target_include_directories(AssertCompileInterface INTERFACE
-    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/tools>
-    $<BUILD_INTERFACE:${ASSERT_GENERATED_INCLUDE_DIR}>
+target_include_directories(
+    AssertCompileInterface
+    INTERFACE $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/tools> $<BUILD_INTERFACE:${ASSERT_GENERATED_INCLUDE_DIR}>
 )
 target_compile_features(AssertCompileInterface INTERFACE cxx_std_23)
-target_compile_definitions(AssertCompileInterface INTERFACE
-    ASSERT_INTERNAL_RUNTIME=${ASSERT_RUNTIME_PUBLIC}
-    ASSERT_ENABLED=${ASSERT_ENABLED_PUBLIC}
-    ASSERT_CHECKS_ENABLED=${ASSERT_CHECKS_ENABLED_PUBLIC}
-    ASSERT_DIAGNOSTICS=${ASSERT_DIAGNOSTICS_VALUE}
-    ASSERT_UNREACHABLE_ASSUME=${ASSERT_UNREACHABLE_ASSUME_VALUE}
-    ASSERT_INTERNAL_TEST_HOOKS=$<BOOL:${ASSERT_ENABLE_TEST_HOOKS}>
+target_compile_definitions(
+    AssertCompileInterface
+    INTERFACE
+        ASSERT_INTERNAL_RUNTIME=${ASSERT_RUNTIME_PUBLIC}
+        ASSERT_ENABLED=${ASSERT_ENABLED_PUBLIC}
+        ASSERT_CHECKS_ENABLED=${ASSERT_CHECKS_ENABLED_PUBLIC}
+        ASSERT_DIAGNOSTICS=${ASSERT_DIAGNOSTICS_VALUE}
+        ASSERT_UNREACHABLE_ASSUME=${ASSERT_UNREACHABLE_ASSUME_VALUE}
+        ASSERT_INTERNAL_TEST_HOOKS=$<BOOL:${ASSERT_ENABLE_TEST_HOOKS}>
 )
 
 if(ASSERT_RUNTIME_TARGET_ENABLED)
-    target_link_libraries(Assert PRIVATE
-        Logger
-    )
+    target_link_libraries(Assert PRIVATE Logger $<BUILD_INTERFACE:GameWIPBase>)
 endif()
 
 if(ASSERT_RUNTIME_TARGET_ENABLED)
-    set_target_properties(Assert PROPERTIES
-        CXX_VISIBILITY_PRESET hidden
-        VISIBILITY_INLINES_HIDDEN YES
-        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
-        LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
-        ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
+    set_target_properties(
+        Assert
+        PROPERTIES
+            CXX_VISIBILITY_PRESET hidden
+            VISIBILITY_INLINES_HIDDEN YES
+            RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
+            LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
+            ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
     )
 endif()
 
@@ -214,15 +211,14 @@ if(GAMEWIP_BUILD_DOCS AND COMMAND gamewip_register_doxygen_library)
     gamewip_register_doxygen_library(
         NAME Assert
         PAGE_ID assert
-        PUBLIC_HEADERS
-            "${CMAKE_CURRENT_SOURCE_DIR}/assert.h"
-        DOCS
-            "${CMAKE_CURRENT_SOURCE_DIR}/docs"
+        PUBLIC_HEADERS "${CMAKE_CURRENT_SOURCE_DIR}/assert.h"
+        DOCS "${CMAKE_CURRENT_SOURCE_DIR}/docs"
     )
 endif()
 
 if(ASSERT_RUNTIME_TARGET_ENABLED)
-    install(TARGETS Assert
+    install(
+        TARGETS Assert
         EXPORT AssertTargets
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
@@ -230,40 +226,7 @@ if(ASSERT_RUNTIME_TARGET_ENABLED)
         FILE_SET public_headers DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
     )
 else()
-    install(TARGETS Assert
-        EXPORT AssertTargets
-        FILE_SET public_headers DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-    )
+    install(TARGETS Assert EXPORT AssertTargets FILE_SET public_headers DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 endif()
 
-if(GAMEWIP_PLATFORM_ID STREQUAL "win32")
-    install(FILES
-        "${CMAKE_CURRENT_SOURCE_DIR}/cmake/common_controls_v6.manifest"
-        "${CMAKE_CURRENT_SOURCE_DIR}/cmake/common_controls_v6.rc.in"
-        DESTINATION ${CMAKE_INSTALL_DATADIR}/Assert
-    )
-endif()
-
-configure_package_config_file(
-    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/AssertConfig.cmake.in"
-    "${CMAKE_CURRENT_BINARY_DIR}/AssertConfig.cmake"
-    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/Assert
-    PATH_VARS CMAKE_INSTALL_DATADIR
-)
-
-write_basic_package_version_file(
-    "${CMAKE_CURRENT_BINARY_DIR}/AssertConfigVersion.cmake"
-    VERSION ${PROJECT_VERSION}
-    COMPATIBILITY ExactVersion
-)
-
-install(EXPORT AssertTargets
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/Assert
-    NAMESPACE GameWIP::
-)
-
-install(FILES
-    "${CMAKE_CURRENT_BINARY_DIR}/AssertConfig.cmake"
-    "${CMAKE_CURRENT_BINARY_DIR}/AssertConfigVersion.cmake"
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/Assert
-)
+gamewip_install_package(TARGET Assert CONFIG_TEMPLATE "${CMAKE_CURRENT_SOURCE_DIR}/cmake/AssertConfig.cmake.in" PATH_VARS CMAKE_INSTALL_DATADIR)

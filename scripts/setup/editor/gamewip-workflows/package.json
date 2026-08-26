@@ -7,7 +7,9 @@
   "engines": {
     "vscode": "^1.90.0"
   },
-  "categories": ["Other"],
+  "categories": [
+    "Other"
+  ],
   "contributes": {
     "configuration": {
       "title": "GameWIP",
@@ -20,19 +22,78 @@
       }
     },
     "keybindings": [
-      { "key": "f5", "command": "workbench.action.tasks.runTask", "args": "GameWIP: Run Development", "when": "config.gamewip.keybindings.enabled" },
-      { "key": "ctrl+f5", "command": "workbench.action.tasks.runTask", "args": "GameWIP: Build Development", "when": "config.gamewip.keybindings.enabled" },
-      { "key": "alt+f5", "command": "workbench.action.tasks.runTask", "args": "GameWIP: Run Development Without Tools", "when": "config.gamewip.keybindings.enabled" },
-      { "key": "f6", "command": "workbench.action.tasks.runTask", "args": "GameWIP: Run Development With Startup Tests", "when": "config.gamewip.keybindings.enabled" },
-      { "key": "f7", "command": "workbench.action.tasks.runTask", "args": "GameWIP: Test", "when": "config.gamewip.keybindings.enabled" },
-      { "key": "alt+f7", "command": "workbench.action.tasks.runTask", "args": "GameWIP: Benchmark", "when": "config.gamewip.keybindings.enabled" },
-      { "key": "f8", "command": "workbench.action.tasks.runTask", "args": "GameWIP: Documentation", "when": "config.gamewip.keybindings.enabled" },
-      { "key": "alt+f8", "command": "workbench.action.tasks.runTask", "args": "GameWIP: Analyze", "when": "config.gamewip.keybindings.enabled" },
-      { "key": "f9", "command": "workbench.action.tasks.runTask", "args": "GameWIP: Profile", "when": "config.gamewip.keybindings.enabled" },
-      { "key": "alt+f9", "command": "workbench.action.tasks.runTask", "args": "GameWIP: Profile Startup Tests", "when": "config.gamewip.keybindings.enabled" },
-      { "key": "f10", "command": "workbench.action.tasks.runTask", "args": "GameWIP: Coverage", "when": "config.gamewip.keybindings.enabled" },
-      { "key": "f11", "command": "workbench.action.tasks.runTask", "args": "GameWIP: Address Sanitizer", "when": "config.gamewip.keybindings.enabled" },
-      { "key": "f12", "command": "workbench.action.tasks.runTask", "args": "GameWIP: Run Release", "when": "config.gamewip.keybindings.enabled" }
+      {
+        "key": "f5",
+        "command": "workbench.action.tasks.runTask",
+        "args": "GameWIP: Run Development",
+        "when": "config.gamewip.keybindings.enabled"
+      },
+      {
+        "key": "ctrl+f5",
+        "command": "workbench.action.tasks.runTask",
+        "args": "GameWIP: Build Development",
+        "when": "config.gamewip.keybindings.enabled"
+      },
+      {
+        "key": "f6",
+        "command": "workbench.action.tasks.runTask",
+        "args": "GameWIP: Run Development With Startup Tests",
+        "when": "config.gamewip.keybindings.enabled"
+      },
+      {
+        "key": "f7",
+        "command": "workbench.action.tasks.runTask",
+        "args": "GameWIP: Test",
+        "when": "config.gamewip.keybindings.enabled"
+      },
+      {
+        "key": "alt+f7",
+        "command": "workbench.action.tasks.runTask",
+        "args": "GameWIP: Benchmark",
+        "when": "config.gamewip.keybindings.enabled"
+      },
+      {
+        "key": "f8",
+        "command": "workbench.action.tasks.runTask",
+        "args": "GameWIP: Documentation",
+        "when": "config.gamewip.keybindings.enabled"
+      },
+      {
+        "key": "alt+f8",
+        "command": "workbench.action.tasks.runTask",
+        "args": "GameWIP: Analyze",
+        "when": "config.gamewip.keybindings.enabled"
+      },
+      {
+        "key": "f9",
+        "command": "workbench.action.tasks.runTask",
+        "args": "GameWIP: Profile",
+        "when": "config.gamewip.keybindings.enabled"
+      },
+      {
+        "key": "alt+f9",
+        "command": "workbench.action.tasks.runTask",
+        "args": "GameWIP: Profile Startup Tests",
+        "when": "config.gamewip.keybindings.enabled"
+      },
+      {
+        "key": "f10",
+        "command": "workbench.action.tasks.runTask",
+        "args": "GameWIP: Coverage",
+        "when": "config.gamewip.keybindings.enabled"
+      },
+      {
+        "key": "f11",
+        "command": "workbench.action.tasks.runTask",
+        "args": "GameWIP: Address Sanitizer",
+        "when": "config.gamewip.keybindings.enabled"
+      },
+      {
+        "key": "f12",
+        "command": "workbench.action.tasks.runTask",
+        "args": "GameWIP: Run Release",
+        "when": "config.gamewip.keybindings.enabled"
+      }
     ]
   }
 }

@@ -1,48 +1,34 @@
+# GameWIP MSYS2 package derivation, full-system update, retry, and toolchain verification.
+
 Set-StrictMode -Version Latest
 
-function Invoke-Msys2
+function Invoke-GameWipMsys2
 {
-    param(
-        [Parameter(Mandatory = $true)][string]$MsysRoot,
-        [Parameter(Mandatory = $true)][string]$Command
-    )
-
+    param([Parameter(Mandatory = $true)][string]$MsysRoot, [Parameter(Mandatory = $true)][string]$Command)
     $bash = Join-Path $MsysRoot 'usr\bin\bash.exe'
     if (-not (Test-Path -LiteralPath $bash))
     {
         throw "MSYS2 bash was not found at $bash."
     }
-    $env:CHERE_INVOKING = '1'
-    Invoke-SetupNative -FilePath $bash -ArgumentList @('-lc', $Command) | Out-Null
+    Invoke-GameWipSetupNative -FilePath $bash -ArgumentList @('-lc', $Command) | Out-Null
 }
 
-function Invoke-Msys2PacmanWithRetry
+function Invoke-GameWipMsys2PacmanWithRetry
 {
-    param(
-        [Parameter(Mandatory = $true)][string]$MsysRoot,
-        [Parameter(Mandatory = $true)][string]$Command,
-        [ValidateRange(1, 10)][int]$MaxAttempts = 3,
-        [ValidateRange(0, 60)][int]$RetryDelaySeconds = 2
-    )
-
+    param([Parameter(Mandatory = $true)][string]$MsysRoot, [Parameter(Mandatory = $true)][string]$Command, [ValidateRange(1, 10)][int]$MaxAttempts = 3, [ValidateRange(0, 60)][int]$RetryDelaySeconds = 2)
     for ($attempt = 1; $attempt -le $MaxAttempts; ++$attempt)
     {
-        Write-Host "  pacman attempt $attempt of $MaxAttempts..." -ForegroundColor DarkGray
         try
         {
-            Invoke-Msys2 -MsysRoot $MsysRoot -Command $Command
-            return
+            Write-GameWipOperationEvent -Phase execute -Step pacman -Severity info -Message "pacman attempt $attempt of $MaxAttempts"; Invoke-GameWipMsys2 -MsysRoot $MsysRoot -Command $Command; return
         }
         catch
         {
             if ($attempt -ge $MaxAttempts)
             {
-                Write-Warning "pacman failed after $MaxAttempts attempts."
                 throw
             }
-
-            Write-Warning "pacman attempt $attempt of $MaxAttempts failed: $($_.Exception.Message)"
-            Write-Host "  Retrying pacman in $RetryDelaySeconds second(s)..." -ForegroundColor Yellow
+            Write-GameWipOperationEvent -Phase execute -Step pacman-retry -Severity warning -Message "Transient pacman failure; retrying in $RetryDelaySeconds second(s)." -Data @{ attempt = $attempt; reason = $_.Exception.Message }
             if ($RetryDelaySeconds -gt 0)
             {
                 Start-Sleep -Seconds $RetryDelaySeconds
@@ -51,95 +37,114 @@ function Invoke-Msys2PacmanWithRetry
     }
 }
 
-function Test-Msys2Packages
+function Get-GameWipMissingMsys2Package
 {
-    param(
-        [Parameter(Mandatory = $true)][string]$MsysRoot,
-        [Parameter(Mandatory = $true)][string[]]$Packages
-    )
-
-    return @(Get-MissingMsys2Packages -MsysRoot $MsysRoot -Packages $Packages).Count -eq 0
-}
-
-function Get-MissingMsys2Packages
-{
-    param(
-        [Parameter(Mandatory = $true)][string]$MsysRoot,
-        [Parameter(Mandatory = $true)][string[]]$Packages
-    )
-
+    param([Parameter(Mandatory = $true)][string]$MsysRoot, [Parameter(Mandatory = $true)][string[]]$Packages)
     $pacman = Join-Path $MsysRoot 'usr\bin\pacman.exe'
     if (-not (Test-Path -LiteralPath $pacman))
     {
         return $Packages
     }
-
-    $installedPackages = & $pacman -Qq
-    if ($LASTEXITCODE -ne 0)
+    $result = Invoke-GameWipProcess -FilePath $pacman -Arguments @('-Qq') -OutputMode LogOnly -TimeoutSeconds 60
+    if ($result.ExitCode -ne 0)
     {
         return $Packages
     }
-    $installed = [System.Collections.Generic.HashSet[string]]::new([string[]]$installedPackages)
+    $installed = [System.Collections.Generic.HashSet[string]]::new([string[]]@($result.Stdout))
     return @($Packages | Where-Object { -not $installed.Contains($_) })
 }
 
-function Install-GameWipMsys2Packages
+function Test-GameWipMsys2PackageSet
 {
-    param(
-        [Parameter(Mandatory = $true)][string]$MsysRoot,
-        [Parameter(Mandatory = $true)][hashtable]$PackageConfig,
-        [switch]$Update
-    )
+    param([Parameter(Mandatory = $true)][string]$MsysRoot, [Parameter(Mandatory = $true)][string[]]$Packages)
+    return @(Get-GameWipMissingMsys2Package -MsysRoot $MsysRoot -Packages $Packages).Count -eq 0
+}
 
+function Get-GameWipMsys2PackageConfig
+{
+    param([Parameter(Mandatory = $true)][hashtable]$ProjectTools)
+    $result = @{ Common = @(); Ucrt64 = @(); Clang64 = @() }
+    foreach ($toolInfo in @($ProjectTools.tools | Where-Object { $_.provider.kind -eq 'msys2' }))
+    {
+        $key = switch ([string]$toolInfo.provider.environment)
+        {
+            'common'
+            {
+                'Common'
+            } 'ucrt64'
+            {
+                'Ucrt64'
+            } 'clang64'
+            {
+                'Clang64'
+            } default
+            {
+                throw "Unknown MSYS2 environment '$($toolInfo.provider.environment)'."
+            }
+        }
+        $result[$key] += [string]$toolInfo.provider.package
+        foreach ($dependency in $(if ($toolInfo.provider.Contains('dependencies'))
+                {
+                    @($toolInfo.provider.dependencies)
+                }
+                else
+                {
+                    @()
+                }))
+        {
+            $dependencyKey = switch ([string]$dependency.environment)
+            {
+                'common'
+                {
+                    'Common'
+                } 'ucrt64'
+                {
+                    'Ucrt64'
+                } 'clang64'
+                {
+                    'Clang64'
+                } default
+                {
+                    throw "Unknown MSYS2 dependency environment '$($dependency.environment)'."
+                }
+            }
+            $result[$dependencyKey] += [string]$dependency.package
+        }
+    }
+    foreach ($key in @('Common', 'Ucrt64', 'Clang64'))
+    {
+        $result[$key] = @($result[$key] | Sort-Object -Unique)
+    }
+    return $result
+}
+
+function Install-GameWipMsys2PackageSet
+{
+    param([Parameter(Mandatory = $true)][string]$MsysRoot, [Parameter(Mandatory = $true)][hashtable]$PackageConfig, [switch]$Update)
     if ($Update)
     {
-        Write-Host 'Updating the complete MSYS2 package database and system...'
-        Invoke-Msys2PacmanWithRetry -MsysRoot $MsysRoot -Command 'pacman -Syu --noconfirm'
-        Invoke-Msys2PacmanWithRetry -MsysRoot $MsysRoot -Command 'pacman -Syu --noconfirm'
+        Invoke-GameWipMsys2PacmanWithRetry -MsysRoot $MsysRoot -Command 'pacman -Syu --noconfirm'
+        Invoke-GameWipMsys2PacmanWithRetry -MsysRoot $MsysRoot -Command 'pacman -Syu --noconfirm'
     }
-
-    $packages = @($PackageConfig.Common) + @($PackageConfig.Ucrt64) + @($PackageConfig.Clang64)
-    $packageArguments = $packages -join ' '
-    Invoke-Msys2PacmanWithRetry -MsysRoot $MsysRoot -Command "pacman --needed --noconfirm -S $packageArguments"
-
-    if (-not (Test-Msys2Packages -MsysRoot $MsysRoot -Packages $packages))
+    $packages = @(@($PackageConfig.Common) + @($PackageConfig.Ucrt64) + @($PackageConfig.Clang64) | Sort-Object -Unique)
+    Invoke-GameWipMsys2PacmanWithRetry -MsysRoot $MsysRoot -Command "pacman --needed --noconfirm -S $($packages -join ' ')"
+    if (-not (Test-GameWipMsys2PackageSet -MsysRoot $MsysRoot -Packages $packages))
     {
         throw 'One or more required MSYS2 packages failed verification.'
     }
 }
 
-function Test-GameWipMsys2Tools
+function Test-GameWipMsys2Toolchain
 {
-    param(
-        [Parameter(Mandatory = $true)][string]$MsysRoot,
-        [Parameter(Mandatory = $true)][string]$CMakeVersionPattern
-    )
-
-    $ucrt = Join-Path $MsysRoot 'ucrt64\bin'
-    $clang = Join-Path $MsysRoot 'clang64\bin'
-    $tools = @(
-        (Join-Path $ucrt 'g++.exe'),
-        (Join-Path $ucrt 'gdb.exe'),
-        (Join-Path $ucrt 'cmake.exe'),
-        (Join-Path $ucrt 'ninja.exe'),
-        (Join-Path $ucrt 'doxygen.exe'),
-        (Join-Path $ucrt 'clang-tidy.exe'),
-        (Join-Path $clang 'clang++.exe'),
-        (Join-Path $clang 'cmake.exe'),
-        (Join-Path $clang 'ninja.exe')
-    )
-    foreach ($tool in $tools)
+    param([Parameter(Mandatory = $true)][hashtable]$ProjectTools)
+    foreach ($toolInfo in @($ProjectTools.tools | Where-Object { $_.provider.kind -eq 'msys2' -and $_.capabilities.detectInstalled }))
     {
-        if (-not (Test-Path -LiteralPath $tool))
+        $detected = Get-GameWipDetectedTool -Tool $toolInfo
+        $compatibility = Get-GameWipToolCompatibility -Tool $toolInfo -Detected $detected
+        if ($compatibility -ne 'compatible')
         {
-            throw "Required MSYS2 tool is missing: $tool"
+            throw "MSYS2 requirement '$($toolInfo.id)' is '$compatibility'."
         }
     }
-
-    $version = & (Join-Path $ucrt 'cmake.exe') --version | Select-Object -First 1
-    if ($version -notmatch $CMakeVersionPattern)
-    {
-        throw "GameWIP requires CMake 4.4.2 or newer on the 4.4 release line, but UCRT64 reports '$version'."
-    }
-    Write-Host "  Ready: UCRT64 and CLANG64 ($version)"
+    Write-Host '  Ready: registry-declared UCRT64/CLANG64 requirements.'
 }

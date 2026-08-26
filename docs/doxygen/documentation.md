@@ -1,8 +1,10 @@
 @page project_documentation Documentation system
 
-GameWIP uses Doxygen for its generated developer manual and Markdown for long-form project records. The manual serves contributors, maintainers, and reusable-library consumers; it is not player-facing documentation.
+GameWIP uses Doxygen for its generated developer manual and Markdown for long-form project records. The manual serves contributors, maintainers, and
+reusable-library consumers; it is not player-facing documentation.
 
-The manual contains project workflows, library manuals, and public API reference material. Files under `docs/` record product direction, milestone criteria, stable decisions, versioning, and contributor policy. GitHub issues track active work.
+The manual contains project workflows, library manuals, and public API reference material. Files under `docs/` record product direction, milestone
+criteria, stable decisions, versioning, and contributor policy. GitHub issues track active work.
 
 The rules below keep those sources working as one documentation system instead
 of a collection of unrelated files.
@@ -27,7 +29,8 @@ Use @ref project_planning to decide whether product planning or policy material 
 - Write each rule, workflow, or contract in one authoritative place.
 - Summaries may appear on nearby pages, but they must link back to the owner instead of restating the full rule.
 - Register Doxygen inputs explicitly; do not rely on recursive source-tree discovery.
-- Use `@ref` and `@subpage` for navigation between registered manual pages; reserve relative Markdown links for ordinary Markdown documents outside the generated manual.
+- Use `@ref` and `@subpage` for navigation between registered manual pages; reserve relative Markdown links for ordinary Markdown documents outside
+  the generated manual.
 - Keep consumer documentation focused on supported public behavior.
 - Keep implementation mechanics in internal headers, source comments, backend contracts, or maintainer-only pages.
 - Keep examples copy-pasteable when the page is teaching a workflow or public API.
@@ -93,7 +96,9 @@ it.
 | Documented `game/` headers | Generated reference for executable-owned and validation source interfaces; these are not installed consumer APIs. |
 | Internal headers and source files | File purpose, internal helper contracts, and maintainer comments for implementation details. |
 
-Project manual pages own repository workflows and contracts. They also own executable and validation source interfaces under `game/`. Library manuals own library-specific API usage, examples, troubleshooting, validation coverage, and approved test hooks. Every project-owned Markdown file is subject to the editorial and local-link rules; only pages deliberately registered in the generated manual use Doxygen page/navigation markup.
+Project manual pages own repository workflows and contracts. They also own executable and validation source interfaces under `game/`. Library manuals
+own library-specific API usage, examples, troubleshooting, validation coverage, and approved test hooks. Every project-owned Markdown file is subject
+to the editorial and local-link rules; only pages deliberately registered in the generated manual use Doxygen page/navigation markup.
 
 ## Page IDs and file names
 
@@ -155,9 +160,11 @@ The landing filename must match the `PAGE_ID` registered for the library. For
 most libraries this is the lowercase library name; Window uses the documented
 `window_library` exception above.
 
-Libraries may add additional manual pages when the public or maintainer-facing contract needs a focused owner. Extra pages must make the manual easier to use or maintain; do not create pages just to mirror the source tree.
+Libraries may add additional manual pages when the public or maintainer-facing contract needs a focused owner. Extra pages must make the manual easier
+to use or maintain; do not create pages just to mirror the source tree.
 
-For example, a library with many build options may add a configuration page, a library with exported runtime symbols may add an ABI or package-boundary page, and a library with source-tree-only validation hooks may add a test-hooks page.
+For example, a library with many build options may add a configuration page, a library with exported runtime symbols may add an ABI or
+package-boundary page, and a library with source-tree-only validation hooks may add a test-hooks page.
 
 A library landing page must contain:
 
@@ -180,11 +187,14 @@ A quick-start page must contain:
 
 ## Public API and ABI documentation standard
 
-Generated documentation must account for every public API and ABI-facing contract. The same rule applies to source-tree interfaces between the executable, validation runners, and validation modules, even though those interfaces are not installed compatibility promises.
+Generated documentation must account for every public API and ABI-facing contract. The same rule applies to source-tree interfaces between the
+executable, validation runners, and validation modules, even though those interfaces are not installed compatibility promises.
 
-Coverage includes namespaces, classes, structs, enums and their values, constants, macros, free functions, constructors, member functions, fields, option and result types, binary-boundary assumptions, and exported-symbol expectations.
+Coverage includes namespaces, classes, structs, enums and their values, constants, macros, free functions, constructors, member functions, fields,
+option and result types, binary-boundary assumptions, and exported-symbol expectations.
 
-Header comments provide the detailed reference documentation for API and ABI contracts. Manual pages provide practical usage guidance, examples, troubleshooting, and broader workflow context.
+Header comments provide the detailed reference documentation for API and ABI contracts. Manual pages provide practical usage guidance, examples,
+troubleshooting, and broader workflow context.
 
 Document these properties when relevant:
 
@@ -223,7 +233,8 @@ Add an example when an API:
 - Is a macro with expression-evaluation behavior.
 - Is an approved internal test hook used by validation code.
 
-Examples may be omitted for simple getters, obvious value containers, and overloads that only forward to a documented primary operation. The symbol still needs documentation.
+Examples may be omitted for simple getters, obvious value containers, and overloads that only forward to a documented primary operation. The symbol
+still needs documentation.
 
 ## Test-hook documentation
 
@@ -254,7 +265,8 @@ Use this structure:
 
 ## Project workflow pages
 
-Project workflow pages document repeatable actions such as building, testing, validation, benchmarking, profiling, coverage, static analysis, repository automation, and documentation generation.
+Project workflow pages document repeatable actions such as building, testing, validation, benchmarking, profiling, coverage, static analysis,
+repository automation, and documentation generation.
 
 Use this structure when it fits:
 
@@ -275,7 +287,8 @@ Do not force empty sections. Prefer a shorter page over a complete template with
 
 ## Project contract pages
 
-Project contract pages document rules that keep the repository consistent, such as structure, packaging, platform backend policy, documentation policy, extension rules, and architectural decisions.
+Project contract pages document rules that keep the repository consistent, such as structure, packaging, platform backend policy, documentation
+policy, extension rules, and architectural decisions.
 
 Use this structure when it fits:
 
@@ -293,9 +306,11 @@ Use this structure when it fits:
 
 ## Registering project source interfaces
 
-Executable-owned headers that define stable source-tree integration contracts may be registered explicitly with `gamewip_register_doxygen_inputs()`. Keep that list narrow: register headers used between executable or validation components, not private implementation headers or every test helper.
+Executable-owned headers that define stable source-tree integration contracts may be registered explicitly with `gamewip_register_doxygen_inputs()`.
+Keep that list narrow: register headers used between executable or validation components, not private implementation headers or every test helper.
 
-Documented `game/` headers must state that they are source-tree interfaces rather than installed consumer APIs. Approved internal test seams remain excluded from the generated API reference and are documented on their owning maintainer page.
+Documented `game/` headers must state that they are source-tree interfaces rather than installed consumer APIs. Approved internal test seams remain
+excluded from the generated API reference and are documented on their owning maintainer page.
 
 ## Registering a library
 
@@ -315,7 +330,9 @@ gamewip_register_doxygen_library(
 
 The registered docs folder must contain a landing page named `<PAGE_ID>.md`.
 
-Register supported consumer entry headers as generated-reference owners. Generated export headers that only provide visibility macros remain transitive build artifacts: list their installed names and ABI role on the owning ABI page, exercise them through the entry headers and installed-consumer validation, and do not present them as independent consumer APIs.
+Register supported consumer entry headers as generated-reference owners. Generated export headers that only provide visibility macros remain
+transitive build artifacts: list their installed names and ABI role on the owning ABI page, exercise them through the entry headers and
+installed-consumer validation, and do not present them as independent consumer APIs.
 
 ## Source comments
 
@@ -324,7 +341,35 @@ Doxygen `@file` and `@brief` that describe the file purpose. Provisional or
 preserved source outside the supported documented surface must gain the same
 ownership block before that surface is promoted.
 
-Public headers must document public API and ABI contracts in enough detail for generated reference pages, IntelliSense, maintainers, and readers. Internal headers and implementation files must document internal helpers, ownership, locking, state transitions, platform behavior, fallback behavior, units, and performance constraints. Internal helper comments may be shorter than public API comments, but they must still explain what the helper does and why it exists when that is not obvious from the surrounding code.
+Public headers must document public API and ABI contracts in enough detail for
+generated reference pages, IntelliSense, maintainers, and readers. Internal
+headers and implementation files must document internal helpers, ownership,
+locking, state transitions, platform behavior, fallback behavior, units, and
+performance constraints. Internal helper comments may be shorter than public API
+comments, but they must still explain what the helper does and why it exists
+when that is not obvious from the surrounding code.
+
+Other maintained first-party languages use their own native documentation
+conventions rather than mechanically copying C++ comments:
+
+- Python files start with a concise module docstring that identifies purpose and
+  ownership.
+- JavaScript files start with a concise file-purpose/ownership comment when the
+  role is not already represented by generated/vendor ownership.
+- PowerShell entry points and libraries identify the file purpose and document
+  non-obvious command contracts, side effects, or failure behavior near the
+  owning function.
+- Shared CMake modules identify purpose and document helper inputs, side effects,
+  and failure conditions when those are not obvious from the function name.
+- YAML comments explain only non-obvious policy or security constraints.
+- JSON uses its schema and owning documentation; do not invent comment-like
+  fields merely to carry prose.
+- Generated and vendored sources follow the generator/upstream contract rather
+  than first-party hand-formatting or comment rules.
+
+These expectations are review/documentation standards. Do not add a generic CI
+rule merely to require boilerplate header comments; automate drift when it
+protects a meaningful contract.
 
 Do not comment obvious assignments, getters, or local variables.
 
@@ -358,7 +403,9 @@ if ($warningLog.Length -ne 0) {
 }
 ```
 
-The generated Doxyfile must keep explicit inputs, write HTML output under the build tree, and write warnings to `build/docs/docs/doxygen/doxygen_warnings.log`. Local and CI validation must reject a non-empty warning log; a successful Doxygen process exit alone is insufficient.
+The generated Doxyfile must keep explicit inputs, write HTML output under the build tree, and write warnings to
+`build/docs/docs/doxygen/doxygen_warnings.log`. Local and CI validation must reject a non-empty warning log; a successful Doxygen process exit alone
+is insufficient.
 
 The documentation build must be warning-free. Doxygen checks undocumented
 declarations, individual enum values, and incomplete tagged parameter or return
@@ -379,8 +426,8 @@ the manual before deployment. Maintainers can preview and dispatch the
 repository-owned command with:
 
 ```powershell
-.\gamewip.bat workflow -WorkflowAction run -Workflow docs-deploy -Preview
-.\gamewip.bat workflow -WorkflowAction run -Workflow docs-deploy
+.\gamewip.bat workflow run docs-deploy -Preview
+.\gamewip.bat workflow run docs-deploy
 ```
 
 There is no remote dry-run mode for Pages deployment, so the helper classifies

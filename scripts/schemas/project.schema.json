@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Andrei11033/GameWIP/schemas/project.schema.json",
+  "title": "GameWIP project configuration",
+  "description": "Repository identity, disposable local storage, and persistent managed-environment roots.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "repository", "defaultBranch", "storage", "managedEnvironment"],
+  "properties": {
+    "schemaVersion": { "const": 1, "description": "Configuration contract version." },
+    "repository": { "const": "Andrei11033/GameWIP", "description": "Canonical GitHub owner and repository." },
+    "defaultBranch": { "const": "master", "description": "Canonical integration branch." },
+    "storage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["root", "cache", "state", "temp", "runs"],
+      "properties": {
+        "root": { "const": "build/gamewip", "description": "Only repository-local mutable helper root." },
+        "cache": { "const": "build/gamewip/cache", "description": "Disposable reproducible cache root." },
+        "state": { "const": "build/gamewip/state", "description": "Disposable advisory state root." },
+        "temp": { "const": "build/gamewip/temp", "description": "Operation-scoped temporary root." },
+        "runs": { "const": "build/gamewip/runs", "description": "Retained run logs and artifacts root." }
+      }
+    },
+    "managedEnvironment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["msys2Root", "gameWipToolsRoot"],
+      "properties": {
+        "msys2Root": { "const": "C:\\MSYS2", "description": "MSYS2 package-managed environment root." },
+        "gameWipToolsRoot": { "const": "C:\\MSYS2\\GameWIPTools", "description": "Persistent GameWIP-managed non-pacman tool root." }
+      }
+    }
+  }
+}

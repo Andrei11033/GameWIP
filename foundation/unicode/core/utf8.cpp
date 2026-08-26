@@ -25,7 +25,7 @@ namespace GameWIP::Unicode::Utf8
             .byteCount = Internal::utf8EncodedLength(scalar),
             .outcome = Types::EncodeOutcome::Encoded,
         };
-        Internal::encodeUtf8Unchecked(scalar, result.bytes.data());
+        Internal::encodeUtf8Unchecked(scalar, result.bytes);
         return result;
     }
 

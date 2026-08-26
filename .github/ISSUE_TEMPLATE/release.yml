@@ -1,0 +1,37 @@
+name: Release
+description: Track concrete milestone release preparation, publication, closure, and handoff.
+title: 'release: '
+labels:
+  - 'type:release'
+  - 'area:github'
+  - 'priority:high'
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template for a concrete milestone release or closure issue.
+        Follow the repository release-automation and versioning documentation
+        for the guarded workflow and metadata contract.
+
+  - type: input
+    id: milestone
+    attributes:
+      label: Milestone
+      description: Name the concrete GitHub release milestone.
+      placeholder: R01 - Window, Input, and Action Foundation
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: Release scope and closure work
+      description: Summarize the remaining preparation, publication, closure, and handoff work.
+    validations:
+      required: true
+
+  - type: textarea
+    id: validation
+    attributes:
+      label: Validation evidence
+      description: Record the required automated and manual release evidence as it becomes available.

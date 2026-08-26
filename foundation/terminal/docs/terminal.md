@@ -1,8 +1,11 @@
 @page terminal Terminal
 
-`GameWIP::Terminal` provides platform-neutral UTF-8 and byte standard-stream I/O, persistent managed input sessions, structured event contracts, capability discovery, styling, and low-level terminal controls.
+`GameWIP::Terminal` provides platform-neutral UTF-8 and byte standard-stream I/O, persistent managed input sessions, structured event contracts,
+capability discovery, styling, and low-level terminal controls.
 
-Terminal is a shared runtime library. One process-wide implementation coordinates standard-stream access across the application and shared libraries such as Logger. Callers may use direct one-operation functions or create a move-only `Session` when interactive input needs persistent ownership and native state.
+Terminal is a shared runtime library. One process-wide implementation coordinates standard-stream access across the application and shared libraries
+such as Logger. Callers may use direct one-operation functions or create a move-only `Session` when interactive input needs persistent ownership and
+native state.
 
 ## How the library is organized
 
@@ -50,7 +53,8 @@ immediate key input and line editing.
 
 ## Generated API reference
 
-Use @ref GameWIP::Terminal for direct operations, `Session`, factories, formatted output, buffers, and output-state RAII scopes. Use @ref GameWIP::Terminal::Types for streams, session policies, events, capabilities, styles, options, segments, and result types.
+Use @ref GameWIP::Terminal for direct operations, `Session`, factories, formatted output, buffers, and output-state RAII scopes. Use @ref
+GameWIP::Terminal::Types for streams, session policies, events, capabilities, styles, options, segments, and result types.
 
 The generated pages contain exact declarations and overloads from the
 `terminal/terminal.h` umbrella and the focused `terminal/style.h` styling
@@ -78,11 +82,13 @@ output can continue while a Session read blocks. Access through C streams, C++
 iostreams, native handles, or third-party terminal libraries bypasses this
 coordination.
 
-Capabilities depend on the current endpoint. Real terminals, redirected streams, detached streams, and other handles can support different operations. Capability queries are snapshots; the status returned by the requested operation remains authoritative.
+Capabilities depend on the current endpoint. Real terminals, redirected streams, detached streams, and other handles can support different operations.
+Capability queries are snapshots; the status returned by the requested operation remains authoritative.
 
 ## Dependency boundary
 
-The normal public umbrella is `terminal/terminal.h`; `terminal/style.h` is an independently includable focused styling header and is also included by the umbrella. Installed consumers link `GameWIP::Terminal`; source-tree consumers may link `Terminal`.
+The normal public umbrella is `terminal/terminal.h`; `terminal/style.h` is an independently includable focused styling header and is also included by
+the umbrella. Installed consumers link `GameWIP::Terminal`; source-tree consumers may link `Terminal`.
 
 Terminal publicly depends on IO for statuses, flush modes, and byte-write
 results. It privately reuses Unicode for strict scalar conversion and grapheme

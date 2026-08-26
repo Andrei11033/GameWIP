@@ -1,9 +1,9 @@
 name: Bug report
 description: Report incorrect behavior, crashes, regressions, or broken workflows.
-title: "bug: "
+title: 'bug: '
 labels:
-  - "type:bug"
-  - "priority:normal"
+  - 'type:bug'
+  - 'priority:normal'
 body:
   - type: markdown
     attributes:
@@ -16,7 +16,7 @@ body:
       label: Area
       description: Pick the closest affected area.
       options:
-        - Build and tooling
+        - CMake / build system
         - FileSystem
         - IO
         - Terminal
@@ -31,10 +31,15 @@ body:
         - Window manager
         - Engine shared systems
         - Windows platform backend
-        - Tools/developer support
+        - Math
+        - Rendering
+        - Simulation
+        - Audio
+        - Tools / developer support
         - Documentation
-        - GitHub/repository setup
-        - Other
+        - GitHub / repository setup
+        - Roadmap / planning
+        - Gameplay
     validations:
       required: true
 

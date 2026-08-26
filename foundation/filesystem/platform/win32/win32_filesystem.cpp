@@ -2,6 +2,7 @@
 /// @brief Win32 backend for the FileSystem library.
 
 #include "filesystem/internal/filesystem_platform.h"
+#include "base/platform/win32/dynamic_library.h"
 #include "unicode/unicode.h"
 
 #ifndef WIN32_LEAN_AND_MEAN
@@ -39,6 +40,8 @@ namespace GameWIP::FileSystem::Detail::Platform
 
         /// @brief Native sharing used for metadata traversal that must not block ordinary owners.
         constexpr DWORD kShareAll = FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE;
+        constexpr DWORD kShareWithoutDelete = kShareAll & ~static_cast<DWORD>(FILE_SHARE_DELETE);
+        constexpr DWORD kAttributesWithoutReadOnly = ~static_cast<DWORD>(FILE_ATTRIBUTE_READONLY);
         /// @brief Minimum native access required for stable metadata queries.
         constexpr ACCESS_MASK kQueryAccess = FILE_READ_ATTRIBUTES | SYNCHRONIZE;
         /// @brief Native access required while traversing directory components by handle.
@@ -566,9 +569,9 @@ namespace GameWIP::FileSystem::Detail::Platform
                 }
                 if (module != nullptr)
                 {
-                    result.createFile = reinterpret_cast<NtCreateFileFunction>(GetProcAddress(module, "NtCreateFile"));
-                    result.setInformationFile = reinterpret_cast<NtSetInformationFileFunction>(GetProcAddress(module, "NtSetInformationFile"));
-                    result.ntStatusToDosError = reinterpret_cast<RtlNtStatusToDosErrorFunction>(GetProcAddress(module, "RtlNtStatusToDosError"));
+                    result.createFile = GameWIP::Base::Win32::loadProcedure<NtCreateFileFunction>(module, "NtCreateFile");
+                    result.setInformationFile = GameWIP::Base::Win32::loadProcedure<NtSetInformationFileFunction>(module, "NtSetInformationFile");
+                    result.ntStatusToDosError = GameWIP::Base::Win32::loadProcedure<RtlNtStatusToDosErrorFunction>(module, "RtlNtStatusToDosError");
                 }
                 return result;
             }();
@@ -886,15 +889,20 @@ namespace GameWIP::FileSystem::Detail::Platform
         /// @brief Converts Windows 100-nanosecond ticks to system_clock with overflow checks.
         [[nodiscard]] TimeResult fileTimeToSystemTimePoint(LARGE_INTEGER fileTime)
         {
-            const __int128 ticksSinceUnixEpoch = static_cast<__int128>(fileTime.QuadPart) - static_cast<__int128>(kUnixEpochAsWindowsFileTime);
-            const __int128 nanoseconds = ticksSinceUnixEpoch * 100;
-            if (nanoseconds > std::numeric_limits<std::int64_t>::max() || nanoseconds < std::numeric_limits<std::int64_t>::min())
+            constexpr std::int64_t nanosecondsPerTick = 100;
+            constexpr std::int64_t minimumTickDelta = std::numeric_limits<std::int64_t>::min() / nanosecondsPerTick;
+            constexpr std::int64_t maximumTickDelta = std::numeric_limits<std::int64_t>::max() / nanosecondsPerTick;
+            constexpr std::int64_t minimumConvertibleFileTime = kUnixEpochAsWindowsFileTime + minimumTickDelta;
+            constexpr std::int64_t maximumConvertibleFileTime = kUnixEpochAsWindowsFileTime + maximumTickDelta;
+
+            if (fileTime.QuadPart < minimumConvertibleFileTime || fileTime.QuadPart > maximumConvertibleFileTime)
             {
                 return {.status = IO::makeStatus(ErrorCode::SizeLimitExceeded)};
             }
 
-            const auto duration =
-                std::chrono::duration_cast<Types::FileTime::duration>(std::chrono::nanoseconds{static_cast<std::int64_t>(nanoseconds)});
+            const std::int64_t ticksSinceUnixEpoch = fileTime.QuadPart - kUnixEpochAsWindowsFileTime;
+            const std::int64_t nanoseconds = ticksSinceUnixEpoch * nanosecondsPerTick;
+            const auto duration = std::chrono::duration_cast<Types::FileTime::duration>(std::chrono::nanoseconds{nanoseconds});
             return {.status = IO::successStatus(), .time = Types::FileTime{duration}};
         }
 
@@ -1222,8 +1230,7 @@ namespace GameWIP::FileSystem::Detail::Platform
 
             if (symlinkPolicy == Types::SymlinkPolicy::FollowAll)
             {
-                OpenPathResult opened =
-                    openExistingPath(path, symlinkPolicy, kQueryAccess, kShareAll & ~FILE_SHARE_DELETE, true, ErrorCode::StatFailed);
+                OpenPathResult opened = openExistingPath(path, symlinkPolicy, kQueryAccess, kShareWithoutDelete, true, ErrorCode::StatFailed);
                 if (!opened.status.ok())
                 {
                     return {.status = std::move(opened.status)};
@@ -1245,7 +1252,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             }
 
             std::vector<UniqueHandle> handles;
-            const DWORD stableShare = kShareAll & ~FILE_SHARE_DELETE;
+            const DWORD stableShare = kShareWithoutDelete;
             if (parsedPath.components.empty())
             {
                 HandleResult root = openRootDirectory(parsedPath.root, stableShare);
@@ -1683,7 +1690,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             }
             else
             {
-                basicInfo.FileAttributes &= ~FILE_ATTRIBUTE_READONLY;
+                basicInfo.FileAttributes &= kAttributesWithoutReadOnly;
                 if (basicInfo.FileAttributes == 0)
                 {
                     basicInfo.FileAttributes = FILE_ATTRIBUTE_NORMAL;
@@ -1719,7 +1726,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             }
             else
             {
-                destinationInfo.FileAttributes &= ~FILE_ATTRIBUTE_READONLY;
+                destinationInfo.FileAttributes &= kAttributesWithoutReadOnly;
                 if (destinationInfo.FileAttributes == 0)
                 {
                     destinationInfo.FileAttributes = FILE_ATTRIBUTE_NORMAL;
@@ -2005,7 +2012,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             }
 
             const HANDLE parentHandle = static_cast<HANDLE>(parent.stableHandles.back());
-            HandleResult childHandle = openChild(parentHandle, childName, true, true, kShareAll & ~FILE_SHARE_DELETE);
+            HandleResult childHandle = openChild(parentHandle, childName, true, true, kShareWithoutDelete);
             if (!childHandle.status.ok())
             {
                 return {.status = std::move(childHandle.status)};
@@ -3077,7 +3084,14 @@ namespace GameWIP::FileSystem::Detail::Platform
                 const std::wstring &fileName = parsedTo.components.back();
                 const DWORD fileNameBytes = static_cast<DWORD>(fileName.size() * sizeof(wchar_t));
                 std::vector<std::byte> renameBuffer(sizeof(FILE_RENAME_INFO) + fileNameBytes + sizeof(wchar_t));
+                // renameBuffer owns the complete fixed header, variable file name, and terminator passed to NtSetInformationFile.
+#if defined(__clang__)
+#pragma clang unsafe_buffer_usage begin
+#endif
                 auto *renameInfo = reinterpret_cast<FILE_RENAME_INFO *>(renameBuffer.data());
+#if defined(__clang__)
+#pragma clang unsafe_buffer_usage end
+#endif
                 renameInfo->ReplaceIfExists = replaceMode == Types::ReplaceMode::ReplaceExisting;
                 renameInfo->RootDirectory = destinationParent.handle.get();
                 renameInfo->FileNameLength = fileNameBytes;

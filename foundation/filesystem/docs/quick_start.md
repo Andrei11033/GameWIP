@@ -19,7 +19,8 @@ find_package(FileSystem ${GAMEWIP_REQUIRED_VERSION} EXACT CONFIG REQUIRED)
 target_link_libraries(MyTarget PRIVATE GameWIP::FileSystem)
 ```
 
-The package resolves the exact-version IO and Unicode dependencies. IO is FileSystem's public API dependency; Unicode supports FileSystem-owned text boundaries.
+The package resolves the exact-version IO and Unicode dependencies. IO is FileSystem's public API dependency; Unicode supports FileSystem-owned text
+boundaries.
 
 ## Source-tree CMake
 
@@ -52,7 +53,8 @@ GameWIP::IO::Types::Status saveAndLoadSettings()
 }
 ```
 
-Text helpers enforce strict UTF-8. They do not normalize text, add or remove a BOM, or translate line endings. Use the byte helpers for arbitrary content.
+Text helpers enforce strict UTF-8. They do not normalize text, add or remove a BOM, or translate line endings. Use the byte helpers for arbitrary
+content.
 
 ## Explicit handle
 
@@ -106,7 +108,8 @@ GameWIP::IO::Types::Status replaceSave(std::string_view json)
 }
 ```
 
-There is no non-atomic fallback. Failure before commit preserves an existing destination. A late parent-directory flush failure can be returned after the replacement is already visible.
+There is no non-atomic fallback. Failure before commit preserves an existing destination. A late parent-directory flush failure can be returned after
+the replacement is already visible.
 
 ## Failure handling
 

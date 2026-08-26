@@ -14,6 +14,7 @@
 #include <format>
 #include <iterator>
 #include <limits>
+#include <memory>
 #include <mutex>
 #include <new>
 #include <stdexcept>
@@ -97,10 +98,10 @@ namespace GameWIP::Terminal
                         text_.swap(state_.formatScratch);
                     }
                 }
+                // NOLINTNEXTLINE(bugprone-empty-catch) -- Scratch retention is best-effort at a noexcept cleanup boundary.
                 catch (...)
                 {
                     // Scratch retention is an optimization; destruction must never terminate on cleanup failure.
-                    static_cast<void>(0);
                 }
             }
 
@@ -211,15 +212,6 @@ namespace GameWIP::Terminal
                                                                                                      : IO::makeStatus(ErrorCode::EncodingFailed);
         }
 
-        /// @brief Restores a string to a previously observed size without allocating or throwing.
-        void rollbackString(std::string &text, std::size_t previousSize) noexcept
-        {
-            while (text.size() > previousSize)
-            {
-                text.pop_back();
-            }
-        }
-
         /// @brief Builds an Unsupported status with optional diagnostic text.
         [[nodiscard]] IO::Types::Status unsupportedStatus(std::string_view message = {}) noexcept
         {
@@ -327,7 +319,7 @@ namespace GameWIP::Terminal
         void appendUnsigned(std::string &text, std::uint64_t value)
         {
             std::array<char, 32> buffer{};
-            const auto result = std::to_chars(buffer.data(), buffer.data() + buffer.size(), value);
+            const auto result = std::to_chars(buffer.data(), std::to_address(buffer.end()), value);
             text.append(buffer.data(), result.ptr);
         }
 
@@ -343,8 +335,9 @@ namespace GameWIP::Terminal
         /// @brief Appends one bounded decimal parameter to a style sequence.
         void appendSequenceNumber(StyleSequence &sequence, std::uint32_t value) noexcept
         {
-            const auto result = std::to_chars(sequence.bytes.data() + sequence.size, sequence.bytes.data() + sequence.bytes.size(), value);
-            sequence.size = static_cast<std::size_t>(result.ptr - sequence.bytes.data());
+            const std::span available = std::span{sequence.bytes}.subspan(sequence.size);
+            const auto result = std::to_chars(available.data(), std::to_address(available.end()), value);
+            sequence.size += static_cast<std::size_t>(std::distance(available.data(), result.ptr));
         }
 
         /// @brief Appends one semicolon-delimited SGR parameter.
@@ -860,19 +853,19 @@ namespace GameWIP::Terminal
 
             if (requirements.hasBytes)
             {
-                const auto assembled = std::as_bytes(std::span<const char>(state.assembly.data(), state.assembly.size()));
+                const auto assembled = std::as_bytes(std::span{state.assembly});
                 IO::Types::WriteResult result = Detail::Platform::writeBytes(stream, assembled);
-                IO::Types::Status status = std::move(result.status);
-                if (status.ok() && result.bytesWritten != assembled.size())
+                IO::Types::Status writeStatus = std::move(result.status);
+                if (writeStatus.ok() && result.bytesWritten != assembled.size())
                 {
-                    status = IO::makeStatus(ErrorCode::PartialWrite);
+                    writeStatus = IO::makeStatus(ErrorCode::PartialWrite);
                 }
-                if (status.ok())
+                if (writeStatus.ok())
                 {
-                    status = flushIfRequested(stream, options.flushMode);
+                    writeStatus = flushIfRequested(stream, options.flushMode);
                 }
                 releaseLargeAssembly(state);
-                return status;
+                return writeStatus;
             }
 
             return writeAssembly(stream, state, options.flushMode);

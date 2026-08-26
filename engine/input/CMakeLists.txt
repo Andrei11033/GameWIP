@@ -1,24 +1,14 @@
 add_library(Input STATIC)
 
-target_sources(Input PRIVATE
-    core/input.cpp
-)
-
-if(WIN32)
-    target_sources(Input PRIVATE
-        platform/win32/win32_input.cpp
-    )
-    target_link_libraries(Input PRIVATE
-        cfgmgr32
-        hid
-        setupapi
-    )
-else()
-    message(FATAL_ERROR "Input has no platform backend for this operating system yet.")
+if(NOT COMMAND gamewip_target_platform_backend)
+    include("${PROJECT_SOURCE_DIR}/cmake/GameWIPPlatform.cmake")
 endif()
 
-target_include_directories(Input PUBLIC
-    "${PROJECT_SOURCE_DIR}/engine"
-)
+target_sources(Input PRIVATE core/input.cpp)
+
+gamewip_target_platform_backend(TARGET Input ROOT "${CMAKE_CURRENT_SOURCE_DIR}/platform")
+
+target_include_directories(Input PUBLIC "${PROJECT_SOURCE_DIR}/engine")
 
 target_compile_features(Input PUBLIC cxx_std_23)
+target_link_libraries(Input PRIVATE $<BUILD_INTERFACE:GameWIPBase>)

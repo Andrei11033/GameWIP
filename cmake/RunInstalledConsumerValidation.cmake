@@ -1,4 +1,7 @@
-foreach(required_variable IN ITEMS
+foreach(
+    required_variable
+    IN
+    ITEMS
         PROJECT_BUILD_DIR
         PROJECT_SOURCE_DIR
         INSTALL_PREFIX
@@ -12,7 +15,8 @@ foreach(required_variable IN ITEMS
         CXX_COMPILER
         COVERAGE_ENABLED
         ADDRESS_SANITIZER_ENABLED
-        EXECUTABLE_SUFFIX)
+        EXECUTABLE_SUFFIX
+)
     if(NOT DEFINED ${required_variable})
         message(FATAL_ERROR "${required_variable} is required for installed-consumer validation.")
     endif()
@@ -62,15 +66,13 @@ set(expected_gamewip_headers
 )
 list(SORT expected_gamewip_headers)
 
-file(GLOB_RECURSE installed_gamewip_headers
-    RELATIVE "${INSTALL_PREFIX}/include"
-    "${INSTALL_PREFIX}/include/*"
-)
+file(GLOB_RECURSE installed_gamewip_headers RELATIVE "${INSTALL_PREFIX}/include" "${INSTALL_PREFIX}/include/*")
 list(FILTER installed_gamewip_headers EXCLUDE REGEX "^tracy/")
 list(SORT installed_gamewip_headers)
 
 if(NOT "${installed_gamewip_headers}" STREQUAL "${expected_gamewip_headers}")
-    message(FATAL_ERROR
+    message(
+        FATAL_ERROR
         "Installed GameWIP headers differ from the public allowlist.\n"
         "Expected: ${expected_gamewip_headers}\n"
         "Actual: ${installed_gamewip_headers}"
@@ -80,15 +82,25 @@ endif()
 cmake_path(GET CXX_COMPILER PARENT_PATH compiler_runtime_directory)
 set(runtime_path "${INSTALL_PREFIX}/bin;${compiler_runtime_directory};$ENV{PATH}")
 
-function(run_installed_consumer source_dir build_dir executable_name package_name prefix_path)
+function(
+    run_installed_consumer
+    source_dir
+    build_dir
+    executable_name
+    package_name
+    prefix_path
+)
     file(REMOVE_RECURSE "${build_dir}")
     string(REPLACE ";" "\\;" escaped_prefix_path "${prefix_path}")
 
     set(configure_command
         "${CMAKE_COMMAND}"
-        -S "${source_dir}"
-        -B "${build_dir}"
-        -G "${GENERATOR}"
+        -S
+        "${source_dir}"
+        -B
+        "${build_dir}"
+        -G
+        "${GENERATOR}"
         "-DCMAKE_CXX_COMPILER=${CXX_COMPILER}"
         "-DCMAKE_PREFIX_PATH=${escaped_prefix_path}"
         "-DGAMEWIP_PACKAGE_VERSION=${PACKAGE_VERSION}"
@@ -103,17 +115,9 @@ function(run_installed_consumer source_dir build_dir executable_name package_nam
         list(APPEND configure_command "-DGAMEWIP_CONSUMER_PACKAGE=${package_name}")
     endif()
 
-    execute_process(
-        COMMAND ${configure_command}
-        RESULT_VARIABLE configure_result
-        OUTPUT_VARIABLE configure_output
-        ERROR_VARIABLE configure_error
-    )
+    execute_process(COMMAND ${configure_command} RESULT_VARIABLE configure_result OUTPUT_VARIABLE configure_output ERROR_VARIABLE configure_error)
     if(NOT configure_result EQUAL 0)
-        message(FATAL_ERROR
-            "Installed ${package_name} consumer configuration failed.\n"
-            "${configure_output}\n${configure_error}"
-        )
+        message(FATAL_ERROR "Installed ${package_name} consumer configuration failed.\n" "${configure_output}\n${configure_error}")
     endif()
 
     execute_process(
@@ -123,9 +127,7 @@ function(run_installed_consumer source_dir build_dir executable_name package_nam
         ERROR_VARIABLE build_error
     )
     if(NOT build_result EQUAL 0)
-        message(FATAL_ERROR
-            "Installed ${package_name} consumer build failed.\n${build_output}\n${build_error}"
-        )
+        message(FATAL_ERROR "Installed ${package_name} consumer build failed.\n${build_output}\n${build_error}")
     endif()
 
     if(MULTI_CONFIG)
@@ -140,21 +142,17 @@ function(run_installed_consumer source_dir build_dir executable_name package_nam
         ERROR_VARIABLE run_error
     )
     if(NOT run_result EQUAL 0)
-        message(FATAL_ERROR
-            "Installed ${package_name} consumer execution failed.\n${run_output}\n${run_error}"
-        )
+        message(FATAL_ERROR "Installed ${package_name} consumer execution failed.\n${run_output}\n${run_error}")
     endif()
 endfunction()
 
-run_installed_consumer(
-    "${CONSUMER_SOURCE_DIR}"
-    "${CONSUMER_BUILD_DIR}/combined"
-    GameWIPInstalledConsumer
-    "combined"
-    "${INSTALL_PREFIX}"
-)
+run_installed_consumer("${CONSUMER_SOURCE_DIR}" "${CONSUMER_BUILD_DIR}/combined" GameWIPInstalledConsumer "combined" "${INSTALL_PREFIX}")
 
-foreach(package_name IN ITEMS Unicode IO FileSystem Terminal Window Logger Assert TestSupport)
+foreach(
+    package_name
+    IN
+    ITEMS Unicode IO FileSystem Terminal Window Logger Assert TestSupport
+)
     string(TOLOWER "${package_name}" package_directory)
     run_installed_consumer(
         "${CONSUMER_SOURCE_DIR}/isolated"
@@ -169,12 +167,7 @@ endforeach()
 # are discovered from a separate installation root on every supported CMake.
 set(assert_prefix "${CONSUMER_BUILD_DIR}/assert-prefix")
 file(REMOVE_RECURSE "${assert_prefix}")
-file(MAKE_DIRECTORY
-    "${assert_prefix}/include/debug"
-    "${assert_prefix}/lib/cmake"
-    "${assert_prefix}/share"
-    "${assert_prefix}/bin"
-)
+file(MAKE_DIRECTORY "${assert_prefix}/include/debug" "${assert_prefix}/lib/cmake" "${assert_prefix}/share" "${assert_prefix}/bin")
 file(COPY "${INSTALL_PREFIX}/include/debug/assert" DESTINATION "${assert_prefix}/include/debug")
 file(COPY "${INSTALL_PREFIX}/lib/cmake/Assert" DESTINATION "${assert_prefix}/lib/cmake")
 file(COPY "${INSTALL_PREFIX}/share/Assert" DESTINATION "${assert_prefix}/share")

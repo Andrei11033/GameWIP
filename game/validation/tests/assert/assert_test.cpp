@@ -5,6 +5,7 @@
 /// private fragments cover macros, diagnostics, hooks, interactive actions, stress, process paths, and manual UI.
 
 #include "validation/tests/assert/assert_test.h"
+#include "validation/process_arguments.h"
 
 #include "debug/assert/assert.h"
 
@@ -64,8 +65,8 @@ namespace
     /// @brief Mutable test state and TestSupport-backed reporting for the Assert suite.
     struct TestContext
     {
-        explicit TestContext(TestSupport::Context &testContext) noexcept
-            : testContext(testContext)
+        explicit TestContext(TestSupport::Context &context) noexcept
+            : testContext(context)
         {
         }
 
@@ -206,9 +207,10 @@ namespace
 
     bool hasArgument(int argc, char **argv, std::string_view argument)
     {
-        for (int index = 1; index < argc; ++index)
+        const auto arguments = GameWIP::Validation::processArguments(argc, argv);
+        for (char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
         {
-            if (argv[index] != nullptr && std::string_view(argv[index]) == argument)
+            if (value != nullptr && std::string_view(value) == argument)
             {
                 return true;
             }

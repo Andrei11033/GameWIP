@@ -1,0 +1,182 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "GameWIP project tool registry",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "tools"],
+  "properties": {
+    "schemaVersion": { "const": 1, "description": "Registry schema version." },
+    "tools": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/tool" } }
+  },
+  "$defs": {
+    "tool": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "category", "provider", "versionPolicy", "detection", "capabilities", "references"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+        "name": { "type": "string", "minLength": 1 },
+        "category": { "type": "string", "minLength": 1 },
+        "provider": { "$ref": "#/$defs/provider" },
+        "versionPolicy": { "enum": ["exact", "minimum", "managed", "informational"] },
+        "requiredVersion": { "type": "string", "minLength": 1 },
+        "detection": { "$ref": "#/$defs/detection" },
+        "capabilities": { "$ref": "#/$defs/capabilities" },
+        "references": { "type": "array", "items": { "$ref": "#/$defs/reference" } }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "versionPolicy": { "enum": ["exact", "minimum"] } }, "required": ["versionPolicy"] },
+          "then": { "required": ["requiredVersion"] }
+        }
+      ]
+    },
+    "provider": {
+      "oneOf": [
+        { "$ref": "#/$defs/providerMsys2" },
+        { "$ref": "#/$defs/providerNpm" },
+        { "$ref": "#/$defs/providerPython" },
+        { "$ref": "#/$defs/providerPowerShellGallery" },
+        { "$ref": "#/$defs/providerGitHubRelease" },
+        { "$ref": "#/$defs/providerWinget" },
+        { "$ref": "#/$defs/providerGitSubmodule" },
+        { "$ref": "#/$defs/providerExternal" }
+      ]
+    },
+    "providerMsys2": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "environment", "package"],
+      "properties": {
+        "kind": { "const": "msys2" },
+        "environment": { "enum": ["common", "ucrt64", "clang64"] },
+        "package": { "type": "string", "minLength": 1 },
+        "dependencies": { "type": "array", "items": { "$ref": "#/$defs/providerPackage" } }
+      }
+    },
+    "providerNpm": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "package"],
+      "properties": {
+        "kind": { "const": "npm" },
+        "package": { "type": "string", "minLength": 1 },
+        "dependencies": { "type": "array", "items": { "$ref": "#/$defs/providerPackage" } }
+      }
+    },
+    "providerPython": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "package"],
+      "properties": {
+        "kind": { "const": "python" },
+        "package": { "type": "string", "minLength": 1 },
+        "dependencies": { "type": "array", "items": { "$ref": "#/$defs/providerPackage" } }
+      }
+    },
+    "providerPowerShellGallery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "package"],
+      "properties": {
+        "kind": { "const": "powershellGallery" },
+        "package": { "type": "string", "minLength": 1 }
+      }
+    },
+    "providerGitHubRelease": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "repository", "releaseTag", "assets"],
+      "properties": {
+        "kind": { "const": "githubRelease" },
+        "repository": { "type": "string", "minLength": 1 },
+        "releaseTag": { "type": "string", "minLength": 1 },
+        "archiveName": { "type": "string", "minLength": 1 },
+        "assets": { "type": "object", "minProperties": 1, "additionalProperties": { "$ref": "#/$defs/asset" } }
+      }
+    },
+    "providerWinget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "package"],
+      "properties": {
+        "kind": { "const": "winget" },
+        "package": { "type": "string", "minLength": 1 },
+        "managedPath": { "type": "string", "minLength": 1 },
+        "installArguments": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "providerGitSubmodule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "path"],
+      "properties": {
+        "kind": { "const": "gitSubmodule" },
+        "path": { "type": "string", "minLength": 1 }
+      }
+    },
+    "providerExternal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "homepage"],
+      "properties": {
+        "kind": { "const": "external" },
+        "homepage": { "type": "string", "minLength": 1, "format": "uri" }
+      }
+    },
+    "providerPackage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["package"],
+      "properties": {
+        "package": { "type": "string", "minLength": 1 },
+        "version": { "type": "string", "minLength": 1 },
+        "environment": { "enum": ["common", "ucrt64", "clang64"] }
+      }
+    },
+    "asset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["archive", "sha256"],
+      "properties": {
+        "archive": { "type": "string", "minLength": 1 },
+        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "format": { "enum": ["archive", "executable"] }
+      }
+    },
+    "detection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["command", "versionArguments", "versionPattern"],
+      "properties": {
+        "command": { "type": "string", "minLength": 1 },
+        "aliases": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "versionArguments": { "type": "array", "items": { "type": "string" } },
+        "versionPattern": { "type": "string", "minLength": 1 },
+        "repositoryPath": { "type": "string", "minLength": 1 },
+        "commandConfigVersionPath": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9]*(\\.[A-Za-z][A-Za-z0-9]*)+$" }
+      }
+    },
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["detectInstalled", "checkLatest", "update"],
+      "properties": {
+        "detectInstalled": { "type": "boolean" },
+        "checkLatest": { "type": "boolean" },
+        "update": { "type": "boolean" }
+      }
+    },
+    "reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "kind"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "kind": { "enum": ["path", "text", "cmakeMinimum"] },
+        "pattern": { "type": "string", "minLength": 1 },
+        "expectedCount": { "type": "integer", "minimum": 1 }
+      }
+    }
+  }
+}

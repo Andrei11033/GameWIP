@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "GameWIP setup registry",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "actions", "bootstrapToolIds"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "actions": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/action" } },
+    "bootstrapToolIds": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" } }
+  },
+  "$defs": {
+    "action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "description", "risk", "network", "mutation"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+        "key": { "type": "string", "minLength": 1, "maxLength": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "description": { "type": "string", "minLength": 1 },
+        "risk": { "enum": ["read-only", "local", "machine", "destructive"] },
+        "network": { "type": "boolean" },
+        "mutation": { "enum": ["none", "local", "machine", "destructive"] }
+      }
+    }
+  }
+}

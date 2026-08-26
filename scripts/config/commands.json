@@ -1,0 +1,496 @@
+{
+  "schemaVersion": 1,
+  "actions": [
+    {
+      "id": "menu",
+      "title": "Interactive menu",
+      "description": "Open the hierarchical project UI.",
+      "group": "navigation",
+      "visible": true,
+      "network": false,
+      "mutation": "none",
+      "risk": "read-only"
+    },
+    {
+      "id": "doctor",
+      "title": "Project readiness",
+      "description": "Verify repository and declared tool readiness.",
+      "group": "maintenance",
+      "key": "D",
+      "visible": true,
+      "network": false,
+      "mutation": "none",
+      "risk": "read-only"
+    },
+    {
+      "id": "git",
+      "title": "Git workspace",
+      "description": "Guarded local Git workspace operations.",
+      "group": "repository",
+      "visible": true,
+      "network": true,
+      "mutation": "conditional",
+      "risk": "tracked"
+    },
+    {
+      "id": "workflow",
+      "title": "GitHub workflows",
+      "description": "List, inspect, and dispatch cataloged workflows.",
+      "group": "repository",
+      "visible": true,
+      "network": true,
+      "mutation": "conditional",
+      "risk": "remote"
+    },
+    {
+      "id": "unicode",
+      "title": "Unicode data",
+      "description": "Inspect, verify, or regenerate pinned Unicode data.",
+      "group": "maintenance",
+      "visible": true,
+      "network": true,
+      "mutation": "conditional",
+      "risk": "tracked"
+    },
+    {
+      "id": "format",
+      "title": "C/C++ formatting",
+      "description": "Check or apply repository C/C++ formatting.",
+      "group": "quality",
+      "visible": true,
+      "network": false,
+      "mutation": "conditional",
+      "risk": "tracked"
+    },
+    {
+      "id": "quality",
+      "title": "Repository quality",
+      "description": "Run, fix, or inspect repository quality coverage.",
+      "group": "quality",
+      "visible": true,
+      "network": false,
+      "mutation": "conditional",
+      "risk": "tracked"
+    },
+    {
+      "id": "tools",
+      "title": "Project tools",
+      "description": "Inspect, ensure, or update declared project tools.",
+      "group": "tools",
+      "visible": true,
+      "network": true,
+      "mutation": "conditional",
+      "risk": "machine"
+    },
+    {
+      "id": "links",
+      "title": "Markdown links",
+      "description": "Validate maintained Markdown links.",
+      "group": "quality",
+      "visible": true,
+      "network": false,
+      "mutation": "none",
+      "risk": "read-only"
+    },
+    {
+      "id": "configure",
+      "title": "Configure",
+      "description": "Configure a CMake preset.",
+      "group": "development",
+      "visible": true,
+      "network": false,
+      "mutation": "local",
+      "risk": "local"
+    },
+    {
+      "id": "build",
+      "title": "Build",
+      "description": "Build a CMake preset and required configure state.",
+      "group": "development",
+      "visible": true,
+      "network": false,
+      "mutation": "local",
+      "risk": "local"
+    },
+    {
+      "id": "test",
+      "title": "CTest",
+      "description": "Ensure prerequisites and run a CTest preset.",
+      "group": "validation",
+      "visible": true,
+      "network": false,
+      "mutation": "local",
+      "risk": "local"
+    },
+    {
+      "id": "module",
+      "title": "Validation module",
+      "description": "Run one correctness module or all modules.",
+      "group": "validation",
+      "visible": true,
+      "network": false,
+      "mutation": "local",
+      "risk": "local"
+    },
+    {
+      "id": "wizard",
+      "title": "Validation wizard",
+      "description": "Interactively compose a correctness command.",
+      "group": "validation",
+      "visible": true,
+      "network": false,
+      "mutation": "local",
+      "risk": "local"
+    },
+    {
+      "id": "stress",
+      "title": "Stress validation",
+      "description": "Repeat correctness validation with bounded workers.",
+      "group": "validation",
+      "visible": true,
+      "network": false,
+      "mutation": "local",
+      "risk": "local"
+    },
+    {
+      "id": "run",
+      "title": "Project command",
+      "description": "Run a cataloged executable-backed project command.",
+      "group": "development",
+      "visible": true,
+      "network": false,
+      "mutation": "local",
+      "risk": "local"
+    },
+    {
+      "id": "bundle",
+      "title": "Validation bundle",
+      "description": "Run a cataloged multi-step local validation bundle.",
+      "group": "validation",
+      "visible": true,
+      "network": false,
+      "mutation": "local",
+      "risk": "local"
+    },
+    {
+      "id": "docs",
+      "title": "Documentation",
+      "description": "Build and verify generated documentation.",
+      "group": "development",
+      "visible": true,
+      "network": false,
+      "mutation": "local",
+      "risk": "local"
+    },
+    {
+      "id": "analyze",
+      "title": "Static analysis",
+      "description": "Run the analyze preset.",
+      "group": "quality",
+      "visible": true,
+      "network": false,
+      "mutation": "local",
+      "risk": "local"
+    },
+    {
+      "id": "coverage",
+      "title": "Coverage",
+      "description": "Run coverage build/tests/report.",
+      "group": "quality",
+      "visible": true,
+      "network": false,
+      "mutation": "local",
+      "risk": "local"
+    },
+    {
+      "id": "asan",
+      "title": "AddressSanitizer",
+      "description": "Run CLANG64 AddressSanitizer validation.",
+      "group": "quality",
+      "visible": true,
+      "network": false,
+      "mutation": "local",
+      "risk": "local"
+    },
+    {
+      "id": "benchmark",
+      "title": "Benchmarks",
+      "description": "Run, list, dry-run, or compare benchmarks.",
+      "group": "validation",
+      "visible": true,
+      "network": false,
+      "mutation": "local",
+      "risk": "local"
+    },
+    {
+      "id": "runs",
+      "title": "Run history",
+      "description": "List, show, or clean retained operation receipts.",
+      "group": "maintenance",
+      "visible": true,
+      "network": false,
+      "mutation": "conditional",
+      "risk": "destructive"
+    },
+    {
+      "id": "list",
+      "title": "Catalog",
+      "description": "Print current project IDs and command catalog.",
+      "group": "navigation",
+      "visible": false,
+      "network": false,
+      "mutation": "none",
+      "risk": "read-only"
+    },
+    {
+      "id": "help",
+      "title": "Help",
+      "description": "Print canonical command syntax.",
+      "group": "navigation",
+      "key": "H",
+      "visible": false,
+      "network": false,
+      "mutation": "none",
+      "risk": "read-only"
+    }
+  ],
+  "formatting": {
+    "sourceRoots": ["foundation", "tools", "engine", "game"],
+    "configPath": ".clang-format"
+  },
+  "defaultStressCount": 32,
+  "modules": ["assert", "base", "filesystem", "io", "logger", "runner", "terminal", "test_support", "unicode", "window"],
+  "defaultBuildPreset": "test",
+  "unicode": {
+    "version": "17.0.0",
+    "generatedHeader": "foundation\\unicode\\internal\\generated\\unicode_properties.h",
+    "ucdUrlTemplate": "https://www.unicode.org/Public/{0}/ucd/UCD.zip",
+    "requiredFiles": [
+      "auxiliary\\GraphemeBreakProperty.txt",
+      "DerivedCoreProperties.txt",
+      "emoji\\emoji-data.txt",
+      "auxiliary\\GraphemeBreakTest.txt"
+    ],
+    "generator": "foundation\\unicode\\tools\\generate_unicode_data.py"
+  },
+  "projectCommands": [
+    {
+      "id": "test-all",
+      "executable": "build\\test\\GameWIPTests.exe",
+      "useWorkspaceTemp": true,
+      "buildPreset": "test",
+      "name": "Run all correctness modules",
+      "arguments": ["--no-test-report"],
+      "acceptsExtraArgs": true
+    },
+    {
+      "id": "benchmark-dry-run",
+      "executable": "build\\benchmark\\GameWIPBenchmarks.exe",
+      "useWorkspaceTemp": true,
+      "buildPreset": "benchmark",
+      "name": "Run benchmark registration dry run",
+      "arguments": ["--benchmark_dry_run"],
+      "acceptsExtraArgs": true
+    },
+    {
+      "id": "dev-version",
+      "executable": "build\\dev\\GameWIP.exe",
+      "useWorkspaceTemp": false,
+      "buildPreset": "dev",
+      "name": "Print development executable version",
+      "arguments": ["--version"],
+      "acceptsExtraArgs": false
+    },
+    {
+      "id": "release-version",
+      "executable": "build\\release\\game\\GameWIP.exe",
+      "alternateExecutable": "build\\release\\GameWIP.exe",
+      "useWorkspaceTemp": false,
+      "buildPreset": "release",
+      "name": "Print release executable version",
+      "arguments": ["--version"],
+      "acceptsExtraArgs": false
+    }
+  ],
+  "defaultConfigurePreset": "test",
+  "defaultStressParallel": 8,
+  "benchmarkProfiles": [
+    {
+      "aggregatesOnly": false,
+      "minTime": "0.05s",
+      "name": "Quick development measurement",
+      "id": "quick",
+      "repetitions": 1
+    },
+    {
+      "aggregatesOnly": true,
+      "minTime": "0.2s",
+      "name": "Repeatable local measurement",
+      "id": "standard",
+      "repetitions": 5
+    },
+    {
+      "repetitions": 10,
+      "id": "stable",
+      "randomInterleaving": true,
+      "aggregatesOnly": true,
+      "name": "Longer comparison-quality measurement",
+      "minTime": "1s"
+    }
+  ],
+  "bundles": [
+    {
+      "name": "Quick correctness validation",
+      "id": "quick",
+      "steps": [
+        {
+          "kind": "Configure",
+          "preset": "test"
+        },
+        {
+          "kind": "Build",
+          "preset": "test"
+        },
+        {
+          "useWorkspaceTemp": true,
+          "preset": "test",
+          "kind": "CTest"
+        }
+      ]
+    },
+    {
+      "name": "Local release-readiness check",
+      "id": "local-release-check",
+      "steps": [
+        {
+          "kind": "Configure",
+          "preset": "test"
+        },
+        {
+          "kind": "Build",
+          "preset": "test"
+        },
+        {
+          "useWorkspaceTemp": true,
+          "preset": "test",
+          "kind": "CTest"
+        },
+        {
+          "kind": "Configure",
+          "preset": "coverage"
+        },
+        {
+          "kind": "Build",
+          "preset": "coverage"
+        },
+        {
+          "useWorkspaceTemp": true,
+          "preset": "coverage",
+          "kind": "CTest"
+        },
+        {
+          "preset": "coverage",
+          "target": "coverage",
+          "kind": "BuildTarget"
+        },
+        {
+          "kind": "Configure",
+          "preset": "analyze"
+        },
+        {
+          "kind": "Build",
+          "preset": "analyze"
+        },
+        {
+          "kind": "Configure",
+          "preset": "docs"
+        },
+        {
+          "kind": "Build",
+          "preset": "docs"
+        },
+        {
+          "buildIfMissing": true,
+          "command": "benchmark-dry-run",
+          "kind": "ProjectCommand"
+        },
+        {
+          "buildIfMissing": true,
+          "command": "release-version",
+          "kind": "ProjectCommand"
+        }
+      ]
+    },
+    {
+      "name": "CLANG64 AddressSanitizer validation",
+      "id": "sanitizer",
+      "steps": [
+        {
+          "kind": "Configure",
+          "preset": "asan"
+        },
+        {
+          "kind": "Build",
+          "preset": "asan"
+        },
+        {
+          "useWorkspaceTemp": true,
+          "preset": "asan",
+          "kind": "CTest"
+        }
+      ]
+    }
+  ],
+  "manualWorkflows": [
+    {
+      "name": "Run repository validation",
+      "id": "validation",
+      "safety": "check",
+      "file": "validation.yml"
+    },
+    {
+      "name": "Preview project reconciliation",
+      "id": "project-dry-run",
+      "safety": "dry-run",
+      "file": "project-automation.yml"
+    },
+    {
+      "name": "Apply project reconciliation",
+      "id": "project-write",
+      "safety": "write",
+      "file": "project-automation.yml"
+    },
+    {
+      "name": "Check release readiness",
+      "id": "release-check",
+      "safety": "dry-run",
+      "file": "release-preparation.yml"
+    },
+    {
+      "name": "Create or update the release-preparation pull request",
+      "id": "release-prepare",
+      "safety": "write",
+      "file": "release-preparation.yml"
+    },
+    {
+      "name": "Preview release finalization",
+      "id": "release-finalize-dry-run",
+      "safety": "dry-run",
+      "file": "release-preparation.yml"
+    },
+    {
+      "name": "Create the immutable tag and GitHub release",
+      "id": "release-finalize",
+      "safety": "finalize",
+      "file": "release-preparation.yml"
+    },
+    {
+      "name": "Build and deploy Doxygen GitHub Pages",
+      "id": "docs-deploy",
+      "safety": "deploy",
+      "file": "docs.yml"
+    }
+  ],
+  "defaultModule": "all",
+  "defaultTestPreset": "test"
+}

@@ -1,0 +1,767 @@
+{
+  "schemaVersion": 1,
+  "tools": [
+    {
+      "id": "msys2",
+      "name": "MSYS2",
+      "category": "environment",
+      "provider": {
+        "kind": "winget",
+        "package": "MSYS2.MSYS2",
+        "managedPath": "usr/bin/bash.exe",
+        "installArguments": ["--override", "install --confirm-command --root {msys2Root}"]
+      },
+      "versionPolicy": "managed",
+      "detection": {
+        "command": "bash",
+        "versionArguments": ["--version"],
+        "versionPattern": "version ([0-9.]+)"
+      },
+      "capabilities": {
+        "detectInstalled": true,
+        "checkLatest": false,
+        "update": false
+      },
+      "references": []
+    },
+    {
+      "id": "msys2-git",
+      "name": "MSYS2 Git",
+      "category": "source-control",
+      "provider": {
+        "kind": "msys2",
+        "environment": "common",
+        "package": "git"
+      },
+      "versionPolicy": "managed",
+      "detection": {
+        "command": "git",
+        "versionArguments": ["--version"],
+        "versionPattern": "git version ([0-9.]+)"
+      },
+      "capabilities": {
+        "detectInstalled": true,
+        "checkLatest": true,
+        "update": true
+      },
+      "references": []
+    },
+    {
+      "id": "cmake",
+      "name": "CMake",
+      "category": "build",
+      "provider": {
+        "kind": "msys2",
+        "environment": "ucrt64",
+        "package": "mingw-w64-ucrt-x86_64-cmake",
+        "dependencies": [
+          {
+            "environment": "clang64",
+            "package": "mingw-w64-clang-x86_64-cmake"
+          }
+        ]
+      },
+      "versionPolicy": "minimum",
+      "requiredVersion": "4.4.2",
+      "detection": {
+        "command": "cmake",
+        "versionArguments": ["--version"],
+        "versionPattern": "cmake version ([0-9.]+)"
+      },
+      "capabilities": {
+        "detectInstalled": true,
+        "checkLatest": true,
+        "update": true
+      },
+      "references": [
+        {
+          "path": "CMakeLists.txt",
+          "kind": "cmakeMinimum"
+        }
+      ]
+    },
+    {
+      "id": "gcc",
+      "name": "GCC",
+      "category": "compiler",
+      "provider": {
+        "kind": "msys2",
+        "environment": "ucrt64",
+        "package": "mingw-w64-ucrt-x86_64-gcc"
+      },
+      "versionPolicy": "managed",
+      "detection": {
+        "command": "g++",
+        "versionArguments": ["--version"],
+        "versionPattern": "([0-9]+(?:\\.[0-9]+)+)"
+      },
+      "capabilities": {
+        "detectInstalled": true,
+        "checkLatest": true,
+        "update": true
+      },
+      "references": []
+    },
+    {
+      "id": "clang",
+      "name": "Clang",
+      "category": "compiler",
+      "provider": {
+        "kind": "msys2",
+        "environment": "clang64",
+        "package": "mingw-w64-clang-x86_64-clang",
+        "dependencies": [
+          {
+            "environment": "clang64",
+            "package": "mingw-w64-clang-x86_64-compiler-rt"
+          },
+          {
+            "environment": "clang64",
+            "package": "mingw-w64-clang-x86_64-lld"
+          }
+        ]
+      },
+      "versionPolicy": "managed",
+      "detection": {
+        "command": "clang++",
+        "versionArguments": ["--version"],
+        "versionPattern": "clang version ([0-9.]+)"
+      },
+      "capabilities": {
+        "detectInstalled": true,
+        "checkLatest": true,
+        "update": true
+      },
+      "references": []
+    },
+    {
+      "id": "ninja",
+      "name": "Ninja",
+      "category": "build",
+      "provider": {
+        "kind": "msys2",
+        "environment": "ucrt64",
+        "package": "mingw-w64-ucrt-x86_64-ninja",
+        "dependencies": [
+          {
+            "environment": "clang64",
+            "package": "mingw-w64-clang-x86_64-ninja"
+          }
+        ]
+      },
+      "versionPolicy": "managed",
+      "detection": {
+        "command": "ninja",
+        "versionArguments": ["--version"],
+        "versionPattern": "([0-9.]+)"
+      },
+      "capabilities": {
+        "detectInstalled": true,
+        "checkLatest": true,
+        "update": true
+      },
+      "references": []
+    },
+    {
+      "id": "python",
+      "name": "Python",
+      "category": "runtime",
+      "provider": {
+        "kind": "msys2",
+        "environment": "ucrt64",
+        "package": "mingw-w64-ucrt-x86_64-python"
+      },
+      "versionPolicy": "managed",
+      "detection": {
+        "command": "python",
+        "versionArguments": ["--version"],
+        "versionPattern": "Python ([0-9.]+)"
+      },
+      "capabilities": {
+        "detectInstalled": true,
+        "checkLatest": true,
+        "update": true
+      },
+      "references": []
+    },
+    {
+      "id": "python-native",
+      "name": "Python (Native Windows)",
+      "category": "runtime",
+      "provider": {
+        "kind": "winget",
+        "package": "Python.Python.3.14"
+      },
+      "versionPolicy": "managed",
+      "detection": {
+        "command": "py",
+        "versionArguments": ["-3.14", "--version"],
+        "versionPattern": "Python ([0-9.]+)"
+      },
+      "capabilities": {
+        "detectInstalled": true,
+        "checkLatest": true,
+        "update": true
+      },
+      "references": []
+    },
+    {
+      "id": "node",
+      "name": "Node.js",
+      "category": "runtime",
+      "provider": {
+        "kind": "msys2",
+        "environment": "ucrt64",
+        "package": "mingw-w64-ucrt-x86_64-nodejs"
+      },
+      "versionPolicy": "managed",
+      "detection": {
+        "command": "node",
+        "versionArguments": ["--version"],
+        "versionPattern": "v([0-9.]+)"
+      },
+      "capabilities": {
+        "detectInstalled": true,
+        "checkLatest": true,
+        "update": true
+      },
+      "references": []
+    },
+    {
+      "id": "doxygen",
+      "name": "Doxygen",
+      "category": "documentation",
+      "provider": {
+        "kind": "msys2",
+        "environment": "ucrt64",
+        "package": "mingw-w64-ucrt-x86_64-doxygen"
+      },
+      "versionPolicy": "managed",
+      "detection": {
+        "command": "doxygen",
+        "versionArguments": ["--version"],
+        "versionPattern": "([0-9.]+)"
+      },
+      "capabilities": {
+        "detectInstalled": true,
+        "checkLatest": true,
+        "update": true
+      },
+      "references": []
+    },
+    {
+      "id": "graphviz",
+      "name": "Graphviz",
+      "category": "documentation",
+      "provider": {
+        "kind": "msys2",
+        "environment": "ucrt64",
+        "package": "mingw-w64-ucrt-x86_64-graphviz"
+      },
+      "versionPolicy": "managed",
+      "detection": {
+        "command": "dot",
+        "versionArguments": ["-V"],
+        "versionPattern": "version ([0-9.]+)"
+      },
+      "capabilities": {
+        "detectInstalled": true,
+        "checkLatest": true,
+        "update": true
+      },
+      "references": []
+    },
+    {
+      "id": "gcovr",
+      "name": "gcovr",
+      "category": "coverage",
+      "provider": {
+        "kind": "msys2",
+        "environment": "ucrt64",
+        "package": "mingw-w64-ucrt-x86_64-gcovr"
+      },
+      "versionPolicy": "managed",
+      "detection": {
+        "command": "gcovr",
+        "versionArguments": ["--version"],
+        "versionPattern": "gcovr ([0-9.]+)"
+      },
+      "capabilities": {
+        "detectInstalled": true,
+        "checkLatest": true,
+        "update": true
+      },
+      "references": []
+    },
+    {
+      "id": "gdb",
+      "name": "GDB",
+      "category": "debugger",
+      "provider": {
+        "kind": "msys2",
+        "environment": "ucrt64",
+        "package": "mingw-w64-ucrt-x86_64-gdb"
+      },
+      "versionPolicy": "managed",
+      "detection": {
+        "command": "gdb",
+        "versionArguments": ["--version"],
+        "versionPattern": "GNU gdb.*?([0-9]+(?:\\.[0-9]+)+)"
+      },
+      "capabilities": {
+        "detectInstalled": true,
+        "checkLatest": true,
+        "update": true
+      },
+      "references": []
+    },
+    {
+      "id": "clang-format",
+      "name": "clang-format",
+      "category": "quality",
+      "provider": {
+        "kind": "msys2",
+        "environment": "ucrt64",
+        "package": "mingw-w64-ucrt-x86_64-clang-tools-extra"
+      },
+      "versionPolicy": "managed",
+      "detection": {
+        "command": "clang-format",
+        "versionArguments": ["--version"],
+        "versionPattern": "version ([0-9.]+)"
+      },
+      "capabilities": {
+        "detectInstalled": true,
+        "checkLatest": true,
+        "update": true
+      },
+      "references": [
+        {
+          "path": ".clang-format",
+          "kind": "path"
+        }
+      ]
+    },
+    {
+      "id": "clang-tidy",
+      "name": "clang-tidy",
+      "category": "quality",
+      "provider": {
+        "kind": "msys2",
+        "environment": "ucrt64",
+        "package": "mingw-w64-ucrt-x86_64-clang-tools-extra"
+      },
+      "versionPolicy": "managed",
+      "detection": {
+        "command": "clang-tidy",
+        "versionArguments": ["--version"],
+        "versionPattern": "version ([0-9.]+)"
+      },
+      "capabilities": {
+        "detectInstalled": true,
+        "checkLatest": true,
+        "update": true
+      },
+      "references": [
+        {
+          "path": ".clang-tidy",
+          "kind": "path"
+        }
+      ]
+    },
+    {
+      "id": "ruff",
+      "name": "Ruff",
+      "category": "quality",
+      "provider": {
+        "kind": "python",
+        "package": "ruff"
+      },
+      "versionPolicy": "exact",
+      "requiredVersion": "0.16.4",
+      "detection": {
+        "command": "ruff",
+        "versionArguments": ["--version"],
+        "versionPattern": "ruff ([0-9.]+)"
+      },
+      "capabilities": {
+        "detectInstalled": true,
+        "checkLatest": true,
+        "update": true
+      },
+      "references": [
+        {
+          "path": "docs/doxygen/project_contracts.md",
+          "kind": "text",
+          "pattern": "| Ruff | {version} | Python |",
+          "expectedCount": 1
+        }
+      ]
+    },
+    {
+      "id": "gersemi",
+      "name": "Gersemi",
+      "category": "quality",
+      "provider": {
+        "kind": "githubRelease",
+        "repository": "BlankSpruce/gersemi",
+        "releaseTag": "0.28.0",
+        "assets": {
+          "linux-amd64": {
+            "archive": "gersemi-linux",
+            "sha256": "d7c72d367884ef2d496fa949a3c38f7512f2b53781174e2d415cb3d2589c6a83",
+            "format": "executable"
+          },
+          "windows-amd64": {
+            "archive": "gersemi-windows.exe",
+            "sha256": "29890c5000937d000e81b20b5a3f157e02686de3b6ec2e2f1324f71afbc8c4f0",
+            "format": "executable"
+          }
+        }
+      },
+      "versionPolicy": "exact",
+      "requiredVersion": "0.28.0",
+      "detection": {
+        "command": "gersemi",
+        "versionArguments": ["--version"],
+        "versionPattern": "gersemi ([0-9.]+)"
+      },
+      "capabilities": {
+        "detectInstalled": true,
+        "checkLatest": true,
+        "update": true
+      },
+      "references": [
+        {
+          "path": "docs/doxygen/project_contracts.md",
+          "kind": "text",
+          "pattern": "| Gersemi | {version} | verified GitHub release |",
+          "expectedCount": 1
+        },
+        {
+          "path": "config/quality/gersemi.yml",
+          "kind": "text",
+          "pattern": "# yaml-language-server: $schema=https://raw.githubusercontent.com/BlankSpruce/gersemi/{version}/gersemi/configuration.schema.json",
+          "expectedCount": 1
+        }
+      ]
+    },
+    {
+      "id": "yamllint",
+      "name": "yamllint",
+      "category": "quality",
+      "provider": {
+        "kind": "python",
+        "package": "yamllint"
+      },
+      "versionPolicy": "exact",
+      "requiredVersion": "1.38.0",
+      "detection": {
+        "command": "yamllint",
+        "versionArguments": ["--version"],
+        "versionPattern": "yamllint ([0-9.]+)"
+      },
+      "capabilities": {
+        "detectInstalled": true,
+        "checkLatest": true,
+        "update": true
+      },
+      "references": [
+        {
+          "path": "docs/doxygen/project_contracts.md",
+          "kind": "text",
+          "pattern": "| yamllint | {version} | Python |",
+          "expectedCount": 1
+        }
+      ]
+    },
+    {
+      "id": "jsonschema",
+      "name": "jsonschema",
+      "category": "quality",
+      "provider": {
+        "kind": "python",
+        "package": "jsonschema"
+      },
+      "versionPolicy": "exact",
+      "requiredVersion": "4.26.0",
+      "detection": {
+        "command": "python",
+        "versionArguments": ["-c", "from importlib.metadata import version; print(version('jsonschema'))"],
+        "versionPattern": "([0-9.]+)"
+      },
+      "capabilities": {
+        "detectInstalled": true,
+        "checkLatest": true,
+        "update": true
+      },
+      "references": [
+        {
+          "path": "docs/doxygen/project_contracts.md",
+          "kind": "text",
+          "pattern": "| jsonschema | {version} | Python |",
+          "expectedCount": 1
+        }
+      ]
+    },
+    {
+      "id": "eslint",
+      "name": "ESLint",
+      "category": "quality",
+      "provider": {
+        "kind": "npm",
+        "package": "eslint",
+        "dependencies": [
+          {
+            "package": "@eslint/js",
+            "version": "10.0.1"
+          }
+        ]
+      },
+      "versionPolicy": "exact",
+      "requiredVersion": "10.9.0",
+      "detection": {
+        "command": "eslint",
+        "versionArguments": ["--version"],
+        "versionPattern": "v?([0-9.]+)"
+      },
+      "capabilities": {
+        "detectInstalled": true,
+        "checkLatest": true,
+        "update": true
+      },
+      "references": [
+        {
+          "path": "docs/doxygen/project_contracts.md",
+          "kind": "text",
+          "pattern": "| ESLint | {version} | npm |",
+          "expectedCount": 1
+        }
+      ]
+    },
+    {
+      "id": "prettier",
+      "name": "Prettier",
+      "category": "quality",
+      "provider": {
+        "kind": "npm",
+        "package": "prettier"
+      },
+      "versionPolicy": "exact",
+      "requiredVersion": "3.9.6",
+      "detection": {
+        "command": "prettier",
+        "versionArguments": ["--version"],
+        "versionPattern": "([0-9.]+)"
+      },
+      "capabilities": {
+        "detectInstalled": true,
+        "checkLatest": true,
+        "update": true
+      },
+      "references": [
+        {
+          "path": "docs/doxygen/project_contracts.md",
+          "kind": "text",
+          "pattern": "| Prettier | {version} | npm |",
+          "expectedCount": 1
+        }
+      ]
+    },
+    {
+      "id": "markdownlint-cli2",
+      "name": "markdownlint-cli2",
+      "category": "quality",
+      "provider": {
+        "kind": "npm",
+        "package": "markdownlint-cli2"
+      },
+      "versionPolicy": "exact",
+      "requiredVersion": "0.23.2",
+      "detection": {
+        "command": "markdownlint-cli2",
+        "versionArguments": ["--version"],
+        "versionPattern": "markdownlint-cli2 v?([0-9.]+)"
+      },
+      "capabilities": {
+        "detectInstalled": true,
+        "checkLatest": true,
+        "update": true
+      },
+      "references": [
+        {
+          "path": "docs/doxygen/project_contracts.md",
+          "kind": "text",
+          "pattern": "| markdownlint-cli2 | {version} | npm |",
+          "expectedCount": 1
+        }
+      ]
+    },
+    {
+      "id": "psscriptanalyzer",
+      "name": "PSScriptAnalyzer",
+      "category": "quality",
+      "provider": {
+        "kind": "powershellGallery",
+        "package": "PSScriptAnalyzer"
+      },
+      "versionPolicy": "exact",
+      "requiredVersion": "1.25.0",
+      "detection": {
+        "command": "Invoke-ScriptAnalyzer",
+        "versionArguments": [],
+        "versionPattern": "([0-9.]+)"
+      },
+      "capabilities": {
+        "detectInstalled": true,
+        "checkLatest": true,
+        "update": true
+      },
+      "references": [
+        {
+          "path": "docs/doxygen/project_contracts.md",
+          "kind": "text",
+          "pattern": "| PSScriptAnalyzer | {version} | PowerShell Gallery |",
+          "expectedCount": 1
+        }
+      ]
+    },
+    {
+      "id": "actionlint",
+      "name": "actionlint",
+      "category": "quality",
+      "provider": {
+        "kind": "githubRelease",
+        "repository": "rhysd/actionlint",
+        "archiveName": "actionlint_{version}_{os}_{arch}.{extension}",
+        "assets": {
+          "linux-amd64": {
+            "archive": "actionlint_1.7.12_linux_amd64.tar.gz",
+            "sha256": "8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8"
+          },
+          "windows-amd64": {
+            "archive": "actionlint_1.7.12_windows_amd64.zip",
+            "sha256": "6e7241b51e6817ea6a047693d8e6fed13b31819c9a0dd6c5a726e1592d22f6e9"
+          }
+        },
+        "releaseTag": "v1.7.12"
+      },
+      "versionPolicy": "exact",
+      "requiredVersion": "1.7.12",
+      "detection": {
+        "command": "actionlint",
+        "versionArguments": ["-version"],
+        "versionPattern": "([0-9.]+)"
+      },
+      "capabilities": {
+        "detectInstalled": true,
+        "checkLatest": true,
+        "update": true
+      },
+      "references": [
+        {
+          "path": "docs/doxygen/project_contracts.md",
+          "kind": "text",
+          "pattern": "| actionlint | {version} | verified GitHub release |",
+          "expectedCount": 1
+        }
+      ]
+    },
+    {
+      "id": "gh",
+      "name": "GitHub CLI",
+      "category": "source-control",
+      "provider": {
+        "kind": "winget",
+        "package": "GitHub.cli"
+      },
+      "versionPolicy": "managed",
+      "detection": {
+        "command": "gh",
+        "versionArguments": ["--version"],
+        "versionPattern": "gh version ([0-9.]+)"
+      },
+      "capabilities": {
+        "detectInstalled": true,
+        "checkLatest": true,
+        "update": true
+      },
+      "references": []
+    },
+    {
+      "id": "git",
+      "name": "Git",
+      "category": "source-control",
+      "provider": {
+        "kind": "winget",
+        "package": "Git.Git"
+      },
+      "versionPolicy": "managed",
+      "detection": {
+        "command": "git",
+        "versionArguments": ["--version"],
+        "versionPattern": "git version ([0-9.]+)"
+      },
+      "capabilities": {
+        "detectInstalled": true,
+        "checkLatest": true,
+        "update": true
+      },
+      "references": []
+    },
+    {
+      "id": "tracy",
+      "name": "Tracy",
+      "category": "profiling",
+      "provider": {
+        "kind": "gitSubmodule",
+        "path": "external/tracy"
+      },
+      "versionPolicy": "informational",
+      "detection": {
+        "command": "git",
+        "versionArguments": ["-C", "external/tracy", "rev-parse", "HEAD"],
+        "versionPattern": "([0-9a-f]{40})"
+      },
+      "capabilities": {
+        "detectInstalled": true,
+        "checkLatest": false,
+        "update": false
+      },
+      "references": [
+        {
+          "path": ".gitmodules",
+          "kind": "path"
+        }
+      ]
+    },
+    {
+      "id": "unicode",
+      "name": "Unicode Character Database",
+      "category": "data",
+      "provider": {
+        "kind": "external",
+        "homepage": "https://www.unicode.org/versions/"
+      },
+      "versionPolicy": "informational",
+      "detection": {
+        "command": "gamewip",
+        "versionArguments": ["unicode", "status"],
+        "versionPattern": "Unicode ([0-9.]+)",
+        "repositoryPath": "gamewip.bat",
+        "commandConfigVersionPath": "unicode.version"
+      },
+      "capabilities": {
+        "detectInstalled": true,
+        "checkLatest": false,
+        "update": false
+      },
+      "references": [
+        {
+          "path": "foundation/unicode/tools/generate_unicode_data.py",
+          "kind": "path"
+        }
+      ]
+    }
+  ]
+}

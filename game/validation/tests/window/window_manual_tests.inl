@@ -1047,7 +1047,7 @@ void testManualCursor(TestSupport::Context &context, const GameWIP::Test::Window
                 shapeNames[index]));
     }
 
-    for (const auto [mode, capability, name] : std::array{
+    for (const auto &[mode, capability, name] : std::array{
              std::tuple{Window::Types::CursorMode::Hidden, Window::Types::Capability::Count, std::string_view{"hidden"}},
              std::tuple{Window::Types::CursorMode::Confined, Window::Types::Capability::CursorConfinement, std::string_view{"confined"}},
              std::tuple{Window::Types::CursorMode::HiddenConfined, Window::Types::Capability::CursorConfinement, std::string_view{"hidden-confined"}},

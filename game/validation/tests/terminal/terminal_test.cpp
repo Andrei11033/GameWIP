@@ -5,6 +5,7 @@
 /// reentrant child execution, state restoration, and opt-in manual tests.
 
 #include "validation/tests/terminal/terminal_test.h"
+#include "validation/process_arguments.h"
 
 #include "terminal/terminal.h"
 #include "test_support/test_support.h"
@@ -17,6 +18,7 @@
 #include "terminal/internal/terminal_test_hooks.h"
 #endif
 
+#include <algorithm>
 #include <array>
 #include <atomic>
 #include <chrono>
@@ -205,9 +207,10 @@ namespace
     /// @brief Returns true when the process arguments contain one exact value.
     [[nodiscard]] bool hasArgument(int argc, char **argv, std::string_view expected)
     {
-        for (int index = 1; index < argc; ++index)
+        const auto arguments = GameWIP::Validation::processArguments(argc, argv);
+        for (char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
         {
-            if (argv[index] != nullptr && std::string_view(argv[index]) == expected)
+            if (value != nullptr && std::string_view(value) == expected)
             {
                 return true;
             }
@@ -420,28 +423,6 @@ namespace
         Hooks::setInputBytes(Terminal::Types::Input::Stream::Stdin, bytes, endOfStreamWhenEmpty);
     }
 
-#if defined(_WIN32)
-    /// @brief Builds one deterministic Win32 key record for native event-decoder validation.
-    [[nodiscard]] KEY_EVENT_RECORD makeWin32KeyRecord(
-        bool keyDown,
-        WORD virtualKey,
-        wchar_t unicodeCharacter = L'\0',
-        DWORD controlState = 0,
-        WORD repeatCount = 1,
-        WORD scanCode = 0) noexcept
-    {
-        KEY_EVENT_RECORD record{};
-        record.bKeyDown = keyDown ? TRUE : FALSE;
-        record.wRepeatCount = repeatCount;
-        record.wVirtualKeyCode = virtualKey;
-        record.wVirtualScanCode = scanCode;
-        record.uChar.UnicodeChar = unicodeCharacter;
-        record.dwControlKeyState = controlState;
-        return record;
-    }
-
-#endif
-
 #endif
 
     // Focused suite declarations keep cross-suite calls independent of fragment include order.
@@ -496,7 +477,9 @@ namespace
 #if TERMINAL_INTERNAL_TEST_HOOKS
     void testSessions(TestSupport::Context &context);
 #endif
+#if !TERMINAL_INTERNAL_TEST_HOOKS
     void testHookDependentSuitesSkipped(TestSupport::Context &context);
+#endif
 
 #include "validation/tests/terminal/contracts_test.inl"
 #include "validation/tests/terminal/controls_test.inl"

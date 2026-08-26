@@ -1,6 +1,7 @@
 @page project_platform_backend_contract Platform backend contract
 
-GameWIP reusable libraries keep platform-specific behavior behind internal backend contracts. The public API stays portable unless the platform concept is itself part of the public contract.
+GameWIP reusable libraries keep platform-specific behavior behind internal backend contracts. The public API stays portable unless the platform
+concept is itself part of the public contract.
 
 FileSystem, Terminal, Logger, Window, and future platform-dependent components
 use the same backend shape. The rules below cover layout, platform selection,
@@ -9,7 +10,8 @@ invent a different boundary.
 
 ## Scope
 
-This contract applies to first-party platform backends under reusable libraries. It does not document third-party vendor internals, game-specific runtime policy, or public library APIs.
+This contract applies to first-party platform backends under reusable libraries. It does not document third-party vendor internals, game-specific
+runtime policy, or public library APIs.
 
 ## Core rules
 
@@ -23,9 +25,12 @@ This contract applies to first-party platform backends under reusable libraries.
 
 ## Platform selection
 
-Repository platform mapping is centralized in `cmake/LibraryPlatform.cmake`. A library must use the shared mapping before adding library-local platform selection logic.
+Repository platform mapping is centralized in `cmake/GameWIPPlatform.cmake`: Windows maps to `win32`, Linux to `linux`, and Darwin to `macos`. Every
+platform-aware target calls `gamewip_target_platform_backend(TARGET <target> ROOT <platform-root>)`; configuration fails when the selected backend
+file is absent.
 
-Add a new platform ID only when CMake cannot already map the target environment. Platform IDs must be stable, lowercase, and suitable for directory names.
+Add a new platform ID only when CMake cannot already map the target environment. Platform IDs must be stable, lowercase, and suitable for directory
+names.
 
 ## Required structure
 
@@ -39,13 +44,17 @@ A backend must use this structure:
 
 Single-file backends may use the library name as the feature. Split backends must use names that describe the native area they implement.
 
-`platform.cmake` must be the only place that adds backend-local files, libraries, resources, or compile definitions to the target.
+`platform.cmake` must be the only place that adds backend-local files, libraries, resources, private include paths, options, requirements, or compile
+definitions to the target. Adding an implementation for an existing OS family therefore requires only the backend directory, its `platform.cmake`, and
+its implementation files.
 
 ## Public API boundary
 
-Backends must not expose native handles, native error types, platform headers, or backend configuration through installed public headers unless that is the explicit public contract of the library.
+Backends must not expose native handles, native error types, platform headers, or backend configuration through installed public headers unless that
+is the explicit public contract of the library.
 
-Public headers may expose portable value types, options, result types, and enums. Native state must live in internal implementation objects, backend-owned storage, or pImpl-style bridges.
+Public headers may expose portable value types, options, result types, and enums. Native state must live in internal implementation objects,
+backend-owned storage, or pImpl-style bridges.
 
 ## Internal contract standard
 
@@ -65,21 +74,28 @@ Portable core code must not depend on implementation details of one backend.
 
 Backends that touch paths, terminal text, process arguments, or environment variables must document their encoding boundary.
 
-FileSystem must keep `std::filesystem::path` as the native path type and use UTF-8 conversion helpers at public text boundaries. Terminal and Logger must treat public `std::string` text as UTF-8 unless the owning library documents a narrower contract.
+FileSystem must keep `std::filesystem::path` as the native path type and use UTF-8 conversion helpers at public text boundaries. Terminal and Logger
+must treat public `std::string` text as UTF-8 unless the owning library documents a narrower contract.
 
 ## Error and cleanup rules
 
-A backend must translate native errors before returning to portable core code. Native cleanup must be reliable across success, failure, and early-return paths.
+A backend must translate native errors before returning to portable core code. Native cleanup must be reliable across success, failure, and
+early-return paths.
 
-When the public API returns an `IO::Types::Status` or a library result type, backend failures must preserve the most useful stable project error code available. Avoid leaking platform-only numeric codes into public behavior unless the public type explicitly stores diagnostic detail for that purpose.
+When the public API returns an `IO::Types::Status` or a library result type, backend failures must preserve the most useful stable project error code
+available. Avoid leaking platform-only numeric codes into public behavior unless the public type explicitly stores diagnostic detail for that purpose.
 
-TestSupport backends return `InfrastructureStatus`, including a stable error category and optional native diagnostic code. Child-process backends must keep infrastructure failure separate from process outcome and exact exit code. An approved deterministic hook may exercise the public `Unsupported` category, but it does not substitute for a real platform backend: a missing backend for the selected project platform remains a configuration error.
+TestSupport backends return `InfrastructureStatus`, including a stable error category and optional native diagnostic code. Child-process backends must
+keep infrastructure failure separate from process outcome and exact exit code. An approved deterministic hook may exercise the public `Unsupported`
+category, but it does not substitute for a real platform backend: a missing backend for the selected project platform remains a configuration error.
 
 ## Concurrency and process state
 
-Backends that mutate process-global state, console state, environment variables, current directory, signal handlers, handles, file locks, or logger state must document restoration and synchronization rules in the owning library's maintainer docs.
+Backends that mutate process-global state, console state, environment variables, current directory, signal handlers, handles, file locks, or logger
+state must document restoration and synchronization rules in the owning library's maintainer docs.
 
-Tests that mutate process state must use approved hooks, scoped guards, or child-process isolation when ordinary public APIs cannot make the scenario deterministic.
+Tests that mutate process state must use approved hooks, scoped guards, or child-process isolation when ordinary public APIs cannot make the scenario
+deterministic.
 
 ## Internal test hooks
 
@@ -93,7 +109,8 @@ A hook interface must define:
 - How state is reset between tests.
 - Which backend behavior the hook validates.
 
-Failure-injection hooks must preserve the same public status and cleanup invariants as real backend failures. They must not escape their source-tree compile definition into installed targets.
+Failure-injection hooks must preserve the same public status and cleanup invariants as real backend failures. They must not escape their source-tree
+compile definition into installed targets.
 
 A library with approved hooks must document them in `docs/test_hooks.md`.
 
@@ -111,7 +128,8 @@ When adding a backend:
 
 ## Allowed exceptions
 
-A public API may expose platform-specific behavior only when the library is intentionally modeling a platform concept. In that case, the platform dependency must be documented in the public API guide, examples, package usage requirements, and compatibility notes.
+A public API may expose platform-specific behavior only when the library is intentionally modeling a platform concept. In that case, the platform
+dependency must be documented in the public API guide, examples, package usage requirements, and compatibility notes.
 
 Temporary backend limitations may be documented in troubleshooting or testing pages, but they must not silently weaken the public contract.
 

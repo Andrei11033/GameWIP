@@ -6,7 +6,6 @@
 #include "unicode/unicode.h"
 
 #include <algorithm>
-#include <cstring>
 #include <functional>
 #include <limits>
 #include <memory>
@@ -58,7 +57,8 @@ namespace GameWIP::IO
                 return makeStatus(Types::ErrorCode::Unknown);
             }
 
-            std::memcpy(destination.data() + oldSize, destination.data() + sourceOffset, sourceSize);
+            const std::span storage(destination);
+            std::ranges::copy(storage.subspan(sourceOffset, sourceSize), storage.subspan(oldSize, sourceSize).begin());
             return successStatus();
         }
     } // namespace
@@ -281,7 +281,17 @@ namespace GameWIP::IO
         const auto available = bytes_.size() - position_;
         const auto count = std::min(destination.size(), available);
 
-        std::memmove(destination.data(), bytes_.data() + position_, count);
+        const std::span source = bytes_.subspan(position_, count);
+        const std::span target = destination.first(count);
+        const std::less<const std::byte *> pointerLess;
+        if (pointerLess(source.data(), target.data()) && pointerLess(target.data(), std::to_address(source.end())))
+        {
+            std::ranges::copy_backward(source, target.end());
+        }
+        else
+        {
+            std::ranges::copy(source, target.begin());
+        }
         position_ += count;
 
         return {.status = {}, .bytesRead = count, .endOfStream = position_ == bytes_.size()};
@@ -402,7 +412,7 @@ namespace GameWIP::IO
             // rather than the input pointer, remains usable after storage moves.
             const std::byte *const inputBegin = bytes.data();
             const std::byte *const ownBegin = bytes_.data();
-            const std::byte *const ownEnd = ownBegin == nullptr ? nullptr : ownBegin + oldSize;
+            const std::byte *const ownEnd = ownBegin == nullptr ? nullptr : std::to_address(std::span{bytes_}.end());
             const std::less<const std::byte *> pointerLess;
 
             if (ownBegin != nullptr && !pointerLess(inputBegin, ownBegin) && pointerLess(inputBegin, ownEnd))
@@ -497,7 +507,7 @@ namespace GameWIP::IO
 
     std::span<const std::byte> MemoryWriter::bytes() const noexcept
     {
-        return std::span<const std::byte>(bytes_.data(), bytes_.size());
+        return bytes_;
     }
 
     Types::CopyTextResult MemoryWriter::copyText() const noexcept

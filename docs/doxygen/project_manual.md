@@ -17,6 +17,8 @@ each page can also be read on its own.
   dependencies, and build failures.
 - @subpage project_command_line_tools — Find every supported helper and
   executable command, option, default, and side effect.
+- @subpage project_tools — Maintain development-tool versions, providers,
+  persistent installations, and disposable helper storage.
 - @subpage project_game_executable — Follow argument handling, startup
   validation, runtime initialization, shutdown, and exit behavior.
 

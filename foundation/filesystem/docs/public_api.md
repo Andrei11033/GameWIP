@@ -11,7 +11,8 @@ Include `filesystem/filesystem.h`. Installed consumers link `GameWIP::FileSystem
 | `Types::Path` | Alias for `std::filesystem::path`; it is not a portable path-grammar abstraction. |
 | `Types::FileTime` | Alias for `std::chrono::system_clock::time_point`; native precision may be reduced. |
 
-`Types` keeps shared entry/path values at its root and groups the larger passive domains under `Types::File`, `Types::Directory`, and `Types::Lock`. The nested namespace supplies the domain context, so repeated `File`, `Directory`, and `Lock` words are omitted from member type names.
+`Types` keeps shared entry/path values at its root and groups the larger passive domains under `Types::File`, `Types::Directory`, and `Types::Lock`.
+The nested namespace supplies the domain context, so repeated `File`, `Directory`, and `Lock` words are omitted from member type names.
 
 ## Enum types
 
@@ -48,14 +49,16 @@ See @ref filesystem_file_open_modes and @ref filesystem_symlink_policies for ope
 - `Types::File::ReadOptions`: nested reader `open`, hard `maxBytes`, and transfer `bufferSize`.
 - `Types::File::WriteOptions`: `mode`, `share`, `symlinkPolicy`, `createParentDirectories`, `flushMode`.
 - `Types::File::AppendOptions`: `mode`, `share`, `symlinkPolicy`, `createParentDirectories`, `flushMode`.
-- `Types::File::AtomicWriteOptions`: `createParentDirectories`, `replaceMode`, `symlinkPolicy`, `flushMode`, `flushParentDirectory`, owning UTF-8 `temporaryNamePrefix`.
+- `Types::File::AtomicWriteOptions`: `createParentDirectories`, `replaceMode`, `symlinkPolicy`, `flushMode`, `flushParentDirectory`, owning UTF-8
+  `temporaryNamePrefix`.
 
 ### Queries, directories, copy, move, and removal
 
 - `EntryOptions`: entry query/metadata `symlinkPolicy`.
 - `Types::File::ResizeOptions`: resize/truncate `symlinkPolicy`.
 - `Types::Directory::CreateOptions`: `succeedIfAlreadyExists`, `symlinkPolicy`.
-- `Types::Directory::ListOptions`: `includeFiles`, `includeDirectories`, `includeSymlinks`, `includeOther`, `includeHidden`, child-metadata `symlinkPolicy`, and `maxEntries`.
+- `Types::Directory::ListOptions`: `includeFiles`, `includeDirectories`, `includeSymlinks`, `includeOther`, `includeHidden`, child-metadata
+  `symlinkPolicy`, and `maxEntries`.
 - `RemoveOptions`: `succeedIfMissing`, `symlinkPolicy`.
 - `Types::Directory::RemoveTreeOptions`: `succeedIfMissing`, initial-path `symlinkPolicy`, `maxEntries`.
 - `MoveOptions`: `replaceMode`, source `symlinkPolicy`, `createParentDirectories`.
@@ -77,13 +80,15 @@ Unknown enum values and invalid option combinations return `InvalidArgument`.
 - `Types::Directory::RemoveTreeResult`: `status`, completed `removedEntries`.
 - `Types::Lock::Result`: `status`, `outcome`, and active `lock` only when acquired.
 
-A failed status can coexist with meaningful progress for listing and tree removal. Payload values in ordinary query results are meaningful only when their status is successful.
+A failed status can coexist with meaningful progress for listing and tree removal. Payload values in ordinary query results are meaningful only when
+their status is successful.
 
 ## Resource owners
 
 ### `DirectoryCursor`
 
-Move-only, bounded-memory direct-child enumeration with `open()`, `isOpen()`, `next()`, and `close()`. Move assignment closes the destination cursor's previous enumeration. It applies `Types::Directory::ListOptions` without retaining accepted siblings.
+Move-only, bounded-memory direct-child enumeration with `open()`, `isOpen()`, `next()`, and `close()`. Move assignment closes the destination cursor's
+previous enumeration. It applies `Types::Directory::ListOptions` without retaining accepted siblings.
 
 ### `FileReader`
 
@@ -91,17 +96,21 @@ Read-only `IO::Reader` with `open()`, `isOpen()`, `canSeek()`, `read()`, `close(
 
 ### `FileWriter`
 
-Write-only `IO::Writer` with `open()`, `isOpen()`, `canSeek()`, `write()`, `flush()`, `close()`, `position()`, `size()`, `seek()`, and `tryLockExclusive()`. Append modes are non-seekable.
+Write-only `IO::Writer` with `open()`, `isOpen()`, `canSeek()`, `write()`, `flush()`, `close()`, `position()`, `size()`, `seek()`, and
+`tryLockExclusive()`. Append modes are non-seekable.
 
 ### `File`
 
-Read/write `IO::Reader` and `IO::Writer` with the common stream operations plus `access()`, `resize()`, and shared/exclusive lock acquisition. `access()` is meaningful only while open.
+Read/write `IO::Reader` and `IO::Writer` with the common stream operations plus `access()`, `resize()`, and shared/exclusive lock acquisition.
+`access()` is meaningful only while open.
 
 ### `FileLock`
 
-Move-only unlock owner with `isActive()`, `mode()`, and retryable `unlock()`. A lock owns independent native state and can remain active after the object from which it was acquired is destroyed.
+Move-only unlock owner with `isActive()`, `mode()`, and retryable `unlock()`. A lock owns independent native state and can remain active after the
+object from which it was acquired is destroyed.
 
-The file and lock owners are move-constructible, non-copyable, and deliberately not move-assignable. `DirectoryCursor` is move-constructible and move-assignable because replacing an enumeration cannot hide a flush, unlock, or close error. See @ref filesystem_file_open_modes.
+The file and lock owners are move-constructible, non-copyable, and deliberately not move-assignable. `DirectoryCursor` is move-constructible and
+move-assignable because replacing an enumeration cannot hide a flush, unlock, or close error. See @ref filesystem_file_open_modes.
 
 ## Whole-file operation families
 
@@ -110,7 +119,8 @@ The file and lock owners are move-constructible, non-copyable, and deliberately 
 - Append: span/vector `appendBytes()`, `appendText()`.
 - Atomic replacement: span/vector `writeAllBytesAtomic()`, `writeAllTextAtomic()`.
 
-The vector overloads forward to the corresponding span overload without changing semantics. See @ref filesystem_whole_file_io and @ref filesystem_atomic_write.
+The vector overloads forward to the corresponding span overload without changing semantics. See @ref filesystem_whole_file_io and @ref
+filesystem_atomic_write.
 
 ## Metadata and mutation families
 
@@ -142,14 +152,22 @@ See @ref filesystem_path_operations and @ref filesystem_unicode_paths.
 
 ## Failure, exceptions, blocking, and threading
 
-Every public FileSystem operation is `noexcept`. Allocation and standard-library exceptions arising inside an operation are translated to `OutOfMemory`, `EncodingFailed`, `InvalidArgument`, or `Unknown` according to the operation. Expected native failures use the portable IO error model and may include native diagnostic data. Diagnostic message creation is best-effort: if it cannot allocate, the portable and native codes are preserved with an empty message.
+Every public FileSystem operation is `noexcept`. Allocation and standard-library exceptions arising inside an operation are translated to
+`OutOfMemory`, `EncodingFailed`, `InvalidArgument`, or `Unknown` according to the operation. Expected native failures use the portable IO error model
+and may include native diagnostic data. Diagnostic message creation is best-effort: if it cannot allocate, the portable and native codes are preserved
+with an empty message.
 
-Caller-side construction of `std::filesystem::path`, owning strings, options, or other arguments occurs before function entry and is not contained by the FileSystem `noexcept` boundary.
+Caller-side construction of `std::filesystem::path`, owning strings, options, or other arguments occurs before function entry and is not contained by
+the FileSystem `noexcept` boundary.
 
-Operations may block on storage, sharing, locks, metadata, traversal, or flush work. Different handle objects and free operations may be called concurrently. The same handle or lock object is not internally synchronized. Current-directory mutation remains process-wide.
+Operations may block on storage, sharing, locks, metadata, traversal, or flush work. Different handle objects and free operations may be called
+concurrently. The same handle or lock object is not internally synchronized. Current-directory mutation remains process-wide.
 
 ## Package and binary boundary
 
-FileSystem is a static library. Its installed package exports `GameWIP::FileSystem`, installs `filesystem/filesystem.h`, and resolves the exact matching IO and Unicode packages. IO remains the public API dependency; Unicode is used internally for FileSystem-owned text/native trust boundaries. FileSystem has no generated export header.
+FileSystem is a static library. Its installed package exports `GameWIP::FileSystem`, installs `filesystem/filesystem.h`, and resolves the exact
+matching IO and Unicode packages. IO remains the public API dependency; Unicode is used internally for FileSystem-owned text/native trust boundaries.
+FileSystem has no generated export header.
 
-Public inheritance from IO interfaces and exposure of standard-library types require compatible compiler, standard-library, runtime, and build settings. Internal declarations under `filesystem/internal` and platform code are not installed API.
+Public inheritance from IO interfaces and exposure of standard-library types require compatible compiler, standard-library, runtime, and build
+settings. Internal declarations under `filesystem/internal` and platform code are not installed API.

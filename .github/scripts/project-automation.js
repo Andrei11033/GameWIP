@@ -1,3 +1,5 @@
+// Repository-owned GitHub project state/reconciliation policy and dependency handling.
+
 'use strict';
 
 const STATUS = Object.freeze({
@@ -9,7 +11,8 @@ const STATUS = Object.freeze({
     DONE: 'Done',
 });
 
-const REQUIRED_LABEL_PREFIXES = Object.freeze(['area:', 'type:', 'priority:']);
+const PRIMARY_LABEL_PREFIXES = Object.freeze(['area:', 'type:', 'priority:']);
+const CANONICAL_TYPE_LABELS = new Set(['type:bug', 'type:feature', 'type:task', 'type:decision', 'type:release']);
 const PRIORITY_ORDER = Object.freeze({
     'priority:high': 3,
     'priority:normal': 2,
@@ -17,7 +20,13 @@ const PRIORITY_ORDER = Object.freeze({
 });
 
 function hasRequiredLabels(labels) {
-    return REQUIRED_LABEL_PREFIXES.every((prefix) => labels.some((label) => label.startsWith(prefix)));
+    const labelsByPrefix = Object.fromEntries(PRIMARY_LABEL_PREFIXES.map((prefix) => [prefix, labels.filter((label) => label.startsWith(prefix))]));
+    return (
+        PRIMARY_LABEL_PREFIXES.every((prefix) => labelsByPrefix[prefix].length === 1) &&
+        /^area:[a-z0-9]+(?:-[a-z0-9]+)*$/.test(labelsByPrefix['area:'][0]) &&
+        CANONICAL_TYPE_LABELS.has(labelsByPrefix['type:'][0]) &&
+        Object.hasOwn(PRIORITY_ORDER, labelsByPrefix['priority:'][0])
+    );
 }
 
 function deriveIssueStatus(issue, activeMilestone) {
@@ -29,9 +38,7 @@ function deriveIssueStatus(issue, activeMilestone) {
     }
 
     const openPullRequests = issue.linkedPullRequests.filter((pullRequest) => pullRequest.state === 'OPEN');
-    const reviewablePullRequest = openPullRequests.some(
-        (pullRequest) => !pullRequest.isDraft && pullRequest.reviewDecision !== 'CHANGES_REQUESTED',
-    );
+    const reviewablePullRequest = openPullRequests.some((pullRequest) => !pullRequest.isDraft && pullRequest.reviewDecision !== 'CHANGES_REQUESTED');
     if (reviewablePullRequest) {
         return STATUS.REVIEW;
     }
@@ -55,17 +62,25 @@ function derivePullRequestStatus(pullRequest) {
 }
 
 function mergeLinkedIssueMetadata(linkedIssues, author) {
-    const labels = new Set();
+    const areas = new Set();
+    const types = new Set();
     const priorities = new Set();
+    let compatibilityBreaking = false;
     const assignees = new Set();
     const milestones = new Map();
 
     for (const issue of linkedIssues) {
         for (const label of issue.labels) {
             if (label.startsWith('priority:')) {
-                priorities.add(label);
-            } else if (label.startsWith('area:') || label.startsWith('type:')) {
-                labels.add(label);
+                if (Object.hasOwn(PRIORITY_ORDER, label)) {
+                    priorities.add(label);
+                }
+            } else if (label.startsWith('area:')) {
+                areas.add(label);
+            } else if (CANONICAL_TYPE_LABELS.has(label)) {
+                types.add(label);
+            } else if (label === 'compat:breaking') {
+                compatibilityBreaking = true;
             }
         }
         for (const assignee of issue.assignees) {
@@ -76,22 +91,56 @@ function mergeLinkedIssueMetadata(linkedIssues, author) {
         }
     }
 
-    const selectedPriority = [...priorities].sort(
-        (left, right) => (PRIORITY_ORDER[right] ?? 0) - (PRIORITY_ORDER[left] ?? 0),
-    )[0];
+    const labels = [];
+    if (areas.size === 1) {
+        labels.push([...areas][0]);
+    }
+    if (types.size === 1) {
+        labels.push([...types][0]);
+    }
+    const selectedPriority = [...priorities].sort((left, right) => PRIORITY_ORDER[right] - PRIORITY_ORDER[left])[0];
     if (selectedPriority !== undefined) {
-        labels.add(selectedPriority);
+        labels.push(selectedPriority);
+    }
+    if (compatibilityBreaking) {
+        labels.push('compat:breaking');
     }
     if (assignees.size === 0 && author) {
         assignees.add(author);
     }
 
     return {
-        labels: [...labels].sort(),
+        labels: labels.sort(),
         assignees: [...assignees].sort(),
+        areaConflict: areas.size > 1 ? [...areas].sort() : [],
+        typeConflict: types.size > 1 ? [...types].sort() : [],
         milestone: milestones.size === 1 ? [...milestones.values()][0] : null,
         milestoneConflict: milestones.size > 1 ? [...milestones.values()].map((milestone) => milestone.title).sort() : [],
     };
+}
+
+function planPullRequestLabelAdditions(existingLabels, inheritedLabels) {
+    const labelsToAdd = [];
+    const duplicateDimensions = [];
+    const differingDimensions = [];
+
+    for (const prefix of PRIMARY_LABEL_PREFIXES) {
+        const existing = existingLabels.filter((label) => label.startsWith(prefix));
+        const inherited = inheritedLabels.filter((label) => label.startsWith(prefix));
+        if (existing.length > 1) {
+            duplicateDimensions.push({ prefix, labels: existing.sort() });
+        } else if (existing.length === 0 && inherited.length === 1) {
+            labelsToAdd.push(inherited[0]);
+        } else if (existing.length === 1 && inherited.length === 1 && existing[0] !== inherited[0]) {
+            differingDimensions.push({ prefix, existing: existing[0], inherited: inherited[0] });
+        }
+    }
+
+    if (inheritedLabels.includes('compat:breaking') && !existingLabels.includes('compat:breaking')) {
+        labelsToAdd.push('compat:breaking');
+    }
+
+    return { labelsToAdd: labelsToAdd.sort(), duplicateDimensions, differingDimensions };
 }
 
 function splitRepository(nameWithOwner) {
@@ -99,11 +148,11 @@ function splitRepository(nameWithOwner) {
     if (!owner || !repository) {
         throw new Error(`Invalid repository name: ${nameWithOwner}`);
     }
-    return {owner, repository};
+    return { owner, repository };
 }
 
 class ProjectAutomation {
-    constructor({github, core, config}) {
+    constructor({ github, core, config }) {
         this.github = github;
         this.core = core;
         this.config = config;
@@ -130,7 +179,7 @@ class ProjectAutomation {
                     }
                 }
             }`,
-            {owner: this.config.projectOwner, number: this.config.projectNumber},
+            { owner: this.config.projectOwner, number: this.config.projectNumber },
         );
 
         const project = result.user?.projectV2;
@@ -167,7 +216,7 @@ class ProjectAutomation {
                     item { id }
                 }
             }`,
-            {project: this.project.id, content: contentId},
+            { project: this.project.id, content: contentId },
         );
         return result.addProjectV2ItemById.item.id;
     }
@@ -194,7 +243,7 @@ class ProjectAutomation {
                 },
             );
         }
-        this.records.push({item: displayName, status, reason});
+        this.records.push({ item: displayName, status, reason });
         this.core.info(`${displayName} -> ${status}: ${reason}`);
     }
 
@@ -215,7 +264,7 @@ class ProjectAutomation {
                     }
                 }
             }`,
-            {owner, repository, number},
+            { owner, repository, number },
         );
         const issue = result.repository?.issue;
         if (!issue) {
@@ -259,7 +308,7 @@ class ProjectAutomation {
                     }
                 }
             }`,
-            {owner, repository, number},
+            { owner, repository, number },
         );
         const pullRequest = result.repository?.pullRequest;
         if (!pullRequest) {
@@ -287,31 +336,44 @@ class ProjectAutomation {
     }
 
     async getIssueDependencies(owner, repository, number, relationship) {
-        const response = await this.github.request(
-            `GET /repos/{owner}/{repo}/issues/{issue_number}/dependencies/${relationship}`,
-            {
-                owner,
-                repo: repository,
-                issue_number: number,
-                per_page: 100,
-                headers: {'X-GitHub-Api-Version': '2026-03-10'},
-            },
-        );
+        const response = await this.github.request(`GET /repos/{owner}/{repo}/issues/{issue_number}/dependencies/${relationship}`, {
+            owner,
+            repo: repository,
+            issue_number: number,
+            per_page: 100,
+            headers: { 'X-GitHub-Api-Version': '2026-03-10' },
+        });
         return response.data;
     }
 
     async synchronizePullRequestMetadata(owner, repository, pullRequest) {
         const inherited = mergeLinkedIssueMetadata(pullRequest.linkedIssues, pullRequest.author);
-        const existingLabels = new Set(pullRequest.labels);
-        const labelsToAdd = inherited.labels.filter((label) => !existingLabels.has(label));
+        const labelPlan = planPullRequestLabelAdditions(pullRequest.labels, inherited.labels);
 
-        if (labelsToAdd.length > 0 && !this.config.dryRun) {
+        if (labelPlan.labelsToAdd.length > 0 && !this.config.dryRun) {
             await this.github.rest.issues.addLabels({
                 owner,
                 repo: repository,
                 issue_number: pullRequest.number,
-                labels: labelsToAdd,
+                labels: labelPlan.labelsToAdd,
             });
+        }
+
+        for (const conflict of [
+            ['areas', inherited.areaConflict],
+            ['types', inherited.typeConflict],
+        ]) {
+            if (conflict[1].length > 0) {
+                this.core.warning(`PR #${pullRequest.number} links issues with conflicting ${conflict[0]}: ${conflict[1].join(', ')}.`);
+            }
+        }
+        for (const duplicate of labelPlan.duplicateDimensions) {
+            this.core.warning(`PR #${pullRequest.number} has duplicate ${duplicate.prefix} metadata: ${duplicate.labels.join(', ')}.`);
+        }
+        for (const differing of labelPlan.differingDimensions) {
+            this.core.warning(
+                `PR #${pullRequest.number} keeps '${differing.existing}' instead of inheriting '${differing.inherited}' for ${differing.prefix} metadata.`,
+            );
         }
 
         const existingAssignees = new Set(pullRequest.assignees);
@@ -335,55 +397,58 @@ class ProjectAutomation {
         }
 
         if (inherited.milestoneConflict.length > 0) {
-            this.core.warning(
-                `PR #${pullRequest.number} links issues with conflicting milestones: ${inherited.milestoneConflict.join(', ')}.`,
-            );
-        } else if (
-            inherited.milestone !== null &&
-            pullRequest.milestone !== null &&
-            inherited.milestone.number !== pullRequest.milestone.number
-        ) {
+            this.core.warning(`PR #${pullRequest.number} links issues with conflicting milestones: ${inherited.milestoneConflict.join(', ')}.`);
+        } else if (inherited.milestone !== null && pullRequest.milestone !== null && inherited.milestone.number !== pullRequest.milestone.number) {
             this.core.warning(
                 `PR #${pullRequest.number} keeps its existing milestone '${pullRequest.milestone.title}' instead of replacing it with '${inherited.milestone.title}'.`,
             );
         }
     }
 
-    async reconcileIssue(owner, repository, number, {synchronizePullRequests = true} = {}) {
+    async reconcileIssue(owner, repository, number, { synchronizePullRequests = true } = {}) {
         const issue = await this.getIssue(owner, repository, number);
         const blockers = await this.getIssueDependencies(owner, repository, number, 'blocked_by');
         const openBlockers = blockers.filter((blocker) => blocker.state === 'open');
-        const status = deriveIssueStatus({...issue, openBlockerCount: openBlockers.length}, this.config.activeMilestone);
+        const status = deriveIssueStatus({ ...issue, openBlockerCount: openBlockers.length }, this.config.activeMilestone);
 
         let reason = 'not yet ready for the active milestone';
-        if (status === STATUS.DONE) reason = 'issue is closed';
-        else if (status === STATUS.BLOCKED) reason = `${openBlockers.length} blocking issue(s) remain open`;
-        else if (status === STATUS.REVIEW) reason = 'a linked pull request is ready for review';
-        else if (status === STATUS.IN_PROGRESS) reason = 'the issue is assigned or has an active draft pull request';
-        else if (status === STATUS.READY) reason = 'active milestone metadata is complete and no blockers remain';
+        if (status === STATUS.DONE) {
+            reason = 'issue is closed';
+        } else if (status === STATUS.BLOCKED) {
+            reason = `${openBlockers.length} blocking issue(s) remain open`;
+        } else if (status === STATUS.REVIEW) {
+            reason = 'a linked pull request is ready for review';
+        } else if (status === STATUS.IN_PROGRESS) {
+            reason = 'the issue is assigned or has an active draft pull request';
+        } else if (status === STATUS.READY) {
+            reason = 'active milestone metadata is complete and no blockers remain';
+        }
 
         await this.setStatus(issue.id, `Issue #${number}`, status, reason);
 
         if (synchronizePullRequests) {
             for (const pullRequest of issue.linkedPullRequests.filter((candidate) => candidate.state === 'OPEN')) {
-                await this.reconcilePullRequest(owner, repository, pullRequest.number, {synchronizeIssues: false});
+                await this.reconcilePullRequest(owner, repository, pullRequest.number, { synchronizeIssues: false });
             }
         }
     }
 
-    async reconcilePullRequest(owner, repository, number, {synchronizeIssues = true} = {}) {
+    async reconcilePullRequest(owner, repository, number, { synchronizeIssues = true } = {}) {
         const pullRequest = await this.getPullRequest(owner, repository, number);
         await this.synchronizePullRequestMetadata(owner, repository, pullRequest);
 
         const status = derivePullRequestStatus(pullRequest);
         let reason = 'pull request is ready for review';
-        if (status === STATUS.DONE) reason = 'pull request is closed or merged';
-        else if (status === STATUS.IN_PROGRESS) reason = 'pull request is draft or has requested changes';
+        if (status === STATUS.DONE) {
+            reason = 'pull request is closed or merged';
+        } else if (status === STATUS.IN_PROGRESS) {
+            reason = 'pull request is draft or has requested changes';
+        }
         await this.setStatus(pullRequest.id, `PR #${number}`, status, reason);
 
         if (synchronizeIssues) {
             for (const issue of pullRequest.linkedIssues) {
-                await this.reconcileIssue(owner, repository, issue.number, {synchronizePullRequests: false});
+                await this.reconcileIssue(owner, repository, issue.number, { synchronizePullRequests: false });
             }
         }
     }
@@ -416,7 +481,7 @@ class ProjectAutomation {
                         }
                     }
                 }`,
-                {project: this.project.id, cursor},
+                { project: this.project.id, cursor },
             );
             const page = result.node.items;
             items.push(...page.nodes.map((node) => node.content).filter(Boolean));
@@ -431,11 +496,11 @@ class ProjectAutomation {
             if (item.repository.nameWithOwner !== this.config.repository) {
                 continue;
             }
-            const {owner, repository} = splitRepository(item.repository.nameWithOwner);
+            const { owner, repository } = splitRepository(item.repository.nameWithOwner);
             if (item.__typename === 'Issue') {
-                await this.reconcileIssue(owner, repository, item.number, {synchronizePullRequests: false});
+                await this.reconcileIssue(owner, repository, item.number, { synchronizePullRequests: false });
             } else if (item.__typename === 'PullRequest') {
-                await this.reconcilePullRequest(owner, repository, item.number, {synchronizeIssues: false});
+                await this.reconcilePullRequest(owner, repository, item.number, { synchronizeIssues: false });
             }
         }
     }
@@ -474,12 +539,12 @@ function isPullRequestIssueEvent(context) {
     return context.eventName === 'issues' && Boolean(context.payload.issue?.pull_request);
 }
 
-async function run({github, context, core, environment = process.env}) {
+async function run({ github, context, core, environment = process.env }) {
     const config = readConfig(context, environment);
-    const automation = new ProjectAutomation({github, core, config});
+    const automation = new ProjectAutomation({ github, core, config });
     await automation.initialize();
 
-    const {owner, repository} = splitRepository(config.repository);
+    const { owner, repository } = splitRepository(config.repository);
     if (context.eventName === 'issues') {
         const number = context.payload.issue.number;
         if (isPullRequestIssueEvent(context)) {
@@ -515,6 +580,7 @@ module.exports = {
     hasRequiredLabels,
     isPullRequestIssueEvent,
     mergeLinkedIssueMetadata,
+    planPullRequestLabelAdditions,
     readConfig,
     run,
     splitRepository,

@@ -3,6 +3,7 @@
 
 #include "validation/tests/assert/assert_test.h"
 
+#include "validation/process_arguments.h"
 #include "validation/tests/registry.h"
 
 #include <algorithm>
@@ -20,9 +21,10 @@ namespace
             "--assert-test-child=interactive-abort",
             "--assert-test-child=interactive-break",
         };
-        for (int index = 1; index < argc; ++index)
+        const auto arguments = GameWIP::Validation::processArguments(argc, argv);
+        for (char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
         {
-            if (argv[index] != nullptr && std::ranges::find(selectors, std::string_view(argv[index])) != std::end(selectors))
+            if (value != nullptr && std::ranges::find(selectors, std::string_view(value)) != std::end(selectors))
             {
                 return true;
             }

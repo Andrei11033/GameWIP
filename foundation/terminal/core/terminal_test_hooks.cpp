@@ -5,7 +5,8 @@
 #include "terminal/internal/terminal_platform.h"
 
 #if TERMINAL_INTERNAL_TEST_HOOKS
-#include <cstring>
+#include <algorithm>
+#include <cstddef>
 
 namespace GameWIP::Terminal::Detail::TestHooks
 {
@@ -115,11 +116,14 @@ namespace GameWIP::Terminal::Detail::TestHooks
         terminalTestHookState.nextTextWriteBlock.condition.notify_all();
     }
 
-    void forceFailure(HookFailure &failure, IO::Types::ErrorCode code) noexcept
+    namespace
     {
-        failure.code.store(static_cast<int>(code), std::memory_order_release);
-        failure.enabled.store(true, std::memory_order_release);
-    }
+        void forceFailure(HookFailure &failure, IO::Types::ErrorCode code) noexcept
+        {
+            failure.code.store(static_cast<int>(code), std::memory_order_release);
+            failure.enabled.store(true, std::memory_order_release);
+        }
+    } // namespace
 } // namespace GameWIP::Terminal::Detail::TestHooks
 
 namespace GameWIP::Terminal::TestHooks
@@ -320,7 +324,13 @@ namespace GameWIP::Terminal::TestHooks
         std::string text(bytes.size(), '\0');
         if (!bytes.empty())
         {
-            std::memcpy(text.data(), bytes.data(), bytes.size());
+            std::ranges::transform(
+                bytes,
+                text.begin(),
+                [](std::byte byte)
+                {
+                    return std::to_integer<char>(byte);
+                });
         }
         return text;
     }
@@ -419,9 +429,9 @@ namespace GameWIP::Terminal::TestHooks
         return block.condition.wait_for(
             lock,
             timeout,
-            [&block]
+            []
             {
-                return block.reached;
+                return terminalTestHookState.nextReadBlock.reached;
             });
     }
 
@@ -456,9 +466,9 @@ namespace GameWIP::Terminal::TestHooks
         return block.condition.wait_for(
             lock,
             timeout,
-            [&block]
+            []
             {
-                return block.reached;
+                return terminalTestHookState.nextTextWriteBlock.reached;
             });
     }
 

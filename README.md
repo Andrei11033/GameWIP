@@ -1,6 +1,7 @@
 # GameWIP
 
-[![Latest release](https://img.shields.io/github/v/release/Andrei11033/GameWIP?display_name=tag&sort=semver)](https://github.com/Andrei11033/GameWIP/releases/latest)
+[![Latest
+release](https://img.shields.io/github/v/release/Andrei11033/GameWIP?display_name=tag&sort=semver)](https://github.com/Andrei11033/GameWIP/releases/latest)
 [![Validation](https://github.com/Andrei11033/GameWIP/actions/workflows/validation.yml/badge.svg?branch=master)](https://github.com/Andrei11033/GameWIP/actions/workflows/validation.yml)
 [![Documentation](https://github.com/Andrei11033/GameWIP/actions/workflows/docs.yml/badge.svg?branch=master)](https://andrei11033.github.io/GameWIP/)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
@@ -59,7 +60,7 @@ every supported setup, project-helper, game, test, and benchmark command.
 
 ## Quick start
 
-Configure, build, and run the development preset with tools:
+Configure, build, and run the development preset:
 
 ```powershell
 cmake --preset dev
@@ -68,7 +69,7 @@ cmake --build --preset dev
 .\build\dev\GameWIP.exe
 ```
 
-Use `dev-no-tools` to verify that the runtime does not depend on optional development tooling. Both development presets compile embedded tests but run them only when explicitly requested with `GameWIP.exe --startup-tests`.
+The development preset compiles embedded tests but runs them only when explicitly requested with `GameWIP.exe --startup-tests`.
 
 ## Validation
 
@@ -93,7 +94,8 @@ cmake --preset analyze
 cmake --build --preset analyze
 ```
 
-Repository script, Markdown-link, workflow, and documentation checks are documented in [Static analysis and repository checks](docs/doxygen/static_analysis.md).
+Repository script, Markdown-link, workflow, and documentation checks are documented in [Static analysis and repository
+checks](docs/doxygen/static_analysis.md).
 
 Run the AddressSanitizer workflow from an MSYS2 CLANG64 environment:
 
@@ -111,11 +113,11 @@ Build and run optimized benchmarks through the project helper:
 ```
 
 The helper retains JSON results, logs, and run metadata under
-`build/tool-runs/<timestamp>_benchmark-run/`. Validate registration without
+`build/gamewip/runs/<timestamp>_benchmark-run/`. Validate registration without
 collecting timings with:
 
 ```powershell
-.\gamewip.bat benchmark -BenchmarkAction dry-run
+.\gamewip.bat benchmark dry-run
 ```
 
 The generated project manual documents the full validation, testing, static-analysis, coverage, profiling, and benchmarking workflows.
@@ -133,7 +135,7 @@ checkout:
 ```powershell
 cmake --preset profile
 cmake --build --preset profile
-Start-Process .\.tracy\tracy-profiler.exe
+Start-Process 'C:\MSYS2\GameWIPTools\tools\tracy\tracy-profiler.exe'
 .\build\profile\GameWIP.exe
 ```
 
@@ -147,7 +149,8 @@ The profiling guide in the generated documentation explains marker ownership, ca
 
 ## Release build
 
-The release preset enables supported whole-program optimization and excludes validation, benchmarks, assertions, Tracy, and development tools from the game executable:
+The release preset enables supported whole-program optimization and excludes validation, benchmarks, assertions, Tracy, and development tools from the
+game executable:
 
 ```powershell
 cmake --preset release
@@ -209,7 +212,8 @@ docs/         Product direction, roadmap, decisions, versioning, and contributor
 docs/doxygen/ Generated developer-manual pages and documentation infrastructure.
 ```
 
-Root `README.md`, `CONTRIBUTING.md`, and `SECURITY.md` are short repository entry points. The generated manual and `docs/` pages contain the detailed developer documentation.
+Root `README.md`, `CONTRIBUTING.md`, and `SECURITY.md` are short repository entry points. The generated manual and `docs/` pages contain the detailed
+developer documentation.
 
 ## License
 

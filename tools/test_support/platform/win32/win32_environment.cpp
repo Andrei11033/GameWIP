@@ -3,6 +3,7 @@
 
 #include "test_support/internal/test_support_platform.h"
 #include "test_support/internal/test_support_test_hooks.h"
+#include "unicode/unicode.h"
 
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
@@ -13,10 +14,10 @@
 #include <windows.h>
 
 #include <cstdlib>
-#include <limits>
 #include <new>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 namespace
 {
@@ -33,26 +34,32 @@ namespace
         {
             return {};
         }
-        if (text.size() > static_cast<std::size_t>((std::numeric_limits<int>::max)()))
-        {
-            throw std::length_error("Environment text exceeds the Win32 conversion limit");
-        }
         if (text.find('\0') != std::string_view::npos)
         {
             throw std::invalid_argument("Environment text contains an embedded null");
         }
 
-        const int inputSize = static_cast<int>(text.size());
-        const int wideSize = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, text.data(), inputSize, nullptr, 0);
-        if (wideSize <= 0)
+        const auto measurement = GameWIP::Unicode::Utf8::measureToUtf16(text);
+        if (measurement.outcome == GameWIP::Unicode::Types::MeasureOutcome::SizeLimitExceeded)
+        {
+            throw std::length_error("Environment text exceeds the Unicode conversion limit");
+        }
+        if (measurement.outcome != GameWIP::Unicode::Types::MeasureOutcome::Measured)
         {
             throw std::invalid_argument("Environment text is not valid UTF-8");
         }
 
-        std::wstring output(static_cast<std::size_t>(wideSize), L'\0');
-        if (MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, text.data(), inputSize, output.data(), wideSize) != wideSize)
+        std::vector<char16_t> converted(measurement.requiredCodeUnits);
+        const auto conversion = GameWIP::Unicode::Utf8::convertToUtf16(text, converted);
+        if (conversion.outcome != GameWIP::Unicode::Types::ConversionOutcome::Converted)
         {
-            throw std::runtime_error("Win32 environment text conversion failed");
+            throw std::runtime_error("Unicode environment text conversion failed");
+        }
+
+        std::wstring output(conversion.codeUnitsWritten, L'\0');
+        for (std::size_t index = 0; index < conversion.codeUnitsWritten; ++index)
+        {
+            output[index] = static_cast<wchar_t>(converted[index]);
         }
         return output;
     }
@@ -63,22 +70,27 @@ namespace
         {
             return {};
         }
-        if (text.size() > static_cast<std::size_t>((std::numeric_limits<int>::max)()))
+        std::vector<char16_t> source(text.size());
+        for (std::size_t index = 0; index < text.size(); ++index)
         {
-            throw std::length_error("Environment value exceeds the UTF-8 conversion limit");
+            source[index] = static_cast<char16_t>(text[index]);
         }
 
-        const int inputSize = static_cast<int>(text.size());
-        const int utf8Size = WideCharToMultiByte(CP_UTF8, 0, text.data(), inputSize, nullptr, 0, nullptr, nullptr);
-        if (utf8Size <= 0)
+        const auto measurement = GameWIP::Unicode::Utf16::measureToUtf8(source);
+        if (measurement.outcome == GameWIP::Unicode::Types::MeasureOutcome::SizeLimitExceeded)
         {
-            throw std::runtime_error("Win32 environment value conversion failed");
+            throw std::length_error("Environment value exceeds the Unicode conversion limit");
+        }
+        if (measurement.outcome != GameWIP::Unicode::Types::MeasureOutcome::Measured)
+        {
+            throw std::runtime_error("Environment value is not valid UTF-16");
         }
 
-        std::string output(static_cast<std::size_t>(utf8Size), '\0');
-        if (WideCharToMultiByte(CP_UTF8, 0, text.data(), inputSize, output.data(), utf8Size, nullptr, nullptr) != utf8Size)
+        std::string output(measurement.requiredBytes, '\0');
+        const auto conversion = GameWIP::Unicode::Utf16::convertToUtf8(source, output);
+        if (conversion.outcome != GameWIP::Unicode::Types::ConversionOutcome::Converted)
         {
-            throw std::runtime_error("Win32 environment value conversion failed");
+            throw std::runtime_error("Unicode environment value conversion failed");
         }
         return output;
     }

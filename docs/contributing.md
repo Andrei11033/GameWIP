@@ -5,9 +5,9 @@ issue, work on a focused branch, show what you validated, and merge through a
 reviewed pull request. The surrounding automation exists to keep that path
 predictable, not to replace human judgment.
 
-For implementation checklists, use @ref project_extending. Durable technical
-choices belong in @ref project_decisions, and release-number rules belong in
-@ref project_versioning.
+For library extension requirements, use @ref project_extending. Durable
+technical choices belong in @ref project_decisions, and release-number rules
+belong in @ref project_versioning.
 
 ## The contribution path
 
@@ -36,12 +36,17 @@ Keep `master` readable and releasable. Normal feature work should happen on a sh
 
 Create an issue for work that is not a tiny local cleanup.
 
-GitHub issues are the active task tracker for implementation work, validation work, bugs, and follow-up cleanup. The roadmap defines milestone completion criteria; issues define the work items used to satisfy those criteria.
+GitHub issues are the active task tracker for implementation work, validation work, bugs, and follow-up cleanup. The roadmap defines milestone
+completion criteria; issues define the work items used to satisfy those criteria.
 
-Issue titles use the same compact style as commit and pull-request titles:
+Issue titles use a work-type prefix:
 
 ```text
-type: imperative summary
+bug: ...
+feature: ...
+task: ...
+decision: ...
+release: ...
 ```
 
 Examples:
@@ -50,44 +55,63 @@ Examples:
 feature: add filesystem directory watcher
 bug: fix metadata copy on read-only files
 task: document GitHub merge workflow
-docs: add FileSystem troubleshooting example
-build: add default-branch validation workflow
+decision: choose the R02 scalar policy
+release: publish R01
 ```
 
 Use labels consistently:
 
 ```text
-area:*       The main affected system.
-type:*       The kind of work.
+type:*       The work kind.
+area:*       The primary affected area.
 priority:*   The scheduling priority.
+compat:breaking   An optional intentional compatibility-contract change.
 ```
 
-Prefer one main `area:*` label and one main `type:*` label. Add extra labels only when they clarify ownership or review.
+Every normal issue has exactly one `type:*`, one `area:*`, and one
+`priority:*` label. `compat:breaking` is optional when the work intentionally
+changes a public API, package, save, network, configuration, content, or other
+compatibility contract. Do not add another metadata dimension for status,
+phase, release, blockers, platform, size, or risk.
 
-Assign an issue when work starts. Project automation then moves it to `In Progress`; future ideas remain in Backlog, while fully triaged work in the active milestone becomes Ready.
+A GitHub milestone means the issue is deliberately targeted to that concrete
+release. A capability slice does not automatically receive a milestone, and a
+useful future issue may remain in Backlog without one.
 
-Use GitHub's **Blocked by** relationship for real dependencies. Do not use the Blocked status as a general priority or waiting label.
+Assign an issue when work starts. Project automation then moves it to `In Progress`; future ideas remain in Backlog, while fully triaged work in the
+active milestone becomes Ready.
+
+Use GitHub's **Blocked by** relationship for hard dependencies. Describe
+preferred sequencing that is not a hard blocker in the issue or roadmap. Do
+not use a label to represent blocker state.
 
 ## Keep the branch focused
 
-Branch names should describe the work without encoding implementation history.
+Issue-backed branch names should connect the focused work to its tracking
+issue.
 
 Preferred format:
 
 ```text
-area/short-summary
+<area>/<issue-number>-<short-summary>
 ```
 
 Examples:
 
 ```text
-filesystem/directory-watcher
-github/workflow-standards
-docs/filesystem-troubleshooting
-build/main-validation
+tools/72-wsl-linux-validation
+roadmap/73-capability-slice-planning
+filesystem/123-directory-watcher
+github/124-project-metadata
 ```
 
-Keep branches focused. If the branch starts solving unrelated problems, split the extra work into a new issue and branch.
+The existing `refactor/repository-standardization` branch is grandfathered.
+Tiny work that repository policy permits without an issue may use
+`<area>/<short-summary>`. This is a preferred convention, not a branch-name CI
+gate.
+
+Keep branches focused. If a branch starts solving unrelated problems, split
+the extra work into a new issue and branch.
 
 ## Contribution licensing
 
@@ -116,6 +140,9 @@ The pull request title should normally be the squash commit title:
 area: imperative summary
 ```
 
+This is a primary-area prefix, unlike an issue title's work-type prefix. The
+standalone squash subject omits GitHub's generated `(#123)` suffix.
+
 The pull request body should include:
 
 - What changed.
@@ -137,15 +164,16 @@ The workflow enforces:
 - Non-empty summary and validation notes.
 - A linked issue such as `Closes #123`, or an explicit `No linked issue: reason`.
 - A concrete merge-message title.
-- At least one `area:*`, one `type:*`, and one `priority:*` label.
+- Exactly one `area:*`, one canonical `type:*`, and one canonical `priority:*` label.
+- No unsupported `compat:*` label; optional `compat:breaking` is allowed.
 
 Draft pull requests may be incomplete while work is still moving.
 
 Dependabot pull requests are exempt from the human metadata check, but they still run the normal validation workflow.
 
-## Record what the change actually proved
+## Record concrete validation evidence
 
-Validation notes should be concrete enough that a future maintainer understands what was actually proven.
+Validation notes should be concrete enough that a future maintainer understands which behavior was verified.
 
 Good examples:
 
@@ -174,15 +202,17 @@ It performs:
 
 - MSYS2 UCRT64 configure, build, non-package CTest contracts, and modular correctness tests with internal test hooks enabled.
 - MSYS2 CLANG64 AddressSanitizer configure, build, and test, including instrumented package consumers.
-- Ordinary installed-package validation with the single supported CMake line across Ninja and Ninja Multi-Config consumers.
+- Ordinary installed-package validation with CMake `4.4.2` or newer across Ninja and Ninja Multi-Config consumers.
 - GCC coverage configure, test, instrumented package-consumer validation, and report generation.
 - Google Benchmark registration dry run without performance thresholds.
-- Doxygen documentation build with `GAMEWIP_BUILD_DOCS=ON`.
-- Doxygen warning-log check.
-- clang-tidy and clang-format checks for maintained C++ code.
-- JavaScript syntax and unit tests, Python maintenance-script syntax checks,
-  JSON parsing, local Markdown link validation, immutable Action pins, workflow
-  timeouts and permissions, public repository files, and actionlint validation.
+- Doxygen documentation build with `GAMEWIP_BUILD_DOCS=ON` and an empty warning log.
+- The complete repository quality gate: clang-format/clang-tidy, Ruff,
+    PSScriptAnalyzer, ESLint, Prettier, Gersemi, yamllint, markdownlint-cli2,
+    actionlint, JSON Schema/semantic checks, repository standards, documentation
+    standards, and local Markdown links over maintained first-party files.
+- JavaScript policy/unit tests and PowerShell helper regression tests.
+- Immutable Action pins, workflow timeouts/permissions, trusted
+    `pull_request_target` policy boundaries, and required public repository files.
 
 The `Doxygen Docs` workflow publishes the retained documentation artifact only
 after the complete `Validation` workflow succeeds on a `master` push. This
@@ -209,9 +239,15 @@ checklist are documented in @ref project_repository_maintenance.
 
 ## Project automation
 
-Use a closing keyword such as `Closes #6` in the pull request body. The project workflow uses that relationship to copy issue labels, assignees, and a non-conflicting milestone to the pull request, then moves both items through In Progress, Review, and Done.
+Use a closing keyword such as `Closes #6` in the pull request body. When a PR
+lacks a primary dimension, project automation inherits one agreed area or type
+from linked issues and selects their highest priority. Existing valid PR
+primary metadata wins. Conflicting linked areas, types, or milestones are
+reported instead of creating duplicate primary metadata. Assignees and
+optional `compat:breaking` are also synchronized.
 
-Issue status is derived from closure, **Blocked by** relationships, linked pull requests, assignees, active milestone, and required labels. The complete rule order, repository variables, token requirement, and dry-run command are documented in @ref project_repository_automation.
+Issue status is derived from closure, **Blocked by** relationships, linked pull requests, assignees, active milestone, and required labels. The
+complete rule order, repository variables, token requirement, and dry-run command are documented in @ref project_repository_automation.
 
 ## Finish with a readable merge
 
@@ -225,7 +261,8 @@ After a pull request is merged, delete the feature branch unless more work will 
 
 ## Squash commit messages
 
-This file is the authoritative workflow for squash commit messages. The durable `area: imperative summary` decision is summarized in @ref project_decisions.
+This file is the authoritative workflow for squash commit messages. The durable `area: imperative summary` decision is summarized in @ref
+project_decisions.
 
 Commit title format:
 
@@ -255,7 +292,8 @@ Documentation:
 - Added or changed docs, examples, public API notes, or developer guidance.
 ```
 
-Do not keep GitHub's default `(#123)` suffix if the project history should read like a standalone changelog. Mention the pull request or issue in the body instead when it matters.
+Do not keep GitHub's default `(#123)` suffix if the project history should read like a standalone changelog. Mention the pull request or issue in the
+body instead when it matters.
 
 ## Local sync after merge
 

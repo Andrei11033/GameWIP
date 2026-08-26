@@ -1,6 +1,7 @@
 @page assert_public_api Public API
 
-Assert's public C++ surface is the installed header `debug/assert/assert.h`. The macros are global by design; runtime support lives in `GameWIP::Debug::Assert`.
+Assert's public C++ surface is the installed header `debug/assert/assert.h`. The macros are global by design; runtime support lives in
+`GameWIP::Debug::Assert`.
 
 ## Public macro families
 
@@ -26,19 +27,24 @@ Assert's public C++ surface is the installed header `debug/assert/assert.h`. The
 | `FailureAction` | Interactive action enum with `Break`, `Abort`, `IgnoreOnce`, and `AlwaysIgnore`. |
 | `debugBreak() noexcept` | Calls the platform debugger break instruction when the runtime library is available. |
 
-`debugBreak()` is the function used by `DEBUG_BREAK()` in runtime-enabled builds. Normal fatal assertion handling checks debugger state before breaking; `DEBUG_BREAK()` intentionally force-breaks.
+`debugBreak()` is the function used by `DEBUG_BREAK()` in runtime-enabled builds. Normal fatal assertion handling checks debugger state before
+breaking; `DEBUG_BREAK()` intentionally force-breaks.
 
 ## Configuration API
 
-The public macro behavior is selected by Assert CMake options and propagated compile definitions. Application code should configure the target instead of redefining Assert macros locally.
+The public macro behavior is selected by Assert CMake options and propagated compile definitions. Application code should configure the target instead
+of redefining Assert macros locally.
 
-See @ref assert_configuration for `ASSERT_ENABLED`, `ASSERT_CHECKS_ENABLED`, diagnostics, unreachable behavior, Windows manifest behavior, and test-hook availability.
+See @ref assert_configuration for `ASSERT_ENABLED`, `ASSERT_CHECKS_ENABLED`, diagnostics, unreachable behavior, Windows manifest behavior, and
+test-hook availability.
 
 ## Package and ABI surface
 
-Installed consumers link `GameWIP::Assert`. Source-tree consumers may link `Assert`. Assert may be a shared runtime library or an interface-only target depending on configuration.
+Installed consumers link `GameWIP::Assert`. Source-tree consumers may link `Assert`. Assert may be a shared runtime library or an interface-only
+target depending on configuration.
 
-The `Detail::handle*` exported symbols are ABI support for the public macros, not public C++ API. They are documented in @ref assert_abi because they appear at the binary boundary.
+The `Detail::handle*` exported symbols are ABI support for the public macros, not public C++ API. They are documented in @ref assert_abi because they
+appear at the binary boundary.
 
 ## Related pages
 

@@ -1,0 +1,137 @@
+{
+  "schemaVersion": 1,
+  "actions": [
+    {
+      "id": "full",
+      "name": "Complete setup (recommended)",
+      "description": "Install or repair every required component and verify the checkout.",
+      "risk": "machine",
+      "network": true,
+      "mutation": "machine",
+      "key": "1"
+    },
+    {
+      "id": "check",
+      "name": "Check environment (read only)",
+      "description": "Verify required tools and project state without changing them.",
+      "risk": "read-only",
+      "network": false,
+      "mutation": "none",
+      "key": "2"
+    },
+    {
+      "id": "update",
+      "name": "Update environment (includes MSYS2)",
+      "description": "Update compatible environment software without advancing project pins, update the checkout, then verify.",
+      "risk": "machine",
+      "network": true,
+      "mutation": "machine",
+      "key": "3"
+    },
+    {
+      "id": "repair",
+      "name": "Repair environment",
+      "description": "Reapply required state and exact project pins without ordinary upgrades.",
+      "risk": "machine",
+      "network": true,
+      "mutation": "machine",
+      "key": "4"
+    },
+    {
+      "id": "editor",
+      "name": "Choose and configure editors/IDEs",
+      "description": "Choose editors and install their GameWIP integrations.",
+      "risk": "machine",
+      "network": true,
+      "mutation": "machine",
+      "key": "5"
+    },
+    {
+      "id": "msys2",
+      "name": "Configure MSYS2",
+      "description": "Install or repair declared UCRT64 and CLANG64 packages.",
+      "risk": "machine",
+      "network": true,
+      "mutation": "machine",
+      "key": "6"
+    },
+    {
+      "id": "repository",
+      "name": "Prepare repository",
+      "description": "Initialize pinned submodules and configure repository-local development state.",
+      "risk": "local",
+      "network": true,
+      "mutation": "local",
+      "key": "7"
+    },
+    {
+      "id": "tools",
+      "name": "Install project tools",
+      "description": "Ensure declared exact/compatible project tools without advancing pins.",
+      "risk": "machine",
+      "network": true,
+      "mutation": "machine",
+      "key": "8"
+    },
+    {
+      "id": "docs",
+      "name": "Build documentation",
+      "description": "Build and verify the generated manual.",
+      "risk": "local",
+      "network": false,
+      "mutation": "local",
+      "key": "9"
+    },
+    {
+      "id": "profiler",
+      "name": "Install matching Tracy profiler tools",
+      "description": "Build and install tools matching the pinned Tracy client.",
+      "risk": "machine",
+      "network": true,
+      "mutation": "machine",
+      "key": "0"
+    },
+    {
+      "id": "uninstall",
+      "name": "Uninstall GameWIP-owned environment resources",
+      "description": "Inventory and remove only resources with sufficient GameWIP ownership evidence.",
+      "risk": "destructive",
+      "network": true,
+      "mutation": "destructive",
+      "key": "U"
+    },
+    {
+      "id": "visual-studio",
+      "name": "Install or repair Visual Studio Community",
+      "description": "Apply the repository Visual Studio configuration.",
+      "risk": "machine",
+      "network": true,
+      "mutation": "machine"
+    },
+    {
+      "id": "list",
+      "name": "List setup actions",
+      "description": "List supported setup actions and their behavior.",
+      "risk": "read-only",
+      "network": false,
+      "mutation": "none"
+    },
+    {
+      "id": "help",
+      "name": "Show setup help",
+      "description": "Print command-line usage and common options.",
+      "risk": "read-only",
+      "network": false,
+      "mutation": "none"
+    },
+    {
+      "id": "menu",
+      "name": "Open the interactive setup menu",
+      "description": "Open the persistent setup menu.",
+      "risk": "read-only",
+      "network": false,
+      "mutation": "none"
+    }
+  ],
+  "bootstrapToolIds": ["msys2"]
+}

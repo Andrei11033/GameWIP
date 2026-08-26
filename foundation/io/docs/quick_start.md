@@ -64,7 +64,8 @@ int main()
 }
 ```
 
-`MemoryReader` is non-owning. Its source must remain alive and at a stable address until the reader is no longer used. Direct construction from temporary `std::string` and `std::vector<std::byte>` objects is rejected, but caller-created dangling spans and string views cannot be detected.
+`MemoryReader` is non-owning. Its source must remain alive and at a stable address until the reader is no longer used. Direct construction from
+temporary `std::string` and `std::vector<std::byte>` objects is rejected, but caller-created dangling spans and string views cannot be detected.
 
 ## Failure handling
 
@@ -96,11 +97,14 @@ void inspectFailure(const GameWIP::IO::Types::Status& status)
 }
 ```
 
-Treat the portable `ErrorCode` as the primary decision field. Native codes and messages are supplemental diagnostics and are not stable machine-readable interfaces.
+Treat the portable `ErrorCode` as the primary decision field. Native codes and messages are supplemental diagnostics and are not stable
+machine-readable interfaces.
 
-Read and write results may contain partial progress when the status is a failure. For `readAllText()`, any returned `text` is always valid UTF-8 and excludes malformed or incomplete trailing bytes. Preserve or discard that progress according to the calling operation's policy.
+Read and write results may contain partial progress when the status is a failure. For `readAllText()`, any returned `text` is always valid UTF-8 and
+excludes malformed or incomplete trailing bytes. Preserve or discard that progress according to the calling operation's policy.
 
-`writeAllText()` validates its complete input before calling the writer, and `MemoryWriter::copyText()` rejects collected bytes that are not valid UTF-8.
+`writeAllText()` validates its complete input before calling the writer, and `MemoryWriter::copyText()` rejects collected bytes that are not valid
+UTF-8.
 
 Use a finite `maxBytes` for externally controlled input. The limit is a hard accepted-size limit, not a truncation request.
 

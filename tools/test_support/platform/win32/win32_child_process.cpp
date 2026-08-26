@@ -3,6 +3,7 @@
 
 #include "test_support/process.h"
 #include "test_support/internal/test_support_test_hooks.h"
+#include "unicode/unicode.h"
 
 #if defined(_WIN32)
 #ifndef WIN32_LEAN_AND_MEAN
@@ -197,22 +198,27 @@ namespace GameWIP::TestSupport
             {
                 return {};
             }
-            if (text.size() > static_cast<std::size_t>((std::numeric_limits<int>::max)()))
+            const auto measurement = GameWIP::Unicode::Utf8::measureToUtf16(text);
+            if (measurement.outcome == GameWIP::Unicode::Types::MeasureOutcome::SizeLimitExceeded)
             {
-                throw std::length_error("Child-process text exceeds the Win32 conversion limit");
+                throw std::length_error("Child-process text exceeds the Unicode conversion limit");
             }
-
-            const int inputSize = static_cast<int>(text.size());
-            const int wideSize = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, text.data(), inputSize, nullptr, 0);
-            if (wideSize <= 0)
+            if (measurement.outcome != GameWIP::Unicode::Types::MeasureOutcome::Measured)
             {
                 throw std::invalid_argument("Child-process text is not valid UTF-8");
             }
 
-            std::wstring output(static_cast<std::size_t>(wideSize), L'\0');
-            if (MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, text.data(), inputSize, output.data(), wideSize) != wideSize)
+            std::vector<char16_t> converted(measurement.requiredCodeUnits);
+            const auto conversion = GameWIP::Unicode::Utf8::convertToUtf16(text, converted);
+            if (conversion.outcome != GameWIP::Unicode::Types::ConversionOutcome::Converted)
             {
-                throw std::runtime_error("Win32 child-process text conversion failed");
+                throw std::runtime_error("Unicode child-process text conversion failed");
+            }
+
+            std::wstring output(conversion.codeUnitsWritten, L'\0');
+            for (std::size_t index = 0; index < conversion.codeUnitsWritten; ++index)
+            {
+                output[index] = static_cast<wchar_t>(converted[index]);
             }
             return output;
         }
@@ -344,10 +350,17 @@ namespace GameWIP::TestSupport
 
             try
             {
+                // The returned environment block is documented as double-NUL-terminated and has no separate length API.
+#if defined(__clang__)
+#pragma clang unsafe_buffer_usage begin
+#endif
                 for (LPWCH current = environmentStrings; *current != L'\0'; current += std::wcslen(current) + 1)
                 {
                     entries.emplace_back(current);
                 }
+#if defined(__clang__)
+#pragma clang unsafe_buffer_usage end
+#endif
             }
             catch (...)
             {
@@ -777,9 +790,9 @@ namespace GameWIP::TestSupport
             else
             {
 #if TEST_SUPPORT_INTERNAL_TEST_HOOKS
-                if (const auto injected = Detail::TestHooks::consumeChildProcessFailure(TestHooks::ChildProcessFailurePoint::Wait))
+                if (const auto waitFailure = Detail::TestHooks::consumeChildProcessFailure(TestHooks::ChildProcessFailurePoint::Wait))
                 {
-                    setFailure(Types::InfrastructureError::WaitFailed, *injected);
+                    setFailure(Types::InfrastructureError::WaitFailed, *waitFailure);
                     result.outcome = Types::Process::Outcome::TerminatedDuringCleanup;
                     static_cast<void>(TerminateJobObject(jobHandle.get(), kTestTerminationCode));
                     static_cast<void>(WaitForSingleObject(processHandle.get(), INFINITE));
@@ -792,9 +805,10 @@ namespace GameWIP::TestSupport
                     {
                         result.outcome = Types::Process::Outcome::TimedOut;
 #if TEST_SUPPORT_INTERNAL_TEST_HOOKS
-                        if (const auto injected = Detail::TestHooks::consumeChildProcessFailure(TestHooks::ChildProcessFailurePoint::ProcessCleanup))
+                        if (const auto cleanupFailure =
+                                Detail::TestHooks::consumeChildProcessFailure(TestHooks::ChildProcessFailurePoint::ProcessCleanup))
                         {
-                            setFailure(Types::InfrastructureError::ProcessCleanupFailed, *injected);
+                            setFailure(Types::InfrastructureError::ProcessCleanupFailed, *cleanupFailure);
                         }
 #endif
                         if (TerminateJobObject(jobHandle.get(), kTestTerminationCode) == FALSE)
@@ -820,11 +834,11 @@ namespace GameWIP::TestSupport
                         bool inspectionFailed = false;
                         std::uint64_t inspectionNativeCode = 0;
 #if TEST_SUPPORT_INTERNAL_TEST_HOOKS
-                        if (const auto injected =
+                        if (const auto inspectionFailure =
                                 Detail::TestHooks::consumeChildProcessFailure(TestHooks::ChildProcessFailurePoint::ProcessInspection))
                         {
                             inspectionFailed = true;
-                            inspectionNativeCode = *injected;
+                            inspectionNativeCode = *inspectionFailure;
                         }
 #endif
                         if (!inspectionFailed && GetExitCodeProcess(processHandle.get(), &exitCode) == FALSE)
@@ -845,9 +859,10 @@ namespace GameWIP::TestSupport
                         }
 
 #if TEST_SUPPORT_INTERNAL_TEST_HOOKS
-                        if (const auto injected = Detail::TestHooks::consumeChildProcessFailure(TestHooks::ChildProcessFailurePoint::ProcessCleanup))
+                        if (const auto cleanupFailure =
+                                Detail::TestHooks::consumeChildProcessFailure(TestHooks::ChildProcessFailurePoint::ProcessCleanup))
                         {
-                            setFailureIfSuccessful(Types::InfrastructureError::ProcessCleanupFailed, *injected);
+                            setFailureIfSuccessful(Types::InfrastructureError::ProcessCleanupFailed, *cleanupFailure);
                         }
 #endif
                         if (TerminateJobObject(jobHandle.get(), kTestTerminationCode) == FALSE)

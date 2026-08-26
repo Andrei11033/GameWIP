@@ -1,12 +1,14 @@
 @page project_testing Correctness testing
 
-Correctness tests answer whether behavior is correct. They must not contain benchmark loops, machine-dependent timing thresholds, or performance-regression policy.
+Correctness tests answer whether behavior is correct. They must not contain benchmark loops, machine-dependent timing thresholds, or
+performance-regression policy.
 
 This guide explains how correctness tests are divided into modules and suites,
 how they use shared source interfaces, what a useful test must prove, and how
 reports, artifacts, child scenarios, and manual checks fit together.
 
-Runner architecture and command-line ownership are documented in @ref project_validation. Performance measurements are documented in @ref project_benchmarking. Library-specific test coverage and approved hooks remain documented in each library manual.
+Runner architecture and command-line ownership are documented in @ref project_validation. Performance measurements are documented in @ref
+project_benchmarking. Library-specific test coverage and approved hooks remain documented in each library manual.
 
 ## Common workflow
 
@@ -78,9 +80,12 @@ Run opt-in manual checks:
 .\build\test\GameWIPTests.exe --test-module=window --manual-tests
 ```
 
-Each selected module owns its manual scenarios. The Window module groups the full visible, shell, DPI, cursor, fullscreen, topology, HDR, and modern-capability workflow from @ref window_manual_validation. Unsupported or unavailable environments are recorded as skips and are not passing evidence.
+Each selected module owns its manual scenarios. The Window module groups the full visible, shell, DPI, cursor, fullscreen, topology, HDR, and
+modern-capability workflow from @ref window_manual_validation. Unsupported or unavailable environments are recorded as skips and are not passing
+evidence.
 
-Window manual runs open a live diagnostics companion. A module-specific `--window-manual-suite=<name>` selector may narrow a repeat run without creating another project-wide manual enable flag; the selector contract is owned by @ref window_testing.
+Window manual runs open a live diagnostics companion. A module-specific `--window-manual-suite=<name>` selector may narrow a repeat run without
+creating another project-wide manual enable flag; the selector contract is owned by @ref window_testing.
 
 The complete runner argument contract is owned by @ref project_validation.
 
@@ -103,14 +108,17 @@ The module headers are validation interfaces, not installed library APIs. Each o
 
 - A module-specific options structure with unattended defaults.
 - A `run...Tests()` entry point returning zero for pass and nonzero for failure.
-- Borrowed process arguments when the module owns a child protocol; a direct caller must keep `argv` and its pointed-to strings valid for the call, and a module must copy any value it retains.
+- Borrowed process arguments when the module owns a child protocol; a direct caller must keep `argv` and its pointed-to strings valid for the call,
+  and a module must copy any value it retains.
 - TestSupport report settings passed through the module adapter.
 
-The shared validation runner may replace module-local defaults with `RunOptions`. Code that invokes a module entry point directly is responsible for supplying suitable report paths, restoring process-global state, and interpreting child arguments consistently.
+The shared validation runner may replace module-local defaults with `RunOptions`. Code that invokes a module entry point directly is responsible for
+supplying suitable report paths, restoring process-global state, and interpreting child arguments consistently.
 
 ## Module standard
 
-Each correctness module owns one logical registration. Large suites may organize coherent behavioral case bodies into private included fragments when that keeps fixtures translation-unit-local, or into focused translation units when a real shared private test contract already exists:
+Each correctness module owns one logical registration. Large suites may organize coherent behavioral case bodies into private included fragments when
+that keeps fixtures translation-unit-local, or into focused translation units when a real shared private test contract already exists:
 
 ```text
 game/validation/tests/<module>/
@@ -124,12 +132,15 @@ game/validation/tests/<module>/
 
 - `<module>_test.h` defines the source-tree options and entry point.
 - `<module>_test.cpp` owns the module-level TestSupport runner, shared TU-local fixtures/helpers, and suite registration calls.
-- Focused `<behavior>_test.inl` files may hold large coherent suite bodies included inside the module's private namespace. Prefer this form when separate translation units would require duplicating fixtures or manufacturing a broad private declaration surface.
-- Focused `<behavior>_test.cpp` files are appropriate when the cases already have a clean independently compilable private boundary. Do not split small suites mechanically.
+- Focused `<behavior>_test.inl` files may hold large coherent suite bodies included inside the module's private namespace. Prefer this form when
+  separate translation units would require duplicating fixtures or manufacturing a broad private declaration surface.
+- Focused `<behavior>_test.cpp` files are appropriate when the cases already have a clean independently compilable private boundary. Do not split
+  small suites mechanically.
 - `module.cpp` maps shared runner policy and creates one static registration.
 - `CMakeLists.txt` explicitly lists compiled sources and linked libraries; private included fragments do not become separate validation modules.
 
-Splitting case files does not create new validation modules, executables, report contracts, or registration names. Promote a fixture to TestSupport only when it is genuinely reusable across modules rather than merely shared by files inside one module.
+Splitting case files does not create new validation modules, executables, report contracts, or registration names. Promote a fixture to TestSupport
+only when it is genuinely reusable across modules rather than merely shared by files inside one module.
 
 Example registration:
 
@@ -145,11 +156,17 @@ The registration name must match the CMake module name. Add a child matcher only
 
 ## Reports and exit behavior
 
-Normal validation uses concise console output: failures, skips, manual instructions, one module result, and one aggregate result. `--verbose-tests` additionally mirrors passing checks, informational lines, metrics, stress diagnostics, suite results, and summaries.
+Normal validation uses concise console output: failures, skips, manual instructions, one module result, and one aggregate result. `--verbose-tests`
+additionally mirrors passing checks, informational lines, metrics, stress diagnostics, suite results, and summaries.
 
-The retained report receives complete TestSupport output when file reporting is enabled. An invalid report path disables only retained output; it must not hide console failures or change test counts.
+The retained report receives complete TestSupport output when file reporting is enabled. An invalid report path disables only retained output; it must
+not hide console failures or change test counts.
 
-TestSupport infrastructure helpers keep setup and operating-system failures separate from the behavior under test. Callers must inspect a result's `status` before using its payload. For child processes, infrastructure `status`, process `outcome`, and exact `exitCode` are independent: a nonzero child exit or an expected timeout is a domain outcome, not an infrastructure failure. Use `TestSupport::formatInfrastructureStatus()` only when a failed status needs to be recorded in diagnostics. See @ref test_support_public_api, @ref test_support_child_processes, and @ref test_support_files_environment for the complete API contract.
+TestSupport infrastructure helpers keep setup and operating-system failures separate from the behavior under test. Callers must inspect a result's
+`status` before using its payload. For child processes, infrastructure `status`, process `outcome`, and exact `exitCode` are independent: a nonzero
+child exit or an expected timeout is a domain outcome, not an infrastructure failure. Use `TestSupport::formatInfrastructureStatus()` only when a
+failed status needs to be recorded in diagnostics. See @ref test_support_public_api, @ref test_support_child_processes, and @ref
+test_support_files_environment for the complete API contract.
 
 - A failed expectation does not abort the suite.
 - A suite entry point returns nonzero when its recorded result fails.
@@ -159,9 +176,13 @@ TestSupport infrastructure helpers keep setup and operating-system failures sepa
 
 ## Artifact lifecycle
 
-Use `TestSupport::ScopedTemporaryDirectory` for test workspaces, subsystem logs, generated fixtures, and child artifacts. Construction is non-throwing and fallible, so inspect `status()` before using `path()`; a failed guard is inert and exposes an empty path. Cleanup occurs on normal return and exception unwinding but remains best effort; process termination or open native resources can leave diagnostics behind. Apply the same status-first rule to current-directory and environment guards before assuming their requested process-state change took effect.
+Use `TestSupport::ScopedTemporaryDirectory` for test workspaces, subsystem logs, generated fixtures, and child artifacts. Construction is non-throwing
+and fallible, so inspect `status()` before using `path()`; a failed guard is inert and exposes an empty path. Cleanup occurs on normal return and
+exception unwinding but remains best effort; process termination or open native resources can leave diagnostics behind. Apply the same status-first
+rule to current-directory and environment guards before assuming their requested process-state change took effect.
 
-Final validation reports belong under the operating-system temporary GameWIP root unless a caller supplies an absolute path. Tests must not create persistent `logs/` or fixture output in the source or build tree.
+Final validation reports belong under the operating-system temporary GameWIP root unless a caller supplies an absolute path. Tests must not create
+persistent `logs/` or fixture output in the source or build tree.
 
 ## Test requirements
 
@@ -183,15 +204,25 @@ Correctness tests must:
 - Add regression coverage for behavior changes and fixed defects.
 - Use approved internal hooks only when the public API cannot make the scenario deterministic.
 
-Stress tests may remain correctness tests when they verify invariants rather than speed. Throughput and latency measurements belong in @ref project_benchmarking.
+Stress tests may remain correctness tests when they verify invariants rather than speed. Throughput and latency measurements belong in @ref
+project_benchmarking.
 
 ## Public-header and installed-consumer checks
 
-`game/validation/public_headers/` contains one compile-only translation unit per supported consumer entry header. Each file includes its target header first and no other GameWIP header, proving self-containment and include-order independence. Generated shared-library export headers are installed visibility scaffolding rather than direct consumer entry points; these checks exercise them transitively, and installed-consumer validation verifies the complete installed header allowlist.
+`game/validation/public_headers/` contains one compile-only translation unit per supported consumer entry header. Each file includes its target header
+first and no other GameWIP header, proving self-containment and include-order independence. Generated shared-library export headers are installed
+visibility scaffolding rather than direct consumer entry points; these checks exercise them transitively, and installed-consumer validation verifies
+the complete installed header allowlist.
 
-`game/validation/installed_consumer/` configures and builds against the installed package surface only. It verifies installed header usability, representative cross-library integration, the current imported targets after all packages are found, and the absence of source-tree test-hook definitions.
+`game/validation/installed_consumer/` configures and builds against the installed package surface only. It verifies installed header usability,
+representative cross-library integration, the current imported targets after all packages are found, and the absence of source-tree test-hook
+definitions.
 
-The combined consumer verifies cross-library integration. Separate isolated consumers call only one `find_package()` for each package, proving that higher-level configs discover every imported dependency in their exported interface. The combined and isolated TestSupport cases compile and run representative status, formatting, and process-result contracts while explicitly rejecting `TEST_SUPPORT_INTERNAL_TEST_HOOKS`. Focused installed consumers also compile `test_support/types.h`, `reporting.h`, `files.h`, `process.h`, and `stress.h` independently. Additional cases cover split-prefix runtime Assert and disabled/interface-only Assert.
+The combined consumer verifies cross-library integration. Separate isolated consumers call only one `find_package()` for each package, proving that
+higher-level configs discover every imported dependency in their exported interface. The combined and isolated TestSupport cases compile and run
+representative status, formatting, and process-result contracts while explicitly rejecting `TEST_SUPPORT_INTERNAL_TEST_HOOKS`. Focused installed
+consumers also compile `test_support/types.h`, `reporting.h`, `files.h`, `process.h`, and `stress.h` independently. Additional cases cover
+split-prefix runtime Assert and disabled/interface-only Assert.
 
 The dedicated `Packages (CMake)` job owns ordinary package compatibility across
 Ninja and Ninja Multi-Config, so `Build and Test` excludes package-labeled CTest
@@ -205,11 +236,14 @@ These checks complement runtime suites; they do not replace behavior validation.
 
 ## Manual and interactive checks
 
-Manual checks must be opt-in and provide clear instructions, pass/fail/skip input, and retained reporting. Default CTest, startup validation, coverage, and sanitizer runs must not require a real console, display dialogs, wait for keyboard input, or show fatal popups.
+Manual checks must be opt-in and provide clear instructions, pass/fail/skip input, and retained reporting. Default CTest, startup validation,
+coverage, and sanitizer runs must not require a real console, display dialogs, wait for keyboard input, or show fatal popups.
 
 ## Source documentation
 
-Focused correctness case files do not require Doxygen comments on every local helper or test case. File-level documentation, descriptive function names, and focused comments around child protocols, global-state restoration, concurrency coordination, abnormal termination, and platform limitations are the preferred standard.
+Focused correctness case files do not require Doxygen comments on every local helper or test case. File-level documentation, descriptive function
+names, and focused comments around child protocols, global-state restoration, concurrency coordination, abnormal termination, and platform limitations
+are the preferred standard.
 
 Module headers and adapters require complete contract comments because they are shared source interfaces between validation components.
 

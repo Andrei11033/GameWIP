@@ -12,16 +12,11 @@ function(assert_enable_common_controls_v6 target_name)
         message(FATAL_ERROR "ASSERT_ENABLE_COMMON_CONTROLS_MANIFEST is OFF, so no Common Controls v6 resource was configured.")
     endif()
 
-    get_property(
-        common_controls_rc
-        GLOBAL PROPERTY ASSERT_INTERNAL_COMMON_CONTROLS_RC
-    )
+    get_property(common_controls_rc GLOBAL PROPERTY ASSERT_INTERNAL_COMMON_CONTROLS_RC)
 
     if(NOT common_controls_rc)
         message(FATAL_ERROR "Assert Common Controls v6 resource was not configured.")
     endif()
 
-    target_sources("${target_name}" PRIVATE
-        "${common_controls_rc}"
-    )
+    target_sources("${target_name}" PRIVATE "${common_controls_rc}")
 endfunction()

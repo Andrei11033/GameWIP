@@ -3,8 +3,10 @@
 
 #include "validation/tests/terminal/terminal_test.h"
 
+#include "validation/process_arguments.h"
 #include "validation/tests/registry.h"
 
+#include <algorithm>
 #include <string_view>
 
 namespace
@@ -12,10 +14,11 @@ namespace
     /// @brief Detects isolated child invocations owned by Terminal tests.
     bool handlesChildArguments(int argc, char **argv)
     {
-        for (int index = 1; index < argc; ++index)
+        const auto arguments = GameWIP::Validation::processArguments(argc, argv);
+        for (char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
         {
-            if (argv[index] != nullptr && (std::string_view(argv[index]) == "--terminal-test-child=reentrant-format" ||
-                                           std::string_view(argv[index]) == "--terminal-test-child=session-reentrant-format"))
+            if (value != nullptr && (std::string_view(value) == "--terminal-test-child=reentrant-format" ||
+                                     std::string_view(value) == "--terminal-test-child=session-reentrant-format"))
             {
                 return true;
             }
