@@ -318,7 +318,32 @@ function Show-GameWipRunList
         {
             $item.Name.Substring(0, $runWidth - 3) + '...'
         }
-        Write-Host ($rowFormat -f $displayName, $status, $action)
+        $statusSemantic = switch ($status)
+        {
+            'passed'
+            {
+                'Success'
+            }
+            { $_ -in @('failed', 'timed-out') }
+            {
+                'Failure'
+            }
+            { $_ -in @('cancelled', 'incomplete') }
+            {
+                'Warning'
+            }
+            'running'
+            {
+                'Accent'
+            }
+            default
+            {
+                'Muted'
+            }
+        }
+        Write-Host ("  {0,-$runWidth} " -f $displayName) -NoNewline
+        Write-GameWipSemanticText -Object ('{0,-10}' -f $status) -Semantic $statusSemantic -NoNewline
+        Write-Host " $action"
     }
 }
 
@@ -353,9 +378,11 @@ function Show-GameWipRun
     }
     else
     {
-        Write-GameWipHost 'Retained run has no finalized receipt.' -ForegroundColor Yellow
-        Write-Host "  Run:  $($run.FullName)"
-        Write-Host "  Logs: $(Join-Path $run.FullName 'logs')"
+        Write-GameWipSemanticText -Object 'Retained run has no finalized receipt.' -Semantic Warning
+        Write-Host '  Run:  ' -NoNewline
+        Write-GameWipSemanticText -Object ([string]$run.FullName) -Semantic Muted
+        Write-Host '  Logs: ' -NoNewline
+        Write-GameWipSemanticText -Object (Join-Path $run.FullName 'logs') -Semantic Muted
     }
 }
 

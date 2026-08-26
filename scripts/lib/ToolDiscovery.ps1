@@ -307,13 +307,58 @@ function Show-GameWipToolStatus
             $installed = $installed.Substring(0, 10) + '...'
         }
         $state = Get-GameWipToolCompatibility -Tool $toolInfo -Detected $detected
-        Write-Host ('  {0,-20} {1,-13} {2,-13} {3,-11} {4}' -f $toolInfo.id, $required, $installed, $state, $toolInfo.provider.kind)
+        $stateSemantic = switch ($state)
+        {
+            'compatible'
+            {
+                'Success'
+            }
+            'missing'
+            {
+                'Failure'
+            }
+            default
+            {
+                'Warning'
+            }
+        }
+        Write-Host ('  {0,-20} {1,-13} {2,-13} ' -f $toolInfo.id, $required, $installed) -NoNewline
+        Write-GameWipSemanticText -Object ('{0,-11}' -f $state) -Semantic $stateSemantic -NoNewline
+        Write-Host (' {0}' -f $toolInfo.provider.kind)
         $results.Add([pscustomobject]@{ Tool = $toolInfo; Detected = $detected; State = $state }) | Out-Null
     }
 
     $groups = @($results | Group-Object State | Sort-Object Name)
     Write-Host ''
-    Write-Host ('  Summary: ' + (@($groups | ForEach-Object { '{0} {1}' -f $_.Count, $_.Name }) -join '; ') + '.')
+    Write-Host '  Summary: ' -NoNewline
+    for ($groupIndex = 0; $groupIndex -lt $groups.Count; ++$groupIndex)
+    {
+        $group = $groups[$groupIndex]
+        $semantic = switch ($group.Name)
+        {
+            'compatible'
+            {
+                'Success'
+            }
+            'missing'
+            {
+                'Failure'
+            }
+            default
+            {
+                'Warning'
+            }
+        }
+        Write-GameWipSemanticText -Object ("$($group.Count) $($group.Name)") -Semantic $semantic -NoNewline
+        Write-Host $(if ($groupIndex -lt ($groups.Count - 1))
+            {
+                '; '
+            }
+            else
+            {
+                '.'
+            }) -NoNewline:($groupIndex -lt ($groups.Count - 1))
+    }
 
     $details = @($results | Where-Object {
             $_.Tool.versionPolicy -ne 'informational' -and $_.Detected.Installed -and (@($_.Detected.Candidates).Count -gt 1 -or $_.State -ne 'compatible')
@@ -331,8 +376,10 @@ function Show-GameWipToolStatus
         $detected = $result.Detected
         Write-Host ''
         Write-Host "  $($toolInfo.id)"
-        Write-Host "    Using:  $($detected.Location)"
-        Write-Host "    Source: $($detected.Source) ($($detected.SelectionReason))"
+        Write-Host '    Using:  ' -NoNewline
+        Write-GameWipSemanticText -Object ([string]$detected.Location) -Semantic Muted
+        Write-Host '    Source: ' -NoNewline
+        Write-GameWipSemanticText -Object "$($detected.Source) ($($detected.SelectionReason))" -Semantic Muted
         $alternatives = @($detected.Candidates | Select-Object -Skip 1)
         if ($alternatives.Count -ne 0)
         {
@@ -363,7 +410,8 @@ function Show-GameWipToolStatus
                 {
                     'unknown version'
                 }
-                Write-Host "      - $candidatePath ($version; $($candidate.Source))"
+                Write-Host '      - ' -NoNewline
+                Write-GameWipSemanticText -Object "$candidatePath ($version; $($candidate.Source))" -Semantic Muted
             }
         }
     }

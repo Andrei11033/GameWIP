@@ -73,16 +73,54 @@ function Get-GameWipInteractiveContext
 function Write-GameWipInteractiveHeader
 {
     $context = Get-GameWipInteractiveContext
-    Write-Host ("Branch: {0}  Workspace: {1}  Environment: {2}" -f $context.Branch, $context.Workspace, $context.Environment)
+    $workspaceSemantic = switch ([string]$context.Workspace)
+    {
+        'clean'
+        {
+            'Success'
+        }
+        'modified'
+        {
+            'Warning'
+        }
+        'degraded'
+        {
+            'Failure'
+        }
+        default
+        {
+            'Muted'
+        }
+    }
+    $environmentSemantic = switch ([string]$context.Environment)
+    {
+        'ready'
+        {
+            'Success'
+        }
+        'degraded'
+        {
+            'Failure'
+        }
+        default
+        {
+            'Muted'
+        }
+    }
+
+    Write-Host 'Branch: ' -NoNewline
+    Write-GameWipSemanticText -Object ([string]$context.Branch) -Semantic Accent -NoNewline
+    Write-Host '  Workspace: ' -NoNewline
+    Write-GameWipSemanticText -Object ([string]$context.Workspace) -Semantic $workspaceSemantic -NoNewline
+    Write-Host '  Environment: ' -NoNewline
+    Write-GameWipSemanticText -Object ([string]$context.Environment) -Semantic $environmentSemantic
 }
 
 function Show-GameWipDevelopmentMenu
 {
     while ($true)
     {
-        Write-Host ''
-        Write-Host 'Development'
-        Write-Host '==========='
+        Write-GameWipSection 'Development'
         Write-Host '1. Configure preset'
         Write-Host '2. Build preset'
         Write-Host '3. Run project command'
@@ -131,9 +169,7 @@ function Show-GameWipValidationMenu
 {
     while ($true)
     {
-        Write-Host ''
-        Write-Host 'Validation'
-        Write-Host '=========='
+        Write-GameWipSection 'Validation'
         Write-Host '1. Run CTest preset'
         Write-Host '2. Run validation module'
         Write-Host '3. Stress validation module'
@@ -199,9 +235,7 @@ function Show-GameWipQualityMenu
 {
     while ($true)
     {
-        Write-Host ''
-        Write-Host 'Quality'
-        Write-Host '======='
+        Write-GameWipSection 'Quality'
         Write-Host '1. Full quality check'
         Write-Host '2. Apply deterministic formatters, then check'
         Write-Host '3. C/C++ formatting check'
@@ -243,9 +277,7 @@ function Show-GameWipToolsMenu
 {
     while ($true)
     {
-        Write-Host ''
-        Write-Host 'Tools and environment'
-        Write-Host '====================='
+        Write-GameWipSection 'Tools and environment'
         Write-Host '1. Project readiness'
         Write-Host '2. Tool status (offline)'
         Write-Host '3. Check upstream versions'
@@ -300,9 +332,7 @@ function Show-GameWipRepositoryMenu
 {
     while ($true)
     {
-        Write-Host ''
-        Write-Host 'Repository and GitHub'
-        Write-Host '====================='
+        Write-GameWipSection 'Repository and GitHub'
         Write-Host '1. Git status'
         Write-Host '2. Fetch remotes'
         Write-Host '3. Switch branch'
@@ -363,9 +393,7 @@ function Show-GameWipMaintenanceMenu
 {
     while ($true)
     {
-        Write-Host ''
-        Write-Host 'Maintenance'
-        Write-Host '==========='
+        Write-GameWipSection 'Maintenance'
         Write-Host '1. Unicode status'
         Write-Host '2. Verify Unicode generated data'
         Write-Host '3. Regenerate Unicode tracked table'
@@ -412,9 +440,7 @@ function Show-GameWipMenu
     Assert-GameWipInteractiveConsole -Purpose 'The GameWIP menu'
     while ($true)
     {
-        Write-Host ''
-        Write-Host 'GameWIP'
-        Write-Host '======='
+        Write-GameWipSection 'GameWIP'
         Write-GameWipInteractiveHeader
         Write-Host '1. Development'
         Write-Host '2. Validation'

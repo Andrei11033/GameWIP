@@ -290,21 +290,25 @@ def main() -> None:
     paths = source_paths(arguments.ucd_dir.resolve())
     trie, candidates = generate(paths, arguments.output.resolve())
 
-    print(f"Unicode version: {UNICODE_VERSION}")
-    print(f"High start: U+{trie.high_start:06X}")
-    print("Block size | Index width | Index bytes | Unique blocks | Block bytes | Total bytes")
+    print(f"{'Unicode version:':<17}{UNICODE_VERSION}")
+    print(f"{'High start:':<17}U+{trie.high_start:06X}")
+    print()
+    print(
+        "Block size | Index width | Index bytes | Unique blocks | Block bytes | Total bytes | Selection"
+    )
     for candidate in candidates:
         block_size = 1 << candidate.block_shift
         candidate_index_bytes = len(candidate.indexes) * index_width(candidate)
         property_bytes = len(candidate.blocks) * block_size
-        selected = " selected" if candidate is trie else ""
+        selection = "selected" if candidate is trie else ""
         print(
             f"{block_size:10} | {index_width(candidate):11} | {candidate_index_bytes:11} | "
-            f"{len(candidate.blocks):13} | {property_bytes:11} | {table_size(candidate):11}{selected}"
+            f"{len(candidate.blocks):13} | {property_bytes:11} | {table_size(candidate):11} | {selection}"
         )
-    print(f"Selected block size: {1 << trie.block_shift}")
-    print(f"Total table bytes: {table_size(trie)}")
-    print(f"Wrote: {arguments.output.resolve()}")
+    print()
+    print(f"{'Selected block size:':<21}{1 << trie.block_shift}")
+    print(f"{'Total table bytes:':<21}{table_size(trie)}")
+    print(f"{'Wrote:':<21}{arguments.output.resolve()}")
 
 
 if __name__ == "__main__":

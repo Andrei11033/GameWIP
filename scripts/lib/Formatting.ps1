@@ -58,14 +58,16 @@ function Invoke-GameWipFormat
         {
             Write-Host 'No changed C/C++ files require formatting checks.'; return
         }
-        Write-Host '  [SKIP] No C/C++ files are in the selected scope.'; return
+        Write-GameWipStatusLine -Status SKIP -Text 'No C/C++ files are in the selected scope.' -Semantic Muted -Indent 2
+        return
     }
 
     Write-GameWipSection 'C/C++ formatting'
     Write-Host "  Mode:       $Mode"
     Write-Host "  Formatter:  $($formatter.Version)"
     Write-Host "  Source:     $($formatter.Source)"
-    Write-Host "  Style:      $formatConfig"
+    Write-Host '  Style:      ' -NoNewline
+    Write-GameWipSemanticText -Object $formatConfig -Semantic Muted
     Write-Host "  Files:      $($formatFiles.Count)"
 
     $help = Invoke-GameWipProcess -FilePath $formatter.Path -Arguments @('--help') -OutputMode LogOnly -TimeoutSeconds 20
@@ -111,7 +113,7 @@ function Invoke-GameWipFormat
 
     if ($Mode -eq 'check')
     {
-        Write-GameWipHost "  [pass] All $($formatFiles.Count) selected C/C++ files match the repository format." -ForegroundColor Green
+        Write-GameWipStatusLine -Status pass -Text "All $($formatFiles.Count) selected C/C++ files match the repository format." -Semantic Success -Indent 2
         return
     }
 

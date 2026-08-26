@@ -2,12 +2,118 @@
 
 Set-StrictMode -Version Latest
 
+function Get-GameWipSemanticColor
+{
+    param(
+        [Parameter(Mandatory = $true)]
+        [ValidateSet('Success', 'Failure', 'Warning', 'Accent', 'Muted')]
+        [string]$Semantic
+    )
+
+    switch ($Semantic)
+    {
+        'Success'
+        {
+            return [ConsoleColor]::Green
+        }
+        'Failure'
+        {
+            return [ConsoleColor]::Red
+        }
+        'Warning'
+        {
+            return [ConsoleColor]::Yellow
+        }
+        'Accent'
+        {
+            return [ConsoleColor]::Cyan
+        }
+        'Muted'
+        {
+            return [ConsoleColor]::DarkGray
+        }
+    }
+}
+
+function Write-GameWipSemanticText
+{
+    param(
+        [AllowEmptyString()][string]$Object = '',
+        [Parameter(Mandatory = $true)]
+        [ValidateSet('Success', 'Failure', 'Warning', 'Accent', 'Muted')]
+        [string]$Semantic,
+        [switch]$NoNewline
+    )
+
+    $color = Get-GameWipSemanticColor -Semantic $Semantic
+    Write-GameWipHost -Object $Object -ForegroundColor $color -NoNewline:$NoNewline
+}
+
+function Write-GameWipStatusLine
+{
+    param(
+        [Parameter(Mandatory = $true)][string]$Status,
+        [AllowEmptyString()][string]$Text = '',
+        [AllowEmptyString()][string]$Suffix = '',
+        [Parameter(Mandatory = $true)]
+        [ValidateSet('Success', 'Failure', 'Warning', 'Accent', 'Muted')]
+        [string]$Semantic,
+        [ValidateSet('Success', 'Failure', 'Warning', 'Accent', 'Muted')]
+        [string]$SuffixSemantic,
+        [ValidateRange(0, 32)][int]$Indent = 0,
+        [ValidateRange(0, 80)][int]$MarkerWidth = 0
+    )
+
+    $marker = "[$Status]"
+    if ($MarkerWidth -gt $marker.Length)
+    {
+        $marker = $marker.PadRight($MarkerWidth)
+    }
+
+    if ($Indent -gt 0)
+    {
+        Write-Host (' ' * $Indent) -NoNewline
+    }
+
+    Write-GameWipSemanticText -Object $marker -Semantic $Semantic -NoNewline
+
+    if ([string]::IsNullOrEmpty($Text) -and [string]::IsNullOrEmpty($Suffix))
+    {
+        Write-Host ''
+        return
+    }
+
+    if (-not [string]::IsNullOrEmpty($Text))
+    {
+        if ([string]::IsNullOrEmpty($Suffix))
+        {
+            Write-Host " $Text"
+            return
+        }
+
+        Write-Host " $Text " -NoNewline
+    }
+    else
+    {
+        Write-Host ' ' -NoNewline
+    }
+
+    if ($PSBoundParameters.ContainsKey('SuffixSemantic'))
+    {
+        Write-GameWipSemanticText -Object $Suffix -Semantic $SuffixSemantic
+        return
+    }
+
+    Write-Host $Suffix
+}
+
 function Write-GameWipSection
 {
     param([Parameter(Mandatory = $true)][string]$Title)
+
     Write-Host ''
-    Write-Host $Title
-    Write-Host ('=' * $Title.Length)
+    Write-GameWipSemanticText -Object $Title -Semantic Accent
+    Write-GameWipSemanticText -Object ('=' * $Title.Length) -Semantic Accent
 }
 
 function Test-GameWipInteractiveConsole

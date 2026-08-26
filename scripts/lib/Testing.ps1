@@ -123,7 +123,8 @@ function Invoke-GameWipStressModule
 
             if (($clock.Elapsed.TotalMilliseconds - $lastProgress) -ge 2000.0)
             {
-                Write-Host ("Progress: completed={0}/{1} active={2} launched={3} failed={4}" -f $completed, $RunCount, $active.Count, ($nextRun - 1), $failed)
+                Write-GameWipSemanticText -Object 'Progress:' -Semantic Accent -NoNewline
+                Write-Host (" completed={0}/{1} active={2} launched={3} failed={4}" -f $completed, $RunCount, $active.Count, ($nextRun - 1), $failed)
                 $lastProgress = $clock.Elapsed.TotalMilliseconds
             }
             for ($index = $active.Count - 1; $index -ge 0; --$index)
@@ -151,7 +152,12 @@ function Invoke-GameWipStressModule
                 else
                 {
                     ++$failed
-                    Write-GameWipHost ("Run {0}: FAIL exit={1} stdout={2} stderr={3}" -f $entry.Run, $code, $entry.Stdout, $entry.Stderr) -ForegroundColor Red
+                    Write-Host ("Run {0}: " -f $entry.Run) -NoNewline
+                    Write-GameWipSemanticText -Object 'FAIL' -Semantic Failure -NoNewline
+                    Write-Host (" exit={0} stdout=" -f $code) -NoNewline
+                    Write-GameWipSemanticText -Object ([string]$entry.Stdout) -Semantic Muted -NoNewline
+                    Write-Host ' stderr=' -NoNewline
+                    Write-GameWipSemanticText -Object ([string]$entry.Stderr) -Semantic Muted
                     if ($StopOnFailure)
                     {
                         $stopLaunching = $true
@@ -190,7 +196,8 @@ function Invoke-GameWipStressModule
         $launched = $nextRun - 1
         throw "$failed of $launched launched stress runs failed. Logs are in $Script:OperationContext.Run.Root"
     }
-    Write-GameWipHost "Stress complete: $completed runs passed." -ForegroundColor Green
+    Write-GameWipSemanticText -Object 'Stress complete:' -Semantic Success -NoNewline
+    Write-Host " $completed runs passed."
 }
 
 function Split-GameWipExtraArgument
@@ -278,7 +285,7 @@ function Invoke-GameWipValidationCommandWizard
     Write-Host (ConvertTo-GameWipNativeCommandLine -FilePath $executable -Arguments $arguments.ToArray())
     if ($null -ne $Script:OperationContext -and $Script:OperationContext.Preview)
     {
-        Write-GameWipHost 'Preview: validation command will not be built or executed.' -ForegroundColor Cyan
+        Write-GameWipSemanticText -Object 'Preview: validation command will not be built or executed.' -Semantic Accent
         return
     }
     if (Read-GameWipYesNo -Prompt 'Run this command now?' -Default $true)

@@ -163,7 +163,9 @@ function Invoke-GameWipBenchmark
     if ($null -ne $resultPath)
     {
         Add-GameWipToolRunOutput -Run $Script:RunContext -Kind 'benchmark-results' -Path $resultPath
-        Write-GameWipHost "Benchmark results: $resultPath" -ForegroundColor Green
+        Write-GameWipSemanticText -Object 'Benchmark results:' -Semantic Success -NoNewline
+        Write-Host ' ' -NoNewline
+        Write-GameWipSemanticText -Object $resultPath -Semantic Muted
     }
 }
 
@@ -319,7 +321,9 @@ function Invoke-GameWipBenchmarkComparison
         $comparisons | Format-Table name, cpuChangePercent, realChangePercent -AutoSize
         Add-GameWipToolRunOutput -Run $Script:RunContext -Kind 'benchmark-comparison' -Path $outputPath
         Complete-GameWipToolRunStep -Run $Script:RunContext -Step $step -ExitCode 0
-        Write-GameWipHost "Benchmark comparison: $outputPath" -ForegroundColor Green
+        Write-GameWipSemanticText -Object 'Benchmark comparison:' -Semantic Success -NoNewline
+        Write-Host ' ' -NoNewline
+        Write-GameWipSemanticText -Object $outputPath -Semantic Muted
     }
     catch
     {

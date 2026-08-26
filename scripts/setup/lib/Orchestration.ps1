@@ -244,9 +244,31 @@ function Invoke-GameWipSetupEnvironmentCheck
     for ($toolIndex = 0; $toolIndex -lt $checkedTools.Count; ++$toolIndex)
     {
         $tool = $checkedTools[$toolIndex]
-        Write-Host "    [$($toolIndex + 1)/$($checkedTools.Count)] $($tool.id)"
         $detected = Get-GameWipDetectedTool -Tool $tool
-        if ((Get-GameWipToolCompatibility -Tool $tool -Detected $detected) -ne 'compatible')
+        $compatibility = Get-GameWipToolCompatibility -Tool $tool -Detected $detected
+        $semantic = switch ($compatibility)
+        {
+            'compatible'
+            {
+                'Success'
+            }
+            'missing'
+            {
+                'Failure'
+            }
+            default
+            {
+                'Warning'
+            }
+        }
+        Write-GameWipStatusLine `
+            -Status "$($toolIndex + 1)/$($checkedTools.Count)" `
+            -Text ([string]$tool.id) `
+            -Suffix "($compatibility)" `
+            -Semantic $semantic `
+            -SuffixSemantic Muted `
+            -Indent 4
+        if ($compatibility -ne 'compatible')
         {
             $failures.Add("Project tool '$($tool.id)' is not compatible.") | Out-Null
         }
@@ -274,11 +296,11 @@ function Invoke-GameWipSetupEnvironmentCheck
     {
         foreach ($failure in $failures)
         {
-            Write-GameWipHost "  [FAIL] $failure" -ForegroundColor Red
+            Write-GameWipStatusLine -Status FAIL -Text $failure -Semantic Failure -Indent 2
         }
         throw "$($failures.Count) environment check(s) failed. Run '.\setup.bat repair'."
     }
-    Write-GameWipHost '  [OK] Complete selected development environment is ready.' -ForegroundColor Green
+    Write-GameWipStatusLine -Status OK -Text 'Complete selected development environment is ready.' -Semantic Success -Indent 2
 }
 
 function Get-GameWipSetupPlan
@@ -481,9 +503,7 @@ function Show-GameWipSetupMenu
     Assert-GameWipSetupActionCatalog
     while ($true)
     {
-        Write-Host ''
-        Write-Host 'GameWIP Development Environment'
-        Write-Host '==============================='
+        Write-GameWipSection 'GameWIP Development Environment'
         $menuActions = @($SetupActionConfig.Actions | Where-Object { $_.ContainsKey('Key') })
         foreach ($actionInfo in $menuActions)
         {

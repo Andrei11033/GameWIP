@@ -220,7 +220,12 @@ function Invoke-GameWipQualityCheck
     if ($ScopeInfo.Requested -and $scope.Count -eq 0)
     {
         Write-GameWipSection 'Quality summary'
-        Write-Host '  [PASS] No changed maintained files.'
+        Write-GameWipStatusLine `
+            -Status PASS `
+            -Text 'No changed maintained files.' `
+            -Semantic Success `
+            -Indent 2 `
+            -MarkerWidth 6
         return
     }
     if ($ScopeInfo.Expanded)
@@ -315,16 +320,68 @@ function Invoke-GameWipQualityCheck
     for ($toolIndex = 0; $toolIndex -lt $requiredToolIds.Count; ++$toolIndex)
     {
         $id = $requiredToolIds[$toolIndex]
-        Write-Host "  [$($toolIndex + 1)/$($requiredToolIds.Count)] $id"
+
         try
         {
-            $tools[$id] = Get-GameWipQualityTool -Id $id
+            $toolInfo = Get-GameWipProjectTool -Id $id
+            $detected = Get-GameWipDetectedTool -Tool $toolInfo
+            $compatibility = Get-GameWipToolCompatibility -Tool $toolInfo -Detected $detected
+
+            $semantic = switch ($compatibility)
+            {
+                'compatible'
+                {
+                    'Success'
+                }
+                'missing'
+                {
+                    'Failure'
+                }
+                default
+                {
+                    'Warning'
+                }
+            }
+
+            Write-GameWipStatusLine `
+                -Status "$($toolIndex + 1)/$($requiredToolIds.Count)" `
+                -Text $id `
+                -Suffix "($compatibility)" `
+                -Semantic $semantic `
+                -SuffixSemantic Muted `
+                -Indent 2
+
+            if ($compatibility -eq 'compatible')
+            {
+                $tools[$id] = [string]$detected.Location
+                continue
+            }
+
+            $location = if ($detected.Location)
+            {
+                [string]$detected.Location
+            }
+            else
+            {
+                'not found'
+            }
+
+            $toolFailures.Add("${id}: $compatibility ($location)") | Out-Null
         }
         catch
         {
+            Write-GameWipStatusLine `
+                -Status "$($toolIndex + 1)/$($requiredToolIds.Count)" `
+                -Text $id `
+                -Suffix '(error)' `
+                -Semantic Failure `
+                -SuffixSemantic Muted `
+                -Indent 2
+
             $toolFailures.Add("${id}: $($_.Exception.Message)") | Out-Null
         }
     }
+
     if ($toolFailures.Count -ne 0)
     {
         throw (New-GameWipDiagnosticException -Code quality-toolchain-incomplete -Summary "$($toolFailures.Count) quality tool(s) are unavailable." -Details ($toolFailures -join "`n") -SuggestedActions @('.\gamewip.bat tools ensure quality -Yes', '.\gamewip.bat tools status'))
@@ -418,15 +475,22 @@ function Invoke-GameWipQualityCheck
     Write-GameWipSection 'Quality summary'
     foreach ($result in $results)
     {
-        $marker = if ($result.Status -eq 'PASS')
+        $semantic = if ($result.Status -eq 'PASS')
         {
-            '[PASS]'
+            'Success'
         }
         else
         {
-            '[FAIL]'
+            'Failure'
         }
-        Write-Host ('  {0,-6} {1,-28} {2,7:N2}s {3}' -f $marker, $result.Name, $result.Duration, $result.Error)
+
+        $details = '{0,-28} {1,7:N2}s {2}' -f $result.Name, $result.Duration, $result.Error
+        Write-GameWipStatusLine `
+            -Status $result.Status `
+            -Text $details `
+            -Semantic $semantic `
+            -Indent 2 `
+            -MarkerWidth 6
     }
     $failed = @($results | Where-Object { $_.Status -eq 'FAIL' })
     if ($failed.Count -ne 0)

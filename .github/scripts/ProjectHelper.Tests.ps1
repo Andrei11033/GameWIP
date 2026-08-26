@@ -27,6 +27,65 @@ if ((New-GameWipOperationContext -Label output-default).OutputMode -ne 'Stream')
 {
     throw 'Project helper operations do not stream native output by default.'
 }
+
+$expectedSemanticColors = [ordered]@{
+    Success = [ConsoleColor]::Green
+    Failure = [ConsoleColor]::Red
+    Warning = [ConsoleColor]::Yellow
+    Accent = [ConsoleColor]::Cyan
+    Muted = [ConsoleColor]::DarkGray
+}
+foreach ($semanticRole in $expectedSemanticColors.Keys)
+{
+    $actualColor = Get-GameWipSemanticColor -Semantic $semanticRole
+    if ($actualColor -ne $expectedSemanticColors[$semanticRole])
+    {
+        throw "Semantic console role '$semanticRole' mapped to '$actualColor' instead of '$($expectedSemanticColors[$semanticRole])'."
+    }
+}
+
+$originalPresentationContext = $Script:OperationContext
+try
+{
+    $Script:OperationContext = New-GameWipOperationContext -Label 'semantic-presentation-test'
+    $coloredStatusOutput = (& {
+            Write-GameWipStatusLine `
+                -Status ready `
+                -Text 'tool available' `
+                -Suffix '(compatible)' `
+                -Semantic Success `
+                -SuffixSemantic Muted `
+                -Indent 2 `
+                -MarkerWidth 10
+        } 6>&1 | ForEach-Object { [string]$_ }) -join ''
+
+    $Script:OperationContext = New-GameWipOperationContext -Label 'plain-presentation-test' -NoColor
+    $plainStatusOutput = (& {
+            Write-GameWipStatusLine `
+                -Status ready `
+                -Text 'tool available' `
+                -Suffix '(compatible)' `
+                -Semantic Success `
+                -SuffixSemantic Muted `
+                -Indent 2 `
+                -MarkerWidth 10
+        } 6>&1 | ForEach-Object { [string]$_ }) -join ''
+
+    $expectedStatusOutput = '  [ready]    tool available (compatible)'
+    if ($coloredStatusOutput -ne $expectedStatusOutput)
+    {
+        throw "Semantic status rendering changed its text contract: '$coloredStatusOutput'."
+    }
+    if ($plainStatusOutput -ne $expectedStatusOutput)
+    {
+        throw "No-color status rendering changed its text contract: '$plainStatusOutput'."
+    }
+}
+finally
+{
+    $Script:OperationContext = $originalPresentationContext
+}
+
 $schemaTestRoot = Join-Path $repositoryRoot ('build\gamewip\temp\schema-test-' + [guid]::NewGuid().ToString('N'))
 try
 {

@@ -137,14 +137,34 @@ function Write-GameWipOperationEvent
     }
     if ($Severity -eq 'error')
     {
-        Write-GameWipHost $Message -ForegroundColor Red
+        Write-GameWipSemanticText -Object $Message -Semantic Failure
         return
     }
     if ($Severity -eq 'success')
     {
-        Write-GameWipHost $Message -ForegroundColor Green
+        Write-GameWipSemanticText -Object $Message -Semantic Success
         return
     }
+    if ($Severity -eq 'progress')
+    {
+        $progressMatch = [regex]::Match(
+            $Message,
+            '^\[(?<status>[^\]]+)\](?:\s+(?<text>.*))?$'
+        )
+
+        if ($progressMatch.Success)
+        {
+            Write-GameWipStatusLine `
+                -Status $progressMatch.Groups['status'].Value `
+                -Text $progressMatch.Groups['text'].Value `
+                -Semantic Accent
+            return
+        }
+
+        Write-GameWipSemanticText -Object $Message -Semantic Accent
+        return
+    }
+
     Write-Host $Message
 }
 
@@ -267,7 +287,7 @@ function Confirm-GameWipMutation
 
     if ($null -ne $Script:OperationContext -and $Script:OperationContext.Preview)
     {
-        Write-GameWipHost 'Preview: mutation is disabled.' -ForegroundColor Cyan
+        Write-GameWipSemanticText -Object 'Preview: mutation is disabled.' -Semantic Accent
         return $false
     }
 
@@ -427,24 +447,67 @@ function Show-GameWipOperationReceipt
 {
     param([Parameter(Mandatory = $true)]$Result)
 
-    Write-Host ''
-    Write-Host 'Operation receipt'
-    Write-Host '================='
-    Write-Host "  Status:         $($Result.Status)"
-    Write-Host "  Mutation state: $($Result.MutationState)"
+    Write-GameWipSection 'Operation receipt'
+
+    Write-Host '  Status:         ' -NoNewline
+    switch ([string]$Result.Status)
+    {
+        'passed'
+        {
+            Write-GameWipSemanticText -Object ([string]$Result.Status) -Semantic Success
+        }
+        'failed'
+        {
+            Write-GameWipSemanticText -Object ([string]$Result.Status) -Semantic Failure
+        }
+        'cancelled'
+        {
+            Write-GameWipSemanticText -Object ([string]$Result.Status) -Semantic Warning
+        }
+        default
+        {
+            Write-Host ([string]$Result.Status)
+        }
+    }
+
+    Write-Host '  Mutation state: ' -NoNewline
+    switch ([string]$Result.MutationState)
+    {
+        'complete'
+        {
+            Write-GameWipSemanticText -Object ([string]$Result.MutationState) -Semantic Success
+        }
+        'partial'
+        {
+            Write-GameWipSemanticText -Object ([string]$Result.MutationState) -Semantic Warning
+        }
+        'none'
+        {
+            Write-GameWipSemanticText -Object ([string]$Result.MutationState) -Semantic Muted
+        }
+        default
+        {
+            Write-Host ([string]$Result.MutationState)
+        }
+    }
+
     Write-Host ('  Duration:       {0:N3}s' -f $Result.DurationSeconds)
+
     if (-not [string]::IsNullOrWhiteSpace([string]$Result.RunRoot))
     {
-        Write-Host "  Run:            $($Result.RunRoot)"
+        Write-Host '  Run:            ' -NoNewline
+        Write-GameWipSemanticText -Object ([string]$Result.RunRoot) -Semantic Muted
     }
+
     if ($Result.Changes.Count -ne 0)
     {
-        Write-Host '  Changes:'
+        Write-GameWipSemanticText -Object '  Changes:' -Semantic Accent
         foreach ($item in $Result.Changes)
         {
             Write-Host "    - $item"
         }
     }
+
     if ($Result.Preserved.Count -ne 0)
     {
         Write-Host '  Preserved:'
@@ -453,17 +516,19 @@ function Show-GameWipOperationReceipt
             Write-Host "    - $item"
         }
     }
+
     if ($Result.Warnings.Count -ne 0)
     {
-        Write-Host '  Warnings:'
+        Write-GameWipSemanticText -Object '  Warnings:' -Semantic Warning
         foreach ($item in $Result.Warnings)
         {
-            Write-GameWipHost "    - $item" -ForegroundColor Yellow
+            Write-GameWipSemanticText -Object "    - $item" -Semantic Warning
         }
     }
+
     if ($Result.NextActions.Count -ne 0)
     {
-        Write-Host '  Next:'
+        Write-GameWipSemanticText -Object '  Next:' -Semantic Accent
         foreach ($item in $Result.NextActions)
         {
             Write-Host "    - $item"
@@ -612,7 +677,7 @@ function Invoke-GameWipOperation
     }
     elseif ($status -eq 'cancelled')
     {
-        Write-GameWipHost 'Operation cancelled.' -ForegroundColor Yellow
+        Write-GameWipSemanticText -Object 'Operation cancelled.' -Semantic Warning
     }
     if ($null -ne $finalizationFailure)
     {

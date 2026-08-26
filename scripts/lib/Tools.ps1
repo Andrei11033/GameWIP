@@ -355,40 +355,110 @@ function Get-GameWipToolchainPathPrefix
 function Test-GameWipProjectReadiness
 {
     param([switch]$ThrowOnFailure)
+
     $failures = [System.Collections.Generic.List[string]]::new()
+
     Write-GameWipSection 'Project readiness'
-    foreach ($toolInfo in @($ProjectTools.tools | Where-Object { $_.capabilities.detectInstalled -and $_.versionPolicy -ne 'informational' }))
+
+    foreach ($toolInfo in @($ProjectTools.tools | Where-Object {
+                $_.capabilities.detectInstalled -and $_.versionPolicy -ne 'informational'
+            }))
     {
         $detected = Get-GameWipDetectedTool -Tool $toolInfo
         $compatibility = Get-GameWipToolCompatibility -Tool $toolInfo -Detected $detected
-        if ($compatibility -eq 'compatible')
+
+        $status = if ($compatibility -eq 'compatible')
         {
-            Write-Host "  [ready] $($toolInfo.name): $($detected.Location)"
+            'ready'
         }
         else
         {
-            Write-GameWipHost "  [$compatibility] $($toolInfo.name): $(if ($detected.Location) { $detected.Location } else { 'not found' })" -ForegroundColor Yellow; $failures.Add([string]$toolInfo.name) | Out-Null
+            $compatibility
+        }
+
+        $semantic = switch ($compatibility)
+        {
+            'compatible'
+            {
+                'Success'
+            }
+            'missing'
+            {
+                'Failure'
+            }
+            default
+            {
+                'Warning'
+            }
+        }
+
+        $location = if ($detected.Location)
+        {
+            [string]$detected.Location
+        }
+        else
+        {
+            'not found'
+        }
+
+        Write-GameWipStatusLine `
+            -Status $status `
+            -Text "$($toolInfo.name):" `
+            -Suffix $location `
+            -Semantic $semantic `
+            -SuffixSemantic Muted `
+            -Indent 2 `
+            -MarkerWidth 10
+
+        if ($compatibility -ne 'compatible')
+        {
+            $failures.Add([string]$toolInfo.name) | Out-Null
         }
     }
+
     if (Test-Path -LiteralPath (Join-Path $RepositoryRoot '.git'))
     {
-        Write-Host '  [ready] Git repository metadata'
+        Write-GameWipStatusLine `
+            -Status ready `
+            -Text 'Git repository metadata' `
+            -Semantic Success `
+            -Indent 2 `
+            -MarkerWidth 10
     }
     else
     {
-        Write-GameWipHost '  [missing] Git repository metadata' -ForegroundColor Yellow; $failures.Add('Git repository metadata') | Out-Null
+        Write-GameWipStatusLine `
+            -Status missing `
+            -Text 'Git repository metadata' `
+            -Semantic Failure `
+            -Indent 2 `
+            -MarkerWidth 10
+
+        $failures.Add('Git repository metadata') | Out-Null
     }
+
     if ($failures.Count -ne 0)
     {
         $message = "$($failures.Count) project requirement(s) are missing or incompatible. Run .\setup.bat repair, then rerun gamewip."
+
         if ($ThrowOnFailure)
         {
             throw $message
         }
-        Write-GameWipHost "  $message" -ForegroundColor Yellow
+
+        Write-GameWipSemanticText `
+            -Object "  $message" `
+            -Semantic Warning
+
         return $false
     }
-    Write-GameWipHost '  Ready: the complete declared project toolchain is available.' -ForegroundColor Green
+
+    Write-GameWipSemanticText `
+        -Object '  Ready:' `
+        -Semantic Success `
+        -NoNewline
+    Write-Host ' the complete declared project toolchain is available.'
+
     return $true
 }
 

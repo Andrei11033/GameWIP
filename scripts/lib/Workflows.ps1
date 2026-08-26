@@ -206,7 +206,9 @@ function Invoke-GameWipManualWorkflow
         Add-GameWipOperationWarning -Message 'Dispatch succeeded, but the new run was not visible within 30 seconds.'; return
     }
     $runId = [string]$run.databaseId
-    Write-GameWipHost "Queued run: $($run.url)" -ForegroundColor Green
+    Write-GameWipSemanticText -Object 'Queued run:' -Semantic Success -NoNewline
+    Write-Host ' ' -NoNewline
+    Write-GameWipSemanticText -Object ([string]$run.url) -Semantic Muted
     $watch = $true
     if ($null -eq $Script:OperationContext -or -not $Script:OperationContext.NonInteractive)
     {

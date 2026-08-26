@@ -76,9 +76,7 @@ function Select-GameWipEditor
     )
     while ($true)
     {
-        Write-Host ''
-        Write-Host 'Select editors and IDEs'
-        Write-Host '======================='
+        Write-GameWipSection 'Select editors and IDEs'
         Write-Host 'Press a number to toggle an editor:'
         foreach ($option in $EditorConfig.Options)
         {

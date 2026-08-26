@@ -5,46 +5,61 @@ Set-StrictMode -Version Latest
 function Write-GameWipUnicodeState
 {
     param([Parameter(Mandatory = $true)][string]$State, [Parameter(Mandatory = $true)][string]$Label, [string]$Detail = '')
-    $suffix = if ([string]::IsNullOrWhiteSpace($Detail))
-    {
-        ''
-    }
-    else
-    {
-        ": $Detail"
-    }
-    $color = switch ($State.ToLowerInvariant())
+    $normalizedState = $State.ToLowerInvariant()
+    $semantic = switch ($normalizedState)
     {
         'pass'
         {
-            'Green'
+            'Success'
         } 'ready'
         {
-            'Green'
+            'Success'
         } 'unchanged'
         {
-            'Green'
+            'Success'
         } 'cached'
         {
-            'Cyan'
+            'Accent'
         } 'downloaded'
         {
-            'Cyan'
+            'Accent'
         } 'updated'
         {
-            'Yellow'
+            'Warning'
         } 'missing'
         {
-            'Yellow'
+            'Warning'
         } 'fail'
         {
-            'Red'
+            'Failure'
         } default
         {
-            'Gray'
+            'Muted'
         }
     }
-    Write-GameWipHost ("  {0,-12} {1}{2}" -f "[$($State.ToLowerInvariant())]", $Label, $suffix) -ForegroundColor $color
+
+    Write-GameWipStatusLine `
+        -Status $normalizedState `
+        -Text $(if ([string]::IsNullOrWhiteSpace($Detail))
+        {
+            $Label
+        }
+        else
+        {
+            "${Label}:"
+        }) `
+        -Suffix $(if ([string]::IsNullOrWhiteSpace($Detail))
+        {
+            ''
+        }
+        else
+        {
+            $Detail
+        }) `
+        -Semantic $semantic `
+        -SuffixSemantic Muted `
+        -Indent 2 `
+        -MarkerWidth 12
 }
 
 function Get-GameWipUnicodePath
@@ -91,9 +106,12 @@ function Show-GameWipUnicodeStatus
     $paths = Get-GameWipUnicodePath
     Write-GameWipSection 'Unicode data status'
     Write-Host "  Standard:     Unicode $($paths.Version)"
-    Write-Host "  Cache:        $($paths.VersionRoot)"
-    Write-Host "  Generator:    $($paths.Generator)"
-    Write-Host "  Runtime data: $($paths.CheckedInHeader)"
+    Write-Host '  Cache:        ' -NoNewline
+    Write-GameWipSemanticText -Object ([string]$paths.VersionRoot) -Semantic Muted
+    Write-Host '  Generator:    ' -NoNewline
+    Write-GameWipSemanticText -Object ([string]$paths.Generator) -Semantic Muted
+    Write-Host '  Runtime data: ' -NoNewline
+    Write-GameWipSemanticText -Object ([string]$paths.CheckedInHeader) -Semantic Muted
     try
     {
         $python = Resolve-GameWipPython; Write-GameWipUnicodeState -State ready -Label Python -Detail "$($python.Version) via $($python.Source) [$($python.Path)]"

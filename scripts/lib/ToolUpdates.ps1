@@ -43,7 +43,11 @@ function Get-GameWipToolUpdatePlan
     {
         $toolInfo = $selected[$toolIndex]
         Assert-GameWipNotCancelled
-        Write-Host "  [$($toolIndex + 1)/$($selected.Count)] $($toolInfo.id)"
+        Write-GameWipStatusLine `
+            -Status "$($toolIndex + 1)/$($selected.Count)" `
+            -Text ([string]$toolInfo.id) `
+            -Semantic Accent `
+            -Indent 2
         $detected = Get-GameWipDetectedTool -Tool $toolInfo
         $query = Get-GameWipToolLatestQuery -Tool $toolInfo
         $dependencyQueries = @{}
@@ -120,7 +124,46 @@ function Show-GameWipToolUpdatePlan
         {
             $latestDisplay = $latestDisplay.Substring(0, 17) + '...'
         }
-        Write-Host ('  {0,-20} {1,-13} {2,-13} {3,-20} {4}' -f $item.Tool.id, $required, $installedDisplay, $latestDisplay, $item.Tool.provider.kind)
+        $latestSemantic = if ($item.Query.State -eq 'resolved')
+        {
+            $hasActionableDifference = if ($item.Tool.versionPolicy -eq 'exact' -and $item.Tool.Contains('requiredVersion'))
+            {
+                [string]$item.Latest -ne [string]$item.Tool.requiredVersion
+            }
+            else
+            {
+                -not [string]::IsNullOrWhiteSpace([string]$item.Installed) -and [string]$item.Latest -ne [string]$item.Installed
+            }
+            if ($hasActionableDifference)
+            {
+                'Accent'
+            }
+            else
+            {
+                'Success'
+            }
+        }
+        elseif ($item.Query.State -eq 'unsupported')
+        {
+            'Muted'
+        }
+        else
+        {
+            'Warning'
+        }
+
+        Write-Host ('  {0,-20} {1,-13} ' -f $item.Tool.id, $required) -NoNewline
+        if ($installedDisplay -eq 'missing')
+        {
+            Write-GameWipSemanticText -Object ('{0,-13}' -f $installedDisplay) -Semantic Failure -NoNewline
+        }
+        else
+        {
+            Write-Host ('{0,-13}' -f $installedDisplay) -NoNewline
+        }
+        Write-Host ' ' -NoNewline
+        Write-GameWipSemanticText -Object ('{0,-20}' -f $latestDisplay) -Semantic $latestSemantic -NoNewline
+        Write-Host (' {0}' -f $item.Tool.provider.kind)
         if (-not [string]::IsNullOrWhiteSpace([string]$item.Query.Reason))
         {
             $details.Add("$($item.Tool.id): $($item.Query.Reason)") | Out-Null
@@ -536,7 +579,9 @@ function Invoke-GameWipToolEnsure
     $needed = @($plan | Where-Object { $_.NeedsInstall })
     if ($needed.Count -eq 0)
     {
-        Write-GameWipHost 'All selected tools already satisfy the declared policy.' -ForegroundColor Green; return
+        Write-GameWipSemanticText -Object 'All selected tools' -Semantic Success -NoNewline
+        Write-Host ' already satisfy the declared policy.'
+        return
     }
     if ($null -ne $Script:OperationContext -and $Script:OperationContext.Preview)
     {
