@@ -519,7 +519,7 @@
         ]
       },
       "versionPolicy": "exact",
-      "requiredVersion": "10.9.0",
+      "requiredVersion": "10.9.1",
       "detection": {
         "command": "eslint",
         "versionArguments": ["--version"],
