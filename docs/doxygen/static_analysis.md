@@ -202,6 +202,8 @@ and leading `@file`/`@brief` ownership across every supported documented source
 root.
 
 The repository-standards checker keeps GitHub Actions dependencies immutable,
+requires each action's full-SHA pin and release-version annotation to remain
+consistent across workflows,
 requires explicit permissions and job timeouts, fails closed on empty CTest
 selection, preserves trusted `pull_request_target` checkout boundaries, and
 verifies that public repository files exist and are non-empty.

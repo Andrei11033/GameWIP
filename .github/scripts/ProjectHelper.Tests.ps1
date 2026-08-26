@@ -771,7 +771,7 @@ finally
 }
 
 # Tracked tool planning is declarative, composes same-file references, and
-# stages source-preserving CAS mutations without provider/network calls.
+# stages source-preserving compare-and-set mutations without provider/network calls.
 $trackedPlanRoot = Join-Path $repositoryRoot ('build\gamewip\temp\tracked-plan-test-' + [guid]::NewGuid().ToString('N'))
 $savedRepositoryRoot = $Script:RepositoryRoot
 $savedProjectToolsPath = $Script:ProjectToolsPath
@@ -866,7 +866,7 @@ try
     $sharedStaged = [string]$trackedPlan.Files[$sharedReferencePath]
     if ($sharedStaged -cne "alpha=1.1.0`nbeta=2.1.0`nunrelated=$emDash $romanianText`n")
     {
-        throw 'Multiple live-reference mutations did not compose while preserving unrelated UTF-8 text.'
+        throw 'Multiple live reference mutations did not compose while preserving unrelated UTF-8 text.'
     }
     if ($trackedPlan.Files.ContainsKey($historicalReferencePath))
     {
@@ -920,7 +920,7 @@ try
     }
     if (-not $countRejected)
     {
-        throw 'Live-reference expectedCount mismatch was not rejected.'
+        throw 'Live reference expectedCount mismatch was not rejected.'
     }
 
     $noOpPlan = Get-GameWipTrackedToolMutationPlan -Plan @([pscustomobject]@{

@@ -109,7 +109,7 @@ def main() -> int:
             if isinstance(document, dict) and "schemaVersion" in document and document["schemaVersion"] != 1:
                 failures.append(f"{normalized}: schemaVersion must remain 1 on this branch")
 
-    # Canonical path-casing check: configured live references must match git casing exactly.
+    # Canonical path-casing check: configured repository references must match Git casing exactly.
     canonical = {path.casefold(): path for path in paths}
     registry = ROOT / "scripts/config/project-tools.json"
     if registry.exists():

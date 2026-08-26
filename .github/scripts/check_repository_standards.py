@@ -59,6 +59,8 @@ REQUIRED_CHECK_NAMES = {
 }
 
 ACTION_REFERENCE = re.compile(r"^\s*uses:\s*([^\s#]+)")
+ACTION_VERSION_ANNOTATION = re.compile(r"^\s*uses:\s*([^\s#]+)(?:\s+#\s*(\S(?:.*\S)?))?\s*$")
+ACTION_VERSION = re.compile(r"^v[0-9]+(?:\.[0-9]+){0,2}$")
 FULL_COMMIT_PIN = re.compile(r"^[^\s@]+@[0-9a-f]{40}$")
 JOB_START = re.compile(r"^  ([A-Za-z0-9_-]+):\s*$")
 JOB_TIMEOUT = re.compile(r"^    timeout-minutes:\s*[1-9][0-9]*\s*$")
@@ -671,6 +673,35 @@ def check_workflow(path: Path, safe_ctest_presets: set[str]) -> list[str]:
     return failures
 
 
+def check_action_reference_consistency(workflows: list[Path], failures: list[str]) -> None:
+    """Require one pinned reference and readable version annotation per external action."""
+
+    references: dict[str, tuple[str, str, str, int]] = {}
+    for path in workflows:
+        relative = path.relative_to(ROOT).as_posix()
+        for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+            match = ACTION_VERSION_ANNOTATION.match(line)
+            if match is None:
+                continue
+
+            reference, annotation = match.groups()
+            if reference.startswith("./"):
+                continue
+            if annotation is None or ACTION_VERSION.fullmatch(annotation) is None:
+                failures.append(f"{relative}:{line_number}: annotate pinned action '{reference}' with a release version such as '# v4.2.0'")
+                continue
+
+            action = reference.rpartition("@")[0]
+            previous = references.get(action)
+            if previous is not None and (previous[0] != reference or previous[1] != annotation):
+                failures.append(
+                    f"{relative}:{line_number}: action '{action}' uses '{reference} # {annotation}' but "
+                    f"{previous[2]}:{previous[3]} uses '{previous[0]} # {previous[1]}'"
+                )
+                continue
+            references[action] = (reference, annotation, relative, line_number)
+
+
 def check_quality_contract(failures: list[str]) -> None:
     """Protect quality semantics that would otherwise degrade silently."""
 
@@ -714,6 +745,7 @@ def main() -> int:
     workflows = sorted((*WORKFLOW_ROOT.glob("*.yml"), *WORKFLOW_ROOT.glob("*.yaml")))
     if not workflows:
         failures.append(".github/workflows: no workflow files found")
+    check_action_reference_consistency(workflows, failures)
     for workflow in workflows:
         failures.extend(check_workflow(workflow, safe_ctest_presets))
 
