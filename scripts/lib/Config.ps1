@@ -56,7 +56,7 @@ function Read-GameWipJsonConfig
     }
     try
     {
-        $parsed = Get-Content -Raw -LiteralPath $Path | ConvertFrom-Json
+        $parsed = Read-GameWipUtf8Text -Path $Path | ConvertFrom-Json
     }
     catch
     {
@@ -83,7 +83,7 @@ function Read-GameWipJsonConfig
         }
         try
         {
-            $schemaHeader = Get-Content -Raw -LiteralPath $SchemaPath | ConvertFrom-Json
+            $schemaHeader = Read-GameWipUtf8Text -Path $SchemaPath | ConvertFrom-Json
         }
         catch
         {
@@ -145,6 +145,16 @@ function Assert-GameWipProjectToolConfig
 {
     Assert-GameWipUniqueId -Items @($ProjectTools.tools) -Label 'project tool'
     $providerKinds = @('msys2', 'npm', 'python', 'powershellGallery', 'githubRelease', 'winget', 'gitSubmodule', 'external')
+    $liveReferences = @{}
+    $rootPath = [IO.Path]::GetFullPath($RepositoryRoot).TrimEnd([IO.Path]::DirectorySeparatorChar, [IO.Path]::AltDirectorySeparatorChar)
+    $pathComparison = if (Test-GameWipWindowsHost)
+    {
+        [StringComparison]::OrdinalIgnoreCase
+    }
+    else
+    {
+        [StringComparison]::Ordinal
+    }
     foreach ($toolInfo in @($ProjectTools.tools))
     {
         if ($providerKinds -notcontains $toolInfo.provider.kind)
@@ -247,16 +257,82 @@ function Assert-GameWipProjectToolConfig
         {
             if ($reference -isnot [hashtable] -or -not $reference.Contains('path') -or -not $reference.Contains('kind'))
             {
-                throw "Tool '$($toolInfo.id)' has malformed live-reference metadata."
+                throw "Tool '$($toolInfo.id)' has malformed reference metadata."
             }
-            if (-not (Test-Path -LiteralPath (Join-Path $RepositoryRoot ([string]$reference.path))))
+            $referencePath = Resolve-GameWipRepositoryPath -Path ([string]$reference.path)
+            if (-not $referencePath.StartsWith($rootPath + [IO.Path]::DirectorySeparatorChar, $pathComparison))
             {
-                throw "Tool '$($toolInfo.id)' references missing live path '$($reference.path)'."
+                throw "Tool '$($toolInfo.id)' reference path '$($reference.path)' resolves outside the repository."
             }
-            if ($reference.kind -eq 'text' -and (-not $reference.Contains('pattern') -or -not ([string]$reference.pattern).Contains('{version}')))
+            if (-not (Test-Path -LiteralPath $referencePath -PathType Leaf))
             {
-                throw "Tool '$($toolInfo.id)' text reference '$($reference.path)' must contain {version}."
+                throw "Tool '$($toolInfo.id)' references missing path '$($reference.path)'."
             }
+
+            $expectedCount = if ($reference.Contains('expectedCount'))
+            {
+                [int]$reference.expectedCount
+            }
+            else
+            {
+                1
+            }
+            switch ([string]$reference.kind)
+            {
+                'text'
+                {
+                    if (-not $reference.Contains('pattern'))
+                    {
+                        throw "Tool '$($toolInfo.id)' text reference '$($reference.path)' must declare a literal pattern."
+                    }
+                    $tokenCount = [regex]::Matches([string]$reference.pattern, [regex]::Escape('{version}')).Count
+                    if ($tokenCount -ne 1)
+                    {
+                        throw "Tool '$($toolInfo.id)' text reference '$($reference.path)' pattern must contain exactly one literal {version} token."
+                    }
+                }
+                'cmakeMinimum'
+                {
+                    if ($reference.Contains('pattern'))
+                    {
+                        throw "Tool '$($toolInfo.id)' CMake minimum reference '$($reference.path)' must not declare pattern."
+                    }
+                }
+                'path'
+                {
+                    if ($reference.Contains('pattern') -or $reference.Contains('expectedCount'))
+                    {
+                        throw "Tool '$($toolInfo.id)' informational path reference '$($reference.path)' must not declare pattern or expectedCount."
+                    }
+                    continue
+                }
+                default
+                {
+                    throw "Tool '$($toolInfo.id)' uses unknown reference kind '$($reference.kind)'."
+                }
+            }
+            if ($expectedCount -lt 1)
+            {
+                throw "Tool '$($toolInfo.id)' live reference '$($reference.path)' expectedCount must be at least 1."
+            }
+            $referenceKey = @(
+                [string]$reference.kind,
+                $referencePath,
+                $(if ($reference.Contains('pattern'))
+                    {
+                        [string]$reference.pattern
+                    }
+                    else
+                    {
+                        ''
+                    }),
+                [string]$expectedCount
+            ) -join "`n"
+            if ($liveReferences.ContainsKey($referenceKey))
+            {
+                throw "Tool '$($toolInfo.id)' duplicates live reference '$($reference.path)'."
+            }
+            $liveReferences[$referenceKey] = $true
         }
     }
 }

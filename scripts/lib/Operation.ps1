@@ -323,7 +323,15 @@ function Stop-GameWipOwnedProcess
 {
     param([Parameter(Mandatory = $true)]$Process)
 
-    $previousLastExitCode = $global:LASTEXITCODE
+    $lastExitCodeVariable = Get-Variable -Name LASTEXITCODE -Scope Global -ErrorAction SilentlyContinue
+    $previousLastExitCode = if ($null -ne $lastExitCodeVariable)
+    {
+        $lastExitCodeVariable.Value
+    }
+    else
+    {
+        $null
+    }
     try
     {
         $ownsProcessGroup = $null -ne $Process.PSObject.Properties['GameWipOwnProcessGroup'] -and [bool]$Process.GameWipOwnProcessGroup
@@ -379,7 +387,14 @@ function Stop-GameWipOwnedProcess
     }
     finally
     {
-        $global:LASTEXITCODE = $previousLastExitCode
+        if ($null -ne $lastExitCodeVariable)
+        {
+            $global:LASTEXITCODE = $previousLastExitCode
+        }
+        else
+        {
+            Remove-Variable -Name LASTEXITCODE -Scope Global -ErrorAction SilentlyContinue
+        }
     }
 }
 

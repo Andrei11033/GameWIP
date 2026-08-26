@@ -22,29 +22,13 @@ jobs:
           ref: ${{ github.event.pull_request.base.sha }}
           persist-credentials: false
           path: trusted-policy
-      # TODO(post-merge): Once this workflow and policy module are on master,
-      # remove the bootstrap checkout, bootstrapPolicy selection, and warning;
-      # require the policy module from trusted-policy directly.
-      - name: Check out bootstrap policy code
-        if: hashFiles('trusted-policy/.github/scripts/pr-standards.js') == ''
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-          persist-credentials: false
-          path: bootstrap-policy
       - name: Validate pull request metadata
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
-            const fs = require("fs");
-            const path = require("path");
-            const trustedPolicy = path.join(process.env.GITHUB_WORKSPACE, "trusted-policy", ".github", "scripts", "pr-standards.js");
-            const bootstrapPolicy = path.join(process.env.GITHUB_WORKSPACE, "bootstrap-policy", ".github", "scripts", "pr-standards.js");
-            const policy = fs.existsSync(trustedPolicy) ? trustedPolicy : bootstrapPolicy;
-            if (policy === bootstrapPolicy) {
-              core.warning("Using pull-request policy code because the base branch does not contain the policy module yet.");
-            }
-            const { validatePullRequest } = require(policy);
+            const { validatePullRequest } = require(
+              `${process.env.GITHUB_WORKSPACE}/trusted-policy/.github/scripts/pr-standards.js`,
+            );
             const errors = validatePullRequest(context.payload.pull_request);
             if (errors.length) core.setFailed(errors.map((error) => `- ${error}`).join("\n"));
             else core.info("PR metadata follows the repository standards.");

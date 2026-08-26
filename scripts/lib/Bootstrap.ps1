@@ -71,7 +71,7 @@ foreach ($libraryFile in $libraryFiles)
 $ProjectConfig = Read-GameWipJsonConfig -Path $ProjectConfigPath -Name 'project' -SchemaPath (Join-Path $ScriptsRoot 'schemas\project.schema.json')
 $CommandConfig = Read-GameWipJsonConfig -Path $CommandConfigPath -Name 'commands' -SchemaPath (Join-Path $ScriptsRoot 'schemas\commands.schema.json')
 $ProjectTools = Read-GameWipJsonConfig -Path $ProjectToolsPath -Name 'project tools' -SchemaPath (Join-Path $ScriptsRoot 'schemas\project-tools.schema.json')
-$PresetData = Get-Content -Raw -LiteralPath $PresetsPath | ConvertFrom-Json
+$PresetData = Read-GameWipUtf8Text -Path $PresetsPath | ConvertFrom-Json
 
 Assert-GameWipProjectConfig
 Assert-GameWipCommandConfig

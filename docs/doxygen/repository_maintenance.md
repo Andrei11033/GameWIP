@@ -63,6 +63,11 @@ must always check out trusted default-branch automation with persisted checkout
 credentials disabled, and must never fetch, build, import, or execute pull
 request head content. The repository checker enforces this boundary.
 
+`PR Standards` checks out the pull request's base commit separately and loads
+its policy module only from that trusted checkout. It has no pull-request-head
+or bootstrap fallback, so contributor code cannot replace the policy being
+executed.
+
 Event-driven automation is the normal path. The project schedule is an
 intentional repair pass for dependency, review, or project-side changes that do
 not emit a complete repository event; maintainers should not manually repeat

@@ -2,6 +2,15 @@
 
 Set-StrictMode -Version Latest
 
+function Read-GameWipUtf8Text
+{
+    param([Parameter(Mandatory = $true)][string]$Path)
+
+    $fullPath = [IO.Path]::GetFullPath($Path)
+    $encoding = [Text.UTF8Encoding]::new($false, $true)
+    return [IO.File]::ReadAllText($fullPath, $encoding)
+}
+
 function Write-GameWipTextAtomic
 {
     param(

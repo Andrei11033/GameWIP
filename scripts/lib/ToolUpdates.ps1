@@ -222,7 +222,8 @@ function Get-GameWipTrackedToolMutationPlan
     $registry = Read-GameWipJsonConfig -Path $ProjectToolsPath -Name 'project tools'
     $staged = @{}
     $descriptions = [System.Collections.Generic.List[string]]::new()
-    $registryChanged = $false
+    $registryMutations = [System.Collections.Generic.List[object]]::new()
+    $updatedToolIds = @{}
 
     foreach ($item in $Plan)
     {
@@ -253,18 +254,18 @@ function Get-GameWipTrackedToolMutationPlan
             $newVersion = [string]$item.Latest
             foreach ($reference in @($tool.references))
             {
-                if ($reference.kind -eq 'path' -or [string]$reference.path -like 'docs/releases/*')
+                if ($reference.kind -eq 'path')
                 {
                     continue
                 }
-                $fullPath = Join-Path $RepositoryRoot ([string]$reference.path)
+                $fullPath = Resolve-GameWipRepositoryPath -Path ([string]$reference.path)
                 $current = if ($staged.ContainsKey($fullPath))
                 {
                     [string]$staged[$fullPath]
                 }
                 else
                 {
-                    Get-Content -Raw -LiteralPath $fullPath
+                    Read-GameWipUtf8Text -Path $fullPath
                 }
                 $texts = Get-GameWipReferenceTexts -Reference $reference -OldVersion $oldVersion -NewVersion $newVersion
                 $expectedCount = if ($reference.Contains('expectedCount'))
@@ -281,15 +282,34 @@ function Get-GameWipTrackedToolMutationPlan
                     throw "Live version reference '$($reference.path)' expected $expectedCount exact match(es), found $count."
                 }
                 $staged[$fullPath] = $current.Replace($texts.Old, $texts.New)
-                $descriptions.Add("$($reference.path): $oldVersion -> $newVersion") | Out-Null
+                $descriptions.Add("$($reference.path): $($tool.id) $oldVersion -> $newVersion") | Out-Null
             }
+            $registryMutations.Add(@{
+                    toolId = [string]$tool.id
+                    path = @('requiredVersion')
+                    expected = $oldVersion
+                    value = $newVersion
+                }) | Out-Null
+            $descriptions.Add("scripts/config/project-tools.json: $($tool.id).requiredVersion $oldVersion -> $newVersion") | Out-Null
             $registryTool.requiredVersion = $newVersion
-            $registryChanged = $true
+            $updatedToolIds[[string]$tool.id] = $true
             if ($tool.provider.kind -eq 'githubRelease')
             {
                 if ($item.Query.State -ne 'resolved' -or $null -eq $item.ReleaseMetadata)
                 {
                     throw "Complete verified release metadata is required for '$($tool.id)' $newVersion."
+                }
+                $oldReleaseTag = [string]$registryTool.provider.releaseTag
+                $newReleaseTag = [string]$item.ReleaseMetadata.Tag
+                if ($oldReleaseTag -ne $newReleaseTag)
+                {
+                    $registryMutations.Add(@{
+                            toolId = [string]$tool.id
+                            path = @('provider', 'releaseTag')
+                            expected = $oldReleaseTag
+                            value = $newReleaseTag
+                        }) | Out-Null
+                    $descriptions.Add("scripts/config/project-tools.json: $($tool.id).provider.releaseTag $oldReleaseTag -> $newReleaseTag") | Out-Null
                 }
                 $registryTool.provider.releaseTag = $item.ReleaseMetadata.Tag
                 foreach ($key in @($tool.provider.assets.Keys))
@@ -298,6 +318,21 @@ function Get-GameWipTrackedToolMutationPlan
                     if ($null -eq $plannedAsset)
                     {
                         throw "Planned release metadata for '$($tool.id)' is missing '$key'."
+                    }
+                    foreach ($field in @('archive', 'sha256'))
+                    {
+                        $oldAssetValue = [string]$registryTool.provider.assets[$key][$field]
+                        $newAssetValue = [string]$plannedAsset[$field]
+                        if ($oldAssetValue -ne $newAssetValue)
+                        {
+                            $registryMutations.Add(@{
+                                    toolId = [string]$tool.id
+                                    path = @('provider', 'assets', [string]$key, $field)
+                                    expected = $oldAssetValue
+                                    value = $newAssetValue
+                                }) | Out-Null
+                            $descriptions.Add("scripts/config/project-tools.json: $($tool.id).provider.assets.$key.$field $oldAssetValue -> $newAssetValue") | Out-Null
+                        }
                     }
                     $registryTool.provider.assets[$key].archive = $plannedAsset.archive
                     $registryTool.provider.assets[$key].sha256 = $plannedAsset.sha256
@@ -321,36 +356,69 @@ function Get-GameWipTrackedToolMutationPlan
                 $newDependencyVersion = [string]$item.LatestDependencies[$package]
                 if ($newDependencyVersion -ne [string]$dependency.version)
                 {
-                    $descriptions.Add("project-tools.json dependency ${package}: $($dependency.version) -> $newDependencyVersion") | Out-Null
+                    $oldDependencyVersion = [string]$dependency.version
+                    $registryMutations.Add(@{
+                            toolId = [string]$tool.id
+                            path = @('provider', 'dependencies', @{ match = @{ package = $package } }, 'version')
+                            expected = $oldDependencyVersion
+                            value = $newDependencyVersion
+                        }) | Out-Null
+                    $descriptions.Add("scripts/config/project-tools.json: $($tool.id).provider.dependencies[$package].version $oldDependencyVersion -> $newDependencyVersion") | Out-Null
                     $dependency.version = $newDependencyVersion
-                    $registryChanged = $true
+                    $updatedToolIds[[string]$tool.id] = $true
                 }
             }
         }
     }
 
-    if ($registryChanged)
+    if ($registryMutations.Count -ne 0)
     {
-        $prettierTool = Get-GameWipProjectTool -Id 'prettier'
-        $prettier = Get-GameWipDetectedTool -Tool $prettierTool
-        if ((Get-GameWipToolCompatibility -Tool $prettierTool -Detected $prettier) -ne 'compatible')
+        $node = Resolve-GameWipToolCommand -Command 'node'
+        if ([string]::IsNullOrWhiteSpace([string]$node))
         {
-            throw 'Prettier must be available before a project-tools.json update can be staged.'
+            throw 'Node.js is required to stage source-preserving project-tools.json mutations, but node could not be resolved through project-tool discovery.'
         }
-        $temporaryRegistry = Join-Path $Script:OperationContext.Temp 'project-tools.staged.json'
-        [IO.File]::WriteAllText($temporaryRegistry, (($registry | ConvertTo-Json -Depth 30) + "`n"), [Text.UTF8Encoding]::new($false))
-        $config = Join-Path $RepositoryRoot 'config\quality\prettier.json'
-        $formatResult = Invoke-GameWipProcess -FilePath $prettier.Location -Arguments @('--config', $config, '--write', $temporaryRegistry) -OutputMode LogOnly -TimeoutSeconds 60
-        if ($formatResult.ExitCode -ne 0)
+        $temporaryRoot = if ($null -ne $Script:OperationContext -and -not [string]::IsNullOrWhiteSpace([string]$Script:OperationContext.Temp))
         {
-            throw "Prettier could not format the staged project-tools registry. See $($formatResult.LogPath)"
+            [string]$Script:OperationContext.Temp
         }
-        $null = Get-Content -Raw -LiteralPath $temporaryRegistry | ConvertFrom-Json
-        $staged[$ProjectToolsPath] = Get-Content -Raw -LiteralPath $temporaryRegistry
-        $descriptions.Add('scripts/config/project-tools.json: staged once after all tool/dependency changes') | Out-Null
+        else
+        {
+            [IO.Path]::GetTempPath()
+        }
+        $mutationSpecification = Join-Path $temporaryRoot ('project-tools.mutations.' + [guid]::NewGuid().ToString('N') + '.json')
+        $temporaryRegistry = Join-Path $temporaryRoot ('project-tools.staged.' + [guid]::NewGuid().ToString('N') + '.json')
+        $mutationData = [ordered]@{ schemaVersion = 1; mutations = @($registryMutations) }
+        [IO.File]::WriteAllText($mutationSpecification, (($mutationData | ConvertTo-Json -Depth 30) + "`n"), [Text.UTF8Encoding]::new($false))
+        $mutator = Join-Path $ScriptsRoot 'lib\project-tools-json-mutator.js'
+        $mutationResult = Invoke-GameWipProcess -FilePath $node -Arguments @($mutator, $ProjectToolsPath, $mutationSpecification, $temporaryRegistry) -OutputMode LogOnly -TimeoutSeconds 60
+        if ($mutationResult.ExitCode -ne 0)
+        {
+            throw "The source-preserving project-tools.json mutation failed. See $($mutationResult.LogPath)"
+        }
+        $stagedRegistryText = Read-GameWipUtf8Text -Path $temporaryRegistry
+        $stagedRegistry = Read-GameWipJsonConfig -Path $temporaryRegistry -Name 'staged project tools' -SchemaPath (Join-Path $ScriptsRoot 'schemas\project-tools.schema.json')
+        $previousProjectTools = $Script:ProjectTools
+        try
+        {
+            $Script:ProjectTools = $stagedRegistry
+            Assert-GameWipProjectToolConfig
+        }
+        finally
+        {
+            $Script:ProjectTools = $previousProjectTools
+        }
+        $staged[$ProjectToolsPath] = $stagedRegistryText
     }
 
-    return [pscustomobject]@{ Files = $staged; Registry = $registry; RegistryChanged = $registryChanged; Descriptions = @($descriptions) }
+    return [pscustomobject]@{
+        Files = $staged
+        Registry = $registry
+        RegistryChanged = $registryMutations.Count -ne 0
+        RegistryMutations = @($registryMutations)
+        UpdatedToolIds = $updatedToolIds
+        Descriptions = @($descriptions)
+    }
 }
 
 function Get-GameWipPlannedInstallTool
@@ -363,6 +431,30 @@ function Get-GameWipPlannedInstallTool
         return Copy-GameWipValue -Value $registryTool[0]
     }
     return $tool
+}
+
+function Test-GameWipToolPlanRequiresInstall
+{
+    param([Parameter(Mandatory = $true)]$PlanItem, [Parameter(Mandatory = $true)]$TrackedPlan)
+    $toolId = [string]$PlanItem.Tool.id
+    if ($TrackedPlan.UpdatedToolIds.ContainsKey($toolId))
+    {
+        return $true
+    }
+    $installTool = Get-GameWipPlannedInstallTool -PlanItem $PlanItem -TrackedPlan $TrackedPlan
+    if ((Get-GameWipToolCompatibility -Tool $installTool -Detected $PlanItem.Detected) -ne 'compatible')
+    {
+        return $true
+    }
+    if (-not (Test-GameWipDetectedToolFromDeclaredProvider -Tool $installTool -Detected $PlanItem.Detected))
+    {
+        return $true
+    }
+    return (
+        $PlanItem.Query.State -eq 'resolved' -and
+        -not [string]::IsNullOrWhiteSpace([string]$PlanItem.Latest) -and
+        [string]$PlanItem.Installed -ne [string]$PlanItem.Latest
+    )
 }
 
 function Invoke-GameWipToolUpdate
@@ -396,8 +488,16 @@ function Invoke-GameWipToolUpdate
     {
         return
     }
+    $installPlan = @($plan | Where-Object {
+            $_.Tool.capabilities.update -and (Test-GameWipToolPlanRequiresInstall -PlanItem $_ -TrackedPlan $trackedPlan)
+        })
+    if ($installPlan.Count -eq 0 -and $trackedPlan.Files.Count -eq 0)
+    {
+        Write-Host 'All selected tools and tracked declarations are already current.'
+        return
+    }
     Assert-GameWipCleanTrackedTree
-    $planLines = @($plan | Where-Object { $_.Tool.capabilities.update } | ForEach-Object { "$($_.Tool.id): install/verify $(if ($_.Latest) { $_.Latest } elseif ($_.Tool.Contains('requiredVersion')) { $_.Tool.requiredVersion } else { 'provider-managed version' })" }) + @($trackedPlan.Descriptions)
+    $planLines = @($installPlan | ForEach-Object { "$($_.Tool.id): install/verify $(if ($_.Latest) { $_.Latest } elseif ($_.Tool.Contains('requiredVersion')) { $_.Tool.requiredVersion } else { 'provider-managed version' })" }) + @($trackedPlan.Descriptions)
     if (-not (Confirm-GameWipMutation -Summary 'Apply the complete project-tool update plan?' -Risk machine -Plan $planLines))
     {
         Write-Host 'Project-tool update cancelled; no changes were made.'
@@ -405,16 +505,14 @@ function Invoke-GameWipToolUpdate
     }
 
     Invoke-GameWipMutationBody -Body {
-        Initialize-GameWipManagedToolRoot
+        if ($installPlan.Count -ne 0)
+        {
+            Initialize-GameWipManagedToolRoot
+        }
 
-        foreach ($item in $plan)
+        foreach ($item in $installPlan)
         {
             Assert-GameWipNotCancelled
-            if (-not $item.Tool.capabilities.update)
-            {
-                Write-Host "  [skip] $($item.Tool.id): provider does not support updates"
-                continue
-            }
             $installTool = Get-GameWipPlannedInstallTool -PlanItem $item -TrackedPlan $trackedPlan
             $version = if ($installTool.Contains('requiredVersion'))
             {
@@ -436,11 +534,30 @@ function Invoke-GameWipToolUpdate
             Add-GameWipOperationChange -Message "Installed/verified $($installTool.id) at $($verified.Location)"
         }
 
+        $originalTrackedContent = @{}
+        $writtenTrackedPaths = [System.Collections.Generic.List[string]]::new()
         foreach ($entry in $trackedPlan.Files.GetEnumerator())
         {
-            Assert-GameWipNotCancelled
-            Write-GameWipTextAtomic -Path ([string]$entry.Key) -Content ([string]$entry.Value)
-            Add-GameWipOperationChange -Message "Updated tracked file $(Get-GameWipRepositoryRelativePath -Path ([string]$entry.Key))"
+            $originalTrackedContent[[string]$entry.Key] = Read-GameWipUtf8Text -Path ([string]$entry.Key)
+        }
+        try
+        {
+            foreach ($entry in $trackedPlan.Files.GetEnumerator())
+            {
+                Assert-GameWipNotCancelled
+                Write-GameWipTextAtomic -Path ([string]$entry.Key) -Content ([string]$entry.Value)
+                $writtenTrackedPaths.Add([string]$entry.Key) | Out-Null
+                Add-GameWipOperationChange -Message "Updated tracked file $(Get-GameWipRepositoryRelativePath -Path ([string]$entry.Key))"
+            }
+        }
+        catch
+        {
+            for ($index = $writtenTrackedPaths.Count - 1; $index -ge 0; --$index)
+            {
+                $writtenPath = $writtenTrackedPaths[$index]
+                Write-GameWipTextAtomic -Path $writtenPath -Content ([string]$originalTrackedContent[$writtenPath])
+            }
+            throw
         }
 
         if ($trackedPlan.RegistryChanged)

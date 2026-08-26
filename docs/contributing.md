@@ -156,6 +156,8 @@ Use `Draft` only while the pull request is not ready for final review or merge.
 ## Required pull-request metadata
 
 Ready-for-review pull requests must pass the `PR Standards` workflow.
+The workflow loads its policy only from the pull request's trusted base
+checkout; it never falls back to policy code from the pull request head.
 
 The workflow enforces:
 
