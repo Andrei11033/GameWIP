@@ -14,7 +14,8 @@ ACTIVE_MILESTONE=R01 - Window, Input, and Action Foundation
 ```
 
 Change `ACTIVE_MILESTONE` to the next milestone only after the previous milestone's tag, GitHub release, closure issue, and handoff are complete. The
-same workflow applies to R00, R01, later roadmap milestones, and compatible PATCH releases.
+same workflow applies to R00, R01, later promoted release milestones, and compatible PATCH releases. `ACTIVE_MILESTONE` names only the currently
+active release milestone.
 
 Configure `PROJECT_TOKEN` as an Actions secret. The token must be a dedicated GitHub App token or dedicated maintainer token with the minimum
 permissions needed to:
@@ -53,13 +54,30 @@ protection rule for private repositories.
 
 ## Milestone release metadata
 
-Every releasable milestone needs exactly one target version and exactly one release issue.
+Every releasable milestone needs exactly one target version, exactly one
+explicit handoff, and exactly one release issue.
 
 The milestone description must contain:
 
 ```text
 Release version: `X.Y.Z`
+Next milestone: `Rxx - Exact Title`
 ```
+
+For a truly terminal handoff, use:
+
+```text
+Next milestone: `none`
+```
+
+The successor is explicit metadata. Automation never infers it by incrementing
+the current R number and has no V1 or R52 terminal special case. `none` is valid
+for any truly terminal handoff. A supplied successor title must differ from the
+current milestone and match exactly one open GitHub milestone.
+
+The successor only needs to exist by the time the current milestone is ready
+for release and handoff. Do not pre-create the capability roadmap as GitHub
+milestones.
 
 The release issue can be resolved in either of these ways:
 
@@ -94,6 +112,7 @@ The check verifies that:
 
 - The selected milestone matches `ACTIVE_MILESTONE`.
 - The milestone has explicit `Release version:` metadata.
+- The milestone has exactly one valid `Next milestone:` value, and any named successor resolves to exactly one different open milestone.
 - The milestone has exactly one release issue, resolved from a `type:release` label, a `release:` title, or explicit milestone metadata.
 - The root CMake project version matches the milestone release version.
 - The milestone has no open implementation issues except its release issue.
@@ -174,6 +193,7 @@ branches, or pull requests cause a safe failure.
 ## Maintainer rules
 
 - Release automation must never derive the version by counting issues.
+- Release automation must never infer a successor from the current milestone number.
 - Release automation must never push version commits directly to `master`.
 - Release automation must never create, move, or overwrite a published tag.
 - Human review and merge are required before finalization.

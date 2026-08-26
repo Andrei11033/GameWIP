@@ -18,10 +18,14 @@ Libraries distributed from this repository share the GameWIP project version.
 
 ## Pre-1.0 milestone mapping
 
-Before V1, the version fields mean:
+Capability slices do not have release versions. An R number is assigned only
+when a sufficiently understood slice is promoted into concrete release work,
+and numbered release milestones remain sequential.
+
+Before V1, the version fields normally mean:
 
 - MAJOR identifies the public compatibility generation and remains `0` until V1.
-- MINOR identifies the roadmap milestone: R00 is `0`, R01 is `1`, R02 is `2`, and so on.
+- MINOR normally identifies the promoted release milestone: R01 uses the `0.1.x` line, R02 uses `0.2.x`, and so on.
 - PATCH identifies a published compatible correction within that milestone.
 
 R00 uses `0.0.1` for its first release because `0.0.0` is reserved for the pre-release bootstrap. Later milestone baselines reset PATCH to zero.
@@ -37,8 +41,27 @@ Examples:
 | R02 baseline | `0.2.0` |
 | Stable V1 baseline | `1.0.0` |
 
-Before `1.0.0`, a breaking public API or package change requires the next milestone MINOR version and a migration note. PATCH releases must remain
-backward compatible with their milestone baseline.
+R00's `0.0.1` release is the bootstrap exception. Ordinary later pre-1.0
+milestones normally reset PATCH to zero on their corresponding MINOR line, and
+PATCH releases remain supported while that milestone is active.
+
+The milestone eventually designated as V1 targets `1.0.0` regardless of its R
+number. For example, if V1 were eventually R31, that milestone would target
+`1.0.0`; it would not require a fake `0.31.0` V1 release. V1's R number is
+intentionally unknown.
+
+Release automation never derives the target version from an R number. The
+milestone's explicit `Release version:` metadata and the root
+`PROJECT_VERSION` are authoritative. Milestone numbers are not structurally
+limited to two digits—an eventual `R100` remains representable even though the
+roadmap has no reason to plan or reserve it now.
+
+Before `1.0.0`, a breaking public API or package change requires an appropriate
+new MINOR release and a migration note. PATCH releases must remain backward
+compatible with their milestone baseline. After handoff to the next pre-1.0
+milestone, fixes normally move forward to the active line instead of creating
+maintenance branches for old pre-1.0 lines. If real backport maintenance
+becomes necessary, define that policy from the demonstrated need.
 
 Version `1.0.0` means that the V1 public API, package, save-data, and compatibility promises have been explicitly defined and validated. It does not
 mean GameWIP development is finished.
@@ -76,7 +99,8 @@ The numeric `PROJECT_VERSION` does not change for every merge. Only the generate
 
 1. Set the root project version to the milestone target when development for that version begins.
 2. Keep untagged builds marked as development snapshots.
-3. Run release preparation only when the active milestone, root version, and explicit milestone target agree.
+3. Run release preparation only when the active milestone, root version, and explicit milestone target agree and the milestone's explicit handoff is
+   valid.
 4. Open a release-preparation pull request for release notes and required derived metadata.
 5. Never write directly to protected `master` for release preparation.
 6. Require all protected validation checks and a human merge decision.

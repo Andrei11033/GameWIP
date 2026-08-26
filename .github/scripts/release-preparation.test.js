@@ -20,7 +20,7 @@ const {
     releaseNotesTemplate,
     releaseNames,
     releasePullRequestBody,
-    selectNextMilestone,
+    resolveNextMilestone,
     validateMergedReleasePullRequest,
     validateMilestoneReadiness,
     validateReleaseNotesReady,
@@ -39,7 +39,7 @@ function releaseMilestone(overrides = {}) {
     return {
         title: 'R00 - Bootstrap',
         state: 'open',
-        description: ['Release version: `0.0.1`', 'Release issue: `#11`'].join('\n'),
+        description: ['Release version: `0.0.1`', 'Release issue: `#11`', 'Next milestone: `R01 - Window, Input, and Action Foundation`'].join('\n'),
         ...overrides,
     };
 }
@@ -55,7 +55,7 @@ function milestoneIssues(overrides = []) {
 function automaticReleaseMilestone(overrides = {}) {
     return releaseMilestone({
         title: 'R07 - Combat Foundation',
-        description: 'Release version: `0.7.0`',
+        description: ['Release version: `0.7.0`', 'Next milestone: `none`'].join('\n'),
         ...overrides,
     });
 }
@@ -82,22 +82,29 @@ test('rejects non-release and malformed versions', () => {
     }
 });
 
-test('parses R00 milestone release metadata', () => {
-    const description = ['Roadmap status: `[-]`', '', 'Release version: `0.0.1`', 'Release issue: `#11`'].join('\n');
+test('parses milestone metadata with an explicit successor', () => {
+    const description = [
+        'Roadmap status: `[-]`',
+        '',
+        'Release version: `0.1.0`',
+        'Release issue: `#11`',
+        'Next milestone: `R02 - Math Foundation`',
+    ].join('\n');
 
     assert.deepEqual(parseMilestoneReleaseMetadata(description), {
         version: {
-            text: '0.0.1',
+            text: '0.1.0',
             major: 0,
-            minor: 0,
-            patch: 1,
+            minor: 1,
+            patch: 0,
         },
         releaseIssue: 11,
+        nextMilestoneTitle: 'R02 - Math Foundation',
     });
 });
 
-test('parses milestone metadata without an explicit release issue', () => {
-    const description = ['Release version: `0.1.0`', 'Completion goal:'].join('\r\n');
+test('parses terminal milestone metadata without an explicit release issue', () => {
+    const description = ['Release version: `0.1.0`', 'Next milestone: `none`', 'Completion goal:'].join('\r\n');
 
     assert.deepEqual(parseMilestoneReleaseMetadata(description), {
         version: {
@@ -107,34 +114,52 @@ test('parses milestone metadata without an explicit release issue', () => {
             patch: 0,
         },
         releaseIssue: null,
+        nextMilestoneTitle: null,
     });
 });
 
 test('requires exactly one valid release version line', () => {
     assert.throws(() => parseMilestoneReleaseMetadata(null), /Milestone description must be a string/);
 
-    assert.throws(() => parseMilestoneReleaseMetadata('Completion goal only'), /Expected exactly one Release version line, found 0/);
+    assert.throws(
+        () => parseMilestoneReleaseMetadata('Completion goal only\nNext milestone: `none`'),
+        /Expected exactly one Release version line, found 0/,
+    );
 
     assert.throws(
-        () => parseMilestoneReleaseMetadata(['Release version: `0.0.1`', 'Release version: `0.1.0`'].join('\n')),
+        () => parseMilestoneReleaseMetadata(['Release version: `0.0.1`', 'Release version: `0.1.0`', 'Next milestone: `none`'].join('\n')),
         /Expected exactly one Release version line, found 2/,
     );
 
-    assert.throws(() => parseMilestoneReleaseMetadata('Release version: 0.0.1'), /Invalid Release version line/);
+    assert.throws(() => parseMilestoneReleaseMetadata('Release version: 0.0.1\nNext milestone: `none`'), /Invalid Release version line/);
 
-    assert.throws(() => parseMilestoneReleaseMetadata('Release version: `01.0.0`'), /Invalid release version/);
+    assert.throws(() => parseMilestoneReleaseMetadata('Release version: `01.0.0`\nNext milestone: `none`'), /Invalid release version/);
+});
+
+test('requires exactly one valid next milestone line', () => {
+    const versionLine = 'Release version: `0.1.0`';
+
+    assert.throws(() => parseMilestoneReleaseMetadata(versionLine), /Expected exactly one Next milestone line, found 0/);
+    assert.throws(
+        () => parseMilestoneReleaseMetadata([versionLine, 'Next milestone: `none`', 'Next milestone: `R02 - Math Foundation`'].join('\n')),
+        /Expected exactly one Next milestone line, found 2/,
+    );
+
+    for (const nextMilestoneLine of ['Next milestone: none', 'Next milestone: ``', 'Next milestone: `R02 - Math Foundation']) {
+        assert.throws(() => parseMilestoneReleaseMetadata([versionLine, nextMilestoneLine].join('\n')), /Invalid Next milestone line/);
+    }
 });
 
 test('rejects duplicate and malformed release issues', () => {
-    const versionLine = 'Release version: `0.0.1`';
+    const requiredLines = ['Release version: `0.0.1`', 'Next milestone: `none`'];
 
     assert.throws(
-        () => parseMilestoneReleaseMetadata([versionLine, 'Release issue: `#11`', 'Release issue: `#12`'].join('\n')),
+        () => parseMilestoneReleaseMetadata([...requiredLines, 'Release issue: `#11`', 'Release issue: `#12`'].join('\n')),
         /Expected at most one Release issue line, found 2/,
     );
 
     for (const issueLine of ['Release issue: `#0`', 'Release issue: `11`', 'Release issue: `#abc`']) {
-        assert.throws(() => parseMilestoneReleaseMetadata([versionLine, issueLine].join('\n')), /Invalid Release issue line/);
+        assert.throws(() => parseMilestoneReleaseMetadata([...requiredLines, issueLine].join('\n')), /Invalid Release issue line/);
     }
 });
 
@@ -329,20 +354,69 @@ test('requires successful checks for the exact latest master commit', () => {
     );
 });
 
-test('selects the next roadmap milestone by title number', () => {
+test('resolves an explicit next milestone by exact title regardless of array order', () => {
     const milestones = [
-        { title: 'R02 - Math Foundation' },
-        { title: 'R00 - Bootstrap' },
-        { title: 'PV1 - Multiplayer Foundation' },
-        { title: 'R01 - Window, Input, and Action Foundation' },
+        { title: 'R02 - Math Foundation', state: 'open' },
+        { title: 'R00 - Bootstrap', state: 'closed' },
+        { title: 'R01 - Window, Input, and Action Foundation', state: 'open' },
     ];
-    assert.equal(selectNextMilestone(milestones, 'R00 - Bootstrap').title, 'R01 - Window, Input, and Action Foundation');
+
     assert.equal(
-        selectNextMilestone([{ title: 'R08 - AI Foundation' }, { title: 'R07 - Combat Foundation' }], 'R07 - Combat Foundation').title,
-        'R08 - AI Foundation',
+        resolveNextMilestone({
+            milestones,
+            currentMilestoneTitle: 'R01 - Window, Input, and Action Foundation',
+            nextMilestoneTitle: 'R02 - Math Foundation',
+        }).title,
+        'R02 - Math Foundation',
     );
-    assert.equal(selectNextMilestone([{ title: 'R52 - V1' }], 'R52 - V1'), null);
-    assert.throws(() => selectNextMilestone(milestones, 'R03 - Missing successor'), /found 0/);
+});
+
+test('rejects invalid explicit next milestone handoffs', () => {
+    const currentMilestoneTitle = 'R01 - Window, Input, and Action Foundation';
+
+    assert.throws(
+        () =>
+            resolveNextMilestone({
+                milestones: [{ title: currentMilestoneTitle, state: 'open' }],
+                currentMilestoneTitle,
+                nextMilestoneTitle: currentMilestoneTitle,
+            }),
+        /must not equal current milestone/,
+    );
+    assert.throws(() => resolveNextMilestone({ milestones: [], currentMilestoneTitle, nextMilestoneTitle: 'R02 - Math Foundation' }), /found 0/);
+    assert.throws(
+        () =>
+            resolveNextMilestone({
+                milestones: [
+                    { title: 'R02 - Math Foundation', state: 'open' },
+                    { title: 'R02 - Math Foundation', state: 'open' },
+                ],
+                currentMilestoneTitle,
+                nextMilestoneTitle: 'R02 - Math Foundation',
+            }),
+        /found 2/,
+    );
+    assert.throws(
+        () =>
+            resolveNextMilestone({
+                milestones: [{ title: 'R02 - Math Foundation', state: 'closed' }],
+                currentMilestoneTitle,
+                nextMilestoneTitle: 'R02 - Math Foundation',
+            }),
+        /must be open/,
+    );
+});
+
+test('supports terminal handoffs for any title and exact successors beyond two digits', () => {
+    assert.equal(resolveNextMilestone({ milestones: [], currentMilestoneTitle: 'Arbitrary terminal milestone', nextMilestoneTitle: null }), null);
+    assert.equal(
+        resolveNextMilestone({
+            milestones: [{ title: 'R100 - Parser Regression Fixture', state: 'open' }],
+            currentMilestoneTitle: 'R99 - Parser Regression Fixture',
+            nextMilestoneTitle: 'R100 - Parser Regression Fixture',
+        }).title,
+        'R100 - Parser Regression Fixture',
+    );
 });
 
 test('plans preparation idempotently and rejects conflicting retries', () => {
@@ -443,7 +517,7 @@ test('builds a complete read-only preparation plan', () => {
         evaluatedSha: masterSha,
         requiredChecks,
         checks: successfulChecks(),
-        milestones: [releaseMilestone(), { title: 'R01 - Window, Input, and Action Foundation' }],
+        milestones: [releaseMilestone(), { title: 'R01 - Window, Input, and Action Foundation', state: 'open' }],
         branches: [],
         pullRequests: [],
     };
@@ -469,6 +543,14 @@ test('generates release notes without closing the release issue', () => {
     assert.match(notes, /^# GameWIP v0\.0\.1 release notes/);
     assert.match(notes, /Release issue: #11/);
     assert.match(notes, /Next milestone: R01 - Window, Input, and Action Foundation/);
+
+    const terminalNotes = releaseNotesTemplate({
+        version,
+        milestoneTitle: 'Arbitrary terminal milestone',
+        releaseIssue: { number: 11 },
+        nextMilestoneTitle: null,
+    });
+    assert.match(terminalNotes, /Next milestone: none/);
 
     const body = releaseBodyFromNotes(notes);
     assert.match(body, /# GameWIP v0\.0\.1 release notes/);
@@ -496,7 +578,7 @@ test('generates release pull request body for human merge', () => {
         evaluatedSha: masterSha,
         requiredChecks,
         checks: successfulChecks(),
-        milestones: [releaseMilestone(), { title: 'R01 - Window, Input, and Action Foundation' }],
+        milestones: [releaseMilestone(), { title: 'R01 - Window, Input, and Action Foundation', state: 'open' }],
         branches: [],
         pullRequests: [],
     };

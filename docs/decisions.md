@@ -36,6 +36,84 @@ gameplay does not run at the most expensive rate by default.
 Rendering is developed early enough to expose and debug the simulation, but
 foundational correctness and observability come before presentation polish.
 
+### Early play supports single-player and small-group co-op
+
+GameWIP targets excellent local single-player and small-group cooperative play
+before persistent or large-scale multiplayer. Networking is nevertheless an
+early architectural concern because authority, ownership, and replication
+cannot be added safely as an afterthought.
+
+V1 therefore includes server-authoritative small-group multiplayer and a
+supported headless or dedicated-server path. Persistent worlds and larger
+populations remain a post-V1 direction, and distributed hosting is considered
+only after measured limits justify it.
+
+### Authoritative simulation is separate from presentation and hosting
+
+Gameplay simulation owns authoritative state without depending on rendering,
+audio, human input, or network transport. Single-player composes presentation
+with a local authoritative simulation. Multiplayer places the same gameplay
+authority on a host or server.
+
+Single-player does not require serialization, loopback traffic, or a fake
+network client/server path. Hosting and transport can change without changing
+the meaning of gameplay commands or simulation state.
+
+### Authority boundaries use explicit commands, intents, and state
+
+Gameplay mutations that cross an authority boundary use explicit command or
+intent and resulting state boundaries where appropriate. The authority
+validates requests and owns the resulting mutation; presentation and remote
+clients observe the result.
+
+This makes ownership, replication, rejection, diagnostics, and testing visible
+without requiring every internal variable to become network state.
+
+### Identity and schema ownership are explicit
+
+Concepts crossing process, network, save, content, or configuration boundaries
+receive stable identity and schema ownership when that boundary appears.
+Runtime object identity, network identity, persistent identity, and content
+identity remain separate where their meanings differ; GameWIP does not create
+one universal ID.
+
+Save, network, content, asset, and configuration schemas version independently
+from project SemVer. Each domain gains migration policy when it needs one
+instead of inheriting a universal save format or the repository version.
+
+### Scalability follows ownership, relevance, measurement, and evidence
+
+Systems are designed for selective activity: sleeping objects, unchanged
+systems, irrelevant entities, and inactive controllers should consume little
+work. Networking uses relevance and appropriate update frequency rather than
+replicating everything.
+
+Representative workloads are measured before optimization. Large-world and
+distributed techniques are introduced in response to demonstrated limits, not
+speculative MMO counts.
+
+### Audio observes simulation
+
+Simulation exposes state and events that audio translates into feedback.
+Simulation never depends on audio existing, while audio can grow from early
+playback and spatial feedback into material, machinery, damage, and acoustic
+depth.
+
+This preserves headless and testable simulation while keeping sound integral
+to how players understand it.
+
+### World architecture remains partitionable
+
+World systems preserve a boundary between local simulation coordinates and
+eventual large-world addressing. Generated base regions are reproducible from
+their seed, generation version, and region coordinate, while persistent edits
+and entities remain separate state.
+
+The project does not yet select final region dimensions, coordinate technique,
+terrain representation, or persistence technology. Those choices follow
+product requirements and evidence without closing the path to streaming and
+larger persistent worlds.
+
 ## Language, toolchain, and platform
 
 ### C++23, CMake, and Ninja define the build baseline

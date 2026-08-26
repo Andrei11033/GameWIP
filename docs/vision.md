@@ -41,6 +41,22 @@ GameWIP should reward engineering thought without becoming professional CAD
 software. The point is an expressive sandbox, not paperwork disguised as
 simulation.
 
+Early GameWIP targets an excellent experience both alone and with a small group
+of friends. Multiplayer shapes the architecture before V1 rather than arriving
+as a retrofit after the single-player game is complete. Farther ahead, the
+same direction can support persistent shared worlds and larger populations,
+but distributed and MMO-scale hosting waits until measured workloads justify
+that complexity.
+
+The world is a major evolving simulation system, not scenery around the
+creations. Its generation, modification, persistence, and scale should deepen
+alongside the machines and structures players build.
+
+Audio is equally integral to feedback. Impacts, machinery, materials, damage,
+spaces, and environments should sound as though they belong to the simulated
+state. Sound is developed as a way to understand and experience the world, not
+saved as final polish.
+
 ## Principles that guide development
 
 ### Make the simple case work first
@@ -71,6 +87,14 @@ updates. Ordinary gameplay systems should not inherit that cost automatically.
 Logs, assertions, tests, benchmarks, overlays, and early debug rendering are
 part of the engine foundation. A complex simulation can only be improved when
 developers and players can see why it behaved as it did.
+
+### Measure performance as systems grow
+
+Correctness comes first, followed by representative workloads and measurement.
+Systems should spend time where it changes the result and become more selective
+as world, machine, and multiplayer depth grows. Observability and performance
+remain development principles throughout the product rather than end-stage
+cleanup.
 
 ## Where the details live
 

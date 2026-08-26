@@ -89,6 +89,7 @@ function parseMilestoneReleaseMetadata(description) {
     const lines = description.replace(/\r\n?/g, '\n').split('\n');
     const versionLines = lines.filter((line) => line.startsWith('Release version:'));
     const issueLines = lines.filter((line) => line.startsWith('Release issue:'));
+    const nextMilestoneLines = lines.filter((line) => line.startsWith('Next milestone:'));
 
     if (versionLines.length !== 1) {
         throw new Error(`Expected exactly one Release version line, found ${versionLines.length}.`);
@@ -96,6 +97,10 @@ function parseMilestoneReleaseMetadata(description) {
 
     if (issueLines.length > 1) {
         throw new Error(`Expected at most one Release issue line, found ${issueLines.length}.`);
+    }
+
+    if (nextMilestoneLines.length !== 1) {
+        throw new Error(`Expected exactly one Next milestone line, found ${nextMilestoneLines.length}.`);
     }
 
     const versionMatch = /^Release version: `([^`]+)`$/.exec(versionLines[0]);
@@ -114,9 +119,15 @@ function parseMilestoneReleaseMetadata(description) {
         releaseIssue = Number.parseInt(issueMatch[1], 10);
     }
 
+    const nextMilestoneMatch = /^Next milestone: `([^`]+)`$/.exec(nextMilestoneLines[0]);
+    if (nextMilestoneMatch === null) {
+        throw new Error(`Invalid Next milestone line: ${nextMilestoneLines[0]}`);
+    }
+
     return {
         version: parseReleaseVersion(versionMatch[1]),
         releaseIssue,
+        nextMilestoneTitle: nextMilestoneMatch[1] === 'none' ? null : nextMilestoneMatch[1],
     };
 }
 
@@ -204,6 +215,7 @@ function validateMilestoneReadiness({ activeMilestone, milestone, issues }) {
     return {
         version: metadata.version,
         releaseIssue,
+        nextMilestoneTitle: metadata.nextMilestoneTitle,
     };
 }
 
@@ -233,31 +245,24 @@ function validateRequiredChecks({ masterSha, evaluatedSha, requiredChecks, check
     return true;
 }
 
-function roadmapMilestoneNumber(title) {
-    const match = /^R(\d{2}) - /.exec(title);
-    if (match === null) {
-        throw new Error(`Invalid roadmap milestone title: ${title}`);
-    }
-    return Number.parseInt(match[1], 10);
-}
-
-function selectNextMilestone(milestones, currentTitle) {
-    if (!Array.isArray(milestones)) {
-        throw new Error('Milestones must be an array.');
-    }
-
-    const currentNumber = roadmapMilestoneNumber(currentTitle);
-    if (currentNumber === 52) {
+function resolveNextMilestone({ milestones, currentMilestoneTitle, nextMilestoneTitle }) {
+    if (nextMilestoneTitle === null) {
         return null;
     }
 
-    const expectedNumber = currentNumber + 1;
-    const matches = milestones.filter((milestone) => {
-        const match = /^R(\d{2}) - /.exec(milestone.title);
-        return match !== null && Number.parseInt(match[1], 10) === expectedNumber;
-    });
+    if (!Array.isArray(milestones)) {
+        throw new Error('Milestones must be an array.');
+    }
+    if (nextMilestoneTitle === currentMilestoneTitle) {
+        throw new Error(`Next milestone '${nextMilestoneTitle}' must not equal current milestone.`);
+    }
+
+    const matches = milestones.filter((milestone) => milestone.title === nextMilestoneTitle);
     if (matches.length !== 1) {
-        throw new Error(`Expected exactly one R${String(expectedNumber).padStart(2, '0')} milestone, found ${matches.length}.`);
+        throw new Error(`Expected exactly one milestone titled '${nextMilestoneTitle}', found ${matches.length}.`);
+    }
+    if (String(matches[0].state).toLowerCase() !== 'open') {
+        throw new Error(`Next milestone '${nextMilestoneTitle}' must be open.`);
     }
     return matches[0];
 }
@@ -378,7 +383,11 @@ function buildReleasePreparationPlan(snapshot) {
         releaseIssue: readiness.releaseIssue,
         latestVersion,
         masterSha: snapshot.masterSha,
-        nextMilestone: selectNextMilestone(snapshot.milestones, snapshot.milestone.title),
+        nextMilestone: resolveNextMilestone({
+            milestones: snapshot.milestones,
+            currentMilestoneTitle: snapshot.milestone.title,
+            nextMilestoneTitle: readiness.nextMilestoneTitle,
+        }),
         artifacts: planPreparationArtifacts({
             version: readiness.version,
             masterSha: snapshot.masterSha,
@@ -1004,8 +1013,7 @@ module.exports = {
     releaseNames,
     releasePullRequestBody,
     run,
-    roadmapMilestoneNumber,
-    selectNextMilestone,
+    resolveNextMilestone,
     validateMergedReleasePullRequest,
     validateMilestoneReadiness,
     validateReleaseNotesReady,
