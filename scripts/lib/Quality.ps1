@@ -326,22 +326,7 @@ function Invoke-GameWipQualityCheck
             $toolInfo = Get-GameWipProjectTool -Id $id
             $detected = Get-GameWipDetectedTool -Tool $toolInfo
             $compatibility = Get-GameWipToolCompatibility -Tool $toolInfo -Detected $detected
-
-            $semantic = switch ($compatibility)
-            {
-                'compatible'
-                {
-                    'Success'
-                }
-                'missing'
-                {
-                    'Failure'
-                }
-                default
-                {
-                    'Warning'
-                }
-            }
+            $semantic = Get-GameWipToolCompatibilitySemantic -Compatibility $compatibility
 
             Write-GameWipStatusLine `
                 -Status "$($toolIndex + 1)/$($requiredToolIds.Count)" `

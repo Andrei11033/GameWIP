@@ -303,6 +303,7 @@ namespace GameWIP::Window::Detail::Platform
                         Types::Events::ContentScaleChanged{previousScale, state->contentScale, previousDpi, state->dpi, state->framebufferSize});
                 }
             }
+            refreshCustomCursorForDpi(*state, newDpi);
             updateCurrentMonitor(*state);
             return 0;
         }
@@ -461,6 +462,7 @@ namespace GameWIP::Window::Detail::Platform
             state->cursorInside = false;
             return 0;
         case WM_NCDESTROY:
+            releaseCustomCursorBinding(window);
             if (state->platform)
             {
                 const bool unexpected = !state->platform->destroying;

@@ -7,6 +7,7 @@
   "required": [
     "schemaVersion",
     "actions",
+    "menus",
     "defaultConfigurePreset",
     "defaultBuildPreset",
     "defaultTestPreset",
@@ -24,6 +25,7 @@
   "properties": {
     "schemaVersion": { "const": 1 },
     "actions": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/action" } },
+    "menus": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/menu" } },
     "defaultConfigurePreset": { "type": "string", "minLength": 1 },
     "defaultBuildPreset": { "type": "string", "minLength": 1 },
     "defaultTestPreset": { "type": "string", "minLength": 1 },
@@ -72,6 +74,28 @@
         "network": { "type": "boolean" },
         "mutation": { "enum": ["none", "local", "tracked", "machine", "remote", "conditional"] },
         "risk": { "enum": ["read-only", "local", "tracked", "machine", "destructive", "remote"] }
+      }
+    },
+    "menu": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "title", "prompt", "exitLabel", "items"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+        "title": { "type": "string", "minLength": 1 },
+        "prompt": { "type": "string", "minLength": 1 },
+        "exitLabel": { "enum": ["Back", "Exit"] },
+        "items": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/menuItem" } }
+      }
+    },
+    "menuItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "label", "handler"],
+      "properties": {
+        "key": { "type": "string", "minLength": 1, "maxLength": 1 },
+        "label": { "type": "string", "minLength": 1 },
+        "handler": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" }
       }
     },
     "benchmarkProfile": {

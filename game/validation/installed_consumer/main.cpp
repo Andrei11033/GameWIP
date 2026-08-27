@@ -15,10 +15,12 @@
 #include "terminal/terminal.h"
 #include "test_support/test_support.h"
 #include "unicode/unicode.h"
+#include "window/cursor.h"
 #include "window/display_info.h"
 #include "window/renderer_bridge.h"
 #include "window/window.h"
 
+#include <span>
 #include <string>
 #include <string_view>
 
@@ -57,6 +59,10 @@ int main()
     const GameWIP::TestSupport::Types::Reporting::Options reportingOptions;
     const std::string infrastructureText = GameWIP::TestSupport::formatInfrastructureStatus(infrastructureStatus);
     const GameWIP::Window::Types::CapabilitiesResult windowCapabilities = GameWIP::Window::getCapabilities();
+    const GameWIP::Window::Types::Cursor::CreateResult invalidCursor =
+        GameWIP::Window::createCursor(std::span<const GameWIP::Window::Types::Cursor::ImageView>{});
+    const GameWIP::Window::Types::Cursor::CreateResult invalidSingleCursor =
+        GameWIP::Window::createCursor(GameWIP::Window::Types::Cursor::ImageView{});
     const GameWIP::Window::Types::LogicalSize windowSize{640, 360};
     GameWIP::Window::Window closedWindow;
     const GameWIP::IO::Types::Status rendererFeedbackStatus = GameWIP::Window::Renderer::attachOcclusionProvider(closedWindow);
@@ -83,8 +89,10 @@ int main()
                    invalidDirectPrintln.code == GameWIP::IO::Types::ErrorCode::InvalidArgument && infrastructureStatus.ok() &&
                    infrastructureText == "None" && childResult.status.ok() &&
                    childResult.outcome == GameWIP::TestSupport::Types::Process::Outcome::NotStarted && childResult.outputBytes.empty() &&
-                   reportingOptions.writeConsole && rendererFeedbackStatus.code == GameWIP::IO::Types::ErrorCode::NotOpen && !rendererProvider &&
-                   displayColor.status.code == GameWIP::IO::Types::ErrorCode::NotOpen && windowSize.width == 640 &&
+                   reportingOptions.writeConsole && invalidCursor.status.code == GameWIP::IO::Types::ErrorCode::InvalidArgument &&
+                   !invalidCursor.cursor.isValid() && invalidSingleCursor.status.code == GameWIP::IO::Types::ErrorCode::InvalidArgument &&
+                   !invalidSingleCursor.cursor.isValid() && rendererFeedbackStatus.code == GameWIP::IO::Types::ErrorCode::NotOpen &&
+                   !rendererProvider && displayColor.status.code == GameWIP::IO::Types::ErrorCode::NotOpen && windowSize.width == 640 &&
                    loggerConfig.logDirectory == std::string_view{"logs"}
                ? 0
                : 1;

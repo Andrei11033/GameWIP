@@ -9,7 +9,7 @@ captured when a behavior needs a real Window.
 The `window` validation module retains coverage for closed/default behavior, description validation, internal/external fixed event queues,
 coalescing/overflow, sticky close intent, ownership/thread affinity, native handles, controls, DPI policy, monitor/mode/color inspection, renderer
 occlusion feedback, pointer hit masks, native messages, fullscreen recovery, file drops, redraw, unexpected native destruction, deferred cleanup, pump
-reentrancy, and injected failure/rollback paths.
+reentrancy, custom cursor validation/materialization/DPI reselection/lifetime, and injected failure/rollback paths.
 
 Occlusion coverage distinguishes stable backend capability
 (`supports(Capability::OcclusionReporting)`) from current provider state
@@ -30,6 +30,7 @@ Repository validation compiles each supported Window entry header independently:
 - `window/events.h`
 - `window/display.h`
 - `window/display_info.h`
+- `window/cursor.h`
 - `window/window.h`
 - `window/renderer_bridge.h`
 - `window/native/win32.h` on Win32

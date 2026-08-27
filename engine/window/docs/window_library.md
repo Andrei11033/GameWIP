@@ -25,6 +25,8 @@ opt-in headers expose renderer feedback and deliberate native interoperation.
   package, exports, manifest, and runtime identity work.
 - @subpage window_coordinates_and_dpi — Relate logical client units, physical
   pixels, desktop coordinates, framebuffers, scale, and DPI policy.
+- @subpage window_custom_cursors — Create shared native cursor images, supply
+  DPI variants, select them on Windows, and restore system shapes.
 - @subpage window_lifecycle_events — Understand thread ownership, dispatch,
   queue overflow, close requests, waits, and native destruction.
 - @subpage window_chrome_and_pointer_input — Configure system/custom chrome,
@@ -87,7 +89,8 @@ its physical client pixels.
 
 The normal portable surface is assembled by `window/window.h` from focused `window/types.h`, `window/description.h`, `window/events.h`, and
 `window/display.h`. Rich monitor/color inspection is opt-in through `window/display_info.h`. Renderer integration is opt-in through
-`window/renderer_bridge.h`, and Win32 interoperability is opt-in through `window/native/win32.h`.
+`window/renderer_bridge.h`, custom native cursors are opt-in through `window/cursor.h`, and Win32 interoperability is opt-in through
+`window/native/win32.h`.
 
 Installed consumers link `GameWIP::Window`. Window is intentionally built as a shared library: process-local Window and monitor identities, native
 class ownership, dispatchers, and registries must remain coherent through one runtime instance rather than being duplicated across statically linked

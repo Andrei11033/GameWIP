@@ -119,6 +119,9 @@ namespace GameWIP::Window::Detail::Platform
     [[nodiscard]] Types::PixelSize logicalToPhysicalSize(Types::LogicalSize value, UINT dpi) noexcept;
     [[nodiscard]] Types::LogicalSize physicalToLogicalSize(std::uint32_t width, std::uint32_t height, UINT dpi) noexcept;
     [[nodiscard]] HCURSOR loadCursor(Types::CursorShape shape) noexcept;
+    void releaseCustomCursorBinding(HWND window) noexcept;
+    void refreshCustomCursorForDpi(WindowState &state, std::uint32_t dpi) noexcept;
+    [[nodiscard]] IO::Types::Status replaceCustomCursorWithSystem(WindowState &state, HCURSOR cursor) noexcept;
     [[nodiscard]] bool pointInRect(Types::LogicalPosition point, const Types::LogicalRect &rect) noexcept;
 
     [[nodiscard]] IO::Types::Status refreshCachedGeometry(WindowState &state) noexcept;

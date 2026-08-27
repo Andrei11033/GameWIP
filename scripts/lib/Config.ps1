@@ -439,12 +439,14 @@ function Assert-GameWipCommandConfig
     $buildPresets = @(Get-GameWipVisiblePresetName -Kind 'build')
     $testPresets = @(Get-GameWipVisiblePresetName -Kind 'test')
     $actions = @($CommandConfig.Actions)
+    $menus = @($CommandConfig.Menus)
     $commands = @($CommandConfig.ProjectCommands)
     $bundles = @($CommandConfig.Bundles)
     $workflows = @($CommandConfig.ManualWorkflows)
     $benchmarkProfiles = @($CommandConfig.BenchmarkProfiles)
 
     Assert-GameWipUniqueId -Label 'action' -Items $actions
+    Assert-GameWipUniqueId -Label 'interactive menu' -Items $menus
     Assert-GameWipUniqueId -Label 'project command' -Items $commands
     $requiredActions = @('menu', 'doctor', 'git', 'workflow', 'unicode', 'format', 'quality', 'tools', 'links', 'configure', 'build', 'test', 'module', 'wizard', 'stress', 'run', 'bundle', 'docs', 'analyze', 'coverage', 'asan', 'benchmark', 'runs', 'list', 'help')
     $actionIds = @($actions | ForEach-Object { [string]$_.Id })
@@ -455,6 +457,40 @@ function Assert-GameWipCommandConfig
     if ($actionIds -contains 'analysis')
     {
         throw "Retired action alias 'analysis' must not be registered."
+    }
+    $requiredMenus = @('root', 'development', 'validation', 'quality', 'tools', 'repository', 'maintenance')
+    $menuIds = @($menus | ForEach-Object { [string]$_.Id })
+    if ((($requiredMenus | Sort-Object) -join "`n") -cne (($menuIds | Sort-Object) -join "`n"))
+    {
+        throw "Interactive menu catalog drift. Required: $($requiredMenus -join ', '); configured: $($menuIds -join ', ')."
+    }
+    $supportedMenuHandlers = @(
+        'menu-development', 'menu-validation', 'menu-quality', 'menu-tools', 'menu-repository', 'menu-maintenance',
+        'doctor', 'help', 'configure', 'build', 'run', 'docs', 'test', 'module', 'stress', 'wizard', 'benchmark',
+        'coverage', 'asan', 'quality-check', 'quality-fix', 'format-check', 'format-apply', 'analyze', 'tools-status',
+        'tools-check-updates', 'tools-preview', 'tools-update', 'setup-guidance', 'git-status', 'git-fetch',
+        'git-switch', 'git-update', 'git-cleanup', 'git-log', 'workflow-list', 'workflow-run', 'unicode-status',
+        'unicode-verify', 'unicode-regenerate', 'bundle', 'links'
+    )
+    foreach ($menu in $menus)
+    {
+        $duplicateMenuKeys = @($menu.Items | ForEach-Object { ([string]$_.Key).ToUpperInvariant() } | Group-Object | Where-Object Count -gt 1)
+        if ($duplicateMenuKeys.Count -ne 0)
+        {
+            throw "Interactive menu '$($menu.Id)' has duplicate keys: $($duplicateMenuKeys.Name -join ', ')."
+        }
+        foreach ($item in $menu.Items)
+        {
+            if ($supportedMenuHandlers -notcontains [string]$item.Handler)
+            {
+                throw "Interactive menu '$($menu.Id)' references unsupported handler '$($item.Handler)'."
+            }
+        }
+    }
+    $configuredMenuHandlers = @($menus.Items | ForEach-Object { [string]$_.Handler } | Sort-Object -Unique)
+    if ((($supportedMenuHandlers | Sort-Object) -join "`n") -cne (($configuredMenuHandlers | Sort-Object) -join "`n"))
+    {
+        throw "Interactive menu handler catalog drift. Supported: $($supportedMenuHandlers -join ', '); configured: $($configuredMenuHandlers -join ', ')."
     }
     Assert-GameWipUniqueId -Label 'bundle' -Items $bundles
     Assert-GameWipUniqueId -Label 'manual workflow' -Items $workflows

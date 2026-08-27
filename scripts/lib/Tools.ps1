@@ -224,6 +224,31 @@ function Get-GameWipToolCompatibility
     }
 }
 
+function Get-GameWipToolCompatibilitySemantic
+{
+    param(
+        [Parameter(Mandatory = $true)]
+        [ValidateSet('compatible', 'missing', 'mismatch', 'outdated', 'unknown')]
+        [string]$Compatibility
+    )
+
+    switch ($Compatibility)
+    {
+        'compatible'
+        {
+            return 'Success'
+        }
+        'missing'
+        {
+            return 'Failure'
+        }
+        default
+        {
+            return 'Warning'
+        }
+    }
+}
+
 function Test-GameWipDetectedToolFromDeclaredProvider
 {
     param([Parameter(Mandatory = $true)][hashtable]$Tool, [Parameter(Mandatory = $true)]$Detected)
@@ -376,21 +401,7 @@ function Test-GameWipProjectReadiness
             $compatibility
         }
 
-        $semantic = switch ($compatibility)
-        {
-            'compatible'
-            {
-                'Success'
-            }
-            'missing'
-            {
-                'Failure'
-            }
-            default
-            {
-                'Warning'
-            }
-        }
+        $semantic = Get-GameWipToolCompatibilitySemantic -Compatibility $compatibility
 
         $location = if ($detected.Location)
         {

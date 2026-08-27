@@ -6,6 +6,12 @@ opens the interactive menu.
 
 `gamewip.bat --help`, `gamewip.bat -h`, and `gamewip.bat -?` are help aliases.
 
+Both interactive menus render declared key/label entries through the same
+shared console primitive. The project menu hierarchy lives in
+`scripts/config/commands.json`; setup menu entries live in
+`scripts/setup/config/setup.json`. Their schemas and runtime checks reject
+duplicate keys, unknown handlers, and incomplete menu catalogs before use.
+
 ## Common syntax
 
 ```powershell
@@ -130,6 +136,11 @@ Use `gamewip.bat list` for current presets, modules, project commands, bundles, 
 | `-OutputMode <Summary\|Stream\|LogOnly>` | Select native-process presentation policy. `Stream` is the default, so compiler, linker, test, linter, and installer output remains visible. |
 
 PowerShell common `-Verbose` and `-Debug` behavior remains available. Verbose mode is the normal way to expose additional helper/native detail.
+
+Semantic presentation uses cyan for accents and progress, green for success and
+ready states, yellow for warnings and ensure actions, red for failures, and
+dark gray for paths and secondary details. `-NoColor` changes only color; the
+explicit text and status labels remain unchanged.
 
 ## Execution model
 

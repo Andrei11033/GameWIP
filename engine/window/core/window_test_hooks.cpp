@@ -4,9 +4,13 @@
 #include "window/internal/window_test_hooks.h"
 
 #if WINDOW_INTERNAL_TEST_HOOKS
+#include "window/internal/cursor_platform.h"
+#include "window/internal/cursor_state.h"
 #include "window/internal/window_platform.h"
 #include "window/internal/window_state.h"
 
+#include <atomic>
+#include <limits>
 #include <new>
 #include <thread>
 #include <utility>
@@ -14,7 +18,10 @@
 namespace
 {
     thread_local GameWIP::Window::TestHooks::FailurePoint armedFailure = GameWIP::Window::TestHooks::FailurePoint::None;
-}
+    thread_local std::size_t cursorNativeCreationFailureCountdown = std::numeric_limits<std::size_t>::max();
+    std::atomic_size_t customCursorsCreated = 0;
+    std::atomic_size_t customCursorsDestroyed = 0;
+} // namespace
 
 namespace GameWIP::Window::Detail
 {
@@ -24,6 +31,29 @@ namespace GameWIP::Window::Detail
             return false;
         armedFailure = TestHooks::FailurePoint::None;
         return true;
+    }
+
+    bool consumeCursorNativeCreationFailure() noexcept
+    {
+        if (cursorNativeCreationFailureCountdown == std::numeric_limits<std::size_t>::max())
+            return false;
+        if (cursorNativeCreationFailureCountdown != 0)
+        {
+            --cursorNativeCreationFailureCountdown;
+            return false;
+        }
+        cursorNativeCreationFailureCountdown = std::numeric_limits<std::size_t>::max();
+        return true;
+    }
+
+    void recordCustomCursorCreated() noexcept
+    {
+        customCursorsCreated.fetch_add(1, std::memory_order_relaxed);
+    }
+
+    void recordCustomCursorDestroyed() noexcept
+    {
+        customCursorsDestroyed.fetch_add(1, std::memory_order_relaxed);
     }
 } // namespace GameWIP::Window::Detail
 
@@ -37,6 +67,45 @@ namespace GameWIP::Window::TestHooks
     void resetFailures() noexcept
     {
         armedFailure = FailurePoint::None;
+        cursorNativeCreationFailureCountdown = std::numeric_limits<std::size_t>::max();
+    }
+
+    void failCursorNativeCreationAfter(std::size_t successfulVariants) noexcept
+    {
+        cursorNativeCreationFailureCountdown = successfulVariants;
+    }
+
+    std::size_t customCursorVariantCount(const Cursor &cursor) noexcept
+    {
+        const auto &state = Detail::CursorAccess::state(cursor);
+        return state ? state->variants.size() : 0;
+    }
+
+    std::uint32_t customCursorBindingDpi(const Window &window) noexcept
+    {
+        const Detail::WindowState *state = Detail::WindowAccess::state(window);
+        if (state == nullptr || !state->platform || !Detail::Platform::hasCustomCursor(*state))
+            return 0;
+        return Detail::Platform::customCursorBindingDpi(*state);
+    }
+
+    std::size_t createdCustomCursorCount() noexcept
+    {
+        return customCursorsCreated.load(std::memory_order_relaxed);
+    }
+
+    std::size_t destroyedCustomCursorCount() noexcept
+    {
+        return customCursorsDestroyed.load(std::memory_order_relaxed);
+    }
+
+    CustomCursorNativeSnapshot inspectCustomCursorVariant(const Cursor &cursor, std::size_t index) noexcept
+    {
+        const auto &state = Detail::CursorAccess::state(cursor);
+        if (!state || index >= state->variants.size())
+            return {};
+        const Detail::Platform::NativeCursorSnapshot snapshot = Detail::Platform::inspectNativeCursor(state->variants[index]);
+        return {{snapshot.hotspotX, snapshot.hotspotY}, snapshot.firstBgraPixel, snapshot.valid};
     }
 
     void enablePointerHitMaskBridge(Window &window) noexcept

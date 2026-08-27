@@ -18,10 +18,23 @@ function sectionText(body, name) {
     return (next ? rest.slice(0, next.index) : rest).trim();
 }
 
+function stripHtmlComments(text) {
+    let result = text;
+    while (true) {
+        const start = result.indexOf('<!--');
+        if (start < 0) {
+            return result;
+        }
+
+        const end = result.indexOf('-->', start + 4);
+        result = end < 0 ? result.slice(0, start) : result.slice(0, start) + result.slice(end + 3);
+    }
+}
+
 function hasMeaningfulContent(text) {
     return Boolean(
-        text
-            ?.replace(/<!--[\s\S]*?-->/g, '')
+        text &&
+        stripHtmlComments(text)
             .replace(/^-+\s*$/gm, '')
             .trim(),
     );

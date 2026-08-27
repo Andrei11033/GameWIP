@@ -29,6 +29,23 @@ if ($Action -in @('--help', '-h', '-?'))
 {
     $Action = 'help'
 }
+$validActions = @($SetupActionConfig.Actions | ForEach-Object { [string]$_.Id })
+if ($Action -notin $validActions)
+{
+    Write-GameWipHost "Unknown setup action '$Action'." -ForegroundColor Red
+    Write-Host 'Run .\setup.bat list to see available actions.'
+    exit 2
+}
+if ($Action -eq 'help')
+{
+    Show-GameWipSetupHelp
+    exit 0
+}
+if ($Action -eq 'list')
+{
+    Show-GameWipSetupActionCatalog
+    exit 0
+}
 if ($Action -eq 'menu')
 {
     if ($NonInteractive)
@@ -45,11 +62,11 @@ try
     $result = Invoke-GameWipSetupOperation -SelectedAction $Action
     if ($Json)
     {
-        $result | ConvertTo-Json -Depth 10
+        $result | ConvertTo-Json -Depth 12 | Write-Output
     }
     if ($result.Status -eq 'cancelled')
     {
-        exit 2
+        exit 130
     }
     if ($result.Status -ne 'passed')
     {

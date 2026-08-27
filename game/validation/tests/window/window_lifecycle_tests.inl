@@ -48,6 +48,8 @@ void testPassiveValuesAndClosedState(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("capability query succeeds", capabilities.status.ok()));
     static_cast<void>(
         context.expectTrue("Win32 supports multiple windows", capabilities.capabilities.supports(Window::Types::Capability::MultipleWindows)));
+    static_cast<void>(
+        context.expectTrue("Win32 supports custom native cursors", capabilities.capabilities.supports(Window::Types::Capability::CustomCursor)));
     static_cast<void>(context.expectFalse("Count is not a capability", capabilities.capabilities.supports(Window::Types::Capability::Count)));
 
     const Window::Types::Events::PumpResult idlePoll = Window::Events::poll();

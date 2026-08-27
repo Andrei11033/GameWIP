@@ -48,6 +48,9 @@ deterministic rendering tests, and fixed-resolution workflows.
 `setDpiResizePolicy()` affects future DPI transitions only; it does not resize immediately. A framebuffer-size change invalidates an active packed
 pointer mask. Moving the Window without changing the framebuffer extent does not.
 
+Custom cursor images, sizes, and hotspots use physical pixels. A DPI transition selects the nearest eagerly created `intendedDpi` variant, choosing
+the higher-DPI variant on an equal-distance tie; it does not rescale or rebuild an image. See @ref window_custom_cursors.
+
 ## Events and authority
 
 Native geometry and DPI callbacks update cached position, logical client size, framebuffer size, scale, DPI, and current monitor before publishing
@@ -57,4 +60,5 @@ events. Geometry events may coalesce, so cached getters are the authoritative cu
 
 - @ref window_fullscreen_monitors
 - @ref window_renderer_integration
+- @ref window_custom_cursors
 - @ref window_manual_validation

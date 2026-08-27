@@ -12,6 +12,12 @@ environment verification.
 
 The default action opens the persistent menu. The same actions can be run directly:
 
+Both interactive menus render declared key/label entries through the same
+shared console primitive. The project menu hierarchy lives in
+`scripts/config/commands.json`; setup menu entries live in
+`scripts/setup/config/setup.json`. Their schemas and runtime checks reject
+duplicate keys, unknown handlers, and incomplete menu catalogs before use.
+
 ```powershell
 .\setup.bat check
 .\setup.bat repair
@@ -53,12 +59,18 @@ The default action opens the persistent menu. The same actions can be run direct
   discovery or preflight. It does not apply the requested local, tracked, or
   machine mutation; diagnostic run logs and receipts are still retained.
   Focused `docs` therefore does not configure, build, or open the manual.
-- `-NonInteractive` suppresses prompts; it does not approve mutation at any risk class.
-- `-Yes` grants the printed setup mutation plan for non-interactive use.
+- `-NonInteractive` never prompts. This does not grant consent for any mutation risk.
+- `-Yes` grants consent after the operation plan is known.
 - `-Branch <name>` selects an explicit fetched branch where the action supports repository preparation.
 - `-SkipDocs` skips documentation during complete/update/repair runs.
 - `-Json`, `-Quiet`, `-NoColor`, and `-OutputMode Summary|Stream|LogOnly` use the same operation/result presentation model as
   the project helper. `Stream` is the default, so successful installer and build output remains visible.
+- `-Verbose` uses the PowerShell common parameter for detailed progress.
+
+Semantic presentation uses cyan for accents and progress, green for success and
+ready states, yellow for warnings and ensure actions, red for failures, and
+dark gray for paths and secondary details. `-NoColor` changes only color; the
+explicit text and status labels remain unchanged.
 
 Machine-changing interactive actions present the complete plan before consent. Non-interactive mutation fails closed when
 `-Yes` is absent. Read-only actions do not ask for consent.

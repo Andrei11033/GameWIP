@@ -101,6 +101,25 @@ function Show-GameWipActionFailure
     }
 }
 
+function Show-GameWipCommonControlHelp
+{
+    param([string[]]$AdditionalOptions = @())
+
+    Write-Host 'Common control options:'
+    Write-Host '  -Preview          Do not apply the requested action; retain only diagnostic run evidence.'
+    Write-Host '  -NonInteractive   Never prompt. This does not grant consent for any mutation risk.'
+    Write-Host '  -Yes              Grant consent after the operation plan is known.'
+    foreach ($option in $AdditionalOptions)
+    {
+        Write-Host $option
+    }
+    Write-Host '  -OutputMode <Summary|Stream|LogOnly>  Stream is the default; native output remains visible.'
+    Write-Host '  -Quiet            Reduce normal command output; retained logs and receipt data remain available.'
+    Write-Host '  -NoColor          Request plain terminal presentation.'
+    Write-Host '  -Json             Emit the final operation result as JSON.'
+    Write-Host '  -Verbose          Use the PowerShell common parameter for detailed progress.'
+}
+
 function Show-GameWipHelp
 {
     Write-Host 'Usage:'
@@ -128,16 +147,9 @@ function Show-GameWipHelp
     Write-Host '  runs list [all] | runs show [latest|run-name] | runs clean [run-name|all]'
     Write-Host '  list | help'
     Write-Host ''
-    Write-Host 'Common control options:'
-    Write-Host '  -Preview          Do not apply the requested action; retain only diagnostic run evidence.'
-    Write-Host '  -NonInteractive   Never prompt. This does not grant consent for any mutation risk.'
-    Write-Host '  -Yes              Grant consent after the operation plan is known.'
-    Write-Host '  -NoBuild          Do not build prerequisites automatically; require existing usable build state.'
-    Write-Host '  -OutputMode <Summary|Stream|LogOnly>  Stream is the default; native output remains visible.'
-    Write-Host '  -Quiet            Reduce normal command output; retained logs and receipt data remain available.'
-    Write-Host '  -NoColor          Request plain terminal presentation.'
-    Write-Host '  -Json             Emit the final operation result as JSON.'
-    Write-Host '  -Verbose          Use the PowerShell common parameter for detailed progress.'
+    Show-GameWipCommonControlHelp -AdditionalOptions @(
+        '  -NoBuild          Do not build prerequisites automatically; require existing usable build state.'
+    )
     Write-Host ''
     Write-Host 'Benchmark options remain named because they describe measurement policy rather than command routing:'
     Write-Host '  -BenchmarkProfile <quick|standard|stable> -Filter <regex> -Repetitions N -MinTime <time>'

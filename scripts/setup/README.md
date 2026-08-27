@@ -10,13 +10,13 @@ verifies the machine.
 ## Layout
 
 - `windows.bat` forwards batch arguments without owning setup behavior.
-- `Windows.ps1` owns actions, consent, the persistent menu, execution plans,
-  and final verification.
+- `Windows.ps1` owns action dispatch, consent, execution plans, and final
+  verification. The persistent menu is rendered by the shared console backend.
 - `../lib/Operation.ps1`, `../lib/Process.ps1`, and `../lib/Runs.ps1` own the
   operation lifecycle, native execution, retained output, receipts, and run
   layout shared with the project helper.
-- `config/setup.json` owns setup action metadata and provider-host bootstrap IDs
-  only; it does not duplicate machine packages or tool versions.
+- `config/setup.json` owns setup action/menu metadata and provider-host bootstrap
+  IDs only; it does not duplicate machine packages or tool versions.
 - `config/editors.json` declares selectable editors and their handlers. VS Code
   is the default; Visual Studio is optional.
 - `../config/project-tools.json` is the single project-tool, provider-package,

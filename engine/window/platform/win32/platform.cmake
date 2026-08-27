@@ -7,6 +7,7 @@ target_sources(
     Window
     PRIVATE
         "${CMAKE_CURRENT_LIST_DIR}/win32_controls.cpp"
+        "${CMAKE_CURRENT_LIST_DIR}/win32_cursor.cpp"
         "${CMAKE_CURRENT_LIST_DIR}/win32_mode.cpp"
         "${CMAKE_CURRENT_LIST_DIR}/win32_monitor.cpp"
         "${CMAKE_CURRENT_LIST_DIR}/win32_operations.cpp"

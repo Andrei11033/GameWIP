@@ -116,6 +116,37 @@ function Write-GameWipSection
     Write-GameWipSemanticText -Object ('=' * $Title.Length) -Semantic Accent
 }
 
+function Read-GameWipActionMenuItem
+{
+    param(
+        [Parameter(Mandatory = $true)][string]$Title,
+        [Parameter(Mandatory = $true)][string]$Prompt,
+        [Parameter(Mandatory = $true)][object[]]$Items,
+        [Parameter(Mandatory = $true)][ValidateSet('Back', 'Exit')][string]$ExitLabel,
+        [scriptblock]$Header
+    )
+
+    Write-GameWipSection $Title
+    if ($null -ne $Header)
+    {
+        & $Header
+    }
+    foreach ($item in $Items)
+    {
+        Write-Host "$($item.Key). $($item.Label)"
+    }
+    Write-Host "ESC. $ExitLabel"
+
+    $keys = @($Items | ForEach-Object { [string]$_.Key })
+    $choice = Read-GameWipActionKey -Prompt $Prompt -AllowedKeys $keys -AllowEscape
+    if ($choice.Status -eq 'Cancelled')
+    {
+        return New-GameWipChoiceResult -Status Cancelled -Value $null
+    }
+    $selected = $Items | Where-Object { [string]$_.Key -ieq [string]$choice.Value } | Select-Object -First 1
+    return New-GameWipChoiceResult -Status Selected -Value ([string]$selected.Handler)
+}
+
 function Test-GameWipInteractiveConsole
 {
     try

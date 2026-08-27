@@ -5,8 +5,10 @@
 #include "validation/process_arguments.h"
 
 #include "test_support/test_support.h"
-#include "window/renderer_bridge.h"
+#include "window/cursor.h"
+#include "window/internal/cursor_selection.h"
 #include "window/native/win32.h"
+#include "window/renderer_bridge.h"
 #include "window/window.h"
 
 #include <shellapi.h>
@@ -29,6 +31,7 @@
 #include <functional>
 #include <limits>
 #include <memory>
+#include <ranges>
 #include <string>
 #include <thread>
 #include <tuple>
@@ -61,6 +64,7 @@ namespace
 #include "validation/tests/window/window_event_tests.inl"
 #include "validation/tests/window/window_renderer_tests.inl"
 #include "validation/tests/window/window_display_tests.inl"
+#include "validation/tests/window/window_cursor_tests.inl"
 } // namespace
 
 namespace GameWIP::Test
@@ -115,7 +119,12 @@ namespace GameWIP::Test
         }
         runner.runSuite("Window passive values and closed state", testPassiveValuesAndClosedState);
         runner.runSuite("Window description validation", testDescriptionValidation);
+        runner.runSuite("Window cursor DPI selection", testCursorDpiSelection);
+        runner.runSuite("Window custom cursor values and validation", testCursorValuesAndValidation);
 #if WINDOW_INTERNAL_TEST_HOOKS
+        runner.runSuite("Window custom cursor native resources", testCursorNativeResources);
+        runner.runSuite("Window custom cursor integration", testCursorWindowIntegration);
+        runner.runSuite("Window custom cursor lifecycle", testCursorLifecycle);
         runner.runSuite("Window fixed event queue", testFixedEventQueue);
         runner.runSuite("Window sticky close", testStickyClose);
         runner.runSuite("Window deterministic failure paths", testFailureInjection);

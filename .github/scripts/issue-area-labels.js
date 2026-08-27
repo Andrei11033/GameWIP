@@ -36,6 +36,19 @@ const HISTORICAL_AREA_LABELS_BY_VALUE = new Map([
     ['Gameplay roadmap', 'area:roadmap'],
 ]);
 
+function stripHtmlComments(text) {
+    let result = text;
+    while (true) {
+        const start = result.indexOf('<!--');
+        if (start < 0) {
+            return result;
+        }
+
+        const end = result.indexOf('-->', start + 4);
+        result = end < 0 ? result.slice(0, start) : result.slice(0, start) + result.slice(end + 3);
+    }
+}
+
 function readIssueFormField(body, heading) {
     const lines = body.split(/\r?\n/);
     const start = lines.findIndex((line) => line.trim() === `### ${heading}`);
@@ -49,10 +62,7 @@ function readIssueFormField(body, heading) {
         }
         values.push(line);
     }
-    return values
-        .join('\n')
-        .replace(/<!--[\s\S]*?-->/g, '')
-        .trim();
+    return stripHtmlComments(values.join('\n')).trim();
 }
 
 function targetAreaLabel(body, currentLabels) {

@@ -1,3 +1,7 @@
+GameWIP::Window::Cursor::Cursor
+GameWIP::Window::Cursor::isValid
+GameWIP::Window::Cursor::operator=
+GameWIP::Window::Cursor::~Cursor
 GameWIP::Window::Display::getColorInfo
 GameWIP::Window::Display::getCurrentMode
 GameWIP::Window::Display::getModes
@@ -7,7 +11,9 @@ GameWIP::Window::Display::getPreferredMode
 GameWIP::Window::Display::getPrimaryMonitor
 GameWIP::Window::Events::poll
 GameWIP::Window::Events::wait
+GameWIP::Window::createCursor
 GameWIP::Window::getCapabilities
+GameWIP::Window::hasCustomCursor
 GameWIP::Window::Native::Win32::getHandle
 GameWIP::Window::Renderer::attachOcclusionProvider
 GameWIP::Window::Renderer::beginPointerHitMaskUpdate
@@ -19,6 +25,7 @@ GameWIP::Window::Renderer::publishPointerHitMask
 GameWIP::Window::Renderer::reportOcclusion
 GameWIP::Window::Renderer::requiredPointerHitMaskWords
 GameWIP::Window::supports
+GameWIP::Window::setCursor
 GameWIP::Window::Window::~Window
 GameWIP::Window::Window::aspectRatio
 GameWIP::Window::Window::backdropEffect

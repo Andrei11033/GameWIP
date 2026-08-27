@@ -86,6 +86,10 @@ before/after cached and native mode geometry for every display-changing request.
 3. Alt-tab away, minimize, hide, restore, and close while confined/relative; verify the system cursor is always released and exclusive relative
    centering resumes only while focused.
 4. Warp to client corners and validate logical positions at multiple DPI scales.
+5. Select one custom image, switch through hidden and relative modes, and verify normal mode restores the same custom cursor.
+6. Move a multi-variant custom cursor across mixed-DPI monitors and verify the intended physical size and hotspot follow each destination without a
+   visible resource rebuild.
+7. Share one custom cursor across two Windows, restore a system shape on one Window, and verify the other Window keeps its custom selection.
 
 ## Files and shell behavior
 

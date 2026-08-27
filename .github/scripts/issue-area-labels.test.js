@@ -35,6 +35,12 @@ const currentMappings = [
 
 test('reads an issue-form field', () => assert.equal(readIssueFormField('### Area\nUnicode\n### Details\nX', 'Area'), 'Unicode'));
 
+test('does not let removed HTML comments reform comment openers', () => {
+    assert.equal(readIssueFormField('### Area\n<<!-- ignored -->!--', 'Area'), '');
+    assert.equal(readIssueFormField('### Area\n<!-- unterminated', 'Area'), '');
+    assert.equal(readIssueFormField('### Area\nUnicode<!-- ignored -->', 'Area'), 'Unicode');
+});
+
 test('maps every current area selection to exactly one canonical label', () => {
     assert.deepEqual([...AREA_LABELS_BY_VALUE], currentMappings);
     for (const [value, label] of currentMappings) {

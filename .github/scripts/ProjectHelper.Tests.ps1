@@ -13,7 +13,7 @@ $powerShellPath = (Get-Process -Id $PID).Path
 . (Join-Path $repositoryRoot 'scripts\lib\Bootstrap.ps1') -RepositoryRoot $repositoryRoot
 
 $helpOutput = (& $powerShellPath -NoProfile -ExecutionPolicy Bypass -File $helperPath help 2>&1 | Out-String)
-foreach ($requiredHelpText in @('gamewip.bat <action> [command] [target]', 'Available commands', 'quality', 'tools', 'runs', '-Preview', '-NonInteractive', '-Yes', '-NoBuild', '-Json'))
+foreach ($requiredHelpText in @('gamewip.bat <action> [command] [target]', 'Available commands', 'quality', 'tools', 'runs', '-Preview', '-NonInteractive', '-Yes', '-NoBuild', '-NoColor', '-Json'))
 {
     if ($helpOutput -notmatch [regex]::Escape($requiredHelpText))
     {
@@ -42,6 +42,50 @@ foreach ($semanticRole in $expectedSemanticColors.Keys)
     {
         throw "Semantic console role '$semanticRole' mapped to '$actualColor' instead of '$($expectedSemanticColors[$semanticRole])'."
     }
+}
+$expectedToolSemantics = [ordered]@{
+    compatible = 'Success'
+    missing = 'Failure'
+    mismatch = 'Warning'
+    outdated = 'Warning'
+    unknown = 'Warning'
+}
+foreach ($compatibility in $expectedToolSemantics.Keys)
+{
+    $actualSemantic = Get-GameWipToolCompatibilitySemantic -Compatibility $compatibility
+    if ($actualSemantic -ne $expectedToolSemantics[$compatibility])
+    {
+        throw "Tool compatibility '$compatibility' mapped to '$actualSemantic' instead of '$($expectedToolSemantics[$compatibility])'."
+    }
+}
+
+$expectedMenuIds = @('root', 'development', 'validation', 'quality', 'tools', 'repository', 'maintenance')
+$actualMenuIds = @($CommandConfig.Menus | ForEach-Object { [string]$_.Id })
+if ((($expectedMenuIds | Sort-Object) -join "`n") -cne (($actualMenuIds | Sort-Object) -join "`n"))
+{
+    throw 'Project helper interactive menu topology is not fully declarative.'
+}
+$originalActionKeyReader = (Get-Command Read-GameWipActionKey).ScriptBlock
+function Read-GameWipActionKey
+{
+    return New-GameWipChoiceResult -Status Selected -Value X
+}
+try
+{
+    $menuResult = Read-GameWipActionMenuItem `
+        -Title 'Test menu' `
+        -Prompt 'Choose:' `
+        -Items @([pscustomobject]@{ Key = 'X'; Label = 'Test item'; Handler = 'test-handler' }) `
+        -ExitLabel Back `
+        6>$null
+    if ($menuResult.Status -ne 'Selected' -or $menuResult.Value -ne 'test-handler')
+    {
+        throw 'The shared declarative menu renderer did not return the configured handler.'
+    }
+}
+finally
+{
+    Set-Item -Path function:Read-GameWipActionKey -Value $originalActionKeyReader
 }
 
 $originalPresentationContext = $Script:OperationContext

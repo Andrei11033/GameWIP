@@ -662,7 +662,11 @@ function Invoke-GameWipToolEnsure
     for ($toolIndex = 0; $toolIndex -lt $selected.Count; ++$toolIndex)
     {
         $tool = $selected[$toolIndex]
-        Write-Host "  [$($toolIndex + 1)/$($selected.Count)] $($tool.id)"
+        Write-GameWipStatusLine `
+            -Status "$($toolIndex + 1)/$($selected.Count)" `
+            -Text ([string]$tool.id) `
+            -Semantic Accent `
+            -Indent 2
         $detected = Get-GameWipDetectedTool -Tool $tool
         $compatibility = Get-GameWipToolCompatibility -Tool $tool -Detected $detected
         $providerOk = Test-GameWipDetectedToolFromDeclaredProvider -Tool $tool -Detected $detected
@@ -677,21 +681,35 @@ function Invoke-GameWipToolEnsure
     Write-GameWipSection "Tool ensure plan: $Selector"
     foreach ($item in $plan)
     {
-        Write-Host ('  {0,-20} {1,-11} {2}' -f $item.Tool.id, $(if ($item.NeedsInstall)
-                {
-                    'ensure'
-                }
-                else
-                {
-                    'ready'
-                }), $(if ($item.Detected.Location)
-                {
-                    $item.Detected.Location
-                }
-                else
-                {
-                    '-'
-                }))
+        $state = if ($item.NeedsInstall)
+        {
+            'ensure'
+        }
+        else
+        {
+            'ready'
+        }
+        $stateSemantic = if ($item.NeedsInstall)
+        {
+            'Warning'
+        }
+        else
+        {
+            'Success'
+        }
+        $location = if ($item.Detected.Location)
+        {
+            [string]$item.Detected.Location
+        }
+        else
+        {
+            '-'
+        }
+
+        Write-Host ('  {0,-20} ' -f $item.Tool.id) -NoNewline
+        Write-GameWipSemanticText -Object ('{0,-11}' -f $state) -Semantic $stateSemantic -NoNewline
+        Write-Host ' ' -NoNewline
+        Write-GameWipSemanticText -Object $location -Semantic Muted
     }
     $needed = @($plan | Where-Object { $_.NeedsInstall })
     if ($needed.Count -eq 0)

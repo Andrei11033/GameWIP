@@ -7,6 +7,7 @@ $ErrorActionPreference = 'Stop'
 
 $repositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $setupScript = Join-Path $repositoryRoot 'scripts\setup\Windows.ps1'
+$powerShellPath = (Get-Process -Id $PID).Path
 $actionConfig = Get-Content -Raw -LiteralPath (Join-Path $repositoryRoot 'scripts\setup\config\setup.json') | ConvertFrom-Json
 $actions = @($actionConfig.Actions)
 
@@ -37,6 +38,15 @@ foreach ($action in $actions)
     if ($action.mutation -notin @('none', 'local', 'tracked', 'machine', 'destructive', 'remote', 'conditional'))
     {
         throw "Setup action '$($action.id)' has invalid mutation metadata."
+    }
+}
+
+$helpOutput = (& $powerShellPath -NoProfile -ExecutionPolicy Bypass -File $setupScript help 2>&1 | Out-String)
+foreach ($requiredHelpText in @('setup.bat <action>', 'Setup actions', '-Preview', '-NonInteractive', '-Yes', '-OutputMode', '-Quiet', '-NoColor', '-Json'))
+{
+    if ($helpOutput -notmatch [regex]::Escape($requiredHelpText))
+    {
+        throw "Setup helper help omits '$requiredHelpText'."
     }
 }
 
@@ -95,6 +105,10 @@ if ($orchestrationSource -notmatch 'Invoke-GameWipOperation')
 if ($orchestrationSource -notmatch 'Invoke-GameWipToolEnsure')
 {
     throw 'Setup does not use the shared exact tool ensure path.'
+}
+if ($orchestrationSource -notmatch 'Read-GameWipActionMenuItem')
+{
+    throw 'Setup does not use the shared declarative menu renderer.'
 }
 if ($orchestrationSource -notmatch 'Uninstall owns its confirmation so inventory is always printed first')
 {

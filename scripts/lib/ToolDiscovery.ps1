@@ -307,21 +307,7 @@ function Show-GameWipToolStatus
             $installed = $installed.Substring(0, 10) + '...'
         }
         $state = Get-GameWipToolCompatibility -Tool $toolInfo -Detected $detected
-        $stateSemantic = switch ($state)
-        {
-            'compatible'
-            {
-                'Success'
-            }
-            'missing'
-            {
-                'Failure'
-            }
-            default
-            {
-                'Warning'
-            }
-        }
+        $stateSemantic = Get-GameWipToolCompatibilitySemantic -Compatibility $state
         Write-Host ('  {0,-20} {1,-13} {2,-13} ' -f $toolInfo.id, $required, $installed) -NoNewline
         Write-GameWipSemanticText -Object ('{0,-11}' -f $state) -Semantic $stateSemantic -NoNewline
         Write-Host (' {0}' -f $toolInfo.provider.kind)
