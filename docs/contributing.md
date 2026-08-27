@@ -134,14 +134,22 @@ Open a pull request before merging into `master`. `CODEOWNERS` routes review to
 the maintainer, while required checks and resolved conversations enforce the
 merge boundary.
 
-The pull request title should normally be the squash commit title:
+Pull request titles remain in this format:
 
 ```text
 area: imperative summary
 ```
 
-This is a primary-area prefix, unlike an issue title's work-type prefix. The
-standalone squash subject omits GitHub's generated `(#123)` suffix.
+Final squash commit subjects should keep GitHub's generated pull request
+suffix:
+
+```text
+area: imperative summary (#123)
+```
+
+This is a primary-area prefix, unlike an issue title's work-type prefix.
+Keeping the suffix leaves `master` history directly linked to the originating
+pull request.
 
 The pull request body should include:
 
@@ -266,10 +274,16 @@ After a pull request is merged, delete the feature branch unless more work will 
 This file is the authoritative workflow for squash commit messages. The durable `area: imperative summary` decision is summarized in @ref
 project_decisions.
 
-Commit title format:
+Pull request title format:
 
 ```text
 area: imperative summary
+```
+
+Final squash commit subject format:
+
+```text
+area: imperative summary (#123)
 ```
 
 Use patch-note sections when they apply:
@@ -294,8 +308,8 @@ Documentation:
 - Added or changed docs, examples, public API notes, or developer guidance.
 ```
 
-Do not keep GitHub's default `(#123)` suffix if the project history should read like a standalone changelog. Mention the pull request or issue in the
-body instead when it matters.
+Keep GitHub's generated `(#123)` suffix so the commit in `master` links
+directly to its originating pull request.
 
 ## Local sync after merge
 
