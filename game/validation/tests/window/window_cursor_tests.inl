@@ -151,8 +151,10 @@ void testCursorValuesAndValidation(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("successful creation publishes a valid Cursor", packed.cursor.isValid()));
 
     std::array<std::byte, 24> paddedPixels{};
-    std::ranges::copy(packedPixels | std::views::take(8), paddedPixels.begin());
-    std::ranges::copy(packedPixels | std::views::drop(8), paddedPixels.begin() + 12);
+    const std::span packedRows{packedPixels};
+    const std::span paddedRows{paddedPixels};
+    std::ranges::copy(packedRows.first(8), paddedRows.first(8).begin());
+    std::ranges::copy(packedRows.subspan(8), paddedRows.subspan(12, 8).begin());
     const Window::Types::Cursor::ImageView paddedImage = CursorTest::image(paddedPixels, 96, 12);
     auto padded = Window::createCursor(std::span{&paddedImage, std::size_t{1}});
     static_cast<void>(context.expectTrue("padded cursor rows create successfully", padded.status.ok()));
