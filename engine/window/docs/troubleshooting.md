@@ -56,6 +56,12 @@ releases IDs, event storage, and backend bookkeeping.
 Include `window/native/win32.h` only in a Win32 translation unit and query after successful open on the owner thread. `getHandle()` returns
 `ResourceBusy` on another thread and `NotOpen` without a live HWND. Never destroy the returned HWND.
 
+## Custom cursor selection fails
+
+Include `window/cursor.h` and check `Types::Capability::CustomCursor`. `createCursor()` returns `InvalidArgument` for an empty variant set, invalid
+dimensions or hotspot, zero or duplicate intended DPI, an undersized stride, or a payload whose size does not exactly match its resolved rows.
+`setCursor()` additionally requires a valid `Cursor` and an open Window on its owner thread. See @ref window_custom_cursors for the complete contract.
+
 ## Occlusion reporting is unavailable
 
 `supports(Types::Capability::OcclusionReporting)` describes the stable backend capability; it does not report whether a renderer provider is currently

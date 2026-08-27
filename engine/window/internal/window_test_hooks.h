@@ -4,10 +4,13 @@
 
 #pragma once
 
-#include "window/display_info.h"
+#include "window/cursor.h"
 #include "window/description.h"
+#include "window/display_info.h"
 #include "window/events.h"
 #include "window/renderer_bridge.h"
+
+#include <array>
 
 #ifndef WINDOW_INTERNAL_TEST_HOOKS
 #define WINDOW_INTERNAL_TEST_HOOKS 0
@@ -34,6 +37,13 @@ namespace GameWIP::Window::TestHooks
         std::uint32_t sdrWhiteLevelMilli80Nits = 0;
     };
 
+    struct CustomCursorNativeSnapshot
+    {
+        Types::Cursor::PixelPosition hotspot;
+        std::array<std::byte, 4> firstBgraPixel{};
+        bool valid = false;
+    };
+
     enum class FailurePoint
     {
         None,
@@ -45,6 +55,9 @@ namespace GameWIP::Window::TestHooks
         RegionCopy,
         IconConversion,
         Cursor,
+        SystemCursorLoad,
+        CursorBinding,
+        CursorStateAllocation,
         MonitorQuery,
         DisplayEnumeration,
         DisplayColorQuery,
@@ -89,6 +102,12 @@ namespace GameWIP::Window::TestHooks
         Types::PixelSize framebufferSize,
         std::uint32_t newDpi,
         Types::DpiResizePolicy policy) noexcept;
+    GAMEWIP_WINDOW_EXPORT void failCursorNativeCreationAfter(std::size_t successfulVariants) noexcept;
+    [[nodiscard]] GAMEWIP_WINDOW_EXPORT std::size_t customCursorVariantCount(const Cursor &cursor) noexcept;
+    [[nodiscard]] GAMEWIP_WINDOW_EXPORT std::uint32_t customCursorBindingDpi(const Window &window) noexcept;
+    [[nodiscard]] GAMEWIP_WINDOW_EXPORT std::size_t createdCustomCursorCount() noexcept;
+    [[nodiscard]] GAMEWIP_WINDOW_EXPORT std::size_t destroyedCustomCursorCount() noexcept;
+    [[nodiscard]] GAMEWIP_WINDOW_EXPORT CustomCursorNativeSnapshot inspectCustomCursorVariant(const Cursor &cursor, std::size_t index) noexcept;
 #endif
 } // namespace GameWIP::Window::TestHooks
 
@@ -96,10 +115,19 @@ namespace GameWIP::Window::Detail
 {
 #if WINDOW_INTERNAL_TEST_HOOKS
     [[nodiscard]] bool consumeFailure(TestHooks::FailurePoint point) noexcept;
+    [[nodiscard]] bool consumeCursorNativeCreationFailure() noexcept;
+    void recordCustomCursorCreated() noexcept;
+    void recordCustomCursorDestroyed() noexcept;
 #else
     [[nodiscard]] constexpr bool consumeFailure(TestHooks::FailurePoint) noexcept
     {
         return false;
     }
+    [[nodiscard]] constexpr bool consumeCursorNativeCreationFailure() noexcept
+    {
+        return false;
+    }
+    constexpr void recordCustomCursorCreated() noexcept {}
+    constexpr void recordCustomCursorDestroyed() noexcept {}
 #endif
 } // namespace GameWIP::Window::Detail

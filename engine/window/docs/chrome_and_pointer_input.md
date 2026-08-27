@@ -42,6 +42,12 @@ cross-application per-pixel pass-through.
 Window storage of a mask does not imply that the backend can perform genuine per-pixel desktop routing. The Win32 backend does not advertise per-pixel
 routing; publication remains an integration/storage contract rather than a passthrough guarantee.
 
+## Cursor display
+
+`CursorMode` controls whether and how the pointer is presented or confined. A selected custom native cursor follows the same visibility rules as a
+system `CursorShape`; hidden and relative modes retain the selection without displaying it. System shapes and application-provided image resources
+otherwise remain separate surfaces. See @ref window_custom_cursors for selection and restoration behavior.
+
 ## Opacity, framebuffer alpha, and backdrop
 
 Whole-window opacity, transparent framebuffer alpha, system backdrop, and pointer routing are separate concepts.
@@ -59,5 +65,6 @@ returned by a runtime setter remains authoritative.
 ## Related pages
 
 - @ref window_coordinates_and_dpi
+- @ref window_custom_cursors
 - @ref window_renderer_integration
 - @ref window_troubleshooting

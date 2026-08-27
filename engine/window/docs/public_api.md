@@ -13,8 +13,9 @@ Window exposes one public `GameWIP::Window::Types` tree and focused headers by c
 - `window/events.h` contains `Types::Events`, queued `Types::Event`, and calling-thread `Window::Events` pump operations.
 - `window/display.h` contains fundamental `Types::Display::MonitorId`, display `Mode`, and mode queries.
 - `window/display_info.h` is the opt-in rich monitor/color inspection surface.
-- `window/window.h` assembles the normal Window object API and includes the fundamental headers above, but not rich display inspection, renderer
-  integration, or native interop.
+- `window/cursor.h` is the opt-in custom native cursor resource and selection surface.
+- `window/window.h` assembles the normal Window object API and includes the fundamental headers above, but not rich display inspection, custom cursor
+  resources, renderer integration, or native interop.
 - `window/renderer_bridge.h` is the opt-in renderer feedback bridge.
 - `window/native/win32.h` is explicit Win32 interoperability.
 
@@ -23,7 +24,8 @@ Passive data stays under `Types`; stateless domain operations live in the matchi
 ## Library and Window capabilities
 
 `getCapabilities()` and `supports()` report backend/environment capability. `Window::supports()` has the same capability semantics; it does not report
-whether a renderer provider is currently attached. Renderer attachment state is queried with `Renderer::hasOcclusionProvider()`.
+whether a custom cursor is selected or a renderer provider is currently attached. Custom cursor selection state is queried with
+`hasCustomCursor()`, and renderer attachment state with `Renderer::hasOcclusionProvider()`.
 
 ## Window ownership and state
 
@@ -44,6 +46,12 @@ clears the sticky flag.
 
 Configuration/request types live with `description.h`; shared primitive values remain in `types.h`; live Window state and call-scoped layouts remain
 in `window.h`.
+
+## Custom cursors
+
+`window/cursor.h` contains the shared `Cursor` resource, passive image values under `Types::Cursor`, `createCursor()` overloads, and the free
+`setCursor()` and `hasCustomCursor()` Window operations. It remains separate from `window/window.h` because application-provided cursor images are an
+opt-in resource surface. See @ref window_custom_cursors for image validation, DPI selection, lifetime, and system-shape interaction.
 
 ## Events
 

@@ -438,7 +438,8 @@ namespace GameWIP::Window::Detail::Platform
                               capabilityBit(C::WindowIcon) | capabilityBit(C::AspectRatioConstraint) | capabilityBit(C::RuntimeInteractionControl) |
                               capabilityBit(C::AlwaysOnTop) | capabilityBit(C::Opacity) | capabilityBit(C::PointerClickThrough) |
                               capabilityBit(C::CursorConfinement) | capabilityBit(C::RelativeCursor) | capabilityBit(C::CursorWarping) |
-                              capabilityBit(C::FileDrop) | capabilityBit(C::ExclusiveFullscreen) | capabilityBit(C::OcclusionReporting);
+                              capabilityBit(C::CustomCursor) | capabilityBit(C::FileDrop) | capabilityBit(C::ExclusiveFullscreen) |
+                              capabilityBit(C::OcclusionReporting);
         if (supportsSystemBackdrop())
             flags |= capabilityBit(C::SystemBackdrop);
         if (supportsTransparentFramebuffer())

@@ -94,6 +94,7 @@ namespace GameWIP::Window
             CursorConfinement,         ///< Cursor confinement to the client area is supported.
             RelativeCursor,            ///< Relative cursor mode is supported.
             CursorWarping,             ///< Programmatic client-local cursor positioning is supported.
+            CustomCursor,              ///< Application-provided native cursor images are supported.
             FileDrop,                  ///< Portable file-drop events are supported.
             ExclusiveFullscreen,       ///< Exclusive display-mode fullscreen is supported.
             OcclusionReporting,        ///< Renderer occlusion-provider feedback is supported.

@@ -1,8 +1,8 @@
 @page window_examples Examples
 
 These focused examples build on the owner-thread lifecycle from
-@ref window_quick_start and demonstrate displays, renderer feedback, and native
-interop without hiding status handling.
+@ref window_quick_start and demonstrate displays, custom cursors, renderer
+feedback, and native interop without hiding status handling.
 
 ## Open a normal Window
 
@@ -69,6 +69,22 @@ description.visible = true;
 
 For exclusive fullscreen, set `description.mode.mode` to `Types::Mode::ExclusiveFullscreen`, choose a `Types::Display::MonitorId`, and optionally
 provide an exact `Types::Display::Mode`.
+
+## Custom cursor
+
+```cpp
+#include "window/cursor.h"
+
+if (window.supports(GameWIP::Window::Types::Capability::CustomCursor))
+{
+    GameWIP::Window::Types::Cursor::ImageView cursorImage{{32, 32}, {4, 3}, 96, 0, cursorRgba8};
+    auto cursor = GameWIP::Window::createCursor(cursorImage);
+    if (cursor.status.ok())
+        static_cast<void>(GameWIP::Window::setCursor(window, cursor.cursor));
+}
+```
+
+Use @ref window_custom_cursors for multiple-DPI variants, sharing, lifetime, cursor-mode interaction, and restoring a system shape.
 
 ## Renderer feedback
 

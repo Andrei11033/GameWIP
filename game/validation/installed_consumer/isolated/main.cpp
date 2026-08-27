@@ -16,6 +16,7 @@
 #elif defined(GAMEWIP_CONSUMER_Terminal)
 #include "terminal/terminal.h"
 #elif defined(GAMEWIP_CONSUMER_Window)
+#include "window/cursor.h"
 #include "window/display_info.h"
 #include "window/renderer_bridge.h"
 #include "window/window.h"
@@ -26,12 +27,15 @@
 #elif defined(GAMEWIP_CONSUMER_TestSupport)
 #include "test_support/test_support.h"
 #elif defined(__INTELLISENSE__)
+#include "window/cursor.h"
 #include "window/display_info.h"
 #include "window/renderer_bridge.h"
 #include "window/window.h"
 #else
 #error "An isolated consumer package must be selected."
 #endif
+
+#include <span>
 
 #include <string>
 
@@ -58,9 +62,12 @@ int main()
     return 0;
 #elif defined(GAMEWIP_CONSUMER_Window)
     GameWIP::Window::Window window;
+    const GameWIP::Window::Types::Cursor::CreateResult cursor =
+        GameWIP::Window::createCursor(std::span<const GameWIP::Window::Types::Cursor::ImageView>{});
     const auto feedback = GameWIP::Window::Renderer::attachOcclusionProvider(window);
     const auto displayColor = GameWIP::Window::Display::getColorInfo(window);
-    return GameWIP::Window::getCapabilities().status.ok() && !GameWIP::Window::Renderer::hasOcclusionProvider(window) &&
+    return GameWIP::Window::getCapabilities().status.ok() && cursor.status.code == GameWIP::IO::Types::ErrorCode::InvalidArgument &&
+                   !cursor.cursor.isValid() && !GameWIP::Window::Renderer::hasOcclusionProvider(window) &&
                    feedback.code == GameWIP::IO::Types::ErrorCode::NotOpen && displayColor.status.code == GameWIP::IO::Types::ErrorCode::NotOpen
                ? 0
                : 1;

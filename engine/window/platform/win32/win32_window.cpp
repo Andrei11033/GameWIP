@@ -423,6 +423,11 @@ namespace GameWIP::Window::Detail::Platform
 
     HCURSOR loadCursor(Types::CursorShape shape) noexcept
     {
+        if (Detail::consumeFailure(TestHooks::FailurePoint::SystemCursorLoad))
+        {
+            SetLastError(ERROR_GEN_FAILURE);
+            return nullptr;
+        }
         WORD identifier = 32512;
         switch (shape)
         {

@@ -310,11 +310,10 @@ namespace GameWIP::Window::Detail::Platform
         HCURSOR cursor = loadCursor(shape);
         if (cursor == nullptr)
             return statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "LoadCursorW");
-        state.platform->cursor = cursor;
+        IO::Types::Status status = replaceCustomCursorWithSystem(state, cursor);
+        if (!status.ok())
+            return status;
         state.cursorShape = shape;
-        if (state.cursorInside && state.cursorMode != Types::CursorMode::Hidden && state.cursorMode != Types::CursorMode::HiddenConfined &&
-            state.cursorMode != Types::CursorMode::Relative)
-            SetCursor(cursor);
         return IO::successStatus();
     }
 

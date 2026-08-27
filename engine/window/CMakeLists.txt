@@ -31,7 +31,17 @@ generate_export_header(
 
 target_sources(
     Window
-    PRIVATE core/cursor.cpp core/display.cpp core/display_info.cpp core/events.cpp core/renderer_bridge.cpp core/window.cpp core/window_test_hooks.cpp
+    PRIVATE
+        core/cursor.cpp
+        core/display.cpp
+        core/display_info.cpp
+        core/events.cpp
+        core/renderer_bridge.cpp
+        core/window.cpp
+        core/window_test_hooks.cpp
+        internal/cursor_platform.h
+        internal/cursor_selection.h
+        internal/cursor_state.h
     PUBLIC
         FILE_SET public_headers
             TYPE HEADERS
@@ -82,6 +92,7 @@ if(GAMEWIP_BUILD_DOCS AND COMMAND gamewip_register_doxygen_library)
         NAME Window
         PAGE_ID window_library
         PUBLIC_HEADERS
+            "${CMAKE_CURRENT_SOURCE_DIR}/cursor.h"
             "${CMAKE_CURRENT_SOURCE_DIR}/description.h"
             "${CMAKE_CURRENT_SOURCE_DIR}/display.h"
             "${CMAKE_CURRENT_SOURCE_DIR}/display_info.h"
