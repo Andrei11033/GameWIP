@@ -82,6 +82,10 @@ namespace GameWIP::FileSystem::Detail
 namespace GameWIP::FileSystem::Detail::Platform
 {
 #if FILESYSTEM_INTERNAL_TEST_HOOKS
+    // ------------------------------------------------------------
+    // Test hooks
+    // ------------------------------------------------------------
+
     namespace TestHooks
     {
         /// Checked file operations that support deterministic one-shot failure injection.
@@ -129,6 +133,10 @@ namespace GameWIP::FileSystem::Detail::Platform
 #endif
 
     /// @brief Result returned by backend entry metadata queries.
+    // ------------------------------------------------------------
+    // Native operation results
+    // ------------------------------------------------------------
+
     struct EntryQueryResult
     {
         /// @brief Success or portable/backend-native failure status.

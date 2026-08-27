@@ -2,6 +2,10 @@
 
 Set-StrictMode -Version Latest
 
+# ------------------------------------------------------------
+# Operation context and locking
+# ------------------------------------------------------------
+
 function Write-GameWipHost
 {
     param(
@@ -107,6 +111,10 @@ function Exit-GameWipOperationLock
         $Script:OperationContext.OperationLock = $null
     }
 }
+
+# ------------------------------------------------------------
+# Operation journal
+# ------------------------------------------------------------
 
 function Write-GameWipOperationEvent
 {
@@ -231,6 +239,10 @@ function Set-GameWipMutationStarted
     }
 }
 
+# ------------------------------------------------------------
+# Cancellation and confirmation
+# ------------------------------------------------------------
+
 function Test-GameWipCancellationRequested
 {
     return $null -ne $Script:OperationContext -and [bool]$Script:OperationContext.CancellationRequested
@@ -318,6 +330,10 @@ function Confirm-GameWipMutation
 
     return Read-GameWipYesNo -Prompt 'Apply this plan?' -Default $false
 }
+
+# ------------------------------------------------------------
+# Owned process cleanup
+# ------------------------------------------------------------
 
 function Stop-GameWipOwnedProcess
 {
@@ -457,6 +473,10 @@ function Stop-GameWipOwnedProcesses
     }
     $Script:OperationContext.ActiveProcesses.Clear()
 }
+
+# ------------------------------------------------------------
+# Receipts and execution
+# ------------------------------------------------------------
 
 function Show-GameWipOperationReceipt
 {

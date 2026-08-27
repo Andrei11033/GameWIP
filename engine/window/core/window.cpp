@@ -16,6 +16,9 @@
 
 namespace GameWIP::Window
 {
+    // ------------------------------------------------------------
+    // Validation and state construction
+    // ------------------------------------------------------------
     namespace
     {
         using IO::Types::ErrorCode;
@@ -202,6 +205,9 @@ namespace GameWIP::Window
         }
     } // namespace
 
+    // ------------------------------------------------------------
+    // Capabilities and lifecycle
+    // ------------------------------------------------------------
     Types::CapabilitiesResult getCapabilities() noexcept
     {
         return Detail::Platform::getCapabilities();
@@ -358,6 +364,9 @@ namespace GameWIP::Window
         return result.status;
     }
 
+    // ------------------------------------------------------------
+    // Identity, close requests, and events
+    // ------------------------------------------------------------
     Types::WindowId Window::id() const noexcept
     {
         return state_ ? state_->id : Types::WindowId{};
@@ -465,6 +474,9 @@ namespace GameWIP::Window
         return Detail::Platform::wakeEventWait(*state_);
     }
 
+    // ------------------------------------------------------------
+    // Cached state
+    // ------------------------------------------------------------
     std::string_view Window::title() const noexcept
     {
         return state_ ? std::string_view(state_->title) : std::string_view{};
@@ -607,6 +619,9 @@ namespace GameWIP::Window
         return state_ && state_->transparentFramebuffer;
     }
 
+    // ------------------------------------------------------------
+    // Geometry and content mutations
+    // ------------------------------------------------------------
     IO::Types::Status Window::setTitle(std::string_view utf8Title) noexcept
     {
         IO::Types::Status status = requireState(state_.get());
@@ -736,6 +751,9 @@ namespace GameWIP::Window
         return IO::successStatus();
     }
 
+    // ------------------------------------------------------------
+    // Presentation and interaction
+    // ------------------------------------------------------------
     IO::Types::Status Window::show() noexcept
     {
         IO::Types::Status status = requireState(state_.get());
@@ -977,6 +995,9 @@ namespace GameWIP::Window
         }
     }
 
+    // ------------------------------------------------------------
+    // Cursor controls
+    // ------------------------------------------------------------
     IO::Types::Status Window::setCursorMode(Types::CursorMode mode) noexcept
     {
         IO::Types::Status status = requireState(state_.get());

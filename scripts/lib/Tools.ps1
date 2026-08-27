@@ -7,6 +7,10 @@ foreach ($providerFile in @('Msys2.ps1', 'Npm.ps1', 'Python.ps1', 'PowerShellGal
     . (Join-Path $PSScriptRoot (Join-Path 'Providers' $providerFile))
 }
 
+# ------------------------------------------------------------
+# Tool inventory and paths
+# ------------------------------------------------------------
+
 function Test-GameWipWindowsHost
 {
     return [Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([Runtime.InteropServices.OSPlatform]::Windows)
@@ -181,6 +185,10 @@ function Get-GameWipToolCandidateVersion
     return $null
 }
 
+# ------------------------------------------------------------
+# Compatibility and providers
+# ------------------------------------------------------------
+
 function Get-GameWipToolCompatibility
 {
     param([hashtable]$Tool, $Detected)
@@ -350,6 +358,10 @@ function Invoke-GameWipProviderNative
         -TimeoutSeconds $TimeoutSeconds
     return [int]$result.ExitCode
 }
+
+# ------------------------------------------------------------
+# Readiness and tool resolution
+# ------------------------------------------------------------
 
 function Show-GameWipToolList
 {

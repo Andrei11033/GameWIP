@@ -1,3 +1,5 @@
+# Installs GameWIP and validates clean consumers across supported package boundaries.
+
 foreach(
     required_variable
     IN

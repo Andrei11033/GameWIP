@@ -24,7 +24,7 @@ Use these pages when reviewing whether a change belongs in the project, how it s
 
 ## Internal foundation infrastructure
 
-- @subpage internal_base - Admission, dependency, testing, and extension rules for narrow source-tree-only mechanisms.
+- @ref internal_base - Admission, dependency, testing, and extension rules for narrow source-tree-only mechanisms.
 
 ## Repository automation standards
 

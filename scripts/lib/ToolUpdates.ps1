@@ -2,6 +2,10 @@
 
 Set-StrictMode -Version Latest
 
+# ------------------------------------------------------------
+# Update planning
+# ------------------------------------------------------------
+
 function Get-GameWipRepositoryRelativePath
 {
     param([Parameter(Mandatory = $true)][string]$Path)
@@ -196,6 +200,10 @@ function Show-GameWipToolUpdatePlan
         }
     }
 }
+
+# ------------------------------------------------------------
+# Tracked-file mutation planning
+# ------------------------------------------------------------
 
 function Get-GameWipReferenceTexts
 {
@@ -420,6 +428,10 @@ function Get-GameWipTrackedToolMutationPlan
         Descriptions = @($descriptions)
     }
 }
+
+# ------------------------------------------------------------
+# Installation and verification
+# ------------------------------------------------------------
 
 function Get-GameWipPlannedInstallTool
 {

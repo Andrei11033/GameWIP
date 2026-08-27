@@ -1,3 +1,5 @@
+# Validates the GameWIP executable's generated version output contract.
+
 foreach(required_variable IN ITEMS EXECUTABLE SOURCE_DIR PROJECT_VERSION_VALUE)
     if(NOT DEFINED ${required_variable})
         message(FATAL_ERROR "${required_variable} is required.")

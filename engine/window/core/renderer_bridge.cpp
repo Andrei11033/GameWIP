@@ -40,6 +40,9 @@ namespace GameWIP::Window::Renderer
         }
     } // namespace
 
+    // ------------------------------------------------------------
+    // Occlusion reporting
+    // ------------------------------------------------------------
     IO::Types::Status attachOcclusionProvider(Window &window) noexcept
     {
         Detail::WindowState *state = nullptr;
@@ -102,6 +105,9 @@ namespace GameWIP::Window::Renderer
         return IO::successStatus();
     }
 
+    // ------------------------------------------------------------
+    // Pointer hit masks
+    // ------------------------------------------------------------
     std::size_t requiredPointerHitMaskWords(Types::PixelSize size) noexcept
     {
         constexpr std::size_t bitsPerWord = std::numeric_limits<Types::Renderer::PointerHitMaskWord>::digits;

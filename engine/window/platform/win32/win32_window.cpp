@@ -16,6 +16,9 @@
 
 namespace GameWIP::Window::Detail::Platform
 {
+    // ------------------------------------------------------------
+    // Process and thread registries
+    // ------------------------------------------------------------
     namespace
     {
         std::mutex classMutex;
@@ -34,6 +37,9 @@ namespace GameWIP::Window::Detail::Platform
 
     } // namespace
 
+    // ------------------------------------------------------------
+    // Native class lifetime
+    // ------------------------------------------------------------
     IO::Types::Status acquireWindowClass(HINSTANCE instance) noexcept
     {
         std::scoped_lock lock(classMutex);
@@ -102,6 +108,9 @@ namespace GameWIP::Window::Detail::Platform
         state.id = {value};
     }
 
+    // ------------------------------------------------------------
+    // Window identity and native styles
+    // ------------------------------------------------------------
     void unregisterWindowId(WindowState &state) noexcept
     {
         std::scoped_lock lock(windowRegistryMutex);
@@ -183,6 +192,9 @@ namespace GameWIP::Window::Detail::Platform
         }
     } // namespace
 
+    // ------------------------------------------------------------
+    // Event routing and dispatcher state
+    // ------------------------------------------------------------
     Dispatcher &dispatcher() noexcept
     {
         return threadDispatcher;
@@ -302,6 +314,9 @@ namespace GameWIP::Window::Detail::Platform
         return found == windowRegistry.end() ? nullptr : found->second;
     }
 
+    // ------------------------------------------------------------
+    // Native status conversion
+    // ------------------------------------------------------------
     IO::Types::Status statusFromWin32(IO::Types::ErrorCode fallback, DWORD nativeCode, std::string_view operation) noexcept
     {
         using IO::Types::ErrorCode;
@@ -373,6 +388,9 @@ namespace GameWIP::Window::Detail::Platform
         }
     }
 
+    // ------------------------------------------------------------
+    // Geometry and hit testing
+    // ------------------------------------------------------------
     UINT dpiForWindow(HWND window) noexcept
     {
         const UINT dpi = window != nullptr ? GetDpiForWindow(window) : GetDpiForSystem();
@@ -475,6 +493,9 @@ namespace GameWIP::Window::Detail::Platform
         return LoadCursorW(nullptr, MAKEINTRESOURCEW(identifier));
     }
 
+    // ------------------------------------------------------------
+    // Cached native state
+    // ------------------------------------------------------------
     IO::Types::Status refreshCachedGeometry(WindowState &state) noexcept
     {
         if (!state.platform || state.platform->handle == nullptr)
@@ -609,6 +630,9 @@ namespace GameWIP::Window::Detail::Platform
         return refreshCachedGeometry(state);
     }
 
+    // ------------------------------------------------------------
+    // Exclusive-mode cleanup
+    // ------------------------------------------------------------
     IO::Types::Status leaveExclusive(WindowState &state) noexcept
     {
         if (state.platform && state.mode != Types::Mode::Windowed && Detail::consumeFailure(TestHooks::FailurePoint::DisplayRestoration))
@@ -670,6 +694,9 @@ namespace GameWIP::Window::Detail::Platform
         return IO::successStatus();
     }
 
+    // ------------------------------------------------------------
+    // Deferred owner-thread cleanup
+    // ------------------------------------------------------------
     bool deferCleanupToOwner(std::unique_ptr<WindowState> &state) noexcept
     {
         if (!state || !state->platform)

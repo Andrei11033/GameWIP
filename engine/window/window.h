@@ -153,6 +153,9 @@ namespace GameWIP::Window
     class GAMEWIP_WINDOW_EXPORT Window final
     {
     public:
+        /// @name Lifecycle
+        /// @{
+
         /// @brief Constructs a closed Window owner.
         Window() noexcept;
         Window(const Window &) = delete;
@@ -186,6 +189,10 @@ namespace GameWIP::Window
         /// @brief Closes the native lifetime on its owner thread.
         /// @return Success when closed or already closed; ResourceBusy on the wrong thread; otherwise the native cleanup failure.
         [[nodiscard]] IO::Types::Status close() noexcept;
+        /// @}
+
+        /// @name Identity and ownership
+        /// @{
 
         /// @brief Returns the current open-lifetime identity.
         /// @return The current identity, or an invalid ID while closed.
@@ -204,6 +211,10 @@ namespace GameWIP::Window
         /// @param owner New owner identity, or an invalid ID to remove the relationship.
         /// @return Success, or the validation, ownership, thread, or native failure.
         [[nodiscard]] IO::Types::Status setOwner(Types::WindowId owner) noexcept;
+        /// @}
+
+        /// @name Close requests
+        /// @{
 
         /// @brief Returns whether a close request is pending.
         /// @return true after a close request and before it is cleared or the Window closes.
@@ -214,6 +225,10 @@ namespace GameWIP::Window
         /// @brief Clears the cached close-request flag.
         /// @return Success, or the open-state or wrong-thread failure.
         [[nodiscard]] IO::Types::Status clearCloseRequest() noexcept;
+        /// @}
+
+        /// @name Event queue
+        /// @{
 
         /// @brief Removes the oldest queued event when available.
         /// @param outEvent Receives the removed event on success and is unchanged when the queue is empty.
@@ -233,6 +248,10 @@ namespace GameWIP::Window
         /// @brief Wakes a thread blocked in Events::wait without queuing an event.
         /// @return Success, or the open-state or native wake failure.
         [[nodiscard]] IO::Types::Status wakeEventWait() const noexcept;
+        /// @}
+
+        /// @name Cached state
+        /// @{
 
         /// @brief Returns the cached UTF-8 title.
         /// @return A view valid until the title changes or the Window closes.
@@ -339,6 +358,10 @@ namespace GameWIP::Window
         /// @brief Returns whether framebuffer alpha is configured to reach the desktop.
         /// @return true when transparent framebuffer composition is enabled.
         [[nodiscard]] bool hasTransparentFramebuffer() const noexcept;
+        /// @}
+
+        /// @name Geometry and content
+        /// @{
 
         /// @brief Replaces the UTF-8 native and cached title.
         /// @param utf8Title Complete valid UTF-8 without embedded U+0000.
@@ -388,6 +411,11 @@ namespace GameWIP::Window
         /// @param policy Logical-size or physical-pixel preservation policy.
         /// @return Success, or the validation, open-state, thread, or native failure.
         [[nodiscard]] IO::Types::Status setDpiResizePolicy(Types::DpiResizePolicy policy) noexcept;
+        /// @}
+
+        /// @name Presentation and interaction
+        /// @{
+
         /// @brief Shows the native Window.
         /// @return Success, or the open-state, thread, or native failure.
         [[nodiscard]] IO::Types::Status show() noexcept;
@@ -460,6 +488,11 @@ namespace GameWIP::Window
         /// @param layout Pointer policy and logical client regions to copy.
         /// @return Success, or the validation, allocation, open-state, thread, capability, or native failure.
         [[nodiscard]] IO::Types::Status setPointerInputLayout(const Types::PointerInputLayout &layout) noexcept;
+        /// @}
+
+        /// @name Cursor controls
+        /// @{
+
         /// @brief Changes cursor visibility, confinement, or relative behavior.
         /// @param mode Requested cursor mode.
         /// @return Success, or the validation, open-state, focus, thread, capability, or native failure.
@@ -475,6 +508,7 @@ namespace GameWIP::Window
         /// @brief Queries the current cursor position in client-local logical units.
         /// @return Status and current logical client position.
         [[nodiscard]] Types::LogicalPositionResult cursorPosition() const noexcept;
+        /// @}
 
     private:
         friend struct Detail::WindowAccess;

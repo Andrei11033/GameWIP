@@ -21,6 +21,9 @@
 
 namespace GameWIP::Window
 {
+    // ------------------------------------------------------------
+    // Cursor validation and resource state
+    // ------------------------------------------------------------
     namespace
     {
         using IO::Types::ErrorCode;
@@ -92,6 +95,9 @@ namespace GameWIP::Window
         }
     } // namespace
 
+    // ------------------------------------------------------------
+    // Shared cursor lifecycle
+    // ------------------------------------------------------------
     Cursor::Cursor() noexcept = default;
     Cursor::Cursor(const Cursor &) noexcept = default;
     Cursor &Cursor::operator=(const Cursor &) noexcept = default;
@@ -140,6 +146,9 @@ namespace GameWIP::Window
         return cursor.state_;
     }
 
+    // ------------------------------------------------------------
+    // Cursor creation and Window binding
+    // ------------------------------------------------------------
     Types::Cursor::CreateResult createCursor(const Types::Cursor::ImageView &image) noexcept
     {
         return createCursor(std::span{&image, std::size_t{1}});

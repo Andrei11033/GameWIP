@@ -87,6 +87,7 @@ namespace GameWIP::Window::Detail::Platform
     /// These helpers operate on the calling thread's dispatcher. Registered WindowState pointers
     /// remain valid until explicit unregister or deferred owner-thread cleanup.
     /// @{
+
     [[nodiscard]] Dispatcher &dispatcher() noexcept;
     [[nodiscard]] IO::Types::Status acquireWindowClass(HINSTANCE instance) noexcept;
     [[nodiscard]] IO::Types::Status releaseWindowClass() noexcept;
@@ -107,6 +108,7 @@ namespace GameWIP::Window::Detail::Platform
     /// Conversion functions preserve the most useful Win32 code for translation at the portable
     /// boundary and never expose partially converted output as a successful result.
     /// @{
+
     [[nodiscard]] IO::Types::Status statusFromWin32(IO::Types::ErrorCode fallback, DWORD nativeCode, std::string_view operation) noexcept;
     [[nodiscard]] IO::Types::Status statusFromDisplayChange(LONG nativeCode, std::string_view operation) noexcept;
     [[nodiscard]] bool utf8ToUtf16(std::string_view text, std::wstring &output, DWORD &nativeCode);

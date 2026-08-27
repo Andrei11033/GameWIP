@@ -533,6 +533,10 @@ namespace GameWIP::Logger::Detail::Core
 
 using namespace GameWIP::Logger::Detail::Core;
 
+// ------------------------------------------------------------
+// Queue submission
+// ------------------------------------------------------------
+
 void GameWIP::Logger::Detail::Core::enqueuePreformattedMessage(LogLevel level, std::string_view source, std::string_view message) noexcept
 {
     enqueuePreformattedMessage(level, source, message, false);
@@ -601,6 +605,10 @@ GameWIP::Logger::Types::Report::Result GameWIP::Logger::Detail::Core::reportPref
         });
 }
 
+// ------------------------------------------------------------
+// Asynchronous logging
+// ------------------------------------------------------------
+
 void GameWIP::Logger::log(LogLevel level, std::string_view source, std::string_view message) noexcept
 {
     if (!shouldLog(level))
@@ -644,6 +652,10 @@ GAMEWIP_LOGGER_DEFINE_LEVEL(warn, LogLevel::Warn)
 GAMEWIP_LOGGER_DEFINE_LEVEL(error, LogLevel::Error)
 GAMEWIP_LOGGER_DEFINE_LEVEL(fatal, LogLevel::Fatal)
 #undef GAMEWIP_LOGGER_DEFINE_LEVEL
+
+// ------------------------------------------------------------
+// Synchronous reporting
+// ------------------------------------------------------------
 
 GameWIP::Logger::Types::Report::Result GameWIP::Logger::report(LogLevel level, std::string_view source, std::string_view message) noexcept
 {
@@ -736,6 +748,10 @@ GameWIP::Logger::Types::Report::Result GameWIP::Logger::reportFatal(
     static_cast<void>(reportFatal(source, timeout, message));
     std::terminate();
 }
+
+// ------------------------------------------------------------
+// Debugger output
+// ------------------------------------------------------------
 
 GameWIP::IO::Types::Status GameWIP::Logger::writeDebugOutput(LogLevel level, std::string_view source, std::string_view message) noexcept
 {

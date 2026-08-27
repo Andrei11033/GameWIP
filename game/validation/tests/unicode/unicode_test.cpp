@@ -67,6 +67,10 @@ namespace
     static_assert(noexcept(Unicode::Utf16::convertToUtf8(std::declval<std::span<const char16_t>>(), std::declval<std::span<char>>())));
 
     /// @brief Builds a byte string from explicit unsigned octets without depending on char signedness.
+    // ------------------------------------------------------------
+    // Test data helpers
+    // ------------------------------------------------------------
+
     std::string bytes(std::initializer_list<std::uint8_t> values)
     {
         std::string result;
@@ -395,6 +399,10 @@ namespace
     }
 
     // Focused suite declarations keep cross-suite calls independent of fragment include order.
+    // ------------------------------------------------------------
+    // Test suites
+    // ------------------------------------------------------------
+
     void testVersionAndScalarPredicates(TestSupport::Context &context);
     void testUtf8CodecAndValidation(TestSupport::Context &context);
     void testUtf16CodecAndValidation(TestSupport::Context &context);
@@ -412,6 +420,10 @@ namespace
 
 namespace GameWIP::Test
 {
+    // ------------------------------------------------------------
+    // Test runner
+    // ------------------------------------------------------------
+
     int runUnicodeTests(int, char **, const UnicodeTestOptions &options)
     {
         TestSupport::Types::Reporting::Options reportOptions;

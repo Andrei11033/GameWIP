@@ -23,12 +23,36 @@ examples. Base also does not own generic utilities, scope-exit policy, or native
 
 # Portable mechanisms
 
-`checked_arithmetic.h` provides allocation-free, `constexpr`, `noexcept` predicates for unsigned addition and multiplication overflow.
+Include `base/checked_arithmetic.h` for two allocation-free, `constexpr`,
+`noexcept` predicates:
+
+- `GameWIP::Base::wouldAddOverflow(left, right)` reports whether unsigned
+  addition would exceed the value type's maximum without performing the
+  overflowing operation.
+- `GameWIP::Base::wouldMultiplyOverflow(left, right)` provides the equivalent
+  check for unsigned multiplication, including zero operands.
+
+Both operands use the same unsigned integral type. A `false` result guarantees
+that the corresponding operation is representable in that type.
 
 # Win32 mechanisms
 
-`platform/win32/dynamic_library.h` is the single typed `GetProcAddress` conversion boundary. Callers retain their exact function typedef and receive
-null when resolution fails.
+Include `base/platform/win32/dynamic_library.h` only in Win32 implementation
+code. `GameWIP::Base::Win32::loadProcedure<FunctionType>(module, name)` is the
+single typed `GetProcAddress` conversion boundary. `FunctionType` must be an
+exact function-pointer type.
+
+The function borrows the module handle and procedure name, performs no
+allocation, and returns null for a null argument or unresolved export. It does
+not load, retain, or release the module. A returned procedure remains valid
+only while the caller keeps that module loaded.
+
+# Generated API reference
+
+The generated namespace pages for `GameWIP::Base` and
+`GameWIP::Base::Win32` contain the exact template constraints, parameters, and
+return contracts. Base is documented for source-tree maintainers; it is not an
+installed consumer API.
 
 # Admission checklist
 

@@ -57,6 +57,9 @@ namespace GameWIP::Window::Types::Display
 /// @brief Stateless desktop-display operations.
 namespace GameWIP::Window::Display
 {
+    /// @name Display modes
+    /// @{
+
     /// @brief Enumerates materialized physical modes for a currently known monitor.
     /// @param monitor Monitor identity returned by the current Window runtime.
     /// @return Query status and the monitor's available physical modes on success.
@@ -69,4 +72,5 @@ namespace GameWIP::Window::Display
     /// @param monitor Monitor identity returned by the current Window runtime.
     /// @return Query status and preferred physical mode on success.
     [[nodiscard]] GAMEWIP_WINDOW_EXPORT Types::Display::ModeResult getPreferredMode(Types::Display::MonitorId monitor) noexcept;
+    /// @}
 } // namespace GameWIP::Window::Display

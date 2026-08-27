@@ -1,3 +1,5 @@
+// Structure-preserving JSON mutation for the repository-owned project-tool registry.
+
 'use strict';
 
 const fs = require('fs');

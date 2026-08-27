@@ -373,6 +373,53 @@ protects a meaningful contract.
 
 Do not comment obvious assignments, getters, or local variables.
 
+Use section separators to give long maintained source files a short
+responsibility map:
+
+```cpp
+// ------------------------------------------------------------
+// Lifecycle
+// ------------------------------------------------------------
+```
+
+Use exactly 60 hyphens, the language's ordinary line-comment marker, and a
+concise noun phrase. Public headers group consumer concerns; implementations
+group mechanisms; validation sources group suites, fixtures, and runners. Use
+the same domain terms across layers when they describe the same responsibility.
+
+Do not add separators to small or single-purpose files, around individual
+symbols or namespaces, or to generated, vendored, or comment-free structured
+content. Separators organize source; they never replace symbol or helper
+documentation.
+
+When a public API family should also be grouped in generated reference pages,
+pair the separator with a Doxygen member group:
+
+```cpp
+// ------------------------------------------------------------
+// Lifecycle
+// ------------------------------------------------------------
+
+/// @name Lifecycle
+/// @{
+
+/// @brief Initializes the service.
+Status initialize() noexcept;
+
+/// @brief Stops the service.
+Status shutdown() noexcept;
+
+/// @}
+```
+
+Keep complete symbol comments inside the group. Retain useful existing groups
+and put broader separators outside them. Do not group a single symbol or repeat
+only the file, namespace, or type name.
+
+The repository standards check enforces separator shape and the blank line
+after a Doxygen `@{`. `gamewip quality fix` normalizes both mechanically safe
+details; malformed three-line separator structures remain manual fixes.
+
 ## Editorial standard
 
 - Use sentence case for page titles and headings. Preserve exact names such as `IO`, `FileSystem`, `Terminal`, `Logger`, `Assert`, and `TestSupport`.

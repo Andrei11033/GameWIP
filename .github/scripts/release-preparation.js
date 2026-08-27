@@ -10,6 +10,10 @@ const RELEASE_COMMANDS = Object.freeze(new Set(['check', 'prepare', 'finalize'])
 const RELEASE_ISSUE_LABEL = 'type:release';
 const RELEASE_ISSUE_TITLE_PATTERN = /^release:/i;
 
+// ------------------------------------------------------------
+// Release identity
+// ------------------------------------------------------------
+
 function compareReleaseVersions(left, right) {
     for (const field of ['major', 'minor', 'patch']) {
         if (left[field] < right[field]) {
@@ -80,6 +84,10 @@ function findLatestReleaseVersion(tagNames) {
     }
     return latest;
 }
+
+// ------------------------------------------------------------
+// Milestone and readiness validation
+// ------------------------------------------------------------
 
 function parseMilestoneReleaseMetadata(description) {
     if (typeof description !== 'string') {
@@ -267,6 +275,10 @@ function resolveNextMilestone({ milestones, currentMilestoneTitle, nextMilestone
     return matches[0];
 }
 
+// ------------------------------------------------------------
+// Release artifact planning
+// ------------------------------------------------------------
+
 function releaseNames(version) {
     const tagName = `v${version.text}`;
     return {
@@ -397,6 +409,10 @@ function buildReleasePreparationPlan(snapshot) {
     };
 }
 
+// ------------------------------------------------------------
+// Release content
+// ------------------------------------------------------------
+
 function releaseNotesTemplate({ version, milestoneTitle, releaseIssue, nextMilestoneTitle }) {
     return [
         `# GameWIP v${version.text} release notes`,
@@ -470,6 +486,10 @@ function validateReleaseNotesReady(notes) {
     }
     return true;
 }
+
+// ------------------------------------------------------------
+// Configuration and GitHub snapshot
+// ------------------------------------------------------------
 
 function parseBoolean(value) {
     return String(value ?? '').toLowerCase() === 'true';
@@ -713,6 +733,10 @@ async function buildGitHubSnapshot(github, config) {
     };
 }
 
+// ------------------------------------------------------------
+// Reporting and repository writes
+// ------------------------------------------------------------
+
 function releasePlanMarkdown(config, plan) {
     const latestVersion = plan.latestVersion === null ? 'none' : plan.latestVersion.text;
     const nextMilestone = plan.nextMilestone === null ? 'none' : plan.nextMilestone.title;
@@ -929,6 +953,10 @@ async function applyFinalizationWrites({ github, config, finalizationPlan, relea
     await createAnnotatedReleaseTag(github, config, finalizationPlan);
     await ensureGitHubRelease(github, config, finalizationPlan, releaseBody, releases);
 }
+
+// ------------------------------------------------------------
+// Command execution
+// ------------------------------------------------------------
 
 async function runPreparationCommand({ github, core, config }) {
     const snapshot = await buildGitHubSnapshot(github, config);

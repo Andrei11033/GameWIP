@@ -16,6 +16,9 @@
 
 namespace GameWIP::Window::Detail::Platform
 {
+    // ------------------------------------------------------------
+    // Native message translation
+    // ------------------------------------------------------------
     namespace
     {
         void emitGeometryChanges(
@@ -104,6 +107,9 @@ namespace GameWIP::Window::Detail::Platform
             return HTCLIENT;
         }
     } // namespace
+    // ------------------------------------------------------------
+    // Window procedure
+    // ------------------------------------------------------------
     LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
     {
         WindowState *state = reinterpret_cast<WindowState *>(GetWindowLongPtrW(window, GWLP_USERDATA));

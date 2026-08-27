@@ -48,6 +48,11 @@ INCB_MASK = 0x30
 EXTENDED_PICTOGRAPHIC_MASK = 0x40
 
 
+# ------------------------------------------------------------
+# Source and trie models
+# ------------------------------------------------------------
+
+
 @dataclass(frozen=True)
 class SourcePaths:
     grapheme_break: Path
@@ -62,6 +67,11 @@ class GeneratedTrie:
     indexes: tuple[int, ...]
     blocks: tuple[bytes, ...]
     index_type: str
+
+
+# ------------------------------------------------------------
+# Input parsing
+# ------------------------------------------------------------
 
 
 def parse_arguments() -> argparse.Namespace:
@@ -129,6 +139,11 @@ def code_points(field: str) -> range:
     return range(first, last + 1)
 
 
+# ------------------------------------------------------------
+# Unicode property loading
+# ------------------------------------------------------------
+
+
 def apply_grapheme_break(data: bytearray, path: Path) -> None:
     for fields in records(path):
         property_name = fields[1]
@@ -169,6 +184,11 @@ def remove_algorithmic_ranges(data: bytearray) -> None:
     # classification are cheaper to compute directly than to store in the trie.
     data[0x0000:0x0080] = bytes(0x80)
     data[0xAC00:0xD7A4] = bytes(0xD7A4 - 0xAC00)
+
+
+# ------------------------------------------------------------
+# Trie construction
+# ------------------------------------------------------------
 
 
 def build_trie(data: bytearray, block_shift: int) -> GeneratedTrie:
@@ -219,6 +239,11 @@ def select_trie(data: bytearray) -> tuple[GeneratedTrie, tuple[GeneratedTrie, ..
     candidates = tuple(build_trie(data, shift) for shift in range(MIN_BLOCK_SHIFT, MAX_BLOCK_SHIFT + 1))
     # Prefer the smaller block when table sizes tie because it has finer cache locality.
     return min(candidates, key=lambda trie: (table_size(trie), trie.block_shift)), candidates
+
+
+# ------------------------------------------------------------
+# Header generation
+# ------------------------------------------------------------
 
 
 def formatted_values(values: Iterable[int], per_line: int, hexadecimal: bool = False) -> str:

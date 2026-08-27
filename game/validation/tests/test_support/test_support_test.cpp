@@ -61,6 +61,10 @@ namespace
     constexpr std::string_view kScopedVariable = "INTERNAL_TEST_SUPPORT_SCOPED_ENV";
 
     /// @brief Returns whether one exact child-mode argument is present.
+    // ------------------------------------------------------------
+    // Argument and reporting helpers
+    // ------------------------------------------------------------
+
     bool hasArgument(int argc, char **argv, std::string_view argument)
     {
         const auto arguments = GameWIP::Validation::processArguments(argc, argv);
@@ -134,6 +138,10 @@ namespace
     }
 
     /// @brief Implements child modes used to verify capture, timeout, environment, and exit behavior.
+    // ------------------------------------------------------------
+    // Child-process routes
+    // ------------------------------------------------------------
+
     int runTestSupportChild(int argc, char **argv)
     {
         if (hasArgument(argc, argv, kEnvironmentChildArgument))
@@ -217,6 +225,10 @@ namespace
 
 namespace GameWIP::Test
 {
+    // ------------------------------------------------------------
+    // Test runner
+    // ------------------------------------------------------------
+
     int runTestSupportTests(int argc, char **argv, const TestSupportTestOptions &options)
     {
         if (hasArgument(argc, argv, kEnvironmentChildArgument) || hasArgument(argc, argv, kEchoChildArgument) ||

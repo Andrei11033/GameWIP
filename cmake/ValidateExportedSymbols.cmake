@@ -1,3 +1,5 @@
+# Validates one shared library's exported symbols against its owned allowlist.
+
 foreach(required_variable IN ITEMS NM LIBRARY_FILE ALLOWLIST_FILE)
     if(NOT DEFINED ${required_variable})
         message(FATAL_ERROR "${required_variable} is required for export validation.")

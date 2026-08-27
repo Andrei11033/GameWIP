@@ -2,6 +2,10 @@
 
 Set-StrictMode -Version Latest
 
+# ------------------------------------------------------------
+# Quality scope discovery
+# ------------------------------------------------------------
+
 function Get-GameWipQualityTool
 {
     param([Parameter(Mandatory = $true)][string]$Id)
@@ -116,6 +120,10 @@ function Get-GameWipCMakeFile
             Sort-Object -Unique)
 }
 
+# ------------------------------------------------------------
+# Quality tool execution
+# ------------------------------------------------------------
+
 function Invoke-GameWipQualityNative
 {
     param(
@@ -205,6 +213,10 @@ function Show-GameWipQualityCoverageStatus
     $python = (Resolve-GameWipPython).Path
     Invoke-GameWipNative -Name quality-ownership-status -FilePath $python -Arguments @('.github/scripts/check_quality_ownership.py', '--status')
 }
+
+# ------------------------------------------------------------
+# Check and fix workflows
+# ------------------------------------------------------------
 
 function Invoke-GameWipQualityCheck
 {
@@ -489,12 +501,28 @@ function Invoke-GameWipQualityFix
     param([Parameter(Mandatory = $true)]$ScopeInfo)
 
     $qualityConfig = Join-Path $RepositoryRoot 'config\quality'
+    $python = (Resolve-GameWipPython).Path
     $scope = @($ScopeInfo.Files)
     $useChangedScope = [bool]$ScopeInfo.UseChanged
     if ($ScopeInfo.Requested -and $scope.Count -eq 0)
     {
         return
     }
+
+    $sourceDocumentationArguments = [System.Collections.Generic.List[string]]::new()
+    $sourceDocumentationArguments.Add('.github/scripts/check_repository_standards.py') | Out-Null
+    $sourceDocumentationArguments.Add('--fix-source-documentation') | Out-Null
+    if ($useChangedScope)
+    {
+        foreach ($file in $scope)
+        {
+            $sourceDocumentationArguments.Add([string]$file.FullName) | Out-Null
+        }
+    }
+    Invoke-GameWipQualityNative `
+        -Name source-documentation-format `
+        -FilePath $python `
+        -Arguments $sourceDocumentationArguments.ToArray()
 
     $cppFiles = @(if ($useChangedScope)
         {

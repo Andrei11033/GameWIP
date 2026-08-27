@@ -1,3 +1,5 @@
+# Validates the repository's minimum CMake version and generator contracts.
+
 foreach(required_variable IN ITEMS PROJECT_SOURCE_DIR GAMEWIP_CMAKE_MINIMUM_VERSION)
     if(NOT DEFINED ${required_variable})
         message(FATAL_ERROR "${required_variable} is required for CMake requirement validation.")

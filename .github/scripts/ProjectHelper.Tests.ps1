@@ -1,3 +1,5 @@
+# Regression tests for the GameWIP project-helper command and reusable bootstrap boundary.
+
 [CmdletBinding()]
 param()
 

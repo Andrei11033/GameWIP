@@ -102,6 +102,10 @@ namespace GameWIP::FileSystem
         }
     } // namespace
 
+    // ------------------------------------------------------------
+    // Current directory
+    // ------------------------------------------------------------
+
     Types::PathResult getCurrentDirectory() noexcept
     {
         try
@@ -146,6 +150,10 @@ namespace GameWIP::FileSystem
             return IO::makeStatus(ErrorCode::Unknown);
         }
     }
+
+    // ------------------------------------------------------------
+    // Path components
+    // ------------------------------------------------------------
 
     Types::PathResult parentPath(const Types::Path &path) noexcept
     {
@@ -248,6 +256,10 @@ namespace GameWIP::FileSystem
             return pathFailure(ErrorCode::InvalidArgument);
         }
     }
+
+    // ------------------------------------------------------------
+    // Path resolution
+    // ------------------------------------------------------------
 
     Types::BoolResult isAbsolutePath(const Types::Path &path) noexcept
     {
@@ -383,6 +395,10 @@ namespace GameWIP::FileSystem
             return pathFailure(ErrorCode::Unknown);
         }
     }
+
+    // ------------------------------------------------------------
+    // Native path conversion
+    // ------------------------------------------------------------
 
     Types::PathResult pathFromUtf8(std::string_view utf8Path) noexcept
     {

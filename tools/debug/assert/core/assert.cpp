@@ -38,6 +38,10 @@ namespace
 
 #if ASSERT_DIAGNOSTICS
     /// @brief Returns whether one byte is a UTF-8 continuation byte.
+    // ------------------------------------------------------------
+    // Diagnostic text construction
+    // ------------------------------------------------------------
+
     constexpr bool isUtf8ContinuationByte(char value) noexcept
     {
         return (static_cast<unsigned char>(value) & 0xC0u) == 0x80u;
@@ -237,6 +241,10 @@ namespace
     /// @brief Reports one failure through the synchronous Logger report path.
     /// @param kind Failure kind used as the Logger source and severity selector.
     /// @param message Failure message text.
+    // ------------------------------------------------------------
+    // Failure reporting
+    // ------------------------------------------------------------
+
     void reportFailure(FailureKind kind, std::string_view message) noexcept
     {
         try
@@ -267,6 +275,10 @@ namespace
     /// @param text Environment value text.
     /// @param action Output action on success.
     /// @return True when text names a valid action.
+    // ------------------------------------------------------------
+    // Interactive failure handling
+    // ------------------------------------------------------------
+
     bool parseFailureAction(std::string_view text, FailureAction &action) noexcept
     {
         if (text == "break")
@@ -377,6 +389,10 @@ namespace
     /// @param message Failure message object.
     /// @return Message text.
 #if ASSERT_DIAGNOSTICS
+    // ------------------------------------------------------------
+    // Public failure dispatch
+    // ------------------------------------------------------------
+
     std::string_view failureTextView(const FixedFailureMessage &message) noexcept
     {
         return message.view();

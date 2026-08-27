@@ -1,3 +1,5 @@
+# Builds and runs a clean consumer of the Assert interface and installed package.
+
 foreach(
     required_variable
     IN

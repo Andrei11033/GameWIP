@@ -16,6 +16,9 @@
 
 namespace GameWIP::Window::Detail::Platform
 {
+    // ------------------------------------------------------------
+    // Native lifecycle
+    // ------------------------------------------------------------
     void WindowDataDeleter::operator()(WindowData *data) const noexcept
     {
         delete data;
@@ -322,6 +325,9 @@ namespace GameWIP::Window::Detail::Platform
         state.platform.reset();
     }
 
+    // ------------------------------------------------------------
+    // Ownership, wakeup, and native state
+    // ------------------------------------------------------------
     bool isOwnedByCurrentThread(const WindowState &state) noexcept
     {
         return state.platform && state.platform->ownerThreadId == GetCurrentThreadId();
@@ -352,6 +358,9 @@ namespace GameWIP::Window::Detail::Platform
 
 namespace GameWIP::Window::Native::Win32
 {
+    // ------------------------------------------------------------
+    // Native interop
+    // ------------------------------------------------------------
     HandleResult getHandle(const GameWIP::Window::Window &window) noexcept
     {
         const Detail::WindowState *state = Detail::WindowAccess::state(window);
@@ -369,6 +378,9 @@ namespace GameWIP::Window::Native::Win32
 #if WINDOW_INTERNAL_TEST_HOOKS
 namespace GameWIP::Window::TestHooks
 {
+    // ------------------------------------------------------------
+    // Validation hooks
+    // ------------------------------------------------------------
     Types::Events::PumpResult pumpReentrantly() noexcept
     {
         Detail::Platform::Dispatcher &current = Detail::Platform::dispatcher();

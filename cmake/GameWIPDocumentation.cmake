@@ -43,7 +43,6 @@ if(GAMEWIP_BUILD_DOCS)
         "${PROJECT_SOURCE_DIR}/docs/contributing.md"
         "${PROJECT_SOURCE_DIR}/docs/decisions.md"
         "${GAMEWIP_DOXYGEN_ROOT}/platform_backend_contract.md"
-        "${PROJECT_SOURCE_DIR}/foundation/base/docs/base.md"
         "${PROJECT_SOURCE_DIR}/docs/roadmap.md"
         "${PROJECT_SOURCE_DIR}/docs/versioning.md"
         "${PROJECT_SOURCE_DIR}/docs/vision.md"
