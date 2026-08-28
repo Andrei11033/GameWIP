@@ -5,6 +5,17 @@ namespace Clipboard = Window::Clipboard;
 namespace ClipboardTypes = Window::Types::Clipboard;
 namespace Transfer = Window::Types::DataTransfer;
 
+#if defined(__clang__)
+#pragma clang unsafe_buffer_usage begin
+#endif
+std::span<std::byte> nativeClipboardBytes(void *data, std::size_t size) noexcept
+{
+    return {static_cast<std::byte *>(data), size};
+}
+#if defined(__clang__)
+#pragma clang unsafe_buffer_usage end
+#endif
+
 bool publishNativeClipboardData(UINT format, std::span<const std::byte> bytes)
 {
     HWND owner =
@@ -23,7 +34,7 @@ bool publishNativeClipboardData(UINT format, std::span<const std::byte> bytes)
         void *destination = GlobalLock(memory);
         success = destination != nullptr;
         if (success)
-            std::memcpy(destination, bytes.data(), bytes.size());
+            std::ranges::copy(bytes, nativeClipboardBytes(destination, bytes.size()).begin());
         if (destination != nullptr)
             static_cast<void>(GlobalUnlock(memory));
     }
@@ -223,7 +234,7 @@ void testClipboardRoundTrips(TestSupport::Context &context)
     dibHeader.biCompression = BI_RGB;
     dibHeader.biSizeImage = 4;
     std::vector<std::byte> rgbDib(sizeof(dibHeader) + 4);
-    std::memcpy(rgbDib.data(), &dibHeader, sizeof(dibHeader));
+    std::ranges::copy(std::as_bytes(std::span{&dibHeader, std::size_t{1}}), rgbDib.begin());
     rgbDib[sizeof(dibHeader)] = std::byte{0x33};
     rgbDib[sizeof(dibHeader) + 1] = std::byte{0x22};
     rgbDib[sizeof(dibHeader) + 2] = std::byte{0x11};
@@ -249,7 +260,7 @@ void testClipboardRoundTrips(TestSupport::Context &context)
     unsupportedHeader.bV5GreenMask = 0x0000FF00U;
     unsupportedHeader.bV5BlueMask = 0x00FF0000U;
     std::vector<std::byte> unsupportedDib(sizeof(unsupportedHeader) + 4);
-    std::memcpy(unsupportedDib.data(), &unsupportedHeader, sizeof(unsupportedHeader));
+    std::ranges::copy(std::as_bytes(std::span{&unsupportedHeader, std::size_t{1}}), unsupportedDib.begin());
     static_cast<void>(context.expectTrue("valid nonstandard-mask DIB fixture publishes", publishNativeClipboardData(CF_DIBV5, unsupportedDib)));
     static_cast<void>(context.expectEq("valid nonstandard-mask image is Unsupported", ErrorCode::Unsupported, Clipboard::readImage().status.code));
 }

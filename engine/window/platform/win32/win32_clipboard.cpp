@@ -11,9 +11,10 @@
 #include <algorithm>
 #include <array>
 #include <chrono>
-#include <cstring>
 #include <limits>
 #include <new>
+#include <ranges>
+#include <span>
 #include <string>
 #include <thread>
 #include <unordered_set>
@@ -29,6 +30,22 @@ namespace GameWIP::Window::Detail::Platform
         namespace ClipboardTypes = Types::Clipboard;
 
         constexpr auto kRetryInterval = std::chrono::milliseconds{5};
+
+#if defined(__clang__)
+#pragma clang unsafe_buffer_usage begin
+#endif
+        template <typename Value> [[nodiscard]] std::span<Value> mutableNativeSpan(void *data, std::size_t count) noexcept
+        {
+            return {static_cast<Value *>(data), count};
+        }
+
+        template <typename Value> [[nodiscard]] std::span<const Value> nativeSpan(const void *data, std::size_t count) noexcept
+        {
+            return {static_cast<const Value *>(data), count};
+        }
+#if defined(__clang__)
+#pragma clang unsafe_buffer_usage end
+#endif
 
         [[nodiscard]] IO::Types::Status status(ErrorCode code, DWORD nativeCode = 0) noexcept
         {
@@ -405,7 +422,8 @@ namespace GameWIP::Window::Detail::Platform
             GlobalLock lock(memory.get());
             if (lock.get() == nullptr)
                 return status(ErrorCode::LockFailed, GetLastError());
-            std::memcpy(lock.get(), bytes.data(), bytes.size());
+            const auto destination = mutableNativeSpan<std::byte>(lock.get(), bytes.size());
+            std::ranges::copy(bytes, destination.begin());
             return IO::successStatus();
         }
 
@@ -430,9 +448,9 @@ namespace GameWIP::Window::Detail::Platform
             GlobalLock lock(prepared.memory.get());
             if (lock.get() == nullptr)
                 return status(ErrorCode::LockFailed, GetLastError());
-            if (!wide.empty())
-                std::memcpy(lock.get(), wide.data(), wide.size() * sizeof(wchar_t));
-            static_cast<wchar_t *>(lock.get())[wide.size()] = L'\0';
+            const auto destination = mutableNativeSpan<wchar_t>(lock.get(), units);
+            std::ranges::copy(wide, destination.begin());
+            destination.back() = L'\0';
             prepared.format = CF_UNICODETEXT;
             return IO::successStatus();
         }
@@ -471,19 +489,21 @@ namespace GameWIP::Window::Detail::Platform
             GlobalLock lock(prepared.memory.get());
             if (lock.get() == nullptr)
                 return status(ErrorCode::LockFailed, GetLastError());
-            auto *drop = static_cast<DROPFILES *>(lock.get());
-            *drop = {};
-            drop->pFiles = sizeof(DROPFILES);
-            drop->fWide = TRUE;
-            auto *destination = reinterpret_cast<wchar_t *>(static_cast<std::byte *>(lock.get()) + sizeof(DROPFILES));
+            const auto destination = mutableNativeSpan<std::byte>(lock.get(), totalBytes);
+            DROPFILES drop{};
+            drop.pFiles = sizeof(DROPFILES);
+            drop.fWide = TRUE;
+            std::ranges::copy(std::as_bytes(std::span{&drop, std::size_t{1}}), destination.begin());
+            std::size_t offset = sizeof(DROPFILES);
             for (const std::wstring &path : paths)
             {
-                if (!path.empty())
-                    std::memcpy(destination, path.data(), path.size() * sizeof(wchar_t));
-                destination += path.size();
-                *destination++ = L'\0';
+                const auto nativeBytes = std::as_bytes(std::span{path});
+                std::ranges::copy(nativeBytes, destination.subspan(offset, nativeBytes.size()).begin());
+                offset += nativeBytes.size();
+                std::ranges::fill(destination.subspan(offset, sizeof(wchar_t)), std::byte{});
+                offset += sizeof(wchar_t);
             }
-            *destination = L'\0';
+            std::ranges::fill(destination.subspan(offset, sizeof(wchar_t)), std::byte{});
             prepared.format = CF_HDROP;
             return IO::successStatus();
         }
@@ -528,32 +548,33 @@ namespace GameWIP::Window::Detail::Platform
             GlobalLock lock(prepared.memory.get());
             if (lock.get() == nullptr)
                 return status(ErrorCode::LockFailed, GetLastError());
-            auto *header = static_cast<BITMAPV5HEADER *>(lock.get());
-            *header = {};
-            header->bV5Size = sizeof(BITMAPV5HEADER);
-            header->bV5Width = static_cast<LONG>(item.size.width);
-            header->bV5Height = -static_cast<LONG>(item.size.height);
-            header->bV5Planes = 1;
-            header->bV5BitCount = 32;
-            header->bV5Compression = BI_BITFIELDS;
-            header->bV5SizeImage = static_cast<DWORD>(pixelBytes);
-            header->bV5RedMask = 0x00FF0000U;
-            header->bV5GreenMask = 0x0000FF00U;
-            header->bV5BlueMask = 0x000000FFU;
-            header->bV5AlphaMask = 0xFF000000U;
-            header->bV5CSType = 0x73524742U; // LCS_sRGB without the SDK's multi-character literal warning.
-            auto *destination = static_cast<std::byte *>(lock.get()) + sizeof(BITMAPV5HEADER);
+            const auto destination = mutableNativeSpan<std::byte>(lock.get(), totalBytes);
+            BITMAPV5HEADER header{};
+            header.bV5Size = sizeof(BITMAPV5HEADER);
+            header.bV5Width = static_cast<LONG>(item.size.width);
+            header.bV5Height = -static_cast<LONG>(item.size.height);
+            header.bV5Planes = 1;
+            header.bV5BitCount = 32;
+            header.bV5Compression = BI_BITFIELDS;
+            header.bV5SizeImage = static_cast<DWORD>(pixelBytes);
+            header.bV5RedMask = 0x00FF0000U;
+            header.bV5GreenMask = 0x0000FF00U;
+            header.bV5BlueMask = 0x000000FFU;
+            header.bV5AlphaMask = 0xFF000000U;
+            header.bV5CSType = 0x73524742U; // LCS_sRGB without the SDK's multi-character literal warning.
+            std::ranges::copy(std::as_bytes(std::span{&header, std::size_t{1}}), destination.begin());
+            const auto pixels = destination.subspan(sizeof(BITMAPV5HEADER), pixelBytes);
             for (std::size_t y = 0; y < item.size.height; ++y)
             {
-                const auto *source = item.rgba8.data() + y * stride;
+                const auto source = item.rgba8.subspan(y * stride, packedRow);
+                const auto row = pixels.subspan(y * packedRow, packedRow);
                 for (std::size_t x = 0; x < item.size.width; ++x)
                 {
-                    destination[x * 4] = source[x * 4 + 2];
-                    destination[x * 4 + 1] = source[x * 4 + 1];
-                    destination[x * 4 + 2] = source[x * 4];
-                    destination[x * 4 + 3] = source[x * 4 + 3];
+                    row[x * 4] = source[x * 4 + 2];
+                    row[x * 4 + 1] = source[x * 4 + 1];
+                    row[x * 4 + 2] = source[x * 4];
+                    row[x * 4 + 3] = source[x * 4 + 3];
                 }
-                destination += packedRow;
             }
             prepared.format = CF_DIBV5;
             return IO::successStatus();
@@ -795,15 +816,16 @@ namespace GameWIP::Window::Detail::Platform
                         result.status = status(ErrorCode::EncodingFailed);
                     else
                     {
-                        const auto *text = static_cast<const wchar_t *>(lock.get());
                         const std::size_t capacity = byteSize / sizeof(wchar_t);
-                        const auto *terminator = std::find(text, text + capacity, L'\0');
-                        if (terminator == text + capacity)
+                        const auto text = nativeSpan<wchar_t>(lock.get(), capacity);
+                        const auto terminator = std::ranges::find(text, L'\0');
+                        if (terminator == text.end())
                             result.status = status(ErrorCode::EncodingFailed);
                         else
                         {
                             DWORD nativeCode = 0;
-                            if (!wideToUtf8({text, static_cast<std::size_t>(terminator - text)}, result.text, nativeCode))
+                            const auto length = static_cast<std::size_t>(std::ranges::distance(text.begin(), terminator));
+                            if (!wideToUtf8({text.data(), length}, result.text, nativeCode))
                                 result.status = status(ErrorCode::EncodingFailed, nativeCode);
                             else
                                 result.status = IO::successStatus();
@@ -925,51 +947,57 @@ namespace GameWIP::Window::Detail::Platform
                         result.status = status(ErrorCode::ReadFailed);
                     else
                     {
-                        const auto *header = static_cast<const BITMAPINFOHEADER *>(lock.get());
-                        const bool dimensionsValid = header->biSize >= sizeof(BITMAPINFOHEADER) && header->biSize <= totalBytes &&
-                                                     header->biWidth > 0 && header->biHeight != 0 && header->biHeight != LONG_MIN;
+                        const auto storage = nativeSpan<std::byte>(lock.get(), totalBytes);
+                        BITMAPINFOHEADER header{};
+                        std::ranges::copy(storage.first(sizeof(header)), std::as_writable_bytes(std::span{&header, std::size_t{1}}).begin());
+                        const bool dimensionsValid = header.biSize >= sizeof(BITMAPINFOHEADER) && header.biSize <= totalBytes && header.biWidth > 0 &&
+                                                     header.biHeight != 0 && header.biHeight != LONG_MIN;
                         const bool encodingSupported =
-                            header->biPlanes == 1 &&
-                            ((header->biBitCount == 24 && header->biCompression == BI_RGB) ||
-                             (header->biBitCount == 32 && (header->biCompression == BI_RGB || header->biCompression == BI_BITFIELDS)));
+                            header.biPlanes == 1 &&
+                            ((header.biBitCount == 24 && header.biCompression == BI_RGB) ||
+                             (header.biBitCount == 32 && (header.biCompression == BI_RGB || header.biCompression == BI_BITFIELDS)));
                         if (!dimensionsValid)
                             result.status = status(ErrorCode::ReadFailed);
                         else if (!encodingSupported)
                             result.status = status(ErrorCode::Unsupported);
                         else
                         {
-                            const std::size_t width = static_cast<std::size_t>(header->biWidth);
-                            const std::size_t height = static_cast<std::size_t>(header->biHeight < 0 ? -header->biHeight : header->biHeight);
+                            const std::size_t width = static_cast<std::size_t>(header.biWidth);
+                            const std::size_t height = static_cast<std::size_t>(header.biHeight < 0 ? -header.biHeight : header.biHeight);
                             bool strideValid = false;
-                            const std::size_t sourceStride = dibRowStride(width, header->biBitCount, strideValid);
+                            const std::size_t sourceStride = dibRowStride(width, header.biBitCount, strideValid);
                             std::size_t sourceBytes = 0;
                             std::size_t packedRow = 0;
                             std::size_t outputBytes = 0;
-                            std::size_t pixelOffset = header->biSize;
+                            std::size_t pixelOffset = header.biSize;
                             bool explicitAlpha = false;
                             bool masksSupported = true;
-                            if (header->biCompression == BI_BITFIELDS && header->biSize == sizeof(BITMAPINFOHEADER))
+                            if (header.biCompression == BI_BITFIELDS && header.biSize == sizeof(BITMAPINFOHEADER))
                             {
                                 std::size_t masksEnd = 0;
                                 strideValid = strideValid && checkedAdd(pixelOffset, 3 * sizeof(DWORD), masksEnd) && masksEnd <= totalBytes;
                                 if (strideValid)
                                 {
-                                    const auto *masks = reinterpret_cast<const DWORD *>(static_cast<const std::byte *>(lock.get()) + pixelOffset);
+                                    std::array<DWORD, 3> masks{};
+                                    std::ranges::copy(storage.subspan(pixelOffset, sizeof(masks)), std::as_writable_bytes(std::span{masks}).begin());
                                     masksSupported = masks[0] == 0x00FF0000U && masks[1] == 0x0000FF00U && masks[2] == 0x000000FFU;
                                     pixelOffset = masksEnd;
                                 }
                             }
-                            else if (header->biCompression == BI_BITFIELDS)
+                            else if (header.biCompression == BI_BITFIELDS)
                             {
-                                if (header->biSize < sizeof(BITMAPV4HEADER))
+                                if (header.biSize < sizeof(BITMAPV4HEADER))
                                     masksSupported = false;
                                 else
                                 {
-                                    const auto *extended = reinterpret_cast<const BITMAPV4HEADER *>(header);
-                                    masksSupported = extended->bV4RedMask == 0x00FF0000U && extended->bV4GreenMask == 0x0000FF00U &&
-                                                     extended->bV4BlueMask == 0x000000FFU &&
-                                                     (extended->bV4AlphaMask == 0 || extended->bV4AlphaMask == 0xFF000000U);
-                                    explicitAlpha = extended->bV4AlphaMask == 0xFF000000U;
+                                    BITMAPV4HEADER extended{};
+                                    std::ranges::copy(
+                                        storage.first(sizeof(extended)),
+                                        std::as_writable_bytes(std::span{&extended, std::size_t{1}}).begin());
+                                    masksSupported = extended.bV4RedMask == 0x00FF0000U && extended.bV4GreenMask == 0x0000FF00U &&
+                                                     extended.bV4BlueMask == 0x000000FFU &&
+                                                     (extended.bV4AlphaMask == 0 || extended.bV4AlphaMask == 0xFF000000U);
+                                    explicitAlpha = extended.bV4AlphaMask == 0xFF000000U;
                                 }
                             }
                             if (!masksSupported)
@@ -983,15 +1011,16 @@ namespace GameWIP::Window::Detail::Platform
                             {
                                 result.image.size = {static_cast<std::uint32_t>(width), static_cast<std::uint32_t>(height)};
                                 result.image.rgba8.resize(outputBytes);
-                                const auto *pixels = static_cast<const std::byte *>(lock.get()) + pixelOffset;
+                                const auto pixels = storage.subspan(pixelOffset, sourceBytes);
+                                std::span destinationPixels{result.image.rgba8};
                                 for (std::size_t y = 0; y < height; ++y)
                                 {
-                                    const std::size_t sourceY = header->biHeight < 0 ? y : height - 1 - y;
-                                    const auto *source = pixels + sourceY * sourceStride;
-                                    auto *destination = result.image.rgba8.data() + y * packedRow;
+                                    const std::size_t sourceY = header.biHeight < 0 ? y : height - 1 - y;
+                                    const auto source = pixels.subspan(sourceY * sourceStride, sourceStride);
+                                    const auto destination = destinationPixels.subspan(y * packedRow, packedRow);
                                     for (std::size_t x = 0; x < width; ++x)
                                     {
-                                        const std::size_t sourcePixel = x * (header->biBitCount / 8);
+                                        const std::size_t sourcePixel = x * (header.biBitCount / 8);
                                         destination[x * 4] = source[sourcePixel + 2];
                                         destination[x * 4 + 1] = source[sourcePixel + 1];
                                         destination[x * 4 + 2] = source[sourcePixel];
@@ -1061,7 +1090,8 @@ namespace GameWIP::Window::Detail::Platform
                         else
                         {
                             result.bytes.resize(byteSize);
-                            std::memcpy(result.bytes.data(), lock.get(), byteSize);
+                            const auto source = nativeSpan<std::byte>(lock.get(), byteSize);
+                            std::ranges::copy(source, result.bytes.begin());
                             result.status = IO::successStatus();
                         }
                     }
