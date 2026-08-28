@@ -150,7 +150,7 @@ namespace GameWIP::Window
         /// @}
 
         // ------------------------------------------------------------
-        // Parent / thread relationship
+        // Parent and ownership
         // ------------------------------------------------------------
 
         /// @name Parent and ownership
@@ -161,11 +161,11 @@ namespace GameWIP::Window
         [[nodiscard]] Types::WindowId parentId() const noexcept;
         /// @brief Returns whether the calling thread owns the current lifetime.
         /// @return true on the inherited owner thread while retained state exists.
-        [[nodiscard]] bool isOwnedByCurrentThread() const noexcept;
+        [[nodiscard]] bool ownedByCurrentThread() const noexcept;
         /// @}
 
         // ------------------------------------------------------------
-        // Events
+        // Event queue
         // ------------------------------------------------------------
 
         /// @name Event queue
@@ -189,7 +189,7 @@ namespace GameWIP::Window
         /// @}
 
         // ------------------------------------------------------------
-        // Cached geometry / state
+        // Cached state
         // ------------------------------------------------------------
 
         /// @name Cached state
@@ -218,10 +218,10 @@ namespace GameWIP::Window
         [[nodiscard]] Types::Dpi effectiveDpi() const noexcept;
         /// @brief Returns whether native visibility is requested for the host.
         /// @return true when the host has native visible style; otherwise false.
-        [[nodiscard]] bool isVisible() const noexcept;
+        [[nodiscard]] bool visible() const noexcept;
         /// @brief Returns whether normal native interaction is enabled.
         /// @return true when interaction is enabled; otherwise false.
-        [[nodiscard]] bool isUserInteractionEnabled() const noexcept;
+        [[nodiscard]] bool userInteractionEnabled() const noexcept;
         /// @}
 
         // ------------------------------------------------------------
@@ -263,7 +263,7 @@ namespace GameWIP::Window
         /// @}
 
         // ------------------------------------------------------------
-        // Visibility / interaction
+        // Visibility and interaction
         // ------------------------------------------------------------
 
         /// @name Visibility and interaction

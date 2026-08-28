@@ -195,7 +195,7 @@ namespace GameWIP::Window
         Detail::WindowState *state = Detail::WindowAccess::state(window);
         if (state == nullptr || !state->platform || !Detail::Platform::hasLiveNativeWindow(*state))
             return error(ErrorCode::NotOpen);
-        if (!Detail::Platform::isOwnedByCurrentThread(*state))
+        if (!Detail::Platform::ownedByCurrentThread(*state))
             return error(ErrorCode::ResourceBusy);
         if (!cursor.isValid())
             return error(ErrorCode::InvalidArgument);
@@ -206,6 +206,6 @@ namespace GameWIP::Window
     {
         const Detail::WindowState *state = Detail::WindowAccess::state(window);
         return state != nullptr && state->platform && Detail::Platform::hasLiveNativeWindow(*state) &&
-               Detail::Platform::isOwnedByCurrentThread(*state) && Detail::Platform::hasCustomCursor(*state);
+               Detail::Platform::ownedByCurrentThread(*state) && Detail::Platform::hasCustomCursor(*state);
     }
 } // namespace GameWIP::Window

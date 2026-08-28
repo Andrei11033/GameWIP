@@ -12,9 +12,11 @@ project-wide rule; silence is not an exception.
 ## Naming
 
 - Public types and enum values use `UpperCamelCase`; functions, methods, variables, and fields use `lowerCamelCase`.
-- Boolean predicates describe the property they answer. Add `is...`, `has...`, `supports...`, or similar context when it makes the question clearer;
-  keep a shorter conventional name such as `canSeek()` when it is already unambiguous. Avoid a bare `valid()` when `isValid()` expresses the same
-  contract more clearly.
+- Boolean predicates use the shortest name that still states the question clearly. Plain state and property queries omit a redundant auxiliary
+  prefix, as in `active()`, `ready()`, `visible()`, and `ownedByCurrentThread()`. Use `is...` for classification or validation, and when omitting it
+  would collide with an operation or obscure the question, as in `isScalarValue()` and `isOpen()`. Use `has...` for presence or containment,
+  `can...` for capability, `supports...` for advertised semantics, and forms such as `should...`, `would...`, `was...`, and `try...` when those words
+  express distinct behavior rather than decoration.
 - Keep conventional operation names such as `flush()` when the owning type or namespace already supplies the context. Use a differentiated form such
   as `flushTo(destination)` only when the destination or semantic distinction is real; do not mechanically restate context in the name.
 - Mutating operations use verbs. A name must disclose destructive side effects that are not otherwise obvious; for example, a write-and-clear
@@ -48,8 +50,8 @@ foundational Unicode library to do so; that dependency must not add Unicode work
 
 ## Predicates, units, and offsets
 
-Predicate names follow the `is...`, `has...`, and `supports...` vocabulary. Capability queries report implemented semantics and do not infer support
-from platform presence alone.
+Predicate names distinguish plain state, classification, presence, capability, support, and conditional behavior without mechanically adding a
+prefix. Capability and support queries report implemented semantics and do not infer them from platform presence alone.
 
 Public units must be visible in the type, member name, or directly adjacent contract. Distinguish logical coordinates, physical pixels, durations,
 byte counts, code-unit counts, scalar counts, and grapheme counts. Text offsets state their unit and required boundary. UTF-8 storage normally uses

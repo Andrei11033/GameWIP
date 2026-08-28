@@ -20,7 +20,7 @@ namespace GameWIP::Window::Renderer
             state = Detail::WindowAccess::state(window);
             if (state == nullptr || !window.isOpen())
                 return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
-            if (!window.isOwnedByCurrentThread())
+            if (!window.ownedByCurrentThread())
                 return IO::makeStatus(IO::Types::ErrorCode::ResourceBusy);
             return IO::successStatus();
         }
@@ -66,7 +66,7 @@ namespace GameWIP::Window::Renderer
     bool hasOcclusionProvider(const Window &window) noexcept
     {
         const Detail::RendererIntegrationState *renderer = Detail::WindowAccess::rendererIntegration(window);
-        return window.isOpen() && window.isOwnedByCurrentThread() && renderer != nullptr && renderer->occlusionProviderAttached;
+        return window.isOpen() && window.ownedByCurrentThread() && renderer != nullptr && renderer->occlusionProviderAttached;
     }
 
     IO::Types::Status reportOcclusion(Window &window, bool occluded) noexcept
@@ -237,7 +237,7 @@ namespace GameWIP::Window::Renderer
     {
         const Detail::WindowState *state = Detail::WindowAccess::state(window);
         const Detail::RendererIntegrationState *renderer = Detail::WindowAccess::rendererIntegration(window);
-        return state != nullptr && window.isOpen() && window.isOwnedByCurrentThread() && renderer != nullptr && !renderer->pointerHitMask.empty() &&
+        return state != nullptr && window.isOpen() && window.ownedByCurrentThread() && renderer != nullptr && !renderer->pointerHitMask.empty() &&
                renderer->pointerHitMaskActiveGeneration != 0 && renderer->pointerHitMaskSize == state->framebufferSize;
     }
 } // namespace GameWIP::Window::Renderer

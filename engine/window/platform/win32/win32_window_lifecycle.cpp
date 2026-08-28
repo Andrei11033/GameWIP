@@ -328,7 +328,7 @@ namespace GameWIP::Window::Detail::Platform
     // ------------------------------------------------------------
     // Ownership, wakeup, and native state
     // ------------------------------------------------------------
-    bool isOwnedByCurrentThread(const WindowState &state) noexcept
+    bool ownedByCurrentThread(const WindowState &state) noexcept
     {
         return state.platform && state.platform->ownerThreadId == GetCurrentThreadId();
     }
@@ -366,7 +366,7 @@ namespace GameWIP::Window::Native::Win32
         const Detail::WindowState *state = Detail::WindowAccess::state(window);
         if (state == nullptr || !state->platform)
             return {.status = IO::makeStatus(IO::Types::ErrorCode::NotOpen)};
-        if (!Detail::Platform::isOwnedByCurrentThread(*state))
+        if (!Detail::Platform::ownedByCurrentThread(*state))
             return {.status = IO::makeStatus(IO::Types::ErrorCode::ResourceBusy)};
         const Detail::Platform::NativeHandleView handles = Detail::Platform::nativeHandle(*state);
         if (handles.window == nullptr)
@@ -396,7 +396,7 @@ namespace GameWIP::Window::TestHooks
         Detail::WindowState *state = Detail::WindowAccess::state(window);
         if (state == nullptr || !state->platform || state->platform->handle == nullptr)
             return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
-        if (!Detail::Platform::isOwnedByCurrentThread(*state))
+        if (!Detail::Platform::ownedByCurrentThread(*state))
             return IO::makeStatus(IO::Types::ErrorCode::ResourceBusy);
         if (DestroyWindow(state->platform->handle) == FALSE)
             return Detail::Platform::statusFromWin32(IO::Types::ErrorCode::CloseFailed, GetLastError(), "test-hook unexpected DestroyWindow");
@@ -408,7 +408,7 @@ namespace GameWIP::Window::TestHooks
         Detail::WindowState *state = Detail::WindowAccess::state(window);
         if (state == nullptr || !state->platform || state->platform->handle == nullptr)
             return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
-        if (!Detail::Platform::isOwnedByCurrentThread(*state))
+        if (!Detail::Platform::ownedByCurrentThread(*state))
             return IO::makeStatus(IO::Types::ErrorCode::ResourceBusy);
         if (state->mode == Types::Mode::Windowed)
             return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);

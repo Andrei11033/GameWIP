@@ -499,7 +499,7 @@ void testAtomicWriteAndLocks(TestSupport::Context &context, const std::filesyste
 
         FileSystem::Detail::Platform::TestHooks::setFileUnlockFailure(true);
         FileSystem::FileLock lockDestroyedDuringFailure = std::move(failedUnlockLock.lock);
-        static_cast<void>(context.expectTrue("failed-unlock injected lock remains active", lockDestroyedDuringFailure.isActive()));
+        static_cast<void>(context.expectTrue("failed-unlock injected lock remains active", lockDestroyedDuringFailure.active()));
     }
     FileSystem::Detail::Platform::TestHooks::reset();
 

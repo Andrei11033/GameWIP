@@ -124,7 +124,7 @@ void recordManualModeTransition(
             window.currentMonitor().value,
             fullscreen.monitor.value,
             fullscreen.suspended,
-            window.isFocused(),
+            window.focused(),
             position.x,
             position.y,
             logical.width,
@@ -255,10 +255,10 @@ public:
             expected_,
             observation_.empty() ? "No event-specific observation yet." : observation_,
             window.isOpen(),
-            window.isVisible(),
-            window.isFocused(),
-            window.isMinimized(),
-            window.isMaximized(),
+            window.visible(),
+            window.focused(),
+            window.minimized(),
+            window.maximized(),
             window.hasCloseRequest(),
             position.x,
             position.y,
@@ -284,11 +284,11 @@ public:
             controls.closable,
             controls.minimizable,
             controls.maximizable,
-            window.isResizable(),
+            window.resizable(),
             window.ownerId().value,
-            window.isFileDropEnabled(),
-            window.isAlwaysOnTop(),
-            window.isUserInteractionEnabled(),
+            window.fileDropEnabled(),
+            window.alwaysOnTop(),
+            window.userInteractionEnabled(),
             native.taskbarEligible,
             native.valid,
             native.dpi,
@@ -1433,7 +1433,7 @@ void testManualFullscreenAndTopology(
                         static_cast<void>(context.expectTrue("exclusive native popup style applies", native.popupStyle));
                         static_cast<void>(context.expectTrue("exclusive native bounds match active monitor", native.fullscreenBounds));
                         static_cast<void>(context.expectTrue("exclusive Window remains taskbar eligible", native.taskbarEligible));
-                        bool sawExclusiveActive = window.isFocused() && !window.fullscreenInfo().suspended;
+                        bool sawExclusiveActive = window.focused() && !window.fullscreenInfo().suspended;
                         bool sawExclusiveSuspended = window.fullscreenInfo().suspended;
                         recordManualCheck(
                             context,
@@ -1446,7 +1446,7 @@ void testManualFullscreenAndTopology(
                             [&]
                             {
                                 const Window::Types::FullscreenInfo liveFullscreen = window.fullscreenInfo();
-                                sawExclusiveActive = sawExclusiveActive || (window.isFocused() && !liveFullscreen.suspended);
+                                sawExclusiveActive = sawExclusiveActive || (window.focused() && !liveFullscreen.suspended);
                                 sawExclusiveSuspended = sawExclusiveSuspended || liveFullscreen.suspended;
                                 if (manualStatusWindow != nullptr)
                                 {

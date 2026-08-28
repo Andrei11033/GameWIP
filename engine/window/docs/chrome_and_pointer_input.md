@@ -40,7 +40,7 @@ destruction, close, and reopen invalidate it. Win32 reports the capability as un
 cross-application per-pixel pass-through.
 
 Window storage of a mask does not imply that the backend can perform genuine per-pixel desktop routing. The Win32 backend does not advertise per-pixel
-routing; publication remains an integration/storage contract rather than a passthrough guarantee.
+routing; publication remains an integration and storage contract rather than a pass-through guarantee.
 
 ## Cursor display
 

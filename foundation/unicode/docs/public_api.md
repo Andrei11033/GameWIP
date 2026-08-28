@@ -165,7 +165,7 @@ random access remains O(n).
 
 For repeated traversal, use `Utf8::GraphemeCursor`. `reset()` performs one complete segmentation pass and stores all boundary offsets in
 caller-provided `std::size_t` storage. After a successful reset, `next()` and `previous()` are O(1), `seek()` is O(log graphemes), and
-`discardAfterCurrent()` drops later retained offsets in O(1).
+`discardAfterCurrent()` drops later retained offsets in O(1). `ready()` reports whether the most recent `reset()` completed successfully.
 
 The cursor retains only the caller-owned boundary span, not the text. The storage must remain alive and unmodified while indexed. A caller may
 truncate a text suffix exactly at the current indexed boundary and then call `discardAfterCurrent()`; arbitrary insertion, replacement, normalization,

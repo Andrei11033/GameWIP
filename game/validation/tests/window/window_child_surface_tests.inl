@@ -44,7 +44,7 @@ void testChildSurfaces(TestSupport::Context &context)
     }
     const Window::Types::WindowId firstParentId = parent.id();
     static_cast<void>(context.expectEq("ChildSurface retains parent lifetime identity", firstParentId, surface.parentId()));
-    static_cast<void>(context.expectTrue("ChildSurface inherits current owner thread", surface.isOwnedByCurrentThread()));
+    static_cast<void>(context.expectTrue("ChildSurface inherits current owner thread", surface.ownedByCurrentThread()));
     static_cast<void>(context.expectEq(
         "default ChildSurface queue uses internal storage",
         Window::Types::Events::StorageKind::Internal,
@@ -55,8 +55,8 @@ void testChildSurfaces(TestSupport::Context &context)
         surface.eventQueueInfo().capacity));
     static_cast<void>(context.expectEq("default ChildSurface size remains zero", Window::Types::LogicalSize{}, surface.size()));
     static_cast<void>(context.expectEq("default ChildSurface pixels remain zero", Window::Types::PixelSize{}, surface.pixelSize()));
-    static_cast<void>(context.expectFalse("default ChildSurface is hidden", surface.isVisible()));
-    static_cast<void>(context.expectTrue("default ChildSurface enables interaction", surface.isUserInteractionEnabled()));
+    static_cast<void>(context.expectFalse("default ChildSurface is hidden", surface.visible()));
+    static_cast<void>(context.expectTrue("default ChildSurface enables interaction", surface.userInteractionEnabled()));
     static_cast<void>(context.expectEq("second ChildSurface open reports AlreadyOpen", ErrorCode::AlreadyOpen, surface.open(parent).code));
 
     const auto parentHandle = Window::Native::Win32::getHandle(parent);
@@ -85,8 +85,8 @@ void testChildSurfaces(TestSupport::Context &context)
         context.expectEq("external queue ownership is reported", Window::Types::Events::StorageKind::External, surface.eventQueueInfo().storage));
     static_cast<void>(context.expectEq("external queue capacity is reported", externalStorage.size(), surface.eventQueueInfo().capacity));
     static_cast<void>(context.expectEq("negative parent-relative position is retained", childDescription.rect.position, surface.position()));
-    static_cast<void>(context.expectTrue("requested native visibility is retained while parent is hidden", surface.isVisible()));
-    static_cast<void>(context.expectFalse("initial interaction disablement is retained", surface.isUserInteractionEnabled()));
+    static_cast<void>(context.expectTrue("requested native visibility is retained while parent is hidden", surface.visible()));
+    static_cast<void>(context.expectFalse("initial interaction disablement is retained", surface.userInteractionEnabled()));
 
     surface.clearEvents();
     static_cast<void>(context.expectTrue("setPosition accepts negative coordinates", surface.setPosition({-40, -12}).ok()));
@@ -139,15 +139,15 @@ void testChildSurfaces(TestSupport::Context &context)
 
     static_cast<void>(context.expectTrue("ChildSurface show is idempotent", surface.show().ok()));
     static_cast<void>(context.expectTrue("ChildSurface hide succeeds", surface.hide().ok()));
-    static_cast<void>(context.expectFalse("hide updates visibility cache", surface.isVisible()));
+    static_cast<void>(context.expectFalse("hide updates visibility cache", surface.visible()));
     static_cast<void>(context.expectTrue("ChildSurface show succeeds", surface.show().ok()));
-    static_cast<void>(context.expectTrue("show updates visibility cache", surface.isVisible()));
+    static_cast<void>(context.expectTrue("show updates visibility cache", surface.visible()));
     bool foundVisibilityEvent = false;
     while (surface.popEvent(geometryEvent))
         foundVisibilityEvent = foundVisibilityEvent || geometryEvent.getIf<ChildEvents::VisibilityChanged>() != nullptr;
     static_cast<void>(context.expectTrue("show and hide queue VisibilityChanged", foundVisibilityEvent));
     static_cast<void>(context.expectTrue("ChildSurface interaction enables", surface.setUserInteractionEnabled(true).ok()));
-    static_cast<void>(context.expectTrue("interaction cache updates", surface.isUserInteractionEnabled()));
+    static_cast<void>(context.expectTrue("interaction cache updates", surface.userInteractionEnabled()));
     static_cast<void>(context.expectTrue("ChildSurface interaction disables", surface.setUserInteractionEnabled(false).ok()));
 
     Window::ChildSurface sibling;
@@ -179,7 +179,7 @@ void testChildSurfaces(TestSupport::Context &context)
     std::thread wrongThread(
         [&]
         {
-            wrongThreadOwnership = surface.isOwnedByCurrentThread();
+            wrongThreadOwnership = surface.ownedByCurrentThread();
             wrongThreadMutation = surface.setPosition({1, 2}).code;
             wrongThreadClose = surface.close().code;
             wrongThreadHandle = Window::Native::Win32::getHandle(surface).status.code;

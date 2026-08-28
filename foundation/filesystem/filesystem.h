@@ -643,10 +643,10 @@ namespace GameWIP::FileSystem
 
         /// @brief Returns whether this object owns an active lock.
         /// @return True until the lock is moved from or successfully unlocked.
-        [[nodiscard]] bool isActive() const noexcept;
+        [[nodiscard]] bool active() const noexcept;
         /// @brief Returns the active lock mode.
         /// @return Shared or exclusive mode selected during acquisition.
-        /// @note Meaningful only while isActive() is true.
+        /// @note Meaningful only while active() is true.
         [[nodiscard]] Types::Lock::Mode mode() const noexcept;
         /// @brief Releases the lock. A failed unlock remains active and may be retried.
         /// @return Success, UnlockFailed, or a more specific backend status.

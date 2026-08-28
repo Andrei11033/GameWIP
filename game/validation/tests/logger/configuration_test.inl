@@ -27,7 +27,7 @@ void testInitResultModel(TestContext &context)
     context.expectTrue("disabled init status success", disabledResult.status.ok());
     context.expectEq("disabled init outcome", disabledResult.outcome, Logger::Types::Init::Outcome::Disabled);
     context.expectEq("disabled init effective output", disabledResult.effectiveOutput, Logger::Types::OutputMode::None);
-    context.expectFalse("disabled init not running", Logger::isRunning());
+    context.expectFalse("disabled init not running", Logger::running());
     static_cast<void>(Logger::shutdown());
 
     Logger::Types::Config adjusted = makeConsoleConfig();
@@ -53,7 +53,7 @@ void testInitResultModel(TestContext &context)
     const Logger::Types::Init::Result alreadyRunning = Logger::init(makeConsoleConfig());
     context.expectEq("second init is AlreadyOpen", alreadyRunning.status.code, IO::Types::ErrorCode::AlreadyOpen);
     context.expectEq("second init preserves started state", alreadyRunning.outcome, Logger::Types::Init::Outcome::Started);
-    context.expectTrue("second init leaves existing Logger running", Logger::isRunning());
+    context.expectTrue("second init leaves existing Logger running", Logger::running());
     static_cast<void>(Logger::shutdown());
 
     Logger::Types::Config storageFallback = makeConsoleConfig();

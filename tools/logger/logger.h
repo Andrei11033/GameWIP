@@ -413,7 +413,7 @@ namespace GameWIP::Logger
     /// @{
 
     /// @brief Returns whether the worker currently accepts normal log records.
-    GAMEWIP_LOGGER_EXPORT bool isRunning() noexcept;
+    GAMEWIP_LOGGER_EXPORT bool running() noexcept;
     /// @brief Returns the configured minimum severity.
     GAMEWIP_LOGGER_EXPORT Types::Level getMinLevel();
     /// @brief Returns the currently effective normal-output mode.

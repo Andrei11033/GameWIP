@@ -21,7 +21,7 @@ namespace GameWIP::Logger::Detail::Core
             result.requestedOutput = config.output;
             try
             {
-                if (GameWIP::Logger::isRunning())
+                if (GameWIP::Logger::running())
                 {
                     result.outcome = Types::Init::Outcome::Started;
                     result.effectiveOutput = GameWIP::Logger::getOutput();
@@ -490,7 +490,7 @@ using namespace GameWIP::Logger::Detail::Core;
 // State queries and statistics
 // ------------------------------------------------------------
 
-bool GameWIP::Logger::isRunning() noexcept
+bool GameWIP::Logger::running() noexcept
 {
     return runtimeStateRunning(loggerState().runtimeStateBits.load(std::memory_order_acquire));
 }

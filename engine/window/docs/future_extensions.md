@@ -6,7 +6,7 @@ libraries or an expanded umbrella header. Active implementation work remains tra
 
 ## Platform shell integration
 
-Taskbar features, notifications, tray icons and their operating-system menus, jump lists, file associations, recent files, and application-shell
+Taskbar features, notifications, tray icons and their operating-system menus, jump lists, file associations, recent files, and application shell
 policy belong in a focused Window shell header. They must not introduce a separate platform-services library or place shell-specific state in every
 core `Window` instance.
 
@@ -26,7 +26,7 @@ Clipboard services, shared data-transfer values, native drag and drop, and nativ
 The clipboard and drag/drop surfaces must share one data-transfer contract rather than duplicate format, ownership, or lifetime rules. Existing
 file-drop events remain the narrow core capability until that broader contract is implemented.
 
-Renderer surface attachment already has an explicit non-owning native-handle boundary, and renderer occlusion reporting has an explicit owner-thread
+Renderer attachment already has an explicit non-owning native-handle boundary, and renderer occlusion reporting has an explicit owner-thread
 feedback boundary. Renderer surface lifetime, swapchains, and synchronization remain Renderer responsibilities.
 
 Text input and IME belong to the future Input public API with an internal native Window/Input bridge. Application and editor menus belong to the

@@ -195,7 +195,7 @@ namespace GameWIP::Window
         [[nodiscard]] Types::WindowId ownerId() const noexcept;
         /// @brief Returns whether the caller is the current open lifetime's owner thread.
         /// @return true only when open and called by the opening thread.
-        [[nodiscard]] bool isOwnedByCurrentThread() const noexcept;
+        [[nodiscard]] bool ownedByCurrentThread() const noexcept;
         /// @brief Returns whether the backend supports a capability for Window objects.
         /// @param capability Capability to test.
         /// @return true when the capability is advertised for Window objects; otherwise false.
@@ -317,40 +317,40 @@ namespace GameWIP::Window
         [[nodiscard]] float opacity() const noexcept;
         /// @brief Returns the cached visibility state.
         /// @return true when the Window is requested visible; otherwise false.
-        [[nodiscard]] bool isVisible() const noexcept;
+        [[nodiscard]] bool visible() const noexcept;
         /// @brief Returns the cached keyboard-focus state.
         /// @return true when the Window currently has keyboard focus.
-        [[nodiscard]] bool isFocused() const noexcept;
+        [[nodiscard]] bool focused() const noexcept;
         /// @brief Returns whether the cached presentation state is minimized.
         /// @return true when presentationState() is Minimized.
-        [[nodiscard]] bool isMinimized() const noexcept;
+        [[nodiscard]] bool minimized() const noexcept;
         /// @brief Returns whether the cached presentation state is maximized.
         /// @return true when presentationState() is Maximized.
-        [[nodiscard]] bool isMaximized() const noexcept;
+        [[nodiscard]] bool maximized() const noexcept;
         /// @brief Returns renderer-supplied occlusion state when a provider is attached.
         /// @return The last attached renderer report, or false without a provider.
-        [[nodiscard]] bool isOccluded() const noexcept;
+        [[nodiscard]] bool occluded() const noexcept;
         /// @brief Returns whether the cursor is cached inside the client area.
         /// @return true when the latest native pointer state is inside the client area.
-        [[nodiscard]] bool isCursorInside() const noexcept;
+        [[nodiscard]] bool cursorInside() const noexcept;
         /// @brief Returns the cached user-resizable policy.
         /// @return true when user-driven resizing is enabled.
-        [[nodiscard]] bool isResizable() const noexcept;
+        [[nodiscard]] bool resizable() const noexcept;
         /// @brief Returns the cached focusable policy.
         /// @return true when the Window is eligible for keyboard focus.
-        [[nodiscard]] bool isFocusable() const noexcept;
+        [[nodiscard]] bool focusable() const noexcept;
         /// @brief Returns the cached user-interaction policy.
         /// @return true when native user interaction is enabled.
-        [[nodiscard]] bool isUserInteractionEnabled() const noexcept;
+        [[nodiscard]] bool userInteractionEnabled() const noexcept;
         /// @brief Returns the cached topmost-ordering policy.
         /// @return true when topmost ordering is requested.
-        [[nodiscard]] bool isAlwaysOnTop() const noexcept;
+        [[nodiscard]] bool alwaysOnTop() const noexcept;
         /// @brief Returns the cached portable file-drop policy.
         /// @return true when portable file-drop events are enabled.
-        [[nodiscard]] bool isFileDropEnabled() const noexcept;
+        [[nodiscard]] bool fileDropEnabled() const noexcept;
         /// @brief Returns whether framebuffer alpha is configured to reach the desktop.
         /// @return true when transparent framebuffer composition is enabled.
-        [[nodiscard]] bool hasTransparentFramebuffer() const noexcept;
+        [[nodiscard]] bool transparentFramebuffer() const noexcept;
         /// @}
 
         /// @name Geometry and content

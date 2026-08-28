@@ -56,7 +56,7 @@ namespace GameWIP::Window::Detail::Platform
     [[nodiscard]] CloseResult close(WindowState &state) noexcept;
     void closeBestEffort(WindowState &state) noexcept;
     [[nodiscard]] bool deferCleanupToOwner(std::unique_ptr<WindowState> &state) noexcept;
-    [[nodiscard]] bool isOwnedByCurrentThread(const WindowState &state) noexcept;
+    [[nodiscard]] bool ownedByCurrentThread(const WindowState &state) noexcept;
     [[nodiscard]] bool hasLiveNativeWindow(const WindowState &state) noexcept;
     [[nodiscard]] IO::Types::Status wakeEventWait(const WindowState &state) noexcept;
     [[nodiscard]] NativeHandleView nativeHandle(const WindowState &state) noexcept;

@@ -106,7 +106,7 @@ Read/write `IO::Reader` and `IO::Writer` with the common stream operations plus 
 
 ### `FileLock`
 
-Move-only unlock owner with `isActive()`, `mode()`, and retryable `unlock()`. A lock owns independent native state and can remain active after the
+Move-only unlock owner with `active()`, `mode()`, and retryable `unlock()`. A lock owns independent native state and can remain active after the
 object from which it was acquired is destroyed.
 
 The file and lock owners are move-constructible, non-copyable, and deliberately not move-assignable. `DirectoryCursor` is move-constructible and

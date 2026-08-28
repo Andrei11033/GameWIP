@@ -6,11 +6,11 @@ captured when a behavior needs a real Window.
 
 ## Automated suite
 
-The `window` validation module retains coverage for closed/default behavior, description validation, internal/external fixed event queues,
-coalescing/overflow, sticky close intent, ownership/thread affinity, native handles, controls, DPI policy, monitor/mode/color inspection, renderer
+The `window` validation module retains coverage for closed and default behavior, description validation, internal and external fixed event queues,
+coalescing and overflow, sticky close intent, ownership and thread affinity, native handles, controls, DPI policy, monitor, mode, and color inspection, renderer
 occlusion feedback, pointer hit masks, native messages, fullscreen recovery, file drops, redraw, unexpected native destruction, deferred cleanup, pump
-reentrancy, custom cursor validation/materialization/DPI reselection/lifetime, ChildSurface parent loss/geometry/queues/DPI/order/native hosting, and
-injected failure/rollback paths.
+reentrancy, custom cursor validation, materialization, DPI reselection, and lifetime, ChildSurface parent loss, geometry, queues, DPI, ordering, and
+native hosting, and injected failure and rollback paths.
 
 Occlusion coverage distinguishes stable backend capability
 (`supports(Capability::OcclusionReporting)`) from current provider state

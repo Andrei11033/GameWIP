@@ -35,7 +35,7 @@ static_assert(noexcept(Unicode::Utf8::previousGraphemeBoundary(std::declval<std:
 static_assert(
     noexcept(std::declval<Unicode::Utf8::GraphemeCursor &>().reset(std::declval<std::string_view>(), std::declval<std::span<std::size_t>>())));
 static_assert(noexcept(std::declval<Unicode::Utf8::GraphemeCursor &>().clear()));
-static_assert(noexcept(std::declval<const Unicode::Utf8::GraphemeCursor &>().isReady()));
+static_assert(noexcept(std::declval<const Unicode::Utf8::GraphemeCursor &>().ready()));
 static_assert(noexcept(std::declval<const Unicode::Utf8::GraphemeCursor &>().byteOffset()));
 static_assert(noexcept(std::declval<const Unicode::Utf8::GraphemeCursor &>().boundaryCount()));
 static_assert(noexcept(std::declval<Unicode::Utf8::GraphemeCursor &>().seek(0)));

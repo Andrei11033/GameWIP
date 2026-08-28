@@ -1,8 +1,8 @@
 @page window_examples Examples
 
 These focused examples build on the owner-thread lifecycle from
-@ref window_quick_start and demonstrate displays, custom cursors, renderer
-feedback, and native interop without hiding status handling.
+@ref window_quick_start and demonstrate displays, custom cursors, native child
+hosts, renderer feedback, and native interop without hiding status handling.
 
 ## Open a normal Window
 

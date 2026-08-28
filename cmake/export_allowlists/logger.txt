@@ -29,7 +29,7 @@ GameWIP::Logger::init
 GameWIP::Logger::initConsole
 GameWIP::Logger::initDefault
 GameWIP::Logger::initFile
-GameWIP::Logger::isRunning
+GameWIP::Logger::running
 GameWIP::Logger::log
 GameWIP::Logger::lowMemoryConfig
 GameWIP::Logger::report

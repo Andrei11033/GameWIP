@@ -99,7 +99,7 @@ namespace GameWIP::Window
         Detail::WindowState *parentState = Detail::WindowAccess::state(parent);
         if (parentState == nullptr || !Detail::Platform::hasLiveNativeWindow(*parentState))
             return error(ErrorCode::NotOpen);
-        if (!Detail::Platform::isOwnedByCurrentThread(*parentState))
+        if (!Detail::Platform::ownedByCurrentThread(*parentState))
             return error(ErrorCode::ResourceBusy);
         if (Detail::consumeFailure(TestHooks::FailurePoint::Allocation))
             return error(ErrorCode::OutOfMemory);
@@ -146,7 +146,7 @@ namespace GameWIP::Window
         Detail::WindowState *parentState = Detail::WindowAccess::state(parent);
         if (parentState == nullptr || !Detail::Platform::hasLiveNativeWindow(*parentState))
             return error(ErrorCode::NotOpen);
-        if (!Detail::Platform::isOwnedByCurrentThread(*parentState))
+        if (!Detail::Platform::ownedByCurrentThread(*parentState))
             return error(ErrorCode::ResourceBusy);
         if (Detail::consumeFailure(TestHooks::FailurePoint::Allocation))
             return error(ErrorCode::OutOfMemory);
@@ -217,7 +217,7 @@ namespace GameWIP::Window
         return state_ ? state_->parentId : Types::WindowId{};
     }
 
-    bool ChildSurface::isOwnedByCurrentThread() const noexcept
+    bool ChildSurface::ownedByCurrentThread() const noexcept
     {
         return owned(state_.get()) != nullptr;
     }
@@ -295,11 +295,11 @@ namespace GameWIP::Window
     {
         return state_ ? state_->dpi : Types::Dpi{};
     }
-    bool ChildSurface::isVisible() const noexcept
+    bool ChildSurface::visible() const noexcept
     {
         return state_ && state_->visible;
     }
-    bool ChildSurface::isUserInteractionEnabled() const noexcept
+    bool ChildSurface::userInteractionEnabled() const noexcept
     {
         return state_ && state_->interactionEnabled;
     }

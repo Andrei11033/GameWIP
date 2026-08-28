@@ -46,7 +46,7 @@ void testShutdownAndHealthEpoch(TestContext &context)
 #endif
 
     const IO::Types::Status shutdownStatus = Logger::shutdown();
-    context.expectFalse("shutdown always stops Logger", Logger::isRunning());
+    context.expectFalse("shutdown always stops Logger", Logger::running());
     context.expectEq("shutdown health disabled", Logger::getHealth().state, Logger::Types::Health::State::Disabled);
     static_cast<void>(shutdownStatus);
 

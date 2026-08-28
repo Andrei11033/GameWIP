@@ -1,21 +1,21 @@
 @page window_child_surfaces Native child surfaces
 
 `GameWIP::Window::ChildSurface` is an opt-in managed native child host inside one open top-level `Window`. It exists for browser views, native
-controls, video hosts, plugin UI, and other external technology that requires its own child-native-window region. It is not a GameWIP UI panel,
-Renderer surface, Input source, layout system, nested portable Window, or third-party SDK lifetime manager.
+controls, video hosts, plugin UI, and other external technology that requires its own native child-window region. It is not a GameWIP UI panel,
+renderer surface, Input source, layout system, nested portable Window, or third-party SDK lifetime manager.
 
 Include `window/child_surface.h` and link the existing `GameWIP::Window` target. The normal `window/window.h` header does not include this optional
 surface.
 
 ## Ownership and lifetime
 
-A default `ChildSurface` is closed. It is non-copyable, non-movable, and stable-address based. `open(parent, description)` requires an open top-level
-parent and runs on that parent's owner thread. A successful lifetime inherits that thread and caches the parent's `Types::WindowId`; `parentId()`
+A default `ChildSurface` is closed. It is non-copyable and non-movable, so its address remains stable. `open(parent, description)` requires an open
+top-level parent and runs on that parent's owner thread. A successful lifetime inherits that thread and caches the parent's `Types::WindowId`; `parentId()`
 continues to report that identity during exceptional finalization even if the parent lifetime has ended.
 
 Explicit `close()` synchronously destroys the host on the owner thread and does not report `NativeDestroyed`. A wrong-thread explicit close returns
-`ResourceBusy`; wrong-thread destruction transfers complete cleanup to the existing owner-thread dispatcher without deliberately leaking native
-resources.
+`ResourceBusy`; wrong-thread destruction transfers complete cleanup to the existing owner-thread dispatcher, which retains ownership until it can
+release the native resources.
 
 Win32 naturally destroys child HWNDs when their parent is destroyed. If the parent closes first, or the host is unexpectedly destroyed,
 `isOpen()` becomes false, native handle access returns `NotOpen`, and `lifetimeState()` becomes `NativeDestroyedPendingFinalize`. One
@@ -44,7 +44,7 @@ out-of-bounds portion; parent resize performs no layout.
 the parent without changing its parent-relative logical rectangle. `screenRect()` reports physical virtual-screen geometry. `clientToScreen()` and
 `screenToClient()` convert between ChildSurface-local logical positions and physical virtual-screen positions.
 
-ChildSurface has no DPI resize policy. Its logical rectangle is preserved at every DPI transition and physical geometry is recalculated from that
+`ChildSurface` has no DPI resize policy. Its logical rectangle is preserved at every DPI transition and physical geometry is recalculated from that
 authoritative logical value. A logical `800x600` host is `800x600` pixels at 96 DPI and `1200x900` pixels at 144 DPI; prior physical pixels are never
 rescaled cumulatively. Win32 synchronizes after the parent transition through `WM_DPICHANGED_AFTERPARENT`. Creation temporarily applies mixed DPI
 hosting behavior only while the host HWND is created, then restores the thread's previous behavior so external descendants with different awareness
@@ -52,8 +52,9 @@ contexts can be hosted without permanently changing owner-thread policy.
 
 ## Events and pumping
 
-Each successful lifetime has its own fixed-capacity queue and sequence beginning at one. The default overload uses `Window::Events::kDefaultQueueCapacity`;
-other overloads allocate a requested capacity or borrow caller-owned `std::span<Types::ChildSurface::Event>` storage until close.
+Each successful open lifetime has its own fixed-capacity queue and sequence beginning at one. The default overload uses
+`Window::Events::kDefaultQueueCapacity`; other overloads allocate a requested capacity or borrow caller-owned
+`std::span<Types::ChildSurface::Event>` storage until close.
 
 `PositionChanged`, `SizeChanged`, `PixelSizeChanged`, and `ContentScaleChanged` may coalesce across adjacent compatible observations.
 `VisibilityChanged` remains non-coalescible. Full queues prefer evicting an older coalescible event, and preserve terminal `NativeDestroyed` even when

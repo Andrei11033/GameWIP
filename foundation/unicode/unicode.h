@@ -435,7 +435,7 @@ namespace GameWIP::Unicode
             void clear() noexcept;
 
             /// @brief Returns whether reset() completed successfully.
-            [[nodiscard]] bool isReady() const noexcept;
+            [[nodiscard]] bool ready() const noexcept;
 
             /// @brief Returns the current indexed grapheme-boundary byte offset, or 0 while not ready.
             [[nodiscard]] std::size_t byteOffset() const noexcept;

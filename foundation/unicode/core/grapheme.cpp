@@ -466,14 +466,14 @@ namespace GameWIP::Unicode::Utf8
         currentBoundaryIndex_ = 0;
     }
 
-    bool GraphemeCursor::isReady() const noexcept
+    bool GraphemeCursor::ready() const noexcept
     {
         return !boundaries_.empty();
     }
 
     std::size_t GraphemeCursor::byteOffset() const noexcept
     {
-        return isReady() ? boundaries_[currentBoundaryIndex_] : 0;
+        return ready() ? boundaries_[currentBoundaryIndex_] : 0;
     }
 
     std::size_t GraphemeCursor::boundaryCount() const noexcept
@@ -483,7 +483,7 @@ namespace GameWIP::Unicode::Utf8
 
     Types::Utf8BoundaryResult GraphemeCursor::seek(std::size_t byteOffset) noexcept
     {
-        if (!isReady())
+        if (!ready())
         {
             return {.byteOffset = byteOffset, .outcome = Types::BoundaryOutcome::InvalidOffset};
         }
@@ -500,7 +500,7 @@ namespace GameWIP::Unicode::Utf8
 
     Types::Utf8BoundaryResult GraphemeCursor::next() noexcept
     {
-        if (!isReady())
+        if (!ready())
         {
             return {.outcome = Types::BoundaryOutcome::InvalidOffset};
         }
@@ -515,7 +515,7 @@ namespace GameWIP::Unicode::Utf8
 
     Types::Utf8BoundaryResult GraphemeCursor::previous() noexcept
     {
-        if (!isReady())
+        if (!ready())
         {
             return {.outcome = Types::BoundaryOutcome::InvalidOffset};
         }
@@ -530,7 +530,7 @@ namespace GameWIP::Unicode::Utf8
 
     void GraphemeCursor::discardAfterCurrent() noexcept
     {
-        if (isReady())
+        if (ready())
         {
             boundaries_ = boundaries_.first(currentBoundaryIndex_ + 1);
         }

@@ -8,7 +8,7 @@ between windowed, borderless, and exclusive fullscreen states.
 
 Monitor identity and physical modes are grouped under `Window::Types::Display`:
 
-- `MonitorId` is a process-local currently-known monitor identity and uses `isValid()`.
+- `MonitorId` is a process-local identity for a currently known monitor and uses `isValid()`.
 - `Mode` describes physical resolution, millihertz refresh, color depth, and interlace state.
 - `ModesResult` and `ModeResult` are checked mode-query results.
 

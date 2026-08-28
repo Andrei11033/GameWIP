@@ -118,7 +118,7 @@ FileLock::~FileLock() noexcept
     static_cast<void>(unlock());
 }
 
-bool FileLock::isActive() const noexcept
+bool FileLock::active() const noexcept
 {
     return state_ != nullptr && state_->active;
 }
@@ -130,7 +130,7 @@ Types::Lock::Mode FileLock::mode() const noexcept
 
 IO::Types::Status FileLock::unlock() noexcept
 {
-    if (!isActive())
+    if (!active())
     {
         state_.reset();
         return IO::successStatus();
