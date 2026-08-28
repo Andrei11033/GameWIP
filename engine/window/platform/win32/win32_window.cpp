@@ -5,6 +5,7 @@
 #include "window/platform/win32/internal/win32_compat.h"
 
 #include "window/native/win32.h"
+#include "window/internal/child_surface_platform.h"
 
 #include <algorithm>
 #include <array>
@@ -248,6 +249,48 @@ namespace GameWIP::Window::Detail::Platform
         current.windows.erase(std::remove(current.windows.begin(), current.windows.end(), &state), current.windows.end());
     }
 
+    void registerOpenChildSurface(ChildSurfaceState &state)
+    {
+        Dispatcher &current = dispatcher();
+        {
+            std::scoped_lock lock(dispatcherRegistryMutex);
+            dispatcherRegistry[current.threadId] = &current;
+        }
+        MSG message{};
+        PeekMessageW(&message, nullptr, WM_USER, WM_USER, PM_NOREMOVE);
+        current.childSurfaces.push_back(&state);
+    }
+
+    void unregisterOpenChildSurface(ChildSurfaceState &state) noexcept
+    {
+        Dispatcher &current = dispatcher();
+        current.childSurfaces.erase(std::remove(current.childSurfaces.begin(), current.childSurfaces.end(), &state), current.childSurfaces.end());
+    }
+
+    void routeChildSurfaceEvent(ChildSurfaceState &state, Types::ChildSurface::Events::Payload data) noexcept
+    {
+        const std::uint64_t droppedBefore = state.droppedEvents;
+        const ChildSurfaceEnqueueResult result = enqueueChildSurfaceEvent(state, data);
+        Dispatcher &current = dispatcher();
+        if (current.activeResult != nullptr)
+        {
+            current.activeResult->eventsDropped += state.droppedEvents - droppedBefore;
+            if (result != ChildSurfaceEnqueueResult::Dropped)
+                ++current.activeResult->eventsQueued;
+        }
+    }
+
+    void refreshChildSurfaceScreenRectsForParent(Types::WindowId parentId) noexcept
+    {
+        if (!parentId.isValid())
+            return;
+        for (ChildSurfaceState *child : dispatcher().childSurfaces)
+        {
+            if (child != nullptr && child->parentId == parentId)
+                refreshChildSurfaceScreenRect(*child);
+        }
+    }
+
     void pruneAbandonedStates(Dispatcher &current) noexcept
     {
         std::unique_ptr<WindowState> cleanup;
@@ -261,6 +304,18 @@ namespace GameWIP::Window::Detail::Platform
             cleanup->deferredCleanupNext = nullptr;
             closeBestEffort(*cleanup);
             cleanup = std::move(next);
+        }
+        std::unique_ptr<ChildSurfaceState> childCleanup;
+        {
+            std::scoped_lock lock(current.deferredMutex);
+            childCleanup = std::move(current.deferredChildCleanupHead);
+        }
+        while (childCleanup)
+        {
+            std::unique_ptr<ChildSurfaceState> next{childCleanup->deferredCleanupNext};
+            childCleanup->deferredCleanupNext = nullptr;
+            closeChildSurfaceBestEffort(*childCleanup);
+            childCleanup = std::move(next);
         }
     }
 
@@ -290,6 +345,31 @@ namespace GameWIP::Window::Detail::Platform
             deferred->deferredCleanupNext = nullptr;
             closeBestEffort(*deferred);
             deferred = std::move(next);
+        }
+
+        std::unique_ptr<ChildSurfaceState> deferredChild;
+        {
+            std::scoped_lock lock(deferredMutex);
+            deferredChild = std::move(deferredChildCleanupHead);
+        }
+        while (deferredChild)
+        {
+            std::unique_ptr<ChildSurfaceState> next{deferredChild->deferredCleanupNext};
+            deferredChild->deferredCleanupNext = nullptr;
+            closeChildSurfaceBestEffort(*deferredChild);
+            deferredChild = std::move(next);
+        }
+
+        while (!childSurfaces.empty())
+        {
+            ChildSurfaceState *state = childSurfaces.back();
+            if (state == nullptr)
+            {
+                childSurfaces.pop_back();
+                continue;
+            }
+            closeChildSurfaceBestEffort(*state);
+            state->clearRetainedEvents();
         }
 
         while (!windows.empty())
@@ -531,6 +611,7 @@ namespace GameWIP::Window::Detail::Platform
             static_cast<std::uint32_t>(std::max(0, physicalToLogical(frame.bottom - (clientOrigin.y + static_cast<LONG>(physicalHeight)), dpi)))};
         state.dpi = {static_cast<float>(dpi), static_cast<float>(dpi)};
         state.contentScale = {static_cast<float>(dpi) / static_cast<float>(kBaselineDpi), static_cast<float>(dpi) / static_cast<float>(kBaselineDpi)};
+        refreshChildSurfaceScreenRectsForParent(state.id);
         return IO::successStatus();
     }
 
@@ -710,6 +791,24 @@ namespace GameWIP::Window::Detail::Platform
             std::scoped_lock lock(owner->deferredMutex);
             state->deferredCleanupNext = owner->deferredCleanupHead.release();
             owner->deferredCleanupHead = std::move(state);
+        }
+        static_cast<void>(PostThreadMessageW(owner->threadId, wakeMessage(), 0, 0));
+        return true;
+    }
+
+    bool deferChildSurfaceCleanupToOwner(std::unique_ptr<ChildSurfaceState> &state) noexcept
+    {
+        if (!state || !state->platform)
+            return false;
+        std::scoped_lock registryLock(dispatcherRegistryMutex);
+        const auto found = dispatcherRegistry.find(state->platform->ownerThreadId);
+        Dispatcher *owner = found == dispatcherRegistry.end() ? nullptr : found->second;
+        if (owner == nullptr)
+            return false;
+        {
+            std::scoped_lock lock(owner->deferredMutex);
+            state->deferredCleanupNext = owner->deferredChildCleanupHead.release();
+            owner->deferredChildCleanupHead = std::move(state);
         }
         static_cast<void>(PostThreadMessageW(owner->threadId, wakeMessage(), 0, 0));
         return true;

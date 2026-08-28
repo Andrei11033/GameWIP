@@ -28,14 +28,6 @@ namespace GameWIP::Window
 
     namespace Types
     {
-        /// @brief Portable native-resource lifecycle state.
-        enum class LifetimeState
-        {
-            Closed,                        ///< No native lifetime or retained open-state resources.
-            Open,                          ///< Native operations and normal cached state are available.
-            NativeDestroyedPendingFinalize ///< Native handle is gone; cached state awaits owner-thread finalization.
-        };
-
         /// @brief Cached details for a non-windowed mode.
         struct FullscreenInfo
         {
@@ -98,6 +90,7 @@ namespace GameWIP::Window
             FileDrop,                  ///< Portable file-drop events are supported.
             ExclusiveFullscreen,       ///< Exclusive display-mode fullscreen is supported.
             OcclusionReporting,        ///< Renderer occlusion-provider feedback is supported.
+            ChildSurface,              ///< Managed native child-window hosts are supported.
             Count                      ///< Enumerator count used to bound capability bit indexes.
         };
 

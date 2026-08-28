@@ -59,6 +59,12 @@ before/after cached and native mode geometry for every display-changing request.
 2. After the surface changes, verify the red old strip and former controls stop responding while only the green replacement strip drags.
 3. Repeat at 100%, 125%, 150%, and 200% scale and after moving between differently scaled monitors.
 
+## Native child surfaces
+
+1. Run `--window-manual-suite=child-surface` and verify the labeled Win32 button appears as a real descendant inside the ChildSurface region.
+2. Move the parent across mixed-DPI monitors and verify the host preserves its logical rectangle while its physical extent follows the destination DPI.
+3. Confirm the external descendant is destroyed before `ChildSurface::close()`, then the parent closes without stale native UI or taskbar state.
+
 ## Layered and pointer behavior
 
 1. Exercise opacity at 1.0, intermediate values, and 0.0; verify input behavior is unchanged.

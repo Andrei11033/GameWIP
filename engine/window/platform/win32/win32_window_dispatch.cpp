@@ -21,7 +21,7 @@ namespace GameWIP::Window::Detail::Platform
         Dispatcher &current = dispatcher();
         pruneAbandonedStates(current);
         Types::Events::PumpResult result;
-        if (current.windows.empty())
+        if (current.windows.empty() && current.childSurfaces.empty())
             return result;
         if (current.pumping)
         {
@@ -100,6 +100,11 @@ namespace GameWIP::Window::Detail::Platform
                 if (!cursorStatus.ok() && result.status.ok())
                     result.status = std::move(cursorStatus);
             }
+        }
+        for (ChildSurfaceState *state : current.childSurfaces)
+        {
+            if (state != nullptr)
+                refreshChildSurfaceScreenRect(*state);
         }
         current.activeResult = nullptr;
         current.pumping = false;

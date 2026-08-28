@@ -14,6 +14,7 @@ Window exposes one public `GameWIP::Window::Types` tree and focused headers by c
 - `window/display.h` contains fundamental `Types::Display::MonitorId`, display `Mode`, and mode queries.
 - `window/display_info.h` is the opt-in rich monitor/color inspection surface.
 - `window/cursor.h` is the opt-in custom native cursor resource and selection surface.
+- `window/child_surface.h` is the opt-in managed native child-host resource, passive description, and typed event surface.
 - `window/window.h` assembles the normal Window object API and includes the fundamental headers above, but not rich display inspection, custom cursor
   resources, renderer integration, or native interop.
 - `window/renderer_bridge.h` is the opt-in renderer feedback bridge.
@@ -52,6 +53,12 @@ in `window.h`.
 `window/cursor.h` contains the shared `Cursor` resource, passive image values under `Types::Cursor`, `createCursor()` overloads, and the free
 `setCursor()` and `hasCustomCursor()` Window operations. It remains separate from `window/window.h` because application-provided cursor images are an
 opt-in resource surface. See @ref window_custom_cursors for image validation, DPI selection, lifetime, and system-shape interaction.
+
+## Child surfaces
+
+`window/child_surface.h` contains the stable-address `ChildSurface` RAII owner and passive values under `Types::ChildSurface`. It reuses shared
+`Types::LifetimeState`, `Types::Events::QueueInfo`, and `Types::Events::StorageKind`; there is no public ChildSurface ID. See
+@ref window_child_surfaces for native-host ownership, parent loss, logical geometry, DPI, queues, and sibling ordering.
 
 ## Events
 

@@ -51,6 +51,9 @@ pointer mask. Moving the Window without changing the framebuffer extent does not
 Custom cursor images, sizes, and hotspots use physical pixels. A DPI transition selects the nearest eagerly created `intendedDpi` variant, choosing
 the higher-DPI variant on an equal-distance tie; it does not rescale or rebuild an image. See @ref window_custom_cursors.
 
+ChildSurface geometry is parent-client-relative and always preserves its authoritative logical rectangle. It has no `DpiResizePolicy`; physical
+position and extent are derived from that logical rectangle at the new effective DPI. See @ref window_child_surfaces.
+
 ## Events and authority
 
 Native geometry and DPI callbacks update cached position, logical client size, framebuffer size, scale, DPI, and current monitor before publishing
@@ -61,4 +64,5 @@ events. Geometry events may coalesce, so cached getters are the authoritative cu
 - @ref window_fullscreen_monitors
 - @ref window_renderer_integration
 - @ref window_custom_cursors
+- @ref window_child_surfaces
 - @ref window_manual_validation

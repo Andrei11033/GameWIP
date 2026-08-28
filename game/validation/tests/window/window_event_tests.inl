@@ -46,6 +46,10 @@ void testFixedEventQueue(TestSupport::Context &context)
     Window::Types::Events::FilesDropped dropped;
     dropped.paths.emplace_back("retained-until-close.txt");
     static_cast<void>(Window::TestHooks::enqueue(payloadWindow, std::move(dropped)));
+    Window::Types::Event removedPayload;
+    static_cast<void>(payloadWindow.popEvent(removedPayload));
+    static_cast<void>(context.expectEq("pop clears the vacated borrowed event slot", std::uint64_t{0}, payloadStorage[0].sequence));
+    static_cast<void>(Window::TestHooks::enqueue(payloadWindow, Window::Types::Events::FilesDropped{}));
     static_cast<void>(payloadWindow.close());
     static_cast<void>(context.expectTrue(
         "close releases payloads from borrowed event slots",

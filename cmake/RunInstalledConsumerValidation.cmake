@@ -56,6 +56,7 @@ set(expected_gamewip_headers
     test_support/test_support.h
     test_support/types.h
     unicode/unicode.h
+    window/child_surface.h
     window/cursor.h
     window/description.h
     window/display.h

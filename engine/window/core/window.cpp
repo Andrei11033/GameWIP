@@ -424,7 +424,9 @@ namespace GameWIP::Window
     {
         if (!owned(state_.get()) || state_->eventCount == 0)
             return false;
-        outEvent = std::move(state_->eventStorage[state_->eventHead]);
+        Types::Event &slot = state_->eventStorage[state_->eventHead];
+        outEvent = std::move(slot);
+        slot = {};
         state_->eventHead = (state_->eventHead + 1) % state_->eventStorage.size();
         --state_->eventCount;
         if (state_->eventCount == 0)

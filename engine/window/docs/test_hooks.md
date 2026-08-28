@@ -8,7 +8,8 @@ Window deterministic failure/state hooks are source-tree-only and are enabled wi
 
 The hooks cover allocation/native failures, dispatcher setup, title conversion, region/icon/cursor operations, monitor/display/color queries,
 fullscreen rollback/restoration, close, event pumping, unexpected native destruction, pointer-hit-mask state, display-color conversion/change
-notification, DPI transitions, refresh-rate conversion, and exact exclusive-mode matching.
+notification, Window and ChildSurface DPI transitions, ChildSurface unexpected native destruction, refresh-rate conversion, and exact exclusive-mode
+matching.
 
 Hook-facing passive types follow the standardized public domains (`Types::Events`, `Types::Display`, `Types::Renderer`) instead of creating a parallel
 public vocabulary.

@@ -1,7 +1,8 @@
 @page window_library Window
 
-`GameWIP::Window` is the standalone, portable owner of native top-level desktop windows. It provides checked lifecycle and mutation operations,
-fixed-capacity typed event queues, cached state, display discovery and inspection, and an explicit native interoperability boundary.
+`GameWIP::Window` provides standalone portable ownership of native top-level desktop windows and optional managed child hosts. It provides checked
+lifecycle and mutation operations, fixed-capacity typed event queues, cached state, display discovery and inspection, and an explicit native
+interoperability boundary.
 
 Window is usable without Input, Action, WindowManager, Renderer, UI, or the game executable. It creates no event thread and calls no user callback
 from a native window procedure.
@@ -27,6 +28,8 @@ opt-in headers expose renderer feedback and deliberate native interoperation.
   pixels, desktop coordinates, framebuffers, scale, and DPI policy.
 - @subpage window_custom_cursors — Create shared native cursor images, supply
   DPI variants, select them on Windows, and restore system shapes.
+- @subpage window_child_surfaces — Host externally managed native descendants
+  inside an optional managed child HWND.
 - @subpage window_lifecycle_events — Understand thread ownership, dispatch,
   queue overflow, close requests, waits, and native destruction.
 - @subpage window_chrome_and_pointer_input — Configure system/custom chrome,
@@ -41,8 +44,8 @@ opt-in headers expose renderer feedback and deliberate native interoperation.
   custom chrome, and renderer integration in context.
 - @subpage window_troubleshooting — Diagnose ownership, capabilities, queue
   pressure, display transitions, native destruction, and renderer feedback.
-- @subpage window_future_extensions — Understand where proposed child surfaces,
-  accessibility, clipboard, drag/drop, dialogs, and related features belong.
+- @subpage window_future_extensions — Understand where proposed accessibility,
+  clipboard, drag/drop, dialogs, and related features belong.
 
 ## Maintainer validation
 
@@ -89,7 +92,8 @@ its physical client pixels.
 
 The normal portable surface is assembled by `window/window.h` from focused `window/types.h`, `window/description.h`, `window/events.h`, and
 `window/display.h`. Rich monitor/color inspection is opt-in through `window/display_info.h`. Renderer integration is opt-in through
-`window/renderer_bridge.h`, custom native cursors are opt-in through `window/cursor.h`, and Win32 interoperability is opt-in through
+`window/renderer_bridge.h`, custom native cursors are opt-in through `window/cursor.h`, native child hosts are opt-in through
+`window/child_surface.h`, and Win32 interoperability is opt-in through
 `window/native/win32.h`.
 
 Installed consumers link `GameWIP::Window`. Window is intentionally built as a shared library: process-local Window and monitor identities, native

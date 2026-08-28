@@ -157,8 +157,8 @@ namespace GameWIP::Window::Types::Events
     struct PumpResult
     {
         IO::Types::Status status;        ///< Pump status.
-        std::size_t eventsQueued = 0;    ///< Events newly queued during this pump.
-        std::uint64_t eventsDropped = 0; ///< Events dropped during this pump.
+        std::size_t eventsQueued = 0;    ///< Window-subsystem events newly queued during this pump.
+        std::uint64_t eventsDropped = 0; ///< Window-subsystem events dropped during this pump.
         bool timedOut = false;           ///< Whether a finite wait expired without native work.
     };
 } // namespace GameWIP::Window::Types::Events

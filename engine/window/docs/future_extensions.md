@@ -4,12 +4,6 @@ The core `window/window.h` contract intentionally models only native top-level w
 ownership model: they belong in opt-in headers within the existing `GameWIP::Window` target and `Window` package, not in new top-level engine
 libraries or an expanded umbrella header. Active implementation work remains tracked in GitHub issues rather than on this page.
 
-## Native child surfaces
-
-Native child surfaces for browser embedding, third-party SDKs, native controls, or specialized rendering surfaces belong in an opt-in Window header. A
-child-surface API must define non-owning parent relationships, owner-thread behavior, native lifetime, and failure handling without changing the
-accepted top-level `Window` ownership model.
-
 ## Platform shell integration
 
 Taskbar features, notifications, tray icons and their operating-system menus, jump lists, file associations, recent files, and application-shell
@@ -26,9 +20,9 @@ must not invent or retain a second semantic model.
 The packed Renderer-to-Window mask bridge exists in `window/renderer_bridge.h`. Genuine cross-application rectangular and per-pixel routing remains
 backend work and stays `Unsupported` until a documented stable native API can satisfy the contract.
 
-## Cursor, clipboard, data transfer, and dialogs
+## Clipboard, data transfer, and dialogs
 
-Custom cursor resources, clipboard services, shared data-transfer values, native drag and drop, and native dialogs belong in focused Window headers.
+Clipboard services, shared data-transfer values, native drag and drop, and native dialogs belong in focused Window headers.
 The clipboard and drag/drop surfaces must share one data-transfer contract rather than duplicate format, ownership, or lifetime rules. Existing
 file-drop events remain the narrow core capability until that broader contract is implemented.
 

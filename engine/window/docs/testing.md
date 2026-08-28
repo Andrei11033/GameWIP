@@ -9,7 +9,8 @@ captured when a behavior needs a real Window.
 The `window` validation module retains coverage for closed/default behavior, description validation, internal/external fixed event queues,
 coalescing/overflow, sticky close intent, ownership/thread affinity, native handles, controls, DPI policy, monitor/mode/color inspection, renderer
 occlusion feedback, pointer hit masks, native messages, fullscreen recovery, file drops, redraw, unexpected native destruction, deferred cleanup, pump
-reentrancy, custom cursor validation/materialization/DPI reselection/lifetime, and injected failure/rollback paths.
+reentrancy, custom cursor validation/materialization/DPI reselection/lifetime, ChildSurface parent loss/geometry/queues/DPI/order/native hosting, and
+injected failure/rollback paths.
 
 Occlusion coverage distinguishes stable backend capability
 (`supports(Capability::OcclusionReporting)`) from current provider state
@@ -31,6 +32,7 @@ Repository validation compiles each supported Window entry header independently:
 - `window/display.h`
 - `window/display_info.h`
 - `window/cursor.h`
+- `window/child_surface.h`
 - `window/window.h`
 - `window/renderer_bridge.h`
 - `window/native/win32.h` on Win32
@@ -53,7 +55,7 @@ file drops, taskbar/ownership behavior, DPI/fullscreen transitions, and
 shell-visible state. See @ref window_manual_validation for the operator
 checklist.
 
-`--window-manual-suite=<name>` accepts `lifecycle`, `multiple-windows`, `custom-chrome`, `layered-pointer`, `dpi`, `cursor`, `files-shell`,
+`--window-manual-suite=<name>` accepts `lifecycle`, `multiple-windows`, `custom-chrome`, `layered-pointer`, `dpi`, `cursor`, `child-surface`, `files-shell`,
 `fullscreen`, `borderless`, `exclusive`, `topology`, `hdr`, and `modern`. `fullscreen` retains the complete workflow; `borderless`, `exclusive`, and
 `topology` isolate the display-changing portions for safer reproduction. Manual runs flush every report line and record before/after mode-transition
 geometry so evidence survives a driver reset or process interruption.
