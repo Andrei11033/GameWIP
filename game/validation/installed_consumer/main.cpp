@@ -16,7 +16,9 @@
 #include "test_support/test_support.h"
 #include "unicode/unicode.h"
 #include "window/child_surface.h"
+#include "window/clipboard.h"
 #include "window/cursor.h"
+#include "window/data_transfer.h"
 #include "window/display_info.h"
 #include "window/renderer_bridge.h"
 #include "window/window.h"
@@ -60,6 +62,8 @@ int main()
     const GameWIP::TestSupport::Types::Reporting::Options reportingOptions;
     const std::string infrastructureText = GameWIP::TestSupport::formatInfrastructureStatus(infrastructureStatus);
     const GameWIP::Window::Types::CapabilitiesResult windowCapabilities = GameWIP::Window::getCapabilities();
+    const GameWIP::Window::Types::Clipboard::FormatResult clipboardText =
+        GameWIP::Window::Clipboard::hasFormat({GameWIP::Window::Types::DataTransfer::FormatKind::Text, {}});
     const GameWIP::Window::Types::Cursor::CreateResult invalidCursor =
         GameWIP::Window::createCursor(std::span<const GameWIP::Window::Types::Cursor::ImageView>{});
     const GameWIP::Window::Types::Cursor::CreateResult invalidSingleCursor =
@@ -78,6 +82,7 @@ int main()
     static_cast<void>(filesystemReadOptions);
     static_cast<void>(timer.elapsedMilliseconds());
     static_cast<void>(windowCapabilities);
+    static_cast<void>(clipboardText);
 
     return unicodeVersion.major == 17 && unicodeVersion.minor == 0 && unicodeVersion.patch == 0 &&
                    unicodeEncoding.outcome == GameWIP::Unicode::Types::EncodeOutcome::Encoded && unicodeEncoding.byteCount == 4 && reserve.ok() &&

@@ -19,6 +19,8 @@ namespace
 {
     thread_local GameWIP::Window::TestHooks::FailurePoint armedFailure = GameWIP::Window::TestHooks::FailurePoint::None;
     thread_local std::size_t cursorNativeCreationFailureCountdown = std::numeric_limits<std::size_t>::max();
+    thread_local std::size_t clipboardPublicationFailureIndex = std::numeric_limits<std::size_t>::max();
+    thread_local std::size_t clipboardEnumerationFailureCount = std::numeric_limits<std::size_t>::max();
     std::atomic_size_t customCursorsCreated = 0;
     std::atomic_size_t customCursorsDestroyed = 0;
 } // namespace
@@ -49,6 +51,22 @@ namespace GameWIP::Window::Detail
         return true;
     }
 
+    bool consumeClipboardPublicationFailure(std::size_t itemIndex) noexcept
+    {
+        if (clipboardPublicationFailureIndex != itemIndex)
+            return false;
+        clipboardPublicationFailureIndex = std::numeric_limits<std::size_t>::max();
+        return true;
+    }
+
+    bool consumeClipboardEnumerationFailure(std::size_t materializedFormats) noexcept
+    {
+        if (clipboardEnumerationFailureCount != materializedFormats)
+            return false;
+        clipboardEnumerationFailureCount = std::numeric_limits<std::size_t>::max();
+        return true;
+    }
+
     void recordCustomCursorCreated() noexcept
     {
         customCursorsCreated.fetch_add(1, std::memory_order_relaxed);
@@ -74,11 +92,23 @@ namespace GameWIP::Window::TestHooks
     {
         armedFailure = FailurePoint::None;
         cursorNativeCreationFailureCountdown = std::numeric_limits<std::size_t>::max();
+        clipboardPublicationFailureIndex = std::numeric_limits<std::size_t>::max();
+        clipboardEnumerationFailureCount = std::numeric_limits<std::size_t>::max();
     }
 
     void failCursorNativeCreationAfter(std::size_t successfulVariants) noexcept
     {
         cursorNativeCreationFailureCountdown = successfulVariants;
+    }
+
+    void failClipboardPublicationAt(std::size_t itemIndex) noexcept
+    {
+        clipboardPublicationFailureIndex = itemIndex;
+    }
+
+    void failClipboardEnumerationAfter(std::size_t materializedFormats) noexcept
+    {
+        clipboardEnumerationFailureCount = materializedFormats;
     }
 
     std::size_t customCursorVariantCount(const Cursor &cursor) noexcept

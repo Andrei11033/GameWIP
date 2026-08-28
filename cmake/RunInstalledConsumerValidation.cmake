@@ -57,7 +57,9 @@ set(expected_gamewip_headers
     test_support/types.h
     unicode/unicode.h
     window/child_surface.h
+    window/clipboard.h
     window/cursor.h
+    window/data_transfer.h
     window/description.h
     window/display.h
     window/display_info.h

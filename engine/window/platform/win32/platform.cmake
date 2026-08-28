@@ -6,6 +6,7 @@ configure_file("${CMAKE_CURRENT_LIST_DIR}/../../cmake/window_application.rc.in" 
 target_sources(
     Window
     PRIVATE
+        "${CMAKE_CURRENT_LIST_DIR}/win32_clipboard.cpp"
         "${CMAKE_CURRENT_LIST_DIR}/win32_child_surface.cpp"
         "${CMAKE_CURRENT_LIST_DIR}/win32_controls.cpp"
         "${CMAKE_CURRENT_LIST_DIR}/win32_cursor.cpp"

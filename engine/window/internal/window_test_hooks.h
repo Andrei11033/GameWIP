@@ -5,6 +5,7 @@
 #pragma once
 
 #include "window/child_surface.h"
+#include "window/clipboard.h"
 #include "window/cursor.h"
 #include "window/description.h"
 #include "window/display_info.h"
@@ -71,7 +72,18 @@ namespace GameWIP::Window::TestHooks
         FullscreenPartial,
         DisplayRestoration,
         Close,
-        EventPump
+        EventPump,
+        ClipboardAllocation,
+        ClipboardTextConversion,
+        ClipboardPathConversion,
+        ClipboardImagePreparation,
+        ClipboardOwnerCreation,
+        ClipboardAccess,
+        ClipboardClear,
+        ClipboardRead,
+        ClipboardEnumeration,
+        ClipboardRegistration,
+        ClipboardClose
     };
 
 #if WINDOW_INTERNAL_TEST_HOOKS
@@ -113,6 +125,10 @@ namespace GameWIP::Window::TestHooks
     [[nodiscard]] GAMEWIP_WINDOW_EXPORT ChildSurfaceDpiTransitionResult
     calculateChildSurfaceDpiTransition(Types::LogicalRect logicalRect, std::uint32_t newDpi) noexcept;
     GAMEWIP_WINDOW_EXPORT void failCursorNativeCreationAfter(std::size_t successfulVariants) noexcept;
+    /// @brief Fails publication of the zero-based requested Clipboard item index once.
+    GAMEWIP_WINDOW_EXPORT void failClipboardPublicationAt(std::size_t itemIndex) noexcept;
+    /// @brief Fails Clipboard enumeration after the requested number of materialized formats once.
+    GAMEWIP_WINDOW_EXPORT void failClipboardEnumerationAfter(std::size_t materializedFormats) noexcept;
     [[nodiscard]] GAMEWIP_WINDOW_EXPORT std::size_t customCursorVariantCount(const Cursor &cursor) noexcept;
     [[nodiscard]] GAMEWIP_WINDOW_EXPORT std::uint32_t customCursorBindingDpi(const Window &window) noexcept;
     [[nodiscard]] GAMEWIP_WINDOW_EXPORT std::size_t createdCustomCursorCount() noexcept;
@@ -126,6 +142,8 @@ namespace GameWIP::Window::Detail
 #if WINDOW_INTERNAL_TEST_HOOKS
     [[nodiscard]] bool consumeFailure(TestHooks::FailurePoint point) noexcept;
     [[nodiscard]] bool consumeCursorNativeCreationFailure() noexcept;
+    [[nodiscard]] bool consumeClipboardPublicationFailure(std::size_t itemIndex) noexcept;
+    [[nodiscard]] bool consumeClipboardEnumerationFailure(std::size_t materializedFormats) noexcept;
     void recordCustomCursorCreated() noexcept;
     void recordCustomCursorDestroyed() noexcept;
 #else
@@ -134,6 +152,14 @@ namespace GameWIP::Window::Detail
         return false;
     }
     [[nodiscard]] constexpr bool consumeCursorNativeCreationFailure() noexcept
+    {
+        return false;
+    }
+    [[nodiscard]] constexpr bool consumeClipboardPublicationFailure(std::size_t) noexcept
+    {
+        return false;
+    }
+    [[nodiscard]] constexpr bool consumeClipboardEnumerationFailure(std::size_t) noexcept
     {
         return false;
     }

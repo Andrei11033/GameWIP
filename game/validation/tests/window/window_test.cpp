@@ -6,7 +6,9 @@
 
 #include "test_support/test_support.h"
 #include "window/child_surface.h"
+#include "window/clipboard.h"
 #include "window/cursor.h"
+#include "window/data_transfer.h"
 #include "window/internal/cursor_selection.h"
 #include "window/native/win32.h"
 #include "window/renderer_bridge.h"
@@ -28,6 +30,7 @@
 #include <array>
 #include <atomic>
 #include <chrono>
+#include <cstring>
 #include <format>
 #include <functional>
 #include <limits>
@@ -71,6 +74,7 @@ namespace
 #include "validation/tests/window/window_display_tests.inl"
 #include "validation/tests/window/window_cursor_tests.inl"
 #include "validation/tests/window/window_child_surface_tests.inl"
+#include "validation/tests/window/window_clipboard_tests.inl"
 } // namespace
 
 namespace GameWIP::Test
@@ -125,6 +129,9 @@ namespace GameWIP::Test
                 });
         }
         runner.runSuite("Window passive values and closed state", testPassiveValuesAndClosedState);
+        runner.runSuite("Window Clipboard values and validation", testClipboardValuesAndValidation);
+        runner.runSuite("Window Clipboard native round trips", testClipboardRoundTrips);
+        runner.runSuite("Window Clipboard multi-format and failure semantics", testClipboardMultiFormatAndFailures);
         runner.runSuite("Window description validation", testDescriptionValidation);
         runner.runSuite("Window cursor DPI selection", testCursorDpiSelection);
         runner.runSuite("Window custom cursor values and validation", testCursorValuesAndValidation);
