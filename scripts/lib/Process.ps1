@@ -2,6 +2,10 @@
 
 Set-StrictMode -Version Latest
 
+# ------------------------------------------------------------
+# Native command construction
+# ------------------------------------------------------------
+
 function ConvertTo-GameWipNativeArgument
 {
     param([AllowEmptyString()][string]$Argument)
@@ -102,6 +106,10 @@ function Resolve-GameWipOwnedProcessLaunch
     return [pscustomobject]@{ FilePath = $setsid.Source; ArgumentLine = $argumentLine; OwnProcessGroup = $true }
 }
 
+# ------------------------------------------------------------
+# Owned process execution
+# ------------------------------------------------------------
+
 function Write-GameWipProcessNewOutput
 {
     param(
@@ -197,6 +205,10 @@ function Remove-GameWipOwnedProcessRegistration
         }
     }
 }
+
+# ------------------------------------------------------------
+# Process invocation
+# ------------------------------------------------------------
 
 function Invoke-GameWipProcess
 {

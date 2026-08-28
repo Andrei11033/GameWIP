@@ -1,3 +1,5 @@
+# Refreshes the generated Doxyfile project number immediately before generation.
+
 foreach(required_variable IN ITEMS SOURCE_DIR BINARY_DIR PROJECT_VERSION OUTPUT_FILE)
     if(NOT DEFINED ${required_variable})
         message(FATAL_ERROR "${required_variable} is required to refresh Doxygen version metadata.")

@@ -25,6 +25,8 @@ indefinitely, zero is a poll/no-wait deadline, positive values are finite, and n
 
 `shutdown()` returns `IO::Types::Status`, performs best-effort draining/flushing/close, and always leaves Logger disabled.
 
+`running()` reports whether the worker currently accepts normal log records.
+
 ## Runtime filters
 
 `setSourceFilter`, `resetSourceFilter`, `resetSourceFilters`, `setLevelFilter`, `resetLevelFilter`, and `resetLevelFilters` return

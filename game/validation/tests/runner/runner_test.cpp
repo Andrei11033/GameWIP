@@ -73,6 +73,10 @@ namespace
         std::streambuf *previousError_ = nullptr;
     };
 
+    // ------------------------------------------------------------
+    // Runner probes
+    // ------------------------------------------------------------
+
     void recordInvocation(ProbeRecord &record, std::string_view name, const ValidationTests::ModuleInvocation &invocation)
     {
         ++record.runs;
@@ -196,6 +200,10 @@ namespace
     {
         return runProbeWithModules(arguments, probeModules, std::move(options));
     }
+
+    // ------------------------------------------------------------
+    // Runner test cases
+    // ------------------------------------------------------------
 
     void testDefaultManualOptions(TestSupport::Context &context)
     {
@@ -413,6 +421,10 @@ namespace
 
 namespace GameWIP::Test
 {
+    // ------------------------------------------------------------
+    // Test runner
+    // ------------------------------------------------------------
+
     int runRunnerTests(const RunnerTestOptions &options)
     {
         TestSupport::Types::Reporting::Options reportOptions;

@@ -34,6 +34,7 @@ elseif(GAMEWIP_CONSUMER_PACKAGE STREQUAL "Window")
         GameWIPIsolatedConsumer
         PRIVATE
             window_types.cpp
+            window_child_surface.cpp
             window_cursor.cpp
             window_description.cpp
             window_events.cpp

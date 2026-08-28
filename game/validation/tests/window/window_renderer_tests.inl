@@ -189,7 +189,7 @@ void testRendererOcclusionFeedback(TestSupport::Context &context)
 
     window.clearEvents();
     static_cast<void>(context.expectTrue("occluded report succeeds", Feedback::reportOcclusion(window, true).ok()));
-    static_cast<void>(context.expectTrue("occluded report updates cache", window.isOccluded()));
+    static_cast<void>(context.expectTrue("occluded report updates cache", window.occluded()));
     Window::Types::Event event;
     static_cast<void>(context.expectTrue("occluded transition queues event", window.popEvent(event)));
     const auto *occludedEvent = event.getIf<Window::Types::Events::OcclusionChanged>();
@@ -208,13 +208,13 @@ void testRendererOcclusionFeedback(TestSupport::Context &context)
         });
     worker.join();
     static_cast<void>(context.expectEq("wrong-thread renderer feedback is rejected", ErrorCode::ResourceBusy, wrongThreadCode));
-    static_cast<void>(context.expectTrue("wrong-thread report preserves cache", window.isOccluded()));
+    static_cast<void>(context.expectTrue("wrong-thread report preserves cache", window.occluded()));
 
     window.clearEvents();
     static_cast<void>(context.expectTrue("provider detaches", Feedback::detachOcclusionProvider(window).ok()));
     static_cast<void>(context.expectTrue("detach preserves backend capability", window.supports(Capability::OcclusionReporting)));
     static_cast<void>(context.expectFalse("detach clears provider state", Feedback::hasOcclusionProvider(window)));
-    static_cast<void>(context.expectFalse("detach resets occlusion cache", window.isOccluded()));
+    static_cast<void>(context.expectFalse("detach resets occlusion cache", window.occluded()));
     static_cast<void>(context.expectTrue("detach queues final false transition", window.popEvent(event)));
     const auto *visibleEvent = event.getIf<Window::Types::Events::OcclusionChanged>();
     static_cast<void>(context.expectTrue("detach event has typed payload", visibleEvent != nullptr));
@@ -233,7 +233,7 @@ void testRendererOcclusionFeedback(TestSupport::Context &context)
         static_cast<void>(Feedback::attachOcclusionProvider(overflow));
         static_cast<void>(Feedback::reportOcclusion(overflow, true));
         static_cast<void>(Feedback::reportOcclusion(overflow, false));
-        static_cast<void>(context.expectFalse("dropped transition still updates cache", overflow.isOccluded()));
+        static_cast<void>(context.expectFalse("dropped transition still updates cache", overflow.occluded()));
         static_cast<void>(context.expectEq("full queue counts dropped occlusion event", std::uint64_t{1}, overflow.eventQueueInfo().droppedEvents));
         static_cast<void>(overflow.close());
     }

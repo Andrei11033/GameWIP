@@ -1,3 +1,5 @@
+# Exercises generated GameWIP versions against clean, tagged, and dirty repositories.
+
 cmake_minimum_required(VERSION "${GAMEWIP_CMAKE_MINIMUM_VERSION}")
 
 include("${CMAKE_CURRENT_LIST_DIR}/GameWIPVersion.cmake")

@@ -12,9 +12,10 @@ The normal Window surface is:
 #include "window/window.h"
 ```
 
-Include `window/display_info.h`, `window/cursor.h`, `window/renderer_bridge.h`,
-or `window/native/win32.h` only when using rich display inspection, custom
-native cursors, renderer feedback, or Win32 native interoperability.
+Include `window/display_info.h`, `window/cursor.h`, `window/child_surface.h`,
+`window/renderer_bridge.h`, or `window/native/win32.h` only when using rich
+display inspection, custom native cursors, native child hosts, renderer
+feedback, or Win32 native interoperability.
 
 ## Installed CMake
 
@@ -98,5 +99,6 @@ individual event payloads.
 - @ref window_lifecycle_events defines ownership, queues, waiting, and close behavior.
 - @ref window_coordinates_and_dpi explains logical and pixel coordinate contracts.
 - @ref window_custom_cursors explains custom images, DPI variants, and shared lifetime.
+- @ref window_child_surfaces explains native child hosting and external descendant ownership.
 - @ref window_examples provides focused display, renderer, and native examples.
 - @ref window_troubleshooting maps common failures to their owning contract.

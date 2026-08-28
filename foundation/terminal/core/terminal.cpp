@@ -1123,6 +1123,10 @@ namespace GameWIP::Terminal
     {
     }
 
+    // ------------------------------------------------------------
+    // Output segment construction
+    // ------------------------------------------------------------
+
     Types::Output::Segment textSegment(std::string_view text) noexcept
     {
         return Types::Output::Segment(Types::Output::SegmentKind::Text, text, {}, {});
@@ -1139,6 +1143,10 @@ namespace GameWIP::Terminal
     }
 
     AlternateScreenScope::AlternateScreenScope() noexcept = default;
+
+    // ------------------------------------------------------------
+    // Scoped terminal state
+    // ------------------------------------------------------------
 
     AlternateScreenScope::AlternateScreenScope(AlternateScreenScope &&other) noexcept
         : stream_(other.stream_)
@@ -1338,6 +1346,10 @@ namespace GameWIP::Terminal
         return copyStatus(status_);
     }
 
+    // ------------------------------------------------------------
+    // Capabilities and geometry
+    // ------------------------------------------------------------
+
     Types::Input::CapabilitiesResult getInputCapabilities() noexcept
     {
         return getInputCapabilities(Types::Input::Stream::Stdin);
@@ -1429,6 +1441,10 @@ namespace GameWIP::Terminal
             return {.status = exceptionStatus(), .size = {}};
         }
     }
+
+    // ------------------------------------------------------------
+    // Output
+    // ------------------------------------------------------------
 
     IO::Types::Status writeText(std::string_view utf8Text, const Types::Output::TextOptions &options) noexcept
     {
@@ -1624,6 +1640,10 @@ namespace GameWIP::Terminal
             return exceptionStatus();
         }
     }
+
+    // ------------------------------------------------------------
+    // Terminal controls
+    // ------------------------------------------------------------
 
     IO::Types::Status resetStyle(const Types::Output::ControlOptions &options) noexcept
     {

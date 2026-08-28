@@ -382,6 +382,13 @@ namespace GameWIP::Logger
         return {format};
     }
 
+    // ------------------------------------------------------------
+    // Lifecycle
+    // ------------------------------------------------------------
+
+    /// @name Lifecycle
+    /// @{
+
     /// @brief Initializes Logger from a complete configuration.
     GAMEWIP_LOGGER_EXPORT Types::Init::Result init(const Types::Config &config) noexcept;
     /// @brief Initializes Logger with defaultConfig().
@@ -396,8 +403,17 @@ namespace GameWIP::Logger
     /// @details nullopt waits indefinitely, zero polls, positive durations are bounded, and negative durations are invalid.
     GAMEWIP_LOGGER_EXPORT Types::FlushResult flush(std::optional<std::chrono::milliseconds> timeout = std::nullopt) noexcept;
 
+    /// @}
+
+    // ------------------------------------------------------------
+    // State queries and statistics
+    // ------------------------------------------------------------
+
+    /// @name State queries and statistics
+    /// @{
+
     /// @brief Returns whether the worker currently accepts normal log records.
-    GAMEWIP_LOGGER_EXPORT bool isRunning() noexcept;
+    GAMEWIP_LOGGER_EXPORT bool running() noexcept;
     /// @brief Returns the configured minimum severity.
     GAMEWIP_LOGGER_EXPORT Types::Level getMinLevel();
     /// @brief Returns the currently effective normal-output mode.
@@ -416,6 +432,15 @@ namespace GameWIP::Logger
     GAMEWIP_LOGGER_EXPORT Types::MemoryStats getMemoryStats();
     /// @brief Resets statistics counters without changing health state.
     GAMEWIP_LOGGER_EXPORT void resetStats();
+
+    /// @}
+
+    // ------------------------------------------------------------
+    // Runtime filtering
+    // ------------------------------------------------------------
+
+    /// @name Runtime filtering
+    /// @{
 
     /// @brief Applies the current severity-only normal-log gate.
     GAMEWIP_LOGGER_EXPORT bool shouldLog(Types::Level level) noexcept;
@@ -460,6 +485,15 @@ namespace GameWIP::Logger
     {
         return resetSourceFilter(Detail::Core::sourceId(source));
     }
+
+    /// @}
+
+    // ------------------------------------------------------------
+    // Asynchronous logging
+    // ------------------------------------------------------------
+
+    /// @name Asynchronous logging
+    /// @{
 
     /// @brief Queues a preformatted normal record with a UTF-8 string source.
     GAMEWIP_LOGGER_EXPORT void log(Types::Level level, std::string_view source, std::string_view message) noexcept;
@@ -564,6 +598,15 @@ namespace GameWIP::Logger
     GAMEWIP_LOGGER_DECLARE_LEVEL_API(error, Types::Level::Error)
     GAMEWIP_LOGGER_DECLARE_LEVEL_API(fatal, Types::Level::Fatal)
 #undef GAMEWIP_LOGGER_DECLARE_LEVEL_API
+
+    /// @}
+
+    // ------------------------------------------------------------
+    // Synchronous reporting
+    // ------------------------------------------------------------
+
+    /// @name Synchronous reporting
+    /// @{
 
     /// @brief Synchronously reports a preformatted diagnostic through eligible emergency channels.
     GAMEWIP_LOGGER_EXPORT Types::Report::Result report(Types::Level level, std::string_view source, std::string_view message) noexcept;
@@ -730,6 +773,15 @@ namespace GameWIP::Logger
     GAMEWIP_LOGGER_DECLARE_FORMATTED_REPORT(reportFatal, Types::Level::Fatal, true)
 #undef GAMEWIP_LOGGER_DECLARE_FORMATTED_REPORT
 
+    /// @}
+
+    // ------------------------------------------------------------
+    // Fatal termination
+    // ------------------------------------------------------------
+
+    /// @name Fatal termination
+    /// @{
+
     /// @brief Reports a Fatal diagnostic and then calls std::terminate().
     [[noreturn]] GAMEWIP_LOGGER_EXPORT void fatalTerminate(std::string_view source, std::string_view message) noexcept;
     /// @brief Reports a registered-source Fatal diagnostic and then calls std::terminate().
@@ -793,6 +845,17 @@ namespace GameWIP::Logger
         std::terminate();
     }
 
+    /// @}
+
+    // ------------------------------------------------------------
+    // Debugger output
+    // ------------------------------------------------------------
+
+    /// @name Debugger output
+    /// @{
+
     /// @brief Writes one validated UTF-8 diagnostic directly to the debugger channel.
     GAMEWIP_LOGGER_EXPORT IO::Types::Status writeDebugOutput(Types::Level level, std::string_view source, std::string_view message) noexcept;
+
+    /// @}
 } // namespace GameWIP::Logger

@@ -10,8 +10,9 @@
 
 namespace GameWIP::Window
 {
+    class ChildSurface;
     class Window;
-}
+} // namespace GameWIP::Window
 
 /// @brief Deliberate Win32 interoperability for the portable Window owner.
 namespace GameWIP::Window::Native::Win32
@@ -37,4 +38,11 @@ namespace GameWIP::Window::Native::Win32
     /// @return Query status and non-owning handles on success.
     /// @warning Native use must not race Window close.
     [[nodiscard]] GAMEWIP_WINDOW_EXPORT HandleResult getHandle(const GameWIP::Window::Window &window) noexcept;
+
+    /// @brief Returns the borrowed Win32 host handle for an open ChildSurface on its owner thread.
+    /// @param surface ChildSurface whose native host handle is requested.
+    /// @return Query status and non-owning handles on success.
+    /// @warning Native use must not race ChildSurface close. Consumers must not destroy, reparent,
+    /// subclass, or overwrite GameWIP-owned state on the returned host HWND.
+    [[nodiscard]] GAMEWIP_WINDOW_EXPORT HandleResult getHandle(const GameWIP::Window::ChildSurface &surface) noexcept;
 } // namespace GameWIP::Window::Native::Win32

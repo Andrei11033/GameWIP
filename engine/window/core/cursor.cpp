@@ -21,6 +21,9 @@
 
 namespace GameWIP::Window
 {
+    // ------------------------------------------------------------
+    // Cursor validation and resource state
+    // ------------------------------------------------------------
     namespace
     {
         using IO::Types::ErrorCode;
@@ -92,6 +95,9 @@ namespace GameWIP::Window
         }
     } // namespace
 
+    // ------------------------------------------------------------
+    // Shared cursor lifecycle
+    // ------------------------------------------------------------
     Cursor::Cursor() noexcept = default;
     Cursor::Cursor(const Cursor &) noexcept = default;
     Cursor &Cursor::operator=(const Cursor &) noexcept = default;
@@ -140,6 +146,9 @@ namespace GameWIP::Window
         return cursor.state_;
     }
 
+    // ------------------------------------------------------------
+    // Cursor creation and Window binding
+    // ------------------------------------------------------------
     Types::Cursor::CreateResult createCursor(const Types::Cursor::ImageView &image) noexcept
     {
         return createCursor(std::span{&image, std::size_t{1}});
@@ -186,7 +195,7 @@ namespace GameWIP::Window
         Detail::WindowState *state = Detail::WindowAccess::state(window);
         if (state == nullptr || !state->platform || !Detail::Platform::hasLiveNativeWindow(*state))
             return error(ErrorCode::NotOpen);
-        if (!Detail::Platform::isOwnedByCurrentThread(*state))
+        if (!Detail::Platform::ownedByCurrentThread(*state))
             return error(ErrorCode::ResourceBusy);
         if (!cursor.isValid())
             return error(ErrorCode::InvalidArgument);
@@ -197,6 +206,6 @@ namespace GameWIP::Window
     {
         const Detail::WindowState *state = Detail::WindowAccess::state(window);
         return state != nullptr && state->platform && Detail::Platform::hasLiveNativeWindow(*state) &&
-               Detail::Platform::isOwnedByCurrentThread(*state) && Detail::Platform::hasCustomCursor(*state);
+               Detail::Platform::ownedByCurrentThread(*state) && Detail::Platform::hasCustomCursor(*state);
     }
 } // namespace GameWIP::Window

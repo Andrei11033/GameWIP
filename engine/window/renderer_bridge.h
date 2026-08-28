@@ -40,6 +40,9 @@ namespace GameWIP::Window::Types::Renderer
 /// @brief Window-side bridge for renderer-owned presentation feedback and integration data.
 namespace GameWIP::Window::Renderer
 {
+    /// @name Occlusion reporting
+    /// @{
+
     /// @brief Attaches the renderer as the Window's sole occlusion provider.
     /// @param window Open Window to update; the call must run on its owner thread.
     /// @return Success, or the open-state, thread, or already-attached failure.
@@ -57,6 +60,10 @@ namespace GameWIP::Window::Renderer
     /// @param window Window whose provider is detached.
     /// @return Success, or the open-state or wrong-thread failure.
     [[nodiscard]] GAMEWIP_WINDOW_EXPORT IO::Types::Status detachOcclusionProvider(Window &window) noexcept;
+    /// @}
+
+    /// @name Pointer hit masks
+    /// @{
 
     /// @brief Computes the packed-word count for a framebuffer-sized one-bit mask.
     /// @param framebufferSize Physical mask extent in pixels.
@@ -83,4 +90,5 @@ namespace GameWIP::Window::Renderer
     /// @param window Window to inspect.
     /// @return true when a mask matching the current framebuffer generation is published.
     [[nodiscard]] GAMEWIP_WINDOW_EXPORT bool hasPointerHitMask(const Window &window) noexcept;
+    /// @}
 } // namespace GameWIP::Window::Renderer

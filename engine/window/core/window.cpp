@@ -16,6 +16,9 @@
 
 namespace GameWIP::Window
 {
+    // ------------------------------------------------------------
+    // Validation and state construction
+    // ------------------------------------------------------------
     namespace
     {
         using IO::Types::ErrorCode;
@@ -157,7 +160,7 @@ namespace GameWIP::Window
         {
             if (state == nullptr || !state->platform || !Detail::Platform::hasLiveNativeWindow(*state))
                 return error(ErrorCode::NotOpen);
-            if (!Detail::Platform::isOwnedByCurrentThread(*state))
+            if (!Detail::Platform::ownedByCurrentThread(*state))
                 return error(ErrorCode::ResourceBusy);
             return IO::successStatus();
         }
@@ -165,7 +168,7 @@ namespace GameWIP::Window
         [[nodiscard]] bool owned(const Detail::WindowState *state) noexcept
         {
             return state != nullptr &&
-                   (state->platform ? Detail::Platform::isOwnedByCurrentThread(*state) : state->ownerThread == std::this_thread::get_id());
+                   (state->platform ? Detail::Platform::ownedByCurrentThread(*state) : state->ownerThread == std::this_thread::get_id());
         }
 
         void initializeCachedState(Detail::WindowState &state, const Types::Description &description)
@@ -202,6 +205,9 @@ namespace GameWIP::Window
         }
     } // namespace
 
+    // ------------------------------------------------------------
+    // Capabilities and lifecycle
+    // ------------------------------------------------------------
     Types::CapabilitiesResult getCapabilities() noexcept
     {
         return Detail::Platform::getCapabilities();
@@ -222,7 +228,7 @@ namespace GameWIP::Window
             if (rendererIntegration_)
                 rendererIntegration_->finishWindowLifetime();
             state_->rendererIntegration = nullptr;
-            if (!Detail::Platform::isOwnedByCurrentThread(*state_) && Detail::Platform::deferCleanupToOwner(state_))
+            if (!Detail::Platform::ownedByCurrentThread(*state_) && Detail::Platform::deferCleanupToOwner(state_))
                 return;
             Detail::Platform::closeBestEffort(*state_);
             releaseEventStorage(*state_);
@@ -343,7 +349,7 @@ namespace GameWIP::Window
             state_.reset();
             return IO::successStatus();
         }
-        if (state_ && !Detail::Platform::isOwnedByCurrentThread(*state_))
+        if (state_ && !Detail::Platform::ownedByCurrentThread(*state_))
             return error(ErrorCode::ResourceBusy);
 
         Detail::invalidatePointerHitMask(*state_);
@@ -358,6 +364,9 @@ namespace GameWIP::Window
         return result.status;
     }
 
+    // ------------------------------------------------------------
+    // Identity, close requests, and events
+    // ------------------------------------------------------------
     Types::WindowId Window::id() const noexcept
     {
         return state_ ? state_->id : Types::WindowId{};
@@ -368,7 +377,7 @@ namespace GameWIP::Window
         return state_ ? state_->owner : Types::WindowId{};
     }
 
-    bool Window::isOwnedByCurrentThread() const noexcept
+    bool Window::ownedByCurrentThread() const noexcept
     {
         return owned(state_.get());
     }
@@ -415,7 +424,9 @@ namespace GameWIP::Window
     {
         if (!owned(state_.get()) || state_->eventCount == 0)
             return false;
-        outEvent = std::move(state_->eventStorage[state_->eventHead]);
+        Types::Event &slot = state_->eventStorage[state_->eventHead];
+        outEvent = std::move(slot);
+        slot = {};
         state_->eventHead = (state_->eventHead + 1) % state_->eventStorage.size();
         --state_->eventCount;
         if (state_->eventCount == 0)
@@ -465,6 +476,9 @@ namespace GameWIP::Window
         return Detail::Platform::wakeEventWait(*state_);
     }
 
+    // ------------------------------------------------------------
+    // Cached state
+    // ------------------------------------------------------------
     std::string_view Window::title() const noexcept
     {
         return state_ ? std::string_view(state_->title) : std::string_view{};
@@ -557,56 +571,59 @@ namespace GameWIP::Window
     {
         return state_ ? state_->opacity : 1.0F;
     }
-    bool Window::isVisible() const noexcept
+    bool Window::visible() const noexcept
     {
         return state_ && state_->visible;
     }
-    bool Window::isFocused() const noexcept
+    bool Window::focused() const noexcept
     {
         return state_ && state_->focused;
     }
-    bool Window::isMinimized() const noexcept
+    bool Window::minimized() const noexcept
     {
         return state_ && state_->presentation == Types::PresentationState::Minimized;
     }
-    bool Window::isMaximized() const noexcept
+    bool Window::maximized() const noexcept
     {
         return state_ && state_->presentation == Types::PresentationState::Maximized;
     }
-    bool Window::isOccluded() const noexcept
+    bool Window::occluded() const noexcept
     {
         const Detail::RendererIntegrationState *renderer = Detail::WindowAccess::rendererIntegration(*this);
         return state_ && renderer != nullptr && renderer->occluded;
     }
-    bool Window::isCursorInside() const noexcept
+    bool Window::cursorInside() const noexcept
     {
         return state_ && state_->cursorInside;
     }
-    bool Window::isResizable() const noexcept
+    bool Window::resizable() const noexcept
     {
         return state_ && state_->resizable;
     }
-    bool Window::isFocusable() const noexcept
+    bool Window::focusable() const noexcept
     {
         return state_ && state_->focusable;
     }
-    bool Window::isUserInteractionEnabled() const noexcept
+    bool Window::userInteractionEnabled() const noexcept
     {
         return state_ && state_->interactionEnabled;
     }
-    bool Window::isAlwaysOnTop() const noexcept
+    bool Window::alwaysOnTop() const noexcept
     {
         return state_ && state_->alwaysOnTop;
     }
-    bool Window::isFileDropEnabled() const noexcept
+    bool Window::fileDropEnabled() const noexcept
     {
         return state_ && state_->fileDropEnabled;
     }
-    bool Window::hasTransparentFramebuffer() const noexcept
+    bool Window::transparentFramebuffer() const noexcept
     {
         return state_ && state_->transparentFramebuffer;
     }
 
+    // ------------------------------------------------------------
+    // Geometry and content mutations
+    // ------------------------------------------------------------
     IO::Types::Status Window::setTitle(std::string_view utf8Title) noexcept
     {
         IO::Types::Status status = requireState(state_.get());
@@ -736,6 +753,9 @@ namespace GameWIP::Window
         return IO::successStatus();
     }
 
+    // ------------------------------------------------------------
+    // Presentation and interaction
+    // ------------------------------------------------------------
     IO::Types::Status Window::show() noexcept
     {
         IO::Types::Status status = requireState(state_.get());
@@ -977,6 +997,9 @@ namespace GameWIP::Window
         }
     }
 
+    // ------------------------------------------------------------
+    // Cursor controls
+    // ------------------------------------------------------------
     IO::Types::Status Window::setCursorMode(Types::CursorMode mode) noexcept
     {
         IO::Types::Status status = requireState(state_.get());

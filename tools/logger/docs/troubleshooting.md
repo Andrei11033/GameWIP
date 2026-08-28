@@ -21,7 +21,7 @@ sink/platform operation failed. Native IO already started may outlast the deadli
 
 ## Reports appear but normal logs do not
 
-Reports bypass filters and queue pressure. Check `isRunning()`, `getOutput()`, source/level filters, queue-drop counters, and `getHealth()`.
+Reports bypass filters and queue pressure. Check `running()`, `getOutput()`, source/level filters, queue-drop counters, and `getHealth()`.
 
 ## UTF-8 text was rejected
 

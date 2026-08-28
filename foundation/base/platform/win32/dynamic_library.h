@@ -16,7 +16,11 @@
 namespace GameWIP::Base::Win32
 {
     /// @brief Resolves a Win32 procedure while preserving its exact function-pointer type.
+    /// @tparam FunctionType Exact function-pointer type expected by the caller.
+    /// @param module Borrowed loaded-module handle that remains owned by the caller.
+    /// @param name Null-terminated exported procedure name.
     /// @return The typed procedure, or null when the module, name, or lookup result is null.
+    /// @warning The returned pointer remains usable only while the module stays loaded.
     template <typename FunctionType>
         requires std::is_pointer_v<FunctionType> && std::is_function_v<std::remove_pointer_t<FunctionType>>
     [[nodiscard]] FunctionType loadProcedure(HMODULE module, const char *name) noexcept

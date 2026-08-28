@@ -28,6 +28,9 @@ namespace GameWIP::Window
     class GAMEWIP_WINDOW_EXPORT Cursor final
     {
     public:
+        /// @name Lifecycle
+        /// @{
+
         /// @brief Constructs an invalid cursor.
         Cursor() noexcept;
         /// @brief Shares another cursor's immutable native resources.
@@ -40,6 +43,7 @@ namespace GameWIP::Window
         Cursor &operator=(Cursor &&) noexcept;
         /// @brief Releases this handle's shared ownership.
         ~Cursor() noexcept;
+        /// @}
 
         /// @brief Reports whether this handle owns at least one native cursor variant.
         /// @return true when the cursor may be selected on a Window.
@@ -88,6 +92,9 @@ namespace GameWIP::Window::Types::Cursor
 
 namespace GameWIP::Window
 {
+    /// @name Custom cursor operations
+    /// @{
+
     /// @brief Validates and eagerly materializes one application-provided cursor image.
     /// @param image RGBA8 image and physical-pixel hotspot to materialize.
     /// @return A valid shared Cursor on success.
@@ -108,4 +115,5 @@ namespace GameWIP::Window
     /// @param window Window to inspect.
     /// @return true only while a custom cursor override is bound to the native Window.
     [[nodiscard]] GAMEWIP_WINDOW_EXPORT bool hasCustomCursor(const Window &window) noexcept;
+    /// @}
 } // namespace GameWIP::Window

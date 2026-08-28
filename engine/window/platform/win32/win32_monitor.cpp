@@ -17,6 +17,9 @@
 
 namespace GameWIP::Window::Detail::Platform
 {
+    // ------------------------------------------------------------
+    // Monitor discovery and native metadata
+    // ------------------------------------------------------------
     namespace
     {
         std::mutex monitorRegistryMutex;
@@ -399,6 +402,9 @@ namespace GameWIP::Window::Detail::Platform
         }
     } // namespace
 
+    // ------------------------------------------------------------
+    // Runtime capabilities
+    // ------------------------------------------------------------
     std::uint32_t runtimeWindowsBuild() noexcept
     {
         static const std::uint32_t build = []
@@ -439,7 +445,7 @@ namespace GameWIP::Window::Detail::Platform
                               capabilityBit(C::AlwaysOnTop) | capabilityBit(C::Opacity) | capabilityBit(C::PointerClickThrough) |
                               capabilityBit(C::CursorConfinement) | capabilityBit(C::RelativeCursor) | capabilityBit(C::CursorWarping) |
                               capabilityBit(C::CustomCursor) | capabilityBit(C::FileDrop) | capabilityBit(C::ExclusiveFullscreen) |
-                              capabilityBit(C::OcclusionReporting);
+                              capabilityBit(C::OcclusionReporting) | capabilityBit(C::ChildSurface);
         if (supportsSystemBackdrop())
             flags |= capabilityBit(C::SystemBackdrop);
         if (supportsTransparentFramebuffer())
@@ -449,6 +455,9 @@ namespace GameWIP::Window::Detail::Platform
             .capabilities = {.flags = flags, .maximumCustomChromeRegions = kMaximumChromeRegions, .maximumPointerInputRegions = 0}};
     }
 
+    // ------------------------------------------------------------
+    // Monitor queries
+    // ------------------------------------------------------------
     Types::Display::InfoResult monitorFromNative(HMONITOR monitor) noexcept
     {
         if (monitor == nullptr)
@@ -605,6 +614,9 @@ namespace GameWIP::Window::Detail::Platform
         }
     }
 
+    // ------------------------------------------------------------
+    // Display modes
+    // ------------------------------------------------------------
     Types::Display::ModesResult getModes(Types::Display::MonitorId monitor) noexcept
     {
         if (!monitor.isValid())
@@ -719,6 +731,9 @@ namespace GameWIP::Window::Detail::Platform
         }
     }
 
+    // ------------------------------------------------------------
+    // Display color state
+    // ------------------------------------------------------------
     Types::Display::ColorInfoResult getColorInfo(Types::Display::MonitorId monitor) noexcept
     {
         if (!monitor.isValid())
@@ -782,6 +797,9 @@ namespace GameWIP::Window::Detail::Platform
 #if WINDOW_INTERNAL_TEST_HOOKS
 namespace GameWIP::Window::TestHooks
 {
+    // ------------------------------------------------------------
+    // Validation support
+    // ------------------------------------------------------------
     std::uint32_t refreshRateMillihertz(std::uint32_t numerator, std::uint32_t denominator) noexcept
     {
         return Detail::Platform::rationalMillihertz({numerator, denominator});

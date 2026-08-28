@@ -11,6 +11,9 @@
 
 namespace GameWIP::Window::Detail::Platform
 {
+    // ------------------------------------------------------------
+    // Native geometry and icon helpers
+    // ------------------------------------------------------------
     namespace
     {
         [[nodiscard]] IO::Types::Status setNativeParent(HWND window, HWND owner) noexcept
@@ -147,6 +150,9 @@ namespace GameWIP::Window::Detail::Platform
         }
     } // namespace
 
+    // ------------------------------------------------------------
+    // Ownership and content
+    // ------------------------------------------------------------
     IO::Types::Status setOwner(WindowState &state, Types::WindowId owner) noexcept
     {
         WindowState *ownerState = owner.isValid() ? resolveWindowId(owner) : nullptr;
@@ -249,6 +255,9 @@ namespace GameWIP::Window::Detail::Platform
         return IO::successStatus();
     }
 
+    // ------------------------------------------------------------
+    // Geometry and coordinate conversion
+    // ------------------------------------------------------------
     IO::Types::Status setClientSize(WindowState &state, Types::LogicalSize size) noexcept
     {
         return setOuterRect(state, state.clientPosition, size);

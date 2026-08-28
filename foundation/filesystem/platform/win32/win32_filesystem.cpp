@@ -2097,6 +2097,10 @@ namespace GameWIP::FileSystem::Detail::Platform
         }
     } // namespace
 
+    // ------------------------------------------------------------
+    // Entry queries
+    // ------------------------------------------------------------
+
     EntryQueryResult queryEntry(const Types::Path &path, Types::SymlinkPolicy symlinkPolicy) noexcept
     {
         try
@@ -2207,6 +2211,10 @@ namespace GameWIP::FileSystem::Detail::Platform
             return IO::makeStatus(ErrorCode::Unknown);
         }
     }
+
+    // ------------------------------------------------------------
+    // File operations
+    // ------------------------------------------------------------
 
     IO::Types::Status openFile(std::unique_ptr<Detail::FileState> &state, const Types::Path &path, const Types::File::OpenOptions &options) noexcept
     {
@@ -2674,6 +2682,10 @@ namespace GameWIP::FileSystem::Detail::Platform
         return unlockNativeFile(state);
     }
 
+    // ------------------------------------------------------------
+    // Directory operations
+    // ------------------------------------------------------------
+
     IO::Types::Status createDirectory(const Types::Path &path, const Types::Directory::CreateOptions &options) noexcept
     {
         try
@@ -2873,6 +2885,10 @@ namespace GameWIP::FileSystem::Detail::Platform
             return {.status = IO::makeStatus(ErrorCode::Unknown)};
         }
     }
+
+    // ------------------------------------------------------------
+    // Metadata and mutations
+    // ------------------------------------------------------------
 
     IO::Types::Status setReadOnly(const Types::Path &path, bool readOnly, Types::SymlinkPolicy symlinkPolicy) noexcept
     {
@@ -3300,6 +3316,10 @@ namespace GameWIP::FileSystem::Detail
     } // namespace
 
     FileState::FileState() = default;
+
+    // ------------------------------------------------------------
+    // Native state cleanup
+    // ------------------------------------------------------------
 
     FileState::~FileState() noexcept
     {

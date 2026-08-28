@@ -68,12 +68,12 @@ void testTargetedGraphemeBoundaries(TestSupport::Context &context)
     static_cast<void>(
         context.expectEq("grapheme cursor short storage outcome", Unicode::Types::GraphemeIndexOutcome::DestinationTooSmall, tooSmall.outcome));
     static_cast<void>(context.expectEq("grapheme cursor required boundary count", cursorFixture.boundaries.size(), tooSmall.requiredBoundaryCount));
-    static_cast<void>(context.expectFalse("grapheme cursor short storage remains unready", cursor.isReady()));
+    static_cast<void>(context.expectFalse("grapheme cursor short storage remains unready", cursor.ready()));
 
     std::array<std::size_t, 8> boundaryStorage{};
     const Unicode::Types::Utf8GraphemeIndexResult ready = cursor.reset(cursorFixture.text, boundaryStorage);
     static_cast<void>(context.expectEq("grapheme cursor reset outcome", Unicode::Types::GraphemeIndexOutcome::Indexed, ready.outcome));
-    static_cast<void>(context.expectTrue("grapheme cursor becomes ready", cursor.isReady()));
+    static_cast<void>(context.expectTrue("grapheme cursor becomes ready", cursor.ready()));
     static_cast<void>(context.expectEq("grapheme cursor starts at zero", std::size_t{0}, cursor.byteOffset()));
     static_cast<void>(context.expectEq("grapheme cursor indexed count", cursorFixture.boundaries.size(), cursor.boundaryCount()));
 
@@ -95,7 +95,7 @@ void testTargetedGraphemeBoundaries(TestSupport::Context &context)
     static_cast<void>(
         context.expectEq("grapheme cursor malformed outcome", Unicode::Types::GraphemeIndexOutcome::InvalidEncoding, invalidCursor.outcome));
     static_cast<void>(context.expectEq("grapheme cursor malformed required count", std::size_t{0}, invalidCursor.requiredBoundaryCount));
-    static_cast<void>(context.expectFalse("grapheme cursor malformed reset clears state", cursor.isReady()));
+    static_cast<void>(context.expectFalse("grapheme cursor malformed reset clears state", cursor.ready()));
 
     std::array<std::size_t, 1> emptyStorage{};
     const Unicode::Types::Utf8GraphemeIndexResult emptyCursor = cursor.reset({}, emptyStorage);

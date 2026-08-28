@@ -14,6 +14,7 @@ Window exposes one public `GameWIP::Window::Types` tree and focused headers by c
 - `window/display.h` contains fundamental `Types::Display::MonitorId`, display `Mode`, and mode queries.
 - `window/display_info.h` is the opt-in rich monitor/color inspection surface.
 - `window/cursor.h` is the opt-in custom native cursor resource and selection surface.
+- `window/child_surface.h` is the opt-in managed native child-host resource, passive description, and typed event surface.
 - `window/window.h` assembles the normal Window object API and includes the fundamental headers above, but not rich display inspection, custom cursor
   resources, renderer integration, or native interop.
 - `window/renderer_bridge.h` is the opt-in renderer feedback bridge.
@@ -35,13 +36,18 @@ whether a custom cursor is selected or a renderer provider is currently attached
 Cached getters do not issue native queries. Expected failures are returned as `IO::Types::Status` or typed result structs. Explicit `close()` is
 synchronous and observable through its return status.
 
+Plain cached properties use direct names such as `visible()`, `focused()`, `resizable()`, `userInteractionEnabled()`, and
+`ownedByCurrentThread()`. `isOpen()` retains its prefix to distinguish the lifetime query from the checked `open()` operation; `isValid()` remains a
+classification query on identity and resource values. Presence, capability, and support queries retain meaningful forms such as `hasCloseRequest()`,
+`hasCustomCursor()`, and `supports()`.
+
 `hasCloseRequest()` reports sticky close intent. `requestClose()` queues one `Types::Events::CloseRequested` transition and `clearCloseRequest()`
 clears the sticky flag.
 
 ## Configuration vocabulary
 
 `Types::Mode` is the top-level Window mode. `Types::Controls` describes standard close/minimize/maximize availability.
-`Types::Description::fileDropEnabled` configures initial file-drop delivery; runtime state is queried by `Window::isFileDropEnabled()` and changed by
+`Types::Description::fileDropEnabled` configures initial file-drop delivery; runtime state is queried by `Window::fileDropEnabled()` and changed by
 `setFileDropEnabled()`.
 
 Configuration/request types live with `description.h`; shared primitive values remain in `types.h`; live Window state and call-scoped layouts remain
@@ -52,6 +58,12 @@ in `window.h`.
 `window/cursor.h` contains the shared `Cursor` resource, passive image values under `Types::Cursor`, `createCursor()` overloads, and the free
 `setCursor()` and `hasCustomCursor()` Window operations. It remains separate from `window/window.h` because application-provided cursor images are an
 opt-in resource surface. See @ref window_custom_cursors for image validation, DPI selection, lifetime, and system-shape interaction.
+
+## Child surfaces
+
+`window/child_surface.h` contains the non-movable `ChildSurface` RAII owner and passive values under `Types::ChildSurface`. It reuses shared
+`Types::LifetimeState`, `Types::Events::QueueInfo`, and `Types::Events::StorageKind`; there is no public ChildSurface ID. See
+@ref window_child_surfaces for native-host ownership, parent loss, logical geometry, DPI, queues, and sibling ordering.
 
 ## Events
 

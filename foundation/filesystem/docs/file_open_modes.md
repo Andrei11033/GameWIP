@@ -88,7 +88,7 @@ an important lifecycle distinction:
 - a handle destructor cannot report that condition and performs best-effort native cleanup;
 - the independently owned `FileLock` remains responsible for unlocking.
 
-A failed explicit `unlock()` leaves the lock active and can be retried. `mode()` is meaningful only while `isActive()` is true.
+A failed explicit `unlock()` leaves the lock active and can be retried. `mode()` is meaningful only while `active()` is true.
 
 Locks are process-visible coordination primitives, but native locks may be advisory with respect to uncooperative tools. Use sharing to constrain
 opens and locks to coordinate cooperating code.

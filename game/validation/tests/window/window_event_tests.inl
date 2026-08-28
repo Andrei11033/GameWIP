@@ -46,6 +46,10 @@ void testFixedEventQueue(TestSupport::Context &context)
     Window::Types::Events::FilesDropped dropped;
     dropped.paths.emplace_back("retained-until-close.txt");
     static_cast<void>(Window::TestHooks::enqueue(payloadWindow, std::move(dropped)));
+    Window::Types::Event removedPayload;
+    static_cast<void>(payloadWindow.popEvent(removedPayload));
+    static_cast<void>(context.expectEq("pop clears the vacated borrowed event slot", std::uint64_t{0}, payloadStorage[0].sequence));
+    static_cast<void>(Window::TestHooks::enqueue(payloadWindow, Window::Types::Events::FilesDropped{}));
     static_cast<void>(payloadWindow.close());
     static_cast<void>(context.expectTrue(
         "close releases payloads from borrowed event slots",
@@ -129,47 +133,47 @@ void testNativeEventTranslation(TestSupport::Context &context)
     static_cast<void>(SendMessageW(handle.handle.window, WM_SHOWWINDOW, FALSE, 0));
     window.clearEvents();
     static_cast<void>(SendMessageW(handle.handle.window, WM_SHOWWINDOW, TRUE, 0));
-    static_cast<void>(context.expectTrue("WM_SHOWWINDOW updates visibility cache", window.isVisible()));
+    static_cast<void>(context.expectTrue("WM_SHOWWINDOW updates visibility cache", window.visible()));
     static_cast<void>(context.expectTrue(
         "WM_SHOWWINDOW translates to VisibilityChangedEvent",
         consumeEventOfType<Window::Types::Events::VisibilityChanged>(window)));
     window.clearEvents();
     static_cast<void>(SendMessageW(handle.handle.window, WM_SHOWWINDOW, FALSE, 0));
-    static_cast<void>(context.expectFalse("synthetic hide restores visibility cache", window.isVisible()));
+    static_cast<void>(context.expectFalse("synthetic hide restores visibility cache", window.visible()));
     static_cast<void>(consumeEventOfType<Window::Types::Events::VisibilityChanged>(window));
 
     window.clearEvents();
     static_cast<void>(SendMessageW(handle.handle.window, WM_SIZE, SIZE_MINIMIZED, MAKELPARAM(300, 210)));
-    static_cast<void>(context.expectTrue("WM_SIZE minimize updates presentation cache", window.isMinimized()));
+    static_cast<void>(context.expectTrue("WM_SIZE minimize updates presentation cache", window.minimized()));
     static_cast<void>(context.expectTrue(
         "WM_SIZE translates to PresentationStateChangedEvent",
         consumeEventOfType<Window::Types::Events::PresentationStateChanged>(window)));
     window.clearEvents();
     static_cast<void>(SendMessageW(handle.handle.window, WM_SIZE, SIZE_RESTORED, MAKELPARAM(300, 210)));
-    static_cast<void>(context.expectFalse("synthetic restore resets minimized cache", window.isMinimized()));
+    static_cast<void>(context.expectFalse("synthetic restore resets minimized cache", window.minimized()));
     static_cast<void>(consumeEventOfType<Window::Types::Events::PresentationStateChanged>(window));
 
     static_cast<void>(SendMessageW(handle.handle.window, WM_KILLFOCUS, 0, 0));
     window.clearEvents();
     static_cast<void>(SendMessageW(handle.handle.window, WM_SETFOCUS, 0, 0));
-    static_cast<void>(context.expectTrue("WM_SETFOCUS updates cache", window.isFocused()));
+    static_cast<void>(context.expectTrue("WM_SETFOCUS updates cache", window.focused()));
     static_cast<void>(
         context.expectTrue("WM_SETFOCUS translates to FocusChangedEvent", consumeEventOfType<Window::Types::Events::FocusChanged>(window)));
     window.clearEvents();
     static_cast<void>(SendMessageW(handle.handle.window, WM_KILLFOCUS, 0, 0));
-    static_cast<void>(context.expectFalse("WM_KILLFOCUS updates cache", window.isFocused()));
+    static_cast<void>(context.expectFalse("WM_KILLFOCUS updates cache", window.focused()));
     static_cast<void>(
         context.expectTrue("WM_KILLFOCUS translates to FocusChangedEvent", consumeEventOfType<Window::Types::Events::FocusChanged>(window)));
 
     window.clearEvents();
     static_cast<void>(SendMessageW(handle.handle.window, WM_MOUSEMOVE, 0, MAKELPARAM(2, 2)));
-    static_cast<void>(context.expectTrue("WM_MOUSEMOVE updates cursor-presence cache", window.isCursorInside()));
+    static_cast<void>(context.expectTrue("WM_MOUSEMOVE updates cursor-presence cache", window.cursorInside()));
     static_cast<void>(context.expectTrue(
         "WM_MOUSEMOVE translates to CursorPresenceChangedEvent",
         consumeEventOfType<Window::Types::Events::CursorPresenceChanged>(window)));
     window.clearEvents();
     static_cast<void>(SendMessageW(handle.handle.window, WM_MOUSELEAVE, 0, 0));
-    static_cast<void>(context.expectFalse("WM_MOUSELEAVE updates cursor-presence cache", window.isCursorInside()));
+    static_cast<void>(context.expectFalse("WM_MOUSELEAVE updates cursor-presence cache", window.cursorInside()));
     static_cast<void>(context.expectTrue(
         "WM_MOUSELEAVE translates to CursorPresenceChangedEvent",
         consumeEventOfType<Window::Types::Events::CursorPresenceChanged>(window)));

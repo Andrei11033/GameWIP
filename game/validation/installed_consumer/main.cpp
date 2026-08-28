@@ -15,6 +15,7 @@
 #include "terminal/terminal.h"
 #include "test_support/test_support.h"
 #include "unicode/unicode.h"
+#include "window/child_surface.h"
 #include "window/cursor.h"
 #include "window/display_info.h"
 #include "window/renderer_bridge.h"
@@ -65,6 +66,7 @@ int main()
         GameWIP::Window::createCursor(GameWIP::Window::Types::Cursor::ImageView{});
     const GameWIP::Window::Types::LogicalSize windowSize{640, 360};
     GameWIP::Window::Window closedWindow;
+    GameWIP::Window::ChildSurface closedChildSurface;
     const GameWIP::IO::Types::Status rendererFeedbackStatus = GameWIP::Window::Renderer::attachOcclusionProvider(closedWindow);
     const bool rendererProvider = GameWIP::Window::Renderer::hasOcclusionProvider(closedWindow);
     const GameWIP::Window::Types::Display::ColorInfoResult displayColor = GameWIP::Window::Display::getColorInfo(closedWindow);
@@ -93,7 +95,7 @@ int main()
                    !invalidCursor.cursor.isValid() && invalidSingleCursor.status.code == GameWIP::IO::Types::ErrorCode::InvalidArgument &&
                    !invalidSingleCursor.cursor.isValid() && rendererFeedbackStatus.code == GameWIP::IO::Types::ErrorCode::NotOpen &&
                    !rendererProvider && displayColor.status.code == GameWIP::IO::Types::ErrorCode::NotOpen && windowSize.width == 640 &&
-                   loggerConfig.logDirectory == std::string_view{"logs"}
+                   loggerConfig.logDirectory == std::string_view{"logs"} && !closedChildSurface.isOpen()
                ? 0
                : 1;
 }

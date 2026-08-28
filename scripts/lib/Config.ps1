@@ -3,6 +3,10 @@
 
 Set-StrictMode -Version Latest
 
+# ------------------------------------------------------------
+# Configuration loading
+# ------------------------------------------------------------
+
 function Resolve-GameWipRepositoryPath
 {
     param([Parameter(Mandatory = $true)][string]$Path)
@@ -96,6 +100,10 @@ function Read-GameWipJsonConfig
     }
     return $config
 }
+
+# ------------------------------------------------------------
+# Configuration validation
+# ------------------------------------------------------------
 
 function Assert-GameWipProjectConfig
 {
@@ -336,6 +344,10 @@ function Assert-GameWipProjectToolConfig
         }
     }
 }
+
+# ------------------------------------------------------------
+# Commands and bundles
+# ------------------------------------------------------------
 
 function Get-GameWipVisiblePresetName
 {

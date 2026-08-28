@@ -99,6 +99,10 @@ namespace
     }
 
     /// @brief Exposes fixture text as bytes without copying or conversion.
+    // ------------------------------------------------------------
+    // Test helpers
+    // ------------------------------------------------------------
+
     std::span<const std::byte> bytesOf(std::string_view text) noexcept
     {
         return std::as_bytes(std::span<const char>(text.data(), text.size()));
@@ -166,6 +170,10 @@ namespace
     }
 
     // Focused suite declarations keep cross-suite calls independent of fragment include order.
+    // ------------------------------------------------------------
+    // Test suites
+    // ------------------------------------------------------------
+
     void testBasicEntryQueries(TestSupport::Context &context, const std::filesystem::path &root);
     void testSymlinkPolicies(TestSupport::Context &context, const std::filesystem::path &root);
     void testMetadataDirectoriesAndListing(TestSupport::Context &context, const std::filesystem::path &root);
@@ -185,6 +193,10 @@ namespace
 
 namespace GameWIP::Test
 {
+    // ------------------------------------------------------------
+    // Test runner
+    // ------------------------------------------------------------
+
     int runFileSystemTests(int, char **, const FileSystemTestOptions &options)
     {
         const TestSupport::ScopedTemporaryDirectory workspace("filesystem_tests");

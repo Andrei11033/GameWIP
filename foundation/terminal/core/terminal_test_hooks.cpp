@@ -53,6 +53,10 @@ namespace GameWIP::Terminal::Detail::TestHooks
         block.reached = false;
     }
 
+    // ------------------------------------------------------------
+    // Shared hook state
+    // ------------------------------------------------------------
+
     void resetTerminalTestHooks() noexcept
     {
         std::lock_guard lock(terminalTestHookState.mutex);
@@ -130,6 +134,10 @@ namespace GameWIP::Terminal::TestHooks
 {
     using namespace Detail::TestHooks;
 
+    // ------------------------------------------------------------
+    // Lifecycle and decoder state
+    // ------------------------------------------------------------
+
     void reset() noexcept
     {
         resetTerminalTestHooks();
@@ -161,6 +169,10 @@ namespace GameWIP::Terminal::TestHooks
         return Detail::Platform::TestHooks::takePendingWin32KeyEvent();
     }
 #endif
+
+    // ------------------------------------------------------------
+    // Input overrides
+    // ------------------------------------------------------------
 
     void setInputCapabilitiesOverride(Terminal::Types::Input::Stream stream, const Terminal::Types::Input::Capabilities &capabilities)
     {
@@ -305,6 +317,10 @@ namespace GameWIP::Terminal::TestHooks
         state.inputModeOverrideEnabled = false;
     }
 
+    // ------------------------------------------------------------
+    // Output capture and simulation
+    // ------------------------------------------------------------
+
     void setOutputCapture(Terminal::Types::Output::Stream stream, bool enabled) noexcept
     {
         std::lock_guard lock(terminalTestHookState.mutex);
@@ -412,6 +428,10 @@ namespace GameWIP::Terminal::TestHooks
         std::lock_guard lock(terminalTestHookState.mutex);
         return terminalTestHookState.outputStreams[outputIndex(stream)].cursorRenderingSetHistory;
     }
+
+    // ------------------------------------------------------------
+    // Blocking and failure injection
+    // ------------------------------------------------------------
 
     void blockNextRead()
     {

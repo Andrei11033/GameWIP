@@ -5,6 +5,7 @@
 
 #include "window/internal/window_test_hooks.h"
 
+#include "window/internal/child_surface_state.h"
 #include "window/internal/window_platform.h"
 
 #include <dwmapi.h>
@@ -24,6 +25,18 @@
 
 namespace GameWIP::Window::Detail::Platform
 {
+    /// @brief Backend-owned state for one native child-host HWND.
+    struct ChildSurfaceData
+    {
+        ChildSurfaceState *owner = nullptr;
+        HINSTANCE instance = nullptr;
+        HWND handle = nullptr;
+        DWORD ownerThreadId = 0;
+        bool classReferenceHeld = false;
+        bool registered = false;
+        bool destroying = false;
+    };
+
     inline constexpr UINT kBaselineDpi = 96;                                  ///< Win32 logical-coordinate baseline.
     inline constexpr wchar_t kWindowClassName[] = L"GameWIP.Window.TopLevel"; ///< Process-wide registered class name.
     inline constexpr std::uint32_t kMaximumChromeRegions = 256;               ///< Copied custom-chrome region limit.
@@ -75,18 +88,21 @@ namespace GameWIP::Window::Detail::Platform
         Dispatcher(const Dispatcher &) = delete;
         Dispatcher &operator=(const Dispatcher &) = delete;
 
-        DWORD threadId = 0;                                ///< Native identity of the owning thread.
-        std::vector<WindowState *> windows;                ///< Non-owning registered states on this thread.
-        std::mutex deferredMutex;                          ///< Synchronizes cross-thread cleanup transfer.
-        std::unique_ptr<WindowState> deferredCleanupHead;  ///< Intrusive chain awaiting owner-thread cleanup.
-        bool pumping = false;                              ///< Reentrancy guard for the native message pump.
-        Types::Events::PumpResult *activeResult = nullptr; ///< Call-scoped accumulator during a pump.
+        DWORD threadId = 0;                                          ///< Native identity of the owning thread.
+        std::vector<WindowState *> windows;                          ///< Non-owning registered states on this thread.
+        std::vector<ChildSurfaceState *> childSurfaces;              ///< Lazily registered native child-host states.
+        std::mutex deferredMutex;                                    ///< Synchronizes cross-thread cleanup transfer.
+        std::unique_ptr<WindowState> deferredCleanupHead;            ///< Intrusive chain awaiting owner-thread cleanup.
+        std::unique_ptr<ChildSurfaceState> deferredChildCleanupHead; ///< Child hosts awaiting owner-thread cleanup.
+        bool pumping = false;                                        ///< Reentrancy guard for the native message pump.
+        Types::Events::PumpResult *activeResult = nullptr;           ///< Call-scoped accumulator during a pump.
     };
 
     /// @name Dispatcher and routing helpers
     /// These helpers operate on the calling thread's dispatcher. Registered WindowState pointers
     /// remain valid until explicit unregister or deferred owner-thread cleanup.
     /// @{
+
     [[nodiscard]] Dispatcher &dispatcher() noexcept;
     [[nodiscard]] IO::Types::Status acquireWindowClass(HINSTANCE instance) noexcept;
     [[nodiscard]] IO::Types::Status releaseWindowClass() noexcept;
@@ -99,6 +115,11 @@ namespace GameWIP::Window::Detail::Platform
     void recordPumpFailure(IO::Types::Status status) noexcept;
     void registerOpenState(WindowState &state);
     void unregisterOpenState(WindowState &state) noexcept;
+    void registerOpenChildSurface(ChildSurfaceState &state);
+    void unregisterOpenChildSurface(ChildSurfaceState &state) noexcept;
+    void routeChildSurfaceEvent(ChildSurfaceState &state, Types::ChildSurface::Events::Payload data) noexcept;
+    void refreshChildSurfaceScreenRect(ChildSurfaceState &state) noexcept;
+    void refreshChildSurfaceScreenRectsForParent(Types::WindowId parentId) noexcept;
     void pruneAbandonedStates(Dispatcher &current) noexcept;
     [[nodiscard]] WindowState *resolveWindowId(Types::WindowId id) noexcept;
     /// @}
@@ -107,6 +128,7 @@ namespace GameWIP::Window::Detail::Platform
     /// Conversion functions preserve the most useful Win32 code for translation at the portable
     /// boundary and never expose partially converted output as a successful result.
     /// @{
+
     [[nodiscard]] IO::Types::Status statusFromWin32(IO::Types::ErrorCode fallback, DWORD nativeCode, std::string_view operation) noexcept;
     [[nodiscard]] IO::Types::Status statusFromDisplayChange(LONG nativeCode, std::string_view operation) noexcept;
     [[nodiscard]] bool utf8ToUtf16(std::string_view text, std::wstring &output, DWORD &nativeCode);

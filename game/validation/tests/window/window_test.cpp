@@ -5,6 +5,7 @@
 #include "validation/process_arguments.h"
 
 #include "test_support/test_support.h"
+#include "window/child_surface.h"
 #include "window/cursor.h"
 #include "window/internal/cursor_selection.h"
 #include "window/native/win32.h"
@@ -52,6 +53,10 @@ namespace
     static_assert(!std::is_move_assignable_v<Window::Window>);
     static_assert(!std::is_copy_constructible_v<Window::Window>);
     static_assert(!std::is_copy_assignable_v<Window::Window>);
+    static_assert(!std::is_move_constructible_v<Window::ChildSurface>);
+    static_assert(!std::is_move_assignable_v<Window::ChildSurface>);
+    static_assert(!std::is_copy_constructible_v<Window::ChildSurface>);
+    static_assert(!std::is_copy_assignable_v<Window::ChildSurface>);
     static_assert(noexcept(Window::Events::poll()));
     static_assert(noexcept(Window::Events::wait()));
     static_assert(noexcept(std::declval<Window::Window &>().close()));
@@ -65,6 +70,7 @@ namespace
 #include "validation/tests/window/window_renderer_tests.inl"
 #include "validation/tests/window/window_display_tests.inl"
 #include "validation/tests/window/window_cursor_tests.inl"
+#include "validation/tests/window/window_child_surface_tests.inl"
 } // namespace
 
 namespace GameWIP::Test
@@ -88,6 +94,7 @@ namespace GameWIP::Test
             std::string_view{"layered-pointer"},
             std::string_view{"dpi"},
             std::string_view{"cursor"},
+            std::string_view{"child-surface"},
             std::string_view{"files-shell"},
             std::string_view{"fullscreen"},
             std::string_view{"borderless"},
@@ -140,6 +147,7 @@ namespace GameWIP::Test
             });
 #endif
         runner.runSuite("Window hidden native lifecycle", testHiddenNativeWindow);
+        runner.runSuite("Window native child surfaces", testChildSurfaces);
         runner.runSuite("Window native event translation", testNativeEventTranslation);
         runner.runSuite("Window renderer occlusion feedback", testRendererOcclusionFeedback);
         runner.runSuite("Window display color information", testDisplayColorInformation);
@@ -182,6 +190,7 @@ namespace GameWIP::Test
         runManualSuite("Window manual layered and pointer behavior", "layered-pointer", testManualLayeredAndPointer);
         runManualSuite("Window manual DPI and coordinates", "dpi", testManualDpiAndCoordinates);
         runManualSuite("Window manual cursor behavior", "cursor", testManualCursor);
+        runManualSuite("Window manual native child surface", "child-surface", testManualChildSurface);
         runManualSuite("Window manual files and shell behavior", "files-shell", testManualFilesAndShell);
         runManualSuite(
             "Window manual fullscreen and topology",

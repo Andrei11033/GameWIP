@@ -49,12 +49,16 @@ namespace GameWIP::Terminal::Detail::Platform
     /// @return Non-owning string literal for the current backend.
     [[nodiscard]] std::string_view nativeLineEnding() noexcept;
 
-    /// @brief Gets input capabilities for a standard terminal input stream.
+    // ------------------------------------------------------------
+    // Capabilities and endpoint state
+    // ------------------------------------------------------------
+
+    /// @brief Returns input capabilities for a standard terminal input stream.
     /// @param stream Standard input stream to inspect.
     /// @return Portable capability result. Detached streams return success with detached capabilities.
     [[nodiscard]] Terminal::Types::Input::CapabilitiesResult getInputCapabilities(Terminal::Types::Input::Stream stream);
 
-    /// @brief Gets output capabilities for a standard terminal output stream.
+    /// @brief Returns output capabilities for a standard terminal output stream.
     /// @param stream Standard output stream to inspect.
     /// @return Portable capability result. Detached streams return success with detached capabilities.
     [[nodiscard]] Terminal::Types::Output::CapabilitiesResult getOutputCapabilities(Terminal::Types::Output::Stream stream);
@@ -92,12 +96,16 @@ namespace GameWIP::Terminal::Detail::Platform
     /// @return Success or portable/backend-native failure status.
     [[nodiscard]] IO::Types::Status restoreInputMode(Terminal::Types::Input::Stream stream, const InputModeSnapshot &snapshot);
 
-    /// @brief Gets terminal size for a standard output stream when the backend can query it.
+    // ------------------------------------------------------------
+    // Geometry and cursor state
+    // ------------------------------------------------------------
+
+    /// @brief Returns the terminal size for a standard output stream when the backend can query it.
     /// @param stream Standard output stream to inspect.
     /// @return Terminal size or an Unsupported/StatFailed-style status.
     [[nodiscard]] Terminal::Types::SizeResult getTerminalSize(Terminal::Types::Output::Stream stream);
 
-    /// @brief Gets cursor position for a standard output stream when the backend can query it reliably.
+    /// @brief Returns the cursor position for a standard output stream when the backend can query it reliably.
     /// @param outputStream Standard output stream to inspect or use for a protocol query.
     /// @param responseStream Standard input stream used for a protocol response when required.
     /// @param options Query timeout and flush behavior. The core applies flush behavior before this call.
@@ -107,7 +115,7 @@ namespace GameWIP::Terminal::Detail::Platform
         Terminal::Types::Input::Stream responseStream,
         const Terminal::Types::Cursor::QueryOptions &options);
 
-    /// @brief Gets a backend-stable cursor coordinate for managed line rendering.
+    /// @brief Returns a backend-stable cursor coordinate for managed line rendering.
     [[nodiscard]] Terminal::Types::Cursor::PositionResult getLineRenderingCursorPosition(Terminal::Types::Output::Stream stream);
 
     /// @brief Sets a backend-stable cursor coordinate for managed line rendering.
@@ -172,6 +180,10 @@ namespace GameWIP::Terminal::Detail::Platform
     [[nodiscard]] IO::Types::Status flush(Terminal::Types::Output::Stream stream, IO::Types::FlushMode mode);
 
 #if TERMINAL_INTERNAL_TEST_HOOKS
+    // ------------------------------------------------------------
+    // Test hooks
+    // ------------------------------------------------------------
+
     namespace TestHooks
     {
 #if defined(_WIN32)

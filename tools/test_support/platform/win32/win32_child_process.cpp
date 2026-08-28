@@ -421,6 +421,10 @@ namespace GameWIP::TestSupport
     } // namespace
 #endif
 
+    // ------------------------------------------------------------
+    // Child process execution
+    // ------------------------------------------------------------
+
     Types::Process::Result runChildProcess(const Types::Process::Options &options) noexcept
     {
         Types::Process::Result result;

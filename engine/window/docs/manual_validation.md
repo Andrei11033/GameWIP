@@ -36,17 +36,17 @@ before/after cached and native mode geometry for every display-changing request.
 
 ## Lifecycle and multiple windows
 
-1. Create a visible focused Window, resize and move it, minimize/maximize/restore it, request close through the system button, decline once with
+1. Create a visible focused Window, resize and move it, minimize, maximize, and restore it, request close through the system button, decline once with
    `clearCloseRequest()`, request again, and explicitly close.
 2. Open two independent Windows and pump both from one thread without WindowManager. Verify events route to the correct queue and closing one leaves
    the other operational.
-3. Open an owned tool Window, activate and close it, change/remove its owner at runtime, and verify z-order/minimization behavior remains native and
-   stable.
+3. Open an owned tool Window, activate and close it, change or remove its owner at runtime, and verify z-order and minimization behavior remain
+   native and stable.
 4. Show a hidden Window while another application is focused and verify `show()` does not activate it; then call `requestFocus()` and record the
    OS-policy result.
 5. Where safely reproducible, destroy an open Window object from a non-owner thread, pump the owner dispatcher, and verify that native resources, IDs,
    icons, cursor state, and exclusive display state are released exactly once.
-6. Trigger unexpected native destruction through the approved test scenario. Verify `isOpen()==false`,
+6. Trigger unexpected native destruction through the approved test scenario. Verify `isOpen()` returns false,
    `lifetimeState()==NativeDestroyedPendingFinalize`, one typed `Types::Events::NativeDestroyed`, `NotOpen` from native mutations, `AlreadyOpen`
    before finalization, successful owner-thread `close()`, and reopen afterward.
 7. Let a Window-owning thread exit while the portable object remains alive elsewhere. Verify the dispatcher restores exclusive state and destroys the
@@ -59,6 +59,12 @@ before/after cached and native mode geometry for every display-changing request.
 2. After the surface changes, verify the red old strip and former controls stop responding while only the green replacement strip drags.
 3. Repeat at 100%, 125%, 150%, and 200% scale and after moving between differently scaled monitors.
 
+## Native child surfaces
+
+1. Run `--window-manual-suite=child-surface` and verify the labeled Win32 button appears as a real descendant inside the ChildSurface region.
+2. Move the parent across mixed-DPI monitors and verify the host preserves its logical rectangle while its physical extent follows the destination DPI.
+3. Confirm the external descendant is destroyed before `ChildSurface::close()`, then the parent closes without stale native UI or taskbar state.
+
 ## Layered and pointer behavior
 
 1. Exercise opacity at 1.0, intermediate values, and 0.0; verify input behavior is unchanged.
@@ -66,7 +72,7 @@ before/after cached and native mode geometry for every display-changing request.
 3. Validate whole-window `ClickThrough` against another interactive application below, including client and system-frame areas. Restore `Normal` and
    verify the system title bar, resize border, and client input work again.
 4. Verify `AcceptRegions` and `IgnoreRegions` return `Unsupported` without changing the current pointer mode while `PointerRegions` is false.
-5. Test rectangular and per-pixel passthrough only when a future backend advertises the genuine capability. Place a different application underneath;
+5. Test rectangular and per-pixel pass-through only when a future backend advertises the genuine capability. Place a different application underneath;
    same-thread-only routing is not a pass.
 6. Publish first/last-pixel masks, clear them, move the Window, resize the framebuffer, and complete GPU readbacks out of revision order. Verify
    movement preserves the mask, resize invalidates it, and stale publication cannot win.
@@ -106,9 +112,9 @@ before/after cached and native mode geometry for every display-changing request.
 1. Enter and leave borderless fullscreen on each monitor; verify the blue surface and cyan inset marker reach every display edge, native popup and
    visible styles and HWND bounds match the monitor, the GameWIP Window remains available through the taskbar or Alt+Tab, and saved windowed placement
    returns.
-2. Enter an enumerated exclusive mode. Alt-tab from the terminal to the validation Window, back, to the validation Window again, and finally back to
-   the terminal to answer. Verify the focused Window covers the display, the test observes both active and suspended states, the inactive state
-   reports `suspended=true`, and desktop mode is restored when leaving and closing.
+2. Enter an enumerated exclusive mode. Use Alt+Tab to move from the terminal to the validation Window, back, to the validation Window again, and
+   finally back to the terminal to answer. Verify the focused Window covers the display, the test observes both active and suspended states, the
+   inactive state reports `suspended=true`, and desktop mode is restored when leaving and closing.
 3. Reject an unsupported exact mode without changing Window or display state.
 4. Move between monitors with different DPI and verify logical client geometry, physical framebuffer extent, scale/DPI events, and current monitor.
 5. Connect/disconnect or enable/disable a monitor where practical, re-enumerate after the display event, and verify stale monitor IDs fail cleanly.

@@ -207,6 +207,10 @@ namespace GameWIP::Logger::Detail::Core
         std::string heapText_;
     };
 
+    // ------------------------------------------------------------
+    // Message storage
+    // ------------------------------------------------------------
+
     class DynamicLogText
     {
     public:
@@ -310,6 +314,10 @@ namespace GameWIP::Logger::Detail::Core
         bool heapActive_ = false;
         std::string heapText_;
     };
+
+    // ------------------------------------------------------------
+    // Queue and source state
+    // ------------------------------------------------------------
 
     struct QueuedLogEntry
     {
@@ -436,6 +444,10 @@ namespace GameWIP::Logger::Detail::Core
         std::atomic<std::size_t> peakQueueDepth{0};
     };
 
+    // ------------------------------------------------------------
+    // Process-wide logger state
+    // ------------------------------------------------------------
+
     struct LoggerState
     {
         LogLevel minLevel = LogLevel::Info;
@@ -544,6 +556,10 @@ namespace GameWIP::Logger::Detail::Core
         }
     };
 
+    // ------------------------------------------------------------
+    // Sink and filtering results
+    // ------------------------------------------------------------
+
     struct LogStyle
     {
         const char *text = "UNKNOWN";
@@ -583,6 +599,10 @@ namespace GameWIP::Logger::Detail::Core
     };
 
 #if LOGGER_INTERNAL_TEST_HOOKS
+    // ------------------------------------------------------------
+    // Test hooks
+    // ------------------------------------------------------------
+
     struct LoggerTestHookState
     {
         std::atomic_bool nextFileOpenFailure{false};

@@ -234,6 +234,13 @@ namespace GameWIP::IO
         };
     } // namespace Types
 
+    // ------------------------------------------------------------
+    // Status helpers
+    // ------------------------------------------------------------
+
+    /// @name Status helpers
+    /// @{
+
     /// @brief Returns whether a flush mode is one of the defined FlushMode values.
     /// @param mode Flush mode to validate.
     /// @return True for None, Data, and DataAndMetadataBestEffort; otherwise false.
@@ -270,6 +277,15 @@ namespace GameWIP::IO
     /// @note Use the name for diagnostics and tests, not as a substitute for an application-owned
     /// serialized or wire-format error representation.
     [[nodiscard]] std::string_view errorCodeName(Types::ErrorCode code) noexcept;
+
+    /// @}
+
+    // ------------------------------------------------------------
+    // Stream interfaces
+    // ------------------------------------------------------------
+
+    /// @name Stream interfaces
+    /// @{
 
     /// @brief Movable, non-copyable byte-input interface used by generic IO helpers.
     /// @details A concrete reader must implement read(). The base class models a stateless open
@@ -415,6 +431,15 @@ namespace GameWIP::IO
         /// @return Success or a seek-related failure status.
         [[nodiscard]] virtual Types::Status seek(std::int64_t offset, Types::SeekOrigin origin) noexcept;
     };
+
+    /// @}
+
+    // ------------------------------------------------------------
+    // Memory streams
+    // ------------------------------------------------------------
+
+    /// @name Memory streams
+    /// @{
 
     /// @brief Non-owning, seekable Reader over existing contiguous byte storage.
     /// @details The source must remain alive and at a stable address while this reader is used.
@@ -593,6 +618,15 @@ namespace GameWIP::IO
         bool open_ = true;
     };
 
+    /// @}
+
+    // ------------------------------------------------------------
+    // Whole-stream transfer
+    // ------------------------------------------------------------
+
+    /// @name Whole-stream transfer
+    /// @{
+
     /// @brief Reads from the current reader position until the known remainder, end-of-stream, or failure.
     /// @param reader Reader to drain.
     /// @param maxBytes Hard maximum accepted output size, or kNoByteLimit for no caller limit.
@@ -671,4 +705,6 @@ namespace GameWIP::IO
     /// @note Validation happens before writer.write() is called. No normalization, BOM transformation,
     /// parsing, flush, or close operation is performed.
     [[nodiscard]] Types::WriteResult writeAllText(Writer &writer, std::string_view utf8Text) noexcept;
+
+    /// @}
 } // namespace GameWIP::IO

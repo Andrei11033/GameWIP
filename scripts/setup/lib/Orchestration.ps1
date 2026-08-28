@@ -13,6 +13,10 @@ foreach ($file in @('Common.ps1', 'Winget.ps1', 'Msys2.ps1', 'Repository.ps1', '
     . (Join-Path $PSScriptRoot $file)
 }
 
+# ------------------------------------------------------------
+# Action catalog and presentation
+# ------------------------------------------------------------
+
 function Assert-GameWipSetupActionCatalog
 {
     $actions = @($SetupActionConfig.Actions)
@@ -80,6 +84,10 @@ function Show-GameWipSetupSizeEstimate
     Write-Host '  Installed disk: approximately 4-15 GB.'
     Write-Host '  Temporary build space: up to approximately 6 GB, primarily Tracy and documentation.'
 }
+
+# ------------------------------------------------------------
+# Setup steps
+# ------------------------------------------------------------
 
 function Initialize-GameWipSetupManagedToolRoot
 {
@@ -290,6 +298,10 @@ function Invoke-GameWipSetupEnvironmentCheck
     Write-GameWipStatusLine -Status OK -Text 'Complete selected development environment is ready.' -Semantic Success -Indent 2
 }
 
+# ------------------------------------------------------------
+# Planning and execution
+# ------------------------------------------------------------
+
 function Get-GameWipSetupPlan
 {
     param([Parameter(Mandatory = $true)][string]$SelectedAction)
@@ -482,6 +494,10 @@ function Invoke-GameWipSetupOperation
         Invoke-GameWipMutation -Summary $actionInfo.Description -Risk ([string]$actionInfo.Risk) -Plan $plan -Body { Invoke-GameWipSetupActionBody -SelectedAction $SelectedAction } | Out-Null
     }
 }
+
+# ------------------------------------------------------------
+# Interactive menu
+# ------------------------------------------------------------
 
 function Show-GameWipSetupMenu
 {

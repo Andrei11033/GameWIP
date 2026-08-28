@@ -9,3 +9,11 @@ target_sources(
 )
 target_include_directories(GameWIPBase INTERFACE "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/..>")
 target_compile_features(GameWIPBase INTERFACE cxx_std_23)
+
+if(GAMEWIP_BUILD_DOCS AND COMMAND gamewip_register_doxygen_inputs)
+    gamewip_register_doxygen_inputs(
+        "${CMAKE_CURRENT_SOURCE_DIR}/checked_arithmetic.h"
+        "${CMAKE_CURRENT_SOURCE_DIR}/platform/win32/dynamic_library.h"
+        "${CMAKE_CURRENT_SOURCE_DIR}/docs/base.md"
+    )
+endif()

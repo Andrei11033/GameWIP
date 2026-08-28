@@ -112,6 +112,10 @@ namespace
         }
     };
 
+    // ------------------------------------------------------------
+    // Test helpers and fixtures
+    // ------------------------------------------------------------
+
     template <typename Function> void runCase(TestContext &context, std::string_view name, Function &&function)
     {
         TestSupport::Section section(context.testContext, name);
@@ -244,6 +248,10 @@ namespace
 
 namespace GameWIP::Test
 {
+    // ------------------------------------------------------------
+    // Test runner
+    // ------------------------------------------------------------
+
     int runLoggerTests(int argc, char **argv, const LoggerTestOptions &options)
     {
         if (hasArgument(argc, argv, fatalTerminateChildArgument))

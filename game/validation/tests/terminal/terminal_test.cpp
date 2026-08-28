@@ -268,6 +268,10 @@ namespace
     }
 
     /// @brief Records a human response as a test pass, failure, or skip.
+    // ------------------------------------------------------------
+    // Manual test reporting
+    // ------------------------------------------------------------
+
     void recordManualAnswer(TestSupport::Context &context, std::string_view name, TestSupport::Types::Reporting::ManualAnswer answer)
     {
         switch (answer)
@@ -407,6 +411,10 @@ namespace
     }
 
     /// @brief Resets hooks, installs output capabilities, and enables byte capture.
+    // ------------------------------------------------------------
+    // Test fixtures and suites
+    // ------------------------------------------------------------
+
     void setupCapturedOutput(
         Terminal::Types::Output::Stream stream,
         Terminal::Types::Output::Capabilities capabilities = terminalOutputCapabilities())
@@ -492,6 +500,10 @@ namespace
 
 namespace GameWIP::Test
 {
+    // ------------------------------------------------------------
+    // Test runner
+    // ------------------------------------------------------------
+
     int runTerminalTests(int argc, char **argv, const TerminalTestOptions &options)
     {
         if (hasArgument(argc, argv, kReentrantFormatChildArgument))

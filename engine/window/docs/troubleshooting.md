@@ -56,6 +56,9 @@ releases IDs, event storage, and backend bookkeeping.
 Include `window/native/win32.h` only in a Win32 translation unit and query after successful open on the owner thread. `getHandle()` returns
 `ResourceBusy` on another thread and `NotOpen` without a live HWND. Never destroy the returned HWND.
 
+For ChildSurface native hosting, include both `window/child_surface.h` and `window/native/win32.h`. The external technology may own descendants but
+must not destroy, reparent, or subclass the GameWIP host. Shut the external technology down before closing the ChildSurface when its SDK requires it.
+
 ## Custom cursor selection fails
 
 Include `window/cursor.h` and check `Types::Capability::CustomCursor`. `createCursor()` returns `InvalidArgument` for an empty variant set, invalid

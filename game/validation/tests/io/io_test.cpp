@@ -659,6 +659,10 @@ namespace
 #endif
 
     // Focused suite declarations keep cross-suite calls independent of fragment include order.
+    // ------------------------------------------------------------
+    // Test suites
+    // ------------------------------------------------------------
+
     void testErrorCodeNames(TestSupport::Context &context);
     void testStatusAndDefaultContracts(TestSupport::Context &context);
     void testMemoryReader(TestSupport::Context &context);
@@ -680,6 +684,10 @@ namespace
 
 namespace GameWIP::Test
 {
+    // ------------------------------------------------------------
+    // Test runner
+    // ------------------------------------------------------------
+
     int runIOTests([[maybe_unused]] int argc, [[maybe_unused]] char **argv, const IOTestOptions &options)
     {
         TestSupport::Types::Reporting::Options reportOptions;

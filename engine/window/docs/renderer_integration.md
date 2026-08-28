@@ -9,11 +9,11 @@ A renderer that can determine presentation occlusion attaches explicitly with `R
 `Renderer::hasOcclusionProvider(window)` reports current attachment state. This state is deliberately separate from
 `window.supports(Capability::OcclusionReporting)`, which always answers the stable backend capability question.
 
-After attachment, `Renderer::reportOcclusion(window, value)` updates the cached `Window::isOccluded()` state and queues
+After attachment, `Renderer::reportOcclusion(window, value)` updates the cached `Window::occluded()` state and queues
 `Types::Events::OcclusionChanged` only when the value changes. `Renderer::detachOcclusionProvider()` clears the provider and restores non-occluded
 cached state, queueing the final transition when needed.
 
-Attachment/report/detach obey Window owner-thread rules. A report without an attached provider is rejected.
+Attachment, reporting, and detachment obey Window owner-thread rules. A report without an attached provider is rejected.
 
 ## Pointer hit masks
 

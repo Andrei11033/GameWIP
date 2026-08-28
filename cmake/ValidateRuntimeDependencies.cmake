@@ -1,3 +1,5 @@
+# Validates clean runtime dependency staging against stale app-local binaries.
+
 foreach(
     required_variable
     IN

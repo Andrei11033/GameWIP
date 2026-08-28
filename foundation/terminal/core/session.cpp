@@ -672,6 +672,10 @@ namespace GameWIP::Terminal
 
     Session::Session(Session &&other) noexcept = default;
 
+    // ------------------------------------------------------------
+    // Lifecycle
+    // ------------------------------------------------------------
+
     IO::Types::Status Session::restoreOutputState(bool retainOnFailure) noexcept
     {
         if (!state_)
@@ -859,6 +863,10 @@ namespace GameWIP::Terminal
             return IO::makeStatus(ErrorCode::Unknown);
         }
     }
+
+    // ------------------------------------------------------------
+    // Input
+    // ------------------------------------------------------------
 
     Types::Input::EventResult Session::readEvent(const Types::Input::EventOptions &options) noexcept
     {
@@ -1095,6 +1103,10 @@ namespace GameWIP::Terminal
         }
     }
 
+    // ------------------------------------------------------------
+    // Output
+    // ------------------------------------------------------------
+
     Types::Output::CapabilitiesResult Session::prepareOutput() noexcept
     {
         if (!state_)
@@ -1292,6 +1304,10 @@ namespace GameWIP::Terminal
             return exceptionStatus();
         }
     }
+
+    // ------------------------------------------------------------
+    // Terminal controls
+    // ------------------------------------------------------------
 
     IO::Types::Status Session::resetStyle(const Types::Output::ControlOptions &options) noexcept
     {
@@ -1682,6 +1698,10 @@ namespace GameWIP::Terminal
             return exceptionStatus();
         }
     }
+
+    // ------------------------------------------------------------
+    // Temporary managed input
+    // ------------------------------------------------------------
 
     Types::Input::EventResult readEvent(const Types::Input::EventOptions &options) noexcept
     {

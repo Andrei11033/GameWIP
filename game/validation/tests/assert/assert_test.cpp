@@ -186,6 +186,10 @@ namespace
     using ScopedEnvironmentVariable = TestSupport::ScopedEnvironmentVariable;
     using ScopedClearedEnvironmentVariable = TestSupport::ScopedUnsetEnvironmentVariable;
 
+    // ------------------------------------------------------------
+    // Test helpers
+    // ------------------------------------------------------------
+
     bool requireInfrastructure(TestContext &context, std::string_view operation, const TestSupport::Types::InfrastructureStatus &status)
     {
         if (status.ok())
@@ -327,6 +331,10 @@ namespace
 
 namespace GameWIP::Test
 {
+    // ------------------------------------------------------------
+    // Test runner
+    // ------------------------------------------------------------
+
     int runAssertTests(int argc, char **argv, const AssertTestOptions &options)
     {
         if (hasArgument(argc, argv, assertFailureChildArgument))

@@ -1,3 +1,5 @@
+# Stages the resolved runtime dependency closure beside one built executable.
+
 if(NOT DEFINED GAMEWIP_EXECUTABLE)
     message(FATAL_ERROR "GAMEWIP_EXECUTABLE was not provided.")
 endif()

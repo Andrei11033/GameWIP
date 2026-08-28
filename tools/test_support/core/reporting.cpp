@@ -154,6 +154,10 @@ namespace GameWIP::TestSupport
         };
     } // namespace Detail
 
+    // ------------------------------------------------------------
+    // Reporting results
+    // ------------------------------------------------------------
+
     std::size_t Types::Reporting::Summary::total() const noexcept
     {
         return passed + failed + skipped;
@@ -197,6 +201,10 @@ namespace GameWIP::TestSupport
     }
 
     Context::~Context() = default;
+
+    // ------------------------------------------------------------
+    // Test context
+    // ------------------------------------------------------------
 
     void Context::info(std::string_view message)
     {
@@ -387,6 +395,10 @@ namespace GameWIP::TestSupport
 
     Runner::~Runner() = default;
 
+    // ------------------------------------------------------------
+    // Test runner
+    // ------------------------------------------------------------
+
     void Runner::info(std::string_view message)
     {
         reportSink_->write("INFO", message);
@@ -452,6 +464,10 @@ namespace GameWIP::TestSupport
         {
         }
     }
+
+    // ------------------------------------------------------------
+    // Manual checks
+    // ------------------------------------------------------------
 
     Types::Reporting::ManualAnswer promptManualCheck(std::string_view question)
     {

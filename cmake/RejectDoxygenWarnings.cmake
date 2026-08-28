@@ -1,3 +1,5 @@
+# Rejects missing or non-empty Doxygen warning logs after documentation generation.
+
 if(NOT DEFINED WARNING_LOG)
     message(FATAL_ERROR "WARNING_LOG is required for Doxygen warning validation.")
 endif()

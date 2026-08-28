@@ -139,6 +139,10 @@ namespace GameWIP::TestSupport
         return path_;
     }
 
+    // ------------------------------------------------------------
+    // Scoped filesystem state
+    // ------------------------------------------------------------
+
     Types::InfrastructureStatus ScopedTemporaryDirectory::status() const noexcept
     {
         return status_;
@@ -207,6 +211,10 @@ namespace GameWIP::TestSupport
     {
         return status_;
     }
+
+    // ------------------------------------------------------------
+    // File operations
+    // ------------------------------------------------------------
 
     Types::TextResult readTextFile(const std::filesystem::path &path) noexcept
     {

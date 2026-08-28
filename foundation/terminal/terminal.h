@@ -35,6 +35,13 @@ namespace GameWIP::Terminal
         struct Segment;
     } // namespace Types::Output
 
+    // ------------------------------------------------------------
+    // Output segment construction
+    // ------------------------------------------------------------
+
+    /// @name Output segment construction
+    /// @{
+
     /// @brief Creates a plain text write segment.
     /// @param text Caller-owned UTF-8 text.
     /// @return A non-owning segment that refers to text.
@@ -72,6 +79,15 @@ namespace GameWIP::Terminal
                  !std::ranges::borrowed_range<Range>)
     [[nodiscard]] Types::Output::Segment byteSegment(Range &&bytes) noexcept = delete;
 
+    /// @}
+
+    // ------------------------------------------------------------
+    // Shared limits and timeouts
+    // ------------------------------------------------------------
+
+    /// @name Shared limits and timeouts
+    /// @{
+
     /// @brief Read timeout requesting a non-blocking attempt.
     /// @note A stream without non-blocking-read support returns Unsupported.
     inline constexpr std::chrono::milliseconds kNoWait{0};
@@ -86,6 +102,8 @@ namespace GameWIP::Terminal
     /// @brief Default maximum UTF-8 byte count returned by one line read.
     /// @note The limit applies to the returned representation after the selected line-ending policy.
     inline constexpr std::uint64_t kDefaultMaxReturnedLineBytes = std::uint64_t{64} * 1024;
+
+    /// @}
 
     /// @brief Terminal stream, styling, input, and result types.
     namespace Types
@@ -906,6 +924,13 @@ namespace GameWIP::Terminal
     class GAMEWIP_TERMINAL_EXPORT Session final
     {
     public:
+        // ------------------------------------------------------------
+        // Lifecycle
+        // ------------------------------------------------------------
+
+        /// @name Lifecycle
+        /// @{
+
         /// @brief Creates a closed session without allocating or touching terminal state.
         Session() noexcept;
 
@@ -936,6 +961,15 @@ namespace GameWIP::Terminal
         /// failure leaves the session open and retryable ownership retained.
         [[nodiscard]] IO::Types::Status close() noexcept;
 
+        /// @}
+
+        // ------------------------------------------------------------
+        // Capabilities and geometry
+        // ------------------------------------------------------------
+
+        /// @name Capabilities and geometry
+        /// @{
+
         /// @brief Returns the input capabilities captured when this Session opened.
         [[nodiscard]] Types::Input::CapabilitiesResult getInputCapabilities() const noexcept;
 
@@ -947,6 +981,15 @@ namespace GameWIP::Terminal
 
         /// @brief Returns terminal dimensions for the bound primary output stream.
         [[nodiscard]] Types::SizeResult getTerminalSize() const noexcept;
+
+        /// @}
+
+        // ------------------------------------------------------------
+        // Input
+        // ------------------------------------------------------------
+
+        /// @name Input
+        /// @{
 
         /// @brief Reads one structured input event in an Events-delivery session.
         /// @return Status, stopping outcome, and optional event payload.
@@ -962,6 +1005,15 @@ namespace GameWIP::Terminal
 
         /// @brief Reads one valid UTF-8 line in a Stream-delivery session.
         [[nodiscard]] Types::Input::LineResult readLine(const Types::Input::LineOptions &options = {}) noexcept;
+
+        /// @}
+
+        // ------------------------------------------------------------
+        // Output
+        // ------------------------------------------------------------
+
+        /// @name Output
+        /// @{
 
         /// @brief Writes UTF-8 text to the bound primary output stream.
         [[nodiscard]] IO::Types::Status writeText(std::string_view utf8Text, const Types::Output::TextOptions &options = {}) noexcept;
@@ -996,6 +1048,15 @@ namespace GameWIP::Terminal
 
         /// @brief Flushes the bound primary output stream.
         [[nodiscard]] IO::Types::Status flush(IO::Types::FlushMode mode = IO::Types::FlushMode::Data) noexcept;
+
+        /// @}
+
+        // ------------------------------------------------------------
+        // Terminal controls
+        // ------------------------------------------------------------
+
+        /// @name Terminal controls
+        /// @{
 
         /// @brief Resets text style on the bound output.
         [[nodiscard]] IO::Types::Status resetStyle(const Types::Output::ControlOptions &options = {}) noexcept;
@@ -1047,6 +1108,8 @@ namespace GameWIP::Terminal
         /// @brief Emits the terminal bell through the bound output.
         [[nodiscard]] IO::Types::Status ringBell(const Types::Output::ControlOptions &options = {}) noexcept;
 
+        /// @}
+
     private:
         [[nodiscard]] IO::Types::Status restoreOutputState(bool retainOnFailure) noexcept;
         [[nodiscard]] IO::Types::Status vprint(
@@ -1061,6 +1124,13 @@ namespace GameWIP::Terminal
         struct State;
         std::unique_ptr<State> state_;
     };
+
+    // ------------------------------------------------------------
+    // Scoped terminal state
+    // ------------------------------------------------------------
+
+    /// @name Scoped terminal state
+    /// @{
 
     /// @brief Movable, non-copyable RAII helper that leaves alternate screen mode when destroyed.
     /// @details Failure before the enter sequence is emitted produces an inactive scope. A flush failure after emission preserves
@@ -1156,6 +1226,15 @@ namespace GameWIP::Terminal
         bool restoreOnDestruction_ = true;
     };
 
+    /// @}
+
+    // ------------------------------------------------------------
+    // Buffered output
+    // ------------------------------------------------------------
+
+    /// @name Buffered output
+    /// @{
+
     /// @brief Reusable caller-owned checked plain-text buffer for batching one Terminal write.
     /// @details The object owns its string storage and is not internally synchronized. Text arguments are valid UTF-8 by
     /// contract. Allocating mutation and formatting report failures through IO::Types::Status and preserve the previous
@@ -1226,11 +1305,20 @@ namespace GameWIP::Terminal
         Types::Output::LineEnding lineEnding_ = Types::Output::LineEnding::Native;
     };
 
-    /// @brief Gets a snapshot of capabilities for stdin.
+    /// @}
+
+    // ------------------------------------------------------------
+    // Capabilities and geometry
+    // ------------------------------------------------------------
+
+    /// @name Capabilities and geometry
+    /// @{
+
+    /// @brief Returns a snapshot of capabilities for stdin.
     /// @return Status and capabilities observed for the current stdin endpoint. A successful Detached result is possible.
     [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::Input::CapabilitiesResult getInputCapabilities() noexcept;
 
-    /// @brief Gets capabilities for an input stream.
+    /// @brief Returns capabilities for an input stream.
     [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::Input::CapabilitiesResult getInputCapabilities(Types::Input::Stream stream) noexcept;
 
     /// @brief Observes a snapshot of currently active stdout capabilities without preparing the stream.
@@ -1248,11 +1336,20 @@ namespace GameWIP::Terminal
     /// @brief Enables stream support required by styling and terminal controls.
     [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::Output::CapabilitiesResult prepareOutput(Types::Output::Stream stream) noexcept;
 
-    /// @brief Gets terminal size for stdout.
+    /// @brief Returns the terminal size for stdout.
     [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::SizeResult getTerminalSize() noexcept;
 
-    /// @brief Gets terminal size for an output stream.
+    /// @brief Returns the terminal size for an output stream.
     [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::SizeResult getTerminalSize(Types::Output::Stream stream) noexcept;
+
+    /// @}
+
+    // ------------------------------------------------------------
+    // Input
+    // ------------------------------------------------------------
+
+    /// @name Input
+    /// @{
 
     /// @brief Reads one structured input event from stdin through temporary managed ownership.
     /// @return Status, stopping outcome, and optional event payload.
@@ -1293,6 +1390,15 @@ namespace GameWIP::Terminal
         Types::Input::Stream stream,
         std::span<std::byte> outputBuffer,
         const Types::Input::ByteOptions &options = {}) noexcept;
+
+    /// @}
+
+    // ------------------------------------------------------------
+    // Output
+    // ------------------------------------------------------------
+
+    /// @name Output
+    /// @{
 
     /// @brief Writes UTF-8 text to stdout.
     [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status writeText(
@@ -1386,6 +1492,15 @@ namespace GameWIP::Terminal
     [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status flush(
         Types::Output::Stream stream,
         IO::Types::FlushMode mode = IO::Types::FlushMode::Data) noexcept;
+
+    /// @}
+
+    // ------------------------------------------------------------
+    // Terminal controls
+    // ------------------------------------------------------------
+
+    /// @name Terminal controls
+    /// @{
 
     /// @brief Resets style on stdout.
     [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status resetStyle(const Types::Output::ControlOptions &options = {}) noexcept;
@@ -1542,6 +1657,8 @@ namespace GameWIP::Terminal
     [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status ringBell(
         Types::Output::Stream stream,
         const Types::Output::ControlOptions &options = {}) noexcept;
+
+    /// @}
 
     /// @cond INTERNAL_TERMINAL_DETAIL
     namespace Detail

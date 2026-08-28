@@ -1,3 +1,5 @@
+// Regression tests for structure-preserving project-tool registry updates.
+
 'use strict';
 
 const assert = require('assert');

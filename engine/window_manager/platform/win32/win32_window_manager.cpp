@@ -101,7 +101,7 @@ namespace GameWIP
         nativeManager->windowsByHandle.emplace(handle, createdWindow);
         nativeManager->windows.push_back(std::move(window));
 
-        if (createdWindow->isFocused())
+        if (createdWindow->focused())
         {
             nativeManager->focusedWindow = createdWindow;
             nativeManager->toolInputWindow = createdWindow->getRole() == WindowRole::Tool ? createdWindow : nullptr;
@@ -238,7 +238,7 @@ namespace GameWIP
                 nativeManager->focusedWindow = nullptr;
             }
 
-            if (targetIsMain && targetWindow->isFocused())
+            if (targetIsMain && targetWindow->focused())
             {
                 Win32Input::handleMessage(
                     static_cast<unsigned int>(message.message),
@@ -248,7 +248,7 @@ namespace GameWIP
                     inputDevices);
             }
 
-            if (toolInput != nullptr && targetWindow != nullptr && targetWindow->getRole() == WindowRole::Tool && targetWindow->isFocused())
+            if (toolInput != nullptr && targetWindow != nullptr && targetWindow->getRole() == WindowRole::Tool && targetWindow->focused())
             {
                 nativeManager->toolInputWindow = targetWindow;
                 Win32Input::handleUiMessage(
@@ -280,7 +280,7 @@ namespace GameWIP
             }
         }
 
-        if (nativeManager->mainWindow != nullptr && nativeManager->mainWindow->isFocused())
+        if (nativeManager->mainWindow != nullptr && nativeManager->mainWindow->focused())
         {
             Win32Input::updateGamepads(gameInput, inputDevices);
         }

@@ -25,6 +25,9 @@ namespace
 
 namespace GameWIP::Window::Detail
 {
+    // ------------------------------------------------------------
+    // Injected failures and counters
+    // ------------------------------------------------------------
     bool consumeFailure(TestHooks::FailurePoint point) noexcept
     {
         if (armedFailure != point)
@@ -59,6 +62,9 @@ namespace GameWIP::Window::Detail
 
 namespace GameWIP::Window::TestHooks
 {
+    // ------------------------------------------------------------
+    // Failure and cursor controls
+    // ------------------------------------------------------------
     void failNext(FailurePoint point) noexcept
     {
         armedFailure = point;
@@ -108,6 +114,9 @@ namespace GameWIP::Window::TestHooks
         return {{snapshot.hotspotX, snapshot.hotspotY}, snapshot.firstBgraPixel, snapshot.valid};
     }
 
+    // ------------------------------------------------------------
+    // Renderer bridge controls
+    // ------------------------------------------------------------
     void enablePointerHitMaskBridge(Window &window) noexcept
     {
         try
@@ -143,6 +152,9 @@ namespace GameWIP::Window::TestHooks
         return state == nullptr || Detail::pointerHitMaskAccepts(*state, position);
     }
 
+    // ------------------------------------------------------------
+    // Portable lifecycle and events
+    // ------------------------------------------------------------
     IO::Types::Status openPortable(Window &window, std::span<Types::Event> storage) noexcept
     {
         if (Detail::WindowAccess::state(window) != nullptr)
@@ -213,6 +225,9 @@ namespace GameWIP::Window::TestHooks
         return renderer != nullptr && !renderer->pointerHitMask.empty() ? renderer->pointerHitMask.data() : nullptr;
     }
 
+    // ------------------------------------------------------------
+    // Display color fixtures
+    // ------------------------------------------------------------
     Types::Display::ColorInfo makeDisplayColorInfo(Types::Display::MonitorId monitor, const DisplayColorSnapshot &snapshot) noexcept
     {
         return Detail::Platform::makeDisplayColorInfo(

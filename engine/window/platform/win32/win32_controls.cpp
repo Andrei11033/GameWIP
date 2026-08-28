@@ -8,6 +8,9 @@
 
 namespace GameWIP::Window::Detail::Platform
 {
+    // ------------------------------------------------------------
+    // Cached presentation synchronization
+    // ------------------------------------------------------------
     namespace
     {
         void synchronizeVisibility(WindowState &state) noexcept
@@ -51,6 +54,9 @@ namespace GameWIP::Window::Detail::Platform
         }
     } // namespace
 
+    // ------------------------------------------------------------
+    // Visibility, focus, and presentation
+    // ------------------------------------------------------------
     IO::Types::Status show(WindowState &state) noexcept
     {
         ShowWindow(state.platform->handle, SW_SHOWNOACTIVATE);
@@ -122,6 +128,9 @@ namespace GameWIP::Window::Detail::Platform
         return refreshCachedGeometry(state);
     }
 
+    // ------------------------------------------------------------
+    // Chrome and interaction policy
+    // ------------------------------------------------------------
     IO::Types::Status setResizable(WindowState &state, bool resizable) noexcept
     {
         return updateStyleValue(
@@ -284,6 +293,9 @@ namespace GameWIP::Window::Detail::Platform
         return IO::successStatus();
     }
 
+    // ------------------------------------------------------------
+    // Cursor controls
+    // ------------------------------------------------------------
     IO::Types::Status setCursorMode(WindowState &state, Types::CursorMode mode) noexcept
     {
         if (state.cursorMode == mode)

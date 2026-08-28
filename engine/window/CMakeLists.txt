@@ -32,6 +32,8 @@ generate_export_header(
 target_sources(
     Window
     PRIVATE
+        core/child_surface.cpp
+        core/child_surface_events.cpp
         core/cursor.cpp
         core/display.cpp
         core/display_info.cpp
@@ -42,11 +44,14 @@ target_sources(
         internal/cursor_platform.h
         internal/cursor_selection.h
         internal/cursor_state.h
+        internal/child_surface_platform.h
+        internal/child_surface_state.h
     PUBLIC
         FILE_SET public_headers
             TYPE HEADERS
             BASE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/.." "${WINDOW_GENERATED_INCLUDE_DIR}"
             FILES
+                "${CMAKE_CURRENT_SOURCE_DIR}/child_surface.h"
                 "${CMAKE_CURRENT_SOURCE_DIR}/cursor.h"
                 "${CMAKE_CURRENT_SOURCE_DIR}/description.h"
                 "${CMAKE_CURRENT_SOURCE_DIR}/display.h"
@@ -92,6 +97,7 @@ if(GAMEWIP_BUILD_DOCS AND COMMAND gamewip_register_doxygen_library)
         NAME Window
         PAGE_ID window_library
         PUBLIC_HEADERS
+            "${CMAKE_CURRENT_SOURCE_DIR}/child_surface.h"
             "${CMAKE_CURRENT_SOURCE_DIR}/cursor.h"
             "${CMAKE_CURRENT_SOURCE_DIR}/description.h"
             "${CMAKE_CURRENT_SOURCE_DIR}/display.h"

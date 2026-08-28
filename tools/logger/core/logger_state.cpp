@@ -21,7 +21,7 @@ namespace GameWIP::Logger::Detail::Core
             result.requestedOutput = config.output;
             try
             {
-                if (GameWIP::Logger::isRunning())
+                if (GameWIP::Logger::running())
                 {
                     result.outcome = Types::Init::Outcome::Started;
                     result.effectiveOutput = GameWIP::Logger::getOutput();
@@ -486,7 +486,11 @@ namespace GameWIP::Logger::Detail::Core
 
 using namespace GameWIP::Logger::Detail::Core;
 
-bool GameWIP::Logger::isRunning() noexcept
+// ------------------------------------------------------------
+// State queries and statistics
+// ------------------------------------------------------------
+
+bool GameWIP::Logger::running() noexcept
 {
     return runtimeStateRunning(loggerState().runtimeStateBits.load(std::memory_order_acquire));
 }
@@ -570,6 +574,10 @@ void GameWIP::Logger::resetStats()
     resetAtomicStats(loggerState().queueDepth.load(std::memory_order_acquire));
 }
 
+// ------------------------------------------------------------
+// Configuration presets
+// ------------------------------------------------------------
+
 GameWIP::Logger::Types::Config GameWIP::Logger::defaultConfig() noexcept
 {
     return {};
@@ -598,6 +606,10 @@ GameWIP::Logger::Types::Config GameWIP::Logger::throughputConfig() noexcept
     config.releaseStorageOnShutdown = false;
     return config;
 }
+
+// ------------------------------------------------------------
+// Lifecycle
+// ------------------------------------------------------------
 
 GameWIP::Logger::Types::Init::Result GameWIP::Logger::initDefault() noexcept
 {

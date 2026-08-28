@@ -21,7 +21,7 @@ namespace GameWIP::Window::Detail::Platform
         Dispatcher &current = dispatcher();
         pruneAbandonedStates(current);
         Types::Events::PumpResult result;
-        if (current.windows.empty())
+        if (current.windows.empty() && current.childSurfaces.empty())
             return result;
         if (current.pumping)
         {

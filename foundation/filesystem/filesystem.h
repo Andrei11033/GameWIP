@@ -564,6 +564,13 @@ namespace GameWIP::FileSystem
         } // namespace File
     } // namespace Types
 
+    // ------------------------------------------------------------
+    // Directory enumeration
+    // ------------------------------------------------------------
+
+    /// @name Directory enumeration
+    /// @{
+
     /// @brief Move-only, bounded-memory cursor over direct directory children.
     /// @details The cursor owns backend enumeration state and applies the same filters, symlink policy, native ordering,
     /// and maximum-entry contract as listDirectory(). Retained memory is independent of the number of sibling entries.
@@ -604,6 +611,15 @@ namespace GameWIP::FileSystem
         bool limitReached_ = false;
     };
 
+    /// @}
+
+    // ------------------------------------------------------------
+    // File locking
+    // ------------------------------------------------------------
+
+    /// @name File locking
+    /// @{
+
     /// @brief RAII owner for a whole-file lock.
     /// @details FileLock is move-constructible and non-copyable. Move assignment is deleted because replacing an active lock could hide unlock
     /// failure. An acquired lock owns independent native state and can remain active after the originating handle object is destroyed.
@@ -627,10 +643,10 @@ namespace GameWIP::FileSystem
 
         /// @brief Returns whether this object owns an active lock.
         /// @return True until the lock is moved from or successfully unlocked.
-        [[nodiscard]] bool isActive() const noexcept;
+        [[nodiscard]] bool active() const noexcept;
         /// @brief Returns the active lock mode.
         /// @return Shared or exclusive mode selected during acquisition.
-        /// @note Meaningful only while isActive() is true.
+        /// @note Meaningful only while active() is true.
         [[nodiscard]] Types::Lock::Mode mode() const noexcept;
         /// @brief Releases the lock. A failed unlock remains active and may be retried.
         /// @return Success, UnlockFailed, or a more specific backend status.
@@ -646,6 +662,15 @@ namespace GameWIP::FileSystem
         std::unique_ptr<Detail::FileLockState> state_;
         Types::Lock::Mode mode_ = Types::Lock::Mode::Shared;
     };
+
+    /// @}
+
+    // ------------------------------------------------------------
+    // File streams
+    // ------------------------------------------------------------
+
+    /// @name File streams
+    /// @{
 
     /// @brief Read-only file-backed IO reader.
     /// @details Move construction transfers ownership. Move assignment is deleted because replacing an open handle could hide close failure.
@@ -864,6 +889,15 @@ namespace GameWIP::FileSystem
         };
     } // namespace Types::Lock
 
+    /// @}
+
+    // ------------------------------------------------------------
+    // Whole-file operations
+    // ------------------------------------------------------------
+
+    /// @name Whole-file operations
+    /// @{
+
     /// @brief Reads an entire file as bytes.
     /// @param path File path to read.
     /// @param options Open behavior, hard byte limit, and transfer buffer size.
@@ -1006,6 +1040,15 @@ namespace GameWIP::FileSystem
     /// @return Success or a validation, lookup, permission, or resize failure status.
     [[nodiscard]] IO::Types::Status truncateFile(const Types::Path &path, const Types::File::ResizeOptions &options = {}) noexcept;
 
+    /// @}
+
+    // ------------------------------------------------------------
+    // Directory operations
+    // ------------------------------------------------------------
+
+    /// @name Directory operations
+    /// @{
+
     /// @brief Creates one directory level.
     /// @param path Directory path to create.
     /// @param options Existing-directory and symlink traversal behavior.
@@ -1023,6 +1066,15 @@ namespace GameWIP::FileSystem
     /// @param options Filtering, symlink, hidden-entry, and entry-limit behavior.
     /// @return Collected child entries and final status.
     [[nodiscard]] Types::Directory::ListResult listDirectory(const Types::Path &path, const Types::Directory::ListOptions &options = {}) noexcept;
+
+    /// @}
+
+    // ------------------------------------------------------------
+    // Entry queries
+    // ------------------------------------------------------------
+
+    /// @name Entry queries
+    /// @{
 
     /// @brief Tests whether a filesystem entry exists.
     /// @param path Path to query.
@@ -1079,6 +1131,15 @@ namespace GameWIP::FileSystem
     /// @return Success or a validation, lookup, permission, or metadata failure status.
     [[nodiscard]] IO::Types::Status setReadOnly(const Types::Path &path, bool readOnly, const Types::EntryOptions &options = {}) noexcept;
 
+    /// @}
+
+    // ------------------------------------------------------------
+    // Entry mutations
+    // ------------------------------------------------------------
+
+    /// @name Entry mutations
+    /// @{
+
     /// @brief Copies one regular file.
     /// @param from Source file path.
     /// @param to Destination file path.
@@ -1114,6 +1175,15 @@ namespace GameWIP::FileSystem
     [[nodiscard]] Types::Directory::RemoveTreeResult removeDirectoryTree(
         const Types::Path &path,
         const Types::Directory::RemoveTreeOptions &options = {}) noexcept;
+
+    /// @}
+
+    // ------------------------------------------------------------
+    // Current directory and paths
+    // ------------------------------------------------------------
+
+    /// @name Current directory and paths
+    /// @{
 
     /// @brief Returns the process current working directory.
     /// @return Current working directory path or a query failure status.
@@ -1200,4 +1270,6 @@ namespace GameWIP::FileSystem
     /// @return UTF-8 path text or EncodingFailed/OutOfMemory.
     /// @note The result does not promise normalized or platform-independent separators.
     [[nodiscard]] Types::Utf8PathResult pathToUtf8(const Types::Path &path) noexcept;
+
+    /// @}
 } // namespace GameWIP::FileSystem

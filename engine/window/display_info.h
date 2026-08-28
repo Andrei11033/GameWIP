@@ -78,6 +78,9 @@ namespace GameWIP::Window::Types::Display
 
 namespace GameWIP::Window::Display
 {
+    /// @name Monitor and color queries
+    /// @{
+
     /// @brief Enumerates snapshots for all currently known desktop monitors.
     /// @return Query status and materialized monitor snapshots on success.
     [[nodiscard]] GAMEWIP_WINDOW_EXPORT Types::Display::MonitorsResult getMonitors() noexcept;
@@ -96,4 +99,5 @@ namespace GameWIP::Window::Display
     /// @param window Open Window whose cached current monitor is queried.
     /// @return Query status and current operating-system color facts on success.
     [[nodiscard]] GAMEWIP_WINDOW_EXPORT Types::Display::ColorInfoResult getColorInfo(const Window &window) noexcept;
+    /// @}
 } // namespace GameWIP::Window::Display

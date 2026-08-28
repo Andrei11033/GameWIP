@@ -10,6 +10,7 @@ gamewip_add_public_header_check(FileSystem filesystem_header.cpp GameWIP::FileSy
 gamewip_add_public_header_check(Terminal terminal_header.cpp GameWIP::Terminal)
 gamewip_add_public_header_check(TerminalStyle terminal_style_header.cpp GameWIP::Terminal)
 gamewip_add_public_header_check(WindowTypes window_types_header.cpp GameWIP::Window)
+gamewip_add_public_header_check(WindowChildSurface window_child_surface_header.cpp GameWIP::Window)
 gamewip_add_public_header_check(WindowCursor window_cursor_header.cpp GameWIP::Window)
 gamewip_add_public_header_check(WindowDescription window_description_header.cpp GameWIP::Window)
 gamewip_add_public_header_check(WindowEvents window_events_header.cpp GameWIP::Window)

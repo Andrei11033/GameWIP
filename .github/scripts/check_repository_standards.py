@@ -137,6 +137,36 @@ APACHE_LICENSE_MARKERS = (
     "END OF TERMS AND CONDITIONS",
 )
 
+SOURCE_DOCUMENTATION_SUFFIXES = {
+    ".c",
+    ".cc",
+    ".cmake",
+    ".cpp",
+    ".cxx",
+    ".h",
+    ".hh",
+    ".hpp",
+    ".hxx",
+    ".inl",
+    ".ipp",
+    ".js",
+    ".mjs",
+    ".cjs",
+    ".ps1",
+    ".psd1",
+    ".psm1",
+    ".py",
+}
+SECTION_DIVIDER = re.compile(r"^(?P<indent>\s*)(?P<marker>//|#)\s*(?P<dashes>-{10,})\s*$")
+SECTION_TITLE = re.compile(r"^(?P<indent>\s*)(?P<marker>//|#)\s*(?P<title>\S(?:.*\S)?)\s*$")
+DOXYGEN_GROUP_OPEN = re.compile(r"^\s*/// @\{\s*$")
+CANONICAL_DIVIDER = "-" * 60
+
+
+# ------------------------------------------------------------
+# Repository metadata
+# ------------------------------------------------------------
+
 
 def check_license_metadata(failures: list[str]) -> None:
     """Require one coherent first-party license and attribution boundary."""
@@ -197,6 +227,11 @@ def workflow_jobs(lines: list[str]) -> list[tuple[str, list[str]]]:
     if current_name is not None:
         jobs.append((current_name, current_lines))
     return jobs
+
+
+# ------------------------------------------------------------
+# GitHub policy
+# ------------------------------------------------------------
 
 
 def check_issue_area_mapping(failures: list[str]) -> None:
@@ -312,6 +347,11 @@ def check_github_metadata_policy(failures: list[str]) -> None:
             failures.append(f".github/scripts/pr-standards.js: canonical metadata value is missing: {required}")
 
 
+# ------------------------------------------------------------
+# Maintained-file registries
+# ------------------------------------------------------------
+
+
 def read_json(relative: str, failures: list[str]) -> dict:
     """Read a required JSON authority while retaining all failures."""
     try:
@@ -325,6 +365,97 @@ def maintained_files() -> list[Path]:
     """Return first-party files without generated or disposable trees."""
     excluded = {".git", "build", "external"}
     return [path for path in ROOT.rglob("*") if path.is_file() and not excluded.intersection(path.relative_to(ROOT).parts)]
+
+
+def source_documentation_files() -> list[Path]:
+    """Return maintained source files that support line comments."""
+    return [path for path in maintained_files() if path.suffix.lower() in SOURCE_DOCUMENTATION_SUFFIXES or path.name == "CMakeLists.txt"]
+
+
+def normalize_source_documentation(text: str) -> tuple[str, list[tuple[int, str]]]:
+    """Return canonical source-documentation layout and actionable failures."""
+    newline = "\r\n" if "\r\n" in text else "\n"
+    trailing_newline = text.endswith(("\n", "\r"))
+    lines = text.splitlines()
+    normalized: list[str] = []
+    failures: list[tuple[int, str]] = []
+    index = 0
+
+    while index < len(lines):
+        line = lines[index]
+        divider = SECTION_DIVIDER.fullmatch(line)
+        if divider is not None:
+            title = SECTION_TITLE.fullmatch(lines[index + 1]) if index + 1 < len(lines) else None
+            closing = SECTION_DIVIDER.fullmatch(lines[index + 2]) if index + 2 < len(lines) else None
+            if (
+                title is None
+                or closing is None
+                or title.group("indent") != divider.group("indent")
+                or title.group("marker") != divider.group("marker")
+                or closing.group("indent") != divider.group("indent")
+                or closing.group("marker") != divider.group("marker")
+            ):
+                failures.append((index + 1, "section separator must be a matching divider, title, and divider block"))
+                normalized.append(line)
+                index += 1
+                continue
+
+            canonical = f"{divider.group('indent')}{divider.group('marker')} {CANONICAL_DIVIDER}"
+            canonical_title = f"{divider.group('indent')}{divider.group('marker')} {title.group('title')}"
+            if lines[index : index + 3] != [canonical, canonical_title, canonical]:
+                failures.append((index + 1, "section separator must use one space after the comment marker and exactly 60 hyphens"))
+            normalized.extend((canonical, canonical_title, canonical))
+            index += 3
+            continue
+
+        normalized.append(line)
+        if DOXYGEN_GROUP_OPEN.fullmatch(line) and (index + 1 >= len(lines) or lines[index + 1].strip()):
+            failures.append((index + 1, "Doxygen group opening must be followed by a blank line"))
+            normalized.append("")
+        index += 1
+
+    result = newline.join(normalized)
+    if trailing_newline:
+        result += newline
+    return result, failures
+
+
+def check_source_documentation_layout(failures: list[str]) -> None:
+    """Require canonical section separators and unambiguous Doxygen groups."""
+    for path in source_documentation_files():
+        text = path.read_text(encoding="utf-8", errors="replace")
+        _, layout_failures = normalize_source_documentation(text)
+        relative = path.relative_to(ROOT).as_posix()
+        failures.extend(f"{relative}:{line}: {message}" for line, message in layout_failures)
+
+
+def fix_source_documentation_layout(requested: list[str]) -> int:
+    """Normalize mechanically safe source-documentation layout details."""
+    changed = 0
+    unsafe: list[str] = []
+    paths = source_documentation_files()
+    if requested:
+        requested_paths = {(ROOT / item).resolve() if not Path(item).is_absolute() else Path(item).resolve() for item in requested}
+        paths = [path for path in paths if path.resolve() in requested_paths]
+    for path in paths:
+        text = path.read_text(encoding="utf-8", errors="strict")
+        normalized, layout_failures = normalize_source_documentation(text)
+        structural = [failure for failure in layout_failures if "matching divider" in failure[1]]
+        if structural:
+            relative = path.relative_to(ROOT).as_posix()
+            unsafe.extend(f"{relative}:{line}: {message}" for line, message in structural)
+            continue
+        if normalized != text:
+            path.write_text(normalized, encoding="utf-8", newline="")
+            changed += 1
+
+    if unsafe:
+        print("Source-documentation formatting stopped on unsafe structure:", file=sys.stderr)
+        for failure in unsafe:
+            print(f"- {failure}", file=sys.stderr)
+        return 1
+    print(f"Normalized source-documentation layout in {changed} file(s).")
+    return 0
 
 
 def check_registry_relationships(failures: list[str]) -> None:
@@ -525,6 +656,11 @@ def check_registry_relationships(failures: list[str]) -> None:
             failures.append(f"{registry}: required schema pairing '{schema}' is missing")
 
 
+# ------------------------------------------------------------
+# Workflow and editor integration
+# ------------------------------------------------------------
+
+
 def check_live_paths_and_editor(failures: list[str]) -> None:
     """Reject migrated live names and invalid editor helper invocations."""
     for path in maintained_files():
@@ -702,6 +838,11 @@ def check_action_reference_consistency(workflows: list[Path], failures: list[str
             references[action] = (reference, annotation, relative, line_number)
 
 
+# ------------------------------------------------------------
+# Quality contract
+# ------------------------------------------------------------
+
+
 def check_quality_contract(failures: list[str]) -> None:
     """Protect quality semantics that would otherwise degrade silently."""
 
@@ -725,7 +866,18 @@ def check_quality_contract(failures: list[str]) -> None:
             failures.append("config/quality/yamllint.yml: the shared 150-column YAML limit must remain an error")
 
 
+# ------------------------------------------------------------
+# Entry point
+# ------------------------------------------------------------
+
+
 def main() -> int:
+    if len(sys.argv) >= 2 and sys.argv[1] == "--fix-source-documentation":
+        return fix_source_documentation_layout(sys.argv[2:])
+    if len(sys.argv) != 1:
+        print("usage: check_repository_standards.py [--fix-source-documentation [paths...]]", file=sys.stderr)
+        return 2
+
     failures: list[str] = []
 
     for path in REQUIRED_REPOSITORY_FILES:
@@ -739,6 +891,7 @@ def main() -> int:
     check_github_metadata_policy(failures)
     check_registry_relationships(failures)
     check_live_paths_and_editor(failures)
+    check_source_documentation_layout(failures)
     check_quality_contract(failures)
     check_extracted_workflow_logic(failures)
     safe_ctest_presets = fail_closed_ctest_presets(failures)

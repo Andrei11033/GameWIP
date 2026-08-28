@@ -8,6 +8,9 @@
 
 namespace GameWIP::Window::Detail::Platform
 {
+    // ------------------------------------------------------------
+    // Transition state and rollback
+    // ------------------------------------------------------------
     namespace
     {
         class ModeTransitionScope
@@ -180,6 +183,9 @@ namespace GameWIP::Window::Detail::Platform
         }
     } // namespace
 
+    // ------------------------------------------------------------
+    // Fullscreen placement and mode transitions
+    // ------------------------------------------------------------
     IO::Types::Status placeFullscreenOnMonitor(WindowState &state, HMONITOR monitor, bool preserveZOrder) noexcept
     {
         MONITORINFOEXW info{};
@@ -368,6 +374,9 @@ namespace GameWIP::Window::Detail::Platform
         return transition.ok() ? std::move(activation) : std::move(transition);
     }
 
+    // ------------------------------------------------------------
+    // Display-change recovery
+    // ------------------------------------------------------------
     IO::Types::Status recoverAfterDisplayChange(WindowState &state, bool forceRemovedMonitor) noexcept
     {
         if (!state.platform || state.platform->handle == nullptr)

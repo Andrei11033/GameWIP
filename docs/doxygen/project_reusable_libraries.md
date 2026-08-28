@@ -21,6 +21,11 @@ project_structure.
 - @subpage terminal — Standard-stream I/O, terminal sessions and events,
   styling, capabilities, and control operations.
 
+## Internal foundation support
+
+- @subpage internal_base — Source-tree-only checked arithmetic and typed Win32
+  procedure lookup shared by independent implementations.
+
 ## Engine libraries
 
 - @subpage window_library — Native desktop-window ownership, events, displays,

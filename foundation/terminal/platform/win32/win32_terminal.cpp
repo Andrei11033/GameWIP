@@ -1468,6 +1468,10 @@ namespace GameWIP::Terminal::Detail::Platform
         }
     } // namespace
 
+    // ------------------------------------------------------------
+    // Capabilities and endpoint state
+    // ------------------------------------------------------------
+
     std::string_view nativeLineEnding() noexcept
     {
         return "\r\n";
@@ -1660,6 +1664,10 @@ namespace GameWIP::Terminal::Detail::Platform
 
         return getOutputCapabilities(stream);
     }
+
+    // ------------------------------------------------------------
+    // Input modes and validation
+    // ------------------------------------------------------------
 
     IO::Types::Status validateCursorMovement([[maybe_unused]] OutputStream stream, std::uint32_t amount)
     {
@@ -1891,6 +1899,10 @@ namespace GameWIP::Terminal::Detail::Platform
         return IO::successStatus();
     }
 
+    // ------------------------------------------------------------
+    // Geometry and cursor state
+    // ------------------------------------------------------------
+
     Terminal::Types::SizeResult getTerminalSize(OutputStream stream)
     {
         Terminal::Types::SizeResult result;
@@ -2113,6 +2125,10 @@ namespace GameWIP::Terminal::Detail::Platform
         }
         return IO::successStatus();
     }
+
+    // ------------------------------------------------------------
+    // Input
+    // ------------------------------------------------------------
 
     Terminal::Types::Input::EventResult readEvent(InputStream stream, OutputStream outputStream, const Terminal::Types::Input::EventOptions &options)
     {
@@ -2422,6 +2438,10 @@ namespace GameWIP::Terminal::Detail::Platform
         }
     }
 
+    // ------------------------------------------------------------
+    // Output
+    // ------------------------------------------------------------
+
     IO::Types::Status writeText(OutputStream stream, std::string_view utf8Text)
     {
 #if TERMINAL_INTERNAL_TEST_HOOKS
@@ -2571,6 +2591,10 @@ namespace GameWIP::Terminal::Detail::Platform
         {
             Win32Events::DecoderState testDecoderState;
         }
+
+        // ------------------------------------------------------------
+        // Test hooks
+        // ------------------------------------------------------------
 
         void resetWin32KeyDecoder() noexcept
         {

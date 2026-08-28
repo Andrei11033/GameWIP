@@ -310,6 +310,13 @@ namespace GameWIP::Unicode
         } // namespace Utf16
     } // namespace Types
 
+    // ------------------------------------------------------------
+    // Scalar and version queries
+    // ------------------------------------------------------------
+
+    /// @name Scalar and version queries
+    /// @{
+
     /// @brief Returns whether a value is a Unicode scalar value.
     /// @param value Value to inspect.
     /// @return True when value is no greater than U+10FFFF and is not a surrogate code point.
@@ -324,6 +331,15 @@ namespace GameWIP::Unicode
     /// @brief Returns the Unicode Standard version implemented by this library.
     /// @return Version of the generated Unicode data and segmentation behavior.
     [[nodiscard]] Types::Version getStandardVersion() noexcept;
+
+    /// @}
+
+    // ------------------------------------------------------------
+    // UTF-8 operations
+    // ------------------------------------------------------------
+
+    /// @name UTF-8 operations
+    /// @{
 
     /// @brief Strict UTF-8 encoding, validation, conversion, and boundary operations.
     namespace Utf8
@@ -419,7 +435,7 @@ namespace GameWIP::Unicode
             void clear() noexcept;
 
             /// @brief Returns whether reset() completed successfully.
-            [[nodiscard]] bool isReady() const noexcept;
+            [[nodiscard]] bool ready() const noexcept;
 
             /// @brief Returns the current indexed grapheme-boundary byte offset, or 0 while not ready.
             [[nodiscard]] std::size_t byteOffset() const noexcept;
@@ -450,6 +466,15 @@ namespace GameWIP::Unicode
             std::size_t currentBoundaryIndex_ = 0;
         };
     } // namespace Utf8
+
+    /// @}
+
+    // ------------------------------------------------------------
+    // UTF-16 operations
+    // ------------------------------------------------------------
+
+    /// @name UTF-16 operations
+    /// @{
 
     /// @brief Strict UTF-16 encoding, validation, and conversion operations.
     namespace Utf16
@@ -513,4 +538,6 @@ namespace GameWIP::Unicode
         /// @note Overlapping source and destination memory is rejected before any output is written.
         [[nodiscard]] Types::Utf16::ToUtf8Result convertToUtf8(std::span<const char16_t> source, std::span<char> destination) noexcept;
     } // namespace Utf16
+
+    /// @}
 } // namespace GameWIP::Unicode

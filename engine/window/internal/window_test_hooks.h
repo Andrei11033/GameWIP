@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "window/child_surface.h"
 #include "window/cursor.h"
 #include "window/description.h"
 #include "window/display_info.h"
@@ -22,6 +23,12 @@ namespace GameWIP::Window::TestHooks
     {
         Types::LogicalSize logicalSize;
         Types::PixelSize framebufferSize;
+    };
+
+    struct ChildSurfaceDpiTransitionResult
+    {
+        Types::LogicalRect logicalRect;
+        Types::PixelSize pixelSize;
     };
 
     struct DisplayColorSnapshot
@@ -75,6 +82,7 @@ namespace GameWIP::Window::TestHooks
     [[nodiscard]] GAMEWIP_WINDOW_EXPORT IO::Types::Status enqueue(Window &window, Types::Events::Payload data) noexcept;
     [[nodiscard]] GAMEWIP_WINDOW_EXPORT IO::Types::Status requestClose(Window &window, Types::Events::CloseRequestSource source) noexcept;
     [[nodiscard]] GAMEWIP_WINDOW_EXPORT IO::Types::Status destroyNativeWindow(Window &window) noexcept;
+    [[nodiscard]] GAMEWIP_WINDOW_EXPORT IO::Types::Status destroyNativeChildSurface(ChildSurface &surface) noexcept;
     GAMEWIP_WINDOW_EXPORT void enablePointerHitMaskBridge(Window &window) noexcept;
     [[nodiscard]] GAMEWIP_WINDOW_EXPORT bool hasRendererIntegrationState(const Window &window) noexcept;
     GAMEWIP_WINDOW_EXPORT void setPointerHitMaskGeneration(Window &window, std::uint64_t generation) noexcept;
@@ -102,6 +110,8 @@ namespace GameWIP::Window::TestHooks
         Types::PixelSize framebufferSize,
         std::uint32_t newDpi,
         Types::DpiResizePolicy policy) noexcept;
+    [[nodiscard]] GAMEWIP_WINDOW_EXPORT ChildSurfaceDpiTransitionResult
+    calculateChildSurfaceDpiTransition(Types::LogicalRect logicalRect, std::uint32_t newDpi) noexcept;
     GAMEWIP_WINDOW_EXPORT void failCursorNativeCreationAfter(std::size_t successfulVariants) noexcept;
     [[nodiscard]] GAMEWIP_WINDOW_EXPORT std::size_t customCursorVariantCount(const Cursor &cursor) noexcept;
     [[nodiscard]] GAMEWIP_WINDOW_EXPORT std::uint32_t customCursorBindingDpi(const Window &window) noexcept;

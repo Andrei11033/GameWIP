@@ -1,8 +1,8 @@
 @page window_examples Examples
 
 These focused examples build on the owner-thread lifecycle from
-@ref window_quick_start and demonstrate displays, custom cursors, renderer
-feedback, and native interop without hiding status handling.
+@ref window_quick_start and demonstrate displays, custom cursors, native child
+hosts, renderer feedback, and native interop without hiding status handling.
 
 ## Open a normal Window
 
@@ -85,6 +85,30 @@ if (window.supports(GameWIP::Window::Types::Capability::CustomCursor))
 ```
 
 Use @ref window_custom_cursors for multiple-DPI variants, sharing, lifetime, cursor-mode interaction, and restoring a system shape.
+
+## Native child host
+
+```cpp
+#include "window/child_surface.h"
+#include "window/native/win32.h"
+
+GameWIP::Window::ChildSurface host;
+GameWIP::Window::Types::ChildSurface::Description hostDescription;
+hostDescription.rect = {{40, 40}, {800, 600}};
+hostDescription.visible = true;
+
+if (host.open(window, hostDescription).ok())
+{
+    const auto native = GameWIP::Window::Native::Win32::getHandle(host);
+    if (native.status.ok())
+    {
+        // Create externally managed native descendants below native.handle.window.
+    }
+}
+```
+
+Shut external technology down before `host.close()` when its SDK requires explicit teardown. See @ref window_child_surfaces for ownership, parent
+loss, event queues, geometry, DPI, and sibling ordering.
 
 ## Renderer feedback
 

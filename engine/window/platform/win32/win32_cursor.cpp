@@ -17,6 +17,9 @@
 
 namespace GameWIP::Window::Detail::Platform
 {
+    // ------------------------------------------------------------
+    // Cursor image and binding helpers
+    // ------------------------------------------------------------
     namespace
     {
         inline constexpr wchar_t kCursorBindingProperty[] = L"GameWIP.Window.CustomCursorBinding.v1";
@@ -163,6 +166,9 @@ namespace GameWIP::Window::Detail::Platform
         return IO::successStatus();
     }
 
+    // ------------------------------------------------------------
+    // Native cursor resources
+    // ------------------------------------------------------------
     void destroyNativeCursorVariants(std::span<const NativeCursorVariant> variants) noexcept
     {
         for (const NativeCursorVariant &variant : variants)
@@ -175,6 +181,9 @@ namespace GameWIP::Window::Detail::Platform
         }
     }
 
+    // ------------------------------------------------------------
+    // Window cursor bindings
+    // ------------------------------------------------------------
     IO::Types::Status setCustomCursor(WindowState &window, std::shared_ptr<const CursorState> cursor) noexcept
     {
         try
@@ -265,6 +274,9 @@ namespace GameWIP::Window::Detail::Platform
         return IO::successStatus();
     }
 
+    // ------------------------------------------------------------
+    // Validation inspection
+    // ------------------------------------------------------------
     NativeCursorSnapshot inspectNativeCursor(const NativeCursorVariant &variant) noexcept
     {
         ICONINFO info{};

@@ -550,6 +550,10 @@ namespace GameWIP::IO
 {
     using namespace Detail::Core;
 
+    // ------------------------------------------------------------
+    // Whole-stream reads
+    // ------------------------------------------------------------
+
     Types::ReadAllBytesResult readAllBytes(Reader &reader, std::uint64_t maxBytes, std::size_t bufferSize) noexcept
     {
         if (bufferSize == 0)
@@ -717,6 +721,10 @@ namespace GameWIP::IO
 
         return finalizeReadAllText(readAllTextWithScratch(reader, scratchBuffer, maxBytes));
     }
+
+    // ------------------------------------------------------------
+    // Whole-stream writes
+    // ------------------------------------------------------------
 
     Types::WriteResult writeAllBytes(Writer &writer, std::span<const std::byte> bytes) noexcept
     {

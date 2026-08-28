@@ -18,6 +18,7 @@ The supported public headers are:
 - `window/display.h`
 - `window/display_info.h`
 - `window/cursor.h`
+- `window/child_surface.h`
 - `window/window.h`
 - `window/renderer_bridge.h`
 - `window/native/win32.h` on Win32
@@ -26,7 +27,7 @@ The supported public headers are:
 Internal headers and test hooks are source-tree-only. Every supported entry header is compiled in isolation by repository validation.
 
 `window/window.h` intentionally includes the normal shared vocabulary, description, fundamental display-mode surface, and events. Rich display
-inspection, custom cursor resources, renderer integration, and native interop remain explicit opt-in includes.
+inspection, custom cursor resources, native child hosts, renderer integration, and native interop remain explicit opt-in includes.
 
 ## Dependencies
 

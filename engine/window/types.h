@@ -12,6 +12,14 @@ namespace GameWIP::Window
     /// @brief Passive portable values shared across focused Window API surfaces.
     namespace Types
     {
+        /// @brief Portable native-resource lifecycle state.
+        enum class LifetimeState
+        {
+            Closed,                        ///< No native lifetime or retained open-state resources.
+            Open,                          ///< Native operations and normal cached state are available.
+            NativeDestroyedPendingFinalize ///< Native handle is gone; cached state awaits owner-thread finalization.
+        };
+
         /// @brief Process-local identity of one successful Window open lifetime.
         struct WindowId
         {
