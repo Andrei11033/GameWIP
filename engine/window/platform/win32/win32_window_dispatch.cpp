@@ -101,11 +101,6 @@ namespace GameWIP::Window::Detail::Platform
                     result.status = std::move(cursorStatus);
             }
         }
-        for (ChildSurfaceState *state : current.childSurfaces)
-        {
-            if (state != nullptr)
-                refreshChildSurfaceScreenRect(*state);
-        }
         current.activeResult = nullptr;
         current.pumping = false;
         return result;

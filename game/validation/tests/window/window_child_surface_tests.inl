@@ -111,11 +111,13 @@ void testChildSurfaces(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("ChildSurface geometry queues PixelSizeChanged", foundPixelSizeEvent));
     const Window::Types::LogicalRect authoritativeBeforeParentChange = surface.rect();
     const Window::Types::ScreenPosition screenBeforeParentMove = surface.screenRect().position;
-    static_cast<void>(parent.setClientPosition({parent.clientPosition().x + 20, parent.clientPosition().y + 15}));
-    static_cast<void>(Window::Events::poll());
+    static_cast<void>(context.expectTrue(
+        "parent movement succeeds",
+        parent.setClientPosition({parent.clientPosition().x + 20, parent.clientPosition().y + 15}).ok()));
     static_cast<void>(context.expectEq("parent movement preserves ChildSurface logical geometry", authoritativeBeforeParentChange, surface.rect()));
-    static_cast<void>(
-        context.expectTrue("parent movement updates ChildSurface screen geometry", screenBeforeParentMove != surface.screenRect().position));
+    static_cast<void>(context.expectTrue(
+        "parent movement immediately updates ChildSurface screen geometry",
+        screenBeforeParentMove != surface.screenRect().position));
     static_cast<void>(parent.setClientSize({700, 520}));
     static_cast<void>(Window::Events::poll());
     static_cast<void>(context.expectEq("parent resize performs no ChildSurface layout", authoritativeBeforeParentChange, surface.rect()));

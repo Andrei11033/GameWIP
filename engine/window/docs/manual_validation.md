@@ -40,8 +40,8 @@ before/after cached and native mode geometry for every display-changing request.
    `clearCloseRequest()`, request again, and explicitly close.
 2. Open two independent Windows and pump both from one thread without WindowManager. Verify events route to the correct queue and closing one leaves
    the other operational.
-3. Open an owned tool Window, activate and close it, change or remove its owner at runtime, and verify z-order and minimization behavior remain native and
-   stable.
+3. Open an owned tool Window, activate and close it, change or remove its owner at runtime, and verify z-order and minimization behavior remain
+   native and stable.
 4. Show a hidden Window while another application is focused and verify `show()` does not activate it; then call `requestFocus()` and record the
    OS-policy result.
 5. Where safely reproducible, destroy an open Window object from a non-owner thread, pump the owner dispatcher, and verify that native resources, IDs,
@@ -112,9 +112,9 @@ before/after cached and native mode geometry for every display-changing request.
 1. Enter and leave borderless fullscreen on each monitor; verify the blue surface and cyan inset marker reach every display edge, native popup and
    visible styles and HWND bounds match the monitor, the GameWIP Window remains available through the taskbar or Alt+Tab, and saved windowed placement
    returns.
-2. Enter an enumerated exclusive mode. Use Alt+Tab to move from the terminal to the validation Window, back, to the validation Window again, and finally back to
-   the terminal to answer. Verify the focused Window covers the display, the test observes both active and suspended states, the inactive state
-   reports `suspended=true`, and desktop mode is restored when leaving and closing.
+2. Enter an enumerated exclusive mode. Use Alt+Tab to move from the terminal to the validation Window, back, to the validation Window again, and
+   finally back to the terminal to answer. Verify the focused Window covers the display, the test observes both active and suspended states, the
+   inactive state reports `suspended=true`, and desktop mode is restored when leaving and closing.
 3. Reject an unsupported exact mode without changing Window or display state.
 4. Move between monitors with different DPI and verify logical client geometry, physical framebuffer extent, scale/DPI events, and current monitor.
 5. Connect/disconnect or enable/disable a monitor where practical, re-enumerate after the display event, and verify stale monitor IDs fail cleanly.
