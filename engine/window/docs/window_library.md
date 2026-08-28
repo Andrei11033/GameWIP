@@ -1,8 +1,8 @@
 @page window_library Window
 
-`GameWIP::Window` provides standalone portable ownership of native top-level desktop windows and optional managed child hosts. Its API provides checked
-lifecycle and mutation operations, fixed-capacity typed event queues, cached state, display discovery and inspection, and an explicit native
-interoperability boundary.
+`GameWIP::Window` provides standalone portable ownership of native top-level desktop windows, optional managed child hosts, and synchronous desktop
+Clipboard data exchange. Its API provides checked lifecycle and mutation operations, fixed-capacity typed event queues, cached state, display
+discovery and inspection, and an explicit native interoperability boundary.
 
 Window is usable without Input, Action, WindowManager, Renderer, UI, or the game executable. It creates no event thread and invokes no user callbacks
 from a native window procedure.
@@ -30,6 +30,8 @@ opt-in headers expose renderer feedback and deliberate native interoperation.
   DPI variants, select them on Windows, and restore system shapes.
 - @subpage window_child_surfaces — Host externally managed native descendants
   inside an optional managed child HWND.
+- @subpage window_clipboard — Exchange UTF-8 text, paths, RGBA8 images, and
+  arbitrary named opaque data without opening a Window.
 - @subpage window_lifecycle_events — Understand thread ownership, dispatch,
   queue overflow, close requests, waits, and native destruction.
 - @subpage window_chrome_and_pointer_input — Configure system and custom chrome,
@@ -45,7 +47,7 @@ opt-in headers expose renderer feedback and deliberate native interoperation.
 - @subpage window_troubleshooting — Diagnose ownership, capabilities, queue
   pressure, display transitions, native destruction, and renderer feedback.
 - @subpage window_future_extensions — Understand where proposed accessibility,
-  clipboard, drag/drop, dialogs, and related features belong.
+  drag/drop, dialogs, and related features belong.
 
 ## Maintainer validation
 
@@ -58,8 +60,9 @@ opt-in headers expose renderer feedback and deliberate native interoperation.
 ## Generated API reference
 
 Use @ref GameWIP::Window for library-wide capability operations and the non-copyable, non-movable @ref GameWIP::Window::Window owner. Passive values
-live under @ref GameWIP::Window::Types, with child-host values under `Types::ChildSurface`, event payloads under `Types::Events`, display values under
-`Types::Display`, and renderer-bridge values under `Types::Renderer`. Global event pumping lives under `Window::Events`, display inspection under
+live under @ref GameWIP::Window::Types, with child-host values under `Types::ChildSurface`, transfer values under `Types::DataTransfer`, Clipboard
+results under `Types::Clipboard`, event payloads under `Types::Events`, display values under `Types::Display`, and renderer-bridge values under
+`Types::Renderer`. Global event pumping lives under `Window::Events`, Clipboard operations under `Window::Clipboard`, display inspection under
 `Window::Display`, and renderer feedback under `Window::Renderer`. Win32 consumers use @ref GameWIP::Window::Native::Win32 deliberately.
 
 ## Key behavior
@@ -93,8 +96,8 @@ its physical client pixels.
 The normal portable surface is assembled by `window/window.h` from focused `window/types.h`, `window/description.h`, `window/events.h`, and
 `window/display.h`. Rich monitor/color inspection is opt-in through `window/display_info.h`. Renderer integration is opt-in through
 `window/renderer_bridge.h`, custom native cursors are opt-in through `window/cursor.h`, native child hosts are opt-in through
-`window/child_surface.h`, and Win32 interoperability is opt-in through
-`window/native/win32.h`.
+`window/child_surface.h`, shared transfer values and Clipboard are opt-in through `window/data_transfer.h` and `window/clipboard.h`, and Win32
+interoperability is opt-in through `window/native/win32.h`.
 
 Installed consumers link `GameWIP::Window`. Window is intentionally built as a shared library: process-local Window and monitor identities, native
 class ownership, dispatchers, and registries must remain coherent through one runtime instance rather than being duplicated across statically linked

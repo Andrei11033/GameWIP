@@ -15,8 +15,10 @@ Window exposes one public `GameWIP::Window::Types` tree and focused headers by c
 - `window/display_info.h` is the opt-in rich monitor/color inspection surface.
 - `window/cursor.h` is the opt-in custom native cursor resource and selection surface.
 - `window/child_surface.h` is the opt-in managed native child-host resource, passive description, and typed event surface.
+- `window/data_transfer.h` is the opt-in shared non-owning/owning transfer vocabulary for Clipboard and future drag and drop.
+- `window/clipboard.h` is the opt-in stateless synchronous Clipboard service and its operation results.
 - `window/window.h` assembles the normal Window object API and includes the fundamental headers above, but not rich display inspection, custom cursor
-  resources, renderer integration, or native interop.
+  resources, Clipboard/data transfer, renderer integration, or native interop.
 - `window/renderer_bridge.h` is the opt-in renderer feedback bridge.
 - `window/native/win32.h` is explicit Win32 interoperability.
 
@@ -64,6 +66,13 @@ opt-in resource surface. See @ref window_custom_cursors for image validation, DP
 `window/child_surface.h` contains the non-movable `ChildSurface` RAII owner and passive values under `Types::ChildSurface`. It reuses shared
 `Types::LifetimeState`, `Types::Events::QueueInfo`, and `Types::Events::StorageKind`; there is no public ChildSurface ID. See
 @ref window_child_surfaces for native-host ownership, parent loss, logical geometry, DPI, queues, and sibling ordering.
+
+## Clipboard and data transfer
+
+`window/data_transfer.h` owns `Types::DataTransfer` views and owning values for UTF-8 text, ordered paths, sRGB straight-alpha RGBA8 images, and
+arbitrary named opaque bytes. `window/clipboard.h` owns `Types::Clipboard` results and the stateless `Window::Clipboard` operations. It adds no
+`Window` capability because operations require no Window object or event pump. See @ref window_clipboard for timeout, transaction, native ownership,
+and custom-format semantics.
 
 ## Events
 

@@ -59,6 +59,31 @@ Include `window/native/win32.h` only in a Win32 translation unit and query after
 For ChildSurface native hosting, include both `window/child_surface.h` and `window/native/win32.h`. The external technology may own descendants but
 must not destroy, reparent, or subclass the GameWIP host. Shut the external technology down before closing the ChildSurface when its SDK requires it.
 
+## Clipboard reports ResourceBusy
+
+Another process or thread currently owns clipboard access. Use the explicit timeout overload when the operation has a different latency budget;
+`Clipboard::kNoWait` performs one attempt and the convenience overload uses `kDefaultAccessTimeout`. Retrying remains bounded. A timeout cannot cancel
+a foreign delayed-rendering call already entered by Windows.
+
+## Clipboard write failed after changing contents
+
+Inspect `WriteResult::commitState` and `formatsPublished`. `Cleared` means the old contents are gone but the first requested format failed;
+`PartiallyPublished` means the reported caller-order prefix is externally visible. A close failure may accompany `Published` because cleanup failure
+does not erase a completed side effect. Use `clear()` only for intentional clearing.
+
+## Clipboard custom data has an unexpected extent
+
+GameWIP returns the opaque native allocation extent and adds no prefix or framing. Another application's allocation may include padding. The custom
+format specification must define any logical length field. Names follow case-insensitive Win32 registered-format identity. Immediate zero-byte custom
+publication is `Unsupported` on Win32 because a zero-sized movable allocation is discarded; using `nullptr` would require out-of-scope delayed
+rendering.
+
+## Clipboard text, file, or image input is rejected
+
+Text must be strict UTF-8 and Win32 text cannot preserve embedded U+0000. File lists must be nonempty absolute paths, but paths need not exist and no
+file-system query occurs. Image dimensions must be positive, stride must hold `width * 4` bytes, and the byte span must equal the resolved stride times
+height exactly. See @ref window_clipboard.
+
 ## Custom cursor selection fails
 
 Include `window/cursor.h` and check `Types::Capability::CustomCursor`. `createCursor()` returns `InvalidArgument` for an empty variant set, invalid
@@ -98,3 +123,4 @@ is not advertised by the current Win32 backend.
 - @ref window_package_abi
 - @ref window_coordinates_and_dpi
 - @ref window_manual_validation
+- @ref window_clipboard

@@ -2,7 +2,8 @@
 
 These focused examples build on the owner-thread lifecycle from
 @ref window_quick_start and demonstrate displays, custom cursors, native child
-hosts, renderer feedback, and native interop without hiding status handling.
+hosts, Clipboard data exchange, renderer feedback, and native interop without
+hiding status handling.
 
 ## Open a normal Window
 
@@ -58,6 +59,30 @@ if (monitors.status.ok())
     }
 }
 ```
+
+## Copy and paste UTF-8 text
+
+```cpp
+#include "window/clipboard.h"
+
+const auto copied = GameWIP::Window::Clipboard::writeText("selected UTF-8 text");
+if (!copied.status.ok())
+{
+    // copied.commitState says whether the external Clipboard changed.
+}
+
+const auto pasted = GameWIP::Window::Clipboard::readText(
+    std::chrono::milliseconds{50});
+if (pasted.status.ok())
+{
+    // Insert pasted.text into the application-owned selection.
+}
+```
+
+The UI decides when a shortcut or menu command calls these operations. For
+multi-format publication, construct ordered `Types::DataTransfer::ItemView`
+values and call `Clipboard::write()`; inspect both `commitState` and
+`formatsPublished` on failure. See @ref window_clipboard.
 
 ## Borderless fullscreen
 

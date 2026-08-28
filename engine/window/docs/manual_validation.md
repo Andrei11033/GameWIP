@@ -107,6 +107,26 @@ before/after cached and native mode geometry for every display-changing request.
 4. Exercise every valid resizable/maximizable combination and both invalid transition orders. Verify closable and minimizable remain independent.
 5. Confirm an owned Window has no independent taskbar entry by default; remove and restore the owner and verify styles and taskbar behavior recover.
 
+## Clipboard interoperability
+
+These checks use normal desktop applications and do not require an open GameWIP Window:
+
+1. Publish ASCII, multibyte UTF-8, and non-BMP text from GameWIP; paste into Notepad and verify exact visible text. Copy text from Notepad and verify
+   `readText()` returns the expected UTF-8.
+2. Publish several absolute Unicode/nonexistent paths and inspect them with a compatible Explorer/desktop drop workflow. Copy real files in Explorer
+   and verify `readFiles()` preserves native order and spelling without reading file contents.
+3. Publish a small RGBA image with transparent and opaque pixels; paste into a common image-capable application and verify orientation, channel order,
+   and alpha. Copy an RGB image from that application and verify GameWIP returns alpha 255 where native alpha is not explicit.
+4. Run two independent processes that agree on one registered format name and schema. Publish binary bytes including `0x00` in one process and verify
+   the other reads the opaque block. Repeat with names differing only by case and confirm they identify the same Win32 format.
+5. Hold the Clipboard open in an external diagnostic process. Verify `kNoWait` returns promptly and a finite explicit timeout remains bounded without
+   busy spinning. Release it and verify the next operation succeeds.
+6. Record that immediate zero-byte custom publication reports `Unsupported` without clearing existing contents; do not substitute a one-byte payload
+   or delayed renderer.
+
+Record the applications/versions used and whether each direction passed. Custom interoperability proves only the agreed name/schema, not universal
+interpretation of arbitrary registered formats.
+
 ## Fullscreen and display topology
 
 1. Enter and leave borderless fullscreen on each monitor; verify the blue surface and cyan inset marker reach every display edge, native popup and
@@ -158,3 +178,4 @@ the Window remains either unchanged and retryable or completely closed according
 - @ref window_coordinates_and_dpi
 - @ref window_fullscreen_monitors
 - @ref window_testing
+- @ref window_clipboard

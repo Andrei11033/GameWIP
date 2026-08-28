@@ -29,7 +29,8 @@ project_structure.
 ## Engine libraries
 
 - @subpage window_library — Native desktop-window ownership, events, displays,
-  coordinates, fullscreen behavior, and renderer/native integration.
+  Clipboard data exchange, coordinates, fullscreen behavior, and
+  renderer/native integration.
 
 ## Tool libraries
 

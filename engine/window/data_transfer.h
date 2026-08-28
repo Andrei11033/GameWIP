@@ -36,6 +36,7 @@ namespace GameWIP::Window::Types::DataTransfer
     {
         FormatKind kind = FormatKind::Text; ///< Portable format category.
         std::string customName;             ///< Owned UTF-8 name only for Custom.
+        /// @brief Compares the category and owned custom name.
         friend bool operator==(const Format &, const Format &) noexcept = default;
     };
 
@@ -73,6 +74,7 @@ namespace GameWIP::Window::Types::DataTransfer
     struct Text
     {
         std::string text; ///< Complete strict UTF-8 text.
+        /// @brief Compares the owned UTF-8 text.
         friend bool operator==(const Text &, const Text &) noexcept = default;
     };
 
@@ -80,6 +82,7 @@ namespace GameWIP::Window::Types::DataTransfer
     struct FileList
     {
         std::vector<FileSystem::Types::Path> paths; ///< Ordered materialized paths.
+        /// @brief Compares ordered native paths.
         friend bool operator==(const FileList &, const FileList &) noexcept = default;
     };
 
@@ -88,6 +91,7 @@ namespace GameWIP::Window::Types::DataTransfer
     {
         PixelSize size;               ///< Positive physical dimensions when populated.
         std::vector<std::byte> rgba8; ///< Exactly width * height * 4 bytes when populated.
+        /// @brief Compares dimensions and tightly packed pixels.
         friend bool operator==(const Image &, const Image &) noexcept = default;
     };
 
@@ -96,6 +100,7 @@ namespace GameWIP::Window::Types::DataTransfer
     {
         std::string formatName;       ///< Owned strict UTF-8 native format name.
         std::vector<std::byte> bytes; ///< Opaque native-format payload.
+        /// @brief Compares the format name and opaque byte block.
         friend bool operator==(const CustomData &, const CustomData &) noexcept = default;
     };
 

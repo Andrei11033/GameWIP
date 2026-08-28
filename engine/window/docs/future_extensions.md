@@ -20,11 +20,11 @@ must not invent or retain a second semantic model.
 The packed Renderer-to-Window mask bridge exists in `window/renderer_bridge.h`. Genuine cross-application rectangular and per-pixel routing remains
 backend work and stays `Unsupported` until a documented stable native API can satisfy the contract.
 
-## Clipboard, data transfer, and dialogs
+## Data transfer, drag and drop, and dialogs
 
-Clipboard services, shared data-transfer values, native drag and drop, and native dialogs belong in focused Window headers.
-The clipboard and drag/drop surfaces must share one data-transfer contract rather than duplicate format, ownership, or lifetime rules. Existing
-file-drop events remain the narrow core capability until that broader contract is implemented.
+Clipboard and its shared transfer vocabulary are implemented in the focused `window/clipboard.h` and `window/data_transfer.h` headers. Future native
+drag and drop must reuse that contract rather than duplicate format, ownership, or lifetime rules. Drag lifecycle/effects and native dialogs still
+belong in their own focused Window headers. Existing file-drop events remain the narrow core path-only capability.
 
 Renderer attachment already has an explicit non-owning native-handle boundary, and renderer occlusion reporting has an explicit owner-thread
 feedback boundary. Renderer surface lifetime, swapchains, and synchronization remain Renderer responsibilities.

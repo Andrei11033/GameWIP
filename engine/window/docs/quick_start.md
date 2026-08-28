@@ -13,9 +13,9 @@ The normal Window surface is:
 ```
 
 Include `window/display_info.h`, `window/cursor.h`, `window/child_surface.h`,
-`window/renderer_bridge.h`, or `window/native/win32.h` only when using rich
-display inspection, custom native cursors, native child hosts, renderer
-feedback, or Win32 native interoperability.
+`window/clipboard.h`, `window/renderer_bridge.h`, or `window/native/win32.h`
+only when using rich display inspection, custom native cursors, native child
+hosts, Clipboard/data transfer, renderer feedback, or Win32 interop.
 
 ## Installed CMake
 
@@ -100,5 +100,6 @@ individual event payloads.
 - @ref window_coordinates_and_dpi explains logical and pixel coordinate contracts.
 - @ref window_custom_cursors explains custom images, DPI variants, and shared lifetime.
 - @ref window_child_surfaces explains native child hosting and external descendant ownership.
+- @ref window_clipboard explains service calls that work with no Window open.
 - @ref window_examples provides focused display, renderer, and native examples.
 - @ref window_troubleshooting maps common failures to their owning contract.
