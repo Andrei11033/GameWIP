@@ -121,6 +121,24 @@ namespace GameWIP::Window::Detail::Platform
             return true;
         }
 
+        [[nodiscard]] bool isValidWide(std::wstring_view text, DWORD &nativeCode) noexcept
+        {
+            nativeCode = ERROR_SUCCESS;
+            if (text.size() > static_cast<std::size_t>(std::numeric_limits<int>::max()))
+            {
+                nativeCode = ERROR_INSUFFICIENT_BUFFER;
+                return false;
+            }
+            if (text.empty())
+                return true;
+            if (WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, text.data(), static_cast<int>(text.size()), nullptr, 0, nullptr, nullptr) <= 0)
+            {
+                nativeCode = GetLastError();
+                return false;
+            }
+            return true;
+        }
+
         class GlobalMemory final
         {
         public:
@@ -208,9 +226,12 @@ namespace GameWIP::Window::Detail::Platform
 
             [[nodiscard]] IO::Types::Status open(HWND owner, std::chrono::milliseconds timeout) noexcept
             {
+                const auto started = std::chrono::steady_clock::now();
+                const auto maximumWait =
+                    std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::time_point::max() - started);
+                const auto deadline = timeout >= maximumWait ? std::chrono::steady_clock::time_point::max() : started + timeout;
                 if (Detail::consumeFailure(TestHooks::FailurePoint::ClipboardAccess))
                     return status(ErrorCode::ResourceBusy, ERROR_BUSY);
-                const auto deadline = std::chrono::steady_clock::now() + timeout;
                 for (;;)
                 {
                     SetLastError(ERROR_SUCCESS);
@@ -222,10 +243,10 @@ namespace GameWIP::Window::Detail::Platform
                     const DWORD nativeCode = GetLastError();
                     if (timeout == Clipboard::kNoWait || std::chrono::steady_clock::now() >= deadline)
                         return status(ErrorCode::ResourceBusy, nativeCode);
-                    const auto remaining = std::chrono::duration_cast<std::chrono::milliseconds>(deadline - std::chrono::steady_clock::now());
-                    if (remaining <= std::chrono::milliseconds::zero())
+                    const auto remaining = deadline - std::chrono::steady_clock::now();
+                    if (remaining <= std::chrono::steady_clock::duration::zero())
                         return status(ErrorCode::ResourceBusy, nativeCode);
-                    std::this_thread::sleep_for(std::min(kRetryInterval, remaining));
+                    std::this_thread::sleep_for(std::min(std::chrono::duration_cast<std::chrono::steady_clock::duration>(kRetryInterval), remaining));
                 }
             }
 
@@ -829,8 +850,11 @@ namespace GameWIP::Window::Detail::Platform
                 else
                 {
                     const UINT count = DragQueryFileW(drop, 0xFFFFFFFFU, nullptr, 0);
+                    if (count == 0)
+                        result.status = status(ErrorCode::EncodingFailed);
+                    else
+                        result.status = IO::successStatus();
                     result.paths.reserve(count);
-                    result.status = IO::successStatus();
                     for (UINT index = 0; index < count; ++index)
                     {
                         const UINT length = DragQueryFileW(drop, index, nullptr, 0);
@@ -846,6 +870,12 @@ namespace GameWIP::Window::Detail::Platform
                             break;
                         }
                         path.resize(length);
+                        DWORD nativeCode = 0;
+                        if (!isValidWide(path, nativeCode))
+                        {
+                            result.status = status(ErrorCode::EncodingFailed, nativeCode);
+                            break;
+                        }
                         result.paths.emplace_back(std::move(path));
                     }
                 }
@@ -917,6 +947,7 @@ namespace GameWIP::Window::Detail::Platform
                             std::size_t outputBytes = 0;
                             std::size_t pixelOffset = header->biSize;
                             bool explicitAlpha = false;
+                            bool masksSupported = true;
                             if (header->biCompression == BI_BITFIELDS && header->biSize == sizeof(BITMAPINFOHEADER))
                             {
                                 std::size_t masksEnd = 0;
@@ -924,24 +955,27 @@ namespace GameWIP::Window::Detail::Platform
                                 if (strideValid)
                                 {
                                     const auto *masks = reinterpret_cast<const DWORD *>(static_cast<const std::byte *>(lock.get()) + pixelOffset);
-                                    strideValid = masks[0] == 0x00FF0000U && masks[1] == 0x0000FF00U && masks[2] == 0x000000FFU;
+                                    masksSupported = masks[0] == 0x00FF0000U && masks[1] == 0x0000FF00U && masks[2] == 0x000000FFU;
                                     pixelOffset = masksEnd;
                                 }
                             }
                             else if (header->biCompression == BI_BITFIELDS)
                             {
                                 if (header->biSize < sizeof(BITMAPV4HEADER))
-                                    strideValid = false;
+                                    masksSupported = false;
                                 else
                                 {
                                     const auto *extended = reinterpret_cast<const BITMAPV4HEADER *>(header);
-                                    strideValid = extended->bV4RedMask == 0x00FF0000U && extended->bV4GreenMask == 0x0000FF00U &&
-                                                  extended->bV4BlueMask == 0x000000FFU &&
-                                                  (extended->bV4AlphaMask == 0 || extended->bV4AlphaMask == 0xFF000000U);
+                                    masksSupported = extended->bV4RedMask == 0x00FF0000U && extended->bV4GreenMask == 0x0000FF00U &&
+                                                     extended->bV4BlueMask == 0x000000FFU &&
+                                                     (extended->bV4AlphaMask == 0 || extended->bV4AlphaMask == 0xFF000000U);
                                     explicitAlpha = extended->bV4AlphaMask == 0xFF000000U;
                                 }
                             }
-                            if (!strideValid || !checkedMultiply(sourceStride, height, sourceBytes) ||
+                            if (!masksSupported)
+                                result.status = status(ErrorCode::Unsupported);
+                            else if (
+                                !strideValid || !checkedMultiply(sourceStride, height, sourceBytes) ||
                                 !checkedMultiply(width, std::size_t{4}, packedRow) || !checkedMultiply(packedRow, height, outputBytes) ||
                                 pixelOffset > totalBytes || sourceBytes > totalBytes - pixelOffset)
                                 result.status = status(ErrorCode::ReadFailed);

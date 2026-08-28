@@ -50,7 +50,7 @@ void testClipboardValuesAndValidation(TestSupport::Context &context)
     static_assert(noexcept(Clipboard::readText()));
     static_assert(noexcept(Clipboard::readFiles()));
     static_assert(noexcept(Clipboard::readImage()));
-    static_assert(noexcept(Clipboard::readCustomData("test")));
+    static_assert(noexcept(Clipboard::readCustomData(std::declval<std::string_view>())));
     static_assert(noexcept(Clipboard::clear()));
 
     const auto negative = std::chrono::milliseconds{-1};
@@ -116,6 +116,13 @@ void testClipboardValuesAndValidation(TestSupport::Context &context)
         "mismatched image extent is invalid",
         ErrorCode::InvalidArgument,
         Clipboard::writeImage({{2, 1}, 0, onePixel}, Clipboard::kNoWait).status.code));
+#if WINDOW_INTERNAL_TEST_HOOKS
+    Window::TestHooks::failNext(Window::TestHooks::FailurePoint::ClipboardAccess);
+    static_cast<void>(context.expectEq(
+        "maximum positive timeout saturates its deadline without waiting",
+        ErrorCode::ResourceBusy,
+        Clipboard::getFormats(std::chrono::milliseconds::max()).status.code));
+#endif
 }
 
 void testClipboardRoundTrips(TestSupport::Context &context)
@@ -229,6 +236,22 @@ void testClipboardRoundTrips(TestSupport::Context &context)
         static_cast<void>(context.expectEq("foreign RGB red converts", std::byte{0x11}, rgbRead.image.rgba8[0]));
         static_cast<void>(context.expectEq("foreign RGB alpha becomes opaque", std::byte{0xFF}, rgbRead.image.rgba8[3]));
     }
+
+    BITMAPV5HEADER unsupportedHeader{};
+    unsupportedHeader.bV5Size = sizeof(BITMAPV5HEADER);
+    unsupportedHeader.bV5Width = 1;
+    unsupportedHeader.bV5Height = 1;
+    unsupportedHeader.bV5Planes = 1;
+    unsupportedHeader.bV5BitCount = 32;
+    unsupportedHeader.bV5Compression = BI_BITFIELDS;
+    unsupportedHeader.bV5SizeImage = 4;
+    unsupportedHeader.bV5RedMask = 0x000000FFU;
+    unsupportedHeader.bV5GreenMask = 0x0000FF00U;
+    unsupportedHeader.bV5BlueMask = 0x00FF0000U;
+    std::vector<std::byte> unsupportedDib(sizeof(unsupportedHeader) + 4);
+    std::memcpy(unsupportedDib.data(), &unsupportedHeader, sizeof(unsupportedHeader));
+    static_cast<void>(context.expectTrue("valid nonstandard-mask DIB fixture publishes", publishNativeClipboardData(CF_DIBV5, unsupportedDib)));
+    static_cast<void>(context.expectEq("valid nonstandard-mask image is Unsupported", ErrorCode::Unsupported, Clipboard::readImage().status.code));
 }
 
 void testClipboardMultiFormatAndFailures(TestSupport::Context &context)
