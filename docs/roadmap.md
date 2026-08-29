@@ -137,7 +137,7 @@ Completion checklist:
 - [x] GitHub issues are the active task tracker; this roadmap is the milestone checklist.
 - [x] The `v0.0.1` R00 tag and GitHub release are published.
 
-### R01 — Window, Input, and Action Foundation
+### R01 — Desktop, Input, and Action Foundation
 
 Status: `[~]` active.
 
@@ -166,8 +166,8 @@ Completion checklist:
 - [ ] Correctness tests cover action mapping, input-state transitions that can be tested deterministically, and lifecycle edge cases.
 - [x] Manual validation exists for behavior that requires a real window.
 - [ ] Every new engine library has public API documentation, a quick start, examples, validation guidance, troubleshooting guidance, and backend
-  notes. Window meets this gate; the remaining R01 libraries do not yet.
-- [ ] Package and installed-consumer validation cover every installable new engine library. Window meets this gate; the remaining R01 libraries do not
+  notes. Desktop meets this gate; the remaining R01 libraries do not yet.
+- [ ] Package and installed-consumer validation cover every installable new engine library. Desktop meets this gate; the remaining R01 libraries do not
   yet.
 - [TBD] WindowManager multi-window policy and Input controller support.
 

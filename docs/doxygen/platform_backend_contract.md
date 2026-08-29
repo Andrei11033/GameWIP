@@ -3,7 +3,7 @@
 GameWIP reusable libraries keep platform-specific behavior behind internal backend contracts. The public API stays portable unless the platform
 concept is itself part of the public contract.
 
-FileSystem, Terminal, Logger, Window, and future platform-dependent components
+FileSystem, Terminal, Logger, Desktop, and future platform-dependent components
 use the same backend shape. The rules below cover layout, platform selection,
 native error translation, cleanup, and test seams so each library does not
 invent a different boundary.

@@ -81,7 +81,7 @@ CANONICAL_AREA_MAPPINGS = {
     "TestSupport": "area:test-support",
     "Input": "area:input",
     "Action": "area:action",
-    "Window": "area:window",
+    "Desktop": "area:desktop",
     "Window manager": "area:window-manager",
     "Engine shared systems": "area:engine",
     "Windows platform backend": "area:platform-win32",
@@ -294,7 +294,7 @@ def check_issue_area_mapping(failures: list[str]) -> None:
     for alias in (
         "Build and tooling",
         "Gameplay roadmap",
-        "Engine input/action/window",
+        "Engine desktop/input/action",
     ):
         if alias not in policy_text:
             failures.append(f".github/scripts/issue-area-labels.js: historical Area alias is missing: {alias}")

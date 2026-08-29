@@ -100,7 +100,7 @@ Configure these Actions variables:
 ```text
 PROJECT_OWNER=Andrei11033
 PROJECT_NUMBER=2
-ACTIVE_MILESTONE=R01 - Window, Input, and Action Foundation
+ACTIVE_MILESTONE=R01 - Desktop, Input, and Action Foundation
 ```
 
 Add a `PROJECT_TOKEN` Actions secret containing a dedicated classic personal access token with the `repo` and `project` scopes.

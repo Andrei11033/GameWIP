@@ -18,7 +18,7 @@ const currentMappings = [
     ['TestSupport', 'area:test-support'],
     ['Input', 'area:input'],
     ['Action', 'area:action'],
-    ['Window', 'area:window'],
+    ['Desktop', 'area:desktop'],
     ['Window manager', 'area:window-manager'],
     ['Engine shared systems', 'area:engine'],
     ['Windows platform backend', 'area:platform-win32'],
@@ -53,8 +53,8 @@ test('keeps historical body values as read-only aliases', () => {
     assert.equal(targetAreaLabel('### Area\nGameplay roadmap', []), 'area:roadmap');
     assert.equal(targetAreaLabel('### Area\nTools/developer support', []), 'area:tools');
     assert.equal(targetAreaLabel('### Area\nGitHub/repository setup', []), 'area:github');
-    assert.equal(targetAreaLabel('### Area\nEngine input/action/window', ['area:input']), 'area:input');
-    assert.equal(targetAreaLabel('### Area\nEngine input/action/window', []), 'area:engine');
+    assert.equal(targetAreaLabel('### Area\nEngine desktop/input/action', ['area:input']), 'area:input');
+    assert.equal(targetAreaLabel('### Area\nEngine desktop/input/action', []), 'area:engine');
 });
 
 test('keeps Roadmap and Gameplay separate', () => {

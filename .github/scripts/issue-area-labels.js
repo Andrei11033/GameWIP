@@ -14,7 +14,7 @@ const AREA_LABELS_BY_VALUE = new Map([
     ['TestSupport', 'area:test-support'],
     ['Input', 'area:input'],
     ['Action', 'area:action'],
-    ['Window', 'area:window'],
+    ['Desktop', 'area:desktop'],
     ['Window manager', 'area:window-manager'],
     ['Engine shared systems', 'area:engine'],
     ['Windows platform backend', 'area:platform-win32'],
@@ -67,8 +67,8 @@ function readIssueFormField(body, heading) {
 
 function targetAreaLabel(body, currentLabels) {
     const selected = readIssueFormField(body, 'Area');
-    if (selected === 'Engine input/action/window') {
-        return ['area:input', 'area:action', 'area:window', 'area:window-manager'].find((label) => currentLabels.includes(label)) || 'area:engine';
+    if (selected === 'Engine desktop/input/action') {
+        return ['area:desktop', 'area:input', 'area:action', 'area:window-manager'].find((label) => currentLabels.includes(label)) || 'area:engine';
     }
     return AREA_LABELS_BY_VALUE.get(selected) ?? HISTORICAL_AREA_LABELS_BY_VALUE.get(selected);
 }

@@ -18,7 +18,7 @@ body:
     attributes:
       label: Milestone
       description: Name the concrete GitHub release milestone.
-      placeholder: R01 - Window, Input, and Action Foundation
+      placeholder: R01 - Desktop, Input, and Action Foundation
     validations:
       required: true
 

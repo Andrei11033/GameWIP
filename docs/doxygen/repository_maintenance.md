@@ -145,7 +145,7 @@ Actions variables:
 ```text
 PROJECT_OWNER=Andrei11033
 PROJECT_NUMBER=2
-ACTIVE_MILESTONE=R01 - Window, Input, and Action Foundation
+ACTIVE_MILESTONE=R01 - Desktop, Input, and Action Foundation
 ```
 
 Update `ACTIVE_MILESTONE` only after the prior release, release issue,

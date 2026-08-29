@@ -38,7 +38,7 @@ Use this page when changing:
 ## Command-line interface
 
 Use the utility forms to inspect the executable without initializing validation,
-Logger, Window, or runtime services:
+Logger, Desktop, or runtime services:
 
 ```powershell
 .\build\dev\GameWIP.exe --help
@@ -176,12 +176,12 @@ installed consumer API.
 
 ## Dependency boundary
 
-`game/` may compose reusable libraries, including Logger and Window, validation
+`game/` may compose reusable libraries, including Logger and Desktop, validation
 objects, Google Benchmark, Tracy instrumentation, and generated project
 metadata. It must not become the implementation owner for behavior that belongs
-to an existing library. The runtime consumes Window's public display,
+to an existing library. The runtime consumes Desktop's public display,
 renderer/color, window-lifetime, and event-pump interfaces; platform-specific
-display and window mechanics remain owned by Window.
+display and window mechanics remain owned by Desktop.
 
 Move code into a reusable library when it becomes general-purpose, independently testable, and useful outside the executable. Long-term engine systems
 belong under `engine/` when that layer owns them.

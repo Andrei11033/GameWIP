@@ -90,7 +90,7 @@ synchronized for late or concurrent registration. A span returned by `registered
 The runner copies registrations before sorting and execution. It rejects empty names, null run callbacks, and duplicate names before invoking any
 module.
 
-Current correctness modules are `base`, `runner`, `io`, `unicode`, `filesystem`, `terminal`, `window`, `test_support`, `logger`, and `assert` in
+Current correctness modules are `base`, `runner`, `io`, `unicode`, `filesystem`, `terminal`, `desktop`, `test_support`, `logger`, and `assert` in
 their stable order.
 
 ## Module invocation
