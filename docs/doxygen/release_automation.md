@@ -10,7 +10,7 @@ bypasses branch protection, or writes release changes directly to `master`.
 Configure these Actions variables:
 
 ```text
-ACTIVE_MILESTONE=R01 - Window, Input, and Action Foundation
+ACTIVE_MILESTONE=R01 - Desktop, Input, and Action Foundation
 ```
 
 Change `ACTIVE_MILESTONE` to the next milestone only after the previous milestone's tag, GitHub release, closure issue, and handoff are complete. The

@@ -90,7 +90,7 @@ synchronized for late or concurrent registration. A span returned by `registered
 The runner copies registrations before sorting and execution. It rejects empty names, null run callbacks, and duplicate names before invoking any
 module.
 
-Current correctness modules are `base`, `runner`, `io`, `unicode`, `filesystem`, `terminal`, `window`, `test_support`, `logger`, and `assert` in
+Current correctness modules are `base`, `runner`, `io`, `unicode`, `filesystem`, `terminal`, `desktop`, `test_support`, `logger`, and `assert` in
 their stable order.
 
 ## Module invocation
@@ -203,8 +203,8 @@ generated API, is not installed, and must not be used by application or validati
 | `benchmark` | Optimized standalone benchmarks. |
 | `profile` | Embedded correctness tests available for profiled `--startup-tests` execution. |
 | `release` | Validation, benchmarks, and development assertions disabled. |
-| `coverage` | Standalone correctness tests with coverage instrumentation. |
-| `asan` | Standalone correctness tests with AddressSanitizer instrumentation. |
+| `coverage` | Standalone correctness tests with coverage instrumentation; the high-level helper recreates the preset tree. |
+| `asan` | Standalone correctness tests with AddressSanitizer instrumentation; the high-level helper recreates the preset tree. |
 | `docs` | Doxygen only; validation execution disabled. |
 
 ## Maintainer notes

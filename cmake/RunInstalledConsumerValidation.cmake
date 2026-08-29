@@ -56,17 +56,19 @@ set(expected_gamewip_headers
     test_support/test_support.h
     test_support/types.h
     unicode/unicode.h
-    window/child_surface.h
-    window/cursor.h
-    window/description.h
-    window/display.h
-    window/display_info.h
-    window/events.h
-    window/native/win32.h
-    window/renderer_bridge.h
-    window/types.h
-    window/window.h
-    window/window_export.h
+    desktop/child_surface.h
+    desktop/clipboard.h
+    desktop/cursor.h
+    desktop/data_transfer.h
+    desktop/description.h
+    desktop/display.h
+    desktop/display_info.h
+    desktop/events.h
+    desktop/native/win32.h
+    desktop/renderer_bridge.h
+    desktop/types.h
+    desktop/window.h
+    desktop/desktop_export.h
 )
 list(SORT expected_gamewip_headers)
 
@@ -155,7 +157,7 @@ run_installed_consumer("${CONSUMER_SOURCE_DIR}" "${CONSUMER_BUILD_DIR}/combined"
 foreach(
     package_name
     IN
-    ITEMS Unicode IO FileSystem Terminal Window Logger Assert TestSupport
+    ITEMS Unicode IO FileSystem Terminal Desktop Logger Assert TestSupport
 )
     string(TOLOWER "${package_name}" package_directory)
     run_installed_consumer(

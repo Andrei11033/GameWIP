@@ -55,6 +55,31 @@ cmake --preset docs
 cmake --build --preset docs
 ```
 
+### Incremental and fresh helper builds
+
+Ordinary `gamewip.bat configure`, `build`, and `test` invocations reuse the
+selected preset tree for fast local iteration. Add `-Fresh` when a result must
+not depend on prior generated files:
+
+```powershell
+.\gamewip.bat test test -Fresh
+```
+
+Fresh mode removes the complete known `build/<preset>` directory before
+configuration. A target clean or `cmake --fresh` is not equivalent: either can
+leave orphaned object files, generated sources, instrumentation counters, or
+runtime copies that are no longer part of the current build graph. The helper
+accepts only cataloged preset names whose resolved directory is a direct child
+of the repository build root, and refuses recursive removal through reparse
+points.
+
+The high-level `coverage` and `asan` actions are fresh by default. The
+authoritative `local-release-check` and `sanitizer` bundles also declare fresh
+build trees, while ordinary low-level commands and the `quick` bundle remain
+incremental. GitHub-hosted validation jobs already start in a new runner
+workspace; workflows may cache downloaded tools or dependencies, but must not
+restore CMake build trees across runs.
+
 ## Presets
 
 | Preset | Build type | Main output | Purpose |

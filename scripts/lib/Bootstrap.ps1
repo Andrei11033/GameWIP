@@ -28,6 +28,7 @@ foreach ($defaultVariable in @{
         ReleaseCommit = ''
         NoWorkspaceTemp = $false
         NoBuild = $false
+        Fresh = $false
         OperationContext = $null
     }.GetEnumerator())
 {

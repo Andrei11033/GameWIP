@@ -8,8 +8,8 @@
 #include "runtime/game.h"
 
 #include "logger/logger.h"
-#include "window/display_info.h"
-#include "window/window.h"
+#include "desktop/display_info.h"
+#include "desktop/window.h"
 
 #if GAMEWIP_TRACY_ENABLED
 #include <tracy/Tracy.hpp>
@@ -35,9 +35,9 @@ namespace
     } // namespace ProfileZoneColor
 #endif
 
-    [[nodiscard]] constexpr std::string_view colorSpaceName(GameWIP::Window::Types::Display::ColorSpace colorSpace) noexcept
+    [[nodiscard]] constexpr std::string_view colorSpaceName(GameWIP::Desktop::Types::Display::ColorSpace colorSpace) noexcept
     {
-        using GameWIP::Window::Types::Display::ColorSpace;
+        using GameWIP::Desktop::Types::Display::ColorSpace;
         switch (colorSpace)
         {
         case ColorSpace::Srgb:
@@ -68,20 +68,20 @@ namespace GameWIP::Game
         }
 
         Logger::info("Startup", "Logger initialized");
-        Window::Types::Display::MonitorsResult monitors;
+        Desktop::Types::Display::MonitorsResult monitors;
         {
 #if GAMEWIP_TRACY_ENABLED
             ZoneScopedNC("Enumerate displays, display modes, and HDR state", ProfileZoneColor::Initialization);
 #endif
-            monitors = Window::Display::getMonitors();
+            monitors = Desktop::Display::getMonitors();
             if (monitors.status.ok())
             {
                 Logger::info("Startup", "Enumerated {} connected display(s)", monitors.monitors.size());
-                for (const Window::Types::Display::Info &monitor : monitors.monitors)
+                for (const Desktop::Types::Display::Info &monitor : monitors.monitors)
                 {
-                    const Window::Types::Display::ModeResult activeMode = Window::Display::getCurrentMode(monitor.id);
-                    const Window::Types::Display::ModesResult supportedModes = Window::Display::getModes(monitor.id);
-                    const Window::Types::Display::ColorInfoResult colorInfo = Window::Display::getColorInfo(monitor.id);
+                    const Desktop::Types::Display::ModeResult activeMode = Desktop::Display::getCurrentMode(monitor.id);
+                    const Desktop::Types::Display::ModesResult supportedModes = Desktop::Display::getModes(monitor.id);
+                    const Desktop::Types::Display::ColorInfoResult colorInfo = Desktop::Display::getColorInfo(monitor.id);
 
                     std::string displayReport;
                     std::format_to(
@@ -124,7 +124,7 @@ namespace GameWIP::Game
                     {
                         std::format_to(std::back_inserter(displayReport), "\n  HDR/color query failed: {}", colorInfo.status.message);
                     }
-                    for (const Window::Types::Display::Mode &mode : supportedModes.modes)
+                    for (const Desktop::Types::Display::Mode &mode : supportedModes.modes)
                     {
                         std::format_to(
                             std::back_inserter(displayReport),
@@ -150,13 +150,13 @@ namespace GameWIP::Game
             return EXIT_FAILURE;
         }
 
-        Window::Types::Description windowDescription;
+        Desktop::Types::Description windowDescription;
         windowDescription.title = "GameWIP borderless fullscreen (Alt+F4 to exit)";
-        windowDescription.mode.mode = Window::Types::Mode::BorderlessFullscreen;
+        windowDescription.mode.mode = Desktop::Types::Mode::BorderlessFullscreen;
         windowDescription.visible = true;
         windowDescription.requestFocus = true;
 
-        Window::Window window;
+        Desktop::Window window;
         IO::Types::Status openStatus;
         {
 #if GAMEWIP_TRACY_ENABLED
@@ -183,12 +183,12 @@ namespace GameWIP::Game
 #if GAMEWIP_TRACY_ENABLED
             ZoneScopedNC("Game frame", ProfileZoneColor::Frame);
 #endif
-            Window::Types::Events::PumpResult events;
+            Desktop::Types::Events::PumpResult events;
             {
 #if GAMEWIP_TRACY_ENABLED
                 ZoneScopedNC("Wait for and pump window events", ProfileZoneColor::Wait);
 #endif
-                events = Window::Events::wait(std::chrono::milliseconds(16));
+                events = Desktop::Events::wait(std::chrono::milliseconds(16));
             }
             if (!events.status.ok())
             {

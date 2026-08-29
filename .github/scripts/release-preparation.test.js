@@ -39,7 +39,7 @@ function releaseMilestone(overrides = {}) {
     return {
         title: 'R00 - Bootstrap',
         state: 'open',
-        description: ['Release version: `0.0.1`', 'Release issue: `#11`', 'Next milestone: `R01 - Window, Input, and Action Foundation`'].join('\n'),
+        description: ['Release version: `0.0.1`', 'Release issue: `#11`', 'Next milestone: `R01 - Desktop, Input, and Action Foundation`'].join('\n'),
         ...overrides,
     };
 }
@@ -232,7 +232,7 @@ test('accepts only a ready active milestone with one open release issue', () => 
     assert.throws(
         () =>
             validateMilestoneReadiness({
-                activeMilestone: 'R01 - Window, Input, and Action Foundation',
+                activeMilestone: 'R01 - Desktop, Input, and Action Foundation',
                 milestone: releaseMilestone(),
                 issues: milestoneIssues(),
             }),
@@ -358,13 +358,13 @@ test('resolves an explicit next milestone by exact title regardless of array ord
     const milestones = [
         { title: 'R02 - Math Foundation', state: 'open' },
         { title: 'R00 - Bootstrap', state: 'closed' },
-        { title: 'R01 - Window, Input, and Action Foundation', state: 'open' },
+        { title: 'R01 - Desktop, Input, and Action Foundation', state: 'open' },
     ];
 
     assert.equal(
         resolveNextMilestone({
             milestones,
-            currentMilestoneTitle: 'R01 - Window, Input, and Action Foundation',
+            currentMilestoneTitle: 'R01 - Desktop, Input, and Action Foundation',
             nextMilestoneTitle: 'R02 - Math Foundation',
         }).title,
         'R02 - Math Foundation',
@@ -372,7 +372,7 @@ test('resolves an explicit next milestone by exact title regardless of array ord
 });
 
 test('rejects invalid explicit next milestone handoffs', () => {
-    const currentMilestoneTitle = 'R01 - Window, Input, and Action Foundation';
+    const currentMilestoneTitle = 'R01 - Desktop, Input, and Action Foundation';
 
     assert.throws(
         () =>
@@ -517,7 +517,7 @@ test('builds a complete read-only preparation plan', () => {
         evaluatedSha: masterSha,
         requiredChecks,
         checks: successfulChecks(),
-        milestones: [releaseMilestone(), { title: 'R01 - Window, Input, and Action Foundation', state: 'open' }],
+        milestones: [releaseMilestone(), { title: 'R01 - Desktop, Input, and Action Foundation', state: 'open' }],
         branches: [],
         pullRequests: [],
     };
@@ -525,7 +525,7 @@ test('builds a complete read-only preparation plan', () => {
     const plan = buildReleasePreparationPlan(snapshot);
     assert.equal(plan.version.text, '0.0.1');
     assert.equal(plan.releaseIssue.number, 11);
-    assert.equal(plan.nextMilestone.title, 'R01 - Window, Input, and Action Foundation');
+    assert.equal(plan.nextMilestone.title, 'R01 - Desktop, Input, and Action Foundation');
     assert.equal(plan.artifacts.createBranch, true);
     assert.equal(plan.artifacts.createPullRequest, true);
 });
@@ -536,13 +536,13 @@ test('generates release notes without closing the release issue', () => {
         version,
         milestoneTitle: 'R00 - Bootstrap',
         releaseIssue: { number: 11 },
-        nextMilestoneTitle: 'R01 - Window, Input, and Action Foundation',
+        nextMilestoneTitle: 'R01 - Desktop, Input, and Action Foundation',
     });
 
     assert.equal(releaseNotesPath(version), 'docs/releases/v0.0.1.md');
     assert.match(notes, /^# GameWIP v0\.0\.1 release notes/);
     assert.match(notes, /Release issue: #11/);
-    assert.match(notes, /Next milestone: R01 - Window, Input, and Action Foundation/);
+    assert.match(notes, /Next milestone: R01 - Desktop, Input, and Action Foundation/);
 
     const terminalNotes = releaseNotesTemplate({
         version,
@@ -578,7 +578,7 @@ test('generates release pull request body for human merge', () => {
         evaluatedSha: masterSha,
         requiredChecks,
         checks: successfulChecks(),
-        milestones: [releaseMilestone(), { title: 'R01 - Window, Input, and Action Foundation', state: 'open' }],
+        milestones: [releaseMilestone(), { title: 'R01 - Desktop, Input, and Action Foundation', state: 'open' }],
         branches: [],
         pullRequests: [],
     };

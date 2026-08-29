@@ -28,7 +28,7 @@ body:
         - TestSupport
         - Input
         - Action
-        - Window
+        - Desktop
         - Window manager
         - Engine shared systems
         - Windows platform backend

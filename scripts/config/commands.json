@@ -195,7 +195,7 @@
     {
       "id": "coverage",
       "title": "Coverage",
-      "description": "Run coverage build/tests/report.",
+      "description": "Recreate the coverage tree, then run build/tests/report.",
       "group": "quality",
       "visible": true,
       "network": false,
@@ -205,7 +205,7 @@
     {
       "id": "asan",
       "title": "AddressSanitizer",
-      "description": "Run CLANG64 AddressSanitizer validation.",
+      "description": "Recreate the CLANG64 tree, then run AddressSanitizer validation.",
       "group": "quality",
       "visible": true,
       "network": false,
@@ -360,7 +360,7 @@
     "configPath": ".clang-format"
   },
   "defaultStressCount": 32,
-  "modules": ["assert", "base", "filesystem", "io", "logger", "runner", "terminal", "test_support", "unicode", "window"],
+  "modules": ["assert", "base", "desktop", "filesystem", "io", "logger", "runner", "terminal", "test_support", "unicode"],
   "defaultBuildPreset": "test",
   "unicode": {
     "version": "17.0.0",
@@ -462,6 +462,7 @@
     {
       "name": "Local release-readiness check",
       "id": "local-release-check",
+      "freshBuildTrees": true,
       "steps": [
         {
           "kind": "Configure",
@@ -525,6 +526,7 @@
     {
       "name": "CLANG64 AddressSanitizer validation",
       "id": "sanitizer",
+      "freshBuildTrees": true,
       "steps": [
         {
           "kind": "Configure",

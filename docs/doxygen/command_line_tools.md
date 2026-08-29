@@ -82,6 +82,7 @@ The second positional word is the action-specific command or selection; the thir
 .\gamewip.bat configure test
 .\gamewip.bat build test
 .\gamewip.bat test test
+.\gamewip.bat test test -Fresh
 .\gamewip.bat module filesystem
 .\gamewip.bat stress logger
 .\gamewip.bat run benchmark-dry-run
@@ -123,6 +124,7 @@ Use `gamewip.bat list` for current presets, modules, project commands, bundles, 
 | `-Parallel <count>` | Select stress worker count. |
 | `-ExtraArgs <arguments>` | Forward arguments only where the selected declarative command permits them. |
 | `-NoBuild` | Do not build prerequisites automatically; require existing usable build state and fail when it is absent. |
+| `-Fresh` | Before `configure`, `build`, `test`, or `bundle`, remove each selected preset's complete `build/<preset>` tree and recreate it. Cannot be combined with `-NoBuild`. |
 | `-StopOnFailure` | Stop launching new stress work after the first failure. |
 | `-FailFast` | Stop the quality gate at the first failed check instead of aggregating independent failures. |
 | `-Changed` | Restrict supported quality work to ordinary changed maintained files. A changed quality policy expands to the complete maintained scope it can affect. |
@@ -160,6 +162,15 @@ of reading or changing partially updated tools, build trees, or retained state.
 
 `-NonInteractive` changes prompting only. Every mutating non-interactive command, including `local` build-tree work, still requires `-Yes` unless a higher-level
 caller has already granted consent. `-Preview` never performs the mutation.
+
+Low-level configure, build, test, and ordinary bundle commands remain
+incremental unless `-Fresh` is supplied. The high-level `coverage` and `asan`
+actions always recreate their complete preset trees so stale instrumentation or
+runtime artifacts cannot affect authoritative results. The
+`local-release-check` and `sanitizer` bundles declare the same policy in the
+bundle catalog; `quick` remains incremental. Fresh recreation is deliberately
+limited to known, direct children of the repository `build` directory and
+refuses reparse points.
 
 ## Quality and tool policy
 

@@ -137,7 +137,7 @@ Completion checklist:
 - [x] GitHub issues are the active task tracker; this roadmap is the milestone checklist.
 - [x] The `v0.0.1` R00 tag and GitHub release are published.
 
-### R01 — Window, Input, and Action Foundation
+### R01 — Desktop, Input, and Action Foundation
 
 Status: `[~]` active.
 
@@ -146,7 +146,7 @@ without committing to final rendering or gameplay systems.
 
 Completion checklist:
 
-- [x] `engine/window` has a documented public API and package boundary.
+- [x] `engine/desktop` has a documented public API and package boundary.
 - [x] A native Win32 window can be created, shown, resized, focused, and closed.
 - [x] Window lifecycle errors are reported through project status/result types.
 - [x] Window event queues, high-DPI behavior, native renderer attachment, and renderer occlusion feedback boundaries are documented and validated.
@@ -160,14 +160,14 @@ Completion checklist:
 - [ ] Binding storage and composition live at the appropriate game or configuration layer.
 - [ ] Any binding-data schema has its own compatibility version rather than using the GameWIP project version.
 - [ ] `engine/window_manager` composes window ownership and runtime polling.
-- [ ] `GameWIP::Game::run()` enters a minimal runtime loop using the window/input/action path.
+- [ ] `GameWIP::Game::run()` enters a minimal runtime loop using the desktop/input/action path.
 - [ ] The runtime loop can exit cleanly through window close and an explicit action.
 - [ ] Logger and Assert integration exists for engine startup failures.
 - [ ] Correctness tests cover action mapping, input-state transitions that can be tested deterministically, and lifecycle edge cases.
 - [x] Manual validation exists for behavior that requires a real window.
 - [ ] Every new engine library has public API documentation, a quick start, examples, validation guidance, troubleshooting guidance, and backend
-  notes. Window meets this gate; the remaining R01 libraries do not yet.
-- [ ] Package and installed-consumer validation cover every installable new engine library. Window meets this gate; the remaining R01 libraries do not
+  notes. Desktop meets this gate; the remaining R01 libraries do not yet.
+- [ ] Package and installed-consumer validation cover every installable new engine library. Desktop meets this gate; the remaining R01 libraries do not
   yet.
 - [TBD] WindowManager multi-window policy and Input controller support.
 

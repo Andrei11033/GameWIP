@@ -24,7 +24,7 @@ project-wide rule; silence is not an exception.
 - Use one property vocabulary across a type. A getter and setter should describe the same property unless the operations intentionally have different
   semantics.
 - Names must describe actual semantics rather than historical implementation. Event names identify the changed property or observed occurrence. The
-  accepted Win32 adapter is the deliberate singular exception to the general plural-collection rule: `Window::Native::Win32::HandleView`,
+  accepted Win32 adapter is the deliberate singular exception to the general plural-collection rule: `Desktop::Native::Win32::HandleView`,
   `HandleResult`, and `getHandle(...)` describe one coherent native-handle view/result even though the view contains both `HINSTANCE` and `HWND`.
 
 ## Text and bytes

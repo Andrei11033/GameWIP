@@ -88,6 +88,15 @@ not performance thresholds.
 Before release preparation, use the `local-release-check` helper bundle and the
 release readiness dry run. Record actual evidence in the release pull request;
 do not treat an earlier ordinary pull-request run as finalization evidence.
+The bundle recreates every preset tree it owns before executing its declared
+steps. The separate `sanitizer` bundle does the same for `build/asan`; the
+`quick` bundle remains incremental for normal iteration.
+
+GitHub-hosted validation already receives a new workspace for every job.
+Repository workflows may cache immutable tool downloads and dependency data,
+but must not cache or restore `build/<preset>` CMake trees. Reusing those trees
+would weaken the clean-run guarantee and can preserve artifacts that CMake no
+longer knows how to clean.
 
 ## Manual workflow map
 
@@ -145,7 +154,7 @@ Actions variables:
 ```text
 PROJECT_OWNER=Andrei11033
 PROJECT_NUMBER=2
-ACTIVE_MILESTONE=R01 - Window, Input, and Action Foundation
+ACTIVE_MILESTONE=R01 - Desktop, Input, and Action Foundation
 ```
 
 Update `ACTIVE_MILESTONE` only after the prior release, release issue,

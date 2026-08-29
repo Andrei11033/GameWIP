@@ -20,6 +20,19 @@ cmake --build --preset test
 ctest --preset test
 ```
 
+For the same workflow through the project helper, use an incremental run during
+ordinary iteration or request a complete preset-tree recreation explicitly:
+
+```powershell
+.\gamewip.bat test test
+.\gamewip.bat test test -Fresh
+```
+
+Fresh mode cannot be combined with `-NoBuild`, because deleting the selected
+tree makes configuration and compilation mandatory. Installed-package consumer
+tests continue to create their own isolated consumer build directories. CI
+jobs run in fresh hosted workspaces and do not restore CMake build trees.
+
 The same validation composition checks shared-library exports, public-header
 self-containment, generated version output, runtime dependency staging, and
 clean installed-package consumption. On the supported Windows/MSYS2 GNU
@@ -77,15 +90,15 @@ Run opt-in manual checks:
 .\build\test\GameWIPTests.exe --test-module=test_support --manual-tests
 .\build\test\GameWIPTests.exe --test-module=terminal --manual-tests
 .\build\test\GameWIPTests.exe --test-module=logger --manual-tests
-.\build\test\GameWIPTests.exe --test-module=window --manual-tests
+.\build\test\GameWIPTests.exe --test-module=desktop --manual-tests
 ```
 
-Each selected module owns its manual scenarios. The Window module groups the full visible, shell, DPI, cursor, fullscreen, topology, HDR, and
-modern-capability workflow from @ref window_manual_validation. Unsupported or unavailable environments are recorded as skips and are not passing
+Each selected module owns its manual scenarios. The Desktop module groups the full visible, shell, DPI, cursor, fullscreen, topology, HDR, and
+modern-capability workflow from @ref desktop_manual_validation. Unsupported or unavailable environments are recorded as skips and are not passing
 evidence.
 
-Window manual runs open a live diagnostics companion. A module-specific `--window-manual-suite=<name>` selector may narrow a repeat run without
-creating another project-wide manual enable flag; the selector contract is owned by @ref window_testing.
+Desktop manual runs open a live diagnostics companion. A module-specific `--desktop-manual-suite=<name>` selector may narrow a repeat run without
+creating another project-wide manual enable flag; the selector contract is owned by @ref desktop_testing.
 
 The complete runner argument contract is owned by @ref project_validation.
 

@@ -11,7 +11,7 @@ set(supported_packages
     IO
     FileSystem
     Terminal
-    Window
+    Desktop
     Logger
     Assert
     TestSupport
@@ -29,22 +29,24 @@ if(GAMEWIP_CONSUMER_PACKAGE STREQUAL "Logger")
     target_sources(GameWIPIsolatedConsumer PRIVATE logger_config.cpp logger_macros.cpp logger_types.cpp)
 elseif(GAMEWIP_CONSUMER_PACKAGE STREQUAL "Terminal")
     target_sources(GameWIPIsolatedConsumer PRIVATE terminal_style.cpp)
-elseif(GAMEWIP_CONSUMER_PACKAGE STREQUAL "Window")
+elseif(GAMEWIP_CONSUMER_PACKAGE STREQUAL "Desktop")
     target_sources(
         GameWIPIsolatedConsumer
         PRIVATE
-            window_types.cpp
-            window_child_surface.cpp
-            window_cursor.cpp
-            window_description.cpp
-            window_events.cpp
-            window_display.cpp
-            window_display_info.cpp
-            window_window.cpp
-            window_renderer_bridge.cpp
+            desktop_types.cpp
+            desktop_clipboard.cpp
+            desktop_data_transfer.cpp
+            desktop_child_surface.cpp
+            desktop_cursor.cpp
+            desktop_description.cpp
+            desktop_events.cpp
+            desktop_display.cpp
+            desktop_display_info.cpp
+            desktop_window.cpp
+            desktop_renderer_bridge.cpp
     )
     if(WIN32)
-        target_sources(GameWIPIsolatedConsumer PRIVATE window_native_win32.cpp)
+        target_sources(GameWIPIsolatedConsumer PRIVATE desktop_native_win32.cpp)
     endif()
 elseif(GAMEWIP_CONSUMER_PACKAGE STREQUAL "TestSupport")
     target_sources(

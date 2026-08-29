@@ -86,7 +86,7 @@ Reusable libraries own their own `CMakeLists.txt` files. A library CMake file mu
 Avoid global include directories, global compile definitions, and recursive source discovery for maintained library sources.
 
 TestSupport remains a validation-oriented leaf relative to higher-level reusable libraries. It may link foundational Unicode when actual UTF-8 text
-semantics require it, but it must not acquire IO, FileSystem, Terminal, Window, Logger, Assert, engine, or other higher-level GameWIP dependencies for
+semantics require it, but it must not acquire IO, FileSystem, Terminal, Desktop, Logger, Assert, engine, or other higher-level GameWIP dependencies for
 convenience. `TEST_SUPPORT_ENABLE_TEST_HOOKS` may enable deterministic failure injection only for source-tree validation composition; neither the
 option's internal compile definition nor its hook header belongs to the installed target.
 

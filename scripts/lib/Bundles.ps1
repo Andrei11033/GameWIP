@@ -4,10 +4,58 @@ function Invoke-GameWipBundle
 {
     param(
         [Parameter(Mandatory = $true)][string]$Id,
-        [switch]$NoBuild
+        [switch]$NoBuild,
+        [switch]$Fresh,
+        [System.Collections.Generic.HashSet[string]]$FreshenedPresets
     )
 
     $bundleInfo = Get-GameWipProjectBundle -Id $Id
+    $freshByDefault = $bundleInfo.ContainsKey('FreshBuildTrees') -and [bool]$bundleInfo.FreshBuildTrees
+    $effectiveFresh = [bool]$Fresh -or $freshByDefault
+    if ($NoBuild -and $effectiveFresh)
+    {
+        throw "Bundle '$Id' cannot combine clean build-tree recreation with -NoBuild."
+    }
+    if ($null -eq $FreshenedPresets)
+    {
+        $FreshenedPresets = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    }
+
+    if ($effectiveFresh)
+    {
+        foreach ($step in $bundleInfo.Steps)
+        {
+            $preset = switch ($step.Kind)
+            {
+                { $_ -in @('Configure', 'Build', 'BuildTarget', 'CTest') }
+                {
+                    [string]$step.Preset; break
+                }
+                'ProjectCommand'
+                {
+                    $buildIfMissing = -not $step.ContainsKey('BuildIfMissing') -or [bool]$step.BuildIfMissing
+                    if ($buildIfMissing)
+                    {
+                        [string](Get-GameWipProjectCommand -Id $step.Command).BuildPreset
+                    }
+                    break
+                }
+                'Benchmark'
+                {
+                    [string](Get-GameWipProjectCommand -Id 'benchmark-dry-run').BuildPreset; break
+                }
+                default
+                {
+                    ''
+                }
+            }
+            if (-not [string]::IsNullOrWhiteSpace($preset) -and $FreshenedPresets.Add($preset))
+            {
+                Reset-GameWipPresetBuildTree -Name $preset
+            }
+        }
+    }
+
     Write-GameWipSection $bundleInfo.Name
     foreach ($step in $bundleInfo.Steps)
     {
@@ -34,15 +82,6 @@ function Invoke-GameWipBundle
             }
             'ProjectCommand'
             {
-                $stepArguments = if ($step.ContainsKey('Arguments'))
-                {
-                    @($step.Arguments)
-                }
-                else
-                {
-                    @()
-                }
-
                 $buildIfMissing = if ($step.ContainsKey('BuildIfMissing'))
                 {
                     [bool]$step.BuildIfMissing
@@ -52,10 +91,15 @@ function Invoke-GameWipBundle
                     $true
                 }
 
-                Invoke-GameWipProjectCommand `
-                    -Id $step.Command `
-                    -Arguments $stepArguments `
-                    -NoBuild:($NoBuild -or -not $buildIfMissing)
+                $projectCommandParameters = @{
+                    Id = $step.Command
+                    NoBuild = ($NoBuild -or -not $buildIfMissing)
+                }
+                if ($step.ContainsKey('Arguments'))
+                {
+                    $projectCommandParameters.Arguments = @($step.Arguments)
+                }
+                Invoke-GameWipProjectCommand @projectCommandParameters
             }
             'Benchmark'
             {
@@ -87,7 +131,7 @@ function Invoke-GameWipBundle
             }
             'Bundle'
             {
-                Invoke-GameWipBundle -Id $step.Bundle -NoBuild:$NoBuild
+                Invoke-GameWipBundle -Id $step.Bundle -NoBuild:$NoBuild -Fresh:$effectiveFresh -FreshenedPresets $FreshenedPresets
             }
             default
             {

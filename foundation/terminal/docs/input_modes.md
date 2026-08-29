@@ -56,7 +56,7 @@ This is a high-level policy, not exposure of native console flags.
 
 Terminal disables native line buffering/echo for managed interactive console input and can change processed-input, resize-event, mouse-event, Quick
 Edit, or backend protocol flags while it owns the endpoint. Those flags are implementation details behind the backend contract. The current Win32
-native path enables window/resize records, disables mouse record generation and Quick Edit, and keeps VT-input translation disabled so `INPUT_RECORD`
+native path enables desktop/resize records, disables mouse record generation and Quick Edit, and keeps VT-input translation disabled so `INPUT_RECORD`
 retains release/repeat/location information. The public API does not expose:
 
 - raw/cooked mode structures;

@@ -14,7 +14,7 @@ pages provide the behavior inside each box.
 | --- | --- |
 | `foundation/` | Internal Base mechanisms and low-level reusable libraries such as Unicode, IO, FileSystem, and Terminal. |
 | `tools/` | Diagnostics, assertions, logging, validation support, and development tooling libraries. |
-| `engine/` | The documented Window library plus provisional Input and Action code. Preserved WindowManager code is currently outside the build. |
+| `engine/` | The documented Desktop library plus provisional Input and Action code. Preserved WindowManager code is currently outside the build. |
 | `game/` | Executable entry point, runtime facade, startup validation wiring, validation runners, and game-facing integration. |
 | `cmake/` | Repository-wide build, platform, validation, coverage, documentation, packaging, and analysis helpers. |
 | `config/quality/` | Explicit formatter and linter policy consumed by the project quality helper. |
@@ -45,7 +45,7 @@ IO
   -> Terminal
 
 IO + FileSystem
-  -> Window
+  -> Desktop
 
 IO + FileSystem + Terminal
   -> Logger
@@ -75,14 +75,14 @@ consumer library, and an installed target that exposes Base is invalid.
 
 TestSupport is a standalone validation library and installed package. It may use
 Unicode privately for its documented UTF-8 boundary contracts, but it must not
-acquire IO, FileSystem, Terminal, Window, Logger, Assert, engine, or other
+acquire IO, FileSystem, Terminal, Desktop, Logger, Assert, engine, or other
 higher-level GameWIP dependencies. Validation modules depend on TestSupport, not
 the reverse. This keeps `find_package(TestSupport)` independently usable without
 giving its portable result contracts unrelated higher-level dependencies.
 
 ## Engine-system status
 
-Window is the supported, documented engine library and participates in package,
+Desktop is the supported, documented engine library and participates in package,
 public-header, correctness, benchmark, and manual validation. Input and Action
 are compiled source-tree prototypes whose public contracts and package
 boundaries are not yet stable; they are intentionally absent from the reusable

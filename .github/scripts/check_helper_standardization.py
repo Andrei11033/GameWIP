@@ -13,7 +13,7 @@ HISTORICAL_PREFIXES = ("docs/releases/",)
 ENGINE_AUDIT_EXCLUSIONS = (
     "engine/input/",
     "engine/action/",
-    "engine/window/",
+    "engine/desktop/",
     "engine/window_manager/",
     "engine/window-manager/",
 )

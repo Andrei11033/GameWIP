@@ -2,10 +2,50 @@
 
 Set-StrictMode -Version Latest
 
-function Invoke-GameWipConfigurePreset
+function Reset-GameWipPresetBuildTree
 {
     param([Parameter(Mandatory = $true)][string]$Name)
+
     Assert-GameWipValidPreset -Kind 'configure' -Name $Name
+    $buildRoot = [IO.Path]::GetFullPath((Join-Path $RepositoryRoot 'build'))
+    $presetRoot = [IO.Path]::GetFullPath((Join-Path $buildRoot $Name))
+    $presetParent = [IO.Path]::GetDirectoryName($presetRoot)
+    if (-not [string]::Equals($presetParent, $buildRoot, [StringComparison]::OrdinalIgnoreCase))
+    {
+        throw "Refusing to recreate preset '$Name' outside the repository build root."
+    }
+
+    if (Test-Path -LiteralPath $buildRoot)
+    {
+        $buildRootItem = Get-Item -LiteralPath $buildRoot -Force
+        if (($buildRootItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0)
+        {
+            throw "Refusing to recreate preset '$Name' through reparse-point build root '$buildRoot'."
+        }
+    }
+    if (-not (Test-Path -LiteralPath $presetRoot))
+    {
+        Write-GameWipOperationEvent -Phase plan -Step "fresh-$Name" -Severity info -Message "Preset '$Name' already has no build tree; configuration will create it."
+        return
+    }
+
+    $presetItem = Get-Item -LiteralPath $presetRoot -Force
+    if (($presetItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0)
+    {
+        throw "Refusing to recursively remove reparse-point preset tree '$presetRoot'."
+    }
+    Write-GameWipOperationEvent -Phase execute -Step "fresh-$Name" -Severity info -Message "Removing the complete preset build tree '$presetRoot'."
+    Remove-Item -LiteralPath $presetRoot -Recurse -Force
+}
+
+function Invoke-GameWipConfigurePreset
+{
+    param([Parameter(Mandatory = $true)][string]$Name, [switch]$Fresh)
+    Assert-GameWipValidPreset -Kind 'configure' -Name $Name
+    if ($Fresh)
+    {
+        Reset-GameWipPresetBuildTree -Name $Name
+    }
     Confirm-GameWipToolchain -PresetName $Name
     $pathPrefix = Get-GameWipToolchainPathPrefix $Name
     $arguments = @('--preset', $Name)
@@ -60,11 +100,17 @@ function Invoke-GameWipConfigurePreset
 
 function Invoke-GameWipBuildPreset
 {
-    param([Parameter(Mandatory = $true)][string]$Name)
+    param([Parameter(Mandatory = $true)][string]$Name, [switch]$Fresh)
     Assert-GameWipValidPreset -Kind 'build' -Name $Name
     Confirm-GameWipToolchain -PresetName $Name
     $cache = Join-Path $RepositoryRoot "build\$Name\CMakeCache.txt"
-    if (-not (Test-Path -LiteralPath $cache))
+    if ($Fresh)
+    {
+        Reset-GameWipPresetBuildTree -Name $Name
+        Write-GameWipOperationEvent -Phase plan -Step "build-$Name" -Severity info -Message "Fresh build requested; configuration is a prerequisite."
+        Invoke-GameWipConfigurePreset -Name $Name
+    }
+    elseif (-not (Test-Path -LiteralPath $cache))
     {
         Write-GameWipOperationEvent -Phase plan -Step "build-$Name" -Severity info -Message "Build preset '$Name' is not configured; configuration is a prerequisite."
         Invoke-GameWipConfigurePreset -Name $Name
@@ -128,7 +174,8 @@ function Invoke-GameWipProjectCommand
         [switch]$ForceBuild
     )
     $command = Get-GameWipProjectCommand -Id $Id
-    if ($Arguments.Count -ne 0 -and -not [bool]$command.AcceptsExtraArgs)
+    $hasArguments = $null -ne $Arguments -and $Arguments.Length -ne 0
+    if ($hasArguments -and -not [bool]$command.AcceptsExtraArgs)
     {
         throw "Project command '$Id' does not accept extra arguments."
     }

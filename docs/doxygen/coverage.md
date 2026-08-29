@@ -11,11 +11,25 @@ diagnose an incomplete or failed run.
 Run coverage from the repository root:
 
 ```powershell
+.\gamewip.bat coverage
+```
+
+The helper removes and recreates `build/coverage` on every high-level coverage
+run before configuring, building, testing, and generating the report. This
+prevents obsolete `.gcda`/`.gcno` data and generated files from surviving
+source moves, target changes, or instrumentation changes.
+
+The equivalent raw CMake sequence is:
+
+```powershell
 cmake --preset coverage
 cmake --build --preset coverage
 ctest --preset coverage
 cmake --build build/coverage --target coverage
 ```
+
+When using the raw sequence for an authoritative result, begin with a clean
+`build/coverage` tree. Raw CMake commands otherwise remain incremental.
 
 The coverage workflow requires standalone tests.
 
@@ -35,16 +49,20 @@ build/coverage/coverage/index.html
 build/coverage/coverage/coverage.xml
 ```
 
-The report includes maintained implementation sources for Base, Unicode, IO, FileSystem, Terminal, Logger, Assert, TestSupport, and Window, plus the
+The report includes maintained implementation sources for Base, Unicode, IO, FileSystem, Terminal, Logger, Assert, TestSupport, and Desktop, plus the
 modular correctness-test sources under `game/validation/tests`. Header-only Base code contributes where instantiated by tests and consumers.
 Third-party sources under `external/`, generated build output, and intentionally provisional engine code are excluded.
+Coverage data discovery is restricted to the active coverage build tree so archived or neighboring instrumented builds cannot contaminate the report.
 
 GCC profile updates are atomic so parallel test processes cannot overwrite one another's counters. Corrupt or negative profile data is a report
-failure. The workflow must not suppress parser errors.
+failure. The workflow must not suppress parser errors. Identical inline or template functions can be emitted with different declaration line records
+across translation units, so reports merge those records at the lowest reported line while preserving their combined coverage.
 
 ## CI behavior
 
-The Validation workflow runs the coverage preset on Windows and uploads the HTML/XML output as a build artifact.
+The Validation workflow runs the coverage preset in a fresh GitHub-hosted
+runner workspace and uploads the HTML/XML output as a build artifact. The
+workflow does not restore a CMake build-tree cache.
 
 Coverage percentages are informational rather than validation gates. A lower
 coverage value does not fail validation; the workflow fails only when its
@@ -57,6 +75,7 @@ configuration, tests, or report generation fail.
 | Configure fails. | Coverage was enabled without standalone tests. | Use the `coverage` preset or enable `GAMEWIP_BUILD_TESTS`. |
 | The `coverage` target is missing. | The project was not configured with coverage instrumentation. | Reconfigure with `cmake --preset coverage`. |
 | The report contains corrupt or negative profile data. | Test processes produced invalid coverage counters. | Treat the report as failed and investigate the affected test or toolchain behavior. |
+| Report generation rejects differing line records for the same inline or template function. | Translation units emitted equivalent function records at different declaration lines. | Keep `merge-use-line-min` enabled so gcovr merges the equivalent records deterministically. |
 | Third-party files appear in the report. | The exclusion list is incomplete. | Update the coverage helper to exclude vendor and generated paths. |
 
 ## Maintainer notes
