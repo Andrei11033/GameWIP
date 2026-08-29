@@ -77,15 +77,15 @@ Run opt-in manual checks:
 .\build\test\GameWIPTests.exe --test-module=test_support --manual-tests
 .\build\test\GameWIPTests.exe --test-module=terminal --manual-tests
 .\build\test\GameWIPTests.exe --test-module=logger --manual-tests
-.\build\test\GameWIPTests.exe --test-module=window --manual-tests
+.\build\test\GameWIPTests.exe --test-module=desktop --manual-tests
 ```
 
-Each selected module owns its manual scenarios. The Window module groups the full visible, shell, DPI, cursor, fullscreen, topology, HDR, and
-modern-capability workflow from @ref window_manual_validation. Unsupported or unavailable environments are recorded as skips and are not passing
+Each selected module owns its manual scenarios. The Desktop module groups the full visible, shell, DPI, cursor, fullscreen, topology, HDR, and
+modern-capability workflow from @ref desktop_manual_validation. Unsupported or unavailable environments are recorded as skips and are not passing
 evidence.
 
-Window manual runs open a live diagnostics companion. A module-specific `--window-manual-suite=<name>` selector may narrow a repeat run without
-creating another project-wide manual enable flag; the selector contract is owned by @ref window_testing.
+Desktop manual runs open a live diagnostics companion. A module-specific `--desktop-manual-suite=<name>` selector may narrow a repeat run without
+creating another project-wide manual enable flag; the selector contract is owned by @ref desktop_testing.
 
 The complete runner argument contract is owned by @ref project_validation.
 

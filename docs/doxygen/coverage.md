@@ -35,12 +35,14 @@ build/coverage/coverage/index.html
 build/coverage/coverage/coverage.xml
 ```
 
-The report includes maintained implementation sources for Base, Unicode, IO, FileSystem, Terminal, Logger, Assert, TestSupport, and Window, plus the
+The report includes maintained implementation sources for Base, Unicode, IO, FileSystem, Terminal, Logger, Assert, TestSupport, and Desktop, plus the
 modular correctness-test sources under `game/validation/tests`. Header-only Base code contributes where instantiated by tests and consumers.
 Third-party sources under `external/`, generated build output, and intentionally provisional engine code are excluded.
+Coverage data discovery is restricted to the active coverage build tree so archived or neighboring instrumented builds cannot contaminate the report.
 
 GCC profile updates are atomic so parallel test processes cannot overwrite one another's counters. Corrupt or negative profile data is a report
-failure. The workflow must not suppress parser errors.
+failure. The workflow must not suppress parser errors. Identical inline or template functions can be emitted with different declaration line records
+across translation units, so reports merge those records at the lowest reported line while preserving their combined coverage.
 
 ## CI behavior
 
@@ -57,6 +59,7 @@ configuration, tests, or report generation fail.
 | Configure fails. | Coverage was enabled without standalone tests. | Use the `coverage` preset or enable `GAMEWIP_BUILD_TESTS`. |
 | The `coverage` target is missing. | The project was not configured with coverage instrumentation. | Reconfigure with `cmake --preset coverage`. |
 | The report contains corrupt or negative profile data. | Test processes produced invalid coverage counters. | Treat the report as failed and investigate the affected test or toolchain behavior. |
+| Report generation rejects differing line records for the same inline or template function. | Translation units emitted equivalent function records at different declaration lines. | Keep `merge-use-line-min` enabled so gcovr merges the equivalent records deterministically. |
 | Third-party files appear in the report. | The exclusion list is incomplete. | Update the coverage helper to exclude vendor and generated paths. |
 
 ## Maintainer notes

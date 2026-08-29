@@ -62,7 +62,7 @@ if(GAMEWIP_BUILD_DOCS)
         "${PROJECT_SOURCE_DIR}/game/validation/tests/logger/logger_test.h"
         "${PROJECT_SOURCE_DIR}/game/validation/tests/runner/runner_test.h"
         "${PROJECT_SOURCE_DIR}/game/validation/tests/terminal/terminal_test.h"
-        "${PROJECT_SOURCE_DIR}/game/validation/tests/window/window_test.h"
+        "${PROJECT_SOURCE_DIR}/game/validation/tests/desktop/desktop_test.h"
         "${PROJECT_SOURCE_DIR}/game/validation/tests/test_support/test_support_test.h"
     )
 endif()

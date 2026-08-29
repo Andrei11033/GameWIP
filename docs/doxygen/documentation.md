@@ -139,7 +139,7 @@ Keep the library name in the landing-page title and in prose where the page may
 be read outside its navigation context.
 
 Window is the deliberate naming exception: its landing page uses
-`window_library` so it cannot be confused with generated namespace and class
+`desktop_library` so it cannot be confused with generated namespace and class
 reference names, while its child pages retain the concise `window_` prefix.
 
 ## Required library documentation
@@ -158,7 +158,7 @@ Each reusable library must provide:
 
 The landing filename must match the `PAGE_ID` registered for the library. For
 most libraries this is the lowercase library name; Window uses the documented
-`window_library` exception above.
+`desktop_library` exception above.
 
 Libraries may add additional manual pages when the public or maintainer-facing contract needs a focused owner. Extra pages must make the manual easier
 to use or maintain; do not create pages just to mirror the source tree.

@@ -25,6 +25,8 @@ function(gamewip_create_coverage_target)
         set(gamewip_coverage_common_args
             --root
             "${PROJECT_SOURCE_DIR}"
+            --merge-mode-functions
+            merge-use-line-min
             --filter
             "${PROJECT_SOURCE_DIR}/foundation/base"
             --filter
@@ -42,11 +44,12 @@ function(gamewip_create_coverage_target)
             --filter
             "${PROJECT_SOURCE_DIR}/tools/test_support"
             --filter
-            "${PROJECT_SOURCE_DIR}/engine/window"
+            "${PROJECT_SOURCE_DIR}/engine/desktop"
             --filter
             "${PROJECT_SOURCE_DIR}/game/validation/tests"
             --exclude
             "${PROJECT_SOURCE_DIR}/external"
+            "${CMAKE_BINARY_DIR}"
         )
 
         add_custom_target(

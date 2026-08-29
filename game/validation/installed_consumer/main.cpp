@@ -3,7 +3,7 @@
 
 #if defined(IO_INTERNAL_TEST_HOOKS) || defined(FILESYSTEM_INTERNAL_TEST_HOOKS) || defined(TERMINAL_INTERNAL_TEST_HOOKS) || \
     defined(LOGGER_INTERNAL_TEST_HOOKS) || defined(ASSERT_INTERNAL_TEST_HOOKS) || defined(TEST_SUPPORT_INTERNAL_TEST_HOOKS) || \
-    defined(WINDOW_INTERNAL_TEST_HOOKS)
+    defined(DESKTOP_INTERNAL_TEST_HOOKS)
 #error "Installed GameWIP targets must not expose internal test-hook compile definitions."
 #endif
 
@@ -15,13 +15,13 @@
 #include "terminal/terminal.h"
 #include "test_support/test_support.h"
 #include "unicode/unicode.h"
-#include "window/child_surface.h"
-#include "window/clipboard.h"
-#include "window/cursor.h"
-#include "window/data_transfer.h"
-#include "window/display_info.h"
-#include "window/renderer_bridge.h"
-#include "window/window.h"
+#include "desktop/child_surface.h"
+#include "desktop/clipboard.h"
+#include "desktop/cursor.h"
+#include "desktop/data_transfer.h"
+#include "desktop/display_info.h"
+#include "desktop/renderer_bridge.h"
+#include "desktop/window.h"
 
 #include <span>
 #include <string>
@@ -61,19 +61,19 @@ int main()
     const GameWIP::TestSupport::Types::Process::Result childResult;
     const GameWIP::TestSupport::Types::Reporting::Options reportingOptions;
     const std::string infrastructureText = GameWIP::TestSupport::formatInfrastructureStatus(infrastructureStatus);
-    const GameWIP::Window::Types::CapabilitiesResult windowCapabilities = GameWIP::Window::getCapabilities();
-    const GameWIP::Window::Types::Clipboard::FormatResult clipboardText =
-        GameWIP::Window::Clipboard::hasFormat({GameWIP::Window::Types::DataTransfer::FormatKind::Text, {}});
-    const GameWIP::Window::Types::Cursor::CreateResult invalidCursor =
-        GameWIP::Window::createCursor(std::span<const GameWIP::Window::Types::Cursor::ImageView>{});
-    const GameWIP::Window::Types::Cursor::CreateResult invalidSingleCursor =
-        GameWIP::Window::createCursor(GameWIP::Window::Types::Cursor::ImageView{});
-    const GameWIP::Window::Types::LogicalSize windowSize{640, 360};
-    GameWIP::Window::Window closedWindow;
-    GameWIP::Window::ChildSurface closedChildSurface;
-    const GameWIP::IO::Types::Status rendererFeedbackStatus = GameWIP::Window::Renderer::attachOcclusionProvider(closedWindow);
-    const bool rendererProvider = GameWIP::Window::Renderer::hasOcclusionProvider(closedWindow);
-    const GameWIP::Window::Types::Display::ColorInfoResult displayColor = GameWIP::Window::Display::getColorInfo(closedWindow);
+    const GameWIP::Desktop::Types::CapabilitiesResult windowCapabilities = GameWIP::Desktop::getCapabilities();
+    const GameWIP::Desktop::Types::Clipboard::FormatResult clipboardText =
+        GameWIP::Desktop::Clipboard::hasFormat({GameWIP::Desktop::Types::DataTransfer::FormatKind::Text, {}});
+    const GameWIP::Desktop::Types::Cursor::CreateResult invalidCursor =
+        GameWIP::Desktop::createCursor(std::span<const GameWIP::Desktop::Types::Cursor::ImageView>{});
+    const GameWIP::Desktop::Types::Cursor::CreateResult invalidSingleCursor =
+        GameWIP::Desktop::createCursor(GameWIP::Desktop::Types::Cursor::ImageView{});
+    const GameWIP::Desktop::Types::LogicalSize windowSize{640, 360};
+    GameWIP::Desktop::Window closedWindow;
+    GameWIP::Desktop::ChildSurface closedChildSurface;
+    const GameWIP::IO::Types::Status rendererFeedbackStatus = GameWIP::Desktop::Renderer::attachOcclusionProvider(closedWindow);
+    const bool rendererProvider = GameWIP::Desktop::Renderer::hasOcclusionProvider(closedWindow);
+    const GameWIP::Desktop::Types::Display::ColorInfoResult displayColor = GameWIP::Desktop::Display::getColorInfo(closedWindow);
 
     CHECK(write.status.ok());
     CHECK(text.status.ok());

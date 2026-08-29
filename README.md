@@ -203,7 +203,7 @@ Start with these pages when reading the source tree:
 
 ```text
 foundation/   Reusable Unicode, IO, FileSystem, and Terminal libraries.
-engine/       Supported Window library, provisional Input/Action code, and preserved retired WindowManager code.
+engine/       Supported Desktop library, provisional Input/Action code, and preserved retired WindowManager code.
 tools/        Logger, Assert, and TestSupport libraries.
 game/         Stable game entry point, runtime facade, modular validation, and its local orientation guide.
 external/     Pinned third-party dependencies.

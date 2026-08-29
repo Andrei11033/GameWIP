@@ -14,7 +14,7 @@ pages provide the behavior inside each box.
 | --- | --- |
 | `foundation/` | Internal Base mechanisms and low-level reusable libraries such as Unicode, IO, FileSystem, and Terminal. |
 | `tools/` | Diagnostics, assertions, logging, validation support, and development tooling libraries. |
-| `engine/` | The documented Window library plus provisional Input and Action code. Preserved WindowManager code is currently outside the build. |
+| `engine/` | The documented Desktop library plus provisional Input and Action code. Preserved WindowManager code is currently outside the build. |
 | `game/` | Executable entry point, runtime facade, startup validation wiring, validation runners, and game-facing integration. |
 | `cmake/` | Repository-wide build, platform, validation, coverage, documentation, packaging, and analysis helpers. |
 | `config/quality/` | Explicit formatter and linter policy consumed by the project quality helper. |

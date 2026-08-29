@@ -49,13 +49,13 @@ set(test_support_forbidden_gamewip_targets
     IO
     FileSystem
     Terminal
-    Window
+    Desktop
     Logger
     Assert
     GameWIP::IO
     GameWIP::FileSystem
     GameWIP::Terminal
-    GameWIP::Window
+    GameWIP::Desktop
     GameWIP::Logger
     GameWIP::Assert
 )
