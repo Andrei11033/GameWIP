@@ -203,8 +203,8 @@ generated API, is not installed, and must not be used by application or validati
 | `benchmark` | Optimized standalone benchmarks. |
 | `profile` | Embedded correctness tests available for profiled `--startup-tests` execution. |
 | `release` | Validation, benchmarks, and development assertions disabled. |
-| `coverage` | Standalone correctness tests with coverage instrumentation. |
-| `asan` | Standalone correctness tests with AddressSanitizer instrumentation. |
+| `coverage` | Standalone correctness tests with coverage instrumentation; the high-level helper recreates the preset tree. |
+| `asan` | Standalone correctness tests with AddressSanitizer instrumentation; the high-level helper recreates the preset tree. |
 | `docs` | Doxygen only; validation execution disabled. |
 
 ## Maintainer notes

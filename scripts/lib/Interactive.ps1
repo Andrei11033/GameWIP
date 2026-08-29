@@ -150,7 +150,7 @@ function Show-GameWipDevelopmentMenu
                 $preset = Read-GameWipNamedChoice -Prompt 'Configure preset' -Choices (Get-GameWipVisiblePresetName -Kind configure) -Default $CommandConfig.DefaultConfigurePreset
                 if ($null -ne $preset)
                 {
-                    Invoke-GameWipInteractiveOperation -Label "configure-$preset" -Body { Invoke-GameWipMutation -Summary "Configure preset '$preset'." -Risk local -Plan @("cmake --preset $preset") -Body { Invoke-GameWipConfigurePreset -Name $preset } | Out-Null } | Out-Null
+                    Invoke-GameWipInteractiveOperation -Label "configure-$preset" -Body { Invoke-GameWipMutation -Summary "Configure preset '$preset'." -Risk local -Plan @('Recreate the preset tree when -Fresh is active.', "cmake --preset $preset") -Body { Invoke-GameWipConfigurePreset -Name $preset -Fresh:$Fresh } | Out-Null } | Out-Null
                 }
             }
             'build'
@@ -158,7 +158,7 @@ function Show-GameWipDevelopmentMenu
                 $preset = Read-GameWipNamedChoice -Prompt 'Build preset' -Choices (Get-GameWipVisiblePresetName -Kind build) -Default $CommandConfig.DefaultBuildPreset
                 if ($null -ne $preset)
                 {
-                    Invoke-GameWipInteractiveOperation -Label "build-$preset" -Body { Invoke-GameWipMutation -Summary "Build preset '$preset'." -Risk local -Plan @('Ensure configuration if missing.', "cmake --build --preset $preset") -Body { Invoke-GameWipBuildPreset -Name $preset } | Out-Null } | Out-Null
+                    Invoke-GameWipInteractiveOperation -Label "build-$preset" -Body { Invoke-GameWipMutation -Summary "Build preset '$preset'." -Risk local -Plan @('Recreate the preset tree when -Fresh is active.', 'Ensure configuration if missing.', "cmake --build --preset $preset") -Body { Invoke-GameWipBuildPreset -Name $preset -Fresh:$Fresh } | Out-Null } | Out-Null
                 }
             }
             'run'
@@ -193,7 +193,7 @@ function Show-GameWipValidationMenu
                 $preset = Read-GameWipNamedChoice -Prompt 'CTest preset' -Choices (Get-GameWipVisiblePresetName -Kind test) -Default $CommandConfig.DefaultTestPreset
                 if ($null -ne $preset)
                 {
-                    Invoke-GameWipInteractiveOperation -Label "test-$preset" -Body { Invoke-GameWipMutation -Summary "Ensure and run CTest preset '$preset'." -Risk local -Plan @('Build missing prerequisites unless -NoBuild is used.', "ctest --preset $preset") -Body { Invoke-GameWipTestPreset -Name $preset -UseWorkspaceTemp -NoBuild:$NoBuild } | Out-Null } | Out-Null
+                    Invoke-GameWipInteractiveOperation -Label "test-$preset" -Body { Invoke-GameWipMutation -Summary "Ensure and run CTest preset '$preset'." -Risk local -Plan @('Recreate the preset tree when -Fresh is active.', 'Build missing prerequisites unless -NoBuild is used.', "ctest --preset $preset") -Body { Invoke-GameWipTestPreset -Name $preset -UseWorkspaceTemp -NoBuild:$NoBuild -Fresh:$Fresh } | Out-Null } | Out-Null
                 }
             }
             'module'
@@ -224,11 +224,11 @@ function Show-GameWipValidationMenu
             }
             'coverage'
             {
-                Invoke-GameWipInteractiveOperation -Label 'coverage' -Body { Invoke-GameWipMutation -Summary 'Run coverage validation.' -Risk local -Plan @('Configure/build coverage.', 'Run CTest.', 'Generate coverage target.') -Body { Invoke-GameWipConfigurePreset -Name coverage; Invoke-GameWipBuildPreset -Name coverage; Invoke-GameWipTestPreset -Name coverage -UseWorkspaceTemp -NoBuild; Invoke-GameWipBuildTarget -Name coverage -Target coverage } | Out-Null } | Out-Null
+                Invoke-GameWipInteractiveOperation -Label 'coverage' -Body { Invoke-GameWipMutation -Summary 'Run coverage validation from a clean build tree.' -Risk local -Plan @('Remove build/coverage completely.', 'Configure/build coverage.', 'Run CTest.', 'Generate coverage target.') -Body { Invoke-GameWipConfigurePreset -Name coverage -Fresh; Invoke-GameWipBuildPreset -Name coverage; Invoke-GameWipTestPreset -Name coverage -UseWorkspaceTemp -NoBuild; Invoke-GameWipBuildTarget -Name coverage -Target coverage } | Out-Null } | Out-Null
             }
             'asan'
             {
-                Invoke-GameWipInteractiveOperation -Label 'asan' -Body { Invoke-GameWipMutation -Summary 'Run AddressSanitizer validation.' -Risk local -Plan @('Configure/build asan.', 'Run CTest.') -Body { Invoke-GameWipConfigurePreset -Name asan; Invoke-GameWipBuildPreset -Name asan; Invoke-GameWipTestPreset -Name asan -UseWorkspaceTemp -NoBuild } | Out-Null } | Out-Null
+                Invoke-GameWipInteractiveOperation -Label 'asan' -Body { Invoke-GameWipMutation -Summary 'Run AddressSanitizer validation from a clean build tree.' -Risk local -Plan @('Remove build/asan completely.', 'Configure/build asan.', 'Run CTest.') -Body { Invoke-GameWipConfigurePreset -Name asan -Fresh; Invoke-GameWipBuildPreset -Name asan; Invoke-GameWipTestPreset -Name asan -UseWorkspaceTemp -NoBuild } | Out-Null } | Out-Null
             }
         }
     }
@@ -395,7 +395,7 @@ function Show-GameWipMaintenanceMenu
                 $bundle = Read-GameWipNamedChoice -Prompt 'Bundle' -Choices @($CommandConfig.Bundles | ForEach-Object { $_.Id }) -Default quick
                 if ($null -ne $bundle)
                 {
-                    Invoke-GameWipInteractiveOperation -Label "bundle-$bundle" -Body { Invoke-GameWipMutation -Summary "Run bundle '$bundle'." -Risk local -Plan @('Execute the declared bundle steps in order.') -Body { Invoke-GameWipBundle -Id $bundle -NoBuild:$NoBuild } | Out-Null } | Out-Null
+                    Invoke-GameWipInteractiveOperation -Label "bundle-$bundle" -Body { Invoke-GameWipMutation -Summary "Run bundle '$bundle'." -Risk local -Plan @('Recreate declared preset trees when required by the bundle or -Fresh.', 'Execute the declared bundle steps in order.') -Body { Invoke-GameWipBundle -Id $bundle -NoBuild:$NoBuild -Fresh:$Fresh } | Out-Null } | Out-Null
                 }
             }
             'links'

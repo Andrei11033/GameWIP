@@ -20,6 +20,19 @@ cmake --build --preset test
 ctest --preset test
 ```
 
+For the same workflow through the project helper, use an incremental run during
+ordinary iteration or request a complete preset-tree recreation explicitly:
+
+```powershell
+.\gamewip.bat test test
+.\gamewip.bat test test -Fresh
+```
+
+Fresh mode cannot be combined with `-NoBuild`, because deleting the selected
+tree makes configuration and compilation mandatory. Installed-package consumer
+tests continue to create their own isolated consumer build directories. CI
+jobs run in fresh hosted workspaces and do not restore CMake build trees.
+
 The same validation composition checks shared-library exports, public-header
 self-containment, generated version output, runtime dependency staging, and
 clean installed-package consumption. On the supported Windows/MSYS2 GNU

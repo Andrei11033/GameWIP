@@ -27,6 +27,7 @@ param(
     [ValidateRange(1, 256)][int]$Parallel = 0,
     [string[]]$ExtraArgs = @(),
     [switch]$NoBuild,
+    [switch]$Fresh,
     [switch]$StopOnFailure,
     [switch]$FailFast,
     [switch]$Changed,
@@ -270,7 +271,15 @@ $result = Invoke-GameWipOperation `
             {
                 $Command
             }
-            Invoke-GameWipMutation -Summary "Configure preset '$preset'." -Risk local -Plan @("cmake --preset $preset") -Body { Invoke-GameWipConfigurePreset -Name $preset } | Out-Null
+            $configurePlan = if ($Fresh)
+            {
+                @("Remove build/$preset completely.", "cmake --preset $preset")
+            }
+            else
+            {
+                @("cmake --preset $preset")
+            }
+            Invoke-GameWipMutation -Summary "Configure preset '$preset'." -Risk local -Plan $configurePlan -Body { Invoke-GameWipConfigurePreset -Name $preset -Fresh:$Fresh } | Out-Null
         }
         'build'
         {
@@ -282,7 +291,15 @@ $result = Invoke-GameWipOperation `
             {
                 $Command
             }
-            Invoke-GameWipMutation -Summary "Build preset '$preset'." -Risk local -Plan @('Ensure configure prerequisite if absent.', "cmake --build --preset $preset") -Body { Invoke-GameWipBuildPreset -Name $preset } | Out-Null
+            $buildPlan = if ($Fresh)
+            {
+                @("Remove build/$preset completely.", 'Configure the recreated preset.', "cmake --build --preset $preset")
+            }
+            else
+            {
+                @('Ensure configure prerequisite if absent.', "cmake --build --preset $preset")
+            }
+            Invoke-GameWipMutation -Summary "Build preset '$preset'." -Risk local -Plan $buildPlan -Body { Invoke-GameWipBuildPreset -Name $preset -Fresh:$Fresh } | Out-Null
         }
         'test'
         {
@@ -294,7 +311,15 @@ $result = Invoke-GameWipOperation `
             {
                 $Command
             }
-            Invoke-GameWipMutation -Summary "Run CTest preset '$preset'." -Risk local -Plan @('Ensure the preset build is current unless -NoBuild is used.', "ctest --preset $preset --output-on-failure") -Body { Invoke-GameWipTestPreset -Name $preset -UseWorkspaceTemp -NoBuild:$NoBuild } | Out-Null
+            $testPlan = if ($Fresh)
+            {
+                @("Remove build/$preset completely.", 'Configure and build the recreated preset.', "ctest --preset $preset --output-on-failure")
+            }
+            else
+            {
+                @('Ensure the preset build is current unless -NoBuild is used.', "ctest --preset $preset --output-on-failure")
+            }
+            Invoke-GameWipMutation -Summary "Run CTest preset '$preset'." -Risk local -Plan $testPlan -Body { Invoke-GameWipTestPreset -Name $preset -UseWorkspaceTemp -NoBuild:$NoBuild -Fresh:$Fresh } | Out-Null
         }
         'wizard'
         {
@@ -362,7 +387,7 @@ $result = Invoke-GameWipOperation `
             {
                 $Command
             }
-            Invoke-GameWipMutation -Summary "Run bundle '$id'." -Risk local -Plan @('Execute its declarative steps in order.') -Body { Invoke-GameWipBundle -Id $id -NoBuild:$NoBuild } | Out-Null
+            Invoke-GameWipMutation -Summary "Run bundle '$id'." -Risk local -Plan @('Recreate declared preset trees when required by the bundle or -Fresh.', 'Execute its declarative steps in order.') -Body { Invoke-GameWipBundle -Id $id -NoBuild:$NoBuild -Fresh:$Fresh } | Out-Null
         }
         'docs'
         {
@@ -374,11 +399,11 @@ $result = Invoke-GameWipOperation `
         }
         'coverage'
         {
-            Invoke-GameWipMutation -Summary 'Run coverage validation.' -Risk local -Plan @('Configure/build coverage.', 'Run CTest.', 'Generate coverage target.') -Body { Invoke-GameWipConfigurePreset -Name coverage; Invoke-GameWipBuildPreset -Name coverage; Invoke-GameWipTestPreset -Name coverage -UseWorkspaceTemp -NoBuild; Invoke-GameWipBuildTarget -Name coverage -Target coverage } | Out-Null
+            Invoke-GameWipMutation -Summary 'Run coverage validation from a clean build tree.' -Risk local -Plan @('Remove build/coverage completely.', 'Configure/build coverage.', 'Run CTest with new profile data.', 'Generate coverage target.') -Body { Invoke-GameWipConfigurePreset -Name coverage -Fresh; Invoke-GameWipBuildPreset -Name coverage; Invoke-GameWipTestPreset -Name coverage -UseWorkspaceTemp -NoBuild; Invoke-GameWipBuildTarget -Name coverage -Target coverage } | Out-Null
         }
         'asan'
         {
-            Invoke-GameWipMutation -Summary 'Run AddressSanitizer validation.' -Risk local -Plan @('Configure/build asan.', 'Run CTest.') -Body { Invoke-GameWipConfigurePreset -Name asan; Invoke-GameWipBuildPreset -Name asan; Invoke-GameWipTestPreset -Name asan -UseWorkspaceTemp -NoBuild } | Out-Null
+            Invoke-GameWipMutation -Summary 'Run AddressSanitizer validation from a clean build tree.' -Risk local -Plan @('Remove build/asan completely.', 'Configure/build asan.', 'Run CTest.') -Body { Invoke-GameWipConfigurePreset -Name asan -Fresh; Invoke-GameWipBuildPreset -Name asan; Invoke-GameWipTestPreset -Name asan -UseWorkspaceTemp -NoBuild } | Out-Null
         }
         'benchmark'
         {

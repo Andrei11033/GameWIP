@@ -106,6 +106,17 @@ cmake --build --preset asan
 ctest --preset asan
 ```
 
+For authoritative local coverage and sanitizer results, the project helper
+recreates the complete preset build tree before running the workflow:
+
+```powershell
+.\gamewip.bat coverage
+.\gamewip.bat asan
+```
+
+Ordinary helper configure, build, and test commands remain incremental; add
+`-Fresh` to one of those commands when a full preset-tree rebuild is required.
+
 Build and run optimized benchmarks through the project helper:
 
 ```powershell

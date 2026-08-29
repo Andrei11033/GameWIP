@@ -11,11 +11,25 @@ diagnose an incomplete or failed run.
 Run coverage from the repository root:
 
 ```powershell
+.\gamewip.bat coverage
+```
+
+The helper removes and recreates `build/coverage` on every high-level coverage
+run before configuring, building, testing, and generating the report. This
+prevents obsolete `.gcda`/`.gcno` data and generated files from surviving
+source moves, target changes, or instrumentation changes.
+
+The equivalent raw CMake sequence is:
+
+```powershell
 cmake --preset coverage
 cmake --build --preset coverage
 ctest --preset coverage
 cmake --build build/coverage --target coverage
 ```
+
+When using the raw sequence for an authoritative result, begin with a clean
+`build/coverage` tree. Raw CMake commands otherwise remain incremental.
 
 The coverage workflow requires standalone tests.
 
@@ -46,7 +60,9 @@ across translation units, so reports merge those records at the lowest reported 
 
 ## CI behavior
 
-The Validation workflow runs the coverage preset on Windows and uploads the HTML/XML output as a build artifact.
+The Validation workflow runs the coverage preset in a fresh GitHub-hosted
+runner workspace and uploads the HTML/XML output as a build artifact. The
+workflow does not restore a CMake build-tree cache.
 
 Coverage percentages are informational rather than validation gates. A lower
 coverage value does not fail validation; the workflow fails only when its

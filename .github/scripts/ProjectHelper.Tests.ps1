@@ -15,7 +15,7 @@ $powerShellPath = (Get-Process -Id $PID).Path
 . (Join-Path $repositoryRoot 'scripts\lib\Bootstrap.ps1') -RepositoryRoot $repositoryRoot
 
 $helpOutput = (& $powerShellPath -NoProfile -ExecutionPolicy Bypass -File $helperPath help 2>&1 | Out-String)
-foreach ($requiredHelpText in @('gamewip.bat <action> [command] [target]', 'Available commands', 'quality', 'tools', 'runs', '-Preview', '-NonInteractive', '-Yes', '-NoBuild', '-NoColor', '-Json'))
+foreach ($requiredHelpText in @('gamewip.bat <action> [command] [target]', 'Available commands', 'quality', 'tools', 'runs', '-Preview', '-NonInteractive', '-Yes', '-NoBuild', '-Fresh', '-NoColor', '-Json'))
 {
     if ($helpOutput -notmatch [regex]::Escape($requiredHelpText))
     {
@@ -25,6 +25,45 @@ foreach ($requiredHelpText in @('gamewip.bat <action> [command] [target]', 'Avai
 
 Assert-GameWipCommandConfig
 Assert-GameWipProjectToolConfig
+foreach ($freshBundleId in @('local-release-check', 'sanitizer'))
+{
+    $freshBundle = Get-GameWipProjectBundle -Id $freshBundleId
+    if (-not $freshBundle.ContainsKey('FreshBuildTrees') -or -not [bool]$freshBundle.FreshBuildTrees)
+    {
+        throw "Authoritative bundle '$freshBundleId' does not require clean preset trees."
+    }
+}
+if ((Get-GameWipProjectBundle -Id quick).ContainsKey('FreshBuildTrees'))
+{
+    throw 'The quick development bundle unexpectedly requires clean preset trees.'
+}
+
+$releaseBundle = Get-GameWipProjectBundle -Id local-release-check
+$savedReleaseSteps = $releaseBundle.Steps
+$savedFreshPolicy = $releaseBundle.FreshBuildTrees
+$savedProjectCommandInvoker = (Get-Command Invoke-GameWipProjectCommand).ScriptBlock
+$Script:BundleBoundArguments = $null
+try
+{
+    $releaseBundle.FreshBuildTrees = $false
+    $releaseBundle.Steps = @(@{ Kind = 'ProjectCommand'; Command = 'benchmark-dry-run'; BuildIfMissing = $true })
+    Set-Item -Path function:Invoke-GameWipProjectCommand -Value {
+        param([string]$Id, [string[]]$Arguments, [switch]$NoBuild, [switch]$ForceBuild)
+        $Script:BundleBoundArguments = $PSBoundParameters.ContainsKey('Arguments')
+    }
+    Invoke-GameWipBundle -Id local-release-check
+    if ($Script:BundleBoundArguments)
+    {
+        throw 'A bundle step without arguments bound a synthetic empty project-command argument.'
+    }
+}
+finally
+{
+    $releaseBundle.Steps = $savedReleaseSteps
+    $releaseBundle.FreshBuildTrees = $savedFreshPolicy
+    Set-Item -Path function:Invoke-GameWipProjectCommand -Value $savedProjectCommandInvoker
+    Remove-Variable -Name BundleBoundArguments -Scope Script -ErrorAction SilentlyContinue
+}
 if ((New-GameWipOperationContext -Label output-default).OutputMode -ne 'Stream')
 {
     throw 'Project helper operations do not stream native output by default.'
@@ -147,6 +186,62 @@ finally
         Remove-Item -LiteralPath $schemaTestRoot -Recurse -Force
     }
 }
+
+$freshTestRoot = Join-Path $repositoryRoot ('build\gamewip\temp\fresh-preset-test-' + [guid]::NewGuid().ToString('N'))
+$savedRepositoryRoot = $Script:RepositoryRoot
+try
+{
+    $testTree = Join-Path $freshTestRoot 'build\test'
+    $neighborTree = Join-Path $freshTestRoot 'build\coverage'
+    [IO.Directory]::CreateDirectory($testTree) | Out-Null
+    [IO.Directory]::CreateDirectory($neighborTree) | Out-Null
+    [IO.File]::WriteAllText((Join-Path $testTree 'stale.gcno'), 'stale')
+    [IO.File]::WriteAllText((Join-Path $neighborTree 'preserved.txt'), 'preserved')
+    $Script:RepositoryRoot = $freshTestRoot
+    Reset-GameWipPresetBuildTree -Name test
+    if (Test-Path -LiteralPath $testTree)
+    {
+        throw 'Fresh preset recreation retained files from the selected preset tree.'
+    }
+    if (-not (Test-Path -LiteralPath (Join-Path $neighborTree 'preserved.txt')))
+    {
+        throw 'Fresh preset recreation modified a neighboring preset tree.'
+    }
+
+    $unknownPresetRejected = $false
+    try
+    {
+        Reset-GameWipPresetBuildTree -Name '..'
+    }
+    catch
+    {
+        $unknownPresetRejected = $true
+    }
+    if (-not $unknownPresetRejected)
+    {
+        throw 'Fresh preset recreation accepted an unknown path-like preset name.'
+    }
+}
+finally
+{
+    $Script:RepositoryRoot = $savedRepositoryRoot
+    Remove-Item -LiteralPath $freshTestRoot -Recurse -Force -ErrorAction SilentlyContinue
+}
+
+$conflictingBuildPolicyRejected = $false
+try
+{
+    Initialize-GameWipTestPresetBuild -Name test -NoBuild -Fresh
+}
+catch
+{
+    $conflictingBuildPolicyRejected = $_.Exception.Message -like '*cannot be combined*'
+}
+if (-not $conflictingBuildPolicyRejected)
+{
+    throw '-Fresh and -NoBuild were not rejected as contradictory test policies.'
+}
+
 if ((Test-GameWipWindowsHost) -and (Get-GameWipExecutableNames -Command sample) -contains 'sample')
 {
     throw 'Windows tool discovery included an extensionless shell entry point.'

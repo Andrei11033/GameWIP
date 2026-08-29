@@ -4,7 +4,11 @@ Set-StrictMode -Version Latest
 
 function Initialize-GameWipTestPresetBuild
 {
-    param([Parameter(Mandatory = $true)][string]$Name, [switch]$NoBuild)
+    param([Parameter(Mandatory = $true)][string]$Name, [switch]$NoBuild, [switch]$Fresh)
+    if ($NoBuild -and $Fresh)
+    {
+        throw '-Fresh cannot be combined with -NoBuild because a recreated preset must be configured and built.'
+    }
     $testFile = Join-Path $RepositoryRoot "build\$Name\CTestTestfile.cmake"
     if ($NoBuild)
     {
@@ -15,15 +19,15 @@ function Initialize-GameWipTestPresetBuild
         return
     }
 
-    Invoke-GameWipBuildPreset -Name $Name
+    Invoke-GameWipBuildPreset -Name $Name -Fresh:$Fresh
 }
 
 function Invoke-GameWipTestPreset
 {
-    param([Parameter(Mandatory = $true)][string]$Name, [switch]$UseWorkspaceTemp, [switch]$NoBuild)
+    param([Parameter(Mandatory = $true)][string]$Name, [switch]$UseWorkspaceTemp, [switch]$NoBuild, [switch]$Fresh)
     Assert-GameWipValidPreset -Kind 'test' -Name $Name
     Confirm-GameWipToolchain -PresetName $Name
-    Initialize-GameWipTestPresetBuild -Name $Name -NoBuild:$NoBuild
+    Initialize-GameWipTestPresetBuild -Name $Name -NoBuild:$NoBuild -Fresh:$Fresh
     Invoke-GameWipNative -Name "ctest-$Name" -FilePath 'ctest' -Arguments @('--preset', $Name, '--output-on-failure') -UseWorkspaceTemp:$UseWorkspaceTemp -PathPrefix (Get-GameWipToolchainPathPrefix $Name)
 }
 
