@@ -44,16 +44,14 @@ void testPresentationPublication(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("publication fixture opens", window.open(description, 4).ok()));
     if (!window.isOpen())
         return;
-    static_cast<void>(context.expectFalse(
-        "default Window has no presentation publication",
-        Desktop::Renderer::concurrentPresentationReadsEnabled(window)));
+    static_cast<void>(
+        context.expectFalse("default Window has no presentation publication", Desktop::Renderer::concurrentPresentationReadsEnabled(window)));
     static_cast<void>(context.expectEq(
         "default Window has no presentation storage",
         static_cast<const void *>(nullptr),
         Desktop::TestHooks::presentationPublicationStorage(window)));
-    static_cast<void>(context.expectFalse(
-        "publication does not allocate renderer integration",
-        Desktop::TestHooks::hasRendererIntegrationState(window)));
+    static_cast<void>(
+        context.expectFalse("publication does not allocate renderer integration", Desktop::TestHooks::hasRendererIntegrationState(window)));
 
     Desktop::TestHooks::applyPresentationPublicationSnapshot(window, first);
     static_cast<void>(context.expectEq("ordinary getter reads authoritative client size", first.clientSize, window.clientSize()));
@@ -79,16 +77,13 @@ void testPresentationPublication(TestSupport::Context &context)
     wrongThread.join();
     static_cast<void>(context.expectEq("wrong-thread enable is rejected", ErrorCode::ResourceBusy, wrongThreadCode));
 
-    static_cast<void>(context.expectTrue(
-        "owner enables concurrent presentation reads",
-        Desktop::Renderer::enableConcurrentPresentationReads(window).ok()));
+    static_cast<void>(
+        context.expectTrue("owner enables concurrent presentation reads", Desktop::Renderer::enableConcurrentPresentationReads(window).ok()));
     const void *publicationStorage = Desktop::TestHooks::presentationPublicationStorage(window);
     static_cast<void>(context.expectTrue("enabled presentation publication has storage", publicationStorage != nullptr));
     static_cast<void>(context.expectEq("enable immediately publishes client size", first.clientSize, window.clientSize()));
     static_cast<void>(context.expectEq("enable immediately publishes current monitor", first.monitor, window.currentMonitor()));
-    static_cast<void>(context.expectTrue(
-        "repeated enable succeeds",
-        Desktop::Renderer::enableConcurrentPresentationReads(window).ok()));
+    static_cast<void>(context.expectTrue("repeated enable succeeds", Desktop::Renderer::enableConcurrentPresentationReads(window).ok()));
     static_cast<void>(context.expectEq(
         "repeated enable preserves publication storage",
         publicationStorage,
@@ -157,19 +152,13 @@ void testPresentationPublication(TestSupport::Context &context)
     static_cast<void>(context.expectFalse("close clears visibility", window.visible()));
     static_cast<void>(context.expectFalse("close clears interactive state", window.interactiveMoveResizeActive()));
     static_cast<void>(context.expectFalse("close clears occlusion", window.occluded()));
-    static_cast<void>(context.expectTrue(
-        "close retains concurrent presentation enablement",
-        Desktop::Renderer::concurrentPresentationReadsEnabled(window)));
-    static_cast<void>(context.expectEq(
-        "close retains presentation allocation",
-        publicationStorage,
-        Desktop::TestHooks::presentationPublicationStorage(window)));
+    static_cast<void>(
+        context.expectTrue("close retains concurrent presentation enablement", Desktop::Renderer::concurrentPresentationReadsEnabled(window)));
+    static_cast<void>(
+        context.expectEq("close retains presentation allocation", publicationStorage, Desktop::TestHooks::presentationPublicationStorage(window)));
 
     Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::NativeCreation);
-    static_cast<void>(context.expectEq(
-        "failed reopen is reported",
-        ErrorCode::OpenFailed,
-        window.open(description, 4).code));
+    static_cast<void>(context.expectEq("failed reopen is reported", ErrorCode::OpenFailed, window.open(description, 4).code));
     static_cast<void>(context.expectEq("failed reopen exposes closed client size", Desktop::Types::LogicalSize{}, window.clientSize()));
     static_cast<void>(context.expectFalse("failed reopen exposes no candidate monitor", window.currentMonitor().isValid()));
     static_cast<void>(context.expectEq(
@@ -178,13 +167,10 @@ void testPresentationPublication(TestSupport::Context &context)
         Desktop::TestHooks::presentationPublicationStorage(window)));
 
     static_cast<void>(context.expectTrue("publication fixture reopens", window.open(description, 4).ok()));
-    static_cast<void>(context.expectTrue(
-        "reopen automatically retains concurrent reads",
-        Desktop::Renderer::concurrentPresentationReadsEnabled(window)));
-    static_cast<void>(context.expectEq(
-        "reopen reuses presentation allocation",
-        publicationStorage,
-        Desktop::TestHooks::presentationPublicationStorage(window)));
+    static_cast<void>(
+        context.expectTrue("reopen automatically retains concurrent reads", Desktop::Renderer::concurrentPresentationReadsEnabled(window)));
+    static_cast<void>(
+        context.expectEq("reopen reuses presentation allocation", publicationStorage, Desktop::TestHooks::presentationPublicationStorage(window)));
     static_cast<void>(context.expectTrue("reopen publishes a valid current monitor", window.currentMonitor().isValid()));
     static_cast<void>(context.expectFalse("reopen does not leak occlusion", window.occluded()));
     static_cast<void>(window.close());

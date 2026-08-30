@@ -600,7 +600,6 @@ namespace GameWIP::Terminal
     /// @brief Returns the terminal size for an output stream.
     [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::SizeResult getTerminalSize(Types::Output::Stream stream) noexcept;
 
-    /// @}
     // ------------------------------------------------------------
     // Output
     // ------------------------------------------------------------

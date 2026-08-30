@@ -9,8 +9,10 @@
 #include <string>
 #include <string_view>
 
+/// @brief Platform-neutral local path, file, directory, metadata, and locking primitives.
 namespace GameWIP::FileSystem
 {
+    /// @brief Passive FileSystem values, options, and results.
     namespace Types
     {
         /// @brief Project-wide filesystem path spelling.

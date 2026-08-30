@@ -16,6 +16,7 @@ namespace GameWIP::Terminal
 {
     namespace Types
     {
+        /// @brief Configuration retained by one persistent Terminal input session.
         struct SessionOptions
         {
             /// @brief Standard input stream owned by the session.
@@ -241,7 +242,6 @@ namespace GameWIP::Terminal
         struct State;
         std::unique_ptr<State> state_;
     };
-
 
     template <class... Args> IO::Types::Status Session::print(std::format_string<Args...> format, Args &&...args) noexcept
     {

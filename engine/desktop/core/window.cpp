@@ -567,8 +567,7 @@ namespace GameWIP::Desktop
     }
     Types::PresentationState Window::presentationState() const noexcept
     {
-        return presentationPublication_ ? presentationPublication_->presentation()
-                                        : state_ ? state_->presentation : Types::PresentationState::Normal;
+        return presentationPublication_ ? presentationPublication_->presentation() : state_ ? state_->presentation : Types::PresentationState::Normal;
     }
     Types::DecorationMode Window::decorationMode() const noexcept
     {
@@ -620,8 +619,7 @@ namespace GameWIP::Desktop
     }
     bool Window::interactiveMoveResizeActive() const noexcept
     {
-        return presentationPublication_ ? presentationPublication_->interactiveMoveResizeActive()
-                                        : state_ && state_->interactiveMoveResizeActive;
+        return presentationPublication_ ? presentationPublication_->interactiveMoveResizeActive() : state_ && state_->interactiveMoveResizeActive;
     }
     bool Window::minimized() const noexcept
     {

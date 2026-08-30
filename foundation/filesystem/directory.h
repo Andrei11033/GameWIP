@@ -159,6 +159,8 @@ namespace GameWIP::FileSystem
     /// @}
 
     // ------------------------------------------------------------
+    // Directory operations
+    // ------------------------------------------------------------
 
     /// @name Directory operations
     /// @{
@@ -180,8 +182,6 @@ namespace GameWIP::FileSystem
     /// @param options Filtering, symlink, hidden-entry, and entry-limit behavior.
     /// @return Collected child entries and final status.
     [[nodiscard]] Types::Directory::ListResult listDirectory(const Types::Path &path, const Types::Directory::ListOptions &options = {}) noexcept;
-
-    /// @}
 
     /// @brief Removes one empty directory.
     /// @param path Directory path to remove.

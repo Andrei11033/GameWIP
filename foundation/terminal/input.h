@@ -286,7 +286,6 @@ namespace GameWIP::Terminal
 
         } // namespace Input
 
-
         namespace Events
         {
             /// @brief One valid Unicode scalar reported as a logical terminal key.
@@ -477,7 +476,6 @@ namespace GameWIP::Terminal
                 return std::get_if<EventType>(&data);
             }
         };
-
 
         namespace Input
         {

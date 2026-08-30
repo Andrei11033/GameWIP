@@ -168,11 +168,7 @@ namespace GameWIP::Desktop::Detail
         void updateFlags(std::uint32_t mask, std::uint32_t value) noexcept
         {
             std::uint32_t current = flags_.load(std::memory_order_relaxed);
-            while (!flags_.compare_exchange_weak(
-                current,
-                (current & ~mask) | value,
-                std::memory_order_release,
-                std::memory_order_relaxed))
+            while (!flags_.compare_exchange_weak(current, (current & ~mask) | value, std::memory_order_release, std::memory_order_relaxed))
             {
             }
         }

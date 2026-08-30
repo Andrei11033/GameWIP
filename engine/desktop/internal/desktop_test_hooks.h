@@ -108,9 +108,7 @@ namespace GameWIP::Desktop::TestHooks
     [[nodiscard]] GAMEWIP_DESKTOP_EXPORT IO::Types::Status enqueue(Window &window, Types::Events::Payload data) noexcept;
     [[nodiscard]] GAMEWIP_DESKTOP_EXPORT IO::Types::Status requestClose(Window &window, Types::Events::CloseRequestSource source) noexcept;
     /// @brief Applies renderer-facing test state and mirrors it when concurrent reads are enabled.
-    GAMEWIP_DESKTOP_EXPORT void applyPresentationPublicationSnapshot(
-        Window &window,
-        const PresentationPublicationSnapshot &snapshot) noexcept;
+    GAMEWIP_DESKTOP_EXPORT void applyPresentationPublicationSnapshot(Window &window, const PresentationPublicationSnapshot &snapshot) noexcept;
     [[nodiscard]] GAMEWIP_DESKTOP_EXPORT IO::Types::Status destroyNativeWindow(Window &window) noexcept;
     [[nodiscard]] GAMEWIP_DESKTOP_EXPORT IO::Types::Status destroyNativeChildSurface(ChildSurface &surface) noexcept;
     GAMEWIP_DESKTOP_EXPORT void enablePointerHitMaskBridge(Window &window) noexcept;

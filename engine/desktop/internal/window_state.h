@@ -98,8 +98,8 @@ namespace GameWIP::Desktop::Detail
         bool visible = false;
         bool focused = false;
         bool interactiveMoveResizeActive = false;
-        RendererIntegrationState *rendererIntegration = nullptr;             ///< Optional lazy renderer bridge owned by Window.
-        PresentationPublicationState *presentationPublication = nullptr;     ///< Optional non-owning link to stable atomic publication.
+        RendererIntegrationState *rendererIntegration = nullptr;         ///< Optional lazy renderer bridge owned by Window.
+        PresentationPublicationState *presentationPublication = nullptr; ///< Optional non-owning link to stable atomic publication.
 
         bool cursorInside = false;
         bool resizable = true;

@@ -7,6 +7,9 @@
 #include <string>
 #include <string_view>
 
+/// @brief Platform-neutral byte-transfer contracts shared by low-level GameWIP libraries.
+/// @details IO defines portable status/result shapes and resource-agnostic transfer interfaces. It
+/// does not open operating-system resources or provide a platform backend.
 namespace GameWIP::IO
 {
 

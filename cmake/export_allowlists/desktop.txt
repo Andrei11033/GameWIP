@@ -64,7 +64,9 @@ GameWIP::Desktop::Native::Win32::getHandle
 GameWIP::Desktop::Renderer::attachOcclusionProvider
 GameWIP::Desktop::Renderer::beginPointerHitMaskUpdate
 GameWIP::Desktop::Renderer::clearPointerHitMask
+GameWIP::Desktop::Renderer::concurrentPresentationReadsEnabled
 GameWIP::Desktop::Renderer::detachOcclusionProvider
+GameWIP::Desktop::Renderer::enableConcurrentPresentationReads
 GameWIP::Desktop::Renderer::hasOcclusionProvider
 GameWIP::Desktop::Renderer::hasPointerHitMask
 GameWIP::Desktop::Renderer::publishPointerHitMask
@@ -108,6 +110,7 @@ GameWIP::Desktop::Window::cursorInside
 GameWIP::Desktop::Window::fileDropEnabled
 GameWIP::Desktop::Window::focusable
 GameWIP::Desktop::Window::focused
+GameWIP::Desktop::Window::interactiveMoveResizeActive
 GameWIP::Desktop::Window::maximized
 GameWIP::Desktop::Window::minimized
 GameWIP::Desktop::Window::occluded

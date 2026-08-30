@@ -5,8 +5,15 @@
 
 #include <cstdint>
 
-namespace GameWIP::Terminal::Types
+/// @brief Platform-neutral UTF-8 standard-stream I/O, styling, and terminal control primitives.
+/// @details The shared library owns process-wide stdin/stdout/stderr coordination. Checked Terminal operations translate
+/// expected owned allocation, formatting, conversion, and backend failures into IO statuses/results. Caller-owned argument
+/// construction that occurs before Terminal receives control remains outside that boundary.
+namespace GameWIP::Terminal
 {
+    /// @brief Terminal stream, styling, input, and result types.
+    namespace Types
+    {
         /// @brief What kind of native stream endpoint the terminal backend detected.
         enum class StreamKind
         {
@@ -32,4 +39,5 @@ namespace GameWIP::Terminal::Types
             /// @brief Height in rows.
             std::uint32_t rows = 0;
         };
-} // namespace GameWIP::Terminal::Types
+    } // namespace Types
+} // namespace GameWIP::Terminal
